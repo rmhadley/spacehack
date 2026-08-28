@@ -20,9 +20,10 @@ expands.
 ## Current implementation status
 
 The generic city pipeline is complete for the authored cities listed in Phase 6.
-The latest slice is Ross 154 c (Cinder), an authored 100x70 crater-bowl salvage
-bazaar selected by `ross_c_scrap_ring`. Its implementation uses the shared city
-kit and landmark pipeline rather than a planet-specific loader fork.
+Ross 154 c (Cinder) is complete. Vega b has a first implementation, but it is
+explicitly **not approved as final content and must be redone** before this
+city is considered complete. The next agent should treat the current Vega
+builder/assets as replaceable scaffolding, not as a design constraint.
 
 Ross c now has:
 
@@ -147,7 +148,7 @@ for future city migrations and playtests.
 - [x] Earth, Mercury, Mars, Epsilon Eridani b, Wolf 359 b, Cygni b,
   Barnard's Star b/c, Ross b/c, Tau Ceti b, Lalande b/c, Groombridge b,
   Indi b, and AC station are authored and migrated.
-- [x] Vega b — authored 140x90 Mirror Fields floating station: solar-reflector fields, shaded service spine, Cooling Works plaza, west landing apron, 3 buildings, 4 transit stops, 6 crew, and authored exteriors/interiors.
+- [ ] Vega b — **REDO REQUIRED**. The current Mirror Fields implementation is a rejected first pass; redesign the layout and content before marking this city complete.
 - [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus, Depot, and Blockade remain the next migration backlog.
 
 ## Acceptance criteria
@@ -160,22 +161,33 @@ for future city migrations and playtests.
 - Remaining unchecked Phase 6 cities are explicit backlog rather than silently
   falling through as finished content.
 
-## Vega b build record
+## Vega b build record — REDO REQUIRED
 
-- Replaced the 60x40 generic floating deck with a 140x90 authored station whose
-  identity comes from long solar-reflector rows, maintenance pylons, shaded
-  corridors, and a central Cooling Works plaza.
-- Added a broad west landing apron, a connected service spine, four named free
-  transit stops, six station crew NPCs, and three authored exterior/interior
-  landmark pairs while preserving the Cloud Host and Freight Broker overrides.
-- Added focused tests for mirror-field density, circulation reachability,
-  transit placement, NPC safety, smooth landing operations, showroom placement,
-  and interior spawn/exit completeness.
-- Full project verification passes: 1,464 tests, smoke, architecture, Ruff,
-  and main-quest validation.
+The current Vega b Mirror Fields implementation is preserved only as a
+technical reference and is rejected for presentation/design quality. Do not
+move this city to `complete` based on its passing automated tests.
+
+Handoff for the next implementation pass:
+
+- Revisit the concept, scale, spatial hierarchy, and visual composition before
+  editing code. The city should read immediately as a purposeful floating
+  observation/industrial station, not as repeated generic rows.
+- Reassess the civil-engineering plan: landing operations, primary routes,
+  reflector-field maintenance access, building placement, transit relationships,
+  and intentional empty space must be designed before stamping assets.
+- Rework or replace the Vega b builder, exteriors, interiors, NPC anchors, and
+  regression tests as needed. Existing identifiers and shared city helpers are
+  available for reuse but are not requirements to preserve if the redesign
+  needs different geometry.
+- Re-run the full city playtest and `make check` after the redesign. Keep this
+  status unchecked until the replacement receives explicit approval.
+
+The previous first pass did pass the automated gate, but that verification is
+not a quality approval and should not be cited as completion.
 
 ## Future work
 
-Continue Phase 6 with the remaining unchecked settlements, following the same
+Redo Vega b before starting another city. Once the replacement is approved,
+continue Phase 6 with the remaining unchecked settlements, following the same
 civil-engineering-first plan and adding focused geometry, reachability,
 transit, interior, NPC, landing-apron, glyph, and persistence tests for each.
