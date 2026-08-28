@@ -1183,3 +1183,73 @@ Implementation notes:
 7. Verify the city reads as thematically distinct, spatially plausible, and
    believable as a place built by people.
 8. Run `make check`.
+
+**Ross c scrap-ring plan**
+
+Concept decision (user-approved): Ross c is **Cinder, the Scrap Ring** — a
+salvage bazaar domed over a blast crater on a shattered moon. The user
+picked **crater geography as the signature**: the moon itself is the star,
+not the hulls or the bazaar (both still present, as secondary dressing).
+Scope grows from the 60×40 generic-grid placeholder to ~100×70, matching
+peer four-building cities; apron placement was delegated to the author.
+
+Civil-engineering plan (100×70):
+
+- **Crater-bowl geography.** The walkable floor is the crater floor. The
+  boundary is the crater rim itself: an irregular ring of impassable
+  rubble ridge whose radius wobbles (no drawn rectangle wall), with
+  shattered-moon badlands filling the map corners outside it. Two or
+  three rubble tongues slide from the rim into the floor, narrowing
+  passages and breaking pinwheel symmetry.
+- **Blast scarring.** The floor remembers the impact: radial gouges
+  radiating from the crater center, small slag-rimmed pock craters in
+  open ground, and a frozen melt pool. All scarring stays clear of
+  circulation lanes and building footprints.
+- **The sealed impact core.** The bazaar rings a glazed slag mound at the
+  (deliberately offset) crater center — impassable, with the bazaar ring
+  road wrapping it. The ring anchors the map and gives the crossroads a
+  reason to exist.
+- **The dome, implied.** Not drawn as a shell: dome anchor pylons stand
+  spaced along the rim, and the west rim is breached by the original
+  fortification wall's failure — now sealed as the airlock gate and
+  landing aperture. Rim reads as dome foundation, not arbitrary wall.
+- **Landing operations (west).** The apron sits at the west rim breach.
+  The spaceport hull stands just inside, door west onto the apron
+  forecourt. Smooth blank apron floor per the smooth-apron invariant.
+- **Circulation.** A dock street runs east from the apron/airlock to the
+  bazaar ring; the ring circles the slag mound; spokes reach each building
+  forecourt; a breaker loop branches northeast to service the hull yard.
+- **Buildings (4).** Spaceport northwest at the breach; The Long Burn bar
+  northeast; salvage brokers southwest; depot southeast — staggered
+  distances from the ring so the town does not read as a pinwheel.
+- **Ship-breaker yard (secondary, east/northeast).** Two or three
+  half-stripped navy hull fragments as terrain — partial frames with
+  gaps, torch gantries, part piles — inside the rim along the east, with
+  the three showroom ships parked in the yard.
+- **The bazaar (secondary).** Stall-and-crate rows on the ring road's
+  inner edge facing the mound; browsers wander the ring.
+- **Palette.** Retires the borrowed CLOUD_CITY cloud-blue: a new scrap-
+  ring theme in rust, gunmetal, oxidized copper, and sodium-arc orange,
+  so the ground reads as blast slag and compacted regolith.
+- **Transit (4 stops).** Airlock/spaceport stop beside the apron
+  forecourt; Long Burn stop at the bar forecourt; Ring Broker stop on the
+  merchants spoke; depot stop at the southeast spoke. All beside-
+  sidewalk, door-side, never on lanes or pads.
+- **Population (~10).** Yard cutters, bazaar browsers, a dome tender
+  walking the rim road, pad crew at the breach, a bar regular. Zero
+  hostiles.
+- **Interiors (4).** Authored exteriors + interiors for the spaceport,
+  The Long Burn, the brokers hall, and the depot, each spawn just inside
+  the entrance door per the city-wide door-side spawn convention.
+
+Implementation notes:
+
+- Layout id `ross_c_scrap_ring`; builder module `ross_c_city.py` built on
+  the shared `city_kit`/`city_layout` machinery; asset prefix `ross_c_`.
+- New `SCRAP_RING` theme added to `themes.py`; the ross_c spec drops
+  CLOUD_CITY.
+- Custom tile kinds (slag, rubble ridge) are additive and never overwrite
+  public route kinds. Regression coverage mirrors the Barnard c suite:
+  crater identity (rim impassability, badlands, smooth apron), ring and
+  spoke reachability from the hangar anchor, transit placement, interior
+  spawn/exit completeness, population safety, determinism.
