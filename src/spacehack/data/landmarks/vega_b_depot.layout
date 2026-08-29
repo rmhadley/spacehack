@@ -1,4 +1,4 @@
-# Vega b merchants — freight exchange hall
+# Vega b depot — freight lockers and the loadmaster's desk
 MAP
 #############
 #===========#
@@ -13,6 +13,6 @@ ENDMAP
 TILE: # = CITY_BUILDING_WALL
 TILE: = = CITY_BUILDING_ROOF
 TILE: + = CITY_BUILDING_DOOR
-COLOUR: # = (88, 108, 126) / (34, 44, 56)
-COLOUR: = = (156, 190, 208) / (48, 66, 78)
-COLOUR: + = (210, 230, 240) / (42, 62, 74)
+COLOUR: # = (96, 108, 122) / (38, 46, 56)
+COLOUR: = = (178, 198, 214) / (52, 66, 78)
+COLOUR: + = (255, 214, 130) / (46, 56, 66)

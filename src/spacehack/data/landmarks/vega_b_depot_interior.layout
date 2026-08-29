@@ -1,0 +1,19 @@
+# Vega b depot interior — the loadmaster's freight cage
+MAP
+##############
+#............#
+#..P.........#
+#..#####.....#
+#..#...#.....#
+#..#...#.....#
+#..#...#.....#
+#..#####.....#
+#............#
+#......+..>..#
+##############
+ENDMAP
+
+TILE: # = WALL
+TILE: . = FLOOR
+TILE: + = CITY_BUILDING_DOOR
+TILE: > = EXIT

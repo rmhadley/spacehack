@@ -1,19 +1,27 @@
-"""Vega b — a massive gas giant with a floating observation station.
+"""Vega b — The Beacon, a floating power-and-observation station.
 
-Not a planetary surface — the player "lands" on an orbital platform
-suspended in the upper atmosphere. Cool blues, silver trims, and
+Not a planetary surface — the player "lands" on a platform suspended
+in the upper atmosphere of a massive gas giant. A fan of reflector
+panels concentrates Vega's light onto a collector tower; the inhabited
+deck grew around that industrial core. Cool blues, silver trims, and
 wide observation windows looking down into the swirling cloud bands.
 
-Layout (140x90):
+Layout (140x90), authored as `vega_beacon_station`:
 
-  * spaceport (arrival deck), NW corner.
-  * bar (observation lounge), NE corner — "The Veil" — floor-to-ceiling
-    windows overlooking the gas giant's cloudscape.
-  * merchants, SW corner — the hub's trade hall.
+  * The Focus — the central hub where the four arms overlap, carrying
+    the station's navigation beacon.
+  * spaceport (arrival deck), north arm — door south onto the apron.
+  * The Veil (bar, observation lounge), west arm — door south onto
+    the arm, beyond it the railed observation deck over the clouds.
+  * merchants + depot (Freight Exchange), south arm — flanking a
+    central corridor, doors south onto the exchange plaza.
+  * The reflector fan fills the widening east arm; the lanes between
+    the mirror rays are the field's maintenance access.
 
 NPC overrides: the barkeep becomes the "Cloud Host" — a sleek,
-welcoming figure who knows the gossip of the deep-space routes —
-and the guild master becomes the "Freight Broker".
+welcoming figure who knows the gossip of the deep-space routes — the
+guild master becomes the "Freight Broker", and the depot attendant
+becomes the "Loadmaster".
 """
 from __future__ import annotations
 
@@ -30,53 +38,65 @@ SPEC = PlanetSpec(
     name="Vega b",
     char="P",
     fg=(200, 200, 220),
-    description="A massive gas giant - its upper atmosphere hosts a floating observation deck.",
+    description=(
+        "A massive gas giant - its upper atmosphere hosts a floating "
+        "power-and-observation station."
+    ),
     width=140,
     height=90,
-    hangar_anchor=world.Position(20, 31),
+    hangar_anchor=world.Position(70, 13),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=10, x_hi=29, y_lo=18, y_hi=27,
-            door_x=20, npc_id="",
+            label="spaceport", x_lo=58, x_hi=82, y_lo=4, y_hi=8,
+            door_x=70, npc_id="",
         ),
         world.CityBuilding(
-            label="bar", x_lo=94, x_hi=101, y_lo=18, y_hi=23,
-            door_x=97, npc_id="barkeep",
+            label="bar", x_lo=26, x_hi=44, y_lo=38, y_hi=46,
+            door_x=35, npc_id="barkeep",
         ),
         world.CityBuilding(
-            label="merchants", x_lo=94, x_hi=114, y_lo=62, y_hi=71,
-            door_x=104, npc_id="guild_master",
-            door_north=True,
+            label="merchants", x_lo=56, x_hi=68, y_lo=62, y_hi=69,
+            door_x=62, npc_id="guild_master",
+        ),
+        world.CityBuilding(
+            label="depot", x_lo=72, x_hi=84, y_lo=62, y_hi=69,
+            door_x=78, npc_id="depot_attendant",
         ),
     ),
-    city_layout_id="vega_mirror_fields",
+    city_layout_id="vega_beacon_station",
     city_npc_population=VEGA_B_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Spaceport", district="arrival deck",
-            pos=world.Position(31, 31),
-            destinations=("parallax", "exchange", "cooling_works"),
+            id="spaceport", name="Spaceport", district="landing deck",
+            pos=world.Position(70, 19),
+            destinations=("focus", "veil", "exchange", "reflectors"),
         ),
         world.TransitStation(
-            id="parallax", name="The Parallax", district="observation lounge",
-            pos=world.Position(94, 29),
-            destinations=("spaceport", "exchange", "cooling_works"),
+            id="focus", name="The Focus", district="central hub",
+            pos=world.Position(70, 52),
+            destinations=("spaceport", "veil", "exchange", "reflectors"),
         ),
         world.TransitStation(
-            id="exchange", name="Merchant Exchange", district="freight field",
-            pos=world.Position(104, 59),
-            destinations=("spaceport", "parallax", "cooling_works"),
+            id="veil", name="The Veil", district="observation deck",
+            pos=world.Position(35, 49),
+            destinations=("spaceport", "focus", "exchange", "reflectors"),
         ),
         world.TransitStation(
-            id="cooling_works", name="Cooling Works", district="central spine",
-            pos=world.Position(67, 48),
-            destinations=("spaceport", "parallax", "exchange"),
+            id="exchange", name="Freight Exchange", district="exchange plaza",
+            pos=world.Position(70, 73),
+            destinations=("spaceport", "focus", "veil", "reflectors"),
+        ),
+        world.TransitStation(
+            id="reflectors", name="Reflector Field", district="collector deck",
+            pos=world.Position(95, 43),
+            destinations=("spaceport", "focus", "veil", "exchange"),
         ),
     ),
     interior_layouts=(
         ("spaceport", "vega_b_spaceport_interior"),
         ("bar", "vega_b_bar_interior"),
         ("merchants", "vega_b_merchants_interior"),
+        ("depot", "vega_b_depot_interior"),
     ),
     showroom_ships=(
         ("cruiser", -5, -2),
@@ -109,6 +129,21 @@ SPEC = PlanetSpec(
                     "Every route in the sector threads through Vega. "
                     "You haul cargo between the lanes, I find you "
                     "a buyer at the other end."
+                ),
+            ),
+        ),
+        (
+            "depot_attendant",
+            npc_module.NPC(
+                id="depot_attendant",
+                name="Loadmaster",
+                guild="depot",
+                char="d",
+                fg=(230, 200, 140),
+                flavor_text=(
+                    "Every crate that crosses the sector stops here once. "
+                    "If it's freight, I know where it's going - "
+                    "and what it's worth."
                 ),
             ),
         ),

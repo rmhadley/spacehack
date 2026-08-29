@@ -36,7 +36,7 @@ _LAYOUTS: dict[str, tuple[str, str]] = {
     "lalc_container_maze":     ("lalc_city",              "build_lalc_layout"),
     "barnards_c_atmo_deck":   ("barnards_c_city",       "build_barnards_c_layout"),
     "ross_c_scrap_ring":      ("ross_c_city",            "build_ross_c_layout"),
-    "vega_mirror_fields":      ("vega_b_city",            "build_vega_b_layout"),
+    "vega_beacon_station":    ("vega_b_city",            "build_vega_b_layout"),
 }
 
 

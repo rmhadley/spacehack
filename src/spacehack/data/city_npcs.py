@@ -286,12 +286,22 @@ BARNARDS_C_POPULATION: tuple[CityNpc, ...] = (
 
 
 VEGA_B_POPULATION: tuple[CityNpc, ...] = (
-    CityNpc("vega_reflector_tech_a", "civillian_bystander", (42, 44), wander_radius=80, move_chance=0.9),
-    CityNpc("vega_reflector_tech_b", "civillian_bystander", (78, 44), wander_radius=80, move_chance=0.85),
-    CityNpc("vega_freight_handler", "civillian_bystander", (86, 59), wander_radius=70, move_chance=0.85),
-    CityNpc("vega_cloud_host_regular", "civillian_bystander", (88, 29), wander_radius=60, move_chance=0.8),
-    CityNpc("vega_array_security", "militia_trooper", (52, 45), wander_radius=70, move_chance=0.8),
-    CityNpc("vega_pad_crew", "civillian_bystander", (24, 35), wander_radius=50, move_chance=0.8),
+    # Pad crew working the landing-deck apron.
+    CityNpc("vega_pad_crew", "civillian_bystander", (62, 14), wander_radius=6, move_chance=0.8),
+    CityNpc("vega_pad_crew_b", "civillian_bystander", (78, 15), wander_radius=6, move_chance=0.8),
+    # Reflector techs walking the maintenance lanes between the fan's rays.
+    CityNpc("vega_reflector_tech_a", "civillian_bystander", (95, 39), wander_radius=8, move_chance=0.85),
+    CityNpc("vega_reflector_tech_b", "civillian_bystander", (108, 50), wander_radius=8, move_chance=0.85),
+    # Freight handlers crossing the exchange plaza.
+    CityNpc("vega_freight_handler", "civillian_bystander", (60, 74), wander_radius=6, move_chance=0.85),
+    CityNpc("vega_freight_handler_b", "civillian_bystander", (79, 74), wander_radius=6, move_chance=0.85),
+    # Regulars drifting between The Veil and the observation deck.
+    CityNpc("vega_cloud_host_regular", "civillian_bystander", (38, 48), wander_radius=5, move_chance=0.8),
+    CityNpc("vega_cloud_regular_b", "civillian_bystander", (47, 50), wander_radius=5, move_chance=0.8),
+    # Station security walking the Focus hub.
+    CityNpc("vega_array_security", "militia_trooper", (66, 40), wander_radius=10, move_chance=0.85),
+    # A station hand on the freight arm.
+    CityNpc("vega_station_hand", "civillian_bystander", (76, 60), wander_radius=8, move_chance=0.8),
 )
 
 

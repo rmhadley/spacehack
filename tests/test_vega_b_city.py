@@ -1,4 +1,4 @@
-"""Regression coverage for Vega b's authored Mirror Fields city."""
+"""Regression coverage for Vega b's authored Beacon floating station."""
 
 from __future__ import annotations
 
@@ -24,21 +24,44 @@ def _reachable(game_map, start):
     return seen
 
 
-def test_vega_b_is_the_authored_mirror_fields_station():
+def test_vega_b_is_the_authored_beacon_station():
     game_map = load_planet("vega_b")
-    assert game_map.city_layout_id == "vega_mirror_fields"
+    assert game_map.city_layout_id == "vega_beacon_station"
     assert (game_map.width, game_map.height) == (140, 90)
-    assert len(game_map.landmark_stamps) == 3
-    assert sum(tile.kind == "solar_mirror" for row in game_map.tiles for tile in row) > 500
-    assert sum(tile.kind == "cooling_works" for row in game_map.tiles for tile in row) == 3
+    assert len(game_map.landmark_stamps) == 4
+    # The station floats in the cloud deck: most of the map is open
+    # atmosphere, and the platform is the walkable cross.
+    cloud = sum(
+        tile.kind == "cloud_deck" for row in game_map.tiles for tile in row
+    )
+    assert cloud > 4000
+    assert all(
+        not tile.walkable
+        for row in game_map.tiles for tile in row
+        if tile.kind == "cloud_deck"
+    )
+    # The reflector fan is the signature: seven mirror rays converge on
+    # the collector tower.
+    mirrors = sum(
+        tile.kind == "solar_mirror" for row in game_map.tiles for tile in row
+    )
+    assert mirrors > 150
+    assert sum(
+        tile.kind == "collector_tower" for row in game_map.tiles for tile in row
+    ) == 25
+    # The Focus hub carries the navigation beacon.
+    assert game_map.tiles[45][70].kind == "beacon"
+    assert game_map.tiles[45][70].char == "!"
 
 
 def test_vega_b_buildings_transit_and_npcs_are_reachable():
     game_map = load_planet("vega_b")
     spec = find_planet_spec("vega_b")
     reachable = _reachable(game_map, spec.hangar_anchor)
-    assert set(game_map.city_transit) == {"spaceport", "parallax", "exchange", "cooling_works"}
-    assert len(spec.city_npc_population) == 6
+    assert set(game_map.city_transit) == {
+        "spaceport", "focus", "veil", "exchange", "reflectors",
+    }
+    assert len(spec.city_npc_population) == 10
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
         x, y = record["entrance"]
@@ -69,8 +92,35 @@ def test_vega_b_landing_apron_is_smooth_and_showroom_is_clear():
     } == {" "}
 
 
+def test_vega_b_reflector_field_keeps_walkable_maintenance_lanes():
+    """The lanes between the mirror rays are the field's maintenance
+    access: every lane cell is walkable and reaches the hub."""
+    game_map = load_planet("vega_b")
+    spec = find_planet_spec("vega_b")
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    mirrors = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "solar_mirror"
+    }
+    # The reflector stop sits inside a lane between rays.
+    stop = game_map.city_transit["reflectors"]["pos"]
+    assert stop in reachable
+    # A sample of the deck between the rays stays walkable and connected.
+    for point in ((95, 39), (108, 50), (100, 46), (115, 48), (100, 43), (95, 43)):
+        assert game_map.tiles[point[1]][point[0]].walkable, point
+        assert point in reachable, point
+    assert all(
+        game_map.tiles[y][x].walkable for x, y in mirrors
+    )
+
+
 def test_vega_b_authored_interiors_have_spawn_and_exit():
     game_map = load_planet("vega_b")
+    assert set(game_map.city_buildings) == {
+        "spaceport", "bar", "merchants", "depot",
+    }
     for label, record in game_map.city_buildings.items():
         asset = city_landmarks.load_city_interior(record["interior_layout_id"])
         assert asset.spawn is not None, label

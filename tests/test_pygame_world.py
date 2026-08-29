@@ -122,7 +122,7 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
-            smooth_apron_cities = {"ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c", "vega_b"}
+            smooth_apron_cities = {"earth", "ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c", "vega_b"}
             expected_char = " " if spec.id in smooth_apron_cities else "."
             assert pad_tiles[0].char == expected_char
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
@@ -257,6 +257,7 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
     )
 
     assert tile.kind == "landing_pad"
+    assert tile.char == " "
     from src.spacehack.data.planets import _readable_city_bg
 
     assert tile.bg == _readable_city_bg(world.LANDING_PAD.bg)
