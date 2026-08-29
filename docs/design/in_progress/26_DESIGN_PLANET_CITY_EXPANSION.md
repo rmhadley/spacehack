@@ -270,6 +270,16 @@ Design notes from the implementation pass:
 - The transit bay tile and the mirror glyphs are CP437-safe; the
   city-wide glyph sweep and the smooth-apron regression both pass.
 
+The four building interiors were also reworked to the shared
+authored-room conventions: `CITY_BUILDING_WALL`/`CITY_BUILDING_FLOOR`,
+furniture tiles (`TABLE`, `BAR_BODY`, `DRINK`, `CITY_ORNAMENT`) with
+colour directives, and spawn/exit adjacent at the door side. The old
+merchants hall trapped the Freight Broker inside a sealed wall box;
+the replacement exchange floor seats her on open floor, and the depot
+gives the loadmaster a U-shaped cage open at the bottom. A regression
+test now asserts spawn/exit adjacency, furniture presence, and that
+every service NPC seats on a walkable, spawn-reachable cell.
+
 Remaining: a real city playtest (walk all four arms, ride the transit,
 enter all four interiors, save/quit/continue) before this city can be
 marked approved.

@@ -1,20 +1,28 @@
-# Vega b spaceport interior
+# Vega b spaceport interior — arrival hall with the check-in console bank
 MAP
 ########################
+#..o..............o....#
+#..cccccccccc..........#
+#..c..........c........#
+#..c...o......c........#
+#..cccccccccc..........#
 #......................#
-#..P....====....====...#
+#..o..............o....#
 #......................#
-#....##########........#
-#....#........#........#
-#....#........#........#
-#....#........#........#
-#....##########...+>...#
-#......................#
+#...........P..........#
+#...........>..........#
 ########################
 ENDMAP
 
-TILE: # = WALL
-TILE: . = FLOOR
-TILE: + = CITY_BUILDING_DOOR
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
 TILE: > = EXIT
-TILE: = = FLOOR
+COLOUR: # = (90, 112, 136) / (32, 44, 58)
+COLOUR: . = (150, 190, 220) / (48, 70, 88)
+COLOUR: c = (206, 172, 116) / (68, 50, 34)
+COLOUR: o = (110, 210, 220) / (34, 52, 56)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

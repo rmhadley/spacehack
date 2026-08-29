@@ -125,3 +125,43 @@ def test_vega_b_authored_interiors_have_spawn_and_exit():
         asset = city_landmarks.load_city_interior(record["interior_layout_id"])
         assert asset.spawn is not None, label
         assert any(tile.kind == "exit" for row in asset.game_map.tiles for tile in row), label
+
+
+def test_vega_b_interiors_follow_authored_conventions():
+    """Every Vega b interior uses the shared authored-room conventions:
+    spawn and exit are adjacent at the door side, the room is furnished
+    with real decor tiles (no invisible floor blocks), and each service
+    NPC seats on a walkable cell reachable from the spawn (regression:
+    the old merchants hall trapped the Freight Broker inside a sealed
+    wall box)."""
+    from src.spacehack import city_interiors
+
+    game_map = load_planet("vega_b")
+    furniture_kinds = {"table", "bar_body", "drink", "city_ornament"}
+    for label, record in game_map.city_buildings.items():
+        asset = city_landmarks.load_city_interior(record["interior_layout_id"])
+        interior = asset.game_map
+        spawn = asset.spawn
+        # Spawn and exit sit one cell apart at the door side.
+        exits = [
+            (x, y)
+            for y, row in enumerate(interior.tiles)
+            for x, tile in enumerate(row)
+            if tile.kind == "exit"
+        ]
+        assert len(exits) == 1, label
+        exit_x, exit_y = exits[0]
+        assert (exit_x, exit_y) == (spawn.x, spawn.y + 1), label
+        # The room is furnished, not bare floor.
+        assert any(
+            tile.kind in furniture_kinds
+            for row in interior.tiles for tile in row
+        ), label
+        # The resident NPC (if any) seats on a walkable, reachable cell.
+        if not record.get("npc_id"):
+            continue
+        seat = city_interiors._first_interior_npc(interior, spawn)
+        assert seat is not None, label
+        assert interior.tiles[seat.y][seat.x].walkable, label
+        reachable = _reachable(interior, spawn)
+        assert (seat.x, seat.y) in reachable, label
