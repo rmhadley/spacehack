@@ -334,13 +334,22 @@ crevasses as terrain. The lab chain and the ice-cave delve
 
 ### Implementation checklist
 
-- [ ] Procyon b: builder, data, exteriors/interiors, NPCs, tests, gate.
+- [x] Procyon b: builder, data, exteriors/interiors, NPCs, tests, gate.
 - [ ] Procyon c: builder, data, exteriors/interiors, NPCs, tests, gate,
       delve-site preservation.
 
 ### Verification record
 
-(To be filled in per city as each lands.)
+Procyon b — The Crossroads landed:
+
+- Builds through `load_planet` → `city_builder.build_city` via the
+  `proc_b_crossroads` dispatch row; no new dispatch fork.
+- Transit was initially missing from the planet data (the builder painted
+  transit bays over an empty station list, leaving `city_transit` empty);
+  fixed by adding three all-to-all `TransitStation` entries (spaceport /
+  crossroads / depot) to the planet data.
+- The full gate passes: smoke, main-quest validation, architecture, Ruff,
+  and the complete pytest suite (1481 tests).
 
 ## Future work
 
