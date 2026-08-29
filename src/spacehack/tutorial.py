@@ -81,15 +81,17 @@ _STEP_BODIES: dict[str, str] = {
         "Move with ARROW KEYS, vim keys (h/j/k/l), or the numpad - "
         "diagonals use y/u/b/n. '?' opens the game guide at any time, "
         "and ESC quits to the title (the game autosaves).\n\n"
-        "Your first job: the Bounty Master (D) in the guild hall "
-        "southeast of the plaza."
+        "Your first job is the Bounty Master (D). From the central "
+        "square and fountain, bump the nearby transit terminal (◉) and "
+        "ride to the Bounty Guild."
     ),
     "first_move": (
-        "The city is your home base: space port (NW), merchant guild "
-        "(SW), bar (plaza), militia + bounty guild (SE).\n\n"
-        "Walk into the bounty guild hall and bump the Bounty Master (D) "
-        "to talk. Choose 'Find work' to see contracts - there's one "
-        "waiting for you."
+        "The central square and fountain are your navigation anchor. "
+        "Bump the nearby transit terminal (◉) and choose Bounty Guild "
+        "to ride there.\n\n"
+        "At the guild, walk inside and bump the Bounty Master (D) to "
+        "talk. Choose 'Find work' to see contracts - there's one waiting "
+        "for you."
     ),
     "accepted_crimson": (
         "Wanted: Crimson Jack - a pirate scout in Sol, near Mercury. "
@@ -103,8 +105,9 @@ _STEP_BODIES: dict[str, str] = {
     ),
     "equipped_loadout": (
         "Nice loadout - two lasers and a shield generator. Your ship is "
-        "docked at the space port.\n\n"
-        "Walk up to it and bump it, then choose Launch to lift off."
+        "docked at the space port and marked with the ship icon (t).\n\n"
+        "Walk up to the ship icon and bump it, then choose Launch to lift "
+        "off."
     ),
     "launched": (
         "You're in space around Sol. The bounty target message is in "
@@ -190,7 +193,7 @@ _STEP_BODIES: dict[str, str] = {
         "That's the tutorial! You know the core loop: take missions, "
         "equip, fight, loot, jump, explore.\n\n"
         "A few parting tips: trade goods between planets for profit "
-        "('I' opens cargo), visit the other guilds for different work, "
+        "('C' → Cargo opens your hold), visit the other guilds for different work, "
         "and '?' is always there for details. Death is permanent in "
         "this game - fly smart.\n\n"
         "Good hunting, pilot."

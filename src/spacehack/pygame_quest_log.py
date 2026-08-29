@@ -170,13 +170,39 @@ def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: i
     return pygame.font.Font(path, 12)
 
 
+def _draw_quest_scrollbar(
+    pygame: Any, screen: Any, frame: QuestFrame, content: pygame_ui.Rect,
+    visible_count: int,
+) -> None:
+    """Draw a proportional scrollbar when the quest log exceeds its viewport."""
+    total = len(frame.rows)
+    if total <= visible_count:
+        return
+    track_x = content.x + content.width - 10
+    track_y = content.y
+    track_height = max(20, content.height)
+    pygame.draw.rect(
+        screen, pygame_ui.DEFAULT_PALETTE.border,
+        pygame.Rect(track_x, track_y, 6, track_height), border_radius=3,
+    )
+    thumb_height = max(14, track_height * visible_count // total)
+    thumb_y = track_y + (track_height - thumb_height) * frame.selected // max(1, total - visible_count)
+    pygame.draw.rect(
+        screen, pygame_ui.DEFAULT_PALETTE.selected_border,
+        pygame.Rect(track_x, thumb_y, 6, thumb_height), border_radius=3,
+    )
+
+
 def _draw_captured_rows(
     pygame: Any, screen: Any, font: Any, frame: QuestFrame, content: pygame_ui.Rect,
 ) -> None:
     """Paint captured row spans inside the clipped content region."""
+    visible_count = max(1, content.height // font.get_linesize())
+    _draw_quest_scrollbar(pygame, screen, frame, content, visible_count)
     screen.set_clip(pygame.Rect(content.x, content.y, content.width, content.height))
     try:
-        for row_index, row in enumerate(frame.rows):
+        start = max(0, min(len(frame.rows) - visible_count, frame.selected))
+        for row_index, row in enumerate(frame.rows[start:start + visible_count]):
             x = content.x
             y = content.y + row_index * font.get_linesize()
             for span in row:
