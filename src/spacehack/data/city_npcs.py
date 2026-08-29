@@ -361,4 +361,40 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION"]
+PROC_C_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the west apron.
+    CityNpc("procc_pad_crew_a", "civillian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
+    CityNpc("procc_pad_crew_b", "civillian_bystander", (26, 22), wander_radius=6, move_chance=0.8),
+    # Researchers crossing the quad between buildings.
+    CityNpc("procc_researcher_a", "civillian_bystander", (66, 48), wander_radius=8, move_chance=0.85),
+    CityNpc("procc_researcher_b", "civillian_bystander", (84, 48), wander_radius=8, move_chance=0.85),
+    # Drill crew tending the rig near the lab terrace.
+    CityNpc("procc_drill_crew", "civillian_bystander", (94, 26), wander_radius=8, move_chance=0.85),
+    # A caretaker walking the frozen channel bank.
+    CityNpc("procc_channel_caretaker", "civillian_bystander", (70, 84), wander_radius=8, move_chance=0.85),
+    # A regular loitering near the mess hall.
+    CityNpc("procc_mess_regular", "civillian_bystander", (48, 66), wander_radius=5, move_chance=0.8),
+    # One campus marshal patrolling the quad.
+    CityNpc("procc_campus_marshal", "militia_trooper", (70, 40), wander_radius=12, move_chance=0.85),
+)
+
+PROC_C_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the apron west of the spaceport.
+    CityNpc("procc_pad_crew_a", "civillian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
+    CityNpc("procc_pad_crew_b", "civillian_bystander", (28, 20), wander_radius=6, move_chance=0.8),
+    # Researchers crossing the quad between the lab and the mess.
+    CityNpc("procc_researcher_a", "civillian_bystander", (70, 48), wander_radius=8, move_chance=0.85),
+    CityNpc("procc_researcher_b", "civillian_bystander", (82, 50), wander_radius=8, move_chance=0.85),
+    # Drill crew staging gear near the lab terrace.
+    CityNpc("procc_drill_crew", "civillian_bystander", (94, 26), wander_radius=8, move_chance=0.85),
+    # A caretaker walking the frozen channel bank.
+    CityNpc("procc_channel_caretaker", "civillian_bystander", (70, 84), wander_radius=8, move_chance=0.85),
+    # A regular loitering outside the mess hall.
+    CityNpc("procc_mess_regular", "civillian_bystander", (48, 66), wander_radius=5, move_chance=0.8),
+    # One campus marshal patrolling the quad.
+    CityNpc("procc_campus_marshal", "militia_trooper", (70, 40), wander_radius=12, move_chance=0.85),
+    # A science scout camped at the cave mouth — the delve's doorman.
+    CityNpc("procc_cave_scout", "civillian_bystander", (124, 28), wander_radius=3, move_chance=0.6),
+)
+
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION"]

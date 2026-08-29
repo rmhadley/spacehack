@@ -1,24 +1,31 @@
-"""Procyon c — a cold icy body on the outer edge of the Procyon system.
+"""Procyon c — Ice Campus: the research campus carved into the ice sheet.
 
-A small research outpost drills through kilometres of ice to study
-the ancient core samples. The station is cramped, quiet, and always
-cold. Tunnels connect a small landing bay to a research lab staffed
-by a lone science officer.
+A cold icy body on the outer edge of the Procyon system. The cramped
+40x24 outpost grew into a proper campus: four buildings sunk into a
+sheltered trench of the ice sheet around a snow-packed quad, a frozen
+meltwater channel running past it, and — the signature — the mouth of
+the ice caves opening at the city's east edge. The caves beneath are
+the lab chain's delve site; the lab stands closest to their mouth.
 
-Layout (40x24, compact like the Science Port):
+Layout (140x100), authored as `proc_c_ice_campus`:
 
-  * spaceport, NW corner.
-  * lab, NE corner — research officer studies ice-core samples.
+  * spaceport NW — door south onto the landing apron.
+  * lab NE — door south onto the lab terrace, closest to the caves.
+  * mess hall + supply depot south of the quad, doors north.
+  * The Quad — central plaza with the campus beacon.
+  * Frozen channel (walkable ice) + one bridge; sastrugi ridges
+    texture the open ice; CAVE MOUTH at the east edge.
 
-No NPC overrides — reuses the global ``research_officer`` catalog
-entry (the same officer type as the Alpha Centauri Science Port,
-but with the frozen-outpost context).
+NPCs: the research officer stays in the lab (global catalog entry);
+ambient campus staff walk the quad and terraces (PROC_C_POPULATION).
 """
 from __future__ import annotations
 
 from ... import world
+from ...data import npcs as npc_module
 from ...dungeon import DungeonParams
 from . import PlanetSpec
+from ..city_npcs import PROC_C_POPULATION
 from .themes import ICE
 
 
@@ -28,27 +35,105 @@ SPEC = PlanetSpec(
     name="Procyon c",
     char="P",
     fg=(190, 200, 215),
-    description="An icy body on Procyon's outer reach - a quiet research outpost.",
-    width=40,
-    height=24,
-    hangar_anchor=world.Position(7, 14),
+    description="An icy body on Procyon's outer reach - a research campus carved into the ice.",
+    width=140,
+    height=100,
+    hangar_anchor=world.Position(20, 24),
     buildings=(
         world.CityBuilding(
-            label="spaceport",
-            x_lo=2,  x_hi=15, y_lo=2,  y_hi=10,
-            door_x=8, npc_id="",
+            label="spaceport", x_lo=6, x_hi=30, y_lo=6, y_hi=16,
+            door_x=18, npc_id="",
         ),
         world.CityBuilding(
-            label="lab",
-            x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
-            door_x=29, npc_id="research_officer",
+            label="lab", x_lo=98, x_hi=122, y_lo=10, y_hi=20,
+            door_x=110, npc_id="research_officer",
+        ),
+        world.CityBuilding(
+            label="mess", x_lo=34, x_hi=56, y_lo=72, y_hi=82,
+            door_x=45, npc_id="cook", door_north=True,
+        ),
+        world.CityBuilding(
+            label="depot", x_lo=92, x_hi=114, y_lo=72, y_hi=82,
+            door_x=103, npc_id="depot_attendant", door_north=True,
         ),
     ),
-    showroom_ships=(
-        ("scout",   3, 2),
-        ("cruiser", 11, 4),
+    city_layout_id="proc_c_ice_campus",
+    city_npc_population=PROC_C_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="landing apron",
+            pos=world.Position(20, 22),
+            destinations=("quad", "lab", "caves"),
+        ),
+        world.TransitStation(
+            id="quad", name="The Quad", district="campus center",
+            pos=world.Position(75, 52),
+            destinations=("spaceport", "lab", "mess", "depot"),
+        ),
+        world.TransitStation(
+            id="lab", name="Research Lab", district="lab terrace",
+            pos=world.Position(110, 26),
+            destinations=("spaceport", "quad", "caves"),
+        ),
+        world.TransitStation(
+            id="mess", name="Mess Hall", district="south campus",
+            pos=world.Position(45, 66),
+            destinations=("quad", "depot"),
+        ),
+        world.TransitStation(
+            id="depot", name="Supply Depot", district="south campus",
+            pos=world.Position(103, 66),
+            destinations=("quad", "mess"),
+        ),
+        world.TransitStation(
+            id="caves", name="Cave Mouth", district="east ice",
+            pos=world.Position(114, 20),
+            destinations=("quad", "lab", "spaceport"),
+        ),
     ),
-    npc_overrides=(),
+    interior_layouts=(
+        ("spaceport", "proc_c_spaceport_interior"),
+        ("lab", "proc_c_lab_interior"),
+        ("mess", "proc_c_mess_interior"),
+        ("depot", "proc_c_depot_interior"),
+    ),
+    showroom_ships=(
+        ("scout", -6, -2),
+        ("cruiser", 0, -2),
+        ("freighter", 6, -2),
+    ),
+    npc_overrides=(
+        (
+            "cook",
+            npc_module.NPC(
+                id="cook",
+                name="Campus Cook",
+                guild="mess",
+                char="c",
+                fg=(240, 200, 150),
+                flavor_text=(
+                    "Hot chowder at every shift change. On this rock "
+                    "the kitchen is the warmest place for fifty "
+                    "kilometres - eat while it's hot."
+                ),
+            ),
+        ),
+        (
+            "depot_attendant",
+            npc_module.NPC(
+                id="depot_attendant",
+                name="Stores Keeper",
+                guild="depot",
+                char="d",
+                fg=(200, 220, 240),
+                flavor_text=(
+                    "Thermal blankets, core drill bits, de-icer - "
+                    "whatever the campus needs, it comes through "
+                    "this cage first. Sign for it."
+                ),
+            ),
+        ),
+    ),
     produces=(
         ("research_data", 10),
     ),
@@ -58,9 +143,10 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=2,
-    # Lab chain delve site (lab_q2_reference): the sealed research
+    # Lab chain delve site (lab_q3_reference): the sealed research
     # cache holds the reference resonance dataset in the ice caves
-    # beneath the outpost. Planet-themed tiles (deep ice blue).
+    # beneath the campus. Planet-themed tiles (deep ice blue).
+    # PRESERVED byte-identical from the 40x24 outpost era.
     explorable_site_name="caves",
     dungeon_params=DungeonParams(
         width=80,

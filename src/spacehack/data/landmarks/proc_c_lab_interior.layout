@@ -1,0 +1,29 @@
+# proc_c_lab_interior.layout - the research lab (research_officer seats here)
+MAP
+####################
+#..................#
+#..o.....c.c....o..#
+#........##........#
+#..o............o..#
+#..................#
+#.....########.....#
+#.....#......#.....#
+#..o..#..##..#..o..#
+#.....####....o....#
+#.........P.........#
+#.........>.........#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (140, 165, 200) / (45, 60, 85)
+COLOUR: . = (215, 230, 245) / (52, 68, 94)
+COLOUR: c = (150, 200, 240) / (48, 64, 90)
+COLOUR: o = (160, 220, 255) / (48, 64, 90)
+COLOUR: P = (255, 214, 130) / (50, 66, 92)
+COLOUR: > = (255, 214, 130) / (50, 66, 92)
