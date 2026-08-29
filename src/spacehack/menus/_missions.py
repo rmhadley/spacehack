@@ -63,34 +63,34 @@ def _run_pygame_menu(
         )
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
-def _run_pygame_interactive_missions(
-    ctx,
-    npc: npc_module.NPC,
-    offerings: tuple[mission_module.MissionSpec, ...],
-) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
-    """Run mission offerings through the generic selectable worker."""
+def _mission_frames(npc, offerings):
+    """Build stable-layout mission frames for the shared menu renderer."""
     from .. import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(_mission_board_label(mission), mission.description, str(index))
         for index, mission in enumerate(offerings)
     )
-    frames = tuple(
+    body = ("Select a contract to review its details." if offerings else "No work is available right now.")
+    hints = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "ENTER accept", "ESC walk away", pygame_ui.GUIDE_HINT,
+    ),)
+    return tuple(
         pygame_menu.MenuFrame(
-            title=f"{npc.name} - available work",
-            body=(
-                "Select a contract to review its details."
-                if offerings else "No work is available right now."
-            ),
-            items=items,
-            hints=(pygame_ui.modal_hint(
-                pygame_ui.NAV_HINT, "ENTER accept", "ESC walk away",
-                pygame_ui.GUIDE_HINT,
-            ),),
-            selected=index,
+            title=f"{npc.name} - available work", body=body, items=items,
+            hints=hints, selected=index, detail_lines=5,
         )
         for index in range(max(1, len(offerings)))
     )
+
+
+def _run_pygame_interactive_missions(
+    ctx,
+    npc: npc_module.NPC,
+    offerings: tuple[mission_module.MissionSpec, ...],
+) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
+    """Run mission offerings through the generic selectable worker."""
+    frames = _mission_frames(npc, offerings)
     outcome, action, selected = _run_pygame_menu(
         ctx,
         frames,

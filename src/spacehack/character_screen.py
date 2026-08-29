@@ -1,7 +1,7 @@
-"""Character screen — level, XP, skills, traits, and ground equipment.
+"""Character screen — stats, equipment, and ship cargo.
 
 Opened via the C hotkey from city or space mode. TAB cycles between
-the Stats tab and the Equipment tab.
+the Stats, Equipment, and Cargo tabs.
 
 The Stats tab shows all 6 skill rows: Gunnery, Piloting, Engineering
 (ship skills) and Reflexes, Strength, Stamina (ground stats).
@@ -49,11 +49,13 @@ def _character_frame(
     title = f"CHARACTER - Level {level} {ctx.character_info.get('class_name', '').title()}"
     if tab == 0:
         return _stats_frame(ctx, title, current_xp, needed, selected)
-    return _equipment_frame(
-        ctx, title, selected,
-        equipment_management=equipment_management,
-        swap_allowed=swap_allowed,
-    )
+    if tab == 1:
+        return _equipment_frame(
+            ctx, title, selected,
+            equipment_management=equipment_management,
+            swap_allowed=swap_allowed,
+        )
+    return _cargo_character_frame(ctx, title, selected)
 
 
 def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
@@ -79,7 +81,7 @@ def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, sel
     ),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT"), active_tab=0,
+        tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=0,
     )
 
 
@@ -115,8 +117,35 @@ def _equipment_frame(
     footer = (pygame_ui.modal_hint(*hint_parts),)
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT"), active_tab=1,
+        tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=1,
+        scrollable=True,
+        page_offset=max(0, selected - 5),
     )
+
+def _cargo_character_frame(ctx: GameContext, title: str, selected: int):
+    """Build the Cargo tab by reusing the cargo manifest presentation."""
+    from . import ship as ship_module
+    from .trade import _cargo_body, _cargo_rows
+    from . import pygame_screen, pygame_ui
+
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return pygame_screen.ScreenFrame(
+            title, ("No ship available.",), (),
+            (pygame_ui.modal_hint("TAB next tab", "ESC close", pygame_ui.GUIDE_HINT),),
+            tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
+        )
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    max_cargo = ship_module.effective_max_cargo(ship_spec, owned)
+    body = _cargo_body(owned, max_cargo)
+    return pygame_screen.ScreenFrame(
+        title, body, _cargo_rows(owned),
+        (pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER jettison selected", "TAB equipment", "ESC close", pygame_ui.GUIDE_HINT,
+        ),),
+        selected, tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
+    )
+
 
 def _expedition_capacity(ctx: GameContext) -> int:
     """Return the current Expedition Pack capacity."""
@@ -864,8 +893,15 @@ def _advance_character_screen(
         _open_context_guide(ctx, "Character & Skills")
         return tab, selected, swap_count, False
     if outcome == "TAB":
-        return (tab + 1) % 2, 0, swap_count, False
+        return (tab + 1) % 3, 0, swap_count, False
+    if outcome == "SHIFT_TAB":
+        return (tab - 1) % 3, 0, swap_count, False
     if outcome == "SELECT":
+        if tab == 2:
+            from .trade import _apply_jettison
+            if _apply_jettison(ctx, ctx.player_owned_ship, action):
+                return tab, selected, swap_count, False
+            return tab, selected, swap_count, True
         swap_count, should_return = _apply_character_select(
             ctx, action, tab, swap_count,
             equipment_management=equipment_management,

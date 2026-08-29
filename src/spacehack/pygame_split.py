@@ -191,6 +191,7 @@ def _draw_panel(
         _draw_panel_rows(pygame, screen, font, panel, rows, selected, focused, palette)
     finally:
         screen.set_clip(None)
+    _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette)
 
 
 def _draw_panel_header(
@@ -256,6 +257,32 @@ def _draw_panel_row(
         selected=selected_row,
         palette=palette,
         color=row.fg,
+    )
+
+
+def _draw_panel_scrollbar(
+    pygame: Any, screen: Any, panel: pygame_ui.Rect,
+    rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
+) -> None:
+    """Draw a visible scrollbar when a split-terminal panel overflows."""
+    if len(rows) <= MAX_VISIBLE_ROWS:
+        return
+    top, count = _visible_window(rows, selected if focused else 0, MAX_VISIBLE_ROWS)
+    if count <= 0 or len(rows) <= count:
+        return
+    track_x = panel.x + panel.width - 14
+    track_y = panel.y + 66
+    track_height = max(20, panel.height - 86)
+    pygame.draw.rect(
+        screen, palette.border,
+        pygame.Rect(track_x, track_y, 6, track_height), border_radius=3,
+    )
+    thumb_height = max(14, track_height * count // len(rows))
+    thumb_range = track_height - thumb_height
+    thumb_y = track_y + thumb_range * top // max(1, len(rows) - count)
+    pygame.draw.rect(
+        screen, palette.selected_border,
+        pygame.Rect(track_x, thumb_y, 6, thumb_height), border_radius=3,
     )
 
 

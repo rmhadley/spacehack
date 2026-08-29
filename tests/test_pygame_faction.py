@@ -23,8 +23,42 @@ def test_faction_frame_contains_bright_semantic_rows_and_safe_bars():
     assert [row.label for row in frame.rows] == ["Pirate", "Merchant", "Civilian", "Militia"]
     assert frame.rows[0].attitude == "Enemy"
     assert frame.rows[-1].attitude == "Allied"
+    assert pygame_faction._ATTITUDE_CODES == {
+        "Enemy": "E", "Disliked": "D", "Neutral": "N",
+        "Liked": "L", "Allied": "A",
+    }
     assert all(len(row.bar) == 31 for row in frame.rows)
     assert all(all(ord(char) < 128 for char in row.bar) for row in frame.rows)
+
+
+def test_faction_cards_do_not_add_duplicate_dividers_between_rows(monkeypatch):
+    from src.spacehack import pygame_ui
+
+    calls = []
+    monkeypatch.setattr(pygame_ui, "draw_rule", lambda *args, **kwargs: calls.append((args, kwargs)))
+    monkeypatch.setattr(pygame_ui, "draw_text", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pygame_ui, "measure_font", lambda _font, text: len(text))
+
+    class FakeDraw:
+        @staticmethod
+        def rect(*args, **kwargs):
+            pass
+
+        @staticmethod
+        def line(*args, **kwargs):
+            pass
+
+    class FakePygame:
+        draw = FakeDraw
+        class Rect:
+            def __init__(self, *args):
+                self.args = args
+
+    font = SimpleNamespace(get_linesize=lambda: 20)
+    row = pygame_faction.FactionRow("Pirate", -50, "Enemy", "bar", (255, 0, 0))
+    pygame_faction._draw_faction_row(FakePygame, object(), font, row, 10, 10, 100, False)
+
+    assert calls == []
 
 
 def test_faction_key_mapping_preserves_close_guide_and_quit():

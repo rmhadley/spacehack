@@ -91,6 +91,8 @@ def _handle_key(pygame: Any, event: Any, frame: ScreenFrame) -> tuple[str, int]:
     if event.key == pygame.K_ESCAPE:
         return "BACK", selected
     if event.key == getattr(pygame, "K_TAB", None):
+        if getattr(event, "mod", 0) & getattr(pygame, "KMOD_SHIFT", 0):
+            return "SHIFT_TAB", selected
         return "TAB", selected
     if event.key == getattr(pygame, "K_PAGEDOWN", None):
         return "PAGE_DOWN", selected
@@ -320,6 +322,8 @@ class _ScreenLayout:
     body_step: int
     body_budget: int
     body_overflow: bool
+    body_total: int
+    body_offset: int
     body_rows_gap: int
     rows_detail_gap: int
     footer_start: int
@@ -359,11 +363,27 @@ def _layout_screen(font: Any, frame: ScreenFrame, width: int, height: int, body_
         y = body_start + max(0, (footer_start - 8 - body_start - content_height) // 2)
     return _ScreenLayout(
         visible_body=visible_body, body_step=body_step, body_budget=body_budget,
-        body_overflow=body_overflow, body_rows_gap=body_rows_gap,
+        body_overflow=body_overflow, body_total=len(body_lines), body_offset=frame.page_offset, body_rows_gap=body_rows_gap,
         rows_detail_gap=rows_detail_gap, footer_start=footer_start,
         detail_width=detail_width, detail=detail, detail_height=detail_height,
         y=y,
     )
+
+
+def _draw_body_scrollbar(
+    pygame: Any, screen: Any, font: Any, layout: _ScreenLayout, width: int,
+) -> None:
+    """Draw a scrollbar for scrollable body content, including rowless screens."""
+    if not layout.body_overflow:
+        return
+    track_x = width - 52
+    track_y = layout.y
+    track_height = max(font.get_linesize(), layout.footer_start - track_y - 8)
+    visible = max(1, layout.body_budget)
+    thumb_height = max(14, track_height * visible // layout.body_total)
+    thumb_y = track_y + (track_height - thumb_height) * layout.body_offset // max(1, layout.body_total - visible)
+    pygame.draw.rect(screen, (70, 82, 108), pygame.Rect(track_x, track_y, 8, track_height), border_radius=4)
+    pygame.draw.rect(screen, (130, 210, 240), pygame.Rect(track_x, thumb_y, 8, thumb_height), border_radius=4)
 
 
 def _draw_screen_body(pygame: Any, screen: Any, font: Any, layout: _ScreenLayout, palette: Any) -> int:
@@ -392,19 +412,42 @@ def _max_detail_height(frame: ScreenFrame, detail_width: int, measure: Any, font
     )
 
 
-def _draw_screen_rows(
+def _draw_scrollbar(
+    pygame: Any, screen: Any, frame: ScreenFrame, layout: _ScreenLayout,
+    width: int, y: int, row_height: int, window_top: int, window_count: int,
+) -> None:
+    """Draw a scrollbar when the selectable row list exceeds its viewport."""
+    if not frame.scrollable:
+        return
+    total_rows = len(frame.rows)
+    if total_rows <= window_count:
+        return
+    track_height = max(row_height, window_count * row_height)
+    track_x = width - 52
+    track_y = y
+    available_height = max(row_height, layout.footer_start - track_y - 8)
+    track_height = min(track_height, available_height)
+    track_y = min(track_y, layout.footer_start - track_height - 8)
+    track_y = max(126, track_y)
+    pygame.draw.rect(
+        screen, (70, 82, 108),
+        pygame.Rect(track_x, track_y, 8, track_height), border_radius=4,
+    )
+    thumb_height = max(12, track_height * window_count // total_rows)
+    thumb_range = track_height - thumb_height
+    thumb_y = track_y + thumb_range * window_top // max(1, total_rows - window_count)
+    pygame.draw.rect(
+        screen, (130, 210, 240),
+        pygame.Rect(track_x, thumb_y, 8, thumb_height), border_radius=4,
+    )
+
+
+def _draw_visible_rows(
     pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
     width: int, y: int, layout: _ScreenLayout, palette: Any,
-) -> tuple[int, int]:
-    """Draw rows and the selected detail; return (y, detail block height)."""
-    measure = lambda text: pygame_ui.measure_font(font, text)
-    selected = _clamp(frame)
-    window_top, window_count = pygame_ui.visible_window(
-        frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
-        is_selectable=lambda row: row.selectable,
-    )
-    if window_count == 0:
-        window_top, window_count = _info_window(frame)
+    window_top: int, window_count: int, selected: int,
+) -> int:
+    """Draw the currently visible rows and return the next y position."""
     content_indent = CONTENT_INDENT if any(row.header for row in frame.rows) else 0
     content_x, content_width = 40 + content_indent, width - 80 - content_indent
     for index in range(window_top, window_top + window_count):
@@ -424,6 +467,31 @@ def _draw_screen_rows(
                 pygame, screen, font, row.text, row_x, y, row_width,
                 color=palette.description,
             )
+    return y
+
+
+def _draw_screen_rows(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
+    width: int, y: int, layout: _ScreenLayout, palette: Any,
+) -> tuple[int, int]:
+    """Draw rows and the selected detail; return (y, detail block height)."""
+    measure = lambda text: pygame_ui.measure_font(font, text)
+    selected = _clamp(frame)
+    window_top, window_count = pygame_ui.visible_window(
+        frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
+        is_selectable=lambda row: row.selectable,
+    )
+    if window_count == 0:
+        window_top, window_count = _info_window(frame)
+    first_row_y = y
+    y = _draw_visible_rows(
+        pygame, screen, font, frame, width, y, layout,
+        palette, window_top, window_count, selected,
+    )
+    _draw_scrollbar(
+        pygame, screen, frame, layout, width,
+        first_row_y, font.get_linesize() + 14, window_top, window_count,
+    )
     measure_detail_height = _max_detail_height(frame, layout.detail_width, measure, font)
     if y + layout.detail_height <= layout.footer_start:
         y += layout.rows_detail_gap
@@ -477,6 +545,8 @@ def _draw_frame(
     body_start = _draw_screen_header(pygame, screen, font, frame, width, palette)
     layout = _layout_screen(font, frame, width, height, body_start, context)
     y = _draw_screen_body(pygame, screen, font, layout, palette)
+    if not frame.rows:
+        _draw_body_scrollbar(pygame, screen, font, layout, width)
     y += layout.body_rows_gap
     y, measure_detail_height = _draw_screen_rows(
         pygame, screen, font, frame, width, y, layout, palette,

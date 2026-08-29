@@ -65,6 +65,16 @@ class _StubCtx:
         self.player_skill_points = 0
 
 
+class TestTutorialRoute:
+    def test_intro_and_first_move_teach_central_transit_route(self):
+        assert "central square and fountain" in tutorial._STEP_BODIES["intro"]
+        assert "transit terminal (◉)" in tutorial._STEP_BODIES["intro"]
+        assert "transit terminal (◉)" in tutorial._STEP_BODIES["first_move"]
+        assert "choose Bounty Guild" in tutorial._STEP_BODIES["first_move"]
+        assert "ship icon (t)" in tutorial._STEP_BODIES["equipped_loadout"]
+        assert "Walk up to the ship icon" in tutorial._STEP_BODIES["equipped_loadout"]
+
+
 class TestSetupTutorial:
     def test_grants_credit_bonus_and_seeds_bounty_board(self):
         ctx = _StubCtx()

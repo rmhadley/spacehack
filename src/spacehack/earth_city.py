@@ -217,7 +217,7 @@ def _paint_public_landmark(tiles: list[list[world.Tile]]) -> None:
 def _paint_landing_pad(tiles: list[list[world.Tile]]) -> None:
     """Place the port landing apron below the spaceport."""
     _pad = world.Tile(
-        kind="landing_pad", char=".", walkable=True,
+        kind="landing_pad", char=" ", walkable=True,
         fg=(100, 210, 255), bg=(40, 64, 98),
     )
     for y in range(20, 30):

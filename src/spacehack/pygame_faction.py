@@ -33,7 +33,16 @@ class FactionFrame:
     subtitle: str
     rows: tuple[FactionRow, ...]
     hint: str
+    scale_labels: tuple[str, ...] = ("HOSTILE", "NEUTRAL", "ALLIED")
 
+
+_ATTITUDE_CODES: dict[str, str] = {
+    "Enemy": "E",
+    "Disliked": "D",
+    "Neutral": "N",
+    "Liked": "L",
+    "Allied": "A",
+}
 
 _ZONE_COLORS: dict[str, tuple[int, int, int]] = {
     "enemy": (255, 100, 100),
@@ -135,35 +144,72 @@ def _draw_frame(
     )
 
 
+def _draw_faction_card(
+    pygame: Any, screen: Any, font: Any, row: FactionRow,
+    rect: Any,
+) -> None:
+    """Paint a bordered, color-coded faction card."""
+    pygame.draw.rect(screen, (12, 16, 25), pygame.Rect(rect.x, rect.y, rect.width, rect.height), border_radius=6)
+    pygame.draw.rect(screen, row.color, pygame.Rect(rect.x, rect.y, 5, rect.height), border_radius=3)
+    pygame.draw.rect(screen, pygame_ui.DEFAULT_PALETTE.border, pygame.Rect(rect.x, rect.y, rect.width, rect.height), width=1, border_radius=6)
+    x = rect.x + 18
+    y = rect.y + 12
+    pygame_ui.draw_text(pygame, screen, font, row.label.upper(), x, y, color=row.color)
+    attitude_code = _ATTITUDE_CODES.get(row.attitude, "?")
+    value = f"{row.reputation:+d}  {attitude_code}"
+    pygame_ui.draw_text(
+        pygame, screen, font, value,
+        rect.x + rect.width - pygame_ui.measure_font(font, value) - 16,
+        y, color=row.color,
+    )
+    bar_x = x
+    bar_y = y + font.get_linesize() + 10
+    bar_width = rect.width - 36
+    pygame.draw.rect(screen, (35, 42, 58), pygame.Rect(bar_x, bar_y, bar_width, 12), border_radius=6)
+    center_x = bar_x + bar_width // 2
+    pygame.draw.line(screen, (190, 200, 220), (center_x, bar_y - 3), (center_x, bar_y + 15), width=2)
+    fill_width = round((abs(row.reputation) / 100) * (bar_width // 2))
+    if row.reputation < 0:
+        pygame.draw.rect(screen, row.color, pygame.Rect(center_x - fill_width, bar_y, fill_width, 12), border_radius=6)
+    else:
+        pygame.draw.rect(screen, row.color, pygame.Rect(center_x, bar_y, fill_width, 12), border_radius=6)
+
+
+def _draw_faction_row(
+    pygame: Any, screen: Any, font: Any, row: FactionRow,
+    x: int, y: int, content_width: int, first: bool,
+) -> None:
+    """Paint one separated faction card."""
+    _draw_faction_card(
+        pygame, screen, font, row,
+        pygame_ui.Rect(x, y, content_width, font.get_linesize() + 56),
+    )
+
+
 def _draw_standing_rows(
     pygame: Any, screen: Any, font: Any, frame: FactionFrame, panel: pygame_ui.Rect,
 ) -> None:
-    """Paint subtitle, standing rows, and reputation bars."""
+    """Paint subtitle, standing scale, and reputation bars."""
+    palette = pygame_ui.DEFAULT_PALETTE
     x = panel.x + 42
     content_width = panel.width - 84
     y = panel.y + 82
     pygame_ui.draw_text(
         pygame, screen, font, frame.subtitle, x, y,
-        color=pygame_ui.DEFAULT_PALETTE.description,
+        color=palette.description,
     )
-    y += font.get_linesize() + 24
+    y += font.get_linesize() + 14
+    scale = "  <------  " + "  /  ".join(frame.scale_labels) + "  ------>"
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, scale,
+        pygame_ui.Rect(x, y, content_width, font.get_linesize()), y,
+        color=palette.description,
+    )
+    y += font.get_linesize() + 16
     row_height = font.get_linesize() + 42
-    for row in frame.rows:
-        pygame_ui.draw_text(
-            pygame, screen, font, row.label, x, y,
-            color=row.color,
-        )
-        value = f"{row.reputation:+d}  {row.attitude}"
-        value_width = pygame_ui.measure_font(font, value)
-        pygame_ui.draw_text(
-            pygame, screen, font, value,
-            x + content_width - value_width, y,
-            color=row.color,
-        )
-        bar_y = y + font.get_linesize() + 9
-        pygame_ui.draw_text(
-            pygame, screen, font, row.bar, x, bar_y,
-            color=row.color,
+    for index, row in enumerate(frame.rows):
+        _draw_faction_row(
+            pygame, screen, font, row, x, y, content_width, first=index == 0,
         )
         y += row_height
 

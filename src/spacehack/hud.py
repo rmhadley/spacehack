@@ -253,7 +253,7 @@ def _render_help_lines(
 ) -> int:
     """Render ``(key_label, description)`` pairs, two per row.
 
-    Each row holds two hints (``[Q] Quest Log  [I] Cargo``) so the
+    Each row holds two hints so the
     block uses the panel's full width and roughly half its height.
     Keys render unpadded; a long key like ``numpad`` simply sticks out
     on its own row instead of padding every other key to match.
@@ -383,7 +383,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     _render_divider(console, hud_x, y)
     y += 3
     _render_help_lines(console, hud_x, y, [
-        ("G", "Go To"), ("P", "Pickup"), ("M", "Map"), ("I", "Cargo"),
+        ("G", "Go To"), ("P", "Pickup"), ("M", "Map"),
         ("T", "Comms"), ("C", "Character"), ("F", "Factions"),
         (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL), ("?", "Guide"), ("numpad", "Move"),
     ])
@@ -471,8 +471,7 @@ def _render_city_terminals(console, hud_x, y, *, has_armory_terminal, has_mech_t
 def _render_city_help_lines(console, hud_x, y, mode) -> int:
     """Paint the movement key hints; return the next row."""
     _help_lines = [
-        ("Q", "Quest Log"), ("I", "Cargo"), ("C", "Character"),
-        ("F", "Factions"), (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
+        ("Q", "Quest Log"), ("C", "Character"), ("F", "Factions"), (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
         ("?", "Guide"), ("numpad", "Move"),
     ]
     if mode == "dungeon":

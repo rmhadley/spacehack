@@ -50,6 +50,9 @@ class MenuFrame:
     # Small contextual decisions can use a compact centered popup instead of
     # occupying the full modal surface. Default preserves existing menus.
     compact: bool = False
+    # Reserve a stable detail area so moving through differently sized
+    # descriptions never shifts the menu rows or font geometry.
+    detail_lines: int = 5
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -86,11 +89,11 @@ def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
     line_height = font.get_linesize()
     body_lines = pygame_ui.wrap_text(frame.body, content_width, measure)
     description_lines = min(
-        pygame_ui.max_wrapped_lines(
+        max(1, pygame_ui.max_wrapped_lines(
             (item.description for item in frame.items),
             content_width - 28,
             measure,
-        ),
+        )),
         pygame_ui.MAX_DETAIL_LINES,
     )
     height = len(body_lines) * (line_height + 3) + 10
@@ -410,7 +413,7 @@ def _standard_content_geometry(font: Any, frame: MenuFrame, content_width: int, 
     description_width = content_width - 28
     description = frame.items[frame.selected].description if frame.items else ""
     description_lines = pygame_ui.wrap_text(description, description_width, measure)
-    description_height = max(1, len(description_lines)) * (line_height + 2)
+    description_height = max(frame.detail_lines, len(description_lines), 1) * (line_height + 2)
     block = body_height + window_count * (line_height + 14) + 8 + description_height + 8
     block += len(frame.hints) * (line_height + 4)
     y = top + max(0, (content_bottom - 8 - top - block) // 2)

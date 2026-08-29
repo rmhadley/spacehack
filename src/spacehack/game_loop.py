@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_i_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -345,10 +345,6 @@ def _handle_common_modal_event(state, event):
         if _open_console_log(ctx) == 'QUIT':
             _save_and_exit(ctx, state.current_mode, state.current_city_id, state.space_player)
             return 'QUIT'
-        return 'HANDLED'
-    if _is_i_press(event):
-        from .trade import open_cargo as _open_cargo
-        _open_cargo(ctx)
         return 'HANDLED'
     return None
 

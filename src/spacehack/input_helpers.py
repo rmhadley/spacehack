@@ -243,20 +243,6 @@ def _is_backslash_press(event: pygame_engine.PygameInputEvent) -> bool:
         "backslash", "nonusbackslash", "\\",
     }
 
-def _is_i_press(event: pygame_engine.PygameInputEvent) -> bool:
-    """True iff ``event`` is a ``KeyDown`` for the ``I`` key (or its
-    lowercase alias).
-
-    Routes I (inventory / cargo menu) through a module-level helper.
-    Lowercase ``i`` and uppercase ``I`` both open the cargo-overlay
-    modal; anything else returns False.
-
-    ``I``/``i`` is unused by vim movement so it's a clean pick.
-    The project event already exposes a normalized key name, so this helper
-    stays independent of backend event classes.
-    """
-    return pygame_engine.is_keydown(event) and event.key_name == 'i'
-
 def _is_t_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``T`` key (or its
     lowercase alias).
