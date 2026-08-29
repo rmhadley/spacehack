@@ -314,6 +314,13 @@ crevasses as terrain. The lab chain and the ice-cave delve
 - Transit: 4 stops, all-to-all.
 - Population: ~9 (researchers, drill crew, security).
 - Interiors: spaceport, lab, bar, depot.
+- **Signature feature (user-approved): the cave entrance.** The ice-cave
+  delve's surface entrance is promoted from an implicit menu option to a
+  large, authored landmark on the campus's east edge: a carved portal
+  (framed mouth, scree apron, warning lamps, drill-rig approach road)
+  that reads as THE way down into the ice. The EXPLORE "caves" menu
+  option is the data contract and stays as-is; the entrance art gives
+  the delve a visible, diegetic front door on the city map.
 
 ### Pre-implementation audit (shared)
 
