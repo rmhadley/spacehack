@@ -342,7 +342,7 @@ crevasses as terrain. The lab chain and the ice-cave delve
 ### Implementation checklist
 
 - [x] Procyon b: builder, data, exteriors/interiors, NPCs, tests, gate.
-- [ ] Procyon c: builder, data, exteriors/interiors, NPCs, tests, gate,
+- [x] Procyon c: builder, data, exteriors/interiors, NPCs, tests, gate,
       delve-site preservation.
 
 ### Verification record
@@ -357,6 +357,33 @@ Procyon b — The Crossroads landed:
   crossroads / depot) to the planet data.
 - The full gate passes: smoke, main-quest validation, architecture, Ruff,
   and the complete pytest suite (1481 tests).
+
+Procyon c — Ice Campus landed:
+
+- `proc_c_city.py` builds the 140x100 glacial campus (`proc_c_ice_campus`
+  dispatch row): pale blue-white `PROC_C_GLACIAL` theme via `derive_theme`,
+  frozen meltwater channel (walkable ice) with one `CITY_BRIDGE` crossing,
+  snow-packed quad with the campus beacon, sastrugi ridges as non-walkable
+  texture, and the signature **cave mouth** at the east edge — a dark ice
+  ring (radius 7) with a walkable mouth floor, a west approach gap, and a
+  `cave_marker` signpost standing in the mouth.
+- `procyon_c.py` rewritten as the campus spec: 4 buildings (spaceport,
+  lab, mess hall, supply depot), 6 all-to-all transit stops including the
+  new **caves** stop at the mouth's doorstep, 4 interior layout pairs,
+  `PROC_C_POPULATION` (9 ambient staff incl. the cave-mouth scout),
+  Campus Cook + Stores Keeper overrides. The lab-chain delve data
+  (`explorable_site_name="caves"`, DungeonParams, monster pools) is
+  preserved byte-identical.
+- Regression coverage (`tests/test_proc_c_city.py`, 5 tests): authored
+  size/stamps/channel/bridge/beacon/sastrugi, cave-mouth geometry,
+  BFS reachability of every entrance/stop/NPC from the hangar, delve
+  preservation, and the shared interior conventions (exit directly below
+  spawn, furnished, NPC seat reachable).
+- Fixups found by execution: spaceport asset door added, interior exits
+  moved to the spawn-column convention, caves stop moved within the
+  shared transit-reach gate (12 of the lab door).
+- The full gate passes: 1486 tests (smoke, main-quest validation,
+  architecture, Ruff, pytest).
 
 ## Future work
 
