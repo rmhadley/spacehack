@@ -1,0 +1,28 @@
+# proc_b_spaceport_interior.layout - waypoint arrival hall with check-in desk
+MAP
+########################
+#..o..............o....#
+#..cccccccccc..........#
+#..c..........c........#
+#..c...o......c........#
+#..cccccccccc..........#
+#......................#
+#..o..............o....#
+#......................#
+#...........P..........#
+#...........>..........#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (104, 88, 64) / (38, 30, 22)
+COLOUR: . = (196, 164, 120) / (66, 48, 32)
+COLOUR: c = (206, 172, 116) / (68, 50, 34)
+COLOUR: o = (255, 220, 90) / (92, 70, 30)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

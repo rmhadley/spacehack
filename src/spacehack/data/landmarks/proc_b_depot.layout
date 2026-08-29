@@ -1,0 +1,18 @@
+# proc_b_depot.layout - the fuel yard, door north to the plaza
+MAP
+#########+#########
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+###################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (96, 84, 64) / (36, 30, 22)
+COLOUR: = = (172, 146, 106) / (56, 44, 30)
+COLOUR: + = (255, 214, 130) / (50, 38, 22)

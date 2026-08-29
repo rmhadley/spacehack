@@ -1,0 +1,28 @@
+# proc_b_depot_interior.layout - the fuel factor's cage behind the lockers
+MAP
+##############
+#............#
+#..o......o..#
+#..#####.....#
+#..#.c.#.....#
+#..#.o.#.....#
+#..#...#.....#
+#............#
+#..o......o..#
+#......P.....#
+#......>.....#
+##############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (96, 84, 64) / (36, 30, 22)
+COLOUR: . = (172, 146, 106) / (56, 44, 30)
+COLOUR: c = (146, 104, 60) / (60, 44, 26)
+COLOUR: o = (255, 220, 120) / (60, 48, 22)
+COLOUR: P = (255, 200, 90) / (52, 42, 16)
+COLOUR: > = (255, 200, 90) / (52, 42, 16)

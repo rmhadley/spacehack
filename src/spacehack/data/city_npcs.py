@@ -285,6 +285,24 @@ BARNARDS_C_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
+PROC_B_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the west apron.
+    CityNpc("procb_pad_crew_a", "civillian_bystander", (12, 31), wander_radius=6, move_chance=0.8),
+    CityNpc("procb_pad_crew_b", "civillian_bystander", (20, 35), wander_radius=6, move_chance=0.8),
+    # Pilots drifting between the strip and the cantina.
+    CityNpc("procb_pilot_a", "civillian_bystander", (65, 44), wander_radius=5, move_chance=0.85),
+    CityNpc("procb_pilot_b", "civillian_bystander", (75, 44), wander_radius=5, move_chance=0.85),
+    # A mechanic working out of a strip-side shack.
+    CityNpc("procb_mechanic", "civillian_bystander", (40, 37), wander_radius=8, move_chance=0.85),
+    # One shady type near the cantina - the lanes get rough this deep.
+    CityNpc("procb_shady", "pirate_raider", (82, 37), wander_radius=6, move_chance=0.75),
+    # One security patrol walking the strip.
+    CityNpc("procb_security", "militia_trooper", (50, 41), wander_radius=8, move_chance=0.85),
+    # Depot hand watching the fuel yard.
+    CityNpc("procb_depot_hand", "civillian_bystander", (96, 44), wander_radius=6, move_chance=0.8),
+)
+
+
 VEGA_B_POPULATION: tuple[CityNpc, ...] = (
     # Pad crew working the landing-deck apron.
     CityNpc("vega_pad_crew", "civillian_bystander", (62, 14), wander_radius=6, move_chance=0.8),
@@ -343,4 +361,4 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("ross_depot_hand", "civillian_bystander", (100, 54), wander_radius=6, move_chance=0.8),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION"]

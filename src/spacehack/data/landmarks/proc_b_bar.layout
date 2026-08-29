@@ -1,0 +1,18 @@
+# proc_b_bar.layout - the Crossroads cantina, door north to the strip
+MAP
+#########+#########
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+###################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (110, 88, 62) / (40, 30, 20)
+COLOUR: = = (188, 152, 108) / (60, 44, 28)
+COLOUR: + = (255, 200, 110) / (52, 38, 20)

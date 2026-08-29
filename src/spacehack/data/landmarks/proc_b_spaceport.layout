@@ -1,0 +1,18 @@
+# proc_b_spaceport.layout - the Crossroads waypoint arrival hall
+MAP
+#####################
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+#===================#
+##########+##########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (104, 88, 64) / (38, 30, 22)
+COLOUR: = = (196, 164, 120) / (66, 48, 32)
+COLOUR: + = (255, 220, 120) / (52, 40, 24)
