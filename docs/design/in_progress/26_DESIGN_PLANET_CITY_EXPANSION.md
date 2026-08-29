@@ -240,18 +240,39 @@ as the signature silhouette. Intentional empty space is the cloud deck itself.
 
 ### Implementation checklist
 
-- [ ] New builder `vega_b_city.py` (cloud deck, platform silhouette,
+- [x] New builder `vega_b_city.py` (cloud deck, platform silhouette,
       reflector fan, building placement, transit bays).
-- [ ] New data `data/planets/vega_b.py` (layout id, buildings incl.
+- [x] New data `data/planets/vega_b.py` (layout id, buildings incl.
       depot, transit, interiors, showroom, overrides).
-- [ ] Authored exteriors/interiors: spaceport, bar, merchants, depot.
-- [ ] New NPC population anchors in `data/city_npcs.py`.
-- [ ] Regression tests replacing `tests/test_vega_b_city.py`.
+- [x] Authored exteriors/interiors: spaceport, bar, merchants, depot.
+- [x] New NPC population anchors in `data/city_npcs.py`.
+- [x] Regression tests replacing `tests/test_vega_b_city.py`.
 - [ ] Full gate (`make check`) and city playtest.
 
 ### Verification record
 
-(To be filled in after the replacement lands.)
+The Beacon replacement landed and the full gate passes: smoke,
+architecture, Ruff, and the complete pytest suite (1475 tests).
+
+Design notes from the implementation pass:
+
+- The reflector fan's mirror rays are **walkable** — they read as
+  panels laid flat on the deck, and the lanes between them stay open
+  as the field's maintenance access. The collector tower and service
+  shack are the only blockers. (A first pass painted the rays
+  impassable, which segmented the wedge into isolated pockets and
+  stranded the reflector transit stop.)
+- The Freight Exchange arm is 32 wide so the merchants hall and depot
+  flank a central corridor instead of walling off the exchange plaza.
+- The reflector transit stop sits at the wedge's west edge beside a
+  neon field marker, satisfying the "stop near something interesting"
+  invariant without burying the stop in the field.
+- The transit bay tile and the mirror glyphs are CP437-safe; the
+  city-wide glyph sweep and the smooth-apron regression both pass.
+
+Remaining: a real city playtest (walk all four arms, ride the transit,
+enter all four interiors, save/quit/continue) before this city can be
+marked approved.
 
 ## Future work
 
