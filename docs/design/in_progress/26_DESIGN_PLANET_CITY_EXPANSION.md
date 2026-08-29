@@ -20,9 +20,9 @@ expands.
 ## Current implementation status
 
 The generic city pipeline is complete for the authored cities listed in Phase 6.
-Ross 154 c (Cinder) is complete. Vega b is being redesigned as **The Beacon**
-per the build record below; the rejected Mirror Fields pass remains replaceable
-scaffolding, not a design constraint.
+Ross 154 c (Cinder) and Vega b (**The Beacon**) are complete and approved. The
+next backlog cities are Procyon planets 1/2, AC planets 1/2/3, Sirius Station,
+Venus, Depot, and Blockade.
 
 Ross c now has:
 
@@ -147,7 +147,7 @@ for future city migrations and playtests.
 - [x] Earth, Mercury, Mars, Epsilon Eridani b, Wolf 359 b, Cygni b,
   Barnard's Star b/c, Ross b/c, Tau Ceti b, Lalande b/c, Groombridge b,
   Indi b, and AC station are authored and migrated.
-- [ ] Vega b — redesign in progress as **The Beacon** (see build record below); not approved until the replacement passes the full playtest.
+- [x] Vega b — redesigned as **The Beacon** and approved (see build record below).
 - [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus, Depot, and Blockade remain the next migration backlog.
 
 ## Acceptance criteria
@@ -160,7 +160,7 @@ for future city migrations and playtests.
 - Remaining unchecked Phase 6 cities are explicit backlog rather than silently
   falling through as finished content.
 
-## Vega b build record — The Beacon (redesign in progress)
+## Vega b build record — The Beacon (approved)
 
 The rejected Mirror Fields pass is preserved only as a technical reference.
 This section is the new contract for the replacement.
@@ -280,9 +280,8 @@ gives the loadmaster a U-shaped cage open at the bottom. A regression
 test now asserts spawn/exit adjacency, furniture presence, and that
 every service NPC seats on a walkable, spawn-reachable cell.
 
-Remaining: a real city playtest (walk all four arms, ride the transit,
-enter all four interiors, save/quit/continue) before this city can be
-marked approved.
+The replacement received explicit user approval ("great job") after the
+interior rework; the Vega b checkbox is now marked done.
 
 ## Future work
 
