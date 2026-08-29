@@ -283,9 +283,68 @@ every service NPC seats on a walkable, spawn-reachable cell.
 The replacement received explicit user approval ("great job") after the
 interior rework; the Vega b checkbox is now marked done.
 
+## Procyon build record — The Crossroads and the Ice Campus (in progress)
+
+Next backlog pair, approved scope: author both Procyon cities one at a time
+(Procyon b first), and each may **add service buildings** beyond today's set.
+
+### Procyon b — The Crossroads (120x80, `proc_b_crossroads`)
+
+A scorched rocky waypoint on the inner edge of the crossroads system — the
+deep-space pivot. Reads as a sun-blasted truck stop: a wide landing apron
+west, one main strip, the Crossroads cantina and a new fuel depot facing a
+small crossroads plaza with the nav beacon, and a dry arroyo on one edge.
+
+- Buildings: spaceport (north of apron, door south), bar (south of strip,
+  door north), **new depot** (south-east, door north).
+- Transit: 3 stops (spaceport / crossroads / depot), all-to-all.
+- Population: ~8 (pad crew, pilots, mechanic, one shady pirate, one
+  security patrol, depot hand).
+- Interiors: spaceport, bar, depot (authored conventions).
+- Overrides: Waypoint Host (bar) kept, new Fuel Factor (depot).
+
+### Procyon c — Ice Campus (140x100, `proc_c_ice_campus`)
+
+A research outpost carved into the ice, campus-style: landing bay, lab,
+**new mess hall (bar)** and **new supply depot**, with frozen channels and
+crevasses as terrain. The lab chain and the ice-cave delve
+(`lab_q3_reference`, `research_officer`) must survive unchanged.
+
+- Buildings: spaceport, lab, bar, depot.
+- Transit: 4 stops, all-to-all.
+- Population: ~9 (researchers, drill crew, security).
+- Interiors: spaceport, lab, bar, depot.
+
+### Pre-implementation audit (shared)
+
+1. **Reuse.** `city_kit` (set_city_metadata, add_showroom_ships,
+   add_service_terminals, paint_door_forecourts, paint_transit_bays),
+   `city_layout` (stamp_city_assets, paint_roof_labels), the
+   `city_builder` registry (two new dispatch rows), `depot_attendant`
+   guild NPC, and the authored-interior conventions from the Vega b fix.
+2. **Duplication hotspots.** (a) Hand-placed shacks/sheds would duplicate
+   Groom's — both cities get their own small shack painter or the shared
+   `paint_skyline`. (b) The desert-scorch and ice-terrain painters must
+   not re-implement `derive_theme` — define per-city theme variants in
+   the planet data module like Groom's `GROOM_DUSK`. (c) Building
+   records/entrances come free from `set_city_metadata`.
+3. **DRY strategy.** One `_paint_shacks` helper per city; per-city theme
+   via `derive_theme`; all custom tiles as module constants; glyphs kept
+   inside `CP437_CHARMAP`.
+
+### Implementation checklist
+
+- [ ] Procyon b: builder, data, exteriors/interiors, NPCs, tests, gate.
+- [ ] Procyon c: builder, data, exteriors/interiors, NPCs, tests, gate,
+      delve-site preservation.
+
+### Verification record
+
+(To be filled in per city as each lands.)
+
 ## Future work
 
-Redo Vega b before starting another city. Once the replacement is approved,
-continue Phase 6 with the remaining unchecked settlements, following the same
+Complete the Procyon pair, then continue Phase 6 with AC planets 1/2/3,
+Sirius Station, Venus, Depot, and Blockade, following the same
 civil-engineering-first plan and adding focused geometry, reachability,
 transit, interior, NPC, landing-apron, glyph, and persistence tests for each.
