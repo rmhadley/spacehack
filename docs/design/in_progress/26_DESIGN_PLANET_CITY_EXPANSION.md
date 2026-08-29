@@ -20,10 +20,9 @@ expands.
 ## Current implementation status
 
 The generic city pipeline is complete for the authored cities listed in Phase 6.
-Ross 154 c (Cinder) is complete. Vega b has a first implementation, but it is
-explicitly **not approved as final content and must be redone** before this
-city is considered complete. The next agent should treat the current Vega
-builder/assets as replaceable scaffolding, not as a design constraint.
+Ross 154 c (Cinder) is complete. Vega b is being redesigned as **The Beacon**
+per the build record below; the rejected Mirror Fields pass remains replaceable
+scaffolding, not a design constraint.
 
 Ross c now has:
 
@@ -148,7 +147,7 @@ for future city migrations and playtests.
 - [x] Earth, Mercury, Mars, Epsilon Eridani b, Wolf 359 b, Cygni b,
   Barnard's Star b/c, Ross b/c, Tau Ceti b, Lalande b/c, Groombridge b,
   Indi b, and AC station are authored and migrated.
-- [ ] Vega b — **REDO REQUIRED**. The current Mirror Fields implementation is a rejected first pass; redesign the layout and content before marking this city complete.
+- [ ] Vega b — redesign in progress as **The Beacon** (see build record below); not approved until the replacement passes the full playtest.
 - [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus, Depot, and Blockade remain the next migration backlog.
 
 ## Acceptance criteria
@@ -161,29 +160,98 @@ for future city migrations and playtests.
 - Remaining unchecked Phase 6 cities are explicit backlog rather than silently
   falling through as finished content.
 
-## Vega b build record — REDO REQUIRED
+## Vega b build record — The Beacon (redesign in progress)
 
-The current Vega b Mirror Fields implementation is preserved only as a
-technical reference and is rejected for presentation/design quality. Do not
-move this city to `complete` based on its passing automated tests.
+The rejected Mirror Fields pass is preserved only as a technical reference.
+This section is the new contract for the replacement.
 
-Handoff for the next implementation pass:
+### Concept
 
-- Revisit the concept, scale, spatial hierarchy, and visual composition before
-  editing code. The city should read immediately as a purposeful floating
-  observation/industrial station, not as repeated generic rows.
-- Reassess the civil-engineering plan: landing operations, primary routes,
-  reflector-field maintenance access, building placement, transit relationships,
-  and intentional empty space must be designed before stamping assets.
-- Rework or replace the Vega b builder, exteriors, interiors, NPC anchors, and
-  regression tests as needed. Existing identifiers and shared city helpers are
-  available for reuse but are not requirements to preserve if the redesign
-  needs different geometry.
-- Re-run the full city playtest and `make check` after the redesign. Keep this
-  status unchecked until the replacement receives explicit approval.
+Vega b is a massive gas giant; the player "lands" on a floating platform in its
+upper atmosphere. The station's reason to exist is power: a fan of reflector
+panels concentrates Vega's light onto a collector tower, and the waste heat
+bleeds off the east rim through cooling fins. Around that industrial core the
+inhabited deck grew — landing deck north, Freight Exchange south, and The Veil
+observation lounge west, hanging over the cloud bands. The station is the
+sector's beacon: every route threads through Vega, and ships set course by its
+light.
 
-The previous first pass did pass the automated gate, but that verification is
-not a quality approval and should not be cited as completion.
+The layout must read immediately as a purposeful floating station: a cross of
+four arms over the cloud deck, each arm one function, with the reflector fan
+as the signature silhouette. Intentional empty space is the cloud deck itself.
+
+### Civil-engineering plan (140x90, `vega_beacon_station`)
+
+- **Cloud deck** — everything outside the platform is open atmosphere: two
+  horizontal cloud-band tiles (the gas giant's striping) plus sparse wisp
+  accents. Non-walkable; the platform silhouette is the walkable deck.
+- **The Focus (hub)** — the 21x21 center square (x 60-80, y 35-55) where the
+  four arms overlap, painted plaza, with the station's navigation beacon at
+  its center and a neon ring.
+- **North arm — Landing Deck** (x 52-88, y 8-45): the spaceport at the arm's
+  tip (x 58-82, y 4-8, door south), the smooth landing apron flaring to
+  x 52-88 y 9-17 (berth at 70,13; showroom ships and terminals on the pad),
+  and the arm corridor down to the hub.
+- **East arm — Reflector Field**: a wedge widening from the hub (x 70,
+  y 35-55) to the tip (x 132, y 26-64). The collector tower (5x5,
+  x 82-86 y 43-47) anchors seven mirror rays fanning to the wedge's outer
+  edge (lengths 14-44 by angle); the walkable deck between the rays IS the
+  reflector-field maintenance access. A service shack (non-enterable,
+  x 88-91 y 34-36) sits north of the tower; cooling fins and radiator works
+  bleed heat off the tip into the clouds.
+- **South arm — Freight Exchange** (x 58-82, y 45-82): merchants hall
+  (x 58-70, y 62-69, door south) and depot (x 70-82, y 62-69, door south)
+  flanking the arm, opening onto the exchange plaza (x 58-82, y 70-76) with
+  freight crates along its rim.
+- **West arm — The Veil** (x 8-60, y 35-55): the bar (x 26-44, y 38-46,
+  door south onto the arm) and, beyond it, the rounded observation deck
+  (ellipse x 8-26, y 35-55) with safety railings and deck lights hanging
+  over the clouds.
+- **Transit** — five stops, all-to-all: `spaceport` (70,19), `focus` (70,52),
+  `exchange` (70,73), `veil` (35,49), `reflectors` (100,47). Each stop gets a
+  painted bay.
+- **Population** — ten ambient NPCs re-anchored to the new districts (pad
+  crew, reflector techs, freight handlers, bar regulars, security, station
+  hand).
+- **Services preserved** — spaceport/bar/merchants plus a new depot
+  (`depot_attendant` override), showroom ships, service terminals, four
+  authored interiors, and the named NPC overrides (Cloud Host, Freight
+  Broker, plus a new depot persona).
+
+### Pre-implementation audit
+
+1. **Reuse.** `city_kit` (`set_city_metadata`, `add_showroom_ships`,
+   `add_service_terminals`, `paint_door_forecourts`, `paint_transit_bays`,
+   `in_bounds`), `city_layout` (`stamp_city_assets`, `paint_roof_labels`),
+   the `city_builder` registry (one new dispatch row),
+   the `CLOUD_CITY` theme, `city_landmarks` authored layouts,
+   `data/city_npcs.py` population tuples, and the existing
+   `depot_attendant` guild NPC.
+2. **Duplication hotspots.** (a) The fan-ray painter would copy Ross c's
+   gouge loop — parameterize one `_paint_ray` helper by angle/length/char
+   instead. (b) The cloud-deck/platform painters must not re-implement
+   `base_tiles` — the cloud deck replaces the walled perimeter, so the
+   silhouette painters stay local. (c) Building records/entrances come
+   free from `set_city_metadata` — no hand-rolled records.
+3. **DRY strategy.** One `_paint_ray` for all seven rays; one
+   `_paint_cloud_deck` for the atmosphere; all custom tiles as module
+   constants; the platform painted as four arm shapes + hub/plaza
+   overlays, with glyphs kept inside `CP437_CHARMAP`.
+
+### Implementation checklist
+
+- [ ] New builder `vega_b_city.py` (cloud deck, platform silhouette,
+      reflector fan, building placement, transit bays).
+- [ ] New data `data/planets/vega_b.py` (layout id, buildings incl.
+      depot, transit, interiors, showroom, overrides).
+- [ ] Authored exteriors/interiors: spaceport, bar, merchants, depot.
+- [ ] New NPC population anchors in `data/city_npcs.py`.
+- [ ] Regression tests replacing `tests/test_vega_b_city.py`.
+- [ ] Full gate (`make check`) and city playtest.
+
+### Verification record
+
+(To be filled in after the replacement lands.)
 
 ## Future work
 
