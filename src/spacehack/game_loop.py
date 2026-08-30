@@ -70,12 +70,33 @@ def _tint_player_glyph(state) -> None:
     )
 
 
+def _recompute_city_light(state) -> None:
+    """Recompute the city light grid for flickering neon this frame.
+
+    Skips when the map has no cached light sources or every source is
+    steady (the build-time grid is still correct). Reads the frame clock
+    from the shared Pygame runtime so flicker advances each frame.
+    """
+    sources = getattr(state.game_map, 'light_sources', None)
+    if not sources:
+        return
+    from .lighting import has_flickering_sources, recompute_light_grid
+    if not has_flickering_sources(sources):
+        return
+    t = state.ctx.context.frame_clock
+    recompute_light_grid(
+        state.game_map, sources, t=t,
+        occluder=lambda x, y: not state.game_map.tiles[y][x].walkable,
+    )
+
+
 def _render_active_map(state):
     """Render the current map and return camera plus space-view metadata."""
     if state.current_mode == 'space':
         view_w, view_h = solar_system_module.SOL_VIEW_W, solar_system_module.SOL_VIEW_H
     else:
         view_w, view_h = state.map_w, state.map_h
+    _recompute_city_light(state)
     if state.current_mode == 'city':
         camera = render_city_view(state.console, state.game_map, state.player.pos)
     else:

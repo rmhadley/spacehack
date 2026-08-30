@@ -372,6 +372,10 @@ class GameMap:
     # Derived state: recomputed from tiles + the frame clock, never
     # serialised (matches the ``visible``/``seen`` precedent).
     light_grid: list[list[tuple[int, int, int]]] | None = None
+    # Cached light sources collected from the map's tiles at build time;
+    # the render path reuses this list each frame instead of rescanning
+    # the tile grid. Derived: never serialised.
+    light_sources: list | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:

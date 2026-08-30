@@ -69,6 +69,33 @@ def test_venus_neon_seeds_a_light_grid():
     assert game_map.light_grid[99][139] == (0, 0, 0)
 
 
+def test_venus_neon_sources_include_flicker_profiles():
+    game_map = load_planet("venus")
+    assert game_map.light_sources is not None
+    profiles = {s.flicker for s in game_map.light_sources}
+    # The "mixed" spec distributes steady/buzz/flicker across positions.
+    assert "steady" in profiles
+    assert profiles - {"steady"}, "all neon is steady — no flicker assigned"
+    assert any(p != "steady" for p in profiles), "no flickering sources"
+
+
+def test_venus_light_grid_varies_with_time():
+    from src.spacehack.lighting import propagate_light
+
+    game_map = load_planet("venus")
+    sources = game_map.light_sources
+    assert sources is not None
+    occluder = lambda x, y: not game_map.tiles[y][x].walkable
+    grid_t0 = propagate_light(
+        game_map.width, game_map.height, sources, t=0, occluder=occluder,
+    )
+    grid_t99 = propagate_light(
+        game_map.width, game_map.height, sources, t=99, occluder=occluder,
+    )
+    # Flickering sources mean the grid is not identical across time.
+    assert grid_t0 != grid_t99, "light grid is static — flicker not working"
+
+
 def test_venus_cloud_rim_edges_are_closed():
     game_map = load_planet("venus")
     # The rim silhouette is irregular: the cloud band borders the deck

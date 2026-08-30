@@ -255,7 +255,7 @@ def collect_light_sources(game_map) -> list[LightSource]:
     the tile's own ``fg``, so a pink neon tile emits pink and a cyan
     neon tile emits cyan from the same scan. Pure: no mutation, no I/O.
     """
-    from .data.lighting import light_spec_for_kind
+    from .data.lighting import flicker_for, light_spec_for_kind
 
     sources: list[LightSource] = []
     for y, row in enumerate(game_map.tiles):
@@ -268,8 +268,41 @@ def collect_light_sources(game_map) -> list[LightSource]:
                 colour=tuple(tile.fg),
                 radius=spec.radius,
                 intensity=spec.intensity,
+                flicker=flicker_for(spec.flicker, x, y),
             ))
     return sources
+
+
+def has_flickering_sources(sources: Iterable[LightSource]) -> bool:
+    """Whether any source in ``sources`` uses a non-steady flicker profile.
+
+    Lets the render path skip the per-frame grid recompute when every
+    source is steady (the grid was seeded once at build and never
+    changes). Pure: no I/O, no mutation.
+    """
+    return any(s.flicker != "steady" for s in sources)
+
+
+def recompute_light_grid(
+    game_map,
+    sources: list[LightSource],
+    *,
+    t: int,
+    occluder: Callable[[int, int], bool] | None = None,
+) -> None:
+    """Recompute ``game_map.light_grid`` for time ``t`` in place.
+
+    Skips the recompute when ``sources`` is empty or every source is
+    steady (the grid from the build pass is already correct). Mutates
+    ``game_map.light_grid`` directly; the caller caches ``sources`` so
+    the tile scan runs once, not every frame.
+    """
+    if not sources or not has_flickering_sources(sources):
+        return
+    game_map.light_grid = propagate_light(
+        game_map.width, game_map.height, sources,
+        occluder=occluder, t=t,
+    )
 
 
 __all__ = [
@@ -279,4 +312,6 @@ __all__ = [
     "propagate_light",
     "blend_toward_light",
     "collect_light_sources",
+    "has_flickering_sources",
+    "recompute_light_grid",
 ]

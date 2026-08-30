@@ -370,13 +370,19 @@ viewport-cull when they flicker.
 
 ### Phase 3 — Venus neon flicker (the cyberpunk signature)
 
-- [ ] Assign `"buzz"`/`"flicker"` profiles to Venus neon sources in data.
-- [ ] City render: recompute `light_grid` per frame when sources have
-      non-steady profiles (viewport-culled, steady-only shortcut).
-- [ ] `tests/test_venus_city.py`: flicker sources vary intensity with
-      `t`; steady sources don't.
+- [x] Assign `"mixed"` profile to neon in `data/lighting.py`;
+      `flicker_for()` distributes steady/buzz/flicker by position so
+      adjacent signs flicker out of phase without per-instance data.
+- [x] City render: `game_loop._recompute_city_light` recomputes the
+      grid per frame using `ctx.context.frame_clock`; steady-only
+      shortcut skips the recompute when no sources flicker.
+- [x] `lighting.recompute_light_grid` + `has_flickering_sources`;
+      sources cached on `GameMap.light_sources` so the tile scan runs
+      once at build, not per frame.
+- [x] `tests/test_venus_city.py`: sources include non-steady profiles;
+      the grid varies between `t=0` and `t=99`.
 - [ ] Playtest: the neon reads as buzzing/flickering, not seizure-fast.
-- [ ] Gate.
+- [x] Gate (1521 tests, smoke, architecture, Ruff).
 
 ### Phase 4 — Dungeon ambient light and sight extension
 
