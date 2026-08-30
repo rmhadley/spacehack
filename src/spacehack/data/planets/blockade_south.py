@@ -56,12 +56,12 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="militia", name="South Watch", district="command deck",
-            pos=world.Position(116, 65),
+            pos=world.Position(116, 66),
             destinations=("spaceport", "inspection", "quarantine", "bounties"),
         ),
         world.TransitStation(
             id="bounties", name="Frontier Claims", district="claims deck",
-            pos=world.Position(21, 65),
+            pos=world.Position(21, 66),
             destinations=("spaceport", "inspection", "quarantine", "militia"),
         ),
     ),

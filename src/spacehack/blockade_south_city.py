@@ -72,9 +72,9 @@ def _paint_station_base(tiles, theme) -> None:
     for x in range(18, 40):
         tiles[25][x] = theme.sidewalk
     for x in range(12, 32):
-        tiles[65][x] = theme.sidewalk
+        tiles[66][x] = theme.sidewalk
     for x in range(104, 130):
-        tiles[65][x] = theme.sidewalk
+        tiles[66][x] = theme.sidewalk
     for y in range(39, 44):
         tiles[y][70] = theme.sidewalk
     for y in range(50, 55):
