@@ -29,6 +29,8 @@ def test_blockade_south_is_distinct_authored_station():
     assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
     assert "inspection" not in game_map.city_transit
     assert game_map.city_transit["quarantine"]["pos"] == (70, 38)
+    assert game_map.tiles[37][70].kind == "transit_bay"
+    assert game_map.tiles[38][70].kind == "transit_bay"
     assert len(game_map.landmark_stamps) == 3
     assert any(tile.kind == "station_bulkhead" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "quarantine" for row in game_map.tiles for tile in row)

@@ -81,6 +81,8 @@ def _paint_station_base(tiles, theme) -> None:
         tiles[48][x] = theme.sidewalk
     for x in range(64, 77):
         tiles[38][x] = theme.sidewalk
+    for x in range(64, 77):
+        tiles[37][x] = theme.sidewalk
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
