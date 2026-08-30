@@ -1,16 +1,16 @@
 # blockade_south_militia_interior.layout
 MAP
 #############
-#...........#
 #..T.....T..#
-#.....>.....#
 #...........#
 #...........#
-######P######
+#...........#
+#.....P.....#
+######>######
 ENDMAP
 
-TILE: # = DUNGEON_WALL
-TILE: . = DUNGEON_FLOOR
-TILE: P = CITY_BUILDING_DOOR
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: P = LANDMARK_ENTRANCE
 TILE: > = EXIT
-TILE: T = DUNGEON_FLOOR
+TILE: T = CITY_ORNAMENT

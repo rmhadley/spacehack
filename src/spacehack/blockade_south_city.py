@@ -69,6 +69,16 @@ def _paint_station_base(tiles, theme) -> None:
         tiles[47][x] = theme.road_ew
     for y in range(22, 68):
         tiles[y][70] = theme.road_ns
+    for x in range(18, 40):
+        tiles[25][x] = theme.sidewalk
+    for x in range(12, 32):
+        tiles[65][x] = theme.sidewalk
+    for x in range(104, 130):
+        tiles[65][x] = theme.sidewalk
+    for y in range(39, 44):
+        tiles[y][70] = theme.sidewalk
+    for y in range(50, 55):
+        tiles[y][70] = theme.sidewalk
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
@@ -151,7 +161,8 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     game_map = world.GameMap(WIDTH, HEIGHT, tiles=tiles, entities=[])
     stamps = stamp_city_assets(game_map, ORIGINS, sidewalk=theme.sidewalk)
     _paint_deck(game_map, spec, theme, stamps)
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
+    showroom_origin = world.Position(spec.hangar_anchor.x, spec.hangar_anchor.y + 3)
+    add_showroom_ships(game_map, spec, resolve_ship, origin=showroom_origin)
     add_service_terminals(game_map, spec, dy=5, dxs=(-5, -2, 3), palette=TERMINAL_PALETTE_CLASSIC)
     return game_map
 
