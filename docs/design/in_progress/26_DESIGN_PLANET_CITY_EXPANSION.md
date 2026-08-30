@@ -385,6 +385,23 @@ Procyon c — Ice Campus landed:
 - The full gate passes: 1486 tests (smoke, main-quest validation,
   architecture, Ruff, pytest).
 
+Playtest corrections (same checklist item, re-verified):
+
+- The **caves transit stop was removed** — the cave mouth is a
+  five-second walk from the lab terrace, so a dedicated stop was
+  useless; the spaceport/lab destination lists dropped it too.
+- The four **exterior layouts' door rows were ragged** (24 of 25
+  chars), so the layout parser padded the missing corner with a `void`
+  tile — a black gap in the building wall. All four door rows are now
+  full width. (The same ragged-door-row defect was found and fixed in
+  `indi_militia.layout` and `ross_bounties.layout`.)
+- A **dead-ice sealing pass** (`_seal_dead_ice`) now converts any
+  walkable cell unreachable from the hangar into crevasse — the cave
+  ring's east pockets, the north strip behind the spaceport's wall,
+  and the south band had walkable-looking floor sealed off from every
+  route. Regression tests now assert zero `void` tiles and zero
+  unreachable walkable cells city-wide.
+
 ## Future work
 
 Complete the Procyon pair, then continue Phase 6 with AC planets 1/2/3,

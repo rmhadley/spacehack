@@ -58,7 +58,7 @@ def test_proc_c_buildings_transit_and_npcs_are_reachable():
     spec = find_planet_spec("proc_planet_2")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "quad", "lab", "mess", "depot", "caves",
+        "spaceport", "quad", "lab", "mess", "depot",
     }
     assert len(spec.city_npc_population) == 9
     for label, record in game_map.city_buildings.items():
@@ -76,6 +76,27 @@ def test_proc_c_buildings_transit_and_npcs_are_reachable():
     # The cave mouth is reachable from the hangar (marker itself is a
     # non-walkable signpost; the walkable mouth floor beside it must be).
     assert any((x, 27) in reachable for x in range(125, 132)), "cave mouth"
+
+
+def test_proc_c_map_has_no_wall_holes_or_dead_ice_pockets():
+    """The authored exteriors must close every wall row (no void gaps)
+    and every walkable cell must be reachable from the hangar (no
+    sealed pockets between the cave ring, crevasses, or building
+    walls)."""
+    game_map = load_planet("proc_planet_2")
+    spec = find_planet_spec("proc_planet_2")
+    assert not any(
+        tile.kind == "void"
+        for row in game_map.tiles for tile in row
+    ), "ragged layout row left a void wall gap"
+    reachable = _reachable(game_map, spec.hangar_anchor)
+    pockets = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.walkable and (x, y) not in reachable
+    ]
+    assert not pockets, f"walkable cells sealed from the hangar: {pockets}"
 
 
 def test_proc_c_dungeon_params_preserved():

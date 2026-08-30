@@ -283,6 +283,34 @@ def _paint_cave(tiles) -> None:
         tiles[my][mx] = CAVE_MARK
 
 
+def _seal_dead_ice(tiles, anchor) -> None:
+    """Turn walkable cells cut off from the hangar into crevasse.
+
+    The crevasse and cave-mouth painters can leave sealed pockets of
+    floor that look walkable but cannot be reached from the hangar
+    (e.g. between the cave ring and the east crevasse band). Sealing
+    them as crevasse keeps every walkable cell on a logical route.
+    """
+    from collections import deque
+
+    start = (anchor.x, anchor.y)
+    seen = {start}
+    queue = deque([start])
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            point = (x + dx, y + dy)
+            if point in seen or not in_bounds(point[0], point[1], CITY_WIDTH, CITY_HEIGHT):
+                continue
+            if tiles[point[1]][point[0]].walkable:
+                seen.add(point)
+                queue.append(point)
+    for y in range(CITY_HEIGHT):
+        for x in range(CITY_WIDTH):
+            if tiles[y][x].walkable and (x, y) not in seen:
+                tiles[y][x] = CREVASSE
+
+
 def _paint_details(tiles, theme) -> None:
     """Drill rig, cargo crates, and route lamps."""
     for x, y in _RIG:
@@ -334,6 +362,7 @@ def build_proc_c_layout(spec, resolve_ship) -> world.GameMap:
         overwrite_kinds=frozenset({"floor", "sidewalk", "plaza", "landing_pad"}),
     )
     paint_roof_labels(game_map, stamps, "proc_c_")
+    _seal_dead_ice(game_map.tiles, spec.hangar_anchor)
     set_city_metadata(
         game_map, spec, stamps,
         prefix="proc_c_", default_layout_id="proc_c_ice_campus",
