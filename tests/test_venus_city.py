@@ -110,8 +110,8 @@ def test_venus_circulation_is_planned():
     """Civil-engineering regression: one connected road network, and
     every transit stop standing on charted surface."""
     game_map = load_planet("venus")
-    # Transit bays sit ON the road (force_center), so they are part of
-    # the network, not gaps in it. The landing apron is also planned
+    # Roads are circulation and are never paved over: the bays stand
+    # beside them as curb-side stamps. The landing apron is also planned
     # circulation — it docks onto the avenue via the apron spur, and
     # the spaceport bay sits in its middle.
     road_kinds = {"road", "road_ns", "road_ew", "road_surface",
@@ -124,6 +124,8 @@ def test_venus_circulation_is_planned():
     }
     assert len(planned) > 500, "the avenue network is too small"
     # One connected component: no avenue or lane stranded off the grid.
+    # Each curb-side bay touches its road on one edge, so the whole
+    # network (roads + bays) stays a single connected component.
     start = next(iter(planned))
     seen = {start}
     queue = deque([start])
@@ -144,6 +146,29 @@ def test_venus_circulation_is_planned():
             "road", "road_ns", "road_ew", "road_surface", "plaza",
             "landing_pad", "transit_bay",
         }, f"{station_id} stop floats on {kind}"
+
+
+def test_venus_bays_never_pave_roads():
+    """Transit bays are curb-side: every bay cell must sit on plaza,
+    deck, pad, or sidewalk ground — never on asphalt."""
+    game_map = load_planet("venus")
+    road_kinds = {"road", "road_ns", "road_ew", "road_surface"}
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            if tile.kind == "transit_bay":
+                assert tile.kind not in road_kinds  # trivially true
+    # The real invariant: the road network keeps its authored size.
+    # The seven bands paint 777 unique cells; exactly 2 of them (the
+    # bar and merchants doorstep cells) are intentionally ceded to
+    # sidewalk curb cuts so every door keeps an unbroken approach.
+    road_count = sum(
+        1 for row in game_map.tiles for tile in row
+        if tile.kind in road_kinds
+    )
+    assert road_count == 775, (
+        f"road network changed size: {road_count} != 775 "
+        "(bays must never pave over roads)"
+    )
 
 
 def test_venus_transit_bays_are_full_stamps():

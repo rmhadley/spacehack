@@ -1305,6 +1305,9 @@ _STOP_DISTANCE_GRANDFATHER = {
     ("earth", "hub"): 35,
     ("mars", "hub"): 32,
     ("mercury", "hub"): 40,
+    # Cloudbreak depot stop sits deliberately on the depot lane rim,
+    # right beside the road and the sidewalk fronting the depot door.
+    ("venus", "depot"): 13,
 }
 
 _STOP_BASE_REACH = 12
