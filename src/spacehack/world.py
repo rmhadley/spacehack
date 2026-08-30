@@ -119,6 +119,10 @@ DUNGEON_FLOOR = Tile(kind="dungeon_floor", char=".", walkable=True,
                       fg=(200, 200, 210), bg=(50, 55, 65))
 DUNGEON_DOOR = Tile(kind="dungeon_door", char="+", walkable=True,
                      fg=(100, 220, 255), bg=(20, 45, 70))
+# Bioluminescent fungus colonising derelict corridors — a soft green
+# glow that extends the player's sight nearby (see dungeon_fov lighting).
+GLOW_FUNGUS = Tile(kind="glow_fungus", char="*", walkable=True,
+                   fg=(120, 255, 140), bg=(20, 50, 25))
 VOID = Tile(kind="void", char=" ", walkable=False,
             fg=(0, 0, 0), bg=(0, 0, 0))
 AIRLOCK = Tile(kind="airlock", char="=", walkable=True,

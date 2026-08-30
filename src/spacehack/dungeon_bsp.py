@@ -103,7 +103,25 @@ def _carve_room(
     for row in range(room_y, room_y + room_h):
         for col in range(room_x, room_x + room_w):
             tiles[row][col] = params.tile_floor
+    _scatter_fungus(tiles, room_x, room_y, room_w, room_h, rng)
     return room_x + room_w // 2, room_y + room_h // 2
+
+
+def _scatter_fungus(
+    tiles: list[list[world.Tile]],
+    room_x: int, room_y: int, room_w: int, room_h: int, rng,
+) -> None:
+    """Scatter 0-2 bioluminescent fungus patches on a carved room floor.
+
+    Sparse so the dungeon reads as dark with occasional green glows; the
+    fungus extends the player's sight nearby (see :mod:`dungeon_fov`).
+    """
+    patches = rng.randint(0, 2)
+    for _ in range(patches):
+        fx = room_x + rng.randint(0, room_w - 1)
+        fy = room_y + rng.randint(0, room_h - 1)
+        if tiles[fy][fx].kind == "dungeon_floor":
+            tiles[fy][fx] = world.GLOW_FUNGUS
 
 
 def _carve_horizontal_first(

@@ -386,14 +386,19 @@ viewport-cull when they flicker.
 
 ### Phase 4 — Dungeon ambient light and sight extension
 
-- [ ] `dungeon_fov`: after `reveal_around`, call `propagate_light` over
-      static dungeon sources (glow fungus, reactor cores).
-- [ ] `dungeon_fov.reveal_lit_sources()`: cast short rays from lit cells
-      to extend `seen`/`visible` (the gameplay hook).
-- [ ] `tests/test_dungeon_fov.py`: lit cell reveals neighbours beyond
-      base sight radius; unlit corridor stays dark.
-- [ ] Save/load: dungeon light recomputed on `reveal_around` after load.
-- [ ] Gate.
+- [x] `world.GLOW_FUNGUS` tile (walkable, green bioluminescent) +
+      `glow_fungus` in `STATIC_LIGHT_TABLE` (radius 3, `"pulse"` profile).
+- [x] `dungeon_bsp._scatter_fungus`: 0-2 fungus patches per carved room.
+- [x] `dungeon_fov.reveal_around`: after the FOV cast, calls
+      `_reveal_lit_sources` (casts short rays from visible lit cells to
+      extend sight) and `_seed_dungeon_light_grid` (fog-gated: only
+      visible cells carry light).
+- [x] `tests/test_dungeon_lighting.py`: fungus placed, light grid seeded,
+      grid masked to visible, lit cells extend sight beyond base radius,
+      no-fungus dungeon gets no grid.
+- [x] Save/load: dungeon light recomputed on `reveal_around` after load.
+- [x] Guide: "Ground Exploration" section notes fungus extends sight.
+- [x] Gate (1527 tests, smoke, architecture, Ruff).
 
 ### Phase 5 — Earth river current and transient overlay light
 

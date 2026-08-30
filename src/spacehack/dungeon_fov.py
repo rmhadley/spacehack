@@ -112,12 +112,53 @@ def _cast_visible_rays(
                 _cast_ray(game_map, pos.x, pos.y, dx, dy)
 
 
+def _lit_cells_in_visible(game_map: world.GameMap) -> list[tuple[int, int]]:
+    """Return currently-visible cells whose tile kind emits light."""
+    from .data.lighting import light_spec_for_kind
+
+    if game_map.visible is None:
+        return []
+    cells: list[tuple[int, int]] = []
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            if game_map.visible[y][x] and light_spec_for_kind(tile.kind):
+                cells.append((x, y))
+    return cells
+
+
+def _reveal_lit_sources(game_map: world.GameMap) -> None:
+    """Extend sight near currently-visible light sources.
+
+    For each lit cell in the current LOS, cast short rays (the source's
+    light radius) so a glow-fungus patch reveals a bubble of cells
+    beyond the player's base sight radius. This is the gameplay hook:
+    light extends the player's sight near lit features.
+    """
+    from .data.lighting import light_spec_for_kind
+
+    for sx, sy in _lit_cells_in_visible(game_map):
+        spec = light_spec_for_kind(game_map.tiles[sy][sx].kind)
+        if spec is None:
+            continue
+        for dy in range(-spec.radius, spec.radius + 1):
+            for dx in range(-spec.radius, spec.radius + 1):
+                if max(abs(dx), abs(dy)) > spec.radius or (dx == 0 and dy == 0):
+                    continue
+                _cast_ray(game_map, sx, sy, dx, dy)
+
+
 def reveal_around(
     game_map: world.GameMap,
     pos: world.Position,
     radius: int = DUNGEON_SIGHT_RADIUS,
 ) -> None:
-    """Recompute current LOS and grow permanent visibility around ``pos``."""
+    """Recompute current LOS and grow permanent visibility around ``pos``.
+
+    After the normal FOV cast, light sources within the player's sight
+    extend visibility into nearby dark cells (e.g. glow fungus
+    illuminating a corridor beyond the base radius). The light grid is
+    also recomputed so lit cells tint their neighbours.
+    """
     if game_map.seen is None:
         return
     _clear_visible(game_map)
@@ -125,4 +166,31 @@ def reveal_around(
         game_map.seen[pos.y][pos.x] = True
         game_map.visible[pos.y][pos.x] = True
     _cast_visible_rays(game_map, pos, radius)
+    _reveal_lit_sources(game_map)
     _propagate_hull_groups(game_map)
+    _seed_dungeon_light_grid(game_map)
+
+
+def _seed_dungeon_light_grid(game_map: world.GameMap) -> None:
+    """Recompute the light grid, masked to currently-visible cells.
+
+    Dungeon light is fog-gated: only cells in the current LOS are
+    tinted, so light never reveals cells through the fog. Sources
+    outside the visible area don't contribute (their light is zeroed).
+    """
+    from .lighting import collect_light_sources, propagate_light
+
+    sources = collect_light_sources(game_map)
+    if not sources:
+        game_map.light_grid = None
+        return
+    grid = propagate_light(
+        game_map.width, game_map.height, sources,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+    if game_map.visible is not None:
+        for y in range(game_map.height):
+            for x in range(game_map.width):
+                if not game_map.visible[y][x]:
+                    grid[y][x] = (0, 0, 0)
+    game_map.light_grid = grid
