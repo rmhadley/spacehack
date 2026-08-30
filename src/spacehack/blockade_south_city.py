@@ -152,7 +152,7 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     stamps = stamp_city_assets(game_map, ORIGINS, sidewalk=theme.sidewalk)
     _paint_deck(game_map, spec, theme, stamps)
     add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
-    add_service_terminals(game_map, spec, dy=3, dxs=(-5, -2, 1), palette=TERMINAL_PALETTE_CLASSIC)
+    add_service_terminals(game_map, spec, dy=5, dxs=(-5, -2, 3), palette=TERMINAL_PALETTE_CLASSIC)
     return game_map
 
 

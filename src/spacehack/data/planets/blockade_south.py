@@ -33,14 +33,14 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        ("cruiser", 8, 3),
-        ("frigate", 15, 1),
+        ("cruiser", 8, -8),
+        ("frigate", 15, -10),
     ),
     city_layout_id="blockade_south_quarantine",
     city_npc_population=BLOCKADE_SOUTH_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Docking Bay", district="arrival deck",
+            id="spaceport", name="Spaceport", district="arrival deck",
             pos=world.Position(19, 23),
             destinations=("inspection", "quarantine", "militia", "bounties"),
         ),

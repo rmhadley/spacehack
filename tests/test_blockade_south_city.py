@@ -26,6 +26,7 @@ def test_blockade_south_is_distinct_authored_station():
     game_map = load_planet("blockade_south")
     assert game_map.city_layout_id == "blockade_south_quarantine"
     assert (game_map.width, game_map.height) == (140, 90)
+    assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
     assert len(game_map.landmark_stamps) == 3
     assert any(tile.kind == "station_bulkhead" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "quarantine" for row in game_map.tiles for tile in row)
@@ -48,6 +49,12 @@ def test_blockade_south_routes_and_stops_are_reachable():
         assert game_map.tiles[y][x].walkable, label
         assert (x, y) in reachable, label
     assert len(spec.city_npc_population) == 8
+    berth = spec.hangar_anchor
+    showroom = [entity for entity in game_map.entities if entity.ship_id]
+    assert showroom
+    assert all(entity.pos.y < berth.y for entity in showroom)
+    terminals = [entity for entity in game_map.entities if entity.trade_terminal or entity.mech_terminal or entity.armory_terminal]
+    assert all((entity.pos.x, entity.pos.y) not in {(station.pos.x, station.pos.y) for station in spec.transit_stations} for entity in terminals)
     for entity in game_map.entities:
         if getattr(entity, "city_npc_id", ""):
             assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
