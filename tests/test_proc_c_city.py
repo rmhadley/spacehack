@@ -60,6 +60,11 @@ def test_proc_c_buildings_transit_and_npcs_are_reachable():
     assert set(game_map.city_transit) == {
         "spaceport", "quad", "lab", "mess", "depot",
     }
+    # All-to-all network: every stop lists every other stop.
+    assert all(
+        set(metadata["destinations"]) == set(game_map.city_transit) - {station_id}
+        for station_id, metadata in game_map.city_transit.items()
+    )
     assert len(spec.city_npc_population) == 9
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
