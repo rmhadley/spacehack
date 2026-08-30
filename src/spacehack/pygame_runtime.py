@@ -97,9 +97,17 @@ class PygameContext:
         """Poll all currently queued project-owned input events."""
         return self._runtime.events()
 
-    def wait_events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
-        """Block until the next relevant input event is available."""
-        return self._runtime.wait_events()
+    def wait_events(
+        self, *, timeout_ms: int | None = None,
+    ) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Block until the next relevant input event, or time out.
+
+        ``timeout_ms=None`` (the default) blocks forever — the legacy
+        behaviour. A finite timeout polls for input and returns an empty
+        tuple when no event arrives in time, so the caller can redraw
+        time-varying effects (flickering neon) while the player is idle.
+        """
+        return self._runtime.wait_events(timeout_ms=timeout_ms)
 
     @property
     def display_config(self) -> DisplayConfig:
@@ -211,16 +219,35 @@ class PygameRuntime:
             return ()
         return self.engine.events()
 
-    def wait_events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
-        """Block until one relevant event, preserving the old tuple contract."""
+    def wait_events(
+        self, *, timeout_ms: int | None = None,
+    ) -> tuple[pygame_engine.PygameInputEvent, ...]:
+        """Block until one relevant event, or time out.
+
+        ``timeout_ms=None`` blocks forever (legacy behaviour). A finite
+        timeout polls every ~16ms and returns ``()`` when no relevant
+        event arrives, so the caller can redraw idle animations.
+        """
         if self.engine is None:
             return ()
+        import time
+
         pygame = self.engine.pygame
+        if timeout_ms is None:
+            while True:
+                event = pygame.event.wait()
+                translated = pygame_engine.translate_event(pygame, event)
+                if translated.kind != "other":
+                    return (translated,)
+        deadline = time.monotonic() + timeout_ms / 1000.0
         while True:
-            event = pygame.event.wait()
-            translated = pygame_engine.translate_event(pygame, event)
-            if translated.kind != "other":
-                return (translated,)
+            for event in pygame.event.get():
+                translated = pygame_engine.translate_event(pygame, event)
+                if translated.kind != "other":
+                    return (translated,)
+            if time.monotonic() >= deadline:
+                return ()
+            time.sleep(0.016)
 
     def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
         """Render a console, then an optional native Pygame overlay."""

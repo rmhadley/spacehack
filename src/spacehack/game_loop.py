@@ -666,10 +666,25 @@ def _handle_movement_event(state, event):
     if _interaction_result == 'CONTINUE':
         return 'HANDLED'
 
+def _has_idle_animations(state) -> bool:
+    """Whether the current map has time-varying effects that animate idle.
+
+    When true, the game loop polls for input with a short timeout so
+    frames keep flowing (and the flicker clock advances) even when the
+    player isn't pressing keys.
+    """
+    sources = getattr(state.game_map, 'light_sources', None)
+    if not sources:
+        return False
+    from .lighting import has_flickering_sources
+    return has_flickering_sources(sources)
+
+
 def _process_events(state):
     """Process input events."""
     ctx = state.ctx
-    for event in ctx.context.wait_events():
+    timeout_ms = 50 if _has_idle_animations(state) else None
+    for event in ctx.context.wait_events(timeout_ms=timeout_ms):
         _result = _handle_non_movement_event(state, event)
         if _result is not None:
             if _result == 'QUIT':
