@@ -18,36 +18,66 @@ colours that `_tile_render_colors()` returns. The only gameplay-facing
 interaction (dungeons: light extending sight radius) is an explicit, separate
 flag, not a side effect of the tint.
 
-## Rendering model (answers the layers question)
+## Rendering model — two layers, not one
 
-The game has **no separate compositing layer over the bitmap**. The pipeline
-is single-pass, one cell at a time:
+The engine paints a frame in **two distinct layers**:
+
+### Layer A — the bitmap/cell layer (`engine.logical_surface`)
 
 1. `world_render._tile_render_colors(game_map, x, y, tile)` returns
    `(fg, bg)` — the tile's own colours, dimmed when a cell is remembered but
    not currently visible (dungeon fog only).
 2. `_append_tile_commands()` emits one `WorldDrawCommand(x, y, char, fg, bg)`
    per visible cell.
-3. The `FrameBuffer` holds one `FrameCell` per logical cell; later writes
-   overwrite earlier ones cell-by-cell.
-4. `GlyphAtlas.blit()` paints each glyph with `BLEND_RGBA_MULT` onto its
-   background fill — there is no alpha compositing of multiple layers, no
-   post-process surface, no shader.
+3. `pygame_runtime.present()` calls `_paint_world_commands()` →
+   `GlyphAtlas.blit()` paints each glyph with `BLEND_RGBA_MULT` onto its
+   background fill.
 
-**Implication:** dynamic lighting is implemented as a **colour blend inside
-step 1**, not as an overlay pass. `_tile_render_colors()` consults the light
-grid and blends the tile's `fg`/`bg` toward the light colour by the cell's
-light intensity. This keeps the system on the existing single-pass seam and
-requires no new framebuffer/engine blit path, no alpha support, and no
-post-process surface — all of which the engine deliberately lacks.
+This layer is single-pass, one-cell-at-a-time, no alpha compositing.
 
-The alternative — a deferred glow overlay blitting low-alpha coloured rects
-on top of drawn cells — would require extending `WorldDrawCommand` with an
-alpha channel and `GlyphAtlas`/`FrameBuffer` with a blend mode. That is a
-larger engine change with broader blast radius. The colour-blend approach is
-cheaper, fits the existing architecture, and is sufficient for the intended
-effect (a tinted wash, not a bloom halo). If a true bloom/aura visual is
-wanted later, it can layer on top of the blend model without changing it.
+### Layer B — the native Pygame overlay (on top of the bitmap)
+
+After Layer A, `pygame_runtime.present()` calls
+`pygame_overlay.draw_map_effects()` which paints onto the *same*
+`logical_surface`, and then `engine.present(physical_overlay=...)` paints
+HUD/message-log panels onto the *scaled physical window*. The overlay layer
+already carries:
+
+- **`ShieldBubble`** — shield rings drawn over ships/entities.
+- **`FloatingText`** — floating damage numbers, drawn with a real Pygame
+  font (`pygame_ui.cell_font`), rising + fading per frame, with a 1px
+  shadow. Explicitly documented as *"rendered by Pygame, not the bitmap."*
+- **`TargetCard`** — the combat target readout.
+
+These are per-frame, native-Pygame-font, and **transient by nature** —
+floaters are cleared each frame via `active_floaters()` (consume-on-read).
+
+### Which layer gets lighting, and why
+
+The two light types have different lifetimes, so they belong in different
+layers:
+
+| Light type | Lifetime | Layer | Why |
+|---|---|---|---|
+| **Static ambient light** (neon signs, beacons, dungeon glow, drive exhaust) | Persistent, map-owned | **Layer A — bitmap colour blend** in `_tile_render_colors()` | It should tint the city/dungeon 100% of the time, survive save/load, and not re-run every frame. It is a property of the map's tiles, so tinting the tile colours is the persistent, save-stable home. |
+| **Transient effect light** (weapon flashes, explosions, muzzle flash) | 1–3 frames, ephemeral | **Layer B — overlay glow** alongside `FloatingText`/`ShieldBubble` | This is the established, consistent home for ephemeral combat map effects. A flash is the same kind of thing as a floater — queued per frame, drawn on top, consumed on read. |
+
+**Static light (Layer A):** `_tile_render_colors()` consults the
+`light_grid` and blends the tile's `fg`/`bg` toward the light colour by the
+cell's light intensity. No new framebuffer/engine blit path, no alpha
+support needed — it is a colour manipulation on the existing seam, like the
+existing `_dim_color()` fog dimming.
+
+**Transient light (Layer B):** a new `LightGlow` effect (a coloured radial
+blit) joins `OverlayFrame` as a field, drawn by a new
+`pygame_overlay._draw_glows()` in the same place `_draw_floaters()` runs.
+This reuses the overlay plumbing (`active_*()` consume-on-read, per-frame
+queue) that combat already uses, instead of forcing transient effects into
+the bitmap layer where they'd have to be recomputed and reseeded every tick.
+
+The two layers compose: a static neon tint (Layer A) plus a transient
+weapon-flash glow (Layer B) both apply — the flash brightens an already
+neon-tinted cell, exactly as expected.
 
 ## Philosophy alignment
 
@@ -87,38 +117,49 @@ seed, blend, and clear, not two.
 
 ### Light source records
 
-Light sources are not a new persisted type. They are discovered from
+Static light sources are not a new persisted type. They are discovered from
 existing tile kinds and entity flags:
 
 | Source kind | Where it lives | How it's found |
 |---|---|---|
 | Static tile light | `tile.kind` (`neon`, `beacon`, `glow_fungus`, …) | scan the map's tiles |
 | Entity-carried light | `entity.light_colour` / `entity.light_radius` fields | scan the map's entities |
-| Transient effect light | a per-tick list on `GameMap` (see below) | appended by combat/space |
+
+Transient effect light is **not** stored on `GameMap` — it lives in the
+overlay layer (Layer B), alongside floaters, because it is per-frame and
+ephemeral (see Transient effect light below).
 
 For tile-based static light, the colour/radius come from a table in
 `data/` (see Domain seeding), not from new `Tile` fields — tiles stay
 pure render data.
 
-### Transient effect light
+### Transient effect light (overlay layer, Layer B)
+
+Transient light (weapon flashes, explosions) follows the existing
+`FloatingText` pattern exactly — it is an overlay effect, not `GameMap`
+state:
 
 ```python
-# world.py — GameMap dataclass
-light_effects: list[LightEffect] = field(default_factory=list)
-
+# pygame_overlay.py — joins FloatingText / ShieldBubble in OverlayFrame
 @dataclass(frozen=True)
-class LightEffect:
-    x: int
-    y: int
+class LightGlow:
+    """One native radial light glow drawn by Pygame over the map region."""
+    x: int               # viewport-relative cell x
+    y: int               # viewport-relative cell y
     colour: tuple[int, int, int]
-    radius: int
-    ticks: int          # remaining ticks before expiry
+    radius: int          # in cells
+    age: int             # frame age (0 = spawn)
+    lifetime: int        # total frame count
+
+# OverlayFrame gains: glows: tuple[LightGlow, ...] = ()
 ```
 
-Combat and space append `LightEffect`s for flashes/explosions; the render
-path includes them when seeding the grid; expired effects are pruned each
-tick. These are transient and not serialized (recomputed from the combat
-state on load, like `visible`).
+Combat/space queue `LightGlow`s via a `combat._animations` helper (same
+module-level `_set_floaters` pattern). `pygame_overlay._draw_glows()`
+paints them with a radial alpha-blended blit (a small pre-built glow
+surface, `BLEND_RGBA_ADD`), clipped to the map region, fading with `age`.
+This is the same consume-on-read per-frame queue floaters use — no
+`GameMap` field, no serialization, no per-tick grid recompute.
 
 ## The lighting primitive (`lighting.py`)
 
@@ -182,8 +223,8 @@ tint, not a hue shift.
 |---|---|---|---|
 | Cities | Once, at `build_*_layout` build time | Static tiles (neon, beacon) | Zero per-tick cost; grid is frozen after build. |
 | Dungeons / derelicts | On every `reveal_around` (player move) | Static tiles + player torch | Same cadence as FOV; the propagation runs alongside the existing BFS, not in addition. |
-| Space | Per tick, but only affected cells | Transient effects (weapon fire, explosions) + cached star/ship glow | Clear-and-reseed only the flash cells; static sources cached, recomputed on ship move. |
-| Ground combat | Per turn | Transient effects (muzzle flash, explosions) + entity-carried lights | Same clear-and-reseed; combat is turn-based so per-tick cost is moot. |
+| Space | Static glow cached; transient via overlay layer | Static (star/ship drive) on grid + transient flashes as `LightGlow` | Static grid recomputed on ship move only; transient flashes never touch the bitmap grid — they are overlay-blitted per frame, like floaters. |
+| Ground combat | Static glow cached; transient via overlay layer | Entity-carried lights on grid + transient flashes as `LightGlow` | Combat is turn-based; transient flashes are overlay-blitted per frame. |
 
 **Static-light caching rule:** when a domain's light sources don't change
 between frames (city at rest, dungeon between moves), the grid is not
@@ -213,14 +254,14 @@ before it gains a gameplay dependency.
 
 | State | Serialized? | Why |
 |---|---|---|
-| `GameMap.light_grid` | **No** | Derived from tiles + entities + effects; recomputed on load. Matches `visible`/`seen` precedent. |
-| `GameMap.light_effects` | **No** | Transient combat state; recomputed from the combat encounter on load. |
-| `GameMap.light_dirty` (if added) | **No** | Derived flag; recomputed. |
+| `GameMap.light_grid` | **No** | Derived from tiles + entities; recomputed on load. Matches `visible`/`seen` precedent. |
+| `GameMap.light_effects` | — | **Removed**: transient light is now `LightGlow` on the overlay layer (`OverlayFrame`), not a `GameMap` field. Nothing to serialize. |
 | Authored light source data (tile kinds, entity fields) | **Yes** (via existing tile/entity serialization) | These are already saved as part of the map; no new serialization. |
 
 **Checklist for the save/load contract:**
 - [ ] `saveload._ctx_to_dict()` and `load_game()` do **not** reference
-      `light_grid` or `light_effects` — they are recomputed.
+      `light_grid` — it is recomputed. (`LightGlow` is overlay-only and
+      never touches `GameMap` or save data.)
 - [ ] On `load_game()`, the city/dungeon rebuild path calls the lighting
       seed pass (so a loaded city has its neon glow without a player move).
 - [ ] The sniff test: save in a lit city → quit → continue → the neon
@@ -230,22 +271,29 @@ before it gains a gameplay dependency.
 
 ### 1. Existing classes / modules to extend or reuse
 
-- **`world.GameMap`** (`world.py:339`) — add `light_grid` and
-  `light_effects` fields. The `seen`/`visible` fields (`world.py:348-349`)
-  are the architectural precedent for derived, non-serialized grid state.
+- **`world.GameMap`** (`world.py:339`) — add the `light_grid` field only.
+  The `seen`/`visible` fields (`world.py:348-349`) are the architectural
+  precedent for derived, non-serialized grid state. (`light_effects` is
+  gone — transient light lives on the overlay layer.)
 - **`world_render._tile_render_colors()`** (`world_render.py:54`) — the
-  single colour-resolution seam; this is where the blend is inserted.
+  single colour-resolution seam for the static-light blend (Layer A).
   Renaming the existing body to `_base_colors()` and wrapping it keeps the
   fog-dimming path intact.
 - **`world_render._dim_color()`** (`world_render.py:41`) — the existing
   colour-manipulation helper; `_blend_toward_light` follows its shape.
+- **`pygame_overlay.OverlayFrame`** (`pygame_overlay.py:103`) — gains a
+  `glows` field, joining `shields`/`floaters`/`target`. The overlay layer
+  (Layer B) is the home for transient `LightGlow` effects.
+- **`pygame_overlay._draw_floaters()`** (`pygame_overlay.py:699`) — the
+  template for the new `_draw_glows()`: per-frame, consume-on-read,
+  clipped to the map region, Pygame-blitted.
+- **`combat/_animations.py` `_set_floaters`/`active_floaters`** — the
+  per-frame queue pattern `LightGlow` will mirror for transient flashes.
 - **`dungeon_fov.reveal_around()`** (`dungeon_fov.py`) — the FOV cast that
-  dungeon lighting hooks into (Phase 5).
+  dungeon lighting hooks into (Phase 3).
 - **`data/planets/themes.py`** — the neon/beacon tile definitions already
   exist; the static-light source table reads `tile.kind`, so no new fields
   on `Tile`.
-- **`combat/_animations.py`** and **`navigation_combat.py`** — where
-  transient light effects for weapon fire will be appended (Phase 4).
 
 ### 2. Three potential duplication hotspots
 
@@ -267,9 +315,10 @@ before it gains a gameplay dependency.
 - **`_blend_toward_light`** lives in `lighting.py` (or `world_render.py`
   if it must stay renderer-adjacent); imported, not copied.
 - **`collect_light_sources(game_map)`** in `lighting.py` discovers static
-  tile light and entity-carried light in one pass; transient effects are
-  appended by the combat/space domain before calling `propagate_light`.
-  (Guardrail: batch entity iteration, avoid quadratic passes.)
+  tile light and entity-carried light in one pass for the bitmap grid.
+  Transient `LightGlow` effects bypass this entirely — they are queued
+  directly to the overlay layer, like floaters, and never touch
+  `light_grid`. (Guardrail: batch entity iteration, avoid quadratic passes.)
 
 ## Phased implementation plan
 
@@ -279,8 +328,8 @@ before it gains a gameplay dependency.
       function with Chebyshev-falloff additive blend.
 - [ ] `tests/test_lighting.py`: single source, overlapping sources, radius
       zero, falloff edge, empty sources.
-- [ ] `world.GameMap`: add `light_grid` and `light_effects` fields
-      (default `None` / `[]`).
+- [ ] `world.GameMap`: add the `light_grid` field (default `None`).
+      No `light_effects` field — transient light is overlay-only.
 - [ ] `world_render._tile_render_colors()`: consult `light_grid`, blend
       via `lighting._blend_toward_light`, with `None` → no-tint fallback.
 - [ ] Gate: smoke + architecture + Ruff + pytest.
@@ -308,16 +357,21 @@ before it gains a gameplay dependency.
 - [ ] Save/load: dungeon light recomputed on `reveal_around` after load.
 - [ ] Gate.
 
-### Phase 4 — Space and ground combat transient light
+### Phase 4 — Space and ground combat transient light (overlay layer)
 
-- [ ] `world.LightEffect` dataclass + `GameMap.light_effects` field.
-- [ ] Combat/space: append `LightEffect` on weapon fire / explosion;
-      prune expired each tick.
-- [ ] Render path includes `light_effects` when seeding the grid
-      (clear-and-reseed of affected cells only — no full-map BFS).
-- [ ] `tests/test_lighting.py`: transient effects blend with static light;
-      expiry prunes correctly.
-- [ ] Save/load: `light_effects` not serialized; recomputed from combat state.
+- [ ] `pygame_overlay.LightGlow` dataclass + `OverlayFrame.glows` field.
+- [ ] `pygame_overlay._draw_glows()`: radial alpha-blended blit
+      (`BLEND_RGBA_ADD`) using a small pre-built glow surface, clipped to
+      the map region, fading with `age` — mirrors `_draw_floaters()`.
+- [ ] `combat/_animations.py`: a `_set_glows`/`active_glows` queue
+      (same module-level pattern as `_set_floaters`/`active_floaters`);
+      combat/space queue a `LightGlow` on weapon fire / explosion.
+- [ ] Wire `draw_map_effects` to call `_draw_glows` alongside
+      `_draw_floaters`.
+- [ ] `tests/test_lighting.py` (or `test_pygame_overlay.py`): glow is
+      queued on fire, consumed on read, fades with age.
+- [ ] Save/load: nothing to do — `LightGlow` is overlay-only, never on
+      `GameMap`, never serialized.
 - [ ] Gate.
 
 ### Phase 5 — Polish and guide
