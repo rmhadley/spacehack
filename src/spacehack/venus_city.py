@@ -419,9 +419,11 @@ def build_venus_layout(spec, resolve_ship) -> world.GameMap:
         palette=TERMINAL_PALETTE_CLASSIC,
     )
     # Seed the static neon/beacon light grid (steady at build time;
-    # Phase 3 adds flicker via the frame clock).
+    # Phase 3 adds flicker via the frame clock). Light is occluded by
+    # non-walkable walls so it doesn't bleed through tower blocks.
     game_map.light_grid = propagate_light(
         CITY_WIDTH, CITY_HEIGHT, collect_light_sources(game_map),
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
     )
     return game_map
 

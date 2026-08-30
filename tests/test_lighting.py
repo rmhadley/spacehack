@@ -75,6 +75,43 @@ def test_additive_clamps_to_255_per_channel():
     assert grid[0][0] == (255, 255, 255)
 
 
+def test_occluder_blocks_light_through_walls():
+    # A wall between the source and a cell stops the light.
+    # Grid: 5x1. Source at (0,0). Wall at (2,0). Cell at (4,0).
+    source = LightSource(x=0, y=0, colour=(255, 0, 0), radius=5)
+    walls = {(2, 0)}
+    grid = propagate_light(
+        5, 1, [source],
+        occluder=lambda x, y: (x, y) in walls,
+    )
+    # Source cell is lit.
+    assert grid[0][0] != (0, 0, 0)
+    # Cell before the wall is lit.
+    assert grid[0][1] != (0, 0, 0)
+    # The wall cell itself is not lit (occluded).
+    assert grid[0][2] == (0, 0, 0)
+    # Cells beyond the wall are not lit.
+    assert grid[0][3] == (0, 0, 0)
+    assert grid[0][4] == (0, 0, 0)
+
+
+def test_no_occluder_means_light_passes_through():
+    # Same layout, no occluder → light reaches the far cell.
+    source = LightSource(x=0, y=0, colour=(255, 0, 0), radius=5)
+    grid = propagate_light(5, 1, [source])
+    assert grid[0][4] != (0, 0, 0)
+
+
+def test_source_cell_is_lit_even_when_it_is_an_occluder():
+    # A neon sign is non-walkable (an occluder), but it still lights itself.
+    source = LightSource(x=2, y=2, colour=(255, 0, 0), radius=3)
+    grid = propagate_light(
+        5, 5, [source],
+        occluder=lambda x, y: (x, y) == (2, 2),
+    )
+    assert grid[2][2] != (0, 0, 0)
+
+
 def test_source_outside_bounds_does_not_crash():
     # Source off the map edge but whose radius reaches into the grid.
     source = LightSource(x=-1, y=-1, colour=(255, 0, 0), radius=3)

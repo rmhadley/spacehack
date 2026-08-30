@@ -107,6 +107,36 @@ def _flicker_multiplier(source: LightSource, t: int) -> float:
     return profile(source, t)
 
 
+def _line_is_clear(
+    x0: int, y0: int, x1: int, y1: int,
+    occluder,
+) -> bool:
+    """Whether the line ``(x0,y0)`` → ``(x1,y1)`` is unobstructed.
+
+    Uses Bresenham; returns ``False`` if any cell strictly between the
+    endpoints (exclusive of the source cell, inclusive of the target)
+    satisfies ``occluder(x, y)``. Pure: no I/O, no mutation.
+    """
+    dx = abs(x1 - x0)
+    dy = abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    cx, cy = x0, y0
+    while True:
+        if (cx, cy) != (x0, y0) and occluder(cx, cy):
+            return False
+        if cx == x1 and cy == y1:
+            return True
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            cx += sx
+        if e2 < dx:
+            err += dx
+            cy += sy
+
+
 def _propagate_one_source(
     grid: list[list[RGB]],
     source: LightSource,
@@ -114,6 +144,7 @@ def _propagate_one_source(
     height: int,
     falloff: float,
     t: int,
+    occluder,
 ) -> None:
     """Add ``source``'s light contribution into ``grid`` in place."""
     multiplier = _flicker_multiplier(source, t)
@@ -131,6 +162,10 @@ def _propagate_one_source(
                 continue
             sx = source.x + dx
             if sx < 0 or sx >= width:
+                continue
+            if occluder is not None and not _line_is_clear(
+                source.x, source.y, sx, sy, occluder,
+            ):
                 continue
             intensity = source.intensity * multiplier * (falloff ** dist)
             if intensity <= 0.0:
@@ -150,6 +185,7 @@ def propagate_light(
     *,
     falloff: float = 0.5,
     t: int = 0,
+    occluder: Callable[[int, int], bool] | None = None,
 ) -> list[list[RGB]]:
     """Return an additive colour grid from ``sources`` at time ``t``.
 
@@ -160,7 +196,11 @@ def propagate_light(
     clamped to 255. The grid is all-black ``(0, 0, 0)`` when ``sources``
     is empty.
 
-    Pure: no I/O, no mutation of arguments, deterministic given ``t``.
+    When ``occluder`` is provided, light is blocked by cells for which
+    ``occluder(x, y)`` returns ``True`` — a Bresenham line-of-sight
+    check stops light from passing through walls. ``None`` (the default)
+    means no occlusion (light propagates freely), matching the pre-occlusion
+    behaviour. Pure: no I/O, no mutation, deterministic given ``t``.
     """
     grid: list[list[RGB]] = [[(0, 0, 0)] * width for _ in range(height)]
     source_list = list(sources)
@@ -169,7 +209,9 @@ def propagate_light(
     for source in source_list:
         if source.radius < 0 or source.intensity <= 0.0:
             continue
-        _propagate_one_source(grid, source, width, height, falloff, t)
+        _propagate_one_source(
+            grid, source, width, height, falloff, t, occluder,
+        )
     return grid
 
 
