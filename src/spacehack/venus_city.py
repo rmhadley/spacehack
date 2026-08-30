@@ -124,15 +124,15 @@ def _tile(kind, char, fg, bg, walkable=True, message=None) -> world.Tile:
 
 
 CLOUD_A = _tile(
-    "cloud_deck", "░", (60, 78, 108), (34, 44, 66), walkable=False,
+    "cloud_deck", "░", (108, 60, 150), (40, 18, 66), walkable=False,
     message="The cloud deck below the city is not solid ground.",
 )
 CLOUD_B = _tile(
-    "cloud_deck", "·", (88, 110, 145), (34, 44, 66), walkable=False,
+    "cloud_deck", "·", (150, 80, 180), (48, 22, 74), walkable=False,
     message="The cloud deck below the city is not solid ground.",
 )
 DECK_GAP = _tile(
-    "deck_gap", "░", (14, 18, 28), (8, 10, 16), walkable=False,
+    "deck_gap", "░", (20, 12, 40), (10, 6, 22), walkable=False,
     message="A maintenance gap in the deck plating - no way across.",
 )
 BEACON = _tile(
