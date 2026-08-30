@@ -73,7 +73,11 @@ VENUS_NEON = override_theme(
         sidewalk=T("sidewalk", "▒", (155, 160, 185), (74, 78, 95)),
         plaza=T("plaza", "░", (200, 165, 210), (80, 62, 96)),
         landing_pad=T("landing_pad", "▓", (130, 185, 225), (55, 78, 105)),
-        neon=T("neon", "*", (255, 45, 150), (58, 22, 48)),
+        neon=world.Tile(
+            kind="neon", char="*", fg=(255, 45, 150), bg=(58, 22, 48),
+            walkable=False,
+            blocked_message="A neon sign glows on the building facade.",
+        ),
     ),
     # Pinned directly so the readability lift keeps the indigo hue
     # instead of flattening the deck to neutral gray.
@@ -163,7 +167,10 @@ BAY = _tile(
 )
 # Second sign colour for the signage pass: electric cyan alternates
 # with the theme's hot pink so facades read as mixed Tokyo neon.
-NEON_CYAN = _tile("neon", "*", (0, 229, 255), (32, 66, 88))
+NEON_CYAN = _tile(
+    "neon", "*", (0, 229, 255), (32, 66, 88), walkable=False,
+    message="A neon sign glows on the building facade.",
+)
 # Junction marker where an EW lane line crosses an NS lane line.
 # kind stays "road" so the crossing counts as part of the network.
 ROAD_CROSS = _tile("road", "+", (0, 229, 255), (30, 42, 66))
