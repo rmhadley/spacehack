@@ -28,7 +28,7 @@ def test_blockade_south_is_distinct_authored_station():
     assert (game_map.width, game_map.height) == (140, 90)
     assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
     assert game_map.city_transit["inspection"]["pos"] != game_map.city_transit["quarantine"]["pos"]
-    assert abs(game_map.city_transit["inspection"]["pos"][1] - game_map.city_transit["quarantine"]["pos"][1]) >= 2
+    assert abs(game_map.city_transit["inspection"]["pos"][0] - game_map.city_transit["quarantine"]["pos"][0]) >= 20
     assert len(game_map.landmark_stamps) == 3
     assert any(tile.kind == "station_bulkhead" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "quarantine" for row in game_map.tiles for tile in row)
@@ -46,6 +46,8 @@ def test_blockade_south_routes_and_stops_are_reachable():
         x, y = metadata["pos"]
         assert game_map.tiles[y][x].walkable, station_id
         assert (x, y) in reachable, station_id
+    assert game_map.city_transit["militia"]["pos"] == (116, 65)
+    assert game_map.city_transit["bounties"]["pos"] == (21, 65)
     for label, record in game_map.city_buildings.items():
         x, y = record["entrance"]
         assert game_map.tiles[y][x].walkable, label
