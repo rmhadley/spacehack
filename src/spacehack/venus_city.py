@@ -41,31 +41,43 @@ from .city_kit import (
 )
 from .city_layout import paint_roof_labels, paint_skyline, stamp_city_assets
 from .data.planets import _readable_city_theme
-from .data.planets.themes import T, derive_theme
+from .data.planets.themes import T, derive_theme, override_theme
 
 
 CITY_WIDTH = 140
 CITY_HEIGHT = 100
 
-# Night-neon variant: deep blue-black deck, hot pink signage.
+# Cyberpunk-neon variant: Tokyo-in-2200 night palette.
 #
 # The default derive_theme pipeline darkens the grass anchor into
 # road/sidewalk tones, but with a grass this dark every derived surface
 # converges to the same lifted gray after `_readable_city_theme`
 # processing — making road, sidewalk, and terrain indistinguishable.
-# Hand-tuned overrides keep each surface visually distinct:
-#   road  = medium blue-gray asphalt with bright cyan neon lane markers
-#   sidewalk = light silver-gray concrete
-#   plaza = warm cream (sodium-lamp illuminated gathering space)
-VENUS_NEON = derive_theme(
-    floor=(26, 34, 50),
-    grass=(18, 24, 36),
-    accent=(255, 110, 200),
-    road_surface=T("road", ".", (70, 85, 105), (35, 45, 62)),
-    road_ns=T("road", ":", (80, 210, 230), (28, 40, 58)),
-    road_ew=T("road", "-", (80, 210, 230), (28, 40, 58)),
-    sidewalk=T("sidewalk", "▒", (135, 145, 165), (52, 58, 74)),
-    plaza=T("plaza", "░", (190, 180, 165), (78, 74, 68)),
+# Hand-tuned overrides keep each surface visually distinct AND on-hue:
+# backgrounds are pre-lifted above the readability luma floor so the
+# indigo/purple cast survives processing instead of flattening to gray.
+#   floor      = deep indigo deck plate with brighter blue specks
+#   road       = purple-gray wet asphalt
+#   road_ns/ew = electric cyan lane markers on deep blue
+#   sidewalk   = light violet-tinted concrete curbs
+#   plaza      = mauve stone washed in pink neon glow
+#   neon       = hot pink signs (alternated with cyan in the signage pass)
+VENUS_NEON = override_theme(
+    derive_theme(
+        floor=(55, 68, 105),
+        grass=(55, 45, 85),
+        accent=(255, 45, 150),
+        road_surface=T("road", ".", (105, 112, 135), (62, 58, 76)),
+        road_ns=T("road", ":", (0, 229, 255), (30, 42, 66)),
+        road_ew=T("road", "-", (0, 229, 255), (30, 42, 66)),
+        sidewalk=T("sidewalk", "▒", (155, 160, 185), (74, 78, 95)),
+        plaza=T("plaza", "░", (200, 165, 210), (80, 62, 96)),
+        landing_pad=T("landing_pad", "▓", (130, 185, 225), (55, 78, 105)),
+        neon=T("neon", "*", (255, 45, 150), (58, 22, 48)),
+    ),
+    # Pinned directly so the readability lift keeps the indigo hue
+    # instead of flattening the deck to neutral gray.
+    floor=T("floor", ".", (85, 100, 140), (50, 62, 95)),
 )
 
 # Fixed asset origins (match the spec footprints).
@@ -89,8 +101,9 @@ _CROSS_STREET_Y = (64, 65, 66)       # second avenue, south of the plaza
 _CROSS_STREET_X = (30, 128)
 _BAR_SPUR = (27, 29, 64, 69)         # Cross Street -> Cloudbreak forecourt
 _MERCHANTS_SPUR = (106, 108, 64, 69) # Cross Street -> exchange forecourt
-_DEPOT_SPUR = (89, 91, 66, 83)       # Cross Street -> depot lane (west of exchange)
-_DEPOT_LANE = (89, 104, 83, 83)      # EW back alley docking the depot forecourt
+_DEPOT_SPUR = (89, 91, 66, 82)       # Cross Street -> depot service road
+_DEPOT_WALKWAY_X = (89, 104)         # sidewalk walkway along the depot wall
+_DEPOT_WALKWAY_Y = 83
 
 # Landing apron south of the spaceport (drawn pad surface).
 _APRON = (4, 30, 18, 26)
@@ -100,14 +113,19 @@ _CROSS = (74, 88, 36, 46)
 _BEACON = (83, 41)
 _LAMP_SPOTS = ((75, 37), (87, 37), (75, 45), (87, 45))
 
+# Single-cell gaps between perpendicular lane markers, bridged so the
+# center line visibly turns (the Cross Street marker starts at x=30
+# while the Cloudbreak spur marker sits at x=28).
+_MARKER_BRIDGES = ((29, 65),)
+
 # Skyline tuning: dense towers, every free block packed.
 _SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
-    ((96, 130, 185), (26, 38, 58), (120, 170, 215), (34, 48, 70)),   # steel blue
-    ((70, 170, 200), (22, 40, 52), (100, 205, 230), (30, 50, 64)),   # neon cyan
-    ((190, 90, 160), (46, 22, 42), (220, 130, 190), (56, 28, 52)),   # hot pink
-    ((120, 110, 190), (32, 28, 52), (150, 140, 215), (40, 36, 62)),  # violet
-    ((70, 150, 120), (22, 44, 36), (95, 185, 150), (30, 54, 44)),    # deck green
-    ((150, 150, 165), (40, 40, 48), (175, 175, 190), (48, 48, 56)),  # slate
+    ((110, 160, 255), (16, 28, 52), (150, 195, 255), (24, 40, 70)),  # electric blue
+    ((80, 230, 255), (12, 40, 50), (130, 240, 255), (18, 52, 62)),   # neon cyan
+    ((255, 80, 180), (46, 12, 36), (255, 130, 200), (56, 18, 44)),   # hot pink
+    ((175, 120, 255), (32, 20, 56), (205, 165, 255), (40, 26, 66)),  # violet
+    ((255, 185, 85), (50, 34, 12), (255, 215, 130), (60, 42, 18)),   # amber gold
+    ((185, 195, 215), (38, 42, 52), (215, 225, 240), (48, 53, 64)),  # steel silver
 )
 
 
@@ -124,25 +142,31 @@ def _tile(kind, char, fg, bg, walkable=True, message=None) -> world.Tile:
 
 
 CLOUD_A = _tile(
-    "cloud_deck", "░", (108, 60, 150), (40, 18, 66), walkable=False,
+    "cloud_deck", "░", (140, 70, 200), (38, 16, 62), walkable=False,
     message="The cloud deck below the city is not solid ground.",
 )
 CLOUD_B = _tile(
-    "cloud_deck", "·", (150, 80, 180), (48, 22, 74), walkable=False,
+    "cloud_deck", "·", (180, 100, 230), (46, 20, 72), walkable=False,
     message="The cloud deck below the city is not solid ground.",
 )
 DECK_GAP = _tile(
-    "deck_gap", "░", (20, 12, 40), (10, 6, 22), walkable=False,
+    "deck_gap", "░", (15, 10, 30), (8, 5, 16), walkable=False,
     message="A maintenance gap in the deck plating - no way across.",
 )
 BEACON = _tile(
-    "beacon", "!", (255, 215, 100), (44, 30, 56), walkable=False,
+    "beacon", "!", (255, 225, 120), (44, 30, 60), walkable=False,
     message="The Cross beacon guides crews in from the landing deck.",
 )
 BAY = _tile(
-    "transit_bay", "=", (140, 240, 255), (42, 74, 88),
+    "transit_bay", "=", (0, 229, 255), (30, 68, 92),
     message="A transit boarding bay.",
 )
+# Second sign colour for the signage pass: electric cyan alternates
+# with the theme's hot pink so facades read as mixed Tokyo neon.
+NEON_CYAN = _tile("neon", "*", (0, 229, 255), (32, 66, 88))
+# Junction marker where an EW lane line crosses an NS lane line.
+# kind stays "road" so the crossing counts as part of the network.
+ROAD_CROSS = _tile("road", "+", (0, 229, 255), (30, 42, 66))
 
 
 # ---------------------------------------------------------------------
@@ -200,49 +224,94 @@ def _paint_cross(tiles, theme) -> None:
         tiles[y][x] = theme.neon
 
 
-def _paint_road_band(tiles, theme, x_lo, x_hi, y_lo, y_hi, orientation) -> None:
-    """Paint a road band from its bounding box (lane marker centered)."""
-    mid_y = (y_lo + y_hi) // 2
-    mid_x = (x_lo + x_hi) // 2
-    for y in range(y_lo, y_hi + 1):
-        for x in range(x_lo, x_hi + 1):
-            if orientation == "ns" and x == mid_x:
-                tiles[y][x] = theme.road_ns
-            elif orientation == "ew" and y == mid_y:
-                tiles[y][x] = theme.road_ew
-            else:
+def _paint_asphalt(tiles, theme, bands) -> None:
+    """Lay bare asphalt for every road band (no lane markers yet)."""
+    for x_lo, x_hi, y_lo, y_hi, _orientation in bands:
+        for y in range(y_lo, y_hi + 1):
+            for x in range(x_lo, x_hi + 1):
                 tiles[y][x] = theme.road_surface
+
+
+def _paint_lane_markers(tiles, theme, bands) -> None:
+    """Draw continuous lane markers so dashes turn through junctions.
+
+    NS markers first, then EW markers — so dashes run through
+    junctions instead of breaking where bands overlap. Cells where an
+    EW marker crosses an NS marker get a '+' crossing tile, and
+    single-cell gaps between perpendicular markers are bridged so the
+    center line visibly turns at every corner.
+    """
+    # North-south markers, full length.
+    for x_lo, x_hi, y_lo, y_hi, orientation in bands:
+        if orientation != "ns":
+            continue
+        mid_x = (x_lo + x_hi) // 2
+        for y in range(y_lo, y_hi + 1):
+            tiles[y][mid_x] = theme.road_ns
+    # East-west markers, turning through north-south markers at
+    # junctions.
+    for x_lo, x_hi, y_lo, y_hi, orientation in bands:
+        if orientation != "ew":
+            continue
+        mid_y = (y_lo + y_hi) // 2
+        for x in range(x_lo, x_hi + 1):
+            tiles[mid_y][x] = (
+                ROAD_CROSS
+                if tiles[mid_y][x].kind == "road_ns"
+                else theme.road_ew
+            )
+    # Bridge single-cell gaps so perpendicular dashes connect.
+    for x, y in _MARKER_BRIDGES:
+        tiles[y][x] = theme.road_ew
 
 
 def _paint_road_network(tiles, theme) -> None:
     """Paint the planned circulation: the avenue cross and docked lanes."""
-    _paint_road_band(tiles, theme, _PROMENADE_X[0], _PROMENADE_X[1],
-                     _PROMENADE_Y[0], _PROMENADE_Y[2], "ew")
-    _paint_road_band(tiles, theme, _APRON_SPUR[0], _APRON_SPUR[1],
-                     _APRON_SPUR[2], _APRON_SPUR[3], "ns")
-    _paint_road_band(tiles, theme, _SPINE[0], _SPINE[1], _SPINE[2], _SPINE[3], "ns")
-    _paint_road_band(tiles, theme, _CROSS_STREET_X[0], _CROSS_STREET_X[1],
-                     _CROSS_STREET_Y[0], _CROSS_STREET_Y[2], "ew")
-    _paint_road_band(tiles, theme, _BAR_SPUR[0], _BAR_SPUR[1],
-                     _BAR_SPUR[2], _BAR_SPUR[3], "ns")
-    _paint_road_band(tiles, theme, _MERCHANTS_SPUR[0], _MERCHANTS_SPUR[1],
-                     _MERCHANTS_SPUR[2], _MERCHANTS_SPUR[3], "ns")
-    _paint_road_band(tiles, theme, _DEPOT_SPUR[0], _DEPOT_SPUR[1],
-                     _DEPOT_SPUR[2], _DEPOT_SPUR[3], "ns")
-    _paint_road_band(tiles, theme, _DEPOT_LANE[0], _DEPOT_LANE[1],
-                     _DEPOT_LANE[2], _DEPOT_LANE[3], "ew")
+    bands = (
+        (_PROMENADE_X[0], _PROMENADE_X[1], _PROMENADE_Y[0], _PROMENADE_Y[2], "ew"),
+        (_APRON_SPUR[0], _APRON_SPUR[1], _APRON_SPUR[2], _APRON_SPUR[3], "ns"),
+        (_SPINE[0], _SPINE[1], _SPINE[2], _SPINE[3], "ns"),
+        (_CROSS_STREET_X[0], _CROSS_STREET_X[1], _CROSS_STREET_Y[0], _CROSS_STREET_Y[2], "ew"),
+        (_BAR_SPUR[0], _BAR_SPUR[1], _BAR_SPUR[2], _BAR_SPUR[3], "ns"),
+        (_MERCHANTS_SPUR[0], _MERCHANTS_SPUR[1], _MERCHANTS_SPUR[2], _MERCHANTS_SPUR[3], "ns"),
+        (_DEPOT_SPUR[0], _DEPOT_SPUR[1], _DEPOT_SPUR[2], _DEPOT_SPUR[3], "ns"),
+    )
+    _paint_asphalt(tiles, theme, bands)
+    _paint_lane_markers(tiles, theme, bands)
+
+
+def _paint_depot_walkway(tiles, theme) -> None:
+    """Sidewalk walkway from the depot spur to the depot door forecourt."""
+    x_lo, x_hi = _DEPOT_WALKWAY_X
+    y = _DEPOT_WALKWAY_Y
+    for x in range(x_lo, x_hi + 1):
+        if in_bounds(x, y, CITY_WIDTH, CITY_HEIGHT) and tiles[y][x].kind == "floor":
+            tiles[y][x] = theme.sidewalk
 
 
 def _paint_neon_signage(game_map, theme) -> None:
-    """Line each tower's street-facing facade with neon wall signs."""
+    """Line each tower's street-facing facade with neon wall signs.
+
+    Wide towers get a third centred sign, tall towers a rooftop sign,
+    and colours alternate hot pink / electric cyan for variety.
+    """
     for x, y, w, h in game_map.skyline_placements:
         if h < 2:
             continue
         facade_y = y + h - 1        # the block's south (street-facing) wall
-        for sx in (x + 2, x + w - 3):
+        cols = [x + 2, x + w - 3]
+        if w >= 8:
+            cols.insert(1, x + (w - 1) // 2)
+        for sx in cols:
             if sx >= x + w or sx <= x:
                 continue
-            game_map.tiles[facade_y][sx] = theme.neon
+            game_map.tiles[facade_y][sx] = (
+                theme.neon if (x + sx) % 2 else NEON_CYAN
+            )
+        if h >= 5:
+            game_map.tiles[y][x + (w - 1) // 2] = (
+                NEON_CYAN if (x + y) % 2 else theme.neon
+            )
 
 
 def _seal_dead_deck(tiles, anchor) -> None:
@@ -282,6 +351,30 @@ def _paint_basemap(tiles, theme) -> None:
     _paint_apron(tiles, theme)
     _paint_cross(tiles, theme)
     _paint_road_network(tiles, theme)
+    _paint_depot_walkway(tiles, theme)
+
+
+def _paint_curb_cuts(game_map, spec, theme) -> None:
+    """Sidewalk the direct approach cell in front of every door.
+
+    The approach cell wins over road surface, so each entrance keeps an
+    unbroken sidewalk walkway from the street to the doorstep.
+    """
+    for building in spec.buildings:
+        door_y = (
+            building.y_lo - 1 if getattr(building, "door_north", False)
+            else building.y_hi + 1
+        )
+        game_map.tiles[door_y][building.door_x] = theme.sidewalk
+
+
+def _paint_bays(game_map, spec) -> None:
+    """Carve curb-side transit bays without ever touching road asphalt."""
+    paint_transit_bays(
+        game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({"floor", "sidewalk", "plaza", "landing_pad"}),
+        force_center=True,
+    )
 
 
 def _finalize_deck(game_map, spec, theme, stamps) -> None:
@@ -290,11 +383,8 @@ def _finalize_deck(game_map, spec, theme, stamps) -> None:
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
         overwrite_kinds=frozenset({"floor", "sidewalk"}),
     )
-    paint_transit_bays(
-        game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "sidewalk", "plaza", "landing_pad"}),
-        force_center=True,
-    )
+    _paint_curb_cuts(game_map, spec, theme)
+    _paint_bays(game_map, spec)
     paint_roof_labels(game_map, stamps, "venus_")
     paint_skyline(
         game_map,
@@ -304,7 +394,7 @@ def _finalize_deck(game_map, spec, theme, stamps) -> None:
         # Towers keep a lane from the apron AND from every other tower,
         # so the floor between blocks stays one connected service web
         # instead of sealed pockets.
-        avoid_kinds=frozenset({"landing_pad", "city_building_wall"}),
+        avoid_kinds=frozenset({"landing_pad", "transit_bay", "city_building_wall"}),
         width_range=(5, 9),
         height_range=(4, 7),
         min_size=(5, 4),
