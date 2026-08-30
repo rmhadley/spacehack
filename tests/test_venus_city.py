@@ -110,7 +110,12 @@ def test_venus_circulation_is_planned():
     """Civil-engineering regression: one connected road network, and
     every transit stop standing on charted surface."""
     game_map = load_planet("venus")
-    road_kinds = {"road", "road_ns", "road_ew", "road_surface"}
+    # Transit bays sit ON the road (force_center), so they are part of
+    # the network, not gaps in it. The landing apron is also planned
+    # circulation — it docks onto the avenue via the apron spur, and
+    # the spaceport bay sits in its middle.
+    road_kinds = {"road", "road_ns", "road_ew", "road_surface",
+                  "transit_bay", "landing_pad"}
     planned = {
         (x, y)
         for y, row in enumerate(game_map.tiles)
@@ -139,6 +144,50 @@ def test_venus_circulation_is_planned():
             "road", "road_ns", "road_ew", "road_surface", "plaza",
             "landing_pad", "transit_bay",
         }, f"{station_id} stop floats on {kind}"
+
+
+def test_venus_transit_bays_are_full_stamps():
+    """Every transit stop must render a full 3x3 bay (or as much as the
+    deck edge allows): bays clipped to a single column read as broken
+    stamps on the avenue."""
+    game_map = load_planet("venus")
+    spec = find_planet_spec("venus")
+    for station in spec.transit_stations:
+        x, y = station.pos.x, station.pos.y
+        bay_count = sum(
+            1
+            for dy in (-1, 0, 1)
+            for dx in (-1, 0, 1)
+            if game_map.tiles[y + dy][x + dx].kind == "transit_bay"
+        )
+        assert bay_count >= 4, (
+            f"{station.id} stop at ({x},{y}) has only {bay_count} bay tiles"
+        )
+        assert game_map.tiles[y][x].kind == "transit_bay", station.id
+
+
+def test_venus_surfaces_are_visually_distinct():
+    """Road, sidewalk, plaza, and base deck must differ in fg or bg so
+    the street hierarchy reads on screen (regression for the monochrome
+    neon-canyon pass where every surface lifted to the same gray)."""
+    from src.spacehack.data.planets import _readable_city_theme
+    from src.spacehack.venus_city import VENUS_NEON
+
+    theme = _readable_city_theme(VENUS_NEON)
+    surfaces = {
+        "floor": theme.floor,
+        "sidewalk": theme.sidewalk,
+        "road": theme.road_surface,
+        "road_ns": theme.road_ns,
+        "road_ew": theme.road_ew,
+        "plaza": theme.plaza,
+        "landing_pad": theme.landing_pad,
+    }
+    signatures = set()
+    for name, tile in surfaces.items():
+        sig = (tile.char, tile.fg, tile.bg)
+        assert sig not in signatures, f"{name} is visually identical to another surface"
+        signatures.add(sig)
 
 
 def test_venus_interiors_follow_authored_conventions():

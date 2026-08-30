@@ -41,17 +41,31 @@ from .city_kit import (
 )
 from .city_layout import paint_roof_labels, paint_skyline, stamp_city_assets
 from .data.planets import _readable_city_theme
-from .data.planets.themes import derive_theme
+from .data.planets.themes import T, derive_theme
 
 
 CITY_WIDTH = 140
 CITY_HEIGHT = 100
 
 # Night-neon variant: deep blue-black deck, hot pink signage.
+#
+# The default derive_theme pipeline darkens the grass anchor into
+# road/sidewalk tones, but with a grass this dark every derived surface
+# converges to the same lifted gray after `_readable_city_theme`
+# processing — making road, sidewalk, and terrain indistinguishable.
+# Hand-tuned overrides keep each surface visually distinct:
+#   road  = medium blue-gray asphalt with bright cyan neon lane markers
+#   sidewalk = light silver-gray concrete
+#   plaza = warm cream (sodium-lamp illuminated gathering space)
 VENUS_NEON = derive_theme(
     floor=(26, 34, 50),
     grass=(18, 24, 36),
     accent=(255, 110, 200),
+    road_surface=T("road", ".", (70, 85, 105), (35, 45, 62)),
+    road_ns=T("road", ":", (80, 210, 230), (28, 40, 58)),
+    road_ew=T("road", "-", (80, 210, 230), (28, 40, 58)),
+    sidewalk=T("sidewalk", "▒", (135, 145, 165), (52, 58, 74)),
+    plaza=T("plaza", "░", (190, 180, 165), (78, 74, 68)),
 )
 
 # Fixed asset origins (match the spec footprints).
@@ -279,6 +293,7 @@ def _finalize_deck(game_map, spec, theme, stamps) -> None:
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
         overwrite_kinds=frozenset({"floor", "sidewalk", "plaza", "landing_pad"}),
+        force_center=True,
     )
     paint_roof_labels(game_map, stamps, "venus_")
     paint_skyline(
