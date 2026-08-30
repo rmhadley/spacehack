@@ -1,149 +1,186 @@
-# Design: Dynamic Per-Cell Coloured Lighting
+# Design: Time-Varying Per-Cell Light and Animated Map Overlays
 
 ## Overview
 
-Add a reusable per-cell coloured light map to the game so that light
-sources — neon signs, beacons, weapon flashes, glowing dungeon features,
-engine exhaust — tint the cells around them with falloff. The system is
+Build a reusable, time-aware per-cell overlay system so that persistent
+map features — neon signs, beacons, dungeon glow, river currents,
+shimmering water — can vary over time, and transient effects — weapon
+flashes, explosions, muzzle flash — can appear and fade. The system is
 mode-agnostic: every map type that renders through `world_render` benefits
-once a light grid is seeded. The first concrete use case is Venus's neon
-signs spilling coloured light onto the avenues; the reusable primitive then
-extends to dungeon delves (where light can extend the player's sight),
-space combat (weapon flashes, drive glow), and ground combat (muzzle flash,
-explosions).
+once a time-varying grid is seeded and a frame clock exists.
 
-The light map is a **derived, presentation-only** concern. It is never
-serialized and never affects game logic — it only changes the `(fg, bg)`
-colours that `_tile_render_colors()` returns. The only gameplay-facing
-interaction (dungeons: light extending sight radius) is an explicit, separate
-flag, not a side effect of the tint.
+The first concrete use cases are Venus's neon signs (a persistent,
+flickering cyberpunk glow on the avenues) and Earth's river current
+(an animated water overlay). Both are instances of the same primitive:
+a cell grid whose contents are a pure function of time. The reusable
+foundation is the **animation clock** + the **time-varying grid** +
+the **blend/overlay seams**. Static light is the special case where
+`f(t) = constant`.
 
-## Rendering model — two layers, not one
+The core realisation driving this design: **flickering neon is the proof
+point that the clock is load-bearing, not optional.** Shipping a static
+neon glow would produce a foundation that must be rebuilt the moment
+flicker, current, or shimmer is wanted. So the primitive is designed,
+from the start, as time-varying — a steady glow is `flicker = const`.
 
-The engine paints a frame in **two distinct layers**:
+## Scope: this is an overlay foundation, not just lighting
 
-### Layer A — the bitmap/cell layer (`engine.logical_surface`)
+This design deliberately covers more than "Venus neon." It establishes
+the shared infrastructure that several future features need:
 
-1. `world_render._tile_render_colors(game_map, x, y, tile)` returns
-   `(fg, bg)` — the tile's own colours, dimmed when a cell is remembered but
-   not currently visible (dungeon fog only).
-2. `_append_tile_commands()` emits one `WorldDrawCommand(x, y, char, fg, bg)`
-   per visible cell.
-3. `pygame_runtime.present()` calls `_paint_world_commands()` →
-   `GlyphAtlas.blit()` paints each glyph with `BLEND_RGBA_MULT` onto its
-   background fill.
-
-This layer is single-pass, one-cell-at-a-time, no alpha compositing.
-
-### Layer B — the native Pygame overlay (on top of the bitmap)
-
-After Layer A, `pygame_runtime.present()` calls
-`pygame_overlay.draw_map_effects()` which paints onto the *same*
-`logical_surface`, and then `engine.present(physical_overlay=...)` paints
-HUD/message-log panels onto the *scaled physical window*. The overlay layer
-already carries:
-
-- **`ShieldBubble`** — shield rings drawn over ships/entities.
-- **`FloatingText`** — floating damage numbers, drawn with a real Pygame
-  font (`pygame_ui.cell_font`), rising + fading per frame, with a 1px
-  shadow. Explicitly documented as *"rendered by Pygame, not the bitmap."*
-- **`TargetCard`** — the combat target readout.
-
-These are per-frame, native-Pygame-font, and **transient by nature** —
-floaters are cleared each frame via `active_floaters()` (consume-on-read).
-
-### Which layer gets lighting, and why
-
-The two light types have different lifetimes, so they belong in different
-layers:
-
-| Light type | Lifetime | Layer | Why |
+| Feature | Light type | Animated? | Layer |
 |---|---|---|---|
-| **Static ambient light** (neon signs, beacons, dungeon glow, drive exhaust) | Persistent, map-owned | **Layer A — bitmap colour blend** in `_tile_render_colors()` | It should tint the city/dungeon 100% of the time, survive save/load, and not re-run every frame. It is a property of the map's tiles, so tinting the tile colours is the persistent, save-stable home. |
-| **Transient effect light** (weapon flashes, explosions, muzzle flash) | 1–3 frames, ephemeral | **Layer B — overlay glow** alongside `FloatingText`/`ShieldBubble` | This is the established, consistent home for ephemeral combat map effects. A flash is the same kind of thing as a floater — queued per frame, drawn on top, consumed on read. |
+| Venus neon glow + flicker | Persistent, flickering | Yes (buzz/flicker) | Bitmap blend |
+| Earth river current | Persistent animation | Yes (flowing) | Overlay or bitmap |
+| Dungeon ambient glow | Persistent | No (steady) | Bitmap blend |
+| Beacon / pad light | Persistent | No | Bitmap blend |
+| Weapon flash / explosion | Transient | Yes (fade) | Overlay |
+| Cloud deck shimmer | Persistent animation | Yes | Bitmap blend |
 
-**Static light (Layer A):** `_tile_render_colors()` consults the
-`light_grid` and blends the tile's `fg`/`bg` toward the light colour by the
-cell's light intensity. No new framebuffer/engine blit path, no alpha
-support needed — it is a colour manipulation on the existing seam, like the
-existing `_dim_color()` fog dimming.
+All of these read from a shared per-frame clock and use one
+`propagate_light(t)` primitive. Designing the foundation now avoids the
+per-domain duplication that building them piecemeal would produce (the
+cardinal DRY risk flagged in the audit).
 
-**Transient light (Layer B):** a new `LightGlow` effect (a coloured radial
-blit) joins `OverlayFrame` as a field, drawn by a new
-`pygame_overlay._draw_glows()` in the same place `_draw_floaters()` runs.
-This reuses the overlay plumbing (`active_*()` consume-on-read, per-frame
-queue) that combat already uses, instead of forcing transient effects into
-the bitmap layer where they'd have to be recomputed and reseeded every tick.
+## Rendering model — two layers, one clock
 
-The two layers compose: a static neon tint (Layer A) plus a transient
-weapon-flash glow (Layer B) both apply — the flash brightens an already
-neon-tinted cell, exactly as expected.
+The engine paints a frame in **two layers**, and the animation clock
+feeds both:
+
+### Layer A — bitmap/cell layer (`engine.logical_surface`)
+
+1. `world_render._tile_render_colors(game_map, x, y, tile, *, t)` returns
+   `(fg, bg)` — the tile's colours, dimmed for dungeon fog, **then
+   blended toward the light grid**.
+2. `_append_tile_commands()` emits one `WorldDrawCommand` per cell.
+3. `pygame_runtime.present()` calls `_paint_world_commands()` →
+   `GlyphAtlas.blit()` paints each glyph with `BLEND_RGBA_MULT`.
+
+Single-pass, one-cell-at-a-time, no alpha compositing. This is where
+**persistent, time-varying light** (flickering neon, river tint, steady
+beacon) lives — it tints the tile colours, so it survives save/load and
+doesn't re-run from scratch every frame.
+
+### Layer B — native Pygame overlay (on top of the bitmap)
+
+After Layer A, `pygame_overlay.draw_map_effects()` paints onto the same
+`logical_surface`, and `engine.present(physical_overlay=...)` paints
+HUD/log panels onto the scaled window. The overlay already carries
+`FloatingText` (floating damage numbers), `ShieldBubble`, `TargetCard`.
+These are per-frame, native-Pygame-font, transient by nature (floaters
+clear each frame via consume-on-read).
+
+This is where **transient effects** (weapon flashes, explosions) live —
+they're the same kind of thing as floaters: queued per frame, drawn on
+top, consumed on read.
+
+### The animation clock (new — the shared foundation)
+
+Today there is **no frame clock in the render path**. `FloatingText.age`/
+`lifetime` are per-effect spawn counters, not a global clock. The
+overlay layer is stateless between frames. A river current, a flickering
+neon, and a shimmering cloud deck all need a global monotonic frame
+counter threaded into the render path. This is the one piece of
+infrastructure that doesn't exist yet and that multiple features need.
+
+```python
+# The clock is a single integer advanced once per presented frame.
+# It lives on the Pygame runtime adapter (presentation-only, not game
+# state — it does not advance on save/load and is not serialized).
+# pygame_runtime.py — PygameContext
+_frame_clock: int = 0
+
+def present(self, console, *, overlay=None):
+    self._frame_clock += 1
+    # ... rest of present, passing t=self._frame_clock to:
+    #   - world_render (for the bitmap light blend)
+    #   - pygame_overlay.draw_map_effects (for overlay effects)
+```
+
+**Why on the runtime adapter, not `GameContext`:** the clock is a
+presentation concept (frames presented), not a gameplay concept (ticks
+elapsed). Game time already lives on `ctx` (`time_day`/`time_month`/
+`time_year` via `time.advance_time`); the frame clock is distinct and
+must not conflate with it. Putting it on `PygameContext` keeps it out of
+save data and out of game logic, matching the "runtime boundary" rule.
+
+**Determinism for flicker:** flicker profiles are pure functions of
+`(source, t)`. Since `t` is monotonic and the source's identity is
+stable, the flicker is deterministic for a given clock value. On
+save/load, the clock resets to 0 — but since the *light grid* is
+recomputed from tiles (which are saved) + the clock (which restarts),
+the visual continues smoothly. Flicker that "jumps" on load is
+acceptable (the player can't perceive a phase reset in a 60fps flicker).
 
 ## Philosophy alignment
 
-| Project rule | Lighting application |
+| Project rule | Application |
 |---|---|
-| Data-first | Light sources are authored data (neon tiles, beacon tiles, dungeon feature kinds); no light definitions live in `__main__` or render modules. |
-| ctx-first | The light grid lives on `GameMap` (the map owns its derived presentation state), not on a bare module global. |
-| Pure computation is tested | The falloff/propagation primitive is a pure function over a grid; it ships with pytest coverage in the same commit. |
-| Reuse before duplication | One shared `lighting.py` primitive is seeded by every domain; no per-domain flood reimplementation. |
-| Save/load contract | The light grid is **derived state** (recomputable from tiles + entities), so it is never serialized — audited explicitly below. |
-| Performance awareness | Static light (cities) is computed once at build; transient light (combat/space) is clear-and-reseed of affected cells only, never full-map BFS per tick. |
-| SRP / ≤40-line functions | The blend, propagation, and seeding helpers are each one verb phrase; the top-level orchestrator stays thin. |
+| Data-first | Light sources and animation profiles are authored data (neon tiles + flicker profile, river kind + flow profile); no definitions in `__main__` or render modules. |
+| ctx-first | The light grid lives on `GameMap`; the frame clock lives on `PygameContext` (presentation state, not game state). |
+| Pure computation is tested | `propagate_light(t)` and the flicker/flow profiles are pure functions; they ship with pytest coverage in the same commit. |
+| Reuse before duplication | One `lighting.propagate_light(t)` + one clock serves neon, river, dungeon, combat. No per-domain flood or clock reimplementation. |
+| Save/load contract | Light grid is derived (recomputed on load); frame clock is presentation-only (never serialized). Audited explicitly below. |
+| Performance awareness | Persistent light recomputes only when `t` changes meaningfully (throttle: flicker every N frames, steady light cached). Transient light is overlay-only, never touches the bitmap grid. No per-tick full-map BFS. |
+| SRP / ≤40-line functions | Clock advance, grid propagation, blend, and overlay draw are each one verb phrase. |
 | Atomic commits | Each phase is independently testable and committed separately. |
 
 ## Data model
 
-### `GameMap` field
+### `GameMap` field — the time-varying light grid
 
 ```python
 # world.py — GameMap dataclass
 light_grid: list[list[tuple[int, int, int]]] | None = None
 ```
 
-A 2-D array of `(r, g, b)` additive-light colours, the same shape as
-`tiles`. `None` means "no light grid — render as today" (the fallback every
-mode uses until a builder or domain seeds it). This matches the
-`seen`/`visible` precedent: derived, optional, recomputed on load.
+A 2-D array of additive `(r, g, b)` light colours, same shape as
+`tiles`. `None` = no light grid → render as today (the fallback every
+mode uses until a builder seeds it). Matches the `seen`/`visible`
+precedent: derived, optional, recomputed.
 
-**Why RGB tuples, not a scalar intensity:** coloured light is the motivating
-feature (pink/cyan neon, red emergency lighting). A scalar would force
-monochrome and lose the signature visual. Additive RGB tuples let multiple
-sources combine (a red flash on a cyan-lit corridor).
+The grid is **recomputed each presented frame** for flickering sources,
+but the recompute is cheap (see Performance) and only runs when the map
+is on screen. A `None` grid skips all light work.
 
-**Why not a separate intensity grid:** colour already encodes intensity
-(brightness is the max channel). A pure-colour grid is one structure to
-seed, blend, and clear, not two.
+### Light sources with animation profiles
 
-### Light source records
+```python
+# lighting.py
+@dataclass(frozen=True)
+class LightSource:
+    x: int
+    y: int
+    colour: tuple[int, int, int]
+    radius: int
+    intensity: float = 1.0
+    flicker: str = "steady"   # profile key, looked up in the table below
 
-Static light sources are not a new persisted type. They are discovered from
-existing tile kinds and entity flags:
+# A flicker profile is a pure function (source, t) -> intensity multiplier.
+FlickerProfile = Callable[[LightSource, int], float]
 
-| Source kind | Where it lives | How it's found |
-|---|---|---|
-| Static tile light | `tile.kind` (`neon`, `beacon`, `glow_fungus`, …) | scan the map's tiles |
-| Entity-carried light | `entity.light_colour` / `entity.light_radius` fields | scan the map's entities |
+FLICKER_PROFILES: dict[str, FlickerProfile] = {
+    "steady":   lambda s, t: 1.0,
+    "buzz":     lambda s, t: 0.85 + 0.15 * ((hash((s.x, t // 4)) % 2)),
+    "flicker":  lambda s, t: 0.7 + 0.3 * ((hash((s.x, s.y, t // 7)) % 3) / 2),
+    "pulse":    lambda s, t: 0.8 + 0.2 * math.sin(t * 0.3),
+}
+```
 
-Transient effect light is **not** stored on `GameMap` — it lives in the
-overlay layer (Layer B), alongside floaters, because it is per-frame and
-ephemeral (see Transient effect light below).
+A steady neon uses `"steady"`; a cyberpunk buzzing sign uses `"buzz"`;
+a dying or faulty sign uses `"flicker"`. The profiles are pure and
+deterministic given `t`, so they're fully testable. The table is
+data-first (extensible without touching `lighting.py` logic).
 
-For tile-based static light, the colour/radius come from a table in
-`data/` (see Domain seeding), not from new `Tile` fields — tiles stay
-pure render data.
+### Transient overlay effects (Layer B)
 
-### Transient effect light (overlay layer, Layer B)
-
-Transient light (weapon flashes, explosions) follows the existing
-`FloatingText` pattern exactly — it is an overlay effect, not `GameMap`
-state:
+Transient light (weapon flashes) joins the overlay layer as `LightGlow`,
+alongside `FloatingText` — it does **not** live on `GameMap`:
 
 ```python
 # pygame_overlay.py — joins FloatingText / ShieldBubble in OverlayFrame
 @dataclass(frozen=True)
 class LightGlow:
-    """One native radial light glow drawn by Pygame over the map region."""
     x: int               # viewport-relative cell x
     y: int               # viewport-relative cell y
     colour: tuple[int, int, int]
@@ -154,54 +191,37 @@ class LightGlow:
 # OverlayFrame gains: glows: tuple[LightGlow, ...] = ()
 ```
 
-Combat/space queue `LightGlow`s via a `combat._animations` helper (same
-module-level `_set_floaters` pattern). `pygame_overlay._draw_glows()`
-paints them with a radial alpha-blended blit (a small pre-built glow
-surface, `BLEND_RGBA_ADD`), clipped to the map region, fading with `age`.
-This is the same consume-on-read per-frame queue floaters use — no
-`GameMap` field, no serialization, no per-tick grid recompute.
+Same consume-on-read per-frame queue as floaters. No `GameMap` field,
+no serialization, no per-tick grid recompute.
 
 ## The lighting primitive (`lighting.py`)
-
-A new `src/spacehack/lighting.py` owns the pure, testable core:
 
 ```python
 def propagate_light(
     width: int, height: int,
     sources: Iterable[LightSource],
     *,
-    falloff: float = 0.5,   # intensity multiplier per cell of distance
+    falloff: float = 0.5,
+    t: int = 0,
 ) -> list[list[tuple[int, int, int]]]:
-    """Return an additive colour grid from the given light sources.
+    """Return an additive colour grid from sources at time ``t``.
 
-    Each source colours cells within its Chebyshev radius; intensity
-    falls off by ``falloff`` per cell of distance from the source.
-    Colours from overlapping sources add (clamped to 255 per channel).
-    Pure: no I/O, no mutation of arguments, deterministic.
+    Each source's intensity is its base ``intensity`` multiplied by its
+    flicker profile at time ``t``. Intensity falls off by ``falloff``
+    per cell of Chebyshev distance. Overlapping sources add (clamped to
+    255/channel). Pure: no I/O, no mutation, deterministic given ``t``.
     """
-
-@dataclass(frozen=True)
-class LightSource:
-    x: int
-    y: int
-    colour: tuple[int, int, int]
-    radius: int
-    intensity: float = 1.0
 ```
 
-**Falloff model:** Chebyshev distance, linear per-cell `falloff` (e.g.
-`0.5` means a source of intensity `1.0` at distance 2 contributes
-`0.5 * 0.5 = 0.25`). Linear is cheap and readable; a real inverse-square
-isn't worth the cost on a 16×16 grid cell. The function is pure and ships
-with tests covering: single source, overlapping sources (additive clamp),
-radius zero, falloff edge, and empty sources → all-black grid.
+**Falloff:** Chebyshev distance, linear per-cell `falloff`. Cheap and
+readable on 16×16 cells; inverse-square isn't worth the cost here.
 
-### Render integration
+### Render integration (Layer A)
 
 ```python
 # world_render.py
-def _tile_render_colors(game_map, x, y, tile) -> tuple[tuple, tuple]:
-    fg, bg = _base_colors(game_map, x, y, tile)   # existing logic, renamed
+def _tile_render_colors(game_map, x, y, tile, *, t=0) -> tuple[tuple, tuple]:
+    fg, bg = _base_colors(game_map, x, y, tile)   # existing fog-dim logic
     light = _light_at(game_map, x, y)
     if light == (0, 0, 0):
         return fg, bg
@@ -213,196 +233,207 @@ def _light_at(game_map, x, y) -> tuple[int, int, int]:
     return game_map.light_grid[y][x]
 ```
 
-`_blend_toward_light` is a pure additive blend: each channel is
-`min(255, base + (light_channel * intensity))`. Kept simple — this is a
-tint, not a hue shift.
+`t` is passed from the runtime adapter's `present()` call. For maps with
+no `light_grid`, the path is unchanged (the `None` fallback).
+
+## Animation profiles beyond light (river current)
+
+The same clock + pure-`f(t)` pattern extends to non-light overlays.
+A river current is a time-varying overlay on water cells — either a
+bitmap tint (shifting the water's `fg`/`bg` along a flow pattern over
+time) or a Pygame-drawn motion overlay (arrows/streaks moving
+downstream). The design supports both:
+
+- **Bitmap tint:** the river cells' colours shift per-frame based on
+  `t` and a flow profile (pure function of cell position + `t`). This
+  reads as the water surface rippling. Same seam as neon, different
+  profile function.
+- **Overlay motion:** `LightGlow`'s sibling — a `MapAnimation` overlay
+  effect (moving streaks) drawn on Layer B. Same queue, same clock.
+
+The foundation (clock + pure `f(t)` + the two layers) covers both
+without redesign. Phase 5 picks the visual that reads best in playtest.
 
 ## Domain seeding cadence
 
-| Domain | When light grid is (re)computed | Source types | Perf note |
+| Domain | When grid is (re)computed | Source types | Perf note |
 |---|---|---|---|
-| Cities | Once, at `build_*_layout` build time | Static tiles (neon, beacon) | Zero per-tick cost; grid is frozen after build. |
-| Dungeons / derelicts | On every `reveal_around` (player move) | Static tiles + player torch | Same cadence as FOV; the propagation runs alongside the existing BFS, not in addition. |
-| Space | Static glow cached; transient via overlay layer | Static (star/ship drive) on grid + transient flashes as `LightGlow` | Static grid recomputed on ship move only; transient flashes never touch the bitmap grid — they are overlay-blitted per frame, like floaters. |
-| Ground combat | Static glow cached; transient via overlay layer | Entity-carried lights on grid + transient flashes as `LightGlow` | Combat is turn-based; transient flashes are overlay-blitted per frame. |
+| Cities | Each presented frame (cheap — see below) | Static tiles w/ flicker | Flicker needs per-frame recompute, but only over the on-screen viewport and only when sources have non-steady profiles. Steady-only cities skip. |
+| Dungeons | On `reveal_around` (player move) | Static tiles + player torch | No flicker in first pass; grid cached between moves. |
+| Space | Static cached; transient via overlay | Static (star/drive) on grid + flashes as `LightGlow` | Static recomputed on ship move only; flashes never touch the bitmap grid. |
+| Ground combat | Static cached; transient via overlay | Entity lights on grid + flashes as `LightGlow` | Turn-based; flashes are overlay-only. |
 
-**Static-light caching rule:** when a domain's light sources don't change
-between frames (city at rest, dungeon between moves), the grid is not
-recomputed. A `_light_dirty` flag (or simply recomputing on the events that
-move sources) governs this. This is the performance guardrail from
-`knowledge.md`: never add an O(n) full-map pass every tick when the sources
-are static.
-
-## Dungeon sight extension (the gameplay hook)
-
-In dungeon mode, a light source can extend the player's effective sight
-radius near it. This is **not** a side effect of the colour tint — it's a
-separate, explicit behaviour:
-
-- `dungeon_fov.reveal_around()` already casts rays to `sight_radius`.
-- A new optional pass, `dungeon_fov.reveal_lit_sources()`, casts additional
-  short rays from each lit cell (e.g. a glow-fungus patch with
-  `light_radius >= 3` reveals a 3-cell bubble around itself), marking those
-  cells `seen=True` even if outside the player's base radius.
-- This is gameplay-relevant (the player can navigate toward light to see
-  further), so it is tested and documented, not incidental.
-
-This phase is deliberately last so the pure-lighting primitive is stable
-before it gains a gameplay dependency.
+**Throttle rule:** a city with all-steady light sources sets a
+`_light_static` flag and skips the per-frame recompute entirely (the grid
+is cached). A city with any flickering source recomputes, but only over
+the visible viewport (not the full 160×100 map). This is the performance
+guardrail: never O(n) full-map per frame when the sources are steady, and
+viewport-cull when they flicker.
 
 ## Save/load contract treatment
 
 | State | Serialized? | Why |
 |---|---|---|
-| `GameMap.light_grid` | **No** | Derived from tiles + entities; recomputed on load. Matches `visible`/`seen` precedent. |
-| `GameMap.light_effects` | — | **Removed**: transient light is now `LightGlow` on the overlay layer (`OverlayFrame`), not a `GameMap` field. Nothing to serialize. |
-| Authored light source data (tile kinds, entity fields) | **Yes** (via existing tile/entity serialization) | These are already saved as part of the map; no new serialization. |
+| `GameMap.light_grid` | **No** | Derived from tiles + clock; recomputed on load. Matches `visible`/`seen`. |
+| `PygameContext._frame_clock` | **No** | Presentation-only; resets to 0 on load. Not game state. |
+| `LightGlow` (overlay) | **No** | Transient, overlay-only, never on `GameMap`. |
+| Authored light source data (tile kinds, flicker profile keys) | **Yes** (via existing tile/entity serialization) | Already saved as part of the map. |
 
-**Checklist for the save/load contract:**
+**Checklist:**
 - [ ] `saveload._ctx_to_dict()` and `load_game()` do **not** reference
-      `light_grid` — it is recomputed. (`LightGlow` is overlay-only and
-      never touches `GameMap` or save data.)
-- [ ] On `load_game()`, the city/dungeon rebuild path calls the lighting
-      seed pass (so a loaded city has its neon glow without a player move).
-- [ ] The sniff test: save in a lit city → quit → continue → the neon
-      glow is visible immediately, not after the first move.
+      `light_grid` or `_frame_clock`.
+- [ ] On `load_game()`, the city rebuild path seeds the light grid (so a
+      loaded city has neon glow immediately).
+- [ ] Sniff test: save in a flickering-neon city → quit → continue → the
+      glow is visible immediately; flicker resumes (phase reset is
+      imperceptible).
 
 ## Pre-implementation audit
 
 ### 1. Existing classes / modules to extend or reuse
 
-- **`world.GameMap`** (`world.py:339`) — add the `light_grid` field only.
-  The `seen`/`visible` fields (`world.py:348-349`) are the architectural
-  precedent for derived, non-serialized grid state. (`light_effects` is
-  gone — transient light lives on the overlay layer.)
-- **`world_render._tile_render_colors()`** (`world_render.py:54`) — the
-  single colour-resolution seam for the static-light blend (Layer A).
-  Renaming the existing body to `_base_colors()` and wrapping it keeps the
-  fog-dimming path intact.
+- **`world.GameMap`** (`world.py:339`) — add `light_grid` field. The
+  `seen`/`visible` fields are the precedent for derived, non-serialized
+  grid state.
+- **`pygame_runtime.PygameContext`** (`pygame_runtime.py`) — add the
+  `_frame_clock` field and thread `t` through `present()`. This is the
+  one new piece of shared infrastructure.
+- **`world_render._tile_render_colors()`** (`world_render.py:54`) — gains
+  a `t` param; the bitmap-layer light blend (Layer A) lives here.
 - **`world_render._dim_color()`** (`world_render.py:41`) — the existing
   colour-manipulation helper; `_blend_toward_light` follows its shape.
-- **`pygame_overlay.OverlayFrame`** (`pygame_overlay.py:103`) — gains a
-  `glows` field, joining `shields`/`floaters`/`target`. The overlay layer
-  (Layer B) is the home for transient `LightGlow` effects.
+- **`pygame_overlay.OverlayFrame`** (`pygame_overlay.py:103`) — gains
+  `glows` field, joining `shields`/`floaters`/`target` (Layer B).
 - **`pygame_overlay._draw_floaters()`** (`pygame_overlay.py:699`) — the
-  template for the new `_draw_glows()`: per-frame, consume-on-read,
-  clipped to the map region, Pygame-blitted.
+  template for `_draw_glows()`: per-frame, consume-on-read, clipped to
+  map region, Pygame-blitted.
 - **`combat/_animations.py` `_set_floaters`/`active_floaters`** — the
-  per-frame queue pattern `LightGlow` will mirror for transient flashes.
-- **`dungeon_fov.reveal_around()`** (`dungeon_fov.py`) — the FOV cast that
-  dungeon lighting hooks into (Phase 3).
-- **`data/planets/themes.py`** — the neon/beacon tile definitions already
-  exist; the static-light source table reads `tile.kind`, so no new fields
-  on `Tile`.
+  per-frame queue pattern `LightGlow` will mirror.
+- **`dungeon_fov.reveal_around()`** (`dungeon_fov.py`) — the FOV cast
+  dungeon lighting hooks into (Phase 4).
+- **`data/planets/themes.py`** — neon/beacon tiles already exist; the
+  source table reads `tile.kind`, so no new `Tile` fields.
+- **`earth_city.py` `_paint_water_and_shore()`** — where the river
+  current overlay will hook in (Phase 5).
 
 ### 2. Three potential duplication hotspots
 
-- **Per-domain flood loops.** If each domain (city, dungeon, space, combat)
-  reimplements "iterate sources, paint falloff into a grid," that is four
-  copies of the same algorithm. This is the cardinal DRY risk.
-- **Colour-blend arithmetic.** `_blend_toward_light` could be duplicated in
-  the framebuffer or a debug overlay if those want to show light; the
-  helper must live in `lighting.py` and be imported.
-- **Source discovery.** Scanning `tiles` for lit kinds and `entities` for
-  light fields could be copy-pasted per domain; one
-  `collect_light_sources(game_map)` helper serves all.
+- **Per-domain clocks.** If each domain threads its own frame counter,
+  that's N copies. The clock must live in one place (`PygameContext`).
+- **Per-domain flood loops.** If each domain reimplements "iterate
+  sources, paint falloff into a grid," that's four copies of the
+  algorithm. One `propagate_light(t)` serves all.
+- **Colour-blend arithmetic.** `_blend_toward_light` must live in one
+  module (`lighting.py`) and be imported, not copied into the overlay
+  or framebuffer.
 
-### 3. DRY strategy for each hotspot
+### 3. DRY strategy
 
-- **One `lighting.propagate_light()`** pure function; every domain calls it
-  with its own source list. No domain reimplements the flood. (Guardrail:
-  pure functions for computation.)
-- **`_blend_toward_light`** lives in `lighting.py` (or `world_render.py`
-  if it must stay renderer-adjacent); imported, not copied.
-- **`collect_light_sources(game_map)`** in `lighting.py` discovers static
-  tile light and entity-carried light in one pass for the bitmap grid.
-  Transient `LightGlow` effects bypass this entirely — they are queued
-  directly to the overlay layer, like floaters, and never touch
-  `light_grid`. (Guardrail: batch entity iteration, avoid quadratic passes.)
+- **One clock** on `PygameContext`, threaded to both layers via
+  `present()`.
+- **One `lighting.propagate_light(t)`** pure function; every domain
+  calls it with its own sources.
+- **`_blend_toward_light`** in `lighting.py`, imported everywhere.
+- **`collect_light_sources(game_map)`** discovers static tile + entity
+  light in one pass; transient `LightGlow` bypasses it (overlay queue).
 
 ## Phased implementation plan
 
-### Phase 1 — Lighting primitive and render blend
+### Phase 1 — Animation clock and lighting primitive (the foundation)
 
-- [ ] `lighting.py`: `LightSource` dataclass, `propagate_light()` pure
-      function with Chebyshev-falloff additive blend.
-- [ ] `tests/test_lighting.py`: single source, overlapping sources, radius
-      zero, falloff edge, empty sources.
-- [ ] `world.GameMap`: add the `light_grid` field (default `None`).
-      No `light_effects` field — transient light is overlay-only.
-- [ ] `world_render._tile_render_colors()`: consult `light_grid`, blend
-      via `lighting._blend_toward_light`, with `None` → no-tint fallback.
+- [ ] `pygame_runtime.PygameContext`: add `_frame_clock`, advance in
+      `present()`, pass `t` to `world_render` and `pygame_overlay`.
+- [ ] `lighting.py`: `LightSource` (with `flicker` profile key),
+      `propagate_light(t)` pure function, `FLICKER_PROFILES` table,
+      `_blend_toward_light`.
+- [ ] `tests/test_lighting.py`: single/overlapping sources, radius zero,
+      falloff edge, empty sources, flicker profile determinism,
+      steady = constant, `t` advances intensity.
+- [ ] `world.GameMap`: add `light_grid` field (default `None`).
+- [ ] `world_render._tile_render_colors()`: accept `t`, consult
+      `light_grid`, blend, `None` → no-tint fallback.
 - [ ] Gate: smoke + architecture + Ruff + pytest.
 
-### Phase 2 — City static light (Venus neon)
+### Phase 2 — City static light (Venus steady neon)
 
-- [ ] `data/planets/themes.py` or a new `data/lighting.py`: static-light
-      source table (`neon` → pink/cyan, `beacon` → warm gold, with radius).
+- [ ] `data/planets/themes.py` or new `data/lighting.py`: static-light
+      source table (`neon` → pink/cyan, `beacon` → warm gold, radius).
 - [ ] `lighting.collect_light_sources(game_map)`: scan tiles by kind.
-- [ ] Venus `build_venus_layout()`: seed `light_grid` once at build via
-      `propagate_light(collect_light_sources(game_map))`.
-- [ ] `tests/test_venus_city.py`: assert neon-adjacent avenue cells carry
+- [ ] Venus `build_venus_layout()`: seed `light_grid` via
+      `propagate_light(collect_light_sources(game_map), t)`.
+- [ ] `tests/test_venus_city.py`: neon-adjacent avenue cells carry
       non-zero light; far cells carry zero.
 - [ ] Save/load sniff test: lit city survives save/quit/continue.
 - [ ] Gate.
 
-### Phase 3 — Dungeon ambient light and sight extension
+### Phase 3 — Venus neon flicker (the cyberpunk signature)
+
+- [ ] Assign `"buzz"`/`"flicker"` profiles to Venus neon sources in data.
+- [ ] City render: recompute `light_grid` per frame when sources have
+      non-steady profiles (viewport-culled, steady-only shortcut).
+- [ ] `tests/test_venus_city.py`: flicker sources vary intensity with
+      `t`; steady sources don't.
+- [ ] Playtest: the neon reads as buzzing/flickering, not seizure-fast.
+- [ ] Gate.
+
+### Phase 4 — Dungeon ambient light and sight extension
 
 - [ ] `dungeon_fov`: after `reveal_around`, call `propagate_light` over
-      static dungeon light sources (glow fungus, reactor cores).
+      static dungeon sources (glow fungus, reactor cores).
 - [ ] `dungeon_fov.reveal_lit_sources()`: cast short rays from lit cells
       to extend `seen`/`visible` (the gameplay hook).
-- [ ] `tests/test_dungeon_fov.py` (or new): lit cell reveals neighbours
-      beyond base sight radius; unlit corridor stays dark.
+- [ ] `tests/test_dungeon_fov.py`: lit cell reveals neighbours beyond
+      base sight radius; unlit corridor stays dark.
 - [ ] Save/load: dungeon light recomputed on `reveal_around` after load.
 - [ ] Gate.
 
-### Phase 4 — Space and ground combat transient light (overlay layer)
+### Phase 5 — Earth river current and transient overlay light
 
-- [ ] `pygame_overlay.LightGlow` dataclass + `OverlayFrame.glows` field.
-- [ ] `pygame_overlay._draw_glows()`: radial alpha-blended blit
-      (`BLEND_RGBA_ADD`) using a small pre-built glow surface, clipped to
-      the map region, fading with `age` — mirrors `_draw_floaters()`.
-- [ ] `combat/_animations.py`: a `_set_glows`/`active_glows` queue
-      (same module-level pattern as `_set_floaters`/`active_floaters`);
-      combat/space queue a `LightGlow` on weapon fire / explosion.
-- [ ] Wire `draw_map_effects` to call `_draw_glows` alongside
-      `_draw_floaters`.
-- [ ] `tests/test_lighting.py` (or `test_pygame_overlay.py`): glow is
-      queued on fire, consumed on read, fades with age.
-- [ ] Save/load: nothing to do — `LightGlow` is overlay-only, never on
-      `GameMap`, never serialized.
+- [ ] Earth river: time-varying water tint (bitmap) or `MapAnimation`
+      overlay (Layer B) — pick the visual that reads best in playtest.
+- [ ] `pygame_overlay.LightGlow` + `OverlayFrame.glows` field.
+- [ ] `pygame_overlay._draw_glows()`: radial `BLEND_RGBA_ADD` blit,
+      clipped to map region, fading with `age` (mirrors `_draw_floaters`).
+- [ ] `combat/_animations.py`: `_set_glows`/`active_glows` queue; combat
+      queues a `LightGlow` on weapon fire / explosion.
+- [ ] Wire `draw_map_effects` to call `_draw_glows`.
+- [ ] `tests/`: river animates with `t`; glow queued/consumed/fades.
 - [ ] Gate.
 
-### Phase 5 — Polish and guide
+### Phase 6 — Polish and guide
 
-- [ ] `help.py` / `data/guide/`: add a "Lighting" guide entry explaining
-      that light extends sight in dungeons and that neon signs glow.
-- [ ] Performance check: no new O(n) full-map pass per tick in space mode.
-- [ ] Final gate and city + dungeon playtest.
+- [ ] `help.py` / `data/guide/`: "Lighting" entry (neon glow, dungeon
+      sight extension) and river-current flavour.
+- [ ] Performance check: no per-frame full-map pass in space mode; steady
+      cities skip recompute.
+- [ ] Final gate + city + dungeon playtest.
 
 ## Acceptance criteria
 
-- A reusable, pure, tested `lighting.propagate_light()` primitive that no
-  domain reimplements.
-- `_tile_render_colors()` blends toward light with a `None`-grid fallback
+- A reusable, pure, tested `propagate_light(t)` primitive that no domain
+  reimplements.
+- A single animation clock on `PygameContext` threaded to both render
+  layers.
+- `_tile_render_colors(t)` blends toward light with a `None`-grid fallback
   that preserves today's rendering exactly.
-- Venus neon signs visibly tint adjacent avenue cells with coloured falloff.
-- Dungeon light sources extend the player's sight near them (gameplay-relevant,
-  tested).
-- Space/ground combat weapon fire produces brief coloured light flashes.
-- The light grid is never serialized; loaded maps recompute their light.
+- Venus neon signs visibly tint adjacent avenue cells, with optional
+  flicker/buzz profiles that vary with `t`.
+- Dungeon light sources extend the player's sight near them (tested).
+- Earth river shows a time-varying current animation.
+- Space/ground combat weapon fire produces brief coloured light flashes
+  via the overlay layer.
+- The light grid is never serialized; the frame clock is never serialized.
 - `make check` passes with focused regression coverage at each phase.
-- No new per-tick O(n) full-map pass in the perf-sensitive space mode.
+- No per-frame full-map O(n) pass in space mode; steady-light cities skip.
 
 ## Open questions
 
-- **Falloff curve:** linear-per-cell (cheap, proposed) vs. inverse-square
-  (smoother, costlier). Defer to a playtest visual comparison in Phase 2.
-- **Light through walls:** should dungeon light propagate through walls
-  (leaking under doors) or stop at blockers? Propose: stop at blockers
-  (match FOV), revisit if the visual reads wrong.
-- **Entity light fields:** do ships/characters get `light_colour`/`light_radius`
-  fields (data-first) or is entity light inferred from kind (like tiles)?
-  Propose: fields on `Entity`/`OwnedShip`, declared in `world.py`, seeded
-  from data in Phase 4.
+- **Flicker speed:** what reads as "buzzing" vs. "seizure-inducing"?
+  Defer to a playtest in Phase 3; the profile functions are tunable.
+- **River visual:** bitmap water tint vs. overlay motion streaks. Defer
+  to a Phase 5 playtest A/B.
+- **Light through walls:** stop at blockers (match FOV) or leak under
+  doors? Propose: stop at blockers, revisit if it reads wrong.
+- **Entity light fields:** `light_colour`/`light_radius` fields on
+  `Entity`/`OwnedShip` (data-first) vs. inferred from kind. Propose:
+  declared fields, seeded from data in Phase 5.
