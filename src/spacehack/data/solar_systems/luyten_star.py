@@ -81,10 +81,10 @@ _stations: tuple[StationSpec, ...] = (
         fg=(130, 230, 220),
         pos=world.Position(130, 115),
         width=3, height=3,
-        city_planet_id="blockade",
+        city_planet_id="blockade_south",
         description=(
-            "A secondary militia checkpoint - eyes on the deep-space "
-            "corridor beyond the federation boundary."
+            "A secondary quarantine checkpoint - sealed inspection decks "
+            "watch the deep-space corridor beyond the federation boundary."
         ),
     ),
 )

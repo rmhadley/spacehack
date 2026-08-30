@@ -397,6 +397,18 @@ PROC_C_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("procc_cave_scout", "civillian_bystander", (124, 28), wander_radius=3, move_chance=0.6),
 )
 
+BLOCKADE_SOUTH_POPULATION: tuple[CityNpc, ...] = (
+    CityNpc("blockade_south_dockhand_a", "civillian_bystander", (28, 23), wander_radius=10, move_chance=0.8),
+    CityNpc("blockade_south_dockhand_b", "civillian_bystander", (40, 32), wander_radius=20, move_chance=0.85),
+    CityNpc("blockade_south_inspector", "militia_trooper", (64, 32), wander_radius=12, move_chance=0.8),
+    CityNpc("blockade_south_quarantine_guard", "militia_trooper", (94, 47), wander_radius=18, move_chance=0.85),
+    CityNpc("blockade_south_cargo_runner", "civillian_bystander", (105, 48), wander_radius=15, move_chance=0.8),
+    CityNpc("blockade_south_claims_hunter", "civillian_bystander", (35, 64), wander_radius=8, move_chance=0.8),
+    CityNpc("blockade_south_watch_trooper", "militia_trooper", (100, 60), wander_radius=20, move_chance=0.8),
+    CityNpc("blockade_south_maintenance_hand", "civillian_bystander", (120, 38), wander_radius=10, move_chance=0.75),
+)
+
+
 VENUS_POPULATION: tuple[CityNpc, ...] = (
     # Pad crew working the landing deck apron.
     CityNpc("venus_pad_crew_a", "civillian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
@@ -416,4 +428,4 @@ VENUS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("venus_city_marshal", "militia_trooper", (81, 56), wander_radius=12, move_chance=0.85),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION", "VENUS_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION", "BLOCKADE_SOUTH_POPULATION", "VENUS_POPULATION"]

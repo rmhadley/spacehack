@@ -1,0 +1,16 @@
+# blockade_south_bounties_interior.layout
+MAP
+#############
+#...........#
+#..T.....T..#
+#.....P.....#
+#...........#
+#...........#
+######>######
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+TILE: T = DUNGEON_FLOOR

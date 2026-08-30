@@ -150,7 +150,8 @@ for future city migrations and playtests.
   Indi b, and AC station are authored and migrated.
 - [x] Vega b — redesigned as **The Beacon** and approved (see build record below).
 - [x] Venus — redesigned as **Cloudbreak City** and approved (see build record below).
-- [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Depot, and Blockade remain the next migration backlog.
+- [x] Procyon planets 1/2.
+- [ ] AC planets 1/2/3, Sirius Station, Depot, Blockade North, and Blockade South remain the next migration backlog.
 
 ## Acceptance criteria
 
@@ -486,9 +487,67 @@ Verification record:
 - The city is in the smooth-apron matrix and the live-glyph sweep;
   full gate passes (1495 tests + smoke, architecture, Ruff).
 
+## Blockade South build record — The Quarantine Cordon (in progress)
+
+Blockade South is a **space station**, not a planetary city. It is a secondary
+militia checkpoint on the Luyten frontier: a sealed station deck organized
+around decontamination, cargo inspection, quarantine holding, and a restricted
+frontier airlock. Its identity comes from pressure doors, bulkheads, docking
+infrastructure, and artificial lighting rather than natural terrain.
+
+### Approved concept
+
+- Large authored station deck with an irregular pressure-hull perimeter.
+- Northwest landing bay and spaceport arrival zone.
+- Bright central decontamination and inspection hall with the primary beacon.
+- Cargo quarantine yards with container stacks, fences, and held freight.
+- Southeast militia checkpoint for the Blockade Officer.
+- Southwest bounty office for frontier claims.
+- Northeast sealed restricted airlock facing uncharted space.
+- Maintenance rim with dim emergency lamps and service corridors.
+
+### Lighting direction
+
+Lighting is atmospheric rather than a stealth mechanic. Cyan operational strips
+lead through public corridors, amber lights mark cargo quarantine, red warning
+lights identify restricted doors, and a central beacon orients arrivals. Existing
+`neon` and `beacon` tile kinds should provide the light sources; critical doors,
+transit stops, NPCs, and primary routes remain readable.
+
+### Pre-implementation audit
+
+1. **Reuse.** Use `city_builder.build_city` and its layout registry,
+   `city_kit.base_tiles`, `add_showroom_ships`, `add_service_terminals`,
+   `paint_door_forecourts`, `paint_transit_bays`, and `set_city_metadata`.
+   Reuse `city_layout.stamp_city_assets` for authored station exteriors and
+   `city_landmarks.load_city_interior` for interiors. Reuse `STATION` plus a
+   derived station-deck theme, `collect_light_sources`/`propagate_light`,
+   `data/city_npcs.py`, and the existing blockade/bounty NPC catalog entries.
+2. **Duplication hotspots.** (a) Do not copy the generic city skeleton into a
+   second station builder; keep shared stamping and fixtures in `city_kit`.
+   (b) Do not duplicate Venus lighting setup; use one focused station light-grid
+   helper or the existing lighting functions directly. (c) Do not duplicate
+   building records or interior return logic; use `set_city_metadata` and the
+   shared authored layout parser.
+3. **DRY strategy.** Keep `blockade_south_city.py` limited to station-specific
+   deck, corridor, quarantine-yard, warning-light, and restricted-airlock
+   painters. Register one `blockade_south_quarantine` layout id and give South
+   its own `PlanetSpec` and authored layouts. Route only
+   `luyt_blockade_south` to the new spec; North remains on `blockade`.
+
+### Implementation checklist
+
+- [x] Add the distinct `blockade_south` station spec and route the South station.
+- [x] Add the authored station-deck builder and layout registry entry.
+- [x] Add exterior/interior authored layouts and South population/transit data.
+- [x] Seed dynamic lighting with operational, cargo, beacon, and warning sources.
+- [x] Add geometry, reachability, transit, lighting, glyph, interior, and
+      persistence regressions.
+- [ ] Run the full gate and complete a station playtest.
+
 ## Future work
 
-Continue Phase 6 with Procyon planets 1/2, AC planets 1/2/3, Sirius
-Station, Depot, and Blockade, following the same civil-engineering-first
-plan and adding focused geometry, reachability, transit, interior, NPC,
-landing-apron, glyph, and persistence tests for each.
+Continue Phase 6 with AC planets 1/2/3, Sirius Station, Depot, and Blockade
+North, following the same civil-engineering-first plan and adding focused
+geometry, reachability, transit, interior, NPC, landing-apron, glyph, and
+persistence tests for each.

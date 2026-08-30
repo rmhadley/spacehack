@@ -40,6 +40,7 @@ _LAYOUTS: dict[str, tuple[str, str]] = {
     "proc_b_crossroads":      ("proc_b_city",            "build_proc_b_layout"),
     "proc_c_ice_campus":      ("proc_c_city",            "build_proc_c_layout"),
     "venus_cloudbreak":       ("venus_city",             "build_venus_layout"),
+    "blockade_south_quarantine": ("blockade_south_city", "build_blockade_south_layout"),
 }
 
 
