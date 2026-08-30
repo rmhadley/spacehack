@@ -356,15 +356,17 @@ viewport-cull when they flicker.
 
 ### Phase 2 — City static light (Venus steady neon)
 
-- [ ] `data/planets/themes.py` or new `data/lighting.py`: static-light
-      source table (`neon` → pink/cyan, `beacon` → warm gold, radius).
-- [ ] `lighting.collect_light_sources(game_map)`: scan tiles by kind.
-- [ ] Venus `build_venus_layout()`: seed `light_grid` via
-      `propagate_light(collect_light_sources(game_map), t)`.
-- [ ] `tests/test_venus_city.py`: neon-adjacent avenue cells carry
-      non-zero light; far cells carry zero.
-- [ ] Save/load sniff test: lit city survives save/quit/continue.
-- [ ] Gate.
+- [x] `data/lighting.py`: static-light source table (`neon` → radius 4,
+      `beacon` → radius 6; colour from the tile's own `fg`).
+- [x] `lighting.collect_light_sources(game_map)`: scan tiles by kind,
+      one pass.
+- [x] Venus `build_venus_layout()`: seed `light_grid` via
+      `propagate_light(collect_light_sources(game_map))`.
+- [x] `tests/test_venus_city.py`: neon-adjacent cells carry non-zero
+      light; neon tiles themselves lit; far corner cells dark.
+- [x] Save/load sniff test: `light_grid` is derived (recomputed via
+      `rebuild_game_map` on load, never serialised).
+- [x] Gate (1516 tests, smoke, architecture, Ruff).
 
 ### Phase 3 — Venus neon flicker (the cyberpunk signature)
 

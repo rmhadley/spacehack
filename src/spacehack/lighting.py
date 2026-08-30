@@ -204,10 +204,37 @@ def blend_toward_light(
     )
 
 
+def collect_light_sources(game_map) -> list[LightSource]:
+    """Return static ``LightSource`` values for every lit tile on ``game_map``.
+
+    Scans the map's tiles in one pass; a tile emits light when its
+    ``kind`` appears in :data:`STATIC_LIGHT_TABLE
+    <spacehack.data.lighting.STATIC_LIGHT_TABLE>`. The light colour is
+    the tile's own ``fg``, so a pink neon tile emits pink and a cyan
+    neon tile emits cyan from the same scan. Pure: no mutation, no I/O.
+    """
+    from .data.lighting import light_spec_for_kind
+
+    sources: list[LightSource] = []
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            spec = light_spec_for_kind(tile.kind)
+            if spec is None:
+                continue
+            sources.append(LightSource(
+                x=x, y=y,
+                colour=tuple(tile.fg),
+                radius=spec.radius,
+                intensity=spec.intensity,
+            ))
+    return sources
+
+
 __all__ = [
     "LightSource",
     "FlickerProfile",
     "FLICKER_PROFILES",
     "propagate_light",
     "blend_toward_light",
+    "collect_light_sources",
 ]

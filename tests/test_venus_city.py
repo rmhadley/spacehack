@@ -42,6 +42,33 @@ def test_venus_is_the_authored_neon_downtown():
     assert sum(tile.kind == "neon" for row in game_map.tiles for tile in row) > 40
 
 
+def test_venus_neon_seeds_a_light_grid():
+    game_map = load_planet("venus")
+    # The build seeds a non-None light grid from neon/beacon tiles.
+    assert game_map.light_grid is not None
+    # Neon signs and the beacon are light sources, so some cells carry
+    # non-zero light.
+    lit = [
+        (x, y)
+        for y, row in enumerate(game_map.light_grid)
+        for x, cell in enumerate(row)
+        if cell != (0, 0, 0)
+    ]
+    assert lit, "no lit cells despite neon signage"
+    # Cells directly on a neon tile carry its colour (hot pink or cyan).
+    neon_cells = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "neon"
+    ]
+    for x, y in neon_cells[:5]:
+        assert game_map.light_grid[y][x] != (0, 0, 0), f"neon at {x},{y} unlit"
+    # Far-away cells (deep cloud deck, far corner) carry no light.
+    assert game_map.light_grid[0][0] == (0, 0, 0)
+    assert game_map.light_grid[99][139] == (0, 0, 0)
+
+
 def test_venus_cloud_rim_edges_are_closed():
     game_map = load_planet("venus")
     # The rim silhouette is irregular: the cloud band borders the deck
