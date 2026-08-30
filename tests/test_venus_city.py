@@ -158,15 +158,15 @@ def test_venus_bays_never_pave_roads():
             if tile.kind == "transit_bay":
                 assert tile.kind not in road_kinds  # trivially true
     # The real invariant: the road network keeps its authored size.
-    # The seven bands paint 777 unique cells; exactly 2 of them (the
-    # bar and merchants doorstep cells) are intentionally ceded to
-    # sidewalk curb cuts so every door keeps an unbroken approach.
+    # The six bands paint 771 unique cells; the spur roads stop at the
+    # curb (y=68) so sidewalks own the door forecourts — no road cell is
+    # ceded to sidewalk and no bay ever paves over asphalt.
     road_count = sum(
         1 for row in game_map.tiles for tile in row
         if tile.kind in road_kinds
     )
-    assert road_count == 775, (
-        f"road network changed size: {road_count} != 775 "
+    assert road_count == 771, (
+        f"road network changed size: {road_count} != 771 "
         "(bays must never pave over roads)"
     )
 
