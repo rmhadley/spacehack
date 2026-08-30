@@ -60,7 +60,7 @@ SPEC = PlanetSpec(
     city_npc_population=BARNARDS_C_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Skimmer Port", district="landing field",
+            id="spaceport", name="Spaceport", district="landing field",
             pos=world.Position(30, 40),
             destinations=("deep_freeze",),
         ),

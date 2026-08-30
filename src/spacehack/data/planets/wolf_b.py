@@ -62,7 +62,7 @@ SPEC = PlanetSpec(
     city_npc_population=WOLF_B_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Landing Pad", district="centre",
+            id="spaceport", name="Spaceport", district="centre",
             pos=world.Position(41, 21),
             destinations=("depot", "bar"),
         ),

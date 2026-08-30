@@ -61,28 +61,28 @@ SPEC = PlanetSpec(
     city_npc_population=VENUS_POPULATION,
     transit_stations=(
         world.TransitStation(
-            id="spaceport", name="Landing Deck", district="north rim",
+            id="spaceport", name="Spaceport", district="north rim",
             pos=world.Position(18, 22),
             destinations=("cross", "cloudbreak", "merchants", "depot"),
         ),
         world.TransitStation(
             id="cross", name="The Cross", district="avenue crossing",
-            pos=world.Position(83, 43),
+            pos=world.Position(84, 37),
             destinations=("spaceport", "cloudbreak", "merchants", "depot"),
         ),
         world.TransitStation(
             id="cloudbreak", name="The Cloudbreak", district="west rim",
-            pos=world.Position(27, 68),
+            pos=world.Position(31, 68),
             destinations=("spaceport", "cross", "merchants", "depot"),
         ),
         world.TransitStation(
             id="merchants", name="Exchange Hall", district="east district",
-            pos=world.Position(108, 68),
+            pos=world.Position(111, 68),
             destinations=("spaceport", "cross", "cloudbreak", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Deck Stores", district="south deck",
-            pos=world.Position(96, 83),
+            pos=world.Position(93, 81),
             destinations=("spaceport", "cross", "cloudbreak", "merchants"),
         ),
     ),
