@@ -401,6 +401,14 @@ Playtest corrections (same checklist item, re-verified):
   and the south band had walkable-looking floor sealed off from every
   route. Regression tests now assert zero `void` tiles and zero
   unreachable walkable cells city-wide.
+- **Interior walls were also ragged** — `proc_c_lab_interior` and
+  `proc_c_spaceport_interior` had short rows the layout parser padded
+  with `void`, producing black gaps in the perimeter wall. The same
+  defect existed in 16 other city interiors (AC ring ×4, Cygni ×4,
+  Eri ×3, Lal ×3, Mars bar, Ross c bar). All are now clean rectangles
+  (every `MAP` row full width), and a new regression
+  (`test_no_city_interior_has_void_perimeter_walls`) asserts no `void`
+  lands on any interior perimeter ring.
 
 ## Future work
 

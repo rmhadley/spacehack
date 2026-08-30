@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import glob
 from types import SimpleNamespace
 
-from src.spacehack import city_interiors, world
+from src.spacehack import city_interiors, city_landmarks, world
 from src.spacehack.data.planets import load_planet
 
 
@@ -46,6 +47,31 @@ def test_every_earth_functional_building_enters_a_distinct_authored_room():
         assert state.game_map is game_map
         assert state.player.pos == world.Position(*record["entrance"])
         assert state.current_mode == "city"
+
+
+def test_no_city_interior_has_void_perimeter_walls():
+    """Every authored city interior must be a clean rectangle: no ragged
+    layout rows may leave a ``void`` gap in the perimeter wall ring."""
+    import os
+
+    interior_files = sorted(
+        glob.glob(os.path.join(os.path.dirname(city_landmarks.__file__),
+                               "data", "landmarks", "*_interior.layout"))
+    )
+    assert interior_files, "expected interior layout files"
+    for path in interior_files:
+        layout_id = os.path.basename(path).replace(".layout", "")
+        asset = city_landmarks.load_city_interior(layout_id)
+        game_map = asset.game_map
+        height, width = game_map.height, game_map.width
+        for y, row in enumerate(game_map.tiles):
+            for x, tile in enumerate(row):
+                if tile.kind != "void":
+                    continue
+                on_ring = y in (0, height - 1) or x in (0, width - 1)
+                assert not on_ring, (
+                    f"{layout_id} has a void ({x},{y}) in its perimeter wall"
+                )
 
 
 def test_ac_ring_archive_and_lab_preserve_research_officers():
