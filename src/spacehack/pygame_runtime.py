@@ -69,13 +69,29 @@ class PygameContext:
 
     def __init__(self, runtime: "PygameRuntime"):
         self._runtime = runtime
+        # Monotonic frame clock for time-varying presentation effects
+        # (see :mod:`spacehack.lighting`). Presentation-only state: it
+        # is never serialised and resets to 0 on load. Advanced once
+        # per presented frame in :meth:`present`.
+        self._frame_clock: int = 0
+
+    @property
+    def frame_clock(self) -> int:
+        """The current frame clock value for time-varying rendering."""
+        return self._frame_clock
 
     def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
-        """Paint one console and optional native text overlay into Pygame."""
+        """Paint one console and optional native text overlay into Pygame.
+
+        Advances the frame clock once per presented frame so time-varying
+        effects (flickering neon, river currents) read the next ``t`` value
+        on the next render.
+        """
         if overlay is None:
             self._runtime.present(console)
         else:
             self._runtime.present(console, overlay=overlay)
+        self._frame_clock += 1
 
     def events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
         """Poll all currently queued project-owned input events."""

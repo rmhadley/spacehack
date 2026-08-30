@@ -366,6 +366,12 @@ class GameMap:
     canyon_cells: set[tuple[int, int]] | None = None
     cave_cells: set[tuple[int, int]] | None = None
     bridge_crossings: tuple | None = None
+    # Time-varying per-cell coloured light grid (see
+    # :mod:`spacehack.lighting`). ``None`` means no light grid — render
+    # as today (the fallback every mode uses until a builder seeds it).
+    # Derived state: recomputed from tiles + the frame clock, never
+    # serialised (matches the ``visible``/``seen`` precedent).
+    light_grid: list[list[tuple[int, int, int]]] | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:

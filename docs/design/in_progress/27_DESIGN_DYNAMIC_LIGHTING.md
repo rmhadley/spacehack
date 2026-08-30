@@ -341,18 +341,18 @@ viewport-cull when they flicker.
 
 ### Phase 1 — Animation clock and lighting primitive (the foundation)
 
-- [ ] `pygame_runtime.PygameContext`: add `_frame_clock`, advance in
-      `present()`, pass `t` to `world_render` and `pygame_overlay`.
-- [ ] `lighting.py`: `LightSource` (with `flicker` profile key),
+- [x] `pygame_runtime.PygameContext`: add `_frame_clock`, advance in
+      `present()`, expose via `frame_clock` property.
+- [x] `lighting.py`: `LightSource` (with `flicker` profile key),
       `propagate_light(t)` pure function, `FLICKER_PROFILES` table,
-      `_blend_toward_light`.
-- [ ] `tests/test_lighting.py`: single/overlapping sources, radius zero,
+      `blend_toward_light`.
+- [x] `tests/test_lighting.py`: single/overlapping sources, radius zero,
       falloff edge, empty sources, flicker profile determinism,
-      steady = constant, `t` advances intensity.
-- [ ] `world.GameMap`: add `light_grid` field (default `None`).
-- [ ] `world_render._tile_render_colors()`: accept `t`, consult
-      `light_grid`, blend, `None` → no-tint fallback.
-- [ ] Gate: smoke + architecture + Ruff + pytest.
+      steady = constant, `t` advances intensity, independent flicker.
+- [x] `world.GameMap`: add `light_grid` field (default `None`).
+- [x] `world_render._tile_render_colors()`: consult `light_grid`, blend
+      via `blend_toward_light`, `None` → no-tint fallback.
+- [x] Gate: smoke + architecture + Ruff + pytest (1515 tests).
 
 ### Phase 2 — City static light (Venus steady neon)
 

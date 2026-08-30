@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from . import world
 from .framebuffer import FrameBuffer
+from .lighting import blend_toward_light
 
 
 # Remembered-tile dimming factor: previously-seen cells that are no
@@ -52,10 +53,21 @@ def _is_static_entity(e) -> bool:
 
 
 def _tile_render_colors(game_map, x: int, y: int, tile) -> tuple[tuple, tuple]:
-    """Return ``(fg, bg)`` for a revealed tile (dimmed if only remembered)."""
+    """Return ``(fg, bg)`` for a revealed tile.
+
+    Dimmed when only remembered (dungeon fog), then additively blended
+    toward the cell's light value if the map carries a light grid.
+    A ``None`` light grid (the default on every map until a builder
+    seeds one) leaves the colours unchanged.
+    """
     if game_map.is_visible(x, y):
-        return tile.fg, tile.bg
-    return _dim_color(tile.fg), _dim_color(tile.bg)
+        fg, bg = tile.fg, tile.bg
+    else:
+        fg, bg = _dim_color(tile.fg), _dim_color(tile.bg)
+    if game_map.light_grid is not None:
+        light = game_map.light_grid[y][x]
+        return blend_toward_light(fg, bg, light)
+    return fg, bg
 
 
 def _entity_render_fg(game_map, e):
