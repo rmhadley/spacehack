@@ -27,8 +27,7 @@ def test_blockade_south_is_distinct_authored_station():
     assert game_map.city_layout_id == "blockade_south_quarantine"
     assert (game_map.width, game_map.height) == (140, 90)
     assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
-    assert game_map.city_transit["inspection"]["pos"] != game_map.city_transit["quarantine"]["pos"]
-    assert abs(game_map.city_transit["inspection"]["pos"][1] - game_map.city_transit["quarantine"]["pos"][1]) >= 7
+    assert "inspection" not in game_map.city_transit
     assert len(game_map.landmark_stamps) == 3
     assert any(tile.kind == "station_bulkhead" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "quarantine" for row in game_map.tiles for tile in row)
@@ -40,7 +39,7 @@ def test_blockade_south_routes_and_stops_are_reachable():
     spec = find_planet_spec("blockade_south")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "inspection", "quarantine", "militia", "bounties",
+        "spaceport", "quarantine", "militia", "bounties",
     }
     for station_id, metadata in game_map.city_transit.items():
         x, y = metadata["pos"]
@@ -48,7 +47,7 @@ def test_blockade_south_routes_and_stops_are_reachable():
         assert (x, y) in reachable, station_id
     assert game_map.city_transit["militia"]["pos"] == (116, 79)
     assert game_map.city_transit["bounties"]["pos"] == (21, 79)
-    assert game_map.city_transit["quarantine"]["pos"] != game_map.city_transit["inspection"]["pos"]
+    assert "inspection" not in game_map.city_transit
     for label, record in game_map.city_buildings.items():
         x, y = record["entrance"]
         assert game_map.tiles[y][x].walkable, label
