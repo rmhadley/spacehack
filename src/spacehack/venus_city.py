@@ -99,8 +99,8 @@ _APRON_SPUR = (29, 31, 26, 34)       # apron -> Promenade (NS)
 _SPINE = (80, 82, 34, 66)            # Promenade -> Cross Street (NS)
 _CROSS_STREET_Y = (64, 65, 66)       # second avenue, south of the plaza
 _CROSS_STREET_X = (30, 128)
-_BAR_SPUR = (27, 29, 64, 69)         # Cross Street -> Cloudbreak forecourt
-_MERCHANTS_SPUR = (106, 108, 64, 69) # Cross Street -> exchange forecourt
+_BAR_SPUR = (27, 29, 64, 68)         # Cross Street -> Cloudbreak curb (stops before forecourt)
+_MERCHANTS_SPUR = (106, 108, 64, 68) # Cross Street -> exchange curb (stops before forecourt)
 _DEPOT_SPUR = (89, 91, 66, 82)       # Cross Street -> depot service road
 _DEPOT_WALKWAY_X = (89, 104)         # sidewalk walkway along the depot wall
 _DEPOT_WALKWAY_Y = 83
@@ -354,20 +354,6 @@ def _paint_basemap(tiles, theme) -> None:
     _paint_depot_walkway(tiles, theme)
 
 
-def _paint_curb_cuts(game_map, spec, theme) -> None:
-    """Sidewalk the direct approach cell in front of every door.
-
-    The approach cell wins over road surface, so each entrance keeps an
-    unbroken sidewalk walkway from the street to the doorstep.
-    """
-    for building in spec.buildings:
-        door_y = (
-            building.y_lo - 1 if getattr(building, "door_north", False)
-            else building.y_hi + 1
-        )
-        game_map.tiles[door_y][building.door_x] = theme.sidewalk
-
-
 def _paint_bays(game_map, spec) -> None:
     """Carve curb-side transit bays without ever touching road asphalt."""
     paint_transit_bays(
@@ -383,7 +369,6 @@ def _finalize_deck(game_map, spec, theme, stamps) -> None:
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
         overwrite_kinds=frozenset({"floor", "sidewalk"}),
     )
-    _paint_curb_cuts(game_map, spec, theme)
     _paint_bays(game_map, spec)
     paint_roof_labels(game_map, stamps, "venus_")
     paint_skyline(
