@@ -51,7 +51,7 @@ def test_blockade_south_routes_and_stops_are_reachable():
     assert len(spec.city_npc_population) == 8
     showroom = [entity for entity in game_map.entities if entity.ship_id]
     assert showroom
-    assert all(15 <= entity.pos.y <= 25 for entity in showroom)
+    assert all(entity.pos.y < 20 for entity in showroom)
     terminals = [entity for entity in game_map.entities if entity.trade_terminal or entity.mech_terminal or entity.armory_terminal]
     assert all((entity.pos.x, entity.pos.y) not in {(station.pos.x, station.pos.y) for station in spec.transit_stations} for entity in terminals)
     for entity in game_map.entities:

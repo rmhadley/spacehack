@@ -33,8 +33,8 @@ SPEC = PlanetSpec(
         ),
     ),
     showroom_ships=(
-        ("cruiser", -6, -3),
-        ("frigate", 6, -3),
+        ("cruiser", -6, -8),
+        ("frigate", 6, -8),
     ),
     city_layout_id="blockade_south_quarantine",
     city_npc_population=BLOCKADE_SOUTH_POPULATION,
