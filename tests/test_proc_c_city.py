@@ -104,6 +104,48 @@ def test_proc_c_map_has_no_wall_holes_or_dead_ice_pockets():
     assert not pockets, f"walkable cells sealed from the hangar: {pockets}"
 
 
+def test_proc_c_circulation_is_planned():
+    """Civil-engineering regression: one connected road network, the
+    bridge sealing the channel where the spine crosses it, and every
+    transit stop standing on charted surface."""
+    game_map = load_planet("proc_planet_2")
+    road_kinds = {"road", "road_ns", "road_ew", "road_surface", "city_bridge"}
+    planned = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind in road_kinds
+    }
+    assert len(planned) > 500, "the campus road network is too small"
+    # One connected component: no planned band stranded off the network.
+    start = next(iter(planned))
+    seen = {start}
+    queue = deque([start])
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            point = (x + dx, y + dy)
+            if point in seen or point not in planned:
+                continue
+            seen.add(point)
+            queue.append(point)
+    assert seen == planned, f"road bands stranded: {planned - seen}"
+    # The bridge seals the crossing: no channel may cut the spine corridor.
+    assert not any(
+        game_map.tiles[y][x].kind == "ice_channel"
+        for y in range(70, 77)
+        for x in range(79, 84)
+    ), "the bridge crossing leaves channel on the road corridor"
+    # Every transit stop stands on charted surface (road, plaza, pad, bay).
+    for station_id, metadata in game_map.city_transit.items():
+        x, y = metadata["pos"]
+        kind = game_map.tiles[y][x].kind
+        assert kind in {
+            "road", "road_ns", "road_ew", "road_surface", "plaza",
+            "landing_pad", "transit_bay", "city_bridge",
+        }, f"{station_id} stop floats on {kind}"
+
+
 def test_proc_c_dungeon_params_preserved():
     """The lab-chain delve site must survive the city rebuild byte-identical."""
     spec = find_planet_spec("proc_planet_2")

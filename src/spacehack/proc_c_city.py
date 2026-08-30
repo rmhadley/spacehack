@@ -66,10 +66,29 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
 # Geometry
 # ---------------------------------------------------------------------
 
-# Frozen channel: border-to-border diagonal, 3 wide, one bridge.
+# Frozen channel: border-to-border diagonal, 3 wide.
 _CHANNEL_FROM = (0, 98)
 _CHANNEL_TO = (139, 55)
-_BRIDGE = (58, 62, 79, 82)
+
+# Planned circulation — one connected campus road network.
+# Landing strip (EW) off the apron's east edge, an NS quad spine
+# (north leg feeds the plaza, south leg crosses the bridge), and
+# spurs that dock every door and transit stop onto the network.
+_STRIP_Y = (32, 33, 34)
+_STRIP_X = (30, 128)
+_APRON_SPUR = (29, 31, 26, 34)      # x_lo, x_hi, y_lo, y_hi (NS)
+_SPINE_X = (80, 82)
+_SPINE_Y = (34, 73)                # strip -> quad east edge -> bridge deck
+# Primary crossing over the channel bend (the only bridge).
+_BRIDGE = (79, 83, 71, 75)
+_MESS_SPUR = (43, 45, 34, 69)       # strip -> mess north door
+_MESS_PROMENADE = (44, 57, 69, 69)  # EW door lane along mess north side
+_MESS_EAST = (57, 59, 70, 73)       # NS connector down mess's east side
+_SOUTH_EW = (57, 104, 73, 73)       # south-campus cross road (bridge -> depot)
+_DEPOT_NS = (101, 103, 70, 73)      # depot stop -> door forecourt
+_LAB_SPUR = (107, 109, 19, 33)
+_CAVE_SPUR = (119, 121, 26, 33)
+_CAVE_WEST = (119, 124, 26, 28)     # EW road into the mouth gap
 
 # Landing apron south of the spaceport (drawn pad surface).
 _APRON = (4, 30, 18, 26)
@@ -99,13 +118,15 @@ _SASTRUGI: tuple[tuple[int, int], ...] = (
 # Drill rig west of the lab terrace (mast cells).
 _RIG: tuple[tuple[int, int], ...] = ((90, 21), (90, 22))
 
-# Cargo crates staged by the depot and the bridge approach.
+# Cargo crates staged beside the depot road (clear of the lanes).
 _CRATES: tuple[tuple[int, int], ...] = (
-    (116, 74), (117, 74), (116, 75), (88, 76), (89, 76), (58, 76),
+    (86, 78), (88, 78), (90, 78), (117, 74), (118, 74), (117, 75),
 )
 
-# Path lamps on the apron-quad-bridge route.
-_ROUTE_LAMPS: tuple[tuple[int, int], ...] = ((40, 32), (54, 40), (62, 62))
+# Path lamps beside the planned routes (strip, spurs, spine).
+_ROUTE_LAMPS: tuple[tuple[int, int], ...] = (
+    (32, 30), (42, 36), (79, 42), (79, 60), (105, 77), (106, 36), (112, 25),
+)
 
 
 # ---------------------------------------------------------------------
@@ -191,10 +212,6 @@ def _paint_channel(tiles) -> None:
                 tiles[y][x].kind == "floor"
             ):
                 tiles[y][x] = ICE_CHANNEL
-    for y in range(_BRIDGE[2], _BRIDGE[3] + 1):
-        for x in range(_BRIDGE[0], _BRIDGE[1] + 1):
-            if in_bounds(x, y, CITY_WIDTH, CITY_HEIGHT):
-                tiles[y][x] = CITY_BRIDGE
 
 
 def _paint_apron(tiles, theme) -> None:
@@ -330,6 +347,43 @@ def _paint_details(tiles, theme) -> None:
             tiles[y][x] = theme.neon
 
 
+def _paint_road_band(tiles, theme, x_lo, x_hi, y_lo, y_hi, orientation) -> None:
+    """Paint a road band from its bounding box (lane marker centered)."""
+    mid_y = (y_lo + y_hi) // 2
+    mid_x = (x_lo + x_hi) // 2
+    for y in range(y_lo, y_hi + 1):
+        for x in range(x_lo, x_hi + 1):
+            if orientation == "ns" and x == mid_x:
+                tiles[y][x] = theme.road_ns
+            elif orientation == "ew" and y == mid_y:
+                tiles[y][x] = theme.road_ew
+            else:
+                tiles[y][x] = theme.road_surface
+
+
+def _paint_road_network(tiles, theme) -> None:
+    """Paint the planned campus circulation: strip, spurs, spine, bridge.
+
+    Bands are painted first so the bridge deck (painted last) seals the
+    crossing where the spine and the south cross road meet the channel.
+    """
+    _paint_road_band(tiles, theme, _STRIP_X[0], _STRIP_X[1], _STRIP_Y[0], _STRIP_Y[2], "ew")
+    _paint_road_band(tiles, theme, _APRON_SPUR[0], _APRON_SPUR[1], _APRON_SPUR[2], _APRON_SPUR[3], "ns")
+    _paint_road_band(tiles, theme, _SPINE_X[0], _SPINE_X[1], _SPINE_Y[0], _SPINE_Y[1], "ns")
+    _paint_road_band(tiles, theme, _MESS_SPUR[0], _MESS_SPUR[1], _MESS_SPUR[2], _MESS_SPUR[3], "ns")
+    _paint_road_band(tiles, theme, _MESS_PROMENADE[0], _MESS_PROMENADE[1], _MESS_PROMENADE[2], _MESS_PROMENADE[3], "ew")
+    _paint_road_band(tiles, theme, _MESS_EAST[0], _MESS_EAST[1], _MESS_EAST[2], _MESS_EAST[3], "ns")
+    _paint_road_band(tiles, theme, _SOUTH_EW[0], _SOUTH_EW[1], _SOUTH_EW[2], _SOUTH_EW[3], "ew")
+    _paint_road_band(tiles, theme, _DEPOT_NS[0], _DEPOT_NS[1], _DEPOT_NS[2], _DEPOT_NS[3], "ns")
+    _paint_road_band(tiles, theme, _LAB_SPUR[0], _LAB_SPUR[1], _LAB_SPUR[2], _LAB_SPUR[3], "ns")
+    _paint_road_band(tiles, theme, _CAVE_SPUR[0], _CAVE_SPUR[1], _CAVE_SPUR[2], _CAVE_SPUR[3], "ns")
+    _paint_road_band(tiles, theme, _CAVE_WEST[0], _CAVE_WEST[1], _CAVE_WEST[2], _CAVE_WEST[3], "ew")
+    # The primary crossing over the channel bend.
+    for y in range(_BRIDGE[2], _BRIDGE[3] + 1):
+        for x in range(_BRIDGE[0], _BRIDGE[1] + 1):
+            tiles[y][x] = CITY_BRIDGE
+
+
 # ---------------------------------------------------------------------
 # Build entry point
 # ---------------------------------------------------------------------
@@ -346,6 +400,7 @@ def build_proc_c_layout(spec, resolve_ship) -> world.GameMap:
     _paint_crevasse(tiles)
     _paint_cave(tiles)
     _paint_details(tiles, theme)
+    _paint_road_network(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],

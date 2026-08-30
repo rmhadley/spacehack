@@ -368,8 +368,8 @@ Procyon c — Ice Campus landed:
   ring (radius 7) with a walkable mouth floor, a west approach gap, and a
   `cave_marker` signpost standing in the mouth.
 - `procyon_c.py` rewritten as the campus spec: 4 buildings (spaceport,
-  lab, mess hall, supply depot), 6 all-to-all transit stops including the
-  new **caves** stop at the mouth's doorstep, 4 interior layout pairs,
+  lab, mess hall, supply depot), 5 all-to-all transit stops, 4 interior
+  layout pairs,
   `PROC_C_POPULATION` (9 ambient staff incl. the cave-mouth scout),
   Campus Cook + Stores Keeper overrides. The lab-chain delve data
   (`explorable_site_name="caves"`, DungeonParams, monster pools) is
@@ -409,6 +409,24 @@ Playtest corrections (same checklist item, re-verified):
   (every `MAP` row full width), and a new regression
   (`test_no_city_interior_has_void_perimeter_walls`) asserts no `void`
   lands on any interior perimeter ring.
+- **Planned circulation (civil-engineering pass)** — the Ice Campus had
+  no charted road network: open ice between buildings, the bridge
+  sitting off-route at (58-62, 79-82), and sidewalk routes L-walking
+  around roofs. The builder now paints one connected campus road
+  network (`_paint_road_network`, lane-marker bands like Proc b / Indi
+  / Groom): a landing strip (EW y32-34, apron to the cave side), an NS
+  spine (x80-82, strip → quad east edge → the channel bend), the
+  **primary bridge** at the channel's thin point (x79-83, y71-75,
+  sealing the crossing), a mess spur + door promenade + east connector,
+  a south-campus cross road (y73 x57-104) linking bridge → mess-side
+  → depot, a depot NS lane docking the depot stop and door, and lab /
+  cave spurs off the strip. The lab transit stop moved onto its spur
+  (108,26); the depot stop now stands on its lane instead of a sealed
+  crevasse. Every door and stop sits on a charted surface, and the
+  dead-ice seal no longer eats the far bank. New regression
+  (`test_proc_c_circulation_is_planned`) asserts the road network is
+  one connected component, the bridge leaves no channel on the spine
+  corridor, and every transit stop stands on road/plaza/pad/bay.
 
 ## Future work
 

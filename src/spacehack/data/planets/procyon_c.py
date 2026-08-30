@@ -72,7 +72,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="lab", name="Research Lab", district="lab terrace",
-            pos=world.Position(110, 26),
+            pos=world.Position(108, 26),
             destinations=("spaceport", "quad", "mess", "depot"),
         ),
         world.TransitStation(
