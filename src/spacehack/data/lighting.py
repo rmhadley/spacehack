@@ -39,6 +39,7 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     "neon": LightSourceSpec(radius=4, intensity=0.9, flicker="mixed"),
     "beacon": LightSourceSpec(radius=6, intensity=1.0),
     "glow_fungus": LightSourceSpec(radius=3, intensity=0.7, flicker="pulse"),
+    "city_water": LightSourceSpec(radius=2, intensity=0.4, flicker="pulse"),
 }
 
 

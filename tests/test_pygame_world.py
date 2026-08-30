@@ -240,6 +240,9 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
     from src.spacehack.data.planets import load_planet
 
     game_map = load_planet("earth")
+    # Isolate the entity-underlay test from the lighting blend — the
+    # water light grid tints nearby tiles and is not under test here.
+    game_map.light_grid = None
     hangar_ship = world.Entity(
         "t", (180, 200, 220), hangar_anchor("earth"), owned=True,
     )

@@ -93,6 +93,25 @@ class FloatingText:
 
 
 @dataclass(frozen=True)
+class LightGlow:
+    """One native radial light glow rendered by Pygame over the map region.
+
+    ``x``/``y`` are logical screen-cell coordinates (viewport-relative,
+    like :class:`FloatingText`). ``age`` is the frame age (0 = spawn) and
+    ``lifetime`` the total frame count; the renderer fades the glow's
+    intensity as it ages. Used for transient combat effects (weapon
+    flashes, explosions) on the overlay layer, not the bitmap grid.
+    """
+
+    x: int
+    y: int
+    color: Color
+    radius: int
+    age: int
+    lifetime: int
+
+
+@dataclass(frozen=True)
 class OverlayFrame:
     """Captured HUD, message-log, and native map-effect layers."""
 
@@ -105,6 +124,7 @@ class OverlayFrame:
     message_height: int
     shields: tuple[ShieldBubble, ...] = ()
     floaters: tuple[FloatingText, ...] = ()
+    glows: tuple[LightGlow, ...] = ()
     target: TargetCard | None = None
 
 
@@ -166,6 +186,7 @@ def _frame_from_commands(
     messages: tuple[OverlaySegment, ...] | None = None,
     shields: tuple[ShieldBubble, ...] = (),
     floaters: tuple[FloatingText, ...] = (),
+    glows: tuple[LightGlow, ...] = (),
     target: TargetCard | None = None,
 ) -> OverlayFrame:
     """Build an overlay frame from an already-rendered console."""
@@ -192,6 +213,7 @@ def _frame_from_commands(
         message_height=MSG_LOG_HEIGHT,
         shields=tuple(shields),
         floaters=tuple(floaters),
+        glows=tuple(glows),
         target=target,
     )
 
@@ -738,6 +760,57 @@ def _draw_floaters(
         screen.set_clip(None)
 
 
+def _draw_glow_surface(pygame: Any, glow: LightGlow, frac: float) -> Any:
+    """Build one fading radial glow surface for ``glow`` at intensity ``frac``."""
+    px_radius = max(1, glow.radius * TILE_WIDTH)
+    size = px_radius * 2 + 2
+    surface = pygame.Surface((size, size), pygame.SRCALPHA)
+    for r in range(px_radius, 0, -1):
+        alpha = int(120 * frac * (1 - r / px_radius))
+        if alpha <= 0:
+            continue
+        pygame.draw.circle(
+            surface, (*glow.color, alpha),
+            (size // 2, size // 2), r,
+        )
+    return surface
+
+
+def _draw_glows(
+    pygame: Any,
+    screen: Any,
+    glows: tuple[LightGlow, ...],
+    *,
+    map_width: int,
+    map_height: int,
+) -> None:
+    """Paint native radial light glows over the map region.
+
+    Each glow is a filled circle whose colour fades with ``age`` toward
+    zero as it approaches ``lifetime``. Drawn with ``BLEND_RGBA_ADD``
+    so overlapping glows brighten, and so the glow adds light to the
+    map glyphs beneath it rather than replacing them. Clipped to the
+    map area so glows never spill into the HUD or message-log panels.
+    """
+    if not glows:
+        return
+    screen.set_clip(pygame.Rect(0, 0, map_width * TILE_WIDTH, map_height * TILE_HEIGHT))
+    try:
+        for glow in glows:
+            frac = max(0.0, 1.0 - glow.age / max(1, glow.lifetime))
+            if frac <= 0.0:
+                continue
+            surface = _draw_glow_surface(pygame, glow, frac)
+            cx = glow.x * TILE_WIDTH + TILE_WIDTH // 2
+            cy = glow.y * TILE_HEIGHT + TILE_HEIGHT // 2
+            screen.blit(
+                surface, (cx - surface.get_width() // 2, cy - surface.get_height() // 2),
+                special_flags=pygame.BLEND_RGBA_ADD,
+            )
+    finally:
+        screen.set_clip(None)
+
+
 def _draw_hud_panel(
     pygame: Any,
     screen: Any,
@@ -842,6 +915,13 @@ def draw_map_effects(
         pygame,
         screen,
         frame.floaters,
+        map_width=map_width,
+        map_height=map_height,
+    )
+    _draw_glows(
+        pygame,
+        screen,
+        frame.glows,
         map_width=map_width,
         map_height=map_height,
     )

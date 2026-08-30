@@ -61,6 +61,14 @@ def _combat_floaters(ctx: GameContext | None) -> tuple:
     return _animations.active_floaters()
 
 
+def _combat_glows(ctx: GameContext | None) -> tuple:
+    """Return + consume the current frame's light glows (explosions, etc.)."""
+    if ctx is None:
+        return ()
+    from .combat import _animations
+    return _animations.active_glows()
+
+
 def _combat_target_card(ctx: GameContext | None):
     """Return the native info card for the targeted combatant, if any.
 
@@ -181,6 +189,7 @@ def present(ctx: GameContext, console: FrameBuffer) -> None:
         ),
         shields=_combat_shield_bubbles(ctx),
         floaters=_combat_floaters(ctx),
+        glows=_combat_glows(ctx),
         target=_combat_target_card(ctx),
     )
     ctx.context.present(_map_console(console, all_commands), overlay=overlay)

@@ -161,13 +161,14 @@ def _popup_lifetime(damage: DamagePopup) -> int:
 
 @dataclass
 class _CombatEffects:
-    """Ephemeral per-frame native combat effects (floating text).
+    """Ephemeral per-frame native combat effects (floating text + glows).
 
     Single module-level mutable global (guardrail: one dataclass, not
     scattered globals). Presentation-only — nothing here is saved.
     """
 
     floaters: list = field(default_factory=list)
+    glows: list = field(default_factory=list)
 
 
 _effects: _CombatEffects | None = None
@@ -188,12 +189,34 @@ def active_floaters() -> tuple:
     return result
 
 
+def active_glows() -> tuple:
+    """Return the current frame's light glows, then clear them.
+
+    Consume-on-read like :func:`active_floaters`; a frame with no active
+    effect never re-draws a stale glow.
+    """
+    holder = _effects
+    if holder is None:
+        return ()
+    result = tuple(holder.glows)
+    holder.glows = []
+    return result
+
+
 def _set_floaters(floaters) -> None:
     """Queue the floating texts for the next presented frame."""
     global _effects
     if _effects is None:
         _effects = _CombatEffects()
     _effects.floaters = list(floaters)
+
+
+def _set_glows(glows) -> None:
+    """Queue light glows for the next presented frame."""
+    global _effects
+    if _effects is None:
+        _effects = _CombatEffects()
+    _effects.glows = list(glows)
 
 
 def _floater_for(
@@ -620,6 +643,35 @@ def _explosion_frame(
     )
 
 
+_EXPLOSION_GLOW_COLOR = (255, 200, 100)
+_EXPLOSION_GLOW_RADIUS = 3
+_EXPLOSION_GLOW_LIFETIME = 3
+
+
+def _queue_explosion_glow(
+    center_pos: world.Position,
+    ring: int,
+    cam_x: int,
+    cam_y: int,
+) -> None:
+    """Queue a ``LightGlow`` at the explosion centre for one frame.
+
+    The glow grows with the explosion ring count so the flash reads as
+    expanding light, not a static blob.
+    """
+    from ..pygame_overlay import LightGlow
+
+    glow = LightGlow(
+        x=center_pos.x - cam_x,
+        y=center_pos.y - cam_y,
+        color=_EXPLOSION_GLOW_COLOR,
+        radius=_EXPLOSION_GLOW_RADIUS + ring,
+        age=0,
+        lifetime=_EXPLOSION_GLOW_LIFETIME,
+    )
+    _set_glows([glow])
+
+
 def _animate_explosion(
     console,
     context,
@@ -646,6 +698,7 @@ def _animate_explosion(
             console, (center_pos.x, center_pos.y), rings + 1,
             cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
         )
+        _queue_explosion_glow(center_pos, rings, cam_x, cam_y)
         _present(context, console)
         _responsive_sleep(animation_timing.EXPLOSION_RING)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
@@ -653,6 +706,7 @@ def _animate_explosion(
         console, (center_pos.x, center_pos.y),
         cam_x=cam_x, cam_y=cam_y, view_w=view_w, view_h=view_h,
     )
+    _queue_explosion_glow(center_pos, len(_COMBAT_EXPLOSION_RINGS), cam_x, cam_y)
     _present(context, console)
     _responsive_sleep(animation_timing.EXPLOSION_FLASH)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)

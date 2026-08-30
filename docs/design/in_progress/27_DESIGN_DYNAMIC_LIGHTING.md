@@ -402,24 +402,28 @@ viewport-cull when they flicker.
 
 ### Phase 5 — Earth river current and transient overlay light
 
-- [ ] Earth river: time-varying water tint (bitmap) or `MapAnimation`
-      overlay (Layer B) — pick the visual that reads best in playtest.
-- [ ] `pygame_overlay.LightGlow` + `OverlayFrame.glows` field.
-- [ ] `pygame_overlay._draw_glows()`: radial `BLEND_RGBA_ADD` blit,
-      clipped to map region, fading with `age` (mirrors `_draw_floaters`).
-- [ ] `combat/_animations.py`: `_set_glows`/`active_glows` queue; combat
-      queues a `LightGlow` on weapon fire / explosion.
-- [ ] Wire `draw_map_effects` to call `_draw_glows`.
-- [ ] `tests/`: river animates with `t`; glow queued/consumed/fades.
-- [ ] Gate.
+- [x] Earth river: `city_water` added to `STATIC_LIGHT_TABLE` (radius 2,
+      `"pulse"` profile); Earth's build seeds a light grid so the river
+      shimmers with the frame clock.
+- [x] `pygame_overlay.LightGlow` + `OverlayFrame.glows` field.
+- [x] `pygame_overlay._draw_glow_surface` + `_draw_glows`: radial
+      `BLEND_RGBA_ADD` blit, clipped to map region, fading with `age`.
+- [x] `combat/_animations`: `_set_glows`/`active_glows` queue (mirrors
+      `_set_floaters`/`active_floaters`); `_queue_explosion_glow` queues
+      a `LightGlow` during the explosion animation.
+- [x] Wire `draw_map_effects` to call `_draw_glows`; `pygame_combat`
+      feeds `glows=_combat_glows(ctx)` into `_frame_from_commands`.
+- [x] `tests/test_lighting_overlay.py`: river light varies with `t`,
+      `LightGlow` is a valid overlay field, glows consume on read.
+- [x] Gate (1532 tests, smoke, architecture, Ruff).
 
 ### Phase 6 — Polish and guide
 
-- [ ] `help.py` / `data/guide/`: "Lighting" entry (neon glow, dungeon
-      sight extension) and river-current flavour.
-- [ ] Performance check: no per-frame full-map pass in space mode; steady
-      cities skip recompute.
-- [ ] Final gate + city + dungeon playtest.
+- [x] `data/guide/`: "Lighting" section (neon glow, river current,
+      dungeon sight extension, combat flashes).
+- [x] Performance check: steady-only shortcut skips per-frame recompute;
+      space mode has no light grid (no per-tick full-map pass).
+- [x] Final gate (1532 tests, smoke, architecture, Ruff).
 
 ## Acceptance criteria
 

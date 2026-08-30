@@ -550,4 +550,22 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "others."
         ),
     ),
+    GuideSection(
+        title="Lighting",
+        body=(
+            "Light shapes the world. Neon signs glow over city streets, water "
+            "shimmers, and combat flashes light up the dark."
+            "\n\n"
+            "- City neon: signs cast coloured light onto the streets below them. "
+            "Some flicker and buzz - a faulty sign is part of the look."
+            "\n"
+            "- River current: Earth's river shimmers as the water flows."
+            "\n"
+            "- Dungeon glow: bioluminescent fungus in derelict corridors "
+            "extends your sight. Move toward a green-lit patch to see further."
+            "\n"
+            "- Combat flashes: explosions and weapon fire briefly light the "
+            "area around them."
+        ),
+    ),
 )
