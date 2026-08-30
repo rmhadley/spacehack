@@ -38,7 +38,7 @@ SPEC = PlanetSpec(
     description="An icy body on Procyon's outer reach - a research campus carved into the ice.",
     width=140,
     height=100,
-    hangar_anchor=world.Position(20, 24),
+    hangar_anchor=world.Position(14, 20),
     buildings=(
         world.CityBuilding(
             label="spaceport", x_lo=6, x_hi=30, y_lo=6, y_hi=16,
@@ -49,11 +49,11 @@ SPEC = PlanetSpec(
             door_x=110, npc_id="research_officer",
         ),
         world.CityBuilding(
-            label="mess", x_lo=34, x_hi=56, y_lo=72, y_hi=82,
+            label="mess", x_lo=34, x_hi=56, y_lo=70, y_hi=80,
             door_x=45, npc_id="cook", door_north=True,
         ),
         world.CityBuilding(
-            label="depot", x_lo=92, x_hi=114, y_lo=72, y_hi=82,
+            label="depot", x_lo=92, x_hi=114, y_lo=74, y_hi=84,
             door_x=103, npc_id="depot_attendant", door_north=True,
         ),
     ),
@@ -77,12 +77,12 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="mess", name="Mess Hall", district="south campus",
-            pos=world.Position(45, 66),
+            pos=world.Position(45, 64),
             destinations=("quad", "depot"),
         ),
         world.TransitStation(
-            id="depot", name="Supply Depot", district="south campus",
-            pos=world.Position(103, 66),
+            id="depot", name="Supply Depot", district="far bank",
+            pos=world.Position(103, 70),
             destinations=("quad", "mess"),
         ),
         world.TransitStation(
