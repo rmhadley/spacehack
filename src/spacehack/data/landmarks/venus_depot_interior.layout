@@ -1,0 +1,25 @@
+# venus_depot_interior.layout - the deck stores cage (warm sodium)
+MAP
+##################
+#................#
+#..o..o..o..o....#
+#................#
+#..o..o..o..o....#
+#................#
+#..o..o..o..o....#
+#................#
+#........P.......#
+#........>.......#
+##################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (210, 180, 120) / (45, 35, 22)
+COLOUR: . = (225, 205, 170) / (52, 42, 30)
+COLOUR: o = (240, 210, 150) / (50, 40, 28)
+COLOUR: P = (255, 214, 130) / (50, 40, 28)
+COLOUR: > = (255, 214, 130) / (50, 40, 28)

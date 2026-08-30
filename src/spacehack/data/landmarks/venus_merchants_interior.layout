@@ -1,0 +1,27 @@
+# venus_merchants_interior.layout - the exchange hall floor (neon cyan)
+MAP
+####################
+#..................#
+#..o..c..c..o......#
+#..................#
+#..c..........c....#
+#..................#
+#..o..c..c..o......#
+#..................#
+#........P.........#
+#........>.........#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: c = TABLE
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (70, 200, 220) / (25, 45, 55)
+COLOUR: . = (170, 210, 225) / (45, 60, 72)
+COLOUR: c = (120, 220, 240) / (40, 60, 70)
+COLOUR: o = (160, 230, 255) / (40, 60, 70)
+COLOUR: P = (255, 214, 130) / (44, 58, 70)
+COLOUR: > = (255, 214, 130) / (44, 58, 70)

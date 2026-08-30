@@ -1,0 +1,32 @@
+# venus_bar_interior.layout - The Cloudbreak lounge floor (neon pink)
+MAP
+########################
+#..o..............o....#
+#..bbbbbbbbbb..........#
+#..b..~..~..b..........#
+#..b..♥..♥..b..........#
+#..bbbbbbbbbb..........#
+#..~..............~....#
+#..o..............o....#
+#......................#
+#...........P..........#
+#...........>..........#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: ~ = TABLE
+TILE: ♥ = DRINK
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (220, 90, 160) / (50, 20, 40)
+COLOUR: . = (200, 170, 190) / (55, 40, 55)
+COLOUR: b = (230, 120, 170) / (70, 35, 55)
+COLOUR: ~ = (215, 185, 200) / (60, 45, 60)
+COLOUR: ♥ = (255, 90, 90) / (65, 35, 50)
+COLOUR: o = (255, 190, 110) / (60, 35, 45)
+COLOUR: P = (255, 200, 90) / (55, 40, 50)
+COLOUR: > = (255, 200, 90) / (55, 40, 50)

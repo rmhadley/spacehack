@@ -20,9 +20,10 @@ expands.
 ## Current implementation status
 
 The generic city pipeline is complete for the authored cities listed in Phase 6.
-Ross 154 c (Cinder) and Vega b (**The Beacon**) are complete and approved. The
-next backlog cities are Procyon planets 1/2, AC planets 1/2/3, Sirius Station,
-Venus, Depot, and Blockade.
+Ross 154 c (Cinder), Vega b (**The Beacon**), Procyon c (**Ice Campus**),
+and Venus (**Cloudbreak City**) are complete and approved. The next backlog
+cities are Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Depot, and
+Blockade.
 
 Ross c now has:
 
@@ -148,7 +149,8 @@ for future city migrations and playtests.
   Barnard's Star b/c, Ross b/c, Tau Ceti b, Lalande b/c, Groombridge b,
   Indi b, and AC station are authored and migrated.
 - [x] Vega b — redesigned as **The Beacon** and approved (see build record below).
-- [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Venus, Depot, and Blockade remain the next migration backlog.
+- [x] Venus — redesigned as **Cloudbreak City** and approved (see build record below).
+- [ ] Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Depot, and Blockade remain the next migration backlog.
 
 ## Acceptance criteria
 
@@ -428,9 +430,65 @@ Playtest corrections (same checklist item, re-verified):
   one connected component, the bridge leaves no channel on the spine
   corridor, and every transit stop stands on road/plaza/pad/bay.
 
+## Venus build record — Cloudbreak City (approved)
+
+Venus is the packed neon downtown: a deck hung in the upper atmosphere,
+tower blocks crammed into a neon canyon around a cross of avenues, and
+every edge dissolving into sulphuric cloud bands.
+
+Civil-engineering plan (user-approved: **neon canyon skyline** as the
+signature):
+
+- The deck is ringed by irregular cloud bands (non-walkable) — the
+  city's rim silhouette, never a box wall.
+- A **landing apron** north (spaceport NW, berth + showroom + terminals)
+  feeds the **Promenade**, the main east-west avenue off its spur.
+- The **Spine** (NS) crosses the Promenade at **The Cross** — the central
+  plaza with the city beacon and the transit hub.
+- The **Cross Street** (second avenue) runs south of the plaza; the
+  **Cloudbreak** bar (door north) sits on its west spur, the exchange
+  hall (door north) on the east spur, and the deck-stores **depot**
+  (door north) on its own lane behind the exchange via a back alley.
+- Every free block between the avenues is packed with **skyline towers**
+  (shared `paint_skyline`, neon schemes); towers keep a lane from the
+  apron and from each other, so the floor between blocks stays one
+  connected service web instead of sealed pockets. A neon-signage pass
+  lines each tower's street-facing facade with hot pink/cyan signs.
+- Five transit stops (spaceport / the Cross / Cloudbreak / exchange /
+  depot, all-to-all) and nine ambient NPCs reinforce the same routes.
+
+Implementation notes:
+
+- `src/spacehack/venus_city.py` owns Venus's distinct painters
+  (cloud rim, apron, Cross plaza, avenue network, neon signage, dead-deck
+  seal) and delegates stamping/metadata, forecourts, ships, terminals,
+  and labels to `city_kit` and `city_layout`.
+- `src/spacehack/data/planets/venus.py` supplies the layout id, buildings,
+  transit, interiors, showroom ships, NPC overrides (Cloud Guide kept,
+  new Deck Keeper), and economy (luxury goods + food, electronics /
+  machine parts demand — preserved from the old outpost).
+- `VENUS_NEON` is a night-neon `derive_theme` variant (deep blue-black
+  deck, hot pink accent) over the `CLOUD_CITY` presets; `_readable_
+  city_theme` guarantees readable backgrounds.
+- `src/spacehack/data/landmarks/venus_*.layout` supplies the four
+  authored exteriors and four interiors (all full-width rectangles).
+
+Verification record:
+
+- Venus builds through `load_planet` → `city_builder.build_city` via the
+  new `venus_cloudbreak` dispatch row; no new dispatch fork beyond the
+  registry row.
+- The cloud-rim test asserts the west rim is an irregular silhouette, the
+  north rim carries cloud, and cloud deck is never walkable.
+- The planned-circulation regression (one connected road network + every
+  stop on charted surface) and the no-void / no-dead-pockets regressions
+  mirror the Procyon c playtest fixes.
+- The city is in the smooth-apron matrix and the live-glyph sweep;
+  full gate passes (1495 tests + smoke, architecture, Ruff).
+
 ## Future work
 
-Complete the Procyon pair, then continue Phase 6 with AC planets 1/2/3,
-Sirius Station, Venus, Depot, and Blockade, following the same
-civil-engineering-first plan and adding focused geometry, reachability,
-transit, interior, NPC, landing-apron, glyph, and persistence tests for each.
+Continue Phase 6 with Procyon planets 1/2, AC planets 1/2/3, Sirius
+Station, Depot, and Blockade, following the same civil-engineering-first
+plan and adding focused geometry, reachability, transit, interior, NPC,
+landing-apron, glyph, and persistence tests for each.

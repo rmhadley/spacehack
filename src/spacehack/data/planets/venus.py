@@ -1,20 +1,28 @@
-"""Venus — a dense, cloud-shrouded world with a floating observation port.
+"""Venus — Cloudbreak City: a packed neon downtown floating in the clouds.
 
-High in Venus's upper atmosphere, where pressure and temperature are
-Earth-like, a small floating port offers shelter to passing pilots.
-The view from the observation lounge is breathtaking — endless
-sulphuric cloud bands stretching to the horizon.
+A dense, cloud-shrouded planet. Venus's floating port grew into a
+megacity: a deck hung in the upper atmosphere, tower blocks packed into
+a neon canyon around a cross of avenues, and every edge dissolving into
+sulphuric cloud bands. The view from The Cloudbreak lounge is still the
+best on the deck — endless cloud bands strobed by neon.
 
-Layout (60x40):
+Layout (140x100), authored as `venus_cloudbreak`:
 
-  * spaceport, NW corner.
-  * bar (observation lounge), NE corner — "The Cloudbreak."
+  * spaceport NW — door south onto the landing apron.
+  * The Cloudbreak (bar) west — hot-pink observation lounge on the
+    cloud rim, on its own spur off the Cross Street.
+  * merchants hall east — door south onto its canyon lane.
+  * deck stores depot south — door north onto its lane.
+  * The Promenade + Cross Street avenues and the north-south spine
+    cross at The Cross plaza (city beacon + transit hub).
+  * Packed skyline blocks with neon signage line every avenue.
 """
 from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
+from ..city_npcs import VENUS_POPULATION
 from .themes import CLOUD_CITY
 
 
@@ -24,24 +32,70 @@ SPEC = PlanetSpec(
     name="Venus",
     char="v",
     fg=(235, 215, 165),
-    description="A dense, cloud-shrouded planet - a floating port hangs in the upper atmosphere.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    description=(
+        "A dense, cloud-shrouded planet - Cloudbreak City hangs in the "
+        "upper atmosphere, a neon canyon packed with towers."
+    ),
+    width=140,
+    height=100,
+    hangar_anchor=world.Position(14, 20),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=6, x_hi=30, y_lo=6, y_hi=14,
+            door_x=18, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",       x_lo=34, x_hi=41, y_lo=8,  y_hi=13,
-            door_x=37, npc_id="barkeep",
+            label="bar", x_lo=16, x_hi=40, y_lo=70, y_hi=78,
+            door_x=27, npc_id="barkeep", door_north=True,
+        ),
+        world.CityBuilding(
+            label="merchants", x_lo=96, x_hi=120, y_lo=70, y_hi=78,
+            door_x=108, npc_id="guild_master", door_north=True,
+        ),
+        world.CityBuilding(
+            label="depot", x_lo=92, x_hi=116, y_lo=84, y_hi=92,
+            door_x=103, npc_id="depot_attendant", door_north=True,
         ),
     ),
+    city_layout_id="venus_cloudbreak",
+    city_npc_population=VENUS_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Landing Deck", district="north rim",
+            pos=world.Position(18, 22),
+            destinations=("cross", "cloudbreak", "merchants", "depot"),
+        ),
+        world.TransitStation(
+            id="cross", name="The Cross", district="avenue crossing",
+            pos=world.Position(83, 43),
+            destinations=("spaceport", "cloudbreak", "merchants", "depot"),
+        ),
+        world.TransitStation(
+            id="cloudbreak", name="The Cloudbreak", district="west rim",
+            pos=world.Position(27, 68),
+            destinations=("spaceport", "cross", "merchants", "depot"),
+        ),
+        world.TransitStation(
+            id="merchants", name="Exchange Hall", district="east district",
+            pos=world.Position(108, 68),
+            destinations=("spaceport", "cross", "cloudbreak", "depot"),
+        ),
+        world.TransitStation(
+            id="depot", name="Deck Stores", district="south deck",
+            pos=world.Position(96, 83),
+            destinations=("spaceport", "cross", "cloudbreak", "merchants"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "venus_spaceport_interior"),
+        ("bar", "venus_bar_interior"),
+        ("merchants", "venus_merchants_interior"),
+        ("depot", "venus_depot_interior"),
+    ),
     showroom_ships=(
-        ("scout",    3, 2),
-        ("hauler",   7, 2),
-        ("freighter", 15, 2),
+        ("scout", -6, -2),
+        ("cruiser", 0, -2),
+        ("freighter", 6, -2),
     ),
     npc_overrides=(
         (
@@ -53,8 +107,24 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 180, 200),
                 flavor_text=(
-                    "The clouds below hide storms that'd tear a ship apart. "
-                    "Stay in the port, and you'll live to see the view again."
+                    "Forty levels of city hang over the cloud bands, and "
+                    "every window in it is somebody's sky. Stay for one "
+                    "more, pilot - the view doesn't repeat."
+                ),
+            ),
+        ),
+        (
+            "depot_attendant",
+            npc_module.NPC(
+                id="depot_attendant",
+                name="Deck Keeper",
+                guild="depot",
+                char="d",
+                fg=(210, 190, 150),
+                flavor_text=(
+                    "Rations, reactor cells, de-icer for the deck vents - "
+                    "if it lands on Venus it comes through this cage. "
+                    "Sign for it before it drifts off the edge."
                 ),
             ),
         ),

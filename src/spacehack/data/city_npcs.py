@@ -397,4 +397,23 @@ PROC_C_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("procc_cave_scout", "civillian_bystander", (124, 28), wander_radius=3, move_chance=0.6),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION"]
+VENUS_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the landing deck apron.
+    CityNpc("venus_pad_crew_a", "civillian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
+    CityNpc("venus_pad_crew_b", "civillian_bystander", (26, 21), wander_radius=6, move_chance=0.8),
+    # Commuters crossing the Promenade between the districts.
+    CityNpc("venus_commuter_a", "civillian_bystander", (40, 33), wander_radius=8, move_chance=0.9),
+    CityNpc("venus_commuter_b", "civillian_bystander", (90, 33), wander_radius=8, move_chance=0.85),
+    # A regular at The Cross, watching the beacon.
+    CityNpc("venus_cross_regular", "civillian_bystander", (84, 42), wander_radius=4, move_chance=0.8),
+    # A Cloudbreak regular loitering on the west spur.
+    CityNpc("venus_cloudbreak_regular", "civillian_bystander", (28, 68), wander_radius=4, move_chance=0.8),
+    # A browser outside the exchange hall.
+    CityNpc("venus_merchants_browser", "civillian_bystander", (107, 68), wander_radius=5, move_chance=0.85),
+    # A stores hand walking the depot lane behind the exchange.
+    CityNpc("venus_depot_hand", "civillian_bystander", (94, 83), wander_radius=5, move_chance=0.85),
+    # One city marshal patrolling the spine from the plaza south.
+    CityNpc("venus_city_marshal", "militia_trooper", (81, 56), wander_radius=12, move_chance=0.85),
+)
+
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION", "VENUS_POPULATION"]
