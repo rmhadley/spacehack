@@ -9,6 +9,7 @@ from .city_kit import (
     add_service_terminals,
     add_showroom_ships,
     base_tiles,
+    paint_door_forecourts,
     paint_transit_bays,
     set_city_metadata,
 )
@@ -46,6 +47,18 @@ WARNING = world.Tile("neon", "!", False, (255, 72, 72), (70, 14, 18))
 BEACON = world.Tile("beacon", "!", False, (255, 225, 125), (50, 42, 35))
 BAY = T("transit_bay", "=", (100, 230, 245), (38, 72, 88))
 
+# Planned circulation as (x_lo, x_hi, y_lo, y_hi, orientation) bands.
+# Bands overlap at junctions so the painted network is one component.
+_ARTERIAL = (2, 137, 42, 44, "ew")        # main deck crossing, full width
+_WEST_SPINE = (44, 46, 2, 87, "ns")       # top edge down to the south street
+_APRON_SPUR = (19, 21, 26, 41, "ns")      # apron south edge down to the arterial
+_SOUTH_STREET = (2, 137, 79, 81, "ew")    # fronts the claims and watch stops
+_COLLECTOR_WEST = (33, 35, 44, 81, "ns")  # arterial down to the south street
+_COLLECTOR_EAST = (131, 133, 44, 81, "ns")
+
+# Roads only replace open deck; pads, plaza, yards, walls, and lights survive.
+_ROAD_HOST_KINDS = frozenset({"station_deck", "floor"})
+
 
 def _paint_hull(tiles):
     for y in range(1, HEIGHT - 1):
@@ -59,52 +72,7 @@ def _paint_hull(tiles):
         tiles[y][WIDTH - 2] = BULKHEAD
 
 
-
-def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
-    """Paint a protected 3×N or N×3 vehicle right-of-way."""
-    for y in range(y_lo, y_hi + 1):
-        for x in range(x_lo, x_hi + 1):
-            if tiles[y][x].kind == "station_deck":
-                tiles[y][x] = theme.road_surface
-    center = (y_lo + y_hi) // 2 if horizontal else (x_lo + x_hi) // 2
-    cells = range(x_lo, x_hi + 1) if horizontal else range(y_lo, y_hi + 1)
-    for value in cells:
-        x, y = (value, center) if horizontal else (center, value)
-        if tiles[y][x].kind == "road":
-            tiles[y][x] = theme.road_ew if horizontal else theme.road_ns
-
-
-def _paint_road_network(tiles, theme) -> None:
-    """Paint the complete three-wide vehicle network on open deck only."""
-    # Central arterial, with a full-width junction crossing at x=70.
-    _paint_road(tiles, theme, 2, 137, 42, 44, True)
-    # North/south distributor ends before the protected plaza and starts
-    # again below it, joined by the arterial rather than entering it.
-    _paint_road(tiles, theme, 68, 70, 2, 23, False)
-    _paint_road(tiles, theme, 68, 70, 44, 87, False)
-    # Southern cross-street stays clear of the north-facing building walls.
-    # The three-wide collectors meet it at y=62..64, leaving a one-cell
-    # service setback before the buildings begin at y=67.
-    _paint_road(tiles, theme, 2, 78, 58, 60, True)
-    _paint_road(tiles, theme, 130, 137, 58, 60, True)
-    # Continuous south collector.  It passes below the quarantine yard,
-    # using a single clear bypass corridor rather than disconnected spurs.
-    _paint_road(tiles, theme, 2, 10, 80, 82, True)
-    _paint_road(tiles, theme, 33, 81, 80, 82, True)
-    _paint_road(tiles, theme, 126, 137, 80, 82, True)
-    _paint_road(tiles, theme, 79, 81, 75, 82, False)
-    _paint_road(tiles, theme, 123, 125, 75, 75, False)
-    _paint_road(tiles, theme, 123, 125, 80, 82, False)
-    _paint_road(tiles, theme, 79, 102, 75, 77, True)
-    _paint_road(tiles, theme, 133, 137, 75, 77, True)
-    _paint_road(tiles, theme, 36, 38, 44, 87, False)
-    # Keep the east collector west of the quarantine yard's x=82..125
-    # footprint; the previous x=102..104 alignment cut through that yard.
-    _paint_road(tiles, theme, 76, 78, 44, 60, False)
-
-
 def _paint_apron_and_hall(tiles, theme) -> None:
-    """Paint the docking apron and brightly marked inspection hall."""
     for y in range(15, 26):
         for x in range(4, 40):
             tiles[y][x] = replace(theme.landing_pad, char=".")
@@ -119,7 +87,6 @@ def _paint_apron_and_hall(tiles, theme) -> None:
 
 
 def _paint_quarantine_yards(tiles) -> None:
-    """Paint fenced cargo holding yards and the sealed frontier airlock."""
     for y in range(52, 66):
         for x in range(82, 126):
             if (x + y) % 4 == 0:
@@ -137,7 +104,6 @@ def _paint_quarantine_yards(tiles) -> None:
 
 
 def _paint_lights(tiles) -> None:
-    """Place atmospheric cyan, amber, and red station lights."""
     tiles[47][70] = BEACON
     for x in range(25, 121, 12):
         if tiles[47][x].walkable:
@@ -148,8 +114,36 @@ def _paint_lights(tiles) -> None:
         tiles[y][x] = WARNING
 
 
+def _paint_road_band(tiles, theme, x_lo, x_hi, y_lo, y_hi, orientation) -> None:
+    """Paint one three-wide right-of-way with a lane marker down its center."""
+    mid_y = (y_lo + y_hi) // 2
+    mid_x = (x_lo + x_hi) // 2
+    for y in range(y_lo, y_hi + 1):
+        for x in range(x_lo, x_hi + 1):
+            if tiles[y][x].kind not in _ROAD_HOST_KINDS:
+                continue
+            if orientation == "ns" and x == mid_x:
+                tiles[y][x] = theme.road_ns
+            elif orientation == "ew" and y == mid_y:
+                tiles[y][x] = theme.road_ew
+            else:
+                tiles[y][x] = theme.road_surface
+
+
+def _paint_road_network(tiles, theme) -> None:
+    """Paint the planned station circulation over open deck only."""
+    for x_lo, x_hi, y_lo, y_hi, orientation in (
+        _ARTERIAL, _WEST_SPINE, _APRON_SPUR,
+        _SOUTH_STREET, _COLLECTOR_WEST, _COLLECTOR_EAST,
+    ):
+        _paint_road_band(tiles, theme, x_lo, x_hi, y_lo, y_hi, orientation)
+
+
 def _paint_deck(game_map, spec, theme, stamps) -> None:
-    """Finish station routes, bays, labels, and lighting state."""
+    paint_door_forecourts(
+        game_map.tiles, theme, spec, width=WIDTH, height=HEIGHT,
+        overwrite_kinds=frozenset({"station_deck", "floor"}),
+    )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=WIDTH, height=HEIGHT,
         overwrite_kinds=frozenset({"station_deck", "plaza", "sidewalk"}),
@@ -173,7 +167,6 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     theme = _readable_city_theme(THEME)
     tiles = base_tiles(WIDTH, HEIGHT, theme.floor)
     _paint_hull(tiles)
-    _paint_road_network(tiles, theme)
     _paint_apron_and_hall(tiles, theme)
     tiles[76][21] = theme.plaza
     tiles[76][117] = theme.plaza
@@ -181,11 +174,11 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
         tiles[14][x] = theme.landing_pad
     _paint_quarantine_yards(tiles)
     _paint_lights(tiles)
+    _paint_road_network(tiles, theme)
     game_map = world.GameMap(WIDTH, HEIGHT, tiles=tiles, entities=[])
     stamps = stamp_city_assets(game_map, ORIGINS, sidewalk=theme.sidewalk)
     _paint_deck(game_map, spec, theme, stamps)
-    showroom_origin = spec.hangar_anchor
-    add_showroom_ships(game_map, spec, resolve_ship, origin=showroom_origin)
+    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(game_map, spec, dy=5, dxs=(-5, -2, 3), palette=TERMINAL_PALETTE_CLASSIC)
     return game_map
 

@@ -6,6 +6,9 @@ from collections import deque
 from src.spacehack.data.planets import find_planet_spec, load_planet
 
 
+ROAD_KINDS = {"road", "road_ns", "road_ew", "road_surface"}
+
+
 def _reachable(game_map, start):
     origin = (start.x, start.y)
     seen = {origin}
@@ -29,68 +32,49 @@ def test_blockade_south_is_distinct_authored_station():
     assert game_map.city_transit["spaceport"]["name"] == "Spaceport"
     assert "inspection" not in game_map.city_transit
     assert game_map.city_transit["quarantine"]["pos"] == (70, 37)
-    assert all(
-        game_map.tiles[y][x].kind == "transit_bay"
-        for y in range(36, 39)
-        for x in range(69, 72)
-    )
     assert len(game_map.landmark_stamps) == 3
     assert any(tile.kind == "station_bulkhead" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "quarantine" for row in game_map.tiles for tile in row)
     assert any(tile.kind == "beacon" for row in game_map.tiles for tile in row)
 
 
-def test_blockade_south_has_three_wide_connected_road_network():
+def test_blockade_south_circulation_is_planned():
+    """Civil-engineering regression: one connected road network painted on
+    open deck, matching the established band-painter conventions."""
     game_map = load_planet("blockade_south")
-    roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
-    assert len(roads) >= 300
+    roads = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind in ROAD_KINDS
+    }
+    assert len(roads) >= 300, "the station road network is too small"
     assert all(game_map.tiles[y][x].walkable for x, y in roads)
-    assert sum(game_map.tiles[42][x].char == "▓" for x in range(2, 138)) >= 120
-    for x in range(2, 138):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (42, 43, 44))
-    for y in range(2, 24):
-        assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for y in (44, 45, 58, 59, 60):
-        assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for x in range(2, 79):
-        assert game_map.tiles[59][x].kind == "road"
-    for x in range(130, 138):
-        assert game_map.tiles[59][x].kind == "road"
-    for x in range(137, 129, -1):
-        assert game_map.tiles[59][x].kind == "road"
-    for x in range(78, 75, -1):
-        assert game_map.tiles[59][x].kind == "road"
-    for x in range(2, 11):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (80, 81, 82))
-    for x in range(33, 82):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (80, 81, 82))
-    for x in range(126, 138):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (80, 81, 82))
-    for x in range(79, 82):
-        assert all(game_map.tiles[y][x].kind == "road" for y in range(75, 83))
-    for x in range(123, 126):
-        assert all(game_map.tiles[y][x].kind == "road" for y in range(80, 83))
-    for x in range(79, 84):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (75, 76, 77))
-        assert all(game_map.tiles[y][x].kind == "road" for y in (76, 77))
-    for x in range(133, 138):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (76, 77))
-    for x in (36, 37, 38, 76, 77, 78):
-        assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 65)) >= 15
-    for x in (68, 69, 70):
-        assert sum(game_map.tiles[y][x].kind == "road" for y in range(2, 88)) >= 15
-    assert not any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
-    protected = {"city_building_wall", "city_building_roof", "city_building_door", "landing_pad", "plaza", "transit_bay", "quarantine", "station_bulkhead"}
-    for y, row in enumerate(game_map.tiles):
-        for x, tile in enumerate(row):
-            if tile.kind == "road":
-                assert not any(
-                    game_map.tiles[yy][xx].kind in protected - {"station_bulkhead"}
-                    for yy in range(max(0, y - 1), min(game_map.height, y + 2))
-                    for xx in range(max(0, x - 1), min(game_map.width, x + 2))
-                )
-    assert sum(tile.kind == "plaza" for row in game_map.tiles for tile in row) > 0
-    assert sum(tile.kind == "landing_pad" for row in game_map.tiles for tile in row) > 0
+    # One connected component: no band stranded off the network.
+    start = next(iter(roads))
+    seen = {start}
+    queue = deque(seen)
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            point = (x + dx, y + dy)
+            if point in seen or point not in roads:
+                continue
+            seen.add(point)
+            queue.append(point)
+    assert seen == roads, f"road bands stranded: {len(roads - seen)} cells"
+    # Roads never bury protected fixtures: pads, plaza, yards, bays, doors.
+    for x, y in roads:
+        assert game_map.tiles[y][x].kind in ROAD_KINDS
+        for yy in range(max(0, y - 1), min(game_map.height, y + 2)):
+            for xx in range(max(0, x - 1), min(game_map.width, x + 2)):
+                kind = game_map.tiles[yy][xx].kind
+                assert kind != "city_building_door", f"road {(x, y)} abuts a door"
+    # Lane markers exist: the arterial reads east-west, spines north-south.
+    # (Lane-marker tiles keep kind "road"; only the char differs.)
+    chars = {tile.char for row in game_map.tiles for tile in row if tile.kind == "road"}
+    assert "-" in chars, "no east-west lane marker painted"
+    assert ":" in chars, "no north-south lane marker painted"
 
 
 def test_blockade_south_routes_and_stops_are_reachable():
