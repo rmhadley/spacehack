@@ -60,11 +60,17 @@ def _paint_hull(tiles):
         tiles[y][WIDTH - 2] = BULKHEAD
 
 
-def _paint_lane(tiles, theme, points, horizontal=False):
-    for x, y in points:
-        if horizontal:
+def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
+    for y in range(y_lo, y_hi + 1):
+        for x in range(x_lo, x_hi + 1):
+            tiles[y][x] = theme.road_surface
+    if horizontal:
+        y = (y_lo + y_hi) // 2
+        for x in range(x_lo, x_hi + 1):
             tiles[y][x] = theme.road_ew
-        else:
+    else:
+        x = (x_lo + x_hi) // 2
+        for y in range(y_lo, y_hi + 1):
             tiles[y][x] = theme.road_ns
 
 
@@ -75,41 +81,30 @@ def _paint_sidewalk_line(tiles, theme, points):
 
 
 def _paint_station_base(tiles, theme) -> None:
-    """Paint a compact collector-and-branch street plan with finite walks."""
+    """Paint a compact three-lane collector network and one-cell walks."""
     _paint_hull(tiles)
-    # Primary concourse: the only through street, linking arrival, plaza,
-    # and the two southern civic districts.
-    for x in range(35, 106):
-        tiles[48][x] = theme.road_surface
-        tiles[49][x] = theme.road_surface
-    _paint_lane(tiles, theme, [(x, 48) for x in range(35, 106)], horizontal=True)
-    # Inspection access is a short public street, not a city-wide grid.
-    for y in range(39, 49):
-        tiles[y][70] = theme.road_surface
-    _paint_lane(tiles, theme, [(70, y) for y in range(39, 49)])
-    # Apron and civic branches terminate at the relevant frontages.
-    for y in range(25, 49):
-        tiles[y][20] = theme.road_surface
-    for y in range(49, 68):
-        tiles[y][21] = theme.road_surface
-        tiles[y][116] = theme.road_surface
-    for x in range(21, 117):
-        tiles[67][x] = theme.road_surface
-    _paint_lane(tiles, theme, [(x, 67) for x in range(21, 117)], horizontal=True)
-    _paint_sidewalk_line(tiles, theme, [(x, 47) for x in range(35, 106)])
-    _paint_sidewalk_line(tiles, theme, [(x, 50) for x in range(35, 106)])
-    _paint_sidewalk_line(tiles, theme, [(69, y) for y in range(39, 49)])
-    _paint_sidewalk_line(tiles, theme, [(71, y) for y in range(39, 49)])
-    _paint_sidewalk_line(tiles, theme, [(19, y) for y in range(25, 49)])
-    _paint_sidewalk_line(tiles, theme, [(22, y) for y in range(49, 68)])
-    _paint_sidewalk_line(tiles, theme, [(115, y) for y in range(49, 68)])
-    _paint_sidewalk_line(tiles, theme, [(x, 68) for x in range(21, 117)])
-    # Short pedestrian links: door and stop approaches only.
-    _paint_sidewalk_line(tiles, theme, [(x, 25) for x in range(17, 23)])
-    _paint_sidewalk_line(tiles, theme, [(x, 66) for x in range(19, 24)])
-    _paint_sidewalk_line(tiles, theme, [(x, 66) for x in range(114, 119)])
-    _paint_sidewalk_line(tiles, theme, [(x, 37) for x in range(67, 74)])
-    _paint_sidewalk_line(tiles, theme, [(x, 38) for x in range(67, 74)])
+    _paint_road(tiles, theme, 35, 105, 47, 49, True)
+    _paint_road(tiles, theme, 68, 72, 36, 49, False)
+    _paint_road(tiles, theme, 19, 21, 25, 49, False)
+    _paint_road(tiles, theme, 20, 22, 66, 68, False)
+    _paint_road(tiles, theme, 114, 116, 66, 68, False)
+    _paint_road(tiles, theme, 20, 116, 66, 68, True)
+    for points in (
+        [(x, 46) for x in range(35, 106)],
+        [(x, 50) for x in range(35, 106)],
+        [(67, y) for y in range(36, 50)],
+        [(73, y) for y in range(36, 50)],
+        [(18, y) for y in range(25, 50)],
+        [(22, y) for y in range(66, 69)],
+        [(117, y) for y in range(66, 69)],
+        [(x, 69) for x in range(20, 117)],
+        [(x, 25) for x in range(17, 23)],
+        [(x, 66) for x in range(18, 24)],
+        [(x, 66) for x in range(113, 119)],
+        [(x, 37) for x in range(67, 74)],
+        [(x, 38) for x in range(67, 74)],
+    ):
+        _paint_sidewalk_line(tiles, theme, points)
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
