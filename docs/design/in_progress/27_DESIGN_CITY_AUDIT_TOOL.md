@@ -116,6 +116,53 @@ def _check_station_clipping(game_map) -> list[Violation]:
     return violations
 ```
 
+## Remediation guidance (part of R1 output)
+
+When R1 fails for a station, the tool must do two things using the SAME
+map data (no rebuild, no extra passes):
+
+### A. Recommend a valid location
+
+Search the built map for a placement that would satisfy all R1 checks and
+attach it to the station's violations:
+
+- **Candidate search:** scan the map for cells where a `3×3` square around
+  the cell is entirely `transit_bay`-paintable ground — i.e. all 9 cells
+  are walkable, none is `road`/`sidewalk`/`landing_pad`/wall/building/water
+  kind, and no entity footprint (station entities excluded) touches any of
+  the 9 cells.
+- **Score candidates by distance** to the station's authored position
+  (straight-line); the closest valid candidate wins. Ties break by lower
+  `y` then lower `x` for determinism.
+- **Never recommend** a cell that would put the pad on top of the station's
+  current pad problem (e.g. don't recommend a cell whose pad would overlap
+  the very road/building that caused the original violation).
+- The recommendation is attached to the FIRST violation of that station as
+  `recommendation: {"pos": [x, y], "distance": n, "note": "..."}`. If no
+  valid cell exists on the map, `recommendation` is `null` and the note
+  says the station must be moved to a larger open area.
+
+### B. Report the correct way to author the station
+
+When the diagnosis is "station has no pad because the city module uses the
+older authoring method" (station cell is not `transit_bay` AND the module
+never calls `paint_transit_bays`), the tool must report HOW it should be
+done — the remediation text is generic and city-agnostic:
+
+> This city module authors transit stations the old way (station entity
+> only, no bay painting). The correct method is to import
+> `paint_transit_bays` from `city_kit` and call it in the layout builder
+> AFTER terrain painters and door forecourts, passing the bay tile, map
+> dimensions, and `overwrite_kinds` covering the base ground kinds the
+> stations sit on (e.g. `frozenset({"floor", "plaza"})`). Stations placed
+> on terrain not covered by `overwrite_kinds` will silently get no pad —
+> this is the failure R1 detects.
+
+The remediation text is attached to every "pad is not transit_bay"
+violation as `remediation` (text format: printed under the violation;
+JSON format: `"remediation": "..."` field). It is emitted once per
+station, not per violating cell.
+
 ## Data model
 
 ```python
@@ -123,15 +170,20 @@ def _check_station_clipping(game_map) -> list[Violation]:
 class Violation:
     rule_id: str            # "R1"
     station: str            # station entity name
-    other: str              # entity it clips
+    other: str              # entity it clips (or offending tile kind)
     location: tuple[int, int]
     message: str
+    recommendation: dict | None = None   # {"pos": [x,y], "distance": n, "note": str}
+    remediation: str | None = None       # how-to-fix text (old-method diagnosis)
 ```
 
 ## Acceptance criteria
 
 - `python3 tools/city_audit.py --city <id>` builds the city through the real
   pipeline and prints the final-map JSON without crashing.
+- Every failing station carries a `recommendation` (closest valid 3×3
+  location) and, when diagnosed as old-method authoring, a `remediation`
+  text explaining the correct `city_kit.paint_transit_bays` authoring method.
 - R1 catches missing pads (station cell not `transit_bay`), partial pads
   (road/sidewalk/building intrusion into the pad zone), and entity
   clipping including multi-cell footprints (verified by unit tests)

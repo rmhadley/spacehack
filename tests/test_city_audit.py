@@ -260,3 +260,117 @@ def test_earth_r1_finds_violations():
     assert all_stations <= stations_flagged, (
         f"all stations should be flagged; missing: {all_stations - stations_flagged}"
     )
+
+
+# ----- Recommendations + remediation ----------------------------------
+
+
+def test_failing_station_gets_recommendation():
+    """Every failing station carries a recommendation to a valid 3x3 spot."""
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=set())  # no pad painted -> violation
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations
+    first = violations[0]
+    assert first.recommendation is not None
+    rec = first.recommendation
+    assert set(rec) == {"pos", "distance", "note"}
+    x, y = rec["pos"]
+    assert 1 <= x < 19 and 1 <= y < 19  # pad must fit in the map
+    # The recommended location must itself pass R1 if the station moved there
+    moved = _make_map([
+        _make_entity("Transit: Hub", x, y, transit_station_id="hub"),
+    ], bay_cells={
+        (x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+    })
+    moved_violations = city_audit.check_station_clipping(moved)
+    assert moved_violations == [], (
+        f"recommended spot {rec['pos']} must be valid; got {moved_violations}"
+    )
+
+
+def test_clean_station_gets_no_recommendation():
+    """A station with a proper pad produces no violations (and no rec)."""
+    bay_cells = {(x, y) for x in range(4, 7) for y in range(4, 7)}
+    game_map = _make_map([
+        _make_entity("Transit: Ok", 5, 5, transit_station_id="ok"),
+    ], bay_cells=bay_cells)
+    assert city_audit.check_station_clipping(game_map) == []
+
+
+def test_recommendation_avoids_entities():
+    """The recommended location must not overlap other entity footprints."""
+    # Surround the station with terminals on all sides of a 5x5 area;
+    # the recommendation must land outside them.
+    entities = [_make_entity("Transit: Hub", 10, 10, transit_station_id="hub")]
+    for dx in (-2, 0, 2):
+        for dy in (-2, 0, 2):
+            if (dx, dy) != (0, 0):
+                entities.append(_make_entity("Terminal", 10 + dx, 10 + dy))
+    game_map = _make_map(entities, bay_cells=set())
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations
+    rec = violations[0].recommendation
+    assert rec is not None
+    rx, ry = rec["pos"]
+    # Recommended pad (3x3 around rx,ry) must not touch any terminal cell
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            assert (rx + dx, ry + dy) not in {
+                (10 + dx2, 10 + dy2)
+                for dx2 in (-2, 0, 2) for dy2 in (-2, 0, 2) if (dx2, dy2) != (0, 0)
+            }
+
+
+def test_old_method_diagnosis_attaches_remediation():
+    """When the map has zero transit_bay tiles, violations carry the
+    old-authoring-method remediation text."""
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=set())
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations
+    assert violations[0].remediation is not None
+    assert "paint_transit_bays" in violations[0].remediation
+    assert "city_kit" in violations[0].remediation
+
+
+def test_no_remediation_when_bays_exist():
+    """A partial-pad failure on a map WITH bay tiles gets no remediation
+    (the module clearly paints bays; the problem is placement)."""
+    bay_cells = {(x, y) for x in range(4, 7) for y in range(4, 7)}
+    bay_cells.discard((4, 4))  # one corner missing
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=bay_cells)
+    game_map.tiles[4][4] = world.ROAD_SURFACE
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations
+    assert all(v.remediation is None for v in violations)
+
+
+def test_recommendation_deterministic():
+    """Same map -> same recommendation (distance, then y, then x)."""
+    def build():
+        return _make_map([
+            _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+        ], bay_cells=set())
+    v1 = city_audit.check_station_clipping(build())
+    v2 = city_audit.check_station_clipping(build())
+    assert v1[0].recommendation == v2[0].recommendation
+
+
+def test_earth_recommendations_and_remediation():
+    """Earth (old authoring method) must carry both a recommendation and
+    the remediation text on every failing station's first violation."""
+    game_map = city_audit.build_final_map("earth")
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations
+    first_per_station = {}
+    for v in violations:
+        first_per_station.setdefault(v.station, v)
+    for station, v in first_per_station.items():
+        assert v.recommendation is not None, f"{station} missing recommendation"
+        assert v.remediation is not None, f"{station} missing remediation"
+        assert "paint_transit_bays" in v.remediation
