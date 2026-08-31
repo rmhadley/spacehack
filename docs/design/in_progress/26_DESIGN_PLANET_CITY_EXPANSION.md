@@ -292,7 +292,7 @@ as the signature silhouette. Intentional empty space is the cloud deck itself.
 - [x] Authored exteriors/interiors: spaceport, bar, merchants, depot.
 - [x] New NPC population anchors in `data/city_npcs.py`.
 - [x] Regression tests replacing `tests/test_vega_b_city.py`.
-- [ ] Full gate (`make check`) and city playtest.
+- [x] Full gate (`make check`) and city playtest.
 
 ### Verification record
 
