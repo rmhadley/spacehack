@@ -88,8 +88,8 @@ def test_blockade_south_routes_and_stops_are_reachable():
         x, y = metadata["pos"]
         assert game_map.tiles[y][x].walkable, station_id
         assert (x, y) in reachable, station_id
-    assert game_map.city_transit["militia"]["pos"] == (113, 77)
-    assert game_map.city_transit["bounties"]["pos"] == (18, 77)
+    assert game_map.city_transit["militia"]["pos"] == (117, 77)
+    assert game_map.city_transit["bounties"]["pos"] == (21, 77)
     for label, record in game_map.city_buildings.items():
         x, y = record["entrance"]
         assert game_map.tiles[y][x].walkable, label
@@ -154,6 +154,62 @@ def test_blockade_south_transit_bays_do_not_clip_or_block():
         sx, sy = station.pos.x, station.pos.y
         distance = math.hypot(entrance[0] - sx, entrance[1] - sy)
         assert distance <= 6.0, f"{station.id} stop is {distance:.1f} from {entrance}"
+
+
+def test_blockade_south_sidewalks_connect_doors_to_stops_and_roads():
+    """Every building door reaches a road via a contiguous walkable path of
+    sidewalk / bay / pad / plaza cells, and each door approach contains a
+    visible sidewalk or pad strip (no bare-deck gaps)."""
+    from collections import deque
+    game_map = load_planet("blockade_south")
+    spec = find_planet_spec("blockade_south")
+
+    def path_to_road(sx, sy):
+        seen = {(sx, sy)}
+        queue = deque([(sx, sy)])
+        while queue:
+            x, y = queue.popleft()
+            for dx, dy in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+                nx, ny = x + dx, y + dy
+                if (nx, ny) in seen or not game_map.in_bounds(nx, ny):
+                    continue
+                kind = game_map.tiles[ny][nx].kind
+                if kind in ROAD_KINDS:
+                    return True
+                if kind in {"sidewalk", "transit_bay", "plaza", "landing_pad"}:
+                    seen.add((nx, ny))
+                    queue.append((nx, ny))
+        return False
+
+    for label, record in game_map.city_buildings.items():
+        ex, ey = record["entrance"]
+        assert path_to_road(ex, ey + 1), f"{label} door has no walkable path to a road"
+
+    # Door approaches carry a visible connector surface (sidewalk or pad).
+    approaches = {
+        "spaceport": (19, range(15, 25)),
+        "bounties": (21, (76, 77, 78)),
+        "militia": (117, (76, 77, 78)),
+    }
+    for label, (x, ys) in approaches.items():
+        kinds = {game_map.tiles[y][x].kind for y in ys}
+        assert kinds & {"sidewalk", "landing_pad", "transit_bay"}, (
+            f"{label} approach lacks a sidewalk/pad connector: {sorted(kinds)}"
+        )
+
+    # Each transit stop's bay touches a sidewalk or connector surface so the
+    # stop is never stranded on bare asphalt-adjacent deck.
+    for station in spec.transit_stations:
+        x, y = station.pos.x, station.pos.y
+        neighbors = {
+            game_map.tiles[y + dy][x + dx].kind
+            for dy in (-1, 0, 1)
+            for dx in (-1, 0, 1)
+            if (dx, dy) != (0, 0)
+        }
+        assert neighbors & {"sidewalk", "landing_pad", "plaza", "transit_bay"}, (
+            f"{station.id} bay is stranded on bare deck: {sorted(neighbors)}"
+        )
 
 
 def test_blockade_south_has_no_voids_or_unreachable_walkable_cells():

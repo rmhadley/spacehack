@@ -11,6 +11,7 @@ from .city_kit import (
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
+    paint_transit_stops,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -56,8 +57,18 @@ _SOUTH_STREET = (2, 137, 79, 81, "ew")    # fronts the claims and watch stops
 _COLLECTOR_WEST = (33, 35, 44, 81, "ns")  # arterial down to the south street
 _COLLECTOR_EAST = (131, 133, 44, 81, "ns")
 
+# Sidewalk strips (x_lo, x_hi, y_lo, y_hi): door approach -> stop/road.
+# Painted after roads; only cover open deck, so they never bury asphalt.
+_SIDEWALK_STRIPS = (
+    (19, 19, 19, 25),    # spaceport stop bay -> apron spur road (over pad)
+    (21, 21, 76, 78),    # bounties door -> forecourt -> south street
+    (117, 117, 76, 78),  # militia door -> forecourt -> south street
+    (70, 70, 40, 41),    # quarantine bay -> arterial (plaza exit path)
+)
+
 # Roads only replace open deck; pads, plaza, yards, walls, and lights survive.
 _ROAD_HOST_KINDS = frozenset({"station_deck", "floor"})
+_SIDEWALK_HOST_KINDS = frozenset({"station_deck", "floor"})
 
 
 def _paint_hull(tiles):
@@ -139,7 +150,21 @@ def _paint_road_network(tiles, theme) -> None:
         _paint_road_band(tiles, theme, x_lo, x_hi, y_lo, y_hi, orientation)
 
 
+def _paint_sidewalk_strips(tiles, theme) -> None:
+    """Paint sidewalk approach strips from doors to stops and roads.
+
+    Painted after the road network; strips only cover open deck so they
+    never bury asphalt, pads, plaza, or the forecourts themselves.
+    """
+    for x_lo, x_hi, y_lo, y_hi in _SIDEWALK_STRIPS:
+        for y in range(y_lo, y_hi + 1):
+            for x in range(x_lo, x_hi + 1):
+                if tiles[y][x].kind in _SIDEWALK_HOST_KINDS:
+                    tiles[y][x] = theme.sidewalk
+
+
 def _paint_deck(game_map, spec, theme, stamps) -> None:
+    paint_transit_stops(game_map.tiles, spec, BAY, skip_kinds=frozenset({"sidewalk"}))
     paint_door_forecourts(
         game_map.tiles, theme, spec, width=WIDTH, height=HEIGHT,
         overwrite_kinds=frozenset({"station_deck", "floor"}),
@@ -169,13 +194,12 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     tiles = base_tiles(WIDTH, HEIGHT, theme.floor)
     _paint_hull(tiles)
     _paint_apron_and_hall(tiles, theme)
-    tiles[76][21] = theme.plaza
-    tiles[76][117] = theme.plaza
     for x in range(18, 21):
         tiles[14][x] = theme.landing_pad
     _paint_quarantine_yards(tiles)
     _paint_lights(tiles)
     _paint_road_network(tiles, theme)
+    _paint_sidewalk_strips(tiles, theme)
     game_map = world.GameMap(WIDTH, HEIGHT, tiles=tiles, entities=[])
     stamps = stamp_city_assets(game_map, ORIGINS, sidewalk=theme.sidewalk)
     _paint_deck(game_map, spec, theme, stamps)
