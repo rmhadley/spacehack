@@ -1,54 +1,90 @@
-"""Blockade Station — a militia checkpoint on the edge of federation space.
+"""Blockade Station North — The Picket: the primary militia garrison on the frontier.
 
-Two blockade stations guard the border past Luyten's Star — the last
-outpost of charted space. The station interior is functional and
-utilitarian: a landing bay, a militia command post with the Blockade
-Officer, and a Bounty Office offering high-tier frontier contracts.
+The primary militia checkpoint on the Luyten frontier — the last
+outpost of charted space. The station is a sealed military deck organized
+around a command centre, an armory, and a bounty office for frontier
+claims. Pressure bulkheads and artificial lighting give it its identity:
+teal operational strips lead through public corridors, amber lights mark
+the armory approach, and red warning lights identify restricted doors.
 
-Layout (60x40):
+Layout (100x70), authored as `blockade_north_picket`:
 
-  * spaceport, NW corner.
-  * militia, SE corner — blockade command centre.
-  * bounty office, SW corner — tier-4 frontier bounties.
-
-Reuses the global NPCs from the NPCS catalog (no overrides needed).
+  * spaceport NW — door south onto the landing apron.
+  * militia command SE — door north onto the corridor.
+  * bounty office SW — door north onto the corridor.
+  * The Corridor runs east-west; the command plaza carries the station
+    beacon mid-deck.
+  * Pressure bulkheads texture the deck between districts.
+  * Teal operational lamps, amber armory lights, red warning lights,
+    and a central beacon provide atmospheric lighting.
 """
 from __future__ import annotations
 
 from ... import world
 from . import PlanetSpec
+from ..city_npcs import BLOCKADE_NORTH_POPULATION
 from .themes import STATION
 
 
 SPEC = PlanetSpec(
     theme=STATION,
     id="blockade",
-    name="Blockade Station",
+    name="Blockade Station North",
     char="#",
     fg=(130, 230, 220),
-    description="A militia blockade station guarding the edge of federation space.",
-    width=60,
-    height=40,
-    hangar_anchor=world.Position(13, 17),
+    description=(
+        "A militia blockade station guarding the edge of federation "
+        "space - The Picket, a sealed military garrison."
+    ),
+    width=100,
+    height=70,
+    hangar_anchor=world.Position(13, 23),
     buildings=(
         world.CityBuilding(
-            label="spaceport", x_lo=4,  x_hi=23, y_lo=3,  y_hi=12,
-            door_x=13, npc_id="",
+            label="spaceport", x_lo=6, x_hi=30, y_lo=4, y_hi=12,
+            door_x=18, npc_id="",
         ),
         world.CityBuilding(
-            label="militia",   x_lo=40, x_hi=55, y_lo=26, y_hi=35,
-            door_x=47, npc_id="blockade_officer",
-            door_north=True,
+            label="militia", x_lo=62, x_hi=80, y_lo=52, y_hi=60,
+            door_x=71, npc_id="blockade_officer", door_north=True,
         ),
         world.CityBuilding(
-            label="bounties",  x_lo=4,  x_hi=19, y_lo=26, y_hi=35,
-            door_x=11, npc_id="bounty_master",
-            door_north=True,
+            label="bounties", x_lo=6, x_hi=24, y_lo=52, y_hi=60,
+            door_x=15, npc_id="bounty_master", door_north=True,
         ),
     ),
+    city_layout_id="blockade_north_picket",
+    city_npc_population=BLOCKADE_NORTH_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="landing bay",
+            pos=world.Position(18, 15),
+            destinations=("plaza", "militia", "bounties"),
+        ),
+        world.TransitStation(
+            id="plaza", name="Command Plaza", district="mid-deck",
+            pos=world.Position(49, 37),
+            destinations=("spaceport", "militia", "bounties"),
+        ),
+        world.TransitStation(
+            id="militia", name="Militia Command", district="SE deck",
+            pos=world.Position(71, 49),
+            destinations=("spaceport", "plaza", "bounties"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Bounty Office", district="SW deck",
+            pos=world.Position(15, 49),
+            destinations=("spaceport", "plaza", "militia"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "blockade_north_spaceport_interior"),
+        ("militia", "blockade_north_militia_interior"),
+        ("bounties", "blockade_north_bounties_interior"),
+    ),
     showroom_ships=(
-        ("cruiser", 11, 4),
-        ("frigate", 15, 2),
+        ("cruiser", -6, -2),
+        ("frigate", 0, -2),
     ),
     npc_overrides=(),
     produces=(

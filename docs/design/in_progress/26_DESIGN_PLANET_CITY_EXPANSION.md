@@ -487,7 +487,7 @@ Verification record:
 - The city is in the smooth-apron matrix and the live-glyph sweep;
   full gate passes (1495 tests + smoke, architecture, Ruff).
 
-## Blockade South build record — The Quarantine Cordon (in progress)
+## Blockade South build record — The Quarantine Cordon (complete)
 
 Blockade South is a **space station**, not a planetary city. It is a secondary
 militia checkpoint on the Luyten frontier: a sealed station deck organized
@@ -543,7 +543,7 @@ transit stops, NPCs, and primary routes remain readable.
 - [x] Seed dynamic lighting with operational, cargo, beacon, and warning sources.
 - [x] Add geometry, reachability, transit, lighting, glyph, interior, and
       persistence regressions.
-- [ ] Run the full gate and complete a station playtest.
+- [x] Run the full gate and complete a station playtest.
 
 ## Future work
 

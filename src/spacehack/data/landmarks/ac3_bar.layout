@@ -1,0 +1,16 @@
+# ac3_bar.layout - The Ring Band lounge, door north to the concourse
+MAP
+#########+##########
+#==================#
+#==================#
+#==================#
+#==================#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (130, 110, 80) / (45, 38, 25)
+COLOUR: = = (170, 145, 100) / (50, 42, 28)
+COLOUR: + = (255, 180, 70) / (60, 35, 12)

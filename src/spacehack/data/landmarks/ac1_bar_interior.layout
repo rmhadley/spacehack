@@ -1,0 +1,32 @@
+# ac1_bar_interior.layout - The Claim assayer's cantina floor
+MAP
+####################
+#..o..........o....#
+#..bbbbbbbbbb......#
+#..b..~..~..b......#
+#..b..♥..♥..b......#
+#..bbbbbbbbbb......#
+#..~..........~....#
+#..o..........o....#
+#..................#
+#........P.........#
+#........>.........#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: ~ = TABLE
+TILE: ♥ = DRINK
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (135, 108, 75) / (50, 40, 28)
+COLOUR: . = (180, 155, 115) / (62, 50, 35)
+COLOUR: b = (200, 160, 90) / (70, 50, 30)
+COLOUR: ~ = (170, 140, 100) / (55, 45, 30)
+COLOUR: ♥ = (255, 100, 60) / (65, 35, 25)
+COLOUR: o = (255, 200, 100) / (70, 50, 25)
+COLOUR: P = (255, 220, 100) / (62, 50, 35)
+COLOUR: > = (255, 220, 100) / (62, 50, 35)

@@ -409,6 +409,94 @@ BLOCKADE_SOUTH_POPULATION: tuple[CityNpc, ...] = (
 )
 
 
+AC1_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the west apron.
+    CityNpc("ac1_pad_crew_a", "civillian_bystander", (12, 24), wander_radius=6, move_chance=0.8),
+    CityNpc("ac1_pad_crew_b", "civillian_bystander", (20, 23), wander_radius=6, move_chance=0.8),
+    # Prospectors walking the avenue end to end.
+    CityNpc("ac1_prospector_a", "civillian_bystander", (30, 34), wander_radius=40, move_chance=0.9),
+    CityNpc("ac1_prospector_b", "civillian_bystander", (65, 34), wander_radius=40, move_chance=0.85),
+    # Claim-stakers browsing the south field.
+    CityNpc("ac1_staker_a", "civillian_bystander", (35, 50), wander_radius=8, move_chance=0.85),
+    CityNpc("ac1_staker_b", "civillian_bystander", (60, 55), wander_radius=8, move_chance=0.8),
+    # A regular loitering outside The Claim.
+    CityNpc("ac1_bar_regular", "civillian_bystander", (72, 50), wander_radius=4, move_chance=0.8),
+    # One dusty claim-jumper near the shacks - the frontier gets rough.
+    CityNpc("ac1_claim_jumper", "pirate_raider", (50, 20), wander_radius=6, move_chance=0.75),
+)
+
+AC2_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the icy landing bay.
+    CityNpc("ac2_pad_crew_a", "civillian_bystander", (12, 24), wander_radius=6, move_chance=0.8),
+    CityNpc("ac2_pad_crew_b", "civillian_bystander", (20, 23), wander_radius=6, move_chance=0.8),
+    # Researchers crossing the campus quad between the port and lab.
+    CityNpc("ac2_researcher_a", "civillian_bystander", (50, 25), wander_radius=10, move_chance=0.85),
+    CityNpc("ac2_researcher_b", "civillian_bystander", (55, 22), wander_radius=10, move_chance=0.9),
+    # A lab tech walking the spine from the port to the quad.
+    CityNpc("ac2_lab_tech", "civillian_bystander", (45, 20), wander_radius=20, move_chance=0.85),
+    # A caretaker walking the frozen channel bank.
+    CityNpc("ac2_channel_caretaker", "civillian_bystander", (70, 55), wander_radius=8, move_chance=0.85),
+    # One campus marshal patrolling the quad.
+    CityNpc("ac2_campus_marshal", "militia_trooper", (52, 27), wander_radius=12, move_chance=0.85),
+)
+
+AC3_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the landing deck.
+    CityNpc("ac3_pad_crew_a", "civillian_bystander", (12, 24), wander_radius=6, move_chance=0.8),
+    CityNpc("ac3_pad_crew_b", "civillian_bystander", (20, 23), wander_radius=6, move_chance=0.8),
+    # Refinery workers walking the concourse end to end.
+    CityNpc("ac3_worker_a", "civillian_bystander", (30, 34), wander_radius=40, move_chance=0.9),
+    CityNpc("ac3_worker_b", "civillian_bystander", (60, 34), wander_radius=40, move_chance=0.85),
+    # Tank farm hands tending the fuel tanks.
+    CityNpc("ac3_tank_hand_a", "civillian_bystander", (40, 50), wander_radius=8, move_chance=0.8),
+    CityNpc("ac3_tank_hand_b", "civillian_bystander", (55, 50), wander_radius=8, move_chance=0.8),
+    # A regular loitering outside The Ring Band.
+    CityNpc("ac3_bar_regular", "civillian_bystander", (65, 50), wander_radius=4, move_chance=0.8),
+    # One refinery marshal patrolling the concourse.
+    CityNpc("ac3_refinery_marshal", "militia_trooper", (50, 30), wander_radius=12, move_chance=0.85),
+)
+
+SIRIUS_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the landing bay.
+    CityNpc("sirius_pad_crew_a", "civillian_bystander", (12, 24), wander_radius=6, move_chance=0.8),
+    CityNpc("sirius_pad_crew_b", "civillian_bystander", (20, 23), wander_radius=6, move_chance=0.8),
+    # Researchers crossing the observation terrace.
+    CityNpc("sirius_researcher_a", "civillian_bystander", (50, 25), wander_radius=10, move_chance=0.85),
+    CityNpc("sirius_researcher_b", "civillian_bystander", (55, 22), wander_radius=10, move_chance=0.9),
+    # A tech walking the promenade end to end.
+    CityNpc("sirius_tech", "civillian_bystander", (30, 34), wander_radius=30, move_chance=0.85),
+    # A collector tender working the south hull arrays.
+    CityNpc("sirius_collector_hand", "civillian_bystander", (70, 50), wander_radius=15, move_chance=0.8),
+    # One station marshal patrolling the promenade.
+    CityNpc("sirius_station_marshal", "militia_trooper", (40, 34), wander_radius=12, move_chance=0.85),
+)
+
+DEPOT_POPULATION: tuple[CityNpc, ...] = (
+    # Pad crew working the landing bay.
+    CityNpc("depot_pad_crew_a", "civillian_bystander", (12, 24), wander_radius=6, move_chance=0.8),
+    CityNpc("depot_pad_crew_b", "civillian_bystander", (20, 23), wander_radius=6, move_chance=0.8),
+    # Freight handlers walking the Freightway end to end.
+    CityNpc("depot_handler_a", "civillian_bystander", (30, 34), wander_radius=40, move_chance=0.9),
+    CityNpc("depot_handler_b", "civillian_bystander", (60, 34), wander_radius=40, move_chance=0.85),
+    # Container stackers tending the cargo yard.
+    CityNpc("depot_stacker_a", "civillian_bystander", (20, 52), wander_radius=8, move_chance=0.8),
+    CityNpc("depot_stacker_b", "civillian_bystander", (40, 52), wander_radius=8, move_chance=0.8),
+    # A hauler pilot loitering outside the fuel depot.
+    CityNpc("depot_pilot", "civillian_bystander", (70, 50), wander_radius=4, move_chance=0.8),
+    # One yard marshal patrolling the Freightway.
+    CityNpc("depot_yard_marshal", "militia_trooper", (45, 34), wander_radius=12, move_chance=0.85),
+)
+
+BLOCKADE_NORTH_POPULATION: tuple[CityNpc, ...] = (
+    CityNpc("blockade_north_dockhand", "civillian_bystander", (28, 23), wander_radius=10, move_chance=0.8),
+    CityNpc("blockade_north_courier", "civillian_bystander", (42, 34), wander_radius=20, move_chance=0.85),
+    CityNpc("blockade_north_inspector", "militia_trooper", (57, 34), wander_radius=12, move_chance=0.8),
+    CityNpc("blockade_north_quarantine_guard", "militia_trooper", (64, 47), wander_radius=18, move_chance=0.85),
+    CityNpc("blockade_north_claims_hunter", "civillian_bystander", (35, 50), wander_radius=8, move_chance=0.8),
+    CityNpc("blockade_north_watch_trooper", "militia_trooper", (45, 34), wander_radius=20, move_chance=0.8),
+    CityNpc("blockade_north_maintenance_hand", "civillian_bystander", (80, 32), wander_radius=10, move_chance=0.75),
+)
+
 VENUS_POPULATION: tuple[CityNpc, ...] = (
     # Pad crew working the landing deck apron.
     CityNpc("venus_pad_crew_a", "civillian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
@@ -428,4 +516,4 @@ VENUS_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("venus_city_marshal", "militia_trooper", (81, 56), wander_radius=12, move_chance=0.85),
 )
 
-__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION", "BLOCKADE_SOUTH_POPULATION", "VENUS_POPULATION"]
+__all__ = ["CityNpc", "EARTH_POPULATION", "WOLF_B_POPULATION", "CYGNI_B_POPULATION", "LAL_B_POPULATION", "LAL_C_POPULATION", "BARNARDS_POPULATION", "BARNARDS_C_POPULATION", "ROSS_C_POPULATION", "VEGA_B_POPULATION", "ROSS_B_POPULATION", "GROOM_B_POPULATION", "TC_B_POPULATION", "INDI_B_POPULATION", "PROC_B_POPULATION", "PROC_C_POPULATION", "BLOCKADE_SOUTH_POPULATION", "VENUS_POPULATION", "AC1_POPULATION", "AC2_POPULATION", "AC3_POPULATION", "SIRIUS_POPULATION", "DEPOT_POPULATION", "BLOCKADE_NORTH_POPULATION"]

@@ -1,0 +1,19 @@
+# blockade_north_spaceport.layout - The Picket arrival hall, door south to the apron
+MAP
+#########################
+#=======================#
+#=======================#
+#=======================#
+#=======================#
+#=======================#
+#=======================#
+#=======================#
+############+############
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (110, 125, 145) / (30, 38, 52)
+COLOUR: = = (150, 170, 190) / (42, 52, 68)
+COLOUR: + = (90, 220, 240) / (24, 55, 68)

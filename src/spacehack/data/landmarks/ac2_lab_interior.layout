@@ -1,0 +1,30 @@
+# ac2_lab_interior.layout - Frostlab research lab interior
+MAP
+######################
+#..o............o...##
+#....................#
+#..T..........T.....##
+#....................#
+#....S.......S......##
+#....................#
+#..T..........T.....##
+#....................#
+#..........P........##
+#..........>........##
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: S = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (120, 150, 180) / (30, 45, 60)
+COLOUR: . = (175, 200, 225) / (50, 65, 85)
+COLOUR: o = (150, 230, 255) / (30, 55, 80)
+COLOUR: T = (160, 190, 210) / (42, 58, 72)
+COLOUR: S = (180, 210, 230) / (50, 65, 85)
+COLOUR: P = (150, 230, 255) / (50, 65, 85)
+COLOUR: > = (150, 230, 255) / (50, 65, 85)

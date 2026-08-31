@@ -1,0 +1,25 @@
+# ac1_spaceport_interior.layout - dusty arrival hall
+MAP
+########################
+#..o..........o........#
+#......................#
+#..T........T..........#
+#......................#
+#......................#
+#...........P..........#
+#...........>..........#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (135, 108, 75) / (50, 40, 28)
+COLOUR: . = (180, 155, 115) / (62, 50, 35)
+COLOUR: o = (255, 200, 100) / (70, 50, 25)
+COLOUR: T = (165, 135, 95) / (55, 45, 30)
+COLOUR: P = (255, 220, 100) / (62, 50, 35)
+COLOUR: > = (255, 220, 100) / (62, 50, 35)

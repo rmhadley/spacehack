@@ -1,0 +1,24 @@
+# depot_depot_interior.layout - Waypoint 7 fuel depot interior
+MAP
+######################
+#..o............o...##
+#....................#
+#..T..........T.....##
+#....................#
+#...........P........#
+#...........>........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (120, 110, 90) / (35, 30, 22)
+COLOUR: . = (170, 155, 120) / (50, 42, 30)
+COLOUR: o = (255, 190, 80) / (55, 38, 12)
+COLOUR: T = (155, 140, 105) / (45, 38, 28)
+COLOUR: P = (255, 190, 80) / (50, 42, 30)
+COLOUR: > = (255, 190, 80) / (50, 42, 30)

@@ -1,21 +1,29 @@
-"""AC-I — a scorched rocky world orbiting Alpha Centauri A.
+"""AC-I — The Claim: a scorched prospecting boomtown on a binary-blasted rock.
 
-A rough prospecting outpost on the inner edge of the binary — hot,
-dusty, and full of claim-stakers. The bar doubles as the assayer's
-office; everyone here is either grubbing ore or grubbing credits.
+Alpha Centauri A pours white light onto a hot, dust-scoured rock where
+two suns mean double the heat. The town grew from a strike-camp into a
+permanent claim: one main drag (Prospect Avenue) running east from the
+landing apron, the assayer's bar at its east end, and claim stakes, ore
+piles, and wind-blasted shacks scattered across the hardpan. At night
+the sodium-vapor lamps along the avenue cast amber pools across the
+dust, and every prospector's shadow has two edges.
 
-Layout (40x24, compact):
+Layout (100x70), authored as `ac1_the_claim`:
 
-  * spaceport, NW corner.
-  * bar, NE corner — "The Claim" cantina.
-
-NPC overrides: the barkeep is a grizzled prospector.
+  * spaceport NW — door south onto the landing apron.
+  * "The Claim" bar east — assayer's cantina, door north onto the avenue.
+  * Prospect Avenue runs east-west; the crossroads plaza carries the
+    town beacon mid-avenue.
+  * Claim stakes and ore piles texture the south hardpan; shanty shacks
+    and sun-blasted boulders scatter the north.
+  * Sodium-vapor lamp posts line the avenue with amber light.
 """
 from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
+from ..city_npcs import AC1_POPULATION
 from .themes import DESERT
 
 
@@ -27,25 +35,47 @@ SPEC = PlanetSpec(
     fg=(180, 165, 130),
     description=(
         "A scorched rocky world in the binary's inner belt - "
-        "a prospecting outpost."
+        "The Claim, a prospecting boomtown under two suns."
     ),
-    width=40,
-    height=24,
-    hangar_anchor=world.Position(7, 14),
+    width=100,
+    height=70,
+    hangar_anchor=world.Position(13, 23),
     buildings=(
         world.CityBuilding(
-            label="spaceport",
-            x_lo=2,  x_hi=15, y_lo=2,  y_hi=10,
-            door_x=8, npc_id="",
+            label="spaceport", x_lo=6, x_hi=30, y_lo=4, y_hi=12,
+            door_x=18, npc_id="",
         ),
         world.CityBuilding(
-            label="bar",
-            x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
-            door_x=29, npc_id="barkeep",
+            label="bar", x_lo=68, x_hi=85, y_lo=52, y_hi=57,
+            door_x=75, npc_id="barkeep", door_north=False,
         ),
     ),
+    city_layout_id="ac1_the_claim",
+    city_npc_population=AC1_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="landing apron",
+            pos=world.Position(18, 15),
+            destinations=("crossroads", "bar"),
+        ),
+        world.TransitStation(
+            id="crossroads", name="Crossroads", district="town center",
+            pos=world.Position(45, 45),
+            destinations=("spaceport", "bar"),
+        ),
+        world.TransitStation(
+            id="bar", name="The Claim", district="east end",
+            pos=world.Position(75, 60),
+            destinations=("spaceport", "crossroads"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "ac1_spaceport_interior"),
+        ("bar", "ac1_bar_interior"),
+    ),
     showroom_ships=(
-        ("scout", 3, 2),
+        ("scout", -6, -2),
+        ("hauler", 0, -2),
     ),
     npc_overrides=(
         (

@@ -1,0 +1,30 @@
+# sirius_lab_interior.layout - Binary Eye research lab interior
+MAP
+######################
+#..o............o...##
+#....................#
+#..T..........T.....##
+#....................#
+#....S.......S......##
+#....................#
+#..T..........T.....##
+#....................#
+#..........P........##
+#..........>........##
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: S = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (100, 115, 140) / (30, 38, 55)
+COLOUR: . = (155, 175, 200) / (45, 55, 72)
+COLOUR: o = (255, 215, 120) / (50, 38, 15)
+COLOUR: T = (145, 165, 190) / (42, 52, 70)
+COLOUR: S = (170, 185, 210) / (45, 55, 72)
+COLOUR: P = (255, 215, 120) / (45, 55, 72)
+COLOUR: > = (255, 215, 120) / (45, 55, 72)

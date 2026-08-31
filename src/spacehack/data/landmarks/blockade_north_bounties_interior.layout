@@ -1,0 +1,24 @@
+# blockade_north_bounties_interior.layout - Bounty office interior
+MAP
+######################
+#..o..........o.....##
+#....................#
+#..T..........T.....##
+#....................#
+#.........P..........#
+#.........>..........#
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (110, 125, 145) / (30, 38, 52)
+COLOUR: . = (140, 160, 180) / (42, 52, 68)
+COLOUR: o = (255, 130, 200) / (50, 25, 45)
+COLOUR: T = (130, 150, 170) / (38, 48, 62)
+COLOUR: P = (255, 130, 200) / (42, 52, 68)
+COLOUR: > = (255, 130, 200) / (42, 52, 68)

@@ -41,6 +41,12 @@ _LAYOUTS: dict[str, tuple[str, str]] = {
     "proc_c_ice_campus":      ("proc_c_city",            "build_proc_c_layout"),
     "venus_cloudbreak":       ("venus_city",             "build_venus_layout"),
     "blockade_south_quarantine": ("blockade_south_city", "build_blockade_south_layout"),
+    "ac1_the_claim":          ("ac1_city",              "build_ac1_layout"),
+    "ac2_frostlab":           ("ac2_city",              "build_ac2_layout"),
+    "ac3_ring_refinery":      ("ac3_city",              "build_ac3_layout"),
+    "sirius_binary_eye":      ("sirius_city",            "build_sirius_layout"),
+    "depot_waypoint7":        ("depot_city",             "build_depot_layout"),
+    "blockade_north_picket":  ("blockade_north_city",   "build_blockade_north_layout"),
 }
 
 

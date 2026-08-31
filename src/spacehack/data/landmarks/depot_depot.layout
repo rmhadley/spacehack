@@ -1,0 +1,16 @@
+# depot_depot.layout - Waypoint 7 fuel depot, door north to the freight plaza
+MAP
+#########+##########
+#==================#
+#==================#
+#==================#
+#==================#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (120, 110, 90) / (35, 30, 22)
+COLOUR: = = (165, 150, 115) / (45, 38, 28)
+COLOUR: + = (255, 190, 80) / (55, 38, 12)

@@ -1,20 +1,28 @@
-"""Sirius Binary Research Station — a solar observatory between two stars.
+"""Sirius Station — The Binary Eye: a solar observatory between two stars.
 
 Perched in the gravity well between Sirius A and Sirius B, this station
 studies the binary interaction — solar flares, gravitational tides, and
 the exotic physics of a white dwarf orbiting a blue-white giant. The
-view from the lab window is unlike anything else in charted space.
+view from the observation dome is unlike anything else in charted space:
+two stars burning through the transparent plating, bathing the deck in
+gold light.
 
-Layout (40x24, compact):
+Layout (100x70), authored as `sirius_binary_eye`:
 
-  * spaceport, NW corner.
-  * lab, NE corner — stellar research wing.
+  * spaceport NW — door south onto the landing apron.
+  * lab east-central — door north onto the observation terrace.
+  * The Solar Promenade runs east-west; the observation terrace carries
+    the station beacon.
+  * Solar collector arrays line the south hull.
+  * The observation dome arcs across the north hull, lit gold.
+  * Golden solar lamps and a station beacon provide warm light.
 """
 from __future__ import annotations
 
 from ... import world
 from ...data import npcs as npc_module
 from . import PlanetSpec
+from ..city_npcs import SIRIUS_POPULATION
 from .themes import STATION
 
 
@@ -24,25 +32,49 @@ SPEC = PlanetSpec(
     name="Binary Station",
     char="#",
     fg=(180, 210, 240),
-    description="A solar research station between Sirius A and B - the only port in the system.",
-    width=40,
-    height=24,
-    hangar_anchor=world.Position(7, 14),
+    description=(
+        "A solar research station between Sirius A and B - "
+        "The Binary Eye, an observatory bathed in gold light."
+    ),
+    width=100,
+    height=70,
+    hangar_anchor=world.Position(13, 23),
     buildings=(
         world.CityBuilding(
-            label="spaceport",
-            x_lo=2,  x_hi=15, y_lo=2,  y_hi=10,
-            door_x=8, npc_id="",
+            label="spaceport", x_lo=6, x_hi=30, y_lo=4, y_hi=12,
+            door_x=18, npc_id="",
         ),
         world.CityBuilding(
-            label="lab",
-            x_lo=22, x_hi=37, y_lo=8,  y_hi=18,
-            door_x=29, npc_id="research_officer",
+            label="lab", x_lo=60, x_hi=82, y_lo=28, y_hi=40,
+            door_x=71, npc_id="research_officer", door_north=True,
         ),
     ),
+    city_layout_id="sirius_binary_eye",
+    city_npc_population=SIRIUS_POPULATION,
+    transit_stations=(
+        world.TransitStation(
+            id="spaceport", name="Spaceport", district="landing bay",
+            pos=world.Position(18, 15),
+            destinations=("terrace", "lab"),
+        ),
+        world.TransitStation(
+            id="terrace", name="Observation Terrace", district="campus",
+            pos=world.Position(50, 25),
+            destinations=("spaceport", "lab"),
+        ),
+        world.TransitStation(
+            id="lab", name="Research Lab", district="lab wing",
+            pos=world.Position(74, 25),
+            destinations=("spaceport", "terrace"),
+        ),
+    ),
+    interior_layouts=(
+        ("spaceport", "sirius_spaceport_interior"),
+        ("lab", "sirius_lab_interior"),
+    ),
     showroom_ships=(
-        ("hauler",  7, 4),
-        ("cruiser", 11, 4),
+        ("hauler", -6, -2),
+        ("cruiser", 0, -2),
     ),
     npc_overrides=(
         (

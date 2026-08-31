@@ -1,0 +1,25 @@
+# ac3_spaceport_interior.layout - refinery dock arrival hall
+MAP
+########################
+#..o..........o........#
+#......................#
+#..T........T..........#
+#......................#
+#......................#
+#...........P..........#
+#...........>..........#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (130, 110, 80) / (45, 38, 25)
+COLOUR: . = (175, 150, 110) / (55, 45, 30)
+COLOUR: o = (255, 180, 70) / (60, 35, 12)
+COLOUR: T = (160, 135, 95) / (50, 42, 28)
+COLOUR: P = (255, 180, 70) / (55, 45, 30)
+COLOUR: > = (255, 180, 70) / (55, 45, 30)

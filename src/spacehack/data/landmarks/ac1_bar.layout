@@ -1,0 +1,16 @@
+# ac1_bar.layout - The Claim assayer's cantina, door north to the avenue
+MAP
+####################
+#==================#
+#==================#
+#==================#
+#########+##########
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (135, 108, 75) / (50, 40, 28)
+COLOUR: = = (175, 145, 100) / (58, 48, 30)
+COLOUR: + = (255, 220, 100) / (70, 50, 25)

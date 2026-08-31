@@ -1,0 +1,25 @@
+# sirius_spaceport_interior.layout - observatory dock arrival hall
+MAP
+########################
+#..o..........o........#
+#......................#
+#..T........T..........#
+#......................#
+#......................#
+#...........P..........#
+#...........>..........#
+########################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: T = TABLE
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (100, 115, 140) / (30, 38, 55)
+COLOUR: . = (155, 175, 200) / (45, 55, 72)
+COLOUR: o = (255, 215, 120) / (50, 38, 15)
+COLOUR: T = (145, 165, 190) / (42, 52, 70)
+COLOUR: P = (255, 215, 120) / (45, 55, 72)
+COLOUR: > = (255, 215, 120) / (45, 55, 72)

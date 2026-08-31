@@ -1,0 +1,32 @@
+# ac3_bar_interior.layout - The Ring Band lounge floor
+MAP
+######################
+#..o............o...##
+#..bbbbbbbbbb.......##
+#..b..~..~..b.......##
+#..b..♥..♥..b.......##
+#..bbbbbbbbbb.......##
+#..~............~....#
+#..o............o...##
+#...................##
+#..........P........##
+#..........>........##
+######################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: b = BAR_BODY
+TILE: ~ = TABLE
+TILE: ♥ = DRINK
+TILE: o = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (130, 110, 80) / (45, 38, 25)
+COLOUR: . = (175, 150, 110) / (55, 45, 30)
+COLOUR: b = (195, 170, 120) / (60, 45, 25)
+COLOUR: ~ = (165, 140, 100) / (50, 42, 28)
+COLOUR: ♥ = (255, 100, 50) / (55, 30, 15)
+COLOUR: o = (255, 180, 70) / (60, 35, 12)
+COLOUR: P = (255, 180, 70) / (55, 45, 30)
+COLOUR: > = (255, 180, 70) / (55, 45, 30)

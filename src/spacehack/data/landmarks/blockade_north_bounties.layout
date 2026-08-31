@@ -1,0 +1,16 @@
+# blockade_north_bounties.layout - Bounty office, door north to the corridor
+MAP
+#########+##########
+#==================#
+#==================#
+#==================#
+#==================#
+####################
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: + = CITY_BUILDING_DOOR
+COLOUR: # = (110, 125, 145) / (30, 38, 52)
+COLOUR: = = (150, 170, 190) / (42, 52, 68)
+COLOUR: + = (255, 130, 200) / (50, 25, 45)

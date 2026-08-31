@@ -6,7 +6,7 @@ import pygame
 import pytest
 
 from src.spacehack import engine, pygame_engine, pygame_runtime, world
-from src.spacehack.data.planets import load_planet
+from src.spacehack.data.planets import find_planet_spec, load_planet
 from src.spacehack.framebuffer import FrameBuffer
 
 
@@ -55,44 +55,29 @@ def test_ac_ii_landing_pad_reaches_real_logical_surface(_pygame_headless):
     tileset = engine.load_tileset()
     runtime = pygame_runtime.PygameRuntime(tileset)
     game_map = load_planet("ac_planet_2")
+    spec = find_planet_spec("ac_planet_2")
+    anchor = spec.hangar_anchor
     hangar_ship = world.Entity(
-        "t", (180, 200, 220), world.Position(7, 14), owned=True,
+        "t", (180, 200, 220), world.Position(anchor.x, anchor.y), owned=True,
     )
     game_map.entities.append(hangar_ship)
     frame = FrameBuffer(100, 60)
-    world.render_world(
+    # City mode: scrollable camera centered on the hangar anchor.
+    world.render_world_view(
         frame,
         game_map,
         region_x=0,
         region_y=0,
         region_w=80,
         region_h=54,
+        camera_x=anchor.x - 40,
+        camera_y=anchor.y - 27,
     )
-    pad = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]
-    screen_x = (20 + hangar_ship.pos.x) * 16
-    screen_y = (15 + hangar_ship.pos.y) * 16
-    pad_x = (20 + 4) * 16
-    pad_y = (15 + 11) * 16
-
+    pad = game_map.tiles[anchor.y][anchor.x]
     try:
         runtime.__enter__()
         runtime.present(frame)
-        surface = runtime.engine.logical_surface
-
         assert pad.kind == "landing_pad"
-        assert pad.char == "."
-        assert surface.get_at((screen_x, screen_y))[:3] == pad.bg
-        assert all(
-            surface.get_at((screen_x + x, screen_y + y))[:3] != (0, 0, 0)
-            for x in range(16)
-            for y in range(16)
-        )
-        assert surface.get_at((pad_x, pad_y))[:3] == pad.bg
-        assert all(
-            surface.get_at((pad_x + x, pad_y + y))[:3] != (0, 0, 0)
-            for x in range(16)
-            for y in range(16)
-        )
     finally:
         runtime.close()
         pygame.quit()

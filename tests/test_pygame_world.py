@@ -122,7 +122,7 @@ def test_all_landable_city_pads_use_readable_entity_backgrounds():
             if tile.kind == "landing_pad"
         ]
         if pad_tiles:
-            smooth_apron_cities = {"earth", "ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c", "vega_b", "proc_planet_1", "proc_planet_2", "venus"}
+            smooth_apron_cities = {"earth", "ac_station", "eri_b", "wolf_b", "cygni_b", "lal_b", "lal_c", "groom_b", "tc_b", "indi_b", "barnards_c", "ross_c", "vega_b", "proc_planet_1", "proc_planet_2", "venus", "ac_planet_1", "ac_planet_2", "ac_planet_3", "sirius_station", "depot", "blockade"}
             expected_char = " " if spec.id in smooth_apron_cities else "."
             assert pad_tiles[0].char == expected_char
             assert min(pad_tiles[0].bg) >= _CITY_BG_MIN_CHANNEL
@@ -212,28 +212,36 @@ def test_render_world_preserves_tile_background_behind_entity_glyphs():
 
 
 def test_ac_ii_hangar_entity_preserves_ice_landing_pad_background():
-    from src.spacehack.data.planets import load_planet
+    from src.spacehack.data.planets import hangar_anchor, load_planet
 
     game_map = load_planet("ac_planet_2")
+    anchor = hangar_anchor("ac_planet_2")
     hangar_ship = world.Entity(
-        "t", (180, 200, 220), world.Position(7, 14), owned=True,
+        "t", (180, 200, 220), anchor, owned=True,
     )
     game_map.entities.append(hangar_ship)
     tile = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]
+    # AC-II's glacial apron uses the smooth-space glyph; confirm the
+    # entity underlay still carries the pad's background colour.
     console = FrameBuffer(80, 54)
-
-    world.render_world(
+    world.render_world_view(
         console,
         game_map,
         region_x=0,
         region_y=0,
         region_w=80,
         region_h=54,
+        camera_x=hangar_ship.pos.x,
+        camera_y=hangar_ship.pos.y,
     )
+    cam_x = max(0, min(hangar_ship.pos.x, max(0, game_map.width - 80)))
+    cam_y = max(0, min(hangar_ship.pos.y, max(0, game_map.height - 54)))
+    screen_x = hangar_ship.pos.x - cam_x
+    screen_y = hangar_ship.pos.y - cam_y
 
     assert tile.kind == "landing_pad"
-    assert tile.char == "."
-    assert console.cell(20 + hangar_ship.pos.x, 15 + hangar_ship.pos.y).bg == tile.bg
+    assert tile.char == " "
+    assert console.cell(screen_x, screen_y).bg == tile.bg
 
 
 def test_earth_hangar_entity_preserves_landing_pad_background():
