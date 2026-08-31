@@ -85,9 +85,11 @@ def _paint_road_network(tiles, theme) -> None:
     transit stations, the plaza, and the landing pad are handled later.
     """
     _paint_road(tiles, theme, 35, 105, 43, 45, True)
-    _paint_road(tiles, theme, 68, 70, 24, 45, False)
-    _paint_road(tiles, theme, 19, 21, 45, 68, False)
-    _paint_road(tiles, theme, 114, 116, 45, 68, False)
+    # The plaza is a protected pedestrian district; the vehicle spine stops
+    # at its southern edge instead of pretending to pass through it.
+    _paint_road(tiles, theme, 68, 70, 39, 45, False)
+    _paint_road(tiles, theme, 19, 21, 45, 66, False)
+    _paint_road(tiles, theme, 114, 116, 45, 66, False)
     _paint_road(tiles, theme, 20, 116, 66, 68, True)
 
 
