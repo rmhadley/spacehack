@@ -75,22 +75,17 @@ def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
 
 
 def _paint_road_network(tiles, theme) -> None:
-    """Paint the planned three-wide station road hierarchy.
-
-    Primary east-west boulevard: y=43..45, x=35..105.
-    Inspection boulevard: x=68..70, y=24..45, joined at the primary.
-    South service boulevard: y=66..68, x=20..116.
-    Two three-wide vertical collectors connect the south boulevard to the
-    primary boulevard at x=21 and x=115. Roads stop in open deck; doors,
-    transit stations, the plaza, and the landing pad are handled later.
-    """
-    _paint_road(tiles, theme, 35, 105, 43, 45, True)
-    # The plaza is a protected pedestrian district; the vehicle spine stops
-    # at its southern edge instead of pretending to pass through it.
-    _paint_road(tiles, theme, 68, 70, 39, 45, False)
-    _paint_road(tiles, theme, 19, 21, 45, 66, False)
-    _paint_road(tiles, theme, 114, 116, 45, 66, False)
-    _paint_road(tiles, theme, 20, 116, 66, 68, True)
+    """Paint the complete three-wide vehicle network on open deck only."""
+    # Central arterial, with a full-width junction crossing at x=70.
+    _paint_road(tiles, theme, 36, 104, 42, 44, True)
+    # North/south distributor ends before the protected plaza and starts
+    # again below it, joined by the arterial rather than entering it.
+    _paint_road(tiles, theme, 68, 70, 18, 42, False)
+    _paint_road(tiles, theme, 68, 70, 44, 66, False)
+    # Southern cross-street and its two full-width collectors.
+    _paint_road(tiles, theme, 24, 116, 66, 68, True)
+    _paint_road(tiles, theme, 24, 26, 44, 66, False)
+    _paint_road(tiles, theme, 112, 114, 44, 66, False)
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
