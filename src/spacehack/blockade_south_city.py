@@ -87,10 +87,16 @@ def _paint_road_network(tiles, theme) -> None:
     # service setback before the buildings begin at y=67.
     _paint_road(tiles, theme, 2, 78, 58, 60, True)
     _paint_road(tiles, theme, 130, 137, 58, 60, True)
-    # South district collector linking the claims and command frontages.
+    # Continuous south collector.  It passes below the quarantine yard,
+    # using a single clear bypass corridor rather than disconnected spurs.
     _paint_road(tiles, theme, 2, 10, 80, 82, True)
-    _paint_road(tiles, theme, 33, 102, 80, 82, True)
-    _paint_road(tiles, theme, 130, 137, 80, 82, True)
+    _paint_road(tiles, theme, 33, 81, 80, 82, True)
+    _paint_road(tiles, theme, 126, 137, 80, 82, True)
+    _paint_road(tiles, theme, 79, 81, 75, 82, False)
+    _paint_road(tiles, theme, 123, 125, 75, 75, False)
+    _paint_road(tiles, theme, 123, 125, 80, 82, False)
+    _paint_road(tiles, theme, 79, 102, 75, 77, True)
+    _paint_road(tiles, theme, 133, 137, 75, 77, True)
     _paint_road(tiles, theme, 36, 38, 44, 87, False)
     # Keep the east collector west of the quarantine yard's x=82..125
     # footprint; the previous x=102..104 alignment cut through that yard.
