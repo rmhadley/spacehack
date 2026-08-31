@@ -88,7 +88,8 @@ def _paint_road_network(tiles, theme) -> None:
     _paint_road(tiles, theme, 2, 78, 58, 60, True)
     _paint_road(tiles, theme, 130, 137, 58, 60, True)
     # South district collector linking the claims and command frontages.
-    _paint_road(tiles, theme, 36, 78, 80, 82, True)
+    _paint_road(tiles, theme, 2, 10, 80, 82, True)
+    _paint_road(tiles, theme, 33, 102, 80, 82, True)
     _paint_road(tiles, theme, 130, 137, 80, 82, True)
     _paint_road(tiles, theme, 36, 38, 44, 87, False)
     # Keep the east collector west of the quarantine yard's x=82..125
