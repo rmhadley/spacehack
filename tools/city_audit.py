@@ -75,12 +75,22 @@ def dump_map(game_map: world.GameMap, city_id: str) -> dict[str, Any]:
         if e.transit_station_id:
             entry["transit_station_id"] = e.transit_station_id
         entities.append(entry)
+    # Building records (from city_buildings metadata): label, display name
+    # and the entrance/door cell the station was meant to bring you to.
+    buildings = {}
+    for label, rec in getattr(game_map, "city_buildings", {}).items():
+        entrance = rec.get("entrance")
+        buildings[label] = {
+            "display_name": rec.get("display_name", label),
+            "entrance": list(entrance) if entrance is not None else None,
+        }
     return {
         "city_id": city_id,
         "width": game_map.width,
         "height": game_map.height,
         "tiles": [[tile.kind for tile in row] for row in game_map.tiles],
         "entities": entities,
+        "buildings": buildings,
     }
 
 

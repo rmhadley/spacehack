@@ -53,6 +53,13 @@ with the same resolvers the game uses, then serialize the final `GameMap`:
 - `entities` — every entity with name, glyph, position, and full
   `width`/`height` footprint, plus the flags rules need to identify them
   (e.g. `transit_station_id`).
+- `buildings` — per building label: `display_name` and `entrance` (the
+  door cell as `[x, y]`, from the `city_buildings` metadata the pipeline
+  already computes). Empty map if the city has no building records.
+  This is the station→destination link: a station may serve a building
+  with a door (check proximity to `entrance`) or a landmark without one
+  (e.g. Earth's Central Hub serving the fountain) — entrance is `null`
+  only if the record lacks one.
 
 ## Step 2 — R1: transit station clipping
 

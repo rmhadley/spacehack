@@ -218,6 +218,37 @@ def test_dump_map_shape():
     assert station["height"] == 1
 
 
+def test_dump_map_includes_building_entrances():
+    """Building records (label + entrance/door cell) are part of the dump
+    substrate so rules can check a station sits near the building it serves."""
+    game_map = _make_map([
+        _make_entity("Transit: Bar", 4, 6, transit_station_id="bar"),
+    ], bay_cells={(x, y) for x in range(3, 6) for y in range(5, 8)})
+    game_map.city_buildings = {
+        "bar": {
+            "label": "bar",
+            "display_name": "bar",
+            "npc_id": "bartender",
+            "npc_override": None,
+            "interior_layout_id": "bar_interior",
+            "entrance": (12, 8),
+        },
+    }
+    payload = city_audit.dump_map(game_map, "testplanet")
+    assert payload["buildings"]["bar"] == {
+        "display_name": "bar",
+        "entrance": [12, 8],
+    }
+
+
+def test_dump_map_without_buildings_metadata_yields_empty():
+    """A map with no city_buildings metadata dumps an empty buildings map
+    (getattr default) — the field is always present, never missing."""
+    game_map = _make_map([], bay_cells=set())
+    payload = city_audit.dump_map(game_map, "testplanet")
+    assert payload["buildings"] == {}
+
+
 # ----- Earth end-to-end ------------------------------------------------
 
 
@@ -231,6 +262,11 @@ def test_earth_builds_and_dumps():
     assert len(payload["tiles"]) == game_map.height
     names = [e["name"] for e in payload["entities"]]
     assert any("Transit:" in n for n in names), "earth must have transit stations"
+    assert payload["buildings"], "earth must expose building records"
+    entrances = [b["entrance"] for b in payload["buildings"].values()]
+    assert all(e is not None for e in entrances), (
+        f"every earth building must have an entrance; got {payload['buildings']}"
+    )
 
 
 def test_earth_r1_report_runs():
