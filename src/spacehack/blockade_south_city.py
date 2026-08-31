@@ -9,7 +9,6 @@ from .city_kit import (
     add_service_terminals,
     add_showroom_ships,
     base_tiles,
-    paint_door_forecourts,
     paint_transit_bays,
     set_city_metadata,
 )
@@ -23,10 +22,10 @@ WIDTH, HEIGHT = 140, 90
 THEME = override_theme(
     derive_theme(
         floor=(72, 82, 102), grass=(42, 50, 68), accent=(255, 72, 72),
-        road_surface=T("road", "▓", (185, 205, 220), (18, 24, 34)),
-        road_ns=T("road", "║", (120, 240, 255), (12, 32, 46)),
-        road_ew=T("road", "═", (120, 240, 255), (12, 32, 46)),
-        sidewalk=T("sidewalk", "▒", (155, 170, 182), (54, 64, 78)),
+        road_surface=T("road", ".", (125, 145, 165), (34, 42, 56)),
+        road_ns=T("road", ":", (90, 220, 240), (24, 42, 58)),
+        road_ew=T("road", "-", (90, 220, 240), (24, 42, 58)),
+        sidewalk=T("station_sidewalk", "▒", (155, 170, 182), (54, 64, 78)),
         plaza=T("plaza", "░", (190, 205, 210), (72, 84, 96)),
         landing_pad=T("landing_pad", "▓", (170, 205, 220), (42, 58, 72)),
         neon=T("neon", "*", (255, 72, 72), (64, 18, 22)),
@@ -85,30 +84,7 @@ def _paint_sidewalk_line(tiles, theme, points):
 
 
 def _paint_station_base(tiles, theme) -> None:
-    """Paint a compact three-lane collector network and one-cell walks."""
-    _paint_hull(tiles)
-    _paint_road(tiles, theme, 35, 105, 47, 49, True)
-    _paint_road(tiles, theme, 68, 72, 36, 49, False)
-    _paint_road(tiles, theme, 19, 21, 25, 49, False)
-    _paint_road(tiles, theme, 20, 22, 66, 68, False)
-    _paint_road(tiles, theme, 114, 116, 66, 68, False)
-    _paint_road(tiles, theme, 20, 116, 66, 68, True)
-    for points in (
-        [(x, 46) for x in range(35, 106)],
-        [(x, 50) for x in range(35, 106)],
-        [(67, y) for y in range(36, 50)],
-        [(73, y) for y in range(36, 50)],
-        [(18, y) for y in range(25, 50)],
-        [(22, y) for y in range(66, 69)],
-        [(117, y) for y in range(66, 69)],
-        [(x, 69) for x in range(20, 117)],
-        [(x, 25) for x in range(17, 23)],
-        [(x, 66) for x in range(18, 24)],
-        [(x, 66) for x in range(113, 119)],
-        [(x, 37) for x in range(67, 74)],
-        [(x, 38) for x in range(67, 74)],
-    ):
-        _paint_sidewalk_line(tiles, theme, points)
+    """Retained as the blank-canvas hook; circulation is intentionally reset."""
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
@@ -158,10 +134,6 @@ def _paint_lights(tiles) -> None:
 
 def _paint_deck(game_map, spec, theme, stamps) -> None:
     """Finish station routes, bays, labels, and lighting state."""
-    paint_door_forecourts(
-        game_map.tiles, theme, spec, width=WIDTH, height=HEIGHT,
-        overwrite_kinds=frozenset({"station_deck", "sidewalk"}),
-    )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=WIDTH, height=HEIGHT,
         overwrite_kinds=frozenset({"station_deck", "plaza", "sidewalk"}),
@@ -184,8 +156,12 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     """Build Blockade South's 140x90 quarantine station deck."""
     theme = _readable_city_theme(THEME)
     tiles = base_tiles(WIDTH, HEIGHT, theme.floor)
-    _paint_station_base(tiles, theme)
+    _paint_hull(tiles)
     _paint_apron_and_hall(tiles, theme)
+    tiles[76][21] = theme.plaza
+    tiles[76][117] = theme.plaza
+    for x in range(18, 21):
+        tiles[14][x] = theme.landing_pad
     _paint_quarantine_yards(tiles)
     _paint_lights(tiles)
     game_map = world.GameMap(WIDTH, HEIGHT, tiles=tiles, entities=[])

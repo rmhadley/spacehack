@@ -40,28 +40,11 @@ def test_blockade_south_is_distinct_authored_station():
     assert any(tile.kind == "beacon" for row in game_map.tiles for tile in row)
 
 
-def test_blockade_south_has_connected_civil_engineering_network():
+def test_blockade_south_blank_canvas_has_no_roads_or_sidewalks():
     game_map = load_planet("blockade_south")
-    roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
-    sidewalks = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "sidewalk"}
-    assert len(roads) >= 250
-    assert len(sidewalks) >= 100
-    assert game_map.tiles[48][40].char == "═"
-    assert any(tile.kind == "road" and tile.char == "║" for row in game_map.tiles for tile in row)
-    assert game_map.tiles[48][40].bg != game_map.tiles[46][40].bg
-    for y in (47, 48, 49):
-        assert game_map.tiles[y][50].kind == "road"
-    assert sum(game_map.tiles[67][x].kind == "road" for x in range(24, 116)) >= 60
-    for y in range(1, game_map.height - 1):
-        for x in range(1, game_map.width - 1):
-            if game_map.tiles[y][x].kind == "road":
-                assert sum(game_map.tiles[y + dy][x + dx].kind == "road" for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))) >= 1
-    seen = _reachable(game_map, find_planet_spec("blockade_south").hangar_anchor)
-    assert roads <= seen
-    assert any(abs(x - 20) <= 2 and 25 <= y <= 27 for x, y in sidewalks)
-    assert any(abs(x - 21) <= 2 and 65 <= y <= 69 for x, y in sidewalks)
-    assert any(abs(x - 116) <= 2 and 65 <= y <= 69 for x, y in sidewalks)
-    assert any(abs(x - 70) <= 3 and 34 <= y <= 40 for x, y in sidewalks)
+    assert not any(tile.kind in {"road", "sidewalk", "station_sidewalk"} for row in game_map.tiles for tile in row)
+    assert sum(tile.kind == "plaza" for row in game_map.tiles for tile in row) > 0
+    assert sum(tile.kind == "landing_pad" for row in game_map.tiles for tile in row) > 0
 
 
 def test_blockade_south_routes_and_stops_are_reachable():
