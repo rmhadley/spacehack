@@ -60,10 +60,9 @@ _COLLECTOR_EAST = (131, 133, 44, 81, "ns")
 # Sidewalk strips (x_lo, x_hi, y_lo, y_hi): door approach -> stop/road.
 # Painted after roads; only cover open deck, so they never bury asphalt.
 _SIDEWALK_STRIPS = (
-    (19, 19, 19, 25),    # spaceport stop bay -> apron spur road (over pad)
-    (21, 21, 76, 78),    # bounties door -> forecourt -> south street
-    (117, 117, 76, 78),  # militia door -> forecourt -> south street
-    (70, 70, 40, 41),    # quarantine bay -> arterial (plaza exit path)
+    (20, 21, 76, 78),    # bounties: bay edge -> door forecourt -> south street
+    (115, 117, 76, 78),  # militia: bay edge -> door forecourt -> south street
+    (70, 70, 39, 41),    # quarantine: bay -> arterial (plaza exit path)
 )
 
 # Roads only replace open deck; pads, plaza, yards, walls, and lights survive.
