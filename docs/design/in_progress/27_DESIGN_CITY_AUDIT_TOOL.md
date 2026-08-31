@@ -58,12 +58,25 @@ with the same resolvers the game uses, then serialize the final `GameMap`:
 
 **Rule ID:** `R1`
 
-**Statement:** On the final built map, every transit station entity —
-including its pad (its full `width × height` footprint rectangle) — must
-not overlap any other entity's footprint. A station must not sit on top
-of, clip, or be clipped by any other entity. Footprints are full
-rectangles: `pos.x .. pos.x + width - 1` × `pos.y .. pos.y + height - 1`.
-Checking only the anchor cell is not enough.
+**Statement:** On the final built map, every transit station must sit on
+a real, clean pad. Three checks per station:
+
+1. **Pad existence (station cell):** the station cell itself must be a
+   `transit_bay` tile. If the bay painter skipped it (station authored on
+   a tile kind the painter's `overwrite_kinds` doesn't cover, e.g.
+   `city_plaza` or `grass`), the station has no pad at all.
+2. **Pad integrity (3×3 zone):** every cell of the pad zone — the
+   `2*pad_radius+1` square around the footprint, the area
+   `city_kit.paint_transit_bays` carves — must also be `transit_bay`.
+   A non-bay tile in the zone means the painter skipped it (station too
+   close to road/sidewalk/building) or something painted over the bay
+   afterwards — either way the pad is clipped or was never carved.
+3. **Entity clipping:** no other entity's footprint may touch the
+   station footprint or the pad zone.
+
+Footprints are full rectangles: `pos.x .. pos.x + width - 1` ×
+`pos.y .. pos.y + height - 1`. Checking only the anchor cell is not
+enough. Stations are not checked against each other.
 
 **Pad zone:** besides its own footprint, each station protects its pad
 zone — the `3×3` square around every footprint cell (the area
@@ -119,12 +132,15 @@ class Violation:
 
 - `python3 tools/city_audit.py --city <id>` builds the city through the real
   pipeline and prints the final-map JSON without crashing.
-- R1 catches station clipping including multi-cell footprints and the 3×3
-  pad zone (verified by unit tests: pass case, station-on-terminal,
-  ship-overlapping-station-pad, entity-inside-pad-zone, map-edge station)
-- Earth baseline (verified): `Transit: Bar District` clips `Civilian
-  Bystander` at (118,17); `Transit: Militia Center` clips `Militia
-  Trooper` at (65,77) — both are NPCs standing inside the pad zone.
+- R1 catches missing pads (station cell not `transit_bay`), partial pads
+  (road/sidewalk/building intrusion into the pad zone), and entity
+  clipping including multi-cell footprints (verified by unit tests)
+- Earth baseline (verified): **zero `transit_bay` tiles exist on the map**
+  — `earth_city.py` never calls `paint_transit_bays`, so every station is
+  flagged for a missing pad; Central Hub additionally sits against a road
+  (pad zone contains 3 road tiles). Two entity-clipping hits also remain
+  (Bar District × Civilian Bystander at 118,17; Militia Center × Militia
+  Trooper at 65,77).
 - Exit code contract works (`0` clean, `1` violations).
 - `make check` passes with the new tests included.
 - No existing behavior changes (the tool is additive).

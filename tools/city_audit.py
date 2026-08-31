@@ -6,8 +6,13 @@ Step 1: build the city through the real ``city_builder.build_city`` pipeline
         structured JSON.
 Step 2: run validation rules against that map. Currently one rule:
 
-        R1 — transit stations (including their pads / full footprints) must
-             not clip or be clipped by any other entity.
+        R1 — a transit station is only valid when it AND its 3x3 pad
+             actually exist and are clean: the station cell and every cell
+             of its pad zone must be transit_bay tiles (the pad was really
+             painted, not skipped), no road/sidewalk/building/landing-pad
+             tile may intrude into the pad, the station footprint must not
+             clip or be clipped by any other entity, and the pad zone must
+             not contain any other entity either.
 
 Usage:
     python3 tools/city_audit.py --city earth
@@ -77,7 +82,7 @@ def dump_map(game_map: world.GameMap, city_id: str) -> dict[str, Any]:
     }
 
 
-# ----- Step 2: R1 — transit station clipping --------------------------
+# ----- Step 2: R1 — transit station pad integrity ---------------------
 
 
 def _footprint(entity: world.Entity) -> set[tuple[int, int]]:
@@ -94,17 +99,24 @@ def check_station_clipping(
     *,
     pad_radius: int = 1,
 ) -> list[Violation]:
-    """R1: every transit station (full footprint, pad included) must be
-    free of overlaps with any other entity's footprint.
+    """R1: every transit station must sit on a real, clean pad.
 
-    Two zones are checked per station:
+    Per station, on the final built map:
 
-    * the station's own ``width x height`` footprint rectangle;
-    * its pad zone — the ``2*pad_radius+1`` square around every footprint
-      cell (the area ``city_kit.paint_transit_bays`` carves).
+    1. The station cell itself must be a ``transit_bay`` tile — if the
+       bay painter skipped it (station authored on a tile kind the
+       painter won't overwrite), the station has no pad at all.
+    2. Every cell of the pad zone (the ``2*pad_radius+1`` square around
+       the footprint — the area ``city_kit.paint_transit_bays`` carves)
+       must also be ``transit_bay``. A non-bay tile in the zone means the
+       painter skipped it (station too close to road/sidewalk/building)
+       or something painted over the bay afterwards — either way the pad
+       is clipped or was never carved.
+    3. No other entity's footprint may touch the station footprint or
+       the pad zone — the station must not clip or be clipped by any
+       entity, pad included.
 
-    An entity whose footprint touches either zone clips the station (or is
-    clipped by its pad). Stations are not checked against each other.
+    Stations are not checked against each other.
     """
     stations = [e for e in game_map.entities if e.transit_station_id]
     others = [e for e in game_map.entities if not e.transit_station_id]
@@ -113,6 +125,22 @@ def check_station_clipping(
     for station in stations:
         station_cells = _footprint(station)
         pad_zone = _pad_zone(station_cells, game_map, pad_radius)
+
+        # Check 1 + 2: the pad must actually exist — station cell and
+        # every pad-zone cell must be transit_bay tiles.
+        for x, y in sorted(station_cells | pad_zone):
+            kind = game_map.tiles[y][x].kind
+            if kind != "transit_bay":
+                violations.append(Violation(
+                    "R1",
+                    station.name,
+                    kind,
+                    (x, y),
+                    f"'{station.name}' pad is not transit_bay at {x},{y}: "
+                    f"tile is '{kind}' (pad never painted or clipped)",
+                ))
+
+        # Check 3: no other entity may clip the station or its pad.
         protected = station_cells | pad_zone
         for other in others:
             overlap = protected & _footprint(other)
