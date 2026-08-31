@@ -48,8 +48,7 @@ BEACON = world.Tile("beacon", "!", False, (255, 225, 125), (50, 42, 35))
 BAY = T("transit_bay", "=", (100, 230, 245), (38, 72, 88))
 
 
-def _paint_station_base(tiles, theme) -> None:
-    """Paint the pressure-hull deck, bulkhead rim, and main corridors."""
+def _paint_hull(tiles):
     for y in range(1, HEIGHT - 1):
         for x in range(1, WIDTH - 1):
             tiles[y][x] = DECK
@@ -59,25 +58,45 @@ def _paint_station_base(tiles, theme) -> None:
     for y in range(1, HEIGHT - 1):
         tiles[y][1] = BULKHEAD
         tiles[y][WIDTH - 2] = BULKHEAD
-    for y in range(20, 66):
-        for x in range(68, 73):
+
+
+def _paint_station_base(tiles, theme) -> None:
+    """Paint the pressure-hull deck, roads, and continuous pedestrian routes."""
+    _paint_hull(tiles)
+    for x in range(4, WIDTH - 3):
+        for y in (43, 44, 45):
             tiles[y][x] = theme.road_surface
-    for x in range(20, 121):
-        for y in range(45, 50):
+        tiles[44][x] = theme.road_ew
+    for y in range(15, 86):
+        for x in (66, 67, 68):
             tiles[y][x] = theme.road_surface
-    for x in range(18, 122):
-        tiles[47][x] = theme.road_ew
-    for y in range(22, 68):
-        tiles[y][70] = theme.road_ns
-    for x in range(18, 40):
+        tiles[y][67] = theme.road_ns
+    for y in range(25, 44):
+        tiles[y][20] = theme.road_surface
+    for y in range(44, 67):
+        tiles[y][21] = theme.road_surface
+        tiles[y][116] = theme.road_surface
+    for x in range(20, 67):
+        tiles[43][x] = theme.road_surface
+    for x in range(21, 117):
+        tiles[67][x] = theme.road_surface
+    for x in range(4, WIDTH - 3):
+        tiles[42][x] = theme.sidewalk
+        tiles[46][x] = theme.sidewalk
+    for y in range(15, 86):
+        tiles[y][65] = theme.sidewalk
+        tiles[y][69] = theme.sidewalk
+    for y in range(25, 44):
+        tiles[y][19] = theme.sidewalk
+    for y in range(44, 67):
+        tiles[y][22] = theme.sidewalk
+        tiles[y][115] = theme.sidewalk
+    for x in range(21, 117):
+        tiles[68][x] = theme.sidewalk
+    for x in range(15, 26):
         tiles[25][x] = theme.sidewalk
-    for x in range(12, 32):
-        tiles[79][x] = theme.sidewalk
-    for x in range(104, 130):
-        tiles[79][x] = theme.sidewalk
     for x in range(64, 77):
         tiles[37][x] = theme.sidewalk
-    for x in range(64, 77):
         tiles[38][x] = theme.sidewalk
 
 

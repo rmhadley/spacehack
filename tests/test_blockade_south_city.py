@@ -40,6 +40,20 @@ def test_blockade_south_is_distinct_authored_station():
     assert any(tile.kind == "beacon" for row in game_map.tiles for tile in row)
 
 
+def test_blockade_south_has_connected_civil_engineering_network():
+    game_map = load_planet("blockade_south")
+    roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
+    sidewalks = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "sidewalk"}
+    assert len(roads) >= 300
+    assert len(sidewalks) >= 250
+    seen = _reachable(game_map, find_planet_spec("blockade_south").hangar_anchor)
+    assert roads <= seen
+    assert any(abs(x - 20) <= 2 and 25 <= y <= 27 for x, y in sidewalks)
+    assert any(abs(x - 21) <= 2 and 65 <= y <= 69 for x, y in sidewalks)
+    assert any(abs(x - 116) <= 2 and 65 <= y <= 69 for x, y in sidewalks)
+    assert any(abs(x - 70) <= 2 and 36 <= y <= 39 for x, y in sidewalks)
+
+
 def test_blockade_south_routes_and_stops_are_reachable():
     game_map = load_planet("blockade_south")
     spec = find_planet_spec("blockade_south")
