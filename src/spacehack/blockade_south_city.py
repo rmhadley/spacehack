@@ -22,7 +22,7 @@ WIDTH, HEIGHT = 140, 90
 THEME = override_theme(
     derive_theme(
         floor=(72, 82, 102), grass=(42, 50, 68), accent=(255, 72, 72),
-        road_surface=T("road", ".", (125, 145, 165), (34, 42, 56)),
+        road_surface=T("road", "▓", (190, 210, 225), (18, 24, 34)),
         road_ns=T("road", ":", (90, 220, 240), (24, 42, 58)),
         road_ew=T("road", "-", (90, 220, 240), (24, 42, 58)),
         sidewalk=T("sidewalk", "▒", (155, 170, 182), (54, 64, 78)),

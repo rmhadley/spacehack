@@ -45,6 +45,7 @@ def test_blockade_south_has_three_wide_connected_road_network():
     roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
     assert len(roads) >= 300
     assert all(game_map.tiles[y][x].walkable for x, y in roads)
+    assert sum(game_map.tiles[43][x].char == "▓" for x in range(35, 106)) >= 60
     for x in range(35, 106):
         assert all(game_map.tiles[y][x].kind == "road" for y in (43, 44, 45))
     for y in range(39, 46):
