@@ -77,17 +77,17 @@ def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
 def _paint_road_network(tiles, theme) -> None:
     """Paint the complete three-wide vehicle network on open deck only."""
     # Central arterial, with a full-width junction crossing at x=70.
-    _paint_road(tiles, theme, 36, 104, 42, 44, True)
+    _paint_road(tiles, theme, 2, 137, 42, 44, True)
     # North/south distributor ends before the protected plaza and starts
     # again below it, joined by the arterial rather than entering it.
-    _paint_road(tiles, theme, 68, 70, 18, 23, False)
-    _paint_road(tiles, theme, 68, 70, 44, 66, False)
+    _paint_road(tiles, theme, 68, 70, 2, 23, False)
+    _paint_road(tiles, theme, 68, 70, 44, 87, False)
     # Southern cross-street stays clear of the north-facing building walls.
     # The three-wide collectors meet it at y=62..64, leaving a one-cell
     # service setback before the buildings begin at y=67.
-    _paint_road(tiles, theme, 36, 81, 62, 64, True)
-    _paint_road(tiles, theme, 78, 81, 62, 64, True)
-    _paint_road(tiles, theme, 36, 38, 44, 64, False)
+    _paint_road(tiles, theme, 2, 81, 62, 64, True)
+    _paint_road(tiles, theme, 78, 137, 62, 64, True)
+    _paint_road(tiles, theme, 36, 38, 44, 87, False)
     # Keep the east collector west of the quarantine yard's x=82..125
     # footprint; the previous x=102..104 alignment cut through that yard.
     _paint_road(tiles, theme, 76, 78, 44, 64, False)

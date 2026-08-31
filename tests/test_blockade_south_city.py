@@ -45,19 +45,23 @@ def test_blockade_south_has_three_wide_connected_road_network():
     roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
     assert len(roads) >= 300
     assert all(game_map.tiles[y][x].walkable for x, y in roads)
-    assert sum(game_map.tiles[42][x].char == "▓" for x in range(36, 105)) >= 60
-    for x in range(36, 105):
+    assert sum(game_map.tiles[42][x].char == "▓" for x in range(2, 138)) >= 120
+    for x in range(2, 138):
         assert all(game_map.tiles[y][x].kind == "road" for y in (42, 43, 44))
-    for y in range(18, 24):
+    for y in range(2, 24):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
     for y in (44, 45, 62, 63, 64):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for x in range(40, 82):
+    for x in range(2, 82):
+        assert game_map.tiles[63][x].kind == "road"
+    for x in range(137, 126, -1):
         assert game_map.tiles[63][x].kind == "road"
     for x in range(81, 78, -1):
         assert game_map.tiles[63][x].kind == "road"
     for x in (36, 37, 38, 76, 77, 78):
         assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 65)) >= 15
+    for x in (68, 69, 70):
+        assert sum(game_map.tiles[y][x].kind == "road" for y in range(2, 88)) >= 15
     assert not any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
     for y, row in enumerate(game_map.tiles):
         for x, tile in enumerate(row):
