@@ -86,9 +86,11 @@ def _paint_road_network(tiles, theme) -> None:
     # The three-wide collectors meet it at y=62..64, leaving a one-cell
     # service setback before the buildings begin at y=67.
     _paint_road(tiles, theme, 36, 81, 62, 64, True)
-    _paint_road(tiles, theme, 126, 123, 62, 64, True)
+    _paint_road(tiles, theme, 78, 81, 62, 64, True)
     _paint_road(tiles, theme, 36, 38, 44, 64, False)
-    _paint_road(tiles, theme, 102, 104, 44, 64, False)
+    # Keep the east collector west of the quarantine yard's x=82..125
+    # footprint; the previous x=102..104 alignment cut through that yard.
+    _paint_road(tiles, theme, 76, 78, 44, 64, False)
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
