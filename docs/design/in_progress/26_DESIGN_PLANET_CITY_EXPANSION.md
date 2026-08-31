@@ -19,11 +19,12 @@ expands.
 
 ## Current implementation status
 
-The generic city pipeline is complete for the authored cities listed in Phase 6.
-Ross 154 c (Cinder), Vega b (**The Beacon**), Procyon c (**Ice Campus**),
-and Venus (**Cloudbreak City**) are complete and approved. The next backlog
-cities are Procyon planets 1/2, AC planets 1/2/3, Sirius Station, Depot, and
-Blockade.
+The generic city pipeline is complete: every landable city in the game is
+authored and migrated through `city_builder.build_city`. Ross 154 c (Cinder),
+Vega b (**The Beacon**), Procyon b/c, Venus (**Cloudbreak City**),
+Blockade South (**The Quarantine Cordon**), AC planets 1/2/3, Sirius
+Station, Depot, and Blockade North are complete. Phase 6 has no remaining
+backlog.
 
 Ross c now has:
 
@@ -151,7 +152,48 @@ for future city migrations and playtests.
 - [x] Vega b — redesigned as **The Beacon** and approved (see build record below).
 - [x] Venus — redesigned as **Cloudbreak City** and approved (see build record below).
 - [x] Procyon planets 1/2.
-- [ ] AC planets 1/2/3, Sirius Station, Depot, Blockade North, and Blockade South remain the next migration backlog.
+- [x] AC planets 1/2/3, Sirius Station, Depot, Blockade North, and
+      Blockade South are authored and migrated (Blockade South — see
+      build record above; the other five in the batch build record below).
+
+Phase 6 is now complete: every landable city in the game routes through
+the shared `city_builder.build_city` pipeline with authored layouts,
+planned circulation, and per-city regression suites.
+
+## AC planets 1/2/3, Sirius Station, Depot, Blockade North — batch build record (complete)
+
+The final Phase 6 backlog was authored and shipped in a single batch
+commit (`feat: build six themed city planets with distinct terrain
+identity`), covering six cities with distinct terrain identity:
+
+- **AC Planet 1 — salt-flat boomtown** (`ac1_city.py`): a boomtown on the
+  salt flats with its own theme, planned road grid, landing apron, transit
+  stops, service terminals, and authored spaceport/bar exteriors + interiors.
+- **AC Planet 2 — glacial research campus** (`ac2_city.py`): a campus on
+  ice with a crevasse perimeter and an ice channel, lab and spaceport
+  landmark pairs, and the research-officer service context preserved.
+- **AC Planet 3 — floating ring refinery platform** (`ac3_city.py`): a
+  ring-shaped refinery platform with refinery-themed terrain and a
+  spaceport/bar pair.
+- **Sirius Station — solar observatory** (`sirius_city.py`): a station
+  deck built around a solar observatory identity, with lab and spaceport
+  landmark pairs.
+- **Depot — truck stop** (`depot_city.py`): a deep-space truck stop with
+  depot and spaceport landmark pairs and the depot attendant's economy.
+- **Blockade North — militia garrison** (`blockade_north_city.py`): a
+  militia garrison station with spaceport, bounty office, and militia
+  landmark pairs; the North station is now split from Blockade South's
+  `blockade` spec.
+
+Each city has signature terrain, a planned road/sidewalk grid, smooth
+landing aprons, and transit stops placed on the correct side of each
+building adjacent to the door forecourt. Layout assets, interior maps,
+NPC spawns, planet specs, and per-city test suites were added together
+(`tests/test_ac1_city.py` through `tests/test_blockade_north_city.py`,
+36 city tests total, all passing). Backgrounds were brightened to meet
+the readable-luma gate. Follow-up fix commits closed Blockade South
+circulation gaps (road continuity, door-to-stop sidewalk strips, transit
+stop docking beside destinations, road routing around atmosphere blocks).
 
 ## Acceptance criteria
 
@@ -160,8 +202,8 @@ for future city migrations and playtests.
   roofs, deterministic NPC activity, functional interiors, and crisp CP437
   rendering.
 - `make check` passes with focused regression coverage.
-- Remaining unchecked Phase 6 cities are explicit backlog rather than silently
-  falling through as finished content.
+- ~~Remaining unchecked Phase 6 cities are explicit backlog~~ RESOLVED:
+  all Phase 6 cities are authored and migrated; no silent fall-through.
 
 ## Vega b build record — The Beacon (approved)
 
@@ -547,7 +589,8 @@ transit stops, NPCs, and primary routes remain readable.
 
 ## Future work
 
-Continue Phase 6 with AC planets 1/2/3, Sirius Station, Depot, and Blockade
-North, following the same civil-engineering-first plan and adding focused
-geometry, reachability, transit, interior, NPC, landing-apron, glyph, and
-persistence tests for each.
+Phase 6 is complete — every landable city is authored and migrated.
+Future city work shifts from breadth to depth: refining existing cities'
+circulation, interiors, and lighting based on playtest feedback, and
+extending the shared `city_kit` helpers only when a new shared need
+genuinely emerges across multiple cities.
