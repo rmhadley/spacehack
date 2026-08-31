@@ -60,6 +60,37 @@ def _paint_hull(tiles):
 
 
 
+def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
+    """Paint a protected 3×N or N×3 vehicle right-of-way."""
+    for y in range(y_lo, y_hi + 1):
+        for x in range(x_lo, x_hi + 1):
+            if tiles[y][x].kind == "station_deck":
+                tiles[y][x] = theme.road_surface
+    center = (y_lo + y_hi) // 2 if horizontal else (x_lo + x_hi) // 2
+    cells = range(x_lo, x_hi + 1) if horizontal else range(y_lo, y_hi + 1)
+    for value in cells:
+        x, y = (value, center) if horizontal else (center, value)
+        if tiles[y][x].kind == "road":
+            tiles[y][x] = theme.road_ew if horizontal else theme.road_ns
+
+
+def _paint_road_network(tiles, theme) -> None:
+    """Paint the planned three-wide station road hierarchy.
+
+    Primary east-west boulevard: y=43..45, x=35..105.
+    Inspection boulevard: x=68..70, y=24..45, joined at the primary.
+    South service boulevard: y=66..68, x=20..116.
+    Two three-wide vertical collectors connect the south boulevard to the
+    primary boulevard at x=21 and x=115. Roads stop in open deck; doors,
+    transit stations, the plaza, and the landing pad are handled later.
+    """
+    _paint_road(tiles, theme, 35, 105, 43, 45, True)
+    _paint_road(tiles, theme, 68, 70, 24, 45, False)
+    _paint_road(tiles, theme, 19, 21, 45, 68, False)
+    _paint_road(tiles, theme, 114, 116, 45, 68, False)
+    _paint_road(tiles, theme, 20, 116, 66, 68, True)
+
+
 def _paint_apron_and_hall(tiles, theme) -> None:
     """Paint the docking apron and brightly marked inspection hall."""
     for y in range(15, 26):
@@ -130,6 +161,7 @@ def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
     theme = _readable_city_theme(THEME)
     tiles = base_tiles(WIDTH, HEIGHT, theme.floor)
     _paint_hull(tiles)
+    _paint_road_network(tiles, theme)
     _paint_apron_and_hall(tiles, theme)
     tiles[76][21] = theme.plaza
     tiles[76][117] = theme.plaza

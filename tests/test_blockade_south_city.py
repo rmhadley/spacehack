@@ -40,9 +40,18 @@ def test_blockade_south_is_distinct_authored_station():
     assert any(tile.kind == "beacon" for row in game_map.tiles for tile in row)
 
 
-def test_blockade_south_blank_canvas_has_no_roads_or_sidewalks():
+def test_blockade_south_has_three_wide_connected_road_network():
     game_map = load_planet("blockade_south")
-    assert not any(tile.kind in {"road", "sidewalk"} for row in game_map.tiles for tile in row)
+    roads = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "road"}
+    assert len(roads) >= 300
+    assert all(game_map.tiles[y][x].walkable for x, y in roads)
+    for x in range(35, 106):
+        assert all(game_map.tiles[y][x].kind == "road" for y in (43, 44, 45))
+    for y in (24, 39, 40, 41, 42, 43, 44, 45):
+        assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
+    for x in (19, 20, 21, 114, 115, 116):
+        assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 69)) >= 15
+    assert not any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
     assert sum(tile.kind == "plaza" for row in game_map.tiles for tile in row) > 0
     assert sum(tile.kind == "landing_pad" for row in game_map.tiles for tile in row) > 0
 
