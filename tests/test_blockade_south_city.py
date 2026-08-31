@@ -50,24 +50,27 @@ def test_blockade_south_has_three_wide_connected_road_network():
         assert all(game_map.tiles[y][x].kind == "road" for y in (42, 43, 44))
     for y in range(2, 24):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for y in (44, 45, 62, 63, 64):
+    for y in (44, 45, 58, 59, 60):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for x in range(2, 82):
-        assert game_map.tiles[63][x].kind == "road"
-    for x in range(137, 126, -1):
-        assert game_map.tiles[63][x].kind == "road"
-    for x in range(81, 78, -1):
-        assert game_map.tiles[63][x].kind == "road"
+    for x in range(2, 79):
+        assert game_map.tiles[59][x].kind == "road"
+    for x in range(130, 138):
+        assert game_map.tiles[59][x].kind == "road"
+    for x in range(137, 129, -1):
+        assert game_map.tiles[59][x].kind == "road"
+    for x in range(78, 75, -1):
+        assert game_map.tiles[59][x].kind == "road"
     for x in (36, 37, 38, 76, 77, 78):
         assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 65)) >= 15
     for x in (68, 69, 70):
         assert sum(game_map.tiles[y][x].kind == "road" for y in range(2, 88)) >= 15
     assert not any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
+    protected = {"city_building_wall", "city_building_roof", "city_building_door", "landing_pad", "plaza", "transit_bay", "quarantine", "station_bulkhead"}
     for y, row in enumerate(game_map.tiles):
         for x, tile in enumerate(row):
             if tile.kind == "road":
                 assert not any(
-                    game_map.tiles[yy][xx].kind in {"city_building_wall", "city_building_roof", "city_building_door", "landing_pad", "plaza", "transit_bay"}
+                    game_map.tiles[yy][xx].kind in protected - {"station_bulkhead"}
                     for yy in range(max(0, y - 1), min(game_map.height, y + 2))
                     for xx in range(max(0, x - 1), min(game_map.width, x + 2))
                 )
