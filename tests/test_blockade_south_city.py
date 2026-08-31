@@ -61,9 +61,9 @@ def test_blockade_south_has_three_wide_connected_road_network():
     for x in range(78, 75, -1):
         assert game_map.tiles[59][x].kind == "road"
     for x in range(36, 79):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (72, 73, 74))
-    for x in range(133, 138):
-        assert all(game_map.tiles[y][x].kind == "road" for y in (72, 73, 74))
+        assert all(game_map.tiles[y][x].kind == "road" for y in (80, 81, 82))
+    for x in range(130, 138):
+        assert all(game_map.tiles[y][x].kind == "road" for y in (80, 81, 82))
     for x in (36, 37, 38, 76, 77, 78):
         assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 65)) >= 15
     for x in (68, 69, 70):
