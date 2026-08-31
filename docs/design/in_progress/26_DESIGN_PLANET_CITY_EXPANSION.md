@@ -328,7 +328,7 @@ every service NPC seats on a walkable, spawn-reachable cell.
 The replacement received explicit user approval ("great job") after the
 interior rework; the Vega b checkbox is now marked done.
 
-## Procyon build record — The Crossroads and the Ice Campus (in progress)
+## Procyon build record — The Crossroads and the Ice Campus (complete)
 
 Next backlog pair, approved scope: author both Procyon cities one at a time
 (Procyon b first), and each may **add service buildings** beyond today's set.
