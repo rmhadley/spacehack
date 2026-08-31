@@ -46,6 +46,9 @@ def test_blockade_south_has_connected_civil_engineering_network():
     sidewalks = {(x, y) for y, row in enumerate(game_map.tiles) for x, tile in enumerate(row) if tile.kind == "sidewalk"}
     assert len(roads) >= 300
     assert len(sidewalks) >= 250
+    assert game_map.tiles[44][40].char == "═"
+    assert game_map.tiles[20][67].char == "║"
+    assert game_map.tiles[44][40].bg != game_map.tiles[42][40].bg
     seen = _reachable(game_map, find_planet_spec("blockade_south").hangar_anchor)
     assert roads <= seen
     assert any(abs(x - 20) <= 2 and 25 <= y <= 27 for x, y in sidewalks)
