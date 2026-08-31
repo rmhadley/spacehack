@@ -65,6 +65,12 @@ of, clip, or be clipped by any other entity. Footprints are full
 rectangles: `pos.x .. pos.x + width - 1` × `pos.y .. pos.y + height - 1`.
 Checking only the anchor cell is not enough.
 
+**Pad zone:** besides its own footprint, each station protects its pad
+zone — the `3×3` square around every footprint cell (the area
+`city_kit.paint_transit_bays` carves). Any entity whose footprint touches
+the pad zone is also a violation: the bay painter would overwrite the
+cell under that entity. Pad zone cells are clipped to map bounds.
+
 At this stage R1 is station-centric only: it checks transit stations
 against everything else. Entity-vs-entity clipping between non-station
 entities is not checked yet.
@@ -113,8 +119,12 @@ class Violation:
 
 - `python3 tools/city_audit.py --city <id>` builds the city through the real
   pipeline and prints the final-map JSON without crashing.
-- R1 catches station clipping including multi-cell footprints (verified by
-  unit tests: pass case, station-on-terminal, ship-overlapping-station-pad).
+- R1 catches station clipping including multi-cell footprints and the 3×3
+  pad zone (verified by unit tests: pass case, station-on-terminal,
+  ship-overlapping-station-pad, entity-inside-pad-zone, map-edge station)
+- Earth baseline (verified): `Transit: Bar District` clips `Civilian
+  Bystander` at (118,17); `Transit: Militia Center` clips `Militia
+  Trooper` at (65,77) — both are NPCs standing inside the pad zone.
 - Exit code contract works (`0` clean, `1` violations).
 - `make check` passes with the new tests included.
 - No existing behavior changes (the tool is additive).

@@ -113,6 +113,51 @@ def test_r1_stations_do_not_flag_each_other():
     assert city_audit.check_station_clipping(game_map) == []
 
 
+def test_r1_pad_zone_catches_entity_beside_station():
+    """Entity standing inside the station's 3x3 pad zone (but not on the
+    station cell itself) is a violation — the pad would paint over it."""
+    game_map = _make_map([
+        _make_entity("Transit: Bar", 5, 5, transit_station_id="bar"),
+        _make_entity("Civilian Bystander", 4, 4),
+    ])
+    violations = city_audit.check_station_clipping(game_map)
+    assert len(violations) == 1
+    assert violations[0].station == "Transit: Bar"
+    assert violations[0].other == "Civilian Bystander"
+    assert violations[0].location == (4, 4)
+
+
+def test_r1_entity_just_outside_pad_zone_is_ok():
+    """Entity two cells away is outside the default 3x3 pad zone."""
+    game_map = _make_map([
+        _make_entity("Transit: Bar", 5, 5, transit_station_id="bar"),
+        _make_entity("Civilian Bystander", 7, 5),
+    ])
+    assert city_audit.check_station_clipping(game_map) == []
+
+
+def test_r1_pad_zone_clipped_by_multicell_ship():
+    """Multi-cell ship whose footprint overlaps the pad zone is caught."""
+    game_map = _make_map([
+        _make_entity("Transit: Dock", 8, 4, transit_station_id="dock"),
+        _make_entity("Ship: Hauler", 9, 3, width=3, height=2),
+    ])
+    violations = city_audit.check_station_clipping(game_map)
+    assert len(violations) == 1
+    assert violations[0].other == "Ship: Hauler"
+
+
+def test_r1_pad_zone_respects_map_bounds():
+    """Station near the map edge: pad zone is clipped to the map, no crash."""
+    game_map = _make_map([
+        _make_entity("Transit: Edge", 0, 0, transit_station_id="edge"),
+        _make_entity("Terminal", 0, 0),
+    ])
+    violations = city_audit.check_station_clipping(game_map)
+    assert len(violations) == 1
+    assert violations[0].location == (0, 0)
+
+
 # ----- Step 1: map dump ------------------------------------------------
 
 
@@ -158,3 +203,14 @@ def test_earth_r1_report_runs():
     assert "PASS" in text or "FAIL" in text
     json_text = city_audit.report_json("earth", game_map, violations)
     assert '"passed"' in json_text
+
+
+def test_earth_r1_finds_pad_zone_clipping():
+    """On the real Earth map, station pad zones clip bystander/trooper NPCs
+    standing inside the 3x3 bay area (known baseline violations)."""
+    game_map = city_audit.build_final_map("earth")
+    violations = city_audit.check_station_clipping(game_map)
+    assert violations, "earth baseline must report pad-zone clipping"
+    pairs = {(v.station, v.other) for v in violations}
+    assert ("Transit: Bar District", "Civilian Bystander") in pairs
+    assert ("Transit: Militia Center", "Militia Trooper") in pairs

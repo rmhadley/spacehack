@@ -89,17 +89,33 @@ def _footprint(entity: world.Entity) -> set[tuple[int, int]]:
     }
 
 
-def check_station_clipping(game_map: world.GameMap) -> list[Violation]:
+def check_station_clipping(
+    game_map: world.GameMap,
+    *,
+    pad_radius: int = 1,
+) -> list[Violation]:
     """R1: every transit station (full footprint, pad included) must be
-    free of overlaps with any other entity's footprint."""
+    free of overlaps with any other entity's footprint.
+
+    Two zones are checked per station:
+
+    * the station's own ``width x height`` footprint rectangle;
+    * its pad zone — the ``2*pad_radius+1`` square around every footprint
+      cell (the area ``city_kit.paint_transit_bays`` carves).
+
+    An entity whose footprint touches either zone clips the station (or is
+    clipped by its pad). Stations are not checked against each other.
+    """
     stations = [e for e in game_map.entities if e.transit_station_id]
     others = [e for e in game_map.entities if not e.transit_station_id]
 
     violations: list[Violation] = []
     for station in stations:
         station_cells = _footprint(station)
+        pad_zone = _pad_zone(station_cells, game_map, pad_radius)
+        protected = station_cells | pad_zone
         for other in others:
-            overlap = station_cells & _footprint(other)
+            overlap = protected & _footprint(other)
             if overlap:
                 cell = min(overlap)
                 violations.append(Violation(
@@ -110,6 +126,23 @@ def check_station_clipping(game_map: world.GameMap) -> list[Violation]:
                     f"'{station.name}' clips '{other.name}' at {cell}",
                 ))
     return violations
+
+
+def _pad_zone(
+    cells: set[tuple[int, int]],
+    game_map: world.GameMap,
+    radius: int,
+) -> set[tuple[int, int]]:
+    """Cells within ``radius`` of any footprint cell, clipped to the map
+    (the area ``city_kit.paint_transit_bays`` would carve)."""
+    zone: set[tuple[int, int]] = set()
+    for x, y in cells:
+        for dyc in range(-radius, radius + 1):
+            for dxc in range(-radius, radius + 1):
+                nx, ny = x + dxc, y + dyc
+                if game_map.in_bounds(nx, ny):
+                    zone.add((nx, ny))
+    return zone
 
 
 # ----- Output ---------------------------------------------------------
