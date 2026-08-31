@@ -244,9 +244,12 @@ class Violation:
   Trooper at 65,77).
 - R2: every station must declare `serves`; the target must resolve to a
   building or landmark with an entrance within `max_serves_distance`.
-- Earth baseline (R2): until the planet specs add `serves`, every Earth
-  station FAILs R2 with "does not declare 'serves'" — the tool forces the
-  specs to be updated.
+- Earth baseline (R2, verified): all six Earth stations now declare
+  `serves` (`port`→`spaceport`, `hub`→`plaza` landmark, `bar`→`bar`,
+  `bounties`→`bounties`, `merchants`→`merchants`, `militia`→`militia`);
+  all targets resolve and sit within the 15-cell threshold, so R2 passes
+  on Earth. R2 is the enforcement mechanism: any city without `serves`
+  declarations FAILs until its spec is updated.
 - Exit code contract works (`0` clean, `1` violations).
 - `make check` passes with the new tests included.
 - No existing behavior changes (the tool is additive).

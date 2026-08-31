@@ -215,9 +215,17 @@ def check_station_clipping(
         # no bay tiles at all -> old authoring method) remediation text to
         # the station's FIRST violation.
         if len(violations) > first:
+            # Rank candidates by walkable steps to the building/landmark the
+            # station serves (BFS, not straight-line) so the recommended
+            # spot is on the same side of any walls as the target entrance.
+            lookup = (getattr(game_map, "city_transit", None) or {}).get(
+                station.transit_station_id
+            ) or {}
+            serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+            target, _src = _resolve_target(game_map, serves) if serves else (None, None)
             rec = _recommend_location(
                 game_map, (station.pos.x, station.pos.y),
-                blocked_cells, pad_radius,
+                blocked_cells, pad_radius, target=target,
             )
             has_any_bay = any(
                 game_map.tiles[y][x].kind == "transit_bay"
@@ -278,12 +286,18 @@ def _recommend_location(
     origin: tuple[int, int],
     blocked_cells: set[tuple[int, int]],
     radius: int,
+    *,
+    target: tuple[int, int] | None = None,
 ) -> dict | None:
     """Closest valid pad location to ``origin``, or ``None``.
 
-    Deterministic: straight-line distance, ties broken by lower y then
-    lower x. One pass over the map; non-station entity footprints block
-    candidates.
+    Deterministic: when ``target`` is given, candidates are ranked by
+    walkable BFS steps from the candidate to the target (a candidate that
+    cannot reach the target on foot is disqualified — straight-line
+    closeness is not enough, a pad on the wrong side of a building must
+    never be recommended). Without ``target``, ranking falls back to
+    straight-line distance. Ties break by lower y then lower x. One pass
+    over the map; non-station entity footprints block candidates.
     """
     best_key = None
     best_pos = None
@@ -291,18 +305,29 @@ def _recommend_location(
         for x in range(game_map.width):
             if not _cell_pad_ok(game_map, x, y, radius, blocked_cells):
                 continue
-            key = ((x - origin[0]) ** 2 + (y - origin[1]) ** 2, y, x)
+            if target is not None:
+                steps = bfs_walkable(game_map, (x, y), target, max_steps=_RECOMMEND_BFS_BUDGET)
+                if steps is None:
+                    continue
+                key = (steps, y, x)
+            else:
+                key = ((x - origin[0]) ** 2 + (y - origin[1]) ** 2, y, x)
             if best_key is None or key < best_key:
                 best_key = key
                 best_pos = (x, y)
     if best_pos is None:
         return None
-    dist = best_key[0] ** 0.5
+    if target is not None:
+        metric = f"{best_key[0]} walkable steps to the target"
+        dist: int | float = best_key[0]
+    else:
+        metric = "closest valid pad location"
+        dist = round(best_key[0] ** 0.5, 1)
     return {
         "pos": list(best_pos),
-        "distance": round(dist, 1),
+        "distance": dist,
         "note": (
-            f"closest valid {2 * radius + 1}x{2 * radius + 1} pad location; "
+            f"valid {2 * radius + 1}x{2 * radius + 1} pad location ({metric}); "
             f"move the station to {best_pos} and ensure "
             f"paint_transit_bays overwrite_kinds covers the ground there"
         ),
@@ -330,6 +355,174 @@ def _pad_zone(
 
 
 _MAX_SERVES_DISTANCE = 15.0
+_RECOMMEND_BFS_BUDGET = 60
+
+
+def bfs_walkable(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    max_steps: int = 200,
+) -> int | None:
+    """Shortest walkable path length from ``start`` to ``goal`` (8-dir), or
+    ``None`` when unreachable within ``max_steps``.
+
+    Walkability = the tile's own ``walkable`` flag (doors are passable:
+    the player walks through them). The goal cell is reachable even if the
+    path ends ON it; the start cell does not need to be walkable (the
+    station entity stands on it).
+    """
+    if not game_map.in_bounds(*start) or not game_map.in_bounds(*goal):
+        return None
+    if start == goal:
+        return 0
+    from collections import deque
+
+    visited: set[tuple[int, int]] = {start}
+    queue: deque[tuple[tuple[int, int], int]] = deque([(start, 0)])
+    while queue:
+        (x, y), steps = queue.popleft()
+        if steps >= max_steps:
+            continue
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nxt = (x + dx, y + dy)
+                if nxt in visited or not game_map.in_bounds(*nxt):
+                    continue
+                if nxt == goal:
+                    return steps + 1
+                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
+                    continue
+                visited.add(nxt)
+                queue.append((nxt, steps + 1))
+    return None
+
+
+def bfs_path(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    max_steps: int = 200,
+) -> list[tuple[int, int]] | None:
+    """Shortest walkable path from ``start`` to ``goal`` (8-directional), or
+    ``None`` when the goal is unreachable within ``max_steps``.
+
+    Walkability is the tile's own ``walkable`` flag — doors are passable,
+    since the game lets the player walk through them. Returns the full
+    path including both endpoints, or ``None`` when unreachable.
+    """
+    if not game_map.in_bounds(*start) or not game_map.in_bounds(*goal):
+        return None
+    if not game_map.tiles[start[1]][start[0]].walkable:
+        return None
+    from collections import deque
+
+    prev: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+    queue: deque[tuple[int, int]] = deque([start])
+    steps = 0
+    while queue and steps <= max_steps:
+        cell = queue.popleft()
+        if cell == goal:
+            path: list[tuple[int, int]] = []
+            cur: tuple[int, int] | None = cell
+            while cur is not None:
+                path.append(cur)
+                cur = prev[cur]
+            path.reverse()
+            return path
+        x, y = cell
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nxt = (x + dx, y + dy)
+                if nxt in prev or not game_map.in_bounds(*nxt):
+                    continue
+                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
+                    continue
+                prev[nxt] = cell
+                queue.append(nxt)
+        steps += 1
+    return None
+
+
+def bfs_steps(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    max_steps: int = 200,
+) -> int | None:
+    """Walkable-path length from ``start`` to ``goal``, or ``None`` when
+    unreachable within ``max_steps``. Doors are passable."""
+    path = bfs_path(game_map, start, goal, max_steps=max_steps)
+    return None if path is None else len(path) - 1
+
+
+def bfs_path(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    max_steps: int = 200,
+) -> list[tuple[int, int]] | None:
+    """Shortest walkable path from ``start`` to ``goal`` (8-directional), or
+    ``None`` when the goal is unreachable within ``max_steps``.
+
+    Walkability is the tile's own ``walkable`` flag — doors are passable,
+    since the game lets the player walk through them. Returns the full
+    path including both endpoints, or ``None`` when unreachable.
+    """
+    if not game_map.in_bounds(*start) or not game_map.in_bounds(*goal):
+        return None
+    if not game_map.tiles[start[1]][start[0]].walkable:
+        return None
+    from collections import deque
+
+    prev: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
+    queue: deque[tuple[int, int]] = deque([start])
+    steps = 0
+    while queue and steps <= max_steps:
+        cell = queue.popleft()
+        if cell == goal:
+            path: list[tuple[int, int]] = []
+            cur: tuple[int, int] | None = cell
+            while cur is not None:
+                path.append(cur)
+                cur = prev[cur]
+            path.reverse()
+            return path
+        x, y = cell
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                nxt = (x + dx, y + dy)
+                if nxt in prev or not game_map.in_bounds(*nxt):
+                    continue
+                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
+                    continue
+                prev[nxt] = cell
+                queue.append(nxt)
+        steps += 1
+    return None
+
+
+def bfs_steps(
+    game_map: world.GameMap,
+    start: tuple[int, int],
+    goal: tuple[int, int],
+    *,
+    max_steps: int = 200,
+) -> int | None:
+    """Walkable-path length from ``start`` to ``goal``, or ``None`` when
+    unreachable within ``max_steps``. Doors are passable."""
+    path = bfs_path(game_map, start, goal, max_steps=max_steps)
+    return None if path is None else len(path) - 1
 
 
 def _resolve_target(game_map: world.GameMap, serves: str):
@@ -348,6 +541,14 @@ def _resolve_target(game_map: world.GameMap, serves: str):
     return None, None
 
 
+def _landmark_footprint(game_map: world.GameMap, serves: str) -> set[tuple[int, int]]:
+    """Footprint cells of a landmark matched by prefix-stripped key."""
+    for key, rec in (getattr(game_map, "landmark_stamps", None) or {}).items():
+        if key.split("_city_", 1)[-1] == serves:
+            return set(rec.get("footprint") or ())
+    return set()
+
+
 def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_DISTANCE) -> list[Violation]:
     """R2: every transit station must declare what it serves and that
     target must exist with an entrance near the station.
@@ -356,13 +557,22 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
        guessed by the tool).
     2. The target must resolve to a building label or landmark key.
     3. The target must have an entrance (door cell).
-    4. The entrance must be within ``max_distance`` cells of the station.
+    4. The station must be reachable from the entrance by a walkable path
+       (BFS over walkable tiles, doors passable) of at most
+       ``max_distance`` steps — Euclidean closeness is not enough: a
+       station on the wrong side of a building can sit one cell from the
+       entrance through a wall.
     """
     violations: list[Violation] = []
     for station in game_map.entities:
         if not station.transit_station_id:
             continue
-        serves = getattr(station, "serves", "") or ""
+        # place_transit_stations builds station entities without a serves
+        # property; the authored value lives in the city_transit lookup.
+        lookup = (getattr(game_map, "city_transit", None) or {}).get(
+            station.transit_station_id
+        ) or {}
+        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
         if not serves:
             violations.append(Violation(
                 "R2",
@@ -385,6 +595,28 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
             continue
         entrance, source = _resolve_target(game_map, serves)
         if entrance is None:
+            # Landmarks may legitimately have no door — check the station
+            # sits near the landmark footprint (or its origin) instead.
+            if source == "landmark":
+                fp = _landmark_footprint(game_map, serves)
+                near = min(
+                    ((station.pos.x - fx) ** 2 + (station.pos.y - fy) ** 2) ** 0.5
+                    for fx, fy in fp
+                ) if fp else None
+                if near is not None and near <= max_distance:
+                    continue
+                violations.append(Violation(
+                    "R2",
+                    station.name,
+                    serves,
+                    (station.pos.x, station.pos.y),
+                    f"'{station.name}' serves='{serves}' (landmark without "
+                    f"door) is {near:.1f} cells from the landmark footprint"
+                    if near is not None else
+                    f"'{station.name}' serves='{serves}' (landmark without "
+                    f"door) has no footprint data",
+                ))
+                continue
             valid = sorted(
                 set(getattr(game_map, "city_buildings", {}) or {})
                 | {
@@ -411,20 +643,46 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
                 f"entrance/door cell",
             ))
             continue
-        dist = ((station.pos.x - entrance[0]) ** 2 + (station.pos.y - entrance[1]) ** 2) ** 0.5
-        if dist > max_distance:
+        # R2-4: the station must be REACHABLE from the target entrance by
+        # walking (BFS over walkable tiles) — Euclidean distance is not
+        # enough: a station on the wrong side of a building can be one cell
+        # away from the entrance through a wall.
+        steps = bfs_walkable(
+            game_map,
+            (entrance[0], entrance[1]),
+            (station.pos.x, station.pos.y),
+            max_steps=max_distance,
+        )
+        if steps is None:
             violations.append(Violation(
                 "R2",
                 station.name,
                 serves,
                 (station.pos.x, station.pos.y),
-                f"'{station.name}' is {dist:.1f} cells from its target "
+                f"'{station.name}' is not walkable-reachable from its target "
+                f"'{serves}' entrance {tuple(entrance)} (walls/roads block "
+                f"the path)",
+                recommendation={
+                    "pos": list(entrance),
+                    "distance": None,
+                    "note": f"target '{serves}' entrance — move the station "
+                            f"to the same walkable area (no walls/roads "
+                            f"between them)",
+                },
+            ))
+        elif steps > max_distance:
+            violations.append(Violation(
+                "R2",
+                station.name,
+                serves,
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' is {steps} walkable steps from its target "
                 f"'{serves}' entrance {tuple(entrance)} (max {max_distance:g})",
                 recommendation={
                     "pos": list(entrance),
-                    "distance": round(dist, 1),
+                    "distance": steps,
                     "note": f"target '{serves}' entrance — move the station "
-                            f"closer to it",
+                            f"closer to it (walkable steps)",
                 },
             ))
     return violations
