@@ -80,12 +80,15 @@ def _paint_road_network(tiles, theme) -> None:
     _paint_road(tiles, theme, 36, 104, 42, 44, True)
     # North/south distributor ends before the protected plaza and starts
     # again below it, joined by the arterial rather than entering it.
-    _paint_road(tiles, theme, 68, 70, 18, 42, False)
+    _paint_road(tiles, theme, 68, 70, 18, 23, False)
     _paint_road(tiles, theme, 68, 70, 44, 66, False)
-    # Southern cross-street and its two full-width collectors.
-    _paint_road(tiles, theme, 24, 116, 66, 68, True)
-    _paint_road(tiles, theme, 36, 38, 44, 66, False)
-    _paint_road(tiles, theme, 102, 104, 44, 66, False)
+    # Southern cross-street stays clear of the north-facing building walls.
+    # The three-wide collectors meet it at y=62..64, leaving a one-cell
+    # service setback before the buildings begin at y=67.
+    _paint_road(tiles, theme, 36, 81, 62, 64, True)
+    _paint_road(tiles, theme, 126, 123, 62, 64, True)
+    _paint_road(tiles, theme, 36, 38, 44, 64, False)
+    _paint_road(tiles, theme, 102, 104, 44, 64, False)
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:

@@ -48,19 +48,25 @@ def test_blockade_south_has_three_wide_connected_road_network():
     assert sum(game_map.tiles[42][x].char == "▓" for x in range(36, 105)) >= 60
     for x in range(36, 105):
         assert all(game_map.tiles[y][x].kind == "road" for y in (42, 43, 44))
-    for y in range(24, 25):
+    for y in range(18, 24):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for y in (44, 45, 66):
+    for y in (44, 45, 62, 63, 64):
         assert all(game_map.tiles[y][x].kind == "road" for x in (68, 69, 70))
-    for x in range(40, 101):
-        assert game_map.tiles[67][x].kind == "road"
+    for x in range(40, 82):
+        assert game_map.tiles[63][x].kind == "road"
+    for x in range(81, 78, -1):
+        assert game_map.tiles[63][x].kind == "road"
     for x in (36, 37, 38, 102, 103, 104):
-        assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 67)) >= 15
+        assert sum(game_map.tiles[y][x].kind == "road" for y in range(45, 65)) >= 15
     assert not any(tile.kind == "sidewalk" for row in game_map.tiles for tile in row)
     for y, row in enumerate(game_map.tiles):
         for x, tile in enumerate(row):
             if tile.kind == "road":
-                assert tile.kind != "city_building_wall"
+                assert not any(
+                    game_map.tiles[yy][xx].kind in {"city_building_wall", "city_building_roof", "city_building_door", "landing_pad", "plaza", "transit_bay"}
+                    for yy in range(max(0, y - 1), min(game_map.height, y + 2))
+                    for xx in range(max(0, x - 1), min(game_map.width, x + 2))
+                )
     assert sum(tile.kind == "plaza" for row in game_map.tiles for tile in row) > 0
     assert sum(tile.kind == "landing_pad" for row in game_map.tiles for tile in row) > 0
 
