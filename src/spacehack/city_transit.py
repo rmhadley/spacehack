@@ -39,6 +39,7 @@ def place_transit_stations(game_map: world.GameMap, spec) -> None:
             "district": station.district,
             "pos": (station.pos.x, station.pos.y),
             "destinations": list(station.destinations),
+            "serves": station.serves,
         }
     game_map.city_transit = lookup
 
