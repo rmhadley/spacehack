@@ -61,17 +61,21 @@ def _paint_hull(tiles):
 
 
 def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
+    """Paint an exact three-cell road corridor with a center lane mark."""
     for y in range(y_lo, y_hi + 1):
         for x in range(x_lo, x_hi + 1):
-            tiles[y][x] = theme.road_surface
+            if tiles[y][x].kind == "station_deck":
+                tiles[y][x] = theme.road_surface
     if horizontal:
         y = (y_lo + y_hi) // 2
         for x in range(x_lo, x_hi + 1):
-            tiles[y][x] = theme.road_ew
+            if tiles[y][x].kind == "road":
+                tiles[y][x] = theme.road_ew
     else:
         x = (x_lo + x_hi) // 2
         for y in range(y_lo, y_hi + 1):
-            tiles[y][x] = theme.road_ns
+            if tiles[y][x].kind == "road":
+                tiles[y][x] = theme.road_ns
 
 
 def _paint_sidewalk_line(tiles, theme, points):
