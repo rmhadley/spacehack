@@ -25,7 +25,7 @@ THEME = override_theme(
         road_surface=T("road", ".", (125, 145, 165), (34, 42, 56)),
         road_ns=T("road", ":", (90, 220, 240), (24, 42, 58)),
         road_ew=T("road", "-", (90, 220, 240), (24, 42, 58)),
-        sidewalk=T("station_sidewalk", "▒", (155, 170, 182), (54, 64, 78)),
+        sidewalk=T("sidewalk", "▒", (155, 170, 182), (54, 64, 78)),
         plaza=T("plaza", "░", (190, 205, 210), (72, 84, 96)),
         landing_pad=T("landing_pad", "▓", (170, 205, 220), (42, 58, 72)),
         neon=T("neon", "*", (255, 72, 72), (64, 18, 22)),
@@ -58,33 +58,6 @@ def _paint_hull(tiles):
         tiles[y][1] = BULKHEAD
         tiles[y][WIDTH - 2] = BULKHEAD
 
-
-def _paint_road(tiles, theme, x_lo, x_hi, y_lo, y_hi, horizontal):
-    """Paint an exact three-cell road corridor with a center lane mark."""
-    for y in range(y_lo, y_hi + 1):
-        for x in range(x_lo, x_hi + 1):
-            if tiles[y][x].kind == "station_deck":
-                tiles[y][x] = theme.road_surface
-    if horizontal:
-        y = (y_lo + y_hi) // 2
-        for x in range(x_lo, x_hi + 1):
-            if tiles[y][x].kind == "road":
-                tiles[y][x] = theme.road_ew
-    else:
-        x = (x_lo + x_hi) // 2
-        for y in range(y_lo, y_hi + 1):
-            if tiles[y][x].kind == "road":
-                tiles[y][x] = theme.road_ns
-
-
-def _paint_sidewalk_line(tiles, theme, points):
-    for x, y in points:
-        if tiles[y][x].kind in {"station_deck", "sidewalk"}:
-            tiles[y][x] = theme.sidewalk
-
-
-def _paint_station_base(tiles, theme) -> None:
-    """Retained as the blank-canvas hook; circulation is intentionally reset."""
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:

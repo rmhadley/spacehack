@@ -42,7 +42,7 @@ def test_blockade_south_is_distinct_authored_station():
 
 def test_blockade_south_blank_canvas_has_no_roads_or_sidewalks():
     game_map = load_planet("blockade_south")
-    assert not any(tile.kind in {"road", "sidewalk", "station_sidewalk"} for row in game_map.tiles for tile in row)
+    assert not any(tile.kind in {"road", "sidewalk"} for row in game_map.tiles for tile in row)
     assert sum(tile.kind == "plaza" for row in game_map.tiles for tile in row) > 0
     assert sum(tile.kind == "landing_pad" for row in game_map.tiles for tile in row) > 0
 
