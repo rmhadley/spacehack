@@ -149,11 +149,11 @@ def _paint_deck(game_map, spec, theme, stamps) -> None:
     """Finish station routes, bays, labels, and lighting state."""
     paint_door_forecourts(
         game_map.tiles, theme, spec, width=WIDTH, height=HEIGHT,
-        overwrite_kinds=frozenset({"station_deck", "road", "sidewalk"}),
+        overwrite_kinds=frozenset({"station_deck", "sidewalk"}),
     )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=WIDTH, height=HEIGHT,
-        overwrite_kinds=frozenset({"station_deck", "plaza", "landing_pad", "sidewalk"}),
+        overwrite_kinds=frozenset({"station_deck", "plaza", "sidewalk"}),
         force_center=True,
     )
     paint_roof_labels(game_map, stamps, "blockade_south_")
