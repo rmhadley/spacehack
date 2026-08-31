@@ -146,8 +146,9 @@ def _paint_deck(game_map, spec, theme, stamps) -> None:
     )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=WIDTH, height=HEIGHT,
-        overwrite_kinds=frozenset({"station_deck", "plaza", "sidewalk"}),
-        force_center=True,
+        # Bays paint open deck, plaza, and the apron pad only. Roads keep
+        # their asphalt and sidewalks keep the door approaches intact.
+        overwrite_kinds=frozenset({"station_deck", "plaza", "landing_pad"}),
     )
     paint_roof_labels(game_map, stamps, "blockade_south_")
     set_city_metadata(

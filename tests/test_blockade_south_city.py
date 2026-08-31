@@ -88,8 +88,8 @@ def test_blockade_south_routes_and_stops_are_reachable():
         x, y = metadata["pos"]
         assert game_map.tiles[y][x].walkable, station_id
         assert (x, y) in reachable, station_id
-    assert game_map.city_transit["militia"]["pos"] == (116, 79)
-    assert game_map.city_transit["bounties"]["pos"] == (21, 79)
+    assert game_map.city_transit["militia"]["pos"] == (113, 77)
+    assert game_map.city_transit["bounties"]["pos"] == (18, 77)
     for label, record in game_map.city_buildings.items():
         x, y = record["entrance"]
         assert game_map.tiles[y][x].walkable, label
@@ -115,6 +115,45 @@ def test_blockade_south_seeds_atmospheric_lighting():
     assert "beacon" in kinds
     lit = [cell for row in game_map.light_grid for cell in row if cell != (0, 0, 0)]
     assert lit
+
+
+def test_blockade_south_transit_bays_do_not_clip_or_block():
+    """Transit bays stay off roads and doors, keep sidewalk approaches
+    intact, and each stop stands beside its own destination."""
+    import math
+    game_map = load_planet("blockade_south")
+    spec = find_planet_spec("blockade_south")
+
+    # 1. No bay cell (center + 8 neighbors) touches a road or a door.
+    for station in spec.transit_stations:
+        x, y = station.pos.x, station.pos.y
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                kind = game_map.tiles[y + dy][x + dx].kind
+                assert kind not in ROAD_KINDS, f"{station.id} bay clips road at ({x + dx},{y + dy})"
+                assert kind != "city_building_door", f"{station.id} bay clips a door"
+
+    # 2. Sidewalk door approaches stay sidewalk (not bay, not road).
+    for building in spec.buildings:
+        if building.label == "spaceport":
+            continue  # the spaceport's approach is the landing apron by design
+        fy = building.y_lo - 1 if getattr(building, "door_north", False) else building.y_hi + 1
+        for x in range(building.door_x - 1, building.door_x + 2):
+            kind = game_map.tiles[fy][x].kind
+            assert kind == "sidewalk", f"{building.label} approach ({x},{fy}) is {kind}"
+
+    # 3. Each stop stands beside its own destination (<= 6 cells).
+    entrances = {
+        label: tuple(record["entrance"])
+        for label, record in game_map.city_buildings.items()
+    }
+    for station in spec.transit_stations:
+        entrance = entrances.get(station.id) or entrances.get(station.id.replace("_", ""))
+        if entrance is None:
+            continue  # plaza stop serves the hall area, not one building
+        sx, sy = station.pos.x, station.pos.y
+        distance = math.hypot(entrance[0] - sx, entrance[1] - sy)
+        assert distance <= 6.0, f"{station.id} stop is {distance:.1f} from {entrance}"
 
 
 def test_blockade_south_has_no_voids_or_unreachable_walkable_cells():
