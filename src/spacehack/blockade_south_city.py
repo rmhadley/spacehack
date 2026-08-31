@@ -84,8 +84,8 @@ def _paint_road_network(tiles, theme) -> None:
     _paint_road(tiles, theme, 68, 70, 44, 66, False)
     # Southern cross-street and its two full-width collectors.
     _paint_road(tiles, theme, 24, 116, 66, 68, True)
-    _paint_road(tiles, theme, 24, 26, 44, 66, False)
-    _paint_road(tiles, theme, 112, 114, 44, 66, False)
+    _paint_road(tiles, theme, 36, 38, 44, 66, False)
+    _paint_road(tiles, theme, 102, 104, 44, 66, False)
 
 
 def _paint_apron_and_hall(tiles, theme) -> None:
