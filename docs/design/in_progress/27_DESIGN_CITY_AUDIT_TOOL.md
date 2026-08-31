@@ -170,6 +170,48 @@ violation as `remediation` (text format: printed under the violation;
 JSON format: `"remediation": "..."` field). It is emitted once per
 station, not per violating cell.
 
+## Step 3 — R2: station must declare and reach what it serves
+
+**Rule ID:** `R2`
+
+**Statement:** every transit station must declare, in authored data,
+which place it brings the player to — and that place must actually exist
+and be near the station.
+
+**`serves` field (new, required by the audit):** `world.TransitStation`
+gains `serves: str = ""`. It names the building label or landmark the
+station was authored to serve (e.g. `serves="bar"`, `serves="plaza"` for
+the fountain on the plaza). It is deliberately NOT defaulted from the
+station id: the audit FAILs any station that does not declare `serves`
+explicitly, so intent is always authored in the planet spec, never
+guessed by the tool.
+
+**Target registry:** the tool resolves `serves` against the union of:
+
+- `buildings` — keyed by building label (`bar`, `militia`, …); entrance
+  from `city_buildings`.
+- `landmarks` — keyed by landmark key with the `<city_id>_city_` prefix
+  stripped (`earth_city_plaza` → `plaza`); entrance from
+  `landmark_stamps` (may be `None` for landmarks without a door).
+
+**Checks per station (on the final built map):**
+
+1. `serves` must be present and non-empty → otherwise violation
+   `"... does not declare 'serves'"` with remediation text telling the
+   author to add `serves="<building-or-landmark>"` to the
+   `TransitStation` in the planet spec.
+2. The resolved target must exist → otherwise a typo violation listing
+   the valid target ids.
+3. The target must have an entrance → landmarks without one are flagged.
+4. Straight-line distance from the station pos to the target entrance
+   must be ≤ `max_serves_distance` (default 15) → otherwise a violation
+   reporting the measured distance and the target entrance coordinates.
+
+**Dump additions:** station entities carry `"serves"`; the dump gains a
+top-level `"landmarks"` map (`key → {"origin": [x,y], "entrance":
+[x,y] | null}`) so rules can resolve landmark targets from the same
+artifact.
+
 ## Data model
 
 ```python
@@ -200,6 +242,11 @@ class Violation:
   (pad zone contains 3 road tiles). Two entity-clipping hits also remain
   (Bar District × Civilian Bystander at 118,17; Militia Center × Militia
   Trooper at 65,77).
+- R2: every station must declare `serves`; the target must resolve to a
+  building or landmark with an entrance within `max_serves_distance`.
+- Earth baseline (R2): until the planet specs add `serves`, every Earth
+  station FAILs R2 with "does not declare 'serves'" — the tool forces the
+  specs to be updated.
 - Exit code contract works (`0` clean, `1` violations).
 - `make check` passes with the new tests included.
 - No existing behavior changes (the tool is additive).

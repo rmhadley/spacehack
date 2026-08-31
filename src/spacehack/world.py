@@ -487,6 +487,9 @@ class TransitStation:
     district: str
     pos: Position
     destinations: tuple[str, ...] = ()
+    # Building label or landmark key this station was authored to serve
+    # (e.g. "bar", "plaza"). Required by the city audit tool (R2).
+    serves: str = ""
     glyph: str = "\u25c9"                      # high-visibility transit-stop marker
     fg: tuple[int, int, int] = (255, 215, 100)  # warm gold - distinct from terminals
 

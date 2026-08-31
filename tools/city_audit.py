@@ -74,6 +74,8 @@ def dump_map(game_map: world.GameMap, city_id: str) -> dict[str, Any]:
         }
         if e.transit_station_id:
             entry["transit_station_id"] = e.transit_station_id
+        if getattr(e, "serves", ""):
+            entry["serves"] = e.serves
         entities.append(entry)
     # Building records (from city_buildings metadata): label, display name
     # and the entrance/door cell the station was meant to bring you to.
@@ -84,6 +86,16 @@ def dump_map(game_map: world.GameMap, city_id: str) -> dict[str, Any]:
             "display_name": rec.get("display_name", label),
             "entrance": list(entrance) if entrance is not None else None,
         }
+    # Landmark stamps (fountains, monuments, ...) keyed with the
+    # ``<city_id>_city_`` prefix stripped so ``serves`` can target them.
+    landmarks = {}
+    for key, rec in (getattr(game_map, "landmark_stamps", None) or {}).items():
+        short = key.split("_city_", 1)[-1]
+        entrance = rec.get("entrance")
+        landmarks[short] = {
+            "origin": list(rec["origin"]) if rec.get("origin") else None,
+            "entrance": list(entrance) if entrance is not None else None,
+        }
     return {
         "city_id": city_id,
         "width": game_map.width,
@@ -91,6 +103,7 @@ def dump_map(game_map: world.GameMap, city_id: str) -> dict[str, Any]:
         "tiles": [[tile.kind for tile in row] for row in game_map.tiles],
         "entities": entities,
         "buildings": buildings,
+        "landmarks": landmarks,
     }
 
 
@@ -313,6 +326,110 @@ def _pad_zone(
     return zone
 
 
+# ----- Step 3: R2 — station must declare and reach what it serves ------
+
+
+_MAX_SERVES_DISTANCE = 15.0
+
+
+def _resolve_target(game_map: world.GameMap, serves: str):
+    """Resolve a ``serves`` value to an entrance cell on the built map.
+
+    Checks ``city_buildings`` (by label) and ``landmark_stamps`` (key with
+    the ``<city_id>_city_`` prefix stripped). Returns ``(entrance, source)`
+    where source is 'building' or 'landmark', or ``(None, None)``.
+    """
+    rec = (getattr(game_map, "city_buildings", {}) or {}).get(serves)
+    if rec is not None:
+        return rec.get("entrance"), "building"
+    for key, rec in (getattr(game_map, "landmark_stamps", None) or {}).items():
+        if key.split("_city_", 1)[-1] == serves:
+            return rec.get("entrance"), "landmark"
+    return None, None
+
+
+def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_DISTANCE) -> list[Violation]:
+    """R2: every transit station must declare what it serves and that
+    target must exist with an entrance near the station.
+
+    1. ``serves`` must be present and non-empty (authored intent, never
+       guessed by the tool).
+    2. The target must resolve to a building label or landmark key.
+    3. The target must have an entrance (door cell).
+    4. The entrance must be within ``max_distance`` cells of the station.
+    """
+    violations: list[Violation] = []
+    for station in game_map.entities:
+        if not station.transit_station_id:
+            continue
+        serves = getattr(station, "serves", "") or ""
+        if not serves:
+            violations.append(Violation(
+                "R2",
+                station.name,
+                "(no serves field)",
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' does not declare 'serves' — add "
+                f"serves=\"<building-or-landmark>\" to its TransitStation "
+                f"in the planet spec",
+                remediation=(
+                    "Add serves=\"<label>\" to this TransitStation in the "
+                    "planet spec, naming the building label (see "
+                    "city_buildings, e.g. 'bar', 'militia') or the landmark "
+                    "key without the <city_id>_city_ prefix (see "
+                    "landmark_stamps, e.g. 'plaza' for the fountain). The "
+                    "audit tool fails any station without an explicit "
+                    "serves declaration."
+                ),
+            ))
+            continue
+        entrance, source = _resolve_target(game_map, serves)
+        if entrance is None:
+            valid = sorted(
+                set(getattr(game_map, "city_buildings", {}) or {})
+                | {
+                    k.split("_city_", 1)[-1]
+                    for k in (getattr(game_map, "landmark_stamps", None) or {})
+                }
+            )
+            violations.append(Violation(
+                "R2",
+                station.name,
+                serves,
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' serves='{serves}' does not match any "
+                f"building or landmark (valid: {', '.join(valid)})",
+            ))
+            continue
+        if entrance is None:
+            violations.append(Violation(
+                "R2",
+                station.name,
+                serves,
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' serves='{serves}' ({source}) has no "
+                f"entrance/door cell",
+            ))
+            continue
+        dist = ((station.pos.x - entrance[0]) ** 2 + (station.pos.y - entrance[1]) ** 2) ** 0.5
+        if dist > max_distance:
+            violations.append(Violation(
+                "R2",
+                station.name,
+                serves,
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' is {dist:.1f} cells from its target "
+                f"'{serves}' entrance {tuple(entrance)} (max {max_distance:g})",
+                recommendation={
+                    "pos": list(entrance),
+                    "distance": round(dist, 1),
+                    "note": f"target '{serves}' entrance — move the station "
+                            f"closer to it",
+                },
+            ))
+    return violations
+
+
 # ----- Output ---------------------------------------------------------
 
 
@@ -380,7 +497,7 @@ def main() -> int:
         print(f"Unknown city id: {args.city}", file=sys.stderr)
         return 1
 
-    violations = check_station_clipping(game_map)
+    violations = check_station_clipping(game_map) + check_serves(game_map)
 
     if args.format == "text":
         print(report_text(args.city, game_map, violations))
