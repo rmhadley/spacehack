@@ -202,8 +202,7 @@ stop docking beside destinations, road routing around atmosphere blocks).
   roofs, deterministic NPC activity, functional interiors, and crisp CP437
   rendering.
 - `make check` passes with focused regression coverage.
-- ~~Remaining unchecked Phase 6 cities are explicit backlog~~ RESOLVED:
-  all Phase 6 cities are authored and migrated; no silent fall-through.
+- All Phase 6 cities are authored and verified. No remaining backlog.
 
 ## Vega b build record — The Beacon (approved)
 
