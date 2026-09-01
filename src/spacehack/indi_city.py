@@ -198,8 +198,8 @@ def _paint_silos(tiles) -> None:
 # ---------------------------------------------------------------------------
 
 _BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(196, 178, 130), bg=(76, 64, 40),
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 
@@ -220,7 +220,11 @@ def build_indi_layout(spec, resolve_ship) -> world.GameMap:
     )
     paint_transit_bays(
         game_map.tiles, spec, _BAY_TILE, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "grass"}),
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     _paint_silos(game_map.tiles)
     paint_roof_labels(game_map, stamps, "indi_")

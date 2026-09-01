@@ -77,25 +77,25 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west apron",
             # East of the door forecourt, north of the landing apron.
-            pos=world.Position(28, 41),
+            pos=world.Position(20, 40), serves="indi_spaceport",
             destinations=("bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="The Harvest", district="north fields",
             # South-east of the door approach, beside the north lane.
-            pos=world.Position(86, 26),
+            pos=world.Position(77, 25), serves="indi_bar",
             destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Guild Hall", district="south fields",
             # Beside the guild lane, just north-east of the door forecourt.
-            pos=world.Position(81, 64),
+            pos=world.Position(75, 63), serves="indi_merchants",
             destinations=("spaceport", "bar", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Militia Post", district="east end",
             # North-west of the station's door-side lane.
-            pos=world.Position(122, 58),
+            pos=world.Position(123, 59), serves="indi_militia",
             destinations=("spaceport", "bar", "merchants"),
         ),
     ),
