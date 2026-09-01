@@ -43,7 +43,6 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
     "mercury_lab": world.Position(62, 4),
     "mercury_bar": world.Position(5, 50),
     "mercury_supply": world.Position(65, 50),
-    "mercury_commons": world.Position(46, 35),
 }
 
 # Three east-west boulevards, each 3 tiles wide with a centre lane
@@ -192,9 +191,8 @@ def _paint_transit_bays(tiles) -> None:
         tiles, _mercury_spec_stub(), _TRANSIT_BAY_TILE,
         width=MERCURY_CITY_WIDTH, height=MERCURY_CITY_HEIGHT,
         overwrite_kinds=frozenset({
-            "floor", "grass", "grass_accent", "city_plaza",
-            "landing_pad", "transit_bay", "road", "road_ew", "road_ns",
-            "sidewalk",
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
         }),
         force_center=True,
     )
