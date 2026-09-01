@@ -70,17 +70,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing field",
-            pos=world.Position(34, 38),
+            pos=world.Position(38, 39), serves="ross_c_merchants",
             destinations=("long_burn", "depot"),
         ),
         world.TransitStation(
             id="long_burn", name="The Long Burn", district="dockhall",
-            pos=world.Position(67, 26),
+            pos=world.Position(62, 28), serves="ross_c_bar",
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="South Depot", district="depot quarter",
-            pos=world.Position(68, 42),
+            pos=world.Position(70, 42), serves="ross_c_depot",
             destinations=("spaceport", "long_burn"),
         ),
     ),

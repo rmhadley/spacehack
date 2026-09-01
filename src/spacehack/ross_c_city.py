@@ -40,6 +40,7 @@ from .city_kit import (
     add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -418,11 +419,14 @@ def _paint_dome_pylons(tiles) -> None:
 # ---------------------------------------------------------------------
 
 
-def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
-    """Build Cinder's 100x70 crater-bowl salvage bazaar."""
-    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
-    # No walled perimeter: badlands and the rubble rim bound the map.
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
+def _paint_terrain(tiles, theme) -> None:
+    """Lay down Cinder's crater bowl, streets, and salvage yards."""
     _paint_crater_bowl(tiles)
     _paint_apron(tiles, theme)
     _paint_breach(tiles, theme)
@@ -432,6 +436,14 @@ def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
     _paint_scarring(tiles)
     _paint_yard(tiles)
     _paint_bazaar(tiles)
+
+
+def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
+    """Build Cinder's 100x70 crater-bowl salvage bazaar."""
+    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
+    # No walled perimeter: badlands and the rubble rim bound the map.
+    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
+    _paint_terrain(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -444,6 +456,15 @@ def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
         overwrite_kinds=frozenset({"floor"}),
     )
     _paint_dome_pylons(game_map.tiles)
+    paint_transit_bays(
+        game_map.tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "ross_c_")
     set_city_metadata(
         game_map, spec, stamps,
