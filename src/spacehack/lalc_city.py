@@ -19,7 +19,7 @@ from .city_kit import (
     add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
-    paint_transit_stops,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -55,8 +55,8 @@ _CONTAINER_ROOF = world.Tile(
     blocked_message="A stacked container blocks the lane.",
 )
 _BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(184, 170, 224), bg=(68, 60, 92),
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 _STORAGE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
@@ -223,16 +223,21 @@ def _paint_vault_details(tiles, theme) -> None:
             tiles[y][x] = marker
 
 
-def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
-    """Build Whisper's 100x70 shipping-container maze."""
-    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
-    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+def _paint_maze(tiles, theme) -> None:
+    """Lay down Whisper's container maze, lanes, apron, and vault details."""
     _paint_containers(tiles)
     _paint_lanes(tiles, theme)
     _paint_landing_apron(tiles, theme)
     _paint_door_approaches(tiles, theme)
     _paint_storage_containers(tiles)
     _paint_vault_details(tiles, theme)
+
+
+def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
+    """Build Whisper's 100x70 shipping-container maze."""
+    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+    _paint_maze(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -244,7 +249,15 @@ def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
         overwrite_kinds=frozenset({"floor"}),
     )
-    paint_transit_stops(game_map.tiles, spec, _BAY_TILE)
+    paint_transit_bays(
+        game_map.tiles, spec, _BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "lalc_")
     set_city_metadata(
         game_map, spec, stamps,

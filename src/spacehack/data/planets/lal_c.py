@@ -60,22 +60,22 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing apron",
-            pos=world.Position(20, 24),
+            pos=world.Position(15, 14), serves="lalc_spaceport",
             destinations=("hush", "ledger", "bounties"),
         ),
         world.TransitStation(
             id="hush", name="The Hush", district="upper container row",
-            pos=world.Position(83, 14),
+            pos=world.Position(79, 14), serves="lalc_bar",
             destinations=("spaceport", "ledger", "bounties"),
         ),
         world.TransitStation(
             id="ledger", name="The Ledger", district="lower west loop",
-            pos=world.Position(17, 63),
+            pos=world.Position(13, 62), serves="lalc_merchants",
             destinations=("spaceport", "hush", "bounties"),
         ),
         world.TransitStation(
             id="bounties", name="Warrant Office", district="lower east loop",
-            pos=world.Position(82, 63),
+            pos=world.Position(80, 61), serves="bounties",
             destinations=("spaceport", "hush", "ledger"),
         ),
     ),
