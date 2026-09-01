@@ -71,19 +71,19 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west apron",
             # East of the door forecourt, north of the landing apron.
-            pos=world.Position(28, 39),
+            pos=world.Position(24, 38), serves="tc_spaceport",
             destinations=("bar", "merchants"),
         ),
         world.TransitStation(
             id="bar", name="The Waypoint", district="north edge",
             # South-east of the door approach, beside the north spur.
-            pos=world.Position(114, 31),
+            pos=world.Position(105, 29), serves="tc_bar",
             destinations=("spaceport", "merchants"),
         ),
         world.TransitStation(
             id="merchants", name="Merchants Hall", district="south path",
             # East of the door approach, off the southern perimeter leg.
-            pos=world.Position(112, 77),
+            pos=world.Position(104, 77), serves="tc_merchants",
             destinations=("spaceport", "bar"),
         ),
     ),

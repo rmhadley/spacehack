@@ -212,8 +212,8 @@ def _paint_saplings(tiles, theme) -> None:
 
 
 _BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(150, 190, 168), bg=(52, 78, 66),
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 
@@ -233,7 +233,11 @@ def build_tc_layout(spec, resolve_ship) -> world.GameMap:
     )
     paint_transit_bays(
         tiles, spec, _BAY_TILE, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "grass_accent"}),
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     _paint_groves(tiles)
     _paint_spores(tiles, theme)
