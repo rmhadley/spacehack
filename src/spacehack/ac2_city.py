@@ -359,7 +359,11 @@ def _finish_ac2(spec, resolve_ship, tiles, theme):
     )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "sidewalk", "plaza"}),
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     _paint_lamps(game_map.tiles)
     _seal_dead_ice(game_map.tiles, spec.hangar_anchor)

@@ -53,7 +53,7 @@ def test_ac2_buildings_transit_and_npcs_are_reachable():
     game_map = load_planet("ac_planet_2")
     spec = find_planet_spec("ac_planet_2")
     reachable = _reachable(game_map, spec.hangar_anchor)
-    assert set(game_map.city_transit) == {"spaceport", "quad", "lab"}
+    assert set(game_map.city_transit) == {"spaceport", "lab"}
     assert len(spec.city_npc_population) == 7
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
