@@ -83,20 +83,17 @@ def _pygame_faction_frames(menu: ui.MenuScreen):
     )
 
 
-def _run_pygame_faction_pick(
-    context, menu: ui.MenuScreen,
+def _run_pygame_menu_pick(
+    context, frames, caption: str, valid_ids: set[str],
 ) -> tuple[Outcome, str | None] | None:
-    """Run the dev faction picker in Pygame, or return None for fallback."""
+    """Run a dev picker modal; return (Outcome, action) or None to fall back."""
     from . import pygame_menu
 
-    frames = _pygame_faction_frames(menu)
     if not frames:
         return None
     while True:
         outcome, action, _selected = pygame_menu.run_for_context(
-            context,
-            frames,
-            caption="spacehack - choose act 0 faction",
+            context, frames, caption=caption,
         )
         if outcome == "GUIDE":
             continue
@@ -104,11 +101,21 @@ def _run_pygame_faction_pick(
             return Outcome.QUIT, None
         if outcome == "BACK":
             return Outcome.BACK, None
-        if outcome == "SELECT":
-            valid_ids = {faction_id for faction_id, _label in menu.options}
-            if action in valid_ids:
-                return Outcome.CONFIRM, action
+        if outcome == "SELECT" and action in valid_ids:
+            return Outcome.CONFIRM, action
         return None
+
+
+def _run_pygame_faction_pick(
+    context, menu: ui.MenuScreen,
+) -> tuple[Outcome, str | None] | None:
+    """Run the dev faction picker in Pygame, or return None for fallback."""
+    result = _run_pygame_menu_pick(
+        context, _pygame_faction_frames(menu),
+        caption="spacehack - choose act 0 faction",
+        valid_ids={faction_id for faction_id, _label in menu.options},
+    )
+    return result
 
 
 def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
@@ -116,6 +123,66 @@ def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
     result = _run_pygame_faction_pick(context, main_quest_faction_menu())
     if result is None:
         raise RuntimeError("Developer faction picker returned no outcome")
+    return result
+
+
+def city_teleport_options() -> tuple[tuple[str, str], ...]:
+    """``(planet_id, "City — System")`` for every landable port city,
+    sorted by label so the picker reads as one alphabetical list."""
+    from .data.planets import has_landable_port, list_planet_specs
+    from .data.solar_systems import system_for_planet
+
+    options = [
+        (spec.id, f"{spec.name} - {system_for_planet(spec.id).name}")
+        for spec in list_planet_specs()
+        if has_landable_port(spec.id)
+    ]
+    return tuple(sorted(options, key=lambda option: option[1]))
+
+
+def city_teleport_menu() -> ui.MenuScreen:
+    """Return the city picker used by the dev teleport shortcut."""
+    options = city_teleport_options()
+    return ui.MenuScreen(
+        title="Teleport to City",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER select", "ESC cancel",
+        ),
+        options=options,
+        descriptions={planet_id: "" for planet_id, _label in options},
+    )
+
+
+def _pygame_teleport_frames(menu: ui.MenuScreen):
+    """Build the shared fixed-layout frames for the city teleport picker."""
+    from . import pygame_menu
+
+    items = tuple(
+        pygame_menu.MenuItem(label=label, description="", action=planet_id)
+        for planet_id, label in menu.options
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            title=menu.title.upper(),
+            body="Land on any port city for playtesting.",
+            items=items,
+            hints=(menu.instruction,),
+            selected=selected,
+        )
+        for selected in range(len(items))
+    )
+
+
+def choose_city_teleport(context) -> tuple[Outcome, str | None]:
+    """Run the city teleport picker in the shared Pygame window."""
+    menu = city_teleport_menu()
+    result = _run_pygame_menu_pick(
+        context, _pygame_teleport_frames(menu),
+        caption="spacehack - teleport to city",
+        valid_ids={planet_id for planet_id, _label in menu.options},
+    )
+    if result is None:
+        return Outcome.BACK, None
     return result
 
 

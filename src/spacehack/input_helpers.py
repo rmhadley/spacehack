@@ -346,6 +346,14 @@ def _is_shift_o_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'O')
 
+def _is_shift_t_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+T.
+
+    Dev-mode only (``SPACEHACK_DEV``): opens the city teleport picker
+    so any port city can be playtested without flying there.
+    """
+    return _is_shift_press(event, 'T')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 

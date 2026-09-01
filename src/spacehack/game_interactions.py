@@ -175,6 +175,26 @@ def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     log.add(f'You descend to the surface of {planet_obj.name}.')
     return 'CONTINUE'
 
+def land_at_city(state, planet_id):
+    """Land directly on any port city, switching system first.
+
+    The dev-mode city teleport (Shift+T) uses this to reuse the exact
+    production landing path — the resulting state is what save/load
+    already round-trips. Unknown or portless ids log and continue.
+    """
+    log = state.log
+    from .data.planets import has_landable_port as _phlp
+    from .data.solar_systems import system_for_planet as _system_for
+    if not _phlp(planet_id):
+        log.add(f'You see no port on {planet_id}.')
+        return 'CONTINUE'
+    solar_system_module.set_current_solar_system(
+        _system_for(planet_id).id
+    )
+    planet_obj = solar_system_module.find_planet(planet_id)
+    return _resolve_planet_land(state, planet_id, planet_obj)
+
+
 def _resolve_planet_land(state, pid, planet_obj):
     """Handle the planet-menu Land option."""
     ctx = state.ctx

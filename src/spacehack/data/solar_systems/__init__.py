@@ -258,35 +258,47 @@ def list_solar_systems() -> tuple[SolarSystem, ...]:
     return tuple(_registry().values())
 
 
+def system_for_planet(planet_id: str) -> SolarSystem:
+    """First registered system containing ``planet_id`` as a planet or
+    as a station's :attr:`StationSpec.city_planet_id`.
+
+    Used by the dev-mode city teleport to switch the current system
+    before landing. Raises :class:`KeyError` for unknown ids. A city
+    backed by stations in several systems resolves to the first
+    registered one (the city itself is identical).
+    """
+    for system in _registry().values():
+        if planet_id in {planet.id for planet in system.planets}:
+            return system
+        if planet_id in {
+            station.city_planet_id for station in system.stations
+        }:
+            return system
+    raise KeyError(planet_id)
+
+
+def _neighbour_hop_targets(system, from_id: str):
+    """Yield ``(target_system_id, jp)`` for a system's jump points,
+    skipping the walk origin."""
+    for jp in system.jump_points:
+        for target_sys_id, _target_jp_id in jp.connects_to:
+            if target_sys_id != from_id:
+                yield target_sys_id, jp
+
+
 def reachable_system_ids(
     from_id: str,
     max_hops: int = 10,
 ) -> dict[str, int]:
     """BFS-walk the jump-point graph from ``from_id``.
 
-    Returns a mapping ``{target_system_id: hop_count}`` of every
-    OTHER system reachable in ``<= max_hops`` hops via the
-    connect-graph encoded in :attr:`JumpPoint.connects_to`.
-    ``from_id`` itself is NOT in the returned mapping (you are
-    not 'reachable' from yourself).
-
-    ``max_hops`` bounds the search depth so a future connected
-    graph can't blow up the caller's render surface (the Map
-    modal paints every reachable system in the AoI panel; an
-    unreasonable depth would overflow the screen).
-
-    Used by:
-      * :func:`spacehack.__main__._render_aoi_panel` to list
-        neighbour systems in the Map modal so the player can
-        see how many jumps are needed to reach them.
-      * Smoke @checks to confirm the universe graph is fully
-        connected (every registered system is reachable from
-        Sol in a finite number of hops).
-
-    A system with no ``connects_to`` pair reachable in
-    ``max_hops`` jumps is simply absent from the result — the
-    smoke @checks per clause mean we don't need to handle that
-    edge case today.
+    Returns ``{target_system_id: hop_count}`` for every OTHER system
+    reachable within ``max_hops`` hops via :attr:`JumpPoint.connects_to`
+    (``from_id`` itself is excluded — you are not reachable from
+    yourself). ``max_hops`` bounds the depth so the Map modal's AoI
+    panel and the smoke connectivity checks stay bounded. Systems with
+    no reachable ``connects_to`` pair are simply absent from the
+    result.
     """
     from collections import deque
     seen: dict[str, int] = {from_id: 0}
@@ -299,18 +311,52 @@ def reachable_system_ids(
             curr = find_solar_system(curr_id)
         except KeyError:
             continue
-        for jp in curr.jump_points:
-            for target_sys_id, _target_jp_id in jp.connects_to:
-                if target_sys_id == from_id:
-                    continue
-                new_hops = hops + 1
-                if new_hops > max_hops:
-                    continue
-                if target_sys_id not in seen or new_hops < seen[target_sys_id]:
-                    seen[target_sys_id] = new_hops
-                    queue.append((target_sys_id, new_hops))
+        for target_sys_id, _jp in _neighbour_hop_targets(curr, from_id):
+            new_hops = hops + 1
+            if new_hops > max_hops:
+                continue
+            if target_sys_id not in seen or new_hops < seen[target_sys_id]:
+                seen[target_sys_id] = new_hops
+                queue.append((target_sys_id, new_hops))
     seen.pop(from_id, None)
     return seen
+
+
+def _find_gate(system, gate_id: str) -> JumpPoint | None:
+    """Return the jump point with ``gate_id`` in ``system``, or None."""
+    for jp in system.jump_points:
+        if jp.id == gate_id:
+            return jp
+    return None
+
+
+def _validate_one_gate_link(
+    systems, sys_id: str, jp, target_sys_id: str, target_jp_id: str,
+) -> list[str]:
+    """Validate a single ``connects_to`` pair; return its errors."""
+    if target_sys_id not in systems:
+        return [
+            f"Gate {jp.id!r} in {sys_id!r} -> unknown "
+            f"system {target_sys_id!r}"
+        ]
+    target_jp = _find_gate(systems[target_sys_id], target_jp_id)
+    if target_jp is None:
+        return [
+            f"Gate {jp.id!r} in {sys_id!r} -> unknown "
+            f"gate {target_jp_id!r} in {target_sys_id!r}"
+        ]
+    back_conn = any(
+        back_sys == sys_id and back_jp == jp.id
+        for back_sys, back_jp in target_jp.connects_to
+    )
+    if back_conn:
+        return []
+    return [
+        f"Gate {jp.id!r} in {sys_id!r} -> "
+        f"{target_jp_id!r} in {target_sys_id!r} is "
+        f"NOT bidirectional. {target_jp_id!r} connects "
+        f"to {target_jp.connects_to}, not back to {jp.id!r}"
+    ]
 
 
 def validate_gate_graph() -> tuple[str, ...]:
@@ -333,37 +379,19 @@ def validate_gate_graph() -> tuple[str, ...]:
     for sys_id, system in systems.items():
         for jp in system.jump_points:
             for target_sys_id, target_jp_id in jp.connects_to:
-                if target_sys_id not in systems:
-                    errors.append(
-                        f"Gate {jp.id!r} in {sys_id!r} -> unknown "
-                        f"system {target_sys_id!r}"
-                    )
-                    continue
-                target_sys = systems[target_sys_id]
-                target_jp: JumpPoint | None = None
-                for tjp in target_sys.jump_points:
-                    if tjp.id == target_jp_id:
-                        target_jp = tjp
-                        break
-                if target_jp is None:
-                    errors.append(
-                        f"Gate {jp.id!r} in {sys_id!r} -> unknown "
-                        f"gate {target_jp_id!r} in {target_sys_id!r}"
-                    )
-                    continue
-                # Check bidirectional: does target gate point back?
-                back_conn = any(
-                    back_sys == sys_id and back_jp == jp.id
-                    for back_sys, back_jp in target_jp.connects_to
-                )
-                if not back_conn:
-                    errors.append(
-                        f"Gate {jp.id!r} in {sys_id!r} -> "
-                        f"{target_jp_id!r} in {target_sys_id!r} is "
-                        f"NOT bidirectional. {target_jp_id!r} connects "
-                        f"to {target_jp.connects_to}, not back to {jp.id!r}"
-                    )
+                errors.extend(_validate_one_gate_link(
+                    systems, sys_id, jp, target_sys_id, target_jp_id,
+                ))
     return tuple(errors)
+
+
+def _station_position(planet, east: int, north: int) -> world.Position:
+    """Position a station ``east`` cells right of the planet's right
+    edge and ``north`` cells up from its top edge."""
+    return world.Position(
+        planet.pos.x + planet.width + east,
+        planet.pos.y - north,
+    )
 
 
 def station_near(
@@ -382,30 +410,18 @@ def station_near(
 ) -> StationSpec:
     """Build a :class:`StationSpec` positioned near ``planet``.
 
-    ``east`` cells to the right of the planet's right edge,
-    ``north`` cells up from the planet's top edge (positive =
-    upward, negative = downward).
-
-    If ``station_id`` is empty, auto-generates from the planet id.
-    Default ``city_planet_id`` is ``"depot"`` (the refueling depot
-    spec). Example usage in a system module::
-
-        depot = station_near(
-            eri_c, east=9,
-            name="\u03b5 Eri Refueling Depot",
-            description="A refueling outpost in high orbit...",
-        )
+    ``east`` cells right of the planet's right edge, ``north`` cells
+    up from its top edge (positive = upward, negative = downward).
+    Empty ``station_id`` auto-generates from the planet id; default
+    ``city_planet_id`` is ``"depot"`` (the shared refueling depot
+    spec, e.g. ``station_near(eri_c, east=9, name="...")``).
     """
-    _pid = station_id or f"{planet.id}_station"
     return StationSpec(
-        id=_pid,
+        id=station_id or f"{planet.id}_station",
         name=name,
         char=char,
         fg=fg,
-        pos=world.Position(
-            planet.pos.x + planet.width + east,
-            planet.pos.y - north,
-        ),
+        pos=_station_position(planet, east, north),
         width=width,
         height=height,
         city_planet_id=city_planet_id,
