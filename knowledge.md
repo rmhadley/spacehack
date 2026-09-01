@@ -915,3 +915,36 @@ Checklist:
 
 Any issue found is blocking: fix it before commit, even if the change ``works.``
 
+
+---
+
+## City audit tool workflow (trusted diagnostic — use it first)
+
+`tools/city_audit.py` is the authoritative diagnostic for transit
+station pad integrity (R1) and serves-target wiring (R2). It builds the
+city through the real production pipeline, so its verdict reflects what
+the game will actually run. **When it reports a failure, trust it and
+execute its recommendation directly — do not re-derive the fix from
+scratch or go read other city modules for patterns.**
+
+```bash
+python3 tools/city_audit.py --city earth --format json   # exit 1 = violations
+python3 tools/city_audit.py --city earth --fix-plan      # verified edit plan
+```
+
+The goal is **fast resolution of the issues it finds**:
+
+- `recommendation` gives the validated replacement location (BFS-ranked
+  against the served target). Apply it as-is unless there is a concrete
+  reason not to.
+- `remediation` explains the authoring-level fix (e.g. call
+  `paint_transit_bays` in the layout builder). Follow it literally.
+- `--fix-plan` goes further: the tool applies its own recommendations to
+  the in-memory map (station moves, bay carving, clipped-NPC
+  relocation), re-runs every check, and emits an ordered, machine-
+  readable edit plan **only if the patched map passes**. Apply the plan,
+  re-run the audit, and expect the only remaining work to be
+  map-invisible items (e.g. tests that pinned the old broken state).
+- After fixing, the audit must exit 0. Do not hand-tune around the
+  tool; if the recommendation seems wrong, fix the tool's rule, not the
+  city, and say so in the commit message.
