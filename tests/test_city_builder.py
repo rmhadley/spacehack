@@ -1778,3 +1778,23 @@ def test_barnards_c_population_walks_the_deck():
         assert game_map.blocking_entity_at(
             entity.pos.x, entity.pos.y, exclude=entity,
         ) is None
+
+
+def test_every_transit_station_destinations_is_a_tuple_of_sibling_ids():
+    """A station's destinations must be a tuple of sibling station ids.
+
+    Regression: scripted station deletions left ``destinations=("bar")``
+    — a bare string, not a 1-tuple — so the transit router iterated the
+    string's characters and every bump said "no transit routes".
+    """
+    for spec in list_planet_specs():
+        ids = {station.id for station in (spec.transit_stations or ())}
+        for station in spec.transit_stations or ():
+            assert isinstance(station.destinations, tuple), (
+                f"{spec.id}:{station.id} destinations is "
+                f"{type(station.destinations).__name__}, not tuple"
+            )
+            assert set(station.destinations) <= ids - {station.id}, (
+                f"{spec.id}:{station.id} destinations "
+                f"{station.destinations} reference non-sibling ids"
+            )

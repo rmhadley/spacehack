@@ -163,6 +163,7 @@ rules discovered here become the input for the next tool-design phase
 | 2026-09-01 | ac_planet_1/2/3 | all three AC planets had the same redundant-stop shape (3 stops, 2 targets); intent resolver (station id) picked the keeper each time, no user pause | the Phase-1 "intent before policy" rule held at scale; batched cleanly |
 | 2026-09-01 | ac2/ac3/proc_b | bay calls ran `{"floor","sidewalk","plaza"}` without force_center — same narrow-set upgrade as Phase 1 (now 6 cities total) | near-certain pattern for remaining cities: check call args before assuming wiring is done |
 | 2026-09-01 | proc_planet_1 | verified plan emitted a same-spot "move" (station stays, pad needs carving via op args) — position unchanged, bay-call upgrade was the real fix | a from==to move op is a signal to compare the builder's call args with the op's |
+| 2026-09-01 | ac1/2/3, sirius | AGENT BUG (user-reported): scripted destination scrub left `destinations=("bar")` — a string, not a 1-tuple — so bumping a stop said "no transit routes" (router iterated characters). Fixed all 8 stations; added a spec-integrity test (`test_every_transit_station_destinations_is_a_tuple_of_sibling_ids`) so the class is permanently guarded | scripted scrubs of tuple literals must re-verify tuple-ness; the integrity test now fails the gate |
 | | | | |
 
 ## Acceptance criteria

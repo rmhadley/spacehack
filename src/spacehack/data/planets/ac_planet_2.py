@@ -55,12 +55,12 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing bay",
             pos=world.Position(16, 14), serves="ac2_spaceport",
-            destinations=("lab"),
+            destinations=("lab",),
         ),
         world.TransitStation(
             id="lab", name="Research Lab", district="lab terrace",
             pos=world.Position(65, 22), serves="ac2_lab",
-            destinations=("spaceport"),
+            destinations=("spaceport",),
         ),
     ),
     interior_layouts=(
