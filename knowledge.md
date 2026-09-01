@@ -932,6 +932,15 @@ python3 tools/city_audit.py --city earth --format json   # exit 1 = violations
 python3 tools/city_audit.py --city earth --fix-plan      # verified edit plan
 ```
 
+**Always run `--fix-plan` FIRST, before reading the plain audit output.**
+The plain report diagnoses; `--fix-plan` prescribes exact, tool-verified
+edits (station moves with coordinates, bay `overwrite_kinds`, suggested
+`serves` values). Apply its `ops` literally, in order — do not blend
+them with your own interpretation of the diagnostic output. Only fall
+back to the plain report when `--fix-plan` returns `verified: false`
+with residual violations, and at that point apply the loop-stop rule
+below.
+
 When using the city audit tool to validate a city the audit tool itself
 is forbidden from being modified.
 

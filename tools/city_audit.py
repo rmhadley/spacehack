@@ -563,6 +563,37 @@ def _landmark_footprint(game_map: world.GameMap, serves: str) -> set[tuple[int, 
     return set()
 
 
+def _suggested_serves(game_map: world.GameMap, pos: tuple[int, int]) -> str | None:
+    """Best-guess ``serves`` value for a station at ``pos``.
+
+    Ranks every resolvable target (building label or prefix-stripped
+    landmark key) by straight-line distance from ``pos`` to its
+    entrance (or nearest footprint cell for doorless landmarks) and
+    returns the closest. This makes the R0 remediation a copy-paste
+    edit instead of a research task.
+    """
+    candidates: list[tuple[float, str]] = []
+    for label, rec in (getattr(game_map, "city_buildings", {}) or {}).items():
+        entrance = rec.get("entrance")
+        if entrance is None:
+            continue
+        d = ((pos[0] - entrance[0]) ** 2 + (pos[1] - entrance[1]) ** 2) ** 0.5
+        candidates.append((d, label))
+    for key, rec in (getattr(game_map, "landmark_stamps", None) or {}).items():
+        short = key.split("_city_", 1)[-1]
+        fp = rec.get("footprint") or ()
+        if not fp:
+            continue
+        near = min(
+            ((pos[0] - fx) ** 2 + (pos[1] - fy) ** 2) ** 0.5
+            for fx, fy in fp
+        )
+        candidates.append((near, short))
+    if not candidates:
+        return None
+    return min(candidates)[1]
+
+
 # ----- Step 0: R0 — serves declared (fail-fast gate) ------------------
 
 
@@ -587,23 +618,31 @@ def check_serves_declared(game_map: world.GameMap) -> list[Violation]:
         ) or {}
         serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
         if not serves:
+            pos = (station.pos.x, station.pos.y)
+            suggested = _suggested_serves(game_map, pos)
             violations.append(Violation(
                 "R0",
                 station.name,
                 "(no serves field)",
-                (station.pos.x, station.pos.y),
+                pos,
                 f"'{station.name}' does not declare 'serves' — add "
-                f"serves=\"<building-or-landmark>\" to its TransitStation "
+                f"serves=\"{suggested}\" to its TransitStation "
                 f"in the planet spec",
+                recommendation=(
+                    {"serves": suggested, "pos": list(pos),
+                     "note": "nearest resolvable building/landmark to this "
+                             "station; add serves=\"" + suggested + "\" to "
+                             "its world.TransitStation(...)"}
+                    if suggested else None
+                ),
                 remediation=(
-                    "Add serves=\"<label>\" to this TransitStation in the "
-                    "planet spec (src/spacehack/data/planets/<city>.py, in "
-                    "the transit_stations tuple). The value must be either: "
-                    "(a) a building label from spec.buildings (e.g. "
-                    "'bar', 'militia', 'spaceport'), or (b) a landmark key "
-                    "without the <city_id>_city_ prefix (e.g. 'plaza'). "
-                    "The tool fails any station without an explicit serves "
-                    "declaration. After adding serves to every station, "
+                    "Add serves=\"" + (suggested or "<label>") + "\" to this "
+                    "TransitStation in the planet spec "
+                    "(src/spacehack/data/planets/<city>.py, in the "
+                    "transit_stations tuple). The suggested value is the "
+                    "nearest resolvable building label or landmark key to "
+                    "this station's position; override it if authored "
+                    "intent differs. After adding serves to every station, "
                     "re-run this audit; R1/R2 checks are skipped until the "
                     "gate passes."
                 ),
@@ -1035,10 +1074,15 @@ def report_text(city_id: str, game_map: world.GameMap, violations: list[Violatio
         lines.append(f"  [{v.rule_id}] {v.message}")
         if v.recommendation and v.station not in printed_remediation:
             rec = v.recommendation
-            lines.append(
-                f"      -> recommended: move to {tuple(rec['pos'])} "
-                f"(distance {rec['distance']}) — {rec['note']}"
-            )
+            if "serves" in rec:
+                lines.append(
+                    f"      -> recommended: serves=\"{rec['serves']}\" — {rec['note']}"
+                )
+            else:
+                lines.append(
+                    f"      -> recommended: move to {tuple(rec['pos'])} "
+                    f"(distance {rec.get('distance')}) — {rec['note']}"
+                )
         if v.remediation and v.station not in printed_remediation:
             lines.append(f"      -> REMEDIATION: {v.remediation}")
             printed_remediation.add(v.station)
