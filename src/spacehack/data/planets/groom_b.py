@@ -77,25 +77,25 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west apron",
             # East of the door approach, beside the landing pad.
-            pos=world.Position(21, 24),
+            pos=world.Position(15, 23), serves="groom_spaceport",
             destinations=("bar", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bar", name="The Last Gate", district="mid-town",
             # East of the door approach.
-            pos=world.Position(60, 24),
+            pos=world.Position(56, 24), serves="groom_bar",
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Office", district="south side",
             # West of the door approach.
-            pos=world.Position(46, 60),
+            pos=world.Position(48, 60), serves="groom_bounties",
             destinations=("spaceport", "bar", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Depot", district="east end",
             # West of the door approach.
-            pos=world.Position(94, 60),
+            pos=world.Position(96, 60), serves="groom_depot",
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),
