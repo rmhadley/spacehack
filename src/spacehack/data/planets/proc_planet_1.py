@@ -56,17 +56,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing apron",
-            pos=world.Position(22, 27),
+            pos=world.Position(16, 27), serves="proc_b_spaceport",
             destinations=("crossroads", "depot"),
         ),
         world.TransitStation(
             id="crossroads", name="Crossroads Plaza", district="plaza",
-            pos=world.Position(82, 43),
+            pos=world.Position(82, 43), serves="proc_b_bar",
             destinations=("spaceport", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Fuel Depot", district="fuel yard",
-            pos=world.Position(105, 44),
+            pos=world.Position(105, 44), serves="proc_b_depot",
             destinations=("spaceport", "crossroads"),
         ),
     ),

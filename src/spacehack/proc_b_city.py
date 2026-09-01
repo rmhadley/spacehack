@@ -237,10 +237,8 @@ def _paint_shacks(tiles) -> None:
 # ---------------------------------------------------------------------
 
 
-def build_proc_b_layout(spec, resolve_ship) -> world.GameMap:
-    """Build The Crossroads' 120x80 scorched waypoint from data + assets."""
-    theme = _readable_city_theme(PROC_B_SCORCHED)
-    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+def _paint_terrain(tiles, theme) -> None:
+    """Lay down The Crossroads' scrub, strip, plaza, and shack furniture."""
     _paint_scrub(tiles, theme)
     _paint_strip(tiles, theme)
     _paint_apron(tiles, theme)
@@ -248,6 +246,13 @@ def build_proc_b_layout(spec, resolve_ship) -> world.GameMap:
     _paint_arroyo(tiles)
     _paint_boulders(tiles)
     _paint_shacks(tiles)
+
+
+def build_proc_b_layout(spec, resolve_ship) -> world.GameMap:
+    """Build The Crossroads' 120x80 scorched waypoint from data + assets."""
+    theme = _readable_city_theme(PROC_B_SCORCHED)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+    _paint_terrain(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -261,7 +266,11 @@ def build_proc_b_layout(spec, resolve_ship) -> world.GameMap:
     )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "sidewalk", "plaza"}),
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     paint_roof_labels(game_map, stamps, "proc_b_")
     set_city_metadata(
