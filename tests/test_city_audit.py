@@ -450,6 +450,47 @@ def test_fix_plan_moves_station_off_clean_station_pad():
     assert new_zone.isdisjoint(bay)
 
 
+# ----- Fix plan: exact file targets + summary format --------------------
+
+
+def test_fix_plan_ops_name_exact_files():
+    """Ops carry the exact spec/builder files to edit — no placeholders
+    that force the caller to map city id -> file."""
+    game_map = _make_map([
+        _make_entity("Transit: B", 10, 10, transit_station_id="b"),
+    ], bay_cells=set())
+    game_map.city_transit = {"b": {"serves": "guild"}}
+    game_map.city_buildings = {
+        "guild": {"label": "guild", "display_name": "guild", "entrance": (10, 12)},
+    }
+    game_map.city_layout_id = "earth_river_coast"
+    plan = city_audit.build_fix_plan(game_map, city_id="earth")
+    assert plan is not None and plan["verified"], plan
+    move = next(op for op in plan["ops"] if op["op"] == "move_station")
+    assert move["file"] == "src/spacehack/data/planets/earth.py"
+    assert "earth.py transit_stations pos" in move["stage"]
+    paint = next(op for op in plan["ops"] if op["op"] == "paint_transit_bays")
+    assert paint["target"]["file"] == "src/spacehack/earth_city.py"
+    assert paint["target"]["function"] == "build_earth_layout"
+
+
+def test_report_summary_is_compact():
+    """Summary = verdict + violations; no tile/entity dump."""
+    import json as json_mod
+
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=set())
+    violations = city_audit.check_station_clipping(game_map)
+    payload = json_mod.loads(city_audit.report_summary("t", game_map, violations))
+    assert payload["passed"] is False
+    assert payload["violation_count"] == len(violations) > 0
+    assert "tiles" not in payload
+    assert "entities" not in payload
+    clean = json_mod.loads(city_audit.report_summary("t", game_map, []))
+    assert clean["passed"] is True and clean["violation_count"] == 0
+
+
 # ----- Earth end-to-end ------------------------------------------------
 
 

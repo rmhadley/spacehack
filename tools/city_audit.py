@@ -3,19 +3,30 @@
 
 Step 1: build the city through the real ``city_builder.build_city`` pipeline
         (the exact path the game uses) and print the final ``GameMap`` as
-        structured JSON.
-Step 2: run validation rules against that map. Currently one rule:
+        structured JSON (``--format json``; the default ``summary`` output
+        is verdict + violations only, no tile dump).
+Step 2: run validation rules against that map:
 
+        R0 — every transit station must declare ``serves``. Fail-fast
+             gate: R1/R2 are skipped until it passes. The ``--fix-plan``
+             refusal includes the exact per-station ``serves`` edit to
+             apply (plus a duplicate flag when two stations would serve
+             the same target — a redundant stop the author must resolve).
         R1 — a transit station is only valid when it AND its 3x3 pad
              actually exist and are clean: the station cell and every cell
              of its pad zone must be transit_bay tiles (the pad was really
              painted, not skipped), no road/sidewalk/building/landing-pad
              tile may intrude into the pad, the station footprint must not
-             clip or be clipped by any other entity, and the pad zone must
-             not contain any other entity either.
+             clip or be clipped by any other entity, and no two stations
+             may share a pad.
+        R2 — every station's declared ``serves`` target must resolve to a
+             building/landmark and be walkable-reachable near the station;
+             a target gets ONE stop (duplicate ``serves`` declarations are
+             refused with an explicit delete-or-re-target decision).
 
 Usage:
-    python3 tools/city_audit.py --city earth
+    python3 tools/city_audit.py --city earth                   # summary
+    python3 tools/city_audit.py --city earth --format json     # + tile dump
     python3 tools/city_audit.py --city earth --format text
     python3 tools/city_audit.py --city earth --fix-plan   # verified edit plan
 
@@ -27,7 +38,11 @@ pad locations, carve transit bays with the parameters it validated,
 relocate clipped ambient NPCs to the nearest clear walkable cell),
 re-runs every check on the patched map, and emits the ordered edit plan
 **only if the patched map passes**. Every emitted op is therefore a
-claim the tool has personally executed and verified — not advice.
+claim the tool has personally executed and verified — not advice. Ops
+name the exact file each edit belongs in (spec positions, builder bay
+call, NPC spawn anchors); pads are reserved as decided so two ops can
+never resolve to the same pad. Plans and refusals also list the tests
+that pin the city.
 """
 
 from __future__ import annotations
@@ -425,23 +440,6 @@ def _recommend_location(
     }
 
 
-def _pad_zone(
-    cells: set[tuple[int, int]],
-    game_map: world.GameMap,
-    radius: int,
-) -> set[tuple[int, int]]:
-    """Cells within ``radius`` of any footprint cell, clipped to the map
-    (the area ``city_kit.paint_transit_bays`` would carve)."""
-    zone: set[tuple[int, int]] = set()
-    for x, y in cells:
-        for dyc in range(-radius, radius + 1):
-            for dxc in range(-radius, radius + 1):
-                nx, ny = x + dxc, y + dyc
-                if game_map.in_bounds(nx, ny):
-                    zone.add((nx, ny))
-    return zone
-
-
 # ----- Step 3: R2 — station must declare and reach what it serves ------
 
 
@@ -490,68 +488,6 @@ def bfs_walkable(
                 visited.add(nxt)
                 queue.append((nxt, steps + 1))
     return None
-
-
-def bfs_path(
-    game_map: world.GameMap,
-    start: tuple[int, int],
-    goal: tuple[int, int],
-    *,
-    max_steps: int = 200,
-) -> list[tuple[int, int]] | None:
-    """Shortest walkable path from ``start`` to ``goal`` (8-directional), or
-    ``None`` when the goal is unreachable within ``max_steps``.
-
-    Walkability is the tile's own ``walkable`` flag — doors are passable,
-    since the game lets the player walk through them. Returns the full
-    path including both endpoints, or ``None`` when unreachable.
-    """
-    if not game_map.in_bounds(*start) or not game_map.in_bounds(*goal):
-        return None
-    if not game_map.tiles[start[1]][start[0]].walkable:
-        return None
-    from collections import deque
-
-    prev: dict[tuple[int, int], tuple[int, int] | None] = {start: None}
-    queue: deque[tuple[int, int]] = deque([start])
-    steps = 0
-    while queue and steps <= max_steps:
-        cell = queue.popleft()
-        if cell == goal:
-            path: list[tuple[int, int]] = []
-            cur: tuple[int, int] | None = cell
-            while cur is not None:
-                path.append(cur)
-                cur = prev[cur]
-            path.reverse()
-            return path
-        x, y = cell
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                if dx == 0 and dy == 0:
-                    continue
-                nxt = (x + dx, y + dy)
-                if nxt in prev or not game_map.in_bounds(*nxt):
-                    continue
-                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
-                    continue
-                prev[nxt] = cell
-                queue.append(nxt)
-        steps += 1
-    return None
-
-
-def bfs_steps(
-    game_map: world.GameMap,
-    start: tuple[int, int],
-    goal: tuple[int, int],
-    *,
-    max_steps: int = 200,
-) -> int | None:
-    """Walkable-path length from ``start`` to ``goal``, or ``None`` when
-    unreachable within ``max_steps``. Doors are passable."""
-    path = bfs_path(game_map, start, goal, max_steps=max_steps)
-    return None if path is None else len(path) - 1
 
 
 def bfs_path(
@@ -978,15 +914,20 @@ def build_fix_plan(
     game_map: world.GameMap,
     *,
     pad_radius: int = 1,
+    city_id: str | None = None,
 ) -> dict | None:
     """Apply recommendations to the in-memory map, verify, emit the plan.
 
     Returns ``None`` when the map already passes (nothing to fix) or when
     the patched map still fails (the tool refuses to emit an unverified
     plan). On success the returned dict contains an ordered ``ops`` list
-    tagged with the authoring stage each edit belongs to, plus the final
-    check summary.
+    naming the exact file each edit belongs in (spec positions, builder
+    bay call, NPC spawn anchors), plus the final check summary.
     """
+    spec_path = (
+        _spec_relpath(city_id) if city_id
+        else "src/spacehack/data/planets/<city>.py"
+    )
     # R0 gate: without authored ``serves`` on every station the plan's
     # station-move recommendations have no BFS target and cannot be
     # verified. Refuse with a verbose self-contained instruction instead
@@ -1045,7 +986,8 @@ def build_fix_plan(
         ops.append({
             "seq": len(ops) + 1,
             "op": "move_station",
-            "stage": "data/planets/<city>.py transit_stations pos",
+            "stage": f"{spec_path} transit_stations pos",
+            "file": spec_path,
             "station": station.name,
             "station_id": station.transit_station_id,
             "from": [station.pos.x, station.pos.y],
@@ -1059,10 +1001,12 @@ def build_fix_plan(
         _patch_move_station(game_map, by_id[sid], new_pos)
     _patch_paint_bays(game_map, station_moves)
     if station_moves:
+        builder = _builder_entry(getattr(game_map, "city_layout_id", ""))
         ops.append({
             "seq": len(ops) + 1,
             "op": "paint_transit_bays",
             "stage": "layout builder, after terrain painters and door forecourts",
+            "target": builder,
             "args": {
                 "overwrite_kinds": [
                     "floor", "grass", "grass_accent", "plaza",
@@ -1098,7 +1042,8 @@ def build_fix_plan(
         ops.append({
             "seq": len(ops) + 1,
             "op": "move_npc",
-            "stage": "data/city_npcs.py spawn anchor",
+            "stage": "src/spacehack/data/city_npcs.py spawn anchor",
+            "file": "src/spacehack/data/city_npcs.py",
             "entity": npc.name,
             "entity_id": npc.city_npc_id,
             "from": [npc.pos.x, npc.pos.y],
@@ -1198,10 +1143,9 @@ def _tests_referencing(city_id: str, *, limit: int = 40) -> list[dict]:
 # ----- Output ---------------------------------------------------------
 
 
-def report_json(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
-    """Full JSON report: map dump + violations."""
-    payload = dump_map(game_map, city_id)
-    payload["violations"] = [
+def _violation_dicts(violations: list[Violation]) -> list[dict]:
+    """JSON-ready violation entries (shared by every report format)."""
+    return [
         {
             "rule_id": v.rule_id,
             "station": v.station,
@@ -1213,10 +1157,32 @@ def report_json(city_id: str, game_map: world.GameMap, violations: list[Violatio
         }
         for v in violations
     ]
+
+
+def report_json(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
+    """Full JSON report: map dump + violations."""
+    payload = dump_map(game_map, city_id)
+    payload["violations"] = _violation_dicts(violations)
     if skipped:
         payload["skipped_checks"] = skipped
         payload["gate"] = "R0"
     payload["passed"] = not violations
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def report_summary(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
+    """Compact JSON report: verdict + violations, no tile/entity dump."""
+    payload: dict = {
+        "city_id": city_id,
+        "width": game_map.width,
+        "height": game_map.height,
+        "passed": not violations,
+        "violation_count": len(violations),
+        "violations": _violation_dicts(violations),
+    }
+    if skipped:
+        payload["skipped_checks"] = skipped
+        payload["gate"] = "R0"
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -1332,8 +1298,9 @@ def main() -> int:
     )
     parser.add_argument("--city", required=True, help="city id, e.g. earth")
     parser.add_argument(
-        "--format", choices=("json", "text"), default="json",
-        help="output format (default: json)",
+        "--format", choices=("summary", "json", "text"), default="summary",
+        help="output format (default: summary — verdict + violations, no "
+             "tile dump; json adds the full map dump)",
     )
     parser.add_argument(
         "--fix-plan", action="store_true",
@@ -1359,7 +1326,7 @@ def main() -> int:
                 ensure_ascii=False, indent=2,
             ))
             return 1
-        plan = build_fix_plan(game_map)
+        plan = build_fix_plan(game_map, city_id=args.city)
         if plan is None:
             print(json.dumps({
                 "city_id": args.city,
@@ -1368,6 +1335,9 @@ def main() -> int:
                 "ops": [],
             }, ensure_ascii=False, indent=2))
             return 0
+        tests = _tests_referencing(args.city)
+        if tests:
+            plan["tests_referencing_city"] = tests
         print(report_fix_plan(args.city, plan))
         return 0 if plan.get("verified") else 1
 
@@ -1385,8 +1355,10 @@ def main() -> int:
 
     if args.format == "text":
         print(report_text(args.city, game_map, violations, skipped=skipped))
-    else:
+    elif args.format == "json":
         print(report_json(args.city, game_map, violations, skipped=skipped))
+    else:
+        print(report_summary(args.city, game_map, violations, skipped=skipped))
 
     return 0 if not violations else 1
 
