@@ -951,3 +951,22 @@ The goal is **fast resolution of the issues it finds**:
 - After fixing, the audit must exit 0. Do not hand-tune around the
   tool; if the recommendation seems wrong: stop. Explain to the user so
   they can make a decision.
+- **Loop-stop rule (mandatory).** If you apply the tool's
+  recommendation and the same violation reappears on the next run
+  (e.g. the recommended location is still not a valid pad), STOP
+  immediately — do not iterate, do not re-derive, do not research
+  other files. Report to the user: "recommendation applied but
+  violation persists — the tool's fix model conflicts with the
+  current data, need your decision." A recommendation that does not
+  clear its own violation is a wrong recommendation by definition.
+- **Time-box the fix loop.** Each audit round (apply fix → re-run
+  audit) is a 5-minute budget. If a round exceeds it or a fix requires
+  research beyond reading the tool's own output (opening other modules,
+  reading the tool's source), STOP and surface to the user first. The
+  tool's output is the contract; anything beyond applying its literal
+  output needs user sign-off.
+- **Fast path when the tool's output is explicit and mechanical**
+  (e.g. R0: "add serves=... to every TransitStation"): apply it
+  directly from the tool output alone — no codebase research phase
+  before the edit. Research only when the tool's remediation names a
+  file or value you cannot determine from its output.

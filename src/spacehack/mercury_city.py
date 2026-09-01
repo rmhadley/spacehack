@@ -20,6 +20,7 @@ from . import world
 from .city_kit import (
     add_showroom_ships,
     base_tiles,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import (
@@ -42,6 +43,7 @@ LANDMARK_ORIGINS: dict[str, world.Position] = {
     "mercury_lab": world.Position(62, 4),
     "mercury_bar": world.Position(5, 50),
     "mercury_supply": world.Position(65, 50),
+    "mercury_commons": world.Position(46, 35),
 }
 
 # Three east-west boulevards, each 3 tiles wide with a centre lane
@@ -168,6 +170,46 @@ def _paint_deck_pad(tiles, theme, spec) -> None:
             tiles[py][px] = theme.landing_pad
 
 
+# Transit boarding bay: cyan tile with kind "transit_bay" (same visual
+# language as the other authored cities). Painted by _paint_transit_bays
+# after all terrain painters so nothing repaints over the bays.
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(140, 240, 255), bg=(42, 74, 88),
+)
+
+
+def _paint_transit_bays(tiles) -> None:
+    """Carve a 3x3 bay under and around every transit station.
+
+    ``force_center`` guarantees the station cell itself becomes a bay
+    even when it sits on a protected kind (road/plaza); ``overwrite_kinds``
+    covers every ground kind the deck uses so the rest of the 3x3 zone is
+    carved too. Roads, pads, sidewalks and building tiles stay untouched
+    outside the zone.
+    """
+    paint_transit_bays(
+        tiles, _mercury_spec_stub(), _TRANSIT_BAY_TILE,
+        width=MERCURY_CITY_WIDTH, height=MERCURY_CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "city_plaza",
+            "landing_pad", "transit_bay", "road", "road_ew", "road_ns",
+            "sidewalk",
+        }),
+        force_center=True,
+    )
+
+
+def _mercury_spec_stub():
+    """Return the minimal station data paint_transit_bays needs.
+
+    The builder receives the resolved PlanetSpec only later in the
+    pipeline, so expose the station positions from the data module.
+    """
+    from .data.planets.mercury import SPEC
+    return SPEC
+
+
 def _paint_deck_scrub(tiles, theme) -> None:
     """Add sparse scorched scrub and deck beacons to the bare deck.
 
@@ -236,6 +278,9 @@ def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
+    # Bays run AFTER stamping/roof labels so sidewalk routing and any
+    # other terrain pass cannot repaint over the pads (R1).
+    _paint_transit_bays(game_map.tiles)
     paint_roof_labels(game_map, stamps, "mercury_")
     paint_skyline(
         game_map,
