@@ -139,6 +139,11 @@ _FORBIDDEN_PAD_KINDS = frozenset({
     "road", "sidewalk", "landing_pad", "wall", "door",
     "city_building_wall", "city_building_door", "city_building_floor",
     "city_water", "city_shore", "city_bridge", "void",
+    # Interior/dungeon tiles (e.g. leaked by a layout glyph with no TILE
+    # directive): paint_transit_bays' default overwrite_kinds can never
+    # cover them, so recommending a pad on top of one yields an unverifiable
+    # plan.
+    "dungeon_floor", "dungeon_wall", "mine_shaft", "mine_rock",
 })
 
 
@@ -558,19 +563,18 @@ def _landmark_footprint(game_map: world.GameMap, serves: str) -> set[tuple[int, 
     return set()
 
 
-def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_DISTANCE) -> list[Violation]:
-    """R2: every transit station must declare what it serves and that
-    target must exist with an entrance near the station.
+# ----- Step 0: R0 — serves declared (fail-fast gate) ------------------
 
-    1. ``serves`` must be present and non-empty (authored intent, never
-       guessed by the tool).
-    2. The target must resolve to a building label or landmark key.
-    3. The target must have an entrance (door cell).
-    4. The station must be reachable from the entrance by a walkable path
-       (BFS over walkable tiles, doors passable) of at most
-       ``max_distance`` steps — Euclidean closeness is not enough: a
-       station on the wrong side of a building can sit one cell from the
-       entrance through a wall.
+
+def check_serves_declared(game_map: world.GameMap) -> list[Violation]:
+    """R0: every transit station must explicitly declare what it serves.
+
+    This is a fail-fast gate: authored intent must exist before any
+    geometric rule (R1/R2) is evaluated, because R1's recommendation
+    ranking (BFS toward the served target) is only meaningful when the
+    target is known. A station without ``serves`` yields one R0
+    violation; R1/R2 are skipped entirely while any R0 violation
+    exists.
     """
     violations: list[Violation] = []
     for station in game_map.entities:
@@ -584,7 +588,61 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
         serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
         if not serves:
             violations.append(Violation(
-                "R2",
+                "R0",
+                station.name,
+                "(no serves field)",
+                (station.pos.x, station.pos.y),
+                f"'{station.name}' does not declare 'serves' — add "
+                f"serves=\"<building-or-landmark>\" to its TransitStation "
+                f"in the planet spec",
+                remediation=(
+                    "Add serves=\"<label>\" to this TransitStation in the "
+                    "planet spec (src/spacehack/data/planets/<city>.py, in "
+                    "the transit_stations tuple). The value must be either: "
+                    "(a) a building label from spec.buildings (e.g. "
+                    "'bar', 'militia', 'spaceport'), or (b) a landmark key "
+                    "without the <city_id>_city_ prefix (e.g. 'plaza'). "
+                    "The tool fails any station without an explicit serves "
+                    "declaration. After adding serves to every station, "
+                    "re-run this audit; R1/R2 checks are skipped until the "
+                    "gate passes."
+                ),
+            ))
+    return violations
+
+
+def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_DISTANCE) -> list[Violation]:
+    """R2: every transit station's declared ``serves`` target must exist
+    with an entrance near the station.
+
+    1. The target must resolve to a building label or landmark key.
+
+    2. The target must have an entrance (door cell).
+
+    3. The station must be reachable from the entrance by a walkable path
+       (BFS over walkable tiles, doors passable) of at most
+       ``max_distance`` steps — Euclidean closeness is not enough: a
+       station on the wrong side of a building can sit one cell from the
+       entrance through a wall.
+
+    (Whether ``serves`` is declared at all is R0's job; R2 only runs
+    when the R0 gate passes.)
+    """
+    violations: list[Violation] = []
+    for station in game_map.entities:
+        if not station.transit_station_id:
+            continue
+        # place_transit_stations builds station entities without a serves
+        # property; the authored value lives in the city_transit lookup.
+        lookup = (getattr(game_map, "city_transit", None) or {}).get(
+            station.transit_station_id
+        ) or {}
+        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+        if not serves:
+            # R0 territory — should not happen when the gate is honored,
+            # but keep the guard so R2 standalone runs stay correct.
+            violations.append(Violation(
+                "R0",
                 station.name,
                 "(no serves field)",
                 (station.pos.x, station.pos.y),
@@ -797,6 +855,12 @@ def build_fix_plan(
     tagged with the authoring stage each edit belongs to, plus the final
     check summary.
     """
+    # R0 gate: without authored ``serves`` on every station the plan's
+    # station-move recommendations have no BFS target and cannot be
+    # verified. Refuse with a verbose self-contained instruction instead
+    # of emitting an unverifiable plan (see main() for the emitted JSON).
+    if check_serves_declared(game_map):
+        return None
     violations = check_station_clipping(game_map) + check_serves(game_map)
     if not violations:
         return None
@@ -927,7 +991,7 @@ def build_fix_plan(
 # ----- Output ---------------------------------------------------------
 
 
-def report_json(city_id: str, game_map: world.GameMap, violations: list[Violation]) -> str:
+def report_json(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
     """Full JSON report: map dump + violations."""
     payload = dump_map(game_map, city_id)
     payload["violations"] = [
@@ -942,6 +1006,9 @@ def report_json(city_id: str, game_map: world.GameMap, violations: list[Violatio
         }
         for v in violations
     ]
+    if skipped:
+        payload["skipped_checks"] = skipped
+        payload["gate"] = "R0"
     payload["passed"] = not violations
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
@@ -952,12 +1019,14 @@ def report_fix_plan(city_id: str, plan: dict) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
-def report_text(city_id: str, game_map: world.GameMap, violations: list[Violation]) -> str:
+def report_text(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
     """Human-readable report."""
     lines = [
         f"CITY: {city_id}  ({game_map.width}x{game_map.height}, "
         f"{len(game_map.entities)} entities)",
     ]
+    if skipped:
+        lines.append("  GATE: R0 failed — skipped: " + ", ".join(skipped))
     if not violations:
         lines.append("  PASS - no violations.")
         return "\n".join(lines)
@@ -1003,6 +1072,49 @@ def main() -> int:
         return 1
 
     if args.fix_plan:
+        # R0 gate: without authored ``serves`` the fix plan cannot rank or
+        # verify station moves (BFS target unknown). Fail fast with a
+        # verbose, self-contained instruction instead of a partial plan.
+        r0 = check_serves_declared(game_map)
+        if r0:
+            print(json.dumps({
+                "city_id": args.city,
+                "verified": False,
+                "gate": "R0",
+                "note": (
+                    "R0 failed: some transit stations do not declare "
+                    "'serves'. Fix-plan is refused: station-move "
+                    "recommendations are ranked by walkable distance to "
+                    "the served target, which is unknown without 'serves'. "
+                    "Add serves=\"<building-or-landmark>\" to every "
+                    "TransitStation in the planet spec "
+                    "(src/spacehack/data/planets/<city>.py, transit_stations "
+                    "tuple), then re-run this command."
+                ),
+                "how_to_fix": {
+                    "file": "src/spacehack/data/planets/<city>.py",
+                    "place": "transit_stations tuple, inside each "
+                             "world.TransitStation(...)",
+                    "edit": "add serves=\"<label>\" to each "
+                            "world.TransitStation(...)",
+                    "value": "a building label from spec.buildings "
+                             "(e.g. 'bar', 'militia', 'spaceport') or a "
+                             "landmark key without the <city_id>_city_ "
+                             "prefix (e.g. 'plaza')",
+                    "example": "world.TransitStation(\n    id=\"bar\", "
+                               "name=\"Bar District\", district=\"waterfront\", "
+                               "pos=world.Position(121, 23), serves=\"bar\", "
+                               "destinations=(\"port\", \"hub\"),\n)",
+                    "stations_missing_serves": [
+                        {"station": v.station, "station_pos": list(v.location)}
+                        for v in r0
+                    ],
+                    "next_step": "re-run: python3 tools/city_audit.py "
+                                 "--city " + args.city + " --fix-plan",
+                },
+                "ops": [],
+            }, ensure_ascii=False, indent=2))
+            return 1
         plan = build_fix_plan(game_map)
         if plan is None:
             print(json.dumps({
@@ -1015,12 +1127,22 @@ def main() -> int:
         print(report_fix_plan(args.city, plan))
         return 0 if plan.get("verified") else 1
 
-    violations = check_station_clipping(game_map) + check_serves(game_map)
+    # R0 gate: authored intent first. While any station lacks ``serves``,
+    # R1/R2 are skipped entirely — their recommendations and target checks
+    # depend on knowing what each station serves.
+    r0 = check_serves_declared(game_map)
+    violations: list[Violation]
+    skipped: list[str] = []
+    if r0:
+        violations = r0
+        skipped = ["R1 (station pad integrity)", "R2 (serves target validity)"]
+    else:
+        violations = check_station_clipping(game_map) + check_serves(game_map)
 
     if args.format == "text":
-        print(report_text(args.city, game_map, violations))
+        print(report_text(args.city, game_map, violations, skipped=skipped))
     else:
-        print(report_json(args.city, game_map, violations))
+        print(report_json(args.city, game_map, violations, skipped=skipped))
 
     return 0 if not violations else 1
 

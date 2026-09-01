@@ -57,6 +57,52 @@ def _make_map(
     return world.GameMap(width=20, height=20, tiles=tiles, entities=entities)
 
 
+# ----- R0: serves declared (fail-fast gate) ---------------------------
+
+
+def test_r0_flags_station_without_serves():
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=set())
+    violations = city_audit.check_serves_declared(game_map)
+    assert len(violations) == 1
+    v = violations[0]
+    assert v.rule_id == "R0"
+    assert v.station == "Transit: Hub"
+    assert "does not declare 'serves'" in v.message
+
+
+def test_r0_passes_when_serves_declared_on_entity():
+    station = _make_entity("Transit: Bar", 5, 5, transit_station_id="bar")
+    station.serves = "bar"
+    game_map = _make_map([station], bay_cells=set())
+    assert city_audit.check_serves_declared(game_map) == []
+
+
+def test_r0_passes_when_serves_in_city_transit_lookup():
+    game_map = _make_map([
+        _make_entity("Transit: Bar", 5, 5, transit_station_id="bar"),
+    ], bay_cells=set())
+    game_map.city_transit = {"bar": {"serves": "bar"}}
+    assert city_audit.check_serves_declared(game_map) == []
+
+
+def test_r0_flags_each_station_without_serves():
+    game_map = _make_map([
+        _make_entity("Transit: A", 2, 2, transit_station_id="a"),
+        _make_entity("Transit: B", 8, 8, transit_station_id="b"),
+    ], bay_cells=set())
+    violations = city_audit.check_serves_declared(game_map)
+    assert {v.station for v in violations} == {"Transit: A", "Transit: B"}
+
+
+def test_r0_ignores_non_station_entities():
+    game_map = _make_map([
+        _make_entity("Trade Terminal", 5, 5),
+    ], bay_cells=set())
+    assert city_audit.check_serves_declared(game_map) == []
+
+
 # ----- R1: station pad integrity --------------------------------------
 
 
