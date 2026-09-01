@@ -63,22 +63,22 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="upper deck",
-            pos=world.Position(42, 17),
+            pos=world.Position(16, 20), serves="lal_spaceport",
             destinations=("bar", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bar", name="Deep Freeze", district="lower deck",
-            pos=world.Position(68, 75),
+            pos=world.Position(64, 75), serves="lal_bar",
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Board", district="south-west",
-            pos=world.Position(20, 84),
+            pos=world.Position(13, 84), serves="lal_bounties",
             destinations=("spaceport", "bar", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Reclaim Store", district="upper deck east",
-            pos=world.Position(100, 19),
+            pos=world.Position(99, 20), serves="lal_depot",
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),

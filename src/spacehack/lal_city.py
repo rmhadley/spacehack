@@ -27,7 +27,7 @@ from .city_kit import (
     add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
-    paint_transit_stops,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -316,8 +316,8 @@ def _paint_landing_pad(tiles, theme):
 
 
 _BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(120, 170, 210), bg=(48, 62, 80),
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 
@@ -343,7 +343,15 @@ def build_lal_layout(spec, resolve_ship):
     paint_door_forecourts(
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
     )
-    paint_transit_stops(game_map.tiles, spec, _BAY_TILE)
+    paint_transit_bays(
+        game_map.tiles, spec, _BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "lal_")
     set_city_metadata(
         game_map, spec, stamps,
