@@ -117,7 +117,7 @@ def test_venus_buildings_transit_and_npcs_are_reachable():
     spec = find_planet_spec("venus")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "cross", "cloudbreak", "merchants", "depot",
+        "spaceport", "cloudbreak", "merchants", "depot",
     }
     # All-to-all network: every stop lists every other stop.
     assert all(
