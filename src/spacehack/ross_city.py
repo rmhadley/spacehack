@@ -276,10 +276,13 @@ def _paint_heat_glow(tiles):
 
 
 _BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(80, 60, 55), bg=(72, 58, 62),
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
-_BAY_KINDS = frozenset({"floor", "grass"})
+_BAY_KINDS = frozenset({
+    "floor", "grass", "grass_accent", "plaza", "city_plaza",
+    "sidewalk", "landing_pad",
+})
 
 
 # ---------------------------------------------------------------------------

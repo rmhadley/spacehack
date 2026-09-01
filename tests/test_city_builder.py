@@ -1293,7 +1293,9 @@ def test_indi_b_population_is_a_lawful_breadbasket():
 # Route surfaces that legitimately front a door. Bare ground (plain
 # floor/grass) does not count -- that is how "the front walk goes
 # nowhere" bugs slip through reachability checks.
-_ROUTE_KINDS = frozenset({"road", "sidewalk", "plaza", "landing_pad"})
+_ROUTE_KINDS = frozenset(
+    {"road", "sidewalk", "plaza", "landing_pad", "transit_bay"},
+)
 
 # Cave cities have no road vocabulary: doors open onto carved tunnel
 # floor and the tunnels themselves are the routes.
@@ -1481,19 +1483,23 @@ def test_lal_c_transit_stops_are_off_lanes_and_on_door_side():
         "spaceport": "spaceport", "bar": "hush",
         "merchants": "ledger", "bounties": "bounties",
     }
+    serves_for = {
+        "spaceport": "lalc_spaceport", "bar": "lalc_bar",
+        "merchants": "lalc_merchants", "bounties": "bounties",
+    }
     for building in spec.buildings:
+        sid = station_for[building.label]
         entrance = game_map.city_buildings[building.label]["entrance"]
-        stop = game_map.city_transit[station_for[building.label]]["pos"]
-        assert stop[1] > entrance[1], building.label
-        if building.label != "spaceport":
-            assert game_map.tiles[stop[1]][stop[0]].kind not in {
-                "road", "sidewalk", "landing_pad",
-            }, building.label
-        assert any(
-            game_map.tiles[stop[1] + dy][stop[0] + dx].kind == "sidewalk"
-            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
-            if game_map.in_bounds(stop[0] + dx, stop[1] + dy)
+        stop = game_map.city_transit[sid]["pos"]
+        x, y = stop
+        assert game_map.tiles[y][x].kind == "transit_bay", building.label
+        assert all(
+            game_map.tiles[y + dy][x + dx].walkable
+            for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+            if game_map.in_bounds(x + dx, y + dy)
         ), building.label
+        station = next(s for s in spec.transit_stations if s.id == sid)
+        assert station.serves == serves_for[building.label], building.label
         assert abs(stop[0] - entrance[0]) <= 12, building.label
 
 
