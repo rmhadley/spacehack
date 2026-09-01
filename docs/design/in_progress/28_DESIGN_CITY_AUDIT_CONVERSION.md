@@ -105,19 +105,20 @@ city teleport (Shift+T) 2026-09-01 ✓.
 - [x] `proc_planet_1` — serves tags, 1 move, full bay set, `_paint_terrain` extraction
 
 PLAYTEST: per-city gate ✓ (all four audit PASS; `make check` 1620 green).
-In-game: pending user Shift+T validation.
+In-game: user validated via Shift+T 2026-09-01 ✓ (caught the AC no-routes
+destinations bug — fixed, integrity test added).
 
-### Phase 3 — 4-stop cities
-- [ ] `blockade`
-- [ ] `blockade_south`
-- [ ] `groom_b`
-- [ ] `indi_b`
-- [ ] `lal_b`
-- [ ] `lal_c`
-- [ ] `ross_b`
+### Phase 3 — 4-stop cities — COMPLETE 2026-09-01
+- [x] `blockade` — dropped redundant `plaza` (militia keeper by intent+door), 2 moves
+- [x] `blockade_south` — dropped redundant `quarantine`; passed with zero ops after tags
+- [x] `groom_b` — 4 moves, real transit_bay tile (was invisible `floor`-kind)
+- [x] `indi_b` — 4 moves, real transit_bay tile
+- [x] `lal_b` — 4 moves, full kit bay wiring (had `paint_transit_stops`)
+- [x] `lal_c` — 4 moves, full kit bay wiring, `_paint_maze` extraction
+- [x] `ross_b` — door-anchored positions became literals per verified ops, widened `_BAY_KINDS`, real bay tile
 
-PLAYTEST: same per-city gate; phase playtest on `indi_b` (largest test
-footprint of the batch).
+PLAYTEST: per-city gate ✓ (all seven audit PASS; `make check` 1621 green).
+In-game: pending user Shift+T validation (indi_b is the phase pick).
 
 ### Phase 4 — 5-stop cities
 - [ ] `eri_b` (custom bay wrapper — verify overwrite set vs op args)
@@ -163,6 +164,9 @@ rules discovered here become the input for the next tool-design phase
 | 2026-09-01 | ac_planet_1/2/3 | all three AC planets had the same redundant-stop shape (3 stops, 2 targets); intent resolver (station id) picked the keeper each time, no user pause | the Phase-1 "intent before policy" rule held at scale; batched cleanly |
 | 2026-09-01 | ac2/ac3/proc_b | bay calls ran `{"floor","sidewalk","plaza"}` without force_center — same narrow-set upgrade as Phase 1 (now 6 cities total) | near-certain pattern for remaining cities: check call args before assuming wiring is done |
 | 2026-09-01 | proc_planet_1 | verified plan emitted a same-spot "move" (station stays, pad needs carving via op args) — position unchanged, bay-call upgrade was the real fix | a from==to move op is a signal to compare the builder's call args with the op's |
+| 2026-09-01 | groom_b, indi_b, ross_b | THIRD occurrence of the invisible-bay bug (`_BAY_TILE` kind="floor") — 6 cities total now (tc, lal_b, lal_c, these 3) | per-conversion checklist item: ALWAYS check the bay tile's kind, not just the painter call. Candidate R3 rule: builder bay tile must be kind transit_bay |
+| 2026-09-01 | blockade | militia stop's new bay fronts the building door; `test_authored_city_doors_front_a_route` failed because transit_bay wasn't in its route vocabulary | transit_bay added to `_ROUTE_KINDS` — a carved bay is a purposeful public surface; expect this vocabulary update to be permanent |
+| 2026-09-01 | ross_b | spec authored positions as door-constant expressions; verified ops gave literals — replaced expressions with literal coords (comments kept) | expression-anchored specs need literal replacement when ops move stations |
 | 2026-09-01 | ac1/2/3, sirius | AGENT BUG (user-reported): scripted destination scrub left `destinations=("bar")` — a string, not a 1-tuple — so bumping a stop said "no transit routes" (router iterated characters). Fixed all 8 stations; added a spec-integrity test (`test_every_transit_station_destinations_is_a_tuple_of_sibling_ids`) so the class is permanently guarded | scripted scrubs of tuple literals must re-verify tuple-ness; the integrity test now fails the gate |
 | | | | |
 
