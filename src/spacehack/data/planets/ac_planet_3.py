@@ -54,18 +54,13 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing deck",
-            pos=world.Position(22, 17),
-            destinations=("concourse", "bar"),
-        ),
-        world.TransitStation(
-            id="concourse", name="The Concourse", district="mid-deck",
-            pos=world.Position(50, 37),
-            destinations=("spaceport", "bar"),
+            pos=world.Position(22, 17), serves="ac3_spaceport",
+            destinations=("bar"),
         ),
         world.TransitStation(
             id="bar", name="The Ring Band", district="east end",
-            pos=world.Position(72, 49),
-            destinations=("spaceport", "concourse"),
+            pos=world.Position(73, 50), serves="ac3_bar",
+            destinations=("spaceport"),
         ),
     ),
     interior_layouts=(
