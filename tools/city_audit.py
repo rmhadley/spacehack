@@ -364,6 +364,17 @@ def _pad_zone(
     return zone
 
 
+# Ground kinds ``city_kit.paint_transit_bays`` (and this tool's in-memory
+# patch) can actually carve. Candidate pads are validated against THIS set,
+# not mere walkability: a walkable-but-unpaintable kind (e.g. 'tree') would
+# pass a walkable check yet leave the pad uncarvable — an unverifiable plan
+# (found on tau_ceti_b, where a recommended pad zone contained a tree).
+_PAINTABLE_PAD_KINDS = frozenset({
+    "floor", "grass", "grass_accent", "plaza", "city_plaza",
+    "sidewalk", "landing_pad", "transit_bay",
+})
+
+
 def _cell_pad_ok(
     game_map: world.GameMap,
     x: int,
@@ -372,15 +383,14 @@ def _cell_pad_ok(
     blocked_cells: set[tuple[int, int]],
 ) -> bool:
     """Whether a ``(2*radius+1)`` pad centred at ``(x, y)`` would be valid:
-    every zone cell in bounds, walkable, not a forbidden kind, and free of
-    other entity footprints."""
+    every zone cell in bounds and a paintable ground kind (the bay painter
+    could carve it), and free of other entity footprints."""
     for dyc in range(-radius, radius + 1):
         for dxc in range(-radius, radius + 1):
             nx, ny = x + dxc, y + dyc
             if not game_map.in_bounds(nx, ny):
                 return False
-            tile = game_map.tiles[ny][nx]
-            if tile.kind in _FORBIDDEN_PAD_KINDS or not tile.walkable:
+            if game_map.tiles[ny][nx].kind not in _PAINTABLE_PAD_KINDS:
                 return False
             if (nx, ny) in blocked_cells:
                 return False

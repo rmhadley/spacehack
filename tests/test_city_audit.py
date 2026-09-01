@@ -491,6 +491,43 @@ def test_report_summary_is_compact():
     assert clean["passed"] is True and clean["violation_count"] == 0
 
 
+# ----- Recommendations only propose carvable pads ----------------------
+
+
+def test_cell_pad_ok_rejects_walkable_unpaintable_kinds():
+    """A 'tree' cell is walkable but no overwrite set carves it — a pad
+    zone containing one must be invalid (tau_ceti_b regression: a
+    recommended pad contained a tree and the plan could not verify)."""
+    game_map = _make_map([])
+    tree = world.Tile(
+        kind="tree", char="♣", walkable=True,
+        fg=(80, 200, 90), bg=(20, 40, 20),
+    )
+    game_map.tiles[7][7] = tree
+    assert city_audit._cell_pad_ok(game_map, 7, 7, 1, set()) is False
+    assert city_audit._cell_pad_ok(game_map, 3, 3, 1, set()) is True
+
+
+def test_recommendation_avoids_tree_cells():
+    """The recommended pad's whole zone must be paintable ground."""
+    game_map = _make_map([
+        _make_entity("Transit: Waypoint", 5, 5, transit_station_id="way"),
+    ], bay_cells=set())
+    for y in range(2, 12):
+        game_map.tiles[y][9] = world.Tile(
+            kind="tree", char="♣", walkable=True,
+            fg=(80, 200, 90), bg=(20, 40, 20),
+        )
+    violations = city_audit.check_station_clipping(game_map)
+    rec = violations[0].recommendation
+    assert rec is not None
+    rx, ry = rec["pos"]
+    assert all(
+        game_map.tiles[ry + dy][rx + dx].kind in city_audit._PAINTABLE_PAD_KINDS
+        for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+    )
+
+
 # ----- Earth end-to-end ------------------------------------------------
 
 
