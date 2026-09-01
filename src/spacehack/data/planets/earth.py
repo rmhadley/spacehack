@@ -56,32 +56,32 @@ SPEC = PlanetSpec(
         # directly between districts; every stop sits on walkable ground.
         world.TransitStation(
             id="port", name="Spaceport", district="spaceport",
-            pos=world.Position(37, 26), serves="spaceport",
+            pos=world.Position(39, 30), serves="spaceport",
             destinations=("hub", "bar", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="hub", name="Central Hub", district="civic",
-            pos=world.Position(71, 52), serves="plaza",
+            pos=world.Position(71, 53), serves="plaza",
             destinations=("port", "bar", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="Bar District", district="waterfront",
-            pos=world.Position(119, 18), serves="bar",
+            pos=world.Position(121, 23), serves="bar",
             destinations=("port", "hub", "bounties", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Guild", district="waterfront",
-            pos=world.Position(129, 67), serves="bounties",
+            pos=world.Position(137, 67), serves="bounties",
             destinations=("port", "hub", "bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Merchant Hall", district="market",
-            pos=world.Position(22, 71), serves="merchants",
+            pos=world.Position(21, 71), serves="merchants",
             destinations=("port", "hub", "bar", "bounties", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Militia Center", district="civic",
-            pos=world.Position(66, 77), serves="militia",
+            pos=world.Position(76, 75), serves="militia",
             destinations=("port", "hub", "bar", "bounties", "merchants"),
         ),
     ),

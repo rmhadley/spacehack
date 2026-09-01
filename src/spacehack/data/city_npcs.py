@@ -68,12 +68,12 @@ EARTH_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("earth_market_walker_c", "civillian_bystander", (24, 74), wander_radius=80, move_chance=0.9),
     # Waterfront / bar district.
     CityNpc("earth_bar_patron", "civillian_bystander", (114, 17), wander_radius=80, move_chance=0.85),
-    CityNpc("earth_bar_patron_b", "civillian_bystander", (118, 17), wander_radius=80, move_chance=0.85),
+    CityNpc("earth_bar_patron_b", "civillian_bystander", (124, 23), wander_radius=80, move_chance=0.85),
     # Spaceport apron — dock workers crossing the apron.
     CityNpc("earth_pad_worker", "civillian_bystander", (31, 25), wander_radius=80, move_chance=0.8),
     CityNpc("earth_pad_worker_b", "civillian_bystander", (27, 23), wander_radius=80, move_chance=0.8),
     # Militia district — troopers walking the beat.
-    CityNpc("earth_militia_patrol", "militia_trooper", (65, 77), wander_radius=80, move_chance=0.9),
+    CityNpc("earth_militia_patrol", "militia_trooper", (75, 73), wander_radius=80, move_chance=0.9),
     CityNpc("earth_militia_patrol_b", "militia_trooper", (60, 77), wander_radius=80, move_chance=0.9),
 )
 

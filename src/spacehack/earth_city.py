@@ -17,7 +17,12 @@ from __future__ import annotations
 
 from . import city_tiles, world
 from .city_tiles import CITY_ORNAMENT
-from .city_kit import add_showroom_ships, base_tiles, set_city_metadata
+from .city_kit import (
+    add_showroom_ships,
+    base_tiles,
+    paint_transit_bays,
+    set_city_metadata,
+)
 from .city_layout import (
     paint_roof_labels,
     paint_skyline,
@@ -178,7 +183,7 @@ _TREE_COORDS = (
     (118, 82), (132, 90), (146, 76),
     (62, 90), (72, 94), (82, 92), (92, 90),
     (66, 86), (76, 88), (86, 84),
-    (8, 64), (20, 72), (38, 68), (46, 76),
+    (8, 64), (18, 69), (38, 68), (46, 76),
     (14, 76), (28, 72), (42, 92),
 )
 
@@ -225,6 +230,36 @@ def _paint_landing_pad(tiles: list[list[world.Tile]]) -> None:
         for x in range(18, 38):
             if (x, y) not in RIVER_CELLS:
                 tiles[y][x] = _pad
+
+
+# Transit boarding bay: cyan tile with kind "transit_bay" (same visual
+# language as the other authored cities). Painted by _paint_transit_bays
+# under every station of the spec.
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
+def _paint_transit_bays(tiles, spec) -> None:
+    """Carve a smooth 3x3 bay under and around each transit station.
+
+    Runs AFTER all terrain painters so nothing repaints over the bays.
+    ``force_center`` guarantees the station cell itself becomes a bay
+    even when it sits on a protected kind (road/plaza/landing pad);
+    ``overwrite_kinds`` covers every ground kind Earth uses so the rest
+    of the 3x3 zone is carved too. Roads, pads, sidewalks and building
+    tiles stay untouched outside the zone.
+    """
+    paint_transit_bays(
+        tiles, spec, _TRANSIT_BAY_TILE,
+        width=EARTH_CITY_WIDTH, height=EARTH_CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "city_plaza",
+            "landing_pad", "transit_bay",
+        }),
+        force_center=True,
+    )
 
 
 def _new_earth_map() -> world.GameMap:
@@ -290,6 +325,8 @@ def build_earth_layout(spec, resolve_ship) -> world.GameMap:
     Transit stations and ambient NPCs are NOT placed here — the generic
     :func:`spacehack.city_builder.build_city` shared tail adds them for
     every planet, so Earth and Mercury run the identical city pipeline.
+    The transit *bays* (tiles under each stop) are painted here, at the
+    end of the terrain phase, so the shared tail finds a carved pad.
     """
     game_map = _new_earth_map()
     stamps = stamp_city_assets(game_map, LANDMARK_ORIGINS)
@@ -299,6 +336,7 @@ def build_earth_layout(spec, resolve_ship) -> world.GameMap:
         seed_key=("earth", "skyline"),
         schemes=_SKYLINE_SCHEMES,
     )
+    _paint_transit_bays(game_map.tiles, spec)
     _set_city_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)
     # Seed the river/shore light grid so the water shimmers (pulse

@@ -281,20 +281,14 @@ def test_earth_r1_report_runs():
 
 
 def test_earth_r1_finds_violations():
-    """On the real Earth map, no transit_bay tiles exist at all (the bay
-    painter was never called in earth_city.py), so every station must
-    produce a 'pad is not transit_bay' violation."""
+    """On the real Earth map, every transit station sits on a painted
+    transit_bay pad (earth_city.py now calls paint_transit_bays with
+    force_center), so the audit must pass with zero R1 violations."""
     game_map = city_audit.build_final_map("earth")
     violations = city_audit.check_station_clipping(game_map)
-    assert violations, "earth must report missing transit_bay pads"
-    stations_flagged = {v.station for v in violations}
-    assert "Transit: Central Hub" in stations_flagged
-    # Every station must be flagged for missing bay
-    all_stations = {
-        e.name for e in game_map.entities if e.transit_station_id
-    }
-    assert all_stations <= stations_flagged, (
-        f"all stations should be flagged; missing: {all_stations - stations_flagged}"
+    assert violations == [], (
+        "earth transit stations must all sit on painted transit_bay pads; "
+        "got: " + [(v.station, v.message) for v in violations]
     )
 
 
@@ -398,15 +392,12 @@ def test_recommendation_deterministic():
 
 
 def test_earth_recommendations_and_remediation():
-    """Earth (old authoring method) must carry both a recommendation and
-    the remediation text on every failing station's first violation."""
+    """Earth is now authored the correct way (paint_transit_bays called in
+    earth_city.py), so the real map produces no violations at all —
+    recommendation/remediation behaviour is covered by the synthetic
+    tests above."""
     game_map = city_audit.build_final_map("earth")
     violations = city_audit.check_station_clipping(game_map)
-    assert violations
-    first_per_station = {}
-    for v in violations:
-        first_per_station.setdefault(v.station, v)
-    for station, v in first_per_station.items():
-        assert v.recommendation is not None, f"{station} missing recommendation"
-        assert v.remediation is not None, f"{station} missing remediation"
-        assert "paint_transit_bays" in v.remediation
+    assert violations == [], (
+        "earth must pass R1; got: " + [(v.station, v.message) for v in violations]
+    )
