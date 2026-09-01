@@ -83,18 +83,19 @@ Conversion order: small/simple first, odd vocabularies last (they are
 the ones that may need tool attention — better discovered with a clean
 corpus behind us). One prompt per phase; one commit per city.
 
-### Phase 1 — small kit-bay cities (2–3 stops)
-- [ ] `barnards_c` (2)
-- [ ] `depot` (3)
-- [ ] `ross_c` (3)
-- [ ] `tc_b` (3)
-- [ ] `wolf_b` (3)
-- [ ] `sirius_station` (3)
+### Phase 1 — small kit-bay cities (2–3 stops) — COMPLETE 2026-09-01
+- [x] `barnards_c` (2) — 2 moves, kit bay wiring, `_paint_deck` extraction
+- [x] `depot` (3) — 2 moves, overwrite set upgraded to op args
+- [x] `ross_c` (3) — 3 moves, kit bay wiring, `_paint_terrain` extraction
+- [x] `tc_b` (3) — 3 moves; exposed two tool/authoring gaps (see log)
+- [x] `wolf_b` (3) — intent `serves` (mis-suggestion resolved by authored
+      intent, no deletion), kit bay wiring, `_paint_terrain` extraction
+- [x] `sirius_station` (3→2) — duplicate policy applied (see log),
+      overwrite set upgraded
 
-PLAYTEST: per city — audit exit 0; `pytest tests/ -k "<city>"` plus the
-tool-listed pins; `make check`. Phase playtest: in-game, land on one
-converted city, ride transit to every stop, confirm arrival beside the
-served building and no pad/sidewalk oddities around stops.
+PLAYTEST: per city — audit exit 0 ✓ (all six); pinned tests ✓ (barnards_c
+paradigm pin rewritten, sirius station-set pin 3→2); `make check` green at
+every commit ✓. In-game ride check still pending (user).
 
 ### Phase 2 — AC planets (3 stops each)
 - [ ] `ac_planet_1`
@@ -151,6 +152,12 @@ rules discovered here become the input for the next tool-design phase
 |---|---|---|---|
 | 2026-09-01 | (tool) | 27_DESIGN_CITY_AUDIT_TOOL.md lags the implemented tool (R0 gate, R1 check 4 shared pads, R2 duplicates + BFS reachability, fix-plan, summary default) | logged; refresh of 27 deferred — opt in if wanted |
 | 2026-09-01 | cygni_b | architecture ratchet: `build_cygni_layout` 44 lines → extracted `_paint_terrain` same-commit | expected pattern, budgeted per city |
+| 2026-09-01 | wolf_b | R0 duplicate flag was a suggestion artifact: Spaceport stop "suggested" for `wolf_depot` though authored intent (id/name) is the spaceport | precedent: check authored intent (station id/name) before applying the delete policy — suggestion is nearest-target, not intent |
+| 2026-09-01 | sirius_station | true duplicate (2 targets, 3 stops): lab door_x=71 → kept `lab` stop, deleted `terrace` (standing policy) | first batch-application of the standing delete policy; no user pause needed |
+| 2026-09-01 | tc_b | TOOL GAP: recommender validated pads by walkability, but `tree` tiles are walkable-yet-unpaintable → plan could not verify (tool refused, correctly) | tool fix (separate commit): candidate validity is now a whitelist of paintable kinds (`_PAINTABLE_PAD_KINDS`) — recommendations are carvable by construction |
+| 2026-09-01 | tc_b | AUTHORING BUG: `tc_city._BAY_TILE` had `kind="floor"` — bays were painted invisibly with no bay semantics; every stop "passed" visually for years | conversion checklist: verify the bay tile's `kind` is `transit_bay`, not just that `paint_transit_bays` is called |
+| 2026-09-01 | depot, sirius, tc_b | existing bay calls used narrow overwrite sets (e.g. `{"floor","plaza"}`) below the op's validated args | conversion step: upgrade existing calls to the op's overwrite set + `force_center=True` |
+| 2026-09-01 | barnards_c, ross_c, wolf_b | ratchet: builders 44–49 lines → terrain-painter extractions same-commit | recurring; consider a shared kit pattern if a 4th identical extraction appears |
 | | | | |
 
 ## Acceptance criteria
