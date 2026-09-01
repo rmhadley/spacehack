@@ -156,6 +156,74 @@ def _footprint(entity: world.Entity) -> set[tuple[int, int]]:
     }
 
 
+def _station_serves(game_map: world.GameMap, station: world.Entity) -> str:
+    """Authored ``serves`` for a station entity (entity attr, else the
+    ``city_transit`` lookup ``place_transit_stations`` populated)."""
+    lookup = (getattr(game_map, "city_transit", None) or {}).get(
+        station.transit_station_id
+    ) or {}
+    return getattr(station, "serves", "") or lookup.get("serves", "") or ""
+
+
+def _decorate_with_recommendation(
+    game_map: world.GameMap,
+    station: world.Entity,
+    blocked_cells: set[tuple[int, int]],
+    pad_radius: int,
+    violation: Violation,
+) -> Violation:
+    """Attach a move recommendation to a station's first violation.
+
+    Candidates are ranked by walkable steps to the building/landmark the
+    station serves (BFS, not straight-line) so the recommended spot is on
+    the same side of any walls as the target entrance. When the whole map
+    has no bay tiles at all the old-authoring-method remediation is
+    attached too.
+    """
+    serves = _station_serves(game_map, station)
+    target, _src = _resolve_target(game_map, serves) if serves else (None, None)
+    rec = _recommend_location(
+        game_map, (station.pos.x, station.pos.y),
+        blocked_cells, pad_radius, target=target,
+    )
+    has_any_bay = any(
+        game_map.tiles[y][x].kind == "transit_bay"
+        for y in range(game_map.height)
+        for x in range(game_map.width)
+    )
+    return Violation(
+        violation.rule_id, violation.station, violation.other,
+        violation.location, violation.message,
+        recommendation=rec,
+        remediation=None if has_any_bay else _OLD_METHOD_REMEDIATION,
+    )
+
+
+def _check_station_overlaps(station_pads) -> list[Violation]:
+    """R1 check 4: no two stations may share a pad.
+
+    A station's footprint may never sit on — or inside the pad zone of —
+    another station. Two stops stacked on one cell make checks 1-3 lie:
+    the pad looks painted and clean while the stations are unusable.
+    """
+    violations: list[Violation] = []
+    for i in range(len(station_pads)):
+        for j in range(i + 1, len(station_pads)):
+            a, a_cells, a_zone = station_pads[i]
+            b, b_cells, b_zone = station_pads[j]
+            shared = (a_cells & (b_cells | b_zone)) | (b_cells & (a_cells | a_zone))
+            if not shared:
+                continue
+            cell = min(shared)
+            violations.append(Violation(
+                "R1", a.name, b.name, cell,
+                f"'{a.name}' and '{b.name}' share a pad at {cell} — two "
+                "transit stations may never sit on or inside each other's "
+                "pad zone; move one away or delete the redundant stop",
+            ))
+    return violations
+
+
 def check_station_clipping(
     game_map: world.GameMap,
     *,
@@ -177,24 +245,39 @@ def check_station_clipping(
     3. No other entity's footprint may touch the station footprint or
        the pad zone — the station must not clip or be clipped by any
        entity, pad included.
+    4. No two stations may share a pad (footprint on the other's
+       footprint or pad zone).
 
-    Stations are not checked against each other. Every failing station
-    gets a recommended alternative location; stations diagnosed as
+    Every failing station gets a recommended alternative location,
+    ranked away from every other station's pad; stations diagnosed as
     authored the old way (no bay tiles at all) also get the remediation
     text describing the correct authoring method.
     """
     stations = [e for e in game_map.entities if e.transit_station_id]
     others = [e for e in game_map.entities if not e.transit_station_id]
 
-    # All non-station entity footprint cells block candidate locations.
-    blocked_cells: set[tuple[int, int]] = set()
+    station_pads = []
+    for s in stations:
+        cells = _footprint(s)
+        station_pads.append((s, cells, _pad_zone(cells, game_map, pad_radius)))
+
+    # All non-station entity footprint cells block candidate locations;
+    # every OTHER station's footprint+pad zone blocks them too, so a
+    # recommendation can never create a new check-4 violation.
+    entity_blocked: set[tuple[int, int]] = set()
     for e in others:
-        blocked_cells |= _footprint(e)
+        entity_blocked |= _footprint(e)
+
+    def _other_station_cells(station) -> set[tuple[int, int]]:
+        cells: set[tuple[int, int]] = set()
+        for s, fp, zone in station_pads:
+            if s is not station:
+                cells |= fp | zone
+        return cells
 
     violations: list[Violation] = []
-    for station in stations:
-        station_cells = _footprint(station)
-        pad_zone = _pad_zone(station_cells, game_map, pad_radius)
+    decorated: set[str] = set()
+    for station, station_cells, pad_zone in station_pads:
         first = len(violations)
 
         # Check 1 + 2: the pad must actually exist — station cell and
@@ -225,33 +308,27 @@ def check_station_clipping(
                     f"'{station.name}' clips '{other.name}' at {cell}",
                 ))
 
-        # Remediation: attach a recommendation + (when the whole map has
-        # no bay tiles at all -> old authoring method) remediation text to
-        # the station's FIRST violation.
+        # Remediation: attach a recommendation to the station's FIRST
+        # violation (checks 1-3).
         if len(violations) > first:
-            # Rank candidates by walkable steps to the building/landmark the
-            # station serves (BFS, not straight-line) so the recommended
-            # spot is on the same side of any walls as the target entrance.
-            lookup = (getattr(game_map, "city_transit", None) or {}).get(
-                station.transit_station_id
-            ) or {}
-            serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
-            target, _src = _resolve_target(game_map, serves) if serves else (None, None)
-            rec = _recommend_location(
-                game_map, (station.pos.x, station.pos.y),
-                blocked_cells, pad_radius, target=target,
+            blocked = entity_blocked | _other_station_cells(station)
+            violations[first] = _decorate_with_recommendation(
+                game_map, station, blocked, pad_radius, violations[first],
             )
-            has_any_bay = any(
-                game_map.tiles[y][x].kind == "transit_bay"
-                for y in range(game_map.height)
-                for x in range(game_map.width)
+            decorated.add(station.name)
+
+    # Check 4: station pairs. A station stacked on a fully painted pad
+    # passes checks 1-3 — decorate its pair violation so the fix plan can
+    # move it clear of the other stop.
+    for pair in _check_station_overlaps(station_pads):
+        if pair.station not in decorated:
+            station = next(s for s, _c, _z in station_pads if s.name == pair.station)
+            blocked = entity_blocked | _other_station_cells(station)
+            pair = _decorate_with_recommendation(
+                game_map, station, blocked, pad_radius, pair,
             )
-            remediation = None if has_any_bay else _OLD_METHOD_REMEDIATION
-            fv = violations[first]
-            violations[first] = Violation(
-                fv.rule_id, fv.station, fv.other, fv.location, fv.message,
-                recommendation=rec, remediation=remediation,
-            )
+            decorated.add(pair.station)
+        violations.append(pair)
     return violations
 
 
@@ -611,12 +688,7 @@ def check_serves_declared(game_map: world.GameMap) -> list[Violation]:
     for station in game_map.entities:
         if not station.transit_station_id:
             continue
-        # place_transit_stations builds station entities without a serves
-        # property; the authored value lives in the city_transit lookup.
-        lookup = (getattr(game_map, "city_transit", None) or {}).get(
-            station.transit_station_id
-        ) or {}
-        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+        serves = _station_serves(game_map, station)
         if not serves:
             pos = (station.pos.x, station.pos.y)
             suggested = _suggested_serves(game_map, pos)
@@ -650,6 +722,39 @@ def check_serves_declared(game_map: world.GameMap) -> list[Violation]:
     return violations
 
 
+def _flag_duplicate_serves(
+    declared: list[tuple[world.Entity, str]],
+    violations: list[Violation],
+) -> None:
+    """R2: a serves target gets one stop. Two stations declaring the same
+    target is a redundant stop — station moves can never fix it, so it is
+    an explicit author decision: delete the redundant TransitStation or
+    re-target it to a distinct building/landmark."""
+    by_target: dict[str, list[world.Entity]] = {}
+    for station, serves in declared:
+        by_target.setdefault(serves, []).append(station)
+    for serves, group in sorted(by_target.items()):
+        if len(group) < 2:
+            continue
+        first, *rest = group
+        others = ", ".join(s.name for s in rest)
+        violations.append(Violation(
+            "R2", first.name, rest[0].name,
+            (first.pos.x, first.pos.y),
+            f"'{first.name}' and {others} all serve '{serves}' — a target "
+            f"gets one stop; delete the redundant TransitStation (and "
+            f"scrub it from every destinations tuple) or re-target it to "
+            f"a distinct building/landmark",
+            remediation=(
+                "Redundant stop: in the planet spec's transit_stations "
+                "tuple, delete one of the stations naming this target and "
+                "remove its id from every other station's destinations. "
+                "Move recommendations cannot resolve a duplicate serves "
+                "declaration — re-run the audit after the edit."
+            ),
+        ))
+
+
 def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_DISTANCE) -> list[Violation]:
     """R2: every transit station's declared ``serves`` target must exist
     with an entrance near the station.
@@ -668,15 +773,11 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
     when the R0 gate passes.)
     """
     violations: list[Violation] = []
+    declared: list[tuple[world.Entity, str]] = []
     for station in game_map.entities:
         if not station.transit_station_id:
             continue
-        # place_transit_stations builds station entities without a serves
-        # property; the authored value lives in the city_transit lookup.
-        lookup = (getattr(game_map, "city_transit", None) or {}).get(
-            station.transit_station_id
-        ) or {}
-        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+        serves = _station_serves(game_map, station)
         if not serves:
             # R0 territory — should not happen when the gate is honored,
             # but keep the guard so R2 standalone runs stay correct.
@@ -699,6 +800,7 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
                 ),
             ))
             continue
+        declared.append((station, serves))
         entrance, source = _resolve_target(game_map, serves)
         if entrance is None:
             # Landmarks may legitimately have no door — check the station
@@ -737,16 +839,6 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
                 (station.pos.x, station.pos.y),
                 f"'{station.name}' serves='{serves}' does not match any "
                 f"building or landmark (valid: {', '.join(valid)})",
-            ))
-            continue
-        if entrance is None:
-            violations.append(Violation(
-                "R2",
-                station.name,
-                serves,
-                (station.pos.x, station.pos.y),
-                f"'{station.name}' serves='{serves}' ({source}) has no "
-                f"entrance/door cell",
             ))
             continue
         # R2-4: the station must be REACHABLE from the target entrance by
@@ -791,6 +883,7 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
                             f"closer to it (walkable steps)",
                 },
             ))
+    _flag_duplicate_serves(declared, violations)
     return violations
 
 
@@ -900,7 +993,8 @@ def build_fix_plan(
     # of emitting an unverifiable plan (see main() for the emitted JSON).
     if check_serves_declared(game_map):
         return None
-    violations = check_station_clipping(game_map) + check_serves(game_map)
+    r1_violations = check_station_clipping(game_map)
+    violations = r1_violations + check_serves(game_map)
     if not violations:
         return None
 
@@ -913,24 +1007,32 @@ def build_fix_plan(
 
     # Phase A: decide every station move first (recommendations were
     # computed against the ORIGINAL map; applying them in one batch keeps
-    # the decisions consistent with what the tool reported).
-    for station in stations:
-        station_cells = _footprint(station)
-        pad_zone = _pad_zone(station_cells, game_map, pad_radius)
-        needs_move = any(
-            game_map.tiles[y][x].kind != "transit_bay"
-            for x, y in station_cells | pad_zone
+    # the decisions consistent with what the tool reported). A station
+    # moves when ANY of its R1 checks failed — missing/clipped pad or a
+    # pad shared with another station. Pads are reserved as decided, and
+    # every other station's pad blocks candidates, so two ops can never
+    # resolve to the same pad (or onto a staying station's pad).
+    moving = {v.station for v in r1_violations}
+    entity_blocked: set[tuple[int, int]] = set()
+    for e in others:
+        entity_blocked |= _footprint(e)
+    station_zones = {
+        s.transit_station_id: (
+            _footprint(s) | _pad_zone(_footprint(s), game_map, pad_radius)
         )
-        if not needs_move:
+        for s in stations
+    }
+    reserved: set[tuple[int, int]] = set()
+    for station in stations:
+        if station.name not in moving:
             continue
-        lookup = (getattr(game_map, "city_transit", None) or {}).get(
-            station.transit_station_id
-        ) or {}
-        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+        serves = _station_serves(game_map, station)
         target, _src = _resolve_target(game_map, serves) if serves else (None, None)
-        blocked = set()
-        for e in others:
-            blocked |= _footprint(e)
+        blocked = set(entity_blocked)
+        for sid, zone in station_zones.items():
+            if sid != station.transit_station_id:
+                blocked |= zone
+        blocked |= reserved
         rec = _recommend_location(
             game_map, (station.pos.x, station.pos.y),
             blocked, pad_radius, target=target,
@@ -938,6 +1040,7 @@ def build_fix_plan(
         if rec is None:
             return None  # no valid location: refuse to emit a partial plan
         new_pos = tuple(rec["pos"])
+        reserved |= {new_pos} | _pad_zone({new_pos}, game_map, pad_radius)
         station_moves[station.transit_station_id] = new_pos
         ops.append({
             "seq": len(ops) + 1,

@@ -347,6 +347,109 @@ def test_r0_refusal_names_exact_spec_file_and_pinned_tests():
     assert "tests/test_city_builder.py" in files
 
 
+# ----- R1 check 4: stations never share a pad --------------------------
+
+
+def test_r1_flags_two_stations_sharing_a_pad():
+    """Two stations stacked on one painted pad pass checks 1-3 — check 4
+    must catch the stack (regression: a verified Mars fix-plan once moved
+    two stations onto the same cell)."""
+    bay = {(x, y) for x in range(4, 7) for y in range(4, 7)}
+    game_map = _make_map([
+        _make_entity("Transit: Civic Square", 5, 5, transit_station_id="hub"),
+        _make_entity("Transit: Civic Services", 5, 5, transit_station_id="bounties"),
+    ], bay_cells=bay)
+    violations = city_audit.check_station_clipping(game_map)
+    assert len(violations) == 1
+    v = violations[0]
+    assert v.rule_id == "R1"
+    assert v.station == "Transit: Civic Square"
+    assert v.other == "Transit: Civic Services"
+    assert "share a pad" in v.message
+
+
+def test_r1_recommendation_moves_stacked_station_clear():
+    """The stacked pair's violation carries a move recommendation whose
+    pad does not touch the other station's pad."""
+    bay = {(x, y) for x in range(4, 7) for y in range(4, 7)}
+    game_map = _make_map([
+        _make_entity("Transit: Civic Square", 5, 5, transit_station_id="hub"),
+        _make_entity("Transit: Civic Services", 5, 5, transit_station_id="bounties"),
+    ], bay_cells=bay)
+    violations = city_audit.check_station_clipping(game_map)
+    rec = violations[0].recommendation
+    assert rec is not None
+    rx, ry = rec["pos"]
+    new_zone = {
+        (rx + dx, ry + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+    }
+    assert new_zone.isdisjoint(bay)
+
+
+# ----- R2: duplicate serves targets -------------------------------------
+
+
+def test_r2_flags_duplicate_serves_targets():
+    """Two stations declaring the same serves target are a redundant
+    stop — an explicit delete-or-re-target decision, not a move."""
+    a = _make_entity("Transit: Hub", 5, 5, transit_station_id="hub")
+    a.serves = "bar"
+    b = _make_entity("Transit: Services", 8, 8, transit_station_id="svc")
+    b.serves = "bar"
+    game_map = _make_map([a, b], bay_cells=set())
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (5, 6)},
+    }
+    violations = city_audit.check_serves(game_map)
+    assert len(violations) == 1
+    v = violations[0]
+    assert v.rule_id == "R2"
+    assert "all serve 'bar'" in v.message
+    assert "delete" in v.remediation.lower()
+
+
+def test_r2_allows_distinct_targets():
+    a = _make_entity("Transit: Hub", 5, 5, transit_station_id="hub")
+    a.serves = "bar"
+    b = _make_entity("Transit: Services", 8, 8, transit_station_id="svc")
+    b.serves = "guild"
+    game_map = _make_map([a, b], bay_cells=set())
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (5, 6)},
+        "guild": {"label": "guild", "display_name": "guild", "entrance": (8, 9)},
+    }
+    assert city_audit.check_serves(game_map) == []
+
+
+# ----- Fix plan: pad reservation ----------------------------------------
+
+
+def test_fix_plan_moves_station_off_clean_station_pad():
+    """Phase A must never land a moved station on a staying station's
+    pad, and the patched map must verify."""
+    bay = {(x, y) for x in range(1, 4) for y in range(1, 4)}
+    game_map = _make_map([
+        _make_entity("Transit: A", 2, 2, transit_station_id="a"),
+        _make_entity("Transit: B", 10, 10, transit_station_id="b"),
+    ], bay_cells=bay)
+    game_map.city_transit = {"a": {"serves": "bar"}, "b": {"serves": "guild"}}
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (2, 4)},
+        "guild": {"label": "guild", "display_name": "guild", "entrance": (4, 2)},
+    }
+    plan = city_audit.build_fix_plan(game_map)
+    assert plan is not None and plan["verified"], plan
+    move = next(
+        op for op in plan["ops"]
+        if op["op"] == "move_station" and op["station_id"] == "b"
+    )
+    mx, my = move["to"]
+    new_zone = {
+        (mx + dx, my + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+    }
+    assert new_zone.isdisjoint(bay)
+
+
 # ----- Earth end-to-end ------------------------------------------------
 
 
