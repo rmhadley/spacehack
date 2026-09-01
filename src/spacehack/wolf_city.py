@@ -26,7 +26,7 @@ from .city_kit import (
     add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
-    paint_transit_stops,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -331,9 +331,9 @@ def _paint_market_row(tiles, theme):
     tiles[_MARKET_Y_HI][(_MARKET_X_LO + _MARKET_X_HI) // 2] = _SCRAP_FIRE
 
 
-_BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(155, 165, 180), bg=(62, 68, 78),
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 
@@ -341,10 +341,8 @@ _BAY_TILE = world.Tile(
 # Build entry point
 # ---------------------------------------------------------------------------
 
-def build_wolf_layout(spec, resolve_ship):
-    """Build Wolf 359 b's 120×80 crater pirate outpost."""
-    theme = _readable_city_theme(PIRATE_OUTPOST)
-    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+def _paint_terrain(tiles, theme) -> None:
+    """Lay down the crater floor, yard, and shack furniture."""
     _paint_crater_floor(tiles, theme)
     _paint_landing_pad(tiles, theme)
     _paint_paths(tiles, theme)
@@ -353,6 +351,13 @@ def build_wolf_layout(spec, resolve_ship):
     _paint_market_row(tiles, theme)
     _paint_scraps(tiles)
     _paint_shacks(tiles)
+
+
+def build_wolf_layout(spec, resolve_ship):
+    """Build Wolf 359 b's 120×80 crater pirate outpost."""
+    theme = _readable_city_theme(PIRATE_OUTPOST)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+    _paint_terrain(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -363,7 +368,15 @@ def build_wolf_layout(spec, resolve_ship):
     paint_door_forecourts(
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
     )
-    paint_transit_stops(game_map.tiles, spec, _BAY_TILE)
+    paint_transit_bays(
+        game_map.tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "wolf_")
     set_city_metadata(
         game_map, spec, stamps,

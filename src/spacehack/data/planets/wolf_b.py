@@ -63,17 +63,17 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="centre",
-            pos=world.Position(41, 21),
+            pos=world.Position(17, 24), serves="wolf_spaceport",
             destinations=("depot", "bar"),
         ),
         world.TransitStation(
             id="depot", name="The Stack", district="east yard",
-            pos=world.Position(58, 24),
+            pos=world.Position(54, 25), serves="wolf_depot",
             destinations=("spaceport", "bar"),
         ),
         world.TransitStation(
             id="bar", name="Salty Grave", district="south shelf",
-            pos=world.Position(26, 60),
+            pos=world.Position(20, 60), serves="wolf_bar",
             destinations=("spaceport", "depot"),
         ),
     ),
