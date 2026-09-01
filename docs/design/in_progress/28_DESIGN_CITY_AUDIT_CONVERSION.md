@@ -95,15 +95,17 @@ corpus behind us). One prompt per phase; one commit per city.
 
 PLAYTEST: per city — audit exit 0 ✓ (all six); pinned tests ✓ (barnards_c
 paradigm pin rewritten, sirius station-set pin 3→2); `make check` green at
-every commit ✓. In-game ride check still pending (user).
+every commit ✓. In-game: user validated all six cities via the dev
+city teleport (Shift+T) 2026-09-01 ✓.
 
-### Phase 2 — AC planets (3 stops each)
-- [ ] `ac_planet_1`
-- [ ] `ac_planet_2`
-- [ ] `ac_planet_3`
-- [ ] `proc_planet_1`
+### Phase 2 — AC planets (3 stops each) — COMPLETE 2026-09-01
+- [x] `ac_planet_1` — dropped redundant `crossroads` (intent keeper: `bar`)
+- [x] `ac_planet_2` — dropped redundant `quad` (intent keeper: `lab`), 2 moves, full bay set
+- [x] `ac_planet_3` — dropped redundant `concourse` (intent keeper: `bar`), 1 move
+- [x] `proc_planet_1` — serves tags, 1 move, full bay set, `_paint_terrain` extraction
 
-PLAYTEST: same per-city gate; phase playtest on one AC planet as above.
+PLAYTEST: per-city gate ✓ (all four audit PASS; `make check` 1620 green).
+In-game: pending user Shift+T validation.
 
 ### Phase 3 — 4-stop cities
 - [ ] `blockade`
@@ -158,6 +160,9 @@ rules discovered here become the input for the next tool-design phase
 | 2026-09-01 | tc_b | AUTHORING BUG: `tc_city._BAY_TILE` had `kind="floor"` — bays were painted invisibly with no bay semantics; every stop "passed" visually for years | conversion checklist: verify the bay tile's `kind` is `transit_bay`, not just that `paint_transit_bays` is called |
 | 2026-09-01 | depot, sirius, tc_b | existing bay calls used narrow overwrite sets (e.g. `{"floor","plaza"}`) below the op's validated args | conversion step: upgrade existing calls to the op's overwrite set + `force_center=True` |
 | 2026-09-01 | barnards_c, ross_c, wolf_b | ratchet: builders 44–49 lines → terrain-painter extractions same-commit | recurring; consider a shared kit pattern if a 4th identical extraction appears |
+| 2026-09-01 | ac_planet_1/2/3 | all three AC planets had the same redundant-stop shape (3 stops, 2 targets); intent resolver (station id) picked the keeper each time, no user pause | the Phase-1 "intent before policy" rule held at scale; batched cleanly |
+| 2026-09-01 | ac2/ac3/proc_b | bay calls ran `{"floor","sidewalk","plaza"}` without force_center — same narrow-set upgrade as Phase 1 (now 6 cities total) | near-certain pattern for remaining cities: check call args before assuming wiring is done |
+| 2026-09-01 | proc_planet_1 | verified plan emitted a same-spot "move" (station stays, pad needs carving via op args) — position unchanged, bay-call upgrade was the real fix | a from==to move op is a signal to compare the builder's call args with the op's |
 | | | | |
 
 ## Acceptance criteria
