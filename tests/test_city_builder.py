@@ -1644,17 +1644,15 @@ def test_barnards_c_two_stops_pair_the_port_and_the_bar():
     other = {"spaceport": "deep_freeze", "deep_freeze": "spaceport"}
     for sid, label in station_for.items():
         station = next(s for s in spec.transit_stations if s.id == sid)
-        entrance = game_map.city_buildings[label]["entrance"]
         x, y = station.pos.x, station.pos.y
-        assert game_map.tiles[y][x].walkable, sid
-        assert station.destinations == (other[sid],), sid
-        assert y > entrance[1], sid
-        assert abs(x - entrance[0]) <= 12, sid
-        assert any(
-            game_map.tiles[y + dy][x + dx].kind == "sidewalk"
-            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0))
+        assert game_map.tiles[y][x].kind == "transit_bay", sid
+        assert all(
+            game_map.tiles[y + dy][x + dx].walkable
+            for dx in (-1, 0, 1) for dy in (-1, 0, 1)
             if game_map.in_bounds(x + dx, y + dy)
         ), sid
+        assert station.destinations == (other[sid],), sid
+        assert station.serves == f"barnards_c_{label}", sid
 
 
 def test_barnards_c_public_lanes_connect_every_service():

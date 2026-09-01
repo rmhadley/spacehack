@@ -39,6 +39,7 @@ from .city_kit import (
     add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -352,11 +353,14 @@ def _paint_hazard_toelines(tiles, theme) -> None:
 # ---------------------------------------------------------------------
 
 
-def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
-    """Build the Skimmer Deck's 110x72 atmospheric mining platform."""
-    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
-    # No walled perimeter: the deck plate ends at storm void, not town wall.
-    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
+def _paint_deck(tiles, theme) -> None:
+    """Lay down the Skimmer Deck's plate, plant, and circulation."""
     _paint_void_band(tiles)
     _paint_apron(tiles, theme)
     _paint_deck_shear(tiles)
@@ -369,6 +373,14 @@ def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
     _paint_spine(tiles, theme)
     _paint_connectors(tiles, theme)
     _paint_forecourts(tiles, theme)
+
+
+def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
+    """Build the Skimmer Deck's 110x72 atmospheric mining platform."""
+    theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
+    # No walled perimeter: the deck plate ends at storm void, not town wall.
+    tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
+    _paint_deck(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -381,6 +393,15 @@ def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
         overwrite_kinds=frozenset({"floor"}),
     )
     _paint_hazard_toelines(game_map.tiles, theme)
+    paint_transit_bays(
+        game_map.tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "barnards_c_")
     set_city_metadata(
         game_map, spec, stamps,

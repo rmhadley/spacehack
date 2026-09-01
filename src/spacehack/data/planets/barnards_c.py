@@ -61,12 +61,12 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing field",
-            pos=world.Position(30, 40),
+            pos=world.Position(27, 41), serves="barnards_c_spaceport",
             destinations=("deep_freeze",),
         ),
         world.TransitStation(
             id="deep_freeze", name="Deep Freeze", district="bar quarter",
-            pos=world.Position(93, 22),
+            pos=world.Position(92, 21), serves="barnards_c_bar",
             destinations=("spaceport",),
         ),
     ),
