@@ -932,6 +932,9 @@ python3 tools/city_audit.py --city earth --format json   # exit 1 = violations
 python3 tools/city_audit.py --city earth --fix-plan      # verified edit plan
 ```
 
+When using the city audit tool to validate a city the audit tool itself
+is forbidden from being modified.
+
 The goal is **fast resolution of the issues it finds**:
 
 - `recommendation` gives the validated replacement location (BFS-ranked
@@ -946,5 +949,5 @@ The goal is **fast resolution of the issues it finds**:
   re-run the audit, and expect the only remaining work to be
   map-invisible items (e.g. tests that pinned the old broken state).
 - After fixing, the audit must exit 0. Do not hand-tune around the
-  tool; if the recommendation seems wrong, fix the tool's rule, not the
-  city, and say so in the commit message.
+  tool; if the recommendation seems wrong: stop. Explain to the user so
+  they can make a decision.
