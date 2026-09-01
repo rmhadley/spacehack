@@ -1027,6 +1027,71 @@ def build_fix_plan(
     }
 
 
+# ----- Authoring locations + test impact -------------------------------
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def _spec_relpath(city_id: str) -> str:
+    """Exact repo-relative path of the planet spec defining ``city_id``.
+
+    Imports every ``data/planets`` submodule (all already imported by the
+    spec registry) and returns the one whose ``SPEC.id`` matches.
+    """
+    import importlib
+    import pkgutil
+
+    from spacehack.data import planets as pkg
+
+    for m in pkgutil.iter_modules(pkg.__path__):
+        mod = importlib.import_module(f"spacehack.data.planets.{m.name}")
+        spec_obj = getattr(mod, "SPEC", None)
+        if spec_obj is not None and getattr(spec_obj, "id", None) == city_id:
+            return str(
+                Path(mod.__file__).resolve().relative_to(_repo_root())
+            )
+    return "src/spacehack/data/planets/<unknown>.py"
+
+
+def _builder_entry(city_layout_id: str) -> dict | None:
+    """Module + function of the layout builder for ``city_layout_id``."""
+    import importlib
+
+    from spacehack import city_builder
+
+    entry = (getattr(city_builder, "_LAYOUTS", None) or {}).get(city_layout_id)
+    if not entry:
+        return None
+    mod_name, func_name = entry[0], entry[1]
+    mod = importlib.import_module(f"spacehack.{mod_name}")
+    path = str(Path(mod.__file__).resolve().relative_to(_repo_root()))
+    return {"module": mod_name, "function": func_name, "file": path}
+
+
+def _tests_referencing(city_id: str, *, limit: int = 40) -> list[dict]:
+    """Tests that pin this city: every ``file:line`` in tests/ whose source
+    line mentions the quoted city id (count pins, grandfather tables,
+    per-city test names). Station-id pins on the same lines are covered;
+    the city id is the stable anchor."""
+    hits: list[dict] = []
+    for path in sorted((_repo_root() / "tests").rglob("*.py")):
+        try:
+            lines = path.read_text().splitlines()
+        except OSError:
+            continue
+        rel = str(path.relative_to(_repo_root()))
+        for n, text in enumerate(lines, start=1):
+            if f'"{city_id}"' in text or f"'{city_id}'" in text:
+                hits.append(
+                    {"file": rel, "line": n, "text": text.strip()}
+                )
+                if len(hits) >= limit:
+                    return hits
+    return hits
+
+
 # ----- Output ---------------------------------------------------------
 
 
@@ -1056,6 +1121,71 @@ def report_fix_plan(city_id: str, plan: dict) -> str:
     """JSON report for ``--fix-plan`` (ordered, machine-readable ops)."""
     payload = {"city_id": city_id, **plan}
     return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def r0_refusal_payload(city_id: str, r0: list[Violation]) -> dict:
+    """JSON payload for the ``--fix-plan`` R0 refusal.
+
+    Self-contained and copy-paste ready: per-station suggested ``serves``
+    edits (the R0 check already computed them — never make the caller
+    re-derive), duplicate-suggestion flags (two stations pointed at the
+    same target is a redundant stop — a delete-or-re-target decision the
+    author must make before R1/R2 can produce a consistent plan), the
+    exact spec file, and the tests that pin this city.
+    """
+    suggestions = [
+        (v.recommendation or {}).get("serves") if v.recommendation else None
+        for v in r0
+    ]
+    dupes = sorted({
+        s for s in suggestions if s and suggestions.count(s) > 1
+    })
+    stations = []
+    for v, serves in zip(r0, suggestions):
+        entry: dict = {"station": v.station, "station_pos": list(v.location)}
+        if serves:
+            entry["serves"] = serves
+            entry["edit"] = f'serves="{serves}"'
+        stations.append(entry)
+    payload: dict = {
+        "city_id": city_id,
+        "verified": False,
+        "gate": "R0",
+        "note": (
+            "R0 failed: some transit stations do not declare 'serves'. "
+            "Fix-plan is refused: station-move recommendations are ranked "
+            "by walkable distance to the served target, which is unknown "
+            "without 'serves'. Apply each suggested edit below (override "
+            "if authored intent differs), then re-run this command."
+        ),
+        "how_to_fix": {
+            "file": _spec_relpath(city_id),
+            "place": "transit_stations tuple, inside each "
+                     "world.TransitStation(...)",
+            "edit": "add serves=\"<label>\" to each world.TransitStation(...)",
+            "value": "a building label from spec.buildings or a landmark "
+                     "key without the <city_id>_city_ prefix — the "
+                     "suggested value per station is below",
+            "stations_missing_serves": stations,
+            "next_step": f"re-run: python3 tools/city_audit.py "
+                         f"--city {city_id} --fix-plan",
+        },
+        "ops": [],
+    }
+    if dupes:
+        payload["duplicate_serves_suggestions"] = dupes
+        payload["decision_required"] = (
+            "Multiple stations suggest the same serves target "
+            f"({', '.join(dupes)}): the network has a redundant stop. "
+            "Delete one TransitStation (and scrub it from every "
+            "destinations tuple) or re-target it to a distinct building/"
+            "landmark. A verified fix-plan cannot be produced while two "
+            "stations serve the same target."
+        )
+    tests = _tests_referencing(city_id)
+    if tests:
+        payload["tests_referencing_city"] = tests
+    return payload
 
 
 def report_text(city_id: str, game_map: world.GameMap, violations: list[Violation], *, skipped: list[str] | None = None) -> str:
@@ -1121,43 +1251,10 @@ def main() -> int:
         # verbose, self-contained instruction instead of a partial plan.
         r0 = check_serves_declared(game_map)
         if r0:
-            print(json.dumps({
-                "city_id": args.city,
-                "verified": False,
-                "gate": "R0",
-                "note": (
-                    "R0 failed: some transit stations do not declare "
-                    "'serves'. Fix-plan is refused: station-move "
-                    "recommendations are ranked by walkable distance to "
-                    "the served target, which is unknown without 'serves'. "
-                    "Add serves=\"<building-or-landmark>\" to every "
-                    "TransitStation in the planet spec "
-                    "(src/spacehack/data/planets/<city>.py, transit_stations "
-                    "tuple), then re-run this command."
-                ),
-                "how_to_fix": {
-                    "file": "src/spacehack/data/planets/<city>.py",
-                    "place": "transit_stations tuple, inside each "
-                             "world.TransitStation(...)",
-                    "edit": "add serves=\"<label>\" to each "
-                            "world.TransitStation(...)",
-                    "value": "a building label from spec.buildings "
-                             "(e.g. 'bar', 'militia', 'spaceport') or a "
-                             "landmark key without the <city_id>_city_ "
-                             "prefix (e.g. 'plaza')",
-                    "example": "world.TransitStation(\n    id=\"bar\", "
-                               "name=\"Bar District\", district=\"waterfront\", "
-                               "pos=world.Position(121, 23), serves=\"bar\", "
-                               "destinations=(\"port\", \"hub\"),\n)",
-                    "stations_missing_serves": [
-                        {"station": v.station, "station_pos": list(v.location)}
-                        for v in r0
-                    ],
-                    "next_step": "re-run: python3 tools/city_audit.py "
-                                 "--city " + args.city + " --fix-plan",
-                },
-                "ops": [],
-            }, ensure_ascii=False, indent=2))
+            print(json.dumps(
+                r0_refusal_payload(args.city, r0),
+                ensure_ascii=False, indent=2,
+            ))
             return 1
         plan = build_fix_plan(game_map)
         if plan is None:

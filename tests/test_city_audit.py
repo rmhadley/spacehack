@@ -295,6 +295,58 @@ def test_dump_map_without_buildings_metadata_yields_empty():
     assert payload["buildings"] == {}
 
 
+# ----- R0 fix-plan refusal payload --------------------------------------
+
+
+def _r0_map_with_target():
+    """A station missing serves + one nearby building to suggest."""
+    game_map = _make_map([
+        _make_entity("Transit: Hub", 5, 5, transit_station_id="hub"),
+    ], bay_cells=set())
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (6, 6)},
+    }
+    return game_map
+
+
+def test_r0_refusal_includes_per_station_serves_edit():
+    r0 = city_audit.check_serves_declared(_r0_map_with_target())
+    payload = city_audit.r0_refusal_payload("testplanet", r0)
+    stations = payload["how_to_fix"]["stations_missing_serves"]
+    assert stations == [{
+        "station": "Transit: Hub",
+        "station_pos": [5, 5],
+        "serves": "bar",
+        "edit": 'serves="bar"',
+    }]
+
+
+def test_r0_refusal_flags_duplicate_suggestions():
+    game_map = _make_map([
+        _make_entity("Transit: A", 5, 5, transit_station_id="a"),
+        _make_entity("Transit: B", 7, 7, transit_station_id="b"),
+    ], bay_cells=set())
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (6, 6)},
+    }
+    r0 = city_audit.check_serves_declared(game_map)
+    payload = city_audit.r0_refusal_payload("testplanet", r0)
+    assert payload["duplicate_serves_suggestions"] == ["bar"]
+    assert "redundant stop" in payload["decision_required"]
+    assert "Delete one TransitStation" in payload["decision_required"]
+
+
+def test_r0_refusal_names_exact_spec_file_and_pinned_tests():
+    payload = city_audit.r0_refusal_payload(
+        "earth", [city_audit.Violation(
+            "R0", "Transit: Hub", "(no serves field)", (0, 0), "x",
+        )],
+    )
+    assert payload["how_to_fix"]["file"] == "src/spacehack/data/planets/earth.py"
+    files = {hit["file"] for hit in payload["tests_referencing_city"]}
+    assert "tests/test_city_builder.py" in files
+
+
 # ----- Earth end-to-end ------------------------------------------------
 
 
