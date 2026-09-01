@@ -78,7 +78,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="depot", name="Reclaim Store", district="upper deck east",
-            pos=world.Position(99, 20), serves="lal_depot",
+            pos=world.Position(97, 21), serves="lal_depot",
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),
