@@ -64,22 +64,22 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west pad",
-            pos=world.Position(45, 17),
+            pos=world.Position(18, 22), serves="cygni_spaceport",
             destinations=("bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="The Anvil", district="forge row",
-            pos=world.Position(126, 59),
+            pos=world.Position(119, 59), serves="cygni_bar",
             destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Merchant Guild", district="port south",
-            pos=world.Position(16, 60),
+            pos=world.Position(12, 61), serves="cygni_merchants",
             destinations=("spaceport", "bar", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Station House", district="forge south",
-            pos=world.Position(134, 86),
+            pos=world.Position(136, 86), serves="cygni_militia",
             destinations=("spaceport", "bar", "merchants"),
         ),
     ),

@@ -24,7 +24,7 @@ from .city_kit import (
     add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
-    paint_transit_stops,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -343,9 +343,9 @@ def _paint_grass_patches(tiles, theme):
                 tiles[y][x] = theme.grass
 
 
-_BAY_TILE = world.Tile(
-    kind="floor", char=" ", walkable=True,
-    fg=(155, 120, 80), bg=(90, 55, 30),
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 
@@ -353,10 +353,8 @@ _BAY_TILE = world.Tile(
 # Build entry point
 # ---------------------------------------------------------------------------
 
-def build_cygni_layout(spec, resolve_ship):
-    """Build Cygni b's 160×100 port-and-forge shipyard colony."""
-    theme = _readable_city_theme(DESERT)
-    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+def _paint_terrain(tiles, theme) -> None:
+    """Lay down Cygni b's ground: scrub, haul road, pads, forges, rows."""
     _paint_grass_patches(tiles, theme)
     _paint_haul_road(tiles, theme)
     _paint_landing_pad(tiles, theme)
@@ -370,6 +368,13 @@ def build_cygni_layout(spec, resolve_ship):
     _paint_forge_yards(tiles)
     _paint_yard_details(tiles)
     _paint_worker_row(tiles)
+
+
+def build_cygni_layout(spec, resolve_ship):
+    """Build Cygni b's 160×100 port-and-forge shipyard colony."""
+    theme = _readable_city_theme(DESERT)
+    tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
+    _paint_terrain(tiles, theme)
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
         tiles=tiles, entities=[],
@@ -380,9 +385,14 @@ def build_cygni_layout(spec, resolve_ship):
     paint_door_forecourts(
         game_map.tiles, theme, spec, width=CITY_WIDTH, height=CITY_HEIGHT,
     )
-    paint_transit_stops(
-        game_map.tiles, spec, _BAY_TILE,
-        skip_kinds=frozenset({"landing_pad"}),
+    paint_transit_bays(
+        game_map.tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     paint_roof_labels(game_map, stamps, "cygni_")
     set_city_metadata(
