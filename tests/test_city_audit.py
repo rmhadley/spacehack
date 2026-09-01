@@ -680,3 +680,59 @@ def test_earth_recommendations_and_remediation():
     assert violations == [], (
         "earth must pass R1; got: " + [(v.station, v.message) for v in violations]
     )
+
+
+# ----- R1 check 5: pads never cover a door approach ---------------------
+
+
+def _map_with_door(bay_cells, station_pos, entrance):
+    game_map = _make_map([
+        _make_entity("Transit: Bar", *station_pos, transit_station_id="bar"),
+    ], bay_cells=bay_cells)
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": entrance},
+    }
+    return game_map
+
+
+def test_r1_flags_pad_covering_door_approach():
+    """A pad cell orthogonally adjacent to an entrance blocks the front
+    walk (groom_b/ross_b regression)."""
+    x, y = 5, 5
+    bay = {(x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    game_map = _map_with_door(bay, (x, y), entrance=(5, 3))  # (5,4) fronts door
+    violations = city_audit.check_station_clipping(game_map)
+    assert any(
+        v.other == "door approach" and v.location == (5, 4)
+        for v in violations
+    )
+
+
+def test_r1_allows_pad_beside_the_front_walk():
+    """Same geometry shifted one cell east: the pad flanks the approach
+    and no door-approach violation fires."""
+    x, y = 7, 5
+    bay = {(x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    game_map = _map_with_door(bay, (x, y), entrance=(5, 3))
+    violations = [
+        v for v in city_audit.check_station_clipping(game_map)
+        if v.other == "door approach"
+    ]
+    assert violations == []
+
+
+def test_recommendation_avoids_door_approach_cells():
+    """When a station must move, the recommended pad may not cover any
+    door-approach cell."""
+    game_map = _make_map([
+        _make_entity("Transit: Bar", 5, 5, transit_station_id="bar"),
+    ], bay_cells=set())
+    game_map.city_buildings = {
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (5, 6)},
+    }
+    violations = city_audit.check_station_clipping(game_map)
+    rec = violations[0].recommendation
+    assert rec is not None
+    rx, ry = rec["pos"]
+    zone = {(rx + dx, ry + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    assert zone.isdisjoint({(5, 5), (6, 6), (4, 6), (5, 7)})

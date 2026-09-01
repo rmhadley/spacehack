@@ -171,6 +171,24 @@ def _footprint(entity: world.Entity) -> set[tuple[int, int]]:
     }
 
 
+def _door_approach_cells(game_map: world.GameMap) -> set[tuple[int, int]]:
+    """Orthogonal neighbours of every building entrance (the front walk).
+
+    A transit pad may never cover one: the stop sits beside the door's
+    approach, not on it. Entrances without a recorded door are skipped.
+    """
+    cells: set[tuple[int, int]] = set()
+    for rec in (getattr(game_map, "city_buildings", {}) or {}).values():
+        entrance = rec.get("entrance")
+        if not entrance:
+            continue
+        x, y = entrance
+        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+            if game_map.in_bounds(x + dx, y + dy):
+                cells.add((x + dx, y + dy))
+    return cells
+
+
 def _station_serves(game_map: world.GameMap, station: world.Entity) -> str:
     """Authored ``serves`` for a station entity (entity attr, else the
     ``city_transit`` lookup ``place_transit_stations`` populated)."""
@@ -262,11 +280,16 @@ def check_station_clipping(
        entity, pad included.
     4. No two stations may share a pad (footprint on the other's
        footprint or pad zone).
+    5. The pad may not cover a building's door approach — the cells
+       orthogonally adjacent to an entrance. A stop sits BESIDE the
+       door's front walk, never on it (found on groom_b/ross_b, where
+       proximity-ranked pads landed directly under doors).
 
     Every failing station gets a recommended alternative location,
-    ranked away from every other station's pad; stations diagnosed as
-    authored the old way (no bay tiles at all) also get the remediation
-    text describing the correct authoring method.
+    ranked away from every other station's pad and from all door
+    approaches; stations diagnosed as authored the old way (no bay
+    tiles at all) also get the remediation text describing the correct
+    authoring method.
     """
     stations = [e for e in game_map.entities if e.transit_station_id]
     others = [e for e in game_map.entities if not e.transit_station_id]
@@ -275,6 +298,8 @@ def check_station_clipping(
     for s in stations:
         cells = _footprint(s)
         station_pads.append((s, cells, _pad_zone(cells, game_map, pad_radius)))
+
+    door_cells = _door_approach_cells(game_map)
 
     # All non-station entity footprint cells block candidate locations;
     # every OTHER station's footprint+pad zone blocks them too, so a
@@ -323,10 +348,24 @@ def check_station_clipping(
                     f"'{station.name}' clips '{other.name}' at {cell}",
                 ))
 
+        # Check 5: the pad may not cover a building door approach —
+        # the stop belongs beside the front walk, never on it.
+        approach = protected & door_cells
+        if approach:
+            cell = min(approach)
+            violations.append(Violation(
+                "R1",
+                station.name,
+                "door approach",
+                cell,
+                f"'{station.name}' pad covers a building door approach at "
+                f"{cell} — move the stop beside the door, not in front of it",
+            ))
+
         # Remediation: attach a recommendation to the station's FIRST
-        # violation (checks 1-3).
+        # violation (checks 1-3, 5).
         if len(violations) > first:
-            blocked = entity_blocked | _other_station_cells(station)
+            blocked = entity_blocked | door_cells | _other_station_cells(station)
             violations[first] = _decorate_with_recommendation(
                 game_map, station, blocked, pad_radius, violations[first],
             )
@@ -338,7 +377,7 @@ def check_station_clipping(
     for pair in _check_station_overlaps(station_pads):
         if pair.station not in decorated:
             station = next(s for s, _c, _z in station_pads if s.name == pair.station)
-            blocked = entity_blocked | _other_station_cells(station)
+            blocked = entity_blocked | door_cells | _other_station_cells(station)
             pair = _decorate_with_recommendation(
                 game_map, station, blocked, pad_radius, pair,
             )
@@ -967,6 +1006,9 @@ def build_fix_plan(
     entity_blocked: set[tuple[int, int]] = set()
     for e in others:
         entity_blocked |= _footprint(e)
+    # Door approaches block candidates: a recommended pad must sit beside
+    # the front walk, never on it (R1 check 5).
+    entity_blocked |= _door_approach_cells(game_map)
     station_zones = {
         s.transit_station_id: (
             _footprint(s) | _pad_zone(_footprint(s), game_map, pad_radius)
