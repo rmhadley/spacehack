@@ -55,18 +55,13 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing apron",
-            pos=world.Position(18, 15),
-            destinations=("crossroads", "bar"),
-        ),
-        world.TransitStation(
-            id="crossroads", name="Crossroads", district="town center",
-            pos=world.Position(45, 45),
-            destinations=("spaceport", "bar"),
+            pos=world.Position(18, 15), serves="ac1_spaceport",
+            destinations=("bar"),
         ),
         world.TransitStation(
             id="bar", name="The Claim", district="east end",
-            pos=world.Position(75, 60),
-            destinations=("spaceport", "crossroads"),
+            pos=world.Position(75, 60), serves="ac1_bar",
+            destinations=("spaceport"),
         ),
     ),
     interior_layouts=(
