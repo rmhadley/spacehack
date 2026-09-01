@@ -58,23 +58,18 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing bay",
-            pos=world.Position(18, 15),
-            destinations=("plaza", "militia", "bounties"),
-        ),
-        world.TransitStation(
-            id="plaza", name="Command Plaza", district="mid-deck",
-            pos=world.Position(49, 37),
-            destinations=("spaceport", "militia", "bounties"),
+            pos=world.Position(16, 14), serves="blockade_north_spaceport",
+            destinations=("militia", "bounties"),
         ),
         world.TransitStation(
             id="militia", name="Militia Command", district="SE deck",
-            pos=world.Position(71, 49),
-            destinations=("spaceport", "plaza", "bounties"),
+            pos=world.Position(72, 50), serves="blockade_north_militia",
+            destinations=("spaceport", "bounties"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Office", district="SW deck",
-            pos=world.Position(15, 49),
-            destinations=("spaceport", "plaza", "militia"),
+            pos=world.Position(15, 49), serves="blockade_north_bounties",
+            destinations=("spaceport", "militia"),
         ),
     ),
     interior_layouts=(

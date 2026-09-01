@@ -275,7 +275,11 @@ def _finish_blockade_north(spec, resolve_ship, tiles, theme):
     )
     paint_transit_bays(
         game_map.tiles, spec, BAY, width=CITY_WIDTH, height=CITY_HEIGHT,
-        overwrite_kinds=frozenset({"floor", "plaza"}),
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
     _seal_dead_deck(game_map.tiles, spec.hangar_anchor)
     paint_roof_labels(game_map, stamps, "blockade_north_")
