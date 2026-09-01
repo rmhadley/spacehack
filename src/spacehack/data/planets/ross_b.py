@@ -81,19 +81,19 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="bar", name="The Flare Line", district="NE vent",
             # Below the south-facing door.
-            pos=world.Position(99, 11), serves="ross_bar",
+            pos=world.Position(101, 11), serves="ross_bar",
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
             id="bounties", name="Bounty Office", district="SW shelf",
             # Below the north-facing door (south of building).
-            pos=world.Position(18, 65), serves="bounties",
+            pos=world.Position(19, 65), serves="bounties",
             destinations=("spaceport", "bar", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Depot", district="SE shelf",
             # Below the north-facing door (south of building).
-            pos=world.Position(103, 54), serves="ross_depot",
+            pos=world.Position(106, 54), serves="ross_depot",
             destinations=("spaceport", "bar", "bounties"),
         ),
     ),
