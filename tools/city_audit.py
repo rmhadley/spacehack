@@ -17,8 +17,17 @@ Step 2: run validation rules against that map. Currently one rule:
 Usage:
     python3 tools/city_audit.py --city earth
     python3 tools/city_audit.py --city earth --format text
+    python3 tools/city_audit.py --city earth --fix-plan   # verified edit plan
 
 Exit codes: 0 = no violations, 1 = violations found.
+
+With ``--fix-plan`` the tool goes one step further: it applies its own
+recommendations to the in-memory map (move stations to the recommended
+pad locations, carve transit bays with the parameters it validated,
+relocate clipped ambient NPCs to the nearest clear walkable cell),
+re-runs every check on the patched map, and emits the ordered edit plan
+**only if the patched map passes**. Every emitted op is therefore a
+claim the tool has personally executed and verified — not advice.
 """
 
 from __future__ import annotations
@@ -688,6 +697,233 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
     return violations
 
 
+# ----- Step 4: verified fix plan --------------------------------------
+
+
+def _make_bay_tile() -> world.Tile:
+    """Canonical transit bay tile used by the authored cities."""
+    return world.Tile(
+        kind="transit_bay", char="=", walkable=True,
+        fg=(0, 229, 255), bg=(30, 68, 92),
+    )
+
+
+def _patch_paint_bays(
+    game_map: world.GameMap,
+    station_cells: dict[str, tuple[int, int]],
+) -> None:
+    """Carve a 3x3 transit bay around every (moved) station cell.
+
+    ``force_center`` semantics: the centre cell is written
+    unconditionally; the 8 neighbours only when their kind is a
+    paintable ground kind (never roads, pads, sidewalks, buildings,
+    water — those would corrupt the city's street network).
+    """
+    bay = _make_bay_tile()
+    paintable = {
+        "floor", "grass", "grass_accent", "plaza", "city_plaza",
+        "sidewalk", "landing_pad", "transit_bay",
+    }
+    for x, y in station_cells.values():
+        for dyc in (-1, 0, 1):
+            for dxc in (-1, 0, 1):
+                nx, ny = x + dxc, y + dyc
+                if not game_map.in_bounds(nx, ny):
+                    continue
+                if dxc == 0 and dyc == 0:
+                    game_map.tiles[ny][nx] = bay
+                    continue
+                if game_map.tiles[ny][nx].kind in paintable:
+                    game_map.tiles[ny][nx] = bay
+
+
+def _patch_move_station(
+    game_map: world.GameMap,
+    station: world.Entity,
+    new_pos: tuple[int, int],
+) -> None:
+    """Move one station entity (1x1 footprint) to ``new_pos``."""
+    station.pos = world.Position(new_pos[0], new_pos[1])
+
+
+def _patch_move_npc(
+    game_map: world.GameMap,
+    npc: world.Entity,
+    new_pos: tuple[int, int],
+) -> None:
+    """Move one ambient NPC entity to ``new_pos``."""
+    npc.pos = world.Position(new_pos[0], new_pos[1])
+
+
+def _nearest_clear_cell(
+    game_map: world.GameMap,
+    origin: tuple[int, int],
+    protected: set[tuple[int, int]],
+    max_radius: int = 20,
+) -> tuple[int, int] | None:
+    """Nearest walkable, unblocked cell outside ``protected`` by ring
+    distance (deterministic: ring order, then lower y, then lower x)."""
+    for r in range(1, max_radius + 1):
+        candidates = []
+        for dyc in range(-r, r + 1):
+            for dxc in range(-r, r + 1):
+                if max(abs(dxc), abs(dyc)) != r:
+                    continue
+                nx, ny = origin[0] + dxc, origin[1] + dyc
+                if not game_map.in_bounds(nx, ny):
+                    continue
+                tile = game_map.tiles[ny][nx]
+                if not tile.walkable or tile.kind in _FORBIDDEN_PAD_KINDS:
+                    continue
+                if (nx, ny) in protected:
+                    continue
+                candidates.append((ny, nx))
+        if candidates:
+            y, x = min(candidates)
+            return (x, y)
+    return None
+
+
+def build_fix_plan(
+    game_map: world.GameMap,
+    *,
+    pad_radius: int = 1,
+) -> dict | None:
+    """Apply recommendations to the in-memory map, verify, emit the plan.
+
+    Returns ``None`` when the map already passes (nothing to fix) or when
+    the patched map still fails (the tool refuses to emit an unverified
+    plan). On success the returned dict contains an ordered ``ops`` list
+    tagged with the authoring stage each edit belongs to, plus the final
+    check summary.
+    """
+    violations = check_station_clipping(game_map) + check_serves(game_map)
+    if not violations:
+        return None
+
+    ops: list[dict] = []
+    station_moves: dict[str, tuple[int, int]] = {}
+    npc_moves: list[tuple[world.Entity, tuple[int, int], tuple[int, int]]] = []
+
+    stations = [e for e in game_map.entities if e.transit_station_id]
+    others = [e for e in game_map.entities if not e.transit_station_id]
+
+    # Phase A: decide every station move first (recommendations were
+    # computed against the ORIGINAL map; applying them in one batch keeps
+    # the decisions consistent with what the tool reported).
+    for station in stations:
+        station_cells = _footprint(station)
+        pad_zone = _pad_zone(station_cells, game_map, pad_radius)
+        needs_move = any(
+            game_map.tiles[y][x].kind != "transit_bay"
+            for x, y in station_cells | pad_zone
+        )
+        if not needs_move:
+            continue
+        lookup = (getattr(game_map, "city_transit", None) or {}).get(
+            station.transit_station_id
+        ) or {}
+        serves = getattr(station, "serves", "") or lookup.get("serves", "") or ""
+        target, _src = _resolve_target(game_map, serves) if serves else (None, None)
+        blocked = set()
+        for e in others:
+            blocked |= _footprint(e)
+        rec = _recommend_location(
+            game_map, (station.pos.x, station.pos.y),
+            blocked, pad_radius, target=target,
+        )
+        if rec is None:
+            return None  # no valid location: refuse to emit a partial plan
+        new_pos = tuple(rec["pos"])
+        station_moves[station.transit_station_id] = new_pos
+        ops.append({
+            "seq": len(ops) + 1,
+            "op": "move_station",
+            "stage": "data/planets/<city>.py transit_stations pos",
+            "station": station.name,
+            "station_id": station.transit_station_id,
+            "from": [station.pos.x, station.pos.y],
+            "to": list(new_pos),
+            "basis": rec,
+        })
+
+    # Phase B: apply station moves + paint bays on the in-memory map.
+    by_id = {s.transit_station_id: s for s in stations}
+    for sid, new_pos in station_moves.items():
+        _patch_move_station(game_map, by_id[sid], new_pos)
+    _patch_paint_bays(game_map, station_moves)
+    if station_moves:
+        ops.append({
+            "seq": len(ops) + 1,
+            "op": "paint_transit_bays",
+            "stage": "layout builder, after terrain painters and door forecourts",
+            "args": {
+                "overwrite_kinds": [
+                    "floor", "grass", "grass_accent", "plaza",
+                    "city_plaza", "sidewalk", "landing_pad",
+                ],
+                "force_center": True,
+                "bay_tile": {
+                    "kind": "transit_bay", "char": "=", "walkable": True,
+                },
+            },
+        })
+
+    # Phase C: relocate clipped ambient NPCs (pad zones recomputed on the
+    # patched map). Only entities that actually sit inside a protected
+    # zone move, and only to the nearest clear walkable cell.
+    stations = [e for e in game_map.entities if e.transit_station_id]
+    others = [e for e in game_map.entities if not e.transit_station_id]
+    protected_all: set[tuple[int, int]] = set()
+    for station in stations:
+        protected_all |= _footprint(station)
+        protected_all |= _pad_zone(_footprint(station), game_map, pad_radius)
+    for npc in others:
+        if not getattr(npc, "city_npc_id", None):
+            continue  # terminals/ships are authored fixtures, not roamed
+        overlap = protected_all & _footprint(npc)
+        if not overlap:
+            continue
+        cell = min(overlap)
+        new_pos = _nearest_clear_cell(game_map, (npc.pos.x, npc.pos.y), protected_all)
+        if new_pos is None:
+            return None
+        npc_moves.append((npc, (npc.pos.x, npc.pos.y), new_pos))
+        ops.append({
+            "seq": len(ops) + 1,
+            "op": "move_npc",
+            "stage": "data/city_npcs.py spawn anchor",
+            "entity": npc.name,
+            "entity_id": npc.city_npc_id,
+            "from": [npc.pos.x, npc.pos.y],
+            "to": list(new_pos),
+            "reason": f"clips station pad zone at {list(cell)}",
+        })
+    for npc, _old, new_pos in npc_moves:
+        _patch_move_npc(game_map, npc, new_pos)
+
+    # Phase D: verify. The plan is only emitted if the patched map passes.
+    residual = check_station_clipping(game_map) + check_serves(game_map)
+    if residual:
+        return {
+            "verified": False,
+            "residual_violations": [
+                {
+                    "rule_id": v.rule_id,
+                    "station": v.station,
+                    "message": v.message,
+                }
+                for v in residual[:10]
+            ],
+            "ops": ops,
+        }
+    return {
+        "verified": True,
+        "note": "all R1/R2 checks pass on the patched in-memory map",
+        "ops": ops,
+    }
+
+
 # ----- Output ---------------------------------------------------------
 
 
@@ -707,6 +943,12 @@ def report_json(city_id: str, game_map: world.GameMap, violations: list[Violatio
         for v in violations
     ]
     payload["passed"] = not violations
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def report_fix_plan(city_id: str, plan: dict) -> str:
+    """JSON report for ``--fix-plan`` (ordered, machine-readable ops)."""
+    payload = {"city_id": city_id, **plan}
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -747,6 +989,11 @@ def main() -> int:
         "--format", choices=("json", "text"), default="json",
         help="output format (default: json)",
     )
+    parser.add_argument(
+        "--fix-plan", action="store_true",
+        help="apply recommendations to the in-memory map, verify, and emit "
+             "a machine-readable edit plan (JSON only)",
+    )
     args = parser.parse_args()
 
     try:
@@ -754,6 +1001,19 @@ def main() -> int:
     except KeyError:
         print(f"Unknown city id: {args.city}", file=sys.stderr)
         return 1
+
+    if args.fix_plan:
+        plan = build_fix_plan(game_map)
+        if plan is None:
+            print(json.dumps({
+                "city_id": args.city,
+                "verified": True,
+                "note": "map already passes; nothing to fix",
+                "ops": [],
+            }, ensure_ascii=False, indent=2))
+            return 0
+        print(report_fix_plan(args.city, plan))
+        return 0 if plan.get("verified") else 1
 
     violations = check_station_clipping(game_map) + check_serves(game_map)
 
