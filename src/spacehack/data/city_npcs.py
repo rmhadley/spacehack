@@ -209,7 +209,7 @@ GROOM_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("groom_pad_crew_a", "civillian_bystander", (13, 33), wander_radius=8, move_chance=0.8),
     CityNpc("groom_pad_crew_b", "civillian_bystander", (22, 32), wander_radius=8, move_chance=0.8),
     # Loiterers outside The Last Gate -- one of them is bad news.
-    CityNpc("groom_bar_regular", "civillian_bystander", (54, 25), wander_radius=5, move_chance=0.8),
+    CityNpc("groom_bar_regular", "civillian_bystander", (53, 24), wander_radius=5, move_chance=0.8),
     CityNpc("groom_gate_shade", "pirate_raider", (64, 26), wander_radius=6, move_chance=0.75),
     # Bounty hunters waiting on the office steps.
     CityNpc("groom_hunter_a", "militia_trooper", (43, 60), wander_radius=6, move_chance=0.8),

@@ -83,7 +83,7 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="bar", name="The Last Gate", district="mid-town",
             # East of the door approach.
-            pos=world.Position(56, 24), serves="groom_bar",
+            pos=world.Position(55, 24), serves="groom_bar",
             destinations=("spaceport", "bounties", "depot"),
         ),
         world.TransitStation(
