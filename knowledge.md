@@ -921,15 +921,17 @@ Any issue found is blocking: fix it before commit, even if the change ``works.``
 ## City audit tool workflow (trusted diagnostic — use it first)
 
 `tools/city_audit.py` is the authoritative diagnostic for transit
-station pad integrity (R1) and serves-target wiring (R2). It builds the
-city through the real production pipeline, so its verdict reflects what
-the game will actually run. **When it reports a failure, trust it and
-execute its recommendation directly — do not re-derive the fix from
-scratch or go read other city modules for patterns.**
+station pad integrity (R1), serves-target wiring (R2), and the serves
+gate (R0). It builds the city through the real production pipeline, so
+its verdict reflects what the game will actually run. **When it reports
+a failure, trust it and execute its recommendation directly — do not
+re-derive the fix from scratch or go read other city modules for
+patterns.**
 
 ```bash
-python3 tools/city_audit.py --city earth --format json   # exit 1 = violations
-python3 tools/city_audit.py --city earth --fix-plan      # verified edit plan
+python3 tools/city_audit.py --city earth                # summary verdict (default)
+python3 tools/city_audit.py --city earth --format json  # full tile dump
+python3 tools/city_audit.py --city earth --fix-plan     # verified edit plan
 ```
 
 **Always run `--fix-plan` FIRST, before reading the plain audit output.**
@@ -951,6 +953,19 @@ The goal is **fast resolution of the issues it finds**:
   reason not to.
 - `remediation` explains the authoring-level fix (e.g. call
   `paint_transit_bays` in the layout builder). Follow it literally.
+- **R0 refusals include the exact per-station `serves` edit** — apply
+  the suggested values straight from the tool output; never re-derive
+  them by reading city modules. If two stations get the same suggestion,
+  the output says so: that is a redundant stop. **Stop and ask the user
+  immediately** — delete the redundant station or re-target it is their
+  call, and asking takes seconds.
+- R1 flags stations sharing a pad and R2 flags duplicate `serves`
+  targets; `--fix-plan` reserves pads as it decides moves, so a verified
+  plan can never double-book a pad. Move ops and the bay op name the
+  exact files to edit.
+- Plans and refusals list `tests_referencing_city` — tests that pin the
+  city. After applying ops, run them before the full gate:
+  `python3 -m pytest tests/test_city_builder.py -k <city>`.
 - `--fix-plan` goes further: the tool applies its own recommendations to
   the in-memory map (station moves, bay carving, clipped-NPC
   relocation), re-runs every check, and emits an ordered, machine-
