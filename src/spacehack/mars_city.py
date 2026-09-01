@@ -9,7 +9,7 @@ The shared city stamping/transit/NPC machinery remains data-driven.
 from __future__ import annotations
 
 from . import world
-from .city_kit import add_service_terminals, add_showroom_ships
+from .city_kit import add_service_terminals, add_showroom_ships, paint_transit_bays
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -56,19 +56,15 @@ _AVENUES_X: tuple[tuple[int, int, int], ...] = (
 _PLAZA_X_LO, _PLAZA_X_HI = 57, 76
 _PLAZA_Y_LO, _PLAZA_Y_HI = 31, 45
 
-# Transit platforms and civic fixtures are authored onto sidewalk/plaza cells
-# before the skyline pass, which reserves those cells from procedural roofs.
-_STATION_PADS: tuple[tuple[int, int], ...] = (
-    (35, 87),   # spaceport pad, beside the logistics boulevard
-    (76, 46),   # civic square, beside the central boulevard
-    (111, 22),  # north entertainment district
-    (43, 31),   # west merchant district
-    (125, 72),  # east security district
-    (83, 39),   # civic services / bounty hall
+# Transit boarding bay: cyan tile with kind "transit_bay" (same visual
+# language as the other authored cities). Painted by _paint_transit_bays
+# after all terrain painters so nothing repaints over the bays.
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
 )
 
 _NEON_POSITIONS: tuple[tuple[int, int], ...] = (
-    (35, 87), (76, 46), (111, 22), (43, 31), (125, 72), (83, 39),
     (52, 24), (67, 24), (94, 24), (138, 24),
     (52, 48), (95, 48), (112, 48), (138, 48),
     (52, 75), (94, 75), (112, 75), (138, 75),
@@ -145,18 +141,25 @@ def _paint_plaza(tiles, theme) -> None:
         tiles[y][x] = CITY_ORNAMENT
 
 
-def _paint_station_pads(tiles, theme) -> None:
-    """Reserve one-cell pads beside sidewalks without consuming them."""
-    for x, y in _STATION_PADS:
-        if tiles[y][x].walkable and tiles[y][x].kind not in {"road", "landing_pad"}:
-            tiles[y][x] = theme.plaza
+def _paint_transit_bays(tiles, spec) -> None:
+    """Carve a 3x3 bay under and around every transit station.
 
-
-def _restore_station_pads(game_map, theme) -> None:
-    """Restore transit pads after door routes have painted sidewalks."""
-    for x, y in _STATION_PADS:
-        if game_map.tiles[y][x].walkable:
-            game_map.tiles[y][x] = theme.plaza
+    Runs AFTER all terrain painters so nothing repaints over the bays.
+    ``force_center`` guarantees the station cell itself becomes a bay
+    even when it sits on a protected kind (road/plaza/landing pad);
+    ``overwrite_kinds`` covers every ground kind Mars uses so the rest
+    of the 3x3 zone is carved too. Roads, pads, sidewalks and building
+    tiles stay untouched outside the zone.
+    """
+    paint_transit_bays(
+        tiles, spec, _TRANSIT_BAY_TILE,
+        width=MARS_CITY_WIDTH, height=MARS_CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
 
 
 def _paint_red_terrain(tiles, theme) -> None:
@@ -190,10 +193,7 @@ def _paint_player_berth(tiles, theme, spec) -> None:
 
 def _paint_decorations(tiles, theme) -> None:
     """Place restrained signal lights around public spaces and roads."""
-    station_pads = set(_STATION_PADS)
     for x, y in _NEON_POSITIONS:
-        if (x, y) in station_pads:
-            continue
         if tiles[y][x].kind in {"sidewalk", "plaza", "landing_pad"}:
             tiles[y][x] = theme.neon
     for x, y in _ORNAMENT_POSITIONS:
@@ -224,7 +224,6 @@ def _new_mars_map(spec) -> world.GameMap:
     _paint_road_corridors(tiles, theme)
     _paint_sidewalks(tiles, theme)
     _paint_plaza(tiles, theme)
-    _paint_station_pads(tiles, theme)
     _paint_port_apron(tiles, theme, spec)
     _paint_player_berth(tiles, theme, spec)
     _paint_decorations(tiles, theme)
@@ -269,7 +268,7 @@ def build_mars_layout(spec, resolve_ship) -> world.GameMap:
     stamps = stamp_city_assets(
         game_map, LANDMARK_ORIGINS, sidewalk=_colony_theme().sidewalk,
     )
-    _restore_station_pads(game_map, _colony_theme())
+    _paint_transit_bays(game_map.tiles, spec)
     paint_roof_labels(game_map, stamps, "mars_")
     paint_skyline(
         game_map,

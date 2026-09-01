@@ -11,8 +11,8 @@ transit spine organize the dense city north of it.
   * militia — east security district.
   * bounties — civic-services block beside the central square.
 
-Transit network (6 stops): spaceport, civic square, entertainment,
-merchant district, security district, and civic services.
+Transit network (5 stops): spaceport, entertainment, merchant district,
+security district, and civic services.
 
 Central feature: a formal civic square with a terraforming beacon.
 
@@ -71,33 +71,28 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="port", name="Spaceport", district="spaceport",
-            pos=world.Position(35, 87),
-            destinations=("hub", "bar", "merchants", "militia", "bounties"),
-        ),
-        world.TransitStation(
-            id="hub", name="Civic Square", district="civic",
-            pos=world.Position(76, 46),
-            destinations=("port", "bar", "merchants", "militia", "bounties"),
+            pos=world.Position(13, 95), serves="spaceport",
+            destinations=("bar", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
             id="bar", name="Entertainment District", district="entertainment",
-            pos=world.Position(111, 22),
-            destinations=("port", "hub", "merchants", "militia", "bounties"),
+            pos=world.Position(100, 29), serves="bar",
+            destinations=("port", "merchants", "militia", "bounties"),
         ),
         world.TransitStation(
             id="merchants", name="Merchant District", district="market",
-            pos=world.Position(43, 31),
-            destinations=("port", "hub", "bar", "militia", "bounties"),
+            pos=world.Position(25, 44), serves="merchants",
+            destinations=("port", "bar", "militia", "bounties"),
         ),
         world.TransitStation(
             id="militia", name="Security District", district="security",
-            pos=world.Position(125, 72),
-            destinations=("port", "hub", "bar", "merchants", "bounties"),
+            pos=world.Position(138, 72), serves="militia",
+            destinations=("port", "bar", "merchants", "bounties"),
         ),
         world.TransitStation(
             id="bounties", name="Civic Services", district="civic",
-            pos=world.Position(83, 39),
-            destinations=("port", "hub", "bar", "merchants", "militia"),
+            pos=world.Position(94, 39), serves="bounties",
+            destinations=("port", "bar", "merchants", "militia"),
         ),
     ),
     interior_layouts=(

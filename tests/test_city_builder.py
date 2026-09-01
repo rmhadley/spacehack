@@ -654,7 +654,7 @@ def test_mars_builds_with_all_systems():
     assert game_map.width == 160
     assert game_map.height == 100
     assert len(game_map.city_buildings) == 5
-    assert len(game_map.city_transit) == 6
+    assert len(game_map.city_transit) == 5
     assert any(
         getattr(e, "city_npc_id", "")
         for e in game_map.entities
@@ -777,10 +777,11 @@ def test_mars_transit_and_npcs_are_separate_from_building_doors():
     assert doors.isdisjoint(stations)
     for position in stations:
         x, y = position
-        assert game_map.tiles[y][x].kind != "sidewalk"
-        assert any(
-            game_map.tiles[y + dy][x + dx].kind == "sidewalk"
-            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+        assert game_map.tiles[y][x].kind == "transit_bay"
+        assert all(
+            game_map.tiles[y + dy][x + dx].walkable
+            for dx in (-1, 0, 1)
+            for dy in (-1, 0, 1)
             if game_map.in_bounds(x + dx, y + dy)
         )
     door_approaches = {
@@ -1303,7 +1304,6 @@ _NO_ROUTE_VOCABULARY = frozenset({"barnards_mine_colony"})
 # shrink this table as those cities get revisited.
 _STOP_DISTANCE_GRANDFATHER = {
     ("earth", "hub"): 35,
-    ("mars", "hub"): 32,
     ("mercury", "hub"): 40,
     # Cloudbreak depot stop sits deliberately on the depot lane rim,
     # right beside the road and the sidewalk fronting the depot door.
