@@ -63,7 +63,7 @@ SPEC = PlanetSpec(
         ),
         world.TransitStation(
             id="militia", name="Militia Command", district="SE deck",
-            pos=world.Position(72, 50), serves="blockade_north_militia",
+            pos=world.Position(68, 49), serves="blockade_north_militia",
             destinations=("spaceport", "bounties"),
         ),
         world.TransitStation(
