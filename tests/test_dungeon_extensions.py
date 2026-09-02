@@ -383,6 +383,7 @@ def test_progress_trigger_fires_when_anchor_is_skipped(monkeypatch):
     } <= ctx.dungeon_extension.activated_events
     assert sum(
         entity.npc_char_id in {"sentry_drone", "assault_drone"}
+        and not entity.powered_down
         for entity in extension_map.entities
     ) == 2
 
@@ -869,6 +870,7 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
     }
     assert sum(
         entity.npc_char_id == "assault_drone"
+        and not entity.powered_down
         for entity in floor_two.entities
     ) == 2
 
@@ -879,6 +881,7 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
     }
     assert sum(
         entity.npc_char_id == "sentry_drone"
+        and not entity.powered_down
         for entity in floor_two.entities
     ) == 2
     assert not dungeon_extensions.tick_activation(ctx)

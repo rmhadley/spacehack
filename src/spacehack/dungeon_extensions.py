@@ -8,9 +8,14 @@ state so future caves, ruins, stations, and prisons share one runtime.
 
 from __future__ import annotations
 
-from collections import deque
-
 from . import dungeon, world
+from .dungeon_activation import (  # noqa: F401 — size-limit split
+    _activation_cells,
+    _activation_positions,
+    _place_dormant_units,
+    _stock_dormant_security,
+    _walkable_distances,
+)
 from .dungeon_extension_deep_cell import stamp_deep_cell
 from .game_context import DungeonExtensionState
 
@@ -47,54 +52,6 @@ def _floor_spec(extension_id: str, floor: int):
     from .data.dungeon_extensions import find_extension
 
     return find_extension(extension_id).floor(floor)
-
-
-def _walkable_distances(
-    game_map: world.GameMap,
-    origin: world.Position,
-) -> dict[tuple[int, int], int]:
-    """Return cardinal walkable-cell distances from ``origin``."""
-    _start = (origin.x, origin.y)
-    _dist = {_start: 0}
-    _queue: deque[tuple[int, int]] = deque([_start])
-    while _queue:
-        _x, _y = _queue.popleft()
-        for _nx, _ny in (
-            (_x + 1, _y), (_x - 1, _y),
-            (_x, _y + 1), (_x, _y - 1),
-        ):
-            if not game_map.in_bounds(_nx, _ny):
-                continue
-            if (_nx, _ny) in _dist:
-                continue
-            if not game_map.tiles[_ny][_nx].walkable:
-                continue
-            _dist[(_nx, _ny)] = _dist[(_x, _y)] + 1
-            _queue.append((_nx, _ny))
-    return _dist
-
-
-def _activation_positions(
-    game_map: world.GameMap,
-    origin: world.Position,
-    events,
-) -> dict[str, world.Position]:
-    """Choose deterministic, increasingly distant trigger cells."""
-    _distances = _walkable_distances(game_map, origin)
-    _cells = sorted(
-        _distances,
-        key=lambda _cell: (_distances[_cell], _cell[1], _cell[0]),
-    )
-    if not _cells:
-        return {}
-    _positions: dict[str, world.Position] = {}
-    _count = len(_cells)
-    for _event in events:
-        _fraction = min(max(_event.distance_fraction, 0.0), 1.0)
-        _index = min(_count - 1, max(0, int((_count - 1) * _fraction)))
-        _x, _y = _cells[_index]
-        _positions[_event.id] = world.Position(_x, _y)
-    return _positions
 
 
 def _farthest_free_cell(
@@ -353,6 +310,7 @@ def _generate_floor(extension_id: str, floor: int):
     _game_map.activation_positions = _activation_positions(
         _game_map, _spawn, _spec.activation_events,
     )
+    _stock_dormant_security(_game_map, _spec, _spawn)
     # The elevator anchor is stamped after the down stair is created so the
     # interaction entity occupies the connection and gates it cleanly.
     _stamp_interactions(_game_map, _spec, _spawn)
@@ -795,33 +753,6 @@ def _event_position(ctx, event_id: str) -> world.Position | None:
     if isinstance(_raw, (list, tuple)) and len(_raw) >= 2:
         return world.Position(int(_raw[0]), int(_raw[1]))
     return None
-
-
-def _activation_cells(
-    game_map: world.GameMap,
-    position: world.Position,
-    occupied: set[tuple[int, int]],
-    needed_count: int,
-) -> list[tuple[int, int]]:
-    """Find the nearest free floor cells around an activation."""
-    _max_radius = max(game_map.width, game_map.height)
-    _found: list[tuple[int, int]] = []
-    for _radius in range(_max_radius):
-        _found.extend(
-            (_x, _y)
-            for _y in range(position.y - _radius, position.y + _radius + 1)
-            for _x in range(position.x - _radius, position.x + _radius + 1)
-            if max(abs(_x - position.x), abs(_y - position.y)) == _radius
-            and game_map.in_bounds(_x, _y)
-            and game_map.tiles[_y][_x].walkable
-            and game_map.tiles[_y][_x].kind not in {
-                "stairs_up", "stairs_down",
-            }
-            and (_x, _y) not in occupied
-        )
-        if len(_found) >= needed_count:
-            return _found[:needed_count]
-    return _found
 
 
 def _spawn_activation_group(

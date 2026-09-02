@@ -135,6 +135,10 @@ class ExtensionFloorSpec:
     entry_flavor: EntryFlavor | None = None
     activation_events: tuple[ActivationEvent, ...] = ()
     interactions: tuple[DungeonInteractionSpec, ...] = ()
+    # Reserve dormant security for the lockdown gauntlet: extra grey
+    # units stocked near the floor entry that ALL activate when the
+    # data is extracted (doc 30).
+    lockdown_extras: int = 0
 
     @property
     def location_name(self) -> str:
@@ -163,6 +167,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             floor=1,
             location_name_key="runtime.prison.floor1_name",
             # The entry narration is data-driven and shown once per run.
+            lockdown_extras=4,
             entry_flavor=EntryFlavor(
                 faction_label_key="runtime.prison.facility_faction",
                 title_key="runtime.prison.entry_f1_title",
@@ -236,6 +241,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=2,
             location_name_key="runtime.prison.floor2_name",
+            lockdown_extras=3,
             has_down_stairs=True,
             feature_theme="prisoner_quarters",
             activation_events=(
@@ -283,6 +289,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=3,
             location_name_key="runtime.prison.floor3_name",
+            lockdown_extras=2,
             has_down_stairs=True,
             feature_theme="defensive_layer",
             activation_events=(
@@ -330,6 +337,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=4,
             location_name_key="runtime.prison.floor4_name",
+            lockdown_extras=1,
             has_down_stairs=True,
             feature_theme="high_risk_quarters",
             activation_events=(

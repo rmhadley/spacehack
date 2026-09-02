@@ -77,3 +77,58 @@ def test_bumping_a_dormant_unit_reports_and_never_fights():
     drone = _dormant_drone(8, 4)
     assert resolve_blocker(state, "occupied", drone, 1, 0) is None
     assert any("powered down Sentry Drone" in m for m in messages)
+
+
+# ----- Prison floors are stocked (doc 30 phase 2) ----------------------
+
+
+def _prison_floor(floor):
+    from src.spacehack.dungeon_extensions import _generate_floor
+
+    return _generate_floor("mars_alien_prison", floor)
+
+
+def test_prison_floor_stocks_dormant_security_near_anchors():
+    game_map, _spawn = _prison_floor(1)
+    dormant = [e for e in game_map.entities if e.powered_down]
+    assert dormant, "F1 must carry dormant security"
+    anchors = game_map.activation_positions or {}
+    for unit in dormant:
+        if unit.squad_id.startswith("lockdown_extras_"):
+            anchor = (_spawn.x, _spawn.y)
+        else:
+            event_id = unit.squad_id.removesuffix("_security")
+            assert event_id in anchors, unit.squad_id
+            anchor = (anchors[event_id].x, anchors[event_id].y)
+        assert max(abs(unit.pos.x - anchor[0]), abs(unit.pos.y - anchor[1])) <= 6
+        assert unit.fg == (110, 110, 110)
+        assert unit.npc_char_id
+
+
+def test_lockdown_extras_match_floor_spec():
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    extension = find_extension("mars_alien_prison")
+    by_floor = {spec.floor: spec.lockdown_extras for spec in extension.floors}
+    assert by_floor[1] >= by_floor[2] >= by_floor[3] >= by_floor[4]
+    game_map, _spawn = _prison_floor(1)
+    extras = [
+        e for e in game_map.entities
+        if e.powered_down and e.squad_id.startswith("lockdown_extras_")
+    ]
+    assert len(extras) == by_floor[1]
+
+
+def test_event_counts_become_dormant_units():
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    extension = find_extension("mars_alien_prison")
+    spec = extension.floors[0]
+    game_map, _spawn = _prison_floor(1)
+    by_squad = {}
+    for e in game_map.entities:
+        if e.powered_down and not e.squad_id.startswith("lockdown_extras_"):
+            by_squad[e.squad_id] = by_squad.get(e.squad_id, 0) + 1
+    for event in spec.activation_events:
+        expected = max(0, min(event.count, event.max_count))
+        assert by_squad.get(f"{event.id}_security", 0) == expected, event.id

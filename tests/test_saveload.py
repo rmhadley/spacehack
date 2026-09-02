@@ -609,6 +609,7 @@ class TestSaveLoadRoundTrip:
         }
         assert sum(
             entity.npc_char_id == "sentry_drone"
+            and not entity.powered_down
             for entity in loaded.game_map.entities
         ) == 2
         assert not dungeon_extensions.tick_activation(loaded)
