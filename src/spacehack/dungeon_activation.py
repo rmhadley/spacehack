@@ -130,11 +130,13 @@ def _hugs_wall(game_map, x: int, y: int) -> bool:
     )
 
 
-def _reachable_count(
+def _reachable_cells(
     game_map: world.GameMap, start, blocked: set[tuple[int, int]],
-) -> int:
-    """Four-way BFS cell count from ``start`` treating ``blocked`` as
-    walls (start excluded from the count)."""
+) -> set[tuple[int, int]]:
+    """Eight-way BFS reachable set from ``start`` treating ``blocked``
+    as walls (start excluded from the set). Movement is 8-directional;
+    a 4-dir flood under-measured reachability and let dormant bodies
+    strand diagonally-adjacent regions (playtest v5)."""
     from collections import deque
 
     sx, sy = (start.x, start.y) if isinstance(start, world.Position) else start
@@ -142,18 +144,29 @@ def _reachable_count(
     queue = deque([(sx, sy)])
     while queue:
         x, y = queue.popleft()
-        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
-            nxt = (x + dx, y + dy)
-            if (
-                nxt in seen
-                or nxt in blocked
-                or not game_map.in_bounds(*nxt)
-                or not game_map.tiles[nxt[1]][nxt[0]].walkable
-            ):
-                continue
-            seen.add(nxt)
-            queue.append(nxt)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if not (dx or dy):
+                    continue
+                nxt = (x + dx, y + dy)
+                if (
+                    nxt in seen
+                    or nxt in blocked
+                    or not game_map.in_bounds(*nxt)
+                    or not game_map.tiles[nxt[1]][nxt[0]].walkable
+                ):
+                    continue
+                seen.add(nxt)
+                queue.append(nxt)
+    return seen
     return len(seen) - 1
+
+
+def _reachable_count(
+    game_map: world.GameMap, start, blocked: set[tuple[int, int]],
+) -> int:
+    """Reachable cell count from ``start`` (start excluded)."""
+    return len(_reachable_cells(game_map, start, blocked)) - 1
 
 
 def _cell_strands_nothing(
@@ -372,6 +385,7 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
     if spec.lockdown_extras <= 0:
         return
     _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed)
+    _reconcile_dormant_placement(game_map, spawn, dormant_placed)
 
 
 def _activation_cells(
@@ -429,6 +443,39 @@ _PANEL_DEFAULTS: dict[str, world.Tile] = {
     "lockdown": world.PRISON_PANEL_ALARM,
 }
 _PHASE_ORDER = ("dormant", "waking", "rising", "lockdown")
+
+
+def _reconcile_dormant_placement(
+    game_map: world.GameMap, spawn, dormant_cells: set[tuple[int, int]],
+) -> int:
+    """Guarantee the finished garrison strands nothing.
+
+    Per-candidate checks cannot see COMBINATORIAL sealing: two bodies
+    in a two-cell doorway each pass alone and seal together (playtest
+    v5 audits). This post-pass compares whole-garrison reachability
+    and removes the body nearest a stranded region until the map is
+    whole. Returns the number of units removed.
+    """
+    removed = 0
+    while True:
+        free = _reachable_cells(game_map, spawn, set())
+        walled = _reachable_cells(game_map, spawn, dormant_cells)
+        stranded = free - walled - dormant_cells
+        if not stranded:
+            return removed
+        victim = min(
+            dormant_cells,
+            key=lambda cell: min(
+                max(abs(cell[0] - sx), abs(cell[1] - sy)) for sx, sy in stranded
+            ),
+        )
+        game_map.entities = [
+            e for e in game_map.entities
+            if not (getattr(e, "powered_down", False)
+                    and (e.pos.x, e.pos.y) == victim)
+        ]
+        dormant_cells.discard(victim)
+        removed += 1
 
 
 def _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed) -> None:

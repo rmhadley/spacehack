@@ -173,16 +173,19 @@ def test_stocked_floor_keeps_routes_walkable():
         queue = deque([start])
         while queue:
             x, y = queue.popleft()
-            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
-                nxt = (x + dx, y + dy)
-                if nxt in seen or not game_map.in_bounds(*nxt):
-                    continue
-                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
-                    continue
-                if nxt in blockers:
-                    continue
-                seen.add(nxt)
-                queue.append(nxt)
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    if not (dx or dy):
+                        continue
+                    nxt = (x + dx, y + dy)
+                    if nxt in seen or not game_map.in_bounds(*nxt):
+                        continue
+                    if not game_map.tiles[nxt[1]][nxt[0]].walkable:
+                        continue
+                    if nxt in blockers:
+                        continue
+                    seen.add(nxt)
+                    queue.append(nxt)
         assert goal in seen, f"floor {floor}: down stairs blocked by dormant units"
 
 
@@ -493,3 +496,29 @@ def test_diagonal_stair_pockets_are_chokepoints():
     ]
     game_map = world.GameMap(width=4, height=3, tiles=tiles, entities=[])
     assert _plugs_passage(game_map, {(1, 0)}, (2, 1)), "F4: D seals the landing"
+
+
+def test_finished_garrison_strands_nothing_across_seeds():
+    """The whole-garrison invariant, not per-cell: across seeded runs,
+    dormant bodies may occupy cells but never seal a region or a stair
+    (playtest v5 — two bodies in a two-cell doorway each passed the
+    per-candidate checks and sealed the room together)."""
+    from src.spacehack.dungeon_activation import _reachable_cells
+    from src.spacehack.dungeon_extensions import _generate_floor
+    from src.spacehack.engine import seed_rng
+
+    audited = 0
+    for seed in (1, 3, 5, 10, 25):
+        for floor in (1, 2, 3, 4):
+            seed_rng(seed)
+            game_map, spawn = _generate_floor("mars_alien_prison", floor)
+            dormant = {
+                (e.pos.x, e.pos.y) for e in game_map.entities if e.powered_down
+            }
+            if not dormant:
+                continue
+            audited += 1
+            free = _reachable_cells(game_map, spawn, set())
+            walled = _reachable_cells(game_map, spawn, dormant)
+            assert not (free - walled - dormant), (seed, floor)
+    assert audited >= 8
