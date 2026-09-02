@@ -670,7 +670,7 @@ def test_goto_targets_npc_and_interaction_labels():
     targets = goto_targets(gm, world.Position(2, 2))
     assert [(t.title, t.label) for t in targets] == [
         ("NPC", "someone"),
-        ("Interactable", "an interactive console"),
+        ("Console", "an interactive console"),
     ]
 
 

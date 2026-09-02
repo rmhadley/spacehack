@@ -175,18 +175,20 @@ def _plugs_passage(
 ) -> bool:
     """Whether a body on ``cell`` would fully plug a passage.
 
-    True when ANY two of the cell's open orthogonal neighbours can
-    only reach each other THROUGH this cell — the geometry of a 1-wide
-    corridor, bend, room mouth, or the L-pocket beside a stair (where
-    the stair's only approach is the candidate cell). Dormant units
-    must never seal a passage, even one with a detour elsewhere
-    (playtest v3/v4). Open-room edge cells always connect around.
+    True when ANY two of the cell's open neighbours — the EIGHT-way
+    adjacency the player actually moves with — can only reach each
+    other THROUGH this cell. Movement is 8-directional with no
+    corner-cut rule, so orthogonal-only analysis missed the diagonal
+    stair pockets (playtest v4: `#<D# / ##@#` and the F4 landing).
+    Dormant units must never seal a passage, even with a detour.
     """
     cx, cy = cell
     open_sides = [
         (cx + dx, cy + dy)
-        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
-        if game_map.in_bounds(cx + dx, cy + dy)
+        for dx in (-1, 0, 1)
+        for dy in (-1, 0, 1)
+        if (dx or dy)
+        and game_map.in_bounds(cx + dx, cy + dy)
         and game_map.tiles[cy + dy][cx + dx].walkable
         and (cx + dx, cy + dy) not in blockers
     ]
@@ -200,7 +202,8 @@ def _plugs_passage(
 def _connected_avoiding(
     game_map: world.GameMap, blocked: set[tuple[int, int]], start, goal,
 ) -> bool:
-    """Four-way BFS: is ``goal`` reachable from ``start`` avoiding ``blocked``?"""
+    """Eight-way BFS (real movement adjacency): is ``goal`` reachable
+    from ``start`` avoiding ``blocked``?"""
     from collections import deque
 
     if start == goal:
@@ -209,21 +212,21 @@ def _connected_avoiding(
     queue = deque([start])
     while queue:
         x, y = queue.popleft()
-        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
-            nxt = (x + dx, y + dy)
-            if (
-                nxt == goal
-                or (
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if not (dx or dy):
+                    continue
+                nxt = (x + dx, y + dy)
+                if nxt == goal:
+                    return True
+                if (
                     nxt not in seen
                     and nxt not in blocked
                     and game_map.in_bounds(*nxt)
                     and game_map.tiles[nxt[1]][nxt[0]].walkable
-                )
-            ):
-                if nxt == goal:
-                    return True
-                seen.add(nxt)
-                queue.append(nxt)
+                ):
+                    seen.add(nxt)
+                    queue.append(nxt)
     return False
 
 

@@ -97,7 +97,7 @@ _GOTO_ENTITY_TITLES = {
     "main_quest_console": "Quest console",
     "main_quest_door": "Sealed door",
     "npc_id": "NPC",
-    "dungeon_interaction": "Interactable",
+    "dungeon_interaction": "Console",
 }
 
 

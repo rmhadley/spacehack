@@ -424,9 +424,12 @@ def _hug_ok(game_map, cell):
     return _hugs_wall(game_map, cell[0], cell[1])
 
 
-def test_stairside_pocket_is_a_chokepoint():
-    """The playtest v4 case: a dormant unit beside a stair whose only
-    approach is that cell must be rejected (#<D# / ##@#)."""
+def test_stairside_diagonal_slip_is_not_a_chokepoint():
+    """The first v4 report (`#<D# / ##@#`): under REAL 8-directional
+    movement the player steps diagonally past the drone — not a choke.
+    (The in-game symptom there was the autoexplore loop, fixed by
+    making dormant units permanent walls to planning.) True diagonal
+    stair pockets — the F3/F4 rematches — are the next test."""
     from src.spacehack.dungeon_activation import _plugs_passage
 
     glyphs = ["#<D#", "##@#"]
@@ -435,8 +438,7 @@ def test_stairside_pocket_is_a_chokepoint():
         for row in glyphs
     ]
     game_map = world.GameMap(width=4, height=2, tiles=tiles, entities=[])
-    assert _plugs_passage(game_map, set(), (2, 0)), "the stair's approach must seal"
-    assert not _plugs_passage(game_map, set(), (2, 1))
+    assert not _plugs_passage(game_map, set(), (2, 0))
 
 
 def test_autoexplore_treats_dormant_units_as_permanent_walls():
@@ -467,3 +469,27 @@ def test_autoexplore_treats_dormant_units_as_permanent_walls():
 
     assert _visible_blocker_at(game_map, 3, 2) is dormant
     assert _visible_blocker_at(game_map, 1, 2) is None  # active: unchanged
+
+
+def test_diagonal_stair_pockets_are_chokepoints():
+    """Both playtest v4 rematches: with real 8-dir movement the F3
+    diagonal pocket and the F4 landing are chokes for dormant units."""
+    from src.spacehack.dungeon_activation import _plugs_passage
+
+    f3 = ["#####", "##<##", ".d.@#", "###.#"]
+    tiles = [
+        [world.DUNGEON_FLOOR if ch in ".@d<" else world.DUNGEON_WALL
+         for ch in row]
+        for row in f3
+    ]
+    game_map = world.GameMap(width=5, height=4, tiles=tiles, entities=[])
+    assert _plugs_passage(game_map, set(), (1, 2)), "F3: d seals the stair"
+
+    f4 = [".D##", ".@D.", ".<##"]
+    tiles = [
+        [world.DUNGEON_FLOOR if ch in ".@D<" else world.DUNGEON_WALL
+         for ch in row]
+        for row in f4
+    ]
+    game_map = world.GameMap(width=4, height=3, tiles=tiles, entities=[])
+    assert _plugs_passage(game_map, {(1, 0)}, (2, 1)), "F4: D seals the landing"
