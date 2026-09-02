@@ -339,6 +339,24 @@ def recompute_light_grid(
     mask_grid_to_visible(game_map, game_map.light_grid)
 
 
+def recompute_frame_light(ctx, game_map) -> None:
+    """Advance animated lighting to the current frame clock.
+
+    Shared by the explore renderer and the ground-combat renderer so
+    ambient animations (flicker, pulse, alarm strobes) never freeze
+    during a fight. Skips maps without cached flickering sources (the
+    build-time grid is still correct for steady-only maps).
+    """
+    sources = getattr(game_map, "light_sources", None)
+    if not sources or not has_flickering_sources(sources):
+        return
+    clock = getattr(getattr(ctx, "context", None), "frame_clock", 0)
+    recompute_light_grid(
+        game_map, sources, t=clock,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+
+
 __all__ = [
     "LightSource",
     "FlickerProfile",

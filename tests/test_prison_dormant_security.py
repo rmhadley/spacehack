@@ -132,3 +132,90 @@ def test_event_counts_become_dormant_units():
     for event in spec.activation_events:
         expected = max(0, min(event.count, event.max_count))
         assert by_squad.get(f"{event.id}_security", 0) == expected, event.id
+
+
+# ----- Playtest fixes: room-edge placement + combat light (2026-09-02) --
+
+
+def test_dormant_units_prefer_room_edges_and_never_fill_corridors():
+    """Room-edge placement is the preference, open surroundings are the
+    guarantee: no dormant unit sits in a 1-wide corridor, most hug a
+    wall, and routes stay walkable (playtest finding #3 — the guarantee
+    is the separate routes test)."""
+    from src.spacehack.dungeon_activation import _hugs_wall, _open_neighbours
+
+    game_map, _spawn = _prison_floor(1)
+    dormant = [e for e in game_map.entities if e.powered_down]
+    assert dormant
+    for unit in dormant:
+        x, y = unit.pos.x, unit.pos.y
+        assert _open_neighbours(game_map, x, y) >= 3, (x, y)
+    wall_huggers = sum(
+        _hugs_wall(game_map, u.pos.x, u.pos.y) for u in dormant
+    )
+    assert wall_huggers >= len(dormant) // 2, (
+        f"only {wall_huggers}/{len(dormant)} dormant units hug walls"
+    )
+
+
+def test_stocked_floor_keeps_routes_walkable():
+    """Dormant bodies block movement but never block a path: the down
+    stairs stay reachable from the entry treating them as walls."""
+    from collections import deque
+
+    for floor in (1, 2):
+        game_map, spawn = _prison_floor(floor)
+        blockers = {
+            (e.pos.x, e.pos.y) for e in game_map.entities if e.powered_down
+        }
+        goal = (game_map.down_stair_pos.x, game_map.down_stair_pos.y)
+        start = (spawn.x, spawn.y)
+        seen = {start}
+        queue = deque([start])
+        while queue:
+            x, y = queue.popleft()
+            for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                nxt = (x + dx, y + dy)
+                if nxt in seen or not game_map.in_bounds(*nxt):
+                    continue
+                if not game_map.tiles[nxt[1]][nxt[0]].walkable:
+                    continue
+                if nxt in blockers:
+                    continue
+                seen.add(nxt)
+                queue.append(nxt)
+        assert goal in seen, f"floor {floor}: down stairs blocked by dormant units"
+
+
+def test_recompute_frame_light_advances_with_the_clock():
+    """The shared frame recompute (used by explore AND combat renders)
+    animates flickering sources; steady-only maps are untouched."""
+    from src.spacehack import lighting
+
+    width, height = 15, 9
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for y in range(1, height - 1):
+        for x in range(1, width - 1):
+            tiles[y][x] = world.DUNGEON_FLOOR
+    tiles[4][7] = world.PRISON_PANEL_ALARM  # one strobing panel
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
+    game_map.light_sources = lighting.collect_light_sources(game_map)
+    ctx = SimpleNamespace(context=SimpleNamespace(frame_clock=0))
+
+    lighting.recompute_frame_light(ctx, game_map)
+    assert game_map.light_grid is not None
+    probe = (7, 4)
+    at_zero = game_map.light_grid[probe[1]][probe[0]]
+    ctx.context.frame_clock = 9
+    lighting.recompute_frame_light(ctx, game_map)
+    assert game_map.light_grid[probe[1]][probe[0]] != at_zero
+
+    steady = world.GameMap(
+        width=width, height=height,
+        tiles=[[world.PRISON_PANEL_NORMAL for _ in range(width)]
+               for _ in range(height)],
+        entities=[],
+    )
+    steady.light_grid = None
+    lighting.recompute_frame_light(ctx, steady)
+    assert steady.light_grid is None  # steady-only: build grid stands

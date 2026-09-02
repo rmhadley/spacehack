@@ -71,23 +71,13 @@ def _tint_player_glyph(state) -> None:
 
 
 def _recompute_city_light(state) -> None:
-    """Recompute the city light grid for flickering neon this frame.
+    """Advance animated lighting for this frame (explore render path).
 
-    Skips when the map has no cached light sources or every source is
-    steady (the build-time grid is still correct). Reads the frame clock
-    from the shared Pygame runtime so flicker advances each frame.
+    Delegates to the shared recompute so combat and explore renders
+    animate identically; see :func:`spacehack.lighting.recompute_frame_light`.
     """
-    sources = getattr(state.game_map, 'light_sources', None)
-    if not sources:
-        return
-    from .lighting import has_flickering_sources, recompute_light_grid
-    if not has_flickering_sources(sources):
-        return
-    t = state.ctx.context.frame_clock
-    recompute_light_grid(
-        state.game_map, sources, t=t,
-        occluder=lambda x, y: not state.game_map.tiles[y][x].walkable,
-    )
+    from .lighting import recompute_frame_light
+    recompute_frame_light(state.ctx, state.game_map)
 
 
 def _render_active_map(state):

@@ -101,23 +101,163 @@ def _place_dormant_units(
     return placed
 
 
+def _open_neighbours(game_map, x: int, y: int) -> int:
+    """Count walkable 8-neighbours — room cells read 5+, corridors ≤2."""
+    return sum(
+        1
+        for dy in (-1, 0, 1)
+        for dx in (-1, 0, 1)
+        if (dx or dy)
+        and game_map.in_bounds(x + dx, y + dy)
+        and game_map.tiles[y + dy][x + dx].walkable
+    )
+
+
+def _hugs_wall(game_map, x: int, y: int) -> bool:
+    """Whether an orthogonal neighbour is a wall (a room-edge cell)."""
+    return any(
+        game_map.in_bounds(x + dx, y + dy)
+        and not game_map.tiles[y + dy][x + dx].walkable
+        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+    )
+
+
+def _reachable_count(
+    game_map: world.GameMap, start, blocked: set[tuple[int, int]],
+) -> int:
+    """Four-way BFS cell count from ``start`` treating ``blocked`` as
+    walls (start excluded from the count)."""
+    from collections import deque
+
+    sx, sy = (start.x, start.y) if isinstance(start, world.Position) else start
+    seen = {(sx, sy)}
+    queue = deque([(sx, sy)])
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            nxt = (x + dx, y + dy)
+            if (
+                nxt in seen
+                or nxt in blocked
+                or not game_map.in_bounds(*nxt)
+                or not game_map.tiles[nxt[1]][nxt[0]].walkable
+            ):
+                continue
+            seen.add(nxt)
+            queue.append(nxt)
+    return len(seen) - 1
+
+
+def _cell_strands_nothing(
+    game_map: world.GameMap, spawn, blockers: set[tuple[int, int]], cell,
+) -> bool:
+    """Whether walling ``cell`` strands nothing beyond itself.
+
+    A dormant body may block a cell but never a route: adding it to the
+    blocker set must shrink spawn-reachable space by at most the cell
+    itself (playtest finding #3 — units in doorways sealed rooms).
+    """
+    before = _reachable_count(game_map, spawn, blockers)
+    after = _reachable_count(game_map, spawn, blockers | {cell})
+    return after >= before - 1
+
+
+def _dormant_cells(
+    game_map: world.GameMap,
+    anchor,
+    occupied: set[tuple[int, int]],
+    needed: int,
+    *,
+    spawn=None,
+    safe_blockers: set[tuple[int, int]] | None = None,
+) -> list[tuple[int, int]]:
+    """Nearest safe cells around ``anchor`` for dormant units.
+
+    Preference order (deterministic ring scan, no RNG):
+    1. room-edge cells — hug a wall, open surroundings (≥3 open
+       neighbours), so the player can always walk around the body;
+    2. open cells (≥3 open neighbours — never a 1-wide corridor);
+    every candidate must also pass the strands-nothing reachability
+    check (existing dormant bodies as walls) when ``spawn`` is given.
+    """
+    def _cell_ok(x: int, y: int) -> bool:
+        if (
+            not game_map.in_bounds(x, y)
+            or not game_map.tiles[y][x].walkable
+            or game_map.tiles[y][x].kind in {"stairs_up", "stairs_down"}
+            or (x, y) in occupied
+            or _open_neighbours(game_map, x, y) < 3
+        ):
+            return False
+        if spawn is None:
+            return True
+        return _cell_strands_nothing(
+            game_map, spawn, set(safe_blockers or set()), (x, y),
+        )
+
+    def _prefer_strict(cell: tuple[int, int]) -> bool:
+        return _hugs_wall(game_map, cell[0], cell[1])
+
+    return _ring_scan_preferred(
+        game_map, anchor, needed, _cell_ok, _prefer_strict,
+    )
+
+
+
+def _ring_scan_preferred(
+    game_map: world.GameMap,
+    anchor,
+    needed: int,
+    cell_ok,
+    prefer_strict,
+) -> list[tuple[int, int]]:
+    """Ring-scan outward from ``anchor``; strict-preferred, then rest.
+
+    Deterministic ring order (no RNG); stops once ``needed`` strict
+    cells are found or the scan saturates, returning up to ``needed``
+    cells (strict first).
+    """
+    fallback: list[tuple[int, int]] = []
+    strict: list[tuple[int, int]] = []
+    ax, ay = (anchor.x, anchor.y) if isinstance(anchor, world.Position) else anchor
+    for _radius in range(max(game_map.width, game_map.height)):
+        for _y in range(ay - _radius, ay + _radius + 1):
+            for _x in range(ax - _radius, ax + _radius + 1):
+                if max(abs(_x - ax), abs(_y - ay)) != _radius or not cell_ok(_x, _y):
+                    continue
+                if prefer_strict((_x, _y)):
+                    strict.append((_x, _y))
+                    if len(strict) == needed:
+                        return strict
+                else:
+                    fallback.append((_x, _y))
+        if len(strict) + len(fallback) >= needed and _radius >= 2:
+            break
+    return (strict + fallback)[:needed]
+
 def _stock_dormant_security(game_map, spec, spawn) -> None:
     """Pre-place every floor's security as dormant units (doc 30).
 
-    Each activation event's ``count`` units stand near its route
-    anchor (they activate when the event fires, instead of the event
-    spawning fresh bodies), plus ``lockdown_extras`` reserve units near
-    the floor entry for the post-download gauntlet.
+    Each activation event's ``count`` units stand at room edges near
+    its route anchor (they activate when the event fires, instead of
+    the event spawning fresh bodies), plus ``lockdown_extras`` reserve
+    units around the entry room for the post-download gauntlet. Room-
+    edge placement keeps every route walkable — dormant bodies block
+    movement but never block a path.
     """
     occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    dormant_placed: set[tuple[int, int]] = set()
     for event in spec.activation_events:
         anchor = (game_map.activation_positions or {}).get(event.id)
         if anchor is None:
             continue
-        cells = _activation_cells(
-            game_map, anchor, occupied, max(0, min(event.count, event.max_count)),
+        cells = _dormant_cells(
+            game_map, anchor, occupied,
+            max(0, min(event.count, event.max_count)),
+            spawn=spawn, safe_blockers=dormant_placed,
         )
         occupied.update(cells)
+        dormant_placed.update(cells)
         _place_dormant_units(
             game_map, event.enemy_id, cells, f"{event.id}_security",
         )
@@ -126,8 +266,12 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
     enemy_ids = [e.enemy_id for e in spec.activation_events] or ["sentry_drone"]
     per = [enemy_ids[i % len(enemy_ids)] for i in range(spec.lockdown_extras)]
     for i, enemy_id in enumerate(per):
-        cells = _activation_cells(game_map, spawn, occupied, 1)
+        cells = _dormant_cells(
+            game_map, spawn, occupied, 1,
+            spawn=spawn, safe_blockers=dormant_placed,
+        )
         occupied.update(cells)
+        dormant_placed.update(cells)
         _place_dormant_units(
             game_map, enemy_id, cells, f"lockdown_extras_{spec.floor}_{i}",
         )

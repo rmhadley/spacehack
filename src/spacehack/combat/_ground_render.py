@@ -115,6 +115,10 @@ def _render_ground_world(
     _state = _rules_mod._state
     _rw = _rules_mod._RENDER_WIDTH
     _rh = _rules_mod._RENDER_HEIGHT
+    # Ambient animations (flicker, pulses, alarm strobes) keep running
+    # during combat — the fight doesn't freeze the facility's lights.
+    from ..lighting import recompute_frame_light
+    recompute_frame_light(ctx, game_map)
     cam_x, cam_y, rx, ry = world.camera_for_view(
         game_map, ctx.player.pos,
         region_w=_rw, region_h=_rh,
