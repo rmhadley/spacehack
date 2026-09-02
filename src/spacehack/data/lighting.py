@@ -43,6 +43,13 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     # The undulating alien door: a faint pulse, phase-offset per cell,
     # so light rolls along the ~=~=~=~=~ row like the wall itself moves.
     "alien_door": LightSourceSpec(radius=3, intensity=0.6, flicker="pulse"),
+    # Prison facility panels — the facility's power state as light
+    # (docs/design/in_progress/29_DESIGN_PRISON_LIGHTING.md). `off` is
+    # deliberately absent: a dormant panel emits nothing.
+    "prison_panel_dim": LightSourceSpec(radius=2, intensity=0.35, flicker="pulse"),
+    "prison_panel_mid": LightSourceSpec(radius=3, intensity=0.6, flicker="pulse"),
+    "prison_panel_normal": LightSourceSpec(radius=5, intensity=0.9),
+    "prison_panel_alarm": LightSourceSpec(radius=5, intensity=1.0, flicker="alarm"),
 }
 
 

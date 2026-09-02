@@ -252,3 +252,40 @@ def test_opaque_emitter_does_not_reveal_through_itself():
             assert not game_map.visible[y][x], (x, y)
             if game_map.light_grid is not None:
                 assert game_map.light_grid[y][x] == (0, 0, 0), (x, y)
+
+
+# ----- Prison panel vocabulary (doc 29 phase 1) ------------------------
+
+
+def test_prison_panel_states_in_light_table():
+    """The three lit panel states emit; the dormant one does not."""
+    from src.spacehack.data.lighting import light_spec_for_kind
+
+    assert light_spec_for_kind("prison_panel_off") is None
+    dim = light_spec_for_kind("prison_panel_dim")
+    assert (dim.radius, dim.intensity, dim.flicker) == (2, 0.35, "pulse")
+    mid = light_spec_for_kind("prison_panel_mid")
+    assert (mid.radius, mid.intensity, mid.flicker) == (3, 0.6, "pulse")
+    normal = light_spec_for_kind("prison_panel_normal")
+    assert (normal.radius, normal.intensity, normal.flicker) == (5, 0.9, "steady")
+    alarm = light_spec_for_kind("prison_panel_alarm")
+    assert (alarm.radius, alarm.intensity, alarm.flicker) == (5, 1.0, "alarm")
+
+
+def test_alarm_profile_strobes_hard_and_out_of_phase():
+    """The alarm strobe swings between a dim baseline and full brightness
+    on a fixed cadence, and adjacent panels blink out of phase."""
+    from src.spacehack.lighting import FLICKER_PROFILES, LightSource
+
+    alarm = FLICKER_PROFILES["alarm"]
+    source = LightSource(x=3, y=3, colour=(255, 64, 48), radius=5)
+    values = {alarm(source, t) for t in range(16)}
+    assert values == {0.35, 1.0}, values
+
+    neighbour = LightSource(x=4, y=3, colour=(255, 64, 48), radius=5)
+    same_frame = [
+        (alarm(source, t), alarm(neighbour, t)) for t in range(16)
+    ]
+    assert any(a != b for a, b in same_frame), (
+        "adjacent alarm panels must blink out of phase"
+    )

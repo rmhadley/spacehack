@@ -89,11 +89,22 @@ def _pulse(source: LightSource, t: int) -> float:
     return 0.8 + 0.2 * math.sin(t * 0.3 + source.x * 0.5)
 
 
+def _alarm(source: LightSource, t: int) -> float:
+    """A hard strobe — full-on flashing lockdown light.
+
+    Swings sharply between a dim baseline and full brightness on a
+    ~4-frame cadence, keyed by position so adjacent panels blink out
+    of phase (the prison's "flashing reds, blinking" state).
+    """
+    return 0.35 + 0.65 * (1.0 if hash((source.x, source.y, t // 4)) & 1 else 0.0)
+
+
 FLICKER_PROFILES: dict[str, FlickerProfile] = {
     "steady": _steady,
     "buzz": _buzz,
     "flicker": _flicker,
     "pulse": _pulse,
+    "alarm": _alarm,
 }
 
 

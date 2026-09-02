@@ -123,6 +123,21 @@ DUNGEON_DOOR = Tile(kind="dungeon_door", char="+", walkable=True,
 # glow that extends the player's sight nearby (see dungeon_fov lighting).
 GLOW_FUNGUS = Tile(kind="glow_fungus", char="*", walkable=True,
                    fg=(120, 255, 140), bg=(20, 50, 25))
+
+# Prison facility panels — the prison's power story told in floor
+# fixtures (see docs/design/in_progress/29_DESIGN_PRISON_LIGHTING.md).
+# One physical panel, four states plus dormant; light specs live in
+# data/lighting.py, so a state change is a tile-kind rewrite.
+PRISON_PANEL_OFF = Tile(kind="prison_panel_off", char=".", walkable=True,
+                        fg=(70, 72, 78), bg=(18, 20, 26))
+PRISON_PANEL_DIM = Tile(kind="prison_panel_dim", char="*", walkable=True,
+                        fg=(214, 134, 48), bg=(34, 24, 14))
+PRISON_PANEL_MID = Tile(kind="prison_panel_mid", char="*", walkable=True,
+                        fg=(235, 220, 190), bg=(36, 34, 28))
+PRISON_PANEL_NORMAL = Tile(kind="prison_panel_normal", char="o", walkable=True,
+                           fg=(120, 235, 225), bg=(20, 46, 46))
+PRISON_PANEL_ALARM = Tile(kind="prison_panel_alarm", char="!", walkable=True,
+                          fg=(255, 64, 48), bg=(52, 14, 12))
 VOID = Tile(kind="void", char=" ", walkable=False,
             fg=(0, 0, 0), bg=(0, 0, 0))
 AIRLOCK = Tile(kind="airlock", char="=", walkable=True,
