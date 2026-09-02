@@ -157,8 +157,8 @@ PLAYTEST: see session checklist — dark start confirmed pending user.
 PLAYTEST: pending user (session checklist v2).
 
 ### Phase 4 — lockdown (console)
-- [ ] `prison_data_extracted` → refresh every cached floor + current
-- [ ] tests: extract flips all floors to `prison_panel_alarm`; grid
+- [x] `prison_data_extracted` → refresh every cached floor + current
+- [x] tests: extract flips all floors to `prison_panel_alarm`; grid
       animates (alarm profile varies with frame clock); save/quit/
       continue preserves alarm everywhere
 
@@ -167,8 +167,8 @@ save/quit/continue — still strobing; ascend — every floor maxed,
 threat (not light) escalates via existing ascent events.
 
 ### Phase 5 — closeout
-- [ ] Guide check (visual-only feature; no guide change expected)
-- [ ] Full corpus audit + `make check`
+- [x] Guide check (visual-only feature; no guide change expected)
+- [x] Full corpus audit + `make check`
 - [ ] Ask user: move doc to complete?
 
 ## Acceptance criteria

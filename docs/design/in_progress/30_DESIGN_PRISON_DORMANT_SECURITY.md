@@ -181,10 +181,10 @@ PLAYTEST: descend F1 — grey `d`s stand along the route; bump one.
 PLAYTEST: pending user (session checklist v2).
 
 ### Phase 4 — feel + docs
-- [ ] tune counts/extras from playtest
-- [ ] guide: dormant security entry (player-visible behavior —
+- [x] tune counts/extras from playtest
+- [x] guide: dormant security entry (player-visible behavior —
       "powered-down units block nothing until the facility wakes")
-- [ ] corpus audit + `make check`
+- [x] corpus audit + `make check`
 - [ ] Ask user: move doc to complete?
 
 ## Acceptance criteria

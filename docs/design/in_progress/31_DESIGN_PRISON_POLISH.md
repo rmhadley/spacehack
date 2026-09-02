@@ -122,9 +122,9 @@ descent.
 PLAYTEST: the F5 arrival frame should be screenshot-worthy.
 
 ### Phase E — closeout
-- [ ] Full descent playtest A–D
-- [ ] Guide check (names/flavor only — no mechanic changes expected)
-- [ ] Corpus audit + `make check`; ask user: move doc to complete?
+- [x] Full descent playtest A–D
+- [x] Guide check (names/flavor only — no mechanic changes expected)
+- [x] Corpus audit + `make check`; ask user: move doc to complete?
 
 ## Acceptance criteria
 
