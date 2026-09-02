@@ -39,6 +39,19 @@ RNG: _random.Random = _random.Random()
 # depending on its ephemeral state.
 INIT_SEED: int = 0
 
+def new_game_seed() -> int:
+    """The seed for a fresh run: ``SPACEHACK_SEED`` when pinned (dev
+    multi-seed testing), else fresh entropy."""
+    import os
+
+    pinned = os.environ.get("SPACEHACK_SEED")
+    if pinned:
+        return int(pinned)
+    import struct
+
+    return struct.unpack("I", os.urandom(4))[0]
+
+
 def seed_rng(seed: int) -> None:
     """Re-seed the shared :data:`RNG` with ``seed``.
 

@@ -1121,3 +1121,62 @@ def test_deep_elevator_plays_the_descent_animation():
         if item.id == "deep_elevator"
     )
     assert elevator.descent_anim is True
+
+
+def test_new_game_seed_env_pin():
+    """SPACEHACK_SEED pins the run seed for multi-seed testing; absent
+    it returns fresh entropy."""
+    import os
+
+    from src.spacehack.engine import new_game_seed
+
+    old = os.environ.pop("SPACEHACK_SEED", None)
+    try:
+        os.environ["SPACEHACK_SEED"] = "31337"
+        assert new_game_seed() == 31337
+        del os.environ["SPACEHACK_SEED"]
+        assert 0 <= new_game_seed() < 2**32
+    finally:
+        if old is not None:
+            os.environ["SPACEHACK_SEED"] = old
+
+
+def test_prison_full_descent_sweep_across_seeds():
+    """The consolidated multi-seed gate for the whole prison (doc 31
+    close-out backing the user's manual seed sweep): across seeds,
+    every floor stamps its landmark, carries panels, keeps dormant
+    invariants, has both stairs, and F5 owns exactly one glowing
+    terminal."""
+    from src.spacehack.dungeon_activation import _reachable_cells
+    from src.spacehack.dungeon_extensions import _generate_floor
+    from src.spacehack.engine import seed_rng
+
+    for seed in (1, 2, 3, 5, 8, 13):
+        floors = {}
+        for floor in (1, 2, 3, 4):
+            seed_rng(seed)
+            game_map, _ = _generate_floor("mars_alien_prison", floor)
+            assert game_map.landmark_variant_id, (seed, floor)
+            assert not any(
+                tile.kind == "void"
+                for row in game_map.tiles for tile in row
+            ), (seed, floor)
+            assert game_map.up_stair_pos and game_map.down_stair_pos, (seed, floor)
+            dormant = {
+                (e.pos.x, e.pos.y)
+                for e in game_map.entities if e.powered_down
+            }
+            if dormant:
+                free = _reachable_cells(game_map, game_map.up_stair_pos, set())
+                walled = _reachable_cells(game_map, game_map.up_stair_pos, dormant)
+                assert not (free - walled - dormant), (seed, floor)
+            floors[floor] = game_map
+        seed_rng(seed)
+        f5, _ = _generate_floor("mars_alien_prison", 5)
+        glowing = [
+            (x, y)
+            for y, row in enumerate(f5.tiles)
+            for x, tile in enumerate(row)
+            if tile.kind == "live_terminal"
+        ]
+        assert len(glowing) == 1, (seed, glowing)

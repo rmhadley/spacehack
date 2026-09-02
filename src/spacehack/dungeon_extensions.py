@@ -316,7 +316,28 @@ def _ensure_floor_interactions(
 
 
 def _generate_floor(extension_id: str, floor: int, phase: str = "dormant"):
-    """Generate one procedural floor and its stable extension anchors."""
+    """Generate one procedural floor and its stable extension anchors.
+
+    Some maps cannot wire their landmark entrance no matter which
+    origin stamps it (seed 2's F5: 307 candidates, zero routable).
+    Generation must never die there — regenerate the base map and
+    retry, bounded. The retry seed is drawn from the run's own RNG, so
+    it stays deterministic per run and only fires in runs that would
+    previously have crashed.
+    """
+    from .engine import RNG
+
+    for _attempt in range(4):
+        try:
+            return _generate_floor_once(extension_id, floor, phase)
+        except ValueError:
+            if _attempt == 3:
+                raise
+            RNG.seed(int(RNG.random() * 2**31))
+
+
+def _generate_floor_once(extension_id: str, floor: int, phase: str = "dormant"):
+    """One generation attempt; raises when the landmark cannot wire."""
     _spec = _floor_spec(extension_id, floor)
     _game_map, _spawn = dungeon.generate_dungeon(_spec.params)
     _game_map.interior_cache_key = floor_key(extension_id, floor)

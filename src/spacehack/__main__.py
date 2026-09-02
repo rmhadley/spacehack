@@ -337,10 +337,14 @@ from .game_loop import _run_game_loop
 def run(context: PygameContext) -> None:
     """Show the splash screen and run title/game flow."""
     import os
-    import struct
     from . import title_flow
+    from .engine import new_game_seed
 
-    seed_rng(struct.unpack("I", os.urandom(4))[0])
+    _seed = new_game_seed()
+    seed_rng(_seed)
+    if os.environ.get("SPACEHACK_DEV"):
+        print(f"[DEV MODE] Run seed: {_seed}"
+              f"{' (pinned via SPACEHACK_SEED)' if os.environ.get('SPACEHACK_SEED') else ''}")
     title_flow.run_title_flow(
         context,
         _run_game,
