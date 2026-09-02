@@ -95,11 +95,10 @@ def test_prison_floor_stocks_dormant_security_near_anchors():
     anchors = game_map.activation_positions or {}
     for unit in dormant:
         if unit.squad_id.startswith("lockdown_extras_"):
-            anchor = (_spawn.x, _spawn.y)
-        else:
-            event_id = unit.squad_id.removesuffix("_security")
-            assert event_id in anchors, unit.squad_id
-            anchor = (anchors[event_id].x, anchors[event_id].y)
+            continue  # extras spread along the route (see clustering test)
+        event_id = unit.squad_id.removesuffix("_security")
+        assert event_id in anchors, unit.squad_id
+        anchor = (anchors[event_id].x, anchors[event_id].y)
         assert max(abs(unit.pos.x - anchor[0]), abs(unit.pos.y - anchor[1])) <= 6
         assert unit.fg == (110, 110, 110)
         assert unit.npc_char_id
@@ -357,3 +356,20 @@ def test_guards_investigate_last_seen_then_resume_their_post():
     assert guard.pos == world.Position(*((guard.pos.x, guard.pos.y))), (
         "guard without memory holds position"
     )
+
+
+def test_extras_spread_along_the_route_not_piled_at_the_door():
+    """Two extras hold the entry; the rest spread across the floor —
+    the garrison never piles into the stairs-up room (playtest v3)."""
+    game_map, spawn = _prison_floor(1)
+    dormant = [e for e in game_map.entities if e.powered_down]
+    near_entry = [
+        e for e in dormant
+        if max(abs(e.pos.x - spawn.x), abs(e.pos.y - spawn.y)) <= 6
+    ]
+    assert len(near_entry) <= 3, f"{len(near_entry)} units camp the entry room"
+    far = [
+        e for e in dormant
+        if max(abs(e.pos.x - spawn.x), abs(e.pos.y - spawn.y)) >= 15
+    ]
+    assert len(far) >= 4, "the route's far half must be garrisoned too"

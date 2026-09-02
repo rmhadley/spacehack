@@ -258,6 +258,29 @@ def _ring_scan_preferred(
             break
     return (strict + fallback)[:needed]
 
+def _spread_extra_anchors(game_map, spawn, count: int) -> list:
+    """Anchor cells for lockdown extras: two hold the entry, the rest
+    spread at even fractions along the route.
+
+    All-at-the-entry stuffed over half the garrison into one room
+    (playtest v3); a spread keeps every floor's ascent contested while
+    the door itself stays defended. Deterministic, no RNG.
+    """
+    if count <= 0:
+        return []
+    if count <= 2:
+        return [spawn] * count
+    distances = _walkable_distances(game_map, spawn)
+    cells = sorted(distances, key=lambda c: (distances[c], c[1], c[0]))
+    anchors = [spawn, spawn]
+    spread = count - 2
+    for i in range(spread):
+        fraction = 0.15 + (0.70 * i / max(1, spread - 1)) if spread > 1 else 0.5
+        index = min(len(cells) - 1, max(0, int((len(cells) - 1) * fraction)))
+        anchors.append(world.Position(cells[index][0], cells[index][1]))
+    return anchors
+
+
 def _stock_dormant_security(game_map, spec, spawn) -> None:
     """Pre-place every floor's security as dormant units (doc 30).
 
@@ -286,18 +309,7 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
         )
     if spec.lockdown_extras <= 0:
         return
-    enemy_ids = [e.enemy_id for e in spec.activation_events] or ["sentry_drone"]
-    per = [enemy_ids[i % len(enemy_ids)] for i in range(spec.lockdown_extras)]
-    for i, enemy_id in enumerate(per):
-        cells = _dormant_cells(
-            game_map, spawn, occupied, 1,
-            spawn=spawn, safe_blockers=dormant_placed,
-        )
-        occupied.update(cells)
-        dormant_placed.update(cells)
-        _place_dormant_units(
-            game_map, enemy_id, cells, f"lockdown_extras_{spec.floor}_{i}",
-        )
+    _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed)
 
 
 def _activation_cells(
@@ -355,6 +367,24 @@ _PANEL_DEFAULTS: dict[str, world.Tile] = {
     "lockdown": world.PRISON_PANEL_ALARM,
 }
 _PHASE_ORDER = ("dormant", "waking", "rising", "lockdown")
+
+
+def _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed) -> None:
+    """Spread the floor's reserve garrison: two hold the entry door,
+    the rest stand at even fractions along the route."""
+    enemy_ids = [e.enemy_id for e in spec.activation_events] or ["sentry_drone"]
+    per = [enemy_ids[i % len(enemy_ids)] for i in range(spec.lockdown_extras)]
+    anchors = _spread_extra_anchors(game_map, spawn, len(per))
+    for i, (enemy_id, anchor_pos) in enumerate(zip(per, anchors)):
+        cells = _dormant_cells(
+            game_map, anchor_pos, occupied, 1,
+            spawn=spawn, safe_blockers=dormant_placed,
+        )
+        occupied.update(cells)
+        dormant_placed.update(cells)
+        _place_dormant_units(
+            game_map, enemy_id, cells, f"lockdown_extras_{spec.floor}_{i}",
+        )
 
 
 def _facility_phase(state) -> str:
