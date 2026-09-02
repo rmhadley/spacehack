@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import struct
 from collections.abc import Callable
 
 from . import pygame_story, pygame_title, ui
@@ -15,8 +14,23 @@ from .saveload import save_exists as _save_exists
 
 
 def _fresh_seed(seed_rng: Callable[[int], None]) -> None:
-    """Seed a new roguelike run from fresh operating-system entropy."""
-    seed_rng(struct.unpack("I", os.urandom(4))[0])
+    """Seed a new roguelike run.
+
+    Fresh OS entropy per run — unless ``SPACEHACK_SEED`` pins it for
+    multi-seed testing (every New Game in one pinned session then
+    replays the same run). Echoed in dev mode so the actual run seed
+    is always knowable.
+    """
+
+    from .engine import new_game_seed
+
+    seed = new_game_seed()
+    seed_rng(seed)
+    if os.environ.get("SPACEHACK_DEV"):
+        print(
+            f"[DEV MODE] Run seed: {seed}"
+            f"{' (pinned via SPACEHACK_SEED)' if os.environ.get('SPACEHACK_SEED') else ''}"
+        )
 
 
 def _run_character_creation(

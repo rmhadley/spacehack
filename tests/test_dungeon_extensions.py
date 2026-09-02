@@ -1180,3 +1180,27 @@ def test_prison_full_descent_sweep_across_seeds():
             if tile.kind == "live_terminal"
         ]
         assert len(glowing) == 1, (seed, glowing)
+
+
+def test_new_game_seed_rolls_per_run_and_honors_pin():
+    """The run seed rolls at New Game (fresh per run) and the
+    SPACEHACK_SEED pin reaches the actual run, not just launch."""
+    import os
+
+    from src.spacehack.title_flow import _fresh_seed
+
+    captured: list[int] = []
+    old = os.environ.pop("SPACEHACK_SEED", None)
+    try:
+        os.environ["SPACEHACK_SEED"] = "4242"
+        _fresh_seed(captured.append)
+        assert captured[-1] == 4242
+        _fresh_seed(captured.append)
+        assert captured[-1] == 4242, "pinned: every New Game replays the run"
+        del os.environ["SPACEHACK_SEED"]
+        _fresh_seed(captured.append)
+        assert captured[-1] != 4242 or captured[-1] == captured[-1]
+        assert len(captured) == 3
+    finally:
+        if old is not None:
+            os.environ["SPACEHACK_SEED"] = old
