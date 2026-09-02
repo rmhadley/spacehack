@@ -1,5 +1,18 @@
 # DESIGN: City Audit Tool
 
+> **STATUS: Implemented and campaign-proven (2026-09-02).** The tool
+> now exceeds this doc's original scope. Shipped beyond the text
+> below: the R0 fail-fast `serves` gate; R1 checks 4 (no shared pads)
+> and 5 (pads never cover door approaches); R2 BFS reachability +
+> duplicate-`serves` refusal; the `--fix-plan` verifier (applies ops
+> in-memory, reserves pads, moves R2-unreachable stations door-side,
+> emits exact file targets + `tests_referencing_city`); the
+> `_PAINTABLE_PAD_KINDS` whitelist (recommendations are carvable by
+> construction); and `--format summary` as the default. The tool's
+> module docstring + `tests/test_city_audit.py` are the living
+> contract; this doc remains as the original design record. Next-rule
+> proposals live in 28's Phase 6.
+
 ## Overview
 
 A single tool, `tools/city_audit.py`, that audits **one city at a time**
