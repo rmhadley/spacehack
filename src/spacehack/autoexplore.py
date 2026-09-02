@@ -72,6 +72,10 @@ _ENTITY_INTEREST_FLAGS = (
     ("computer_terminal", "a ship computer"),
     ("main_quest_console", "a strange console"),
     ("main_quest_door", "a sealed door"),
+    # Extension interactions (the prison's engineering console and
+    # data terminal, future cave/station consoles) — GOTO could target
+    # them but auto-explore never stopped for them (playtest v4).
+    ("dungeon_interaction", "an interactive console"),
     ("npc_id", "someone"),
 )
 

@@ -657,8 +657,8 @@ def test_goto_targets_lists_discovered_transitions_and_interactables():
 
 def test_goto_targets_npc_and_interaction_labels():
     """NPC and dungeon-interaction entities are targets; interaction
-    entities have no prose label in ``interesting_at``, so the title is
-    the fallback."""
+    entity without an interest flag has no prose label, so the title
+    is the fallback (extension consoles now carry one)."""
     gm = _dungeon()
     gm.entities.append(world.Entity(char="N", fg=(0, 255, 0),
                                     pos=world.Position(4, 4), npc_id="smuggler"))
@@ -670,7 +670,7 @@ def test_goto_targets_npc_and_interaction_labels():
     targets = goto_targets(gm, world.Position(2, 2))
     assert [(t.title, t.label) for t in targets] == [
         ("NPC", "someone"),
-        ("Interactable", "Interactable"),
+        ("Interactable", "an interactive console"),
     ]
 
 
@@ -827,3 +827,22 @@ def test_run_goto_cannot_reach_target():
     assert result == "DONE"
     assert player.pos == world.Position(1, 1)  # never moved
     assert "Cannot reach a stairway down" in ctx.log.recent(1)[0].text
+
+
+def test_extension_consoles_are_interesting():
+    """Dungeon-extension interactions (the prison engineering console,
+    the data terminal) stop auto-explore with a label (playtest v4)."""
+    console = world.Entity(
+        char="C", fg=(255, 200, 80),
+        pos=world.Position(2, 2), name="Engineering Console",
+        width=1, height=1, dungeon_interaction="engineering_console",
+    )
+    tiles = [[world.DUNGEON_WALL for _ in range(6)] for _ in range(6)]
+    for y in range(1, 5):
+        for x in range(1, 5):
+            tiles[y][x] = world.DUNGEON_FLOOR
+    gm = world.GameMap(width=6, height=6, tiles=tiles, entities=[console])
+    gm.seen = [[True] * 6 for _ in range(6)]
+    gm.visible = [[True] * 6 for _ in range(6)]
+    assert interesting_at(gm, 2, 2) == "an interactive console"
+    assert newly_interesting_positions(gm, set()) == {(2, 2)}
