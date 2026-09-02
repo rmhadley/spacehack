@@ -185,7 +185,10 @@ def populate_dungeon(
     *,
     tier: int = 1,
 ) -> None:
-    """Scatter persistent monster squads into a freshly generated dungeon."""
+    """Scatter facility panels and persistent monster squads into a
+    freshly generated dungeon."""
+    if params.panel_tile is not None and params.panel_density > 0:
+        _scatter_panels(game_map, params, spawn_pos)
     if not params.monster_pool or params.monster_density <= 0:
         return
     from .engine import RNG
@@ -207,3 +210,35 @@ def populate_dungeon(
         )
         if placed >= target:
             break
+
+
+def _scatter_panels(
+    game_map: world.GameMap,
+    params,
+    spawn_pos: world.Position,
+) -> int:
+    """Scatter ``params.panel_tile`` across eligible floor cells.
+
+    Density is a fraction of eligible cells (the same cell eligibility
+    as monster placement), so a 0.02 density reads as sparse fixtures.
+    Draws from an ISOLATED stream keyed by the map's cache key: panel
+    placement must never perturb the shared :data:`RNG
+    <spacehack.engine.RNG>` ordering that later floors (and seeded
+    tests) depend on. Returns the number of panels placed.
+    """
+    from .engine import seeded_rng
+
+    floor, _protected = _floor_cells(game_map, spawn_pos)
+    if not floor:
+        return 0
+    target = max(1, int(len(floor) * params.panel_density))
+    rng = seeded_rng(7, getattr(game_map, "interior_cache_key", "") or "panels")
+    rng.shuffle(floor)
+    placed = 0
+    for x, y in floor:
+        if placed >= target:
+            break
+        if game_map.tiles[y][x].kind == "dungeon_floor":
+            game_map.tiles[y][x] = params.panel_tile
+            placed += 1
+    return placed

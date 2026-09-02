@@ -23,3 +23,12 @@ class DungeonParams:
     monster_density: float = 0.0
     cache_guardian_pool: tuple[str, ...] = ()
     cache_guardian_count: int = 1
+    # Facility panels: floor fixtures scattered at population time
+    # (the prison's power-state panels — see
+    # docs/design/in_progress/29_DESIGN_PRISON_LIGHTING.md). None/0
+    # disables the pass; non-prison dungeons are unchanged.
+    panel_tile: world.Tile | None = None
+    panel_density: float = 0.0
+    # Cave-fungus patches in carved rooms. The sealed alien prison opts
+    # out: no ambient green glow, so the panels are the only light story.
+    scatter_fungus: bool = True

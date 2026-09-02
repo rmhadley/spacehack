@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ... import dungeon
+from ... import dungeon, world
 from ...text import get as _t_get
 
 
@@ -176,6 +176,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 max_room_size=12,
                 room_fill_pct=0.65,
                 sight_radius=8,
+                panel_tile=world.PRISON_PANEL_OFF,
+                panel_density=0.02,
+                scatter_fungus=False,
             ),
             activation_events=(
                 ActivationEvent(
@@ -272,6 +275,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 sight_radius=8,
                 monster_pool=("hull_parasite", "rock_scavenger"),
                 monster_density=1.8,
+                panel_tile=world.PRISON_PANEL_OFF,
+                panel_density=0.02,
+                scatter_fungus=False,
             ),
         ),
         ExtensionFloorSpec(
@@ -316,6 +322,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 sight_radius=8,
                 monster_pool=("sentry_drone", "hull_parasite", "assault_drone"),
                 monster_density=2.0,
+                panel_tile=world.PRISON_PANEL_OFF,
+                panel_density=0.02,
+                scatter_fungus=False,
             ),
         ),
         ExtensionFloorSpec(
@@ -367,6 +376,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 sight_radius=9,
                 monster_pool=("sentry_drone", "assault_drone", "hull_parasite"),
                 monster_density=2.4,
+                panel_tile=world.PRISON_PANEL_OFF,
+                panel_density=0.02,
+                scatter_fungus=False,
             ),
         ),
         ExtensionFloorSpec(
@@ -401,6 +413,9 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 max_room_size=18,
                 room_fill_pct=0.60,
                 sight_radius=11,
+                panel_tile=world.PRISON_PANEL_OFF,
+                panel_density=0.02,
+                scatter_fungus=False,
             ),
         ),
     ),

@@ -289,3 +289,48 @@ def test_alarm_profile_strobes_hard_and_out_of_phase():
     assert any(a != b for a, b in same_frame), (
         "adjacent alarm panels must blink out of phase"
     )
+
+
+# ----- Prison panel scatter (doc 29 phase 2) ---------------------------
+
+
+def test_prison_floors_carry_dormant_panels():
+    """Every prison floor spec scatters PRISON_PANEL_OFF panels; a
+    generated floor really has them and stays dark (no light grid)."""
+    from src.spacehack import dungeon as dungeon_mod
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    extension = find_extension("mars_alien_prison")
+    assert extension.floors, "prison extension must have floors"
+    for spec in extension.floors:
+        assert spec.params.panel_tile is world.PRISON_PANEL_OFF, spec.floor
+        assert spec.params.panel_density > 0, spec.floor
+
+    game_map, _spawn = dungeon_mod.generate_dungeon(extension.floors[0].params)
+    dungeon_mod.populate_dungeon(game_map, extension.floors[0].params, _spawn)
+    panels = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "prison_panel_off"
+    ]
+    assert panels, "F1 must scatter dormant panels"
+    assert all(game_map.tiles[y][x].walkable for x, y in panels)
+
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, _spawn, radius=8)
+    assert game_map.light_grid is None, "all-off panels must leave F1 dark"
+
+
+def test_panel_scatter_leaves_ordinary_dungeons_untouched():
+    """Dungeons without panel params generate exactly as before."""
+    params = DungeonParams(width=50, height=40)
+    game_map, spawn = generate_dungeon(params)
+    populate = __import__(
+        "src.spacehack.dungeon_population", fromlist=["populate_dungeon"],
+    ).populate_dungeon
+    populate(game_map, params, spawn)
+    assert not any(
+        tile.kind.startswith("prison_panel")
+        for row in game_map.tiles for tile in row
+    )

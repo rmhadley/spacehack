@@ -103,7 +103,8 @@ def _carve_room(
     for row in range(room_y, room_y + room_h):
         for col in range(room_x, room_x + room_w):
             tiles[row][col] = params.tile_floor
-    _scatter_fungus(tiles, room_x, room_y, room_w, room_h, rng)
+    if params.scatter_fungus:
+        _scatter_fungus(tiles, room_x, room_y, room_w, room_h, rng)
     return room_x + room_w // 2, room_y + room_h // 2
 
 
