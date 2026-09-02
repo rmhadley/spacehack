@@ -601,3 +601,23 @@ def test_route_through_the_stairs_tile_does_not_count():
     game_map = world.GameMap(width=5, height=4, tiles=tiles, entities=[])
     assert _plugs_passage(game_map, set(), (1, 2)), "d seals the left hall"
     assert _plugs_passage(game_map, {(1, 2)}, (2, 1)), "D seals via the stair"
+
+
+def test_prison_landmark_layouts_contain_no_void_padding():
+    """Ragged MAP rows parse as VOID padding on the east edge (playtest
+    v7: broken checkpoint walls). Every prison layout must be uniform
+    width and void-free — void belongs to the deep cell only."""
+    from src.spacehack import landmark
+
+    for layout_id in (
+        "prison_intake_block", "prison_cell_block",
+        "prison_cell_block_breached", "prison_checkpoint",
+        "prison_high_risk_block", "mars_signal_door",
+    ):
+        asset = landmark.load_landmark(layout_id)
+        widths = {len(row) for row in asset.tiles}
+        assert len(widths) == 1, f"{layout_id}: ragged rows {widths}"
+        assert not any(
+            tile.kind == "void"
+            for row in asset.tiles for tile in row
+        ), layout_id
