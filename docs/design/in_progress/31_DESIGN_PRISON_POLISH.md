@@ -111,7 +111,10 @@ PLAYTEST: the elevator should feel like the longest moment of the
 descent.
 
 ### Phase D — deep-cell micro-polish
-- [x] Terminal landing emits faint light (light-table row) so the
+- [x] ONE active terminal emits a soft glow (LIVE_TERMINAL tile,
+      radius 2 / intensity 0.35 / pulse) — user-corrected from the
+      first cut, which lit the whole landing and washed out white
+      (overlapping additive sources). The landing itself is unlit.
       bridge approach reads as "one light still answers"
 - [x] Evaluate in playtest: bridge edge glow, claw-scar color pop —
       only if the abyss reads flat
