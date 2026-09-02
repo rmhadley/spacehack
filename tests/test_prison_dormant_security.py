@@ -575,3 +575,29 @@ def test_every_prison_floor_stamps_its_cell_block():
     assert getattr(game_map, "landmark_variant_id", "") in {
         "prison_cell_block", "prison_cell_block_breached",
     }
+
+
+def test_route_through_the_stairs_tile_does_not_count():
+    """Playtest v6: a hallway whose only path crosses the stairs tile
+    is SEALED in practice — stepping onto '<' auto-travels. Both
+    drones in the reported layout must be rejected."""
+    from src.spacehack.dungeon_activation import _plugs_passage
+
+    glyphs = [
+        "##.##",
+        "#<D##",
+        ".d@##",
+        "##.##",
+    ]
+    tiles = [
+        [
+            world.DUNGEON_FLOOR if ch in ".@d<D"
+            else (world.STAIRS_UP if ch == "<" else world.DUNGEON_WALL)
+            for ch in row
+        ]
+        for row in glyphs
+    ]
+    tiles[1][1] = world.STAIRS_UP
+    game_map = world.GameMap(width=5, height=4, tiles=tiles, entities=[])
+    assert _plugs_passage(game_map, set(), (1, 2)), "d seals the left hall"
+    assert _plugs_passage(game_map, {(1, 2)}, (2, 1)), "D seals via the stair"

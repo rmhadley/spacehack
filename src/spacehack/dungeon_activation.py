@@ -130,6 +130,21 @@ def _hugs_wall(game_map, x: int, y: int) -> bool:
     )
 
 
+# Transition tiles are terminals, not corridors: stepping onto a stair
+# or exit AUTO-TRAVELS — the player cannot pass through one to continue
+# (playtest v6: a route whose only path crossed the stairs tile sealed
+# a hallway in practice while every analysis called it connected).
+_TRANSIT_KINDS = frozenset({"stairs_up", "stairs_down", "exit"})
+
+
+def _traversable(game_map: world.GameMap, x: int, y: int) -> bool:
+    """Whether dormant-analysis paths may pass THROUGH ``(x, y)``."""
+    if not game_map.in_bounds(x, y):
+        return False
+    tile = game_map.tiles[y][x]
+    return tile.walkable and tile.kind not in _TRANSIT_KINDS
+
+
 def _reachable_cells(
     game_map: world.GameMap, start, blocked: set[tuple[int, int]],
 ) -> set[tuple[int, int]]:
@@ -149,12 +164,7 @@ def _reachable_cells(
                 if not (dx or dy):
                     continue
                 nxt = (x + dx, y + dy)
-                if (
-                    nxt in seen
-                    or nxt in blocked
-                    or not game_map.in_bounds(*nxt)
-                    or not game_map.tiles[nxt[1]][nxt[0]].walkable
-                ):
+                if nxt in seen or nxt in blocked or not _traversable(game_map, *nxt):
                     continue
                 seen.add(nxt)
                 queue.append(nxt)
@@ -201,8 +211,7 @@ def _plugs_passage(
         for dx in (-1, 0, 1)
         for dy in (-1, 0, 1)
         if (dx or dy)
-        and game_map.in_bounds(cx + dx, cy + dy)
-        and game_map.tiles[cy + dy][cx + dx].walkable
+        and _traversable(game_map, cx + dx, cy + dy)
         and (cx + dx, cy + dy) not in blockers
     ]
     for i, a in enumerate(open_sides):
@@ -232,12 +241,7 @@ def _connected_avoiding(
                 nxt = (x + dx, y + dy)
                 if nxt == goal:
                     return True
-                if (
-                    nxt not in seen
-                    and nxt not in blocked
-                    and game_map.in_bounds(*nxt)
-                    and game_map.tiles[nxt[1]][nxt[0]].walkable
-                ):
+                if nxt not in seen and nxt not in blocked and _traversable(game_map, *nxt):
                     seen.add(nxt)
                     queue.append(nxt)
     return False
