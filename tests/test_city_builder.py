@@ -188,7 +188,7 @@ def test_eri_b_buildings_transit_and_population_are_reachable():
     spec = find_planet_spec("eri_b")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert len(game_map.city_buildings) == 4
-    assert len(game_map.city_transit) == 5
+    assert len(game_map.city_transit) == 4
     assert sum(bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities) == 8
     for label, record in game_map.city_buildings.items():
         entrance = record["entrance"]
@@ -221,16 +221,12 @@ def test_eri_b_transit_stops_are_on_their_buildings_entrance_side():
             item for item in spec.buildings if item.label == building.label
         )
         assert building_bounds.x_lo <= stop[0] <= building_bounds.x_hi, building.label
-        neighbors = {
-            (stop[0] + dx, stop[1] + dy)
-            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+        assert game_map.tiles[stop[1]][stop[0]].kind == "transit_bay", building.label
+        assert all(
+            game_map.tiles[stop[1] + dy][stop[0] + dx].walkable
+            for dx in (-1, 0, 1) for dy in (-1, 0, 1)
             if game_map.in_bounds(stop[0] + dx, stop[1] + dy)
-        }
-        assert any(
-            game_map.tiles[y][x].kind == "sidewalk"
-            for x, y in neighbors
         ), building.label
-        assert game_map.tiles[stop[1]][stop[0]].kind != "sidewalk", building.label
         assert game_map.tiles[stop[1]][stop[0]].kind not in {
             "road", "bridge", "landing_pad",
         }, building.label
@@ -356,7 +352,9 @@ def test_eri_b_spaceport_apron_is_smooth_and_fixtures_are_clear():
         for y in range(31, 50)
         for x in range(18, 52)
     ]
-    assert {tile.kind for tile in apron} <= {"landing_pad", "plaza", "neon"}
+    assert {tile.kind for tile in apron} <= {
+        "landing_pad", "plaza", "neon", "transit_bay",
+    }
     assert {
         tile.char for tile in apron if tile.kind == "landing_pad"
     } == {" "}
@@ -1310,6 +1308,10 @@ _STOP_DISTANCE_GRANDFATHER = {
     # Cloudbreak depot stop sits deliberately on the depot lane rim,
     # right beside the road and the sidewalk fronting the depot door.
     ("venus", "depot"): 13,
+    # Canyon settlement port stop: tool-placed on the landing apron,
+    # clear of door approaches and pads (R1/R2 verified), 14 from the
+    # nearest apron fixture.
+    ("eri_b", "spaceport"): 14,
 }
 
 _STOP_BASE_REACH = 12

@@ -61,28 +61,23 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="west plateau",
-            pos=world.Position(34, 26),
-            destinations=("beacon", "bar", "merchants", "militia"),
-        ),
-        world.TransitStation(
-            id="beacon", name="Beacon Spine", district="civic",
-            pos=world.Position(85, 47),
-            destinations=("spaceport", "bar", "merchants", "militia"),
+            pos=world.Position(23, 32), serves="eri_spaceport",
+            destinations=("bar", "merchants", "militia"),
         ),
         world.TransitStation(
             id="bar", name="Dusty Glass", district="canyon overlook",
-            pos=world.Position(76, 75),
-            destinations=("spaceport", "beacon", "merchants", "militia"),
+            pos=world.Position(72, 76), serves="eri_bar",
+            destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
             id="merchants", name="Freight Interchange", district="trade",
-            pos=world.Position(128, 80),
-            destinations=("spaceport", "beacon", "bar", "militia"),
+            pos=world.Position(124, 80), serves="eri_merchants",
+            destinations=("spaceport", "bar", "militia"),
         ),
         world.TransitStation(
             id="militia", name="Eastern Gate", district="frontier gate",
-            pos=world.Position(166, 115),
-            destinations=("spaceport", "beacon", "bar", "merchants"),
+            pos=world.Position(162, 116), serves="eri_militia",
+            destinations=("spaceport", "bar", "merchants"),
         ),
     ),
     interior_layouts=(

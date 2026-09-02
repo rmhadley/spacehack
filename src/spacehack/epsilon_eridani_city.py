@@ -10,6 +10,7 @@ from .city_kit import (
     add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_layout import paint_roof_labels, stamp_city_assets
@@ -22,16 +23,6 @@ CITY_HEIGHT = 140
 _CANYON_X_LO, _CANYON_X_HI = 92, 107
 _ROAD_ROWS = ((28, 29, 30), (58, 59, 60), (82, 83, 84), (118, 119, 120))
 _BRIDGE_ROWS = ((34, 35, 36), (64, 65, 66), (92, 93, 94), (118, 119, 120))
-_TRANSIT_SIDEWALKS = {
-    "spaceport": ((34, 27),),
-    "beacon": ((86, 47),),
-    "bar": (
-        (76, 76),
-        *((76, y) for y in range(77, 82)),
-    ),
-    "merchants": ((128, 81),),
-    "militia": ((166, 116),),
-}
 
 _CANYON_FLOOR = world.Tile(
     kind="canyon_floor", char=" ", walkable=False,
@@ -189,13 +180,23 @@ def _paint_apron(tiles, theme, spec):
         tiles[berth.y + dy][berth.x + dx] = theme.neon
 
 
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
 def _paint_transit_bays(tiles, theme, spec):
-    """Paint floor bays beside continuous sidewalks, never over them."""
-    bay_tile = replace(theme.floor, char=" ")
-    for station in spec.transit_stations:
-        tiles[station.pos.y][station.pos.x] = bay_tile
-        for x, y in _TRANSIT_SIDEWALKS.get(station.id, ()):
-            tiles[y][x] = theme.sidewalk
+    """Carve a 3x3 transit bay under and around every transit station."""
+    paint_transit_bays(
+        tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
 
 
 def _paint_settlement_details(tiles, theme):
