@@ -130,16 +130,19 @@ In-game: user validated 2026-09-01 ✓ — caught groom_b's bay-on-door-front
       merchants, `focus`→depot); `focus` moved door-side via the new
       R2-rescue planner fix
 
-PLAYTEST: per-city gate ✓ (all three audit PASS; `make check` 1625 green).
-In-game: pending user Shift+T validation (eri_b is the phase pick).
+PLAYTEST: per-city gate ✓ (all three audit PASS; `make check` green).
+In-game: user approved 2026-09-02 ✓ ("this is good").
 
-### Phase 5 — special vocabulary / most complex
-- [ ] `barnards_b` (mine colony; no road vocabulary — expect tool
-      friction; loop-stop rule applies)
-- [ ] `ac_station` (6 stops, ring layout)
+### Phase 5 — special vocabulary / most complex — COMPLETE 2026-09-02
+- [x] `barnards_b` — serves tags, 2 moves; custom rock-carving alcove
+      painter replaced with the kit call (tool-validated open pads make
+      the wall-breach logic unnecessary); ZERO tool friction
+- [x] `ac_station` — dropped redundant `hub` (Ring Junction interchange,
+      5 targets / 6 stops), spaceport re-targeted by intent, 5 moves,
+      full kit bay wiring (had none)
 
-PLAYTEST: same per-city gate; phase playtest on both (ring transit
-around `ac_station`, tunnel transit in `barnards_b`).
+PLAYTEST: per-city gate ✓ (both audit PASS; `make check` 1625 green).
+In-game: pending user Shift+T validation (both are the phase picks).
 
 ### Phase 6 — closeout
 - [ ] Re-run audit across all 27 cities; all exit 0
@@ -176,6 +179,7 @@ rules discovered here become the input for the next tool-design phase
 | 2026-09-01 | groom_b | USER PLAYTEST: bar stop's bay covered the door-front sidewalk cell (57,23). User directed 1-west shift to (55,24); the tool's recommender wanted (56,24) (pure door-proximity ranking, NPC-blocked west) — user judgment is the "concrete reason" carve-out. Relocated `groom_bar_regular` (54,25)→(53,24) via the tool's nearest-clear-cell semantics; audit PASS | candidate rule refinement: pad zone should not consume the sidewalk cell directly fronting a door (R1 currently allows it); recommender could tie-break away from door-front cells |
 | 2026-09-01 | ross_b, blockade, lal_b | USER PLAYTEST (Ember): 3 more door-approach pads. Implemented as R1 check 5 (pads never cover entrance-adjacent cells; recommender + fix-plan treat approaches as blocked). Corpus scan: 4 cities affected, all fixed same day | the groom_b scope-log candidate became a real rule mid-campaign with user sign-off |
 | 2026-09-01 | vega_b | TOOL GAP: fix-plan only moved stations with failing PADS — an R2-unreachable station (clean pad, far from target) could never be rescued → refused plan with no path forward. Phase A now moves R2-failing stations door-side (commit 9ce5c3d, regression-tested) | second mid-campaign tool fix; eri_b's spaceport apron pad grandfathered at 14 in the POI invariant (tool-verified placement) |
+| 2026-09-02 | barnards_b, ac_station | the 'uniquely designed' pair needed NO tool changes — cave ground is plain `floor`, ring deck likewise; both converted through the standard pipeline (barnards' rock-carving alcove painter was the only special case, replaced by kit bays on validated open ground) | the anticipated Phase-5 tool friction never materialized; vocabulary worries were overestimated |
 | 2026-09-01 | ac1/2/3, sirius | AGENT BUG (user-reported): scripted destination scrub left `destinations=("bar")` — a string, not a 1-tuple — so bumping a stop said "no transit routes" (router iterated characters). Fixed all 8 stations; added a spec-integrity test (`test_every_transit_station_destinations_is_a_tuple_of_sibling_ids`) so the class is permanently guarded | scripted scrubs of tuple literals must re-verify tuple-ness; the integrity test now fails the gate |
 | | | | |
 
