@@ -81,6 +81,11 @@ Session notes (2026-09-02, user away):
   retries candidate origins and routes BEFORE stamping (3/25 seeds
   previously failed to generate F5 at all).
 - landmark.py size-ratchet debt paid in the same commit.
+- Playtest v6: routes THROUGH stairs/exits don't count — stepping
+  onto a transition auto-travels, so a hallway whose only path
+  crosses '<' was sealed in practice while every analysis called it
+  connected. Dormant analysis now treats transitions as terminals
+  (matching autoexplore's model). Audit still 0/125.
 
 ### Phase C — the descent interstitial
 - [ ] `deep_elevator` transition plays a short full-screen descent:
