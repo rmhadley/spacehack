@@ -36,18 +36,20 @@ A feel pass over F1–F5 evaluated against the narrative spine:
 ## Phases
 
 ### Phase A — identity & text (data only, high value)
-- [ ] Floor names carry containment tiers: F1 "Intake Level",
+- [x] Floor names carry containment tiers: F1 "Intake Level",
       F2 "Prisoner Quarters", F3 "Defensive Layer", F4 "High-Risk
       Containment", F5 "The Deep Cell"
-- [ ] Entry flavors for F2/F3/F4 (only F1/F5 have them), each
+- [x] Entry flavors for F2/F3/F4 (only F1/F5 have them), each
       escalating: quarters ("rows of cells... doors torn open"),
       defensive layer ("the architecture itself turns hostile"),
       high-risk ("built for things larger than the cells below")
-- [ ] Small event-text pass: alpha/beta/ascent lines reference the
+- [x] Small event-text pass: alpha/beta/ascent lines reference the
       waking light and dormant frames becoming active (now true)
 
-PLAYTEST: descend reading only names + flavor — the escalation arc
-should land before any geometry change.
+PLAYTEST: v1 checklist delivered 2026-09-02. (Phase A also surfaced a
+latent headless crash — the shared menu unpacked a dummy surface size
+as a raw ValueError; it now raises PygameMenuUnavailable, and the
+phase-two saveload test patches the popup like its siblings.)
 
 ### Phase B — cell-block landmarks (the feel win)
 Authored multi-tile stamps per tier, using the existing
