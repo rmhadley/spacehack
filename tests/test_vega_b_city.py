@@ -59,7 +59,7 @@ def test_vega_b_buildings_transit_and_npcs_are_reachable():
     spec = find_planet_spec("vega_b")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "focus", "veil", "exchange", "reflectors",
+        "spaceport", "focus", "veil", "exchange",
     }
     assert len(spec.city_npc_population) == 10
     for label, record in game_map.city_buildings.items():
@@ -104,9 +104,6 @@ def test_vega_b_reflector_field_keeps_walkable_maintenance_lanes():
         for x, tile in enumerate(row)
         if tile.kind == "solar_mirror"
     }
-    # The reflector stop sits inside a lane between rays.
-    stop = game_map.city_transit["reflectors"]["pos"]
-    assert stop in reachable
     # A sample of the deck between the rays stays walkable and connected.
     for point in ((95, 39), (108, 50), (100, 46), (115, 48), (100, 43), (95, 43)):
         assert game_map.tiles[point[1]][point[0]].walkable, point
