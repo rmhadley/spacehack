@@ -177,10 +177,14 @@ def _seed_dungeon_light_grid(game_map: world.GameMap) -> None:
     Dungeon light is fog-gated: only cells in the current LOS are
     tinted, so light never reveals cells through the fog. Sources
     outside the visible area don't contribute (their light is zeroed).
+    Sources are cached on ``light_sources`` so the render loop's
+    per-frame recompute can animate flickering dungeon sources (e.g.
+    the pulsing alien door) without rescanning tiles.
     """
-    from .lighting import collect_light_sources, propagate_light
+    from .lighting import collect_light_sources, mask_grid_to_visible, propagate_light
 
     sources = collect_light_sources(game_map)
+    game_map.light_sources = sources
     if not sources:
         game_map.light_grid = None
         return
@@ -188,9 +192,5 @@ def _seed_dungeon_light_grid(game_map: world.GameMap) -> None:
         game_map.width, game_map.height, sources,
         occluder=lambda x, y: not game_map.tiles[y][x].walkable,
     )
-    if game_map.visible is not None:
-        for y in range(game_map.height):
-            for x in range(game_map.width):
-                if not game_map.visible[y][x]:
-                    grid[y][x] = (0, 0, 0)
+    mask_grid_to_visible(game_map, grid)
     game_map.light_grid = grid

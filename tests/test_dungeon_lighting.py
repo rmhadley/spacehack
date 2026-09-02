@@ -129,3 +129,94 @@ def test_dungeon_without_fungus_has_no_light_grid():
     dungeon_fov.init_fog(game_map)
     dungeon_fov.reveal_around(game_map, player_pos, radius=5)
     assert game_map.light_grid is None
+
+
+# ----- The undulating alien door pulses (Mars prison descent) ----------
+
+
+def test_alien_door_is_in_static_light_table_with_pulse():
+    """The Mars door emits a small pulsing light — the landmark's
+    "undulating" description made visible."""
+    from src.spacehack.data.lighting import light_spec_for_kind
+
+    spec = light_spec_for_kind("alien_door")
+    assert spec is not None
+    assert spec.radius == 3
+    assert 0.4 <= spec.intensity <= 0.7  # a small amount of light
+    assert spec.flicker == "pulse"
+
+
+def test_mars_landmark_door_cells_collect_as_pulsing_sources():
+    """Every ~=~=~=~=~ tile stamped from mars_signal_door becomes a
+    pulse-flicker light source carrying its own tile colour."""
+    import copy
+
+    from src.spacehack import dungeon, landmark
+    from src.spacehack.data.planets import find_planet_spec
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.lighting import collect_light_sources
+
+    seed_rng(11)
+    params = find_planet_spec("mars").dungeon_params
+    game_map, spawn = dungeon.generate_dungeon(params)
+    asset = copy.deepcopy(landmark.load_landmark("mars_signal_door"))
+    landmark.stamp_landmark(game_map, asset, spawn)
+
+    door_cells = {
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "alien_door"
+    }
+    assert door_cells, "landmark must stamp alien_door tiles"
+
+    sources = collect_light_sources(game_map)
+    door_sources = {(s.x, s.y): s for s in sources if (s.x, s.y) in door_cells}
+    assert set(door_sources) == door_cells
+    assert all(s.flicker == "pulse" for s in door_sources.values())
+    # The two glyphs carry different colours; the light follows the tile.
+    colours = {s.colour for s in door_sources.values()}
+    assert len(colours) == 2
+
+
+def test_dungeon_seed_caches_sources_and_recompute_masks_and_animates():
+    """The seed pass caches light_sources so the per-frame recompute can
+    animate; recompute stays fog-gated and the pulse varies over time."""
+    width, height = 15, 7
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for x in range(1, width - 1):
+        tiles[3][x] = world.DUNGEON_FLOOR
+    for i, x in enumerate(range(4, 11)):
+        tiles[3][x] = (
+            world.UNDULATING_DOOR_A if i % 2 == 0 else world.UNDULATING_DOOR_B
+        )
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, world.Position(2, 3), radius=5)
+    dungeon_fov._seed_dungeon_light_grid(game_map)
+
+    assert game_map.light_sources, "seed must cache sources for the frame loop"
+    assert game_map.light_grid is not None
+    # Fog gate: a far-off cell outside LOS stays black even though the
+    # door's radius would reach it after recompute.
+    from src.spacehack.lighting import recompute_light_grid
+
+    sources = game_map.light_sources
+    recompute_light_grid(
+        game_map, sources, t=0,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+    assert game_map.light_grid[3][13] == (0, 0, 0)
+    # Animation: the pulse multiplier differs at different frame clocks.
+    probe = (3, 3)  # visible side of the door, inside its radius
+    recompute_light_grid(
+        game_map, sources, t=0,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+    at_zero = game_map.light_grid[probe[1]][probe[0]]
+    recompute_light_grid(
+        game_map, sources, t=7,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+    at_seven = game_map.light_grid[probe[1]][probe[0]]
+    assert at_zero != at_seven, "pulse must vary with the frame clock"

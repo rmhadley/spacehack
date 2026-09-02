@@ -40,6 +40,9 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     "beacon": LightSourceSpec(radius=6, intensity=1.0),
     "glow_fungus": LightSourceSpec(radius=3, intensity=0.7, flicker="pulse"),
     "city_water": LightSourceSpec(radius=2, intensity=0.4, flicker="pulse"),
+    # The undulating alien door: a faint pulse, phase-offset per cell,
+    # so light rolls along the ~=~=~=~=~ row like the wall itself moves.
+    "alien_door": LightSourceSpec(radius=3, intensity=0.6, flicker="pulse"),
 }
 
 

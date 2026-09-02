@@ -283,6 +283,23 @@ def has_flickering_sources(sources: Iterable[LightSource]) -> bool:
     return any(s.flicker != "steady" for s in sources)
 
 
+def mask_grid_to_visible(game_map, grid) -> None:
+    """Zero every fogged cell of ``grid`` in place (dungeon fog gate).
+
+    Light never reveals cells through the fog: sources outside the
+    visible area contribute nothing. Maps without a visibility grid
+    (cities) are left untouched.
+    """
+    if game_map.visible is None:
+        return
+    for y in range(game_map.height):
+        row = game_map.visible[y]
+        grid_row = grid[y]
+        for x in range(game_map.width):
+            if not row[x]:
+                grid_row[x] = (0, 0, 0)
+
+
 def recompute_light_grid(
     game_map,
     sources: list[LightSource],
@@ -296,6 +313,11 @@ def recompute_light_grid(
     steady (the grid from the build pass is already correct). Mutates
     ``game_map.light_grid`` directly; the caller caches ``sources`` so
     the tile scan runs once, not every frame.
+
+    Fog-aware: when the map carries a visibility grid (dungeon fog),
+    the recomputed grid is masked to currently-visible cells — animated
+    light must never reveal cells through the fog, matching the seeded
+    dungeon grid's contract.
     """
     if not sources or not has_flickering_sources(sources):
         return
@@ -303,6 +325,7 @@ def recompute_light_grid(
         game_map.width, game_map.height, sources,
         occluder=occluder, t=t,
     )
+    mask_grid_to_visible(game_map, game_map.light_grid)
 
 
 __all__ = [
