@@ -21,6 +21,7 @@ from . import world
 from .city_kit import (
     add_service_terminals,
     add_showroom_ships,
+    paint_transit_bays,
     set_city_metadata,
 )
 from .city_landmarks import CityLandmarkStamp
@@ -269,25 +270,27 @@ def _paint_acents(tiles, theme):
     _paint_work_lights(tiles, theme)
 
 
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
 def _paint_transit_bays(tiles, spec):
-    """Place transit bay tiles and carve small alcoves so the station
-    entity does not block the single-width ring tunnel."""
-    bay_tile = world.Tile(
-        kind="floor", char=".", walkable=True,
-        fg=(140, 160, 180), bg=(70, 64, 58),
+    """Carve a 3x3 transit bay under and around every transit station.
+
+    Stations sit on tool-validated open ground, so the kit painter's
+    floor-only overwrite replaces the old rock-carving alcove logic.
+    """
+    paint_transit_bays(
+        tiles, spec, _TRANSIT_BAY_TILE,
+        width=CITY_WIDTH, height=CITY_HEIGHT,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
     )
-    for station in spec.transit_stations:
-        x, y = station.pos.x, station.pos.y
-        if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
-            tiles[y][x] = bay_tile
-        # Carve a 3×3 alcove around the station so players can walk
-        # past it even when the tunnel is only 1 cell tall.
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                nx, ny = x + dx, y + dy
-                if 0 <= ny < CITY_HEIGHT and 0 <= nx < CITY_WIDTH:
-                    if tiles[ny][nx].kind == "city_building_wall":
-                        tiles[ny][nx] = _ROCK_FLOOR
 
 
 # ---------------------------------------------------------------------------
