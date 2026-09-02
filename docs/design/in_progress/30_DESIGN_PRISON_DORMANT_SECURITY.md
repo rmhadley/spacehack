@@ -110,6 +110,23 @@ the gauntlet the user asked for.
 **DRY strategy:** one flag, one mutator, one phase function (shared
 with doc 29); counts live in data.
 
+## Playtest v2 findings (2026-09-02) — fixed same day
+
+- Gauntlet too sparse on ascent → extras raised to F1=8, F2=7, F3=6,
+  F4=5, F5=3 (deep cell now stocked for the extract moment).
+- Corner-LOS asymmetry (user-reported with ASCII repro): combat aggro
+  used Bresenham while the player FOV uses rounded ray sampling — a
+  drone beside a corner was visible but never aggressive. Aggro now
+  reads the player's own `visible` grid: what you see can see you,
+  by construction.
+- Disengaged guards never investigated: `remember_last_seen` excluded
+  guards by design, so a fight broken at a corner just froze. Combat
+  disengage now stamps ALL survivors (`include_stationary=True`) and
+  guards with a fresh memory investigate the last-seen cell before
+  resuming their post.
+- Dormant placement now also excludes landmark footprints (F5 extras
+  had landed inside the deep-cell landmark).
+
 ## Phased implementation
 
 ### Phase 1 — dormancy exists — COMPLETE 2026-09-02
