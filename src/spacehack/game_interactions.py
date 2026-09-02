@@ -247,7 +247,20 @@ def _resolve_occupied(state, blocker):
         return _resolve_npc_blocker(state, blocker)
     if blocker.city_npc_id:
         return _resolve_city_npc_blocker(state, blocker)
+    if getattr(blocker, 'powered_down', False):
+        return _resolve_powered_down_blocker(state, blocker)
     log.add(world.blocked_message_for(blocker))
+    return None
+
+
+def _resolve_powered_down_blocker(state, blocker):
+    """Bump a dormant prison security unit: report it, fight nothing."""
+    from .data.npc_chars import find_npc_char
+    try:
+        name = find_npc_char(blocker.npc_char_id).name
+    except KeyError:
+        name = "security unit"
+    state.log.add(f'It is a powered down {name}.')
     return None
 
 def _resolve_ship_blocker(state, blocker):

@@ -318,6 +318,7 @@ class Entity:
     hp: int = 0  # ground-combat wound persistence: 0 = unengaged (full HP at first fight)
     main_quest_door: bool = False  # sealed alien door on Mars — main-quest bump target
     main_quest_step_id: str = ""  # quest cache / salvage loot — which main-quest step securing it completes
+    powered_down: bool = False  # dormant prison security: grey, inert, bump-reported (doc 30)
     transit_station_id: str = ""  # city transit stop — bump opens the station menu
     dungeon_interaction: str = ""  # reusable themed-extension interaction id
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)

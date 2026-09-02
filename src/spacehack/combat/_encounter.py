@@ -266,6 +266,8 @@ def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
             continue
         if max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) > radius:
             continue
+        if getattr(_e, 'powered_down', False):
+            continue  # dormant prison security: inert until activated
         _eid = getattr(_e, 'npc_char_id', '')
         if not _eid:
             continue

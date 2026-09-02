@@ -85,6 +85,7 @@ def _entity_to_dict(e) -> dict:
         "heist_mission": bool(getattr(e, 'heist_mission', False)),
         "heist_mission_id": getattr(e, 'heist_mission_id', None),
         "main_quest_door": bool(getattr(e, 'main_quest_door', False)),
+        "powered_down": bool(getattr(e, 'powered_down', False)),
         # Quest cache / salvage loot (delve/salvage objectives): the
         # main-quest step id whose completion this loot triggers. Lives in
         # dungeon interiors (persisted here).
@@ -241,6 +242,8 @@ def _entity_from_dict(ed: dict) -> world.Entity:
         e.heist_mission_id = _hmid
     if ed.get("main_quest_door", False):
         e.main_quest_door = True
+    if ed.get("powered_down", False):
+        e.powered_down = True
     _qsid = ed.get("main_quest_step_id")
     if _qsid:
         e.main_quest_step_id = _qsid

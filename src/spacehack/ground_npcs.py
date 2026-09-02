@@ -105,6 +105,20 @@ def _try_move_entity(
     return False
 
 
+def _cached_path_is_usable(
+    cached, leader: world.Entity, game_map: world.GameMap,
+) -> bool:
+    """Whether a cached ``(tx, ty, path)`` entry can still be walked."""
+    if cached is None:
+        return False
+    _tx, _ty, path = cached
+    if not path:
+        return False
+    nx, ny = path[0]
+    return (game_map.is_walkable(nx, ny)
+            and game_map.blocking_entity_at(nx, ny, exclude=leader) is None)
+
+
 def _patrol_path(
     squad_id: str,
     leader: world.Entity,
@@ -122,31 +136,22 @@ def _patrol_path(
         cache = _paths
 
     _cached = cache.get(squad_id)
-    _need_new = True
-    if _cached is not None:
-        _tx, _ty, _path = _cached
-        if _path:
-            _nx, _ny = _path[0]
-            if (game_map.is_walkable(_nx, _ny)
-                    and game_map.blocking_entity_at(_nx, _ny, exclude=leader) is None):
-                _need_new = False
+    if _cached_path_is_usable(_cached, leader, game_map):
+        return _cached[2]
 
-    if _need_new:
-        _target = _random_walkable(game_map)
-        if _target is None:
-            cache.pop(squad_id, None)
-            return []
-        _path = world.find_path(
-            (leader.pos.x, leader.pos.y), {_target}, game_map,
-            exclude_entity=leader,
-        )
-        if not _path:
-            cache.pop(squad_id, None)
-            return []
-        cache[squad_id] = (_target[0], _target[1], _path)
-        return _path
-
-    return _cached[2]
+    _target = _random_walkable(game_map)
+    if _target is None:
+        cache.pop(squad_id, None)
+        return []
+    _path = world.find_path(
+        (leader.pos.x, leader.pos.y), {_target}, game_map,
+        exclude_entity=leader,
+    )
+    if not _path:
+        cache.pop(squad_id, None)
+        return []
+    cache[squad_id] = (_target[0], _target[1], _path)
+    return _path
 
 
 def _last_seen_goal(entity: world.Entity) -> tuple[int, int] | None:
@@ -227,6 +232,60 @@ def _move_toward_last_seen(entity: world.Entity, game_map: world.GameMap) -> boo
     return True
 
 
+def _rejoin_stragglers(
+    members: list[world.Entity],
+    start_positions: dict,
+    game_map: world.GameMap,
+) -> None:
+    """Step wedged squad members ONE cell toward the squad centre.
+
+    Only members that could not take a patrol step this tick — yanking
+    back a member that just moved fights the patrol and freezes the
+    pack. Slipping around obstacles keeps the unstick purpose: a member
+    wedged against a wall can still rejoin the pack.
+    """
+    if len(members) < 2:
+        return
+    _cx = sum(m.pos.x for m in members) // len(members)
+    _cy = sum(m.pos.y for m in members) // len(members)
+    for _m in members:
+        if (_m.pos == start_positions[id(_m)]
+                and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
+            _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
+            _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
+            world.try_step_with_slip(_m, game_map, _dx, _dy)
+
+
+def _patrol_step(
+    members: list[world.Entity],
+    game_map: world.GameMap,
+    squad_id: str,
+) -> None:
+    """March one hostile squad along its cached patrol path."""
+    _leader = members[0]
+    _path = _patrol_path(squad_id, _leader, game_map)
+    if not _path:
+        return
+    _nx, _ny = _path[0]
+    _dx = _nx - _leader.pos.x
+    _dy = _ny - _leader.pos.y
+    if abs(_dx) > 1 or abs(_dy) > 1:
+        _paths.pop(squad_id, None)
+        return
+
+    # Try to move all members in the same direction (direct step with a
+    # one-cell perpendicular slip when the cell is blocked).
+    _start_positions = {id(_m): _m.pos for _m in members}
+    _leader_moved = False
+    for _m in members:
+        _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
+        if _m is _leader and _direct:
+            _leader_moved = True
+    if _leader_moved:
+        _path.pop(0)
+    _rejoin_stragglers(members, _start_positions, game_map)
+
+
 def _move_squad(
     members: list[world.Entity],
     game_map: world.GameMap,
@@ -237,55 +296,17 @@ def _move_squad(
     if not members:
         return
     _leader = members[0]
-    _lx, _ly = _leader.pos.x, _leader.pos.y
 
-    if is_hostile:
-        _pursuit_goal = _last_seen_goal(_leader)
-        if _pursuit_goal is not None:
-            for _member in members:
-                _move_toward_last_seen(_member, game_map)
-            return
-        _path = _patrol_path(squad_id, _leader, game_map)
-        if not _path:
-            return
-        _nx, _ny = _path[0]
-        _dx = _nx - _lx
-        _dy = _ny - _ly
-        if abs(_dx) > 1 or abs(_dy) > 1:
-            _paths.pop(squad_id, None)
-            return
-
-        # Try to move all members in the same direction (direct step
-        # with a one-cell perpendicular slip when the cell is blocked).
-        _leader_moved = False
-        _start_positions = {id(_m): _m.pos for _m in members}
-        for _m in members:
-            _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
-            if _m is _leader and _direct:
-                _leader_moved = True
-        if _leader_moved:
-            _path.pop(0)
-    else:
+    if not is_hostile:
         # Neutral squad: each member wanders independently.
         for _m in members:
             _wander_step(_m, game_map)
         return
-
-    # Squad cohesion: step stragglers ONE cell toward the centre per
-    # tick (never a multi-cell snap), but ONLY members that could not
-    # take a patrol step this tick — yanking back a member that just
-    # moved fights the patrol and freezes the pack. Slipping around
-    # obstacles keeps the unstick purpose: a member wedged against a
-    # wall can still rejoin the pack.
-    if len(members) > 1:
-        _cx = sum(m.pos.x for m in members) // len(members)
-        _cy = sum(m.pos.y for m in members) // len(members)
-        for _m in members:
-            if (_m.pos == _start_positions[id(_m)]
-                    and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
-                _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
-                _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
-                world.try_step_with_slip(_m, game_map, _dx, _dy)
+    if _last_seen_goal(_leader) is not None:
+        for _member in members:
+            _move_toward_last_seen(_member, game_map)
+        return
+    _patrol_step(members, game_map, squad_id)
 
 
 def _wander_step(entity: world.Entity, game_map: world.GameMap) -> None:
@@ -295,6 +316,67 @@ def _wander_step(entity: world.Entity, game_map: world.GameMap) -> None:
         entity.pos = world.Position(*_adj)
 
 
+def _prune_dead_squad_paths(game_map: world.GameMap) -> None:
+    """Drop cached paths for squads no longer on the map."""
+    _live_squads = {
+        getattr(e, 'squad_id', '') for e in game_map.entities
+        if getattr(e, 'squad_id', '')
+    }
+    for k in [k for k in _paths if k not in _live_squads]:
+        del _paths[k]
+
+
+def _is_movable_this_tick(ctx, entity: world.Entity) -> bool:
+    """Whether the patrol pass should move ``entity`` this tick.
+
+    Dormant prison security stands where placed; combat participants
+    are driven by the combat AI; guards/ambushers hold position; and
+    idle NPCs skip some ticks via the move-chance roll.
+    """
+    if getattr(entity, 'powered_down', False):
+        return False  # dormant prison security (doc 30)
+    if getattr(entity, 'combat_locked', False):
+        return False
+    if _spec_behavior(ctx, entity) in ("guard", "ambusher"):
+        return False
+    return _last_seen_goal(entity) is not None or RNG.random() < _MOVE_CHANCE
+
+
+def _partition_movers(ctx, game_map) -> tuple[dict, list]:
+    """Split this tick's movable NPCs into squads and solos."""
+    _squad_map: dict[str, list[world.Entity]] = {}
+    _solos: list[world.Entity] = []
+    for _e in game_map.entities:
+        if _e is ctx.player or not getattr(_e, 'npc_char_id', ''):
+            continue
+        if not _is_movable_this_tick(ctx, _e):
+            continue
+        _sid = getattr(_e, 'squad_id', '')
+        if _sid:
+            _squad_map.setdefault(_sid, []).append(_e)
+        else:
+            _solos.append(_e)
+    return _squad_map, _solos
+
+
+def _move_solo(_e: world.Entity, ctx, game_map: world.GameMap) -> None:
+    """Move one squadless NPC: pursue, patrol (uncached), or wander."""
+    if not _is_hostile(ctx, _e):
+        _wander_step(_e, game_map)
+        return
+    if _last_seen_goal(_e) is not None:
+        _move_toward_last_seen(_e, game_map)
+        return
+    # Solo-hostile: patrol without caching (A* per tick is fine for singles).
+    _path = _patrol_path("", _e, game_map, cache={})
+    if _path:
+        _nx, _ny = _path[0]
+        _dx = _nx - _e.pos.x
+        _dy = _ny - _e.pos.y
+        if abs(_dx) <= 1 and abs(_dy) <= 1:
+            _try_move_entity(_e, _dx, _dy, game_map)
+
+
 def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
     """Move ground NPCs one tick — patrol for hostiles, wander for neutrals.
 
@@ -302,63 +384,10 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
     A* path is shared, followers trail in the same direction.
     Called after the player moves in dungeon mode.
     """
-    # Prune cached paths for squads no longer on the map.
-    _live_squads = {
-        getattr(e, 'squad_id', '') for e in game_map.entities
-        if getattr(e, 'squad_id', '')
-    }
-    _dead = [k for k in _paths if k not in _live_squads]
-    for k in _dead:
-        del _paths[k]
-
-    # ---- Build squad map ----
-    _squad_map: dict[str, list[world.Entity]] = {}
-    _solos: list[world.Entity] = []
-    for _e in game_map.entities:
-        if _e is ctx.player:
-            continue
-        if not getattr(_e, 'npc_char_id', ''):
-            continue
-        # Combat participants are driven by the combat AI — the patrol
-        # pass must not also move them. Flag set by
-        # combat/_rules_ground.py, cleared when the fight ends.
-        if getattr(_e, 'combat_locked', False):
-            continue
-        # Guards and ambushers hold their position out of combat —
-        # only hunters patrol (and neutrals wander).
-        if _spec_behavior(ctx, _e) in ("guard", "ambusher"):
-            continue
-        if (
-            _last_seen_goal(_e) is None
-            and RNG.random() >= _MOVE_CHANCE
-        ):
-            continue
-        _sid = getattr(_e, 'squad_id', '')
-        if _sid:
-            _squad_map.setdefault(_sid, []).append(_e)
-        else:
-            _solos.append(_e)
-
-    # ---- Move squads ----
+    _prune_dead_squad_paths(game_map)
+    _squad_map, _solos = _partition_movers(ctx, game_map)
     for _sid, _members in _squad_map.items():
-        if not _members:
-            continue
-        _hostile = _is_hostile(ctx, _members[0])
-        _move_squad(_members, game_map, _hostile, _sid)
-
-    # ---- Move solos ----
+        if _members:
+            _move_squad(_members, game_map, _is_hostile(ctx, _members[0]), _sid)
     for _e in _solos:
-        if _is_hostile(ctx, _e):
-            if _last_seen_goal(_e) is not None:
-                _move_toward_last_seen(_e, game_map)
-                continue
-            # Solo-hostile: patrol without caching (A* per tick is fine for singles).
-            _path = _patrol_path("", _e, game_map, cache={})
-            if _path:
-                _nx, _ny = _path[0]
-                _dx = _nx - _e.pos.x
-                _dy = _ny - _e.pos.y
-                if abs(_dx) <= 1 and abs(_dy) <= 1:
-                    _try_move_entity(_e, _dx, _dy, game_map)
-        else:
-            _wander_step(_e, game_map)
+        _move_solo(_e, ctx, game_map)
