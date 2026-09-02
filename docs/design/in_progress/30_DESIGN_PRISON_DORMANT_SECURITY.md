@@ -126,6 +126,12 @@ with doc 29); counts live in data.
   resuming their post.
 - Dormant placement now also excludes landmark footprints (F5 extras
   had landed inside the deep-cell landmark).
+- Playtest v3/v4: extras spread along the route (two hold the door);
+  chokepoint predicate generalized to ALL open-orthogonal-neighbour
+  pairs (covers the stairside L-pocket `#<D# / ##@#`); autoexplore
+  treats dormant units as permanent walls — the walk-toward-reveal
+  assumption oscillates forever on stationary blockers that never
+  fight.
 
 ## Phased implementation
 
