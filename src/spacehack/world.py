@@ -171,6 +171,8 @@ SECURITY_NODE = Tile(kind="security_node", char="*", walkable=True,
                      fg=(255, 100, 100), bg=(70, 25, 30))
 HIGH_RISK_CELL_DOOR = Tile(kind="high_risk_cell_door", char="|", walkable=True,
                            fg=(220, 245, 255), bg=(45, 65, 90))
+PRISON_RAIL = Tile(kind="prison_rail", char="-", walkable=True,
+                   fg=(200, 210, 225), bg=(38, 44, 58))
 ALIEN_ELEVATOR = Tile(kind="alien_elevator", char="E", walkable=True,
                       fg=(160, 240, 255), bg=(35, 70, 95))
 ENGINEERING_FLOOR = Tile(kind="engineering_floor", char="=", walkable=True,

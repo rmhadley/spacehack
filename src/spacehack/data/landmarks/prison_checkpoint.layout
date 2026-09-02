@@ -1,0 +1,30 @@
+# prison_checkpoint.layout - F3 barrier checkpoint
+#
+# The defensive layer's signature: a barrier line with a single
+# watched gap. Security nodes stud the frame; the route forces the
+# player through the choke.
+MAP
+####################
+#..................#
+#..................#
+#..===========..*.#
+#..===========.....#
+#..===========..*.#
+#..................#
+#.*.......*........#
+#..................#
+#....*..........*..#
+#..................#
+#################d.#
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: = = DEFENSE_BARRIER
+TILE: * = SECURITY_NODE
+TILE: d = DUNGEON_DOOR
+
+COLOUR: # = (150, 165, 185) / (26, 32, 46)
+COLOUR: . = (190, 195, 205) / (40, 46, 60)
+COLOUR: = = (255, 180, 100) / (75, 45, 30)   # hot barrier strip
+COLOUR: * = (255, 100, 100) / (70, 25, 30)   # armed nodes

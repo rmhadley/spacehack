@@ -99,7 +99,10 @@ def test_prison_floor_stocks_dormant_security_near_anchors():
         event_id = unit.squad_id.removesuffix("_security")
         assert event_id in anchors, unit.squad_id
         anchor = (anchors[event_id].x, anchors[event_id].y)
-        assert max(abs(unit.pos.x - anchor[0]), abs(unit.pos.y - anchor[1])) <= 6
+        # Room-edge + chokepoint + stranding filters (and Phase B
+        # landmark footprints) can push units past the first ring —
+        # the guarantee is "at the anchor's room", not a fixed radius.
+        assert max(abs(unit.pos.x - anchor[0]), abs(unit.pos.y - anchor[1])) <= 12
         assert unit.fg == (110, 110, 110)
         assert unit.npc_char_id
 
@@ -522,3 +525,53 @@ def test_finished_garrison_strands_nothing_across_seeds():
             walled = _reachable_cells(game_map, spawn, dormant)
             assert not (free - walled - dormant), (seed, floor)
     assert audited >= 8
+
+
+# ----- Cell-block landmarks (polish phase B) ----------------------------
+
+
+def test_prison_landmark_layouts_parse_with_single_entrances():
+    """Every prison block layout parses and honours the one-entrance
+    marker contract (bottom-wall door so the approach lands outside
+    the protected footprint)."""
+    from src.spacehack import landmark
+
+    for layout_id in (
+        "prison_intake_block", "prison_cell_block",
+        "prison_cell_block_breached", "prison_checkpoint",
+        "prison_high_risk_block",
+    ):
+        asset = landmark.load_landmark(layout_id)
+        entrances = sum(
+            tile.kind in {"dungeon_door", "landmark_entrance"}
+            for row in asset.tiles for tile in row
+        )
+        assert entrances == 1, layout_id
+
+
+def test_every_prison_floor_stamps_its_cell_block():
+    """F1-F4 generation stamps its authored structure (and the sprinkle
+    theme still adds filler beside it); panels inside the block ride
+    the floor's phase lighting."""
+    from src.spacehack.dungeon_extensions import _generate_floor
+    from src.spacehack.engine import seed_rng
+
+    expected = {
+        1: "prison_intake_block",
+        3: "prison_checkpoint",
+        4: "prison_high_risk_block",
+    }
+    for floor in (1, 2, 3, 4):
+        seed_rng(1)
+        game_map, _ = _generate_floor("mars_alien_prison", floor)
+        variant = getattr(game_map, "landmark_variant_id", None)
+        assert variant, f"floor {floor} stamped no landmark variant"
+        if floor in expected:
+            assert variant == expected[floor]
+        assert game_map.landmark_footprint, floor
+    # F2 picks one of its two gallery variants.
+    seed_rng(1)
+    game_map, _ = _generate_floor("mars_alien_prison", 2)
+    assert getattr(game_map, "landmark_variant_id", "") in {
+        "prison_cell_block", "prison_cell_block_breached",
+    }

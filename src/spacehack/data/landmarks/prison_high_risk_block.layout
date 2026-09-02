@@ -1,0 +1,35 @@
+# prison_high_risk_block.layout - F4 oversized containment cells
+#
+# Fewer, larger cells with heavy doors — built for problems, not
+# prisoners. One cell is breached from within; the scars are bigger.
+MAP
+###########################
+#.........................#
+#.##########...##########.#
+.#..........|...........#.#
+.#..pp....|.............#.#
+.#..pp....|....##^^^##..#.#
+.#........|....##^^^##..#.#
+#.##########...##########.#
+#.........................#
+#.##########...##########.#
+.#..........|...........#.#
+.#..pp....|.......^^....#.#
+.#..pp....|......^^^^...#.#
+.#........|........^^....#.#
+#.##########...##########.#
+#.........................#
+#######################d###
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: | = HIGH_RISK_CELL_DOOR
+TILE: p = PRISON_PANEL_OFF
+TILE: ^ = CLAW_SCAR
+TILE: d = DUNGEON_DOOR
+
+COLOUR: # = (150, 165, 185) / (26, 32, 46)
+COLOUR: . = (190, 195, 205) / (40, 46, 60)
+COLOUR: | = (220, 245, 255) / (45, 65, 90)  # heavy cell doors
+COLOUR: ^ = (255, 140, 110) / (46, 28, 24)

@@ -1,0 +1,31 @@
+# prison_intake_block.layout - F1 intake holding pens + carrier rails
+#
+# The surface staging theme made physical: small holding pens, a
+# processing lane under ceiling carrier rails (where the sentries
+# "drop from ceiling rails"), and a security post watching the lane.
+MAP
+###################
+#.................#
+#.##.#.##.#.##.#..#
+#.#p|.#p|.#p|.#p|.#
+#.##.#.##.#.##.#..#
+#.................#
+#-----------------#
+#.................#
+#-----------------#
+#.................#
+#..+...........+..#
+################d.#
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: | = PRISON_CELL_DOOR
+TILE: p = PRISON_PANEL_OFF
+TILE: + = SECURITY_POST
+TILE: - = PRISON_RAIL
+TILE: d = DUNGEON_DOOR
+
+COLOUR: # = (150, 165, 185) / (26, 32, 46)
+COLOUR: . = (190, 195, 205) / (40, 46, 60)
+COLOUR: - = (200, 210, 225) / (38, 44, 58)   # carrier rails overhead

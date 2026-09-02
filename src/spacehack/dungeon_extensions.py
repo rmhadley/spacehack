@@ -199,12 +199,47 @@ _FEATURE_STAMPERS = {
 }
 
 
+# Themes whose own stamper already handles landmark_variants — the
+# generic variant pass must not double-stamp them.
+_VARIANT_AWARE_THEMES = frozenset({"deep_cell"})
+
+
+def _stamp_landmark_variant(game_map: world.GameMap, spec, origin: world.Position) -> bool:
+    """Stamp one weighted authored landmark variant, if the floor has any.
+
+    Isolated RNG (never the shared stream — seeded descents stay
+    byte-identical) and a soft failure: a layout that does not fit or
+    route on this map is skipped, leaving the sprinkle theme. The
+    stamped footprint is unioned into ``landmark_footprint`` so panels,
+    dormant placement, and stairs all respect it.
+    """
+    from . import landmark as landmark_module
+    from .engine import seeded_rng
+
+    variants = getattr(spec, "landmark_variants", ()) or ()
+    if not variants or spec.feature_theme in _VARIANT_AWARE_THEMES:
+        return False
+    _layout_id = landmark_module.choose_weighted_variant(
+        variants, seeded_rng(21, f"{spec.floor}").random(),
+    )
+    try:
+        _asset = landmark_module.load_landmark(_layout_id)
+        _stamp = landmark_module.stamp_landmark(game_map, _asset, origin)
+    except ValueError:
+        return False
+    game_map.landmark_footprint = set(getattr(game_map, "landmark_footprint", ()) or ()) | set(_stamp.footprint)
+    game_map.landmark_variant_id = _layout_id
+    return True
+
+
 def _stamp_floor_features(
     game_map: world.GameMap,
     spec,
     origin: world.Position,
 ) -> None:
     """Apply a data-selected procedural feature theme to a floor."""
+    _stamp_landmark_variant(game_map, spec, origin)
+    # Sprinkle features remain filler BETWEEN the authored structures.
     _feature_stamper = _FEATURE_STAMPERS.get(spec.feature_theme)
     if _feature_stamper is not None:
         _feature_stamper(game_map, origin, spec)

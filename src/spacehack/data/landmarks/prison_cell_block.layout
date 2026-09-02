@@ -1,0 +1,27 @@
+# prison_cell_block.layout - F2 barred cell rows, doors ajar (intact)
+#
+# A cell block gallery: two rows of small barred cells off a central
+# walk, each cell lit by its own dormant panel.
+MAP
+#######################
+#.....................#
+#.##|##..##|##..##|##.#
+#.#p..|..|p#..|..|p#..#
+#.##|##..##|##..##|##.#
+#.....................#
+#.....................#
+#.##|##..##|##..##|##.#
+#.#p..|..|p#..|..|p#..#
+#.##|##..##|##..##|##.#
+#.....................#
+####################d##
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: | = PRISON_CELL_DOOR
+TILE: p = PRISON_PANEL_OFF
+TILE: d = DUNGEON_DOOR
+
+COLOUR: # = (150, 165, 185) / (26, 32, 46)
+COLOUR: . = (190, 195, 205) / (40, 46, 60)

@@ -1,0 +1,30 @@
+# prison_cell_block_breached.layout - F2 variant: one cell torn open
+#
+# Same gallery, but a cell has been opened from the INSIDE — torn
+# wall, claw scars across the floor. The first hint of what the
+# quarters were holding.
+MAP
+#######################
+#.....................#
+#.##|##..##|##..#####.#
+#.#p..|..|p#..##^^^#..#
+#.##|##..##|##..##^#..#
+#.....................#
+#.....................#
+#.##|##..##|##..##|##.#
+#.#p..|..|p#..|..|p#..#
+#.##|##..##|##..##|##.#
+#.....................#
+####################d##
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: | = PRISON_CELL_DOOR
+TILE: p = PRISON_PANEL_OFF
+TILE: ^ = CLAW_SCAR
+TILE: d = DUNGEON_DOOR
+
+COLOUR: # = (150, 165, 185) / (26, 32, 46)
+COLOUR: . = (190, 195, 205) / (40, 46, 60)
+COLOUR: ^ = (255, 140, 110) / (46, 28, 24)   # claw scars - raw and bright
