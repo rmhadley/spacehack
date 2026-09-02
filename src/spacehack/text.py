@@ -141,11 +141,11 @@ RUNTIME: dict[str, str] = {
     # --- Mars prison arc ---
     "runtime.prison.facility_faction": "ALIEN FACILITY",
     "runtime.prison.security_faction": "ALIEN SECURITY",
-    "runtime.prison.floor1_name": "Alien Prison F1",
-    "runtime.prison.floor2_name": "Alien Prison F2",
-    "runtime.prison.floor3_name": "Alien Prison F3",
-    "runtime.prison.floor4_name": "Alien Prison F4",
-    "runtime.prison.floor5_name": "Alien Prison F5",
+    "runtime.prison.floor1_name": "Prison Intake",
+    "runtime.prison.floor2_name": "Prisoner Quarters",
+    "runtime.prison.floor3_name": "Defensive Layer",
+    "runtime.prison.floor4_name": "High-Risk Containment",
+    "runtime.prison.floor5_name": "The Deep Cell",
     "runtime.prison.entry_f1_title": "THE PRISON BELOW",
     "runtime.prison.entry_f1_message": (
         "The stairs descend into a facility built beneath Mars. "
@@ -153,6 +153,27 @@ RUNTIME: dict[str, str] = {
         "surface suggests a technology humanity never reached. "
         "There are no voices. No prisoners. Only dormant systems "
         "waiting in the dark."
+    ),
+    "runtime.prison.entry_f2_title": "PRISONER QUARTERS",
+    "runtime.prison.entry_f2_message": (
+        "The cells begin here. Rows of them, cut seamless into the "
+        "rock, every door hanging open. Whatever numbering system "
+        "the wardens used, it was not made for human eyes. The "
+        "cells are empty. All of them are empty."
+    ),
+    "runtime.prison.entry_f3_title": "THE DEFENSIVE LAYER",
+    "runtime.prison.entry_f3_message": (
+        "The architecture changes. The open galleries give way to "
+        "barrier lines and firing lanes - this floor was built to "
+        "stop whatever the quarters above could not hold. Security "
+        "nodes stud every junction, waiting for a signal."
+    ),
+    "runtime.prison.entry_f4_title": "HIGH-RISK CONTAINMENT",
+    "runtime.prison.entry_f4_message": (
+        "The cells are larger here. Larger, and fewer. These doors "
+        "were not built to hold prisoners - they were built to hold "
+        "problems. An engineering lattice hums behind the walls, "
+        "and below it all, something deep is still listening."
     ),
     "runtime.prison.entry_f5_title": "THE DEEP CELL",
     "runtime.prison.entry_f5_message": (
@@ -182,9 +203,10 @@ RUNTIME: dict[str, str] = {
     ),
     "runtime.prison.event.prison_floor1_security_beta.title": "DEEPER SYSTEMS AWAKEN",
     "runtime.prison.event.prison_floor1_security_beta.message": (
-        "The prison's deeper security lattice answers the first signal. "
-        "Heavy footsteps echo through the corridors. Whatever is waking "
-        "below is more prepared than the surface systems."
+        "The lights climb another stage, and the prison's deeper "
+        "security lattice answers the first signal. Heavy footsteps "
+        "echo through the corridors. Whatever is waking below is "
+        "more prepared than the surface systems."
     ),
     "runtime.prison.event.prison_ascent_f2_assault.title": "QUARTERS LOCKDOWN",
     "runtime.prison.event.prison_ascent_f2_assault.message": (

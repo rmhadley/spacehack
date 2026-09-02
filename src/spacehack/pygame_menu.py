@@ -566,6 +566,10 @@ def run_shared(
         raise PygameMenuUnavailable("Shared Pygame menu has no frames")
     pygame = engine.pygame
     width, height = engine.logical_surface.get_size()
+    if width <= 0 or height <= 0:
+        # Headless/dummy surfaces (SDL dummy driver in tests) carry no
+        # size — the menu is unavailable, not broken.
+        raise PygameMenuUnavailable("Shared Pygame surface has no size")
     font = _fit_shared_font(pygame, frames, width, height)
     return _run_shared_loop(
         pygame, engine, engine.logical_surface, font, frames, context,

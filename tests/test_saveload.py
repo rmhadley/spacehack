@@ -623,6 +623,10 @@ class TestSaveLoadRoundTrip:
             "src.spacehack.saveload._autosave_path",
             lambda: tmp_path / "autosave.json",
         )
+        monkeypatch.setattr(
+            "src.spacehack.main_quest.show_gate_popup",
+            lambda *args, **kwargs: None,
+        )
         from src.spacehack.engine import RNG
         RNG.seed(44)
         ctx = _build_test_ctx()

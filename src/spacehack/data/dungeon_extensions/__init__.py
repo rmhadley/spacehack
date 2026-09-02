@@ -241,6 +241,11 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=2,
             location_name_key="runtime.prison.floor2_name",
+            entry_flavor=EntryFlavor(
+                faction_label_key="runtime.prison.facility_faction",
+                title_key="runtime.prison.entry_f2_title",
+                message_key="runtime.prison.entry_f2_message",
+            ),
             lockdown_extras=7,
             has_down_stairs=True,
             feature_theme="prisoner_quarters",
@@ -289,6 +294,11 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=3,
             location_name_key="runtime.prison.floor3_name",
+            entry_flavor=EntryFlavor(
+                faction_label_key="runtime.prison.facility_faction",
+                title_key="runtime.prison.entry_f3_title",
+                message_key="runtime.prison.entry_f3_message",
+            ),
             lockdown_extras=6,
             has_down_stairs=True,
             feature_theme="defensive_layer",
@@ -337,6 +347,11 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=4,
             location_name_key="runtime.prison.floor4_name",
+            entry_flavor=EntryFlavor(
+                faction_label_key="runtime.prison.facility_faction",
+                title_key="runtime.prison.entry_f4_title",
+                message_key="runtime.prison.entry_f4_message",
+            ),
             lockdown_extras=5,
             has_down_stairs=True,
             feature_theme="high_risk_quarters",
