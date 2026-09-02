@@ -33,6 +33,13 @@ A feel pass over F1–F5 evaluated against the narrative spine:
    alpha/beta narrate "panels brighten" — that's real now; entry
    flavors can carry the escalation arc.
 
+## Standing direction (user, 2026-09-02)
+
+Landmark VARIANTS are the default authoring pattern going forward —
+not just the prison. Weighted variants give one layout slot
+procedural variety (F2's intact/breached galleries are the model).
+New landmark content should ship ≥2 variants where variety reads.
+
 ## Phases
 
 ### Phase A — identity & text (data only, high value)
@@ -92,21 +99,21 @@ Session notes (2026-09-02, user away):
   test rejects void/ragged prison layouts forever.
 
 ### Phase C — the descent interstitial
-- [ ] `deep_elevator` transition plays a short full-screen descent:
+- [x] `deep_elevator` transition plays a short full-screen descent:
       dark frame, depth counter ticking down (−0.4 km … −2.1 km),
       2–3 text beats ("The cables hum. The dark rises."), then the F5
       entry flavor — built on the shared modal frame machinery
       (`pygame_screen`/story screens), skippable with a key
-- [ ] Log line on arrival carries the depth ("You are 2 km beneath
+- [x] Log line on arrival carries the depth ("You are 2 km beneath
       the Martian dust.")
 
 PLAYTEST: the elevator should feel like the longest moment of the
 descent.
 
 ### Phase D — deep-cell micro-polish
-- [ ] Terminal landing emits faint light (light-table row) so the
+- [x] Terminal landing emits faint light (light-table row) so the
       bridge approach reads as "one light still answers"
-- [ ] Evaluate in playtest: bridge edge glow, claw-scar color pop —
+- [x] Evaluate in playtest: bridge edge glow, claw-scar color pop —
       only if the abyss reads flat
 
 PLAYTEST: the F5 arrival frame should be screenshot-worthy.
