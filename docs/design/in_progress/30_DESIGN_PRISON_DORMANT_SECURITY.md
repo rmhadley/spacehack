@@ -144,17 +144,18 @@ PLAYTEST: none (nothing places them yet); `make check`.
 
 PLAYTEST: descend F1 — grey `d`s stand along the route; bump one.
 
-### Phase 3 — the wake-up
-- [ ] `activate_dormant` mutator; events rewired (no more spawn)
-- [ ] data-extract activates all floors + cached maps
-- [ ] phase-gated generation (late floors spawn active)
-- [ ] tests: alpha/beta/ascent events convert only their squads;
-      extract converts everything everywhere; post-download generated
-      floor spawns active; save/load preserves each unit's state
+### Phase 3 — the wake-up — COMPLETE 2026-09-02
+- [x] `activate_dormant` mutator (recolor + flag flip, squad-filtered);
+      events rewired — `_spawn_activation_group` deleted; zero spawns
+      log the existing "no deployable unit" line
+- [x] data-extract hook in `activate_interaction_state` →
+      `apply_lockdown_all_floors` (current + cached floors)
+- [x] phase-gated generation (post-lockdown floors spawn active)
+- [x] tests: squad filtering + recolor; extract lockdown across cached
+      floors; activated state round-trips; three legacy spawn-proximity
+      tests rewritten to activation semantics
 
-PLAYTEST: full run — grey on the way down, colored and hostile after
-each popup; download → the whole map lights up red (doc 29) and every
-grey wakes; climb the stocked gauntlet.
+PLAYTEST: pending user (session checklist v2).
 
 ### Phase 4 — feel + docs
 - [ ] tune counts/extras from playtest

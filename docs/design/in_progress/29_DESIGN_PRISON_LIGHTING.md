@@ -144,15 +144,17 @@ PLAYTEST: none (data only); `make check`.
 
 PLAYTEST: see session checklist — dark start confirmed pending user.
 
-### Phase 3 — wake-up (descent)
-- [ ] `_facility_phase()` pure fn + panel state table
-- [ ] `refresh_prison_panels()` mutator (rewrite kinds + reseed)
-- [ ] Hooks: alpha, beta, floor-entry skip rule, post-load
-- [ ] tests: each phase's per-floor kinds; skip rule (beta unfired,
-      floor 2 entered → F2 mid); refresh idempotent
+### Phase 3 — wake-up (descent) — COMPLETE 2026-09-02
+- [x] `_facility_phase()` pure fn + `_PANEL_STATES`/`_PANEL_DEFAULTS`
+- [x] `refresh_prison_panels()` mutator (kind rewrite + cache
+      invalidation; per-step FOV reveal reseeds)
+- [x] Hooks: alpha/beta (event firing), generation (phase-gated),
+      every floor entry (skip rule + post-load reconciliation)
+- [x] tests: phase derivation, skip rule, per-floor kinds, idempotent
+      refresh, phase-gated generation (dormant F2 wakes to mid;
+      lockdown floor alarms with active security)
 
-PLAYTEST: trigger alpha/beta — light rises with each popup; skip past
-beta's corridor, descend — F2 lit at mid anyway.
+PLAYTEST: pending user (session checklist v2).
 
 ### Phase 4 — lockdown (console)
 - [ ] `prison_data_extracted` → refresh every cached floor + current
