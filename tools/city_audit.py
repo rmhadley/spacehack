@@ -999,10 +999,17 @@ def build_fix_plan(
     # computed against the ORIGINAL map; applying them in one batch keeps
     # the decisions consistent with what the tool reported). A station
     # moves when ANY of its R1 checks failed — missing/clipped pad or a
-    # pad shared with another station. Pads are reserved as decided, and
-    # every other station's pad blocks candidates, so two ops can never
-    # resolve to the same pad (or onto a staying station's pad).
+    # pad shared with another station — OR when an R2 reachability check
+    # failed for it (a station whose pad is clean but which sits too far
+    # from or cannot reach its served entrance gets moved door-side;
+    # found on vega_b). Stations whose ``serves`` target cannot be
+    # resolved (typos, duplicate-target decisions) are skipped — the
+    # residual check refuses the plan and surfaces the author decision.
+    # Pads are reserved as decided, and every other station's pad blocks
+    # candidates, so two ops can never resolve to the same pad (or onto a
+    # staying station's pad).
     moving = {v.station for v in r1_violations}
+    moving |= {v.station for v in violations if v.rule_id == "R2"}
     entity_blocked: set[tuple[int, int]] = set()
     for e in others:
         entity_blocked |= _footprint(e)
@@ -1021,6 +1028,8 @@ def build_fix_plan(
             continue
         serves = _station_serves(game_map, station)
         target, _src = _resolve_target(game_map, serves) if serves else (None, None)
+        if target is None and station.name not in {v.station for v in r1_violations}:
+            continue  # R2-motivated move without a resolvable target: skip
         blocked = set(entity_blocked)
         for sid, zone in station_zones.items():
             if sid != station.transit_station_id:

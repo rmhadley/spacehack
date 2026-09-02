@@ -736,3 +736,29 @@ def test_recommendation_avoids_door_approach_cells():
     rx, ry = rec["pos"]
     zone = {(rx + dx, ry + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
     assert zone.isdisjoint({(5, 5), (6, 6), (4, 6), (5, 7)})
+
+
+# ----- Fix plan rescues R2-unreachable stations -------------------------
+
+
+def test_fix_plan_moves_station_far_from_its_target():
+    """A station with a perfectly painted pad but far from its served
+    entrance must still get a move op (vega_b regression: clean pads,
+    unreachable target, and no op meant a refused plan with no path
+    forward)."""
+    x, y = 5, 5
+    bay = {(x + dx, y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)}
+    game_map = _make_map([
+        _make_entity("Transit: Far", x, y, transit_station_id="far"),
+    ], bay_cells=bay)
+    game_map.city_transit = {"far": {"serves": "bar"}}
+    game_map.city_buildings = {
+        # 15+ cells away: within the map, beyond R2 reach from (5,5)
+        "bar": {"label": "bar", "display_name": "bar", "entrance": (16, 5)},
+    }
+    plan = city_audit.build_fix_plan(game_map)
+    assert plan is not None and plan["verified"], plan
+    move = next(op for op in plan["ops"] if op["op"] == "move_station")
+    assert move["station_id"] == "far"
+    mx, my = move["to"]
+    assert abs(mx - 16) + abs(my - 5) <= 12, move["to"]
