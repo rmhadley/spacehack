@@ -266,6 +266,12 @@ def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
     _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
     if _ent is None:
         return None
+    if getattr(_ent, "powered_down", False):
+        # Dormant security never moves and never triggers the
+        # reveal-then-fight flow, so "walk toward it to reveal it"
+        # oscillates forever. It seals routes permanently — placement
+        # invariants guarantee it strands nothing (doc 30).
+        return _ent
     _visible = game_map.visible
     if _visible is not None and _visible[y][x]:
         return _ent

@@ -422,3 +422,48 @@ def test_dormant_units_never_seal_one_tile_passages():
 def _hug_ok(game_map, cell):
     from src.spacehack.dungeon_activation import _hugs_wall
     return _hugs_wall(game_map, cell[0], cell[1])
+
+
+def test_stairside_pocket_is_a_chokepoint():
+    """The playtest v4 case: a dormant unit beside a stair whose only
+    approach is that cell must be rejected (#<D# / ##@#)."""
+    from src.spacehack.dungeon_activation import _plugs_passage
+
+    glyphs = ["#<D#", "##@#"]
+    tiles = [
+        [world.DUNGEON_FLOOR if ch in "<@D" else world.DUNGEON_WALL for ch in row]
+        for row in glyphs
+    ]
+    game_map = world.GameMap(width=4, height=2, tiles=tiles, entities=[])
+    assert _plugs_passage(game_map, set(), (2, 0)), "the stair's approach must seal"
+    assert not _plugs_passage(game_map, set(), (2, 1))
+
+
+def test_autoexplore_treats_dormant_units_as_permanent_walls():
+    """A dormant drone outside current view still seals planning —
+    the walk-toward-reveal loop oscillates forever on stationary
+    blockers (playtest v4 autoexplore freak-out)."""
+    from src.spacehack.autoexplore import _visible_blocker
+
+    def _visible_blocker_at(gm, x, y):
+        return _visible_blocker(gm, x, y)
+
+    glyphs = [
+        "#####",
+        "#...#",
+        "#.@.#",
+        "#####",
+    ]
+    tiles = [
+        [world.DUNGEON_FLOOR if ch in ".@" else world.DUNGEON_WALL for ch in row]
+        for row in glyphs
+    ]
+    dormant = _dormant_drone(3, 2)
+    active = _active_drone(1, 2)
+    game_map = world.GameMap(width=5, height=4, tiles=tiles,
+                            entities=[dormant, active])
+    game_map.seen = [[True] * 5 for _ in range(4)]
+    game_map.visible = [[False] * 5 for _ in range(4)]  # out of view
+
+    assert _visible_blocker_at(game_map, 3, 2) is dormant
+    assert _visible_blocker_at(game_map, 1, 2) is None  # active: unchanged

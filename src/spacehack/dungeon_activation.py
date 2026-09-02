@@ -175,27 +175,25 @@ def _plugs_passage(
 ) -> bool:
     """Whether a body on ``cell`` would fully plug a passage.
 
-    True when the cell's open orthogonal neighbours on an axis (N-S or
-    E-W) can only reach each other THROUGH this cell — the exact
-    geometry of a 1-wide corridor, bend, or room mouth (playtest v3:
-    dormant units must never seal a 1-tile passage, even one with a
-    detour elsewhere). Open-room edge cells always connect around.
+    True when ANY two of the cell's open orthogonal neighbours can
+    only reach each other THROUGH this cell — the geometry of a 1-wide
+    corridor, bend, room mouth, or the L-pocket beside a stair (where
+    the stair's only approach is the candidate cell). Dormant units
+    must never seal a passage, even one with a detour elsewhere
+    (playtest v3/v4). Open-room edge cells always connect around.
     """
     cx, cy = cell
-    for axis in (((0, -1), (0, 1)), ((-1, 0), (1, 0))):
-        ends = []
-        for dx, dy in axis:
-            nx, ny = cx + dx, cy + dy
-            if (
-                game_map.in_bounds(nx, ny)
-                and game_map.tiles[ny][nx].walkable
-                and (nx, ny) not in blockers
-            ):
-                ends.append((nx, ny))
-        if len(ends) < 2:
-            continue
-        if not _connected_avoiding(game_map, blockers | {cell}, ends[0], ends[1]):
-            return True
+    open_sides = [
+        (cx + dx, cy + dy)
+        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+        if game_map.in_bounds(cx + dx, cy + dy)
+        and game_map.tiles[cy + dy][cx + dx].walkable
+        and (cx + dx, cy + dy) not in blockers
+    ]
+    for i, a in enumerate(open_sides):
+        for b in open_sides[i + 1:]:
+            if not _connected_avoiding(game_map, blockers | {cell}, a, b):
+                return True
     return False
 
 
