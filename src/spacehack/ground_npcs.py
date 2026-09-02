@@ -181,18 +181,21 @@ def _is_pursuit_capable(entity: world.Entity) -> bool:
 
 def remember_last_seen(
     entities: list[world.Entity], player_pos: world.Position,
+    *, include_stationary: bool = False,
 ) -> int:
-    """Stamp a bounded pursuit memory onto hunter entities.
+    """Stamp a bounded pursuit memory onto entities.
 
-    Guards and ambushers intentionally do not receive memory: guards defend
-    their post and ambushers remain a stationary surprise. Returns the number
-    of entities stamped.
+    By default only hunters receive memory — guards defend their post
+    and ambushers remain a stationary surprise. ``include_stationary``
+    stamps everyone: combat disengage uses it so surviving guards
+    INVESTIGATE where the fight broke before resuming their post
+    (playtest ruling 2026-09-02). Returns the number stamped.
     """
     _stamped = 0
     for _entity in entities:
         if getattr(_entity, "npc_char_id", "") == "":
             continue
-        if not _is_pursuit_capable(_entity):
+        if not include_stationary and not _is_pursuit_capable(_entity):
             continue
         _entity.last_seen_pos = world.Position(player_pos.x, player_pos.y)
         _entity.last_seen_ticks = _LAST_SEEN_TICKS
@@ -338,7 +341,9 @@ def _is_movable_this_tick(ctx, entity: world.Entity) -> bool:
     if getattr(entity, 'combat_locked', False):
         return False
     if _spec_behavior(ctx, entity) in ("guard", "ambusher"):
-        return False
+        # Stationary by design — EXCEPT while investigating where a
+        # broken fight's LOS ended (memory clears on arrival/expiry).
+        return _last_seen_goal(entity) is not None
     return _last_seen_goal(entity) is not None or RNG.random() < _MOVE_CHANCE
 
 

@@ -941,7 +941,9 @@ def on_disengage(ctx, game_map: world.GameMap) -> None:
         _enemy.entity for _enemy in _state.enemies
         if _enemy.alive and _enemy.entity in game_map.entities
     ]
-    _remember_last_seen(_survivors, ctx.player.pos)
+    _remember_last_seen(
+        _survivors, ctx.player.pos, include_stationary=True,
+    )
 
 def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
     """True when the player sees no hostile — LOS aggro end condition.

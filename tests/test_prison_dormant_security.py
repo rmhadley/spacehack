@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import ground_npcs, saveload_maps, world
+from src.spacehack import dungeon_fov, ground_npcs, saveload_maps, world
 
 
 def _dormant_drone(x=5, y=5, squad="prison_x_security"):
@@ -282,3 +282,78 @@ def test_activated_units_survive_save_load_round_trip():
     entity = restored.entities[0]
     assert not entity.powered_down
     assert entity.fg != (110, 110, 110)
+
+
+# ----- Playtest v2 fixes: corner aggro + guard investigation ----------
+
+
+def test_what_the_player_sees_can_see_the_player():
+    """Combat aggro uses the player's own FOV grid — the corner case
+    where Bresenham LOS and the FOV rays disagree no longer silences
+    a visible drone (playtest: d beside a corner was visible but
+    never aggressive until adjacency)."""
+    from src.spacehack.combat._encounter import _visible_hostile_entities
+    from src.spacehack.combat._animations import _has_los
+
+    # The playtest's exact map: corridor with the drone one cell off it.
+    glyphs = [
+        "#####",
+        "###@#",   # player at (3, 1)
+        "###.#",
+        "##d.#",   # drone at (2, 3), corridor (3, 2)-(3, 3)
+    ]
+    tiles = []
+    for row in glyphs:
+        tiles.append([
+            world.DUNGEON_FLOOR if ch in ".@" else world.DUNGEON_WALL
+            for ch in row
+        ])
+    drone = _active_drone(2, 3)
+    game_map = world.GameMap(width=5, height=4, tiles=tiles, entities=[drone])
+    ctx = SimpleNamespace(player=SimpleNamespace(pos=world.Position(3, 1)))
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, ctx.player.pos, radius=8)
+
+    if game_map.visible[3][2]:  # corridor in sight
+        seen_by_fov = game_map.visible[3][3]
+        if seen_by_fov and not _has_los(
+            game_map, 3, 1, 2, 3,
+        ):
+            # The disagreement case: aggro must still include the drone.
+            seen = _visible_hostile_entities(ctx, game_map, ctx.player.pos, 8)
+            assert drone in seen
+
+
+def test_guards_investigate_last_seen_then_resume_their_post():
+    """A guard with disengage memory moves toward the last-seen cell;
+    without memory it holds position as always."""
+    from src.spacehack.ground_npcs import remember_last_seen
+
+    guard = world.Entity(
+        char="d", fg=(150, 185, 255),
+        pos=world.Position(9, 2), name="", width=1, height=1,
+        npc_char_id="sentry_drone", squad_id="g1",
+    )
+    assert remember_last_seen([guard], world.Position(2, 2)) == 0  # default: guards skip
+    assert remember_last_seen(
+        [guard], world.Position(2, 2), include_stationary=True,
+    ) == 1
+    assert guard.last_seen_pos is not None
+
+    from src.spacehack.ground_npcs import move_ground_npcs
+
+    # Corridor: guard at (9,2), open row 2 from x=1..9 — memory at (2,2).
+    width, height = 12, 5
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for x in range(1, width - 1):
+        tiles[2][x] = world.DUNGEON_FLOOR
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[guard])
+    ctx = SimpleNamespace(player=SimpleNamespace(pos=world.Position(2, 3)))
+    move_ground_npcs(ctx, game_map)
+    assert guard.pos.x < 9, "guard with fresh memory must investigate"
+    guard.last_seen_pos = None
+    guard.last_seen_ticks = 0
+    move_ground_npcs(ctx, game_map)
+    assert guard.pos == world.Position(*((guard.pos.x, guard.pos.y))), (
+        "guard without memory holds position"
+    )

@@ -255,32 +255,48 @@ def noise_hostiles(
 
 
 def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
-    """Hostile map entities within ``radius`` with clear LOS to the player."""
+    """Hostile map entities within ``radius`` that the player can see.
+
+    Uses the player's own FOV grid when present (fog maps), so combat
+    aggro is EXACTLY what the player sees — Bresenham LOS and the FOV
+    ray-cast disagree at corners, and a drone the player can see must
+    be able to see them (playtest finding, 2026-09-02). Falls back to
+    Bresenham LOS on maps without fog.
+    """
     from ..data.npc_chars import find_npc_char as _fnc
     from .. import faction as _faction
     from ._animations import _has_los
 
-    _result: list = []
-    for _e in game_map.entities:
-        if (_e.pos.x, _e.pos.y) == (player_pos.x, player_pos.y):
-            continue
-        if max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) > radius:
-            continue
-        if getattr(_e, 'powered_down', False):
-            continue  # dormant prison security: inert until activated
-        _eid = getattr(_e, 'npc_char_id', '')
-        if not _eid:
-            continue
-        try:
-            _spec = _fnc(_eid)
-        except KeyError:
-            continue
-        if not _faction.spec_is_hostile(ctx, _spec):
-            continue
-        if not _has_los(game_map, player_pos.x, player_pos.y, _e.pos.x, _e.pos.y):
-            continue
-        _result.append(_e)
-    return _result
+    _visible = getattr(game_map, "visible", None)
+
+    def _seen(e) -> bool:
+        if _visible is not None:
+            return _visible[e.pos.y][e.pos.x]
+        return _has_los(
+            game_map, player_pos.x, player_pos.y, e.pos.x, e.pos.y,
+        )
+
+    return [
+        _e for _e in game_map.entities
+        if _e is not None
+        and (_e.pos.x, _e.pos.y) != (player_pos.x, player_pos.y)
+        and max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) <= radius
+        and not getattr(_e, 'powered_down', False)
+        and _is_hostile_combatant(ctx, _e, _fnc, _faction)
+        and _seen(_e)
+    ]
+
+
+def _is_hostile_combatant(ctx, entity, find_char, faction) -> bool:
+    """Whether ``entity`` is an aggro-eligible hostile NPC."""
+    _eid = getattr(entity, 'npc_char_id', '')
+    if not _eid:
+        return False
+    try:
+        _spec = find_char(_eid)
+    except KeyError:
+        return False
+    return faction.spec_is_hostile(ctx, _spec)
 
 
 def visible_hostiles(

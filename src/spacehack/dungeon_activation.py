@@ -170,6 +170,29 @@ def _cell_strands_nothing(
     return after >= before - 1
 
 
+def _dormant_cell_ok(
+    game_map, x: int, y: int, occupied, landmark_cells, spawn, blockers,
+) -> bool:
+    """Whether a dormant unit may stand on ``(x, y)``.
+
+    Free, walkable, not a stair or landmark cell, open surroundings
+    (≥3 — never a 1-wide corridor), and — when ``spawn`` is given —
+    walling it strands nothing (existing dormant bodies as walls).
+    """
+    if (
+        not game_map.in_bounds(x, y)
+        or not game_map.tiles[y][x].walkable
+        or game_map.tiles[y][x].kind in {"stairs_up", "stairs_down"}
+        or (x, y) in occupied
+        or (x, y) in landmark_cells
+        or _open_neighbours(game_map, x, y) < 3
+    ):
+        return False
+    if spawn is None:
+        return True
+    return _cell_strands_nothing(game_map, spawn, blockers, (x, y))
+
+
 def _dormant_cells(
     game_map: world.GameMap,
     anchor,
@@ -181,26 +204,18 @@ def _dormant_cells(
 ) -> list[tuple[int, int]]:
     """Nearest safe cells around ``anchor`` for dormant units.
 
-    Preference order (deterministic ring scan, no RNG):
-    1. room-edge cells — hug a wall, open surroundings (≥3 open
-       neighbours), so the player can always walk around the body;
-    2. open cells (≥3 open neighbours — never a 1-wide corridor);
-    every candidate must also pass the strands-nothing reachability
-    check (existing dormant bodies as walls) when ``spawn`` is given.
+    Preference order (deterministic ring scan, no RNG): room-edge
+    cells first, then open cells (both ≥3 open neighbours — never a
+    1-wide corridor, never a landmark footprint cell); every candidate
+    also passes the strands-nothing reachability check when ``spawn``
+    is given. See `_ring_scan_preferred`.
     """
+    landmark_cells = set(getattr(game_map, "landmark_footprint", ()) or ())
+    blockers = set(safe_blockers or set())
+
     def _cell_ok(x: int, y: int) -> bool:
-        if (
-            not game_map.in_bounds(x, y)
-            or not game_map.tiles[y][x].walkable
-            or game_map.tiles[y][x].kind in {"stairs_up", "stairs_down"}
-            or (x, y) in occupied
-            or _open_neighbours(game_map, x, y) < 3
-        ):
-            return False
-        if spawn is None:
-            return True
-        return _cell_strands_nothing(
-            game_map, spawn, set(safe_blockers or set()), (x, y),
+        return _dormant_cell_ok(
+            game_map, x, y, occupied, landmark_cells, spawn, blockers,
         )
 
     def _prefer_strict(cell: tuple[int, int]) -> bool:

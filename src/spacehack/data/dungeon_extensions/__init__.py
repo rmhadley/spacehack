@@ -167,7 +167,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             floor=1,
             location_name_key="runtime.prison.floor1_name",
             # The entry narration is data-driven and shown once per run.
-            lockdown_extras=4,
+            lockdown_extras=8,
             entry_flavor=EntryFlavor(
                 faction_label_key="runtime.prison.facility_faction",
                 title_key="runtime.prison.entry_f1_title",
@@ -241,7 +241,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=2,
             location_name_key="runtime.prison.floor2_name",
-            lockdown_extras=3,
+            lockdown_extras=7,
             has_down_stairs=True,
             feature_theme="prisoner_quarters",
             activation_events=(
@@ -289,7 +289,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=3,
             location_name_key="runtime.prison.floor3_name",
-            lockdown_extras=2,
+            lockdown_extras=6,
             has_down_stairs=True,
             feature_theme="defensive_layer",
             activation_events=(
@@ -337,7 +337,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
         ExtensionFloorSpec(
             floor=4,
             location_name_key="runtime.prison.floor4_name",
-            lockdown_extras=1,
+            lockdown_extras=5,
             has_down_stairs=True,
             feature_theme="high_risk_quarters",
             activation_events=(
@@ -393,6 +393,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
             floor=5,
             location_name_key="runtime.prison.floor5_name",
             feature_theme="deep_cell",
+            lockdown_extras=3,
             landmark_variants=(
                 LandmarkVariant("alien_prison_deep_cell", 100.0),
             ),
