@@ -7,6 +7,8 @@ time.
 """
 from __future__ import annotations
 
+import os
+
 import random as _random
 import sys
 from pathlib import Path
@@ -50,6 +52,21 @@ def new_game_seed() -> int:
     import struct
 
     return struct.unpack("I", os.urandom(4))[0]
+
+
+def reroll_run_seed() -> int:
+    """Seed the run with fresh entropy and return the new seed.
+
+    The dev reroll button (Shift+S): mid-session, deliberate, and
+    independent of ``SPACEHACK_SEED`` — a manual reroll always wants
+    NEW randomness, unlike the pin. Quicksave → reroll → descend →
+    quickload sweeps the prison from one fixed doorstep.
+    """
+    import struct
+
+    seed = struct.unpack("I", os.urandom(4))[0]
+    seed_rng(seed)
+    return seed
 
 
 def seed_rng(seed: int) -> None:

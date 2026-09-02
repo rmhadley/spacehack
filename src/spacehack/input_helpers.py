@@ -354,6 +354,14 @@ def _is_shift_t_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'T')
 
+def _is_shift_s_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+S.
+
+    Dev-mode only (``SPACEHACK_DEV``): rerolls the run seed mid-session
+    so quicksave/quickload sweeps generation from one fixed state.
+    """
+    return _is_shift_press(event, 'S')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 

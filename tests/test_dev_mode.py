@@ -397,3 +397,36 @@ def test_land_at_city_rejects_portless_planet():
 
     assert result == "CONTINUE"
     assert messages and "no port" in messages[0]
+
+
+def test_shift_s_predicate_requires_shift_modifier():
+    from src.spacehack.input_helpers import _is_shift_s_press
+
+    pressed = PygameInputEvent(kind="keydown", key_name="s", shift=True)
+    assert _is_shift_s_press(pressed)
+    bare = PygameInputEvent(kind="keydown", key_name="s")
+    assert not _is_shift_s_press(bare)
+    other = PygameInputEvent(kind="keydown", key_name="x", shift=True)
+    assert not _is_shift_s_press(other)
+
+
+def test_reroll_run_seed_reseeds_fresh_entropy():
+    """The dev reroll always produces NEW entropy — even under a pinned
+    SPACEHACK_SEED, a manual reroll wants new randomness."""
+    import os
+
+    import src.spacehack.engine as engine
+    from src.spacehack.engine import reroll_run_seed
+
+    old = os.environ.pop("SPACEHACK_SEED", None)
+    try:
+        os.environ["SPACEHACK_SEED"] = "99"
+        first = reroll_run_seed()
+        state_after_first = engine.RNG.getstate()  # via module: seed_rng rebinds RNG
+        second = reroll_run_seed()
+        assert first != 99 and second != 99, "manual reroll ignores the pin"
+        assert first != second, "each reroll is fresh entropy"
+        assert engine.RNG.getstate() != state_after_first
+    finally:
+        if old is not None:
+            os.environ["SPACEHACK_SEED"] = old

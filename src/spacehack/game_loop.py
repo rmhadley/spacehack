@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_shift_t_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -274,7 +274,6 @@ def _dev_city_teleport(state) -> None:
 
 def _handle_dev_event(state, event):
     """Handle developer-only input."""
-    ctx = state.ctx
     log = state.log
     if _is_f3_press(event):
         if _is_dev():
@@ -290,6 +289,16 @@ def _handle_dev_event(state, event):
     if _is_f9_press(event):
         _dev_quickload(state)
         return 'HANDLED'
+    outcome = _handle_dev_shift_keys(state, event)
+    if outcome is not None:
+        return outcome
+    return _handle_dev_quest_event(state, event)
+
+
+def _handle_dev_shift_keys(state, event):
+    """Shift-key dev shortcuts; ``None`` when the key is not one of ours."""
+    ctx = state.ctx
+    log = state.log
     if _is_shift_x_press(event):
         if _is_dev():
             _add_xp(ctx, 200)
@@ -297,6 +306,12 @@ def _handle_dev_event(state, event):
     if _is_shift_t_press(event):
         if _is_dev():
             _dev_city_teleport(state)
+        return 'HANDLED'
+    if _is_shift_s_press(event):
+        if _is_dev():
+            from .engine import reroll_run_seed
+            _seed = reroll_run_seed()
+            log.add(f'[DEV MODE] Run seed rerolled: {_seed}')
         return 'HANDLED'
     if _is_shift_r_press(event):
         if _is_dev() and state.current_mode == 'dungeon':
@@ -308,7 +323,7 @@ def _handle_dev_event(state, event):
             _adv_time(ctx, 30)
             log.add('Dev: skipped 30 days.')
         return 'HANDLED'
-    return _handle_dev_quest_event(state, event)
+    return None
 
 def _handle_menu_event(state, event):
     """Handle character, faction, and quest-log input."""
