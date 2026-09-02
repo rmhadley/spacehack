@@ -1304,7 +1304,6 @@ _NO_ROUTE_VOCABULARY = frozenset({"barnards_mine_colony"})
 # shrink this table as those cities get revisited.
 _STOP_DISTANCE_GRANDFATHER = {
     ("earth", "hub"): 35,
-    ("mercury", "hub"): 40,
     # Cloudbreak depot stop sits deliberately on the depot lane rim,
     # right beside the road and the sidewalk fronting the depot door.
     ("venus", "depot"): 13,
