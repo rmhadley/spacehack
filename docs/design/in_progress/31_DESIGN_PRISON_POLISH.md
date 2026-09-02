@@ -54,20 +54,33 @@ phase-two saveload test patches the popup like its siblings.)
 ### Phase B — cell-block landmarks (the feel win)
 Authored multi-tile stamps per tier, using the existing
 `landmark_variants` machinery (deep-cell precedent):
-- [ ] `prison_intake_block.layout` — holding pens + carrier rails
+- [x] `prison_intake_block.layout` — holding pens + carrier rails
       (the sentries' "ceiling rails" made physical), F1, 1–2 variants
-- [ ] `prison_cell_block.layout` — a row/arc of barred cells with
+- [x] `prison_cell_block.layout` — a row/arc of barred cells with
       doors ajar, F2, 2 variants (intact / breached)
-- [ ] `prison_checkpoint.layout` — barrier line + security nodes
+- [x] `prison_checkpoint.layout` — barrier line + security nodes
       crossing a corridor, F3
-- [ ] `prison_high_risk_block.layout` — oversized cells, heavy doors,
+- [x] `prison_high_risk_block.layout` — oversized cells, heavy doors,
       F4, 1–2 variants
-- [ ] Wire via `ExtensionFloorSpec.landmark_variants`; keep the
+- [x] Wire via `ExtensionFloorSpec.landmark_variants`; keep the
       sprinkle stampers as filler between structures; stairs/panels/
       dormant placement all already landmark-aware (footprint
       exclusions landed in doc 30)
 
-PLAYTEST: each floor should be identifiable from one screenshot.
+PLAYTEST: v2 checklist pending user (landmarks landed 2026-09-02).
+
+Session notes (2026-09-02, user away):
+- The blocker rematch exposed the REAL placement gap: stranding
+  analysis was 4-dir (movement is 8-dir) and per-candidate checks
+  can't see COMBINATORIAL sealing (two bodies in a two-cell doorway).
+  Fixed: 8-dir reachability + a whole-garrison reconcile pass;
+  25-seed/125-floor audit reports 0 violations.
+- Phase B perturbs per-floor cell counts → seeded test pins softened
+  to the real guarantees (≥1 wake per squad; anchor room proximity).
+- Pre-existing F5 fragility fixed while here: landmark stamping now
+  retries candidate origins and routes BEFORE stamping (3/25 seeds
+  previously failed to generate F5 at all).
+- landmark.py size-ratchet debt paid in the same commit.
 
 ### Phase C — the descent interstitial
 - [ ] `deep_elevator` transition plays a short full-screen descent:
