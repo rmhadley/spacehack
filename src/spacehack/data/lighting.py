@@ -50,6 +50,9 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     "prison_panel_mid": LightSourceSpec(radius=3, intensity=0.6, flicker="pulse"),
     "prison_panel_normal": LightSourceSpec(radius=5, intensity=0.9),
     "prison_panel_alarm": LightSourceSpec(radius=5, intensity=1.0, flicker="alarm"),
+    # The deep cell's terminal landing: the one light that still answers,
+    # pulsing faintly across the abyss (doc 31 phase D).
+    "terminal_landing": LightSourceSpec(radius=3, intensity=0.5, flicker="pulse"),
 }
 
 

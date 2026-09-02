@@ -417,3 +417,13 @@ def test_generation_is_phase_gated():
     }
     assert kinds == {"prison_panel_alarm"}
     assert not any(e.powered_down for e in game_map.entities)
+
+
+def test_terminal_landing_glow_reaches_across_the_abyss():
+    """Doc 31 phase D: the deep cell's landing emits a faint pulse —
+    'somewhere in the dark, one of them still answers' made visible."""
+    from src.spacehack.data.lighting import light_spec_for_kind
+
+    spec = light_spec_for_kind("terminal_landing")
+    assert spec is not None
+    assert spec.radius >= 3 and spec.flicker == "pulse"

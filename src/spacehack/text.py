@@ -244,6 +244,17 @@ RUNTIME: dict[str, str] = {
         "high-risk quarters, and the deep elevator unlocks below."
     ),
     "runtime.prison.elevator_name": "Deep Elevator",
+    "runtime.prison.descent_log": (
+        "The cage settles. You are 2 km beneath the Martian dust."
+    ),
+    "runtime.prison.descent_title": "THE DESCENT",
+    "runtime.prison.descent_message": (
+        "The cage drops. Rock slides past the frame in long dark "
+        "strobes - intake, quarters, barriers, cells - each lit for a "
+        "moment and gone. The air pressurizes. The hum deepens into "
+        "silence. You are two kilometres beneath the Martian dust, "
+        "and the prison knows you have arrived."
+    ),
     "runtime.prison.data_terminal_name": "Data Terminal",
     "runtime.prison.data_popup_title": "DATA STREAM",
     "runtime.prison.data_popup_message": (

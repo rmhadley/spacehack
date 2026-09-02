@@ -100,6 +100,11 @@ class DungeonInteractionSpec:
     popup_title_key: str = "runtime.gate_popup_default_title"
     popup_message_key: str = "runtime.prison.interaction_activated"
     feature_theme: str = ""
+    # Pre-transition flavor screen (the deep elevator's descent): art
+    # lines are CP437-safe; empty art skips the screen entirely.
+    descent_title_key: str = ""
+    descent_message_key: str = ""
+    descent_art: tuple[str, ...] = ()
 
     @property
     def name(self) -> str:
@@ -401,6 +406,31 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     action="transition_floor",
                     required_state="engineering_power",
                     destination_floor=5,
+                    descent_title_key="runtime.prison.descent_title",
+                    descent_message_key="runtime.prison.descent_message",
+                    descent_art=(
+                        "      |=|      ",
+                        "      |.|      ",
+                        "    #-------#  ",
+                        "    |.......|  ",
+                        "  #-------------#",
+                        "  |.....@.......|",
+                        "  #-------------#",
+                        "    |.......|  ",
+                        "  #-------------#",
+                        "  |.............|",
+                        "  #-------------#",
+                        "    |.......|  ",
+                        "    | ## ## |  ",
+                        "    |.......|  ",
+                        "  #-------------#",
+                        "  |.............|",
+                        "  #-------------#",
+                        "    |.......|  ",
+                        "    |.|.|.| |  ",
+                        "      |.|      ",
+                        "      |=|      ",
+                    ),
                 ),
             ),
             params=dungeon.DungeonParams(
