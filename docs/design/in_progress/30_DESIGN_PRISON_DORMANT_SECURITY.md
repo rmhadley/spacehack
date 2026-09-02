@@ -112,20 +112,30 @@ with doc 29); counts live in data.
 
 ## Phased implementation
 
-### Phase 1 — dormancy exists
-- [ ] `powered_down` Entity field + serialization row
-- [ ] grey render (fg override when dormant)
-- [ ] enemy-turn skip + bump message branch
-- [ ] tests: field round-trips through save/load; dormant unit does
+### Phase 1 — dormancy exists — COMPLETE 2026-09-02
+- [x] `powered_down` Entity field + serialization row
+- [x] grey render (grey fg placed at stocking time; spec fg restored
+      at activation — renderer needs no change)
+- [x] inert at all three chokepoints: encounter scan
+      (`_visible_hostile_entities`), patrol pass (`move_ground_npcs`),
+      bump dispatch (reports "It is a powered down X.")
+- [x] tests: field round-trips through save/load; dormant unit does
       not act; bumping logs and starts no combat
+- [x] ratchet debt paid: ground_npcs.py split (patrol/squad/straggler
+      helpers extracted)
 
 PLAYTEST: none (nothing places them yet); `make check`.
 
-### Phase 2 — prison floors are stocked
-- [ ] dormant-security scatter pass (event data + `lockdown_extras`)
-- [ ] `lockdown_extras` field on `ExtensionFloorSpec`
-- [ ] tests: every prison floor carries dormant squads near anchors;
-      non-prison dungeons unchanged; counts match data
+### Phase 2 — prison floors are stocked — COMPLETE 2026-09-02
+- [x] `_stock_dormant_security`: per-event dormant units at route
+      anchors (ring-scan cells, ZERO RNG draws — seeded descents
+      stable) + extras at the floor entry (F1=4, F2=3, F3=2, F4=1)
+- [x] `lockdown_extras` field on `ExtensionFloorSpec`
+- [x] size-limit split: anchor/dormant block extracted to
+      `dungeon_activation.py` (re-exported)
+- [x] tests: anchors/proximity/grey/counts; three legacy enemy-count
+      pins updated to exclude `powered_down` (their intent: spawned
+      security)
 
 PLAYTEST: descend F1 — grey `d`s stand along the route; bump one.
 

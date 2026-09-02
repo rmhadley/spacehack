@@ -117,21 +117,24 @@ mutator invoked from the three chokepoints only.
 
 ## Phased implementation
 
-### Phase 1 — vocabulary
-- [ ] 5 panel Tile constants (CP437-safe glyphs)
-- [ ] `alarm` flicker profile + 4 light-table rows
-- [ ] tests: table entries, alarm profile swings and varies with t/position
+### Phase 1 — vocabulary — COMPLETE 2026-09-02
+- [x] 5 panel Tile constants (CP437-safe glyphs)
+- [x] `alarm` flicker profile + 4 light-table rows
+- [x] tests: table entries, alarm profile swings and varies with t/position
 
 PLAYTEST: none (data only); `make check`.
 
-### Phase 2 — scatter
-- [ ] Parameterize fungus scatter (kind + density)
-- [ ] Prison floors generate `prison_panel_off`; density from spec
-- [ ] tests: panels present on every prison floor, absent elsewhere;
+### Phase 2 — scatter — COMPLETE 2026-09-02
+- [x] Panel scatter pass in `populate_dungeon` (`_scatter_panels`,
+      `_floor_cells` eligibility; isolated seeded RNG so the shared
+      stream is untouched — seeded descents are byte-identical)
+- [x] Prison floors generate `prison_panel_off` at density 0.02
+- [x] Fungus opt-out (`DungeonParams.scatter_fungus`): prison floors
+      carry NO ambient green — panels are the only light story
+- [x] tests: panels present on every prison floor, absent elsewhere;
       all-off floors produce no light grid (dark start holds)
 
-PLAYTEST: descend to F1 via dev flow; confirm dark start matches the
-entry narration.
+PLAYTEST: see session checklist — dark start confirmed pending user.
 
 ### Phase 3 — wake-up (descent)
 - [ ] `_facility_phase()` pure fn + panel state table
