@@ -138,7 +138,7 @@ def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     game_map, spawn = dungeon_extensions._generate_floor("mars_alien_prison", 1)
 
     assert game_map.tiles[spawn.y][spawn.x] is world.STAIRS_UP
-    assert game_map.location_name == "Alien Prison F1"
+    assert game_map.location_name == "Prison Intake"
     assert set(game_map.activation_positions) == {
         "prison_floor1_security_alpha",
         "prison_floor1_security_beta",
@@ -491,7 +491,9 @@ def test_phase_two_floors_have_expected_stair_connections_and_population():
         )
 
         assert game_map.extension_floor == floor
-        assert game_map.location_name == f"Alien Prison F{floor}"
+        assert game_map.location_name == {
+            2: "Prisoner Quarters", 3: "Defensive Layer",
+        }[floor]
         assert game_map.up_stair_pos == spawn
         assert game_map.tiles[spawn.y][spawn.x] is world.STAIRS_UP
         if floor == 2:
@@ -535,7 +537,7 @@ def test_phase_three_floor_four_has_engineering_and_elevator_anchors():
 
 def _assert_floor_four_interactions_are_separate(game_map):
 
-    assert game_map.location_name == "Alien Prison F4"
+    assert game_map.location_name == "High-Risk Containment"
     assert game_map.feature_theme == "high_risk_quarters"
     assert sum(
         tile.kind == "engineering_floor"
@@ -608,7 +610,7 @@ def test_phase_three_elevator_requires_power_then_reaches_floor_five():
     assert dungeon_extensions.elevator_is_powered(ctx)
     floor_five, _ = dungeon_extensions.transition_floor(ctx, 1)
     assert floor_five.extension_floor == 5
-    assert floor_five.location_name == "Alien Prison F5"
+    assert floor_five.location_name == "The Deep Cell"
 
 
 def test_phase_three_power_state_round_trips_in_extension_state():
@@ -747,7 +749,7 @@ def test_phase_four_deep_cell_floor_has_landmark_set_dressing_and_live_terminal(
         seed_rng(seed)
         game_map, _ = dungeon_extensions._generate_floor("mars_alien_prison", 5)
 
-        assert game_map.location_name == "Alien Prison F5"
+        assert game_map.location_name == "The Deep Cell"
         assert game_map.feature_theme == "deep_cell"
         assert getattr(game_map, "landmark_footprint", set())
         assert sum(
@@ -1067,7 +1069,7 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     floor_two, floor_two_player = dungeon_extensions.transition_floor(ctx, 1)
 
     assert ctx.dungeon_extension.current_floor == 2
-    assert floor_two.location_name == "Alien Prison F2"
+    assert floor_two.location_name == "Prisoner Quarters"
     assert floor_two.tiles[
         floor_two.up_stair_pos.y
     ][floor_two.up_stair_pos.x] is world.STAIRS_UP
@@ -1075,12 +1077,12 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
 
     floor_three, _ = dungeon_extensions.transition_floor(ctx, 1)
     assert ctx.dungeon_extension.current_floor == 3
-    assert floor_three.location_name == "Alien Prison F3"
+    assert floor_three.location_name == "Defensive Layer"
     assert floor_three.down_stair_pos is not None
 
     floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
     assert ctx.dungeon_extension.current_floor == 4
-    assert floor_four.location_name == "Alien Prison F4"
+    assert floor_four.location_name == "High-Risk Containment"
 
     returned_three, returned_player = dungeon_extensions.transition_floor(ctx, -1)
     assert returned_three is floor_three
