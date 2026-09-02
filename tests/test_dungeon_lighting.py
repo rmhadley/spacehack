@@ -220,3 +220,35 @@ def test_dungeon_seed_caches_sources_and_recompute_masks_and_animates():
     )
     at_seven = game_map.light_grid[probe[1]][probe[0]]
     assert at_zero != at_seven, "pulse must vary with the frame clock"
+
+
+def test_opaque_emitter_does_not_reveal_through_itself():
+    """The alien door glows but never extends sight through itself —
+    the sealed chamber behind it stays fogged (regression: pulsing the
+    door revealed the chamber via light-radius rays)."""
+    width, height = 15, 9
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    # Chamber rows north of the door, corridor rows south.
+    for y in (2, 3, 4, 6, 7):
+        for x in range(1, width - 1):
+            tiles[y][x] = world.DUNGEON_FLOOR
+    for i, x in enumerate(range(4, 11)):
+        tiles[5][x] = (
+            world.UNDULATING_DOOR_A if i % 2 == 0 else world.UNDULATING_DOOR_B
+        )
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, world.Position(7, 7), radius=6)
+
+    # The door row itself is in sight and glows...
+    assert any(game_map.visible[5][x] for x in range(4, 11))
+    # ...the corridor on the player's side is lit...
+    assert any(
+        game_map.light_grid[6][x] != (0, 0, 0) for x in range(4, 11)
+    ), "door light should still spill onto the player's side"
+    # ...but nothing behind the door is revealed or lit.
+    for y in (2, 3, 4):
+        for x in range(2, width - 2):
+            assert not game_map.visible[y][x], (x, y)
+            if game_map.light_grid is not None:
+                assert game_map.light_grid[y][x] == (0, 0, 0), (x, y)

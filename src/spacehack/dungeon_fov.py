@@ -133,12 +133,19 @@ def _reveal_lit_sources(game_map: world.GameMap) -> None:
     light radius) so a glow-fungus patch reveals a bubble of cells
     beyond the player's base sight radius. This is the gameplay hook:
     light extends the player's sight near lit features.
+
+    Opaque emitters (e.g. the undulating alien door) only glow — they
+    never extend sight through themselves, or a sealed chamber beyond
+    the emitter would be revealed by its own glow.
     """
     from .data.lighting import light_spec_for_kind
 
     for sx, sy in _lit_cells_in_visible(game_map):
-        spec = light_spec_for_kind(game_map.tiles[sy][sx].kind)
+        tile = game_map.tiles[sy][sx]
+        spec = light_spec_for_kind(tile.kind)
         if spec is None:
+            continue
+        if not tile.walkable and tile.kind != "hull_wall":
             continue
         for dy in range(-spec.radius, spec.radius + 1):
             for dx in range(-spec.radius, spec.radius + 1):
