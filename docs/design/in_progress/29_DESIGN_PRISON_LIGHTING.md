@@ -115,6 +115,14 @@ table generalized as `{phase: {floor: kind}}` with a default.)
 **DRY strategy:** parameterized scatter; single frozen table; single
 mutator invoked from the three chokepoints only.
 
+## Playtest findings (2026-09-02, session 2)
+
+- Combat froze ambient animations — the light recompute lived only in
+  the explore render path. Fixed: shared `recompute_frame_light(ctx,
+  map)` in `lighting.py`, called by both `_render_active_map` and the
+  ground-combat world render. Flicker/pulse/strobe now animate during
+  fights.
+
 ## Phased implementation
 
 ### Phase 1 — vocabulary — COMPLETE 2026-09-02

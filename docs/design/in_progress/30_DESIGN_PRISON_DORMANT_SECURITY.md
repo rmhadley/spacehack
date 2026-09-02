@@ -136,6 +136,11 @@ PLAYTEST: none (nothing places them yet); `make check`.
 - [x] tests: anchors/proximity/grey/counts; three legacy enemy-count
       pins updated to exclude `powered_down` (their intent: spawned
       security)
+- [x] PLAYTEST FIX (#3, 2026-09-02): room-edge placement — ring scan
+      prefers wall-hugging open cells, never 1-wide corridors, plus a
+      strands-nothing reachability guarantee (a body may block a cell,
+      never a route; BFS-per-candidate at generation, zero RNG).
+      Tests: edge preference, routes-walkable BFS on F1+F2
 
 PLAYTEST: descend F1 — grey `d`s stand along the route; bump one.
 
