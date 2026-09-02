@@ -369,18 +369,9 @@ def _resolve_extension_activation(state, blocker, interaction) -> None:
 
 
 def _show_descent_flavor(state, interaction) -> None:
-    """Present the pre-transition descent screen, if the interaction has one."""
-    if not interaction.descent_title_key:
-        return
-    from .pygame_story import dismiss as _dismiss
-    _dismiss(
-        state.ctx,
-        title=t_get(interaction.descent_title_key),
-        body=t_get(interaction.descent_message_key),
-        caption="spacehack - descent",
-        art=tuple(interaction.descent_art),
-        art_color=(255, 190, 90),
-    )
+    """Play the wordless descent animation, then log the arrival depth."""
+    from .descent_animation import animate_descent
+    animate_descent(state.ctx, state.console)
     state.log.add(t_get("runtime.prison.descent_log"))
 
 
@@ -395,7 +386,7 @@ def _resolve_extension_transition(state, blocker, interaction) -> None:
             ),
         )
         return
-    if getattr(interaction, "descent_art", ()):
+    if getattr(interaction, "descent_anim", False):
         _show_descent_flavor(state, interaction)
     try:
         _next_map, _next_player = transition_floor(

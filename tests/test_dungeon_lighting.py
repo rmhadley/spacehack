@@ -427,3 +427,42 @@ def test_terminal_landing_glow_reaches_across_the_abyss():
     spec = light_spec_for_kind("terminal_landing")
     assert spec is not None
     assert spec.radius >= 3 and spec.flicker == "pulse"
+
+
+# ----- The wordless descent (doc 31 phase C, user-revised) -------------
+
+
+def test_descent_rows_ease_slow_fast_slow():
+    """The cage's row-per-frame curve is monotonic and eased: slow at
+    both ends, fastest through the middle — the speed IS the depth."""
+    from src.spacehack.descent_animation import descent_rows
+
+    rows = descent_rows(60, 60)
+    assert rows == sorted(rows), "cage only descends"
+    assert rows[0] <= 4 and rows[-1] >= 60, "starts high, exits the bottom"
+    deltas = [b - a for a, b in zip(rows, rows[1:])]
+    assert max(deltas) > 1, "middle of the ride runs fast"
+    assert deltas[0] <= 1 and deltas[-1] <= 1, "ends ease to a stop"
+
+
+def test_descent_frame_paints_shaft_cage_and_upward_light():
+    """One frame: rails beside an open centre column, the cage with
+    '@' on a lit platform, and the light fading upward above it."""
+    from src.spacehack.descent_animation import paint_descent_frame
+    from src.spacehack.engine import SCREEN_HEIGHT, SCREEN_WIDTH
+    from src.spacehack.framebuffer import FrameBuffer
+
+    console = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
+    paint_descent_frame(console, cage_row=30)
+    cx = SCREEN_WIDTH // 2
+    assert console.cell(cx, 29).char == "@"
+    assert console.cell(cx - 1, 30).char == "="
+    assert console.cell(cx + 1, 30).char == "="
+    # Light fades upward: the @ row's background is warmer than 5 rows up.
+    near = console.cell(cx, 29).bg
+    far = console.cell(cx, 24).bg
+    assert sum(near) > sum(far)
+    # Rails exist the full height.
+    for y in range(SCREEN_HEIGHT):
+        assert console.cell(cx - 1, y).char == "="
+        assert console.cell(cx + 1, y).char == "="

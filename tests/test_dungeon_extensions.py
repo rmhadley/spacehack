@@ -1108,9 +1108,9 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     assert not ctx.dungeon_extension.active
 
 
-def test_deep_elevator_carries_descent_flavor():
-    """The F4->F5 elevator shows the descent screen before travelling
-    (doc 31 phase C): title/message keys plus CP4RIA-safe art lines."""
+def test_deep_elevator_plays_the_descent_animation():
+    """The F4->F5 elevator runs the wordless descent animation before
+    travelling (doc 31 phase C, revised per user: motion, not prose)."""
     from src.spacehack.data.dungeon_extensions import find_extension
 
     spec = find_extension("mars_alien_prison")
@@ -1120,10 +1120,4 @@ def test_deep_elevator_carries_descent_flavor():
         for item in floors[4].interactions
         if item.id == "deep_elevator"
     )
-    assert elevator.descent_title_key == "runtime.prison.descent_title"
-    assert elevator.descent_art
-    assert all(
-        all(ord(ch) < 128 for ch in line) for line in elevator.descent_art
-    ), "descent art must be CP437-safe"
-    from src.spacehack.text import get as t_get
-    assert "kilometres beneath" in t_get(elevator.descent_message_key)
+    assert elevator.descent_anim is True
