@@ -58,7 +58,7 @@ def test_proc_c_buildings_transit_and_npcs_are_reachable():
     spec = find_planet_spec("proc_planet_2")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "quad", "lab", "mess", "depot",
+        "spaceport", "lab", "mess", "depot",
     }
     # All-to-all network: every stop lists every other stop.
     assert all(

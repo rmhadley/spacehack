@@ -62,28 +62,23 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing apron",
-            pos=world.Position(20, 22),
-            destinations=("quad", "lab", "mess", "depot"),
-        ),
-        world.TransitStation(
-            id="quad", name="The Quad", district="campus center",
-            pos=world.Position(75, 52),
-            destinations=("spaceport", "lab", "mess", "depot"),
+            pos=world.Position(20, 22), serves="proc_c_spaceport",
+            destinations=("lab", "mess", "depot"),
         ),
         world.TransitStation(
             id="lab", name="Research Lab", district="lab terrace",
-            pos=world.Position(108, 26),
-            destinations=("spaceport", "quad", "mess", "depot"),
+            pos=world.Position(105, 20), serves="lab",
+            destinations=("spaceport", "mess", "depot"),
         ),
         world.TransitStation(
             id="mess", name="Mess Hall", district="south campus",
-            pos=world.Position(45, 64),
-            destinations=("spaceport", "quad", "lab", "depot"),
+            pos=world.Position(41, 67), serves="proc_c_mess",
+            destinations=("spaceport", "lab", "depot"),
         ),
         world.TransitStation(
             id="depot", name="Supply Depot", district="far bank",
-            pos=world.Position(103, 70),
-            destinations=("spaceport", "quad", "lab", "mess"),
+            pos=world.Position(99, 71), serves="proc_c_depot",
+            destinations=("spaceport", "lab", "mess"),
         ),
     ),
     interior_layouts=(
