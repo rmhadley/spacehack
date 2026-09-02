@@ -182,7 +182,7 @@ PLAYTEST: pending user (session checklist v2).
 
 ### Phase 4 — feel + docs
 - [x] tune counts/extras from playtest
-- [x] guide: dormant security entry (player-visible behavior —
+- [x] guide check: NO entry — the guide is a pure how-to-play manual; dormant security adds no controls or core mechanics and its bump message explains itself in play. (An entry was added and reverted: it telegraphed the lockdown arc — user ruling 2026-09-02.)
       "powered-down units block nothing until the facility wakes")
 - [x] corpus audit + `make check`
 - [ ] Ask user: move doc to complete?
