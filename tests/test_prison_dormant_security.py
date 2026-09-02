@@ -373,3 +373,52 @@ def test_extras_spread_along_the_route_not_piled_at_the_door():
         if max(abs(e.pos.x - spawn.x), abs(e.pos.y - spawn.y)) >= 15
     ]
     assert len(far) >= 4, "the route's far half must be garrisoned too"
+
+
+def test_dormant_units_never_seal_one_tile_passages():
+    """A body may block a cell, never a passage: corridor cells, bends,
+    and room mouths are rejected even when a detour exists elsewhere
+    (playtest v3)."""
+    from src.spacehack.dungeon_activation import _dormant_cells, _plugs_passage
+
+    # Two rooms joined by a 1-wide corridor with a bend; side pocket.
+    glyphs = [
+        "##########",
+        "#........#",   # top room (2 tall)
+        "#........#",
+        "####.#####",   # 1-wide vertical passage
+        "####.#####",
+        "####.#####",
+        "#...+.....#",   # bend at +; east corridor continues
+        "####.#####",   # passage continues down
+        "####....##",   # bottom room (2 tall, mouth at x=4)
+        "#####...##",
+        "##########",
+    ]
+    glyphs = [row.ljust(10, "#") for row in glyphs]
+    tiles = [
+        [world.DUNGEON_FLOOR if ch in ".+" else world.DUNGEON_WALL for ch in row]
+        for row in glyphs
+    ]
+    game_map = world.GameMap(width=10, height=11, tiles=tiles, entities=[])
+
+    # The conduit cells of the 1-wide passage plug it...
+    for conduit in ((4, 3), (4, 5), (4, 7)):
+        assert game_map.tiles[conduit[1]][conduit[0]].walkable
+        assert _plugs_passage(game_map, set(), conduit), conduit
+    # ...room edge cells do not.
+    assert not _plugs_passage(game_map, set(), (2, 1))
+    assert not _plugs_passage(game_map, set(), (6, 9))
+
+    # Placement anchored mid-passage must land beside it, never on it.
+    cells = _dormant_cells(
+        game_map, world.Position(4, 4), set(), 2, spawn=world.Position(4, 3),
+    )
+    assert cells
+    assert all(not _plugs_passage(game_map, set(), c) for c in cells)
+    assert all(_hug_ok(game_map, c) for c in cells)
+
+
+def _hug_ok(game_map, cell):
+    from src.spacehack.dungeon_activation import _hugs_wall
+    return _hugs_wall(game_map, cell[0], cell[1])

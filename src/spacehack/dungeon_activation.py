@@ -170,6 +170,65 @@ def _cell_strands_nothing(
     return after >= before - 1
 
 
+def _plugs_passage(
+    game_map: world.GameMap, blockers: set[tuple[int, int]], cell,
+) -> bool:
+    """Whether a body on ``cell`` would fully plug a passage.
+
+    True when the cell's open orthogonal neighbours on an axis (N-S or
+    E-W) can only reach each other THROUGH this cell — the exact
+    geometry of a 1-wide corridor, bend, or room mouth (playtest v3:
+    dormant units must never seal a 1-tile passage, even one with a
+    detour elsewhere). Open-room edge cells always connect around.
+    """
+    cx, cy = cell
+    for axis in (((0, -1), (0, 1)), ((-1, 0), (1, 0))):
+        ends = []
+        for dx, dy in axis:
+            nx, ny = cx + dx, cy + dy
+            if (
+                game_map.in_bounds(nx, ny)
+                and game_map.tiles[ny][nx].walkable
+                and (nx, ny) not in blockers
+            ):
+                ends.append((nx, ny))
+        if len(ends) < 2:
+            continue
+        if not _connected_avoiding(game_map, blockers | {cell}, ends[0], ends[1]):
+            return True
+    return False
+
+
+def _connected_avoiding(
+    game_map: world.GameMap, blocked: set[tuple[int, int]], start, goal,
+) -> bool:
+    """Four-way BFS: is ``goal`` reachable from ``start`` avoiding ``blocked``?"""
+    from collections import deque
+
+    if start == goal:
+        return True
+    seen = {start}
+    queue = deque([start])
+    while queue:
+        x, y = queue.popleft()
+        for dx, dy in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+            nxt = (x + dx, y + dy)
+            if (
+                nxt == goal
+                or (
+                    nxt not in seen
+                    and nxt not in blocked
+                    and game_map.in_bounds(*nxt)
+                    and game_map.tiles[nxt[1]][nxt[0]].walkable
+                )
+            ):
+                if nxt == goal:
+                    return True
+                seen.add(nxt)
+                queue.append(nxt)
+    return False
+
+
 def _dormant_cell_ok(
     game_map, x: int, y: int, occupied, landmark_cells, spawn, blockers,
 ) -> bool:
@@ -188,6 +247,8 @@ def _dormant_cell_ok(
         or _open_neighbours(game_map, x, y) < 3
     ):
         return False
+    if _plugs_passage(game_map, blockers, (x, y)):
+        return False  # never seal a 1-wide passage, bend, or room mouth
     if spawn is None:
         return True
     return _cell_strands_nothing(game_map, spawn, blockers, (x, y))
