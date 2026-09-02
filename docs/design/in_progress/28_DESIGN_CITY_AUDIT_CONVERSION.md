@@ -117,15 +117,21 @@ destinations bug — fixed, integrity test added).
 - [x] `lal_c` — 4 moves, full kit bay wiring, `_paint_maze` extraction
 - [x] `ross_b` — door-anchored positions became literals per verified ops, widened `_BAY_KINDS`, real bay tile
 
-PLAYTEST: per-city gate ✓ (all seven audit PASS; `make check` 1621 green).
-In-game: pending user Shift+T validation (indi_b is the phase pick).
+PLAYTEST: per-city gate ✓ (all seven audit PASS; `make check` green).
+In-game: user validated 2026-09-01 ✓ — caught groom_b's bay-on-door-front
+(raised to R1 check 5, 4 cities fixed) and ross_b/Ember follow-ups.
 
-### Phase 4 — 5-stop cities
-- [ ] `eri_b` (custom bay wrapper — verify overwrite set vs op args)
-- [ ] `proc_planet_2`
-- [ ] `vega_b`
+### Phase 4 — 5-stop cities — COMPLETE 2026-09-01
+- [x] `eri_b` — dropped redundant `beacon` (interchange), 4 moves, custom
+      floor-kind bay wrapper replaced with the kit call (+ dead
+      `_TRANSIT_SIDEWALKS` table removed)
+- [x] `proc_planet_2` — dropped redundant `quad` (mess keeper by intent), 3 moves
+- [x] `vega_b` — dropped far-east `reflectors`; intent serves (`exchange`→
+      merchants, `focus`→depot); `focus` moved door-side via the new
+      R2-rescue planner fix
 
-PLAYTEST: same per-city gate; phase playtest on `eri_b`.
+PLAYTEST: per-city gate ✓ (all three audit PASS; `make check` 1625 green).
+In-game: pending user Shift+T validation (eri_b is the phase pick).
 
 ### Phase 5 — special vocabulary / most complex
 - [ ] `barnards_b` (mine colony; no road vocabulary — expect tool
@@ -169,6 +175,7 @@ rules discovered here become the input for the next tool-design phase
 | 2026-09-01 | ross_b | spec authored positions as door-constant expressions; verified ops gave literals — replaced expressions with literal coords (comments kept) | expression-anchored specs need literal replacement when ops move stations |
 | 2026-09-01 | groom_b | USER PLAYTEST: bar stop's bay covered the door-front sidewalk cell (57,23). User directed 1-west shift to (55,24); the tool's recommender wanted (56,24) (pure door-proximity ranking, NPC-blocked west) — user judgment is the "concrete reason" carve-out. Relocated `groom_bar_regular` (54,25)→(53,24) via the tool's nearest-clear-cell semantics; audit PASS | candidate rule refinement: pad zone should not consume the sidewalk cell directly fronting a door (R1 currently allows it); recommender could tie-break away from door-front cells |
 | 2026-09-01 | ross_b, blockade, lal_b | USER PLAYTEST (Ember): 3 more door-approach pads. Implemented as R1 check 5 (pads never cover entrance-adjacent cells; recommender + fix-plan treat approaches as blocked). Corpus scan: 4 cities affected, all fixed same day | the groom_b scope-log candidate became a real rule mid-campaign with user sign-off |
+| 2026-09-01 | vega_b | TOOL GAP: fix-plan only moved stations with failing PADS — an R2-unreachable station (clean pad, far from target) could never be rescued → refused plan with no path forward. Phase A now moves R2-failing stations door-side (commit 9ce5c3d, regression-tested) | second mid-campaign tool fix; eri_b's spaceport apron pad grandfathered at 14 in the POI invariant (tool-verified placement) |
 | 2026-09-01 | ac1/2/3, sirius | AGENT BUG (user-reported): scripted destination scrub left `destinations=("bar")` — a string, not a 1-tuple — so bumping a stop said "no transit routes" (router iterated characters). Fixed all 8 stations; added a spec-integrity test (`test_every_transit_station_destinations_is_a_tuple_of_sibling_ids`) so the class is permanently guarded | scripted scrubs of tuple literals must re-verify tuple-ness; the integrity test now fails the gate |
 | | | | |
 
