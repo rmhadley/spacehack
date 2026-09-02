@@ -103,6 +103,9 @@ class DungeonInteractionSpec:
     # Pre-transition descent animation (the deep elevator): a wordless
     # eased cage drop presented before the floor loads.
     descent_anim: bool = False
+    # Paint the cell under this interaction with the glowing
+    # LIVE_TERMINAL tile — the single soft light source (doc 31 D).
+    emits_light: bool = False
 
     @property
     def name(self) -> str:
@@ -438,6 +441,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 DungeonInteractionSpec(
                     id="deep_cell_data_terminal",
                     char="T",
+                    emits_light=True,
                     name_key="runtime.prison.data_terminal_name",
                     action="activate_state",
                     state_key="prison_data_extracted",

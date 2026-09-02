@@ -419,14 +419,39 @@ def test_generation_is_phase_gated():
     assert not any(e.powered_down for e in game_map.entities)
 
 
-def test_terminal_landing_glow_reaches_across_the_abyss():
-    """Doc 31 phase D: the deep cell's landing emits a faint pulse —
-    'somewhere in the dark, one of them still answers' made visible."""
+def test_one_live_terminal_glow_not_the_whole_landing():
+    """Doc 31 phase D, user-corrected: the landing does NOT emit
+    (dozens of overlapping tiles washed out white); the ONE active
+    terminal carries a soft single-source pulse."""
     from src.spacehack.data.lighting import light_spec_for_kind
 
-    spec = light_spec_for_kind("terminal_landing")
+    assert light_spec_for_kind("terminal_landing") is None
+    spec = light_spec_for_kind("live_terminal")
     assert spec is not None
-    assert spec.radius >= 3 and spec.flicker == "pulse"
+    assert spec.radius <= 2 and spec.intensity <= 0.4
+    assert spec.flicker == "pulse"
+
+
+def test_deep_cell_stamps_the_glowing_terminal_tile():
+    """F5 generation paints LIVE_TERMINAL under the active data
+    terminal — exactly one glowing cell in the deep cell."""
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.dungeon_extensions import _generate_floor
+
+    seed_rng(11)
+    game_map, _ = _generate_floor("mars_alien_prison", 5)
+    glowing = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "live_terminal"
+    ]
+    assert len(glowing) == 1
+    terminal = next(
+        e for e in game_map.entities
+        if getattr(e, "dungeon_interaction", "") == "deep_cell_data_terminal"
+    )
+    assert (terminal.pos.x, terminal.pos.y) == glowing[0]
 
 
 # ----- The wordless descent (doc 31 phase C, user-revised) -------------

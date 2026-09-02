@@ -188,6 +188,8 @@ CLAW_SCAR = Tile(kind="claw_scar", char="^", walkable=True,
                  fg=(220, 145, 100), bg=(55, 40, 45))
 BRIDGE = Tile(kind="bridge", char="=", walkable=True,
               fg=(100, 180, 220), bg=(18, 28, 48))
+LIVE_TERMINAL = Tile(kind="live_terminal", char=".", walkable=True,
+                     fg=(235, 180, 110), bg=(32, 26, 16))
 TERMINAL_LANDING = Tile(kind="terminal_landing", char=".", walkable=True,
                         fg=(175, 195, 215), bg=(38, 48, 65))
 LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
