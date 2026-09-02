@@ -1,5 +1,12 @@
 # DESIGN: City Audit Conversion — all cities audit-clean
 
+> **STATUS: COMPLETE 2026-09-02.** All 27 cities pass
+> `tools/city_audit.py` (R0/R1/R2) with `make check` green. Every phase
+> was playtest-validated in-game via the dev city teleport (Shift+T).
+> The scope-change log below is the campaign's durable record — it
+> drove two mid-campaign tool rules (door-approach pads, R2-rescue
+> moves) and seeds the next-rule proposals in Phase 6.
+
 ## Overview
 
 Roll `tools/city_audit.py` (R0/R1/R2 + verified `--fix-plan`) across the
@@ -144,15 +151,23 @@ In-game: user approved 2026-09-02 ✓ ("this is good").
 PLAYTEST: per-city gate ✓ (both audit PASS; `make check` 1625 green).
 In-game: pending user Shift+T validation (both are the phase picks).
 
-### Phase 6 — closeout
-- [ ] Re-run audit across all 27 cities; all exit 0
-- [ ] Shrink `_STOP_DISTANCE_GRANDFATHER` where conversions made stops
-      door-side (each removal is its own commit)
-- [ ] Propose next audit rules from the follow-up log (see below)
-- [ ] Ask user: move this doc to `complete/`?
+### Phase 6 — closeout — COMPLETE 2026-09-02
+- [x] Re-run audit across all 27 cities; all exit 0 (verified twice)
+- [x] Shrink `_STOP_DISTANCE_GRANDFATHER`: mercury's entry was dead
+      (hub stop removed) — dropped; earth-hub (29, serves the plaza
+      landmark), venus-depot (13), eri_b-spaceport (14) all still
+      needed and documented
+- [x] Next-rule proposals (for a future tool pass, NOT this campaign):
+      R3 — builder bay tile must be `kind="transit_bay"` (7 cities
+      shipped invisible `floor`-kind bays); R4 — ambient NPC spawns on
+      walkable ground (mercury_lab_hand pattern, currently only caught
+      by pytest); R5 candidate — redundant-stop lint at spec level
+      (fewer targets than stops) so authors see it before the audit
+- [x] User approved closeout 2026-09-02 ("close it out"); doc moved to
+      `complete/`
 
 PLAYTEST: `for`-loop audit over the corpus, exit 0 everywhere; full
-`make check`.
+`make check` green (1625).
 
 ## Follow-up / scope-change log
 
