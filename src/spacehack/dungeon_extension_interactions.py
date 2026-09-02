@@ -220,3 +220,21 @@ def ensure_floor_interactions(game_map, spec, origin) -> None:
     ]
     if _missing:
         stamp_interactions(game_map, spec, origin, interactions=tuple(_missing))
+    _ensure_glow_tiles(game_map, spec)
+
+
+def _ensure_glow_tiles(game_map, spec) -> None:
+    """Guarantee glowing interactions stand on their LIVE_TERMINAL tile.
+
+    Floors cached by older builds (pre-glow saves) keep their baked
+    tiles; this repaints under any ``emits_light`` entity so continued
+    runs see the fix. Idempotent.
+    """
+    for interaction in spec.interactions:
+        if not getattr(interaction, "emits_light", False):
+            continue
+        entity = _existing_entity(game_map, interaction)
+        if entity is None:
+            continue
+        if game_map.tiles[entity.pos.y][entity.pos.x].kind != "live_terminal":
+            game_map.tiles[entity.pos.y][entity.pos.x] = world.LIVE_TERMINAL

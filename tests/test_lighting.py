@@ -71,8 +71,11 @@ def test_additive_clamps_to_255_per_channel():
         x=0, y=0, colour=(255, 255, 255), radius=0, intensity=2.0,
     )
     grid = propagate_light(1, 1, [bright])
-    # 255 * 2.0 = 510 → clamped to 255.
-    assert grid[0][0] == (255, 255, 255)
+    # 255 * 2.0 = 510, then luma-capped with proportional scaling:
+    # bright, hue-correct, never pure white (whiteout guard, v9).
+    from src.spacehack.lighting import _LIGHT_LUMA_CAP, _luma
+    assert _luma(grid[0][0]) <= _LIGHT_LUMA_CAP + 1.0
+    assert grid[0][0] == (int(_LIGHT_LUMA_CAP),) * 3
 
 
 def test_occluder_blocks_light_through_walls():

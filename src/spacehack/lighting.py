@@ -203,9 +203,10 @@ def propagate_light(
     Each source colours cells within its Chebyshev ``radius``; intensity
     falls off by ``falloff`` per cell of distance from the source (a
     source of intensity 1.0 at distance 2 with ``falloff=0.5``
-    contributes 0.25). Colours from overlapping sources add per channel,
-    clamped to 255. The grid is all-black ``(0, 0, 0)`` when ``sources``
-    is empty.
+    contributes 0.25). Colours from overlapping sources add per channel;
+    the finished grid is luma-capped (see :data:`_LIGHT_LUMA_CAP`) so
+    any number of overlapping sources stays bright-but-never-white.
+    The grid is all-black ``(0, 0, 0)`` when ``sources`` is empty.
 
     When ``occluder`` is provided, light is blocked by cells for which
     ``occluder(x, y)`` returns ``True`` — a Bresenham line-of-sight
@@ -223,7 +224,31 @@ def propagate_light(
         _propagate_one_source(
             grid, source, width, height, falloff, t, occluder,
         )
+    _cap_luma(grid)
     return grid
+
+
+# Perceptual brightness ceiling for a lit cell. Per-channel 255
+# clamping alone lets many overlapping sources stack to pure white —
+# the washed-out landing (playtest v9). A luma cap with PROPORTIONAL
+# scaling keeps overlit cells bright, hue-correct, and never white.
+_LIGHT_LUMA_CAP = 200.0
+
+
+def _luma(rgb: RGB) -> float:
+    """Perceptual luma (Rec. 601 weights)."""
+    return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+
+
+def _cap_luma(grid: list[list[RGB]]) -> None:
+    """Scale any over-cap cell's channels proportionally to the cap."""
+    for row in grid:
+        for x, rgb in enumerate(row):
+            brightness = _luma(rgb)
+            if brightness <= _LIGHT_LUMA_CAP:
+                continue
+            scale = _LIGHT_LUMA_CAP / brightness
+            row[x] = tuple(min(255, int(channel * scale)) for channel in rgb)
 
 
 def _blend_channel(base: int, light: int) -> int:

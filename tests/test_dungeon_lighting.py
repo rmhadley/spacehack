@@ -428,7 +428,7 @@ def test_one_live_terminal_glow_not_the_whole_landing():
     assert light_spec_for_kind("terminal_landing") is None
     spec = light_spec_for_kind("live_terminal")
     assert spec is not None
-    assert spec.radius <= 2 and spec.intensity <= 0.4
+    assert spec.radius <= 3 and spec.intensity <= 0.6
     assert spec.flicker == "pulse"
 
 
@@ -491,3 +491,29 @@ def test_descent_frame_paints_shaft_cage_and_upward_light():
     for y in range(SCREEN_HEIGHT):
         assert console.cell(cx - 1, y).char == "="
         assert console.cell(cx + 1, y).char == "="
+
+
+def test_light_luma_cap_prevents_whiteout():
+    """Any number of overlapping bright sources can never stack a cell
+    to washed-out white: luma is capped with proportional (hue-keeping)
+    scaling; a single dim source passes through untouched."""
+    from src.spacehack.lighting import (
+        LightSource, _LIGHT_LUMA_CAP, _luma, propagate_light,
+    )
+
+    sources = [
+        LightSource(x=10 + dx, y=10, colour=(240, 240, 255), radius=4, intensity=1.0)
+        for dx in range(-3, 4)
+    ]
+    grid = propagate_light(21, 21, sources)
+    centre = grid[10][10]
+    assert _luma(centre) <= _LIGHT_LUMA_CAP + 1.0
+    assert centre != (255, 255, 255), "overlapped light must not white out"
+    # Proportional scaling keeps the hue ratio (blue never falls below
+    # red when it started above it).
+    assert centre[2] >= centre[0]
+
+    dim = propagate_light(21, 21, [
+        LightSource(x=10, y=10, colour=(60, 40, 20), radius=2, intensity=0.4),
+    ])
+    assert _luma(dim[10][10]) < _LIGHT_LUMA_CAP, "dim light is untouched"

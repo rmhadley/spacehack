@@ -53,7 +53,7 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     # The ONE active terminal in the deep cell — a soft single-source
     # glow (the landing itself does NOT emit: dozens of overlapping
     # landing tiles washed the screen out white, playtest v9).
-    "live_terminal": LightSourceSpec(radius=2, intensity=0.35, flicker="pulse"),
+    "live_terminal": LightSourceSpec(radius=3, intensity=0.55, flicker="pulse"),
 }
 
 
