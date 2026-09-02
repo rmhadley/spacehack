@@ -99,11 +99,11 @@ Session notes (2026-09-02, user away):
   test rejects void/ragged prison layouts forever.
 
 ### Phase C — the descent interstitial
-- [x] `deep_elevator` transition plays a short full-screen descent:
-      dark frame, depth counter ticking down (−0.4 km … −2.1 km),
-      2–3 text beats ("The cables hum. The dark rises."), then the F5
-      entry flavor — built on the shared modal frame machinery
-      (`pygame_screen`/story screens), skippable with a key
+- [x] `deep_elevator` transition plays a WORDLESS descent (user
+      revision 2026-09-02: motion, not prose): an eased cage drop
+      past scrolling level seams, the platform's light spilling
+      upward — `descent_animation.py`, any key skips; the only words
+      are the arrival log line
 - [x] Log line on arrival carries the depth ("You are 2 km beneath
       the Martian dust.")
 
