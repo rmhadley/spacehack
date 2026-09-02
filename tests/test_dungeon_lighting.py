@@ -334,3 +334,86 @@ def test_panel_scatter_leaves_ordinary_dungeons_untouched():
         tile.kind.startswith("prison_panel")
         for row in game_map.tiles for tile in row
     )
+
+
+# ----- Facility phase wake-up (doc 29 phase 3) --------------------------
+
+
+def _state_with(events=(), flags=()):
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        activated_events=set(events), state_flags=set(flags),
+    )
+
+
+def test_facility_phase_derives_from_persisted_state():
+    from src.spacehack.dungeon_activation import _facility_phase
+
+    assert _facility_phase(_state_with()) == "dormant"
+    assert _facility_phase(_state_with(events=["prison_floor1_security_alpha"])) == "waking"
+    assert _facility_phase(_state_with(events=[
+        "prison_floor1_security_alpha", "prison_floor1_security_beta",
+    ])) == "rising"
+    assert _facility_phase(_state_with(
+        events=["prison_floor1_security_alpha"],
+        flags=["prison_data_extracted"],
+    )) == "lockdown"
+
+
+def test_panel_kinds_follow_phase_and_skip_rule():
+    from src.spacehack.dungeon_activation import _effective_phase, _panel_kind
+
+    assert _panel_kind("dormant", 1).kind == "prison_panel_off"
+    assert _panel_kind("waking", 1).kind == "prison_panel_dim"
+    assert _panel_kind("waking", 2).kind == "prison_panel_off"
+    assert _panel_kind("rising", 1).kind == "prison_panel_mid"
+    assert _panel_kind("rising", 4).kind == "prison_panel_normal"
+    assert _panel_kind("lockdown", 5).kind == "prison_panel_alarm"
+    # Skip rule: entering floor 2 counts as at least rising.
+    assert _effective_phase("dormant", 2) == "rising"
+    assert _effective_phase("dormant", 1) == "dormant"
+    assert _effective_phase("waking", 3) == "rising"
+
+
+def test_refresh_prison_panels_rewrites_and_invalidates():
+    from src.spacehack.dungeon_activation import refresh_prison_panels
+
+    width, height = 20, 10
+    tiles = [[world.PRISON_PANEL_OFF for _ in range(width)] for _ in range(height)]
+    for y in range(height):
+        for x in range(width):
+            if (x + y) % 2:
+                tiles[y][x] = world.DUNGEON_FLOOR
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
+    game_map.light_grid = [[(1, 1, 1)] * width for _ in range(height)]
+    game_map.light_sources = ["stale"]
+
+    assert refresh_prison_panels(game_map, "lockdown", 1) is True
+    kinds = {
+        t.kind for row in game_map.tiles for t in row
+        if t.kind.startswith("prison_panel_")
+    }
+    assert kinds == {"prison_panel_alarm"}
+    assert game_map.light_grid is None and game_map.light_sources is None
+    assert refresh_prison_panels(game_map, "lockdown", 1) is False  # idempotent
+
+
+def test_generation_is_phase_gated():
+    from src.spacehack.dungeon_extensions import _generate_floor
+
+    # Floor 2 generated dormant still wakes: the skip rule applies.
+    game_map, _ = _generate_floor("mars_alien_prison", 2, phase="dormant")
+    kinds = {
+        t.kind for row in game_map.tiles for t in row
+        if t.kind.startswith("prison_panel_")
+    }
+    assert kinds == {"prison_panel_mid"}
+
+    # A floor generated post-lockdown alarms and its security is awake.
+    game_map, _ = _generate_floor("mars_alien_prison", 1, phase="lockdown")
+    kinds = {
+        t.kind for row in game_map.tiles for t in row
+        if t.kind.startswith("prison_panel_")
+    }
+    assert kinds == {"prison_panel_alarm"}
+    assert not any(e.powered_down for e in game_map.entities)

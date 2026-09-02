@@ -9,18 +9,19 @@ state so future caves, ruins, stations, and prisons share one runtime.
 from __future__ import annotations
 
 from . import dungeon, world
+from . import dungeon_activation
 from .dungeon_activation import (  # noqa: F401 — size-limit split
     _activation_cells,
     _activation_positions,
     _place_dormant_units,
     _stock_dormant_security,
     _walkable_distances,
+    floor_key,
 )
 from .dungeon_extension_deep_cell import stamp_deep_cell
 from .game_context import DungeonExtensionState
 
 
-_EXTENSION_KEY_PREFIX = "extension:"
 ALIEN_PRISON_EXTENSION_ID = "mars_alien_prison"
 _ENTRY_FLAVOR_KEY = "__entry_flavor__"
 
@@ -28,11 +29,6 @@ _ENTRY_FLAVOR_KEY = "__entry_flavor__"
 def _entry_flavor_key(floor: int) -> str:
     """Return the per-floor key for one-time entry flavor."""
     return f"{_ENTRY_FLAVOR_KEY}:floor:{floor}"
-
-
-def floor_key(extension_id: str, floor: int) -> str:
-    """Return the stable interior-cache key for one extension floor."""
-    return f"{_EXTENSION_KEY_PREFIX}{extension_id}:floor:{floor}"
 
 
 def extension_id_at(game_map: world.GameMap, position: world.Position) -> str | None:
@@ -284,7 +280,7 @@ def _ensure_floor_interactions(
     _ensure_floor_interactions_impl(game_map, spec, origin)
 
 
-def _generate_floor(extension_id: str, floor: int):
+def _generate_floor(extension_id: str, floor: int, phase: str = "dormant"):
     """Generate one procedural floor and its stable extension anchors."""
     _spec = _floor_spec(extension_id, floor)
     _game_map, _spawn = dungeon.generate_dungeon(_spec.params)
@@ -311,6 +307,14 @@ def _generate_floor(extension_id: str, floor: int):
         _game_map, _spawn, _spec.activation_events,
     )
     _stock_dormant_security(_game_map, _spec, _spawn)
+    # Phase-gated generation: a floor reached after the facility woke
+    # generates in its lit state; post-lockdown floors spawn security
+    # already active (doc 29/30 phase 3).
+    _effective = dungeon_activation._effective_phase(phase, floor)
+    if _effective != "dormant":
+        dungeon_activation.refresh_prison_panels(_game_map, _effective, floor)
+    if _effective == "lockdown":
+        dungeon_activation.activate_dormant(_game_map)
     # The elevator anchor is stamped after the down stair is created so the
     # interaction entity occupies the connection and gates it cleanly.
     _stamp_interactions(_game_map, _spec, _spawn)
@@ -522,7 +526,11 @@ def _get_or_generate_floor(
     _key = floor_key(extension_id, floor)
     _game_map = ctx.interiors.get(_key)
     if _game_map is None:
-        _game_map, _ = _generate_floor(extension_id, floor)
+        _state = getattr(ctx, "dungeon_extension", None)
+        _game_map, _ = _generate_floor(
+            extension_id, floor,
+            phase=dungeon_activation._facility_phase(_state) if _state else "dormant",
+        )
         ctx.interiors[_key] = _game_map
     else:
         _ensure_floor_connections(_game_map, extension_id, floor)
@@ -563,6 +571,9 @@ def activate_interaction_state(ctx, interaction_id: str) -> bool:
     if _interaction.state_key == "engineering_power":
         _state.power_restored = True
         ctx.game_map.power_restored = True
+    if _interaction.state_key == "prison_data_extracted":
+        # The payoff moment: every floor alarms, everything wakes (doc 30).
+        dungeon_activation.apply_lockdown_all_floors(ctx)
     # Interactions that carry a main-quest objective type complete that
     # step on activation (generic — the runtime never names a step id).
     if _interaction.objective_type:
@@ -676,6 +687,11 @@ def _install_transition(ctx, state, target_map, target_position, target_floor):
     if target_map.seen is None:
         dungeon.init_fog(target_map)
     dungeon.reveal_around(target_map, target_position)
+    # Entry reconciliation: covers the floor-2 skip rule, post-load
+    # drift, and phases that advanced while the floor was cached.
+    dungeon_activation.refresh_prison_panels(
+        target_map, dungeon_activation._facility_phase(state), target_floor,
+    )
     _show_first_entry_flavor(ctx, state, target_floor)
     return target_map, _player
 
@@ -755,37 +771,6 @@ def _event_position(ctx, event_id: str) -> world.Position | None:
     return None
 
 
-def _spawn_activation_group(
-    game_map: world.GameMap,
-    position: world.Position,
-    event,
-) -> int:
-    """Spawn one capped security group around the player's position."""
-    from .data.npc_chars import find_npc_char
-
-    try:
-        _spec = find_npc_char(event.enemy_id)
-    except KeyError:
-        return 0
-    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
-    _count = max(0, min(event.count, event.max_count))
-    if _count == 0:
-        return 0
-    _cells = _activation_cells(game_map, position, _occupied, _count)
-    if not _cells:
-        return 0
-    return dungeon._scatter_squad(
-        game_map.entities,
-        _occupied,
-        enemy_id=event.enemy_id,
-        cells=_cells,
-        count=_count,
-        squad_id=f"{event.id}_security",
-        char=_spec.char,
-        fg=_spec.fg,
-    )
-
-
 def _progress_reached(
     game_map: world.GameMap,
     player_pos: world.Position,
@@ -854,8 +839,14 @@ def _activation_event_ready(ctx, state, event) -> bool:
 
 def _fire_activation_event(ctx, state, event) -> None:
     """Persist, present, and log one activation event."""
-    _spawned = _spawn_activation_group(ctx.game_map, ctx.player.pos, event)
+    _spawned = dungeon_activation.activate_dormant(
+        ctx.game_map, squad_prefix=f"{event.id}_security",
+    )
     state.activated_events.add(event.id)
+    # The facility's power story advanced — panels follow (doc 29).
+    dungeon_activation.refresh_prison_panels(
+        ctx.game_map, dungeon_activation._facility_phase(state), state.current_floor,
+    )
     from .main_quest import show_gate_popup
 
     show_gate_popup(

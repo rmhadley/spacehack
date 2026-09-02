@@ -11,11 +11,11 @@ from types import SimpleNamespace
 from src.spacehack import ground_npcs, saveload_maps, world
 
 
-def _dormant_drone(x=5, y=5):
+def _dormant_drone(x=5, y=5, squad="prison_x_security"):
     return world.Entity(
         char="d", fg=(110, 110, 110),
         pos=world.Position(x, y), name="", width=1, height=1,
-        npc_char_id="sentry_drone", squad_id="prison_x_security",
+        npc_char_id="sentry_drone", squad_id=squad,
         powered_down=True,
     )
 
@@ -219,3 +219,66 @@ def test_recompute_frame_light_advances_with_the_clock():
     steady.light_grid = None
     lighting.recompute_frame_light(ctx, steady)
     assert steady.light_grid is None  # steady-only: build grid stands
+
+
+# ----- The wake-up + lockdown (doc 30 phase 3) --------------------------
+
+
+def test_activate_dormant_filters_by_squad_and_recolors():
+    from src.spacehack.dungeon_activation import activate_dormant
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    a = _dormant_drone(3, 4)   # squad prison_x_security
+    b = _dormant_drone(9, 4)   # squad prison_x_security
+    c = _dormant_drone(6, 6, squad="prison_y_security")
+    game_map = _map_with([a, b, c])
+
+    assert activate_dormant(game_map, squad_prefix="prison_x") == 2
+    assert not a.powered_down and not b.powered_down and c.powered_down
+    spec = find_npc_char("sentry_drone")
+    assert a.fg == spec.fg and a.char == spec.char
+    assert activate_dormant(game_map) == 1  # everything else
+
+
+def test_extract_locks_down_every_cached_floor():
+    from src.spacehack.dungeon_activation import apply_lockdown_all_floors
+    from src.spacehack.dungeon_extensions import floor_key
+
+    f1, _ = _prison_floor(1)
+    f2, _ = _prison_floor(2)
+    ctx = SimpleNamespace(
+        game_map=f1,
+        interiors={
+            floor_key("mars_alien_prison", 1): f1,
+            floor_key("mars_alien_prison", 2): f2,
+        },
+        dungeon_extension=SimpleNamespace(
+            extension_id="mars_alien_prison",
+            activated_events=set(), state_flags=set(),
+        ),
+    )
+    assert any(e.powered_down for e in f1.entities)
+    assert any(e.powered_down for e in f2.entities)
+
+    awakened = apply_lockdown_all_floors(ctx)
+
+    assert awakened > 0
+    for floor_map in (f1, f2):
+        assert not any(e.powered_down for e in floor_map.entities)
+        assert not any(
+            t.kind == "prison_panel_off"
+            for row in floor_map.tiles for t in row
+        )
+
+
+def test_activated_units_survive_save_load_round_trip():
+    drone = _dormant_drone(3, 4)
+    game_map = _map_with([drone])
+    from src.spacehack.dungeon_activation import activate_dormant
+    activate_dormant(game_map)
+
+    data = saveload_maps._dungeon_to_dict(game_map, None)
+    restored = saveload_maps._dungeon_from_dict(data)[0]
+    entity = restored.entities[0]
+    assert not entity.powered_down
+    assert entity.fg != (110, 110, 110)

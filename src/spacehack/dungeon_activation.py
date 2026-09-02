@@ -63,6 +63,14 @@ def _activation_positions(
     return _positions
 
 
+_EXTENSION_KEY_PREFIX = "extension:"
+
+
+def floor_key(extension_id: str, floor: int) -> str:
+    """Return the stable interior-cache key for one extension floor."""
+    return f"{_EXTENSION_KEY_PREFIX}{extension_id}:floor:{floor}"
+
+
 _DORMANT_GREY = (110, 110, 110)
 
 
@@ -302,3 +310,138 @@ def _activation_cells(
         if len(_found) >= needed_count:
             return _found[:needed_count]
     return _found
+
+
+# ----- Facility phase: one truth for panels AND dormant security -----
+# (docs/design/in_progress/29_DESIGN_PRISON_LIGHTING.md phase 3 and
+# 30_DESIGN_PRISON_DORMANT_SECURITY.md phase 3)
+
+_WAKING_EVENT = "prison_floor1_security_alpha"
+_RISING_EVENT = "prison_floor1_security_beta"
+_EXTRACTED_FLAG = "prison_data_extracted"
+
+# Panel kind per (phase, floor); missing floors take the phase default.
+# "rising" deep floors default to normal — power approaches mains as
+# the player nears the core.
+_PANEL_STATES: dict[str, dict[int, world.Tile]] = {
+    "dormant": {},
+    "waking": {1: world.PRISON_PANEL_DIM},
+    "rising": {
+        1: world.PRISON_PANEL_MID,
+        2: world.PRISON_PANEL_MID,
+        3: world.PRISON_PANEL_MID,
+    },
+    "lockdown": {},
+}
+_PANEL_DEFAULTS: dict[str, world.Tile] = {
+    "dormant": world.PRISON_PANEL_OFF,
+    "waking": world.PRISON_PANEL_OFF,
+    "rising": world.PRISON_PANEL_NORMAL,
+    "lockdown": world.PRISON_PANEL_ALARM,
+}
+_PHASE_ORDER = ("dormant", "waking", "rising", "lockdown")
+
+
+def _facility_phase(state) -> str:
+    """Pure: derive the facility phase from persisted extension state.
+
+    ``lockdown`` (data extracted) beats everything; otherwise the F1
+    power events ratchet dormant → waking → rising. Derived, never
+    stored — save/load needs no new state.
+    """
+    if _EXTRACTED_FLAG in (getattr(state, "state_flags", None) or set()):
+        return "lockdown"
+    events = getattr(state, "activated_events", None) or set()
+    if _RISING_EVENT in events:
+        return "rising"
+    if _WAKING_EVENT in events:
+        return "waking"
+    return "dormant"
+
+
+def _effective_phase(phase: str, floor: int) -> str:
+    """Apply the skip rule: entering floor ≥2 counts as at least rising.
+
+    Skipping an F1 power event never stalls the wake-up below (user
+    ruling 2026-09-02).
+    """
+    if floor >= 2 and _PHASE_ORDER.index(phase) < _PHASE_ORDER.index("rising"):
+        return "rising"
+    return phase
+
+
+def _panel_kind(phase: str, floor: int) -> world.Tile:
+    """The panel tile kind a floor shows in ``phase``."""
+    return _PANEL_STATES.get(phase, {}).get(
+        floor, _PANEL_DEFAULTS.get(phase, world.PRISON_PANEL_OFF),
+    )
+
+
+def refresh_prison_panels(game_map: world.GameMap, phase: str, floor: int) -> bool:
+    """Rewrite every panel tile to its ``phase`` kind; invalidate light.
+
+    Idempotent. Light caches are dropped rather than recomputed: the
+    per-step FOV reveal reseeds both from the new tile kinds, and the
+    per-frame recompute skips until then. Returns whether any panel
+    changed.
+    """
+    target = _panel_kind(phase, floor)
+    changed = False
+    for row in game_map.tiles:
+        for x, tile in enumerate(row):
+            if tile.kind.startswith("prison_panel_") and tile.kind != target.kind:
+                row[x] = target
+                changed = True
+    if changed:
+        game_map.light_sources = None
+        game_map.light_grid = None
+    return changed
+
+
+def activate_dormant(
+    game_map: world.GameMap, *, squad_prefix: str = "",
+) -> int:
+    """Wake dormant security: recolored, hostile, fighting.
+
+    Flips ``powered_down`` and restores the unit spec's glyph/colour.
+    ``squad_prefix`` wakes only that event's squads (ascent events
+    whose squads already woke under lockdown simply report zero).
+    Returns the number activated (for the spawn/no-deploy log lines).
+    """
+    from .data.npc_chars import find_npc_char
+
+    count = 0
+    for entity in game_map.entities:
+        if not getattr(entity, "powered_down", False):
+            continue
+        if squad_prefix and not entity.squad_id.startswith(squad_prefix):
+            continue
+        entity.powered_down = False
+        try:
+            spec = find_npc_char(entity.npc_char_id)
+        except KeyError:
+            continue
+        entity.char = spec.char
+        entity.fg = spec.fg
+        count += 1
+    return count
+
+
+def apply_lockdown_all_floors(ctx) -> int:
+    """The data-extract moment: every floor alarms and everything wakes.
+
+    Applies to the current map and every cached floor of the active
+    extension; floors generated later pick the state up at generation
+    (phase-gated). Returns the total units awakened.
+    """
+    state = getattr(ctx, "dungeon_extension", None)
+    prefix = f"{floor_key(state.extension_id, '') if state else ''}"
+    maps = [ctx.game_map]
+    for key, cached in (getattr(ctx, "interiors", None) or {}).items():
+        if state and key.startswith(prefix) and cached not in maps:
+            maps.append(cached)
+    awakened = 0
+    for game_map in maps:
+        awakened += activate_dormant(game_map)
+        refresh_prison_panels(game_map, "lockdown", 0)
+    return awakened

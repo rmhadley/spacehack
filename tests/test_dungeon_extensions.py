@@ -119,19 +119,18 @@ def test_activation_threshold_resolves_when_no_deployment_cell_exists(monkeypatc
         "src.spacehack.main_quest.show_gate_popup",
         lambda *args, **kwargs: None,
     )
-    monkeypatch.setattr(
-        "src.spacehack.dungeon_extensions._spawn_activation_group",
-        lambda *args, **kwargs: 0,
-    )
     extension_player.pos = _position_between_security_thresholds(extension_map)
 
     assert dungeon_extensions.tick_activation(ctx)
     assert "prison_floor1_security_alpha" in ctx.dungeon_extension.activated_events
     assert not dungeon_extensions.tick_activation(ctx)
-    assert any(
-        "no deployable unit" in entry.text
-        for entry in ctx.log.recent(n=len(ctx.log))
-    )
+    # The event woke its pre-placed dormant squad (doc 30 phase 3):
+    # alpha's units are active and hostile now.
+    squad = [
+        e for e in extension_map.entities
+        if e.squad_id == "prison_floor1_security_alpha_security"
+    ]
+    assert squad and all(not e.powered_down for e in squad)
 
 
 def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
@@ -313,10 +312,8 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
     assert "prison_floor1_security_beta" not in ctx.dungeon_extension.activated_events
     assert any(
         entity.npc_char_id == "sentry_drone"
-        and max(
-            abs(entity.pos.x - extension_player.pos.x),
-            abs(entity.pos.y - extension_player.pos.y),
-        ) <= 3
+        and entity.squad_id == f"{event_id}_security"
+        and not entity.powered_down
         for entity in extension_map.entities
     )
     assert shown == [("ALIEN SECURITY", "SECURITY POWER RISING")]
@@ -351,10 +348,8 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
     assert event_id in ctx.dungeon_extension.activated_events
     assert any(
         entity.npc_char_id == "assault_drone"
-        and max(
-            abs(entity.pos.x - extension_player.pos.x),
-            abs(entity.pos.y - extension_player.pos.y),
-        ) <= 3
+        and entity.squad_id == f"{event_id}_security"
+        and not entity.powered_down
         for entity in extension_map.entities
     )
 
