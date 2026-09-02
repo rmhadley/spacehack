@@ -11,7 +11,11 @@ from __future__ import annotations
 from dataclasses import replace
 
 from . import world
-from .city_kit import add_service_terminals, add_showroom_ships
+from .city_kit import (
+    add_service_terminals,
+    add_showroom_ships,
+    paint_transit_bays,
+)
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -191,6 +195,12 @@ def _set_metadata(game_map, spec, stamps, ring_cells) -> None:
     }
 
 
+_TRANSIT_BAY_TILE = world.Tile(
+    kind="transit_bay", char="=", walkable=True,
+    fg=(0, 229, 255), bg=(30, 68, 92),
+)
+
+
 def build_ac_ring_layout(spec, resolve_ship) -> world.GameMap:
     """Build Alpha Centauri's 120x80 orbital ring station."""
     theme = _readable_city_theme(RING_STATION)
@@ -215,6 +225,15 @@ def build_ac_ring_layout(spec, resolve_ship) -> world.GameMap:
         for x, y in stamp.footprint
     ):
         raise ValueError("Alpha Centauri landmark footprint leaves the station ring")
+    paint_transit_bays(
+        game_map.tiles, spec, _TRANSIT_BAY_TILE,
+        width=game_map.width, height=game_map.height,
+        overwrite_kinds=frozenset({
+            "floor", "grass", "grass_accent", "plaza", "city_plaza",
+            "sidewalk", "landing_pad",
+        }),
+        force_center=True,
+    )
     paint_roof_labels(game_map, stamps, "ac_ring_")
     _set_metadata(game_map, spec, stamps, ring_cells)
     _add_service_entities(game_map, spec, resolve_ship)

@@ -134,7 +134,7 @@ def test_ac_station_buildings_and_transit_are_reachable():
     spec = find_planet_spec("ac_station")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert len(game_map.city_buildings) == 5
-    assert len(game_map.city_transit) == 6
+    assert len(game_map.city_transit) == 5
     for label, record in game_map.city_buildings.items():
         entrance = record["entrance"]
         assert entrance is not None, label

@@ -72,33 +72,28 @@ SPEC = PlanetSpec(
     transit_stations=(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="spaceport",
-            pos=world.Position(69, 22),
-            destinations=("hub", "archive", "lab", "commons", "observation"),
-        ),
-        world.TransitStation(
-            id="hub", name="Ring Junction", district="central hub",
-            pos=world.Position(60, 36),
-            destinations=("spaceport", "archive", "lab", "commons", "observation"),
+            pos=world.Position(56, 19), serves="ac_ring_spaceport",
+            destinations=("archive", "lab", "commons", "observation"),
         ),
         world.TransitStation(
             id="archive", name="Archive Vault", district="archive",
-            pos=world.Position(79, 24),
-            destinations=("spaceport", "hub", "lab", "commons", "observation"),
+            pos=world.Position(82, 24), serves="ac_ring_archive",
+            destinations=("spaceport", "lab", "commons", "observation"),
         ),
         world.TransitStation(
             id="lab", name="Analysis Lab", district="analysis",
-            pos=world.Position(77, 63),
-            destinations=("spaceport", "hub", "archive", "commons", "observation"),
+            pos=world.Position(75, 65), serves="ac_ring_lab",
+            destinations=("spaceport", "archive", "commons", "observation"),
         ),
         world.TransitStation(
             id="commons", name="Crew Commons", district="commons",
-            pos=world.Position(96, 44),
-            destinations=("spaceport", "hub", "archive", "lab", "observation"),
+            pos=world.Position(94, 43), serves="ac_ring_commons",
+            destinations=("spaceport", "archive", "lab", "observation"),
         ),
         world.TransitStation(
             id="observation", name="Observation Deck", district="observation",
-            pos=world.Position(20, 44),
-            destinations=("spaceport", "hub", "archive", "lab", "commons"),
+            pos=world.Position(18, 43), serves="ac_ring_observation",
+            destinations=("spaceport", "archive", "lab", "commons"),
         ),
     ),
     interior_layouts=(
