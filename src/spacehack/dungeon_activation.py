@@ -247,6 +247,32 @@ def _connected_avoiding(
     return False
 
 
+def _in_corridor_run(
+    game_map: world.GameMap, blockers: set[tuple[int, int]], cell,
+) -> bool:
+    """Whether ``cell`` sits inside a straight 1-wide corridor run.
+
+    Signature: exactly two open orthogonal neighbours and they are
+    OPPOSITE each other (walls on both perpendicular sides). Room-edge
+    cells have three-plus orthogonal openings or an adjacent-corner
+    pair. A diagonal stair or pocket opening used to inflate the 8-dir
+    count and let hallway runs through (playtest v8: two drones parked
+    in the hall mouth beside the Defensive Layer stairs).
+    """
+    cx, cy = cell
+    open_dirs = {
+        (dx, dy)
+        for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+        if game_map.in_bounds(cx + dx, cy + dy)
+        and game_map.tiles[cy + dy][cx + dx].walkable
+        and (cx + dx, cy + dy) not in blockers
+    }
+    if len(open_dirs) != 2:
+        return False
+    (a, b) = sorted(open_dirs)
+    return a == (0, -1) and b == (0, 1) or a == (-1, 0) and b == (1, 0)
+
+
 def _dormant_cell_ok(
     game_map, x: int, y: int, occupied, landmark_cells, spawn, blockers,
 ) -> bool:
@@ -265,6 +291,8 @@ def _dormant_cell_ok(
         or _open_neighbours(game_map, x, y) < 3
     ):
         return False
+    if _in_corridor_run(game_map, blockers, (x, y)):
+        return False  # never park inside a hallway run, even with detours
     if _plugs_passage(game_map, blockers, (x, y)):
         return False  # never seal a 1-wide passage, bend, or room mouth
     if spawn is None:
