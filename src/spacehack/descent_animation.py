@@ -87,30 +87,40 @@ def paint_descent_frame(console, cage_row: int) -> None:
     )
 
 
+# Skip grace: the triggering key's release (and any key-repeat tail)
+# arrives in the first moments of the ride and must not cancel it —
+# only deliberate presses after the ride is established skip.
+_SKIP_GRACE_FRAMES = 8
+
+
 def animate_descent(ctx, console, *, frame_seconds: float = 0.075) -> None:
     """Play the descent: eased cage travel; any key skips to the end.
 
     Presents through the shared Pygame runtime — the same present +
-    responsive-sleep pattern as the city launch glide.
+    responsive-sleep pattern as the city launch glide. The event queue
+    is flushed before the first frame so the bump that called the
+    elevator cannot also dismiss it.
     """
     from .navigation_travel import _responsive_sleep
 
     context = getattr(ctx, "context", None)
+    if context is not None:
+        context.events()  # flush the calling keypress and its tail
     total_frames = max(24, int(SCREEN_HEIGHT * 0.9))
-    for cage_row in descent_rows(total_frames, SCREEN_HEIGHT):
+    for frame_index, cage_row in enumerate(descent_rows(total_frames, SCREEN_HEIGHT)):
         paint_descent_frame(console, min(cage_row, console.height + 1))
         if context is not None:
             context.present(console)
-        if _skip_requested(context):
+        if frame_index >= _SKIP_GRACE_FRAMES and _skip_requested(context):
             break
         _responsive_sleep(frame_seconds)
 
 
 def _skip_requested(context) -> bool:
-    """Whether the player pressed anything to skip the ride."""
+    """Whether the player pressed a key to skip the ride."""
     if context is None:
         return False
-    return bool(context.events())
+    return any(event.kind == "keydown" for event in context.events())
 
 
 __all__ = [
