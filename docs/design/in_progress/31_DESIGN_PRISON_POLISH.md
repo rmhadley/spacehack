@@ -86,6 +86,10 @@ Session notes (2026-09-02, user away):
   crosses '<' was sealed in practice while every analysis called it
   connected. Dormant analysis now treats transitions as terminals
   (matching autoexplore's model). Audit still 0/125.
+- Playtest v7: ragged MAP rows in two Phase B layouts parsed as
+  VOID padding — the checkpoint showed broken east walls (2 voids),
+  high-risk 16. All layout rows padded to uniform width; a guard
+  test rejects void/ragged prison layouts forever.
 
 ### Phase C — the descent interstitial
 - [ ] `deep_elevator` transition plays a short full-screen descent:
