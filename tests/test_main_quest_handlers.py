@@ -208,8 +208,9 @@ def test_merchants_renumber_migration():
 
 
 def test_quest_log_cost_line_renders_from_data():
-    """The payment cost renders as a structured Q line (Cost: X$ have Y$)
-    — prose carries no digits, data is the single source (doc 33 seed)."""
+    """The payment cost renders as a structured Q line (Cost: X$ have Y$).
+    Prose MAY cite the cost (the attendant names his price) but the
+    digits must match the data — cross-check, don't source (doc 33)."""
     from src.spacehack.main_quest._breadcrumb import _active_payment_step
 
     ctx = _payment_ctx(6_200)
@@ -217,6 +218,9 @@ def test_quest_log_cost_line_renders_from_data():
     step = _active_payment_step(ctx)
     assert step is not None and step.payment_credits == 8000
     from src.spacehack.text import get as t_get
-    assert "8,000" not in t_get("step.mer_q4_bribe.description"), (
-        "prose must not carry the cost digits"
-    )
+    assert f"{step.payment_credits:,}" in t_get(
+        "step.mer_q4_bribe.dialogue.depot_attendant.intro"
+    ), "intro must cite the exact data cost"
+    assert f"{step.payment_credits:,}" in t_get(
+        "step.mer_q4_bribe.description"
+    ), "description must cite the exact data cost"
