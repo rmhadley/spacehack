@@ -54,16 +54,53 @@ Extracted from `act0_lab.py`, `04_lab.json`, `_core.py`, `_gates.py`,
    as "what the Guild is doing while you wait" (q1's and q3's do), and
    active steps show a concrete next-step description in Q.
 
+## Settled design (user rulings 2026-09-03)
+
+The cutter = a **drive** (heavy cutting rig) fitted with **teeth of
+the Wolf 359 alloy**, cutting **where the Vega stress survey says the
+door is weakest**. No resonance language (dropped from Labs' visible
+text for the same reason — only "tuned" survived there).
+
+**The drive is CONTRABAND, and the credits are the bribe that frees
+it.** The rig is the consortium's own — seized when the Guild's deed
+won the Wolf 359 claim — impounded at the Depot station while the
+consortium's lawyers contest it. The bribe "resolves the paperwork."
+Everything is a ledger entry; the antagonist supplies the weapon.
+
+**The bribe is OPEN-ENDED fundraising.** No fixed job step: the
+dialogue hints at Guild contracts, but trade, bounties, piracy — any
+income counts. Q shows the shortfall until the player can pay. This
+replaces the pay-vs-branch design (simpler: one path, no branching,
+no multi-option extension needed).
+
+| Step | What | Where | Gates next by |
+|---|---|---|---|
+| q1 contract | sign | Earth | 45d — deed clearance |
+| q2 the claim | delve ore | Wolf 359 b | — |
+| q3 the smelt | ore → alloy | Tau Ceti b | 60d — smelt + assay |
+| q4 the bribe | **raise {cost}cr, free the rig** | Depot station | 45d — machinist refits the mount |
+| q5 the calibration | salvage stress survey, carrying alloy | Vega | 70d — smiths bond teeth, tune |
+| q6 the cutter | collect | Earth → `prologue_open` | — |
+
+Four waits ≈ 220 gate-days (Lab: 225); no wait over 70d. Route:
+Earth → Wolf → Tau Ceti → Depot → Vega → Earth.
+
+**New mechanic (contained): credit-cost steps.**
+`MainQuestStep.payment_credits: int = 0` — when set, the advancing
+dialogue option renders as "Pay {n}cr" and is only offered while
+`ctx.stats.credits >= n`; accepting consumes the credits and completes
+the step. Q renders an active payment step as the shortfall:
+"Raise the {n}cr bribe — the rig waits in the Depot bond." Works with
+existing save/load (credits already persist). No new state.
+
+**Cost: 8,000cr** — scout is 5,000, cruiser 25,000; the bribe sits
+"slightly higher than a scout" per the user's target. A genuine
+mid-arc investment without being a wall.
+
 ## Proposals (to iterate — nothing below is decided)
 
-- **P1 — third wait, post-Vega**: q4 gains `wait_days` (e.g. 40–60d)
-  justified as "bonding the alloy to the cutter head / Guild smiths
-  assembling under calibration". Restores breathe-work rhythm before
-  the finale and gives the cutter payoff weight.
-- **P2 — split q3's double duty**: the smelt wait currently carries
-  both "ore is special" and "come back for alloy". Option A: leave as
-  is (works). Option B: insert a short mid-step (consortium counters
-  the deed — a legal/heat beat) to reach 6–7 steps.
+- ~~P1 — third wait~~ RESOLVED by settled design (refit + assembly waits).
+- ~~P2 — split q3~~ RESOLVED by settled design (the bribe step IS the new mid-step).
 - **P3 — dialogue tightening pass**: enforce the one-beat contract on
   every dialogue; trim any intro over ~3 sentences; ensure option
   labels are verbs ("Sign the contract", "Hand over the ore" —
@@ -113,8 +150,11 @@ PLAYTEST: read-every-line run; flag any line that stalls or over-explains.
 
 ## Open questions (for iteration)
 
-1. P2: add a step at all? If yes: legal-pressure beat vs a second
-   delivery vs leaving 5 steps but re-weighting waits?
-2. Gate lengths: keep 60/130, or rebalance toward Lab's 50/95/80 feel?
-3. Should the consortium heat escalate visibly in text (q4 mentions
-   raiders; earlier steps only imply them)?
+1. Who takes the bribe — the Guild Master brokers it from Earth, or
+   the depot attendant at the Depot station in person? (Doc assumes
+   in-person at the Depot: third NPC, better route spread.)
+2. Should Q track the running shortfall ("3,400cr to go") or keep a
+   static target? (Doc assumes static — simpler, log already shows
+   credits.)
+3. Consortium heat text escalation before Vega — worth a line in
+   q3/q4 flavor? (Assumed yes, one clause each.)
