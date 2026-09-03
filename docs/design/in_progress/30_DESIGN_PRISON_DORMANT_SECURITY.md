@@ -126,6 +126,16 @@ with doc 29); counts live in data.
   resuming their post.
 - Dormant placement now also excludes landmark footprints (F5 extras
   had landed inside the deep-cell landmark).
+- Playtest v10 (USER DESIGN, implemented same day): dormant drones now
+  dock in carved WALL ALCOVES — placement converts a wall tile (exactly
+  one walkable orthogonal neighbour, never adjacent to another dock)
+  into a themed floor notch and spawns there. Passage blockage becomes
+  impossible BY CONSTRUCTION, retiring the whole accumulated stack of
+  geometric rules (corridor runs, chokepoints, stair neighborhoods,
+  stranding) that each approximated this guarantee — and fixing the
+  real mechanic underneath the reports: FOV-symmetric aggro meant
+  enemies beyond a dormant wall-of-bodies started combat nobody could
+  reach. Flavor matches: drones sit in charging docks.
 - Playtest v3/v4: extras spread along the route (two hold the door);
   chokepoint predicate generalized to ALL open-orthogonal-neighbour
   pairs (covers the stairside L-pocket `#<D# / ##@#`); autoexplore
