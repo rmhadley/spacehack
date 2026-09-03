@@ -140,7 +140,7 @@ def smoke_test() -> int:
         (main_quest, "show_quest_readout"),
         (main_quest, "show_gate_popup"),
         (main_quest, "maybe_continue_chain"),
-        (main_quest, "spawn_quest_npcs"),
+        (main_quest, "seat_quest_npcs_in_interior"),
         (main_quest, "play_scene"),
         (main_quest, "registered_scene_ids"),
     ]

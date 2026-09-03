@@ -79,6 +79,10 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
         game_map.location_name = record["display_name"]
         ctx.interiors[cache_key] = game_map
         _seat_building_npc(game_map, record)
+    # Live quest NPCs stand beside the resident (idempotent on cache hits;
+    # interiors are deterministic-authored, so completed steps stop seating).
+    from .main_quest import seat_quest_npcs_in_interior as _seat_quest
+    _seat_quest(ctx, game_map, record)
     spawn = getattr(game_map, "entry_spawn", None)
     if spawn is None:
         raise ValueError(f"City interior {cache_key!r} has no entry spawn")

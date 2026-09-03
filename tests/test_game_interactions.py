@@ -52,11 +52,6 @@ def test_landing_syncs_ctx_current_city_id(monkeypatch):
         lambda _ctx, _planet: game_interactions.PlanetMenuOutcome.LAND,
     )
     monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
-    monkeypatch.setattr(
-        game_interactions.main_quest_module,
-        "spawn_quest_npcs",
-        lambda _ctx, _map, _pid, **_kw: None,
-    )
 
     game_interactions._resolve_planet_wall(state, "mercury")
 

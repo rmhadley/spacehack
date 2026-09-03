@@ -66,7 +66,7 @@ from ._act0 import (
     mars_exploration_unlocked,
     delve_site_unlocked,
     surface_exploration_unlocked,
-    spawn_quest_npcs,
+    seat_quest_npcs_in_interior,
     maybe_continue_chain,
     show_prologue_transmission,
     show_quest_summon,

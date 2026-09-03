@@ -51,12 +51,12 @@ class PlanetSpec:
                           Missing ids fall through to the global
                           :data:`spacehack.data.npcs.NPCS` catalog.
       quest_npc_spots:   ``(npc_id, building_label)`` pairs naming
-                          where a quest-conditional NPC stands while
-                          its step is live (added dynamically by
-                          ``spawn_quest_npcs`` one tile EAST of the
-                          named building's interior center — clear of
-                          the regular occupant, who stands at the
-                          center). Unlike ``npc_overrides`` these are
+                          whose interior hosts a quest-conditional NPC
+                          while its step is live (seated dynamically
+                          INSIDE the named building's authored interior
+                          beside the resident, by
+                          ``seat_quest_npcs_in_interior`` on interior
+                          load). Unlike ``npc_overrides`` these are
                           ADDITIVE — they never replace the building's
                           regular occupant.
     """

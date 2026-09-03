@@ -873,12 +873,6 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
     _restore_dungeon_extension(ctx, data)
 
 
-def _restore_quest_npcs(ctx: GameContext, rebuilt) -> None:
-    """Spawn quest-conditional NPCs onto the rebuilt map."""
-    from . import main_quest as _mq
-    _mq.spawn_quest_npcs(ctx, rebuilt.game_map, rebuilt.city_id)
-
-
 def _restore_rng_and_seed(data: dict) -> None:
     """Restore the RNG stream and the run's initial seed."""
     from .engine import RNG, set_init_seed
@@ -913,7 +907,6 @@ def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> Game
         ctx._space_game_map = rebuilt.space_map  # type: ignore[attr-defined]
         ctx._space_player = rebuilt.space_player  # type: ignore[attr-defined]
     rebuilt = _restore_interiors(ctx, data, rebuilt)
-    _restore_quest_npcs(ctx, rebuilt)
     _restore_rng_and_seed(data)
     return ctx
 

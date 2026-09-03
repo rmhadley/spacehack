@@ -123,7 +123,7 @@ SPEC = PlanetSpec(
         ),
     ),
     # The Act 0 demolitions_expert stands here (additively) only while
-    # mil_q4_demolitions is live — see spawn_quest_npcs.
+    # mil_q4_demolitions is live — seated in the militia interior on entry.
     quest_npc_spots=(
         ("demolitions_expert", "militia"),
     ),

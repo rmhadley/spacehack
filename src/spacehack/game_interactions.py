@@ -206,7 +206,6 @@ def _resolve_planet_land(state, pid, planet_obj):
         log.add(f'You see no port on {planet_obj.name}.')
         return 'CONTINUE'
     _new_city_map = _plp(pid)
-    main_quest_module.spawn_quest_npcs(ctx, _new_city_map, pid)
     _anchor = _phang(pid)
     _new_city_player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(_anchor.x, _anchor.y + 1), name='Player')
     if state.player_owned_ship is not None:

@@ -12,40 +12,24 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import world
 from src.spacehack.data.main_quest import (
     find_main_quest_step,
     list_main_quest_steps,
 )
 from src.spacehack.data.npcs import find_npc
-from src.spacehack.data.planets import find_planet_spec, list_planet_specs, load_planet
+from src.spacehack.data.planets import list_planet_specs, load_planet
 from src.spacehack.main_quest import _act0
 
 
-def _ctx(chain: str, progress: dict):
+def _ctx(chain: str, progress: dict, city: str = ""):
     return SimpleNamespace(
         main_quest_chain=chain,
         main_quest_progress=progress,
         player_active_missions=[],
+        current_city_id=city,  # interior seating keys off it
         log=SimpleNamespace(add=lambda *a, **k: None),
     )
 
-
-def _building_spot(planet_id: str, label: str) -> world.Position:
-    """Where a quest NPC stands: one tile east of the interior center."""
-    _spec = find_planet_spec(planet_id)
-    for _b in _spec.buildings:
-        if _b.label == label:
-            return world.Position(
-                (_b.x_lo + _b.x_hi) // 2 + 1,
-                (_b.y_lo + _b.y_hi) // 2,
-            )
-    raise AssertionError(f"no {label!r} building on {planet_id}")
-
-
-# ---------------------------------------------------------------------------
-# Tag placement in the step catalog
-# ---------------------------------------------------------------------------
 
 
 def test_npc_presence_tags_are_declared_on_the_expected_steps():
@@ -174,65 +158,70 @@ def test_militia_and_lab_experts_present_only_while_recruiting():
 
 
 # ---------------------------------------------------------------------------
-# Spawn behavior
+# Interior seating (cities-rework model: NPCs stand INSIDE buildings)
 # ---------------------------------------------------------------------------
 
 
-def test_spawn_places_old_smuggler_at_the_bar_interior_center():
-    _gm = load_planet("barnards_b")
-    _act0.spawn_quest_npcs(
-        _ctx("bar", {"bar_q2_proof": "active"}), _gm, "barnards_b",
+def _interior_record(planet_id: str, label: str) -> dict:
+    _gm = load_planet(planet_id)
+    return (getattr(_gm, "city_buildings", {}) or {})[label]
+
+
+def _seat(ctx, planet_id: str, label: str):
+    from src.spacehack import city_landmarks
+
+    _rec = _interior_record(planet_id, label)
+    _asset = city_landmarks.load_city_interior(_rec["interior_layout_id"])
+    _act0.seat_quest_npcs_in_interior(ctx, _asset.game_map, _rec)
+    return _asset.game_map
+
+
+def test_seat_places_smuggler_inside_the_bar_interior():
+    _im = _seat(
+        _ctx("bar", {"bar_q2_proof": "active"}, city="barnards_b"), "barnards_b", "bar",
     )
-    _smugglers = [_e for _e in _gm.entities if _e.npc_id == "old_smuggler"]
+    _smugglers = [_e for _e in _im.entities if _e.npc_id == "old_smuggler"]
     assert len(_smugglers) == 1
-    assert _smugglers[0].pos == _building_spot("barnards_b", "bar")
+    assert _im.tiles[_smugglers[0].pos.y][_smugglers[0].pos.x].walkable
 
 
-def test_spawn_is_idempotent():
-    _gm = load_planet("barnards_b")
-    _act0.spawn_quest_npcs(
-        _ctx("bar", {"bar_q2_proof": "active"}), _gm, "barnards_b",
+def test_seating_is_idempotent_on_cached_interiors():
+    _ctx_ = _ctx("bar", {"bar_q2_proof": "active"}, city="barnards_b")
+    _im = _seat(_ctx_, "barnards_b", "bar")
+    _act0.seat_quest_npcs_in_interior(
+        _ctx_, _im, _interior_record("barnards_b", "bar"),
     )
-    _act0.spawn_quest_npcs(
-        _ctx("bar", {"bar_q2_proof": "active"}), _gm, "barnards_b",
-    )
-    assert sum(_e.npc_id == "old_smuggler" for _e in _gm.entities) == 1
+    assert sum(_e.npc_id == "old_smuggler" for _e in _im.entities) == 1
 
 
-def test_spawn_places_each_expert_in_their_guild_building():
+def test_seat_places_each_expert_in_their_guild_interior():
     _cases = (
-        ("salvage_specialist", "merchants", "tc_b", "merchants", "mer_q3_transport"),
-        ("demolitions_expert", "militia", "eri_b", "militia", "mil_q4_demolitions"),
-        ("xenolinguist", "lab", "ac_station", "lab", "lab_q4_xenolinguist"),
-    )
-    for _npc_id, _label, _planet, _chain, _step_id in _cases:
-        _gm = load_planet(_planet)
-        _act0.spawn_quest_npcs(
-            _ctx(_chain, {_step_id: "active"}), _gm, _planet,
-        )
-        _found = [_e for _e in _gm.entities if _e.npc_id == _npc_id]
-        assert len(_found) == 1, _npc_id
-        assert _found[0].pos == _building_spot(_planet, _label), _npc_id
-
-
-def test_quest_npc_never_shares_a_tile_with_the_building_occupant():
-    """Regression: the additive NPC must not be buried under the
-    building's regular occupant (both used to stand at the interior
-    center, making the quest NPC untalkable)."""
-    _cases = (
-        ("old_smuggler", "barnards_b", "bar", "bar", "bar_q2_proof"),
         ("salvage_specialist", "tc_b", "merchants", "merchants", "mer_q3_transport"),
         ("demolitions_expert", "eri_b", "militia", "militia", "mil_q4_demolitions"),
         ("xenolinguist", "ac_station", "lab", "lab", "lab_q4_xenolinguist"),
+        ("old_smuggler", "ross_b", "bar", "bar", "bar_q2_proof"),
     )
     for _npc_id, _planet, _label, _chain, _step_id in _cases:
-        _gm = load_planet(_planet)
-        _act0.spawn_quest_npcs(
-            _ctx(_chain, {_step_id: "active"}), _gm, _planet,
-        )
-        _quest = next(_e for _e in _gm.entities if _e.npc_id == _npc_id)
+        _im = _seat(_ctx(_chain, {_step_id: "active"}, city=_planet), _planet, _label)
+        _found = [_e for _e in _im.entities if _e.npc_id == _npc_id]
+        assert len(_found) == 1, _npc_id
+        assert _im.tiles[_found[0].pos.y][_found[0].pos.x].walkable, _npc_id
+
+
+def test_quest_npc_never_shares_a_tile_with_the_resident():
+    """Regression (v12): quest NPCs used to spawn on the CITY map at
+    the building rectangle center — mid-roof, unreachable since the
+    cities rework. They now stand inside the interior, on a clear
+    cell beside the resident."""
+    _cases = (
+        ("old_smuggler", "barnards_b", "bar", "bar", "bar_q2_proof"),
+        ("salvage_specialist", "tc_b", "merchants", "merchants", "mer_q3_transport"),
+    )
+    for _npc_id, _planet, _label, _chain, _step_id in _cases:
+        _im = _seat(_ctx(_chain, {_step_id: "active"}, city=_planet), _planet, _label)
+        _quest = next(_e for _e in _im.entities if _e.npc_id == _npc_id)
         _neighbors = [
-            _e for _e in _gm.entities
+            _e for _e in _im.entities
             if _e is not _quest and _e.pos == _quest.pos
         ]
         assert not _neighbors, (
@@ -241,7 +230,9 @@ def test_quest_npc_never_shares_a_tile_with_the_building_occupant():
         )
 
 
-def test_spawn_does_not_add_npcs_on_planets_without_spots():
-    _gm = load_planet("earth")
-    _act0.spawn_quest_npcs(_ctx("bar", {"bar_q2_proof": "active"}), _gm, "earth")
-    assert not any(_e.npc_id == "old_smuggler" for _e in _gm.entities)
+def test_seat_skips_interiors_whose_building_is_not_tagged():
+    """A bar-chain NPC is not seated in the merchants interior."""
+    _im = _seat(
+        _ctx("bar", {"bar_q2_proof": "active"}, city="tc_b"), "tc_b", "merchants",
+    )
+    assert not any(_e.npc_id == "old_smuggler" for _e in _im.entities)

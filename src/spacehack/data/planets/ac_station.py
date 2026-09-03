@@ -114,7 +114,7 @@ SPEC = PlanetSpec(
         ("archive_research_officer", _RESEARCH_OFFICER),
     ),
     # The Act 0 xenolinguist stands in the lab (additively) only while
-    # lab_q4_xenolinguist is live — see spawn_quest_npcs.
+    # lab_q4_xenolinguist is live — seated in the archive interior on entry.
     quest_npc_spots=(
         ("xenolinguist", "lab"),
     ),

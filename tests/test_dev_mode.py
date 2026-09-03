@@ -362,11 +362,6 @@ def test_land_at_city_switches_system_and_enters_city(monkeypatch):
     )
     monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
     monkeypatch.setattr(
-        game_interactions.main_quest_module,
-        "spawn_quest_npcs",
-        lambda _ctx, _map, _pid, **_kw: None,
-    )
-    monkeypatch.setattr(
         game_interactions, "_animate_ship_to_y",
         lambda *_args, **_kw: None,
     )

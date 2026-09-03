@@ -631,18 +631,13 @@ def _quest_npcs_for_planet(ctx, planet_id: str) -> tuple[str, ...]:
     return tuple(sorted(_needed))
 
 
-def _quest_npc_spot_position(
-    planet_id: str,
-    npc_id: str,
-) -> world.Position | None:
-    """Return where ``npc_id`` should stand on ``planet_id``.
+def _quest_npc_building_label(planet_id: str, npc_id: str) -> str | None:
+    """The guild-building label whose interior hosts ``npc_id``.
 
-    Reads the planet's ``quest_npc_spots`` (npc_id -> building label)
-    and returns the building's interior center shifted ONE TILE EAST —
-    the regular occupant stands at the center, so an additive quest
-    NPC placed there would be buried under them and untalkable. None
-    when the planet has no spot for this NPC (the smoke validator
-    flags that as bad data).
+    Since the cities rework, buildings are enterable landmarks: the
+    quest NPC stands INSIDE the building's authored interior next to
+    the resident — never on the city map's roof rectangle (playtest
+    v12: the salvage specialist spawned mid-roof, unreachable).
     """
     from ..data.planets import find_planet_spec as _find_planet_spec
     try:
@@ -650,39 +645,43 @@ def _quest_npc_spot_position(
     except KeyError:
         return None
     for _npc_id, _label in _spec.quest_npc_spots:
-        if _npc_id != npc_id:
-            continue
-        for _building in _spec.buildings:
-            if _building.label == _label:
-                return world.Position(
-                    (_building.x_lo + _building.x_hi) // 2 + 1,
-                    (_building.y_lo + _building.y_hi) // 2,
-                )
+        if _npc_id == npc_id:
+            return _label
     return None
 
 
-def spawn_quest_npcs(
+def seat_quest_npcs_in_interior(
     ctx,
     game_map: world.GameMap,
-    planet_id: str,
+    record: dict,
 ) -> None:
-    """Add quest-conditional NPCs to a freshly loaded city map.
+    """Seat live quest NPCs inside a building's authored interior.
 
-    Only city maps (never surface dungeons) host quest NPCs — the
-    experts live in their guild buildings while their step is live.
-    Idempotent: an NPC already on the map is not re-added.
+    Called from ``city_interiors`` when an interior loads (fresh or
+    cached): every live quest NPC whose ``quest_npc_spots`` points at
+    this building's label stands beside the resident, on the next
+    clear interior cell. Idempotent; additive NPCs ride the interior
+    cache, and because interiors are deterministic-authored (rebuilt,
+    not saved), a completed step simply stops seating them.
     """
+    planet_id = getattr(ctx, "current_city_id", "")
+    label = record.get("label", "")
+    if not planet_id or not label:
+        return
     from ..data.npcs import find_npc as _find_npc
     for _npc_id in _quest_npcs_for_planet(ctx, planet_id):
+        if _quest_npc_building_label(planet_id, _npc_id) != label:
+            continue
         if any(getattr(_e, 'npc_id', '') == _npc_id for _e in game_map.entities):
             continue
-        _pos = _quest_npc_spot_position(planet_id, _npc_id)
+        _npc = _find_npc(_npc_id)
+        _spawn = getattr(game_map, "entry_spawn", None)
+        _pos = _interior_seat_for_quest_npc(game_map, _spawn)
         if _pos is None:
             ctx.log.add(
-                f"[MAIN QUEST] {_npc_id} has no spawn spot on {planet_id}."
+                f"[MAIN QUEST] {_npc_id} has no clear cell in {label}."
             )
             continue
-        _npc = _find_npc(_npc_id)
         game_map.entities.append(world.Entity(
             char=_npc.char,
             fg=_npc.fg,
@@ -691,6 +690,13 @@ def spawn_quest_npcs(
             npc_id=_npc.id,
             width=1, height=1,
         ))
+
+
+def _interior_seat_for_quest_npc(game_map, spawn):
+    """Next clear interior cell near the center (resident already seated)."""
+    from ..city_interiors import _first_interior_npc
+    return _first_interior_npc(game_map, spawn) if spawn is not None else None
+
 
 # ---------------------------------------------------------------------------
 # Full-screen overlay plumbing
