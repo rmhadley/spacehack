@@ -414,27 +414,106 @@ def _spread_extra_anchors(game_map, spawn, count: int) -> list:
     return anchors
 
 
+def _dormant_dock_cells(
+    game_map: world.GameMap,
+    anchor,
+    occupied: set[tuple[int, int]],
+    needed: int,
+    *,
+    landmark_cells: set[tuple[int, int]],
+    transit_cells: set[tuple[int, int]],
+    docks: set[tuple[int, int]] | None = None,
+) -> list[tuple[int, int]]:
+    """Wall cells near ``anchor`` that carve into TRUE alcoves.
+
+    A dormant drone in a wall dock cannot block any passage by
+    construction — the passage stays open in front of it. Only wall
+    cells with EXACTLY ONE walkable orthogonal neighbour qualify:
+    carving those adds a dead-end notch, never a shortcut between
+    rooms (user design, playtest v10: "what if dormant droids spawned
+    inside a wall tile? the flavor matches better"). Cells adjacent to
+    an existing dock are rejected — two carved neighbours would become
+    each other's second opening. Deterministic ring order, no RNG.
+    """
+    ax, ay = (anchor.x, anchor.y) if isinstance(anchor, world.Position) else anchor
+    docked = set(docks or ())
+    found: list[tuple[int, int]] = []
+    for _radius in range(max(game_map.width, game_map.height)):
+        for _y in range(ay - _radius, ay + _radius + 1):
+            for _x in range(ax - _radius, ay + _radius + 1):
+                if max(abs(_x - ax), abs(_y - ay)) != _radius:
+                    continue
+                if not _dockable(game_map, _x, _y, occupied, landmark_cells, transit_cells, docked):
+                    continue
+                found.append((_x, _y))
+                docked.add((_x, _y))
+                if len(found) == needed:
+                    return found
+    return found
+
+
+def _dockable(game_map, x, y, occupied, landmark_cells, transit_cells, docked) -> bool:
+    """Whether wall cell ``(x, y)`` carves into a true single-opening
+    alcove: free, unclaimed, exactly one walkable orthogonal neighbour,
+    and not adjacent to another dock (two carved neighbours would
+    become each other's second opening)."""
+    if (
+        not game_map.in_bounds(x, y)
+        or game_map.tiles[y][x].walkable
+        or (x, y) in occupied
+        or (x, y) in landmark_cells
+        or (x, y) in transit_cells
+    ):
+        return False
+    offsets = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    if any((x + dx, y + dy) in docked for dx, dy in offsets):
+        return False
+    openings = sum(
+        1
+        for dx, dy in offsets
+        if game_map.in_bounds(x + dx, y + dy)
+        and game_map.tiles[y + dy][x + dx].walkable
+    )
+    return openings == 1
+
+
+def _carve_dock(game_map: world.GameMap, cell: tuple[int, int]) -> None:
+    """Open one wall cell into an alcove, themed like its neighbour."""
+    x, y = cell
+    for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
+        nx, ny = x + dx, y + dy
+        if game_map.in_bounds(nx, ny) and game_map.tiles[ny][nx].walkable:
+            game_map.tiles[y][x] = game_map.tiles[ny][nx]
+            return
+    game_map.tiles[y][x] = world.DUNGEON_FLOOR
+
+
 def _stock_dormant_security(game_map, spec, spawn) -> None:
     """Pre-place every floor's security as dormant units (doc 30).
 
-    Each activation event's ``count`` units stand at room edges near
+    Each activation event's ``count`` units dock in wall alcoves near
     its route anchor (they activate when the event fires, instead of
     the event spawning fresh bodies), plus ``lockdown_extras`` reserve
-    units around the entry room for the post-download gauntlet. Room-
-    edge placement keeps every route walkable — dormant bodies block
-    movement but never block a path.
+    units docked along the route for the post-download gauntlet. A
+    drone in a wall dock can never block a passage — and enemies on
+    the far side can always be reached (aggro reachability, v10).
     """
     occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
     dormant_placed: set[tuple[int, int]] = set()
+    landmark_cells = set(getattr(game_map, "landmark_footprint", ()) or ())
+    transit_cells = _transit_neighborhood(game_map)
     for event in spec.activation_events:
         anchor = (game_map.activation_positions or {}).get(event.id)
         if anchor is None:
             continue
-        cells = _dormant_cells(
+        cells = _dormant_dock_cells(
             game_map, anchor, occupied,
             max(0, min(event.count, event.max_count)),
-            spawn=spawn, safe_blockers=dormant_placed,
+            landmark_cells=landmark_cells, transit_cells=transit_cells,
+            docks=dormant_placed,
         )
+        for cell in cells:
+            _carve_dock(game_map, cell)
         occupied.update(cells)
         dormant_placed.update(cells)
         _place_dormant_units(
@@ -442,7 +521,10 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
         )
     if spec.lockdown_extras <= 0:
         return
-    _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed)
+    _stock_lockdown_extras(
+        game_map, spec, spawn, occupied, dormant_placed,
+        landmark_cells=landmark_cells, transit_cells=transit_cells,
+    )
     _reconcile_dormant_placement(game_map, spawn, dormant_placed)
 
 
@@ -536,17 +618,23 @@ def _reconcile_dormant_placement(
         removed += 1
 
 
-def _stock_lockdown_extras(game_map, spec, spawn, occupied, dormant_placed) -> None:
-    """Spread the floor's reserve garrison: two hold the entry door,
-    the rest stand at even fractions along the route."""
+def _stock_lockdown_extras(
+    game_map, spec, spawn, occupied, dormant_placed,
+    *, landmark_cells, transit_cells,
+) -> None:
+    """Spread the floor's reserve garrison through wall docks: two hold
+    the entry room, the rest dock at even fractions along the route."""
     enemy_ids = [e.enemy_id for e in spec.activation_events] or ["sentry_drone"]
     per = [enemy_ids[i % len(enemy_ids)] for i in range(spec.lockdown_extras)]
     anchors = _spread_extra_anchors(game_map, spawn, len(per))
     for i, (enemy_id, anchor_pos) in enumerate(zip(per, anchors)):
-        cells = _dormant_cells(
+        cells = _dormant_dock_cells(
             game_map, anchor_pos, occupied, 1,
-            spawn=spawn, safe_blockers=dormant_placed,
+            landmark_cells=landmark_cells, transit_cells=transit_cells,
+            docks=dormant_placed,
         )
+        for cell in cells:
+            _carve_dock(game_map, cell)
         occupied.update(cells)
         dormant_placed.update(cells)
         _place_dormant_units(

@@ -143,25 +143,25 @@ def test_event_counts_become_dormant_units():
 # ----- Playtest fixes: room-edge placement + combat light (2026-09-02) --
 
 
-def test_dormant_units_prefer_room_edges_and_never_fill_corridors():
-    """Room-edge placement is the preference, open surroundings are the
-    guarantee: no dormant unit sits in a 1-wide corridor, most hug a
-    wall, and routes stay walkable (playtest finding #3 — the guarantee
-    is the separate routes test)."""
-    from src.spacehack.dungeon_activation import _hugs_wall, _open_neighbours
-
+def test_dormant_units_dock_in_wall_alcoves():
+    """Wall-dock placement (user design, v10): every dormant unit sits
+    in a carved alcove with EXACTLY ONE open orthogonal side — a drone
+    in a wall dock cannot block any passage, by construction."""
     game_map, _spawn = _prison_floor(1)
     dormant = [e for e in game_map.entities if e.powered_down]
-    assert dormant
+    assert dormant, "F1 must carry dormant security"
     for unit in dormant:
         x, y = unit.pos.x, unit.pos.y
-        assert _open_neighbours(game_map, x, y) >= 3, (x, y)
-    wall_huggers = sum(
-        _hugs_wall(game_map, u.pos.x, u.pos.y) for u in dormant
-    )
-    assert wall_huggers >= len(dormant) // 2, (
-        f"only {wall_huggers}/{len(dormant)} dormant units hug walls"
-    )
+        openings = sum(
+            1
+            for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0))
+            if game_map.in_bounds(x + dx, y + dy)
+            and game_map.tiles[y + dy][x + dx].walkable
+        )
+        assert openings == 1, (
+            f"dormant unit at {(x, y)} is not in a wall dock "
+            f"({openings} open sides)"
+        )
 
 
 def test_stocked_floor_keeps_routes_walkable():
