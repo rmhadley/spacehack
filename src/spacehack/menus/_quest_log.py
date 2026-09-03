@@ -108,6 +108,17 @@ def _render_main_quest_section(
             fg=ui.COLOR_OPTION_HIGHLIGHT,
         )
         cy += 1
+        _payment_step = _mq._breadcrumb._active_payment_step(ctx)
+        if _payment_step is not None:
+            ui.paint_line(
+                console, col_x, cy,
+                ui.fit_text(
+                    f'Cost: {_payment_step.payment_credits:,}$ '
+                    f'(have {ctx.stats.credits:,}$)', max_w,
+                ),
+                fg=ui.COLOR_OPTION_HIGHLIGHT,
+            )
+            cy += 1
         for _line in ui.wrap_text(_mq_desc, max_w):
             if cy >= screen_height - MSG_LOG_HEIGHT - 3:
                 break

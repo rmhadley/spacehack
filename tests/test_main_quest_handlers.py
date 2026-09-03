@@ -205,3 +205,18 @@ def test_merchants_renumber_migration():
     assert "mer_q4_calibrate" not in ctx.main_quest_progress
     assert ctx.main_quest_progress["mer_q5_calibration"] == "completed"
     assert ctx.main_quest_progress["mer_q6_cutter"] == "available"
+
+
+def test_quest_log_cost_line_renders_from_data():
+    """The payment cost renders as a structured Q line (Cost: X$ have Y$)
+    — prose carries no digits, data is the single source (doc 33 seed)."""
+    from src.spacehack.main_quest._breadcrumb import _active_payment_step
+
+    ctx = _payment_ctx(6_200)
+    ctx.main_quest_progress["mer_q4_bribe"] = "available"
+    step = _active_payment_step(ctx)
+    assert step is not None and step.payment_credits == 8000
+    from src.spacehack.text import get as t_get
+    assert "8,000" not in t_get("step.mer_q4_bribe.description"), (
+        "prose must not carry the cost digits"
+    )

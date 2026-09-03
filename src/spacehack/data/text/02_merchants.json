@@ -19,7 +19,7 @@
   "step.mer_q3_transport.completion_flavor": "The specialist feeds the ore in and goes quiet. The assay comes back impossible: stronger than anything in the Guild's catalogue, with traces that match no human mine. 'Give me time,' is all he says.",
   "step.mer_q3_transport.ready_message": "The smelt is done. The alloy is harder than any tool steel and it holds an edge like a rumor. Collect it at Tau Ceti b.",
   "step.mer_q4_bribe.title": "The Bond",
-  "step.mer_q4_bribe.description": "The Guild has found a cutting rig worthy of the alloy: the consortium's own bore, seized when your deed won Wolf 359. It sits in the Depot's bonded rows while consortium lawyers contest the seizure. The bond fee is 8,000cr - raise it however you like and pay the attendant.",
+  "step.mer_q4_bribe.description": "The Guild has found a cutting rig worthy of the alloy: the consortium's own bore, seized when your deed won Wolf 359. It sits in the Depot's bonded rows while consortium lawyers contest the seizure, and the bond fee is steep. Raise it however you like and pay the attendant.",
   "step.mer_q4_bribe.dialogue.depot_attendant.intro": "The consortium bore, row nine, still under contest. I cannot sell it and I cannot release it - but the bond fee keeps it fed and sheltered, and the fee is 8,000cr behind. Settle that and row nine opens. However you come by the credits is between you and your ledger.",
   "step.mer_q4_bribe.dialogue.depot_attendant.option_label": "Settle the bond ({credits}cr)",
   "step.mer_q4_bribe.completion_flavor": "The fee clears, row nine opens, and the bore is winched onto the Guild's dock. The refit takes weeks - the mount must be bored and tempered to hold alloy teeth instead of consortium steel.",

@@ -32,9 +32,20 @@ def _sealed_archive_objective(ctx) -> tuple[str, str] | None:
 
 def _active_step_objective(ctx) -> tuple[str, str] | None:
     """Return the first available or active catalog step objective."""
+    _step = _active_payment_step(ctx)
+    if _step is not None:
+        return (_step.title, _step.description)
     for _step_id, _status, _step in _iter_known_steps(ctx):
         if _status in (STATUS_AVAILABLE, STATUS_ACTIVE):
             return (_step.title, _step.description)
+    return None
+
+
+def _active_payment_step(ctx):
+    """The live payment step, if any (Q renders its cost from data)."""
+    for _step_id, _status, _step in _iter_known_steps(ctx):
+        if _status in (STATUS_AVAILABLE, STATUS_ACTIVE) and _step.payment_credits:
+            return _step
     return None
 
 
