@@ -246,6 +246,7 @@ def test_shipped_overlay_keys_resolve():
         _known.add(f"step.{_step.id}.description")
         _known.add(f"step.{_step.id}.completion_flavor")
         _known.add(f"step.{_step.id}.ready_message")
+        _known.add(f"step.{_step.id}.active_description")
         for _npc_id, _dialogue in _step.dialogues.items():
             for _variant in ("intro", "active", "complete", "locked", "option_label"):
                 _known.add(f"step.{_step.id}.dialogue.{_npc_id}.{_variant}")

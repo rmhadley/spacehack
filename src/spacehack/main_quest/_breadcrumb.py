@@ -36,7 +36,13 @@ def _active_step_objective(ctx) -> tuple[str, str] | None:
     if _step is not None:
         return (_step.title, _step.description)
     for _step_id, _status, _step in _iter_known_steps(ctx):
-        if _status in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        if _status == STATUS_ACTIVE:
+            # A started step narrates its remaining route (the tau-b
+            # collection leg is done; Q points at Vega) — the two-text
+            # pattern gates use, applied to live steps (playtest v13).
+            _active_desc = t_get(f"step.{_step_id}.active_description")
+            return (_step.title, _active_desc or _step.description)
+        if _status == STATUS_AVAILABLE:
             return (_step.title, _step.description)
     return None
 

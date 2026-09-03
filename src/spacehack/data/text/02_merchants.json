@@ -34,5 +34,6 @@
   "step.mer_q6_cutter.dialogue.guild_master.intro": "There it is. Consortium steel, Guild refit, Wolf 359 teeth. The survey gave us the weak lines and the smiths cut the teeth to match. We are not asking the door anything - we are taking it apart where it was always going to come apart. Collect your cutter. The Guild keeps its end.",
   "step.mer_q6_cutter.dialogue.guild_master.option_label": "Collect the cutter",
   "step.mer_q5_calibration.ready_message": "The smiths are done. The teeth are set to the survey's weak lines and the drive is trued. The cutter waits at the Guild on Earth.",
-  "step.mer_q5_calibration.dialogue.salvage_specialist.active": "The alloy is lashed in your hold. The scout's wreck drifts near Vega and the consortium is working it. Get on board, find the recorder, get out."
+  "step.mer_q5_calibration.dialogue.salvage_specialist.active": "The alloy is lashed in your hold. The scout's wreck drifts near Vega and the consortium is working it. Get on board, find the recorder, get out.",
+  "step.mer_q5_calibration.active_description": "The alloy is in your hold. Board the derelict scout near Vega, find the survey recorder, and bring it back before the consortium strips the wreck."
 }

@@ -74,6 +74,14 @@ def _salvage_trigger(ctx, step) -> bool:
     return _start_salvage_step(ctx, step)
 
 
+def _salvage_option_gating(ctx, step, npc_id) -> bool:
+    """The starter row ("Take the smelted alloy") only makes sense while
+    the step has not started; re-talking mid-step shows the active
+    briefing text instead of a dead option (playtest v13)."""
+    from ._core import STATUS_AVAILABLE, step_status
+    return step_status(ctx, step.id) == STATUS_AVAILABLE
+
+
 def _visit_trigger(ctx, step) -> bool:
     """Complete the visit step when the player talks to the expert NPC."""
     from ._objectives import maybe_complete_visit
@@ -126,6 +134,19 @@ def _salvage_wreck_cleanup(ctx, step) -> None:
 _HANDLERS: dict[str, ObjectiveHandler] | None = None
 
 
+def _salvage_handler(ensure_spawns) -> ObjectiveHandler:
+    """The salvage objective: NPC-talk start, wreck cleanup on complete,
+    quest-tagged loot, space spawns, starter-row gating."""
+    return ObjectiveHandler(
+        "salvage",
+        on_trigger=_salvage_trigger,
+        on_complete=_salvage_wreck_cleanup,
+        secures_quest_loot=True,
+        ensure_spawns=ensure_spawns,
+        option_gating=_salvage_option_gating,
+    )
+
+
 def _build_handlers() -> dict[str, ObjectiveHandler]:
     """Build the registry, importing implementation modules lazily.
 
@@ -147,13 +168,7 @@ def _build_handlers() -> dict[str, ObjectiveHandler]:
             on_trigger=_smuggle_trigger,
             option_gating=_smuggle_option_gating,
         ),
-        "salvage": ObjectiveHandler(
-            "salvage",
-            on_trigger=_salvage_trigger,
-            on_complete=_salvage_wreck_cleanup,
-            secures_quest_loot=True,
-            ensure_spawns=_ensure_salvage_spawns,
-        ),
+        "salvage": _salvage_handler(_ensure_salvage_spawns),
         "visit": ObjectiveHandler("visit", on_trigger=_visit_trigger),
         "bump": ObjectiveHandler("bump", on_trigger=_bump_trigger),
         "delve": ObjectiveHandler(

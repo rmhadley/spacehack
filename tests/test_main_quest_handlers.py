@@ -137,6 +137,7 @@ def _payment_ctx(credits: int):
         player_xp=0,  # complete_step rewards
         player_level=1,  # xp level-up loop
         player_skill_points=0,
+        main_quest_disclosure="",  # breadcrumb act1 checks
         time_day=10, time_month=3, time_year=2200,  # refit-gate scheduling
     )
 
@@ -224,3 +225,36 @@ def test_quest_log_cost_line_renders_from_data():
     assert f"{step.payment_credits:,}" in t_get(
         "step.mer_q4_bribe.description"
     ), "description must cite the exact data cost"
+
+
+def test_salvage_starter_option_hidden_once_started():
+    """The "Take the smelted alloy" row only appears while the salvage
+    step is un-started; mid-step re-talk shows the briefing, not a dead
+    option (playtest v13: the option could be taken forever)."""
+    from src.spacehack.main_quest._dialogue import quest_option_for
+
+    ctx = _payment_ctx(0)
+    ctx.main_quest_progress = {"mer_q5_calibration": "active"}
+    assert quest_option_for(ctx, "salvage_specialist") is None
+
+    fresh = _payment_ctx(0)
+    fresh.main_quest_progress = {"mer_q5_calibration": "available"}
+    row = quest_option_for(fresh, "salvage_specialist")
+    assert row is not None and row[1] == "mer_q5_calibration"
+
+
+def test_active_step_breadcrumb_points_at_remaining_route():
+    """A STARTED step's Q text prefers its active_description — the
+    tau-b collection leg drops away and Q names the live objective."""
+    from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
+
+    ctx = _payment_ctx(0)
+    ctx.main_quest_progress = {"mer_q5_calibration": "active"}
+    title, desc = current_main_quest_objective(ctx)
+    assert title == "The Survey"
+    assert "Vega" in desc and "Collect the smelted alloy" not in desc
+
+    fresh = _payment_ctx(0)
+    fresh.main_quest_progress = {"mer_q5_calibration": "available"}
+    _, available_desc = current_main_quest_objective(fresh)
+    assert "Tau Ceti" in available_desc
