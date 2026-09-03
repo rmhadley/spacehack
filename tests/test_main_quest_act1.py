@@ -762,3 +762,29 @@ def test_wolf_delve_stamps_camp_cache_and_guardians():
     assert len(guards) == 2
     for g in guards:
         assert max(abs(g.pos.x - cache.pos.x), abs(g.pos.y - cache.pos.y)) <= 10
+
+
+def test_survey_a_layout_contract():
+    """The generated survey ship parses through the real loader with
+    every marker reachable, consortium crew (not pirates) inside, void
+    outside the hull, and loot on the map (doc 32 iteration)."""
+    from src.spacehack.dungeon import load_layout
+
+    game_map, spawn = load_layout("survey_a", loot_budget=None)
+    assert game_map.width == 92 and game_map.height == 34
+    assert any(
+        t.kind == "void" for row in game_map.tiles for t in row
+    ), "void outside the hull keeps the silhouette readable"
+    enemies = [e.npc_char_id for e in game_map.entities if e.npc_char_id]
+    assert {"consortium_enforcer", "consortium_gunner"} <= set(enemies)
+    assert not any(eid.startswith("pirate") for eid in enemies)
+    assert any(
+        getattr(e, "loot_data", None) for e in game_map.entities
+    ), "guaranteed loot containers must spawn"
+
+
+def test_mer_q5_uses_the_survey_ship():
+    from src.spacehack.data.main_quest import find_main_quest_step
+
+    step = find_main_quest_step("mer_q5_calibration")
+    assert step.salvage_layout_id == "survey_a"
