@@ -169,7 +169,7 @@ threat (not light) escalates via existing ascent events.
 ### Phase 5 — closeout
 - [x] Guide check (visual-only feature; no guide change expected)
 - [x] Full corpus audit + `make check`
-- [ ] Ask user: move doc to complete?
+- [x] Ask user: move doc to complete? — approved 2026-09-03
 
 ## Acceptance criteria
 
