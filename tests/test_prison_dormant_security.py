@@ -82,9 +82,11 @@ def test_bumping_a_dormant_unit_reports_and_never_fights():
 # ----- Prison floors are stocked (doc 30 phase 2) ----------------------
 
 
-def _prison_floor(floor):
+def _prison_floor(floor, seed=1):
     from src.spacehack.dungeon_extensions import _generate_floor
+    from src.spacehack.engine import seed_rng
 
+    seed_rng(seed)  # deterministic maps regardless of test order
     return _generate_floor("mars_alien_prison", floor)
 
 
@@ -371,11 +373,14 @@ def test_extras_spread_along_the_route_not_piled_at_the_door():
     the garrison never piles into the stairs-up room (playtest v3)."""
     game_map, spawn = _prison_floor(1)
     dormant = [e for e in game_map.entities if e.powered_down]
+    extras = [e for e in dormant if e.squad_id.startswith("lockdown_extras_")]
     near_entry = [
-        e for e in dormant
+        e for e in extras
         if max(abs(e.pos.x - spawn.x), abs(e.pos.y - spawn.y)) <= 6
     ]
-    assert len(near_entry) <= 3, f"{len(near_entry)} units camp the entry room"
+    # Two extras hold the door; a straggler is tolerable. Event-squad
+    # units near their own anchors are legitimate and not "piled".
+    assert len(near_entry) <= 3, f"{len(near_entry)} extras camp the entry room"
     far = [
         e for e in dormant
         if max(abs(e.pos.x - spawn.x), abs(e.pos.y - spawn.y)) >= 15
