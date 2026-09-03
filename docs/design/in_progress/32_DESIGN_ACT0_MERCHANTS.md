@@ -118,17 +118,22 @@ mid-arc investment without being a wall.
 
 PLAYTEST: one full run noting rhythm pain points.
 
-### Phase 2 — structure (whichever proposals are accepted)
-- [ ] P1 third wait (+ ready/flavor texts)
-- [ ] P2 if accepted: new step(s) with dialogue JSON
-- [ ] Tests: chain linkage, gate days, unlock → prologue_open
+### Phase 2 — structure — LANDED 2026-09-03 (d76bd72)
+- [x] 6-step chain: q4_bribe (payment, Depot, 8,000cr) + renumbered
+      q5_calibration / q6_cutter; save migration for old ids
+- [x] Waits 45/60/45/70; every gate has flavor + ready_message
+      (smoke-enforced)
+- [x] `payment` objective type: option gated on credits, "Settle the
+      bond ({credits}cr)" label, consume + complete; tests cover
+      hidden-when-poor, exact consumption, refit-gate registration
 
 PLAYTEST: full run — does the arc breathe like Labs?
 
 ### Phase 3 — dialogue + questlog polish
-- [ ] One-beat enforcement pass over `02_merchants.json`
-- [ ] Q states verified for every phase of the arc
-- [ ] Tests: no behavioral change beyond texts
+- [x] Full text pass shipped with Phase 2 (Lab voice, one-beat
+      dialogues, resonance language dropped, consortium heat seeded
+      in q2/q3 text)
+- [ ] Q states verified in playtest for every phase of the arc
 
 PLAYTEST: read-every-line run; flag any line that stalls or over-explains.
 
