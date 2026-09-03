@@ -564,14 +564,19 @@ def test_run_auto_explore_walks_to_and_reveals_unseen_monster():
     assert "rock scavenger blocks the only way forward" in ctx.log.recent(1)[0].text
 
 
-def test_run_auto_explore_stops_when_standing_on_interesting():
+def test_run_auto_explore_engages_through_the_underfoot_stair():
+    """Standing on a stair when O is pressed (the arrival case after
+    every traversal) engages exploring instead of stopping to announce
+    it — no more double-O on a new floor (playtest v11)."""
     gm = _corridor()
     gm.tiles[1][1] = _stairs(1, 1, kind="stairs_up")
     player = _player(1, 1)
     ctx, result = _run(gm, player)
     assert result == "DONE"
-    assert player.pos == world.Position(1, 1)
-    assert "standing at a stairway up" in ctx.log.recent(1)[0].text
+    assert player.pos != world.Position(1, 1), "the player explores past the stair"
+    logged = " ".join(entry.text for entry in ctx.log.recent())
+    assert "Auto-explore engaged" in logged
+    assert "standing at" not in logged
 
 
 def test_run_auto_explore_requires_dungeon_fog():
@@ -860,3 +865,39 @@ def test_goto_names_the_elevator_not_the_stairs_under_it():
     gm.seen[6][6] = True
     at_cell = [t for t in goto_targets(gm, world.Position(2, 2)) if (t.x, t.y) == (6, 6)]
     assert at_cell and at_cell[0].title == "Deep Elevator"
+
+
+def test_engage_while_standing_on_stairs_explores_instead_of_stopping():
+    """After traversing, the player lands ON the arrival stair; O must
+    engage exploring, not stop to announce the stair underfoot (the
+    double-O press, playtest v11)."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.autoexplore import run_auto_explore
+
+    width, height = 5, 5
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for y in range(1, 4):
+        for x in range(1, 4):
+            tiles[y][x] = world.DUNGEON_FLOOR
+    tiles[2][2] = world.STAIRS_UP
+    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
+    game_map.seen = [[True] * width for _ in range(height)]
+    game_map.visible = [[True] * width for _ in range(height)]
+    player = world.Entity(
+        char="@", fg=(255, 255, 255),
+        pos=world.Position(2, 2), name="Player",
+    )
+    messages: list[str] = []
+    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    outcome = run_auto_explore(
+        ctx, object(), game_map, player,
+        post_step_tick=lambda: None, map_w=80, map_h=45,
+        present_frame=lambda *a, **k: None,
+    )
+    assert outcome == "DONE"  # fully-seen map: nothing to explore
+    assert any("Auto-explore engaged" in m for m in messages)
+    assert not any("standing at" in m for m in messages), (
+        "the underfoot stair must not stop or announce"
+    )

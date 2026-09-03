@@ -617,12 +617,12 @@ def run_auto_explore(
         return "DONE"
     _present = present_frame or _default_present_frame
     _standing_pos = (player.pos.x, player.pos.y)
-    _standing = interesting_at(game_map, *_standing_pos)
     _memory = _ignored_positions(game_map)
-    if _standing and _standing_pos not in _memory:
-        _memory.add(_standing_pos)
-        ctx.log.add(f"You are standing at {_standing}.")
-        return "DONE"
+    # Standing ON something interesting means it is already known — the
+    # arrival stair after a transition, loot underfoot, a console in
+    # use. Mark it presented and EXPLORE; announcing it forced a second
+    # O press on every new floor (playtest v11).
+    _memory.add(_standing_pos)
     _known = _seed_known_interesting(game_map)
     ctx.log.add("Auto-explore engaged.")
     return _run_explore_loop(
