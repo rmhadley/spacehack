@@ -383,6 +383,34 @@ def check_station_clipping(
             )
             decorated.add(pair.station)
         violations.append(pair)
+    violations.extend(_check_station_separation(station_pads, game_map, pad_radius))
+    return violations
+
+
+# Adjacent-but-not-overlapping pads read as one giant platform: a stop
+# a short walk from its neighbour is redundant (playtest v12: depot's
+# Freight Plaza and Fuel Depot sat at chebyshev 3 — zones edge-to-edge).
+# Two stations must be farther apart than both pad zones combined, plus
+# one clear cell between them: chebyshev > 2*pad_radius + gap.
+_MIN_STATION_GAP = 1
+
+
+def _check_station_separation(station_pads, game_map, pad_radius) -> list[Violation]:
+    """R1 check 6: sibling pad zones may not touch."""
+    violations: list[Violation] = []
+    limit = 2 * pad_radius + _MIN_STATION_GAP
+    for i in range(len(station_pads)):
+        for j in range(i + 1, len(station_pads)):
+            a, _a_cells, _a_zone = station_pads[i]
+            b, _b_cells, _b_zone = station_pads[j]
+            distance = max(abs(a.pos.x - b.pos.x), abs(a.pos.y - b.pos.y))
+            if distance <= limit:
+                violations.append(Violation(
+                    "R1", a.name, b.name, (a.pos.x, a.pos.y),
+                    f"'{a.name}' and '{b.name}' pads touch (chebyshev "
+                    f"{distance}, min separation {limit + 1}) — move one "
+                    "stop or delete the redundant one",
+                ))
     return violations
 
 
@@ -710,17 +738,29 @@ def check_serves_declared(game_map: world.GameMap) -> list[Violation]:
 def _flag_duplicate_serves(
     declared: list[tuple[world.Entity, str]],
     violations: list[Violation],
+    game_map: world.GameMap | None = None,
 ) -> None:
     """R2: a serves target gets one stop. Two stations declaring the same
     target is a redundant stop — station moves can never fix it, so it is
     an explicit author decision: delete the redundant TransitStation or
     re-target it to a distinct building/landmark."""
-    by_target: dict[str, list[world.Entity]] = {}
+    # Group by RESOLVED ENTRANCE, not by the serves string: a landmark
+    # key and a building label can name the same stamped structure (depot
+    # pre-fix: 'depot_depot' landmark == 'depot' building at (66,52)).
+    by_target: dict[tuple, list[world.Entity]] = {}
     for station, serves in declared:
-        by_target.setdefault(serves, []).append(station)
-    for serves, group in sorted(by_target.items()):
+        _entrance, _src = (
+            _resolve_target(game_map, serves) if game_map is not None
+            else (None, None)
+        )
+        key = (
+            tuple(_entrance) if _entrance is not None else ("str:", serves)
+        )
+        by_target.setdefault(key, []).append(station)
+    for key, group in sorted(by_target.items(), key=lambda kv: str(kv[0])):
         if len(group) < 2:
             continue
+        serves = key[1] if key[0] == "str:" else str(key[0])
         first, *rest = group
         others = ", ".join(s.name for s in rest)
         violations.append(Violation(
@@ -868,7 +908,7 @@ def check_serves(game_map: world.GameMap, *, max_distance: float = _MAX_SERVES_D
                             f"closer to it (walkable steps)",
                 },
             ))
-    _flag_duplicate_serves(declared, violations)
+    _flag_duplicate_serves(declared, violations, game_map=game_map)
     return violations
 
 

@@ -360,12 +360,11 @@ def test_r1_flags_two_stations_sharing_a_pad():
         _make_entity("Transit: Civic Services", 5, 5, transit_station_id="bounties"),
     ], bay_cells=bay)
     violations = city_audit.check_station_clipping(game_map)
-    assert len(violations) == 1
-    v = violations[0]
-    assert v.rule_id == "R1"
-    assert v.station == "Transit: Civic Square"
-    assert v.other == "Transit: Civic Services"
-    assert "share a pad" in v.message
+    # Stacked stations trip check 4 (shared pad) AND check 6 (zero gap).
+    assert len(violations) == 2
+    assert all(v.rule_id == "R1" for v in violations)
+    assert any("share a pad" in v.message for v in violations)
+    assert any("pads touch" in v.message for v in violations)
 
 
 def test_r1_recommendation_moves_stacked_station_clear():
@@ -404,7 +403,7 @@ def test_r2_flags_duplicate_serves_targets():
     assert len(violations) == 1
     v = violations[0]
     assert v.rule_id == "R2"
-    assert "all serve 'bar'" in v.message
+    assert "all serve" in v.message  # grouped by resolved entrance
     assert "delete" in v.remediation.lower()
 
 
@@ -762,3 +761,51 @@ def test_fix_plan_moves_station_far_from_its_target():
     assert move["station_id"] == "far"
     mx, my = move["to"]
     assert max(abs(mx - 19), abs(my - 19)) <= 12, move["to"]
+
+
+def test_touching_pad_zones_are_flagged():
+    """Two stops whose 3x3 zones sit edge-to-edge (chebyshev 3) read as
+    one giant platform — redundant. Regression: depot's Freight Plaza
+    and Fuel Depot shipped touching for the whole campaign because
+    check 4 only caught OVERLAPS."""
+    stations = [
+        _make_entity("Transit: A", 10, 10, transit_station_id="a"),
+        _make_entity("Transit: B", 13, 10, transit_station_id="b"),
+    ]
+    pads = [
+        (stations[0], city_audit._footprint(stations[0]), set()),
+        (stations[1], city_audit._footprint(stations[1]), set()),
+    ]
+    violations = city_audit._check_station_separation(pads, None, 1)
+    assert len(violations) == 1
+    assert "pads touch" in violations[0].message
+    # One cell further apart (chebyshev 4) is fine.
+    stations[1].pos = world.Position(14, 10)
+    assert city_audit._check_station_separation(pads, None, 1) == []
+
+
+def test_duplicate_serves_detected_by_resolved_entrance():
+    """A landmark key and a building label naming the same stamped
+    structure are duplicates even though the serves strings differ
+    (depot's pre-fix aliasing)."""
+    game_map = _make_map([])
+    game_map.city_buildings = {
+        "depot": {"label": "depot", "display_name": "depot",
+                  "entrance": (70, 50)},
+    }
+    game_map.landmark_stamps = {
+        "depot_depot": {"origin": (70, 50), "entrance": (70, 50)},
+    }
+    a = _make_entity("Transit: A", 60, 40, transit_station_id="a")
+    b = _make_entity("Transit: B", 62, 40, transit_station_id="b")
+    a.serves = "depot"
+    b.serves = "depot_depot"
+    game_map.entities.extend([a, b])
+    from src.spacehack import world as _w
+    game_map.entities.append(_w.Entity(char="@", fg=(1, 1, 1), pos=_w.Position(0, 0), name="Player"))
+    violations = []
+    city_audit._flag_duplicate_serves(
+        [(a, a.serves), (b, b.serves)], violations, game_map=game_map,
+    )
+    assert len(violations) == 1
+    assert "all serve" in violations[0].message
