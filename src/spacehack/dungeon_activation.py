@@ -273,14 +273,37 @@ def _in_corridor_run(
     return a == (0, -1) and b == (0, 1) or a == (-1, 0) and b == (1, 0)
 
 
+def _transit_neighborhood(game_map: world.GameMap) -> set[tuple[int, int]]:
+    """Every cell within Chebyshev 1 of a stairs/exit tile.
+
+    Dormant bodies never stand here: three playtest rounds (v4, v6,
+    v10) all reported the same shape — drones parked at a stair's
+    doorstep sealing the local flow, while analytic rules passed
+    because a long detour always exists. Flow near transitions is the
+    guarantee, not reachability.
+    """
+    zone: set[tuple[int, int]] = set()
+    for y, row in enumerate(game_map.tiles):
+        for x, tile in enumerate(row):
+            if tile.kind not in _TRANSIT_KINDS:
+                continue
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    if game_map.in_bounds(x + dx, y + dy):
+                        zone.add((x + dx, y + dy))
+    return zone
+
+
 def _dormant_cell_ok(
     game_map, x: int, y: int, occupied, landmark_cells, spawn, blockers,
+    transit_cells,
 ) -> bool:
     """Whether a dormant unit may stand on ``(x, y)``.
 
-    Free, walkable, not a stair or landmark cell, open surroundings
-    (≥3 — never a 1-wide corridor), and — when ``spawn`` is given —
-    walling it strands nothing (existing dormant bodies as walls).
+    Free, walkable, not a stair or landmark cell, nowhere near a
+    transit tile, open surroundings (≥3 — never a 1-wide corridor),
+    and — when ``spawn`` is given — walling it strands nothing
+    (existing dormant bodies as walls).
     """
     if (
         not game_map.in_bounds(x, y)
@@ -288,6 +311,7 @@ def _dormant_cell_ok(
         or game_map.tiles[y][x].kind in {"stairs_up", "stairs_down"}
         or (x, y) in occupied
         or (x, y) in landmark_cells
+        or (x, y) in transit_cells
         or _open_neighbours(game_map, x, y) < 3
     ):
         return False
@@ -319,10 +343,12 @@ def _dormant_cells(
     """
     landmark_cells = set(getattr(game_map, "landmark_footprint", ()) or ())
     blockers = set(safe_blockers or set())
+    transit_cells = _transit_neighborhood(game_map)
 
     def _cell_ok(x: int, y: int) -> bool:
         return _dormant_cell_ok(
             game_map, x, y, occupied, landmark_cells, spawn, blockers,
+            transit_cells,
         )
 
     def _prefer_strict(cell: tuple[int, int]) -> bool:

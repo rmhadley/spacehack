@@ -665,3 +665,41 @@ def test_dormant_units_never_park_in_straight_corridor_runs():
     assert cells == [] or all(
         not _in_corridor_run(game_map, set(), c) for c in cells
     )
+
+
+def test_dormant_units_never_stand_near_transit_tiles():
+    """Playtest v10 (save-confirmed): a drone pair at a three-lane
+    junction mouth beside the F2 up-stairs — every analytic rule passed
+    (detours existed) but the local flow died. The guarantee is now
+    blunt: no dormant unit within one step (8-dir) of any stairs/exit."""
+    from src.spacehack.dungeon_activation import (
+        _transit_neighborhood, _dormant_cells,
+    )
+
+    # The save's junction: three lanes meeting at x=5, stairs west.
+    glyphs = [
+        "#####...........",
+        "#####...........",
+        "####<###########",
+        "#####...........",
+    ]
+    tiles = [
+        [
+            world.STAIRS_UP if ch == "<"
+            else world.DUNGEON_FLOOR if ch == "."
+            else world.DUNGEON_WALL
+            for ch in row
+        ]
+        for row in glyphs
+    ]
+    game_map = world.GameMap(width=16, height=4, tiles=tiles, entities=[])
+    zone = _transit_neighborhood(game_map)
+    # Stairs sit at (4, 2): diagonal junction cells are in the zone.
+    assert (5, 1) in zone and (5, 3) in zone and (4, 1) in zone
+    assert (5, 0) not in zone, "two steps above the stairs stays free"
+    assert (6, 1) not in zone, "one step beyond the zone is free"
+    cells = _dormant_cells(
+        game_map, world.Position(6, 1), set(), 2,
+        spawn=world.Position(6, 3),
+    )
+    assert cells and all(cell not in zone for cell in cells)

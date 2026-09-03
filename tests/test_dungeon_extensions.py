@@ -1166,6 +1166,8 @@ def test_prison_full_descent_sweep_across_seeds():
                 (e.pos.x, e.pos.y)
                 for e in game_map.entities if e.powered_down
             }
+            from src.spacehack.dungeon_activation import _transit_neighborhood
+            assert not dormant & _transit_neighborhood(game_map), (seed, floor)
             if dormant:
                 free = _reachable_cells(game_map, game_map.up_stair_pos, set())
                 walled = _reachable_cells(game_map, game_map.up_stair_pos, dormant)
