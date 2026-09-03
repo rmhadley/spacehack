@@ -197,15 +197,39 @@ def test_blend_adds_light_per_channel():
     assert bg == (110, 70, 55)
 
 
-def test_blend_clamps_to_255():
+def test_blend_clamps_then_luma_caps():
+    """Bright base + light clamps per channel, then the blended result
+    is luma-capped: lit tiles stay readable, never washed white
+    (output cap contract, playtest v11)."""
+    from src.spacehack.lighting import _BLEND_LUMA_CAP, _luma
+
     fg, bg = blend_toward_light(
         (200, 200, 200), (200, 200, 200), (100, 100, 100),
     )
-    assert fg == (255, 255, 255)
-    assert bg == (255, 255, 255)
-
+    assert _luma(fg) <= _BLEND_LUMA_CAP + 1.0
+    assert fg == bg  # symmetric bases blend symmetrically
 
 def test_red_light_on_blue_surface_gives_magenta():
     # The classic neon-canyon case: a red sign lighting a blue wall.
     fg, _bg = blend_toward_light((0, 0, 200), (0, 0, 40), (150, 0, 0))
     assert fg == (150, 0, 200)
+
+
+def test_blended_output_luma_cap_keeps_bright_floors_readable():
+    """Even a bright floor base under capped light cannot wash to white:
+    the blended result is luma-capped, hue-kept (playtest v11: a 2x2
+    square of normal panels still read too bright after the grid cap)."""
+    from src.spacehack.lighting import (
+        _BLEND_LUMA_CAP, _luma, blend_toward_light,
+    )
+
+    bright_floor = (190, 195, 205)
+    strong_light = (90, 176, 168)  # teal, ~150 luma (the grid cap)
+    fg, bg = blend_toward_light(bright_floor, (40, 46, 60), strong_light)
+    assert _luma(fg) <= _BLEND_LUMA_CAP + 1.0
+    assert fg != (255, 255, 255), "blend must not wash to white"
+    assert fg[1] >= fg[0], "teal hue survives the cap"
+    # Unlit tiles pass through untouched.
+    assert blend_toward_light(bright_floor, (40, 46, 60), (0, 0, 0)) == (
+        bright_floor, (40, 46, 60),
+    )

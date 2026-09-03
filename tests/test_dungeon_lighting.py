@@ -507,7 +507,7 @@ def test_light_luma_cap_prevents_whiteout():
     ]
     grid = propagate_light(21, 21, sources)
     centre = grid[10][10]
-    assert _luma(centre) <= _LIGHT_LUMA_CAP + 1.0
+    assert _luma(centre) <= _LIGHT_LUMA_CAP + 1.0, "stacking is grid-capped"
     assert centre != (255, 255, 255), "overlapped light must not white out"
     # Proportional scaling keeps the hue ratio (blue never falls below
     # red when it started above it).

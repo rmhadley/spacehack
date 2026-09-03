@@ -256,30 +256,49 @@ def _blend_channel(base: int, light: int) -> int:
     return max(0, min(255, base + light))
 
 
+# Ceiling for a BLENDED tile: even with the light grid luma-capped,
+# adding light to an already-bright floor tile clamps channels to 255
+# and washes out (playtest v11: a 2x2 square of normal panels still
+# read too bright). The output cap scales the blended result back,
+# hue-correct. Sits above ordinary bright tile bases so unlit tiles
+# are untouched.
+_BLEND_LUMA_CAP = 190.0
+
+
+def _cap_cell(rgb: RGB, cap: float) -> RGB:
+    """Proportionally scale ``rgb`` down to ``cap`` luma if above."""
+    brightness = _luma(rgb)
+    if brightness <= cap:
+        return rgb
+    scale = cap / brightness
+    return tuple(min(255, int(channel * scale)) for channel in rgb)
+
+
 def blend_toward_light(
     base_fg: RGB, base_bg: RGB, light: RGB,
 ) -> tuple[RGB, RGB]:
     """Additively blend a tile's colours toward ``light``.
 
     Each channel of the base ``fg``/``bg`` has the corresponding light
-    channel added and clamped. ``(0, 0, 0)`` light leaves the colours
-    unchanged, so callers can safely pass a cell's grid value without a
-    zero-check. Pure: no mutation, deterministic.
+    channel added, clamped, then luma-capped (see
+    :data:`_BLEND_LUMA_CAP`) so no amount of light washes a tile to
+    white. ``(0, 0, 0)`` light leaves the colours unchanged, so callers
+    can safely pass a cell's grid value without a zero-check. Pure: no
+    mutation, deterministic.
     """
     if light == (0, 0, 0):
         return base_fg, base_bg
-    return (
-        (
-            _blend_channel(base_fg[0], light[0]),
-            _blend_channel(base_fg[1], light[1]),
-            _blend_channel(base_fg[2], light[2]),
-        ),
-        (
-            _blend_channel(base_bg[0], light[0]),
-            _blend_channel(base_bg[1], light[1]),
-            _blend_channel(base_bg[2], light[2]),
-        ),
-    )
+    blended_fg = _cap_cell((
+        _blend_channel(base_fg[0], light[0]),
+        _blend_channel(base_fg[1], light[1]),
+        _blend_channel(base_fg[2], light[2]),
+    ), _BLEND_LUMA_CAP)
+    blended_bg = _cap_cell((
+        _blend_channel(base_bg[0], light[0]),
+        _blend_channel(base_bg[1], light[1]),
+        _blend_channel(base_bg[2], light[2]),
+    ), _BLEND_LUMA_CAP)
+    return blended_fg, blended_bg
 
 
 def collect_light_sources(game_map) -> list[LightSource]:

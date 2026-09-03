@@ -846,3 +846,17 @@ def test_extension_consoles_are_interesting():
     gm.visible = [[True] * 6 for _ in range(6)]
     assert interesting_at(gm, 2, 2) == "an interactive console"
     assert newly_interesting_positions(gm, set()) == {(2, 2)}
+
+
+def test_goto_names_the_elevator_not_the_stairs_under_it():
+    """The deep elevator occupies the down-stair cell it gates; the G
+    menu must show 'Deep Elevator', not 'Stairs down' (playtest v11)."""
+    gm = _dungeon()
+    gm.entities.append(world.Entity(
+        char="E", fg=(160, 240, 255),
+        pos=world.Position(6, 6), name="Deep Elevator",
+        dungeon_interaction="deep_elevator",
+    ))
+    gm.seen[6][6] = True
+    at_cell = [t for t in goto_targets(gm, world.Position(2, 2)) if (t.x, t.y) == (6, 6)]
+    assert at_cell and at_cell[0].title == "Deep Elevator"

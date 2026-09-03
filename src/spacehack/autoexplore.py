@@ -117,6 +117,27 @@ class GotoTarget:
     description: str = "Walk to this destination."
 
 
+def _add_entity_goto_titles(game_map, seen, found) -> None:
+    """Merge seen interactable entities into the goto target map.
+
+    Interactions sit ON their connection tile by design (the deep
+    elevator occupies the down-stair cell it gates) — the interaction's
+    own name is the truth and OVERRIDES the tile title ("Deep
+    Elevator", not "Stairs down"). Other entity flags only fill
+    otherwise-untitled cells.
+    """
+    for entity in game_map.entities:
+        if not seen[entity.pos.y][entity.pos.x]:
+            continue
+        if getattr(entity, "dungeon_interaction", ""):
+            found[(entity.pos.x, entity.pos.y)] = entity.name or "Console"
+            continue
+        for _flag, _title in _GOTO_ENTITY_TITLES.items():
+            if getattr(entity, _flag, None):
+                found.setdefault((entity.pos.x, entity.pos.y), _title)
+                break
+
+
 def goto_targets(game_map, player_pos) -> list[GotoTarget]:
     """Discovered (seen) goto destinations, nearest first.
 
@@ -136,13 +157,7 @@ def goto_targets(game_map, player_pos) -> list[GotoTarget]:
             _title = _GOTO_TILE_TITLES.get(game_map.tiles[_y][_x].kind)
             if _title is not None:
                 _found[(_x, _y)] = _title
-    for _e in game_map.entities:
-        if not _seen[_e.pos.y][_e.pos.x]:
-            continue
-        for _flag, _title in _GOTO_ENTITY_TITLES.items():
-            if getattr(_e, _flag, None):
-                _found.setdefault((_e.pos.x, _e.pos.y), _title)
-                break
+    _add_entity_goto_titles(game_map, _seen, _found)
     _sx, _sy = player_pos.x, player_pos.y
     _targets = [
         GotoTarget(
