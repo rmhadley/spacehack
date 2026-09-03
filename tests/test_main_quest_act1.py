@@ -700,3 +700,65 @@ def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
     assert "Alpha Centauri" in ctx.main_quest_pending_message
     assert "Alpha Centauri" in ctx.main_quest_pending_objective
     assert "archive comparison is ready" not in ctx.main_quest_pending_message
+
+
+# ----- Wolf 359 b delve: camp + cache + guardians (doc 32 iteration) ----
+
+
+def test_wolf_camp_layout_contract():
+    """Uniform rows, one entrance, no void padding (the v7 prison bug
+    class), ornaments present."""
+    from src.spacehack import landmark as landmark_module
+    from src.spacehack.data.planets import find_planet_spec
+
+    asset = landmark_module.load_landmark("wolf_camp")
+    widths = {len(row) for row in asset.tiles}
+    assert len(widths) == 1
+    assert not any(t.kind == "void" for r in asset.tiles for t in r)
+    entrances = sum(
+        t.kind in {"dungeon_door", "landmark_entrance"}
+        for r in asset.tiles for t in r
+    )
+    assert entrances == 1
+    # balance: guardians doubled over Mars but tier-2 only
+    params = find_planet_spec("wolf_b").dungeon_params
+    assert params.cache_guardian_count == 2
+    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+
+
+def test_wolf_delve_stamps_camp_cache_and_guardians():
+    """prepare_delve_site: the camp stamps, the cache lands inside it
+    (deepest interior cell), and two sentry guardians hold the room."""
+    from types import SimpleNamespace
+
+    from src.spacehack.data.planets import find_planet_spec
+    from src.spacehack.dungeon import generate_dungeon
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.main_quest._act0 import prepare_delve_site
+
+    ctx = SimpleNamespace(
+        main_quest_progress={"mer_q2_strike": "active"},
+        main_quest_gate={}, main_quest_chain="merchants",
+        log=SimpleNamespace(add=lambda *_a: None),
+    )
+    seed_rng(1)
+    spec = find_planet_spec("wolf_b")
+    game_map, spawn = generate_dungeon(spec.dungeon_params)
+    assert prepare_delve_site(ctx, game_map, spawn, "wolf_b") is True
+
+    cache = next(
+        (e for e in game_map.entities if getattr(e, "main_quest_step_id", "") == "mer_q2_strike"),
+        None,
+    )
+    assert cache is not None
+    footprint = getattr(game_map, "landmark_footprint", set()) or set()
+    assert (cache.pos.x, cache.pos.y) in footprint, "cache must sit inside the camp"
+    assert game_map.tiles[cache.pos.y][cache.pos.x].walkable
+
+    guards = [
+        e for e in game_map.entities
+        if e.npc_char_id == "sentry_drone"
+    ]
+    assert len(guards) == 2
+    for g in guards:
+        assert max(abs(g.pos.x - cache.pos.x), abs(g.pos.y - cache.pos.y)) <= 10

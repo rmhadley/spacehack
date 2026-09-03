@@ -506,6 +506,53 @@ def bump_mars_door(ctx) -> None:
 # Delve site preparation
 # ---------------------------------------------------------------------------
 
+# Authored camp layouts per delve planet: the quest cache lands inside
+# the camp instead of a random far room (wolf_b: frozen prospectors'
+# bunkhouse, doc 32 playtest iteration).
+_DELVE_CAMPS: dict[str, str] = {
+    "wolf_b": "wolf_camp",
+}
+
+
+def _camp_or_far_cache(
+    game_map: world.GameMap, spawn: world.Position, planet_id: str,
+) -> world.Position:
+    """The cache position: inside the planet's authored camp if one
+    stamped cleanly, else the farthest walkable cell.
+
+    The camp's deepest interior cell (farthest from its door) holds
+    the cache, so the guardians end up holding the room around it. A
+    camp that cannot route on this map falls back — the delve must
+    never fail to build.
+    """
+    _layout_id = _DELVE_CAMPS.get(planet_id)
+    if _layout_id is not None:
+        try:
+            _asset = landmark.load_landmark(_layout_id)
+            _stamp = landmark.stamp_landmark(game_map, _asset, spawn)
+        except ValueError:
+            _stamp = None
+        if _stamp is not None:
+            game_map.landmark_footprint = (
+                set(getattr(game_map, "landmark_footprint", ()) or ())
+                | set(_stamp.footprint)
+            )
+            _door = (_stamp.entrance.x, _stamp.entrance.y)
+            _interior = [
+                (x, y)
+                for x, y in _stamp.footprint
+                if game_map.in_bounds(x, y)
+                and game_map.tiles[y][x].walkable
+            ]
+            if _interior:
+                _cx, _cy = max(
+                    _interior,
+                    key=lambda c: (abs(c[0] - _door[0]) + abs(c[1] - _door[1]), c[1], c[0]),
+                )
+                return world.Position(_cx, _cy)
+    return _farthest_walkable(game_map, spawn)
+
+
 def prepare_delve_site(
     ctx,
     game_map: world.GameMap,
@@ -517,7 +564,7 @@ def prepare_delve_site(
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
-    _cache_pos = _farthest_walkable(game_map, spawn)
+    _cache_pos = _camp_or_far_cache(game_map, spawn, planet_id)
     _cache = world.Entity(
         char="%",
         fg=(255, 215, 0),
