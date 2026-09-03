@@ -164,10 +164,11 @@ def main() -> int:
                 "mer_q1_contract",
                 "mer_q2_strike",
                 "mer_q3_transport",
-                "mer_q4_calibrate",
-                "mer_q5_cutter",
+                "mer_q4_bribe",
+                "mer_q5_calibration",
+                "mer_q6_cutter",
             ),
-            _npc_fresh("salvage_specialist"),
+            _npc_fresh("depot_attendant", "salvage_specialist"),
         ),
         "03_bar.json": (
             (

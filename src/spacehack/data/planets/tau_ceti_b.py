@@ -130,7 +130,7 @@ SPEC = PlanetSpec(
         ),
     ),
     # The Act 0 salvage_specialist stands here (additively) only while
-    # mer_q3_transport / mer_q4_calibrate are live -- see spawn_quest_npcs.
+    # mer_q3_transport / mer_q5_calibration are live -- see spawn_quest_npcs.
     quest_npc_spots=(
         ("salvage_specialist", "merchants"),
     ),

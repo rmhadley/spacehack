@@ -105,10 +105,31 @@ def _unlock_gated_step(ctx, next_id: str) -> None:
         ctx.main_quest_pending_objective = _next_step.description
 
 
+_MERCHANTS_RENUMBER = {
+    # pre-bribe-step saves: calibrate/cutter were q4/q5
+    "mer_q4_calibrate": "mer_q5_calibration",
+    "mer_q5_cutter": "mer_q6_cutter",
+}
+
+
+def _repair_merchants_renumber(ctx) -> None:
+    """Migrate saves from the 5-step merchants chain to the 6-step one.
+
+    Status-preserving id rename in progress and gate maps; runs before
+    gate checks so old gates fire against the new ids.
+    """
+    for _old, _new in _MERCHANTS_RENUMBER.items():
+        if _old in ctx.main_quest_progress and _new not in ctx.main_quest_progress:
+            ctx.main_quest_progress[_new] = ctx.main_quest_progress.pop(_old)
+        if _old in ctx.main_quest_gate and _new not in ctx.main_quest_gate:
+            ctx.main_quest_gate[_new] = ctx.main_quest_gate.pop(_old)
+
+
 def check_quest_gates(ctx) -> bool:
     """Flip time-gated chain steps to available once their gate date passes."""
     _repair_sealed_archive_handoff(ctx)
     _repair_instant_research_completion(ctx)
+    _repair_merchants_renumber(ctx)
     _normalize_pending_message(ctx)
     if not ctx.main_quest_gate:
         return False

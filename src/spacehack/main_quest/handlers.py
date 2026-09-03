@@ -85,6 +85,26 @@ def _bump_trigger(ctx, step) -> bool:
     return True
 
 
+def _payment_option_gating(ctx, step, npc_id) -> bool:
+    """Payment steps offer their row only when the player can afford it.
+
+    The cost is open-ended fundraising: trade, bounties, contracts —
+    any income counts, and the quest log carries the shortfall until
+    the option appears.
+    """
+    return ctx.stats.credits >= step.payment_credits
+
+
+def _payment_trigger(ctx, step) -> bool:
+    """Consume the payment, then complete the step."""
+    from ._core import complete_step
+
+    if ctx.stats.credits < step.payment_credits:
+        return False
+    ctx.stats.credits -= step.payment_credits
+    return complete_step(ctx, step.id)
+
+
 def _smuggle_option_gating(ctx, step, npc_id) -> bool:
     """Smuggle giver/receiver gating: show the row only at the right end.
 
@@ -116,6 +136,11 @@ def _build_handlers() -> dict[str, ObjectiveHandler]:
     from ._spawns import _ensure_bounty_spawns, _ensure_salvage_spawns
     return {
         "talk": ObjectiveHandler("talk"),
+        "payment": ObjectiveHandler(
+            "payment",
+            on_trigger=_payment_trigger,
+            option_gating=_payment_option_gating,
+        ),
         "goods": ObjectiveHandler("goods"),
         "smuggle": ObjectiveHandler(
             "smuggle",

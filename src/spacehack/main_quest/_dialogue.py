@@ -114,6 +114,9 @@ def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:
             and _handler.option_gating is not None
             and not _handler.option_gating(ctx, _step, npc_id)):
         return None
+    if _step.payment_credits:
+        _label = _dialogue.option_label or "Pay {credits}cr"
+        return (_label.format(credits=_step.payment_credits), _step.id)
     return (_dialogue.option_label, _step.id)
 
 

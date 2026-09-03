@@ -208,6 +208,11 @@ class MainQuestStep:
     auto_load_next_smuggle: bool = True
     # --- Time-gating fields (minimum waits, never deadlines) ---
     wait_days: int = 0  # world-clock days the faction "works" after this step
+    # Credit cost for "payment" steps: the advancing option renders as
+    # "Pay {credits}cr", is offered only while the player can afford it,
+    # and selecting it consumes the credits and completes the step
+    # (open-ended fundraising — the sandbox raises the funds).
+    payment_credits: int = 0
                         # completes before the NEXT step unlocks (0 = no gate)
     completion_flavor: str = ""  # flavor logged on completion ("We'll be in touch.")
     ready_message: str = ""  # one-way summon sent when the wait elapses — names

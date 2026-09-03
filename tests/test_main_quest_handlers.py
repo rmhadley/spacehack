@@ -114,3 +114,94 @@ def test_smuggle_trigger_loads_when_available_hands_over_when_active(monkeypatch
     _ctx.main_quest_progress["lab_q2_delivery"] = "active"
     assert _smuggle_trigger(_ctx, _step)
     assert _calls == ["load", "handover"]
+
+
+# ----- Payment steps (mer_q4_bribe, doc 32) -----------------------------
+
+
+def _payment_ctx(credits: int):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(
+        stats=SimpleNamespace(credits=credits),
+        main_quest_progress={"mer_q3_transport": "completed"},
+        main_quest_gate={},
+        main_quest_chain="merchants",
+        main_quest_backing={"merchants"},
+        main_quest_progress_rewards={},
+        current_city_id="depot",  # the attendant's dialogue is depot-gated
+        log=SimpleNamespace(
+            add=lambda _msg: None,
+            add_colored=lambda *_a, **_k: None,  # xp reward logging
+        ),
+        player_xp=0,  # complete_step rewards
+        player_level=1,  # xp level-up loop
+        player_skill_points=0,
+        time_day=10, time_month=3, time_year=2200,  # refit-gate scheduling
+    )
+
+
+def test_payment_option_hidden_until_affordable():
+    """The quest row appears only when the player can pay — before that,
+    the sandbox raises the funds and the log carries the shortfall."""
+    from src.spacehack.main_quest._dialogue import quest_option_for
+    poor = _payment_ctx(7_999)
+    poor.main_quest_progress["mer_q4_bribe"] = "available"
+    assert quest_option_for(poor, "depot_attendant") is None
+
+    rich = _payment_ctx(8_000)
+    rich.main_quest_progress["mer_q4_bribe"] = "available"
+    row = quest_option_for(rich, "depot_attendant")
+    assert row is not None
+    assert "8,000" in row[0] or "8000" in row[0], row[0]
+    assert row[1] == "mer_q4_bribe"
+
+
+def test_payment_trigger_consumes_and_completes():
+    from src.spacehack.main_quest._dialogue import trigger_dialogue
+    from src.spacehack.main_quest._core import step_status
+
+    ctx = _payment_ctx(9_500)
+    ctx.main_quest_progress["mer_q4_bribe"] = "available"
+    assert trigger_dialogue(ctx, "depot_attendant", "mer_q4_bribe") is True
+    assert ctx.stats.credits == 1_500  # consumed exactly 8,000
+    assert step_status(ctx, "mer_q4_bribe") == "completed"
+    assert "mer_q5_calibration" in ctx.main_quest_gate, "refit wait registered"
+
+
+def test_merchants_chain_linkage_and_cadence():
+    """Six steps in strict order, Lab-cadence waits (45/60/45/70),
+    payment only on the bribe, cutter unlocks the prologue."""
+    from src.spacehack.data.main_quest import find_main_quest_step
+
+    order = [
+        "mer_q1_contract", "mer_q2_strike", "mer_q3_transport",
+        "mer_q4_bribe", "mer_q5_calibration", "mer_q6_cutter",
+    ]
+    waits = []
+    for i, sid in enumerate(order):
+        step = find_main_quest_step(sid)
+        if i:
+            assert step.requires_step == order[i - 1], sid
+        waits.append(step.wait_days)
+        if sid != "mer_q4_bribe":
+            assert step.payment_credits == 0, sid
+    assert waits == [45, 0, 60, 45, 70, 0]  # q6 collects, no wait
+    assert find_main_quest_step("mer_q4_bribe").payment_credits == 8000
+    assert find_main_quest_step("mer_q6_cutter").unlocks_step == "prologue_open"
+
+
+def test_merchants_renumber_migration():
+    """Old 5-step saves map onto the 6-step chain, status preserved."""
+    from src.spacehack.main_quest._gates import check_quest_gates
+
+    ctx = _payment_ctx(0)
+    ctx.main_quest_progress = {
+        "mer_q3_transport": "completed",
+        "mer_q4_calibrate": "completed",
+        "mer_q5_cutter": "available",
+    }
+    check_quest_gates(ctx)
+    assert "mer_q4_calibrate" not in ctx.main_quest_progress
+    assert ctx.main_quest_progress["mer_q5_calibration"] == "completed"
+    assert ctx.main_quest_progress["mer_q6_cutter"] == "available"
