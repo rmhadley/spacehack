@@ -127,7 +127,7 @@ SPEC = PlanetSpec(
         ),
         monster_pool=("rock_scavenger", "dust_prowler"),
         monster_density=1.5,
-        cache_guardian_pool=("assault_drone",),
+        cache_guardian_pool=("sentry_drone",),  # leftover watch drone - assault spike pulled like wolf_b (doc 35)
         cache_guardian_count=1,
     ),
 )

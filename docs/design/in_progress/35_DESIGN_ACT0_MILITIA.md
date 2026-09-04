@@ -118,9 +118,11 @@ resident, demolitions_expert seats via `npc_presence` (tested).
       (`_encounter._mount_breach_charge`); q3 crate auto-loads when
       the cache is secured (`_maybe_auto_trigger_next_smuggle` — the
       captain's q3 dialogue is flavor-only by design, the officer is
-      the receiver row); Mercury cache guardian exists (1x
-      assault_drone — WATCH ITEM: that spec was the tier-3 spike we
-      pulled from wolf_b; judge in playtest)
+      the receiver row); Mercury cache lands inside an authored
+      landmark (mercury_vault.layout — plated strong room off an
+      antechamber, mirroring wolf_camp) guarded by 1x sentry_drone
+      (user ruling: the assault_drone spike is pulled like wolf_b;
+      the delve lands almost immediately after the Mars caves)
 - [ ] Fresh playthrough with `SPACEHACK_SEED` pinned; log every
       dialogue beat, Q state at each step, gate durations, combat feel
       of the five-captain fight
@@ -161,10 +163,12 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 ## READY FOR PLAYTEST (2026-09-04)
 
 What landed: 220-day cadence, sealed-requisition mission cargo, prose
-pass, tombstone + breadcrumb tests. What the playtest should judge:
+pass, tombstone + breadcrumb tests, the mercury_vault landmark
+(strong-room cache site) with the assault-drone guardian pulled. What the playtest should judge:
 the five-captain fight WITH the mounted prototype (ruling: it is the
 fun fight — verify the mount log line fires at Cygni and dismounts
-after), the Mercury cache guardian (assault_drone tier check), each
+after), the mercury_vault landmark read (does the strong room pay off
+"someone has been protecting it"?), each
 wait's fiction earning its days (60/40/70/50), Q at every state, and
 whether the off-the-books voice holds up over a full arc.
 

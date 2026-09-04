@@ -788,3 +788,68 @@ def test_mer_q5_uses_the_survey_ship():
 
     step = find_main_quest_step("mer_q6_survey")
     assert step.salvage_layout_id == "survey_a"
+
+
+def test_mercury_vault_layout_contract():
+    """Uniform rows, one entrance, no void padding (the v7 prison bug
+    class), ornaments present; one leftover sentry - the assault spike
+    stays pulled (doc 35)."""
+    from src.spacehack import landmark as landmark_module
+    from src.spacehack.data.planets import find_planet_spec
+
+    asset = landmark_module.load_landmark("mercury_vault")
+    widths = {len(row) for row in asset.tiles}
+    assert len(widths) == 1
+    assert not any(t.kind == "void" for r in asset.tiles for t in r)
+    entrances = sum(
+        t.kind in {"dungeon_door", "landmark_entrance"}
+        for r in asset.tiles for t in r
+    )
+    assert entrances == 1
+    # balance: a single tier-2 watch drone - this delve lands almost
+    # immediately after the Mars caves, so lighter than wolf_b's pair
+    params = find_planet_spec("mercury").dungeon_params
+    assert params.cache_guardian_count == 1
+    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+
+
+def test_mercury_delve_stamps_vault_cache_and_guardian():
+    """prepare_delve_site: the vault stamps, the requisition cache
+    lands inside it (the strong room, deepest interior cell), and the
+    watch drone holds the room."""
+    from types import SimpleNamespace
+
+    from src.spacehack.data.planets import find_planet_spec
+    from src.spacehack.dungeon import generate_dungeon
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.main_quest._act0 import prepare_delve_site
+
+    ctx = SimpleNamespace(
+        main_quest_progress={"mil_q2_cache": "active"},
+        main_quest_gate={}, main_quest_chain="militia",
+        log=SimpleNamespace(add=lambda *_a: None),
+    )
+    seed_rng(1)
+    spec = find_planet_spec("mercury")
+    game_map, spawn = generate_dungeon(spec.dungeon_params)
+    assert prepare_delve_site(ctx, game_map, spawn, "mercury") is True
+
+    cache = next(
+        (e for e in game_map.entities if getattr(e, "main_quest_step_id", "") == "mil_q2_cache"),
+        None,
+    )
+    assert cache is not None
+    footprint = getattr(game_map, "landmark_footprint", set()) or set()
+    assert (cache.pos.x, cache.pos.y) in footprint, "cache must sit inside the vault"
+    assert game_map.tiles[cache.pos.y][cache.pos.x].walkable
+    assert cache.loot_data == {"goods": [("sealed_requisition", 1)]}
+
+    guards = [
+        e for e in game_map.entities
+        if e.npc_char_id == "sentry_drone"
+    ]
+    assert len(guards) == 1
+    assert max(
+        abs(guards[0].pos.x - cache.pos.x),
+        abs(guards[0].pos.y - cache.pos.y),
+    ) <= 10

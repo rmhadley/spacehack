@@ -508,9 +508,10 @@ def bump_mars_door(ctx) -> None:
 
 # Authored camp layouts per delve planet: the quest cache lands inside
 # the camp instead of a random far room (wolf_b: frozen prospectors'
-# bunkhouse, doc 32 playtest iteration).
+# bunkhouse, doc 32; mercury: sealed requisition vault, doc 35).
 _DELVE_CAMPS: dict[str, str] = {
     "wolf_b": "wolf_camp",
+    "mercury": "mercury_vault",
 }
 
 
