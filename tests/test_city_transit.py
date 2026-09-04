@@ -283,10 +283,12 @@ def test_transit_travel_plays_the_arrival_pulse(monkeypatch):
     assert pulses == ["Militia Center"]
 
 
-def test_every_transit_city_is_lit_and_stops_on_their_bays():
-    """Option 4 (playtest v15): every settled planet's city carries a
-    light grid — the painted transit bays alone guarantee it — so the
-    arrival pulse works everywhere and no city renders unlit."""
+def test_every_transit_city_carries_a_light_grid():
+    """Option 4 (playtest v15): every settled planet's city gets a
+    seeded light grid — all-black where the city has no authored
+    accents — so the arrival pulse works everywhere. Stations do NOT
+    glow: the bays are unlit paint (user ruling), the pulse is the
+    only transit eye-catch."""
     from src.spacehack.data.planets import list_planet_specs
 
     cities = [s for s in list_planet_specs() if getattr(s, "transit_stations", None)]
@@ -296,10 +298,6 @@ def test_every_transit_city_is_lit_and_stops_on_their_bays():
         assert game_map.light_grid is not None, spec.id
         stops = _station_entities(game_map)
         assert len(stops) == len(spec.transit_stations)
-        bays = sum(
-            1 for row in game_map.tiles for t in row if t.kind == "transit_bay"
-        )
-        assert len(game_map.light_sources or []) >= bays, spec.id
         for entity in stops:
             tile = game_map.tiles[entity.pos.y][entity.pos.x]
             assert tile.kind == "transit_bay", (spec.id, entity.transit_station_id)
@@ -330,13 +328,10 @@ def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
     city_transit.animate_transit_arrival(state, dest["name"])  # must not no-op
 
 
-def test_transit_bay_light_stays_restrained():
-    """A bay is a block of 8-12 cells and every cell collects as a
-    source — a wide radius stacks a dozen emitters and the stations
-    glowed white-hot (playtest v15). The spec must stay tight."""
+def test_transit_bays_never_emit_light():
+    """User ruling (playtest v15): transit stations do not glow — the
+    arrival pulse is the only transit eye-catch. The bay paint stays
+    unlit no matter how the table evolves."""
     from src.spacehack.data.lighting import light_spec_for_kind
 
-    spec = light_spec_for_kind("transit_bay")
-    assert spec is not None
-    assert spec.radius <= 1
-    assert spec.intensity <= 0.5
+    assert light_spec_for_kind("transit_bay") is None
