@@ -167,6 +167,42 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         volume=1,
         rarity=0.1,
     ),
+    TradeGood(
+        id="escrow_ore",
+        name="Escrow Ore",
+        description=(
+            "High-purity ore held in consortium escrow at Wolf 359 - "
+            "the claim the Guild's deed won."
+        ),
+        base_price=150,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="sealed_requisition",
+        name="Sealed Requisition",
+        description=(
+            "A militia requisition package under scrubbed serials - "
+            "components, fuel cells, and no official record of either."
+        ),
+        base_price=200,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="smelted_alloy",
+        name="Smelted Alloy",
+        description=(
+            "The escrow ore refined at Tau Ceti b - harder than any "
+            "steel in the shop, and it holds its edge."
+        ),
+        base_price=300,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
     # --- Contraband ---
     TradeGood(
         id="weapons_blackmarket",

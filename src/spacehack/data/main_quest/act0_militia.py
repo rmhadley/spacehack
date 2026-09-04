@@ -38,7 +38,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mil_q1_report",
         chain="militia",
         objective_type="delve",
-        delve_good_ids=(("ship_components", 4), ("fuel_cells", 2)),
+        delve_good_ids=(("sealed_requisition", 1),),
         wait_days=0,
         dialogues={
             "militia_captain": QuestDialogue(
@@ -58,10 +58,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="militia",
         objective_type="smuggle",
         requires_npc_id="blockade_officer",
-        smuggle_good_id="ship_components",
-        smuggle_cargo_size=6,
+        smuggle_good_id="sealed_requisition",
+        smuggle_cargo_size=1,
         smuggle_hot=False,  # militia's own requisition — never confiscatable
-        wait_days=80,
+        wait_days=40,  # inspection report routes; the real work starts at the expert
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
@@ -86,7 +86,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="visit",
         requires_npc_id="demolitions_expert",
         npc_presence=("demolitions_expert",),  # the recruit (visit) target
-        wait_days=120,
+        wait_days=70,  # the expert tunes the charge to the alien alloy
         dialogues={
             "demolitions_expert": QuestDialogue(
                 npc_id="demolitions_expert",
@@ -104,7 +104,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_spawn_id="mil_livefire_test",
         bounty_enemy_id="pirate_captain",
         bounty_escort_ids=("pirate_captain", "pirate_captain", "pirate_captain", "pirate_captain"),
-        wait_days=80,
+        wait_days=50,  # final package assembly + containment casing
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",

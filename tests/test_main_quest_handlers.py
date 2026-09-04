@@ -269,8 +269,52 @@ def test_mer_q5_alloy_completion_loads_the_alloy():
     ctx.player_owned_ship = SimpleNamespace(inventory={})
     ctx.main_quest_progress["mer_q5_alloy"] = "available"
     assert complete_step(ctx, "mer_q5_alloy") is True
-    assert ctx.player_owned_ship.inventory["rare_earth_metals"] == 3
+    assert ctx.player_owned_ship.inventory["smelted_alloy"] == 3
     assert step_status(ctx, "mer_q6_survey") == "available"
+
+
+def test_militia_chain_linkage_and_cadence():
+    """Six steps in strict order, Merchants-cadence waits
+    (60/40/70/50 = 220 gate-days), charge unlocks the prologue."""
+    from src.spacehack.data.main_quest import find_main_quest_step
+
+    order = [
+        "mil_q1_report", "mil_q2_cache", "mil_q3_inspection",
+        "mil_q4_demolitions", "mil_q5_livefire", "mil_q6_charge",
+    ]
+    waits = []
+    for i, sid in enumerate(order):
+        step = find_main_quest_step(sid)
+        if i:
+            assert step.requires_step == order[i - 1], sid
+        waits.append(step.wait_days)
+    assert waits == [60, 0, 40, 70, 50, 0]  # charge collects, no wait
+    assert find_main_quest_step("mil_q6_charge").unlocks_step == "prologue_open"
+
+
+def test_quest_cargo_is_quest_goods_not_market_goods():
+    """Quest pickups/crates hand out named quest goods (the recorder
+    pattern) or virtual mission cargo — never market goods (playtest
+    v15: "cargo for quests should be mission cargo"). The bar chain is
+    excluded until its own pass (known machine_parts/electronics crate)."""
+    from src.spacehack.data.main_quest import list_main_quest_steps
+    from src.spacehack.data.trade_goods import find_trade_good
+
+    for step in list_main_quest_steps():
+        if step.chain == "bar":
+            continue
+        good_ids = [gid for gid, _qty in step.delve_good_ids]
+        if step.smuggle_good_id:
+            good_ids.append(step.smuggle_good_id)
+        good_ids += [gid for gid, _qty in step.rewards_goods]
+        for gid in good_ids:
+            try:
+                good = find_trade_good(gid)
+            except KeyError:
+                continue  # virtual mission cargo (no catalog entry)
+            assert good.rarity <= 0.1, (
+                f"{step.id} hands out market good {gid!r}"
+            )
 
 
 def test_active_step_breadcrumb_points_at_remaining_route():

@@ -68,23 +68,27 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 
 ## Gap analysis (initial scan)
 
-1. **Cadence is heavy**: 340 gate-days (60/80/120/80) vs Merchants
-   220 / Lab 225. q4's 120d is the game's longest gate, and the back
-   half stacks two huge waits around the single livefire fight.
-   Propose rebalancing to ~255–280 total with no wait >80d (e.g.
-   60/0/70/70/70). **Settle first.**
-2. **Cargo arithmetic**: the q2 cache yields 4 ship_components
-   (+2 fuel cells) but the q3 inspection crate is ×6 components.
-   The crate auto-loads from mission stock — reconcile the fiction
-   (the cache contents should match what gets inspected, or the
-   requisition supplies the difference on-screen).
-3. **The live-fire squad is a stat wall**: leader + 4 escorts, ALL
-   `pirate_captain` — five identical captains violates the enemy-design
-   rule. Propose a varied squad (captain + riflemen/raiders) or a
-   single named test target. Also decide: does "the prototype is
-   mounted to your ship" stay narrative (recommended — Merchants'
-   Vega run set the contained-mechanics precedent) or become a
-   one-shot weapon for the fight? **Settle.**
+1. ~~**Cadence is heavy**: 340 gate-days~~ SETTLED + LANDED (user
+   ruling 2026-09-04): 60/0/40/70/50 = 220 gate-days — clearance is
+   slow bureaucracy, the inspection report routes in 40, the expert's
+   charge tuning is the long job (70), final assembly 50.
+2. ~~**Cargo arithmetic**~~ SETTLED + LANDED (user ruling): quest cargo
+   is MISSION CARGO, never market goods — the recorder pattern
+   (`calibration_data`: one named quest good for both the dungeon
+   pickup and the delivery crate; lab's `alien_device` /
+   `reference_recorder` already follow it). Militia now carries ONE
+   `sealed_requisition` (cataloged, rarity 0.1) from the Mercury cache
+   to the blockade. Merchants had the same violation and is converted
+   (`escrow_ore` for the claim/smelt legs, `smelted_alloy` for the
+   handover — the old `rare_earth_metals` pickups are gone). Bar's
+   `machine_parts`/`electronics` crate is a known remaining violation,
+   left for the bar pass. Enforced by
+   `test_quest_cargo_is_quest_goods_not_market_goods`.
+3. ~~**The live-fire squad is a stat wall**~~ STRUCK (user ruling): the
+   five pirate captains are INTENTIONAL — the player carries the
+   overpowered `breach_charge_test` prototype (weapons/breach.py: 200
+   dmg, range 12, mounted only during the Cygni fight) and the fight
+   is tuned around it. Do not "rebalance" the squad.
 4. **Prose red flags** (rewrite in the text pass; playtest confirms):
    - q5 captain intro: "do not mistake a successful detonation for a
      successful containment plan" — clever-clever abstraction.
@@ -115,10 +119,11 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 - [ ] Confirm/adjust the gap analysis above
 
 ### Phase 2 — structure
-- [ ] Rebalance waits to the settled cadence (save migration only if
-      step ids renumber)
-- [ ] Reconcile the q2 cache ↔ q3 crate arithmetic
-- [ ] Rework the live-fire squad composition
+- [x] Waits rebalanced to 60/0/40/70/50 (no id changes — no migration)
+- [x] Quest cargo: `sealed_requisition` (cataloged quest good) for the
+      q2 cache pickup and the q3 crate; merchants converted the same
+      way (`escrow_ore`, `smelted_alloy`)
+- [x] Live-fire squad + prototype weapon confirmed intentional (ruling)
 - [ ] Regression tests: mil escorts tombstone (mirroring
       test_quest_guard_respawn's mer case)
 
@@ -142,10 +147,5 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 
 ## Open questions
 
-1. Wait rebalance target — 60/0/70/70/70 (255d)? Keep the 120d as a
-   deliberate "tuning an alien-material charge is slow" beat?
-2. Live-fire mechanics — narrative only (assumed) or a mounted
-   prototype weapon for the Cygni fight?
-3. Does the inspection wait (q3→q4, currently 80d) earn its days
-   in-fiction, or does the real work start only when the expert signs
-   on (favor: shorten q3's wait, keep q4's long)?
+1. Heat — none on militia steps; route fiction says "crosses pirate
+   space". Ambient-only (assumed) vs explicit pirate heat on q3/q5?

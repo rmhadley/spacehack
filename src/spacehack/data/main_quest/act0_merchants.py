@@ -43,7 +43,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mer_q1_contract",
         chain="merchants",
         objective_type="delve",
-        delve_good_ids=(("rare_earth_metals", 3),),
+        delve_good_ids=(("escrow_ore", 3),),
         wait_days=0,
         dialogues={
             "guild_master": QuestDialogue(
@@ -62,7 +62,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="merchants",
         objective_type="smuggle",
         requires_npc_id="salvage_specialist",
-        smuggle_good_id="rare_earth_metals",
+        smuggle_good_id="escrow_ore",
         smuggle_cargo_size=3,
         smuggle_hot=False,  # ore — never confiscatable (consortium heat is pirates, not scans)
         heat=("consortium",),  # consortium pirates hunt the ore en route
@@ -103,7 +103,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mer_q4_bribe",
         chain="merchants",
         objective_type="talk",
-        rewards_goods=(("rare_earth_metals", 3),),  # the finished alloy, lashed in the hold
+        rewards_goods=(("smelted_alloy", 3),),  # the finished alloy, lashed in the hold
         npc_presence=("salvage_specialist",),  # hands over the smelted alloy
         dialogues={
             "salvage_specialist": QuestDialogue(
