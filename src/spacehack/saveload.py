@@ -536,6 +536,7 @@ def _parse_bounty_spawns(data: dict) -> dict:
                 comms_warning_range=bs.get("comms_warning_range", 0),
                 heist_spawn_id=bs.get("heist_spawn_id"),
                 salvage_wreck=bs.get("salvage_wreck", False),
+                defeated=bs.get("defeated", False),
             ))
     return spawns
 

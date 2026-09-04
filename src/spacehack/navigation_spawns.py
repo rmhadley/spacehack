@@ -143,6 +143,8 @@ def _add_bounty_spawns_to_map(
         return
     _system = getattr(solar_system_module, "current_system", lambda: None)()
     for _bs in _spawns:
+        if _bs.defeated:
+            continue  # tombstoned guard — destroyed, never re-stamped
         try:
             _espec = find_npc_ship(_bs.enemy_id)
         except (KeyError, ImportError):

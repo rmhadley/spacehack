@@ -48,6 +48,7 @@ from ._gates import (
 )
 from ._spawns import (
     ensure_quest_spawns,
+    mark_quest_guard_defeated,
 )
 from ._breadcrumb import (
     current_main_quest_objective,

@@ -135,6 +135,7 @@ class BountySpawn:
     comms_warning_range: int = 0   # distance-based auto-hail; 0 = viewport-based
     heist_spawn_id: str | None = None  # links to ActiveMission for intercept loot drop
     salvage_wreck: bool = False    # True = non-combatant mission wreck (boardable, persists until secured)
+    defeated: bool = False         # tombstone: guard destroyed; record stays so ensure_quest_spawns can't rebuild the group
 
 
 @dataclasses.dataclass(frozen=True)

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 from .. import world
 from ._core import STATUS_ACTIVE, STATUS_AVAILABLE, _iter_known_steps
 from .handlers import handler_for
@@ -142,3 +144,51 @@ def ensure_quest_spawns(ctx, system_id: str) -> bool:
         if _handler.ensure_spawns(ctx, _step, system_id):
             _created = True
     return _created
+
+
+def _defeated_group_ids(_records, _group, dead_ent) -> set:
+    """Spawn ids to tombstone for one killed quest guard.
+
+    A leader kill defeats the whole squad; an escort (whose entity
+    carries no ``bounty_spawn_id``) defeats one undefeated member
+    matching the destroyed ship spec.
+    """
+    if getattr(dead_ent, "bounty_spawn_id", None) == _group:
+        return {
+            _bs.spawn_id for _bs in _records
+            if _bs.spawn_id == _group or _bs.squad_group_id == _group
+        }
+    for _bs in _records:
+        if (_bs.squad_group_id == _group and not _bs.defeated
+                and _bs.enemy_id == getattr(dead_ent, "npc_ship_id", None)):
+            return {_bs.spawn_id}
+    return set()
+
+
+def mark_quest_guard_defeated(ctx, dead_ent) -> None:
+    """Tombstone a killed quest guard's BountySpawn records.
+
+    A destroyed patrol must not be re-stamped on the next system entry
+    (kill-farm XP/credits), but the leader record must SURVIVE as a
+    tombstone so :func:`ensure_quest_spawns` — which rebuilds the group
+    whenever the leader record is missing and the step is live — can't
+    resurrect it. The wreck record is never touched (boardable,
+    persists until secured).
+    """
+    _group = getattr(dead_ent, "bounty_squad_id", None)
+    if not _group:
+        return
+    for _step_id, _st, _step in _iter_known_steps(ctx):
+        if _st not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+            continue
+        if _step.requires_spawn_id != _group or not _step.trigger_system_id:
+            continue
+        _records = ctx.bounty_spawns.get(_step.trigger_system_id, [])
+        _dead_ids = _defeated_group_ids(_records, _group, dead_ent)
+        if _dead_ids:
+            ctx.bounty_spawns[_step.trigger_system_id] = [
+                dataclasses.replace(_bs, defeated=True)
+                if _bs.spawn_id in _dead_ids else _bs
+                for _bs in _records
+            ]
+        return

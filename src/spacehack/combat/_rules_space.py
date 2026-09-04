@@ -823,6 +823,10 @@ def _finalize_kill(ctx, game_map: world.GameMap, enemy: EnemyInstance, dead_ent:
         if _hid is not None:
             _state.cr.defeated_heist_ids.append(_hid)
     _remove_procedural_squad(ctx, dead_ent)
+    # Quest guard patrols: tombstone the spawn record so the dead patrol
+    # isn't re-stamped on the next system entry (kill farm).
+    from ..main_quest import mark_quest_guard_defeated as _mark_guard
+    _mark_guard(ctx, dead_ent)
 
 def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     _dead_ent = _pop_dead_entity(game_map, enemy)
