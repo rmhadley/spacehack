@@ -803,12 +803,18 @@ def test_mercury_vault_layout_contract():
     assert len(widths) == 1
     assert not any(t.kind == "void" for r in asset.tiles for t in r)
     # one explicit link marker; interior doors are free (the strong
-    # room keeps its own vault door)
+    # room keeps its own vault door); the cache site is authored
     assert sum(
         t.kind == "landmark_entrance" for r in asset.tiles for t in r
     ) == 1
     assert sum(
         t.kind == "dungeon_door" for r in asset.tiles for t in r
+    ) == 1
+    assert sum(
+        t.kind == "quest_cache" for r in asset.tiles for t in r
+    ) == 1
+    assert sum(
+        t.kind == "quest_cache" for r in asset.tiles for t in r
     ) == 1
     # balance: a single tier-2 watch drone - this delve lands almost
     # immediately after the Mars caves, so lighter than wolf_b's pair
@@ -847,7 +853,20 @@ def test_mercury_delve_stamps_vault_cache_and_guardian():
     assert cache is not None
     footprint = getattr(game_map, "landmark_footprint", set()) or set()
     assert (cache.pos.x, cache.pos.y) in footprint, "cache must sit inside the vault"
-    assert game_map.tiles[cache.pos.y][cache.pos.x].walkable
+    # the cache lands at the authored QUEST_CACHE marker, not a code
+    # heuristic: same offset within the stamped footprint as in the asset
+    from src.spacehack import landmark as landmark_module
+    vault = landmark_module.load_landmark("mercury_vault")
+    mx, my = next(
+        (x, y)
+        for y, row in enumerate(vault.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "quest_cache"
+    )
+    origin = (min(x for x, _ in footprint), min(y for _, y in footprint))
+    assert (cache.pos.x, cache.pos.y) == (origin[0] + mx, origin[1] + my)
+    # the marker cell normalized to floor - only the entity renders
+    assert game_map.tiles[cache.pos.y][cache.pos.x].kind == "dungeon_floor"
     assert cache.loot_data == {"goods": [("sealed_requisition", 1)]}
 
     guards = [

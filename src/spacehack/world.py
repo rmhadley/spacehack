@@ -194,6 +194,11 @@ TERMINAL_LANDING = Tile(kind="terminal_landing", char=".", walkable=True,
                         fg=(175, 195, 215), bg=(38, 48, 65))
 LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
                          fg=(255, 150, 90), bg=(70, 35, 25))
+# Authored quest-cache site marker: exactly one per landmark marks where
+# the step's delve cache lands (normalized to the landmark's floor at
+# stamp time - only the cache entity renders there).
+QUEST_CACHE = Tile(kind="quest_cache", char="%", walkable=True,
+                   fg=(255, 215, 0), bg=(60, 48, 18))
 # Alien landmark tiles.  The landmark parser resolves these names from
 # ``TILE:`` directives; the console itself is an entity so bumping it can
 # run the Act 0 interaction without conflating it with a generic computer.

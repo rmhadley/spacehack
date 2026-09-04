@@ -512,10 +512,11 @@ def _camp_or_far_cache(
     """The cache position: inside the step's authored camp landmark if
     one stamped cleanly, else the farthest walkable cell.
 
-    The camp's deepest interior cell (farthest from its door) holds
-    the cache, so the guardians end up holding the room around it. A
-    camp that cannot route on this map falls back — the delve must
-    never fail to build. The layout comes from the step's
+    An authored QUEST_CACHE marker in the layout owns the spot; without
+    one, the camp's deepest interior cell (farthest from its door)
+    holds the cache so the guardians end up holding the room around
+    it. A camp that cannot route on this map falls back — the delve
+    must never fail to build. The layout comes from the step's
     ``delve_layout_id`` (data, not a planet->layout dict).
     """
     _layout_id = layout_id or None
@@ -530,20 +531,68 @@ def _camp_or_far_cache(
                 set(getattr(game_map, "landmark_footprint", ()) or ())
                 | set(_stamp.footprint)
             )
-            _door = (_stamp.entrance.x, _stamp.entrance.y)
-            _interior = [
-                (x, y)
-                for x, y in _stamp.footprint
-                if game_map.in_bounds(x, y)
-                and game_map.tiles[y][x].walkable
-            ]
-            if _interior:
-                _cx, _cy = max(
-                    _interior,
-                    key=lambda c: (abs(c[0] - _door[0]) + abs(c[1] - _door[1]), c[1], c[0]),
-                )
-                return world.Position(_cx, _cy)
+            _marker = _cache_marker_cell(game_map, _stamp.footprint)
+            if _marker is not None:
+                return _marker
+            _deepest = _deepest_interior_cell(
+                game_map, _stamp.footprint, _stamp.entrance,
+            )
+            if _deepest is not None:
+                return _deepest
     return _farthest_walkable(game_map, spawn)
+
+
+def _deepest_interior_cell(game_map, footprint, door) -> world.Position | None:
+    """The interior cell farthest from the entrance (marker-less camps),
+    so the guardians end up holding the room around the cache."""
+    _interior = [
+        (x, y)
+        for x, y in footprint
+        if game_map.in_bounds(x, y)
+        and game_map.tiles[y][x].walkable
+    ]
+    if not _interior:
+        return None
+    _cx, _cy = max(
+        _interior,
+        key=lambda c: (
+            abs(c[0] - door.x) + abs(c[1] - door.y), c[1], c[0],
+        ),
+    )
+    return world.Position(_cx, _cy)
+
+
+def _cache_marker_cell(
+    game_map: world.GameMap, footprint,
+) -> world.Position | None:
+    """The authored quest-cache marker inside a stamped landmark.
+
+    Exactly one ``quest_cache`` tile may mark where the step's cache
+    lands; the marker cell is normalized to the landmark's dominant
+    floor so only the cache entity renders there (the marker tile
+    must not linger once the cache is looted).
+    """
+    from collections import Counter
+
+    _cells = [
+        (x, y) for x, y in footprint
+        if game_map.in_bounds(x, y)
+        and game_map.tiles[y][x].kind == "quest_cache"
+    ]
+    if len(_cells) != 1:
+        return None
+    _floors = Counter(
+        game_map.tiles[y][x]
+        for x, y in footprint
+        if game_map.in_bounds(x, y)
+        and game_map.tiles[y][x].walkable
+        and game_map.tiles[y][x].kind != "quest_cache"
+    )
+    _x, _y = _cells[0]
+    game_map.tiles[_y][_x] = (
+        _floors.most_common(1)[0][0] if _floors else world.DUNGEON_FLOOR
+    )
+    return world.Position(_x, _y)
 
 
 def prepare_delve_site(

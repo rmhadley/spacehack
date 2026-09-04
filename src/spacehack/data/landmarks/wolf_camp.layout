@@ -8,7 +8,7 @@ MAP
 #.............#
 #.#.........#.#
 #.#...o.o...#.#
-#.............#
+#......%......#
 #.#...o.o...#.#
 #.#.........#.#
 #.............#
@@ -19,7 +19,9 @@ TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: d = DUNGEON_DOOR
+TILE: % = QUEST_CACHE
 
 COLOUR: # = (110, 78, 52) / (30, 20, 12)      # shipped timbers
 COLOUR: . = (150, 130, 100) / (40, 33, 22)    # packed snow trampled to dirt
 COLOUR: o = (235, 190, 110) / (70, 52, 28)    # crates and bunks, lantern-lit
+COLOUR: % = (255, 215, 0) / (60, 48, 18)       # escrow cache site

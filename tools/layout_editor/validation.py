@@ -198,6 +198,8 @@ def _validate_markers(document: EditorDocument) -> list[ValidationIssue]:
             issues.append(_issue("Landmarks allow at most one entrance marker"))
         elif not explicit_entrances and len(doors) != 1:
             issues.append(_issue("Landmarks need an entrance marker or exactly one door"))
+        if len(_tile_kind_positions(document, "quest_cache")) > 1:
+            issues.append(_issue("Landmarks allow at most one quest-cache marker"))
         for kind in ("stairs_up", "stairs_down"):
             if len(_tile_kind_positions(document, kind)) > 1:
                 issues.append(_issue(f"Landmarks allow at most one {kind} marker"))

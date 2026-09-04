@@ -8,7 +8,7 @@
 MAP
 ###############
 #####.....#####
-#####.o.o.#####
+#####.o%o.#####
 #####.....#####
 #######d#######
 #.............#
@@ -24,9 +24,11 @@ TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: d = DUNGEON_DOOR
+TILE: % = QUEST_CACHE
 TILE: e = LANDMARK_ENTRANCE
 
 COLOUR: # = (105, 112, 124) / (24, 27, 33)     # vault plate, riveted steel
 COLOUR: . = (132, 137, 146) / (32, 35, 41)     # plated deck
 COLOUR: o = (146, 138, 84) / (46, 44, 26)      # olive racks and crates
 COLOUR: e = (215, 170, 110) / (46, 36, 22)     # lit threshold into the vault
+COLOUR: % = (255, 215, 0) / (60, 48, 18)       # requisition cache site
