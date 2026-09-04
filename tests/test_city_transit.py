@@ -281,3 +281,50 @@ def test_transit_travel_plays_the_arrival_pulse(monkeypatch):
     city_transit.resolve_transit_station(state, port)
 
     assert pulses == ["Militia Center"]
+
+
+def test_every_transit_city_is_lit_and_stops_on_their_bays():
+    """Option 4 (playtest v15): every settled planet's city carries a
+    light grid — the painted transit bays alone guarantee it — so the
+    arrival pulse works everywhere and no city renders unlit."""
+    from src.spacehack.data.planets import list_planet_specs
+
+    cities = [s for s in list_planet_specs() if getattr(s, "transit_stations", None)]
+    assert len(cities) >= 20
+    for spec in cities:
+        game_map = load_planet(spec.id)
+        assert game_map.light_grid is not None, spec.id
+        stops = _station_entities(game_map)
+        assert len(stops) == len(spec.transit_stations)
+        bays = sum(
+            1 for row in game_map.tiles for t in row if t.kind == "transit_bay"
+        )
+        assert len(game_map.light_sources or []) >= bays, spec.id
+        for entity in stops:
+            tile = game_map.tiles[entity.pos.y][entity.pos.x]
+            assert tile.kind == "transit_bay", (spec.id, entity.transit_station_id)
+            assert tile.walkable
+
+
+def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
+    """eri_b had no light grid before the city-lighting catch-up; the
+    arrival animation must present its frames there now."""
+    from src.spacehack import city_render
+    from src.spacehack.framebuffer import FrameBuffer
+
+    game_map = load_planet("eri_b")
+    assert game_map.light_grid is not None
+    monkeypatch.setattr(city_render, "present_city_transition_frame",
+                        lambda *_a, **_k: None)
+    from src.spacehack import navigation_travel
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", lambda _s: None)
+
+    dest = game_map.city_transit and next(iter(game_map.city_transit.values()))
+    state = SimpleNamespace(
+        game_map=game_map,
+        player=world.Entity("@", (255, 255, 255), world.Position(*dest["pos"])),
+        ctx=SimpleNamespace(context=None),
+        console=FrameBuffer(80, 45),
+    )
+
+    city_transit.animate_transit_arrival(state, dest["name"])  # must not no-op

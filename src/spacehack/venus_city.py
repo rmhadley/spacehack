@@ -41,7 +41,6 @@ from .city_kit import (
 )
 from .city_layout import paint_roof_labels, paint_skyline, stamp_city_assets
 from .data.planets import _readable_city_theme
-from .lighting import collect_light_sources, propagate_light
 from .data.planets.themes import T, derive_theme, override_theme
 
 
@@ -417,16 +416,6 @@ def build_venus_layout(spec, resolve_ship) -> world.GameMap:
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,
-    )
-    # Seed the neon/beacon light grid. Sources are cached on the map so
-    # the render path can recompute the grid per frame (for flicker)
-    # without rescanning the tile grid. Light is occluded by non-walkable
-    # walls so it doesn't bleed through tower blocks.
-    sources = collect_light_sources(game_map)
-    game_map.light_sources = sources
-    game_map.light_grid = propagate_light(
-        CITY_WIDTH, CITY_HEIGHT, sources,
-        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
     )
     return game_map
 

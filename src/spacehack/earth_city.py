@@ -28,7 +28,6 @@ from .city_layout import (
     paint_skyline,
     stamp_city_assets,
 )
-from .lighting import collect_light_sources, propagate_light
 
 
 EARTH_CITY_WIDTH = 160
@@ -339,12 +338,4 @@ def build_earth_layout(spec, resolve_ship) -> world.GameMap:
     _paint_transit_bays(game_map.tiles, spec)
     _set_city_metadata(game_map, spec, stamps)
     _add_service_entities(game_map, spec, resolve_ship)
-    # Seed the river/shore light grid so the water shimmers (pulse
-    # profile) and the current animates with the frame clock.
-    sources = collect_light_sources(game_map)
-    game_map.light_sources = sources
-    game_map.light_grid = propagate_light(
-        EARTH_CITY_WIDTH, EARTH_CITY_HEIGHT, sources,
-        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
-    )
     return game_map

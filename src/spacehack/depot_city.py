@@ -38,7 +38,6 @@ from .city_kit import (
 from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import T, derive_theme, override_theme
-from .lighting import collect_light_sources, propagate_light
 
 
 CITY_WIDTH = 100
@@ -285,12 +284,6 @@ def _finish_depot(spec, resolve_ship, tiles, theme):
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,
-    )
-    sources = collect_light_sources(game_map)
-    game_map.light_sources = sources
-    game_map.light_grid = propagate_light(
-        CITY_WIDTH, CITY_HEIGHT, sources,
-        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
     )
     return game_map
 

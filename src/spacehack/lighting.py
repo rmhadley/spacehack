@@ -383,6 +383,21 @@ def recompute_light_grid(
     mask_grid_to_visible(game_map, game_map.light_grid)
 
 
+def seed_city_light(game_map) -> None:
+    """Attach the static light grid every city map carries.
+
+    Single seeding site (city_builder._finalize_city) so no city is ever
+    unlit — the transit pads alone guarantee sources everywhere; authored
+    accents (neon, water) collect from the same tile scan.
+    """
+    sources = collect_light_sources(game_map)
+    game_map.light_sources = sources
+    game_map.light_grid = propagate_light(
+        game_map.width, game_map.height, sources,
+        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
+    )
+
+
 def recompute_frame_light(ctx, game_map) -> None:
     """Advance animated lighting to the current frame clock.
 
@@ -410,4 +425,5 @@ __all__ = [
     "collect_light_sources",
     "has_flickering_sources",
     "recompute_light_grid",
+    "seed_city_light",
 ]

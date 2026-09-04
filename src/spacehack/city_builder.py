@@ -179,6 +179,9 @@ def _finalize_city(game_map, spec) -> None:
     city_transit.place_transit_stations(game_map, spec)
     from . import city_npcs
     city_npcs.place_city_npcs(game_map, spec.city_npc_population)
+    # After the pads are stamped, so every city's grid collects them.
+    from .lighting import seed_city_light
+    seed_city_light(game_map)
 
 
 def _build_grid_city(spec, resolve_npc, resolve_ship) -> world.GameMap:

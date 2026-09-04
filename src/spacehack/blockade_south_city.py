@@ -17,7 +17,6 @@ from .city_kit import (
 from .city_layout import paint_roof_labels, stamp_city_assets
 from .data.planets import _readable_city_theme
 from .data.planets.themes import T, derive_theme, override_theme
-from .lighting import collect_light_sources, propagate_light
 
 
 WIDTH, HEIGHT = 140, 90
@@ -178,12 +177,6 @@ def _paint_deck(game_map, spec, theme, stamps) -> None:
     set_city_metadata(
         game_map, spec, stamps,
         prefix="blockade_south_", default_layout_id="blockade_south_quarantine",
-    )
-    sources = collect_light_sources(game_map)
-    game_map.light_sources = sources
-    game_map.light_grid = propagate_light(
-        WIDTH, HEIGHT, sources,
-        occluder=lambda x, y: not game_map.tiles[y][x].walkable,
     )
 
 
