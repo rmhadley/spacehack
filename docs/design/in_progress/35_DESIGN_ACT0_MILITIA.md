@@ -1,0 +1,151 @@
+# DESIGN: Act 0 Militia — "The Incident" Polish
+
+## Overview
+
+Bring the Militia Act 0 chain to the shipped standard of the Lab and
+Merchants chains: atomic steps, structural (not gated) ordering,
+Lab-cadence waits, one-beat dialogues, a quest log that never
+dead-ends, and prose with zero AI tells.
+
+Companions: `07_DESIGN_MAIN_QUEST.md` (system),
+`complete/32_DESIGN_ACT0_MERCHANTS.md` (the standard's source — its
+closeout notes list the shipped mechanics this doc assumes:
+tombstones, `rewards_goods`, migration pattern, prose tells).
+
+## The standard (extracted from the merchants closeout)
+
+1. **One beat per step.** A pickup is not a run — if a step's talk
+   both delivers cargo and briefs the action, consider splitting
+   (mer_q5 → alloy + survey).
+2. **Ordering is structural.** A step's spawns/content cannot exist
+   before its step is reachable. No skip paths; no completing from a
+   state that skipped a prerequisite beat.
+3. **Waits breathe**: ~220–225 gate-days total, no single wait >~95d,
+   each justified by the faction doing work, each with
+   `completion_flavor` + `ready_message`.
+4. **Q never dead-ends**: active steps show a concrete objective;
+   gated steps show "Awaiting word from the {faction}…".
+5. **Dialogue is one beat**: bump → one verb-label option → advance.
+   No chained popups after accepting.
+6. **Prose has six banned tells**: abstraction-for-transaction, formal
+   negation, information-free similes, personified objects,
+   negation-contrast-dash + broken craft collocations,
+   preordained-outcome / unplayed-event claims. Outcome causality runs
+   from the ACTOR ("Cut those lines and the door comes down").
+   Bureaucratic deadpan is an allowed register per character.
+7. **No kill farms**: quest guards tombstone on death (both stampers —
+   system entry AND save load); boardable interiors cache their
+   cleared state.
+8. **No stat-wall squads**: enemies fill behavior×attack×terrain
+   cells; never stack N identical top-tier specs.
+9. **Renumbering migrates**: RENAMES + reconciliation; the chain never
+   strands a save.
+10. **Text plumbing complete**: JSON overlay, RUNTIME registry for any
+    new log key, `audit_story_text` green, extract-tool id list updated.
+
+## Current state ("The Incident", mil_q1→q6)
+
+Fiction: the cover-up angle. The militia found door material during
+the Incident, buried the requisition, and now rebuilds a breach charge
+off the books — scrubbed serials, deniable paperwork, containment
+thinking. Distinct stance from the other chains (Lab studies the door;
+Merchants take it apart where it's weak; Militia forces it and
+contains what's inside).
+
+| Step | Type | Where | Gates next by | Story |
+|---|---|---|---|---|
+| q1 report | talk | Earth | 60d — clearance | sign on to the private books |
+| q2 cache | delve | Mercury | — | recover the hidden requisition cache |
+| q3 inspection | smuggle | Luyten blockade | 80d — inspection | run the package through the blockade |
+| q4 demolitions | visit | Epsilon Eridani b | 120d — charge tuning | recruit the expert |
+| q5 livefire | bounty | Cygni | 80d — final assembly | live-fire test vs pirate captains |
+| q6 charge | talk | Earth | — | collect the breach charge → `prologue_open` |
+
+Route: Earth → Mercury → Luyten → Eri b → Cygni → Earth (good spread,
+one leg per jump). All text exists (`05_militia.json`), both waits
+have flavor + ready pairs, blockade_officer is a planet-authored
+resident, demolitions_expert seats via `npc_presence` (tested).
+
+## Gap analysis (initial scan)
+
+1. **Cadence is heavy**: 340 gate-days (60/80/120/80) vs Merchants
+   220 / Lab 225. q4's 120d is the game's longest gate, and the back
+   half stacks two huge waits around the single livefire fight.
+   Propose rebalancing to ~255–280 total with no wait >80d (e.g.
+   60/0/70/70/70). **Settle first.**
+2. **Cargo arithmetic**: the q2 cache yields 4 ship_components
+   (+2 fuel cells) but the q3 inspection crate is ×6 components.
+   The crate auto-loads from mission stock — reconcile the fiction
+   (the cache contents should match what gets inspected, or the
+   requisition supplies the difference on-screen).
+3. **The live-fire squad is a stat wall**: leader + 4 escorts, ALL
+   `pirate_captain` — five identical captains violates the enemy-design
+   rule. Propose a varied squad (captain + riflemen/raiders) or a
+   single named test target. Also decide: does "the prototype is
+   mounted to your ship" stay narrative (recommended — Merchants'
+   Vega run set the contained-mechanics precedent) or become a
+   one-shot weapon for the fight? **Settle.**
+4. **Prose red flags** (rewrite in the text pass; playtest confirms):
+   - q5 captain intro: "do not mistake a successful detonation for a
+     successful containment plan" — clever-clever abstraction.
+   - q6 captain intro: "That is the order. The door is not." —
+     clipped negation punchline (same family as the cutter line the
+     user flagged).
+   - q4 expert intro: "structures that resist ordinary physics" —
+     writer's word, not the character's.
+   - q5 description: "whether opening the door is wiser than leaving
+     it sealed" — grandiose decision-drama beat.
+   - q1 completion flavor's trailing "for a very long time" —
+     mysticism padding.
+   - KEEP (allowed register): the captain's off-the-books deadpan and
+     the blockade officer's bureaucratic clipped lines.
+5. **Q states unverified per-state**: no mil step defines an
+   `active_description`; verify during playtest whether any state's
+   Q text names a stale route leg (the mer_q5 lesson).
+6. **Heat**: no `heat=` on any mil step. The route fiction says
+   "crosses pirate space" — decide ambient-only (default, assumed) vs
+   explicit pirate heat on q3/q5.
+
+## Phased implementation
+
+### Phase 1 — audit (no code changes)
+- [ ] Fresh playthrough with `SPACEHACK_SEED` pinned; log every
+      dialogue beat, Q state at each step, gate durations, combat feel
+      of the five-captain fight
+- [ ] Confirm/adjust the gap analysis above
+
+### Phase 2 — structure
+- [ ] Rebalance waits to the settled cadence (save migration only if
+      step ids renumber)
+- [ ] Reconcile the q2 cache ↔ q3 crate arithmetic
+- [ ] Rework the live-fire squad composition
+- [ ] Regression tests: mil escorts tombstone (mirroring
+      test_quest_guard_respawn's mer case)
+
+### Phase 3 — dialogue + questlog polish
+- [ ] Rewrite the flagged prose lines to the standard
+- [ ] Q sweep across every state of the arc (active / gated / final)
+
+### Phase 4 — closeout
+- [ ] Fresh full run to the Mars door
+- [ ] Corpus audit + `make check`
+- [ ] Ask user: move doc to complete?
+
+## Acceptance criteria
+
+- Every item on the ten-point standard reads true for this chain.
+- The cover-up fiction survives a logic audit (what the requisition
+  is, why the blockade signs off, why the expert tunes for 70–120
+  days, what the live-fire test proves).
+- `make check` green; changes stay in step data + text unless a
+  settled proposal demands mechanics.
+
+## Open questions
+
+1. Wait rebalance target — 60/0/70/70/70 (255d)? Keep the 120d as a
+   deliberate "tuning an alien-material charge is slow" beat?
+2. Live-fire mechanics — narrative only (assumed) or a mounted
+   prototype weapon for the Cygni fight?
+3. Does the inspection wait (q3→q4, currently 80d) earn its days
+   in-fiction, or does the real work start only when the expert signs
+   on (favor: shorten q3's wait, keep q4's long)?

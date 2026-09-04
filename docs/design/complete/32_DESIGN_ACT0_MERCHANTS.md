@@ -137,10 +137,33 @@ PLAYTEST: full run — does the arc breathe like Labs?
 
 PLAYTEST: read-every-line run; flag any line that stalls or over-explains.
 
-### Phase 4 — closeout
-- [ ] Fresh full run to the Mars door
-- [ ] Corpus audit + `make check`
-- [ ] Ask user: move doc to complete?
+### Phase 4 — closeout — CLOSED 2026-09-04
+- [x] Fresh full run to the Mars door (user playtests v1–v14)
+- [x] Corpus audit + `make check` (1701 green)
+- [x] User closed the doc ("Merchant - done")
+
+## Closeout notes (final state)
+
+The shipped chain is SEVEN steps, not six: playtest v14 split q5 into
+`mer_q5_alloy` (talk; `rewards_goods` lashes the alloy into the hold)
++ `mer_q6_survey` (portrait-only salvage; spawns cannot exist before
+the alloy is collected — the skip path was structural, not gated).
+`mer_q7_cutter` re-keyed; migration maps both prior layouts.
+
+Two kill-farm holes closed along the way: quest guard patrols
+tombstone on death (`BountySpawn.defeated`, honored by BOTH entity
+stampers — system entry and save load; the load-side stamper was the
+second leak, found via saves/autosave.json). Wreck interiors were
+already farm-proof (ctx.interiors caches the cleared map).
+
+Prose standard hardened to six banned tells (see memory + the
+merchants JSON for the model register): abstraction-for-transaction,
+formal negation, information-free similes, personified objects,
+negation-contrast-dash + broken craft collocations, and
+preordained-outcome / unplayed-event claims. The cutter handover's
+"Cut those lines and the door comes down." is the model fix.
+
+Wait cadence as shipped: 45/0/60/45/0/70/0 (220 gate-days).
 
 ## Acceptance criteria
 
