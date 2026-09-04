@@ -50,10 +50,37 @@ def _spark_frames(
     return frames
 
 
+def _print_sparks(
+    console: FrameBuffer,
+    sparks: set[tuple[int, int]],
+    spark_char: str,
+    spark_color: tuple[int, int, int],
+    *,
+    offset_x: int,
+    offset_y: int,
+    camera_x: int,
+    camera_y: int,
+    region_w: int,
+    region_h: int,
+) -> None:
+    """Stamp spark glyphs into the current frame, clipped to the viewport."""
+    for x, y in sparks:
+        frame_x = offset_x + x - camera_x
+        frame_y = offset_y + y - camera_y
+        if 0 <= frame_x < region_w and 0 <= frame_y < region_h:
+            console.print(
+                x=frame_x,
+                y=frame_y,
+                string=spark_char,
+                fg=spark_color,
+            )
+
+
 def _render_frame(
     ctx,
     console: FrameBuffer,
     game_map: world.GameMap,
+    player_pos: world.Position,
     sparks: set[tuple[int, int]],
     spark_char: str,
     spark_color: tuple[int, int, int],
@@ -61,29 +88,31 @@ def _render_frame(
     region_w: int,
     region_h: int,
 ) -> None:
-    """Render one breach animation frame and wait for its timing interval."""
+    """Render one breach animation frame and wait for its timing interval.
+
+    Hulls may exceed the viewport (the survey ship is 92 columns in an
+    80-column region), so the frame rides the same camera viewport as
+    gameplay, centered on the boarding point.
+    """
     from .navigation import _responsive_sleep
     from . import animation_timing
 
     console.clear()
-    world.render_world(
-        console,
-        game_map,
-        region_x=0,
-        region_y=0,
-        region_w=region_w,
-        region_h=region_h,
+    camera_x, camera_y, offset_x, offset_y = world.camera_for_view(
+        game_map, player_pos, region_w=region_w, region_h=region_h,
     )
-    offset_x = (region_w - game_map.width) // 2
-    offset_y = (region_h - game_map.height) // 2
-    for x, y in sparks:
-        if 0 <= x < game_map.width and 0 <= y < game_map.height:
-            console.print(
-                x=offset_x + x,
-                y=offset_y + y,
-                string=spark_char,
-                fg=spark_color,
-            )
+    world.render_world_view(
+        console, game_map,
+        region_x=offset_x, region_y=offset_y,
+        region_w=region_w, region_h=region_h,
+        camera_x=camera_x, camera_y=camera_y,
+    )
+    _print_sparks(
+        console, sparks, spark_char, spark_color,
+        offset_x=offset_x, offset_y=offset_y,
+        camera_x=camera_x, camera_y=camera_y,
+        region_w=region_w, region_h=region_h,
+    )
     ctx.context.present(console)
     _responsive_sleep(animation_timing.DUNGEON_BREACH)
 
@@ -119,11 +148,11 @@ def animate_breach(
     chars = ("*", "+", "o", "#")
     for sparks, char, color in zip(frames, chars, colors):
         _render_frame(
-            ctx, console, game_map, sparks, char, color,
+            ctx, console, game_map, player_pos, sparks, char, color,
             region_w=region_w, region_h=region_h,
         )
     _restore_breaches(game_map, positions, originals)
     _render_frame(
-        ctx, console, game_map, set(), "", colors[-1],
+        ctx, console, game_map, player_pos, set(), "", colors[-1],
         region_w=region_w, region_h=region_h,
     )

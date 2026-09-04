@@ -25,7 +25,7 @@ Helpers exported:
 
 Tiles used here have ``bg`` already baked in (same dark-starfield
 bg across all bodies) so re-rendering with painted bodies via
-:func:`world.render_world` still produces a coherent space
+:func:`world.render_world_view` still produces a coherent space
 backdrop.
 """
 from __future__ import annotations
@@ -207,43 +207,23 @@ def set_current_solar_system(
     return system
 
 
-def find_planet(
+def _station_planet(
     planet_id: str,
-    *,
-    system: systems_module.SolarSystem | None = None,
-) -> Planet:
-    """Look up a :class:`Planet` by id in ``system``; raises
-    :class:`KeyError` on miss.
+    system: systems_module.SolarSystem,
+) -> Planet | None:
+    """Synthesize a land-dispatch :class:`Planet` for a matching station.
 
-    First scans :attr:`SolarSystem.stations` for any station whose
-    :attr:`StationSpec.city_planet_id` matches ``planet_id`` and
-    (if found) returns a synthesized :class:`Planet` whose
-    footprint + colour match the station. This lets the planet-
-    bump dispatcher flow unchanged when the player bumps a
-    station: set ``pid = station.city_planet_id`` and the LAND
-    branch treats it as a planet whose spec lives in
-    :mod:`spacehack.data.planets`.
-
-    ``system`` defaults to :func:`current_system`. Mirrors the
-    look-up-by-id contract used by every other catalog module
-    (:func:`spacehack.character.find_species`,
-    :func:`spacehack.ship.find_ship`).
+    Stations paint LAST in make_solar_system so they visually overlap
+    underlying bodies — but the dispatcher routes them via planet-bump
+    semantics (LAND animation, scene swap, hangar dock). Synthesizing a
+    Planet from the station spec lets the existing planet-bump code path
+    work without bespoke station-branch duplication. NOT painted in
+    space — the station tile is what renders in make_solar_system
+    because the renderer iterates system.planets + system.stations
+    separately.
     """
-    if system is None:
-        system = current_system()
-    # Station-by-city_planet_id fallback. Stations paint LAST in
-    # make_solar_system so they visually overlap underlying bodies
-    # - but the dispatcher routes them via planet-bump semantics
-    # (LAND animation, scene swap, hangar dock). Synthesize a
-    # Planet from the station spec so the existing planet-bump
-    # code path works without bespoke station-branch duplication.
     for st in getattr(system, "stations", ()) or ():
         if st.city_planet_id == planet_id:
-            # Synthetic for land dispatch only (planet-menu dialog,
-            # LAND animation, scene-swap, hangar-dock). NOT painted
-            # in space -- the station tile is what renders in
-            # make_solar_system because the renderer iterates
-            # system.planets + system.stations separately.
             return Planet(
                 id=planet_id,
                 name=st.name,
@@ -255,6 +235,34 @@ def find_planet(
                 sun=False,
                 description=st.description,
             )
+    return None
+
+
+def find_planet(
+    planet_id: str,
+    *,
+    system: systems_module.SolarSystem | None = None,
+) -> Planet:
+    """Look up a :class:`Planet` by id in ``system``; raises
+    :class:`KeyError` on miss.
+
+    Station look-ups by :attr:`StationSpec.city_planet_id` return a
+    synthesized :class:`Planet` (see :func:`_station_planet`) so the
+    planet-bump dispatcher flows unchanged when the player bumps a
+    station: set ``pid = station.city_planet_id`` and the LAND branch
+    treats it as a planet whose spec lives in
+    :mod:`spacehack.data.planets`.
+
+    ``system`` defaults to :func:`current_system`. Mirrors the
+    look-up-by-id contract used by every other catalog module
+    (:func:`spacehack.character.find_species`,
+    :func:`spacehack.ship.find_ship`).
+    """
+    if system is None:
+        system = current_system()
+    station_match = _station_planet(planet_id, system)
+    if station_match is not None:
+        return station_match
     for p in system.planets:
         if p.id == planet_id:
             return p
@@ -439,11 +447,8 @@ def make_solar_system(
 ) -> world.GameMap:
     """Build the :class:`world.GameMap` for ``system`` (default current).
 
-    Painter-algorithm: STARFIELD across the whole map, then
-    stars over the void, then planets over their footprints,
-    then jump points LAST so a gate that happens to overlap a
-    planet cell still shows as a gate (designer intent: jumps
-    are MORE important than planets for navigation).
+    Tiles come from :func:`_paint_system_tiles` (painter algorithm —
+    see its docstring for the layer order).
 
     ``width`` / ``height`` are read from the system record —
     the caller can't override them. A malformed system (w < 5
@@ -455,6 +460,46 @@ def make_solar_system(
     if width < 5 or height < 5:
         raise ValueError("solar system must be at least 5x5")
 
+    tiles = _paint_system_tiles(system, width, height)
+    entities = _system_enemy_entities(system)
+    return world.GameMap(
+        width=width, height=height, tiles=tiles, entities=entities,
+    )
+
+
+def _stamp_footprint(
+    tiles: list[list[world.Tile]],
+    body,
+    *,
+    width: int,
+    height: int,
+) -> None:
+    """Paint ``body``'s footprint tile across its bounds, clipped to the map."""
+    tile = body.tile()
+    for dy in range(body.height):
+        for dx in range(body.width):
+            cx = body.pos.x + dx
+            cy = body.pos.y + dy
+            if 0 <= cx < width and 0 <= cy < height:
+                tiles[cy][cx] = tile
+
+
+def _paint_system_tiles(
+    system: systems_module.SolarSystem,
+    width: int,
+    height: int,
+) -> list[list[world.Tile]]:
+    """Build the tile grid by the painter algorithm.
+
+    STARFIELD across the whole map, then stars over the void, then
+    planets over their footprints, then jump points LAST so a gate that
+    happens to overlap a planet cell still shows as a gate (designer
+    intent: jumps are MORE important than planets for navigation), then
+    stations LAST of all so a station overlapping a planet OR a
+    jump-point cell still shows as a station (v1 has one station near
+    Proxima so this only matters when station footprints collide with
+    JPs/planets).
+    """
     tiles: list[list[world.Tile]] = [
         [STARFIELD for _ in range(width)] for _ in range(height)
     ]
@@ -464,41 +509,23 @@ def make_solar_system(
     for sx, sy in system.stars:
         if 0 <= sx < width and 0 <= sy < height:
             tiles[sy][sx] = STAR
-    # Paint planets.
     for body in system.planets:
-        tile = body.tile()
-        for dy in range(body.height):
-            for dx in range(body.width):
-                cx = body.pos.x + dx
-                cy = body.pos.y + dy
-                if 0 <= cx < width and 0 <= cy < height:
-                    tiles[cy][cx] = tile
-    # Paint jump points so a gate that overlaps a planet cell
-    # still shows as a gate (jumps win over planets for navigation).
+        _stamp_footprint(tiles, body, width=width, height=height)
     for jp in system.jump_points:
-        tile = jp.tile()
-        for dy in range(jp.height):
-            for dx in range(jp.width):
-                cx = jp.pos.x + dx
-                cy = jp.pos.y + dy
-                if 0 <= cx < width and 0 <= cy < height:
-                    tiles[cy][cx] = tile
-    # Paint stations LAST so a station overlapping a planet OR
-    # a jump-point cell still shows as a station (station wins
-    # over both; v1 has one station near Proxima so this only
-    # matters when station footprints collide with JPs/planets).
+        _stamp_footprint(tiles, jp, width=width, height=height)
     for st in system.stations:
-        tile = st.tile()
-        for dy in range(st.height):
-            for dx in range(st.width):
-                cx = st.pos.x + dx
-                cy = st.pos.y + dy
-                if 0 <= cx < width and 0 <= cy < height:
-                    tiles[cy][cx] = tile
+        _stamp_footprint(tiles, st, width=width, height=height)
+    return tiles
 
-    # Build entity list: ships spawned from system.enemies.
-    # Uses the unified NpcShipSpec catalog (data/enemies/ was
-    # migrated into data/npc_ships/).
+
+def _system_enemy_entities(
+    system: systems_module.SolarSystem,
+) -> list[world.Entity]:
+    """Build ship entities from ``system.enemies``.
+
+    Uses the unified NpcShipSpec catalog (data/enemies/ was migrated
+    into data/npc_ships/). Unknown or unloaded specs are skipped.
+    """
     entities: list[world.Entity] = []
     for _spawn in getattr(system, 'enemies', ()) or ():
         try:
@@ -515,10 +542,7 @@ def make_solar_system(
             height=1,
             npc_ship_id=_spawn.enemy_id,
         ))
-
-    return world.GameMap(
-        width=width, height=height, tiles=tiles, entities=entities,
-    )
+    return entities
 
 
 def place_docked_ship(ship_obj, planet_obj: Planet) -> world.Entity:

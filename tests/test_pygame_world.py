@@ -93,13 +93,15 @@ def test_compact_city_floor_is_sparse_and_entities_inherit_its_background():
             if tile.kind != "floor":
                 continue
             console = FrameBuffer(game_map.width, game_map.height)
-            world.render_world(
+            world.render_world_view(
                 console,
                 game_map,
                 region_x=0,
                 region_y=0,
                 region_w=game_map.width,
                 region_h=game_map.height,
+                camera_x=0,
+                camera_y=0,
             )
             assert console.cell(entity.pos.x, entity.pos.y).bg == tile.bg
 
@@ -171,17 +173,21 @@ def test_capture_console_clear_removes_previous_commands():
     assert capture.commands == []
 
 
-def test_world_commands_center_small_map_and_preserve_tile_backgrounds():
+def test_camera_view_centers_small_map_and_preserves_tile_backgrounds():
     player = world.Entity("@", (255, 255, 255), world.Position(1, 1))
     game_map = _map(entities=[player])
 
+    camera_x, camera_y, offset_x, offset_y = world.camera_for_view(
+        game_map, player.pos, region_w=8, region_h=6,
+    )
     commands = world.world_draw_commands(
         game_map,
-        region_x=2,
-        region_y=3,
+        region_x=2 + offset_x,
+        region_y=3 + offset_y,
         region_w=8,
         region_h=6,
-        centered=True,
+        camera_x=camera_x,
+        camera_y=camera_y,
     )
 
     assert commands[0] == world.WorldDrawCommand(
@@ -193,18 +199,20 @@ def test_world_commands_center_small_map_and_preserve_tile_backgrounds():
     )
 
 
-def test_render_world_preserves_tile_background_behind_entity_glyphs():
+def test_render_world_view_preserves_tile_background_behind_entity_glyphs():
     player = world.Entity("@", (255, 255, 255), world.Position(1, 1))
     game_map = _map(entities=[player])
     console = FrameBuffer(4, 3)
 
-    world.render_world(
+    world.render_world_view(
         console,
         game_map,
         region_x=0,
         region_y=0,
         region_w=4,
         region_h=3,
+        camera_x=0,
+        camera_y=0,
     )
 
     assert console.cell(1, 1).bg == (10, 20, 30)
@@ -258,13 +266,15 @@ def test_earth_hangar_entity_preserves_landing_pad_background():
     tile = game_map.tiles[hangar_ship.pos.y][hangar_ship.pos.x]
     console = FrameBuffer(game_map.width, game_map.height)
 
-    world.render_world(
+    world.render_world_view(
         console,
         game_map,
         region_x=0,
         region_y=0,
         region_w=game_map.width,
         region_h=game_map.height,
+        camera_x=0,
+        camera_y=0,
     )
 
     assert tile.kind == "landing_pad"

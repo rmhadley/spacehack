@@ -394,13 +394,22 @@ class EditorApp:
         """Render the parsed production map in the canvas panel."""
         if self.preview_map is None:
             return
-        world.render_world(
-            console,
-            self.preview_map,
-            region_x=0,
-            region_y=0,
+        preview = self.preview_map
+        center = world.Position(preview.width // 2, preview.height // 2)
+        camera_x, camera_y, offset_x, offset_y = world.camera_for_view(
+            preview, center,
             region_w=CANVAS_X + CANVAS_COLUMNS,
             region_h=CANVAS_Y + CANVAS_ROWS,
+        )
+        world.render_world_view(
+            console,
+            preview,
+            region_x=offset_x,
+            region_y=offset_y,
+            region_w=CANVAS_X + CANVAS_COLUMNS,
+            region_h=CANVAS_Y + CANVAS_ROWS,
+            camera_x=camera_x,
+            camera_y=camera_y,
         )
 
     def render(self) -> FrameBuffer:

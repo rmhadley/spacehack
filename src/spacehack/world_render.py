@@ -202,18 +202,12 @@ def _resolve_viewport(
     region_h: int,
     camera_x: int,
     camera_y: int,
-    centered: bool,
 ):
-    """Return the effective ``(camera, region)`` tuple for a draw request."""
-    if centered and (game_map.width > region_w or game_map.height > region_h):
-        raise ValueError(
-            f"city {game_map.width}x{game_map.height} is larger than "
-            f"viewport region {region_w}x{region_h}"
-        )
-    if centered:
-        region_x += (region_w - game_map.width) // 2
-        region_y += (region_h - game_map.height) // 2
-        return 0, 0, region_x, region_y, game_map.width, game_map.height
+    """Return the clamped ``(camera, region)`` tuple for a scrolling draw.
+
+    Maps smaller than the region are centered by the caller via
+    :func:`camera_for_view` region offsets; oversized maps scroll.
+    """
     camera_x = max(0, min(camera_x, max(0, game_map.width - region_w)))
     camera_y = max(0, min(camera_y, max(0, game_map.height - region_h)))
     return camera_x, camera_y, region_x, region_y, region_w, region_h
@@ -228,14 +222,13 @@ def world_draw_commands(
     region_h: int,
     camera_x: int = 0,
     camera_y: int = 0,
-    centered: bool = False,
     sort_entities: bool = False,
 ) -> tuple[WorldDrawCommand, ...]:
     """Return the shared tile/entity draw stream used by every renderer."""
     camera_x, camera_y, region_x, region_y, region_w, region_h = _resolve_viewport(
         game_map, region_x=region_x, region_y=region_y,
         region_w=region_w, region_h=region_h,
-        camera_x=camera_x, camera_y=camera_y, centered=centered,
+        camera_x=camera_x, camera_y=camera_y,
     )
     commands: list[WorldDrawCommand] = []
     _append_tile_commands(
@@ -270,27 +263,6 @@ def _render_commands(
         if command.bg is not None:
             kwargs["bg"] = command.bg
         console.print(**kwargs)
-
-
-def render_world(
-    console: FrameBuffer,
-    game_map: world.GameMap,
-    *,
-    region_x: int,
-    region_y: int,
-    region_w: int,
-    region_h: int,
-) -> None:
-    """Paint a centered world through the shared draw-command stream."""
-    _render_commands(
-        console,
-        world_draw_commands(
-            game_map,
-            region_x=region_x, region_y=region_y,
-            region_w=region_w, region_h=region_h,
-            centered=True,
-        ),
-    )
 
 
 def camera_for_view(
@@ -342,7 +314,7 @@ def render_world_view(
 
 __all__ = [
     "WorldDrawCommand", "world_draw_commands",
-    "render_world", "render_world_view", "camera_for_view",
+    "render_world_view", "camera_for_view",
     "_dim_color", "_is_static_entity", "_tile_render_colors",
     "_entity_render_fg", "_append_tile_commands", "_append_entity_commands",
 ]

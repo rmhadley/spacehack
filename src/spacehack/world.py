@@ -680,7 +680,7 @@ from .world_layout import (  # noqa: E402  (imported after definitions)
 from .world_path import find_path  # noqa: E402
 from .world_render import (  # noqa: E402
     WorldDrawCommand, world_draw_commands,
-    render_world, render_world_view, camera_for_view,
+    render_world_view, camera_for_view,
     _dim_color, _is_static_entity, _tile_render_colors, _entity_render_fg,
     _append_tile_commands, _append_entity_commands,
 )
@@ -693,7 +693,7 @@ __all__ = [
     "make_building", "make_space_port", "_decorate_interiors",
     "_decorate_bar", "_layout_outside", "make_city",
     "find_path",
-    "WorldDrawCommand", "world_draw_commands", "render_world",
+    "WorldDrawCommand", "world_draw_commands",
     "render_world_view", "camera_for_view",
     "_dim_color", "_is_static_entity", "_tile_render_colors",
     "_entity_render_fg", "_append_tile_commands", "_append_entity_commands",

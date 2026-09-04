@@ -155,7 +155,7 @@ below is a separate refactor phase and must satisfy the architecture ratchet.
 - `FrameBuffer`, `PygameEngine`, `PygameRuntime`, and `PygameInputEvent` in
   `framebuffer.py`, `pygame_engine.py`, and `pygame_runtime.py` provide the
   project-owned rendering and input seams to reuse.
-- `world.render_world()` provides the existing map preview path.
+- `world.render_world_view()` + `world.camera_for_view()` provide the existing map preview path.
 - `tests/test_landmark.py`, `tests/test_dungeon.py`, and the Pygame tests in
   `tests/test_pygame_integration.py` and `tests/test_pygame_engine.py` provide
   established semantic and headless-rendering test patterns.
