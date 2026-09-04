@@ -9,7 +9,6 @@ catalog.
 
 from __future__ import annotations
 import math
-from typing import Any
 
 from .framebuffer import FrameBuffer
 
@@ -85,103 +84,84 @@ def _spawn_consortium_squad(
     system,
     body_goals: list,
 ) -> bool:
-    """Spawn a consortium squad: merchant hauler + 2-5 pirate escorts.
-
-    A pirate leads the squad (triggers consortium aggro); the merchant
-    and remaining pirates follow via cohesion — the visual effect is
-    a rival merchant operation with hired muscle.
-
-    Returns True if at least one entity was spawned.
-    """
+    """Consortium squad near one body goal: pirate leader (aggro) +
+    merchant front + escorts. True when anything spawned."""
     if not body_goals:
         return False
     try:
-        _pirate_spec = _find_npc_ship("pirate_scout")
-        _merchant_spec = _find_npc_ship("merchant_hauler")
+        _specs = dict(pirate=_find_npc_ship("pirate_scout"),
+                      merchant=_find_npc_ship("merchant_hauler"))
     except KeyError:
         return False
 
-    _origin = _engine.RNG.choice(body_goals)
-    _gcx, _gcy = _origin[0], _origin[1]
+    _origin = _engine.RNG.choice(body_goals)[:2]
     _mid = f"consortium_{system_id}_{_engine.RNG.randint(0, 99999)}"
-
-    # Build blocked set from existing entities to avoid overlap.
-    _blocked: set[tuple[int, int]] = set()
-    for _e in game_map.entities:
-        for _dy in range(_e.height):
-            for _dx in range(_e.width):
-                _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
-
-    _spawned = 0
-    _positions: list[world.Position] = []
-    _npc_ids: list[str] = []
-
-    # Pirate leader first (drives aggro).
-    for _attempt in range(50):
-        _x = _gcx + _engine.RNG.randint(-4, 4)
-        _y = _gcy + _engine.RNG.randint(-4, 4)
-        if (0 <= _x < system.width and 0 <= _y < system.height
-                and (_x, _y) not in _blocked):
-            break
-    else:
+    _squad = _SquadPlacement(
+        game_map, system, *_origin, _occupied_cells(game_map), _mid,
+    )
+    # Leader first; escorts only join when the merchant front placed.
+    if not _squad.place(_specs["pirate"]):
         return False
-    _pos = world.Position(_x, _y)
-    _blocked.add((_x, _y))
-    game_map.entities.append(_make_npc_entity(_pirate_spec, _pos, _mid))
-    _positions.append(_pos)
-    _npc_ids.append(_pirate_spec.id)
-    _spawned += 1
+    if _squad.place(_specs["merchant"]):
+        for _ in range(_engine.RNG.randint(1, 4)):
+            _squad.place(_specs["pirate"])
+    ctx.procedural_spawns.setdefault(system_id, []).extend(
+        ProceduralSpawn(npc_id=_nid, pos=_ppos, squad_id=_mid)
+        for _ppos, _nid in zip(_squad.positions, _squad.npc_ids)
+    )
+    _total = len(_squad.positions) - 1  # minus the merchant
+    _escorts = "escort" if _total == 1 else "escorts"
 
-    # Merchant hauler (consortium front).
-    for _attempt in range(50):
-        _mx = _gcx + _engine.RNG.randint(-4, 4)
-        _my = _gcy + _engine.RNG.randint(-4, 4)
-        if (0 <= _mx < system.width and 0 <= _my < system.height
-                and (_mx, _my) not in _blocked):
-            break
-    else:
-        return _spawned > 0
-    _mpos = world.Position(_mx, _my)
-    _blocked.add((_mx, _my))
-    game_map.entities.append(_make_npc_entity(_merchant_spec, _mpos, _mid))
-    _positions.append(_mpos)
-    _npc_ids.append(_merchant_spec.id)
-    _spawned += 1
-
-    # 1-4 additional pirate escorts.
-    _extra_pirates = _engine.RNG.randint(1, 4)
-    for _ in range(_extra_pirates):
-        for _attempt in range(50):
-            _ex = _gcx + _engine.RNG.randint(-4, 4)
-            _ey = _gcy + _engine.RNG.randint(-4, 4)
-            if (0 <= _ex < system.width and 0 <= _ey < system.height
-                    and (_ex, _ey) not in _blocked):
-                break
-        else:
-            continue
-        _epos = world.Position(_ex, _ey)
-        _blocked.add((_ex, _ey))
-        game_map.entities.append(_make_npc_entity(_pirate_spec, _epos, _mid))
-        _positions.append(_epos)
-        _npc_ids.append(_pirate_spec.id)
-        _spawned += 1
-
-    # Register spawns.
-    if system_id not in ctx.procedural_spawns:
-        ctx.procedural_spawns[system_id] = []
-    for _pi, (_ppos, _nid) in enumerate(zip(_positions, _npc_ids)):
-        ctx.procedural_spawns[system_id].append(
-            ProceduralSpawn(npc_id=_nid, pos=_ppos, squad_id=_mid)
-        )
-
-    _total_pirates = _spawned - 1  # minus the merchant
     ctx.log.add_colored(
-        f"Sensor ping: consortium operation detected - "
-        f"merchant hauler with {_total_pirates} pirate "
-        f"escort{('s' if _total_pirates != 1 else '')}.",
-        _ml.COLOR_IMPORTANT_EVENT,
+        f"Sensor ping: consortium operation detected - merchant hauler "
+        f"with {_total} pirate {_escorts}.", _ml.COLOR_IMPORTANT_EVENT,
     )
     return True
+
+
+class _SquadPlacement:
+    """Places one squad's members near a shared goal cell, tracking
+    occupied cells and the placed roster."""
+
+    def __init__(self, game_map, system, gcx, gcy, blocked, mid):
+        self.game_map = game_map
+        self.system = system
+        self.gcx = gcx
+        self.gcy = gcy
+        self.blocked = blocked
+        self.mid = mid
+        self.positions: list[world.Position] = []
+        self.npc_ids: list[str] = []
+
+    def place(self, spec) -> bool:
+        """One member on a free cell within 4 of the goal (50 rolls)."""
+        for _ in range(50):
+            _x = self.gcx + _engine.RNG.randint(-4, 4)
+            _y = self.gcy + _engine.RNG.randint(-4, 4)
+            if not (0 <= _x < self.system.width and 0 <= _y < self.system.height):
+                continue
+            if (_x, _y) in self.blocked:
+                continue
+            self.blocked.add((_x, _y))
+            _pos = world.Position(_x, _y)
+            self.game_map.entities.append(_make_npc_entity(spec, _pos, self.mid))
+            self.positions.append(_pos)
+            self.npc_ids.append(spec.id)
+            return True
+        return False
+
+
+def _occupied_cells(game_map) -> set[tuple[int, int]]:
+    """Every cell covered by an existing entity (overlap guard)."""
+    return {
+        (_e.pos.x + _dx, _e.pos.y + _dy)
+        for _e in game_map.entities
+        for _dy in range(_e.height)
+        for _dx in range(_e.width)
+    }
+
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -227,44 +207,34 @@ def _find_open_space(system, blocked: set[tuple[int, int]]) -> world.Position | 
     return None
 
 
+def _derelict_position(system_id, system):
+    """Where a derelict spawns this entry, or None (roll failed/full).
+
+    Dev mode (SPACEHACK_DEV, Sol) forces one just east of Earth's
+    dock so it is visible on launch; otherwise the system's
+    derelict_spawn_chance rolls against open space far from bodies.
+    """
+    import os as _os
+    if _os.environ.get("SPACEHACK_DEV") and system_id == "sol":
+        return world.Position(150, 40)
+    if getattr(system, 'derelict_spawn_chance', 0) <= 0:
+        return None
+    if _engine.RNG.random() >= system.derelict_spawn_chance:
+        return None
+    return _find_open_space(system, _derelict_blocked_near(system))
+
+
 def _spawn_derelict(
     ctx: GameContext,
     game_map: world.GameMap,
     system_id: str,
     system,
 ) -> bool:
-    """Roll for a derelict ship in ``system``.
-
-    Separate from the normal NPC spawn roll — derelicts use their
-    own ``derelict_spawn_chance`` field. If the roll hits, spawns
-    a single derelict_scout in empty space far from any body.
-
-    When ``SPACEHACK_DEV`` is set and in the Sol system, bypasses
-    the RNG roll and spawns a derelict near Earth for easy testing.
-
-    Returns ``True`` if a derelict was spawned.
-    """
-    import os as _os
-    _is_dev = bool(_os.environ.get("SPACEHACK_DEV"))
-
-    # --- Determine spawn position ---
-    if _is_dev and system_id == "sol":
-        # Dev mode: force a derelict outside Earth's docking position.
-        # Earth is at (140, 39), 3x3. The player docks just east of
-        # Earth at (143, 40). Place the derelict a few cells east so
-        # the player sees it immediately on launch.
-        _pos = world.Position(150, 40)
-    else:
-        # Normal: roll RNG + find open space far from bodies.
-        if getattr(system, 'derelict_spawn_chance', 0) <= 0:
-            return False
-        if _engine.RNG.random() >= system.derelict_spawn_chance:
-            return False
-        _pos = _find_open_space(system, _derelict_blocked_near(system))
-        if _pos is None:
-            return False
-
-    # --- Build entity + register spawn ---
+    """Spawn a derelict_scout in ``system`` if the roll hits
+    (see _derelict_position); ``True`` when one spawned."""
+    _pos = _derelict_position(system_id, system)
+    if _pos is None:
+        return False
     try:
         _spec = _find_npc_ship("derelict_scout")
     except KeyError:
@@ -278,9 +248,7 @@ def _spawn_derelict(
     game_map.entities.append(_derelict_ent)
 
     _spawn_id = f"derelict_{system_id}_{_pos.x}_{_pos.y}"
-    if system_id not in ctx.procedural_spawns:
-        ctx.procedural_spawns[system_id] = []
-    ctx.procedural_spawns[system_id].append(
+    ctx.procedural_spawns.setdefault(system_id, []).append(
         ProceduralSpawn(npc_id=_spec.id, pos=_pos, squad_id=_spawn_id)
     )
 
@@ -305,613 +273,578 @@ def spawn_npcs(
     *,
     player_spawn_exclusion: set[tuple[int, int]] | None = None,
 ) -> None:
-    """Roll for procedural NPC encounters in ``system_id``.
+    """Roll procedural NPC encounters in ``system_id``.
 
-    Each jump / launch consumes a fresh roll from the game's seeded
-    RNG. If the system's ``npc_spawn_chance`` hits, NPC groups are
-    spawned according to the weighted ``npc_spawn_table`` and
-    ``npc_density``.  Each NPC ship gets a ``npc_ship_id`` on the
-    Entity (referencing :class:`data.npc_ships.NpcShipSpec`) so
-    combat detection and loot generation can read per-type data.
-
-    All NPC types spawn from a planet / gate / station position
-    (arriving from the body) rather than appearing at a random point
-    in empty space.
-
-    Also rolls for derelict ship spawning via the system's
-    ``derelict_spawn_chance`` field (separate roll from NPC table).
-
-    ``player_spawn_exclusion`` — cells that should be blocked from
-    NPC placement, typically a radius around the player's arrival
-    point (jump gate or planet) so the player isn't immediately
-    surrounded after a jump or launch.
-
-    Uses ``ctx.procedural_spawns`` (keyed by system id) so combat
-    detection can locate them.
+    Phases in RNG-draw order (do not reorder): derelict, militia
+    patrols, consortium heat, npc_spawn_table groups.
     """
-    from .data.solar_systems import find_solar_system as _fss
-    try:
-        _system = _fss(system_id)
-    except KeyError:
+    _system = _system_or_none(system_id)
+    if _system is None:
         return
-
-    # Separate derelict spawn roll (independent of NPC chance)
     _spawn_derelict(ctx, game_map, system_id, _system)
-
-    # Build a set of blocked cells (planets, gates, stations) — shared
-    # by militia spawn and regular NPC spawn so neither places ships
-    # inside celestial bodies.
-    _blocked: set[tuple[int, int]] = set()
-    for _p in _system.planets:
-        for _dy in range(_p.height):
-            for _dx in range(_p.width):
-                _blocked.add((_p.pos.x + _dx, _p.pos.y + _dy))
-    for _jp in _system.jump_points:
-        for _dy in range(_jp.height):
-            for _dx in range(_jp.width):
-                _blocked.add((_jp.pos.x + _dx, _jp.pos.y + _dy))
-    for _st in getattr(_system, 'stations', ()) or ():
-        for _dy in range(_st.height):
-            for _dx in range(_st.width):
-                _blocked.add((_st.pos.x + _dx, _st.pos.y + _dy))
-
-    # --- Militia patrol spawn (separate from NPC table, uses patrol_density) ---
-    _patrol_min, _patrol_max = _system.patrol_density
-    _all_militia: list = []
-    if _patrol_max > 0:
-        _body_goals = _build_body_goals(_system)
-        # Exclude the arrival body so militia don't spawn on top of the player.
-        if player_spawn_exclusion:
-            _body_goals = [
-                g for g in _body_goals
-                if (g[0], g[1]) not in player_spawn_exclusion
-            ]
-        if _body_goals:
-            _patrol_count = _engine.RNG.randint(_patrol_min, _patrol_max)
-            # Derive ship type from max density.
-            _patrol_ship = (
-                "militia_patrol_heavy" if _patrol_max >= 5 else
-                "militia_patrol" if _patrol_max >= 3 else
-                "militia_patrol_light"
-            )
-            try:
-                _patrol_spec = _find_npc_ship(_patrol_ship)
-            except KeyError:
-                _patrol_spec = None
-            if _patrol_spec is not None:
-                for _pi in range(_patrol_count):
-                    _origin = _engine.RNG.choice(_body_goals)
-                    _gcx, _gcy = _origin[0], _origin[1]
-                    _mid = f"patrol_{system_id}_{_pi}_{_engine.RNG.randint(0, 99999)}"
-                    for _attempt in range(50):
-                        _x = _gcx + _engine.RNG.randint(-4, 4)
-                        _y = _gcy + _engine.RNG.randint(-4, 4)
-                        if (0 <= _x < _system.width and 0 <= _y < _system.height
-                                and (_x, _y) not in _blocked):
-                            break
-                    else:
-                        continue
-                    _pos = world.Position(_x, _y)
-                    _blocked.add((_x, _y))
-                    game_map.entities.append(_make_npc_entity(_patrol_spec, _pos, _mid))
-                    _all_militia.append((_pos, _mid, _patrol_ship))
-                # Register militia spawns.
-                if _all_militia:
-                    if system_id not in ctx.procedural_spawns:
-                        ctx.procedural_spawns[system_id] = []
-                    ctx.procedural_spawns[system_id].extend([
-                        ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
-                        for pos, sid, npc_id in _all_militia
-                    ])
-                    ctx.log.add_colored(
-                        f"Sensor ping: {len(_all_militia)} militia patrol(s) "
-                        f"active in the area.",
-                        _ml.COLOR_IMPORTANT_EVENT,
-                    )
-
-    # --- Consortium squad spawn (quest: merchant q3/q4 heat) ---
+    _blocked = _celestial_blocked_cells(_system)
+    _spawn_militia_patrols(
+        ctx, game_map, system_id, _system, _blocked, player_spawn_exclusion,
+    )
     if main_quest_module.consortium_heat_active(ctx):
-        _body_goals = _build_body_goals(_system)
-        if player_spawn_exclusion:
-            _body_goals = [
-                g for g in _body_goals
-                if (g[0], g[1]) not in player_spawn_exclusion
-            ]
-        _consortium_count = _engine.RNG.randint(1, 2)
-        for _ in range(_consortium_count):
+        _body_goals = _spawn_body_goals(_system, player_spawn_exclusion)
+        for _ in range(_engine.RNG.randint(1, 2)):
             _spawn_consortium_squad(ctx, game_map, system_id, _system, _body_goals)
 
-    if _system.npc_spawn_chance <= 0.0 or not _system.npc_spawn_table or _system.npc_density <= 0:
-        return
-    if _engine.RNG.random() >= _system.npc_spawn_chance:
+    if (_system.npc_spawn_chance <= 0.0
+            or not _system.npc_spawn_table or _system.npc_density <= 0
+            or _engine.RNG.random() >= _system.npc_spawn_chance):
         return
 
-    # Add existing entities to the blocked set so NPCs don't spawn on them.
-    for _e in game_map.entities:
-        for _dy in range(_e.height):
-            for _dx in range(_e.width):
-                _blocked.add((_e.pos.x + _dx, _e.pos.y + _dy))
-
-    # Exclude the player's arrival zone so they aren't immediately
-    # surrounded after a jump or launch.
+    _blocked |= _occupied_cells(game_map)
     if player_spawn_exclusion:
         _blocked.update(player_spawn_exclusion)
+    _total, _all = _spawn_table_groups(
+        ctx, game_map, system_id, _system, _blocked,
+        _spawn_body_goals(_system, player_spawn_exclusion),
+    )
+    _register_table_batch(ctx, system_id, _all, _total)
 
-    # Build body goals once, shared by all active NPC types.
-    _body_goals = _build_body_goals(_system)
 
-    # Exclude the arrival body's goal from NPC spawn origins so
-    # NPC groups can't originate from the exact body the player
-    # just arrived at. The arrival body's goal cell is the same
-    # position as the player's ship — if the exclusion zone didn't
-    # filter it out during the randint(-4,4) spread, this prevents
-    # it from being chosen at all.
-    if player_spawn_exclusion:
-        _body_goals = [
-            g for g in _body_goals
-            if (g[0], g[1]) not in player_spawn_exclusion
-        ]
+def _system_or_none(system_id):
+    """The system spec, or None for an unknown id."""
+    from .data.solar_systems import find_solar_system as _fss
+    try:
+        return _fss(system_id)
+    except KeyError:
+        return None
 
-    # Roll which NPC types appear from the weighted table.
-    _active_types: list[str] = []
-    for _npc_id, _weight in _system.npc_spawn_table:
-        if _engine.RNG.random() < _weight:
-            _active_types.append(_npc_id)
-    if not _active_types:
-        _active_types = [_system.npc_spawn_table[0][0]]
 
-    _total_spawned = 0
-    _all_procedural: list = []
+def _celestial_blocked_cells(system) -> set[tuple[int, int]]:
+    """Every cell covered by a planet, gate, or station footprint."""
+    _blocked: set[tuple[int, int]] = set()
+    _groups = (
+        list(system.planets) + list(system.jump_points)
+        + list(getattr(system, 'stations', ()) or ())
+    )
+    for _body in _groups:
+        for _dy in range(_body.height):
+            for _dx in range(_body.width):
+                _blocked.add((_body.pos.x + _dx, _body.pos.y + _dy))
+    return _blocked
 
-    for _npc_id in _active_types:
+
+def _spawn_body_goals(system, exclusion) -> list:
+    """Body-goal cells for spawn origins, minus the arrival body."""
+    _goals = _build_body_goals(system)
+    if not exclusion:
+        return _goals
+    return [g for g in _goals if (g[0], g[1]) not in exclusion]
+
+
+def _free_cell_near(gcx, gcy, system, blocked) -> tuple[int, int] | None:
+    """One in-bounds unblocked cell within 4 of the goal (50 rolls)."""
+    for _ in range(50):
+        _x = gcx + _engine.RNG.randint(-4, 4)
+        _y = gcy + _engine.RNG.randint(-4, 4)
+        if (0 <= _x < system.width and 0 <= _y < system.height
+                and (_x, _y) not in blocked):
+            return _x, _y
+    return None
+
+
+def _spawn_militia_patrols(
+    ctx, game_map, system_id, system, blocked, exclusion,
+) -> None:
+    """Patrol ships per patrol_density, heavier classes at density 3+."""
+    _patrol_min, _patrol_max = system.patrol_density
+    if _patrol_max <= 0:
+        return
+    _body_goals = _spawn_body_goals(system, exclusion)
+    if not _body_goals:
+        return
+    _patrol_ship = (
+        "militia_patrol_heavy" if _patrol_max >= 5 else
+        "militia_patrol" if _patrol_max >= 3 else
+        "militia_patrol_light"
+    )
+    try:
+        _patrol_spec = _find_npc_ship(_patrol_ship)
+    except KeyError:
+        return
+    _militia: list = []
+    for _pi in range(_engine.RNG.randint(_patrol_min, _patrol_max)):
+        _gcx, _gcy = _engine.RNG.choice(_body_goals)[:2]
+        _cell = _free_cell_near(_gcx, _gcy, system, blocked)
+        if _cell is None:
+            continue
+        blocked.add(_cell)
+        _mid = f"patrol_{system_id}_{_pi}_{_engine.RNG.randint(0, 99999)}"
+        _pos = world.Position(*_cell)
+        game_map.entities.append(_make_npc_entity(_patrol_spec, _pos, _mid))
+        _militia.append((_pos, _mid, _patrol_ship))
+    if not _militia:
+        return
+    ctx.procedural_spawns.setdefault(system_id, []).extend(
+        ProceduralSpawn(npc_id=_npc_id, pos=_pos, squad_id=_sid)
+        for _pos, _sid, _npc_id in _militia
+    )
+    ctx.log.add_colored(
+        f"Sensor ping: {len(_militia)} militia patrol(s) active in the area.",
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
+
+
+def _spawn_table_groups(
+    ctx, game_map, system_id, system, blocked, body_goals,
+) -> tuple[int, list]:
+    """Spawn the weighted npc_spawn_table groups.
+
+    Returns ``(total_spawned, [(pos, movement_id, npc_id), ...])``.
+    """
+    _active: list[str] = [
+        _npc_id for _npc_id, _weight in system.npc_spawn_table
+        if _engine.RNG.random() < _weight
+    ]
+    if not _active:
+        _active = [system.npc_spawn_table[0][0]]
+
+    _total = 0
+    _all: list = []
+    for _npc_id in _active:
         try:
             _spec = _find_npc_ship(_npc_id)
         except KeyError:
             continue
-
-        _is_merchant = getattr(_spec, 'faction', 'pirate') == 'merchant'
-
-        # Determine spawn centre and initial destination.
-        _initial_target: tuple[int, int] | None = None
-        if _body_goals:
-            # All NPC types spawn from a body (no more random scatter).
-            _origin_goal = _engine.RNG.choice(_body_goals)
-            _gcx, _gcy = _origin_goal[0], _origin_goal[1]
-            _blocked.add((_gcx, _gcy))
-            if _is_merchant and len(_body_goals) >= 2:
-                _dest_goal = _engine.RNG.choice(
-                    [g for g in _body_goals if (g[0], g[1]) != (_origin_goal[0], _origin_goal[1])]
-                )
-                _initial_target = (_dest_goal[0], _dest_goal[1])
-        else:
-            # No bodies in system — skip this NPC type.
+        if not body_goals:
             continue
-
-        # Squad id for groups > 1.
-        _is_squad = _system.npc_density > 1 and _engine.RNG.random() < 0.5
-        _squad_id: str | None = (
-            f"proc_npc_{system_id}_{_npc_id}_{_engine.RNG.randint(0, 99999)}"
-            if _is_squad else None
+        _total += _spawn_one_type(
+            ctx, game_map, system_id, system, blocked, body_goals,
+            _npc_id, _spec, _all,
         )
-        _movement_id: str = _squad_id or f"proc_solo_{system_id}_{_npc_id}_{_engine.RNG.randint(0, 99999)}"
+    return _total, _all
 
-        # Group size: 1 for solo, 2-4 for squad based on density.
-        _g_size = _engine.RNG.randint(1, min(_system.npc_density, 4))
 
-        _group_entities = 0
-        _group_positions: list[world.Position] = []
-        for _i in range(_g_size):
-            _x = _y = -1
-            for _attempt in range(50):
-                _x = _gcx + _engine.RNG.randint(-4, 4)
-                _y = _gcy + _engine.RNG.randint(-4, 4)
-                if (_x, _y) not in _blocked and 0 <= _x < _system.width and 0 <= _y < _system.height:
-                    break
-            else:
-                continue
-            _pos = world.Position(_x, _y)
-            _blocked.add((_x, _y))
-            game_map.entities.append(_make_npc_entity(_spec, _pos, _movement_id))
-            _group_positions.append(_pos)
-            _all_procedural.append((_pos, _movement_id, _npc_id))
-            _group_entities += 1
-        _total_spawned += _group_entities
-
-        # Pre-set initial target + path for merchants.
-        if _is_merchant and _initial_target is not None and _group_positions:
-            _set_npc_path(ctx, _movement_id, _group_positions[0], _initial_target, game_map)
-
-    if _all_procedural:
-        # Preserve existing spawn entries whose npc_id wasn't just
-        # spawned by this call (e.g. derelicts from _spawn_derelict).
-        _spawned_npc_ids = {npc_id for _, _, npc_id in _all_procedural}
-        _existing = ctx.procedural_spawns.get(system_id, [])
-        _preserved = [_ps for _ps in _existing
-                      if _ps.npc_id not in _spawned_npc_ids]
-        ctx.procedural_spawns[system_id] = _preserved + [
-            ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
-            for pos, sid, npc_id in _all_procedural
-        ]
-        _faction_names = set()
-        for _pos, _sid, _npc_id in _all_procedural:
-            try:
-                _spec = _find_npc_ship(_npc_id)
-                _faction_names.add(_spec.name)
-            except KeyError:
-                _faction_names.add("unknown contact")
-        _contacts = ", ".join(sorted(_faction_names))
-        ctx.log.add_colored(
-            f"Sensor ping: {_total_spawned} signal{('s' if _total_spawned != 1 else '')}"
-            f" detected in the area ({_contacts}).",
-            _ml.COLOR_IMPORTANT_EVENT,
+def _spawn_one_type(
+    ctx, game_map, system_id, system, blocked, body_goals,
+    npc_id, spec, all_procedural,
+) -> int:
+    """One NPC type's group near one origin goal (merchants get a
+    destination body); returns the count placed."""
+    _is_merchant = getattr(spec, 'faction', 'pirate') == 'merchant'
+    _origin = _engine.RNG.choice(body_goals)
+    _gcx, _gcy = _origin[0], _origin[1]
+    blocked.add((_gcx, _gcy))
+    _initial_target = None
+    if _is_merchant and len(body_goals) >= 2:
+        _dest = _engine.RNG.choice(
+            [g for g in body_goals if (g[0], g[1]) != (_gcx, _gcy)]
         )
+        _initial_target = (_dest[0], _dest[1])
+
+    _is_squad = system.npc_density > 1 and _engine.RNG.random() < 0.5
+    _squad_id = (
+        f"proc_npc_{system_id}_{npc_id}_{_engine.RNG.randint(0, 99999)}"
+        if _is_squad else None
+    )
+    _movement_id = _squad_id or (
+        f"proc_solo_{system_id}_{npc_id}_{_engine.RNG.randint(0, 99999)}"
+    )
+
+    _group: list[world.Position] = []
+    for _ in range(_engine.RNG.randint(1, min(system.npc_density, 4))):
+        _cell = _free_cell_near(_gcx, _gcy, system, blocked)
+        if _cell is None:
+            continue
+        blocked.add(_cell)
+        _pos = world.Position(*_cell)
+        game_map.entities.append(_make_npc_entity(spec, _pos, _movement_id))
+        _group.append(_pos)
+        all_procedural.append((_pos, _movement_id, npc_id))
+    if _is_merchant and _initial_target and _group:
+        _set_npc_path(ctx, _movement_id, _group[0], _initial_target, game_map)
+    return len(_group)
 
 
+def _register_table_batch(ctx, system_id, all_procedural, total) -> None:
+    """Swap in the fresh table batch, preserving other npc_id entries
+    (e.g. derelicts), and log the sensor ping."""
+    if not all_procedural:
+        return
+    _spawned_ids = {npc_id for _, _, npc_id in all_procedural}
+    _preserved = [
+        _ps for _ps in ctx.procedural_spawns.get(system_id, [])
+        if _ps.npc_id not in _spawned_ids
+    ]
+    ctx.procedural_spawns[system_id] = _preserved + [
+        ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
+        for pos, sid, npc_id in all_procedural
+    ]
+    _names = set()
+    for _, _, _npc_id in all_procedural:
+        try:
+            _names.add(_find_npc_ship(_npc_id).name)
+        except KeyError:
+            _names.add("unknown contact")
+    _signals = "signal" if total == 1 else "signals"
+    ctx.log.add_colored(
+        f"Sensor ping: {total} {_signals} detected in the area "
+        f"({', '.join(sorted(_names))}).", _ml.COLOR_IMPORTANT_EVENT,
+    )
 # ---------------------------------------------------------------------------
 # Per-tick movement (and occasional per-tick spawn)
 # ---------------------------------------------------------------------------
 
 def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
-    """Patrol procedural NPC entities toward planets/gates/stations.
+    """Patrol procedural NPC entities toward bodies, once per tick.
 
-    Called after the player moves in space mode. Behaviour varies
-    by NPC faction (from NpcShipSpec):
-
-      * **pirates** — patrol loop: pick a planet/gate/station,
-        move toward it, pick a new target on arrival.
-      * **merchants** — move toward a planet/gate/station.
-        When within 2 cells of a gate: despawn ("jumps to next
-        system").  When in range of a planet/station: despawn
-        ("docks at port").  Flee from nearby pirates.
-
-    ``_FLEE_RANGE`` controls how close a pirate must be before a
-    merchant attempts to flee (in cells).  Squad members use the
-    A* path computed for the squad leader.
+    Pirates loop body to body; merchants head for a body and despawn
+    on arrival (gate = jump, planet/station = dock), fleeing nearby
+    pirates. Aggro militia/consortium squads chase the player instead.
+    Squad members follow the leader's A* path with cohesion stepping.
     """
     _system = _solar_module.current_system()
     if _system is None:
         return
 
-    # --- Per-tick NPC spawn (continuous traffic) ---
-    # Roll a small chance each tick to spawn a new ship, scaled from
-    # the system's base spawn chance so busier systems stay busy.
-    # Capped at npc_density * 3 to avoid overcrowding.
-    _PER_TICK_CHANCE_MULTIPLIER = 0.05
-    _current_npc_count = sum(
+    _tick_spawn_npc(ctx, game_map, _system)
+    _tick_consortium_squads(ctx, game_map, _system)
+
+    _goals = _build_body_goals(_system)
+    if not _goals:
+        if any(getattr(_e, 'procedural_squad_id', '') for _e in game_map.entities):
+            ctx.log.add("Sensor: NPC ships have no navigation targets nearby.")
+        return
+
+    _pirates = _pirate_positions(game_map)
+    for _sid, _members in _squad_groups(game_map).items():
+        _move_one_squad(
+            ctx, game_map, _system, _goals, _sid, _members, _pirates,
+        )
+
+
+def _spec_of_entity(entity):
+    """The entity's NpcShipSpec, or None when unresolvable."""
+    _pid = getattr(entity, 'npc_ship_id', '')
+    if not _pid:
+        return None
+    try:
+        return _find_npc_ship(_pid)
+    except (KeyError, ImportError):
+        return None
+
+
+def _faction_of_entity(entity) -> str:
+    _spec = _spec_of_entity(entity)
+    return getattr(_spec, 'faction', 'pirate') if _spec else 'pirate'
+
+
+def _pirate_positions(game_map) -> list[tuple[int, int]]:
+    """Cached pirate cells for merchant flee checks (once per tick)."""
+    return [
+        (_e.pos.x, _e.pos.y)
+        for _e in game_map.entities
+        if not getattr(_e, 'owned', False)
+        and getattr(_e, 'procedural_squad_id', '') != ''
+        and _faction_of_entity(_e) == 'pirate'
+    ]
+
+
+def _squad_groups(game_map) -> dict[str, list]:
+    """Patrollable NPCs grouped by squad id (combat participants stay
+    locked out so they neither patrol nor despawn mid-fight)."""
+    _squads: dict[str, list] = {}
+    for _e in game_map.entities:
+        if getattr(_e, 'owned', False):
+            continue
+        _sid = getattr(_e, 'procedural_squad_id', '')
+        if not _sid or getattr(_e, 'combat_locked', False):
+            continue
+        _squads.setdefault(_sid, []).append(_e)
+    return _squads
+
+
+def _live_npc_count(game_map) -> int:
+    """Unowned, procedurally-spawned entities on the map."""
+    return sum(
         1 for _e in game_map.entities
         if not getattr(_e, 'owned', False)
         and getattr(_e, 'procedural_squad_id', '') != ''
     )
-    if _current_npc_count < _system.npc_density * 3:
-        if _engine.RNG.random() < _system.npc_spawn_chance * _PER_TICK_CHANCE_MULTIPLIER:
-            _tick_types = [
-                _tid for _tid, _tw in _system.npc_spawn_table
-                if _engine.RNG.random() < _tw
-            ]
-            if _tick_types:
-                _tick_id = _engine.RNG.choice(_tick_types)
-                try:
-                    _tick_spec = _find_npc_ship(_tick_id)
-                except KeyError:
-                    pass
-                else:
-                    _tick_is_merchant = getattr(_tick_spec, 'faction', 'pirate') == 'merchant'
-                    _tick_mid = f"tick_npc_{getattr(_system, 'id', '')}_{_tick_id}_{_engine.RNG.randint(0, 99999)}"
-                    _tick_body_goals = _build_body_goals(_system)
 
-                    _tick_pos: world.Position | None = None
-                    _tick_initial_target: tuple[int, int] | None = None
-                    if _tick_body_goals:
-                        _origin = _engine.RNG.choice(_tick_body_goals)
-                        _tick_pos = world.Position(_origin[0], _origin[1])
-                        if _tick_is_merchant and len(_tick_body_goals) >= 2:
-                            _dest = _engine.RNG.choice(
-                                [g for g in _tick_body_goals if (g[0], g[1]) != (_origin[0], _origin[1])]
-                            )
-                            _tick_initial_target = (_dest[0], _dest[1])
 
-                    if _tick_pos is not None:
-                        game_map.entities.append(
-                            _make_npc_entity(_tick_spec, _tick_pos, _tick_mid)
-                        )
-                        # Register in procedural_spawns so save/load can find it.
-                        # squad_id = movement_id so per-kill combat cleanup
-                        # can match spawn → entity 1:1.
-                        _cur_sys_id = getattr(_system, 'id', '')
-                        if _cur_sys_id not in ctx.procedural_spawns:
-                            ctx.procedural_spawns[_cur_sys_id] = []
-                        ctx.procedural_spawns[_cur_sys_id].append(
-                            ProceduralSpawn(
-                                npc_id=_tick_id,
-                                pos=_tick_pos,
-                                squad_id=_tick_mid,
-                            )
-                        )
-                        if _tick_initial_target is not None:
-                            _set_npc_path(ctx, _tick_mid, _tick_pos, _tick_initial_target, game_map)
-                        ctx.log.add_colored(
-                            f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
-                            _ml.COLOR_IMPORTANT_EVENT,
-                        )
-
-    # --- Per-tick consortium squad spawn (quest: merchant q3/q4 heat) ---
-    if main_quest_module.consortium_heat_active(ctx):
-        _consortium_cap = _system.npc_density * 2
-        # Re-count after regular per-tick spawn may have added entities.
-        _live_count = sum(
-            1 for _e in game_map.entities
-            if not getattr(_e, 'owned', False)
-            and getattr(_e, 'procedural_squad_id', '') != ''
+def _origin_and_destination(goals, is_merchant):
+    """(origin_position, merchant_destination | None) from body goals."""
+    if not goals:
+        return None, None
+    _origin = _engine.RNG.choice(goals)
+    _pos = world.Position(_origin[0], _origin[1])
+    _target = None
+    if is_merchant and len(goals) >= 2:
+        _dest = _engine.RNG.choice(
+            [g for g in goals if (g[0], g[1]) != (_origin[0], _origin[1])]
         )
-        if _live_count < _consortium_cap:
-            if _engine.RNG.random() < 0.02:  # ~2% per tick
-                _tick_body_goals = _build_body_goals(_system)
-                _spawn_consortium_squad(
-                    ctx, game_map, getattr(_system, 'id', ''),
-                    _system, _tick_body_goals,
-                )
+        _target = (_dest[0], _dest[1])
+    return _pos, _target
 
-    # --- Build goal list with body type + name ---
-    _goals = _build_body_goals(_system)
-    if not _goals:
-        _any_npcs = any(
-            getattr(_e, 'procedural_squad_id', '') != ''
-            for _e in game_map.entities
-        )
-        if _any_npcs:
-            ctx.log.add("Sensor: NPC ships have no navigation targets nearby.")
+
+def _tick_spawn_npc(ctx, game_map, system) -> None:
+    """One-per-tick traffic spawn: a scaled-down roll from the
+    system's base chance and weighted table, capped at density x 3."""
+    _PER_TICK_CHANCE_MULTIPLIER = 0.05
+    if _live_npc_count(game_map) >= system.npc_density * 3:
+        return
+    if _engine.RNG.random() >= system.npc_spawn_chance * _PER_TICK_CHANCE_MULTIPLIER:
+        return
+    _types = [
+        _tid for _tid, _tw in system.npc_spawn_table
+        if _engine.RNG.random() < _tw
+    ]
+    if not _types:
+        return
+    _tick_id = _engine.RNG.choice(_types)
+    try:
+        _tick_spec = _find_npc_ship(_tick_id)
+    except KeyError:
+        return
+    _is_merchant = getattr(_tick_spec, 'faction', 'pirate') == 'merchant'
+    _mid = f"tick_npc_{getattr(system, 'id', '')}_{_tick_id}_{_engine.RNG.randint(0, 99999)}"
+    _pos, _initial_target = _origin_and_destination(
+        _build_body_goals(system), _is_merchant,
+    )
+    if _pos is None:
         return
 
-    # Helpers: resolve NPC spec from entity, check faction
-    _MERCHANT_FLEE_RANGE = 10  # cells
+    game_map.entities.append(_make_npc_entity(_tick_spec, _pos, _mid))
+    # squad_id = movement_id so per-kill combat cleanup matches 1:1.
+    ctx.procedural_spawns.setdefault(getattr(system, 'id', ''), []).append(
+        ProceduralSpawn(npc_id=_tick_id, pos=_pos, squad_id=_mid)
+    )
+    if _initial_target is not None:
+        _set_npc_path(ctx, _mid, _pos, _initial_target, game_map)
+    ctx.log.add_colored(
+        f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
 
-    def _npc_spec_of(_e) -> Any | None:
-        _pid = getattr(_e, 'npc_ship_id', '')
-        if not _pid:
-            return None
-        try:
-            return _find_npc_ship(_pid)
-        except (KeyError, ImportError):
-            return None
 
-    def _faction_of(_e) -> str:
-        _s = _npc_spec_of(_e)
-        return getattr(_s, 'faction', 'pirate') if _s else 'pirate'
-
-    # Cache pirate positions for flee detection (once per tick).
-    _pirate_positions: list[tuple[int, int, int]] = []  # (x, y, dist_penalty later)
-    for _e in game_map.entities:
-        if getattr(_e, 'owned', False) or getattr(_e, 'procedural_squad_id', '') == '':
-            continue
-        if _faction_of(_e) == 'pirate':
-            _pirate_positions.append((_e.pos.x, _e.pos.y))
-
-    # Combat participants are locked out of the patrol pass: entities
-    # currently engaged in space combat carry ``combat_locked`` (set by
-    # combat/_rules_space.py at every reinforcement tick) so they are
-    # neither patrolled toward body goals nor despawned at gates/planets
-    # mid-fight. The rest of the system (per-tick spawns, other ships)
-    # keeps moving so reinforcements can still arrive.
-    _npcs = [
-        _e for _e in game_map.entities
+def _tick_consortium_squads(ctx, game_map, system) -> None:
+    """~2%-per-tick consortium squad while quest heat is live, capped
+    at density x 2 live NPCs."""
+    if not main_quest_module.consortium_heat_active(ctx):
+        return
+    _live = sum(
+        1 for _e in game_map.entities
         if not getattr(_e, 'owned', False)
         and getattr(_e, 'procedural_squad_id', '') != ''
-        and not getattr(_e, 'combat_locked', False)
-    ]
-    _squad_map: dict[str, list] = {}
-    for _e in _npcs:
-        _squad_map.setdefault(_e.procedural_squad_id, []).append(_e)
+    )
+    if _live < system.npc_density * 2 and _engine.RNG.random() < 0.02:
+        _spawn_consortium_squad(
+            ctx, game_map, getattr(system, 'id', ''),
+            system, _build_body_goals(system),
+        )
 
-    for _sid, _members in list(_squad_map.items()):
-        if len(_members) == 0:
-            continue
-        # Determine faction for this squad (read from the leader's spec).
-        _faction = _faction_of(_members[0])
 
-        # No global aggro — NPCs do not chase the player based on
-        # reputation alone. Combat triggers only when the player
-        # gets within ``detect_radius`` (handled by
-        # ``_detect_combat_encounter``) or bumps an NPC and chooses
-        # Attack via comms.
-        _is_squad = len(_members) > 1
-        _leader = _members[0]
-        _lx, _ly = _leader.pos.x, _leader.pos.y
-        _target = ctx.npc_targets.get(_sid)
-        _target_goal = None  # will hold the full (x, y, type, name) tuple
+def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates) -> None:
+    """One squad's tick: flee or refresh target, maybe despawn,
+    store path, then step (aggro squads chase the player)."""
+    _faction = _faction_of_entity(members[0])
+    _leader = members[0]
+    _lx, _ly = _leader.pos.x, _leader.pos.y
+    _target = ctx.npc_targets.get(sid)
+    _target_goal = _matching_goal(goals, _target)
 
-        # --- Merchant flee check: detect nearby pirates ---
-        if _faction == 'merchant' and _pirate_positions:
-            _nearest_pirate_dist = min(
-                math.hypot(_lx - _px, _ly - _py)
-                for _px, _py in _pirate_positions
-            )
-            if _nearest_pirate_dist < _MERCHANT_FLEE_RANGE:
-                # Move away from the nearest pirate instead of toward dest.
-                _nearest_px, _nearest_py = min(
-                    _pirate_positions,
-                    key=lambda p: math.hypot(_lx - p[0], _ly - p[1]),
-                )
-                _flee_dx = _lx - _nearest_px
-                _flee_dy = _ly - _nearest_py
-                _flee_dx = max(-1, min(1, _flee_dx or _engine.RNG.randint(-1, 1)))
-                _flee_dy = max(-1, min(1, _flee_dy or _engine.RNG.randint(-1, 1)))
-                for _m in _members:
-                    _nx = _m.pos.x + _flee_dx
-                    _ny = _m.pos.y + _flee_dy
-                    if (game_map.is_walkable(_nx, _ny)
-                            and game_map.blocking_entity_at(_nx, _ny, exclude=_m) is None):
-                        _m.pos = world.Position(_nx, _ny)
-                # Skip normal movement for this tick after fleeing.
-                continue
+    if _faction == 'merchant' and pirates:
+        if _merchant_flees(game_map, _leader, members, pirates):
+            return
 
-        # --- Check distance to current target ---
-        if _target is not None:
-            _tx, _ty = _target[0], _target[1]
-            _dist_to_target = max(abs(_lx - _tx), abs(_ly - _ty))
-            # Find the matching goal for the current target.
-            for _g in _goals:
-                if _g[0] == _tx and _g[1] == _ty:
-                    _target_goal = _g
-                    break
+    _dist = (
+        max(abs(_lx - _target[0]), abs(_ly - _target[1]))
+        if _target is not None else 999
+    )
+
+    # Aggro state once per squad, shared by target + movement.
+    _aggro = _squad_aggro(ctx, system, _leader)
+    if _aggro:
+        _target = (ctx.player.pos.x, ctx.player.pos.y)
+        _target_goal = None
+    elif _target is None or _dist <= 2:
+        if _faction == 'merchant' and _target_goal is not None:
+            _despawn_merchant(ctx, game_map, system, _leader, members, _target_goal)
+            return
+        if _target is None:
+            _target, _target_goal = _new_patrol_target(goals)
+
+    if _target is not None:
+        _store_target_path(ctx, game_map, sid, _leader, _target, _aggro)
+    _step_squad(ctx, game_map, sid, members, _aggro)
+
+
+def _squad_aggro(ctx, system, leader) -> bool:
+    """Charged-cell militia or consortium-heat pirates chase the player."""
+    _faction = _faction_of_entity(leader)
+    return (
+        main_quest_module.charged_cell_in_sol(ctx, getattr(system, 'id', ''))
+        and _faction == 'militia'
+    ) or (
+        main_quest_module.consortium_heat_active(ctx)
+        and _faction == 'pirate'
+    )
+
+
+def _new_patrol_target(goals):
+    """A fresh body goal (full tuple), preferring an unvisited one."""
+    _chosen = _engine.RNG.choice(goals)
+    return (_chosen[0], _chosen[1]), _chosen
+
+
+def _matching_goal(goals, target):
+    """The full (x, y, type, name) goal tuple for a stored target."""
+    if target is None:
+        return None
+    return next(
+        (_g for _g in goals if _g[0] == target[0] and _g[1] == target[1]),
+        None,
+    )
+
+
+def _merchant_flees(game_map, leader, members, pirates) -> bool:
+    """Flee step away from the nearest pirate (10 cells); True when
+    the squad fled and should skip normal movement this tick."""
+    _MERCHANT_FLEE_RANGE = 10
+    _lx, _ly = leader.pos.x, leader.pos.y
+    _nearest = min(
+        math.hypot(_lx - _px, _ly - _py) for _px, _py in pirates
+    )
+    if _nearest >= _MERCHANT_FLEE_RANGE:
+        return False
+    _px, _py = min(
+        pirates, key=lambda p: math.hypot(_lx - p[0], _ly - p[1]),
+    )
+    _dx = max(-1, min(1, _lx - _px or _engine.RNG.randint(-1, 1)))
+    _dy = max(-1, min(1, _ly - _py or _engine.RNG.randint(-1, 1)))
+    for _m in members:
+        _nx = _m.pos.x + _dx
+        _ny = _m.pos.y + _dy
+        if (game_map.is_walkable(_nx, _ny)
+                and game_map.blocking_entity_at(_nx, _ny, exclude=_m) is None):
+            _m.pos = world.Position(_nx, _ny)
+    return True
+
+
+def _despawn_merchant(ctx, game_map, system, leader, members, target_goal) -> None:
+    """Merchant arrival: log jump/dock, flash, remove entities and
+    the spawn records."""
+    _body_type, _body_name = target_goal[2], target_goal[3]
+    _spec = _spec_of_entity(leader)
+    _ship_name = getattr(_spec, 'name', 'Merchant') if _spec else 'Merchant'
+    if _body_type == 'gate':
+        ctx.log.add(f"{_ship_name} jumps through {_body_name}.")
+        ctx.npc_flash_events.append(
+            NpcFlashEvent(pos=world.Position(leader.pos.x, leader.pos.y), lifetime=4)
+        )
+    else:
+        ctx.log.add(f"{_ship_name} docks at {_body_name}.")
+    for _m in members:
+        try:
+            game_map.entities.remove(_m)
+        except ValueError:
+            pass
+    _sid = leader.procedural_squad_id
+    ctx.npc_targets.pop(_sid, None)
+    ctx.npc_paths.pop(_sid, None)
+    _sys_id = getattr(system, 'id', '')
+    _leader_npc = getattr(leader, 'npc_ship_id', '')
+    _positions = {(m.pos.x, m.pos.y) for m in members}
+    if _sys_id in ctx.procedural_spawns:
+        ctx.procedural_spawns[_sys_id] = [
+            _ps for _ps in ctx.procedural_spawns[_sys_id]
+            if not (_ps.npc_id == _leader_npc
+                    and (_ps.pos.x, _ps.pos.y) in _positions)
+        ]
+
+
+def _store_target_path(ctx, game_map, sid, leader, target, aggro) -> None:
+    """Remember the target and (re)compute the A* path: aggro squads
+    throttle — far ships drift, near ships recompute ~33%/tick."""
+    ctx.npc_targets[sid] = target
+    _lx, _ly = leader.pos.x, leader.pos.y
+    if aggro:
+        _dist = math.hypot(
+            _lx - ctx.player.pos.x, _ly - ctx.player.pos.y,
+        )
+        if _dist > 50:
+            ctx.npc_paths[sid] = []  # drift mode
+        elif _engine.RNG.random() < 0.33:
+            ctx.npc_paths[sid] = world.find_path(
+                (_lx, _ly), {target}, game_map, exclude_entity=leader,
+            ) or []
+    elif ctx.npc_paths.get(sid) is None:
+        ctx.npc_paths[sid] = world.find_path(
+            (_lx, _ly), {target}, game_map, exclude_entity=leader,
+        ) or []
+
+
+def _step_squad(ctx, game_map, sid, members, aggro) -> None:
+    """The squad's movement for this tick (80% chance): follow the
+    stored path, drift when aggro has no path, keep cohesion."""
+    _leader = members[0]
+    _lx, _ly = _leader.pos.x, _leader.pos.y
+    if _engine.RNG.random() >= 0.8:
+        return
+    _path = ctx.npc_paths.get(sid)
+    if (not _path and aggro and ctx.npc_targets.get(sid) is not None):
+        _drift_leader_toward(ctx, game_map, _leader, ctx.npc_targets[sid])
+        return
+    if not _path:
+        ctx.npc_targets.pop(sid, None)
+        ctx.npc_paths.pop(sid, None)
+        return
+    _next = _path[0]
+    _dx = _next[0] - _lx
+    _dy = _next[1] - _ly
+    if abs(_dx) > 1 or abs(_dy) > 1:
+        ctx.npc_paths.pop(sid, None)
+        return
+    _leader_moved = False
+    _start = {id(_m): _m.pos for _m in members}
+    for _m in members:
+        _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
+        if _m is _leader and _direct:
+            _leader_moved = True
+    if _leader_moved:
+        ctx.npc_paths[sid].pop(0)
+    # On collision the path is kept so the leader retries the same
+    # step next tick — a temporarily occupied cell doesn't invalidate
+    # the A* result.
+    if len(members) > 1:
+        _regroup_stragglers(game_map, members, _start)
+
+
+def _drift_leader_toward(ctx, game_map, leader, target) -> None:
+    """One-axis step toward the target (aggro ships with no path)."""
+    _lx, _ly = leader.pos.x, leader.pos.y
+    _dx = 1 if _lx < target[0] else -1 if _lx > target[0] else 0
+    _dy = 1 if _ly < target[1] else -1 if _ly > target[1] else 0
+    if _dx != 0 and _dy != 0:
+        if _engine.RNG.random() < 0.5:
+            _dy = 0
         else:
-            _dist_to_target = 999
+            _dx = 0
+    _nx = _lx + _dx
+    _ny = _ly + _dy
+    if (game_map.is_walkable(_nx, _ny)
+            and game_map.blocking_entity_at(_nx, _ny, exclude=leader) is None):
+        leader.pos = world.Position(_nx, _ny)
 
-        # --- Compute aggro state once per squad (shared by target + movement).
-        _is_aggro_militia = (
-            main_quest_module.charged_cell_in_sol(
-                ctx, getattr(_system, 'id', ''))
-            and _faction_of(_leader) == 'militia'
-        )
-        _is_aggro_consortium = (
-            main_quest_module.consortium_heat_active(ctx)
-            and _faction_of(_leader) == 'pirate'
-        )
 
-        # --- Aggro militia / consortium: always chase player (every tick). ---
-        if _is_aggro_militia or _is_aggro_consortium:
-            _target = (ctx.player.pos.x, ctx.player.pos.y)
-            _target_goal = None
-
-        # --- Refresh target when None or within 2 cells (merchant: despawn) ---
-        elif _target is None or _dist_to_target <= 2:
-            # Merchant: despawn on arrival.
-            if _faction == 'merchant' and _target_goal is not None:
-                _body_type, _body_name = _target_goal[2], _target_goal[3]
-                _spec = _npc_spec_of(_leader)
-                _ship_name = getattr(_spec, 'name', 'Merchant') if _spec else 'Merchant'
-                if _body_type == 'gate':
-                    ctx.log.add(f"{_ship_name} jumps through {_body_name}.")
-                    ctx.npc_flash_events.append(
-                        NpcFlashEvent(pos=world.Position(_lx, _ly), lifetime=4)
-                    )
-                else:
-                    ctx.log.add(f"{_ship_name} docks at {_body_name}.")
-                for _m in _members:
-                    try:
-                        game_map.entities.remove(_m)
-                    except ValueError:
-                        pass
-                ctx.npc_targets.pop(_sid, None)
-                ctx.npc_paths.pop(_sid, None)
-                _cur_sys_id = getattr(_system, 'id', '')
-                _leader_npc = getattr(_leader, 'npc_ship_id', '')
-                _despawned_positions = {(m.pos.x, m.pos.y) for m in _members}
-                if _cur_sys_id in ctx.procedural_spawns:
-                    ctx.procedural_spawns[_cur_sys_id] = [
-                        _ps for _ps in ctx.procedural_spawns[_cur_sys_id]
-                        if not (_ps.npc_id == _leader_npc
-                                and (_ps.pos.x, _ps.pos.y) in _despawned_positions)
-                    ]
-                continue
-
-            # Normal NPC with existing target: keep it.
-            if _target is not None:
-                pass
-            # Normal NPC with no target: pick a new body goal.
-            else:
-                _candidates = [g for g in _goals if (g[0], g[1]) != _target]
-                if not _candidates:
-                    _candidates = _goals
-                _chosen = _engine.RNG.choice(_candidates)
-                _target = (_chosen[0], _chosen[1])
-                _target_goal = _chosen
-
-        # --- Store target + compute path (throttled for aggro militia) ---
-        if _target is not None:
-            ctx.npc_targets[_sid] = _target
-            if _is_aggro_militia or _is_aggro_consortium:
-                # Throttle A*: far-away ships drift (no path);
-                # close ships recompute at ~33% per tick.
-                _dist_to_player = math.hypot(
-                    _lx - ctx.player.pos.x, _ly - ctx.player.pos.y,
-                )
-                if _dist_to_player > 50:
-                    ctx.npc_paths[_sid] = []  # drift mode
-                elif _engine.RNG.random() < 0.33:
-                    _end_set: set[tuple[int, int]] = {_target}
-                    _path = world.find_path(
-                        (_lx, _ly), _end_set, game_map,
-                        exclude_entity=_leader,
-                    )
-                    ctx.npc_paths[_sid] = _path or []
-                # else: keep existing path
-            elif ctx.npc_paths.get(_sid) is None:
-                # Normal NPC: compute path once (no throttling).
-                _end_set: set[tuple[int, int]] = {_target}
-                _path = world.find_path(
-                    (_lx, _ly), _end_set, game_map,
-                    exclude_entity=_leader,
-                )
-                ctx.npc_paths[_sid] = _path or []
-
-        # Move most ticks for consistent progress (80% chance).
-        if _engine.RNG.random() >= 0.8:
-            continue
-        _path = ctx.npc_paths.get(_sid)
-        # Aggro ships with no A* path (far away): drift toward player.
-        if (not _path
-                and (_is_aggro_militia or _is_aggro_consortium)
-                and ctx.npc_targets.get(_sid) is not None):
-            _tx, _ty = ctx.npc_targets[_sid]
-            _drift_dx = 1 if _lx < _tx else -1 if _lx > _tx else 0
-            _drift_dy = 1 if _ly < _ty else -1 if _ly > _ty else 0
-            if _drift_dx != 0 and _drift_dy != 0:
-                # Diagonal: pick one axis randomly (50/50).
-                if _engine.RNG.random() < 0.5:
-                    _drift_dy = 0
-                else:
-                    _drift_dx = 0
-            _nx = _lx + _drift_dx
-            _ny = _ly + _drift_dy
-            if (game_map.is_walkable(_nx, _ny)
-                    and game_map.blocking_entity_at(_nx, _ny, exclude=_leader) is None):
-                _leader.pos = world.Position(_nx, _ny)
-            continue
-        if not _path:
-            ctx.npc_targets.pop(_sid, None)
-            ctx.npc_paths.pop(_sid, None)
-            continue
-        _next = _path[0]
-        _dx = _next[0] - _lx
-        _dy = _next[1] - _ly
-        if abs(_dx) > 1 or abs(_dy) > 1:
-            ctx.npc_paths.pop(_sid, None)
-            continue
-        # Try the squad direction for each member (direct step with a
-        # one-cell perpendicular slip when the cell is blocked).
-        _leader_moved = False
-        _start_positions = {id(_m): _m.pos for _m in _members}
-        for _m in _members:
-            _direct = world.try_step_with_slip(_m, game_map, _dx, _dy)
-            if _m is _leader and _direct:
-                _leader_moved = True
-        if _leader_moved:
-            ctx.npc_paths[_sid].pop(0)
-        # On collision, preserve the path so the leader retries the same
-        # step next tick. Don't recompute A* just because a cell was
-        # temporarily occupied — the path is still valid.
-        # Squad cohesion: step stragglers ONE cell toward the centre
-        # per tick (never a multi-cell snap), but ONLY members that
-        # could not take a patrol step this tick. Yanking back a
-        # member that just moved fights the patrol: a single wedged
-        # member drags the centre, and the pull undoes everyone's
-        # patrol progress every tick — the whole pack freezes in
-        # place (the tau_ceti save bug). Slipping around obstacles
-        # keeps the unstick purpose — a member wedged against a
-        # planet can still rejoin the pack. (Known residual: a fully
-        # enclosed LEADER can still strand the pack — followers step
-        # toward it and bunch; rare, since A* paths avoid bodies, so
-        # only spawn pockets or squadmate occupancy cause it.)
-        if _is_squad:
-            _cx = sum(m.pos.x for m in _members) // len(_members)
-            _cy = sum(m.pos.y for m in _members) // len(_members)
-            for _m in _members:
-                if (_m.pos == _start_positions[id(_m)]
-                        and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
-                    _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
-                    _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
-                    world.try_step_with_slip(_m, game_map, _dx, _dy)
-
+def _regroup_stragglers(game_map, members, start_positions) -> None:
+    """Cohesion: one-cell step toward the squad centre for stuck
+    members only. Never yank a member that just moved — that fights
+    the patrol and freezes the whole pack (the tau_ceti save bug)."""
+    _cx = sum(m.pos.x for m in members) // len(members)
+    _cy = sum(m.pos.y for m in members) // len(members)
+    for _m in members:
+        if (_m.pos == start_positions[id(_m)]
+                and max(abs(_m.pos.x - _cx), abs(_m.pos.y - _cy)) > 4):
+            _dx = 1 if _m.pos.x < _cx else -1 if _m.pos.x > _cx else 0
+            _dy = 1 if _m.pos.y < _cy else -1 if _m.pos.y > _cy else 0
+            world.try_step_with_slip(_m, game_map, _dx, _dy)
 
 # ---------------------------------------------------------------------------
 # NPC flash events — one-shot ring animations on the space map
@@ -945,39 +878,32 @@ def render_npc_flash_events(
 
     _active: list[NpcFlashEvent] = []
     for _ev in ctx.npc_flash_events:
-        # Decrement lifetime every frame, regardless of viewport.
-        # Events outside the viewport decay silently and are not
-        # drawn — the continue below skips drawing but not the
-        # decrement above the check.
+        # Lifetime decays every frame regardless of viewport; events
+        # off-screen just aren't drawn (they may scroll into view).
         _ev.lifetime -= 1
         if _ev.lifetime <= 0:
-            continue  # expired, discard
-
+            continue
         _sx = _ev.pos.x - cam_x
         _sy = _ev.pos.y - cam_y
-
-        # Only draw rings when the event is inside the viewport.
-        # Events outside the viewport still decay naturally and
-        # become visible if the camera moves toward them.
         if 0 <= _sx < view_w and 0 <= _sy < view_h:
-            # Draw expanding rings: lifetime counts DOWN (4 → 1),
-            # so the number of rings drawn INCREASES as lifetime
-            # decreases, creating an expanding-outward flash.
-            _rings_to_draw = len(_NPC_FLASH_RINGS) - _ev.lifetime + 1
-            for _ri in range(_rings_to_draw):
-                _r_char, _r_fg = _NPC_FLASH_RINGS[_ri]
-                _dist = _ri + 1
-                for _dy in range(-_dist, _dist + 1):
-                    for _dx in range(-_dist, _dist + 1):
-                        if abs(_dx) + abs(_dy) != _dist:
-                            continue
-                        _px = _sx + _dx
-                        _py = _sy + _dy
-                        if 0 <= _px < view_w and 0 <= _py < view_h:
-                            console.print(x=_px, y=_py, string=_r_char, fg=_r_fg)
-
-        # Keep alive (regardless of viewport) so the event decays
-        # naturally over its full lifetime.
+            _paint_flash_rings(console, _sx, _sy, _ev, view_w, view_h)
         _active.append(_ev)
 
     ctx.npc_flash_events = _active
+
+
+def _paint_flash_rings(console, sx, sy, ev, view_w, view_h) -> None:
+    """Expanding diamond rings: lifetime counts down (4→1), so more
+    rings draw as the flash ages."""
+    _rings_to_draw = len(_NPC_FLASH_RINGS) - ev.lifetime + 1
+    for _ri in range(_rings_to_draw):
+        _r_char, _r_fg = _NPC_FLASH_RINGS[_ri]
+        _dist = _ri + 1
+        for _dy in range(-_dist, _dist + 1):
+            for _dx in range(-_dist, _dist + 1):
+                if abs(_dx) + abs(_dy) != _dist:
+                    continue
+                _px = sx + _dx
+                _py = sy + _dy
+                if 0 <= _px < view_w and 0 <= _py < view_h:
+                    console.print(x=_px, y=_py, string=_r_char, fg=_r_fg)
