@@ -148,7 +148,11 @@ def maybe_complete_visit(ctx, npc_id: str) -> bool:
     _step = find_main_quest_step(_step_id)
     _result = complete_step(ctx, _step_id)
     if _result:
-        show_step_readout(ctx, _step)
+        # A gated step's flavor is presented by the gate popup that
+        # follows the trigger (maybe_continue_chain); showing a readout
+        # too would present the same text twice (playtest v15).
+        if not (_step.wait_days > 0 and _step.completion_flavor):
+            show_step_readout(ctx, _step)
     return _result
 
 

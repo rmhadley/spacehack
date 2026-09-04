@@ -122,3 +122,44 @@ def test_smuggle_handover_consumes_cargo_inventory(monkeypatch):
     assert _ship.inventory == {"reference_recorder": 1}
     assert _ship.mission_reserved == 0
     assert _ctx.player_active_missions == []
+
+
+def test_gated_visit_completion_presents_its_flavor_once(monkeypatch):
+    """Regression (playtest v15): accepting the demolitions expert's
+    help showed 'signs on' twice — the visit readout AND the wait-gate
+    popup. A gated step's flavor belongs to the gate popup alone."""
+    from types import SimpleNamespace
+
+    from src.spacehack import message_log
+    from src.spacehack.main_quest import _act0, _objectives
+    from src.spacehack.main_quest._core import step_status
+    from src.spacehack.main_quest._dialogue import trigger_dialogue
+
+    presented = []
+    monkeypatch.setattr(
+        _objectives, "show_step_readout",
+        lambda _ctx, _step: presented.append(("readout", _step.id)),
+    )
+    monkeypatch.setattr(
+        _act0, "show_gate_popup",
+        lambda _ctx, _fac, flavor: presented.append(("gate", flavor)),
+    )
+
+    ctx = SimpleNamespace(
+        main_quest_progress={"mil_q4_demolitions": "active"},
+        main_quest_chain="militia",
+        main_quest_gate={},
+        main_quest_backing=set(),
+        stats=SimpleNamespace(credits=0),
+        log=message_log.MessageLog(capacity=6),
+        player_xp=0, player_level=1, player_skill_points=0,
+        time_day=1, time_month=1, time_year=2200,
+    )
+
+    assert trigger_dialogue(ctx, "demolitions_expert", "mil_q4_demolitions")
+    _act0.maybe_continue_chain(ctx, "demolitions_expert", "mil_q4_demolitions")
+
+    assert step_status(ctx, "mil_q4_demolitions") == "completed"
+    signs_on = [p for p in presented if "signs on" in str(p[1]).lower()]
+    assert len(signs_on) == 1, presented
+    assert signs_on[0][0] == "gate", "the gate popup owns gated flavor"
