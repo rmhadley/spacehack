@@ -187,10 +187,17 @@ def _validate_markers(document: EditorDocument) -> list[ValidationIssue]:
     spawns = _marker_positions(document, "P")
     if document.mode is AssetMode.SHIP and len(spawns) != 1:
         issues.append(_issue("Ship layouts require exactly one P spawn marker"))
-    entrances = _tile_kind_positions(document, "dungeon_door") + _tile_kind_positions(document, "landmark_entrance")
+    explicit_entrances = _tile_kind_positions(document, "landmark_entrance")
+    doors = _tile_kind_positions(document, "dungeon_door")
+    entrances = doors + explicit_entrances
     if document.mode is AssetMode.LANDMARK:
-        if len(entrances) != 1:
-            issues.append(_issue("Landmarks require exactly one entrance door"))
+        # Mirrors landmark._landmark_markers: an explicit entrance
+        # marker is the single link point and frees doors for
+        # interior use; without one, exactly one door serves as it.
+        if len(explicit_entrances) > 1:
+            issues.append(_issue("Landmarks allow at most one entrance marker"))
+        elif not explicit_entrances and len(doors) != 1:
+            issues.append(_issue("Landmarks need an entrance marker or exactly one door"))
         for kind in ("stairs_up", "stairs_down"):
             if len(_tile_kind_positions(document, kind)) > 1:
                 issues.append(_issue(f"Landmarks allow at most one {kind} marker"))

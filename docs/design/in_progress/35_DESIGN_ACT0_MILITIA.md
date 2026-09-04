@@ -119,8 +119,8 @@ resident, demolitions_expert seats via `npc_presence` (tested).
       the cache is secured (`_maybe_auto_trigger_next_smuggle` — the
       captain's q3 dialogue is flavor-only by design, the officer is
       the receiver row); Mercury cache lands inside an authored
-      landmark (mercury_vault.layout — plated strong room off an
-      antechamber, mirroring wolf_camp) guarded by 1x sentry_drone
+      landmark (mercury_vault.layout — plated strong room behind its
+      own vault door, mirroring wolf_camp) guarded by 1x sentry_drone
       (user ruling: the assault_drone spike is pulled like wolf_b;
       the delve lands almost immediately after the Mars caves)
 - [ ] Fresh playthrough with `SPACEHACK_SEED` pinned; log every
@@ -159,6 +159,15 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 - [x] Corpus audit + `make check` (audit_story_text green, only the
       pre-existing mer_q4 option_label removable note)
 - [ ] Ask user: move doc to complete?
+
+System change (user ruling): landmarks no longer limited to one door
+— the explicit LANDMARK_ENTRANCE marker (`e`, city-interior/deep-cell
+precedent) is the single link point to the proc-gen'd dungeon, and
+`d` doors are free for interior use. Without the marker, the old
+exactly-one-door rule holds (wolf_camp unchanged). mercury_vault
+dogfoods it: lit threshold marker + a real strong-room door. NOTE: `P`
+is the layout parser's player-spawn glyph — use `e` for entrance
+markers in dungeon landmarks.
 
 ## READY FOR PLAYTEST (2026-09-04)
 

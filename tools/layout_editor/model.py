@@ -166,6 +166,10 @@ def infer_mode(path: Path) -> AssetMode:
     text = path.read_text(encoding="utf-8")
     if any(
         line.strip().startswith("TILE:") and "CITY_" in line
+        # Dungeon landmarks borrow CITY_ORNAMENT for crates/bunks
+        # (wolf_camp, mercury_vault); only real city fabric — floors,
+        # walls, building doors — marks a city asset.
+        and "CITY_ORNAMENT" not in line
         for line in text.splitlines()
     ):
         return AssetMode.CITY

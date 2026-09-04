@@ -515,3 +515,66 @@ def test_mars_landmark_stamp_carves_reachable_approach():
         for entity in _game_map.entities
     )
     assert _game_map.tiles[_stamp.console.y][_stamp.console.x].kind == "dungeon_floor"
+
+
+def test_entrance_marker_frees_interior_doors():
+    """The explicit LANDMARK_ENTRANCE marker is the single link point
+    to the proc-gen'd dungeon; dungeon doors are free for interior
+    use. Without the marker, the old rule holds - exactly one door
+    serves as the entrance (user ruling: the link tile doesn't have
+    to be a door)."""
+    from src.spacehack import landmark as landmark_module
+    from src.spacehack import world as world_module
+
+    def _asset(rows):
+        mapping = {
+            "#": world_module.DUNGEON_WALL,
+            ".": world_module.DUNGEON_FLOOR,
+            "d": world_module.DUNGEON_DOOR,
+            "P": world_module.LANDMARK_ENTRANCE,
+        }
+        tiles = [[mapping[ch] for ch in row] for row in rows]
+        return world_module.GameMap(
+            width=len(rows[0]), height=len(rows), tiles=tiles,
+            entities=[],
+        )
+
+    # Marker + two interior doors: parses, the marker is the entrance.
+    stamped = landmark_module._landmark_markers(_asset([
+        "#####d#####",
+        "#..d......#",
+        "#####P#####",
+    ]))
+    assert stamped == (world_module.Position(5, 2), None, None, None)
+
+    # One door, no marker: back-compat, the door is the entrance.
+    stamped = landmark_module._landmark_markers(_asset([
+        "###########",
+        "#.........#",
+        "#####d#####",
+    ]))
+    assert stamped == (world_module.Position(5, 2), None, None, None)
+
+    # Two doors, no marker: rejected.
+    try:
+        landmark_module._landmark_markers(_asset([
+            "#####d#####",
+            "#..d......#",
+            "###########",
+        ]))
+    except ValueError as error:
+        assert "entrance marker or exactly one door" in str(error)
+    else:
+        raise AssertionError("two doors without a marker were accepted")
+
+    # Two markers: rejected.
+    try:
+        landmark_module._landmark_markers(_asset([
+            "#####P#####",
+            "#.........#",
+            "#####P#####",
+        ]))
+    except ValueError as error:
+        assert "at most one entrance marker" in str(error)
+    else:
+        raise AssertionError("two entrance markers were accepted")

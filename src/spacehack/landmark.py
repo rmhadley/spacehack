@@ -82,8 +82,16 @@ def _landmark_markers(
     world.Position | None,
     world.Position | None,
 ]:
-    """Return a landmark's entrance and optional connection markers."""
-    _doors = _cells_of_kind(landmark, {"dungeon_door", "landmark_entrance"})
+    """Return the landmark's entrance and optional connection markers.
+
+    The entrance is the landmark's single link point to the proc-gen'd
+    dungeon. An explicit ``landmark_entrance`` marker owns that job and
+    frees ``dungeon_door`` tiles for interior use (any number of them);
+    a landmark without the marker keeps the old rule — exactly one door
+    serves as the entrance.
+    """
+    _entrances = _cells_of_kind(landmark, {"landmark_entrance"})
+    _doors = _cells_of_kind(landmark, {"dungeon_door"})
     _consoles = [
         entity.pos
         for entity in landmark.entities
@@ -91,18 +99,27 @@ def _landmark_markers(
     ]
     _stairs = _cells_of_kind(landmark, {"stairs_down"})
     _arrivals = _cells_of_kind(landmark, {"stairs_up"})
+    if len(_entrances) > 1:
+        raise ValueError("Landmark must contain at most one entrance marker")
+    if _entrances:
+        _entrance = _entrances[0]
+    elif len(_doors) != 1:
+        raise ValueError(
+            "Landmark needs an entrance marker or exactly one door"
+        )
+    else:
+        _entrance = _doors[0]
     if (
-        len(_doors) != 1
-        or len(_consoles) > 1
+        len(_consoles) > 1
         or len(_stairs) > 1
         or len(_arrivals) > 1
     ):
         raise ValueError(
-            "Landmark must contain one entrance and at most one "
+            "Landmark must contain at most one "
             "arrival/console/stairs marker"
         )
     return (
-        _doors[0],
+        _entrance,
         _arrivals[0] if _arrivals else None,
         _consoles[0] if _consoles else None,
         _stairs[0] if _stairs else None,

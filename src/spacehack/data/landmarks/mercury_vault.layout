@@ -2,29 +2,31 @@
 #
 # The militia's hidden requisition cache: a plated strong room sunk
 # beneath the old mining station, racks still squared, sealed since
-# the Incident. The vault opens off the antechamber through a wall
-# gap; the requisition package sits in the strong room, watched by a
-# single leftover drone.
+# the Incident. The antechamber's threshold links to the caves;
+# the strong room sits behind its own vault door. The requisition
+# package lies deep inside, watched by a single leftover drone.
 MAP
 ###############
 #####.....#####
 #####.o.o.#####
 #####.....#####
-#######.#######
-#.............#
-#.o.........o.#
-#.............#
-#.............#
-#.o.........o.#
-#.............#
 #######d#######
+#.............#
+#.o.........o.#
+#.............#
+#.............#
+#.o.........o.#
+#.............#
+#######e#######
 ENDMAP
 
 TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: d = DUNGEON_DOOR
+TILE: e = LANDMARK_ENTRANCE
 
 COLOUR: # = (105, 112, 124) / (24, 27, 33)     # vault plate, riveted steel
 COLOUR: . = (132, 137, 146) / (32, 35, 41)     # plated deck
 COLOUR: o = (146, 138, 84) / (46, 44, 26)      # olive racks and crates
+COLOUR: e = (215, 170, 110) / (46, 36, 22)     # lit threshold into the vault

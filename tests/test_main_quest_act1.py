@@ -801,11 +801,14 @@ def test_mercury_vault_layout_contract():
     widths = {len(row) for row in asset.tiles}
     assert len(widths) == 1
     assert not any(t.kind == "void" for r in asset.tiles for t in r)
-    entrances = sum(
-        t.kind in {"dungeon_door", "landmark_entrance"}
-        for r in asset.tiles for t in r
-    )
-    assert entrances == 1
+    # one explicit link marker; interior doors are free (the strong
+    # room keeps its own vault door)
+    assert sum(
+        t.kind == "landmark_entrance" for r in asset.tiles for t in r
+    ) == 1
+    assert sum(
+        t.kind == "dungeon_door" for r in asset.tiles for t in r
+    ) == 1
     # balance: a single tier-2 watch drone - this delve lands almost
     # immediately after the Mars caves, so lighter than wolf_b's pair
     params = find_planet_spec("mercury").dungeon_params
