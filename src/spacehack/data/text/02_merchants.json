@@ -36,6 +36,6 @@
   "step.mer_q6_survey.ready_message": "The smiths are done. The cutter waits at the Guild on Earth, its teeth cut to the scan's weak points.",
   "step.mer_q7_cutter.title": "The Cutter",
   "step.mer_q7_cutter.description": "Return to the Guild Master on Earth. The bore is refitted and the teeth are cut to the scan's weak points. The cutter is ready to be collected - and the door on Mars is ready to be opened.",
-  "step.mer_q7_cutter.dialogue.guild_master.intro": "There it is. Consortium steel, Guild refit, Wolf 359 teeth. The survey gave us the weak lines and the smiths cut the teeth to match. We are not asking the door anything - we are taking it apart where it was always going to come apart. Collect your cutter. The Guild keeps its end.",
+  "step.mer_q7_cutter.dialogue.guild_master.intro": "There it is. Consortium steel, Guild refit, Wolf 359 teeth. The survey gave us the weak lines and the smiths cut the teeth to match. Cut those lines and the door comes down. Collect your cutter. The Guild keeps its end.",
   "step.mer_q7_cutter.dialogue.guild_master.option_label": "Collect the cutter"
 }
