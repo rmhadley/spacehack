@@ -173,6 +173,11 @@ class MainQuestStep:
                                 # at the landmark's QUEST_CACHE marker (deepest
                                 # interior cell if unmarked); empty = the farthest
                                 # walkable cell from the dungeon entry
+    delve_layout_variants: tuple[tuple[str, int], ...] = ()
+                                # weighted (layout_id, weight) camp variants for a
+                                # delve ("delve") — one is chosen per delve build and
+                                # the rest become stamp fallbacks; when set it
+                                # replaces delve_layout_id
     # (good_id, qty) pairs placed in the quest cache ("delve") — the
     # cache yields these. ``trigger_planet_id`` names the delve planet.
     delve_good_ids: tuple[tuple[str, int], ...] = ()

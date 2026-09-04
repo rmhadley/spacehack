@@ -735,7 +735,7 @@ def test_wolf_delve_stamps_camp_cache_and_guardians():
     from src.spacehack.data.planets import find_planet_spec
     from src.spacehack.dungeon import generate_dungeon
     from src.spacehack.engine import seed_rng
-    from src.spacehack.main_quest._act0 import prepare_delve_site
+    from src.spacehack.main_quest._delve import prepare_delve_site
 
     ctx = SimpleNamespace(
         main_quest_progress={"mer_q2_strike": "active"},
@@ -834,7 +834,7 @@ def test_mercury_delve_stamps_vault_cache_and_guardian():
     from src.spacehack.data.planets import find_planet_spec
     from src.spacehack.dungeon import generate_dungeon
     from src.spacehack.engine import seed_rng
-    from src.spacehack.main_quest._act0 import prepare_delve_site
+    from src.spacehack.main_quest._delve import prepare_delve_site
 
     ctx = SimpleNamespace(
         main_quest_progress={"mil_q2_cache": "active"},
@@ -878,3 +878,26 @@ def test_mercury_delve_stamps_vault_cache_and_guardian():
         abs(guards[0].pos.x - cache.pos.x),
         abs(guards[0].pos.y - cache.pos.y),
     ) <= 10
+
+
+def test_delve_layout_variants_pick_then_fallback_order():
+    """Camp variants are weighted data on the step: one candidate is
+    chosen per build and the rest stay as stamp fallbacks (doc 35 —
+    authored vault variants with strategic cache sites)."""
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.main_quest._delve import _delve_layout_candidates
+
+    # No variants: the single layout stands alone.
+    assert _delve_layout_candidates("mercury_vault", ()) == ["mercury_vault"]
+    assert _delve_layout_candidates("", ()) == []
+
+    # Variants: every layout appears exactly once, weighted pick first.
+    variants = (("mercury_vault", 3), ("mercury_vault_b", 1))
+    seen = set()
+    for seed in range(12):
+        seed_rng(seed)
+        candidates = _delve_layout_candidates("ignored", variants)
+        assert sorted(candidates) == ["mercury_vault", "mercury_vault_b"]
+        assert candidates[0] in {"mercury_vault", "mercury_vault_b"}
+        seen.add(candidates[0])
+    assert seen == {"mercury_vault", "mercury_vault_b"}, "weights must matter"

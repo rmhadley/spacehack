@@ -169,6 +169,14 @@ dogfoods it: lit threshold marker + a real strong-room door. NOTE: `P`
 is the layout parser's player-spawn glyph — use `e` for entrance
 markers in dungeon landmarks.
 
+Delve camps are now fully authored data end to end: the step declares
+the landmark (`delve_layout_id`) or weighted VARIANTS
+(`delve_layout_variants` — one chosen per delve build, the rest stamp
+fallbacks), and each layout marks its own cache site with a QUEST_CACHE
+tile (`%`, one per landmark, normalized to floor at stamp time).
+Vault variants with strategically different cache rooms are pure
+content: new .layout file + a tuple on the step.
+
 ## READY FOR PLAYTEST (2026-09-04)
 
 What landed: 220-day cadence, sealed-requisition mission cargo, prose

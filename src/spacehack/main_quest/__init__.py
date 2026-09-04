@@ -57,13 +57,15 @@ from ._scenes import (
     play_scene,
     registered_scene_ids,
 )
+from ._delve import (
+    prepare_delve_site,
+)
 from ._act0 import (
     OfferOutcome,
     maybe_trigger_signal,
     prepare_mars_surface,
     bump_mars_door,
     start_prison_objective,
-    prepare_delve_site,
     mars_exploration_unlocked,
     delve_site_unlocked,
     surface_exploration_unlocked,
