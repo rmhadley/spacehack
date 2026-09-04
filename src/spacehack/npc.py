@@ -142,53 +142,22 @@ def _run_npc_talk(
     *,
     deliver_missions: list | None = None,
 ) -> tuple[TalkOutcome, ActiveMission | None]:
-    """Show the talk modal for ``npc`` and return the chosen outcome.
+    """Run the talk modal: quest row, deliver rows, work row.
 
-    Resolves main-quest dialogue for this NPC: the body text
-    overrides ``flavor_text`` when a live quest dialogue exists, and
-    a ``quest_options`` row appears when the entry has an
-    ``option_label`` + ``trigger_on_talk``. Picking the quest row
-    calls :func:`main_quest.trigger_dialogue` (plants the faction
-    claim + unlocks the tool) and returns :attr:`TalkOutcome.QUEST`.
-
-    Menu has one "Deliver: <title>" row per deliverable mission
-    (highlighted gold), then "View available work" at the bottom.
-    ENTER on a deliver row returns DELIVER with that mission;
-    ENTER on the work row returns WORK.
-
-    Returns ``(outcome, deliver_mission)``: the specific mission
-    when DELIVER, ``None`` otherwise.
+    Returns ``(outcome, mission)`` — the mission when DELIVER, else None.
     """
     ctx.log.add(f"You chat briefly with {npc.name}.")
-    # Resolve quest dialogue for the talk modal body: when the NPC has
-    # live quest dialogue, the body text shows the appropriate variant
-    # (intro / active / complete). The quest option row (below) is the
-    # only way to trigger the full-screen overlay — no auto-trigger.
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
 
     _missions = deliver_missions or []
     n_deliver = len(_missions)
 
-    # Main-quest dialogue resolution (read-only lookups).
-    _quest_options: list[tuple[str, str]] = []
-    _opt = main_quest_module.quest_option_for(ctx, npc.id)
-    if _opt is not None:
-        _quest_options.append(_opt)
-    n_quest = len(_quest_options)
-    n_work = 1 if npc.guild else 0
-    n_options = n_quest + n_deliver + n_work  # quest rows + deliver rows + work
+    _quest_options = _quest_rows(ctx, npc)
+    n_options = len(_quest_options) + n_deliver + (1 if npc.guild else 0)
     if n_options == 0:
-        # No menu items — but if there's quest dialogue text that
-        # differs from the NPC's standard flavor, show it as a
-        # read-only overlay so the player can read it.
-        if _quest_body != npc.flavor_text:
-            main_quest_module.show_quest_readout(ctx, npc, _quest_body)
-        else:
-            ctx.log.add(f'{npc.name} has nothing more to say right now.')
-        return (TalkOutcome.BACK, None)
+        return _no_options_reply(ctx, npc, _quest_body)
 
-    # Quest-option rows still use the domain modal because selecting one
-    # immediately mutates main-quest state; ordinary talk uses shared Pygame.
+    # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
         ctx,
         npc,
@@ -200,14 +169,40 @@ def _run_npc_talk(
         raise RuntimeError("NPC talk returned no outcome")
     outcome, payload = result
     if outcome is TalkOutcome.QUEST and isinstance(payload, str):
-        _offer = main_quest_module.show_help_offer(ctx, npc.id, payload)
-        if _offer is main_quest_module.OfferOutcome.QUIT:
+        _quit = _accept_quest_option(ctx, npc, payload)
+        if _quit:
             return (TalkOutcome.QUIT, None)
-        if _offer is main_quest_module.OfferOutcome.ACCEPT:
-            main_quest_module.trigger_dialogue(ctx, npc.id, payload)
-            main_quest_module.maybe_continue_chain(ctx, npc.id, payload)
         return (outcome, None)
     return result
+
+
+def _quest_rows(ctx, npc) -> list[tuple[str, str]]:
+    """The live quest option row, if this NPC offers one."""
+    _opt = main_quest_module.quest_option_for(ctx, npc.id)
+    return [_opt] if _opt is not None else []
+
+
+def _no_options_reply(ctx, npc, quest_body):
+    """No menu rows: read-only flavor overlay, or the nothing-to-say log."""
+    if quest_body != npc.flavor_text:
+        main_quest_module.show_quest_readout(ctx, npc, quest_body)
+    else:
+        ctx.log.add(f'{npc.name} has nothing more to say right now.')
+    return (TalkOutcome.BACK, None)
+
+
+def _accept_quest_option(ctx, npc, payload) -> bool:
+    """Offer the quest, and on accept trigger it plus follow-ups.
+
+    Returns True only when the player quit out of the offer modal.
+    """
+    _offer = main_quest_module.show_help_offer(ctx, npc.id, payload)
+    if _offer is main_quest_module.OfferOutcome.QUIT:
+        return True
+    if _offer is main_quest_module.OfferOutcome.ACCEPT:
+        main_quest_module.trigger_dialogue(ctx, npc.id, payload)
+        main_quest_module.maybe_continue_chain(ctx, npc.id, payload)
+    return False
 
 # IDENTITY GUARANTEE: ``npc_module.NPC is NPC`` (and ditto for
 # find_npc / list_npcs). Smoke-verified at the registry build site

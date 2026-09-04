@@ -84,21 +84,13 @@ def confirm(
     return "BACK"
 
 
-def choose(
-    ctx,
-    *,
-    title: str,
-    body: str,
-    options: tuple[tuple[str, str], ...],
-    caption: str,
-    compact: bool = False,
-) -> str:
-    """Run a small story choice and return its opaque action ID."""
+def _choice_frames(title, body, options, compact):
+    """One MenuFrame per selectable index; the menu never needs rebuild."""
     items = tuple(
         pygame_menu.MenuItem(label, "", action)
         for label, action in options
     )
-    frames = tuple(
+    return tuple(
         pygame_menu.MenuFrame(
             title=title,
             body=body,
@@ -112,6 +104,19 @@ def choose(
         )
         for index in range(max(1, len(items)))
     )
+
+
+def choose(
+    ctx,
+    *,
+    title: str,
+    body: str,
+    options: tuple[tuple[str, str], ...],
+    caption: str,
+    compact: bool = False,
+) -> str:
+    """Run a small story choice and return its opaque action ID."""
+    frames = _choice_frames(title, body, options, compact)
     outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
     if outcome == "SELECT":
         valid_actions = {option_action for _label, option_action in options}

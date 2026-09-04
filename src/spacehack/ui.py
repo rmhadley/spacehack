@@ -141,31 +141,31 @@ def wrap_text(text: str, max_width: int) -> list[str]:
     """
     if max_width < 1 or not text or not text.strip():
         return []
-    # Split into paragraphs first so intentional ``\n`` breaks are
-    # preserved (old behaviour collapsed ALL whitespace via split()).
-    paragraphs = text.split("\n")
     lines: list[str] = []
-    for para in paragraphs:
+    for para in text.split("\n"):
         if not para.strip():
-            # Empty paragraph = empty line (visual paragraph break).
             lines.append("")
             continue
-        words = para.split()
-        current = ""
-        for word in words:
-            candidate = word if not current else f"{current} {word}"
-            if len(candidate) <= max_width:
-                current = candidate
-            else:
-                if current:
-                    lines.append(current)
-                current = word
-        if current:
-            lines.append(current)
-    # Strip trailing blank lines so a final ``\n`` doesn't add
-    # unwanted whitespace at the end of the wrapped output.
+        lines.extend(_wrap_paragraph(para.split(), max_width))
     while lines and not lines[-1]:
         lines.pop()
+    return lines
+
+
+def _wrap_paragraph(words: list[str], max_width: int) -> list[str]:
+    """Greedy wrap; a word longer than ``max_width`` keeps its own line."""
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = word if not current else f"{current} {word}"
+        if len(candidate) <= max_width:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+        current = word
+    if current:
+        lines.append(current)
     return lines
 
 # ---------------------------------------------------------------------------

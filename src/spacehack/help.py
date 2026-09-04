@@ -46,14 +46,11 @@ def _section_frame(section: GuideSection) -> Any:
     )
 
 
-def _run_pygame_help(
-    ctx: GameContext,
-    initial_topic: str | int | None = None,
-) -> bool | None:
-    """Run the guide through the shared Pygame screen."""
+def _guide_list_frame():
+    """The guide's top-level topic list."""
     from . import pygame_screen, pygame_ui
 
-    list_frame = pygame_screen.ScreenFrame(
+    return pygame_screen.ScreenFrame(
         title="SPACEHACK GUIDE",
         body=("Select a topic. Open it with ENTER.",),
         rows=tuple(
@@ -69,6 +66,16 @@ def _run_pygame_help(
             ),
         ),
     )
+
+
+def _run_pygame_help(
+    ctx: GameContext,
+    initial_topic: str | int | None = None,
+) -> bool | None:
+    """Run the guide through the shared Pygame screen."""
+    from . import pygame_screen
+
+    list_frame = _guide_list_frame()
     initial_index = _guide_index(initial_topic)
     frame = list_frame
     if initial_index is not None:

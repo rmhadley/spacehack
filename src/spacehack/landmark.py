@@ -74,6 +74,22 @@ def _cells_of_kind(landmark: world.GameMap, kinds: set[str]) -> list:
     ]
 
 
+def _resolve_entrance_cell(landmark) -> world.Position:
+    """The single link point: an explicit entrance marker, else exactly
+    one door (interior doors are free when the marker exists)."""
+    _entrances = _cells_of_kind(landmark, {"landmark_entrance"})
+    if len(_entrances) > 1:
+        raise ValueError("Landmark must contain at most one entrance marker")
+    if _entrances:
+        return _entrances[0]
+    _doors = _cells_of_kind(landmark, {"dungeon_door"})
+    if len(_doors) != 1:
+        raise ValueError(
+            "Landmark needs an entrance marker or exactly one door"
+        )
+    return _doors[0]
+
+
 def _landmark_markers(
     landmark: world.GameMap,
 ) -> tuple[
@@ -90,8 +106,7 @@ def _landmark_markers(
     a landmark without the marker keeps the old rule — exactly one door
     serves as the entrance.
     """
-    _entrances = _cells_of_kind(landmark, {"landmark_entrance"})
-    _doors = _cells_of_kind(landmark, {"dungeon_door"})
+    _entrance = _resolve_entrance_cell(landmark)
     _consoles = [
         entity.pos
         for entity in landmark.entities
@@ -99,16 +114,6 @@ def _landmark_markers(
     ]
     _stairs = _cells_of_kind(landmark, {"stairs_down"})
     _arrivals = _cells_of_kind(landmark, {"stairs_up"})
-    if len(_entrances) > 1:
-        raise ValueError("Landmark must contain at most one entrance marker")
-    if _entrances:
-        _entrance = _entrances[0]
-    elif len(_doors) != 1:
-        raise ValueError(
-            "Landmark needs an entrance marker or exactly one door"
-        )
-    else:
-        _entrance = _doors[0]
     if (
         len(_consoles) > 1
         or len(_stairs) > 1

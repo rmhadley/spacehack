@@ -10,6 +10,23 @@ from .. import pygame_ui
 from .. import world
 from .. import ship as ship_module
 
+def _ship_buy_body(ctx, ship, effective_price, price):
+    """Description plus trade-in and shortfall lines per the shared policy."""
+    body = (ship.description,)
+    if effective_price is not None and effective_price < ship.price:
+        _trade_in_save = ship.price - effective_price
+        body += (
+            f"Trade-in value: {pygame_ui.price_cell(_trade_in_save)}  -  "
+            f"{pygame_ui.credits_label(ctx.stats.credits)}",
+        )
+    if ctx.stats.credits < price:
+        body += (
+            f"You are {pygame_ui.shortfall_label(price - ctx.stats.credits)}"
+            " of the asking price.",
+        )
+    return body
+
+
 def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, selected: int):
     """Build a modern framed snapshot of the ship-buy modal.
 
@@ -22,15 +39,7 @@ def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, se
     _price = effective_price if effective_price is not None else ship.price
     _afford = ctx.stats.credits >= _price
     _short = max(0, _price - ctx.stats.credits)
-    body = (ship.description,)
-    if effective_price is not None and effective_price < ship.price:
-        _trade_in_save = ship.price - effective_price
-        body += (
-            f"Trade-in value: {pygame_ui.price_cell(_trade_in_save)}  -  "
-            f"{pygame_ui.credits_label(ctx.stats.credits)}",
-        )
-    if not _afford:
-        body += (f"You are {pygame_ui.shortfall_label(_short)} of the asking price.",)
+    body = _ship_buy_body(ctx, ship, effective_price, _price)
     detail = (
         f"Price {pygame_ui.price_cell(_price)}  "
         f"{pygame_ui.credits_label(ctx.stats.credits)}"
