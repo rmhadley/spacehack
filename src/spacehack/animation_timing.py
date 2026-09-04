@@ -26,6 +26,9 @@ AUTO_NAV: float = 0.02
 AUTO_EXPLORE: float = 0.02
 JUMP: float = 0.035
 CITY_TRANSITION: float = 0.045
+# Transit arrival pulse frames (the stop's glow finds the player in a
+# busy city; see city_transit.animate_transit_arrival).
+TRANSIT_ARRIVAL: float = 0.05
 DUNGEON_BREACH: float = 0.045
 SIGNAL_WAVE: float = 0.055
 SIGNAL_SETTLE: float = 0.10

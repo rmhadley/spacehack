@@ -154,7 +154,91 @@ def resolve_transit_station(state, blocker) -> str | None:
     state.log.add(
         f"You ride the transit to the {dest['name']} ({dest['district'].title()} district).",
     )
+    animate_transit_arrival(
+        state, dest["name"],
+        colour=_station_colour(state.game_map, destination_id),
+    )
     return None
+
+
+def _station_colour(game_map, station_id):
+    """The station's own entity colour (the gold transit default if absent)."""
+    _entity = next(
+        (
+            e for e in game_map.entities
+            if getattr(e, "transit_station_id", "") == station_id
+        ),
+        None,
+    )
+    return getattr(_entity, "fg", (255, 215, 100))
+
+
+def _arrival_pulse_sources(base, pos, colour, intensity) -> list:
+    """Base map sources plus one decaying pulse at the arrival cell."""
+    from .lighting import LightSource
+
+    return list(base) + [LightSource(
+        x=pos.x, y=pos.y, colour=tuple(colour),
+        radius=3, intensity=intensity,
+    )]
+
+
+def _present_light_frame(state, game_map, sources, clock, location) -> None:
+    """Assign a propagated light grid and present one city frame."""
+    from .city_render import present_city_transition_frame
+    from .lighting import propagate_light
+
+    def _occludes(x: int, y: int) -> bool:
+        return not game_map.tiles[y][x].walkable
+
+    game_map.light_grid = propagate_light(
+        game_map.width, game_map.height, sources,
+        t=clock, occluder=_occludes,
+    )
+    present_city_transition_frame(
+        state.ctx, state.console, game_map, state.player, location,
+    )
+
+
+def animate_transit_arrival(
+    state, location: str, colour=(255, 215, 100),
+) -> None:
+    """Bloom the arrival stop's glow around the player, then settle.
+
+    A busy city can hide where transit dropped you (playtest v15); a
+    pulse of the stop's own colour at the player's cell eases out over
+    ~0.6s while the city renders normally around it. The steady light
+    grid is snapshotted and restored exactly, so flickering cities
+    resume bit-identical. No-op on maps without a light grid.
+
+    Frames go through the pure ``propagate_light`` (not
+    ``recompute_light_grid``) because the cached recompute skips
+    all-steady sources — and a decaying pulse is steady by profile.
+    """
+    from . import animation_timing
+    from .navigation_travel import _responsive_sleep
+
+    game_map = state.game_map
+    if getattr(game_map, "light_grid", None) is None:
+        return
+    pos = state.player.pos
+    base = list(getattr(game_map, "light_sources", None) or [])
+    snapshot = [row[:] for row in game_map.light_grid]
+    clock = getattr(getattr(state.ctx, "context", None), "frame_clock", 0)
+
+    frames = 12
+    for i in range(frames):
+        _present_light_frame(
+            state, game_map,
+            _arrival_pulse_sources(base, pos, colour, (1.0 - i / frames) ** 1.6),
+            clock, location,
+        )
+        _responsive_sleep(animation_timing.TRANSIT_ARRIVAL)
+    game_map.light_grid = snapshot
+    from .city_render import present_city_transition_frame
+    present_city_transition_frame(
+        state.ctx, state.console, game_map, state.player, location,
+    )
 
 
 __all__ = ["place_transit_stations", "resolve_transit_station"]

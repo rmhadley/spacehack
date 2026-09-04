@@ -64,6 +64,9 @@ def test_transit_travel_moves_player_to_chosen_destination(monkeypatch):
         "_run_transit_menu",
         lambda _ctx, _station, _dests: "militia",
     )
+    monkeypatch.setattr(
+        city_transit, "animate_transit_arrival", lambda *_a, **_k: None,
+    )
 
     result = city_transit.resolve_transit_station(state, port)
 
@@ -193,3 +196,88 @@ def test_transit_menu_dispatch_returns_destination(monkeypatch):
     chosen = city_transit._run_transit_menu(ctx, "Spaceport", destinations)
 
     assert chosen == "bar"
+
+
+def test_transit_arrival_pulses_then_restores_the_light_grid(monkeypatch):
+    """The arrival bloom presents decaying frames and hands back the
+    steady grid bit-identical (playtest v15: busy cities hid the
+    arrival point)."""
+    from src.spacehack import city_render
+    from src.spacehack.framebuffer import FrameBuffer
+
+    game_map = load_planet("earth")
+    assert game_map.light_grid is not None
+    before = [row[:] for row in game_map.light_grid]
+    grids_at_present = []
+    monkeypatch.setattr(
+        city_render, "present_city_transition_frame",
+        lambda *_a, _map=game_map, _grids=grids_at_present, **_k: _grids.append(
+            [row[:] for row in _map.light_grid]
+        ),
+    )
+    from src.spacehack import navigation_travel
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", lambda _s: None)
+
+    dest = game_map.city_transit["militia"]["pos"]
+    state = SimpleNamespace(
+        game_map=game_map,
+        player=world.Entity("@", (255, 255, 255), world.Position(*dest)),
+        ctx=SimpleNamespace(context=None),
+        console=FrameBuffer(80, 45),
+    )
+
+    city_transit.animate_transit_arrival(state, "Militia Center")
+
+    # 12 pulse frames + one clean settle frame.
+    assert len(grids_at_present) == 13
+    assert grids_at_present[0] != before, "the pulse must be visible"
+    assert grids_at_present[-1] == before, "the settle frame is the steady grid"
+    assert game_map.light_grid == before, "the steady grid is restored exactly"
+
+
+def test_transit_arrival_is_a_noop_without_a_light_grid(monkeypatch):
+    from src.spacehack import city_render
+
+    game_map = load_planet("earth")
+    game_map.light_grid = None
+    presented = []
+    monkeypatch.setattr(
+        city_render, "present_city_transition_frame",
+        lambda *_a, **_k: presented.append(1),
+    )
+    state = SimpleNamespace(
+        game_map=game_map,
+        player=world.Entity("@", (255, 255, 255), world.Position(30, 29)),
+        ctx=SimpleNamespace(context=None),
+        console=None,
+    )
+
+    city_transit.animate_transit_arrival(state, "Hub")
+
+    assert presented == []
+
+
+def test_transit_travel_plays_the_arrival_pulse(monkeypatch):
+    game_map = load_planet("earth")
+    port = next(
+        e for e in _station_entities(game_map) if e.transit_station_id == "port"
+    )
+    state = SimpleNamespace(
+        game_map=game_map,
+        player=world.Entity("@", (255, 255, 255), world.Position(30, 29)),
+        ctx=SimpleNamespace(context=None),
+        console=None,
+    )
+    state.log = SimpleNamespace(add=lambda text: None)
+    monkeypatch.setattr(
+        city_transit, "_run_transit_menu", lambda _ctx, _s, _d: "militia",
+    )
+    pulses = []
+    monkeypatch.setattr(
+        city_transit, "animate_transit_arrival",
+        lambda _state, location, colour=(0, 0, 0): pulses.append(location),
+    )
+
+    city_transit.resolve_transit_station(state, port)
+
+    assert pulses == ["Militia Center"]
