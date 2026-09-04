@@ -15,6 +15,63 @@ from . import NpcCharSpec
 
 NPC_CHARS: tuple[NpcCharSpec, ...] = (
     NpcCharSpec(
+        # The merchants chain's antagonist: the consortium's claims
+        # enforcement crews (ground side of the heat system's squads).
+        id="consortium_enforcer",
+        name="Consortium Enforcer",
+        char="c",
+        fg=(120, 160, 220),      # corporate blue — claims division
+        faction="pirate",        # hostile to the player, pirate-side AI
+        hp=22,
+        weapon_pick=("combat_knife", "kinetic_pistol"),
+        reflexes=12,
+        strength=16,
+        stamina=14,
+        detect_radius=5,
+        behavior="hunter",
+        tier=1,
+        loot_pool=("electronics", "machine_parts", "scrap_metal"),
+        equipment_loot_pool=(
+            ("armor", "light_helmet"),
+        ),
+        field_item_loot_pool=(
+            ("ammo", "pistol_rounds"),
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(1, 2),
+        xp_reward=22,
+    ),
+    NpcCharSpec(
+        # Ranged guard: HOLDS the room it spawns in and fires at range
+        # — the artillery cell of the behavior matrix (doc 34), arrived
+        # via content. Counter-play: break LOS or fight inside its blind
+        # arc; it will not chase.
+        id="consortium_gunner",
+        name="Consortium Gunner",
+        char="g",
+        fg=(150, 190, 255),      # pale corporate — heavy weapons
+        faction="pirate",
+        hp=28,
+        weapons=("kinetic_pistol",),
+        reflexes=14,
+        strength=12,
+        stamina=16,
+        detect_radius=6,
+        behavior="guard",
+        tier=2,
+        loot_pool=("electronics", "machine_parts", "fuel_cells"),
+        equipment_loot_pool=(
+            ("weapon", "kinetic_rifle"),
+            ("armor", "reinforced_gauntlets"),
+        ),
+        field_item_loot_pool=(
+            ("ammo", "rifle_rounds"),
+            ("consumable", "stim"),
+        ),
+        loot_count=(1, 2),
+        xp_reward=38,
+    ),
+    NpcCharSpec(
         id="pirate_raider",
         name="Pirate Raider",
         char="r",
