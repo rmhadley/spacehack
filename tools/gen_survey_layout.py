@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Generate survey_a.layout from a script-drawn ship silhouette.
+"""Generate a survey-ship layout from a script-drawn silhouette.
+
+STATUS: survey_a.layout is now HAND-TUNED (playtest iteration,
+2026-09-04): threshold doors instead of mid-hall doors, rooms opened
+to hull/void adjacency, enclosed breach/airlock entry, no dead mass.
+Regenerating would CLOBBER the hand edits. The generator remains the
+scaffolding reference for the next generated hull; port these lessons
+into it before reuse: (1) doors belong at room thresholds, (2) every
+room needs hull touching void so the ship reads, (3) entry stubs must
+be enclosed, not floating in void, (4) carve until no unused mass.
+Original docstring follows.
 
 Silhouette-first (the profile IS the design): boundary curves define the
 hull, anatomical blocks add nacelles/mast/bridge/pod, then the interior
