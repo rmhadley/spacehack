@@ -73,16 +73,8 @@ def _schedule_next_step(
     return True
 
 
-def complete_step(ctx, step_id: str) -> bool:
-    """Complete a step: apply rewards, then schedule its next step."""
-    _status = step_status(ctx, step_id)
-    if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
-        return False
-    _step = find_main_quest_step(step_id)
-    ctx.main_quest_progress[step_id] = STATUS_COMPLETED
-    ctx.log.add(
-        t_get("runtime.quest_complete_log").format(title=_step.title),
-    )
+def _apply_completion_rewards(ctx, _step) -> None:
+    """Pay out a completed step's reward block (credits/xp/rep/item/goods)."""
     if _step.rewards_credits:
         ctx.stats.credits += _step.rewards_credits
         ctx.log.add(
@@ -99,6 +91,30 @@ def complete_step(ctx, step_id: str) -> bool:
             _modify_rep(ctx, _fac, _delta)
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
+    if _step.rewards_goods:
+        _owned = ctx.player_owned_ship
+        if _owned is not None:
+            from ..data.trade_goods import display_name as _good_name
+            for _gid, _qty in _step.rewards_goods:
+                _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
+                ctx.log.add(
+                    t_get("runtime.quest_goods_log").format(
+                        good=_good_name(_gid), qty=_qty,
+                    )
+                )
+
+
+def complete_step(ctx, step_id: str) -> bool:
+    """Complete a step: apply rewards, then schedule its next step."""
+    _status = step_status(ctx, step_id)
+    if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
+        return False
+    _step = find_main_quest_step(step_id)
+    ctx.main_quest_progress[step_id] = STATUS_COMPLETED
+    ctx.log.add(
+        t_get("runtime.quest_complete_log").format(title=_step.title),
+    )
+    _apply_completion_rewards(ctx, _step)
     if _step.completion_flavor:
         ctx.log.add(_step.completion_flavor)
     if _step.auto_advance:

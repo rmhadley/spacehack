@@ -92,6 +92,7 @@
   "runtime.quest_gated_title": "Awaiting word from the {faction}...",
   "runtime.quest_prison_start_log": "[MAIN QUEST] Act 1: The Prison Below - descend the facility.",
   "runtime.quest_reward_log": "+{credits}$ reward.",
+  "runtime.quest_goods_log": "{good} x{qty} loaded into your cargo hold.",
   "runtime.quest_sealed_archive_body": "Take the intact recovered archive to the Research Officer at Alpha Centauri's Science Port for its first independent reading.",
   "runtime.quest_sealed_archive_title": "Deliver the sealed archive",
   "runtime.readout_wait_hint": "The {faction} will contact you when they're ready for the next step. Check your quest log (Q) for updates.",

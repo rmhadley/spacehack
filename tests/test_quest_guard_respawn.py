@@ -25,9 +25,9 @@ from src.spacehack.navigation_spawns import _add_bounty_spawns_to_map
 _LEADER_ID = "mer_consortium_leader"
 
 
-def _ctx():
+def _ctx(progress=None):
     return SimpleNamespace(
-        main_quest_progress={"mer_q5_calibration": "active"},
+        main_quest_progress=progress or {"mer_q6_survey": "active"},
         main_quest_chain="merchants",
         bounty_spawns={},
         log=message_log.MessageLog(capacity=6),
@@ -60,7 +60,7 @@ def _wreck(game_map):
 def test_killing_the_patrol_leader_destroys_the_whole_patrol():
     ctx = _ctx()
     game_map = _enter_system(ctx)
-    step = find_main_quest_step("mer_q5_calibration")
+    step = find_main_quest_step("mer_q6_survey")
     guards = _guards(game_map)
     assert len(guards) == 1 + len(step.bounty_escort_ids)
     assert len(_wreck(game_map)) == 1
@@ -124,3 +124,17 @@ def test_defeated_tombstone_survives_save_round_trip():
         {"bounty_spawns": _d({"vega": [tombstone]})}
     )["vega"][0]
     assert parsed.defeated is True
+
+def test_survey_spawns_wait_for_the_alloy_step():
+    """The Vega patrol + wreck cannot exist before the alloy is collected
+    (playtest v14: the recorder could be secured with no alloy in the
+    hold, permanently skipping the specialist's handover)."""
+    ctx = _ctx({"mer_q5_alloy": "available"})
+    game_map = _enter_system(ctx)
+    assert not _guards(game_map) and not _wreck(game_map)
+    assert not ctx.bounty_spawns.get("vega")
+
+    ready = _ctx({"mer_q5_alloy": "completed", "mer_q6_survey": "available"})
+    game_map = _enter_system(ready)
+    assert len(_guards(game_map)) == 3
+    assert len(_wreck(game_map)) == 1

@@ -786,5 +786,5 @@ def test_survey_a_layout_contract():
 def test_mer_q5_uses_the_survey_ship():
     from src.spacehack.data.main_quest import find_main_quest_step
 
-    step = find_main_quest_step("mer_q5_calibration")
+    step = find_main_quest_step("mer_q6_survey")
     assert step.salvage_layout_id == "survey_a"

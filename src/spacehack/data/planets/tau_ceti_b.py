@@ -130,8 +130,9 @@ SPEC = PlanetSpec(
         ),
     ),
     # The Act 0 salvage_specialist stands here (additively) only while
-    # mer_q3_transport / mer_q5_calibration are live -- quest NPCs are
-    # seated inside the merchants interior on entry (seat_quest_npcs_in_interior).
+    # mer_q3_transport / mer_q5_alloy / mer_q6_survey are live -- quest
+    # NPCs are seated inside the merchants interior on entry
+    # (seat_quest_npcs_in_interior).
     quest_npc_spots=(
         ("salvage_specialist", "merchants"),
     ),

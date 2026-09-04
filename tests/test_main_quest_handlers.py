@@ -167,17 +167,17 @@ def test_payment_trigger_consumes_and_completes():
     assert trigger_dialogue(ctx, "depot_attendant", "mer_q4_bribe") is True
     assert ctx.stats.credits == 1_500  # consumed exactly 8,000
     assert step_status(ctx, "mer_q4_bribe") == "completed"
-    assert "mer_q5_calibration" in ctx.main_quest_gate, "refit wait registered"
+    assert "mer_q5_alloy" in ctx.main_quest_gate, "refit wait registered"
 
 
 def test_merchants_chain_linkage_and_cadence():
-    """Six steps in strict order, Lab-cadence waits (45/60/45/70),
+    """Seven steps in strict order, Lab-cadence waits (45/60/45/70),
     payment only on the bribe, cutter unlocks the prologue."""
     from src.spacehack.data.main_quest import find_main_quest_step
 
     order = [
         "mer_q1_contract", "mer_q2_strike", "mer_q3_transport",
-        "mer_q4_bribe", "mer_q5_calibration", "mer_q6_cutter",
+        "mer_q4_bribe", "mer_q5_alloy", "mer_q6_survey", "mer_q7_cutter",
     ]
     waits = []
     for i, sid in enumerate(order):
@@ -187,13 +187,14 @@ def test_merchants_chain_linkage_and_cadence():
         waits.append(step.wait_days)
         if sid != "mer_q4_bribe":
             assert step.payment_credits == 0, sid
-    assert waits == [45, 0, 60, 45, 70, 0]  # q6 collects, no wait
+    assert waits == [45, 0, 60, 45, 0, 70, 0]  # cutter collects, no wait
     assert find_main_quest_step("mer_q4_bribe").payment_credits == 8000
-    assert find_main_quest_step("mer_q6_cutter").unlocks_step == "prologue_open"
+    assert find_main_quest_step("mer_q7_cutter").unlocks_step == "prologue_open"
 
 
 def test_merchants_renumber_migration():
-    """Old 5-step saves map onto the 6-step chain, status preserved."""
+    """Saves from older chain layouts map onto the 7-step chain, status
+    preserved; a pre-split completed survey back-fills the alloy step."""
     from src.spacehack.main_quest._gates import check_quest_gates
 
     ctx = _payment_ctx(0)
@@ -204,8 +205,19 @@ def test_merchants_renumber_migration():
     }
     check_quest_gates(ctx)
     assert "mer_q4_calibrate" not in ctx.main_quest_progress
-    assert ctx.main_quest_progress["mer_q5_calibration"] == "completed"
-    assert ctx.main_quest_progress["mer_q6_cutter"] == "available"
+    assert ctx.main_quest_progress["mer_q5_alloy"] == "completed"
+    assert ctx.main_quest_progress["mer_q6_survey"] == "completed"
+    assert ctx.main_quest_progress["mer_q7_cutter"] == "available"
+
+    # 6-step era: The Survey was one step (alloy + Vega run).
+    split = _payment_ctx(0)
+    split.main_quest_progress = {
+        "mer_q4_bribe": "completed",
+        "mer_q5_calibration": "available",
+    }
+    check_quest_gates(split)
+    assert split.main_quest_progress["mer_q5_alloy"] == "available"
+    assert "mer_q6_survey" not in split.main_quest_progress
 
 
 def test_quest_log_cost_line_renders_from_data():
@@ -227,34 +239,53 @@ def test_quest_log_cost_line_renders_from_data():
     ), "description must cite the exact data cost"
 
 
-def test_salvage_starter_option_hidden_once_started():
-    """The "Take the smelted alloy" row only appears while the salvage
-    step is un-started; mid-step re-talk shows the briefing, not a dead
-    option (playtest v13: the option could be taken forever)."""
+def test_alloy_row_one_shot_and_survey_has_no_starter_row():
+    """The alloy handover is a one-shot talk row, and the survey step is
+    portrait-only — nothing at Tau Ceti b starts the Vega run, which only
+    exists once the alloy is collected (playtest v14: the recorder could
+    be secured with no alloy in the hold)."""
     from src.spacehack.main_quest._dialogue import quest_option_for
 
     ctx = _payment_ctx(0)
-    ctx.main_quest_progress = {"mer_q5_calibration": "active"}
-    assert quest_option_for(ctx, "salvage_specialist") is None
+    ctx.main_quest_progress = {"mer_q5_alloy": "available"}
+    row = quest_option_for(ctx, "salvage_specialist")
+    assert row is not None and row[1] == "mer_q5_alloy"
+    assert row[0] == "Take the smelted alloy"
 
-    fresh = _payment_ctx(0)
-    fresh.main_quest_progress = {"mer_q5_calibration": "available"}
-    row = quest_option_for(fresh, "salvage_specialist")
-    assert row is not None and row[1] == "mer_q5_calibration"
+    done = _payment_ctx(0)
+    done.main_quest_progress = {
+        "mer_q5_alloy": "completed", "mer_q6_survey": "available",
+    }
+    assert quest_option_for(done, "salvage_specialist") is None
+
+
+def test_mer_q5_alloy_completion_loads_the_alloy():
+    """Taking the alloy completes the step, lashes the goods into the
+    hold, and schedules the survey run immediately (auto-advance, no
+    wait — the specialist already briefed the run)."""
+    from src.spacehack.main_quest._core import complete_step, step_status
+
+    ctx = _payment_ctx(0)
+    ctx.player_owned_ship = SimpleNamespace(inventory={})
+    ctx.main_quest_progress["mer_q5_alloy"] = "available"
+    assert complete_step(ctx, "mer_q5_alloy") is True
+    assert ctx.player_owned_ship.inventory["rare_earth_metals"] == 3
+    assert step_status(ctx, "mer_q6_survey") == "available"
 
 
 def test_active_step_breadcrumb_points_at_remaining_route():
-    """A STARTED step's Q text prefers its active_description — the
-    tau-b collection leg drops away and Q names the live objective."""
+    """Each step's Q text names exactly its own leg — the alloy step says
+    Tau Ceti b and not Vega; the survey step says Vega and not collection."""
     from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
 
     ctx = _payment_ctx(0)
-    ctx.main_quest_progress = {"mer_q5_calibration": "active"}
+    ctx.main_quest_progress = {"mer_q5_alloy": "available"}
     title, desc = current_main_quest_objective(ctx)
-    assert title == "The Survey"
-    assert "Vega" in desc and "Collect the smelted alloy" not in desc
+    assert title == "The Alloy"
+    assert "Tau Ceti" in desc and "Vega" not in desc
 
-    fresh = _payment_ctx(0)
-    fresh.main_quest_progress = {"mer_q5_calibration": "available"}
-    _, available_desc = current_main_quest_objective(fresh)
-    assert "Tau Ceti" in available_desc
+    survey = _payment_ctx(0)
+    survey.main_quest_progress = {"mer_q6_survey": "active"}
+    title2, desc2 = current_main_quest_objective(survey)
+    assert title2 == "The Survey"
+    assert "Vega" in desc2 and "Collect the smelted alloy" not in desc2

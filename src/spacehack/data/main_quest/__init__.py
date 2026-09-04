@@ -130,6 +130,9 @@ class MainQuestStep:
     rewards_xp: int = 0
     rewards_rep: dict[str, int] | None = None
     rewards_item: str | None = None
+    # Cargo loaded into the ship's hold on completion (e.g. the finished
+    # alloy picked up from the salvage specialist).
+    rewards_goods: tuple[tuple[str, int], ...] = ()
     unlocks_step: str | None = None
     # False for narrative checkpoints whose next branch is chosen by a
     # separate scene rather than auto-advanced on completion.

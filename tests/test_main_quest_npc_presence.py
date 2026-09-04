@@ -42,8 +42,9 @@ def test_npc_presence_tags_are_declared_on_the_expected_steps():
     assert find_main_quest_step("bar_q6_rig").npc_presence == ()
     # Merchant chain: the salvage specialist handles the ore + the alloy.
     assert find_main_quest_step("mer_q3_transport").npc_presence == ("salvage_specialist",)
-    assert find_main_quest_step("mer_q5_calibration").npc_presence == ("salvage_specialist",)
-    assert find_main_quest_step("mer_q6_cutter").npc_presence == ()
+    assert find_main_quest_step("mer_q5_alloy").npc_presence == ("salvage_specialist",)
+    assert find_main_quest_step("mer_q6_survey").npc_presence == ("salvage_specialist",)
+    assert find_main_quest_step("mer_q7_cutter").npc_presence == ()
     # Militia + lab chains: the recruit / dataset receiver.
     assert find_main_quest_step("mil_q4_demolitions").npc_presence == ("demolitions_expert",)
     assert find_main_quest_step("lab_q4_xenolinguist").npc_presence == ("xenolinguist",)
@@ -130,13 +131,17 @@ def test_salvage_specialist_present_for_ore_and_alloy():
         _ctx("merchants", {"mer_q3_transport": "active"}), "tc_b",
     ) == ("salvage_specialist",)
     assert _act0._quest_npcs_for_planet(
-        _ctx("merchants", {"mer_q5_calibration": "available"}), "tc_b",
+        _ctx("merchants", {"mer_q5_alloy": "available"}), "tc_b",
+    ) == ("salvage_specialist",)
+    assert _act0._quest_npcs_for_planet(
+        _ctx("merchants", {"mer_q6_survey": "active"}), "tc_b",
     ) == ("salvage_specialist",)
     assert _act0._quest_npcs_for_planet(
         _ctx("merchants", {
             "mer_q3_transport": "completed",
-            "mer_q5_calibration": "completed",
-            "mer_q6_cutter": "available",
+            "mer_q5_alloy": "completed",
+            "mer_q6_survey": "completed",
+            "mer_q7_cutter": "available",
         }),
         "tc_b",
     ) == ()

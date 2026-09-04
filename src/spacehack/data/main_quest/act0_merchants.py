@@ -98,9 +98,26 @@ STEPS: tuple[MainQuestStep, ...] = (
         rewards_xp=90,
     ),
     MainQuestStep(
-        id="mer_q5_calibration",
-        trigger_system_id="vega",
+        id="mer_q5_alloy",
+        trigger_system_id="tau_ceti",
         requires_step="mer_q4_bribe",
+        chain="merchants",
+        objective_type="talk",
+        rewards_goods=(("rare_earth_metals", 3),),  # the finished alloy, lashed in the hold
+        npc_presence=("salvage_specialist",),  # hands over the smelted alloy
+        dialogues={
+            "salvage_specialist": QuestDialogue(
+                npc_id="salvage_specialist",
+                trigger_on_talk=True,
+                backing_faction="merchants",
+            ),
+        },
+        rewards_xp=30,
+    ),
+    MainQuestStep(
+        id="mer_q6_survey",
+        trigger_system_id="vega",
+        requires_step="mer_q5_alloy",
         chain="merchants",
         objective_type="salvage",
         requires_spawn_id="mer_consortium_leader",
@@ -109,26 +126,22 @@ STEPS: tuple[MainQuestStep, ...] = (
         salvage_wreck_enemy_id="derelict_scout",
         salvage_layout_id="survey_a",
         delve_good_ids=(("calibration_data", 1),),
-        smuggle_good_id="rare_earth_metals",
-        smuggle_cargo_size=3,
         heat=("consortium",),  # consortium blockade guards the wreck
-        npc_presence=("salvage_specialist",),  # hands over the smelted alloy
-        wait_days=70,
+        npc_presence=("salvage_specialist",),  # portrait for the survey readout
+        wait_days=70,  # smiths set the teeth to the survey's weak lines
+        # Portrait-only entry (see lab_q5_frequency): the alloy handover
+        # briefs the run, so there is no talk intro/starter row.
         dialogues={
-            "salvage_specialist": QuestDialogue(
-                npc_id="salvage_specialist",
-                trigger_on_talk=True,
-                backing_faction="merchants",
-            ),
+            "salvage_specialist": QuestDialogue(npc_id="salvage_specialist"),
         },
         rewards_credits=150,
         rewards_xp=120,
     ),
     MainQuestStep(
-        id="mer_q6_cutter",
+        id="mer_q7_cutter",
         trigger_planet_id="earth",
         trigger_system_id="sol",
-        requires_step="mer_q5_calibration",
+        requires_step="mer_q6_survey",
         chain="merchants",
         objective_type="talk",
         unlocks_step="prologue_open",

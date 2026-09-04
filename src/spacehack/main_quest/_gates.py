@@ -106,23 +106,38 @@ def _unlock_gated_step(ctx, next_id: str) -> None:
 
 
 _MERCHANTS_RENUMBER = {
-    # pre-bribe-step saves: calibrate/cutter were q4/q5
-    "mer_q4_calibrate": "mer_q5_calibration",
-    "mer_q5_cutter": "mer_q6_cutter",
+    # 5-step era: calibrate/cutter were q4/q5; the survey run lives on
+    # as mer_q6_survey, the cutter as mer_q7_cutter.
+    "mer_q4_calibrate": "mer_q6_survey",
+    "mer_q5_cutter": "mer_q7_cutter",
+    # 6-step era: The Survey split into alloy pickup + Vega run.
+    "mer_q5_calibration": "mer_q5_alloy",
+    "mer_q6_cutter": "mer_q7_cutter",
 }
 
 
 def _repair_merchants_renumber(ctx) -> None:
-    """Migrate saves from the 5-step merchants chain to the 6-step one.
+    """Migrate saves from older merchants-chain layouts onto the 7-step one.
 
     Status-preserving id rename in progress and gate maps; runs before
-    gate checks so old gates fire against the new ids.
+    gate checks so old gates fire against the new ids. A renamed save
+    whose survey step already started/completed never has the alloy
+    step scheduled (it completed in a prior layout), so reconcile the
+    missing link — the chain must not strand the player.
     """
     for _old, _new in _MERCHANTS_RENUMBER.items():
         if _old in ctx.main_quest_progress and _new not in ctx.main_quest_progress:
             ctx.main_quest_progress[_new] = ctx.main_quest_progress.pop(_old)
         if _old in ctx.main_quest_gate and _new not in ctx.main_quest_gate:
             ctx.main_quest_gate[_new] = ctx.main_quest_gate.pop(_old)
+    _alloy = ctx.main_quest_progress.get("mer_q5_alloy")
+    _survey = ctx.main_quest_progress.get("mer_q6_survey")
+    if _survey in ("active", "completed") and _alloy is None:
+        # The survey ran in a prior layout without the alloy step.
+        ctx.main_quest_progress["mer_q5_alloy"] = "completed"
+    elif _alloy == "completed" and _survey is None:
+        # 6-step era: alloy + survey were one step, so both are done.
+        ctx.main_quest_progress["mer_q6_survey"] = "completed"
 
 
 def check_quest_gates(ctx) -> bool:

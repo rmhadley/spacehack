@@ -38,8 +38,8 @@ def test_heat_tags_are_declared_on_the_expected_steps():
     )
     assert find_main_quest_step("bar_q6_rig").heat == ()  # final step: implicit expiry
     assert find_main_quest_step("mer_q3_transport").heat == ("consortium",)
-    assert find_main_quest_step("mer_q5_calibration").heat == ("consortium",)
-    assert find_main_quest_step("mer_q6_cutter").heat == ()  # final step: implicit expiry
+    assert find_main_quest_step("mer_q6_survey").heat == ("consortium",)
+    assert find_main_quest_step("mer_q7_cutter").heat == ()  # final step: implicit expiry
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ def test_consortium_heat_live_while_merchant_steps_are_live():
         _ctx("merchants", {"mer_q3_transport": "available"})
     )
     assert _heat.consortium_heat_active(
-        _ctx("merchants", {"mer_q5_calibration": "active"})
+        _ctx("merchants", {"mer_q6_survey": "active"})
     )
 
 
@@ -126,6 +126,7 @@ def test_consortium_heat_off_for_other_chains():
 def test_consortium_heat_expires_once_the_final_step_completes():
     assert not _heat.consortium_heat_active(_ctx("merchants", {
         "mer_q3_transport": "completed",
-        "mer_q5_calibration": "completed",
-        "mer_q6_cutter": "completed",
+        "mer_q5_alloy": "completed",
+        "mer_q6_survey": "completed",
+        "mer_q7_cutter": "completed",
     }))
