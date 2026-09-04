@@ -333,3 +333,39 @@ def test_active_step_breadcrumb_points_at_remaining_route():
     title2, desc2 = current_main_quest_objective(survey)
     assert title2 == "The Survey"
     assert "Vega" in desc2 and "Collect the smelted alloy" not in desc2
+
+def test_militia_breadcrumb_names_each_leg():
+    """Q names the live leg at every state of the militia arc - Earth
+    report, Luyten inspection, Cygni live-fire - and the gated state
+    shows the Militia wait, never a dead end (doc 35 Phase 3)."""
+    from types import SimpleNamespace
+    from src.spacehack import message_log
+    from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
+
+    def _mil(progress, gate=None):
+        return SimpleNamespace(
+            main_quest_progress=progress,
+            main_quest_chain="militia",
+            main_quest_gate=gate or {},
+            main_quest_disclosure="",
+            log=message_log.MessageLog(capacity=6),
+        )
+
+    title, desc = current_main_quest_objective(_mil({"mil_q1_report": "available"}))
+    assert title == "Report to the Captain" and "Earth" in desc
+
+    title, desc = current_main_quest_objective(_mil({
+        "mil_q2_cache": "completed", "mil_q3_inspection": "available",
+    }))
+    assert title == "The Inspection" and "Luyten" in desc
+
+    title, desc = current_main_quest_objective(_mil({"mil_q5_livefire": "active"}))
+    assert title == "Live-Fire Test" and "Cygni" in desc
+
+    gated = _mil(
+        {"mil_q2_cache": "completed"},
+        gate={"mil_q3_inspection": (99, 99, 9999)},
+    )
+    title, desc = current_main_quest_objective(gated)
+    assert title == "Awaiting word from the Militia..."
+    assert "blockade inspector" in desc, "the gate shows the flavor beat"

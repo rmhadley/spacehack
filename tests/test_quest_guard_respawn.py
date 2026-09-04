@@ -25,26 +25,26 @@ from src.spacehack.navigation_spawns import _add_bounty_spawns_to_map
 _LEADER_ID = "mer_consortium_leader"
 
 
-def _ctx(progress=None):
+def _ctx(progress=None, *, chain="merchants"):
     return SimpleNamespace(
         main_quest_progress=progress or {"mer_q6_survey": "active"},
-        main_quest_chain="merchants",
+        main_quest_chain=chain,
         bounty_spawns={},
         log=message_log.MessageLog(capacity=6),
     )
 
 
-def _enter_system(ctx):
+def _enter_system(ctx, system_id="vega"):
     """Simulate a system entry: ensure runs, then records stamp entities."""
-    ensure_quest_spawns(ctx, "vega")
-    system = find_solar_system("vega")
+    ensure_quest_spawns(ctx, system_id)
+    system = find_solar_system(system_id)
     game_map = world.GameMap(
         width=system.width, height=system.height,
         tiles=[[world.DUNGEON_FLOOR] * system.width
                for _ in range(system.height)],
         entities=[],
     )
-    _add_bounty_spawns_to_map(ctx, game_map, "vega")
+    _add_bounty_spawns_to_map(ctx, game_map, system_id)
     return game_map
 
 
@@ -191,3 +191,29 @@ def test_loading_a_save_does_not_resurrect_tombstoned_guards():
         if getattr(e, "bounty_spawn_id", None) == _LEADER_ID
     )
     assert leader.bounty_squad_id == _LEADER_ID
+
+def test_militia_livefire_squad_tombstones_too():
+    """The generic guard tombstone covers the militia live-fire squad:
+    an escort killed in a disengaged fight stays dead, and the leader's
+    death takes the whole squad (no re-stamping at Cygni)."""
+    ctx = _ctx({"mil_q5_livefire": "active"}, chain="militia")
+    game_map = _enter_system(ctx, "cygni")
+    escorts = [
+        e for e in _guards(game_map)
+        if getattr(e, "bounty_spawn_id", None) is None
+    ]
+    assert len(escorts) == 4
+
+    mark_quest_guard_defeated(ctx, escorts[0])
+
+    game_map = _enter_system(ctx, "cygni")
+    assert len(_guards(game_map)) == 4, "leader + three escorts remain"
+
+    leader = next(
+        e for e in _guards(game_map)
+        if getattr(e, "bounty_spawn_id", None) == "mil_livefire_test"
+    )
+    mark_quest_guard_defeated(ctx, leader)
+
+    game_map = _enter_system(ctx, "cygni")
+    assert not _guards(game_map), "the destroyed squad stays destroyed"

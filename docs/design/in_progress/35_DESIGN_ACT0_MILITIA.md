@@ -112,11 +112,18 @@ resident, demolitions_expert seats via `npc_presence` (tested).
 
 ## Phased implementation
 
-### Phase 1 — audit (no code changes)
+### Phase 1 — audit — HEADLESS PASS DONE 2026-09-04 (user playtest pending)
+- [x] Headless verification: prototype mounts only for militia +
+      mil_q5 live + Cygni system, dismounts after combat
+      (`_encounter._mount_breach_charge`); q3 crate auto-loads when
+      the cache is secured (`_maybe_auto_trigger_next_smuggle` — the
+      captain's q3 dialogue is flavor-only by design, the officer is
+      the receiver row); Mercury cache guardian exists (1x
+      assault_drone — WATCH ITEM: that spec was the tier-3 spike we
+      pulled from wolf_b; judge in playtest)
 - [ ] Fresh playthrough with `SPACEHACK_SEED` pinned; log every
       dialogue beat, Q state at each step, gate durations, combat feel
       of the five-captain fight
-- [ ] Confirm/adjust the gap analysis above
 
 ### Phase 2 — structure
 - [x] Waits rebalanced to 60/0/40/70/50 (no id changes — no migration)
@@ -124,17 +131,42 @@ resident, demolitions_expert seats via `npc_presence` (tested).
       q2 cache pickup and the q3 crate; merchants converted the same
       way (`escrow_ore`, `smelted_alloy`)
 - [x] Live-fire squad + prototype weapon confirmed intentional (ruling)
-- [ ] Regression tests: mil escorts tombstone (mirroring
+- [x] Regression tests: mil escorts tombstone (mirroring
       test_quest_guard_respawn's mer case)
 
-### Phase 3 — dialogue + questlog polish
-- [ ] Rewrite the flagged prose lines to the standard
-- [ ] Q sweep across every state of the arc (active / gated / final)
+### Phase 3 — dialogue + questlog polish — LANDED 2026-09-04
+- [x] Flagged prose rewritten: q1 flavor's "for a very long time"
+      trailing mysticism → "since the Incident"; q4 flavor's muddled
+      "target that can survive the first failure" → "a target nobody
+      will miss"; q4 intro's "structures that resist ordinary physics"
+      → "I cut open things that were built to stay shut - vaults,
+      hulls, reactor shielding"; q5 description drops the
+      "wiser than leaving it sealed" drama beat; q5 intro's
+      "do not mistake a successful detonation for a successful
+      containment plan" → "Fire it at the captains, record what it
+      does to their hulls, and come back."; q6 intro drops the broken
+      "That is the order. The door is not." zinger. KEPT: "the charge
+      couples to the alien material" (real blasting vocabulary, the
+      assay precedent) and all off-the-books deadpan.
+- [x] Q sweep: test_militia_breadcrumb_names_each_leg pins Earth /
+      Luyten / Cygni legs + the gated "Awaiting word from the
+      Militia…" state carrying q2's flavor
 
 ### Phase 4 — closeout
-- [ ] Fresh full run to the Mars door
-- [ ] Corpus audit + `make check`
+- [ ] Fresh full run to the Mars door (user playtest)
+- [x] Corpus audit + `make check` (audit_story_text green, only the
+      pre-existing mer_q4 option_label removable note)
 - [ ] Ask user: move doc to complete?
+
+## READY FOR PLAYTEST (2026-09-04)
+
+What landed: 220-day cadence, sealed-requisition mission cargo, prose
+pass, tombstone + breadcrumb tests. What the playtest should judge:
+the five-captain fight WITH the mounted prototype (ruling: it is the
+fun fight — verify the mount log line fires at Cygni and dismounts
+after), the Mercury cache guardian (assault_drone tier check), each
+wait's fiction earning its days (60/40/70/50), Q at every state, and
+whether the off-the-books voice holds up over a full arc.
 
 ## Acceptance criteria
 
