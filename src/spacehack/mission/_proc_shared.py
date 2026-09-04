@@ -136,3 +136,69 @@ def _dest_candidates_in_system(
         + _station_dest_candidates(_sys, origin_planet_id, hops, _seen)
     )
 
+
+def hop_candidates(
+    origin_planet_id: str,
+    tier: int,
+    *,
+    hop_ranges: dict,
+    default_range: tuple[int, int] = (1, 10),
+) -> list[tuple[str, int]] | None:
+    """(system_id, hops) candidates within the tier's hop range.
+
+    ``None`` = unknown origin planet. The origin system is excluded
+    (system-level work always means leaving home).
+    """
+    from ..data.solar_systems import reachable_system_ids
+    p2s = _planet_to_system()
+    origin_system_id = p2s.get(origin_planet_id)
+    if origin_system_id is None:
+        return None
+    reachable = reachable_system_ids(origin_system_id, max_hops=10)
+    min_hops, max_hops = hop_ranges.get(tier, default_range)
+    return [
+        (sid, hops) for sid, hops in reachable.items()
+        if min_hops <= hops <= max_hops and sid != origin_system_id
+    ]
+
+
+def planet_destinations(
+    origin_planet_id: str,
+    tier: int,
+    *,
+    hop_ranges: dict,
+    default_range: tuple[int, int] = (0, 10),
+) -> list[tuple[str, str, int]] | None:
+    """(planet_id, system_id, hops) candidates for delivery-style work.
+
+    ``None`` = unknown origin. Same-system candidates are included
+    when the tier's range reaches hop 0 (order preserved: origin
+    system first, then reachable systems — callers rng.choice over
+    the list, so order is behavior).
+    """
+    p2s = _planet_to_system()
+    origin_system_id = p2s.get(origin_planet_id)
+    if origin_system_id is None:
+        return None
+    from ..data.solar_systems import reachable_system_ids
+    reachable = reachable_system_ids(origin_system_id, max_hops=10)
+    min_hops, max_hops = hop_ranges.get(tier, default_range)
+    out: list[tuple[str, str, int]] = []
+    if min_hops == 0:
+        out.extend(
+            _dest_candidates_in_system(origin_system_id, origin_planet_id, 0)
+        )
+    for sys_id, hops in reachable.items():
+        if min_hops <= hops <= max_hops:
+            out.extend(
+                _dest_candidates_in_system(sys_id, origin_planet_id, hops)
+            )
+    return out
+
+
+def display_name_of(lookup, key: str) -> str:
+    """A catalog display name with the raw key as fallback."""
+    try:
+        return lookup(key).name
+    except KeyError:
+        return key

@@ -6,9 +6,7 @@ from typing import Callable as _Callable
 
 from ..data.missions import MissionSpec
 from ._proc_shared import (
-    _dest_candidates_in_system,
     _planet_npc_ids,
-    _planet_to_system,
     _roll_tier,
 )
 
@@ -57,6 +55,53 @@ _SALVAGE_HOP_RANGES: dict[int, tuple[int, int]] = {
 }
 
 
+def _pick_system(origin_planet_id, tier, rng, hop_ranges):
+    """One (system_id, hops) target for bar work, or None."""
+    from ._proc_shared import hop_candidates
+    _candidates = hop_candidates(
+        origin_planet_id, tier, hop_ranges=hop_ranges,
+    )
+    if not _candidates:
+        return None
+    return rng.choice(_candidates)
+
+
+def _bar_spec(
+    gen_id, title, description, giver_npc_id, tier,
+    credits, xp, deadline, origin_planet_id, mission_type, **extra,
+):
+    return MissionSpec(
+        id=gen_id, title=title, description=description,
+        giver_npc_id=giver_npc_id, faction="bar",
+        mission_type=mission_type, tier=tier,
+        reward_credits=credits, reward_xp=xp,
+        deadline_days=deadline, early_bonus_pct=25,
+        origin_planet_id=origin_planet_id, **extra,
+    )
+
+
+def _ship_display_name(ship_id):
+    from ..data.npc_ships import find_npc_ship
+    from ._proc_shared import display_name_of
+    return display_name_of(find_npc_ship, ship_id)
+
+
+def _intercept_target(tier, rng):
+    """(enemy_id, heist_good, squad_size, wingmate_id) for a tier.
+
+    Escorts appear at T2+.
+    """
+    enemy_id = rng.choice(_MERCHANT_POOLS.get(tier, ["merchant_hauler"]))
+    heist_good = rng.choice(_HEIST_GOODS)
+    squad_size = 1
+    wingmate_id = None
+    if tier >= 2:
+        squad_size = rng.randint(1, min(tier, 3))
+        if squad_size > 1:
+            wingmate_id = "pirate_scout" if tier <= 3 else "pirate_raider"
+    return enemy_id, heist_good, squad_size, wingmate_id
+
+
 def _generate_bar_intercept(
     origin_planet_id: str,
     tier: int,
@@ -65,54 +110,21 @@ def _generate_bar_intercept(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural intercept (merchant hunting) bar mission."""
-    from ..data.solar_systems import reachable_system_ids
-
-    p2s = _planet_to_system()
-    origin_system_id = p2s.get(origin_planet_id)
-    if origin_system_id is None:
+    picked = _pick_system(origin_planet_id, tier, rng, _INTERCEPT_HOP_RANGES)
+    if picked is None:
         return None
+    target_system_id, hops = picked
 
-    reachable = reachable_system_ids(origin_system_id, max_hops=10)
-    min_hops, max_hops = _INTERCEPT_HOP_RANGES.get(tier, (1, 10))
+    enemy_id, heist_good, squad_size, wingmate_id = _intercept_target(tier, rng)
 
-    _candidates = [
-        (sid, h) for sid, h in reachable.items()
-        if min_hops <= h <= max_hops and sid != origin_system_id
-    ]
-    if not _candidates:
-        return None
-
-    target_system_id, hops = rng.choice(_candidates)
-
-    # Pick merchant ship + heist good.
-    _pool = _MERCHANT_POOLS.get(tier, ["merchant_hauler"])
-    enemy_id = rng.choice(_pool)
-    heist_good = rng.choice(_HEIST_GOODS)
-
-    # Squad: escorts at T2+.
-    squad_size = 1
-    wingmate_id = None
-    if tier >= 2:
-        squad_size = rng.randint(1, min(tier, 3))
-        if squad_size > 1:
-            wingmate_id = "pirate_scout" if tier <= 3 else "pirate_raider"
-
-    # Round-trip deadline (travel both ways).
+    # Round-trip deadline (travel both ways). Reward: a fight plus a
+    # cargo return carries ~1.5x the delivery band, a notch below T4
+    # named bounties at the top end.
     deadline = max(30, hops * 60 + rng.randint(10, 30))
-
-    # Reward: intercepts are round trips with a fight and a cargo
-    # return, so they carry a premium over one-way deliveries
-    # (~1.5x the old band). They still sit a notch below T4 named
-    # bounties at the top end.
     credits = tier * 300 + hops * 60
     xp = tier * 50 + hops * 10
 
-    try:
-        from ..data.npc_ships import find_npc_ship
-        enemy_name = find_npc_ship(enemy_id).name
-    except KeyError:
-        enemy_name = enemy_id
-
+    enemy_name = _ship_display_name(enemy_id)
     gen_id = f"proc_intercept_{origin_planet_id}_{target_system_id}_{counter}_{tier}"
     title = f"Intercept: {enemy_name}"
     _escort_note = f" ({squad_size - 1} escorts)" if squad_size > 1 else ""
@@ -120,26 +132,30 @@ def _generate_bar_intercept(
         f"Ambush a {enemy_name}{_escort_note} hauling {heist_good} "
         f"{hops} jump(s) away. Return the cargo to the bar."
     )
-
-    return MissionSpec(
-        id=gen_id,
-        title=title,
-        description=description,
-        giver_npc_id=giver_npc_id,
-        faction="bar",
-        mission_type="intercept",
-        tier=tier,
-        reward_credits=credits,
-        reward_xp=xp,
-        deadline_days=deadline,
-        early_bonus_pct=25,
-        target_enemy_id=enemy_id,
-        target_system_id=target_system_id,
+    return _bar_spec(
+        gen_id, title, description, giver_npc_id, tier,
+        credits, xp, deadline, origin_planet_id, "intercept",
+        target_enemy_id=enemy_id, target_system_id=target_system_id,
         bounty_target_squad_size=squad_size,
         bounty_wingmate_enemy_id=wingmate_id,
         heist_target_good_id=heist_good,
-        origin_planet_id=origin_planet_id,
     )
+
+
+def _smuggle_terms(tier, hops, rng):
+    """(cargo, credits, xp, deadline) for a smuggling run.
+
+    Same shape as a delivery but with scan/confiscation risk, so it
+    pays ~20-30% above deliveries plus a per-hop bonus; XP stays at
+    delivery parity — the premium is credits.
+    """
+    _cargo_ranges = {1: (5, 10), 2: (10, 20), 3: (20, 40), 4: (40, 60)}
+    cargo_lo, cargo_hi = _cargo_ranges.get(tier, (5, 10))
+    cargo = rng.randint(cargo_lo, cargo_hi)
+    credits = cargo * 6 * (tier + 1) + hops * 15
+    xp = cargo * 2 * tier + hops * 4
+    deadline = max(20, hops * 30 + rng.randint(10, 20))
+    return cargo, credits, xp, deadline
 
 
 def _generate_bar_smuggling(
@@ -150,82 +166,51 @@ def _generate_bar_smuggling(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural smuggling (contraband delivery) bar mission."""
-    from ..data.solar_systems import reachable_system_ids
-
-    p2s = _planet_to_system()
-    origin_system_id = p2s.get(origin_planet_id)
-    if origin_system_id is None:
-        return None
-
-    reachable = reachable_system_ids(origin_system_id, max_hops=10)
-    min_hops, max_hops = _SMUGGLE_HOP_RANGES.get(tier, (0, 10))
-
-    # Collect destination candidates (same pattern as delivery).
-    _dest_candidates: list[tuple[str, str, int]] = []
-    if min_hops == 0:
-        _dest_candidates.extend(
-            _dest_candidates_in_system(origin_system_id, origin_planet_id, 0),
-        )
-    for sys_id, hops in reachable.items():
-        if min_hops <= hops <= max_hops:
-            _dest_candidates.extend(
-                _dest_candidates_in_system(sys_id, origin_planet_id, hops),
-            )
-
+    from ._proc_shared import planet_destinations
+    _dest_candidates = planet_destinations(
+        origin_planet_id, tier, hop_ranges=_SMUGGLE_HOP_RANGES,
+    )
     if not _dest_candidates:
         return None
-
     dest_planet_id, _dest_sys_id, hops = rng.choice(_dest_candidates)
     npc_ids = _planet_npc_ids(dest_planet_id)
     target_npc_id = rng.choice(npc_ids) if npc_ids else None
 
-    # Cargo and rewards.
-    _cargo_ranges = {1: (5, 10), 2: (10, 20), 3: (20, 40), 4: (40, 60)}
-    cargo_lo, cargo_hi = _cargo_ranges.get(tier, (5, 10))
-    cargo = rng.randint(cargo_lo, cargo_hi)
-
-    # Reward: smuggling is the same shape as a delivery but carries
-    # scan/confiscation risk (or a smuggler-hold module tax), so it
-    # pays ~20-30% above deliveries at every tier plus a per-hop
-    # bonus. XP stays at delivery parity — the premium is credits.
-    credits = cargo * 6 * (tier + 1) + hops * 15
-    xp = cargo * 2 * tier + hops * 4
-    deadline = max(20, hops * 30 + rng.randint(10, 20))
+    cargo, credits, xp, deadline = _smuggle_terms(tier, hops, rng)
 
     smuggle_good = rng.choice(_HEIST_GOODS)
 
-    try:
-        from ..data.planets import find_planet_spec
-        dest_name = find_planet_spec(dest_planet_id).name
-    except KeyError:
-        dest_name = dest_planet_id
-
+    from ._proc_shared import display_name_of
+    from ..data.planets import find_planet_spec
+    dest_name = display_name_of(find_planet_spec, dest_planet_id)
     gen_id = f"proc_smuggle_{origin_planet_id}_{dest_planet_id}_{counter}_{tier}"
     title = f"Smuggle: {dest_name}"
     description = (
         f"Move {cargo} units of contraband to {dest_name} "
         f"({hops} jump(s)). Militia scans are a risk."
     )
-
-    return MissionSpec(
-        id=gen_id,
-        title=title,
-        description=description,
-        giver_npc_id=giver_npc_id,
-        faction="bar",
-        mission_type="smuggling",
-        tier=tier,
-        reward_credits=credits,
-        reward_xp=xp,
-        deadline_days=deadline,
-        early_bonus_pct=25,
+    return _bar_spec(
+        gen_id, title, description, giver_npc_id, tier,
+        credits, xp, deadline, origin_planet_id, "smuggling",
         required_cargo_size=cargo,
         delivery_target_npc_id=target_npc_id,
         delivery_target_planet_id=dest_planet_id,
-        origin_planet_id=origin_planet_id,
-        is_smuggle=True,
-        smuggle_good_id=smuggle_good,
+        is_smuggle=True, smuggle_good_id=smuggle_good,
     )
+
+
+def _salvage_site(tier, rng):
+    """The site rolls: patrol, squad, wingmate, wreck, layout, component."""
+    patrol_id = rng.choice(_PATROL_POOLS.get(tier, ["pirate_scout"]))
+    _sq_lo, _sq_hi = {1: (1, 1), 2: (1, 2), 3: (1, 2), 4: (2, 3)}.get(
+        tier, (1, 1),
+    )
+    squad_size = rng.randint(_sq_lo, _sq_hi)
+    wingmate_id = None
+    if squad_size > 1 and tier >= 3:
+        wingmate_id = "pirate_scout" if tier == 3 else "pirate_raider"
+    wreck_id, layout_id = _WRECK_LAYOUTS.get(tier, ("derelict_scout", "scout_a"))
+    return patrol_id, squad_size, wingmate_id, wreck_id, layout_id, rng.choice(_HEIST_GOODS)
 
 
 def _generate_bar_salvage(
@@ -236,42 +221,14 @@ def _generate_bar_salvage(
     giver_npc_id: str,
 ) -> MissionSpec | None:
     """Generate a procedural salvage (wreck boarding) bar mission."""
-    from ..data.solar_systems import reachable_system_ids
-
-    p2s = _planet_to_system()
-    origin_system_id = p2s.get(origin_planet_id)
-    if origin_system_id is None:
+    picked = _pick_system(origin_planet_id, tier, rng, _SALVAGE_HOP_RANGES)
+    if picked is None:
         return None
+    target_system_id, hops = picked
 
-    reachable = reachable_system_ids(origin_system_id, max_hops=10)
-    min_hops, max_hops = _SALVAGE_HOP_RANGES.get(tier, (1, 10))
-
-    _candidates = [
-        (sid, h) for sid, h in reachable.items()
-        if min_hops <= h <= max_hops and sid != origin_system_id
-    ]
-    if not _candidates:
-        return None
-
-    target_system_id, hops = rng.choice(_candidates)
-
-    # Patrol.
-    _pool = _PATROL_POOLS.get(tier, ["pirate_scout"])
-    patrol_id = rng.choice(_pool)
-
-    _sq_ranges = {1: (1, 1), 2: (1, 2), 3: (1, 2), 4: (2, 3)}
-    _sq_lo, _sq_hi = _sq_ranges.get(tier, (1, 1))
-    squad_size = rng.randint(_sq_lo, _sq_hi)
-
-    wingmate_id = None
-    if squad_size > 1 and tier >= 3:
-        wingmate_id = "pirate_scout" if tier == 3 else "pirate_raider"
-
-    # Wreck + layout.
-    wreck_id, layout_id = _WRECK_LAYOUTS.get(tier, ("derelict_scout", "scout_a"))
-
-    # Component.
-    component = rng.choice(_HEIST_GOODS)
+    patrol_id, squad_size, wingmate_id, wreck_id, layout_id, component = (
+        _salvage_site(tier, rng)
+    )
 
     # Round-trip deadline.
     deadline = max(30, hops * 60 + rng.randint(15, 35))
@@ -279,39 +236,22 @@ def _generate_bar_salvage(
     credits = tier * 180 + hops * 40
     xp = tier * 35 + hops * 7
 
-    try:
-        from ..data.npc_ships import find_npc_ship
-        patrol_name = find_npc_ship(patrol_id).name
-    except KeyError:
-        patrol_name = patrol_id
-
+    patrol_name = _ship_display_name(patrol_id)
     gen_id = f"proc_salvage_{origin_planet_id}_{target_system_id}_{counter}_{tier}"
     title = f"Salvage: {patrol_name} Wreck"
     description = (
         f"Recover {component} from a derelict wreck {hops} jump(s) away. "
         f"{squad_size} pirate(s) guard the site."
     )
-
-    return MissionSpec(
-        id=gen_id,
-        title=title,
-        description=description,
-        giver_npc_id=giver_npc_id,
-        faction="bar",
-        mission_type="salvage",
-        tier=tier,
-        reward_credits=credits,
-        reward_xp=xp,
-        deadline_days=deadline,
-        early_bonus_pct=25,
-        target_enemy_id=patrol_id,
-        target_system_id=target_system_id,
+    return _bar_spec(
+        gen_id, title, description, giver_npc_id, tier,
+        credits, xp, deadline, origin_planet_id, "salvage",
+        target_enemy_id=patrol_id, target_system_id=target_system_id,
         bounty_target_squad_size=squad_size,
         bounty_wingmate_enemy_id=wingmate_id,
         heist_target_good_id=component,
         salvage_wreck_enemy_id=wreck_id,
         salvage_layout_id=layout_id,
-        origin_planet_id=origin_planet_id,
     )
 
 
