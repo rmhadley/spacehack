@@ -404,6 +404,8 @@ def _make_walker_entity(pos: world.Position) -> world.Entity:
 def _add_bounty_npcs(game_map, spawns, find_npc) -> None:
     """Place saved bounty NPCs onto ``game_map``, restoring combat linkage."""
     for bs in spawns:
+        if bs.defeated:
+            continue  # tombstoned guard — destroyed, never re-stamped
         try:
             espec = find_npc(bs.enemy_id)
         except (KeyError, ImportError):

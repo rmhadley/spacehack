@@ -138,3 +138,56 @@ def test_survey_spawns_wait_for_the_alloy_step():
     game_map = _enter_system(ready)
     assert len(_guards(game_map)) == 3
     assert len(_wreck(game_map)) == 1
+
+def test_loading_a_save_does_not_resurrect_tombstoned_guards():
+    """Regression (playtest v14): the load path has its own entity
+    stamper (_add_bounty_npcs) which ignored the tombstones and brought
+    the destroyed patrol back with full combat linkage."""
+    from src.spacehack.game_context import BountySpawn
+    from src.spacehack.data.npc_ships import find_npc_ship
+    from src.spacehack.saveload_maps import _add_bounty_npcs
+
+    spawns = [
+        BountySpawn(
+            spawn_id=_LEADER_ID, enemy_id="pirate_captain",
+            pos=world.Position(10, 10), defeated=True,
+        ),
+        BountySpawn(
+            spawn_id=f"{_LEADER_ID}_esc_0", enemy_id="pirate_raider",
+            pos=world.Position(12, 10), squad_group_id=_LEADER_ID,
+            defeated=True,
+        ),
+        BountySpawn(
+            spawn_id=f"{_LEADER_ID}_wreck", enemy_id="derelict_scout",
+            pos=world.Position(15, 10), salvage_wreck=True,
+        ),
+    ]
+    game_map = world.GameMap(
+        width=40, height=40,
+        tiles=[[world.DUNGEON_FLOOR] * 40 for _ in range(40)],
+        entities=[],
+    )
+
+    _add_bounty_npcs(game_map, spawns, find_npc_ship)
+
+    stamped = game_map.entities
+    assert [getattr(e, "salvage_wreck_spawn_id", None) for e in stamped] == [
+        f"{_LEADER_ID}_wreck",
+    ], "tombstoned guards must not come back; the wreck must"
+
+    # Live guards still stamp with their combat linkage intact.
+    spawns[0] = BountySpawn(
+        spawn_id=_LEADER_ID, enemy_id="pirate_captain",
+        pos=world.Position(10, 10),
+    )
+    game_map = world.GameMap(
+        width=40, height=40,
+        tiles=[[world.DUNGEON_FLOOR] * 40 for _ in range(40)],
+        entities=[],
+    )
+    _add_bounty_npcs(game_map, spawns, find_npc_ship)
+    leader = next(
+        e for e in game_map.entities
+        if getattr(e, "bounty_spawn_id", None) == _LEADER_ID
+    )
+    assert leader.bounty_squad_id == _LEADER_ID
