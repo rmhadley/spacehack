@@ -33,7 +33,7 @@
   "step.mil_q5_livefire.ready_message": "The final breach package is assembled. Report to the Captain on Earth. Once it is in your hands, the Militia can no longer pretend this is only an investigation.",
   "step.mil_q5_livefire.title": "Live-Fire Test",
   "step.mil_q6_charge.description": "Return to the Militia Captain on Earth. The breach package is tuned, tested, and ready to open the alien seal on Mars. The Captain wants the operation contained from the first jump to the last.",
-  "step.mil_q6_charge.dialogue.militia_captain.intro": "There it is. Tuned to the same material that ended the Incident. Take it to Mars and open the door. We contain whatever is inside, we preserve what can be learned, and we tell no one until we know which of those is still possible. That is the order.",
+  "step.mil_q6_charge.dialogue.militia_captain.intro": "There it is. Tuned to the same material that ended the Incident. Take it to Mars, open the door, and report back. The rest is our problem.",
   "step.mil_q6_charge.dialogue.militia_captain.option_label": "Collect the charge",
   "step.mil_q6_charge.title": "The Charge"
 }
