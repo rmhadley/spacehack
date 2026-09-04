@@ -69,7 +69,7 @@ _LAVA = world.Tile(
     blocked_message="Molten lava -- you'd be incinerated.",
 )
 _LAVA_GLOW = world.Tile(
-    kind="neon", char="~", walkable=False,
+    kind="lava_glow", char="~", walkable=False,
     fg=(255, 180, 60), bg=(200, 80, 20),
     blocked_message="The lava glows white-hot.",
 )
@@ -77,8 +77,11 @@ _SCRAP_FIRE = world.Tile(
     kind="neon", char="○", walkable=True,
     fg=(240, 130, 50), bg=(72, 48, 40),
 )
+# Street texture, not light: 300+ markers city-wide, and every neon
+# cell collects as a radius-4 source — as neon the whole town burned
+# (playtest v15). Unlit kind keeps the warm paint.
 _HEAT_MARKER = world.Tile(
-    kind="neon", char="*", walkable=True,
+    kind="heat_marker", char="*", walkable=True,
     fg=(255, 80, 30), bg=(86, 60, 52),
 )
 _SHACK_WALL = world.Tile(

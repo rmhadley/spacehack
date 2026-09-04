@@ -37,6 +37,10 @@ class LightSourceSpec:
 # kind emit light, add a row here — no code changes elsewhere.
 STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     "neon": LightSourceSpec(radius=4, intensity=0.9, flicker="mixed"),
+    # Ember's lava border (Ross 154 b): a burning rim, not a furnace —
+    # the lava band is 170+ adjacent cells, so radius/intensity stay
+    # tight (playtest v15: the whole map read as on fire).
+    "lava_glow": LightSourceSpec(radius=2, intensity=0.5, flicker="pulse"),
     "beacon": LightSourceSpec(radius=6, intensity=1.0),
     "glow_fungus": LightSourceSpec(radius=3, intensity=0.7, flicker="pulse"),
     "city_water": LightSourceSpec(radius=2, intensity=0.4, flicker="pulse"),

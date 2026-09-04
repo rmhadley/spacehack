@@ -335,3 +335,19 @@ def test_transit_bays_never_emit_light():
     from src.spacehack.data.lighting import light_spec_for_kind
 
     assert light_spec_for_kind("transit_bay") is None
+
+
+def test_embers_lava_glows_without_burning_the_town():
+    """Ross 154 b (Ember) authors 300+ heat markers and a 170-cell lava
+    band; as full neon sources the whole map read as on fire (playtest
+    v15). Heat markers are unlit texture; lava is its own restrained
+    kind; only the handful of scrap fires stay full neon."""
+    from src.spacehack.data.lighting import light_spec_for_kind
+    from src.spacehack.lighting import collect_light_sources
+
+    game_map = load_planet("ross_b")
+    assert light_spec_for_kind("heat_marker") is None
+    lava = light_spec_for_kind("lava_glow")
+    assert lava is not None and lava.radius <= 2 and lava.intensity <= 0.5
+    sources = collect_light_sources(game_map)
+    assert len(sources) <= 200, "Ember's ambient light must stay sparse"
