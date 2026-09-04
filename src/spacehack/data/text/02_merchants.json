@@ -32,10 +32,10 @@
   "step.mer_q6_survey.title": "The Survey",
   "step.mer_q6_survey.description": "A survey scout ran a structural scan of the Mars site before the Incident. The consortium attacked it to claim the scan first. Board the wreck near Vega, find the recorder, and bring it back before they strip it. The smiths need the scan to know where the cutter bites.",
   "step.mer_q6_survey.active_description": "Board the derelict scout near Vega, find the survey recorder, and bring it back before the consortium strips the wreck.",
-  "step.mer_q6_survey.completion_flavor": "The recorder is recovered and the consortium leader is not a problem you will hear about again. The survey does not explain the door - it shows where it fails. The Guild's smiths will want time to set the teeth to the weak lines and true the drive to the load.",
-  "step.mer_q6_survey.ready_message": "The smiths are done. The teeth are set to the survey's weak lines and the drive is trued. The cutter waits at the Guild on Earth.",
+  "step.mer_q6_survey.completion_flavor": "The recorder is off the wreck and in your hold. The Guild's smiths will cut the cutter's teeth to match the scan. The work takes weeks.",
+  "step.mer_q6_survey.ready_message": "The smiths are done. The cutter waits at the Guild on Earth, its teeth cut to the scan's weak points.",
   "step.mer_q7_cutter.title": "The Cutter",
-  "step.mer_q7_cutter.description": "Return to the Guild Master on Earth. The bore is refitted, the teeth are set to the survey's weak lines. The cutter is ready to be collected - and the door on Mars is ready to be opened.",
+  "step.mer_q7_cutter.description": "Return to the Guild Master on Earth. The bore is refitted and the teeth are cut to the scan's weak points. The cutter is ready to be collected - and the door on Mars is ready to be opened.",
   "step.mer_q7_cutter.dialogue.guild_master.intro": "There it is. Consortium steel, Guild refit, Wolf 359 teeth. The survey gave us the weak lines and the smiths cut the teeth to match. We are not asking the door anything - we are taking it apart where it was always going to come apart. Collect your cutter. The Guild keeps its end.",
   "step.mer_q7_cutter.dialogue.guild_master.option_label": "Collect the cutter"
 }
