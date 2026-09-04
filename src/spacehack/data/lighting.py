@@ -43,7 +43,10 @@ STATIC_LIGHT_TABLE: dict[str, LightSourceSpec] = {
     # The painted bay under every transit stop — the one lit landmark
     # every settlement already has, so no city map is ever unlit (doc 35
     # lighting catch-up; colour follows each city's own bay paint).
-    "transit_bay": LightSourceSpec(radius=3, intensity=0.55),
+    # radius 1, restrained: a bay is a BLOCK of 8-12 cells and every
+    # cell collects as a source, so radius 3 stacked a dozen emitters
+    # and the stations glowed white-hot (playtest v15).
+    "transit_bay": LightSourceSpec(radius=1, intensity=0.4),
     # The undulating alien door: a faint pulse, phase-offset per cell,
     # so light rolls along the ~=~=~=~=~ row like the wall itself moves.
     "alien_door": LightSourceSpec(radius=3, intensity=0.6, flicker="pulse"),

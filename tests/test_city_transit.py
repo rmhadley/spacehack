@@ -328,3 +328,15 @@ def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
     )
 
     city_transit.animate_transit_arrival(state, dest["name"])  # must not no-op
+
+
+def test_transit_bay_light_stays_restrained():
+    """A bay is a block of 8-12 cells and every cell collects as a
+    source — a wide radius stacks a dozen emitters and the stations
+    glowed white-hot (playtest v15). The spec must stay tight."""
+    from src.spacehack.data.lighting import light_spec_for_kind
+
+    spec = light_spec_for_kind("transit_bay")
+    assert spec is not None
+    assert spec.radius <= 1
+    assert spec.intensity <= 0.5
