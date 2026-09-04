@@ -154,11 +154,36 @@ resident, demolitions_expert seats via `npc_presence` (tested).
       Luyten / Cygni legs + the gated "Awaiting word from the
       Militia…" state carrying q2's flavor
 
-### Phase 4 — closeout
-- [ ] Fresh full run to the Mars door (user playtest)
-- [x] Corpus audit + `make check` (audit_story_text green, only the
-      pre-existing mer_q4 option_label removable note)
-- [ ] Ask user: move doc to complete?
+### Phase 4 — closeout — CLOSED 2026-09-04
+- [x] Fresh full run to the Mars door (user playtest: PASSING)
+- [x] Corpus audit + `make check` (audit_story_text green; 1720 tests)
+- [x] User closed the doc
+
+## Closeout notes (final state)
+
+Shipped across the campaign (playtests v15-v17):
+- Cadence 60/0/40/70/50 = 220 gate-days; sealed-requisition mission
+  cargo (the recorder standard, enforced by test across chains).
+- Six prose rounds against the six-tell standard; the captain's final
+  orders are the model military beat: "Take it to Mars, open the door,
+  and report back. The rest is our problem."
+- mercury_vault landmark (strong room behind its own vault door) with
+  an authored QUEST_CACHE marker; the landmark system's entrance
+  marker was decoupled from doors (interior doors now free) and delve
+  camps gained weighted step-declared variants.
+- Guard tombstones cover the live-fire squad; Q breadcrumbs pinned
+  per leg; gated visit steps present completion flavor exactly once.
+- Adjacent systems that the playtest dragged in and shipped: the
+  transit arrival pulse (city-lighting dependent), the all-cities
+  lighting catch-up (single seed site; stations do NOT glow — the
+  pulse is the eye-catch), and Ember's tone-down.
+
+Open content carried forward:
+- bar chain: its machine_parts/electronics crate violates the quest-
+  cargo standard (excluded from the enforcing test); bar's own pass
+  will convert it.
+- barnards_c, groom_b, ross_c have no ambient light authored (black
+  grids, pulse-only); per-city accent work when wanted.
 
 System change (user ruling): landmarks no longer limited to one door
 — the explicit LANDMARK_ENTRANCE marker (`e`, city-interior/deep-cell

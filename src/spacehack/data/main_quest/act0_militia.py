@@ -3,7 +3,7 @@
 Structure only — titles, descriptions, and dialogue text live in
 ``src/spacehack/data/text/`` (see ``_apply_text_overlay``).
 
-Design doc: docs/design/in_progress/35_DESIGN_ACT0_MILITIA.md
+Design doc: docs/design/complete/35_DESIGN_ACT0_MILITIA.md
 """
 
 from __future__ import annotations
