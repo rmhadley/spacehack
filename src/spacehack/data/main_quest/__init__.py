@@ -168,6 +168,10 @@ class MainQuestStep:
                                 # (e.g. "derelict_scout") — non-combatant, boardable
     salvage_layout_id: str = ""  # interior layout for the wreck ("salvage")
                                 # (e.g. "scout_a") — quest-tagged loot placed inside
+    delve_layout_id: str = ""  # authored landmark for the quest cache site ("delve")
+                                # (e.g. "wolf_camp", "mercury_vault") — the cache lands
+                                # at the landmark's deepest interior cell; empty = the
+                                # farthest walkable cell from the dungeon entry
     # (good_id, qty) pairs placed in the quest cache ("delve") — the
     # cache yields these. ``trigger_planet_id`` names the delve planet.
     delve_good_ids: tuple[tuple[str, int], ...] = ()

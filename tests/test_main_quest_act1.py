@@ -724,6 +724,7 @@ def test_wolf_camp_layout_contract():
     params = find_planet_spec("wolf_b").dungeon_params
     assert params.cache_guardian_count == 2
     assert set(params.cache_guardian_pool) == {"sentry_drone"}
+    assert find_main_quest_step("mer_q2_strike").delve_layout_id == "wolf_camp"
 
 
 def test_wolf_delve_stamps_camp_cache_and_guardians():
@@ -814,6 +815,8 @@ def test_mercury_vault_layout_contract():
     params = find_planet_spec("mercury").dungeon_params
     assert params.cache_guardian_count == 1
     assert set(params.cache_guardian_pool) == {"sentry_drone"}
+    # the cache site is step data, not a planet->layout dict
+    assert find_main_quest_step("mil_q2_cache").delve_layout_id == "mercury_vault"
 
 
 def test_mercury_delve_stamps_vault_cache_and_guardian():

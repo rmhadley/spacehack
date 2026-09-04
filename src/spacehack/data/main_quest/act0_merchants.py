@@ -43,6 +43,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mer_q1_contract",
         chain="merchants",
         objective_type="delve",
+        delve_layout_id="wolf_camp",  # the escrow cache sits in the frozen bunkhouse
         delve_good_ids=(("escrow_ore", 3),),
         wait_days=0,
         dialogues={

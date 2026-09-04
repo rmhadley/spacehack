@@ -38,6 +38,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="mil_q1_report",
         chain="militia",
         objective_type="delve",
+        delve_layout_id="mercury_vault",  # the requisition lies in the sealed strong room
         delve_good_ids=(("sealed_requisition", 1),),
         wait_days=0,
         dialogues={

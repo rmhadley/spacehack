@@ -506,27 +506,19 @@ def bump_mars_door(ctx) -> None:
 # Delve site preparation
 # ---------------------------------------------------------------------------
 
-# Authored camp layouts per delve planet: the quest cache lands inside
-# the camp instead of a random far room (wolf_b: frozen prospectors'
-# bunkhouse, doc 32; mercury: sealed requisition vault, doc 35).
-_DELVE_CAMPS: dict[str, str] = {
-    "wolf_b": "wolf_camp",
-    "mercury": "mercury_vault",
-}
-
-
 def _camp_or_far_cache(
-    game_map: world.GameMap, spawn: world.Position, planet_id: str,
+    game_map: world.GameMap, spawn: world.Position, layout_id: str,
 ) -> world.Position:
-    """The cache position: inside the planet's authored camp if one
-    stamped cleanly, else the farthest walkable cell.
+    """The cache position: inside the step's authored camp landmark if
+    one stamped cleanly, else the farthest walkable cell.
 
     The camp's deepest interior cell (farthest from its door) holds
     the cache, so the guardians end up holding the room around it. A
     camp that cannot route on this map falls back — the delve must
-    never fail to build.
+    never fail to build. The layout comes from the step's
+    ``delve_layout_id`` (data, not a planet->layout dict).
     """
-    _layout_id = _DELVE_CAMPS.get(planet_id)
+    _layout_id = layout_id or None
     if _layout_id is not None:
         try:
             _asset = landmark.load_landmark(_layout_id)
@@ -565,7 +557,7 @@ def prepare_delve_site(
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
-    _cache_pos = _camp_or_far_cache(game_map, spawn, planet_id)
+    _cache_pos = _camp_or_far_cache(game_map, spawn, _step.delve_layout_id)
     _cache = world.Entity(
         char="%",
         fg=(255, 215, 0),
