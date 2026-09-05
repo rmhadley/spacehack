@@ -135,7 +135,7 @@ RUNTIME: dict[str, str] = {
     ),
     "runtime.quest_complete_log": "[MAIN QUEST] {title} - complete.",
     "runtime.quest_reward_log": "+{credits}$ reward.",
-    "runtime.quest_goods_log": "{good} x{qty} loaded into your cargo hold.",
+    "runtime.quest_goods_log": "{good} x{qty} lashed in your mission hold.",
     "runtime.quest_prison_start_log": (
         "[MAIN QUEST] Act 1: The Prison Below - descend the facility."
     ),

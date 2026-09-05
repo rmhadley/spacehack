@@ -266,11 +266,17 @@ def test_mer_q5_alloy_completion_loads_the_alloy():
     from src.spacehack.main_quest._core import complete_step, step_status
 
     ctx = _payment_ctx(0)
-    ctx.player_owned_ship = SimpleNamespace(inventory={})
+    ctx.player_owned_ship = SimpleNamespace(inventory={}, mission_reserved=0)
     ctx.main_quest_progress["mer_q5_alloy"] = "available"
     assert complete_step(ctx, "mer_q5_alloy") is True
-    assert ctx.player_owned_ship.inventory["smelted_alloy"] == 3
+    # mission cargo, never the sellable hold (user ruling)
+    assert ctx.player_owned_ship.inventory == {}
+    assert ctx.player_owned_ship.mission_reserved == 3
     assert step_status(ctx, "mer_q6_survey") == "available"
+    # released when the chain's next step completes (the smiths take it)
+    ctx.main_quest_progress["mer_q6_survey"] = "available"
+    assert complete_step(ctx, "mer_q6_survey") is True
+    assert ctx.player_owned_ship.mission_reserved == 0
 
 
 def test_militia_chain_linkage_and_cadence():

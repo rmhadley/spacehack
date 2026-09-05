@@ -92,16 +92,46 @@ def _apply_completion_rewards(ctx, _step) -> None:
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
     if _step.rewards_goods:
+        # Quest handovers load MISSION cargo, never the sellable hold
+        # (user ruling: no sellable goods from quests). Space is
+        # reserved like intercept heist cargo; _release_prior_reward_goods
+        # frees it when the chain's next step completes.
         _owned = ctx.player_owned_ship
         if _owned is not None:
             from ..data.trade_goods import display_name as _good_name
+            from ..data.trade_goods import find_trade_good as _ftg
             for _gid, _qty in _step.rewards_goods:
-                _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
+                try:
+                    _owned.mission_reserved += _ftg(_gid).volume * _qty
+                except KeyError:
+                    pass
                 ctx.log.add(
                     t_get("runtime.quest_goods_log").format(
                         good=_good_name(_gid), qty=_qty,
                     )
                 )
+
+
+def _release_prior_reward_goods(ctx, step) -> None:
+    """Free the mission-hold space granted by the PREVIOUS step's
+    rewards_goods — the faction has taken delivery by now (the smiths
+    take the alloy once the survey step completes)."""
+    if not step.requires_step:
+        return
+    try:
+        _prev = find_main_quest_step(step.requires_step)
+    except KeyError:
+        return
+    _owned = getattr(ctx, "player_owned_ship", None)
+    if _owned is None or not _prev.rewards_goods:
+        return
+    from ..data.trade_goods import find_trade_good as _ftg
+    for _gid, _qty in _prev.rewards_goods:
+        try:
+            _owned.mission_reserved -= _ftg(_gid).volume * _qty
+        except KeyError:
+            continue
+    _owned.mission_reserved = max(0, _owned.mission_reserved)
 
 
 def complete_step(ctx, step_id: str) -> bool:
@@ -115,6 +145,7 @@ def complete_step(ctx, step_id: str) -> bool:
         t_get("runtime.quest_complete_log").format(title=_step.title),
     )
     _apply_completion_rewards(ctx, _step)
+    _release_prior_reward_goods(ctx, _step)
     if _step.completion_flavor:
         ctx.log.add(_step.completion_flavor)
     if _step.auto_advance:
