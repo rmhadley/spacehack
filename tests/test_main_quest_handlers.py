@@ -393,3 +393,22 @@ def test_bar_chain_linkage_and_cadence():
     assert find_main_quest_step("bar_q3_rigparts").delve_good_ids == (("power_cell", 1),)
     assert find_main_quest_step("bar_q4_blackmarket").smuggle_cargo_size == 1
     assert find_main_quest_step("bar_q6_rig").unlocks_step == "prologue_open"
+
+
+def test_quest_loot_secures_without_loading_the_hold(monkeypatch):
+    """Regression (bar playtest): the delve handed over a SELLABLE
+    power cell beside the mission crate's own copy - quest loot never
+    enters the cargo hold. The follow-up owns the cargo fiction: the
+    next smuggle crate, or the faction's hands."""
+    from src.spacehack.main_quest import _objectives
+
+    monkeypatch.setattr(
+        _objectives, "show_step_readout", lambda *_a: True,
+    )
+    ctx = _payment_ctx(0)
+    ctx.player_owned_ship = SimpleNamespace(inventory={})
+    ctx.main_quest_progress["bar_q3_rigparts"] = "active"
+
+    loot = SimpleNamespace(main_quest_step_id="bar_q3_rigparts")
+    assert _objectives.secure_quest_loot(ctx, loot, [("power_cell", 1)])
+    assert ctx.player_owned_ship.inventory == {}

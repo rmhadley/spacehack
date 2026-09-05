@@ -94,10 +94,14 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     _handler = handler_for(_step.objective_type)
     if _handler is None or not _handler.secures_quest_loot:
         return False
-    _owned = ctx.player_owned_ship
-    if _owned is not None:
-        for _gid, _qty in goods:
-            _owned.inventory[_gid] = _owned.inventory.get(_gid, 0) + _qty
+    # Secured quest goods never enter the sellable hold (playtest v2,
+    # bar pass: the delve ALSO handed over a sellable power cell next
+    # to the mission crate's copy - a double and a farm). The step's
+    # follow-up owns the cargo fiction: the next smuggle crate (the
+    # ore/requisition/cell IS the crate) or the faction's hands.
+    from ..data.trade_goods import display_name as _good_name
+    for _gid, _qty in goods:
+        ctx.log.add(f"Secured: {_good_name(_gid)} x{_qty}.")
     _result = complete_step(ctx, _step_id)
     if _result:
         # Salvage wrecks: the handler removes the derelict BountySpawn so it
