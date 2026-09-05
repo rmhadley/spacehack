@@ -44,6 +44,7 @@ from ._heat import (
     consortium_heat_active,
 )
 from ._gates import (
+    apply_step_migrations,
     check_quest_gates,
 )
 from ._spawns import (
