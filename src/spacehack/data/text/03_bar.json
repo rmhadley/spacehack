@@ -8,7 +8,7 @@
   "step.bar_q1_oldhand.ready_message": "The old man will see you, for a price. Come through the bar first: I have a crate that proves you can move cargo the patrols want to find. Run it to Barnard's Star b.",
   "step.bar_q1_oldhand.title": "The Old Hand",
   "step.bar_q2_proof.completion_flavor": "The old man takes the crate and the conversation. The ridge is still watched - he waits for the patrol rotation to swing away before he marks the dig.",
-  "step.bar_q2_proof.description": "The old smuggler deals in proof, not introductions. Take the Barkeep's crate of unregistered arms to Barnard's Star b. Every Militia patrol on the route can scan it, and every scan is a reason to stop you.",
+  "step.bar_q2_proof.description": "The old smuggler deals in proof, not introductions. Collect the crate of unregistered arms from the Barkeep on Earth, then run it to Barnard's Star b. Every Militia patrol on the route can scan it, and every scan is a reason to stop you.",
   "step.bar_q2_proof.dialogue.barkeep.active": "The crate's in your hold. Get it to Barnard's Star b before a patrol scans it.",
   "step.bar_q2_proof.dialogue.barkeep.intro": "The old man doesn't take meetings. He takes deliveries. One crate of unregistered arms - if you can walk that past the patrols, you can carry what he gives you next. Get it to Barnard's Star b.",
   "step.bar_q2_proof.dialogue.barkeep.option_label": "Take the proof crate",
