@@ -123,11 +123,49 @@ simulated vs. how authored each piece is.
 
 | # | Method | Discovered via | What it takes | Head start (never a key) |
 |---|---|---|---|---|
-| 1 | **The papers** — clearance through the checkpoint | Talk to the Blockade Officer; militia-side NPCs | Militia standing (the warrant board is the rep engine) | Warrant-license players start on first-name terms |
+| 1 | **The papers** — clearance through the checkpoint. SETTLED (below): two acquisition routes, allied standing either way, trait-tracked | The Line's warning hints a list exists; rumor fills in the rest | Allied standing — militia (official) OR pirate (back channel) — plus credits | Warrant-license players start on first-name terms |
 | 2 | **The hidden gate** — the old network node inside known space that bypasses the Line entirely | Rumors at the edge; lab analysis contracts; deep-reading the archive | Finding it, then using unmaintained alien hardware | Lab credentials feed analysis work; KEPT players can research it from their own copy |
 | 3 | **The quiet run** — a gap in the patrol net; a debris-field lane | Bar-side NPCs at the Line stations; bought intel | A ship that makes the run; nav through hazards; surviving a spot-check | The hold covers cargo if a scan catches you anyway |
 | 4 | **The toll** — someone at the Line sells passage | Everyone at the Line knows someone | Credits and/or standing — with strings (a favor owed?) | Merchants' 12,000cr is exactly this kind of option |
 | 5 | **The loud way** — punch through a patrol | No research needed | Surviving it; living with militia hostility after | Nobody — that's the point |
+
+### Method 1: The Papers — SETTLED 2026-09-05
+
+- **Discovery:** the Line's comms warning gains the hint — *"unless
+  you're on the manifest, nobody passes"* — nothing more. Rumor and
+  NPCs fill in how one gets on the list.
+- **TWO acquisition routes** (the papers are not faction-locked):
+  - **Official:** allied MILITIA standing + the right officer. The
+    Captain at Earth signs (his desk is beside the warrant board —
+    the grind and the signature share a room); the Blockade Officer
+    at the Line honors it at the sweep.
+  - **Back channel:** allied PIRATE standing + credits + finding the
+    right barkeep deep in the outskirts. Working lean: a
+    rumor-broker barkeep at Ember (Ross 154 b, the pirate town)
+    whose contact "works the registry office" at a Line station.
+    The intercept/bounty economy is the pirate-rep engine, mirroring
+    the warrant board.
+- **Threshold: ALLIED (76+), both routes.** A real campaign; the
+  Line is the Militia's most sensitive post and the back channel
+  prices the same trust in a different currency.
+- **Failure:** a refusal, never a firefight — the Line only fights
+  those who ignore the warning to turn back. Asking is free.
+- **Cost:** credits at acquisition. No standing-gated validity —
+  getting ON the manifest is the whole gate. [AGING: v1 lean = the
+  credential is permanent (mirrors perk permanence; crossing is not
+  farmable). If playtest wants decay: one persisted expiry-date
+  field on ctx reusing the existing save-field pattern — renew by
+  re-meeting reqs + paying again. Ruling pending.]
+- **Tracking — the trait system, per user ruling:** a
+  `blockade_manifest` trait granted at acquisition — persisted in
+  `player_traits`, checked by `has_trait` at the sweep, registered
+  alongside QUEST_PERKS so milestone screens never offer it. No new
+  system; the checkpoint reads one trait.
+- **Method interactions:** the sweep checks transponder against the
+  manifest registry — the papers DEFINE the checkpoint's rules. The
+  spoofed transponder fakes what the papers are; the convoy manifest
+  borrows what they grant; the decoy signal skips the sweep; the
+  hidden gate routes around the checkpoint entirely.
 
 ### Systemic combos (emergent, not authored paths)
 
@@ -180,8 +218,11 @@ the crossing is real.
 ### Phase 0 — THIS: the tweak loop
 - [x] Opening settled (processing gate → findings light up the ship)
 - [x] Method v0 table captured
-- [ ] Walk each method one-by-one with the user; settle mechanics,
-      fiction, discovery vectors, costs
+- [x] Method 1 (the papers): settled — two routes, allied either
+      way, trait-tracked; sub-rulings pending: which barkeep exactly,
+      credit prices, aging v1 yes/no
+- [ ] Walk each remaining method one-by-one (suggested order:
+      hidden gate → quiet run → toll → interdiction fight)
 - [ ] Settle the open questions below
 - [ ] Fork the intermission doc when the crossing is real
 
