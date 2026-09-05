@@ -68,6 +68,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="bar_q2_proof",
         chain="bar",
         objective_type="delve",
+        delve_layout_id="barnards_cache",  # the old crew's staging cache
         delve_good_ids=(("power_cell", 1),),  # the old job's deep cell - the q4 crate
         npc_presence=("old_smuggler",),  # he draws the cave for the rig parts
         wait_days=0,

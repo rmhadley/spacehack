@@ -108,7 +108,7 @@ SPEC = PlanetSpec(
         ),
         monster_pool=("rock_scavenger", "dust_prowler"),
         monster_density=1.5,
-        cache_guardian_pool=("assault_drone",),
+        cache_guardian_pool=("sentry_drone",),  # leftover Militia watch drone - assault spike pulled (standing ruling)
         cache_guardian_count=1,
     ),
 )

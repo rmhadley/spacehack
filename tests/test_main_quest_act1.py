@@ -901,3 +901,71 @@ def test_delve_layout_variants_pick_then_fallback_order():
         assert candidates[0] in {"mercury_vault", "mercury_vault_b"}
         seen.add(candidates[0])
     assert seen == {"mercury_vault", "mercury_vault_b"}, "weights must matter"
+
+
+def test_barnards_cache_layout_contract():
+    """The old crew's staging cache: uniform rows, one entrance marker,
+    authored cell site, one leftover sentry (standing assault-drone
+    ruling; doc 36)."""
+    from src.spacehack import landmark as landmark_module
+    from src.spacehack.data.main_quest import find_main_quest_step
+    from src.spacehack.data.planets import find_planet_spec
+
+    asset = landmark_module.load_landmark("barnards_cache")
+    widths = {len(row) for row in asset.tiles}
+    assert len(widths) == 1
+    assert not any(t.kind == "void" for r in asset.tiles for t in r)
+    assert sum(t.kind == "landmark_entrance" for r in asset.tiles for t in r) == 1
+    assert sum(t.kind == "quest_cache" for r in asset.tiles for t in r) == 1
+    assert find_main_quest_step("bar_q3_rigparts").delve_layout_id == "barnards_cache"
+    params = find_planet_spec("barnards_b").dungeon_params
+    assert params.cache_guardian_count == 1
+    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+
+
+def test_barnards_delve_stamps_cache_site_and_guardian():
+    """prepare_delve_site: the cache stamps, the power cell lands at the
+    authored marker offset, and the watch drone holds the room."""
+    from types import SimpleNamespace
+
+    from src.spacehack import landmark as landmark_module
+    from src.spacehack.data.planets import find_planet_spec
+    from src.spacehack.dungeon import generate_dungeon
+    from src.spacehack.engine import seed_rng
+    from src.spacehack.main_quest._delve import prepare_delve_site
+
+    ctx = SimpleNamespace(
+        main_quest_progress={"bar_q3_rigparts": "active"},
+        main_quest_gate={}, main_quest_chain="bar",
+        log=SimpleNamespace(add=lambda *_a: None),
+    )
+    seed_rng(1)
+    spec = find_planet_spec("barnards_b")
+    game_map, spawn = generate_dungeon(spec.dungeon_params)
+    assert prepare_delve_site(ctx, game_map, spawn, "barnards_b") is True
+
+    cache = next(
+        (e for e in game_map.entities
+         if getattr(e, "main_quest_step_id", "") == "bar_q3_rigparts"),
+        None,
+    )
+    assert cache is not None
+    footprint = getattr(game_map, "landmark_footprint", set()) or set()
+    assert (cache.pos.x, cache.pos.y) in footprint
+    asset = landmark_module.load_landmark("barnards_cache")
+    mx, my = next(
+        (x, y)
+        for y, row in enumerate(asset.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "quest_cache"
+    )
+    origin = (min(x for x, _ in footprint), min(y for _, y in footprint))
+    assert (cache.pos.x, cache.pos.y) == (origin[0] + mx, origin[1] + my)
+    assert game_map.tiles[cache.pos.y][cache.pos.x].kind == "dungeon_floor"
+    assert cache.loot_data == {"goods": [("power_cell", 1)]}
+
+    guards = [e for e in game_map.entities if e.npc_char_id == "sentry_drone"]
+    assert len(guards) == 1
+    assert max(
+        abs(guards[0].pos.x - cache.pos.x), abs(guards[0].pos.y - cache.pos.y),
+    ) <= 10
