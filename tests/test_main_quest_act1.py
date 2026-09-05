@@ -727,16 +727,21 @@ def test_delivered_unlocks_the_chain_reward_step_and_pays():
     assert ctx.stats.credits == 12000  # the 8,000cr bond, with its return
 
 
-def test_delivered_reward_items_per_chain():
-    """The non-merchants chains pay in Act 1 paths, not credits."""
-    rewards = {
-        "militia": "militia_blockade_clearance",
-        "bar": "bar_false_transponder",
-        "lab": "lab_sensor_suite",
+def test_delivered_reward_perks_per_chain():
+    """The non-merchants chains pay in QUEST PERKS (free trait grants,
+    never milestone picks), not credits."""
+    from src.spacehack.data.traits.core import ALL_TRAITS, QUEST_PERKS
+
+    perks = {
+        "militia": "warrant_license",
+        "bar": "smugglers_instinct",
+        "lab": "lab_credentials",
     }
-    for chain, item in rewards.items():
+    milestone_ids = {t.id for t in ALL_TRAITS}
+    for chain, perk in perks.items():
         step = find_main_quest_step(f"epilogue_reward_{chain}")
-        assert step.rewards_item == item, chain
+        assert step.rewards_trait == perk, chain
+        assert perk in QUEST_PERKS and perk not in milestone_ids, chain
         assert step.rewards_credits == 0, chain
 
 

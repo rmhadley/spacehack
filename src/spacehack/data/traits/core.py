@@ -179,6 +179,46 @@ ALL_TRAITS: tuple[Trait, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Quest perks — granted by story completion (doc 38 epilogue), never
+# chosen. They live OUTSIDE ALL_TRAITS so the milestone screens can
+# never offer them; complete_step appends the id to player_traits.
+# ---------------------------------------------------------------------------
+
+QUEST_PERKS: dict[str, "Trait"] = {
+    t.id: t
+    for t in (
+        Trait(
+            id="smugglers_instinct",
+            name="Smuggler's Instinct",
+            description=(
+                "10% of your ship's cargo capacity (minimum 1) is "
+                "concealed as smuggler's hold - on every ship you fly."
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="warrant_license",
+            name="Warrant License",
+            description=(
+                "Militia captains post you warrants: frontier-tier "
+                "bounty work at any Militia post."
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="lab_credentials",
+            name="Lab Credentials",
+            description=(
+                "Science stations post you contracts: frontier-tier "
+                "specimen runs and site recovery at any station."
+            ),
+            counters=(),
+        ),
+    )
+}
+
+
 def find_trait(trait_id: str) -> Trait:
     """Look up a trait by its ``id``.  Raises ``KeyError`` if not found."""
     for t in ALL_TRAITS:

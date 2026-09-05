@@ -35,6 +35,7 @@
   "runtime.orbit_faction_militia": "The Militia calls it a containment record and warns you not to transmit it.",
   "runtime.orbit_faction_unknown": "The recovered archive has no trusted interpreter yet; its layers resist a clean reading.",
   "runtime.orbit_title": "THE ARCHIVE IS YOURS",
+  "runtime.perk_gained_log": "PERK GAINED - {name}: {description}",
   "runtime.prison.data_extracted": "{name}: data extracted. Incomprehensible.",
   "runtime.prison.data_popup_message": "The terminal floods the cell with light. A torrent of data pours out - coordinates, schematics, structures built for something far larger than a human frame. None of it decodes. The data is alien beyond any human language or logic, but the sheer volume is proof enough: something was here, and it escaped. Then the dark panels flare white. Emergency power surges through the facility. The prison is fully awake. The route back to Mars will not be quiet.",
   "runtime.prison.data_popup_title": "DATA STREAM",

@@ -250,11 +250,10 @@ def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
     return max(0, total)
 
 
-def smuggler_hold_capacity(owned: OwnedShip) -> int:
-    """Sum of installed modules' smuggler_cargo bonuses.
-
-    This is the volume of contraband the player's ship can conceal
-    from militia scans. 0 with no smuggler's hold installed.
+def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
+    """Concealable volume: module bonuses plus the Smuggler's Instinct
+    quest perk (10% of the hull's natural cargo, minimum 1, on every
+    ship the perk holder flies). 0 without either.
     """
     from .data.modules import find_module as _fm
     total = 0
@@ -263,6 +262,14 @@ def smuggler_hold_capacity(owned: OwnedShip) -> int:
             total += _fm(mid).smuggler_cargo
         except KeyError:
             pass
+    if ctx is not None:
+        from .xp import has_trait
+        if has_trait(ctx, 'smugglers_instinct'):
+            try:
+                from .data.ships import find_ship as _find_ship
+                total += max(1, _find_ship(owned.ship_id).max_cargo // 10)
+            except KeyError:
+                pass
     return total
 
 

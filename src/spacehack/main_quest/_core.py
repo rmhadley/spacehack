@@ -72,16 +72,30 @@ def _schedule_next_step(
         ctx.main_quest_progress[_next.id] = STATUS_AVAILABLE
     return True
 
+def _grant_quest_perk(ctx, _step) -> None:
+    """Append the step's quest perk (free; never a milestone pick)."""
+    if not _step.rewards_trait or _step.rewards_trait in ctx.player_traits:
+        return
+    ctx.player_traits.append(_step.rewards_trait)
+    from ..data.traits.core import QUEST_PERKS
+    _perk = QUEST_PERKS.get(_step.rewards_trait)
+    if _perk is not None:
+        ctx.log.add(
+            t_get("runtime.perk_gained_log").format(
+                name=_perk.name, description=_perk.description,
+            )
+        )
+
 
 def _apply_completion_rewards(ctx, _step) -> None:
     """Pay out a completed step's reward block (credits/xp/rep/item/goods)."""
     if _step.rewards_credits:
-        ctx.stats.credits += _step.rewards_credits
         ctx.log.add(
             t_get("runtime.quest_reward_log").format(
                 credits=_step.rewards_credits,
             ),
         )
+        ctx.stats.credits += _step.rewards_credits
     if _step.rewards_xp:
         from ..xp import add_xp as _add_xp
         _add_xp(ctx, _step.rewards_xp)
@@ -91,15 +105,12 @@ def _apply_completion_rewards(ctx, _step) -> None:
             _modify_rep(ctx, _fac, _delta)
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
+    _grant_quest_perk(ctx, _step)
     if _step.rewards_goods:
-        # Quest handovers load MISSION cargo, never the sellable hold
-        # (user ruling: no sellable goods from quests). Space is
-        # reserved like intercept heist cargo; _release_prior_reward_goods
-        # frees it when the chain's next step completes.
         _owned = ctx.player_owned_ship
         if _owned is not None:
-            from ..data.trade_goods import display_name as _good_name
             from ..data.trade_goods import find_trade_good as _ftg
+            from ..data.trade_goods import display_name as _good_name
             for _gid, _qty in _step.rewards_goods:
                 try:
                     _owned.mission_reserved += _ftg(_gid).volume * _qty
@@ -110,6 +121,7 @@ def _apply_completion_rewards(ctx, _step) -> None:
                         good=_good_name(_gid), qty=_qty,
                     )
                 )
+
 
 
 def _release_prior_reward_goods(ctx, step) -> None:

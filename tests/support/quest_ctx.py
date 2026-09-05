@@ -38,6 +38,12 @@ def quest_ctx(
         main_quest_pending_message="",
         main_quest_pending_objective="",
         main_quest_complete=False,
+        main_quest_unlocked_items=set(),
+        player_traits=[],
+        mission_boards={},
+        generated_missions={},
+        completed_mission_ids=set(),
+        faction_reputation={},
         player_active_missions=list(missions or []),
         player_owned_ship=ship
         or SimpleNamespace(

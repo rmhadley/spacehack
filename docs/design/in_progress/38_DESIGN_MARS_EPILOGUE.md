@@ -49,6 +49,30 @@ old disclosure modal with the choice) — "Return to the faction that
 helped you and get your reward as you share the data" vs "keep the
 data to yourself and go full solo."
 
+## Reward shapes — SETTLED 2026-09-05 (the perk pass)
+
+Per the user's ruling: every reward is TANGIBLE sandbox power, wired
+through the perk system as FREE trait grants (never milestone picks,
+never consuming level-up choices). Blockade plot options are a later
+design conversation.
+
+- **Merchants**: 12,000cr (the 8,000 bond + 50% return) — liquid.
+- **Bar**: `smugglers_instinct` — 10% of the hull's natural cargo
+  (min 1) concealed as smuggler's hold on every ship, stacking with
+  modules (starter 5, cruiser 20, hauler 40, freight 70). Smuggle
+  payouts unchanged; tune via playtest (the bar generator's cargo
+  multiplier is the one number).
+- **Militia**: `warrant_license` — the Militia board posts WARRANTS
+  (bounty reuse), tier band (3,4) at any post: frontier-tier pay at
+  home, and militia standing accrues naturally from the work.
+- **Lab**: `lab_credentials` — lab stations post CONTRACTS
+  (specimen-run delivery / recovery salvage reuse), band (3,4) across
+  the five-station network.
+
+Power-scale frame (user): the rewards land ~a year in at cruiser
+minimum, so tier floors beat payout bumps — felt power is the band
+jump (600-950cr work posted on T1 Earth vs 60-120 entry work).
+
 ## Open questions (for the user)
 
 1. ~~Where does the choice physically happen~~ SETTLED: the orbit
@@ -69,5 +93,16 @@ data to yourself and go full solo."
       breadcrumb, texts, tools, save migration onto the branch)
 - [x] Disposition flag + the two-option orbit modal (per-chain body)
 - [x] Four reward steps + the kept baseline (pending-summon teaser)
+### Phase 2.5 — the perk pass — LANDED 2026-09-05
+- [x] QUEST_PERKS registry (outside ALL_TRAITS; milestone screens can
+      never offer them); `rewards_trait` on steps; complete_step
+      grants free + logs "PERK GAINED"
+- [x] Smuggler's Instinct in `smuggler_hold_capacity` (scan exposure
+      + quest log honor it)
+- [x] Militia/lab board registration (warrants + contracts
+      generators), perk gating, tier band (3,4)
+- [x] Tests: grant/free/milestone-exclusion, hold math + stacking +
+      scan protection, board gating + floor
+
 ### Phase 3 — prose + playtest
 ### Phase 4 — closeout

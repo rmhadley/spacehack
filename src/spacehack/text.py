@@ -160,6 +160,7 @@ RUNTIME: frozenset[str] = frozenset({
     "runtime.epilogue_kept_log",
     "runtime.epilogue_kept_title",
     "runtime.epilogue_kept_body",
+    "runtime.perk_gained_log",
 })
 
 

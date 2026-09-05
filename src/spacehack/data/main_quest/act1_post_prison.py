@@ -37,7 +37,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="act1_prison",
         chain="militia",
         objective_type="talk",
-        rewards_item="militia_blockade_clearance",  # Act 1 path: waved through the Line
+        rewards_trait="warrant_license",  # the Militia board posts warrants (doc 38)
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
@@ -55,7 +55,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="act1_prison",
         chain="bar",
         objective_type="talk",
-        rewards_item="bar_false_transponder",  # Act 1 path: a scrubbed identity at the Line
+        rewards_trait="smugglers_instinct",  # 10% of every hull concealed, forever
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
@@ -73,7 +73,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="act1_prison",
         chain="lab",
         objective_type="talk",
-        rewards_item="lab_sensor_suite",  # Act 1: see what the Line is hiding
+        rewards_trait="lab_credentials",  # the lab board posts contracts
         dialogues={
             "research_officer": QuestDialogue(
                 npc_id="research_officer",

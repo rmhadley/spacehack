@@ -14,11 +14,22 @@ def _procedural_generators():
     from ._proc_bar import generate_bar_mission
     from ._proc_bounty import generate_bounty_mission
     from ._proc_delivery import generate_delivery_mission
+    from ._proc_faction import generate_lab_mission, generate_warrant_mission
     return {
         "merchants": generate_delivery_mission,
         "bhguild": generate_bounty_mission,
         "bar": generate_bar_mission,
+        "militia": generate_warrant_mission,
+        "lab": generate_lab_mission,
     }
+
+
+# Boards that need a quest perk (doc 38 epilogue) before they post
+# anything — the perk IS the reward, so the gate lives here.
+_PERK_GATED_GUILDS: dict[str, str] = {
+    "militia": "warrant_license",
+    "lab": "lab_credentials",
+}
 
 
 _GUILD_TRAITS: dict[str, str] = {
@@ -38,11 +49,23 @@ def _board_guild(npc_id: str) -> str:
 
 
 def _faction_tier_band(ctx, guild: str, planet_tier: int) -> tuple[int, int]:
-    """Return the mission tier band available to one faction board."""
+    """Return the mission tier band available to one faction board.
+
+    Perk-gated boards (militia warrants, lab contracts) post
+    frontier-tier work at ANY station once their perk lands — these
+    are trusted-contractor boards behind the Act 0 epilogue; nobody
+    hands the Militia's warrants or the Lab's recovery work to a
+    stranger, and the unlock would feel like nothing at entry tiers.
+    """
+    from ..xp import has_trait
+    _perk = _PERK_GATED_GUILDS.get(guild)
+    if _perk is not None:
+        if ctx is not None and has_trait(ctx, _perk):
+            return 3, 4
+        return 0, 0  # gated: nothing posts
     _base_max = max(1, min(4, planet_tier))
     _trait_id = _GUILD_TRAITS.get(guild)
     if _trait_id:
-        from ..xp import has_trait
         if has_trait(ctx, _trait_id):
             return 2, min(4, _base_max + 1)
     return 1, _base_max
@@ -246,6 +269,8 @@ def fill_empty_slots(
         rng = RNG
     _guild = _board_guild(board.npc_id)
     _min_tier, _max_tier = _faction_tier_band(ctx, _guild, planet_tier)
+    if _max_tier == 0:
+        return  # perk-gated board whose perk hasn't been earned
     _evict_unavailable_slots(
         board, completed_ids, active_ids, generated, _min_tier, _max_tier,
     )

@@ -12,7 +12,7 @@ from . import mission as mission_module
 from . import ship as ship_module
 
 
-def _compute_scan_exposure(owned, active_missions) -> tuple[list, list]:
+def _compute_scan_exposure(owned, active_missions, ctx=None) -> tuple[list, list]:
     """Pure: compute what a militia scan would confiscate.
 
     Returns ``(failed_missions, confiscated)`` where ``failed_missions``
@@ -22,7 +22,7 @@ def _compute_scan_exposure(owned, active_missions) -> tuple[list, list]:
     caller applies the outcome only after the scan roll succeeds.
     """
     from .data.trade_goods import find_trade_good as _ftg
-    _hold_cap = ship_module.smuggler_hold_capacity(owned)
+    _hold_cap = ship_module.smuggler_hold_capacity(owned, ctx)
     _failed_missions: list = []
     for _am in list(active_missions):
         if not getattr(_am, 'is_smuggle', False):
@@ -186,7 +186,7 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
         return
     owned, spec = _target
     _failed_missions, _confiscated = _compute_scan_exposure(
-        owned, ctx.player_active_missions,
+        owned, ctx.player_active_missions, ctx=ctx,
     )
     if _confiscated or _failed_missions:
         ctx.log.add_colored(
@@ -219,7 +219,7 @@ def _run_space_cargo_scan(ctx) -> None:
         return
 
     _failed_missions, _confiscated = _compute_scan_exposure(
-        owned, ctx.player_active_missions,
+        owned, ctx.player_active_missions, ctx=ctx,
     )
 
     ctx.log.add_colored(

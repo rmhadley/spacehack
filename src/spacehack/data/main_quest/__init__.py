@@ -130,6 +130,9 @@ class MainQuestStep:
     rewards_xp: int = 0
     rewards_rep: dict[str, int] | None = None
     rewards_item: str | None = None
+    rewards_trait: str = ""  # quest perk id granted on completion (see
+                             # data/traits/core.QUEST_PERKS; free — never
+                             # a milestone pick)
     # Cargo loaded into the ship's hold on completion (e.g. the finished
     # alloy picked up from the salvage specialist).
     rewards_goods: tuple[tuple[str, int], ...] = ()
