@@ -47,11 +47,14 @@ There are two tiers:
   in-game.
 - JSON is strict: no trailing commas, no comments.
 
-## Syncing the files
+## Authoring directly
 
-Run `python3 tools/extract_act0_text.py` when steps, dialogue NPCs,
-NPCs, or goods are added to or removed from the code. It keeps every
-value here (writer edits always win), prunes keys for structure that no
-longer exists, and scaffolds empty `title`/`description` keys for new
-steps so the build check points at them. It never overwrites a writer
-edit.
+These JSON files are the single authoring surface for story prose
+(the code-side extractor was retired — doc 33). When steps, dialogue
+NPCs, or goods are added or removed, edit the JSON by hand and let
+the checks catch mistakes: `tools/check_main_quest.py` fails on
+missing required `title`/`description`, and `tools/quest_lint.py`
+reports orphaned keys (structure removed, text left behind). New
+`runtime.*` keys also need their NAME (not the prose) in the
+`RUNTIME` registry in `src/spacehack/text.py`, which powers the
+shipped-keys validation.

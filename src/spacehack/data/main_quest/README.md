@@ -118,13 +118,12 @@ Use the JSON overlay files under `src/spacehack/data/text/`:
 - `runtime.<name>` for non-step popups and logs
 
 Keep placeholders such as `{faction}`, `{credits}`, and `{good}` unchanged.
-For new runtime prose, add a default to `src/spacehack/text.py`, then run:
-
-```bash
-python3 tools/extract_act0_text.py
-```
-
-Writer edits in JSON are preserved by the extractor.
+For new runtime prose, add the key's value to
+`src/spacehack/data/text/00_runtime.json` AND the key (name only) to the
+`RUNTIME` registry in `src/spacehack/text.py` — the registry powers the
+shipped-keys validation; the JSON is the single source of prose. Orphaned
+keys (step renamed or removed, text left behind) are reported by
+`tools/quest_lint.py`.
 
 ## Validation
 

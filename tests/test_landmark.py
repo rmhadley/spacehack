@@ -371,9 +371,9 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
         )
         if call.args
     ).lower()
-    from src.spacehack.text import RUNTIME as _RUNTIME
+    from src.spacehack.text import overlay as _OVERLAY
     _open_overlay = " ".join(
-        str(_RUNTIME.get(f"runtime.door_open_{key}", ""))
+        str(_OVERLAY().get(f"runtime.door_open_{key}", ""))
         for key in ("meta", "body", "highlight")
     ).lower()
     assert "data is recovered" not in _door_log
