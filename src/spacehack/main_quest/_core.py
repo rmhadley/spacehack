@@ -85,6 +85,12 @@ def _grant_quest_perk(ctx, _step) -> None:
                 name=_perk.name, description=_perk.description,
             )
         )
+    if _step.rewards_trait in ("warrant_license", "lab_credentials"):
+        # The perk IS the board unlock — post work immediately instead
+        # of waiting out the month (mirrors the career-trait refresh in
+        # trait_screen). Force-fill only tops up EMPTY slots.
+        from ..mission import refresh_all_boards as _refresh
+        _refresh(ctx, force=True)
 
 
 def _apply_completion_rewards(ctx, _step) -> None:

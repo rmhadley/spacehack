@@ -97,3 +97,32 @@ def test_trait_display_names_cover_quest_perks():
     assert trait_name("lab_credentials") == "Lab Credentials"
     assert "warrant_license" not in _trait_names(["warrant_license", "sharpshooter"])
     assert "Sharpshooter" in _trait_names(["warrant_license", "sharpshooter"])
+
+
+def test_board_perk_posts_work_immediately_mid_month():
+    """The awkward case (playtest): the board was already viewed this
+    month (marked refreshed, empty, perk-gated) — the perk grant
+    force-fills it now, not next month."""
+    from src.spacehack.mission import ensure_board, fill_empty_slots
+    from src.spacehack.main_quest import _core
+
+    ctx = quest_ctx(chain="militia", progress={"epilogue_reward_militia": "available"})
+    ctx.mission_boards = {}
+    ctx.generated_missions = {}
+    # The player checked the captain's board earlier this month: created,
+    # filled (gated: nothing posted), marked refreshed.
+    board = ensure_board(ctx, "militia_captain", max_slots=5, planet_id="earth")
+    fill_empty_slots(
+        board, planet_tier=1, completed_ids=frozenset(), active_ids=frozenset(),
+        planet_id="earth", generated=ctx.generated_missions, ctx=ctx,
+    )
+    board.last_refresh_month = ctx.time_month
+    assert all(slot is None for slot in board.slots)
+
+    assert _core.complete_step(ctx, "epilogue_reward_militia")
+
+    filled = [slot for slot in board.slots if slot is not None]
+    assert filled, "warrants post the moment the perk lands"
+    assert all(
+        ctx.generated_missions[s].tier >= 3 for s in filled
+    )
