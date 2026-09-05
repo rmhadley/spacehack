@@ -73,24 +73,29 @@ at (183, 62) is reachable clean through the middle gap at any level.
 The contact is warning-only comms. And there is no "past": luyten's
 only jump connects back; no far-side system exists.
 
-**FLOOR RULING (user, 2026-09-05):** crossing is a significant feat
-at level 30 and IMPOSSIBLE below 30. Level 30 = 12,760 XP; the Act 0
-epilogue lands ~12-18, so the crossing is the reward for a long
-post-epilogue phase — the warrant/lab boards are exactly the T3-T4
-grind engine that carries a player there. Pacing falls out: research
-the Line at any level; cross at 30+.
+**FLOOR RULING (user, 2026-09-05, clarified same day):** FIGHTING
+your way through is a significant feat at level 30 and IMPOSSIBLE
+below 30. Level 30 = 12,760 XP; the Act 0 epilogue lands ~12-18.
+The hard floor belongs to the combat door only — the other methods
+carry their own requirements, tuned per-method in the Phase 0 walk
+(a clever sub-30 player crossing by papers, toll, gate, or quiet run
+is the game working as intended: the fight is the brute-force door,
+and brute force has a price of admission).
 
-**Where impossibility lives (lean):** a universal check at the wall.
-The picket becomes a true sensor line, edge to edge, no geometric
-gaps; crossing it anywhere triggers ONE unavoidable sweep offering
-exactly the method-doors (papers / transponder+manifest / decoy
-signal / survive interdiction with the squad and converged patrols).
-Below 30 every door is locked by requirements a sub-30 body of work
-cannot satisfy (rep thresholds reached only via the ~12k-XP grind,
-prices a sub-30 wallet can't hold, a gate not yet found, an
-interdiction fight that outguns them). At 30+ every door is openable
-and none is free. Gaps-and-force alone cannot guarantee "impossible"
-— min-maxers find gaps; the check guarantees it.
+**Combat-door guarantee (lean):** the interdiction encounter — the
+picket squad plus converged patrols — must be mathematically
+unwinnable for the best realistic sub-30 fit (verify against
+min-maxed skill spreads and tier-appropriate gear at 25-29), and a
+real, costly fight at 30+ where the player has ~145 skill points and
+cruiser/frigate-scale hull. Not "very hard" below 30 — PROVABLY
+unwinnable; min-maxers find gaps in difficulty curves, so the
+encounter math has to close them.
+
+**Gap-closure still matters — but as the Line system, not the
+floor:** free passage through geometric gaps should not exist; the
+quiet run is the intentional sneak door with its own researched
+requirements. Closing the gaps is fairness to the methods, not the
+level gate.
 
 **Prerequisite:** the far side needs at least one real system before
 "past" means anything.
