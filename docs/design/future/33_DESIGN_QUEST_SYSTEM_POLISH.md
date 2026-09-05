@@ -132,11 +132,14 @@ steps by `chain` and map chain -> text file in one table.
 
 ## Phases (when tackled)
 
-- [ ] Phase 1: `RENAMES` table (finding 1, Fix A) + migration tests
-- [ ] Phase 2: `tools/quest_lint.py` (finding 2) + wire into a make
-      target; fix everything it flags repo-wide
-- [ ] Phase 3: `tests/support/quest_ctx.py` (finding 3, Fix A);
-      optionally the reward seam (Fix B)
+- [ ] Phase 1: `RENAMES` + `RETIRED` table (finding 1) — folds in
+      both existing save repairs; migration tests
+- [ ] Phase 2: `tools/quest_lint.py` (finding 2, incl. the new
+      authoring rules + orphan-key report) + a make target; fix
+      everything it flags repo-wide
+- [ ] Phase 3: `tests/support/quest_ctx.py` (finding 3, Fix A)
+- [ ] Phase 4: retire the extractor + collapse RUNTIME to a
+      keys-only registry (finding 6); README guidance updated
 - [ ] Corpus audit + `make check`; move doc per lifecycle
 
 ## Acceptance criteria
