@@ -140,16 +140,19 @@ simulated vs. how authored each piece is.
     the grind and the signature share a room); the Blockade Officer
     at the Line honors it at the sweep.
   - **Back channel:** allied PIRATE standing + 10,000cr + finding
-    the rumor-broker barkeep at Groombridge (groom_b). Placement
-    ruling (user, corrected): Groombridge is the ROUGHER system —
-    pirate warlords patrol it, no militia presence — so surviving to
-    the barkeep self-selects for pirate-aligned or heavily-armed
-    players. The system itself is a gate that matches the method's
-    requirement; the back channel lives behind it. His contact
-    "works the registry office" at a Line station. The
+    the rumor-broker barkeep. [PLACEMENT RE-OPENED 2026-09-05: an
+    earlier note claimed the spawn data showed Groombridge as the
+    warlord system — it does NOT. Source: Ross 154 fields the
+    game's heaviest pirate force (warlords 100 hull ×0.3, marauders,
+    hounds, density 7; Ember is the pirate town); Groombridge runs
+    scouts/raiders at density 5. The design goal — surviving the
+    system self-selects for pirate-aligned or well-armed players —
+    matches Ross 154's data as-is (lean); keeping Groombridge would
+    mean authoring that danger into its table. User ruling pending.
+    His contact "works the registry office" at a Line station. The
     intercept/bounty economy is the pirate-rep engine, mirroring
     the warrant board. Official route pays a 2,000cr processing fee
-    at signing.
+    at signing.]
 - **Threshold: ALLIED (76+), both routes.** A real campaign; the
   Line is the Militia's most sensitive post and the back channel
   prices the same trust in a different currency.
