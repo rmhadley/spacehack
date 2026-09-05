@@ -140,19 +140,22 @@ simulated vs. how authored each piece is.
     the grind and the signature share a room); the Blockade Officer
     at the Line honors it at the sweep.
   - **Back channel:** allied PIRATE standing + 10,000cr + finding
-    the rumor-broker barkeep. [PLACEMENT RE-OPENED 2026-09-05: an
-    earlier note claimed the spawn data showed Groombridge as the
-    warlord system — it does NOT. Source: Ross 154 fields the
-    game's heaviest pirate force (warlords 100 hull ×0.3, marauders,
-    hounds, density 7; Ember is the pirate town); Groombridge runs
-    scouts/raiders at density 5. The design goal — surviving the
-    system self-selects for pirate-aligned or well-armed players —
-    matches Ross 154's data as-is (lean); keeping Groombridge would
-    mean authoring that danger into its table. User ruling pending.
-    His contact "works the registry office" at a Line station. The
-    intercept/bounty economy is the pirate-rep engine, mirroring
-    the warrant board. Official route pays a 2,000cr processing fee
-    at signing.]
+    the rumor-broker barkeep at **Whisper (lal_c)** — "The Vault, a
+    smuggler moon where nothing is asked and everything is priced"
+    (the planet's established fiction is the method's motto).
+    PLACEMENT CLOSED 2026-09-05 after comparing candidates against
+    the spawn data: Lalande 21185 and Ross 154 are the game's two
+    pirate-heavy systems (tied density 7, warlords both; Lalande
+    carries the heavier warlord weight, 0.35 vs 0.30); Lalande wins
+    on depth — 4 jumps from Sol, one past Groombridge — so the trip
+    crosses TWO pirate systems (Groombridge's scouts/raiders, then
+    Lalande's warlord roster). Surviving the route is the gate; the
+    system IS the prerequisite. Whisper's city map leans into the
+    fiction: storage containers of illegal goods stacked in the
+    streets (user). His contact "works the registry office" at a
+    Line station. The intercept/bounty economy is the pirate-rep
+    engine, mirroring the warrant board. Official route pays a
+    2,000cr processing fee at signing.
 - **Threshold: ALLIED (76+), both routes.** A real campaign; the
   Line is the Militia's most sensitive post and the back channel
   prices the same trust in a different currency.
@@ -225,8 +228,9 @@ the crossing is real.
 - [x] Opening settled (processing gate → findings light up the ship)
 - [x] Method v0 table captured
 - [x] Method 1 (the papers): CLOSED — two routes (Captain/Earth,
-      allied militia + 2,000cr; Groombridge barkeep, allied pirate +
-      10,000cr), trait-tracked, no aging
+      allied militia + 2,000cr; Whisper/Lalande barkeep, allied
+      pirate + 10,000cr, two pirate systems deep), trait-tracked,
+      no aging
 - [ ] Walk each remaining method one-by-one (suggested order:
       hidden gate → quiet run → toll → interdiction fight)
 - [ ] Settle the open questions below
