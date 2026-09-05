@@ -13,6 +13,39 @@ future-content roadmap; do not create a parallel runtime contract here.
 
 **The premise is a blend of alien mystery, faction politics, and consequence.** The four human factions offer competing interpretations and tools, but none possesses the whole truth. The player keeps making reasonable choices in pursuit of knowledge, survival, wealth, or security — and those choices gradually restore the path that wakes the prisoner. The final encounter is morally ambiguous without softening the creature's monstrous power or the devastation it caused.
 
+## Campaign status (2026-09-05) — reconciled with doc 37
+
+**Act 0 IS SHIPPED**: prologue + all four faction chains (Lab 24,
+Merchants 32, Militia 35, Bar 36 — each closed with playtests). The
+Phases 1a-1j checklists below are historical record.
+
+**The act structure now follows doc 37's roadmap** (user rulings
+2026-09-04, which supersede the act numbering below):
+
+1. **The Mars Epilogue** (next campaign, doc 38): after the prison
+   escape, the player chooses — deliver the prison data to their
+   faction for a chain-appropriate reward (merchants: the bond pays
+   out; the other three per doc 37/38), or keep everything (harder
+   road, end-twists). The existing post-escape content (orbit
+   disclosure scene, `research_alpha`/`research_alpha_report`) is
+   scheduled for REPLACEMENT by this branch (user: "the little stuff
+   that exists I don't want to keep").
+2. **Act 1**: past the Luyten blockade — multiple paths (the faction
+   rewards double as paths; see doc 37). The three-path table below
+   (diplomatic / smuggler / combat) remains the design reference.
+3. **Act 1 intermission**: use the Mars-prison knowledge to unmask
+   the giant alien derelict beyond the blockade — the thing the
+   militia scanners detected when the Line went up. Dive it (prison
+   pattern), emerge with the alien jump drive.
+4. **Act 2**: the devoured systems — jump destinations that
+   shouldn't exist. Doc 07's Act 3 dead-network content (M1-M7) and
+   the investigation-gated finale remain the long-range canon.
+
+The translation-layer fiction (navigation/network/warning/identity
+layers), the faction first-interpretation table, and the prisoner's
+canon-and-ambiguity below all REMAIN authoritative — they are the
+connective tissue between the epilogue choice and the finale.
+
 ## Design decisions (locked with the user)
 
 | Decision | Choice |
