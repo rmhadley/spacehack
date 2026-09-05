@@ -161,7 +161,9 @@ never happened, and the old man has one hand and a file.
 **The old job:** decades ago, a covert crew with Militia-issue
 hardware matched voltage to cycle the dormant door; it discharged the
 frame while his hand was on the clamp; the op was buried and the
-cell written out of existence. "Retired smuggler" is the cover story.
+cell written out of existence. He answered by turning black-market
+smuggler - stubborn, not hiding: thirty years flying the Militia's
+patrols out of spite (user ruling; NOT a cover story).
 (Replaces the vague "human signal" revelation — the door's new
 receiving state is the revelation.)
 
@@ -213,7 +215,7 @@ of the merchants' consortium.
   job WAS at the Mars door, before it was sealed — a deniable
   Incident-era Militia op to make the door respond (which makes the
   Militia serial and the nonexistent file load-bearing, and
-  recontextualizes the old man: smuggler is his cover story).
+  recontextualizes the old man: the burial made him an outlaw).
   Alternative: a second door exists (large lore commitment that
   ripples into Act 1+).
 - **B. The revelation never pays off.** The signal attempt is dropped
