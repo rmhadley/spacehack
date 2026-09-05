@@ -64,9 +64,10 @@ STEPS: tuple[MainQuestStep, ...] = (
         smuggle_hot=False,  # militia's own requisition — never confiscatable
         wait_days=40,  # inspection report routes; the real work starts at the expert
         dialogues={
+            # The captain's q3 dialogue is flavor (the crate auto-loads
+            # on q2 completion); the blockade officer holds the real row.
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
-                trigger_on_talk=True,
                 backing_faction="militia",
                 dialogue_planet_id="earth",
             ),

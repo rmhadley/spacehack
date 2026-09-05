@@ -96,3 +96,34 @@ def test_migrations_are_idempotent():
     snapshot = dict(ctx.main_quest_progress)
     main_quest.apply_step_migrations(ctx)
     assert ctx.main_quest_progress == snapshot
+
+
+def test_quest_lint_catches_injected_faults(tmp_path, monkeypatch):
+    """The linter must actually catch things: corrupt a copy of the
+    catalog's overlay with an orphaned key and a market-good crate, and
+    expect both flags (the city-audit lesson: a trusted diagnostic
+    proves itself on faults, not just on a clean repo)."""
+    import tools.quest_lint as lint
+
+    clean = dict(lint.overlay())
+    clean["step.not_a_real_step.title"] = "orphan"
+    monkeypatch.setattr(lint, "overlay", lambda: clean)
+
+    errors: list[str] = []
+    lint._check_orphaned_text(errors)
+    assert any("not_a_real_step" in e for e in errors), errors
+
+    # market good in a quest crate (fuel cells are trade goods)
+    from src.spacehack.data.main_quest import find_main_quest_step
+    smuggle = find_main_quest_step("bar_q5_charged")
+    monkeypatch.setattr(
+        lint, "list_main_quest_steps",
+        lambda: [
+            s if s.id != "bar_q5_charged"
+            else type(s)(**{**vars(s), "smuggle_good_id": "fuel_cells"})
+            for s in lint.__dict__.get("_STEPS_CACHE", []) or [smuggle]
+        ],
+    )
+    errors.clear()
+    lint._check_quest_cargo(errors)
+    assert any("fuel_cells" in e for e in errors), errors
