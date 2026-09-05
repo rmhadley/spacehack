@@ -130,16 +130,28 @@ shaped by two consumers, not one.
 and were edited in three consecutive campaigns. Derive them: group
 steps by `chain` and map chain -> text file in one table.
 
-## Phases (when tackled)
+## Phases — ALL LANDED 2026-09-05
 
-- [ ] Phase 1: `RENAMES` + `RETIRED` table (finding 1) — folds in
-      both existing save repairs; migration tests
-- [ ] Phase 2: `tools/quest_lint.py` (finding 2, incl. the new
-      authoring rules + orphan-key report) + a make target; fix
-      everything it flags repo-wide
-- [ ] Phase 3: `tests/support/quest_ctx.py` (finding 3, Fix A)
-- [ ] Phase 4: retire the extractor + collapse RUNTIME to a
-      keys-only registry (finding 6); README guidance updated
+- [x] Phase 1 (f139978): `RENAMES` / `RETIRED` / `BACKFILLS` /
+      `FIELD_FOLDS` in `data/main_quest/migrations.py` — both bespoke
+      save repairs folded in, semantics preserved; migration tests
+      cover every save era + idempotency + no-dangling-target.
+- [x] Phase 2 (d4ecce1): `tools/quest_lint.py` wired into
+      `make check` — two-text gates, option labels, smuggle actives,
+      quest-cargo standard, crate-size reconciliation, in-layout
+      guardians, orphan keys, per-chain cadence. First run caught two
+      real misses (dead trigger config; missing en-route variant).
+      Fault-injection test pins the catches.
+- [x] Phase 3 (c129bcf): `tests/support/quest_ctx.py`; the three
+      proliferated factories delegate to it.
+- [x] Phase 4 (6c965a6): extractor deleted; JSON is the single
+      authoring surface (orphan keys reported, not pruned); RUNTIME
+      is a keys-only frozenset registry; READMEs rewritten.
+
+Deferred by design: the decision-point primitive (finding 5) is
+designed at the top of Act 1 when the blockade path gives the second
+consumer. The reward-apply seam (finding 3, Fix B) stayed unnecessary
+— the shared factory covered the need.
 - [ ] Corpus audit + `make check`; move doc per lifecycle
 
 ## Acceptance criteria
