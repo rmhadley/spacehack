@@ -22,7 +22,7 @@
   "step.bar_q3_rigparts.description": "The old man has marked the old crew's cache in the Barnard's Star b caves. Descend and recover the rig's power cell - decades-old Militia hardware with the serial ground off. The Militia still flies the ridge.",
   "step.bar_q3_rigparts.dialogue.old_smuggler.intro": "The dig is up the ridge, past the old markers. The cell is down in the dark - Militia issue, serial ground off, thirty years on a charge that hasn't decayed. Watch the sky on the way down. The patrols have been thick since your intercept.",
   "step.bar_q3_rigparts.title": "The Power Cell",
-  "step.bar_q4_blackmarket.completion_flavor": "The charger takes the cell - slow at first, then all at once. Filling it takes days; the operator checks the meter himself and warns you once about the run home.",
+  "step.bar_q4_blackmarket.completion_flavor": "The operator locks the cell into the charger. Filling it takes days; he reads the meter himself and lets nobody else near the rig. He will disconnect it personally when it is full, and he has one warning saved for you about the run home.",
   "step.bar_q4_blackmarket.description": "The cell is in your hold - unregistered, unstable, and readable by any scanner that cares to look. Take it to the Wolf 359 listening post. The operator there runs the only off-the-books charger that can fill it.",
   "step.bar_q4_blackmarket.dialogue.old_smuggler.intro": "A patrol took the cell? It was never going to travel quietly. I kept one spare casing from the old job. I can replace it once; after that, the route has to stay yours. Get it to Wolf 359.",
   "step.bar_q4_blackmarket.dialogue.old_smuggler.option_label": "Request another power cell",
