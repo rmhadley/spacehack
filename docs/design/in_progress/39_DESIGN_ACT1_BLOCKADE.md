@@ -61,6 +61,40 @@ held objective — not a chain of steps. Discovered leads append as
 [dig content — presentation TBD: quest-log lead lines? a leads panel?
 or purely diegetic?]. Nothing expires; nothing nags.
 
+## The Line today (tested 2026-09-05) + the floor ruling
+
+**Test findings (code-level):** reaching the Line is trivial (a plain
+wolf_359 <-> luyten_star jump pair, any level). The picket is four
+static militia_blockade cruisers (60 hull each, heavy laser + light
+missiles, one shared squad) at x=150, y=25/55/85/115, detect radius
+7 — a wall with geometric GAPS (y 33-47, 63-77, 93-107, plus y<18
+and y>122 open; the map is 140 tall). The restricted-sector marker
+at (183, 62) is reachable clean through the middle gap at any level.
+The contact is warning-only comms. And there is no "past": luyten's
+only jump connects back; no far-side system exists.
+
+**FLOOR RULING (user, 2026-09-05):** crossing is a significant feat
+at level 30 and IMPOSSIBLE below 30. Level 30 = 12,760 XP; the Act 0
+epilogue lands ~12-18, so the crossing is the reward for a long
+post-epilogue phase — the warrant/lab boards are exactly the T3-T4
+grind engine that carries a player there. Pacing falls out: research
+the Line at any level; cross at 30+.
+
+**Where impossibility lives (lean):** a universal check at the wall.
+The picket becomes a true sensor line, edge to edge, no geometric
+gaps; crossing it anywhere triggers ONE unavoidable sweep offering
+exactly the method-doors (papers / transponder+manifest / decoy
+signal / survive interdiction with the squad and converged patrols).
+Below 30 every door is locked by requirements a sub-30 body of work
+cannot satisfy (rep thresholds reached only via the ~12k-XP grind,
+prices a sub-30 wallet can't hold, a gate not yet found, an
+interdiction fight that outguns them). At 30+ every door is openable
+and none is free. Gaps-and-force alone cannot guarantee "impossible"
+— min-maxers find gaps; the check guarantees it.
+
+**Prerequisite:** the far side needs at least one real system before
+"past" means anything.
+
 ## The Line (design ambition)
 
 **The blockade is a system, not a menu.** The crossing methods below
