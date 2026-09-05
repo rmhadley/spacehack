@@ -226,6 +226,46 @@ tension, resolved by far-side content, not by this method.
 **Method 2 status: CLOSED** (pending only the tech-piece
 acquisition vectors, which ride with the far-side/research design).
 
+### Method 3: The Ghost Run — mechanics settling 2026-09-05
+
+**TWO variants (user), same philosophy split as the whole act:**
+dark is LIVE SKILL PLAY; impersonation is PREPARATION PLAY. Neither
+is dice-gated — the act's ruling is preparation-gated, not
+roll-gated.
+
+**DARK — the hail-lure loop (user, from existing mechanics):**
+you must already be dark to get close enough to hail. Use the
+comms/hail system on a blockade picket, deceive them into changing
+position (fake distress, false orders — dialogue options), then
+stay dark as you coast through the gap you created. The loop:
+approach outside detect radius (7-8) → hail one picket → choose
+the deception → they move to investigate → coast the gap before
+they return.
+
+- The KEPT-exclusive decoy signal (combos table) tiers ABOVE this:
+  the archive replay pulls the WHOLE net toward a false contact —
+  safe, from range, no dialogue. Anyone with comms can lure one
+  picket up close; the kept player moves the Line itself.
+- Supporting existing mechanics: patrol movement/waypoints (the
+  lure works because they physically reposition), sensor pings
+  (the lure's fiction), bought rotation intel (frontier bars sell
+  the schedule — narrative kit for knowing the thin watches), the
+  smuggler's hold (if a patrol spots you dark and hails for a
+  scan, your cargo at least is clean).
+
+**IMPERSONATION — kit-complete, narrative-danger (user ruling):**
+no staleness clock, no RNG. "The work is getting the kit complete"
+— same shape as the hidden gate. The kit: a captured live militia
+ID (shadow a patrol at scan range, record the broadcast) plus
+presentation. The danger is NARRATED (codes rotate at 0600, the
+badge may already be dead) — the fiction sounds terrifying, the
+mechanics are the assembly. Only blockade-patrol rank or higher
+gets waved through without papers.
+
+**Open sub-questions:** the deception dialogue options (which lies
+work, what they cost), being spotted dark (interdiction
+automatic?), the capture mechanic's skill gate.
+
 ### Systemic combos (emergent, not authored paths)
 
 Plans that emerge from the Line's systems stacking — the
