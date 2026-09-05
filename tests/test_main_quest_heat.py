@@ -14,10 +14,12 @@ from src.spacehack.main_quest import _heat
 
 
 def _ctx(chain: str, progress: dict, missions: list | None = None):
+    from src.spacehack.message_log import MessageLog
     return SimpleNamespace(
         main_quest_chain=chain,
         main_quest_progress=progress,
         player_active_missions=missions or [],
+        log=MessageLog(capacity=6),
     )
 
 
@@ -140,3 +142,24 @@ def test_consortium_heat_expires_once_the_final_step_completes():
         "mer_q6_survey": "completed",
         "mer_q7_cutter": "completed",
     }))
+
+
+def test_lost_quest_cargo_raises_the_quest_styled_window(monkeypatch):
+    """Playtest v2 legibility: a confiscated main-quest crate shows a
+    main-quest-styled window (the colored log line was missed twice),
+    and the step resets so the giver re-offers."""
+    from src.spacehack import main_quest as _mq
+    from src.spacehack.main_quest import _act0
+
+    summon = []
+    monkeypatch.setattr(_act0, "show_quest_summon",
+                        lambda _ctx, message, objective="": summon.append((message, objective)))
+    ctx = _ctx("bar", {"bar_q5_charged": "active"})
+    crate = SimpleNamespace(
+        main_quest_step_id="bar_q5_charged", title="The Return Run",
+        is_procedural=True, mission_id="mq:bar_q5_charged",
+    )
+    assert _mq.fail_smuggle_step(ctx, crate)
+    assert ctx.main_quest_progress["bar_q5_charged"] == "available"
+    assert summon and "Power Cell" in summon[0][0]
+    assert "Wolf 359" in summon[0][1], "the window breadcrumbs the pickup"

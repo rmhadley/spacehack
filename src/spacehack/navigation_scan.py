@@ -135,11 +135,39 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
 
 
 def _apply_scan_outcome(ctx, owned, failed_missions, confiscated) -> None:
-    """Apply a fired scan's consequences: fail missions, confiscate goods."""
+    """Apply a fired scan's consequences: fail missions, confiscate goods.
+
+    Generic losses (inventory contraband, non-main-quest missions)
+    raise a militia-styled modal — a confiscation the player can miss
+    is a confiscation that didn't happen (playtest v2). Main-quest
+    cargo raises its own quest-styled window from fail_smuggle_step.
+    """
     for _am in failed_missions:
         _fail_smuggle_mission(ctx, owned, _am)
     if confiscated:
         _apply_scan_confiscation(ctx, owned, confiscated)
+    _show_confiscation_modal(ctx, failed_missions, confiscated)
+
+
+def _show_confiscation_modal(ctx, failed_missions, confiscated) -> None:
+    """The militia scan modal, for non-main-quest losses only."""
+    from .data.trade_goods import display_name as _good_name
+    _lines = [
+        f"{_good_name(_gid)} x{_qty} confiscated - {_fine}$ fine."
+        for _gid, _qty, _fine in confiscated
+    ]
+    _lines += [
+        f"Mission failed: {_am.title}."
+        for _am in failed_missions
+        if not getattr(_am, "main_quest_step_id", "")
+    ]
+    if not _lines:
+        return
+    from . import main_quest as _mq
+    _mq.show_gate_popup(
+        ctx, "Militia", "\n".join(_lines),
+        title="Cargo Confiscated",
+    )
 
 
 def _run_cargo_scan(ctx, planet_id: str) -> None:
@@ -205,9 +233,6 @@ def _run_space_cargo_scan(ctx) -> None:
         modify_rep(ctx, "militia", +1)
         return
 
-    for _am in _failed_missions:
-        _fail_smuggle_mission(ctx, owned, _am)
-    if _confiscated:
-        _apply_scan_confiscation(ctx, owned, _confiscated)
+    _apply_scan_outcome(ctx, owned, _failed_missions, _confiscated)
     from .faction import modify_rep
     modify_rep(ctx, "militia", -5)

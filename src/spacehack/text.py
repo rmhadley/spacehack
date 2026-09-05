@@ -310,6 +310,7 @@ RUNTIME: dict[str, str] = {
         "complete the job."
     ),
     "runtime.smuggle_handover_log": "The crate is handed over.",
+    "runtime.smuggle_lost_summon": "A militia scan took the {good}.",
     "runtime.smuggle_lost_log": (
         "The crate is lost. Talk to the quest giver for another "
         "one."

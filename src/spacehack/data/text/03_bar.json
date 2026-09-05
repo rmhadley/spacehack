@@ -38,7 +38,7 @@
   "step.bar_q5_charged.dialogue.barkeep.intro": "You made it back. Give me the cell before a patrol reads it through the hull. The frame has been behind my bar for thirty years - the old crew's clamps and leads. Rebuilt, it empties the whole cell into the feed in one shot. Bring the cell and we finish this.",
   "step.bar_q5_charged.dialogue.barkeep.option_label": "Hand over the charged cell",
   "step.bar_q5_charged.dialogue.wolf_barkeep.active": "The cell is in your hold. Run it to Earth before a patrol decides the discharge profile is reason enough to take you apart.",
-  "step.bar_q5_charged.dialogue.wolf_barkeep.intro": "There it is. Full charge, and a discharge profile the Militia thought they had deleted from the files. Take it to Earth. Every patrol in Sol will read you the moment you jump in.",
+  "step.bar_q5_charged.dialogue.wolf_barkeep.intro": "There it is. Full charge, and a discharge profile the Militia thought they had deleted from the files. Take it to Earth. Every patrol in Sol will read you the moment you jump in. One more thing: a militia scan will take this off you. A smuggler's hold hides it - or you stay out of their lines.",
   "step.bar_q5_charged.dialogue.wolf_barkeep.option_label": "Take the charged cell",
   "step.bar_q5_charged.title": "The Return Run",
   "step.bar_q6_rig.description": "Return to the Barkeep on Earth. The frame is rebuilt: the old crew's clamps and leads, rewired to empty the whole cell into the door's feed in one shot. Thirty years ago the discharge took a hand at the clamp. Nobody holds the clamp this time.",

@@ -189,10 +189,17 @@ def fail_smuggle_step(ctx, active) -> bool:
     ctx.main_quest_progress[_step_id] = STATUS_AVAILABLE
     if _step.smuggle_hot:
         # Contraband (bar chain): the giver NPC re-offers the crate
-        # via their quest dialogue option.
+        # via their quest dialogue option. The quest-styled window is
+        # the legible version of the loss (playtest v2: one colored
+        # log line was missed twice).
         ctx.log.add_colored(
             t_get("runtime.smuggle_lost_log"),
             message_log.COLOR_IMPORTANT_EVENT,
+        )
+        from ._act0 import show_quest_summon
+        show_quest_summon(
+            ctx, t_get("runtime.smuggle_lost_summon").format(good=_good),
+            objective=_step.description,
         )
         return True
     # Non-contraband payload (lab/militia/merchant): story-required
