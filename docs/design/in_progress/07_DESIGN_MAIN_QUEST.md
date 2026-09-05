@@ -22,7 +22,7 @@ Phases 1a-1j checklists below are historical record.
 **The act structure now follows doc 37's roadmap** (user rulings
 2026-09-04, which supersede the act numbering below):
 
-1. **The Mars Epilogue** (next campaign, doc 38): after the prison
+1. **The Mars Epilogue** (SHIPPED as doc 38, complete): after the prison
    escape, the player chooses — deliver the prison data to their
    faction for a chain-appropriate reward (merchants: the bond pays
    out; the other three per doc 37/38), or keep everything (harder
@@ -30,9 +30,11 @@ Phases 1a-1j checklists below are historical record.
    disclosure scene, `research_alpha`/`research_alpha_report`) is
    scheduled for REPLACEMENT by this branch (user: "the little stuff
    that exists I don't want to keep").
-2. **Act 1**: past the Luyten blockade — multiple paths (the faction
-   rewards double as paths; see doc 37). The three-path table below
-   (diplomatic / smuggler / combat) remains the design reference.
+2. **Act 1** (design in progress, doc 39): past the Luyten blockade —
+   multiple discoverable methods through a simulated Line (faction
+   perks are head starts, not keys; no time gates except the opening
+   processing wait). The three-path table below remains historical
+   reference; doc 39's method table supersedes it.
 3. **Act 1 intermission**: use the Mars-prison knowledge to unmask
    the giant alien derelict beyond the blockade — the thing the
    militia scanners detected when the Line went up. Dive it (prison
