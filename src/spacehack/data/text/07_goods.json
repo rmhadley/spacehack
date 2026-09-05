@@ -21,6 +21,10 @@
   "good.ore_processed.name": "Processed Ore",
   "good.pharmaceuticals.description": "Advanced gene-tailored therapeutics and performance enhancers.",
   "good.pharmaceuticals.name": "Pharmaceuticals",
+  "good.power_cell.description": "Deep cell from the old Barnard's job - Militia issue, serial ground off, thirty years on a charge that hasn't decayed.",
+  "good.power_cell.name": "Power Cell",
+  "good.power_cell_charged.description": "The old cell, filled at the Wolf 359 reactor tap. Its discharge profile is on every Militia scanner file.",
+  "good.power_cell_charged.name": "Charged Power Cell",
   "good.rare_earth_metals.description": "Exotic elements essential for high-end manufacturing.",
   "good.rare_earth_metals.name": "Rare Earth Metals",
   "good.reference_recorder.description": "A data recorder recovered from a derelict scout near Sirius - the missing dataset the lab needs to finish the console work.",
@@ -37,6 +41,8 @@
   "good.smelted_alloy.name": "Smelted Alloy",
   "good.textiles.description": "Bolts of synthetic fabric and weatherproof weaves.",
   "good.textiles.name": "Textiles",
+  "good.unregistered_arms.description": "Unregistered side-arms and mil-spec ordnance - the bar's proof crate for the old man on Barnard's Star b.",
+  "good.unregistered_arms.name": "Unregistered Arms",
   "good.weapons_blackmarket.description": "Unregistered side-arms and mil-spec ordnance - hot, illegal, lucrative.",
   "good.weapons_blackmarket.name": "Black Market Weapons"
 }

@@ -20,7 +20,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="prologue_seek_help",
         chain="bar",
         objective_type="talk",
-        wait_days=65,
+        wait_days=60,  # word travels to Barnard's Star
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
@@ -39,11 +39,11 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="bar",
         objective_type="smuggle",
         requires_npc_id="old_smuggler",
-        smuggle_good_id="weapons_blackmarket",
-        smuggle_cargo_size=8,
+        smuggle_good_id="unregistered_arms",  # the dedicated contraband proof crate
+        smuggle_cargo_size=1,
         heat=("militia_scan",),  # militia scan floor while the proof run is live
         npc_presence=("old_smuggler",),  # the receiver of the proof crate
-        wait_days=85,
+        wait_days=70,  # the patrol rotation swings off the ridge
         dialogues={
             "barkeep": QuestDialogue(
                 npc_id="barkeep",
@@ -68,7 +68,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="bar_q2_proof",
         chain="bar",
         objective_type="delve",
-        delve_good_ids=(("machine_parts", 1), ("electronics", 1)),
+        delve_good_ids=(("power_cell", 1),),  # the old job's deep cell - the q4 crate
         npc_presence=("old_smuggler",),  # he draws the cave for the rig parts
         wait_days=0,
         dialogues={
@@ -88,12 +88,12 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="smuggle",
         requires_npc_id="wolf_barkeep",
         smuggle_good_id="power_cell",
-        smuggle_cargo_size=5,
+        smuggle_cargo_size=1,  # the cell, singular
         # Scan floor while the cell is en route + auto-aggro in Sol
         # while the crate is actually held (the charged-cell signature).
         heat=("militia_scan", "militia_aggro"),
         npc_presence=("old_smuggler",),  # re-issues a lost power cell
-        wait_days=90,
+        wait_days=70,  # the charger fills the cell
         dialogues={
             "wolf_barkeep": QuestDialogue(
                 npc_id="wolf_barkeep",
@@ -123,7 +123,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         objective_type="smuggle",
         requires_npc_id="barkeep",
         smuggle_good_id="power_cell_charged",
-        smuggle_cargo_size=5,
+        smuggle_cargo_size=1,
         # Scan floor + auto-aggro while the charged cell is in the hold.
         heat=("militia_scan", "militia_aggro"),
         wait_days=0,

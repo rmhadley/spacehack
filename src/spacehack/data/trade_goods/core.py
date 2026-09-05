@@ -168,6 +168,43 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         rarity=0.1,
     ),
     TradeGood(
+        id="power_cell",
+        name="Power Cell",
+        description=(
+            "Deep cell from the old Barnard's job - Militia issue, "
+            "serial ground off, thirty years on a charge that hasn't "
+            "decayed."
+        ),
+        base_price=100,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="power_cell_charged",
+        name="Charged Power Cell",
+        description=(
+            "The old cell, filled at the Wolf 359 reactor tap. Its "
+            "discharge profile is on every Militia scanner file."
+        ),
+        base_price=300,
+        category="tech",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
+        id="unregistered_arms",
+        name="Unregistered Arms",
+        description=(
+            "Unregistered side-arms and mil-spec ordnance - the bar's "
+            "proof crate for the old man on Barnard's Star b."
+        ),
+        base_price=250,
+        category="contraband",
+        volume=1,
+        rarity=0.1,
+    ),
+    TradeGood(
         id="escrow_ore",
         name="Escrow Ore",
         description=(

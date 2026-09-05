@@ -295,14 +295,13 @@ def test_militia_chain_linkage_and_cadence():
 def test_quest_cargo_is_quest_goods_not_market_goods():
     """Quest pickups/crates hand out named quest goods (the recorder
     pattern) or virtual mission cargo — never market goods (playtest
-    v15: "cargo for quests should be mission cargo"). The bar chain is
-    excluded until its own pass (known machine_parts/electronics crate)."""
+    v15: "cargo for quests should be mission cargo"). The bar chain's
+    crate is the dedicated contraband quest good; the delve yields the
+    power cell (virtual mission cargo)."""
     from src.spacehack.data.main_quest import list_main_quest_steps
     from src.spacehack.data.trade_goods import find_trade_good
 
     for step in list_main_quest_steps():
-        if step.chain == "bar":
-            continue
         good_ids = [gid for gid, _qty in step.delve_good_ids]
         if step.smuggle_good_id:
             good_ids.append(step.smuggle_good_id)
@@ -369,3 +368,28 @@ def test_militia_breadcrumb_names_each_leg():
     title, desc = current_main_quest_objective(gated)
     assert title == "Awaiting word from the Militia..."
     assert "blockade inspector" in desc, "the gate shows the flavor beat"
+
+
+def test_bar_chain_linkage_and_cadence():
+    """Six steps in strict order, even-wait cadence 60/70/70 (200
+    gate-days, per ruling: sandbox time, then the reminder prompts
+    the next-leg decision). The proof crate is the dedicated
+    contraband quest good; the delve yields the cell that IS the
+    q4 crate (doc 36)."""
+    from src.spacehack.data.main_quest import find_main_quest_step
+
+    order = [
+        "bar_q1_oldhand", "bar_q2_proof", "bar_q3_rigparts",
+        "bar_q4_blackmarket", "bar_q5_charged", "bar_q6_rig",
+    ]
+    waits = []
+    for i, sid in enumerate(order):
+        step = find_main_quest_step(sid)
+        if i:
+            assert step.requires_step == order[i - 1], sid
+        waits.append(step.wait_days)
+    assert waits == [60, 70, 0, 70, 0, 0]
+    assert find_main_quest_step("bar_q2_proof").smuggle_good_id == "unregistered_arms"
+    assert find_main_quest_step("bar_q3_rigparts").delve_good_ids == (("power_cell", 1),)
+    assert find_main_quest_step("bar_q4_blackmarket").smuggle_cargo_size == 1
+    assert find_main_quest_step("bar_q6_rig").unlocks_step == "prologue_open"

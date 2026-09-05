@@ -147,7 +147,7 @@ def test_auto_load_default_true_loads_next_smuggle_crate():
         "bar_q4_blackmarket": "available",
     }, ship=_ship)
     _core._maybe_auto_trigger_next_smuggle(_ctx, "bar_q3_rigparts")
-    assert _ship.mission_reserved == 5  # power_cell cargo size
+    assert _ship.mission_reserved == 1  # the cell, singular (doc 36)
     assert len(_ctx.player_active_missions) == 1
     assert _ctx.player_active_missions[0].main_quest_step_id == "bar_q4_blackmarket"
     assert _ctx.main_quest_progress["bar_q4_blackmarket"] == "active"
