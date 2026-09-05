@@ -8,6 +8,7 @@ documented behaviour.
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from src.spacehack.data.main_quest import list_main_quest_steps
@@ -120,25 +121,17 @@ def test_smuggle_trigger_loads_when_available_hands_over_when_active(monkeypatch
 
 
 def _payment_ctx(credits: int):
-    from types import SimpleNamespace
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from support.quest_ctx import quest_ctx
 
-    return SimpleNamespace(
-        stats=SimpleNamespace(credits=credits),
-        main_quest_progress={"mer_q3_transport": "completed"},
-        main_quest_gate={},
-        main_quest_chain="merchants",
+    return quest_ctx(
+        chain="merchants",
+        progress={"mer_q3_transport": "completed"},
+        credits=credits,
+        city_id="depot",  # the attendant's dialogue is depot-gated
+        day=10, month=3,  # refit-gate scheduling
         main_quest_backing={"merchants"},
-        main_quest_progress_rewards={},
-        current_city_id="depot",  # the attendant's dialogue is depot-gated
-        log=SimpleNamespace(
-            add=lambda _msg: None,
-            add_colored=lambda *_a, **_k: None,  # xp reward logging
-        ),
-        player_xp=0,  # complete_step rewards
-        player_level=1,  # xp level-up loop
-        player_skill_points=0,
-        main_quest_disclosure="",  # breadcrumb act1 checks
-        time_day=10, time_month=3, time_year=2200,  # refit-gate scheduling
     )
 
 

@@ -7,6 +7,7 @@ the runtime. These tests pin both the tag placement and the filter semantics.
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from src.spacehack.data.main_quest import find_main_quest_step
@@ -14,15 +15,11 @@ from src.spacehack.main_quest import _heat
 
 
 def _ctx(chain: str, progress: dict, missions: list | None = None):
-    from src.spacehack.message_log import MessageLog
-    return SimpleNamespace(
-        main_quest_chain=chain,
-        main_quest_progress=progress,
-        player_active_missions=missions or [],
-        main_quest_gate={},
-        main_quest_backing=set(),
-        log=MessageLog(capacity=6),
-    )
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from support.quest_ctx import quest_ctx
+
+    return quest_ctx(chain=chain, progress=progress, missions=missions)
 
 
 # ---------------------------------------------------------------------------

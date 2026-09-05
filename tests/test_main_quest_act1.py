@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
-from src.spacehack import dungeon_extensions, message_log, world
+from src.spacehack import dungeon_extensions, world
 from src.spacehack.data.main_quest import find_main_quest_step
 
 from src.spacehack.main_quest import _act1
@@ -15,19 +16,16 @@ from src.spacehack import __main__ as game_main
 
 
 def _ctx():
-    return SimpleNamespace(
-        current_city_id="mars",
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from support.quest_ctx import quest_ctx
+
+    return quest_ctx(
+        chain="lab",
+        progress={"act1_prison": "completed"},
+        city_id="mars",
         post_prison_orbit_seen=False,
-        main_quest_disposition="",
-        main_quest_progress={"act1_prison": "completed"},
-        main_quest_chain="lab",
-        main_quest_gate={},
-        main_quest_pending_message="",
-        main_quest_pending_objective="",
         dungeon_extension=SimpleNamespace(state_flags={"prison_data_extracted"}),
-        log=message_log.MessageLog(capacity=6),
-        main_quest_complete=False,
-        player_active_missions=[],
     )
 
 
