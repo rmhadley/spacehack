@@ -58,10 +58,16 @@ def bar_heat_active(ctx) -> bool:
 
 
 def charged_cell_in_sol(ctx, system_id: str) -> bool:
-    """True while the player is carrying the power cell — militia auto-aggro."""
+    """True in SOL while a militia_aggro crate is held — auto-aggro.
+
+    The charged cell's discharge profile is on the Sol scanner net;
+    other systems (Wolf 359 included) don't know it on sight, so the
+    hunt starts at the Sol jump, not at the pickup. The system check
+    was originally missing — the cell hunted everywhere (playtest v2).
+    """
     if ctx.main_quest_chain != "bar":
         return False
-    return _heat_crate_held(ctx, "militia_aggro")
+    return system_id == "sol" and _heat_crate_held(ctx, "militia_aggro")
 
 
 def consortium_heat_active(ctx) -> bool:

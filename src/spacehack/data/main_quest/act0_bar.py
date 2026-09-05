@@ -90,9 +90,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="wolf_barkeep",
         smuggle_good_id="power_cell",
         smuggle_cargo_size=1,  # the cell, singular
-        # Scan floor while the cell is en route + auto-aggro in Sol
-        # while the crate is actually held (the charged-cell signature).
-        heat=("militia_scan", "militia_aggro"),
+        # Scan floor while the cell is en route - the UNcharged cell is
+        # readable but carries no discharge signature (that beat is q5's).
+        heat=("militia_scan",),
         npc_presence=("old_smuggler",),  # re-issues a lost power cell
         wait_days=70,  # the charger fills the cell
         dialogues={

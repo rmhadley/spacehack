@@ -30,7 +30,6 @@ def test_heat_tags_are_declared_on_the_expected_steps():
     assert find_main_quest_step("bar_q2_proof").heat == ("militia_scan",)
     assert find_main_quest_step("bar_q4_blackmarket").heat == (
         "militia_scan",
-        "militia_aggro",
     )
     assert find_main_quest_step("bar_q5_charged").heat == (
         "militia_scan",
@@ -85,6 +84,17 @@ def test_charged_cell_aggro_while_the_crate_is_held():
     assert _heat.charged_cell_in_sol(
         _ctx("bar", {"bar_q5_charged": "active"}, missions=_missions),
         "sol",
+    )
+
+
+def test_charged_cell_no_aggro_outside_sol():
+    """Regression (playtest v2): the cell hunted the player out of Wolf
+    359 - the system check was missing. The hunt starts at the Sol
+    jump, where the discharge profile is on file."""
+    _missions = [SimpleNamespace(main_quest_step_id="bar_q5_charged")]
+    assert not _heat.charged_cell_in_sol(
+        _ctx("bar", {"bar_q5_charged": "active"}, missions=_missions),
+        "wolf_359",
     )
 
 
