@@ -68,7 +68,6 @@ def estimate(frame, label: str) -> None:
 
 
 def main() -> None:
-    from src.spacehack import ship as ship_module
     from src.spacehack.ship import OwnedShip
 
     owned = OwnedShip(
@@ -239,7 +238,6 @@ def main() -> None:
     estimate_screen()
 
     # --- Reference: what row budget yields 24px? ---
-    from src.spacehack import pygame_split
 
     for cap in (8, 9, 10, 11, 12):
         line = FakeFont(24).get_linesize()

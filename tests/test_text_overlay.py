@@ -66,7 +66,6 @@ def overlay_dir(tmp_path, monkeypatch):
                 "runtime.transmission_title": "STATIC BURST",
                 "runtime.prison.entry_f1_title": "OVERRIDDEN PRISON ENTRY",
                 "runtime.prison.floor1_name": "Overridden Prison Floor",
-                "disclosure.diagnostic_fragment.label": "Override label",
                 "step.lab_q2_delivery.completion_flavor": "Overridden flavor line.",
                 "step.lab_q2_delivery.ready_message": "Overridden summon.",
             }
@@ -150,16 +149,6 @@ def test_overlay_overrides_completion_flavor_and_ready_message(overlay_dir):
     _step = find_main_quest_step("lab_q2_delivery")
     assert _step.completion_flavor == "Overridden flavor line."
     assert _step.ready_message == "Overridden summon."
-
-
-def test_disclosure_overlay_applies(overlay_dir):
-    from src.spacehack.data.main_quest.act1_post_prison import (
-        find_archive_disclosure,
-    )
-
-    _spec = find_archive_disclosure("diagnostic_fragment")
-    assert _spec.label == "Override label"
-    assert _spec.log_message  # un-overridden fields keep defaults
 
 
 def test_extractor_merge_preserves_writer_edits(tmp_path, monkeypatch):
@@ -256,13 +245,5 @@ def test_shipped_overlay_keys_resolve():
     for _g in TRADE_GOODS:
         _known.add(f"good.{_g.id}.name")
         _known.add(f"good.{_g.id}.description")
-    from src.spacehack.data.main_quest.act1_post_prison import ARCHIVE_DISCLOSURES
-
-    for _spec in ARCHIVE_DISCLOSURES:
-        for _field in (
-            "label", "log_message", "followup_message",
-            "waiting_title", "waiting_description", "ready_message",
-        ):
-            _known.add(f"disclosure.{_spec.key}.{_field}")
     _unknown = sorted(set(text_module.overlay()) - _known)
     assert _unknown == []

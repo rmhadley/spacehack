@@ -78,7 +78,7 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
-    ctx.main_quest_disclosure = "archive_sealed"
+    ctx.main_quest_disposition = "archive_sealed"
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True
     ctx.main_quest_chain = "lab"
@@ -209,7 +209,7 @@ class TestSaveLoadRoundTrip:
         assert loaded.completed_mission_ids == original.completed_mission_ids
 
         # Post-prison Act 1 orbit disclosure and sandbox gate
-        assert loaded.main_quest_disclosure == original.main_quest_disclosure
+        assert loaded.main_quest_disposition == original.main_quest_disposition
         assert loaded.post_prison_orbit_seen == original.post_prison_orbit_seen
         assert loaded.post_prison_orbit_pending == original.post_prison_orbit_pending
         assert loaded.main_quest_chain == original.main_quest_chain
@@ -298,7 +298,7 @@ class TestSaveLoadRoundTrip:
             "main_quest_gate",
             "main_quest_pending_message",
             "main_quest_pending_objective",
-            "main_quest_disclosure",
+            "main_quest_disposition",
             "post_prison_orbit_seen",
             "post_prison_orbit_pending",
         ):
@@ -313,7 +313,7 @@ class TestSaveLoadRoundTrip:
         assert loaded.main_quest_gate == {}
         assert loaded.main_quest_pending_message == ""
         assert loaded.main_quest_pending_objective == ""
-        assert loaded.main_quest_disclosure == ""
+        assert loaded.main_quest_disposition == ""
         assert not loaded.post_prison_orbit_seen
         assert not loaded.post_prison_orbit_pending
         delete_save()

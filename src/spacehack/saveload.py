@@ -196,7 +196,7 @@ def _quest_fields(ctx: GameContext) -> dict:
         "main_quest_pending_message": ctx.main_quest_pending_message,
         "main_quest_pending_objective": ctx.main_quest_pending_objective,
         "main_quest_complete": ctx.main_quest_complete,
-        "main_quest_disclosure": ctx.main_quest_disclosure,
+        "main_quest_disposition": ctx.main_quest_disposition,
         "post_prison_orbit_seen": ctx.post_prison_orbit_seen,
         "post_prison_orbit_pending": ctx.post_prison_orbit_pending,
         "dungeon_extension": _d(ctx.dungeon_extension),
@@ -865,7 +865,10 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
     ctx.main_quest_pending_message = data.get("main_quest_pending_message", "")
     ctx.main_quest_pending_objective = data.get("main_quest_pending_objective", "")
     ctx.main_quest_complete = data.get("main_quest_complete", False)
-    ctx.main_quest_disclosure = data.get("main_quest_disclosure", "")
+    ctx.main_quest_disposition = data.get(
+        "main_quest_disposition",
+        "delivered" if data.get("main_quest_disclosure", "") else "",
+    )
     ctx.post_prison_orbit_seen = bool(data.get("post_prison_orbit_seen", False))
     ctx.post_prison_orbit_pending = bool(data.get("post_prison_orbit_pending", False))
     ctx.tutorial_mode = bool(data.get("tutorial_mode", False))

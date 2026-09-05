@@ -79,6 +79,7 @@ from ._act0 import (
     show_gate_popup,
 )
 from ._act1 import (
-    OrbitDisclosure,
+    DISPOSITION_DELIVERED,
+    DISPOSITION_KEPT,
     maybe_show_post_prison_orbit,
 )

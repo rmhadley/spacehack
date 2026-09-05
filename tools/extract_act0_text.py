@@ -38,22 +38,10 @@ from src.spacehack.data.main_quest import list_raw_main_quest_steps  # noqa: E40
 from src.spacehack.data.npcs import find_npc  # noqa: E402
 from src.spacehack.data.trade_goods.core import TRADE_GOODS  # noqa: E402
 from src.spacehack.text import RUNTIME  # noqa: E402
-from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
-    ARCHIVE_DISCLOSURES,
-)
 
 OUT_DIR = ROOT / "src" / "spacehack" / "data" / "text"
 
 _DIALOGUE_VARIANTS = ("intro", "active", "complete", "locked", "option_label")
-
-_DISCLOSURE_FIELDS = (
-    "label",
-    "log_message",
-    "followup_message",
-    "waiting_title",
-    "waiting_description",
-    "ready_message",
-)
 
 
 def _step_namespace(step) -> tuple[set[str], set[str]]:
@@ -83,16 +71,6 @@ def _npc_fresh(*npc_ids: str) -> dict[str, str]:
             continue
         if _npc.flavor_text:
             _keys[f"npc.{_npc_id}.flavor_text"] = _npc.flavor_text
-    return _keys
-
-
-def _disclosure_fresh() -> dict[str, str]:
-    _keys: dict[str, str] = {}
-    for _spec in ARCHIVE_DISCLOSURES:
-        for _field in _DISCLOSURE_FIELDS:
-            _value = getattr(_spec, _field, "")
-            if _value:
-                _keys[f"disclosure.{_spec.key}.{_field}"] = _value
     return _keys
 
 
@@ -209,10 +187,12 @@ def main() -> int:
             (
                 "prologue_open",
                 "act1_prison",
-                "research_alpha",
-                "research_alpha_report",
+                "epilogue_reward_merchants",
+                "epilogue_reward_militia",
+                "epilogue_reward_bar",
+                "epilogue_reward_lab",
             ),
-            _disclosure_fresh(),
+            {},
         ),
         "07_goods.json": ((), _goods_fresh()),
     }

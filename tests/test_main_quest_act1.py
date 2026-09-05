@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import dataclasses
 from types import SimpleNamespace
 
 from src.spacehack import dungeon_extensions, message_log, world
 from src.spacehack.data.main_quest import find_main_quest_step
-from src.spacehack.data.main_quest.act1_post_prison import find_archive_disclosure
-from src.spacehack.data.planets.ac_station import SPEC as AC_STATION
 
 from src.spacehack.main_quest import _act1
 from src.spacehack.main_quest._core import _schedule_next_step
-from src.spacehack.main_quest._objectives import maybe_complete_visit
 from src.spacehack.main_quest._breadcrumb import current_main_quest_objective
 from src.spacehack.main_quest._gates import check_quest_gates
 from src.spacehack import __main__ as game_main
@@ -22,7 +18,7 @@ def _ctx():
     return SimpleNamespace(
         current_city_id="mars",
         post_prison_orbit_seen=False,
-        main_quest_disclosure="",
+        main_quest_disposition="",
         main_quest_progress={"act1_prison": "completed"},
         main_quest_chain="lab",
         main_quest_gate={},
@@ -33,74 +29,6 @@ def _ctx():
         main_quest_complete=False,
         player_active_missions=[],
     )
-
-
-def test_research_alpha_is_cataloged_as_an_alpha_centauri_visit():
-    step = find_main_quest_step("research_alpha")
-
-    assert step.requires_step == "act1_prison"
-    assert step.objective_type == "visit"
-    assert step.requires_npc_id == "research_officer"
-    assert step.trigger_planet_id == "ac_station"
-    _dialogue = step.dialogues["research_officer"]
-    assert _dialogue.option_label == "Begin the first interpretation"
-    assert "Do not call it a map yet" in _dialogue.intro
-    assert "layered signal" in _dialogue.intro
-    assert "translate the simplest recurring symbols" in _dialogue.intro
-    assert "Before we call it a map" not in _dialogue.intro
-    # active/complete variants were removed as dead: research_alpha is
-    # auto_advance + trigger_on_talk, so the talk modal always shows
-    # the NPC flavor while this step is live (see tools/audit_story_text.py)
-    assert step.auto_advance
-    assert step.wait_days == 14
-    # The summon text belongs to the GATING step (research_alpha, whose
-    # 14-day wait unlocks the report); the report itself has no gate.
-    assert "processing cluster" in step.ready_message
-    _report = find_main_quest_step("research_alpha_report")
-    assert _report.requires_step == "research_alpha"
-    assert _report.objective_type == "visit"
-    assert _report.wait_days == 0
-    assert _report.ready_message == ""
-
-    prison = find_main_quest_step("act1_prison")
-    assert not prison.auto_advance
-    assert prison.wait_days == 60
-    assert "archive handoff is ready" in prison.ready_message
-    assert "Alpha Centauri" in prison.ready_message
-
-
-def test_archive_disclosure_catalog_is_frozen_and_keyed():
-    _spec = find_archive_disclosure("diagnostic_fragment")
-
-    assert _spec.label == "Transmit a diagnostic fragment"
-    assert _spec.waiting_title == "Awaiting fragment analysis..."
-    assert "independent reading" in _spec.ready_message
-
-    try:
-        find_archive_disclosure("not-a-real-disclosure")
-    except KeyError as _error:
-        assert "not-a-real-disclosure" in str(_error)
-    else:
-        raise AssertionError("unknown archive disclosure keys must fail")
-
-    try:
-        _spec.label = "mutated"
-    except dataclasses.FrozenInstanceError:
-        pass
-    else:
-        raise AssertionError("archive disclosure data must be frozen")
-
-
-def test_alpha_centauri_station_research_contacts():
-    _building_npcs = {building.npc_id for building in AC_STATION.buildings}
-
-    assert {"archive_research_officer", "research_officer"} <= _building_npcs
-    # The archive override supplies the post-prison officer; the lab
-    # slot resolves through the global catalog (no xenolinguist
-    # override — she is now a dynamic quest NPC via quest_npc_spots).
-    assert dict(AC_STATION.npc_overrides)["archive_research_officer"].id == "research_officer"
-    assert "research_officer" not in dict(AC_STATION.npc_overrides)
-    assert ("xenolinguist", "lab") in AC_STATION.quest_npc_spots
 
 
 def test_mars_surface_detection_supports_current_and_legacy_maps():
@@ -189,8 +117,8 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
 
     monkeypatch.setattr(
         _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: "diagnostic_fragment",
+        "_pygame_disposition_choice",
+        lambda _ctx: "delivered",
     )
 
     _launch_calls = []
@@ -222,7 +150,7 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     assert _launch_calls == [True]
     assert (_space_map, _space_player) == (_parent_map, _parent_player)
     assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert ctx.main_quest_disposition == "delivered"
     _launch_from_city_result = game_main._launch_owned_ship(
         ctx,
         object(),
@@ -250,41 +178,6 @@ def test_prison_completion_shows_departure_breadcrumb_before_orbit_scene():
 
     ctx.post_prison_orbit_seen = True
     assert current_main_quest_objective(ctx) is None
-
-
-def test_quest_log_distinguishes_prison_handoff_from_final_resolution():
-    """The quest log reserves its completion label for the actual ending."""
-    from unittest.mock import MagicMock
-
-    from src.spacehack.menus._quest_log import render_quest_log
-    from src.spacehack.engine import SCREEN_HEIGHT, SCREEN_WIDTH
-
-    ctx = _ctx()
-    _console = MagicMock()
-    render_quest_log(
-        _console, ctx,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-    )
-    _handoff_text = [
-        call.kwargs.get("string", call.args[2] if len(call.args) > 2 else "")
-        for call in _console.print.call_args_list
-    ]
-    assert "Leave Mars" in _handoff_text
-    assert "(main quest complete)" not in _handoff_text
-
-    ctx.main_quest_complete = True
-    _console.reset_mock()
-    render_quest_log(
-        _console, ctx,
-        screen_width=SCREEN_WIDTH,
-        screen_height=SCREEN_HEIGHT,
-    )
-    _final_text = [
-        call.kwargs.get("string", call.args[2] if len(call.args) > 2 else "")
-        for call in _console.print.call_args_list
-    ]
-    assert "(main quest complete)" in _final_text
 
 
 def test_orbit_scene_requires_completed_prison_and_mars_departure():
@@ -355,8 +248,8 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
     )
     monkeypatch.setattr(
         _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: _modal_calls.append(True) or "diagnostic_fragment",
+        "_pygame_disposition_choice",
+        lambda _ctx: _modal_calls.append(True) or "kept",
     )
 
     _result = game_main._handle_dungeon_exit_tile(
@@ -373,7 +266,7 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
     assert _result == (_space_map, _space_player, "space")
     assert (ctx.game_map, ctx.player) == (_space_map, _space_player)
     assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert ctx.main_quest_disposition == "kept"
     assert _modal_calls == [True]
     assert any(
         "return to Mars orbit" in entry.text
@@ -411,8 +304,8 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
     )
     monkeypatch.setattr(
         _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: "diagnostic_fragment",
+        "_pygame_disposition_choice",
+        lambda _ctx: "delivered",
     )
 
     result = game_main._handle_dungeon_exit_tile(
@@ -428,7 +321,7 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
 
     assert result == (_space_map, _space_player, "space")
     assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert ctx.main_quest_disposition == "delivered"
     assert any(
         "return to Mars orbit" in entry.text
         for entry in ctx.log.recent(n=8)
@@ -444,53 +337,14 @@ def test_orbit_scene_can_resolve_from_prison_without_city_context(monkeypatch):
     ctx.time_year = 2200
     monkeypatch.setattr(
         _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: "diagnostic_fragment",
+        "_pygame_disposition_choice",
+        lambda _ctx: "delivered",
     )
 
     assert not _act1.maybe_show_post_prison_orbit(ctx)
     assert _act1.maybe_show_post_prison_orbit(ctx, from_mars_prison=True)
     assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "diagnostic_fragment"
-
-
-def test_pygame_orbit_guide_reopens_choice_before_disclosure(monkeypatch):
-    ctx = _ctx()
-    _choices = iter(("__GUIDE__", "archive_sealed"))
-    _calls = []
-
-    monkeypatch.setattr(
-        _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: _calls.append(True) or next(_choices),
-    )
-
-    assert _act1.maybe_show_post_prison_orbit(ctx)
-    assert _calls == [True, True]
-    assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "archive_sealed"
-
-
-def test_interrupted_orbit_scene_preserves_choice_until_confirmation(monkeypatch):
-    ctx = _ctx()
-    ctx.context = SimpleNamespace(present=lambda _console: None)
-    ctx.time_day = 1
-    ctx.time_month = 1
-    ctx.time_year = 2200
-    _choices = iter(("__QUIT__", "diagnostic_fragment"))
-    monkeypatch.setattr(
-        _act1,
-        "_pygame_orbit_choice",
-        lambda _ctx: next(_choices),
-    )
-
-    assert not _act1.maybe_show_post_prison_orbit(ctx)
-    assert not ctx.post_prison_orbit_seen
-    assert not ctx.main_quest_disclosure
-
-    assert _act1.maybe_show_post_prison_orbit(ctx)
-    assert ctx.post_prison_orbit_seen
-    assert ctx.main_quest_disclosure == "diagnostic_fragment"
+    assert ctx.main_quest_disposition == "delivered"
 
 
 def test_interrupted_prison_exit_retries_from_space_without_city_context(monkeypatch):
@@ -539,170 +393,57 @@ def test_derelict_exit_keeps_hull_breach_message():
         for entry in ctx.log.recent(n=8)
     )
 
-
-def test_disclosure_choices_use_context_appropriate_handoffs():
-    for choice in _act1.OrbitDisclosure:
-        ctx = _ctx()
-        ctx.time_day = 1
-        ctx.time_month = 1
-        ctx.time_year = 2200
-
-        _act1._apply_disclosure(ctx, choice)
-
-        assert ctx.post_prison_orbit_seen
-        assert ctx.main_quest_disclosure == choice.value
-        if choice is _act1.OrbitDisclosure.ARCHIVE_SEALED:
-            assert ctx.main_quest_progress["research_alpha"] == "available"
-            assert not ctx.main_quest_gate
-            _title, _description = current_main_quest_objective(ctx)
-            assert _title == "Deliver the sealed archive"
-            assert "intact recovered archive" in _description
-            assert "Alpha Centauri" in _description
-            assert any("ready for delivery" in entry.text for entry in ctx.log.recent(n=6))
-        else:
-            assert "research_alpha" not in ctx.main_quest_progress
-            assert ctx.main_quest_gate["research_alpha"] == (1, 3, 2200)
-            _title, _description = current_main_quest_objective(ctx)
-            if choice is _act1.OrbitDisclosure.DIAGNOSTIC_FRAGMENT:
-                assert _title == "Awaiting fragment analysis..."
-                assert "diagnostic fragment" in _description
-            else:
-                assert _title == "Awaiting a secure handoff..."
-                assert "secure route" in _description
-            assert "Alpha Centauri" in _description
-            assert any("handoff requires time" in entry.text for entry in ctx.log.recent(n=6))
-
-
-def test_research_handoff_starts_processing_gate_then_unlocks_report(monkeypatch):
-    ctx = _ctx()
-    monkeypatch.setattr(
-        "src.spacehack.main_quest._objectives.show_step_readout",
-        lambda _ctx, _step: None,
-    )
-    ctx.main_quest_progress["research_alpha"] = "available"
-    ctx.time_day = 1
-    ctx.time_month = 1
-    ctx.time_year = 2200
-    ctx.stats = SimpleNamespace(credits=0)
-    ctx.player_xp = 0
-    ctx.player_level = 1
-    ctx.player_skill_points = 0
-    ctx.player_traits = []
-    ctx.player_counters = SimpleNamespace()
-    ctx.player_gunnery_bonus = 0
-    ctx.player_piloting_bonus = 0
-    ctx.player_engineering_bonus = 0
-
-    assert maybe_complete_visit(ctx, "research_officer")
-    assert ctx.main_quest_progress["research_alpha"] == "completed"
-    assert ctx.main_quest_gate["research_alpha_report"] == (15, 1, 2200)
-    _title, _description = current_main_quest_objective(ctx)
-    assert _title == "Awaiting the first translation..."
-    assert "processing cluster" in _description
-
-    ctx.time_day = 15
-    assert check_quest_gates(ctx)
-    assert not ctx.main_quest_gate
-    assert ctx.main_quest_progress["research_alpha_report"] == "available"
-    assert "initial translation" in ctx.main_quest_pending_message
-
-
-def test_old_instant_research_completion_migrates_to_translation_gate():
-    ctx = _ctx()
-    ctx.time_day = 1
-    ctx.time_month = 1
-    ctx.time_year = 2200
-    ctx.main_quest_progress["research_alpha"] = "completed"
-
-    assert not check_quest_gates(ctx)
-    assert ctx.main_quest_gate["research_alpha_report"] == (15, 1, 2200)
-    _title, _description = current_main_quest_objective(ctx)
-    assert _title == "Awaiting the first translation..."
-    assert "processing cluster" in _description
-
-
-def test_old_sealed_archive_gate_migrates_to_immediate_delivery():
-    ctx = _ctx()
-    ctx.main_quest_disclosure = "archive_sealed"
-    ctx.main_quest_gate["research_alpha"] = (1, 3, 2200)
-    ctx.main_quest_pending_message = "The old sealed-archive summon."
-
-    assert not check_quest_gates(ctx)
-    assert ctx.main_quest_progress["research_alpha"] == "available"
-    assert not ctx.main_quest_gate
-    assert not ctx.main_quest_pending_message
-
-
-def test_gate_refreshes_stale_saved_act1_summon_text():
-    ctx = _ctx()
-    ctx.main_quest_progress["research_alpha"] = "available"
-    ctx.main_quest_pending_message = (
-        "The archive comparison is ready. Report to the Research Officer at "
-        "Alpha Centauri's Science Port when you choose; the work will wait "
-        "for you, but the signal will not become clearer on its own."
-    )
-    ctx.main_quest_pending_objective = "Take the archive to Alpha Centauri."
-
-    assert not check_quest_gates(ctx)
-
-    assert "archive handoff is ready" in ctx.main_quest_pending_message
-    assert not ctx.main_quest_pending_message.startswith(
-        "The archive comparison is ready."
-    )
-
-
-def test_preliminary_review_breadcrumb_is_consistent_for_every_faction():
-    for _faction in ("militia", "merchants", "bar", "lab"):
+def test_epilogue_breadcrumb_is_consistent_for_every_faction(monkeypatch):
+    """Delivered: every chain's breadcrumb is its own reward step (title,
+    faction contact, world). Kept: no step - the pending summon carries
+    the solo teaser (doc 38)."""
+    for _faction, _npc_world in (
+        ("merchants", "Earth"), ("militia", "Earth"), ("bar", "Earth"),
+        ("lab", "Mercury"),
+    ):
         ctx = _ctx()
         ctx.main_quest_chain = _faction
-        ctx.time_day = 1
-        ctx.time_month = 1
-        ctx.time_year = 2200
+        ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
 
-        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.DIAGNOSTIC_FRAGMENT)
-
-        _title, _description = current_main_quest_objective(ctx)
-        assert _title == "Awaiting fragment analysis..."
-        assert _faction.capitalize() not in _title
-        assert "diagnostic fragment" in _description
-        assert "Alpha Centauri" in _description
-        assert "independent reading" in _description
+        _act1._apply_disposition(ctx, _act1.DISPOSITION_DELIVERED)
+        title, description = current_main_quest_objective(ctx)
+        assert title == find_main_quest_step(
+            f"epilogue_reward_{_faction}"
+        ).title
+        assert _npc_world in description
 
         ctx = _ctx()
         ctx.main_quest_chain = _faction
-        ctx.time_day = 1
-        ctx.time_month = 1
-        ctx.time_year = 2200
-        _act1._apply_disclosure(ctx, _act1.OrbitDisclosure.SAFE_DESTINATION)
-
-        _title, _description = current_main_quest_objective(ctx)
-        assert _title == "Awaiting a secure handoff..."
-        assert "secure route" in _description
-        assert "diagnostic fragment" not in _description
-        assert "Alpha Centauri" in _description
+        ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
+        _act1._apply_disposition(ctx, _act1.DISPOSITION_KEPT)
+        assert (
+            ctx.main_quest_progress.get(f"epilogue_reward_{_faction}", "") == ""
+        ), "kept never unlocks a reward step"
+        assert ctx.main_quest_pending_message == "The archive is yours alone"
 
 
 def test_schedule_next_step_is_idempotent_and_can_unlock_after_gate():
     ctx = _ctx()
-    ctx.time_day = 1
-    ctx.time_month = 1
-    ctx.time_year = 2200
+    ctx.main_quest_chain = "merchants"
+    ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
 
-    assert _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
-    assert not _schedule_next_step(ctx, "act1_prison", next_step_id="research_alpha")
-    ctx.time_day = 1
-    ctx.time_month = 3
-    ctx.time_year = 2200
+    # Explicit-next form (how the epilogue unlocks reward steps):
+    # idempotent, and a wait_days=0 source unlocks immediately.
+    assert _schedule_next_step(
+        ctx, "act1_prison", next_step_id="epilogue_reward_merchants"
+    )
+    assert not _schedule_next_step(
+        ctx, "act1_prison", next_step_id="epilogue_reward_merchants"
+    )
+    # act1_prison carries a wait: the reward step gates, then unlocks.
+    assert "epilogue_reward_merchants" in ctx.main_quest_gate
+    ctx.time_day, ctx.time_month, ctx.time_year = 1, 3, 2200
     assert check_quest_gates(ctx)
-    assert ctx.main_quest_progress["research_alpha"] == "available"
+    assert (
+        ctx.main_quest_progress["epilogue_reward_merchants"] == "available"
+    )
     assert not ctx.main_quest_gate
-    assert "archive handoff is ready" in ctx.main_quest_pending_message
-    assert "Alpha Centauri" in ctx.main_quest_pending_message
-    assert "Alpha Centauri" in ctx.main_quest_pending_objective
-    assert "archive comparison is ready" not in ctx.main_quest_pending_message
 
-
-# ----- Wolf 359 b delve: camp + cache + guardians (doc 32 iteration) ----
 
 
 def test_wolf_camp_layout_contract():
@@ -966,3 +707,79 @@ def test_barnards_delve_stamps_cache_site_and_guardian():
     assert max(
         abs(guards[0].pos.x - cache.pos.x), abs(guards[0].pos.y - cache.pos.y),
     ) <= 10
+
+
+def test_delivered_unlocks_the_chain_reward_step_and_pays():
+    """The disposition branch: delivered makes the chain's reward step
+    live; completing it pays (merchants: the bond's return)."""
+    from src.spacehack.main_quest._core import complete_step
+
+    ctx = _ctx()
+    ctx.main_quest_chain = "merchants"
+    ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
+    ctx.stats = SimpleNamespace(credits=0)
+    ctx.player_xp, ctx.player_level, ctx.player_skill_points = 0, 1, 0
+    ctx.main_quest_backing = set()
+
+    _act1._apply_disposition(ctx, _act1.DISPOSITION_DELIVERED)
+    assert ctx.main_quest_progress["epilogue_reward_merchants"] == "available"
+    assert ctx.main_quest_disposition == "delivered"
+
+    assert complete_step(ctx, "epilogue_reward_merchants")
+    assert ctx.stats.credits == 12000  # the 8,000cr bond, with its return
+
+
+def test_delivered_reward_items_per_chain():
+    """The non-merchants chains pay in Act 1 paths, not credits."""
+    rewards = {
+        "militia": "militia_blockade_clearance",
+        "bar": "bar_false_transponder",
+        "lab": "lab_sensor_suite",
+    }
+    for chain, item in rewards.items():
+        step = find_main_quest_step(f"epilogue_reward_{chain}")
+        assert step.rewards_item == item, chain
+        assert step.rewards_credits == 0, chain
+
+
+def test_kept_disposition_sets_no_step_and_teases_the_line():
+    ctx = _ctx()
+    ctx.main_quest_chain = "bar"
+    ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
+
+    _act1._apply_disposition(ctx, _act1.DISPOSITION_KEPT)
+    assert ctx.main_quest_disposition == "kept"
+    assert ctx.main_quest_progress == {"act1_prison": "completed"}
+    assert ctx.main_quest_pending_message == "The archive is yours alone"
+    assert "Luyten Line" in ctx.main_quest_pending_objective
+
+
+def test_pre_epilogue_save_migrates_to_the_disposition_branch():
+    """Old saves carry disclosure values + research steps; any
+    disclosure maps to delivered, research ids vanish, and a save
+    that reached the first translation counts as reward-collected."""
+    from src.spacehack.main_quest import check_quest_gates
+
+    ctx = _ctx()
+    ctx.main_quest_chain = "militia"
+    ctx.main_quest_disclosure = "diagnostic_fragment"
+    ctx.main_quest_progress["research_alpha"] = "completed"
+    ctx.main_quest_progress["research_alpha_report"] = "completed"
+
+    check_quest_gates(ctx)
+
+    assert ctx.main_quest_disposition == "delivered"
+    assert "research_alpha" not in ctx.main_quest_progress
+    assert ctx.main_quest_progress["epilogue_reward_militia"] == "completed"
+
+    # A save that only started the handoff keeps the reward live
+    # (scheduled, not completed — the orbit scene already fired for
+    # those saves, so the reward unlocks via the gate sweep).
+    ctx2 = _ctx()
+    ctx2.main_quest_chain = "bar"
+    ctx2.main_quest_disclosure = "archive_sealed"
+    ctx2.time_day, ctx2.time_month, ctx2.time_year = 1, 1, 2200
+    ctx2.main_quest_gate["epilogue_reward_bar"] = (1, 1, 2200)
+    check_quest_gates(ctx2)
+    assert ctx2.main_quest_disposition == "delivered"
+    assert ctx2.main_quest_progress.get("epilogue_reward_bar", "") == "available"

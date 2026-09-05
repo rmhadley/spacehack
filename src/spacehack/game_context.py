@@ -376,7 +376,7 @@ class GameContext:
     # First post-prison orbit beat: the player's disclosure choice is
     # one of OrbitDisclosure's persisted string values, or empty before
     # the Mars launch scene is resolved.
-    main_quest_disclosure: str = ""
+    main_quest_disposition: str = ""   # "delivered" | "kept" (doc 38 epilogue)
     post_prison_orbit_seen: bool = False
     # True after leaving the Mars prison until the first-reading modal
     # resolves. This preserves the prison provenance across an interrupted

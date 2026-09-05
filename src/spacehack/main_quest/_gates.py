@@ -8,74 +8,20 @@ from ..data.main_quest import (
     list_main_quest_steps,
     main_quest_step_after,
 )
-from ..data.main_quest.act1_post_prison import find_archive_disclosure
-from ..time import add_days_to_date as _add_days_to_date
 from ._core import STATUS_AVAILABLE, STATUS_COMPLETED, step_status
-
-
-def _repair_sealed_archive_handoff(ctx) -> None:
-    """Migrate old saves that incorrectly gated an intact archive delivery."""
-    if getattr(ctx, "main_quest_disclosure", "") != "archive_sealed":
-        return
-    if step_status(ctx, "research_alpha") != "":
-        return
-    if "research_alpha" not in ctx.main_quest_gate:
-        return
-    ctx.main_quest_gate.pop("research_alpha", None)
-    ctx.main_quest_pending_message = ""
-    ctx.main_quest_pending_objective = ""
-    ctx.main_quest_progress["research_alpha"] = STATUS_AVAILABLE
-
-
-def _repair_instant_research_completion(ctx) -> None:
-    """Migrate saves where the old Alpha handoff translated instantly."""
-    if step_status(ctx, "research_alpha") != STATUS_COMPLETED:
-        return
-    if step_status(ctx, "research_alpha_report") != "":
-        return
-    if "research_alpha_report" in ctx.main_quest_gate:
-        return
-    _step = find_main_quest_step("research_alpha")
-    ctx.main_quest_gate["research_alpha_report"] = _add_days_to_date(
-        ctx.time_day,
-        ctx.time_month,
-        ctx.time_year,
-        _step.wait_days,
-    )
-
-
-def _research_handoff_ready_message(ctx) -> str | None:
-    """Return the ready message that matches the player's orbit choice."""
-    try:
-        _disclosure = find_archive_disclosure(ctx.main_quest_disclosure)
-    except KeyError:
-        return None
-    return _disclosure.ready_message or None
 
 
 def _ready_message_for(ctx, next_id: str, gating_step: MainQuestStep | None) -> str:
     """Return a choice-aware summon message for a newly available step."""
-    if next_id == "research_alpha":
-        _research_message = _research_handoff_ready_message(ctx)
-        if _research_message is not None:
-            return _research_message
     return gating_step.ready_message if gating_step is not None else ""
 
 
 def _normalize_pending_message(ctx) -> None:
-    """Refresh persisted Act 1 gate text after a narrative wording update."""
+    """Drop persisted Act 1 pending text that references removed steps."""
     _pending = getattr(ctx, "main_quest_pending_message", "")
-    if not _pending.startswith("The archive comparison is ready."):
-        return
-    if (
-        "research_alpha" not in ctx.main_quest_gate
-        and step_status(ctx, "research_alpha") != STATUS_AVAILABLE
-    ):
-        return
-    _gating = _gating_step_for(ctx, "research_alpha")
-    _message = _ready_message_for(ctx, "research_alpha", _gating)
-    if _message:
-        ctx.main_quest_pending_message = _message
+    if "research_alpha" in _pending or _pending.startswith("The archive comparison"):
+        ctx.main_quest_pending_message = ""
+        ctx.main_quest_pending_objective = ""
 
 
 def _gating_step_for(ctx, next_id: str) -> MainQuestStep | None:
@@ -140,10 +86,31 @@ def _repair_merchants_renumber(ctx) -> None:
         ctx.main_quest_progress["mer_q6_survey"] = "completed"
 
 
+def _repair_research_renumber(ctx) -> None:
+    """Migrate pre-epilogue saves onto the disposition branch (doc 38).
+
+    The old disclosure choices were all sharing paths, so any of them
+    maps to 'delivered'. Research step ids vanish; a save that reached
+    the first translation counts as a completed delivery, so its
+    chain's epilogue reward step completes too (the old flow never
+    paid a reward - anything short of the report leaves it live).
+    """
+    if (getattr(ctx, "main_quest_disclosure", "")
+            and not getattr(ctx, "main_quest_disposition", "")):
+        ctx.main_quest_disposition = "delivered"
+    _had_report = ctx.main_quest_progress.pop("research_alpha_report", None)
+    ctx.main_quest_progress.pop("research_alpha", None)
+    ctx.main_quest_gate.pop("research_alpha_report", None)
+    ctx.main_quest_gate.pop("research_alpha", None)
+    if getattr(ctx, "main_quest_disposition", "") == "delivered" and _had_report:
+        _reward = f"epilogue_reward_{ctx.main_quest_chain}"
+        if step_status(ctx, _reward) == "":
+            ctx.main_quest_progress[_reward] = STATUS_COMPLETED
+
+
 def check_quest_gates(ctx) -> bool:
     """Flip time-gated chain steps to available once their gate date passes."""
-    _repair_sealed_archive_handoff(ctx)
-    _repair_instant_research_completion(ctx)
+    _repair_research_renumber(ctx)
     _repair_merchants_renumber(ctx)
     _normalize_pending_message(ctx)
     if not ctx.main_quest_gate:

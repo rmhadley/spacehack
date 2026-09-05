@@ -116,23 +116,6 @@ RUNTIME: dict[str, str] = {
         "Return to your ship and launch from Mars. The recovered archive "
         "is waiting for its first reading."
     ),
-    "runtime.quest_sealed_archive_title": "Deliver the sealed archive",
-    "runtime.quest_sealed_archive_body": (
-        "Take the intact recovered archive to the Research Officer at Alpha "
-        "Centauri's Science Port for its first independent reading."
-    ),
-    "runtime.quest_first_translation_title": "Awaiting the first translation...",
-    "runtime.quest_first_translation_body": (
-        "The Alpha Centauri processing cluster is separating and translating "
-        "the alien archive's layers. Return to the Research Officer when the "
-        "first report is ready; the work has no deadline."
-    ),
-    "runtime.quest_fallback_handoff_title": "Awaiting archive handoff...",
-    "runtime.quest_fallback_handoff_body": (
-        "The archive handoff is being prepared. Take the recovered archive to "
-        "the Research Officer at Alpha Centauri's Science Port for an "
-        "independent reading when the summons arrives."
-    ),
     "runtime.quest_complete_log": "[MAIN QUEST] {title} - complete.",
     "runtime.quest_reward_log": "+{credits}$ reward.",
     "runtime.quest_goods_log": "{good} x{qty} lashed in your mission hold.",
@@ -334,15 +317,9 @@ RUNTIME: dict[str, str] = {
         "Check your quest log (Q) for updates."
     ),
     # --- Orbit disclosure scene (first post-prison reading) ---
-    "runtime.orbit_title": "THE FIRST READING",
-    "runtime.orbit_body_intro": (
-        "The recovered archive has begun interacting with your "
-        "communications array."
-    ),
-    "runtime.orbit_body_route": (
-        "One layer may be a route beyond the Luyten blockade. "
-        "The others remain unread."
-    ),
+    "runtime.orbit_title": "THE ARCHIVE IS YOURS",
+    "runtime.orbit_body_intro": "You cleared the prison with the deep archive aboard. Every faction that helped you open the door will want it.",
+    "runtime.orbit_body_route": "What happens to the data is your call - and so is the road past the Luyten Line.",
     "runtime.orbit_faction_militia": (
         "The Militia calls it a containment record and warns you not to "
         "transmit it."
@@ -363,6 +340,12 @@ RUNTIME: dict[str, str] = {
         "The recovered archive has no trusted interpreter yet; its layers "
         "resist a clean reading."
     ),
+    "runtime.epilogue_option_deliver": "Return to your faction. Share the archive, collect your due.",
+    "runtime.epilogue_option_keep": "Keep it to yourself. Fly alone.",
+    "runtime.epilogue_delivered_log": "You send word: the archive is coming home to the people who opened the door.",
+    "runtime.epilogue_kept_log": "You tell no one. The archive - all of it - stays with you.",
+    "runtime.epilogue_kept_title": "The archive is yours alone",
+    "runtime.epilogue_kept_body": "No faction hand, no reward, no clearance. When you are ready, the road past the Luyten Line is yours to find.",
 }
 
 

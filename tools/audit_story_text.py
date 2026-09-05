@@ -35,9 +35,6 @@ from src.spacehack.data.main_quest import (  # noqa: E402
     list_main_quest_steps,
     main_quest_step_after,
 )
-from src.spacehack.data.main_quest.act1_post_prison import (  # noqa: E402
-    ARCHIVE_DISCLOSURES,
-)
 from src.spacehack.data.npcs import list_npcs  # noqa: E402
 from src.spacehack.data.trade_goods.core import TRADE_GOODS  # noqa: E402
 from src.spacehack.text import RUNTIME  # noqa: E402
@@ -67,23 +64,9 @@ def _all_npc_ids() -> tuple[str, ...]:
     return tuple(sorted(_ids))
 
 
-_DISCLOSURE_FIELDS = (
-    "label",
-    "log_message",
-    "followup_message",
-    "waiting_title",
-    "waiting_description",
-    "ready_message",
-)
-
-
 def _all_overlay_keys() -> set[str]:
-    """Every step.* / npc.* / good.* / runtime.* / disclosure.* key the extractor emits."""
+    """Every step.* / npc.* / good.* / runtime.* key the extractor emits."""
     _keys: set[str] = set(RUNTIME)
-    for _spec in ARCHIVE_DISCLOSURES:
-        for _field in _DISCLOSURE_FIELDS:
-            if getattr(_spec, _field, ""):
-                _keys.add(f"disclosure.{_spec.key}.{_field}")
     for _step in list_main_quest_steps():
         _keys.add(f"step.{_step.id}.title")
         if _step.description:
@@ -110,7 +93,7 @@ def _ctx(progress: dict[str, str], chain: str, planet: str) -> SimpleNamespace:
         main_quest_progress=dict(progress),
         main_quest_chain=chain,
         main_quest_gate={},
-        main_quest_disclosure="",
+        main_quest_disposition="",
         main_quest_complete=False,
         post_prison_orbit_seen=False,
         current_city_id=planet,
@@ -355,15 +338,10 @@ _CHAINS: dict[str, tuple[str, ...]] = {
 
 def main() -> int:
     _all = _all_overlay_keys()
-    # Runtime strings and disclosure fields render whenever their code
+    # Runtime strings render whenever their code
     # path fires (not gated by quest state), so they display by
     # construction; the state simulation below covers step.* / npc.*.
     _displayed: set[str] = set(RUNTIME)
-    _displayed |= {
-        f"disclosure.{_spec.key}.{_field}"
-        for _spec in ARCHIVE_DISCLOSURES
-        for _field in _DISCLOSURE_FIELDS
-    }
     # Trade-good names + descriptions render in inventory, trade, loot,
     # and quest-log cargo UI regardless of quest state — displayed by
     # construction.

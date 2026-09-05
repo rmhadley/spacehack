@@ -42,11 +42,17 @@ user's ruling, and its rewards tee up Act 1's Luyten blockade
 - The choice itself: a scene at the faction's door after the escape
   (per chain), not a menu bolted onto the ascent.
 
+## Rulings (2026-09-05, landed same day)
+
+The choice happens IN THE POST-ESCAPE MODAL itself (user: replace the
+old disclosure modal with the choice) — "Return to the faction that
+helped you and get your reward as you share the data" vs "keep the
+data to yourself and go full solo."
+
 ## Open questions (for the user)
 
-1. Where does the choice physically happen — fly to the faction's
-   home world after the escape (one more leg), or the faction hails
-   you in orbit?
+1. ~~Where does the choice physically happen~~ SETTLED: the orbit
+   modal IS the choice.
 2. Can a kept run ever deliver later (one-way door, or a later,
    costlier deliver option)?
 3. Reward shapes above right for militia/bar/lab — or swap any?
@@ -58,10 +64,10 @@ user's ruling, and its rewards tee up Act 1's Luyten blockade
 ### Phase 1 — audit
 - [ ] Play the current escape → orbit disclosure → research_alpha
       flow once; confirm the removal inventory
-### Phase 2 — structure
-- [ ] Remove orbit disclosure + research steps (data, scenes, tests,
-      text) with save migration for in-flight runs
-- [ ] Disposition flag + the choice scene (per chain)
-- [ ] Four reward steps + the kept baseline
+### Phase 2 — structure — LANDED 2026-09-05
+- [x] Orbit disclosure + research steps removed (data, scenes, gates,
+      breadcrumb, texts, tools, save migration onto the branch)
+- [x] Disposition flag + the two-option orbit modal (per-chain body)
+- [x] Four reward steps + the kept baseline (pending-summon teaser)
 ### Phase 3 — prose + playtest
 ### Phase 4 — closeout
