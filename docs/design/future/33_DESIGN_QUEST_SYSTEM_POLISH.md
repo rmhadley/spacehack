@@ -94,6 +94,42 @@ sourcing it.
 - Dev tooling: Shift+D time-skip + dev credits already cover quest
   playtesting needs.
 
+## Corroboration addendum (2026-09-05, after Militia + Bar + the epilogue)
+
+Doc 33 seeded "after one more chain"; three more builds have since
+landed. Findings 1-3 are all STRONGLER:
+
+- **Finding 1 (renames/removals):** the epilogue removal of
+  `research_alpha` touched saveload, gates, breadcrumb, _act1, the
+  extractor's section lists, the audit tool, and two test files; the
+  codebase now carries TWO bespoke save repairs
+  (`_repair_merchants_renumber`, `_repair_research_renumber`). A
+  single RENAMES + RETIRED table (consulted by save-load and
+  `find_main_quest_step`) replaces both and makes future removals a
+  one-table edit.
+- **Finding 2 (lint):** new authoring rules emerged that only
+  playtests taught: quest cargo is named quest goods or virtual
+  mission cargo (never market goods - now test-enforced), delve
+  guardians are authored in-layout (`ENEMY:` markers) rather than
+  planet pools, Q must name pickup legs, handovers/visits follow the
+  single-presentation readout rule, crate sizes reconcile with
+  prose ("the cell" singular). quest_lint should carry all of these.
+- **Finding 3 (test ctx):** worse - at least three fake-ctx factories
+  now exist (`_payment_ctx`, the act1 factory, the heat factory),
+  each growing attributes per run.
+
+**New finding 5 - decision points are now a real primitive.** The
+epilogue hand-rolled the first branch: a persistent disposition
+field, a two-option modal, per-option step unlocks, and save
+migration. Doc 07's Act 1-3 plan needs several more (blockade path,
+crossing plan, disclosure, finale resolution flags). Extract the
+pattern when Act 1's first real consumer is designed - a primitive
+shaped by two consumers, not one.
+
+**New finding 6 - the extractor's per-file step lists are hardcoded**
+and were edited in three consecutive campaigns. Derive them: group
+steps by `chain` and map chain -> text file in one table.
+
 ## Phases (when tackled)
 
 - [ ] Phase 1: `RENAMES` table (finding 1, Fix A) + migration tests
