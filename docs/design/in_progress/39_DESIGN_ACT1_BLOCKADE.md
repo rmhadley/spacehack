@@ -124,7 +124,7 @@ simulated vs. how authored each piece is.
 | # | Method | Discovered via | What it takes | Head start (never a key) |
 |---|---|---|---|---|
 | 1 | **The papers** — clearance through the checkpoint. SETTLED (below): two acquisition routes, allied standing either way, trait-tracked | The Line's warning hints a list exists; rumor fills in the rest | Allied standing — militia (official) OR pirate (back channel) — plus credits | Warrant-license players start on first-name terms |
-| 2 | **The hidden gate** — the old network node inside known space that bypasses the Line entirely | Rumors at the edge; lab analysis contracts; deep-reading the archive | Finding it, then using unmaintained alien hardware | Lab credentials feed analysis work; KEPT players can research it from their own copy |
+| 2 | **The hidden gate** — Vega's KNOWN hidden Sol gate, RETARGETED with alien-derived tech so the destination changes; one-way. SETTLED core (below) | The gate is known; the secret is that it can be retargeted | The retarget tech (kept archive / lab analysis / black-market gamble) | Kept players hold the node addresses in their own copy |
 | 3 | **The quiet run** — a gap in the patrol net; a debris-field lane | Bar-side NPCs at the Line stations; bought intel | A ship that makes the run; nav through hazards; surviving a spot-check | The hold covers cargo if a scan catches you anyway |
 | 4 | **The toll** — someone at the Line sells passage | Everyone at the Line knows someone | Credits and/or standing — with strings (a favor owed?) | Merchants' 12,000cr is exactly this kind of option |
 | 5 | **The loud way** — punch through a patrol | No research needed | Surviving it; living with militia hostility after | Nobody — that's the point |
@@ -175,6 +175,35 @@ simulated vs. how authored each piece is.
   spoofed transponder fakes what the papers are; the convoy manifest
   borrows what they grant; the decoy signal skips the sweep; the
   hidden gate routes around the checkpoint entirely.
+
+### Method 2: The Hidden Gate — CORE SETTLED 2026-09-05
+
+**The user's ruling, near-verbatim (the fiction spine):**
+
+> It's an existing gate in Vega, but with the right tech the
+> destination changes. It's ONE WAY. High, high risk — you know
+> it's taking you somewhere it's not designed to, and you don't
+> know how you're getting back. The theory is it drops you past
+> the militia blockade in Luyten where they can't see you. How
+> you explain yourself if you try to return is unknown. Yet
+> another poor choice — the theme of the main story overall: a
+> series of poor choices that seemed like good ideas at the time.
+
+**What the data gives us:** Vega's Hidden Sol Gate (vega.py row
+~100) is known, working infrastructure — a shortcut humans already
+jump through. The method PERVERTS it: gates on the old network are
+addressable; alien-derived tech retargets the destination. This is
+"do not restore the road" made literal — the player points a human
+gate at the network using exactly the knowledge the archive warns
+about.
+
+**Method identity — deniability:** the papers cross you ON the
+record; the gate crosses you OFF it. Nobody knows you're past the
+Line. That invisibility is the unique payoff, and the price is the
+one-way commitment and the unanswered return question — designed
+tension, resolved by far-side content, not by this method.
+
+**Sub-questions still open (below).**
 
 ### Systemic combos (emergent, not authored paths)
 
