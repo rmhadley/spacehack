@@ -7,7 +7,7 @@
 # package lies deep inside, watched by a single leftover drone.
 MAP
 ###############
-#####.....#####
+#####..D..#####
 #####.o%o.#####
 #####.....#####
 #######d#######
@@ -26,6 +26,8 @@ TILE: o = CITY_ORNAMENT
 TILE: d = DUNGEON_DOOR
 TILE: % = QUEST_CACHE
 TILE: e = LANDMARK_ENTRANCE
+
+ENEMY: D = sentry_drone@1.0
 
 COLOUR: # = (105, 112, 124) / (24, 27, 33)     # vault plate, riveted steel
 COLOUR: . = (132, 137, 146) / (32, 35, 41)     # plated deck

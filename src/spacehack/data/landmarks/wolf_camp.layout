@@ -6,11 +6,11 @@
 MAP
 ###############
 #.............#
-#.#.........#.#
+#.#..D......#.#
 #.#...o.o...#.#
 #......%......#
 #.#...o.o...#.#
-#.#.........#.#
+#.#......D..#.#
 #.............#
 ######d########
 ENDMAP
@@ -19,6 +19,8 @@ TILE: # = DUNGEON_WALL
 TILE: . = DUNGEON_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: d = DUNGEON_DOOR
+
+ENEMY: D = sentry_drone@1.0
 TILE: % = QUEST_CACHE
 
 COLOUR: # = (110, 78, 52) / (30, 20, 12)      # shipped timbers

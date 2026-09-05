@@ -161,7 +161,8 @@ SPEC = PlanetSpec(
         ),
         monster_pool=("ice_worm", "frost_spitter"),
         monster_density=1.5,
-        cache_guardian_pool=("sentry_drone", "sentry_drone"),  # consortium leftover security, tier 2
-        cache_guardian_count=2,
+        # Guardians are authored in the delve layout (ENEMY: markers);
+        # the pool serves only layout-less delves.
+        cache_guardian_pool=(),
     ),
 )

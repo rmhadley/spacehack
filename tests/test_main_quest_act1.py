@@ -722,8 +722,7 @@ def test_wolf_camp_layout_contract():
     assert entrances == 1
     # balance: guardians doubled over Mars but tier-2 only
     params = find_planet_spec("wolf_b").dungeon_params
-    assert params.cache_guardian_count == 2
-    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+    assert params.cache_guardian_pool == ()  # guardians authored in the layout
     assert find_main_quest_step("mer_q2_strike").delve_layout_id == "wolf_camp"
 
 
@@ -819,8 +818,7 @@ def test_mercury_vault_layout_contract():
     # balance: a single tier-2 watch drone - this delve lands almost
     # immediately after the Mars caves, so lighter than wolf_b's pair
     params = find_planet_spec("mercury").dungeon_params
-    assert params.cache_guardian_count == 1
-    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+    assert params.cache_guardian_pool == ()  # guardians authored in the layout
     # the cache site is step data, not a planet->layout dict
     assert find_main_quest_step("mil_q2_cache").delve_layout_id == "mercury_vault"
 
@@ -919,8 +917,7 @@ def test_barnards_cache_layout_contract():
     assert sum(t.kind == "quest_cache" for r in asset.tiles for t in r) == 1
     assert find_main_quest_step("bar_q3_rigparts").delve_layout_id == "barnards_cache"
     params = find_planet_spec("barnards_b").dungeon_params
-    assert params.cache_guardian_count == 1
-    assert set(params.cache_guardian_pool) == {"sentry_drone"}
+    assert params.cache_guardian_pool == ()  # guardians authored in the layout
 
 
 def test_barnards_delve_stamps_cache_site_and_guardian():

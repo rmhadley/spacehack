@@ -3,10 +3,10 @@
 # Where the old job staged its runs and, when the Militia buried the
 # file, where the crew buried the hardware. A planked strong-cache
 # opens off the staging hall; the cell site is authored at its center.
-# One leftover Militia watch drone holds the room.
+# One leftover Militia watch drone holds the room (authored at D).
 MAP
 ###############
-#####.....#####
+#####..D..#####
 #####.o%o.#####
 #####.....#####
 #######.#######
@@ -22,6 +22,8 @@ TILE: . = DUNGEON_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: % = QUEST_CACHE
 TILE: e = LANDMARK_ENTRANCE
+
+ENEMY: D = sentry_drone@1.0
 
 COLOUR: # = (110, 95, 80) / (32, 26, 20)    # shipped planks and steel, decades dark
 COLOUR: . = (150, 120, 90) / (45, 36, 26)   # trampled dirt over tarp
