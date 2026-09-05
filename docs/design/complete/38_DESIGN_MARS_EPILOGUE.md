@@ -73,21 +73,23 @@ Power-scale frame (user): the rewards land ~a year in at cruiser
 minimum, so tier floors beat payout bumps — felt power is the band
 jump (600-950cr work posted on T1 Earth vs 60-120 entry work).
 
-## Open questions (for the user)
+## Open questions
 
 1. ~~Where does the choice physically happen~~ SETTLED: the orbit
    modal IS the choice.
-2. Can a kept run ever deliver later (one-way door, or a later,
-   costlier deliver option)?
-3. Reward shapes above right for militia/bar/lab — or swap any?
-4. Does the kept branch get its own first beat now (the twists are
-   later), or just the harder baseline (heat + no pass) until Act 1?
+2. ~~Reward shapes~~ SETTLED: the perk pass (see Reward shapes above).
+3. Kept-run later-delivery door (one-way, or a later costlier
+   deliver option) — MIGRATED to Act 1's doc: it only exists once
+   the blockade gives keeping-a-second meaning.
+4. Kept-branch first beat now vs baseline-until-Act-1 — MIGRATED to
+   Act 1's doc; shipped state is the baseline (no step, heat-with-
+   no-pass, the solo summon).
 
 ## Phases
 
-### Phase 1 — audit
-- [ ] Play the current escape → orbit disclosure → research_alpha
-      flow once; confirm the removal inventory
+### Phase 1 — audit — DONE via build
+- [x] Removal inventory confirmed during the build (the disclosure
+      scene, research steps, gates, breadcrumbs, texts, tools).
 ### Phase 2 — structure — LANDED 2026-09-05
 - [x] Orbit disclosure + research steps removed (data, scenes, gates,
       breadcrumb, texts, tools, save migration onto the branch)
@@ -104,5 +106,27 @@ jump (600-950cr work posted on T1 Earth vs 60-120 entry work).
 - [x] Tests: grant/free/milestone-exclusion, hold math + stacking +
       scan protection, board gating + floor
 
-### Phase 3 — prose + playtest
-### Phase 4 — closeout
+### Phase 3 — prose + playtest — DONE 2026-09-05
+- [x] User played the full flow (escape → choice → handover → perk →
+      board); the catches — trait id on the character screen, stale
+      clearance/transponder/refit language, the month-wait on board
+      posting — all fixed same day
+
+### Phase 4 — closeout — CLOSED 2026-09-05
+- [x] Corpus audit + `make check` green
+- [x] User closed the doc
+
+## Closeout notes (final state)
+
+The epilogue as shipped: the post-escape orbit modal IS the choice —
+deliver to the faction that opened the door, or keep everything and
+fly solo. Delivered runs the chain's reward step as a FREE QUEST
+PERK (never a milestone pick): merchants collect 12,000cr (the bond
++ 50%), bar learns the hold's dead space (10% of every hull
+concealed), militia goes on the warrant list (frontier-tier board at
+any post), lab gets network credentials (five stations posting
+contracts). Both board perks post work the moment they land. Kept is
+the baseline: no reward, no pass, the solo summon teasing the Line.
+
+Kept-branch design (later-delivery door, first beat) migrates to
+Act 1's doc, where the blockade gives those questions their meaning.

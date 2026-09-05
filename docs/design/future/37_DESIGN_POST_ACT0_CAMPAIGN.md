@@ -1,6 +1,9 @@
 # DESIGN: Post-Act-0 Campaign — Epilogue Choice, the Blockade, the Derelict, Act 2
 
-**Status: FUTURE — user roadmap captured 2026-09-04, rulings pending.**
+**Status: FUTURE — user roadmap captured 2026-09-04. Item 1 (the
+epilogue choice + faction rewards) SHIPPED as doc 38 (complete):
+perk rewards, militia/lab boards, the kept baseline. Kept-branch
+open questions migrated here for Act 1.**
 Active campaign: doc 36 (Bar). This doc records the arc after Act 0
 and the prison arc: the epilogue branch, Act 1's blockade and derelict
 dive, and the start of Act 2. The existing post-escape content is

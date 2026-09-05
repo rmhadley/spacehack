@@ -1,4 +1,4 @@
-"""Main quest Act 1: the post-escape disposition choice (doc 38).
+"""Main quest Act 1: the post-escape disposition choice (doc 38, complete).
 
 The one-time Mars-orbit scene after the prison escape presents the
 epilogue branch: return to the faction that helped you and share the

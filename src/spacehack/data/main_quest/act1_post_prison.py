@@ -1,4 +1,4 @@
-"""Main quest epilogue: the deliver-or-keep branch (doc 38).
+"""Main quest epilogue: the deliver-or-keep branch (doc 38, complete).
 
 The orbit choice after the Mars escape picks a disposition; the
 delivered branch unlocks this catalog's chain-keyed reward step
@@ -37,7 +37,7 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_step="act1_prison",
         chain="militia",
         objective_type="talk",
-        rewards_trait="warrant_license",  # the Militia board posts warrants (doc 38)
+        rewards_trait="warrant_license",  # the Militia board posts warrants (doc 38, complete)
         dialogues={
             "militia_captain": QuestDialogue(
                 npc_id="militia_captain",
