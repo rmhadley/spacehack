@@ -125,6 +125,50 @@ run); giver-recovery prevents stranding; Q gates have flavor + ready.
    next-leg decision.
 3. **"Welcome to the family, friend." KEPT** — earned pirate-cliché.
 
+## SETTLED SPINE (user rulings 2026-09-05, two refinement rounds)
+
+**The four doors doctrine** — each faction has a distinct, tangible
+answer to the same door:
+1. Merchants exploit WHERE it's weak — the survey says cut here.
+2. Militia exploit WHAT it's made of — a charge tuned to the alloy.
+3. Lab researches it and essentially hacks it open.
+4. **Bar exploits WHAT POWERS it — overload the live lock.**
+
+**The tool: a surge rig.** The door is sealed under power with an
+external feed. The chain assembles a one-shot dump: the deep cell
+(the battery from the old op, q3), the recharge (the only industrial
+charger that can fill it, q4), the hot run home (a full deep cell's
+discharge signature trips scanners, q5), and the rebuilt interface
+frame (q6) — the old crew's clamps and leads, rewired to dead-short
+the feed and empty the whole cell at once instead of cycling matched
+voltage. Nobody holds the clamp this time.
+
+**Signal mechanics (corrected):** the PLAYER intercepted a signal and
+extracted Mars coordinates from it — the fiction never says the
+signal came from Mars. At Mars, the door RECEIVED the same signal,
+and receipt kicked it into an active mode it wasn't in before: it is
+drawing power, humming. No "broadcasting", no politeness metaphors.
+
+**Why now:** the signal changed the door's state. The old job's
+matched-voltage cycling was the correct approach for a dormant
+circuit — it is void against a live one, and a surge is only
+possible against one. The intercepted signal is the precondition for
+the entire plan. The old man is ready because the player's intercept
+and readings prove his thirty-year bar tale is real; the player is
+the operator because the Militia cannot retry an op that officially
+never happened, and the old man has one hand and a file.
+
+**The old job:** decades ago, a covert crew with Militia-issue
+hardware matched voltage to cycle the dormant door; it discharged the
+frame while his hand was on the clamp; the op was buried and the
+cell written out of existence. "Retired smuggler" is the cover story.
+(Replaces the vague "human signal" revelation — the door's new
+receiving state is the revelation.)
+
+**Lore seed (free, uncommitted):** a door built to receive was
+waiting for that signal. Someone sent it. The chain notices; Act 1
+may explain.
+
 ## The plot, step by step (pre-rewrite summary — for the shape review)
 
 **Setup**: you need a way through the Mars door. The bar's answer is
@@ -219,6 +263,7 @@ of the merchants' consortium.
 1. ~~Proof crate~~ SETTLED: dedicated contraband quest good.
 2. ~~Cadence~~ SETTLED: 60/70/0/70.
 3. ~~"Welcome to the family, friend."~~ SETTLED: KEPT.
-4. The old job's revelation — pending the plot-shape review above:
-   which door was the old job at (Mars-before-seal vs a second door),
-   and does the revelation ground the rig (talking failed → force)?
+4. ~~The old job's revelation~~ SETTLED: the surge spine above — the
+   old job cycled matched voltage on a dormant door; the intercepted
+   signal put the door into a receiving, powered state; the surge
+   plan exists only because of that change.
