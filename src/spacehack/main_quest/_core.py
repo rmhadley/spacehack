@@ -231,7 +231,16 @@ def _complete_smuggle_handover(ctx, _step) -> bool:
         t_get("runtime.smuggle_handover_log"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
-    return complete_step(ctx, _step.id)
+    _result = complete_step(ctx, _step.id)
+    if _result:
+        # Same single-presentation rule as visit steps: the gate popup
+        # owns a gated step's flavor; otherwise the readout makes the
+        # handover LAND - without it the player accepts, the modals
+        # close, and the completion is invisible (bar playtest v3).
+        if not (_step.wait_days > 0 and _step.completion_flavor):
+            from ._objectives import show_step_readout
+            show_step_readout(ctx, _step)
+    return _result
 
 
 def _hold_has_goods(ctx, requires_goods) -> bool:

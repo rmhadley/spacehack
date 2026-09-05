@@ -19,6 +19,8 @@ def _ctx(chain: str, progress: dict, missions: list | None = None):
         main_quest_chain=chain,
         main_quest_progress=progress,
         player_active_missions=missions or [],
+        main_quest_gate={},
+        main_quest_backing=set(),
         log=MessageLog(capacity=6),
     )
 
@@ -163,3 +165,44 @@ def test_lost_quest_cargo_raises_the_quest_styled_window(monkeypatch):
     assert ctx.main_quest_progress["bar_q5_charged"] == "available"
     assert summon and "Power Cell" in summon[0][0]
     assert "Wolf 359" in summon[0][1], "the window breadcrumbs the pickup"
+
+
+def test_smuggle_handover_lands_with_a_readout(monkeypatch):
+    """Bar playtest v3: accept the handover -> the modals closed and
+    NOTHING visible happened. The handover now shows the completion
+    readout (flavor + next step) unless the step gates its next - the
+    gate popup owns that case, as with visit steps."""
+    from src.spacehack.main_quest import _core, _objectives
+
+    readouts = []
+    monkeypatch.setattr(_objectives, "show_step_readout",
+                        lambda _ctx, step: readouts.append(step.id))
+    ship = SimpleNamespace(inventory={}, mission_reserved=1,
+                           ship_id="scout", weapons=(), modules=(), cargo_ammo=0)
+    crate = SimpleNamespace(main_quest_step_id="bar_q5_charged")
+    ctx = _ctx("bar", {"bar_q5_charged": "active"}, missions=[crate])
+    ctx.player_owned_ship = ship
+    ctx.stats = SimpleNamespace(credits=0)
+    ctx.player_xp, ctx.player_level, ctx.player_skill_points = 0, 1, 0
+    ctx.main_quest_backing = set()
+    ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
+
+    step = _core.find_main_quest_step("bar_q5_charged")
+    assert _core._complete_smuggle_handover(ctx, step)
+    assert readouts == ["bar_q5_charged"]
+    assert ship.mission_reserved == 0
+
+    # Gated handover (mer q3: wait 60 + flavor): the gate popup owns it.
+    readouts.clear()
+    gate = _core.find_main_quest_step("mer_q3_transport")
+    ctx2 = _ctx("merchants", {"mer_q3_transport": "active"},
+                missions=[SimpleNamespace(main_quest_step_id="mer_q3_transport")])
+    ctx2.player_owned_ship = SimpleNamespace(
+        inventory={}, mission_reserved=3, ship_id="scout",
+        weapons=(), modules=(), cargo_ammo=0)
+    ctx2.stats = ctx.stats
+    ctx2.player_xp, ctx2.player_level, ctx2.player_skill_points = 0, 1, 0
+    ctx2.main_quest_backing = set()
+    ctx2.time_day, ctx2.time_month, ctx2.time_year = 1, 1, 2200
+    assert _core._complete_smuggle_handover(ctx2, gate)
+    assert readouts == [], "the gate popup owns gated flavor"
