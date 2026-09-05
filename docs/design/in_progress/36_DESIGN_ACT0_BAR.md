@@ -110,6 +110,76 @@ Atomic steps ✓ (each run is one beat); the crate flows auto-load at
 the right moments (the recovered cell loads straight into the q4
 run); giver-recovery prevents stranding; Q gates have flavor + ready.
 
+## Settled design (user rulings 2026-09-05)
+
+1. **Proof crate**: a DEDICATED quest good in the CONTRABAND category —
+   cataloged like `weapons_blackmarket` (category=contraband, rarity
+   0.1 so it never generates in markets) but quest-named. Note: the
+   bar's procedural smuggle missions currently carry real market
+   goods (electronics/machine_parts/luxury_goods/fuel_cells) — the
+   main-chain crate establishes the dedicated-contraband pattern;
+   converting the procedural crates is optional follow-up.
+2. **Cadence**: 60/70/0/70 (~200 gate-days), even weights, no wait
+   over 70 — in tune with the other chains. Stated philosophy: the
+   player gets sandbox time, then the reminder prompts a keep-going /
+   next-leg decision.
+3. **"Welcome to the family, friend." KEPT** — earned pirate-cliché.
+
+## The plot, step by step (pre-rewrite summary — for the shape review)
+
+**Setup**: you need a way through the Mars door. The bar's answer is
+an old man who already lost to it.
+
+- **q1 The Old Hand (Earth, 60d)** — the barkeep names a retired
+  smuggler on Barnard's b: decades ago he found a door of "the same
+  impossible material," and it took his hand; nobody believes his
+  story. He owes the bar a favor — word is sent. The Militia has
+  treated old routes like crime scenes since the Incident.
+- **q2 The Proof Run (hot crate → Barnard's b, 70d)** — the old man
+  deals in proof, not introductions: run the barkeep's hot weapons
+  crate through scannable patrols. On delivery he marks the dig cave
+  and (in an aside) reveals: the old job was not a robbery — it was
+  an attempt to make the door recognize a human signal.
+- **q3 The Power Cell (delve, Barnard's b, 0d)** — descend the old
+  dig; recover the rig's power cell: decades-old MILITIA-issue
+  hardware, unstable, holding a charge that doesn't decay like human
+  cells. The militia circles the site.
+- **q4 Black-Market Recharge (hot cell → Wolf 359, 70d)** — the
+  listening-post operator has the only rig that can charge it: "still
+  has a Militia serial... clean enough to be dangerous." Meter
+  mysticism (to be cut). The old smuggler re-issues a confiscated
+  cell if the run goes wrong.
+- **q5 The Return Run (charged cell → Earth, 0d)** — the charged cell
+  carries a signature the Militia thought erased; entering Sol trips
+  auto-aggro. The barkeep wants to "finish one job in my life before
+  the past catches up."
+- **q6 The Rig (Earth)** — the brute rig, rebuilt. KEPT closer:
+  "Welcome to the family, friend."
+
+**Connective lore**: decades ago a crew carrying stolen Militia
+hardware tried to make a door respond to a human signal; it failed,
+took the old man's hand, and the file says the cell never existed.
+Now the bar reassembles the same rig to force the door. The chain's
+antagonist is the Militia (scans, serials, auto-aggro) — the mirror
+of the merchants' consortium.
+
+**Open shape decisions (ruling 4 pending)**:
+- **A. Where was the old door?** The Mars door was only exposed
+  recently — a decades-old door encounter needs a home. Lean: the old
+  job WAS at the Mars door, before it was sealed — a deniable
+  Incident-era Militia op to make the door respond (which makes the
+  Militia serial and the nonexistent file load-bearing, and
+  recontextualizes the old man: smuggler is his cover story).
+  Alternative: a second door exists (large lore commitment that
+  ripples into Act 1+).
+- **B. The revelation never pays off.** The signal attempt is dropped
+  in an aside and the rig never references it. Keeping it means
+  grounding the rig: talking failed and took his hand; the rig is the
+  answer to that failure — one line in q4 or q6 closes the loop.
+- **C. The cell's mysticism** (waiting / remembering / listening) is
+  cut per the standard; what remains is strong without magic: Militia
+  serial, erased signature, charge that doesn't decay.
+
 ## Phased implementation
 
 ### Phase 1 — audit (user playtest; no code changes)
@@ -146,12 +216,9 @@ run); giver-recovery prevents stranding; Q gates have flavor + ready.
 
 ## Open questions
 
-1. Proof crate: dedicated quest good (lean) or keep
-   `weapons_blackmarket` because contraband running is the fiction?
-2. Cadence target: ~205–215 (e.g. 60/70/0/70) — or keep any of the
-   three waits long as a deliberate beat?
-3. "Welcome to the family, friend." — pirate-warm closer worth
-   keeping, or cut with the rest of the cringe?
-4. The old job's revelation (the door and a human signal) — keep as
-   the chain's story hook, restated mechanically? (Lean yes: it is
-   the best idea in the chain and it currently hides in an aside.)
+1. ~~Proof crate~~ SETTLED: dedicated contraband quest good.
+2. ~~Cadence~~ SETTLED: 60/70/0/70.
+3. ~~"Welcome to the family, friend."~~ SETTLED: KEPT.
+4. The old job's revelation — pending the plot-shape review above:
+   which door was the old job at (Mars-before-seal vs a second door),
+   and does the revelation ground the rig (talking failed → force)?
