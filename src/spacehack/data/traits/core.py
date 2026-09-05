@@ -219,6 +219,17 @@ QUEST_PERKS: dict[str, "Trait"] = {
 }
 
 
+def trait_name(trait_id: str) -> str:
+    """The display name for a trait id, across both registries."""
+    _perk = QUEST_PERKS.get(trait_id)
+    if _perk is not None:
+        return _perk.name
+    for _trait in ALL_TRAITS:
+        if _trait.id == trait_id:
+            return _trait.name
+    return trait_id
+
+
 def find_trait(trait_id: str) -> Trait:
     """Look up a trait by its ``id``.  Raises ``KeyError`` if not found."""
     for t in ALL_TRAITS:

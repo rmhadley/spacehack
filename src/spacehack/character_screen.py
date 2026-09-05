@@ -31,6 +31,11 @@ _ARMOR_SLOT_LABELS: dict[str, str] = {
     "legs": "Legs", "feet": "Feet",
 }
 
+def _trait_names(trait_ids) -> list[str]:
+    from .data.traits.core import trait_name
+    return [trait_name(t) for t in trait_ids]
+
+
 def _character_frame(
     ctx: GameContext,
     tab: int,
@@ -73,7 +78,7 @@ def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, sel
     )
     body = (
         f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
-        f"Traits: {', '.join(ctx.player_traits) if ctx.player_traits else 'None'}",
+        f"Traits: {', '.join(_trait_names(ctx.player_traits)) or 'None'}",
     )
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",

@@ -84,3 +84,16 @@ def test_perked_hold_protects_a_hot_crate_from_scans():
     })()
     failed, _confiscated = _compute_scan_exposure(owned_cruiser, [crate], ctx=ctx)
     assert failed == []
+
+
+def test_trait_display_names_cover_quest_perks():
+    """Character screen resolves friendly names for BOTH registries —
+    quest perks never render as raw ids (playtest catch)."""
+    from src.spacehack.character_screen import _trait_names
+    from src.spacehack.data.traits.core import trait_name
+
+    assert trait_name("warrant_license") == "Warrant License"
+    assert trait_name("smugglers_instinct") == "Smuggler's Instinct"
+    assert trait_name("lab_credentials") == "Lab Credentials"
+    assert "warrant_license" not in _trait_names(["warrant_license", "sharpshooter"])
+    assert "Sharpshooter" in _trait_names(["warrant_license", "sharpshooter"])
