@@ -167,6 +167,12 @@ patrols out of spite (user ruling; NOT a cover story).
 (Replaces the vague "human signal" revelation — the door's new
 receiving state is the revelation.)
 
+**The dig (ruling):** the old crew staged from Barnard's Star b, and
+when the op was buried the Militia buried the file while the crew
+buried the hardware - the cell has sat in that cache for thirty
+years, and the old man retired nearby to watch it. The dig is the
+cache, not the door site (the door is on Mars).
+
 **Lore seed (free, uncommitted):** a door built to receive was
 waiting for that signal. Someone sent it. The chain notices; Act 1
 may explain.
