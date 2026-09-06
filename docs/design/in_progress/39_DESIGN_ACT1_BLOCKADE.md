@@ -93,9 +93,20 @@ encounter math has to close them.
 
 **Gap-closure still matters — but as the Line system, not the
 floor:** free passage through geometric gaps should not exist; the
-quiet run is the intentional sneak door with its own researched
+ghost run is the intentional sneak door with its own researched
 requirements. Closing the gaps is fairness to the methods, not the
 level gate.
+
+**METHOD 5 CLOSED (user, 2026-09-06):** the fight is simply the
+outcome of defiance — you ignore the warning when you fly through
+and you survive. No bespoke method structure; the work is (a) tune
+the convergence difficulty to the contract (provably unwinnable
+below 30, significant at it) and (b) close the gaps so undefended
+crossing is impossible: the picket must detect any approach (fill
+the wall's spacing — the current 4-ship column leaves y 33-47,
+63-77, 93-107 and both map edges open), the warning hail fires for
+every detected hull, and ignoring it converges the whole blockade.
+Survive = through.
 
 **Prerequisite:** the far side needs at least one real system before
 "past" means anything.
