@@ -125,7 +125,7 @@ simulated vs. how authored each piece is.
 |---|---|---|---|---|
 | 1 | **The papers** — clearance through the checkpoint. SETTLED (below): two acquisition routes, allied standing either way, trait-tracked | The Line's warning hints a list exists; rumor fills in the rest | Allied standing — militia (official) OR pirate (back channel) — plus credits | Warrant-license players start on first-name terms |
 | 2 | **The hidden gate** — Vega's KNOWN hidden Sol gate, RETARGETED with tech that burns in the jump; one-way, no failure roll | The gate is known; the secret is that it can be retargeted | Assembling the FULL working tech (pieces; option hidden until complete) | Kept players hold the node addresses in their own copy |
-| 3 | **The ghost run** — TWO variants (user ruling): DARK (don't appear on scanners at all) or IMPERSONATION (broadcast a militia ID — the only clearance waved through is the blockade patrol itself or higher rank) | Frontier rumor; the outlaw-tech crowd | Variant-dependent (below) | The smuggler's hold hides cargo; the hack hides the ship — the full ghost kit |
+| 3 | **The ghost run** — CLOSED. DARK (hail-lure a picket with a false backup call — auth codes required — then coast the gap) or IMPERSONATION (wear a captured militia ID; only blockade rank or higher passes). Kit from THE HEIST: a multi-story militia-building delve | Frontier rumor; the heist | Auth codes / patrol IDs from the heist; live skill for the coast | The smuggler's hold hides cargo; the hack hides the ship — the full ghost kit |
 | 4 | **The toll** — someone at the Line sells passage | Everyone at the Line knows someone | Credits and/or standing — with strings (a favor owed?) | Merchants' 12,000cr is exactly this kind of option |
 | 5 | **The loud way** — punch through a patrol | No research needed | Surviving it; living with militia hostility after | Nobody — that's the point |
 
@@ -262,9 +262,43 @@ badge may already be dead) — the fiction sounds terrifying, the
 mechanics are the assembly. Only blockade-patrol rank or higher
 gets waved through without papers.
 
-**Open sub-questions:** the deception dialogue options (which lies
-work, what they cost), being spotted dark (interdiction
-automatic?), the capture mechanic's skill gate.
+**Closed rulings (2026-09-06, third pass):**
+
+1. **THE LIE (settled):** one deception for v1 — a false backup
+   call: *"someone is trying to run the blockade, backup needed."*
+   The requirement that makes it work: sending that command on a
+   TRUSTED CHANNEL with the RIGHT AUTH CODES. The codes must be
+   obtained — which unifies the ghost run's acquisition economy:
+   the same militia codes/IDs feed the lure AND the impersonation
+   badge.
+2. **SPOTTED DARK (settled):** a hail with a warning. The player
+   must retreat and try again. Ignoring the warning brings the
+   WHOLE BLOCKADE down — identical to running the Line with no
+   plan. (Ties dark's failure into the shared interdiction
+   response — the Line has one combat behavior, every method
+   provokes it the same way.)
+3. **THE ACQUISITION — A HEIST (settled):** we have delves and we
+   have cities; therefore a HEIST. A delve themed as a multi-story
+   MILITIA BUILDING in a city, accessible only if the player
+   follows the right steps (gated entry — not a walk-in interior
+   like the legal militia guild buildings). It yields the ghost
+   kit: trusted-channel auth codes (the lure) and patrol ID
+   records (impersonation). The heist is the act's dungeon content
+   and gets its own design pass.
+
+**Method 3 status: CLOSED** (the heist itself is a follow-on
+design item — see Phase 0 list).
+
+### The Militia Building Heist (design pass pending)
+
+Multi-floor delve in a city's military wing — the machinery all
+exists: multi-floor dungeon extensions (prison pattern), dormant
+security that wakes on power events (doc 30), authored landmarks
+with in-layout guardians, city building interiors. Placement lean:
+a Line station's military wing (Blockade Station North/South
+already have militia buildings) — steal the codes FROM the Line
+itself, where the current rotation lives. Entry steps, floors, and
+the kit's exact contents are the design pass.
 
 ### Systemic combos (emergent, not authored paths)
 
@@ -326,8 +360,12 @@ the crossing is real.
       full working tech (no failure roll); arrival far-east edge of
       the destination at a jump-point position; derelict ping
       shelved to the intermission phase
-- [ ] Walk each remaining method one-by-one (quiet run → toll →
-      interdiction fight)
+- [x] Method 3 (the ghost run): CLOSED — dark hail-lure (false
+      backup call, auth-code gated) + impersonation (kit-complete,
+      narrated danger); acquisition via the militia-building heist
+      (own design pass pending)
+- [ ] Walk each remaining method (toll → interdiction fight)
+- [ ] The heist design pass (the act's dungeon)
 - [ ] Settle the open questions below
 - [ ] Fork the intermission doc when the crossing is real
 
