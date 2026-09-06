@@ -382,7 +382,10 @@ the crossing is real.
       backup call, auth-code gated) + impersonation (kit-complete,
       narrated danger); acquisition via the militia-building heist
       (own design pass pending)
-- [ ] Walk each remaining method (toll → interdiction fight)
+- [x] Method 4 (the bribe): CLOSED — flat 100k, per crossing,
+      fiction-only ledger, the Commandant of Blockade Station North,
+      found via a four-tier unlabeled rumor chain
+- [ ] The interdiction fight (the last method)
 - [ ] The heist design pass (the act's dungeon)
 - [ ] Settle the open questions below
 - [ ] Fork the intermission doc when the crossing is real
