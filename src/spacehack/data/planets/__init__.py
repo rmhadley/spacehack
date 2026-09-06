@@ -304,8 +304,8 @@ def has_landable_port(planet_id: str) -> bool:
     Returns False for:
       - unknown planet ids (catches :class:`KeyError` from
         :func:`find_planet_spec` internally so callers don't have to),
-      - known planets whose spec has no spaceport building (Mercury,
-        Venus, Jupiter, Saturn, Uranus, Neptune in the current system).
+      - known planets whose spec has no spaceport building (none in
+        the current registry, but the class is data-driven).
 
     Returns True when the planet is in the registry AND its
     :attr:`PlanetSpec.buildings` tuple contains at least one entry
