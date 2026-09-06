@@ -342,15 +342,21 @@ challenge. Scrubbed triggers neither — blank paper complies.
     Deadfall and Ember, scrubbed still docks at Earth, save/load
     round-trip across a refusal.
 
-- [ ] PHASE 3b — the militia challenge hail (ruled 2026-09-06;
-      built after 3a's checkpoint): NPC-initiated comms on detect:
-      identify / attack — TWO options, no RUN (no run mechanic
-      exists; a future run-mechanic doc would collect all such
-      interactions). ATTACK escalates to combat + heat, never a
-      guaranteed kill; ghost-run tuning lives with doc 39 when that
-      method is built. Scrubbed triggers nothing — blank paper
-      complies. Tests: challenge outcomes per broadcast state
-      (identify judged per worn face; attack escalation).
+- [x] PHASE 3b — the militia challenge hail — CODE LANDED
+      2026-09-06 (5255c05; playtest checkpoint PENDING): NPC-initiated
+      comms on detect: identify / attack — TWO options, no RUN (no
+      run mechanic exists; a future run-mechanic doc would collect
+      all such interactions). ATTACK escalates to combat + heat,
+      never a guaranteed kill; ghost-run tuning lives with doc 39
+      when that method is built. Scrubbed triggers nothing — blank
+      paper complies. Shipped: ``_dark_spot_challenge`` (militia-
+      only, detect radius, one-shot per patrol via militia_scanned),
+      the challenge modal (ESC = refusing = the patrol fires), the
+      identify judgement (``_judge_identification`` pure: blank
+      passes, militia callsign stands down, wrong face / hostile
+      true record draw fire), ATTACK through the normal escalation
+      (rep rides the broadcast gate — unsolved while dark), +7
+      tests, guide updated.
 
   Implementation brief (3b) — DRAFTED at 3a's playtest checkpoint
   (2026-09-06; shape may shift with what the gate playtest shows):
@@ -432,6 +438,15 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ``detect_radius`` in v1 (no charged-cell boost).
   - Ratchet: comms.py 447 / navigation_combat.py 341 lines — both
     under limit; new functions stay under 40.
+  - Known consequence (reviewer, surfacing to the user — matches the
+    locked one-shot ruling, NOT silently accepted): a patrol that
+    already ran its electronic scan-hail check on a LIVE player
+    (key marked in ``militia_scanned`` at comms_warning_range,
+    before the scan roll) can never challenge that visit once the
+    player toggles dark inside its range — "fly live into range,
+    then go dark" suppresses that patrol's challenge until landing
+    clears the set. Fix would be separate keys for hail vs
+    challenge; deferred until the playtest says it matters.
 - [ ] Phase 4+: resolved identities feeding the Line's sweep
       (doc 41); capture (shadow/record) as the clone pipeline;
       faction hostility reading apparent_faction (the Ross pose)
