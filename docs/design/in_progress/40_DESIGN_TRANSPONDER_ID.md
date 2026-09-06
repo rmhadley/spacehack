@@ -79,15 +79,18 @@ the reader resolves:
 | Dark | no ID → nothing | unknown-vessel protocol: challenge, suspicion, the Line's hail |
 | Spoofed | the chosen ID → the relations that ID implies | readers react to who you appear to be |
 
-**Spoof sources and their mappings (exactly three):**
-- SCRUBBED → maps to blank: a tramp hull with no history; every
-  reader's default-civilian posture. The cheapest lie — "I'm no
-  one."
-- CLONED → maps to the source's apparent standing: a Ross pirate's
-  ID resolves as one of theirs; a militia patrol's callsign reads
-  as rank. The ID borrows someone real's relations.
-- FABRICATED RANK → maps to the institution itself: a command
-  callsign reads as the Militia, which outranks the reader.
+**Spoof sources (exactly three — each ID carries its own rep
+sheet; the source determines how the sheet is made):**
+- SCRUBBED → blank sheet: all factions neutral. A tramp hull with
+  no history; every reader's default-civilian posture. The
+  cheapest lie — "I'm no one."
+- CLONED → the sheet is ROLLED from the source at capture (one
+  roll per source, quality-weighted): a Ross pirate's ID carries
+  pirate-allied values; a militia patrol's ID carries militia
+  standing. The ID holds real values of its own.
+- FABRICATED RANK → an authored sheet (act-1 quest content): a
+  command callsign carries whatever standing the content grants
+  it.
 
 Registration/class/port are PRESENTATION surface (what a scan
 displays and verifies), not the functional model.
@@ -225,18 +228,18 @@ Two consequences, DARK ONLY (never scrubbed):
    ghost-run details later; make this make sense first). Pirates
    never challenge; silence in Ross reads as business as usual.
 
-## SETTLED (phase 4+ re-cut, user rulings 2026-09-06): apparent standings + dark's price of entry
+## SETTLED (phase 4+ re-cut, user rulings 2026-09-06): one current reputation + dark's price of entry
 
-**One primitive — no custom code.** Wearing a spoofed ID CHANGES the
-standings readers resolve: the face's relations ARE your relations
-while worn. The Ross pose is the mechanic working, not a Ross
+**One primitive — no custom code.** The broadcasting ID's rep sheet
+IS your current reputation; every reader resolves the same sheet
+(dark → neutral). The Ross pose is the mechanic working, not a Ross
 special-case — "if Ross right now auto-attacks everyone no matter
 what, that's incorrect" (user ruling). Every spawn reader —
 static/territorial, bounty, procedural — runs the SAME gate: engage
 only when the RESOLVED attitude is disliked/enemy.
 
 Consequences (all follow from the one gate):
-- In-group face: a pirate clone worn in Ross resolves Allied with
+- In-group ID: a pirate clone's sheet resolves Allied with
   pirates — the crown stands down.
 - Blank paper (scrubbed) resolves default-civilian neutral: nothing
   auto-attacks a nobody — but nobody helps a nobody either (no
@@ -263,14 +266,15 @@ on top. The scrub keeps its niche: anonymity WITH compliance.
 
 ## SETTLED (capture + clone quality, user rulings 2026-09-06)
 
-**Standings substitution, not a parallel track.** Phase 4 does not
-build a new "apparent standings" system beside the real one — the
-worn face SUBSTITUTES into the standings the game already reads,
-and every existing consumer (spawn gates, scan tables, trade,
-comms attitudes) keeps its exact logic. We have faction standings;
-they already have meaning; a fake ID changes them and the game
-reacts through machinery that already exists. Reads resolve the
-face; writes still land on the true dict only while live (Q4).
+**The sheet IS the standings — not a parallel track.** Phase 4 does
+not build a new reputation system beside the real one — the
+broadcasting ID's own sheet is what the game already reads, and
+every existing consumer (spawn gates, scan tables, trade, comms
+attitudes) keeps its exact logic, pointed at the sheet. We have
+faction standings; they already have meaning; the worn ID's sheet
+supplies them and the game reacts through machinery that already
+exists. Reads resolve the broadcasting ID; writes still land on ID
+1 only while it broadcasts (Q4).
 
 **Capture is live-ship boarding (user ruling — new feature).** The
 shadow/record verb is replaced by boarding: meet the requirements
@@ -281,10 +285,10 @@ available, clone the ID from there. (Scoping pending: own sibling
 doc vs a phase here — the feature is bigger than the capture verb;
 boarding derelicts already exists today.)
 
-**Clones roll their quality (user ruling — iterates faction
-profiles).** A clone's standings are a ROLL within the source
-faction's profile: the higher quality the source ship, the better
-the odds of a strong roll. RNG + grind behind a powerful perk. The
+**Clones roll their sheet (user ruling — iterates faction
+profiles).** A clone's sheet is a ROLL within the source faction's
+profile: the higher quality the source ship, the better the odds
+of a strong roll. RNG + grind behind a powerful perk. The
 library consequently needs management — the ability to delete (or
 sell!?) transponder codes. Parameters pending: the profile bands,
 quality weights, re-clone/re-roll semantics, library cap/sell.
@@ -310,9 +314,55 @@ the prize — no wreck salvage); the interior spawns its crew
 the clone with the tech installed; console taken, the hull powers
 down to a derelict (existing loot flows apply). Ship theft parked.
 
-**Phase cut (2026-09-06):** phase 4 = apparent standings, phase 5 =
+**Phase cut (2026-09-06):** phase 4 = the broadcasting ID's
+reputation (originally cut as "apparent standings"; re-cut to
+sheets the same day), phase 5 =
 dark's cut-out, phase 6 = the capture pipeline. The Line's sweep
 remains doc 41's build — doc 40 supplies the states.
+
+## SETTLED (re-cut: IDs carry reputation sheets, user ruling 2026-09-06)
+
+**A transponder ID maps to a set of reputation values — reputation
+drives this system 100%.** (User ruling, verbatim: "a transponder
+ID is an ID to a set of reputation values... Reputation drives
+this system 100%. Your transponder ID is what determines your
+current reputation.") There is no spoofed "face" that maps to a
+faction — that framing (``apparent_faction``, the F screen's faked
+rows, the challenge hail's militia-callsign special case) was a
+wrong turn in the earlier phasing and is SUPERSEDED. Each ID in
+the library carries its own rep sheet (a ``{faction: int}`` dict):
+
+- **ID 1 — the personal ID.** Rides with the player across every
+  lawful ship purchase; its sheet IS ``ctx.faction_reputation``,
+  and it is the only sheet behavior changes (while it broadcasts —
+  the Q4 write ruling is unchanged: deltas under any other ID are
+  discarded).
+- **Scrubbed** → a blank sheet: all neutral. Blank paper, exactly
+  as ruled.
+- **Cloned** → the sheet is ROLLED from the source at capture (the
+  one-roll-per-source, quality-weighted ruling — re-expressed: the
+  roll generates the sheet).
+- **Fabricated** → an authored sheet (act-1 quest content).
+
+Every reader in the game reads one thing: the sheet of whichever
+ID is broadcasting (dark → neutral, unchanged). No faction-mapping
+step exists anywhere in the player layer — no read keys on the
+face's ``faction`` field. Consequences:
+
+- The challenge hail's special cases collapse into the value read:
+  a militia sheet passes because its militia VALUES pass; a hostile
+  sheet (pirate clone, bad true record) draws fire. Same outcomes
+  as 3b's playtested behavior, one mechanism — the modal, two-option
+  set, and one-shot tracking are untouched; only the judgement's
+  read swaps to the sheet (phase 4).
+- The F screen renders the broadcasting ID's actual sheet — no more
+  "Friendly (Faked)" / "No Data" approximation rows (the broadcast
+  block still says which ID and which mode).
+- The spawn gate is unchanged (engage only on resolved
+  disliked/enemy) — a pirate clone stands the Ross crown down
+  because its sheet's VALUES are allied-with-pirates.
+- No save migration: library entries without a ``rep`` field read
+  as a blank sheet (every collectible ID today is scrubbed).
 
 ## The complete settled design (one statement)
 
@@ -320,12 +370,14 @@ Every ship broadcasts. An ID is an identifier that maps to
 relations — the game has lived in live mode since day one (detect,
 identify, rate, behave). The layer adds key choice: live (true
 ratings — today, nothing new), dark (nothing resolves; countered
-only by eyes and the Line's density), spoofed (the face's implied
-relations; three sources: scrubed→blank, cloned→source's standing,
-fabricated rank→the institution). Wearing a face CHANGES the
-standings every reader resolves — one gate for all spawn readers,
-engage only on resolved disliked/enemy; the Ross pose is the
-mechanic working, no custom code (2026-09-06 re-cut). Explicit
+only by eyes and the Line's density), spoofed (the worn ID's own
+rep sheet; three sources: scrubbed→blank sheet, cloned→rolled from
+the source, fabricated→authored). The broadcasting ID's sheet IS
+your current reputation — every reader resolves it; one gate for
+all spawn readers, engage only on resolved disliked/enemy; the
+Ross pose is the mechanic working, no custom code (2026-09-06
+re-cut; IDs carry reputation sheets — the face/faction mapping is
+superseded). Explicit
 registrations for RP flavor; the F — faction screen is the identity
 hub (broadcast state, cycling collected IDs). Intrinsic
 transponders; services at the outlaw ports work the modes; going
@@ -531,7 +583,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
     answer = the patrol opens fire (TWO options only — ESC must
     not become a run mechanic). IDENTIFY ends dark: the
     transponder comes up broadcasting the answered face and STAYS
-    there (the persistence ruling). Judgement: blank (scrubbed)
+    there (the persistence ruling). Judgement [mechanism SUPERSEDED
+    2026-09-06 — sheets: the answered ID's militia VALUE decides,
+    no faction special cases; outcomes unchanged]: blank (scrubbed)
     passes; a militia-registered face passes (the institution
     outranks the reader — sandbox militia faces stay act-1
     content); any other faction fails; the true ID passes unless
@@ -551,52 +605,68 @@ challenge. Scrubbed triggers neither — blank paper complies.
     then go dark" suppresses that patrol's challenge until landing
     clears the set. Fix would be separate keys for hail vs
     challenge; deferred until the playtest says it matters.
-- [ ] PHASE 4 — apparent standings substitution. The worn face
-      substitutes into the standings the game already reads — no
-      parallel track, existing consumers keep their logic (user:
-      "phase 4 should be _how the game already works_"). One pure
-      resolver: live → the true dict; spoofed → the face's
-      standings (absent → neutral); dark → neutral (nothing
-      resolves — spawn gates stand down; the militia challenge hail
-      (3b) is the eyes exception; the scan path already exits for
-      dark). Static/territorial spawns GAIN the rep gate (engage
-      only on resolved disliked/enemy) — the Ross fix; charged-cell
-      heat bypasses the mask (heat response, not an identity read).
+- [ ] PHASE 4 — the broadcasting ID's reputation (re-cut
+      2026-09-06 from "apparent standings": IDs carry rep sheets,
+      not faction mappings — see the sheets SETTLED section). One
+      pure resolver — the sheet of whichever ID broadcasts — feeds
+      every reader; existing consumers keep their logic (user:
+      "reputation drives this system 100%").
 
-  Implementation brief (4) — APPROVED (user, 2026-09-06):
+  Implementation brief (4) — re-cut 2026-09-06, PENDING approval
+  (supersedes the approved apparent-standings brief):
   - Scope: ``identity.effective_reputation(ctx) -> dict[str, int]``
-    (pure; the ONE substitution point). Reader call sites swap
-    ``ctx.faction_reputation.get(f, 0)`` for the resolver —
-    enumerated by the audit's grep, known today:
+    (pure; returns a FRESH dict — never the live one): live → copy
+    of ``ctx.faction_reputation`` (ID 1's sheet); spoofed → the
+    worn entry's ``rep`` sheet (entries without one read blank);
+    dark → ``{}``. Reader call sites swap
+    ``ctx.faction_reputation.get(f, 0)`` for
+    ``identity.effective_reputation(ctx).get(f, 0)``:
     ``navigation_combat._trigger_bounty_spawns`` /
     ``_trigger_procedural_spawns`` (existing gates),
     ``_trigger_static_spawns`` (gate ADDED: engage only on resolved
     disliked/enemy — audit first that derelict/blocker entities
     don't route through this pass), ``_militia_scan_chance``,
-    ``comms`` contact attitude + hostile hail label,
-    ``trade`` merchant/npc-faction attitudes,
-    ``mission/_board`` reward adjust. ``_charged_cell_aggro`` NOT
-    routed. Writes untouched (modify_rep's broadcast gate, Q4).
-  - Build order: resolver + tests → static-spawn gate → routed
-    readers → guide section touch (the world reacts to the face's
-    standings) → ``make check``.
-  - Binding rulings: mask cuts both ways at reads too (masked trade
-    loses earned attitudes); dark resolves neutral (pirates'
-    business-as-usual; militia's challenge covers the eyes);
-    scrubbed = neutral (blank paper); faces without standings data
-    resolve neutral (cloned faces arrive in phase 6).
-  - Required tests: resolver per mode (live / spoofed-with-
-    standings / spoofed-scrubbed / dark); static spawns stand down
-    on neutral + engage on disliked/enemy; scan chance reads the
-    face; trade attitude masked → neutral; charged-cell still
-    aggros through any face; live unchanged (existing suite).
-  - Stop point: NO cloned faces or rolls (6), no cut-out (5), no
-    boarding work, no Line work.
-  - Playtest checkpoint (numbered): wear the scrub — the Ross crown
-    drifts past; Sol patrol scans at the neutral rate; trade prices
-    lose the earned discount; flip live — everything as today; go
-    dark — pirate spawns ignore, militia challenge still fires;
-    save/load across all three states.
+    ``comms`` contact attitude + hostile hail label, ``trade``
+    merchant/npc-faction attitudes, ``mission/_board`` reward
+    adjust. ``_charged_cell_aggro`` NOT routed; ``faction.py``
+    monthly decay keeps the true dict (time, not a reader).
+    Superseded face machinery: ``identity.apparent_faction``
+    deleted (with its tests); F screen ``_masked_row`` deleted,
+    ``_faction_rows`` renders the resolver's sheet directly;
+    ``_judge_identification`` (comms) judges the broadcasting
+    sheet's militia VALUE — faction special cases removed, pass
+    line unchanged, hostile outcomes unify to one line ("The
+    registration reads hostile: the patrol opens fire!"); callers
+    comms.py ``_run``/``resolve_identification`` path adjust
+    (identify sets the broadcast, the judgement reads it). Writes
+    untouched (modify_rep broadcast gate, Q4). No save migration
+    (missing ``rep`` = blank); no new acquisition content.
+  - Build order: resolver + tests → judgement swap → static-spawn
+    gate → routed readers → F screen sheet display → guide touch →
+    ``make check``.
+  - Binding rulings: IDs carry sheets, not faction mappings (no
+    player-layer read keys on the face's ``faction`` field); only
+    ID 1's sheet changes from behavior; scrubbed sheet = blank;
+    dark resolves neutral; cloned sheets roll at capture (6);
+    mask cuts both ways at reads (masked trade loses earned
+    attitudes).
+  - Required tests: resolver per state (live / worn entry with
+    sheet / worn blank-sheet scrub / dark); judgement by sheet
+    values (blank passes, positive militia sheet passes, hostile
+    sheet draws fire — replaces the faction-special-case tests);
+    static spawns stand down on neutral + engage on disliked/enemy;
+    scan chance reads the sheet; trade attitude masked → neutral;
+    charged-cell still aggros through any ID; F screen renders the
+    worn sheet; live unchanged (existing suite).
+  - Stop point: NO clone capture or rolls (6), no cut-out (5), no
+    boarding, no Line work, no new collectible IDs.
+  - Playtest checkpoint (numbered): buy the scrub, wear it — the
+    Ross crown drifts past; Sol patrol scans at the neutral rate;
+    trade prices lose the earned discount; F screen shows the
+    scrub's neutral sheet while worn and the true sheet after
+    cycling back; flip live — everything as today; go dark —
+    pirate spawns ignore, militia challenge still fires; save/load
+    across all three states.
 
 - [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
       a one-time transponder cut-out installed at a pirate-run
@@ -628,10 +698,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
       clone economy. Ruled above (capture + clone quality section,
       2026-09-06); the brief is drafted at phase 5's playtest
       checkpoint (3b precedent — shape may shift with what the
-      standings playtest shows). Carries: the crippled-ship
+      phase 4 playtest shows). Carries: the crippled-ship
       boarding extension (shields down + hull intact boardable;
       overkill destroys the prize), crewed interiors (ENEMY
-      markers), the C console clone (rig-gated, standings rolled by
+      markers), the C console clone (rig-gated, sheet rolled by
       the source's quality tier — one roll per source, persisted),
       library cap/delete/sell.
 
