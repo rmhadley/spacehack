@@ -269,7 +269,8 @@ def _dev_city_teleport(state) -> None:
         return
     from .game_interactions import land_at_city as _land
     _land(state, _pid)
-    state.log.add(f'[DEV MODE] Teleported to {_pid}.')
+    if state.current_mode == 'city':
+        state.log.add(f'[DEV MODE] Teleported to {_pid}.')
 
 
 def _handle_dev_event(state, event):
