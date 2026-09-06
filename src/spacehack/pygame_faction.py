@@ -61,20 +61,44 @@ def enabled() -> bool:
 
 
 def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
-    """Build bright, renderer-neutral rows from live reputation state."""
+    """Build bright, renderer-neutral rows from the broadcast's view.
+
+    LIVE shows the true ratings. Masked rows show what READERS
+    resolve (doc 40): a worn face's faction reads Friendly — tagged
+    (Faked) so the lie is always labeled — everything else No Data.
+    """
+    from . import identity
     from .faction import _ALL_FACTIONS, get_attitude
     from .menus._ship_menu import _faction_progress_bar
 
-    return tuple(
-        FactionRow(
+    mode = identity.broadcast_mode(ctx)
+    worn = identity.resolved_identity(ctx)
+    _worn_faction = (worn or {}).get("faction") or None
+
+    rows = []
+    for faction_id in _ALL_FACTIONS:
+        reputation = int(ctx.faction_reputation.get(faction_id, 0))
+        attitude = get_attitude(reputation).title()
+        bar = _faction_progress_bar(reputation)
+        color = _ZONE_COLORS.get(attitude.lower(), _ZONE_COLORS["neutral"])
+        if mode == identity.SPOOFED and _worn_faction == faction_id:
+            attitude, reputation = "Friendly (Faked)", 75
+            bar = _faction_progress_bar(reputation)
+            color = _ZONE_COLORS["liked"]
+        elif mode == identity.SPOOFED and _worn_faction is not None:
+            attitude, reputation, bar = "No Data", 0, ""
+            color = _ZONE_COLORS["neutral"]
+        elif mode == identity.DARK:
+            attitude, reputation, bar = "No Data (Dark)", 0, ""
+            color = _ZONE_COLORS["neutral"]
+        rows.append(FactionRow(
             label=faction_id.title(),
-            reputation=(reputation := int(ctx.faction_reputation.get(faction_id, 0))),
-            attitude=(attitude := get_attitude(reputation).title()),
-            bar=_faction_progress_bar(reputation),
-            color=_ZONE_COLORS.get(attitude.lower(), _ZONE_COLORS["neutral"]),
-        )
-        for faction_id in _ALL_FACTIONS
-    )
+            reputation=reputation,
+            attitude=attitude,
+            bar=bar,
+            color=color,
+        ))
+    return tuple(rows)
 
 
 def _identity_block(ctx: GameContext) -> tuple[str, ...]:

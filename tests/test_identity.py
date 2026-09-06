@@ -238,3 +238,32 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     ctx.broadcast_dark = True
     nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
     assert fired == [patrol], "dark ships are not hailable"
+
+
+def test_faction_rows_resolve_through_the_broadcast():
+    """Masked standings show what READERS see, always tagged: the
+    worn face's faction reads Friendly (Faked); everything else No
+    Data; dark resolves nothing (doc 40: the mask cuts both ways)."""
+    from src.spacehack.pygame_faction import frame_for
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"pirate": -80, "merchant": 40}
+    from src.spacehack.identity import collect_id
+    collect_id(ctx, _pirate_face())
+    ctx.broadcast_identity = _pirate_face()
+
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    assert rows["Pirate"].attitude == "Friendly (Faked)"
+    assert rows["Merchant"].attitude == "No Data"
+    assert rows["Militia"].attitude == "No Data"
+
+    ctx.broadcast_dark = True
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    assert rows["Pirate"].attitude == "No Data (Dark)"
+    assert rows["Merchant"].attitude == "No Data (Dark)"
+
+    ctx.broadcast_dark = False
+    ctx.broadcast_identity = None
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    assert rows["Pirate"].attitude == "Enemy"         # true ratings back
+    assert rows["Merchant"].attitude == "Liked"
