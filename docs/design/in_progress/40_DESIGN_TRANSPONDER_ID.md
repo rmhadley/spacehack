@@ -177,6 +177,40 @@ sandbox depth (user): a player who goes through the whole process
 to clone a pirate warlord and operate in Ross under his face has
 earned that power.
 
+## SETTLED (dark's price, user ruling 2026-09-06)
+
+**Scrubbed and dark are different contracts.** A scrubbed ID is
+talking while saying nothing: the transponder answers every query
+with blank paper, and blank paper complies — to any reader you're
+one of thousands of nobodies. Dark refuses the conversation, and in
+patrolled space silence is loud: every system that expects a
+transponder treats an unresolved contact as an incident. The
+6,000cr buys anonymity WITH compliance; dark buys anonymity at
+cost. (Before this ruling the two states were nearly identical in
+play — both froze rep and masked the F screen; nothing else read
+the difference.)
+
+Two consequences, DARK ONLY (never scrubbed):
+
+1. **No docking clearance at lawful ports.** Earth, Vega, any
+   militia-patrolled port — the log has nothing to enter, so the
+   pad stays locked. Outlaw ports (Deadfall, Whisper) don't ask.
+   The outlaw doors staying open is what keeps dark usable for its
+   purpose (ghost-running, the far side).
+
+2. **Patrol challenge hails.** A militia ship that detects a dark
+   contact hails the PLAYER (NPC-initiated comms): identify, run,
+   or open fire. IDENTIFY is the moment of truth — flip live or
+   wear a face, and what resolves is what gets judged: a scrubbed
+   hull is waved through, the true ID gets its record's due, a
+   wrong face gets that face's trouble. RUN and FIRE escalate —
+   pursuit, heat, guns. Pressure, never a guaranteed kill: the
+   ghost run keys on dark, so its tools (a ready face, speed, the
+   lure call) must answer this hail — tuning deferred to doc 39
+   when that method is built (user: figure the ghost-run details
+   later; make this make sense first). Pirates never challenge;
+   silence in Ross reads as business as usual.
+
 ## The complete settled design (one statement)
 
 Every ship broadcasts. An ID is an identifier that maps to
@@ -192,7 +226,12 @@ the outlaw ports work the modes; identity rides the player across
 lawful purchases (the scrub is an unlawful hull). Rep moves only
 while live — the mask cuts both ways on both axes. Nothing breaks a
 complete spoof in v1 (in-person inspection parked). NPCs broadcast
-into comms; cloning is rare, difficult, expensive — a process.
+into comms; cloning is rare, difficult, expensive — a process. Dark
+carries the lifestyle price: lawful ports refuse docking clearance
+(nothing to log), and militia patrols that detect a dark hull
+challenge it — identify (what resolves is judged), run, or fire,
+escalating to pursuit and heat; pirates never challenge. Scrubbed
+triggers neither — blank paper complies.
 
 ## Phases
 
@@ -216,6 +255,15 @@ into comms; cloning is rare, difficult, expensive — a process.
       modal; militia/fabricated ids stay act-1 quest content);
       npc_identity/apparent_faction helpers for the Line and faction
       reactions. Tests: +2 (11 total).
-- [ ] Phase 3+: resolved identities feeding the Line's sweep
+- [ ] PHASE 3 (dark consequences — ruled 2026-09-06, not yet
+      built): the lawful-port dock gate (docking refused while
+      DARK; outlaw ports don't ask) and the militia challenge hail
+      (NPC-initiated comms on detect: identify / run / fire;
+      escalation is pursuit + heat, never a guaranteed kill;
+      ghost-run tuning lives with doc 39 when that method is
+      built). Scrubbed triggers neither — that compliance is the
+      6,000cr. Tests: dock gate per port class; challenge outcomes
+      per broadcast state.
+- [ ] Phase 4+: resolved identities feeding the Line's sweep
       (doc 41); capture (shadow/record) as the clone pipeline;
       faction hostility reading apparent_faction (the Ross pose)
