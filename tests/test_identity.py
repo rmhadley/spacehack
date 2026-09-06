@@ -143,20 +143,22 @@ def test_registration_generates_once_and_migrates_saves():
 
 
 def test_save_round_trip_carries_the_identity_state():
-    """The identity fields persist and a legacy save (no keys)
-    migrates: a registration is generated on restore."""
+    """Restore reads the identity fields back (the full save→load
+    round trip is covered in test_saveload) and a legacy save with no
+    keys migrates: a registration is generated on restore."""
     from src.spacehack.saveload import _restore_quest_and_tutorial
 
     ctx = quest_ctx()
     data = {
         "ship_registration": "AB-1234",
         "broadcast_dark": True,
-        "broadcast_identity": None,
+        "broadcast_identity": _pirate_face(),
         "collected_ids": [_pirate_face()],
     }
     _restore_quest_and_tutorial(ctx, data)
     assert ctx.ship_registration == "AB-1234"
     assert ctx.broadcast_dark is True
+    assert ctx.broadcast_identity["id"] == "KG-8812"
     assert ctx.collected_ids[0]["id"] == "KG-8812"
 
     legacy = quest_ctx()
@@ -238,6 +240,31 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     ctx.broadcast_dark = True
     nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
     assert fired == [patrol], "dark ships are not hailable"
+
+
+def test_scrubbed_face_masks_every_faction_row():
+    """A factionless face (the scrubbed hull a broker sells) resolves
+    nothing for any reader — wearing it must mask ALL rows, not fall
+    through to the true ratings."""
+    from src.spacehack.pygame_faction import frame_for
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"pirate": -80, "merchant": 40}
+    ctx.collected_ids = [{
+        "id": "KX-1234", "kind": "scrubbed",
+        "label": "Scrubbed hull", "faction": None,
+    }]
+    ctx.broadcast_identity = ctx.collected_ids[0]
+
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    for row in rows.values():
+        assert row.attitude == "No Data"
+        assert row.reputation == 0
+
+    ctx.broadcast_identity = None
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    assert rows["Pirate"].attitude == "Enemy"      # true ratings back
+    assert rows["Merchant"].attitude == "Liked"
 
 
 def test_faction_rows_resolve_through_the_broadcast():

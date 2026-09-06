@@ -60,12 +60,32 @@ def enabled() -> bool:
     return pygame_ui.presentation_enabled()
 
 
+def _masked_row(
+    mode: str, worn_faction: str | None, faction_id: str,
+) -> tuple[str, int, str, tuple[int, int, int]] | None:
+    """What a reader resolves for one faction under the broadcast.
+
+    None means LIVE: keep the true values. A worn face's own faction
+    reads Friendly (Faked); every other row — including ALL rows under
+    a factionless face (scrubbed hull) — reads No Data.
+    """
+    from . import identity
+    from .menus._ship_menu import _faction_progress_bar
+
+    if mode == identity.SPOOFED and worn_faction == faction_id:
+        return "Friendly (Faked)", 75, _faction_progress_bar(75), _ZONE_COLORS["liked"]
+    if mode == identity.SPOOFED:
+        return "No Data", 0, "", _ZONE_COLORS["neutral"]
+    if mode == identity.DARK:
+        return "No Data (Dark)", 0, "", _ZONE_COLORS["neutral"]
+    return None
+
+
 def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
     """Build bright, renderer-neutral rows from the broadcast's view.
 
     LIVE shows the true ratings. Masked rows show what READERS
-    resolve (doc 40): a worn face's faction reads Friendly — tagged
-    (Faked) so the lie is always labeled — everything else No Data.
+    resolve (doc 40) — the lie is always labeled.
     """
     from . import identity
     from .faction import _ALL_FACTIONS, get_attitude
@@ -81,16 +101,9 @@ def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
         attitude = get_attitude(reputation).title()
         bar = _faction_progress_bar(reputation)
         color = _ZONE_COLORS.get(attitude.lower(), _ZONE_COLORS["neutral"])
-        if mode == identity.SPOOFED and _worn_faction == faction_id:
-            attitude, reputation = "Friendly (Faked)", 75
-            bar = _faction_progress_bar(reputation)
-            color = _ZONE_COLORS["liked"]
-        elif mode == identity.SPOOFED and _worn_faction is not None:
-            attitude, reputation, bar = "No Data", 0, ""
-            color = _ZONE_COLORS["neutral"]
-        elif mode == identity.DARK:
-            attitude, reputation, bar = "No Data (Dark)", 0, ""
-            color = _ZONE_COLORS["neutral"]
+        masked = _masked_row(mode, _worn_faction, faction_id)
+        if masked is not None:
+            attitude, reputation, bar, color = masked
         rows.append(FactionRow(
             label=faction_id.title(),
             reputation=reputation,
