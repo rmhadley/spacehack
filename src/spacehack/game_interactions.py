@@ -218,10 +218,7 @@ def _dark_dock_refusal(ctx, pid):
     spec = find_planet_spec(pid)
     if spec.dark_berth:
         return None
-    return (
-        f"{spec.name} dock control: your transponder is dark. "
-        "We don't berth hulls that won't say their name."
-    )
+    return "Docking request denied: transponder not responding."
 
 
 def _resolve_planet_land(state, pid, planet_obj):

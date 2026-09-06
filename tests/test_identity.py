@@ -361,8 +361,8 @@ def test_dark_dock_gate_port_classes():
         assert _dark_dock_refusal(_dark_dock_ctx(), pid) is None, pid
     lawful = _dark_dock_refusal(_dark_dock_ctx(), "earth")
     neutral = _dark_dock_refusal(_dark_dock_ctx(), "ross_c")
-    assert lawful and "dark" in lawful
-    assert neutral and "dark" in neutral
+    assert lawful == "Docking request denied: transponder not responding."
+    assert neutral == lawful  # one uniform port line, every refusing port
 
 
 def test_dark_dock_gate_spares_scrubbed_and_live():
@@ -405,7 +405,7 @@ def test_dark_refusal_precedes_cargo_scan_and_never_builds_city(monkeypatch):
     assert result == "CONTINUE"
     assert state.current_mode == "space"
     assert scanned == [], "the refusal precedes the cargo scan"
-    assert messages and "dark" in messages[0]
+    assert messages == ["Docking request denied: transponder not responding."]
 
 
 def test_dark_refusal_keeps_the_current_system(monkeypatch):
