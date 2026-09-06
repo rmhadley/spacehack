@@ -153,15 +153,50 @@ alter your true ID.** Consequences route to the ID you WORE:
 clone's source — follows from Q1's mapping and is parked as the
 natural v2 depth; v1 routes masked consequences nowhere.)
 
-## Open questions (the review agenda, remaining)
-5. Spoof failure checks: what breaks a false ID, and who runs the
-   check (scans? the checkpoint? random audits)?
-6. NPC ships: do they broadcast live IDs the player can read
-   (name/faction on scan — today you see them by sight)? Can the
-   player CLONE from any scanned ship, or only via services/tools?
+## SETTLED (Q5 + Q6, user rulings 2026-09-06 — REVIEW COMPLETE)
+
+**Q5 — nothing breaks a complete spoof in v1.** Electronic
+identity is as strong as its kit; the counter-play is physical and
+behavioral (eyes, the Line's density, wearing the wrong face in
+the wrong system). FUTURE HOOK (user, parked): the sci-fi boarding
+trope — circumstances force a local military to board/investigate,
+and the broadcast ID doesn't match who you physically are. In-person
+inspection as a spoof-breaker lives in future design space.
+
+**Q6 — NPCs broadcast, integrated into comms.** Every ship in
+space resolves an identity; the comms system shows who you're
+hailing (and what they claim to be). The world becomes legible at
+range, and the player's mask is meaningful by symmetry.
+
+**Cloning is RARE and DIFFICULT (user ruling):** in a real
+universe, if cloning anyone were trivial, there'd be chaos. Getting
+an illegal ID must be an expensive, involved PROCESS — not a
+button. Reading broadcasts is free; CAPTURING a cloneable ID is a
+pipeline (tools, services, opportunity, risk). The aspirational
+sandbox depth (user): a player who goes through the whole process
+to clone a pirate warlord and operate in Ross under his face has
+earned that power.
+
+## The complete settled design (one statement)
+
+Every ship broadcasts. An ID is an identifier that maps to
+relations — the game has lived in live mode since day one (detect,
+identify, rate, behave). The layer adds key choice: live (true
+ratings — today, nothing new), dark (nothing resolves; countered
+only by eyes and the Line's density), spoofed (the face's implied
+relations; three sources: scrubed→blank, cloned→source's standing,
+fabricated rank→the institution). Explicit registrations for RP
+flavor; the F — faction screen is the identity hub (broadcast
+state, cycling collected IDs). Intrinsic transponders; services at
+the outlaw ports work the modes; identity rides the player across
+lawful purchases (the scrub is an unlawful hull). Rep moves only
+while live — the mask cuts both ways on both axes. Nothing breaks a
+complete spoof in v1 (in-person inspection parked). NPCs broadcast
+into comms; cloning is rare, difficult, expensive — a process.
 
 ## Phases
 
-- [ ] Review this shape with the user; settle the open questions
-- [ ] Full design (data model, consumers, state machine, economy)
+- [x] Review with the user — all six questions ruled (2026-09-06)
+- [ ] Full design (data model, consumers, state machine, the
+      cloning process, the F-screen layout)
 - [ ] Implementation plan (ships first? scans first? checkpoint?)
