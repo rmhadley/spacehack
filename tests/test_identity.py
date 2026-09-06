@@ -175,9 +175,9 @@ def test_faction_frame_shows_the_broadcast_block():
     assert frame.identity_lines
     assert "LIVE" in frame.identity_lines[0]
     assert ctx.ship_registration in frame.identity_lines[0]
+    assert "[1/1]" in frame.identity_lines[0]
     assert "Reputation moves only" not in " ".join(frame.identity_lines)
     assert "nothing resolves" not in " ".join(frame.identity_lines)
-    assert "Reputation moves only" not in " ".join(frame.identity_lines)
 
     dark = quest_ctx()
     dark.broadcast_dark = True
@@ -187,10 +187,29 @@ def test_faction_frame_shows_the_broadcast_block():
     masked.collected_ids = [_pirate_face()]
     masked.broadcast_identity = _pirate_face()
     lines = frame_for(masked).identity_lines
+    assert "[2/2]" in lines[0]
     assert "SPOOFED" in lines[0] and "KG-8812" in lines[0]
-    assert "1 collected ID(s)" in lines[1]
-    # The mode tag speaks for itself — no explainer line under it.
-    assert len(lines) == 2
+    # One line: the count rides the ID, no summary line under it.
+    assert len(lines) == 1
+    assert "collected ID(s)" not in lines[0]
+
+
+def test_library_position_counts_the_true_registration_as_slot_one():
+    """[x/y]: slot 1 is the true registration, each collected ID one
+    more; the position tracks the queued face even while dark."""
+    from src.spacehack.identity import library_position
+
+    ctx = quest_ctx()
+    assert library_position(ctx) == (1, 1)  # no library: just you
+
+    ctx.collected_ids = [_pirate_face()]
+    assert library_position(ctx) == (1, 2)  # nothing worn: slot 1
+
+    ctx.broadcast_identity = _pirate_face()
+    assert library_position(ctx) == (2, 2)
+
+    ctx.broadcast_dark = True  # queued face still holds its slot
+    assert library_position(ctx) == (2, 2)
 
 
 def test_npc_broadcasts_carry_registration_codes(monkeypatch):
@@ -249,6 +268,10 @@ def test_dark_suppresses_auto_hail(monkeypatch):
         nc, "_fire_warning",
         lambda _ctx, _sys, _e: fired.append(_e) or (True, None),
     )
+    # The militia scan is a chance roll — pin it so the LIVE case
+    # deterministically hails (an unseeded RNG flakes this ~60%).
+    from src.spacehack import engine
+    monkeypatch.setattr(engine.RNG, "random", lambda: 0.0)
     ctx = quest_ctx()
     ctx.militia_scanned = set()
     ctx.player = world.Entity("@", (255, 255, 255), world.Position(5, 5))

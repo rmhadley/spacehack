@@ -115,17 +115,16 @@ def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
 
 
 def _identity_block(ctx: GameContext) -> tuple[str, ...]:
-    """The broadcast lines: what the ship is saying right now."""
+    """The broadcast line: what the ship is saying right now."""
     from . import identity
 
     identity.ensure_registration(ctx)
     mode = identity.broadcast_mode(ctx)
     worn = identity.resolved_identity(ctx)
-    lines = [f"{identity.identity_label(worn)}   [{mode.upper()}]"]
-    library = list(getattr(ctx, "collected_ids", ()) or ())
-    if library:
-        lines.append(f"{len(library)} collected ID(s) filed.")
-    return tuple(lines)
+    position, total = identity.library_position(ctx)
+    return (
+        f"[{position}/{total}] {identity.identity_label(worn)} [{mode.upper()}]",
+    )
 
 
 def frame_for(ctx: GameContext) -> FactionFrame:

@@ -116,6 +116,20 @@ def cycle_identity(ctx, step: int = 1) -> None:
     )
 
 
+def library_position(ctx) -> tuple[int, int]:
+    """(position, total) in the ID cycle, 1-based, for display.
+
+    Slot 1 is the true registration; each collected ID adds one. The
+    position follows the worn/queued face even while dark — the count
+    is what the cycle will resolve, not what currently broadcasts.
+    """
+    library = list(getattr(ctx, "collected_ids", ()) or ())
+    ids = [entry.get("id") for entry in library]
+    current = (getattr(ctx, "broadcast_identity", None) or {}).get("id")
+    position = ids.index(current) + 2 if current in ids else 1
+    return position, len(library) + 1
+
+
 def collect_id(ctx, identity: dict[str, Any]) -> bool:
     """Add an illegal ID to the library. Returns False on duplicates.
 
@@ -228,5 +242,5 @@ __all__ = [
     "scrub_price", "buy_scrubbed_id",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
-    "ensure_registration",
+    "library_position", "ensure_registration",
 ]
