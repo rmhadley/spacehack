@@ -151,8 +151,10 @@ def npc_identity(entity) -> dict[str, Any] | None:
 
     NPCs broadcast by default (the honest asymmetry: a merchant
     stamps its guild proudly; a pirate in lawless space stamps
-    openly — "one of us" is the safety). Returns None for
-    non-ships.
+    openly — "one of us" is the safety). Each hull carries a
+    registration generated on first read and kept for its life —
+    readers see a hull number, same flavor as the player's. Returns
+    None for non-ships.
     """
     _pid = getattr(entity, "npc_ship_id", "")
     if not _pid:
@@ -162,8 +164,12 @@ def npc_identity(entity) -> dict[str, Any] | None:
         _spec = find_npc_ship(_pid)
     except (KeyError, ImportError):
         return None
+    _reg = getattr(entity, "npc_registration", "")
+    if not isinstance(_reg, str) or not _reg:
+        _reg = generate_registration()
+        entity.npc_registration = _reg
     return {
-        "id": getattr(entity, "name", "") or _spec.name,
+        "id": _reg,
         "kind": "npc",
         "label": _spec.name,
         "faction": getattr(_spec, "faction", None),
