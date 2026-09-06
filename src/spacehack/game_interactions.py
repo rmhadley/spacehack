@@ -188,6 +188,12 @@ def land_at_city(state, planet_id):
     if not _phlp(planet_id):
         log.add(f'You see no port on {planet_id}.')
         return 'CONTINUE'
+    # Refuse BEFORE the system switch: a rejected teleport must not
+    # leave current_solar_system_id pointing at the port that said no.
+    _refusal = _dark_dock_refusal(state.ctx, planet_id)
+    if _refusal is not None:
+        log.add(_refusal)
+        return 'CONTINUE'
     solar_system_module.set_current_solar_system(
         _system_for(planet_id).id
     )
@@ -195,16 +201,49 @@ def land_at_city(state, planet_id):
     return _resolve_planet_land(state, planet_id, planet_obj)
 
 
+def _dark_dock_refusal(ctx, pid):
+    """The refusal message for a DARK hull requesting an unlisted berth.
+
+    Doc 40 3a: every port refuses a dark transponder except the
+    ``dark_berth`` opt-ins on PlanetSpec — trust, not patrols.
+    Scrubbed and live broadcasts never trigger it. Portless ids fall
+    through to the standard "no port" path.
+    """
+    from . import identity
+    from .data.planets import find_planet_spec, has_landable_port
+    if identity.broadcast_mode(ctx) != identity.DARK:
+        return None
+    if not has_landable_port(pid):
+        return None
+    spec = find_planet_spec(pid)
+    if spec.dark_berth:
+        return None
+    return (
+        f"{spec.name} dock control: your transponder is dark. "
+        "We don't berth hulls that won't say their name."
+    )
+
+
 def _resolve_planet_land(state, pid, planet_obj):
     """Handle the planet-menu Land option."""
     ctx = state.ctx
     console = state.console
     log = state.log
+    _refusal = _dark_dock_refusal(ctx, pid)
+    if _refusal is not None:
+        log.add(_refusal)
+        return 'CONTINUE'
     _run_cargo_scan(ctx, pid)
-    from .data.planets import load_planet as _plp, hangar_anchor as _phang, has_landable_port as _phlp
+    from .data.planets import has_landable_port as _phlp
     if not _phlp(pid):
         log.add(f'You see no port on {planet_obj.name}.')
         return 'CONTINUE'
+    return _enter_city_landing(state, ctx, console, log, pid, planet_obj)
+
+
+def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
+    """Build the city map and move the player (and ship) into city mode."""
+    from .data.planets import load_planet as _plp, hangar_anchor as _phang
     _new_city_map = _plp(pid)
     _anchor = _phang(pid)
     _new_city_player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(_anchor.x, _anchor.y + 1), name='Player')

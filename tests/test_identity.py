@@ -343,3 +343,106 @@ def test_faction_rows_resolve_through_the_broadcast():
     rows = {r.label: r for r in frame_for(ctx).rows}
     assert rows["Pirate"].attitude == "Enemy"         # true ratings back
     assert rows["Merchant"].attitude == "Liked"
+
+
+def _dark_dock_ctx():
+    ctx = quest_ctx()
+    ctx.broadcast_dark = True
+    return ctx
+
+
+def test_dark_dock_gate_port_classes():
+    """Doc 40 3a: the whitelist IS the dark_berth data opt-ins —
+    whitelisted ports berth a dark hull; lawful AND neutral ports
+    refuse (trust is the gate, not patrols)."""
+    from src.spacehack.game_interactions import _dark_dock_refusal
+
+    for pid in ("lal_b", "lal_c", "ross_b", "wolf_b"):
+        assert _dark_dock_refusal(_dark_dock_ctx(), pid) is None, pid
+    lawful = _dark_dock_refusal(_dark_dock_ctx(), "earth")
+    neutral = _dark_dock_refusal(_dark_dock_ctx(), "ross_c")
+    assert lawful and "dark" in lawful
+    assert neutral and "dark" in neutral
+
+
+def test_dark_dock_gate_spares_scrubbed_and_live():
+    """Blank paper complies — a scrubbed hull (and a live one) never
+    triggers the refusal; compliance is what the 6,000cr buys."""
+    from src.spacehack.game_interactions import _dark_dock_refusal
+
+    scrubbed = quest_ctx()
+    scrubbed.collected_ids = [{
+        "id": "KX-1234", "kind": "scrubbed",
+        "label": "Scrubbed hull", "faction": None,
+    }]
+    scrubbed.broadcast_identity = scrubbed.collected_ids[0]
+    assert _dark_dock_refusal(scrubbed, "earth") is None
+    assert _dark_dock_refusal(quest_ctx(), "earth") is None  # live
+
+
+def test_dark_refusal_precedes_cargo_scan_and_never_builds_city(monkeypatch):
+    """The refusal happens in space: the scan never runs, the city map
+    is never built, and the mode stays 'space'."""
+    from types import SimpleNamespace
+    from src.spacehack import game_interactions
+
+    scanned = []
+    monkeypatch.setattr(
+        game_interactions, "_run_cargo_scan", lambda _c, _p: scanned.append(_p)
+    )
+    messages = []
+    ctx = SimpleNamespace(
+        militia_scanned=[], ground_hp=23, ground_max_hp=23,
+        broadcast_dark=True,
+    )
+    state = SimpleNamespace(
+        ctx=ctx, console=object(), log=SimpleNamespace(add=messages.append),
+        game_map=object(), current_mode="space",
+    )
+
+    result = game_interactions.land_at_city(state, "earth")
+
+    assert result == "CONTINUE"
+    assert state.current_mode == "space"
+    assert scanned == [], "the refusal precedes the cargo scan"
+    assert messages and "dark" in messages[0]
+
+
+def test_dark_refusal_keeps_the_current_system(monkeypatch):
+    """A refused teleport must not switch the module-level system —
+    the player never left the old system's map."""
+    from src.spacehack import game_interactions, solar_system as solar_module
+    from support.landing import landing_state
+
+    monkeypatch.setattr(
+        solar_module, "current_solar_system_id",
+        solar_module.current_solar_system_id,
+    )
+    before = solar_module.current_solar_system_id
+
+    result = game_interactions.land_at_city(
+        landing_state(broadcast_dark=True), "earth"
+    )
+
+    assert result == "CONTINUE"
+    assert solar_module.current_solar_system_id == before
+
+
+def test_dark_hull_berths_at_whitelisted_port(monkeypatch):
+    """End to end through the production landing path: a dark hull
+    lands at Deadfall (lal_b) — city mode, ids synced."""
+    from src.spacehack import game_interactions, solar_system as solar_module
+    from support.landing import landing_state
+
+    monkeypatch.setattr(
+        solar_module, "current_solar_system_id",
+        solar_module.current_solar_system_id,
+    )
+    monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _c, _p: None)
+    state = landing_state(broadcast_dark=True)
+
+    result = game_interactions.land_at_city(state, "lal_b")
+
+    assert result == "CONTINUE"
+    assert state.current_mode == "city"
+    assert state.current_city_id == "lal_b"

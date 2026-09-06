@@ -552,6 +552,23 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         ),
     ),
     GuideSection(
+        title="Identity & Transponder",
+        body=(
+            "Every ship broadcasts an ID. Press F to see yours: the top "
+            "line shows what scanners read from you right now."
+            "\n\n"
+            "On the F screen, D cuts the transponder dark - nothing "
+            "broadcasts. TAB cycles through any false IDs you hold. While "
+            "masked, standings show what readers see, and your reputation "
+            "freezes until you go live."
+            "\n\n"
+            "Dark has a price: ports refuse a berth to a hull that won't "
+            "say its name; only a few pirate-run ports don't ask. Scanners "
+            "read a scrubbed ID as a clean, empty registration, so it "
+            "docks anywhere - it just isn't you."
+        ),
+    ),
+    GuideSection(
         title="Lighting",
         body=(
             "Light shapes the world. Neon signs glow over city streets, water "
