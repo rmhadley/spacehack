@@ -563,9 +563,13 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "freezes until you go live."
             "\n\n"
             "Dark has a price: ports refuse a berth to a hull that won't "
-            "say its name; only a few pirate-run ports don't ask. Scanners "
-            "read a scrubbed ID as a clean, empty registration, so it "
-            "docks anywhere - it just isn't you."
+            "say its name; only a few pirate-run ports don't ask. A militia "
+            "patrol that spots a dark hull challenges it: identify, or it "
+            "opens fire. What you answer with is what gets judged - a "
+            "scrubbed hull is waved through, your true record gets its due, "
+            "a false face gets that face's trouble. Scanners read a "
+            "scrubbed ID as a clean, empty registration, so it docks "
+            "anywhere - it just isn't you."
         ),
     ),
     GuideSection(

@@ -30,6 +30,7 @@ class _InteractionOutcome(Enum):
     SCAN = auto()
     ALLOW_SCAN = auto()  # militia: submit to cargo scan
     FLEE = auto()        # militia: attempt to flee the patrol
+    IDENTIFY = auto()    # dark-hull challenge: answer with a broadcast
     BACK = auto()    # "End Transmission" or ESC
     QUIT = auto()
 
@@ -103,6 +104,12 @@ _INTERACTION_DISPATCH = {
     "End Transmission": _InteractionOutcome.BACK,
 }
 
+# The dark-hull challenge: TWO options only, no run (doc 40 ruling).
+_CHALLENGE_DISPATCH = {
+    "Identify": _InteractionOutcome.IDENTIFY,
+    "Attack": _InteractionOutcome.ATTACK,
+}
+
 def _contact_broadcast_line(contact_entity):
     """One line naming what the contact broadcasts (doc 40: NPCs
     broadcast; the hail shows who claims to be on the other end)."""
@@ -112,7 +119,10 @@ def _contact_broadcast_line(contact_entity):
         return ""
     _faction = _identity.get("faction") or "independent"
     return f"Broadcast: {_identity['id']} - {_faction}"
-def _hail_frames(ctx, contact_name, contact_spec, options, contact_entity):
+def _hail_frames(
+    ctx, contact_name, contact_spec, options, contact_entity,
+    *, title="Hailing", esc_label="ESC back",
+):
     """One MenuFrame per selectable index for a contact hail."""
     from . import pygame_menu, pygame_ui
 
@@ -126,11 +136,11 @@ def _hail_frames(ctx, contact_name, contact_spec, options, contact_entity):
         _body = f"{_broadcast}\n{_body}"
     return tuple(
         pygame_menu.MenuFrame(
-            title=f"{contact_name} - Hailing",
+            title=f"{contact_name} - {title}",
             body=_body,
             items=items,
             hints=(pygame_ui.modal_hint(
-                pygame_ui.NAV_HINT, "ENTER select", "ESC back",
+                pygame_ui.NAV_HINT, "ENTER select", esc_label,
                 pygame_ui.GUIDE_HINT,
             ),),
             selected=index,
@@ -141,12 +151,16 @@ def _hail_frames(ctx, contact_name, contact_spec, options, contact_entity):
 
 def _pygame_interaction_outcome(
     ctx, contact_name, contact_spec, options, contact_entity=None,
+    *, dispatch=None, title="Hailing", esc_label="ESC back",
 ):
     """Return a Pygame-selected interaction enum, or None for fallback."""
     from . import pygame_menu
+    if dispatch is None:
+        dispatch = _INTERACTION_DISPATCH
 
     _frames = _hail_frames(
         ctx, contact_name, contact_spec, options, contact_entity,
+        title=title, esc_label=esc_label,
     )
     outcome, action, _selected = pygame_menu.run_for_context(
         ctx.context,
@@ -158,12 +172,13 @@ def _pygame_interaction_outcome(
         _open_context_guide(ctx, "NPCs & Factions")
         return _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, options, contact_entity,
+            dispatch=dispatch, title=title, esc_label=esc_label,
         )
     if outcome == "QUIT":
         return _InteractionOutcome.QUIT
     if outcome != "SELECT" or not action:
         return _InteractionOutcome.BACK
-    return _INTERACTION_DISPATCH.get(action)
+    return dispatch.get(action)
 
 
 
@@ -346,8 +361,146 @@ def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity
     return None  # BACK / QUIT / anything else
 
 # ---------------------------------------------------------------------------
+# Dark-hull challenge (doc 40 3b): a militia ship spotted a dark hull
+# ---------------------------------------------------------------------------
+
+
+def _judge_identification(ctx, face):
+    """Pure: what a militia reader resolves from the identify answer.
+
+    ``face`` None = the true registration. Returns ``(passed, line)``:
+    blank paper (scrubbed) complies; a militia registration outranks
+    the reader; any other faction fails; the true record passes only
+    while the militia's record of you is not hostile.
+    """
+    if face is not None:
+        _fac = face.get("faction")
+        if _fac is None:
+            return (
+                True,
+                "Blank registration, no history: the patrol waves the hull through.",
+            )
+        if _fac == "militia":
+            return (True, "The patrol reads the callsign and stands down.")
+        return (False, f"The registration reads {_fac}: the patrol opens fire!")
+    _att = _get_attitude(ctx.faction_reputation.get("militia", 0))
+    if _att in ("enemy", "disliked"):
+        return (False, "Your record reads hostile: the patrol opens fire!")
+    return (True, "The patrol checks your record and waves you through.")
+
+
+def resolve_identification(ctx, face):
+    """Apply the identify answer: the transponder comes up broadcasting
+    it (dark ends — you fly what you answered as) and the patrol judges
+    exactly that. Returns True when the hull is waved through."""
+    ctx.broadcast_dark = False
+    ctx.broadcast_identity = dict(face) if face is not None else None
+    _passed, _line = _judge_identification(ctx, face)
+    ctx.log.add_colored(_line, _ml.COLOR_IMPORTANT_EVENT)
+    return _passed
+
+
+def _identify_face_frames(ctx):
+    """MenuFrames for the identify face-choice: true registration plus
+    every collected ID."""
+    from . import pygame_menu, pygame_ui
+
+    rows = [("TRUE", "Your true registration")]
+    for _i, _entry in enumerate(ctx.collected_ids or ()):
+        rows.append(
+            (f"FACE:{_i}", f"{_entry.get('label', 'ID')} {_entry.get('id', '??')}")
+        )
+    items = tuple(
+        pygame_menu.MenuItem(label, "Pick what the transponder broadcasts.", action)
+        for action, label in rows
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            title="Identify yourself",
+            body="The transponder comes up.",
+            items=items,
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC refuse",
+                pygame_ui.GUIDE_HINT,
+            ),),
+            selected=index,
+        )
+        for index in range(len(items))
+    )
+
+
+def _identify_face_result(ctx):
+    """Run the identify face-choice modal. Returns ``('true', None)``,
+    ``('face', entry)``, or ``('silent', None)`` when the player
+    refuses to answer."""
+    from . import pygame_menu
+
+    outcome, action, _selected = pygame_menu.run_for_context(
+        ctx.context, _identify_face_frames(ctx), caption="spacehack - identify",
+    )
+    if outcome == "GUIDE":
+        from .help import _open_context_guide
+        _open_context_guide(ctx, "Identity & Transponder")
+        return _identify_face_result(ctx)
+    if outcome != "SELECT" or not action:
+        return ("silent", None)
+    if action == "TRUE":
+        return ("true", None)
+    try:
+        return ("face", (ctx.collected_ids or ())[int(action.split(":", 1)[1])])
+    except (ValueError, IndexError):
+        return ("silent", None)
+
+
+def _identify_choice(ctx):
+    """The identify answer: ``('true', None)``, ``('face', entry)``, or
+    ``('silent', None)``. No library means only yourself to offer."""
+    if not getattr(ctx, "collected_ids", None):
+        return ("true", None)
+    return _identify_face_result(ctx)
+
+
+def _handle_challenge(ctx, outcome, contact_name, contact_spec, contact_entity):
+    """Resolve one challenge answer. ``(specs, positions)`` for combat
+    (the patrol opens fire), ``None`` when the hull is waved through."""
+    if outcome is _InteractionOutcome.ATTACK:
+        return _handle_interaction(
+            ctx, outcome, contact_name, contact_spec, contact_entity,
+        )
+    _passed = False
+    _answered = _identify_choice(ctx) if outcome is _InteractionOutcome.IDENTIFY else ("silent", None)
+    if _answered[0] == "silent":
+        # BACK / QUIT / silence: refusing the conversation is an answer
+        # too — there is no run (doc 40 ruling).
+        ctx.log.add_colored(
+            "No answer comes from the dark hull.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+    else:
+        _passed = resolve_identification(ctx, _answered[1])
+    if not _passed:
+        ctx.log.add_colored(
+            f"The {contact_name} opens fire!",
+            _ml.COLOR_COMBAT_EVENT,
+        )
+        return _squad_payload(ctx, contact_spec, contact_entity)
+    return None
+
+# ---------------------------------------------------------------------------
 # Direct comms (skip contact list, hail a specific entity)
 # ---------------------------------------------------------------------------
+
+def _resolve_contact(entity):
+    """``(name, spec)`` for an NPC entity, or None when not resolvable."""
+    _pid = getattr(entity, 'npc_ship_id', '')
+    if not _pid:
+        return None
+    try:
+        _spec = _find_npc_ship(_pid)
+    except (KeyError, ImportError):
+        return None
+    return getattr(entity, 'name', '') or _spec.name, _spec
+
 
 def open_comms_direct(
     ctx: GameContext,
@@ -357,16 +510,32 @@ def open_comms_direct(
     list. Used by auto-hail so the player sees the hailing ship's
     message immediately without selecting from a list.
     """
-    _pid = getattr(entity, 'npc_ship_id', '')
-    if not _pid:
+    _resolved = _resolve_contact(entity)
+    if _resolved is None:
         return None
-    try:
-        _spec = _find_npc_ship(_pid)
-    except (KeyError, ImportError):
-        return None
-    _name = getattr(entity, 'name', '') or _spec.name
+    _name, _spec = _resolved
     console = make_console()
     return _run_interaction_modal(ctx, console, _name, _spec, entity)
+
+
+def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
+    """The dark-hull challenge (doc 40 3b): NPC-initiated comms with
+    TWO options — Identify / Attack; no run. Backing out is refusing
+    to answer, and the patrol opens fire on silence.
+    """
+    _resolved = _resolve_contact(entity)
+    if _resolved is None:
+        return None
+    _name, _spec = _resolved
+    _outcome = _pygame_interaction_outcome(
+        ctx, _name, _spec, ("Identify", "Attack"),
+        contact_entity=entity,
+        dispatch=_CHALLENGE_DISPATCH,
+        title="Challenge", esc_label="ESC refuse",
+    )
+    return _handle_challenge(
+        ctx, _outcome or _InteractionOutcome.BACK, _name, _spec, entity,
+    )
 
 # ---------------------------------------------------------------------------
 # Main entry point

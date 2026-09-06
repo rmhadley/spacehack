@@ -280,23 +280,45 @@ def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
     return _fire_warning(ctx, sys_id, e)
 
 
+def _dark_spot_challenge(ctx, e, spec, player_pos):
+    """Militia physical-spot challenge on a dark hull (doc 40 3b).
+
+    Dark beats electronics, not eyeballs: the challenge keys on the
+    spec's DETECT radius, not the comms ranges. Non-militia hulls
+    never challenge (pirates read silence as business as usual).
+    One-shot per patrol via ``militia_scanned``.
+    """
+    if getattr(spec, "faction", "") != "militia":
+        return None
+    _key = _entity_hail_key(e)
+    if _key in ctx.militia_scanned:
+        return None
+    if not _check_spec_distance(e, player_pos, spec.detect_radius):
+        return None
+    ctx.militia_scanned.add(_key)
+    from .comms import open_challenge_direct as _challenge
+    _payload = _challenge(ctx, e)
+    return (True, _payload)
+
+
 def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):
     """Check one entity's auto-hail triggers; return ``(True, data)`` or ``None``.
 
-    A dark transponder is not hailable (doc 40): there is no
-    broadcast to hail, so patrols never trigger the scan hail —
-    the dark ship is countered by eyes, not electronics.
+    A dark transponder is not HAILABLE (no broadcast to hail — the
+    scan hail never fires), but a militia ship that physically spots
+    the dark hull within its detect radius CHALLENGES it: identify or
+    attack (doc 40 3b).
     """
     _pid = getattr(e, "npc_ship_id", "")
     if not _pid:
-        return None
-    from .identity import broadcast_mode, DARK
-    if broadcast_mode(ctx) == DARK:
         return None
     try:
         _spec = find_npc_ship(_pid)
     except (KeyError, ImportError):
         return None
+    from .identity import broadcast_mode, DARK
+    if broadcast_mode(ctx) == DARK:
+        return _dark_spot_challenge(ctx, e, _spec, player_pos)
     _spec_distance = _spec.comms_warning_range
     _spec_viewport = getattr(_spec, "comms_trigger_viewport", False)
     _entity_bounty_range = getattr(e, "bounty_comms_range", 0)

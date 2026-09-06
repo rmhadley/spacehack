@@ -446,3 +446,189 @@ def test_dark_hull_berths_at_whitelisted_port(monkeypatch):
     assert result == "CONTINUE"
     assert state.current_mode == "city"
     assert state.current_city_id == "lal_b"
+
+
+def _space_ctx(**extra):
+    """A space ctx with the player one cell from a spawned patrol."""
+    from src.spacehack import world
+
+    ctx = quest_ctx(**extra)
+    ctx.militia_scanned = set()
+    ctx.player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    return ctx
+
+
+def _patrol(npc_ship_id="militia_patrol", pos=(5, 6)):
+    from src.spacehack import world
+
+    return world.Entity(
+        "M", (100, 200, 255), world.Position(*pos), npc_ship_id=npc_ship_id,
+    )
+
+
+def test_dark_hull_is_challenged_by_militia_on_spot(monkeypatch):
+    """Doc 40 3b: a militia ship that PHYSICALLY spots a dark hull
+    (detect radius — eyes, not electronics) challenges it: identify
+    or attack. One-shot per patrol."""
+    from src.spacehack import navigation_combat as nc
+
+    challenged = []
+    monkeypatch.setattr(
+        "src.spacehack.comms.open_challenge_direct",
+        lambda _ctx, _e: challenged.append(_e) or None,
+    )
+    ctx = _space_ctx(broadcast_dark=True)
+    patrol = _patrol()
+
+    result = nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
+
+    assert challenged == [patrol]
+    assert result is not None and result[0] is True
+    assert nc._entity_hail_key(patrol) in ctx.militia_scanned
+    # One-shot: the same patrol does not re-challenge every tick.
+    assert nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object()) is None
+
+
+def test_challenge_is_militia_only_and_outside_detect_radius():
+    """Pirates never challenge (silence in Ross is business as usual);
+    a militia ship that hasn't physically spotted the hull doesn't
+    either."""
+    from src.spacehack import navigation_combat as nc
+
+    ctx = _space_ctx(broadcast_dark=True)
+    pirate = _patrol(npc_ship_id="pirate_scout")
+    assert nc._dark_spot_challenge(ctx, pirate, nc.find_npc_ship("pirate_scout"), ctx.player.pos) is None
+
+    far = _patrol(pos=(5 + 8, 6))  # beyond militia detect_radius 7
+    assert nc._dark_spot_challenge(ctx, far, nc.find_npc_ship("militia_patrol"), ctx.player.pos) is None
+
+
+def test_broadcasting_hulls_keep_the_normal_hail_path(monkeypatch):
+    """Scrubbed and live broadcasts never trigger the challenge —
+    blank paper complies; the electronic hail path is unchanged."""
+    from src.spacehack import navigation_combat as nc
+
+    challenged = []
+    monkeypatch.setattr(
+        "src.spacehack.comms.open_challenge_direct",
+        lambda _ctx, _e: challenged.append(_e) or None,
+    )
+    hailed = []
+    monkeypatch.setattr(nc, "_spec_distance_hail", lambda *_a: hailed.append(_a) or None)
+
+    scrubbed = _space_ctx()
+    scrubbed.collected_ids = [{
+        "id": "KX-1234", "kind": "scrubbed",
+        "label": "Scrubbed hull", "faction": None,
+    }]
+    scrubbed.broadcast_identity = scrubbed.collected_ids[0]
+    patrol = _patrol()
+    nc._auto_hail_entity(scrubbed, "sol", patrol, scrubbed.player.pos, object())
+    assert challenged == [], "a broadcasting hull is not challenged"
+    assert hailed, "the normal electronic hail path still runs"
+
+    live = _space_ctx()
+    nc._auto_hail_entity(live, "sol", patrol, live.player.pos, object())
+    assert challenged == []
+
+
+def test_identification_judgement_per_broadcast_face():
+    """The moment of truth, pure: blank paper passes; a militia
+    registration outranks the reader; a wrong face gets that face's
+    trouble; the true record gets its due."""
+    from src.spacehack.comms import _judge_identification
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"militia": 0}
+    assert _judge_identification(ctx, None)[0] is True
+    scrub = {"id": "KX-1234", "kind": "scrubbed", "faction": None}
+    assert _judge_identification(ctx, scrub)[0] is True
+    mil = {"id": "ML-2231", "kind": "fabricated", "faction": "militia"}
+    assert _judge_identification(ctx, mil)[0] is True
+    pirate = {"id": "KG-8812", "kind": "cloned", "faction": "pirate"}
+    assert _judge_identification(ctx, pirate)[0] is False
+
+    ctx.faction_reputation = {"militia": -80}
+    assert _judge_identification(ctx, None)[0] is False  # the record's due
+
+
+def test_identify_ends_dark_and_failure_escalates(monkeypatch):
+    """Identifying brings the transponder up broadcasting the answer —
+    and the answer is what gets judged: a pass waves you through, a
+    fail (and refusing to answer) draws the patrol's fire."""
+    from src.spacehack import comms
+    from src.spacehack.data.npc_ships import find_npc_ship
+
+    scrub = {"id": "KX-1234", "kind": "scrubbed",
+             "label": "Scrubbed hull", "faction": None}
+    pirate = {"id": "KG-8812", "kind": "cloned",
+              "label": "Warlord face", "faction": "pirate"}
+    spec = find_npc_ship("militia_patrol")
+    patrol = _patrol()
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"militia": 10}
+    ctx.broadcast_dark = True
+    ctx.broadcast_identity = None
+    ctx.collected_ids = [dict(scrub)]
+    assert comms.resolve_identification(ctx, scrub) is True
+    assert ctx.broadcast_dark is False
+    assert ctx.broadcast_identity["id"] == "KX-1234"
+
+    # A worn pirate face fails the challenge: the patrol opens fire
+    # and its whole squad joins.
+    fail_ctx = quest_ctx()
+    fail_ctx.faction_reputation = {"militia": 10}
+    fail_ctx.broadcast_dark = True
+    fail_ctx.collected_ids = [dict(pirate)]
+    monkeypatch.setattr(
+        comms, "_identify_face_result", lambda _ctx: ("face", dict(pirate)),
+    )
+    payload = comms._handle_challenge(
+        fail_ctx, comms._InteractionOutcome.IDENTIFY,
+        "Militia Patrol", spec, patrol,
+    )
+    assert payload is not None
+    assert fail_ctx.broadcast_identity["faction"] == "pirate"
+    assert fail_ctx.broadcast_dark is False
+
+    # Refusing to answer (BACK) is an answer too — no run.
+    back_ctx = quest_ctx()
+    back_ctx.faction_reputation = {"militia": 10}
+    back_ctx.broadcast_dark = True
+    payload = comms._handle_challenge(
+        back_ctx, comms._InteractionOutcome.BACK,
+        "Militia Patrol", spec, patrol,
+    )
+    assert payload is not None
+    assert back_ctx.broadcast_dark is True  # never answered, still dark
+
+
+def test_identify_choice_without_a_library_never_opens_a_modal():
+    """No collected IDs: the only answer to a challenge is yourself —
+    the face-choice modal never runs."""
+    from src.spacehack import comms
+
+    ctx = quest_ctx()
+    ctx.collected_ids = []
+    assert comms._identify_choice(ctx) == ("true", None)
+
+
+def test_challenge_attack_reuses_the_escalation_and_the_mask():
+    """ATTACK on the challenge escalates through the normal comms
+    path — and while dark the unprovoked-attack rep deltas route
+    nowhere (the mask cuts both ways)."""
+    from src.spacehack import comms
+    from src.spacehack.data.npc_ships import find_npc_ship
+
+    spec = find_npc_ship("militia_patrol")
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"militia": 10, "merchant": 5}
+    ctx.broadcast_dark = True
+
+    payload = comms._handle_challenge(
+        ctx, comms._InteractionOutcome.ATTACK,
+        "Militia Patrol", spec, _patrol(),
+    )
+    assert payload is not None
+    assert ctx.faction_reputation == {"militia": 10, "merchant": 5}
