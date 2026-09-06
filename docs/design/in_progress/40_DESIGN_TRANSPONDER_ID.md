@@ -64,12 +64,51 @@ is the layer that says WHO, not just WHERE.
 - Factions may eventually KNOW registrations: repeat contact builds
   recognition (v2+; parked).
 
-## Open questions (the review agenda)
+## SETTLED (Q1, user rulings 2026-09-06): the ID model
 
-1. What's IN an ID? Registration string + ship class + origin/
-   faction stamp? What can a scan reveal at each quality tier?
+**The system already exists — it's just always in live mode.**
+Ships detect us, identify us, pull faction ratings, behave
+accordingly: that IS a broadcast resolving to relations. An ID is
+*an identifier that maps to current relations.* The transponder
+layer is not a new identity system — it's a choice of which key
+the reader resolves:
+
+| Broadcast | Reader resolves | Behavior |
+|---|---|---|
+| Live (today's default) | true ID → actual faction ratings | the game as it stands — zero new behavior |
+| Dark | no ID → nothing | unknown-vessel protocol: challenge, suspicion, the Line's hail |
+| Spoofed | the chosen ID → the relations that ID implies | readers react to who you appear to be |
+
+**Spoof sources and their mappings (exactly three):**
+- SCRUBBED → maps to blank: a tramp hull with no history; every
+  reader's default-civilian posture. The cheapest lie — "I'm no
+  one."
+- CLONED → maps to the source's apparent standing: a Ross pirate's
+  ID resolves as one of theirs; a militia patrol's callsign reads
+  as rank. The ID borrows someone real's relations.
+- FABRICATED RANK → maps to the institution itself: a command
+  callsign reads as the Militia, which outranks the reader.
+
+Registration/class/port are PRESENTATION surface (what a scan
+displays and verifies), not the functional model.
+
+**Explicit IDs (ruled for the RP flavor):** the player's ship
+carries a visible registration string. Scans can SHOW it; scrubs
+visibly replace it. One persisted field.
+
+**The F — faction screen is the identity hub (user idea):** the
+ID wires into the faction view — flavor for immersion (your
+registration, your broadcast state) and the screen used to CYCLE
+THROUGH ILLEGAL IDs COLLECTED. Identity and reputation live on one
+screen because an ID maps to relations: manage what you wear where
+you see what it resolves to.
+
+## Open questions (the review agenda, remaining)
+
 2. Is the transponder equipment (a module slot) or intrinsic
-   hardware every ship has (modes via software/services)?
+   hardware every ship has (modes via software/services)? (Leans:
+   intrinsic + services; ship-swap = a fresh legitimate ID — a
+   natural, expensive scrub. Or should identity ride the player?)
 3. Dark = invisible-to-scanners: is there ANY counter (patrols
    with eyes = detect radius, or better scanners at the Line)?
    What does a patrol do when it physically spots a dark hull?
