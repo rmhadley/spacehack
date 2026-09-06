@@ -319,6 +319,24 @@ state + manifest + cargo + patrol position interacting. A clever
 player invents a plan we never authored; the game just has to honor
 it.
 
+## Acquisition is gameplay, not fetch (ruling, 2026-09-06)
+
+The user's principle for every method's "you need X from Y" layer:
+X and Y are never a fetch quest. Each acquisition uses the full
+mechanical vocabulary already built — heists, delves, comms play,
+shadowing, trade, rep economies, exploration — and the act's
+sandbox is the discovery engine:
+
+- **Any/all methods in parallel.** Nothing locks out anything — a
+  player can hold papers, the ghost kit, and gate tech at once and
+  choose the door (or keep backups). The only consumable is the
+  gate's burned tech.
+- **Hints surface through play, unlabeled.** Rotation schedules on
+  warrant targets, anomalies in lab contracts, rumors in frontier
+  bars — the game never says "this is the ghost-run step"; the
+  player pieces together what each find OPENS. Comprehension is
+  the puzzle.
+
 ## Dig content (optional, reframing)
 
 *Why is there a blockade at the ass end of charted space?* The
