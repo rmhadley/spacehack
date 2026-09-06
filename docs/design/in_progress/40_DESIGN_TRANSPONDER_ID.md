@@ -211,17 +211,19 @@ Two consequences, DARK ONLY (never scrubbed):
    dock gate reads the spec of the port being landed on.
 
 2. **Patrol challenge hails.** A militia ship that detects a dark
-   contact hails the PLAYER (NPC-initiated comms): identify, run,
-   or open fire. IDENTIFY is the moment of truth — flip live or
-   wear a face, and what resolves is what gets judged: a scrubbed
-   hull is waved through, the true ID gets its record's due, a
-   wrong face gets that face's trouble. RUN and FIRE escalate —
-   pursuit, heat, guns. Pressure, never a guaranteed kill: the
-   ghost run keys on dark, so its tools (a ready face, speed, the
-   lure call) must answer this hail — tuning deferred to doc 39
-   when that method is built (user: figure the ghost-run details
-   later; make this make sense first). Pirates never challenge;
-   silence in Ross reads as business as usual.
+   contact hails the PLAYER (NPC-initiated comms): identify or
+   open fire — TWO OPTIONS ONLY (user ruling 2026-09-06: no RUN —
+   the game has no run mechanic; if one is ever designed, its doc
+   collects every interaction of this kind). IDENTIFY is the moment
+   of truth — flip live or wear a face, and what resolves is what
+   gets judged: a scrubbed hull is waved through, the true ID gets
+   its record's due, a wrong face gets that face's trouble.
+   ATTACK escalates — guns, heat; pressure, never a guaranteed
+   kill. The ghost run keys on dark, so its tools (a ready face,
+   the lure call) answer this hail through IDENTIFY — tuning
+   deferred to doc 39 when that method is built (user: figure the
+   ghost-run details later; make this make sense first). Pirates
+   never challenge; silence in Ross reads as business as usual.
 
 ## The complete settled design (one statement)
 
@@ -242,8 +244,9 @@ into comms; cloning is rare, difficult, expensive — a process. Dark
 carries the lifestyle price: only pirate-run ports berth a dark
 hull (a whitelist — Deadfall, Whisper, Ember, Wolf 359 b; neutral
 ports refuse too — trust, not patrols), and militia patrols that
-detect a dark hull challenge it — identify (what resolves is judged),
-run, or fire, escalating to pursuit and heat; pirates never
+detect a dark hull challenge it — identify (what resolves is judged)
+or attack, escalating to combat and heat; no RUN option (no run
+mechanic exists — user ruling); pirates never
 challenge. Scrubbed triggers neither — blank paper complies.
 
 ## Phases
@@ -302,10 +305,13 @@ challenge. Scrubbed triggers neither — blank paper complies.
 
 - [ ] PHASE 3b — the militia challenge hail (ruled 2026-09-06;
       built after 3a's checkpoint): NPC-initiated comms on detect:
-      identify / run / fire; escalation is pursuit + heat, never a
+      identify / attack — TWO options, no RUN (no run mechanic
+      exists; a future run-mechanic doc would collect all such
+      interactions). ATTACK escalates to combat + heat, never a
       guaranteed kill; ghost-run tuning lives with doc 39 when that
       method is built. Scrubbed triggers nothing — blank paper
-      complies. Tests: challenge outcomes per broadcast state.
+      complies. Tests: challenge outcomes per broadcast state
+      (identify judged per worn face; attack escalation).
 
   Implementation brief (3b): WRITTEN AT 3a's PLAYTEST CHECKPOINT
   (its shape may shift with what the gate playtest shows).
