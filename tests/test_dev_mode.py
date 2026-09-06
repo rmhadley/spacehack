@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import pytest
 
@@ -337,29 +338,13 @@ def test_land_at_city_switches_system_and_enters_city(monkeypatch):
     lands through the production path: city mode, ids synced, player on
     the hangar apron."""
     from src.spacehack import game_interactions, solar_system as solar_module
+    from support.landing import landing_state
 
-    ctx = SimpleNamespace(
-        current_city_id="earth",
-        game_map=None,
-        player=object(),
-        militia_scanned=[],
-        ground_hp=23,
-        ground_max_hp=23,
+    monkeypatch.setattr(
+        solar_module, "current_solar_system_id",
+        solar_module.current_solar_system_id,
     )
-    state = game_interactions.GameLoopState(
-        ctx=ctx,
-        console=object(),
-        map_w=40,
-        map_h=24,
-        log=SimpleNamespace(add=lambda _msg: None),
-        stats=object(),
-        game_map=object(),
-        player=object(),
-        current_mode="space",
-        current_city_id="earth",
-        player_owned_ship=None,
-        player_active_missions=[],
-    )
+    state = landing_state()
     monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
     monkeypatch.setattr(
         game_interactions, "_animate_ship_to_y",
@@ -372,11 +357,9 @@ def test_land_at_city_switches_system_and_enters_city(monkeypatch):
     assert solar_module.current_solar_system_id == "tau_ceti"
     assert state.current_mode == "city"
     assert state.current_city_id == "tc_b"
-    assert ctx.current_city_id == "tc_b"
-    assert ctx.game_map is state.game_map
+    assert state.ctx.current_city_id == "tc_b"
+    assert state.ctx.game_map is state.game_map
     assert state.player in state.game_map.entities
-    # Cleanup: restore the default system other tests rely on.
-    solar_module.set_current_solar_system("sol")
 
 
 def test_land_at_city_rejects_portless_planet():
