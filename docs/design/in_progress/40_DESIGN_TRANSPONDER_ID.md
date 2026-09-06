@@ -146,11 +146,14 @@ alter your true ID.** Consequences route to the ID you WORE:
 
 - Live: rep deltas (gain and loss) move your true ratings. To
   build standing, you must be seen being yourself.
-- Masked (dark or any fake): rep deltas do NOT touch the true
-  ratings. The mask cuts both ways, now on both axes — friends
-  don't recognize you, and your crimes (and good deeds) don't
-  follow you home. Hiding is safe AND stagnant; exposure is risk
-  AND growth.
+- Masked, DARK ONLY: rep deltas are DISCARDED — nothing records
+  (crimes committed dark are unsolved). Hiding is safe.
+- Masked, SPOOFED (re-ruled 2026-09-06 — the first-pass shape was
+  right): deltas land on the WORN ID's sheet. "If I put on a fake
+  ID and go terrorize some merchants, merchants will distrust that
+  ID." A fake builds its own record — hot after piracy, welcome
+  where its sheet is liked. Your true ratings are only ever touched
+  while ID 1 broadcasts, or by time decay (time, not behavior).
 
 (The frame mechanic — crimes attached to a CLONED id blaming the
 clone's source — follows from Q1's mapping and is parked as the
@@ -273,8 +276,9 @@ every existing consumer (spawn gates, scan tables, trade, comms
 attitudes) keeps its exact logic, pointed at the sheet. We have
 faction standings; they already have meaning; the worn ID's sheet
 supplies them and the game reacts through machinery that already
-exists. Reads resolve the broadcasting ID; writes still land on ID
-1 only while it broadcasts (Q4).
+exists. Reads resolve the broadcasting ID; writes land on the
+broadcasting ID's sheet — dark records nothing (Q4, re-ruled
+2026-09-06).
 
 **Capture is live-ship boarding (user ruling — new feature).** The
 shadow/record verb is replaced by boarding: meet the requirements
@@ -333,10 +337,10 @@ wrong turn in the earlier phasing and is SUPERSEDED. Each ID in
 the library carries its own rep sheet (a ``{faction: int}`` dict):
 
 - **ID 1 — the personal ID.** Rides with the player across every
-  lawful ship purchase; its sheet IS ``ctx.faction_reputation``,
-  and it is the only sheet behavior changes (while it broadcasts —
-  the Q4 write ruling is unchanged: deltas under any other ID are
-  discarded).
+  lawful ship purchase; its sheet IS ``ctx.faction_reputation``.
+  Writes follow the broadcast (re-ruled 2026-09-06): live → ID 1's
+  sheet; spoofed → the worn ID's sheet (a fake builds its own
+  record); dark → nothing records. Time decay always ages ID 1.
 - **Scrubbed** → a blank sheet: all neutral. Blank paper, exactly
   as ruled.
 - **Cloned** → the sheet is ROLLED from the source at capture (the
@@ -383,9 +387,9 @@ hub (broadcast state, cycling collected IDs). Intrinsic
 transponders; services at the outlaw ports work the modes; going
 dark requires a one-time cut-out installed at a pirate-run port
 (priced below the scrub — the free D toggle is superseded); identity rides the player across
-lawful purchases (the scrub is an unlawful hull). Rep moves only
-while live — the mask cuts both ways on both axes. Nothing breaks a
-complete spoof in v1 (in-person inspection parked). NPCs broadcast
+lawful purchases (the scrub is an unlawful hull). Rep writes
+follow the broadcast — live moves ID 1's sheet, spoofed moves the
+worn ID's sheet, dark records nothing. Nothing breaks a complete spoof in v1 (in-person inspection parked). NPCs broadcast
 into comms; cloning is rare, difficult, expensive — a process:
 capture is live-ship boarding (cripple, board, fight to the C
 console), each source rolls its copy quality once, and the library
@@ -408,7 +412,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
       migration (a registration appears), the broadcast gate in
       modify_rep (masked deltas discarded; in_person bypass for
       face-to-face events and time decay — decay was caught routing
-      through the gate in testing), and the F-screen identity hub
+      through the gate in testing) [write routing SUPERSEDED
+      2026-09-06: dark-only discard, spoofed writes the worn
+      sheet — reworked in phase 4], and the F-screen identity hub
       (broadcast block + D toggle + TAB cycling). Tests:
       tests/test_identity.py (9).
 - [x] PHASE 2 LANDED (2026-09-06): NPCs broadcast into comms (the
@@ -639,22 +645,37 @@ challenge. Scrubbed triggers neither — blank paper complies.
     registration reads hostile: the patrol opens fire!"); callers
     comms.py ``_run``/``resolve_identification`` path adjust
     (identify sets the broadcast, the judgement reads it). Writes
-    untouched (modify_rep broadcast gate, Q4). No save migration
-    (missing ``rep`` = blank); no new acquisition content.
-  - Build order: resolver + tests → judgement swap → static-spawn
-    gate → routed readers → F screen sheet display → guide touch →
-    ``make check``.
+    REWORKED (Q4 re-ruled 2026-09-06 — dark-only discard):
+    ``modify_rep`` routes by broadcast — dark → discard (nothing
+    records); spoofed → the worn ID's sheet via a new ``identity``
+    helper (the ``collected_ids`` entry is the single source of
+    truth: look up by worn id, ``setdefault("rep", {})``, reuse
+    ``_apply_rep_delta``'s cap/clamp/log math); live →
+    ``ctx.faction_reputation``. ``in_person`` param deleted:
+    monthly decay writes the true sheet directly (time, not
+    behavior); the story-beat caller (``main_quest/_core``) now
+    routes to the broadcasting ID per the ruling (flagged to the
+    user). Library entries and ``broadcast_identity`` already
+    persist — no saveload changes. No save migration (missing
+    ``rep`` = blank); no new acquisition content.
+  - Build order: resolver + tests → write routing → judgement swap
+    → static-spawn gate → routed readers → F screen sheet display →
+    guide touch → ``make check``.
   - Binding rulings: IDs carry sheets, not faction mappings (no
-    player-layer read keys on the face's ``faction`` field); only
-    ID 1's sheet changes from behavior; scrubbed sheet = blank;
-    dark resolves neutral; cloned sheets roll at capture (6);
-    mask cuts both ways at reads (masked trade loses earned
+    player-layer read keys on the face's ``faction`` field); writes
+    follow the broadcast (live → ID 1; spoofed → worn sheet; dark →
+    discard; decay → true sheet always); scrubbed sheet starts
+    blank; dark resolves neutral; cloned sheets roll at capture
+    (6); mask cuts both ways at reads (masked trade loses earned
     attitudes).
   - Required tests: resolver per state (live / worn entry with
     sheet / worn blank-sheet scrub / dark); judgement by sheet
     values (blank passes, positive militia sheet passes, hostile
     sheet draws fire — replaces the faction-special-case tests);
-    static spawns stand down on neutral + engage on disliked/enemy;
+    write routing per state (dark discards; spoofed delta lands on
+    the worn entry and round-trips save/load; live moves the true
+    sheet; decay ages the true sheet while masked); static spawns
+    stand down on neutral + engage on disliked/enemy;
     scan chance reads the sheet; trade attitude masked → neutral;
     charged-cell still aggros through any ID; F screen renders the
     worn sheet; live unchanged (existing suite).
@@ -664,9 +685,13 @@ challenge. Scrubbed triggers neither — blank paper complies.
     Ross crown drifts past; Sol patrol scans at the neutral rate;
     trade prices lose the earned discount; F screen shows the
     scrub's neutral sheet while worn and the true sheet after
-    cycling back; flip live — everything as today; go dark —
-    pirate spawns ignore, militia challenge still fires; save/load
-    across all three states.
+    cycling back; terrorize a merchant pilot in the scrub — the
+    worn sheet drops on the F screen, flipping live shows the true
+    sheet untouched, cycling back shows the scrub still hot;
+    save/load keeps the hot scrub; flip live — everything as
+    today; go dark — pirate spawns ignore, militia challenge still
+    fires, a kill under dark moves nothing; save/load across all
+    three states.
 
 - [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
       a one-time transponder cut-out installed at a pirate-run
