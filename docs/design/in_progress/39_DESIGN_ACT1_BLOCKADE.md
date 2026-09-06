@@ -395,6 +395,28 @@ guardians, save migrations).
 | 4 Bribe | NPC + interior seats, big credit payment, dialogue | **the rumor chain** (unlabeled tiered hints surfacing through sandbox play — no rumor/lead feature exists; dialogue variants key off quest state, not "heard rumors"); the crossing event (shared: the Line) |
 | 5 Fight | squads/reinforcements, comms warning options, encounter specs | tuning + gap-filling (design work, no new feature); "converge everything" escalation choreography (reinforcement machinery is close) |
 
+### The four feature commitments (user rulings, 2026-09-06)
+
+1. **The Line as a system — design it right, rock solid, reusable.**
+   Future acts may reuse the checkpoint/quarantine tech.
+2. **The transponder/ID layer — a FULL SANDBOX FEATURE, not a
+   quest mechanic.** User vision: "why limit it to this quest?
+   A player might alter their ID to pose as a pirate while
+   shipping a big haul through Ross." Identity is a universal
+   RPG-sandbox system: IDs, scans, poses, consequences.
+3. **The far side — CONFIRMED:** the red "restricted sector"
+   square in Luyten is the placeholder for the anomaly the Militia
+   is blocking. The alien tech unveils the act 1 finale THERE: a
+   giant derelict alien ship to explore and loot (doc 37's
+   intermission, now with a home).
+4. **The lore & rumor system — YES, and huge.** A system that
+   lets the player explore lore and RP with the universe to find
+   solutions and unlock options: NPCs, comms, bars as delivery
+   vectors; knowledge as the keyring. Design pass queued.
+
+Each gets its own design doc (forking as needed); doc 39 remains
+the act umbrella.
+
 ### Cross-cutting, ranked by how much depends on them
 
 1. **THE LINE AS A SYSTEM** — the checkpoint sweep (detect → warn →
