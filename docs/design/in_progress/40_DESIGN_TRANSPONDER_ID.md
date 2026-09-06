@@ -271,8 +271,8 @@ challenge. Scrubbed triggers neither — blank paper complies.
       modal; militia/fabricated ids stay act-1 quest content);
       npc_identity/apparent_faction helpers for the Line and faction
       reactions. Tests: +2 (11 total).
-- [x] PHASE 3a — the dark dock gate — CODE LANDED 2026-09-06
-      (cf26aba + 3466c06; playtest checkpoint PENDING): berthing
+- [x] PHASE 3a — the dark dock gate — LANDED + PLAYTEST PASSED
+      (2026-09-06; cf26aba + 3466c06): berthing
       refused at every port except the pirate-run whitelist —
       lal_b Deadfall, lal_c Whisper, ross_b Ember, wolf_b Wolf
       359 b; neutral ports refuse too — trust, not patrols; the
@@ -342,8 +342,8 @@ challenge. Scrubbed triggers neither — blank paper complies.
     Deadfall and Ember, scrubbed still docks at Earth, save/load
     round-trip across a refusal.
 
-- [x] PHASE 3b — the militia challenge hail — CODE LANDED
-      2026-09-06 (5255c05; playtest checkpoint PENDING): NPC-initiated
+- [x] PHASE 3b — the militia challenge hail — LANDED + PLAYTEST
+      PASSED (2026-09-06; 5255c05): NPC-initiated
       comms on detect: identify / attack — TWO options, no RUN (no
       run mechanic exists; a future run-mechanic doc would collect
       all such interactions). ATTACK escalates to combat + heat,
