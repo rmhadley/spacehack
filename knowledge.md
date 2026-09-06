@@ -62,6 +62,11 @@ Each new AI session opens from `git status` / `git diff --stat` / `git log`. If 
 
 ### Pushing to GitHub (origin: rmhadley/spacehack)
 
+**GitHub operations are run by the user, outside the development
+container** (push, `gh` — the container intentionally has no `gh`).
+The agent's job ends at local commits; it never pushes, never touches
+`gh auth`.
+
 The remote is **HTTPS** — `https://github.com/rmhadley/spacehack.git`.
 gh CLI is logged into **two accounts**:
 
