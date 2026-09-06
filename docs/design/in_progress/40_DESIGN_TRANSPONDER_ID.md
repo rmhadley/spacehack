@@ -271,14 +271,20 @@ challenge. Scrubbed triggers neither — blank paper complies.
       modal; militia/fabricated ids stay act-1 quest content);
       npc_identity/apparent_faction helpers for the Line and faction
       reactions. Tests: +2 (11 total).
-- [ ] PHASE 3a — the dark dock gate (ruled 2026-09-06, not yet
-      built): berthing refused at every port except the pirate-run
-      whitelist — lal_b Deadfall, lal_c Whisper, ross_b Ember,
-      wolf_b Wolf 359 b; neutral ports refuse too — trust, not
-      patrols; the whitelist is the ``dark_berth`` opt-in field on
-      PlanetSpec, set in each pirate-run planet module — no id list
-      in code. Scrubbed never triggers it — compliance is the
-      6,000cr.
+- [x] PHASE 3a — the dark dock gate — CODE LANDED 2026-09-06
+      (cf26aba + 3466c06; playtest checkpoint PENDING): berthing
+      refused at every port except the pirate-run whitelist —
+      lal_b Deadfall, lal_c Whisper, ross_b Ember, wolf_b Wolf
+      359 b; neutral ports refuse too — trust, not patrols; the
+      whitelist is the ``dark_berth`` opt-in field on PlanetSpec,
+      set in each pirate-run planet module — no id list in code.
+      Scrubbed never triggers it — compliance is the 6,000cr.
+      Shipped: the gate in ``_resolve_planet_land`` before the
+      cargo scan (covers both landing paths; ``land_at_city``
+      refuses before its system switch), the landing tail
+      extracted to ``_enter_city_landing`` (ratchet), the
+      "Identity & Transponder" guide section (phase 1 shipped the
+      hub without any guide section), 5 tests.
 
   Implementation brief (3a):
   - Scope: ``dark_berth: bool = False`` on PlanetSpec
@@ -300,7 +306,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ``find_planet_spec``.
   - Duplication hotspots: (1) two landing paths — killed
     structurally: one gate inside ``_resolve_planet_land``, no
-    second check in ``land_at_city``; (2) a code-side whitelist id
+    second check in ``land_at_city`` (a refused teleport re-calls
+    the same helper BEFORE the system switch — reviewer finding:
+    the rejected jump must not leave ``current_solar_system_id``
+    pointing at the port that said no); (2) a code-side whitelist id
     list — ruled out, the whitelist IS the ``dark_berth`` opt-ins;
     (3) the portless "no port" message — the gate falls through to
     the existing path for portless ids instead of re-emitting it.
@@ -341,9 +350,40 @@ challenge. Scrubbed triggers neither — blank paper complies.
       complies. Tests: challenge outcomes per broadcast state
       (identify judged per worn face; attack escalation).
 
-  Implementation brief (3b): WRITTEN AT 3a's PLAYTEST CHECKPOINT
-  (its shape may shift with what the gate playtest shows).
-  /implement-phase refuses to code a phase without a brief.
+  Implementation brief (3b) — DRAFTED at 3a's playtest checkpoint
+  (2026-09-06; shape may shift with what the gate playtest shows):
+  - Scope: the militia challenge hail. Where phase 2 made dark
+    SUPPRESS the auto-hail (``navigation_combat``), a militia ship
+    that physically spots a dark hull now hails the player instead
+    of staying silent (NPC-initiated comms modal): IDENTIFY /
+    ATTACK — TWO options only, no RUN (no run mechanic exists —
+    user ruling 1add73d; a future run-mechanic doc collects every
+    interaction of this kind). Scrubbed/spoofed and live broadcasts
+    keep today's behavior (blank paper complies); pirates never
+    challenge (faction check on the spotter).
+  - IDENTIFY is the moment of truth: the player picks what to
+    broadcast (flip live or wear a face) and what resolves is what
+    gets judged — a scrubbed hull is waved through; the true ID
+    gets its record's due (face-to-face, so ``modify_rep``'s
+    ``in_person`` semantics apply — NOT masked); a wrong face gets
+    that face's trouble (``apparent_faction``).
+  - ATTACK escalates to space combat + heat — pressure, never a
+    guaranteed kill (reuse the existing escalation entry points).
+  - Build order: the detect branch (who challenges) → the two-option
+    modal → IDENTIFY judgement → ATTACK escalation.
+  - Tests: challenge outcomes per broadcast state — dark + militia
+    spot = challenge; identify judged per worn face (scrubbed
+    passes, true ID recorded, wrong face takes the face's trouble);
+    attack escalates; scrubbed/live are never challenged; pirates
+    never challenge.
+  - Stop point: NOTHING from doc 41 (the Line) and no ghost-run
+    tooling (lure call, ready-face flow stay with doc 39) — this
+    phase is the hail and its two outcomes only.
+  - Playtest checkpoint: numbered in-game checklist — challenge
+    fires when a militia patrol spots a dark hull; identify with a
+    scrubbed face passes; identify live takes the record's due;
+    attack escalates; scrubbed broadcast is never challenged;
+    save/load across a challenge.
 - [ ] Phase 4+: resolved identities feeding the Line's sweep
       (doc 41); capture (shadow/record) as the clone pipeline;
       faction hostility reading apparent_faction (the Ross pose)
