@@ -915,6 +915,22 @@ Checklist:
 
 Any issue found is blocking: fix it before commit, even if the change ``works.``
 
+### Reviewer subagent (`.zcode/agents/reviewer.md`)
+
+A workspace subagent pinned to `zai/glm-5.3` (read-only: Read + Bash)
+that enforces this file's rules as a second pair of eyes. Spawn it via
+the Agent tool (`subagent_type: reviewer`) before committing **code**
+changes (src/ or tests/) — after the self-audit pass, before or
+alongside `make check` — and for second opinions on design drafts
+(ADVISE mode). Docs/data-only commits don't need it. The dispatch must
+be self-contained: the mode (REVIEW of working tree / commit range, or
+ADVISE of a doc section), the governing design doc, and specific
+questions. It returns a verdict line (`APPROVE` / `REQUEST_CHANGES` /
+`ADVICE`) plus numbered `[blocking]`/`[minor]` issues with file:line;
+blocking issues are fixed before the commit. Its review draws from the
+same weekly token budget — a focused dispatch (range + doc refs, not
+whole-file dumps) keeps the 5.3 spend small.
+
 
 ---
 
