@@ -386,6 +386,52 @@ challenge. Scrubbed triggers neither — blank paper complies.
     scrubbed face passes; identify live takes the record's due;
     attack escalates; scrubbed broadcast is never challenged;
     save/load across a challenge.
+
+  Pre-implementation audit (3b, 2026-09-06):
+  - Reuse: the dark branch lives exactly where phase 2 suppressed
+    the hail — ``navigation_combat._auto_hail_entity`` (spec lookup
+    moves above it: the challenge needs faction +
+    ``detect_radius``, the EYES radius per the Q3 ruling, not the
+    electronic ``comms_warning_range``). One-shot tracking reuses
+    ``_entity_hail_key`` + ``ctx.militia_scanned`` (persisted in
+    saveload; cleared on landing — the existing hail semantics, no
+    new state). ATTACK escalation reuses
+    ``comms._handle_interaction``'s ATTACK branch verbatim
+    (``_unprovoked_attack_rep`` + ``_combat_open_log`` +
+    ``_squad_payload``) — the broadcast gate already masks the rep
+    for dark/fake faces (the Q4 twist for free). Payload plumbing
+    (``(True, payload)`` → ``combat._handle_combat_encounter``) is
+    unchanged. Judgement reads ``faction.get_attitude`` for the
+    true record; the face library is phase 1's ``collected_ids``.
+  - Duplication hotspots: (1) a second escalation path — killed by
+    reusing ``_handle_interaction(ATTACK)``, not copying the
+    rep/log/payload trio; (2) a second hail-tracking mechanism —
+    ``militia_scanned`` only; (3) a second modal framework — the
+    existing ``_pygame_interaction_outcome`` gains a dispatch-table
+    param (the state-table guardrail), and the face-choice modal is
+    a sibling of ``_hail_frames``, not new machinery.
+  - DRY strategy: pure ``_judge_identification(ctx, face) ->
+    (passed, line)`` (pure-function contract + tests);
+    ``resolve_identification`` is the thin mutation wrapper (sets
+    the broadcast, logs the judgement); modal runners stay
+    choice-collectors (the monkeypatch seam this suite already
+    uses).
+  - Rulings locked (brief said the shape may shift; these are the
+    v1 calls): ESC/backing out of the challenge = refusing to
+    answer = the patrol opens fire (TWO options only — ESC must
+    not become a run mechanic). IDENTIFY ends dark: the
+    transponder comes up broadcasting the answered face and STAYS
+    there (the persistence ruling). Judgement: blank (scrubbed)
+    passes; a militia-registered face passes (the institution
+    outranks the reader — sandbox militia faces stay act-1
+    content); any other faction fails; the true ID passes unless
+    the true militia record is disliked/enemy. A failed judgement
+    or ATTACK starts the existing combat with the patrol's whole
+    squad; no new rep deltas on the challenge itself (the
+    patrol fires, the player didn't attack unprovoked). Plain
+    ``detect_radius`` in v1 (no charged-cell boost).
+  - Ratchet: comms.py 447 / navigation_combat.py 341 lines — both
+    under limit; new functions stay under 40.
 - [ ] Phase 4+: resolved identities feeding the Line's sweep
       (doc 41); capture (shadow/record) as the clone pipeline;
       faction hostility reading apparent_faction (the Ross pose)
