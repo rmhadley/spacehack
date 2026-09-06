@@ -121,13 +121,7 @@ def _identity_block(ctx: GameContext) -> tuple[str, ...]:
     identity.ensure_registration(ctx)
     mode = identity.broadcast_mode(ctx)
     worn = identity.resolved_identity(ctx)
-    mode_note = {
-        identity.LIVE: "broadcasting your true ID",
-        identity.DARK: "transponder OFF",
-        identity.SPOOFED: "broadcasting a false face",
-    }[mode]
     lines = [f"{identity.identity_label(worn)}   [{mode.upper()}]"]
-    lines.append(mode_note)
     library = list(getattr(ctx, "collected_ids", ()) or ())
     if library:
         lines.append(f"{len(library)} collected ID(s) filed.")

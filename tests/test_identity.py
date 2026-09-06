@@ -188,7 +188,33 @@ def test_faction_frame_shows_the_broadcast_block():
     masked.broadcast_identity = _pirate_face()
     lines = frame_for(masked).identity_lines
     assert "SPOOFED" in lines[0] and "KG-8812" in lines[0]
-    assert "1 collected ID(s)" in lines[2]
+    assert "1 collected ID(s)" in lines[1]
+    # The mode tag speaks for itself — no explainer line under it.
+    assert len(lines) == 2
+
+
+def test_npc_broadcasts_carry_registration_codes(monkeypatch):
+    """Each NPC hull broadcasts its own registration (doc 40: NPCs
+    broadcast — a hail reads a hull number, same flavor as yours)."""
+    from types import SimpleNamespace
+    from src.spacehack import identity
+    from src.spacehack.comms import _contact_broadcast_line
+
+    issued = iter(("AA-1111", "BB-2222"))
+    monkeypatch.setattr(identity, "generate_registration", lambda: next(issued))
+
+    patrol_a = SimpleNamespace(npc_ship_id="militia_blockade")
+    patrol_b = SimpleNamespace(npc_ship_id="militia_blockade")
+    first = identity.npc_identity(patrol_a)
+    assert first["id"] == "AA-1111"
+    assert first["kind"] == "npc"
+    assert first["label"] == "Militia Blockade"
+    # Stable for the hull's life; a second hull its own number.
+    assert identity.npc_identity(patrol_a)["id"] == "AA-1111"
+    assert identity.npc_identity(patrol_b)["id"] == "BB-2222"
+    assert identity.npc_identity(SimpleNamespace()) is None
+
+    assert _contact_broadcast_line(patrol_a) == "Broadcast: AA-1111 - militia"
 
 
 def test_scrub_broker_purchase_and_gating():
