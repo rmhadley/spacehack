@@ -125,15 +125,35 @@ means friends don't recognize you either. Merchants won't wave a
 guildmate through a mask; militia won't honor an allied record.
 Wearing a face trades your real standing for the face's — always.
 
-## Open questions (the review agenda, remaining)
+## SETTLED (Q3 + Q4, user rulings 2026-09-06)
 
-3. Dark = invisible-to-scanners: is there ANY counter (patrols
-   with eyes = detect radius, or better scanners at the Line)?
-   What does a patrol do when it physically spots a dark hull?
-4. Does the player's TRUE ID accumulate a record beyond the
-   existing faction ratings (scan logs, warrants)? Or is rep the
-   whole record — and "scrubbing" simply means wearing an ID that
-   resolves to blank?
+**Q3 — dark's counter set is COMPLETE as: eyes + the Line's
+density.** Patrols' detect radius (physical spotting → the warning
+hail, per doc 41) and the edge-to-edge sensor line. No scanner
+upgrades, no station approach logs in v1. Dark beats electronics,
+not eyeballs, and the Line is where the eyeballs live. (User note:
+dark mode is welcome as a REUSABLE option — other encounters and
+future content may key on it.)
+
+**Q4 — the true ID IS the faction ratings; nothing new is built.**
+True ID resolves to ctx.faction_reputation (decay applies — the
+monthly decay toward neutral already exists in faction.py).
+**THE TWIST (user ruling): doing things with a fake ID cannot
+alter your true ID.** Consequences route to the ID you WORE:
+
+- Live: rep deltas (gain and loss) move your true ratings. To
+  build standing, you must be seen being yourself.
+- Masked (dark or any fake): rep deltas do NOT touch the true
+  ratings. The mask cuts both ways, now on both axes — friends
+  don't recognize you, and your crimes (and good deeds) don't
+  follow you home. Hiding is safe AND stagnant; exposure is risk
+  AND growth.
+
+(The frame mechanic — crimes attached to a CLONED id blaming the
+clone's source — follows from Q1's mapping and is parked as the
+natural v2 depth; v1 routes masked consequences nowhere.)
+
+## Open questions (the review agenda, remaining)
 5. Spoof failure checks: what breaks a false ID, and who runs the
    check (scans? the checkpoint? random audits)?
 6. NPC ships: do they broadcast live IDs the player can read
