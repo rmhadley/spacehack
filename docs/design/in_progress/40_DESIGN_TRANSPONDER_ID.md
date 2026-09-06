@@ -199,10 +199,10 @@ Two consequences, DARK ONLY (never scrubbed):
    refuses (Earth, Vega, anything militia-patrolled) and so do
    neutral ports with no militia in sight — trust is the gate, not
    patrols. The exceptions are a handful of clearly pirate-run
-   ports that don't ask (today: Deadfall and Whisper, both in
-   Lalande — an explicit whitelist; additions are deliberate
-   content, not system growth). Those doors are what keep dark
-   usable for its purpose (ghost-running, the far side).
+   ports that don't ask (today: Deadfall and Whisper in Lalande,
+   Ember in Ross 154, Wolf 359 b — an explicit whitelist; additions
+   are deliberate content, not system growth). Those doors are what
+   keep dark usable for its purpose (ghost-running, the far side).
 
 2. **Patrol challenge hails.** A militia ship that detects a dark
    contact hails the PLAYER (NPC-initiated comms): identify, run,
@@ -234,9 +234,9 @@ while live — the mask cuts both ways on both axes. Nothing breaks a
 complete spoof in v1 (in-person inspection parked). NPCs broadcast
 into comms; cloning is rare, difficult, expensive — a process. Dark
 carries the lifestyle price: only pirate-run ports berth a dark
-hull (a whitelist — currently Deadfall and Whisper; neutral ports
-refuse too — trust, not patrols), and militia patrols that detect
-a dark hull challenge it — identify (what resolves is judged),
+hull (a whitelist — Deadfall, Whisper, Ember, Wolf 359 b; neutral
+ports refuse too — trust, not patrols), and militia patrols that
+detect a dark hull challenge it — identify (what resolves is judged),
 run, or fire, escalating to pursuit and heat; pirates never
 challenge. Scrubbed triggers neither — blank paper complies.
 
@@ -265,7 +265,8 @@ challenge. Scrubbed triggers neither — blank paper complies.
 - [ ] PHASE 3 (dark consequences — ruled 2026-09-06, not yet
       built): the dark dock gate (berthing refused at every port
       except the pirate-run whitelist — lal_b Deadfall, lal_c
-      Whisper; neutral ports refuse too — trust, not patrols) and
+      Whisper, ross_b Ember, wolf_b Wolf 359 b; neutral ports
+      refuse too — trust, not patrols) and
       the militia challenge hail (NPC-initiated comms on detect:
       identify / run / fire; escalation is pursuit + heat, never a
       guaranteed kill; ghost-run tuning lives with doc 39 when that
