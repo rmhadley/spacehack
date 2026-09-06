@@ -552,6 +552,47 @@ def test_identification_judgement_per_broadcast_face():
     assert _judge_identification(ctx, None)[0] is False  # the record's due
 
 
+def test_pass_lines_are_consistent():
+    """Every pass reads the same line — no mechanic lectures (user
+    playtest ruling); only the failures name what resolved."""
+    from src.spacehack.comms import _judge_identification
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"militia": 0}
+    scrub = {"id": "KX-1234", "kind": "scrubbed", "faction": None}
+    mil = {"id": "ML-2231", "kind": "fabricated", "faction": "militia"}
+    lines = {
+        _judge_identification(ctx, None)[1],
+        _judge_identification(ctx, scrub)[1],
+        _judge_identification(ctx, mil)[1],
+    }
+    assert len(lines) == 1
+    assert lines.pop() == "The patrol checks your registration and waves you through."
+
+
+def test_challenge_body_uses_challenge_lines_not_comms_lines():
+    """The challenge modal never shows the cargo-inspection text (user
+    playtest bug): authored per militia ship, generic demand as the
+    fallback."""
+    from src.spacehack.comms import _challenge_body_lines
+    from src.spacehack.data.npc_ships import find_npc_ship
+
+    for _pid in (
+        "militia_blockade", "militia_patrol_light",
+        "militia_patrol", "militia_patrol_heavy",
+    ):
+        _spec = find_npc_ship(_pid)
+        _body = "\n".join(_challenge_body_lines(_spec))
+        assert "cargo" not in _body.lower(), _pid
+        assert "identify" in _body.lower(), _pid
+        assert _body != "\n".join(_spec.comms_lines), _pid
+
+    generic = _challenge_body_lines(object())
+    assert generic == (
+        "Contact: your transponder is dark. Identify yourself or we open fire.",
+    )
+
+
 def test_identify_ends_dark_and_failure_escalates(monkeypatch):
     """Identifying brings the transponder up broadcasting the answer —
     and the answer is what gets judged: a pass waves you through, a

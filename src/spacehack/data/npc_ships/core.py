@@ -163,6 +163,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "You are entering restricted space. Halt your vessel immediately.",
             "This sector is under federation blockade. Turn back now.",
         ),
+        challenge_lines=(
+            "Blockade control: a dark transponder is a violation. Identify or be fired upon.",
+        ),
     ),
     # --- Pirate Captain (Tier 4 bounty target) ---
     NpcShipSpec(
@@ -222,6 +225,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "Routine patrol. Hold your course, pilot.",
             "Militia scout on sector sweep. Identify yourself.",
         ),
+        challenge_lines=(
+            "Unknown contact: your transponder is dark. Identify or be treated as hostile.",
+        ),
     ),
     NpcShipSpec(
         id="militia_patrol",
@@ -249,6 +255,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "Militia patrol. Prepare for cargo inspection.",
             "You are entering patrolled space. Halt for scan.",
         ),
+        challenge_lines=(
+            "Militia patrol to unregistered hull: identify yourself or we open fire.",
+        ),
     ),
     NpcShipSpec(
         id="militia_patrol_heavy",
@@ -275,6 +284,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         comms_lines=(
             "Enforcer vessel. Halt immediately for deep scan.",
             "High-security zone. Full cargo manifest required.",
+        ),
+        challenge_lines=(
+            "Enforcer to dark contact: identify, or we open fire.",
         ),
     ),
     # --- Merchants ---

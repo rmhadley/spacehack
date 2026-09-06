@@ -88,6 +88,10 @@ class NpcShipSpec:
     # boardable (boarding triggers combat with crew).
     is_boardable: bool = False
     comms_lines: tuple[str, ...] = ("Greetings, pilot.",)
+    # Dark-hull challenge body (doc 40 3b). Empty falls back to the
+    # generic demand in comms. Only militia ships are ever challenged —
+    # this must not be cargo-inspection text.
+    challenge_lines: tuple[str, ...] = ()
     base_speed: int = 1
     # Loot budget for interior salvage (boardable ships).
     # Tuple of (min_credits, max_credits). At layout generation,

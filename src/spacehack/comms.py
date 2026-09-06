@@ -121,7 +121,7 @@ def _contact_broadcast_line(contact_entity):
     return f"Broadcast: {_identity['id']} - {_faction}"
 def _hail_frames(
     ctx, contact_name, contact_spec, options, contact_entity,
-    *, title="Hailing", esc_label="ESC back",
+    *, title="Hailing", esc_label="ESC back", lines=None,
 ):
     """One MenuFrame per selectable index for a contact hail."""
     from . import pygame_menu, pygame_ui
@@ -131,7 +131,9 @@ def _hail_frames(
         for option in options
     )
     _broadcast = _contact_broadcast_line(contact_entity)
-    _body = "\n".join(getattr(contact_spec, "comms_lines", ()) or ("...",))
+    if lines is None:
+        lines = getattr(contact_spec, "comms_lines", ()) or ("...",)
+    _body = "\n".join(lines)
     if _broadcast:
         _body = f"{_broadcast}\n{_body}"
     return tuple(
@@ -151,7 +153,7 @@ def _hail_frames(
 
 def _pygame_interaction_outcome(
     ctx, contact_name, contact_spec, options, contact_entity=None,
-    *, dispatch=None, title="Hailing", esc_label="ESC back",
+    *, dispatch=None, title="Hailing", esc_label="ESC back", lines=None,
 ):
     """Return a Pygame-selected interaction enum, or None for fallback."""
     from . import pygame_menu
@@ -160,7 +162,7 @@ def _pygame_interaction_outcome(
 
     _frames = _hail_frames(
         ctx, contact_name, contact_spec, options, contact_entity,
-        title=title, esc_label=esc_label,
+        title=title, esc_label=esc_label, lines=lines,
     )
     outcome, action, _selected = pygame_menu.run_for_context(
         ctx.context,
@@ -172,7 +174,7 @@ def _pygame_interaction_outcome(
         _open_context_guide(ctx, "NPCs & Factions")
         return _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, options, contact_entity,
-            dispatch=dispatch, title=title, esc_label=esc_label,
+            dispatch=dispatch, title=title, esc_label=esc_label, lines=lines,
         )
     if outcome == "QUIT":
         return _InteractionOutcome.QUIT
@@ -369,24 +371,23 @@ def _judge_identification(ctx, face):
     """Pure: what a militia reader resolves from the identify answer.
 
     ``face`` None = the true registration. Returns ``(passed, line)``:
-    blank paper (scrubbed) complies; a militia registration outranks
-    the reader; any other faction fails; the true record passes only
-    while the militia's record of you is not hostile.
+    every pass reads the same — the patrol checks the registration and
+    waves the hull through, whatever was offered (blank paper, a
+    militia callsign, a clean true record). A hostile true record or a
+    non-militia face draws fire.
     """
+    _PASS_LINE = "The patrol checks your registration and waves you through."
     if face is not None:
         _fac = face.get("faction")
         if _fac is None:
-            return (
-                True,
-                "Blank registration, no history: the patrol waves the hull through.",
-            )
+            return (True, _PASS_LINE)
         if _fac == "militia":
-            return (True, "The patrol reads the callsign and stands down.")
+            return (True, _PASS_LINE)
         return (False, f"The registration reads {_fac}: the patrol opens fire!")
     _att = _get_attitude(ctx.faction_reputation.get("militia", 0))
     if _att in ("enemy", "disliked"):
         return (False, "Your record reads hostile: the patrol opens fire!")
-    return (True, "The patrol checks your record and waves you through.")
+    return (True, _PASS_LINE)
 
 
 def resolve_identification(ctx, face):
@@ -518,6 +519,16 @@ def open_comms_direct(
     return _run_interaction_modal(ctx, console, _name, _spec, entity)
 
 
+def _challenge_body_lines(spec):
+    """Pure: the challenge modal body — the ship's authored
+    ``challenge_lines``, else the generic dark-hull demand. Never the
+    cargo-inspection ``comms_lines``."""
+    return (
+        getattr(spec, "challenge_lines", ())
+        or ("Contact: your transponder is dark. Identify yourself or we open fire.",)
+    )
+
+
 def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
     """The dark-hull challenge (doc 40 3b): NPC-initiated comms with
     TWO options — Identify / Attack; no run. Backing out is refusing
@@ -532,6 +543,7 @@ def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
         contact_entity=entity,
         dispatch=_CHALLENGE_DISPATCH,
         title="Challenge", esc_label="ESC refuse",
+        lines=_challenge_body_lines(_spec),
     )
     return _handle_challenge(
         ctx, _outcome or _InteractionOutcome.BACK, _name, _spec, entity,
