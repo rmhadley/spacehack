@@ -375,6 +375,61 @@ detected when the Line went up. Dive it (prison pattern), emerge
 with the alien jump drive → Act 2. Outline only; we design it once
 the crossing is real.
 
+## Feature gap analysis (2026-09-06)
+
+**Ruling recorded first:** heist design belongs INSIDE method design
+— not one heist doc; each method gets action where it needs it
+(delves, salvage runs, heists as required). This analysis asks: per
+method, what do we lack a FEATURE for? Much of the act rides
+existing machinery (comms/hail, squads, rep/attitudes, boards,
+traits/perks, dungeon extensions, city interiors, landmark
+guardians, save migrations).
+
+### Per-method gaps
+
+| Method | Rides on (exists) | MISSING |
+|---|---|---|
+| 1 Papers | rep/attitudes, allied threshold, captain + NPC seats, trait grant, credit payments | the sweep reading manifest/ID (shared: the Line); a new Whisper- class NPC (machinery exists — content, not feature) |
+| 2 Gate | Vega gate data, quest-goods/kit assembly patterns | **gate retargeting** (jump connects_to is static); **arbitrary-coordinate arrival** (arrivals pair with gates; east-edge arrival has no gate); kit-gated option (payment gating pattern generalizes — small); the far side |
+| 3 Ghost | comms modal + options, bump-to-hail, detect radii, dungeon extensions, dormant security | **the ship transponder/ID layer** (player ID, dark mode, spoof — nothing exists); **auto-hail/detect suppression when dark**; player-initiated hail of a picket (bump works mechanically, but comms options for deception are new); **scanning/observing an NPC ship** (capture broadcasts — no ship-scan interaction exists); **city → multi-floor delve linkage with gated entry** (extensions today enter from planet surfaces, not city buildings) |
+| 4 Bribe | NPC + interior seats, big credit payment, dialogue | **the rumor chain** (unlabeled tiered hints surfacing through sandbox play — no rumor/lead feature exists; dialogue variants key off quest state, not "heard rumors"); the crossing event (shared: the Line) |
+| 5 Fight | squads/reinforcements, comms warning options, encounter specs | tuning + gap-filling (design work, no new feature); "converge everything" escalation choreography (reinforcement machinery is close) |
+
+### Cross-cutting, ranked by how much depends on them
+
+1. **THE LINE AS A SYSTEM** — the checkpoint sweep (detect → warn →
+   resolve), the sensor line with no geometric gaps, crossing
+   resolution (wave through / turn back / converge), and the far
+   side it guards. Every method terminates here. Today the
+   blockade is four static ships with warning-only comms; none of
+   the resolution logic exists.
+2. **SHIP TRANSPOUNDER / ID LAYER** — the player ship's
+   registration, NPC ships' broadcast IDs, dark mode (suppress
+   auto-hail + checkpoint reads), impersonation (broadcast a
+   captured ID). Feeds methods 1, 3 and the checkpoint itself.
+   Nothing exists.
+3. **THE FAR SIDE** — at least one system beyond the Line, the
+   arrival placement, and what crossing unlocks. Nothing exists;
+   the doc's standing prerequisite.
+4. **RUMOR / LEAD DELIVERY** — unlabeled hints surfacing through
+   sandbox play (bar talk, finds, contracts), tiered (myth →
+   shape → witness → procedure). Methods 2, 3, 4 all discovery-
+   ride on it; today rumor is static flavor text.
+5. **GATE RETARGET + PHANTOM ARRIVAL** — method 2's core tech;
+   single-method dependency.
+6. **CITY → GATED DELVE LINKAGE** — the heist pattern (enter a
+   building interior → multi-floor extension, entry gated by
+   "the right steps"). Extensions exist but enter from planet
+   surfaces; the city-building doorway does not.
+7. **SHIP OBSERVATION** — scan/shadow an NPC ship to capture its
+   broadcast (impersonation acquisition). Small, single-purpose.
+8. Encounter math for the 30 floor — design/tuning; machinery
+   exists.
+
+Smaller needs that are content, not features: the Whisper and
+Commandant NPCs, the Commandant's procedure dialogue, kit item
+catalog entries, disposition no-op perks (machinery ready).
+
 ## Phases
 
 ### Phase 0 — THIS: the tweak loop
