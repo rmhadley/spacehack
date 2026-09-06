@@ -356,7 +356,14 @@ challenge. Scrubbed triggers neither — blank paper complies.
       passes, militia callsign stands down, wrong face / hostile
       true record draw fire), ATTACK through the normal escalation
       (rep rides the broadcast gate — unsolved while dark), +7
-      tests, guide updated.
+      tests, guide updated. Playtest round 1 (2026-09-06): the
+      challenge body rendered the cargo-inspection comms_lines —
+      fixed with a ``challenge_lines`` field on NpcShipSpec
+      (authored per militia ship, generic fallback); judgement
+      passes unified to one line ("The patrol checks your
+      registration and waves you through.") per user ruling — no
+      mechanic lectures, the player discovers blank paper's
+      equivalence in play.
 
   Implementation brief (3b) — DRAFTED at 3a's playtest checkpoint
   (2026-09-06; shape may shift with what the gate playtest shows):
