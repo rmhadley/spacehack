@@ -268,20 +268,48 @@ challenge. Scrubbed triggers neither — blank paper complies.
       modal; militia/fabricated ids stay act-1 quest content);
       npc_identity/apparent_faction helpers for the Line and faction
       reactions. Tests: +2 (11 total).
-- [ ] PHASE 3 (dark consequences — ruled 2026-09-06, not yet
-      built): the dark dock gate (berthing refused at every port
-      except the pirate-run whitelist — lal_b Deadfall, lal_c
-      Whisper, ross_b Ember, wolf_b Wolf 359 b; neutral ports
-      refuse too — trust, not patrols; the whitelist is the
-      ``dark_berth`` opt-in field on PlanetSpec, set in each
-      pirate-run planet module — no id list in code) and
-      the militia challenge hail (NPC-initiated comms on detect:
+- [ ] PHASE 3a — the dark dock gate (ruled 2026-09-06, not yet
+      built): berthing refused at every port except the pirate-run
+      whitelist — lal_b Deadfall, lal_c Whisper, ross_b Ember,
+      wolf_b Wolf 359 b; neutral ports refuse too — trust, not
+      patrols; the whitelist is the ``dark_berth`` opt-in field on
+      PlanetSpec, set in each pirate-run planet module — no id list
+      in code. Scrubbed never triggers it — compliance is the
+      6,000cr.
+
+  Implementation brief (3a):
+  - Scope: ``dark_berth: bool = False`` on PlanetSpec
+    (``data/planets/__init__.py``); ``dark_berth=True`` in
+    ``lal_b.py``, ``lal_c.py``, ``ross_b.py``, ``wolf_b.py``; the
+    gate in ``game_interactions._resolve_planet_land`` BEFORE
+    ``_run_cargo_scan`` — one gate covers both landing paths
+    (``land_at_city`` routes through ``_resolve_planet_land``).
+  - Refusal: log line + stay in space (return 'CONTINUE'); the city
+    map is never built. Wording plain port-side register, per the
+    Quest prose standard.
+  - Tests (doc-specified): dock gate per port class — whitelisted
+    port berths a dark hull, lawful port refuses, neutral port
+    refuses; scrubbed and live unaffected; the refusal precedes the
+    cargo scan.
+  - Guide: dark's dock price is player-facing — extend the identity
+    section of the game guide.
+  - Stop point: NOTHING from the militia challenge hail (no comms,
+    detect, or escalation work in this phase).
+  - Playtest checkpoint: numbered in-game checklist — go dark (F
+    screen), refused at Earth and at a neutral port, berthed at
+    Deadfall and Ember, scrubbed still docks at Earth, save/load
+    round-trip across a refusal.
+
+- [ ] PHASE 3b — the militia challenge hail (ruled 2026-09-06;
+      built after 3a's checkpoint): NPC-initiated comms on detect:
       identify / run / fire; escalation is pursuit + heat, never a
       guaranteed kill; ghost-run tuning lives with doc 39 when that
-      method is built). Scrubbed triggers neither — that compliance
-      is the 6,000cr. Tests: dock gate per port class (whitelist
-      vs lawful vs neutral); challenge outcomes per broadcast
-      state.
+      method is built. Scrubbed triggers nothing — blank paper
+      complies. Tests: challenge outcomes per broadcast state.
+
+  Implementation brief (3b): WRITTEN AT 3a's PLAYTEST CHECKPOINT
+  (its shape may shift with what the gate playtest shows).
+  /implement-phase refuses to code a phase without a brief.
 - [ ] Phase 4+: resolved identities feeding the Line's sweep
       (doc 41); capture (shadow/record) as the clone pipeline;
       faction hostility reading apparent_faction (the Ross pose)

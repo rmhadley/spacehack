@@ -36,3 +36,25 @@ When the user says "let's design X", the agent MUST first check if a design doc 
 3. **`docs/design/` (root, reference)** — Architectural docs that describe already-implemented systems (not feature-iteration docs). These live in the root of `docs/design/` permanently as reference material.
 
 When a phase completes with no next phase to start, ask the user: "Move this to complete?" before committing.
+
+## Implementation briefs and `/implement-phase`
+
+A phase is **buildable only when its section carries an
+Implementation brief**: scope (exact files/hook points), build order,
+binding rulings, required tests, the stop point (what NOT to start),
+and the playtest checkpoint. Write the brief during review/ruling —
+before the build session — so the build session's prompt is just the
+command:
+
+    /implement-phase 40.3      # named doc + phase
+    /implement-phase 40        # that doc's first unchecked phase
+
+`.zcode/commands/implement-phase.md` primes a fresh session: read
+`knowledge.md` + this reference + the target doc in full, pick the
+phase from the doc's Phases list (the list IS the build queue,
+unchecked in order), and run the standard loop — pre-implementation
+audit → implement → `make check` → reviewer (REVIEW, via
+`make review-pack`) → atomic commits → tick checkboxes → numbered
+playtest checklist at the brief's checkpoint → stop at the brief's
+stop point. A phase with no brief is never coded: the command
+proposes a brief to the user instead.
