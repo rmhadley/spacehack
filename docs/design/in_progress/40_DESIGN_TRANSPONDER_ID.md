@@ -287,6 +287,34 @@ challenge. Scrubbed triggers neither — blank paper complies.
     gate in ``game_interactions._resolve_planet_land`` BEFORE
     ``_run_cargo_scan`` — one gate covers both landing paths
     (``land_at_city`` routes through ``_resolve_planet_land``).
+
+  Pre-implementation audit (3a, 2026-09-06):
+  - Reuse: ``identity.broadcast_mode`` (``src/spacehack/identity.py``)
+    is the only state read — no new GameContext fields, nothing new
+    to persist. The landing funnel is single: both the planet-menu
+    LAND outcome and ``land_at_city`` (Shift+T) route through
+    ``game_interactions._resolve_planet_land`` (two callers total;
+    the other ``load_planet`` callers are interior rebuild + save
+    restore and must NOT gate — they don't touch this path). Port
+    lookups reuse ``has_landable_port`` (KeyError-safe) and
+    ``find_planet_spec``.
+  - Duplication hotspots: (1) two landing paths — killed
+    structurally: one gate inside ``_resolve_planet_land``, no
+    second check in ``land_at_city``; (2) a code-side whitelist id
+    list — ruled out, the whitelist IS the ``dark_berth`` opt-ins;
+    (3) the portless "no port" message — the gate falls through to
+    the existing path for portless ids instead of re-emitting it.
+  - DRY strategy: pure helper ``_dark_dock_refusal(ctx, pid) ->
+    str | None`` (computation per the pure-function contract, ships
+    with tests); the caller logs the message. Guide section appended
+    to ``GUIDE_SECTIONS`` (``data/guide/__init__.py``) — ``help.py``
+    enumerates the tuple, no extra wiring.
+  - Surprise: NO identity guide section exists (phase 1 shipped the
+    F-screen hub without one) — 3a creates the section, covering
+    both the hub and dark's dock price.
+  - Ratchet: ``_resolve_planet_land`` is ~37 lines; the gate lines
+    push it over 40, so the landing tail (city-map build + entry)
+    extracts to a module-level helper in the same commit.
   - Refusal: log line + stay in space (return 'CONTINUE'); the city
     map is never built. Wording plain port-side register, per the
     Quest prose standard.
