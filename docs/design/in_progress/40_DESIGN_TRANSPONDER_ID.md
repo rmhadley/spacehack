@@ -325,8 +325,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
     push it over 40, so the landing tail (city-map build + entry)
     extracts to a module-level helper in the same commit.
   - Refusal: log line + stay in space (return 'CONTINUE'); the city
-    map is never built. Wording plain port-side register, per the
-    Quest prose standard.
+    map is never built. Final wording (user, 2026-09-06):
+    ``Docking request denied: transponder not responding.`` — one
+    uniform line for every refusing port, no port name; pinned by
+    test.
   - Tests (doc-specified): dock gate per port class — whitelisted
     port berths a dark hull, lawful port refuses, neutral port
     refuses; scrubbed and live unaffected; the refusal precedes the
