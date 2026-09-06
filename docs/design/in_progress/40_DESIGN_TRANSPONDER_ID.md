@@ -225,6 +225,95 @@ Two consequences, DARK ONLY (never scrubbed):
    ghost-run details later; make this make sense first). Pirates
    never challenge; silence in Ross reads as business as usual.
 
+## SETTLED (phase 4+ re-cut, user rulings 2026-09-06): apparent standings + dark's price of entry
+
+**One primitive — no custom code.** Wearing a spoofed ID CHANGES the
+standings readers resolve: the face's relations ARE your relations
+while worn. The Ross pose is the mechanic working, not a Ross
+special-case — "if Ross right now auto-attacks everyone no matter
+what, that's incorrect" (user ruling). Every spawn reader —
+static/territorial, bounty, procedural — runs the SAME gate: engage
+only when the RESOLVED attitude is disliked/enemy.
+
+Consequences (all follow from the one gate):
+- In-group face: a pirate clone worn in Ross resolves Allied with
+  pirates — the crown stands down.
+- Blank paper (scrubbed) resolves default-civilian neutral: nothing
+  auto-attacks a nobody — but nobody helps a nobody either (no
+  in-group recognition; militia scans at neutral rates). The scrub
+  buys compliance, not friendship; allied is what the clone ladder
+  buys.
+- Dark resolves nothing: pirates' silence-reads-as-business-as-usual
+  (settled above) — no auto-attack; militia that physically spot the
+  hull run the challenge (3b, built).
+- Live unchanged: the true record resolves as always.
+- The charged-cell heat aggro (Act 0) is a HEAT response, not an
+  identity read — it ignores the broadcast (flagged to the user
+  2026-09-06; unchanged unless vetoed).
+
+**Dark's price of entry (user ruling): cut-out service.** Going
+dark is NOT a free toggle on a legal hull. A one-time transponder
+cut-out must be installed at a pirate-run port (the same storefronts
+as the scrub; priced below it — silence is cheaper than paper).
+Until installed, the F-screen D is inert. This matches Q2's "mode
+changes are worked via services" and gives the identity economy its
+second product; the early outlaw-port errand is dark's on-ramp. The
+lifestyle price (refused docks, challenge hails, the Line) stacks
+on top. The scrub keeps its niche: anonymity WITH compliance.
+
+## SETTLED (capture + clone quality, user rulings 2026-09-06)
+
+**Standings substitution, not a parallel track.** Phase 4 does not
+build a new "apparent standings" system beside the real one — the
+worn face SUBSTITUTES into the standings the game already reads,
+and every existing consumer (spawn gates, scan tables, trade,
+comms attitudes) keeps its exact logic. We have faction standings;
+they already have meaning; a fake ID changes them and the game
+reacts through machinery that already exists. Reads resolve the
+face; writes still land on the true dict only while live (Q4).
+
+**Capture is live-ship boarding (user ruling — new feature).** The
+shadow/record verb is replaced by boarding: meet the requirements
+(shields down, adjacent), board the LIVE ship — not a powered-down
+derelict, a functioning enemy hull with a full crew aboard — fight
+your way to the cockpit and the C console, and with the tech
+available, clone the ID from there. (Scoping pending: own sibling
+doc vs a phase here — the feature is bigger than the capture verb;
+boarding derelicts already exists today.)
+
+**Clones roll their quality (user ruling — iterates faction
+profiles).** A clone's standings are a ROLL within the source
+faction's profile: the higher quality the source ship, the better
+the odds of a strong roll. RNG + grind behind a powerful perk. The
+library consequently needs management — the ability to delete (or
+sell!?) transponder codes. Parameters pending: the profile bands,
+quality weights, re-clone/re-roll semantics, library cap/sell.
+
+**Roll parameters (user ruling): one roll per source.** Each source
+rolls once, ever — a bad roll is a bad ID and no credits re-roll
+it; better odds require capturing higher-quality sources. The grind
+is the HUNT. Delete exists to clear junk.
+
+**Library (user ruling): capped slots + delete + sell.** Small fixed
+library (slot count pinned in the phase 6 brief), delete free at the
+F screen, outlaw-port brokers buy codes back for a fraction of
+value.
+
+**Boarding is an extension, not a new system (user correction).**
+Ship boarding already exists (wreck bump-boarding into dungeon
+interiors, ``game_interactions._resolve_npc_ship_blocker``); the
+capture phase EXTENDS it to live ships — no sibling doc. V1 calls
+(proposed in the phase 6 brief, veto freely): a ship crippled to
+shields-down with hull intact becomes boardable (overkill destroys
+the prize — no wreck salvage); the interior spawns its crew
+(ENEMY markers in the layout); the C console at the cockpit offers
+the clone with the tech installed; console taken, the hull powers
+down to a derelict (existing loot flows apply). Ship theft parked.
+
+**Phase cut (2026-09-06):** phase 4 = apparent standings, phase 5 =
+dark's cut-out, phase 6 = the capture pipeline. The Line's sweep
+remains doc 41's build — doc 40 supplies the states.
+
 ## The complete settled design (one statement)
 
 Every ship broadcasts. An ID is an identifier that maps to
@@ -233,14 +322,22 @@ identify, rate, behave). The layer adds key choice: live (true
 ratings — today, nothing new), dark (nothing resolves; countered
 only by eyes and the Line's density), spoofed (the face's implied
 relations; three sources: scrubed→blank, cloned→source's standing,
-fabricated rank→the institution). Explicit registrations for RP
-flavor; the F — faction screen is the identity hub (broadcast
-state, cycling collected IDs). Intrinsic transponders; services at
-the outlaw ports work the modes; identity rides the player across
+fabricated rank→the institution). Wearing a face CHANGES the
+standings every reader resolves — one gate for all spawn readers,
+engage only on resolved disliked/enemy; the Ross pose is the
+mechanic working, no custom code (2026-09-06 re-cut). Explicit
+registrations for RP flavor; the F — faction screen is the identity
+hub (broadcast state, cycling collected IDs). Intrinsic
+transponders; services at the outlaw ports work the modes; going
+dark requires a one-time cut-out installed at a pirate-run port
+(priced below the scrub — the free D toggle is superseded); identity rides the player across
 lawful purchases (the scrub is an unlawful hull). Rep moves only
 while live — the mask cuts both ways on both axes. Nothing breaks a
 complete spoof in v1 (in-person inspection parked). NPCs broadcast
-into comms; cloning is rare, difficult, expensive — a process. Dark
+into comms; cloning is rare, difficult, expensive — a process:
+capture is live-ship boarding (cripple, board, fight to the C
+console), each source rolls its copy quality once, and the library
+is capped, deletable, sellable. Dark requires a cut-out and
 carries the lifestyle price: only pirate-run ports berth a dark
 hull (a whitelist — Deadfall, Whisper, Ember, Wolf 359 b; neutral
 ports refuse too — trust, not patrols), and militia patrols that
@@ -454,6 +551,89 @@ challenge. Scrubbed triggers neither — blank paper complies.
     then go dark" suppresses that patrol's challenge until landing
     clears the set. Fix would be separate keys for hail vs
     challenge; deferred until the playtest says it matters.
-- [ ] Phase 4+: resolved identities feeding the Line's sweep
-      (doc 41); capture (shadow/record) as the clone pipeline;
-      faction hostility reading apparent_faction (the Ross pose)
+- [ ] PHASE 4 — apparent standings substitution. The worn face
+      substitutes into the standings the game already reads — no
+      parallel track, existing consumers keep their logic (user:
+      "phase 4 should be _how the game already works_"). One pure
+      resolver: live → the true dict; spoofed → the face's
+      standings (absent → neutral); dark → neutral (nothing
+      resolves — spawn gates stand down; the militia challenge hail
+      (3b) is the eyes exception; the scan path already exits for
+      dark). Static/territorial spawns GAIN the rep gate (engage
+      only on resolved disliked/enemy) — the Ross fix; charged-cell
+      heat bypasses the mask (heat response, not an identity read).
+
+  Implementation brief (4):
+  - Scope: ``identity.effective_reputation(ctx) -> dict[str, int]``
+    (pure; the ONE substitution point). Reader call sites swap
+    ``ctx.faction_reputation.get(f, 0)`` for the resolver —
+    enumerated by the audit's grep, known today:
+    ``navigation_combat._trigger_bounty_spawns`` /
+    ``_trigger_procedural_spawns`` (existing gates),
+    ``_trigger_static_spawns`` (gate ADDED: engage only on resolved
+    disliked/enemy — audit first that derelict/blocker entities
+    don't route through this pass), ``_militia_scan_chance``,
+    ``comms`` contact attitude + hostile hail label,
+    ``trade`` merchant/npc-faction attitudes,
+    ``mission/_board`` reward adjust. ``_charged_cell_aggro`` NOT
+    routed. Writes untouched (modify_rep's broadcast gate, Q4).
+  - Build order: resolver + tests → static-spawn gate → routed
+    readers → guide section touch (the world reacts to the face's
+    standings) → ``make check``.
+  - Binding rulings: mask cuts both ways at reads too (masked trade
+    loses earned attitudes); dark resolves neutral (pirates'
+    business-as-usual; militia's challenge covers the eyes);
+    scrubbed = neutral (blank paper); faces without standings data
+    resolve neutral (cloned faces arrive in phase 6).
+  - Required tests: resolver per mode (live / spoofed-with-
+    standings / spoofed-scrubbed / dark); static spawns stand down
+    on neutral + engage on disliked/enemy; scan chance reads the
+    face; trade attitude masked → neutral; charged-cell still
+    aggros through any face; live unchanged (existing suite).
+  - Stop point: NO cloned faces or rolls (6), no cut-out (5), no
+    boarding work, no Line work.
+  - Playtest checkpoint (numbered): wear the scrub — the Ross crown
+    drifts past; Sol patrol scans at the neutral rate; trade prices
+    lose the earned discount; flip live — everything as today; go
+    dark — pirate spawns ignore, militia challenge still fires;
+    save/load across all three states.
+
+- [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
+      a one-time transponder cut-out installed at a pirate-run
+      port; the F-screen D is inert until then.
+
+  Implementation brief (5):
+  - Scope: ``transponder_cutout: bool`` on GameContext (saveload
+    both directions; legacy saves migrate False — dark must be
+    earned); ``identity.toggle_dark`` refuses without it (plain log
+    line); the F-screen dark row shows the un-installed state; the
+    install is a second priced row on Deadfall's scrubber
+    (``deadfall_scrubber``) alongside the 6,000cr scrub — 2,500cr
+    (silence is cheaper than paper); guide section updated.
+  - Build order: field + persistence → toggle gate → F-screen state
+    → service row → guide.
+  - Binding rulings: one-time install, never consumed; other pirate
+    ports selling it are deliberate later content, not system
+    growth; the scrub is unaffected.
+  - Required tests: D inert without the cut-out; works after
+    purchase; no double charge; persistence round-trip; legacy-save
+    migration.
+  - Stop point: NOTHING from phase 6 — no recorder/rig, no
+    boarding.
+  - Playtest checkpoint: D does nothing on a pre-cut-out save →
+    buy the install at Deadfall → D works → save/load keeps both
+    the cut-out and the dark state.
+
+- [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
+      clone economy. Ruled above (capture + clone quality section,
+      2026-09-06); the brief is drafted at phase 5's playtest
+      checkpoint (3b precedent — shape may shift with what the
+      standings playtest shows). Carries: the crippled-ship
+      boarding extension (shields down + hull intact boardable;
+      overkill destroys the prize), crewed interiors (ENEMY
+      markers), the C console clone (rig-gated, standings rolled by
+      the source's quality tier — one roll per source, persisted),
+      library cap/delete/sell.
+
+(The Line's checkpoint sweep reads these states in doc 41 — doc 40
+supplies the states, doc 41 owns the consumer.)
