@@ -869,6 +869,13 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
         "main_quest_disposition",
         "delivered" if data.get("main_quest_disclosure", "") else "",
     )
+    ctx.ship_registration = data.get("ship_registration", "")
+    ctx.broadcast_dark = bool(data.get("broadcast_dark", False))
+    ctx.broadcast_identity = data.get("broadcast_identity") or None
+    ctx.collected_ids = list(data.get("collected_ids") or [])
+    if not ctx.ship_registration:
+        from .identity import ensure_registration
+        ensure_registration(ctx)
     ctx.post_prison_orbit_seen = bool(data.get("post_prison_orbit_seen", False))
     ctx.post_prison_orbit_pending = bool(data.get("post_prison_orbit_pending", False))
     ctx.tutorial_mode = bool(data.get("tutorial_mode", False))

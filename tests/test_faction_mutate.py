@@ -20,6 +20,10 @@ def _mock_ctx(rep: dict[str, int] | None = None):
     ctx = MagicMock()
     ctx.faction_reputation = rep or {}
     ctx.log = MagicMock()
+    # The broadcast gate (doc 40) reads these; a MagicMock's
+    # auto-attributes are truthy, which reads as dark mode.
+    ctx.broadcast_dark = False
+    ctx.broadcast_identity = None
     return ctx
 
 

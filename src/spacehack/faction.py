@@ -328,7 +328,8 @@ def apply_monthly_decay(ctx) -> None:
         elif _rep > 0 and _new <= 0:
             _new = 1
         if _new != _rep:
-            modify_rep(ctx, _fac, _new - _rep)
+            # Decay is time, not action — it ignores the broadcast state.
+            modify_rep(ctx, _fac, _new - _rep, in_person=True)
 
 
 # ---------------------------------------------------------------------------
@@ -396,28 +397,34 @@ def _soft_cap_delta(current: int, delta: int) -> int:
         return delta
     return _room + (delta - _room + 1) // 2
 
+def modify_rep(
+    ctx, faction: str, delta: int, *, in_person: bool = False,
+) -> None:
+    """Apply a reputation delta to ``faction`` (soft cap, clamping,
+    zone-boundary logging).
 
-def modify_rep(ctx, faction: str, delta: int) -> None:
-    """Apply a reputation delta to ``faction``, handling the +50 soft
-    cap, clamping, logging, and zone-boundary crossing announcements.
-
-    Mutates ``ctx.faction_reputation[faction]`` and appends to
-    ``ctx.log``. A no-op if ``delta`` is zero or ``faction`` is
-    not one of the four tracked factions.
-
-    Positive gains are halved once they push the score above +50
-    (see :func:`_soft_cap_delta`); losses and negative-direction
-    movement are unchanged.
-
-    Log format:
-      Within same zone:  ``+5 rep with Merchant faction (now +23)``
-      Crossing a boundary: ``-8 rep with Militia faction (now -15, Liked → Disliked)``
+    THE BROADCAST GATE (doc 40): actions under a fake ID cannot alter
+    the true ID — while the transponder is dark or wearing a face,
+    deltas are DISCARDED silently (no losses, and no gains either —
+    the mask cuts both ways). ``in_person=True`` bypasses the gate
+    for events off the transponder: face-to-face dealings (quest
+    rewards, NPC talks) and time decay.
     """
-    if delta == 0:
+    if delta == 0 or faction not in _ALL_FACTIONS:
         return
-    if faction not in _ALL_FACTIONS:
+    if not in_person and _broadcast_is_masked(ctx):
         return
+    _apply_rep_delta(ctx, faction, delta)
 
+
+def _broadcast_is_masked(ctx) -> bool:
+    """True when the ship's broadcast is not the player's true ID."""
+    from .identity import broadcast_mode, LIVE
+    return broadcast_mode(ctx) != LIVE
+
+
+def _apply_rep_delta(ctx, faction: str, delta: int) -> None:
+    """Write one reputation delta with caps, clamps, and logging."""
     old_val: int = ctx.faction_reputation.get(faction, 0)
     old_attitude: str = get_attitude(old_val)
 
@@ -437,3 +444,5 @@ def modify_rep(ctx, faction: str, delta: int) -> None:
 
     color = _REP_GAIN_COLOR if delta > 0 else _REP_LOSS_COLOR
     ctx.log.add_colored(msg, color)
+
+

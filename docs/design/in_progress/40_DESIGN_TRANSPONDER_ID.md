@@ -197,6 +197,16 @@ into comms; cloning is rare, difficult, expensive — a process.
 ## Phases
 
 - [x] Review with the user — all six questions ruled (2026-09-06)
-- [ ] Full design (data model, consumers, state machine, the
-      cloning process, the F-screen layout)
-- [ ] Implementation plan (ships first? scans first? checkpoint?)
+- [x] PHASE 1 LANDED (2026-09-06): the identity data layer —
+      src/spacehack/identity.py (state helpers, registration
+      generation, the dark master switch, library cycling),
+      GameContext fields + saveload persistence + legacy-save
+      migration (a registration appears), the broadcast gate in
+      modify_rep (masked deltas discarded; in_person bypass for
+      face-to-face events and time decay — decay was caught routing
+      through the gate in testing), and the F-screen identity hub
+      (broadcast block + D toggle + TAB cycling). Tests:
+      tests/test_identity.py (9).
+- [ ] Phase 2+: NPC broadcasts into comms; the acquisition
+      pipeline (scrub services, capture, fabricated rank); resolved
+      identities feeding the Line's sweep (doc 41)

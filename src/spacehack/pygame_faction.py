@@ -34,6 +34,8 @@ class FactionFrame:
     rows: tuple[FactionRow, ...]
     hint: str
     scale_labels: tuple[str, ...] = ("HOSTILE", "NEUTRAL", "ALLIED")
+    # The broadcast block (doc 40): registration, mode, worn face.
+    identity_lines: tuple[str, ...] = ()
 
 
 _ATTITUDE_CODES: dict[str, str] = {
@@ -75,13 +77,38 @@ def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
     )
 
 
+def _identity_block(ctx: GameContext) -> tuple[str, ...]:
+    """The broadcast lines: what the ship is saying right now."""
+    from . import identity
+
+    identity.ensure_registration(ctx)
+    mode = identity.broadcast_mode(ctx)
+    worn = identity.resolved_identity(ctx)
+    mode_note = {
+        identity.LIVE: "broadcasting your true ID",
+        identity.DARK: "transponder OFF - nothing resolves",
+        identity.SPOOFED: "broadcasting a false face",
+    }[mode]
+    lines = [f"REGISTRATION  {identity.identity_label(worn)}   [{mode.upper()}]"]
+    lines.append(f"{mode_note}. Reputation moves only while LIVE.")
+    library = list(getattr(ctx, "collected_ids", ()) or ())
+    if library:
+        lines.append(f"{len(library)} collected ID(s) filed.")
+    return tuple(lines)
+
+
 def frame_for(ctx: GameContext) -> FactionFrame:
     """Build the current faction standings frame."""
+    library = list(getattr(ctx, "collected_ids", ()) or [])
+    hint = "ENTER / ESC back   D transponder on/off"
+    if library:
+        hint += "   TAB cycle IDs"
     return FactionFrame(
         title="FACTION STANDINGS",
         subtitle="Your reputation across the frontier",
         rows=_faction_rows(ctx),
-        hint=pygame_ui.modal_hint("ENTER / ESC back", pygame_ui.GUIDE_HINT),
+        hint=pygame_ui.modal_hint(hint, pygame_ui.GUIDE_HINT),
+        identity_lines=_identity_block(ctx),
     )
 
 
@@ -132,7 +159,8 @@ def _draw_frame(
         pygame, screen, panel.x + 24, panel.y + 54,
         panel.width - 48, color=palette.border,
     )
-    _draw_standing_rows(pygame, screen, font, frame, panel)
+    y = _draw_identity_block(pygame, screen, font, frame, panel)
+    _draw_standing_rows(pygame, screen, font, frame, panel, top_offset=y - panel.y)
     hint_y = (
         pygame_ui.modal_footer_text_y(height, font.get_linesize() + 6)
         if context is not None
@@ -188,12 +216,13 @@ def _draw_faction_row(
 
 def _draw_standing_rows(
     pygame: Any, screen: Any, font: Any, frame: FactionFrame, panel: pygame_ui.Rect,
+    *, top_offset: int = 0,
 ) -> None:
     """Paint subtitle, standing scale, and reputation bars."""
     palette = pygame_ui.DEFAULT_PALETTE
     x = panel.x + 42
     content_width = panel.width - 84
-    y = panel.y + 82
+    y = panel.y + 82 + top_offset
     pygame_ui.draw_text(
         pygame, screen, font, frame.subtitle, x, y,
         color=palette.description,
@@ -212,6 +241,24 @@ def _draw_standing_rows(
             pygame, screen, font, row, x, y, content_width, first=index == 0,
         )
         y += row_height
+
+
+def _draw_identity_block(
+    pygame: Any, screen: Any, font: Any, frame: FactionFrame, panel: Any,
+) -> int:
+    """Paint the broadcast lines under the rule; returns the bottom y."""
+    palette = pygame_ui.DEFAULT_PALETTE
+    y = panel.y + 66
+    for line in frame.identity_lines:
+        color = (
+            palette.instruction if line.startswith("REGISTRATION")
+            else (160, 170, 185)
+        )
+        pygame_ui.draw_text(
+            pygame, screen, font, line, panel.x + 24, y, color=color,
+        )
+        y += font.get_linesize() + 2
+    return y
 
 
 def _draw_shared_frame(
@@ -237,6 +284,10 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "BACK"
     if pygame_ui.is_guide_key(pygame, event):
         return "GUIDE"
+    if event.key == pygame.K_d:
+        return "DARK"
+    if event.key in (pygame.K_TAB, pygame.K_RIGHT):
+        return "CYCLE"
     return "IGNORE"
 
 
@@ -257,6 +308,21 @@ def run_shared(context: PygameContext, ctx: GameContext) -> str:
         engine.present()
         event = pygame.event.wait()
         outcome = _handle_key(pygame, event)
+        if outcome == "DARK":
+            from . import identity
+            identity.toggle_dark(ctx)
+            ctx.log.add(
+                "Transponder OFF - nothing resolves."
+                if ctx.broadcast_dark else
+                "Transponder on - broadcasting your true ID."
+            )
+            frame = frame_for(ctx)
+            continue
+        if outcome == "CYCLE":
+            from . import identity
+            identity.cycle_identity(ctx)
+            frame = frame_for(ctx)
+            continue
         if outcome == "GUIDE":
             return outcome
         if outcome != "IGNORE":

@@ -382,6 +382,18 @@ class GameContext:
     # resolves. This preserves the prison provenance across an interrupted
     # modal and Continue; current_city_id is only landing/save bookkeeping.
     post_prison_orbit_pending: bool = False
+    # --- Transponder / ID layer (doc 40) ---
+    # The ship's lawful registration (assigned per run; shown on the
+    # F screen). Identity rides the player across lawful purchases.
+    ship_registration: str = ""
+    # Transponder master switch: True = broadcasting nothing (dark).
+    broadcast_dark: bool = False
+    # The worn false ID dict (id/kind/label/faction), or None. Applied
+    # only when the transponder is on; the library persists below.
+    broadcast_identity: dict | None = None
+    # Illegal IDs collected (each an id/kind/label/faction dict) —
+    # acquisition is rare and involved (doc 40 Q6).
+    collected_ids: list = dataclasses.field(default_factory=list)
     # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
     # True for tutorial runs (started from the title menu); gates the
     # scripted popup flow in spacehack.tutorial. Survives save/load so
