@@ -173,6 +173,9 @@ def test_faction_frame_shows_the_broadcast_block():
     assert frame.identity_lines
     assert "LIVE" in frame.identity_lines[0]
     assert ctx.ship_registration in frame.identity_lines[0]
+    assert "Reputation moves only" not in " ".join(frame.identity_lines)
+    assert "nothing resolves" not in " ".join(frame.identity_lines)
+    assert "Reputation moves only" not in " ".join(frame.identity_lines)
 
     dark = quest_ctx()
     dark.broadcast_dark = True
