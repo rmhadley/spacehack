@@ -154,4 +154,5 @@ SPEC = PlanetSpec(
         ("old_smuggler", "bar"),
     ),
     explorable_site_name="caves",
+    dark_berth=True,
 )

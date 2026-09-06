@@ -122,4 +122,5 @@ SPEC = PlanetSpec(
     ),
     tech_level=4,
     mission_tier=4,
+    dark_berth=True,
 )

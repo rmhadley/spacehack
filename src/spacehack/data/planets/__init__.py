@@ -94,6 +94,10 @@ class PlanetSpec:
     mission_tier: int = 1             # max mission tier offered at this planet's NPCs
     explorable_site_name: str = "Surface"  # label for the EXPLORE menu option (e.g. Mars = "signal")
     dungeon_params: object = None      # :class:`~spacehack.dungeon.DungeonParams` for procedural dungeons
+    # Doc 40: pirate-run ports opt in to berthing DARK hulls (the
+    # transponder is off). Every port refuses dark by default — the
+    # whitelist is the sum of these opt-ins, no id list in code.
+    dark_berth: bool = False
 
 
 # ---------------------------------------------------------------------------

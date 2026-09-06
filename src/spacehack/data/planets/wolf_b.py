@@ -165,4 +165,5 @@ SPEC = PlanetSpec(
         # the pool serves only layout-less delves.
         cache_guardian_pool=(),
     ),
+    dark_berth=True,
 )
