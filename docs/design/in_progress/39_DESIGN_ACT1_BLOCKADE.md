@@ -413,6 +413,12 @@ guardians, save migrations).
    lets the player explore lore and RP with the universe to find
    solutions and unlock options: NPCs, comms, bars as delivery
    vectors; knowledge as the keyring. Design pass queued.
+   Seed notes (user, citing Caves of Qud): loot that SENDS you
+   somewhere (a find that points at a dungeon site); diving deep
+   yields legendary loot AND/OR info; **info trades for info
+   throughout the world** — knowledge as a currency with its own
+   economy. Lore isn't just flavor: it's quests, maps, and
+   bargaining chips.
 
 Each gets its own design doc (forking as needed); doc 39 remains
 the act umbrella.
