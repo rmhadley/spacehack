@@ -203,6 +203,12 @@ Two consequences, DARK ONLY (never scrubbed):
    Ember in Ross 154, Wolf 359 b — an explicit whitelist; additions
    are deliberate content, not system growth). Those doors are what
    keep dark usable for its purpose (ghost-running, the far side).
+   MECHANISM (user ruling): the whitelist is DATA, on the city
+   config itself — a ``dark_berth`` opt-in field on ``PlanetSpec``
+   (default False), set True in each pirate-run planet module. The
+   whitelist is the sum of the data opt-ins — grep-visible, no id
+   table in code; adding a port is a one-field content edit. The
+   dock gate reads the spec of the port being landed on.
 
 2. **Patrol challenge hails.** A militia ship that detects a dark
    contact hails the PLAYER (NPC-initiated comms): identify, run,
@@ -266,7 +272,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
       built): the dark dock gate (berthing refused at every port
       except the pirate-run whitelist — lal_b Deadfall, lal_c
       Whisper, ross_b Ember, wolf_b Wolf 359 b; neutral ports
-      refuse too — trust, not patrols) and
+      refuse too — trust, not patrols; the whitelist is the
+      ``dark_berth`` opt-in field on PlanetSpec, set in each
+      pirate-run planet module — no id list in code) and
       the militia challenge hail (NPC-initiated comms on detect:
       identify / run / fire; escalation is pursuit + heat, never a
       guaranteed kill; ghost-run tuning lives with doc 39 when that
