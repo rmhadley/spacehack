@@ -103,18 +103,37 @@ THROUGH ILLEGAL IDs COLLECTED. Identity and reputation live on one
 screen because an ID maps to relations: manage what you wear where
 you see what it resolves to.
 
+## SETTLED (Q2, user ruling 2026-09-06)
+
+**Intrinsic transponders** — every ship has one; it's law
+equipment, not a module slot. Mode changes are worked via services
+and tools (the outlaw ports are the identity economy's storefronts).
+
+**Identity rides the player across LAWFUL ship purchases** — the
+registry transfers you, the owner, to the new hull. Buying through
+legitimate channels is NOT a scrub: your record follows you.
+Corollary (implied, for ruling confirmation): the ship-swap scrub
+exists only through UNLAWFUL acquisition — a hull bought
+no-questions-asked comes unregistered (or wearing whatever face it
+died in). Disappearing means going where the registry doesn't look.
+(Note: unlawful ship sales are currently content that doesn't
+exist — a black-market ship market becomes a design note.)
+
+**The mask cuts both ways (follows from Q1's model):** a scrubed ID
+resolves to BLANK — readers don't see your true ratings, which
+means friends don't recognize you either. Merchants won't wave a
+guildmate through a mask; militia won't honor an allied record.
+Wearing a face trades your real standing for the face's — always.
+
 ## Open questions (the review agenda, remaining)
 
-2. Is the transponder equipment (a module slot) or intrinsic
-   hardware every ship has (modes via software/services)? (Leans:
-   intrinsic + services; ship-swap = a fresh legitimate ID — a
-   natural, expensive scrub. Or should identity ride the player?)
 3. Dark = invisible-to-scanners: is there ANY counter (patrols
    with eyes = detect radius, or better scanners at the Line)?
    What does a patrol do when it physically spots a dark hull?
-4. Does the player's TRUE ID accumulate a record (scans logged,
-   warrants, reputation)? Is there a "known to the Militia" state
-   the player can eventually scrub?
+4. Does the player's TRUE ID accumulate a record beyond the
+   existing faction ratings (scan logs, warrants)? Or is rep the
+   whole record — and "scrubbing" simply means wearing an ID that
+   resolves to blank?
 5. Spoof failure checks: what breaks a false ID, and who runs the
    check (scans? the checkpoint? random audits)?
 6. NPC ships: do they broadcast live IDs the player can read
