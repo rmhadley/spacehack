@@ -81,7 +81,8 @@ the reader resolves:
 
 **Spoof sources (exactly three — each ID carries its own rep
 sheet; the source determines how the sheet is made):**
-- SCRUBBED → blank sheet: all factions neutral. A tramp hull with
+- SCRUBBED → literally a sheet of 0's across the board: all
+  factions neutral. A tramp hull with
   no history; every reader's default-civilian posture. The
   cheapest lie — "I'm no one."
 - CLONED → the sheet is ROLLED from the source at capture (one
@@ -341,8 +342,8 @@ the library carries its own rep sheet (a ``{faction: int}`` dict):
   Writes follow the broadcast (re-ruled 2026-09-06): live → ID 1's
   sheet; spoofed → the worn ID's sheet (a fake builds its own
   record); dark → nothing records. Time decay always ages ID 1.
-- **Scrubbed** → a blank sheet: all neutral. Blank paper, exactly
-  as ruled.
+- **Scrubbed** → literally an ID with 0's across the board for
+  faction reps (user ruling). Blank paper, exactly as ruled.
 - **Cloned** → the sheet is ROLLED from the source at capture (the
   one-roll-per-source, quality-weighted ruling — re-expressed: the
   roll generates the sheet).
@@ -365,8 +366,9 @@ face's ``faction`` field. Consequences:
 - The spawn gate is unchanged (engage only on resolved
   disliked/enemy) — a pirate clone stands the Ross crown down
   because its sheet's VALUES are allied-with-pirates.
-- No save migration: library entries without a ``rep`` field read
-  as a blank sheet (every collectible ID today is scrubbed).
+- No save migration: legacy library entries without a ``rep``
+  field read as an all-zero sheet (every collectible ID today is
+  scrubbed); new scrubs materialize the zeros at purchase.
 
 ## The complete settled design (one statement)
 
@@ -655,26 +657,31 @@ challenge. Scrubbed triggers neither — blank paper complies.
     monthly decay writes the true sheet directly (time, not
     behavior); the story-beat caller (``main_quest/_core``) now
     routes to the broadcasting ID per the ruling (flagged to the
-    user). Library entries and ``broadcast_identity`` already
-    persist — no saveload changes. No save migration (missing
-    ``rep`` = blank); no new acquisition content.
+    user). ``buy_scrubbed_id`` materializes the sheet at purchase —
+    literal 0's for every faction (user ruling: a scrubbed ID IS an
+    ID with 0's across the board). Library entries and
+    ``broadcast_identity`` already
+    persist — no saveload changes. No save migration (legacy
+    entries without ``rep`` read all-neutral via the reader's
+    ``.get``); no new acquisition content.
   - Build order: resolver + tests → write routing → judgement swap
     → static-spawn gate → routed readers → F screen sheet display →
     guide touch → ``make check``.
   - Binding rulings: IDs carry sheets, not faction mappings (no
     player-layer read keys on the face's ``faction`` field); writes
     follow the broadcast (live → ID 1; spoofed → worn sheet; dark →
-    discard; decay → true sheet always); scrubbed sheet starts
-    blank; dark resolves neutral; cloned sheets roll at capture
-    (6); mask cuts both ways at reads (masked trade loses earned
-    attitudes).
+    discard; decay → true sheet always); scrubbed sheet = literal
+    0's across the board; dark resolves neutral; cloned sheets roll
+    at capture (6); mask cuts both ways at reads (masked trade
+    loses earned attitudes).
   - Required tests: resolver per state (live / worn entry with
     sheet / worn blank-sheet scrub / dark); judgement by sheet
     values (blank passes, positive militia sheet passes, hostile
     sheet draws fire — replaces the faction-special-case tests);
     write routing per state (dark discards; spoofed delta lands on
     the worn entry and round-trips save/load; live moves the true
-    sheet; decay ages the true sheet while masked); static spawns
+    sheet; decay ages the true sheet while masked); scrubbed
+    purchase materializes a literal zero sheet; static spawns
     stand down on neutral + engage on disliked/enemy;
     scan chance reads the sheet; trade attitude masked → neutral;
     charged-cell still aggros through any ID; F screen renders the
