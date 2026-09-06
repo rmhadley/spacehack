@@ -281,9 +281,17 @@ def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
 
 
 def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):
-    """Check one entity's auto-hail triggers; return ``(True, data)`` or ``None``."""
+    """Check one entity's auto-hail triggers; return ``(True, data)`` or ``None``.
+
+    A dark transponder is not hailable (doc 40): there is no
+    broadcast to hail, so patrols never trigger the scan hail —
+    the dark ship is countered by eyes, not electronics.
+    """
     _pid = getattr(e, "npc_ship_id", "")
     if not _pid:
+        return None
+    from .identity import broadcast_mode, DARK
+    if broadcast_mode(ctx) == DARK:
         return None
     try:
         _spec = find_npc_ship(_pid)

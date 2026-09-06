@@ -16,6 +16,18 @@ from . import NPC
 
 NPCS: tuple[NPC, ...] = (
     NPC(
+        id="deadfall_scrubber",
+        name="Registry Broker",
+        guild="bar",
+        char="b",
+        fg=(150, 175, 200),
+        flavor_text=(
+            "Every ship has a paper trail. I sell ones that end "
+            "nowhere - a scrubbed hull number, no history, no debts. "
+            "Costs more than it should."
+        ),
+    ),
+    NPC(
         id="barkeep",
         name="Bartender",
         guild="bar",

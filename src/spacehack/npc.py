@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING
 
 from . import main_quest as main_quest_module
 from .data.npcs import NPC, find_npc, list_npcs
+from . import message_log as _ml
 from .game_context import GameContext
 
 if TYPE_CHECKING:
@@ -30,6 +31,8 @@ if TYPE_CHECKING:
 
 class TalkOutcome(Enum):
     """What happened during a single NPC-talk dialog iteration.
+
+    SCRUB: the player selected a scrub-broker's purchase row (doc 40).
 
     ESC walks away (BACK); Enter opens the NPC's mission offerings
     (WORK); when the player has an active delivery mission that
@@ -43,6 +46,7 @@ class TalkOutcome(Enum):
     call site.
     """
     IGNORE = auto()
+    SCRUB = auto()
     BACK = auto()
     WORK = auto()
     DELIVER = auto()
@@ -57,7 +61,7 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
-def _npc_pygame_items(npc, missions, quest_options=()):
+def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None):
     """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
@@ -65,6 +69,12 @@ def _npc_pygame_items(npc, missions, quest_options=()):
         pygame_menu.MenuItem(label, "Continue the main-quest conversation.", f"QUEST:{step_id}")
         for label, step_id in quest_options
     ]
+    if scrub_price is not None:
+        items.append(pygame_menu.MenuItem(
+            f"Buy a scrubbed ID ({scrub_price:,}cr)",
+            "A hull number with no history, filed to your collection.",
+            "SCRUB",
+        ))
     items.extend(
         pygame_menu.MenuItem(
             "Deliver: " + mission.title,
@@ -107,6 +117,8 @@ def _map_pygame_npc_result(outcome, action, missions):
         return (TalkOutcome.QUIT, None)
     if outcome != "SELECT":
         return (TalkOutcome.BACK, None)
+    if action == "SCRUB":
+        return (TalkOutcome.SCRUB, None)
     if action == "WORK":
         return (TalkOutcome.WORK, None)
     if action.startswith("QUEST:"):
@@ -119,10 +131,12 @@ def _map_pygame_npc_result(outcome, action, missions):
             return None
     return None
 
-def _run_pygame_npc_talk(ctx, npc, quest_body, missions, quest_options=()):
+def _run_pygame_npc_talk(
+    ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
+):
     """Run NPC talk through the shared selectable Pygame screen."""
 
-    items = _npc_pygame_items(npc, missions, quest_options)
+    items = _npc_pygame_items(npc, missions, quest_options, scrub_price)
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
         outcome, action, _selected = _run_pygame_menu(
@@ -148,14 +162,16 @@ def _run_npc_talk(
     """
     ctx.log.add(f"You chat briefly with {npc.name}.")
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
-
     _missions = deliver_missions or []
-    n_deliver = len(_missions)
-
     _quest_options = _quest_rows(ctx, npc)
-    n_options = len(_quest_options) + n_deliver + (1 if npc.guild else 0)
+    n_options = len(_quest_options) + len(_missions) + (1 if npc.guild else 0)
     if n_options == 0:
         return _no_options_reply(ctx, npc, _quest_body)
+
+    from .identity import scrub_price as _price
+    _scrub_price = _price(npc.id)
+    if _scrub_price is not None:
+        n_options += 1
 
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
@@ -164,16 +180,23 @@ def _run_npc_talk(
         _quest_body,
         _missions,
         _quest_options,
+        _scrub_price,
     )
+    if result is not None and result[0] is TalkOutcome.SCRUB:
+        return _handle_scrub_purchase(ctx, npc)
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
-    outcome, payload = result
-    if outcome is TalkOutcome.QUEST and isinstance(payload, str):
-        _quit = _accept_quest_option(ctx, npc, payload)
-        if _quit:
-            return (TalkOutcome.QUIT, None)
-        return (outcome, None)
+    if result[0] is TalkOutcome.QUEST and isinstance(result[1], str):
+        return _finish_quest_row(ctx, npc, result)
     return result
+
+
+def _finish_quest_row(ctx, npc, result):
+    """Resolve a selected quest row (offer -> accept -> trigger)."""
+    _quit = _accept_quest_option(ctx, npc, result[1])
+    if _quit:
+        return (TalkOutcome.QUIT, None)
+    return (result[0], None)
 
 
 def _quest_rows(ctx, npc) -> list[tuple[str, str]]:
@@ -188,6 +211,20 @@ def _no_options_reply(ctx, npc, quest_body):
         main_quest_module.show_quest_readout(ctx, npc, quest_body)
     else:
         ctx.log.add(f'{npc.name} has nothing more to say right now.')
+    return (TalkOutcome.BACK, None)
+
+
+def _handle_scrub_purchase(ctx, npc):
+    """Resolve a scrub-broker purchase row (doc 40)."""
+    from .identity import buy_scrubbed_id as _buy_scrub
+    if _buy_scrub(ctx, npc.id):
+        ctx.log.add_colored(
+            f"Scrubbed ID filed: {ctx.collected_ids[-1]['id']}. "
+            "Cycle IDs on the F screen.",
+            _ml.COLOR_IMPORTANT_EVENT,
+        )
+    else:
+        ctx.log.add(f"{npc.name} names a price you can't meet.")
     return (TalkOutcome.BACK, None)
 
 

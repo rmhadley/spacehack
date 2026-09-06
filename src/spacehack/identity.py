@@ -146,8 +146,80 @@ def ensure_registration(ctx) -> str:
     return reg
 
 
+def npc_identity(entity) -> dict[str, Any] | None:
+    """What an NPC ship broadcasts, from its catalog spec.
+
+    NPCs broadcast by default (the honest asymmetry: a merchant
+    stamps its guild proudly; a pirate in lawless space stamps
+    openly — "one of us" is the safety). Returns None for
+    non-ships.
+    """
+    _pid = getattr(entity, "npc_ship_id", "")
+    if not _pid:
+        return None
+    from .data.npc_ships import find_npc_ship
+    try:
+        _spec = find_npc_ship(_pid)
+    except (KeyError, ImportError):
+        return None
+    return {
+        "id": getattr(entity, "name", "") or _spec.name,
+        "kind": "npc",
+        "label": _spec.name,
+        "faction": getattr(_spec, "faction", None),
+    }
+
+
+def apparent_faction(ctx) -> str | None:
+    """The faction a reader resolves from the current broadcast.
+
+    LIVE resolves the player's true relations — readers then pull
+    faction_reputation (the pre-existing behavior). SPOOFED resolves
+    the worn face's faction (a pirate face in Ross reads as one of
+    theirs). DARK resolves nothing.
+    """
+    worn = resolved_identity(ctx)
+    if worn is None:
+        return None
+    return worn.get("faction") or None
+
+
+# Scrub brokers: NPC id -> credits for one scrubbed ID (doc 40 Q6 —
+# acquisition is rare, involved, and PRICED; the first sandbox vector.
+# Militia/fabricated ids come from act 1 quest content, not purchasable).
+SCRUB_BROKERS: dict[str, int] = {
+    "deadfall_scrubber": 6000,
+}
+
+
+def scrub_price(npc_id: str) -> int | None:
+    """The scrubbed-ID price a broker NPC charges, or None."""
+    return SCRUB_BROKERS.get(npc_id)
+
+
+def buy_scrubbed_id(ctx, npc_id: str) -> bool:
+    """Purchase one scrubbed ID from a broker. False: wrong NPC,
+    can't afford, or the library already holds this hull number."""
+    price = scrub_price(npc_id)
+    if price is None or ctx.stats.credits < price:
+        return False
+    face = {
+        "id": generate_registration(),
+        "kind": "scrubbed",
+        "label": "Scrubbed hull",
+        "faction": None,
+        "origin": "no history, no debts",
+    }
+    if not collect_id(ctx, face):
+        return False
+    ctx.stats.credits -= price
+    return True
+
+
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
+    "npc_identity", "apparent_faction",
+    "scrub_price", "buy_scrubbed_id",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
     "ensure_registration",

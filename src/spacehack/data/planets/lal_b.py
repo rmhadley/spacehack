@@ -40,7 +40,7 @@ SPEC = PlanetSpec(
         world.CityBuilding(
             label="spaceport",
             x_lo=8, x_hi=31, y_lo=8, y_hi=18,
-            door_x=20, npc_id="",
+            door_x=20, npc_id="deadfall_scrubber",
         ),
         world.CityBuilding(
             label="bar",

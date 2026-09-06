@@ -187,3 +187,54 @@ def test_faction_frame_shows_the_broadcast_block():
     lines = frame_for(masked).identity_lines
     assert "SPOOFED" in lines[0] and "KG-8812" in lines[0]
     assert "1 collected ID(s)" in lines[2]
+
+
+def test_scrub_broker_purchase_and_gating():
+    """The first acquisition vector: a priced scrub at Deadfall
+    (rare and involved per doc 40 Q6 — 6,000cr, one hull number,
+    no rep required; fabricating militia rank stays quest content)."""
+    from src.spacehack.identity import buy_scrubbed_id, scrub_price
+
+    assert scrub_price("deadfall_scrubber") == 6000
+    assert scrub_price("barkeep") is None
+
+    poor = quest_ctx(credits=5_999)
+    assert not buy_scrubbed_id(poor, "deadfall_scrubber")
+    assert poor.collected_ids == []
+
+    rich = quest_ctx(credits=8_000)
+    assert buy_scrubbed_id(rich, "deadfall_scrubber")
+    assert rich.stats.credits == 2_000
+    face = rich.collected_ids[0]
+    assert face["kind"] == "scrubbed" and face["faction"] is None
+    assert face["id"] != face["id"].lower()  # registration format
+
+
+def test_dark_suppresses_auto_hail(monkeypatch):
+    """A dark transponder is not hailable — the scan hail never
+    fires (dark is countered by eyes, not electronics)."""
+    from src.spacehack import navigation_combat as nc
+    from src.spacehack import world
+
+    fired = []
+    monkeypatch.setattr(
+        nc, "_fire_warning",
+        lambda _ctx, _sys, _e: fired.append(_e) or (True, None),
+    )
+    ctx = quest_ctx()
+    ctx.militia_scanned = set()
+    ctx.player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    patrol = world.Entity(
+        "M", (100, 200, 255), world.Position(5, 6),
+        npc_ship_id="militia_patrol",
+    )
+
+    # Live: the hail fires — the warning opens comms.
+    spec = nc.find_npc_ship("militia_patrol")
+    nc._spec_distance_hail(ctx, "sol", patrol, spec, ctx.player.pos)
+    assert fired == [patrol]
+
+    # Dark: the hail never happens.
+    ctx.broadcast_dark = True
+    nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
+    assert fired == [patrol], "dark ships are not hailable"

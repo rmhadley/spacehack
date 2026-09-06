@@ -103,18 +103,31 @@ _INTERACTION_DISPATCH = {
     "End Transmission": _InteractionOutcome.BACK,
 }
 
-def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
-    """Return a Pygame-selected interaction enum, or None for fallback."""
+def _contact_broadcast_line(contact_entity):
+    """One line naming what the contact broadcasts (doc 40: NPCs
+    broadcast; the hail shows who claims to be on the other end)."""
+    from . import identity
+    _identity = identity.npc_identity(contact_entity)
+    if _identity is None:
+        return ""
+    _faction = _identity.get("faction") or "independent"
+    return f"Broadcast: {_identity['id']} - {_faction}"
+def _hail_frames(ctx, contact_name, contact_spec, options, contact_entity):
+    """One MenuFrame per selectable index for a contact hail."""
     from . import pygame_menu, pygame_ui
 
     items = tuple(
         pygame_menu.MenuItem(option, "Select this transmission action.", option)
         for option in options
     )
-    frames = tuple(
+    _broadcast = _contact_broadcast_line(contact_entity)
+    _body = "\n".join(getattr(contact_spec, "comms_lines", ()) or ("...",))
+    if _broadcast:
+        _body = f"{_broadcast}\n{_body}"
+    return tuple(
         pygame_menu.MenuFrame(
             title=f"{contact_name} - Hailing",
-            body="\n".join(getattr(contact_spec, "comms_lines", ()) or ("...",)),
+            body=_body,
             items=items,
             hints=(pygame_ui.modal_hint(
                 pygame_ui.NAV_HINT, "ENTER select", "ESC back",
@@ -124,24 +137,35 @@ def _pygame_interaction_outcome(ctx, contact_name, contact_spec, options):
         )
         for index in range(max(1, len(items)))
     )
+
+
+def _pygame_interaction_outcome(
+    ctx, contact_name, contact_spec, options, contact_entity=None,
+):
+    """Return a Pygame-selected interaction enum, or None for fallback."""
+    from . import pygame_menu
+
+    _frames = _hail_frames(
+        ctx, contact_name, contact_spec, options, contact_entity,
+    )
     outcome, action, _selected = pygame_menu.run_for_context(
         ctx.context,
-        frames,
+        _frames,
         caption=f"spacehack - {contact_name}",
     )
     if outcome == "GUIDE":
         from .help import _open_context_guide
         _open_context_guide(ctx, "NPCs & Factions")
-        return _pygame_interaction_outcome(ctx, contact_name, contact_spec, options)
+        return _pygame_interaction_outcome(
+            ctx, contact_name, contact_spec, options, contact_entity,
+        )
     if outcome == "QUIT":
         return _InteractionOutcome.QUIT
-    if outcome != "SELECT":
+    if outcome != "SELECT" or not action:
         return _InteractionOutcome.BACK
     return _INTERACTION_DISPATCH.get(action)
 
-# ---------------------------------------------------------------------------
-# Interaction sub-modal (shared between open_comms and open_comms_direct)
-# ---------------------------------------------------------------------------
+
 
 def _contact_options(ctx, contact_spec) -> list[str]:
     """The action rows for one contact, by faction and attitude."""
@@ -284,6 +308,7 @@ def _run_interaction_modal(
     interaction_outcome = (
         _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, _contact_options(ctx, contact_spec),
+            contact_entity=contact_entity,
         )
         or _InteractionOutcome.BACK
     )

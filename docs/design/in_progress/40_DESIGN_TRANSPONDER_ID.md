@@ -207,6 +207,15 @@ into comms; cloning is rare, difficult, expensive — a process.
       through the gate in testing), and the F-screen identity hub
       (broadcast block + D toggle + TAB cycling). Tests:
       tests/test_identity.py (9).
-- [ ] Phase 2+: NPC broadcasts into comms; the acquisition
-      pipeline (scrub services, capture, fabricated rank); resolved
-      identities feeding the Line's sweep (doc 41)
+- [x] PHASE 2 LANDED (2026-09-06): NPCs broadcast into comms (the
+      hail modal opens with the contact's Broadcast line); dark
+      suppresses auto-hail (nothing to hail — eyes, not
+      electronics); the first acquisition vector — the Registry
+      Broker at Deadfall's spaceport sells one scrubbed ID for
+      6,000cr (SCRUB_BROKERS table, priced row in the NPC talk
+      modal; militia/fabricated ids stay act-1 quest content);
+      npc_identity/apparent_faction helpers for the Line and faction
+      reactions. Tests: +2 (11 total).
+- [ ] Phase 3+: resolved identities feeding the Line's sweep
+      (doc 41); capture (shadow/record) as the clone pipeline;
+      faction hostility reading apparent_faction (the Ross pose)
