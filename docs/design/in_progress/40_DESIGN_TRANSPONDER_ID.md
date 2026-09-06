@@ -563,7 +563,7 @@ challenge. Scrubbed triggers neither — blank paper complies.
       only on resolved disliked/enemy) — the Ross fix; charged-cell
       heat bypasses the mask (heat response, not an identity read).
 
-  Implementation brief (4):
+  Implementation brief (4) — APPROVED (user, 2026-09-06):
   - Scope: ``identity.effective_reputation(ctx) -> dict[str, int]``
     (pure; the ONE substitution point). Reader call sites swap
     ``ctx.faction_reputation.get(f, 0)`` for the resolver —
@@ -602,7 +602,7 @@ challenge. Scrubbed triggers neither — blank paper complies.
       a one-time transponder cut-out installed at a pirate-run
       port; the F-screen D is inert until then.
 
-  Implementation brief (5):
+  Implementation brief (5) — APPROVED (user, 2026-09-06):
   - Scope: ``transponder_cutout: bool`` on GameContext (saveload
     both directions; legacy saves migrate False — dark must be
     earned); ``identity.toggle_dark`` refuses without it (plain log
