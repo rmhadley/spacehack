@@ -411,7 +411,8 @@ the crossing is real.
    and does its first activation carry fiction cost (using the
    network the archive warned about — "do not restore the road")?
 6. **Consequences after crossing:** papered players are watched and
-   owe reporting; loud players are hunted; toll players owe a favor.
-   How much consequence modeling in v1 vs. fiction-only?
+   owe reporting; loud players are hunted; bribed players are in one
+   man's ledger. How much consequence modeling in v1 vs.
+   fiction-only?
 7. **Lead presentation** for the standing objective: quest-log lead
    lines, a leads panel, or purely diegetic discovery?
