@@ -359,7 +359,10 @@ face's ``faction`` field. Consequences:
   sheet (pirate clone, bad true record) draws fire. Same outcomes
   as 3b's playtested behavior, one mechanism — the modal, two-option
   set, and one-shot tracking are untouched; only the judgement's
-  read swaps to the sheet (phase 4).
+  read swaps to the sheet (phase 4). Caveat (ADVISE review): in
+  phase 4 only the scrub exists (all-zero passes — outcomes
+  identical); phase 6's roll profiles own the pirate-sheet-passes-
+  a-neutral-militia-read case.
 - The F screen renders the broadcasting ID's actual sheet — no more
   "Friendly (Faked)" / "No Data" approximation rows (the broadcast
   block still says which ID and which mode).
@@ -369,6 +372,19 @@ face's ``faction`` field. Consequences:
 - Ground reads the same sheet (user ruling: no over-complicating —
   on-foot faction hostility, ``faction.spec_is_hostile``, is the
   same read as the ship's transponder).
+
+**Statics: uniform gate, no exceptions (user ruling 2026-09-06,
+verbatim: "Leave it as is right now. If there are other statics
+that always engage right now, so be it.")** No territorial /
+always-engage exception flag is authored — the rep gate applies to
+every static spawn. Known collateral, ACCEPTED: the act-1 Luyten
+militia blockade (``luyten_star.py`` static EnemySpawns, faction
+militia) stands down for any hull whose resolved militia standing
+is not disliked/enemy — a default character (militia +50, liked)
+sails past live. If act 1 wants the blockade drama back, re-keying
+it is doc 39 content, not doc 40. (ADVISE review verified:
+derelicts spawn via ``derelict_spawn_chance``, a separate roll —
+they never route through this pass.)
 - No save migration: legacy library entries without a ``rep``
   field read as an all-zero sheet (every collectible ID today is
   scrubbed); new scrubs materialize the zeros at purchase.
@@ -624,7 +640,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
       "reputation drives this system 100%").
 
   Implementation brief (4) — re-cut + APPROVED (user, 2026-09-06;
-  supersedes the original apparent-standings brief):
+  supersedes the original apparent-standings brief; amended after
+  the ADVISE review the same day — ruling on statics, audit
+  section, reviewer mechanics folded in):
   - Scope: ``identity.effective_reputation(ctx) -> dict[str, int]``
     (pure; returns a FRESH dict — never the live one): live → copy
     of ``ctx.faction_reputation`` (ID 1's sheet); spoofed → the
@@ -635,41 +653,61 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ``navigation_combat._trigger_bounty_spawns`` /
     ``_trigger_procedural_spawns`` (existing gates),
     ``_trigger_static_spawns`` (gate ADDED: engage only on resolved
-    disliked/enemy — audit first that derelict/blocker entities
-    don't route through this pass), ``_militia_scan_chance``,
+    disliked/enemy — NO territorial exceptions, user ruling; ADVISE
+    verified derelicts/blockers spawn via ``derelict_spawn_chance``
+    and don't route through this pass), ``_militia_scan_chance``,
     ``comms`` contact attitude + hostile hail label, ``trade``
-    merchant/npc-faction attitudes, ``mission/_board`` reward
+    merchant/npc-faction attitudes (``_merchant_attitude`` reads
+    the dict object, not the ``.get`` literal — route it through
+    the resolver too), ``mission/_board`` reward
     adjust, ``faction.spec_is_hostile`` ground hostility (shared by
-    ``detect_ground_combat`` / ``ground_npcs._is_hostile`` — the
-    ground read is the SAME sheet, user ruling).
+    ``detect_ground_combat``, ``ground_npcs._is_hostile``, AND
+    ``city_npcs.is_hostile`` — city NPCs stand down under a neutral
+    sheet; the ground read is the SAME sheet, user ruling).
     ``_charged_cell_aggro`` NOT routed; ``faction.py``
     monthly decay keeps the true dict (time, not a reader).
     Superseded face machinery: ``identity.apparent_faction``
-    deleted (with its tests); F screen ``_masked_row`` deleted,
+    deleted (zero tests, zero code callers — clean delete); F
+    screen ``_masked_row`` deleted,
     ``_faction_rows`` renders the resolver's sheet directly;
-    ``_judge_identification`` (comms) judges the broadcasting
-    sheet's militia VALUE — faction special cases removed, pass
+    ``_judge_identification`` (comms) judges the answered ID's
+    sheet militia VALUE — it KEEPS its ``(ctx, face)`` signature
+    and reads ``face``'s ``rep`` (face None → the true dict), so
+    its lone caller (``resolve_identification``, comms.py:399,
+    reached via ``_handle_challenge``:481) needs zero changes —
+    faction special cases removed, pass
     line unchanged, hostile outcomes unify to one line ("The
-    registration reads hostile: the patrol opens fire!"); callers
-    comms.py ``_run``/``resolve_identification`` path adjust
-    (identify sets the broadcast, the judgement reads it). Writes
+    registration reads hostile: the patrol opens fire!"). Writes
     REWORKED (Q4 re-ruled 2026-09-06 — dark-only discard):
     ``modify_rep`` routes by broadcast — dark → discard (nothing
     records); spoofed → the worn ID's sheet via a new ``identity``
     helper (the ``collected_ids`` entry is the single source of
-    truth: look up by worn id, ``setdefault("rep", {})``, reuse
-    ``_apply_rep_delta``'s cap/clamp/log math); live →
+    truth: look up by worn id, ``setdefault("rep", {})``, delegate
+    to ``_apply_rep_delta`` parameterized with ``sheet=None,
+    id_label=None`` — ONE copy of the cap/clamp/log math, and worn-
+    sheet log lines come out labeled with the worn ID); live →
     ``ctx.faction_reputation``. ``in_person`` param deleted:
     monthly decay writes the true sheet directly (time, not
-    behavior); the story-beat caller (``main_quest/_core``) now
-    routes to the broadcasting ID per the ruling (flagged to the
-    user). ``buy_scrubbed_id`` materializes the sheet at purchase —
+    behavior); the story-beat caller (``main_quest/_core.py:112``)
+    now routes to the broadcasting ID per the ruling — DARK
+    discards story ``rewards_rep`` permanently (steps complete
+    once; ruled), so update the stale face-to-face comment there in
+    the same change. ``buy_scrubbed_id`` materializes the sheet at
+    purchase —
     literal 0's for every faction (user ruling: a scrubbed ID IS an
     ID with 0's across the board). Library entries and
     ``broadcast_identity`` already
     persist — no saveload changes. No save migration (legacy
     entries without ``rep`` read all-neutral via the reader's
-    ``.get``); no new acquisition content.
+    ``.get``); no new acquisition content. INVARIANT (ADVISE):
+    rep is read and written ONLY via the library entry or
+    ``ctx.faction_reputation`` — NEVER via ``ctx.broadcast_identity``
+    (post-load the two are separate objects). PERF: per-pass readers
+    hoist ONE resolver call per pass (spawn detect, ground move,
+    city tick) — no per-NPC re-resolution. Guide: the existing
+    "reputation freezes while masked" line is now FALSE — update it
+    (spoofed rep moves the worn sheet; only dark discards; dark F
+    rows render neutral, the mode tag carries the state).
   - Build order: resolver + tests → write routing → judgement swap
     → static-spawn gate → routed readers → F screen sheet display →
     guide touch → ``make check``.
@@ -677,23 +715,30 @@ challenge. Scrubbed triggers neither — blank paper complies.
     player-layer read keys on the face's ``faction`` field); writes
     follow the broadcast (live → ID 1; spoofed → worn sheet; dark →
     discard; decay → true sheet always); scrubbed sheet = literal
-    0's across the board; dark resolves neutral; cloned sheets roll
+    0's across the board; dark resolves neutral; statics gate
+    uniformly — NO exceptions (blockade stand-down accepted);
+    cloned sheets roll
     at capture (6); mask cuts both ways at reads (masked trade
     loses earned attitudes).
   - Required tests: resolver per state (live / worn entry with
-    sheet / worn blank-sheet scrub / dark); judgement by sheet
+    sheet / worn scrub — literal zeros / dark); judgement by sheet
     values (blank passes, positive militia sheet passes, hostile
-    sheet draws fire — replaces the faction-special-case tests);
-    write routing per state (dark discards; spoofed delta lands on
+    sheet draws fire); write routing per state (dark discards;
+    spoofed delta lands on
     the worn entry and round-trips save/load; live moves the true
     sheet; decay ages the true sheet while masked); scrubbed
-    purchase materializes a literal zero sheet; ground hostility
-    reads the sheet (masked stand-down, hostile sheet engages);
+    purchase materializes a literal zero sheet (assert zeros for
+    every faction in ``_ALL_FACTIONS``); ground hostility
+    reads the sheet incl. the ``city_npcs.is_hostile`` caller
+    (masked stand-down, hostile sheet engages);
     static spawns
     stand down on neutral + engage on disliked/enemy;
     scan chance reads the sheet; trade attitude masked → neutral;
     charged-cell still aggros through any ID; F screen renders the
-    worn sheet; live unchanged (existing suite).
+    worn sheet; live unchanged (existing suite). REPLACES (same
+    commit, pure-function test contract): the masked-discard /
+    in_person gate tests (test_identity.py 87-116) and the
+    F-screen "No Data"/"Friendly (Faked)" tests (310-339).
   - Stop point: NO clone capture or rolls (6), no cut-out (5), no
     boarding, no Line work, no new collectible IDs.
   - Playtest checkpoint (numbered): buy the scrub, wear it — the
@@ -701,13 +746,43 @@ challenge. Scrubbed triggers neither — blank paper complies.
     trade prices lose the earned discount; F screen shows the
     scrub's neutral sheet while worn and the true sheet after
     cycling back; terrorize a merchant pilot in the scrub — the
-    worn sheet drops on the F screen, flipping live shows the true
+    worn sheet drops on the F screen (the log line names the worn
+    ID), flipping live shows the true
     sheet untouched, cycling back shows the scrub still hot;
-    save/load keeps the hot scrub; flip live — everything as
-    today; go dark — pirate spawns ignore, militia challenge still
+    save/load keeps the hot scrub; flip live — everything as today
+    EXCEPT statics now gate on resolved standing: the Luyten
+    blockade stands down for a default (militia-liked) live player
+    — EXPECTED, not a bug; go dark — pirate spawns ignore, militia
+    challenge still
     fires, a kill under dark moves nothing; on a save where ground
-    NPCs of a faction engage your live self, wearing the scrub
+    NPCs (city or wild) of a faction engage your live self,
+    wearing the scrub
     stands them down; save/load across all three states.
+
+  Pre-implementation audit (4, 2026-09-06 — added post-ADVISE):
+  - Reuse: ``identity.broadcast_mode`` drives the resolver's
+    three-way branch; rep math reuses ``_apply_rep_delta``
+    (parameterized — no second copy); the judgement reuses its
+    ``(ctx, face)`` signature reading the entry's ``rep``; library
+    lookups reuse ``collected_ids`` helpers; NO new GameContext
+    fields, NO saveload changes (both structures persist today —
+    verified). No new module-level globals.
+  - Duplication hotspots: (1) a second cap/clamp/log copy for
+    worn-sheet writes — killed by the ``_apply_rep_delta``
+    parameterization (also yields the labeled log line);
+    (2) dual-source drift between ``ctx.broadcast_identity`` (a
+    persisted dict COPY) and the ``collected_ids`` entry — killed
+    by the read/write invariant (library entry or true dict only);
+    (3) per-NPC resolver churn in hot passes — killed by hoisting
+    one resolver call per pass (spawn detect, ``move_ground_npcs``,
+    city tick).
+  - DRY strategy: the routing is a named-helper mode branch, not a
+    conditional ladder; reader swaps are mechanical one-line edits
+    (``trade.py:59``'s dict-object shape called out above); ADVISE
+    pack (``/tmp/review_pack_40p4.md``) answered the open audit
+    questions: reader list COMPLETE, ``in_person`` callers exactly
+    two (decay, story beat), ``apparent_faction`` testless and
+    uncalled (clean delete), derelicts outside the static pass.
 
 - [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
       a one-time transponder cut-out installed at a pirate-run
