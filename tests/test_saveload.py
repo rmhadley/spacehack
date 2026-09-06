@@ -78,6 +78,19 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
+    # Identity layer (doc 40): registration, dark flag, worn face, and
+    # the collected-ID library must survive a save/continue cycle.
+    ctx.ship_registration = "AB-1234"
+    ctx.broadcast_dark = True
+    ctx.broadcast_identity = {
+        "id": "KG-8812", "kind": "cloned",
+        "label": "Warlord face", "faction": "pirate",
+    }
+    ctx.collected_ids = [
+        ctx.broadcast_identity,
+        {"id": "KX-1234", "kind": "scrubbed", "label": "Scrubbed hull",
+         "faction": None, "origin": "no history, no debts"},
+    ]
     ctx.main_quest_disposition = "archive_sealed"
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True
@@ -222,6 +235,12 @@ class TestSaveLoadRoundTrip:
 
         # Militia
         assert loaded.militia_scanned == original.militia_scanned
+
+        # Identity layer (doc 40)
+        assert loaded.ship_registration == original.ship_registration
+        assert loaded.broadcast_dark == original.broadcast_dark
+        assert loaded.broadcast_identity == original.broadcast_identity
+        assert loaded.collected_ids == original.collected_ids
 
         # Tutorial mode
         assert loaded.tutorial_mode == original.tutorial_mode

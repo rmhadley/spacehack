@@ -126,6 +126,16 @@ def _ground_equipment_from_dict(raw: object):
     return StoredGroundEquipment(item_type, item_id)
 
 
+def _identity_fields(ctx: GameContext) -> dict:
+    """Serialize the transponder/ID layer (doc 40)."""
+    return {
+        "ship_registration": ctx.ship_registration,
+        "broadcast_dark": bool(ctx.broadcast_dark),
+        "broadcast_identity": _d(ctx.broadcast_identity),
+        "collected_ids": _d(ctx.collected_ids),
+    }
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
@@ -164,6 +174,7 @@ def _core_fields(ctx: GameContext) -> dict:
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
         "militia_scanned": sorted(ctx.militia_scanned),
+        **_identity_fields(ctx),
     }
 
 
