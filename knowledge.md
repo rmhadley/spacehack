@@ -872,7 +872,7 @@ pygame_menu.run_for_context(ctx.context, frames, caption="spacehack - ...")
 Design docs live in `docs/design/` and are the contract between the user and the agent for building complex features.
 
 ### Reference (see `docs/design/knowledge.md`)
-Directory layout, creating a new doc, and moving docs through the lifecycle live in `docs/design/knowledge.md` — read it before starting any design-doc work. The mandatory process rules below live here because they fire on almost every session.
+Directory layout, creating a new doc, and moving docs through the lifecycle live in `docs/design/knowledge.md` — read it before starting any design-doc work. So do the command surface (`/refine-design` ruling loop, `/implement-phase` build loop) and the five-stage session lifecycle map (riff → refine → implement → playtest → close). The mandatory process rules below live here because they fire on almost every session.
 
 ### Pre-implementation audit (MANDATORY before writing code)
 

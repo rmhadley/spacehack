@@ -58,3 +58,31 @@ audit → implement → `make check` → reviewer (REVIEW, via
 playtest checklist at the brief's checkpoint → stop at the brief's
 stop point. A phase with no brief is never coded: the command
 proposes a brief to the user instead.
+
+## The session lifecycle (riff → refine → implement → close)
+
+One feature moves through five session types. Only two are commands —
+commands earn their keep for *loops with mandatory discipline*; the
+one-shot stages are ordinary sessions whose rules live in this
+reference and `knowledge.md`.
+
+1. **Riff + dump** (conversational): ideas with the user; when they
+   say dump, write one or more docs per "Creating a design doc" above
+   — full structure, PLAYTEST per phase, open questions, nothing
+   implemented, presented for review before anything is ruled.
+2. **`/refine-design <n>`** — the ruling loop: open questions become
+   dated SETTLED sections (user wording verbatim; the doc never left
+   contradicting itself), and each settled phase gets an approved
+   Implementation brief. A phase is buildable only after this step.
+3. **`/implement-phase <n>[.<p>]`** — the build loop; refuses
+   unbriefed phases; ends at the brief's playtest checkpoint.
+4. **Playtest notice** (conversational): the user reports pass/fail;
+   update the phase bullet (LANDED + PLAYTEST PASSED, or what failed
+   and the follow-up), record mid-playtest rulings, commit
+   (`docs: ...`), then prompt for the next phase or the close.
+5. **Close** (conversational): every checkbox checked, playtests
+   recorded, no open questions — on the user's confirmation, move the
+   doc to `complete/` and fix cross-references in the same commit.
+
+`/design-brief <n>` is report-only and usable at any point in the
+loop; it edits nothing.
