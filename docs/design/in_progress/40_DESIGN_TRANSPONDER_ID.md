@@ -366,6 +366,9 @@ face's ``faction`` field. Consequences:
 - The spawn gate is unchanged (engage only on resolved
   disliked/enemy) — a pirate clone stands the Ross crown down
   because its sheet's VALUES are allied-with-pirates.
+- Ground reads the same sheet (user ruling: no over-complicating —
+  on-foot faction hostility, ``faction.spec_is_hostile``, is the
+  same read as the ship's transponder).
 - No save migration: legacy library entries without a ``rep``
   field read as an all-zero sheet (every collectible ID today is
   scrubbed); new scrubs materialize the zeros at purchase.
@@ -620,8 +623,8 @@ challenge. Scrubbed triggers neither — blank paper complies.
       every reader; existing consumers keep their logic (user:
       "reputation drives this system 100%").
 
-  Implementation brief (4) — re-cut 2026-09-06, PENDING approval
-  (supersedes the approved apparent-standings brief):
+  Implementation brief (4) — re-cut + APPROVED (user, 2026-09-06;
+  supersedes the original apparent-standings brief):
   - Scope: ``identity.effective_reputation(ctx) -> dict[str, int]``
     (pure; returns a FRESH dict — never the live one): live → copy
     of ``ctx.faction_reputation`` (ID 1's sheet); spoofed → the
@@ -636,7 +639,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
     don't route through this pass), ``_militia_scan_chance``,
     ``comms`` contact attitude + hostile hail label, ``trade``
     merchant/npc-faction attitudes, ``mission/_board`` reward
-    adjust. ``_charged_cell_aggro`` NOT routed; ``faction.py``
+    adjust, ``faction.spec_is_hostile`` ground hostility (shared by
+    ``detect_ground_combat`` / ``ground_npcs._is_hostile`` — the
+    ground read is the SAME sheet, user ruling).
+    ``_charged_cell_aggro`` NOT routed; ``faction.py``
     monthly decay keeps the true dict (time, not a reader).
     Superseded face machinery: ``identity.apparent_faction``
     deleted (with its tests); F screen ``_masked_row`` deleted,
@@ -681,7 +687,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
     write routing per state (dark discards; spoofed delta lands on
     the worn entry and round-trips save/load; live moves the true
     sheet; decay ages the true sheet while masked); scrubbed
-    purchase materializes a literal zero sheet; static spawns
+    purchase materializes a literal zero sheet; ground hostility
+    reads the sheet (masked stand-down, hostile sheet engages);
+    static spawns
     stand down on neutral + engage on disliked/enemy;
     scan chance reads the sheet; trade attitude masked → neutral;
     charged-cell still aggros through any ID; F screen renders the
@@ -697,8 +705,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
     sheet untouched, cycling back shows the scrub still hot;
     save/load keeps the hot scrub; flip live — everything as
     today; go dark — pirate spawns ignore, militia challenge still
-    fires, a kill under dark moves nothing; save/load across all
-    three states.
+    fires, a kill under dark moves nothing; on a save where ground
+    NPCs of a faction engage your live self, wearing the scrub
+    stands them down; save/load across all three states.
 
 - [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
       a one-time transponder cut-out installed at a pirate-run
