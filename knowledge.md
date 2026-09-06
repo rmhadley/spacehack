@@ -733,6 +733,35 @@ Open the guide (``?`` from the main game loop) and verify:
 
 ---
 
+### Quest prose standard (no AI slop)
+
+Quest/dialogue text is plain, concrete, transactional. Scan drafts for
+these tells:
+
+1. abstraction where a transaction belongs
+2. formal future-tense negation; clipped zinger punchlines
+3. information-free similes — a fact would do
+4. personified objects/materials — things don't get fed or want things; "say/call/tell" only with human subjects
+5. the negation-contrast-dash; malformed craft collocations
+6. preordained-outcome claims; narrating events the player may have skipped
+7. abstraction clauses stacked on punctuation
+8. portentous-colon preambles ("But understand this:")
+9. planning-list muddle in orders dialogue — clipped imperatives plus deliberate withholding instead
+10. inanimate attribution of speech
+11. character-softening against a character's established spine
+12. fact-fusion causality — two true facts fused into one false causal clause
+13. under-informing compression gesturing at an undefined story element — the fix is expansion, not a wittier line
+14. accidental innuendo in process descriptions — narrate the operator's procedure, not the machine's experience
+
+Vocabulary test: keep the
+CHARACTER's load-bearing professional word ("assay", "couples"); cut
+the WRITER's showing-off word. Dialogue must survive a logic audit —
+every in-fiction transaction needs a mechanism (who gets what, why the
+payment accomplishes it). When the user supplies replacement wording,
+use it verbatim.
+
+---
+
 ### Module-level state contract
 
 Module-level mutable globals are a deliberate exception to the
@@ -886,7 +915,7 @@ During implementation, the design doc is a **living document**:
 
 ### Self-audit pass (MANDATORY before every commit)
 
-After implementing each change, run a self-audit pass over every file you touched before running the pre-commit gate. There is no separate code-reviewer step — this pass IS the review; it prevents the codebase from accumulating cruft.
+After implementing each change, run a self-audit pass over every file you touched before running the pre-commit gate. This pass is the first review; for code changes (src/ or tests/) the ``reviewer`` subagent (see below) is the second. Together they prevent the codebase from accumulating cruft.
 
 Checklist:
 
@@ -920,16 +949,21 @@ Any issue found is blocking: fix it before commit, even if the change ``works.``
 A workspace subagent pinned to `zai/glm-5.3` (read-only: Read + Bash)
 that enforces this file's rules as a second pair of eyes. Spawn it via
 the Agent tool (`subagent_type: reviewer`) before committing **code**
-changes (src/ or tests/) — after the self-audit pass, before or
-alongside `make check` — and for second opinions on design drafts
-(ADVISE mode). Docs/data-only commits don't need it. The dispatch must
-be self-contained: the mode (REVIEW of working tree / commit range, or
-ADVISE of a doc section), the governing design doc, and specific
-questions. It returns a verdict line (`APPROVE` / `REQUEST_CHANGES` /
-`ADVICE`) plus numbered `[blocking]`/`[minor]` issues with file:line;
-blocking issues are fixed before the commit. Its review draws from the
-same weekly token budget — a focused dispatch (range + doc refs, not
-whole-file dumps) keeps the 5.3 spend small.
+changes (src/ or tests/) — after the self-audit pass AND after
+`make check` passes (the gate catches mechanical failures cheaper than
+a 5.3 spawn; never spawn on a gate-red tree) — and for second opinions
+on design drafts (ADVISE mode). Docs/data-only commits don't need it.
+The dispatch must be self-contained: the mode (REVIEW of working tree /
+commit range, or ADVISE of a doc section), the governing design doc, and
+specific questions — `python3 tools/review_pack.py` assembles the diff,
+status, and named doc sections into one file for a single-Read dispatch.
+It returns a verdict line (`APPROVE` / `REQUEST_CHANGES` / `ADVICE`)
+plus numbered `[blocking]`/`[minor]` issues with file:line; blocking
+issues are fixed before the commit. Re-review loop: mechanical fixes
+the gate can verify don't re-spawn the reviewer; fixes touching a
+contract, a twin pair, or reviewer-flagged risky code do. Its review
+draws from the same weekly token budget — a focused dispatch (range +
+doc refs, not whole-file dumps) keeps the 5.3 spend small.
 
 
 ---

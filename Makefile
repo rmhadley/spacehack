@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip app pyinstaller clean architecture lint test check save-debug
+.PHONY: dist zip app pyinstaller clean architecture lint test check save-debug review-pack
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -104,6 +104,13 @@ architecture:
 # ──────────────────────────────────────────────
 save-debug:
 	$(PYTHON) tools/save_debug.py $(ARGS)
+
+# ──────────────────────────────────────────────
+# review-pack — assemble a one-Read dispatch pack for the reviewer subagent
+# Usage: make review-pack ARGS='--doc docs/... --question "..."'
+# ──────────────────────────────────────────────
+review-pack:
+	$(PYTHON) tools/review_pack.py $(ARGS)
 
 # ──────────────────────────────────────────────
 # lint  — pyflakes-only static check (undefined names, unused imports,
