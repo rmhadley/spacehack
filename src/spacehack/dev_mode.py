@@ -358,3 +358,40 @@ def apply_dev_overrides(
     stats.credits = 999999
     log.add("[DEV MODE] Super-powered frigate + 999,999 credits.")
     return starter_ship, starter_entity, player_owned_ship
+
+
+def dev_transponder_library() -> list[dict]:
+    """Three maxed-rep IDs for dev-mode new games (doc 40).
+
+    Each sheet maxes ONE faction (+100, allied) and leaves the rest
+    at 0 (neutral) — a per-faction test instrument for the transponder
+    layer: wear the face, receive that faction's allied treatment.
+    """
+    from .faction import _ALL_FACTIONS
+    from .identity import generate_registration
+
+    library = []
+    for faction, label in (
+        ("pirate", "Pirate ally"),
+        ("merchant", "Merchant ally"),
+        ("militia", "Militia ally"),
+    ):
+        library.append({
+            "id": generate_registration(),
+            "kind": "cloned",
+            "label": label,
+            "faction": faction,
+            "origin": "dev mode",
+            "rep": {f: 100 if f == faction else 0 for f in _ALL_FACTIONS},
+        })
+    return library
+
+
+def apply_dev_identity_library(ctx) -> None:
+    """Seed the transponder library in dev mode (no-op otherwise)."""
+    import os as _os
+
+    if not _os.environ.get("SPACEHACK_DEV"):
+        return
+    ctx.collected_ids = dev_transponder_library()
+    ctx.log.add("Dev mode: 3 allied transponder IDs filed - TAB cycles them.")

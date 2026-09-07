@@ -830,6 +830,8 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
     ctx.ground_hp = ctx.ground_max_hp
     from .dev_mode import apply_dev_ground_loadout as _apply_dev_ground_loadout
     _apply_dev_ground_loadout(ctx)
+    from .dev_mode import apply_dev_identity_library as _apply_dev_identity
+    _apply_dev_identity(ctx)
     if tutorial:
         from .tutorial import setup_tutorial as _setup_tutorial
         _setup_tutorial(ctx)

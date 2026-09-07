@@ -408,3 +408,44 @@ def test_reroll_run_seed_reseeds_fresh_entropy():
     finally:
         if old is not None:
             os.environ["SPACEHACK_SEED"] = old
+
+
+def test_dev_transponder_library_three_maxed_sheets():
+    """Dev new games file three IDs, each maxing ONE faction to
+    allied (+100) with the rest neutral — the per-faction test
+    instrument for the transponder layer."""
+    from src.spacehack.dev_mode import dev_transponder_library
+    from src.spacehack.faction import _ALL_FACTIONS
+
+    library = dev_transponder_library()
+    assert [entry["faction"] for entry in library] == \
+        ["pirate", "merchant", "militia"]
+    for entry in library:
+        assert entry["kind"] == "cloned"
+        assert entry["rep"][entry["faction"]] == 100
+        assert all(v == 0 for f, v in entry["rep"].items()
+                   if f != entry["faction"])
+        assert set(entry["rep"]) == set(_ALL_FACTIONS)
+    assert len({entry["id"] for entry in library}) == 3, "unique hulls"
+
+
+def test_apply_dev_identity_library_gated(monkeypatch):
+    """Without SPACEHACK_DEV the library is untouched; with it, the
+    three IDs file and the log says so."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import apply_dev_identity_library
+
+    _ctx = SimpleNamespace(collected_ids=[],
+                           log=SimpleNamespace(add=lambda m: None))
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    apply_dev_identity_library(_ctx)
+    assert _ctx.collected_ids == []
+
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    _logged = []
+    _ctx = SimpleNamespace(collected_ids=[],
+                           log=SimpleNamespace(add=_logged.append))
+    apply_dev_identity_library(_ctx)
+    assert len(_ctx.collected_ids) == 3
+    assert any("TAB" in m for m in _logged)
