@@ -858,9 +858,29 @@ challenge. Scrubbed triggers neither — blank paper complies.
     two (decay, story beat), ``apparent_faction`` testless and
     uncalled (clean delete), derelicts outside the static pass.
 
-- [ ] PHASE 5 — dark's cut-out (the price of entry). Dark requires
-      a one-time transponder cut-out installed at a pirate-run
-      port; the F-screen D is inert until then.
+- [x] PHASE 5 — dark's cut-out (the price of entry) — LANDED
+      (2026-09-07; d1e4b16..c69bdf9, 5 gated commits + REVIEW round
+      1 fix + hardening; 1777 green). PLAYTEST PENDING. Dark
+      requires the one-time cut-out; the F-screen D is inert until
+      then. Shipped: ``transponder_cutout`` on GameContext
+      (persisted; LOAD INVARIANT: a save without a cut-out never
+      loads dark — legacy dark saves restore live with a log
+      line), the gated ``toggle_dark`` (pinned refusal line), the
+      F-screen hint state, ``ember_tech`` ("Transponder Tech")
+      seated ALWAYS-ON in Ember's depot interior via
+      ``PlanetSpec.service_npc_spots`` + ``_seat_service_npcs``
+      (the unconditional sibling of the quest seater), the CUTOUT
+      talk row offered only while uninstalled (installed = row
+      gone; the tech then has no rows → flavor reply),
+      ``buy_transponder_cutout`` (2,500cr, charged once), guide
+      updated. REVIEW round 1: REQUEST_CHANGES → 1 BLOCKING (the
+      install row never reached the modal: the zero-options check
+      ran before priced rows counted — the guild-less tech died at
+      ``_no_options_reply``; the scrub twin survives only via its
+      broker's guild row) + 5 minors, all fixed (2298113,
+      c69bdf9); re-review APPROVE. LESSON (structural fix): the
+      built items tuple is the single source of truth for
+      row-existence — parallel counts drift.
 
   Implementation brief (5) — APPROVED (user, 2026-09-06); residuals
   settled + amended (refine session, 2026-09-07 — see the cut-out
@@ -974,14 +994,71 @@ challenge. Scrubbed triggers neither — blank paper complies.
 
 - [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
       clone economy. Ruled above (capture + clone quality section,
-      2026-09-06); the brief is drafted at phase 5's playtest
-      checkpoint (3b precedent — shape may shift with what the
-      phase 4 playtest shows). Carries: the crippled-ship
+      2026-09-06). Carries: the crippled-ship
       boarding extension (shields down + hull intact boardable;
       overkill destroys the prize), crewed interiors (ENEMY
       markers), the C console clone (rig-gated, sheet rolled by
       the source's quality tier — one roll per source, persisted),
       library cap/delete/sell.
+
+  Implementation brief (6) — DRAFTED at phase 5's playtest
+  checkpoint (2026-09-07, per the 3b precedent). Parameter values
+  marked (P?) are PROPOSALS pending user confirmation at this
+  checkpoint — the build session treats them as binding once
+  confirmed:
+  - Scope: (1) live-ship boarding — extend the existing wreck
+    bump-boarding path (``game_interactions._resolve_npc_ship_blocker``)
+    so a LIVE ship crippled to shields-down with hull intact is
+    boardable; overkill (hull destroyed) destroys the prize — no
+    wreck salvage from that kill; (2) crewed interiors — boarding a
+    live ship spawns its crew as ENEMIES inside the ship's interior
+    layout (ENEMY markers authored in the layout per the
+    quest-cache precedent, or the wreck-interior spawn path
+    parameterized — build-time audit picks ONE mechanism); (3) the
+    C console — an interactable at the cockpit; with the clone rig
+    installed it offers CLONE: the target ship's ID enters the
+    library with its sheet ROLLED at capture (see (4)); console
+    taken, the hull powers down to a derelict (existing loot flows
+    apply); (4) the roll — ONE ROLL PER SOURCE, ever (persisted by
+    the library entry itself: the roll generates the ``rep`` sheet
+    at capture); quality-weighted by the source ship's tier
+    (P?: tier = the ship spec's hull-class band; better tiers skew
+    the roll toward the source faction's stronger values — exact
+    bands proposed at build, user-tunable); (5) the clone rig — a
+    one-time purchase (P?: sold by Ember's tech alongside the
+    cut-out, priced above it — the pipeline's second tool; exact
+    price proposed at build); (6) the library — small fixed cap
+    (P?: 4 slots), delete free at the F screen, outlaw-port brokers
+    buy codes back for a fraction (P?: 25% of a code's value;
+    scrub codes sell for a nominal flat) — cap enforcement at
+    capture (full library = the offer refuses, no overwrite).
+  - Build order: boarding extension → crewed interiors → C console
+    + clone + roll → rig acquisition → library cap/delete/sell →
+    guide.
+  - Binding rulings: capture is live-ship boarding only (derelict
+    cloning is NOT a thing); one roll per source, ever; sheets
+    settle at capture and persist on the library entry; ship theft
+    parked (console taken = powered-down derelict, nothing more);
+    cloning stays RARE and DIFFICULT — expensive tools, crewed
+    risk, capped library.
+  - Required tests: cripple-to-boardable per shield/hull state;
+    overkill destroys the prize; crew spawns hostile inside;
+    console clone gated on the rig; the roll is deterministic per
+    (source, seed) and PERSISTS with the entry (one roll per
+    source); library cap refuses at capacity; delete frees a slot;
+    sell pays the fraction and removes the entry; save/load
+    round-trips the rolled sheet.
+  - Stop point: NO ship theft, NO frame-job v2 (blaming the
+    clone's source), NO fabricated-ID content (act 1 owns it), NO
+    Line work.
+  - Playtest checkpoint (numbered): cripple a pirate (shields down,
+    hull intact) → board → fight the crew to the cockpit → clone
+    at the C console → the new ID shows on the F screen with its
+    rolled sheet → wear it in its home faction's space (readers
+    react to the ROLLED values) → try to re-clone the same source
+    (refused — one roll) → fill the library to cap (capture
+    refuses) → delete one at the F screen → sell one at an outlaw
+    broker → save/load keeps the rolled sheets.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
