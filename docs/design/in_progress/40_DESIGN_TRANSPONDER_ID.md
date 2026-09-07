@@ -1040,12 +1040,15 @@ challenge. Scrubbed triggers neither — blank paper complies.
     Grave; user: "one of the npc's with a stall in the market") —
     a new ``CityNpc`` (``wander_radius=0``, civilian char-spec)
     carrying a new NPC persona via its ``npc_id`` field (the
-    existing ambient-vendor→persona mechanism). GATED: the rig row
-    shows only when the RESOLVED sheet's pirate standing is liked
-    (+26 or better) — the dealer reads the broadcasting sheet like
-    every reader in the game, so a pirate-liked clone wears past
-    the gate (uniform, no special case); below it he is ambient
-    flavor. Priced above the cut-out (exact price proposed at
+    existing ambient-vendor→persona mechanism). GATED (user ruling
+    2026-09-07): below the gate he REFUSES TO TALK — unless the
+    RESOLVED sheet's pirate standing is liked (+26 or better),
+    talking to him gets ``Scram.`` (verbatim) and no menu opens;
+    the dealer reads the broadcasting sheet like every reader in
+    the game, so a pirate-liked clone wears past the gate (uniform,
+    no special case). At/above the gate his menu carries the rig
+    row AND the buy row — he is the frontier ID market (next
+    bullet). Priced above the cut-out (exact price proposed at
     build); (6) the library — 6 slots; delete free at the F screen;
     SELL PRICING IS REP-DERIVED (user ruling, 2026-09-07): value =
     small base + a rate per positive rep point across the whole
@@ -1054,8 +1057,11 @@ challenge. Scrubbed triggers neither — blank paper complies.
     code, rep-grind it (writes follow the broadcast — grinding
     while spoofed builds the worn sheet, phase 4 machinery), sell
     it for more than it cost. THE INCOME LOOP IS INTENTIONAL.
-    Exact base + per-point rate proposed at build, tunable. Sold =
-    removed from the library; capture refuses at 6/6.
+    Exact base + per-point rate proposed at build, tunable. THE
+    BUYER (user ruling 2026-09-07): the Wolf dealer himself — same
+    storefront, behind the same gate (below liked he says
+    ``Scram.`` to sellers too); sold = removed from the library;
+    capture refuses at 6/6.
   - Build order: boarding extension → crewed interiors → C console
     + clone + roll → rig vendor + rep gate → library
     cap/delete/sell → guide.
@@ -1070,8 +1076,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
     overkill destroys the prize; crew spawns hostile inside;
     console clone gated on the rig; the roll is deterministic per
     (source, seed) and PERSISTS with the entry (one roll per
-    source); rig row hidden below pirate liked (and for a masked
-    non-liked sheet), shown at liked — masked liked sheet passes;
+    source); below pirate liked (and for a masked non-liked sheet)
+    the dealer refuses to talk — ``Scram.`` pinned, no modal; at
+    liked his menu shows the rig row and the buy row — masked
+    liked sheet passes;
     library cap refuses at 6/6; delete frees a slot; sell value
     rises with positive sheet rep (zero-sheet scrub sells below
     cost, ground-up sheet sells above), sale removes the entry;
@@ -1079,6 +1087,11 @@ challenge. Scrubbed triggers neither — blank paper complies.
   - Stop point: NO ship theft, NO frame-job v2 (blaming the
     clone's source), NO fabricated-ID content (act 1 owns it), NO
     Line work.
+  - Binding rulings addendum (2026-09-07): the Wolf dealer's gate
+    is TOTAL — below pirate liked he refuses to talk entirely
+    (``Scram.``), so the frontier identity economy (rig sales AND
+    the ID buy market) sits behind the +26 gate; the scrub at
+    Deadfall stays un-gated (the loop's cheap on-ramp).
   - Playtest checkpoint (numbered): cripple a pirate (shields
     down, hull intact) → board → fight the crew to the cockpit →
     clone at the C console → the new ID shows on the F screen with
@@ -1086,8 +1099,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
     react to the ROLLED values) → try to re-clone the same source
     (refused — one roll) → fill the library to 6/6 (capture
     refuses) → delete one at the F screen → at the Wolf 359 b
-    market stall: no rig row while pirate standing is below liked,
-    row appears at liked → sell a ground-up ID for above its cost
+    market stall below pirate liked: the dealer says ``Scram.``
+    and won't deal → at liked: his menu carries the rig and the
+    buy row → sell a ground-up ID for above its cost
     → save/load keeps the rolled sheets.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
