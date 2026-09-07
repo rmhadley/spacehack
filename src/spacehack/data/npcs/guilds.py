@@ -28,6 +28,19 @@ NPCS: tuple[NPC, ...] = (
         ),
     ),
     NPC(
+        id="ember_tech",
+        name="Transponder Tech",
+        guild="",
+        char="t",
+        fg=(150, 200, 170),
+        flavor_text=(
+            "A transponder's a snitch with a power lead. The cut-out "
+            "guts it: after that, the F screen's D drops you off "
+            "every scanner's list. Most lawful docks will drop you "
+            "too. That's the price of saying nothing."
+        ),
+    ),
+    NPC(
         id="barkeep",
         name="Bartender",
         guild="bar",

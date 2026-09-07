@@ -59,6 +59,11 @@ class PlanetSpec:
                           load). Unlike ``npc_overrides`` these are
                           ADDITIVE — they never replace the building's
                           regular occupant.
+      service_npc_spots: ``(npc_id, building_label)`` pairs seating an
+                          always-on service NPC inside the named
+                          building's interior beside the resident (the
+                          unconditional sibling of
+                          ``quest_npc_spots``, doc 40 phase 5).
     """
     id: str
     name: str
@@ -78,6 +83,9 @@ class PlanetSpec:
     npc_overrides: tuple[tuple[str, npc_module.NPC], ...] = ()
     # (npc_id, building_label) — where quest-conditional NPCs stand.
     quest_npc_spots: tuple[tuple[str, str], ...] = ()
+    # (npc_id, building_label) — service NPCs seated inside a building's
+    # interior on every load, unconditional (doc 40 phase 5).
+    service_npc_spots: tuple[tuple[str, str], ...] = ()
     produces: tuple[tuple[str, int], ...] = ()
     demands: tuple[tuple[str, int], ...] = ()
     # Mechanic terminal inventory — weapon/module IDs sold at this planet's

@@ -241,3 +241,41 @@ def test_seat_skips_interiors_whose_building_is_not_tagged():
         _ctx("bar", {"bar_q2_proof": "active"}, city="tc_b"), "tc_b", "merchants",
     )
     assert not any(_e.npc_id == "old_smuggler" for _e in _im.entities)
+
+
+# ---------------------------------------------------------------------------
+# Always-on service NPCs (doc 40 phase 5: Ember's cut-out tech)
+# ---------------------------------------------------------------------------
+
+
+def _seat_service(ctx, planet_id: str, label: str):
+    from src.spacehack import city_interiors, city_landmarks
+
+    _rec = _interior_record(planet_id, label)
+    _asset = city_landmarks.load_city_interior(_rec["interior_layout_id"])
+    city_interiors._seat_service_npcs(ctx, _asset.game_map, _rec)
+    return _asset.game_map
+
+
+def test_service_npc_seats_unconditionally_in_embers_depot():
+    """The cut-out tech seats with EMPTY quest progress — services are
+    not quest-gated."""
+    _im = _seat_service(_ctx("", {}, city="ross_b"), "ross_b", "depot")
+    _techs = [_e for _e in _im.entities if _e.npc_id == "ember_tech"]
+    assert len(_techs) == 1
+    assert _im.tiles[_techs[0].pos.y][_techs[0].pos.x].walkable
+
+
+def test_service_seating_is_idempotent_on_cached_interiors():
+    _ctx_ = _ctx("", {}, city="ross_b")
+    _im = _seat_service(_ctx_, "ross_b", "depot")
+    from src.spacehack import city_interiors
+    city_interiors._seat_service_npcs(
+        _ctx_, _im, _interior_record("ross_b", "depot"),
+    )
+    assert sum(_e.npc_id == "ember_tech" for _e in _im.entities) == 1
+
+
+def test_service_npc_stays_out_of_other_interiors():
+    _im = _seat_service(_ctx("", {}, city="ross_b"), "ross_b", "bar")
+    assert not any(_e.npc_id == "ember_tech" for _e in _im.entities)

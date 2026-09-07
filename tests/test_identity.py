@@ -928,3 +928,37 @@ def test_contact_options_read_the_sheet():
     ctx.collected_ids = [dict(_scrub_entry(rep={"merchant": -40}))]
     ctx.broadcast_identity = dict(ctx.collected_ids[0])
     assert "Open Trade" not in comms._contact_options(ctx, merchant)
+
+
+def test_cutout_purchase_installs_once_and_never_twice():
+    """Doc 40 phase 5: the install is one-time, never consumed, and
+    charged exactly once; wrong NPC or empty pockets refuse."""
+    from src.spacehack.identity import buy_transponder_cutout
+
+    ctx = quest_ctx(credits=10_000)
+    assert buy_transponder_cutout(ctx, "ember_tech")
+    assert ctx.transponder_cutout is True
+    assert ctx.stats.credits == 7_500
+    assert not buy_transponder_cutout(ctx, "ember_tech"), "no re-buy"
+    assert ctx.stats.credits == 7_500, "no double charge"
+
+    broke = quest_ctx(credits=100)
+    assert not buy_transponder_cutout(broke, "ember_tech")
+    assert broke.transponder_cutout is False
+
+    assert not buy_transponder_cutout(quest_ctx(), "deadfall_scrubber")
+
+
+def test_cutout_row_offered_only_while_uninstalled():
+    """The install row appears for the tech alone and only on a stock
+    transponder — installed = the row disappears (user ruling)."""
+    from src.spacehack.npc import _cutout_offer
+
+    stock = quest_ctx()
+    assert _cutout_offer(stock, "ember_tech") == 2_500
+
+    installed = quest_ctx(transponder_cutout=True)
+    assert _cutout_offer(installed, "ember_tech") is None
+
+    assert _cutout_offer(stock, "deadfall_scrubber") is None, \
+        "the scrub broker sells no cut-out"

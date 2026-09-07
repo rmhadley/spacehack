@@ -33,6 +33,8 @@ class TalkOutcome(Enum):
     """What happened during a single NPC-talk dialog iteration.
 
     SCRUB: the player selected a scrub-broker's purchase row (doc 40).
+    CUTOUT: the player selected a cut-out tech's install row (doc 40
+    phase 5).
 
     ESC walks away (BACK); Enter opens the NPC's mission offerings
     (WORK); when the player has an active delivery mission that
@@ -47,6 +49,7 @@ class TalkOutcome(Enum):
     """
     IGNORE = auto()
     SCRUB = auto()
+    CUTOUT = auto()
     BACK = auto()
     WORK = auto()
     DELIVER = auto()
@@ -61,7 +64,8 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
-def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None):
+def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
+                      cutout_price=None):
     """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
@@ -74,6 +78,12 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None):
             f"Buy a scrubbed ID ({scrub_price:,}cr)",
             "A hull number with no history, filed to your collection.",
             "SCRUB",
+        ))
+    if cutout_price is not None:
+        items.append(pygame_menu.MenuItem(
+            f"Install a transponder cut-out ({cutout_price:,}cr)",
+            "A one-time job: the transponder can go dark afterward.",
+            "CUTOUT",
         ))
     items.extend(
         pygame_menu.MenuItem(
@@ -119,6 +129,8 @@ def _map_pygame_npc_result(outcome, action, missions):
         return (TalkOutcome.BACK, None)
     if action == "SCRUB":
         return (TalkOutcome.SCRUB, None)
+    if action == "CUTOUT":
+        return (TalkOutcome.CUTOUT, None)
     if action == "WORK":
         return (TalkOutcome.WORK, None)
     if action.startswith("QUEST:"):
@@ -131,12 +143,28 @@ def _map_pygame_npc_result(outcome, action, missions):
             return None
     return None
 
+def _cutout_offer(ctx, npc_id: str) -> int | None:
+    """The install row's price, or None when installed / wrong NPC."""
+    from .identity import cutout_price
+    if getattr(ctx, "transponder_cutout", False):
+        return None
+    return cutout_price(npc_id)
+
+
+def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None]:
+    """(scrub, cutout) row prices — None where no row shows."""
+    from .identity import scrub_price
+    return scrub_price(npc_id), _cutout_offer(ctx, npc_id)
+
 def _run_pygame_npc_talk(
     ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
+    cutout_price=None,
 ):
     """Run NPC talk through the shared selectable Pygame screen."""
 
-    items = _npc_pygame_items(npc, missions, quest_options, scrub_price)
+    items = _npc_pygame_items(
+        npc, missions, quest_options, scrub_price, cutout_price,
+    )
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
         outcome, action, _selected = _run_pygame_menu(
@@ -168,10 +196,9 @@ def _run_npc_talk(
     if n_options == 0:
         return _no_options_reply(ctx, npc, _quest_body)
 
-    from .identity import scrub_price as _price
-    _scrub_price = _price(npc.id)
-    if _scrub_price is not None:
-        n_options += 1
+    _scrub_price, _cutout_price = _priced_rows(ctx, npc.id)
+    n_options += int(_scrub_price is not None)
+    n_options += int(_cutout_price is not None)
 
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
@@ -181,11 +208,13 @@ def _run_npc_talk(
         _missions,
         _quest_options,
         _scrub_price,
+        _cutout_price,
     )
-    if result is not None and result[0] is TalkOutcome.SCRUB:
-        return _handle_scrub_purchase(ctx, npc)
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
+    _purchase = _PURCHASE_HANDLERS.get(result[0])
+    if _purchase is not None:
+        return _purchase(ctx, npc)
     if result[0] is TalkOutcome.QUEST and isinstance(result[1], str):
         return _finish_quest_row(ctx, npc, result)
     return result
@@ -226,6 +255,23 @@ def _handle_scrub_purchase(ctx, npc):
     else:
         ctx.log.add(f"{npc.name} names a price you can't meet.")
     return (TalkOutcome.BACK, None)
+
+
+def _handle_cutout_purchase(ctx, npc):
+    """Resolve a cut-out-tech install row (doc 40 phase 5)."""
+    from .identity import buy_transponder_cutout as _buy_cutout
+    if _buy_cutout(ctx, npc.id):
+        ctx.log.add("Cut-out installed.")
+    else:
+        ctx.log.add(f"{npc.name} names a price you can't meet.")
+    return (TalkOutcome.BACK, None)
+
+
+# Resolved at call time (both handlers defined above).
+_PURCHASE_HANDLERS = {
+    TalkOutcome.SCRUB: _handle_scrub_purchase,
+    TalkOutcome.CUTOUT: _handle_cutout_purchase,
+}
 
 
 def _accept_quest_option(ctx, npc, payload) -> bool:

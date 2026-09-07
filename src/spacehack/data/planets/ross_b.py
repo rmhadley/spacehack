@@ -153,6 +153,9 @@ SPEC = PlanetSpec(
     quest_npc_spots=(
         ("old_smuggler", "bar"),
     ),
+    service_npc_spots=(
+        ("ember_tech", "depot"),
+    ),
     explorable_site_name="caves",
     dark_berth=True,
 )

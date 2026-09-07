@@ -280,11 +280,38 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
     return True
 
 
+# Cut-out techs: NPC id -> credits for the one-time transponder
+# cut-out (doc 40 phase 5 — dark's price of entry). The storefront
+# split is deliberate: scrub at Deadfall's broker, cut-out here.
+CUTOUT_BROKERS: dict[str, int] = {
+    "ember_tech": 2500,
+}
+
+
+def cutout_price(npc_id: str) -> int | None:
+    """The cut-out install price a tech charges, or None."""
+    return CUTOUT_BROKERS.get(npc_id)
+
+
+def buy_transponder_cutout(ctx, npc_id: str) -> bool:
+    """Install the one-time cut-out. False: wrong NPC, can't afford,
+    or already installed. It rides the player across lawful purchases."""
+    price = cutout_price(npc_id)
+    if price is None or getattr(ctx, "transponder_cutout", False):
+        return False
+    if ctx.stats.credits < price:
+        return False
+    ctx.transponder_cutout = True
+    ctx.stats.credits -= price
+    return True
+
+
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
     "npc_identity", "effective_reputation",
     "apply_worn_delta",
     "scrub_price", "buy_scrubbed_id",
+    "cutout_price", "buy_transponder_cutout",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
     "library_position", "ensure_registration",

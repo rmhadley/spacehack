@@ -60,6 +60,40 @@ def _seat_building_npc(game_map: world.GameMap, record: dict) -> None:
     ))
 
 
+def _seat_service_npcs(ctx, game_map: world.GameMap, record: dict) -> None:
+    """Seat the building's always-on service NPCs (doc 40 phase 5).
+
+    The unconditional sibling of the quest seater: additive beside the
+    resident, idempotent on cache hits, data-driven by the planet's
+    ``service_npc_spots``."""
+    from .data.npcs import find_npc
+    from .data.planets import find_planet_spec
+
+    label = record.get("label", "")
+    planet_id = getattr(ctx, "current_city_id", "")
+    if not planet_id or not label:
+        return
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return
+    for npc_id, spot_label in getattr(spec, "service_npc_spots", ()):
+        if spot_label != label:
+            continue
+        if any(getattr(_e, "npc_id", "") == npc_id for _e in game_map.entities):
+            continue
+        spawn = getattr(game_map, "entry_spawn", None)
+        position = _first_interior_npc(game_map, spawn) if spawn is not None else None
+        if position is None:
+            ctx.log.add(f"{npc_id} has no clear cell in {label}.")
+            continue
+        npc = find_npc(npc_id)
+        game_map.entities.append(world.Entity(
+            char=npc.char, fg=npc.fg, pos=position,
+            name=npc.name, npc_id=npc.id, width=1, height=1,
+        ))
+
+
 def _remove_player(game_map: world.GameMap) -> None:
     """Remove transient player entities before reusing a cached map."""
     game_map.entities[:] = [entity for entity in game_map.entities if entity.char != "@"]
@@ -83,6 +117,7 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
     # interiors are deterministic-authored, so completed steps stop seating).
     from .main_quest import seat_quest_npcs_in_interior as _seat_quest
     _seat_quest(ctx, game_map, record)
+    _seat_service_npcs(ctx, game_map, record)
     spawn = getattr(game_map, "entry_spawn", None)
     if spawn is None:
         raise ValueError(f"City interior {cache_key!r} has no entry spawn")
