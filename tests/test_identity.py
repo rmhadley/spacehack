@@ -962,3 +962,41 @@ def test_cutout_row_offered_only_while_uninstalled():
 
     assert _cutout_offer(stock, "deadfall_scrubber") is None, \
         "the scrub broker sells no cut-out"
+
+
+def test_cutout_row_reaches_the_talk_modal_only_while_uninstalled(monkeypatch):
+    """Flow-level pin: the install row is what opens the tech's modal
+    pre-install (guild-less NPC — the row IS his only option); once
+    installed the modal never opens (no rows -> flavor reply)."""
+    from src.spacehack import npc as npc_mod
+    from src.spacehack.data.npcs import find_npc
+
+    calls = []
+
+    def _fake_talk(ctx, npc_obj, body, missions, options=(), scrub=None,
+                   cutout=None):
+        calls.append(cutout)
+        return (npc_mod.TalkOutcome.BACK, None)
+
+    monkeypatch.setattr(npc_mod, "_run_pygame_npc_talk", _fake_talk)
+    _tech = find_npc("ember_tech")
+
+    stock = quest_ctx()
+    npc_mod._run_npc_talk(stock, _tech)
+    assert calls == [2_500], "the stock tech offers exactly the install"
+
+    installed = quest_ctx(transponder_cutout=True)
+    result = npc_mod._run_npc_talk(installed, _tech)
+    assert len(calls) == 1, "post-install the modal never opens"
+    assert result[0] == npc_mod.TalkOutcome.BACK
+
+
+def test_priced_rows_pairs_scrub_and_cutout_offers():
+    """Each storefront carries exactly its own product."""
+    from src.spacehack.npc import _priced_rows
+
+    stock = quest_ctx()
+    assert _priced_rows(stock, "deadfall_scrubber") == (6_000, None)
+    assert _priced_rows(stock, "ember_tech") == (None, 2_500)
+    installed = quest_ctx(transponder_cutout=True)
+    assert _priced_rows(installed, "ember_tech") == (None, None)

@@ -85,7 +85,7 @@ def _seat_service_npcs(ctx, game_map: world.GameMap, record: dict) -> None:
         spawn = getattr(game_map, "entry_spawn", None)
         position = _first_interior_npc(game_map, spawn) if spawn is not None else None
         if position is None:
-            ctx.log.add(f"{npc_id} has no clear cell in {label}.")
+            ctx.log.add(f"[SERVICE NPC] {npc_id} has no clear cell in {label}.")
             continue
         npc = find_npc(npc_id)
         game_map.entities.append(world.Entity(

@@ -121,18 +121,22 @@ def _npc_pygame_frames(npc, quest_body, items):
         for selected in range(max(1, len(items)))
     )
 
+# Simple action -> result rows; QUEST:/DELIVER: need prefix parsing.
+_ACTION_RESULTS = {
+    "SCRUB": (TalkOutcome.SCRUB, None),
+    "CUTOUT": (TalkOutcome.CUTOUT, None),
+    "WORK": (TalkOutcome.WORK, None),
+}
+
+
 def _map_pygame_npc_result(outcome, action, missions):
     """Map a worker result to the existing NPC talk contract."""
     if outcome == "QUIT":
         return (TalkOutcome.QUIT, None)
     if outcome != "SELECT":
         return (TalkOutcome.BACK, None)
-    if action == "SCRUB":
-        return (TalkOutcome.SCRUB, None)
-    if action == "CUTOUT":
-        return (TalkOutcome.CUTOUT, None)
-    if action == "WORK":
-        return (TalkOutcome.WORK, None)
+    if action in _ACTION_RESULTS:
+        return _ACTION_RESULTS[action]
     if action.startswith("QUEST:"):
         return (TalkOutcome.QUEST, action.split(":", 1)[1])
     if action.startswith("DELIVER:"):
@@ -192,13 +196,13 @@ def _run_npc_talk(
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
     _missions = deliver_missions or []
     _quest_options = _quest_rows(ctx, npc)
-    n_options = len(_quest_options) + len(_missions) + (1 if npc.guild else 0)
+    _scrub_price, _cutout_price = _priced_rows(ctx, npc.id)
+    n_options = (
+        len(_quest_options) + len(_missions) + (1 if npc.guild else 0)
+        + int(_scrub_price is not None) + int(_cutout_price is not None)
+    )
     if n_options == 0:
         return _no_options_reply(ctx, npc, _quest_body)
-
-    _scrub_price, _cutout_price = _priced_rows(ctx, npc.id)
-    n_options += int(_scrub_price is not None)
-    n_options += int(_cutout_price is not None)
 
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
