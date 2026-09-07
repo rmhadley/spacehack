@@ -9,9 +9,10 @@ spotting and dense sensor lines), SPOOFED (a collected false ID
 broadcasts in your place and its implied relations are what readers
 react to).
 
-Rep moves only while live — actions under a fake ID cannot alter
-the true ID (the mask cuts both ways on both axes: friends don't
-recognize you, and your deeds don't follow you home).
+Rep writes follow the broadcast (doc 40): LIVE moves the true
+sheet, SPOOFED moves the worn ID's own sheet — a fake builds its
+own record — and DARK records nothing. Reads resolve whichever
+sheet broadcasts; only time decay always ages the true sheet.
 
 Design doc: docs/design/in_progress/40_DESIGN_TRANSPONDER_ID.md
 """
