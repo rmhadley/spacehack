@@ -95,6 +95,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         ai_accuracy_bonus=5,
         ai_dodge_bonus=10,
         capture_layout_id="scout_crew",
+        loot_budget=(250, 800),
         pilot_gunnery=15,
         pilot_piloting=20,
         pilot_engineering=10,
@@ -137,6 +138,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
             "You're in raider space now!",
         ),
         capture_layout_id="cruiser_crew",
+        loot_budget=(600, 1800),
     ),
     # --- Militia ---
     NpcShipSpec(

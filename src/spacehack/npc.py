@@ -297,45 +297,46 @@ def _no_options_reply(ctx, npc, quest_body):
     return (TalkOutcome.BACK, None)
 
 
-def _handle_scrub_purchase(ctx, npc):
-    """Resolve a scrub-broker purchase row (doc 40)."""
-    from .identity import buy_scrubbed_id as _buy_scrub
-    if _buy_scrub(ctx, npc.id):
-        ctx.log.add_colored(
+def _purchase_lines(outcome, ctx):
+    """(colored, line) for a successful identity purchase (doc 40).
+
+    The scrub's line names the new hull number; the rest are fixed."""
+    if outcome is TalkOutcome.SCRUB:
+        return True, (
             f"Scrubbed ID filed: {ctx.collected_ids[-1]['id']}. "
-            "Cycle IDs on the F screen.",
-            _ml.COLOR_IMPORTANT_EVENT,
+            "Cycle IDs on the F screen."
         )
+    _plain = {
+        TalkOutcome.CUTOUT: "Cut-out installed.",
+        TalkOutcome.RIG: "Clone rig acquired.",
+    }
+    return False, _plain[outcome]
+
+
+def _handle_purchase(ctx, npc, outcome):
+    """Resolve any identity purchase row (doc 40): buy, log, done."""
+    from . import identity as _identity
+
+    _buy = {
+        TalkOutcome.SCRUB: _identity.buy_scrubbed_id,
+        TalkOutcome.CUTOUT: _identity.buy_transponder_cutout,
+        TalkOutcome.RIG: _identity.buy_clone_rig,
+    }[outcome]
+    if _buy(ctx, npc.id):
+        _colored, _line = _purchase_lines(outcome, ctx)
+        if _colored:
+            ctx.log.add_colored(_line, _ml.COLOR_IMPORTANT_EVENT)
+        else:
+            ctx.log.add(_line)
     else:
         ctx.log.add(f"{npc.name} names a price you can't meet.")
     return (TalkOutcome.BACK, None)
 
 
-def _handle_cutout_purchase(ctx, npc):
-    """Resolve a cut-out-tech install row (doc 40 phase 5)."""
-    from .identity import buy_transponder_cutout as _buy_cutout
-    if _buy_cutout(ctx, npc.id):
-        ctx.log.add("Cut-out installed.")
-    else:
-        ctx.log.add(f"{npc.name} names a price you can't meet.")
-    return (TalkOutcome.BACK, None)
-
-
-def _handle_rig_purchase(ctx, npc):
-    """Resolve a rig-dealer purchase row (doc 40 6a)."""
-    from .identity import buy_clone_rig as _buy_rig
-    if _buy_rig(ctx, npc.id):
-        ctx.log.add("Clone rig acquired.")
-    else:
-        ctx.log.add(f"{npc.name} names a price you can't meet.")
-    return (TalkOutcome.BACK, None)
-
-
-# Resolved at call time (all handlers defined above).
+# Resolved at call time.
 _PURCHASE_HANDLERS = {
-    TalkOutcome.SCRUB: _handle_scrub_purchase,
-    TalkOutcome.CUTOUT: _handle_cutout_purchase,
-    TalkOutcome.RIG: _handle_rig_purchase,
+    outcome: (lambda ctx, npc, _o=outcome: _handle_purchase(ctx, npc, _o))
+    for outcome in (TalkOutcome.SCRUB, TalkOutcome.CUTOUT, TalkOutcome.RIG)
 }
 
 

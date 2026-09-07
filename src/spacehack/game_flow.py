@@ -31,21 +31,24 @@ from .saveload import save_game as _save_game
 # Space-mode helpers (combat + NPC movement shared by multiple input paths)
 # ---------------------------------------------------------------------------
 
-def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> None:
+def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
     """Run combat encounters in a loop until no more are detected.
 
     Checks auto-comms warnings, runs the detection→combat loop, and
     optionally moves NPCs afterward.  Combat handlers mutate
     ``ctx.player_active_missions`` in place — callers sync their
-    local copy after this returns.
+    local copy after this returns. Returns the last outcome (None
+    when no fight ran) — "BOARDED" means ctx now carries a capture
+    interior the state layer must adopt.
     """
+    _last = None
     _auto_result = _check_auto_comms_warning(
         ctx, player.pos, solar_system_module.current_system(),
     )
     if _auto_result is not None:
         _, _attack_data = _auto_result
         if _attack_data is not None:
-            combat._handle_combat_encounter(ctx, console, _attack_data)
+            _last = combat._handle_combat_encounter(ctx, console, _attack_data)
 
     while True:
         _encounter = _detect_combat_encounter(
@@ -54,8 +57,10 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False) -> N
         if _encounter is None:
             break
         _result = combat._handle_combat_encounter(ctx, console, _encounter)
+        _last = _result
         if _result != "VICTORY":
             break
+    return _last
 
     if also_move_npcs:
         _move_npcs(ctx, ctx.game_map)

@@ -52,11 +52,9 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         return "TARGET"
     if sym_name in {"backslash", "nonusbackslash", "\\"}:
         return "HISTORY"
-    if sym_name in _MOVE_KEYS:
-        return f"MOVE:{sym_name}"
-    if sym_name in {".", "period"}:
-        return "WAIT"
-    return {
+    # The action table wins over movement — "b" is a VIM diagonal but
+    # boards a crippled ship (doc 40 6a).
+    _action = {
         "s": "DEFENSE",
         "w": "WAIT",
         "f": "FIRE",
@@ -64,7 +62,14 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
         "b": "BOARD",
-    }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
+    }.get(sym_name)
+    if _action is not None:
+        return _action
+    if sym_name in _MOVE_KEYS:
+        return f"MOVE:{sym_name}"
+    if sym_name in {".", "period"}:
+        return "WAIT"
+    return f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else ""
 
 
 

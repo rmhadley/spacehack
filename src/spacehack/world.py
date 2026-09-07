@@ -393,6 +393,11 @@ class GameMap:
     ring_geometry: dict | None = None
     ring_void_cells: set[tuple[int, int]] | None = None
     canyon_cells: set[tuple[int, int]] | None = None
+    # Live-ship capture (doc 40 phase 6a), stamped by
+    # game_interactions.begin_capture_boarding on the boarded interior
+    # and serialized with the dungeon payload (see saveload_maps).
+    capture_spec_id: str = ""   # boarded ship spec — routes the C console
+    cloned: bool = False        # its transponder is already copied
     cave_cells: set[tuple[int, int]] | None = None
     bridge_crossings: tuple | None = None
     # Time-varying per-cell coloured light grid (see

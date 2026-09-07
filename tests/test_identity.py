@@ -1004,15 +1004,35 @@ def test_priced_rows_pairs_scrub_and_cutout_offers():
     assert _priced_rows(installed, "ember_tech") == (None, None, None)
 
 
-def test_cutout_action_dispatches_to_the_cutout_handler():
-    """The CUTOUT action must map to the CUTOUT outcome and the CUTOUT
-    handler — a mistyped table would silently sell scrubs instead."""
+def test_cutout_action_dispatches_to_the_cutout_buy(monkeypatch):
+    """The CUTOUT action must map to the CUTOUT outcome and drive the
+    CUTOUT buy — a mistyped table would silently sell scrubs instead."""
     from src.spacehack import npc as npc_mod
 
     result = npc_mod._map_pygame_npc_result("SELECT", "CUTOUT", [])
     assert result == (npc_mod.TalkOutcome.CUTOUT, None)
-    assert npc_mod._PURCHASE_HANDLERS[npc_mod.TalkOutcome.CUTOUT] \
-        is npc_mod._handle_cutout_purchase
+
+    _called = []
+    monkeypatch.setattr(
+        "src.spacehack.identity.buy_transponder_cutout",
+        lambda ctx, nid: _called.append(nid) or True,
+    )
+    ctx = quest_ctx()
+    _npc = SimpleNamespace(id="ember_tech", name="Tech")
+    out = npc_mod._PURCHASE_HANDLERS[npc_mod.TalkOutcome.CUTOUT](ctx, _npc)
+    assert _called == ["ember_tech"]
+    assert out == (npc_mod.TalkOutcome.BACK, None)
+
+
+def test_clone_tier_band_edges():
+    """Hull-class tiers split at base_hull 150/300 (both inclusive)."""
+    from src.spacehack import identity
+
+    assert identity.clone_tier(1) == 1
+    assert identity.clone_tier(150) == 1
+    assert identity.clone_tier(151) == 2
+    assert identity.clone_tier(300) == 2
+    assert identity.clone_tier(301) == 3
 
 
 def test_clone_roll_is_deterministic_and_tier_scaled():
@@ -1045,7 +1065,8 @@ def test_clone_transponder_files_a_sheet_entry():
         "the rolled sheet persists with the entry"
     assert face["kind"] == "cloned"
     assert face["faction"] == "pirate"
-    assert set(face["rep"]) == set(face["rep"]), "sheet is complete"
+    from src.spacehack.faction import _ALL_FACTIONS
+    assert set(face["rep"]) == set(_ALL_FACTIONS), "sheet covers every faction"
     assert face["rep"]["pirate"] >= 0, "tier-1 pirate band starts at 0"
 
 
@@ -1175,6 +1196,50 @@ def test_dealer_menu_at_liked_offers_the_rig_once(monkeypatch):
     assert result[0] == npc_mod.TalkOutcome.BACK
 
 
+def test_dealer_bump_resolves_the_persona_before_the_citizen(monkeypatch):
+    """The routing ordering the dealer is first to exercise: a blocker
+    carrying BOTH npc_id and city_npc_id talks as the persona, not the
+    ambient citizen."""
+    from types import SimpleNamespace
+
+    from src.spacehack import game_interactions as gi
+
+    _blocker = SimpleNamespace(
+        ship_id="", npc_ship_id="", transit_station_id=None,
+        trade_terminal=None, mech_terminal=None, armory_terminal=None,
+        main_quest_console=None, main_quest_door=None,
+        interaction_flavor=None, dungeon_interaction=None,
+        computer_terminal=None,
+        npc_id="wolf_rig_dealer", city_npc_id="wolf_rig_dealer",
+    )
+    _persona = SimpleNamespace(name="Rig Dealer", guild="", id="wolf_rig_dealer",
+                               flavor_text="d.")
+    monkeypatch.setattr(
+        "src.spacehack.npc.find_npc", lambda nid: _persona,
+    )
+    _missions = SimpleNamespace(
+        find_deliverable_missions=lambda *a, **k: [],
+    )
+    _state = SimpleNamespace(
+        ctx=SimpleNamespace(log=SimpleNamespace(add=lambda *a, **k: None)),
+        log=SimpleNamespace(add=lambda *a, **k: None),
+        player_active_missions=[], current_city_id="wolf_b",
+        player_owned_ship=None,
+    )
+    _seen = {}
+    monkeypatch.setattr(gi, "mission_module", _missions)
+    monkeypatch.setattr(
+        gi, "_planet_mission_tier", lambda state: 1,
+    )
+    monkeypatch.setattr(
+        gi, "_run_npc_talk",
+        lambda ctx, npc, **k: _seen.update(name=npc.name) or (None, None),
+    )
+    gi._resolve_occupied(_state, _blocker)
+    assert _seen.get("name") == "Rig Dealer", \
+        "the persona reaches the talk modal, not the citizen fallback"
+
+
 def test_buy_clone_rig_charges_once(monkeypatch):
     from src.spacehack.identity import buy_clone_rig
     monkeypatch.setattr(
@@ -1209,3 +1274,17 @@ def test_dealer_disguise_passes_the_gate():
     assert identity.effective_reputation(ctx)["pirate"] == 40
     assert npc_mod._talk_refusal(ctx, _dealer) is None, \
         "the liked clone wears past the total gate"
+
+    # The mask cuts both ways: true liked standing under a hated mask
+    # still draws the refusal.
+    _liked_true = quest_ctx()
+    _liked_true.faction_reputation["pirate"] = 40
+    _hated_mask = {
+        "id": "KK-0001", "kind": "cloned", "label": "Cloned hull",
+        "faction": "merchant",
+        "rep": {"pirate": -80, "militia": 0, "merchant": 0, "civilian": 0},
+    }
+    _liked_true.collected_ids = [_hated_mask]
+    _liked_true.broadcast_identity = _hated_mask
+    assert npc_mod._talk_refusal(_liked_true, _dealer) == "Scram.", \
+        "the mask, not the true record, is what the dealer reads"

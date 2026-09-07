@@ -54,9 +54,18 @@ def _capture_target(enemy: EnemyInstance, ent) -> bool:
 
 
 def attempt_board(state: SpaceCombatState, target_idx: int) -> bool:
-    """Try to board the current target. False: denial logged, fight on."""
-    enemy = state.enemy_insts[target_idx] if target_idx < len(state.enemy_insts) else None
-    ent = state.enemy_ents.get(target_idx)
+    """Try to board the current target. False: denial logged, fight on.
+
+    ``target_idx`` indexes the ALIVE-filtered list (the loop's target
+    space) — resolve the unfiltered instance + entity from it."""
+    _alive = [_e for _e in state.enemy_insts if _e.alive]
+    enemy = _alive[target_idx] if target_idx < len(_alive) else None
+    ent = None
+    if enemy is not None:
+        for _i, _inst in enumerate(state.enemy_insts):
+            if _inst is enemy:
+                ent = state.enemy_ents.get(_i)
+                break
     _denial = board_denial(state, enemy, ent)
     if _denial is not None:
         state.log.add(_denial)

@@ -392,13 +392,28 @@ def _handle_common_modal_event(state, event):
     return None
 
 
+def _adopt_capture_boarding(state):
+    """BOARDED (doc 40 6a): ctx now carries the capture interior —
+    adopt the transition (the copy-back _apply_movement_interaction
+    does for blockers; the combat path has no state to write)."""
+    state.space_game_map = state.game_map
+    state.space_player = state.player
+    state.game_map = state.ctx.game_map
+    state.player = state.ctx.player
+    state.current_mode = 'dungeon'
+    state.player_active_missions = state.ctx.player_active_missions
+
+
 def _handle_goto_event(state, event):
     """Handle space Go To."""
     if state.current_mode != 'space' or not _is_g_press(event):
         return None
     _goto_outcome, _goto_combat = _run_goto(state.ctx, state.console, state.player)
     if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-        combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
+        _outcome = combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
+        if _outcome == "BOARDED":
+            _adopt_capture_boarding(state)
+            return 'HANDLED'
         _run_combat_loop(state.ctx, state.console, state.player)
         state.player_active_missions = state.ctx.player_active_missions
     return 'HANDLED'
@@ -411,7 +426,10 @@ def _handle_comms_event(state, event):
     from .comms import open_comms as _open_comms
     _attack_data = _open_comms(state.ctx, state.player.pos)
     if _attack_data is not None:
-        combat._handle_combat_encounter(state.ctx, state.console, _attack_data)
+        _outcome = combat._handle_combat_encounter(state.ctx, state.console, _attack_data)
+        if _outcome == "BOARDED":
+            _adopt_capture_boarding(state)
+            return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
     return 'HANDLED'
 
@@ -421,7 +439,9 @@ def _handle_wait_event(state, event):
     if not _is_period_press(event):
         return None
     if state.current_mode == 'space' and state.player_owned_ship is not None:
-        _run_combat_loop(state.ctx, state.console, state.player, also_move_npcs=True)
+        if _run_combat_loop(state.ctx, state.console, state.player, also_move_npcs=True) == "BOARDED":
+            _adopt_capture_boarding(state)
+            return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
     elif state.current_mode == 'dungeon':
         _dctrl = _dungeon_post_move_tick(state.ctx, state.console, state.game_map)
@@ -648,6 +668,19 @@ def _apply_movement_interaction(state, code, blocker, dx, dy):
     return _result
 
 
+def _resolve_move(state, dx, dy):
+    """One movement attempt; a dungeon NPC on the target tile counts
+    as an occupied blocker."""
+    if state.current_mode != 'dungeon':
+        return world.try_move(state.player, state.game_map, dx, dy)
+    _tx, _ty = (state.player.pos.x + dx, state.player.pos.y + dy)
+    if state.game_map.in_bounds(_tx, _ty):
+        _wall_blocker = next((_e for _e in state.game_map.entities if _e.pos.x == _tx and _e.pos.y == _ty and _e.npc_id), None)
+        if _wall_blocker is not None:
+            return ('occupied', _wall_blocker)
+    return world.try_move(state.player, state.game_map, dx, dy)
+
+
 def _handle_movement_event(state, event):
     """Handle movement and post-move transitions."""
     ctx = state.ctx
@@ -656,25 +689,16 @@ def _handle_movement_event(state, event):
     if delta is None:
         return 'HANDLED'
     dx, dy = delta
-    if state.current_mode == 'dungeon':
-        _tx, _ty = (state.player.pos.x + dx, state.player.pos.y + dy)
-        if state.game_map.in_bounds(_tx, _ty):
-            _wall_blocker = next((_e for _e in state.game_map.entities if _e.pos.x == _tx and _e.pos.y == _ty and _e.npc_id), None)
-            if _wall_blocker is not None:
-                code, blocker = ('occupied', _wall_blocker)
-            else:
-                code, blocker = world.try_move(state.player, state.game_map, dx, dy)
-        else:
-            code, blocker = world.try_move(state.player, state.game_map, dx, dy)
-    else:
-        code, blocker = world.try_move(state.player, state.game_map, dx, dy)
+    code, blocker = _resolve_move(state, dx, dy)
     if code == 'moved' and state.current_mode == 'city':
         tutorial_module.notify_move(ctx)
         if enter_city_interior(state) == 'ENTERED':
             return 'HANDLED'
         _advance_city_npcs(state)
     if code == 'moved' and state.current_mode == 'space' and (state.player_owned_ship is not None):
-        _run_combat_loop(ctx, console, state.player, also_move_npcs=True)
+        if _run_combat_loop(ctx, console, state.player, also_move_npcs=True) == "BOARDED":
+            _adopt_capture_boarding(state)
+            return 'HANDLED'
         state.player_active_missions = ctx.player_active_missions
         tick_move(ctx)
     _dungeon_result = _handle_dungeon_move(state, console, code)

@@ -98,7 +98,7 @@ def _apply_kill_reputation(ctx, _cr, _specs) -> None:
     """Apply per-kill playstyle counters and faction rep for a victory.
 
     Kill XP and the ``total_kills`` counter are granted at kill time by
-    ``_rules_space._finalize_kill``; this pass only records the
+    ``_space_kills._finalize_kill``; this pass only records the
     merchant-kill counter and reputation. Squad bonus (+1 to positive
     deltas) folds in when the entire original group is wiped (2+).
     """

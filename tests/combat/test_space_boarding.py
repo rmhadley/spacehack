@@ -145,3 +145,74 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
     assert _interior.capture_spec_id == "pirate_scout"
     assert _entered == {"spec": "pirate_scout", "dm": _interior, "reboard": False}
+
+
+def test_input_b_maps_to_board_not_the_vim_diagonal():
+    """The action table wins over movement: B boards (the reviewer's
+    blocker — 'b' is a VIM diagonal; the table entry was dead code)."""
+    from src.spacehack.combat._loop import _input_action
+
+    _event = SimpleNamespace(key_name="b")
+    assert _input_action(_event) == "BOARD"
+    assert _input_action(SimpleNamespace(key_name="n")) == "MOVE:n", \
+        "the rest of the VIM set still moves"
+
+
+def test_attempt_board_resolves_through_the_alive_list():
+    """The loop's target_idx indexes the ALIVE list — after an escort
+    dies, filtered index 0 is the survivor, not the dead first mate."""
+    _dead = SimpleNamespace(
+        alive=False, spec_id="pirate_scout", name="Dead Scout",
+        shields=0, hull=0, max_hull=100, pos=world.Position(5, 5),
+    )
+    _live = SimpleNamespace(
+        alive=True, spec_id="pirate_raider", name="Live Raider",
+        shields=0, hull=10, max_hull=100, pos=world.Position(11, 10),
+    )
+    _live_ent = SimpleNamespace(
+        procedural_squad_id="sq_2", npc_ship_id="pirate_raider",
+    )
+    state = SpaceCombatState(
+        log=SimpleNamespace(add=lambda *a, **k: None),
+        enemy_insts=[_dead, _live],
+        enemy_ents={0: SimpleNamespace(procedural_squad_id="sq_1"),
+                    1: _live_ent},
+        player_ent=SimpleNamespace(pos=world.Position(10, 10)),
+        cr=CombatResult(),
+    )
+    import src.spacehack.data.npc_ships as _ship_mod
+    _real = _ship_mod.find_npc_ship
+    _ship_mod.find_npc_ship = lambda sid: SimpleNamespace(capture_layout_id="x")
+    try:
+        assert attempt_board(state, 0) is True, \
+            "filtered index 0 boards the LIVE survivor"
+    finally:
+        _ship_mod.find_npc_ship = _real
+    assert state.cr.boarded_spec_id == "pirate_raider"
+    assert state.cr.boarded_ent is _live_ent
+
+
+def test_capture_stamps_round_trip_through_the_dungeon_payload():
+    """Save/load contract: the console stamps serialize with the
+    dungeon payload and restore (a save inside the capture interior
+    keeps the clone available)."""
+    from src.spacehack.saveload_maps import (
+        _apply_dungeon_attributes, _dungeon_to_dict,
+    )
+
+    from src.spacehack.dungeon_layout import load_layout
+
+    _map, _spawn = load_layout("scout_crew")
+    _map.capture_spec_id = "pirate_scout"
+    _map.cloned = False
+    _data = _dungeon_to_dict(_map, None)
+    _restored = SimpleNamespace(entities=[])
+    _apply_dungeon_attributes(_restored, _data)
+    assert _restored.capture_spec_id == "pirate_scout"
+    assert _restored.cloned is False
+
+    _map.cloned = True
+    _apply_dungeon_attributes(
+        _restored, _dungeon_to_dict(_map, None),
+    )
+    assert _restored.cloned is True, "the one-clone stamp survives"

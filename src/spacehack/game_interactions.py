@@ -567,13 +567,19 @@ def begin_capture_boarding(ctx, console, cr):
     from .dungeon import load_layout as _load_layout
 
     _spec = find_npc_ship(cr.boarded_spec_id)
+    try:
+        _dungeon_map, _spawn = _load_layout(
+            _spec.capture_layout_id, loot_budget=_spec.loot_budget,
+        )
+    except (FileNotFoundError, ValueError):
+        ctx.log.add(
+            f"The boarding attempt fails - the {_spec.name} breaks away."
+        )
+        return
     _ent = cr.boarded_ent
     if _ent is not None and _ent in ctx.game_map.entities:
         ctx.game_map.entities.remove(_ent)
     remove_procedural_squad(ctx, _ent)
-    _dungeon_map, _spawn = _load_layout(
-        _spec.capture_layout_id, loot_budget=_spec.loot_budget,
-    )
     _dungeon_map.capture_spec_id = _spec.id
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
     _enter_boarding_dungeon(
