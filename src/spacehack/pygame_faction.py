@@ -291,6 +291,23 @@ def _handle_key(pygame: Any, event: Any) -> str:
     return "IGNORE"
 
 
+def _log_transponder_toggle(ctx: GameContext) -> None:
+    """Flip dark and log one line naming what now broadcasts — the
+    worn ID when one is worn, the true registration otherwise."""
+    from . import identity
+    identity.toggle_dark(ctx)
+    worn = identity.resolved_identity(ctx)
+    if ctx.broadcast_dark:
+        ctx.log.add("Transponder OFF - nothing resolves.")
+    elif worn is not None and worn.get("kind") != "true":
+        ctx.log.add(
+            "Transponder on - broadcasting "
+            f"{identity.identity_label(worn)}."
+        )
+    else:
+        ctx.log.add("Transponder on - broadcasting your true ID.")
+
+
 def run_shared(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings inside the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
@@ -309,13 +326,7 @@ def run_shared(context: PygameContext, ctx: GameContext) -> str:
         event = pygame.event.wait()
         outcome = _handle_key(pygame, event)
         if outcome == "DARK":
-            from . import identity
-            identity.toggle_dark(ctx)
-            ctx.log.add(
-                "Transponder OFF - nothing resolves."
-                if ctx.broadcast_dark else
-                "Transponder on - broadcasting your true ID."
-            )
+            _log_transponder_toggle(ctx)
             frame = frame_for(ctx)
             continue
         if outcome == "CYCLE":
