@@ -176,6 +176,22 @@ def collect_id(ctx, identity: dict[str, Any]) -> bool:
     return True
 
 
+def apply_worn_delta(ctx, faction: str, delta: int) -> None:
+    """Route one rep delta onto the worn ID's sheet (doc 40: a fake
+    builds its own record). The library entry is the single source
+    of truth — its sheet is created on first write, and the log
+    names the worn ID that actually moved."""
+    from .faction import _apply_rep_delta
+    entry = _worn_entry(ctx)
+    if entry is None:
+        return
+    _apply_rep_delta(
+        ctx, faction, delta,
+        sheet=entry.setdefault("rep", {}),
+        id_label=identity_label(entry),
+    )
+
+
 def ensure_registration(ctx) -> str:
     """The ship's registration, generating and persisting one if absent.
 
@@ -275,6 +291,7 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
     "npc_identity", "apparent_faction", "effective_reputation",
+    "apply_worn_delta",
     "scrub_price", "buy_scrubbed_id",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",

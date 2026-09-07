@@ -81,44 +81,36 @@ def test_collect_id_rejects_duplicates():
     assert len(ctx.collected_ids) == 1
 
 
-def test_masked_actions_cannot_alter_true_ratings():
-    """THE doc 40 twist: rep moves only while live. The mask cuts
-    both ways — no losses, and no gains either."""
+def test_rep_writes_follow_the_broadcast():
+    """doc 40 re-cut: rep writes follow the broadcast — live moves ID
+    1's sheet, spoofed moves the WORN ID's sheet (a fake builds its
+    own record), dark records nothing (crimes unsolved)."""
     from src.spacehack.faction import modify_rep
 
     ctx = quest_ctx()
     ctx.faction_reputation = {"militia": 10}
+    ctx.collected_ids = [dict(_scrub_entry())]
+    ctx.broadcast_identity = dict(ctx.collected_ids[0])
+
+    modify_rep(ctx, "militia", 5)  # wearing the scrub: ITS sheet moves
+    assert ctx.collected_ids[0]["rep"]["militia"] == 5
+    assert ctx.faction_reputation["militia"] == 10  # ID 1 untouched
+    assert any("Scrubbed hull" in m.text for m in ctx.log._messages)
 
     ctx.broadcast_dark = True
     modify_rep(ctx, "militia", -5)  # a crime, unseen
-    modify_rep(ctx, "militia", 5)   # a good deed, unrecorded
     assert ctx.faction_reputation["militia"] == 10
+    assert ctx.collected_ids[0]["rep"]["militia"] == 5
 
     ctx.broadcast_dark = False
-    ctx.broadcast_identity = _pirate_face()
-    modify_rep(ctx, "militia", 5)
-    assert ctx.faction_reputation["militia"] == 10
-
-    ctx.broadcast_identity = None  # live again: rep flows
+    ctx.broadcast_identity = None  # live again: rep flows to ID 1
     modify_rep(ctx, "militia", 5)
     assert ctx.faction_reputation["militia"] == 15
-
-
-def test_in_person_events_bypass_the_broadcast_gate():
-    """Face-to-face dealings (quest rewards, NPC talks) don't ride
-    the ship's transponder — they always touch the true ratings."""
-    from src.spacehack.faction import modify_rep
-
-    ctx = quest_ctx()
-    ctx.faction_reputation = {"militia": 10}
-    ctx.broadcast_dark = True
-
-    modify_rep(ctx, "militia", 5, in_person=True)
-    assert ctx.faction_reputation["militia"] == 15
+    assert ctx.collected_ids[0]["rep"]["militia"] == 5
 
 
 def test_monthly_decay_ignores_the_broadcast_state():
-    """Decay is time, not action — it writes directly."""
+    """Decay is time, not action — it always ages ID 1's sheet."""
     from src.spacehack.faction import apply_monthly_decay
 
     ctx = quest_ctx()
@@ -149,17 +141,19 @@ def test_save_round_trip_carries_the_identity_state():
     from src.spacehack.saveload import _restore_quest_and_tutorial
 
     ctx = quest_ctx()
+    hot_scrub = _scrub_entry(rep={"merchant": -40})
     data = {
         "ship_registration": "AB-1234",
         "broadcast_dark": True,
         "broadcast_identity": _pirate_face(),
-        "collected_ids": [_pirate_face()],
+        "collected_ids": [_pirate_face(), hot_scrub],
     }
     _restore_quest_and_tutorial(ctx, data)
     assert ctx.ship_registration == "AB-1234"
     assert ctx.broadcast_dark is True
     assert ctx.broadcast_identity["id"] == "KG-8812"
-    assert ctx.collected_ids[0]["id"] == "KG-8812"
+    assert ctx.collected_ids[1]["rep"] == {"merchant": -40}, \
+        "a hot ID's sheet round-trips"
 
     legacy = quest_ctx()
     _restore_quest_and_tutorial(legacy, {})

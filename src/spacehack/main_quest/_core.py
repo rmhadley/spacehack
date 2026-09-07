@@ -108,8 +108,9 @@ def _apply_completion_rewards(ctx, _step) -> None:
     if _step.rewards_rep:
         from ..faction import modify_rep as _modify_rep
         for _fac, _delta in _step.rewards_rep.items():
-            # Face-to-face quest dealings — the broadcast is irrelevant.
-            _modify_rep(ctx, _fac, _delta, in_person=True)
+            # Story rep lands on the broadcasting ID's sheet (doc 40):
+            # completing a step DARK discards its rep permanently.
+            _modify_rep(ctx, _fac, _delta)
     if _step.rewards_item:
         ctx.main_quest_unlocked_items.add(_step.rewards_item)
     _grant_quest_perk(ctx, _step)

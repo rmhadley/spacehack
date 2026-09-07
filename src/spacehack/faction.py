@@ -328,8 +328,8 @@ def apply_monthly_decay(ctx) -> None:
         elif _rep > 0 and _new <= 0:
             _new = 1
         if _new != _rep:
-            # Decay is time, not action — it ignores the broadcast state.
-            modify_rep(ctx, _fac, _new - _rep, in_person=True)
+            # Decay is time, not action — it always ages ID 1's sheet.
+            _apply_rep_delta(ctx, _fac, _new - _rep)
 
 
 # ---------------------------------------------------------------------------
@@ -397,42 +397,46 @@ def _soft_cap_delta(current: int, delta: int) -> int:
         return delta
     return _room + (delta - _room + 1) // 2
 
-def modify_rep(
-    ctx, faction: str, delta: int, *, in_person: bool = False,
-) -> None:
-    """Apply a reputation delta to ``faction`` (soft cap, clamping,
-    zone-boundary logging).
+def modify_rep(ctx, faction: str, delta: int) -> None:
+    """Apply one reputation delta to the BROADCASTING ID's sheet.
 
-    THE BROADCAST GATE (doc 40): actions under a fake ID cannot alter
-    the true ID — while the transponder is dark or wearing a face,
-    deltas are DISCARDED silently (no losses, and no gains either —
-    the mask cuts both ways). ``in_person=True`` bypasses the gate
-    for events off the transponder: face-to-face dealings (quest
-    rewards, NPC talks) and time decay.
+    Rep writes follow the broadcast (doc 40): LIVE moves the true
+    dict (ID 1's sheet), SPOOFED moves the worn ID's own sheet — a
+    fake builds its own record — and DARK records nothing (a crime
+    under dark is unsolved).
     """
     if delta == 0 or faction not in _ALL_FACTIONS:
         return
-    if not in_person and _broadcast_is_masked(ctx):
+    from . import identity
+    mode = identity.broadcast_mode(ctx)
+    if mode == identity.DARK:
+        return
+    if mode == identity.SPOOFED:
+        identity.apply_worn_delta(ctx, faction, delta)
         return
     _apply_rep_delta(ctx, faction, delta)
 
 
-def _broadcast_is_masked(ctx) -> bool:
-    """True when the ship's broadcast is not the player's true ID."""
-    from .identity import broadcast_mode, LIVE
-    return broadcast_mode(ctx) != LIVE
+def _apply_rep_delta(
+    ctx, faction: str, delta: int, *,
+    sheet: dict[str, int] | None = None,
+    id_label: str | None = None,
+) -> None:
+    """Write one reputation delta with caps, clamps, and logging.
 
-
-def _apply_rep_delta(ctx, faction: str, delta: int) -> None:
-    """Write one reputation delta with caps, clamps, and logging."""
-    old_val: int = ctx.faction_reputation.get(faction, 0)
+    ``sheet`` defaults to the true dict (ID 1's). Worn-sheet writes
+    pass the entry's dict plus an id_label so the log names the ID
+    that actually moved.
+    """
+    target = ctx.faction_reputation if sheet is None else sheet
+    old_val: int = target.get(faction, 0)
     old_attitude: str = get_attitude(old_val)
 
     if delta > 0:
         delta = _soft_cap_delta(old_val, delta)
 
     new_val: int = max(-100, min(100, old_val + delta))
-    ctx.faction_reputation[faction] = new_val
+    target[faction] = new_val
 
     new_attitude: str = get_attitude(new_val)
 
@@ -441,6 +445,8 @@ def _apply_rep_delta(ctx, faction: str, delta: int) -> None:
     msg = f"{sign}{delta} rep with {faction.title()} faction (now {new_val:+d})"
     if new_attitude != old_attitude:
         msg += f", {old_attitude.title()} → {new_attitude.title()}"
+    if id_label:
+        msg = f"[{id_label}] {msg}"
 
     color = _REP_GAIN_COLOR if delta > 0 else _REP_LOSS_COLOR
     ctx.log.add_colored(msg, color)
