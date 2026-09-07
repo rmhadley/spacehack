@@ -258,8 +258,11 @@ def check_layout(path: Path) -> list[str]:
     """Validate an existing ``.layout`` through the real parser plus
     the door/reachability checks on the parsed tiles."""
     reasons: list[str] = []
-    sys.path.insert(0, str(REPO / "src"))
-    from src.spacehack.dungeon_layout import load_layout
+    path = Path(path).resolve()
+    sys.path.insert(0, str(REPO))
+    from src.spacehack import dungeon_layout  # noqa: E402
+
+    load_layout = dungeon_layout.load_layout
 
     layout_id = path.stem
     try:

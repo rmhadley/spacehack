@@ -1,0 +1,366 @@
+{
+  "layout_id": "cruiser_crew",
+  "reference": "ftl_mantis_a_systems.png (The Gila Monster) \u2014 pirate raider deck, bow RIGHT",
+  "size": {
+    "w": 48,
+    "h": 17
+  },
+  "hull": {
+    "spans": [
+      [
+        0,
+        4,
+        43
+      ],
+      [
+        1,
+        2,
+        44
+      ],
+      [
+        2,
+        2,
+        44
+      ],
+      [
+        3,
+        2,
+        44
+      ],
+      [
+        4,
+        2,
+        44
+      ],
+      [
+        5,
+        2,
+        44
+      ],
+      [
+        6,
+        0,
+        47
+      ],
+      [
+        7,
+        0,
+        47
+      ],
+      [
+        8,
+        0,
+        47
+      ],
+      [
+        9,
+        0,
+        47
+      ],
+      [
+        10,
+        0,
+        47
+      ],
+      [
+        11,
+        0,
+        44
+      ],
+      [
+        12,
+        0,
+        44
+      ],
+      [
+        13,
+        0,
+        44
+      ],
+      [
+        14,
+        0,
+        44
+      ],
+      [
+        15,
+        0,
+        44
+      ],
+      [
+        16,
+        4,
+        43
+      ]
+    ]
+  },
+  "rooms": [
+    {
+      "name": "aft_block",
+      "rect": [
+        3,
+        6,
+        13,
+        10
+      ],
+      "role": "helm + entry bay"
+    },
+    {
+      "name": "crew_q_up",
+      "rect": [
+        5,
+        1,
+        12,
+        6
+      ],
+      "role": "crew quarters",
+      "twin": "engineering_dn"
+    },
+    {
+      "name": "weapons_up",
+      "rect": [
+        16,
+        1,
+        22,
+        6
+      ],
+      "role": "weapons bay",
+      "twin": "medbay_dn"
+    },
+    {
+      "name": "shields_up",
+      "rect": [
+        27,
+        1,
+        33,
+        6
+      ],
+      "role": "shield deck",
+      "twin": "cargo_dn"
+    },
+    {
+      "name": "obs_up",
+      "rect": [
+        37,
+        1,
+        42,
+        6
+      ],
+      "role": "observation",
+      "twin": "officer_dn"
+    },
+    {
+      "name": "spine",
+      "rect": [
+        2,
+        8,
+        42,
+        8
+      ],
+      "role": "central corridor"
+    },
+    {
+      "name": "engineering_dn",
+      "rect": [
+        5,
+        10,
+        12,
+        15
+      ],
+      "role": "engineering",
+      "twin": "crew_q_up"
+    },
+    {
+      "name": "medbay_dn",
+      "rect": [
+        16,
+        10,
+        22,
+        15
+      ],
+      "role": "medbay",
+      "twin": "weapons_up"
+    },
+    {
+      "name": "cargo_dn",
+      "rect": [
+        27,
+        10,
+        33,
+        15
+      ],
+      "role": "cargo hold",
+      "twin": "shields_up"
+    },
+    {
+      "name": "officer_dn",
+      "rect": [
+        37,
+        10,
+        42,
+        15
+      ],
+      "role": "officer quarters",
+      "twin": "obs_up"
+    },
+    {
+      "name": "bow_tip",
+      "rect": [
+        44,
+        7,
+        46,
+        9
+      ],
+      "role": "cockpit"
+    }
+  ],
+  "doors": [
+    {
+      "between": [
+        "spine",
+        "crew_q_up"
+      ],
+      "at": [
+        8,
+        7
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "weapons_up"
+      ],
+      "at": [
+        18,
+        7
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "shields_up"
+      ],
+      "at": [
+        29,
+        7
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "obs_up"
+      ],
+      "at": [
+        39,
+        7
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "engineering_dn"
+      ],
+      "at": [
+        8,
+        9
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "medbay_dn"
+      ],
+      "at": [
+        18,
+        9
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "cargo_dn"
+      ],
+      "at": [
+        29,
+        9
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "officer_dn"
+      ],
+      "at": [
+        39,
+        9
+      ]
+    },
+    {
+      "between": [
+        "spine",
+        "bow_tip"
+      ],
+      "at": [
+        43,
+        8
+      ]
+    }
+  ],
+  "entry": {
+    "breach": [
+      1,
+      8
+    ],
+    "spawn": [
+      1,
+      9
+    ],
+    "exit": [
+      1,
+      10
+    ]
+  },
+  "console": {
+    "pos": [
+      46,
+      8
+    ]
+  },
+  "content": {
+    "crew": [
+      {
+        "spec": "pirate_raider",
+        "room": "crew_q_up",
+        "count": "2"
+      },
+      {
+        "spec": "pirate_raider",
+        "room": "engineering_dn",
+        "count": "2"
+      },
+      {
+        "spec": "pirate_rifleman",
+        "room": "obs_up",
+        "count": "1"
+      }
+    ],
+    "loot": [
+      {
+        "room": "weapons_up",
+        "table": "cargo_bay"
+      },
+      {
+        "room": "crew_q_up",
+        "table": "personal_storage"
+      },
+      {
+        "room": "cargo_dn",
+        "table": "cargo_bay"
+      },
+      {
+        "room": "officer_dn",
+        "table": "personal_storage"
+      }
+    ]
+  }
+}
