@@ -259,3 +259,61 @@ def test_adopt_capture_boarding_flips_the_state(monkeypatch):
     assert _state.space_game_map is _space_map
     assert _state.space_player is _space_player
     assert _state.player_active_missions == ["m1"]
+
+
+def test_drift_tail_skipped_after_a_boarding(monkeypatch):
+    """The NPC-drift tail never runs against the capture interior:
+    a detection-loop BOARDED returns before _move_npcs."""
+    import src.spacehack.game_flow as gf
+
+    _drifted = []
+    monkeypatch.setattr(
+        gf, "_check_auto_comms_warning", lambda *a, **k: None,
+    )
+    monkeypatch.setattr(
+        gf, "_detect_combat_encounter",
+        lambda *a, **k: (True,) if not _drifted else None,
+    )
+    monkeypatch.setattr(
+        gf.combat, "_handle_combat_encounter",
+        lambda ctx, console, enc: "BOARDED",
+    )
+    monkeypatch.setattr(
+        gf, "_move_npcs", lambda ctx, gm: _drifted.append(gm),
+    )
+    _ctx = SimpleNamespace(game_map=object(), player=SimpleNamespace(pos=None),
+                           player_active_missions=[])
+    _last = gf._run_combat_loop(_ctx, None, _ctx.player, also_move_npcs=True)
+    assert _last == "BOARDED"
+    assert _drifted == [], "no space drift against the interior"
+
+
+def test_break_away_downgrades_the_outcome(monkeypatch):
+    """A failed interior load breaks away: nothing consumed, the
+    outcome downgrades to ABORTED — no state adopts a non-boarding."""
+    from types import SimpleNamespace as NS
+
+    from src.spacehack.combat._types import CombatResult
+    from src.spacehack.game_interactions import begin_capture_boarding
+
+    _boarded = NS(procedural_squad_id="sq", npc_ship_id="pirate_scout")
+    _space_map = NS(entities=[_boarded], width=80, height=60)
+    _ctx = NS(game_map=_space_map, player=NS(pos=world.Position(1, 1)),
+              log=NS(add=lambda *a, **k: None),
+              procedural_spawns={"sol": []})
+    monkeypatch.setattr(
+        "src.spacehack.dungeon.load_layout",
+        lambda lid, **k: (_ for _ in ()).throw(ValueError("bad layout")),
+    )
+    _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
+                       boarded_ent=_boarded)
+    monkeypatch.setattr(
+        "src.spacehack.data.npc_ships.find_npc_ship",
+        lambda sid: NS(id="pirate_scout", name="Pirate Scout",
+                       ship_id="scout", faction="pirate",
+                       capture_layout_id="missing_layout",
+                       loot_budget=(0, 0)),
+    )
+    begin_capture_boarding(_ctx, None, _cr)
+    assert _cr.outcome == "ABORTED", "the downgrade is the contract"
+    assert _boarded in _space_map.entities, "nothing consumed"

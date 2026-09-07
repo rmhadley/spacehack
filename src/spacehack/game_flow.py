@@ -39,7 +39,9 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
     ``ctx.player_active_missions`` in place — callers sync their
     local copy after this returns. Returns the last outcome (None
     when no fight ran) — "BOARDED" means ctx now carries a capture
-    interior the state layer must adopt.
+    interior the state layer must adopt, and the NPC-drift tail is
+    SKIPPED (the interior is not a space map). Do not "simplify"
+    that guard away.
     """
     _last = None
     _auto_result = _check_auto_comms_warning(
@@ -63,7 +65,9 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
         if _result != "VICTORY":
             break
 
-    if also_move_npcs:
+    # BOARDED: ctx.game_map is already the capture interior — the
+    # space-NPC drift must never run against it (doc 40 6a).
+    if also_move_npcs and _last != "BOARDED":
         _move_npcs(ctx, ctx.game_map)
     return _last
 

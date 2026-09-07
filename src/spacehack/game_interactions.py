@@ -560,7 +560,9 @@ def begin_capture_boarding(ctx, console, cr):
     Consumption happens at ENTRY — the ship is gone from space the
     moment boarding starts (entity removed, spawn record dropped), so
     saving inside the interior rebuilds a space map without it. One
-    board per ship: there is no hull left to re-board.
+    board per ship: there is no hull left to re-board. Returns False
+    when the boarding breaks away (interior load failed): nothing was
+    consumed and the outcome must not stay "BOARDED".
     """
     from .combat._space_kills import remove_procedural_squad
     from .data.npc_ships import find_npc_ship
@@ -575,7 +577,8 @@ def begin_capture_boarding(ctx, console, cr):
         ctx.log.add(
             f"The boarding attempt fails - the {_spec.name} breaks away."
         )
-        return
+        cr.outcome = "ABORTED"  # nothing consumed, no interior to adopt
+        return False
     _ent = cr.boarded_ent
     if _ent is not None and _ent in ctx.game_map.entities:
         ctx.game_map.entities.remove(_ent)
@@ -585,6 +588,7 @@ def begin_capture_boarding(ctx, console, cr):
     _enter_boarding_dungeon(
         _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
     )
+    return True
 
 
 def _confirm_boarding(ctx, npcspec):

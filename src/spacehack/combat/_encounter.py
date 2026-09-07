@@ -232,6 +232,9 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         # Doc 40 phase 6a: consume the boarded hull and enter its
         # crewed interior (the state-bearing seam lives in
         # game_interactions with the rest of the boarding pipeline).
+        # A break-away (interior load failed) downgrades the outcome
+        # to ABORTED inside begin_capture_boarding — nothing was
+        # consumed and there is no interior to adopt.
         from ..game_interactions import begin_capture_boarding
         begin_capture_boarding(ctx, console, _cr)
 
