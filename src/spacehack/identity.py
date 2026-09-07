@@ -312,7 +312,71 @@ __all__ = [
     "apply_worn_delta",
     "scrub_price", "buy_scrubbed_id",
     "cutout_price", "buy_transponder_cutout",
+    "clone_tier", "roll_clone_sheet", "clone_transponder",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
     "library_position", "ensure_registration",
 ]
+
+
+# Clone roll bands (doc 40 phase 6a — user-tunable): the source
+# faction's values roll in a band that scales with the source hull's
+# tier (base_hull thresholds below); every other faction rolls
+# near-neutral. Higher tier = better odds of a strong sheet.
+CLONE_TIER_BANDS: tuple[int, int] = (150, 300)
+CLONE_SOURCE_BANDS: dict[int, tuple[int, int]] = {
+    1: (0, 60), 2: (10, 80), 3: (25, 100),
+}
+CLONE_OTHER_BAND: tuple[int, int] = (-20, 20)
+
+
+def clone_tier(base_hull: int) -> int:
+    """Source hull tier 1..3 from the hull class's base_hull."""
+    if base_hull <= CLONE_TIER_BANDS[0]:
+        return 1
+    if base_hull <= CLONE_TIER_BANDS[1]:
+        return 2
+    return 3
+
+
+def roll_clone_sheet(
+    source_faction: str, tier: int, rng: random.Random | None = None,
+) -> dict[str, int]:
+    """The one roll per captured source: the sheet is generated here
+    and persisted on the library entry (doc 40 phase 6a)."""
+    chooser = rng or random
+    from .faction import _ALL_FACTIONS
+    _lo, _hi = CLONE_SOURCE_BANDS.get(
+        max(1, min(3, tier)), CLONE_SOURCE_BANDS[2],
+    )
+    sheet: dict[str, int] = {}
+    for faction in _ALL_FACTIONS:
+        lo, hi = (_lo, _hi) if faction == source_faction else CLONE_OTHER_BAND
+        sheet[faction] = chooser.randint(lo, hi)
+    return sheet
+
+
+def clone_transponder(
+    ctx, spec, rng: random.Random | None = None,
+) -> dict[str, Any] | None:
+    """Clone a captured ship's transponder at its C console (6a).
+
+    The roll generates the sheet once and the entry persists it.
+    None: the library already holds this hull number (vanishingly
+    unlikely — each clone rolls a fresh registration)."""
+    from .data.ships import find_ship
+    try:
+        tier = clone_tier(find_ship(spec.ship_id).base_hull)
+    except KeyError:
+        tier = 1
+    face = {
+        "id": generate_registration(rng),
+        "kind": "cloned",
+        "label": "Cloned hull",
+        "faction": spec.faction,
+        "origin": f"cloned from a captured {spec.name}",
+        "rep": roll_clone_sheet(spec.faction, tier, rng),
+    }
+    if not collect_id(ctx, face):
+        return None
+    return face

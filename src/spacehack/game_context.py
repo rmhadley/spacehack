@@ -397,6 +397,9 @@ class GameContext:
     # One-time transponder cut-out (doc 40 phase 5), installed by the
     # tech at Ember's depot. Dark requires it; it rides the player.
     transponder_cutout: bool = False
+    # Clone rig (doc 40 phase 6a): the tool the C console of a captured
+    # ship requires. Sold behind the Wolf 359 b dealer's rep gate.
+    transponder_rig: bool = False
     # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
     # True for tutorial runs (started from the title menu); gates the
     # scripted popup flow in spacehack.tutorial. Survives save/load so

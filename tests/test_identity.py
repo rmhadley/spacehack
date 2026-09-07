@@ -9,6 +9,7 @@ builds its own record, dark records nothing), and the identity hub.
 
 from __future__ import annotations
 
+import random
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1011,3 +1012,89 @@ def test_cutout_action_dispatches_to_the_cutout_handler():
     assert result == (npc_mod.TalkOutcome.CUTOUT, None)
     assert npc_mod._PURCHASE_HANDLERS[npc_mod.TalkOutcome.CUTOUT] \
         is npc_mod._handle_cutout_purchase
+
+
+def test_clone_roll_is_deterministic_and_tier_scaled():
+    """The one roll per source: same seed, same sheet; the source
+    faction's band scales with the hull tier, others stay near
+    neutral."""
+    from src.spacehack import identity
+
+    sheet_a = identity.roll_clone_sheet("pirate", 3, random.Random(11))
+    sheet_b = identity.roll_clone_sheet("pirate", 3, random.Random(11))
+    assert sheet_a == sheet_b
+    assert sheet_a["pirate"] >= identity.CLONE_SOURCE_BANDS[3][0]
+    assert all(-20 <= v <= 20 for f, v in sheet_a.items() if f != "pirate")
+
+    weak = identity.roll_clone_sheet("pirate", 1, random.Random(4))
+    assert weak["pirate"] <= identity.CLONE_SOURCE_BANDS[1][1]
+
+
+def test_clone_transponder_files_a_sheet_entry():
+    """A capture clone enters the library as a cloned ID carrying its
+    rolled sheet (the entry persists the roll)."""
+    from src.spacehack import identity
+    from src.spacehack.data.npc_ships import find_npc_ship
+
+    ctx = quest_ctx()
+    face = identity.clone_transponder(ctx, find_npc_ship("pirate_scout"))
+    assert face is not None
+    _filed = ctx.collected_ids[-1]
+    assert _filed["id"] == face["id"] and _filed["rep"] == face["rep"], \
+        "the rolled sheet persists with the entry"
+    assert face["kind"] == "cloned"
+    assert face["faction"] == "pirate"
+    assert set(face["rep"]) == set(face["rep"]), "sheet is complete"
+    assert face["rep"]["pirate"] >= 0, "tier-1 pirate band starts at 0"
+
+
+def test_capture_console_gates_on_the_rig(monkeypatch):
+    """The C console of a captured ship: no rig, no clone; with the
+    rig, one clone (repeat bumps see it copied)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.game_interactions import _resolve_capture_console
+
+    _log = []
+    ctx = quest_ctx()
+    state = SimpleNamespace(
+        ctx=ctx, current_mode="dungeon",
+        game_map=SimpleNamespace(capture_spec_id="pirate_scout"),
+        log=SimpleNamespace(add=_log.append, add_colored=lambda *a, **k: _log.append(a[0])),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.data.npc_ships.find_npc_ship",
+        lambda sid: SimpleNamespace(
+            id="pirate_scout", name="Pirate Scout", ship_id="scout",
+            faction="pirate",
+        ),
+    )
+
+    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert _log[-1] == "No clone rig installed."
+
+    ctx.transponder_rig = True
+    _prompts = []
+    monkeypatch.setattr(
+        "src.spacehack.game_interactions._run_pygame_dungeon_confirm",
+        lambda ctx, **k: _prompts.append(k) or "CONFIRM",
+    )
+    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert len(ctx.collected_ids) == 1
+    assert state.game_map.cloned is True
+
+    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert _log[-1] == "The transponder is already copied."
+    assert len(ctx.collected_ids) == 1, "one console clone per ship"
+
+
+def test_rig_round_trips_through_save(monkeypatch):
+    from src.spacehack.saveload import _restore_quest_and_tutorial
+
+    ctx = quest_ctx()
+    _restore_quest_and_tutorial(ctx, {"transponder_rig": True})
+    assert ctx.transponder_rig is True
+
+    legacy = quest_ctx()
+    _restore_quest_and_tutorial(legacy, {})
+    assert legacy.transponder_rig is False, "legacy saves migrate False"

@@ -454,6 +454,41 @@ def _resolve_dungeon_interaction(state, blocker):
         _resolve_extension_transition(state, blocker, _interaction)
     return 'CONTINUE'
 
+def _resolve_capture_console(state, blocker, capture_spec_id):
+    """The C console in a captured ship: clone its transponder (6a)."""
+    ctx = state.ctx
+    log = state.log
+    from .data.npc_ships import find_npc_ship
+    _spec = find_npc_ship(capture_spec_id)
+    if getattr(state.game_map, 'cloned', False):
+        log.add("The transponder is already copied.")
+        return 'CONTINUE'
+    if not getattr(ctx, 'transponder_rig', False):
+        log.add("No clone rig installed.")
+        return 'CONTINUE'
+    _pygame_clone = _run_pygame_dungeon_confirm(
+        ctx, title='Ship Computer Terminal',
+        body=f"Clone the {_spec.name}'s transponder?",
+        accept_label='Clone', cancel_label='Leave',
+        caption='spacehack - ship computer',
+    )
+    if _pygame_clone == 'QUIT':
+        return 'QUIT'
+    if _pygame_clone != 'CONFIRM':
+        return 'CONTINUE'
+    from .identity import clone_transponder
+    _face = clone_transponder(ctx, _spec)
+    if _face is None:
+        log.add("The copy fails - the registry rejects the number.")
+        return 'CONTINUE'
+    state.game_map.cloned = True
+    log.add_colored(
+        f'Transponder cloned: {_face["id"]}. Cycle IDs on the F screen.',
+        message_log.COLOR_IMPORTANT_EVENT,
+    )
+    return 'CONTINUE'
+
+
 def _resolve_computer_terminal(state, blocker):
     """Resolve the dungeon ship-computer terminal."""
     ctx = state.ctx
@@ -461,6 +496,9 @@ def _resolve_computer_terminal(state, blocker):
     if state.current_mode != 'dungeon':
         log.add(world.blocked_message_for(blocker))
         return None
+    _capture_spec = getattr(state.game_map, 'capture_spec_id', '')
+    if _capture_spec:
+        return _resolve_capture_console(state, blocker, _capture_spec)
     _comp_result = None
     _pygame_comp = _run_pygame_dungeon_confirm(ctx, title='Ship Computer Terminal', body='Restore emergency power to the ship?\n\nThis will boost interior lighting and sensor range.', accept_label='Activate', cancel_label='Leave', caption='spacehack - ship computer')
     if _pygame_comp == 'QUIT':

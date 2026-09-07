@@ -45,6 +45,7 @@ def quest_ctx(
         broadcast_identity=None,
         collected_ids=[],
         transponder_cutout=False,
+        transponder_rig=False,
         mission_boards={},
         generated_missions={},
         completed_mission_ids=set(),
