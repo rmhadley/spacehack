@@ -1013,10 +1013,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
       library cap/delete/sell.
 
   Implementation brief (6) — DRAFTED at phase 5's playtest
-  checkpoint (2026-09-07, per the 3b precedent). Parameter values
-  marked (P?) are PROPOSALS pending user confirmation at this
-  checkpoint — the build session treats them as binding once
-  confirmed:
+  checkpoint (2026-09-07, per the 3b precedent); parameters
+  CONFIRMED by the user at the checkpoint (2026-09-07): rig
+  storefront + rep gate, hull-class roll skew, 6-slot library,
+  rep-sheet sell pricing:
   - Scope: (1) live-ship boarding — extend the existing wreck
     bump-boarding path (``game_interactions._resolve_npc_ship_blocker``)
     so a LIVE ship crippled to shields-down with hull intact is
@@ -1032,44 +1032,63 @@ challenge. Scrubbed triggers neither — blank paper complies.
     taken, the hull powers down to a derelict (existing loot flows
     apply); (4) the roll — ONE ROLL PER SOURCE, ever (persisted by
     the library entry itself: the roll generates the ``rep`` sheet
-    at capture); quality-weighted by the source ship's tier
-    (P?: tier = the ship spec's hull-class band; better tiers skew
-    the roll toward the source faction's stronger values — exact
-    bands proposed at build, user-tunable); (5) the clone rig — a
-    one-time purchase (P?: sold by Ember's tech alongside the
-    cut-out, priced above it — the pipeline's second tool; exact
-    price proposed at build); (6) the library — small fixed cap
-    (P?: 4 slots), delete free at the F screen, outlaw-port brokers
-    buy codes back for a fraction (P?: 25% of a code's value;
-    scrub codes sell for a nominal flat) — cap enforcement at
-    capture (full library = the offer refuses, no overwrite).
+    at capture); quality-weighted by the source ship's hull-class
+    tier (better tiers skew the roll toward the source faction's
+    stronger values — exact bands proposed at build, user-tunable);
+    (5) the clone rig — sold by a NEW stall vendor on Wolf 359 b's
+    Smuggler's Row (the static market just south of the Salty
+    Grave; user: "one of the npc's with a stall in the market") —
+    a new ``CityNpc`` (``wander_radius=0``, civilian char-spec)
+    carrying a new NPC persona via its ``npc_id`` field (the
+    existing ambient-vendor→persona mechanism). GATED: the rig row
+    shows only when the RESOLVED sheet's pirate standing is liked
+    (+26 or better) — the dealer reads the broadcasting sheet like
+    every reader in the game, so a pirate-liked clone wears past
+    the gate (uniform, no special case); below it he is ambient
+    flavor. Priced above the cut-out (exact price proposed at
+    build); (6) the library — 6 slots; delete free at the F screen;
+    SELL PRICING IS REP-DERIVED (user ruling, 2026-09-07): value =
+    small base + a rate per positive rep point across the whole
+    sheet — "sell value will be based on the faction rep tied to
+    the ID," so identities are appreciable assets: buy a scrubbed
+    code, rep-grind it (writes follow the broadcast — grinding
+    while spoofed builds the worn sheet, phase 4 machinery), sell
+    it for more than it cost. THE INCOME LOOP IS INTENTIONAL.
+    Exact base + per-point rate proposed at build, tunable. Sold =
+    removed from the library; capture refuses at 6/6.
   - Build order: boarding extension → crewed interiors → C console
-    + clone + roll → rig acquisition → library cap/delete/sell →
-    guide.
+    + clone + roll → rig vendor + rep gate → library
+    cap/delete/sell → guide.
   - Binding rulings: capture is live-ship boarding only (derelict
     cloning is NOT a thing); one roll per source, ever; sheets
     settle at capture and persist on the library entry; ship theft
     parked (console taken = powered-down derelict, nothing more);
     cloning stays RARE and DIFFICULT — expensive tools, crewed
-    risk, capped library.
+    risk, rep-gated seller, capped library; identity selling is a
+    legitimate income loop, priced by the sheet's own standing.
   - Required tests: cripple-to-boardable per shield/hull state;
     overkill destroys the prize; crew spawns hostile inside;
     console clone gated on the rig; the roll is deterministic per
     (source, seed) and PERSISTS with the entry (one roll per
-    source); library cap refuses at capacity; delete frees a slot;
-    sell pays the fraction and removes the entry; save/load
-    round-trips the rolled sheet.
+    source); rig row hidden below pirate liked (and for a masked
+    non-liked sheet), shown at liked — masked liked sheet passes;
+    library cap refuses at 6/6; delete frees a slot; sell value
+    rises with positive sheet rep (zero-sheet scrub sells below
+    cost, ground-up sheet sells above), sale removes the entry;
+    save/load round-trips the rolled sheet.
   - Stop point: NO ship theft, NO frame-job v2 (blaming the
     clone's source), NO fabricated-ID content (act 1 owns it), NO
     Line work.
-  - Playtest checkpoint (numbered): cripple a pirate (shields down,
-    hull intact) → board → fight the crew to the cockpit → clone
-    at the C console → the new ID shows on the F screen with its
-    rolled sheet → wear it in its home faction's space (readers
+  - Playtest checkpoint (numbered): cripple a pirate (shields
+    down, hull intact) → board → fight the crew to the cockpit →
+    clone at the C console → the new ID shows on the F screen with
+    its rolled sheet → wear it in its home faction's space (readers
     react to the ROLLED values) → try to re-clone the same source
-    (refused — one roll) → fill the library to cap (capture
-    refuses) → delete one at the F screen → sell one at an outlaw
-    broker → save/load keeps the rolled sheets.
+    (refused — one roll) → fill the library to 6/6 (capture
+    refuses) → delete one at the F screen → at the Wolf 359 b
+    market stall: no rig row while pirate standing is below liked,
+    row appears at liked → sell a ground-up ID for above its cost
+    → save/load keeps the rolled sheets.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
