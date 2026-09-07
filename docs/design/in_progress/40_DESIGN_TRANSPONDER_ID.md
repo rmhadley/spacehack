@@ -447,6 +447,26 @@ passed over this pass; a brand-new pirate port remains
 deliberate later content. Name/flavor drafted at build,
 user-dictatable; offer row and install log stay as pinned above.
 
+## SETTLED (boarding coverage + bounty consume, user rulings 2026-09-07)
+
+- **Every ship you fight is boardable.** Coverage is no longer a
+  per-spec opt-in rollout: each battle-capable NpcShipSpec gets a
+  crewed capture layout (authored per faction, ship-anatomy
+  coherent). The `capture_layout_id` field stays the mechanism —
+  it just stops being a two-spec pilot.
+- **Consuming a boarded bounty ship completes the bounty.** The
+  "can't reboard — the ship is gone" consumption is the boarding
+  twin of the kill: for bounty-linked hulls, exit-and-consume
+  counts for the bounty goal. (Kill-adjacent bookkeeping — rep
+  deltas, XP, the tombstone — is 6c brief material: settle what a
+  consumed hull shares with a killed one.)
+- **Layout quality bar:** ship interiors follow the ship-layout
+  grammar — doors connect (no door to nowhere), the hull envelope
+  seals (no interior cell open to space), BFS-validated. The
+  layout editor gains these two ship-interior checks, and the
+  authoring is collaborative: agent drafts, user walks the deck
+  in-game, iterate.
+
 ## The complete settled design (one statement)
 
 Every ship broadcasts. An ID is an identifier that maps to
@@ -1030,7 +1050,15 @@ challenge. Scrubbed triggers neither — blank paper complies.
       PLAYTEST-CRITICAL lessons: shared keymaps need table-vs-move
       precedence rules; outcome strings that mutate state need an
       owner for failure paths; every `_run_combat_loop` caller is
-      a state-adoption site. Re-cut 6 → 6a + 6b
+      a state-adoption site. Playtest (2026-09-07): PASSED with
+      two follow-ups spun into 6c — the authored crew layouts fail
+      basic ship logic (doors to nowhere, hull gaps open to space)
+      and only 2 of the battle specs are capture targets. Mid-
+      playtest additions: dev-mode new games file three maxed-rep
+      IDs (ff9a182); the dealer moved inside the market square
+      (9a31fc9); flavor + rig-row wording per user (c1b480b,
+      ac212a9); Gear line on the C screen (5392ecd); conditional
+      [b] Board hint (1e9e986). Re-cut 6 → 6a + 6b
       (user-approved 2026-09-07, per the ADVISE review; 6a is the
       novel-machinery vertical slice). Boarding conditions (user,
       2026-09-07): no shields up, 75% hull damage done, no other
@@ -1185,9 +1213,23 @@ challenge. Scrubbed triggers neither — blank paper complies.
   - Stop point: 6b only (cap/delete/sell), plus the standing
     6a stop points.
 
-- [ ] PHASE 6b — the library economy: cap, delete, sell. The
-      uniform half (phase-4/5 patterns: tables, purchase handlers,
-      F screen).
+- [ ] PHASE 6c — boarding coverage for every battle spec + the
+      crewed-layout authoring pass. Spun out of 6a's playtest
+      (2026-09-07). Content + validation work; the layouts are
+      authored COLLABORATIVELY (agent drafts → user walks the deck
+      in-game → iterate), so this phase's brief is drafted
+      together with the user at its start — no build without it.
+      Carries: layout-editor validation for ship interiors (every
+      door connects; the hull envelope seals the interior; BFS
+      reachability), re-authored scout_crew/cruiser_crew, new
+      crewed layouts for every remaining battle spec, bounty-goal
+      completion on consume (bookkeeping share TBD: rep/XP/
+      tombstone), and the capture-target list widened to every
+      fightable spec. Open questions for the brief: what a
+      consumed hull shares with a killed one (kill rep? XP? loot?
+      none?); bounty WINGMATES (do they count, or the leader
+      only?); per-faction layout set (one per spec vs shared
+      templates per hull class).
 
   Implementation brief (6b) — ADVISE-reviewed + rulings folded
   (2026-09-07):
