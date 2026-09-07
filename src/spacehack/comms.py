@@ -186,7 +186,8 @@ def _pygame_interaction_outcome(
 
 def _contact_options(ctx, contact_spec) -> list[str]:
     """The action rows for one contact, by faction and attitude."""
-    _contact_rep = ctx.faction_reputation.get(
+    from . import identity
+    _contact_rep = identity.effective_reputation(ctx).get(
         getattr(contact_spec, 'faction', ''), 0,
     )
     _attitude = _get_attitude(_contact_rep)
@@ -548,11 +549,13 @@ def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
 
 def _pygame_contact_result(ctx, contacts):
     """Run the contact list through Pygame and return selected contact."""
+    from . import identity
     from . import pygame_menu, pygame_ui
 
+    _sheet = identity.effective_reputation(ctx)
     items = tuple(
         pygame_menu.MenuItem(
-            f"{name} (hostile)" if _get_attitude(ctx.faction_reputation.get(spec.faction, 0)) in ("enemy", "disliked") else name,
+            f"{name} (hostile)" if _get_attitude(_sheet.get(spec.faction, 0)) in ("enemy", "disliked") else name,
             spec.comms_lines[0] if spec.comms_lines else "...",
             f"CONTACT:{index}",
         )

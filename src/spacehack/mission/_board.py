@@ -213,9 +213,10 @@ def _faction_pay_pct(ctx, guild: str) -> int:
     """Return the current reputation reward adjustment for a guild."""
     if ctx is None:
         return 0
+    from .. import identity
     from ..faction import guild_to_faction, adjust_reward_pct, get_attitude
     _faction = guild_to_faction(guild)
-    _rep = ctx.faction_reputation.get(_faction, 0)
+    _rep = identity.effective_reputation(ctx).get(_faction, 0)
     return adjust_reward_pct(get_attitude(_rep))
 
 

@@ -55,8 +55,9 @@ def good_market_role(spec, good_id: str) -> str:
 
 def _merchant_attitude(ctx) -> str:
     """Return the player's merchant-faction attitude zone."""
+    from . import identity
     from .faction import get_attitude
-    rep = getattr(ctx, "faction_reputation", None) or {}
+    rep = identity.effective_reputation(ctx)
     return get_attitude(rep.get("merchant", 0))
 
 
@@ -263,9 +264,11 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     current = stocks.get(good_id, 0)
     target = _target_stock_for(planet_id, good_id)
     price = trade_price(good.base_price, current, target)
-    # Apply the merchant faction reputation discount.
+    # Apply the merchant faction reputation discount (the worn ID's
+    # sheet — a mask trades your earned discount for the face's).
+    from . import identity
     from .faction import get_attitude, buy_price_modifier
-    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _merchant_rep = identity.effective_reputation(ctx).get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     _mod = buy_price_modifier(_attitude)
     return max(1, int(price * _mod))
@@ -279,8 +282,9 @@ def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     credits received.
     """
     buy_price = _unit_price(ctx, planet_id, good_id)
+    from . import identity
     from .faction import get_attitude, sell_price_modifier
-    _merchant_rep = ctx.faction_reputation.get("merchant", 0)
+    _merchant_rep = identity.effective_reputation(ctx).get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     _sell_mod = sell_price_modifier(_attitude)
     return max(1, int(buy_price * 3 // 4 * _sell_mod))
@@ -486,9 +490,10 @@ def _run_pygame_npc_trade(
 
 def _npc_attitude(ctx: GameContext, npc_spec) -> str:
     """Faction attitude toward the player for this NPC ship."""
+    from . import identity
     from .faction import get_attitude
     _npc_faction = getattr(npc_spec, "faction", "civilian")
-    return get_attitude(ctx.faction_reputation.get(_npc_faction, 0))
+    return get_attitude(identity.effective_reputation(ctx).get(_npc_faction, 0))
 
 
 def _npc_trade_gate(ctx: GameContext, npc_spec) -> bool:

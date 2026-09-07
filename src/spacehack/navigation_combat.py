@@ -89,6 +89,7 @@ def _trigger_bounty_spawns(ctx, player_pos, system_id, alive_spawns):
     """Pass 1b: mark dynamic bounty spawns within detect radius."""
     _triggered_solo_positions: set = set()
     _bounty_spawns = ctx.bounty_spawns.get(system_id, [])
+    _sheet = identity.effective_reputation(ctx)
     for _bs in _bounty_spawns:
         try:
             _espec = find_npc_ship(_bs.enemy_id)
@@ -99,16 +100,14 @@ def _trigger_bounty_spawns(ctx, player_pos, system_id, alive_spawns):
         alive_spawns.append((_bs, _espec))
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         _radius = _espec.detect_radius
-        _aggro = _charged_cell_aggro(ctx, system_id, getattr(_espec, "faction", ""))
+        _faction = _espec.faction
+        _aggro = _charged_cell_aggro(ctx, system_id, _faction)
         if _aggro:
             _radius = max(_radius, 30)
-        if _dist > 0 and _dist <= _radius:
-            # Reputation gate: only hostile factions trigger combat
-            # (militia aggro bypasses rep — they attack on sight).
-            if not _aggro and _get_attitude(
-                ctx.faction_reputation.get(_espec.faction, 0),
-            ) not in ("enemy", "disliked"):
-                continue
+        if (
+            _dist > 0 and _dist <= _radius
+            and _gate_engages(_sheet, _faction, _aggro)
+        ):
             _triggered_solo_positions.add((_bs.pos.x, _bs.pos.y))
             # Squad grouping: if ANY squad member triggers, add ALL
             # squad members so the entire squad joins combat together.
@@ -123,6 +122,7 @@ def _trigger_bounty_spawns(ctx, player_pos, system_id, alive_spawns):
 def _trigger_procedural_spawns(ctx, player_pos, system_id, alive_spawns):
     """Pass 1c: mark procedural NPC squads within detect radius."""
     _triggered_squad_ids: set = set()
+    _sheet = identity.effective_reputation(ctx)
     _procedural_entities = [
         _e for _e in ctx.game_map.entities
         if not getattr(_e, "owned", False)
@@ -137,15 +137,14 @@ def _trigger_procedural_spawns(ctx, player_pos, system_id, alive_spawns):
         alive_spawns.append((_pe, _espec))
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         _radius = _espec.detect_radius
-        _aggro = _charged_cell_aggro(ctx, system_id, getattr(_espec, "faction", ""))
+        _faction = _espec.faction
+        _aggro = _charged_cell_aggro(ctx, system_id, _faction)
         if _aggro:
             _radius = max(_radius, 30)
-        if _dist > 0 and _dist <= _radius:
-            # Reputation gate: only hostile factions trigger combat.
-            if not _aggro and _get_attitude(
-                ctx.faction_reputation.get(_espec.faction, 0),
-            ) not in ("enemy", "disliked"):
-                continue
+        if (
+            _dist > 0 and _dist <= _radius
+            and _gate_engages(_sheet, _faction, _aggro)
+        ):
             _triggered_squad_ids.add(_pe.procedural_squad_id)
     return _triggered_squad_ids
 
@@ -207,7 +206,7 @@ def _militia_scan_chance(ctx) -> float:
     Disliked/Enemy = 80%. Bar-chain militia heat (Act 0) applies a
     +30% floor (min 60%, capped 80%) while hot quest cargo is held.
     """
-    _rep = ctx.faction_reputation.get("militia", 0)
+    _rep = identity.effective_reputation(ctx).get("militia", 0)
     _att = _get_attitude(_rep)
     _table = {
         "allied": 0.0,

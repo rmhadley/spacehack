@@ -802,3 +802,37 @@ def test_static_spawns_gate_on_the_resolved_sheet():
         set(), set(),
     )
     assert identity.broadcast_mode(ctx) == identity.DARK
+
+
+def test_readers_resolve_the_sheet_space_and_ground():
+    """Every reader resolves the broadcasting ID's sheet (doc 40): the
+    scan chance, trade attitudes, mission-board pay, and ground
+    hostility read the SAME sheet — on foot as under the stars."""
+    from types import SimpleNamespace
+
+    from src.spacehack import navigation_combat as nc
+    from src.spacehack import trade
+    from src.spacehack.faction import spec_is_hostile
+    from src.spacehack.mission._board import _faction_pay_pct
+
+    # A hot scrub: merchants distrust this ID; militia is fine with it.
+    # (The true record is the reverse — liked merchants, near-neutral
+    # militia.)
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"merchant": 40, "militia": 10}
+    ctx.collected_ids = [dict(_scrub_entry(rep={"merchant": -40}))]
+    ctx.broadcast_identity = dict(ctx.collected_ids[0])
+
+    assert nc._militia_scan_chance(ctx) == 0.40  # sheet-neutral militia
+    assert trade._merchant_attitude(ctx) == "disliked"
+    assert _faction_pay_pct(ctx, "merchants") == -15
+
+    merchant = SimpleNamespace(faction="merchant", always_hostile=False)
+    militia = SimpleNamespace(faction="militia", always_hostile=False)
+    assert spec_is_hostile(ctx, merchant) is True   # hates the scrub
+    assert spec_is_hostile(ctx, militia) is False   # neutral to it
+
+    ctx.broadcast_identity = None  # live: the true record returns
+    assert trade._merchant_attitude(ctx) == "liked"
+    assert _faction_pay_pct(ctx, "merchants") == 10
+    assert spec_is_hostile(ctx, merchant) is False

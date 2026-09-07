@@ -62,9 +62,15 @@ class TestGoodMarketRole:
 
 class TestMarketIntelGate:
     def _ctx(self, rep):
-        ctx = MagicMock()
-        ctx.faction_reputation = {"merchant": rep}
-        return ctx
+        # Explicit broadcast fields: the intel read resolves the
+        # broadcasting ID's sheet (doc 40), so a fake must pin them.
+        return SimpleNamespace(
+            faction_reputation={"merchant": rep},
+            broadcast_dark=False,
+            broadcast_identity=None,
+            collected_ids=[],
+            economy_state={},
+        )
 
     def test_negative_rep_withholds(self):
         assert _market_intel_enabled(self._ctx(-80)) is False

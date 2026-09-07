@@ -116,18 +116,23 @@ def spec_is_hostile(ctx, spec) -> bool:
 
     Monsters (``always_hostile=True``) are always hostile regardless
     of faction reputation — killing them must never touch rep. Everyone
-    else follows the faction attitude zones (enemy/disliked).
+    else follows the faction attitude zones (enemy/disliked) resolved
+    from the BROADCASTING ID's sheet — on the ground the read is the
+    same as the ship's transponder (doc 40 phase 4).
 
     Duck-typed: callers may pass any spec object with
     ``always_hostile`` / ``faction`` attributes (e.g. an
     :class:`~spacehack.data.npc_chars.NpcCharSpec`). Shared by
-    ``combat._encounter.detect_ground_combat`` and
-    ``ground_npcs._is_hostile``.
+    ``combat._encounter.detect_ground_combat``,
+    ``ground_npcs._is_hostile``, and ``city_npcs.is_hostile``.
     """
     if getattr(spec, "always_hostile", False):
         return True
-    _rep = ctx.faction_reputation.get(getattr(spec, "faction", ""), 0)
-    return get_attitude(_rep) in ("enemy", "disliked")
+    from . import identity
+    _sheet = identity.effective_reputation(ctx)
+    return get_attitude(_sheet.get(getattr(spec, "faction", ""), 0)) in (
+        "enemy", "disliked",
+    )
 
 
 def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
