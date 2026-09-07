@@ -51,6 +51,7 @@ class TalkOutcome(Enum):
     SCRUB = auto()
     CUTOUT = auto()
     RIG = auto()
+    SELL = auto()
     BACK = auto()
     WORK = auto()
     DELIVER = auto()
@@ -87,7 +88,7 @@ def _append_priced_items(items, scrub_price, cutout_price, rig_price):
 
 
 def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
-                      cutout_price=None, rig_price=None):
+                      cutout_price=None, rig_price=None, sell_ids=False):
     """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
@@ -104,6 +105,12 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
         )
         for index, mission in enumerate(missions)
     )
+    if sell_ids:
+        items.append(pygame_menu.MenuItem(
+            "Sell a transponder ID",
+            "The dealer pays by the sheet.",
+            "SELLIDS",
+        ))
     if npc.guild:
         items.append(pygame_menu.MenuItem(
             "View available work",
@@ -137,6 +144,7 @@ _ACTION_RESULTS = {
     "SCRUB": (TalkOutcome.SCRUB, None),
     "CUTOUT": (TalkOutcome.CUTOUT, None),
     "RIG": (TalkOutcome.RIG, None),
+    "SELLIDS": (TalkOutcome.SELL, None),
     "WORK": (TalkOutcome.WORK, None),
 }
 
@@ -202,14 +210,14 @@ def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
 
 def _run_pygame_npc_talk(
     ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
-    cutout_price=None, rig_price=None, items=None,
+    cutout_price=None, rig_price=None, sell_ids=False, items=None,
 ):
     """Run NPC talk through the shared selectable Pygame screen."""
 
     if items is None:
         items = _npc_pygame_items(
             npc, missions, quest_options, scrub_price, cutout_price,
-            rig_price,
+            rig_price, sell_ids,
         )
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
@@ -223,6 +231,90 @@ def _run_pygame_npc_talk(
             _run_help_guide(ctx)
             continue
         return _map_pygame_npc_result(outcome, action, missions)
+
+def _is_id_buyer(ctx, npc) -> bool:
+    """Whether this NPC buys IDs AND the player holds any (the row
+    exists only when there is something to sell)."""
+    from . import identity
+    if npc.id not in identity.ID_BUYERS:
+        return False
+    return bool(list(getattr(ctx, "collected_ids", ()) or []))
+
+
+def _sell_ids_items(ctx) -> list:
+    """One menu row per held ID, priced by its sheet."""
+    from . import pygame_menu
+    from .identity import sell_value
+    return [
+        pygame_menu.MenuItem(
+            f"{entry.get('label', 'ID')} {entry['id']} ({sell_value(entry):,}cr)",
+            "Sell this ID to the dealer.",
+            f"SELLID:{entry['id']}",
+        )
+        for entry in list(getattr(ctx, "collected_ids", ()) or [])
+    ]
+
+
+def _run_sell_menu(ctx):
+    """Run the buy sub-menu until ESC (returns None) or a pick
+    (returns the ``SELLID:<id>`` action)."""
+    from . import pygame_menu, pygame_ui
+    from .help import _run_help_guide
+
+    while True:
+        _items = _sell_ids_items(ctx)
+        if not _items:
+            ctx.log.add("You have nothing left to sell.")
+            return None
+        _frames = tuple(
+            pygame_menu.MenuFrame(
+                title="The dealer buys",
+                body='"Let me see what you have."',
+                items=_items,
+                hints=(pygame_ui.modal_hint(
+                    pygame_ui.NAV_HINT, "ENTER sell", "ESC done",
+                    pygame_ui.GUIDE_HINT,
+                ),),
+                selected=_selected,
+            )
+            for _selected in range(len(_items))
+        )
+        _outcome, _action, _selected = _run_pygame_menu(
+            ctx, _frames, caption="spacehack - sell IDs",
+        )
+        if _outcome == "GUIDE":
+            _run_help_guide(ctx)
+            continue
+        if _outcome == "SELECT" and _action.startswith("SELLID:"):
+            return _action
+        return None
+
+
+def _handle_sell_ids(ctx):
+    """The dealer's buy sub-menu (doc 40 6b): pick an ID, sell it.
+
+    Stays open until ESC — multiple sales per sitting."""
+    from .identity import remove_id, sell_value
+
+    while True:
+        _action = _run_sell_menu(ctx)
+        if _action is None:
+            return (TalkOutcome.BACK, None)
+        _entry_id = _action.partition(":")[2]
+        _entry = next(
+            (_e for _e in ctx.collected_ids if _e.get("id") == _entry_id),
+            None,
+        )
+        if _entry is None:
+            continue
+        _price = sell_value(_entry)
+        remove_id(ctx, _entry_id)
+        ctx.stats.credits += _price
+        ctx.log.add(
+            f"Sold {_entry.get('label', 'ID')} {_entry_id} "
+            f"for {_price:,}cr."
+        )
+
 
 def _refusal_reply(ctx, npc):
     """The gated NPC's refusal: logged once, no modal (doc 40 6a)."""
@@ -255,7 +347,7 @@ def _run_npc_talk(
     # no-options decision derives from its output, never a parallel count.
     items = _npc_pygame_items(
         npc, _missions, _quest_options, _scrub_price, _cutout_price,
-        _rig_price,
+        _rig_price, _is_id_buyer(ctx, npc),
     )
     if not items:
         return _no_options_reply(ctx, npc, _quest_body)
@@ -263,13 +355,21 @@ def _run_npc_talk(
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
         ctx, npc, _quest_body, _missions, _quest_options,
-        _scrub_price, _cutout_price, _rig_price, items=items,
+        _scrub_price, _cutout_price, _rig_price, _is_id_buyer(ctx, npc),
+        items=items,
     )
+    return _resolve_talk_result(ctx, npc, result)
+
+
+def _resolve_talk_result(ctx, npc, result):
+    """Post-modal dispatch: purchases, the ID market, quest rows."""
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
     _purchase = _PURCHASE_HANDLERS.get(result[0])
     if _purchase is not None:
         return _purchase(ctx, npc)
+    if result[0] is TalkOutcome.SELL:
+        return _handle_sell_ids(ctx)
     if result[0] is TalkOutcome.QUEST and isinstance(result[1], str):
         return _finish_quest_row(ctx, npc, result)
     return result

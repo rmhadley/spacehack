@@ -976,7 +976,7 @@ def test_cutout_row_reaches_the_talk_modal_only_while_uninstalled(monkeypatch):
     calls = []
 
     def _fake_talk(ctx, npc_obj, body, missions, options=(), scrub=None,
-                   cutout=None, rig=None, items=None):
+                   cutout=None, rig=None, sell_ids=None, items=None):
         calls.append(cutout)
         return (npc_mod.TalkOutcome.BACK, None)
 
@@ -1376,3 +1376,48 @@ def test_f_screen_x_deletes_the_shown_id(monkeypatch):
         "the hint states the control while IDs are held"
     _fresh.collected_ids = []
     assert "X delete" not in pf.frame_for(_fresh).hint
+
+
+def test_dealer_sell_row_and_sub_menu(monkeypatch):
+    """The dealer alone carries the sell row (held IDs only); a pick
+    sells the entry, pays its sheet price, and the sub-menu stays
+    open until ESC."""
+    from src.spacehack import identity, npc as npc_mod
+    from src.spacehack.data.npcs import find_npc
+
+    _dealer = find_npc("wolf_rig_dealer")
+    ctx = quest_ctx(credits=0)
+    ctx.faction_reputation["pirate"] = 40  # past the gate
+    _face = {
+        "id": "KG-8812", "kind": "cloned", "label": "Cloned hull",
+        "faction": "pirate",
+        "rep": {"pirate": 80, "militia": 0, "merchant": 0, "civilian": 0},
+    }
+    ctx.collected_ids = [_face]
+
+    _picked = []
+    monkeypatch.setattr(
+        npc_mod, "_run_pygame_menu",
+        lambda ctx, frames, caption: _picked.append(frames[0].items[0].action)
+        or ("SELECT", _picked[-1], 0),
+    )
+    monkeypatch.setattr(
+        npc_mod, "_run_pygame_npc_talk",
+        lambda ctx, npc, body, missions, *prices, **k:
+            (npc_mod.TalkOutcome.SELL, None),
+    )
+
+    result = npc_mod._run_npc_talk(ctx, _dealer)
+    assert result == (npc_mod.TalkOutcome.BACK, None)
+    assert _picked == ["SELLID:KG-8812"]
+    assert ctx.collected_ids == [], "the sold ID left the library"
+    assert ctx.stats.credits == 500 + identity.ID_SELL_RATE * 80
+    assert any("Sold Cloned hull KG-8812" in e.text
+               for e in ctx.log.recent())
+
+    # empty-handed: the row never offers, the sub-menu says so
+    _broke = quest_ctx()
+    _broke.faction_reputation["pirate"] = 40
+    _row_free = npc_mod._npc_pygame_items(
+        _dealer, [], (), None, None, None, sell_ids=True)
+    assert any(r.action == "SELLIDS" for r in _row_free)
