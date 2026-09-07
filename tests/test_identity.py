@@ -673,3 +673,57 @@ def test_challenge_attack_reuses_the_escalation_and_the_mask():
     )
     assert payload is not None
     assert ctx.faction_reputation == {"militia": 10, "merchant": 5}
+
+
+# --- Phase 4: the broadcasting ID's reputation sheet -----------------------
+
+
+def _scrub_entry(id_="KX-1234", rep=None):
+    face = {"id": id_, "kind": "scrubbed",
+            "label": "Scrubbed hull", "faction": None}
+    if rep is not None:
+        face["rep"] = rep
+    return face
+
+
+def test_effective_reputation_resolves_the_broadcasting_sheet():
+    """One resolver, one read: live → the true dict's copy; spoofed →
+    the worn entry's own sheet; dark → nothing resolves."""
+    from src.spacehack import identity
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"militia": 40, "pirate": -80}
+    sheet = identity.effective_reputation(ctx)
+    assert sheet == {"militia": 40, "pirate": -80}
+    sheet["militia"] = 0  # fresh dict: callers can't touch the true sheet
+    assert ctx.faction_reputation["militia"] == 40
+
+    identity.collect_id(ctx, _scrub_entry(rep={"militia": 60, "pirate": -100}))
+    identity.cycle_identity(ctx)
+    assert identity.effective_reputation(ctx) == {"militia": 60, "pirate": -100}
+
+    # An entry without a rep field (legacy shape) reads all-neutral.
+    identity.collect_id(ctx, _scrub_entry("YY-5678"))
+    identity.cycle_identity(ctx)
+    assert identity.effective_reputation(ctx) == {}
+
+    ctx.broadcast_dark = True  # dark is the master switch: nothing resolves
+    assert identity.effective_reputation(ctx) == {}
+
+    # A worn id missing from the library resolves nothing either.
+    ctx.broadcast_dark = False
+    ctx.broadcast_identity = {"id": "NOPE-000", "label": "ghost"}
+    assert identity.effective_reputation(ctx) == {}
+
+
+def test_scrub_purchase_materializes_a_literal_zero_sheet():
+    """A scrubbed ID IS an ID with 0's across the board (user ruling):
+    the sheet is written at purchase, not implied by absence."""
+    from src.spacehack.faction import _ALL_FACTIONS
+    from src.spacehack.identity import buy_scrubbed_id
+
+    ctx = quest_ctx(credits=8_000)
+    assert buy_scrubbed_id(ctx, "deadfall_scrubber")
+    sheet = ctx.collected_ids[0]["rep"]
+    assert sheet == {faction: 0 for faction in _ALL_FACTIONS}
+    assert len(sheet) == len(_ALL_FACTIONS) > 0

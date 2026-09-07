@@ -78,6 +78,37 @@ def resolved_identity(ctx) -> dict[str, Any] | None:
     return None
 
 
+def _worn_entry(ctx) -> dict[str, Any] | None:
+    """The collected_ids entry for the ID being worn, or None.
+
+    The library entry is the single source of truth for a face's
+    sheet — ``broadcast_identity`` is a display copy that diverges
+    from the entry after a save/load.
+    """
+    worn_id = (getattr(ctx, "broadcast_identity", None) or {}).get("id")
+    for entry in getattr(ctx, "collected_ids", ()) or ():
+        if entry.get("id") == worn_id:
+            return entry
+    return None
+
+
+def effective_reputation(ctx) -> dict[str, int]:
+    """What any reader resolves right now: the broadcasting ID's sheet.
+
+    LIVE returns a copy of the true dict (ID 1's sheet). SPOOFED
+    returns the worn ID's own sheet (absent keys read neutral at the
+    reader's ``.get``). DARK returns empty — nothing resolves, every
+    reader lands on neutral. Pure: fresh dict every call.
+    """
+    mode = broadcast_mode(ctx)
+    if mode == DARK:
+        return {}
+    if mode == SPOOFED:
+        entry = _worn_entry(ctx)
+        return dict((entry or {}).get("rep") or {})
+    return dict(getattr(ctx, "faction_reputation", None) or {})
+
+
 def identity_label(identity: dict[str, Any] | None) -> str:
     """A one-line description for logs and the F-screen."""
     if identity is None:
@@ -219,7 +250,11 @@ def scrub_price(npc_id: str) -> int | None:
 
 def buy_scrubbed_id(ctx, npc_id: str) -> bool:
     """Purchase one scrubbed ID from a broker. False: wrong NPC,
-    can't afford, or the library already holds this hull number."""
+    can't afford, or the library already holds this hull number.
+
+    A scrub IS a zero sheet: the entry materializes literal 0's for
+    every faction (doc 40 ruling), so it starts as blank paper."""
+    from .faction import _ALL_FACTIONS
     price = scrub_price(npc_id)
     if price is None or ctx.stats.credits < price:
         return False
@@ -229,6 +264,7 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
         "label": "Scrubbed hull",
         "faction": None,
         "origin": "no history, no debts",
+        "rep": {faction: 0 for faction in _ALL_FACTIONS},
     }
     if not collect_id(ctx, face):
         return False
@@ -238,7 +274,7 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
 
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
-    "npc_identity", "apparent_faction",
+    "npc_identity", "apparent_faction", "effective_reputation",
     "scrub_price", "buy_scrubbed_id",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
