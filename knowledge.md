@@ -758,6 +758,7 @@ these tells:
 13. under-informing compression gesturing at an undefined story element — the fix is expansion, not a wittier line
 14. accidental innuendo in process descriptions — narrate the operator's procedure, not the machine's experience
 15. interface language in quoted speech — NPCs speak in-world: never key names, screen names, or UI mechanics ("the F screen's D") in an NPC's mouth; the game guide carries keybindings, logs/menus speak in system voice, and flavor text teaches diegetically ("you can kill it any time you like")
+16. NPC flavor that performs — no atmospheric scene-setting, no clever metaphors, no "trying so hard"; a merchant greets like a merchant ("Greetings, friend. I've got something someone like you may be interested in if you've got the credits.") — subtext (e.g. a gate passed) stays subtext, never spelled out; keep it terse
 
 Vocabulary test: keep the
 CHARACTER's load-bearing professional word ("assay", "couples"); cut
