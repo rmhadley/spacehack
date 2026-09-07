@@ -1103,6 +1103,67 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ROLLED values) → try to re-board that hull (impossible — it's
     gone) → save/load keeps the rolled sheet.
 
+  Pre-implementation audit (6a, 2026-09-07 — post-ADVISE):
+  - Reuse: the BOARD predicate reads ``EnemyInstance`` directly
+    (hull/max_hull/shields/pos live on the instance,
+    ``combat/_types.py``); the boarded ship's map entity comes from
+    ``SpaceCombatState.enemy_ents``; exit rides ``CombatResult``
+    (``_types.py:62``) — outcome gains ``"BOARDED"`` + boarded
+    spec/entity/squad fields; ``_handle_combat_encounter``
+    (``_encounter.py:200``) returns it to the state-bearing caller
+    exactly like DEFEAT bubbles. Interior entry reuses the wreck
+    pipeline's seams (``_boardable_wreck_layout`` /
+    ``_enter_boarding_dungeon``, ``dungeon_layout.load_layout`` —
+    ENEMY directives parse and scatter end-to-end, ``scout_a.layout``
+    precedent). The C console rides the ``computer_terminal``
+    entity + ``_resolve_computer_terminal`` bump flow, branched by
+    a ``capture_spec_id`` stamp on the interior map. Consumption
+    reuses ``_remove_procedural_squad`` + the kill-path entity pop
+    — AT BOARD ENTRY, not exit (save-safe: saves inside the
+    interior rebuild a space map whose spawn list lacks the squad).
+    Roll RNG injects per ``generate_registration(rng=)``. The
+    Scram gate mirrors ``_dark_dock_refusal`` (pure, refusal-or-
+    None) placed in ``npc.py`` before the chat log.
+  - Split plan (ratchet: ``_rules_space.py`` 998/1000): extract
+    the kill/loot chain (``_pop_dead_entity`` … ``on_kill``,
+    ~160 lines) to ``combat/_space_kills.py`` — ``on_kill``
+    re-exported from ``_rules_space`` (public surface intact);
+    BOARD predicate + handler live in new
+    ``combat/_space_boarding.py`` (pure predicate + begin). Net:
+    ``_rules_space`` ~850 after adding the dispatch hook.
+  - V1 scoping: BOARD only on procedural-squad ships (bounty/
+    heist-linked ships keep kill-or-die — quest lifecycle
+    untouched); capture targets = specs with a new optional
+    ``capture_layout_id`` on ``NpcShipSpec`` (data opt-in like
+    ``dark_berth``) — authoring ``scout_crew`` + ``cruiser_crew``
+    pirate layouts (P spawn, exit, ENEMY crew markers, C console
+    at the cockpit); more layouts are later content.
+  - Roll: pure ``roll_clone_sheet(source_faction, tier, rng)``;
+    tier from ``find_ship(spec.ship_id).base_hull`` bands
+    (proposed: ≤150 T1, ≤300 T2, else T3; source-faction values
+    scale with tier, other factions roll near-neutral) —
+    constants tunable at top of module.
+  - Duplication hotspots: third priced row (rig) follows the
+    phase-5 ``_priced_rows`` seam — the built items tuple stays
+    the row-existence source of truth; consumption vs kill share
+    the removal helpers (no second removal path); the talk gate is
+    DATA on the NPC spec (``talk_gate = (faction, min_standing,
+    refusal_line)``), not a second hardcode.
+  - Edge behavior: "no shields up" reads CURRENT shields (hulls
+    without a shield module qualify from turn one — intended);
+    hull damage fraction = 1 − hull/max_hull ≥ 0.75; adjacency =
+    the bump path's cell adjacency; dead encounter-mates don't
+    block (the live-enemy list is what counts); QUEST-linked ships
+    never offer BOARD. Capture interiors serialize like dungeon
+    interiors; the space map rebuilds without the consumed squad.
+  - Tests: predicate truth table; consumption (entity + spawn
+    record gone); roll determinism + tier scaling + persisted
+    sheet; console gate on the rig; Scram gate per standing
+    (masked counts); vendor routing (ambient ``npc_id`` persona
+    reaches the talk modal — first user of that path).
+  - Stop point: 6b only (cap/delete/sell), plus the standing
+    6a stop points.
+
 - [ ] PHASE 6b — the library economy: cap, delete, sell. The
       uniform half (phase-4/5 patterns: tables, purchase handlers,
       F screen).
