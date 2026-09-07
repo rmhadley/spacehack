@@ -580,6 +580,12 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "a clone rig, that ship's transponder can be copied there, "
             "once. The ship is gone when you leave. Rig dealers don't "
             "sell to faces the pirates don't like."
+            "\n\n"
+            "Your ID book holds six false IDs at most. On the F screen, "
+            "X deletes the one shown - and a worn ID that's deleted or "
+            "sold drops your transponder back to your true one. The "
+            "Wolf 359 b rig dealer also buys IDs: the better the "
+            "sheet, the better the price."
         ),
     ),
     GuideSection(
