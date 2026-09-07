@@ -974,7 +974,7 @@ def test_cutout_row_reaches_the_talk_modal_only_while_uninstalled(monkeypatch):
     calls = []
 
     def _fake_talk(ctx, npc_obj, body, missions, options=(), scrub=None,
-                   cutout=None):
+                   cutout=None, items=None):
         calls.append(cutout)
         return (npc_mod.TalkOutcome.BACK, None)
 
@@ -1000,3 +1000,14 @@ def test_priced_rows_pairs_scrub_and_cutout_offers():
     assert _priced_rows(stock, "ember_tech") == (None, 2_500)
     installed = quest_ctx(transponder_cutout=True)
     assert _priced_rows(installed, "ember_tech") == (None, None)
+
+
+def test_cutout_action_dispatches_to_the_cutout_handler():
+    """The CUTOUT action must map to the CUTOUT outcome and the CUTOUT
+    handler — a mistyped table would silently sell scrubs instead."""
+    from src.spacehack import npc as npc_mod
+
+    result = npc_mod._map_pygame_npc_result("SELECT", "CUTOUT", [])
+    assert result == (npc_mod.TalkOutcome.CUTOUT, None)
+    assert npc_mod._PURCHASE_HANDLERS[npc_mod.TalkOutcome.CUTOUT] \
+        is npc_mod._handle_cutout_purchase

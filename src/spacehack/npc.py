@@ -162,13 +162,14 @@ def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None]:
 
 def _run_pygame_npc_talk(
     ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
-    cutout_price=None,
+    cutout_price=None, items=None,
 ):
     """Run NPC talk through the shared selectable Pygame screen."""
 
-    items = _npc_pygame_items(
-        npc, missions, quest_options, scrub_price, cutout_price,
-    )
+    if items is None:
+        items = _npc_pygame_items(
+            npc, missions, quest_options, scrub_price, cutout_price,
+        )
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
         outcome, action, _selected = _run_pygame_menu(
@@ -197,22 +198,18 @@ def _run_npc_talk(
     _missions = deliver_missions or []
     _quest_options = _quest_rows(ctx, npc)
     _scrub_price, _cutout_price = _priced_rows(ctx, npc.id)
-    n_options = (
-        len(_quest_options) + len(_missions) + (1 if npc.guild else 0)
-        + int(_scrub_price is not None) + int(_cutout_price is not None)
+    # The builder is the single source of truth for what rows exist: the
+    # no-options decision derives from its output, never a parallel count.
+    items = _npc_pygame_items(
+        npc, _missions, _quest_options, _scrub_price, _cutout_price,
     )
-    if n_options == 0:
+    if not items:
         return _no_options_reply(ctx, npc, _quest_body)
 
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
-        ctx,
-        npc,
-        _quest_body,
-        _missions,
-        _quest_options,
-        _scrub_price,
-        _cutout_price,
+        ctx, npc, _quest_body, _missions, _quest_options,
+        _scrub_price, _cutout_price, items=items,
     )
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
