@@ -22,8 +22,21 @@ nobody designs against a ghost.
 
 - **Broadcast states** — live/dark/spoofed from `broadcast_dark`
   master switch + `broadcast_identity` worn ID; dark suppresses
-  everything even with a face worn (`identity.py`: `broadcast_mode`,
+  everything even with a face worn; D is gated — dark requires the
+  one-time `transponder_cutout` install, refused with a pinned log
+  line otherwise (`identity.py`: `broadcast_mode`,
   `resolved_identity`, `toggle_dark`).
+- **Transponder cut-out** — dark's price of entry: one-time install
+  by the `ember_tech` NPC ("Transponder Tech", seated always-on in
+  Ember's depot interior), 2,500cr, never consumed, rides the
+  player across lawful purchases; the talk row shows only while
+  uninstalled (`identity.py`: `CUTOUT_BROKERS`,
+  `buy_transponder_cutout`; `npc.py`: `_cutout_offer`). LOAD
+  INVARIANT: a save without a cut-out never loads dark — a legacy
+  dark save restores live with a log line
+  (`saveload.py`: `_restore_quest_and_tutorial`). Storefront split
+  is deliberate: scrub at Deadfall's broker only, cut-out at
+  Ember's tech only.
 - **The one read resolver** — every reader pulls the broadcasting
   sheet through `identity.effective_reputation(ctx)` (pure, fresh
   dict): dark → {} (all readers neutral), spoofed → the worn
@@ -58,18 +71,20 @@ nobody designs against a ghost.
   purchases; dedup by hull number; cycle none → first → … → none
   (`identity.py`: `collect_id`, `cycle_identity`,
   `library_position`).
-- **Scrub (only acquisition vector)** — `deadfall_scrubber` NPC,
+- **Scrub (identity purchase #1)** — `deadfall_scrubber` NPC,
   6,000cr; a scrub materializes literal 0s for every faction
-  (`identity.py`: `SCRUB_BROKERS`, `buy_scrubbed_id`).
+  (`identity.py`: `SCRUB_BROKERS`, `buy_scrubbed_id`). The cut-out
+  is the split storefront (see Transponder cut-out).
 - **Registration** — 2 letters + 4 digits, generated once per run,
   migrated into old saves on load (`generate_registration`,
   `ensure_registration`).
 - **NPC broadcasts** — every NPC ship broadcasts; hull number minted
   on first read, kept for the entity's life (`npc_identity`).
 - **F screen hub** — renders the broadcasting sheet literally + the
-  identity line `[pos/total] label [MODE]`; D toggles (logged,
-  naming the worn ID), TAB cycles (`pygame_faction.py`: `frame_for`,
-  `_log_transponder_toggle`).
+  identity line `[pos/total] label [MODE]`; D toggles when the
+  cut-out is installed (logged, naming the worn ID; otherwise the
+  hint reads `D transponder (no cut-out)`), TAB cycles
+  (`pygame_faction.py`: `frame_for`, `_log_transponder_toggle`).
 - **Challenge hail** — militia-only physical spot of a dark hull
   inside `detect_radius` (eyes, not comms range): Identify/Attack,
   no run; silence = refuse = fire; the answered ID's sheet decides;
@@ -266,8 +281,10 @@ nobody designs against a ghost.
   (`city_npcs.is_hostile`, `run_city_fight`).
 - **Interiors** — bump a door with a record: cached authored room
   (must have `P` + exit tile), resident NPC seated, quest NPCs seat
-  per planet `quest_npc_spots` while their step is live; resume
-  always re-enters at the entry spawn (`city_interiors.py`).
+  per planet `quest_npc_spots` while their step is live, and
+  service NPCs seat unconditionally per planet
+  `service_npc_spots` (doc 40 phase 5); resume always re-enters at
+  the entry spawn (`city_interiors.py`: `_seat_service_npcs`).
 - **Landing flow** — Land → dark dock gate → cargo scan → city map
   build with ship glide; ground HP fully restores on landing;
   `militia_scanned` clears (`game_interactions._resolve_planet_land`,

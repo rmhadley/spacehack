@@ -858,9 +858,10 @@ challenge. Scrubbed triggers neither — blank paper complies.
     two (decay, story beat), ``apparent_faction`` testless and
     uncalled (clean delete), derelicts outside the static pass.
 
-- [x] PHASE 5 — dark's cut-out (the price of entry) — LANDED
-      (2026-09-07; d1e4b16..c69bdf9, 5 gated commits + REVIEW round
-      1 fix + hardening; 1777 green). PLAYTEST PENDING. Dark
+- [x] PHASE 5 — dark's cut-out (the price of entry) — LANDED +
+      PLAYTEST PASSED (user-verified 2026-09-07; d1e4b16..c69bdf9,
+      5 gated commits + REVIEW round 1 fix + hardening; 1777
+      green). Dark
       requires the one-time cut-out; the F-screen D is inert until
       then. Shipped: ``transponder_cutout`` on GameContext
       (persisted; LOAD INVARIANT: a save without a cut-out never
@@ -881,6 +882,16 @@ challenge. Scrubbed triggers neither — blank paper complies.
       c69bdf9); re-review APPROVE. LESSON (structural fix): the
       built items tuple is the single source of truth for
       row-existence — parallel counts drift.
+
+  Playtest (2026-09-07): PASSED — legacy dark save restored live
+  with the invariant line, D inert pre-install (hint + pinned
+  refusal), the trip to Ross 154 and the depot tech, 2,500cr
+  install, row gone after purchase, D working with dark
+  save/load, Deadfall broker regression clean (scrub only, no
+  cut-out row). Mid-playtest ruling: the tech's flavor rewritten
+  DIEGETICALLY — no interface language in quoted speech (now
+  prose tell 15); "I gut the breaker so the transponder can go
+  dead quiet whenever you want…"
 
   Implementation brief (5) — APPROVED (user, 2026-09-06); residuals
   settled + amended (refine session, 2026-09-07 — see the cut-out
