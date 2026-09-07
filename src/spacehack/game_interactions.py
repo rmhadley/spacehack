@@ -466,6 +466,10 @@ def _resolve_capture_console(state, blocker, capture_spec_id):
     if not getattr(ctx, 'transponder_rig', False):
         log.add("No clone rig installed.")
         return 'CONTINUE'
+    from .identity import library_full
+    if library_full(ctx):
+        log.add("Your ID book is full.")
+        return 'CONTINUE'
     _pygame_clone = _run_pygame_dungeon_confirm(
         ctx, title='Ship Computer Terminal',
         body=f"Clone the {_spec.name}'s transponder?",

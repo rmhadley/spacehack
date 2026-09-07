@@ -318,6 +318,10 @@ def _handle_purchase(ctx, npc, outcome):
     """Resolve any identity purchase row (doc 40): buy, log, done."""
     from . import identity as _identity
 
+    if outcome is TalkOutcome.SCRUB and _identity.library_full(ctx):
+        ctx.log.add("Your ID book is full.")
+        return (TalkOutcome.BACK, None)
+
     _buy = {
         TalkOutcome.SCRUB: _identity.buy_scrubbed_id,
         TalkOutcome.CUTOUT: _identity.buy_transponder_cutout,

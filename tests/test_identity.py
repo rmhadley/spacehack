@@ -1288,3 +1288,62 @@ def test_dealer_disguise_passes_the_gate():
     _liked_true.broadcast_identity = _hated_mask
     assert npc_mod._talk_refusal(_liked_true, _dealer) == "Scram.", \
         "the mask, not the true record, is what the dealer reads"
+
+
+def test_library_caps_at_six_and_refuses_every_path():
+    """6-slot cap, enforced at collect_id so scrub AND clone both
+    refuse; the shared full line names the state."""
+    from src.spacehack import identity, npc as npc_mod
+
+    ctx = quest_ctx(credits=50_000)
+    for _n in range(identity.LIBRARY_CAP):
+        assert identity.collect_id(
+            ctx, {"id": f"KX-{_n:04d}", "kind": "scrubbed",
+                  "label": "Scrubbed hull", "faction": None},
+        )
+    assert identity.library_full(ctx) is True
+    assert identity.collect_id(ctx, _scrub_entry()) is False
+
+    _scrubbed = npc_mod._handle_purchase(ctx, SimpleNamespace(id="deadfall_scrubber", name="Broker"), npc_mod.TalkOutcome.SCRUB)
+    assert _scrubbed == (npc_mod.TalkOutcome.BACK, None)
+    assert _ctx_last(ctx) == "Your ID book is full."
+
+    _clone = identity.clone_transponder(
+        ctx, SimpleNamespace(name="Pirate Scout", ship_id="scout", faction="pirate"),
+        rng=random.Random(3),
+    )
+    assert _clone is None, "the capture clone refuses at 6/6"
+
+
+def _ctx_last(ctx):
+    return ctx.log.recent()[-1].text
+
+
+def test_remove_id_auto_clears_the_worn_broadcast():
+    """Removing the worn ID drops the broadcast to live; removing an
+    unheld id is a no-op."""
+    from src.spacehack import identity
+
+    ctx = quest_ctx()
+    _face = _pirate_face()
+    identity.collect_id(ctx, _face)
+    ctx.broadcast_identity = dict(_face)
+
+    assert identity.remove_id(ctx, "XX-0000") is False, "not held"
+    assert identity.remove_id(ctx, _face["id"]) is True
+    assert ctx.collected_ids == []
+    assert ctx.broadcast_identity is None, "worn removal auto-clears"
+
+
+def test_sell_value_scales_with_positive_sheet_rep():
+    """Base + rate per positive point; negatives contribute nothing —
+    the ground-up flip clears its 6,000cr cost."""
+    from src.spacehack import identity
+
+    assert identity.sell_value({"rep": {}}) == identity.ID_SELL_BASE
+    assert identity.sell_value(
+        {"rep": {"pirate": -90, "militia": 0}},
+    ) == identity.ID_SELL_BASE
+    assert identity.sell_value(
+        {"rep": {"pirate": 80, "militia": -5, "merchant": 10}},
+    ) == identity.ID_SELL_BASE + identity.ID_SELL_RATE * 90

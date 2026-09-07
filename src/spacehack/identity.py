@@ -168,12 +168,15 @@ def library_position(ctx) -> tuple[int, int]:
 
 
 def collect_id(ctx, identity: dict[str, Any]) -> bool:
-    """Add an illegal ID to the library. Returns False on duplicates.
+    """Add an illegal ID to the library. False: duplicate or the
+    slot cap (doc 40 6b — every acquisition path funnels here).
 
     Acquisition is a process elsewhere (services, the capture
     pipeline — doc 40 rules it rare and involved); this only files
     the result.
     """
+    if library_full(ctx):
+        return False
     library = list(getattr(ctx, "collected_ids", ()) or [])
     if any(entry.get("id") == identity.get("id") for entry in library):
         return False
@@ -295,6 +298,11 @@ RIG_BROKERS: dict[str, int] = {
 }
 
 
+# ID buyers: NPCs who pay sheet-derived prices for held IDs
+# (doc 40 6b — the Wolf dealer is the whole frontier ID market).
+ID_BUYERS: tuple[str, ...] = ("wolf_rig_dealer",)
+
+
 def cutout_price(npc_id: str) -> int | None:
     """The cut-out install price a tech charges, or None."""
     return CUTOUT_BROKERS.get(npc_id)
@@ -331,6 +339,44 @@ def buy_transponder_cutout(ctx, npc_id: str) -> bool:
     return True
 
 
+LIBRARY_CAP = 6
+
+ID_SELL_BASE = 500
+ID_SELL_RATE = 100
+
+
+def library_full(ctx) -> bool:
+    """Whether the ID library has hit its slot cap (doc 40 6b)."""
+    return len(list(getattr(ctx, "collected_ids", ()) or [])) >= LIBRARY_CAP
+
+
+def sell_value(entry: dict[str, Any]) -> int:
+    """What a dealer pays for an ID: base + rate per positive rep
+    point on the ENTRY's sheet (doc 40 6b — identities are
+    appreciable assets; the ground-up flip is the intended loop)."""
+    _sheet = entry.get("rep") or {}
+    return ID_SELL_BASE + ID_SELL_RATE * sum(
+        max(0, int(v)) for v in _sheet.values()
+    )
+
+
+def remove_id(ctx, entry_id: str) -> bool:
+    """Remove one library entry by hull number. False: not held.
+
+    Removing the WORN entry auto-clears the broadcast to live (user
+    ruling 2026-09-07) — a removed ID can never keep broadcasting.
+    """
+    library = list(getattr(ctx, "collected_ids", ()) or [])
+    _kept = [entry for entry in library if entry.get("id") != entry_id]
+    if len(_kept) == len(library):
+        return False
+    ctx.collected_ids = _kept
+    _worn = getattr(ctx, "broadcast_identity", None)
+    if _worn is not None and _worn.get("id") == entry_id:
+        ctx.broadcast_identity = None
+    return True
+
+
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
     "npc_identity", "effective_reputation",
@@ -339,6 +385,8 @@ __all__ = [
     "cutout_price", "buy_transponder_cutout",
     "clone_tier", "roll_clone_sheet", "clone_transponder",
     "rig_price", "buy_clone_rig",
+    "LIBRARY_CAP", "library_full", "sell_value", "remove_id",
+    "ID_BUYERS",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
     "library_position", "ensure_registration",
