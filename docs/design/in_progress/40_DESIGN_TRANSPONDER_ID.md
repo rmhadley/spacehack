@@ -632,8 +632,8 @@ challenge. Scrubbed triggers neither — blank paper complies.
     then go dark" suppresses that patrol's challenge until landing
     clears the set. Fix would be separate keys for hail vs
     challenge; deferred until the playtest says it matters.
-- [x] PHASE 4 — the broadcasting ID's reputation — LANDED
-      (2026-09-07; 66b6e0f..11bbacf; playtest pending). Re-cut
+- [x] PHASE 4 — the broadcasting ID's reputation — LANDED +
+      PLAYTEST PASSED (user-verified 2026-09-07; 66b6e0f..11bbacf). Re-cut
       2026-09-06 from "apparent standings": IDs carry rep sheets,
       not faction mappings — see the sheets SETTLED section. One
       pure resolver — the sheet of whichever ID broadcasts — feeds
@@ -775,6 +775,14 @@ challenge. Scrubbed triggers neither — blank paper complies.
     NPCs (city or wild) of a faction engage your live self,
     wearing the scrub
     stands them down; save/load across all three states.
+
+  Playtest (2026-09-07): PASSED — scrub purchase/wear, Ross crown
+  stand-down, neutral-rate scans, lost trade discount, hot-scrub
+  write routing (labeled log, true sheet untouched, survives
+  save/load), dark stand-down + challenge, live unchanged. Player
+  note: neutral always sufficed for spawns to stand down — starting
+  pirate rep (-100, enemy) is why raising it "felt" like needing
+  more; statics were the pre-phase-4 exception.
 
   Pre-implementation audit (4, 2026-09-06 — added post-ADVISE):
   - Reuse: ``identity.broadcast_mode`` drives the resolver's
