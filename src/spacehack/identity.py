@@ -119,9 +119,14 @@ def identity_label(identity: dict[str, Any] | None) -> str:
     return f"{prefix} {identity.get('id', '??')}"
 
 
-def toggle_dark(ctx) -> None:
-    """Flip the transponder off/on (free — it is your ship's breaker)."""
+def toggle_dark(ctx) -> bool:
+    """Flip the transponder off/on. False: no cut-out installed (doc 40
+    phase 5) — dark is an installed capability, not a free breaker."""
+    if not getattr(ctx, "transponder_cutout", False):
+        ctx.log.add("No cut-out installed.")
+        return False
     ctx.broadcast_dark = not getattr(ctx, "broadcast_dark", False)
+    return True
 
 
 def cycle_identity(ctx, step: int = 1) -> None:

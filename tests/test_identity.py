@@ -26,7 +26,7 @@ def _pirate_face(id_: str = "KG-8812"):
 def test_state_machine_live_dark_spoofed():
     from src.spacehack import identity
 
-    ctx = quest_ctx()
+    ctx = quest_ctx(transponder_cutout=True)
     ctx.broadcast_dark = False
     ctx.broadcast_identity = None
     ctx.collected_ids = []
@@ -180,6 +180,35 @@ def test_load_invariant_no_cutout_never_loads_dark():
     assert live.broadcast_dark is False
     assert not any("transponder" in e.text for e in live.log.recent()), \
         "the invariant line only fires when it resets a dark save"
+
+
+def test_toggle_dark_refuses_without_a_cutout():
+    """Doc 40 phase 5: D is inert on a stock transponder — one pinned
+    refusal line, the state untouched; the cut-out buys the flip."""
+    from src.spacehack import identity
+
+    stock = quest_ctx()
+    assert identity.toggle_dark(stock) is False
+    assert stock.broadcast_dark is False
+    assert stock.log.recent()[-1].text == "No cut-out installed."
+
+    cut = quest_ctx(transponder_cutout=True)
+    assert identity.toggle_dark(cut) is True
+    assert cut.broadcast_dark is True
+    assert identity.toggle_dark(cut) is True
+    assert cut.broadcast_dark is False, "the cut-out is never consumed"
+
+
+def test_faction_hint_shows_the_uninstalled_state():
+    """The F-screen hint row states why D is dead: no cut-out yet."""
+    from src.spacehack.pygame_faction import frame_for
+
+    stock = quest_ctx()
+    assert "D transponder (no cut-out)" in frame_for(stock).hint
+
+    cut = quest_ctx(transponder_cutout=True)
+    assert "D transponder on/off" in frame_for(cut).hint
+    assert "no cut-out" not in frame_for(cut).hint
 
 
 def test_faction_frame_shows_the_broadcast_block():

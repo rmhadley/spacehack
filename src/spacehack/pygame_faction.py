@@ -100,7 +100,10 @@ def _identity_block(ctx: GameContext) -> tuple[str, ...]:
 def frame_for(ctx: GameContext) -> FactionFrame:
     """Build the current faction standings frame."""
     library = list(getattr(ctx, "collected_ids", ()) or [])
-    hint = "ENTER / ESC back   D transponder on/off"
+    if getattr(ctx, "transponder_cutout", False):
+        hint = "ENTER / ESC back   D transponder on/off"
+    else:
+        hint = "ENTER / ESC back   D transponder (no cut-out)"
     if library:
         hint += "   TAB cycle IDs"
     return FactionFrame(
@@ -293,9 +296,11 @@ def _handle_key(pygame: Any, event: Any) -> str:
 
 def _log_transponder_toggle(ctx: GameContext) -> None:
     """Flip dark and log one line naming what now broadcasts — the
-    worn ID when one is worn, the true registration otherwise."""
+    worn ID when one is worn, the true registration otherwise. A
+    refused toggle (no cut-out) is logged by ``identity`` itself."""
     from . import identity
-    identity.toggle_dark(ctx)
+    if not identity.toggle_dark(ctx):
+        return
     worn = identity.resolved_identity(ctx)
     if ctx.broadcast_dark:
         ctx.log.add("Transponder OFF - nothing resolves.")
