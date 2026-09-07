@@ -18,9 +18,31 @@ from collections import deque
 from PIL import Image
 
 
+def _morph_close(solid: list[list[bool]], times: int) -> list[list[bool]]:
+    """Dilate then erode (8-neighborhood) — reattaches hairline breaks
+    caused by threshold flicker along anti-aliased hull edges."""
+    h, w = len(solid), len(solid[0])
+
+    def neighbors(x, y, source):
+        return [source[ny][nx]
+                for ny in range(y - 1, y + 2) for nx in range(x - 1, x + 2)
+                if 0 <= nx < w and 0 <= ny < h and (nx, ny) != (x, y)]
+
+    for _ in range(times):
+        dil = [
+            [any(neighbors(x, y, solid)) or solid[y][x] for x in range(w)]
+            for y in range(h)
+        ]
+        solid = [
+            [all(neighbors(x, y, dil)) for x in range(w)]
+            for y in range(h)
+        ]
+    return solid
+
+
 def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
           grid: tuple[int, int], mirror: bool, threshold_bright: int = 88,
-          threshold_red: int = 32) -> str:
+          threshold_red: int = 32, close: int = 0) -> str:
     img = Image.open(image_path).convert("RGB").crop(crop)
     if rotate:
         img = img.rotate(-rotate, expand=True,
@@ -52,6 +74,8 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
                     and not mask[ny][nx]:
                 outside.add((nx, ny)); queue.append((nx, ny))
     solid = [[(x, y) not in outside for x in range(gw)] for y in range(gh)]
+    if close:
+        solid = _morph_close(solid, close)
 
     def neighbors8(x, y):
         return [solid[ny][nx]
@@ -84,7 +108,11 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
                             comp.add((nx, ny)); q.append((nx, ny))
                 seen |= comp
                 comps.append(comp)
-    keep = set().union(*[c for c in comps if len(c) >= 8]) if comps else set()
+    keep = set()
+    if comps:
+        biggest = max(len(c) for c in comps)
+        threshold = max(8, biggest // 200)  # scale-aware: specks die at 4x
+        keep = set().union(*[c for c in comps if len(c) >= threshold])
 
     if mirror:
         # crop the solid to its bounding box so the mirror seam sits
@@ -119,11 +147,15 @@ def main() -> int:
     parser.add_argument("--grid", default="62,30", help="W,H cells")
     parser.add_argument("--mirror", action="store_true",
                         help="mirror the top half into a symmetric hull")
+    parser.add_argument("--close", type=int, default=0,
+                        help="morphological close passes (reattaches "
+                        "hairline hull breaks at high resolution)")
     parser.add_argument("--out")
     args = parser.parse_args()
     crop = tuple(int(v) for v in args.crop.split(","))
     grid = tuple(int(v) for v in args.grid.split(","))
-    art = trace(args.image, crop, args.rotate, grid, args.mirror)
+    art = trace(args.image, crop, args.rotate, grid, args.mirror,
+                close=args.close)
     if args.out:
         open(args.out, "w").write(art)
         print(f"wrote {args.out}")
