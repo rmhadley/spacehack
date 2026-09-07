@@ -389,6 +389,29 @@ they never route through this pass.)
   field read as an all-zero sheet (every collectible ID today is
   scrubbed); new scrubs materialize the zeros at purchase.
 
+## SETTLED (phase 5 residuals, user rulings 2026-09-07): cut-out specifics
+
+Four decisions the approved phase 5 brief left open, settled at
+refine:
+
+- **The cut-out RIDES THE PLAYER across lawful ship purchases**
+  (Q2's frame, extended): it is a player-level flag like the ID
+  library and the registration — the registry transfers the owner,
+  cut-out included. No purchase-path handling.
+- **Installed = the broker row disappears.** The install row is
+  offered only while uninstalled — the same conditional mechanism
+  as the scrub row. No re-buy path, no refusal prose.
+- **Strings pinned verbatim** (user-approved draft): F-screen hint
+  while uninstalled ``ENTER / ESC back   D transponder (no
+  cut-out)``; D-press refusal ``No cut-out installed.``; broker row
+  ``Install a transponder cut-out (2,500cr)``; install log ``Cut-out
+  installed.``
+- **Load invariant: no cut-out ⇒ never dark.** One uniform guard in
+  saveload — a legacy save broadcasting dark resets to live at
+  load, logging one line when it fires. Not a special case: it is
+  the invariant the new field introduces, applied at the one place
+  every legacy save passes through.
+
 ## The complete settled design (one statement)
 
 Every ship broadcasts. An ID is an identifier that maps to
@@ -407,7 +430,8 @@ registrations for RP flavor; the F — faction screen is the identity
 hub (broadcast state, cycling collected IDs). Intrinsic
 transponders; services at the outlaw ports work the modes; going
 dark requires a one-time cut-out installed at a pirate-run port
-(priced below the scrub — the free D toggle is superseded); identity rides the player across
+(priced below the scrub, rides the player across purchases — the
+free D toggle is superseded); identity rides the player across
 lawful purchases (the scrub is an unlawful hull). Rep writes
 follow the broadcast — live moves ID 1's sheet, spoofed moves the
 worn ID's sheet, dark records nothing. Nothing breaks a complete spoof in v1 (in-person inspection parked). NPCs broadcast
@@ -813,27 +837,46 @@ challenge. Scrubbed triggers neither — blank paper complies.
       a one-time transponder cut-out installed at a pirate-run
       port; the F-screen D is inert until then.
 
-  Implementation brief (5) — APPROVED (user, 2026-09-06):
+  Implementation brief (5) — APPROVED (user, 2026-09-06); residuals
+  settled + amended (refine session, 2026-09-07 — see the cut-out
+  specifics SETTLED section):
   - Scope: ``transponder_cutout: bool`` on GameContext (saveload
     both directions; legacy saves migrate False — dark must be
-    earned); ``identity.toggle_dark`` refuses without it (plain log
-    line); the F-screen dark row shows the un-installed state; the
+    earned); ``identity.toggle_dark`` refuses without it — log line
+    ``No cut-out installed.`` (verbatim, pinned by test); the
+    F-screen hint row reads ``ENTER / ESC back   D transponder
+    (no cut-out)`` while uninstalled (unchanged otherwise); the
     install is a second priced row on Deadfall's scrubber
-    (``deadfall_scrubber``) alongside the 6,000cr scrub — 2,500cr
-    (silence is cheaper than paper); guide section updated.
-  - Build order: field + persistence → toggle gate → F-screen state
-    → service row → guide.
-  - Binding rulings: one-time install, never consumed; other pirate
-    ports selling it are deliberate later content, not system
-    growth; the scrub is unaffected.
-  - Required tests: D inert without the cut-out; works after
-    purchase; no double charge; persistence round-trip; legacy-save
-    migration.
+    (``deadfall_scrubber``) alongside the 6,000cr scrub —
+    ``Install a transponder cut-out (2,500cr)`` (silence is cheaper
+    than paper), purchase logs ``Cut-out installed.``, and the row
+    is OFFERED ONLY WHILE UNINSTALLED — the same conditional
+    mechanism as the scrub row; no re-buy path, no refusal prose;
+    guide section updated. LOAD INVARIANT (uniform, one place in
+    saveload): a save without a cut-out never loads dark — a legacy
+    ``broadcast_dark=True`` resets to live at load, logging one
+    line when it fires.
+  - Build order: field + persistence (+ load invariant) → toggle
+    gate → F-screen state → service row → guide.
+  - Binding rulings: one-time install, never consumed, RIDES THE
+    PLAYER across lawful ship purchases (player-level flag, same as
+    the library and registration — the registry transfers the
+    owner, Q2's frame); installed = the broker row disappears (no
+    re-buy, no refusal line); other pirate ports selling it are
+    deliberate later content, not system growth; the scrub is
+    unaffected.
+  - Required tests: D inert without the cut-out (refusal line
+    pinned); works after purchase; the install row is absent once
+    installed (no double charge); persistence round-trip;
+    legacy-save migration incl. the invariant — a legacy DARK save
+    with no cut-out loads live and logs; cut-out + dark round-trips
+    still dark.
   - Stop point: NOTHING from phase 6 — no recorder/rig, no
     boarding.
-  - Playtest checkpoint: D does nothing on a pre-cut-out save →
-    buy the install at Deadfall → D works → save/load keeps both
-    the cut-out and the dark state.
+  - Playtest checkpoint: on a pre-cut-out save D does nothing (a
+    DARK one loads LIVE with the reset line) → buy the install at
+    Deadfall → the row vanishes from the broker → D works →
+    save/load keeps both the cut-out and the dark state.
 
 - [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
       clone economy. Ruled above (capture + clone quality section,
