@@ -1278,6 +1278,45 @@ challenge. Scrubbed triggers neither — blank paper complies.
     dealer for above its 6,000cr cost → confirm it left the
     library → below liked, ``Scram.`` blocks the whole stall →
     save/load keeps everything.
+  Pre-implementation audit (6b, 2026-09-07):
+  - Reuse: the cap lives in ``collect_id`` (the single choke point
+    — scrub and clone both funnel through it) as
+    ``LIBRARY_CAP = 6`` + pure ``library_full(ctx)``; per-caller
+    messaging shares ONE line — ``Your ID book is full.`` (scrub
+    handler, capture console) per outcome consistency. Removal:
+    ``identity.remove_id(ctx, entry_id)`` matches by id, and the
+    worn-ID auto-clear falls out of the match (broadcast_identity
+    cleared → live) — the same key cycle_identity follows. The
+    F-screen gains X (delete the shown ID; hint row grows
+    ``X delete`` beside the TAB hint). The dealer's SELL row rides
+    the priced-row seam (offered to ``wolf_rig_dealer`` alone per
+    an ``ID_BUYERS`` table in identity, behind the existing Scram
+    gate); selecting it opens a sub-menu built on npc.py's own
+    ``_run_pygame_menu`` frames loop — the mission-offerings
+    precedent for dynamic rows. Sell pricing: pure
+    ``sell_value(entry)`` reading the ENTRY's ``rep`` sheet (the
+    phase-4-sanctioned source; never
+    ``effective_reputation``/``ctx.broadcast_identity``) —
+    ``ID_SELL_BASE = 500`` + ``ID_SELL_RATE = 100`` per positive
+    point (tunable; an all-zero scrub sells at 500; a
+    merchant-ground ~+80 sheet sells ~8,500 > its 6,000 cost —
+    the ruled loop clears).
+  - Edge behavior: empty library → no sell row, X no-ops; a clone
+    refused at 6/6 still consumed the boarded ship (6a's exit is
+    untouched); deleting while DARK removes the queued entry —
+    auto-clear only fires when the removed id is the worn one
+    (dark is the master switch and keeps broadcasting nothing);
+    selling the worn ID auto-clears identically to deleting it.
+  - Duplication: delete and sell share ``remove_id`` (one removal
+    path incl. auto-clear); the sub-menu reuses the existing menu
+    runner; the price is one pure function.
+  - Ratchet: npc.py grows for the sub-menu — sub-menu builder and
+    handler are separate functions, all ≤40.
+  - Tests: cap at 6/6 for scrub AND clone (shared line pinned);
+    delete removes + worn auto-clears to LIVE; sell value scales
+    with positive sheet rep (zero-scrub 500, ground-up > cost),
+    sale removes the entry + pays; sub-menu lists exactly the
+    held entries; dealer-only; dark-delete keeps dark.
 
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
