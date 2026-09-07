@@ -3,8 +3,8 @@
 An ID is an identifier that maps to relations; the game lived in
 live mode since day one. Phase 1 covers the state model (live /
 dark / spoofed, the worn-face library), persistence + existing-save
-migration, the rep-routing gate (actions under a fake ID cannot
-alter the true ID), and the F-screen identity hub.
+migration, the broadcast write rule (live moves ID 1, a worn ID
+builds its own record, dark records nothing), and the identity hub.
 """
 
 from __future__ import annotations
@@ -748,6 +748,44 @@ def _occupied_ctx(faction_reputation):
     return ctx
 
 
+def test_gate_engages_truth_table_and_heat_bypass():
+    """_gate_engages: engage only on resolved disliked/enemy; charged-
+    cell heat bypasses the mask — a heat response, not an identity
+    read — so even a blank sheet engages under heat."""
+    from src.spacehack import navigation_combat as nc
+
+    assert nc._gate_engages({"militia": 0}, "militia", False) is False
+    assert nc._gate_engages({"militia": 50}, "militia", False) is False
+    assert nc._gate_engages({"militia": -80}, "militia", False) is True
+    assert nc._gate_engages({}, "militia", False) is False
+    assert nc._gate_engages({}, "militia", True) is True
+    assert nc._gate_engages({"militia": 90}, "militia", True) is True
+
+
+def test_charged_cell_heat_aggros_through_any_face(monkeypatch):
+    """The brief's required case: under charged-cell heat a militia
+    static engages through any broadcast — liked, scrubbed, or dark."""
+    from src.spacehack import navigation_combat as nc
+    from src.spacehack import world
+
+    monkeypatch.setattr(
+        nc.main_quest_module, "charged_cell_in_sol", lambda _ctx, _sid: True,
+    )
+    player = world.Position(151, 55)
+    alive = []
+
+    ctx = _occupied_ctx({"militia": 50})  # liked live: heat still aggros
+    squads, _ = nc._trigger_static_spawns(
+        ctx, player, _blockade_system(), alive)
+    assert squads == {"luyt_blockade_picket"}
+
+    ctx = _occupied_ctx({"militia": 50})
+    ctx.broadcast_dark = True  # dark changes nothing: heat ignores it
+    assert nc._trigger_static_spawns(
+        ctx, player, _blockade_system(), alive,
+    ) == ({"luyt_blockade_picket"}, set())
+
+
 def test_static_spawns_gate_on_the_resolved_sheet():
     """Static spawns gate uniformly (user ruling, no exceptions): a
     militia-LIKED live hull sails past the Luyten blockade; hostile
@@ -821,3 +859,22 @@ def test_readers_resolve_the_sheet_space_and_ground():
     assert trade._merchant_attitude(ctx) == "liked"
     assert _faction_pay_pct(ctx, "merchants") == 10
     assert spec_is_hostile(ctx, merchant) is False
+
+
+def test_contact_options_read_the_sheet():
+    """Comms rows resolve the broadcasting ID's sheet (doc 40): a
+    merchant contact offers Open Trade to a liked hull but not to a
+    scrub the merchants distrust."""
+    from types import SimpleNamespace
+
+    from src.spacehack import comms
+
+    merchant = SimpleNamespace(
+        faction="merchant", is_boardable=False, id="trader")
+    ctx = quest_ctx()
+    ctx.faction_reputation = {"merchant": 40}
+    assert "Open Trade" in comms._contact_options(ctx, merchant)
+
+    ctx.collected_ids = [dict(_scrub_entry(rep={"merchant": -40}))]
+    ctx.broadcast_identity = dict(ctx.collected_ids[0])
+    assert "Open Trade" not in comms._contact_options(ctx, merchant)

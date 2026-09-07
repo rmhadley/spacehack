@@ -89,7 +89,8 @@ def _build_test_ctx() -> GameContext:
     ctx.collected_ids = [
         ctx.broadcast_identity,
         {"id": "KX-1234", "kind": "scrubbed", "label": "Scrubbed hull",
-         "faction": None, "origin": "no history, no debts"},
+         "faction": None, "origin": "no history, no debts",
+         "rep": {"merchant": -40}},
     ]
     ctx.main_quest_disposition = "archive_sealed"
     ctx.post_prison_orbit_seen = True
