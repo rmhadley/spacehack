@@ -632,12 +632,25 @@ challenge. Scrubbed triggers neither — blank paper complies.
     then go dark" suppresses that patrol's challenge until landing
     clears the set. Fix would be separate keys for hail vs
     challenge; deferred until the playtest says it matters.
-- [ ] PHASE 4 — the broadcasting ID's reputation (re-cut
+- [x] PHASE 4 — the broadcasting ID's reputation — LANDED
+      (2026-09-07; 66b6e0f..11bbacf; playtest pending). Re-cut
       2026-09-06 from "apparent standings": IDs carry rep sheets,
-      not faction mappings — see the sheets SETTLED section). One
+      not faction mappings — see the sheets SETTLED section. One
       pure resolver — the sheet of whichever ID broadcasts — feeds
       every reader; existing consumers keep their logic (user:
-      "reputation drives this system 100%").
+      "reputation drives this system 100%"). Shipped: the resolver
+      (fresh dict per state), broadcast write routing in
+      ``modify_rep`` (spoofed → worn entry's sheet via
+      ``identity.apply_worn_delta``; dark discards; decay direct),
+      literal zero scrub sheets, the challenge judgement by sheet
+      value (one unified hostile line), the uniform static gate
+      (shared ``_gate_engages``, charged-cell bypass), every routed
+      reader (spawn passes, scan chance, comms, trade, board, ground),
+      the F screen rendering the actual sheet (``_masked_row`` +
+      ``apparent_faction`` deleted), guide + module docstrings. REVIEW
+      round 1: REQUEST_CHANGES → 1 blocking (gate heat bypass
+      untested) + 5 minors, all fixed (5a56268..11bbacf); routing
+      verified complete, stop point respected; 1765 tests green.
 
   Implementation brief (4) — re-cut + APPROVED (user, 2026-09-06;
   supersedes the original apparent-standings brief; amended after
@@ -702,9 +715,13 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ``.get``); no new acquisition content. INVARIANT (ADVISE):
     rep is read and written ONLY via the library entry or
     ``ctx.faction_reputation`` — NEVER via ``ctx.broadcast_identity``
-    (post-load the two are separate objects). PERF: per-pass readers
-    hoist ONE resolver call per pass (spawn detect, ground move,
-    city tick) — no per-NPC re-resolution. Guide: the existing
+    (post-load the two are separate objects). PERF (amended at
+    build, 2026-09-07): the three space spawn passes hoist ONE
+    resolver call each; ``spec_is_hostile`` stays self-resolving
+    per call — hoisting would plumb a sheet parameter through the
+    ``ground_npcs``/``city_npcs``/``_encounter`` wrapper seams for a
+    negligible gain (a dict copy + ≤4-entry library scan per NPC).
+    Deliberate deviation, recorded per REVIEW minor 3. Guide: the existing
     "reputation freezes while masked" line is now FALSE — update it
     (spoofed rep moves the worn sheet; only dark discards; dark F
     rows render neutral, the mode tag carries the state).
