@@ -913,6 +913,65 @@ challenge. Scrubbed triggers neither — blank paper complies.
     the install → the row vanishes from the tech → D works →
     save/load keeps both the cut-out and the dark state.
 
+  Pre-implementation audit (5, 2026-09-07):
+  - Reuse: ``identity.toggle_dark`` (identity.py:122) has exactly
+    one caller — ``pygame_faction._log_transponder_toggle`` — so
+    the gate goes inside ``toggle_dark`` (returns bool; the caller
+    returns early on refusal; the refusal line lives in identity,
+    one copy). Purchase machinery mirrors the scrub pair:
+    ``CUTOUT_BROKERS = {"ember_tech": 2500}`` + pure
+    ``cutout_price(npc_id)`` + ``buy_transponder_cutout(ctx,
+    npc_id)`` beside ``SCRUB_BROKERS``/``buy_scrubbed_id``
+    (identity.py:244-270). The talk-modal priced-row seam
+    (npc.py ``_npc_pygame_items(scrub_price=...)`` → action
+    "SCRUB" → ``_handle_scrub_purchase``) gains the parallel
+    ``cutout_price=`` / "CUTOUT" / ``_handle_cutout_purchase`` —
+    row built only while ``not ctx.transponder_cutout``, so
+    installed = row gone with no new hiding logic. Interior
+    seating: the quest seater (``main_quest/_act0.py:451``,
+    called from ``city_interiors.py:84``) already delegates seat
+    geometry to ``city_interiors._first_interior_npc`` — the new
+    always-on seater ``_seat_service_npcs`` lives in
+    ``city_interiors.py`` (interior domain, not quest) reading a
+    new ``PlanetSpec.service_npc_spots``; zero geometry duplication,
+    quest machinery untouched. Persistence: one line each in the
+    writer (``saveload.py:132-135`` block) and reader (:883-887);
+    the load invariant sits right after the ``broadcast_dark``
+    restore; ``GameContext.transponder_cutout`` declared beside the
+    other identity fields (game_context.py:388-396).
+  - Duplication hotspots: (1) a second seat-geometry copy — killed
+    by reusing ``_first_interior_npc``; (2) a second D-key log path
+    — killed by the bool return (``_log_transponder_toggle`` stays
+    the only toggle logger); (3) quest-gating special cases —
+    killed by the separate ``service_npc_spots`` field + seater
+    (no always-true conditions threaded through quest code);
+    (4) the can't-afford line appears in both purchase handlers
+    (one-line literal, accepted; not a shared pattern).
+  - Edge behavior: post-install the tech has ZERO menu rows → the
+    existing ``_no_options_reply`` path gives his flavor/read-only
+    line — intended (the row disappearing IS the ruling). Legacy
+    saves without the key read False; the load invariant fires only
+    when dark AND no cut-out. ``tests/support/quest_ctx.py`` gains
+    ``transponder_cutout=False`` — a fake crossing the gate must
+    pin it (MagicMock truthy-trap).
+  - Ratchet: saveload.py is 963 lines (+~4 stays under 1000);
+    ``_run_npc_talk`` is the one edited function near the 40-line
+    limit — recount at edit, extract the option-count prelude if it
+    crosses.
+  - Strings: the brief's four lines as pinned above; the
+    load-invariant line is drafted here (user-dictatable at
+    playtest): ``No cut-out installed - transponder restored to
+    live.`` Tech NPC draft: id ``ember_tech``, name "Transponder
+    Tech", guild "" (no WORK row), flavor teaches in-character
+    (what a cut-out does, the F screen's D, the dock price).
+  - Tests (doc-specified): mirror the persistence/round-trip
+    patterns in tests/test_identity.py; the seat test mirrors
+    tests/test_main_quest_npc_presence.py:180; quest_ctx pins the
+    new field.
+  - Stop point: NOTHING from phase 6 — no recorder/rig, no
+    boarding.
+  - Playtest checkpoint: the brief's checkpoint above (5 items).
+
 - [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
       clone economy. Ruled above (capture + clone quality section,
       2026-09-06); the brief is drafted at phase 5's playtest
