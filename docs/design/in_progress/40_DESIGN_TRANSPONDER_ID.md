@@ -1316,7 +1316,14 @@ challenge. Scrubbed triggers neither — blank paper complies.
     reference's waist pinch and blade notches; AWAITING THE
     USER'S READ on the shape before rooms resume inside it.
     Then: vim polish of ``cruiser_crew.layout`` → in-game deck
-    walk.
+    walk. PROCESS PROVEN (user, 2026-09-07: "beautiful... it
+    proves we have a process that can generate a ship shape in
+    the in game art style") — the Kestrel trace quantum-
+    decomposed into 38 rects (303×96, sealed, symmetric,
+    layout_drafts/cruiser_rect_kestrel.txt + .json); the artifact
+    is capital-scale, so the cruiser's own deck size and final
+    source choice stay open (2x Kestrel, or a smaller reference
+    hunt per the class).
 
 - [ ] PHASE 6d — boarding coverage for every battle spec + the
       remaining decks, via the 6c pipeline. Carries: the frigate
