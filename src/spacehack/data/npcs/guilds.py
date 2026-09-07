@@ -35,9 +35,8 @@ NPCS: tuple[NPC, ...] = (
         char="d",
         fg=(200, 170, 120),
         flavor_text=(
-            "The stall's table holds more rigged boards than fruit. "
-            "Word is my clone rigs cut transponders open from the "
-            "inside. Bring credits, and don't bring a militia face."
+            "Greetings, friend. I've got something someone like you "
+            "may be interested in if you've got the credits."
         ),
     ),
     NPC(
