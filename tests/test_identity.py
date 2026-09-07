@@ -1319,6 +1319,28 @@ def _ctx_last(ctx):
     return ctx.log.recent()[-1].text
 
 
+def test_capture_console_full_line_pinned():
+    """The capture console's 6/6 refusal shares the scrub's line."""
+    from types import SimpleNamespace
+
+    from src.spacehack.game_interactions import _resolve_capture_console
+
+    _log = []
+    ctx = quest_ctx()
+    ctx.transponder_rig = True
+    from src.spacehack import identity
+    ctx.collected_ids = [
+        {"id": f"KX-{n:04d}", "kind": "scrubbed"} for n in range(identity.LIBRARY_CAP)
+    ]
+    _state = SimpleNamespace(
+        ctx=ctx, current_mode="dungeon",
+        game_map=SimpleNamespace(capture_spec_id="pirate_scout"),
+        log=SimpleNamespace(add=_log.append),
+    )
+    assert _resolve_capture_console(_state, None, "pirate_scout") == "CONTINUE"
+    assert _log == ["Your ID book is full."]
+
+
 def test_remove_id_auto_clears_the_worn_broadcast():
     """Removing the worn ID drops the broadcast to live; removing an
     unheld id is a no-op."""
@@ -1407,10 +1429,13 @@ def test_dealer_sell_row_and_sub_menu(monkeypatch):
             (npc_mod.TalkOutcome.SELL, None),
     )
 
+    ctx.broadcast_identity = dict(_face)  # sell the WORN one
     result = npc_mod._run_npc_talk(ctx, _dealer)
     assert result == (npc_mod.TalkOutcome.BACK, None)
     assert _picked == ["SELLID:KG-8812"]
     assert ctx.collected_ids == [], "the sold ID left the library"
+    assert ctx.broadcast_identity is None, \
+        "selling the worn ID auto-clears to live"
     assert ctx.stats.credits == 500 + identity.ID_SELL_RATE * 80
     assert any("Sold Cloned hull KG-8812" in e.text
                for e in ctx.log.recent())

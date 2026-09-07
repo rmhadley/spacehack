@@ -287,6 +287,8 @@ def _run_sell_menu(ctx):
             continue
         if _outcome == "SELECT" and _action.startswith("SELLID:"):
             return _action
+        if _outcome == "QUIT":
+            return "QUIT"
         return None
 
 
@@ -298,6 +300,8 @@ def _handle_sell_ids(ctx):
 
     while True:
         _action = _run_sell_menu(ctx)
+        if _action == "QUIT":
+            return (TalkOutcome.QUIT, None)
         if _action is None:
             return (TalkOutcome.BACK, None)
         _entry_id = _action.partition(":")[2]

@@ -582,8 +582,9 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "sell to faces the pirates don't like."
             "\n\n"
             "Your ID book holds six false IDs at most. On the F screen, "
-            "X deletes the one shown - and a worn ID that's deleted or "
-            "sold drops your transponder back to your true one. The "
+            "X deletes the one shown - delete or sell the ID you're "
+            "wearing and the broadcast drops back to your true ID "
+            "(dark stays dark). The "
             "Wolf 359 b rig dealer also buys IDs: the better the "
             "sheet, the better the price."
         ),
