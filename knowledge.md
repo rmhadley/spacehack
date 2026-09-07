@@ -871,6 +871,15 @@ pygame_menu.run_for_context(ctx.context, frames, caption="spacehack - ...")
 
 Design docs live in `docs/design/` and are the contract between the user and the agent for building complex features.
 
+### Systems inventory (`docs/design/SYSTEMS.md`) — consult, then update
+
+`docs/design/SYSTEMS.md` is the one-line-per-mechanic inventory of what exists (its header states the full contract). Two mandatory touchpoints:
+
+1. **Before designing anything** (riff, refine, a new phase's brief): read the relevant entries first — "is this already solved?" precedes every scope. Extending an existing system is the default framing; a "new feature" proposal that re-uses an inventoried mechanism must say why the extension framing doesn't hold.
+2. **At every phase close** (playtest passed): add or amend the entries the phase touched before moving the doc on. The close isn't done until the inventory matches the build.
+
+Entries are claims about code — verify the anchor before ruling from one, and quote the entry (with its file) when correcting a stale memory, yours or the user's.
+
 ### Reference (see `docs/design/knowledge.md`)
 Directory layout, creating a new doc, and moving docs through the lifecycle live in `docs/design/knowledge.md` — read it before starting any design-doc work. So do the command surface (`/refine-design` ruling loop, `/implement-phase` build loop) and the five-stage session lifecycle map (riff → refine → implement → playtest → close). The mandatory process rules below live here because they fire on almost every session.
 

@@ -82,7 +82,9 @@ reference and `knowledge.md`.
    (`docs: ...`), then prompt for the next phase or the close.
 5. **Close** (conversational): every checkbox checked, playtests
    recorded, no open questions — on the user's confirmation, move the
-   doc to `complete/` and fix cross-references in the same commit.
+   doc to `complete/`, fix cross-references, and add/amend the
+   phase's entries in `docs/design/SYSTEMS.md` (the inventory) in the
+   same commit.
 
 `/design-brief <n>` is report-only and usable at any point in the
 loop; it edits nothing.
