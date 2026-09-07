@@ -287,7 +287,9 @@ broadcasting ID's sheet — dark records nothing (Q4, re-ruled
 
 **Capture is live-ship boarding (user ruling — new feature).** The
 shadow/record verb is replaced by boarding: meet the requirements
-(shields down, adjacent), board the LIVE ship — not a powered-down
+(no shields up, 75% hull damage done, no other ships in the
+encounter, player adjacent — BOARD is offered IN COMBAT; user
+ruling 2026-09-07), board the LIVE ship — not a powered-down
 derelict, a functioning enemy hull with a full crew aboard — fight
 your way to the cockpit and the C console, and with the tech
 available, clone the ID from there. (Scoping pending: own sibling
@@ -305,7 +307,10 @@ quality weights, re-clone/re-roll semantics, library cap/sell.
 **Roll parameters (user ruling): one roll per source.** Each source
 rolls once, ever — a bad roll is a bad ID and no credits re-roll
 it; better odds require capturing higher-quality sources. The grind
-is the HUNT. Delete exists to clear junk.
+is the HUNT. Delete exists to clear junk. (Enforced physically
+since 2026-09-07: each hull boards ONCE — exit consumes the ship —
+so a re-roll requires hunting a new hull, and the entry persists
+the rolled sheet.)
 
 **Library (user ruling): capped slots + delete + sell.** Small fixed
 library (slot count pinned in the phase 6 brief), delete free at the
@@ -315,13 +320,19 @@ value.
 **Boarding is an extension, not a new system (user correction).**
 Ship boarding already exists (wreck bump-boarding into dungeon
 interiors, ``game_interactions._resolve_npc_ship_blocker``); the
-capture phase EXTENDS it to live ships — no sibling doc. V1 calls
-(proposed in the phase 6 brief, veto freely): a ship crippled to
-shields-down with hull intact becomes boardable (overkill destroys
-the prize — no wreck salvage); the interior spawns its crew
-(ENEMY markers in the layout); the C console at the cockpit offers
-the clone with the tech installed; console taken, the hull powers
-down to a derelict (existing loot flows apply). Ship theft parked.
+capture phase EXTENDS it to live ships — no sibling doc. V1
+(ruled 2026-09-07, supersedes the first-pass calls): BOARD appears
+IN COMBAT when the target has no shields up, has taken 75% hull
+damage, is the ONLY active enemy in the encounter, and the player
+is adjacent (user's in-universe framing: boarding with active
+enemies would be risk — the option requires a duel). The interior
+spawns its crew (ENEMY markers authored per faction — content,
+scout_a precedent); the C console at the cockpit offers the clone
+with the rig installed; ON EXIT THE SHIP IS CONSUMED — gone, just
+like derelict boarding (user: "you can't reboard a ship after you
+board it once") — no map-level crippled state, nothing new to
+persist for it. A kill still just kills: overkill destroys the
+prize (no wreck salvage). Ship theft parked.
 
 **Phase cut (2026-09-06):** phase 4 = the broadcasting ID's
 reputation (originally cut as "apparent standings"; re-cut to
@@ -1003,106 +1014,147 @@ challenge. Scrubbed triggers neither — blank paper complies.
     boarding.
   - Playtest checkpoint: the brief's checkpoint above (5 items).
 
-- [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
-      clone economy. Ruled above (capture + clone quality section,
-      2026-09-06). Carries: the crippled-ship
-      boarding extension (shields down + hull intact boardable;
-      overkill destroys the prize), crewed interiors (ENEMY
-      markers), the C console clone (rig-gated, sheet rolled by
-      the source's quality tier — one roll per source, persisted),
-      library cap/delete/sell.
+- [ ] PHASE 6a — the capture pipeline: BOARD-in-combat + live-ship
+      boarding + the clone roll + the rig. Re-cut 6 → 6a + 6b
+      (user-approved 2026-09-07, per the ADVISE review; 6a is the
+      novel-machinery vertical slice). Boarding conditions (user,
+      2026-09-07): no shields up, 75% hull damage done, no other
+      ships in the encounter, player adjacent — BOARD offered in
+      combat; exit consumes the ship ("you can't reboard a ship
+      after you board it once").
 
-  Implementation brief (6) — DRAFTED at phase 5's playtest
-  checkpoint (2026-09-07, per the 3b precedent); parameters
-  CONFIRMED by the user at the checkpoint (2026-09-07): rig
-  storefront + rep gate, hull-class roll skew, 6-slot library,
-  rep-sheet sell pricing:
-  - Scope: (1) live-ship boarding — extend the existing wreck
-    bump-boarding path (``game_interactions._resolve_npc_ship_blocker``)
-    so a LIVE ship crippled to shields-down with hull intact is
-    boardable; overkill (hull destroyed) destroys the prize — no
-    wreck salvage from that kill; (2) crewed interiors — boarding a
-    live ship spawns its crew as ENEMIES inside the ship's interior
-    layout (ENEMY markers authored in the layout per the
-    quest-cache precedent, or the wreck-interior spawn path
-    parameterized — build-time audit picks ONE mechanism); (3) the
-    C console — an interactable at the cockpit; with the clone rig
-    installed it offers CLONE: the target ship's ID enters the
-    library with its sheet ROLLED at capture (see (4)); console
-    taken, the hull powers down to a derelict (existing loot flows
-    apply); (4) the roll — ONE ROLL PER SOURCE, ever (persisted by
-    the library entry itself: the roll generates the ``rep`` sheet
-    at capture); quality-weighted by the source ship's hull-class
-    tier (better tiers skew the roll toward the source faction's
-    stronger values — exact bands proposed at build, user-tunable);
-    (5) the clone rig — sold by a NEW stall vendor on Wolf 359 b's
-    Smuggler's Row (the static market just south of the Salty
-    Grave; user: "one of the npc's with a stall in the market") —
-    a new ``CityNpc`` (``wander_radius=0``, civilian char-spec)
-    carrying a new NPC persona via its ``npc_id`` field (the
-    existing ambient-vendor→persona mechanism). GATED (user ruling
-    2026-09-07): below the gate he REFUSES TO TALK — unless the
-    RESOLVED sheet's pirate standing is liked (+26 or better),
-    talking to him gets ``Scram.`` (verbatim) and no menu opens;
-    the dealer reads the broadcasting sheet like every reader in
-    the game, so a pirate-liked clone wears past the gate (uniform,
-    no special case). At/above the gate his menu carries the rig
-    row AND the buy row — he is the frontier ID market (next
-    bullet). Priced above the cut-out (exact price proposed at
-    build); (6) the library — 6 slots; delete free at the F screen;
-    SELL PRICING IS REP-DERIVED (user ruling, 2026-09-07): value =
-    small base + a rate per positive rep point across the whole
-    sheet — "sell value will be based on the faction rep tied to
-    the ID," so identities are appreciable assets: buy a scrubbed
-    code, rep-grind it (writes follow the broadcast — grinding
-    while spoofed builds the worn sheet, phase 4 machinery), sell
-    it for more than it cost. THE INCOME LOOP IS INTENTIONAL.
-    Exact base + per-point rate proposed at build, tunable. THE
-    BUYER (user ruling 2026-09-07): the Wolf dealer himself — same
-    storefront, behind the same gate (below liked he says
-    ``Scram.`` to sellers too); sold = removed from the library;
-    capture refuses at 6/6.
-  - Build order: boarding extension → crewed interiors → C console
-    + clone + roll → rig vendor + rep gate → library
-    cap/delete/sell → guide.
-  - Binding rulings: capture is live-ship boarding only (derelict
-    cloning is NOT a thing); one roll per source, ever; sheets
-    settle at capture and persist on the library entry; ship theft
-    parked (console taken = powered-down derelict, nothing more);
-    cloning stays RARE and DIFFICULT — expensive tools, crewed
-    risk, rep-gated seller, capped library; identity selling is a
-    legitimate income loop, priced by the sheet's own standing.
-  - Required tests: cripple-to-boardable per shield/hull state;
-    overkill destroys the prize; crew spawns hostile inside;
-    console clone gated on the rig; the roll is deterministic per
-    (source, seed) and PERSISTS with the entry (one roll per
-    source); below pirate liked (and for a masked non-liked sheet)
-    the dealer refuses to talk — ``Scram.`` pinned, no modal; at
-    liked his menu shows the rig row and the buy row — masked
-    liked sheet passes;
-    library cap refuses at 6/6; delete frees a slot; sell value
-    rises with positive sheet rep (zero-sheet scrub sells below
-    cost, ground-up sheet sells above), sale removes the entry;
-    save/load round-trips the rolled sheet.
-  - Stop point: NO ship theft, NO frame-job v2 (blaming the
-    clone's source), NO fabricated-ID content (act 1 owns it), NO
-    Line work.
-  - Binding rulings addendum (2026-09-07): the Wolf dealer's gate
-    is TOTAL — below pirate liked he refuses to talk entirely
-    (``Scram.``), so the frontier identity economy (rig sales AND
-    the ID buy market) sits behind the +26 gate; the scrub at
-    Deadfall stays un-gated (the loop's cheap on-ramp).
-  - Playtest checkpoint (numbered): cripple a pirate (shields
-    down, hull intact) → board → fight the crew to the cockpit →
-    clone at the C console → the new ID shows on the F screen with
-    its rolled sheet → wear it in its home faction's space (readers
-    react to the ROLLED values) → try to re-clone the same source
-    (refused — one roll) → fill the library to 6/6 (capture
-    refuses) → delete one at the F screen → at the Wolf 359 b
-    market stall below pirate liked: the dealer says ``Scram.``
-    and won't deal → at liked: his menu carries the rig and the
-    buy row → sell a ground-up ID for above its cost
-    → save/load keeps the rolled sheets.
+  Implementation brief (6a) — ADVISE-reviewed + rulings folded
+  (2026-09-07):
+  - Scope: (1) the BOARD action in space combat
+    (``combat/_rules_space.py``) — offered only when the target has
+    no shields up, has taken 75% hull damage (threshold tunable at
+    playtest), is the ONLY active enemy in the encounter, and the
+    player is adjacent; choosing it ends the encounter INTO the
+    ship's interior (the wreck-boarding pipeline, entered from
+    combat; ``_confirm_boarding`` gets its own live-ship copy —
+    today it says "The derelict can be searched"). A kill still
+    just kills (``on_kill`` removes the entity — overkill destroys
+    the prize, no wreck). NOTE: ``_rules_space.py`` sits at
+    998/1000 — the ratchet forces its split in the same commit;
+    (2) crewed interiors — ENEMY markers AUTHORED in per-faction
+    interior layouts (the directive already parses and scatters;
+    ``scout_a.layout`` is the precedent — content, not machinery).
+    V1 cloneable targets = specs with authored layouts; more
+    layouts are later content. Faction-coherent crews (a militia
+    cruiser never spawns pirate markers); (3) the C console —
+    rides the existing ``computer_terminal`` entity + bump flow;
+    with the clone RIG installed it offers CLONE: the roll
+    generates the ``rep`` sheet at capture (quality-skewed by the
+    source's hull-class tier — exact bands proposed at build,
+    user-tunable; RNG injected per ``generate_registration(rng=)``
+    for determinism tests — never a stale ``from .engine import
+    RNG`` binding); the entry persists the sheet. ON EXIT THE SHIP
+    IS CONSUMED (gone — the existing wreck-exit consumption path;
+    no map-level crippled state, nothing new to persist for it);
+    (4) the rig — ``transponder_rig``-style GameContext bool
+    MIRRORING ``transponder_cutout`` exactly: declared beside the
+    identity fields, one writer line + one reader line in
+    saveload (969/1000 — tight), pinned in ``quest_ctx``; (5) the
+    rig vendor — a NEW stall ``CityNpc`` on Wolf 359 b's
+    Smuggler's Row (``wander_radius=0``, civilian char-spec,
+    ``npc_id`` → new NPC persona; FIRST user of the ambient-
+    vendor→persona talk path — ship its routing test). GATE
+    (user ruling): below resolved pirate liked (+26) talking to
+    him gets ``Scram.`` (verbatim) and NO menu — a pure
+    refusal-or-None helper (``_dark_dock_refusal`` precedent,
+    reading ``effective_reputation`` + ``get_attitude``) placed
+    before the chat log; a pirate-liked clone wears past it
+    (uniform). At/above: his menu offers the rig (priced above
+    the cut-out — exact price proposed at build). The BUY row is
+    6b, not this phase.
+  - Build order: BOARD conditions + combat exit → boarding
+    interior + crew → C console + roll → rig field + persistence →
+    vendor + gate → guide.
+  - Binding rulings: capture is live-ship boarding only; boarding
+    requires a duel (the four conditions are hard gates); boarding
+    CONSUMES the ship on exit (one board per hull — the physical
+    one-roll-per-source enforcement); sheets settle at capture and
+    persist on the entry; ship theft parked; cloning stays RARE
+    and DIFFICULT.
+  - Required tests: BOARD offered/denied per the four conditions
+    (shields, hull band, solo encounter, adjacency); kill =
+    destroyed, no boardable ship; crew spawns hostile per faction
+    layout; console clone gated on the rig; roll deterministic per
+    (source, seed) via injected RNG, persisted on the entry;
+    exit consumes the ship (no re-board); rig round-trips
+    save/load; below liked the vendor refuses (``Scram.`` pinned,
+    no modal), at liked the rig row shows, masked liked sheet
+    passes; vendor routing test (ambient npc_id persona reaches
+    the talk modal).
+  - Stop point: NO library cap/delete/sell (6b), NO ship theft,
+    NO frame-job v2, NO fabricated-ID content (act 1 owns it), NO
+    Line work. DOC 39 NOTE: its ghost-run verb description (doc
+    39, "shadow a patrol, record the broadcast") is superseded by
+    this capture ruling — one-line reconciliation owed at doc 39's
+    next touch; the ghost run's militia ID stays authored act-1
+    content and does NOT wait on this phase.
+  - Playtest checkpoint (numbered): buy the rig at the Wolf 359 b
+    stall (below pirate liked: ``Scram.``) → jump to a pirate
+    system, isolate ONE pirate → hammer its hull to the band →
+    close adjacent → BOARD appears → take it → fight the crew to
+    the cockpit → clone at the C console → exit — the ship is
+    GONE → the new ID sits on the F screen with its rolled sheet →
+    wear it in its home faction's space (readers react to the
+    ROLLED values) → try to re-board that hull (impossible — it's
+    gone) → save/load keeps the rolled sheet.
+
+- [ ] PHASE 6b — the library economy: cap, delete, sell. The
+      uniform half (phase-4/5 patterns: tables, purchase handlers,
+      F screen).
+
+  Implementation brief (6b) — ADVISE-reviewed + rulings folded
+  (2026-09-07):
+  - Scope: (1) the 6-slot cap ENFORCED IN ``collect_id``
+    (identity.py — the single choke point; capture at the console
+    AND scrub purchases at Deadfall both refuse at 6/6; capture
+    still consumes the boarded ship — 6b changes nothing about
+    6a's exit); (2) F-screen delete (free) — deleting or selling
+    the WORN ID AUTO-CLEARS the broadcast to live (user ruling;
+    ``broadcast_identity`` cleared with it — never leave SPOOFED
+    resolving a blank sheet); (3) SELL PRICING IS REP-DERIVED
+    (user ruling): value = small base + a rate per positive rep
+    point across the whole ENTRY's sheet (read the entry — NEVER
+    ``effective_reputation``/``ctx.broadcast_identity``; the entry
+    is the phase-4-sanctioned source) — identities are appreciable
+    assets: buy a scrub, rep-grind it while worn (phase-4 write
+    routing), flip it for more than it cost. THE INCOME LOOP IS
+    INTENTIONAL. Exact base + rate proposed at build, tunable;
+    (4) the dealer's BUY flow — a dynamic sub-menu (pick which of
+    up to 6 entries to sell; dynamic-row precedent = mission
+    offerings, not the flat priced-row seam), on the same Wolf
+    dealer behind the same ``Scram.`` gate (6a builds him); sold =
+    removed from the library; (5) guide economy text.
+  - Build order: cap at ``collect_id`` + tests → F-screen delete
+    (+ worn auto-clear) → sell pricing (pure) → dealer buy sub-menu
+    → guide.
+  - Binding rulings: the cap is GENERAL (every acquisition path);
+    delete is free, sell is priced by the sheet; the worn-ID
+    removal auto-clears the broadcast; the dealer is the ONLY
+    buyer and his gate is TOTAL (below liked: ``Scram.`` — no rig,
+    no ID market); the Deadfall scrub stays the un-gated on-ramp.
+  - Required tests: scrub + clone both refuse at 6/6; delete frees
+    a slot; deleting the worn ID clears broadcast to LIVE; sell
+    value rises with positive sheet rep (zero-sheet scrub below
+    cost, ground-up sheet above) reading the ENTRY's sheet;
+    sale removes the entry (and auto-clears if worn); the buy
+    sub-menu lists exactly the held entries; below liked the
+    dealer sells nothing and buys nothing; save/load round-trips
+    library + prices unchanged.
+  - Stop point: NO new acquisition content, NO premium/dealer-
+    flavor pricing tiers, NO Line work.
+  - Playtest checkpoint (numbered): fill the library to 6/6 →
+    a scrub purchase AND a capture both refuse → delete one at the
+    F screen (worn one: broadcast auto-drops to live) → grind a
+    scrub's merchant standing while worn → sell it at the Wolf
+    dealer for above its 6,000cr cost → confirm it left the
+    library → below liked, ``Scram.`` blocks the whole stall →
+    save/load keeps everything.
+
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
