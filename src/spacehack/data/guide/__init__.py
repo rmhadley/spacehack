@@ -573,6 +573,13 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "a false ID is judged by its own record. Scanners read a "
             "scrubbed ID as a clean, empty registration, so it docks "
             "anywhere - it just isn't you."
+            "\n\n"
+            "Capturing an ID: strip a lone ship's shields and hammer its "
+            "hull until it can't run, pull alongside, and press B to "
+            "board. Fight through the crew to the cockpit console - with "
+            "a clone rig, that ship's transponder can be copied there, "
+            "once. The ship is gone when you leave. Rig dealers don't "
+            "sell to faces the pirates don't like."
         ),
     ),
     GuideSection(
