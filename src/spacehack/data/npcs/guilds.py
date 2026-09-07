@@ -34,10 +34,10 @@ NPCS: tuple[NPC, ...] = (
         char="t",
         fg=(150, 200, 170),
         flavor_text=(
-            "A transponder's a snitch with a power lead. The cut-out "
-            "guts it: after that, the F screen's D drops you off "
-            "every scanner's list. Most lawful docks will drop you "
-            "too. That's the price of saying nothing."
+            "I gut the breaker so the transponder can go dead "
+            "quiet whenever you want. After that, scanners read "
+            "nothing. Fair warning: most lawful docks turn a "
+            "silent hull away. That's the deal."
         ),
     ),
     NPC(
