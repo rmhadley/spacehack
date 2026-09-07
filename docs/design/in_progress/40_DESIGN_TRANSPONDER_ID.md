@@ -1081,7 +1081,13 @@ challenge. Scrubbed triggers neither — blank paper complies.
     before the chat log; a pirate-liked clone wears past it
     (uniform). At/above: his menu offers the rig (priced above
     the cut-out — exact price proposed at build). The BUY row is
-    6b, not this phase.
+    6b, not this phase. RULING (user, mid-playtest 2026-09-07):
+    the rig is a ONE-TIME PURCHASE UNLOCK, never a per-capture
+    price — the loop's recurring cost is the grind itself (find a
+    good target, win the duel, survive the crew, take the roll);
+    a 9,000cr repeat would make that grind feel excessive.
+    Already how it works (field never consumed, row gone when
+    owned — pinned); the menu description now states it.
   - Build order: BOARD conditions + combat exit → boarding
     interior + crew → C console + roll → rig field + persistence →
     vendor + gate → guide.

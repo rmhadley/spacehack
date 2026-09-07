@@ -76,7 +76,8 @@ def _append_priced_items(items, scrub_price, cutout_price, rig_price):
         (cutout_price, "Install a transponder cut-out ({:,}cr)",
          "A one-time job: the transponder can go dark afterward.", "CUTOUT"),
         (rig_price, "Buy a clone rig ({:,}cr)",
-         "A one-time tool: captured ships' consoles clone with it.", "RIG"),
+         "Buy it once - every captured ship's console clones with it.",
+         "RIG"),
     )
     for _price, _label, _body, _action in _rows:
         if _price is not None:
