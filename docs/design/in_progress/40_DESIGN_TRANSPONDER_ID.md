@@ -466,6 +466,31 @@ user-dictatable; offer row and install log stay as pinned above.
   layout editor gains these two ship-interior checks, and the
   authoring is collaborative: agent drafts, user walks the deck
   in-game, iterate.
+- **Consume = full kill treatment, minus exterior loot (user
+  ruling 2026-09-07: "treat it exactly as a kill in all cases,
+  not just bounty targets. minus one thing -> no loot dropped.
+  you pick the loot up on the ship").** Rep deltas, XP, counters,
+  tombstone, bounty/heist bookkeeping — the whole `_record_defeat`
+  pass — applies to the consumed hull; only the exterior loot
+  scatter is suppressed (heist mission cargo rides INSIDE the
+  capture interior via the existing component-good mechanism).
+  This supersedes 6a's bounty/heist BOARD exclusion: quest-linked
+  ships are boardable, and the quest bookkeeping treats the
+  consume as the kill it replaces.
+- **The authoring pipeline (agreed 2026-09-07):** the agent
+  authors a JSON spec (rooms with names/rects/roles/twins, door
+  EDGES, entry breach/spawn/exit, console room, crew markers) —
+  "my human brain works great in vim. your brain works better in
+  json" — and a compiler renders it to ``.layout``, refusing to
+  emit unless the validator passes: door ends live + same
+  component, BFS from spawn covers every floor cell, hull seal
+  (no floor adjacent to border-connected void). The JSON is the
+  authoring intermediary ONLY; ``.layout`` stays the canonical,
+  human-readable final format (vim pass is the user's; recompiles
+  never clobber hand edits). Reference corpus: FTL doors-view /
+  Systems images per hull class, user-curated, stored with source
+  URLs (the user's process: reference → tabletop-RPG floor-plan
+  concept → ``#``/``.`` structure first → content pass).
 
 ## The complete settled design (one statement)
 
@@ -1230,21 +1255,58 @@ challenge. Scrubbed triggers neither — blank paper complies.
 
 - [ ] PHASE 6c — boarding coverage for every battle spec + the
       crewed-layout authoring pass. Spun out of 6a's playtest
-      (2026-09-07). Content + validation work; the layouts are
-      authored COLLABORATIVELY (agent drafts → user walks the deck
-      in-game → iterate), so this phase's brief is drafted
-      together with the user at its start — no build without it.
-      Carries: layout-editor validation for ship interiors (every
-      door connects; the hull envelope seals the interior; BFS
-      reachability), re-authored scout_crew/cruiser_crew, new
-      crewed layouts for every remaining battle spec, bounty-goal
-      completion on consume (bookkeeping share TBD: rep/XP/
-      tombstone), and the capture-target list widened to every
-      fightable spec. Open questions for the brief: what a
-      consumed hull shares with a killed one (kill rep? XP? loot?
-      none?); bounty WINGMATES (do they count, or the leader
-      only?); per-faction layout set (one per spec vs shared
-      templates per hull class).
+      (2026-09-07); the pipeline was prototyped and agreed in the
+      6b session (see the authoring-pipeline SETTLED entry).
+
+  Implementation brief (6c) — drafted WITH the user (2026-09-07;
+  reference-hunt + two-stage translation + JSON-pipeline sessions):
+  - Scope: (1) the compiler/validator tool — JSON spec (rooms
+    with name/rect/role/twin, door edges, entry, console, crew
+    markers) → ``.layout``; refuses to emit on any of: door to
+    nowhere, disconnected floors (BFS from spawn), hull leak
+    (floor adjacent to border-connected void); standalone
+    validator mode over existing ``.layout`` files; (2) reference
+    corpus under ``docs/design/references/`` — the user's Slug
+    frigate ref (shipideas.txt), Mantis A Systems (cruiser
+    pilot, fetched + viewed), per-class refs fetched + user-
+    blessed as each deck is drafted; (3) the cruiser pilot:
+    JSON spec from Mantis A → compile → validator-clean → user
+    vim pass → in-game walk — replaces ``cruiser_crew``; (4) the
+    frigate: the user's shipideas.txt art (validator + walk;
+    it is already hand-authored); (5) remaining classes — scout
+    (rework ``scout_crew``), hauler, freighter — JSON → compile →
+    walk, crew-dressed per faction (pirate/militia/merchant crews
+    from the existing ``npc_chars`` roster); (6) coverage flip:
+    ``capture_layout_id`` on EVERY battle spec (13 crewed specs;
+    derelicts stay on the wreck path); (7) consume bookkeeping:
+    ``begin_capture_boarding`` runs the full kill pass minus
+    exterior loot (per the SETTLED ruling) — heist cargo into the
+    interior via ``load_layout``'s component-good mechanism.
+  - Build order: compiler + validator + tests → cruiser pilot
+    (user vim + walk GATE) → frigate → scout/hauler/freighter →
+    coverage flip + consume bookkeeping → guide.
+  - Binding rulings: JSON intermediary, ``.layout`` canonical;
+    every battle spec boardable; consume = kill minus exterior
+    loot; decks ship only after the user's in-game walk; derelict
+    wreck path untouched.
+  - Required tests: compiler refusal cases (dead door,
+    disconnected rooms, hull leak all refuse to emit); validator
+    run over every ``capture_layout_id`` layout as a suite test;
+    coverage test (every non-derelict battle spec has a capture
+    layout); consume bookkeeping (bounty completes, no exterior
+    loot spawn, interior loot present); the per-deck walks are
+    the user-gated half.
+  - Stop point: no new enemy/crew char specs (existing
+    ``npc_chars`` roster only); no derelict/wreck-path changes;
+    no doc-41 Line work.
+  - Playtest checkpoint (numbered): board and walk EVERY class
+    (scout, cruiser, frigate, hauler, freighter) — each deck
+    makes physical sense (doors lead somewhere, hull sealed) →
+    a bounty-leader board completes the bounty with NO exterior
+    loot and the interior loot collected → an intercept (heist)
+    board delivers its cargo from the interior → the full
+    identity loop: rig → capture → clone → wear → sell at the
+    dealer above cost → save/load.
 
   Implementation brief (6b) — ADVISE-reviewed + rulings folded
   (2026-09-07):
