@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Any
 
 from .. import world
 
@@ -68,3 +69,37 @@ class CombatResult:
     defeated_bounty_ids: list[str] = field(default_factory=list)
     defeated_heist_ids: list[str] = field(default_factory=list)
     defeated_spec_ids: list[str] = field(default_factory=list)
+    # BOARDED (space): the live ship the player boarded — the hull is
+    # consumed at board entry (doc 40 phase 6a).
+    boarded_spec_id: str = ""
+    boarded_ent: Any = None
+
+
+@dataclass
+class SpaceCombatState:
+    """Encapsulates all mutable state for one space combat encounter.
+
+    Declared here (the types module) so the kill-resolution sibling
+    ``_space_kills`` takes it as a parameter without importing the
+    rules module. The single module-level instance lives in
+    ``_rules_space._state`` (the state contract).
+    """
+
+    ctx: Any = None
+    console: Any = None
+    game_map: Any = None
+    log: Any = None
+    player_state: dict = field(default_factory=dict)
+    enemy_insts: list = field(default_factory=list)
+    enemy_specs: list = field(default_factory=list)
+    enemy_ents: dict = field(default_factory=dict)
+    player_ent: Any = None
+    weapons_list: list = field(default_factory=list)
+    active_weapons: list = field(default_factory=list)
+    target_idx: int = 0
+    view_w: int = 80
+    view_h: int = 54
+    cr: CombatResult | None = None
+    active: bool = True
+    # Presentation-only: target card shown by default, toggled with ``v``.
+    show_target_card: bool = True

@@ -352,7 +352,9 @@ def test_finalize_kill_awards_hull_based_xp_and_counts_kill_once(monkeypatch):
     from src.spacehack.data.npc_ships import find_npc_ship
     from src.spacehack.data.ships import find_ship
 
-    monkeypatch.setattr(_rules_space, "_spawn_loot_drops", lambda *a, **k: None)
+    from src.spacehack.combat import _actions, _space_kills
+
+    monkeypatch.setattr(_actions, "_spawn_loot_drops", lambda *a, **k: None)
 
     ctx = SimpleNamespace(
         player_xp=0,
@@ -374,14 +376,9 @@ def test_finalize_kill_awards_hull_based_xp_and_counts_kill_once(monkeypatch):
         )],
         cr=_rules_space.CombatResult(),
     )
-    old_state = _rules_space._state
-    _rules_space._state = state
-    try:
-        _rules_space._finalize_kill(
-            ctx, SimpleNamespace(entities=[]), state.enemy_insts[0], None,
-        )
-    finally:
-        _rules_space._state = old_state
+    _space_kills._finalize_kill(
+        state, ctx, SimpleNamespace(entities=[]), state.enemy_insts[0], None,
+    )
 
     _sc = find_ship("scout")
     assert ctx.player_xp == _sc.base_hull * 2
