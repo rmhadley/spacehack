@@ -1347,3 +1347,32 @@ def test_sell_value_scales_with_positive_sheet_rep():
     assert identity.sell_value(
         {"rep": {"pirate": 80, "militia": -5, "merchant": 10}},
     ) == identity.ID_SELL_BASE + identity.ID_SELL_RATE * 90
+
+
+def test_f_screen_x_deletes_the_shown_id(monkeypatch):
+    """X removes the cycled ID and the hint states the control; no
+    selection → a terse no-op line."""
+    from src.spacehack import identity, pygame_faction as pf
+
+    ctx = quest_ctx()
+    _face = _pirate_face()
+    identity.collect_id(ctx, _face)
+    ctx.broadcast_identity = dict(_face)
+    _logged = []
+    ctx.log = SimpleNamespace(add=_logged.append)
+
+    pf._delete_shown_id(ctx)
+    assert ctx.collected_ids == []
+    assert ctx.broadcast_identity is None, "worn removal auto-clears"
+    assert _logged == [f"ID {_face['id']} deleted."]
+
+    _logged.clear()
+    pf._delete_shown_id(ctx)
+    assert _logged == ["No false ID selected."]
+
+    _fresh = quest_ctx()
+    _fresh.collected_ids = [_face]
+    assert "X delete" in pf.frame_for(_fresh).hint, \
+        "the hint states the control while IDs are held"
+    _fresh.collected_ids = []
+    assert "X delete" not in pf.frame_for(_fresh).hint

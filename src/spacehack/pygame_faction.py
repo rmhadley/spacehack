@@ -105,7 +105,7 @@ def frame_for(ctx: GameContext) -> FactionFrame:
     else:
         hint = "ENTER / ESC back   D transponder (no cut-out)"
     if library:
-        hint += "   TAB cycle IDs"
+        hint += "   TAB cycle IDs   X delete"
     return FactionFrame(
         title="FACTION STANDINGS",
         subtitle="Your reputation across the frontier",
@@ -289,6 +289,8 @@ def _handle_key(pygame: Any, event: Any) -> str:
         return "GUIDE"
     if event.key == pygame.K_d:
         return "DARK"
+    if event.key == pygame.K_x:
+        return "DELETE"
     if event.key in (pygame.K_TAB, pygame.K_RIGHT):
         return "CYCLE"
     return "IGNORE"
@@ -313,6 +315,19 @@ def _log_transponder_toggle(ctx: GameContext) -> None:
         ctx.log.add("Transponder on - broadcasting your true ID.")
 
 
+def _delete_shown_id(ctx: GameContext) -> None:
+    """X: delete the ID the cycle is showing (doc 40 6b). Removing the
+    worn one auto-clears the broadcast to live (identity.remove_id)."""
+    from . import identity
+    _worn = getattr(ctx, "broadcast_identity", None)
+    if _worn is None:
+        ctx.log.add("No false ID selected.")
+        return
+    _id = _worn.get("id")
+    if identity.remove_id(ctx, _id):
+        ctx.log.add(f"ID {_id} deleted.")
+
+
 def run_shared(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings inside the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
@@ -332,6 +347,10 @@ def run_shared(context: PygameContext, ctx: GameContext) -> str:
         outcome = _handle_key(pygame, event)
         if outcome == "DARK":
             _log_transponder_toggle(ctx)
+            frame = frame_for(ctx)
+            continue
+        if outcome == "DELETE":
+            _delete_shown_id(ctx)
             frame = frame_for(ctx)
             continue
         if outcome == "CYCLE":
