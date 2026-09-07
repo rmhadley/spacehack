@@ -411,10 +411,11 @@ def _handle_goto_event(state, event):
     _goto_outcome, _goto_combat = _run_goto(state.ctx, state.console, state.player)
     if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
         _outcome = combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
+        if _outcome != "BOARDED":
+            _outcome = _run_combat_loop(state.ctx, state.console, state.player)
         if _outcome == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
-        _run_combat_loop(state.ctx, state.console, state.player)
         state.player_active_missions = state.ctx.player_active_missions
     return 'HANDLED'
 

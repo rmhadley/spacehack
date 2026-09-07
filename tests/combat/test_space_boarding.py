@@ -153,7 +153,9 @@ def test_input_b_maps_to_board_not_the_vim_diagonal():
     from src.spacehack.combat._loop import _input_action
 
     _event = SimpleNamespace(key_name="b")
-    assert _input_action(_event) == "BOARD"
+    assert _input_action(
+        _event, rules=SimpleNamespace(try_board=lambda *a: True),
+    ) == "BOARD"
     assert _input_action(SimpleNamespace(key_name="n")) == "MOVE:n", \
         "the rest of the VIM set still moves"
 
@@ -216,3 +218,44 @@ def test_capture_stamps_round_trip_through_the_dungeon_payload():
         _restored, _dungeon_to_dict(_map, None),
     )
     assert _restored.cloned is True, "the one-clone stamp survives"
+
+
+def test_ground_combat_keeps_the_b_diagonal():
+    """Rules-aware mapping: without a try_board hook (ground), "b"
+    stays the VIM south-west diagonal; space rules get BOARD."""
+    from src.spacehack.combat._loop import _input_action
+
+    _event = SimpleNamespace(key_name="b")
+    assert _input_action(_event) == "MOVE:b", "no rules: plain movement"
+    assert _input_action(_event, rules=SimpleNamespace()) == "MOVE:b", \
+        "rules without try_board: plain movement"
+    assert _input_action(
+        _event, rules=SimpleNamespace(try_board=lambda *a: True),
+    ) == "BOARD"
+
+
+def test_adopt_capture_boarding_flips_the_state(monkeypatch):
+    """The state layer adopts ctx's capture transition: dungeon mode,
+    interior map/player, the space map kept for the exit."""
+    from types import SimpleNamespace as NS
+
+    import src.spacehack.game_loop as gl
+
+    _interior = object()
+    _interior_player = object()
+    _space_map = object()
+    _space_player = object()
+    _ctx = NS(game_map=_interior, player=_interior_player,
+              player_active_missions=["m1"])
+    _state = NS(
+        ctx=_ctx, game_map=_space_map, player=_space_player,
+        current_mode='space', space_game_map=None, space_player=None,
+        player_active_missions=[],
+    )
+    gl._adopt_capture_boarding(_state)
+    assert _state.current_mode == 'dungeon'
+    assert _state.game_map is _interior
+    assert _state.player is _interior_player
+    assert _state.space_game_map is _space_map
+    assert _state.space_player is _space_player
+    assert _state.player_active_missions == ["m1"]

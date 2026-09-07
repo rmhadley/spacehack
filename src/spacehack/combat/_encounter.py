@@ -204,7 +204,9 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
 
     The encounter param is normally ``(specs, positions)`` from
     ``navigation._detect_combat_encounter``. Returns ``"VICTORY"``,
-    ``"DEFEAT"``, or ``"ABORTED"`` when no combat occurred.
+    ``"DEFEAT"``, ``"BOARDED"`` (doc 40 6a — ctx then carries the
+    capture interior; the state layer must adopt it), or
+    ``"ABORTED"`` when no combat occurred.
     """
     _blocked, _inputs = _resolve_combat_inputs(ctx, encounter)
     if _blocked is not None:

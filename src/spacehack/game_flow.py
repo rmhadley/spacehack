@@ -49,6 +49,8 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
         _, _attack_data = _auto_result
         if _attack_data is not None:
             _last = combat._handle_combat_encounter(ctx, console, _attack_data)
+            if _last == "BOARDED":
+                return _last
 
     while True:
         _encounter = _detect_combat_encounter(
@@ -60,10 +62,10 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
         _last = _result
         if _result != "VICTORY":
             break
-    return _last
 
     if also_move_npcs:
         _move_npcs(ctx, ctx.game_map)
+    return _last
 
 
 # --- End space-mode helpers ---

@@ -26,7 +26,7 @@ from ._animations import (
 )
 
 
-def _combat_action(ctx, console) -> str:
+def _combat_action(ctx, console, rules=None) -> str:
     """Render one interactive combat frame and return its opaque action."""
     from .. import pygame_combat, pygame_runtime
 
@@ -42,18 +42,21 @@ def _combat_action(ctx, console) -> str:
                 continue
             if _try_open_guide(event, ctx):
                 break
-            return _input_action(event)
+            return _input_action(event, rules)
 
 
-def _input_action(event: pygame_engine.PygameInputEvent) -> str:
+def _input_action(
+    event: pygame_engine.PygameInputEvent, rules=None,
+) -> str:
     """Translate a project input event to opaque combat action IDs."""
     sym_name = event.key_name.lower()
     if sym_name == "tab":
         return "TARGET"
     if sym_name in {"backslash", "nonusbackslash", "\\"}:
         return "HISTORY"
-    # The action table wins over movement — "b" is a VIM diagonal but
-    # boards a crippled ship (doc 40 6a).
+    # The action table wins over movement. "b" boards only where the
+    # rules support it (space, doc 40 6a); ground keeps the VIM
+    # south-west diagonal.
     _action = {
         "s": "DEFENSE",
         "w": "WAIT",
@@ -61,10 +64,11 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "r": "RELOAD",
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
-        "b": "BOARD",
     }.get(sym_name)
     if _action is not None:
         return _action
+    if sym_name == "b" and getattr(rules, "try_board", None) is not None:
+        return "BOARD"
     if sym_name in _MOVE_KEYS:
         return f"MOVE:{sym_name}"
     if sym_name in {".", "period"}:
@@ -561,7 +565,7 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
         _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _enemies)
         rules.render_frame(console, ctx, game_map)
         _present(ctx, console)
-        _action = _combat_action(ctx, console)
+        _action = _combat_action(ctx, console, rules)
         _action, _result_now, _redo = _handle_meta_action(
             _action, ctx, rules=rules, game_map=game_map,
             target_idx=_target_idx,

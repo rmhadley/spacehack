@@ -436,7 +436,7 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console: next(actions),
+        lambda ctx, console, rules=None: next(actions),
     )
 
     ctx = SimpleNamespace(
@@ -458,7 +458,7 @@ def test_combat_window_close_quits_game(monkeypatch):
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console: next(actions),
+        lambda ctx, console, rules=None: next(actions),
     )
 
     ctx = SimpleNamespace(
@@ -486,7 +486,8 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
         lambda _context: True,
     )
 
-    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "WAIT"
+    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "WAIT", \
+        "no rules: the action still resolves"
 
     unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     waits = iter(((unknown_key,), (key_down,)))
