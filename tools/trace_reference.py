@@ -86,14 +86,28 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
                 comps.append(comp)
     keep = set().union(*[c for c in comps if len(c) >= 8]) if comps else set()
 
-    rows = []
-    top = gh // 2 if mirror else gh
+    if mirror:
+        # crop the solid to its bounding box so the mirror seam sits
+        # on the ship's true vertical center (rotation margins would
+        # otherwise duplicate the hull)
+        ys = [y for y in range(gh) for x in range(gw) if (x, y) in keep]
+        xs = [x for y in range(gh) for x in range(gw) if (x, y) in keep]
+        y0, y1, x0, x1 = min(ys), max(ys), min(xs), max(xs)
+        cropped = [
+            [(x, y) in keep for x in range(x0, x1 + 1)]
+            for y in range(y0, y1 + 1)
+        ]
+        half = (len(cropped) + 1) // 2
+        rows = [
+            "".join("#" if c else " " for c in row)
+            for row in cropped[:half]
+        ]
+        rows += rows[-2::-1] if len(cropped) % 2 == 0 else rows[-1::-1]
+        return "\n".join(row.rstrip() for row in rows) + "\n"
     rows = [
         "".join("#" if (x, y) in keep else " " for x in range(gw))
-        for y in range(top)
+        for y in range(gh)
     ]
-    if mirror:
-        rows += rows[-2::-1]
     return "\n".join(row.rstrip() for row in rows) + "\n"
 
 
