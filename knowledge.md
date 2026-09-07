@@ -757,6 +757,7 @@ these tells:
 12. fact-fusion causality — two true facts fused into one false causal clause
 13. under-informing compression gesturing at an undefined story element — the fix is expansion, not a wittier line
 14. accidental innuendo in process descriptions — narrate the operator's procedure, not the machine's experience
+15. interface language in quoted speech — NPCs speak in-world: never key names, screen names, or UI mechanics ("the F screen's D") in an NPC's mouth; the game guide carries keybindings, logs/menus speak in system voice, and flavor text teaches diegetically ("you can kill it any time you like")
 
 Vocabulary test: keep the
 CHARACTER's load-bearing professional word ("assay", "couples"); cut
