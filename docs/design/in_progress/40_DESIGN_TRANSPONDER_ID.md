@@ -1253,148 +1253,65 @@ challenge. Scrubbed triggers neither — blank paper complies.
       dealer, the dark edge and the Scram regression hold,
       save/load round-trips.
 
-- [ ] PHASE 6c — boarding coverage for every battle spec + the
-      crewed-layout authoring pass. Spun out of 6a's playtest
-      (2026-09-07); the pipeline was prototyped and agreed in the
-      6b session (see the authoring-pipeline SETTLED entry).
+- [ ] PHASE 6c — the layout pipeline: the JSON→.layout compiler +
+      validator, and the cruiser pilot deck authored through it.
+      Split 2026-09-07 (user: "keep the pipeline generator tool in
+      6c and move the rest to 6d. I want to focus on this tool
+      first. The goal is to be able to get generated layouts at
+      least to a place where I can go in with vim and tweak minor
+      issues by hand. authoring the full layout by hand is very
+      tedious for me.")
 
   Implementation brief (6c) — drafted WITH the user (2026-09-07;
   reference-hunt + two-stage translation + JSON-pipeline sessions):
-  - Scope: (1) the compiler/validator tool — JSON spec (rooms
-    with name/rect/role/twin, door edges, entry, console, crew
-    markers) → ``.layout``; refuses to emit on any of: door to
-    nowhere, disconnected floors (BFS from spawn), hull leak
-    (floor adjacent to border-connected void); standalone
-    validator mode over existing ``.layout`` files; (2) reference
-    corpus under ``docs/design/references/`` — the user's Slug
-    frigate ref (shipideas.txt), Mantis A Systems (cruiser
-    pilot, fetched + viewed), per-class refs fetched + user-
-    blessed as each deck is drafted; (3) the cruiser pilot:
-    JSON spec from Mantis A → compile → validator-clean → user
-    vim pass → in-game walk — replaces ``cruiser_crew``; (4) the
-    frigate: the user's shipideas.txt art (validator + walk;
-    it is already hand-authored); (5) remaining classes — scout
-    (rework ``scout_crew``), hauler, freighter — JSON → compile →
-    walk, crew-dressed per faction (pirate/militia/merchant crews
-    from the existing ``npc_chars`` roster); (6) coverage flip:
-    ``capture_layout_id`` on EVERY battle spec (13 crewed specs;
-    derelicts stay on the wreck path); (7) consume bookkeeping:
-    ``begin_capture_boarding`` runs the full kill pass minus
-    exterior loot (per the SETTLED ruling) — heist cargo into the
-    interior via ``load_layout``'s component-good mechanism.
-  - Build order: compiler + validator + tests → cruiser pilot
-    (user vim + walk GATE) → frigate → scout/hauler/freighter →
-    coverage flip + consume bookkeeping → guide.
-  - Binding rulings: JSON intermediary, ``.layout`` canonical;
-    every battle spec boardable; consume = kill minus exterior
-    loot; decks ship only after the user's in-game walk; derelict
-    wreck path untouched.
-  - Required tests: compiler refusal cases (dead door,
-    disconnected rooms, hull leak all refuse to emit); validator
-    run over every ``capture_layout_id`` layout as a suite test;
-    coverage test (every non-derelict battle spec has a capture
-    layout); consume bookkeeping (bounty completes, no exterior
-    loot spawn, interior loot present); the per-deck walks are
-    the user-gated half.
-  - Stop point: no new enemy/crew char specs (existing
-    ``npc_chars`` roster only); no derelict/wreck-path changes;
-    no doc-41 Line work.
-  - Playtest checkpoint (numbered): board and walk EVERY class
-    (scout, cruiser, frigate, hauler, freighter) — each deck
-    makes physical sense (doors lead somewhere, hull sealed) →
-    a bounty-leader board completes the bounty with NO exterior
-    loot and the interior loot collected → an intercept (heist)
-    board delivers its cargo from the interior → the full
-    identity loop: rig → capture → clone → wear → sell at the
-    dealer above cost → save/load.
+  - Scope: (1) the compiler/validator tool — ``tools/layout_compile.py``:
+    a JSON spec (rooms with name/rect/role/twin, door edges, entry
+    breach/spawn/exit, console pos, hull row-spans, crew markers per
+    room, loot tables per room) renders to a ``.layout``; the
+    compiler REFUSES to emit on: door to nowhere, disconnected
+    floors (BFS from spawn), hull leak (floor adjacent to
+    border-connected void), twin-rect asymmetry; ``--check`` mode
+    validates any existing ``.layout`` (via the real
+    ``dungeon_layout`` parse); (2) reference corpus under
+    ``docs/design/references/`` — Mantis A Systems (the cruiser
+    pilot reference, fetched + viewed), the user's Slug frigate
+    note (shipideas.txt); (3) the cruiser pilot: the cruiser JSON
+    spec authored from Mantis A → compiled → validator-clean →
+    content pass (crew markers, loot tables, console) → replaces
+    ``cruiser_crew.layout`` — then HAND-OFF to the user for the
+    vim polish pass and the in-game deck walk.
+  - Build order: tool + tests → reference corpus → cruiser JSON
+    spec → compile + validate → content pass → hand-off.
+  - Binding rulings: JSON intermediary, ``.layout`` canonical
+    (recompiles never clobber hand edits — the compiler's job ends
+    at first emission per layout_id); the compiler refuses bad
+    specs at emit time; decks ship only after the user's vim pass
+    + in-game walk.
+  - Required tests: compiler happy path (spec → parseable layout
+    that ``dungeon_layout.load_layout`` accepts); refusal cases
+    (dead door, disconnected rooms, hull leak, asymmetric twins);
+    validator ``--check`` over the compiled artifact.
+  - Stop point: ONLY the cruiser deck is replaced; no other
+    layouts, no coverage flip, no consume bookkeeping, no guide —
+    that is 6d.
+  - Playtest checkpoint (numbered): the user polishes
+    ``cruiser_crew.layout`` in vim → walks the deck in-game by
+    boarding a raider → deck makes physical sense (doors lead
+    somewhere, hull sealed, the fight runs breach → bow console).
 
-  Implementation brief (6b) — ADVISE-reviewed + rulings folded
-  (2026-09-07):
-  - Scope: (1) the 6-slot cap ENFORCED IN ``collect_id``
-    (identity.py — the single choke point; capture at the console
-    AND scrub purchases at Deadfall both refuse at 6/6; capture
-    still consumes the boarded ship — 6b changes nothing about
-    6a's exit); (2) F-screen delete (free) — deleting or selling
-    the WORN ID AUTO-CLEARS the broadcast to live (user ruling;
-    ``broadcast_identity`` cleared with it — never leave SPOOFED
-    resolving a blank sheet); (3) SELL PRICING IS REP-DERIVED
-    (user ruling): value = small base + a rate per positive rep
-    point across the whole ENTRY's sheet (read the entry — NEVER
-    ``effective_reputation``/``ctx.broadcast_identity``; the entry
-    is the phase-4-sanctioned source) — identities are appreciable
-    assets: buy a scrub, rep-grind it while worn (phase-4 write
-    routing), flip it for more than it cost. THE INCOME LOOP IS
-    INTENTIONAL. Exact base + rate proposed at build, tunable;
-    (4) the dealer's BUY flow — a dynamic sub-menu (pick which of
-    up to 6 entries to sell; dynamic-row precedent = mission
-    offerings, not the flat priced-row seam), on the same Wolf
-    dealer behind the same ``Scram.`` gate (6a builds him); sold =
-    removed from the library; (5) guide economy text.
-  - Build order: cap at ``collect_id`` + tests → F-screen delete
-    (+ worn auto-clear) → sell pricing (pure) → dealer buy sub-menu
-    → guide.
-  - Binding rulings: the cap is GENERAL (every acquisition path);
-    delete is free, sell is priced by the sheet; the worn-ID
-    removal auto-clears the broadcast; the dealer is the ONLY
-    buyer and his gate is TOTAL (below liked: ``Scram.`` — no rig,
-    no ID market); the Deadfall scrub stays the un-gated on-ramp.
-  - Required tests: scrub + clone both refuse at 6/6; delete frees
-    a slot; deleting the worn ID clears broadcast to LIVE; sell
-    value rises with positive sheet rep (zero-sheet scrub below
-    cost, ground-up sheet above) reading the ENTRY's sheet;
-    sale removes the entry (and auto-clears if worn); the buy
-    sub-menu lists exactly the held entries; below liked the
-    dealer sells nothing and buys nothing; save/load round-trips
-    library + prices unchanged.
-  - Stop point: NO new acquisition content, NO premium/dealer-
-    flavor pricing tiers, NO Line work.
-  - Playtest checkpoint (numbered): fill the library to 6/6 →
-    a scrub purchase AND a capture both refuse → delete one at the
-    F screen (worn one: broadcast auto-drops to live) → grind a
-    scrub's merchant standing while worn → sell it at the Wolf
-    dealer for above its 6,000cr cost → confirm it left the
-    library → below liked, ``Scram.`` blocks the whole stall →
-    save/load keeps everything.
-  Pre-implementation audit (6b, 2026-09-07):
-  - Reuse: the cap lives in ``collect_id`` (the single choke point
-    — scrub and clone both funnel through it) as
-    ``LIBRARY_CAP = 6`` + pure ``library_full(ctx)``; per-caller
-    messaging shares ONE line — ``Your ID book is full.`` (scrub
-    handler, capture console) per outcome consistency. Removal:
-    ``identity.remove_id(ctx, entry_id)`` matches by id, and the
-    worn-ID auto-clear falls out of the match (broadcast_identity
-    cleared → live) — the same key cycle_identity follows. The
-    F-screen gains X (delete the shown ID; hint row grows
-    ``X delete`` beside the TAB hint). The dealer's SELL row rides
-    the priced-row seam (offered to ``wolf_rig_dealer`` alone per
-    an ``ID_BUYERS`` table in identity, behind the existing Scram
-    gate); selecting it opens a sub-menu built on npc.py's own
-    ``_run_pygame_menu`` frames loop — the mission-offerings
-    precedent for dynamic rows. Sell pricing: pure
-    ``sell_value(entry)`` reading the ENTRY's ``rep`` sheet (the
-    phase-4-sanctioned source; never
-    ``effective_reputation``/``ctx.broadcast_identity``) —
-    ``ID_SELL_BASE = 500`` + ``ID_SELL_RATE = 100`` per positive
-    point (tunable; an all-zero scrub sells at 500; a
-    merchant-ground ~+80 sheet sells ~8,500 > its 6,000 cost —
-    the ruled loop clears).
-  - Edge behavior: empty library → no sell row, X no-ops; a clone
-    refused at 6/6 still consumed the boarded ship (6a's exit is
-    untouched); deleting while DARK removes the queued entry —
-    auto-clear only fires when the removed id is the worn one
-    (dark is the master switch and keeps broadcasting nothing);
-    selling the worn ID auto-clears identically to deleting it.
-  - Duplication: delete and sell share ``remove_id`` (one removal
-    path incl. auto-clear); the sub-menu reuses the existing menu
-    runner; the price is one pure function.
-  - Ratchet: npc.py grows for the sub-menu — sub-menu builder and
-    handler are separate functions, all ≤40.
-  - Tests: cap at 6/6 for scrub AND clone (shared line pinned);
-    delete removes + worn auto-clears to LIVE; sell value scales
-    with positive sheet rep (zero-scrub 500, ground-up > cost),
-    sale removes the entry + pays; sub-menu lists exactly the
-    held entries; dealer-only; dark-delete keeps dark.
-
+- [ ] PHASE 6d — boarding coverage for every battle spec + the
+      remaining decks, via the 6c pipeline. Carries: the frigate
+      (the user's shipideas.txt art), scout (rework
+      ``scout_crew``), hauler and freighter decks — JSON → compile
+      → user vim pass → in-game walk each; ``capture_layout_id``
+      on EVERY battle spec (13 crewed specs; derelicts stay on the
+      wreck path); consume bookkeeping per the SETTLED ruling
+      (full kill pass minus exterior loot; heist cargo rides the
+      interior via the component-good mechanism; supersedes 6a's
+      bounty/heist BOARD exclusion); guide text for the widened
+      coverage. Brief: this block, rolled forward from 6c's
+      original scope — build order follows 6c's proven pipeline
+      per class; deck walks gate each layout.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
