@@ -370,23 +370,16 @@ def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity
 def _judge_identification(ctx, face):
     """Pure: what a militia reader resolves from the identify answer.
 
-    ``face`` None = the true registration. Returns ``(passed, line)``:
-    every pass reads the same — the patrol checks the registration and
-    waves the hull through, whatever was offered (blank paper, a
-    militia callsign, a clean true record). A hostile true record or a
-    non-militia face draws fire.
+    ``face`` None = the true registration (ID 1's sheet); an offered
+    ID is judged by its OWN sheet's militia value (doc 40: the ID is
+    the record). Returns ``(passed, line)``: every pass reads the
+    same — the patrol checks the registration and waves the hull
+    through. A hostile sheet draws fire, whatever hull it rides.
     """
     _PASS_LINE = "The patrol checks your registration and waves you through."
-    if face is not None:
-        _fac = face.get("faction")
-        if _fac is None:
-            return (True, _PASS_LINE)
-        if _fac == "militia":
-            return (True, _PASS_LINE)
-        return (False, f"The registration reads {_fac}: the patrol opens fire!")
-    _att = _get_attitude(ctx.faction_reputation.get("militia", 0))
-    if _att in ("enemy", "disliked"):
-        return (False, "Your record reads hostile: the patrol opens fire!")
+    sheet = ctx.faction_reputation if face is None else (face.get("rep") or {})
+    if _get_attitude((sheet or {}).get("militia", 0)) in ("enemy", "disliked"):
+        return (False, "The registration reads hostile: the patrol opens fire!")
     return (True, _PASS_LINE)
 
 

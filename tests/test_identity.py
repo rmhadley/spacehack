@@ -527,20 +527,26 @@ def test_broadcasting_hulls_keep_the_normal_hail_path(monkeypatch):
 
 
 def test_identification_judgement_per_broadcast_face():
-    """The moment of truth, pure: blank paper passes; a militia
-    registration outranks the reader; a wrong face gets that face's
-    trouble; the true record gets its due."""
+    """The moment of truth, pure: the answered ID's own sheet decides
+    (doc 40 re-cut) — zeros pass, a friendly militia sheet passes, a
+    hostile sheet draws fire whatever hull it rides; the true record
+    gets its due."""
     from src.spacehack.comms import _judge_identification
 
     ctx = quest_ctx()
     ctx.faction_reputation = {"militia": 0}
     assert _judge_identification(ctx, None)[0] is True
-    scrub = {"id": "KX-1234", "kind": "scrubbed", "faction": None}
-    assert _judge_identification(ctx, scrub)[0] is True
-    mil = {"id": "ML-2231", "kind": "fabricated", "faction": "militia"}
+    assert _judge_identification(ctx, _scrub_entry())[0] is True  # zeros
+    mil = {"id": "ML-2231", "kind": "fabricated", "rep": {"militia": 60}}
     assert _judge_identification(ctx, mil)[0] is True
-    pirate = {"id": "KG-8812", "kind": "cloned", "faction": "pirate"}
+    pirate = {"id": "KG-8812", "kind": "cloned",
+              "rep": {"pirate": 76, "militia": -80}}
     assert _judge_identification(ctx, pirate)[0] is False
+
+    # A clone whose roll left militia NEUTRAL passes — the value read,
+    # not the name (phase 6's roll profiles own this case).
+    lucky = {"id": "KG-9999", "kind": "cloned", "rep": {"militia": 0}}
+    assert _judge_identification(ctx, lucky)[0] is True
 
     ctx.faction_reputation = {"militia": -80}
     assert _judge_identification(ctx, None)[0] is False  # the record's due
@@ -553,15 +559,21 @@ def test_pass_lines_are_consistent():
 
     ctx = quest_ctx()
     ctx.faction_reputation = {"militia": 0}
-    scrub = {"id": "KX-1234", "kind": "scrubbed", "faction": None}
-    mil = {"id": "ML-2231", "kind": "fabricated", "faction": "militia"}
+    mil = {"id": "ML-2231", "kind": "fabricated", "rep": {"militia": 60}}
     lines = {
         _judge_identification(ctx, None)[1],
-        _judge_identification(ctx, scrub)[1],
+        _judge_identification(ctx, _scrub_entry())[1],
         _judge_identification(ctx, mil)[1],
     }
     assert len(lines) == 1
     assert lines.pop() == "The patrol checks your registration and waves you through."
+
+    pirate = {"id": "KG-8812", "kind": "cloned", "rep": {"militia": -80}}
+    assert _judge_identification(ctx, pirate)[1] == (
+        "The registration reads hostile: the patrol opens fire!")
+    ctx.faction_reputation = {"militia": -80}
+    assert _judge_identification(ctx, None)[1] == (
+        "The registration reads hostile: the patrol opens fire!")
 
 
 def test_challenge_body_uses_challenge_lines_not_comms_lines():
@@ -597,7 +609,8 @@ def test_identify_ends_dark_and_failure_escalates(monkeypatch):
     scrub = {"id": "KX-1234", "kind": "scrubbed",
              "label": "Scrubbed hull", "faction": None}
     pirate = {"id": "KG-8812", "kind": "cloned",
-              "label": "Warlord face", "faction": "pirate"}
+              "label": "Warlord face", "faction": "pirate",
+              "rep": {"pirate": 76, "militia": -80}}
     spec = find_npc_ship("militia_patrol")
     patrol = _patrol()
 
