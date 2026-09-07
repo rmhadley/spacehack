@@ -147,6 +147,7 @@ def test_save_round_trip_carries_the_identity_state():
         "broadcast_dark": True,
         "broadcast_identity": _pirate_face(),
         "collected_ids": [_pirate_face(), hot_scrub],
+        "transponder_cutout": True,
     }
     _restore_quest_and_tutorial(ctx, data)
     assert ctx.ship_registration == "AB-1234"
@@ -154,11 +155,31 @@ def test_save_round_trip_carries_the_identity_state():
     assert ctx.broadcast_identity["id"] == "KG-8812"
     assert ctx.collected_ids[1]["rep"] == {"merchant": -40}, \
         "a hot ID's sheet round-trips"
+    assert ctx.transponder_cutout is True
 
     legacy = quest_ctx()
     _restore_quest_and_tutorial(legacy, {})
     assert legacy.ship_registration, "legacy saves gain a registration"
     assert legacy.broadcast_dark is False
+
+
+def test_load_invariant_no_cutout_never_loads_dark():
+    """Doc 40 phase 5: a save without a cut-out never loads dark — a
+    legacy dark save restores live and says so; cut-out + dark stays
+    dark (covered round-trip above)."""
+    from src.spacehack.saveload import _restore_quest_and_tutorial
+
+    stranded = quest_ctx()
+    _restore_quest_and_tutorial(stranded, {"broadcast_dark": True})
+    assert stranded.broadcast_dark is False, "no cut-out ⇒ never dark"
+    assert stranded.log.recent()[-1].text == \
+        "No cut-out installed - transponder restored to live."
+
+    live = quest_ctx()
+    _restore_quest_and_tutorial(live, {})
+    assert live.broadcast_dark is False
+    assert not any("transponder" in e.text for e in live.log.recent()), \
+        "the invariant line only fires when it resets a dark save"
 
 
 def test_faction_frame_shows_the_broadcast_block():

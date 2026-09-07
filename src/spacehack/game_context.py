@@ -394,6 +394,9 @@ class GameContext:
     # Illegal IDs collected (each an id/kind/label/faction dict) —
     # acquisition is rare and involved (doc 40 Q6).
     collected_ids: list = dataclasses.field(default_factory=list)
+    # One-time transponder cut-out (doc 40 phase 5), installed by the
+    # tech at Ember's depot. Dark requires it; it rides the player.
+    transponder_cutout: bool = False
     # --- Tutorial mode (docs/design/in_progress/14_DESIGN_TUTORIAL_MODE.md) ---
     # True for tutorial runs (started from the title menu); gates the
     # scripted popup flow in spacehack.tutorial. Survives save/load so

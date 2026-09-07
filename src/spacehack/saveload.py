@@ -133,6 +133,7 @@ def _identity_fields(ctx: GameContext) -> dict:
         "broadcast_dark": bool(ctx.broadcast_dark),
         "broadcast_identity": _d(ctx.broadcast_identity),
         "collected_ids": _d(ctx.collected_ids),
+        "transponder_cutout": bool(ctx.transponder_cutout),
     }
 
 
@@ -884,6 +885,11 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
     ctx.broadcast_dark = bool(data.get("broadcast_dark", False))
     ctx.broadcast_identity = data.get("broadcast_identity") or None
     ctx.collected_ids = list(data.get("collected_ids") or [])
+    ctx.transponder_cutout = bool(data.get("transponder_cutout", False))
+    if not ctx.transponder_cutout and ctx.broadcast_dark:
+        # Load invariant (doc 40 phase 5): no cut-out ⇒ never dark.
+        ctx.broadcast_dark = False
+        ctx.log.add("No cut-out installed - transponder restored to live.")
     if not ctx.ship_registration:
         from .identity import ensure_registration
         ensure_registration(ctx)

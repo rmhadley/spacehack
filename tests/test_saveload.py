@@ -82,6 +82,7 @@ def _build_test_ctx() -> GameContext:
     # the collected-ID library must survive a save/continue cycle.
     ctx.ship_registration = "AB-1234"
     ctx.broadcast_dark = True
+    ctx.transponder_cutout = True  # dark survives only with a cut-out
     ctx.broadcast_identity = {
         "id": "KG-8812", "kind": "cloned",
         "label": "Warlord face", "faction": "pirate",
@@ -240,6 +241,7 @@ class TestSaveLoadRoundTrip:
         # Identity layer (doc 40)
         assert loaded.ship_registration == original.ship_registration
         assert loaded.broadcast_dark == original.broadcast_dark
+        assert loaded.transponder_cutout == original.transponder_cutout
         assert loaded.broadcast_identity == original.broadcast_identity
         assert loaded.collected_ids == original.collected_ids
 
