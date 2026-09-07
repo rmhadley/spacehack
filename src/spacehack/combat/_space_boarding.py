@@ -53,11 +53,12 @@ def _capture_target(enemy: EnemyInstance, ent) -> bool:
     return bool(getattr(spec, "capture_layout_id", ""))
 
 
-def attempt_board(state: SpaceCombatState, target_idx: int) -> bool:
-    """Try to board the current target. False: denial logged, fight on.
+def board_target(state: SpaceCombatState, target_idx: int):
+    """Resolve the loop's filtered target to (enemy, map entity).
 
     ``target_idx`` indexes the ALIVE-filtered list (the loop's target
-    space) — resolve the unfiltered instance + entity from it."""
+    space); the entity map is unfiltered, so re-derive its index.
+    """
     _alive = [_e for _e in state.enemy_insts if _e.alive]
     enemy = _alive[target_idx] if target_idx < len(_alive) else None
     ent = None
@@ -66,6 +67,12 @@ def attempt_board(state: SpaceCombatState, target_idx: int) -> bool:
             if _inst is enemy:
                 ent = state.enemy_ents.get(_i)
                 break
+    return enemy, ent
+
+
+def attempt_board(state: SpaceCombatState, target_idx: int) -> bool:
+    """Try to board the current target. False: denial logged, fight on."""
+    enemy, ent = board_target(state, target_idx)
     _denial = board_denial(state, enemy, ent)
     if _denial is not None:
         state.log.add(_denial)

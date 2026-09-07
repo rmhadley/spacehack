@@ -936,7 +936,7 @@ def _render_action_pairs(console, hud_x, y, actions, fg) -> int:
     return y
 
 
-def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
+def _render_combat_actions(console, hud_x, y, weapon_list, can_board=False) -> int:
     """Paint the ACTIONS key hints; return the next row."""
     console.print(x=hud_x, y=y, string="ACTIONS", fg=COLOR_DIVIDER)
     y += 1
@@ -952,6 +952,10 @@ def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     # player doesn't expect digit 4..9 to work with 3 weapons mounted.
     if len(weapon_list) > 1:
         actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
+    # Same rule for BOARD: advertise it only while the target is
+    # actually boardable (doc 40 6a).
+    if can_board:
+        actions.insert(-1, ("[b]", "Board"))
     return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 
@@ -970,6 +974,7 @@ def render_combat_hud(
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
     range_weapon_id: str | None = None,  # weapon id for coloring distance by range
     focus_active: bool = False,          # Focus trait live (single weapon enabled)
+    can_board: bool = False,             # space: current target is boardable ([b] hint)
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
@@ -984,6 +989,6 @@ def render_combat_hud(
         console, hud_x, y, weapon_list, active_weapons, player_state,
         hit_chances, focus_active=focus_active,
     )
-    _render_combat_actions(console, hud_x, y, weapon_list)
+    _render_combat_actions(console, hud_x, y, weapon_list, can_board)
 
 

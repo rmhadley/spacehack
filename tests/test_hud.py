@@ -346,3 +346,23 @@ def test_ap_row_shows_pool_with_carry():
     hud._render_ap_evade_pow_rows(console, 0, 0, player_state, None)
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row.startswith("AP: 3/4.5")
+
+
+def test_board_hint_only_when_boardable():
+    """The [b] Board hint renders only while the target is boardable
+    (doc 40 6a) — same conditional rule as the weapon-swap hint."""
+    console = FrameBuffer(40, 6)
+    hud._render_combat_actions(console, 0, 0, ("a",), can_board=False)
+    _flat = "".join(
+        console.cell(x, y).char
+        for y in range(6) for x in range(40)
+    )
+    assert "Board" not in _flat
+
+    console = FrameBuffer(40, 6)
+    hud._render_combat_actions(console, 0, 0, ("a",), can_board=True)
+    _flat = "".join(
+        console.cell(x, y).char
+        for y in range(6) for x in range(40)
+    )
+    assert "[b]" in _flat and "Board" in _flat

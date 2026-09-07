@@ -628,6 +628,9 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         int(_state.player_state.get("piloting", 0) * 0.5),
     )
 
+    from ._space_boarding import board_denial, board_target
+    _board_enemy, _board_ent = board_target(_state, _state.target_idx)
+
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
@@ -639,6 +642,8 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         weapon_list=tuple(_state.weapons_list),
         hit_chances=_hit_chances,
         evade_bonus=_evade,
+        can_board=_board_enemy is not None
+        and board_denial(_state, _board_enemy, _board_ent) is None,
         range_weapon_id=_range_wid,
         focus_active=_space_focus.is_focus_active(_state.ctx),
     )
