@@ -1213,15 +1213,20 @@ challenge. Scrubbed triggers neither — blank paper complies.
   - Stop point: 6b only (cap/delete/sell), plus the standing
     6a stop points.
 
-- [x] PHASE 6b — the library economy: cap, delete, sell — LANDED
-      (2026-09-07; 7153ddd..4e4d245, 5 gated commits; 1811 green).
-      PLAYTEST PENDING. REVIEW: APPROVE, no blockers — 5 minors
+- [x] PHASE 6b — the library economy: cap, delete, sell — LANDED +
+      PLAYTEST PASSED (user-verified 2026-09-07; 7153ddd..4e4d245,
+      5 gated commits; 1811 green). REVIEW: APPROVE, no blockers — 5 minors
       (QUIT swallowed in the sell sub-menu; sell-path worn
       auto-clear + console full-line test gaps; dual full-line
       literal per house precedent; guide dark-edge precision) —
       4 fixed (4e4d245), the literal follows the accepted
       can't-afford precedent. The uniform half (phase-4/5
-      patterns: tables, purchase handlers, F screen).
+      patterns: tables, purchase handlers, F screen). Playtest
+      (2026-09-07): PASSED — the merchant-ally grind fills the
+      book, both 6/6 refusals share the line, X delete + worn
+      auto-clear, the sell flip clears its cost at the Wolf
+      dealer, the dark edge and the Scram regression hold,
+      save/load round-trips.
 
 - [ ] PHASE 6c — boarding coverage for every battle spec + the
       crewed-layout authoring pass. Spun out of 6a's playtest

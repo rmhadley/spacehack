@@ -67,10 +67,20 @@ nobody designs against a ghost.
 - **Monthly decay** — drift toward neutral by zone (+3/+2/−2/−3),
   sign-safe (only player actions flip sign); always ages ID 1 only
   (`faction.apply_monthly_decay`; ticked from `time.py`).
-- **ID library** — collected IDs ride the player across lawful ship
-  purchases; dedup by hull number; cycle none → first → … → none
-  (`identity.py`: `collect_id`, `cycle_identity`,
-  `library_position`).
+- **ID library** — six false IDs max (`LIBRARY_CAP`, enforced at
+  `collect_id` so scrub AND capture refuse; shared full line
+  "Your ID book is full."); entries ride the player across lawful
+  ship purchases; dedup by hull number; cycle none → first → … →
+  none; X deletes the shown ID on the F screen and removing the
+  WORN entry auto-clears the broadcast to live (`identity.py`:
+  `collect_id`, `library_full`, `remove_id`, `cycle_identity`;
+  `pygame_faction.py`: `_delete_shown_id`).
+- **ID buy-back** — the Wolf 359 b rig dealer (the only
+  `ID_BUYERS` entry, behind his talk gate) pays sheet-derived
+  prices: base 500 + 100 per positive point on the ENTRY's own
+  sheet — a ground-up ID flips for more than a scrub costs
+  (`identity.py`: `sell_value`; `npc.py`: `_handle_sell_ids`,
+  sub-menu stays open until ESC).
 - **Scrub (identity purchase #1)** — `deadfall_scrubber` NPC,
   6,000cr; a scrub materializes literal 0s for every faction
   (`identity.py`: `SCRUB_BROKERS`, `buy_scrubbed_id`). The cut-out
