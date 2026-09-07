@@ -501,6 +501,48 @@ def _resolve_npc_ship_blocker(state, blocker):
     log.add(world.blocked_message_for(blocker))
     return None
 
+def _boarding_shim(ctx, console):
+    """A state-shaped view over ctx for the wreck-boarding seam.
+
+    ``_enter_boarding_dungeon`` reads the flow-state's mirrors; in the
+    combat path (``_handle_combat_encounter``) only ctx/console exist,
+    and during space mode those mirrors ARE the ctx fields.
+    """
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        ctx=ctx, console=console, log=ctx.log,
+        game_map=ctx.game_map, player=ctx.player,
+        map_w=ctx.game_map.width, map_h=ctx.game_map.height,
+    )
+
+
+def begin_capture_boarding(ctx, console, cr):
+    """Consume the boarded hull and enter its crewed interior (6a).
+
+    Consumption happens at ENTRY — the ship is gone from space the
+    moment boarding starts (entity removed, spawn record dropped), so
+    saving inside the interior rebuilds a space map without it. One
+    board per ship: there is no hull left to re-board.
+    """
+    from .combat._space_kills import remove_procedural_squad
+    from .data.npc_ships import find_npc_ship
+    from .dungeon import load_layout as _load_layout
+
+    _spec = find_npc_ship(cr.boarded_spec_id)
+    _ent = cr.boarded_ent
+    if _ent is not None and _ent in ctx.game_map.entities:
+        ctx.game_map.entities.remove(_ent)
+    remove_procedural_squad(ctx, _ent)
+    _dungeon_map, _spawn = _load_layout(
+        _spec.capture_layout_id, loot_budget=_spec.loot_budget,
+    )
+    _dungeon_map.capture_spec_id = _spec.id
+    ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
+    _enter_boarding_dungeon(
+        _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
+    )
+
+
 def _confirm_boarding(ctx, npcspec):
     """Ask to board; return 'QUIT', PlanetMenuOutcome.LAND, or None."""
     _pygame_board = _run_pygame_dungeon_confirm(ctx, title=f'Board the {npcspec.name}?', body='The derelict can be searched for salvage and mission cargo.', accept_label='Board', cancel_label='Fly past', caption='spacehack - boarding')

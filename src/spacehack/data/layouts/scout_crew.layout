@@ -1,0 +1,43 @@
+# scout_crew.layout — Pirate Scout crew deck (live-ship capture, doc 40 6a)
+# Small fast hull: cockpit forward, bunks and a cramped hold aft.
+#   Far right:   Cockpit with ship console (C)
+#   Center:      Mess corner and bunks
+#   Far left:    Engine room and small cargo stack
+#   Bottom:      Breach entry (b) — spawn at P, exit back through b
+
+MAP
+    ##################
+    #....#......#....#
+    #....d......d....#
+    #.1..#..r...#....#
+    #....#......#####
+    ####d#####...#####
+    #......2.........#
+    #................d####
+    ####d#########.......#
+        #....#...#....C..#
+    ####d....d...#.......#
+    #..%.....#...#####
+    #........#####
+    #....####
+    ####b###
+       #P#
+       #>#
+       ###
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: d = DUNGEON_DOOR
+TILE: b = BREACH
+TILE: > = EXIT
+TILE: % = DEBRIS
+
+# The scout's skeleton crew
+ENEMY: r = pirate_raider@1.0
+
+LOOT: 1 = engine_room
+LOOT: 2 = mess_hall
+
+COLOUR: # = (120, 130, 150)
+COLOUR: % = (150, 130, 100)

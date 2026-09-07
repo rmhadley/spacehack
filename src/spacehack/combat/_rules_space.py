@@ -850,3 +850,11 @@ def sync_state(ctx) -> None:
 
 def get_combat_result() -> CombatResult:
     return _state.cr
+
+
+def try_board(ctx, game_map: world.GameMap, target_idx: int) -> bool:
+    """BOARD: end the fight into the target's crewed interior (6a).
+
+    Ground rules have no hook — the loop probes with getattr."""
+    from ._space_boarding import attempt_board
+    return attempt_board(_state, target_idx)

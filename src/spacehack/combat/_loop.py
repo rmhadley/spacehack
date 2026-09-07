@@ -63,6 +63,7 @@ def _input_action(event: pygame_engine.PygameInputEvent) -> str:
         "r": "RELOAD",
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
+        "b": "BOARD",
     }.get(sym_name, f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else "")
 
 
@@ -440,7 +441,8 @@ def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
     return target_idx
 
 
-def _handle_meta_action(action: str, ctx):
+def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
+                        target_idx: int = 0):
     """Handle non-combat actions. Returns ``(action, result, redo)``.
 
     ``result`` is the outcome when the fight must end, else ``None``;
@@ -448,6 +450,11 @@ def _handle_meta_action(action: str, ctx):
     dispatching. Closing the game window quits the run — combat state
     is never saved mid-fight, and fleeing is not a mechanic.
     """
+    if action == "BOARD":
+        _try_board = getattr(rules, "try_board", None) if rules else None
+        if _try_board is not None and _try_board(ctx, game_map, target_idx):
+            return action, "BOARDED", False
+        return action, None, True
     if action == "QUIT":
         raise SystemExit
     if action == "GUIDE":
@@ -550,7 +557,10 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
         rules.render_frame(console, ctx, game_map)
         _present(ctx, console)
         _action = _combat_action(ctx, console)
-        _action, _result_now, _redo = _handle_meta_action(_action, ctx)
+        _action, _result_now, _redo = _handle_meta_action(
+            _action, ctx, rules=rules, game_map=game_map,
+            target_idx=_target_idx,
+        )
         if _result_now is not None:
             _result = _result_now
             break

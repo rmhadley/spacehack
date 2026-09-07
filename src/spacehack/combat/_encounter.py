@@ -226,6 +226,12 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
         _render_death_screen(ctx)
+    elif _cr.outcome == "BOARDED":
+        # Doc 40 phase 6a: consume the boarded hull and enter its
+        # crewed interior (the state-bearing seam lives in
+        # game_interactions with the rest of the boarding pipeline).
+        from ..game_interactions import begin_capture_boarding
+        begin_capture_boarding(ctx, console, _cr)
 
     return _cr.outcome
 

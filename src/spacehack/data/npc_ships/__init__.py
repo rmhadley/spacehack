@@ -98,6 +98,11 @@ class NpcShipSpec:
     # a total value is rolled from this range and spent across
     # loot markers. (0, 0) means no interior loot.
     loot_budget: tuple[int, int] = (0, 0)
+    # Crewed interior layout for live-ship capture (doc 40 phase 6a).
+    # Non-empty = this spec is a capture target: BOARD (in combat)
+    # enters this layout, ENEMY markers spawn the crew, the C console
+    # clones the transponder. The data opt-ins ARE the target list.
+    capture_layout_id: str = ""
 
 
 _BY_ID: dict[str, NpcShipSpec] | None = None
