@@ -457,7 +457,7 @@ def test_wolf_b_is_a_crater_pirate_outpost():
     assert len(game_map.city_transit) == 3
     assert sum(
         bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
-    ) == 12
+    ) == 13  # 12 residents + the rig dealer (doc 40 6a)
     # The crater settlement has non-enterable shacks and antenna masts.
     shed_walls = sum(
         tile.kind == "city_building_wall"

@@ -24,6 +24,10 @@ class NPC:
         id: registry key, e.g. ``\"barkeep\"``.
         name: display name shown in the dialog header.
         guild: thematic guild (matches the building's label).
+        talk_gate: optional ``(faction, min_standing, refusal_line)`` —
+            talking is refused (verbatim line) until the RESOLVED
+            sheet's standing for ``faction`` reaches ``min_standing``
+            (doc 40 6a, the Wolf rig dealer's total gate).
         char: ASCII glyph drawn at the NPC's tile.
         fg: foreground colour for ``char``.
         flavor_text: one short line of dialog shown in the modal.
@@ -34,6 +38,10 @@ class NPC:
     char: str
     fg: tuple[int, int, int]
     flavor_text: str
+    # Refusal gate: (faction, min_standing, line). Talking is refused
+    # (verbatim line, no modal) until the RESOLVED sheet's standing for
+    # the faction reaches min_standing (doc 40 6a).
+    talk_gate: tuple[str, int, str] | None = None
 
 
 # Per-file NPC tuples — append an import + line in

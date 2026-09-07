@@ -50,6 +50,7 @@ class TalkOutcome(Enum):
     IGNORE = auto()
     SCRUB = auto()
     CUTOUT = auto()
+    RIG = auto()
     BACK = auto()
     WORK = auto()
     DELIVER = auto()
@@ -64,8 +65,28 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
+def _append_priced_items(items, scrub_price, cutout_price, rig_price):
+    """The identity storefront rows (doc 40): each offered only while
+    it applies — unowned, at the right NPC."""
+    from . import pygame_menu
+
+    _rows = (
+        (scrub_price, "Buy a scrubbed ID ({:,}cr)",
+         "A hull number with no history, filed to your collection.", "SCRUB"),
+        (cutout_price, "Install a transponder cut-out ({:,}cr)",
+         "A one-time job: the transponder can go dark afterward.", "CUTOUT"),
+        (rig_price, "Buy a clone rig ({:,}cr)",
+         "A one-time tool: captured ships' consoles clone with it.", "RIG"),
+    )
+    for _price, _label, _body, _action in _rows:
+        if _price is not None:
+            items.append(pygame_menu.MenuItem(
+                _label.format(_price), _body, _action,
+            ))
+
+
 def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
-                      cutout_price=None):
+                      cutout_price=None, rig_price=None):
     """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
@@ -73,18 +94,7 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
         pygame_menu.MenuItem(label, "Continue the main-quest conversation.", f"QUEST:{step_id}")
         for label, step_id in quest_options
     ]
-    if scrub_price is not None:
-        items.append(pygame_menu.MenuItem(
-            f"Buy a scrubbed ID ({scrub_price:,}cr)",
-            "A hull number with no history, filed to your collection.",
-            "SCRUB",
-        ))
-    if cutout_price is not None:
-        items.append(pygame_menu.MenuItem(
-            f"Install a transponder cut-out ({cutout_price:,}cr)",
-            "A one-time job: the transponder can go dark afterward.",
-            "CUTOUT",
-        ))
+    _append_priced_items(items, scrub_price, cutout_price, rig_price)
     items.extend(
         pygame_menu.MenuItem(
             "Deliver: " + mission.title,
@@ -125,6 +135,7 @@ def _npc_pygame_frames(npc, quest_body, items):
 _ACTION_RESULTS = {
     "SCRUB": (TalkOutcome.SCRUB, None),
     "CUTOUT": (TalkOutcome.CUTOUT, None),
+    "RIG": (TalkOutcome.RIG, None),
     "WORK": (TalkOutcome.WORK, None),
 }
 
@@ -147,6 +158,22 @@ def _map_pygame_npc_result(outcome, action, missions):
             return None
     return None
 
+def _talk_refusal(ctx, npc) -> str | None:
+    """The NPC's refusal line while the talk gate holds, else None.
+
+    The gate reads the RESOLVED sheet (a pirate-liked clone passes) —
+    the same read every reader in the game makes (doc 40 6a)."""
+    _gate = getattr(npc, "talk_gate", None)
+    if _gate is None:
+        return None
+    from . import identity
+    _faction, _min_standing, _line = _gate
+    _standing = identity.effective_reputation(ctx).get(_faction, 0)
+    if _standing >= _min_standing:
+        return None
+    return _line
+
+
 def _cutout_offer(ctx, npc_id: str) -> int | None:
     """The install row's price, or None when installed / wrong NPC."""
     from .identity import cutout_price
@@ -155,20 +182,33 @@ def _cutout_offer(ctx, npc_id: str) -> int | None:
     return cutout_price(npc_id)
 
 
-def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None]:
-    """(scrub, cutout) row prices — None where no row shows."""
+def _rig_offer(ctx, npc_id: str) -> int | None:
+    """The rig row's price, or None when owned / wrong NPC."""
+    from .identity import rig_price
+    if getattr(ctx, "transponder_rig", False):
+        return None
+    return rig_price(npc_id)
+
+
+def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
+    """(scrub, cutout, rig) row prices — None where no row shows."""
     from .identity import scrub_price
-    return scrub_price(npc_id), _cutout_offer(ctx, npc_id)
+    return (
+        scrub_price(npc_id),
+        _cutout_offer(ctx, npc_id),
+        _rig_offer(ctx, npc_id),
+    )
 
 def _run_pygame_npc_talk(
     ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
-    cutout_price=None, items=None,
+    cutout_price=None, rig_price=None, items=None,
 ):
     """Run NPC talk through the shared selectable Pygame screen."""
 
     if items is None:
         items = _npc_pygame_items(
             npc, missions, quest_options, scrub_price, cutout_price,
+            rig_price,
         )
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
@@ -183,6 +223,15 @@ def _run_pygame_npc_talk(
             continue
         return _map_pygame_npc_result(outcome, action, missions)
 
+def _refusal_reply(ctx, npc):
+    """The gated NPC's refusal: logged once, no modal (doc 40 6a)."""
+    _refusal = _talk_refusal(ctx, npc)
+    if _refusal is not None:
+        ctx.log.add(_refusal)
+        return (TalkOutcome.BACK, None)
+    return None
+
+
 def _run_npc_talk(
     ctx: GameContext,
     npc: NPC,
@@ -193,15 +242,19 @@ def _run_npc_talk(
 
     Returns ``(outcome, mission)`` — the mission when DELIVER, else None.
     """
+    _refused = _refusal_reply(ctx, npc)
+    if _refused is not None:
+        return _refused
     ctx.log.add(f"You chat briefly with {npc.name}.")
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
     _missions = deliver_missions or []
     _quest_options = _quest_rows(ctx, npc)
-    _scrub_price, _cutout_price = _priced_rows(ctx, npc.id)
+    _scrub_price, _cutout_price, _rig_price = _priced_rows(ctx, npc.id)
     # The builder is the single source of truth for what rows exist: the
     # no-options decision derives from its output, never a parallel count.
     items = _npc_pygame_items(
         npc, _missions, _quest_options, _scrub_price, _cutout_price,
+        _rig_price,
     )
     if not items:
         return _no_options_reply(ctx, npc, _quest_body)
@@ -209,7 +262,7 @@ def _run_npc_talk(
     # The domain modal: quest rows mutate main-quest state on select.
     result = _run_pygame_npc_talk(
         ctx, npc, _quest_body, _missions, _quest_options,
-        _scrub_price, _cutout_price, items=items,
+        _scrub_price, _cutout_price, _rig_price, items=items,
     )
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
@@ -268,10 +321,21 @@ def _handle_cutout_purchase(ctx, npc):
     return (TalkOutcome.BACK, None)
 
 
-# Resolved at call time (both handlers defined above).
+def _handle_rig_purchase(ctx, npc):
+    """Resolve a rig-dealer purchase row (doc 40 6a)."""
+    from .identity import buy_clone_rig as _buy_rig
+    if _buy_rig(ctx, npc.id):
+        ctx.log.add("Clone rig acquired.")
+    else:
+        ctx.log.add(f"{npc.name} names a price you can't meet.")
+    return (TalkOutcome.BACK, None)
+
+
+# Resolved at call time (all handlers defined above).
 _PURCHASE_HANDLERS = {
     TalkOutcome.SCRUB: _handle_scrub_purchase,
     TalkOutcome.CUTOUT: _handle_cutout_purchase,
+    TalkOutcome.RIG: _handle_rig_purchase,
 }
 
 

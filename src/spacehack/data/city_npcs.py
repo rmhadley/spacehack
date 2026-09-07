@@ -147,6 +147,9 @@ WOLF_B_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("wolf_vendor_arms", "pirate_raider", (17, 68), wander_radius=0, move_chance=0),
     CityNpc("wolf_vendor_gear", "civillian_bystander", (29, 68), wander_radius=0, move_chance=0),
     CityNpc("wolf_vendor_bits", "civillian_bystander", (35, 62), wander_radius=0, move_chance=0),
+    # The rig dealer holds the last stall on Smuggler's Row (doc 40 6a).
+    CityNpc("wolf_rig_dealer", "civillian_bystander", (44, 68),
+            npc_id="wolf_rig_dealer", wander_radius=0, move_chance=0),
     # Customers flowing through the market aisles.
     CityNpc("wolf_market_cust_a", "civillian_bystander", (12, 65), wander_radius=4, move_chance=0.9),
     CityNpc("wolf_market_cust_b", "pirate_raider", (28, 65), wander_radius=4, move_chance=0.85),

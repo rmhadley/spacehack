@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import random
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -975,7 +976,7 @@ def test_cutout_row_reaches_the_talk_modal_only_while_uninstalled(monkeypatch):
     calls = []
 
     def _fake_talk(ctx, npc_obj, body, missions, options=(), scrub=None,
-                   cutout=None, items=None):
+                   cutout=None, rig=None, items=None):
         calls.append(cutout)
         return (npc_mod.TalkOutcome.BACK, None)
 
@@ -997,10 +998,10 @@ def test_priced_rows_pairs_scrub_and_cutout_offers():
     from src.spacehack.npc import _priced_rows
 
     stock = quest_ctx()
-    assert _priced_rows(stock, "deadfall_scrubber") == (6_000, None)
-    assert _priced_rows(stock, "ember_tech") == (None, 2_500)
+    assert _priced_rows(stock, "deadfall_scrubber") == (6_000, None, None)
+    assert _priced_rows(stock, "ember_tech") == (None, 2_500, None)
     installed = quest_ctx(transponder_cutout=True)
-    assert _priced_rows(installed, "ember_tech") == (None, None)
+    assert _priced_rows(installed, "ember_tech") == (None, None, None)
 
 
 def test_cutout_action_dispatches_to_the_cutout_handler():
@@ -1098,3 +1099,113 @@ def test_rig_round_trips_through_save(monkeypatch):
     legacy = quest_ctx()
     _restore_quest_and_tutorial(legacy, {})
     assert legacy.transponder_rig is False, "legacy saves migrate False"
+
+
+def test_rig_dealer_is_on_smugglers_row_with_persona():
+    """First user of the ambient-vendor→persona path: the stall NPC
+    places carrying his npc_id (the routing key; the persona resolves
+    at talk time), and the persona resolves to the dealer."""
+    from src.spacehack.city_npcs import place_city_npcs
+    from src.spacehack.data.npcs import find_npc
+    from src.spacehack.data.planets import find_planet_spec, load_planet
+
+    _spec = find_planet_spec("wolf_b")
+    _map = load_planet("wolf_b")
+    place_city_npcs(_map, _spec.city_npc_population)
+    _dealer = [
+        _e for _e in _map.entities
+        if getattr(_e, "city_npc_id", "") == "wolf_rig_dealer"
+    ]
+    assert _dealer, "the dealer places on Smuggler's Row"
+    assert all(_e.npc_id == "wolf_rig_dealer" for _e in _dealer), \
+        "the placement carries the persona routing key"
+    assert find_npc("wolf_rig_dealer").name == "Rig Dealer"
+
+
+def test_dealer_gate_refuses_below_pirate_liked(monkeypatch):
+    """Below resolved pirate liked: 'Scram.' and no modal — masked
+    standing counts both ways (a liked clone passes)."""
+    from src.spacehack import npc as npc_mod
+    from src.spacehack.data.npcs import find_npc
+
+    _dealer = find_npc("wolf_rig_dealer")
+    _log = []
+    _opened = []
+    monkeypatch.setattr(
+        npc_mod, "_run_pygame_npc_talk",
+        lambda ctx, npc, body, missions, *a, **k: _opened.append(1)
+        or (npc_mod.TalkOutcome.BACK, None),
+    )
+    ctx = quest_ctx()
+
+    result = npc_mod._run_npc_talk(ctx, _dealer)
+    assert result[0] == npc_mod.TalkOutcome.BACK
+    assert _log == [], "no chat log — the gate fires before it"
+    assert _opened == []
+
+    ctx.log = SimpleNamespace(add=_log.append)
+    ctx.faction_reputation["pirate"] = -100
+    assert npc_mod._run_npc_talk(ctx, _dealer)[0] == npc_mod.TalkOutcome.BACK
+    assert _log == ["Scram."], "the pinned refusal line, verbatim"
+
+
+def test_dealer_menu_at_liked_offers_the_rig_once(monkeypatch):
+    """At/above liked the modal opens with the rig row; once owned the
+    row disappears (same conditional seam as the cut-out)."""
+    from src.spacehack import npc as npc_mod
+    from src.spacehack.data.npcs import find_npc
+
+    _dealer = find_npc("wolf_rig_dealer")
+    _calls = []
+    monkeypatch.setattr(
+        npc_mod, "_run_pygame_npc_talk",
+        lambda ctx, npc, body, missions, *prices, **k:
+            _calls.append(prices[3])
+            or (npc_mod.TalkOutcome.BACK, None),
+    )
+    ctx = quest_ctx()
+    ctx.faction_reputation["pirate"] = 30  # liked
+
+    npc_mod._run_npc_talk(ctx, _dealer)
+    assert _calls == [9_000]
+
+    ctx.transponder_rig = True
+    result = npc_mod._run_npc_talk(ctx, _dealer)
+    assert _calls == [9_000], "owned = the row disappears (no modal)"
+    assert result[0] == npc_mod.TalkOutcome.BACK
+
+
+def test_buy_clone_rig_charges_once(monkeypatch):
+    from src.spacehack.identity import buy_clone_rig
+    monkeypatch.setattr(
+        "src.spacehack.data.npc_ships.find_npc_ship", None, raising=False,
+    )
+
+    ctx = quest_ctx(credits=10_000)
+    assert buy_clone_rig(ctx, "wolf_rig_dealer") is True
+    assert ctx.transponder_rig is True
+    assert ctx.stats.credits == 1_000
+    assert buy_clone_rig(ctx, "wolf_rig_dealer") is False, "one-time"
+    assert buy_clone_rig(ctx, "ember_tech") is False, "wrong storefront"
+
+
+def test_dealer_disguise_passes_the_gate():
+    """A pirate-liked clone wears past the Scram gate — the sheet read
+    is the same one every reader makes."""
+    from src.spacehack import npc as npc_mod, identity
+    from src.spacehack.data.npcs import find_npc
+
+    _dealer = find_npc("wolf_rig_dealer")
+    ctx = quest_ctx()
+    ctx.faction_reputation["pirate"] = -100
+    _face = {
+        "id": "KG-8812", "kind": "cloned", "label": "Cloned hull",
+        "faction": "pirate",
+        "rep": {"pirate": 40, "militia": -10, "merchant": 5, "civilian": 0},
+    }
+    ctx.collected_ids = [_face]
+    ctx.broadcast_identity = _face
+
+    assert identity.effective_reputation(ctx)["pirate"] == 40
+    assert npc_mod._talk_refusal(ctx, _dealer) is None, \
+        "the liked clone wears past the total gate"

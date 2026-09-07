@@ -288,9 +288,34 @@ CUTOUT_BROKERS: dict[str, int] = {
 }
 
 
+# Rig dealers: NPC id -> credits for the clone rig (doc 40 phase 6a).
+# Sold behind the dealer's talk gate; buying IDs from him is 6b.
+RIG_BROKERS: dict[str, int] = {
+    "wolf_rig_dealer": 9000,
+}
+
+
 def cutout_price(npc_id: str) -> int | None:
     """The cut-out install price a tech charges, or None."""
     return CUTOUT_BROKERS.get(npc_id)
+
+
+def rig_price(npc_id: str) -> int | None:
+    """The clone-rig price a dealer charges, or None."""
+    return RIG_BROKERS.get(npc_id)
+
+
+def buy_clone_rig(ctx, npc_id: str) -> bool:
+    """Buy the clone rig. False: wrong NPC, can't afford, or owned.
+    One-time; it rides the player across lawful purchases."""
+    price = rig_price(npc_id)
+    if price is None or getattr(ctx, "transponder_rig", False):
+        return False
+    if ctx.stats.credits < price:
+        return False
+    ctx.transponder_rig = True
+    ctx.stats.credits -= price
+    return True
 
 
 def buy_transponder_cutout(ctx, npc_id: str) -> bool:
@@ -313,6 +338,7 @@ __all__ = [
     "scrub_price", "buy_scrubbed_id",
     "cutout_price", "buy_transponder_cutout",
     "clone_tier", "roll_clone_sheet", "clone_transponder",
+    "rig_price", "buy_clone_rig",
     "generate_registration", "broadcast_mode", "resolved_identity",
     "identity_label", "toggle_dark", "cycle_identity", "collect_id",
     "library_position", "ensure_registration",

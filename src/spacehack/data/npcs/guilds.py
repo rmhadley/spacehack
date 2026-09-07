@@ -28,6 +28,19 @@ NPCS: tuple[NPC, ...] = (
         ),
     ),
     NPC(
+        id="wolf_rig_dealer",
+        name="Rig Dealer",
+        guild="",
+        talk_gate=("pirate", 26, "Scram."),
+        char="d",
+        fg=(200, 170, 120),
+        flavor_text=(
+            "The stall's table holds more rigged boards than fruit. "
+            "Word is my clone rigs cut transponders open from the "
+            "inside. Bring credits, and don't bring a militia face."
+        ),
+    ),
+    NPC(
         id="ember_tech",
         name="Transponder Tech",
         guild="",
