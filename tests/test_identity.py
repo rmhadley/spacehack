@@ -734,3 +734,71 @@ def test_scrub_purchase_materializes_a_literal_zero_sheet():
     sheet = ctx.collected_ids[0]["rep"]
     assert sheet == {faction: 0 for faction in _ALL_FACTIONS}
     assert len(sheet) == len(_ALL_FACTIONS) > 0
+
+
+def _blockade_system():
+    """A system with one static militia-blockade spawn at (150, 55)."""
+    from types import SimpleNamespace
+    from src.spacehack import world
+
+    spawn = SimpleNamespace(
+        enemy_id="militia_blockade",
+        pos=world.Position(150, 55),
+        squad_id="luyt_blockade_picket",
+    )
+    return SimpleNamespace(id="luyten", enemies=(spawn,))
+
+
+def _occupied_ctx(faction_reputation):
+    """ctx whose map holds one live entity on the spawn's cell."""
+    from types import SimpleNamespace
+    from src.spacehack import world
+
+    ctx = quest_ctx()
+    ctx.faction_reputation = dict(faction_reputation)
+    ctx.game_map = SimpleNamespace(entities=(
+        world.Entity("M", (100, 200, 255), world.Position(150, 55),
+                     npc_ship_id="militia_blockade"),
+    ))
+    return ctx
+
+
+def test_static_spawns_gate_on_the_resolved_sheet():
+    """Static spawns gate uniformly (user ruling, no exceptions): a
+    militia-LIKED live hull sails past the Luyten blockade; hostile
+    standing engages; a worn scrub (zeros) and dark stand down."""
+    from src.spacehack import identity
+    from src.spacehack import navigation_combat as nc
+    from src.spacehack import world
+
+    player = world.Position(151, 55)  # inside detect_radius 7
+    alive = []
+
+    # Default character: militia +50 (liked) — the blockade stands down.
+    ctx = _occupied_ctx({"militia": 50})
+    assert nc._trigger_static_spawns(ctx, player, _blockade_system(), alive) == (
+        set(), set(),
+    )
+
+    # Hostile true record: it engages the whole squad.
+    ctx = _occupied_ctx({"militia": -80})
+    squads, _solo = nc._trigger_static_spawns(
+        ctx, player, _blockade_system(), alive)
+    assert squads == {"luyt_blockade_picket"}
+
+    # Wearing a scrub: zeros resolve neutral — stand down.
+    ctx = _occupied_ctx({"militia": -80})
+    ctx.collected_ids = [dict(_scrub_entry())]
+    ctx.broadcast_identity = dict(ctx.collected_ids[0])
+    assert nc._trigger_static_spawns(ctx, player, _blockade_system(), alive) == (
+        set(), set(),
+    )
+
+    # Dark: nothing resolves — stand down (the challenge hail is the
+    # eyes exception, not the spawn gate).
+    ctx = _occupied_ctx({"militia": -80})
+    ctx.broadcast_dark = True
+    assert nc._trigger_static_spawns(ctx, player, _blockade_system(), alive) == (
+        set(), set(),
+    )
+    assert identity.broadcast_mode(ctx) == identity.DARK

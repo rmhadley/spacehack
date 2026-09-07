@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 
+from . import identity
 from . import main_quest as main_quest_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
@@ -29,6 +30,15 @@ def _charged_cell_aggro(ctx, system_id: str, faction: str) -> bool:
     )
 
 
+def _gate_engages(sheet, faction: str, aggro: bool) -> bool:
+    """The spawn gate (doc 40): engage only when the RESOLVED attitude
+    (the broadcasting ID's sheet) is disliked/enemy. Charged-cell heat
+    bypasses the mask — a heat response, not an identity read."""
+    if aggro:
+        return True
+    return _get_attitude(sheet.get(faction, 0)) in ("enemy", "disliked")
+
+
 def _alive_entity_at(ctx, pos) -> bool:
     """True when a non-owned entity currently occupies ``pos``."""
     return any(
@@ -39,10 +49,15 @@ def _alive_entity_at(ctx, pos) -> bool:
 
 
 def _trigger_static_spawns(ctx, player_pos, system, alive_spawns):
-    """Pass 1a: mark static system spawns within detect radius."""
+    """Pass 1a: mark static system spawns within detect radius.
+
+    Doc 40 phase 4: statics gate on the RESOLVED standing like every
+    other spawn reader — no territorial exception (user ruling); a
+    militia-liked hull sails past the Luyten blockade."""
     _triggered_squad_ids: set = set()
     _triggered_solo_positions: set = set()
     _system_id = getattr(system, "id", "")
+    _sheet = identity.effective_reputation(ctx)
     for _spawn in getattr(system, "enemies", ()) or ():
         try:
             _espec = find_npc_ship(_spawn.enemy_id)
@@ -54,11 +69,15 @@ def _trigger_static_spawns(ctx, player_pos, system, alive_spawns):
         _dist = math.hypot(
             player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y,
         )
+        _faction = getattr(_espec, "faction", "")
+        _aggro = _charged_cell_aggro(ctx, _system_id, _faction)
         _radius = _espec.detect_radius
-        if _charged_cell_aggro(ctx, _system_id, getattr(_espec, "faction", "")):
+        if _aggro:
             _radius = max(_radius, 30)
-        if _dist > 0 and _dist <= _radius:
-            # Static system enemies always engage (territorial).
+        if (
+            _dist > 0 and _dist <= _radius
+            and _gate_engages(_sheet, _faction, _aggro)
+        ):
             if _spawn.squad_id is not None:
                 _triggered_squad_ids.add(_spawn.squad_id)
             else:
