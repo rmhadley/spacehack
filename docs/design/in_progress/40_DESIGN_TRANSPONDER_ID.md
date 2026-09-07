@@ -260,8 +260,12 @@ Consequences (all follow from the one gate):
 
 **Dark's price of entry (user ruling): cut-out service.** Going
 dark is NOT a free toggle on a legal hull. A one-time transponder
-cut-out must be installed at a pirate-run port (the same storefronts
-as the scrub; priced below it — silence is cheaper than paper).
+cut-out must be installed at a pirate-run port (priced below the
+scrub — silence is cheaper than paper). STOREFRONT SPLIT
+(superseded same-day ruling, 2026-09-07): NOT the same storefronts
+— the scrub stays at Deadfall's Registry Broker; the cut-out
+installs at Ember's tech in Ross 154 (see the placement SETTLED
+section).
 Until installed, the F-screen D is inert. This matches Q2's "mode
 changes are worked via services" and gives the identity economy its
 second product; the early outlaw-port errand is dark's on-ramp. The
@@ -412,6 +416,26 @@ refine:
   the invariant the new field introduces, applied at the one place
   every legacy save passes through.
 
+## SETTLED (cut-out storefront placement, user ruling 2026-09-07)
+
+**Scatter the identity economy across the universe** (user: "I
+want to scatter this across the universe... a different solar
+system at a different npc in a different building"). The Registry
+Broker at Deadfall keeps the scrub as his only product. The
+cut-out tech is a NEW NPC seated in **Ember's depot interior**
+(Ross 154) — the warlord's flare-scorched yard at the end of the
+arm, reached via Sirius. Placement rides the proven additive
+interior-seat pattern (``quest_npc_spots`` — the
+Xenolinguist-in-the-lab precedent; Ember already hosts a seated
+spot), generalized to an always-on variant (today it is
+quest-conditional). The tech's flavor carries the teaching
+in-character (the F screen, the D key, what it costs him — docks
+included); the guide carries the mechanics. Wolf 359 b was the
+runner-up (frontier listening post, Luyten-gate adjacent) —
+passed over this pass; a brand-new pirate port remains
+deliberate later content. Name/flavor drafted at build,
+user-dictatable; offer row and install log stay as pinned above.
+
 ## The complete settled design (one statement)
 
 Every ship broadcasts. An ID is an identifier that maps to
@@ -429,8 +453,9 @@ superseded). Explicit
 registrations for RP flavor; the F — faction screen is the identity
 hub (broadcast state, cycling collected IDs). Intrinsic
 transponders; services at the outlaw ports work the modes; going
-dark requires a one-time cut-out installed at a pirate-run port
-(priced below the scrub, rides the player across purchases — the
+dark requires a one-time cut-out installed by Ember's tech in
+Ross 154 while the scrub stays at Deadfall's broker (priced below
+the scrub, rides the player across purchases — the
 free D toggle is superseded); identity rides the player across
 lawful purchases (the scrub is an unlawful hull). Rep writes
 follow the broadcast — live moves ID 1's sheet, spoofed moves the
@@ -846,36 +871,46 @@ challenge. Scrubbed triggers neither — blank paper complies.
     ``No cut-out installed.`` (verbatim, pinned by test); the
     F-screen hint row reads ``ENTER / ESC back   D transponder
     (no cut-out)`` while uninstalled (unchanged otherwise); the
-    install is a second priced row on Deadfall's scrubber
-    (``deadfall_scrubber``) alongside the 6,000cr scrub —
-    ``Install a transponder cut-out (2,500cr)`` (silence is cheaper
-    than paper), purchase logs ``Cut-out installed.``, and the row
-    is OFFERED ONLY WHILE UNINSTALLED — the same conditional
-    mechanism as the scrub row; no re-buy path, no refusal prose;
-    guide section updated. LOAD INVARIANT (uniform, one place in
-    saveload): a save without a cut-out never loads dark — a legacy
-    ``broadcast_dark=True`` resets to live at load, logging one
-    line when it fires.
+    install is the cut-out tech's product — a NEW NPC
+    (``ember_tech``, name/flavor drafted at build,
+    user-dictatable) seated ADDITIVELY inside Ember's depot
+    interior (Ross 154; user ruling 2026-09-07: different system,
+    different NPC, different building than the scrub) via the
+    interior-seat pattern generalized always-on — row
+    ``Install a transponder cut-out (2,500cr)`` (silence is
+    cheaper than paper), purchase logs ``Cut-out installed.``, and
+    the row is OFFERED ONLY WHILE UNINSTALLED — the same
+    conditional mechanism as the scrub row; no re-buy path, no
+    refusal prose; ``SCRUB_BROKERS`` unchanged (Deadfall keeps
+    the scrub only); guide section updated. LOAD INVARIANT
+    (uniform, one place in
+    saveload): a save without a cut-out never loads dark — a
+    legacy ``broadcast_dark=True`` resets to live at load, logging
+    one line when it fires.
   - Build order: field + persistence (+ load invariant) → toggle
-    gate → F-screen state → service row → guide.
+    gate → F-screen state → tech NPC + additive seat + service
+    row → guide.
   - Binding rulings: one-time install, never consumed, RIDES THE
-    PLAYER across lawful ship purchases (player-level flag, same as
-    the library and registration — the registry transfers the
-    owner, Q2's frame); installed = the broker row disappears (no
-    re-buy, no refusal line); other pirate ports selling it are
-    deliberate later content, not system growth; the scrub is
-    unaffected.
+    PLAYER across lawful ship purchases (player-level flag, same
+    as the library and registration — the registry transfers the
+    owner, Q2's frame); installed = the tech's row disappears (no
+    re-buy, no refusal line); the storefront split is deliberate —
+    scrub = Deadfall's broker ONLY, cut-out = Ember's tech ONLY;
+    Wolf 359 b and any new pirate port selling either are later
+    content; the scrub is unaffected.
   - Required tests: D inert without the cut-out (refusal line
-    pinned); works after purchase; the install row is absent once
-    installed (no double charge); persistence round-trip;
-    legacy-save migration incl. the invariant — a legacy DARK save
-    with no cut-out loads live and logs; cut-out + dark round-trips
-    still dark.
+    pinned); works after purchase; the tech's row is absent once
+    installed (no double charge); the tech seats unconditionally
+    at Ember's depot (not quest-gated) and Deadfall's broker shows
+    no cut-out row; persistence round-trip; legacy-save migration
+    incl. the invariant — a legacy DARK save with no cut-out loads
+    live and logs; cut-out + dark round-trips still dark.
   - Stop point: NOTHING from phase 6 — no recorder/rig, no
     boarding.
   - Playtest checkpoint: on a pre-cut-out save D does nothing (a
-    DARK one loads LIVE with the reset line) → buy the install at
-    Deadfall → the row vanishes from the broker → D works →
+    DARK one loads LIVE with the reset line) → fly to Ross 154
+    (via Sirius), land at Ember, find the tech in the depot → buy
+    the install → the row vanishes from the tech → D works →
     save/load keeps both the cut-out and the dark state.
 
 - [ ] PHASE 6 — the capture pipeline: live-ship boarding + the
