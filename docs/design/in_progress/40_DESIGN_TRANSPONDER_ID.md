@@ -1294,10 +1294,19 @@ challenge. Scrubbed triggers neither — blank paper complies.
   - Stop point: ONLY the cruiser deck is replaced; no other
     layouts, no coverage flip, no consume bookkeeping, no guide —
     that is 6d.
-  - Playtest checkpoint (numbered): the user polishes
-    ``cruiser_crew.layout`` in vim → walks the deck in-game by
-    boarding a raider → deck makes physical sense (doors lead
-    somewhere, hull sealed, the fight runs breach → bow console).
+  - Pilot BUILT (2026-09-07; a9a36b5 + d1ccb02): tool + 6 tests;
+    Mantis A reference stored; ``cruiser_crew.json`` (11 rooms,
+    9 door edges, mirrored wings, 5 crew across 3 markers, 4 loot
+    rooms, console at the bow tip) compiled to
+    ``cruiser_crew.layout`` — validator-clean on the first
+    content-complete compile (after the spec fixes the validator
+    itself dictated: spine reaching the breach stack, spans
+    covering the wings, single-thickness bow wall). Parser
+    semantics learned: interior gaps and empty rows parse as
+    FLOOR — void only exists as ragged leading/trailing space, so
+    the compiler spans every row. 1817 green. AT THE USER'S
+    HAND-OFF: vim polish of ``cruiser_crew.layout`` → in-game
+    deck walk.
 
 - [ ] PHASE 6d — boarding coverage for every battle spec + the
       remaining decks, via the 6c pipeline. Carries: the frigate
