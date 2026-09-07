@@ -147,6 +147,10 @@ def main() -> int:
     parser.add_argument("--grid", default="62,30", help="W,H cells")
     parser.add_argument("--mirror", action="store_true",
                         help="mirror the top half into a symmetric hull")
+    parser.add_argument("--bright", type=int, default=88,
+                        help="brightness threshold for ship pixels")
+    parser.add_argument("--red", type=int, default=32,
+                        help="red-dominance threshold for ship pixels")
     parser.add_argument("--close", type=int, default=0,
                         help="morphological close passes (reattaches "
                         "hairline hull breaks at high resolution)")
@@ -155,6 +159,7 @@ def main() -> int:
     crop = tuple(int(v) for v in args.crop.split(","))
     grid = tuple(int(v) for v in args.grid.split(","))
     art = trace(args.image, crop, args.rotate, grid, args.mirror,
+                threshold_bright=args.bright, threshold_red=args.red,
                 close=args.close)
     if args.out:
         open(args.out, "w").write(art)
