@@ -157,3 +157,38 @@ def test_character_confirm_ignores_guide_then_preserves_quit(monkeypatch):
     )
 
     assert input_helpers._run_confirm(SimpleNamespace(), "human", "pirate") is input_helpers.Outcome.QUIT
+
+
+def test_stats_tab_lists_owned_identity_gear():
+    """The rig and cut-out are visible on the C screen once owned —
+    the Gear line lists only what's installed (doc 40 user report)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.character_screen import _stats_frame
+
+    def _ctx(**flags):
+        base = dict(
+            player_level=1, player_xp=0, player_skill_points=0,
+            player_traits=[], character_info={},
+            stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+            ground_stats=SimpleNamespace(
+                gunnery=10, piloting=10, engineering=10, stamina=10,
+                force=10, resilience=10,
+            ),
+            transponder_cutout=False, transponder_rig=False,
+        )
+        base.update(flags)
+        return SimpleNamespace(**base)
+
+    _body = _stats_frame(_ctx(), "T", 0, 10, selected=0).body
+    assert not any("Gear:" in line for line in _body), "nothing owned, no line"
+
+    _body = _stats_frame(_ctx(transponder_rig=True), "T", 0, 10, selected=0).body
+    _gear = [line for line in _body if line.startswith("Gear:")]
+    assert _gear == ["Gear: clone rig"]
+
+    _body = _stats_frame(
+        _ctx(transponder_rig=True, transponder_cutout=True),
+        "T", 0, 10, selected=0,
+    ).body
+    assert "Gear: transponder cut-out, clone rig" in _body
