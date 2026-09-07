@@ -1304,9 +1304,19 @@ challenge. Scrubbed triggers neither — blank paper complies.
     covering the wings, single-thickness bow wall). Parser
     semantics learned: interior gaps and empty rows parse as
     FLOOR — void only exists as ragged leading/trailing space, so
-    the compiler spans every row. 1817 green. AT THE USER'S
-    HAND-OFF: vim polish of ``cruiser_crew.layout`` → in-game
-    deck walk.
+    the compiler spans every row. 1817 green. SILHOUETTE PIVOT
+    (user, mid-6c: "focus on the silhouette first — what I want
+    to see is a silhouette that follows the source the way my
+    example did"): the deck work paused; tools/trace_reference.py
+    added — crop the reference, level it (the Mantis climbs
+    ~14°), downsample onto the character grid, threshold
+    ship-vs-space, fill holes, shave spikes, mirror into a
+    symmetric hull. The traced cruiser silhouette
+    (layout_drafts/cruiser_silhouette_symmetric.txt) carries the
+    reference's waist pinch and blade notches; AWAITING THE
+    USER'S READ on the shape before rooms resume inside it.
+    Then: vim polish of ``cruiser_crew.layout`` → in-game deck
+    walk.
 
 - [ ] PHASE 6d — boarding coverage for every battle spec + the
       remaining decks, via the 6c pipeline. Carries: the frigate
