@@ -285,52 +285,37 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     assert fired == [patrol], "dark ships are not hailable"
 
 
-def test_scrubbed_face_masks_every_faction_row():
-    """A factionless face (the scrubbed hull a broker sells) resolves
-    nothing for any reader — wearing it must mask ALL rows, not fall
-    through to the true ratings."""
-    from src.spacehack.pygame_faction import frame_for
-
-    ctx = quest_ctx()
-    ctx.faction_reputation = {"pirate": -80, "merchant": 40}
-    ctx.collected_ids = [{
-        "id": "KX-1234", "kind": "scrubbed",
-        "label": "Scrubbed hull", "faction": None,
-    }]
-    ctx.broadcast_identity = ctx.collected_ids[0]
-
-    rows = {r.label: r for r in frame_for(ctx).rows}
-    for row in rows.values():
-        assert row.attitude == "No Data"
-        assert row.reputation == 0
-
-    ctx.broadcast_identity = None
-    rows = {r.label: r for r in frame_for(ctx).rows}
-    assert rows["Pirate"].attitude == "Enemy"      # true ratings back
-    assert rows["Merchant"].attitude == "Liked"
-
-
 def test_faction_rows_resolve_through_the_broadcast():
-    """Masked standings show what READERS see, always tagged: the
-    worn face's faction reads Friendly (Faked); everything else No
-    Data; dark resolves nothing (doc 40: the mask cuts both ways)."""
+    """The F screen renders the broadcasting ID's actual sheet (doc 40
+    phase 4 — no more approximation rows): the worn ID's values while
+    spoofed, all-neutral while dark, the true ratings while live. A
+    scrub (all-zero sheet) shows Neutral everywhere."""
     from src.spacehack.pygame_faction import frame_for
 
     ctx = quest_ctx()
     ctx.faction_reputation = {"pirate": -80, "merchant": 40}
+    ctx.collected_ids = [dict(_scrub_entry())]
+    ctx.broadcast_identity = dict(ctx.collected_ids[0])
+
+    rows = {r.label: r for r in frame_for(ctx).rows}
+    assert all(r.attitude == "Neutral" and r.reputation == 0
+               for r in rows.values())
+
+    pirate = _pirate_face()
+    pirate["rep"] = {"pirate": 76, "merchant": -40}
     from src.spacehack.identity import collect_id
-    collect_id(ctx, _pirate_face())
-    ctx.broadcast_identity = _pirate_face()
+    collect_id(ctx, pirate)
+    ctx.broadcast_identity = dict(pirate)
 
     rows = {r.label: r for r in frame_for(ctx).rows}
-    assert rows["Pirate"].attitude == "Friendly (Faked)"
-    assert rows["Merchant"].attitude == "No Data"
-    assert rows["Militia"].attitude == "No Data"
+    assert rows["Pirate"].attitude == "Allied"      # the clone's sheet
+    assert rows["Merchant"].attitude == "Disliked"  # rides the same sheet
+    assert rows["Militia"].attitude == "Neutral"    # absent keys read zero
 
-    ctx.broadcast_dark = True
+    ctx.broadcast_dark = True  # nothing resolves — all neutral
     rows = {r.label: r for r in frame_for(ctx).rows}
-    assert rows["Pirate"].attitude == "No Data (Dark)"
-    assert rows["Merchant"].attitude == "No Data (Dark)"
+    assert all(r.attitude == "Neutral" and r.reputation == 0
+               for r in rows.values())
 
     ctx.broadcast_dark = False
     ctx.broadcast_identity = None

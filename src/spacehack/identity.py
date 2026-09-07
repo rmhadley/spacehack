@@ -237,20 +237,6 @@ def npc_identity(entity) -> dict[str, Any] | None:
     }
 
 
-def apparent_faction(ctx) -> str | None:
-    """The faction a reader resolves from the current broadcast.
-
-    LIVE resolves the player's true relations — readers then pull
-    faction_reputation (the pre-existing behavior). SPOOFED resolves
-    the worn face's faction (a pirate face in Ross reads as one of
-    theirs). DARK resolves nothing.
-    """
-    worn = resolved_identity(ctx)
-    if worn is None:
-        return None
-    return worn.get("faction") or None
-
-
 # Scrub brokers: NPC id -> credits for one scrubbed ID (doc 40 Q6 —
 # acquisition is rare, involved, and PRICED; the first sandbox vector.
 # Militia/fabricated ids come from act 1 quest content, not purchasable).
@@ -290,7 +276,7 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
 
 __all__ = [
     "LIVE", "DARK", "SPOOFED",
-    "npc_identity", "apparent_faction", "effective_reputation",
+    "npc_identity", "effective_reputation",
     "apply_worn_delta",
     "scrub_price", "buy_scrubbed_id",
     "generate_registration", "broadcast_mode", "resolved_identity",
