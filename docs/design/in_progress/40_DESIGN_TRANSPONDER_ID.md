@@ -1014,8 +1014,23 @@ challenge. Scrubbed triggers neither — blank paper complies.
     boarding.
   - Playtest checkpoint: the brief's checkpoint above (5 items).
 
-- [ ] PHASE 6a — the capture pipeline: BOARD-in-combat + live-ship
-      boarding + the clone roll + the rig. Re-cut 6 → 6a + 6b
+- [x] PHASE 6a — the capture pipeline: BOARD-in-combat + live-ship
+      boarding + the clone roll + the rig — LANDED (2026-09-07;
+      37543a8..3f80721, 8 commits incl. the ratchet split; 1801
+      green). PLAYTEST PENDING. REVIEW: build review (2 dispatches)
+      REQUEST_CHANGES → 5 blockers (dead B key under the VIM
+      diagonal; unfiltered target index; the transition dying on
+      the shim; unstamped serialization; loot-budget semantics) +
+      minors, all fixed; re-review round 2 caught two self-
+      introduced regressions (orphaned _move_npcs tail; nested
+      goto-loop outcome) + the ground key regression — fixed
+      (d08068b); round 3 caught the drift tail on the detection-
+      loop path + the break-away downgrade — fixed (3f80721),
+      prescribed one-liners pinned by tests, no fourth dispatch.
+      PLAYTEST-CRITICAL lessons: shared keymaps need table-vs-move
+      precedence rules; outcome strings that mutate state need an
+      owner for failure paths; every `_run_combat_loop` caller is
+      a state-adoption site. Re-cut 6 → 6a + 6b
       (user-approved 2026-09-07, per the ADVISE review; 6a is the
       novel-machinery vertical slice). Boarding conditions (user,
       2026-09-07): no shields up, 75% hull damage done, no other
