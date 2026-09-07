@@ -281,8 +281,8 @@ class GameContext:
     # Each entry is rendered by the space-mode render loop for its
     # remaining lifetime, then removed. Empty by default.
     npc_flash_events: list[NpcFlashEvent] = dataclasses.field(default_factory=list)
-    # Game time: day/month/year clock. Advanced every 10 space moves
-    # (manual + auto-nav). Month wraps at 30, year wraps at 12.
+    # Game time: day/month/year clock. Advanced by movement —
+    # effective_speed moves per game day. Month wraps at 30, year at 12.
     time_day: int = 1
     time_month: int = 1
     time_year: int = 2200

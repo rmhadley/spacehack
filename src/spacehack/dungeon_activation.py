@@ -169,7 +169,6 @@ def _reachable_cells(
                 seen.add(nxt)
                 queue.append(nxt)
     return seen
-    return len(seen) - 1
 
 
 def _reachable_count(
@@ -440,7 +439,7 @@ def _dormant_dock_cells(
     found: list[tuple[int, int]] = []
     for _radius in range(max(game_map.width, game_map.height)):
         for _y in range(ay - _radius, ay + _radius + 1):
-            for _x in range(ax - _radius, ay + _radius + 1):
+            for _x in range(ax - _radius, ax + _radius + 1):
                 if max(abs(_x - ax), abs(_y - ay)) != _radius:
                     continue
                 if not _dockable(game_map, _x, _y, occupied, landmark_cells, transit_cells, docked):

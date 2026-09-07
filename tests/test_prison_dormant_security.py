@@ -708,3 +708,19 @@ def test_dormant_units_never_stand_near_transit_tiles():
         spawn=world.Position(6, 3),
     )
     assert cells and all(cell not in zone for cell in cells)
+
+
+def test_dock_scan_covers_the_full_ring_when_anchor_x_exceeds_y():
+    """Regression: the dock scan's x bound used ay instead of ax, so
+    anchors with x > y skipped every dock candidate east of
+    ay + radius — the nearest dockable wall went unfound."""
+    from src.spacehack.dungeon_activation import _dormant_dock_cells
+
+    game_map = _map_with([])
+    anchor = world.Position(11, 2)
+    cells = _dormant_dock_cells(
+        game_map, anchor, set(), 1,
+        landmark_cells=set(), transit_cells=set(),
+    )
+    assert cells, "a border dock exists within radius 2"
+    assert max(abs(cells[0][0] - 11), abs(cells[0][1] - 2)) <= 2

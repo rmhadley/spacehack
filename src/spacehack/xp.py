@@ -90,7 +90,7 @@ def add_xp(ctx: GameContext, amount: int) -> None:
 _GROUND_STAT_NAMES: frozenset[str] = frozenset({"reflexes", "strength", "stamina"})
 
 # All six skills (Gunnery/Piloting/Engineering + Reflexes/Strength/Stamina)
-# cap at 100. The level cap of 30 limits how many points you can earn.
+# cap at 100. The level cap of 60 limits how many points you can earn.
 _SKILL_CAP: int = 100
 
 
