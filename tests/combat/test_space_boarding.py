@@ -97,6 +97,7 @@ def test_capture_targets_are_data_optins():
 
     assert find_npc_ship("pirate_scout").capture_layout_id == "scout_crew"
     assert find_npc_ship("pirate_raider").capture_layout_id == "cruiser_crew"
+    assert find_npc_ship("merchant_hauler").capture_layout_id == "hauler_crew"
     assert find_npc_ship("militia_patrol").capture_layout_id == ""
     assert find_npc_ship("derelict_scout").capture_layout_id == ""
 
@@ -104,11 +105,15 @@ def test_capture_targets_are_data_optins():
 def test_capture_layouts_carry_console_and_crew():
     from src.spacehack.dungeon_layout import load_layout
 
-    for lid in ("scout_crew", "cruiser_crew"):
+    # scattered entities carry the npc_char spec's char (raider r /
+    # rifleman R / enforcer c / gunner g), not the authored map glyph
+    crew_glyphs = {"scout_crew": "rR", "cruiser_crew": "rR",
+                   "hauler_crew": "cg"}
+    for lid, crew in crew_glyphs.items():
         _map, _spawn = load_layout(lid)
         assert _spawn is not None, lid
         assert any(e.char == "C" for e in _map.entities), lid
-        assert any(e.char in "rR" for e in _map.entities), lid
+        assert any(e.char in crew for e in _map.entities), lid
 
 
 def test_begin_capture_boarding_consumes_the_hull(monkeypatch):

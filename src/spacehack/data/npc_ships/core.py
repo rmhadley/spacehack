@@ -305,6 +305,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         modules=(),
         cargo_goods=("electronics", "machine_parts", "food_rations", "textiles"),
         cargo_count=3,
+        capture_layout_id="hauler_crew",
+        loot_budget=(400, 1200),
         # Merchants are non-combat — flee threshold at 0.8
         ai_aggressiveness=10,
         ai_preferred_range=6,
