@@ -66,6 +66,17 @@ def _seal_diagonal_pinches(solid, gw, gh):
         sealed += len(pinches)
 
 
+def _dedent(rows: list[str]) -> list[str]:
+    """Strip the COMMON leading void — the leftmost hull column touches
+    column 0, every other row keeps its indentation relative to it.
+    The shape's left profile survives; the dead margin goes."""
+    width = max(len(r) for r in rows)
+    g = [r.ljust(width) for r in rows]
+    leads = [len(r) - len(r.lstrip()) for r in g if r.strip()]
+    common = min(leads) if leads else 0
+    return [r[common:].rstrip() for r in g]
+
+
 def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
           grid: tuple[int, int], mirror: bool, threshold_bright: int = 88,
           threshold_red: int = 32, close: int = 0) -> str:
@@ -173,7 +184,7 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
             "".join("#" if (x, y) in keep else " " for x in range(gw))
             for y in range(gh)
         ]
-    return "\n".join(row.rstrip() for row in rows) + "\n"
+    return "\n".join(_dedent(rows)) + "\n"
 
 
 def main() -> int:
