@@ -1,7 +1,4 @@
-# cruiser_crew.layout — Pirate raider cruiser (Slug-class) capture deck
-# Hull traced from the FTL Slug Cruiser B doors-view (fandom clean render),
-# quantum-decomposed to the blessed rect hull, then rooms-and-doors draft
-# + user polish pass (layout_drafts/slug_b_* lineage).
+# cruiser_crew.layout — cruiser capture deck
 #   Facing:            bow RIGHT (the rounded lobe), engines PORT (left prongs)
 #   Far right:         Cockpit with ship console (C) — farthest from the breach
 #   Port prong rooms:  Engine rooms (E strips) + engine loot
@@ -83,10 +80,10 @@ MAP
                                                                     ##...............................................#............................##                                                  
                                                                      #...............................................#............................#                                                   
                                                                      ###########b###############.....................#.......................######                                                   
-                                                                               #P################....................#......................##                                                        
-                                                                               #>################....................#......................#                                                         
-                                                                               ##################....................#......................#                                                         
-                                                                                  ###########################################################
+                                                                               #P#             ##....................#......................##                                                        
+                                                                               #>#              #....................#......................#                                                         
+                                                                               ###              #....................#......................#                                                         
+                                                                                                #############################################
 ENDMAP
 
 # Tile mappings
