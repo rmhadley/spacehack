@@ -165,6 +165,16 @@ def _render(q, qw, qh):
     return "\n".join(l for l in lines if l.strip()) + "\n", len(walls)
 
 
+def _row_spans(q, qw, qh) -> dict[int, tuple[int, int] | None]:
+    """First..last solid quantum per row — the span the .layout parser
+    fills as floor. None marks an all-void row."""
+    spans: dict[int, tuple[int, int] | None] = {}
+    for y in range(qh):
+        xs = [x for x in range(qw) if q[y][x]]
+        spans[y] = (min(xs), max(xs)) if xs else None
+    return spans
+
+
 def escape_flood(q, qw, qh) -> int:
     """The no-diag check: the player moves 8-directionally with corner
     cutting legal, over WALKABLE cells — the hull interior plus phantom
@@ -173,10 +183,7 @@ def escape_flood(q, qw, qh) -> int:
     walkable. An escape = reachable void outside the spans. Returns
     the count — 0 means sealed."""
     hull = {(x, y) for y in range(qh) for x in range(qw) if q[y][x]}
-    spans = {}
-    for y in range(qh):
-        xs = [x for x in range(qw) if q[y][x]]
-        spans[y] = (min(xs), max(xs)) if xs else None
+    spans = _row_spans(q, qw, qh)
     phantom = {
         (x, y)
         for y in range(qh) if spans[y]
@@ -191,11 +198,6 @@ def escape_flood(q, qw, qh) -> int:
         for nx, ny in _neighbors8(x, y, qw, qh):
             if (nx, ny) in walkable and (nx, ny) not in seen:
                 seen.add((nx, ny)); stack.append((nx, ny))
-    outside = {
-        (x, y)
-        for y in range(qh) if spans[y]
-        for x in (0, qw - 1) if (x, y) not in q[y] or True
-    }  # border-connected void, computed directly below
     border_void = set()
     queue = deque()
     for y in range(qh):
@@ -214,14 +216,18 @@ def escape_flood(q, qw, qh) -> int:
 def _seal_phantom_entries(q, qw, qh) -> int:
     """Corner-cut seal: phantom quanta (walkable-by-parse void inside a
     row span) that 8-touch the hull are corner-cut entries from the
-    interior — fill them hull-solid. Fixpoint: each fill can expose the
-    next phantom cell."""
+    interior — fill them hull-solid. Void outside the row spans is true
+    space: it never fills. Spans hoist above the fixpoint: a span's
+    endpoints are solid by construction and fills land strictly between
+    them, so spans can never move."""
+    spans = _row_spans(q, qw, qh)
     sealed = 0
     while True:
         hull = {(x, y) for y in range(qh) for x in range(qw) if q[y][x]}
         entries = [
             (x, y)
-            for y in range(qh) for x in range(qw)
+            for y in range(qh) if spans[y]
+            for x in range(spans[y][0], spans[y][1] + 1)
             if not q[y][x] and any(
                 (nx, ny) in hull for nx, ny in _neighbors8(x, y, qw, qh))
         ]
