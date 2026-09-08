@@ -118,3 +118,42 @@ def test_check_walks_what_the_parse_calls_walkable(tmp_path):
         "TILE: a = AIRLOCK\n"
     )
     assert check_layout(layout) == []
+
+
+def test_check_skips_padding_invented_floor(tmp_path):
+    """In-span spaces the author left empty are authored void (hull
+    notches beside enclosed stubs) — the padding rule invents floor
+    there, and a sealed pocket of it is not an authoring error."""
+    layout = tmp_path / "notch_deck.layout"
+    layout.write_text(
+        "MAP\n"
+        "############\n"
+        "#P.........#\n"
+        "#..........#\n"
+        "#####  #####\n"
+        "############\n"
+        "ENDMAP\n"
+        "TILE: # = DUNGEON_WALL\n"
+        "TILE: . = DUNGEON_FLOOR\n"
+    )
+    assert check_layout(layout) == []
+
+
+def test_check_still_flags_authored_sealed_floor(tmp_path):
+    """The same pocket AUTHORED as floor ('.') stays a defect: sealed
+    rooms the author meant to be reachable must still be reported."""
+    layout = tmp_path / "sealed_deck.layout"
+    layout.write_text(
+        "MAP\n"
+        "############\n"
+        "#P.........#\n"
+        "#..........#\n"
+        "############\n"
+        "#####..#####\n"
+        "############\n"
+        "ENDMAP\n"
+        "TILE: # = DUNGEON_WALL\n"
+        "TILE: . = DUNGEON_FLOOR\n"
+    )
+    reasons = check_layout(layout)
+    assert reasons and all(r.startswith("unreachable floor") for r in reasons)

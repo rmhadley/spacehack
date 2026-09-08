@@ -398,11 +398,15 @@ def compile_spec(spec: dict) -> str:
 
 def check_layout(path: Path) -> list[str]:
     """Validate an existing ``.layout`` through the real parser plus
-    the reachability checks on the parsed tiles."""
+    the reachability checks on the parsed tiles. Unreachable FLOOR
+    counts only where the author placed a glyph — in-span spaces are
+    padding-invented floor (authored-void notches in hand decks), not
+    an authoring error."""
     reasons: list[str] = []
     path = Path(path).resolve()
     sys.path.insert(0, str(REPO))
     from src.spacehack import dungeon_layout  # noqa: E402
+    from src.spacehack import layout_format  # noqa: E402
 
     load_layout = dungeon_layout.load_layout
 
@@ -413,6 +417,7 @@ def check_layout(path: Path) -> list[str]:
         return [f"parse failure: {exc}"]
     if spawn is None:
         reasons.append("no spawn ('P') in the layout")
+    authored = layout_format.parse_layout_file(path).map_lines
     grid = [
         [tile for tile in row] for row in game_map.tiles
     ]
@@ -427,8 +432,10 @@ def check_layout(path: Path) -> list[str]:
             if grid[y][x].walkable
         }
         seen = _flood(grid, *origin, open_cells)
-        for cell in sorted(open_cells - seen):
-            reasons.append(f"unreachable floor at {cell}")
+        for x, y in sorted(open_cells - seen):
+            if authored[y][x] == " ":
+                continue  # padding-invented floor under an authored void
+            reasons.append(f"unreachable floor at ({x},{y})")
     return reasons
 
 
