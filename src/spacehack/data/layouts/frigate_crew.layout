@@ -1,7 +1,4 @@
-# frigate_crew.layout — Warlord flagship capture deck (Onslaught-class)
-# Hull from the Starsector Onslaught capital sprite (user-picked pinnacle
-# warship; clockwise rotation, engraving-fuse close), rooms-and-doors draft
-# + user creative polish (layout_drafts/frigate_rooms* lineage).
+# frigate_crew.layout — Warlord flagship capture deck
 #   Facing:            bow RIGHT — three-prong prow with the C console at the tip
 #   Center:            citadel straddling the true midpoint; prong-tip
 #                      AIRLOCK hatches (a) on the prow towers lead to space

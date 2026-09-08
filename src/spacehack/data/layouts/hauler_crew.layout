@@ -1,7 +1,4 @@
-# hauler_crew.layout — Merchant hauler (Slug-class modular freighter) capture deck
-# Hull from the user-supplied doors-view small_hauler.jpeg (white-bg JPEG:
-# border-flood prep + image-scale module-fuse close), rooms-and-doors draft
-# + user container-maze polish (layout_drafts/small_hauler_* lineage).
+# hauler_crew.layout — Merchant hauler capture deck
 #   Facing:            bow RIGHT (cockpit with ship console C), engines PORT
 #   Center:            spine hall on the true midpoint row, split fore/aft
 #   Holds:             container-maze cargo bays above + below the spine

@@ -1,7 +1,4 @@
-# scout_crew.layout — Pirate scout capture deck (Stealth-class dart)
-# Hull from the FTL Stealth Cruiser A (user-picked scout hull; alpha-bake
-# prep — the darkest art in the corpus), rooms-and-doors draft + user
-# container-maze polish (layout_drafts/scout_rooms* lineage).
+# scout_crew.layout — Pirate scout capture deck
 #   Facing:            bow RIGHT (cockpit with ship console C at the tip)
 #   Center:            main deck around the true midpoint row
 #   Aft:               split engine/hold compartments + two-hatch wings
