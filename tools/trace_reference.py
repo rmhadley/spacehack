@@ -40,6 +40,32 @@ def _morph_close(solid: list[list[bool]], times: int) -> list[list[bool]]:
     return solid
 
 
+def _seal_diagonal_pinches(solid, gw, gh):
+    """The no-diag rule (doc 40 6c): the player moves 8-dir with corner
+    cutting legal, so any void cell diagonally between two solid cells
+    is a real passage and must seal. Fixpoint: sealing one pinch can
+    open its neighbor's diagonal, so loop until none remain. Returns
+    the number of cells sealed."""
+    sealed = 0
+    while True:
+        pinches = []
+        for y in range(gh):
+            for x in range(gw):
+                if solid[y][x]:
+                    continue
+                nw_se = (x - 1 >= 0 and y - 1 >= 0 and solid[y - 1][x - 1]
+                         and x + 1 < gw and y + 1 < gh and solid[y + 1][x + 1])
+                ne_sw = (x + 1 < gw and y - 1 >= 0 and solid[y - 1][x + 1]
+                         and x - 1 >= 0 and y + 1 < gh and solid[y + 1][x - 1])
+                if nw_se or ne_sw:
+                    pinches.append((x, y))
+        if not pinches:
+            return sealed
+        for x, y in pinches:
+            solid[y][x] = True
+        sealed += len(pinches)
+
+
 def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
           grid: tuple[int, int], mirror: bool, threshold_bright: int = 88,
           threshold_red: int = 32, close: int = 0) -> str:
@@ -93,18 +119,9 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
                     new[y][x] = True
         solid = new
 
-    # diagonal pinch fill: a void cell sitting diagonally between two
-    # solid cells is a corner-cut hole (the player moves 8-dir) — seal it
-    for y in range(gh):
-        for x in range(gw):
-            if solid[y][x]:
-                continue
-            nw_se = (x - 1 >= 0 and y - 1 >= 0 and solid[y - 1][x - 1]
-                     and x + 1 < gw and y + 1 < gh and solid[y + 1][x + 1])
-            ne_sw = (x + 1 < gw and y - 1 >= 0 and solid[y - 1][x + 1]
-                     and x - 1 >= 0 and y + 1 < gh and solid[y + 1][x - 1])
-            if nw_se or ne_sw:
-                solid[y][x] = True
+    sealed = _seal_diagonal_pinches(solid, gw, gh)
+    if sealed:
+        print(f"diag pinches sealed: {sealed}", file=sys.stderr)
 
     comps, seen = [], set()
     for y in range(gh):
@@ -138,17 +155,24 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
             [(x, y) in keep for x in range(x0, x1 + 1)]
             for y in range(y0, y1 + 1)
         ]
-        half = (len(cropped) + 1) // 2
+        # re-seal on the cropped grid: the crop and the mirror seam can
+        # each open new diagonal pinches
+        ch, cw = len(cropped), len(cropped[0])
+        re_sealed = _seal_diagonal_pinches(cropped, cw, ch)
+        if re_sealed:
+            print(f"diag pinches re-sealed after crop: {re_sealed}",
+                  file=sys.stderr)
+        half = (ch + 1) // 2
         rows = [
             "".join("#" if c else " " for c in row)
             for row in cropped[:half]
         ]
         rows += rows[-2::-1] if len(cropped) % 2 == 0 else rows[-1::-1]
-        return "\n".join(row.rstrip() for row in rows) + "\n"
-    rows = [
-        "".join("#" if (x, y) in keep else " " for x in range(gw))
-        for y in range(gh)
-    ]
+    else:
+        rows = [
+            "".join("#" if (x, y) in keep else " " for x in range(gw))
+            for y in range(gh)
+        ]
     return "\n".join(row.rstrip() for row in rows) + "\n"
 
 
