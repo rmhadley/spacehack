@@ -183,6 +183,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         modules=("shield_mk1", "shield_capacitor", "targeting_computer", "armor_plating"),
         cargo_goods=("weapons_blackmarket", "luxury_goods", "electronics"),
         cargo_count=3,
+        capture_layout_id="frigate_crew",
+        loot_budget=(800, 2400),
         # Boss-level threat: high accuracy, moderate dodge, nearly never flees
         ai_aggressiveness=85,
         ai_preferred_range=3,
@@ -274,6 +276,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         modules=("shield_mk1", "shield_capacitor", "targeting_computer", "armor_plating"),
         cargo_goods=("weapons_blackmarket", "electronics", "luxury_goods"),
         cargo_count=2,
+        capture_layout_id="frigate_crew",
+        loot_budget=(600, 1800),
         ai_aggressiveness=80,
         ai_preferred_range=3,
         ai_flee_threshold=0.05,
