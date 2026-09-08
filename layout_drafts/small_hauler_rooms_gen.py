@@ -73,6 +73,22 @@ for _, x0, y0, x1, y1 in Q:
     clip_h(y0, x0, x1)   # one-wall: full top + left runs (a short run
     clip_v(x0, y0, y1)   # leaks at the hull's far edge — see col 92/row 54)
 
+# the blessed rect's own outline IS the boundary wall: spans paint
+# floor over the boundary cells, and the void-adjacency seal can't
+# restore them where the hull touches the grid edge (no void beyond) —
+# so carry every '#' run of the rect through as wall segments
+for y, row in enumerate(ROWS):
+    run = None
+    for x in range(W + 1):
+        solid = x < len(row) and row[x] == "#"
+        if solid:
+            run = [run[0], x] if run else [x, x]
+        elif run:
+            for xx in range(run[0], run[1] + 1):
+                grid[y][xx] = "#"
+            segments.append([run[0], y, run[1], y])
+            run = None
+
 # hull auto-seal: floor 8-adjacent to border-connected void -> wall
 void = set()
 queue = deque()
