@@ -93,6 +93,19 @@ def trace(image_path: str, crop: tuple[int, int, int, int], rotate: float,
                     new[y][x] = True
         solid = new
 
+    # diagonal pinch fill: a void cell sitting diagonally between two
+    # solid cells is a corner-cut hole (the player moves 8-dir) — seal it
+    for y in range(gh):
+        for x in range(gw):
+            if solid[y][x]:
+                continue
+            nw_se = (x - 1 >= 0 and y - 1 >= 0 and solid[y - 1][x - 1]
+                     and x + 1 < gw and y + 1 < gh and solid[y + 1][x + 1])
+            ne_sw = (x + 1 < gw and y - 1 >= 0 and solid[y - 1][x + 1]
+                     and x - 1 >= 0 and y + 1 < gh and solid[y + 1][x - 1])
+            if nw_se or ne_sw:
+                solid[y][x] = True
+
     comps, seen = [], set()
     for y in range(gh):
         for x in range(gw):
