@@ -101,6 +101,9 @@ def test_capture_targets_are_data_optins():
     assert find_npc_ship("pirate_captain").capture_layout_id == "frigate_crew"
     assert find_npc_ship("pirate_warlord").capture_layout_id == "frigate_crew"
     assert find_npc_ship("militia_patrol_heavy").capture_layout_id == "frigate_crew"
+    assert find_npc_ship("pirate_scout").capture_layout_id == "scout_crew"
+    assert find_npc_ship("pirate_hound").capture_layout_id == "scout_crew"
+    assert find_npc_ship("militia_patrol_light").capture_layout_id == "scout_crew"
     assert find_npc_ship("militia_patrol").capture_layout_id == ""
     assert find_npc_ship("derelict_scout").capture_layout_id == ""
 
@@ -110,7 +113,7 @@ def test_capture_layouts_carry_console_and_crew():
 
     # scattered entities carry the npc_char spec's char (raider r /
     # rifleman R / enforcer c / gunner g), not the authored map glyph
-    crew_glyphs = {"scout_crew": "rR", "cruiser_crew": "rR",
+    crew_glyphs = {"scout_crew": "r", "cruiser_crew": "rR",
                    "hauler_crew": "cg", "frigate_crew": "rR"}
     for lid, crew in crew_glyphs.items():
         _map, _spawn = load_layout(lid)
