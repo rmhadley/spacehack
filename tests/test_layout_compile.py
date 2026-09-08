@@ -96,3 +96,25 @@ def test_check_mode_passes_the_compiled_artifact(tmp_path):
     out = tmp_path / "test_deck.layout"
     out.write_text(text)
     assert check_layout(out) == []
+
+
+def test_check_walks_what_the_parse_calls_walkable(tmp_path):
+    """An authored airlock chamber (scout_a pattern) must not report
+    its cells unreachable: --check reads tile walkability, not a
+    hardcoded kind list."""
+    layout = tmp_path / "airlock_deck.layout"
+    layout.write_text(
+        "# airlock: exterior hatch, chamber, deck-side hatch\n"
+        "MAP\n"
+        "############\n"
+        "#P.........#\n"
+        "#..........#\n"
+        "#######....#\n"
+        "   a....a..#\n"
+        "############\n"
+        "ENDMAP\n"
+        "TILE: # = DUNGEON_WALL\n"
+        "TILE: . = DUNGEON_FLOOR\n"
+        "TILE: a = AIRLOCK\n"
+    )
+    assert check_layout(layout) == []

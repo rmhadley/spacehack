@@ -414,16 +414,17 @@ def check_layout(path: Path) -> list[str]:
     if spawn is None:
         reasons.append("no spawn ('P') in the layout")
     grid = [
-        [tile.kind for tile in row] for row in game_map.tiles
+        [tile for tile in row] for row in game_map.tiles
     ]
-    walk_kinds = {"dungeon_floor", "dungeon_door", "breach", "exit"}
+    # walkable = whatever the parse built, not a hardcoded kind list —
+    # authored decks use airlock/hull kinds the compile flow never emits
     w, h = len(grid[0]), len(grid)
     if spawn is not None:
         origin = (spawn.x, spawn.y)
         open_cells = {
             (x, y)
             for y in range(h) for x in range(w)
-            if grid[y][x] in walk_kinds
+            if grid[y][x].walkable
         }
         seen = _flood(grid, *origin, open_cells)
         for cell in sorted(open_cells - seen):
