@@ -56,21 +56,13 @@ def test_board_denial_truth_table():
 
 
 def test_board_denial_refuses_non_capture_ships():
-    _bounty, _ = _state(ent=SimpleNamespace(
-        procedural_squad_id="sq", npc_ship_id="pirate_captain",
-        bounty_spawn_id="b1",
-    ))
-    assert "can't be boarded" in board_denial(
-        _bounty, _bounty.enemy_insts[0], _bounty.enemy_ents[0],
-    )
-
-    _plain, _ = _state(
+    _unwired, _ = _state(
         spec_id="derelict_scout", ent=SimpleNamespace(
             procedural_squad_id="sq", npc_ship_id="derelict_scout",
         ),
     )
     assert "can't be boarded" in board_denial(
-        _plain, _plain.enemy_insts[0], _plain.enemy_ents[0],
+        _unwired, _unwired.enemy_insts[0], _unwired.enemy_ents[0],
     )
 
 
@@ -86,19 +78,29 @@ def test_board_denial_accepts_static_spawns():
     ) is None
 
 
-def test_board_denial_refuses_quest_lifecycle_ships():
-    """Squad-grouped bounty wingmates carry ONLY bounty_squad_id (no
-    bounty_spawn_id) — boarding one would consume the hull without
-    completing or tombstoning the quest. Kill-or-die until 6d."""
-    for _link in ("bounty_squad_id", "heist_spawn_id",
-                  "salvage_wreck_spawn_id"):
-        _wing, _ = _state(ent=SimpleNamespace(
+def test_board_denial_accepts_quest_lifecycle_ships():
+    """6d consume bookkeeping: quest ships are boardable — the
+    consume books as the kill it replaces. Wingmates (bounty_squad_id
+    only) and heist leaders alike; the duel condition already forces
+    escorts to die or board first. Salvage wrecks stay out — the
+    wreck flow's, never combat's."""
+    for _attrs in ({"bounty_spawn_id": "b1"},
+                   {"bounty_squad_id": "q1"},
+                   {"heist_spawn_id": "h1", "bounty_spawn_id": "b1"}):
+        _ship, _ = _state(ent=SimpleNamespace(
             procedural_squad_id="sq", npc_ship_id="pirate_captain",
-            **{_link: "q1"},
+            **_attrs,
         ))
-        assert "can't be boarded" in board_denial(
-            _wing, _wing.enemy_insts[0], _wing.enemy_ents[0],
-        ), _link
+        assert board_denial(
+            _ship, _ship.enemy_insts[0], _ship.enemy_ents[0],
+        ) is None, _attrs
+    _wreck, _ = _state(ent=SimpleNamespace(
+        npc_ship_id="pirate_captain",
+        salvage_wreck_spawn_id="w1",
+    ))
+    assert "can't be boarded" in board_denial(
+        _wreck, _wreck.enemy_insts[0], _wreck.enemy_ents[0],
+    )
 
 
 def test_attempt_board_sets_the_result(monkeypatch):
