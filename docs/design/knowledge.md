@@ -78,7 +78,9 @@ reference and `knowledge.md`.
    unbriefed phases; ends at the brief's playtest checkpoint.
 4. **Playtest notice** (conversational): the user reports pass/fail;
    update the phase bullet (LANDED + PLAYTEST PASSED, or what failed
-   and the follow-up), record mid-playtest rulings, commit
+   and the follow-up), record mid-playtest rulings, review any guide
+   edits the phase made (they are called out on the playtest
+   checklist — never ride silently), commit
    (`docs: ...`), then prompt for the next phase or the close.
 5. **Close** (conversational): every checkbox checked, playtests
    recorded, no open questions — on the user's confirmation, move the

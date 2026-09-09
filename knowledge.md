@@ -708,12 +708,19 @@ story spoilers.
 
 #### Principle
 
-**Every player-facing feature MUST have an up-to-date guide entry.**
+**Every player-facing feature MUST have an up-to-date guide entry —
+where the guide is the right teacher.** Controls and core mechanics
+belong in the guide; content that explains itself in play (encounter
+arcs, place-specific behavior like a checkpoint's hail) stays OUT
+even though it is player-facing — covering it telegraphs the arc.
 
 > **Any code change that adds, changes, or removes player-facing
-> behavior MUST also update the guide.** If the affected system has
-> an existing section, update it. If it's a new system, add a section
-> and append it to ``GUIDE_SECTIONS``.
+> behavior MUST review the guide** — update the affected section, add
+> one for a new system, or deliberately leave it alone. Whatever the
+> outcome, every guide edit made in a phase is CALLED OUT in that
+> phase's playtest checklist (section + exact before/after) so the
+> user reviews it — guide edits never ride silently inside a phase's
+> commits.
 
 #### Minimal sniff test
 
@@ -733,8 +740,10 @@ Open the guide (``?`` from the main game loop) and verify:
 
 **Checklist before shipping:**
 - [ ] Does this change affect player-facing behavior? (If no, stop here.)
-- [ ] Is the affected guide section updated? Or a new section added?
+- [ ] Does the guide need this — a control or core mechanic — or does it explain itself in play? (Stay out when in doubt.)
+- [ ] Is the affected guide section updated? Or a new section added? Or the no-change decision recorded?
 - [ ] Do keybindings and practical explanations match the implementation without copying formulas or revealing spoilers?
+- [ ] Is every guide edit listed in the phase's playtest checklist for user review?
 
 ---
 
