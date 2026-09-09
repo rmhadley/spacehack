@@ -482,3 +482,12 @@ def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):
 
     face = next(f for f in dev_transponder_library() if f["faction"] == "militia")
     assert face["rep"]["militia"] >= find_solar_system("luyten_star").sensor_column.rank_rep
+
+
+def test_shift_l_predicate_requires_shift_modifier():
+    """Only Shift+L activates the Line-kit grant shortcut (doc 41)."""
+    from src.spacehack.input_helpers import _is_shift_l_press
+
+    assert _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="l", shift=True))
+    assert not _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="l"))
+    assert not _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="k", shift=True))

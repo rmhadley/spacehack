@@ -362,6 +362,15 @@ def _is_shift_s_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'S')
 
+def _is_shift_l_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+L.
+
+    Dev-mode only (``SPACEHACK_DEV``): grants the Line's marker
+    papers (doc 41) at the playtest step that needs them — the
+    checklist's early items require an unpapered crossing.
+    """
+    return _is_shift_press(event, 'L')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 

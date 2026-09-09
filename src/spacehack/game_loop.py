@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_l_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -323,6 +323,11 @@ def _handle_dev_shift_keys(state, event):
             from .time import advance_time as _adv_time
             _adv_time(ctx, 30)
             log.add('Dev: skipped 30 days.')
+        return 'HANDLED'
+    if _is_shift_l_press(event):
+        if _is_dev():
+            from .dev_mode import apply_dev_line_kit as _apply_dev_line_kit
+            _apply_dev_line_kit(ctx)
         return 'HANDLED'
     return None
 
@@ -832,8 +837,6 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
     _apply_dev_ground_loadout(ctx)
     from .dev_mode import apply_dev_identity_library as _apply_dev_identity
     _apply_dev_identity(ctx)
-    from .dev_mode import apply_dev_line_kit as _apply_dev_line_kit
-    _apply_dev_line_kit(ctx)
     if tutorial:
         from .tutorial import setup_tutorial as _setup_tutorial
         _setup_tutorial(ctx)

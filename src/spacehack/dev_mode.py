@@ -398,12 +398,14 @@ def apply_dev_identity_library(ctx) -> None:
 
 
 def apply_dev_line_kit(ctx) -> None:
-    """Grant the Line's marker traits in dev mode (doc 41 phase 1).
+    """Grant the Line's marker traits (doc 41 phase 1) — the Shift+L
+    dev shortcut, SPACEHACK_DEV-gated at the caller.
 
-    No grant path exists yet — the methods own their acquisition —
-    so playtests seed both directly. The militia dev face (+100)
-    doubles as the rank-eligible impersonation entry: it clears the
-    column's ``rank_rep`` threshold (80).
+    Timed for the playtest, not new-game: the checklist's early items
+    need an unpapered crossing. Idempotent. No real grant path exists
+    yet — the methods own their acquisition. The militia dev face
+    (+100) doubles as the rank-eligible impersonation entry: it
+    clears the column's ``rank_rep`` threshold (80).
     """
     import os as _os
 
