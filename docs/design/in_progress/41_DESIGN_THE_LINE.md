@@ -389,10 +389,13 @@ ledger threading is pinned.
   (the hail replaces the warning-only log at the column — and
   per the reviewer round, ``militia_blockade``'s spec-distance
   warning is suppressed entirely in column systems).
-- **Crossing edge** — west = ``x < column.x`` (the column cell
-  belongs to the Line): eastbound fires entering 150 from 149,
-  westbound fires 150→149; exactly once per edge transit, both
-  directions. ``_prev_x`` lives in the new module; on ``None``
+- **Crossing edge** — the sweep fires on ENTERING the column
+  (``new_x == column.x`` and ``prev_x != column.x``), from either
+  side; leaving is always free. (Supersedes the first-pass
+  edge-transit rule: hailing the retreat re-hailed complying
+  hulls — user playtest bug #1, round 2.) Every west↔east
+  traversal must step onto the column, so coverage stays
+  edge-to-edge. ``_prev_x`` lives in the new module; on ``None``
   (first step of any session/entry) it stamps from the position
   — no persisted state, no new ctx fields (brief ruling 4).
 - **Spawn gate** — ``navigation_combat._gate_engages`` keeps its

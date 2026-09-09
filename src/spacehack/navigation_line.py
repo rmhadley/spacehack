@@ -121,8 +121,11 @@ def check_crossing(ctx, pos):
     """The movement pass's Line check (runs before the auto-comms
     warning; a hailed step skips that pass).
 
-    None: nothing happened this step (no crossing, or a dark hull
-    the sweep cannot see). ``(False, None)``: a wave — the all-clear
+    The sweep fires once per entry onto the column, from either
+    side; leaving is free (no re-hail on a complying retreat).
+
+    None: nothing happened this step (no entry, or a dark hull the
+    sweep cannot see). ``(False, None)``: a wave — the all-clear
     comms ran, the player is through (GO TO continues).
     ``(True, payload | None)``: the challenge hail opened — the
     payload carries the converged squad on Defy.
@@ -133,7 +136,14 @@ def check_crossing(ctx, pos):
     if column is None:
         _prev_x = None
         return None
-    crossed = _prev_x is not None and (_prev_x < column.x) != (pos.x < column.x)
+    # The hail fires on ENTERING the column from either side; leaving
+    # it is always free — a complying hull is never re-hailed on its
+    # retreat (user playtest ruling, 2026-09-09).
+    crossed = (
+        _prev_x is not None
+        and pos.x == column.x
+        and _prev_x != column.x
+    )
     _prev_x = pos.x
     if not crossed:
         return None

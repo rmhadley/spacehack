@@ -199,27 +199,26 @@ def test_crossing_hails_the_first_westbound_return(line_system, monkeypatch):
     ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(180, 70))
-    navigation_line.check_crossing(ctx, world.Position(151, 70))
-    # Entering the column cell from the east is not yet a crossing
-    # (the column cell belongs to the Line); leaving it west is.
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
-    result = navigation_line.check_crossing(ctx, world.Position(149, 70))
+    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
     assert result is not None and result[0] is True
+    # Leaving the column is free — the westbound hull continues home
+    # without a second hail.
+    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None
     assert len(calls) == 1
 
 
 def test_tripwire_zero_state_stamps_on_first_step(line_system, monkeypatch):
     """After load (fresh session state) the first step stamps the
-    side: no re-hail, and the next ACTUAL crossing fires once."""
+    side: no re-hail, and the next ACTUAL entry fires once."""
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
 
     assert navigation_line.check_crossing(ctx, world.Position(180, 70)) is None
     assert calls == []
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
-    result = navigation_line.check_crossing(ctx, world.Position(149, 70))
+    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
     assert result is not None
-    assert len(calls) == 1, "the first westbound crossing after load hails"
+    assert len(calls) == 1, "the first entry onto the column after load hails"
 
 
 def test_leaving_the_line_system_resets_the_tracker(monkeypatch):
@@ -234,9 +233,10 @@ def test_leaving_the_line_system_resets_the_tracker(monkeypatch):
     monkeypatch.setattr(solar_system_module, "current_system", lambda: sol)
     navigation_line.check_crossing(ctx, world.Position(100, 70))
     monkeypatch.setattr(solar_system_module, "current_system", lambda: LUYTEN)
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
-    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is not None
-    assert len(calls) == 1, "re-entry stamps, then the first real crossing hails"
+    assert navigation_line.check_crossing(ctx, world.Position(140, 70)) is None
+    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert result is not None
+    assert len(calls) == 1, "re-entry stamps, then the first entry hails"
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +273,8 @@ def test_service_run_wave_consumes_the_trait(line_system, monkeypatch):
     assert "blockade_service_run" not in ctx.player_traits
     assert "service-run contract is spent" in _log_text(ctx)
 
-    result = navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(149, 70))  # free retreat
+    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
     assert result is not None and result[0] is True
     assert len(calls) == 2, "wave comms + the post-consumption challenge"
 
@@ -564,18 +565,28 @@ def test_interdiction_flows_through_the_static_spawn_pass(monkeypatch):
         navigation_line.reset_interdiction()
 
 
-def test_comply_turns_back_and_crossing_again_hails(line_system, monkeypatch):
-    """Ruling 5: return crossings resolve through the same table —
-    the turn-back itself is a westbound crossing, and re-crossing
-    east is a new resolution."""
+def test_comply_turn_back_is_free_and_recross_hails(line_system, monkeypatch):
+    """User playtest bug #1 (2026-09-09, round 2): retreating from a
+    hail must NOT re-hail. The sweep fires on entering the column;
+    leaving is free; the next entry is a new resolution."""
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
-    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is not None
+    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None, (
+        "the turn-back is never re-hailed"
+    )
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
-    assert len(calls) == 3, "every edge transit is a new resolution"
+    assert len(calls) == 2, "each entry is a new resolution; retreats are free"
+
+    # Same from the east side: comply, continue west unmolested.
+    navigation_line.reset_session()
+    calls.clear()
+    navigation_line.check_crossing(ctx, world.Position(180, 70))
+    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
+    assert navigation_line.check_crossing(ctx, world.Position(130, 70)) is None
+    assert len(calls) == 1
 
 
 def test_goto_interrupts_on_the_hail(line_system, monkeypatch):
