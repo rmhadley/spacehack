@@ -65,8 +65,8 @@ def test_board_denial_refuses_non_capture_ships():
     )
 
     _plain, _ = _state(
-        spec_id="militia_patrol", ent=SimpleNamespace(
-            procedural_squad_id="sq", npc_ship_id="militia_patrol",
+        spec_id="derelict_scout", ent=SimpleNamespace(
+            procedural_squad_id="sq", npc_ship_id="derelict_scout",
         ),
     )
     assert "can't be boarded" in board_denial(
@@ -108,7 +108,7 @@ def test_capture_targets_are_data_optins():
     assert find_npc_ship("militia_blockade").capture_layout_id == "cruiser_crew"
     assert find_npc_ship("merchant_freighter").capture_layout_id == "freightliner_crew"
     assert find_npc_ship("merchant_caravan").capture_layout_id == "freightliner_crew"
-    assert find_npc_ship("militia_patrol").capture_layout_id == ""
+    assert find_npc_ship("militia_patrol").capture_layout_id == "cruiser_crew"
     assert find_npc_ship("derelict_scout").capture_layout_id == ""
 
 

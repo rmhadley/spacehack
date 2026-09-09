@@ -250,6 +250,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         modules=("shield_mk1", "shield_capacitor"),
         cargo_goods=("food_rations", "fuel_cells", "electronics"),
         cargo_count=2,
+        capture_layout_id="cruiser_crew",
         ai_aggressiveness=70,
         ai_preferred_range=4,
         ai_flee_threshold=0.05,
