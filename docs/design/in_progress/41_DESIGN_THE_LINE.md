@@ -99,14 +99,22 @@ not named. The first-pass shape above stands as amended.
 6. **The sweep reads IDENTITY ONLY** — transponder state, the
    manifest trait, the service-run trait, the worn sheet's rank.
    Never cargo. Cargo stays the militia-scan system's business
-   (smuggler's hold, confiscation modals live there); doc 39's
-   scrubbed-ID combo works through identity alone.
+   (smuggler's hold, confiscation modals live there). Note the
+   consequence for the scrub: a scrubbed ID holds no rank,
+   manifest, or service-run — at the column it reads "anything
+   else" and turns back. The scrub stays what it is everywhere
+   else (neutral-rate patrol scans); doc 39's tramp-hauler combo
+   described a cargo-reading checkpoint that this ruling
+   deliberately does not build.
 7. **The bribe's marker is a consumed trait.** Paying the
    Commandant grants `blockade_service_run` (registered like
    `blockade_manifest`, outside milestone picks); the sweep
-   consumes it — one crossing per 100k, per doc 39. Grant-side
-   content (Commandant NPC, rumor chain) is method 4's, not the
-   Line's; the sweep only reads.
+   consumes it — one crossing per 100k, per doc 39. The
+   Commandant's ledger stays fiction (doc 39's wording): the trait
+   is the token. Consume is SYMMETRIC — a return crossing consumes
+   again (follows from ruling 5). Grant-side content (Commandant
+   NPC, rumor chain) is method 4's, not the Line's; the sweep only
+   reads.
 8. **The sweep hails ALL unpapered hulls — allied stance
    included.** The Line trusts manifests, not attitude: doc 40
    phase 4's statics stand-down is superseded inside the sensor
@@ -125,26 +133,34 @@ only reads markers.
 - [ ] Sensor-column spec in the blockade data (data-first)
 - [ ] Pure sweep resolver + tests (the rules table; identity reads)
 - [ ] Crossing-edge tripwire wired into the per-step pass
-- [ ] The checkpoint hail: Comply / Defy (Defy = the picket squad
-      engages — minimal teeth; full convergence is phase 3)
+- [ ] The checkpoint hail: Comply / Defy (Defy sets the LINE-scoped
+      interdiction flag — ``_gate_engages`` reads it like
+      charged-cell aggro: local, stance-independent, resets on
+      leaving the system; no rep writes. Minimal teeth; full
+      convergence is phase 3)
 - [ ] Dark path: sweep skip + physical spotting → the challenge
 - [ ] Service-run trait consumed at the wave
-- [ ] Guide section updated
+- [ ] Guide: UPDATE the comms section (the Line's hail replaces its
+      option-matrix row) and Identity & Transponder; a new Line
+      section only if the checkpoint needs discoverable controls
 
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
       windows, roster per shift (data-first)
 - [ ] Clock-derived shift phase — no new mutable schedule state
       (derivable, so save/load stays free)
-- [ ] Spawn/despawn at shift boundaries (spawn caps respected)
-- [ ] Physical spotting + convergence strength read the ON-DUTY
-      roster
+- [ ] Spawn/despawn at shift boundaries (spawn caps respected);
+      shift changes TOLERATE DISPLACED ships — a lured picket
+      despawning must not invalidate a mid-coast lure (doc 39's
+      dark loop survives shift boundaries)
+- [ ] Physical spotting reads the ON-DUTY roster
 - [ ] Guide + playtest: observe a rotation, time a maintenance
       window, cross dark through one
 
 ### Phase 3 — The convergence (the interdiction response)
-- [ ] Defy/dark-defy → picket squad + on-duty patrols converge
-      (escalation choreography; reinforcement machinery is close)
+- [ ] Defy/dark-defy → picket squad + on-duty patrols converge at
+      strength read off the ON-DUTY roster (escalation
+      choreography; reinforcement machinery is close)
 - [ ] The Line stops engaging past the column (positional escape
       west — or through)
 - [ ] The convergence engages REGARDLESS of stance (the
@@ -163,8 +179,10 @@ only reads markers.
     ``data/solar_systems/luyten_star.py`` grows the sensor-column
     fields (column x, labels) — data-first. Marker traits
     ``blockade_manifest`` / ``blockade_service_run`` defined +
-    registered OUTSIDE ALL_TRAITS (milestone screens never offer
-    them; no grant path yet — grant-side content is the methods').
+    registered in QUEST_PERKS (outside ALL_TRAITS — milestone
+    screens never offer them, per doc 39's settled tracking
+    ruling; ``trait_name`` resolves them for the character screen;
+    no grant path yet — grant-side content is the methods').
     Hook points: the per-step pass that already runs encounter
     detection + auto-hail (``navigation_combat``
     ``_auto_hail_entity`` neighborhood — the pre-implementation
@@ -199,10 +217,13 @@ only reads markers.
     fires exactly once per crossing in both directions, no
     re-trigger while past the column; consumption (service-run
     gone after the wave, manifest persists); dark physical spot →
-    challenge; Defy → squad engagement adopted at every
-    state-bearing caller; save/load round-trip of the tripwire
-    side; dev grants tested in ``test_dev_mode.py``; guide section
-    exists.
+    challenge; Defy → the interdiction flag engages the squad at
+    the gate regardless of stance, adopted at every
+    state-bearing caller; GO TO breaks when the sweep hail
+    fires; save/load round-trip of the tripwire
+    side; dev grants tested in ``test_dev_mode.py``; affected
+    guide sections updated (comms option-matrix line, Identity &
+    Transponder).
   - Stop point: NOTHING from phase 2 — no rotations, no schedule,
     no spawn/despawn changes (the four statics stay as they are);
     NOTHING from phase 3 — no convergence choreography or tuning
