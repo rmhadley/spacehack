@@ -64,34 +64,28 @@ def _spawn_heist_loot(
     enemy: EnemyInstance, dead_ent: Any,
 ) -> None:
     """Spawn mission-specific intercept cargo at the wreck, if any."""
-    _heist_id = getattr(dead_ent, 'heist_spawn_id', None) if dead_ent is not None else None
-    if _heist_id is None:
+    _m = heist_cargo_mission(ctx, dead_ent)
+    if _m is None:
         return
     from .. import message_log as _ml
-    for _m in getattr(ctx, 'player_active_missions', []):
-        if getattr(_m, 'bounty_spawn_id', None) != _heist_id:
-            continue
-        _good_id = getattr(_m, 'heist_target_good_id', '')
-        if not _good_id:
-            break
-        _loot_ent = world.Entity(
-            char='%', fg=(0, 255, 255),
-            pos=enemy.pos,
-            name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
-            width=1, height=1,
-            loot_data={"good_id": _good_id, "quantity": 1},
-        )
-        # Mission-specific flag — set post-construction (not a dataclass
-        # field), same pattern as bounty_spawn_id / heist_spawn_id on
-        # spawn entities. Read by trade.open_loot_pickup via getattr.
-        _loot_ent.heist_mission = True
-        _loot_ent.heist_mission_id = _m.mission_id
-        game_map.entities.append(_loot_ent)
-        state.log.add_colored(
-            f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
-            _ml.COLOR_IMPORTANT_EVENT,
-        )
-        break
+    _good_id = _m.heist_target_good_id
+    _loot_ent = world.Entity(
+        char='%', fg=(0, 255, 255),
+        pos=enemy.pos,
+        name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
+        width=1, height=1,
+        loot_data={"good_id": _good_id, "quantity": 1},
+    )
+    # Mission-specific flag — set post-construction (not a dataclass
+    # field), same pattern as bounty_spawn_id / heist_spawn_id on
+    # spawn entities. Read by trade.open_loot_pickup via getattr.
+    _loot_ent.heist_mission = True
+    _loot_ent.heist_mission_id = _m.mission_id
+    game_map.entities.append(_loot_ent)
+    state.log.add_colored(
+        f'Intercept: {_good_id.replace("_", " ").title()} salvaged from wreckage! Collect it to complete the mission.',
+        _ml.COLOR_IMPORTANT_EVENT,
+    )
 
 
 def remove_procedural_squad(ctx, dead_ent: Any) -> None:
@@ -111,7 +105,7 @@ def remove_procedural_squad(ctx, dead_ent: Any) -> None:
             break
 
 
-def _record_defeat(state: SpaceCombatState, ctx, dead_ent: Any) -> None:
+def _record_defeat(cr, ctx, dead_ent: Any) -> None:
     """Append the kill to the encounter result and drop the spawn."""
     if dead_ent is not None:
         _bid = getattr(dead_ent, 'bounty_spawn_id', None)
@@ -119,14 +113,58 @@ def _record_defeat(state: SpaceCombatState, ctx, dead_ent: Any) -> None:
         # Intercept missions use bounty_spawn_id for spawn lifecycle but
         # must NOT auto-complete on kill — they complete on delivery.
         if _bid is not None and _hid is None:
-            state.cr.defeated_bounty_ids.append(_bid)
+            cr.defeated_bounty_ids.append(_bid)
         if _hid is not None:
-            state.cr.defeated_heist_ids.append(_hid)
+            cr.defeated_heist_ids.append(_hid)
     remove_procedural_squad(ctx, dead_ent)
     # Quest guard patrols: tombstone the spawn record so the dead patrol
     # isn't re-stamped on the next system entry (kill farm).
     from ..main_quest import mark_quest_guard_defeated as _mark_guard
     _mark_guard(ctx, dead_ent)
+
+
+def record_kill_pass(cr, ctx, spec, name: str, spec_id: str,
+                     dead_ent: Any) -> None:
+    """The shared kill-core: XP, counters, defeat record (doc 40 6d).
+
+    Everything a kill books except the exterior loot drop, which is
+    the caller's distinction: ``_finalize_kill`` scatters it at the
+    death position; a capture consume suppresses it (the loot rides
+    the interior). ``name``/``spec_id`` come from the enemy instance
+    on the kill path, the boarded spec at the consume site."""
+    from ..data.ships import find_ship as _find_ship_cat
+    from ..xp import add_xp as _add_xp
+    if spec is not None:
+        try:
+            _sc = _find_ship_cat(spec.ship_id)
+            _add_xp(ctx, _sc.base_hull * 2)
+        except (KeyError, ImportError):
+            pass
+    if hasattr(ctx, 'player_counters'):
+        ctx.player_counters.total_kills += 1
+    cr.defeated_names.append(name)
+    cr.defeated_spec_ids.append(spec_id)
+    _record_defeat(cr, ctx, dead_ent)
+
+
+def heist_cargo_mission(ctx, dead_ent: Any):
+    """The intercept mission whose target is this entity, or None.
+
+    Shared by the kill path (exterior cargo drop) and the capture
+    consume (cargo rides the interior): matched by the entity's
+    ``heist_spawn_id`` against the mission's ``bounty_spawn_id``,
+    requiring a ``heist_target_good_id``."""
+    _heist_id = getattr(dead_ent, 'heist_spawn_id', None) \
+        if dead_ent is not None else None
+    if _heist_id is None:
+        return None
+    for _m in getattr(ctx, 'player_active_missions', []):
+        if getattr(_m, 'bounty_spawn_id', None) != _heist_id:
+            continue
+        if not getattr(_m, 'heist_target_good_id', ''):
+            break
+        return _m
+    return None
 
 
 def _finalize_kill(
@@ -142,24 +180,8 @@ def _finalize_kill(
     )
     if _correct_spec is not None:
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
-        # Kill XP: enemy base hull * 2, granted at kill time so it lands
-        # regardless of how the encounter resolves. (The old lookup passed
-        # the NPC-spec id straight to the ship catalog, which always raised
-        # KeyError — kills only earned XP through the victory pass.)
-        from ..data.ships import find_ship as _find_ship_cat
-        try:
-            _sc = _find_ship_cat(_correct_spec.ship_id)
-            from ..xp import add_xp as _add_xp
-            _add_xp(ctx, _sc.base_hull * 2)
-        except (KeyError, ImportError):
-            pass
-
-    if hasattr(ctx, 'player_counters'):
-        ctx.player_counters.total_kills += 1
-
-    state.cr.defeated_names.append(enemy.name)
-    state.cr.defeated_spec_ids.append(enemy.spec_id)
-    _record_defeat(state, ctx, dead_ent)
+    record_kill_pass(state.cr, ctx, _correct_spec, enemy.name,
+                     enemy.spec_id, dead_ent)
 
 
 def on_kill(
