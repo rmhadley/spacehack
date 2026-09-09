@@ -395,3 +395,22 @@ def apply_dev_identity_library(ctx) -> None:
         return
     ctx.collected_ids = dev_transponder_library()
     ctx.log.add("Dev mode: 3 allied transponder IDs filed - TAB cycles them.")
+
+
+def apply_dev_line_kit(ctx) -> None:
+    """Grant the Line's marker traits in dev mode (doc 41 phase 1).
+
+    No grant path exists yet — the methods own their acquisition —
+    so playtests seed both directly. The militia dev face (+100)
+    doubles as the rank-eligible impersonation entry: it clears the
+    column's ``rank_rep`` threshold (80).
+    """
+    import os as _os
+
+    if not _os.environ.get("SPACEHACK_DEV"):
+        return
+    from .navigation_line import MANIFEST_TRAIT, SERVICE_TRAIT
+    for _trait in (MANIFEST_TRAIT, SERVICE_TRAIT):
+        if _trait not in ctx.player_traits:
+            ctx.player_traits.append(_trait)
+    ctx.log.add("[DEV MODE] Line kit: blockade manifest + service run granted.")

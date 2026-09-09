@@ -449,3 +449,36 @@ def test_apply_dev_identity_library_gated(monkeypatch):
     apply_dev_identity_library(_ctx)
     assert len(_ctx.collected_ids) == 3
     assert any("TAB" in m for m in _logged)
+
+
+def test_apply_dev_line_kit_gated(monkeypatch):
+    """Doc 41 phase 1: without SPACEHACK_DEV no marker traits; with
+    it, both Line markers grant (idempotently) and the log says so."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import apply_dev_line_kit
+    from src.spacehack.navigation_line import MANIFEST_TRAIT, SERVICE_TRAIT
+
+    _ctx = SimpleNamespace(player_traits=["blockade_manifest"],
+                           log=SimpleNamespace(add=lambda m: None))
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    apply_dev_line_kit(_ctx)
+    assert _ctx.player_traits == ["blockade_manifest"]
+
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    _logged = []
+    _ctx = SimpleNamespace(player_traits=[],
+                           log=SimpleNamespace(add=_logged.append))
+    apply_dev_line_kit(_ctx)
+    assert _ctx.player_traits == [MANIFEST_TRAIT, SERVICE_TRAIT]
+    assert any("Line kit" in m for m in _logged)
+
+
+def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):
+    """The rank-eligible playtest instrument: the dev face's militia
+    +100 clears the luyten column's rank_rep (the impersonation row)."""
+    from src.spacehack.data.solar_systems import find_solar_system
+    from src.spacehack.dev_mode import dev_transponder_library
+
+    face = next(f for f in dev_transponder_library() if f["faction"] == "militia")
+    assert face["rep"]["militia"] >= find_solar_system("luyten_star").sensor_column.rank_rep
