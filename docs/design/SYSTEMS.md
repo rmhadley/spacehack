@@ -81,6 +81,20 @@ nobody designs against a ghost.
   sheet — a ground-up ID flips for more than a scrub costs
   (`identity.py`: `sell_value`; `npc.py`: `_handle_sell_ids`,
   sub-menu stays open until ESC).
+- **Clone rig (identity purchase #3)** — one-time unlock at the
+  Wolf 359 b dealer (priced above the cut-out), never consumed —
+  the loop's recurring cost is the hunt itself; the dealer's talk
+  gate refuses below resolved pirate liked with `Scram.` and no
+  menu (`npc.py`: `_rig_offer`; `identity.py`: `transponder_rig`
+  flag, rides the player like the library).
+- **Clone roll** — at the capture interior's C console with the
+  rig: one roll per source hull (physically enforced — the hull is
+  consumed at boarding entry), persisted on the library entry;
+  tier from the hull class's `base_hull` against bands (40, 80):
+  the source faction rolls 0–60 / 10–80 / 25–100 by tier, every
+  other faction −20…+20 (always neutral at birth — heat builds only
+  by wearing it) (`identity.py`: `clone_tier`, `roll_clone_sheet`,
+  `clone_transponder`; CLONE_TIER_BANDS re-cut 2026-09-09).
 - **Scrub (identity purchase #1)** — `deadfall_scrubber` NPC,
   6,000cr; a scrub materializes literal 0s for every faction
   (`identity.py`: `SCRUB_BROKERS`, `buy_scrubbed_id`). The cut-out
