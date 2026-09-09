@@ -1367,10 +1367,19 @@ challenge. Scrubbed triggers neither — blank paper complies.
       2026-09-09): the guide teaches the CLONE VERB, never the
       strategy — clone quality scaling with the source ship is a
       DISCOVERED mechanic (no text); the one entry owed was the B
-      key in the controls list (landed same day). REMAINING for
-      6d: consume bookkeeping (freightliner + frigate deck walks
-      PASSED 2026-09-09; scout/hauler walked at their shipping
-      playtests).
+      key in the controls list (landed same day).
+      CONSUME BOOKKEEPING LANDED 2026-09-09 (6901a81 brief →
+      7b43192 predicate flip → e14e906 kill-core extraction →
+      7f5d294 wiring; reviewer APPROVE, gate 1836): quest ships
+      boardable, the consume books the full kill pass minus
+      exterior loot, heist cargo rides the interior, break-away
+      books nothing. PLAYTEST PENDING — the checkpoint below.
+      KNOWN ASYMMETRY (reviewer-flagged, confirm at playtest): the
+      interior heist component is one-shot missable — exit without
+      picking it up and the intercept is stranded (interior
+      discarded, spawns already cleaned). game_interactions.py at
+      946/1000 — the wreck-boarding block is the next extraction
+      when the ratchet calls.
 
   Implementation brief (6d residual — consume bookkeeping) —
   APPROVED (user, 2026-09-09: "build it!"):
