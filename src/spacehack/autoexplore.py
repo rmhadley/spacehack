@@ -27,8 +27,9 @@ walking toward it (the shared tick then starts LOS-based ground
 combat). Only visible solid entities block — and if one sits in the
 only exit, the run stops with ``A <name> blocks the only way
 forward.`` Bodies that can never trigger that reveal-then-fight
-resolution seal PERMANENTLY instead: powered-down security, and
-standing bodies whose spec is not hostile to the broadcasting sheet
+resolution seal PERMANENTLY instead: powered-down security, fixtures
+with no combat body (terminals, consoles, sealed doors), and standing
+bodies whose spec is not hostile to the broadcasting sheet
 (:func:`never_fight_seals` — neutral crew stand down and never
 engage; frame-dependent blocking would oscillate the planner
 forever).
@@ -279,16 +280,16 @@ def _visible_blocker(
     """Blocking entity at ``(x, y)`` the player can currently see, else
     ``None``.
 
-    The player only knows about entities rendered in the current LOS
-    frame — an enemy in a dark corridor cannot seal the route, so
-    auto-explore walks toward it and combat starts when it comes into
-    view. ``exclude`` skips one entity (used when re-flooding from a
-    blocker's own cell).
+    An enemy in a dark corridor cannot seal the route — auto-explore
+    walks toward it and combat starts on reveal. ``exclude`` skips
+    one entity (re-flooding from a blocker's own cell).
 
-    Two classes seal PERMANENTLY, even outside the frame — bodies the
-    reveal-then-fight contract can never resolve, where frame-dependent
-    blocking just oscillates the planner: powered-down security, and
-    every entity in ``never_fights`` (:func:`never_fight_seals`).
+    Three classes seal PERMANENTLY, even outside the frame — bodies
+    the reveal-then-fight contract can never resolve, where
+    frame-dependent blocking just oscillates the planner: powered-down
+    security, fixtures (no ``npc_char_id`` — terminals, consoles,
+    sealed doors), and ``never_fights`` members
+    (:func:`never_fight_seals`).
 
     A missing ``visible`` grid falls back to *passable* — ``run_auto_
     explore`` guards the grid, so this only fires in synthetic states.
@@ -302,7 +303,11 @@ def _visible_blocker(
         # oscillates forever. It seals routes permanently — placement
         # invariants guarantee it strands nothing (doc 30).
         return _ent
-    if id(_ent) in never_fights:
+    if not getattr(_ent, "npc_char_id", "") or id(_ent) in never_fights:
+        # Fixtures and never-fight crew can never resolve the
+        # reveal-then-fight contract — frame-dependent blocking just
+        # oscillates the planner (playtests 2026-09-09: neutral guard
+        # pockets; the terminal-behind-a-door frame toggle).
         return _ent
     _visible = game_map.visible
     if _visible is not None and _visible[y][x]:
@@ -633,10 +638,11 @@ def _explore_finish(ctx, game_map, player):
     )
     if _blocker is not None:
         _label = _blocker_label(_blocker)
-        ctx.log.add(
-            f"A {_label} blocks the only way forward."
-            if _label else "Something blocks the only way forward."
-        )
+        if _label:
+            _article = "An" if _label[:1].lower() in "aeiou" else "A"
+            ctx.log.add(f"{_article} {_label} blocks the only way forward.")
+        else:
+            ctx.log.add("Something blocks the only way forward.")
     else:
         ctx.log.add("You have explored every reachable area.")
     return "DONE"

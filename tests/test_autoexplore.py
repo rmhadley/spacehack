@@ -348,7 +348,8 @@ def test_blocking_way_entity_reports_visible_monster_in_door():
 def test_blocking_way_entity_none_for_invisible_monster_in_door():
     gm = _sealed_room()
     gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
-                                    pos=world.Position(7, 1)))
+                                    pos=world.Position(7, 1),
+                                    npc_char_id="hull_parasite"))
     # Not in the LOS frame — the player does not know it is there, so
     # it is walked through, never reported.
     assert blocking_way_entity(gm, world.Position(3, 1)) is None
@@ -726,7 +727,8 @@ def test_next_goto_step_visible_entity_blocks():
 def test_next_goto_step_unseen_entity_does_not_block():
     gm = _corridor()
     gm.entities.append(world.Entity(char="s", fg=(205, 170, 120),
-                                    pos=world.Position(4, 1)))
+                                    pos=world.Position(4, 1),
+                                    npc_char_id="hull_parasite"))
     gm.tiles[1][6] = _stairs(6, 1)
     # Invisible — walked through and revealed, same as auto-explore.
     assert next_goto_step(gm, world.Position(2, 1), 6, 1) == (1, 0)
@@ -986,3 +988,64 @@ def test_neutral_standing_crew_seal_goto():
     # paths through the invisible bodies toward it; sealed, no path.
     assert next_goto_step(gm, player.pos, 1, 2) == (-1, 0)
     assert next_goto_step(gm, player.pos, 1, 2, seals) is None
+
+
+def test_fixture_behind_a_door_does_not_toggle_the_frame():
+    """Playtest 2026-09-09 (the engine-terminal save): a doorway cuts
+    the visible frame (_cast_ray stops at dungeon_door), so a fixture
+    beyond it flips between blocking (in frame) and passable (out of
+    frame) every step — auto-explore ping-ponged through the door
+    forever. Fixtures have no combat body and never trigger
+    reveal-then-fight: they seal permanently, in every frame."""
+    tiles = []
+    for y in range(5):
+        row = []
+        for x in range(20):
+            if y in (0, 4) or x in (0, 19):
+                row.append(world.DUNGEON_WALL)
+            elif x == 10 and y == 2:
+                row.append(world.Tile(kind="dungeon_door", char="d",
+                                      walkable=True, fg=(0, 200, 200),
+                                      bg=(0, 0, 0)))
+            else:
+                row.append(world.DUNGEON_FLOOR)
+        tiles.append(row)
+    gm = world.GameMap(width=20, height=5, tiles=tiles, entities=[],
+                       seen=[[False] * 20 for _ in range(5)],
+                       visible=[[False] * 20 for _ in range(5)],
+                       sight_radius=8)
+    # The terminal seals the west pocket's only mouth (flank walls);
+    # the pocket behind it can never be revealed.
+    for _wx, _wy in ((1, 1), (2, 1), (1, 3), (2, 3)):
+        gm.tiles[_wy][_wx] = world.DUNGEON_WALL
+    _terminal = world.Entity(char="E", fg=(255, 200, 80),
+                             pos=world.Position(2, 2), name="Engine Terminal")
+    gm.entities.append(_terminal)
+    player = _player(13, 2)
+    # Player's frame: a bubble that does NOT cross the door — the
+    # terminal is out of frame; everything east is already seen; the
+    # only unseen floor is west of the terminal.
+    _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
+    for x in range(11, 19):
+        for y in range(5):
+            gm.seen[y][x] = True
+    for x in range(0, 3):
+        for y in range(5):
+            gm.seen[y][x] = False
+
+    # Sealed in every frame: the run heads for the remaining reachable
+    # unseen floor (between door and terminal), never THROUGH the
+    # terminal toward the shadowed corner.
+    _step = next_explore_step(gm, player.pos)
+    assert _step == (-1, 0)
+    # The discriminator (reviewer-verified against the pre-fix code):
+    # everything seen except the shadowed pocket behind the terminal,
+    # terminal OUT OF FRAME — pre-fix, the planner routed through its
+    # cell (step (-1, 0)); sealed, the run ends and the terminal
+    # names the stop.
+    for x in range(2, 20):
+        for y in range(5):
+            gm.seen[y][x] = True
+    gm.visible = [[False] * 20 for _ in range(5)]
+    assert next_explore_step(gm, player.pos) is None
+    assert blocking_way_entity(gm, player.pos) is _terminal
