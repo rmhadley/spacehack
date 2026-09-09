@@ -1386,6 +1386,20 @@ challenge. Scrubbed triggers neither — blank paper complies.
       (10–80, allied possible at 7%), the frigate elite — captain/
       warlord/patrol_heavy — T3 (25–100, allied 33%). The ladder
       is live in play.
+      PLAYTEST ROUND (2026-09-09, user): two findings, both fixed.
+      (1) Capture interiors spawned DARK like derelicts with no way
+      to light them (the capture C console is the clone console) —
+      live ships now enter POWERED (3e76e0e: sight 20 + power_
+      restored at entry; legacy pre-fix interior saves stay dark,
+      accepted). (2) Auto-explore oscillated forever at pockets
+      mouthed by neutral standing crew — the planner's frame-
+      dependent blocking ping-ponged (bb990b5): never-fight bodies
+      (spec not hostile to the broadcasting sheet — e.g. the
+      consortium crew, a PIRATE-faction outfit, under a pirate-liked
+      clone) now seal permanently like powered-down security;
+      hostiles + vermin keep the reveal-then-fight contract. GUIDE:
+      B key added to the combat controls list; clone quality stays
+      DISCOVERED by ruling.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
