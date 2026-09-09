@@ -1338,6 +1338,16 @@ challenge. Scrubbed triggers neither — blank paper complies.
       coverage. Brief: this block, rolled forward from 6c's
       original scope — build order follows 6c's proven pipeline
       per class; deck walks gate each layout.
+      DECKS SHIPPED so far: cruiser_crew (slug_b), scout_crew
+      (Stealth Cruiser A rework + 3-spec wiring), hauler_crew
+      (user's small_hauler), frigate_crew (Onslaught), and
+      freightliner_crew (2026-09-09 — the user-polished atlas
+      superfreighter deck: 51 markers, consortium crew, wired to
+      merchant_freighter + merchant_caravan; freightliner_a back
+      to pure salvage duty). Coverage flip landed 031e7c9 (all
+      11 battle specs wired). REMAINING for 6d: consume
+      bookkeeping + guide text + the frigate/scout/hauler/
+      freightliner deck-walk confirmations as they come.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
