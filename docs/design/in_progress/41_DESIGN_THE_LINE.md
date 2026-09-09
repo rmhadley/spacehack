@@ -182,8 +182,14 @@ stale side can never read as a crossing — future column systems and
 the hidden-gate materialization covered. (5) Dev-hook deviation from
 the brief's text: the marker traits are NOT auto-granted at new game
 — the checklist's first three items need an unpapered crossing —
-they arrive via a SPACEHACK_DEV Shift+L shortcut, timed to checklist
-items 4/5/7 (the rank-eligible militia face still files at new game).
+they arrive via SPACEHACK_DEV Shift+L (manifest) and Shift+K
+(service run), one paper per key so the sweep's precedence
+(manifest outranks rank and service) never blocks a checklist step
+(the rank-eligible militia face still files at new game; wear it
+with TAB). Playtest-order consequence: the rank wave (item 7) and
+the service consume (item 5) must be demoed BEFORE the manifest is
+granted (item 4) — the manifest outranks them and, having no
+consumption path, would mask both.
 
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
