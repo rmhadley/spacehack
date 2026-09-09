@@ -31,28 +31,52 @@ from .saveload import save_game as _save_game
 # Space-mode helpers (combat + NPC movement shared by multiple input paths)
 # ---------------------------------------------------------------------------
 
-def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
-    """Run combat encounters in a loop until no more are detected.
+def _run_line_crossing(ctx, console, player):
+    """The Line's sweep (doc 41): resolve one crossing.
 
-    Checks auto-comms warnings, runs the detection→combat loop, and
-    optionally moves NPCs afterward.  Combat handlers mutate
-    ``ctx.player_active_missions`` in place — callers sync their
-    local copy after this returns. Returns the last outcome (None
-    when no fight ran) — "BOARDED" means ctx now carries a capture
-    interior the state layer must adopt, and the NPC-drift tail is
-    SKIPPED (the interior is not a space map). Do not "simplify"
-    that guard away.
+    Returns ``(True, outcome)`` when the checkpoint hail opened —
+    the hail owns the step (the comms-warning pass is skipped) —
+    else ``(False, None)``.
     """
-    _last = None
+    from . import navigation_line as _line_mod
+    _line = _line_mod.check_crossing(ctx, player.pos)
+    if _line is None:
+        return False, None
+    _hailed, _payload = _line
+    if _payload is None:
+        return True, None
+    return True, combat._handle_combat_encounter(ctx, console, _payload)
+
+
+def _auto_warning_outcome(ctx, console, player):
+    """The auto-comms warning pass: a combat payload runs the fight;
+    ``None`` when no warning fired or it carried no combat."""
     _auto_result = _check_auto_comms_warning(
         ctx, player.pos, solar_system_module.current_system(),
     )
-    if _auto_result is not None:
-        _, _attack_data = _auto_result
-        if _attack_data is not None:
-            _last = combat._handle_combat_encounter(ctx, console, _attack_data)
-            if _last == "BOARDED":
-                return _last
+    if _auto_result is None or _auto_result[1] is None:
+        return None
+    return combat._handle_combat_encounter(ctx, console, _auto_result[1])
+
+
+def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
+    """Run combat encounters in a loop until no more are detected.
+
+    Checks the Line's sweep (doc 41) and auto-comms warnings, runs
+    the detection→combat loop, and optionally moves NPCs afterward.
+    Combat handlers mutate ``ctx.player_active_missions`` in place —
+    callers sync their local copy after this returns. Returns the
+    last outcome (None when no fight ran) — "BOARDED" means ctx now
+    carries a capture interior the state layer must adopt, and the
+    NPC-drift tail is SKIPPED (the interior is not a space map). Do
+    not "simplify" that guard away.
+    """
+    _hailed, _last = _run_line_crossing(ctx, console, player)
+    if _hailed:
+        return _last
+    _last = _auto_warning_outcome(ctx, console, player)
+    if _last == "BOARDED":
+        return _last
 
     while True:
         _encounter = _detect_combat_encounter(

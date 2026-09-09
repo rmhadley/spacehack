@@ -832,9 +832,13 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
     _apply_dev_ground_loadout(ctx)
     from .dev_mode import apply_dev_identity_library as _apply_dev_identity
     _apply_dev_identity(ctx)
+    from .dev_mode import apply_dev_line_kit as _apply_dev_line_kit
+    _apply_dev_line_kit(ctx)
     if tutorial:
         from .tutorial import setup_tutorial as _setup_tutorial
         _setup_tutorial(ctx)
+    from . import navigation_line as _navigation_line
+    _navigation_line.reset_session()
     solar_system_module.set_current_solar_system('sol')
 
 def _new_game_state(context, console, map_w, map_h, species_id, class_id, tutorial):

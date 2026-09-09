@@ -30,6 +30,18 @@ def _charged_cell_aggro(ctx, system_id: str, faction: str) -> bool:
     )
 
 
+def _aggro_override(ctx, system_id: str, faction: str) -> bool:
+    """Stance-independent engage floors: charged-cell heat (Sol) and
+    the Line's interdiction (doc 41) — heat responses, not reads."""
+    if _charged_cell_aggro(ctx, system_id, faction):
+        return True
+    from . import navigation_line
+    return (
+        navigation_line.interdiction_system() == system_id
+        and faction == "militia"
+    )
+
+
 def _gate_engages(sheet, faction: str, aggro: bool) -> bool:
     """The spawn gate (doc 40): engage only when the RESOLVED attitude
     (the broadcasting ID's sheet) is disliked/enemy. Charged-cell heat
@@ -70,7 +82,7 @@ def _trigger_static_spawns(ctx, player_pos, system, alive_spawns):
             player_pos.x - _spawn.pos.x, player_pos.y - _spawn.pos.y,
         )
         _faction = getattr(_espec, "faction", "")
-        _aggro = _charged_cell_aggro(ctx, _system_id, _faction)
+        _aggro = _aggro_override(ctx, _system_id, _faction)
         _radius = _espec.detect_radius
         if _aggro:
             _radius = max(_radius, 30)
@@ -101,7 +113,7 @@ def _trigger_bounty_spawns(ctx, player_pos, system_id, alive_spawns):
         _dist = math.hypot(player_pos.x - _bs.pos.x, player_pos.y - _bs.pos.y)
         _radius = _espec.detect_radius
         _faction = _espec.faction
-        _aggro = _charged_cell_aggro(ctx, system_id, _faction)
+        _aggro = _aggro_override(ctx, system_id, _faction)
         if _aggro:
             _radius = max(_radius, 30)
         if (
@@ -138,7 +150,7 @@ def _trigger_procedural_spawns(ctx, player_pos, system_id, alive_spawns):
         _dist = math.hypot(player_pos.x - _pe.pos.x, player_pos.y - _pe.pos.y)
         _radius = _espec.detect_radius
         _faction = _espec.faction
-        _aggro = _charged_cell_aggro(ctx, system_id, _faction)
+        _aggro = _aggro_override(ctx, system_id, _faction)
         if _aggro:
             _radius = max(_radius, 30)
         if (
@@ -280,6 +292,9 @@ def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
     _pid = getattr(e, "npc_ship_id", "")
     _faction = getattr(spec, "faction", "")
     if _pid == "militia_blockade":
+        from . import navigation_line
+        if navigation_line.column_supersedes_warning():
+            return None  # the checkpoint is the Line's only hail (doc 41)
         if _entity_hail_key(e) in ctx.militia_scanned:
             return None
         return _fire_warning(ctx, sys_id, e)
@@ -305,6 +320,10 @@ def _dark_spot_challenge(ctx, e, spec, player_pos):
     spec's DETECT radius, not the comms ranges. Non-militia hulls
     never challenge (pirates read silence as business as usual).
     One-shot per patrol via ``militia_scanned``.
+
+    Doc 41 amendment (column-scoped): a spotter that is one of the
+    Line's pickets opens the Line's Comply/Defy checkpoint instead —
+    outside the column this challenge stands untouched.
     """
     if getattr(spec, "faction", "") != "militia":
         return None
@@ -313,10 +332,13 @@ def _dark_spot_challenge(ctx, e, spec, player_pos):
         return None
     if not _check_spec_distance(e, player_pos, spec.detect_radius):
         return None
+    from . import navigation_line
+    _line = navigation_line.line_dark_hail(ctx, e)
+    if _line is None:
+        from .comms import open_challenge_direct as _challenge
+        _line = (True, _challenge(ctx, e))
     ctx.militia_scanned.add(_key)
-    from .comms import open_challenge_direct as _challenge
-    _payload = _challenge(ctx, e)
-    return (True, _payload)
+    return _line
 
 
 def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):

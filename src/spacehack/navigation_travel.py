@@ -355,6 +355,14 @@ def _goto_poll_cancel(context, duration: float) -> bool:
 
 def _goto_step_interrupt(ctx, player_entity):
     """Return an ``(outcome, combat_data)`` interrupt, or ``None`` to continue."""
+    from . import navigation_line as _line_mod
+    _line = _line_mod.check_crossing(ctx, player_entity.pos)
+    if _line is not None:
+        _hailed, _payload = _line
+        ctx.log.add('Auto-nav interrupted - the Line hails you!')
+        if _payload is not None:
+            return (GotoOutcome.COMBAT, _payload)
+        return (GotoOutcome.CANCELLED, None)
     _auto_result = _check_auto_comms_warning(
         ctx, player_entity.pos, solar_system_module.current_system(),
     )
@@ -682,6 +690,11 @@ def _jump_to_system(
     _src_id = getattr(solar_system_module.current_system(), 'id', '')
     if _src_id:
         ctx.militia_scanned.clear()
+    # The Line's state is local to a stay in a system (doc 41): the
+    # interdiction resets, and the crossing tracker re-stamps so a
+    # stale side can never read as a crossing after the jump.
+    from . import navigation_line as _line_mod
+    _line_mod.reset_session()
     target_system = solar_system_module.set_current_solar_system(target_system_id)
     new_map = solar_system_module.make_solar_system()
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
