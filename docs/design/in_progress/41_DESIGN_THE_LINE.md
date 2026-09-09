@@ -137,6 +137,87 @@ not named. The first-pass shape above stands as amended.
    stands). Allied standing buys the SIGNATURE cheaply, not a
    free pass; doc 39's method 1 stays the gate.
 
+## Settled — phase 2: the watch (refine session, 2026-09-09)
+
+Six rulings (round 1: shift length, garrison size, displacement,
+presentation; round 2: cadence, rosters, handover; round 3: the
+relief leg). The watchbill is cycling DATA on the SensorColumn —
+every number below is retunable after the playtest.
+
+1. **7-day shifts (user)**: "You fly out and spend a week on the
+   blockcade, then rotate out with your replacement shift."
+   Tenure = ``(total_days - 1) // 7`` — a pure function of the day
+   clock (no new mutable schedule state; save/load stays free).
+   Boundaries land on days 8, 15, 22, …
+2. **Every 4th shift is the maintenance watch** — the cycle runs
+   full/full/full/thin (28 days). The thin watch is the minimum:
+   today's shipped four stations (user: "4 should probably be the
+   minimum"), whose wide gaps are the ghost window by design.
+3. **The full watch closes the current gaps with ships, not
+   sensors** (user: "we need more than what we have right now to
+   close current gaps"). Ten pickets at spacing 14 = detect 7 × 2:
+   y = 7, 21, 35, 49, 63, 77, 91, 105, 119, 133 — edge-to-edge
+   physical coverage with zero slack (luring opens a real hole).
+   Luyten c (150,95–96) checked clear. detect stays 7.
+4. **Rotations FLY** (user: "fly in/out is definitely the right
+   choice … the only extra bit we're adding is once they get to the
+   blockcade line they park for x days until they fly back to the
+   blockcade station to land"). The journey rides the merchant
+   machinery (spawn → A* → arrive): relief launches at its base,
+   flies to its station, PARKS for the shift, then flies back to
+   the blockade station and lands. Wordless: no boundary log line —
+   the schedule is observable by watching (UI text economy).
+5. **Reliefs launch from the blockade stations, EARLY** — each
+   station's data carries a launch lead (days before the boundary)
+   so relief arrives ≈ shift end; the outgoing picket departs at
+   shift end REGARDLESS (user chose this over waiting for relief):
+   a boundary's coverage dip lasts until relief lands on station.
+   Ship-speed slop is accepted — slow ships see late reliefs and
+   longer dips; fast ships see relief loitering on station ahead of
+   its tenure (early arrivals park and hold their station).
+   Northern reliefs transit 80+ tiles (≈ 10 days at speed 10), so
+   leads are per-station data, initially ≈ measured transit, tuned
+   in playtest.
+6. **Displaced pickets serve until destroyed** (user) — relief
+   takes only ships AT their stations. A lured picket is never
+   despawned or flown home mid-lure; a displaced picket of an ended
+   tenure stays where it is (killable, spotting) until destroyed.
+   The dark loop survives shift boundaries.
+
+Mechanical consequences (binding):
+
+- **Tenure keys.** Rotation spawns stamp ``static_spawn_key`` with
+  a MONOTONIC tenure suffix — ``sys:enemy_id:x:y:t<k>`` — so the
+  phase-1 tombstones do their job per tenure: killed this tenure,
+  dark for the tenure; re-manned next tenure (the fight method's
+  re-manning, per station). The ledger format is unchanged.
+- **Legacy migration.** A pre-phase-2 save's unqualified picket
+  tombstones are re-stamped ONCE at load with the current tenure's
+  key — killed stays dead through the current tenure, re-mans at
+  the next boundary. No silent resurrection of phase-1 kills.
+- **Everything derivable.** A picket's role (parked / relief
+  inbound / outgoing home / displaced) derives from its tenure key
+  + the watchbill + its position: tenure ≥ current and at station →
+  parked; tenure ≥ current, not at station → flying in; tenure <
+  current and at station → fly home at the boundary; tenure <
+  current, displaced → stays put. No new Entity fields, no new
+  globals, no persisted schedule state — the map serializes
+  entities as they stand.
+- **Murdered reliefs stay dead** for the tenure: a launch is
+  skipped when its tenure key is already tombstoned — killing a
+  relief costs a squad fight and buys one station-tenure of
+  darkness on that station.
+- **The sweep counts every alive picket** — parked or in flight —
+  as shipped; a relief wave keeps the column swept from launch.
+- **Squad combat semantics untouched** — phase 2 changes only who
+  stands where, when. The full-watch garrison (10 full / 4 thin) is
+  phase 3's convergence-payload input, not this phase's problem.
+- **Map build stamps the CURRENT watchbill as parked pickets** at
+  their stations; in-flight state exists only within a live session
+  (jump away/back snaps relief to station; a rebuild after an early
+  launch simply re-launches on schedule — launch day already
+  passed, key not tombstoned).
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 41.<p>` works
@@ -297,18 +378,122 @@ the guide no longer says "the Line" player-facing; the data test
 formats every template (stray-brace guard) and the load path's
 ledger threading is pinned.
 
-### Phase 2 — Shift rotations (the schedule)
-- [ ] Rotation table in the blockade spec: shifts, maintenance
-      windows, roster per shift (data-first)
-- [ ] Clock-derived shift phase — no new mutable schedule state
-      (derivable, so save/load stays free)
-- [ ] Spawn/despawn at shift boundaries (spawn caps respected);
-      shift changes TOLERATE DISPLACED ships — a lured picket
-      despawning must not invalidate a mid-coast lure (doc 39's
-      dark loop survives shift boundaries)
-- [ ] Physical spotting reads the ON-DUTY roster
-- [ ] Guide + playtest: observe a rotation, time a maintenance
-      window, cross dark through one
+### Phase 2 — The watch (shift rotations)
+- [ ] Watchbill data on the SensorColumn: ``shift_days``, the
+      full/full/full/thin cycle, and the full/thin rosters as
+      ``(y, lead_days, base_id)`` station tuples; 10 new
+      ``EnemySpawn`` rows for the full-watch stations in
+      ``system.enemies`` (the shipped 4 stay — they are the thin
+      roster) (data-first)
+- [ ] Pure watchbill helpers + tests: tenure / shift kind / roster
+      from the clock; per-station launch day
+- [ ] Map build spawns the CURRENT watchbill as parked, tenure-keyed
+      pickets (tombstones honored); off-duty stations never spawn
+- [ ] The per-step watch pass: reliefs launch early at their base,
+      fly in and park; outgoing pickets depart at shift end and fly
+      home to land; displaced pickets are never moved; murdered
+      reliefs stay dead for the tenure
+- [ ] ``_picket_payload`` (manned sweep + Defy payload) reads all
+      alive pickets by id — parked, in flight, displaced
+- [ ] Legacy tombstone migration at load (one-time re-stamp to the
+      current tenure key)
+- [ ] Dev hook: advance the clock to the next shift boundary
+      (Shift+key) — Shift+D's +30 days is too coarse to time a
+      window
+- [ ] Guide + playtest: guide diff is NONE (round-1 ruling — the
+      guide carries nothing about the Line); playtest observes a
+      rotation, times the maintenance week, crosses dark through
+      one, and lures across a boundary
+
+  Implementation brief (2) — PROPOSED (refine session 2026-09-09):
+
+  - **Scope.** Data: ``SensorColumn`` (``data/solar_systems/
+    __init__.py``) grows ``shift_days: int = 7``, ``watch_cycle:
+    tuple[str, ...] = ("full", "full", "full", "thin")``,
+    ``full_watch`` / ``thin_watch`` rosters of ``(y, lead_days,
+    base_id)``. ``luyten_star.py``: 10 new ``EnemySpawn`` rows
+    (y = 7, 21, 35, 49, 63, 77, 91, 105, 119, 133) + the watchbill
+    on ``_sensor_column``. Initial leads (days, estimated at speed
+    10 — steps ≈ dist/0.8, days ≈ steps/10; data, tuned at
+    playtest; Blockade Station North (70,22) serves y ≤ 35, South
+    (130,115) the rest — measured crossover y≈36):
+    full = ((7,10,N),(21,10,N),(35,10,N),(49,9,S),(63,7,S),
+    (77,5,S),(91,4,S),(105,3,S),(119,3,S),(133,3,S));
+    thin = ((25,10,N),(55,8,S),(85,5,S),(115,3,S)).
+    Code: ``navigation_line.py`` owns the watch — pure watchbill
+    helpers, the per-step traffic pass, flight stepping (80%
+    throttle + ``try_step_with_slip``, A* via the existing path
+    machinery); tenure-keyed spawn in ``solar_system._system_enemy_
+    entities``; the watch-pass call site beside ``check_crossing``
+    in both movement passes; migration in the load path; dev grant
+    in ``dev_mode.py`` + ``test_dev_mode.py``.
+  - **Build order.** (1) Watchbill data + pure helpers
+    (tenure/kind/roster/launch-day) + tests; (2) tenure-keyed
+    watchbill spawn in the map build + tests; (3) the per-step
+    watch pass (launches, arrivals → park, boundary departures →
+    fly home, displaced immunity, tombstoned-launch skip) + flight
+    stepping + tests; (4) ``_picket_payload`` by id + tests;
+    (5) legacy tombstone migration + tests; (6) dev grant;
+    (7) playtest checkpoint.
+  - **Binding rulings.** The phase-2 SETTLED section (all six +
+    mechanical consequences) and phase 1's standing rulings — the
+    manned sweep (any alive picket), the checkpoint's one hail
+    shape, the naming ban. NO combat-semantics changes; no new
+    Entity fields, globals, or persisted schedule state (role
+    derives from tenure key + watchbill + position); no log lines
+    on boundaries (wordless); the guide carries nothing about the
+    Line — the checklist's guide-diff item is "none".
+  - **Required tests.** Watchbill helpers (tenure boundaries days
+    8/15/22; kind per shift; roster + launch day per station);
+    tenure-keyed spawn (current watchbill only; tombstone
+    honored; monotonic tenure suffix); boundary behavior
+    (at-station outgoing flies home; displaced stays; relief
+    parks; early arrival holds its station); murdered relief stays
+    dead for the tenure and re-mans next tenure; payload by id
+    counts parked + in-flight + displaced; legacy migration
+    (unqualified ledger key re-stamped to the current tenure at
+    load, once); save/load round-trip mid-tenure AND across a
+    boundary; dev grant in ``test_dev_mode.py``.
+  - **Stop point.** NOTHING from phase 3 — no convergence
+    choreography, no 30-floor tuning (the garrison size is that
+    phase's input), no interdiction changes. No grant-side method
+    content; no doc-42 rumor hooks (the schedule is observable,
+    not yet sold); no restricted-sector changes (doc 43).
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run, jump
+    wolf_359 → luyten_star; the dev grant advances the clock to
+    the next shift boundary):
+    1. Arrival: the full watch mans the line — 10 pickets spaced
+       along x=150 (was 4); the sweep/challenge behave exactly as
+       phase 1 against them.
+    2. Jump near a boundary: reliefs arrive from the blockade
+       stations ≈ on time; outgoing pickets depart at shift end
+       and fly home to land; the line's dip lasts only until
+       relief lands.
+    3. Fast-ship check: a relief parks early and holds its station
+       ahead of its tenure (loitering is intended).
+    4. Jump into the maintenance watch (tenure 3): the line thins
+       to the shipped four stations; the wide gaps reopen.
+    5. Cross dark through a thin-watch gap dead-center: no hail
+       (the ghost window).
+    6. Lure a picket off-station and hold the lure across a
+       boundary: the displaced picket stays exactly where it is —
+       never flies home; the dark loop completes.
+    7. Murder a relief in transit: its station stays dark for that
+       tenure; at the next boundary a fresh relief launches (new
+       tenure) and re-mans it.
+    8. Kill the ENTIRE line: the column goes dark (no hail, no
+       waves — the phase-1 manned ruling); at the next boundary
+       reliefs launch and the sweep returns.
+    9. Save mid-tenure → load: exact restoration (positions,
+       flights, watchbill state); save just before a boundary →
+       load → step across: the rotation fires identically to an
+       unbroken session.
+    10. Legacy save (pre-phase-2, a picket killed): on load the
+        station stays dead through the current tenure and re-mans
+        at the next boundary — no silent resurrection.
+    11. Regression: a live unpapered crossing waves/challenges
+        exactly as phase 1 (manifest/rank/service/consume
+        untouched); guide diff: NONE.
 
 ### Phase 3 — The convergence (the interdiction response)
 - [ ] Defy/dark-defy → picket squad + on-duty patrols converge at
