@@ -42,6 +42,7 @@ from enum import Enum, auto
 from . import identity
 from . import message_log as _ml
 from . import solar_system as solar_system_module
+from . import world
 from .xp import has_trait
 
 MANIFEST_TRAIT = "blockade_manifest"
@@ -226,6 +227,117 @@ def next_boundary_gap(day: int, month: int, year: int, shift_days: int) -> int:
     future — a boundary day advances a full shift)."""
     _total = total_days(day, month, year)
     return shift_days - ((_total - _EPOCH_DAY) % shift_days)
+
+
+# ---------------------------------------------------------------------------
+# The watch build (doc 41 phase 2) — who stands where at a map build
+# ---------------------------------------------------------------------------
+
+def make_static_entity(espec, pos, spawn_key):
+    """The one construction site for static-system ship entities —
+    the map build and the watch's runtime launches share it (no
+    copy-pasted Entity blocks; see the phase-2 audit's DRY list)."""
+    return world.Entity(
+        char=espec.char, fg=espec.fg, pos=pos,
+        name=espec.name, width=1, height=1,
+        npc_ship_id=espec.id, static_spawn_key=spawn_key,
+    )
+
+
+def _watch_rows_by_y(system, column):
+    """The picket rows standing at the column's x, keyed by station y."""
+    return {
+        _row.pos.y: _row
+        for _row in getattr(system, "enemies", ()) or ()
+        if _row.pos.x == column.x
+        and _row.enemy_id == column.picket_enemy_id
+    }
+
+
+def static_build_placements(system, total):
+    """(row, spawn key, position) for every static spawning at a map
+    built on day ``total`` (doc 41 phase 2).
+
+    The current watch spawns PARKED on its stations, tenure-keyed;
+    off-duty stations place nothing; every non-watch row places
+    itself (phase-1 semantics). Overdue future reliefs — their
+    launch day passed before this build — stamp AT THEIR BASES and
+    fly in once stepped (flight state is session-scoped: the map
+    rebuild dropped it; build-side reconciliation). ``total`` None
+    on a watch-active system raises: an unwatched build would
+    silently dark the column.
+    """
+    column = getattr(system, "sensor_column", None)
+    rows = tuple(getattr(system, "enemies", ()) or ())
+    if column is None or not watch_active(column):
+        return tuple(
+            (_row, solar_system_module.static_spawn_key(system, _row), _row.pos)
+            for _row in rows
+        )
+    if total is None:
+        raise ValueError(
+            f"{getattr(system, 'id', '?')!r} carries a watchbill: its "
+            "map build needs watch_day (a build without one would "
+            "silently dark the column)"
+        )
+    placements = _row_placements(
+        system, rows, column, tenure_of(total, column.shift_days),
+    )
+    placements.extend(_overdue_reliefs(system, column, total))
+    return tuple(placements)
+
+
+def _row_placements(system, rows, column, tenure):
+    """Per static row: plain rows place themselves (phase-1 keys),
+    on-duty watch rows park on station with tenure keys, off-duty
+    rows place nothing. Watch-row membership is
+    :func:`_watch_rows_by_y` — the one definition (x + id + y)."""
+    _watch_rows = _watch_rows_by_y(system, column)
+    _on_duty_ys = {
+        _station.y
+        for _station in roster_for(
+            column, watch_kind(tenure, column.watch_cycle),
+        )
+    }
+    out = []
+    for _row in rows:
+        if _row.pos.y not in _watch_rows:
+            out.append((
+                _row, solar_system_module.static_spawn_key(system, _row), _row.pos,
+            ))
+        elif _row.pos.y in _on_duty_ys:
+            out.append((
+                _row,
+                tenure_key(solar_system_module.static_spawn_key(system, _row), tenure),
+                _row.pos,
+            ))
+    return out
+
+
+def _overdue_reliefs(system, column, total):
+    """Future-tenure reliefs whose launch day has already passed:
+    stamped at their bases, keyed for the tenure they fly toward."""
+    _shift = column.shift_days
+    _tenure = tenure_of(total, _shift)
+    _rows_by_y = _watch_rows_by_y(system, column)
+    _bases = {_spec.id: _spec for _spec in getattr(system, "stations", ()) or ()}
+    out = []
+    for _future in (_tenure + 1, _tenure + 2):
+        _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
+        for _station in _roster:
+            _row = _rows_by_y.get(_station.y)
+            _base = _bases.get(_station.base_id)
+            if (
+                _row is None or _base is None
+                or station_launch_day(_future, _station, _shift) > total
+            ):
+                continue
+            out.append((
+                _row,
+                tenure_key(solar_system_module.static_spawn_key(system, _row), _future),
+                world.Position(*station_dock_cell(_base)),
+            ))
+    return out
 
 
 # ---------------------------------------------------------------------------

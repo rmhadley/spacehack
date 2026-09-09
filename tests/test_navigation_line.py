@@ -455,35 +455,40 @@ def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
     """Playtest bug (2026-09-09): beating the blockade then reloading
     resurrected it. A static kill records a tombstone; the next map
     build skips it. The spawn key rides the entity — combat moves
-    the hull (AI advance), the key does not."""
+    the hull (AI advance), the key does not. The watch (phase 2)
+    keys per tenure: the kill holds for its tenure, the post re-mans
+    at the next one."""
     from src.spacehack import solar_system as ss_module
     from src.spacehack.combat._space_kills import mark_static_spawn_defeated
 
     ctx = quest_ctx(defeated_static_spawns=set())
     dead = world.Entity("B", (130, 230, 220), world.Position(148, 40),
                         npc_ship_id="militia_blockade",
-                        static_spawn_key="luyten_star:militia_blockade:150:25")
+                        static_spawn_key="luyten_star:militia_blockade:150:25:t3")
 
     mark_static_spawn_defeated(ctx, dead)
     assert ctx.defeated_static_spawns == {
-        "luyten_star:militia_blockade:150:25",
+        "luyten_star:militia_blockade:150:25:t3",
     }
 
+    thin_day = navigation_line.total_days(22, 1, 2200)  # run-day 22: tenure 3
     fresh = ss_module.make_solar_system(
         system=LUYTEN, skip_static_spawns=ctx.defeated_static_spawns,
+        watch_day=thin_day,
     )
-    _stamped = [
-        _e for _e in fresh.entities
-        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ]
-    assert len(_stamped) == 13, "the dead picket does not re-stamp"
-    assert all(_e.static_spawn_key for _e in _stamped), "builds stamp keys"
+    keys = {_e.static_spawn_key for _e in _watch_pickets(fresh)}
+    assert "luyten_star:militia_blockade:150:25:t3" not in keys, (
+        "the dead picket does not re-stamp this tenure"
+    )
 
-    untouched = ss_module.make_solar_system(system=LUYTEN)
-    assert sum(
-        1 for _e in untouched.entities
-        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 14
+    next_thin_day = navigation_line.total_days(50, 1, 2200)  # tenure 7
+    again = ss_module.make_solar_system(
+        system=LUYTEN, skip_static_spawns=ctx.defeated_static_spawns,
+        watch_day=next_thin_day,
+    )
+    assert "luyten_star:militia_blockade:150:25:t7" in {
+        _e.static_spawn_key for _e in _watch_pickets(again)
+    }, "the next tenure's fresh key re-mans the post"
 
 
 def test_non_static_kills_record_nothing(line_system):
@@ -502,25 +507,24 @@ def test_non_static_kills_record_nothing(line_system):
 
 
 def test_load_path_threads_the_ledger_into_the_build():
-    """The load chain must honor the tombstones, not just restore the
-    ctx field: _build_space_map skips defeated statics."""
+    """The load chain must honor the tombstones AND the watchbill:
+    _build_space_map skips defeated statics and stamps the watch at
+    the save's day; a luyten build without the day fails loudly."""
     from src.spacehack.saveload_maps import _build_space_map
 
     _log = SimpleNamespace(add=lambda _m: None)
+    _day1 = navigation_line.total_days(1, 1, 2200)
     _common = ("luyten_star", _log, None, {}, {}, {}, 10, 10)
 
-    built = _build_space_map(*_common, ["luyten_star:militia_blockade:150:25"])
-    _map, _player = built
-    assert sum(
-        1 for _e in _map.entities
-        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 13
+    built = _build_space_map(
+        *_common, ["luyten_star:militia_blockade:150:21:t0"], watch_day=_day1,
+    )
+    keys = {_e.static_spawn_key for _e in _watch_pickets(built[0])}
+    assert "luyten_star:militia_blockade:150:21:t0" not in keys
+    assert "luyten_star:militia_blockade:150:7:t0" in keys
 
-    built_full = _build_space_map(*_common, [])
-    assert sum(
-        1 for _e in built_full[0].entities
-        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 14
+    with pytest.raises(ValueError, match="watch_day"):
+        _build_space_map(*_common, [])
 
 
 def test_interdiction_gate_bypasses_stance_for_militia_only(monkeypatch):
@@ -914,6 +918,101 @@ def test_every_station_launch_day_is_its_lead_before_its_boundary():
             assert navigation_line.station_launch_day(t, station, 7) == (
                 navigation_line.tenure_start(t, 7) - station.lead_days
             )
+
+
+# ---------------------------------------------------------------------------
+# The watch build (phase 2): tenure-keyed placement + reconciliation
+# ---------------------------------------------------------------------------
+
+_EPOCH = navigation_line.total_days(1, 1, 2200)  # run-day N = _EPOCH + N - 1
+_BASE_CELLS = {(74, 23), (134, 116)}  # North / South dock cells
+
+
+def _build_watch(run_day: int, skip=()):
+    from src.spacehack import solar_system as ss_module
+    return ss_module.make_solar_system(
+        system=LUYTEN, skip_static_spawns=frozenset(skip),
+        watch_day=_EPOCH + run_day - 1,
+    )
+
+
+def _watch_pickets(game_map):
+    return [
+        _e for _e in game_map.entities
+        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
+    ]
+
+
+def test_full_watch_build_parks_tenure_keyed_pickets():
+    """Run-day 1 (tenure 0, full): ten pickets PARKED on station with
+    t0 keys — the thin stations never spawn; the reliefs whose launch
+    days predate the epoch stamp at their bases to fly in."""
+    pickets = _watch_pickets(_build_watch(1))
+    parked = [_e for _e in pickets if _e.pos.x == 150]
+    at_base = [_e for _e in pickets if (_e.pos.x, _e.pos.y) in _BASE_CELLS]
+
+    assert len(parked) == 10
+    assert {(_e.pos.y) for _e in parked} == {
+        7, 21, 35, 49, 63, 77, 91, 105, 119, 133,
+    }
+    assert all(_e.static_spawn_key.endswith(":t0") for _e in parked)
+    # Overdue T=1 reliefs at day 1: leads 10 (launch -3) x3 north and
+    # lead 9 (launch -2), lead 7 (launch 0) south — mustering at bases.
+    assert len(at_base) == 5
+    assert all(_e.static_spawn_key.endswith(":t1") for _e in at_base)
+    assert len(pickets) == len(parked) + len(at_base)
+
+
+def test_thin_watch_build_mans_the_shipped_four():
+    """Run-day 22 (tenure 3, the maintenance week): the line thins to
+    the shipped four stations; the full roster's t3 keys never appear."""
+    pickets = _watch_pickets(_build_watch(22))
+    parked = [_e for _e in pickets if _e.pos.x == 150]
+    reliefs = [_e for _e in pickets if (_e.pos.x, _e.pos.y) in _BASE_CELLS]
+
+    assert {(_e.pos.y) for _e in parked} == {25, 55, 85, 115}
+    assert all(_e.static_spawn_key.endswith(":t3") for _e in parked)
+    # T=4 reliefs launched by day 22: y7/21/35 (lead 10, day 19),
+    # y49 (day 20), y63 (day 22) — five mustering + the standing four.
+    assert len(reliefs) == 5
+    assert all(_e.static_spawn_key.endswith(":t4") for _e in reliefs)
+
+
+def test_watch_build_requires_the_day():
+    from src.spacehack import solar_system as ss_module
+    with pytest.raises(ValueError, match="watch_day"):
+        ss_module.make_solar_system(system=LUYTEN)
+
+
+def test_two_relief_waves_stamp_when_both_are_overdue():
+    """Run-day 12 (tenure 1): the T=2 wave is fully airborne on paper
+    (every full launch day <= 12) and the thin y25 relief (lead 10,
+    launch day 12) joins it — two future tenures' keys coexist."""
+    pickets = _watch_pickets(_build_watch(12))
+    by_tenure = {}
+    for _e in pickets:
+        _t = navigation_line.parse_tenure_key(_e.static_spawn_key)[1]
+        by_tenure.setdefault(_t, []).append(_e)
+
+    assert len(by_tenure[1]) == 10, "the standing watch"
+    assert len(by_tenure[2]) == 10, "the next full wave, all launched"
+    assert len(by_tenure[3]) == 1, "the thin vanguard (y25, lead 10)"
+    assert all(
+        (_e.pos.x, _e.pos.y) in _BASE_CELLS for _e in by_tenure[3]
+    )
+
+
+def test_same_station_stacks_two_waves_at_its_base():
+    """Run-day 5: the north stations' T=1 reliefs are overdue AND the
+    T=2 wave launches (day 15 - lead 10) — the same station has TWO
+    reliefs mustering at the same dock cell, both tolerated."""
+    base_keys = [
+        _e.static_spawn_key for _e in _watch_pickets(_build_watch(5))
+        if (_e.pos.x, _e.pos.y) == (74, 23)  # Blockade Station North
+    ]
+    for _y in (7, 21, 35):
+        assert f"luyten_star:militia_blockade:150:{_y}:t1" in base_keys
+        assert f"luyten_star:militia_blockade:150:{_y}:t2" in base_keys
 
 
 def test_luyten_watchbill_data_consistency():

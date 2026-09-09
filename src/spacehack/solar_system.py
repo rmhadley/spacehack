@@ -456,6 +456,7 @@ def make_solar_system(
     *,
     system: systems_module.SolarSystem | None = None,
     skip_static_spawns: collection_abc.Collection[str] = frozenset(),
+    watch_day: int | None = None,
 ) -> world.GameMap:
     """Build the :class:`world.GameMap` for ``system`` (default current).
 
@@ -463,7 +464,13 @@ def make_solar_system(
     see its docstring for the layer order).
 
     ``skip_static_spawns`` tombstones defeated statics (doc 41):
-    keys as built by :func:`static_spawn_key` never re-stamp.
+    keys as built by :func:`static_spawn_key` (plus the watch's
+    ``:t<tenure>`` suffix, doc 41 phase 2) never re-stamp.
+
+    ``watch_day`` is the day (``navigation_line.total_days``) the
+    build stamps the watchbill from; a watch-active system without
+    it raises (the column would build dark). Systems without a
+    watchbill ignore it.
 
     ``width`` / ``height`` are read from the system record —
     the caller can't override them. A malformed system (w < 5
@@ -476,7 +483,9 @@ def make_solar_system(
         raise ValueError("solar system must be at least 5x5")
 
     tiles = _paint_system_tiles(system, width, height)
-    entities = _system_enemy_entities(system, skip_static_spawns)
+    entities = _system_enemy_entities(
+        system, skip_static_spawns, watch_day=watch_day,
+    )
     return world.GameMap(
         width=width, height=height, tiles=tiles, entities=entities,
     )
@@ -536,33 +545,29 @@ def _paint_system_tiles(
 def _system_enemy_entities(
     system: systems_module.SolarSystem,
     skip_static_spawns: collection_abc.Collection[str] = frozenset(),
+    *,
+    watch_day: int | None = None,
 ) -> list[world.Entity]:
     """Build ship entities from ``system.enemies``.
 
     Uses the unified NpcShipSpec catalog (data/enemies/ was migrated
     into data/npc_ships/). Unknown or unloaded specs are skipped,
     as are spawns tombstoned in ``skip_static_spawns`` (defeated
-    statics — doc 41).
+    statics — doc 41). Watch systems place their watchbill (doc 41
+    phase 2): ``navigation_line.static_build_placements`` decides
+    who stands where, keyed per tenure.
     """
+    from . import navigation_line as _line  # lazy: it imports this module
     entities: list[world.Entity] = []
-    for _spawn in getattr(system, 'enemies', ()) or ():
-        if static_spawn_key(system, _spawn) in skip_static_spawns:
+    for _spawn, _key, _pos in _line.static_build_placements(system, watch_day):
+        if _key in skip_static_spawns:
             continue
         try:
             from .data.npc_ships import find_npc_ship as _find_npc_ship
             _espec = _find_npc_ship(_spawn.enemy_id)
         except (KeyError, ImportError):
             continue
-        entities.append(world.Entity(
-            char=_espec.char,
-            fg=_espec.fg,
-            pos=_spawn.pos,
-            name=_espec.name,
-            width=1,
-            height=1,
-            npc_ship_id=_spawn.enemy_id,
-            static_spawn_key=static_spawn_key(system, _spawn),
-        ))
+        entities.append(_line.make_static_entity(_espec, _pos, _key))
     return entities
 
 

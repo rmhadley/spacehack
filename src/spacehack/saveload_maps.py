@@ -466,7 +466,7 @@ def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None
 
 def _build_space_map(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, defeated_static_spawns=(),
+    pos_x, pos_y, defeated_static_spawns=(), watch_day=None,
 ):
     """Build the space map with NPCs and the player entity, or None."""
     from . import solar_system as solar_system_module
@@ -481,6 +481,7 @@ def _build_space_map(
     game_map = solar_system_module.make_solar_system(
         system=sys_spec,
         skip_static_spawns=defeated_static_spawns,
+        watch_day=watch_day,
     )
     solar_system_module.current_solar_system_id = system_id
     _add_bounty_npcs(game_map, bounty_spawns.get(system_id, []), _find_npc)
@@ -498,12 +499,12 @@ def _build_space_map(
 
 def _rebuild_space(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id, defeated_static_spawns=(),
+    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None,
 ):
     """Rebuild the space map; returns None when the system id is unknown."""
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-        pos_x, pos_y, defeated_static_spawns,
+        pos_x, pos_y, defeated_static_spawns, watch_day=watch_day,
     )
     if built is None:
         return None
@@ -513,7 +514,7 @@ def _rebuild_space(
 
 def _rebuild_dungeon(
     data, system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id, defeated_static_spawns=(),
+    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None,
 ):
     """Rebuild the space map + dungeon; returns None when unusable."""
     dd = data.get("dungeon", {})
@@ -523,7 +524,7 @@ def _rebuild_dungeon(
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
         dd.get("space_player_x", pos_x), dd.get("space_player_y", pos_y),
-        defeated_static_spawns,
+        defeated_static_spawns, watch_day=watch_day,
     )
     if built is None:
         return None
@@ -618,11 +619,11 @@ def rebuild_game_map(
     unusable (matching the log messages the legacy inline code emitted).
     """
     _city_npc_positions = data.get("city_npc_positions", {}) or {}
-    _defeated_statics = data.get("defeated_static_spawns", []) or []
+    _statics = _static_rebuild_kwargs(data)
     if mode == "space":
         result = _rebuild_space(
             system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-            pos_x, pos_y, city_id, _defeated_statics,
+            pos_x, pos_y, city_id, **_statics,
         )
         if result is not None:
             return result
@@ -630,7 +631,7 @@ def rebuild_game_map(
     elif mode == "dungeon":
         result = _rebuild_dungeon(
             data, system_id, log, owned_ship, bounty_spawns, proc_spawns,
-            proc_mid_map, pos_x, pos_y, city_id, _defeated_statics,
+            proc_mid_map, pos_x, pos_y, city_id, **_statics,
         )
         if result is not None:
             return result
@@ -638,6 +639,20 @@ def rebuild_game_map(
     return _rebuild_city(
         system_id, log, owned_ship, pos_x, pos_y, city_id, _city_npc_positions,
     )
+
+
+def _static_rebuild_kwargs(data) -> dict:
+    """The static-build kwargs both rebuild branches thread through —
+    tombstones and the watchbill read the SAME save fields (doc 41
+    phase 2)."""
+    from . import navigation_line as _line
+    return {
+        "defeated_static_spawns": data.get("defeated_static_spawns", []) or [],
+        "watch_day": _line.total_days(
+            data.get("time_day", 1), data.get("time_month", 1),
+            data.get("time_year", 2200),
+        ),
+    }
 
 
 def _active_interior_key(ctx: "GameContext", rebuilt: _RebuiltMap) -> str:

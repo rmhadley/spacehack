@@ -701,8 +701,10 @@ def _jump_to_system(
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
     _src_id = _depart_old_system(ctx)
     target_system = solar_system_module.set_current_solar_system(target_system_id)
+    from . import navigation_line as _line_mod
     new_map = solar_system_module.make_solar_system(
         skip_static_spawns=getattr(ctx, 'defeated_static_spawns', ()),
+        watch_day=_line_mod.clock_total(ctx),
     )
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
     # Look up the destination gate FIRST so we can exclude its area
