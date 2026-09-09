@@ -1359,10 +1359,13 @@ challenge. Scrubbed triggers neither — blank paper complies.
       bookkeeping lands (a boarded quest hull would vanish without
       completing or tombstoning the quest) — hardened to the four
       stamp attrs so squad-grouped wingmates can't slip through.
-      TUNING FLAG (surfaced 2026-09-09, awaiting user): every hull
-      class in the catalog is tier 1 (base_hull 25–100 vs the 150
-      threshold) — the T2/T3 clone bands are unreachable until
-      either the bands come down or bigger hulls exist.
+      TUNING RESOLVED (2026-09-09, user-approved): the bands re-cut
+      from (150, 300) to **(40, 80)** — the original cut left every
+      hull in the catalog tier 1 (base_hulls 25–100). Now:
+      scouts/haulers/freighters T1 (source band 0–60), cruisers T2
+      (10–80, allied possible at 7%), the frigate elite — captain/
+      warlord/patrol_heavy — T3 (25–100, allied 33%). The ladder
+      is live in play.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)

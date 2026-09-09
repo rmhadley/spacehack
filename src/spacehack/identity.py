@@ -397,7 +397,7 @@ __all__ = [
 # faction's values roll in a band that scales with the source hull's
 # tier (base_hull thresholds below); every other faction rolls
 # near-neutral. Higher tier = better odds of a strong sheet.
-CLONE_TIER_BANDS: tuple[int, int] = (150, 300)
+CLONE_TIER_BANDS: tuple[int, int] = (40, 80)
 CLONE_SOURCE_BANDS: dict[int, tuple[int, int]] = {
     1: (0, 60), 2: (10, 80), 3: (25, 100),
 }

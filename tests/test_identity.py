@@ -1025,14 +1025,38 @@ def test_cutout_action_dispatches_to_the_cutout_buy(monkeypatch):
 
 
 def test_clone_tier_band_edges():
-    """Hull-class tiers split at base_hull 150/300 (both inclusive)."""
+    """Hull-class tiers split at base_hull 40/80 (both inclusive) —
+    re-cut 2026-09-09 so cruisers roll T2 and the frigate elite T3
+    (the original 150/300 cut left every hull in the catalog T1)."""
     from src.spacehack import identity
 
     assert identity.clone_tier(1) == 1
-    assert identity.clone_tier(150) == 1
-    assert identity.clone_tier(151) == 2
-    assert identity.clone_tier(300) == 2
-    assert identity.clone_tier(301) == 3
+    assert identity.clone_tier(40) == 1
+    assert identity.clone_tier(41) == 2
+    assert identity.clone_tier(80) == 2
+    assert identity.clone_tier(81) == 3
+
+
+def test_clone_tiers_match_the_ship_catalog():
+    """The catalog actually spans the ladder: scouts/haulers/
+    freighters T1, cruisers T2, the frigate elite T3."""
+    from src.spacehack.data.npc_ships.core import NPC_SHIPS
+    from src.spacehack.data.npc_ships.deep import NPC_SHIPS as DEEP
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack import identity
+
+    tiers = {
+        s.id: identity.clone_tier(find_ship(s.ship_id).base_hull)
+        for s in list(NPC_SHIPS) + list(DEEP)
+        if s.capture_layout_id
+    }
+    assert tiers["pirate_scout"] == 1
+    assert tiers["merchant_caravan"] == 1
+    assert tiers["pirate_raider"] == 2
+    assert tiers["militia_patrol"] == 2
+    assert tiers["pirate_warlord"] == 3
+    assert tiers["pirate_captain"] == 3
+    assert 3 in tiers.values(), "the top band is reachable in play"
 
 
 def test_clone_roll_is_deterministic_and_tier_scaled():
