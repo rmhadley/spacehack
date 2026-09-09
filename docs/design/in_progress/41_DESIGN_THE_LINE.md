@@ -28,17 +28,22 @@ No crossing logic anywhere.
 ## First-pass shape (for review)
 
 **The sensor line.** The wall becomes edge-to-edge detection with
-no free geometric gaps — the Line's defining property. Detection
+no free geometric gaps — the Line's defining property. Built as
+TWO layers (settled 2026-09-09, below): a BROADCAST SWEEP — a
+virtual sensor column at x≈150; any hull crossing it with a
+live/spoofed transponder is swept, because transponders read at
+range — and PHYSICAL SPOTTING — dark hulls never broadcast, so
+only a patrol within its detect radius sees them. Detection
 triggers THE hail: identify yourself. Every crossing resolution
 flows through one checkpoint encounter with one rules table:
 
 | The sweep reads | Result |
 |---|---|
 | Manifest trait (papers) | Waved through, logged |
-| Militia ID at blockade rank+ (impersonation) | Waved through, logged AS that ID |
-| Dark hull (no broadcast) | Never hailed — but patrols that physically spot it challenge; the ghost run lives here |
-| Valid service-run listing (the bribe) | Waved through as cargo/contractor |
-| Anything else / defies the warning | Turn back — or the whole Line converges (method 5) |
+| Militia ID at blockade rank+ (impersonation) | Waved through, logged AS that ID (rank read off the worn sheet — doc 40) |
+| Dark hull (no broadcast) | Never swept — but patrols that physically spot it challenge; the ghost run lives here |
+| Valid service-run listing (the bribe) | Waved through as cargo/contractor — a consumed `blockade_service_run` trait, 100k per crossing |
+| Anything else — INCLUDING allied/liked stance with no papers | Turn back — or the whole Line converges (method 5). The sweep hails ALL unpapered hulls; the doc-40 statics stand-down is superseded inside the column |
 
 **One combat response, everywhere.** Dark players ignoring the
 challenge, unplanned runners, fight-seekers — all arrive at the
@@ -56,19 +61,171 @@ pattern: future acts' quarantines, customs lines, faction
 checkpoints all reuse it. The Line is the first instance, not a
 one-off.
 
-## Open questions (the review agenda)
+## Settled — the Line's system mechanics (refine session, 2026-09-09)
 
-1. Simulation scope: how live are the patrols? (Authored picket +
-   routine patrol movement — today's move_npcs — vs. scheduled
-   rotations the player can learn, feeding dark's timing and the
-   rumor system's schedule-finds.)
-2. What does crossing UNLOCK mechanically — the restricted sector
-   becomes approachable? A far-side site? How does arrival at the
-   east side present?
-3. The challenge hail for dark hulls: same comms options as
-   today's scan hail (comply = retreat, defy = converge)?
-4. Does the Line ever change state — alerts after incidents,
-   quiet watches, the maintenance window fiction (or was that
-   purely the toll's dead idea)?
-5. How much Line state persists (a "heat" on the Line after
-   incidents?) vs. fiction-only in v1?
+All five review-agenda questions ruled, plus three the agenda had
+not named. The first-pass shape above stands as amended.
+
+1. **Detection is two-layer.** The BROADCAST SWEEP is a virtual
+   sensor column at x≈150: any hull crossing it with a live or
+   spoofed transponder is swept — identity reads at range;
+   transponders broadcast. Ship spacing stops mattering; the
+   geometric gaps close by construction. Dark hulls never
+   broadcast, so the sweep cannot see them: only a patrol within
+   its detect radius physically spots them (today's detect 7) →
+   the challenge hail.
+2. **Full shift rotations.** Line traffic runs on a real schedule:
+   ships rotate in/out on a clock — spawn/despawn shifts,
+   maintenance windows. The maintenance-window fiction is
+   MECHANICS: a thin watch the dark run can time. The schedule is
+   also what doc 42's rumor system can later sell. (The heaviest
+   of the offered scopes — chosen deliberately.)
+3. **One hail shape everywhere.** Every detection — sweep-hit or
+   dark physical spot — triggers the same two-option checkpoint
+   hail: Comply (= turn back) / Defy (= the whole Line converges).
+   No third inspection option. Asking/talking stays free via the
+   existing comms panel; the checkpoint itself is binary.
+4. **Static Line v1.** No alert levels, no incident heat —
+   convergence is the response and resets after. The checkpoint
+   pattern documents an alert-field extension point (the
+   reusability ruling) but does not wire one. Sol's charged-cell
+   heat stays the precedent if a later act wants escalation.
+5. **Crossing is positional + symmetric.** You fly through; no
+   arrival ceremony, no teleport for checkpoint crossings (the
+   hidden gate keeps its own far-east arrival ruling). Return
+   crossings resolve through the same table. The Line stops
+   engaging once you're past the column; the restricted sector's
+   content and behavior are doc 43's territory.
+6. **The sweep reads IDENTITY ONLY** — transponder state, the
+   manifest trait, the service-run trait, the worn sheet's rank.
+   Never cargo. Cargo stays the militia-scan system's business
+   (smuggler's hold, confiscation modals live there); doc 39's
+   scrubbed-ID combo works through identity alone.
+7. **The bribe's marker is a consumed trait.** Paying the
+   Commandant grants `blockade_service_run` (registered like
+   `blockade_manifest`, outside milestone picks); the sweep
+   consumes it — one crossing per 100k, per doc 39. Grant-side
+   content (Commandant NPC, rumor chain) is method 4's, not the
+   Line's; the sweep only reads.
+8. **The sweep hails ALL unpapered hulls — allied stance
+   included.** The Line trusts manifests, not attitude: doc 40
+   phase 4's statics stand-down is superseded inside the sensor
+   column (at the Line only — everywhere else the stand-down
+   stands). Allied standing buys the SIGNATURE cheaply, not a
+   free pass; doc 39's method 1 stays the gate.
+
+## Phases
+
+Build queue — unchecked in order; `/implement-phase 41.<p>` works
+top-down. Grant-side method content (the Commandant, the Whisper
+barkeep, the heist, the gate tech) is NOT the Line's: the sweep
+only reads markers.
+
+### Phase 1 — The sweep (the sensor line + the checkpoint)
+- [ ] Sensor-column spec in the blockade data (data-first)
+- [ ] Pure sweep resolver + tests (the rules table; identity reads)
+- [ ] Crossing-edge tripwire wired into the per-step pass
+- [ ] The checkpoint hail: Comply / Defy (Defy = the picket squad
+      engages — minimal teeth; full convergence is phase 3)
+- [ ] Dark path: sweep skip + physical spotting → the challenge
+- [ ] Service-run trait consumed at the wave
+- [ ] Guide section updated
+
+### Phase 2 — Shift rotations (the schedule)
+- [ ] Rotation table in the blockade spec: shifts, maintenance
+      windows, roster per shift (data-first)
+- [ ] Clock-derived shift phase — no new mutable schedule state
+      (derivable, so save/load stays free)
+- [ ] Spawn/despawn at shift boundaries (spawn caps respected)
+- [ ] Physical spotting + convergence strength read the ON-DUTY
+      roster
+- [ ] Guide + playtest: observe a rotation, time a maintenance
+      window, cross dark through one
+
+### Phase 3 — The convergence (the interdiction response)
+- [ ] Defy/dark-defy → picket squad + on-duty patrols converge
+      (escalation choreography; reinforcement machinery is close)
+- [ ] The Line stops engaging past the column (positional escape
+      west — or through)
+- [ ] The convergence engages REGARDLESS of stance (the
+      interdiction supersedes the statics gate; charged-cell
+      precedent)
+- [ ] Tuned to doc 39's 30-floor contract — provably unwinnable
+      below 30, a real costly fight at 30+ — verified against
+      min-maxed sub-30 fits (doc 39's last Phase 0 method item
+      lands here)
+
+  Implementation brief (1) — DRAFTED (refine session, 2026-09-09;
+  pending approval):
+  - Scope: NEW ``src/spacehack/navigation_line.py`` — the Line
+    domain: sweep, resolver, hail (the reusable checkpoint
+    pattern's first instance). Data: the blockade spec in
+    ``data/solar_systems/luyten_star.py`` grows the sensor-column
+    fields (column x, labels) — data-first. Marker traits
+    ``blockade_manifest`` / ``blockade_service_run`` defined +
+    registered OUTSIDE ALL_TRAITS (milestone screens never offer
+    them; no grant path yet — grant-side content is the methods').
+    Hook points: the per-step pass that already runs encounter
+    detection + auto-hail (``navigation_combat``
+    ``_auto_hail_entity`` neighborhood — the pre-implementation
+    audit pins the exact seam); the sweep hail must break GO TO
+    like comms warnings do (``_goto_step_interrupt``); the comms
+    modal pattern for the hail; ``identity.resolved_identity`` /
+    ``effective_reputation`` for reads; ``has_trait`` for markers.
+    Dev hooks: SPACEHACK_DEV grants both marker traits + a
+    rank-eligible worn library entry for the playtest
+    (``dev_mode.py`` + ``test_dev_mode.py``). Log line wording
+    drafted at build, user-dictatable.
+  - Build order: column spec data → pure resolver
+    (``resolve_sweep`` — table lookup, no ctx) + tests →
+    crossing-edge tripwire in the per-step pass (fires once per
+    crossing, both directions) → checkpoint hail modal
+    (Comply/Defy; Defy flips the picket squad hostile) → dark path
+    (sweep skip; physical spot → the same hail) → service-run
+    consumption at the wave → dev grants → guide.
+  - Binding rulings: the eight SETTLED items above are the
+    contract — two-layer detection (1); one hail shape,
+    Comply/Defy only (3); identity-only reads, never cargo (6);
+    service-run trait consumed at the wave, manifest trait never
+    consumed (7); sweep hails all unpapered incl. allied — the
+    doc-40 stand-down superseded INSIDE the column only (8);
+    crossing positional + symmetric, no arrival event (5); no
+    alert/heat state, no new GameContext fields — the only new
+    state is the player's previous-side tripwire flag and it MUST
+    round-trip save/load (4).
+  - Required tests: resolver per row (papers wave; rank+ wave
+    logged AS that ID; service-run wave + consume; plain
+    live/spoofed → challenge; dark → never sweeps); crossing-edge
+    fires exactly once per crossing in both directions, no
+    re-trigger while past the column; consumption (service-run
+    gone after the wave, manifest persists); dark physical spot →
+    challenge; Defy → squad engagement adopted at every
+    state-bearing caller; save/load round-trip of the tripwire
+    side; dev grants tested in ``test_dev_mode.py``; guide section
+    exists.
+  - Stop point: NOTHING from phase 2 — no rotations, no schedule,
+    no spawn/despawn changes (the four statics stay as they are);
+    NOTHING from phase 3 — no convergence choreography or tuning
+    beyond the minimal squad teeth; no grant-side content
+    (Commandant, Whisper, heist, gate tech); no far-side or
+    restricted-sector changes (doc 43).
+  - Playtest checkpoint (numbered; SPACEHACK_DEV run, jump
+    wolf_359 → luyten_star):
+    1. Cross the column live (broadcasting) — the checkpoint hail
+       appears (was: warning-only log).
+    2. Comply — turn-back log; cross again — hailed again.
+    3. Defy — the picket squad engages (dev-loadout fight).
+    4. Dev-grant ``blockade_manifest`` — cross live: waved through,
+       logged, no hail; cross back — waved again (trait persists).
+    5. Dev-grant ``blockade_service_run`` — cross: waved through
+       AND trait consumed; the next crossing hails again.
+    6. Go dark (dev install the cut-out); cross a geometric gap
+       dead-center — no hail (the sweep is blind to you); let a
+       picket's detect radius touch you — the challenge fires.
+    7. Wear a rank-eligible militia ID (dev-granted library entry)
+       — cross live: waved through, the log names THAT ID.
+    8. Save east of the column → load: no re-hail. Save west →
+       load → cross: the hail fires.
+    9. Regression: a liked hull meeting OTHER militia statics
+       (e.g. Sol patrols) still enjoys the doc-40 stand-down — the
+       amendment is the column only.
