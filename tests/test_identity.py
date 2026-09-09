@@ -331,10 +331,17 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     nc._spec_distance_hail(ctx, "sol", patrol, spec, ctx.player.pos)
     assert fired == [patrol]
 
-    # Dark: the hail never happens.
+    # Dark: the electronic hail never happens — the physical spot is
+    # what fires instead (patched so the modal never really opens).
+    challenged = []
+    monkeypatch.setattr(
+        "src.spacehack.comms.open_challenge_direct",
+        lambda _ctx, _e: challenged.append(_e) or None,
+    )
     ctx.broadcast_dark = True
     nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
     assert fired == [patrol], "dark ships are not hailable"
+    assert challenged == [patrol], "the spot challenge is what fires"
 
 
 def test_faction_rows_resolve_through_the_broadcast():
@@ -515,7 +522,7 @@ def test_dark_hull_is_challenged_by_militia_on_spot(monkeypatch):
 
     assert challenged == [patrol]
     assert result is not None and result[0] is True
-    assert nc._entity_hail_key(patrol) in ctx.militia_scanned
+    assert f"dark:{nc._entity_hail_key(patrol)}" in ctx.militia_scanned
     # One-shot: the same patrol does not re-challenge every tick.
     assert nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object()) is None
 

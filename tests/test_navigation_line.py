@@ -738,7 +738,7 @@ def test_dark_spot_by_picket_opens_the_line_checkpoint(line_system, monkeypatch)
 
     assert sentinels == [picket]
     assert result == (True, None)
-    assert nc._entity_hail_key(picket) in ctx.militia_scanned
+    assert f"dark:{nc._entity_hail_key(picket)}" in ctx.militia_scanned
 
 
 # ---------------------------------------------------------------------------
@@ -779,3 +779,29 @@ def test_column_dataclass_is_registered_on_the_catalog():
     """The column rides the system spec — other systems default None."""
     assert find_solar_system("luyten_star").sensor_column is not None
     assert find_solar_system("sol").sensor_column is None
+
+
+def test_dark_spot_rearms_after_leaving_detect_range(line_system, monkeypatch):
+    """Round-2 final bug: complying with a picket's dark challenge made
+    that picket immune for the whole visit, so a complying hull could
+    blind the line picket by picket. The challenge is positional —
+    answered only while the hull stays in detect range; leaving
+    re-arms the patrol."""
+    from src.spacehack import navigation_combat as nc
+
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.COMPLY)
+    ctx = quest_ctx(broadcast_dark=True, militia_scanned=set(),
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    picket = ctx.game_map.entities[0]  # at (150, 25)
+    spec = nc.find_npc_ship("militia_blockade")
+
+    near = world.Position(150, 26)
+    assert nc._dark_spot_challenge(ctx, picket, spec, near) is not None
+    assert nc._dark_spot_challenge(ctx, picket, spec, near) is None, (
+        "in sight: already answered"
+    )
+
+    nc._dark_spot_challenge(ctx, picket, spec, world.Position(150, 60))
+    result = nc._dark_spot_challenge(ctx, picket, spec, near)
+    assert result is not None, "the retreat re-arms the patrol"
+    assert len(opened) == 2

@@ -319,7 +319,13 @@ def _dark_spot_challenge(ctx, e, spec, player_pos):
     Dark beats electronics, not eyeballs: the challenge keys on the
     spec's DETECT radius, not the comms ranges. Non-militia hulls
     never challenge (pirates read silence as business as usual).
-    One-shot per patrol via ``militia_scanned``.
+
+    The challenge is POSITIONAL (doc 41 playtest round 2): it stays
+    answered only while the dark hull remains in detect range;
+    leaving re-arms the patrol. One-shot-per-visit let a complying
+    hull blind every picket in turn. Keys live in ``militia_scanned``
+    under a ``dark:`` namespace so the scan-hail paths keep their
+    one-shot-per-visit semantics.
 
     Doc 41 amendment (column-scoped): a spotter that is one of the
     Line's pickets opens the Line's Comply/Defy checkpoint instead —
@@ -327,11 +333,12 @@ def _dark_spot_challenge(ctx, e, spec, player_pos):
     """
     if getattr(spec, "faction", "") != "militia":
         return None
-    _key = _entity_hail_key(e)
-    if _key in ctx.militia_scanned:
-        return None
+    _key = "dark:" + _entity_hail_key(e)
     if not _check_spec_distance(e, player_pos, spec.detect_radius):
+        ctx.militia_scanned.discard(_key)  # out of sight: re-armed
         return None
+    if _key in ctx.militia_scanned:
+        return None  # already challenged while in sight
     from . import navigation_line
     _line = navigation_line.line_dark_hail(ctx, e)
     if _line is None:

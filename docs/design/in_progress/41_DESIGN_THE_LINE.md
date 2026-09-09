@@ -260,6 +260,17 @@ Presentation rulings (user wording VERBATIM; "targetting"→
    the user: proximity aggro against a broadcasting hull requires
    a disliked/enemy sheet or the flag — every dev-loadout stance
    reads neutral-or-better, so pickets stand down by design.
+4. **Dark-spot challenges are POSITIONAL (user's final round-2
+   bug)**: the doc-40 one-shot-per-patrol-per-visit rule let a
+   complying hull blind the whole line picket by picket — comply
+   once per B and no picket ever challenged again. The challenge
+   now stays answered only while the dark hull remains in that
+   patrol's detect range; leaving re-arms it (``dark:``-namespaced
+   keys in ``militia_scanned``, so the scan-hail paths keep their
+   one-shot-per-visit semantics). Applies in and out of the
+   column; the out-of-column challenge's Identify/Attack
+   semantics are unchanged — only its engagement lifecycle is
+   positional.
 
 Guide ruling (user, round-1 follow-up): **the guide carries nothing
 about the Line at all.** The checkpoint explains itself in play —
