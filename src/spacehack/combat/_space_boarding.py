@@ -4,7 +4,10 @@ Offered in combat only under the four ruled conditions — no shields
 up, 75% hull damage done, a duel (the target is the only live enemy),
 adjacency. Boarding ends the encounter into the target's crewed
 interior; the hull is consumed at entry, so each ship boards once
-(the physical one-roll-per-source enforcement).
+(the physical one-roll-per-source enforcement). Procedural squads and
+static system spawns are both capture targets (user ruling
+2026-09-09); quest-lifecycle ships are not, until 6d's consume
+bookkeeping.
 """
 
 from __future__ import annotations
@@ -38,13 +41,18 @@ def board_denial(
 
 
 def _capture_target(enemy: EnemyInstance, ent) -> bool:
-    """A capture target: a plain procedural spawn whose spec has a
-    crewed interior. Bounty/heist-linked ships keep kill-or-die."""
-    if ent is None or getattr(ent, "bounty_spawn_id", None) is not None \
-            or getattr(ent, "heist_spawn_id", None) is not None:
+    """A capture target: any fought ship whose spec has a crewed
+    interior — procedural squads and static system spawns alike
+    (statics re-man their post on re-entry, the same lifecycle a
+    killed static already has). Quest-lifecycle ships keep
+    kill-or-die until 6d's consume bookkeeping: boarding one would
+    drop its hull without completing (or tombstoning) the quest."""
+    if ent is None:
         return False
-    if not getattr(ent, "procedural_squad_id", ""):
-        return False
+    for _quest_link in ("bounty_spawn_id", "heist_spawn_id",
+                        "bounty_squad_id", "salvage_wreck_spawn_id"):
+        if getattr(ent, _quest_link, None) is not None:
+            return False
     from ..data.npc_ships import find_npc_ship
     try:
         spec = find_npc_ship(enemy.spec_id)

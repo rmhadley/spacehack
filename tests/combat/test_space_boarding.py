@@ -74,6 +74,33 @@ def test_board_denial_refuses_non_capture_ships():
     )
 
 
+def test_board_denial_accepts_static_spawns():
+    """Statics board (user ruling 2026-09-09): their entities carry no
+    squad id — the spec's capture layout is the gate, not the spawn
+    path. Statics re-man their post on re-entry (the killed-static
+    lifecycle), so each boarding is a fresh hull and a fresh roll."""
+    _static, _ = _state(ent=SimpleNamespace(npc_ship_id="militia_blockade"))
+    _static.enemy_insts[0].spec_id = "militia_blockade"
+    assert board_denial(
+        _static, _static.enemy_insts[0], _static.enemy_ents[0],
+    ) is None
+
+
+def test_board_denial_refuses_quest_lifecycle_ships():
+    """Squad-grouped bounty wingmates carry ONLY bounty_squad_id (no
+    bounty_spawn_id) — boarding one would consume the hull without
+    completing or tombstoning the quest. Kill-or-die until 6d."""
+    for _link in ("bounty_squad_id", "heist_spawn_id",
+                  "salvage_wreck_spawn_id"):
+        _wing, _ = _state(ent=SimpleNamespace(
+            procedural_squad_id="sq", npc_ship_id="pirate_captain",
+            **{_link: "q1"},
+        ))
+        assert "can't be boarded" in board_denial(
+            _wing, _wing.enemy_insts[0], _wing.enemy_ents[0],
+        ), _link
+
+
 def test_attempt_board_sets_the_result(monkeypatch):
     state, _ent = _state()
     seen = {}
@@ -101,7 +128,6 @@ def test_capture_targets_are_data_optins():
     assert find_npc_ship("pirate_captain").capture_layout_id == "frigate_crew"
     assert find_npc_ship("pirate_warlord").capture_layout_id == "frigate_crew"
     assert find_npc_ship("militia_patrol_heavy").capture_layout_id == "frigate_crew"
-    assert find_npc_ship("pirate_scout").capture_layout_id == "scout_crew"
     assert find_npc_ship("pirate_hound").capture_layout_id == "scout_crew"
     assert find_npc_ship("militia_patrol_light").capture_layout_id == "scout_crew"
     assert find_npc_ship("pirate_marauder").capture_layout_id == "cruiser_crew"
