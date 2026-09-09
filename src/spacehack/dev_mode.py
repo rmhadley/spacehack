@@ -397,22 +397,37 @@ def apply_dev_identity_library(ctx) -> None:
     ctx.log.add("Dev mode: 3 allied transponder IDs filed - TAB cycles them.")
 
 
-def apply_dev_line_kit(ctx) -> None:
-    """Grant the Line's marker traits (doc 41 phase 1) — the Shift+L
-    dev shortcut, SPACEHACK_DEV-gated at the caller.
+def _apply_dev_line_marker(ctx, trait: str, note: str) -> None:
+    """Grant one Line marker trait (doc 41 phase 1) — the Shift+L /
+    Shift+K dev shortcuts, SPACEHACK_DEV-gated at the caller.
 
-    Timed for the playtest, not new-game: the checklist's early items
-    need an unpapered crossing. Idempotent. No real grant path exists
-    yet — the methods own their acquisition. The militia dev face
-    (+100) doubles as the rank-eligible impersonation entry: it
-    clears the column's ``rank_rep`` threshold (80).
+    Timed for the playtest, not new-game: the checklist's early
+    items need an unpapered crossing, and the sweep's precedence
+    (manifest outranks rank and service) needs the papers granted
+    one checklist step at a time. Idempotent. No real grant path
+    exists yet — the methods own their acquisition.
     """
     import os as _os
 
     if not _os.environ.get("SPACEHACK_DEV"):
         return
-    from .navigation_line import MANIFEST_TRAIT, SERVICE_TRAIT
-    for _trait in (MANIFEST_TRAIT, SERVICE_TRAIT):
-        if _trait not in ctx.player_traits:
-            ctx.player_traits.append(_trait)
-    ctx.log.add("[DEV MODE] Line kit: blockade manifest + service run granted.")
+    if trait not in ctx.player_traits:
+        ctx.player_traits.append(trait)
+    ctx.log.add(f"[DEV MODE] Line kit: {note} granted.")
+
+
+def apply_dev_blockade_manifest(ctx) -> None:
+    """Shift+L: grant the manifest marker (the waving paper)."""
+    from .navigation_line import MANIFEST_TRAIT
+    _apply_dev_line_marker(ctx, MANIFEST_TRAIT, "blockade manifest")
+
+
+def apply_dev_service_run(ctx) -> None:
+    """Shift+K: grant the service-run marker (consumed at the wave).
+
+    The militia dev face (+100) doubles as the rank-eligible
+    impersonation entry: it clears the column's ``rank_rep``
+    threshold (80) with no trait needed.
+    """
+    from .navigation_line import SERVICE_TRAIT
+    _apply_dev_line_marker(ctx, SERVICE_TRAIT, "blockade service run")

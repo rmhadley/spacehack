@@ -451,27 +451,36 @@ def test_apply_dev_identity_library_gated(monkeypatch):
     assert any("TAB" in m for m in _logged)
 
 
-def test_apply_dev_line_kit_gated(monkeypatch):
+def test_apply_dev_line_markers_gated(monkeypatch):
     """Doc 41 phase 1: without SPACEHACK_DEV no marker traits; with
-    it, both Line markers grant (idempotently) and the log says so."""
+    it, each Shift-key grant adds exactly its own marker (the sweep's
+    precedence needs the papers granted one checklist step at a
+    time) and is idempotent."""
     from types import SimpleNamespace
 
-    from src.spacehack.dev_mode import apply_dev_line_kit
+    from src.spacehack.dev_mode import (
+        apply_dev_blockade_manifest,
+        apply_dev_service_run,
+    )
     from src.spacehack.navigation_line import MANIFEST_TRAIT, SERVICE_TRAIT
 
     _ctx = SimpleNamespace(player_traits=["blockade_manifest"],
                            log=SimpleNamespace(add=lambda m: None))
     monkeypatch.delenv("SPACEHACK_DEV", raising=False)
-    apply_dev_line_kit(_ctx)
+    apply_dev_blockade_manifest(_ctx)
+    apply_dev_service_run(_ctx)
     assert _ctx.player_traits == ["blockade_manifest"]
 
     monkeypatch.setenv("SPACEHACK_DEV", "1")
     _logged = []
     _ctx = SimpleNamespace(player_traits=[],
                            log=SimpleNamespace(add=_logged.append))
-    apply_dev_line_kit(_ctx)
+    apply_dev_blockade_manifest(_ctx)
+    apply_dev_blockade_manifest(_ctx)  # idempotent
+    apply_dev_service_run(_ctx)
     assert _ctx.player_traits == [MANIFEST_TRAIT, SERVICE_TRAIT]
-    assert any("Line kit" in m for m in _logged)
+    assert any("manifest" in m for m in _logged)
+    assert any("service run" in m for m in _logged)
 
 
 def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):
@@ -484,10 +493,13 @@ def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):
     assert face["rep"]["militia"] >= find_solar_system("luyten_star").sensor_column.rank_rep
 
 
-def test_shift_l_predicate_requires_shift_modifier():
-    """Only Shift+L activates the Line-kit grant shortcut (doc 41)."""
-    from src.spacehack.input_helpers import _is_shift_l_press
+def test_shift_l_and_k_predicates_require_shift_modifier():
+    """Only Shift+L / Shift+K activate the Line paper grants (doc 41)."""
+    from src.spacehack.input_helpers import _is_shift_k_press, _is_shift_l_press
 
     assert _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="l", shift=True))
+    assert _is_shift_k_press(PygameInputEvent(kind="keydown", key_name="k", shift=True))
     assert not _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="l"))
+    assert not _is_shift_k_press(PygameInputEvent(kind="keydown", key_name="k"))
     assert not _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="k", shift=True))
+    assert not _is_shift_k_press(PygameInputEvent(kind="keydown", key_name="j", shift=True))
