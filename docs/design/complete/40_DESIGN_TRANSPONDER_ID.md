@@ -1,8 +1,10 @@
 # DESIGN: The Transponder / ID Layer (sandbox-wide)
 
-**Status: DESIGN IN PROGRESS — for review with the user before any
-build.** The first of doc 39's four feature docs, forked in the
-agreed order (transponder → the Line → lore/rumor → far side).
+**Status: COMPLETE — closed 2026-09-09.** All eleven phases
+landed and playtested (identity layer through full boarding
+coverage with consume-equals-kill). The first of doc 39's four
+feature docs, forked in the agreed order (transponder → the Line →
+lore/rumor → far side).
 
 Companion: `39_DESIGN_ACT1_BLOCKADE.md` (the act that needs it);
 the ghost run (method 3) is its first quest consumer; the Line

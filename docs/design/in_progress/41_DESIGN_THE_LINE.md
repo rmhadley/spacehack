@@ -6,7 +6,7 @@ forked in the agreed order (transponder → the Line → lore/rumor →
 far side).
 
 Companions: `39_DESIGN_ACT1_BLOCKADE.md` (the act + its five
-methods); `40_DESIGN_TRANSPONDER_ID.md` (the identity layer the
+methods); `../complete/40_DESIGN_TRANSPONDER_ID.md` (the identity layer the
 Line reads); `future/37_DESIGN_POST_ACT0_CAMPAIGN.md` (roadmap).
 
 ## The ruling this doc serves (user, 2026-09-06)
