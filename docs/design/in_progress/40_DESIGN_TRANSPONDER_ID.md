@@ -1325,7 +1325,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
     source choice stay open (2x Kestrel, or a smaller reference
     hunt per the class).
 
-  CLOSED 2026-09-09 (user). Every 6c deliverable shipped and the
+  CLOSED 2026-09-09 (user; same-day playtest round PASSED —
+  lit capture interiors + clean auto-explore, freightliner and
+  frigate decks walked). Every 6c deliverable shipped and the
   pipeline PROVEN at scale — five decks authored through it:
   cruiser_crew (the pilot — superseded the Mantis draft with the
   slug_b lineage: halo-composited source → 200×74 blessed →
@@ -1366,8 +1368,9 @@ challenge. Scrubbed triggers neither — blank paper complies.
       strategy — clone quality scaling with the source ship is a
       DISCOVERED mechanic (no text); the one entry owed was the B
       key in the controls list (landed same day). REMAINING for
-      6d: consume bookkeeping + the frigate/scout/hauler/
-      freightliner deck-walk confirmations as they come.
+      6d: consume bookkeeping (freightliner + frigate deck walks
+      PASSED 2026-09-09; scout/hauler walked at their shipping
+      playtests).
       RULINGS + LANDED 2026-09-09 (coverage completed):
       militia_patrol → cruiser_crew wired (13/13 battle specs,
       caddde2→8918623); STATICS ARE BOARDABLE (user: "there's no
