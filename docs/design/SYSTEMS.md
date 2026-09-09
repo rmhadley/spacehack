@@ -204,9 +204,13 @@ nobody designs against a ghost.
   adjacent; `combat/_space_boarding.board_denial`), entry consumes
   the hull (one board/roll per ship), the crewed interior's C
   console clones the transponder (rig-gated, tier-banded roll —
-  `identity.clone_transponder`). Every battle spec (13/13) and
-  static system spawns board; bounty/heist ships stay kill-or-die
-  until 6d consume bookkeeping.
+  `identity.clone_transponder`). Every battle spec (13/13), static
+  spawns, and quest-lifecycle ships board; the consume books the
+  full kill pass minus exterior loot (XP, counters, rep through
+  the broadcast gate, bounty completion, tombstone —
+  `game_interactions._consume_boarded_hull`); heist cargo rides
+  the interior via the component seam (one-shot: exit without
+  pickup strands the intercept — user-confirmed).
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
   mines-as-entities; no salvage drones; no player-called allies; no
   flee-from-space-combat; `NpcShipSpec.comms_range` documented

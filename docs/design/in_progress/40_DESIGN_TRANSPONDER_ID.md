@@ -1344,7 +1344,7 @@ challenge. Scrubbed triggers neither — blank paper complies.
   boarding/identity entries amended at this close. Deck-walk
   confirmations + remaining decks' bookkeeping live in 6d.
 
-- [ ] PHASE 6d — boarding coverage for every battle spec + the
+- [x] PHASE 6d — boarding coverage for every battle spec + the
       remaining decks, via the 6c pipeline. Carries: the frigate
       (the user's shipideas.txt art), scout (rework
       ``scout_crew``), hauler and freighter decks — JSON → compile
@@ -1373,13 +1373,12 @@ challenge. Scrubbed triggers neither — blank paper complies.
       7f5d294 wiring; reviewer APPROVE, gate 1836): quest ships
       boardable, the consume books the full kill pass minus
       exterior loot, heist cargo rides the interior, break-away
-      books nothing. PLAYTEST PENDING — the checkpoint below.
-      KNOWN ASYMMETRY (reviewer-flagged, confirm at playtest): the
-      interior heist component is one-shot missable — exit without
-      picking it up and the intercept is stranded (interior
-      discarded, spawns already cleaned). game_interactions.py at
-      946/1000 — the wreck-boarding block is the next extraction
-      when the ratchet calls.
+      books nothing. PLAYTEST PASSED (user, 2026-09-09: "playtest
+      works. and good catch on heist requirement, that's a great
+      solution for it." — the one-shot interior heist component is
+      user-CONFIRMED as the intended design, no remedy owed).
+      game_interactions.py at 946/1000 — the wreck-boarding block
+      is the planned next extraction when the ratchet calls.
 
   Implementation brief (6d residual — consume bookkeeping) —
   APPROVED (user, 2026-09-09: "build it!"):
