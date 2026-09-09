@@ -1015,6 +1015,31 @@ def test_same_station_stacks_two_waves_at_its_base():
         assert f"luyten_star:militia_blockade:150:{_y}:t2" in base_keys
 
 
+def test_hail_key_is_stable_for_a_moving_picket():
+    """A flying picket keeps ONE hail key: the stamped spawn key, not
+    its position — the positional dark-spot re-arm must not re-open
+    the challenge every step of a flight. Procedural hulls still key
+    by squad; keyless statics by position."""
+    from src.spacehack import navigation_combat as nc
+
+    flying = world.Entity("M", (100, 200, 255), world.Position(120, 40),
+                          npc_ship_id="militia_blockade",
+                          static_spawn_key="luyten_star:militia_blockade:150:21:t2")
+    key = nc._entity_hail_key(flying)
+    flying.pos = world.Position(121, 41)
+    flying.pos = world.Position(140, 30)
+    assert nc._entity_hail_key(flying) == key
+
+    patrol = world.Entity("M", (100, 200, 255), world.Position(5, 5),
+                          npc_ship_id="militia_patrol",
+                          procedural_squad_id="patrol_1")
+    assert nc._entity_hail_key(patrol) == "patrol_1"
+
+    derelict = world.Entity("D", (150, 150, 150), world.Position(9, 9),
+                            npc_ship_id="derelict")
+    assert nc._entity_hail_key(derelict) == "derelict:9:9"
+
+
 def test_luyten_watchbill_data_consistency():
     column = LUYTEN.sensor_column
     full_ys = [s.y for s in column.full_watch]

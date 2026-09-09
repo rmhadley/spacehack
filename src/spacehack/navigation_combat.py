@@ -251,11 +251,15 @@ def _calc_flee_chance(ctx) -> float:
 def _entity_hail_key(_e) -> str:
     """Return a stable key for per-entity hail tracking.
 
-    Uses ``procedural_squad_id`` when available (moving entities like
-    militia patrols and pirates), falling back to a position-based key
-    for static entities (blockade, derelicts). The position-based
-    fallback is safe because static entities never move.
+    Prefers the stamped ``static_spawn_key`` (doc 41 phase 2: watch
+    pickets FLY — a position key would re-arm the dark-spot
+    challenge every step of the flight), then ``procedural_squad_id``
+    (moving patrols/pirates), then the position fallback for keyless
+    statics (derelicts — they never move).
     """
+    _key = getattr(_e, "static_spawn_key", "")
+    if _key:
+        return _key
     _sq = getattr(_e, "procedural_squad_id", "")
     if _sq:
         return _sq
