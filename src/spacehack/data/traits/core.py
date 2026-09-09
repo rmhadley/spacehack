@@ -215,6 +215,27 @@ QUEST_PERKS: dict[str, "Trait"] = {
             ),
             counters=(),
         ),
+        # The Line's markers (doc 41): the sweep reads these off the
+        # hull. No grant path yet — the methods own their acquisition;
+        # dev mode seeds both for playtests.
+        Trait(
+            id="blockade_manifest",
+            name="Blockade Manifest",
+            description=(
+                "A current manifest on the Luyten Line's registry: "
+                "the sweep waves you through."
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="blockade_service_run",
+            name="Blockade Service Run",
+            description=(
+                "One flagged service crossing through the Luyten "
+                "Line - spent at the sweep."
+            ),
+            counters=(),
+        ),
     )
 }
 

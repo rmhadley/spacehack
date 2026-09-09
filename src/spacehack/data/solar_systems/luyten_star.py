@@ -27,7 +27,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import EnemySpawn, JumpPoint, SolarSystem, StationSpec
+from . import EnemySpawn, JumpPoint, SensorColumn, SolarSystem, StationSpec
 
 
 _planets: tuple[solar_module.Planet, ...] = (
@@ -156,6 +156,25 @@ _static_enemies: tuple[EnemySpawn, ...] = (
 _stars = solar_module.make_stars(200, 140, seed="luyten_star")
 
 
+# The Line (doc 41): the blockade is a SYSTEM, not a wall — an
+# edge-to-edge broadcast sweep on the pickets' column. Any hull
+# crossing x=150 with a live or spoofed transponder is swept; dark
+# hulls only a picket physically spots. rank_rep 80: blockade rank
+# on a worn face's sheet (data — user-dictatable).
+_sensor_column = SensorColumn(
+    x=150,
+    label="The Line",
+    squad_id="luyt_blockade_picket",
+    picket_enemy_id="militia_blockade",
+    rank_rep=80,
+    hail_lines=(
+        "Unidentified hull: you are crossing the Line.",
+        "Your transponder reads no manifest. Turn back, or the whole "
+        "Line converges on you.",
+    ),
+)
+
+
 SYSTEM: SolarSystem = SolarSystem(
     id="luyten_star",
     name="Luyten's Star",
@@ -166,6 +185,7 @@ SYSTEM: SolarSystem = SolarSystem(
     stations=_stations,
     stars=_stars,
     enemies=_static_enemies,
+    sensor_column=_sensor_column,
     # Pirates are scarce here — the militia blockade keeps them out.
     # A few merchants may pass through with military escort cargo.
     npc_spawn_chance=0.2,

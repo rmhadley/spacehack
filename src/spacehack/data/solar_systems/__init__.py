@@ -23,7 +23,7 @@ from spacehack import world
 
 
 __all__ = [
-    "EnemySpawn", "JumpPoint", "SolarSystem", "StationSpec",
+    "EnemySpawn", "JumpPoint", "SensorColumn", "SolarSystem", "StationSpec",
     "find_solar_system", "list_solar_systems",
     "make_stars", "station_near", "validate_gate_graph",
 ]
@@ -163,6 +163,35 @@ class StationSpec:
 
 
 @dataclass(frozen=True)
+class SensorColumn:
+    """The Line (doc 41): one system's broadcast-sweep checkpoint.
+
+    A virtual sensor column — any hull crossing ``x`` with a live
+    or spoofed transponder is swept (identity reads at range); dark
+    hulls are invisible to it and only physically spotted by the
+    Line's own pickets.
+
+    Attributes:
+      x: the swept column (crossing edge; the column cell belongs
+        to the Line — west is ``x < column.x``).
+      label: display name for logs and the checkpoint hail.
+      squad_id: the :class:`EnemySpawn` squad that mans the Line;
+        Defy converges this squad.
+      picket_enemy_id: the catalog id the Line's cruisers broadcast
+        as — how a physical spotter is recognized as a picket.
+      rank_rep: blockade-rank threshold on a worn face's sheet;
+        at or above it the sweep waves the hull as that ID.
+      hail_lines: the checkpoint hail's body text.
+    """
+    x: int
+    label: str
+    squad_id: str
+    picket_enemy_id: str
+    rank_rep: int
+    hail_lines: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class SolarSystem:
     """Static data describing one star system's map + bodies.
 
@@ -207,6 +236,9 @@ class SolarSystem:
     # non-moving wrecks with interior salvage. Set per-system for
     # frontier vs core balance.
     derelict_spawn_chance: float = 0.0
+    # The Line (doc 41): this system's broadcast-sweep checkpoint, or
+    # None for systems without one.
+    sensor_column: SensorColumn | None = None
 
 
 _BY_ID: dict[str, SolarSystem] | None = None
