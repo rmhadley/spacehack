@@ -444,10 +444,11 @@ def test_apply_dev_identity_library_gated(monkeypatch):
 
     monkeypatch.setenv("SPACEHACK_DEV", "1")
     _logged = []
-    _ctx = SimpleNamespace(collected_ids=[],
+    _ctx = SimpleNamespace(collected_ids=[], transponder_cutout=False,
                            log=SimpleNamespace(add=_logged.append))
     apply_dev_identity_library(_ctx)
     assert len(_ctx.collected_ids) == 3
+    assert _ctx.transponder_cutout is True, "D must work for the dark run"
     assert any("TAB" in m for m in _logged)
 
 

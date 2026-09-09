@@ -388,13 +388,19 @@ def dev_transponder_library() -> list[dict]:
 
 
 def apply_dev_identity_library(ctx) -> None:
-    """Seed the transponder library in dev mode (no-op otherwise)."""
+    """Seed the transponder library in dev mode (no-op otherwise).
+
+    Also installs the cut-out (doc 41 playtest item 6: the dark run
+    needs D to work without flying to Ember's depot first).
+    """
     import os as _os
 
     if not _os.environ.get("SPACEHACK_DEV"):
         return
     ctx.collected_ids = dev_transponder_library()
-    ctx.log.add("Dev mode: 3 allied transponder IDs filed - TAB cycles them.")
+    ctx.transponder_cutout = True
+    ctx.log.add("Dev mode: 3 allied transponder IDs filed - TAB cycles them. "
+                "Cut-out installed - D goes dark.")
 
 
 def _apply_dev_line_marker(ctx, trait: str, note: str) -> None:
