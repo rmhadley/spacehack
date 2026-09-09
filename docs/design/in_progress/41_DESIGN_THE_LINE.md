@@ -442,7 +442,9 @@ ledger threading is pinned.
       rotation, times the maintenance week, crosses dark through
       one, and lures across a boundary
 
-  Implementation brief (2) — PROPOSED (refine session 2026-09-09):
+  Implementation brief (2) — APPROVED (refine session 2026-09-09,
+    amended per the ADVISE reviewer round; user invoked
+    ``/implement-phase 41.2``):
 
   - **Scope.** Data: ``SensorColumn`` (``data/solar_systems/
     __init__.py``) grows ``shift_days: int = 7``, ``watch_cycle:
@@ -751,3 +753,118 @@ user dictates otherwise):**
 - Comply is answer-then-see: phase 1 has no re-check when a
   complying hull keeps east. Flagged for phase 3 (runners are
   the convergence's business).
+
+## Pre-implementation audit — phase 2 (2026-09-09)
+
+**Seams to extend (all verified in code during the audit):**
+
+- **Clock** — ``time.py``: the wrapping triple ``ctx.time_day/
+  month/year`` with ``advance_time`` as sole mutator (day-granular;
+  ``tick_move`` runs per manual + goto step at speed moves/day).
+  ``total_days = year*360 + (month-1)*30 + day`` is a PURE
+  derivation — no new schedule state anywhere. The wait path
+  (period in space) runs the NPC passes without a day flip; the
+  watch rides the same cadence (flights move on waits; days only
+  flip on movement).
+- **Watchbill data** — ``SensorColumn``
+  (``data/solar_systems/__init__.py``) grows ``shift_days=7``,
+  ``watch_cycle=("full","full","full","thin")``,
+  ``full_watch``/``thin_watch`` tuples of a new frozen
+  ``WatchStation(y, lead_days, base_id)``. ``luyten_star.py``:
+  10 new ``EnemySpawn`` rows at x=150, y = 7…133 (the shipped 4
+  at y=25/55/85/115 are the thin roster) + the watchbill on
+  ``_sensor_column``. Rows not in any roster keep phase-1
+  semantics (unqualified keys) — ross_154 / lalande_21185
+  statics and every non-column system untouched.
+- **Build** — ``solar_system.make_solar_system`` grows
+  ``watch_day: int | None = None``; a watch-active system without
+  it raises ``ValueError`` (the alternative — silently spawning
+  no watch — is a dark column, the exact silent bug class this
+  repo guards against). ``_system_enemy_entities`` delegates
+  placement to ``navigation_line`` via LAZY import (module-level
+  would cycle: navigation_line already imports solar_system).
+  Placement: current-kind roster rows spawn PARKED on station
+  with ``…:t<tenure>`` keys (tombstones honored; off-duty rows
+  never spawn); overdue future reliefs (launch day ≤ watch_day,
+  key not tombstoned) stamp AT THEIR BASES and the stepper flies
+  them in. Production callers all have the day:
+  ``navigation_travel._jump_to_system`` (ctx),
+  ``saveload_maps._build_space_map`` (save data; threaded from
+  ``rebuild_game_map`` which owns ``data``),
+  ``city._build_space_return`` (ctx).
+- **Per-step pass** — beside ``move_npcs`` at BOTH of its call
+  sites: ``game_flow._run_combat_loop``'s ``also_move_npcs`` tail
+  and ``navigation_travel._goto_step`` (after the interrupt
+  check — a hailed step freezes the watch with everything else).
+  Idle gate is pure day arithmetic, O(1): boundary
+  (``(total-1) % shift_days == 0``) OR any horizon launch day ==
+  total. Due WORK is overdue-inclusive (``<=``), so skipped days
+  (dev Shift+D) self-heal at the next due day; the new Shift+J
+  lands exactly ON a boundary (heals immediately). Horizon =
+  current + 2 tenures: leads ≤ 10 < 2×7 means a C+3 launch day
+  is always in the future during C.
+- **Flights** — ``ctx.npc_targets`` / ``ctx.npc_paths`` keyed by
+  the tenure key: EXISTING ctx fields (no new state), and the
+  save sync (``saveload._sync_procedural_spawns``) only
+  round-trips mids tied to ``ctx.procedural_spawns`` — watch
+  keys are dropped at save BY CONSTRUCTION = session-scoped
+  flights, exactly the reviewer ruling. Stepping mirrors
+  ``_step_squad``'s single-member mechanics: 80% throttle,
+  ``world.find_path`` computed once at target-assign,
+  ``world.try_step_with_slip``, ``combat_locked`` skipped. Watch
+  entities carry NO ``procedural_squad_id`` → invisible to
+  ``_squad_groups``/``move_npcs`` patrols by construction.
+- **Hail key** — ``navigation_combat._entity_hail_key`` prefers
+  the stamped ``static_spawn_key`` (empty for procedural hulls;
+  the position fallback stays for keyless statics).
+- **Payload** — ``navigation_line._picket_payload`` rewrites to
+  by-id (``npc_ship_id == column.picket_enemy_id``): parked,
+  in-flight, and displaced all count; the picket id is unique to
+  the column system (``line_dark_hail``'s existing claim).
+- **Trigger pass unchanged** — ``_trigger_static_spawns`` gates
+  on ``_alive_entity_at`` per ``system.enemies`` row: off-duty
+  rows read empty (no entity at the row position), in-flight
+  reliefs are never at row positions — static trigger semantics
+  survive rotations with zero changes. In-flight reliefs do not
+  chase (no squad id) — convergence choreography is phase 3's.
+- **Load migration** — pure helper in ``navigation_line``;
+  ``load_game`` (``saveload.py``, 980/1000 lines — takes no new
+  logic) rewrites ``data["defeated_static_spawns"]`` at its top,
+  BEFORE both consumers read it (``rebuild_game_map`` →
+  ``_build_space_map``, and ``_assemble_context``'s ctx restore).
+  Luyten-scoped: unqualified keys matching a column system ×
+  its ``picket_enemy_id`` only; re-stamped with the CURRENT
+  tenure (from the save's clock triple).
+- **Dev** — the ``input_helpers._is_shift_*_press`` +
+  ``game_loop._handle_dev_shift_keys`` + ``dev_mode.apply_dev_*``
+  pattern; new Shift+J advances the clock to the next shift
+  boundary (the current column's ``shift_days``; 7 outside
+  column systems). J is unclaimed.
+
+**Duplication hotspots + DRY strategy:**
+
+1. Picket entity construction would be duplicated between the
+   build path and runtime launches → one
+   ``navigation_line._make_picket_entity(spec, pos, key)``
+   factory; ``_system_enemy_entities`` lazily imports it.
+2. Flight stepping vs ``npc_ships._step_squad`` — same
+   80%/path/slip mechanics. Full reuse would drag squad cohesion
+   and aggro machinery into the Line; the PRIMITIVES are the
+   designed seam (``world.find_path`` /
+   ``world.try_step_with_slip``) and the watch stepper uses only
+   those — no slip/path logic is copied.
+3. Base-cell arithmetic (east-of-body +1, mid-height) duplicates
+   ``_build_body_goals``' convention → one
+   ``navigation_line.station_dock_cell`` helper documented as
+   the same convention.
+
+**Judgment calls pinned (all data/log-level, user-dictatable):**
+
+- Runtime launches fire on the step whose DAY equals the launch
+  day (the clock is day-granular; sub-day precision is invented
+  precision).
+- A stale dict entry (flight killed mid-air) lingers in
+  ``npc_targets``/``npc_paths`` until session end — never read
+  (the stepper is entity-driven), never saved. Accepted leak.
+- Shift+J lands ON the next boundary day (strictly future): the
+  rotation is then observable on the very next step.
