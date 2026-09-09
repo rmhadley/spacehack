@@ -1348,6 +1348,21 @@ challenge. Scrubbed triggers neither — blank paper complies.
       11 battle specs wired). REMAINING for 6d: consume
       bookkeeping + guide text + the frigate/scout/hauler/
       freightliner deck-walk confirmations as they come.
+      RULINGS + LANDED 2026-09-09 (coverage completed):
+      militia_patrol → cruiser_crew wired (13/13 battle specs,
+      caddde2→8918623); STATICS ARE BOARDABLE (user: "there's no
+      reason for them to not be boardable", e9134ac) —
+      `_capture_target` gates on the spec's capture layout, not
+      the spawn path; a boarded static re-mans its post on
+      re-entry exactly like a killed static always has. The
+      bounty/heist kill-or-die exclusion STANDS until the consume
+      bookkeeping lands (a boarded quest hull would vanish without
+      completing or tombstoning the quest) — hardened to the four
+      stamp attrs so squad-grouped wingmates can't slip through.
+      TUNING FLAG (surfaced 2026-09-09, awaiting user): every hull
+      class in the catalog is tier 1 (base_hull 25–100 vs the 150
+      threshold) — the T2/T3 clone bands are unreachable until
+      either the bands come down or bigger hulls exist.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
