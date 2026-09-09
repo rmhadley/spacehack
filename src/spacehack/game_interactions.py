@@ -568,24 +568,49 @@ def _power_interior(game_map, at):
     _reveal_around(game_map, at, radius=POWERED_SIGHT_RADIUS)
 
 
+def _consume_boarded_hull(ctx, cr, spec) -> None:
+    """The consume books as a full kill minus the exterior loot
+    (doc 40 6d): hull + squad drop, XP, counters, rep deltas,
+    bounty/heist completion, tombstone. Loot rides the interior —
+    the heist component was stamped into it at layout load."""
+    from .combat._encounter import (_apply_kill_reputation,
+                                     _cleanup_heist_spawns,
+                                     _complete_bounty_missions)
+    from .combat._space_kills import record_kill_pass
+    _ent = cr.boarded_ent
+    if _ent is not None and _ent in ctx.game_map.entities:
+        ctx.game_map.entities.remove(_ent)
+    record_kill_pass(cr, ctx, spec, spec.name, spec.id, _ent)
+    # The victory pass, minus the victory: same order, same calls.
+    _apply_kill_reputation(ctx, cr, [spec])
+    _complete_bounty_missions(ctx, cr)
+    from . import main_quest as _mq
+    _mq.maybe_complete_bounty(ctx, cr.defeated_bounty_ids)
+    _cleanup_heist_spawns(ctx, cr)
+
+
 def begin_capture_boarding(ctx, console, cr):
     """Consume the boarded hull and enter its crewed interior (6a).
 
     Consumption happens at ENTRY — the ship is gone from space the
-    moment boarding starts (entity removed, spawn record dropped), so
-    saving inside the interior rebuilds a space map without it. One
-    board per ship: there is no hull left to re-board. Returns False
-    when the boarding breaks away (interior load failed): nothing was
-    consumed and the outcome must not stay "BOARDED".
+    moment boarding starts, so saving inside the interior rebuilds a
+    space map without it — and books as the kill it replaces (6d:
+    the full kill pass minus the exterior loot; heist cargo rides
+    the interior). One board per ship: there is no hull left to
+    re-board. Returns False when the boarding breaks away (interior
+    load failed): nothing consumed, nothing booked.
     """
-    from .combat._space_kills import remove_procedural_squad
+    from .combat._space_kills import heist_cargo_mission
     from .data.npc_ships import find_npc_ship
     from .dungeon import load_layout as _load_layout
 
     _spec = find_npc_ship(cr.boarded_spec_id)
+    _heist_m = heist_cargo_mission(ctx, cr.boarded_ent)
     try:
         _dungeon_map, _spawn = _load_layout(
             _spec.capture_layout_id, loot_budget=_spec.loot_budget,
+            component_good_id=getattr(_heist_m, 'heist_target_good_id', None),
+            component_mission_id=getattr(_heist_m, 'mission_id', None),
         )
     except (FileNotFoundError, ValueError):
         ctx.log.add(
@@ -593,10 +618,7 @@ def begin_capture_boarding(ctx, console, cr):
         )
         cr.outcome = "ABORTED"  # nothing consumed, no interior to adopt
         return False
-    _ent = cr.boarded_ent
-    if _ent is not None and _ent in ctx.game_map.entities:
-        ctx.game_map.entities.remove(_ent)
-    remove_procedural_squad(ctx, _ent)
+    _consume_boarded_hull(ctx, cr, _spec)
     _dungeon_map.capture_spec_id = _spec.id
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
     _enter_boarding_dungeon(

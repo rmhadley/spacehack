@@ -155,19 +155,39 @@ def test_capture_layouts_carry_console_and_crew():
         assert any(e.char in crew for e in _map.entities), lid
 
 
+def _consume_ctx(_boarded, **over):
+    """Fake ctx carrying everything the consume kill-pass reads."""
+    _ctx = SimpleNamespace(
+        game_map=SimpleNamespace(
+            entities=[_boarded], width=80, height=60,
+        ),
+        player=SimpleNamespace(pos=world.Position(11, 10)),
+        log=SimpleNamespace(add=lambda *a, **k: None,
+                            add_colored=lambda *a, **k: None),
+        procedural_spawns={"sol": [SimpleNamespace(
+            squad_id=getattr(_boarded, "procedural_squad_id", "sq_9"),
+            npc_id="pirate_scout",
+        )]},
+        ground_hp=10, ground_max_hp=20,
+        player_xp=0, player_level=1, player_skill_points=0,
+        player_counters=SimpleNamespace(total_kills=0, merchant_kills=0),
+        faction_reputation={"pirate": -100},
+        player_active_missions=[],
+        main_quest_progress={},
+    )
+    for _k, _v in over.items():
+        setattr(_ctx, _k, _v)
+    return _ctx
+
+
 def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     """The ship is consumed at ENTRY: gone from the space map, spawn
     record dropped, before the player steps inside the interior."""
     from src.spacehack.game_interactions import begin_capture_boarding
 
     _boarded = SimpleNamespace(procedural_squad_id="sq_9", npc_ship_id="pirate_scout")
-    _space_map = SimpleNamespace(entities=[_boarded], width=80, height=60)
-    _ctx = SimpleNamespace(
-        game_map=_space_map, player=SimpleNamespace(pos=world.Position(11, 10)),
-        log=SimpleNamespace(add=lambda *a, **k: None),
-        procedural_spawns={"sol": [SimpleNamespace(squad_id="sq_9", npc_id="pirate_scout")]},
-        ground_hp=10, ground_max_hp=20,
-    )
+    _ctx = _consume_ctx(_boarded)
+    _space_map = _ctx.game_map
     _interior = SimpleNamespace(entities=[], seen=None)
     _entered = {}
     monkeypatch.setattr(
@@ -195,6 +215,148 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     from src.spacehack.dungeon_fov import POWERED_SIGHT_RADIUS
     assert _interior.sight_radius == POWERED_SIGHT_RADIUS
     assert _interior.power_restored is True
+
+
+def test_consume_books_the_kill_pass(monkeypatch):
+    """Doc 40 6d: the consume is a full kill minus exterior loot —
+    XP at the kill math, the kill counter, defeated names/specs.
+    No loot entity appears at the hull's position."""
+    from src.spacehack.game_interactions import begin_capture_boarding
+
+    _boarded = SimpleNamespace(procedural_squad_id="sq_9",
+                               npc_ship_id="pirate_scout",
+                               bounty_squad_id="grp_1")
+    _ctx = _consume_ctx(_boarded)
+    _rep_before = dict(_ctx.faction_reputation)
+    _interior = SimpleNamespace(entities=[], seen=None)
+    monkeypatch.setattr(
+        "src.spacehack.dungeon.load_layout",
+        lambda lid, **k: (_interior, world.Position(8, 15)),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.game_interactions._enter_boarding_dungeon",
+        lambda *a, **k: None,
+    )
+    _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
+                       boarded_ent=_boarded)
+    _ent_seen = {}
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.mark_quest_guard_defeated",
+        lambda ctx, ent: _ent_seen.update(
+            squad=getattr(ent, "bounty_squad_id", None)),
+    )
+
+    begin_capture_boarding(_ctx, None, _cr)
+
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.faction import _COMBAT_KILL_DELTAS
+    _hull = find_ship("scout").base_hull
+    assert _ctx.player_xp == _hull * 2, "kill XP math, identical to a kill"
+    assert _ctx.player_counters.total_kills == 1
+    assert _cr.defeated_names == ["Pirate Scout"]
+    assert _cr.defeated_spec_ids == ["pirate_scout"]
+    assert not [e for e in _ctx.game_map.entities
+                if getattr(e, "loot_data", None)], "no exterior loot"
+    # Rep deltas route through the same table the kill path uses
+    # (and through modify_rep's broadcast gate — a masked boarder
+    # books on the worn sheet).
+    for _fac, _delta in _COMBAT_KILL_DELTAS["pirate"].items():
+        assert _ctx.faction_reputation[_fac] == \
+            max(-100, min(100, _rep_before.get(_fac, 0) + _delta))
+    # The consume reaches the quest-guard tombstone with the boarded
+    # hull (the kill path's exact bookkeeping — doc 40 6d).
+    assert _ent_seen["squad"] == "grp_1"
+
+
+def test_consume_completes_the_bounty(monkeypatch):
+    """Boarding the bounty target completes the bounty: the id lands
+    on the result and the completion + main-quest passes run."""
+    from src.spacehack.game_interactions import begin_capture_boarding
+
+    _boarded = SimpleNamespace(npc_ship_id="pirate_scout",
+                               bounty_spawn_id="b_target",
+                               bounty_squad_id="grp_1")
+    _ctx = _consume_ctx(_boarded)
+    _interior = SimpleNamespace(entities=[], seen=None)
+    monkeypatch.setattr(
+        "src.spacehack.dungeon.load_layout",
+        lambda lid, **k: (_interior, world.Position(8, 15)),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.game_interactions._enter_boarding_dungeon",
+        lambda *a, **k: None,
+    )
+    _seen_calls = {}
+    monkeypatch.setattr(
+        "src.spacehack.combat._encounter._complete_bounty_missions",
+        lambda ctx, cr: _seen_calls.update(bounty=list(cr.defeated_bounty_ids)),
+    )
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.maybe_complete_bounty",
+        lambda ctx, ids: _seen_calls.update(main_quest=list(ids)),
+    )
+    _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
+                       boarded_ent=_boarded)
+
+    begin_capture_boarding(_ctx, None, _cr)
+
+    assert _cr.defeated_bounty_ids == ["b_target"]
+    assert _seen_calls["bounty"] == ["b_target"], "completion pass ran"
+    assert _seen_calls["main_quest"] == ["b_target"], "quest pass ran"
+
+
+def test_consume_routes_heist_cargo_into_the_interior(monkeypatch):
+    """A boarded heist courier carries its cargo INSIDE (the wreck
+    component seam), never as an exterior drop; the id books on the
+    result for spawn cleanup."""
+    from src.spacehack.game_interactions import begin_capture_boarding
+
+    _boarded = SimpleNamespace(npc_ship_id="pirate_scout",
+                               bounty_spawn_id="h_target",
+                               heist_spawn_id="h_target")
+    _mission = SimpleNamespace(bounty_spawn_id="h_target",
+                               heist_target_good_id="engine_core",
+                               mission_id="m_heist_1")
+    _ctx = _consume_ctx(_boarded, player_active_missions=[_mission])
+    _interior = SimpleNamespace(entities=[], seen=None)
+    _layout_kwargs = {}
+    _load = lambda lid, **k: (_layout_kwargs.update(k),
+                              (_interior, world.Position(8, 15)))[1]
+    monkeypatch.setattr("src.spacehack.dungeon.load_layout", _load)
+    monkeypatch.setattr(
+        "src.spacehack.game_interactions._enter_boarding_dungeon",
+        lambda *a, **k: None,
+    )
+    _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
+                       boarded_ent=_boarded)
+
+    begin_capture_boarding(_ctx, None, _cr)
+
+    assert _layout_kwargs["component_good_id"] == "engine_core"
+    assert _layout_kwargs["component_mission_id"] == "m_heist_1"
+    assert _cr.defeated_heist_ids == ["h_target"]
+    assert _cr.defeated_bounty_ids == [], "intercepts complete on delivery"
+
+
+def test_breakaway_books_nothing(monkeypatch):
+    """Interior load failure: no consume, no kill pass, no bounty —
+    the outcome downgrades to ABORTED."""
+    from src.spacehack.game_interactions import begin_capture_boarding
+
+    _boarded = SimpleNamespace(npc_ship_id="pirate_scout",
+                               bounty_spawn_id="b_target")
+    _ctx = _consume_ctx(_boarded)
+    _fail = lambda lid, **k: (_ for _ in ()).throw(FileNotFoundError(lid))
+    monkeypatch.setattr("src.spacehack.dungeon.load_layout", _fail)
+
+    _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
+                       boarded_ent=_boarded)
+    assert begin_capture_boarding(_ctx, None, _cr) is False
+
+    assert _cr.outcome == "ABORTED"
+    assert _boarded in _ctx.game_map.entities, "the hull survives"
+    assert _ctx.player_xp == 0 and _ctx.player_counters.total_kills == 0
+    assert _cr.defeated_names == [] and _cr.defeated_bounty_ids == []
 
 
 def test_input_b_maps_to_board_not_the_vim_diagonal():
