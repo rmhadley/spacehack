@@ -111,10 +111,14 @@ nobody designs against a ghost.
   (`pygame_faction.py`: `frame_for`, `_log_transponder_toggle`).
 - **Challenge hail** — militia-only physical spot of a dark hull
   inside `detect_radius` (eyes, not comms range): Identify/Attack,
-  no run; silence = refuse = fire; the answered ID's sheet decides;
-  one-shot per patrol via persisted `ctx.militia_scanned`
+  no run; silence = refuse = fire; the answered ID's sheet decides.
+  POSITIONAL since doc 41: answered only while the hull stays in
+  range, leaving re-arms the patrol (`dark:`-namespaced keys in
+  `ctx.militia_scanned` — the scan/warning paths keep one-shot-
+  per-visit). Doc 41 column scope: a picket spotter opens the
+  Line's Comply/Defy checkpoint instead
   (`navigation_combat._dark_spot_challenge`; `comms._handle_challenge`,
-  `_judge_identification`).
+  `_judge_identification`; `navigation_line.line_dark_hail`).
 - **Dark dock gate** — only `dark_berth=True` PlanetSpec opt-ins
   berth a dark hull (lal_b Deadfall, lal_c Whisper, ross_b Ember,
   wolf_b Wolf 359 b), checked before the system switch commits
@@ -140,12 +144,40 @@ nobody designs against a ghost.
   `world.try_step_with_slip`).
 - **Encounter detection** — every step re-scans three spawn readers
   (static/bounty/procedural), one shared gate: engage only when the
-  RESOLVED sheet reads disliked/enemy (`_gate_engages`); statics
-  gate uniformly since doc 40 phase 4 (the Luyten blockade stands
-  down to militia-liked hulls — user-ruled, no exceptions).
+  RESOLVED sheet reads disliked/enemy (`_gate_engages`), bypassed by
+  `_aggro_override` (charged-cell heat OR the Line's interdiction
+  flag — heat responses, not identity reads); statics gate uniformly
+  since doc 40 phase 4 (the Luyten blockade stands down to
+  militia-liked hulls — user-ruled, no exceptions).
 - **Charged-cell heat** — Act-0 heat in Sol: militia engage
   regardless of identity, detect radius floored at 30 — a heat
   response, not an identity read (`_charged_cell_aggro`).
+- **The Line (doc 41)** — the Luyten blockade as a checkpoint
+  system: a data-specified broadcast-sweep column
+  (`SensorColumn` on the system spec — x, squad, picket id,
+  rank_rep 80, message templates). MANNED sweep: crossing fires on
+  entering the column from either side (leaving free — no re-hail
+  on a complying retreat) and the column goes dark when its picket
+  squad is dead. One hail shape: comms modal addressed to the
+  broadcast ID ("Unidentified hull" dark) — manifest trait waves;
+  worn face at rank_rep waves ("sir"); service-run trait waves and
+  is consumed (one crossing per contract, symmetric); everything
+  else — allied included — is challenged (Comply turns back / Defy
+  raises the LINE-scoped interdiction flag; ESC = Defy). Waves
+  don't break GO TO. Identity-only reads, never cargo
+  (`navigation_line.py`: `check_crossing`, `resolve_sweep`,
+  `_run_checkpoint`; wired into `game_flow._run_combat_loop` +
+  `_goto_step_interrupt`). Marker traits `blockade_manifest` /
+  `blockade_service_run` in QUEST_PERKS — no grant path (the
+  methods own acquisition); dev Shift+L / Shift+K grant them.
+- **Defeated statics tombstone** — a killed static spawn
+  (`system.enemies` — the Line's pickets) is ledgered as
+  `sys:enemy_id:x:y` in `ctx.defeated_static_spawns` (key stamped
+  on the entity at build — combat moves hulls) and never re-stamps
+  at any map build; serialized
+  (`_space_kills.mark_static_spawn_defeated`;
+  `solar_system.static_spawn_key`; `make_solar_system`'s
+  `skip_static_spawns`).
 - **Bounty spawns** — placed at fixed offsets east of landmarks,
   leader-only carries `bounty_spawn_id`; defeated spawns tombstone
   (`defeated=True`) and never re-stamp (`navigation_spawns.py`:

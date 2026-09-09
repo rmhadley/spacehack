@@ -161,7 +161,9 @@ only reads markers.
       option-matrix row) and Identity & Transponder; a new Line
       section only if the checkpoint needs discoverable controls
 
-LANDED 2026-09-09, pending playtest. Reviewer round (REQUEST_CHANGES
+LANDED 2026-09-09 — **PLAYTEST PASSED** (user, same day; two fix
+rounds inside the phase: reviewer blockers + playtest-round-1/2
+bugs and rulings, all recorded below). Reviewer round (REQUEST_CHANGES
 → fixed): (1) the doc-39 warning-only comms are SUPERSEDED in column
 systems — ``_spec_distance_hail``'s militia_blockade branch returns
 None when the system owns a ``sensor_column``; the checkpoint is the
