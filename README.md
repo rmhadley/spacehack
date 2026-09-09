@@ -8,6 +8,10 @@
 ####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##
 ```
 
+<p align="center">
+  <img src="screenshots/title.png" width="66%" alt="Spacehack title screen">
+</p>
+
 **An ASCII-art inspired sci-fi roguelike.** 
 
 The year is 2200. Humankind has spread across many star systems, linked by jump gates. You are a freelance pilot making a living on the frontier: trading, bounty hunting, and surviving.
@@ -33,6 +37,15 @@ Death is permanent.
 - **Deep progression**: earn XP, spend skill points on ship or ground
   skills, and unlock traits as you level
 - **Permadeath**: one ship, one life.
+
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/space.png" width="49%" alt="Flying a frigate in open space, near an asteroid belt and a jump gate">
+  <img src="screenshots/space%20combat.png" width="49%" alt="Turn-based space combat against a Pirate Scout">
+  <img src="screenshots/solar%20system.png" width="49%" alt="Navigation map of the Sol system with jump-gate destinations">
+  <img src="screenshots/earth.png" width="49%" alt="On foot in Earth's spaceport district">
+</p>
 
 ## Get the game
 
