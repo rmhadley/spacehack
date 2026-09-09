@@ -188,8 +188,8 @@ only reads markers.
       min-maxed sub-30 fits (doc 39's last Phase 0 method item
       lands here)
 
-  Implementation brief (1) — DRAFTED (refine session, 2026-09-09;
-  pending approval):
+  Implementation brief (1) — APPROVED (drafted in the refine session
+  2026-09-09; user invoked ``/implement-phase 41``):
   - Scope: NEW ``src/spacehack/navigation_line.py`` — the Line
     domain: sweep, resolver, hail (the reusable checkpoint
     pattern's first instance). Data: the blockade spec in
@@ -278,3 +278,79 @@ only reads markers.
         by a militia patrol OUTSIDE the column (e.g. a Sol patrol)
         still opens the shipped doc-40 challenge — Identify /
         Attack, ESC = open fire.
+
+## Pre-implementation audit — phase 1 (2026-09-09)
+
+**Seams to extend (all verified in code during the audit):**
+
+- **Movement pass** — two state-bearing per-step passers:
+  ``game_flow._run_combat_loop`` (space steps + wait; callers
+  ``game_loop.py`` 415/443/700) and ``_goto_step_interrupt``
+  (``navigation_travel.py``). The sweep check wires into BOTH,
+  before ``_check_auto_comms_warning``, returning its payload
+  shape; a hailed step skips the comms-warning pass that step
+  (the hail replaces the warning-only log at the column).
+- **Crossing edge** — west = ``x < column.x`` (the column cell
+  belongs to the Line): eastbound fires entering 150 from 149,
+  westbound fires 150→149; exactly once per edge transit, both
+  directions. ``_prev_x`` lives in the new module; on ``None``
+  (first step of any session/entry) it stamps from the position
+  — no persisted state, no new ctx fields (brief ruling 4).
+- **Spawn gate** — ``navigation_combat._gate_engages`` keeps its
+  signature; the three ``_trigger_*`` passes swap
+  ``_charged_cell_aggro(...)`` for a combined ``_aggro_override``
+  (charged-cell heat OR Line interdiction). Charged-cell
+  precedent, no rep writes, no radius floor (phase-1 minimal).
+- **Dark spot** — ``navigation_combat._dark_spot_challenge``
+  grows the column branch: a picket spotter inside the column
+  opens the Line's checkpoint; any other militia spotter keeps
+  ``comms.open_challenge_direct`` untouched (regression item 10).
+- **Hail modal** — reuse ``comms._pygame_interaction_outcome``
+  with a Comply/Defy dispatch (challenge-shaped: two options, no
+  run). ESC/window-close = Defy — silence is defiance (doc-40
+  precedent: refusing the conversation is an answer too).
+  Private cross-imports comms↔navigation are established
+  (``comms`` already imports ``navigation._calc_flee_chance``).
+- **Reads** — ``identity.broadcast_mode`` /
+  ``resolved_identity`` / ``identity_label``; ``xp.has_trait``;
+  service-run consumption = ``ctx.player_traits.remove`` (a
+  list, already serialized — ``saveload.py`` 170/827).
+- **Data** — ``SensorColumn`` frozen dataclass in
+  ``data/solar_systems/__init__.py``;
+  ``SolarSystem.sensor_column: SensorColumn | None = None``
+  (every other system untouched). ``luyten_star.py`` stamps
+  x=150, squad ``luyt_blockade_picket``, picket id
+  ``militia_blockade``, hail lines, ``rank_rep=80``.
+- **Dev + resets** — ``dev_mode.apply_dev_line_kit`` called from
+  ``game_loop._configure_new_context`` (the New Game hook that
+  already applies the dev identity library); module-global
+  resets go there too. Leaving the system resets the
+  interdiction flag beside the existing ``militia_scanned.clear()``
+  in ``_jump_to_system``. Neither global is serialized — by
+  design: the tripwire self-stamps (brief ruling 4), and the
+  flag only matters mid-engagement while fights run to VICTORY.
+
+**Duplication hotspots + DRY strategy:**
+
+1. Crossing/encounter dispatch duplicated across two movement
+   passes → one ``check_crossing`` entry point; each caller adds
+   ~4 lines.
+2. Defy squad payload → read the system's own ``enemies`` table
+   (squad filter + ``_alive_entity_at`` from navigation_combat);
+   no new ``world.Entity(...)`` construction blocks (known trap).
+3. Checkpoint modal → the shared comms runner, never a bespoke
+   menu loop (pygame pattern guardrail).
+
+**Judgment calls pinned (all one-line data/log changes if the
+user dictates otherwise):**
+
+- ``rank_rep = 80``: "blockade rank+" carried no number in docs
+  39/41. 80 sits above liked, below the dev face's +100, inside
+  the clone tier-3 band (25–100) — a good clone can pass, a
+  mediocre one cannot.
+- Row 2 (rank wave) reads a WORN FALSE face only (``kind !=
+  "true"``): ruling 8 turns back live-allied unpapered hulls —
+  impersonation is a face, not your own standing.
+- Comply is answer-then-see: phase 1 has no re-check when a
+  complying hull keeps east. Flagged for phase 3 (runners are
+  the convergence's business).
