@@ -561,6 +561,7 @@ def _system_enemy_entities(
             width=1,
             height=1,
             npc_ship_id=_spawn.enemy_id,
+            static_spawn_key=static_spawn_key(system, _spawn),
         ))
     return entities
 

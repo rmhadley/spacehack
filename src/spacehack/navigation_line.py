@@ -167,7 +167,7 @@ def _checkpoint_address(ctx) -> str:
     return _id if _id else "Unidentified hull"
 
 
-def _line_modal(ctx, column, lines, options, dispatch):
+def _line_modal(ctx, column, lines, options, dispatch, esc_label):
     """One comms-shaped Line modal — the checkpoint's single
     presentation; returns the player's reply. The column's message
     templates carry an ``{id}`` placeholder for the address."""
@@ -175,37 +175,35 @@ def _line_modal(ctx, column, lines, options, dispatch):
     return comms._pygame_interaction_outcome(
         ctx, column.label, None, options,
         contact_entity=None, dispatch=dispatch, title="Hailing",
+        esc_label=esc_label,
         lines=tuple(
             line.format(id=_checkpoint_address(ctx)) for line in lines
         ),
     )
 
 
-def _current_column():
-    """The active system's sensor column, or None."""
-    system = solar_system_module.current_system()
-    return getattr(system, "sensor_column", None)
-
-
-def _wave_through(ctx, lines) -> tuple[bool, None]:
+def _wave_through(ctx, column, lines) -> tuple[bool, None]:
     """A waved crossing: the blockade's all-clear comms (one
     Acknowledge option; ESC counts), then a terse log line.
     ``(False, None)`` — the player is through; GO TO continues."""
-    _line_modal(ctx, _current_column(), lines, ("Acknowledge",), _ACK_DISPATCH)
+    _line_modal(
+        ctx, column, lines, ("Acknowledge",), _ACK_DISPATCH,
+        "ESC acknowledge",
+    )
     ctx.log.add("The blockade waves you through.")
     return (False, None)
 
 
 def _wave_papers(ctx, column, system):
-    return _wave_through(ctx, column.manifest_lines or column.hail_lines)
+    return _wave_through(ctx, column, column.manifest_lines or column.hail_lines)
 
 
 def _wave_rank(ctx, column, system):
-    return _wave_through(ctx, column.rank_lines or column.hail_lines)
+    return _wave_through(ctx, column, column.rank_lines or column.hail_lines)
 
 
 def _wave_service(ctx, column, system):
-    _wave_through(ctx, column.service_lines or column.hail_lines)
+    _wave_through(ctx, column, column.service_lines or column.hail_lines)
     if has_trait(ctx, SERVICE_TRAIT):
         ctx.player_traits.remove(SERVICE_TRAIT)
     ctx.log.add("The service-run contract is spent.")
@@ -222,7 +220,7 @@ def _run_checkpoint(ctx, column, system):
     (doc-40 precedent)."""
     outcome = _line_modal(
         ctx, column, column.hail_lines, ("Comply", "Defy"),
-        _CHECKPOINT_DISPATCH,
+        _CHECKPOINT_DISPATCH, "ESC defy",
     )
     if outcome is _Checkpoint.COMPLY:
         ctx.log.add_colored(
@@ -243,21 +241,32 @@ def _run_checkpoint(ctx, column, system):
 
 
 def _picket_payload(ctx, column, system):
-    """(specs, positions) for every alive picket on the Line."""
+    """(specs, positions) for every alive picket on the Line.
+
+    Identity is the stamped ``static_spawn_key``, not position —
+    combat moves hulls, and a lured-but-alive picket fights from
+    where it actually is."""
     from .data.npc_ships import find_npc_ship
-    from .navigation_combat import _alive_entity_at
+    from .solar_system import static_spawn_key
+    _live: dict = {
+        getattr(_e, "static_spawn_key", ""): _e.pos
+        for _e in ctx.game_map.entities
+        if not getattr(_e, "owned", False)
+        and getattr(_e, "static_spawn_key", "")
+    }
     specs: list = []
     positions: list = []
     for _spawn in getattr(system, "enemies", ()) or ():
         if _spawn.squad_id != column.squad_id:
             continue
-        if not _alive_entity_at(ctx, _spawn.pos):
+        _key = static_spawn_key(system, _spawn)
+        if _key not in _live:
             continue
         try:
             specs.append(find_npc_ship(_spawn.enemy_id))
         except KeyError:
             continue
-        positions.append(_spawn.pos)
+        positions.append(_live[_key])
     return (specs, positions)
 
 

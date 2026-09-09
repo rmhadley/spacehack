@@ -74,7 +74,7 @@ def _modals(monkeypatch, reply):
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
         lambda _c, _n, _s, _o, contact_entity=None, dispatch=None,
-        title=None, lines=None: opened.append(lines) or reply,
+        title=None, lines=None, esc_label=None: opened.append(lines) or reply,
     )
     return opened
 
@@ -84,10 +84,13 @@ def _log_text(ctx) -> str:
 
 
 def _picket_entities(system):
-    """Alive picket entities stamped at the system's spawn positions."""
+    """Alive picket entities stamped at the system's spawn positions
+    (with their tombstone keys — the stamp happens at map build)."""
+    from src.spacehack.solar_system import static_spawn_key
     return [
         world.Entity("M", (100, 200, 255), _spawn.pos,
-                     npc_ship_id=_spawn.enemy_id)
+                     npc_ship_id=_spawn.enemy_id,
+                     static_spawn_key=static_spawn_key(system, _spawn))
         for _spawn in system.enemies
     ]
 
@@ -399,13 +402,27 @@ def test_defy_converges_the_picket_squad_and_raises_interdiction(line_system, mo
 
 def test_defy_payload_skips_dead_pickets(line_system, monkeypatch):
     _defy(monkeypatch)
-    entities = _picket_entities(LUYTEN)
-    entities[0].pos = world.Position(1, 1)  # a dead picket leaves its post
+    entities = _picket_entities(LUYTEN)[1:]  # the north picket is destroyed
     ctx = quest_ctx(game_map=SimpleNamespace(entities=entities))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     _hailed, payload = navigation_line.check_crossing(ctx, world.Position(150, 70))
     assert len(payload[0]) == 3
+
+
+def test_lured_alive_picket_fights_from_its_live_position(line_system, monkeypatch):
+    """Identity is the stamped spawn key, not position: a lured-but-
+    alive picket is IN the payload at its live position (position
+    matching would have called it dead and skipped the fight)."""
+    _defy(monkeypatch)
+    entities = _picket_entities(LUYTEN)
+    entities[0].pos = world.Position(140, 60)  # lured off its post
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=entities))
+
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    _hailed, payload = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert len(payload[0]) == 4
+    assert (140, 60) in [(_p.x, _p.y) for _p in payload[1]]
 
 
 def test_defy_with_the_squad_dead_sets_the_flag_without_a_fight(line_system, monkeypatch):
@@ -431,13 +448,15 @@ def test_defy_with_the_squad_dead_sets_the_flag_without_a_fight(line_system, mon
 def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
     """Playtest bug (2026-09-09): beating the blockade then reloading
     resurrected it. A static kill records a tombstone; the next map
-    build skips it."""
+    build skips it. The spawn key rides the entity — combat moves
+    the hull (AI advance), the key does not."""
     from src.spacehack import solar_system as ss_module
     from src.spacehack.combat._space_kills import mark_static_spawn_defeated
 
     ctx = quest_ctx(defeated_static_spawns=set())
-    dead = world.Entity("B", (130, 230, 220), world.Position(150, 25),
-                        npc_ship_id="militia_blockade")
+    dead = world.Entity("B", (130, 230, 220), world.Position(148, 40),
+                        npc_ship_id="militia_blockade",
+                        static_spawn_key="luyten_star:militia_blockade:150:25")
 
     mark_static_spawn_defeated(ctx, dead)
     assert ctx.defeated_static_spawns == {
@@ -452,6 +471,7 @@ def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
         if getattr(_e, "npc_ship_id", "") == "militia_blockade"
     ]
     assert len(_stamped) == 3, "the dead picket does not re-stamp"
+    assert all(_e.static_spawn_key for _e in _stamped), "builds stamp keys"
 
     untouched = ss_module.make_solar_system(system=LUYTEN)
     assert sum(
@@ -467,12 +487,34 @@ def test_non_static_kills_record_nothing(line_system):
     ctx = quest_ctx(defeated_static_spawns=set())
     pirate = world.Entity("p", (255, 80, 80), world.Position(60, 60),
                           npc_ship_id="pirate_scout")
-    procedural = world.Entity("p", (255, 80, 80), world.Position(150, 25),
-                              npc_ship_id="pirate_scout")
+    unlabeled = world.Entity("B", (130, 230, 220), world.Position(150, 25),
+                             npc_ship_id="militia_blockade")  # no key stamped
 
     mark_static_spawn_defeated(ctx, pirate)
-    mark_static_spawn_defeated(ctx, procedural)
+    mark_static_spawn_defeated(ctx, unlabeled)
     assert ctx.defeated_static_spawns == set()
+
+
+def test_load_path_threads_the_ledger_into_the_build():
+    """The load chain must honor the tombstones, not just restore the
+    ctx field: _build_space_map skips defeated statics."""
+    from src.spacehack.saveload_maps import _build_space_map
+
+    _log = SimpleNamespace(add=lambda _m: None)
+    _common = ("luyten_star", _log, None, {}, {}, {}, 10, 10)
+
+    built = _build_space_map(*_common, ["luyten_star:militia_blockade:150:25"])
+    _map, _player = built
+    assert sum(
+        1 for _e in _map.entities
+        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
+    ) == 3
+
+    built_full = _build_space_map(*_common, [])
+    assert sum(
+        1 for _e in built_full[0].entities
+        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
+    ) == 4
 
 
 def test_interdiction_gate_bypasses_stance_for_militia_only(monkeypatch):
@@ -602,6 +644,32 @@ def test_run_combat_loop_hail_owns_the_step(line_system, monkeypatch):
     assert len(handled) == 1 and warnings == [], "hailed step skips comms"
 
 
+def test_run_combat_loop_wave_falls_through(line_system, monkeypatch):
+    """A waved step continues normally — both movement-pass consumers
+    treat a wave as 'the hull is through' (reviewer round 2)."""
+    from src.spacehack import game_flow
+
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.ACK)
+    warnings: list = []
+    monkeypatch.setattr(
+        game_flow, "_check_auto_comms_warning",
+        lambda *_a: warnings.append(1),
+    )
+    monkeypatch.setattr(game_flow, "_detect_combat_encounter", lambda *_a: None)
+    ctx = quest_ctx(player_traits=["blockade_manifest"],
+                    ship_registration="SC-4471",
+                    game_map=SimpleNamespace(entities=[]),
+                    militia_scanned=set())
+    player = SimpleNamespace(pos=world.Position(149, 70))
+    navigation_line.check_crossing(ctx, player.pos)
+    player.pos = world.Position(150, 70)
+
+    outcome = game_flow._run_combat_loop(ctx, object(), player)
+
+    assert outcome is None
+    assert len(opened) == 1 and warnings, "the wave step keeps the normal pass"
+
+
 # ---------------------------------------------------------------------------
 # The dark path: column-scoped amendment of the doc-40 challenge
 # ---------------------------------------------------------------------------
@@ -673,10 +741,13 @@ def test_luyten_column_matches_its_picket_line():
     assert column is not None
     assert column.rank_rep > 0 and column.hail_lines
     assert column.manifest_lines and column.rank_lines and column.service_lines
-    assert all("{id}" in line for line in (
+    # Every template carries the {id} placeholder AND formats cleanly —
+    # a stray brace in future data would raise at crossing time.
+    _templates = (
         *column.hail_lines, *column.manifest_lines,
         *column.rank_lines, *column.service_lines,
-    ))
+    )
+    assert all(line.format(id="X") for line in _templates)
     for _spawn in LUYTEN.enemies:
         assert _spawn.pos.x == column.x
         assert _spawn.squad_id == column.squad_id

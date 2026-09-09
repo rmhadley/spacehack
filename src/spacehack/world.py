@@ -343,6 +343,7 @@ class Entity:
     city_blocked_ticks: int = 0  # consecutive blocked steps; >= 4 drops the destination
     city_pause_ticks: int = 0  # ticks to wait after arriving at a destination
     blocked_message: str = "You bump into {name}."
+    static_spawn_key: str = ""  # tombstone id for static system spawns (doc 41) — combat moves the hull, the key does not
 
 
 # Anchor where the player's bought ship is parked outside the

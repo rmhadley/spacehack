@@ -108,23 +108,16 @@ def remove_procedural_squad(ctx, dead_ent: Any) -> None:
 def mark_static_spawn_defeated(ctx, dead_ent: Any) -> None:
     """Tombstone a killed STATIC spawn (system.enemies) so the next
     map build doesn't re-stamp it (doc 41: a defeated picket stays
-    dead across save/load and re-entry). Non-static kills match no
-    spawn row and record nothing; fakes without the ledger skip."""
+    dead across save/load and re-entry). The spawn key rides the
+    entity — combat moves the hull, the key does not. Non-static
+    kills carry no key and record nothing; fakes without the
+    ledger skip."""
     _ledger = getattr(ctx, 'defeated_static_spawns', None)
     if _ledger is None or dead_ent is None:
         return
-    _nid = getattr(dead_ent, 'npc_ship_id', '')
-    if not _nid:
-        return
-    from .. import solar_system as _ss
-    _system = _ss.current_system()
-    for _spawn in getattr(_system, 'enemies', ()) or ():
-        if (_spawn.enemy_id == _nid
-                and _spawn.pos.x == dead_ent.pos.x
-                and _spawn.pos.y == dead_ent.pos.y):
-            from ..solar_system import static_spawn_key as _key
-            _ledger.add(_key(_system, _spawn))
-            return
+    _key = getattr(dead_ent, 'static_spawn_key', '')
+    if _key:
+        _ledger.add(_key)
 
 
 def _record_defeat(cr, ctx, dead_ent: Any) -> None:

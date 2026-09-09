@@ -34,9 +34,10 @@ from .saveload import save_game as _save_game
 def _run_line_crossing(ctx, console, player):
     """The Line's sweep (doc 41): resolve one crossing.
 
-    Returns ``(True, outcome)`` when the checkpoint hail opened —
+    Returns ``(True, outcome)`` when the challenge hail opened —
     the hail owns the step (the comms-warning pass is skipped) —
-    else ``(False, None)``.
+    ``(False, None)`` for a wave (the hull is through; the step
+    continues normally), or ``(False, None)`` when nothing happened.
     """
     from . import navigation_line as _line_mod
     _line = _line_mod.check_crossing(ctx, player.pos)
@@ -44,8 +45,8 @@ def _run_line_crossing(ctx, console, player):
         return False, None
     _hailed, _payload = _line
     if _payload is None:
-        return True, None
-    return True, combat._handle_combat_encounter(ctx, console, _payload)
+        return _hailed, None
+    return _hailed, combat._handle_combat_encounter(ctx, console, _payload)
 
 
 def _auto_warning_outcome(ctx, console, player):
