@@ -901,3 +901,88 @@ def test_engage_while_standing_on_stairs_explores_instead_of_stopping():
     assert not any("standing at" in m for m in messages), (
         "the underfoot stair must not stop or announce"
     )
+
+
+# ---------------------------------------------------------------------------
+# Never-fight seals (playtest 2026-09-09: neutral standing crew at a
+# pocket mouth ping-ponged auto-explore — blocking while inside the
+# visible frame, passable outside it, forever)
+# ---------------------------------------------------------------------------
+
+
+def _neutral_guards(game_map, x):
+    """A column of consortium enforcers at ``x`` (rows 1-3); returns
+    the never-fight seal set for them under a pirate-neutral sheet."""
+    _guards = [
+        world.Entity(char="n", fg=(220, 150, 80),
+                     pos=world.Position(x, y),
+                     npc_char_id="consortium_enforcer")
+        for y in (1, 2, 3)
+    ]
+    game_map.entities.extend(_guards)
+    return frozenset(id(g) for g in _guards)
+
+
+def test_neutral_standing_crew_seal_permanently():
+    """The user's pocket repro: guards seal in EVERY frame — the run
+    terminates with the blocker named instead of oscillating."""
+    gm = _dungeon(width=23, height=5)
+    player = _player(19, 2)
+    # Everything seen except the pocket floor (x=1) and the wall
+    # column behind it (x=0); no visible frame anywhere (the guards
+    # are outside it — the oscillation's other half).
+    for y in range(5):
+        for x in range(2, 23):
+            gm.seen[y][x] = True
+    seals = _neutral_guards(gm, 2)
+
+    # Without the seals the BFS walks straight through the invisible
+    # guards toward the unseen pocket — the leftward half of the loop.
+    assert next_explore_step(gm, player.pos) == (-1, 0)
+    # Sealed, they block in every frame: nothing reachable is unseen.
+    assert next_explore_step(gm, player.pos, seals) is None
+    _blocker = blocking_way_entity(gm, player.pos, seals)
+    assert _blocker is not None and _blocker.pos.x == 2
+
+
+def test_never_fight_seals_reads_the_sheet():
+    """Seal membership follows the broadcasting sheet: neutral bodies
+    seal; hostile bodies and always-hostile vermin never do (the
+    dark-camper reveal-then-fight contract is theirs)."""
+    from src.spacehack.autoexplore import never_fight_seals
+
+    def _ctx(pirate_rep):
+        return SimpleNamespace(
+            faction_reputation={"pirate": pirate_rep},
+            broadcast_dark=False, broadcast_identity=None,
+            collected_ids=[],
+        )
+
+    gm = _dungeon(width=8, height=5)
+    _guard = world.Entity(char="n", fg=(220, 150, 80),
+                          pos=world.Position(2, 2),
+                          npc_char_id="consortium_enforcer")
+    _parasite = world.Entity(char="m", fg=(175, 140, 190),
+                             pos=world.Position(4, 2),
+                             npc_char_id="hull_parasite")
+    gm.entities.extend([_guard, _parasite, _player(6, 2)])
+
+    assert never_fight_seals(_ctx(0), gm) == {id(_guard)}
+    assert never_fight_seals(_ctx(-100), gm) == frozenset(), (
+        "a hostile sheet keeps the guards out of the seal set — "
+        "walking toward them must still reveal and start the fight"
+    )
+
+
+def test_neutral_standing_crew_seal_goto():
+    """The goto twin of the pocket repro: a neutral body on the route
+    terminates with 'no path' instead of oscillating — hostile bodies
+    keep the walk-through-and-reveal contract."""
+    gm = _dungeon(width=23, height=5)
+    player = _player(19, 2)
+    seals = _neutral_guards(gm, 2)
+
+    # Target the pocket floor behind the guards: unsealed, the BFS
+    # paths through the invisible bodies toward it; sealed, no path.
+    assert next_goto_step(gm, player.pos, 1, 2) == (-1, 0)
+    assert next_goto_step(gm, player.pos, 1, 2, seals) is None

@@ -26,7 +26,12 @@ passable, so a monster camping a doorway in the dark is revealed by
 walking toward it (the shared tick then starts LOS-based ground
 combat). Only visible solid entities block — and if one sits in the
 only exit, the run stops with ``A <name> blocks the only way
-forward.``
+forward.`` Bodies that can never trigger that reveal-then-fight
+resolution seal PERMANENTLY instead: powered-down security, and
+standing bodies whose spec is not hostile to the broadcasting sheet
+(:func:`never_fight_seals` — neutral crew stand down and never
+engage; frame-dependent blocking would oscillate the planner
+forever).
 
 The decision helpers (``interesting_at``, ``newly_interesting_positions``,
 ``next_explore_step``) are pure and testable without Pygame; the thin
@@ -267,20 +272,26 @@ def _adjacent(pos, tx: int, ty: int) -> bool:
     return max(abs(pos.x - tx), abs(pos.y - ty)) <= 1
 
 
-def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
+def _visible_blocker(
+    game_map, x: int, y: int, *, exclude=None,
+    never_fights=frozenset(),
+):
     """Blocking entity at ``(x, y)`` the player can currently see, else
     ``None``.
 
     The player only knows about entities rendered in the current LOS
-    frame. An enemy standing in a dark corridor cannot seal the route:
-    auto-explore walks toward it and combat starts the moment it comes
-    into view (ground combat is LOS-based). ``exclude`` skips one
-    entity (used when re-flooding from a blocker's own cell).
+    frame — an enemy in a dark corridor cannot seal the route, so
+    auto-explore walks toward it and combat starts when it comes into
+    view. ``exclude`` skips one entity (used when re-flooding from a
+    blocker's own cell).
 
-    Note the asymmetry with the main BFS: a missing ``seen`` grid
-    aborts planning entirely, while a missing ``visible`` grid falls
-    back to *passable* here — ``run_auto_explore`` guards both grids,
-    so this only ever fires in synthetic states.
+    Two classes seal PERMANENTLY, even outside the frame — bodies the
+    reveal-then-fight contract can never resolve, where frame-dependent
+    blocking just oscillates the planner: powered-down security, and
+    every entity in ``never_fights`` (:func:`never_fight_seals`).
+
+    A missing ``visible`` grid falls back to *passable* — ``run_auto_
+    explore`` guards the grid, so this only fires in synthetic states.
     """
     _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
     if _ent is None:
@@ -290,6 +301,8 @@ def _visible_blocker(game_map, x: int, y: int, *, exclude=None):
         # reveal-then-fight flow, so "walk toward it to reveal it"
         # oscillates forever. It seals routes permanently — placement
         # invariants guarantee it strands nothing (doc 30).
+        return _ent
+    if id(_ent) in never_fights:
         return _ent
     _visible = game_map.visible
     if _visible is not None and _visible[y][x]:
@@ -308,7 +321,7 @@ def _bfs_goal_step(prev, start, current, target):
 
 def _visit_bfs_neighbors(
     game_map, current, start, target, seen, prev, visited, queue, blockers,
-    blocker_ids,
+    blocker_ids, never_fights=frozenset(),
 ):
     """Visit one BFS cell and return a step when it reaches a goal."""
     _cx, _cy = current
@@ -323,7 +336,9 @@ def _visit_bfs_neighbors(
                     prev, start[0], start[1], current[0], current[1],
                 )
             continue
-        _ent = _visible_blocker(game_map, _nx, _ny)
+        _ent = _visible_blocker(
+            game_map, _nx, _ny, never_fights=never_fights,
+        )
         if _ent is not None:
             if target is None and id(_ent) not in blocker_ids:
                 blocker_ids.add(id(_ent))
@@ -337,7 +352,7 @@ def _visit_bfs_neighbors(
     return None
 
 
-def _bfs_step(game_map, start, target):
+def _bfs_step(game_map, start, target, never_fights=frozenset()):
     """Run the shared explore/goto BFS and return its step plus blockers."""
     _seen = game_map.seen
     _prev = {}
@@ -352,24 +367,24 @@ def _bfs_step(game_map, start, target):
             return _goal, _blockers
         _step = _visit_bfs_neighbors(
             game_map, _current, start, target, _seen, _prev, _visited,
-            _queue, _blockers, _blocker_ids,
+            _queue, _blockers, _blocker_ids, never_fights,
         )
         if _step is not None:
             return _step, _blockers
     return None, _blockers
 
 
-def _plan_step(game_map, player_pos, *, target=None):
+def _plan_step(game_map, player_pos, *, target=None, never_fights=frozenset()):
     """Return the first shared-BFS step and visible blockers."""
     if game_map.seen is None:
         return None, ()
     _start = (player_pos.x, player_pos.y)
     if not game_map.in_bounds(*_start):
         return None, ()
-    return _bfs_step(game_map, _start, target)
+    return _bfs_step(game_map, _start, target, never_fights)
 
 
-def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
+def next_explore_step(game_map, player_pos, never_fights=frozenset()):
     """First step toward the nearest unrevealed cell, or ``None``.
 
     BFS over passable cells (walkable, unblocked by solid entities
@@ -381,16 +396,20 @@ def next_explore_step(game_map, player_pos) -> tuple[int, int] | None:
     to, otherwise the run reports 'everything explored' while the map
     is still dark. Transition tiles (stairs/exit) are never stepped
     on, but an unseen one is walked toward so it can be spotted.
+    ``never_fights`` carries ``id()``s of standing bodies that can
+    never trigger the reveal-then-fight stop; they seal permanently
+    (:func:`never_fight_seals`).
     Returns ``(dx, dy)`` relative to ``player_pos``.
 
     ``None`` means every reachable cell, and every cell adjacent to
     the explored region, has been revealed.
     """
-    _step, _ = _plan_step(game_map, player_pos)
+    _step, _ = _plan_step(game_map, player_pos, never_fights=never_fights)
     return _step
 
 
-def next_goto_step(game_map, player_pos, tx: int, ty: int) -> tuple[int, int] | None:
+def next_goto_step(game_map, player_pos, tx: int, ty: int,
+                   never_fights=frozenset()):
     """First step toward a cell adjacent to ``(tx, ty)``, or ``None``.
 
     Goto mode of the shared BFS: same passability as auto-explore
@@ -401,11 +420,14 @@ def next_goto_step(game_map, player_pos, tx: int, ty: int) -> tuple[int, int] | 
     """
     if _adjacent(player_pos, tx, ty):
         return None
-    _step, _ = _plan_step(game_map, player_pos, target=(tx, ty))
+    _step, _ = _plan_step(
+        game_map, player_pos, target=(tx, ty), never_fights=never_fights,
+    )
     return _step
 
 
-def _flood_opens_unseen(game_map, x: int, y: int, *, exclude) -> bool:
+def _flood_opens_unseen(game_map, x: int, y: int, *, exclude,
+                        never_fights=frozenset()) -> bool:
     """True if flooding from ``(x, y)`` (treating ``exclude`` as
     passable) reaches at least one unseen cell.
 
@@ -428,7 +450,10 @@ def _flood_opens_unseen(game_map, x: int, y: int, *, exclude) -> bool:
             _tile = game_map.tiles[_ny][_nx]
             if not _tile.walkable or _tile.kind in _TRANSITION_KINDS:
                 continue
-            if _visible_blocker(game_map, _nx, _ny, exclude=exclude):
+            if _visible_blocker(
+                game_map, _nx, _ny, exclude=exclude,
+                never_fights=never_fights,
+            ):
                 continue
             _visited.add((_nx, _ny))
             if not _seen[_ny][_nx]:
@@ -437,18 +462,51 @@ def _flood_opens_unseen(game_map, x: int, y: int, *, exclude) -> bool:
     return False
 
 
-def blocking_way_entity(game_map, player_pos):
-    """Visible blocking entity sealing the only route to unseen
-    territory, or ``None``.
+def never_fight_seals(ctx, game_map) -> frozenset[int]:
+    """``id()`` of every standing body that can never trigger the
+    reveal-then-fight stop — NPC-char entities whose spec is NOT
+    hostile to the broadcasting sheet (doc 40 phase 4's uniform
+    ground read: neutral crew stand down and never engage).
+
+    Those bodies seal routes permanently, exactly like powered-down
+    security: "walk toward it to reveal it" has no payoff when
+    nothing ever fights, and frame-dependent blocking oscillates the
+    planner forever (playtest 2026-09-09 — the capture deck's neutral
+    honor guard ping-ponged auto-explore across their pocket).
+    Hostile bodies stay OUT of the set: the dark-camper contract
+    (walk toward, reveal, combat starts) is unchanged for them.
+    """
+    from .data.npc_chars import find_npc_char
+    from .faction import spec_is_hostile
+    _seals: set[int] = set()
+    for _ent in game_map.entities:
+        _cid = getattr(_ent, "npc_char_id", "")
+        if not _cid:
+            continue
+        try:
+            _spec = find_npc_char(_cid)
+        except KeyError:
+            continue
+        if not spec_is_hostile(ctx, _spec):
+            _seals.add(id(_ent))
+    return frozenset(_seals)
+
+
+def blocking_way_entity(game_map, player_pos, never_fights=frozenset()):
+    """Blocking entity sealing the only route to unseen territory, or
+    ``None``.
 
     Called when ``next_explore_step`` returns ``None``: a visible
     entity may still be standing in the region's only exit (e.g. a
-    monster camped in a doorway the player can see). Returns the
-    nearest such entity whose own cell, if passable, floods to at
-    least one unseen cell — a wall-sealed room with an incidental
-    terminal inside does not qualify.
+    monster camped in a doorway the player can see — or a neutral
+    guard standing in one, which seals regardless of the frame).
+    Returns the nearest such entity whose own cell, if passable,
+    floods to at least one unseen cell — a wall-sealed room with an
+    incidental terminal inside does not qualify.
     """
-    _step, _blockers = _plan_step(game_map, player_pos)
+    _step, _blockers = _plan_step(
+        game_map, player_pos, never_fights=never_fights,
+    )
     if _step is not None:
         return None
     for _ent in _blockers:
@@ -457,7 +515,9 @@ def blocking_way_entity(game_map, player_pos):
             continue
         if not game_map.tiles[_by][_bx].walkable:
             continue  # embedded in a wall — not a passage
-        if _flood_opens_unseen(game_map, _bx, _by, exclude=_ent):
+        if _flood_opens_unseen(
+            game_map, _bx, _by, exclude=_ent, never_fights=never_fights,
+        ):
             return _ent
     return None
 
@@ -568,7 +628,9 @@ def _stop_if_fresh(ctx, game_map, known) -> str | None:
 
 def _explore_finish(ctx, game_map, player):
     """Return a terminal result when exploration has no next step."""
-    _blocker = blocking_way_entity(game_map, player.pos)
+    _blocker = blocking_way_entity(
+        game_map, player.pos, never_fights=never_fight_seals(ctx, game_map),
+    )
     if _blocker is not None:
         _label = _blocker_label(_blocker)
         ctx.log.add(
@@ -588,7 +650,10 @@ def _run_explore_loop(
     while True:
         if _stop_if_fresh(ctx, game_map, known) is not None:
             return "DONE"
-        _step = next_explore_step(game_map, player.pos)
+        # Recomputed each step: bodies die in fights mid-run, and the
+        # sheet can change (a mask flipped) — the seal set is live.
+        _seals = never_fight_seals(ctx, game_map)
+        _step = next_explore_step(game_map, player.pos, _seals)
         if _step is None:
             return _explore_finish(ctx, game_map, player)
         _ctrl = _step_present_poll_move(
@@ -647,7 +712,10 @@ def _run_goto_loop(
             return "DONE"
         if _stop_if_fresh(ctx, game_map, known) is not None:
             return "DONE"
-        _step = next_goto_step(game_map, player.pos, target.x, target.y)
+        _step = next_goto_step(
+            game_map, player.pos, target.x, target.y,
+            never_fight_seals(ctx, game_map),
+        )
         if _step is None:
             ctx.log.add(f"Cannot reach {target.label}.")
             return "DONE"

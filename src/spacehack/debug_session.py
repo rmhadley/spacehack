@@ -424,7 +424,10 @@ def _action_explore(session: HeadlessSaveSession, token: str, argument: str) -> 
     count = 1 if not argument else _positive_int(argument, "explore count")
     steps = 0
     for _ in range(count):
-        delta = autoexplore.next_explore_step(session.ctx.game_map, session.ctx.player.pos)
+        delta = autoexplore.next_explore_step(
+            session.ctx.game_map, session.ctx.player.pos,
+            autoexplore.never_fight_seals(session.ctx, session.ctx.game_map),
+        )
         if delta is None:
             break
         combat_pending = _apply_dungeon_step(session, delta)
@@ -438,7 +441,10 @@ def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dic
     """Dispatch one existing auto-goto step."""
     _require_dungeon(session)
     target = _parse_coordinate(argument)
-    delta = autoexplore.next_goto_step(session.ctx.game_map, session.ctx.player.pos, *target)
+    delta = autoexplore.next_goto_step(
+        session.ctx.game_map, session.ctx.player.pos, *target,
+        autoexplore.never_fight_seals(session.ctx, session.ctx.game_map),
+    )
     if delta is None:
         return {"action": token, "result": "unreachable", "target": list(target)}
     combat_pending = _apply_dungeon_step(session, delta)
