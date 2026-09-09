@@ -191,6 +191,50 @@ the service consume (item 5) must be demoed BEFORE the manifest is
 granted (item 4) — the manifest outranks them and, having no
 consumption path, would mask both.
 
+### Playtest round 1 (2026-09-09) — mechanics PASS, presentation +
+one save/load bug fixed
+
+Items 1–5, 7, 8 exercised (6/9/10 unremarked); the only bug: **a
+defeated blockade resurrected on load** — statics re-stamped from
+``system.enemies`` on every map build. Fix: a persisted tombstone
+ledger ``ctx.defeated_static_spawns`` (keys ``sys:enemy_id:x:y`` —
+statics never move) — written in the kill chain
+(``_space_kills.mark_static_spawn_defeated``, beside the quest-guard
+tombstone), honored at every map build (``make_solar_system``'s
+``skip_static_spawns``, threaded from jump/launch/load), serialized
+both ways. Consequence: after the squad dies, crossings still
+challenge (the Line is the system, not just its ships) and Defy
+raises the flag with NO combat payload — the flag's patrols carry
+it until phase 3's convergence.
+
+Presentation rulings (user wording VERBATIM; "targetting"→
+"targeting" and "You're ID"→"Your ID" fixed as typos):
+
+1. **Naming ban**: "the Line" is an INTERNAL concept — never
+   player-facing. Player-facing copy says "the blockade" /
+   "forbidden space"; the column's comms label is "Militia
+   Blockade". Binds all phase 2/3 copy and SYSTEMS.md wording.
+2. **Every sweep resolution is a comms modal addressed to the
+   hull's broadcast ID** ("Unidentified hull" when dark); all
+   message templates are column data with an ``{id}`` placeholder:
+   - challenge (Comply/Defy): "{id}, this is forbidden space.
+     You're not on our list, turn back now or else."
+   - manifest wave: "{id}, this is forbidden space. Your ID checks
+     out, continue through."
+   - rank wave: "{id}, this is forbidden space. Oh, sorry. Didn't
+     recognize your ID, sir. Continue through."
+   - service wave: "{id}, this is forbidden space. Your ID checks
+     out, this time. Continue through." — Acknowledge (or ESC)
+     consumes the contract.
+3. Waves open ONE option (Acknowledge; ESC counts) and return
+   ``(False, None)`` — GO TO CONTINUES through a wave (the hull is
+   through); only the challenge breaks auto-nav. Post-modal logs
+   stay terse: "The blockade waves you through." (+ "The
+   service-run contract is spent.").
+4. Convergence line: "The blockade's targeting lasers focus on
+   you!" (was "The Line converges on you!"). Comply: "You turn
+   back from the blockade."
+
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
       windows, roster per shift (data-first)
