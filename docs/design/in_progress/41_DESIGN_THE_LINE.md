@@ -179,7 +179,11 @@ Comply freezes NPCs one step; a Defy-VICTORY does not chain further
 detection until the next step). (4) The crossing tracker fully
 resets on every jump (``reset_session`` beside the system swap) so a
 stale side can never read as a crossing — future column systems and
-the hidden-gate materialization covered.
+the hidden-gate materialization covered. (5) Dev-hook deviation from
+the brief's text: the marker traits are NOT auto-granted at new game
+— the checklist's first three items need an unpapered crossing —
+they arrive via a SPACEHACK_DEV Shift+L shortcut, timed to checklist
+items 4/5/7 (the rank-eligible militia face still files at new game).
 
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
