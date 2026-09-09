@@ -8,6 +8,9 @@ from . import world
 
 
 DUNGEON_SIGHT_RADIUS: int = 8
+# The powered state's sensor range: derelicts earn it at the power
+# console; a live capture interior starts here (the power is on).
+POWERED_SIGHT_RADIUS: int = 20
 
 
 def init_fog(game_map: world.GameMap) -> None:

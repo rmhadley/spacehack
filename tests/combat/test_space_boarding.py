@@ -187,6 +187,12 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
     assert _interior.capture_spec_id == "pirate_scout"
     assert _entered == {"spec": "pirate_scout", "dm": _interior, "reboard": False}
+    # A live ship is powered from entry — lit rooms, full sensor
+    # range; the derelict's dark-until-console arc is dead-hull
+    # fiction (playtest 2026-09-09).
+    from src.spacehack.dungeon_fov import POWERED_SIGHT_RADIUS
+    assert _interior.sight_radius == POWERED_SIGHT_RADIUS
+    assert _interior.power_restored is True
 
 
 def test_input_b_maps_to_board_not_the_vim_diagonal():

@@ -513,10 +513,7 @@ def _resolve_computer_terminal(state, blocker):
         if getattr(state.game_map, 'power_restored', False):
             log.add("The ship's power grid is already online.")
         else:
-            state.game_map.sight_radius = 20
-            state.game_map.power_restored = True
-            from .dungeon import reveal_around as _r2
-            _r2(state.game_map, state.player.pos, radius=20)
+            _power_interior(state.game_map, state.player.pos)
             log.add_colored('Emergency power restored. Interior sensors online.', message_log.COLOR_IMPORTANT_EVENT)
     return 'CONTINUE'
 
@@ -558,6 +555,19 @@ def _boarding_shim(ctx, console):
     )
 
 
+def _power_interior(game_map, at):
+    """Power a ship interior on: lit rooms and full sensor range.
+
+    The derelict's console earns this (dead hull, emergency restore);
+    a live capture interior starts here — its power was never off,
+    and its C console is the clone console, never a power console."""
+    from .dungeon import reveal_around as _reveal_around
+    from .dungeon_fov import POWERED_SIGHT_RADIUS
+    game_map.sight_radius = POWERED_SIGHT_RADIUS
+    game_map.power_restored = True
+    _reveal_around(game_map, at, radius=POWERED_SIGHT_RADIUS)
+
+
 def begin_capture_boarding(ctx, console, cr):
     """Consume the boarded hull and enter its crewed interior (6a).
 
@@ -592,6 +602,7 @@ def begin_capture_boarding(ctx, console, cr):
     _enter_boarding_dungeon(
         _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
     )
+    _power_interior(_dungeon_map, _spawn)
     return True
 
 
