@@ -138,6 +138,24 @@ def _identity_fields(ctx: GameContext) -> dict:
     }
 
 
+def _progression_fields(ctx: GameContext) -> dict:
+    """Serialize XP, skills, traits, counters, and the world clock."""
+    return {
+        "player_xp": ctx.player_xp,
+        "player_level": ctx.player_level,
+        "player_skill_points": ctx.player_skill_points,
+        "player_gunnery_bonus": ctx.player_gunnery_bonus,
+        "player_piloting_bonus": ctx.player_piloting_bonus,
+        "player_engineering_bonus": ctx.player_engineering_bonus,
+        "player_traits": list(ctx.player_traits),
+        "player_counters": _d(ctx.player_counters),
+        "time_day": ctx.time_day,
+        "time_month": ctx.time_month,
+        "time_year": ctx.time_year,
+        "move_counter": ctx.move_counter,
+    }
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
@@ -161,21 +179,11 @@ def _core_fields(ctx: GameContext) -> dict:
         "mission_boards": _d(ctx.mission_boards),
         "bounty_spawns": _d(ctx.bounty_spawns),
         "faction_reputation": _d(ctx.faction_reputation),
-        "player_xp": ctx.player_xp,
-        "player_level": ctx.player_level,
-        "player_skill_points": ctx.player_skill_points,
-        "player_gunnery_bonus": ctx.player_gunnery_bonus,
-        "player_piloting_bonus": ctx.player_piloting_bonus,
-        "player_engineering_bonus": ctx.player_engineering_bonus,
-        "player_traits": list(ctx.player_traits),
-        "player_counters": _d(ctx.player_counters),
-        "time_day": ctx.time_day,
-        "time_month": ctx.time_month,
-        "time_year": ctx.time_year,
-        "move_counter": ctx.move_counter,
         "generated_missions": _d(ctx.generated_missions),
         "economy_state": _d(ctx.economy_state),
         "militia_scanned": sorted(ctx.militia_scanned),
+        "defeated_static_spawns": sorted(ctx.defeated_static_spawns),
+        **_progression_fields(ctx),
         **_identity_fields(ctx),
     }
 
@@ -699,6 +707,7 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     ctx.bounty_spawns = parsed.bounty_spawns
     ctx.faction_reputation = parsed.faction_reputation
     ctx.militia_scanned = set(data.get("militia_scanned", []) or [])
+    ctx.defeated_static_spawns = set(data.get("defeated_static_spawns", []) or [])
     ctx.player_counters = parsed.counters
     ctx.economy_state = parsed.economy_state
     ctx.generated_missions = parsed.generated_missions

@@ -78,6 +78,7 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
+    ctx.defeated_static_spawns = {"luyten_star:militia_blockade:150:25"}
     # Identity layer (doc 40): registration, dark flag, worn face, and
     # the collected-ID library must survive a save/continue cycle.
     ctx.ship_registration = "AB-1234"
@@ -237,6 +238,9 @@ class TestSaveLoadRoundTrip:
 
         # Militia
         assert loaded.militia_scanned == original.militia_scanned
+
+        # Static-spawn tombstones (doc 41): a defeated picket stays dead
+        assert loaded.defeated_static_spawns == original.defeated_static_spawns
 
         # Identity layer (doc 40)
         assert loaded.ship_registration == original.ship_registration

@@ -43,7 +43,9 @@ def _build_space_return(
     ship_obj: ship_module.Ship,
 ) -> tuple[world.GameMap, world.Entity]:
     """Build a space map and dock the player's ship at a planet."""
-    _space_map = solar_system_module.make_solar_system()
+    _space_map = solar_system_module.make_solar_system(
+        skip_static_spawns=getattr(ctx, 'defeated_static_spawns', ()),
+    )
     _add_bounty_spawns_to_map(
         ctx, _space_map, solar_system_module.current_solar_system_id,
     )

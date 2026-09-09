@@ -466,7 +466,7 @@ def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None
 
 def _build_space_map(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y,
+    pos_x, pos_y, defeated_static_spawns=(),
 ):
     """Build the space map with NPCs and the player entity, or None."""
     from . import solar_system as solar_system_module
@@ -478,7 +478,10 @@ def _build_space_map(
     except KeyError:
         log.add(f"Save references unknown system '{system_id}' - loading Earth city.")
         return None
-    game_map = solar_system_module.make_solar_system(system=sys_spec)
+    game_map = solar_system_module.make_solar_system(
+        system=sys_spec,
+        skip_static_spawns=defeated_static_spawns,
+    )
     solar_system_module.current_solar_system_id = system_id
     _add_bounty_npcs(game_map, bounty_spawns.get(system_id, []), _find_npc)
     _add_procedural_npcs(
@@ -495,12 +498,12 @@ def _build_space_map(
 
 def _rebuild_space(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id,
+    pos_x, pos_y, city_id, defeated_static_spawns=(),
 ):
     """Rebuild the space map; returns None when the system id is unknown."""
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-        pos_x, pos_y,
+        pos_x, pos_y, defeated_static_spawns,
     )
     if built is None:
         return None
@@ -510,7 +513,7 @@ def _rebuild_space(
 
 def _rebuild_dungeon(
     data, system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id,
+    pos_x, pos_y, city_id, defeated_static_spawns=(),
 ):
     """Rebuild the space map + dungeon; returns None when unusable."""
     dd = data.get("dungeon", {})
@@ -520,6 +523,7 @@ def _rebuild_dungeon(
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
         dd.get("space_player_x", pos_x), dd.get("space_player_y", pos_y),
+        defeated_static_spawns,
     )
     if built is None:
         return None
@@ -614,10 +618,11 @@ def rebuild_game_map(
     unusable (matching the log messages the legacy inline code emitted).
     """
     _city_npc_positions = data.get("city_npc_positions", {}) or {}
+    _defeated_statics = data.get("defeated_static_spawns", []) or []
     if mode == "space":
         result = _rebuild_space(
             system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-            pos_x, pos_y, city_id,
+            pos_x, pos_y, city_id, _defeated_statics,
         )
         if result is not None:
             return result
@@ -625,7 +630,7 @@ def rebuild_game_map(
     elif mode == "dungeon":
         result = _rebuild_dungeon(
             data, system_id, log, owned_ship, bounty_spawns, proc_spawns,
-            proc_mid_map, pos_x, pos_y, city_id,
+            proc_mid_map, pos_x, pos_y, city_id, _defeated_statics,
         )
         if result is not None:
             return result

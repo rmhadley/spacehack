@@ -273,6 +273,10 @@ class GameContext:
     # Keyed by "npc_ship_id:x:y" so each patrol gets its own roll.
     # Reset on jump/launch.
     militia_scanned: set[str] = dataclasses.field(default_factory=set)
+    # Tombstoned STATIC spawns ("sys:enemy_id:x:y"): a killed picket
+    # stays dead across save/load and system re-entry (doc 41 — the
+    # blockade used to re-stamp from system.enemies on every build).
+    defeated_static_spawns: set[str] = dataclasses.field(default_factory=set)
     # Set to True when the player's ship is destroyed in combat.
     # Checked by _run_game to break out of the main loop and return
     # to the title screen for a fresh run.

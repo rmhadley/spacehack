@@ -31,9 +31,20 @@ backdrop.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import collections.abc as collection_abc
 
 from . import world
 from .data import solar_systems as systems_module
+
+
+def static_spawn_key(system, spawn) -> str:
+    """The tombstone key for one static ``EnemySpawn`` (doc 41):
+    ``"system_id:enemy_id:x:y"`` — statics never move, so position
+    is identity."""
+    return (
+        f"{getattr(system, 'id', '')}:"
+        f"{spawn.enemy_id}:{spawn.pos.x}:{spawn.pos.y}"
+    )
 
 
 __all__ = [
@@ -444,11 +455,15 @@ def make_stars(
 def make_solar_system(
     *,
     system: systems_module.SolarSystem | None = None,
+    skip_static_spawns: collection_abc.Collection[str] = frozenset(),
 ) -> world.GameMap:
     """Build the :class:`world.GameMap` for ``system`` (default current).
 
     Tiles come from :func:`_paint_system_tiles` (painter algorithm —
     see its docstring for the layer order).
+
+    ``skip_static_spawns`` tombstones defeated statics (doc 41):
+    keys as built by :func:`static_spawn_key` never re-stamp.
 
     ``width`` / ``height`` are read from the system record —
     the caller can't override them. A malformed system (w < 5
@@ -461,7 +476,7 @@ def make_solar_system(
         raise ValueError("solar system must be at least 5x5")
 
     tiles = _paint_system_tiles(system, width, height)
-    entities = _system_enemy_entities(system)
+    entities = _system_enemy_entities(system, skip_static_spawns)
     return world.GameMap(
         width=width, height=height, tiles=tiles, entities=entities,
     )
@@ -520,14 +535,19 @@ def _paint_system_tiles(
 
 def _system_enemy_entities(
     system: systems_module.SolarSystem,
+    skip_static_spawns: collection_abc.Collection[str] = frozenset(),
 ) -> list[world.Entity]:
     """Build ship entities from ``system.enemies``.
 
     Uses the unified NpcShipSpec catalog (data/enemies/ was migrated
-    into data/npc_ships/). Unknown or unloaded specs are skipped.
+    into data/npc_ships/). Unknown or unloaded specs are skipped,
+    as are spawns tombstoned in ``skip_static_spawns`` (defeated
+    statics — doc 41).
     """
     entities: list[world.Entity] = []
     for _spawn in getattr(system, 'enemies', ()) or ():
+        if static_spawn_key(system, _spawn) in skip_static_spawns:
+            continue
         try:
             from .data.npc_ships import find_npc_ship as _find_npc_ship
             _espec = _find_npc_ship(_spawn.enemy_id)

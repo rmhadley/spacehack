@@ -357,9 +357,9 @@ def _goto_step_interrupt(ctx, player_entity):
     """Return an ``(outcome, combat_data)`` interrupt, or ``None`` to continue."""
     from . import navigation_line as _line_mod
     _line = _line_mod.check_crossing(ctx, player_entity.pos)
-    if _line is not None:
+    if _line is not None and _line[0]:
         _hailed, _payload = _line
-        ctx.log.add('Auto-nav interrupted - the Line hails you!')
+        ctx.log.add('Auto-nav interrupted - the blockade hails you!')
         if _payload is not None:
             return (GotoOutcome.COMBAT, _payload)
         return (GotoOutcome.CANCELLED, None)
@@ -674,6 +674,20 @@ def _build_arrival_entity(ship_record, new_pos) -> world.Entity:
     )
 
 
+def _depart_old_system(ctx) -> str:
+    """Leaving-system housekeeping: reset the outgoing system's
+    auto-hail memory, and the Line's session state (doc 41 — the
+    interdiction clears and the crossing tracker re-stamps so a
+    stale side can never read as a crossing). Returns the old
+    system id for the prologue-signal check."""
+    _src_id = getattr(solar_system_module.current_system(), 'id', '')
+    if _src_id:
+        ctx.militia_scanned.clear()
+    from . import navigation_line as _line_mod
+    _line_mod.reset_session()
+    return _src_id
+
+
 def _jump_to_system(
     *, ctx, jp, target_system_id: str, target_jp_id: str,
 ) -> tuple:
@@ -685,18 +699,11 @@ def _jump_to_system(
     dispatcher should rebind to as the new ``player``.
     """
     ctx.log.add('Your ship engages the jump drive. Reality blurs.')
-    # Reset any NPC auto-comms warning for the outgoing system so the
-    # player gets a fresh warning on their next visit.
-    _src_id = getattr(solar_system_module.current_system(), 'id', '')
-    if _src_id:
-        ctx.militia_scanned.clear()
-    # The Line's state is local to a stay in a system (doc 41): the
-    # interdiction resets, and the crossing tracker re-stamps so a
-    # stale side can never read as a crossing after the jump.
-    from . import navigation_line as _line_mod
-    _line_mod.reset_session()
+    _src_id = _depart_old_system(ctx)
     target_system = solar_system_module.set_current_solar_system(target_system_id)
-    new_map = solar_system_module.make_solar_system()
+    new_map = solar_system_module.make_solar_system(
+        skip_static_spawns=getattr(ctx, 'defeated_static_spawns', ()),
+    )
     _add_bounty_spawns_to_map(ctx, new_map, target_system_id)
     # Look up the destination gate FIRST so we can exclude its area
     # from NPC spawns — the player shouldn't arrive surrounded.
