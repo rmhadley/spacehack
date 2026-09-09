@@ -152,6 +152,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "\n"
             "- F: fire your active weapons"
             "\n"
+            "- B: board a crippled, lone ship (space combat)"
+            "\n"
             "- R: reload your active weapon (ground combat)"
             "\n"
             "- 1-9: toggle individual weapons"
