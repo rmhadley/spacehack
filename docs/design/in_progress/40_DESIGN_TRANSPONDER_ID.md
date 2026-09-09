@@ -1253,7 +1253,7 @@ challenge. Scrubbed triggers neither — blank paper complies.
       dealer, the dark edge and the Scram regression hold,
       save/load round-trips.
 
-- [ ] PHASE 6c — the layout pipeline: the JSON→.layout compiler +
+- [x] PHASE 6c — the layout pipeline: the JSON→.layout compiler +
       validator, and the cruiser pilot deck authored through it.
       Split 2026-09-07 (user: "keep the pipeline generator tool in
       6c and move the rest to 6d. I want to focus on this tool
@@ -1324,6 +1324,23 @@ challenge. Scrubbed triggers neither — blank paper complies.
     is capital-scale, so the cruiser's own deck size and final
     source choice stay open (2x Kestrel, or a smaller reference
     hunt per the class).
+
+  CLOSED 2026-09-09 (user). Every 6c deliverable shipped and the
+  pipeline PROVEN at scale — five decks authored through it:
+  cruiser_crew (the pilot — superseded the Mantis draft with the
+  slug_b lineage: halo-composited source → 200×74 blessed →
+  rect → rooms → user polish → varied spawns; user-blessed
+  "cruiser w/crew layout ready"), scout_crew (Stealth Cruiser A),
+  hauler_crew (user's small_hauler), frigate_crew (Onslaught),
+  freightliner_crew (atlas — 6d's freighter deck, also through
+  the pipeline). The body's open item ("cruiser deck size and
+  final source choice") is moot — slug B chosen and shipped; the
+  capital-scale Kestrel option survives as the act-1 derelict
+  idea (doc 39 lineage). Tooling: layout_compile.py (emit
+  refusals + --check + never-clobber without --force; 9 tests) +
+  trace_reference.py + the references/ corpus. SYSTEMS.md
+  boarding/identity entries amended at this close. Deck-walk
+  confirmations + remaining decks' bookkeeping live in 6d.
 
 - [ ] PHASE 6d — boarding coverage for every battle spec + the
       remaining decks, via the 6c pipeline. Carries: the frigate

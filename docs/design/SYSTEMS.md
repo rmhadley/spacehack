@@ -105,8 +105,8 @@ nobody designs against a ghost.
   berth a dark hull (lal_b Deadfall, lal_c Whisper, ross_b Ember,
   wolf_b Wolf 359 b), checked before the system switch commits
   (`game_interactions._dark_dock_refusal`).
-- **Absent:** cloned/fabricated IDs (labels exist, no grant path —
-  doc 40 phase 6); level-60 capstone; species beyond human/martian,
+- **Absent:** fabricated IDs (act-1 quest content owns the grant);
+  level-60 capstone; species beyond human/martian,
   classes beyond pirate/merchant/bounty_hunter; level-up HP gains.
 
 ## Space flight, spawns & combat
@@ -197,12 +197,16 @@ nobody designs against a ghost.
 - **Persistence** — `bounty_spawns`, `procedural_spawns`,
   `npc_targets`, `npc_paths`, `militia_scanned` round-trip;
   `combat_locked` is transient (`saveload.py`).
-- **Boarding is SOLVED for wrecks** — dead hulls are bump-boardable
-  into cached dungeon interiors with breach animation
-  (`game_interactions._resolve_npc_ship_blocker`,
-  `_enter_boarding_dungeon`; `dungeon_animation.animate_breach`).
-  Live-ship boarding (cripple → board → console) is an EXTENSION of
-  this pipeline (doc 40 phase 6's planned shape), not a new system.
+- **Boarding** — wrecks: dead hulls bump-board into cached
+  interiors (`game_interactions._resolve_npc_ship_blocker`,
+  `_enter_boarding_dungeon`). LIVE capture (doc 40 6a): BOARD in
+  combat under four conditions (shields down, 75% hull, solo duel,
+  adjacent; `combat/_space_boarding.board_denial`), entry consumes
+  the hull (one board/roll per ship), the crewed interior's C
+  console clones the transponder (rig-gated, tier-banded roll —
+  `identity.clone_transponder`). Every battle spec (13/13) and
+  static system spawns board; bounty/heist ships stay kill-or-die
+  until 6d consume bookkeeping.
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
   mines-as-entities; no salvage drones; no player-called allies; no
   flee-from-space-combat; `NpcShipSpec.comms_range` documented
