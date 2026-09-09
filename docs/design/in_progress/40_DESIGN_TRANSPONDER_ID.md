@@ -1371,6 +1371,50 @@ challenge. Scrubbed triggers neither — blank paper complies.
       6d: consume bookkeeping (freightliner + frigate deck walks
       PASSED 2026-09-09; scout/hauler walked at their shipping
       playtests).
+
+  Implementation brief (6d residual — consume bookkeeping) —
+  APPROVED (user, 2026-09-09: "build it!"):
+  - Scope: consuming a boarded hull is exactly a kill minus
+    exterior loot (the 2026-09-07 ruling, verbatim: "treat it
+    exactly as a kill in all cases, not just bounty targets. minus
+    one thing -> no loot dropped. you pick the loot up on the
+    ship"). (1) `_capture_target`
+    (``combat/_space_boarding.py``) flips: bounty/heist/bounty-
+    squad ships become boardable (the four hard conditions
+    unchanged — the duel requirement already forces wingmates to
+    die or board first); the `salvage_wreck_spawn_id` exclusion
+    STAYS (non-combatant wrecks never enter combat — class
+    documentation). (2) ``begin_capture_boarding``
+    (``game_interactions.py``): after a successful interior load,
+    the full kill pass — the shared kill-core extracted from
+    ``_finalize_kill`` minus ``_spawn_loot_drops`` (XP base_hull×2,
+    ``total_kills``, defeated_names/spec_ids, ``_record_defeat``
+    verbatim: bounty/heist id append with the intercept
+    distinction, squad drop, ``mark_quest_guard_defeated``
+    tombstone) + the victory trio from ``_handle_victory``
+    (``_apply_kill_reputation``, ``_complete_bounty_missions``,
+    ``main_quest.maybe_complete_bounty``, ``_cleanup_heist_
+    spawns``) + heist cargo rides the interior: the mission looked
+    up by ``heist_spawn_id`` (same match as ``_spawn_heist_loot``)
+    feeds ``component_good_id``/``component_mission_id`` into
+    ``_load_layout`` — the wreck flow's exact seam. Lookup before
+    the load; a break-away books NOTHING.
+  - Build order: predicate flip + tests → kill-core extraction
+    (kill path unchanged, pinned) → consume wiring + heist branch
+    → gate → reviewer.
+  - Binding rulings: consume = full kill minus exterior loot; the
+    duel conditions unchanged; quest-lifecycle boardable supersedes
+    6a's exclusion; intercept-vs-bounty id distinction preserved.
+  - Required tests: bounty leader boardable + consume completes
+    the mission + spawn removed; wingmate boardable in a duel;
+    heist courier → component inside the interior, no exterior
+    cargo entity; kill-equivalence (XP/counter/rep identical);
+    tombstone across save/load; break-away books nothing; kill
+    path regression unchanged.
+  - Stop point: no ship theft, no fabricated-ID content, no doc 41
+    work, no new decks, no guide changes.
+  - Playtest checkpoint: numbered (bounty board-complete, heist
+    cargo inside, save-in-interior tombstone, kill regression).
       RULINGS + LANDED 2026-09-09 (coverage completed):
       militia_patrol → cruiser_crew wired (13/13 battle specs,
       caddde2→8918623); STATICS ARE BOARDABLE (user: "there's no
