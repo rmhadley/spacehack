@@ -235,6 +235,13 @@ Presentation rulings (user wording VERBATIM; "targetting"→
    you!" (was "The Line converges on you!"). Comply: "You turn
    back from the blockade."
 
+Guide ruling (user, round-1 follow-up): **the guide carries nothing
+about the Line at all.** The checkpoint explains itself in play —
+the hail IS the teacher — so guide coverage telegraphs an encounter
+arc, which the guide contract bans. The brief's "Guide: UPDATE…"
+step is superseded; both phase-1 guide additions were removed and
+the guide's transponder sections stand as doc 40 shipped them.
+
 Reviewer round 2 (REQUEST_CHANGES → fixed): the tombstone's
 position match was UNSOUND — combat moves hulls (AI advance), so a
 moved kill never matched its spawn row and the bug survived every
