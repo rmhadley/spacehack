@@ -27,15 +27,18 @@ No crossing logic anywhere.
 
 ## First-pass shape (for review)
 
-**The sensor line.** The wall becomes edge-to-edge detection with
-no free geometric gaps — the Line's defining property. Built as
-TWO layers (settled 2026-09-09, below): a BROADCAST SWEEP — a
-virtual sensor column at x≈150; any hull crossing it with a
+**The sensor line.** The wall becomes edge-to-edge detection —
+the Line's defining property, and a PER-LAYER one (settled
+2026-09-09; amended in the reviewer round): the BROADCAST SWEEP —
+a virtual sensor column at x≈150; any hull crossing it with a
 live/spoofed transponder is swept, because transponders read at
-range — and PHYSICAL SPOTTING — dark hulls never broadcast, so
-only a patrol within its detect radius sees them. Detection
-triggers THE hail: identify yourself. Every crossing resolution
-flows through one checkpoint encounter with one rules table:
+range — is edge-to-edge, with no free geometric gaps. PHYSICAL
+SPOTTING — dark hulls never broadcast, so only a patrol within
+its detect radius sees them — is patrolled coverage whose gaps
+are real by design; the ghost run's gate is kit + timing/lure
+skill, not impossibility. Detection triggers THE hail: identify
+yourself. Every crossing resolution flows through one checkpoint
+encounter with one rules table:
 
 | The sweep reads | Result |
 |---|---|
@@ -73,7 +76,12 @@ not named. The first-pass shape above stands as amended.
    geometric gaps close by construction. Dark hulls never
    broadcast, so the sweep cannot see them: only a patrol within
    its detect radius physically spots them (today's detect 7) →
-   the challenge hail.
+   the challenge hail. **Amendment (reviewer round, 2026-09-09):
+   per-layer coverage.** Edge-to-edge belongs to the sweep alone.
+   The dark layer's geometric gaps are real by design — the ghost
+   run's gate is kit + timing/lure skill (doc 39's closed
+   hail-lure), and phase 2's rotations own sweeping the corridors
+   with waypoints so dark passage is timed, never free-feeling.
 2. **Full shift rotations.** Line traffic runs on a real schedule:
    ships rotate in/out on a clock — spawn/despawn shifts,
    maintenance windows. The maintenance-window fiction is
@@ -85,6 +93,13 @@ not named. The first-pass shape above stands as amended.
    hail: Comply (= turn back) / Defy (= the whole Line converges).
    No third inspection option. Asking/talking stays free via the
    existing comms panel; the checkpoint itself is binary.
+   **Amendment (reviewer round, 2026-09-09): column-scoped.** The
+   shipped doc-40 dark-spot challenge (``_dark_spot_challenge`` —
+   fires for ANY militia patrol anywhere; Identify/Attack, ESC =
+   open fire) is superseded INSIDE the column only: a dark hull
+   physically spotted by the Line opens the same Comply/Defy
+   checkpoint. Outside the column the doc-40 challenge stands
+   untouched (Sol keeps it as shipped).
 4. **Static Line v1.** No alert levels, no incident heat —
    convergence is the response and resets after. The checkpoint
    pattern documents an alert-field extension point (the
@@ -138,7 +153,9 @@ only reads markers.
       charged-cell aggro: local, stance-independent, resets on
       leaving the system; no rep writes. Minimal teeth; full
       convergence is phase 3)
-- [ ] Dark path: sweep skip + physical spotting → the challenge
+- [ ] Dark path: sweep skip + physical spotting → the checkpoint
+      hail (the doc-40 challenge superseded INSIDE the column
+      only)
 - [ ] Service-run trait consumed at the wave
 - [ ] Guide: UPDATE the comms section (the Line's hail replaces its
       option-matrix row) and Identity & Transponder; a new Line
@@ -208,9 +225,14 @@ only reads markers.
     consumed (7); sweep hails all unpapered incl. allied — the
     doc-40 stand-down superseded INSIDE the column only (8);
     crossing positional + symmetric, no arrival event (5); no
-    alert/heat state, no new GameContext fields — the only new
-    state is the player's previous-side tripwire flag and it MUST
-    round-trip save/load (4).
+    alert/heat state, no new GameContext fields, NO persisted
+    tripwire state — the crossing edge is prev-x vs new-x inside
+    the movement pass, prev initialized from the player's
+    position at arrival/first step, so every entry path (jump,
+    load, hidden-gate east materialization) stamps naturally and
+    the first westbound return crossing hails (4); one hail shape
+    INSIDE the column, the doc-40 dark-spot challenge untouched
+    outside (3, amended).
   - Required tests: resolver per row (papers wave; rank+ wave
     logged AS that ID; service-run wave + consume; plain
     live/spoofed → challenge; dark → never sweeps); crossing-edge
@@ -220,8 +242,10 @@ only reads markers.
     challenge; Defy → the interdiction flag engages the squad at
     the gate regardless of stance, adopted at every
     state-bearing caller; GO TO breaks when the sweep hail
-    fires; save/load round-trip of the tripwire
-    side; dev grants tested in ``test_dev_mode.py``; affected
+    fires; tripwire zero-state (after load on either side the
+    next actual crossing fires exactly once; an east
+    materialization stamps the side — the first westbound
+    crossing hails); dev grants tested in ``test_dev_mode.py``; affected
     guide sections updated (comms option-matrix line, Identity &
     Transponder).
   - Stop point: NOTHING from phase 2 — no rotations, no schedule,
@@ -250,3 +274,7 @@ only reads markers.
     9. Regression: a liked hull meeting OTHER militia statics
        (e.g. Sol patrols) still enjoys the doc-40 stand-down — the
        amendment is the column only.
+    10. Regression (column-scope amendment): a dark hull spotted
+        by a militia patrol OUTSIDE the column (e.g. a Sol patrol)
+        still opens the shipped doc-40 challenge — Identify /
+        Attack, ESC = open fire.
