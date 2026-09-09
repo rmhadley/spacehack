@@ -235,6 +235,22 @@ Presentation rulings (user wording VERBATIM; "targetting"→
    you!" (was "The Line converges on you!"). Comply: "You turn
    back from the blockade."
 
+Reviewer round 2 (REQUEST_CHANGES → fixed): the tombstone's
+position match was UNSOUND — combat moves hulls (AI advance), so a
+moved kill never matched its spawn row and the bug survived every
+real fight. Fix: the spawn key is STAMPED ON THE ENTITY at map
+build (``world.Entity.static_spawn_key``, declared on the type) and
+the kill side reads it; ``_picket_payload`` uses the same key
+identity, so a lured-but-alive picket is in the payload at its LIVE
+position (position matching had also let the empty-squad branch
+fire for a merely displaced squad). Wave steps now fall through
+normally in BOTH movement-pass consumers (the wave's ``(False,
+None)`` was being flattened into hail-owns-the-step in
+``game_flow``); the challenge modal's hint says "ESC defy" again;
+the guide no longer says "the Line" player-facing; the data test
+formats every template (stray-brace guard) and the load path's
+ledger threading is pinned.
+
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
       windows, roster per shift (data-first)
