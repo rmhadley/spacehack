@@ -145,21 +145,41 @@ barkeep, the heist, the gate tech) is NOT the Line's: the sweep
 only reads markers.
 
 ### Phase 1 — The sweep (the sensor line + the checkpoint)
-- [ ] Sensor-column spec in the blockade data (data-first)
-- [ ] Pure sweep resolver + tests (the rules table; identity reads)
-- [ ] Crossing-edge tripwire wired into the per-step pass
-- [ ] The checkpoint hail: Comply / Defy (Defy sets the LINE-scoped
+- [x] Sensor-column spec in the blockade data (data-first)
+- [x] Pure sweep resolver + tests (the rules table; identity reads)
+- [x] Crossing-edge tripwire wired into the per-step pass
+- [x] The checkpoint hail: Comply / Defy (Defy sets the LINE-scoped
       interdiction flag — ``_gate_engages`` reads it like
       charged-cell aggro: local, stance-independent, resets on
       leaving the system; no rep writes. Minimal teeth; full
       convergence is phase 3)
-- [ ] Dark path: sweep skip + physical spotting → the checkpoint
+- [x] Dark path: sweep skip + physical spotting → the checkpoint
       hail (the doc-40 challenge superseded INSIDE the column
       only)
-- [ ] Service-run trait consumed at the wave
-- [ ] Guide: UPDATE the comms section (the Line's hail replaces its
+- [x] Service-run trait consumed at the wave
+- [x] Guide: UPDATE the comms section (the Line's hail replaces its
       option-matrix row) and Identity & Transponder; a new Line
       section only if the checkpoint needs discoverable controls
+
+LANDED 2026-09-09, pending playtest. Reviewer round (REQUEST_CHANGES
+→ fixed): (1) the doc-39 warning-only comms are SUPERSEDED in column
+systems — ``_spec_distance_hail``'s militia_blockade branch returns
+None when the system owns a ``sensor_column``; the checkpoint is the
+Line's only hail, waved hulls included (elsewhere the warning stands,
+and player-initiated comms with a picket are untouched). (2) The
+interdiction flag's real teeth are WIDER than first audited: the
+radius floor rides the same aggro flag, so a defiance engages ALL
+Luyten militia (pickets + the 4–5 patrols) at detect ≥30 for the
+rest of the stay — charged-cell precedent, phase 3's convergence
+preview. The defiance is SESSION-LOCAL: save/quit/Continue drops it
+(an escape hatch pending phase 3, which owns the permanent response
+and the persist-or-not call). (3) A hailed step OWNS the step: the
+detection loop and the NPC-drift tail are skipped that step (a
+Comply freezes NPCs one step; a Defy-VICTORY does not chain further
+detection until the next step). (4) The crossing tracker fully
+resets on every jump (``reset_session`` beside the system swap) so a
+stale side can never read as a crossing — future column systems and
+the hidden-gate materialization covered.
 
 ### Phase 2 — Shift rotations (the schedule)
 - [ ] Rotation table in the blockade spec: shifts, maintenance
@@ -289,7 +309,9 @@ only reads markers.
   (``navigation_travel.py``). The sweep check wires into BOTH,
   before ``_check_auto_comms_warning``, returning its payload
   shape; a hailed step skips the comms-warning pass that step
-  (the hail replaces the warning-only log at the column).
+  (the hail replaces the warning-only log at the column — and
+  per the reviewer round, ``militia_blockade``'s spec-distance
+  warning is suppressed entirely in column systems).
 - **Crossing edge** — west = ``x < column.x`` (the column cell
   belongs to the Line): eastbound fires entering 150 from 149,
   westbound fires 150→149; exactly once per edge transit, both
@@ -324,11 +346,13 @@ only reads markers.
 - **Dev + resets** — ``dev_mode.apply_dev_line_kit`` called from
   ``game_loop._configure_new_context`` (the New Game hook that
   already applies the dev identity library); module-global
-  resets go there too. Leaving the system resets the
-  interdiction flag beside the existing ``militia_scanned.clear()``
-  in ``_jump_to_system``. Neither global is serialized — by
-  design: the tripwire self-stamps (brief ruling 4), and the
-  flag only matters mid-engagement while fights run to VICTORY.
+  resets go there too. Every jump runs ``reset_session()`` in
+  ``_jump_to_system`` (interdiction cleared AND the tracker
+  re-stamped — a stale side can never read as a crossing).
+  Neither global is serialized — by design: the tripwire
+  self-stamps (brief ruling 4), and the flag's defiance is
+  session-local (see the phase-1 LANDED note for its real,
+  reviewer-corrected teeth).
 
 **Duplication hotspots + DRY strategy:**
 
