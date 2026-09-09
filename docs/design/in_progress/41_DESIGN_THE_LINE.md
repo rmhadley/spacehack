@@ -191,18 +191,30 @@ Mechanical consequences (binding):
   phase-1 tombstones do their job per tenure: killed this tenure,
   dark for the tenure; re-manned next tenure (the fight method's
   re-manning, per station). The ledger format is unchanged.
+  ``total_days`` is a pure derivation from the wrapping clock
+  triple: ``year*360 + (month-1)*30 + day`` (reviewer round).
 - **Legacy migration.** A pre-phase-2 save's unqualified picket
   tombstones are re-stamped ONCE at load with the current tenure's
   key — killed stays dead through the current tenure, re-mans at
   the next boundary. No silent resurrection of phase-1 kills.
-- **Everything derivable.** A picket's role (parked / relief
-  inbound / outgoing home / displaced) derives from its tenure key
-  + the watchbill + its position: tenure ≥ current and at station →
-  parked; tenure ≥ current, not at station → flying in; tenure <
-  current and at station → fly home at the boundary; tenure <
-  current, displaced → stays put. No new Entity fields, no new
-  globals, no persisted schedule state — the map serializes
-  entities as they stand.
+  SCOPE (reviewer round): Luyten picket keys only — column systems
+  × their ``picket_enemy_id``; ross_154 / lalande_21185 also ship
+  unqualified static kill keys and are never touched. Rewritten at
+  the top of ``load_game`` so both consumers (the ctx ledger
+  restore and the raw-dict map rebuild) see the same keys.
+- **Everything derivable (reviewer round).** A picket's role is a
+  function of THREE readable facts — tenure vs current, at its OWN
+  station (the x:y embedded in its key, not any roster station;
+  arrival = path exhausted / within a cell — exact equality
+  misreads a picket slipped aside off an occupied station), and a
+  live flight target in the existing path dicts: parked = tenure ≥
+  current, at own station, no target; flying in = tenure ≥ current
+  (or not yet current — loitering), has target; flying home =
+  tenure < current AND has target (the target is what
+  discriminates a departing picket from a displaced one — a
+  displaced picket is never GIVEN a target, so it stays put);
+  displaced = tenure < current, no target, not at station. No new
+  Entity fields, no new globals, no persisted schedule state.
 - **Murdered reliefs stay dead** for the tenure: a launch is
   skipped when its tenure key is already tombstoned — killing a
   relief costs a squad fight and buys one station-tenure of
@@ -212,11 +224,32 @@ Mechanical consequences (binding):
 - **Squad combat semantics untouched** — phase 2 changes only who
   stands where, when. The full-watch garrison (10 full / 4 thin) is
   phase 3's convergence-payload input, not this phase's problem.
-- **Map build stamps the CURRENT watchbill as parked pickets** at
-  their stations; in-flight state exists only within a live session
-  (jump away/back snaps relief to station; a rebuild after an early
-  launch simply re-launches on schedule — launch day already
-  passed, key not tombstoned).
+- **Statics rebuild from the watchbill at EVERY map build AND at
+  load** (reviewer round — the load path rebuilds the map from
+  system data + tombstones; entities do not round-trip
+  individually). Build-side reconciliation: overdue reliefs (launch
+  day passed, key not tombstoned) stamp at their bases. So: parked
+  pickets restore exactly; in-flight state is session-scoped and
+  re-launches on schedule; a displaced picket snaps back to its row
+  on jump away/back or load — shipped phase-1 static behavior,
+  making "serve until destroyed" SESSION-SCOPED. The full and thin
+  rosters are disjoint, so every full↔thin boundary rotates the
+  entire line (14 flights), and with leads 9–10 > shift 7, two
+  relief waves are routinely airborne at once — both tolerated by
+  construction.
+- **Line traffic is silent and invisible to move_npcs** (reviewer
+  round): watch flights carry NO ``procedural_squad_id`` (never
+  enter ``_squad_groups``/patrol), launch and home-despawn log
+  NOTHING (the merchant paths' "Sensor ping"/"docks at" lines would
+  telegraph the schedule — wordless ruling), and the stepper skips
+  ``combat_locked`` pickets.
+- **Moving pickets keep one hail key** (reviewer round):
+  ``_entity_hail_key``'s position fallback assumes statics never
+  move — a flying picket would get a fresh key every step and the
+  positional re-arm would re-open the dark-spot challenge every
+  step. ``_entity_hail_key`` prefers the stamped
+  ``static_spawn_key`` when present (watch pickets always carry
+  one; procedural NPCs are untouched).
 
 ## Phases
 
@@ -392,7 +425,11 @@ ledger threading is pinned.
 - [ ] The per-step watch pass: reliefs launch early at their base,
       fly in and park; outgoing pickets depart at shift end and fly
       home to land; displaced pickets are never moved; murdered
-      reliefs stay dead for the tenure
+      reliefs stay dead for the tenure; launches and home-despawns
+      are SILENT and watch flights stay out of move_npcs
+- [ ] ``_entity_hail_key`` prefers the stamped ``static_spawn_key``
+      when present — a flying picket keeps one hail key (the
+      positional re-arm must not re-open the challenge per step)
 - [ ] ``_picket_payload`` (manned sweep + Defy payload) reads all
       alive pickets by id — parked, in flight, displaced
 - [ ] Legacy tombstone migration at load (one-time re-stamp to the
@@ -423,37 +460,64 @@ ledger threading is pinned.
     Code: ``navigation_line.py`` owns the watch — pure watchbill
     helpers, the per-step traffic pass, flight stepping (80%
     throttle + ``try_step_with_slip``, A* via the existing path
-    machinery); tenure-keyed spawn in ``solar_system._system_enemy_
-    entities``; the watch-pass call site beside ``check_crossing``
-    in both movement passes; migration in the load path; dev grant
-    in ``dev_mode.py`` + ``test_dev_mode.py``.
+    machinery, ``combat_locked`` skipped); tenure-keyed spawn +
+    build-side reconciliation (overdue reliefs stamp at their
+    bases) in ``solar_system._system_enemy_entities``; the
+    watch-pass call site beside ``check_crossing`` in both movement
+    passes; ``navigation_combat._entity_hail_key`` prefers the
+    stamped ``static_spawn_key``; the load-path migration helper
+    lives in ``navigation_line.py`` (pure) with a ~2-line call at
+    the top of ``load_game`` — ``saveload.py`` sits at 980/1000
+    lines and takes no new logic (reviewer round); silent
+    spawn/despawn for line traffic (never the merchant "Sensor
+    ping"/"docks at" paths); watch flights carry no
+    ``procedural_squad_id``. Dev grant in ``dev_mode.py`` +
+    ``test_dev_mode.py``. At phase close: amend SYSTEMS.md's
+    tombstone entry (the key format gains the tenure suffix).
   - **Build order.** (1) Watchbill data + pure helpers
-    (tenure/kind/roster/launch-day) + tests; (2) tenure-keyed
-    watchbill spawn in the map build + tests; (3) the per-step
-    watch pass (launches, arrivals → park, boundary departures →
-    fly home, displaced immunity, tombstoned-launch skip) + flight
-    stepping + tests; (4) ``_picket_payload`` by id + tests;
-    (5) legacy tombstone migration + tests; (6) dev grant;
-    (7) playtest checkpoint.
+    (tenure/kind/roster/launch-day over the wrapping clock triple)
+    + tests; (2) tenure-keyed watchbill spawn + build-side
+    reconciliation in the map build + tests; (3) ``_entity_hail_key``
+    prefers the stamped key + test; (4) the per-step watch pass —
+    O(1) idle steps (pure day-arithmetic due-check; full census +
+    launches + departures only on exact launch/boundary days),
+    flight stepping with cached A*, arrivals → park, boundary
+    departures → fly home (live flight target discriminates
+    outgoing from displaced), displaced immunity, tombstoned-launch
+    skip, silent launches/despawns — + tests; (5) ``_picket_payload``
+    by id + tests; (6) legacy tombstone migration (Luyten-scoped,
+    top of ``load_game``) + tests; (7) dev grant; (8) playtest
+    checkpoint.
   - **Binding rulings.** The phase-2 SETTLED section (all six +
-    mechanical consequences) and phase 1's standing rulings — the
-    manned sweep (any alive picket), the checkpoint's one hail
-    shape, the naming ban. NO combat-semantics changes; no new
-    Entity fields, globals, or persisted schedule state (role
-    derives from tenure key + watchbill + position); no log lines
-    on boundaries (wordless); the guide carries nothing about the
-    Line — the checklist's guide-diff item is "none".
+    mechanical consequences, incl. the reviewer-round amendments)
+    and phase 1's standing rulings — the manned sweep (any alive
+    picket), the checkpoint's one hail shape, the naming ban. NO
+    combat-semantics changes; no new Entity fields, globals, or
+    persisted schedule state (role derives from tenure key +
+    watchbill + position + live flight target); no log lines on
+    boundaries or flights (wordless); the guide carries nothing
+    about the Line — the checklist's guide-diff item is "none".
   - **Required tests.** Watchbill helpers (tenure boundaries days
-    8/15/22; kind per shift; roster + launch day per station);
-    tenure-keyed spawn (current watchbill only; tombstone
-    honored; monotonic tenure suffix); boundary behavior
-    (at-station outgoing flies home; displaced stays; relief
-    parks; early arrival holds its station); murdered relief stays
-    dead for the tenure and re-mans next tenure; payload by id
-    counts parked + in-flight + displaced; legacy migration
-    (unqualified ledger key re-stamped to the current tenure at
-    load, once); save/load round-trip mid-tenure AND across a
-    boundary; dev grant in ``test_dev_mode.py``.
+    8/15/22; kind per shift; roster + launch day per station;
+    derivations hold across month AND year wraps); tenure-keyed
+    spawn (current watchbill only; tombstone honored; monotonic
+    tenure suffix); boundary behavior (at-station outgoing flies
+    home; displaced stays — never given a target; relief parks;
+    early arrival holds its station despite a slip aside); two
+    relief waves airborne (tenure ≥ current+2 keys coexist;
+    launch-skip strictly per key); full↔thin boundary rotates the
+    whole disjoint roster; murdered relief stays dead for the
+    tenure and re-mans next tenure; payload by id counts parked +
+    in-flight + displaced; hail key stable across steps for a
+    moving picket (positional re-arm does not re-open per step);
+    line traffic absent from ``_squad_groups``; ``combat_locked``
+    pickets not stepped; silent launch/despawn (no log lines);
+    migration re-stamps ONLY luyten picket keys (a ross_154 /
+    lalande_21185 ledger is untouched) and runs before both
+    consumers (legacy save loads with the station dead through the
+    current tenure); save/load round-trip = schedule-consistent
+    (mid-tenure load rebuilds parked exactly; overdue reliefs
+    relaunch from base); dev grant in ``test_dev_mode.py``.
   - **Stop point.** NOTHING from phase 3 — no convergence
     choreography, no 30-floor tuning (the garrison size is that
     phase's input), no interdiction changes. No grant-side method
@@ -476,18 +540,23 @@ ledger threading is pinned.
     5. Cross dark through a thin-watch gap dead-center: no hail
        (the ghost window).
     6. Lure a picket off-station and hold the lure across a
-       boundary: the displaced picket stays exactly where it is —
-       never flies home; the dark loop completes.
+       boundary (STAY IN SYSTEM — jumping away and back snaps a
+       lured picket back to its station: shipped static-rebuild
+       behavior, not a bug): the displaced picket stays exactly
+       where it is — never flies home; the dark loop completes.
     7. Murder a relief in transit: its station stays dark for that
        tenure; at the next boundary a fresh relief launches (new
        tenure) and re-mans it.
     8. Kill the ENTIRE line: the column goes dark (no hail, no
        waves — the phase-1 manned ruling); at the next boundary
        reliefs launch and the sweep returns.
-    9. Save mid-tenure → load: exact restoration (positions,
-       flights, watchbill state); save just before a boundary →
-       load → step across: the rotation fires identically to an
-       unbroken session.
+    9. Save mid-tenure → load: SCHEDULE-CONSISTENT restoration
+       (reviewer round — statics rebuild from the watchbill):
+       parked pickets exact at their stations; an in-flight relief
+       relaunches from its base on schedule; a lured picket snaps
+       back to its row. Save just before a boundary → load → step
+       across: the rotation fires identically to an unbroken
+       session.
     10. Legacy save (pre-phase-2, a picket killed): on load the
         station stays dead through the current tenure and re-mans
         at the next boundary — no silent resurrection.
