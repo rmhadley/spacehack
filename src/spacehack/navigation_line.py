@@ -1,4 +1,5 @@
-"""The Line (doc 41): Luyten's blockade as a sweep + checkpoint.
+"""The Line (doc 41): Luyten's blockade as a sweep + checkpoint +
+a manned watch.
 
 The BROADCAST SWEEP is a virtual sensor column: any hull crossing it
 with a live or spoofed transponder is swept — identity reads at
@@ -19,6 +20,19 @@ unknown, so every entry path (jump, load, materialization) stamps
 naturally. Both session globals are deliberately NOT serialized:
 the tripwire is edge-derived, and the flag resets on leaving the
 system.
+
+THE WATCH (phase 2): the pickets rotate on 7-day shifts driven by
+the SensorColumn's watchbill — everything derives from the day
+clock (total_days → tenure → kind → roster), so there is NO
+schedule state anywhere. Rotation spawns stamp their keys with a
+monotonic ``:t<tenure>`` suffix so the phase-1 tombstones hold per
+tenure. Reliefs launch early at their base, fly in (riding the
+existing path dicts keyed by spawn key — dropped at save by the
+procedural-sync, so flights are session-scoped by construction),
+park for the shift, then fly home at the boundary and land.
+Displaced pickets are never given a target — they serve until
+destroyed. All line traffic is SILENT (no log lines) and carries
+no squad id (never enters the patrol machinery).
 """
 
 from __future__ import annotations
@@ -111,6 +125,107 @@ def reset_interdiction() -> None:
 def interdiction_system() -> str | None:
     """The system id where the Line was defied, or None."""
     return _interdiction_system
+
+
+# ---------------------------------------------------------------------------
+# The watchbill (doc 41 phase 2) — pure derivations from the clock
+# ---------------------------------------------------------------------------
+
+def total_days(day: int, month: int, year: int) -> int:
+    """The wrapping clock triple as one monotonic day number.
+
+    ``year*360 + (month-1)*30 + day`` — months are 30 days, years
+    12 months, so the derivation is dense (no gaps at wraps).
+    Every watch schedule decision reads this, never the triple.
+    """
+    return year * 360 + (month - 1) * 30 + day
+
+
+# The watchbill's epoch: the game's first day. A 360-day year is
+# not divisible by 7, so raw total_days would drift the shift
+# boundaries off the doc's days 8/15/22 — tenure counts from HERE.
+_EPOCH_DAY = total_days(day=1, month=1, year=2200)
+
+
+def clock_total(ctx) -> int:
+    """``total_days`` off a ctx (lightweight doubles stay valid)."""
+    return total_days(
+        getattr(ctx, "time_day", 1),
+        getattr(ctx, "time_month", 1),
+        getattr(ctx, "time_year", 2200),
+    )
+
+
+def tenure_of(total: int, shift_days: int) -> int:
+    """Which shift owns ``total``: boundaries land on days 8, 15, 22…
+    (epoch-anchored — tenure 0 is the game's first week)."""
+    return (total - _EPOCH_DAY) // shift_days
+
+
+def tenure_start(tenure: int, shift_days: int) -> int:
+    """The first day of ``tenure`` (the boundary it launches toward)."""
+    return _EPOCH_DAY + tenure * shift_days
+
+
+def watch_kind(tenure: int, watch_cycle: tuple[str, ...]) -> str:
+    """The watch kind serving ``tenure`` (cycling data)."""
+    return watch_cycle[tenure % len(watch_cycle)]
+
+
+def station_launch_day(tenure: int, station, shift_days: int) -> int:
+    """The day ``tenure``'s relief for ``station`` leaves its base —
+    its lead before the boundary, so it arrives ≈ shift end."""
+    return tenure_start(tenure, shift_days) - station.lead_days
+
+
+def tenure_key(base_key: str, tenure: int) -> str:
+    """The rotation-stamped spawn key: ``…:x:y:t<tenure>``. Monotonic
+    per station, so a tombstone holds for its tenure and the post
+    re-mans at the next boundary."""
+    return f"{base_key}:t{tenure}"
+
+
+def parse_tenure_key(key: str) -> tuple[tuple[int, int], int] | None:
+    """``((x, y), tenure)`` from a tenure-stamped key, else None.
+
+    The station is embedded in the key itself — a picket's own
+    post is readable from wherever it currently stands.
+    """
+    _stem, _sep, _last = key.rpartition(":")
+    if not _sep or not _last.startswith("t") or not _last[1:].isdigit():
+        return None
+    _enemy_x, _sep_y, _y = _stem.rpartition(":")
+    _sys_enemy, _sep_x, _x = _enemy_x.rpartition(":")
+    if not (_sep_y and _sep_x and _x.isdigit() and _y.isdigit()):
+        return None
+    return ((int(_x), int(_y)), int(_last[1:]))
+
+
+def watch_active(column) -> bool:
+    """True when the column carries a watchbill (either roster)."""
+    return bool(column.full_watch or column.thin_watch)
+
+
+def roster_for(column, kind: str):
+    """The stations of ``kind``'s watch ("full" / "thin")."""
+    return column.full_watch if kind == "full" else column.thin_watch
+
+
+def station_dock_cell(station_spec) -> tuple[int, int]:
+    """The cell ships launch from / land at beside a station — the
+    same east-of-body +1, mid-height convention as the merchant
+    body goals (``npc_ships._build_body_goals``; keep in sync)."""
+    return (
+        station_spec.pos.x + station_spec.width + 1,
+        station_spec.pos.y + station_spec.height // 2,
+    )
+
+
+def next_boundary_gap(day: int, month: int, year: int, shift_days: int) -> int:
+    """Days from the given date to the NEXT boundary (strictly
+    future — a boundary day advances a full shift)."""
+    _total = total_days(day, month, year)
+    return shift_days - ((_total - _EPOCH_DAY) % shift_days)
 
 
 # ---------------------------------------------------------------------------

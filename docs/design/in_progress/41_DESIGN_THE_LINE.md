@@ -797,7 +797,8 @@ user dictates otherwise):**
   and ``navigation_travel._goto_step`` (after the interrupt
   check — a hailed step freezes the watch with everything else).
   Idle gate is pure day arithmetic, O(1): boundary
-  (``(total-1) % shift_days == 0``) OR any horizon launch day ==
+  (``(total - total_days(1,1,2200)) % shift_days == 0`` —
+  epoch-anchored like tenure) OR any horizon launch day ==
   total. Due WORK is overdue-inclusive (``<=``), so skipped days
   (dev Shift+D) self-heal at the next due day; the new Shift+J
   lands exactly ON a boundary (heals immediately). Horizon =
@@ -868,3 +869,11 @@ user dictates otherwise):**
   (the stepper is entity-driven), never saved. Accepted leak.
 - Shift+J lands ON the next boundary day (strictly future): the
   rotation is then observable on the very next step.
+- **Epoch anchor (implementation round)**: the settled ``total_days
+  = year*360 + (month-1)*30 + day`` is dense and monotonic, but a
+  360-day year is NOT divisible by 7 — the shorthand
+  ``(total_days - 1) // 7`` would put the first boundary on
+  game-day 2, not 8. Tenure is epoch-anchored instead:
+  ``(total - total_days(1,1,2200)) // shift_days`` — tenure 0 is
+  the game's first week and boundaries land on the ruled days
+  8/15/22. (Key format, cycle, rosters unaffected.)

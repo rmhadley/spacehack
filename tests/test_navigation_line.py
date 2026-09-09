@@ -83,15 +83,22 @@ def _log_text(ctx) -> str:
     return "\n".join(m.text for m in ctx.log._messages)
 
 
-def _picket_entities(system):
-    """Alive picket entities stamped at the system's spawn positions
-    (with their tombstone keys — the stamp happens at map build)."""
+def _picket_entities(system, *, kind="thin"):
+    """Alive picket entities at ``kind``'s roster stations, stamped
+    with their spawn keys (the stamp happens at map build). Default
+    thin = the shipped four posts, matching the pre-watch line."""
     from src.spacehack.solar_system import static_spawn_key
+    column = getattr(system, "sensor_column", None)
+    if column is not None and navigation_line.watch_active(column):
+        roster_ys = {s.y for s in navigation_line.roster_for(column, kind)}
+    else:
+        roster_ys = None  # no watchbill: every row is a standing picket
     return [
         world.Entity("M", (100, 200, 255), _spawn.pos,
                      npc_ship_id=_spawn.enemy_id,
                      static_spawn_key=static_spawn_key(system, _spawn))
         for _spawn in system.enemies
+        if roster_ys is None or _spawn.pos.y in roster_ys
     ]
 
 
@@ -469,14 +476,14 @@ def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
         _e for _e in fresh.entities
         if getattr(_e, "npc_ship_id", "") == "militia_blockade"
     ]
-    assert len(_stamped) == 3, "the dead picket does not re-stamp"
+    assert len(_stamped) == 13, "the dead picket does not re-stamp"
     assert all(_e.static_spawn_key for _e in _stamped), "builds stamp keys"
 
     untouched = ss_module.make_solar_system(system=LUYTEN)
     assert sum(
         1 for _e in untouched.entities
         if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 4
+    ) == 14
 
 
 def test_non_static_kills_record_nothing(line_system):
@@ -507,13 +514,13 @@ def test_load_path_threads_the_ledger_into_the_build():
     assert sum(
         1 for _e in _map.entities
         if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 3
+    ) == 13
 
     built_full = _build_space_map(*_common, [])
     assert sum(
         1 for _e in built_full[0].entities
         if getattr(_e, "npc_ship_id", "") == "militia_blockade"
-    ) == 4
+    ) == 14
 
 
 def test_interdiction_gate_bypasses_stance_for_militia_only(monkeypatch):
@@ -805,3 +812,128 @@ def test_dark_spot_rearms_after_leaving_detect_range(line_system, monkeypatch):
     result = nc._dark_spot_challenge(ctx, picket, spec, near)
     assert result is not None, "the retreat re-arms the patrol"
     assert len(opened) == 2
+
+
+# ---------------------------------------------------------------------------
+# The watchbill (phase 2): pure clock derivations + data consistency
+# ---------------------------------------------------------------------------
+
+def test_total_days_is_dense_across_month_and_year_wraps():
+    _t = navigation_line.total_days
+    assert _t(1, 1, 2200) == 2200 * 360 + 1
+    assert _t(30, 1, 2200) + 1 == _t(1, 2, 2200), "month wrap is dense"
+    assert _t(29, 12, 2200) + 2 == _t(1, 1, 2201), "year wrap is dense"
+    assert navigation_line.clock_total(
+        SimpleNamespace(time_day=15, time_month=3, time_year=2200)
+    ) == _t(15, 3, 2200)
+
+
+def test_tenure_boundaries_land_on_days_8_15_22():
+    """Epoch-anchored: tenure 0 is the game's first week (a raw
+    year*360+… clock would drift boundaries off 8/15/22 — 360
+    isn't divisible by 7)."""
+    _epoch = navigation_line._EPOCH_DAY
+    _run_day = lambda d: navigation_line.tenure_of(_epoch + d - 1, 7)
+    assert [_run_day(d) for d in (1, 7, 8, 14, 15, 21, 22, 28, 29)] == [
+        0, 0, 1, 1, 2, 2, 3, 3, 4,
+    ]
+    assert navigation_line.tenure_start(3, 7) == _epoch + 21
+
+
+def test_tenure_derivation_holds_across_month_and_year_wraps():
+    """Independent expressions on both sides of each wrap: the clock
+    is dense AND a boundary lands where the epoch math says it does,
+    inside the wrap window."""
+    _ctx_total = lambda d, m, y: navigation_line.clock_total(
+        SimpleNamespace(time_day=d, time_month=m, time_year=y))
+    _tenure = lambda d, m, y: navigation_line.tenure_of(_ctx_total(d, m, y), 7)
+
+    assert _ctx_total(30, 12, 2200) + 1 == _ctx_total(1, 1, 2201), (
+        "the year wrap is dense"
+    )
+    assert _tenure(30, 12, 2200) == 51
+    assert _tenure(4, 1, 2201) == 51
+    assert _tenure(5, 1, 2201) == 52, "a boundary lands inside the year wrap"
+    assert _tenure(6, 2, 2200) == 5, "month wrap: the offset-35 boundary"
+
+
+def test_watch_kind_cycles_full_full_full_thin():
+    _kind = navigation_line.watch_kind
+    cycle = LUYTEN.sensor_column.watch_cycle
+    assert [_kind(t, cycle) for t in range(8)] == [
+        "full", "full", "full", "thin", "full", "full", "full", "thin",
+    ], "the maintenance watch is every 4th shift (28 days)"
+
+
+def test_station_launch_day_is_the_lead_before_the_boundary():
+    column = LUYTEN.sensor_column
+    _epoch = navigation_line._EPOCH_DAY
+    north = column.full_watch[0]  # y=7, lead 10
+    south = column.full_watch[4]  # y=63, lead 7
+    assert navigation_line.station_launch_day(1, north, 7) == _epoch - 3
+    assert navigation_line.station_launch_day(4, south, 7) == _epoch + 21
+
+
+def test_tenure_key_round_trips_and_plain_keys_do_not_parse():
+    assert navigation_line.parse_tenure_key("sys:e:150:25:t3") == ((150, 25), 3)
+    assert navigation_line.parse_tenure_key("luyten_star:militia_blockade:150:25") is None
+    assert navigation_line.parse_tenure_key("sys:e:x:y:t3") is None
+    assert navigation_line.parse_tenure_key("") is None
+    assert navigation_line.tenure_key("sys:e:150:25", 3) == "sys:e:150:25:t3"
+
+
+def test_next_boundary_gap_strictly_future():
+    _gap = navigation_line.next_boundary_gap
+    assert _gap(5, 1, 2200, 7) == 3   # day 5 → boundary day 8
+    assert _gap(8, 1, 2200, 7) == 7   # a boundary day jumps the NEXT one
+    assert _gap(1, 1, 2200, 7) == 7
+
+
+def test_station_dock_cell_is_east_of_body_mid_height():
+    spec = SimpleNamespace(pos=world.Position(70, 22), width=3, height=3)
+    assert navigation_line.station_dock_cell(spec) == (74, 23)
+
+
+def test_watch_active_and_roster_for_read_the_data():
+    from src.spacehack.data.solar_systems import SensorColumn
+    column = LUYTEN.sensor_column
+    assert navigation_line.watch_active(column)
+    assert navigation_line.roster_for(column, "full") is column.full_watch
+    assert navigation_line.roster_for(column, "thin") is column.thin_watch
+    bare = SensorColumn(x=150, label="x", squad_id="s", picket_enemy_id="e",
+                        rank_rep=80, hail_lines=("{id}",))
+    assert not navigation_line.watch_active(bare), (
+        "empty rosters = no watch: statics stand as placed (phase-1 semantics)"
+    )
+
+
+def test_every_station_launch_day_is_its_lead_before_its_boundary():
+    column = LUYTEN.sensor_column
+    for t in (0, 1, 2, 4):
+        for station in (*column.full_watch, *column.thin_watch):
+            assert navigation_line.station_launch_day(t, station, 7) == (
+                navigation_line.tenure_start(t, 7) - station.lead_days
+            )
+
+
+def test_luyten_watchbill_data_consistency():
+    column = LUYTEN.sensor_column
+    full_ys = [s.y for s in column.full_watch]
+    thin_ys = [s.y for s in column.thin_watch]
+    station_ids = {s.id for s in LUYTEN.stations}
+
+    assert column.shift_days == 7
+    assert set(column.watch_cycle) <= {"full", "thin"}
+    # The full watch closes the gaps with ships: spacing 14 = detect x 2.
+    assert full_ys == [7, 21, 35, 49, 63, 77, 91, 105, 119, 133]
+    from src.spacehack.data.npc_ships import find_npc_ship
+    assert find_npc_ship(column.picket_enemy_id).detect_radius * 2 == 14
+    # The thin watch is the shipped four; rosters are disjoint.
+    assert thin_ys == [25, 55, 85, 115]
+    assert not set(full_ys) & set(thin_ys), "every full-thin boundary rotates the whole line"
+    # Every roster station names a real base and a real spawn row.
+    row_ys = {s.pos.y for s in LUYTEN.enemies}
+    for station in (*column.full_watch, *column.thin_watch):
+        assert station.lead_days >= 1
+        assert station.base_id in station_ids
+        assert station.y in row_ys, "every station has an EnemySpawn row"

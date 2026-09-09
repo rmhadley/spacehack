@@ -12,10 +12,11 @@ The Blockade Stations use a dedicated PlanetSpec with a Militia
 Blockade Officer NPC (see data/planets/blockade.py).
 
 A Restricted Sector sits on the far right of the map — a
-placeholder for whatever lurks beyond the blockade.  Four static
-Militia Blockade ships patrol a vertical column through the
-centre-right of the system, forming an impassable picket line
-that enforces the blockade.
+placeholder for whatever lurks beyond the blockade.  The Militia
+Blockade mans a vertical column of picket stations through the
+centre-right of the system — a full watch of ten ships, thinning
+to four on the maintenance week (doc 41 phase 2's watchbill on
+the SensorColumn).
 
 There is only one Jump Point — the gate back to Wolf 359.
 Luyten's Star is a dead end by design: the edge of the map.
@@ -27,7 +28,7 @@ from __future__ import annotations
 from spacehack import solar_system as solar_module
 from spacehack import world
 
-from . import EnemySpawn, JumpPoint, SensorColumn, SolarSystem, StationSpec
+from . import EnemySpawn, JumpPoint, SensorColumn, SolarSystem, StationSpec, WatchStation
 
 
 _planets: tuple[solar_module.Planet, ...] = (
@@ -123,33 +124,30 @@ _restricted_sector = solar_module.Planet(
 )
 
 
-# Static militia picket line — a vertical column of militia ships
-# that enforces the blockade.  Squad shares a single squad_id so
-# they all join combat together when the player engages any one of
-# them.  Positioned between the star (100, 70 7x7) and the
-# Restricted Sector (183, 62 6x6), forming a wall from y=25 to
-# y=115.
+# Static militia picket line — the watchbill's stations (doc 41
+# phase 2).  Every row shares one squad_id so they all join combat
+# together when the player engages any one of them.  The FULL watch
+# is ten stations at spacing 14 (detect 7 x 2 — edge-to-edge
+# physical coverage with zero slack); the THIN watch (the
+# maintenance week) is the shipped four, whose wide gaps are the
+# ghost window by design.  The SensorColumn's watchbill below says
+# which roster stands when; rows here are just the posts.
+_NORTH = "luyt_blockade_north"
+_SOUTH = "luyt_blockade_south"
 _static_enemies: tuple[EnemySpawn, ...] = (
-    EnemySpawn(
+    # Full watch — y = 7, 21, ..., 133 (Luyten c at (150, 95-96)
+    # checked clear of every station).
+    *(EnemySpawn(
         enemy_id="militia_blockade",
-        pos=world.Position(150, 25),
+        pos=world.Position(150, _y),
         squad_id="luyt_blockade_picket",
-    ),
-    EnemySpawn(
+    ) for _y in (7, 21, 35, 49, 63, 77, 91, 105, 119, 133)),
+    # Thin watch — the shipped four.
+    *(EnemySpawn(
         enemy_id="militia_blockade",
-        pos=world.Position(150, 55),
+        pos=world.Position(150, _y),
         squad_id="luyt_blockade_picket",
-    ),
-    EnemySpawn(
-        enemy_id="militia_blockade",
-        pos=world.Position(150, 85),
-        squad_id="luyt_blockade_picket",
-    ),
-    EnemySpawn(
-        enemy_id="militia_blockade",
-        pos=world.Position(150, 115),
-        squad_id="luyt_blockade_picket",
-    ),
+    ) for _y in (25, 55, 85, 115)),
 )
 
 
@@ -184,6 +182,32 @@ _sensor_column = SensorColumn(
     service_lines=(
         "{id}, this is forbidden space. Your ID checks out, "
         "this time. Continue through.",
+    ),
+    # The watchbill (phase 2): 7-day shifts, full x3 then a thin
+    # maintenance week. Leads are days-before-boundary the relief
+    # launches from its base, initially ~= measured transit at
+    # speed 10 (steps ~= dist/0.8, days ~= steps/10); North serves
+    # y <= 35 (measured crossover y ~= 36), South the rest.
+    # Retune at playtest — every number here is data.
+    shift_days=7,
+    watch_cycle=("full", "full", "full", "thin"),
+    full_watch=(
+        WatchStation(y=7, lead_days=10, base_id=_NORTH),
+        WatchStation(y=21, lead_days=10, base_id=_NORTH),
+        WatchStation(y=35, lead_days=10, base_id=_NORTH),
+        WatchStation(y=49, lead_days=9, base_id=_SOUTH),
+        WatchStation(y=63, lead_days=7, base_id=_SOUTH),
+        WatchStation(y=77, lead_days=5, base_id=_SOUTH),
+        WatchStation(y=91, lead_days=4, base_id=_SOUTH),
+        WatchStation(y=105, lead_days=3, base_id=_SOUTH),
+        WatchStation(y=119, lead_days=3, base_id=_SOUTH),
+        WatchStation(y=133, lead_days=3, base_id=_SOUTH),
+    ),
+    thin_watch=(
+        WatchStation(y=25, lead_days=10, base_id=_NORTH),
+        WatchStation(y=55, lead_days=8, base_id=_SOUTH),
+        WatchStation(y=85, lead_days=5, base_id=_SOUTH),
+        WatchStation(y=115, lead_days=3, base_id=_SOUTH),
     ),
 )
 

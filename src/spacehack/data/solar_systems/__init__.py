@@ -24,6 +24,7 @@ from spacehack import world
 
 __all__ = [
     "EnemySpawn", "JumpPoint", "SensorColumn", "SolarSystem", "StationSpec",
+    "WatchStation",
     "find_solar_system", "list_solar_systems",
     "make_stars", "station_near", "validate_gate_graph",
 ]
@@ -163,6 +164,23 @@ class StationSpec:
 
 
 @dataclass(frozen=True)
+class WatchStation:
+    """One watchbill station (doc 41 phase 2): a picket post on the
+    column, manned in shifts.
+
+    The watchbill is cycling DATA — every number is retunable after
+    the playtest. A station is a ``(y, lead_days, base_id)`` tuple:
+    the row it mans (at the column's ``x``), how many days before
+    its shift's boundary its relief launches from the base, and
+    which blockade station (``StationSpec.id``) that relief flies
+    from and home to.
+    """
+    y: int
+    lead_days: int
+    base_id: str
+
+
+@dataclass(frozen=True)
 class SensorColumn:
     """The Line (doc 41): one system's broadcast-sweep checkpoint.
 
@@ -189,6 +207,15 @@ class SensorColumn:
       manifest_lines / rank_lines / service_lines: the wave bodies
         (single Acknowledge option each); the service-run contract
         is consumed at the ack.
+      shift_days / watch_cycle / full_watch / thin_watch: the
+        watchbill (doc 41 phase 2) — shifts of ``shift_days`` days,
+        the cycle of watch kinds per shift, and the station rosters
+        per kind. Tenure — ``(total_days - total_days(1,1,2200)) //
+        shift_days``, epoch-anchored so boundaries land on days
+        8/15/22 — is a pure function of the day clock; a rotation
+        spawns its pickets with a monotonic ``:t<tenure>`` suffix on
+        the spawn key. Empty rosters (default) = no watch: the
+        statics stand as placed, phase-1 semantics.
     """
     x: int
     label: str
@@ -199,6 +226,10 @@ class SensorColumn:
     manifest_lines: tuple[str, ...] = ()
     rank_lines: tuple[str, ...] = ()
     service_lines: tuple[str, ...] = ()
+    shift_days: int = 7
+    watch_cycle: tuple[str, ...] = ("full", "full", "full", "thin")
+    full_watch: tuple[WatchStation, ...] = ()
+    thin_watch: tuple[WatchStation, ...] = ()
 
 
 @dataclass(frozen=True)
