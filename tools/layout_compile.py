@@ -73,12 +73,17 @@ def _neighbors(x: int, y: int):
 
 def _flood(grid: list[list[str]], x: int, y: int,
            open_cells: set[tuple[int, int]]) -> set:
-    """One 4-connected component of open cells containing (x, y)."""
+    """One 8-connected component of open cells containing (x, y).
+
+    8-connected because the player moves 8-directionally with corner
+    cutting legal (world.try_move checks only the target tile): cells
+    joined diagonally are one operational space."""
     seen = {(x, y)}
     queue = deque([(x, y)])
     while queue:
         cx, cy = queue.popleft()
-        for nx, ny in _neighbors(cx, cy):
+        for nx, ny in ((cx+1, cy), (cx-1, cy), (cx, cy+1), (cx, cy-1),
+                       (cx+1, cy+1), (cx-1, cy-1), (cx+1, cy-1), (cx-1, cy+1)):
             if (nx, ny) in open_cells and (nx, ny) not in seen:
                 seen.add((nx, ny))
                 queue.append((nx, ny))
