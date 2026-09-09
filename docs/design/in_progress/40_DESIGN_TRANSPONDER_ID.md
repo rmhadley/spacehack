@@ -1351,19 +1351,22 @@ challenge. Scrubbed triggers neither — blank paper complies.
       wreck path); consume bookkeeping per the SETTLED ruling
       (full kill pass minus exterior loot; heist cargo rides the
       interior via the component-good mechanism; supersedes 6a's
-      bounty/heist BOARD exclusion); guide text for the widened
-      coverage. Brief: this block, rolled forward from 6c's
-      original scope — build order follows 6c's proven pipeline
-      per class; deck walks gate each layout.
+      bounty/heist BOARD exclusion). Brief: this block, rolled
+      forward from 6c's original scope — build order follows 6c's
+      proven pipeline per class; deck walks gate each layout.
       DECKS SHIPPED so far: cruiser_crew (slug_b), scout_crew
       (Stealth Cruiser A rework + 3-spec wiring), hauler_crew
       (user's small_hauler), frigate_crew (Onslaught), and
       freightliner_crew (2026-09-09 — the user-polished atlas
       superfreighter deck: 51 markers, consortium crew, wired to
       merchant_freighter + merchant_caravan; freightliner_a back
-      to pure salvage duty). Coverage flip landed 031e7c9 (all
-      11 battle specs wired). REMAINING for 6d: consume
-      bookkeeping + guide text + the frigate/scout/hauler/
+      to pure salvage duty). Coverage flip landed 031e7c9; 13/13
+      battle specs wired 2026-09-09. GUIDE RESOLVED (user rulings
+      2026-09-09): the guide teaches the CLONE VERB, never the
+      strategy — clone quality scaling with the source ship is a
+      DISCOVERED mechanic (no text); the one entry owed was the B
+      key in the controls list (landed same day). REMAINING for
+      6d: consume bookkeeping + the frigate/scout/hauler/
       freightliner deck-walk confirmations as they come.
       RULINGS + LANDED 2026-09-09 (coverage completed):
       militia_patrol → cruiser_crew wired (13/13 battle specs,
