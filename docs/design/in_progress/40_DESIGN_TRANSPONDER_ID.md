@@ -1386,7 +1386,7 @@ challenge. Scrubbed triggers neither — blank paper complies.
       (10–80, allied possible at 7%), the frigate elite — captain/
       warlord/patrol_heavy — T3 (25–100, allied 33%). The ladder
       is live in play.
-      PLAYTEST ROUND (2026-09-09, user): two findings, both fixed.
+      PLAYTEST ROUND (2026-09-09, user): three findings, all fixed.
       (1) Capture interiors spawned DARK like derelicts with no way
       to light them (the capture C console is the clone console) —
       live ships now enter POWERED (3e76e0e: sight 20 + power_
@@ -1397,9 +1397,15 @@ challenge. Scrubbed triggers neither — blank paper complies.
       (spec not hostile to the broadcasting sheet — e.g. the
       consortium crew, a PIRATE-faction outfit, under a pirate-liked
       clone) now seal permanently like powered-down security;
-      hostiles + vermin keep the reveal-then-fight contract. GUIDE:
-      B key added to the combat controls list; clone quality stays
-      DISCOVERED by ruling.
+      hostiles + vermin keep the reveal-then-fight contract.
+      (3) Same day, a user-save repro: a FIXTURE (Engine Terminal)
+      behind a doorway toggled the frame every step (doorways cut
+      sight by design) — fixtures (no npc_char_id: terminals,
+      consoles, sealed doors) seal permanently too (5fabaed);
+      reviewer verified no combat-capable entity spawns without
+      npc_char_id + no goto target strands. GUIDE: B key added to
+      the combat controls list; clone quality stays DISCOVERED by
+      ruling.
 
 (The Line's checkpoint sweep reads these states in doc 41 — doc 40
 supplies the states, doc 41 owns the consumer.)
