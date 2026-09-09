@@ -184,7 +184,7 @@ def test_worn_face_militia_rep_reads_faces_only():
 
 def test_crossing_hails_once_eastbound_and_not_again_past_column(line_system, monkeypatch):
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
@@ -196,7 +196,7 @@ def test_crossing_hails_once_eastbound_and_not_again_past_column(line_system, mo
 
 def test_crossing_hails_the_first_westbound_return(line_system, monkeypatch):
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(180, 70))
     assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
@@ -212,7 +212,7 @@ def test_tripwire_zero_state_stamps_on_first_step(line_system, monkeypatch):
     """After load (fresh session state) the first step stamps the
     side: no re-hail, and the next ACTUAL entry fires once."""
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     assert navigation_line.check_crossing(ctx, world.Position(180, 70)) is None
     assert calls == []
@@ -225,7 +225,7 @@ def test_leaving_the_line_system_resets_the_tracker(monkeypatch):
     """A stale prev-x from the Line's system must not read as a
     crossing after re-entry (the tracker re-stamps)."""
     sol = SimpleNamespace(id="sol", sensor_column=None)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     calls = _hails(monkeypatch)
 
     monkeypatch.setattr(solar_system_module, "current_system", lambda: LUYTEN)
@@ -247,7 +247,7 @@ def test_papers_wave_opens_all_clear_comms_and_persists(line_system, monkeypatch
     opened = _modals(monkeypatch, navigation_line._Checkpoint.ACK)
     ctx = quest_ctx(player_traits=["blockade_manifest"],
                     ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]))
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
@@ -266,7 +266,7 @@ def test_service_run_wave_consumes_the_trait(line_system, monkeypatch):
     calls = _hails(monkeypatch)
     ctx = quest_ctx(player_traits=["blockade_service_run"],
                     ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]))
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) == (False, None)
@@ -287,7 +287,7 @@ def test_rank_wave_addresses_the_worn_face(line_system, monkeypatch):
             "faction": "militia", "rep": {"militia": 100}}
     ctx = quest_ctx(collected_ids=[face], broadcast_identity=face,
                     ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]))
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
@@ -302,7 +302,7 @@ def test_challenge_addresses_the_broadcast_id(line_system, monkeypatch):
     broadcast registration."""
     opened = _modals(monkeypatch, navigation_line._Checkpoint.COMPLY)
     ctx = quest_ctx(ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]))
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     navigation_line.check_crossing(ctx, world.Position(150, 70))
@@ -329,7 +329,7 @@ def test_dark_hull_is_never_swept(line_system, monkeypatch):
     """Ruling 1: the sweep cannot see dark hulls — no hail on the
     crossing; only physical spotting (the auto-hail pass) opens it."""
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(broadcast_dark=True, game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(broadcast_dark=True, game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
@@ -426,20 +426,18 @@ def test_lured_alive_picket_fights_from_its_live_position(line_system, monkeypat
     assert (140, 60) in [(_p.x, _p.y) for _p in payload[1]]
 
 
-def test_defy_with_the_squad_dead_sets_the_flag_without_a_fight(line_system, monkeypatch):
-    """After the picket squad is destroyed the sweep still challenges
-    (the Line is the system, not just its ships) — Defy raises the
-    interdiction but carries no combat payload (phase 3: the patrols
-    converge)."""
-    _defy(monkeypatch)
+def test_dead_squad_ends_the_sweep(line_system, monkeypatch):
+    """Round-2 ruling: the sweep is manned — with every picket dead
+    the Line is dark: no hail, no wave, no defiance. The fight
+    method pays (until phase 2's next shift re-mans the column)."""
+    calls = _hails(monkeypatch)
     ctx = quest_ctx(faction_reputation={"militia": 100},
                     game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
-
-    assert result == (True, None)
-    assert navigation_line.interdiction_system() == "luyten_star"
+    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    assert calls == []
+    assert navigation_line.interdiction_system() is None
 
 
 # ---------------------------------------------------------------------------
@@ -570,7 +568,7 @@ def test_comply_turn_back_is_free_and_recross_hails(line_system, monkeypatch):
     hail must NOT re-hail. The sweep fires on entering the column;
     leaving is free; the next entry is a new resolution."""
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
@@ -591,7 +589,7 @@ def test_comply_turn_back_is_free_and_recross_hails(line_system, monkeypatch):
 
 def test_goto_interrupts_on_the_hail(line_system, monkeypatch):
     """The sweep hail breaks GO TO like comms warnings do."""
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     ship = SimpleNamespace(pos=world.Position(149, 70))
     navigation_line.check_crossing(ctx, ship.pos)
 
@@ -613,7 +611,7 @@ def test_goto_continues_through_a_wave(line_system, monkeypatch):
     continues — no interrupt (user playtest ruling 2026-09-09)."""
     ctx = quest_ctx(player_traits=["blockade_manifest"],
                     ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]),
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     bounty_spawns={}, militia_scanned=set())
     ship = SimpleNamespace(pos=world.Position(149, 70))
     navigation_line.check_crossing(ctx, ship.pos)
@@ -669,7 +667,7 @@ def test_run_combat_loop_wave_falls_through(line_system, monkeypatch):
     monkeypatch.setattr(game_flow, "_detect_combat_encounter", lambda *_a: None)
     ctx = quest_ctx(player_traits=["blockade_manifest"],
                     ship_registration="SC-4471",
-                    game_map=SimpleNamespace(entities=[]),
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     militia_scanned=set())
     player = SimpleNamespace(pos=world.Position(149, 70))
     navigation_line.check_crossing(ctx, player.pos)
@@ -687,7 +685,7 @@ def test_run_combat_loop_wave_falls_through(line_system, monkeypatch):
 
 def test_line_dark_hail_scopes_to_picket_spotters(line_system, monkeypatch):
     calls = _hails(monkeypatch)
-    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     picket = world.Entity("M", (100, 200, 255), world.Position(150, 55),
                           npc_ship_id="militia_blockade")
     other = world.Entity("M", (100, 200, 255), world.Position(150, 55),

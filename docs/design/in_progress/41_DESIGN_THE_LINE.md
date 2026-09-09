@@ -235,6 +235,32 @@ Presentation rulings (user wording VERBATIM; "targetting"→
    you!" (was "The Line converges on you!"). Comply: "You turn
    back from the blockade."
 
+### Playtest round 2 (2026-09-09) — two rulings + the retest list
+
+1. **Turn-back re-hail (user bug #1)**: the first-pass rule counted
+   every edge transit as a crossing, so complying and stepping off
+   the column re-hailed the retreat. Fixed statelessly: the sweep
+   fires on ENTERING the column (``new_x == column.x`` and
+   ``prev_x != column.x``), from either side; leaving is always
+   free. Every west↔east traversal still steps onto the column, so
+   coverage stays edge-to-edge.
+2. **The sweep is MANNED (user, round 2)**: fighting through and
+   winning must end the broadcast line — fight is doc 39's fifth
+   method, and an eternal sweep would make it unable to ever open
+   the Line. With no picket alive the column is dark: no hail, no
+   waves, no defiance (supersedes round 1's "crossings still
+   challenge" consequence and its empty-payload Defy branch). The
+   hole is temporary by construction: phase 2's rotations re-man
+   the column on the next shift.
+3. **Comply-and-run confirmed deferred** (user asked): a hull that
+   answers Comply and keeps east draws no aggro in phase 1 — the
+   audit's pinned phase-1 hole; phase 3's convergence closes it
+   (the Comply latch converting to Defy on the eastward exit is
+   the named mechanic for the phase-3 brief). Also clarified for
+   the user: proximity aggro against a broadcasting hull requires
+   a disliked/enemy sheet or the flag — every dev-loadout stance
+   reads neutral-or-better, so pickets stand down by design.
+
 Guide ruling (user, round-1 follow-up): **the guide carries nothing
 about the Line at all.** The checkpoint explains itself in play —
 the hail IS the teacher — so guide coverage telegraphs an encounter

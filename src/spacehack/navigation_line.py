@@ -117,12 +117,21 @@ def interdiction_system() -> str | None:
 # The movement-pass check
 # ---------------------------------------------------------------------------
 
+def _entered_column(prev_x: int | None, new_x: int, column_x: int) -> bool:
+    """The sweep fires on ENTERING the column from either side;
+    leaving is always free — a complying hull is never re-hailed on
+    its retreat (user playtest ruling, 2026-09-09)."""
+    return prev_x is not None and new_x == column_x and prev_x != column_x
+
+
 def check_crossing(ctx, pos):
     """The movement pass's Line check (runs before the auto-comms
     warning; a hailed step skips that pass).
 
     The sweep fires once per entry onto the column, from either
-    side; leaving is free (no re-hail on a complying retreat).
+    side; leaving is free (no re-hail on a complying retreat). The
+    sweep is manned: with no picket alive the column is dark — no
+    hail, no waves, no defiance (the fight method pays).
 
     None: nothing happened this step (no entry, or a dark hull the
     sweep cannot see). ``(False, None)``: a wave — the all-clear
@@ -136,17 +145,10 @@ def check_crossing(ctx, pos):
     if column is None:
         _prev_x = None
         return None
-    # The hail fires on ENTERING the column from either side; leaving
-    # it is always free — a complying hull is never re-hailed on its
-    # retreat (user playtest ruling, 2026-09-09).
-    crossed = (
-        _prev_x is not None
-        and pos.x == column.x
-        and _prev_x != column.x
-    )
+    crossed = _entered_column(_prev_x, pos.x, column.x)
     _prev_x = pos.x
-    if not crossed:
-        return None
+    if not crossed or not _picket_payload(ctx, column, system)[0]:
+        return None  # no entry, or the sweep is unmanned: dark column
     verdict = resolve_sweep(
         dark=identity.broadcast_mode(ctx) == identity.DARK,
         manifest=has_trait(ctx, MANIFEST_TRAIT),
@@ -244,10 +246,7 @@ def _run_checkpoint(ctx, column, system):
         "The blockade's targeting lasers focus on you!",
         _ml.COLOR_COMBAT_EVENT,
     )
-    payload = _picket_payload(ctx, column, system)
-    if not payload[0]:
-        return (True, None)  # squad dead: the flag's patrols carry it
-    return (True, payload)
+    return (True, _picket_payload(ctx, column, system))
 
 
 def _picket_payload(ctx, column, system):
