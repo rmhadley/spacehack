@@ -237,10 +237,10 @@ spec = {
     "labels": [{"name": n, "role": "", "at": list(labels[n])}
                for n in sorted(labels)],
     "doors": doors,
-    # entry draft: breach through the aft hull below engineering;
-    # the user's polish owns the final point
-    "entry": {"breach": [2, 60], "spawn": [5, 60], "exit": [8, 60]},
-    "console": {"pos": [285, 36]},
+    # entry: breach through the aft hull below engineering — final
+    # position set by the user's polish pass (verified on the map)
+    "entry": {"breach": [27, 60], "spawn": [27, 61], "exit": [27, 62]},
+    "console": {"pos": [286, 36]},
 }
 OUT.write_text(json.dumps(spec, indent=1))
 print(f"wrote {OUT}: {len(comps)} rooms, {len(segments)} wall segs, "
