@@ -44,14 +44,20 @@ class SweepVerdict(Enum):
 
 
 class _Checkpoint(Enum):
-    """The checkpoint modal's two answers (ruling 3 — binary)."""
+    """The checkpoint modal's answers: Comply/Defy on the challenge
+    (ruling 3 — binary), Acknowledge on the waves."""
     COMPLY = auto()
     DEFY = auto()
+    ACK = auto()
 
 
 _CHECKPOINT_DISPATCH = {
     "Comply": _Checkpoint.COMPLY,
     "Defy": _Checkpoint.DEFY,
+}
+
+_ACK_DISPATCH = {
+    "Acknowledge": _Checkpoint.ACK,
 }
 
 
@@ -115,9 +121,11 @@ def check_crossing(ctx, pos):
     """The movement pass's Line check (runs before the auto-comms
     warning; a hailed step skips that pass).
 
-    None: nothing happened this step. ``(True, payload | None)``:
-    the checkpoint hail opened — the payload carries the converged
-    squad on Defy.
+    None: nothing happened this step (no crossing, or a dark hull
+    the sweep cannot see). ``(False, None)``: a wave — the all-clear
+    comms ran, the player is through (GO TO continues).
+    ``(True, payload | None)``: the challenge hail opened — the
+    payload carries the converged squad on Defy.
     """
     global _prev_x
     system = solar_system_module.current_system()
@@ -151,33 +159,57 @@ def _worn_face_militia_rep(ctx) -> int | None:
     return (face.get("rep") or {}).get("militia", 0)
 
 
-def _wave_papers(ctx, column, system):
-    ctx.log.add_colored(
-        f"{column.label} reads a valid manifest: waved through.",
-        _ml.COLOR_IMPORTANT_EVENT,
+def _checkpoint_address(ctx) -> str:
+    """What the blockade calls the hull: the broadcast registration,
+    or "Unidentified hull" when nothing resolves (dark)."""
+    face = identity.resolved_identity(ctx)
+    _id = (face or {}).get("id", "")
+    return _id if _id else "Unidentified hull"
+
+
+def _line_modal(ctx, column, lines, options, dispatch):
+    """One comms-shaped Line modal — the checkpoint's single
+    presentation; returns the player's reply. The column's message
+    templates carry an ``{id}`` placeholder for the address."""
+    from . import comms
+    return comms._pygame_interaction_outcome(
+        ctx, column.label, None, options,
+        contact_entity=None, dispatch=dispatch, title="Hailing",
+        lines=tuple(
+            line.format(id=_checkpoint_address(ctx)) for line in lines
+        ),
     )
-    return None
+
+
+def _current_column():
+    """The active system's sensor column, or None."""
+    system = solar_system_module.current_system()
+    return getattr(system, "sensor_column", None)
+
+
+def _wave_through(ctx, lines) -> tuple[bool, None]:
+    """A waved crossing: the blockade's all-clear comms (one
+    Acknowledge option; ESC counts), then a terse log line.
+    ``(False, None)`` — the player is through; GO TO continues."""
+    _line_modal(ctx, _current_column(), lines, ("Acknowledge",), _ACK_DISPATCH)
+    ctx.log.add("The blockade waves you through.")
+    return (False, None)
+
+
+def _wave_papers(ctx, column, system):
+    return _wave_through(ctx, column.manifest_lines or column.hail_lines)
 
 
 def _wave_rank(ctx, column, system):
-    face = identity.resolved_identity(ctx)
-    ctx.log.add_colored(
-        f"{column.label} reads {identity.identity_label(face)}: "
-        "blockade rank. Waved through.",
-        _ml.COLOR_IMPORTANT_EVENT,
-    )
-    return None
+    return _wave_through(ctx, column.rank_lines or column.hail_lines)
 
 
 def _wave_service(ctx, column, system):
+    _wave_through(ctx, column.service_lines or column.hail_lines)
     if has_trait(ctx, SERVICE_TRAIT):
         ctx.player_traits.remove(SERVICE_TRAIT)
-    ctx.log.add_colored(
-        f"{column.label} reads a service-run contract: waved through. "
-        "The contract is spent.",
-        _ml.COLOR_IMPORTANT_EVENT,
-    )
-    return None
+    ctx.log.add("The service-run contract is spent.")
+    return (False, None)
 
 
 # ---------------------------------------------------------------------------
@@ -188,28 +220,26 @@ def _run_checkpoint(ctx, column, system):
     """The hail: Comply = turn back, Defy = converge. ESC/window-
     close is Defy — refusing the conversation is an answer too
     (doc-40 precedent)."""
-    from . import comms
-    outcome = comms._pygame_interaction_outcome(
-        ctx, column.label, None, ("Comply", "Defy"),
-        contact_entity=None,
-        dispatch=_CHECKPOINT_DISPATCH,
-        title="checkpoint",
-        esc_label="ESC defy",
-        lines=column.hail_lines,
+    outcome = _line_modal(
+        ctx, column, column.hail_lines, ("Comply", "Defy"),
+        _CHECKPOINT_DISPATCH,
     )
     if outcome is _Checkpoint.COMPLY:
         ctx.log.add_colored(
-            f"You turn back from {column.label}.",
+            "You turn back from the blockade.",
             _ml.COLOR_IMPORTANT_EVENT,
         )
         return (True, None)
     global _interdiction_system
     _interdiction_system = getattr(system, "id", "")
     ctx.log.add_colored(
-        f"{column.label} converges on you!",
+        "The blockade's targeting lasers focus on you!",
         _ml.COLOR_COMBAT_EVENT,
     )
-    return (True, _picket_payload(ctx, column, system))
+    payload = _picket_payload(ctx, column, system)
+    if not payload[0]:
+        return (True, None)  # squad dead: the flag's patrols carry it
+    return (True, payload)
 
 
 def _picket_payload(ctx, column, system):

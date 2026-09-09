@@ -171,17 +171,24 @@ class SensorColumn:
     hulls are invisible to it and only physically spotted by the
     Line's own pickets.
 
+    All message templates carry an ``{id}`` placeholder — the
+    broadcast registration the sweep read, or "Unidentified hull"
+    for a dark hull.
+
     Attributes:
       x: the swept column (crossing edge; the column cell belongs
         to the Line — west is ``x < column.x``).
-      label: display name for logs and the checkpoint hail.
+      label: display name for the checkpoint comms titles.
       squad_id: the :class:`EnemySpawn` squad that mans the Line;
         Defy converges this squad.
       picket_enemy_id: the catalog id the Line's cruisers broadcast
         as — how a physical spotter is recognized as a picket.
       rank_rep: blockade-rank threshold on a worn face's sheet;
         at or above it the sweep waves the hull as that ID.
-      hail_lines: the checkpoint hail's body text.
+      hail_lines: the challenge body (unpapered) — Comply/Defy.
+      manifest_lines / rank_lines / service_lines: the wave bodies
+        (single Acknowledge option each); the service-run contract
+        is consumed at the ack.
     """
     x: int
     label: str
@@ -189,6 +196,9 @@ class SensorColumn:
     picket_enemy_id: str
     rank_rep: int
     hail_lines: tuple[str, ...]
+    manifest_lines: tuple[str, ...] = ()
+    rank_lines: tuple[str, ...] = ()
+    service_lines: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

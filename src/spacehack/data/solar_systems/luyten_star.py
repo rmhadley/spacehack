@@ -160,17 +160,30 @@ _stars = solar_module.make_stars(200, 140, seed="luyten_star")
 # edge-to-edge broadcast sweep on the pickets' column. Any hull
 # crossing x=150 with a live or spoofed transponder is swept; dark
 # hulls only a picket physically spots. rank_rep 80: blockade rank
-# on a worn face's sheet (data — user-dictatable).
+# on a worn face's sheet (data — user-dictatable). Message wording
+# user-dictated 2026-09-09 (playtest round 1); {id} = the broadcast
+# registration, or "Unidentified hull" when nothing resolves.
 _sensor_column = SensorColumn(
     x=150,
-    label="The Line",
+    label="Militia Blockade",
     squad_id="luyt_blockade_picket",
     picket_enemy_id="militia_blockade",
     rank_rep=80,
     hail_lines=(
-        "Unidentified hull: you are crossing the Line.",
-        "Your transponder reads no manifest. Turn back, or the whole "
-        "Line converges on you.",
+        "{id}, this is forbidden space. You're not on our list, "
+        "turn back now or else.",
+    ),
+    manifest_lines=(
+        "{id}, this is forbidden space. Your ID checks out, "
+        "continue through.",
+    ),
+    rank_lines=(
+        "{id}, this is forbidden space. Oh, sorry. Didn't recognize "
+        "your ID, sir. Continue through.",
+    ),
+    service_lines=(
+        "{id}, this is forbidden space. Your ID checks out, "
+        "this time. Continue through.",
     ),
 )
 

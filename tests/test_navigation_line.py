@@ -58,13 +58,25 @@ def _defy(monkeypatch):
 
 
 def _hails(monkeypatch):
-    """Record every checkpoint-modal opening instead of running it."""
+    """Record every Line-modal opening instead of running it; the
+    reply scripts as COMPLY (challenge) by default."""
     calls: list = []
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
         lambda *_a, **_k: calls.append(1) or navigation_line._Checkpoint.COMPLY,
     )
     return calls
+
+
+def _modals(monkeypatch, reply):
+    """Capture every Line modal's body lines; reply with ``reply``."""
+    opened: list = []
+    monkeypatch.setattr(
+        "src.spacehack.comms._pygame_interaction_outcome",
+        lambda _c, _n, _s, _o, contact_entity=None, dispatch=None,
+        title=None, lines=None: opened.append(lines) or reply,
+    )
+    return opened
 
 
 def _log_text(ctx) -> str:
@@ -228,50 +240,85 @@ def test_leaving_the_line_system_resets_the_tracker(monkeypatch):
 # The waves (papers / rank / service) and the dark path
 # ---------------------------------------------------------------------------
 
-def test_papers_wave_logs_and_persists(line_system, monkeypatch):
-    _hails(monkeypatch)
+def test_papers_wave_opens_all_clear_comms_and_persists(line_system, monkeypatch):
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.ACK)
     ctx = quest_ctx(player_traits=["blockade_manifest"],
+                    ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
 
-    assert result is None, "a wave never interrupts"
+    assert result == (False, None), "a wave lets the hull through"
+    assert len(opened) == 1
+    assert "SC-4471" in opened[0][0] and "checks out" in opened[0][0]
     assert "blockade_manifest" in ctx.player_traits
-    assert "manifest" in _log_text(ctx)
+    assert "waves you through" in _log_text(ctx)
 
 
 def test_service_run_wave_consumes_the_trait(line_system, monkeypatch):
-    """One crossing per 100k: the trait is the token (doc 39/41
-    ruling 7). The next crossing — here the westbound turn-back —
-    hails again."""
+    """One crossing per 100k: the contract is spent at the ack (doc
+    39/41 ruling 7). The next crossing — here the westbound
+    turn-back — challenges again."""
     calls = _hails(monkeypatch)
     ctx = quest_ctx(player_traits=["blockade_service_run"],
+                    ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) == (False, None)
     assert "blockade_service_run" not in ctx.player_traits
+    assert "service-run contract is spent" in _log_text(ctx)
 
     result = navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert result is not None
-    assert len(calls) == 1, "after consumption the sweep hails"
+    assert result is not None and result[0] is True
+    assert len(calls) == 2, "wave comms + the post-consumption challenge"
 
 
-def test_rank_wave_logs_as_that_id(line_system, monkeypatch):
+def test_rank_wave_addresses_the_worn_face(line_system, monkeypatch):
     """Impersonation: the worn face at blockade rank is waved and the
-    log names THAT ID."""
-    _hails(monkeypatch)
+    comms address THAT ID."""
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.ACK)
     face = {"id": "MIL-0001", "kind": "cloned", "label": "Militia ally",
             "faction": "militia", "rep": {"militia": 100}}
     ctx = quest_ctx(collected_ids=[face], broadcast_identity=face,
+                    ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=[]))
 
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
 
-    assert result is None
-    assert "MIL-0001" in _log_text(ctx)
+    assert result == (False, None)
+    assert "MIL-0001" in opened[0][0], "the wave addresses the worn face"
+    assert "SC-4471" not in opened[0][0]
+
+
+def test_challenge_addresses_the_broadcast_id(line_system, monkeypatch):
+    """User wording (2026-09-09): the hail opens with the hull's
+    broadcast registration."""
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.COMPLY)
+    ctx = quest_ctx(ship_registration="SC-4471",
+                    game_map=SimpleNamespace(entities=[]))
+
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(150, 70))
+
+    assert "SC-4471, this is forbidden space." in opened[0][0]
+    assert "not on our list" in opened[0][0]
+
+
+def test_dark_checkpoint_addresses_unidentified_hull(line_system, monkeypatch):
+    """A dark hull is never swept — but a picket's physical spot opens
+    the same checkpoint, addressed 'Unidentified hull'."""
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.DEFY)
+    ctx = quest_ctx(broadcast_dark=True, ship_registration="SC-4471",
+                    game_map=SimpleNamespace(
+                        entities=_picket_entities(LUYTEN)))
+
+    result = navigation_line.line_dark_hail(ctx, ctx.game_map.entities[0])
+
+    assert result is not None
+    assert opened[0][0].startswith("Unidentified hull, this is forbidden space.")
 
 
 def test_dark_hull_is_never_swept(line_system, monkeypatch):
@@ -361,6 +408,73 @@ def test_defy_payload_skips_dead_pickets(line_system, monkeypatch):
     assert len(payload[0]) == 3
 
 
+def test_defy_with_the_squad_dead_sets_the_flag_without_a_fight(line_system, monkeypatch):
+    """After the picket squad is destroyed the sweep still challenges
+    (the Line is the system, not just its ships) — Defy raises the
+    interdiction but carries no combat payload (phase 3: the patrols
+    converge)."""
+    _defy(monkeypatch)
+    ctx = quest_ctx(faction_reputation={"militia": 100},
+                    game_map=SimpleNamespace(entities=[]))
+
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+
+    assert result == (True, None)
+    assert navigation_line.interdiction_system() == "luyten_star"
+
+
+# ---------------------------------------------------------------------------
+# The static-defeat ledger (playtest round 1: dead pickets re-stamped)
+# ---------------------------------------------------------------------------
+
+def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
+    """Playtest bug (2026-09-09): beating the blockade then reloading
+    resurrected it. A static kill records a tombstone; the next map
+    build skips it."""
+    from src.spacehack import solar_system as ss_module
+    from src.spacehack.combat._space_kills import mark_static_spawn_defeated
+
+    ctx = quest_ctx(defeated_static_spawns=set())
+    dead = world.Entity("B", (130, 230, 220), world.Position(150, 25),
+                        npc_ship_id="militia_blockade")
+
+    mark_static_spawn_defeated(ctx, dead)
+    assert ctx.defeated_static_spawns == {
+        "luyten_star:militia_blockade:150:25",
+    }
+
+    fresh = ss_module.make_solar_system(
+        system=LUYTEN, skip_static_spawns=ctx.defeated_static_spawns,
+    )
+    _stamped = [
+        _e for _e in fresh.entities
+        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
+    ]
+    assert len(_stamped) == 3, "the dead picket does not re-stamp"
+
+    untouched = ss_module.make_solar_system(system=LUYTEN)
+    assert sum(
+        1 for _e in untouched.entities
+        if getattr(_e, "npc_ship_id", "") == "militia_blockade"
+    ) == 4
+
+
+def test_non_static_kills_record_nothing(line_system):
+    """Procedural pirates etc. respawn by design — no tombstone."""
+    from src.spacehack.combat._space_kills import mark_static_spawn_defeated
+
+    ctx = quest_ctx(defeated_static_spawns=set())
+    pirate = world.Entity("p", (255, 80, 80), world.Position(60, 60),
+                          npc_ship_id="pirate_scout")
+    procedural = world.Entity("p", (255, 80, 80), world.Position(150, 25),
+                              npc_ship_id="pirate_scout")
+
+    mark_static_spawn_defeated(ctx, pirate)
+    mark_static_spawn_defeated(ctx, procedural)
+    assert ctx.defeated_static_spawns == set()
+
+
 def test_interdiction_gate_bypasses_stance_for_militia_only(monkeypatch):
     """The flag reads like charged-cell aggro: LINE-scoped, militia
     only, stance-independent (ruling 8's convergence teeth)."""
@@ -439,6 +553,21 @@ def test_goto_interrupts_on_the_hail(line_system, monkeypatch):
     ship.pos = world.Position(150, 70)
     outcome, payload = navigation_travel_goto(ctx, ship)
     assert outcome is GotoOutcome.COMBAT and payload is not None
+
+
+def test_goto_continues_through_a_wave(line_system, monkeypatch):
+    """A waved hull is THROUGH: the all-clear comms run, then auto-nav
+    continues — no interrupt (user playtest ruling 2026-09-09)."""
+    ctx = quest_ctx(player_traits=["blockade_manifest"],
+                    ship_registration="SC-4471",
+                    game_map=SimpleNamespace(entities=[]),
+                    bounty_spawns={}, militia_scanned=set())
+    ship = SimpleNamespace(pos=world.Position(149, 70))
+    navigation_line.check_crossing(ctx, ship.pos)
+
+    _modals(monkeypatch, navigation_line._Checkpoint.ACK)
+    ship.pos = world.Position(150, 70)
+    assert navigation_travel_goto(ctx, ship) is None
 
 
 def navigation_travel_goto(ctx, ship):
@@ -543,6 +672,11 @@ def test_luyten_column_matches_its_picket_line():
     column = LUYTEN.sensor_column
     assert column is not None
     assert column.rank_rep > 0 and column.hail_lines
+    assert column.manifest_lines and column.rank_lines and column.service_lines
+    assert all("{id}" in line for line in (
+        *column.hail_lines, *column.manifest_lines,
+        *column.rank_lines, *column.service_lines,
+    ))
     for _spawn in LUYTEN.enemies:
         assert _spawn.pos.x == column.x
         assert _spawn.squad_id == column.squad_id
