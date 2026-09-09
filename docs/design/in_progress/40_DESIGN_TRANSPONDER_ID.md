@@ -1415,6 +1415,36 @@ challenge. Scrubbed triggers neither — blank paper complies.
     work, no new decks, no guide changes.
   - Playtest checkpoint: numbered (bounty board-complete, heist
     cargo inside, save-in-interior tombstone, kill regression).
+
+  Pre-implementation audit (6d residual, 2026-09-09):
+  - Reuse: the whole kill pass already exists in two files —
+    ``_finalize_kill``/``_record_defeat`` (``combat/_space_kills.py``:
+    XP base_hull×2, counters, defeated_names/spec_ids, bounty/heist
+    id append, squad drop, tombstone) and the victory trio
+    (``combat/_encounter.py``: ``_apply_kill_reputation`` — rep
+    rides the broadcast gate via ``modify_rep`` —
+    ``_complete_bounty_missions``, ``_cleanup_heist_spawns``) +
+    ``main_quest.maybe_complete_bounty``. The heist-cargo interior
+    seam is ``dungeon_layout.load_layout(component_good_id=,
+    component_mission_id=)`` — the wreck flow's
+    ``_boardable_wreck_layout`` precedent (game_interactions.py).
+    ``_spawn_heist_loot`` holds the mission-match (heist_spawn_id →
+    heist_target_good_id). The tombstone keys the entity's
+    ``bounty_squad_id``, which leaders AND wingmates carry.
+  - Duplication hotspots: (1) a second copy of the XP/counter/name
+    math at the consume site — killed by extracting the kill-core
+    from ``_finalize_kill`` (loot drops parameterized out); (2) a
+    second heist-mission match — extract the lookup from
+    ``_spawn_heist_loot`` into a shared helper both callers use;
+    (3) the victory trio re-called — direct calls at the consume
+    site, bodies untouched (no drift surface).
+  - DRY strategy: kill-core + heist-lookup live in
+    ``_space_kills.py`` beside their origins; the consume site
+    (``begin_capture_boarding``) composes them — no new module, no
+    logic copies. Fakes: the boarding tests' SimpleNamespace ctx
+    grows the fields the kill pass reads (player_counters,
+    player_active_missions via getattr defaults where the real
+    helpers already guard).
       RULINGS + LANDED 2026-09-09 (coverage completed):
       militia_patrol → cruiser_crew wired (13/13 battle specs,
       caddde2→8918623); STATICS ARE BOARDABLE (user: "there's no
