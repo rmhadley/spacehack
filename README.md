@@ -8,79 +8,31 @@
 ####### ##   ## ##   ##  #####  ####### ##   ## ##   ##  #####  ##   ##
 ```
 
-**A traditional ASCII-art sci-fi roguelike.** The year is 2200. Humankind has spread
-across more than a dozen star systems linked by jump gates of unknown origin —
-and you're a freelance pilot trying to make a living on the frontier.
+**An ASCII-art inspired sci-fi roguelike.** 
 
-Trade, smuggle, hunt bounties, and upgrade your ship across 13 star systems.
+The year is 2200. Humankind has spread across many star systems, linked by jump gates. You are a freelance pilot making a living on the frontier: trading, bounty hunting, and surviving.
+
+Trade, smuggle, hunt bounties, and upgrade your ship.
+
 Death is permanent.
-
-## Gameplay
-
-<a href="docs/space_combat.gif"><img src="docs/space_combat.gif" alt="Space combat" width="400"></a>
-<a href="docs/boarding_ground_combat.gif"><img src="docs/boarding_ground_combat.gif" alt="Boarding a derelict scout and ground combat" width="400"></a>
-
-*Space combat (left) and boarding a derelict scout for ground combat (right).*
-
-## Disclaimer
-
-This project has been an experiment/resarch project of mine to learn/explore
-using 100% free AI tools to design and build a playable game.
-
-- I know python enough to follow the code generally, but I accepted that the AI
-  will generate code that I do not understand fully.
-- I modifed very little code, but I reviewed code and forced coding architecture
-  where I thought it mattered.
-- I modified through AI design docs which you can see in the repo. Then had the
-  AI execute the design docs in phases.
-- AI slop is most present in the stroy/plot/lore text. I'm enjoying this process
-  enough that I do plan on replacing 99% of that AI slop output.
-- Cloning the repo and using freebuff or your favorite free AI codign platform
-  should allow any new features/modifications to your personal desires with ease
-- I run freebuff in a docker jail to help protect it from accessing anything
-  outside of the repo.
-
-## Docker jail for freebuff
-
-1. build the docker cache image
-2. make a function in your rc file (example is from my .zshrc)
-3. call `freejail`
-
-```
-docker run -it --name freebuff_builder node:18-slim sh -c "apt-get update && apt-get install -y git python3 python3-venv python3-pip && npm install -g freebuff"
-docker commit freebuff_builder freejail-cached:latest
-
-freejail () {
-	docker run -it -v ~/code/spacehack:/workspace -w /workspace freejail-cached:latest sh -c "apt-get update && apt-get install -y git python3 python3-venv python3-pip && npm install -g freebuff && python3 -m venv --copies .docker_venv && . ./.docker_venv/bin/activate && pip install -e . && freebuff"
-}
-```
-
-Then you can just call `freejail` to launch the editor.
 
 ## Features
 
-- **A living universe** — 13 star systems connected by jump gates, each with
+- **A living universe**: many star systems connected by jump gates, each with
   its own planets, stations, economy, and dangers
-- **Choose your legend** — pick a species (Human, Martian) and class
-  (Pirate, Merchant, Bounty Hunter) that shape your starting skills and credits
-- **Walk the cities** — Earth has a large scrolling river-to-coast city
-  with a central plaza, public monument, bridges, guild halls, bars,
-  spaceports, transit stations, and ambient NPCs walking the streets;
-  Mercury is a sprawling desert research station with the same systems;
-  talk to NPCs, take missions, refuel, repair, and rearm
-- **Space combat** — turn-based dogfights with lasers, plasma cannons, and
-  missiles (ammo is scarce and persistent — buy more at the mechanic)
-- **Ground combat** — board derelict wrecks and explore planets on foot,
+- **Space combat**: turn-based dogfights with lasers, plasma cannons, and
+  missiles
+- **Ground combat**: board derelict wrecks and explore planets on foot,
   with personal weapons, armor, and fog of war
-- **Missions for every temperament** — deliveries, bounties, smuggling runs,
-  salvage operations, and shady bar work. Boards refill each month
-- **Dynamic trade** — buy low on producer worlds, sell high where it's
+- **Missions for every temperament**: deliveries, bounties, smuggling runs,
+  salvage operations, and shady bar work.
+- **Dynamic trade**: buy low on producer worlds, sell high where it's
   consumed. Prices shift with supply and demand
-- **Factions & reputation** — your standing with four factions gates pay,
-  prices, and who's willing to trade with you
-- **Deep progression** — earn XP, spend skill points on ship or ground
+- **Factions & reputation**: your standing with four factions gates pay,
+  prices, behavior and more.
+- **Deep progression**: earn XP, spend skill points on ship or ground
   skills, and unlock traits as you level
-- **Permadeath** — one ship, one life. The frontier doesn't forgive
+- **Permadeath**: one ship, one life.
 
 ## Get the game
 
@@ -106,18 +58,12 @@ Grab the latest release for your platform from the
 > (`-cr` clears both `com.apple.quarantine` and, on macOS 13+,
 > `com.apple.provenance`.) Source installs (below) carry no quarantine at
 > all and need none of this.
->
-> If the app instead says **"damaged and can't be opened"** (and even
-> "Open Anyway" does nothing), the signature was lost in transit — the
-> release zip is built with `ditto` to preserve it, so re-download the
-> latest release; older zips made with plain `zip` are not fixable except
-> by `xattr -cr`. The only way to eliminate the "unidentified developer"
-> prompt entirely is Apple notarization, which requires a Developer ID
-> certificate.
 
 ### From source
 
-Requires **Python 3.10+**. The runtime uses the Pygame-compatible Community Edition package (`pygame-ce`), which provides prebuilt wheels for macOS ARM and current CPython releases. If upgrading an existing environment that installed standard `pygame`, recreate the virtual environment first. macOS / Linux:
+Requires **Python 3.10+**. The runtime uses the Pygame-compatible Community Edition package (`pygame-ce`), which provides prebuilt wheels for macOS ARM and current CPython releases.
+
+MacOS / Linux:
 
 ```bash
  git clone https://github.com/rmhadley/spacehack.git
@@ -139,44 +85,6 @@ run_spacehack.bat
 ```
 
 Linux/macOS can also just run `./run_spacehack` after `pip install -e .`.
-
-## Planetary cities and authored landmarks
-
-Earth's Phase 1 city is a `160x100` scrolling map. A river crosses the city
-and reaches the eastern coast; marked bridges provide the major crossings, and
-the central plaza is an authored landmark. Walk into a functional building's
-entrance to load its distinct authored interior, then use the interior exit to
-return to the same outdoor doorway. City building exteriors, interiors, and
-plaza features are loaded from swappable `.layout` assets, so their ASCII art
-and colors can be changed without changing interaction code.
-
-The repository includes a standalone Pygame utility for creating and editing
-hand-authored ship interiors, dungeon landmarks, and city landmarks. It uses
-the same layout syntax, tile data, and renderer as the game:
-
-```bash
-# Open an existing ship or landmark asset
-python -m tools.layout_editor src/spacehack/data/layouts/scout_a.layout
-python -m tools.layout_editor src/spacehack/data/landmarks/mars_signal_door.layout
-python -m tools.layout_editor src/spacehack/data/landmarks/earth_city_plaza.layout
-python -m tools.layout_editor src/spacehack/data/landmarks/earth_city_bar_interior.layout
-
-# Create a new asset (saving is restricted to the matching data directory)
-python -m tools.layout_editor --mode ship --output src/spacehack/data/layouts/my_ship.layout
-python -m tools.layout_editor --mode landmark --output src/spacehack/data/landmarks/my_landmark.layout
-
-# Validate all shipped assets without opening Pygame
-python -m tools.layout_editor --validate
-```
-
-In the editor, left-click paints the selected palette entry, right-click samples
-an existing glyph, `V` or `F5` toggles the production-loader preview, `S` saves,
-arrow keys or `HJKL` move the selected cell, `Enter`/`Space` paints, `Tab`
-selects the next palette entry, and `[`/`]` changes palette pages. `+` and `-`
-resize the layout width; `PageUp`/`PageDown` resize its height. Select a
-colored tile or enemy marker to inspect it: `I` cycles fields, `,`/`.` adjust
-values, and `B` toggles a background override. The status panel reports
-invalid markers, references, and reachability issues before saving.
 
 ## How to play
 
