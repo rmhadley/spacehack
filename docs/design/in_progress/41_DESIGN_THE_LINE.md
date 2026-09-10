@@ -406,6 +406,73 @@ consequence above is superseded, and the same-station base
 stacking case no longer exists (its test is retired with a note).
 The commute:watch ratio inverts to ≤9 commuting vs 30 standing.
 
+### Playtest round 4 (2026-09-10) — watch right-of-way
+
+**User report:** reliefs "fighting over their place as they fly
+out — a tight group that almost seems like there are B's just
+rotating around a central B." Stepping the autosave exposed three
+defects (all reproduced via debug_session; ADVISE-reviewed before
+building):
+
+- **(A) Launch jostle** — same-base reliefs stamp on ONE dock
+  cell and share one corridor; same-rate independent flights
+  mutually block and slip into an orbit (the south base piled up
+  SEVEN heal-launched reliefs, ships drifting 5 cells off-course).
+- **(B) Sticky off-station parking — the DEFAULT, not an edge
+  case**: per-step credit 0.9 < 1 means every flight stops at the
+  first cell within Chebyshev 1 of its target, so EVERY flown-in
+  picket parks one cell off-station for its whole tenure — and
+  ``_trigger_static_spawns`` reads exact row positions, so a
+  flown-in line is invisible to the interdiction trigger (0 of 14
+  rows alive, measured). Supersedes the phase-2 audit's "trigger
+  pass unchanged" claim (it held only for build-stamped watches).
+- **(C) Permanent blocker deadlock** — a flight whose next cell
+  holds a parked hull retries that cell forever (kept-path idiom),
+  slipping back and forth; observed (150,92)<->(149,93) for 30+
+  passes with credit pinned at 1.0. Slip-and-retry cannot pass a
+  stationary obstacle; only the watch makes month-long stands on
+  other flights' corridors.
+
+**The fix (three mechanisms, watch-side only; ADVISE-amended):**
+(1) **Launch spacing** via one shared ``dock_spacing_cells(base)``
+helper (deterministic dock/+2E/+4E by roster index per base) used
+by ALL THREE sites — build-side muster, runtime launch, and the
+order gate (a spaced relief must still take orders after load);
+(2) **station re-centering** as a DIRECT one-cell step in the
+per-step scan (never a flight target — the within-a-cell arrival
+check would self-cancel it): a targetless picket of tenure >=
+current, Chebyshev 1 from its OWN station, exact cell free, steps
+onto it. Amends the "parked pickets never move" pin for this case
+only — the HOLD survives (it stays at its post); displaced
+(ended-tenure) pickets are untouched, preserving that ruling;
+(3) **blocked flights re-route** ONLY past effectively-parked
+blockers (no live target or combat_locked) — head-on movers pass
+under the current idiom (verified: 23 passes, zero recomputes)
+and each A* costs ~16ms; a failed recompute KEEPS the flight on
+its old path (unreachable-drop stays assign-time only — a dropped
+home-bound flight is exactly the stray class this round removes).
+Consequence to note: a +4-spaced north relief's real transit is
+one day shorter than its lead (corner-cut) — early arrivals park
+and hold by ruling; the self-verifying lead pin still measures
+from the dock.
+
+**Residual risk (user's intuition, confirmed by the ADVISE round):
+this class could trigger very rarely OUTSIDE watch traffic** —
+human-piloted ships would give each other space. Verified
+self-healing today: squads re-target on arrival (short path
+lifetimes), merchants despawn at goals, derelicts are avoided at
+A*-time. The one live exposure: Luyten patrols cross the packed
+column on fixed ~75-cell paths and could transiently stall. If
+ever observed, generalize mechanism 3's parked-blocker re-route
+into the movement kernel — not before (no general wedge
+demonstrated; the kernel's determinism pins stay untouched).
+REVIEW note (round 4's code pass): a fully sealed corridor makes
+each blocked flight pay one failed A* (~16ms) per pass until the
+seal clears — collision-triggered and rare (a seal needs a
+complete wall; goal cells are occupancy-exempt); if it ever
+surfaces, bound it by skipping the recompute while the path head
+is unchanged since the last failure.
+
 Guide ruling (user, round-1 follow-up): **the guide carries nothing
 about the Line at all.** The checkpoint explains itself in play —
 the hail IS the teacher — so guide coverage telegraphs an encounter

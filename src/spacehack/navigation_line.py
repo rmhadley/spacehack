@@ -317,6 +317,28 @@ def _row_placements(system, rows, column, tenure):
     return out
 
 
+def dock_spacing_cells(base, count):
+    """Launch cells east of a base's dock, two apart (round 4):
+    same-day reliefs from one base muster and leave pre-spaced — a
+    convoy, not a brawl over one doorway. Deterministic by ordinal
+    so the build stamp, the runtime launch, and the order gate all
+    agree on the same cells."""
+    _x, _y = station_dock_cell(base)
+    return tuple((_x + 2 * _i, _y) for _i in range(count))
+
+
+def _base_ordinals(roster):
+    """Station y -> that station's ordinal within its base, in
+    roster order. The ordinal picks the dock spacing cell."""
+    _seen: dict = {}
+    _out: dict = {}
+    for _station in roster:
+        _n = _seen.get(_station.base_id, 0)
+        _out[_station.y] = _n
+        _seen[_station.base_id] = _n + 1
+    return _out
+
+
 def _overdue_reliefs(system, column, total):
     """Future-tenure reliefs whose launch day has already passed:
     stamped at their bases, keyed for the tenure they fly toward."""
@@ -327,6 +349,7 @@ def _overdue_reliefs(system, column, total):
     out = []
     for _future in (_tenure + 1, _tenure + 2):
         _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
+        _ordinals = _base_ordinals(_roster)
         for _station in _roster:
             _row = _rows_by_y.get(_station.y)
             _base = _bases.get(_station.base_id)
@@ -335,10 +358,13 @@ def _overdue_reliefs(system, column, total):
                 or station_launch_day(_future, _station, _shift) > total
             ):
                 continue
+            _cell = dock_spacing_cells(
+                _base, _ordinals[_station.y] + 1,
+            )[-1]
             out.append((
                 _row,
                 tenure_key(solar_system_module.static_spawn_key(system, _row), _future),
-                world.Position(*station_dock_cell(_base)),
+                world.Position(*_cell),
             ))
     return out
 
@@ -428,6 +454,7 @@ def _ensure_relief_wave(ctx, system, column, total, tenure) -> None:
     _bases = _bases_by_id(system)
     for _future in (tenure, tenure + 1, tenure + 2):
         _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
+        _ordinals = _base_ordinals(_roster)
         for _station in _roster:
             _row = _rows_by_y.get(_station.y)
             _base = _bases.get(_station.base_id)
@@ -441,20 +468,25 @@ def _ensure_relief_wave(ctx, system, column, total, tenure) -> None:
                 or _key_row in _ledger or _key_row in _live
             ):
                 continue
-            _launch_relief(ctx, _row, _key_row, _station, _base, column.x)
+            _launch_relief(
+                ctx, _row, _key_row, _station, _base, column.x,
+                _ordinals[_station.y],
+            )
 
 
-def _launch_relief(ctx, row, key, station, base, column_x) -> None:
-    """One relief leaves its base for its station, target cached in
-    the existing path dicts. SILENT (the merchant paths log their
-    pings — the watch's schedule is observable by watching only)."""
+def _launch_relief(ctx, row, key, station, base, column_x, ordinal) -> None:
+    """One relief leaves its base for its station from its spacing
+    cell (round 4: pre-spaced convoy, never a shared doorway),
+    target cached in the existing path dicts. SILENT (the merchant
+    paths log their pings — the watch's schedule is observable by
+    watching only)."""
     from .data.npc_ships import find_npc_ship
     try:
         _spec = find_npc_ship(row.enemy_id)
     except KeyError:
         return
     _entity = make_static_entity(
-        _spec, world.Position(*station_dock_cell(base)), key,
+        _spec, world.Position(*dock_spacing_cells(base, ordinal + 1)[-1]), key,
     )
     ctx.game_map.entities.append(_entity)
     _assign_flight(ctx, key, _entity, (column_x, station.y))
@@ -508,11 +540,17 @@ def _watch_entity_key(entity):
 def _step_flights(ctx, system, column, total, tenure, player_speed,
                   day_pass=False) -> None:
     """Step every targeted flight at the picket's OWN hull speed
-    (doc 44 credit, deterministic; ``combat_locked`` skipped); a
-    targetless relief standing on a base dock cell gets its station
-    orders (the build's base stamps are awaiting them)."""
+    (doc 44 credit, deterministic; ``combat_locked`` skipped). A
+    targetless relief on a base SPACING cell takes station orders
+    (the build's spaced stamps are awaiting them); any other
+    targetless picket adjacent to its own post re-centers onto it
+    (round 4)."""
     _base_cells = {
-        station_dock_cell(_spec) for _spec in _bases_by_id(system).values()
+        _cell
+        for _spec in _bases_by_id(system).values()
+        for _cell in dock_spacing_cells(
+            _spec, len(column.full_watch) + len(column.thin_watch),
+        )
     }
     _by_y = _stations_by_y(column)
     for _entity in list(ctx.game_map.entities):
@@ -526,8 +564,11 @@ def _step_flights(ctx, system, column, total, tenure, player_speed,
         _key = _entity.static_spawn_key
         _target = ctx.npc_targets.get(_key)
         if _target is None:
-            _order_base_relief(ctx, column, _entity, _key, _key_tenure,
-                               _station, total, tenure, _base_cells)
+            if not _order_base_relief(ctx, column, _entity, _key, _key_tenure,
+                                      _station, total, tenure, _base_cells):
+                _recenter_on_station(
+                    ctx, _entity, (_key_x, _key_y), _key_tenure, tenure,
+                )
         else:
             _advance_flight(
                 ctx, _entity, _key, _target, (_key_x, _key_y),
@@ -536,18 +577,42 @@ def _step_flights(ctx, system, column, total, tenure, player_speed,
 
 
 def _order_base_relief(ctx, column, entity, key, key_tenure, station,
-                       total, tenure, base_cells) -> None:
+                       total, tenure, base_cells) -> bool:
     """Orders for a relief stamped at its base by a mid-tenure build:
-    current-or-future tenure, standing on a dock cell, launch day
-    passed. Everything else (parked on post, lured aside, displaced
-    across a boundary) stays exactly where it is."""
+    current-or-future tenure, standing on a base SPACING cell,
+    launch day passed. Everything else (parked on post, lured
+    aside, displaced across a boundary) stays exactly where it is.
+    True when orders were given."""
     if (
         key_tenure < tenure
         or (entity.pos.x, entity.pos.y) not in base_cells
         or station_launch_day(key_tenure, station, column.shift_days) > total
     ):
-        return
+        return False
     _assign_flight(ctx, key, entity, (column.x, station.y))
+    return True
+
+
+def _recenter_on_station(ctx, entity, station_cell, key_tenure, tenure) -> None:
+    """One DIRECT step onto the exact station cell (round 4): a
+    targetless picket of a current-or-future tenure standing
+    Chebyshev-1 from its OWN post, with the cell free, re-centers.
+    Never a flight target — the within-a-cell arrival check would
+    self-cancel it. Flown-in pickets otherwise park one cell off
+    for their whole tenure, invisible to the row-position trigger
+    pass. Displaced (ended-tenure) pickets stay put — that ruling
+    holds."""
+    if key_tenure < tenure:
+        return
+    _dx = station_cell[0] - entity.pos.x
+    _dy = station_cell[1] - entity.pos.y
+    if max(abs(_dx), abs(_dy)) != 1:
+        return
+    if ctx.game_map.blocking_entity_at(
+            station_cell[0], station_cell[1], exclude=entity,
+    ) is not None:
+        return
+    world.try_step_with_slip(entity, ctx.game_map, _dx, _dy)
 
 
 def _advance_flight(ctx, entity, key, target, station_cell,
@@ -583,12 +648,58 @@ def _advance_flight(ctx, entity, key, target, station_cell,
         + npc_movement.rate_for(_speed, player_speed, day_pass),
         player_pos=ctx.player.pos, radius=_radius,
     )
-    if _outcome in ("moving", "blocked", "clamped"):
-        npc_movement.settle(ctx, key, _credit)
-    elif _within_a_cell(entity, _tx, _ty):
+    if _outcome == "blocked" and _blocked_by_parked(ctx, entity, key):
+        _reroute_flight(ctx, entity, key, (_tx, _ty))
+    _settle_flight_outcome(
+        ctx, entity, key, target, station_cell, _credit, _outcome,
+    )
+
+
+def _settle_flight_outcome(ctx, entity, key, target, station_cell,
+                           credit, outcome) -> None:
+    """Post-``spend_credit`` bookkeeping: settle the retained
+    fraction, or run the arrival (park / land) on exhaustion."""
+    if outcome in ("moving", "blocked", "clamped"):
+        npc_movement.settle(ctx, key, credit)
+    elif _within_a_cell(entity, target[0], target[1]):
         _arrive(ctx, entity, key, target, station_cell)
     else:
-        npc_movement.settle(ctx, key, _credit)
+        npc_movement.settle(ctx, key, credit)
+
+
+def _blocked_by_parked(ctx, entity, key) -> bool:
+    """The path-head cell's occupant is effectively stationary: a
+    combat-locked hull, or a watch picket with no live target.
+    Head-on MOVERS pass under the kept-path idiom (verified: 23
+    passes, zero recomputes) — re-routing past them would churn
+    ~16ms of A* per pass for nothing."""
+    _path = ctx.npc_paths.get(key) or []
+    if not _path:
+        return False
+    _blocker = ctx.game_map.blocking_entity_at(
+        _path[0][0], _path[0][1], exclude=entity,
+    )
+    if _blocker is None:
+        return False
+    if getattr(_blocker, "combat_locked", False):
+        return True
+    _bkey = getattr(_blocker, "static_spawn_key", "")
+    if parse_tenure_key(_bkey) is None:
+        return False  # a procedural mover — slips carry us past
+    return ctx.npc_targets.get(_bkey) is None
+
+
+def _reroute_flight(ctx, entity, key, target) -> None:
+    """Recompute the path around a parked blocker (A* avoids
+    occupied intermediates). On failure KEEP the old path — a
+    sealed corridor is momentary, and dropping the flight would
+    strand a home-bound hull forever (round 4's ADVISE round)."""
+    _fresh = world.find_path(
+        (entity.pos.x, entity.pos.y), {tuple(target)}, ctx.game_map,
+        exclude_entity=entity,
+    )
+    if _fresh:
+        ctx.npc_paths[key] = _fresh
 
 
 def _within_a_cell(entity, x: int, y: int) -> bool:

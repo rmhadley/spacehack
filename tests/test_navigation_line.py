@@ -1139,6 +1139,18 @@ def test_displaced_picket_is_never_moved(line_system, monkeypatch):
         "a displaced picket is never given a target"
     )
 
+    # The tightest displaced case (round 4's gate), pinned at the
+    # gate: one cell off its OWN post, ended tenure — re-centering
+    # refuses. (Through step_watch an adjacent ended-tenure picket
+    # is departure-eligible on the boundary day — ruled behavior,
+    # not re-centering.)
+    from src.spacehack.navigation_line import _recenter_on_station
+    lured.pos = world.Position(151, 56)
+    _recenter_on_station(ctx, lured, (150, 55), 3, 4)
+    assert lured.pos == world.Position(151, 56), (
+        "an ended-tenure picket never re-centers, even adjacent"
+    )
+
 
 def test_home_arrival_despawns_silently(line_system, monkeypatch):
     _pin_throttle(monkeypatch)
@@ -1176,11 +1188,20 @@ def test_relief_parks_and_holds_its_station(line_system, monkeypatch):
 
     navigation_line.step_watch(ctx)
     assert ctx.npc_targets.get(_relief_key) is None, "arrived: parked"
-    _parked_at = _e.pos
 
+    # Round 4: a parked picket one cell off its OWN post re-centers
+    # onto the exact cell (a flown-in line must stand ON its rows —
+    # the trigger pass reads exact positions)...
+    navigation_line.step_watch(ctx)
+    assert _e.pos == world.Position(150, 7), "re-centered onto the post"
+    assert game_map.blocking_entity_at(150, 7) is _e, (
+        "the row reads alive again"
+    )
+
+    # ...and then holds — the immobility pin applies ON the post.
     navigation_line.step_watch(ctx)
     navigation_line.step_watch(ctx)
-    assert _e.pos == _parked_at, "a parked picket holds its post"
+    assert _e.pos == world.Position(150, 7), "a centered picket holds its post"
     assert _e in game_map.entities
 
 
@@ -1454,8 +1475,8 @@ def test_watch_day_pass_walks_a_flight_a_full_day(line_system):
 
     navigation_line.step_watch(ctx, day_pass=True)
 
-    _moved = abs(_e.pos.x - _start[0]) + abs(_e.pos.y - _start[1])
-    assert _moved == 9, "the picket flies its whole day: nine cells"
+    _cells = max(abs(_e.pos.x - _start[0]), abs(_e.pos.y - _start[1]))
+    assert _cells == 9, "the picket flies its whole day: nine cells"
     assert ctx.npc_credit[_key] == pytest.approx(0.0), "exact day, no carry"
 
 
@@ -1484,3 +1505,142 @@ def test_launch_leads_match_the_measured_transits():
             f"y={station.y}: lead {station.lead_days} vs measured "
             f"ceil({len(path)}/{speed})"
         )
+
+
+# ---------------------------------------------------------------------------
+# Round 4: watch right-of-way — convoy spacing, re-centering, re-routing
+# ---------------------------------------------------------------------------
+
+def test_relief_convoy_stamps_pre_spaced_and_takes_orders(line_system):
+    """Same-base reliefs muster PRE-SPACED (round 4): the north trio
+    stamps dock/+2/+4 east, the south pair likewise — and every
+    spaced stamp still takes orders (the gate accepts the spacing
+    cells, not just the dock)."""
+    game_map = _build_watch(115)
+    stamps = {
+        _e.static_spawn_key: (_e.pos.x, _e.pos.y)
+        for _e in _watch_pickets(game_map)
+        if ":t4" in _e.static_spawn_key
+    }
+    assert stamps == {
+        "luyten_star:militia_blockade:150:7:t4": (74, 23),
+        "luyten_star:militia_blockade:150:21:t4": (76, 23),
+        "luyten_star:militia_blockade:150:35:t4": (78, 23),
+        "luyten_star:militia_blockade:150:49:t4": (134, 116),
+        "luyten_star:militia_blockade:150:63:t4": (136, 116),
+    }, "the convoy muster is spaced two cells apart"
+
+    ctx = _watch_ctx(game_map, 115, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)
+    for _key in stamps:
+        assert ctx.npc_targets.get(_key), f"{_key[-8:]} took orders"
+
+
+def test_recenter_waits_for_a_occupied_post(line_system):
+    """Re-centering no-ops while the exact station cell is occupied
+    (the early-arrival-beside-the-keeper ruling), then fires once
+    the keeper departs."""
+    game_map = _build_watch(1)
+    ctx = _watch_ctx(game_map, 1, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    keeper_key = "luyten_star:militia_blockade:150:21:t0"
+    keeper = _by_key(game_map)[keeper_key]
+    relief = world.Entity("M", (100, 200, 255), world.Position(151, 22),
+                          npc_ship_id="militia_blockade",
+                          static_spawn_key="luyten_star:militia_blockade:150:21:t1")
+    game_map.entities.append(relief)
+
+    navigation_line.step_watch(ctx)  # relief: targetless, adjacent, post busy
+    assert relief.pos == world.Position(151, 22), "holds beside the keeper"
+
+    keeper.pos = world.Position(120, 60)  # the boundary departs the keeper
+    navigation_line.step_watch(ctx)
+    assert relief.pos == world.Position(150, 21), "re-centers onto the freed post"
+
+
+def test_blocked_flight_reroutes_past_a_parked_hull(line_system):
+    """A flight whose next cell holds a targetless picket re-routes
+    around it (one A*), while the same blockage by a live mover
+    keeps the path — slips resolve movers; A* churn is parked-only."""
+    game_map = _build_watch(1)
+    ctx = _watch_ctx(game_map, 5, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    flyer = world.Entity("M", (100, 200, 255), world.Position(30, 30),
+                         npc_ship_id="militia_blockade",
+                         static_spawn_key="luyten_star:militia_blockade:150:21:t1")
+    game_map.entities.append(flyer)
+    _key = flyer.static_spawn_key
+    ctx.npc_targets[_key] = (40, 30)
+    ctx.npc_paths[_key] = [(x, 30) for x in range(31, 41)]
+    ctx.npc_credit[_key] = 0.0
+
+    parked = world.Entity("M", (100, 200, 255), world.Position(34, 30),
+                          npc_ship_id="militia_blockade",
+                          static_spawn_key="luyten_star:militia_blockade:150:35:t1")
+    game_map.entities.append(parked)  # targetless: parked on the corridor
+
+    from src.spacehack.navigation_line import _blocked_by_parked
+    parked.pos = world.Position(31, 30)  # ON the path head
+    assert _blocked_by_parked(ctx, flyer, _key), "a parked hull blocks"
+
+    mover = world.Entity("m", (120, 200, 120), world.Position(31, 30),
+                         npc_ship_id="merchant_hauler",
+                         procedural_squad_id="m_mid")
+    ctx.npc_targets[mover.procedural_squad_id] = (50, 50)
+    game_map.entities.remove(parked)
+    game_map.entities.append(mover)
+    assert not _blocked_by_parked(ctx, flyer, _key), (
+        "a procedural mover is not parked — no re-route"
+    )
+
+    mover.combat_locked = True
+    assert _blocked_by_parked(ctx, flyer, _key), (
+        "a combat-locked hull is effectively parked"
+    )
+
+    # The SUCCESS branch: a real recompute routes around the parked
+    # hull — the fresh path's head is not the blocker's cell (A*
+    # avoids occupied intermediates; only goal cells are exempt).
+    game_map.entities.remove(mover)
+    parked.pos = world.Position(31, 30)
+    game_map.entities.append(parked)
+    from src.spacehack.navigation_line import _reroute_flight
+    _reroute_flight(ctx, flyer, _key, (40, 30))
+    _fresh = ctx.npc_paths[_key]
+    assert _fresh and _fresh[0] != (31, 30), (
+        "the re-routed path skirts the parked hull"
+    )
+    assert (40, 30) == _fresh[-1]
+
+
+def test_reroute_failure_keeps_the_flight(monkeypatch, line_system):
+    """A sealed corridor is momentary: when the re-route's A* comes
+    back empty the flight KEEPS its old path and target (dropping a
+    home-bound hull would strand it forever — round 4's ADVISE)."""
+    game_map = _build_watch(1)
+    ctx = _watch_ctx(game_map, 5, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    flyer = world.Entity("M", (100, 200, 255), world.Position(30, 30),
+                         npc_ship_id="militia_blockade",
+                         static_spawn_key="luyten_star:militia_blockade:150:21:t1")
+    parked = world.Entity("M", (100, 200, 255), world.Position(31, 30),
+                          npc_ship_id="militia_blockade",
+                          static_spawn_key="luyten_star:militia_blockade:150:35:t1")
+    game_map.entities.extend((flyer, parked))
+    _key = flyer.static_spawn_key
+    ctx.npc_targets[_key] = (40, 30)
+    ctx.npc_paths[_key] = [(x, 30) for x in range(31, 41)]
+    ctx.npc_credit[_key] = 1.0  # a tile to spend, blocked immediately
+
+    monkeypatch.setattr(
+        "src.spacehack.navigation_line.world.find_path",
+        lambda *_a, **_k: None,  # the sealed-corridor recompute fails
+    )
+    from src.spacehack.navigation_line import _reroute_flight
+    _reroute_flight(ctx, flyer, _key, (40, 30))
+
+    assert ctx.npc_targets.get(_key) == (40, 30), "the flight survives"
+    assert ctx.npc_paths[_key] == [(x, 30) for x in range(31, 41)], (
+        "the old path is kept for the retry"
+    )
