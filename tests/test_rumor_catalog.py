@@ -11,10 +11,11 @@ from pathlib import Path
 from spacehack.data.lore import RumorEntry, find_rumor, list_rumors
 from spacehack.data.npcs import find_npc
 from spacehack.data.traits.core import ALL_TRAITS, QUEST_PERKS
+from spacehack.faction import _ALL_FACTIONS
 from spacehack.text import overlay
 
 _TEXT_DIR = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data" / "text"
-_KNOWN_FACTIONS = {"pirate", "merchant", "civilian", "militia"}
+_KNOWN_FACTIONS = set(_ALL_FACTIONS)
 
 
 def _rumor_keys_in(path: Path) -> set[str]:
@@ -92,3 +93,11 @@ def test_chain_tiers_are_contiguous() -> None:
         by_chain.setdefault(entry.chain, set()).add(entry.tier)
     for chain, tiers in by_chain.items():
         assert tiers == set(range(1, len(tiers) + 1)), chain
+
+
+def test_tier_one_entries_have_no_requires() -> None:
+    # Hearing rows are chain openers (tier 1 only); a requires link on
+    # a tier-1 entry could never be honored by any host.
+    for entry in list_rumors():
+        if entry.tier == 1:
+            assert entry.requires == (), entry.id

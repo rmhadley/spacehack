@@ -95,13 +95,14 @@ def hearing_rows(
     *,
     routing: Callable[[str], bool] = routing_all,
 ) -> list[tuple[str, str]]:
-    """``(label, rumor_id)`` rows for entries this NPC can deliver
-    that the player has NOT heard: requirements met, routing live,
-    floors passed."""
+    """``(label, rumor_id)`` rows for chain OPENERS this NPC can
+    deliver: tier-1 entries the player has not heard. A chain with
+    any heard entry progresses exclusively through Ask Around —
+    never a second discovery row for the chain already in progress."""
     known_set = set(known)
     rows: list[tuple[str, str]] = []
     for entry in list_rumors():
-        if entry.id in known_set or not _requirements_met(entry, known_set):
+        if entry.tier > 1 or entry.id in known_set:
             continue
         if not routing(entry.id):
             continue
@@ -124,7 +125,11 @@ def askable_topics(
     known_set = set(known)
     topics: list[tuple[str, str]] = []
     for rumor_id in known:
-        nxt = _next_entry(find_rumor(rumor_id))
+        try:
+            entry = find_rumor(rumor_id)
+        except KeyError:
+            continue  # stale id from an older save — the ledger forgets it
+        nxt = _next_entry(entry)
         if (
             nxt is None
             or nxt.id in known_set
@@ -138,8 +143,16 @@ def askable_topics(
 
 
 def known_entries(known: list[str]) -> list[RumorEntry]:
-    """Heard entries in heard order — the ledger's content."""
-    return [find_rumor(rumor_id) for rumor_id in known]
+    """Heard entries in heard order — the ledger's content. Stale ids
+    from older saves are skipped, never raised: knowledge can fade,
+    the game must not crash on it."""
+    entries = []
+    for rumor_id in known:
+        try:
+            entries.append(find_rumor(rumor_id))
+        except KeyError:
+            continue
+    return entries
 
 
 def hear(ctx, rumor_id: str) -> bool:

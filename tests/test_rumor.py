@@ -25,14 +25,18 @@ def test_tier_one_rows_appear_for_their_tellers():
     }
 
 
-def test_requires_gate_deeper_tiers():
-    _rows = dict(rumor.hearing_rows([], {}, _no_traits(), "depot_attendant"))
-    assert "derelict_line_1" in _rows.values()
-    assert "derelict_line_2" not in _rows.values()
+def test_deeper_tiers_never_appear_as_hearing_rows():
+    # Host contract (REVIEW round 1): a chain with any heard entry
+    # progresses exclusively through Ask Around — hearing rows are
+    # chain openers only.
     _rows = dict(
         rumor.hearing_rows(["derelict_line_1"], {}, _no_traits(), "depot_attendant")
     )
-    assert "derelict_line_2" in _rows.values()
+    assert _rows == {}
+    _topics = rumor.askable_topics(
+        ["derelict_line_1"], {}, _no_traits(), "depot_attendant"
+    )
+    assert _topics == [("the derelict line", "derelict_line_2")]
 
 
 def test_heard_entries_never_re_row():
@@ -71,24 +75,20 @@ def test_dark_reads_neutral():
 
 
 def test_trait_gate_demands_the_trait():
-    _rows = dict(
-        rumor.hearing_rows(
-            ["thin_month_1", "thin_month_2"],
-            {"militia": 50},
-            _no_traits(),
-            "militia_captain",
-        )
-    )
-    assert _rows == {}
-    _rows = dict(
-        rumor.hearing_rows(
-            ["thin_month_1", "thin_month_2"],
-            {"militia": 50},
-            frozenset({"warrant_license"}),
-            "militia_captain",
-        )
-    )
-    assert "thin_month_3" in _rows.values()
+    # Tier-3 progression runs exclusively through Ask Around (chain-
+    # opener rule), so the trait gate is pinned on askable_topics.
+    assert rumor.askable_topics(
+        ["thin_month_1", "thin_month_2"],
+        {"militia": 50},
+        _no_traits(),
+        "militia_captain",
+    ) == []
+    assert rumor.askable_topics(
+        ["thin_month_1", "thin_month_2"],
+        {"militia": 50},
+        frozenset({"warrant_license"}),
+        "militia_captain",
+    ) == [("the thin month", "thin_month_3")]
 
 
 def test_routing_predicate_filters_rows():
@@ -168,6 +168,14 @@ def test_topic_labels_resolve_from_the_overlay():
 def test_known_entries_preserve_heard_order():
     _entries = rumor.known_entries(["thin_month_1", "derelict_line_1"])
     assert [entry.id for entry in _entries] == ["thin_month_1", "derelict_line_1"]
+
+
+def test_stale_ids_are_skipped_not_raised():
+    # A rumor id removed from the catalog must never crash a render
+    # path on an old save — knowledge fades, the game doesn't fall over.
+    _entries = rumor.known_entries(["retired_rumor", "derelict_line_1"])
+    assert [entry.id for entry in _entries] == ["derelict_line_1"]
+    assert rumor.askable_topics(["retired_rumor"], {}, _no_traits(), "barkeep") == []
 
 
 # --- the keyring mutation -------------------------------------------------
