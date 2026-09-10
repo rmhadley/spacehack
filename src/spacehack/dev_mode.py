@@ -442,7 +442,7 @@ def apply_dev_service_run(ctx) -> None:
 def advance_to_shift_boundary(ctx) -> int:
     """Shift+J: advance the clock to the next shift boundary (doc 41
     phase 2 — Shift+D's 30 days is too coarse to time a watch
-    rotation). Uses the current column's ``shift_days`` (7 outside
+    rotation). Uses the current column's ``shift_days`` (the dataclass default 30 outside
     column systems). Returns the days advanced; 0 when not in dev
     mode.
     """
@@ -456,7 +456,7 @@ def advance_to_shift_boundary(ctx) -> int:
 
     _shift = getattr(
         getattr(_solar.current_system(), "sensor_column", None),
-        "shift_days", 7,
+        "shift_days", 30,
     )
     _days = next_boundary_gap(ctx.time_day, ctx.time_month, ctx.time_year, _shift)
     _advance_time(ctx, _days)

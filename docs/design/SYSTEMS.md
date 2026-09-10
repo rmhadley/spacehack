@@ -182,8 +182,10 @@ nobody designs against a ghost.
   `skip_static_spawns`). Pre-watch saves migrate once at load
   (`navigation_line.migrate_legacy_tombstones` at the top of
   `load_game` — luyten picket keys only).
-- **The watch (doc 41 phase 2)** — the Line's pickets rotate on
-  7-day shifts from watchbill DATA on the `SensorColumn`
+- **The watch (doc 41 phase 2, round-3 amendment)** — the Line's
+  pickets rotate on 30-day shifts (a month on the line; 7-day
+  shifts rotated too fast — every lead < shift, so one relief
+  wave is airborne at most) from watchbill DATA on the `SensorColumn`
   (`shift_days`, `watch_cycle` full/full/full/thin, `full_watch` /
   `thin_watch` station rosters of `(y, lead_days, base_id)`). Every
   schedule decision derives purely from the day clock — tenure =

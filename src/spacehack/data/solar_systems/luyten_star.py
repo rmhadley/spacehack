@@ -15,8 +15,8 @@ A Restricted Sector sits on the far right of the map — a
 placeholder for whatever lurks beyond the blockade.  The Militia
 Blockade mans a vertical column of picket stations through the
 centre-right of the system — a full watch of ten ships, thinning
-to four on the maintenance week (doc 41 phase 2's watchbill on
-the SensorColumn).
+to four on the maintenance month (doc 41 phase 2's watchbill on
+the SensorColumn; 30-day shifts per the round-3 amendment).
 
 There is only one Jump Point — the gate back to Wolf 359.
 Luyten's Star is a dead end by design: the edge of the map.
@@ -183,8 +183,10 @@ _sensor_column = SensorColumn(
         "{id}, this is forbidden space. Your ID checks out, "
         "this time. Continue through.",
     ),
-    # The watchbill (phase 2): 7-day shifts, full x3 then a thin
-    # maintenance week. Leads are days-before-boundary the relief
+    # The watchbill (phase 2, round-3 amendment): 30-day shifts
+    # (a month on the line — 7-day shifts rotated too fast),
+    # full x3 then a thin maintenance month (tenure-indexed: every
+    # 4th shift = 120 days). Leads are days-before-boundary the relief
     # launches from its base = the CEILING of its measured transit
     # (real find_path base-dock -> station) at the picket's own
     # hull speed 9 (doc 44 phase 4 re-measure; the phase-1 leads
@@ -192,7 +194,7 @@ _sensor_column = SensorColumn(
     # test_launch_leads_match_the_measured_transits recomputes the
     # table, so these numbers cannot drift from the map. North
     # serves y <= 35 (measured crossover y ~= 36), South the rest.
-    shift_days=7,
+    shift_days=30,
     watch_cycle=("full", "full", "full", "thin"),
     full_watch=(
         WatchStation(y=7, lead_days=9, base_id=_NORTH),

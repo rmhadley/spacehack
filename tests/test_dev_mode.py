@@ -497,23 +497,35 @@ def test_advance_to_shift_boundary_gated(monkeypatch):
     monkeypatch.delenv("SPACEHACK_DEV", raising=False)
     _ctx = SimpleNamespace(time_day=5, time_month=1, time_year=2200,
                            economy_state={},
-                           log=SimpleNamespace(add=lambda m: None))
+                           log=SimpleNamespace(add=lambda m: None,
+                                               add_colored=lambda m, c: None))
     assert advance_to_shift_boundary(_ctx) == 0
     assert (_ctx.time_day, _ctx.time_month) == (5, 1)
 
     monkeypatch.setenv("SPACEHACK_DEV", "1")
     monkeypatch.setattr(_solar, "current_system", lambda: _LUYTEN)
-    assert advance_to_shift_boundary(_ctx) == 3  # day 5 -> boundary day 8
-    assert (_ctx.time_day, _ctx.time_month, _ctx.time_year) == (8, 1, 2200)
-    assert advance_to_shift_boundary(_ctx) == 7  # a boundary jumps the NEXT one
-    assert _ctx.time_day == 15
+    # The 26-day jump crosses a month rollover; the month hooks
+    # (board refresh, decay) are real behavior but not this test's.
+    import src.spacehack.mission as _mission
+    import src.spacehack.faction as _faction
+    monkeypatch.setattr(_mission, "refresh_all_boards", lambda _c: None)
+    monkeypatch.setattr(_faction, "apply_monthly_decay", lambda _c: None)
+    from src.spacehack.navigation_line import _EPOCH_DAY, total_days
+    assert advance_to_shift_boundary(_ctx) == 26  # day 5 -> boundary day 31
+    _landed = total_days(_ctx.time_day, _ctx.time_month, _ctx.time_year)
+    assert _landed == _EPOCH_DAY + 30
+    assert advance_to_shift_boundary(_ctx) == 30  # a boundary jumps the NEXT one
+    _landed = total_days(_ctx.time_day, _ctx.time_month, _ctx.time_year)
+    assert _landed == _EPOCH_DAY + 60
 
-    # Outside a column system the default 7-day shift still applies.
+    # Outside a column system the ruled default (30) still applies.
     from src.spacehack.data.solar_systems import find_solar_system as _find
+    from src.spacehack.navigation_line import _EPOCH_DAY, total_days
     monkeypatch.setattr(_solar, "current_system", lambda: _find("sol"))
     _ctx.time_day, _ctx.time_month, _ctx.time_year = 20, 1, 2200
-    assert advance_to_shift_boundary(_ctx) == 2  # day 20 -> boundary day 22
-    assert _ctx.time_day == 22
+    assert advance_to_shift_boundary(_ctx) == 11  # day 20 -> day 31
+    _landed = total_days(_ctx.time_day, _ctx.time_month, _ctx.time_year)
+    assert _landed == _EPOCH_DAY + 30
 
 
 def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):

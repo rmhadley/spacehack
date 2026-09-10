@@ -211,8 +211,9 @@ class SensorColumn:
         watchbill (doc 41 phase 2) — shifts of ``shift_days`` days,
         the cycle of watch kinds per shift, and the station rosters
         per kind. Tenure — ``(total_days - total_days(1,1,2200)) //
-        shift_days``, epoch-anchored so boundaries land on days
-        8/15/22 — is a pure function of the day clock; a rotation
+        shift_days``, epoch-anchored so boundaries land every
+        ``shift_days`` days — is a pure function of the day clock;
+        a rotation
         spawns its pickets with a monotonic ``:t<tenure>`` suffix on
         the spawn key. Empty rosters (default) = no watch: the
         statics stand as placed, phase-1 semantics.
@@ -226,7 +227,7 @@ class SensorColumn:
     manifest_lines: tuple[str, ...] = ()
     rank_lines: tuple[str, ...] = ()
     service_lines: tuple[str, ...] = ()
-    shift_days: int = 7
+    shift_days: int = 30
     watch_cycle: tuple[str, ...] = ("full", "full", "full", "thin")
     full_watch: tuple[WatchStation, ...] = ()
     thin_watch: tuple[WatchStation, ...] = ()

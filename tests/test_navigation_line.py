@@ -471,7 +471,7 @@ def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
         "luyten_star:militia_blockade:150:25:t3",
     }
 
-    thin_day = navigation_line.total_days(22, 1, 2200)  # run-day 22: tenure 3
+    thin_day = navigation_line.total_days(95, 1, 2200)  # run-day 95: tenure 3
     fresh = ss_module.make_solar_system(
         system=LUYTEN, skip_static_spawns=ctx.defeated_static_spawns,
         watch_day=thin_day,
@@ -481,7 +481,7 @@ def test_killed_pickets_tombstone_and_never_re_stamp(line_system, monkeypatch):
         "the dead picket does not re-stamp this tenure"
     )
 
-    next_thin_day = navigation_line.total_days(50, 1, 2200)  # tenure 7
+    next_thin_day = navigation_line.total_days(215, 1, 2200)  # tenure 7
     again = ss_module.make_solar_system(
         system=LUYTEN, skip_static_spawns=ctx.defeated_static_spawns,
         watch_day=next_thin_day,
@@ -832,16 +832,22 @@ def test_total_days_is_dense_across_month_and_year_wraps():
     ) == _t(15, 3, 2200)
 
 
-def test_tenure_boundaries_land_on_days_8_15_22():
-    """Epoch-anchored: tenure 0 is the game's first week (a raw
-    year*360+… clock would drift boundaries off 8/15/22 — 360
-    isn't divisible by 7)."""
+def test_tenure_boundaries_land_on_the_shift_grid():
+    """Epoch-anchored at a pinned NON-shipped shift (7): tenure 0 is
+    the game's first shift and boundaries fall every shift_days
+    (a raw year*360+… clock drifts them — 360 isn't divisible by
+    any sane shift)."""
     _epoch = navigation_line._EPOCH_DAY
     _run_day = lambda d: navigation_line.tenure_of(_epoch + d - 1, 7)
     assert [_run_day(d) for d in (1, 7, 8, 14, 15, 21, 22, 28, 29)] == [
         0, 0, 1, 1, 2, 2, 3, 3, 4,
     ]
     assert navigation_line.tenure_start(3, 7) == _epoch + 21
+    # The shipped calendar: 30-day shifts, boundaries 31/61/91.
+    _shipped = lambda d: navigation_line.tenure_of(_epoch + d - 1, 30)
+    assert [_shipped(d) for d in (1, 30, 31, 60, 61, 91)] == [
+        0, 0, 1, 1, 2, 3,
+    ]
 
 
 def test_tenure_derivation_holds_across_month_and_year_wraps():
@@ -866,7 +872,7 @@ def test_watch_kind_cycles_full_full_full_thin():
     cycle = LUYTEN.sensor_column.watch_cycle
     assert [_kind(t, cycle) for t in range(8)] == [
         "full", "full", "full", "thin", "full", "full", "full", "thin",
-    ], "the maintenance watch is every 4th shift (28 days)"
+    ], "the maintenance watch is every 4th shift (cycle-length days)"
 
 
 def test_station_launch_day_is_the_lead_before_the_boundary():
@@ -956,27 +962,25 @@ def test_full_watch_build_parks_tenure_keyed_pickets():
         7, 21, 35, 49, 63, 77, 91, 105, 119, 133,
     }
     assert all(_e.static_spawn_key.endswith(":t0") for _e in parked)
-    # Overdue T=1 reliefs at day 1: north leads 9 (launch -1) x3 and
-    # y49's lead 8 (launch 0) — four mustering at the bases (doc 44
-    # phase 4's retuned table).
-    assert len(at_base) == 4
-    assert all(_e.static_spawn_key.endswith(":t1") for _e in at_base)
-    assert len(pickets) == len(parked) + len(at_base)
+    # Round 3 (30-day shifts): the first relief wave launches on
+    # run-day 22 at the earliest (lead 9 before day 31) — a day-1
+    # arrival sees ONLY the standing line. The muster observable
+    # is gone by construction (lead < shift).
+    assert at_base == []
+    assert len(pickets) == len(parked)
 
 
 def test_thin_watch_build_mans_the_shipped_four():
-    """Run-day 22 (tenure 3, the maintenance week): the line thins to
-    the shipped four stations; the full roster's t3 keys never appear."""
-    pickets = _watch_pickets(_build_watch(22))
+    """Run-day 95 (tenure 3, the maintenance month under 30-day
+    shifts): the line thins to the shipped four stations; the first
+    t4 relief does not launch until day 112 — a quiet thin watch."""
+    pickets = _watch_pickets(_build_watch(95))
     parked = [_e for _e in pickets if _e.pos.x == 150]
     reliefs = [_e for _e in pickets if (_e.pos.x, _e.pos.y) in _BASE_CELLS]
 
     assert {(_e.pos.y) for _e in parked} == {25, 55, 85, 115}
     assert all(_e.static_spawn_key.endswith(":t3") for _e in parked)
-    # T=4 reliefs launched by day 22: y7/21/35 (lead 9, day 20) and
-    # y49 (lead 8, day 21) — four mustering + the standing four.
-    assert len(reliefs) == 4
-    assert all(_e.static_spawn_key.endswith(":t4") for _e in reliefs)
+    assert reliefs == [], "no relief is due before run-day 112"
 
 
 def test_watch_build_requires_the_day():
@@ -986,35 +990,37 @@ def test_watch_build_requires_the_day():
 
 
 def test_two_relief_waves_stamp_when_both_are_overdue():
-    """Run-day 13 (tenure 1, doc 44 phase 4's retuned table): the
-    T=2 wave is fully airborne on paper (every full launch day <=
-    13) and the thin y25 relief (lead 9, launch day 13) joins it —
-    two future tenures' keys coexist."""
-    pickets = _watch_pickets(_build_watch(13))
+    """Run-day 83 (tenure 2 under 30-day shifts): the t3 thin
+    vanguard is airborne (y25 lead 9, launch day 82; y55 day 84
+    not yet) beside the standing watch — a future tenure's keys
+    coexist with the current one."""
+    pickets = _watch_pickets(_build_watch(83))
     by_tenure = {}
     for _e in pickets:
         _t = navigation_line.parse_tenure_key(_e.static_spawn_key)[1]
         by_tenure.setdefault(_t, []).append(_e)
 
-    assert len(by_tenure[1]) == 10, "the standing watch"
-    assert len(by_tenure[2]) == 10, "the next full wave, all launched"
+    assert len(by_tenure[2]) == 10, "the standing watch"
     assert len(by_tenure[3]) == 1, "the thin vanguard (y25, lead 9)"
     assert all(
         (_e.pos.x, _e.pos.y) in _BASE_CELLS for _e in by_tenure[3]
     )
 
 
-def test_same_station_stacks_two_waves_at_its_base():
-    """Run-day 6: the north stations' T=1 reliefs are overdue AND the
-    T=2 wave launches (day 15 - lead 9) — the same station has TWO
-    reliefs mustering at the same dock cell, both tolerated."""
+def test_one_wave_airborne_at_most():
+    """Round 3 (30-day shifts): every lead (<= 9) is shorter than the
+    shift, so two same-roster relief waves can NEVER overlap — the
+    superseded 'two waves routinely airborne' case is structurally
+    gone. What does fly: at most the next tenure's partial vanguard
+    (here day 85 — y25 and y55 of the thin watch, launched 82/84)."""
     base_keys = [
-        _e.static_spawn_key for _e in _watch_pickets(_build_watch(6))
-        if (_e.pos.x, _e.pos.y) == (74, 23)  # Blockade Station North
+        _e.static_spawn_key for _e in _watch_pickets(_build_watch(85))
+        if (_e.pos.x, _e.pos.y) in _BASE_CELLS
     ]
-    for _y in (7, 21, 35):
-        assert f"luyten_star:militia_blockade:150:{_y}:t1" in base_keys
-        assert f"luyten_star:militia_blockade:150:{_y}:t2" in base_keys
+    assert base_keys == [
+        "luyten_star:militia_blockade:150:25:t3",
+        "luyten_star:militia_blockade:150:55:t3",
+    ], "exactly the thin vanguard — no station hosts two waves"
 
 
 def test_hail_key_is_stable_for_a_moving_picket():
@@ -1080,12 +1086,13 @@ def _by_key(game_map):
 
 
 def test_boundary_rotates_the_whole_disjoint_roster(line_system, monkeypatch):
-    """Run-day 29 (tenure 4, thin->full boundary): the thin four fly
-    home, the full watch's reliefs are all airborne by launch/ensure,
-    and NOTHING logs (wordless)."""
+    """Build run-day 95 (tenure 3, mid-thin); step at the day-121
+    boundary: the thin four fly home, the full watch's reliefs all
+    heal-launch (the clock jumped past their launch days), and
+    NOTHING logs (wordless)."""
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)  # mid-thin; six t4 reliefs already at bases
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+    game_map = _build_watch(95)  # mid-thin (91-120); no t4 relief is due yet
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
 
     navigation_line.step_watch(ctx)
@@ -1115,13 +1122,13 @@ def test_displaced_picket_is_never_moved(line_system, monkeypatch):
     is: never ordered home, never despawned (its tenure ended; the
     target discriminates displaced from departing)."""
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)
+    game_map = _build_watch(95)
     lured = next(
         _e for _e in _watch_pickets(game_map)
         if _e.static_spawn_key == "luyten_star:militia_blockade:150:55:t3"
     )
     lured.pos = world.Position(120, 60)
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
 
     navigation_line.step_watch(ctx)
@@ -1135,8 +1142,8 @@ def test_displaced_picket_is_never_moved(line_system, monkeypatch):
 
 def test_home_arrival_despawns_silently(line_system, monkeypatch):
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+    game_map = _build_watch(95)
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)  # the boundary orders the thin four home
 
@@ -1157,8 +1164,8 @@ def test_relief_parks_and_holds_its_station(line_system, monkeypatch):
     """Arrival at the station parks the picket (target popped); early
     arrivals HOLD — later steps never move a parked picket."""
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+    game_map = _build_watch(115)
+    ctx = _watch_ctx(game_map, 115, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)  # the base-stamped t4 reliefs get orders
 
@@ -1179,8 +1186,8 @@ def test_relief_parks_and_holds_its_station(line_system, monkeypatch):
 
 def test_combat_locked_pickets_are_not_stepped(line_system, monkeypatch):
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+    game_map = _build_watch(115)
+    ctx = _watch_ctx(game_map, 115, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)
 
@@ -1200,8 +1207,8 @@ def test_murdered_relief_stays_dead_for_its_tenure(line_system, monkeypatch):
     one station-tenure of darkness on that station."""
     _pin_throttle(monkeypatch)
     _murdered = "luyten_star:militia_blockade:150:91:t4"
-    game_map = _build_watch(29, skip=(_murdered,))
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns={_murdered},
+    game_map = _build_watch(95, skip=(_murdered,))
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns={_murdered},
                      npc_targets={}, npc_paths={})
 
     navigation_line.step_watch(ctx)
@@ -1220,8 +1227,8 @@ def test_watch_traffic_never_enters_the_squad_machinery(line_system, monkeypatch
     _pin_throttle(monkeypatch)
     from src.spacehack import npc_ships
 
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+    game_map = _build_watch(95)
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)
 
@@ -1262,11 +1269,11 @@ def test_day_skips_heal_at_the_next_due_day(line_system, monkeypatch):
     the next due day launches every overdue relief, and the boundary
     after that sends the stale keepers home."""
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(1)  # tenure 0 keepers + t1 vanguard at bases
-    ctx = _watch_ctx(game_map, 11, defeated_static_spawns=set(),
-                     npc_targets={}, npc_paths={})  # +10 days, no rebuild
+    game_map = _build_watch(1)  # tenure 0 keepers; no relief due until day 22
+    ctx = _watch_ctx(game_map, 53, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})  # +52 days, no rebuild
 
-    navigation_line.step_watch(ctx)  # base stamps take orders on ANY step
+    navigation_line.step_watch(ctx)  # the skipped launches heal from bases
 
     keys = _by_key(game_map)
     assert "luyten_star:militia_blockade:150:7:t1" in keys, (
@@ -1276,8 +1283,13 @@ def test_day_skips_heal_at_the_next_due_day(line_system, monkeypatch):
         "the stale keeper serves until the next boundary"
     )
     assert ctx.npc_targets.get("luyten_star:militia_blockade:150:7:t0") is None
+    # Day-skips STACK waves on the heal (the only overlap path left
+    # under lead < shift): y7 hosts BOTH the t1 and t2 reliefs
+    # inbound — tolerated by construction.
+    assert ctx.npc_targets.get("luyten_star:militia_blockade:150:7:t1") == (150, 7)
+    assert ctx.npc_targets.get("luyten_star:militia_blockade:150:7:t2") == (150, 7)
 
-    ctx.time_day, ctx.time_month, ctx.time_year = _run_day_to_triple(15)
+    ctx.time_day, ctx.time_month, ctx.time_year = _run_day_to_triple(61)
     navigation_line.step_watch(ctx)  # the tenure-2 boundary
     assert ctx.npc_targets["luyten_star:militia_blockade:150:7:t0"] == _NORTH_CELL, (
         "the stale keeper finally departs at the boundary"
@@ -1290,7 +1302,7 @@ def test_luyten_watchbill_data_consistency():
     thin_ys = [s.y for s in column.thin_watch]
     station_ids = {s.id for s in LUYTEN.stations}
 
-    assert column.shift_days == 7
+    assert column.shift_days == 30, "round 3: a month on the line"
     assert set(column.watch_cycle) <= {"full", "thin"}
     # The full watch closes the gaps with ships: spacing 14 = detect x 2.
     assert full_ys == [7, 21, 35, 49, 63, 77, 91, 105, 119, 133]
@@ -1324,7 +1336,7 @@ def test_migration_restamps_only_luyten_picket_keys():
         "luyten_star:some_other_static:1:2",          # luyten, not the picket
     ]
     out = navigation_line.migrate_legacy_tombstones(
-        _keys, day=22, month=1, year=2200,   # run-day 22: tenure 3
+        _keys, day=95, month=1, year=2200,   # run-day 95: tenure 3
     )
     assert out == [
         "luyten_star:militia_blockade:150:25:t3",
@@ -1334,19 +1346,19 @@ def test_migration_restamps_only_luyten_picket_keys():
 
 def test_migration_tenure_follows_the_save_clock():
     out = navigation_line.migrate_legacy_tombstones(
-        ["luyten_star:militia_blockade:150:55"], day=8, month=1, year=2200,
+        ["luyten_star:militia_blockade:150:55"], day=35, month=1, year=2200,
     )
     assert out == ["luyten_star:militia_blockade:150:55:t1"], (
-        "run-day 8 is tenure 1: dead through it, re-manned at day 15"
+        "run-day 35 is tenure 1: dead through it, re-manned at day 61"
     )
 
 
 def test_migration_is_idempotent_across_reloads():
     _once = navigation_line.migrate_legacy_tombstones(
-        ["luyten_star:militia_blockade:150:25"], day=22, month=1, year=2200,
+        ["luyten_star:militia_blockade:150:25"], day=95, month=1, year=2200,
     )
     _twice = navigation_line.migrate_legacy_tombstones(
-        _once, day=23, month=1, year=2200,
+        _once, day=96, month=1, year=2200,
     )
     assert _twice == _once, "an already-tenured key never re-stamps"
 
@@ -1369,7 +1381,7 @@ def test_load_game_migrates_before_both_consumers(monkeypatch):
     ))
     monkeypatch.setattr(saveload, "_load_json", lambda _p: {
         "defeated_static_spawns": ["luyten_star:militia_blockade:150:25"],
-        "time_day": 22, "time_month": 1, "time_year": 2200,
+        "time_day": 95, "time_month": 1, "time_year": 2200,
     })
 
     loaded = saveload.load_game(object())
@@ -1386,8 +1398,8 @@ def test_flight_cadence_picket_nine_vs_player_ten(line_system):
     """A picket (cruiser hull, map speed 9) vs a speed-10 player
     banks 0.9 tiles/pass: one cell after two passes, the fraction
     carried exactly — deterministic, no throttle."""
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+    game_map = _build_watch(115)
+    ctx = _watch_ctx(game_map, 115, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)  # the base-stamped relief gets orders
 
@@ -1409,8 +1421,8 @@ def test_flight_cadence_picket_nine_vs_player_ten(line_system):
 
 def test_flight_arrival_clears_credit_with_the_target(line_system, monkeypatch):
     _pin_throttle(monkeypatch)
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+    game_map = _build_watch(95)
+    ctx = _watch_ctx(game_map, 121, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)  # boundary: the thin four fly home
     _key = "luyten_star:militia_blockade:150:25:t3"
@@ -1429,8 +1441,8 @@ def test_watch_day_pass_walks_a_flight_a_full_day(line_system):
     """A space-wait pays every watch flight its whole hull speed
     (doc 44 phase 3): the picket (speed 9) covers nine cells of its
     approach in one wait."""
-    game_map = _build_watch(24)
-    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+    game_map = _build_watch(115)
+    ctx = _watch_ctx(game_map, 115, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})
     navigation_line.step_watch(ctx)  # the base-stamped relief gets orders
 

@@ -148,7 +148,8 @@ every number below is retunable after the playtest.
    blockcade, then rotate out with your replacement shift."
    Tenure = ``(total_days - 1) // 7`` — a pure function of the day
    clock (no new mutable schedule state; save/load stays free).
-   Boundaries land on days 8, 15, 22, …
+   Boundaries land on days 8, 15, 22, … **AMENDED (playtest
+   round 3, 2026-09-10 — see below): 30-day shifts.**
 2. **Every 4th shift is the maintenance watch** — the cycle runs
    full/full/full/thin (28 days). The thin watch is the minimum:
    today's shipped four stations (user: "4 should probably be the
@@ -388,6 +389,23 @@ Presentation rulings (user wording VERBATIM; "targetting"→
    semantics are unchanged — only its engagement lifecycle is
    positional.
 
+### Playtest round 3 (2026-09-10) — 30-day shifts
+
+**"Now we have to tweak the rotation schedule. it's all happening
+too fast so we have constant rotating shifts."** (user; "Let's try
+30 day shifts.") With 7-day shifts and 2-9-day transits each way,
+a picket's standing time was at most a week against a comparable
+commute — barely settling before the boundary packed it home, and
+the north leads (9 ≥ 7) kept a second wave permanently airborne.
+`shift_days` 7 → **30** (data; the cycle stays tenure-indexed, so
+the thin watch is now a 30-day window every 120 days — flag for
+the playtest: a long ghost season). Structural consequence: with
+every lead < shift, two same-roster relief waves can NEVER overlap
+— one wave airborne at most; the "two waves routinely airborne"
+consequence above is superseded, and the same-station base
+stacking case no longer exists (its test is retired with a note).
+The commute:watch ratio inverts to ≤9 commuting vs 30 standing.
+
 Guide ruling (user, round-1 follow-up): **the guide carries nothing
 about the Line at all.** The checkpoint explains itself in play —
 the hail IS the teacher — so guide coverage telegraphs an encounter
@@ -439,7 +457,7 @@ ledger threading is pinned.
       window
 - [ ] Guide + playtest: guide diff is NONE (round-1 ruling — the
       guide carries nothing about the Line); playtest observes a
-      rotation, times the maintenance week, crosses dark through
+      rotation, times the maintenance month, crosses dark through
       one, and lures across a boundary
 
 LANDED 2026-09-09 (all eight build steps; playtest PARKED behind
@@ -476,9 +494,10 @@ days, so a day-1 arrival sees the ten-picket line PLUS ships
 loitering at the bases. In-fiction: the next shift mustering.
 **(Post-sidequest re-measure, doc 44 phase 4: the leads are now
 the ceiling of each station's real transit at the picket's own
-hull speed 9 — the day-1 muster count is FOUR, the wait asymmetry
-above is closed by 44's phase 3, and this playtest runs under
-that math.)**
+hull speed 9; the wait asymmetry above is closed by 44's phase 3.
+Round 3's 30-day shifts then removed the day-1 muster entirely —
+the first relief launches run-day 22 at the earliest — and this
+playtest runs under that math.)**
 Ratchet paid twice in-phase (``_row_placements`` /
 ``_static_rebuild_kwargs`` extractions; ``_handle_dev_shift_keys``
 refactored to the matcher→action dispatch table). One process

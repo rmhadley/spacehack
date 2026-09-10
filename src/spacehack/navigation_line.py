@@ -21,8 +21,8 @@ naturally. Both session globals are deliberately NOT serialized:
 the tripwire is edge-derived, and the flag resets on leaving the
 system.
 
-THE WATCH (phase 2): the pickets rotate on 7-day shifts driven by
-the SensorColumn's watchbill — everything derives from the day
+THE WATCH (phase 2): the pickets rotate on the SensorColumn's
+watchbill shifts (30 days as shipped) — everything derives from the day
 clock (total_days → tenure → kind → roster), so there is NO
 schedule state anywhere. Rotation spawns stamp their keys with a
 monotonic ``:t<tenure>`` suffix so the phase-1 tombstones hold per
@@ -145,8 +145,8 @@ def total_days(day: int, month: int, year: int) -> int:
 
 
 # The watchbill's epoch: the game's first day. A 360-day year is
-# not divisible by 7, so raw total_days would drift the shift
-# boundaries off the doc's days 8/15/22 — tenure counts from HERE.
+# not divisible by any sane shift length, so raw total_days would
+# drift the boundaries off the ruled grid — tenure counts from HERE.
 _EPOCH_DAY = total_days(day=1, month=1, year=2200)
 
 
@@ -160,8 +160,9 @@ def clock_total(ctx) -> int:
 
 
 def tenure_of(total: int, shift_days: int) -> int:
-    """Which shift owns ``total``: boundaries land on days 8, 15, 22…
-    (epoch-anchored — tenure 0 is the game's first week)."""
+    """Which shift owns ``total``: boundaries land every
+    ``shift_days`` days (31/61/91… at the shipped 30; epoch-anchored
+    — tenure 0 is the game's first shift)."""
     return (total - _EPOCH_DAY) // shift_days
 
 
