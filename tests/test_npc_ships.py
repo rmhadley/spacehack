@@ -1,16 +1,11 @@
-"""Tests for npc_ships.move_npcs combat-lock skipping.
-
-Space-combat participants carry a transient ``combat_locked`` flag
-(set by combat/_rules_space.py at every reinforcement tick) so the
-ambient patrol system leaves them alone mid-fight — otherwise they
-drift toward body goals or despawn at gates/planets while the combat
-instance still considers them alive (the "enemy disappeared" bug).
-"""
+"""Tests for npc_ships movement (combat locks, cohesion, spawn
+caps) and the doc-44 map-speed resolver + its load-path gate."""
 
 from __future__ import annotations
 
 import sys
 from pathlib import Path
+from dataclasses import replace
 from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -246,3 +241,83 @@ def test_move_npcs_counts_locked_ships_against_spawn_cap(monkeypatch):
     assert all(
         _e.pos.x == 15 + _i for _i, _e in enumerate(_game_map.entities)
     )  # none of the locked ships moved
+
+
+# ---------------------------------------------------------------------------
+# map_speed + hull-derived speeds (doc 44 phase 1)
+# ---------------------------------------------------------------------------
+
+def test_map_speed_derives_from_the_hull_and_explicit_wins():
+    """Doc 44: an NPC's map speed is the hull's own speed stat —
+    the same number a player flying that hull gets. Explicit
+    authoring wins (derelicts pin 0); unknown hulls never raise."""
+    from src.spacehack.data.npc_ships import NpcShipSpec, map_speed
+    from src.spacehack.data.ships import find_ship
+
+    spec = NpcShipSpec(
+        id="test_derived", name="T", char="T", fg=(255, 255, 255),
+        ship_id="cruiser", faction="pirate",
+    )
+    assert spec.base_speed is None
+    assert map_speed(spec) == find_ship("cruiser").speed == 9
+
+    pinned = replace(spec, base_speed=0)
+    assert map_speed(pinned) == 0, "derelicts' explicit 0 wins"
+
+    unknown = replace(spec, ship_id="not_a_hull")
+    assert map_speed(unknown) == 1, "an unknown hull resolves, never raises"
+
+
+def test_every_spec_resolves_hull_speed_with_named_pins():
+    """The launch table: every registered spec moves at its hull's
+    speed (doc 44's settled table). militia_blockade is NAMED —
+    phase 4's retune premise is picket speed 9, and a hull-grouped
+    assert alone could pass without ever naming the picket."""
+    from src.spacehack.data.npc_ships import (
+        find_npc_ship, list_npc_ships, map_speed,
+    )
+    from src.spacehack.data.ships import find_ship
+
+    specs = list_npc_ships()
+    assert len(specs) >= 15, "the catalog is discovered in full"
+
+    for spec in specs:
+        if spec.base_speed is not None:
+            assert map_speed(spec) == spec.base_speed
+        else:
+            assert map_speed(spec) == find_ship(spec.ship_id).speed
+
+    assert map_speed(find_npc_ship("militia_blockade")) == 9
+    assert map_speed(find_npc_ship("pirate_scout")) == 14
+    assert map_speed(find_npc_ship("merchant_freighter")) == 6
+    assert map_speed(find_npc_ship("derelict_scout")) == 0
+
+
+def test_load_gate_reads_through_the_resolver():
+    """The ADVISE blocker, pinned at its seam: base_speed is
+    None-able now, and the load-path stationary gate must read
+    map_speed (the old getattr default never fired for a PRESENT
+    None — `None > 0` raised on every load with a live procedural
+    NPC). A pirate keeps its squad id and moves; a derelict gets
+    none."""
+    from src.spacehack.data.npc_ships import find_npc_ship
+    from src.spacehack.game_context import ProceduralSpawn
+    from src.spacehack.saveload_maps import _add_procedural_npcs
+    from src.spacehack.solar_system import make_solar_system
+    from src.spacehack.data.solar_systems import find_solar_system
+
+    game_map = make_solar_system(system=find_solar_system("sol"))
+    spawns = [
+        ProceduralSpawn(npc_id="pirate_scout",
+                        pos=world.Position(30, 30), squad_id="m1"),
+        ProceduralSpawn(npc_id="derelict_scout",
+                        pos=world.Position(35, 35), squad_id="d1"),
+    ]
+
+    _add_procedural_npcs(game_map, spawns, "sol", {}, find_npc_ship)
+
+    by_id = {_e.npc_ship_id: _e for _e in game_map.entities}
+    assert by_id["pirate_scout"].procedural_squad_id == "m1"
+    assert by_id["derelict_scout"].procedural_squad_id == "", (
+        "the stationary gate still holds through the resolver"
+    )

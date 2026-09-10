@@ -442,6 +442,7 @@ def _add_bounty_npcs(game_map, spawns, find_npc) -> None:
 
 def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None:
     """Place saved procedural NPCs, restoring their movement IDs."""
+    from .data.npc_ships import map_speed
     for i, ps in enumerate(spawns):
         try:
             espec = find_npc(ps.npc_id)
@@ -457,9 +458,12 @@ def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None
             width=1, height=1,
             npc_ship_id=ps.npc_id,
         )
-        # Stationary ships (base_speed=0, e.g. derelicts) don't get
-        # procedural_squad_id so move_npcs ignores them.
-        if getattr(espec, 'base_speed', 0) > 0:
+        # Stationary ships (map_speed 0, e.g. derelicts) don't get
+        # procedural_squad_id so move_npcs ignores them. Read through
+        # the resolver (doc 44): base_speed is None-able now, and the
+        # old getattr default never fires for a PRESENT None —
+        # `None > 0` raised on every load with a live procedural NPC.
+        if map_speed(espec) > 0:
             ent.procedural_squad_id = mid
         game_map.entities.append(ent)
 

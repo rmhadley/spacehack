@@ -37,7 +37,9 @@ class NpcShipSpec:
         detect_radius: cells before auto-engaging combat (0 = never).
         comms_range: cells within which player can hail via comms.
         comms_lines: flavour text for comms hail.
-        base_speed: cells per movement tick.
+        base_speed: explicit map speed in tiles/day, or None to
+            derive from the hull (find_ship(ship_id).speed) — see
+            map_speed(). Derelicts pin 0: the stationary gate.
     """
     id: str
     name: str
@@ -92,7 +94,9 @@ class NpcShipSpec:
     # generic demand in comms. Only militia ships are ever challenged —
     # this must not be cargo-inspection text.
     challenge_lines: tuple[str, ...] = ()
-    base_speed: int = 1
+    # Map speed in tiles/day (doc 44): None = the hull's own speed
+    # stat via map_speed(); explicit values win (derelicts pin 0).
+    base_speed: int | None = None
     # Loot budget for interior salvage (boardable ships).
     # Tuple of (min_credits, max_credits). At layout generation,
     # a total value is rolled from this range and spent across
@@ -140,3 +144,25 @@ def find_npc_ship(spec_id: str) -> NpcShipSpec:
         return _registry()[spec_id]
     except KeyError:
         raise KeyError(f"unknown npc ship id: {spec_id!r}") from None
+
+
+def list_npc_ships() -> tuple[NpcShipSpec, ...]:
+    """All registered specs, in registry order (the test/test
+    surface for catalog-wide assertions)."""
+    return tuple(_registry().values())
+
+
+def map_speed(spec: NpcShipSpec) -> int:
+    """The spec's map speed in tiles/day (doc 44): an explicit
+    ``base_speed`` wins (derelicts pin 0 — the stationary gate);
+    otherwise the hull's OWN speed stat — the same number a player
+    flying that hull gets (scout 14, cruiser 9, frigate 8, hauler
+    7, freighter 6). Unknown hulls resolve to 1, never raising
+    mid-game."""
+    if spec.base_speed is not None:
+        return spec.base_speed
+    from ..ships import find_ship
+    try:
+        return find_ship(spec.ship_id).speed
+    except KeyError:
+        return 1

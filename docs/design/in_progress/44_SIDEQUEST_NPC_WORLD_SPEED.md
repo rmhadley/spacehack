@@ -215,8 +215,9 @@ round-trips.
       reliefs visibly cover a day of ground; density + pursuit
       texture checks (settled consequence 7 + the speed-14 note)
 
-  Implementation brief (1) — PROPOSED (`/refine-design 44`,
-  2026-09-10; AMENDED same day per the ADVISE reviewer round):
+  Implementation brief (1) — APPROVED (`/refine-design 44`
+  2026-09-10, amended per the ADVISE reviewer round; user invoked
+  ``/implement-phase 44.1``):
 
   - **Scope.** Data: `NpcShipSpec.base_speed` (``data/npc_ships/
     __init__.py``) becomes ``int | None = None`` — None resolves
@@ -262,6 +263,51 @@ round-trips.
   - **Playtest checkpoint.** None — a pure data+resolver phase
     with no player-visible behavior change; the numbers first
     become observable in phase 2.
+
+## Pre-implementation audit — phase 1 (2026-09-10, verified in code)
+
+**Seams to extend:**
+
+- **The spec field** — ``NpcShipSpec.base_speed``
+  (``data/npc_ships/__init__.py``): currently ``int = 1`` with the
+  docstring line "cells per movement tick". Flips to
+  ``int | None = None``; docstring restates the hull-derivation
+  contract. Only the two derelicts author it today
+  (``core.py:34/66``, explicit ``0`` — the stationary pin,
+  verified, untouched).
+- **The resolver** — ``map_speed(spec) -> int`` in the same
+  module: explicit ``base_speed`` wins; else
+  ``find_ship(spec.ship_id).speed`` under ``except KeyError → 1``
+  (``find_ship`` raises on miss — ``data/ships/__init__.py:52``).
+  Lazy ``from ..ships import find_ship`` inside the function (the
+  ships catalog imports nothing back — no cycle; catalog idiom).
+- **The registry accessor** — the catalog exposes ``find_npc_ship``
+  only; the every-spec test needs enumeration → add
+  ``list_npc_ships()`` (the ``list_solar_systems`` sibling
+  pattern, 3 lines).
+- **The ONE call site reading base_speed outside data/** —
+  ``saveload_maps._add_procedural_npcs``'s stationary gate
+  (``getattr(espec, 'base_speed', 0) > 0``) reroutes through
+  ``map_speed(espec) > 0``; the ADVISE round's TypeError blocker
+  and the ``(or 0)`` trap are pinned by a seam test against this
+  exact function (pirate keeps its squad id and moves; derelict
+  gets none). A full save→load harness adds nothing the seam
+  test does not pin — the crash lives in this function.
+
+**Duplication hotspots + DRY strategy:**
+
+1. Hull reads → one resolver, one truth; the gate reroute uses it
+   (no inline ``find_ship`` calls anywhere else).
+2. The test table vs. the data — the every-spec test derives the
+   expectation FROM the hull catalog
+   (``map_speed(spec) == find_ship(spec.ship_id).speed``) plus
+   NAMED numeric pins (``militia_blockade`` 9, one per hull
+   class) so an accidental hull-stat change trips a number, not
+   just a tautology.
+
+**Judgment call pinned:** ``list_npc_ships()`` ships in this phase
+(data accessor for the test — in scope beside the resolver, same
+module, same idiom).
 
 ## Acceptance criteria (draft)
 
