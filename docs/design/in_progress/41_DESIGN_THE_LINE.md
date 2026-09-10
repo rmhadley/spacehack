@@ -270,11 +270,16 @@ Seven rulings:
    column. SUPERSEDES the phase-3 sketch "the Line stops engaging
    past the column (positional escape west)" — the column stops
    nothing once the flag is up.
-4. **The complying-runner latch — the pinned sketch confirmed:**
-   Comply latches the answer (session-local, clears on leaving
-   the system); the first step EAST past the column converts the
-   lie into Defy (the persistent flag + the convergence payload).
-   Papers-waved hulls never latch.
+4. **The complying-runner latch — the pinned sketch confirmed,
+   then hardened by its own ADVISE round:** Comply latches the
+   answer — and the latch PERSISTS (user, 2026-09-10: "persist the
+   latch too" — comply/save/load then stepping east must still
+   convert; no save-scummed lies); it clears on leaving the
+   system. The conversion fires on crossing FROM the column
+   (``prev_x == column.x and new_x > column.x``) — a latched hull
+   already east retreats free, re-crosses, draws a fresh hail, and
+   converts only on the east exit. Papers-waved hulls never
+   latch.
 5. **All at once, continuous.** Defy's payload is every alive
    picket at live positions (the shipped mechanic) and the flag's
    detect-30 floor keeps feeding any system militia that come
@@ -770,37 +775,60 @@ and amended while unpushed; gate green at every pushed state.
   Implementation brief (3) — PROPOSED (`/refine-design 41.3`,
   2026-09-10):
 
-  - **Scope.** STATE: the interdiction flag moves from the module
-    global to ``GameContext`` (``line_defiance_system: str | None``
-    — persisted in ``_ctx_to_dict`` + ``load_game``'s restore
-    block, mechanical lines only; saveload sits at 994/1000 — if
-    the lines push past, the parse side moves to a helper per the
-    doc-44 precedent). The global ``_interdiction_system`` dies;
-    every reader (``_aggro_override``, ``check_crossing``,
-    ``_run_checkpoint``) reads the ctx field. Jump clears it: the
-    existing ``_depart_old_system`` reset seam. THE LATCH: a
-    session-local module flag beside ``_prev_x`` (never saved —
-    the lie is a recent event); armed by a CHALLENGE Comply only
-    (papers/rank/service waves never arm it); cleared by leaving
-    the system; CONVERTED in ``check_crossing`` — a latched hull's
-    first step with ``new_x > column.x`` fires the full Defy
-    (flag + payload + the existing targeting-lasers line). THE
-    HAIL: ``check_crossing`` never opens the checkpoint for a
-    hull already flagged (a condemned hull's detection is the
-    proximity floor; Comply is not re-offered). TUNING: a pure
-    combat-math harness (``combat/_stats.py`` is pure) over
-    canonical fits — the full-watch payload provably unwinnable
-    below level 30, a real costly win at 30+; the thin-watch
-    payload winnable by a skilled mid-20s fit (ruling 7 — the
-    numbers land as data/spec adjustments, not code).
-  - **Build order.** (1) the ctx field + save/load + the readers
-    rewired + jump-clear + tests (round-trip persists; jump
-    clears; phase-1 flag tests re-based onto the field); (2) the
-    latch + conversion + tests (comply → east step = Defy with
-    payload; retreat west = nothing; system exit clears; papers
-    never arm); (3) the no-hail-for-flagged rule + test; (4) the
-    tuning harness + canonical-fit verification + any data/spec
-    adjustments it demands, re-run to green.
+  - **Scope.** STATE (ADVISE-complete seam inventory): BOTH the
+    flag and the latch move to persisted ``GameContext`` fields —
+    ``line_defiance_system: str | None`` and
+    ``line_comply_latch: bool`` (declared on the type's own
+    module; +1 line each in ``_core_fields`` and
+    ``_restore_core_fields`` — saveload lands 996/1000, no helper
+    needed). The global ``_interdiction_system``, its accessor
+    ``interdiction_system()``, and ``reset_interdiction`` all die
+    (the accessor's only src caller has ctx); readers rewire:
+    ``navigation_combat._aggro_override``, ``check_crossing``,
+    ``_run_checkpoint``; resets: ``_depart_old_system`` inlines
+    the clear (jump), new game needs nothing (dataclass default);
+    the test autouse fixture clears both fields and the
+    SimpleNamespace doubles gain them. THE LATCH: armed by a
+    CHALLENGE Comply only (waves never arm it); cleared by
+    leaving the system; CONVERTED in ``check_crossing`` as its OWN
+    branch (it cannot ride the ``crossed`` gate — the 150→151
+    step has ``crossed == False``): firing on ``prev_x ==
+    column.x and new_x > column.x``, gated by the MANNED check
+    (non-empty payload — a murdered line converts nothing),
+    setting the persistent flag + the existing targeting-lasers
+    line. A converted GO-TO step suppresses the "blockade hails
+    you" interrupt line (the targeting lasers are the conversion's
+    only voice). PURSUIT: ``npc_ships._squad_aggro`` gains the
+    Line-flag OR-term (the charged-cell precedent verbatim — Sol
+    militia already floor AND chase through it) so the 4-5 Luyten
+    patrols converge spatially; post-fight "pursuit" is the floor
+    re-triggering (statics never move; reliefs launch squadless).
+    THE HAIL: a flagged hull's ``check_crossing`` returns None at
+    the TOP of its resolution — no challenge, no waves, no
+    service-trait consumption; ``line_dark_hail`` returns None
+    for flagged hulls (the hail pass runs before encounter
+    detection — a condemned dark hull must not draw a Comply
+    modal). TUNING: a pure closed-form harness (tests/ only, from
+    ``combat/_stats.py``) on the SUBSET argument — payload
+    positions are live and arrivals stagger, so the verdicts are:
+    unwinnable-at-29 = the smallest geometrically-simultaneous
+    subset beats every min-maxed 25-29 fit under BEST-CASE player
+    assumptions; winnable = the all-simultaneous assumption for
+    the thin watch at mid-20s. Numbers land as data/spec
+    adjustments, not code.
+  - **Build order.** (1) both ctx fields + save/load + the full
+    reader/reset/test rewire + jump-clear + tests (round-trips
+    persist; jump clears; phase-1 flag tests re-based onto the
+    fields); (2) the latch + conversion + tests (comply → east
+    exit = Defy with payload; a latched hull already EAST
+    retreats free and converts only after a fresh hail + east
+    exit; west/lateral steps do nothing; system exit clears;
+    papers never arm; save/load keeps the latch armed); (3) the
+    no-hail rule (crossing + dark-spot) + the converted-goto log
+    suppression + tests; (4) the ``_squad_aggro`` pursuit OR-term
+    + test (patrols chase under the flag); (5) the tuning harness
+    + canonical-fit verdicts + any data/spec adjustments it
+    demands, re-run to green.
   - **Binding rulings.** The seven SETTLED items above + phase 1's
     standing rulings (one combat response; the payload by id at
     live positions; the manned sweep — fight still opens the
@@ -809,15 +837,22 @@ and amended while unpushed; gate green at every pushed state.
     machinery); wordless (the conversion reuses the shipped Defy
     log line; nothing new logs); naming ban (player-facing copy
     says "the blockade").
-  - **Required tests.** Persistence round-trip; jump-clears; the
-    latch matrix (armed by challenge-Comply only; east conversion
-    fires Defy + payload; west/lateral steps do nothing; system
-    exit disarms; papers never arm); flagged hulls get no
-    checkpoint; pursuit stays system-wide (no positional carve-out
-    — the floor engages at any x while flagged); reliefs in the
-    payload only at Defy-time, never chasing after; the tuning
-    harness verdicts (full watch unwinnable at 29 via the pure
-    math, costly-win at 30+; thin watch winnable mid-20s).
+  - **Required tests.** Persistence round-trips (flag AND latch);
+    jump clears both; the latch matrix (challenge-Comply arms
+    only; the east-exit conversion fires Defy + payload; the
+    latched-already-east hull retreats free, re-crosses, hails
+    fresh, converts on the east exit; west/lateral steps do
+    nothing; papers never arm; the manned gate — a murdered line
+    converts nothing); the no-hail rule (flagged crossings return
+    None BEFORE any wave/consumption; ``line_dark_hail`` refuses
+    flagged hulls); the converted goto step logs the targeting
+    lasers only; pursuit: ``_squad_aggro`` chases under the flag
+    (map-level, not just the trigger floor) and the floor engages
+    at any x; reliefs in the payload only at Defy-time, never
+    chasing after; the tuning harness verdicts (full watch
+    unwinnable at 29 via the subset argument, costly-win at 30+;
+    thin watch winnable mid-20s under the all-simultaneous
+    bound).
   - **Stop point.** NO grant-side method content (Commandant,
     Whisper, heist, gate tech — a future recourse purchase is
     fiction for the methods' docs); no doc-42 rumor hooks; no
