@@ -479,6 +479,13 @@ def _handle_wait_event(state, event):
             _adopt_capture_boarding(state)
             return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
+        # The world moved (NPCs, the watch) — the clock moves with it:
+        # a space-wait passes a FULL day (user ruling 2026-09-10; the
+        # frozen clock let flight traffic run with no schedule days).
+        # Movement ordering kept: the passes ran on the old day, the
+        # flip comes after.
+        from .time import advance_time as _adv_time
+        _adv_time(state.ctx, 1)
     elif state.current_mode == 'dungeon':
         _dctrl = _dungeon_post_move_tick(state.ctx, state.console, state.game_map)
         if _dctrl == 'DEFEAT':

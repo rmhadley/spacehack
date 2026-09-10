@@ -663,7 +663,10 @@ nobody designs against a ghost.
 - **Time** — single choke-point `advance_time` (30-day months);
   month rollover refreshes boards + applies decay + ticks economy;
   the clock advances via `tick_move` at the ship's
-  `effective_speed` moves/day (10 is only the fallback) (`time.py`).
+  `effective_speed` moves/day (10 is only the fallback); a
+  SPACE-wait (`.`) passes a FULL day — the passes run on the old
+  day, then the clock flips (`game_loop._handle_wait_event`;
+  dungeon/city waits tick their NPCs but not the clock) (`time.py`).
 - **Seeds** — `SPACEHACK_SEED` pins New Games in a session; Shift+S
   reroll is DEV-GATED (SPACEHACK_DEV) and ignores the pin; `RNG`
   rebinds on seed; `INIT_SEED` persists for deterministic helpers

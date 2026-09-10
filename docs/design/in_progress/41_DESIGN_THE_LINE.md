@@ -447,6 +447,19 @@ checklist below). Three reviewer dispatches (steps 1, 2, 4-5, 6-7):
 every verdict addressed in-commit; the step-4-5 dispatch ran a
 six-start-date × 400-step stress sim over the flight invariants
 (zero violations: no double-launch, no orphaned target/path pairs).
+**Mid-playtest ruling (user, 2026-09-10): a SPACE-wait passes a
+full day** — pressing ``.`` moved NPCs (and watch flights) while
+the clock stood still, decoupling flight progress from schedule
+days ("this can really break the blockade line mechanics"). Fix:
+``_handle_wait_event`` advances the clock 1 day after the per-step
+passes (movement ordering kept — passes on the old day, flip
+after; a BOARDED wait is a fight, no day). Dungeon and city waits
+tick their NPCs but not the clock (unchanged). Consequence to
+watch in the playtest: waits advance DAYS at day-granularity while
+flights still step per-press — waiting across a boundary makes
+reliefs visibly late (they fly ~1 cell per wait). If that reads
+wrong, the follow-up ruling is whether a wait should also
+fast-forward flights.
 Deviations + surprises recorded in the phase-2 audit's judgment
 calls (epoch anchor; accepted one-time legacy re-hail) and one
 observable worth knowing for the playtest: **on run-day 1 the
