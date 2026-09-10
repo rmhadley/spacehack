@@ -1,9 +1,10 @@
 # SIDEQUEST: NPC World Speed — the world moves on its own clock
 
-**Status: DESIGN DUMP — ruled direction, unrefined. Do not implement
-until `/refine-design 44` settles the open questions.** Inserted as a
-sidequest between doc 41 phase 2 (implementation LANDED; playtest
-PARKED behind this doc) and phase 3. Companion: `41_DESIGN_THE_LINE.md`
+**Status: REFINED — all questions settled (2026-09-10); brief (1)
+PROPOSED awaiting approval; briefs 2-5 draft at each phase's
+checkpoint.** Inserted as a sidequest between doc 41 phase 2
+(implementation LANDED; playtest PARKED behind this doc) and phase
+3. Companion: `41_DESIGN_THE_LINE.md`
 (the watch is the first NPC schedule promised on the calendar — the
 motivating system); `../complete/DESIGN_GAME_TIME.md` (the clock this
 extends); `../complete/06_DESIGN_MILITIA_PATROLS.md` and
@@ -72,16 +73,17 @@ Every moving NPC entity (or squad — open question 5) carries a
   included.
 - Multi-credit steps sub-step CELL BY CELL along the cached path
   (never teleport: detect radii, dark-spot challenges, and combat
-  triggers must fire per cell).
-- The 80% throttle's fate is an open question (it was organic
-  jitter; accumulators make motion near-deterministic).
+  triggers must fire per cell — settled ruling 4 in the Settled
+  section).
+- Motion is DETERMINISTIC (settled): no throttle, no jitter — the
+  accumulator's skip-then-step rhythm is the visual cadence.
 
 ### What this changes under the hood
 
-- **Data**: `NpcShipSpec` gains (or repurposes — open question 2) a
-  map-speed stat with sane per-spec defaults (merchants,
-  patrols/pirates per weight class, watch pickets). Data-first: one
-  field per spec, retunable.
+- **Data**: `NpcShipSpec.base_speed` repurposed as THE map-speed
+  stat, hull-derived by default (settled ruling 2): scout hulls 14,
+  cruiser 9, frigate 8, hauler 7, freighter 6; explicit authoring
+  wins (derelicts 0).
 - **State**: the accumulators are new mutable state → a ctx field
   (dict keyed by squad id / spawn key, mirroring `npc_targets`
   naming) → **save/load contract work** (persisted; existing saves
@@ -98,21 +100,113 @@ Every moving NPC entity (or squad — open question 5) carries a
   npc-speed 14); A* stays cached per mover; no new passes over
   `entities`.
 
-## Phases (build queue — UNREFINED, refine before building)
+## Settled — the ruling session (2026-09-10, `/refine-design 44`)
 
-- [ ] Data: the NPC map-speed stat + per-spec defaults + tests
-- [ ] The accumulator kernel: shared by patrols and watch flights;
-      per-player-step credit; cell-by-cell sub-stepping; tests
-- [ ] Save/load: accumulator persistence + existing-save defaults;
-      round-trip tests
-- [ ] The wait: a space-wait pays every mover a full day of
-      movement with carry-over; tests
-- [ ] The watch retune: re-measure transits under own-speed
-      movement, retune leads (data), regression sweep of the doc-41
-      phase-2 checklist items
-- [ ] Playtest: fly the same route at a slow and a fast ship — the
-      world's speed reads constant; wait a day at the Line —
-      reliefs visibly cover a day of ground
+All eight open questions ruled; the sketch above stands as amended.
+
+1. **Jumps stay INSTANT** — the burst hand-wave extends to gate
+   transit (same fiction as combat: burst drive use stresses the
+   body; comfortable cruise is what the calendar measures). The
+   zero-time action set is final: jumps, combat, cities, dungeons.
+2. **`base_speed` is repurposed — and its values DERIVE FROM THE
+   HULL** (user: "the specs have a ship hull. player ships with
+   those ship hulls have a base speed stat right? we should base
+   npc base speed off of those speed values."). One source of
+   truth: the ship catalog. `NpcShipSpec.base_speed` defaults to
+   unresolved and resolves to `find_ship(spec.ship_id).speed`;
+   explicit authoring wins (derelicts stay pinned at 0 — the
+   stationary gate must keep working). Launch values:
+   scout hulls 14, cruiser 9, frigate 8, hauler 7, freighter 6.
+3. **The 80% throttle is DROPPED** — motion is deterministic and
+   honest to the stat: a speed-9 cruiser crosses exactly 9
+   tiles/day. The accumulator's skip-then-step rhythm (credit
+   builds below 1 tile, then a tile) is the visual cadence.
+4. **Per-cell sub-stepping, checks at every cell** — a fast mover
+   never tunnels through the player's detect radius or a picket's
+   challenge range between checks. At the ruled speed range the
+   cap is ~2.3 cells/step (speed-14 NPC vs a speed-6 player), so
+   the cost is tiny. Exact clamp mechanism (e.g. stop at the first
+   cell that would trigger the proximity encounter) is the
+   pre-implementation audit's to pin.
+5. **Per-SQUAD accumulators** — one per squad, keyed like today's
+   path dicts (movement id / watch spawn key); the leader's speed
+   drives the squad, cohesion stepping keeps formation. Convoys
+   stay convoys; the watch's single-ship flights are one-member
+   squads of the same mechanism.
+6. **City NPCs and ground hunters are OUT OF SCOPE** — they tick
+   off their own wander/pursuit systems with no calendar presence.
+7. **Merchant timing resolves via the hull rule** — haulers at 7,
+   freighters at 6 (slightly slower than today's effective 8 at a
+   speed-10 player). Ambient density reads slightly sparser per
+   system-crossing; the phase-5 playtest watches it, no separate
+   retune phase.
+8. **The parked 41.2 playtest runs AFTER 44 lands** — on the new
+   movement math, with the watch leads retuned (phase below).
+
+**Consequence worth watching (not blocking): scout-hull NPCs fly
+at 14 — the game's top speed.** Today nothing on the map outruns
+the player (NPCs step 1:1); under own-speed, a pirate scout
+outruns every player hull except the scout itself (equal speed —
+a standoff). A starter (10) cannot disengage a scouting pirate by
+running. If that texture reads wrong in play, the cheap knob is
+per-spec authoring overrides on the fast hulls (explicit
+`base_speed` values win over the hull default) — the mechanism
+ships with this phase either way.
+
+## Phases (build queue — `/implement-phase 44.<p>` works top-down)
+
+- [ ] Phase 1 — Hull-derived speeds: `base_speed` resolves from
+      the spec's hull (derelicts pinned 0; explicit authoring
+      wins), every spec resolves, tests
+- [ ] Phase 2 — The accumulator kernel: per-squad credit at
+      `npc_speed / player_speed` tiles per player step,
+      deterministic sub-stepping with per-cell checks, the patrol
+      stepper and the watch flight stepper converge on one shared
+      kernel, accumulator persistence + existing-save defaults
+- [ ] Phase 3 — The day-granular wait: a space-wait pays every
+      mover a full day of movement with carry-over (ruling 4)
+- [ ] Phase 4 — The watch retune: re-measure base→station
+      transits at picket speed 9, retune the launch leads (data),
+      regression sweep of the doc-41 phase-2 checklist
+- [ ] Phase 5 — Playtest: same route at a slow and a fast ship —
+      the world's speed reads constant; wait a day at the Line —
+      reliefs visibly cover a day of ground; density + pursuit
+      texture checks (settled consequence 7 + the speed-14 note)
+
+  Implementation brief (1) — PROPOSED (`/refine-design 44`,
+  2026-09-10):
+
+  - **Scope.** Data: `NpcShipSpec.base_speed` (``data/npc_ships/
+    __init__.py``) becomes ``int | None = None`` — None resolves
+    from the hull. Code: ONE pure resolver
+    (``data/npc_ships/__init__.py`` — ``map_speed(spec) -> int``:
+    explicit ``base_speed`` wins, else ``find_ship(spec.ship_id)
+    .speed``, else a safe 1) — no call-site changes yet (the
+    stepper still ignores it; phase 2 wires it). Derelicts keep
+    their explicit 0 (``core.py`` already authors it — verify,
+    don't touch). Tests: every registered spec resolves; the
+    launch table holds (scout-hull NPCs 14, cruiser 9, frigate 8,
+    merchant haulers 7 / freighters 6); derelicts resolve 0;
+    an explicitly-authored override beats the hull default; the
+    resolver is pure (no ctx, no RNG).
+  - **Build order.** (1) the resolver + tests; (2) the field-type
+    change + derelict verification; (3) data test pinning the
+    launch table.
+  - **Binding rulings.** Settled items 2 (hull derivation,
+    explicit-wins, derelicts 0) and the speed-14 consequence note;
+    data-first (a frozen dataclass field, no runtime attachment);
+    NO stepper changes in this phase.
+  - **Required tests.** The launch table per spec; override-wins;
+    derelict-0; unknown-hull fallback (a spec whose ship_id is not
+    in the ship catalog resolves to 1, never raises mid-game).
+  - **Stop point.** NOTHING from phase 2 — no accumulators, no
+    stepper changes, no wait changes, no watch retune; the 80%
+    throttle still stands until phase 2 replaces it.
+  - **Playtest checkpoint.** None — a pure data+resolver phase
+    with no player-visible behavior change; the numbers first
+    become observable in phase 2.
+
+## Acceptance criteria (draft)
 
 ## Acceptance criteria (draft)
 
@@ -130,33 +224,8 @@ Every moving NPC entity (or squad — open question 5) carries a
   popping at either engine extreme; per-step cost within the
   knowledge.md performance rules.
 
-## Open questions (for `/refine-design 44`)
+## Open questions
 
-1. **Do jumps cost time?** Unruled. Today: instant. If yes — how
-   many days per hop, and what does that do to quest deadlines and
-   the watch (a jump that eats 3 days skips watch due-days — the
-   day-skip heal exists but is dev-coarse)?
-2. **Stat field**: repurpose `base_speed` (already on every spec,
-   currently only a stationary gate) or add `map_speed`? Repurposing
-   is one migration of meaning; a new field is additive.
-3. **The 80% throttle**: keep as jitter (accumulator pays 1 tile,
-   RNG decides presentation) or drop it for deterministic motion?
-   Deterministic motion changes the dark-run/lure texture at the
-   Line.
-4. **Multi-tile steps vs. triggers**: when a fast NPC crosses the
-   player's detect radius mid-sub-step, does the encounter check
-   fire mid-step (per cell — recommended) or only at rest?
-5. **Squad vs per-entity accumulators**: today squads move as
-   leader+cohesion; one accumulator per squad (leader-driven)
-   preserves that; per-entity lets stragglers catch up at their own
-   speed. Which fiction?
-6. **Scope**: city NPCs and ground hunters out (own tickers, no
-   calendar)? Assumed yes.
-7. **Merchant timing**: merchant spawn→A*→despawn loops and the
-   "transit days depend on the player's ship speed" slop — under
-   own-speed merchants, does the ambient-traffic density need
-   retuning (they'll cross systems in fixed days now)?
-8. **Watch interlock**: does this sidequest land before the parked
-   41.2 playtest (retuned leads) — assumed YES, that is why the
-   playtest is parked — or does 41.2 playtest first on the old
-   math and the retune becomes its own re-playtest?
+None — all eight ruled in the Settled section below (2026-09-10).
+New questions surface at the phase briefs' pre-implementation
+audits.
