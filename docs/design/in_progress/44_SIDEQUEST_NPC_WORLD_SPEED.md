@@ -199,7 +199,7 @@ round-trips.
   predicted `None > 0` TypeError read-only; confirmed the seam
   test catches it); no player-visible change (the resolver is
   dead data until phase 2 wires it), guide diff NONE.
-- [ ] Phase 2 — The accumulator kernel: per-squad credit at
+- [x] Phase 2 — The accumulator kernel: per-squad credit at
       `npc_speed / player_speed` tiles per player step,
       deterministic sub-stepping with the Settled-4 clamp
       constraints (per-cell predicate, stop-≠-fire, argued at the
@@ -336,9 +336,60 @@ ranges are larger and non-modal — a mover may cross a comms ring
 between passes, acceptable); no clamp while AGGRO-chasing the
 player (the player IS the destination — parking beside them is
 the intent anyway).
+  LANDED 2026-09-10 — reviewer REQUEST_CHANGES then APPROVE-grade
+  fixes: the audit's one false claim (the ``_despawn_merchant``
+  credit pop) shipped missing and is now test-pinned; the
+  empty-path recompute gate restored to falsy (a ghost target can
+  never pin a picket outside the lifecycle checks); the slip-case
+  documented + pinned (blocked never implies motionless). Stepping
+  is RNG-free; quest_ctx carries a default clamp-neutral player;
+  guide reviewed — no section stale (movement cadence is not
+  guide material). No player-facing checklist: observability
+  arrives with phase 3's wait.
+
 - [ ] Phase 3 — The day-granular wait: a space-wait pays every
       mover a full day of movement with carry-over (ruling 4) —
       per-cell clamping REAPPLIES at the 14-cell wait bound
+
+  Implementation brief (3) — PROPOSED (drafted at phase 2's
+  checkpoint, 2026-09-10):
+
+  - **Scope.** The wait path pays a FULL DAY of movement: thread a
+    ``day_pass`` flag from ``game_loop._handle_wait_event`` through
+    ``game_flow._run_combat_loop(also_move_npcs=...)`` into
+    ``move_npcs`` and ``step_watch`` — in day mode each mover's
+    rate is its whole ``map_speed`` (not ``/ player_speed``), so
+    one wait walks up to 14 cells (scout) under the SAME
+    per-cell clamp (Settled-4c). Ordering unchanged: the passes
+    run, THEN ``advance_time(ctx, 1)``. Manual steps and GO TO
+    keep the per-step rate (flag defaults False). Arrival and
+    despawn bookkeeping resolves on the action after a day pass
+    (the movers outrun the once-per-action target refresh —
+    accepted; the day is one action). ``npc_movement`` may grow a
+    tiny rate-picker (``rate_for(spec, player_speed, day_pass)``)
+    so the two steppers share the mode logic. BOARDED waits are
+    fights — no movement, no day (existing ruling).
+  - **Build order.** (1) the rate-picker + unit tests; (2) thread
+    the flag through the three call layers + tests (a wait walks
+    ~speed tiles with carry and clamps per cell; a manual step's
+    rate unchanged); (3) regression: the wait-day fix's own test
+    (test_time) extended — the world moved a day AND the clock
+    flipped.
+  - **Binding rulings.** Settled 4 (carry-over) + 4c (the 14-cell
+    bound re-clamps); deterministic (no RNG); the wait still runs
+    the ordinary spawn/encounter passes exactly once.
+  - **Required tests.** Day-mode rate == map_speed (picker units);
+    a wait moves a scout-hull squad ~14 cells in one pass with
+    the fraction carried; the clamp fires mid-day-pass (parks at
+    the trigger cell exactly as per-step); manual/goto rates
+    untouched; the clock flip still follows the passes.
+  - **Stop point.** NOTHING from phase 4 — no watch lead retune
+    (reliefs now OVERSHOOT their tuned leads: picket speed 9 vs
+    leads tuned for effective-8 — arrivals run early; expected
+    until phase 4 re-measures); no phase-5 items.
+  - **Playtest checkpoint.** None in-phase (phase 5 owns the
+    formal checklist); quick observability: waiting a day at the
+    Line visibly walks reliefs a day of ground.
 - [ ] Phase 4 — The watch retune: re-measure base→station
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist
