@@ -314,6 +314,9 @@ class GameContext:
     player_engineering_bonus: int = 0
     player_traits: list[str] = dataclasses.field(default_factory=list)
     player_counters: PlayerCounters = dataclasses.field(default_factory=PlayerCounters)
+    # Rumor keyring (doc 42): heard rumor ids in heard order — the
+    # ledger renders this verbatim knowledge; dialogue rows read it.
+    known_rumors: list[str] = dataclasses.field(default_factory=list)
     # Ground combat stats (reflexes, strength, stamina).
     ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
     # Equipped ground weapon instances. Two-handed specs occupy both

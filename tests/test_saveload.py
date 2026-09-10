@@ -99,6 +99,9 @@ def _build_test_ctx() -> GameContext:
          "rep": {"merchant": -40}},
     ]
     ctx.main_quest_disposition = "archive_sealed"
+    # Rumor keyring (doc 42): interleaved chains prove heard order
+    # survives the round trip.
+    ctx.known_rumors = ["thin_month_1", "derelict_line_1", "thin_month_2"]
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True
     ctx.main_quest_chain = "lab"
@@ -206,6 +209,7 @@ class TestSaveLoadRoundTrip:
         assert loaded.player_piloting_bonus == original.player_piloting_bonus
         assert loaded.player_engineering_bonus == original.player_engineering_bonus
         assert loaded.player_traits == original.player_traits
+        assert loaded.known_rumors == original.known_rumors
 
         # Player counters
         assert loaded.player_counters.total_kills == original.player_counters.total_kills

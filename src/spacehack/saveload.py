@@ -139,6 +139,18 @@ def _progression_fields(ctx: GameContext) -> dict:
     }
 
 
+def _lore_fields(ctx: GameContext) -> dict:
+    """Serialize the rumor keyring (doc 42)."""
+    return {
+        "known_rumors": list(ctx.known_rumors),
+    }
+
+
+def _restore_lore_fields(ctx: GameContext, data: dict) -> None:
+    """Restore the rumor keyring."""
+    ctx.known_rumors = list(data.get("known_rumors", []) or [])
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
@@ -170,6 +182,7 @@ def _core_fields(ctx: GameContext) -> dict:
         "line_comply_latch": ctx.line_comply_latch,
         **_progression_fields(ctx),
         **_identity_fields(ctx),
+        **_lore_fields(ctx),
     }
 
 
@@ -809,6 +822,7 @@ def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> Game
     _restore_core_fields(ctx, data, parsed, rebuilt)
     _restore_ground_fields(ctx, data)
     _restore_progression_fields(ctx, data)
+    _restore_lore_fields(ctx, data)
     _restore_quest_and_tutorial(ctx, data)
     ctx._loaded_mode = rebuilt.mode  # type: ignore[attr-defined]
     if rebuilt.mode == "dungeon":
