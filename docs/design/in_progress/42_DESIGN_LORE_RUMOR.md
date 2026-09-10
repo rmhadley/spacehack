@@ -155,18 +155,18 @@ top-down. The SETTLED rulings bind every phase; each phase's brief
 binds its build.
 
 ### Phase 1 — The keyring and the ask loop
-- [ ] `RumorEntry` catalog + registry (`data/lore/`), chains linked
+- [x] `RumorEntry` catalog + registry (`data/lore/`), chains linked
       inside the catalog
-- [ ] Rumor prose JSON-single-source (`rumor.*` keys in
+- [x] Rumor prose JSON-single-source (`rumor.*` keys in
       `08_rumors.json`) + data test for missing/orphan keys
-- [ ] `ctx.known_rumors` + save/load round-trip
-- [ ] Pure topic resolver (heard ∩ contact's sources, floors
+- [x] `ctx.known_rumors` + save/load round-trip
+- [x] Pure topic resolver (heard ∩ contact's sources, floors
       applied)
 - [ ] Hearing on the talk host: source NPCs list rumor rows; taking
       one records verbatim + adds the keyring
 - [ ] The shared Ask Around sub-menu (city/bar host)
 - [ ] The verbatim ledger pane in the Q log
-- [ ] Three authored chains across bar + city sources
+- [x] Three authored chains across bar + city sources
 - [ ] Guide: new Rumors section (ledger + ask-around how-to only)
 - [ ] Playtest checkpoint (checklist in the brief)
 
