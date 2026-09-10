@@ -428,7 +428,7 @@ speculatively.
   clock. Guide diff NONE (no player-facing text; movement cadence
   is not guide material).
 
-- [ ] Phase 4 — The watch retune: re-measure base→station
+- [x] Phase 4 — The watch retune: re-measure base→station
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist
 
@@ -504,10 +504,57 @@ watch_day=…)``) and asserts every ``lead_days == ceil(len /
 map_speed(militia_blockade))`` — leads can never again drift from
 the map they fly over. Round UP per the binding ruling (early
 parks and holds; late dips the line).
+  LANDED 2026-09-10 (e9a01f0) — reviewer APPROVE with its own
+  re-measurement of the full table (and one catch: my comment
+  edit wrongly said day 24 stamps four reliefs — it stamps SIX,
+  y77 launches exactly that day; reverted). The leads are now
+  self-verifying against the live map.
+
 - [ ] Phase 5 — Playtest: same route at a slow and a fast ship —
       the world's speed reads constant; wait a day at the Line —
       reliefs visibly cover a day of ground; density + pursuit
       texture checks (settled consequence 7 + the speed-14 note)
+
+  Implementation brief (5) — PROPOSED (drafted at phase 4's
+  checkpoint, 2026-09-10). This phase is the user's playtest; the
+  brief is its checklist. On PASS, doc 44 closes and doc 41's
+  parked phase-2 checklist resumes IN THE SAME RUN.
+
+  - **Setup.** SPACEHACK_DEV run. For the speed contrast: fly the
+    starter (speed 10) first; the hangar/dev ship menu provides a
+    freighter-class hull for the slow leg and the scout for the
+    fast one (the checklist's items 1-2 need both).
+  - **The checklist (numbered, in-game):**
+    1. Fly a fixed Sol→Alpha Centauri leg at a SLOW hull, noting
+       how many days the calendar advances and how far the
+       ambient traffic (merchants, patrols) moves per day. Repeat
+       the same leg at a FAST hull: the calendar advances FASTER
+       per tile but the SAME SHIPS cross the same ground in the
+       same number of DAYS — the world's speed reads constant.
+    2. Pursuit texture: let a pirate scout (speed 14) notice you
+       in a hull slower than 14 — it closes on the map. In the
+       scout yourself, the same pirate holds distance (equal
+       speed — the settled standoff). If it reads wrong, the knob
+       is per-spec base_speed overrides.
+    3. Ambient density: merchants cross in fixed days now
+       (haulers 7, freighters 6) — space should read slightly
+       sparser per crossing but not empty.
+    4. At the Line (luyten_star): wait (.) a full day next to an
+       inbound relief — it visibly covers ~9 cells of its
+       approach per wait, and the calendar flips exactly one day.
+    5. The watch schedule under the retuned leads: reliefs arrive
+       ≈ shift end (early arrivals park and hold; no visible
+       dip except the boundary's own turnover).
+    6. Regression: doc 41's parked phase-2 checklist (items 1-11,
+       in that doc) — its amended LANDED note describes the math
+       this run uses.
+  - **Guide edits: NONE** — movement cadence is not guide
+    material (the round-1 ruling's spirit); no guide text changed
+    in any phase of this doc.
+  - **Stop point.** On PASS: close doc 44 (move to complete/,
+    SYSTEMS.md inventory pass), then the doc-41 phase-2 playtest
+    result is recorded and phase 3 (the convergence) is next —
+    its brief is UNWRITTEN and drafts at that checkpoint.
 
   Implementation brief (1) — APPROVED (`/refine-design 44`
   2026-09-10, amended per the ADVISE reviewer round; user invoked
