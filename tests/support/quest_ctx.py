@@ -41,6 +41,8 @@ def quest_ctx(
         main_quest_complete=False,
         main_quest_unlocked_items=set(),
         player_traits=[],
+        # Doc 42: the rumor keyring (talk-modal rows read it).
+        known_rumors=[],
         ship_registration="",
         broadcast_dark=False,
         broadcast_identity=None,
