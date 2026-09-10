@@ -198,7 +198,12 @@ nobody designs against a ghost.
   (`navigation_line.step_watch`, beside `move_npcs` in both
   movement passes + the headless turn): reliefs launch silently at
   their bases a per-station lead before each boundary and fly in
-  (80% throttle, cached A*, `try_step_with_slip`); at a boundary
+  (deterministic hull-speed credit via doc 44, cached A*,
+  `try_step_with_slip`); watch right-of-way (round 4): same-base
+  reliefs launch pre-spaced down the corridor, landed pickets
+  re-center onto their exact rows (the trigger pass reads rows),
+  and a flight blocked by a parked hull re-routes (keeping its
+  path if the corridor stays sealed); at a boundary
   every at-station picket of an ended tenure flies home and lands
   (despawned wordlessly); DISPLACED/lured pickets are never given a
   target — they serve until destroyed; murdered reliefs stay dead

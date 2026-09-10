@@ -522,10 +522,22 @@ ledger threading is pinned.
 - [x] Dev hook: advance the clock to the next shift boundary
       (Shift+key) — Shift+D's +30 days is too coarse to time a
       window
-- [ ] Guide + playtest: guide diff is NONE (round-1 ruling — the
+- [x] Guide + playtest: guide diff is NONE (round-1 ruling — the
       guide carries nothing about the Line); playtest observes a
       rotation, times the maintenance month, crosses dark through
       one, and lures across a boundary
+
+**PLAYTEST PASSED** (user, 2026-09-10): "working fantastic now.
+clean paths. shifts. holes appearing for dark mode. . waits a day.
+this feels good." Four fix rounds inside the phase: round 1
+(presentation + the tombstone ledger), round 2 (entry-only
+crossing, the manned sweep, positional dark-spot challenges),
+round 3 (30-day shifts), round 4 (watch right-of-way: convoy
+spacing, on-row re-centering, re-route past parked hulls — plus
+the doc-44 sidequest underneath: own-speed movement, day-granular
+waits, self-verifying leads). PHASE 2 CLOSED — phase 3 (the
+convergence) is next; its brief is unwritten and its rulings
+unsettled (/refine-design 41).
 
 LANDED 2026-09-09 (all eight build steps; the playtest was parked
 behind `../complete/44_SIDEQUEST_NPC_WORLD_SPEED.md` — now LANDED
