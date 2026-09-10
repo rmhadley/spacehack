@@ -412,35 +412,56 @@ formats every template (stray-brace guard) and the load path's
 ledger threading is pinned.
 
 ### Phase 2 — The watch (shift rotations)
-- [ ] Watchbill data on the SensorColumn: ``shift_days``, the
+- [x] Watchbill data on the SensorColumn: ``shift_days``, the
       full/full/full/thin cycle, and the full/thin rosters as
       ``(y, lead_days, base_id)`` station tuples; 10 new
       ``EnemySpawn`` rows for the full-watch stations in
       ``system.enemies`` (the shipped 4 stay — they are the thin
       roster) (data-first)
-- [ ] Pure watchbill helpers + tests: tenure / shift kind / roster
+- [x] Pure watchbill helpers + tests: tenure / shift kind / roster
       from the clock; per-station launch day
-- [ ] Map build spawns the CURRENT watchbill as parked, tenure-keyed
+- [x] Map build spawns the CURRENT watchbill as parked, tenure-keyed
       pickets (tombstones honored); off-duty stations never spawn
-- [ ] The per-step watch pass: reliefs launch early at their base,
+- [x] The per-step watch pass: reliefs launch early at their base,
       fly in and park; outgoing pickets depart at shift end and fly
       home to land; displaced pickets are never moved; murdered
       reliefs stay dead for the tenure; launches and home-despawns
       are SILENT and watch flights stay out of move_npcs
-- [ ] ``_entity_hail_key`` prefers the stamped ``static_spawn_key``
+- [x] ``_entity_hail_key`` prefers the stamped ``static_spawn_key``
       when present — a flying picket keeps one hail key (the
       positional re-arm must not re-open the challenge per step)
-- [ ] ``_picket_payload`` (manned sweep + Defy payload) reads all
+- [x] ``_picket_payload`` (manned sweep + Defy payload) reads all
       alive pickets by id — parked, in flight, displaced
-- [ ] Legacy tombstone migration at load (one-time re-stamp to the
+- [x] Legacy tombstone migration at load (one-time re-stamp to the
       current tenure key)
-- [ ] Dev hook: advance the clock to the next shift boundary
+- [x] Dev hook: advance the clock to the next shift boundary
       (Shift+key) — Shift+D's +30 days is too coarse to time a
       window
 - [ ] Guide + playtest: guide diff is NONE (round-1 ruling — the
       guide carries nothing about the Line); playtest observes a
       rotation, times the maintenance week, crosses dark through
       one, and lures across a boundary
+
+LANDED 2026-09-09 (all eight build steps; playtest pending —
+checklist below). Three reviewer dispatches (steps 1, 2, 4-5, 6-7):
+every verdict addressed in-commit; the step-4-5 dispatch ran a
+six-start-date × 400-step stress sim over the flight invariants
+(zero violations: no double-launch, no orphaned target/path pairs).
+Deviations + surprises recorded in the phase-2 audit's judgment
+calls (epoch anchor; accepted one-time legacy re-hail) and one
+observable worth knowing for the playtest: **on run-day 1 the
+column also shows reliefs MUSTERING at the two blockade stations**
+— every relief whose launch day predates the game's first day
+(leads 7-10 on the northern + near-south stations) stamps at its
+base at the first build and flies in over the coming days, so a
+day-1 arrival sees the ten-picket line PLUS up to five ships
+loitering at the bases. In-fiction: the next shift mustering.
+Ratchet paid twice in-phase (``_row_placements`` /
+``_static_rebuild_kwargs`` extractions; ``_handle_dev_shift_keys``
+refactored to the matcher→action dispatch table). One process
+slip self-caught: a ``make check | tail`` pipe let one commit land
+gate-red (a wrong expected day in the new Shift+J test) — fixed
+and amended while unpushed; gate green at every pushed state.
 
   Implementation brief (2) — APPROVED (refine session 2026-09-09,
     amended per the ADVISE reviewer round; user invoked

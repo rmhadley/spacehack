@@ -172,12 +172,42 @@ nobody designs against a ghost.
   methods own acquisition); dev Shift+L / Shift+K grant them.
 - **Defeated statics tombstone** — a killed static spawn
   (`system.enemies` — the Line's pickets) is ledgered as
-  `sys:enemy_id:x:y` in `ctx.defeated_static_spawns` (key stamped
+  `sys:enemy_id:x:y` (watch rotations: `sys:enemy_id:x:y:t<tenure>`
+  — a kill holds for its tenure, the post re-mans at the next
+  boundary) in `ctx.defeated_static_spawns` (key stamped
   on the entity at build — combat moves hulls) and never re-stamps
   at any map build; serialized
   (`_space_kills.mark_static_spawn_defeated`;
   `solar_system.static_spawn_key`; `make_solar_system`'s
-  `skip_static_spawns`).
+  `skip_static_spawns`). Pre-watch saves migrate once at load
+  (`navigation_line.migrate_legacy_tombstones` at the top of
+  `load_game` — luyten picket keys only).
+- **The watch (doc 41 phase 2)** — the Line's pickets rotate on
+  7-day shifts from watchbill DATA on the `SensorColumn`
+  (`shift_days`, `watch_cycle` full/full/full/thin, `full_watch` /
+  `thin_watch` station rosters of `(y, lead_days, base_id)`). Every
+  schedule decision derives purely from the day clock — tenure =
+  `(total_days - epoch) // shift_days`, no schedule state anywhere.
+  Map builds place the current-kind roster PARKED on station with
+  tenure-suffixed keys and stamp overdue future reliefs AT THEIR
+  BASES (`navigation_line.static_build_placements`;
+  `make_solar_system(watch_day=…)` — required for watch systems, a
+  build without it raises). The per-step pass
+  (`navigation_line.step_watch`, beside `move_npcs` in both
+  movement passes + the headless turn): reliefs launch silently at
+  their bases a per-station lead before each boundary and fly in
+  (80% throttle, cached A*, `try_step_with_slip`); at a boundary
+  every at-station picket of an ended tenure flies home and lands
+  (despawned wordlessly); DISPLACED/lured pickets are never given a
+  target — they serve until destroyed; murdered reliefs stay dead
+  for their tenure (tombstoned launch keys skip); flights live in
+  `ctx.npc_targets`/`npc_paths` keyed by spawn key and are dropped
+  at save (session-scoped) — the watchbill rebuilds them. Watch
+  traffic carries no squad id (invisible to the patrol machinery)
+  and logs nothing (wordless — the schedule is observable by
+  watching). The sweep counts every alive picket — parked, in
+  flight, displaced (`_picket_payload` reads by picket id). Dev:
+  Shift+J advances the clock ON the next shift boundary.
 - **Bounty spawns** — placed at fixed offsets east of landmarks,
   leader-only carries `bounty_spawn_id`; defeated spawns tombstone
   (`defeated=True`) and never re-stamp (`navigation_spawns.py`:
