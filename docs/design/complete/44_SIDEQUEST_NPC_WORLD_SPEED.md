@@ -4,7 +4,7 @@
 PROPOSED awaiting approval; briefs 2-5 draft at each phase's
 checkpoint.** Inserted as a sidequest between doc 41 phase 2
 (implementation LANDED; playtest PARKED behind this doc) and phase
-3. Companion: `41_DESIGN_THE_LINE.md`
+3. Companion: `41_DESIGN_THE_LINE.md` (same directory)
 (the watch is the first NPC schedule promised on the calendar — the
 motivating system); `../complete/DESIGN_GAME_TIME.md` (the clock this
 extends); `../complete/06_DESIGN_MILITIA_PATROLS.md` and

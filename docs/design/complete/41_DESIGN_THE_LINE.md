@@ -1,7 +1,8 @@
 # DESIGN: The Line — the Blockade as a System
 
-**Status: DESIGN IN PROGRESS — no implementation until the user
-explicitly requests it.** Second of doc 39's four feature docs,
+**Status: COMPLETE — all three phases landed and playtest-passed
+(2026-09-10); closed to ``complete/``.** Second of doc 39's four
+feature docs,
 forked in the agreed order (transponder → the Line → lore/rumor →
 far side).
 
@@ -771,6 +772,10 @@ and amended while unpushed; gate green at every pushed state.
       below 30, a real costly fight at 30+ — verified against
       min-maxed sub-30 fits (doc 39's last Phase 0 method item
       lands here)
+
+**PLAYTEST PASSED** (user, 2026-09-10): "As far as I can tell,
+blockade is working flawlessly. Really looking polished now."
+Doc 41 COMPLETE — closed to ``complete/`` same day.
 
 LANDED 2026-09-10 — reviewer REQUEST_CHANGES then all seven
 findings fixed. The two blockers were the phase's own edge made

@@ -170,6 +170,27 @@ nobody designs against a ghost.
   `_goto_step_interrupt`). Marker traits `blockade_manifest` /
   `blockade_service_run` in QUEST_PERKS — no grant path (the
   methods own acquisition); dev Shift+L / Shift+K grant them.
+- **The convergence (doc 41 phase 3)** — the Line's teeth.
+  Defiance PERSISTS: `GameContext.line_defiance_system` +
+  `line_comply_latch` survive save/quit/Continue (the load path
+  stamps the crossing tracker so a fresh process still converts);
+  jumping out clears both (`reset_defiance` at the depart seam).
+  The complying-runner LATCH: a challenge-Comply arms it (waves
+  never do); the first step off the column's EAST edge converts
+  the lie into Defy (its own branch, `prev_x == column.x`,
+  manned-gated). A flagged hull is never hailed or waved — no
+  checkpoint, no wave modals, no service consumption, no
+  dark-spot Comply; the pursuit is the detection. Pursuit is
+  system-wide MAP movement (`_squad_aggro` reads the flag — the
+  patrols chase; the detect-30 floor keeps feeding engagements)
+  until the pursuers die or the hull jumps; killing the line goes
+  quiet until the next boundary's reliefs re-man and re-engage.
+  Tuning (doc 39's 30-floor contract): pickets are light cutters
+  (`light_laser` x2, gunnery 15 — one threatens a hauler, ten are
+  the level-30 gate), proven closed-form by
+  `tests/test_line_tuning.py` (full watch unwinnable below 30,
+  costly win at 30+, thin watch winnable mid-20s — the
+  maintenance month is the fight method's timing play).
 - **Defeated statics tombstone** — a killed static spawn
   (`system.enemies` — the Line's pickets) is ledgered as
   `sys:enemy_id:x:y` (watch rotations: `sys:enemy_id:x:y:t<tenure>`
