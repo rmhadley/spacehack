@@ -872,10 +872,10 @@ def test_watch_kind_cycles_full_full_full_thin():
 def test_station_launch_day_is_the_lead_before_the_boundary():
     column = LUYTEN.sensor_column
     _epoch = navigation_line._EPOCH_DAY
-    north = column.full_watch[0]  # y=7, lead 10
-    south = column.full_watch[4]  # y=63, lead 7
-    assert navigation_line.station_launch_day(1, north, 7) == _epoch - 3
-    assert navigation_line.station_launch_day(4, south, 7) == _epoch + 21
+    north = column.full_watch[0]  # y=7, lead 9
+    south = column.full_watch[4]  # y=63, lead 6
+    assert navigation_line.station_launch_day(1, north, 7) == _epoch - 2
+    assert navigation_line.station_launch_day(4, south, 7) == _epoch + 22
 
 
 def test_tenure_key_round_trips_and_plain_keys_do_not_parse():
@@ -956,9 +956,10 @@ def test_full_watch_build_parks_tenure_keyed_pickets():
         7, 21, 35, 49, 63, 77, 91, 105, 119, 133,
     }
     assert all(_e.static_spawn_key.endswith(":t0") for _e in parked)
-    # Overdue T=1 reliefs at day 1: leads 10 (launch -3) x3 north and
-    # lead 9 (launch -2), lead 7 (launch 0) south — mustering at bases.
-    assert len(at_base) == 5
+    # Overdue T=1 reliefs at day 1: north leads 9 (launch -1) x3 and
+    # y49's lead 8 (launch 0) — four mustering at the bases (doc 44
+    # phase 4's retuned table).
+    assert len(at_base) == 4
     assert all(_e.static_spawn_key.endswith(":t1") for _e in at_base)
     assert len(pickets) == len(parked) + len(at_base)
 
@@ -972,9 +973,9 @@ def test_thin_watch_build_mans_the_shipped_four():
 
     assert {(_e.pos.y) for _e in parked} == {25, 55, 85, 115}
     assert all(_e.static_spawn_key.endswith(":t3") for _e in parked)
-    # T=4 reliefs launched by day 22: y7/21/35 (lead 10, day 19),
-    # y49 (day 20), y63 (day 22) — five mustering + the standing four.
-    assert len(reliefs) == 5
+    # T=4 reliefs launched by day 22: y7/21/35 (lead 9, day 20) and
+    # y49 (lead 8, day 21) — four mustering + the standing four.
+    assert len(reliefs) == 4
     assert all(_e.static_spawn_key.endswith(":t4") for _e in reliefs)
 
 
@@ -985,10 +986,11 @@ def test_watch_build_requires_the_day():
 
 
 def test_two_relief_waves_stamp_when_both_are_overdue():
-    """Run-day 12 (tenure 1): the T=2 wave is fully airborne on paper
-    (every full launch day <= 12) and the thin y25 relief (lead 10,
-    launch day 12) joins it — two future tenures' keys coexist."""
-    pickets = _watch_pickets(_build_watch(12))
+    """Run-day 13 (tenure 1, doc 44 phase 4's retuned table): the
+    T=2 wave is fully airborne on paper (every full launch day <=
+    13) and the thin y25 relief (lead 9, launch day 13) joins it —
+    two future tenures' keys coexist."""
+    pickets = _watch_pickets(_build_watch(13))
     by_tenure = {}
     for _e in pickets:
         _t = navigation_line.parse_tenure_key(_e.static_spawn_key)[1]
@@ -996,18 +998,18 @@ def test_two_relief_waves_stamp_when_both_are_overdue():
 
     assert len(by_tenure[1]) == 10, "the standing watch"
     assert len(by_tenure[2]) == 10, "the next full wave, all launched"
-    assert len(by_tenure[3]) == 1, "the thin vanguard (y25, lead 10)"
+    assert len(by_tenure[3]) == 1, "the thin vanguard (y25, lead 9)"
     assert all(
         (_e.pos.x, _e.pos.y) in _BASE_CELLS for _e in by_tenure[3]
     )
 
 
 def test_same_station_stacks_two_waves_at_its_base():
-    """Run-day 5: the north stations' T=1 reliefs are overdue AND the
-    T=2 wave launches (day 15 - lead 10) — the same station has TWO
+    """Run-day 6: the north stations' T=1 reliefs are overdue AND the
+    T=2 wave launches (day 15 - lead 9) — the same station has TWO
     reliefs mustering at the same dock cell, both tolerated."""
     base_keys = [
-        _e.static_spawn_key for _e in _watch_pickets(_build_watch(5))
+        _e.static_spawn_key for _e in _watch_pickets(_build_watch(6))
         if (_e.pos.x, _e.pos.y) == (74, 23)  # Blockade Station North
     ]
     for _y in (7, 21, 35):
@@ -1264,7 +1266,7 @@ def test_day_skips_heal_at_the_next_due_day(line_system, monkeypatch):
     ctx = _watch_ctx(game_map, 11, defeated_static_spawns=set(),
                      npc_targets={}, npc_paths={})  # +10 days, no rebuild
 
-    navigation_line.step_watch(ctx)  # run-day 11: y91's t2 launch day
+    navigation_line.step_watch(ctx)  # base stamps take orders on ANY step
 
     keys = _by_key(game_map)
     assert "luyten_star:militia_blockade:150:7:t1" in keys, (
@@ -1443,3 +1445,30 @@ def test_watch_day_pass_walks_a_flight_a_full_day(line_system):
     _moved = abs(_e.pos.x - _start[0]) + abs(_e.pos.y - _start[1])
     assert _moved == 9, "the picket flies its whole day: nine cells"
     assert ctx.npc_credit[_key] == pytest.approx(0.0), "exact day, no carry"
+
+
+def test_launch_leads_match_the_measured_transits():
+    """Doc 44 phase 4, self-verifying schedule: every station's
+    lead is the CEILING of its real measured transit (find_path
+    over the real Luyten map) at the picket's own hull speed —
+    the leads can never drift from the map they fly over. Round
+    up: an early relief parks and holds; a late one dips the line."""
+    import math
+    from src.spacehack.data.npc_ships import find_npc_ship, map_speed
+
+    game_map = _build_watch(1)  # a real Luyten map (tenure 0 parked)
+    speed = map_speed(find_npc_ship(LUYTEN.sensor_column.picket_enemy_id))
+    bases = {_spec.id: navigation_line.station_dock_cell(_spec)
+             for _spec in LUYTEN.stations}
+
+    for station in (*LUYTEN.sensor_column.full_watch, *LUYTEN.sensor_column.thin_watch):
+        path = world.find_path(
+            tuple(bases[station.base_id]),
+            {(LUYTEN.sensor_column.x, station.y)},
+            game_map,
+        )
+        assert path, f"y={station.y}: the base transit is walkable"
+        assert station.lead_days == math.ceil(len(path) / speed), (
+            f"y={station.y}: lead {station.lead_days} vs measured "
+            f"ceil({len(path)}/{speed})"
+        )

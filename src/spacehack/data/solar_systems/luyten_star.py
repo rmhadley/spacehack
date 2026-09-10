@@ -185,29 +185,32 @@ _sensor_column = SensorColumn(
     ),
     # The watchbill (phase 2): 7-day shifts, full x3 then a thin
     # maintenance week. Leads are days-before-boundary the relief
-    # launches from its base, initially ~= measured transit at
-    # speed 10 (steps ~= dist/0.8, days ~= steps/10); North serves
-    # y <= 35 (measured crossover y ~= 36), South the rest.
-    # Retune at playtest — every number here is data.
+    # launches from its base = the CEILING of its measured transit
+    # (real find_path base-dock -> station) at the picket's own
+    # hull speed 9 (doc 44 phase 4 re-measure; the phase-1 leads
+    # assumed effective speed 8). Self-verifying:
+    # test_launch_leads_match_the_measured_transits recomputes the
+    # table, so these numbers cannot drift from the map. North
+    # serves y <= 35 (measured crossover y ~= 36), South the rest.
     shift_days=7,
     watch_cycle=("full", "full", "full", "thin"),
     full_watch=(
-        WatchStation(y=7, lead_days=10, base_id=_NORTH),
-        WatchStation(y=21, lead_days=10, base_id=_NORTH),
-        WatchStation(y=35, lead_days=10, base_id=_NORTH),
-        WatchStation(y=49, lead_days=9, base_id=_SOUTH),
-        WatchStation(y=63, lead_days=7, base_id=_SOUTH),
+        WatchStation(y=7, lead_days=9, base_id=_NORTH),
+        WatchStation(y=21, lead_days=9, base_id=_NORTH),
+        WatchStation(y=35, lead_days=9, base_id=_NORTH),
+        WatchStation(y=49, lead_days=8, base_id=_SOUTH),
+        WatchStation(y=63, lead_days=6, base_id=_SOUTH),
         WatchStation(y=77, lead_days=5, base_id=_SOUTH),
-        WatchStation(y=91, lead_days=4, base_id=_SOUTH),
-        WatchStation(y=105, lead_days=3, base_id=_SOUTH),
-        WatchStation(y=119, lead_days=3, base_id=_SOUTH),
-        WatchStation(y=133, lead_days=3, base_id=_SOUTH),
+        WatchStation(y=91, lead_days=3, base_id=_SOUTH),
+        WatchStation(y=105, lead_days=2, base_id=_SOUTH),
+        WatchStation(y=119, lead_days=2, base_id=_SOUTH),
+        WatchStation(y=133, lead_days=2, base_id=_SOUTH),
     ),
     thin_watch=(
-        WatchStation(y=25, lead_days=10, base_id=_NORTH),
-        WatchStation(y=55, lead_days=8, base_id=_SOUTH),
-        WatchStation(y=85, lead_days=5, base_id=_SOUTH),
-        WatchStation(y=115, lead_days=3, base_id=_SOUTH),
+        WatchStation(y=25, lead_days=9, base_id=_NORTH),
+        WatchStation(y=55, lead_days=7, base_id=_SOUTH),
+        WatchStation(y=85, lead_days=4, base_id=_SOUTH),
+        WatchStation(y=115, lead_days=2, base_id=_SOUTH),
     ),
 )
 

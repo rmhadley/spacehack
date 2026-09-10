@@ -471,10 +471,14 @@ calls (epoch anchor; accepted one-time legacy re-hail) and one
 observable worth knowing for the playtest: **on run-day 1 the
 column also shows reliefs MUSTERING at the two blockade stations**
 — every relief whose launch day predates the game's first day
-(leads 7-10 on the northern + near-south stations) stamps at its
-base at the first build and flies in over the coming days, so a
-day-1 arrival sees the ten-picket line PLUS up to five ships
+stamps at its base at the first build and flies in over the coming
+days, so a day-1 arrival sees the ten-picket line PLUS ships
 loitering at the bases. In-fiction: the next shift mustering.
+**(Post-sidequest re-measure, doc 44 phase 4: the leads are now
+the ceiling of each station's real transit at the picket's own
+hull speed 9 — the day-1 muster count is FOUR, the wait asymmetry
+above is closed by 44's phase 3, and this playtest runs under
+that math.)**
 Ratchet paid twice in-phase (``_row_placements`` /
 ``_static_rebuild_kwargs`` extractions; ``_handle_dev_shift_keys``
 refactored to the matcher→action dispatch table). One process

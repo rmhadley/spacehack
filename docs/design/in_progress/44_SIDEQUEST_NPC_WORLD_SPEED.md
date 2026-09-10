@@ -432,8 +432,8 @@ speculatively.
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist
 
-  Implementation brief (4) — PROPOSED (drafted at phase 3's
-  checkpoint, 2026-09-10):
+  Implementation brief (4) — APPROVED (drafted at phase 3's
+  checkpoint 2026-09-10; user invoked ``/implement-phase 44.4``):
 
   - **Scope.** DATA: the ``lead_days`` on every ``WatchStation``
     in ``luyten_star.py`` re-measured at picket speed 9 — the
@@ -467,6 +467,43 @@ speculatively.
     work (doc 41 phase 3 stays parked behind the 41.2 playtest).
   - **Playtest checkpoint.** None — phase 5 owns the formal
     checklist; this phase's verification is the gate.
+
+## Pre-implementation audit — phase 4 (2026-09-10, measured)
+
+**The measured table** (real ``world.find_path`` base-dock →
+station over the real Luyten map, ``ceil(len / 9)``):
+
+| station y | base | path | lead now | lead new |
+|---|---|---|---|---|
+| 7 / 21 / 35 / 25 | north | 76 | 10 | **9** |
+| 49 | south | 67 | 9 | **8** |
+| 63 | south | 53 | 7 | **6** |
+| 77 | south | 39 | 5 | 5 |
+| 91 | south | 25 | 4 | **3** |
+| 105 / 119 / 133 / 115 | south | 16–17 | 3 | **2** |
+| 55 | south | 61 | 8 | **7** |
+| 85 | south | 31 | 5 | **4** |
+
+**Fixture arithmetic under the new leads** (launch(T) =
+tenure_start(T) − lead): the day-1 build musters FOUR t1 reliefs
+at the bases (y63's launch moves to run-day 2 — was five); the
+day-12 two-wave fixture moves to DAY 13 with its counts intact
+(t2 = 10, the thin vanguard t3:y25 launches exactly then — the
+old day-12 numbers relocate cleanly); the same-station stacking
+fixture moves to DAY 6 (t2 north launches run-day 6); the day-22
+thin build carries FOUR t4 reliefs (was five); the day-skips test
+keeps its asserts (base-stamped reliefs take orders on ANY step —
+``_order_base_relief`` lives in the per-step pass, not the due
+gate) with its stale comment fixed; ``test_boundary_rotates`` and
+the murdered-relief tests are key-based and move nothing beyond
+comments.
+
+**Self-verifying pin**: the new data test recomputes this exact
+table (``find_path`` over ``make_solar_system(system=LUYTEN,
+watch_day=…)``) and asserts every ``lead_days == ceil(len /
+map_speed(militia_blockade))`` — leads can never again drift from
+the map they fly over. Round UP per the binding ruling (early
+parks and holds; late dips the line).
 - [ ] Phase 5 — Playtest: same route at a slow and a fast ship —
       the world's speed reads constant; wait a day at the Line —
       reliefs visibly cover a day of ground; density + pursuit
