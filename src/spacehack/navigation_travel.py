@@ -391,7 +391,9 @@ def _goto_step(ctx, console, player_entity, sx: int, sy: int):
     _interrupt = _goto_step_interrupt(ctx, player_entity)
     if _interrupt is not None:
         return _interrupt
+    from . import navigation_line as _line_mod
     from .npc_ships import move_npcs as _mn
+    _line_mod.step_watch(ctx)
     _mn(ctx, ctx.game_map)
     tick_move(ctx)
     return None

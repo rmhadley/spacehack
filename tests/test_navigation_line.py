@@ -1040,6 +1040,247 @@ def test_hail_key_is_stable_for_a_moving_picket():
     assert nc._entity_hail_key(derelict) == "derelict:9:9"
 
 
+# ---------------------------------------------------------------------------
+# The watch pass (phase 2): flights, boundaries, silence
+# ---------------------------------------------------------------------------
+
+_NORTH_CELL, _SOUTH_CELL = (74, 23), (134, 116)
+
+
+def _pin_throttle(monkeypatch, probability=0.0):
+    """Freeze the flight throttle: 0.0 = every flight steps."""
+    from src.spacehack import engine as engine_module
+    monkeypatch.setattr(
+        engine_module, "RNG",
+        SimpleNamespace(random=lambda: probability),
+    )
+
+
+def _watch_ctx(game_map, run_day, **extra):
+    _day, _month, _year = _run_day_to_triple(run_day)
+    return quest_ctx(
+        game_map=game_map, day=_day, month=_month, year=_year, **extra,
+    )
+
+
+def _run_day_to_triple(run_day):
+    """(day, month, year) whose total_days is _EPOCH + run_day - 1."""
+    from src.spacehack.time import add_days_to_date
+    return add_days_to_date(1, 1, 2200, run_day - 1)
+
+
+def _by_key(game_map):
+    return {
+        _e.static_spawn_key: _e
+        for _e in _watch_pickets(game_map)
+    }
+
+
+def test_boundary_rotates_the_whole_disjoint_roster(line_system, monkeypatch):
+    """Run-day 29 (tenure 4, thin->full boundary): the thin four fly
+    home, the full watch's reliefs are all airborne by launch/ensure,
+    and NOTHING logs (wordless)."""
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)  # mid-thin; six t4 reliefs already at bases
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+
+    navigation_line.step_watch(ctx)
+
+    thin = [_e for _e in _watch_pickets(game_map)
+            if _e.static_spawn_key.endswith(":t3")]
+    full = [_e for _e in _watch_pickets(game_map)
+            if _e.static_spawn_key.endswith(":t4")]
+    assert len(thin) == 4 and len(full) == 10, "the whole line rotates"
+    home_cells = {_NORTH_CELL, _SOUTH_CELL}
+    for _e in thin:
+        _target = ctx.npc_targets[_e.static_spawn_key]
+        assert _target in home_cells, "the ended shift is ordered home"
+    for _e in full:
+        assert ctx.npc_targets[_e.static_spawn_key] == (150, _station_y(_e)), (
+            "every relief flies for its station (launched or ordered)"
+        )
+    assert _log_text(ctx) == "", "launches and departures are silent"
+
+
+def _station_y(entity):
+    return navigation_line.parse_tenure_key(entity.static_spawn_key)[0][1]
+
+
+def test_displaced_picket_is_never_moved(line_system, monkeypatch):
+    """A lured picket held across a boundary stays EXACTLY where it
+    is: never ordered home, never despawned (its tenure ended; the
+    target discriminates displaced from departing)."""
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)
+    lured = next(
+        _e for _e in _watch_pickets(game_map)
+        if _e.static_spawn_key == "luyten_star:militia_blockade:150:55:t3"
+    )
+    lured.pos = world.Position(120, 60)
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+
+    navigation_line.step_watch(ctx)
+    navigation_line.step_watch(ctx)
+
+    assert lured.pos == world.Position(120, 60)
+    assert ctx.npc_targets.get(lured.static_spawn_key) is None, (
+        "a displaced picket is never given a target"
+    )
+
+
+def test_home_arrival_despawns_silently(line_system, monkeypatch):
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)  # the boundary orders the thin four home
+
+    _home_key = "luyten_star:militia_blockade:150:25:t3"
+    _e = _by_key(game_map)[_home_key]
+    _e.pos = world.Position(*_NORTH_CELL)  # one cell from landing
+    before = len(game_map.entities)
+
+    navigation_line.step_watch(ctx)
+
+    assert _e not in game_map.entities
+    assert len(game_map.entities) == before - 1
+    assert _home_key not in ctx.npc_targets and _home_key not in ctx.npc_paths
+    assert _log_text(ctx) == "", "a relief landing at its base logs nothing"
+
+
+def test_relief_parks_and_holds_its_station(line_system, monkeypatch):
+    """Arrival at the station parks the picket (target popped); early
+    arrivals HOLD — later steps never move a parked picket."""
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)  # the base-stamped t4 reliefs get orders
+
+    _relief_key = "luyten_star:militia_blockade:150:7:t4"
+    _e = _by_key(game_map)[_relief_key]
+    assert ctx.npc_targets[_relief_key] == (150, 7)
+    _e.pos = world.Position(151, 8)  # slipped aside, within a cell of post
+
+    navigation_line.step_watch(ctx)
+    assert ctx.npc_targets.get(_relief_key) is None, "arrived: parked"
+    _parked_at = _e.pos
+
+    navigation_line.step_watch(ctx)
+    navigation_line.step_watch(ctx)
+    assert _e.pos == _parked_at, "a parked picket holds its post"
+    assert _e in game_map.entities
+
+
+def test_combat_locked_pickets_are_not_stepped(line_system, monkeypatch):
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)
+
+    _relief_key = "luyten_star:militia_blockade:150:7:t4"
+    _e = _by_key(game_map)[_relief_key]
+    _e.combat_locked = True
+    _e.pos = world.Position(151, 8)  # within a cell — would park if stepped
+
+    navigation_line.step_watch(ctx)
+    assert ctx.npc_targets.get(_relief_key) is not None, (
+        "a locked picket neither steps nor arrives"
+    )
+
+
+def test_murdered_relief_stays_dead_for_its_tenure(line_system, monkeypatch):
+    """A tombstoned launch key never spawns — killing a relief buys
+    one station-tenure of darkness on that station."""
+    _pin_throttle(monkeypatch)
+    _murdered = "luyten_star:militia_blockade:150:91:t4"
+    game_map = _build_watch(29, skip=(_murdered,))
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns={_murdered},
+                     npc_targets={}, npc_paths={})
+
+    navigation_line.step_watch(ctx)
+    navigation_line.step_watch(ctx)
+
+    keys = _by_key(game_map).keys()
+    assert _murdered not in keys
+    assert "luyten_star:militia_blockade:150:105:t4" in keys, (
+        "the other stations still man"
+    )
+
+
+def test_watch_traffic_never_enters_the_squad_machinery(line_system, monkeypatch):
+    """Watch flights carry no procedural_squad_id: move_npcs never
+    patrols or despawns them (the schedule is the watch pass's)."""
+    _pin_throttle(monkeypatch)
+    from src.spacehack import npc_ships
+
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)
+
+    _squads = npc_ships._squad_groups(game_map)
+    _picket_ids = {id(_e) for _e in _watch_pickets(game_map)}
+    assert all(
+        id(_m) not in _picket_ids
+        for _members in _squads.values() for _m in _members
+    ), "line traffic is invisible to the patrol machinery"
+
+
+def test_payload_counts_parked_in_flight_and_displaced_by_id():
+    """The manned sweep counts EVERY alive picket wherever it stands
+    — parked on post, mid-flight, lured aside — and nothing that is
+    not the picket id."""
+    _mk = lambda key, pos: world.Entity(
+        "M", (100, 200, 255), world.Position(*pos),
+        npc_ship_id="militia_blockade", static_spawn_key=key,
+    )
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=[
+        _mk("luyten_star:militia_blockade:150:21:t0", (150, 21)),   # parked
+        _mk("luyten_star:militia_blockade:150:49:t1", (90, 40)),    # in flight
+        _mk("luyten_star:militia_blockade:150:55:t3", (120, 60)),   # displaced
+        world.Entity("M", (100, 200, 255), world.Position(150, 22),
+                     npc_ship_id="militia_patrol",
+                     static_spawn_key="luyten_star:militia_patrol:150:22:t0"),
+    ]))
+    specs, positions = navigation_line._picket_payload(
+        ctx, LUYTEN.sensor_column,
+    )
+    assert len(specs) == 3 and len(positions) == 3
+    assert (120, 60) in [(_p.x, _p.y) for _p in positions]
+
+
+def test_day_skips_heal_at_the_next_due_day(line_system, monkeypatch):
+    """A clock jump past a boundary leaves a stale watch standing
+    (displaced-in-time keepers serve until the schedule catches up);
+    the next due day launches every overdue relief, and the boundary
+    after that sends the stale keepers home."""
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(1)  # tenure 0 keepers + t1 vanguard at bases
+    ctx = _watch_ctx(game_map, 11, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})  # +10 days, no rebuild
+
+    navigation_line.step_watch(ctx)  # run-day 11: y91's t2 launch day
+
+    keys = _by_key(game_map)
+    assert "luyten_star:militia_blockade:150:7:t1" in keys, (
+        "the skipped tenure's relief launched from its base"
+    )
+    assert "luyten_star:militia_blockade:150:7:t0" in keys, (
+        "the stale keeper serves until the next boundary"
+    )
+    assert ctx.npc_targets.get("luyten_star:militia_blockade:150:7:t0") is None
+
+    ctx.time_day, ctx.time_month, ctx.time_year = _run_day_to_triple(15)
+    navigation_line.step_watch(ctx)  # the tenure-2 boundary
+    assert ctx.npc_targets["luyten_star:militia_blockade:150:7:t0"] == _NORTH_CELL, (
+        "the stale keeper finally departs at the boundary"
+    )
+
+
 def test_luyten_watchbill_data_consistency():
     column = LUYTEN.sensor_column
     full_ys = [s.y for s in column.full_watch]

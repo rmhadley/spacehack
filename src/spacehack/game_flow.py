@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from . import combat
 from . import main_quest as main_quest_module
+from . import navigation_line as _line_mod
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import tutorial as tutorial_module
@@ -39,7 +40,6 @@ def _run_line_crossing(ctx, console, player):
     ``(False, None)`` for a wave (the hull is through; the step
     continues normally), or ``(False, None)`` when nothing happened.
     """
-    from . import navigation_line as _line_mod
     _line = _line_mod.check_crossing(ctx, player.pos)
     if _line is None:
         return False, None
@@ -93,6 +93,7 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
     # BOARDED: ctx.game_map is already the capture interior — the
     # space-NPC drift must never run against it (doc 40 6a).
     if also_move_npcs and _last != "BOARDED":
+        _line_mod.step_watch(ctx)
         _move_npcs(ctx, ctx.game_map)
     return _last
 

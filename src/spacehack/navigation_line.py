@@ -320,7 +320,7 @@ def _overdue_reliefs(system, column, total):
     _shift = column.shift_days
     _tenure = tenure_of(total, _shift)
     _rows_by_y = _watch_rows_by_y(system, column)
-    _bases = {_spec.id: _spec for _spec in getattr(system, "stations", ()) or ()}
+    _bases = _bases_by_id(system)
     out = []
     for _future in (_tenure + 1, _tenure + 2):
         _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
@@ -338,6 +338,249 @@ def _overdue_reliefs(system, column, total):
                 world.Position(*station_dock_cell(_base)),
             ))
     return out
+
+
+# ---------------------------------------------------------------------------
+# The watch pass (doc 41 phase 2) — one player step of watch traffic
+# ---------------------------------------------------------------------------
+
+def step_watch(ctx) -> None:
+    """The per-step watch pass (call beside ``move_npcs`` in both
+    movement passes): flights step every pass; launches and
+    departures only on due days (pure day-arithmetic gate — O(1)
+    idle steps). Wordless: nothing here logs."""
+    system = solar_system_module.current_system()
+    column = getattr(system, "sensor_column", None)
+    if column is None or not watch_active(column):
+        return
+    total = clock_total(ctx)
+    tenure = tenure_of(total, column.shift_days)
+    _due, _boundary = _due_state(total, column, tenure)
+    if _due:
+        _run_due(ctx, system, column, total, tenure, _boundary)
+    _step_flights(ctx, system, column, total, tenure)
+
+
+def _due_state(total, column, tenure) -> tuple[bool, bool]:
+    """(due today, boundary today) — O(1) pure day arithmetic: today
+    is a boundary day, or any horizon station's exact launch day."""
+    if (total - _EPOCH_DAY) % column.shift_days == 0:
+        return (True, True)
+    for _future in (tenure, tenure + 1, tenure + 2):
+        _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
+        for _station in _roster:
+            if station_launch_day(_future, _station, column.shift_days) == total:
+                return (True, False)
+    return (False, False)
+
+
+def _run_due(ctx, system, column, total, tenure, boundary: bool) -> None:
+    """Launch-day/boundary work. Overdue-INCLUSIVE (``<=``) so day
+    skips (dev clock jumps) self-heal at the next due day."""
+    _ensure_relief_wave(ctx, system, column, total, tenure)
+    if boundary:
+        _depart_ended_shifts(ctx, system, column, tenure)
+
+
+def _live_watch_keys(ctx) -> set:
+    """Spawn keys of every keyed, non-owned entity on the map."""
+    return {
+        _e.static_spawn_key
+        for _e in ctx.game_map.entities
+        if not getattr(_e, "owned", False)
+        and getattr(_e, "static_spawn_key", "")
+    }
+
+
+def _stations_by_y(column) -> dict:
+    """Every watchbill station keyed by its row y."""
+    return {
+        _station.y: _station
+        for _station in (*column.full_watch, *column.thin_watch)
+    }
+
+
+def _bases_by_id(system) -> dict:
+    """The system's stations by id (relief bases and landings)."""
+    return {
+        _spec.id: _spec for _spec in getattr(system, "stations", ()) or ()
+    }
+
+
+def _ensure_relief_wave(ctx, system, column, total, tenure) -> None:
+    """Every horizon station-tenure whose launch day has passed gets
+    its relief airborne from the base — unless the key is tombstoned
+    (a murdered relief stays dead for its tenure) or already flying.
+    The CURRENT tenure reads as overdue-inclusive: a keeper absent
+    without a tombstone was never launched this session (the map
+    predates its boundary) — it flies in late."""
+    _shift = column.shift_days
+    _ledger = getattr(ctx, "defeated_static_spawns", set())
+    _live = _live_watch_keys(ctx)
+    _rows_by_y = _watch_rows_by_y(system, column)
+    _bases = _bases_by_id(system)
+    for _future in (tenure, tenure + 1, tenure + 2):
+        _roster = roster_for(column, watch_kind(_future, column.watch_cycle))
+        for _station in _roster:
+            _row = _rows_by_y.get(_station.y)
+            _base = _bases.get(_station.base_id)
+            _key_row = (
+                tenure_key(solar_system_module.static_spawn_key(system, _row), _future)
+                if _row is not None else ""
+            )
+            if (
+                _row is None or _base is None
+                or station_launch_day(_future, _station, _shift) > total
+                or _key_row in _ledger or _key_row in _live
+            ):
+                continue
+            _launch_relief(ctx, _row, _key_row, _station, _base, column.x)
+
+
+def _launch_relief(ctx, row, key, station, base, column_x) -> None:
+    """One relief leaves its base for its station, target cached in
+    the existing path dicts. SILENT (the merchant paths log their
+    pings — the watch's schedule is observable by watching only)."""
+    from .data.npc_ships import find_npc_ship
+    try:
+        _spec = find_npc_ship(row.enemy_id)
+    except KeyError:
+        return
+    _entity = make_static_entity(
+        _spec, world.Position(*station_dock_cell(base)), key,
+    )
+    ctx.game_map.entities.append(_entity)
+    _assign_flight(ctx, key, _entity, (column_x, station.y))
+
+
+def _assign_flight(ctx, key, entity, target_cell) -> None:
+    """Target + cached A* path for one flight (the existing path
+    dicts, keyed by spawn key — dropped at save by the procedural
+    sync, so flights are session-scoped)."""
+    _target = tuple(target_cell)
+    ctx.npc_targets[key] = _target
+    ctx.npc_paths[key] = world.find_path(
+        (entity.pos.x, entity.pos.y), {_target}, ctx.game_map,
+        exclude_entity=entity,
+    ) or []
+
+
+def _depart_ended_shifts(ctx, system, column, tenure) -> None:
+    """Boundary: every picket of an ENDED tenure standing AT ITS OWN
+    STATION (the x:y in its key, within a cell — a slip aside still
+    counts as on post) is ordered home to its base. Displaced or
+    lured pickets are never given a target; in-flight ones keep
+    theirs."""
+    _bases = _bases_by_id(system)
+    _by_y = _stations_by_y(column)
+    for _entity in list(ctx.game_map.entities):
+        _parsed = _watch_entity_key(_entity)
+        if _parsed is None:
+            continue
+        ((_key_x, _key_y), _key_tenure) = _parsed
+        _station = _by_y.get(_key_y)
+        _base = _bases.get(_station.base_id) if _station is not None else None
+        if (
+            _key_tenure >= tenure
+            or _base is None
+            or ctx.npc_targets.get(_entity.static_spawn_key) is not None
+            or max(abs(_entity.pos.x - _key_x), abs(_entity.pos.y - _key_y)) > 1
+        ):
+            continue
+        _assign_flight(ctx, _entity.static_spawn_key, _entity, station_dock_cell(_base))
+
+
+def _watch_entity_key(entity):
+    """``((x, y), tenure)`` for a live watch picket, else None."""
+    if getattr(entity, "owned", False):
+        return None
+    _key = getattr(entity, "static_spawn_key", "")
+    return parse_tenure_key(_key) if _key else None
+
+
+def _step_flights(ctx, system, column, total, tenure) -> None:
+    """Step every targeted flight (80% throttle, ``combat_locked``
+    skipped); a targetless relief standing on a base dock cell gets
+    its station orders (the build's base stamps are awaiting them)."""
+    _base_cells = {
+        station_dock_cell(_spec) for _spec in _bases_by_id(system).values()
+    }
+    _by_y = _stations_by_y(column)
+    for _entity in list(ctx.game_map.entities):
+        _parsed = _watch_entity_key(_entity)
+        if _parsed is None or getattr(_entity, "combat_locked", False):
+            continue
+        ((_key_x, _key_y), _key_tenure) = _parsed
+        _station = _by_y.get(_key_y)
+        if _station is None:
+            continue
+        _key = _entity.static_spawn_key
+        _target = ctx.npc_targets.get(_key)
+        if _target is None:
+            _order_base_relief(ctx, column, _entity, _key, _key_tenure,
+                               _station, total, tenure, _base_cells)
+        else:
+            _advance_flight(ctx, _entity, _key, _target, (_key_x, _key_y))
+
+
+def _order_base_relief(ctx, column, entity, key, key_tenure, station,
+                       total, tenure, base_cells) -> None:
+    """Orders for a relief stamped at its base by a mid-tenure build:
+    current-or-future tenure, standing on a dock cell, launch day
+    passed. Everything else (parked on post, lured aside, displaced
+    across a boundary) stays exactly where it is."""
+    if (
+        key_tenure < tenure
+        or (entity.pos.x, entity.pos.y) not in base_cells
+        or station_launch_day(key_tenure, station, column.shift_days) > total
+    ):
+        return
+    _assign_flight(ctx, key, entity, (column.x, station.y))
+
+
+def _advance_flight(ctx, entity, key, target, station_cell) -> None:
+    """One flight step along the cached path — the same mechanics as
+    the patrol stepper's single-member case (80% throttle, direct
+    step or slip, path head consumed only on a direct step)."""
+    from . import engine
+    if engine.RNG.random() >= 0.8:
+        return
+    _tx, _ty = target
+    if max(abs(entity.pos.x - _tx), abs(entity.pos.y - _ty)) <= 1:
+        _arrive(ctx, entity, key, target, station_cell)
+        return
+    _path = ctx.npc_paths.get(key)
+    if not _path:
+        ctx.npc_paths[key] = world.find_path(
+            (entity.pos.x, entity.pos.y), {(_tx, _ty)}, ctx.game_map,
+            exclude_entity=entity,
+        ) or []
+        _path = ctx.npc_paths[key]
+        if not _path:
+            ctx.npc_targets.pop(key, None)  # unreachable: stands fast
+            ctx.npc_paths.pop(key, None)
+            return
+    _next = _path[0]
+    _dx, _dy = _next[0] - entity.pos.x, _next[1] - entity.pos.y
+    if abs(_dx) > 1 or abs(_dy) > 1:
+        ctx.npc_paths.pop(key, None)  # stale: recompute next step
+        return
+    if world.try_step_with_slip(entity, ctx.game_map, _dx, _dy):
+        ctx.npc_paths[key].pop(0)
+
+
+def _arrive(ctx, entity, key, target, station_cell) -> None:
+    """Arrival (path exhausted / within a cell of the target): a
+    station target parks the picket — early arrivals HOLD their post
+    (a slip aside off an occupied station counts); a base target
+    lands it, despawned SILENTLY."""
+    ctx.npc_targets.pop(key, None)
+    ctx.npc_paths.pop(key, None)
+    if tuple(target) != tuple(station_cell):
+        try:
+            ctx.game_map.entities.remove(entity)
+        except ValueError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -374,7 +617,7 @@ def check_crossing(ctx, pos):
         return None
     crossed = _entered_column(_prev_x, pos.x, column.x)
     _prev_x = pos.x
-    if not crossed or not _picket_payload(ctx, column, system)[0]:
+    if not crossed or not _picket_payload(ctx, column)[0]:
         return None  # no entry, or the sweep is unmanned: dark column
     verdict = resolve_sweep(
         dark=identity.broadcast_mode(ctx) == identity.DARK,
@@ -473,37 +716,31 @@ def _run_checkpoint(ctx, column, system):
         "The blockade's targeting lasers focus on you!",
         _ml.COLOR_COMBAT_EVENT,
     )
-    return (True, _picket_payload(ctx, column, system))
+    return (True, _picket_payload(ctx, column))
 
 
-def _picket_payload(ctx, column, system):
-    """(specs, positions) for every alive picket on the Line.
+def _picket_payload(ctx, column):
+    """(specs, positions) for every alive picket on the Line —
+    parked, in flight, displaced: the sweep counts them all (doc 41
+    phase 2; a relief wave keeps the column swept from launch).
 
-    Identity is the stamped ``static_spawn_key``, not position —
-    combat moves hulls, and a lured-but-alive picket fights from
-    where it actually is."""
+    Read by ID: the picket id is unique to the column system, and
+    identity-by-key would need the watchbill to interpret tenures.
+    Positions are LIVE — combat moves hulls, and a lured-but-alive
+    picket fights from where it actually is."""
     from .data.npc_ships import find_npc_ship
-    from .solar_system import static_spawn_key
-    _live: dict = {
-        getattr(_e, "static_spawn_key", ""): _e.pos
-        for _e in ctx.game_map.entities
+    positions = [
+        _e.pos for _e in ctx.game_map.entities
         if not getattr(_e, "owned", False)
-        and getattr(_e, "static_spawn_key", "")
-    }
-    specs: list = []
-    positions: list = []
-    for _spawn in getattr(system, "enemies", ()) or ():
-        if _spawn.squad_id != column.squad_id:
-            continue
-        _key = static_spawn_key(system, _spawn)
-        if _key not in _live:
-            continue
-        try:
-            specs.append(find_npc_ship(_spawn.enemy_id))
-        except KeyError:
-            continue
-        positions.append(_live[_key])
-    return (specs, positions)
+        and getattr(_e, "npc_ship_id", "") == column.picket_enemy_id
+    ]
+    if not positions:
+        return ([], [])
+    try:
+        _spec = find_npc_ship(column.picket_enemy_id)
+    except KeyError:
+        return ([], [])
+    return ([_spec] * len(positions), positions)
 
 
 _HANDLERS = {
