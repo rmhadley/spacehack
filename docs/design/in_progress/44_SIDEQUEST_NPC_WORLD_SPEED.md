@@ -191,9 +191,14 @@ round-trips.
 
 ## Phases (build queue — `/implement-phase 44.<p>` works top-down)
 
-- [ ] Phase 1 — Hull-derived speeds: `base_speed` resolves from
+- [x] Phase 1 — Hull-derived speeds: `base_speed` resolves from
       the spec's hull (derelicts pinned 0; explicit authoring
       wins), every spec resolves, tests
+
+  LANDED 2026-09-10 (1667e5a) — reviewer APPROVE (reproduced the
+  predicted `None > 0` TypeError read-only; confirmed the seam
+  test catches it); no player-visible change (the resolver is
+  dead data until phase 2 wires it), guide diff NONE.
 - [ ] Phase 2 — The accumulator kernel: per-squad credit at
       `npc_speed / player_speed` tiles per player step,
       deterministic sub-stepping with the Settled-4 clamp
@@ -204,6 +209,69 @@ round-trips.
       patrol mids round-trip; watch keys default 0; pop at every
       target-pop site; sync logic in the kernel module — saveload
       takes no new logic)
+
+  Implementation brief (2) — PROPOSED (drafted at phase 1's
+  checkpoint, 2026-09-10):
+
+  - **Scope.** NEW ``src/spacehack/npc_movement.py`` — the credit
+    kernel (``npc_ships.py`` is 909/1000 and cannot grow;
+    ``navigation_line.py`` is the Line's domain): ``step_credit``
+    (accrue ``map_speed(spec) / player_speed`` on the squad's key,
+    spend whole tiles sub-stepping the cached path cell-by-cell,
+    keep the fraction), the clamp (BEFORE committing each cell: if
+    the cell about to be entered lies inside that spec's
+    player-encounter trigger, ENTER it, park there, spend no
+    further credit — stop ≠ fire, the encounter opens at the top of
+    the NEXT pass; the kernel never opens modals), and a blocked
+    direct step keeps its credit (retry next pass — the kept-path
+    collision idiom). Consumers: ``npc_ships._step_squad``'s
+    movement section and ``navigation_line._advance_flight``
+    converge on the kernel (the twin-mechanics debt the doc-41
+    audit flagged); the 80% throttle and its RNG call are REMOVED
+    from stepping (deterministic ruling; RNG stays for target
+    picks). The no-path aggro drift fallback stays 1-tile-per-step
+    (far-away only, untouched). ``player_speed`` computed ONCE per
+    ``move_npcs``/``step_watch`` pass (perf rule), via
+    ``ship.effective_speed``. State: ``GameContext.npc_credit:
+    dict[str, float]`` (declared on the type's own module);
+    persistence MIRRORS the path sync — the kernel module owns the
+    sync shape, ``saveload`` grows only mechanical lines
+    (``_sync_spawn_entry`` carries credit beside targets/paths for
+    current-system mids; watch keys and other systems never
+    round-trip — they default 0); every site that pops
+    ``npc_targets`` (``_arrive``, ``_despawn_merchant``, path-drop
+    branches) pops the credit key with it. saveload.py is at
+    ~990/1000 — if the mechanical lines push it over, the parse
+    side moves into the kernel module in the same commit.
+  - **Build order.** (1) the kernel + unit tests (credit math,
+    carry-over, clamp-parks, blocked-keeps, purity of the credit
+    helpers); (2) ``npc_credit`` on GameContext + save/load mirror
+    + round-trip tests (patrol mid persists; watch key drops);
+    (3) ``_step_squad`` rewires to the kernel + tests (deterministic
+    — the throttle RNG is no longer consumed by stepping);
+    (4) ``_advance_flight`` rewires + tests (picket 9 vs player 10
+    ≈ 9 tiles/10 steps with visible carry-over); (5) full-gate
+    regression (the watch pass, merchants, and dark-spot tests all
+    still pass under deterministic motion).
+  - **Binding rulings.** Settled 2/3/4/5 + the ADVISE lifecycle
+    mirror; NO wait-day payment yet (phase 3 — a wait still pays
+    one ordinary step of credit until then); no watch lead retune
+    (phase 4 — reliefs run slow/late against the tuned leads in
+    the interim, expected); no doc-41 files change.
+  - **Required tests.** Credit math incl. the 14/6 ≈ 2-tile case
+    with carry; fraction carried across steps exactly; clamp parks
+    at the triggering cell and spends no further credit; blocked
+    step retains credit; persistence round-trip (current-system
+    patrol mid survives; watch spawn key does not); pop-parity
+    (arrival/despawn clears credit with the target); throttle
+    removal (stepping consumes no RNG); both consumers step by
+    credit (picket-vs-player-10 cadence).
+  - **Stop point.** NOTHING from phase 3 — no day-granular wait
+    payment, no ``advance_time`` changes; NOTHING from phase 4 —
+    no lead retune; no phase-5 playtest items.
+  - **Playtest checkpoint.** None in-phase (observability arrives
+    with phase 3's wait); phase 2's verification is the gate +
+    the watch/merchant regression suite.
 - [ ] Phase 3 — The day-granular wait: a space-wait pays every
       mover a full day of movement with carry-over (ruling 4) —
       per-cell clamping REAPPLIES at the 14-cell wait bound
