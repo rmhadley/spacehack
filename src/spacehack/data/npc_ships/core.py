@@ -148,7 +148,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         fg=(130, 230, 220),                    # teal — distinct from pirate red/merchant green
         ship_id="cruiser",
         faction="militia",
-        weapons=("heavy_laser", "light_missile"),
+        weapons=("light_laser", "light_laser"),
         modules=("shield_mk1", "shield_capacitor", "targeting_computer", "armor_plating"),
         cargo_goods=("food_rations", "fuel_cells", "electronics"),
         cargo_count=2,
@@ -157,10 +157,13 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         ai_aggressiveness=70,
         ai_preferred_range=4,
         ai_flee_threshold=0.05,                 # militia fights to nearly the end
-        ai_accuracy_bonus=20,
+        # Doc 41 phase 3 tuning (the 30-floor harness): pickets are
+        # LIGHT cutters — one is a threat to a normal hauler, ten
+        # converging are the level-30 gate. See test_line_tuning.py.
+        ai_accuracy_bonus=0,
         ai_dodge_bonus=10,
-        pilot_gunnery=35,
-        pilot_piloting=25,
+        pilot_gunnery=15,
+        pilot_piloting=15,
         pilot_engineering=25,
         min_power_gen=5,
         detect_radius=7,                         # narrower than comms_warning_range so warning fires first

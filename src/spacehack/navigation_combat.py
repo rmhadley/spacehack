@@ -37,7 +37,7 @@ def _aggro_override(ctx, system_id: str, faction: str) -> bool:
         return True
     from . import navigation_line
     return (
-        navigation_line.interdiction_system() == system_id
+        navigation_line.defiance_active(ctx, system_id)
         and faction == "militia"
     )
 

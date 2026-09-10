@@ -356,10 +356,16 @@ def _goto_poll_cancel(context, duration: float) -> bool:
 def _goto_step_interrupt(ctx, player_entity):
     """Return an ``(outcome, combat_data)`` interrupt, or ``None`` to continue."""
     from . import navigation_line as _line_mod
+    _latched = ctx.line_comply_latch
     _line = _line_mod.check_crossing(ctx, player_entity.pos)
     if _line is not None and _line[0]:
         _hailed, _payload = _line
-        ctx.log.add('Auto-nav interrupted - the blockade hails you!')
+        # A CONDEMNATION's only voice is the targeting lasers: a
+        # latched hull condemned by this very step (the lie
+        # converting) logs no hail line. Fresh hails — latched or
+        # not — keep theirs.
+        if not (_latched and ctx.line_defiance_system is not None):
+            ctx.log.add('Auto-nav interrupted - the blockade hails you!')
         if _payload is not None:
             return (GotoOutcome.COMBAT, _payload)
         return (GotoOutcome.CANCELLED, None)
@@ -687,6 +693,7 @@ def _depart_old_system(ctx) -> str:
         ctx.militia_scanned.clear()
     from . import navigation_line as _line_mod
     _line_mod.reset_session()
+    _line_mod.reset_defiance(ctx)
     return _src_id
 
 

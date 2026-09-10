@@ -17,9 +17,10 @@ included (the doc-40 statics stand-down is superseded inside the
 column only). The crossing edge is prev-x vs new-x inside the
 movement pass; the tracker self-stamps from the position when
 unknown, so every entry path (jump, load, materialization) stamps
-naturally. Both session globals are deliberately NOT serialized:
-the tripwire is edge-derived, and the flag resets on leaving the
-system.
+naturally. The tripwire global is deliberately NOT serialized
+(edge-derived); the defiance record and the complying-runner
+latch are PERSISTED ctx fields (doc 41 phase 3) — the record
+survives save/quit, and leaving the system clears both.
 
 THE WATCH (phase 2): the pickets rotate on the SensorColumn's
 watchbill shifts (30 days as shipped) — everything derives from the day
@@ -109,25 +110,37 @@ def resolve_sweep(
 # ---------------------------------------------------------------------------
 
 _prev_x: int | None = None
-_interdiction_system: str | None = None
 
 
 def reset_session() -> None:
-    """New Game: clear the crossing tracker and any interdiction."""
-    global _prev_x, _interdiction_system
+    """New Game: clear the crossing tracker (the persisted defiance
+    fields live on a fresh GameContext, which starts clean)."""
+    global _prev_x
     _prev_x = None
-    _interdiction_system = None
 
 
-def reset_interdiction() -> None:
-    """Leaving the system: the Line's defiance does not follow."""
-    global _interdiction_system
-    _interdiction_system = None
+def stamp_session(pos) -> None:
+    """Load entry: stamp the crossing tracker from the restored
+    position. Without it a fresh process leaves the tracker unset,
+    the latched hull's first east step self-stamps, and the
+    persisted latch never converts — the save-scummed lie the
+    phase-3 ruling closed."""
+    global _prev_x
+    _prev_x = pos.x
 
 
-def interdiction_system() -> str | None:
-    """The system id where the Line was defied, or None."""
-    return _interdiction_system
+def reset_defiance(ctx) -> None:
+    """Leaving the system: the Line's defiance and the latch do not
+    follow (the jump clears the record; phase-3 ruling 2)."""
+    ctx.line_defiance_system = None
+    ctx.line_comply_latch = False
+
+
+def defiance_active(ctx, system_id: str) -> bool:
+    """The ONE flagged-hull predicate (phase 3): every reader — the
+    aggro floor, the checkpoint, the dark hail, the map-chase —
+    goes through here, never the raw field."""
+    return ctx.line_defiance_system == system_id
 
 
 # ---------------------------------------------------------------------------
@@ -796,8 +809,13 @@ def check_crossing(ctx, pos):
     if column is None:
         _prev_x = None
         return None
-    crossed = _entered_column(_prev_x, pos.x, column.x)
+    _prev = _prev_x
+    crossed = _entered_column(_prev, pos.x, column.x)
     _prev_x = pos.x
+    if defiance_active(ctx, getattr(system, "id", "")):
+        return None  # a condemned hull is never hailed or waved
+    if _latch_converting(ctx, _prev, pos.x, column) and _picket_payload(ctx, column)[0]:
+        return _defy(ctx, column, system)  # the lie converts (phase 3)
     if not crossed or not _picket_payload(ctx, column)[0]:
         return None  # no entry, or the sweep is unmanned: dark column
     verdict = resolve_sweep(
@@ -808,6 +826,13 @@ def check_crossing(ctx, pos):
         rank_rep=column.rank_rep,
     )
     return _apply_verdict(ctx, column, system, verdict)
+
+
+def _latch_converting(ctx, prev_x: int | None, new_x: int, column) -> bool:
+    """The complying-runner conversion predicate (phase 3): a
+    latched hull's first step EAST off the column. The manned gate
+    is the caller's."""
+    return ctx.line_comply_latch and prev_x == column.x and new_x > column.x
 
 
 def _worn_face_militia_rep(ctx) -> int | None:
@@ -886,13 +911,21 @@ def _run_checkpoint(ctx, column, system):
         _CHECKPOINT_DISPATCH, "ESC defy",
     )
     if outcome is _Checkpoint.COMPLY:
+        ctx.line_comply_latch = True  # the answer latches (phase 3)
         ctx.log.add_colored(
             "You turn back from the blockade.",
             _ml.COLOR_IMPORTANT_EVENT,
         )
         return (True, None)
-    global _interdiction_system
-    _interdiction_system = getattr(system, "id", "")
+    return _defy(ctx, column, system)
+
+
+def _defy(ctx, column, system):
+    """The Defy tail, shared by the checkpoint and the latch
+    conversion: condemn the hull (the PERSISTED record), clear any
+    latch, log the targeting lasers, converge (the payload)."""
+    ctx.line_defiance_system = getattr(system, "id", "")
+    ctx.line_comply_latch = False
     ctx.log.add_colored(
         "The blockade's targeting lasers focus on you!",
         _ml.COLOR_COMBAT_EVENT,
@@ -949,8 +982,9 @@ def line_dark_hail(ctx, entity):
     if (
         column is None
         or getattr(entity, "npc_ship_id", "") != column.picket_enemy_id
+        or defiance_active(ctx, getattr(system, "id", ""))
     ):
-        return None
+        return None  # a condemned hull is never re-offered Comply
     return _run_checkpoint(ctx, column, system)
 
 

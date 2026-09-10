@@ -1343,3 +1343,25 @@ def test_npc_credit_round_trips_with_the_sync_population(monkeypatch, tmp_path):
     assert loaded.npc_credit == {"m1": 0.5}, (
         "the patrol mid's credit survives; the watch key drops"
     )
+
+
+def test_line_defiance_fields_round_trip(monkeypatch, tmp_path):
+    """Doc 41 phase 3: the defiance record AND the complying latch
+    survive save/quit/Continue (ruling 1 + ruling 4's hardened
+    form — no save-scummed lies)."""
+    monkeypatch.setattr(
+        "src.spacehack.saveload._autosave_path",
+        lambda: tmp_path / "autosave.json",
+    )
+    from src.spacehack.engine import RNG
+    RNG.seed(42)
+
+    ctx = _build_test_ctx()
+    ctx.line_defiance_system = "luyten_star"
+    ctx.line_comply_latch = True
+
+    save_game(ctx, mode="city", city_id="earth", system_id="sol")
+    loaded = load_game(ctx.context)
+
+    assert loaded.line_defiance_system == "luyten_star"
+    assert loaded.line_comply_latch is True

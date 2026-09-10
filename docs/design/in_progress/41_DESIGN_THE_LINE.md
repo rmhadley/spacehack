@@ -757,31 +757,103 @@ and amended while unpushed; gate green at every pushed state.
         untouched); guide diff: NONE.
 
 ### Phase 3 — The convergence (the interdiction response)
-- [ ] Defy/dark-defy → picket squad + on-duty patrols converge at
+- [x] Defy/dark-defy → picket squad + on-duty patrols converge at
       strength read off the ON-DUTY roster (escalation
       choreography; reinforcement machinery is close)
-- [ ] Pursuit is system-wide until destroyed or the hull jumps
+- [x] Pursuit is system-wide until destroyed or the hull jumps
       (refined 2026-09-10 — supersedes the positional-escape-west
       sketch; fighting through still opens the line per the
       round-2 manned ruling)
-- [ ] The convergence engages REGARDLESS of stance (the
+- [x] The convergence engages REGARDLESS of stance (the
       interdiction supersedes the statics gate; charged-cell
       precedent)
-- [ ] Tuned to doc 39's 30-floor contract — provably unwinnable
+- [x] Tuned to doc 39's 30-floor contract — provably unwinnable
       below 30, a real costly fight at 30+ — verified against
       min-maxed sub-30 fits (doc 39's last Phase 0 method item
       lands here)
 
-  Implementation brief (3) — PROPOSED (`/refine-design 41.3`,
-  2026-09-10):
+LANDED 2026-09-10 — reviewer REQUEST_CHANGES then all seven
+findings fixed. The two blockers were the phase's own edge made
+real: (1) a fresh-process load left the crossing tracker
+unstamped, so the PERSISTED latch never converted after a
+restart — exactly the save-scummed lie the user ruled closed
+(fix: ``stamp_session`` at the top of load_game's return; the
+load path now also honors phase 1's "save adjacent → load →
+cross hails" literally); (2) the fields' round-trip was unpinned
+(now in test_saveload with fresh-process semantics). Tuning
+outcome: the picket re-specced as light cutters (light_laser x2,
+gunnery 15, no accuracy bonus, piloting 15) — one is a threat to
+a normal hauler, ten converging are the level-30 gate — with
+``test_line_tuning.py`` the closed-form proof (full watch
+unwinnable at 29 under the computed bound; costly win at 30+;
+thin watch winnable mid-20s all-simultaneous). Playtest pending
+(checklist in the brief).
+
+  Implementation brief (3) — APPROVED (`/refine-design 41.3`
+  2026-09-10, ADVISE-amended; user invoked ``/implement-phase
+  41.3``):
+
+  ## Pre-implementation audit — phase 3 (2026-09-10, verified)
+
+  **Seams (all verified in code):**
+  - **The flag's full inventory** (the ADVISE list confirmed):
+    global decl ``navigation_line:112``; ``reset_session:117-119``;
+    ``reset_interdiction:122-125`` (dies); accessor
+    ``interdiction_system():128-130`` (dies — its only src caller
+    ``navigation_combat._aggro_override:38-42`` has ctx);
+    ``_run_checkpoint:894-895`` (the writer). Reset callers:
+    ``navigation_travel._depart_old_system:688-689`` (jump —
+    inlines the ctx clear, has ctx) and ``game_loop:883-884``
+    (new game — fresh dataclass default, the reset call can stand
+    or die with the accessor; keep ``reset_session`` for the
+    tracker). Test sites: the autouse fixture (:34-36) +
+    interdiction tests (:408/:447/:541/:547/:567/:574/:593/:611).
+  - **Fields**: ``GameContext`` (``game_context.py``, beside
+    ``npc_credit``); saveload +2 lines total (``_core_fields``-era
+    dict at :184-185 pattern; ``_restore_core_fields`` :713-714
+    pattern) → 996/1000.
+  - **The conversion's own branch in ``check_crossing``**: rides
+    ``prev_x``/``pos.x`` after the tracker stamps (the 150→151
+    step has ``crossed == False`` — confirmed against
+    ``_entered_column``); gated by the manned check
+    (``_picket_payload(...)[0]``) before setting the flag.
+  - **``_goto_step_interrupt``'s log** (``navigation_travel:
+    360-365``): fires "the blockade hails you!" for any
+    ``(True, …)`` — the conversion must distinguish (flag state
+    before/after the call) to suppress it.
+  - **Pursuit**: ``npc_ships._squad_aggro:687-696`` — one OR-term
+    (``navigation_line.line_defiance(ctx) == system id and
+    faction militia``); needs a tiny ctx-reader helper since the
+    module global dies (a one-line function on navigation_line
+    reading the FIELD, e.g. ``defiance_active(ctx, system_id)``).
+  - **``line_dark_hail:942-954``**: gains the flagged refusal.
+  - **Tuning harness**: ``combat/_stats.py`` pure (hit clamps
+    5-95 at :175, AP economics, hull/shield sums); canonical fits
+    constructed from the ship/module/weapon catalogs; the subset
+    bound from the LIVE geometry (column stations spaced 14 — the
+    smallest simultaneous engage group at the column; in-flight
+    reliefs at Defy-time are ≥ their live offsets).
+
+  **Duplication hotspots + DRY:** the flagged-check predicate is
+  ONE helper (``defiance_active``) used by check_crossing,
+  line_dark_hail, _aggro_override, AND _squad_aggro — no site
+  reads the field raw; the conversion reuses ``_run_checkpoint``'s
+  Defy tail (flag + log + payload) via a small extraction rather
+  than duplicating it.
+
+  **Judgment calls pinned:** the module docstring's "two session
+  globals" line updates (now ONE unsaved global — the tracker —
+  plus the persisted fields); ``reset_session`` survives (tracker
+  only); the goto suppression reads the flag before/after the
+  Line call (no new return shapes).
 
   - **Scope.** STATE (ADVISE-complete seam inventory): BOTH the
     flag and the latch move to persisted ``GameContext`` fields —
     ``line_defiance_system: str | None`` and
     ``line_comply_latch: bool`` (declared on the type's own
-    module; +1 line each in ``_core_fields`` and
-    ``_restore_core_fields`` — saveload lands 996/1000, no helper
-    needed). The global ``_interdiction_system``, its accessor
+    module; +2 lines each in the save dict and the restore block,
+    +2 for the load-time tracker stamp — saveload lands 1000/1000
+    exactly, no helper needed). The global ``_interdiction_system``, its accessor
     ``interdiction_system()``, and ``reset_interdiction`` all die
     (the accessor's only src caller has ctx); readers rewire:
     ``navigation_combat._aggro_override``, ``check_crossing``,

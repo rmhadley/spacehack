@@ -270,6 +270,11 @@ class GameContext:
     # own hull speed. Persists exactly what the path sync persists
     # (current-system patrol mids); watch spawn keys default 0.0.
     npc_credit: dict[str, float] = dataclasses.field(default_factory=dict)
+    # The Line (doc 41 phase 3): the defiance record and the
+    # complying-runner latch — persisted (the record survives
+    # save/quit; jump clears both via the depart seam).
+    line_defiance_system: str | None = None
+    line_comply_latch: bool = False
     economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
     # economy_state[planet_id][good_id] = current_stock; seeded on first visit
     faction_reputation: dict[str, int] = dataclasses.field(default_factory=dict)

@@ -183,6 +183,8 @@ def _core_fields(ctx: GameContext) -> dict:
         "economy_state": _d(ctx.economy_state),
         "militia_scanned": sorted(ctx.militia_scanned),
         "defeated_static_spawns": sorted(ctx.defeated_static_spawns),
+        "line_defiance_system": ctx.line_defiance_system,
+        "line_comply_latch": ctx.line_comply_latch,
         **_progression_fields(ctx),
         **_identity_fields(ctx),
     }
@@ -712,6 +714,8 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     ctx.faction_reputation = parsed.faction_reputation
     ctx.militia_scanned = set(data.get("militia_scanned", []) or [])
     ctx.defeated_static_spawns = set(data.get("defeated_static_spawns", []) or [])
+    ctx.line_defiance_system = data.get("line_defiance_system")
+    ctx.line_comply_latch = bool(data.get("line_comply_latch", False))
     ctx.player_counters = parsed.counters
     ctx.economy_state = parsed.economy_state
     ctx.generated_missions = parsed.generated_missions
@@ -991,4 +995,6 @@ def load_game(
         proc_spawns=parsed.proc_spawns,
         proc_mid_map=parsed.proc_mid_map,
     )
+    from .navigation_line import stamp_session
+    stamp_session(rebuilt.player_ent.pos)
     return _assemble_context(context, data, parsed, rebuilt)

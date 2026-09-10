@@ -685,8 +685,14 @@ def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates,
 
 
 def _squad_aggro(ctx, system, leader) -> bool:
-    """Charged-cell militia or consortium-heat pirates chase the player."""
+    """Charged-cell militia, Line-defied militia (doc 41 phase 3 —
+    the patrols converge spatially under a defiance), or
+    consortium-heat pirates chase the player."""
     _faction = _faction_of_entity(leader)
+    if _faction == 'militia':
+        from . import navigation_line as _line_mod
+        if _line_mod.defiance_active(ctx, getattr(system, 'id', '')):
+            return True
     return (
         main_quest_module.charged_cell_in_sol(ctx, getattr(system, 'id', ''))
         and _faction == 'militia'

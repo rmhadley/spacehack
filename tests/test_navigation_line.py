@@ -196,9 +196,16 @@ def test_crossing_hails_once_eastbound_and_not_again_past_column(line_system, mo
     assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None
     result = navigation_line.check_crossing(ctx, world.Position(150, 70))
     assert result is not None and result[0] is True
-    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    # Phase 3: a complying hull's EAST step past the column is the
+    # lie converting — the payload converges, the latch clears,
+    # and every later step is silent (a condemned hull is never
+    # re-hailed).
+    converted = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    assert converted is not None and converted[0] is True
+    assert ctx.line_defiance_system == "luyten_star"
+    assert ctx.line_comply_latch is False
     assert navigation_line.check_crossing(ctx, world.Position(160, 70)) is None
-    assert len(calls) == 1, "the hail fires exactly once per crossing"
+    assert len(calls) == 1, "the hail fired once; the conversion is not a hail"
 
 
 def test_crossing_hails_the_first_westbound_return(line_system, monkeypatch):
@@ -405,7 +412,7 @@ def test_defy_converges_the_picket_squad_and_raises_interdiction(line_system, mo
     assert result is not None and result[0] is True
     specs, positions = result[1]
     assert len(specs) == 4 and len(positions) == 4
-    assert navigation_line.interdiction_system() == "luyten_star"
+    assert ctx.line_defiance_system == "luyten_star"
 
 
 def test_defy_payload_skips_dead_pickets(line_system, monkeypatch):
@@ -444,7 +451,7 @@ def test_dead_squad_ends_the_sweep(line_system, monkeypatch):
     navigation_line.check_crossing(ctx, world.Position(149, 70))
     assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
     assert calls == []
-    assert navigation_line.interdiction_system() is None
+    assert ctx.line_defiance_system is None
 
 
 # ---------------------------------------------------------------------------
@@ -538,13 +545,13 @@ def test_interdiction_gate_bypasses_stance_for_militia_only(monkeypatch):
     assert not nc._aggro_override(ctx, "luyten_star", "militia"), (
         "without the flag the doc-40 stand-down holds for liked hulls"
     )
-    navigation_line._interdiction_system = "luyten_star"
+    ctx.line_defiance_system = "luyten_star"
     try:
         assert nc._aggro_override(ctx, "luyten_star", "militia")
         assert not nc._aggro_override(ctx, "luyten_star", "merchants")
         assert not nc._aggro_override(ctx, "sol", "militia")
     finally:
-        navigation_line.reset_interdiction()
+        navigation_line.reset_defiance(ctx)
 
 
 def test_interdiction_flows_through_the_static_spawn_pass(monkeypatch):
@@ -564,14 +571,14 @@ def test_interdiction_flows_through_the_static_spawn_pass(monkeypatch):
     _squads, _solos = nc._trigger_static_spawns(ctx, player_pos, LUYTEN, alive)
     assert _squads == set(), "the doc-40 stand-down holds without the flag"
 
-    navigation_line._interdiction_system = "luyten_star"
+    ctx.line_defiance_system = "luyten_star"
     try:
         squads, _solos = nc._trigger_static_spawns(
             ctx, player_pos, LUYTEN, alive,
         )
         assert squads == {"luyt_blockade_picket"}
     finally:
-        navigation_line.reset_interdiction()
+        navigation_line.reset_defiance(ctx)
 
 
 def test_comply_turn_back_is_free_and_recross_hails(line_system, monkeypatch):
@@ -1391,9 +1398,12 @@ def test_load_game_migrates_before_both_consumers(monkeypatch):
     from src.spacehack import saveload
 
     seen: dict = {}
-    monkeypatch.setattr(saveload, "rebuild_game_map", lambda data, **_k: (
+
+    def _fake_rebuild(data, **_k):
         seen.setdefault("map", data.get("defeated_static_spawns"))
-    ))
+        return SimpleNamespace(player_ent=SimpleNamespace(pos=world.Position(0, 0)))
+
+    monkeypatch.setattr(saveload, "rebuild_game_map", _fake_rebuild)
     monkeypatch.setattr(saveload, "_assemble_context", lambda _c, data, _p, _r: (
         seen.setdefault("ctx", data.get("defeated_static_spawns"))
     ))
@@ -1644,3 +1654,179 @@ def test_reroute_failure_keeps_the_flight(monkeypatch, line_system):
     assert ctx.npc_paths[_key] == [(x, 30) for x in range(31, 41)], (
         "the old path is kept for the retry"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: the convergence — latch, no-hail, pursuit, persistence
+# ---------------------------------------------------------------------------
+
+def test_papers_never_arm_the_latch(line_system, monkeypatch):
+    """Only a CHALLENGE Comply latches — waved crossings leave the
+    latch untouched."""
+    _modals(monkeypatch, navigation_line._Checkpoint.ACK)
+    ctx = quest_ctx(player_traits=["blockade_manifest"],
+                    ship_registration="SC-4471",
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
+                    militia_scanned=set())
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert ctx.line_comply_latch is False
+    assert ctx.line_defiance_system is None
+
+
+def test_latched_east_exit_converts(line_system, monkeypatch):
+    """Comply arms; the step off the column's east edge is the lie
+    converting — payload, flag, latch cleared, the lasers log."""
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert ctx.line_comply_latch is True
+
+    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    assert result is not None and result[0] is True and len(result[1][0]) == 4
+    assert ctx.line_defiance_system == "luyten_star"
+    assert ctx.line_comply_latch is False
+    assert "targeting lasers" in _log_text(ctx)
+
+
+def test_latched_retreat_and_lateral_steps_do_nothing(line_system, monkeypatch):
+    """A latched hull retreating west — or moving along the column —
+    converts nothing; the latch waits."""
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(150, 70))
+
+    # lateral along the column (ON it, not re-entering): no hail
+    assert navigation_line.check_crossing(ctx, world.Position(150, 71)) is None
+    # the retreat west: free (the shipped entry rule re-hails only
+    # a LATER re-entry, not the retreat itself)
+    assert navigation_line.check_crossing(ctx, world.Position(149, 71)) is None
+    assert ctx.line_defiance_system is None
+    assert ctx.line_comply_latch is True
+
+
+def test_latched_east_of_column_retreats_free(line_system, monkeypatch):
+    """The ADVISE case: a hull latched while ALREADY east (a dark
+    hail from a displaced picket) retreats free — the conversion
+    needs the crossing FROM the column, so it must re-cross, hail
+    fresh, comply again, and only then convert on the east exit."""
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    ctx.line_comply_latch = True  # armed while east, somehow
+
+    assert navigation_line.check_crossing(ctx, world.Position(154, 70)) is None
+    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    assert ctx.line_defiance_system is None, "retreating never converts"
+
+    navigation_line.check_crossing(ctx, world.Position(150, 70))  # fresh hail
+    assert ctx.line_comply_latch is True
+    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    assert result is not None and result[0] is True, "the east exit converts"
+
+
+def test_conversion_needs_a_manned_line(line_system, monkeypatch):
+    """A murdered line converts nothing (the round-2 manned ruling
+    extends to the latch)."""
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
+    ctx.line_comply_latch = True
+    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    assert ctx.line_defiance_system is None
+
+
+def test_leaving_the_system_clears_record_and_latch(monkeypatch):
+    """The jump is the out (ruling 2): the DEPART SEAM clears both
+    (wired where the jump actually happens, not just the helper)."""
+    from src.spacehack import navigation_travel as nt
+    ctx = quest_ctx(line_defiance_system="luyten_star", line_comply_latch=True,
+                    militia_scanned={"x"})
+    monkeypatch.setattr(
+        solar_system_module, "current_system",
+        lambda: SimpleNamespace(id="luyten_star"),
+    )
+    nt._depart_old_system(ctx)
+    assert ctx.line_defiance_system is None
+    assert ctx.line_comply_latch is False
+
+
+def test_flagged_hull_is_never_hailed_or_waved(line_system, monkeypatch):
+    """A condemned hull's crossing returns None BEFORE any wave or
+    consumption — and the dark-spot hail refuses it too."""
+    opened = _modals(monkeypatch, navigation_line._Checkpoint.ACK)
+    ctx = quest_ctx(player_traits=["blockade_service_run"],
+                    ship_registration="SC-4471",
+                    game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
+                    militia_scanned=set(), line_defiance_system="luyten_star")
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    assert opened == []
+    assert "blockade_service_run" in ctx.player_traits, "nothing consumed"
+
+    assert navigation_line.line_dark_hail(
+        ctx, ctx.game_map.entities[0],
+    ) is None, "the dark path refuses a condemned hull"
+
+
+def test_converted_goto_step_logs_only_the_lasers(line_system, monkeypatch):
+    """A conversion mid-GO-TO speaks with the targeting lasers only —
+    the 'blockade hails you' interrupt line is suppressed (it was
+    never a hail)."""
+    from src.spacehack import navigation_travel as nt
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    ship = SimpleNamespace(pos=world.Position(149, 70))
+    navigation_line.check_crossing(ctx, ship.pos)
+    ship.pos = world.Position(150, 70)
+    nt._goto_step_interrupt(ctx, ship)  # the hail + comply
+    assert ctx.line_comply_latch is True
+    _before = len(ctx.log._messages)  # the hail's interrupt line is legit
+
+    ship.pos = world.Position(151, 70)
+    outcome, payload = nt._goto_step_interrupt(ctx, ship)
+    assert outcome is nt.GotoOutcome.COMBAT and payload is not None
+    _delta = "\n".join(
+        m.text for m in ctx.log._messages[_before:]
+    )
+    assert "hails you" not in _delta, "the conversion is not a hail"
+    assert "targeting lasers" in _delta
+
+
+def test_patrols_chase_under_the_flag(monkeypatch):
+    """System-wide pursuit is MAP movement too (the ADVISE blocker):
+    _squad_aggro reads the defiance — the patrols converge."""
+    from src.spacehack import npc_ships
+    leader = world.Entity("M", (100, 200, 255), world.Position(60, 60),
+                          npc_ship_id="militia_patrol")
+    ctx = quest_ctx()
+    system = SimpleNamespace(id="luyten_star")
+
+    assert not npc_ships._squad_aggro(ctx, system, leader), "unflagged: patrol"
+    ctx.line_defiance_system = "luyten_star"
+    assert npc_ships._squad_aggro(ctx, system, leader)
+    ctx.line_defiance_system = "sol"
+    assert not npc_ships._squad_aggro(ctx, system, leader), (
+        "another system's record does not reach here"
+    )
+
+
+def test_fresh_process_load_still_converts_the_latch(line_system, monkeypatch):
+    """Ruling 4's hardened form (user: no save-scummed lies): after
+    a FRESH PROCESS (tracker unstamped), the load stamps it from
+    the restored position — a latched hull standing ON the column
+    converts on its first east step."""
+    _comply(monkeypatch)
+    ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
+    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert ctx.line_comply_latch is True
+
+    navigation_line.reset_session()  # the fresh process: tracker gone
+    navigation_line.stamp_session(world.Position(150, 70))  # load stamps it
+
+    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    assert result is not None and result[0] is True, (
+        "the persisted latch converts across the restart"
+    )
+    assert ctx.line_defiance_system == "luyten_star"

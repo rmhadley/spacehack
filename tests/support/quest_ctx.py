@@ -70,6 +70,9 @@ def quest_ctx(
         player=world.Entity("@", (255, 255, 255), world.Position(0, 0),
                             "Player", owned=True),
         npc_credit={},
+        # Doc 41 phase 3: the persisted defiance record + latch.
+        line_defiance_system=None,
+        line_comply_latch=False,
         log=MessageLog(capacity=40),
     )
     for key, value in extra.items():
