@@ -347,7 +347,7 @@ the intent anyway).
   guide material). No player-facing checklist: observability
   arrives with phase 3's wait.
 
-- [ ] Phase 3 — The day-granular wait: a space-wait pays every
+- [x] Phase 3 — The day-granular wait: a space-wait pays every
       mover a full day of movement with carry-over (ruling 4) —
       per-cell clamping REAPPLIES at the 14-cell wait bound
 
@@ -421,9 +421,52 @@ simulates a MOVE, not a wait — default ``day_pass=False`` there;
 a headless wait action can be added when a test needs it, not
 speculatively.
 
+  LANDED 2026-09-10 (acaa32e) — reviewer APPROVE (verified the
+  threading's single day-mode caller + re-derived every test's
+  arithmetic); the world's asymmetry the user flagged on 2026-09-10
+  is closed: a wait moves the world a full day AND flips the
+  clock. Guide diff NONE (no player-facing text; movement cadence
+  is not guide material).
+
 - [ ] Phase 4 — The watch retune: re-measure base→station
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist
+
+  Implementation brief (4) — PROPOSED (drafted at phase 3's
+  checkpoint, 2026-09-10):
+
+  - **Scope.** DATA: the ``lead_days`` on every ``WatchStation``
+    in ``luyten_star.py`` re-measured at picket speed 9 — the
+    self-verifying form: a new data test computes the REAL
+    ``world.find_path`` base-dock → station over the real Luyten
+    map and asserts ``lead_days == ceil(path_len / map_speed(
+    militia_blockade))`` per station, so the leads can never drift
+    from the measured transits again. Tests: the count-pinned
+    watch-build fixtures update to the retuned schedule (the
+    run-day-1 muster count, the day-12 two-wave counts, the
+    day-22/24/29 fixtures) — the numbers move, the semantics do
+    not. Doc: one pointer line in doc 41's phase-2 LANDED note
+    (its ``mustering`` observable and wait asymmetry both read
+    differently under the retuned math; the parked playtest runs
+    under THIS schedule). NO watch mechanics, no kernel, no lead
+    semantics beyond the numbers.
+  - **Build order.** (1) the measurement test (red against the
+    phase-1 leads); (2) retune the data table to measured; (3)
+    update the pinned-count fixtures; (4) full gate — the doc-41
+    phase-2 suite IS the regression sweep.
+  - **Binding rulings.** Leads are DATA (retunable); relief
+    arrives ≈ shift end (round the transit UP — early beats
+    late: an early relief parks and holds, a late one dips the
+    line); deterministic speeds; nothing else in the watchbill
+    moves (``shift_days``, cycle, rosters, spacing).
+  - **Required tests.** The lead table == ceil(measured transit /
+    picket speed) per station (the self-verifying pin); every
+    existing watch test green on the retuned numbers.
+  - **Stop point.** NOTHING from phase 5 — no playtest checklist
+    is written or run here; no doc-42/43 hooks; no convergence
+    work (doc 41 phase 3 stays parked behind the 41.2 playtest).
+  - **Playtest checkpoint.** None — phase 5 owns the formal
+    checklist; this phase's verification is the gate.
 - [ ] Phase 5 — Playtest: same route at a slow and a fast ship —
       the world's speed reads constant; wait a day at the Line —
       reliefs visibly cover a day of ground; density + pursuit
