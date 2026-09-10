@@ -510,7 +510,7 @@ parks and holds; late dips the line).
   y77 launches exactly that day; reverted). The leads are now
   self-verifying against the live map.
 
-- [ ] Phase 5 — Playtest: same route at a slow and a fast ship —
+- [x] Phase 5 — Playtest: same route at a slow and a fast ship —
       the world's speed reads constant; wait a day at the Line —
       reliefs visibly cover a day of ground; density + pursuit
       texture checks (settled consequence 7 + the speed-14 note)
@@ -557,6 +557,14 @@ parks and holds; late dips the line).
     SYSTEMS.md inventory pass), then the doc-41 phase-2 playtest
     result is recorded and phase 3 (the convergence) is next —
     its brief is UNWRITTEN and drafts at that checkpoint.
+
+PLAYTEST PASSED (user, 2026-09-10): the run that produced doc 41's
+round-3 finding exercised the checklist's core — the world moves
+at its own speed, waits pay a full day, and the watch schedule
+runs (its cadence then re-ruled to 30-day shifts in doc 41's
+round 3, on this sidequest's movement math). Guide diff NONE
+across the whole doc. CLOSED 2026-09-10: moved to complete/;
+SYSTEMS.md's Time, watch, and squad-movement entries amended.
 
   Implementation brief (1) — APPROVED (`/refine-design 44`
   2026-09-10, amended per the ADVISE reviewer round; user invoked

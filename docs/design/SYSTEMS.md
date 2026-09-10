@@ -222,9 +222,18 @@ nobody designs against a ghost.
   `spawn_npcs`, `_tick_spawn_npc`).
 - **Merchant ecology** — body-to-body paths, flee pirates within 10
   cells, despawn on arrival (`_merchant_flees`, `_despawn_merchant`).
-- **Squad movement** — shared leader A*, 80%/tick step, straggler
-  regroup >4 cells; aggro chase retargets whole squads
-  (`_move_one_squad`, `_squad_aggro`).
+- **Squad movement** — shared leader A* with per-squad movement
+  CREDIT at the mover's own hull speed (doc 44): `map_speed`
+  derives from the spec's hull (explicit `base_speed` wins,
+  derelicts 0), credit accrues map_speed/player_speed tiles per
+  player step — deterministic, no throttle — and a space-wait pays
+  a whole day (`rate_for`); the clamp parks a mover on a cell
+  entering an encounter trigger (stop ≠ fire); retained credit
+  banks at one tile; accumulators persist exactly the path-sync
+  population. Straggler regroup >4 cells; aggro chase retargets
+  whole squads (`npc_movement.py`: `spend_credit`;
+  `_move_one_squad`, `_squad_aggro`, `navigation_line.
+  _advance_flight`).
 - **Danger knobs** — per-system `npc_spawn_chance`/`npc_spawn_table`/
   `npc_density`/`patrol_density`/`derelict_spawn_chance` (Sol none →
   Lalande 0.90/density 7) (`data/solar_systems/*.py`).

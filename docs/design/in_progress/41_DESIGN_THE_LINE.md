@@ -460,11 +460,10 @@ ledger threading is pinned.
       rotation, times the maintenance month, crosses dark through
       one, and lures across a boundary
 
-LANDED 2026-09-09 (all eight build steps; playtest PARKED behind
-`44_SIDEQUEST_NPC_WORLD_SPEED.md` — the user ruled 2026-09-10 that
-NPCs must move at their own speed, not the player's; the watch's
-leads re-tune under that sidequest, so the phase-2 playtest runs
-AFTER it lands, on the new movement math. Checklist below stands
+LANDED 2026-09-09 (all eight build steps; the playtest was parked
+behind `../complete/44_SIDEQUEST_NPC_WORLD_SPEED.md` — now LANDED
+AND CLOSED, so this checklist is LIVE on its movement math; round
+3's 30-day shifts came out of this run). Checklist below stands
 as written). Three reviewer dispatches (steps 1, 2, 4-5, 6-7):
 every verdict addressed in-commit; the step-4-5 dispatch ran a
 six-start-date × 400-step stress sim over the flight invariants
