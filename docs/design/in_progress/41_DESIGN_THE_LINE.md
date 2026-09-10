@@ -252,6 +252,50 @@ Mechanical consequences (binding):
   ``static_spawn_key`` when present (watch pickets always carry
   one; procedural NPCs are untouched).
 
+## Settled — phase 3: the convergence (refine session, 2026-09-10)
+
+Seven rulings:
+
+1. **The defiance PERSISTS across save/load.** The flag stops
+   being session state and saves with the game — save/quit/
+   Continue no longer disengages the Line (the phase-1 escape
+   hatch closes now that the teeth are real).
+2. **Jumping out clears the record.** Persistence means across
+   save/load ONLY; leaving Luyten resets the defiance (phase 1's
+   reset-on-depart ruling stands). The two outs: destroy the
+   pursuers, or jump.
+3. **System-wide pursuit** (user, overriding the positional-floor
+   recommendation): chasers pursue anywhere in the system until
+   destroyed or the hull jumps — no safety line west of the
+   column. SUPERSEDES the phase-3 sketch "the Line stops engaging
+   past the column (positional escape west)" — the column stops
+   nothing once the flag is up.
+4. **The complying-runner latch — the pinned sketch confirmed:**
+   Comply latches the answer (session-local, clears on leaving
+   the system); the first step EAST past the column converts the
+   lie into Defy (the persistent flag + the convergence payload).
+   Papers-waved hulls never latch.
+5. **All at once, continuous.** Defy's payload is every alive
+   picket at live positions (the shipped mechanic) and the flag's
+   detect-30 floor keeps feeding any system militia that come
+   near — no wave machinery, no choreography to build.
+6. **Mission-locked reliefs.** Airborne reliefs appear in the
+   payload if alive at the moment of Defy (by id, live positions)
+   but never abandon their posting schedule to chase; stationed
+   pickets and system patrols do the pursuing.
+7. **The thin week is the timing play.** Doc 39's 30-floor
+   contract is the FULL watch's gate (10 cruisers + patrols —
+   provably unwinnable below 30); the maintenance month's four
+   pickets calibrate separately: a real but winnable fight for a
+   skilled mid-level fit — the same schedule hole the dark run
+   uses, now the fight method's clever play too.
+
+Consequence pinned: a flagged hull gets NO checkpoint hail — the
+sweep never offers Comply to a condemned hull (the flag's
+proximity engagement IS the detection). And the phase-1 note "the
+defiance is SESSION-LOCAL: save/quit/Continue drops it (an escape
+hatch pending phase 3)" is superseded by ruling 1.
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 41.<p>` works
@@ -711,8 +755,10 @@ and amended while unpushed; gate green at every pushed state.
 - [ ] Defy/dark-defy → picket squad + on-duty patrols converge at
       strength read off the ON-DUTY roster (escalation
       choreography; reinforcement machinery is close)
-- [ ] The Line stops engaging past the column (positional escape
-      west — or through)
+- [ ] Pursuit is system-wide until destroyed or the hull jumps
+      (refined 2026-09-10 — supersedes the positional-escape-west
+      sketch; fighting through still opens the line per the
+      round-2 manned ruling)
 - [ ] The convergence engages REGARDLESS of stance (the
       interdiction supersedes the statics gate; charged-cell
       precedent)
@@ -720,6 +766,87 @@ and amended while unpushed; gate green at every pushed state.
       below 30, a real costly fight at 30+ — verified against
       min-maxed sub-30 fits (doc 39's last Phase 0 method item
       lands here)
+
+  Implementation brief (3) — PROPOSED (`/refine-design 41.3`,
+  2026-09-10):
+
+  - **Scope.** STATE: the interdiction flag moves from the module
+    global to ``GameContext`` (``line_defiance_system: str | None``
+    — persisted in ``_ctx_to_dict`` + ``load_game``'s restore
+    block, mechanical lines only; saveload sits at 994/1000 — if
+    the lines push past, the parse side moves to a helper per the
+    doc-44 precedent). The global ``_interdiction_system`` dies;
+    every reader (``_aggro_override``, ``check_crossing``,
+    ``_run_checkpoint``) reads the ctx field. Jump clears it: the
+    existing ``_depart_old_system`` reset seam. THE LATCH: a
+    session-local module flag beside ``_prev_x`` (never saved —
+    the lie is a recent event); armed by a CHALLENGE Comply only
+    (papers/rank/service waves never arm it); cleared by leaving
+    the system; CONVERTED in ``check_crossing`` — a latched hull's
+    first step with ``new_x > column.x`` fires the full Defy
+    (flag + payload + the existing targeting-lasers line). THE
+    HAIL: ``check_crossing`` never opens the checkpoint for a
+    hull already flagged (a condemned hull's detection is the
+    proximity floor; Comply is not re-offered). TUNING: a pure
+    combat-math harness (``combat/_stats.py`` is pure) over
+    canonical fits — the full-watch payload provably unwinnable
+    below level 30, a real costly win at 30+; the thin-watch
+    payload winnable by a skilled mid-20s fit (ruling 7 — the
+    numbers land as data/spec adjustments, not code).
+  - **Build order.** (1) the ctx field + save/load + the readers
+    rewired + jump-clear + tests (round-trip persists; jump
+    clears; phase-1 flag tests re-based onto the field); (2) the
+    latch + conversion + tests (comply → east step = Defy with
+    payload; retreat west = nothing; system exit clears; papers
+    never arm); (3) the no-hail-for-flagged rule + test; (4) the
+    tuning harness + canonical-fit verification + any data/spec
+    adjustments it demands, re-run to green.
+  - **Binding rulings.** The seven SETTLED items above + phase 1's
+    standing rulings (one combat response; the payload by id at
+    live positions; the manned sweep — fight still opens the
+    line, and reliefs re-man at the next boundary to re-engage a
+    flagged hull); mission-locked reliefs (no diversion
+    machinery); wordless (the conversion reuses the shipped Defy
+    log line; nothing new logs); naming ban (player-facing copy
+    says "the blockade").
+  - **Required tests.** Persistence round-trip; jump-clears; the
+    latch matrix (armed by challenge-Comply only; east conversion
+    fires Defy + payload; west/lateral steps do nothing; system
+    exit disarms; papers never arm); flagged hulls get no
+    checkpoint; pursuit stays system-wide (no positional carve-out
+    — the floor engages at any x while flagged); reliefs in the
+    payload only at Defy-time, never chasing after; the tuning
+    harness verdicts (full watch unwinnable at 29 via the pure
+    math, costly-win at 30+; thin watch winnable mid-20s).
+  - **Stop point.** NO grant-side method content (Commandant,
+    Whisper, heist, gate tech — a future recourse purchase is
+    fiction for the methods' docs); no doc-42 rumor hooks; no
+    restricted-sector/doc-43 changes; no watch mechanics touched
+    (the schedule is closed).
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run,
+    wolf_359 → luyten_star; Shift+L/K papers as needed):
+    1. Defy the FULL watch at 30+: a costly, real fight — you can
+       win, you pay for it.
+    2. Defy at sub-30 (a fresh dev fit): the fight is hopeless —
+       the 30-floor holds.
+    3. Wait for the maintenance month (Shift+J ×3 to day 91) and
+       defy the THIN watch mid-20s: winnable — the timing play.
+    4. Comply, then keep east: the moment you cross past the
+       column the blockade engages (the lie converts) — the
+       targeting-lasers line, no second hail.
+    5. Comply and actually retreat: nothing happens; leave the
+       system and return — the checkpoint hails fresh.
+    6. Defy, then save/quit/Continue: still hunted (the record
+       survived). Jump out and back: hailed fresh (the record
+       cleared).
+    7. Kill the entire pursuing line: the system goes quiet until
+       the next boundary's reliefs re-man — and proximity
+       re-engages you (the record outlives the ships).
+    8. Regression: papers/rank/service crossings wave untouched;
+       dark crossings unchanged; the watch's schedule visually
+       unaffected by a standing defiance (reliefs still fly their
+       missions).
+
 
   Implementation brief (1) — APPROVED (drafted in the refine session
   2026-09-09; user invoked ``/implement-phase 41``):
