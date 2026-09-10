@@ -515,15 +515,17 @@ parks and holds; late dips the line).
       reliefs visibly cover a day of ground; density + pursuit
       texture checks (settled consequence 7 + the speed-14 note)
 
-  Implementation brief (5) — PROPOSED (drafted at phase 4's
-  checkpoint, 2026-09-10). This phase is the user's playtest; the
-  brief is its checklist. On PASS, doc 44 closes and doc 41's
-  parked phase-2 checklist resumes IN THE SAME RUN.
+  Implementation brief (5) — APPROVED (drafted at phase 4's
+  checkpoint 2026-09-10; user invoked ``/implement-phase 44.5``).
+  This phase is the user's playtest; the brief is its checklist.
+  On PASS, doc 44 closes and doc 41's parked phase-2 checklist
+  resumes IN THE SAME RUN.
 
-  - **Setup.** SPACEHACK_DEV run. For the speed contrast: fly the
-    starter (speed 10) first; the hangar/dev ship menu provides a
-    freighter-class hull for the slow leg and the scout for the
-    fast one (the checklist's items 1-2 need both).
+  - **Setup.** SPACEHACK_DEV run: it starts on the granted
+    frigate (speed 8) with credits. For the speed contrast, buy
+    the freighter (speed 6) and the scout (speed 14) at a city
+    showroom (Earth's pad) — items 1-2 need both; the frigate
+    itself is a fine middle reference.
   - **The checklist (numbered, in-game):**
     1. Fly a fixed Sol→Alpha Centauri leg at a SLOW hull, noting
        how many days the calendar advances and how far the
