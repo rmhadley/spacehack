@@ -47,11 +47,32 @@ class QuestLogOutcome(Enum):
     ABANDONED = auto()
     QUIT = auto()
 
-def render_quest_log(console: FrameBuffer, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, screen_width: int, screen_height: int) -> None:
-    """Paint the quest-log overlay — unified terminal look."""
+def render_quest_log(console: FrameBuffer, ctx: GameContext, *, selected: int = 0, confirm_abandon: bool = False, pane: str = "quests", screen_width: int, screen_height: int) -> None:
+    """Paint the quest-log overlay — unified terminal look.
+
+    ``pane`` selects the sheet: ``"quests"`` (default) or the verbatim
+    rumor ledger (``"rumors"``, doc 42).
+    """
     console.clear()
+    if pane == "rumors":
+        _render_rumors_pane(
+            console, ctx, col_x=2,
+            screen_width=screen_width, screen_height=screen_height,
+        )
+        return
+    _render_quests_pane(
+        console, ctx, selected=selected, confirm_abandon=confirm_abandon,
+        col_x=2, screen_width=screen_width, screen_height=screen_height,
+    )
+
+
+def _render_quests_pane(
+    console: FrameBuffer, ctx: GameContext, *, selected: int,
+    confirm_abandon: bool, col_x: int,
+    screen_width: int, screen_height: int,
+) -> None:
+    """Paint the main-quest breadcrumb and the active-mission list."""
     missions = ctx.player_active_missions
-    col_x = 2
     max_w = ui.rule_width(screen_width)
 
     # --- Screen header ---
@@ -88,6 +109,41 @@ def render_quest_log(console: FrameBuffer, ctx: GameContext, *, selected: int = 
 
     # The message band is intentionally not painted here — the Pygame
     # quest log renders its own panel over the band area.
+
+
+def _render_rumors_pane(
+    console: FrameBuffer, ctx: GameContext, *, col_x: int,
+    screen_width: int, screen_height: int,
+) -> None:
+    """Paint the verbatim rumor ledger (doc 42): heard text in heard
+    order — no titles, no objectives; the notebook never teaches."""
+    from .. import rumor as rumor_module
+
+    max_w = ui.rule_width(screen_width)
+    cy = ui.screen_header(console, screen_width, "RUMORS")
+    _bottom = screen_height - MSG_LOG_HEIGHT - 3
+    entries = rumor_module.known_entries(ctx.known_rumors)
+    if not entries:
+        ui.paint_line(
+            console, col_x, cy, "(nothing heard yet)",
+            fg=ui.COLOR_DESCRIPTION,
+        )
+        cy += 2
+    for entry in entries:
+        for line in ui.wrap_text(rumor_module.entry_text(entry.id), max_w):
+            if cy >= _bottom:
+                break
+            ui.paint_line(
+                console, col_x, cy, ui.fit_text(line, max_w),
+                fg=ui.COLOR_VALUE_WHITE,
+            )
+            cy += 1
+        cy += 1  # blank line between entries
+    ui.paint_line(
+        console, col_x, _bottom + 1,
+        pygame_ui.modal_hint("UP/DOWN navigate", "TAB quests", "ESC close"),
+        fg=ui.COLOR_INSTRUCTION,
+    )
 
 
 def _render_main_quest_section(

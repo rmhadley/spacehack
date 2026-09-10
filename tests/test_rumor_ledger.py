@@ -1,0 +1,131 @@
+"""Ledger-pane tests for the rumor system (doc 42 phase 1).
+
+The capture renderer is authoritative: render_quest_log with
+pane="rumors" paints the verbatim ledger; the pygame layer threads
+pane state and TAB internally.
+"""
+
+from types import SimpleNamespace
+
+from src.spacehack.framebuffer import FrameBuffer
+from src.spacehack.menus._quest_log import render_quest_log
+from src.spacehack import rumor as rumor_module
+from src.spacehack import pygame_quest_log
+from tests.support.quest_ctx import quest_ctx
+
+
+def _pane_rows(console) -> list[str]:
+    """Captured rows as text lines, trailing blanks trimmed."""
+    _rows: dict[int, str] = {}
+    for command in console.commands:
+        _rows.setdefault(command.y, "")
+        _rows[command.y] = _rows[command.y][:command.x] + command.char + \
+            _rows[command.y][command.x + 1:]
+    lines = [_rows[y].rstrip() for y in sorted(_rows)]
+    while lines and not lines[-1]:
+        lines.pop()
+    return lines
+
+
+def _render_rumors(ctx):
+    console = FrameBuffer(120, 60)
+    render_quest_log(
+        console, ctx, pane="rumors", screen_width=120, screen_height=60,
+    )
+    return console
+
+
+def test_rumors_pane_paints_heard_text_verbatim_in_order():
+    console = _render_rumors(quest_ctx(known_rumors=["thin_month_1", "derelict_line_1"]))
+    text = "\n".join(_pane_rows(console))
+    assert "RUMORS" in text
+    _thin = rumor_module.entry_text("thin_month_1")
+    _derelict = rumor_module.entry_text("derelict_line_1")
+    assert _thin.split(". ")[0] in text, "first thin-month line present"
+    assert _derelict.split(". ")[0] in text, "first derelict line present"
+    assert text.index(_thin.split(". ")[0]) < text.index(_derelict.split(". ")[0]), \
+        "heard order preserved in the ledger"
+
+
+def test_rumors_pane_empty_state():
+    console = _render_rumors(quest_ctx())
+    assert "(nothing heard yet)" in "\n".join(_pane_rows(console))
+
+
+def test_rumors_pane_skips_stale_ids():
+    console = _render_rumors(quest_ctx(known_rumors=["retired_rumor"]))
+    assert "(nothing heard yet)" in "\n".join(_pane_rows(console))
+
+
+def test_quests_pane_is_the_default():
+    console = FrameBuffer(120, 60)
+    render_quest_log(console, quest_ctx(), screen_width=120, screen_height=60)
+    text = "\n".join(_pane_rows(console))
+    assert "QUEST LOG" in text
+    assert "(no active missions)" in text
+
+
+def _fake_pygame():
+    class FakePygame:
+        QUIT = 0
+        KEYDOWN = 1
+
+        K_ESCAPE = 10
+        K_TAB = 11
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 14
+        K_j = 15
+        K_a = 16
+        K_RETURN = 17
+        K_KP_ENTER = 18
+
+    return FakePygame()
+
+
+def _key(fake, value):
+    return SimpleNamespace(type=fake.KEYDOWN, key=value)
+
+
+def test_tab_flips_panes_and_resets_selection():
+    fake = _fake_pygame()
+    _outcome, _sel, _confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_TAB), 2, False, 3, "quests")
+    assert (_outcome, _sel, pane) == ("IGNORE", 0, "rumors")
+    _outcome, _sel, _confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_TAB), 0, False, 3, "rumors")
+    assert pane == "quests"
+
+
+def test_rumors_pane_scrolls_linearly_and_clamps_low():
+    fake = _fake_pygame()
+    _outcome, sel, _confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_UP), 0, False, 0, "rumors")
+    assert (sel, pane) == (0, "rumors")
+    _outcome, sel, _confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_DOWN), 4, False, 0, "rumors")
+    assert (sel, pane) == (5, "rumors")
+
+
+def test_quests_keys_untouched():
+    fake = _fake_pygame()
+    _outcome, sel, confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_DOWN), 0, False, 3, "quests")
+    assert (sel, pane) == (1, "quests")
+    _outcome, sel, confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_a), 1, False, 3, "quests")
+    assert confirm is True
+    _outcome, sel, confirm, pane = pygame_quest_log._handle_key(
+        fake, _key(fake, fake.K_RETURN), 1, True, 3, "quests")
+    assert _outcome == "ABANDONED"
+
+
+def test_rumors_frame_captured_for_font_fitting():
+    ctx = quest_ctx(known_rumors=["thin_month_1"])
+    _frames = pygame_quest_log._frames_for(ctx)
+    assert any(frame.pane == "rumors" for frame in _frames)
+    assert all(
+        frame.pane == "quests"
+        for frame in _frames
+        if frame.pane != "rumors"
+    )

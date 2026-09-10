@@ -243,6 +243,7 @@ def test_quest_log_confirmation_freezes_selection():
         QUIT = 1
         KEYDOWN = 2
         K_ESCAPE = 10
+        K_TAB = 19
         K_UP = 11
         K_DOWN = 12
         K_k = 13
@@ -255,8 +256,8 @@ def test_quest_log_confirmation_freezes_selection():
     event = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_DOWN)
 
     assert pygame_quest_log._handle_key(
-        FakePygame, event, 1, True, 3,
-    ) == ("IGNORE", 1, True)
+        FakePygame, event, 1, True, 3, "quests",
+    ) == ("IGNORE", 1, True, "quests")
 
 
 def test_quest_log_worker_draws_panel_and_restores_clip():

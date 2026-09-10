@@ -29,12 +29,13 @@ class QuestSpan:
 
 @dataclass(frozen=True)
 class QuestFrame:
-    """Captured Quest Log rows for one selection/confirmation state."""
+    """Captured Quest Log rows for one pane/selection/confirm state."""
 
     rows: tuple[tuple[QuestSpan, ...], ...]
     selected: int
     confirm_abandon: bool
     hint: str = ""
+    pane: str = "quests"
 
 
 def _captured_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, ...], ...]:
@@ -113,7 +114,10 @@ def _split_hint(rows: tuple[tuple[QuestSpan, ...], ...]) -> tuple[tuple[tuple[Qu
     return rows, ""
 
 
-def _capture_frame(ctx: GameContext, selected: int, confirm_abandon: bool) -> QuestFrame:
+def _capture_frame(
+    ctx: GameContext, selected: int, confirm_abandon: bool,
+    pane: str = "quests",
+) -> QuestFrame:
     """Render one authoritative Quest Log state into portable rows."""
     from .menus._quest_log import render_quest_log
     from .engine import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -124,6 +128,7 @@ def _capture_frame(ctx: GameContext, selected: int, confirm_abandon: bool) -> Qu
         ctx,
         selected=selected,
         confirm_abandon=confirm_abandon,
+        pane=pane,
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
@@ -133,18 +138,19 @@ def _capture_frame(ctx: GameContext, selected: int, confirm_abandon: bool) -> Qu
         selected=selected,
         confirm_abandon=confirm_abandon,
         hint=hint,
+        pane=pane,
     )
 
 
 def _frames_for(ctx: GameContext) -> tuple[QuestFrame, ...]:
-    """Capture every reachable selection/confirmation presentation state."""
+    """Capture every reachable pane/selection/confirmation state."""
     count = len(ctx.player_active_missions)
     selections = tuple(range(count)) if count else (-1,)
     return tuple(
-        _capture_frame(ctx, selected, confirm_abandon)
+        _capture_frame(ctx, selected, confirm_abandon, "quests")
         for confirm_abandon in (False, True)
         for selected in selections
-    )
+    ) + (_capture_frame(ctx, 0, False, "rumors"),)
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -229,7 +235,9 @@ def _draw_rows(
     panel = pygame_ui.Rect(32, 28, width - 64, max(1, panel_bottom - 28))
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     pygame_ui.draw_centered_text(
-        pygame, screen, font, "QUEST LOG", panel, panel.y + 22,
+        pygame, screen, font,
+        "RUMORS" if frame.pane == "rumors" else "QUEST LOG",
+        panel, panel.y + 22,
         color=palette.title, antialias=True,
     )
     pygame_ui.draw_rule(
@@ -252,25 +260,38 @@ def _draw_rows(
         )
 
 
-def _handle_key(pygame: Any, event: Any, selected: int, confirm: bool, count: int) -> tuple[str, int, bool]:
-    """Map key events to the existing Quest Log contract."""
+def _handle_key(
+    pygame: Any, event: Any, selected: int, confirm: bool, count: int,
+    pane: str,
+) -> tuple[str, int, bool, str]:
+    """Map key events to the Quest Log contract. TAB flips between the
+    quests sheet and the rumor ledger; the ledger scrolls instead of
+    selecting. Returns ``(outcome, selected, confirm, pane)``."""
     if event.type == pygame.QUIT:
-        return "QUIT", selected, confirm
+        return "QUIT", selected, confirm, pane
     if event.type != pygame.KEYDOWN:
-        return "IGNORE", selected, confirm
+        return "IGNORE", selected, confirm, pane
     if event.key == pygame.K_ESCAPE:
-        return "BACK", selected, confirm
+        return "BACK", selected, confirm, pane
+    if event.key == pygame.K_TAB:
+        return "IGNORE", 0, confirm, "rumors" if pane == "quests" else "quests"
+    if pane == "rumors":
+        if event.key in (pygame.K_UP, pygame.K_k):
+            return "IGNORE", max(0, selected - 1), confirm, pane
+        if event.key in (pygame.K_DOWN, pygame.K_j):
+            return "IGNORE", selected + 1, confirm, pane
+        return "IGNORE", selected, confirm, pane
     if not confirm and event.key in (pygame.K_UP, pygame.K_k) and count:
-        return "IGNORE", (selected - 1) % count, confirm
+        return "IGNORE", (selected - 1) % count, confirm, pane
     if not confirm and event.key in (pygame.K_DOWN, pygame.K_j) and count:
-        return "IGNORE", (selected + 1) % count, confirm
+        return "IGNORE", (selected + 1) % count, confirm, pane
     if event.key == pygame.K_a and not confirm and count:
-        return "IGNORE", selected, True
+        return "IGNORE", selected, True, pane
     if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and confirm and count:
-        return "ABANDONED", selected, confirm
+        return "ABANDONED", selected, confirm, pane
     if pygame_ui.is_guide_key(pygame, event):
-        return "GUIDE", selected, confirm
-    return "IGNORE", selected, confirm
+        return "GUIDE", selected, confirm, pane
+    return "IGNORE", selected, confirm, pane
 
 
 
@@ -295,15 +316,18 @@ def run_shared(
     count = len(ctx.player_active_missions)
     selected = selected if count else -1
     confirm = confirm_abandon
+    pane = "quests"
     while True:
-        frame = _capture_frame(ctx, selected, confirm)
+        frame = _capture_frame(ctx, selected, confirm, pane)
+        if pane == "rumors":
+            selected = min(selected, max(0, len(frame.rows) - 1))
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_rows(pygame, screen, font, frame, context=context)
         pygame_ui.draw_context_log(pygame, screen, ctx.context)
         engine.present()
         event = pygame.event.wait()
-        outcome, selected, confirm = _handle_key(
-            pygame, event, selected, confirm, count,
+        outcome, selected, confirm, pane = _handle_key(
+            pygame, event, selected, confirm, count, pane,
         )
         if outcome == "IGNORE":
             continue
