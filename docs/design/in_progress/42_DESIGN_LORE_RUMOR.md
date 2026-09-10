@@ -52,6 +52,27 @@ known-lore set (the false backup call, the heist entry steps, the
 Commandant's procedure). The game never labels "this is the
 ghost-run step" — comprehension is the puzzle.
 
+**Shape amendments (user, 2026-09-10, before the refine):**
+
+1. **Authored like quest dialogue, 100% outside code.** Not just
+   data-defined — the quest-dialogue design is the model: rumor
+   text and organization live in authored data (step-spec style:
+   easily found, easily altered, never a code change to reword or
+   reorganize). The lore catalog inherits the quest system's
+   content-lives-on-the-spec discipline.
+2. **A per-run proc/RNG aspect.** No static loop — "talk to NPC X,
+   ask about Y, X sends you to Z" must NOT play identically every
+   run. Some of the system varies with the run seed: which chains
+   surface, who knows what, where finds point. Authored chains
+   stay authored; the ROUTING through the world is what the seed
+   shuffles (the seed-pinning machinery — SPACEHACK_SEED,
+   engine.RNG rebinds, derived seeds — is the existing substrate).
+3. **The rumor UI is a reusable SUB-MENU of the main chat
+   options** — one "ask around" style entry on the chat screen
+   that opens the SAME look/feel no matter who you're talking to
+   (barkeep, broker, patrol, city NPC). One interaction pattern
+   to learn, everywhere.
+
 ## Open questions (the review agenda)
 
 1. Display: does known lore show anywhere (a journal/leads tab) or
@@ -66,3 +87,11 @@ ghost-run step" — comprehension is the puzzle.
 6. Relationship to quest steps: are rumor chains invisible quest
    steps riding the existing status machinery, or a new state
    space?
+7. What exactly does the seed vary (amendment 2): chain
+   availability per run, NPC-to-rumor assignments, find locations
+   — and what stays FIXED because it's authored? Where do the
+   per-run rolls live so save/load stays consistent?
+8. The sub-menu's shape (amendment 3): does it apply to BOTH the
+   space comms modal and the city/bump NPC talk (one pattern, two
+   hosts), and what's its option surface — a list of askable
+   topics built from the known-lore keyring?
