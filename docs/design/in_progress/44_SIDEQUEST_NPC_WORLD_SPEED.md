@@ -210,8 +210,8 @@ round-trips.
       target-pop site; sync logic in the kernel module — saveload
       takes no new logic)
 
-  Implementation brief (2) — PROPOSED (drafted at phase 1's
-  checkpoint, 2026-09-10):
+  Implementation brief (2) — APPROVED (drafted at phase 1's
+  checkpoint 2026-09-10; user invoked ``/implement-phase 44.2``):
 
   - **Scope.** NEW ``src/spacehack/npc_movement.py`` — the credit
     kernel (``npc_ships.py`` is 909/1000 and cannot grow;
@@ -272,6 +272,70 @@ round-trips.
   - **Playtest checkpoint.** None in-phase (observability arrives
     with phase 3's wait); phase 2's verification is the gate +
     the watch/merchant regression suite.
+
+## Pre-implementation audit — phase 2 (2026-09-10, verified in code)
+
+**Seams (all verified):**
+
+- **Kernel home**: new ``src/spacehack/npc_movement.py``
+  (``npc_ships.py`` 909/1000 and ``navigation_line.py`` 817/1000 —
+  neither can own shared machinery). The kernel owns the CREDIT
+  ACCOUNT (accrue/settle — settle caps retained credit at 1.0:
+  fractions carry, bursts don't bank), the CLAMP (pure
+  ``enter_trigger(cell, player_pos, radius)`` — Euclidean, the
+  spec's ``detect_radius``, checked on the cell about to be
+  entered BEFORE committing; enter, park, stop spending), the
+  single-entity sub-step loop (``spend_credit`` — walks
+  ``ctx.npc_paths[key]`` with ``try_step_with_slip``, pops the
+  head only on direct steps, returns an outcome), the
+  ``player_moves_per_day(ctx)`` read (mirrors ``tick_move``:
+  ``effective_speed`` over the owned ship, fallback 10, computed
+  ONCE per pass by each consumer) and the save-side shape helper
+  (``pick_synced_credits``; the load side is one inline mechanical
+  line in ``_restore_core_fields``, beside the target restore) so
+  ``saveload.py`` grows only mechanical lines (+5 total; 989 → 994).
+- **DRY judgment (pinned)**: the two consumers' walking loops do
+  NOT fully merge — the patrol moves leader+members per cell
+  (cohesion stepping is squad-specific), the flight is
+  single-entity with arrival semantics. The CONVERGED surface is
+  the credit account + clamp + settle + stale/blocked idioms;
+  ``npc_ships`` extracts its per-cell squad block into a local
+  helper and loops it under credit. Full-loop sharing would need
+  callbacks — rejected.
+- **State**: ``GameContext.npc_credit: dict[str, float]`` declared
+  beside ``npc_targets``/``npc_paths`` (the type's own module).
+  Persistence mirrors the path sync exactly: ``save_game``
+  attaches ``pick_synced_credits(ctx.npc_credit, synced_mids)``
+  (current-system patrol mids only — empty/other-system mids are
+  ""); ``_restore_core_fields`` restores
+  ``dict(data.get("npc_credit"))``. Watch spawn keys never
+  round-trip (session-scoped flights, doc-41 ruling) — they
+  default 0.0 and lose only a sub-tile fraction on rebuild.
+- **Pop parity (all sites enumerated)**: credit pops beside every
+  FULL target-pop — ``npc_ships._despawn_merchant`` (:749),
+  ``npc_ships._step_squad``'s empty-path branch (:795),
+  ``navigation_line``'s unreachable-drop (:560) and ``_arrive``
+  (:577). The two STALE-PATH pops (:802, :566 — path only, target
+  kept, still moving) keep their credit. ``merchant flee``
+  (a dodge, not travel) and the no-path ``aggro drift`` fallback
+  stay 1-tile-per-pass, uncredited — audit ruling, revisit only
+  if the playtest reads wrong.
+- **Throttle removal**: the 80% RNG gate at ``npc_ships._step_squad``
+  is deleted; RNG remains in target picks / spawn rolls only. A
+  test pins that stepping consumes no RNG.
+
+**Duplication hotspots + DRY:** the clamp predicate must not be
+re-derived at call sites (one pure kernel function); the settle
+cap lives in ONE place (never inline ``min()`` at consumers); the
+save-shape helpers live in the kernel, not saveload.
+
+**Judgment calls pinned:** settle caps retained credit at 1.0
+(anti-burst; phase 3's wait SPENDS its day, not banks it);
+clamp radius = ``spec.detect_radius`` (the combat trigger; comms
+ranges are larger and non-modal — a mover may cross a comms ring
+between passes, acceptable); no clamp while AGGRO-chasing the
+player (the player IS the destination — parking beside them is
+the intent anyway).
 - [ ] Phase 3 — The day-granular wait: a space-wait pays every
       mover a full day of movement with carry-over (ruling 4) —
       per-cell clamping REAPPLIES at the 14-cell wait bound

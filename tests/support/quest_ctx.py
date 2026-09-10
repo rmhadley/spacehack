@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from src.spacehack import world
 from src.spacehack.message_log import MessageLog
 
 
@@ -64,6 +65,11 @@ def quest_ctx(
         time_month=month,
         time_year=year,
         current_city_id=city_id,
+        # Doc 44: movement credit + the player the steppers clamp
+        # against (parked at (0,0) — far from every authored column).
+        player=world.Entity("@", (255, 255, 255), world.Position(0, 0),
+                            "Player", owned=True),
+        npc_credit={},
         log=MessageLog(capacity=40),
     )
     for key, value in extra.items():

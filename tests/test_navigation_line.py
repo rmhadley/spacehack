@@ -1048,7 +1048,8 @@ _NORTH_CELL, _SOUTH_CELL = (74, 23), (134, 116)
 
 
 def _pin_throttle(monkeypatch, probability=0.0):
-    """Freeze the flight throttle: 0.0 = every flight steps."""
+    """Legacy no-op for flight stepping (deterministic since doc 44);
+    kept for the spawn/target rolls some watch tests still freeze."""
     from src.spacehack import engine as engine_module
     monkeypatch.setattr(
         engine_module, "RNG",
@@ -1373,3 +1374,50 @@ def test_load_game_migrates_before_both_consumers(monkeypatch):
 
     assert loaded == ["luyten_star:militia_blockade:150:25:t3"]
     assert seen["map"] == seen["ctx"] == ["luyten_star:militia_blockade:150:25:t3"]
+
+
+# ---------------------------------------------------------------------------
+# Credited watch flights (doc 44 phase 2): pickets fly at their own speed
+# ---------------------------------------------------------------------------
+
+def test_flight_cadence_picket_nine_vs_player_ten(line_system):
+    """A picket (cruiser hull, map speed 9) vs a speed-10 player
+    banks 0.9 tiles/pass: one cell after two passes, the fraction
+    carried exactly — deterministic, no throttle."""
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)  # the base-stamped relief gets orders
+
+    _key = "luyten_star:militia_blockade:150:7:t4"
+    _e = _by_key(game_map)[_key]
+    assert ctx.npc_targets[_key] == (150, 7)
+
+    _start = (_e.pos.x, _e.pos.y)
+    navigation_line._advance_flight(ctx, _e, _key, (150, 7), (150, 7), 10)
+    _one = (_e.pos.x, _e.pos.y)
+    assert _one == _start, "0.9 tiles: no move on the first pass"
+    assert ctx.npc_credit[_key] == pytest.approx(0.9)
+
+    navigation_line._advance_flight(ctx, _e, _key, (150, 7), (150, 7), 10)
+    _moved = abs(_e.pos.x - _one[0]) + abs(_e.pos.y - _one[1])
+    assert _moved == 1, "1.8 tiles: exactly one cell"
+    assert ctx.npc_credit[_key] == pytest.approx(0.8), "the carry is exact"
+
+
+def test_flight_arrival_clears_credit_with_the_target(line_system, monkeypatch):
+    _pin_throttle(monkeypatch)
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 29, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)  # boundary: the thin four fly home
+    _key = "luyten_star:militia_blockade:150:25:t3"
+    _e = _by_key(game_map)[_key]
+    ctx.npc_credit[_key] = 0.5
+    _e.pos = world.Position(*_NORTH_CELL)  # one cell from landing
+
+    navigation_line.step_watch(ctx)
+
+    assert _e not in game_map.entities, "landed: despawned"
+    assert _key not in ctx.npc_targets
+    assert _key not in ctx.npc_credit, "pop parity — no orphaned credit"

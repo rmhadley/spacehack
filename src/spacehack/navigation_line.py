@@ -41,8 +41,10 @@ from enum import Enum, auto
 
 from . import identity
 from . import message_log as _ml
+from . import npc_movement
 from . import solar_system as solar_system_module
 from . import world
+from .data.npc_ships import find_npc_ship as _find_picket_spec, map_speed
 from .xp import has_trait
 
 MANIFEST_TRAIT = "blockade_manifest"
@@ -358,7 +360,10 @@ def step_watch(ctx) -> None:
     _due, _boundary = _due_state(total, column, tenure)
     if _due:
         _run_due(ctx, system, column, total, tenure, _boundary)
-    _step_flights(ctx, system, column, total, tenure)
+    _step_flights(
+        ctx, system, column, total, tenure,
+        npc_movement.player_moves_per_day(ctx),
+    )
 
 
 def _due_state(total, column, tenure) -> tuple[bool, bool]:
@@ -498,10 +503,11 @@ def _watch_entity_key(entity):
     return parse_tenure_key(_key) if _key else None
 
 
-def _step_flights(ctx, system, column, total, tenure) -> None:
-    """Step every targeted flight (80% throttle, ``combat_locked``
-    skipped); a targetless relief standing on a base dock cell gets
-    its station orders (the build's base stamps are awaiting them)."""
+def _step_flights(ctx, system, column, total, tenure, player_speed) -> None:
+    """Step every targeted flight at the picket's OWN hull speed
+    (doc 44 credit, deterministic; ``combat_locked`` skipped); a
+    targetless relief standing on a base dock cell gets its station
+    orders (the build's base stamps are awaiting them)."""
     _base_cells = {
         station_dock_cell(_spec) for _spec in _bases_by_id(system).values()
     }
@@ -520,7 +526,9 @@ def _step_flights(ctx, system, column, total, tenure) -> None:
             _order_base_relief(ctx, column, _entity, _key, _key_tenure,
                                _station, total, tenure, _base_cells)
         else:
-            _advance_flight(ctx, _entity, _key, _target, (_key_x, _key_y))
+            _advance_flight(
+                ctx, _entity, _key, _target, (_key_x, _key_y), player_speed,
+            )
 
 
 def _order_base_relief(ctx, column, entity, key, key_tenure, station,
@@ -538,35 +546,58 @@ def _order_base_relief(ctx, column, entity, key, key_tenure, station,
     _assign_flight(ctx, key, entity, (column.x, station.y))
 
 
-def _advance_flight(ctx, entity, key, target, station_cell) -> None:
-    """One flight step along the cached path — the same mechanics as
-    the patrol stepper's single-member case (80% throttle, direct
-    step or slip, path head consumed only on a direct step)."""
-    from . import engine
-    if engine.RNG.random() >= 0.8:
-        return
+def _advance_flight(ctx, entity, key, target, station_cell,
+                    player_speed) -> None:
+    """One pass of credited flight along the cached path (doc 44:
+    the picket flies at its OWN hull speed — deterministic, the
+    kernel's clamp parks it on a cell that would trigger an
+    encounter). Pathless flights compute their A* once; unreachable
+    targets drop the flight (stands fast)."""
     _tx, _ty = target
-    if max(abs(entity.pos.x - _tx), abs(entity.pos.y - _ty)) <= 1:
+    if _within_a_cell(entity, _tx, _ty):
         _arrive(ctx, entity, key, target, station_cell)
         return
-    _path = ctx.npc_paths.get(key)
-    if not _path:
+    if not ctx.npc_paths.get(key):
+        # falsy, not None: an empty stored path (assign-time A*
+        # failure) recomputes too — a ghost target must never pin
+        # a picket outside every other lifecycle check.
         ctx.npc_paths[key] = world.find_path(
             (entity.pos.x, entity.pos.y), {(_tx, _ty)}, ctx.game_map,
             exclude_entity=entity,
         ) or []
-        _path = ctx.npc_paths[key]
-        if not _path:
-            ctx.npc_targets.pop(key, None)  # unreachable: stands fast
-            ctx.npc_paths.pop(key, None)
+        if not ctx.npc_paths[key]:
+            _drop_flight(ctx, key)  # unreachable: stands fast
             return
-    _next = _path[0]
-    _dx, _dy = _next[0] - entity.pos.x, _next[1] - entity.pos.y
-    if abs(_dx) > 1 or abs(_dy) > 1:
-        ctx.npc_paths.pop(key, None)  # stale: recompute next step
-        return
-    if world.try_step_with_slip(entity, ctx.game_map, _dx, _dy):
-        ctx.npc_paths[key].pop(0)
+    try:
+        _spec = _find_picket_spec(entity.npc_ship_id)
+        _speed, _radius = map_speed(_spec), _spec.detect_radius
+    except KeyError:
+        _speed, _radius = 1, 0
+    _credit, _outcome = npc_movement.spend_credit(
+        ctx, ctx.game_map, entity=entity, key=key,
+        credit=ctx.npc_credit.get(key, 0.0)
+        + npc_movement.credit_rate(_speed, player_speed),
+        player_pos=ctx.player.pos, radius=_radius,
+    )
+    if _outcome in ("moving", "blocked", "clamped"):
+        npc_movement.settle(ctx, key, _credit)
+    elif _within_a_cell(entity, _tx, _ty):
+        _arrive(ctx, entity, key, target, station_cell)
+    else:
+        npc_movement.settle(ctx, key, _credit)
+
+
+def _within_a_cell(entity, x: int, y: int) -> bool:
+    """Arrival proximity: within a cell of the target (a slip aside
+    off an occupied station still counts as on post)."""
+    return max(abs(entity.pos.x - x), abs(entity.pos.y - y)) <= 1
+
+
+def _drop_flight(ctx, key) -> None:
+    """Forget one flight entirely — target, path, and credit."""
+    ctx.npc_targets.pop(key, None)
+    ctx.npc_paths.pop(key, None)
+    ctx.npc_credit.pop(key, None)
 
 
 def _arrive(ctx, entity, key, target, station_cell) -> None:
@@ -574,8 +605,7 @@ def _arrive(ctx, entity, key, target, station_cell) -> None:
     station target parks the picket — early arrivals HOLD their post
     (a slip aside off an occupied station counts); a base target
     lands it, despawned SILENTLY."""
-    ctx.npc_targets.pop(key, None)
-    ctx.npc_paths.pop(key, None)
+    _drop_flight(ctx, key)
     if tuple(target) != tuple(station_cell):
         try:
             ctx.game_map.entities.remove(entity)

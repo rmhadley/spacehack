@@ -16,8 +16,9 @@ from . import engine as _engine
 from . import main_quest as main_quest_module
 from . import message_log as _ml
 from . import solar_system as _solar_module
+from . import npc_movement
 from . import world
-from .data.npc_ships import find_npc_ship as _find_npc_ship
+from .data.npc_ships import find_npc_ship as _find_npc_ship, map_speed
 from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
 
 
@@ -512,9 +513,11 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
         return
 
     _pirates = _pirate_positions(game_map)
+    _player_speed = npc_movement.player_moves_per_day(ctx)
     for _sid, _members in _squad_groups(game_map).items():
         _move_one_squad(
             ctx, game_map, _system, _goals, _sid, _members, _pirates,
+            _player_speed,
         )
 
 
@@ -640,7 +643,8 @@ def _tick_consortium_squads(ctx, game_map, system) -> None:
         )
 
 
-def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates) -> None:
+def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates,
+                    player_speed) -> None:
     """One squad's tick: flee or refresh target, maybe despawn,
     store path, then step (aggro squads chase the player)."""
     _faction = _faction_of_entity(members[0])
@@ -672,7 +676,7 @@ def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates) -> None
 
     if _target is not None:
         _store_target_path(ctx, game_map, sid, _leader, _target, _aggro)
-    _step_squad(ctx, game_map, sid, members, _aggro)
+    _step_squad(ctx, game_map, sid, members, _aggro, player_speed)
 
 
 def _squad_aggro(ctx, system, leader) -> bool:
@@ -748,6 +752,7 @@ def _despawn_merchant(ctx, game_map, system, leader, members, target_goal) -> No
     _sid = leader.procedural_squad_id
     ctx.npc_targets.pop(_sid, None)
     ctx.npc_paths.pop(_sid, None)
+    ctx.npc_credit.pop(_sid, None)
     _sys_id = getattr(system, 'id', '')
     _leader_npc = getattr(leader, 'npc_ship_id', '')
     _positions = {(m.pos.x, m.pos.y) for m in members}
@@ -780,13 +785,13 @@ def _store_target_path(ctx, game_map, sid, leader, target, aggro) -> None:
         ) or []
 
 
-def _step_squad(ctx, game_map, sid, members, aggro) -> None:
-    """The squad's movement for this tick (80% chance): follow the
-    stored path, drift when aggro has no path, keep cohesion."""
+def _step_squad(ctx, game_map, sid, members, aggro, player_speed) -> None:
+    """The squad's credited movement for this pass (doc 44): it
+    follows the stored path at its OWN hull speed — deterministic,
+    no throttle — sub-stepping one cell per whole tile of credit
+    and parking on a cell that would trigger an encounter. Aggro
+    squads with no path drift (the uncredited 1-tile fallback)."""
     _leader = members[0]
-    _lx, _ly = _leader.pos.x, _leader.pos.y
-    if _engine.RNG.random() >= 0.8:
-        return
     _path = ctx.npc_paths.get(sid)
     if (not _path and aggro and ctx.npc_targets.get(sid) is not None):
         _drift_leader_toward(ctx, game_map, _leader, ctx.npc_targets[sid])
@@ -794,13 +799,41 @@ def _step_squad(ctx, game_map, sid, members, aggro) -> None:
     if not _path:
         ctx.npc_targets.pop(sid, None)
         ctx.npc_paths.pop(sid, None)
+        ctx.npc_credit.pop(sid, None)
         return
+    _spec = _spec_of_entity(_leader)
+    _radius = _spec.detect_radius if _spec is not None else 0
+    _rate = npc_movement.credit_rate(
+        map_speed(_spec) if _spec is not None else 1, player_speed,
+    )
+    _credit = ctx.npc_credit.get(sid, 0.0) + _rate
+    while _credit >= 1.0 and ctx.npc_paths.get(sid):
+        _next = ctx.npc_paths[sid][0]
+        _clamped = npc_movement.enter_trigger(_next, ctx.player.pos, _radius)
+        if not _step_cell_with_squad(ctx, game_map, sid, members):
+            break  # blocked or stale: the credit stays for the retry
+        _credit -= 1.0
+        if _clamped:
+            break  # parked ON the trigger cell; the next pass fires
+    npc_movement.settle(ctx, sid, _credit)
+
+
+def _step_cell_with_squad(ctx, game_map, sid, members) -> bool:
+    """One cell of squad path-following: leader + members step
+    (slip allowed), the path head is consumed only on the leader's
+    DIRECT step, stragglers regroup. False when the path went stale
+    (popped for recompute) or the cell is blocked — both keep the
+    path/credit for a retry next pass."""
+    _leader = members[0]
+    _path = ctx.npc_paths.get(sid) or []
+    if not _path:
+        return False
     _next = _path[0]
-    _dx = _next[0] - _lx
-    _dy = _next[1] - _ly
+    _dx = _next[0] - _leader.pos.x
+    _dy = _next[1] - _leader.pos.y
     if abs(_dx) > 1 or abs(_dy) > 1:
-        ctx.npc_paths.pop(sid, None)
-        return
+        ctx.npc_paths.pop(sid, None)  # stale: recompute next pass
+        return False
     _leader_moved = False
     _start = {id(_m): _m.pos for _m in members}
     for _m in members:
@@ -810,10 +843,11 @@ def _step_squad(ctx, game_map, sid, members, aggro) -> None:
     if _leader_moved:
         ctx.npc_paths[sid].pop(0)
     # On collision the path is kept so the leader retries the same
-    # step next tick — a temporarily occupied cell doesn't invalidate
+    # step next pass — a temporarily occupied cell doesn't invalidate
     # the A* result.
     if len(members) > 1:
         _regroup_stragglers(game_map, members, _start)
+    return _leader_moved
 
 
 def _drift_leader_toward(ctx, game_map, leader, target) -> None:

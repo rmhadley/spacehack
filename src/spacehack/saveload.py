@@ -374,6 +374,10 @@ def save_game(
     _data["procedural_mids"] = _synced_mids
     _data["npc_targets"] = _synced_targets
     _data["npc_paths"] = _synced_paths
+    from .npc_movement import pick_synced_credits
+    _data["npc_credit"] = pick_synced_credits(
+        getattr(ctx, "npc_credit", {}), _synced_mids,
+    )
     _data["current_mode"] = mode
     _data["current_city_id"] = city_id
     _data["current_system_id"] = system_id
@@ -714,6 +718,7 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     ctx.procedural_spawns = parsed.proc_spawns
     ctx.npc_targets = parsed.npc_targets
     ctx.npc_paths = parsed.npc_paths
+    ctx.npc_credit = dict(data.get("npc_credit", {}) or {})
     ctx.current_city_id = rebuilt.city_id
 
 

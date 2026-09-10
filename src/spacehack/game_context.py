@@ -266,6 +266,10 @@ class GameContext:
     procedural_spawns: dict[str, list[ProceduralSpawn]] = dataclasses.field(default_factory=dict)
     npc_targets: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
     npc_paths: dict[str, list[tuple[int, int]]] = dataclasses.field(default_factory=dict)
+    # Movement credit per squad (doc 44): tiles accrued at the mover's
+    # own hull speed. Persists exactly what the path sync persists
+    # (current-system patrol mids); watch spawn keys default 0.0.
+    npc_credit: dict[str, float] = dataclasses.field(default_factory=dict)
     economy_state: dict[str, dict[str, int]] = dataclasses.field(default_factory=dict)
     # economy_state[planet_id][good_id] = current_stock; seeded on first visit
     faction_reputation: dict[str, int] = dataclasses.field(default_factory=dict)

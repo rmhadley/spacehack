@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+import pytest
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -14,7 +15,8 @@ from src.spacehack import npc_ships, world
 
 
 class _RNGStub:
-    """Forces the 80% move gate to always pass; deterministic picks."""
+    """Deterministic picks for target/spawn rolls (stepping itself is
+    throttle-free since doc 44)."""
 
     def random(self) -> float:
         return 0.0
@@ -33,6 +35,7 @@ def _ctx_with(player_pos):
         procedural_spawns={"sol": []},
         npc_targets={},
         npc_paths={},
+        npc_credit={},
         npc_flash_events=[],
     )
 
@@ -321,3 +324,76 @@ def test_load_gate_reads_through_the_resolver():
     assert by_id["derelict_scout"].procedural_squad_id == "", (
         "the stationary gate still holds through the resolver"
     )
+
+
+def test_step_squad_spends_credit_deterministically(monkeypatch):
+    """Doc 44: a squad moves at its OWN hull speed — a scout (14)
+    vs a speed-6 player banks 2.33 tiles/pass: two cells walked,
+    the fraction carried — and NO RNG is consumed by stepping (the
+    80% throttle is gone; the stub's random() would raise)."""
+    class _NoRandom:
+        def random(self):
+            raise AssertionError("stepping is deterministic — no RNG")
+
+    game_map = world.GameMap(20, 3, [
+        [world.DUNGEON_FLOOR for _ in range(20)] for _ in range(3)
+    ], [])
+    leader = world.Entity("p", (255, 80, 80), world.Position(10, 1),
+                          npc_ship_id="pirate_scout")
+    ctx = _ctx_with(world.Position(0, 0))
+    ctx.npc_targets["squad"] = (14, 1)
+    ctx.npc_paths["squad"] = [(11, 1), (12, 1), (13, 1), (14, 1)]
+    monkeypatch.setattr(npc_ships._engine, "RNG", _NoRandom())
+
+    npc_ships._step_squad(ctx, game_map, "squad", [leader], False, 6)
+
+    assert leader.pos == world.Position(12, 1), "2.33 tiles: two cells"
+    assert ctx.npc_credit["squad"] == pytest.approx(14 / 6 - 2)
+    assert ctx.npc_paths["squad"] == [(13, 1), (14, 1)]
+
+
+def test_step_squad_pops_credit_with_a_dead_path():
+    """A pathless, targetless squad forgets its credit with the
+    path (pop parity — no orphaned keys)."""
+    leader = world.Entity("p", (255, 80, 80), world.Position(5, 5),
+                          npc_ship_id="pirate_scout")
+    ctx = _ctx_with(world.Position(0, 0))
+    ctx.npc_credit["squad"] = 0.5
+
+    npc_ships._step_squad(ctx, world.GameMap(10, 10, [
+        [world.DUNGEON_FLOOR for _ in range(10)] for _ in range(10)
+    ], []), "squad", [leader], False, 10)
+
+    assert "squad" not in ctx.npc_targets
+    assert "squad" not in ctx.npc_paths
+    assert "squad" not in ctx.npc_credit
+
+
+def test_despawn_merchant_pops_credit_with_the_flight():
+    """Pop parity (doc 44, REVIEW round): landing at a body forgets
+    the merchant's credit with its target and path — no orphaned
+    keys riding onto the next same-id spawn."""
+    leader = world.Entity("m", (120, 200, 120), world.Position(9, 9),
+                          npc_ship_id="merchant_hauler",
+                          procedural_squad_id="m1")
+    game_map = world.GameMap(12, 12, [
+        [world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)
+    ], [leader])
+    ctx = _ctx_with(world.Position(0, 0))
+    ctx.procedural_spawns = {"sol": [
+        SimpleNamespace(npc_id="merchant_hauler", pos=world.Position(9, 9),
+                        squad_id="m1"),
+    ]}
+    ctx.npc_targets["m1"] = (10, 10)
+    ctx.npc_paths["m1"] = [(10, 10)]
+    ctx.npc_credit["m1"] = 0.5
+
+    npc_ships._despawn_merchant(
+        ctx, game_map, SimpleNamespace(id="sol"), leader, [leader],
+        (10, 10, "gate", "Sol Gate"),
+    )
+
+    assert "m1" not in ctx.npc_targets
+    assert "m1" not in ctx.npc_paths
+    assert "m1" not in ctx.npc_credit
+    assert leader not in game_map.entities

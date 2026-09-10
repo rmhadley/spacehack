@@ -1307,3 +1307,39 @@ class TestCityInteriorSaveMigration:
         )
         # The exterior city is attached as the exit parent.
         assert getattr(fresh, "city_parent_map", None) is not None
+
+
+def test_npc_credit_round_trips_with_the_sync_population(monkeypatch, tmp_path):
+    """Doc 44: movement credit persists EXACTLY what the path sync
+    persists — a current-system patrol mid round-trips; a watch
+    spawn key never does (flights are session-scoped by ruling)."""
+    monkeypatch.setattr(
+        "src.spacehack.saveload._autosave_path",
+        lambda: tmp_path / "autosave.json",
+    )
+    from src.spacehack.engine import RNG
+    RNG.seed(42)
+    from src.spacehack.game_context import ProceduralSpawn
+
+    ctx = _build_test_ctx()
+    ctx.game_map.entities.append(world.Entity(
+        "p", (255, 80, 80), Position(3, 3),
+        npc_ship_id="pirate_scout", procedural_squad_id="m1",
+    ))
+    ctx.procedural_spawns = {"sol": [
+        ProceduralSpawn(npc_id="pirate_scout", pos=Position(3, 3),
+                        squad_id="m1"),
+    ]}
+    ctx.npc_targets = {"m1": (5, 5)}
+    ctx.npc_paths = {"m1": [(4, 4), (5, 5)]}
+    ctx.npc_credit = {
+        "m1": 0.5,
+        "luyten_star:militia_blockade:150:7:t4": 0.9,
+    }
+
+    save_game(ctx, mode="city", city_id="earth", system_id="sol")
+    loaded = load_game(ctx.context)
+
+    assert loaded.npc_credit == {"m1": 0.5}, (
+        "the patrol mid's credit survives; the watch key drops"
+    )
