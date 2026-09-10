@@ -33,12 +33,19 @@ There are two tiers:
 | `disclosure.<key>.<field>` | Orbit archive-disclosure choices (file `06_end.json`) |
 | `good.<id>.name` | Trade-good display name (inventory, trade, loot, quest log) |
 | `good.<id>.description` | Trade-good tooltip blurb (file `07_goods.json`) |
+| `rumor.<id>.text` | Rumor text — the readout modal and the Q-log Rumors pane (file `08_rumors.json`) |
+| `rumor.<id>.topic` | Short askable label — hearing rows and Ask Around topics (file `08_rumors.json`) |
+| `rumor.<id>.witness.<npc>` | Per-source delivery override, conversation flavor only; the ledger keeps `rumor.<id>.text` (file `08_rumors.json`) |
 
 ## Rules
 
 - `step.<id>.title` and `step.<id>.description` are required — the game
   refuses to start without them. Deleting any other `step.*` key removes
   that line/variant; there is no fallback prose to surface.
+- `rumor.*` keys are single-source like `step.*` — every key the lore
+  catalog needs must exist in `08_rumors.json` (and only there);
+  `tests/test_rumor_catalog.py` fails loudly on a missing or
+  misplaced key.
 - For `npc.*` / `good.*` / `runtime.*` / `disclosure.*`, **delete a key**
   to fall back to the shipped default text.
 - `{placeholders}` like `{good}`, `{faction}`, `{max}` are filled in by

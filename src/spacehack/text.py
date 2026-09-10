@@ -17,6 +17,8 @@ Keys are stable paths into the game data:
     npc.<id>.flavor_text
     runtime.<name>            (overlay text: transmissions, log lines, popups)
     disclosure.<key>.<field>  (orbit archive-disclosure choices)
+    rumor.<id>.text|topic|witness.<npc>   (lore prose — single-source
+                              like step.*; enforced by the data tests)
 
 Sync the JSON key set against the code with
 the JSON files are the single authoring surface — orphaned keys are

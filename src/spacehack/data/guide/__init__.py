@@ -609,4 +609,19 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "area around them."
         ),
     ),
+    GuideSection(
+        title="Rumors",
+        body=(
+            "Some people know more than small talk. When someone can open a "
+            "subject you haven't heard about, their talk menu shows an Ask "
+            "row - take it and hear them out. Once you've heard a subject, "
+            "Ask around appears whenever the person you're talking to can "
+            "take it further."
+            "\n\n"
+            "Everything you hear is kept word for word in the quest log: "
+            "press Q, then TAB, to read your rumors. Who knows what is yours "
+            "to work out - and who will talk to you at all can depend on the "
+            "face you present."
+        ),
+    ),
 )
