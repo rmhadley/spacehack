@@ -162,12 +162,12 @@ binds its build.
 - [x] `ctx.known_rumors` + save/load round-trip
 - [x] Pure topic resolver (heard ∩ contact's sources, floors
       applied)
-- [ ] Hearing on the talk host: source NPCs list rumor rows; taking
+- [x] Hearing on the talk host: source NPCs list rumor rows; taking
       one records verbatim + adds the keyring
-- [ ] The shared Ask Around sub-menu (city/bar host)
-- [ ] The verbatim ledger pane in the Q log
+- [x] The shared Ask Around sub-menu (city/bar host)
+- [x] The verbatim ledger pane in the Q log
 - [x] Three authored chains across bar + city sources
-- [ ] Guide: new Rumors section (ledger + ask-around how-to only)
+- [x] Guide: new Rumors section (ledger + ask-around how-to only)
 - [ ] Playtest checkpoint (checklist in the brief)
 
   Implementation brief (1) — APPROVED (refine session 2026-09-10;
