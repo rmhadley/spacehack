@@ -10,6 +10,43 @@ import pytest
 from src.spacehack import game_context, pygame_engine, pygame_runtime, pygame_ui, saveload
 
 
+class FakeWindow:
+    """The set_mode-backed SDL window: records fullscreen/size state calls."""
+
+    @classmethod
+    def from_display_module(cls):
+        return cls()
+
+    def __init__(self):
+        self.state_calls = []
+        self._size = (0, 0)
+        self._resizable = False
+
+    @property
+    def size(self):
+        return self._size
+
+    @size.setter
+    def size(self, value):
+        self._size = value
+        self.state_calls.append(("size", value))
+
+    @property
+    def resizable(self):
+        return self._resizable
+
+    @resizable.setter
+    def resizable(self, value):
+        self._resizable = value
+        self.state_calls.append(("resizable", value))
+
+    def set_fullscreen(self, *, desktop):
+        self.state_calls.append(("fullscreen", desktop))
+
+    def set_windowed(self):
+        self.state_calls.append(("windowed",))
+
+
 def test_default_config_matches_the_existing_logical_grid():
     config = pygame_engine.PygameEngineConfig()
 
@@ -454,6 +491,7 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
         font = FakeFont()
         key = FakeKey()
         display = FakeDisplay()
+        Window = FakeWindow
         Surface = FakeSurface
 
         @staticmethod
@@ -487,7 +525,7 @@ def test_pygame_engine_uses_injected_tileset(monkeypatch):
 
 
 def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatch):
-    calls = []
+    set_mode_calls = []
 
     class FakeSurface:
         def __init__(self, *_args):
@@ -502,7 +540,7 @@ def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatc
 
     class FakeDisplay:
         def set_mode(self, size, flags, **_kwargs):
-            calls.append((size, flags))
+            set_mode_calls.append((size, flags))
             return SimpleNamespace(get_size=lambda: size)
 
         def set_caption(self, *_args):
@@ -523,6 +561,7 @@ def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatc
         font = FakeFont()
         key = FakeKey()
         display = FakeDisplay()
+        Window = FakeWindow
         Surface = FakeSurface
 
         @staticmethod
@@ -551,9 +590,67 @@ def test_engine_applies_fullscreen_without_rebuilding_logical_surface(monkeypatc
         pygame_engine.DisplayConfig(fullscreen=True, window_width=1280, window_height=768),
     )
 
-    assert calls == [((1600, 960), 1), ((0, 0), 2)]
+    assert set_mode_calls == [((1600, 960), 1)]
+    assert engine._sdl_window.state_calls == [("fullscreen", True)]
     assert engine.config.fullscreen is True
     assert engine.logical_surface is logical_surface
+
+    engine.apply_display_config(
+        pygame_engine.DisplayConfig(fullscreen=False, window_width=1280, window_height=768),
+    )
+
+    assert set_mode_calls == [((1600, 960), 1)]
+    assert engine._sdl_window.state_calls == [
+        ("fullscreen", True), ("windowed",), ("size", (1280, 768)), ("resizable", True),
+    ]
+    assert engine.logical_surface is logical_surface
+
+
+def test_real_pygame_display_config_survives_fullscreen_round_trip(monkeypatch):
+    pygame, runtime = _dummy_runtime(monkeypatch)
+
+    try:
+        runtime.__enter__()
+        windowed_surface = runtime.engine.window
+        desktop_size = pygame.display.get_desktop_sizes()[0]
+
+        runtime.apply_display_config(
+            pygame_engine.DisplayConfig(fullscreen=True, window_width=1600, window_height=960),
+        )
+        assert runtime.engine.window is windowed_surface
+        assert runtime.engine.window.get_size() == desktop_size
+
+        runtime.apply_display_config(
+            pygame_engine.DisplayConfig(fullscreen=False, window_width=1600, window_height=960),
+        )
+        assert runtime.engine.window is windowed_surface
+        assert runtime.engine.window.get_size() == (1600, 960)
+        runtime.engine.present()
+    finally:
+        runtime.close()
+        pygame.quit()
+
+
+def test_real_pygame_fullscreen_start_returns_to_resizable_window(monkeypatch):
+    pygame, runtime = _dummy_runtime(
+        monkeypatch,
+        pygame_engine.DisplayConfig(fullscreen=True, window_width=1600, window_height=960),
+    )
+
+    try:
+        runtime.__enter__()
+        start_surface = runtime.engine.window
+        assert runtime.engine.window.get_size() == pygame.display.get_desktop_sizes()[0]
+
+        runtime.apply_display_config(
+            pygame_engine.DisplayConfig(fullscreen=False, window_width=1600, window_height=960),
+        )
+        assert runtime.engine.window is start_surface
+        assert runtime.engine.window.get_size() == (1600, 960)
+        assert runtime.engine._sdl_window.resizable is True
+    finally:
+        runtime.close()
+        pygame.quit()
 
 
 def test_game_runtime_always_uses_shared_pygame(monkeypatch):
@@ -574,11 +671,17 @@ def test_game_runtime_always_uses_shared_pygame(monkeypatch):
     runtime.__exit__(None, None, None)
 
 
-def test_real_pygame_runtime_opens_one_shared_engine_when_available(monkeypatch):
+def _dummy_runtime(monkeypatch, display_config=None):
+    """Open a PygameRuntime under the dummy video driver for display tests."""
     monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
     pygame = pytest.importorskip("pygame")
-    tileset = __import__("src.spacehack.engine", fromlist=["load_tileset"]).load_tileset()
-    runtime = pygame_runtime.PygameRuntime(tileset)
+    from src.spacehack.engine import load_tileset
+
+    return pygame, pygame_runtime.PygameRuntime(load_tileset(), display_config)
+
+
+def test_real_pygame_runtime_opens_one_shared_engine_when_available(monkeypatch):
+    pygame, runtime = _dummy_runtime(monkeypatch)
 
     try:
         context = runtime.__enter__()

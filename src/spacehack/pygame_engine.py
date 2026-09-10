@@ -7,6 +7,7 @@ coordinates. The presentation engine owns the input event shape and pump.
 """
 from __future__ import annotations
 
+import warnings
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from typing import Any
@@ -344,30 +345,42 @@ class PygameEngine:
         self.config = config or PygameEngineConfig()
         self.tileset = tileset
         self.window: Any | None = None
+        self._sdl_window: Any | None = None
         self.logical_surface: Any | None = None
         self.viewport = Viewport(0, 0, self.config.window_width, self.config.window_height)
         self.glyphs: GlyphAtlas | None = None
 
     def _display_flags(self, config: PygameEngineConfig) -> int:
-        """Return Pygame flags for the requested window mode."""
-        if config.fullscreen:
-            return getattr(self.pygame, "FULLSCREEN", 0)
+        """Return the window flags for the one windowed ``set_mode`` call."""
         return getattr(self.pygame, "RESIZABLE", 0) if config.resizable else 0
 
     def _display_size(self, config: PygameEngineConfig) -> tuple[int, int]:
-        """Return the physical size requested by the display mode."""
-        return (0, 0) if config.fullscreen else (
-            config.window_width,
-            config.window_height,
-        )
+        """Return the windowed size the one window is created at."""
+        return (config.window_width, config.window_height)
 
     def _set_display_mode(self, config: PygameEngineConfig) -> Any:
-        """Create the physical window for ``config`` without touching the canvas."""
+        """Create the physical window for ``config`` without touching the canvas.
+
+        The engine calls this exactly once, windowed: display changes mutate
+        the existing window's state because re-calling ``set_mode`` destroys
+        and re-creates the window, which segfaults under cocoa (macOS) with
+        vsync, and a fullscreen-born window's display surface does not track
+        later windowed resizes.
+        """
         return self.pygame.display.set_mode(
             self._display_size(config),
             self._display_flags(config),
             vsync=int(config.vsync),
         )
+
+    def _grab_window(self) -> Any:
+        """Return the SDL window behind the ``set_mode`` display surface."""
+        with warnings.catch_warnings():
+            # Deprecated in pygame-ce 2.4 in favour of constructing Window
+            # directly, but still the only accessor for a set_mode-created
+            # window, which display changes must mutate instead of re-creating.
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return self.pygame.Window.from_display_module()
 
     def open(self) -> "PygameEngine":
         """Create the Pygame window and fixed logical canvas."""
@@ -377,7 +390,11 @@ class PygameEngine:
             key_module.set_repeat(KEY_REPEAT_DELAY_MS, KEY_REPEAT_INTERVAL_MS)
         self.pygame.font.init()
         self.window = self._set_display_mode(self.config)
+        self._sdl_window = self._grab_window()
         self.pygame.display.set_caption(self.config.title)
+        if self.config.fullscreen:
+            # Enter fullscreen through the window API, never at set_mode time.
+            self._sdl_window.set_fullscreen(desktop=True)
         self.logical_surface = self.pygame.Surface(
             logical_size(self.config), self.pygame.SRCALPHA,
         )
@@ -403,8 +420,12 @@ class PygameEngine:
         ).normalized()
 
     def apply_display_config(self, display_config: DisplayConfig) -> None:
-        """Apply a display preference while preserving the logical surface."""
-        if self.window is None:
+        """Apply a display preference while preserving the logical surface.
+
+        Mutates the existing window's fullscreen state and size; the window is
+        never re-created (see ``_set_display_mode``).
+        """
+        if self.window is None or self._sdl_window is None:
             raise RuntimeError("PygameEngine.open() must be called first")
         _display = display_config.normalized()
         _new_config = replace(
@@ -413,7 +434,17 @@ class PygameEngine:
             window_height=_display.window_height,
             fullscreen=_display.fullscreen,
         )
-        self.window = self._set_display_mode(_new_config)
+        if _new_config.fullscreen:
+            self._sdl_window.set_fullscreen(desktop=True)
+        else:
+            self._sdl_window.set_windowed()
+            self._sdl_window.size = (
+                _new_config.window_width,
+                _new_config.window_height,
+            )
+            # A fullscreen-born window (saved config) carries no RESIZABLE
+            # flag; restore it whenever we return to windowed presentation.
+            self._sdl_window.resizable = _new_config.resizable
         self.config = _new_config
 
     def events(self) -> tuple[PygameInputEvent, ...]:
