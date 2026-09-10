@@ -955,7 +955,7 @@ def _render_combat_actions(console, hud_x, y, weapon_list, can_board=False) -> i
     # Same rule for BOARD: advertise it only while the target is
     # actually boardable (doc 40 6a).
     if can_board:
-        actions.insert(-1, ("[b]", "Board"))
+        actions.insert(-1, ("[d]", "Board"))
     return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 
@@ -974,7 +974,7 @@ def render_combat_hud(
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
     range_weapon_id: str | None = None,  # weapon id for coloring distance by range
     focus_active: bool = False,          # Focus trait live (single weapon enabled)
-    can_board: bool = False,             # space: current target is boardable ([b] hint)
+    can_board: bool = False,             # space: current target is boardable ([d] hint)
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 

@@ -359,12 +359,12 @@ def test_breakaway_books_nothing(monkeypatch):
     assert _cr.defeated_names == [] and _cr.defeated_bounty_ids == []
 
 
-def test_input_b_maps_to_board_not_the_vim_diagonal():
-    """The action table wins over movement: B boards (the reviewer's
-    blocker — 'b' is a VIM diagonal; the table entry was dead code)."""
+def test_input_d_maps_to_board_not_a_movement_key():
+    """The action table wins: D boards (the original "b" collided with
+    the VIM south-west diagonal and moved instead of boarding)."""
     from src.spacehack.combat._loop import _input_action
 
-    _event = SimpleNamespace(key_name="b")
+    _event = SimpleNamespace(key_name="d")
     assert _input_action(
         _event, rules=SimpleNamespace(try_board=lambda *a: True),
     ) == "BOARD"
@@ -432,17 +432,22 @@ def test_capture_stamps_round_trip_through_the_dungeon_payload():
     assert _restored.cloned is True, "the one-clone stamp survives"
 
 
-def test_ground_combat_keeps_the_b_diagonal():
+def test_ground_combat_keeps_the_b_diagonal_and_a_dead_d():
     """Rules-aware mapping: without a try_board hook (ground), "b"
-    stays the VIM south-west diagonal; space rules get BOARD."""
+    stays the VIM south-west diagonal and "d" is a dead key; space
+    rules map "d" to BOARD."""
     from src.spacehack.combat._loop import _input_action
 
-    _event = SimpleNamespace(key_name="b")
-    assert _input_action(_event) == "MOVE:b", "no rules: plain movement"
-    assert _input_action(_event, rules=SimpleNamespace()) == "MOVE:b", \
-        "rules without try_board: plain movement"
+    assert _input_action(SimpleNamespace(key_name="b")) == "MOVE:b", \
+        "no rules: plain movement"
+    assert _input_action(SimpleNamespace(key_name="b"), rules=SimpleNamespace()) \
+        == "MOVE:b", "rules without try_board: plain movement"
+    assert _input_action(SimpleNamespace(key_name="d")) == "", \
+        "d without the board hook: not movement, no action"
+    assert _input_action(SimpleNamespace(key_name="d"), rules=SimpleNamespace()) \
+        == "", "same dead key under ground-style rules"
     assert _input_action(
-        _event, rules=SimpleNamespace(try_board=lambda *a: True),
+        SimpleNamespace(key_name="d"), rules=SimpleNamespace(try_board=lambda *a: True),
     ) == "BOARD"
 
 

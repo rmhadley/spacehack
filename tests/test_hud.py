@@ -349,7 +349,7 @@ def test_ap_row_shows_pool_with_carry():
 
 
 def test_board_hint_only_when_boardable():
-    """The [b] Board hint renders only while the target is boardable
+    """The [d] Board hint renders only while the target is boardable
     (doc 40 6a) — same conditional rule as the weapon-swap hint."""
     console = FrameBuffer(40, 6)
     hud._render_combat_actions(console, 0, 0, ("a",), can_board=False)
@@ -365,4 +365,4 @@ def test_board_hint_only_when_boardable():
         console.cell(x, y).char
         for y in range(6) for x in range(40)
     )
-    assert "[b]" in _flat and "Board" in _flat
+    assert "[d]" in _flat and "Board" in _flat

@@ -54,9 +54,9 @@ def _input_action(
         return "TARGET"
     if sym_name in {"backslash", "nonusbackslash", "\\"}:
         return "HISTORY"
-    # The action table wins over movement. "b" boards only where the
-    # rules support it (space, doc 40 6a); ground keeps the VIM
-    # south-west diagonal.
+    # The action table wins over movement. "d" docks alongside to
+    # board only where the rules support it (space, doc 40 6a); the
+    # original "b" collided with the VIM south-west diagonal.
     _action = {
         "s": "DEFENSE",
         "w": "WAIT",
@@ -67,7 +67,7 @@ def _input_action(
     }.get(sym_name)
     if _action is not None:
         return _action
-    if sym_name == "b" and getattr(rules, "try_board", None) is not None:
+    if sym_name == "d" and getattr(rules, "try_board", None) is not None:
         return "BOARD"
     if sym_name in _MOVE_KEYS:
         return f"MOVE:{sym_name}"
