@@ -170,9 +170,9 @@ binds its build.
 - [ ] Guide: new Rumors section (ledger + ask-around how-to only)
 - [ ] Playtest checkpoint (checklist in the brief)
 
-  Implementation brief (1) — PROPOSED (refine session 2026-09-10;
+  Implementation brief (1) — APPROVED (refine session 2026-09-10;
   amended per the ADVISE reviewer round, same day — 3 blockers
-  folded):
+  folded; user invoked ``/implement-phase 42.1``):
 
   - **Scope.** Data: `data/lore/__init__.py` — frozen `RumorEntry`
     (id, chain, tier, `requires` tuple of heard ids, text keys,
@@ -274,6 +274,68 @@ binds its build.
        resumes where it left off. New Game: keyring empty.
     8. Guide diff: the new Rumors section quoted (before/after) —
        ledger + ask-around only, no chain telegraphing.
+
+## Pre-implementation audit — phase 1 (2026-09-10)
+
+1. **Existing classes / modules to extend or reuse.**
+   - `npc.py` row machinery: `_npc_pygame_items` builds every row;
+     `QUEST:`/`DELIVER:` prefix parsing in `_map_pygame_npc_result`;
+     handler dispatch in `_resolve_talk_result`; the sell sub-menu
+     (`_run_sell_menu` / `_handle_sell_ids`) is the stays-open-until-
+     ESC loop the Ask Around sub-menu mirrors. Rumor rows ride as
+     `RUMOR:<id>` items + one `ASKAROUND` item — no parallel modal.
+   - Readout idiom: `pygame_story.dismiss` (the `_show_pygame_dismiss`
+     shape) presents heard text; `rumor.py` owns its thin wrapper.
+   - Floors: the shipped `talk_gate` tuple shape `(faction,
+     min_standing, line)` is the gate shape — source floors use
+     `(npc_id, faction | None, min_standing | None, trait | None)`
+     with the same `standing >= min_standing` comparison over
+     `identity.effective_reputation(ctx)` (dark → {} → neutral).
+   - Save/load: per-domain field families (`_identity_fields` /
+     `_progression_fields` + `_restore_*`) — the lore fields join as
+     `_lore_fields` / `_restore_lore_fields`.
+   - Q pane: the capture architecture is authoritative —
+     `menus/_quest_log.render_quest_log` paints, `pygame_quest_log`
+     captures + handles keys; the pane rides both (render grows a
+     `pane` param; `_handle_key` grows TAB; hint strings must keep
+     the `_HINT_PREFIXES` startswith contract).
+   - Catalogs: `data/missions/__init__.py` is the spec-in-`__init__`,
+     rows-in-sibling precedent; `data/lore/` mirrors it. Guide
+     sections are `GuideSection(title, body)` tuples. NPC ids
+     resolve via `data.npcs.find_npc`.
+2. **Duplication hotspots.**
+   - Floor comparison vs `npc._talk_refusal` (same `>=` over the
+     same resolver) — one comparison idiom, reused, not re-derived.
+   - Sub-menu loop vs `_run_sell_menu` — two stays-open loops;
+     extract one `_run_choice_submenu(ctx, *, title, body, items,
+     caption)` in `npc.py` and put both on it.
+   - Rumor text resolution — the readout AND the ledger must both go
+     through `rumor.py`'s resolvers; hosts never call `text.get`
+     with `rumor.*` keys directly.
+3. **DRY strategy.** As above: one gate shape, one extracted
+   sub-menu runner, one text resolver module, `routing` as an
+   explicit pure predicate input (default `routing_all`) so phase 3
+   composes instead of rewrites.
+4. **Ratchet payment (saveload.py at exactly 1000/1000).** The
+   ground save/load family (`_ground_fields`, `_ground_equipment_
+   from_dict`, `_safe_ground_int`, `_parse_equipped_ground_armor`,
+   `_restore_ground_stats`, `_restore_ground_hp`,
+   `_restore_ground_fields`, `_parse_ground_item_stacks`,
+   `_parse_equipped_ground_weapons` — all internal to saveload, no
+   external importers) moves to a cohesive sibling
+   `saveload_ground.py` (the navigation-split precedent);
+   `ground_equipment.py` can't take it (929 lines). saveload then
+   adds the lore twins with real headroom. Refactor commits before
+   the field commit; behavior-preserving.
+5. **Pinned consequence — ledger text.** `ctx.known_rumors` stores
+   rumor ids in heard order; the pane renders each entry's canonical
+   `rumor.<id>.text`. The `witness.<npc_id>` override is
+   conversation-delivery flavor in the readout modal only — the
+   notebook keeps one line per entry, so no per-hearing text twin.
+6. **Pinned consequence — multiple sources.** Tier-1 entries author
+   two sources where the knowledge genuinely circulates (bar + a
+   second teller), exercising the fallback/override paths with live
+   data instead of dead keys.
 
 ### Phase 2 — The favor exchange
 - [ ] Dealer spec (`data/lore/`): values, prices, exclusives
