@@ -371,6 +371,16 @@ def _is_shift_l_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'L')
 
+
+def _is_shift_g_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+G.
+
+    Dev-mode only (``SPACEHACK_DEV``): grants the warrant-license perk
+    (doc 42 playtest) — the captain's thin-month tier is trait-gated
+    and the real grant path is the papers method.
+    """
+    return _is_shift_press(event, 'G')
+
 def _is_shift_k_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+K.
 

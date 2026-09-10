@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_j_press, _is_shift_l_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_j_press, _is_shift_l_press, _is_shift_g_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -332,6 +332,12 @@ def _dev_grant_service_run(state):
     _grant(state.ctx)
 
 
+def _dev_grant_warrant_license(state):
+    """Shift+G: grant the warrant-license perk (doc 42 playtest)."""
+    from .dev_mode import apply_dev_warrant_license as _grant
+    _grant(state.ctx)
+
+
 def _dev_advance_to_boundary(state):
     """Shift+J: advance the clock to the next shift boundary (doc 41)."""
     from .dev_mode import advance_to_shift_boundary as _advance
@@ -347,6 +353,7 @@ _DEV_SHIFT_KEYS = (
     (_is_shift_r_press, _dev_reveal_fog),
     (_is_shift_d_press, _dev_skip_days),
     (_is_shift_l_press, _dev_grant_manifest),
+    (_is_shift_g_press, _dev_grant_warrant_license),
     (_is_shift_k_press, _dev_grant_service_run),
     (_is_shift_j_press, _dev_advance_to_boundary),
 )

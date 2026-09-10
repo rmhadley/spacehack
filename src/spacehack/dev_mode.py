@@ -439,6 +439,12 @@ def apply_dev_service_run(ctx) -> None:
     _apply_dev_line_marker(ctx, SERVICE_TRAIT, "blockade service run")
 
 
+def apply_dev_warrant_license(ctx) -> None:
+    """Shift+G: grant the warrant-license quest perk (doc 42 playtest
+    — the militia captain's thin-month tier is trait-gated). Idempotent."""
+    _apply_dev_line_marker(ctx, "warrant_license", "warrant license")
+
+
 def advance_to_shift_boundary(ctx) -> int:
     """Shift+J: advance the clock to the next shift boundary (doc 41
     phase 2 — Shift+D's 30 days is too coarse to time a watch

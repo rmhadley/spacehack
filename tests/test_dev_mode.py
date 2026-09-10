@@ -484,6 +484,31 @@ def test_apply_dev_line_markers_gated(monkeypatch):
     assert any("service run" in m for m in _logged)
 
 
+def test_warrant_license_grant_gated_and_idempotent(monkeypatch):
+    """Doc 42 playtest: Shift+G grants the trait-gated captain tier's
+    perk only under SPACEHACK_DEV, idempotently."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import apply_dev_warrant_license
+
+    _ctx = SimpleNamespace(player_traits=["warrant_license"],
+                           log=SimpleNamespace(add=lambda m: None))
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    apply_dev_warrant_license(_ctx)
+    assert _ctx.player_traits == ["warrant_license"]
+
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    _logged = []
+    _ctx = SimpleNamespace(
+        player_traits=[],
+        log=SimpleNamespace(add=lambda m: _logged.append(m)),
+    )
+    apply_dev_warrant_license(_ctx)
+    apply_dev_warrant_license(_ctx)
+    assert _ctx.player_traits == ["warrant_license"]
+    assert any("warrant license" in m for m in _logged)
+
+
 def test_advance_to_shift_boundary_gated(monkeypatch):
     """Doc 41 phase 2: without SPACEHACK_DEV the clock stands still;
     with it, Shift+J lands exactly ON the next boundary (strictly
