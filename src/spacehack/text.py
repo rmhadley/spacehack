@@ -20,10 +20,10 @@ Keys are stable paths into the game data:
     rumor.<id>.text|topic|witness.<npc>   (lore prose — single-source
                               like step.*; enforced by the data tests)
 
-Sync the JSON key set against the code with
-the JSON files are the single authoring surface — orphaned keys are
-reported by ``tools/quest_lint.py`` (keeps writer edits, prunes dead
-keys, scaffolds new step titles/descriptions). The
+The JSON files are the single authoring surface; sync the key set
+against the code — orphaned keys are reported by
+``tools/quest_lint.py`` (keeps writer edits, prunes dead keys,
+scaffolds new step titles/descriptions). The
 ``SPACEHACK_TEXT_DIR`` env var overrides the overlay directory (used by
 tests and for pointing at an absolute path).
 """

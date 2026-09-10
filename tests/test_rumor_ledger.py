@@ -120,12 +120,13 @@ def test_quests_keys_untouched():
     assert _outcome == "ABANDONED"
 
 
-def test_rumors_frame_captured_for_font_fitting():
-    ctx = quest_ctx(known_rumors=["thin_month_1"])
-    _frames = pygame_quest_log._frames_for(ctx)
-    assert any(frame.pane == "rumors" for frame in _frames)
-    assert all(
-        frame.pane == "quests"
-        for frame in _frames
-        if frame.pane != "rumors"
+def test_frames_for_splits_panes_for_font_fitting():
+    # The ledger scrolls, so rumors frames constrain font WIDTH only;
+    # quests frames drive both. (REVIEW round 2.)
+    quests, rumors = pygame_quest_log._frames_for(
+        quest_ctx(known_rumors=["thin_month_1"])
     )
+    assert len(quests) == 2  # no missions: (-1,) selections x two confirms
+    assert all(frame.pane == "quests" for frame in quests)
+    assert len(rumors) == 1
+    assert rumors[0].pane == "rumors"

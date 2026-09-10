@@ -142,15 +142,20 @@ def _capture_frame(
     )
 
 
-def _frames_for(ctx: GameContext) -> tuple[QuestFrame, ...]:
-    """Capture every reachable pane/selection/confirmation state."""
+def _frames_for(
+    ctx: GameContext,
+) -> tuple[tuple[QuestFrame, ...], tuple[QuestFrame, ...]]:
+    """ ``(quests frames, rumor frames)`` — every reachable pane/
+    selection/confirmation state. The ledger scrolls, so only the
+    quests pane may drive font-height fitting; both constrain width."""
     count = len(ctx.player_active_missions)
     selections = tuple(range(count)) if count else (-1,)
-    return tuple(
+    quests = tuple(
         _capture_frame(ctx, selected, confirm_abandon, "quests")
         for confirm_abandon in (False, True)
         for selected in selections
-    ) + (_capture_frame(ctx, 0, False, "rumors"),)
+    )
+    return quests, (_capture_frame(ctx, 0, False, "rumors"),)
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -158,11 +163,17 @@ def _font_path(pygame: Any) -> str | None:
     return pygame_ui._font_path(pygame)
 
 
-def _fit_font(pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: int) -> Any:
-    """Choose the largest font that fits captured rows in the canvas."""
+def _fit_font(
+    pygame: Any, frames: tuple[QuestFrame, ...], width: int, height: int,
+    *, extra_width_frames: tuple[QuestFrame, ...] = (),
+) -> Any:
+    """Choose the largest font that fits captured rows in the canvas.
+    ``extra_width_frames`` constrain width only — scrollable panes
+    need no height fit."""
     path = _font_path(pygame)
+    _width_frames = frames + extra_width_frames
     max_text_width = max(
-        (sum(len(span.text) for span in row) for frame in frames for row in frame.rows),
+        (sum(len(span.text) for span in row) for frame in _width_frames for row in frame.rows),
         default=1,
     )
     max_rows = max((len(frame.rows) for frame in frames), default=1)
@@ -192,7 +203,8 @@ def _draw_quest_scrollbar(
         pygame.Rect(track_x, track_y, 6, track_height), border_radius=3,
     )
     thumb_height = max(14, track_height * visible_count // total)
-    thumb_y = track_y + (track_height - thumb_height) * frame.selected // max(1, total - visible_count)
+    _scroll = min(frame.selected, total - visible_count)
+    thumb_y = track_y + (track_height - thumb_height) * _scroll // max(1, total - visible_count)
     pygame.draw.rect(
         screen, pygame_ui.DEFAULT_PALETTE.selected_border,
         pygame.Rect(track_x, thumb_y, 6, thumb_height), border_radius=3,
@@ -308,11 +320,14 @@ def run_shared(
         raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
     pygame = engine.pygame
     screen = engine.logical_surface
-    all_frames = _frames_for(ctx)
-    if not all_frames:
+    quests_frames, rumors_frames = _frames_for(ctx)
+    if not quests_frames:
         raise PygameQuestLogUnavailable("Quest Log has no renderable frames")
     width, height = screen.get_size()
-    font = _fit_font(pygame, all_frames, width, height)
+    font = _fit_font(
+        pygame, quests_frames, width, height,
+        extra_width_frames=rumors_frames,
+    )
     count = len(ctx.player_active_missions)
     selected = selected if count else -1
     confirm = confirm_abandon

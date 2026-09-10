@@ -358,15 +358,21 @@ def _handle_sell_ids(ctx):
 
 def _show_rumor_readout(ctx, npc, text: str) -> None:
     """The heard-text readout — the quest-readout idiom: a modal, not
-    a log line (completions are modals)."""
+    a log line; the guide re-presents it, QUIT exits the game."""
     from .pygame_story import dismiss
 
-    dismiss(
-        ctx.context,
-        title=npc.name.upper(),
-        body=text,
-        caption=f"spacehack - {npc.name}",
-    )
+    while True:
+        _outcome = dismiss(
+            ctx.context,
+            title=npc.name.upper(),
+            body=text,
+            caption=f"spacehack - {npc.name}",
+        )
+        if _outcome == "__GUIDE__":
+            continue
+        if _outcome == "QUIT":
+            raise SystemExit
+        return
 
 
 def _handle_hear_row(ctx, npc, rumor_id: str) -> tuple[TalkOutcome, None]:
