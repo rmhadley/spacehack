@@ -1,0 +1,23 @@
+{
+  "rumor.derelict_line_1.topic": "the derelict line",
+  "rumor.derelict_line_1.text": "Folks think the derelicts drift wherever they died. They don't. Plot a hundred wrecks and two lines come out - old convoy routes. Whatever those convoys were escorting never arrived.",
+  "rumor.derelict_line_1.witness.depot_attendant": "Twenty years I've hauled past those wrecks. The two lines cross somewhere out past the charts. The escorts are still parked where it happened - you could walk a straight ruler across them.",
+  "rumor.derelict_line_2.topic": "the derelict line",
+  "rumor.derelict_line_2.text": "The escorts are the outer ring. Inside them, at the crossing of the two lines, the big hulls sit with their holds still sealed. Salvors who chased those holds stopped logging finds.",
+  "rumor.derelict_line_3.topic": "the derelict line",
+  "rumor.derelict_line_3.text": "Sealed holds sit mid-line at the crossing. The ones worth a trip are the ones nobody has cut open yet, and there are fewer of those every year.",
+  "rumor.dark_berth_1.topic": "the dark berths",
+  "rumor.dark_berth_1.text": "Four ports will berth a hull that doesn't answer: Deadfall, Whisper, Ember, and Wolf 359 b. None of them do it for free - somebody pays for the quiet.",
+  "rumor.dark_berth_1.witness.deadfall_scrubber": "A scrubbed number is half the work. The other half is the berth fee somebody else pays - here they log you as expected. The Wolf doesn't bother. Nobody there logs anything.",
+  "rumor.dark_berth_2.topic": "the dark berths",
+  "rumor.dark_berth_2.text": "The berth fee isn't paid by the ship. Each dark port has a local who settles the port authority monthly - a scrubber here, a fence on Whisper, the tech on Ember. Follow the payouts and the same buyer shows up.",
+  "rumor.dark_berth_3.topic": "the dark berths",
+  "rumor.dark_berth_3.text": "I gut breakers, not ledgers. But every cut-out I install moves through one buyer, and that buyer invoices out of Whisper. Whoever insures the quiet does their books there.",
+  "rumor.thin_month_1.topic": "the thin month",
+  "rumor.thin_month_1.text": "A Luyten drunk swears the blockade isn't the same size year-round. Three months of full watch, then a maintenance month when half the line rotates home at once.",
+  "rumor.thin_month_1.witness.blockade_officer": "Rotation is posted duty, not a secret. Three full watches, then the maintenance month. If you're looking for reasons to run it, I'm not the one who hands those out.",
+  "rumor.thin_month_2.topic": "the thin month",
+  "rumor.thin_month_2.text": "Shifts run thirty days. On the day a shift ends, the outgoing pickets fly home to the stations and the reliefs launch. Until a relief lands its post, the line it left is thinner than the manifest says.",
+  "rumor.thin_month_3.topic": "the thin month",
+  "rumor.thin_month_3.text": "Count pickets on a shift-boundary day and the calendar does the rest: the gaps are real until each relief lands. A licensed hunter with a scheduled crossing doesn't need luck or a ghost kit. Book the crossing inside the maintenance month."
+}

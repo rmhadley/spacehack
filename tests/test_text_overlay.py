@@ -187,6 +187,12 @@ def test_shipped_overlay_keys_resolve():
                 _known.add(f"step.{_step.id}.dialogue.{_npc_id}.{_variant}")
     for _npc in list_npcs():
         _known.add(f"npc.{_npc.id}.flavor_text")
+    from spacehack.data.lore import list_rumors as _list_rumors
+    for _entry in _list_rumors():
+        _known.add(f"rumor.{_entry.id}.text")
+        _known.add(f"rumor.{_entry.id}.topic")
+        for _source in _entry.sources:
+            _known.add(f"rumor.{_entry.id}.witness.{_source[0]}")
     from src.spacehack.data.trade_goods.core import TRADE_GOODS
     for _g in TRADE_GOODS:
         _known.add(f"good.{_g.id}.name")
