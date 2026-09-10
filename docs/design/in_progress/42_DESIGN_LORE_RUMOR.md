@@ -44,8 +44,8 @@ authored instance of a universal pattern).
 
 **Info trades for info (the economy):** knowledge as currency —
 trade the vault's location for the wall's man. NPCs who deal in
-info: brokers, bartenders, archives. What do they take in
-exchange? Info, credits, services?
+info: brokers, bartenders, archives. (Ruled 2026-09-10: a favor
+currency on per-dealer ledgers — SETTLED 6.)
 
 **Option-unlocking:** dialogue/interaction options gated on the
 known-lore set (the false backup call, the heist entry steps, the
@@ -73,25 +73,190 @@ ghost-run step" — comprehension is the puzzle.
    (barkeep, broker, patrol, city NPC). One interaction pattern
    to learn, everywhere.
 
-## Open questions (the review agenda)
+## Settled — the system's shape (refine session, 2026-09-10)
 
-1. Display: does known lore show anywhere (a journal/leads tab) or
-   stay purely diegetic ("keep it in your head")?
-2. Gating: heard-set alone, or also rep/guild (a Militia sergeant
-   won't gossip with a pirate)?
-3. Can rumors be WRONG — deliberate lies that mislead? (The best
-   lore systems sometimes lie.)
-4. The exchange: how is an info-for-info trade structured
-   (inventory of tradeable secrets? NPC-specific wants?)
-5. How much is data (catalog entries) vs. authored scenes?
-6. Relationship to quest steps: are rumor chains invisible quest
-   steps riding the existing status machinery, or a new state
-   space?
-7. What exactly does the seed vary (amendment 2): chain
-   availability per run, NPC-to-rumor assignments, find locations
-   — and what stays FIXED because it's authored? Where do the
-   per-run rolls live so save/load stays consistent?
-8. The sub-menu's shape (amendment 3): does it apply to BOTH the
-   space comms modal and the city/bump NPC talk (one pattern, two
-   hosts), and what's its option surface — a list of askable
-   topics built from the known-lore keyring?
+The review agenda cleared in one session — every open question
+ruled. These bind all phases.
+
+1. **State model — a new lore catalog + keyring, NOT quest steps.**
+   Frozen dataclass rows in `data/lore/` (chain, tier, text keys,
+   sources, unlocks) linked inside the catalog; player state is a
+   persistent known set on ctx (`known_rumors`, saved like traits).
+   Dialogue rows read the keyring. The quest machinery stays
+   untouched — boards, wait gates, Q-log steps, rewards, migrations:
+   rumors are ambient knowledge, not tasks.
+2. **Display — a verbatim ledger.** Heard text is recorded verbatim
+   in a browsable pane reachable from the Q log alongside quests.
+   No objectives, no labels, no "ask X about Y" — the notebook
+   never teaches; comprehension stays the puzzle. Solves the real
+   hole: dialogue modals vanish on close, so today a lead named
+   once is lost.
+3. **Scenes — catalog-only.** Every rumor is a catalog row; all
+   depth comes through the ask sub-menu (topic row → tier text →
+   newly unlocked topics). Per-NPC specificity is data on the row
+   (witness text keyed by npc id, generic fallback) — the bar
+   chain's dialogue-variant shape generalized. No scene machinery.
+4. **Gating — attitude floors on SOURCES; the keyring never
+   gates.** Once heard, known forever. Who can be asked is data:
+   catalog rows carry attitude floors per source (the same
+   resolved-sheet read that puts Open Trade on a comms contact at
+   neutral+). Authored rows may also demand traits/perks where the
+   fiction wants it (warrant-license style).
+5. **Lies — authored only.** Specific entries flagged false route
+   you somewhere the author chose (an ambush; a dead end whose
+   search reveals the lie) — never a random roll, always
+   discoverable in-world. The flag and its machinery land in the
+   phase that ships the first lie.
+6. **The exchange — a favor currency, per-dealer ledgers.** (user:
+   "You offer a rumor, you gain favor. You ask for a rumor, you
+   lose favor." — explicitly not faction rep: "I don't immediately
+   believe that it lives well in our faction/rep system (especially
+   with fake transponder ids)... maybe we can have some kind of
+   rumor/favor currency that you can build and spend?") Each
+   info-dealer keeps their own book on you: `rumor_favor` on ctx, a
+   dict keyed by dealer id, saved like the keyring, ID-agnostic —
+   the worn face never touches the book (floors follow the face;
+   favor follows the person). Offer = +the rumor's authored value,
+   once per (rumor, dealer); ask an exclusive = −its price; floor
+   at zero — earn before you spend. V1 line: only seated dealers
+   (barkeeps, brokers, archivists) trade; comms scuttlebutt and
+   patrol chatter are free hearsay.
+7. **Seed — routing derived from INIT_SEED, nothing serialized.**
+   Every per-run variation is a pure function of INIT_SEED +
+   stable keys (the city-NPC-route precedent: keyed derivations
+   never reshuffle). The seed varies: which authored chains surface
+   this run (seeded subset), which dealer holds which exclusive,
+   where finds point (seeded pick among authored candidates).
+   Content stays authored. CONTINUE regenerates identical routing
+   from the persisted INIT_SEED; SPACEHACK_SEED makes playtests
+   reproducible; Shift+S reroll yields a different but equally
+   legal routing.
+8. **The sub-menu — both hosts, heard-topics only.** One "Ask
+   Around" row on the city/bar NPC talk modal AND on the space
+   comms matrix for talkable contacts (derelicts and the
+   restricted-space blockade keep their End-Transmission-only
+   rows). Same look/feel everywhere — one interaction pattern to
+   learn. Rows: the topics you've HEARD that this contact could
+   know (floors applied), plus offer/ask favor rows on dealers
+   (phase 2). Topics they can't help with are never listed —
+   greyed lists teach; no row at all when there's nothing to ask.
+
+## Phases
+
+Build queue — unchecked in order; `/implement-phase 42.<p>` works
+top-down. The SETTLED rulings bind every phase; each phase's brief
+binds its build.
+
+### Phase 1 — The keyring and the ask loop
+- [ ] `RumorEntry` catalog + registry (`data/lore/`), chains linked
+      inside the catalog
+- [ ] Rumor prose JSON-single-source (`rumor.*` keys in
+      `08_rumors.json`) + data test for missing/orphan keys
+- [ ] `ctx.known_rumors` + save/load round-trip
+- [ ] Pure topic resolver (heard ∩ contact's sources, floors
+      applied)
+- [ ] Hearing on the talk host: source NPCs list rumor rows; taking
+      one records verbatim + adds the keyring
+- [ ] The shared Ask Around sub-menu (city/bar host)
+- [ ] The verbatim ledger pane in the Q log
+- [ ] Three authored chains across bar + city sources
+- [ ] Guide: new Rumors section (ledger + ask-around how-to only)
+- [ ] Playtest checkpoint (checklist in the brief)
+
+  Implementation brief (1) — PROPOSED (refine session 2026-09-10):
+
+  - **Scope.** Data: `data/lore/__init__.py` — frozen `RumorEntry`
+    (id, chain, tier, `requires` tuple of heard ids, text keys,
+    `sources` tuple of `(npc_id, min_attitude | None,
+    trait | None)`) + `_BY_ID` / `find_rumor(id)`;
+    `data/lore/chains.py` authors the first three chains. Prose:
+    `data/text/08_rumors.json` — `rumor.<id>.text`,
+    `rumor.<id>.witness.<npc_id>` + a fallback key; JSON
+    single-source like `step.*` (rows carry keys, never prose);
+    the catalog-integrity data test fails on missing keys and
+    flags orphans (quest_lint style, in tests/). State:
+    `ctx.known_rumors: list[str]` (heard order) on `GameContext`,
+    round-tripped in `saveload.py` both directions. Code: a new
+    `rumor.py` domain module — pure resolvers (`askable_topics`,
+    `witness_text`) + the `hear` mutation wrapper + the shared
+    sub-menu frames builder. Host: `npc.py` — rumor rows beside
+    `_quest_rows` in the existing talk modal; an "Ask Around"
+    entry opens the sub-menu in the sell-menu idiom (stays open
+    until ESC); no parallel modal. Ledger: `menus/_quest_log.py` —
+    a Rumors pane, verbatim heard text, no objectives. Guide: one
+    new section in `data/guide/__init__.py` (ledger + ask-around
+    only).
+  - **Build order.** (1) `RumorEntry` + registry + the three
+    chains + JSON + the key-coverage test; (2)
+    `ctx.known_rumors` + saveload round-trip + tests; (3) pure
+    resolvers + tests; (4) talk-host hearing + Ask Around
+    sub-menu + tests; (5) ledger pane + tests; (6) guide section;
+    (7) playtest checkpoint.
+  - **Binding rulings.** SETTLED 1–5 and 8. The quest machinery
+    stays untouched; prose JSON-single-source; the keyring never
+    gates (sources carry the floors, read off the resolved
+    sheet); heard-topics-only sub-menu, no greyed rows; verbatim
+    ledger with no interpretation; floors follow the face
+    (resolved sheet), so a worn ID clears a floor.
+  - **Required tests.** Catalog integrity (requires resolvable;
+    sources are real npc ids; every text key present; no
+    orphans); saveload round-trip (heard order preserved; New
+    Game clears); resolver floors (below-floor source hidden;
+    trait gate honored; empty when nothing askable); talk-modal
+    rows (source shows the rumor row pre-hear; non-source never
+    does; Ask Around appears only post-hear); ledger pane =
+    verbatim text in heard order.
+  - **Stop point.** NO favor (no offer/ask-spend rows, no
+    `rumor_favor`), no comms host, no seed routing (all authored
+    chains live in phase 1), no finds/loot-that-teaches, no lies,
+    no quest-step or option-unlock integration, no doc-43
+    content.
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+    1. Talk to the authored barkeep: the rumor row appears; take
+       it — the ledger (Q → Rumors) records the text verbatim.
+    2. Re-open the talk: Ask Around offers the heard topic; ask
+       it — tier-2 text arrives; the new entry lands in the
+       ledger.
+    3. Walk the chain to its final tier; the ledger shows every
+       entry in heard order.
+    4. Witness variants: the chain's other-city source opens its
+       witness text; a non-source NPC shows no Ask Around row at
+       all.
+    5. Attitude floor: below the floor the floored source's topic
+       is absent; wear a face that clears it (TAB) and the topic
+       appears — same physical NPC.
+    6. Regression: quest rows, purchase rows (scrub/cutout/rig),
+       missions, the sell sub-menu, and plain flavor all behave
+       exactly as before on the same modal.
+    7. Save → quit → Continue: ledger + keyring intact; asking
+       resumes where it left off. New Game: keyring empty.
+    8. Guide diff: the new Rumors section quoted (before/after) —
+       ledger + ask-around only, no chain telegraphing.
+
+### Phase 2 — The favor exchange
+- [ ] Dealer spec (`data/lore/`): values, prices, exclusives
+- [ ] `ctx.rumor_favor` per-dealer ledgers + save/load
+- [ ] Offer/ask rows in the shared sub-menu (dealers only)
+- [ ] Exclusive tier gated on favor; once-per-(rumor, dealer)
+      earning
+- [ ] An authored option-unlock payoff (an exclusive that changes
+      an interaction)
+- [ ] Playtest checkpoint
+
+### Phase 3 — Seed routing + finds that teach
+- [ ] Derived routing module (pure INIT_SEED derivations): chain
+      surfacing subset, dealer exclusive scatter, find destinations
+- [ ] Loot that teaches: data pads teach keyring entries on pickup
+- [ ] Finds that send: map fragments point at seeded candidate
+      sites (dig site: info AND/OR legendary loot)
+- [ ] Determinism tests (same INIT_SEED → same routing; reroll →
+      different legal routing; round-trip stability)
+- [ ] Playtest checkpoint
+
+### Phase 4 — The space host + the lie
+- [ ] Ask Around on the comms matrix (talkable contacts);
+      scuttlebutt vector (patrol chatter as free hearsay)
+- [ ] The authored lie: false flag honored, false route, in-world
+      reveal
+- [ ] Playtest checkpoint
+
