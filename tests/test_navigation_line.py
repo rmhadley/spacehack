@@ -1302,3 +1302,74 @@ def test_luyten_watchbill_data_consistency():
         assert station.lead_days >= 1
         assert station.base_id in station_ids
         assert station.y in row_ys, "every station has an EnemySpawn row"
+
+
+# ---------------------------------------------------------------------------
+# The legacy tombstone migration (phase 2): pre-watch saves at load
+# ---------------------------------------------------------------------------
+
+def test_migration_restamps_only_luyten_picket_keys():
+    """A pre-phase-2 save's unqualified picket tombstones re-stamp to
+    the current tenure; everything else — qualified keys, other
+    systems' statics (ross_154 / lalande_21185 ship the same shape),
+    non-picket luyten keys — passes through untouched."""
+    _keys = [
+        "luyten_star:militia_blockade:150:25",        # a phase-1 picket kill
+        "luyten_star:militia_blockade:150:25:t3",     # already tenured
+        "ross_154:militia_blockade:60:40",            # same id, no column
+        "lalande_21185:consortium_heavy:10:10",       # another static
+        "luyten_star:some_other_static:1:2",          # luyten, not the picket
+    ]
+    out = navigation_line.migrate_legacy_tombstones(
+        _keys, day=22, month=1, year=2200,   # run-day 22: tenure 3
+    )
+    assert out == [
+        "luyten_star:militia_blockade:150:25:t3",
+        *_keys[1:],
+    ]
+
+
+def test_migration_tenure_follows_the_save_clock():
+    out = navigation_line.migrate_legacy_tombstones(
+        ["luyten_star:militia_blockade:150:55"], day=8, month=1, year=2200,
+    )
+    assert out == ["luyten_star:militia_blockade:150:55:t1"], (
+        "run-day 8 is tenure 1: dead through it, re-manned at day 15"
+    )
+
+
+def test_migration_is_idempotent_across_reloads():
+    _once = navigation_line.migrate_legacy_tombstones(
+        ["luyten_star:militia_blockade:150:25"], day=22, month=1, year=2200,
+    )
+    _twice = navigation_line.migrate_legacy_tombstones(
+        _once, day=23, month=1, year=2200,
+    )
+    assert _twice == _once, "an already-tenured key never re-stamps"
+
+
+def test_load_game_migrates_before_both_consumers(monkeypatch):
+    """load_game rewrites the keys at its TOP: the map rebuild and
+    the ctx restore both see the migrated list (doc 41 phase 2's
+    reviewer-round scope ruling)."""
+    from src.spacehack import saveload
+
+    seen: dict = {}
+    monkeypatch.setattr(saveload, "rebuild_game_map", lambda data, **_k: (
+        seen.setdefault("map", data.get("defeated_static_spawns"))
+    ))
+    monkeypatch.setattr(saveload, "_assemble_context", lambda _c, data, _p, _r: (
+        seen.setdefault("ctx", data.get("defeated_static_spawns"))
+    ))
+    monkeypatch.setattr(saveload, "_parse_save_header", lambda _d: SimpleNamespace(
+        owned_ship=None, log=None, bounty_spawns={}, proc_spawns={}, proc_mid_map={},
+    ))
+    monkeypatch.setattr(saveload, "_load_json", lambda _p: {
+        "defeated_static_spawns": ["luyten_star:militia_blockade:150:25"],
+        "time_day": 22, "time_month": 1, "time_year": 2200,
+    })
+
+    loaded = saveload.load_game(object())
+
+    assert loaded == ["luyten_star:militia_blockade:150:25:t3"]
+    assert seen["map"] == seen["ctx"] == ["luyten_star:militia_blockade:150:25:t3"]

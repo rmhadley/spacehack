@@ -584,6 +584,42 @@ def _arrive(ctx, entity, key, target, station_cell) -> None:
 
 
 # ---------------------------------------------------------------------------
+# The legacy tombstone migration (doc 41 phase 2) — one-time, at load
+# ---------------------------------------------------------------------------
+
+def migrate_legacy_tombstones(keys, *, day: int, month: int, year: int) -> list:
+    """Re-stamp pre-phase-2 UNQUALIFIED picket tombstones with the
+    current tenure's key: a phase-1 kill stays dead through the
+    current tenure and its post re-mans at the next boundary — no
+    silent resurrection, no eternal death.
+
+    Scoped to column systems' ``picket_enemy_id`` prefixes only
+    (ross_154 / lalande_21185 ship unqualified static kill keys and
+    are never touched). Idempotent: already-tenured keys pass
+    through, so this runs safely at every load.
+    """
+    from .data import solar_systems as _systems
+    _total = total_days(day, month, year)
+    _columns = [
+        (_sys.id, _sys.sensor_column)
+        for _sys in _systems.list_solar_systems()
+        if getattr(_sys, "sensor_column", None) is not None
+    ]
+    out = []
+    for _key in keys:
+        if parse_tenure_key(_key) is not None:
+            out.append(_key)
+            continue
+        for _sys_id, _column in _columns:
+            if _key.startswith(f"{_sys_id}:{_column.picket_enemy_id}:"):
+                out.append(tenure_key(_key, tenure_of(_total, _column.shift_days)))
+                break
+        else:
+            out.append(_key)
+    return out
+
+
+# ---------------------------------------------------------------------------
 # The movement-pass check
 # ---------------------------------------------------------------------------
 

@@ -877,3 +877,12 @@ user dictates otherwise):**
   ``(total - total_days(1,1,2200)) // shift_days`` — tenure 0 is
   the game's first week and boundaries land on the ruled days
   8/15/22. (Key format, cycle, rosters unaffected.)
+- **Accepted one-time re-hail on legacy loads (reviewer round)**:
+  the hail-key preference for stamped keys renames a keyed static's
+  hail key (``pid:x:y`` → the stamped ``sys:pid:x:y[:tN]``, ``dark:``
+  namespace included), so a pre-phase-2 save's ``militia_scanned``
+  entries orphan — a keyed static that already hailed or challenged
+  re-hails ONCE after that load. Bounded (the set clears on every
+  system departure) and one-time; recorded here rather than
+  re-keyed at load. Per-tenure key changes are the intended design
+  (a new crew has not challenged you yet).

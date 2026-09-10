@@ -78,7 +78,11 @@ def _build_test_ctx() -> GameContext:
     ctx.completed_mission_ids = {"m_test_1", "m_test_2"}
     ctx.economy_state = {"earth": {"food": 5, "water": 3}}
     ctx.militia_scanned = {"patrol_1"}
-    ctx.defeated_static_spawns = {"luyten_star:militia_blockade:150:25"}
+    # Tenure-qualified (doc 41 phase 2): a QUALIFIED key round-trips
+    # untouched; the pre-phase-2 unqualified-key migration is pinned
+    # in test_navigation_line (load re-stamps those to the current
+    # tenure, so they intentionally do NOT round-trip verbatim).
+    ctx.defeated_static_spawns = {"luyten_star:militia_blockade:150:25:t2"}
     # Identity layer (doc 40): registration, dark flag, worn face, and
     # the collected-ID library must survive a save/continue cycle.
     ctx.ship_registration = "AB-1234"

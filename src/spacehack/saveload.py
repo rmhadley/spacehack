@@ -963,6 +963,15 @@ def load_game(
     if data is None:
         return None
 
+    # Doc 41 phase 2: re-stamp pre-watch picket tombstones BEFORE the
+    # map rebuild and the ctx restore read them (both consumers).
+    from . import navigation_line as _line
+    data["defeated_static_spawns"] = _line.migrate_legacy_tombstones(
+        data.get("defeated_static_spawns", []) or [],
+        day=data.get("time_day", 1), month=data.get("time_month", 1),
+        year=data.get("time_year", 2200),
+    )
+
     parsed = _parse_save_header(data)
     rebuilt = rebuild_game_map(
         data,
