@@ -475,7 +475,10 @@ def _handle_wait_event(state, event):
     if not _is_period_press(event):
         return None
     if state.current_mode == 'space' and state.player_owned_ship is not None:
-        if _run_combat_loop(state.ctx, state.console, state.player, also_move_npcs=True) == "BOARDED":
+        if _run_combat_loop(
+            state.ctx, state.console, state.player,
+            also_move_npcs=True, day_pass=True,
+        ) == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions

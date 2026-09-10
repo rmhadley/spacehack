@@ -60,7 +60,8 @@ def _auto_warning_outcome(ctx, console, player):
     return combat._handle_combat_encounter(ctx, console, _auto_result[1])
 
 
-def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
+def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
+                     day_pass: bool = False):
     """Run combat encounters in a loop until no more are detected.
 
     Checks the Line's sweep (doc 41) and auto-comms warnings, runs
@@ -93,8 +94,8 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
     # BOARDED: ctx.game_map is already the capture interior — the
     # space-NPC drift must never run against it (doc 40 6a).
     if also_move_npcs and _last != "BOARDED":
-        _line_mod.step_watch(ctx)
-        _move_npcs(ctx, ctx.game_map)
+        _line_mod.step_watch(ctx, day_pass=day_pass)
+        _move_npcs(ctx, ctx.game_map, day_pass=day_pass)
     return _last
 
 

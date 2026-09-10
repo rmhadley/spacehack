@@ -181,3 +181,9 @@ def test_spend_credit_slipped_mover_reports_blocked_but_moved():
     )
     assert credit == pytest.approx(2.0), "the tile is retained"
     assert ctx.npc_paths["k"] == [(5, 1), (6, 1)], "the head is kept"
+
+
+def test_rate_for_pays_a_whole_day_on_a_wait():
+    assert npc_movement.rate_for(14, 6, day_pass=True) == 14.0
+    assert npc_movement.rate_for(9, 10, day_pass=True) == 9.0
+    assert npc_movement.rate_for(14, 6) == pytest.approx(14 / 6)

@@ -37,6 +37,13 @@ def credit_rate(npc_speed: int, player_speed: int) -> float:
     return npc_speed / player_speed
 
 
+def rate_for(npc_speed: int, player_speed: int, day_pass: bool = False) -> float:
+    """One mover's credit for this action: a whole day of travel on
+    a wait (doc 44 ruling 4 — the player's speed is irrelevant to a
+    full day), else its share of one player step."""
+    return float(npc_speed) if day_pass else credit_rate(npc_speed, player_speed)
+
+
 def player_moves_per_day(ctx) -> int:
     """The player's speed stat (moves/day) — the same read
     ``time.tick_move`` makes; fallback 10 when no ship resolves

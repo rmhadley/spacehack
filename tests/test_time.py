@@ -47,3 +47,32 @@ def test_space_wait_passes_a_full_day(monkeypatch):
     ctx.time_day = 6
     assert game_loop._handle_wait_event(state, period) == "HANDLED"
     assert ctx.time_day == 6
+
+
+def test_space_wait_pays_a_day_of_world_movement(monkeypatch):
+    """The wiring (doc 44 phase 3): the wait's combat loop runs in
+    day mode — every mover banks its whole map speed — and the
+    clock flips only after the passes."""
+    from src.spacehack import game_loop
+
+    seen: dict = {}
+    monkeypatch.setattr(
+        game_loop, "_run_combat_loop",
+        lambda *_a, **_k: seen.update(_k) or None,
+    )
+    ctx = SimpleNamespace(
+        time_day=5, time_month=1, time_year=2200, economy_state={},
+        player_active_missions=[], game_map=object(), player=object(),
+        log=SimpleNamespace(add=lambda _m: None, add_colored=lambda _m, _c: None),
+    )
+    state = SimpleNamespace(
+        ctx=ctx, console=object(), player=SimpleNamespace(pos=None),
+        current_mode="space", player_owned_ship=object(),
+        player_active_missions=[], game_map=object(),
+    )
+
+    game_loop._handle_wait_event(state, SimpleNamespace(kind="keydown", key_name="."))
+
+    assert seen.get("also_move_npcs") is True
+    assert seen.get("day_pass") is True, "a wait's movers run a full day"
+    assert ctx.time_day == 6

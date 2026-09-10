@@ -346,11 +346,12 @@ def _overdue_reliefs(system, column, total):
 # The watch pass (doc 41 phase 2) — one player step of watch traffic
 # ---------------------------------------------------------------------------
 
-def step_watch(ctx) -> None:
+def step_watch(ctx, day_pass: bool = False) -> None:
     """The per-step watch pass (call beside ``move_npcs`` in both
     movement passes): flights step every pass; launches and
     departures only on due days (pure day-arithmetic gate — O(1)
-    idle steps). Wordless: nothing here logs."""
+    idle steps). Wordless: nothing here logs. ``day_pass``: a
+    wait's full day — each flight banks its whole hull speed."""
     system = solar_system_module.current_system()
     column = getattr(system, "sensor_column", None)
     if column is None or not watch_active(column):
@@ -362,7 +363,7 @@ def step_watch(ctx) -> None:
         _run_due(ctx, system, column, total, tenure, _boundary)
     _step_flights(
         ctx, system, column, total, tenure,
-        npc_movement.player_moves_per_day(ctx),
+        npc_movement.player_moves_per_day(ctx), day_pass,
     )
 
 
@@ -503,7 +504,8 @@ def _watch_entity_key(entity):
     return parse_tenure_key(_key) if _key else None
 
 
-def _step_flights(ctx, system, column, total, tenure, player_speed) -> None:
+def _step_flights(ctx, system, column, total, tenure, player_speed,
+                  day_pass=False) -> None:
     """Step every targeted flight at the picket's OWN hull speed
     (doc 44 credit, deterministic; ``combat_locked`` skipped); a
     targetless relief standing on a base dock cell gets its station
@@ -527,7 +529,8 @@ def _step_flights(ctx, system, column, total, tenure, player_speed) -> None:
                                _station, total, tenure, _base_cells)
         else:
             _advance_flight(
-                ctx, _entity, _key, _target, (_key_x, _key_y), player_speed,
+                ctx, _entity, _key, _target, (_key_x, _key_y),
+                player_speed, day_pass,
             )
 
 
@@ -547,7 +550,7 @@ def _order_base_relief(ctx, column, entity, key, key_tenure, station,
 
 
 def _advance_flight(ctx, entity, key, target, station_cell,
-                    player_speed) -> None:
+                    player_speed, day_pass=False) -> None:
     """One pass of credited flight along the cached path (doc 44:
     the picket flies at its OWN hull speed — deterministic, the
     kernel's clamp parks it on a cell that would trigger an
@@ -576,7 +579,7 @@ def _advance_flight(ctx, entity, key, target, station_cell,
     _credit, _outcome = npc_movement.spend_credit(
         ctx, ctx.game_map, entity=entity, key=key,
         credit=ctx.npc_credit.get(key, 0.0)
-        + npc_movement.credit_rate(_speed, player_speed),
+        + npc_movement.rate_for(_speed, player_speed, day_pass),
         player_pos=ctx.player.pos, radius=_radius,
     )
     if _outcome in ("moving", "blocked", "clamped"):

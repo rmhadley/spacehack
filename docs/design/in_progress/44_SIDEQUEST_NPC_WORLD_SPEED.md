@@ -351,8 +351,8 @@ the intent anyway).
       mover a full day of movement with carry-over (ruling 4) —
       per-cell clamping REAPPLIES at the 14-cell wait bound
 
-  Implementation brief (3) — PROPOSED (drafted at phase 2's
-  checkpoint, 2026-09-10):
+  Implementation brief (3) — APPROVED (drafted at phase 2's
+  checkpoint 2026-09-10; user invoked ``/implement-phase 44.3``):
 
   - **Scope.** The wait path pays a FULL DAY of movement: thread a
     ``day_pass`` flag from ``game_loop._handle_wait_event`` through
@@ -390,6 +390,37 @@ the intent anyway).
   - **Playtest checkpoint.** None in-phase (phase 5 owns the
     formal checklist); quick observability: waiting a day at the
     Line visibly walks reliefs a day of ground.
+
+## Pre-implementation audit — phase 3 (2026-09-10, verified in code)
+
+**Seams:** the flag threads exactly three layers, all verified —
+``game_loop._handle_wait_event``'s space branch (the ONLY day-mode
+caller; dungeon/city waits never reach the steppers),
+``game_flow._run_combat_loop``'s ``also_move_npcs`` tail (adds
+``day_pass`` beside it; the BOARDED guard already skips movement),
+and the two stepper entry points (``move_npcs`` /
+``step_watch`` → ``_move_one_squad`` / ``_step_flights`` →
+``_step_squad`` / ``_advance_flight`` — each passes ``day_pass``
+into ONE ``rate_for`` call; no other logic branches on it). The
+kernel needs NO changes: ``spend_credit``'s while-loop already
+sub-steps arbitrarily many cells with the per-cell clamp — the
+14-cell wait bound is just a big credit, and ``settle``'s 1.0 cap
+still bounds only the retained fraction. ``rate_for`` joins
+``credit_rate`` in ``npc_movement`` (float(npc_speed) on a day
+pass — the player's speed is irrelevant to a full day).
+
+**Tests pin three independent facts:** the picker's math; the
+day-mode BEHAVIOR (a scout-hull squad walks ~14 cells with carry
+and the clamp parks mid-pass — via ``_step_squad``/``step_watch``
+directly); and the WIRING (the wait handler passes
+``day_pass=True`` into ``_run_combat_loop`` — captured at the
+handler seam; the manual/goto callers keep the default).
+
+**Judgment call pinned:** ``debug_session._run_space_turn``
+simulates a MOVE, not a wait — default ``day_pass=False`` there;
+a headless wait action can be added when a test needs it, not
+speculatively.
+
 - [ ] Phase 4 — The watch retune: re-measure base→station
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist

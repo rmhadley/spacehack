@@ -397,3 +397,48 @@ def test_despawn_merchant_pops_credit_with_the_flight():
     assert "m1" not in ctx.npc_paths
     assert "m1" not in ctx.npc_credit
     assert leader not in game_map.entities
+
+
+def test_step_squad_day_pass_walks_a_full_day():
+    """A wait pays every mover its whole map speed (doc 44 ruling 4):
+    a scout-hull squad walks 14 cells in one pass, the seeded
+    fraction carried, the clamp parking it mid-day if it would
+    cross the player's trigger."""
+    game_map = world.GameMap(30, 5, [
+        [world.DUNGEON_FLOOR for _ in range(30)] for _ in range(5)
+    ], [])
+    leader = world.Entity("p", (255, 80, 80), world.Position(5, 2),
+                          npc_ship_id="pirate_scout")
+    ctx = _ctx_with(world.Position(25, 40))  # far: no clamp on this leg
+    ctx.npc_targets["squad"] = (25, 2)
+    ctx.npc_paths["squad"] = [(x, 2) for x in range(6, 26)]
+    ctx.npc_credit["squad"] = 0.5
+
+    npc_ships._step_squad(ctx, game_map, "squad", [leader], False, 10,
+                          day_pass=True)
+
+    assert leader.pos == world.Position(19, 2), "0.5 + 14 tiles: 14 cells"
+    assert ctx.npc_credit["squad"] == pytest.approx(0.5), "the carry is exact"
+
+
+def test_step_squad_day_pass_clamps_mid_day():
+    """The 14-cell bound re-applies the per-cell clamp: the squad
+    parks on the first cell entering the player's detect radius,
+    mid-day, and keeps its remaining tiles banked (capped at 1)."""
+    game_map = world.GameMap(30, 5, [
+        [world.DUNGEON_FLOOR for _ in range(30)] for _ in range(5)
+    ], [])
+    leader = world.Entity("p", (255, 80, 80), world.Position(5, 2),
+                          npc_ship_id="pirate_scout")  # detect_radius 8
+    ctx = _ctx_with(world.Position(14, 2))  # the cell (14,2) is dist 9...
+    ctx.npc_targets["squad"] = (25, 2)
+    ctx.npc_paths["squad"] = [(x, 2) for x in range(6, 26)]
+    # ...cells up to (x,2) with |x-14|<=8 trigger from (6,2) onward:
+    # (6,2) is dist 8 — the FIRST cell clamps.
+    npc_ships._step_squad(ctx, game_map, "squad", [leader], False, 10,
+                          day_pass=True)
+
+    assert leader.pos == world.Position(6, 2), "parked on the trigger cell"
+    assert ctx.npc_credit["squad"] == 1.0, (
+        "13 unspent tiles bank no further than one (anti-burst)"
+    )

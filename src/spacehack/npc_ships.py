@@ -491,13 +491,18 @@ def _register_table_batch(ctx, system_id, all_procedural, total) -> None:
 # Per-tick movement (and occasional per-tick spawn)
 # ---------------------------------------------------------------------------
 
-def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
+def move_npcs(ctx: GameContext, game_map: world.GameMap,
+              day_pass: bool = False) -> None:
     """Patrol procedural NPC entities toward bodies, once per tick.
 
     Pirates loop body to body; merchants head for a body and despawn
     on arrival (gate = jump, planet/station = dock), fleeing nearby
     pirates. Aggro militia/consortium squads chase the player instead.
     Squad members follow the leader's A* path with cohesion stepping.
+
+    ``day_pass`` (doc 44 phase 3): a wait's full day — every mover
+    accrues its whole map speed this action instead of its share of
+    one player step.
     """
     _system = _solar_module.current_system()
     if _system is None:
@@ -517,7 +522,7 @@ def move_npcs(ctx: GameContext, game_map: world.GameMap) -> None:
     for _sid, _members in _squad_groups(game_map).items():
         _move_one_squad(
             ctx, game_map, _system, _goals, _sid, _members, _pirates,
-            _player_speed,
+            _player_speed, day_pass,
         )
 
 
@@ -644,7 +649,7 @@ def _tick_consortium_squads(ctx, game_map, system) -> None:
 
 
 def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates,
-                    player_speed) -> None:
+                    player_speed, day_pass=False) -> None:
     """One squad's tick: flee or refresh target, maybe despawn,
     store path, then step (aggro squads chase the player)."""
     _faction = _faction_of_entity(members[0])
@@ -676,7 +681,7 @@ def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates,
 
     if _target is not None:
         _store_target_path(ctx, game_map, sid, _leader, _target, _aggro)
-    _step_squad(ctx, game_map, sid, members, _aggro, player_speed)
+    _step_squad(ctx, game_map, sid, members, _aggro, player_speed, day_pass)
 
 
 def _squad_aggro(ctx, system, leader) -> bool:
@@ -785,7 +790,8 @@ def _store_target_path(ctx, game_map, sid, leader, target, aggro) -> None:
         ) or []
 
 
-def _step_squad(ctx, game_map, sid, members, aggro, player_speed) -> None:
+def _step_squad(ctx, game_map, sid, members, aggro, player_speed,
+                day_pass=False) -> None:
     """The squad's credited movement for this pass (doc 44): it
     follows the stored path at its OWN hull speed — deterministic,
     no throttle — sub-stepping one cell per whole tile of credit
@@ -803,8 +809,8 @@ def _step_squad(ctx, game_map, sid, members, aggro, player_speed) -> None:
         return
     _spec = _spec_of_entity(_leader)
     _radius = _spec.detect_radius if _spec is not None else 0
-    _rate = npc_movement.credit_rate(
-        map_speed(_spec) if _spec is not None else 1, player_speed,
+    _rate = npc_movement.rate_for(
+        map_speed(_spec) if _spec is not None else 1, player_speed, day_pass,
     )
     _credit = ctx.npc_credit.get(sid, 0.0) + _rate
     while _credit >= 1.0 and ctx.npc_paths.get(sid):

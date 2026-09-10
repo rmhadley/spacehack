@@ -1421,3 +1421,25 @@ def test_flight_arrival_clears_credit_with_the_target(line_system, monkeypatch):
     assert _e not in game_map.entities, "landed: despawned"
     assert _key not in ctx.npc_targets
     assert _key not in ctx.npc_credit, "pop parity — no orphaned credit"
+
+
+def test_watch_day_pass_walks_a_flight_a_full_day(line_system):
+    """A space-wait pays every watch flight its whole hull speed
+    (doc 44 phase 3): the picket (speed 9) covers nine cells of its
+    approach in one wait."""
+    game_map = _build_watch(24)
+    ctx = _watch_ctx(game_map, 24, defeated_static_spawns=set(),
+                     npc_targets={}, npc_paths={})
+    navigation_line.step_watch(ctx)  # the base-stamped relief gets orders
+
+    _key = "luyten_star:militia_blockade:150:7:t4"
+    _e = _by_key(game_map)[_key]
+    _path = ctx.npc_paths[_key]
+    assert len(_path) >= 9, "the pin is on nine cells, not the min"
+    _start = (_e.pos.x, _e.pos.y)
+
+    navigation_line.step_watch(ctx, day_pass=True)
+
+    _moved = abs(_e.pos.x - _start[0]) + abs(_e.pos.y - _start[1])
+    assert _moved == 9, "the picket flies its whole day: nine cells"
+    assert ctx.npc_credit[_key] == pytest.approx(0.0), "exact day, no carry"
