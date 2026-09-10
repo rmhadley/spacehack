@@ -461,9 +461,11 @@ after; a BOARDED wait is a fight, no day). Dungeon and city waits
 tick their NPCs but not the clock (unchanged). Consequence to
 watch in the playtest: waits advance DAYS at day-granularity while
 flights still step per-press — waiting across a boundary makes
-reliefs visibly late (they fly ~1 cell per wait). If that reads
-wrong, the follow-up ruling is whether a wait should also
-fast-forward flights.
+reliefs visibly late (they fly ~1 cell per wait). **SUPERSEDED by
+doc 44's settled ruling 4 (2026-09-10): a wait pays every mover a
+full day of movement with carry-over — the asymmetry this note
+flagged is doc 44's phase 3, and this playtest (parked behind 44)
+runs under that math.**
 Deviations + surprises recorded in the phase-2 audit's judgment
 calls (epoch anchor; accepted one-time legacy re-hail) and one
 observable worth knowing for the playtest: **on run-day 1 the

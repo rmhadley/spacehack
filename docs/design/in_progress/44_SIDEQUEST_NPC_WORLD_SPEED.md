@@ -31,8 +31,9 @@ Plus the adjacent time-consistency rulings made the same day:
    **with carry-over** (a space-wait passes a full day of world
    movement, fractional progress included).
 
-Explicitly NOT yet ruled: whether JUMPS cost time (today they are
-instant on the calendar). Open question 1.
+Ruled at refinement (Settled 1): jumps stay INSTANT — the burst
+hand-wave extends to gate transit; the zero-time set (jumps, combat,
+cities, dungeons) is final.
 
 ## What exists today (verified in code, 2026-09-10)
 
@@ -86,8 +87,20 @@ Every moving NPC entity (or squad — open question 5) carries a
   wins (derelicts 0).
 - **State**: the accumulators are new mutable state → a ctx field
   (dict keyed by squad id / spawn key, mirroring `npc_targets`
-  naming) → **save/load contract work** (persisted; existing saves
-  default 0 — no migration needed beyond the default).
+  naming) → **save/load contract work**. ADVISE round (2026-09-10):
+  the accumulator persists EXACTLY WHAT THE PATH SYNC PERSISTS —
+  current-system procedural squad mids round-trip (one line inside
+  `_sync_spawn_entry`); watch tenure keys and other systems'
+  squads default 0. Persisting watch keys would be incoherent (an
+  in-flight relief restarts AT ITS BASE on load — build-side
+  reconciliation — so forward credit on a position reset is dead
+  credit) and unbounded (monotonic `tN` keys never popped:
+  ~14 dead keys per boundary forever). The kernel POPS the
+  accumulator at every site that pops `npc_targets`/`npc_paths`
+  today (`_arrive`, `_despawn_merchant`). Existing saves default
+  0 — no migration. The save-sync logic lives in the kernel module
+  (`saveload.py` sits at 989/1000 — the doc-41 precedent: saveload
+  takes no new logic).
 - **Steppers**: `_step_squad` and `_advance_flight` converge on ONE
   shared movement kernel (pay credit → sub-step cells → pop path) —
   the phase-2 audit already flagged their twin mechanics.
@@ -123,11 +136,21 @@ All eight open questions ruled; the sketch above stands as amended.
    builds below 1 tile, then a tile) is the visual cadence.
 4. **Per-cell sub-stepping, checks at every cell** — a fast mover
    never tunnels through the player's detect radius or a picket's
-   challenge range between checks. At the ruled speed range the
-   cap is ~2.3 cells/step (speed-14 NPC vs a speed-6 player), so
-   the cost is tiny. Exact clamp mechanism (e.g. stop at the first
-   cell that would trigger the proximity encounter) is the
-   pre-implementation audit's to pin.
+   challenge range between checks. Per-step cap ~2.3 cells
+   (speed-14 NPC vs a speed-6 player); a WAIT pays up to a full
+   day — 14 cells in one pass — which is exactly the tunneling
+   case this ruling exists for (phase 3 re-states it). BINDING
+   clamp constraints (ADVISE round, 2026-09-10): (a) the proximity
+   predicate is evaluated per intermediate cell BEFORE committing
+   each step — post-hoc checks cannot see in-and-out tunneling
+   (the movement passes run encounters at their TOP and move NPCs
+   at the TAIL); (b) STOP ≠ FIRE — the kernel parks the mover at
+   the triggering cell and the encounter opens at the top of the
+   NEXT pass; the kernel never opens combat or comms itself
+   mid-`move_npcs` (modal recursion into the movement pass);
+   (c) perf is argued at the 14-cell wait bound, not the step
+   bound (cached path pops + `try_step_with_slip` per cell —
+   still cheap).
 5. **Per-SQUAD accumulators** — one per squad, keyed like today's
    path dicts (movement id / watch spawn key); the leader's speed
    drives the squad, cohesion stepping keeps formation. Convoys
@@ -153,6 +176,19 @@ per-spec authoring overrides on the fast hulls (explicit
 `base_speed` values win over the hull default) — the mechanism
 ships with this phase either way.
 
+**Alternative rejected (ADVISE round, 2026-09-10 — do not
+re-propose): deriving credit from the clock instead of
+accumulators.** The clock is day-granular (a wrapping triple;
+`tick_move` flips a day per `effective_speed` moves — no sub-day
+state to difference), so delta credit would arrive as
+`npc_speed`-sized bursts on day flips (a scout sits 13 steps,
+then jumps 14 cells), violating the ruled skip-then-step cadence
+and hitting the 14-cell tunneling case for every mover on every
+flip day. Per-squad accumulators stand; the genuinely cheaper
+variant folded in above is the path-sync lifecycle mirror, which
+keeps the new persisted surface no larger than what already
+round-trips.
+
 ## Phases (build queue — `/implement-phase 44.<p>` works top-down)
 
 - [ ] Phase 1 — Hull-derived speeds: `base_speed` resolves from
@@ -160,11 +196,17 @@ ships with this phase either way.
       wins), every spec resolves, tests
 - [ ] Phase 2 — The accumulator kernel: per-squad credit at
       `npc_speed / player_speed` tiles per player step,
-      deterministic sub-stepping with per-cell checks, the patrol
-      stepper and the watch flight stepper converge on one shared
-      kernel, accumulator persistence + existing-save defaults
+      deterministic sub-stepping with the Settled-4 clamp
+      constraints (per-cell predicate, stop-≠-fire, argued at the
+      14-cell bound), the patrol stepper and the watch flight
+      stepper converge on one shared kernel, accumulator
+      persistence MIRRORING the path-sync lifecycle (current-system
+      patrol mids round-trip; watch keys default 0; pop at every
+      target-pop site; sync logic in the kernel module — saveload
+      takes no new logic)
 - [ ] Phase 3 — The day-granular wait: a space-wait pays every
-      mover a full day of movement with carry-over (ruling 4)
+      mover a full day of movement with carry-over (ruling 4) —
+      per-cell clamping REAPPLIES at the 14-cell wait bound
 - [ ] Phase 4 — The watch retune: re-measure base→station
       transits at picket speed 9, retune the launch leads (data),
       regression sweep of the doc-41 phase-2 checklist
@@ -174,39 +216,52 @@ ships with this phase either way.
       texture checks (settled consequence 7 + the speed-14 note)
 
   Implementation brief (1) — PROPOSED (`/refine-design 44`,
-  2026-09-10):
+  2026-09-10; AMENDED same day per the ADVISE reviewer round):
 
   - **Scope.** Data: `NpcShipSpec.base_speed` (``data/npc_ships/
     __init__.py``) becomes ``int | None = None`` — None resolves
-    from the hull. Code: ONE pure resolver
+    from the hull — AND the field's docstring + the default's
+    comment update to the new meaning (hull-derived map speed +
+    the stationary gate). Code: ONE pure resolver
     (``data/npc_ships/__init__.py`` — ``map_speed(spec) -> int``:
-    explicit ``base_speed`` wins, else ``find_ship(spec.ship_id)
-    .speed``, else a safe 1) — no call-site changes yet (the
-    stepper still ignores it; phase 2 wires it). Derelicts keep
-    their explicit 0 (``core.py`` already authors it — verify,
-    don't touch). Tests: every registered spec resolves; the
-    launch table holds (scout-hull NPCs 14, cruiser 9, frigate 8,
-    merchant haulers 7 / freighters 6); derelicts resolve 0;
-    an explicitly-authored override beats the hull default; the
-    resolver is pure (no ctx, no RNG).
-  - **Build order.** (1) the resolver + tests; (2) the field-type
-    change + derelict verification; (3) data test pinning the
-    launch table.
+    explicit ``base_speed`` wins; else ``find_ship(spec.ship_id)
+    .speed`` under ``except KeyError`` → a safe 1 — never raises
+    mid-game) plus EXACTLY ONE call-site change (ADVISE blocker):
+    the load-path stationary gate ``saveload_maps._add_procedural
+    _npcs`` reads ``getattr(espec, 'base_speed', 0) > 0`` — under
+    ``None`` it raises TypeError on EVERY Continue carrying a live
+    procedural NPC — reroute it through ``map_speed(espec) > 0``
+    (behavior-preserving: derelicts 0, movers 6-14, unknown 1).
+    NEVER ``(base_speed or 0) > 0``: that truthy-fallbacks None to
+    0, silently strips ``procedural_squad_id`` from every loaded
+    NPC, and freezes the universe — a worse bug class than the
+    crash. Derelicts keep their explicit 0 (``core.py`` already
+    authors it — verify, don't touch). No stepper changes (the
+    80% throttle still stands until phase 2).
+  - **Build order.** (1) the resolver + the override-wins /
+      derelict-0 / unknown-hull tests; (2) the field-type flip +
+      docstring + the stationary-gate reroute + a save→load
+      round-trip test with a live pirate (it must still move);
+      (3) the data test pinning the launch table — hull-derivation
+      asserts cannot pass before the flip (under ``int = 1`` every
+      spec reads as explicit).
   - **Binding rulings.** Settled items 2 (hull derivation,
     explicit-wins, derelicts 0) and the speed-14 consequence note;
     data-first (a frozen dataclass field, no runtime attachment);
     NO stepper changes in this phase.
-  - **Required tests.** The launch table per spec; override-wins;
-    derelict-0; unknown-hull fallback (a spec whose ship_id is not
-    in the ship catalog resolves to 1, never raises mid-game).
+  - **Required tests.** The launch table per spec — with a NAMED
+    pin that ``militia_blockade`` resolves 9 (phase 4's whole
+    premise is transits at picket speed 9; a hull-grouped table
+    could pass without naming the picket); override-wins;
+    derelict-0; unknown-hull → 1 (never raises); the
+    save→load round-trip with a live procedural NPC; the resolver
+    is pure (no ctx, no RNG).
   - **Stop point.** NOTHING from phase 2 — no accumulators, no
-    stepper changes, no wait changes, no watch retune; the 80%
-    throttle still stands until phase 2 replaces it.
+    stepper changes, no wait changes, no watch retune. The one
+    gate reroute above is data-plumbing, not a stepper change.
   - **Playtest checkpoint.** None — a pure data+resolver phase
     with no player-visible behavior change; the numbers first
     become observable in phase 2.
-
-## Acceptance criteria (draft)
 
 ## Acceptance criteria (draft)
 
