@@ -484,6 +484,38 @@ def test_apply_dev_line_markers_gated(monkeypatch):
     assert any("service run" in m for m in _logged)
 
 
+def test_advance_to_shift_boundary_gated(monkeypatch):
+    """Doc 41 phase 2: without SPACEHACK_DEV the clock stands still;
+    with it, Shift+J lands exactly ON the next boundary (strictly
+    future — a boundary day advances a full shift)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import advance_to_shift_boundary
+    from src.spacehack import solar_system as _solar
+    from src.spacehack.data.solar_systems.luyten_star import SYSTEM as _LUYTEN
+
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    _ctx = SimpleNamespace(time_day=5, time_month=1, time_year=2200,
+                           economy_state={},
+                           log=SimpleNamespace(add=lambda m: None))
+    assert advance_to_shift_boundary(_ctx) == 0
+    assert (_ctx.time_day, _ctx.time_month) == (5, 1)
+
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    monkeypatch.setattr(_solar, "current_system", lambda: _LUYTEN)
+    assert advance_to_shift_boundary(_ctx) == 3  # day 5 -> boundary day 8
+    assert (_ctx.time_day, _ctx.time_month, _ctx.time_year) == (8, 1, 2200)
+    assert advance_to_shift_boundary(_ctx) == 7  # a boundary jumps the NEXT one
+    assert _ctx.time_day == 15
+
+    # Outside a column system the default 7-day shift still applies.
+    from src.spacehack.data.solar_systems import find_solar_system as _find
+    monkeypatch.setattr(_solar, "current_system", lambda: _find("sol"))
+    _ctx.time_day, _ctx.time_month, _ctx.time_year = 20, 1, 2200
+    assert advance_to_shift_boundary(_ctx) == 2  # day 20 -> boundary day 22
+    assert _ctx.time_day == 22
+
+
 def test_dev_line_kit_militia_face_clears_rank_threshold(monkeypatch):
     """The rank-eligible playtest instrument: the dev face's militia
     +100 clears the luyten column's rank_rep (the impersonation row)."""

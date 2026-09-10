@@ -542,6 +542,8 @@ def _run_space_turn(session: HeadlessSaveSession) -> bool:
     """Check existing space combat before moving NPCs and time."""
     if _space_combat_pending(session):
         return True
+    from . import navigation_line
+    navigation_line.step_watch(session.ctx)
     npc_ships.move_npcs(session.ctx, session.ctx.game_map)
     time.tick_move(session.ctx)
     return False

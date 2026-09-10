@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_l_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_j_press, _is_shift_l_press, _is_shift_o_press, _is_shift_t_press, _is_shift_s_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -296,44 +296,69 @@ def _handle_dev_event(state, event):
     return _handle_dev_quest_event(state, event)
 
 
+def _dev_add_xp(state):
+    """Shift+X: 200 XP."""
+    _add_xp(state.ctx, 200)
+
+
+def _dev_reroll_seed(state):
+    """Shift+S: reroll the run seed mid-session."""
+    from .engine import reroll_run_seed
+    state.log.add(f'[DEV MODE] Run seed rerolled: {reroll_run_seed()}')
+
+
+def _dev_reveal_fog(state):
+    """Shift+R: reveal all dungeon fog (dungeon mode only)."""
+    if state.current_mode == 'dungeon':
+        _reveal_all_fog(state.game_map, state.log)
+
+
+def _dev_skip_days(state):
+    """Shift+D: skip 30 days of world clock."""
+    from .time import advance_time as _adv_time
+    _adv_time(state.ctx, 30)
+    state.log.add('Dev: skipped 30 days.')
+
+
+def _dev_grant_manifest(state):
+    """Shift+L: grant the blockade manifest marker (doc 41)."""
+    from .dev_mode import apply_dev_blockade_manifest as _grant
+    _grant(state.ctx)
+
+
+def _dev_grant_service_run(state):
+    """Shift+K: grant the service-run marker (doc 41)."""
+    from .dev_mode import apply_dev_service_run as _grant
+    _grant(state.ctx)
+
+
+def _dev_advance_to_boundary(state):
+    """Shift+J: advance the clock to the next shift boundary (doc 41)."""
+    from .dev_mode import advance_to_shift_boundary as _advance
+    _advance(state.ctx)
+
+
+# Table-driven dispatch (knowledge.md guardrail): matcher -> action.
+# Every action runs SPACEHACK_DEV-gated; mode guards live in the action.
+_DEV_SHIFT_KEYS = (
+    (_is_shift_x_press, _dev_add_xp),
+    (_is_shift_t_press, _dev_city_teleport),
+    (_is_shift_s_press, _dev_reroll_seed),
+    (_is_shift_r_press, _dev_reveal_fog),
+    (_is_shift_d_press, _dev_skip_days),
+    (_is_shift_l_press, _dev_grant_manifest),
+    (_is_shift_k_press, _dev_grant_service_run),
+    (_is_shift_j_press, _dev_advance_to_boundary),
+)
+
+
 def _handle_dev_shift_keys(state, event):
     """Shift-key dev shortcuts; ``None`` when the key is not one of ours."""
-    ctx = state.ctx
-    log = state.log
-    if _is_shift_x_press(event):
-        if _is_dev():
-            _add_xp(ctx, 200)
-        return 'HANDLED'
-    if _is_shift_t_press(event):
-        if _is_dev():
-            _dev_city_teleport(state)
-        return 'HANDLED'
-    if _is_shift_s_press(event):
-        if _is_dev():
-            from .engine import reroll_run_seed
-            _seed = reroll_run_seed()
-            log.add(f'[DEV MODE] Run seed rerolled: {_seed}')
-        return 'HANDLED'
-    if _is_shift_r_press(event):
-        if _is_dev() and state.current_mode == 'dungeon':
-            _reveal_all_fog(state.game_map, log)
-        return 'HANDLED'
-    if _is_shift_d_press(event):
-        if _is_dev():
-            from .time import advance_time as _adv_time
-            _adv_time(ctx, 30)
-            log.add('Dev: skipped 30 days.')
-        return 'HANDLED'
-    if _is_shift_l_press(event):
-        if _is_dev():
-            from .dev_mode import apply_dev_blockade_manifest as _grant
-            _grant(ctx)
-        return 'HANDLED'
-    if _is_shift_k_press(event):
-        if _is_dev():
-            from .dev_mode import apply_dev_service_run as _grant
-            _grant(ctx)
-        return 'HANDLED'
+    for _matches, _action in _DEV_SHIFT_KEYS:
+        if _matches(event):
+            if _is_dev():
+                _action(state)
+            return 'HANDLED'
     return None
 
 def _handle_menu_event(state, event):

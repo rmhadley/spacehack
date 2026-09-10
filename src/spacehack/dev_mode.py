@@ -437,3 +437,28 @@ def apply_dev_service_run(ctx) -> None:
     """
     from .navigation_line import SERVICE_TRAIT
     _apply_dev_line_marker(ctx, SERVICE_TRAIT, "blockade service run")
+
+
+def advance_to_shift_boundary(ctx) -> int:
+    """Shift+J: advance the clock to the next shift boundary (doc 41
+    phase 2 — Shift+D's 30 days is too coarse to time a watch
+    rotation). Uses the current column's ``shift_days`` (7 outside
+    column systems). Returns the days advanced; 0 when not in dev
+    mode.
+    """
+    import os as _os
+
+    if not _os.environ.get("SPACEHACK_DEV"):
+        return 0
+    from . import solar_system as _solar
+    from .navigation_line import next_boundary_gap
+    from .time import advance_time as _advance_time
+
+    _shift = getattr(
+        getattr(_solar.current_system(), "sensor_column", None),
+        "shift_days", 7,
+    )
+    _days = next_boundary_gap(ctx.time_day, ctx.time_month, ctx.time_year, _shift)
+    _advance_time(ctx, _days)
+    ctx.log.add(f"[DEV MODE] Clock advanced {_days} days to the shift boundary.")
+    return _days

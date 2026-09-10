@@ -380,6 +380,15 @@ def _is_shift_k_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'K')
 
+def _is_shift_j_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+J.
+
+    Dev-mode only (``SPACEHACK_DEV``): advances the clock to the
+    next shift boundary (doc 41 phase 2) — Shift+D's 30 days is too
+    coarse to time a watch rotation window.
+    """
+    return _is_shift_press(event, 'J')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 
