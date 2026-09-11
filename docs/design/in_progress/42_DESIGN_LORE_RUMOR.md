@@ -414,6 +414,74 @@ phase 1 closed.
    second teller), exercising the fallback/override paths with live
    data instead of dead keys.
 
+## Pre-implementation audit — phase 2 (2026-09-11)
+
+1. **Existing classes / modules to extend or reuse.**
+   - `RumorEntry` (`data/lore/__init__.py`) gains `value: int = 0` —
+     a frozen-row edit; `data/lore/dealers.py` mirrors the catalog's
+     registry shape in one self-contained sibling module
+     (`DealerSpec`, `DEALERS`, `find_dealer`, `is_dealer`).
+   - `rumor.py`: pure resolvers beside `askable_topics`
+     (`favor_for`, `offerable_rumors`, `exclusive_offers`) and
+     mutation wrappers beside `hear` (`offer_rumor`, `buy_exclusive`)
+     — the same pure/mutation split; hosts keep reading through the
+     rumor facade.
+   - Host: `npc.py` `_handle_ask_around` gains dealer rows inside its
+     existing stays-open loop, rebuilt per pass with the
+     `_run_sell_menu` idiom so the Favor line stays live;
+     `_run_choice_submenu` remains the one sub-menu runner (it gains
+     the `max(1, len(items))` frames guard `_npc_pygame_frames`
+     already has, so a balance-only dealer pass renders);
+     `_offers_rumors` extends with `is_dealer`; a buy presents
+     through the existing `_show_rumor_readout`.
+   - State: `ctx.rumor_favor` beside `known_rumors`
+     (`game_context.py`); `_lore_fields` / `_restore_lore_fields`
+     (saveload.py at 874/1000 — the phase-1 split left the
+     headroom); New Game clears via fresh `GameContext` (the
+     `known_rumors` precedent — no reset block needed).
+   - Vendor: the `service_npc_spots` seater
+     (`city_interiors._seat_service_npcs` — the
+     ember_tech/ross_b precedent) seats a new single-row NPC
+     (`data/npcs/guilds.py`) in lal_c's bar interior;
+     `identity.CUTOUT_BROKERS` gains him at 2000; a knowledge-gate
+     table beside it is read in `npc._priced_rows` so his rows
+     exist only while `dark_berth_4` is heard.
+   - Guide: the Rumors section (`data/guide/__init__.py`) gains the
+     favor paragraph; the vendor stays untelegraphed.
+
+2. **Duplication hotspots.**
+   - Affordability/spend arithmetic vs the identity purchase
+     wrappers — ALL ledger arithmetic lives in `rumor.py`'s
+     wrappers; hosts never touch `rumor_favor` directly.
+   - Row construction: hear/Sell/Buy rows build in one items
+     builder; no second sub-menu loop, no second readout path.
+   - The earned-set check ("already bought from you") lives inside
+     `offerable_rumors` — never re-derived in the host.
+   - `rumor_favor` joins the existing `_lore_fields` family — no
+     parallel save-field family.
+
+3. **DRY strategy.** One ledger accessor pair (`favor_for` + the
+   earned read), one sub-menu items builder, one readout modal, and
+   catalog-test extensions cover `value` + the exclusive shape once.
+
+4. **Pinned consequences.**
+   - Dealers always open the sub-menu (ruling 10): a balance-only
+     pass is real content, so `_run_choice_submenu` gains the
+     `max(1, ·)` frames guard; non-dealers keep the
+     nothing-askable-closes rule.
+   - `dark_berth_4` breaks the catalog test's
+     every-entry-needs-sources assertion by design — the test gains
+     the exclusive-held exception.
+   - A buy presents canonical `entry_text` — bought knowledge has
+     one text; no witness key is authored for `dark_berth_4`.
+   - The Buy action string carries its price (`BUY:<id>:<price>`) so
+     the holding a row came from stays the single source at pick
+     time, not just render time — the phase-3 routing seam holds.
+
+5. **Ratchet.** Every touched module sits well under the limits
+   (npc 580, saveload 874, game_context 427, rumor 151, identity
+   456); the grandfathered backlog (comms.py) is untouched.
+
 ### Phase 2 — The favor exchange
 - [ ] Dealer spec (`data/lore/`): exclusives + prices; rumor rows
       gain their offer values (ruling 10)
