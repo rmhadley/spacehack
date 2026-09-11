@@ -261,7 +261,7 @@ against the rule as written — exactly one exit, exit row in
       validator mirror); the 11 violating layouts fixed
 - [x] All 27 interiors authored with berths; outdoor
       `add_showroom_ships` retired
-- [ ] Audit tests: P/exit rule over every interior, manifest↔
+- [x] Audit tests: P/exit rule over every interior, manifest↔
       markers, reachability from `P`, no outdoor showroom
       entities in any built city
 - [ ] Playtest checkpoint
