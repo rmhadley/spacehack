@@ -442,6 +442,26 @@ unchanged.
       mapping unchanged
 - [ ] Playtest checkpoint
 
+#### Phase 3 amendment (2026-09-11, playtest review): the SPANNED sheet
+
+The first ledger pass rendered as flat text; user ruling at playtest
+review: "make this easy to read and well presented, not a text dump -
+dip into some pygame features." Of three mocked options (bars+line
+tint / spanned sheet / bespoke hero screen) the user chose the
+**spanned sheet**: same single-column ledger, but the shared
+ScreenFrame renderer gains a per-body-line colour-RUNS mechanism
+(`body_runs`, the paint-only sibling of `body_colors`; run lines
+must fit one rendered line or they paint plain), and the ledger
+lines become: section headers (PERFORMANCE / COMBAT / CAPACITY,
+dim), stat lines with CP437-safe bar gauges scaled against the
+catalog's best per stat (`#` fill, `|` marks the player's ship,
+`-` empty, cyan), and the `yours:` value coloured by trade verdict
+(green upgrade / red regression / dim equal, base numbers). All
+colors are shared Palette entries (muted/positive/negative/accent),
+not ship-buy locals. Plain body text stays authoritative for
+measure/wrap/tests; runs are paint-only and concatenate to their
+body line.
+
 #### Implementation brief — Phase 3 (2026-09-11) — APPROVED
 
 **Scope.** `menus/_ship_buy.py` only.
