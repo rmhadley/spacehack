@@ -1,6 +1,6 @@
 # DESIGN: Spaceport showrooms move indoors
 
-**Status: REFINEMENT — all rulings settled 2026-09-11; briefs in progress.**
+**Status: READY — rulings settled and phases 1–3 briefed (2026-09-11); nothing implemented.**
 
 ## The problem (user, 2026-09-11)
 
@@ -73,11 +73,15 @@ rule becomes a shared load-time gate so it cannot regress.
   `_resolve_ship_blocker` — bump unowned = buy with trade-in; bump
   owned = ship menu + launch. One game loop serves city AND
   interior modes, so an interior bump gets the buy modal for free.
-- The coupling that must change: `_complete_ship_purchase` replaces
-  the bumped entity in place, and `_relocate_old_ship` removes the
-  traded-in entity from `city_game_map`. Under the ruling, a buy
-  that happens INSIDE must place the new owned ship on the OUTDOOR
-  pad berth — the interior blocker is a display, not the hull.
+- The coupling that must change: `_build_owned_ship` (game_flow.py)
+  RE-USES the bumped entity — retargets its pos to
+  `hangar_anchor(current_city_id)` and flips `owned=True`. Fine
+  outdoors (that IS park-outside), but indoors the blocker is a
+  DISPLAY on the interior map: re-anchoring pins a parent-map
+  position on an interior entity. Under the ruling, an indoor buy
+  appends a FRESH owned entity to the PARENT map at the anchor and
+  strips the displays. `_relocate_old_ship` already targets the
+  right map: `state.city_game_map` is the parent even indoors.
 - Interiors are NOT serialized (they rebuild from layout on every
   entry, `saveload` excludes `city:` cache keys) — so anything
   mutated inside must be either re-derivable or kept off interior
@@ -169,6 +173,79 @@ rule becomes a shared load-time gate so it cannot regress.
       entities in any built city
 - [ ] Playtest checkpoint
 
+#### Implementation brief — Phase 1 (2026-09-11) — APPROVED
+
+**Scope.**
+- `world.py` — `SHOWROOM_BERTH` tile beside `LANDMARK_ENTRANCE`
+  (world.py:195): kind `showroom_berth`, char `S`, walkable, builds
+  to plain floor.
+- `city_landmarks.py` — P/exit placement gate in the interior
+  validation path (`_validate_city_asset`): exactly one exit, on
+  the SOUTH perimeter (wall row or the walkable row just inside),
+  `P` orthogonally adjacent; raise ValueError in the existing
+  loud-fail family.
+- `tools/layout_editor/validation.py` — editor mirror of the same
+  rule (layout files validate standalone).
+- `data/landmarks/*.layout` — the 11 violating interiors fixed per
+  the audit list; all 27 `*_spaceport_interior.layout` authored
+  with `S` berths. These land directly in `data/landmarks/` — a
+  gate-enforced install pass, not layout_drafts iteration.
+- `data/planets/__init__.py` — `showroom_ships: tuple[str, ...]`
+  (docstring at the field updated); every planet spec converted.
+- `city_kit.py` — the ONE helper `seat_showroom_ships(game_map,
+  spec, owned_ship_id)`: PURE (ownership passed as `str | None`,
+  never ctx); strips unowned ship entities, seats the manifest on
+  `S` markers in reading order (rows top-to-bottom, columns
+  left-to-right), skipping `owned_ship_id`; zip-strict — manifest/
+  marker count mismatch raises (repo tests make it unreachable);
+  1×1 `Ship: <name>` entities, `ship_id` set, `owned=False`.
+- `city_interiors.py` — `_interior_for_record` seats on EVERY entry
+  (cache hit or miss — the service-NPC slot, idempotent strip +
+  re-seat), passing the owned ship_id from `ctx.player_owned_ship`.
+- Outdoor retirement — authored callers (`earth_city.py`,
+  `ac1_city.py`, `epsilon_eridani_city.py`, `groom_city.py`,
+  `barnards_c_city.py`, `ross_c_city.py`) AND the grid path
+  (`city_builder._grid_port_entities`); then delete
+  `city_kit.add_showroom_ships` (no callers left).
+
+**Build order.** (1) `S` grammar + P/exit gate + editor mirror +
+the 11 fixes — ONE change, the gate is loud so the fixes ride with
+it. (2) manifest conversion + kit helper + interior seating +
+outdoor retirement. (3) audit tests pinning the end state.
+
+**Binding rulings.** Shared helper only — no per-city showroom
+code, ever. Ownership filter inside the helper. Terminal trio stays
+on the pad. Re-seat every entry. Layout fixes land in
+`data/landmarks/` directly.
+
+**Required tests.** P/exit rule over every `*_interior.layout` in
+`data/landmarks/` (all 93); manifest count == `S` count per city;
+every `S` walkable-adjacent and BFS-reachable from `P`; no unowned
+ship entities on any built exterior city map (authored AND grid
+paths); helper unit tests — reading order, owned-model skip,
+idempotent re-seat, shipless seats all.
+
+**Stop point.** No purchase-path changes (`_complete_ship_purchase`
+family, `_relocate_old_ship`, `_resolve_ship_blocker` untouched —
+Phase 2); no buy-modal changes (Phase 3). Until Phase 2 lands,
+buying indoors still re-anchors the display entity — the playtest
+must NOT buy.
+
+**Playtest checkpoint** (SPACEHACK_DEV run):
+1. New game at Earth: before first launch, enter the spaceport —
+   ships stand on berths inside; floor between them walkable.
+2. Your starting model does NOT stand in the room (filter live).
+3. Bump a display — buy modal opens; ESC walks away. Do NOT buy.
+4. Step outside: pad shows only your ship + the terminal trio — no
+   for-sale ships anywhere outside.
+5. Save → quit → Continue indoors: room rebuilds identically.
+6. Save → quit → Continue outdoors: pad unchanged.
+7. Visit a Ross/Indi/Tc city (was violating): enter/exit the
+   spaceport — you appear just inside the south door, `P` beside.
+8. A 1-ship backwater room: single display, berth reachable.
+9. Guide: no edits this phase (guide carries no showroom
+   references) — `?` Ships section confirmed unchanged.
+
 ### Phase 2 — Buy indoors, park outside
 - [ ] Interior buy path places the purchased ship on the outdoor
       pad berth; trade-in verified from indoors; the room re-filters
@@ -179,13 +256,62 @@ rule becomes a shared load-time gate so it cannot regress.
       modal, landing places your ship on the pad (entry/load twin)
 - [ ] Playtest checkpoint
 
-**PLAYTEST (per phase)** — SPACEHACK_DEV run: land at a core city
-(3-ship room) and a backwater (1-ship room); verify ships stand in
-the showroom, walkable and bumpable; pad shows only your ship and
-terminals; save → quit → Continue inside the interior and verify
-the room rebuilds identically; buy with trade-in from inside; walk
-out and launch; New Game at Earth shows the indoor showroom before
-first launch.
+#### Implementation brief — Phase 2 (2026-09-11) — APPROVED
+
+**Scope.**
+- `game_flow.py` — `_complete_ship_purchase` (game_flow.py:570)
+  gains the interior branch: when the buy happens on an interior
+  map, do NOT mutate the display entity; append a FRESH owned
+  entity to the PARENT map (`city_game_map` — already the parent
+  indoors via `state.city_game_map`) at
+  `hangar_anchor(ctx.current_city_id)`, `_first_walkable`-near-
+  anchor fallback if occupied; strip unowned display entities from
+  the interior map (the SETTLED re-filter, applied immediately).
+  The outdoor path stays byte-identical. `_relocate_old_ship`
+  (game_flow.py:496) is verify-only — it already removes the old
+  owned entity from the parent.
+- Signature threading — `_resolve_ship_blocker`
+  (game_interactions.py:301) → `_apply_ship_buy_result`
+  (game_flow.py:466) → `_complete_ship_purchase`: the interior map
+  must reach the purchase (pass the blocker's home map or an
+  is-interior flag); update the `__main__.py` compat alias
+  (`_flow_complete_ship_purchase`) in the same commit — twin rule,
+  both call paths tested.
+- `_build_owned_ship` (game_flow.py:536): the re-anchor mutation
+  becomes outdoor-only; the interior branch builds its entity with
+  the same constructor shape (audit both for drift).
+
+**Binding rulings.** Buy is always a trade-in once you own a ship;
+the purchased ship always parks at the city pad anchor; displays
+re-filter immediately on purchase and on every entry; launch,
+credits math, equipment transfer untouched.
+
+**Required tests.** Indoor buy: new owned entity on the parent at
+the anchor, interior displays stripped, credits/equipment transfer
+unchanged. Indoor trade-in: old hull leaves the parent pad. Outdoor
+buy: existing tests stay green, path unchanged. Twin coverage:
+landing entry AND `restore_city_interior_parent` resume both park
+exactly one owned entity. `TOO_EXPENSIVE` names the shortfall,
+unchanged.
+
+**Stop point.** No buy-modal changes (Phase 3); no seating changes
+(Phase 1 landed them).
+
+**Playtest checkpoint** (SPACEHACK_DEV run):
+1. Enter a core-city spaceport; bump a display; buy WITH trade-in.
+2. On purchase the bought display vanishes from the room
+   immediately; your OLD model is gone from the room too.
+3. Walk out: the new ship stands at the pad anchor; the old ship is
+   gone from the pad.
+4. Re-enter the showroom: the NEW model does not display; the OLD
+   model is back (filter follows ownership).
+5. Bump an unaffordable ship: shortfall named; no credits move.
+6. Launch from the pad — unchanged flow.
+7. Save → quit → Continue indoors: room filtered correctly, your
+   ship parked outside (resume re-park twin).
+8. Save → quit → Continue outdoors: pad has exactly your ship.
+9. Guide: no edits expected (buy flow and controls unchanged) —
+   `?` Ships section reviewed, recorded as unchanged.
 
 ### Phase 3 — The ship buy screen: a spec sheet, not a riddle
 
@@ -208,11 +334,49 @@ first launch.
       mapping unchanged
 - [ ] Playtest checkpoint
 
-**PLAYTEST (phase 3)** — bump a showroom ship: every stat readable
-at a glance, your current ship's numbers beside them, includes
-lines accurate, price/trade-in/credits correct; check one shielded
-hull and one `—`-shield hull; ESC never buys; the unaffordable path
-still names the shortfall.
+#### Implementation brief — Phase 3 (2026-09-11) — APPROVED
+
+**Scope.** `menus/_ship_buy.py` only.
+- `_ship_buy_body` (menus/_ship_buy.py:13) grows the ledger — one
+  line each, data straight off the `Ship` spec, no prose: Speed
+  (moves/day), Hull, Shields (`<max> + <regen>/turn`, `—` when
+  `base_shield_max == 0`), Power/turn, Weapon slots, Module slots,
+  Cargo, Fuel tank; `Includes:` line(s) for `start_weapons`/
+  `start_modules`. Each stat line appends `yours: N` from
+  `find_ship(ctx.player_owned_ship.ship_id)`'s BASE spec when the
+  player owns a ship (installed mods don't count — base vs base);
+  shipless → no `yours:` text.
+- `_ship_buy_frame` (menus/_ship_buy.py:30): same ScreenFrame
+  shape; exactly ONE selectable row — `BUY the <name> - <price>`.
+  Price/credits/shortfall keep routing through the `pygame_ui`
+  helpers. All glyphs CP437-safe.
+- `ShipBuyOutcome`, `_run_pygame_ship_buy` flow, GUIDE hook,
+  callers: untouched. Presentation only.
+
+**Binding rulings.** Numbers state themselves — no mechanic
+explanations (UI-text-economy); comparison is always base-spec vs
+base-spec; ESC never buys; the unaffordable path keeps naming the
+shortfall.
+
+**Required tests.** Every spec stat line present for a probe ship;
+compare values match the owned spec's base stats; includes lines
+render; `—` on a shieldless hull; outcome mapping unchanged
+(BUY/TOO_EXPENSIVE/BACK/QUIT); ledger sweep over the full catalog
+(every ship, with and without an owned comparison).
+
+**Stop point.** Nothing else — no flow, no purchase math, no guide
+changes unless the review demands (expected: none — the screen
+teaches itself).
+
+**Playtest checkpoint** (SPACEHACK_DEV run):
+1. Bump a showroom ship: every stat readable at a glance, labeled,
+   no prose.
+2. Your current ship's numbers sit beside each line.
+3. `Includes:` matches what the purchase actually grants.
+4. Check one shielded hull AND one `—`-shield hull.
+5. Price / trade-in value / credits / shortfall all correct.
+6. ENTER on an unaffordable ship never buys; ESC never buys.
+7. Guide: reviewed; expected no change — recorded.
 
 Design notes: the body ledger uses the idle ScreenFrame real estate
 (the screen is 100×60; the modal currently draws ~4 lines). Numbers
