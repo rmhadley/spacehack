@@ -1,21 +1,20 @@
 # earth_city_bar.layout - Earth bar exterior
-# Compact neighborhood bar: a solid roof block with a warm sign band.
+# Compact neighborhood bar: a smooth roof block with a carved sign.
 # No interior is visible from the street.
 MAP
 ###############
-#bbbbbbbbbbbbb#
-#bgggggggggggb#
-#bbbbbbbbbbbbb#
-#bgggggggggggb#
-#bbbbbbbbbbbbb#
-#bbbbbbdbbbbbb#
+#=============#
+#=============#
+#=============#
+#=============#
+#=============#
+#######d#######
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: b = CITY_BUILDING_WALL
-TILE: g = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (210, 150, 70) / (62, 38, 28)
-COLOUR: b = (225, 175, 95) / (78, 52, 34)
-COLOUR: g = (245, 205, 130) / (96, 68, 44)
+COLOUR: = = (245, 205, 130) / (96, 68, 44)
 COLOUR: d = (255, 220, 90) / (80, 52, 24)
+

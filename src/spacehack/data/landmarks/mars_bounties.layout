@@ -1,19 +1,18 @@
 # mars_bounties.layout - Mars colony civic services hall
 MAP
 ###################
-#QQQQQQQQQQQQQQQQQ#
-#Q...............Q#
-#Q...............Q#
-#QQQQQQQQQQQQQQQQQ#
-#Q...............Q#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
 #########d#########
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: Q = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (224, 232, 236) / (40, 50, 60)
-COLOUR: Q = (178, 222, 232) / (28, 66, 80)
-COLOUR: . = (206, 216, 222) / (44, 52, 60)
+COLOUR: = = (206, 216, 222) / (44, 52, 60)
 COLOUR: d = (100, 245, 255) / (20, 70, 82)
+

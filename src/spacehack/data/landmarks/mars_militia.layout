@@ -1,19 +1,18 @@
 # mars_militia.layout - Mars colony security headquarters
 MAP
 ##################################
-#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
-#S..............................S#
-#S..............................S#
-#SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS#
-#S..............................S#
+#================================#
+#================================#
+#================================#
+#================================#
+#================================#
 ###############d##################
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: S = CITY_BUILDING_WALL
-TILE: . = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (218, 228, 235) / (34, 44, 56)
-COLOUR: S = (174, 214, 228) / (26, 62, 78)
-COLOUR: . = (198, 210, 216) / (42, 50, 58)
+COLOUR: = = (198, 210, 216) / (42, 50, 58)
 COLOUR: d = (100, 245, 255) / (20, 70, 82)
+

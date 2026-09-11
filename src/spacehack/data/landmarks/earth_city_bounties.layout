@@ -3,20 +3,19 @@
 # south edge. No interior is visible from the street.
 MAP
 ###################
-#BBBBBBBBBBBBBBBBB#
-#BoooooooooooooooB#
-#BBBBBBBBBBBBBBBBB#
-#BoooooooooooooooB#
-#BBBBBBBBBBBBBBBBB#
-#BBBBBBBBBBBBBBBBB#
-#BBBBBBBdBBBBBBBBB#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+########d##########
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
-TILE: B = CITY_BUILDING_WALL
-TILE: o = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
 TILE: d = CITY_BUILDING_DOOR
 COLOUR: # = (235, 110, 190) / (58, 28, 54)
-COLOUR: B = (245, 135, 200) / (74, 40, 70)
-COLOUR: o = (255, 165, 215) / (92, 54, 88)
+COLOUR: = = (255, 165, 215) / (92, 54, 88)
 COLOUR: d = (255, 150, 215) / (100, 52, 92)
+
