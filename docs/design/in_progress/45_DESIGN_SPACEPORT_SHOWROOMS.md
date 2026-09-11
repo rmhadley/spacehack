@@ -355,7 +355,14 @@ must NOT buy.
       of the newly-owned model remains)
 - [x] Regression: outdoor launch, owned-ship menu, affordability
       modal, landing places your ship on the pad (entry/load twin)
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint
+
+#### Phase 2 result (2026-09-11): LANDED + PLAYTEST PASSED
+
+All nine checkpoint items passed (commit 24451de; reviewer APPROVE,
+four hardening minors applied: _nearest_free_cell ring table +
+full-map radius, interior-stamp routing test, _make_ship_entity reuse
+for the parked entity, _new_owned_ship single constructor).
 
 #### Implementation brief — Phase 2 (2026-09-11) — APPROVED
 
