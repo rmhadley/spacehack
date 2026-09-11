@@ -1,6 +1,6 @@
 # DESIGN: Spaceport showrooms move indoors
 
-**Status: DRAFT — for review. Nothing implemented until ruled.**
+**Status: REFINEMENT — all rulings settled 2026-09-11; briefs in progress.**
 
 ## The problem (user, 2026-09-11)
 
@@ -83,6 +83,29 @@ rule becomes a shared load-time gate so it cannot regress.
   mutated inside must be either re-derivable or kept off interior
   maps entirely.
 
+## SETTLED (2026-09-11, refinement session)
+
+- **Sold-showroom persistence — ownership-filtered displays.**
+  "the player can only have one ship owned. so if the player owns a
+  frigate, then frigates shouldn't show in any show rooms" (user,
+  verbatim). The showroom is a model catalogue read against current
+  ownership: the kit seating helper skips the manifest entry whose
+  ship_id equals the player's owned ship_id, at interior build, on
+  every entry (re-seated idempotently, the service-NPC pattern —
+  ownership can change between entries). The filtered berth seats
+  nothing — plain floor. Buying is always a trade-in (one-ship
+  invariant); trading away restores the display in every city.
+  Nothing about showrooms serializes — no sold-set, no entry/load
+  twins. Known consequence, accepted: a 1-ship city (mercury,
+  barnards_c) shows an empty room while you own its only model.
+- **Terminal trio stays on the outdoor pad** (user confirmed). The
+  pad keeps: your ship + the three service terminals — the clutter
+  complaint was the showrooms.
+- **Audit home confirmed** as written in Domain changes: the
+  placement rule is a load-time gate in `load_city_interior` plus
+  repo data tests for berths/reachability/outdoor absence;
+  `tools/city_audit.py` is not extended.
+
 ## Data model
 
 - `PlanetSpec.showroom_ships` — semantic change from
@@ -131,24 +154,12 @@ rule becomes a shared load-time gate so it cannot regress.
    reachable from `P`; no outdoor showroom entities in any built
    city map.
 
-## Known consequence to rule (open question 1)
-
-**Sold-showroom persistence.** Interiors rebuild from layout on
-every entry and are not serialized. Two coherent options:
-
-- **(a) Persistent displays — recommended.** The showroom is a
-  model catalogue, not a specific hull: buying never removes the
-  indoor entity; you can buy the same model twice (both park
-  outside). Zero new saved state, zero entry/load twins.
-- (b) Consumed hulls, as outdoors today — the bought showroom must
-  stay gone across save/load, which means a persisted sold-set on
-  ctx and an entry/load twin to keep them agreeing.
-
 ## Phases
 
 ### Phase 1 — Berths, loader, clean pads, correct doors
 - [ ] `S` marker tile in the layout grammar + kit seating helper
-      (the ONE shared path); `showroom_ships` field converted
+      (the ONE shared path, ownership filter included per SETTLED);
+      `showroom_ships` field converted
 - [ ] P/exit placement gate in `load_city_interior` (+ editor
       validator mirror); the 11 violating layouts fixed
 - [ ] All 27 interiors authored with berths; outdoor
@@ -160,8 +171,10 @@ every entry and are not serialized. Two coherent options:
 
 ### Phase 2 — Buy indoors, park outside
 - [ ] Interior buy path places the purchased ship on the outdoor
-      pad berth; trade-in verified from indoors; persistent-
-      display semantics per ruling on open question 1
+      pad berth; trade-in verified from indoors; the room re-filters
+      per the SETTLED ownership rule (re-seat on next entry; strip
+      display entities immediately on purchase so no stale display
+      of the newly-owned model remains)
 - [ ] Regression: outdoor launch, owned-ship menu, affordability
       modal, landing places your ship on the pad (entry/load twin)
 - [ ] Playtest checkpoint
@@ -218,21 +231,17 @@ the detail column.
   reachable from the interior spawn, exit unblocked.
 - Buy/trade-in from inside works; the purchased ship parks
   outside; launch is byte-for-byte today's behavior.
-- Save/load shows no showroom drift (option-a ruling) or drifts
-  never (option b).
+- Save/load shows no showroom drift: interiors rebuild from layout
+  with ownership-filtered seating — nothing about showrooms
+  serializes.
+- The owned model never stands in any showroom while owned
+  (audit-enforced over the seating helper and built interiors).
 - The buy modal shows every Ship spec stat plus the player's
   current-ship comparison; no flow or outcome changes.
 
 ## Open questions
 
-1. Sold-showroom persistence: (a) persistent displays (rec) vs
-   (b) consumed hulls + saved sold-set.
-2. Terminal trio stays on the outdoor pad — confirm (assumed yes;
-   not part of the clutter complaint).
-3. Audit home — settled by the requirements: the placement rule is
-   a load-time gate in `load_city_interior` + repo data tests for
-   berths/reachability/outdoor absence. `tools/city_audit.py` is
-   not extended.
+None — all settled 2026-09-11 (see SETTLED).
 
 ## Philosophy alignment
 
@@ -242,4 +251,4 @@ the detail column.
 | No special cases | One loader rule + one purchase-placement rule for all 27 cities; no per-city flags |
 | City kit | The kit's showroom duty moves indoors rather than being re-implemented per city |
 | Parallel paths | The audit test pins the built city AND the rebuilt interior, both paths |
-| Save/load contract | Interiors stay non-serialized; nothing mutated inside needs persisting (option a) |
+| Save/load contract | Interiors stay non-serialized; seating re-derives from ownership at build, so nothing serializes |
