@@ -211,7 +211,8 @@ binds its build.
 - [x] The verbatim ledger pane in the Q log
 - [x] Three authored chains across bar + city sources
 - [x] Guide: new Rumors section (ledger + ask-around how-to only)
-- [ ] Playtest checkpoint (checklist in the brief)
+- [x] Playtest checkpoint (checklist in the brief) — PASSED
+      (user, 2026-09-11)
 
   Implementation brief (1) — APPROVED (refine session 2026-09-10;
   amended per the ADVISE reviewer round, same day — 3 blockers
@@ -347,6 +348,9 @@ OR heard extension), and the sub-menu lists both kinds.
 1's opener/extension split (its double-row concern dissolves — one
 menu cannot double-list). Checklist items 1–2 change shape: no rumor
 rows next to "View available work" any more.
+
+Playtest complete (user, 2026-09-11) — the amended checklist passed;
+phase 1 closed.
 
 ## Pre-implementation audit — phase 1 (2026-09-10)
 

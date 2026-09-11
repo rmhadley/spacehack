@@ -561,7 +561,22 @@ nobody designs against a ghost.
 - **Quest log** — breadcrumb leads with the main quest; Q log lists
   ≤5 missions, abandon aborts cargo/returns missions to their exact
   board/removes spawns (`menus/_quest_log.py`; `main_quest/
-  _breadcrumb.py`).
+  _breadcrumb.py`). Q opens LOGS with QUESTS/RUMORS tabs — the
+  shared multi-pane tab treatment (`pygame_screen.draw_tab_bar`,
+  origin y per host; TAB/SHIFT_TAB outcomes, host loop flips the
+  sheet).
+- **Rumors (lore)** — knowledge as currency (doc 42): frozen
+  `RumorEntry` chains in `data/lore/`, prose single-sourced in
+  `data/text/08_rumors.json` (`rumor.<id>.*`); keyring
+  `ctx.known_rumors` saved in heard order; pure resolvers in
+  `rumor.py` — `askable_topics` is the ONE ask surface (routing
+  predicate input, default all); source floors ride the talk_gate
+  shape read off the resolved sheet (dark reads neutral); the talk
+  host shows one Ask around row when the contact holds anything and
+  the sub-menu lists unheard openers + heard extensions; hearing
+  records verbatim through the quest-readout modal; the RUMORS tab
+  renders the ledger verbatim in heard order (`npc.py`:
+  `_handle_ask_around`; `rumor.py`: `hear`).
 - **Mission boards** — keyed `(npc_id@planet)`; monthly refresh;
   slot fill from static catalog then faction generator; tier bands
   by planet `mission_tier` (+1 guild trait); militia/lab boards
@@ -671,7 +686,7 @@ nobody designs against a ghost.
 - **Catalogs** — every content type is a frozen dataclass +
   `find_*(id)` under `data/` (weapons, modules, ships, npc_ships,
   npc_chars, planets, solar_systems, species, classes, traits,
-  pilot_skills, missions, trade_goods, city_npcs, landmarks).
+  pilot_skills, missions, trade_goods, city_npcs, landmarks, lore).
 
 ## Meta systems
 
