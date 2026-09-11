@@ -58,7 +58,6 @@ class TalkOutcome(Enum):
     DELIVER = auto()
     QUIT = auto()
     QUEST = auto()  # player picked the main-quest dialogue option row
-    RUMOR = auto()  # player picked a chain-opener hearing row (doc 42)
     ASKAROUND = auto()  # player opened the Ask Around sub-menu (doc 42)
 
 def _run_pygame_menu(ctx, frames, *, caption: str):
@@ -90,25 +89,19 @@ def _append_priced_items(items, scrub_price, cutout_price, rig_price):
             ))
 
 
-def _append_rumor_items(items, rumor_options, ask_around):
-    """The doc-42 rows: chain-opener hearing rows, then Ask Around."""
+def _append_rumor_items(items, ask_around):
+    """The doc-42 row: one Ask around entry opening the sub-menu."""
     from . import pygame_menu
 
-    items.extend(
-        pygame_menu.MenuItem(
-            label, "Hear what they know.", f"RUMOR:{rumor_id}",
-        )
-        for label, rumor_id in rumor_options
-    )
     if ask_around:
         items.append(pygame_menu.MenuItem(
-            "Ask around", "Ask about what you've heard.", "ASKAROUND",
+            "Ask around", "Ask what they know.", "ASKAROUND",
         ))
 
 
 def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
                       cutout_price=None, rig_price=None, sell_ids=False,
-                      rumor_options=(), ask_around=False):
+                      ask_around=False):
     """Build opaque Pygame actions for every NPC-talk option."""
     from . import pygame_menu
 
@@ -117,7 +110,7 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
         for label, step_id in quest_options
     ]
     _append_priced_items(items, scrub_price, cutout_price, rig_price)
-    _append_rumor_items(items, rumor_options, ask_around)
+    _append_rumor_items(items, ask_around)
     items.extend(
         pygame_menu.MenuItem(
             "Deliver: " + mission.title,
@@ -181,8 +174,6 @@ def _map_pygame_npc_result(outcome, action, missions):
         return _ACTION_RESULTS[action]
     if action.startswith("QUEST:"):
         return (TalkOutcome.QUEST, action.split(":", 1)[1])
-    if action.startswith("RUMOR:"):
-        return (TalkOutcome.RUMOR, action.split(":", 1)[1])
     if action.startswith("DELIVER:"):
         try:
             index = int(action.split(":", 1)[1])
@@ -375,14 +366,6 @@ def _show_rumor_readout(ctx, npc, text: str) -> None:
         return
 
 
-def _handle_hear_row(ctx, npc, rumor_id: str) -> tuple[TalkOutcome, None]:
-    """Hear a chain opener: record it, show the text, done. Re-open
-    the talk to find Ask Around."""
-    rumor_module.hear(ctx, rumor_id)
-    _show_rumor_readout(ctx, npc, rumor_module.witness_text(rumor_id, npc.id))
-    return (TalkOutcome.BACK, None)
-
-
 def _rumor_topic_items(topics) -> list:
     """One sub-menu row per askable topic: label = the chain subject,
     action = the next entry to hear."""
@@ -413,7 +396,7 @@ def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
         _action = _run_choice_submenu(
             ctx,
             title="Ask around",
-            body='"What have you heard?"',
+            body='"What do you want to know?"',
             items=_rumor_topic_items(_topics),
             caption=f"spacehack - {npc.name}",
         )
@@ -435,20 +418,16 @@ def _refusal_reply(ctx, npc):
     return None
 
 
-def _rumor_surface(ctx, npc) -> tuple[list[tuple[str, str]], bool]:
-    """(chain-opener hearing rows, ask-around?) — the rumor side of
-    one talk modal, read off the RESOLVED sheet (dark reads neutral)."""
+def _offers_rumors(ctx, npc) -> bool:
+    """Whether the Ask around row shows: the NPC holds an unheard
+    opener they can deliver or a heard chain they can extend, read
+    off the RESOLVED sheet (dark reads neutral)."""
     from . import identity
 
-    _sheet = identity.effective_reputation(ctx)
-    return (
-        rumor_module.hearing_rows(
-            ctx.known_rumors, _sheet, ctx.player_traits, npc.id,
-        ),
-        bool(rumor_module.askable_topics(
-            ctx.known_rumors, _sheet, ctx.player_traits, npc.id,
-        )),
-    )
+    return bool(rumor_module.askable_topics(
+        ctx.known_rumors, identity.effective_reputation(ctx),
+        ctx.player_traits, npc.id,
+    ))
 
 
 def _run_npc_talk(
@@ -468,13 +447,13 @@ def _run_npc_talk(
     _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
     _missions = deliver_missions or []
     _quest_options = _quest_rows(ctx, npc)
-    _rumor_options, _ask_around = _rumor_surface(ctx, npc)
+    _ask_around = _offers_rumors(ctx, npc)
     _scrub_price, _cutout_price, _rig_price = _priced_rows(ctx, npc.id)
     # The builder is the single source of truth for what rows exist: the
     # no-options decision derives from its output, never a parallel count.
     items = _npc_pygame_items(
         npc, _missions, _quest_options, _scrub_price, _cutout_price,
-        _rig_price, _is_id_buyer(ctx, npc), _rumor_options, _ask_around,
+        _rig_price, _is_id_buyer(ctx, npc), _ask_around,
     )
     if not items:
         return _no_options_reply(ctx, npc, _quest_body)
@@ -497,8 +476,6 @@ def _resolve_talk_result(ctx, npc, result):
         return _purchase(ctx, npc)
     if result[0] is TalkOutcome.SELL:
         return _handle_sell_ids(ctx)
-    if result[0] is TalkOutcome.RUMOR and isinstance(result[1], str):
-        return _handle_hear_row(ctx, npc, result[1])
     if result[0] is TalkOutcome.ASKAROUND:
         return _handle_ask_around(ctx, npc)
     if result[0] is TalkOutcome.QUEST and isinstance(result[1], str):

@@ -87,31 +87,6 @@ def witness_text(rumor_id: str, npc_id: str) -> str:
     )
 
 
-def hearing_rows(
-    known: list[str],
-    resolved_rep: dict[str, int],
-    player_traits,
-    npc_id: str,
-    *,
-    routing: Callable[[str], bool] = routing_all,
-) -> list[tuple[str, str]]:
-    """``(label, rumor_id)`` rows for chain OPENERS this NPC can
-    deliver: tier-1 entries the player has not heard. A chain with
-    any heard entry progresses exclusively through Ask Around —
-    never a second discovery row for the chain already in progress."""
-    known_set = set(known)
-    rows: list[tuple[str, str]] = []
-    for entry in list_rumors():
-        if entry.tier > 1 or entry.id in known_set:
-            continue
-        if not routing(entry.id):
-            continue
-        if not _delivers(entry, npc_id, resolved_rep, player_traits):
-            continue
-        rows.append((f"Ask about {topic_label(entry.id)}", entry.id))
-    return rows
-
-
 def askable_topics(
     known: list[str],
     resolved_rep: dict[str, int],
@@ -120,16 +95,27 @@ def askable_topics(
     *,
     routing: Callable[[str], bool] = routing_all,
 ) -> list[tuple[str, str]]:
-    """``(topic, next_rumor_id)`` rows: heard chains this NPC can
-    extend by one tier. Empty until something has been heard."""
+    """``(topic, rumor_id)`` rows for everything this NPC can tell
+    you: unheard chain openers they can deliver, plus the next tier
+    of any heard chain they can extend. The ONE ask surface — the
+    main talk menu carries a single Ask around row when this is
+    non-empty (user ruling, 2026-09-11)."""
     known_set = set(known)
-    topics: list[tuple[str, str]] = []
+    rows: list[tuple[str, str]] = []
+    for entry in list_rumors():
+        if entry.tier != 1 or entry.id in known_set:
+            continue
+        if not routing(entry.id):
+            continue
+        if not _delivers(entry, npc_id, resolved_rep, player_traits):
+            continue
+        rows.append((topic_label(entry.id), entry.id))
     for rumor_id in known:
         try:
-            entry = find_rumor(rumor_id)
+            heard = find_rumor(rumor_id)
         except KeyError:
             continue  # stale id from an older save — the ledger forgets it
-        nxt = _next_entry(entry)
+        nxt = _next_entry(heard)
         if (
             nxt is None
             or nxt.id in known_set
@@ -138,8 +124,8 @@ def askable_topics(
             or not _delivers(nxt, npc_id, resolved_rep, player_traits)
         ):
             continue
-        topics.append((topic_label(rumor_id), nxt.id))
-    return topics
+        rows.append((topic_label(rumor_id), nxt.id))
+    return rows
 
 
 def known_entries(known: list[str]) -> list[RumorEntry]:

@@ -2,7 +2,9 @@
 
 The resolvers are ctx-free: floors read whatever resolved sheet the
 host passes, so LIVE / SPOOFED / DARK behavior is pinned here at the
-resolver contract level.
+resolver contract level. One ask surface since the playtest-round-1
+ruling: askable_topics lists unheard openers AND heard-chain
+extensions; the main menu carries a single Ask around row.
 """
 
 from types import SimpleNamespace
@@ -14,53 +16,80 @@ def _no_traits():
     return frozenset()
 
 
-# --- hearing rows ---------------------------------------------------------
+# --- the ask surface (openers + extensions in one sub-menu) ---------------
 
 
-def test_tier_one_rows_appear_for_their_tellers():
-    _rows = dict(rumor.hearing_rows([], {}, _no_traits(), "barkeep"))
-    assert _rows == {
-        "Ask about the derelict line": "derelict_line_1",
-        "Ask about the thin month": "thin_month_1",
-    }
+def test_openers_surface_for_their_tellers():
+    _rows = dict(rumor.askable_topics([], {}, _no_traits(), "barkeep"))
+    assert _rows == {"the derelict line": "derelict_line_1",
+                     "the thin month": "thin_month_1"}
 
 
-def test_deeper_tiers_never_appear_as_hearing_rows():
-    # Host contract (REVIEW round 1): a chain with any heard entry
-    # progresses exclusively through Ask Around — hearing rows are
-    # chain openers only.
-    _rows = dict(
-        rumor.hearing_rows(["derelict_line_1"], {}, _no_traits(), "depot_attendant")
-    )
-    assert _rows == {}
-    _topics = rumor.askable_topics(
-        ["derelict_line_1"], {}, _no_traits(), "depot_attendant"
-    )
-    assert _topics == [("the derelict line", "derelict_line_2")]
-
-
-def test_heard_entries_never_re_row():
-    _rows = dict(rumor.hearing_rows(["derelict_line_1"], {}, _no_traits(), "barkeep"))
+def test_openers_stop_once_heard():
+    _rows = dict(rumor.askable_topics(
+        ["derelict_line_1"], {}, _no_traits(), "barkeep"))
     assert "derelict_line_1" not in _rows.values()
-
-
-def test_floor_hides_source_below_standing():
-    _rows = dict(
-        rumor.hearing_rows([], {"militia": -5}, _no_traits(), "blockade_officer")
-    )
-    assert _rows == {}
-    _rows = dict(
-        rumor.hearing_rows([], {"militia": 0}, _no_traits(), "blockade_officer")
-    )
     assert "thin_month_1" in _rows.values()
+
+
+def test_extensions_offer_the_next_tier():
+    _rows = dict(rumor.askable_topics(
+        ["derelict_line_1"], {}, _no_traits(), "depot_attendant"))
+    # The opener is gone (heard) and the extension replaces it.
+    assert _rows == {"the derelict line": "derelict_line_2"}
+
+
+def test_openers_and_extensions_coexist_across_chains():
+    # The wolf operator extends the derelict chain (tier 3) AND opens
+    # the dark-berth chain — both rows in one sub-menu.
+    _rows = dict(rumor.askable_topics(
+        ["derelict_line_1", "derelict_line_2"], {}, _no_traits(), "wolf_barkeep"))
+    assert _rows == {"the derelict line": "derelict_line_3",
+                     "the dark berths": "dark_berth_1"}
+
+
+def test_askable_topics_only_for_contacts_who_deliver():
+    # The barkeep opened both his chains but extends neither.
+    assert rumor.askable_topics(
+        ["derelict_line_1", "thin_month_1"], {}, _no_traits(), "barkeep"
+    ) == []
+
+
+def test_askable_topics_empty_when_everything_heard():
+    # Exhausted derelict chain + heard dark-berth opener: the wolf
+    # operator holds nothing further.
+    assert rumor.askable_topics(
+        ["derelict_line_1", "derelict_line_2", "derelict_line_3",
+         "dark_berth_1"],
+        {},
+        _no_traits(),
+        "wolf_barkeep",
+    ) == []
+
+
+def test_askable_topics_honor_floors():
+    # Hostile militia: the opener is withheld entirely.
+    assert rumor.askable_topics(
+        [], {"militia": -5}, _no_traits(), "blockade_officer"
+    ) == []
+    # Neutral sheet: opener surfaces; below-floor rep hides extensions.
+    assert rumor.askable_topics(
+        [], {"militia": 0}, _no_traits(), "blockade_officer"
+    ) == [("the thin month", "thin_month_1")]
+    assert rumor.askable_topics(
+        ["thin_month_1"], {"militia": -5}, _no_traits(), "blockade_officer"
+    ) == []
+    assert rumor.askable_topics(
+        ["thin_month_1"], {"militia": 0}, _no_traits(), "blockade_officer"
+    ) == [("the thin month", "thin_month_2")]
 
 
 def test_spoofed_sheet_clears_a_floor_the_true_sheet_does_not():
     # The resolver reads the sheet it is GIVEN (the resolved one) — a
     # worn face at militia liked passes where the true hostile sheet
     # would not. Hosts must pass identity.effective_reputation(ctx).
-    _spoofed = dict(rumor.hearing_rows([], {"militia": 30}, _no_traits(), "blockade_officer"))
-    _true = dict(rumor.hearing_rows([], {"militia": -40}, _no_traits(), "blockade_officer"))
+    _spoofed = dict(rumor.askable_topics([], {"militia": 30}, _no_traits(), "blockade_officer"))
+    _true = dict(rumor.askable_topics([], {"militia": -40}, _no_traits(), "blockade_officer"))
     assert "thin_month_1" in _spoofed.values()
     assert _true == {}
 
@@ -68,15 +97,14 @@ def test_spoofed_sheet_clears_a_floor_the_true_sheet_does_not():
 def test_dark_reads_neutral():
     # DARK: effective_reputation returns {} — every faction reads 0.
     # Neutral floors pass, liked floors and trait gates refuse.
-    _rows = dict(rumor.hearing_rows([], {}, _no_traits(), "blockade_officer"))
+    _rows = dict(rumor.askable_topics([], {}, _no_traits(), "blockade_officer"))
     assert "thin_month_1" in _rows.values()
-    _rows = dict(rumor.hearing_rows([], {}, _no_traits(), "militia_captain"))
+    _rows = dict(rumor.askable_topics([], {}, _no_traits(), "militia_captain"))
     assert _rows == {}
 
 
 def test_trait_gate_demands_the_trait():
-    # Tier-3 progression runs exclusively through Ask Around (chain-
-    # opener rule), so the trait gate is pinned on askable_topics.
+    # The captain's tier is trait-gated, pinned on askable_topics.
     assert rumor.askable_topics(
         ["thin_month_1", "thin_month_2"],
         {"militia": 50},
@@ -92,11 +120,10 @@ def test_trait_gate_demands_the_trait():
 
 
 def test_routing_predicate_filters_rows():
-    _rows = rumor.hearing_rows(
+    assert rumor.askable_topics(
         [], {}, _no_traits(), "barkeep", routing=lambda _id: False
-    )
-    assert _rows == []
-    _rows = dict(rumor.hearing_rows(
+    ) == []
+    _rows = dict(rumor.askable_topics(
         [], {}, _no_traits(), "barkeep",
         routing=lambda rumor_id: rumor_id != "thin_month_1",
     ))
@@ -105,45 +132,7 @@ def test_routing_predicate_filters_rows():
 
 
 def test_non_source_npc_gets_nothing():
-    assert rumor.hearing_rows([], {}, _no_traits(), "guild_master") == []
-
-
-# --- askable topics -------------------------------------------------------
-
-
-def test_askable_topics_empty_before_anything_is_heard():
-    assert rumor.askable_topics([], {}, _no_traits(), "barkeep") == []
-
-
-def test_askable_topics_offer_the_next_tier():
-    _topics = rumor.askable_topics(
-        ["derelict_line_1"], {}, _no_traits(), "depot_attendant"
-    )
-    assert _topics == [("the derelict line", "derelict_line_2")]
-
-
-def test_askable_topics_only_for_contacts_who_deliver():
-    assert rumor.askable_topics(
-        ["derelict_line_1"], {}, _no_traits(), "barkeep"
-    ) == []
-
-
-def test_askable_topics_empty_when_chain_exhausted():
-    assert rumor.askable_topics(
-        ["derelict_line_1", "derelict_line_2", "derelict_line_3"],
-        {},
-        _no_traits(),
-        "wolf_barkeep",
-    ) == []
-
-
-def test_askable_topics_honor_floors():
-    assert rumor.askable_topics(
-        ["thin_month_1"], {"militia": -5}, _no_traits(), "blockade_officer"
-    ) == []
-    assert rumor.askable_topics(
-        ["thin_month_1"], {"militia": 0}, _no_traits(), "blockade_officer"
-    ) == [("the thin month", "thin_month_2")]
+    assert rumor.askable_topics([], {}, _no_traits(), "guild_master") == []
 
 
 # --- text resolvers -------------------------------------------------------
@@ -175,7 +164,11 @@ def test_stale_ids_are_skipped_not_raised():
     # path on an old save — knowledge fades, the game doesn't fall over.
     _entries = rumor.known_entries(["retired_rumor", "derelict_line_1"])
     assert [entry.id for entry in _entries] == ["derelict_line_1"]
-    assert rumor.askable_topics(["retired_rumor"], {}, _no_traits(), "barkeep") == []
+    # A stale id offers no ghost row; the NPC's real rows are untouched.
+    _rows = dict(rumor.askable_topics(
+        ["retired_rumor"], {}, _no_traits(), "barkeep"))
+    assert _rows == {"the derelict line": "derelict_line_1",
+                     "the thin month": "thin_month_1"}
 
 
 # --- the keyring mutation -------------------------------------------------
