@@ -296,6 +296,27 @@ ruled. These bind all phases.
     ledger line per entry stands (canonical template + injected
     destination), save-stable because routing is INIT_SEED-derived.
 
+## Settled — phase 4, the dig dungeons (refine session, 2026-09-11)
+
+23. **The gate covers NEW dig sites only.** Existing explorables
+    (mercury, wolf_b, barnards_b, procyon_c, the mars signal site)
+    keep today's unconditional Explore option — quest flows and
+    playtested sites untouched. Fragment-gated dig sites are a new
+    set of planets authored with dig params plus the discovery
+    gate; the option is HIDDEN until the site is discovered
+    (user: "We expose a dungeon option on that planet if you've
+    'discovered' it"), shown and revisitable thereafter. The
+    discovered-set is player state like the keyring (saved, New
+    Game clears).
+24. **Single-level v1.** Phase 4 wires discovery gating, new dig
+    planets, and pads-in-dungeon-loot on the EXISTING single-level
+    BSP surface generator (tier=mission_tier population, the
+    `ctx.interiors` revisit cache — all shipped machinery).
+    Multi-level proc-gen (floor progression) is its own later
+    phase; "can be multi level" stays the system's destination,
+    not v1. The fragment's seeded destination pick (SETTLED 22)
+    varies WHERE the dig is, not how deep.
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 42.<p>` works
@@ -720,7 +741,7 @@ amended with the favor exchange.
 - [ ] Derived routing module (pure INIT_SEED derivations):
       live-candidate subsets per entry (npc+planet candidates,
       authored width — SETTLED 15), exclusive holder picks
-      (SETTLED 17), fragment destination picks (SETTLED 22)
+      (SETTLED 17)
 - [ ] Authored discovery triggers: openers enter via trigger / pad
       / carrier (SETTLED 16); the phase-1 chains re-authored so no
       chain is askable at spawn
@@ -730,12 +751,138 @@ amended with the favor exchange.
       different legal routing; round-trip stability)
 - [ ] Playtest checkpoint
 
+  Implementation brief (3) — PROPOSED (refine session 2026-09-11):
+
+  - **Scope.** Data: `RumorEntry.sources` become planet-scoped
+    candidates — `(npc_id, planet, faction | None, min_standing |
+    None, trait | None)` (uniform extension of the talk-gate shape;
+    no legacy unscoped form) — plus two frozen fields: `picks:
+    int | None = None` (authored width — the derivation picks this
+    many live candidates per run; None = every candidate live) and
+    `triggers: tuple[str, ...] = ()` (authored discovery events).
+    `data/lore/chains.py` re-authors all three chains (SETTLED 16):
+    openers narrow (`picks=1` — e.g. `derelict_line_1` candidates
+    `(("barkeep", "cygni_b"), ("depot_attendant", "groom_b"))`;
+    `dark_berth_1` `(("wolf_barkeep", "wolf_b"),
+    ("deadfall_scrubber", "lal_b"))`; verified seats: `ember_tech`
+    → ross_b, `research_officer` → mercury/procyon_c/
+    sirius_station/ac_planet_2; exact candidate planets are
+    content, reviewed at playtest); mid-chain witness pointer text
+    added where a step narrows (SETTLED 18;
+    `data/text/08_rumors.json`); `thin_month_1` gains the
+    `line_warned` trigger (the founding example: warned by the
+    Line = discovered). New `data/lore/finds.py`: the pad table —
+    authored `(enemy_id, taught_rumor_id)` rows for boarded-ship /
+    derelict loot (SETTLED 19; content proposal: a derelict pad
+    teaching `derelict_line_1`, a pirate-boarding pad teaching
+    `dark_berth_1`). `data/lore/dealers.py` gains the authored
+    candidate table `EXCLUSIVE_CANDIDATES` (rumor_id →
+    `((dealer_id, price), ...)`; content: `dark_berth_4` → all
+    three dealers at price 4; wolf_barkeep's static exclusives
+    entry retires into it). New `rumor_routing.py`: the pure
+    INIT_SEED derivations — `live_routes(seed)` → per-entry live
+    candidate sets (`seeded_rng(seed, "rumor_route", entry.id)`,
+    picks ≥ 1) and `live_holdings(seed)` → per-dealer exclusive
+    holdings folded from the candidate table (SETTLED 17).
+    `rumor.py`: `askable_topics` / `_delivers` take the live-route
+    map as an explicit pure input (the phase-1 `routing` entry-gate
+    predicate retires); `exclusive_offers` holdings come from
+    `live_holdings`; new `fire_trigger(ctx, event_id)` — hears
+    every entry authored with that trigger, idempotent, readout on
+    each new hearing (the readout wrapper hoists from `npc.py` to
+    `rumor.py` so hosts and loot present through the one path).
+    Host: `npc.py` `_handle_ask_around` resolves the current
+    planet id (the `current_city_id` slot) and derives live routes
+    once per sub-menu pass. Loot: `loot.py` `_apply_loot_pickup`
+    gains the `teaches` branch — hear + readout + entity removed,
+    nothing to the hold; pad loot entities spawn (in the
+    boarded/derelict loot construction) only while their entry is
+    unheard at spawn time. Trigger fire site: the Line's warning
+    emission (the doc-41 hail path) calls
+    `fire_trigger(ctx, "line_warned")` — the build session's audit
+    locates the exact site; if it sits in grandfathered code the
+    ratchet is paid in-commit. Dev instrument: Shift+R logs the
+    run's live routing (carriers per chain + the live exclusive
+    holder). Guide: the Rumors section gains a discovery sentence
+    (chains reach you by asking around, finds, and events; no
+    chain list, no telegraphing).
+  - **Build order.** (1) source-shape fields + chain re-authoring
+    + pointer text + catalog-test extensions; (2) `rumor_routing.py`
+    + tests; (3) resolver seam (live map, `live_holdings`, holder
+    scatter) + host wiring + tests; (4) trigger machinery +
+    `line_warned` fire site + tests; (5) pads (`finds.py`, loot
+    branch, spawn-time unheard check) + tests; (6) Shift+R
+    instrument; (7) guide sentence; (8) playtest checkpoint.
+  - **Binding rulings.** SETTLED 7 (as amended), 14–19, 22. The
+    seed never gates a chain; every non-exclusive entry keeps ≥1
+    live route; floors/traits stay per-candidate off the resolved
+    sheet, unchanged on top of routing; nothing serialized
+    (INIT_SEED-derived routing; no new ctx fields this phase);
+    pads teach on pickup, nothing held, nothing sellable; ledgers
+    follow the live holder (the carried phase-2 wrinkle: a
+    pre-phase-3 save's earned set can disagree with the newly
+    derived holder — accepted, no migration; the buy-side
+    requires-gate is unaffected).
+  - **Required tests.** Routing determinism (same INIT_SEED → same
+    live routes/holdings; a rerolled seed → a different but legal
+    derivation — ≥1 live route per entry, exactly `picks` live
+    candidates); catalog integrity (sources are real npc ids on
+    real planets with valid factions; `picks` ≤ pool size;
+    triggers reference the registry; no unscoped sources anywhere);
+    resolver (a non-live candidate's topic absent, a live one
+    present, floors still applied on top; DARK reads neutral
+    through the live map); holder scatter (only the live dealer
+    shows the Buy row; non-live candidates show nothing);
+    `fire_trigger` (hears authored entries; idempotent on refire);
+    pads (teach-on-pickup records verbatim + keyring; re-pickup
+    no-op; pad absent when the entry is already heard; non-pad
+    loot unchanged; loot_data round-trip); host (sub-menu rows
+    honor the live map; the current planet scopes delivery);
+    Continue stability (init_seed already round-trips — routing
+    identical after load).
+  - **Stop point.** No comms host or scuttlebutt (phase 5), no
+    fragments / discovered-sites state / dig dungeons (phase 4),
+    no lie (phase 5), no legendary loot (deferred, SETTLED 21), no
+    dungeon-loot pad surface (phase 4), no SYSTEMS.md close work
+    (phase close).
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+    1. Fresh dev run: talk to the starting-city barkeep — no
+       rumor topics anywhere (no chain askable at spawn); the
+       dealer sub-menu opens with Favor: 0 and no rows.
+    2. Shift+R: the live-routes readout lists each chain's
+       carrier planets this run. Travel to a live opener carrier;
+       Ask Around delivers tier 1 (readout + ledger verbatim).
+    3. Walk the chain: witness pointer text names where to look
+       next; the next tier's live carrier delivers; floors still
+       refuse below their standing (the thin_month militia
+       floors).
+    4. Trigger: approach the Line and take the warning —
+       `thin_month_1` arrives without asking (readout + ledger);
+       a re-warn does not duplicate.
+    5. Pads: board/loot the authored pad carriers — the pad
+       teaches on pickup (readout, ledger, nothing to the hold);
+       the same source re-killed carries no pad.
+    6. Holder scatter: Shift+R names the live holder of
+       `dark_berth_4`; only that dealer shows the Buy row; the
+       Whisper vendor still gates on the keyring regardless of
+       holder.
+    7. Determinism: save → quit → Continue — Shift+R shows the
+       identical routing; Shift+S reroll → different legal
+       routing (item 2 repeats against the new routes).
+    8. Regression: phase-1/2 behaviors intact (Q tabs, favor
+       economy, no-selling-back, vendor gate, quest/purchase
+       rows); non-source NPCs show no Ask Around row.
+    9. Guide diff: the discovery sentence quoted before/after; no
+       chain telegraphing.
+
 ### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11)
-- [ ] Proc-gen dungeon system: multi-level themed floors, the
-      planets' theme concept extended to dungeon themes (SETTLED 20)
-- [ ] Discovery: fragment finds expose the planet's dungeon option;
-      revisitable once discovered (SETTLED 20, 22)
-- [ ] Dungeon loot, incl. pads as a pad surface (SETTLED 19)
+- [ ] Discovery gating: fragment finds + a discovered-sites player
+      state; the dig option hidden until discovered, revisitable
+      after — NEW dig planets only (SETTLED 20, 22, 23)
+- [ ] New dig-site planets authored with dig params, theme extended
+      to dungeon floors
+- [ ] Dungeon loot, incl. pads as a pad surface (SETTLED 19);
+      single-level v1 (SETTLED 24)
 - [ ] Playtest checkpoint
 
   (Phase 4 carries its own ruling pass and brief before any code —
