@@ -14,6 +14,16 @@ your ship outside). Buying inside spawns the new ship parked
 outside; trade-in removes the old one from the pad. The pad keeps:
 your ship + the terminal trio.
 
+**Added at review (user, 2026-09-11): the ship buy screen itself.**
+"Frankly it: 1. looks bad, 2. has no details, 3. is hard to
+understand — we have a lot of screen real estate here and we're
+using none of it. Just confusing the player and they have to guess
+what a ship's stats are." Today the modal shows the description
+sentence and one BUY row; the Ship spec carries speed, hull,
+shields, power, weapon/module slots, cargo, fuel, and a starting
+loadout — none of it displayed
+(`menus/_ship_buy.py`; `data/ships`).
+
 ## Survey (verified 2026-09-11, all 27 cities)
 
 Every planet with a spaceport building already has a
@@ -164,6 +174,39 @@ the room rebuilds identically; buy with trade-in from inside; walk
 out and launch; New Game at Earth shows the indoor showroom before
 first launch.
 
+### Phase 3 — The ship buy screen: a spec sheet, not a riddle
+
+- [ ] Stats ledger in the modal body — for the OFFERED ship, one
+      line each: Speed (moves/day), Hull, Shields (max + regen, `—`
+      when none), Power/turn, Weapon slots, Module slots, Cargo,
+      Fuel tank; `Includes:` lines for `start_weapons`/
+      `start_modules` — data straight off the Ship spec, no prose
+- [ ] Comparison column — since the player always owns a ship,
+      each stat line carries "yours: N" from the current
+      `player_owned_ship`'s base spec, so the trade-in decision is
+      visible at a glance; single column when shipless
+- [ ] Price block stays the single source of money truth: price,
+      trade-in value, credits, shortfall (existing `pygame_ui`
+      helpers); one selectable row: `BUY the <name> - <effective>`
+- [ ] No flow changes — `ShipBuyOutcome` contract, affordability
+      path, GUIDE hook, and callers untouched (presentation only)
+- [ ] Tests pin the ledger: every spec stat line present, compare
+      lines match the owned spec, included-loadout lines, outcome
+      mapping unchanged
+- [ ] Playtest checkpoint
+
+**PLAYTEST (phase 3)** — bump a showroom ship: every stat readable
+at a glance, your current ship's numbers beside them, includes
+lines accurate, price/trade-in/credits correct; check one shielded
+hull and one `—`-shield hull; ESC never buys; the unaffordable path
+still names the shortfall.
+
+Design notes: the body ledger uses the idle ScreenFrame real estate
+(the screen is 100×60; the modal currently draws ~4 lines). Numbers
+state themselves — no explanations, per the UI-text-economy rule.
+All glyphs CP437-safe; comparison lines are plain `yours: N` text in
+the detail column.
+
 ## Acceptance criteria
 
 - Every `*_interior.layout` passes the P/exit placement rule
@@ -177,6 +220,8 @@ first launch.
   outside; launch is byte-for-byte today's behavior.
 - Save/load shows no showroom drift (option-a ruling) or drifts
   never (option b).
+- The buy modal shows every Ship spec stat plus the player's
+  current-ship comparison; no flow or outcome changes.
 
 ## Open questions
 
