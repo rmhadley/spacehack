@@ -62,8 +62,10 @@ ghost-run step" — comprehension is the puzzle.
    content-lives-on-the-spec discipline.
 2. **A per-run proc/RNG aspect.** No static loop — "talk to NPC X,
    ask about Y, X sends you to Z" must NOT play identically every
-   run. Some of the system varies with the run seed: which chains
-   surface, who knows what, where finds point. Authored chains
+   run. Some of the system varies with the run seed: who carries
+   what (live-candidate subsets — SETTLED 15; the seed never gates
+   a chain itself, SETTLED 14), who knows what, where finds point.
+   Authored chains
    stay authored; the ROUTING through the world is what the seed
    shuffles (the seed-pinning machinery — SPACEHACK_SEED,
    engine.RNG rebinds, derived seeds — is the existing substrate).
@@ -134,13 +136,16 @@ ruled. These bind all phases.
 7. **Seed — routing derived from INIT_SEED, nothing serialized.**
    Every per-run variation is a pure function of INIT_SEED +
    stable keys (the city-NPC-route precedent: keyed derivations
-   never reshuffle). The seed varies: which authored chains surface
-   this run (seeded subset), which dealer holds which exclusive,
-   where finds point (seeded pick among authored candidates).
-   Content stays authored. CONTINUE regenerates identical routing
-   from the persisted INIT_SEED; SPACEHACK_SEED makes playtests
-   reproducible; Shift+S reroll yields a different but equally
-   legal routing.
+   never reshuffle). The seed varies the ROUTING: which candidates
+   are live (SETTLED 15), which dealer holds which exclusive
+   (SETTLED 17), where finds point (seeded pick among authored
+   candidates). AMENDED (phase-3 refine, 2026-09-11): the seed
+   NEVER gates a chain — the "seeded subset of chains" first
+   written here is superseded by SETTLED 14–16; every authored
+   chain is completable every run. Content stays authored.
+   CONTINUE regenerates identical routing from the persisted
+   INIT_SEED; SPACEHACK_SEED makes playtests reproducible; Shift+S
+   reroll yields a different but equally legal routing.
 8. **The sub-menu — both hosts, one row, everything askable
    inside.** One "Ask Around" row on the city/bar NPC talk modal AND
    on the space comms matrix for talkable contacts (derelicts and
@@ -192,6 +197,66 @@ ruled. These bind all phases.
 13. **Earned-set home — one field.** `rumor_favor[dealer_id]` values
     are `{"favor": int, "earned": [rumor ids]}`; no third ctx field.
     The once-per-(rumor, dealer) set lives in `earned`.
+
+## Settled — phase 3, the routing model (refine session, 2026-09-11)
+
+14. **The seed shuffles routing, never availability.** (user:
+    "Authored chains need a way for them to be discovered and all
+    authored chains should be discoverable. No authored chain should
+    be blocked because of RNG seed. And no authored chain should
+    START discovered." + "the RNG changes where the next steps take
+    you. which npc's you need to find on which planets in which
+    solar systems.") Every authored chain is completable in every
+    run — no chain is seed-blocked, no chain is seed-gated to a
+    subset of runs. What varies is WHERE the next step lives: which
+    NPC seats carry each entry this run. Still pure INIT_SEED
+    derivations per SETTLED 7 (deterministic, CONTINUE-stable,
+    SPACEHACK_SEED-pinnable, Shift+S reroll → different legal
+    routing).
+15. **Sources become planet-scoped candidate pools with authored
+    width.** A candidate teller is `(npc_id, planet)` — if the seed
+    makes the candidate live, ANY seat of that role on that planet
+    delivers (user picked npc+planet over planet+building;
+    buildings stay the seat data's business). The entry lists its
+    possible NPCs; the derivation picks the live subset; width is
+    authored per entry (user: "The rumor chains can list the
+    possible NPCs that the RNG chooses. Some steps - narrow. Other
+    steps - very wide. all up to the data.") — narrow = pick 1 of
+    the pool, wide = most/all of it. Floors and traits stay
+    per-candidate in the data, unchanged on top of routing
+    (user: "yes, this doesn't change those settings that also
+    should live in the data") — a seeded witness behind a militia
+    floor is also a rep puzzle. Completability: the derivation
+    always leaves ≥1 route per non-exclusive entry; the catalog
+    test asserts non-empty pools.
+16. **Discovery is an authored route, not a default.** No chain is
+    askable at New Game: an opener enters the keyring only through
+    routes its row authors — a world-event TRIGGER, a find pad,
+    comms hearsay (phase 4), or finding a seeded carrier. Triggers
+    are first-class (user: "There needs to be other ways besides
+    talking through rumors to discover a chain. The blockade chain
+    should be discovered once you discover the blockade. Have you
+    been warned to turn back? Yes: discovered. We need to support
+    triggers like this.") — the entry authors trigger ids; the
+    owning system fires the event and the opener is delivered
+    through the hearing idiom (keyring + ledger, readout modal).
+    The phase-1 chains get re-authored under this rule: today's
+    everywhere-seats (`barkeep` in every bar) are why two chains
+    are askable at spawn.
+17. **Exclusive holders: candidates + pick.** Each exclusive
+    authors candidate `(dealer, price)` pairs; the seed picks one
+    live holder per run (same derivation idiom as SETTLED 15).
+    Proposed content, tunable: `dark_berth_4` candidates = all
+    three dealers at price 4. A dealer who is a candidate but not
+    live this run holds nothing — no Buy row, same as any
+    empty-handed dealer.
+18. **Mid-chain pointers are authored witness text.** Each
+    candidate's `witness.<npc_id>` override may point onward — the
+    precision (names the planet / names the role / names nothing)
+    is the author's call, per candidate. The ledger keeps canonical
+    text (the phase-1 pin stands). No procedural hint line, no
+    greyed rows — the sub-menu still never lists what a contact
+    can't deliver.
 
 ## Phases
 
@@ -614,8 +679,12 @@ storefront is correct). Phase 2 closed; SYSTEMS.md rumors entry
 amended with the favor exchange.
 
 ### Phase 3 — Seed routing + finds that teach
-- [ ] Derived routing module (pure INIT_SEED derivations): chain
-      surfacing subset, dealer exclusive scatter, find destinations
+- [ ] Derived routing module (pure INIT_SEED derivations):
+      live-candidate subsets per entry (npc+planet candidates,
+      authored width — SETTLED 15), exclusive holder picks
+      (SETTLED 17), find destinations; authored discovery triggers
+      (openers enter via trigger / pad / carrier — SETTLED 16; the
+      phase-1 chains re-authored so no chain is askable at spawn)
 - [ ] Loot that teaches: data pads teach keyring entries on pickup
 - [ ] Finds that send: map fragments point at seeded candidate
       sites (dig site: info AND/OR legendary loot)
