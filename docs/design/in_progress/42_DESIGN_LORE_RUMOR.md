@@ -258,6 +258,44 @@ ruled. These bind all phases.
     greyed rows — the sub-menu still never lists what a contact
     can't deliver.
 
+## Settled — phase 3, the finds (refine session, 2026-09-11)
+
+19. **Pads teach on pickup.** A data pad is a find that, on pickup,
+    records its authored entry on the keyring + ledger and presents
+    the readout — knowledge IS the item; nothing goes to the hold,
+    nothing sellable (the quest-cargo spirit). Phase-3 pad
+    surfaces, user-picked: **boarded-ship and derelict loot**
+    (authored pad table beside the goods those drops already
+    carry). Dungeon loot joins as a pad surface when the dungeon
+    system lands (phase 4).
+20. **Dig sites are 100% procedural dungeons — nothing authored.**
+    (user: "Procedurally generated dungeons entirely. Nothing
+    authored. We have lots of planets. We expose a dungeon option
+    on that planet if you've 'discovered' it. Can be revisited once
+    discovered. 100% procedural generated — can be multi level.
+    Each planet already has a theme concept, we might need to
+    expand that to include proc gen dungeon theme too.") A fragment
+    discovers a planet's dungeon: the option is exposed on that
+    planet once discovered, revisitable thereafter; floors are
+    proc-gen, possibly multi-level, themed off the planet's theme
+    concept (extended to dungeon themes). Big enough to be its own
+    phase — the phase list below is restructured (new phase 4; the
+    lie moves to phase 5).
+21. **Legendary loot is out of this doc's phases.** (user: "Let's
+    just focus on the system. The legendary loot will be a new
+    phase or even a new design doc. I'm thinking like: multi-purpose
+    ship modules. A shield generator AND cargo space all in one
+    module slot?") The dig payoff question is deferred; multi-purpose
+    modules are the seed note for that future doc. Dungeons ship
+    with ordinary loot (+ pads as info) until then.
+22. **Fragments point at planets, seeded among authored candidates.**
+    A fragment is a find (same pickup machinery as a pad) whose row
+    authors candidate planets; the seed picks the live destination
+    this run (SETTLED 7's "seeded pick among authored candidates").
+    The pointer entry renders with the live planet named — one
+    ledger line per entry stands (canonical template + injected
+    destination), save-stable because routing is INIT_SEED-derived.
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 42.<p>` works
@@ -678,21 +716,34 @@ toggle: dev saves pre-install the cut-out, so the owner's empty
 storefront is correct). Phase 2 closed; SYSTEMS.md rumors entry
 amended with the favor exchange.
 
-### Phase 3 — Seed routing + finds that teach
+### Phase 3 — Seed routing + discovery (re-scoped 2026-09-11)
 - [ ] Derived routing module (pure INIT_SEED derivations):
       live-candidate subsets per entry (npc+planet candidates,
       authored width — SETTLED 15), exclusive holder picks
-      (SETTLED 17), find destinations; authored discovery triggers
-      (openers enter via trigger / pad / carrier — SETTLED 16; the
-      phase-1 chains re-authored so no chain is askable at spawn)
-- [ ] Loot that teaches: data pads teach keyring entries on pickup
-- [ ] Finds that send: map fragments point at seeded candidate
-      sites (dig site: info AND/OR legendary loot)
+      (SETTLED 17), fragment destination picks (SETTLED 22)
+- [ ] Authored discovery triggers: openers enter via trigger / pad
+      / carrier (SETTLED 16); the phase-1 chains re-authored so no
+      chain is askable at spawn
+- [ ] Loot that teaches: pads on boarded-ship + derelict loot,
+      teach-on-pickup (SETTLED 19)
 - [ ] Determinism tests (same INIT_SEED → same routing; reroll →
       different legal routing; round-trip stability)
 - [ ] Playtest checkpoint
 
-### Phase 4 — The space host + the lie
+### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11)
+- [ ] Proc-gen dungeon system: multi-level themed floors, the
+      planets' theme concept extended to dungeon themes (SETTLED 20)
+- [ ] Discovery: fragment finds expose the planet's dungeon option;
+      revisitable once discovered (SETTLED 20, 22)
+- [ ] Dungeon loot, incl. pads as a pad surface (SETTLED 19)
+- [ ] Playtest checkpoint
+
+  (Phase 4 carries its own ruling pass and brief before any code —
+  the generation shape, revisit persistence, and entrance placement
+  are ruled in the refine session; legendary loot is deferred per
+  SETTLED 21.)
+
+### Phase 5 — The space host + the lie (was phase 4)
 - [ ] Ask Around on the comms matrix (talkable contacts);
       scuttlebutt vector (patrol chatter as free hearsay)
 - [ ] The authored lie: false flag honored, false route, in-world
