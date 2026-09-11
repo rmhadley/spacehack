@@ -421,6 +421,97 @@ rows next to "View available work" any more.
       an interaction)
 - [ ] Playtest checkpoint
 
+  Implementation brief (2) — APPROVED (refine session 2026-09-11):
+
+  - **Scope.** Data: `RumorEntry` gains `value: int = 0` (the offer
+    value — a number, not prose; the catalog stays structural). New
+    `data/lore/dealers.py`: frozen `DealerSpec(dealer_npc_id,
+    exclusives)` + `DEALERS` / `is_dealer` — rows for `barkeep`,
+    `wolf_barkeep`, `research_officer` (ruling 9); `wolf_barkeep`
+    holds `(("dark_berth_4", 4),)`. `chains.py` gains `dark_berth_4`
+    (tier 4, requires `dark_berth_3`, empty sources — never
+    free-asks, value 2). Prose keys `rumor.dark_berth_4.{topic,
+    text}` (no witness — bought knowledge has one canonical text).
+    Calibration authored in data, tunable: tier 1/2/3 values 1/2/3.
+    State: `ctx.rumor_favor: dict[str, dict]` beside `known_rumors`
+    on `GameContext`; round-tripped in `_lore_fields` /
+    `_restore_lore_fields` (the phase-1 split left headroom); New
+    Game clears. Resolvers (`rumor.py`, pure): `is_dealer`,
+    `favor_for`, `offerable_rumors` (heard ∧ not earned at this
+    dealer ∧ value > 0), `exclusive_offers` (requires met ∧
+    unheard ∧ favor ≥ price — the hidden-until-affordable gate);
+    mutation wrappers `offer_rumor` (+value, earned-record,
+    idempotent) and `buy_exclusive` (floor-guarded spend, then
+    `hear`). Exclusive holding reads through the spec as an
+    explicit pure input — the phase-3 routing seam. Host
+    (`npc.py`): `_handle_ask_around` gains dealer rows — offer rows
+    labeled `Sell: <topic>` (caption "Earn N favor."), exclusive
+    rows by topic (caption "Costs N favor."); the body line becomes
+    `Favor: N` for dealers, kept live by the loop's per-iteration
+    recompute (sell-menu idiom — no per-transaction modal); a buy
+    presents the exclusive's text via the existing readout modal.
+    `_offers_rumors` extends to `is_dealer`. Non-dealer sub-menus
+    unchanged. Vendor: one new single-seat NPC authored in
+    `data/npcs/guilds.py`, seated in Whisper's bar interior (lal_c
+    placement) — `CUTOUT_BROKERS` gains him at 2000; the knowledge
+    gate is a small data table read in `npc._priced_rows` (rows
+    exist only when `dark_berth_4` is heard); `ember_tech`'s rows
+    untouched. Guide: the Rumors section gains the favor paragraph
+    (offers earn, exclusives cost, balance in the ask menu); the
+    vendor stays untelegraphed.
+  - **Build order.** (1) value field + DealerSpec + `dark_berth_4` +
+    prose + catalog-test extensions; (2) `rumor_favor` + round-trip
+    + New Game + tests; (3) resolvers + wrappers + tests; (4)
+    dealer rows + Favor line + `_offers_rumors` + tests; (5)
+    vendor + gate + tests; (6) guide paragraph; (7) playtest
+    checkpoint.
+  - **Binding rulings.** SETTLED 6, 8 (as amended), 9–13. Favor is
+    ID-agnostic (floors follow the face, favor follows the person);
+    the keyring never gates; floor at zero; once per
+    (rumor, dealer); quest machinery untouched; no faction-rep
+    coupling.
+  - **Required tests.** Dealer-spec integrity (real npc ids,
+    exclusives reference real rumor ids, positive ints); catalog
+    test covers `value` + `dark_berth_4` keys; favor round-trip
+    (save/load, New Game, earned sets survive); offer (+value once
+    per (rumor, dealer); unheard unofferable; sold row vanishes);
+    buy (never below zero; requires-unmet hides the row even when
+    rich; hidden until affordable; hear-on-buy); host (dealer rows
+    + Favor line; non-dealer unchanged); vendor gate (rows absent
+    without the exclusive, present with it, ember_tech unaffected);
+    routing seam (holding as pure input — a fake predicate
+    composes, the phase-1 `routing_all` precedent).
+  - **Stop point.** No comms host, no seed routing (holdings static
+    this phase), no finds/loot-that-teaches, no lies, no chains
+    beyond `dark_berth_4`, no favor display outside the ask
+    sub-menu, no doc-39 content (no Commandant, no crossing
+    payment), no SYSTEMS.md close work.
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+    1. Walk the dark_berth chain to tier 3 (wolf_barkeep →
+       deadfall_scrubber → ember_tech); each entry lands in the
+       ledger verbatim.
+    2. At a dealer: heard-but-unsold rumors show `Sell:` rows
+       captioned +N; selling updates the Favor line in-menu; the
+       sold row vanishes; favor unchanged on re-check.
+    3. Two dealers, two books: sell the same rumor to wolf_barkeep
+       and research_officer — each counts it separately.
+    4. Requires gate: Favor ≥ 4 from OTHER chains but `dark_berth_3`
+       unheard — no Buy row at wolf_barkeep; hear tier 3 and the
+       row appears ("Costs 4 favor.").
+    5. Affordability: fresh book (Favor: 0) — no Buy row; sell up
+       to 4 — the row appears; buy — the readout presents the berth
+       text, favor drops to 0, the ledger records it verbatim;
+       save/quit/Continue preserves book + earned sets + keyring;
+       New Game clears all.
+    6. Payoff: before the exclusive, no cut-out rows at Whisper;
+       after, the berth keeper offers the cut-out (2000cr) and it
+       installs; ember_tech unchanged throughout.
+    7. Regression: non-dealers (deadfall_scrubber, blockade_officer)
+       show no Sell/Buy rows and no Favor line; quest/purchase/
+       ID-buyer rows as before; Q → Rumors unchanged.
+    8. Guide diff: the favor paragraph quoted before/after; no
+       vendor or chain telegraphing.
+
 ### Phase 3 — Seed routing + finds that teach
 - [ ] Derived routing module (pure INIT_SEED derivations): chain
       surfacing subset, dealer exclusive scatter, find destinations
