@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 
 from spacehack.data.lore import RumorEntry, find_rumor, list_rumors
+from spacehack.data.lore.dealers import DEALERS
 from spacehack.data.npcs import find_npc
 from spacehack.data.traits.core import ALL_TRAITS, QUEST_PERKS
 from spacehack.faction import _ALL_FACTIONS
@@ -16,6 +17,9 @@ from spacehack.text import overlay
 
 _TEXT_DIR = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data" / "text"
 _KNOWN_FACTIONS = set(_ALL_FACTIONS)
+_EXCLUSIVE_IDS = {
+    rumor_id for spec in DEALERS for rumor_id, _price in spec.exclusives
+}
 
 
 def _rumor_keys_in(path: Path) -> set[str]:
@@ -42,7 +46,10 @@ def test_requires_are_same_chain_lower_tier() -> None:
 
 def test_sources_reference_real_npcs_gates_and_traits() -> None:
     for entry in list_rumors():
-        assert entry.sources, "every entry needs at least one source"
+        if not entry.sources:
+            # Only a dealer-held exclusive may skip sources — it is
+            # never free-asked (doc 42 ruling 12).
+            assert entry.id in _EXCLUSIVE_IDS, entry.id
         for npc_id, faction, min_standing, trait in entry.sources:
             find_npc(npc_id)
             if faction is None:
@@ -101,3 +108,11 @@ def test_tier_one_entries_have_no_requires() -> None:
     for entry in list_rumors():
         if entry.tier == 1:
             assert entry.requires == (), entry.id
+
+
+def test_values_are_non_negative_ints() -> None:
+    # The offer value (ruling 10) — what any dealer pays once heard.
+    # Zero is legal (nobody buys it); exclusives price separately.
+    for entry in list_rumors():
+        assert isinstance(entry.value, int), entry.id
+        assert entry.value >= 0, entry.id

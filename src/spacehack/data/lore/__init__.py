@@ -38,7 +38,10 @@ class RumorEntry:
             trait | None)`` in the shipped ``talk_gate`` shape. The
             floor reads the RESOLVED sheet's standing for ``faction``
             (``None`` = no floor); ``trait`` demands a quest perk or
-            trait when set.
+            trait when set. Empty for dealer exclusives — they are
+            never free-asked.
+        value: the favor a dealer pays to buy it from you once
+            heard (0 = nobody buys it; ruling 10).
     """
 
     id: str
@@ -46,6 +49,7 @@ class RumorEntry:
     tier: int
     requires: tuple[str, ...] = ()
     sources: tuple[tuple[str, str | None, int | None, str | None], ...] = ()
+    value: int = 0
 
 
 def _build_registry() -> dict[str, RumorEntry]:
