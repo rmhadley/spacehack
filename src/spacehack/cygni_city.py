@@ -369,7 +369,7 @@ def _paint_terrain(tiles, theme) -> None:
     _paint_worker_row(tiles)
 
 
-def build_cygni_layout(spec, resolve_ship):
+def build_cygni_layout(spec):
     """Build Cygni b's 160×100 port-and-forge shipyard colony."""
     theme = _readable_city_theme(DESERT)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

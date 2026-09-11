@@ -953,12 +953,8 @@ def test_missing_interior_layout_does_not_crash():
         interior_layouts=(("bogus", "nonexistent_asset_id"),),
     )
     resolve_npc = MagicMock(return_value=None)
-    resolve_ship = MagicMock(return_value=MagicMock(
-        char='S', fg=(200, 200, 200), name='Test Ship', id='test_ship',
-        width=2, height=1,
-    ))
     # Must not raise
-    game_map = build_city(spec, resolve_npc, resolve_ship)
+    game_map = build_city(spec, resolve_npc)
     assert game_map.width == 40
     assert game_map.height == 30
 
@@ -1394,11 +1390,7 @@ def test_very_small_map_builds_without_error():
         showroom_ships=(),
     )
     resolve_npc = MagicMock(return_value=None)
-    resolve_ship = MagicMock(return_value=MagicMock(
-        char='S', fg=(200, 200, 200), name='Ship', id='ship',
-        width=2, height=1,
-    ))
-    game_map = build_city(spec, resolve_npc, resolve_ship)
+    game_map = build_city(spec, resolve_npc)
     assert game_map.width == 30
     assert game_map.height == 20
     assert game_map.tiles[0][0].kind == "wall"

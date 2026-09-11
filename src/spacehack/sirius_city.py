@@ -237,7 +237,7 @@ def _seal_dead_deck(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_sirius(spec, resolve_ship, tiles, theme):
+def _finish_sirius(spec, tiles, theme):
     """Stamp assets, paint transit, seed lighting for Sirius Station."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -271,7 +271,7 @@ def _finish_sirius(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_sirius_layout(spec, resolve_ship) -> world.GameMap:
+def build_sirius_layout(spec) -> world.GameMap:
     """Build The Binary Eye's 100x70 solar observatory from data + assets."""
     theme = _readable_city_theme(SIRIUS_EYE)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
@@ -282,7 +282,7 @@ def build_sirius_layout(spec, resolve_ship) -> world.GameMap:
     _paint_collectors(tiles)
     _paint_dome(tiles)
     _paint_lamps(tiles)
-    return _finish_sirius(spec, resolve_ship, tiles, theme)
+    return _finish_sirius(spec, tiles, theme)
 
 
 __all__ = ["build_sirius_layout", "LANDMARK_ORIGINS", "SIRIUS_EYE"]

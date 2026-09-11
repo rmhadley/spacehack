@@ -162,7 +162,7 @@ def _paint_station_details(tiles, theme, ring_cells) -> None:
             tiles[y][x] = theme.neon
 
 
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
+def _add_service_entities(game_map, spec) -> None:
     """Place a readable service cluster in the dock."""
     add_service_terminals(
         game_map, spec,
@@ -196,7 +196,7 @@ _TRANSIT_BAY_TILE = world.Tile(
 )
 
 
-def build_ac_ring_layout(spec, resolve_ship) -> world.GameMap:
+def build_ac_ring_layout(spec) -> world.GameMap:
     """Build Alpha Centauri's 120x80 orbital ring station."""
     theme = _readable_city_theme(RING_STATION)
     theme = replace(
@@ -231,7 +231,7 @@ def build_ac_ring_layout(spec, resolve_ship) -> world.GameMap:
     )
     paint_roof_labels(game_map, stamps, "ac_ring_")
     _set_metadata(game_map, spec, stamps, ring_cells)
-    _add_service_entities(game_map, spec, resolve_ship)
+    _add_service_entities(game_map, spec)
     return game_map
 
 

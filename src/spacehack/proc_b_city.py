@@ -247,7 +247,7 @@ def _paint_terrain(tiles, theme) -> None:
     _paint_shacks(tiles)
 
 
-def build_proc_b_layout(spec, resolve_ship) -> world.GameMap:
+def build_proc_b_layout(spec) -> world.GameMap:
     """Build The Crossroads' 120x80 scorched waypoint from data + assets."""
     theme = _readable_city_theme(PROC_B_SCORCHED)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

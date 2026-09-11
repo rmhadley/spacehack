@@ -290,7 +290,7 @@ _BAY_KINDS = frozenset({
 # Build entry point
 # ---------------------------------------------------------------------------
 
-def build_ross_layout(spec, resolve_ship):
+def build_ross_layout(spec):
     theme = _readable_city_theme(VOLCANIC)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_lava(tiles)

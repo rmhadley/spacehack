@@ -398,7 +398,7 @@ def _finalize_deck(game_map, spec, theme, stamps) -> None:
     )
 
 
-def build_venus_layout(spec, resolve_ship) -> world.GameMap:
+def build_venus_layout(spec) -> world.GameMap:
     """Build Cloudbreak City's 140x100 neon downtown from data + assets."""
     theme = _readable_city_theme(VENUS_NEON)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

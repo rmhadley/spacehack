@@ -368,7 +368,7 @@ def _seal_dead_salt(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_ac1(spec, resolve_ship, tiles, theme):
+def _finish_ac1(spec, tiles, theme):
     """Stamp assets, paint transit/lamps, seed lighting for AC-I."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -399,7 +399,7 @@ def _finish_ac1(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_ac1_layout(spec, resolve_ship) -> world.GameMap:
+def build_ac1_layout(spec) -> world.GameMap:
     """Build The Claim's 100x70 salt-flat boomtown from data + assets."""
     theme = _readable_city_theme(AC1_SALT)
     tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
@@ -412,7 +412,7 @@ def build_ac1_layout(spec, resolve_ship) -> world.GameMap:
     _paint_shacks(tiles)
     _paint_claim_stakes(tiles)
     _paint_ore_piles(tiles)
-    return _finish_ac1(spec, resolve_ship, tiles, theme)
+    return _finish_ac1(spec, tiles, theme)
 
 
 __all__ = ["build_ac1_layout", "LANDMARK_ORIGINS", "AC1_SALT"]

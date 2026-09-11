@@ -258,7 +258,7 @@ def _seal_dead_deck(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_blockade_north(spec, resolve_ship, tiles, theme):
+def _finish_blockade_north(spec, tiles, theme):
     """Stamp assets, paint transit, seed lighting for Blockade North."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -292,7 +292,7 @@ def _finish_blockade_north(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_blockade_north_layout(spec, resolve_ship) -> world.GameMap:
+def build_blockade_north_layout(spec) -> world.GameMap:
     """Build The Picket's 100x70 militia garrison from data + assets."""
     theme = _readable_city_theme(BLOCKADE_NORTH)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
@@ -304,7 +304,7 @@ def build_blockade_north_layout(spec, resolve_ship) -> world.GameMap:
     _paint_teal_lamps(tiles)
     _paint_amber_lights(tiles)
     _paint_red_warnings(tiles)
-    return _finish_blockade_north(spec, resolve_ship, tiles, theme)
+    return _finish_blockade_north(spec, tiles, theme)
 
 
 __all__ = ["build_blockade_north_layout", "LANDMARK_ORIGINS", "BLOCKADE_NORTH"]

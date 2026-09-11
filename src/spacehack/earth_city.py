@@ -294,7 +294,7 @@ def _set_city_metadata(game_map, spec, stamps) -> None:
     }
 
 
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
+def _add_service_entities(game_map, spec) -> None:
     """Add the spaceport terminals to the street.
 
     Service NPCs live inside their authored interiors (seated when the
@@ -311,7 +311,7 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
         ))
 
 
-def build_earth_layout(spec, resolve_ship) -> world.GameMap:
+def build_earth_layout(spec) -> world.GameMap:
     """Build Earth's 160x100 river-coast terrain + authored buildings.
 
     Transit stations and ambient NPCs are NOT placed here — the generic
@@ -330,5 +330,5 @@ def build_earth_layout(spec, resolve_ship) -> world.GameMap:
     )
     _paint_transit_bays(game_map.tiles, spec)
     _set_city_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    _add_service_entities(game_map, spec)
     return game_map

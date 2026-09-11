@@ -392,7 +392,6 @@ def load_planet(planet_id: str) -> world.GameMap:
     return build_city(
         spec,
         lambda npc_id: _resolve_npc_entity(npc_id, spec),
-        _resolve_ship,
     )
 
 
@@ -428,11 +427,6 @@ def _resolve_npc_entity(
         npc_id=global_npc.id,
         width=1, height=1,
     )
-
-
-def _resolve_ship(ship_id: str):
-    from ... import ship as ship_module
-    return ship_module.find_ship(ship_id)
 
 
 __all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "list_planet_specs", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]

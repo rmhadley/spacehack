@@ -437,7 +437,7 @@ def _paint_terrain(tiles, theme) -> None:
     _paint_bazaar(tiles)
 
 
-def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
+def build_ross_c_layout(spec) -> world.GameMap:
     """Build Cinder's 100x70 crater-bowl salvage bazaar."""
     theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     # No walled perimeter: badlands and the rubble rim bound the map.

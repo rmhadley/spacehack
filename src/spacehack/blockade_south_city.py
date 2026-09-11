@@ -179,7 +179,7 @@ def _paint_deck(game_map, spec, theme, stamps) -> None:
     )
 
 
-def build_blockade_south_layout(spec, resolve_ship) -> world.GameMap:
+def build_blockade_south_layout(spec) -> world.GameMap:
     """Build Blockade South's 140x90 quarantine station deck."""
     theme = _readable_city_theme(THEME)
     tiles = base_tiles(WIDTH, HEIGHT, theme.floor)

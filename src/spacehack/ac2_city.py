@@ -342,7 +342,7 @@ def _seal_dead_ice(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_ac2(spec, resolve_ship, tiles, theme):
+def _finish_ac2(spec, tiles, theme):
     """Stamp assets, paint transit/lamps, seed lighting for AC-II."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -377,7 +377,7 @@ def _finish_ac2(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_ac2_layout(spec, resolve_ship) -> world.GameMap:
+def build_ac2_layout(spec) -> world.GameMap:
     """Build Frostlab's 100x70 glacial research campus from data + assets."""
     theme = _readable_city_theme(AC2_GLACIAL)
     tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
@@ -390,7 +390,7 @@ def build_ac2_layout(spec, resolve_ship) -> world.GameMap:
     _paint_details(tiles)
     _paint_road_network(tiles, theme)
     _paint_bridge(tiles)
-    return _finish_ac2(spec, resolve_ship, tiles, theme)
+    return _finish_ac2(spec, tiles, theme)
 
 
 __all__ = ["build_ac2_layout", "LANDMARK_ORIGINS", "AC2_GLACIAL"]

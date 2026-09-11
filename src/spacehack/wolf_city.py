@@ -352,7 +352,7 @@ def _paint_terrain(tiles, theme) -> None:
     _paint_shacks(tiles)
 
 
-def build_wolf_layout(spec, resolve_ship):
+def build_wolf_layout(spec):
     """Build Wolf 359 b's 120×80 crater pirate outpost."""
     theme = _readable_city_theme(PIRATE_OUTPOST)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

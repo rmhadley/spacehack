@@ -242,7 +242,7 @@ def _new_mercury_map(spec) -> tuple[world.GameMap, object]:
     )
 
 
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
+def _add_service_entities(game_map, spec) -> None:
     """Add the terminals below the port door."""
     terminal_data = (
         ("=", "Trade Terminal", (10, 11), "trade_terminal", (100, 220, 255)),
@@ -256,7 +256,7 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
         ))
 
 
-def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
+def build_mercury_layout(spec) -> world.GameMap:
     """Build Mercury's 100x70 station deck from data + authored assets.
 
     Transit stations and ambient NPCs are NOT placed here — the generic
@@ -290,5 +290,5 @@ def build_mercury_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="mercury_", default_layout_id="mercury_station",
     )
-    _add_service_entities(game_map, spec, resolve_ship)
+    _add_service_entities(game_map, spec)
     return game_map

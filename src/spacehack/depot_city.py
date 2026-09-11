@@ -252,7 +252,7 @@ def _seal_dead_deck(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_depot(spec, resolve_ship, tiles, theme):
+def _finish_depot(spec, tiles, theme):
     """Stamp assets, paint transit, seed lighting for Depot."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -286,7 +286,7 @@ def _finish_depot(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_depot_layout(spec, resolve_ship) -> world.GameMap:
+def build_depot_layout(spec) -> world.GameMap:
     """Build Waypoint 7's 100x70 truck stop from data + assets."""
     theme = _readable_city_theme(DEPOT_WAYPOINT)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
@@ -297,7 +297,7 @@ def build_depot_layout(spec, resolve_ship) -> world.GameMap:
     _paint_containers(tiles)
     _paint_pipes(tiles)
     _paint_work_lights(tiles)
-    return _finish_depot(spec, resolve_ship, tiles, theme)
+    return _finish_depot(spec, tiles, theme)
 
 
 __all__ = ["build_depot_layout", "LANDMARK_ORIGINS", "DEPOT_WAYPOINT"]

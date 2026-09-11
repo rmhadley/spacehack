@@ -332,7 +332,7 @@ def _paint_beacon_and_crates(tiles, theme) -> None:
 # ---------------------------------------------------------------------
 
 
-def build_vega_b_layout(spec, resolve_ship) -> world.GameMap:
+def build_vega_b_layout(spec) -> world.GameMap:
     """Build The Beacon's 140x90 floating station from data + assets."""
     theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     tiles = [[CLOUD_A for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]

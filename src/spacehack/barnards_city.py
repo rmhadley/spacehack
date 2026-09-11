@@ -296,7 +296,7 @@ def _paint_transit_bays(tiles, spec):
 # Build entry point
 # ---------------------------------------------------------------------------
 
-def build_barnards_layout(spec, resolve_ship):
+def build_barnards_layout(spec):
     """Build the Ember Deep's 120×100 underground mine colony."""
     theme = _readable_city_theme(DESERT)
     tiles = _base_tiles(theme)

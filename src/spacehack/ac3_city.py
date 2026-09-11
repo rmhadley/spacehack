@@ -351,7 +351,7 @@ def _seal_dead_deck(tiles, anchor) -> None:
 # ---------------------------------------------------------------------
 
 
-def _finish_ac3(spec, resolve_ship, tiles, theme):
+def _finish_ac3(spec, tiles, theme):
     """Stamp assets, paint transit/signs, seed lighting for AC-III."""
     game_map = world.GameMap(
         width=CITY_WIDTH, height=CITY_HEIGHT,
@@ -382,7 +382,7 @@ def _finish_ac3(spec, resolve_ship, tiles, theme):
     return game_map
 
 
-def build_ac3_layout(spec, resolve_ship) -> world.GameMap:
+def build_ac3_layout(spec) -> world.GameMap:
     """Build Ring Refinery's 100x70 floating platform from data + assets."""
     theme = _readable_city_theme(AC3_REFINERY)
     tiles = [[theme.floor for _ in range(CITY_WIDTH)] for _ in range(CITY_HEIGHT)]
@@ -394,7 +394,7 @@ def build_ac3_layout(spec, resolve_ship) -> world.GameMap:
     _paint_tanks(tiles)
     _paint_pipes(tiles)
     _paint_cooling_fins(tiles)
-    return _finish_ac3(spec, resolve_ship, tiles, theme)
+    return _finish_ac3(spec, tiles, theme)
 
 
 __all__ = ["build_ac3_layout", "LANDMARK_ORIGINS", "AC3_REFINERY"]

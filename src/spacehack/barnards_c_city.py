@@ -374,7 +374,7 @@ def _paint_deck(tiles, theme) -> None:
     _paint_forecourts(tiles, theme)
 
 
-def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
+def build_barnards_c_layout(spec) -> world.GameMap:
     """Build the Skimmer Deck's 110x72 atmospheric mining platform."""
     theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     # No walled perimeter: the deck plate ends at storm void, not town wall.

@@ -298,7 +298,7 @@ def _paint_homesteads(tiles, theme):
 _SHIPS_ORIGIN = world.Position(24, 32)  # landing plateau dock
 
 
-def build_epsilon_eridani_layout(spec, resolve_ship):
+def build_epsilon_eridani_layout(spec):
     """Build Epsilon Eridani b's 200x140 terraced canyon settlement."""
     theme = _readable_city_theme(CANYON_SETTLEMENT)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

@@ -324,7 +324,7 @@ _BAY_TILE = world.Tile(
 # Build entry point
 # ---------------------------------------------------------------------------
 
-def build_lal_layout(spec, resolve_ship):
+def build_lal_layout(spec):
     """Build Deadfall's 140×100 wreck colony."""
     theme = _readable_city_theme(ICE)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

@@ -202,7 +202,7 @@ _BAY_TILE = world.Tile(
 )
 
 
-def build_indi_layout(spec, resolve_ship) -> world.GameMap:
+def build_indi_layout(spec) -> world.GameMap:
     theme = _readable_city_theme(INDI_GOLD)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
     _paint_fields(tiles, theme)

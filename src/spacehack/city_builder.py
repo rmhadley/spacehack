@@ -50,19 +50,19 @@ _LAYOUTS: dict[str, tuple[str, str]] = {
 }
 
 
-def _dispatch_layout(spec, resolve_ship, resolve_npc):
+def _dispatch_layout(spec, resolve_npc):
     """Resolve the layout-id to a builder function and call it."""
     pair = _LAYOUTS.get(spec.city_layout_id or "")
     if pair is None:
-        return _build_grid_city(spec, resolve_npc, resolve_ship)
+        return _build_grid_city(spec, resolve_npc)
     import importlib
     mod = importlib.import_module(f".{pair[0]}", package="spacehack")
-    return getattr(mod, pair[1])(spec, resolve_ship)
+    return getattr(mod, pair[1])(spec)
 
 
-def build_city(spec: PlanetSpec, resolve_npc, resolve_ship) -> world.GameMap:
+def build_city(spec: PlanetSpec, resolve_npc) -> world.GameMap:
     """Build the outdoor city map for ``spec``."""
-    game_map = _dispatch_layout(spec, resolve_ship, resolve_npc)
+    game_map = _dispatch_layout(spec, resolve_npc)
     _finalize_city(game_map, spec)
     return game_map
 
@@ -178,7 +178,7 @@ def _finalize_city(game_map, spec) -> None:
     seed_city_light(game_map)
 
 
-def _build_grid_city(spec, resolve_npc, resolve_ship) -> world.GameMap:
+def _build_grid_city(spec, resolve_npc) -> world.GameMap:
     width, height = spec.width, spec.height
     theme = _grid_theme(spec)
     tiles = _grid_tiles(width, height, theme)

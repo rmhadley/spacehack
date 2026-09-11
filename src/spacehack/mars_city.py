@@ -248,7 +248,7 @@ def _set_mars_metadata(game_map, spec, stamps) -> None:
     game_map.city_buildings = building_records(spec, stamps, "mars_")
 
 
-def _add_service_entities(game_map, spec, resolve_ship) -> None:
+def _add_service_entities(game_map, spec) -> None:
     """Place port ships and service consoles on the southern apron."""
     add_service_terminals(
         game_map, spec,
@@ -257,7 +257,7 @@ def _add_service_entities(game_map, spec, resolve_ship) -> None:
     )
 
 
-def build_mars_layout(spec, resolve_ship) -> world.GameMap:
+def build_mars_layout(spec) -> world.GameMap:
     """Build Mars's 160x100 planned colony from data and authored assets."""
     game_map = _new_mars_map(spec)
     stamps = stamp_city_assets(
@@ -277,7 +277,7 @@ def build_mars_layout(spec, resolve_ship) -> world.GameMap:
         row_stride=2,
     )
     _set_mars_metadata(game_map, spec, stamps)
-    _add_service_entities(game_map, spec, resolve_ship)
+    _add_service_entities(game_map, spec)
     return game_map
 
 

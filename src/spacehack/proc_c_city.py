@@ -388,7 +388,7 @@ def _paint_road_network(tiles, theme) -> None:
 # ---------------------------------------------------------------------
 
 
-def build_proc_c_layout(spec, resolve_ship) -> world.GameMap:
+def build_proc_c_layout(spec) -> world.GameMap:
     """Build the Ice Campus 140x100 glacial research map from data + assets."""
     theme = _readable_city_theme(PROC_C_GLACIAL)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)

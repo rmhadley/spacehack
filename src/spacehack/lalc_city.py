@@ -232,7 +232,7 @@ def _paint_maze(tiles, theme) -> None:
     _paint_vault_details(tiles, theme)
 
 
-def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
+def build_lalc_layout(spec) -> world.GameMap:
     """Build Whisper's 100x70 shipping-container maze."""
     theme = _readable_city_theme(spec.theme or world.EARTH_THEME)
     tiles = base_tiles(CITY_WIDTH, CITY_HEIGHT, theme.floor)
