@@ -78,6 +78,18 @@ def _showroom_entity(ship, position: world.Position) -> world.Entity:
     )
 
 
+def strip_showroom_ships(game_map: world.GameMap) -> None:
+    """Remove every unowned showroom display entity (never the owned ship).
+
+    The strip half of the seating contract, shared with the purchase
+    path (an indoor buy empties the room immediately; the next entry
+    re-seats per current ownership)."""
+    game_map.entities[:] = [
+        entity for entity in game_map.entities
+        if not (entity.ship_id and not entity.owned)
+    ]
+
+
 def seat_showroom_ships(
     game_map: world.GameMap,
     spec,
@@ -89,8 +101,9 @@ def seat_showroom_ships(
     ships itself. Berths are ``showroom_berth`` tiles matched to the
     manifest in reading order (rows top-to-bottom, columns
     left-to-right); the owned model's berth seats nothing (the display
-    catalogue is ownership-filtered). Strips unowned ship entities
-    first, so re-seating on every interior entry is idempotent. A map
+    catalogue is ownership-filtered). Strips display entities first
+    via :func:`strip_showroom_ships`, so re-seating on every interior
+    entry is idempotent. A map
     with no berths seats nothing (non-spaceport interiors).
     """
     berths = [
@@ -107,10 +120,7 @@ def seat_showroom_ships(
             f"{spec.id} showroom manifest has {len(manifest)} ships "
             f"but its interior has {len(berths)} berths"
         )
-    game_map.entities[:] = [
-        entity for entity in game_map.entities
-        if not (entity.ship_id and not entity.owned)
-    ]
+    strip_showroom_ships(game_map)
     for ship_id, berth in zip(manifest, berths):
         if ship_id == owned_ship_id:
             continue
@@ -234,4 +244,5 @@ __all__ = [
     "paint_transit_stops",
     "seat_showroom_ships",
     "set_city_metadata",
+    "strip_showroom_ships",
 ]

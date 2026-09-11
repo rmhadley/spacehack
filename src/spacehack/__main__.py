@@ -205,6 +205,7 @@ def _apply_ship_buy_result(
     result,
     effective_price,
     trade_in_value,
+    interior_map=None,
 ):
     return _flow_apply_ship_buy_result(
         ctx,
@@ -215,6 +216,7 @@ def _apply_ship_buy_result(
         result,
         effective_price,
         trade_in_value,
+        interior_map=interior_map,
     )
 
 
@@ -226,6 +228,7 @@ def _complete_ship_purchase(
     player_owned_ship,
     effective_price,
     trade_in_value,
+    interior_map=None,
 ):
     return _flow_complete_ship_purchase(
         ctx,
@@ -235,6 +238,7 @@ def _complete_ship_purchase(
         player_owned_ship,
         effective_price,
         trade_in_value,
+        interior_map=interior_map,
     )
 
 

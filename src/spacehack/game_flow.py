@@ -472,8 +472,13 @@ def _apply_ship_buy_result(
     result,
     effective_price: int,
     trade_in_value: int,
+    interior_map=None,
 ):
-    """Apply one ship-buy modal result and return the replacement ship."""
+    """Apply one ship-buy modal result and return the replacement ship.
+
+    ``interior_map`` is the map the display blocker stands on when the
+    buy happens indoors (doc 45 phase 2); ``None`` is the outdoor buy.
+    """
     if result is ShipBuyOutcome.BUY:
         return _complete_ship_purchase(
             ctx,
@@ -483,6 +488,7 @@ def _apply_ship_buy_result(
             player_owned_ship,
             effective_price,
             trade_in_value,
+            interior_map=interior_map,
         )
     if result is ShipBuyOutcome.TOO_EXPENSIVE:
         short = effective_price - ctx.stats.credits
@@ -521,15 +527,39 @@ def _relocate_old_ship(ctx, city_game_map, player_owned_ship) -> bool:
     return True
 
 
-def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
-    """Park the purchased ship in the current city's configured hangar."""
+def _city_anchor(ctx) -> world.Position:
+    """The current city's configured hangar anchor (Earth fallback)."""
     try:
         from .data.planets import hangar_anchor
-        blocker.pos = hangar_anchor(getattr(ctx, "current_city_id", "earth"))
+        return hangar_anchor(getattr(ctx, "current_city_id", "earth"))
     except (KeyError, ImportError):
-        blocker.pos = world.HANGAR_ANCHOR
-    blocker.owned = True
-    blocker.name = f"Your Ship: {ship.name}"
+        return world.HANGAR_ANCHOR
+
+
+def _nearest_free_cell(game_map, anchor: world.Position) -> world.Position:
+    """The anchor cell, or the nearest walkable entity-free cell to it.
+
+    Rings span the full map (corner-to-corner). If every cell is
+    blocked the anchor itself is returned — matching the outdoor
+    path's unconditional anchoring; pad anchors sit in open floor, so
+    the stacking fallback is a cannot-happen backstop.
+    """
+    occupied = {(entity.pos.x, entity.pos.y) for entity in game_map.entities}
+    for radius in range(game_map.width + game_map.height):
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                if abs(dx) + abs(dy) != radius:
+                    continue
+                x, y = anchor.x + dx, anchor.y + dy
+                if not game_map.in_bounds(x, y):
+                    continue
+                if game_map.tiles[y][x].walkable and (x, y) not in occupied:
+                    return world.Position(x, y)
+    return anchor
+
+
+def _new_owned_ship(ship, old_reserved: int) -> "ship_module.OwnedShip":
+    """The purchased hull: starting loadout, full tank, carried reserve."""
     return ship_module.OwnedShip(
         ship_id=ship.id,
         weapons=ship.start_weapons,
@@ -537,6 +567,30 @@ def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
         fuel=ship.max_fuel,
         mission_reserved=old_reserved,
     )
+
+
+def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
+    """Park the purchased outdoor display in the city's hangar."""
+    blocker.pos = _city_anchor(ctx)
+    blocker.owned = True
+    blocker.name = f"Your Ship: {ship.name}"
+    return _new_owned_ship(ship, old_reserved)
+
+
+def _park_indoor_purchase(ctx, city_game_map, interior_map, ship, old_reserved):
+    """Park an indoor purchase: fresh owned entity on the parent pad,
+    showroom displays stripped (doc 45 phase 2 — the display the player
+    bumped is never re-anchored; the room empties and re-seats on the
+    next entry per current ownership)."""
+    from .city_kit import strip_showroom_ships
+    from .saveload_maps import _make_ship_entity
+
+    strip_showroom_ships(interior_map)
+    owned = _new_owned_ship(ship, old_reserved)
+    city_game_map.entities.append(_make_ship_entity(
+        owned, _nearest_free_cell(city_game_map, _city_anchor(ctx)),
+    ))
+    return owned
 
 
 def _log_ship_purchase(
@@ -575,6 +629,7 @@ def _complete_ship_purchase(
     player_owned_ship,
     effective_price: int,
     trade_in_value: int,
+    interior_map=None,
 ):
     """Complete an affordable ship purchase without losing old equipment."""
     if ctx.stats.credits < effective_price:
@@ -584,7 +639,12 @@ def _complete_ship_purchase(
     if not _relocate_old_ship(ctx, city_game_map, player_owned_ship):
         return None
     ctx.stats.credits -= effective_price
-    _new_owned = _build_owned_ship(ctx, blocker, ship, _old_reserved)
+    if interior_map is None:
+        _new_owned = _build_owned_ship(ctx, blocker, ship, _old_reserved)
+    else:
+        _new_owned = _park_indoor_purchase(
+            ctx, city_game_map, interior_map, ship, _old_reserved,
+        )
     ctx.player_owned_ship = _new_owned
     _log_ship_purchase(
         ctx, ship, effective_price, trade_in_value,

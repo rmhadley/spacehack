@@ -298,11 +298,45 @@ def _resolve_powered_down_blocker(state, blocker):
     state.log.add(f'It is a powered down {name}.')
     return None
 
+def _resolve_ship_buy(state, blocker, ship):
+    """Resolve an unowned display bump: run the buy modal and apply it.
+
+    An indoor buy parks the purchase on the parent pad and empties the
+    showroom (doc 45 phase 2); the display blocker itself is never
+    re-anchored.
+    """
+    ctx = state.ctx
+    log = state.log
+    _trade_in_value = 0
+    if state.player_owned_ship is not None:
+        _old_ship = ship_module.find_ship(state.player_owned_ship.ship_id)
+        _trade_in_value = max(0, _old_ship.price // 2)
+    _effective_price = max(0, ship.price - _trade_in_value)
+    result = _run_ship_buy(ctx, blocker, ship, effective_price=_effective_price)
+    if result is ShipBuyOutcome.QUIT:
+        return 'QUIT'
+    if result is ShipBuyOutcome.BUY:
+        _interior_map = (
+            state.game_map
+            if getattr(state.game_map, "city_interior_id", "")
+            else None
+        )
+        _purchased_ship = _apply_ship_buy_result(ctx, state.city_game_map, blocker, ship, state.player_owned_ship, result, _effective_price, _trade_in_value, interior_map=_interior_map)
+        if _purchased_ship is None:
+            if ctx.stats.credits < _effective_price:
+                short = _effective_price - ctx.stats.credits
+                log.add(f'Including trade-in ({_trade_in_value}$) you need {_effective_price}$, but you are {short}$ short.')
+            return 'CONTINUE'
+        state.player_owned_ship = _purchased_ship
+    elif result is ShipBuyOutcome.TOO_EXPENSIVE:
+        _apply_ship_buy_result(ctx, state.city_game_map, blocker, ship, state.player_owned_ship, result, _effective_price, _trade_in_value)
+    return None
+
+
 def _resolve_ship_blocker(state, blocker):
     """Resolve owned-ship launch and ship purchases."""
     ctx = state.ctx
     console = state.console
-    log = state.log
     ship = ship_module.find_ship(blocker.ship_id)
     if blocker.owned:
         result = _run_ship_menu(ctx, ship)
@@ -315,26 +349,7 @@ def _resolve_ship_blocker(state, blocker):
             ctx.player = state.player
             state.current_mode = 'space'
         return 'CONTINUE'
-    else:
-        _trade_in_value = 0
-        if state.player_owned_ship is not None:
-            _old_ship = ship_module.find_ship(state.player_owned_ship.ship_id)
-            _trade_in_value = max(0, _old_ship.price // 2)
-        _effective_price = max(0, ship.price - _trade_in_value)
-        result = _run_ship_buy(ctx, blocker, ship, effective_price=_effective_price)
-        if result is ShipBuyOutcome.QUIT:
-            return 'QUIT'
-        if result is ShipBuyOutcome.BUY:
-            _purchased_ship = _apply_ship_buy_result(ctx, state.city_game_map, blocker, ship, state.player_owned_ship, result, _effective_price, _trade_in_value)
-            if _purchased_ship is None:
-                if ctx.stats.credits < _effective_price:
-                    short = _effective_price - ctx.stats.credits
-                    log.add(f'Including trade-in ({_trade_in_value}$) you need {_effective_price}$, but you are {short}$ short.')
-                return 'CONTINUE'
-            state.player_owned_ship = _purchased_ship
-        elif result is ShipBuyOutcome.TOO_EXPENSIVE:
-            _apply_ship_buy_result(ctx, state.city_game_map, blocker, ship, state.player_owned_ship, result, _effective_price, _trade_in_value)
-    return None
+    return _resolve_ship_buy(state, blocker, ship)
 
 def _resolve_terminal_blocker(state, blocker):
     """Resolve city terminals and dungeon interfaces."""

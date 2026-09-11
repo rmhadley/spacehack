@@ -348,12 +348,12 @@ must NOT buy.
    references) — `?` Ships section confirmed unchanged.
 
 ### Phase 2 — Buy indoors, park outside
-- [ ] Interior buy path places the purchased ship on the outdoor
+- [x] Interior buy path places the purchased ship on the outdoor
       pad berth; trade-in verified from indoors; the room re-filters
       per the SETTLED ownership rule (re-seat on next entry; strip
       display entities immediately on purchase so no stale display
       of the newly-owned model remains)
-- [ ] Regression: outdoor launch, owned-ship menu, affordability
+- [x] Regression: outdoor launch, owned-ship menu, affordability
       modal, landing places your ship on the pad (entry/load twin)
 - [ ] Playtest checkpoint
 
