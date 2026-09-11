@@ -60,6 +60,14 @@ class ScreenFrame:
     # Optional per-body-line colours used by the console history. Existing
     # screens leave this empty and use the shared description colour.
     body_colors: tuple[tuple[int, int, int], ...] = ()
+    # Optional per-body-line colour runs (the spec-sheet mechanism, doc 45
+    # phase 3): ``(text, colour)`` segments that PAINT one source line, or
+    # None to paint plain. The plain ``body`` text stays authoritative for
+    # measure/wrap. A run line must fit one rendered row - when its source
+    # line wraps, or the runs text itself is wider than the body, it
+    # paints plain (runs are never wrapped or ellipsised). Aligned by
+    # source index like ``body_colors``.
+    body_runs: tuple[tuple[tuple[str, tuple[int, int, int]], ...] | None, ...] = ()
     # Screens such as the full console history can request newest-first
     # opening without changing the default top-of-document behavior.
     start_at_end: bool = False
@@ -121,19 +129,32 @@ def _body_lines_with_colors(
     font: Any,
     frame: ScreenFrame,
     width: int,
-) -> tuple[tuple[str, tuple[int, int, int] | None], ...]:
-    """Wrap body paragraphs while carrying optional line colours."""
+) -> tuple[tuple[str, tuple[int, int, int] | None, tuple[tuple[str, tuple[int, int, int]], ...] | None], ...]:
+    """Wrap body paragraphs while carrying optional line colours and runs.
+
+    Runs survive only when their source line fits one rendered row
+    (a wrapped run line would desynchronise from its segments).
+    """
     measure = lambda text: pygame_ui.measure_font(font, text)
-    lines: list[tuple[str, tuple[int, int, int] | None]] = []
+    lines: list[tuple[str, tuple[int, int, int] | None, tuple[tuple[str, tuple[int, int, int]], ...] | None]] = []
     for index, text in enumerate(frame.body):
         color = frame.body_colors[index] if index < len(frame.body_colors) else None
-        lines.extend((line, color) for line in (pygame_ui.wrap_text(text, width, measure) or ("",)))
+        wrapped = pygame_ui.wrap_text(text, width, measure) or ("",)
+        runs = frame.body_runs[index] if index < len(frame.body_runs) else None
+        # wrap_text collapses whitespace, but runs paint the padded
+        # source - measure the runs text itself before letting it through.
+        if runs is not None and (
+            len(wrapped) > 1
+            or measure("".join(run_text for run_text, _c in runs)) > width
+        ):
+            runs = None
+        lines.extend((line, color, runs) for line in wrapped)
     return tuple(lines)
 
 
 def _body_lines(font: Any, frame: ScreenFrame, width: int) -> tuple[str, ...]:
     """Wrap body paragraphs using the candidate font metrics."""
-    return tuple(line for line, _color in _body_lines_with_colors(font, frame, width))
+    return tuple(line for line, _color, _runs in _body_lines_with_colors(font, frame, width))
 
 
 def _initial_page_offset(
@@ -327,7 +348,12 @@ def _draw_screen_header(
 class _ScreenLayout:
     """Geometry computed once for a single text-screen render."""
 
-    visible_body: tuple[tuple[str, tuple[int, int, int] | None], ...]
+    visible_body: tuple[
+        tuple[
+            str, tuple[int, int, int] | None,
+            tuple[tuple[str, tuple[int, int, int]], ...] | None,
+        ], ...
+    ]
     body_step: int
     body_budget: int
     body_overflow: bool
@@ -398,11 +424,17 @@ def _draw_body_scrollbar(
 def _draw_screen_body(pygame: Any, screen: Any, font: Any, layout: _ScreenLayout, palette: Any) -> int:
     """Draw the visible body lines and return the y after the block."""
     y = layout.y
-    for line, body_color in layout.visible_body[:layout.body_budget]:
-        pygame_ui.draw_text(
-            pygame, screen, font, line, 40, y,
-            color=body_color or palette.description,
-        )
+    for line, body_color, runs in layout.visible_body[:layout.body_budget]:
+        if runs:
+            pygame_ui.draw_text_runs(
+                pygame, screen, font, runs, 40, y,
+                fallback=body_color or palette.description,
+            )
+        else:
+            pygame_ui.draw_text(
+                pygame, screen, font, line, 40, y,
+                color=body_color or palette.description,
+            )
         y += layout.body_step
     return y
 

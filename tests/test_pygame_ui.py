@@ -1364,7 +1364,7 @@ def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
 
     assert frame.title == "SCOUT - FOR SALE"
     assert any(
-        line.startswith("Speed") and "14 moves/day" in line
+        line.lstrip().startswith("Speed") and "14 moves/day" in line
         for line in frame.body
     )
     assert frame.body[-1] == "You are 3000$ short of the asking price."

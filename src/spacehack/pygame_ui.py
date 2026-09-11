@@ -38,7 +38,10 @@ class Rect:
 @dataclass(frozen=True)
 class Palette:
     """High-contrast colours shared by the Pygame screens."""
-
+    # The four entries below are semantic accents for data-bearing
+    # screens (doc 45's spec sheet is the first consumer): muted for
+    # labels/section heads, positive/negative for better/worse
+    # comparisons, accent for neutral data viz (bars, gauges).
     background: Color = (3, 4, 8)
     panel: Color = (8, 10, 16)
     border: Color = (70, 82, 108)
@@ -48,6 +51,10 @@ class Palette:
     instruction: Color = (255, 240, 175)
     selected_background: Color = (28, 43, 66)
     selected_border: Color = (130, 210, 240)
+    muted: Color = (130, 145, 170)
+    positive: Color = (100, 235, 115)
+    negative: Color = (255, 95, 95)
+    accent: Color = (130, 210, 240)
 
 
 DEFAULT_PALETTE = Palette()
@@ -454,6 +461,29 @@ def draw_text(
     surface = font.render(text, antialias, color)
     screen.blit(surface, (x, y))
     return surface
+
+
+def draw_text_runs(
+    pygame: Any,
+    screen: Any,
+    font: Any,
+    runs: tuple[tuple[str, Color], ...],
+    x: int,
+    y: int,
+    *,
+    fallback: Color,
+) -> None:
+    """Render one line of ``(text, colour)`` runs left to right.
+
+    The caller guarantees the runs concatenate to a line that fits one
+    rendered row (the shared body path paints run lines unwrapped and
+    falls back to plain colour when the source line wraps)."""
+    cursor = x
+    for text, color in runs:
+        if not text:
+            continue
+        draw_text(pygame, screen, font, text, cursor, y, color=color or fallback)
+        cursor += measure_font(font, text)
 
 
 def draw_centered_text(
