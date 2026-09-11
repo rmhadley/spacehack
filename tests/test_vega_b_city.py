@@ -59,7 +59,7 @@ def test_vega_b_buildings_transit_and_npcs_are_reachable():
     spec = find_planet_spec("vega_b")
     reachable = _reachable(game_map, spec.hangar_anchor)
     assert set(game_map.city_transit) == {
-        "spaceport", "focus", "veil", "exchange",
+        "spaceport", "veil", "exchange",
     }
     assert len(spec.city_npc_population) == 10
     for label, record in game_map.city_buildings.items():

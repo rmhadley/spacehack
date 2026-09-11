@@ -69,22 +69,17 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="spaceport", name="Spaceport", district="landing deck",
             pos=world.Position(70, 19), serves="vega_b_spaceport",
-            destinations=("focus", "veil", "exchange"),
-        ),
-        world.TransitStation(
-            id="focus", name="The Focus", district="central hub",
-            pos=world.Position(75, 71), serves="vega_b_depot",
-            destinations=("spaceport", "veil", "exchange"),
+            destinations=("veil", "exchange"),
         ),
         world.TransitStation(
             id="veil", name="The Veil", district="observation deck",
             pos=world.Position(35, 49), serves="bar",
-            destinations=("spaceport", "focus", "exchange"),
+            destinations=("spaceport", "exchange"),
         ),
         world.TransitStation(
             id="exchange", name="Freight Exchange", district="exchange plaza",
             pos=world.Position(70, 73), serves="vega_b_merchants",
-            destinations=("spaceport", "focus", "veil"),
+            destinations=("spaceport", "veil"),
         ),
     ),
     interior_layouts=(
