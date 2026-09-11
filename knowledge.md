@@ -753,6 +753,15 @@ Open the guide (``?`` from the main game loop) and verify:
 
 ### Quest prose standard (no AI slop)
 
+**GATE (2026-09-11, after the rumor-chain rework): no player-facing
+prose enters the game without a discussion with the user first.**
+The agent may draft in chat or in design docs (marked as drafts), but
+data-file strings — dialogue, rumors, flavor text, log lines,
+readouts, guide — land only after the user has seen, edited, or
+approved the wording in that discussion. Prose lands in its own
+commit, never riding a mechanical one; a phase build never authors
+unapproved strings (settle the prose before `/implement-phase` runs).
+
 Quest/dialogue text is plain, concrete, transactional. Scan drafts for
 these tells:
 
