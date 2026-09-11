@@ -445,6 +445,26 @@ def apply_dev_warrant_license(ctx) -> None:
     _apply_dev_line_marker(ctx, "warrant_license", "warrant license")
 
 
+def toggle_dev_cutout(ctx) -> bool:
+    """Shift+B: toggle the transponder cut-out (doc 42 playtest).
+
+    Dev saves pre-install the cut-out (``apply_dev_identity_library``),
+    and every install storefront hides for owners — the one-time row
+    only shows for non-owners. Toggling revokes/restores it in place.
+    Returns the new state; mutates nothing without SPACEHACK_DEV."""
+    import os as _os
+
+    if not _os.environ.get("SPACEHACK_DEV"):
+        return bool(getattr(ctx, "transponder_cutout", False))
+    ctx.transponder_cutout = not getattr(ctx, "transponder_cutout", False)
+    ctx.log.add(
+        "[DEV MODE] Cut-out installed."
+        if ctx.transponder_cutout
+        else "[DEV MODE] Cut-out revoked - install rows visible again."
+    )
+    return ctx.transponder_cutout
+
+
 def advance_to_shift_boundary(ctx) -> int:
     """Shift+J: advance the clock to the next shift boundary (doc 41
     phase 2 — Shift+D's 30 days is too coarse to time a watch

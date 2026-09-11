@@ -582,7 +582,10 @@ phase 1 closed.
        New Game clears all.
     6. Payoff: before the exclusive, no cut-out rows at Whisper;
        after, the berth keeper offers the cut-out (2000cr) and it
-       installs; ember_tech unchanged throughout.
+       installs; ember_tech unchanged throughout. (Dev saves
+       PRE-INSTALL the cut-out — Shift+B revokes/restores it so the
+       row can show; found at playtest round 1, item first failed
+       because the owner's storefront correctly hides.)
     7. Regression: non-dealers (deadfall_scrubber, blockade_officer)
        show no Sell/Buy rows and no Favor line; quest/purchase/
        ID-buyer rows as before; Q → Rumors unchanged.

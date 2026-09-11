@@ -573,3 +573,31 @@ def test_shift_l_and_k_predicates_require_shift_modifier():
     assert not _is_shift_k_press(PygameInputEvent(kind="keydown", key_name="k"))
     assert not _is_shift_l_press(PygameInputEvent(kind="keydown", key_name="k", shift=True))
     assert not _is_shift_k_press(PygameInputEvent(kind="keydown", key_name="j", shift=True))
+
+
+def test_cutout_toggle_gated_and_reversible(monkeypatch):
+    """Doc 42 playtest: Shift+B toggles the pre-installed dev cut-out
+    so the one-time install storefronts are testable; no-op without
+    SPACEHACK_DEV."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import toggle_dev_cutout
+
+    _ctx = SimpleNamespace(transponder_cutout=True,
+                           log=SimpleNamespace(add=lambda m: None))
+    monkeypatch.delenv("SPACEHACK_DEV", raising=False)
+    assert toggle_dev_cutout(_ctx) is True
+    assert _ctx.transponder_cutout is True
+
+    monkeypatch.setenv("SPACEHACK_DEV", "1")
+    _logged = []
+    _ctx = SimpleNamespace(
+        transponder_cutout=True,
+        log=SimpleNamespace(add=lambda m: _logged.append(m)),
+    )
+    assert toggle_dev_cutout(_ctx) is False
+    assert _ctx.transponder_cutout is False
+    assert any("revoked" in m for m in _logged)
+    assert toggle_dev_cutout(_ctx) is True
+    assert _ctx.transponder_cutout is True
+    assert any("installed" in m for m in _logged)
