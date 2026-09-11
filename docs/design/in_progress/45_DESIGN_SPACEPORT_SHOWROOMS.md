@@ -26,6 +26,34 @@ Every planet with a spaceport building already has a
 - Ships are 1×1-footprint entities (`data/ships`: "collision only")
   — every interior fits its full manifest with room to walk.
 
+## The P/exit placement audit (user requirement)
+
+Having a `P` and an exit is not enough — they must sit where a
+building's door logically is. **The placement rule** (the shared
+gate every interior must pass):
+
+1. Exactly one exit tile.
+2. The exit sits on the SOUTH perimeter — the wall row itself
+   (in-wall doorway, the blockade_south pattern) or the walkable
+   row just inside it (the standard pattern).
+3. `P` is orthogonally adjacent to the exit — you appear just
+   inside the door you came through.
+
+**Audit result: 11 of 93 interiors violate** (scan script, same
+day) — clustered in the Ross/Indi/Tc authoring family:
+
+- Mid-room exits (7): `ross_spaceport`, `ross_bar`, `ross_depot`,
+  `ross_bounties`, `indi_spaceport`, `indi_militia`,
+  `tc_spaceport` — the exit floats in the middle of the floor.
+- Wrong-side exits (2): `ross_c_depot`, `ross_c_merchants` —
+  exit on the TOP wall.
+- Spawn detached (2): `indi_merchants`, `tc_merchants` — `P` five
+  tiles from its exit along the bottom row.
+
+Three of the 27 spaceports are in the violating set. All 11 get
+fixed (exit to the south door position, `P` just inside), and the
+rule becomes a shared load-time gate so it cannot regress.
+
 ## How it works today (code anchors)
 
 - Outdoor placement: `city_kit.add_showroom_ships` berths
@@ -61,25 +89,37 @@ Every planet with a spaceport building already has a
 
 ## Domain changes
 
-1. **Loader.** On interior build, each `S` marker becomes a
+0. **One shared helper — binding (user requirement).** Every city
+   gets showroom placement from the SAME code path; no city module
+   may place ships itself, ever. Concretely: `city_kit` owns the
+   seating helper (kit function reading the spec manifest onto
+   `S` markers), the interior loader invokes it, and the P/exit
+   placement rule is enforced once on the shared path
+   (`city_landmarks.load_city_interior` raises on violation — the
+   same loud-fail family as its missing-spawn/missing-exit checks,
+   with the layout editor validator mirroring the rule). Cities
+   contribute DATA only: the layout file and the ship manifest.
+1. **Placement gate.** The P/exit rule above lands in
+   `load_city_interior` in the same change as the 11 layout fixes
+   (the gate is loud, so the fixes must ride with it).
+2. **Loader.** On interior build, each `S` marker becomes a
    showroom ship entity (`Ship: <name>`, ship_id set) using the
    spec's manifest in reading order. Seated at cache build (like
-   the building NPC).
-2. **Purchases.** `_resolve_ship_blocker`'s buy branch: when the
+   the building NPC) by the kit helper.
+3. **Purchases.** `_resolve_ship_blocker`'s buy branch: when the
    bumped ship lives on an interior map, the purchased owned ship
    spawns on a free cell at the city pad's parking berth
    (`hangar_anchor`, `_first_walkable`), NOT at the blocker.
    Trade-in keeps targeting the pad (already correct). Credits,
    equipment transfer, affordability: untouched.
-3. **Launch.** Untouched — the owned ship never moves indoors.
-4. **Outdoor pad.** Builders stop adding showroom entities; pad
+4. **Launch.** Untouched — the owned ship never moves indoors.
+5. **Outdoor pad.** Builders stop adding showroom entities; pad
    keeps terminals, owned-ship berth, transit bays.
-5. **Survey/fix pass.** All 27 spaceport interiors get `S` berths;
-   sizes, `P` and exit placements corrected where wrong. Tool-
-   assisted: a showroom/reachability check (every `S` walkable-
-   adjacent, reachable from `P`, exit unblocked) added to the
-   audit test suite so the rule is enforced forever, plus a
-   manifest↔marker count test per city.
+6. **Audit tests.** Repo data tests (always run): the P/exit rule
+   over every `*_interior.layout`; every city's manifest count
+   equals its `S` marker count; every `S` walkable-adjacent and
+   reachable from `P`; no outdoor showroom entities in any built
+   city map.
 
 ## Known consequence to rule (open question 1)
 
@@ -96,13 +136,16 @@ every entry and are not serialized. Two coherent options:
 
 ## Phases
 
-### Phase 1 — Berths, loader, clean pads
-- [ ] `S` marker tile in the layout grammar + loader seating from
-      the spec manifest; `showroom_ships` field converted
-- [ ] All 27 interiors authored with berths; size/spawn/exit fixes
-      from the survey; outdoor `add_showroom_ships` retired
-- [ ] Audit tests: manifest↔markers, reachability from `P`, no
-      outdoor showroom entities in any built city
+### Phase 1 — Berths, loader, clean pads, correct doors
+- [ ] `S` marker tile in the layout grammar + kit seating helper
+      (the ONE shared path); `showroom_ships` field converted
+- [ ] P/exit placement gate in `load_city_interior` (+ editor
+      validator mirror); the 11 violating layouts fixed
+- [ ] All 27 interiors authored with berths; outdoor
+      `add_showroom_ships` retired
+- [ ] Audit tests: P/exit rule over every interior, manifest↔
+      markers, reachability from `P`, no outdoor showroom
+      entities in any built city
 - [ ] Playtest checkpoint
 
 ### Phase 2 — Buy indoors, park outside
@@ -123,10 +166,13 @@ first launch.
 
 ## Acceptance criteria
 
+- Every `*_interior.layout` passes the P/exit placement rule
+  (gate-enforced at load, audit-enforced in the suite); the 11
+  named violations are fixed.
 - No showroom entities exist on any outdoor city map (audit-
   enforced).
-- Every spaceport interior displays its manifest, reachable from
-  the interior spawn, exit unblocked.
+- Every spaceport interior displays its manifest on `S` berths,
+  reachable from the interior spawn, exit unblocked.
 - Buy/trade-in from inside works; the purchased ship parks
   outside; launch is byte-for-byte today's behavior.
 - Save/load shows no showroom drift (option-a ruling) or drifts
@@ -138,11 +184,10 @@ first launch.
    (b) consumed hulls + saved sold-set.
 2. Terminal trio stays on the outdoor pad — confirm (assumed yes;
    not part of the clutter complaint).
-3. Audit home: extend `tools/city_audit.py` (the trusted transit-
-   pad diagnostic) with the showroom check, or a standalone survey
-   script plus data tests. Recommendation: data tests in the repo
-   suite (cheap, always run) + one city_audit rule only if it
-   needs the built map.
+3. Audit home — settled by the requirements: the placement rule is
+   a load-time gate in `load_city_interior` + repo data tests for
+   berths/reachability/outdoor absence. `tools/city_audit.py` is
+   not extended.
 
 ## Philosophy alignment
 
