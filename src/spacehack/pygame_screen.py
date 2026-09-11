@@ -278,23 +278,15 @@ def _fit_font(
     )
 
 
-def _draw_screen_header(
-    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
-    width: int, palette: Any,
-) -> int:
-    """Draw the title, rule, and tab bar; return the body's starting y."""
-    pygame_ui.draw_centered_text(
-        pygame, screen, font, frame.title,
-        pygame_ui.Rect(24, 16, width - 48, 42), 24,
-        color=palette.title,
-    )
-    pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
-    if not frame.tabs:
-        return 84
-    tab_width = max(1, (width - 80) // len(frame.tabs))
-    for index, tab in enumerate(frame.tabs):
+def draw_tab_bar(
+    pygame: Any, screen: Any, font: Any, palette: Any,
+    tabs: tuple[str, ...], active_tab: int, width: int,
+) -> None:
+    """Draw the shared multi-pane tab bar (``ScreenFrame.tabs`` chrome)."""
+    tab_width = max(1, (width - 80) // len(tabs))
+    for index, tab in enumerate(tabs):
         tab_x = 40 + index * tab_width
-        selected_tab = index == frame.active_tab
+        selected_tab = index == active_tab
         tab_rect = pygame.Rect(tab_x, 72, tab_width - 8, 36)
         pygame.draw.rect(
             screen,
@@ -311,6 +303,22 @@ def _draw_screen_header(
             pygame_ui.Rect(tab_x, 72, tab_width - 8, 36), 80,
             color=palette.title if selected_tab else palette.description,
         )
+
+
+def _draw_screen_header(
+    pygame: Any, screen: Any, font: Any, frame: ScreenFrame,
+    width: int, palette: Any,
+) -> int:
+    """Draw the title, rule, and tab bar; return the body's starting y."""
+    pygame_ui.draw_centered_text(
+        pygame, screen, font, frame.title,
+        pygame_ui.Rect(24, 16, width - 48, 42), 24,
+        color=palette.title,
+    )
+    pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
+    if not frame.tabs:
+        return 84
+    draw_tab_bar(pygame, screen, font, palette, frame.tabs, frame.active_tab, width)
     return 126
 
 

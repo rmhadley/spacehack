@@ -79,6 +79,7 @@ def _fake_pygame():
         K_a = 16
         K_RETURN = 17
         K_KP_ENTER = 18
+        KMOD_SHIFT = 1
 
     return FakePygame()
 
@@ -87,14 +88,17 @@ def _key(fake, value):
     return SimpleNamespace(type=fake.KEYDOWN, key=value)
 
 
-def test_tab_flips_panes_and_resets_selection():
+def test_tab_returns_the_shared_sheet_outcomes():
     fake = _fake_pygame()
     _outcome, _sel, _confirm, pane = pygame_quest_log._handle_key(
         fake, _key(fake, fake.K_TAB), 2, False, 3, "quests")
-    assert (_outcome, _sel, pane) == ("IGNORE", 0, "rumors")
+    assert (_outcome, _sel, pane) == ("TAB", 2, "quests")
+    _shift = SimpleNamespace(type=fake.KEYDOWN, key=fake.K_TAB, mod=fake.KMOD_SHIFT)
     _outcome, _sel, _confirm, pane = pygame_quest_log._handle_key(
-        fake, _key(fake, fake.K_TAB), 0, False, 3, "rumors")
-    assert pane == "quests"
+        fake, _shift, 0, False, 3, "rumors")
+    assert (_outcome, _sel, pane) == ("SHIFT_TAB", 0, "rumors")
+
+
 
 
 def test_rumors_pane_scrolls_linearly_and_clamps_low():
@@ -127,6 +131,7 @@ def test_frames_for_splits_panes_for_font_fitting():
         quest_ctx(known_rumors=["thin_month_1"])
     )
     assert len(quests) == 2  # no missions: (-1,) selections x two confirms
-    assert all(frame.pane == "quests" for frame in quests)
+    assert all(frame.tabs == ("QUESTS", "RUMORS") and frame.active_tab == 0
+               for frame in quests)
     assert len(rumors) == 1
-    assert rumors[0].pane == "rumors"
+    assert rumors[0].active_tab == 1

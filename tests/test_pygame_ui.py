@@ -1442,6 +1442,7 @@ def test_quest_key_mapping_preserves_navigation_and_confirmation_contract():
         KEYDOWN = 2
         K_ESCAPE = 10
         K_TAB = 19
+        KMOD_SHIFT = 1
         K_UP = 11
         K_DOWN = 12
         K_k = 13
@@ -1460,9 +1461,12 @@ def test_quest_key_mapping_preserves_navigation_and_confirmation_contract():
     assert pygame_quest_log._handle_key(fake, key(fake.K_ESCAPE), 1, True, 3, "quests") == ("BACK", 1, True, "quests")
     assert pygame_quest_log._handle_key(fake, key(fake.K_QUESTION), 1, False, 3, "quests") == ("GUIDE", 1, False, "quests")
     assert pygame_quest_log._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, False, 3, "quests") == ("QUIT", 1, False, "quests")
-    # TAB flips to the rumor ledger and back (doc 42).
-    assert pygame_quest_log._handle_key(fake, key(fake.K_TAB), 1, False, 3, "quests") == ("IGNORE", 0, False, "rumors")
-    assert pygame_quest_log._handle_key(fake, key(fake.K_TAB), 0, False, 3, "rumors") == ("IGNORE", 0, False, "quests")
+    # TAB/SHIFT_TAB select the sheet (the shared screen outcome; the
+    # caller advances), doc 42.
+    assert pygame_quest_log._handle_key(fake, key(fake.K_TAB), 1, False, 3, "quests") == ("TAB", 1, False, "quests")
+    assert pygame_quest_log._handle_key(fake, key(fake.K_TAB), 0, False, 3, "rumors") == ("TAB", 0, False, "rumors")
+    _shift = SimpleNamespace(type=fake.KEYDOWN, key=fake.K_TAB, mod=fake.KMOD_SHIFT)
+    assert pygame_quest_log._handle_key(fake, _shift, 1, False, 3, "rumors") == ("SHIFT_TAB", 1, False, "rumors")
 
 
 

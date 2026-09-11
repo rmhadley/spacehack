@@ -27,15 +27,26 @@ class QuestSpan:
     fg: tuple[int, int, int]
 
 
+# The shared tab treatment (ScreenFrame.tabs): sheet order and names.
+_QUESTS_PANE, _RUMORS_PANE = "quests", "rumors"
+_PANES = (_QUESTS_PANE, _RUMORS_PANE)
+_PANE_TABS = ("QUESTS", "RUMORS")
+
+
 @dataclass(frozen=True)
 class QuestFrame:
-    """Captured Quest Log rows for one pane/selection/confirm state."""
+    """Captured Quest Log rows for one pane/selection/confirm state.
+
+    ``tabs``/``active_tab`` mirror :class:`pygame_screen.ScreenFrame`:
+    the shared tab treatment selects the quests sheet or the rumor
+    ledger (doc 42)."""
 
     rows: tuple[tuple[QuestSpan, ...], ...]
     selected: int
     confirm_abandon: bool
     hint: str = ""
-    pane: str = "quests"
+    tabs: tuple[str, ...] = ()
+    active_tab: int = 0
 
 
 def _captured_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, ...], ...]:
@@ -118,6 +129,8 @@ def _capture_frame(
     ctx: GameContext, selected: int, confirm_abandon: bool,
     pane: str = "quests",
 ) -> QuestFrame:
+    """``pane`` is ``"quests"`` or ``"rumors"``; the frame carries the
+    shared tab fields so the renderer draws the active sheet."""
     """Render one authoritative Quest Log state into portable rows."""
     from .menus._quest_log import render_quest_log
     from .engine import SCREEN_HEIGHT, SCREEN_WIDTH
@@ -138,7 +151,8 @@ def _capture_frame(
         selected=selected,
         confirm_abandon=confirm_abandon,
         hint=hint,
-        pane=pane,
+        tabs=_PANE_TABS,
+        active_tab=_PANES.index(pane),
     )
 
 
@@ -151,11 +165,11 @@ def _frames_for(
     count = len(ctx.player_active_missions)
     selections = tuple(range(count)) if count else (-1,)
     quests = tuple(
-        _capture_frame(ctx, selected, confirm_abandon, "quests")
+        _capture_frame(ctx, selected, confirm_abandon, _QUESTS_PANE)
         for confirm_abandon in (False, True)
         for selected in selections
     )
-    return quests, (_capture_frame(ctx, 0, False, "rumors"),)
+    return quests, (_capture_frame(ctx, 0, False, _RUMORS_PANE),)
 
 
 def _font_path(pygame: Any) -> str | None:
@@ -233,6 +247,25 @@ def _draw_captured_rows(
         screen.set_clip(None)
 
 
+def _content_rect(
+    pygame: Any, screen: Any, font: Any, frame: QuestFrame,
+    palette: Any, panel: Any, width: int,
+) -> pygame_ui.Rect:
+    """Draw the shared tab bar when the frame carries sheets and
+    return the content region below the header chrome."""
+    if frame.tabs:
+        from .pygame_screen import draw_tab_bar
+        draw_tab_bar(
+            pygame, screen, font, palette,
+            frame.tabs, frame.active_tab, width,
+        )
+    return pygame_ui.Rect(
+        panel.x + 34, panel.y + (126 if frame.tabs else 76),
+        max(1, panel.width - 68),
+        max(1, panel.height - (150 if frame.tabs else 100)),
+    )
+
+
 def _draw_rows(
     pygame: Any, screen: Any, font: Any, frame: QuestFrame,
     *, context: PygameContext | None = None,
@@ -247,8 +280,7 @@ def _draw_rows(
     panel = pygame_ui.Rect(32, 28, width - 64, max(1, panel_bottom - 28))
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     pygame_ui.draw_centered_text(
-        pygame, screen, font,
-        "RUMORS" if frame.pane == "rumors" else "QUEST LOG",
+        pygame, screen, font, "QUEST LOG",
         panel, panel.y + 22,
         color=palette.title, antialias=True,
     )
@@ -256,10 +288,7 @@ def _draw_rows(
         pygame, screen, panel.x + 24, panel.y + 54,
         panel.width - 48, color=palette.border,
     )
-    content = pygame_ui.Rect(
-        panel.x + 34, panel.y + 76,
-        max(1, panel.width - 68), max(1, panel.height - 100),
-    )
+    content = _content_rect(pygame, screen, font, frame, palette, panel, width)
     _draw_captured_rows(pygame, screen, font, frame, content)
     if frame.hint:
         hint_y = (
@@ -276,18 +305,20 @@ def _handle_key(
     pygame: Any, event: Any, selected: int, confirm: bool, count: int,
     pane: str,
 ) -> tuple[str, int, bool, str]:
-    """Map key events to the Quest Log contract. TAB flips between the
-    quests sheet and the rumor ledger; the ledger scrolls instead of
-    selecting. Returns ``(outcome, selected, confirm, pane)``."""
+    """Map key events to the Quest Log contract — the shared screen
+    outcomes (TAB/SHIFT_TAB select the sheet, as on the character
+    screen); the ledger scrolls instead of selecting. Returns
+    ``(outcome, selected, confirm, pane)``; the caller advances."""
     if event.type == pygame.QUIT:
         return "QUIT", selected, confirm, pane
     if event.type != pygame.KEYDOWN:
         return "IGNORE", selected, confirm, pane
     if event.key == pygame.K_ESCAPE:
         return "BACK", selected, confirm, pane
-    if event.key == pygame.K_TAB:
-        return "IGNORE", 0, confirm, "rumors" if pane == "quests" else "quests"
-    if pane == "rumors":
+    if event.key == getattr(pygame, "K_TAB", None):
+        _shift = getattr(event, "mod", 0) & getattr(pygame, "KMOD_SHIFT", 0)
+        return ("SHIFT_TAB" if _shift else "TAB"), selected, confirm, pane
+    if pane == _RUMORS_PANE:
         if event.key in (pygame.K_UP, pygame.K_k):
             return "IGNORE", max(0, selected - 1), confirm, pane
         if event.key in (pygame.K_DOWN, pygame.K_j):
@@ -307,15 +338,23 @@ def _handle_key(
 
 
 
-def run_shared(
-    context: PygameContext,
-    ctx: GameContext,
-    selected: int = 0,
-    confirm_abandon: bool = False,
-) -> tuple[str, int, bool]:
-    """Run the stateful Quest Log inside the existing shared window."""
-    runtime = getattr(context, "_runtime", None)
-    engine = getattr(runtime, "engine", None)
+def _advance_quest_log(outcome, selected, confirm, pane):
+    """Advance one loop iteration — the character screen's shape:
+    TAB/SHIFT_TAB flip the sheet (two sheets, both directions) and
+    reset the selection. Returns ``(outcome, selected, confirm, pane,
+    done)``."""
+    if outcome in ("TAB", "SHIFT_TAB"):
+        return outcome, 0, confirm, (
+            _RUMORS_PANE if pane == _QUESTS_PANE else _QUESTS_PANE
+        ), False
+    return outcome, selected, confirm, pane, outcome != "IGNORE"
+
+
+def _prepare_screen(context, ctx):
+    """Bind the shared window (engine + surface), fit the font (quests
+    frames drive the height; the scrolling ledger only width), and
+    count the missions."""
+    engine = getattr(getattr(context, "_runtime", None), "engine", None)
     if engine is None or engine.logical_surface is None:
         raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
     pygame = engine.pygame
@@ -328,13 +367,23 @@ def run_shared(
         pygame, quests_frames, width, height,
         extra_width_frames=rumors_frames,
     )
-    count = len(ctx.player_active_missions)
+    return pygame, screen, engine, font, len(ctx.player_active_missions)
+
+
+def run_shared(
+    context: PygameContext,
+    ctx: GameContext,
+    selected: int = 0,
+    confirm_abandon: bool = False,
+) -> tuple[str, int, bool]:
+    """Run the stateful Quest Log inside the existing shared window."""
+    pygame, screen, engine, font, count = _prepare_screen(context, ctx)
     selected = selected if count else -1
     confirm = confirm_abandon
-    pane = "quests"
+    pane = _QUESTS_PANE
     while True:
         frame = _capture_frame(ctx, selected, confirm, pane)
-        if pane == "rumors":
+        if pane == _RUMORS_PANE:
             selected = min(selected, max(0, len(frame.rows) - 1))
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_rows(pygame, screen, font, frame, context=context)
@@ -344,7 +393,10 @@ def run_shared(
         outcome, selected, confirm, pane = _handle_key(
             pygame, event, selected, confirm, count, pane,
         )
-        if outcome == "IGNORE":
+        outcome, selected, confirm, pane, done = _advance_quest_log(
+            outcome, selected, confirm, pane,
+        )
+        if not done:
             continue
         return outcome, selected, confirm
 
