@@ -291,6 +291,13 @@ character screen's ``_advance_character_screen`` shape). Checklist
 item 2's ledger interaction is unchanged in kind: Q opens, TAB (or
 SHIFT-TAB) flips between the QUESTS and RUMORS tab bar sheets.
 
+Follow-up (same round): the fixed-origin tab bar clipped the Q
+screen's title and divider (the two panels start at different y).
+``draw_tab_bar`` now takes its origin y — pygame_screen passes 72 as
+before, the Q log lays the bar below its own rule — and the header
+renames to "LOGS" (user: "Let's change that title to just 'Logs'
+since it stays up there no matter which tab you're on.").
+
 ## Pre-implementation audit — phase 1 (2026-09-10)
 
 1. **Existing classes / modules to extend or reuse.**
