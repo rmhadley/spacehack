@@ -11,7 +11,7 @@ from src.spacehack.data.npc_chars import _registry
 from .model import EditorDocument, EnemyDirective, LootDirective, TileDirective
 
 
-_RESERVED_MARKERS = frozenset({"P", "C", "E", "T", "r", "R", "S"})
+_RESERVED_MARKERS = frozenset({"P", "C", "E", "T", "r", "R"})
 
 
 @dataclass(frozen=True)

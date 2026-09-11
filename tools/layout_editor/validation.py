@@ -5,14 +5,14 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 
-from src.spacehack import layout_format, world
+from src.spacehack import city_landmarks, layout_format, world
 from src.spacehack.dungeon_layout import LOOT_ROOM_TYPES
 from src.spacehack.data.npc_chars import find_npc_char
 
 from .model import AssetMode, EditorDocument
 
 
-_FIXED_MARKERS = frozenset({"P", "C", "E", "T", "r", "R", "S"})
+_FIXED_MARKERS = frozenset({"P", "C", "E", "T", "r", "R"})
 
 
 @dataclass(frozen=True)
@@ -242,10 +242,37 @@ def _validate_markers(document: EditorDocument) -> list[ValidationIssue]:
     return issues
 
 
+def _validate_city_interior_doors(document: EditorDocument) -> list[ValidationIssue]:
+    """Mirror the load-time P/exit placement gate for city interiors.
+
+    Fires only for enterable documents (any exit tile or P marker) —
+    exterior city stamps have neither and stay exempt. Delegates to
+    the shared ``city_landmarks.door_placement_error`` so the editor
+    and the loader can never drift.
+    """
+    exits = _tile_kind_positions(document, "exit")
+    spawns = _marker_positions(document, "P")
+    if not exits and not spawns:
+        return []
+    if len(spawns) > 1:
+        return [_issue(
+            "Interior door placement: interiors allow exactly one P marker",
+        )]
+    error = city_landmarks.door_placement_error(
+        exits, spawns[0] if spawns else None, document.grid.height,
+    )
+    if error is None:
+        return []
+    return [_issue(f"Interior door placement: {error}")]
+
+
 def validate_document(document: EditorDocument) -> tuple[ValidationIssue, ...]:
     """Return all known validation issues without modifying the document."""
-    return tuple(
+    issues = list(
         _validate_directives(document)
         + _validate_grid(document)
         + _validate_markers(document)
     )
+    if document.mode is AssetMode.CITY:
+        issues += _validate_city_interior_doors(document)
+    return tuple(issues)

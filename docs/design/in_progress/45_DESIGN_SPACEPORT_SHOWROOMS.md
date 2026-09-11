@@ -178,6 +178,18 @@ against the rule as written — exactly one exit, exit row in
   in both places and becomes a pure TILE-directive glyph; the two
   dead directives activate (CITY_ORNAMENT is walkable — visual-only
   change, authored intent restored).
+- Reviewer pass 1 (same day): the marker set is enumerated in a
+  THIRD place — the editor palette's `_RESERVED_MARKERS`
+  (tools/layout_editor/palette.py); S drops there too, pinned by a
+  palette regression test. One more dead-directive activation the
+  scan missed: `mercury_supply.layout` maps `S` to
+  CITY_BUILDING_WALL with no `TILE: .`, so its roof bands were
+  walkable DUNGEON_FLOOR underlay before and become solid wall —
+  matching the file's authored intent ("Solid roof... nothing
+  inside is visible from the deck"); accepted, named here and in
+  the commit. The placement predicate tightened per review: P must
+  be adjacent AND off the south wall row (no spawning inside the
+  wall), and the editor mirror rejects multiple P markers.
 - `world_layout._showroom_ships` + `make_space_port` are a SECOND
   outdoor placer (hardcoded scout/hauler/cruiser trio, stale 2×2
   cruiser footprint) with zero live callers (only world.py
@@ -245,7 +257,7 @@ against the rule as written — exactly one exit, exit row in
 - [ ] `S` marker tile in the layout grammar + kit seating helper
       (the ONE shared path, ownership filter included per SETTLED);
       `showroom_ships` field converted
-- [ ] P/exit placement gate in `load_city_interior` (+ editor
+- [x] P/exit placement gate in `load_city_interior` (+ editor
       validator mirror); the 11 violating layouts fixed
 - [ ] All 27 interiors authored with berths; outdoor
       `add_showroom_ships` retired

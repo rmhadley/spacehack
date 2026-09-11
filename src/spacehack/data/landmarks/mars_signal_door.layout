@@ -25,7 +25,7 @@ MAP
 ENDMAP
 
 # Tile mappings — glyph -> world.Tile constant name
-# Entity markers (P, C, E, r, R, S) are handled by the parser;
+# Entity markers (P, C, E, r, R) are handled by the parser;
 # only map tiles need TILE directives.
 TILE: + = DUNGEON_WALL
 TILE: # = DUNGEON_WALL

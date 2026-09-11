@@ -27,6 +27,44 @@ class CityInteriorAsset:
     spawn: world.Position
 
 
+def door_placement_error(
+    exits: list[tuple[int, int]],
+    spawn: tuple[int, int] | None,
+    height: int,
+) -> str | None:
+    """Return the P/exit placement violation for one city interior.
+
+    The shared placement rule (doc 45): exactly one exit, on the south
+    perimeter — the wall row itself (in-wall doorway) or the walkable
+    row just inside it — with the P spawn orthogonally adjacent AND
+    inside the perimeter, so the player appears just inside the door
+    they came through (never beside it in the wall row). Pure: the
+    load-time gate, the layout-editor validator, and the repo audit
+    tests all derive their inputs and call this one predicate.
+    """
+    if len(exits) != 1:
+        return f"has {len(exits)} exits, expected exactly one"
+    exit_x, exit_y = exits[0]
+    if exit_y not in (height - 1, height - 2):
+        return (
+            f"exit at row {exit_y} of {height} is not on the south perimeter"
+        )
+    if spawn is None:
+        return "has no P spawn"
+    spawn_x, spawn_y = spawn
+    if abs(spawn_x - exit_x) + abs(spawn_y - exit_y) != 1:
+        return (
+            f"P at ({spawn_x},{spawn_y}) is not orthogonally adjacent "
+            f"to the exit at ({exit_x},{exit_y})"
+        )
+    if spawn_y >= height - 1:
+        return (
+            f"P at ({spawn_x},{spawn_y}) sits on the south wall row; "
+            "it must sit just inside the door"
+        )
+    return None
+
+
 def load_city_interior(layout_id: str) -> CityInteriorAsset:
     """Load a city interior through the shared authored-layout parser."""
     from .dungeon_layout import load_layout
@@ -38,8 +76,17 @@ def load_city_interior(layout_id: str) -> CityInteriorAsset:
     )
     if spawn is None:
         raise ValueError(f"City interior {layout_id!r} has no P spawn")
-    if not any(tile.kind == "exit" for row in game_map.tiles for tile in row):
-        raise ValueError(f"City interior {layout_id!r} has no exit")
+    exits = [
+        (x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "exit"
+    ]
+    error = door_placement_error(
+        exits, (spawn.x, spawn.y), game_map.height,
+    )
+    if error is not None:
+        raise ValueError(f"City interior {layout_id!r} {error}")
     game_map.entry_spawn = spawn
     game_map.interior_cache_key = f"city:{layout_id}"
     return CityInteriorAsset(layout_id, game_map, spawn)

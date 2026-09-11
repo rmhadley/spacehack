@@ -121,7 +121,7 @@ def _parse_cell(
     floor = parsed.tile_map.get(".", world.DUNGEON_FLOOR)
     if glyph == " ":
         return floor, None, False, None, False
-    if glyph in {"P", "C", "E", "T", "r", "R", "S"} or glyph in parsed.enemy_spawn_specs:
+    if glyph in {"P", "C", "E", "T", "r", "R"} or glyph in parsed.enemy_spawn_specs:
         underlay = parsed.tile_map.get(
             glyph if glyph == "T" else ".",
             floor,

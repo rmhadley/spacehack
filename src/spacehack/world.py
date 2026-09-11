@@ -194,6 +194,13 @@ TERMINAL_LANDING = Tile(kind="terminal_landing", char=".", walkable=True,
                         fg=(175, 195, 215), bg=(38, 48, 65))
 LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
                          fg=(255, 150, 90), bg=(70, 35, 25))
+# Showroom berth: the marked floor cell a spaceport interior's display
+# ship stands on (doc 45). Authored via TILE: S = SHOWROOM_BERTH; the
+# seating helper finds berths by kind and seats the city's manifest in
+# reading order. Walkable plain floor — the display entity is the
+# blocker, never the marking.
+SHOWROOM_BERTH = Tile(kind="showroom_berth", char="S", walkable=True,
+                      fg=(150, 170, 200), bg=(30, 38, 52))
 # Authored quest-cache site marker: exactly one per landmark marks where
 # the step's delve cache lands (normalized to the landmark's floor at
 # stamp time - only the cache entity renders there).
