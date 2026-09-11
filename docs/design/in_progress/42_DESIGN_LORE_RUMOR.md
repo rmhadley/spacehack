@@ -88,7 +88,10 @@ ruled. These bind all phases.
 2. **Display — a verbatim ledger.** Heard text is recorded verbatim
    in a browsable pane reachable from the Q log alongside quests —
    a true pane inside the Q-log modal (pinned at the ADVISE round,
-   2026-09-10).
+   2026-09-10), presented with the shared multi-pane tab treatment
+   the C screen already uses (user, 2026-09-11: "The Q screen needs
+   the multi-pane tab treatment the rest of the UI already uses.
+   C screen uses it. No need create a new way to do this.").
    No objectives, no labels, no "ask X about Y" — the notebook
    never teaches; comprehension stays the puzzle. Solves the real
    hole: dialogue modals vanish on close, so today a lead named
@@ -272,8 +275,21 @@ binds its build.
        exactly as before on the same modal.
     7. Save → quit → Continue: ledger + keyring intact; asking
        resumes where it left off. New Game: keyring empty.
-    8. Guide diff: the new Rumors section quoted (before/after) —
-       ledger + ask-around only, no chain telegraphing.
+  8. Guide diff: the new Rumors section quoted (before/after) —
+     ledger + ask-around only, no chain telegraphing.
+
+### Playtest round 1 (2026-09-11) — presentation ruling: shared tabs
+
+The bespoke TAB-toggle (pane state threaded inside
+``pygame_quest_log``, title swap) replaced by the shared treatment:
+``QuestFrame`` carries ``tabs``/``active_tab`` mirroring
+``ScreenFrame``; the tab bar is pygame_screen's ``draw_tab_bar``
+(extracted from its header painter — one drawing implementation);
+``_handle_key`` returns the shared ``TAB``/``SHIFT_TAB`` outcomes and
+``_advance_quest_log`` flips the sheet in the host loop (the
+character screen's ``_advance_character_screen`` shape). Checklist
+item 2's ledger interaction is unchanged in kind: Q opens, TAB (or
+SHIFT-TAB) flips between the QUESTS and RUMORS tab bar sheets.
 
 ## Pre-implementation audit — phase 1 (2026-09-10)
 
