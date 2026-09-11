@@ -31,11 +31,19 @@ def test_source_npc_gets_the_ask_row_pre_hear(monkeypatch):
 def test_ask_row_goes_when_the_npc_holds_nothing_more(monkeypatch):
     _sheet(monkeypatch, {})
     ctx = quest_ctx(known_rumors=["derelict_line_1", "thin_month_1"])
-    # The barkeep offered both openers and extends neither chain —
-    # with both heard he holds nothing, so his row goes...
-    assert npc_mod._offers_rumors(ctx, find_npc("barkeep")) is False
+    # A non-dealer who opens nothing and extends nothing holds nothing
+    # — the row goes...
+    assert npc_mod._offers_rumors(quest_ctx(), find_npc("militia_captain")) is False
     # ...while the witness still extends the derelict chain.
     assert npc_mod._offers_rumors(ctx, find_npc("depot_attendant")) is True
+
+
+def test_dealer_keeps_the_ask_row_with_nothing_askable(monkeypatch):
+    # Ruling 10: the barkeep extends neither chain once both openers
+    # are heard, but his trade lives in the sub-menu — the row stays.
+    _sheet(monkeypatch, {})
+    ctx = quest_ctx(known_rumors=["derelict_line_1", "thin_month_1"])
+    assert npc_mod._offers_rumors(ctx, find_npc("barkeep")) is True
 
 
 def test_floor_withholds_the_ask_row(monkeypatch):
@@ -123,3 +131,123 @@ def test_full_talk_flow_surfaces_the_ask_row(monkeypatch):
     npc_mod._run_npc_talk(quest_ctx(), find_npc("barkeep"))
     assert "ASKAROUND" in _seen["actions"]
     assert not any(a.startswith("RUMOR:") for a in _seen["actions"])
+
+
+# --- doc 42 phase 2: the dealer's side of the sub-menu --------------------
+
+
+def _capture_submenu(seen, picks):
+    """Record every sub-menu pass; play scripted picks, then None."""
+    def _run(ctx, **kwargs):
+        seen.append(kwargs)
+        return next(picks, None)
+    return _run
+
+
+def test_dealer_submenu_shows_sell_rows_and_favor_line(monkeypatch):
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+    )
+    ctx = quest_ctx(known_rumors=["thin_month_1", "derelict_line_1"])
+    result = npc_mod._resolve_talk_result(
+        ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert result == (npc_mod.TalkOutcome.BACK, None)
+    _actions = [item.action for item in _seen[0]["items"]]
+    assert "OFFER:thin_month_1" in _actions
+    assert "OFFER:derelict_line_1" in _actions
+    assert _seen[0]["body"] == "Favor: 0"
+    _earn = [item for item in _seen[0]["items"] if item.action == "OFFER:thin_month_1"]
+    assert _earn[0].description == "Earn 1 favor."
+
+
+def test_selling_updates_favor_and_retires_the_row(monkeypatch):
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod,
+        "_run_choice_submenu",
+        _capture_submenu(_seen, iter(["OFFER:thin_month_1"])),
+    )
+    ctx = quest_ctx(known_rumors=["thin_month_1"])
+    npc_mod._resolve_talk_result(
+        ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert ctx.rumor_favor["barkeep"]["favor"] == 1
+    # Second pass rebuilt live (sell-menu idiom): the sold row is
+    # gone and the Favor line moved — no per-transaction modal.
+    assert "OFFER:thin_month_1" not in [
+        item.action for item in _seen[1]["items"]
+    ]
+    assert _seen[1]["body"] == "Favor: 1"
+    assert "Sold The thin month for 1 favor." in [
+        entry.text for entry in ctx.log.history()
+    ]
+
+
+def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
+    from src.spacehack import rumor as rumor_module
+
+    _readouts = []
+    monkeypatch.setattr(
+        npc_mod, "_show_rumor_readout",
+        lambda ctx, npc, text: _readouts.append(text),
+    )
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod,
+        "_run_choice_submenu",
+        _capture_submenu(_seen, iter(["BUY:dark_berth_4:4"])),
+    )
+    ctx = quest_ctx(
+        known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
+        rumor_favor={"wolf_barkeep": {"favor": 4, "earned": []}},
+    )
+    npc_mod._resolve_talk_result(
+        ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert "BUY:dark_berth_4:4" in [
+        item.action for item in _seen[0]["items"]
+    ]
+    _cost = [
+        item for item in _seen[0]["items"] if item.action == "BUY:dark_berth_4:4"
+    ]
+    assert _cost[0].description == "Costs 4 favor."
+    assert "dark_berth_4" in ctx.known_rumors
+    assert ctx.rumor_favor["wolf_barkeep"]["favor"] == 0
+    # Bought knowledge reads canonically — no witness variant.
+    assert _readouts == [rumor_module.entry_text("dark_berth_4")]
+
+
+def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+    )
+    ctx = quest_ctx(
+        known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
+        rumor_favor={"wolf_barkeep": {"favor": 3, "earned": []}},
+    )
+    npc_mod._resolve_talk_result(
+        ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert not any(
+        item.action.startswith("BUY:") for item in _seen[0]["items"]
+    )
+    assert _seen[0]["body"] == "Favor: 3"
+
+
+def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+    )
+    ctx = quest_ctx(known_rumors=["derelict_line_1"])
+    npc_mod._resolve_talk_result(
+        ctx, find_npc("depot_attendant"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert _seen[0]["body"] == '"What do you want to know?"'
+    assert not any(
+        item.action.startswith(("OFFER:", "BUY:"))
+        for item in _seen[0]["items"]
+    )

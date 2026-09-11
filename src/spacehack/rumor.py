@@ -15,6 +15,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .data.lore import RumorEntry, find_rumor, list_rumors
+from .data.lore.dealers import find_dealer, is_dealer
 from .text import get as _text_get
 
 
@@ -239,3 +240,8 @@ def buy_exclusive(ctx, dealer_id: str, rumor_id: str, price: int) -> bool:
     book["favor"] -= price
     hear(ctx, rumor_id)
     return True
+
+
+# Re-exports: hosts read the dealer registry through this facade,
+# never from the data module directly.
+__all__ = ["find_dealer", "is_dealer"]

@@ -288,7 +288,7 @@ def _run_choice_submenu(ctx, *, title, body, items, caption):
             ),),
             selected=_selected,
         )
-        for _selected in range(len(items))
+        for _selected in range(max(1, len(items)))
     )
     while True:
         _outcome, _action, _selected = _run_pygame_menu(ctx, _frames, caption=caption)
@@ -366,47 +366,127 @@ def _show_rumor_readout(ctx, npc, text: str) -> None:
         return
 
 
-def _rumor_topic_items(topics) -> list:
-    """One sub-menu row per askable topic: label = the chain subject,
-    action = the next entry to hear."""
+def _labeled(topic: str) -> str:
+    """A topic as a row label — the subject, capitalized."""
+    return topic[:1].upper() + topic[1:]
+
+
+def _ask_submenu_items(topics, offers, buys) -> list:
+    """Sub-menu rows: hear rows, then Sell offers, then priced buys."""
     from . import pygame_menu
 
-    return [
+    items = [
         pygame_menu.MenuItem(
-            topic[:1].upper() + topic[1:],
-            "Hear the next piece.",
-            f"ASKTOPIC:{next_rumor_id}",
+            _labeled(topic), "Hear the next piece.", f"ASKTOPIC:{next_id}",
         )
-        for topic, next_rumor_id in topics
+        for topic, next_id in topics
     ]
+    items += [
+        pygame_menu.MenuItem(
+            f"Sell: {_labeled(rumor_module.topic_label(rumor_id))}",
+            f"Earn {value} favor.",
+            f"OFFER:{rumor_id}",
+        )
+        for rumor_id, value in offers
+    ]
+    items += [
+        pygame_menu.MenuItem(
+            _labeled(rumor_module.topic_label(rumor_id)),
+            f"Costs {price} favor.",
+            f"BUY:{rumor_id}:{price}",
+        )
+        for rumor_id, price in buys
+    ]
+    return items
+
+
+def _ask_rows(ctx, npc):
+    """(topics, offers, buys) for one sub-menu pass — offers and buys
+    exist only at a dealer (ruling 10)."""
+    from . import identity
+
+    topics = rumor_module.askable_topics(
+        ctx.known_rumors, identity.effective_reputation(ctx),
+        ctx.player_traits, npc.id,
+    )
+    if not rumor_module.is_dealer(npc.id):
+        return topics, [], []
+    offers = rumor_module.offerable_rumors(
+        ctx.known_rumors, ctx.rumor_favor, npc.id,
+    )
+    buys = rumor_module.exclusive_offers(
+        ctx.known_rumors, ctx.rumor_favor, npc.id,
+        rumor_module.find_dealer(npc.id).exclusives,
+    )
+    return topics, offers, buys
+
+
+def _ask_body(ctx, npc) -> str:
+    """The body line: the dealer's live balance, else the ask prompt."""
+    if rumor_module.is_dealer(npc.id):
+        return f"Favor: {rumor_module.favor_for(ctx.rumor_favor, npc.id)}"
+    return '"What do you want to know?"'
+
+
+def _ask_hear(ctx, npc, rumor_id: str) -> None:
+    rumor_module.hear(ctx, rumor_id)
+    _show_rumor_readout(ctx, npc, rumor_module.witness_text(rumor_id, npc.id))
+
+
+def _ask_offer(ctx, npc, rumor_id: str) -> None:
+    _earned = rumor_module.offer_rumor(ctx, npc.id, rumor_id)
+    if _earned:
+        ctx.log.add(
+            f"Sold {_labeled(rumor_module.topic_label(rumor_id))} "
+            f"for {_earned} favor."
+        )
+
+
+def _ask_buy(ctx, npc, payload: str) -> None:
+    """A priced pick: the row's holding rides in the action string, so
+    the buy spends exactly what the row offered."""
+    rumor_id, _, price = payload.partition(":")
+    if not rumor_module.buy_exclusive(ctx, npc.id, rumor_id, int(price)):
+        return
+    _show_rumor_readout(ctx, npc, rumor_module.entry_text(rumor_id))
+
+
+_ASK_PICK_HANDLERS = {
+    "ASKTOPIC": _ask_hear,
+    "OFFER": _ask_offer,
+    "BUY": _ask_buy,
+}
+
+
+def _apply_ask_pick(ctx, npc, action: str) -> None:
+    """One sub-menu pick: hear it, sell it, or buy it."""
+    _prefix, _, _payload = action.partition(":")
+    _handler = _ASK_PICK_HANDLERS.get(_prefix)
+    if _handler is not None:
+        _handler(ctx, npc, _payload)
 
 
 def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
-    """The Ask Around sub-menu (doc 42): pick a heard topic this NPC
-    can extend; stays open until the chain moves past them or ESC."""
-    from . import identity
-
+    """The Ask Around sub-menu (doc 42): askable topics plus — at a
+    dealer — Sell offers and priced exclusives over a live Favor line
+    (sell-menu idiom: rows rebuild every pass, no per-pick modal).
+    Stays open until ESC."""
     while True:
-        _topics = rumor_module.askable_topics(
-            ctx.known_rumors, identity.effective_reputation(ctx),
-            ctx.player_traits, npc.id,
-        )
-        if not _topics:
+        _topics, _offers, _buys = _ask_rows(ctx, npc)
+        if not (_topics or _offers or _buys) and not rumor_module.is_dealer(npc.id):
             return (TalkOutcome.BACK, None)
         _action = _run_choice_submenu(
             ctx,
             title="Ask around",
-            body='"What do you want to know?"',
-            items=_rumor_topic_items(_topics),
+            body=_ask_body(ctx, npc),
+            items=_ask_submenu_items(_topics, _offers, _buys),
             caption=f"spacehack - {npc.name}",
         )
         if _action == "QUIT":
             return (TalkOutcome.QUIT, None)
-        if _action is None or not _action.startswith("ASKTOPIC:"):
+        if _action is None:
             return (TalkOutcome.BACK, None)
-        _next_id = _action.partition(":")[2]
-        rumor_module.hear(ctx, _next_id)
-        _show_rumor_readout(ctx, npc, rumor_module.witness_text(_next_id, npc.id))
+        _apply_ask_pick(ctx, npc, _action)
 
 
 def _refusal_reply(ctx, npc):
@@ -419,9 +499,12 @@ def _refusal_reply(ctx, npc):
 
 
 def _offers_rumors(ctx, npc) -> bool:
-    """Whether the Ask around row shows: the NPC holds an unheard
-    opener they can deliver or a heard chain they can extend, read
-    off the RESOLVED sheet (dark reads neutral)."""
+    """Whether the Ask around row shows: always at a dealer (ruling
+    10 — their trade lives in the sub-menu), else when the NPC holds
+    an unheard opener they can deliver or a heard chain they can
+    extend, read off the RESOLVED sheet (dark reads neutral)."""
+    if rumor_module.is_dealer(npc.id):
+        return True
     from . import identity
 
     return bool(rumor_module.askable_topics(
