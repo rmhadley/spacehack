@@ -577,6 +577,18 @@ nobody designs against a ghost.
   records verbatim through the quest-readout modal; the RUMORS tab
   renders the ledger verbatim in heard order (`npc.py`:
   `_handle_ask_around`; `rumor.py`: `hear`).
+  Favor exchange (phase 2): `DealerSpec` rows in
+  `data/lore/dealers.py` key the books by ROLE id — `ctx.rumor_favor`
+  `{favor, earned}` ledgers saved beside the keyring;
+  `offerable_rumors` never buys an entry the dealer authors as a
+  source (no selling back to the teller, playtest ruling);
+  `exclusive_offers` hides priced rows until affordable and takes
+  holdings as an explicit input (the phase-3 routing seam); the ask
+  sub-menu carries a live `Favor: N` line rebuilt per pass; the
+  Whisper berth keeper (`identity.KNOWLEDGE_GATES` read in
+  `npc._priced_rows`) sells the 2000cr cut-out only while
+  `dark_berth_4` is heard (`rumor.py`: `offer_rumor`/`buy_exclusive`;
+  `identity.py`: `CUTOUT_BROKERS`).
 - **Mission boards** — keyed `(npc_id@planet)`; monthly refresh;
   slot fill from static catalog then faction generator; tier bands
   by planet `mission_tier` (+1 guild trait); militia/lab boards

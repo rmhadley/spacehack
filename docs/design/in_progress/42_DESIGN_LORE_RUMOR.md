@@ -494,7 +494,8 @@ phase 1 closed.
       earning
 - [x] An authored option-unlock payoff (an exclusive that changes
       an interaction)
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint (passed — user, 2026-09-11; round-1
+      rulings above: no-selling-back + the Shift+B dev instrument)
 
   Implementation brief (2) — APPROVED (refine session 2026-09-11):
 
@@ -605,6 +606,12 @@ won't buy dark_berth_1). Tiers a dealer doesn't hold stay buyable —
 the wolf buys your thin-month entries; research_officer, no
 authored sources, buys anything heard. Checklist item 2 amended
 below.
+
+Playtest complete (user, 2026-09-11) — the amended checklist passed
+(sell-back fix verified in play; item 6 needed the Shift+B dev
+toggle: dev saves pre-install the cut-out, so the owner's empty
+storefront is correct). Phase 2 closed; SYSTEMS.md rumors entry
+amended with the favor exchange.
 
 ### Phase 3 — Seed routing + finds that teach
 - [ ] Derived routing module (pure INIT_SEED derivations): chain
