@@ -36,14 +36,14 @@ def _render_rumors(ctx):
 
 
 def test_rumors_pane_paints_heard_text_verbatim_in_order():
-    console = _render_rumors(quest_ctx(known_rumors=["thin_month_1", "derelict_line_1"]))
+    console = _render_rumors(quest_ctx(known_rumors=["dark_berth_2", "dark_berth_1"]))
     text = "\n".join(_pane_rows(console))
     assert "RUMORS" in text
-    _thin = rumor_module.entry_text("thin_month_1")
-    _derelict = rumor_module.entry_text("derelict_line_1")
-    assert _thin.split(". ")[0] in text, "first thin-month line present"
-    assert _derelict.split(". ")[0] in text, "first derelict line present"
-    assert text.index(_thin.split(". ")[0]) < text.index(_derelict.split(". ")[0]), \
+    _second = rumor_module.entry_text("dark_berth_2")
+    _first = rumor_module.entry_text("dark_berth_1")
+    assert _second.split(". ")[0] in text, "first heard line present"
+    assert _first.split(". ")[0] in text, "second heard line present"
+    assert text.index(_second.split(". ")[0]) < text.index(_first.split(". ")[0]), \
         "heard order preserved in the ledger"
 
 
@@ -128,7 +128,7 @@ def test_frames_for_splits_panes_for_font_fitting():
     # The ledger scrolls, so rumors frames constrain font WIDTH only;
     # quests frames drive both. (REVIEW round 2.)
     quests, rumors = pygame_quest_log._frames_for(
-        quest_ctx(known_rumors=["thin_month_1"])
+        quest_ctx(known_rumors=["dark_berth_1"])
     )
     assert len(quests) == 2  # no missions: (-1,) selections x two confirms
     assert all(frame.tabs == ("QUESTS", "RUMORS") and frame.active_tab == 0

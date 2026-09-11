@@ -6,6 +6,7 @@ lives in the sub-menu. Floors read the RESOLVED sheet the host passes.
 """
 
 from tests.support.quest_ctx import quest_ctx
+from tests.support.rumor_fixture import install
 
 from src.spacehack import npc as npc_mod
 from src.spacehack.data.npcs import find_npc
@@ -25,30 +26,36 @@ def test_non_source_npc_gets_no_ask_row(monkeypatch):
 
 def test_source_npc_gets_the_ask_row_pre_hear(monkeypatch):
     _sheet(monkeypatch, {})
-    assert npc_mod._offers_rumors(quest_ctx(), find_npc("barkeep")) is True
+    assert npc_mod._offers_rumors(
+        quest_ctx(), find_npc("deadfall_scrubber")) is True
 
 
 def test_ask_row_goes_when_the_npc_holds_nothing_more(monkeypatch):
     _sheet(monkeypatch, {})
-    ctx = quest_ctx(known_rumors=["derelict_line_1", "thin_month_1"])
-    # A non-dealer who opens nothing and extends nothing holds nothing
-    # — the row goes...
+    ctx = quest_ctx(known_rumors=["dark_berth_1", "dark_berth_2"])
+    # A non-source holds nothing — the row goes...
     assert npc_mod._offers_rumors(quest_ctx(), find_npc("militia_captain")) is False
-    # ...while the witness still extends the derelict chain.
-    assert npc_mod._offers_rumors(ctx, find_npc("depot_attendant")) is True
+    # ...and so does a source who is out of chain (the scrubber told
+    # tiers 1-2)...
+    assert npc_mod._offers_rumors(ctx, find_npc("deadfall_scrubber")) is False
+    # ...while the tech still extends the chain.
+    assert npc_mod._offers_rumors(ctx, find_npc("ember_tech")) is True
 
 
 def test_dealer_keeps_the_ask_row_with_nothing_askable(monkeypatch):
-    # Ruling 10: the barkeep extends neither chain once both openers
-    # are heard, but his trade lives in the sub-menu — the row stays.
+    # Ruling 10: the barkeep extends no tier (he sources none), but his
+    # trade lives in the sub-menu — the row stays.
     _sheet(monkeypatch, {})
-    ctx = quest_ctx(known_rumors=["derelict_line_1", "thin_month_1"])
+    ctx = quest_ctx(known_rumors=["dark_berth_1"])
     assert npc_mod._offers_rumors(ctx, find_npc("barkeep")) is True
 
 
 def test_floor_withholds_the_ask_row(monkeypatch):
     # The host passes the RESOLVED sheet: a worn face at militia liked
     # (30) clears the neutral floor the true hostile sheet (-5) fails.
+    # The gated rows ride the fixture registry — the live chain
+    # authors no floors.
+    install(monkeypatch)
     _sheet(monkeypatch, {"militia": -5})
     assert npc_mod._offers_rumors(quest_ctx(), find_npc("blockade_officer")) is False
     _sheet(monkeypatch, {"militia": 30})
@@ -77,17 +84,17 @@ def test_ask_around_sitting_hears_opener_then_extension(monkeypatch):
     )
     # One sitting: pick the opener, then the extension, then the
     # sub-menu is exhausted (a None pick closes it).
-    _picks = iter(["ASKTOPIC:derelict_line_1", "ASKTOPIC:derelict_line_2"])
+    _picks = iter(["ASKTOPIC:dark_berth_1", "ASKTOPIC:dark_berth_2"])
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu",
         lambda ctx, **kwargs: next(_picks, None),
     )
     ctx = quest_ctx()
     result = npc_mod._resolve_talk_result(
-        ctx, find_npc("depot_attendant"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert result == (npc_mod.TalkOutcome.BACK, None)
-    assert ctx.known_rumors == ["derelict_line_1", "derelict_line_2"]
+    assert ctx.known_rumors == ["dark_berth_1", "dark_berth_2"]
     assert len(_readouts) == 2
 
 
@@ -149,21 +156,22 @@ def test_dealer_submenu_shows_sell_rows_and_favor_line(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    # dark_berth_1 heard from the wolf: the barkeep doesn't know it,
-    # so it's sellable — thin_month_1 (his own telling) is not.
-    ctx = quest_ctx(known_rumors=["dark_berth_1", "thin_month_1"])
+    # dark_berth_2 heard: the wolf doesn't know it (the scrubber's
+    # telling), so it's sellable — dark_berth_1 (his own telling) is
+    # not.
+    ctx = quest_ctx(known_rumors=["dark_berth_1", "dark_berth_2"])
     result = npc_mod._resolve_talk_result(
-        ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     _actions = [item.action for item in _seen[0]["items"]]
-    assert "OFFER:dark_berth_1" in _actions
-    assert "OFFER:thin_month_1" not in _actions
+    assert "OFFER:dark_berth_2" in _actions
+    assert "OFFER:dark_berth_1" not in _actions
     assert _seen[0]["body"] == "Favor: 0"
     _earn = [
-        item for item in _seen[0]["items"] if item.action == "OFFER:dark_berth_1"
+        item for item in _seen[0]["items"] if item.action == "OFFER:dark_berth_2"
     ]
-    assert _earn[0].description == "Earn 1 favor."
+    assert _earn[0].description == "Earn 2 favor."
 
 
 def test_selling_updates_favor_and_retires_the_row(monkeypatch):
@@ -246,9 +254,9 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    ctx = quest_ctx(known_rumors=["derelict_line_1"])
+    ctx = quest_ctx(known_rumors=["dark_berth_1"])
     npc_mod._resolve_talk_result(
-        ctx, find_npc("depot_attendant"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert _seen[0]["body"] == '"What do you want to know?"'
     assert not any(

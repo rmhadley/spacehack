@@ -99,13 +99,15 @@ def _build_test_ctx() -> GameContext:
          "rep": {"merchant": -40}},
     ]
     ctx.main_quest_disposition = "archive_sealed"
-    # Rumor keyring (doc 42): interleaved chains prove heard order
-    # survives the round trip.
-    ctx.known_rumors = ["thin_month_1", "derelict_line_1", "thin_month_2"]
+    # Rumor keyring (doc 42): non-tier order proves heard order
+    # survives the round trip. (derelict_line/thin_month retired with
+    # the one-chain ruling — a pre-ruling save carries those ids and
+    # the stale-id skip must handle them.)
+    ctx.known_rumors = ["dark_berth_2", "dark_berth_1", "dark_berth_3"]
     # Favor ledgers (doc 42 phase 2): two books, earned sets included.
     ctx.rumor_favor = {
-        "wolf_barkeep": {"favor": 4, "earned": ["thin_month_1", "dark_berth_1"]},
-        "research_officer": {"favor": 1, "earned": ["thin_month_1"]},
+        "wolf_barkeep": {"favor": 4, "earned": ["dark_berth_1", "dark_berth_2"]},
+        "research_officer": {"favor": 1, "earned": ["dark_berth_3"]},
     }
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True

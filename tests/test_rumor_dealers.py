@@ -60,19 +60,19 @@ def test_favor_for_defaults_to_zero() -> None:
 
 def test_offerable_lists_heard_unsold_valued_rumors() -> None:
     # research_officer holds no sources — they buy anything heard.
-    ledgers = {"research_officer": {"favor": 0, "earned": ["thin_month_1"]}}
+    ledgers = {"research_officer": {"favor": 0, "earned": ["dark_berth_1"]}}
     rows = rumor.offerable_rumors(
-        ["thin_month_1", "derelict_line_1"], ledgers, "research_officer",
+        ["dark_berth_1", "dark_berth_2"], ledgers, "research_officer",
     )
-    assert rows == [("derelict_line_1", 1)]
+    assert rows == [("dark_berth_2", 2)]
 
 
 def test_dealer_wont_buy_back_their_own_telling() -> None:
-    # Round-1 ruling: no selling back. The barkeep is an authored
-    # source of both openers — neither shows a Sell row at his book.
-    assert rumor.offerable_rumors(
-        ["thin_month_1", "derelict_line_1"], {}, "barkeep",
-    ) == []
+    # Round-1 ruling: no selling back. The wolf is an authored source
+    # of the opener — no Sell row at his book; the scrubber co-tells
+    # tier 2.
+    assert rumor.offerable_rumors(["dark_berth_1"], {}, "wolf_barkeep") == []
+    assert rumor.offerable_rumors(["dark_berth_2"], {}, "deadfall_scrubber") == []
 
 
 def test_co_teller_refuses_too() -> None:
@@ -84,27 +84,28 @@ def test_co_teller_refuses_too() -> None:
 
 
 def test_dealer_buys_tiers_they_dont_hold() -> None:
-    # The wolf told you dark_berth_1 but holds no thin-month sources
-    # — that entry he buys.
+    # The wolf told you tier 1, but the scrubber's and the tech's
+    # tiers aren't his knowledge — he buys them.
     rows = rumor.offerable_rumors(
-        ["dark_berth_1", "thin_month_1"], {}, "wolf_barkeep",
+        ["dark_berth_2", "dark_berth_3"], {}, "wolf_barkeep",
     )
-    assert rows == [("thin_month_1", 1)]
+    assert rows == [("dark_berth_2", 2), ("dark_berth_3", 3)]
 
 
 def test_offerable_is_per_dealer() -> None:
-    # Sold to the wolf (who holds no thin-month sources);
-    # research_officer still pays — two books, one per dealer
+    # Sold to the wolf (a tier he didn't tell); the barkeep, no
+    # sources at all, still pays — two books, one per dealer
     # (ruling 9).
-    ledgers = {"wolf_barkeep": {"favor": 1, "earned": ["thin_month_1"]}}
+    ledgers = {"wolf_barkeep": {"favor": 2, "earned": ["dark_berth_2"]}}
     assert rumor.offerable_rumors(
-        ["thin_month_1"], ledgers, "research_officer",
-    ) == [("thin_month_1", 1)]
-    assert rumor.offerable_rumors(["thin_month_1"], ledgers, "wolf_barkeep") == []
+        ["dark_berth_2"], ledgers, "barkeep",
+    ) == [("dark_berth_2", 2)]
+    assert rumor.offerable_rumors(["dark_berth_2"], ledgers, "wolf_barkeep") == []
 
 
 def test_offerable_skips_stale_ids() -> None:
-    assert rumor.offerable_rumors(["retired_rumor"], {}, "barkeep") == []
+    # derelict_line_1 retired with the one-chain ruling.
+    assert rumor.offerable_rumors(["derelict_line_1"], {}, "barkeep") == []
 
 
 def test_exclusive_offers_gate_on_requires_unheard_and_affordability() -> None:
@@ -159,26 +160,26 @@ def test_holding_is_an_explicit_input_the_routing_seam() -> None:
 
 
 def test_offer_pays_value_once_per_dealer() -> None:
-    ctx = SimpleNamespace(known_rumors=["thin_month_1"], rumor_favor={})
-    assert rumor.offer_rumor(ctx, "research_officer", "thin_month_1") == 1
+    ctx = SimpleNamespace(known_rumors=["dark_berth_1"], rumor_favor={})
+    assert rumor.offer_rumor(ctx, "research_officer", "dark_berth_1") == 1
     assert ctx.rumor_favor == {
-        "research_officer": {"favor": 1, "earned": ["thin_month_1"]},
+        "research_officer": {"favor": 1, "earned": ["dark_berth_1"]},
     }
-    assert rumor.offer_rumor(ctx, "research_officer", "thin_month_1") == 0
+    assert rumor.offer_rumor(ctx, "research_officer", "dark_berth_1") == 0
     assert ctx.rumor_favor["research_officer"]["favor"] == 1
 
 
 def test_buy_spends_then_hears() -> None:
     ctx = SimpleNamespace(
         known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
-        rumor_favor={"wolf_barkeep": {"favor": 4, "earned": ["thin_month_1"]}},
+        rumor_favor={"wolf_barkeep": {"favor": 4, "earned": ["dark_berth_1"]}},
     )
     assert rumor.buy_exclusive(ctx, "wolf_barkeep", "dark_berth_4", 4) is True
     assert ctx.rumor_favor["wolf_barkeep"]["favor"] == 0
     assert ctx.known_rumors[-1] == "dark_berth_4"
     # The earned set is offer-history, not purchase-history — a buy
     # spends favor without touching it (ruling 13).
-    assert ctx.rumor_favor["wolf_barkeep"]["earned"] == ["thin_month_1"]
+    assert ctx.rumor_favor["wolf_barkeep"]["earned"] == ["dark_berth_1"]
 
 
 def test_buy_never_goes_below_zero_and_refusal_touches_nothing() -> None:
@@ -209,13 +210,13 @@ def test_offer_refuses_unheard_rumors() -> None:
     # The mutation boundary is self-defending (reviewer round): a
     # future host can't pay out for knowledge off the keyring.
     ctx = SimpleNamespace(known_rumors=[], rumor_favor={})
-    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
+    assert rumor.offer_rumor(ctx, "barkeep", "dark_berth_1") == 0
     assert ctx.rumor_favor == {}
 
 
 def test_offer_refuses_rumors_the_dealer_knows() -> None:
     # Same boundary, round-1 ruling side: no selling back to a
     # teller, whatever a host might render.
-    ctx = SimpleNamespace(known_rumors=["thin_month_1"], rumor_favor={})
-    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
+    ctx = SimpleNamespace(known_rumors=["dark_berth_1"], rumor_favor={})
+    assert rumor.offer_rumor(ctx, "wolf_barkeep", "dark_berth_1") == 0
     assert ctx.rumor_favor == {}
