@@ -110,6 +110,87 @@ rule becomes a shared load-time gate so it cannot regress.
   repo data tests for berths/reachability/outdoor absence;
   `tools/city_audit.py` is not extended.
 
+## Pre-implementation audit (2026-09-11, phase 1 session)
+
+**Verified independently before coding:** the 11-violation audit
+reproduces exactly (fresh scan over all 93 `*_interior.layout` files
+against the rule as written — exactly one exit, exit row in
+`{height-1, height-2}`, `P` orthogonally adjacent).
+
+**1. Existing code to extend or reuse.**
+- `city_kit.add_showroom_ships` (city_kit.py:67) — the retiring
+  outdoor placer; `seat_showroom_ships` replaces it in the same
+  module and reuses its Entity construction shape
+  (`name=f"Ship: {name}"`, `ship_id`, catalog char/fg, 1×1).
+- `city_interiors._interior_for_record` (city_interiors.py:102) —
+  the every-entry hook; seating sits beside `_seat_service_npcs`
+  (city_interiors.py:63), which IS the idempotent strip+re-seat
+  pattern to mirror (cache hit or miss). SimpleNamespace ctx fakes
+  for its tests exist in `tests/test_city_interiors.py`.
+- `city_landmarks.load_city_interior` (city_landmarks.py:30) —
+  already the loud-fail point (no-P / no-exit ValueErrors); the
+  placement gate extends it. NOTE: the brief's parenthetical
+  `_validate_city_asset` is an anchor slip — that helper validates
+  EXTERIOR stamp fit and never sees interiors; Domain changes 0/1
+  (binding) name `load_city_interior` as the gate's home.
+- `layout_format` TILE directives + `world._TILE_BY_NAME` — a new
+  `SHOWROOM_BERTH` tile in world.py is instantly authorable via
+  `TILE: S = SHOWROOM_BERTH` (the QUEST_CACHE/LANDMARK_ENTRANCE
+  precedent: explicit kind-marked tile, found by kind at runtime).
+- `tools/layout_editor/validation.py::_validate_markers` — the
+  editor mirror lives there, CITY-mode gated (city interiors infer
+  CITY mode via their CITY_* tiles; dungeon landmarks don't).
+- `city_builder._grid_port_entities` (city_builder.py:104) — the
+  grid path's ship placement to retire (terminals stay). All 27
+  registered planets use authored layouts today; the grid path is
+  the "any future planet" guarantee.
+- Ownership data: `ctx.player_owned_ship.ship_id`
+  (ship.py `OwnedShip.ship_id`).
+
+**2. Duplication hotspots and DRY strategy.**
+- *The placement rule written three times* (load gate, editor
+  validator, repo audit test see different shapes: GameMap /
+  EditorDocument / files). DRY: one pure predicate
+  `door_placement_error(exits, spawn, height) -> str | None` in
+  `city_landmarks`; all three consumers derive their exits/spawn and
+  call it. The editor already imports `src.spacehack` modules.
+- *Entity-construction copy-paste* between the retired helper and
+  the new one. DRY: the new helper owns one
+  `_showroom_entity(ship_obj, pos)` builder; the old function is
+  deleted, not left as a twin.
+- *Berth discovery / reading order* re-derived by tests. DRY: tests
+  count `kind == "showroom_berth"` tiles from `load_layout` output
+  (the loader's row-major iteration IS reading order — no second
+  ordering implementation).
+- *Parallel paths* (authored vs grid builders; entry vs load
+  interior paths): the audit test pins BOTH builders' outdoor maps
+  and BOTH interior paths (`_interior_for_record` fresh + cached).
+
+**3. Surprises the scan found (binding for the build).**
+- The brief's authored-caller list was a sample: **25** city modules
+  call `add_showroom_ships` (grep-verified), not 6 — all retire in
+  the same commit so the kit function can be deleted.
+- `S` is ALREADY a marker glyph (`dungeon_layout._parse_cell` set
+  `{"P","C","E","T","r","R","S"}`; editor `_FIXED_MARKERS`) that
+  resolves to the `.` underlay with no entity — and two lab
+  interiors (ac2, sirius) carry `TILE: S = CITY_ORNAMENT`
+  directives that are DEAD today. Build: `S` leaves the marker set
+  in both places and becomes a pure TILE-directive glyph; the two
+  dead directives activate (CITY_ORNAMENT is walkable — visual-only
+  change, authored intent restored).
+- `world_layout._showroom_ships` + `make_space_port` are a SECOND
+  outdoor placer (hardcoded scout/hauler/cruiser trio, stale 2×2
+  cruiser footprint) with zero live callers (only world.py
+  re-exports) — dead code; deleted with the retirement, re-exports
+  updated.
+- Per-city outdoor-showroom tests exist across
+  test_ac1/ac2/ac3/blockade_north/blockade_south/city_builder —
+  they flip to no-outdoor-showroom assertions in build (2).
+- `enter_city_interior` catches ValueError from the interior loader
+  (soft "not available" log) — the gate stays ValueError (brief
+  ruling); its loudness is author-facing via the repo audit test,
+  which makes violations unshippable.
+
 ## Data model
 
 - `PlanetSpec.showroom_ships` — semantic change from
