@@ -198,8 +198,12 @@ LANDMARK_ENTRANCE = Tile(kind="landmark_entrance", char="X", walkable=True,
 # ship stands on (doc 45). Authored via TILE: S = SHOWROOM_BERTH; the
 # seating helper finds berths by kind and seats the city's manifest in
 # reading order. Walkable plain floor — the display entity is the
-# blocker, never the marking.
-SHOWROOM_BERTH = Tile(kind="showroom_berth", char="S", walkable=True,
+# blocker, never the marking. Renders BLANK (like every tile that
+# hosts standing entities — landing pads, smooth floors): the world
+# renderer paints a cell's tile glyph under its entity, and a dense
+# glyph would superimpose with the ship. The S glyph is authoring-only;
+# an unseated (owned-model) berth is visually plain floor.
+SHOWROOM_BERTH = Tile(kind="showroom_berth", char=" ", walkable=True,
                       fg=(150, 170, 200), bg=(30, 38, 52))
 # Authored quest-cache site marker: exactly one per landmark marks where
 # the step's delve cache lands (normalized to the landmark's floor at

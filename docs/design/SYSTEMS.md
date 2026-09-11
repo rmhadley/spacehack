@@ -399,7 +399,10 @@ nobody designs against a ghost.
   can carry `interaction_flavor` (`game_interactions.
   _resolve_terminal_blocker`).
 - **Showroom ships** — displays stand on `S` (`SHOWROOM_BERTH`)
-  markers inside the spaceport interior, seated from the city
+  markers inside the spaceport interior (the marker renders BLANK —
+  tiles that host standing entities render blank so the world
+  renderer's entity underlay never superimposes glyphs; an unseated
+  berth is visually plain floor), seated from the city
   manifest in reading order by the ONE shared helper
   (`city_kit.seat_showroom_ships`), re-seated on every interior
   entry (idempotent strip + re-seat), with the player's owned model
