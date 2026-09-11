@@ -141,15 +141,20 @@ ruled. These bind all phases.
    from the persisted INIT_SEED; SPACEHACK_SEED makes playtests
    reproducible; Shift+S reroll yields a different but equally
    legal routing.
-8. **The sub-menu — both hosts, heard-topics only.** One "Ask
-   Around" row on the city/bar NPC talk modal AND on the space
-   comms matrix for talkable contacts (derelicts and the
-   restricted-space blockade keep their End-Transmission-only
+8. **The sub-menu — both hosts, one row, everything askable
+   inside.** One "Ask Around" row on the city/bar NPC talk modal AND
+   on the space comms matrix for talkable contacts (derelicts and
+   the restricted-space blockade keep their End-Transmission-only
    rows). Same look/feel everywhere — one interaction pattern to
-   learn. Rows: the topics you've HEARD that this contact could
-   know (floors applied), plus offer/ask favor rows on dealers
-   (phase 2). Topics they can't help with are never listed —
-   greyed lists teach; no row at all when there's nothing to ask.
+   learn. AMENDED (user, 2026-09-11: "'Ask about X' and 'Ask about
+   Y' are going to move in to a sub menu and not be right there in
+   the main NPC menu next to 'View available work'?"): the main
+   menu carries exactly ONE Ask Around row — shown whenever the
+   contact holds anything (an unheard opener they can deliver OR a
+   heard chain they can extend) — and the sub-menu lists BOTH kinds
+   of rows; no opener rows on the main menu. Topics they can't help
+   with are never listed — greyed lists teach; no row at all when
+   there's nothing to ask.
 
 ## Phases
 
@@ -165,8 +170,9 @@ binds its build.
 - [x] `ctx.known_rumors` + save/load round-trip
 - [x] Pure topic resolver (heard ∩ contact's sources, floors
       applied)
-- [x] Hearing on the talk host: source NPCs list rumor rows; taking
-      one records verbatim + adds the keyring
+- [x] Hearing on the talk host: one Ask Around row opens the
+      sub-menu; picking an entry records it verbatim + adds the
+      keyring (amended at playtest round 1 — openers moved inside)
 - [x] The shared Ask Around sub-menu (city/bar host)
 - [x] The verbatim ledger pane in the Q log
 - [x] Three authored chains across bar + city sources
@@ -297,6 +303,16 @@ screen's title and divider (the two panels start at different y).
 before, the Q log lays the bar below its own rule — and the header
 renames to "LOGS" (user: "Let's change that title to just 'Logs'
 since it stays up there no matter which tab you're on.").
+
+Second ruling (same round): the main-menu "Ask about X" opener rows
+MERGE into the Ask Around sub-menu — the main talk menu carries one
+"Ask around" row whenever the contact holds anything (unheard opener
+OR heard extension), and the sub-menu lists both kinds.
+``hearing_rows`` and the RUMOR: action are retired;
+``askable_topics`` is the one ask surface. Supersedes review-round
+1's opener/extension split (its double-row concern dissolves — one
+menu cannot double-list). Checklist items 1–2 change shape: no rumor
+rows next to "View available work" any more.
 
 ## Pre-implementation audit — phase 1 (2026-09-10)
 
