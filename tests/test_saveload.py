@@ -102,6 +102,11 @@ def _build_test_ctx() -> GameContext:
     # Rumor keyring (doc 42): interleaved chains prove heard order
     # survives the round trip.
     ctx.known_rumors = ["thin_month_1", "derelict_line_1", "thin_month_2"]
+    # Favor ledgers (doc 42 phase 2): two books, earned sets included.
+    ctx.rumor_favor = {
+        "wolf_barkeep": {"favor": 4, "earned": ["thin_month_1", "dark_berth_1"]},
+        "research_officer": {"favor": 1, "earned": ["thin_month_1"]},
+    }
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True
     ctx.main_quest_chain = "lab"
@@ -210,6 +215,8 @@ class TestSaveLoadRoundTrip:
         assert loaded.player_engineering_bonus == original.player_engineering_bonus
         assert loaded.player_traits == original.player_traits
         assert loaded.known_rumors == original.known_rumors
+        # Favor ledgers: books and earned sets survive verbatim.
+        assert loaded.rumor_favor == original.rumor_favor
 
         # Player counters
         assert loaded.player_counters.total_kills == original.player_counters.total_kills
@@ -1369,3 +1376,27 @@ def test_line_defiance_fields_round_trip(monkeypatch, tmp_path):
 
     assert loaded.line_defiance_system == "luyten_star"
     assert loaded.line_comply_latch is True
+
+
+def test_legacy_save_without_rumor_ledgers_loads_empty(monkeypatch, tmp_path):
+    """Doc 42: pre-phase-2 saves restore with an empty ledger book —
+    the favor economy starts at zero, never on stale state."""
+    monkeypatch.setattr(
+        "src.spacehack.saveload._autosave_path",
+        lambda: tmp_path / "autosave.json",
+    )
+    from src.spacehack.engine import RNG
+    RNG.seed(51)
+    ctx = _build_test_ctx()
+    save_game(ctx, mode="city", city_id="earth", system_id="sol")
+    import json
+    path = tmp_path / "autosave.json"
+    payload = json.loads(path.read_text())
+    payload.pop("rumor_favor", None)
+    path.write_text(json.dumps(payload))
+
+    loaded = load_game(ctx.context)
+
+    assert loaded is not None
+    assert loaded.rumor_favor == {}
+    delete_save()

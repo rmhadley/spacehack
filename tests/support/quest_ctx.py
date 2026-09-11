@@ -43,6 +43,8 @@ def quest_ctx(
         player_traits=[],
         # Doc 42: the rumor keyring (talk-modal rows read it).
         known_rumors=[],
+        # Doc 42 phase 2: per-dealer favor ledgers.
+        rumor_favor={},
         ship_registration="",
         broadcast_dark=False,
         broadcast_identity=None,

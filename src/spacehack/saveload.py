@@ -140,15 +140,17 @@ def _progression_fields(ctx: GameContext) -> dict:
 
 
 def _lore_fields(ctx: GameContext) -> dict:
-    """Serialize the rumor keyring (doc 42)."""
+    """Serialize the rumor keyring and favor ledgers (doc 42)."""
     return {
         "known_rumors": list(ctx.known_rumors),
+        "rumor_favor": _d(ctx.rumor_favor),
     }
 
 
 def _restore_lore_fields(ctx: GameContext, data: dict) -> None:
-    """Restore the rumor keyring."""
+    """Restore the rumor keyring and favor ledgers."""
     ctx.known_rumors = list(data.get("known_rumors", []) or [])
+    ctx.rumor_favor = dict(data.get("rumor_favor", {}) or {})
 
 
 def _core_fields(ctx: GameContext) -> dict:

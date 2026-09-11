@@ -317,6 +317,11 @@ class GameContext:
     # Rumor keyring (doc 42): heard rumor ids in heard order — the
     # ledger renders this verbatim knowledge; dialogue rows read it.
     known_rumors: list[str] = dataclasses.field(default_factory=list)
+    # Favor ledgers (doc 42 phase 2): per-dealer books keyed by the
+    # dealer's role id — dealer id -> {"favor": int, "earned": [rumor
+    # ids]} (ruling 13). ID-agnostic: floors follow the face, the
+    # book follows the person.
+    rumor_favor: dict = dataclasses.field(default_factory=dict)
     # Ground combat stats (reflexes, strength, stamina).
     ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
     # Equipped ground weapon instances. Two-handed specs occupy both
