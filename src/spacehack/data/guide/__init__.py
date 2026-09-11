@@ -622,6 +622,14 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "press Q, then TAB, to read your rumors. Who knows what is yours "
             "to work out - and who will talk to you at all can depend on the "
             "face you present."
+            "\n\n"
+            "Some dealers buy knowledge as well as sell it: if the person "
+            "you're talking to deals in rumors, the ask menu shows your "
+            "Favor with them. Sell passes along a rumor you've heard and "
+            "earns favor - each dealer keeps their own book, and pays for "
+            "any given rumor only once. Subjects they can sell you list "
+            "only when your favor covers the price; buying spends the "
+            "favor, and what you hear is yours for good."
         ),
     ),
 )
