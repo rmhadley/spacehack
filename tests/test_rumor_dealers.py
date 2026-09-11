@@ -168,3 +168,11 @@ def test_buy_refuses_known_rumors() -> None:
     )
     assert rumor.buy_exclusive(ctx, "barkeep", "dark_berth_4", 4) is False
     assert ctx.rumor_favor["barkeep"]["favor"] == 9
+
+
+def test_knowledge_gates_reference_real_npcs_and_rumors() -> None:
+    from spacehack.identity import KNOWLEDGE_GATES
+
+    for npc_id, rumor_id in KNOWLEDGE_GATES.items():
+        find_npc(npc_id)
+        find_rumor(rumor_id)

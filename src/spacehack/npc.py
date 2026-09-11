@@ -215,10 +215,16 @@ def _rig_offer(ctx, npc_id: str) -> int | None:
 
 
 def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
-    """(scrub, cutout, rig) row prices — None where no row shows."""
-    from .identity import scrub_price
+    """(scrub, cutout, rig) row prices — None where no row shows.
+
+    A knowledge-gated NPC's rows exist only once the gate rumor is
+    heard (doc 42 phase 2: the knowledge is the only key)."""
+    from . import identity
+    _gate = identity.KNOWLEDGE_GATES.get(npc_id)
+    if _gate is not None and _gate not in ctx.known_rumors:
+        return (None, None, None)
     return (
-        scrub_price(npc_id),
+        identity.scrub_price(npc_id),
         _cutout_offer(ctx, npc_id),
         _rig_offer(ctx, npc_id),
     )

@@ -251,3 +251,17 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
         item.action.startswith(("OFFER:", "BUY:"))
         for item in _seen[0]["items"]
     )
+
+
+# --- doc 42 phase 2: the knowledge-gated vendor ----------------------------
+
+
+def test_knowledge_gated_vendor_hides_rows_until_heard():
+    # The Whisper berth keeper's storefront exists only for someone
+    # who knows the berth; ungated ember_tech is unaffected either way.
+    ctx = quest_ctx()
+    assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, None, None)
+    assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
+    ctx.known_rumors.append("dark_berth_4")
+    assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, 2000, None)
+    assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)

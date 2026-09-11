@@ -85,6 +85,11 @@ SPEC = PlanetSpec(
         ("merchants", "lalc_merchants_interior"),
         ("bounties", "lalc_bounties_interior"),
     ),
+    # The dark-berth payoff's single seat: the keeper works the bar
+    # interior, one slot beside the resident registrar (doc 42 phase 2).
+    service_npc_spots=(
+        ("berth_keeper", "bar"),
+    ),
     showroom_ships=(
         ("hauler", -5, -4),
         ("cruiser", 0, -5),

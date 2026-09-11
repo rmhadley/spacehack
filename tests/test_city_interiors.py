@@ -130,3 +130,26 @@ def test_city_interior_is_cached_and_reuses_the_same_room_map():
     assert state.game_map is first_room
     assert sum(entity.char == "@" for entity in state.game_map.entities) == 1
     assert sum(entity.npc_id == "barkeep" for entity in state.game_map.entities) == 1
+
+
+def test_lal_c_bar_seats_the_berth_keeper():
+    """Doc 42 phase 2: the Whisper bar's service seat holds the berth
+    keeper beside the resident registrar."""
+    game_map = load_planet("lal_c")
+    ctx = SimpleNamespace(
+        interiors={}, game_map=game_map, player=None,
+        current_city_id="lal_c",
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    record = game_map.city_buildings["bar"]
+    player = world.Entity(
+        "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",
+    )
+    game_map.entities.append(player)
+    ctx.player = player
+    state = _state(game_map, player, ctx)
+    assert city_interiors.enter_city_interior(state) == "ENTERED"
+    _npc_ids = {entity.npc_id for entity in state.game_map.entities}
+    assert "barkeep" in _npc_ids
+    assert "berth_keeper" in _npc_ids
+    assert city_interiors.exit_city_interior(state) == "HANDLED"
