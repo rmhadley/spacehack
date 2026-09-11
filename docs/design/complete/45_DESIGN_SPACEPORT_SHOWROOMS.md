@@ -1,6 +1,6 @@
 # DESIGN: Spaceport showrooms move indoors
 
-**Status: READY — rulings settled and phases 1–3 briefed (2026-09-11); nothing implemented.**
+**Status: COMPLETE (2026-09-11) — all three phases landed and playtest-passed.**
 
 ## The problem (user, 2026-09-11)
 
@@ -440,7 +440,7 @@ unchanged.
 - [x] Tests pin the ledger: every spec stat line present, compare
       lines match the owned spec, included-loadout lines, outcome
       mapping unchanged
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint
 
 #### Phase 3 amendment (2026-09-11, playtest review): the SPANNED sheet
 
@@ -461,6 +461,14 @@ colors are shared Palette entries (muted/positive/negative/accent),
 not ship-buy locals. Plain body text stays authoritative for
 measure/wrap/tests; runs are paint-only and concatenate to their
 body line.
+
+#### Phase 3 result (2026-09-11): LANDED + PLAYTEST PASSED
+
+Both passes (first ledger 8a72764, spanned-sheet amendment b8c2cf6)
+passed review; all checklist items clean. User ruling recorded at the
+final pass: **there is no way to be shipless in this game** — the
+shipless single-column branch is an unreachable defensive path, kept
+because the code contracts expect it, but no playtest can reach it.
 
 #### Implementation brief — Phase 3 (2026-09-11) — APPROVED
 

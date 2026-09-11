@@ -360,10 +360,12 @@ nobody designs against a ghost.
 ## Cities & ground life
 
 - **Kit vs module** — `city_kit.py` owns the shared skeleton (base
-  tiles, terminal trio, showroom ships, transit bay/stop painters,
-  forecourts, metadata); `*_city.py` modules author only terrain +
-  landmarks. 27 `city_layout_id` dispatch entries; unknown ids fall
-  through to a grid city built from PlanetSpec buildings
+  tiles, terminal trio, indoor showroom seating, transit bay/stop
+  painters, forecourts, metadata); `*_city.py` modules author only
+  terrain + landmarks and NEVER place ships themselves. 27
+  `city_layout_id` dispatch entries; unknown ids fall through to a
+  grid city built from PlanetSpec buildings (terminal trio, no
+  ships — grid cities have no authored showroom)
   (`city_builder.py`: `_LAYOUTS`, `_build_grid_city`).
 - **Shared city tail** — every city (authored or grid) gets transit
   stations, ambient NPCs, and seeded light after build
@@ -376,7 +378,9 @@ nobody designs against a ghost.
 - **Building records** — entrance cell ↔ interior layout id ↔
   resident npc_id, cache key `city:{planet}:{label}`
   (`city_layout.building_records`).
-- **PlanetSpec drives everything** — buildings, showroom ships,
+- **PlanetSpec drives everything** — buildings, showroom manifests
+  (bare ordered ship-id tuples, seated onto the spaceport interior's
+  `S` berths by the kit),
   `city_layout_id`, `interior_layouts`, transit stations, NPC
   population, theme, produces/demands, mech/armory stock, tech
   level, mission tier, `explorable_site_name`+`dungeon_params`,
@@ -394,8 +398,18 @@ nobody designs against a ghost.
   entities placed by the kit relative to the hangar; exterior props
   can carry `interaction_flavor` (`game_interactions.
   _resolve_terminal_blocker`).
-- **Showroom ships** — bump unowned = buy with trade-in; bump
-  owned = ship menu + launch (`_resolve_ship_blocker`).
+- **Showroom ships** — displays stand on `S` (`SHOWROOM_BERTH`)
+  markers inside the spaceport interior, seated from the city
+  manifest in reading order by the ONE shared helper
+  (`city_kit.seat_showroom_ships`), re-seated on every interior
+  entry (idempotent strip + re-seat), with the player's owned model
+  never displayed (its berth seats nothing; nothing serializes).
+  Bump unowned = buy with trade-in — indoors the purchase parks a
+  FRESH owned entity on the parent pad anchor
+  (`game_flow._park_indoor_purchase`, nearest-free-cell fallback)
+  and empties the room (`strip_showroom_ships`); outdoors the
+  display itself is re-anchored. Bump owned = ship menu + launch
+  (`game_interactions._resolve_ship_buy`, `_resolve_ship_blocker`).
 - **Transit** — stations are authored data; rides are free, instant,
   one action, drop on a scanned clear cell beside the destination
   stop; arrival pulse blooms the stop's colour ~0.6s with the light
@@ -414,8 +428,15 @@ nobody designs against a ghost.
   (must have `P` + exit tile), resident NPC seated, quest NPCs seat
   per planet `quest_npc_spots` while their step is live, and
   service NPCs seat unconditionally per planet
-  `service_npc_spots` (doc 40 phase 5); resume always re-enters at
-  the entry spawn (`city_interiors.py`: `_seat_service_npcs`).
+  `service_npc_spots` (doc 40 phase 5); showroom displays seat per
+  current ownership (doc 45); NPC seaters never choose `exit` or
+  `showroom_berth` cells; resume always re-enters at the entry
+  spawn (`city_interiors.py`: `_interior_for_record`,
+  `_first_interior_npc`). Every `*_interior.layout` passes the
+  load-time P/exit placement gate — exactly one exit on the south
+  perimeter, `P` adjacent and off the wall row — one shared pure
+  predicate (`city_landmarks.door_placement_error`) also mirrored
+  by the layout editor's CITY-mode validation.
 - **Landing flow** — Land → dark dock gate → cargo scan → city map
   build with ship glide; ground HP fully restores on landing;
   `militia_scanned` clears (`game_interactions._resolve_planet_land`,
@@ -764,6 +785,20 @@ nobody designs against a ghost.
   one main loop with an event dispatch chain; 50ms poll only when
   flickering lights animate (`pygame_menu.py`, `pygame_screen.py`;
   `game_loop.py`: `_run_gameplay`).
+- **Spec-sheet buy modal** — the ship-buy body is a sectioned
+  ledger (PERFORMANCE/COMBAT/CAPACITY) straight off the Ship spec:
+  CP437-safe bar gauges scaled against the catalog's best per stat
+  with the player's ship marked, and a base-vs-base `yours:` column
+  coloured by trade verdict; exactly one selectable BUY row; flow,
+  price block, and outcomes untouched (`menus/_ship_buy.py`).
+- **Body colour runs** — `ScreenFrame.body_runs`: per-source-line
+  `(text, colour)` segments, the paint-only sibling of
+  `body_colors`; plain body text stays authoritative for
+  measure/wrap, and run lines paint plain when they wrap or exceed
+  the body width; `Palette` carries shared semantic accents
+  (muted/positive/negative/accent) for data-bearing screens
+  (`pygame_screen.py`: `_body_lines_with_colors`;
+  `pygame_ui.draw_text_runs`).
 - **Bump dispatch** — occupied tiles route by flag: owned ship →
   hangar/launch, unowned → ship-buy, transit, terminals, boardable
   wrecks (cached interior + breach on first board), NPCs (talk/
