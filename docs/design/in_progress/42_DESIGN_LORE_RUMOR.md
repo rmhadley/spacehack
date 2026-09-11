@@ -317,6 +317,21 @@ ruled. These bind all phases.
     not v1. The fragment's seeded destination pick (SETTLED 22)
     varies WHERE the dig is, not how deep.
 
+## Ruling — one chain (user, 2026-09-11)
+
+The catalog narrows to ``dark_berth`` alone: ``derelict_line`` and
+``thin_month`` are retired (rows + prose; shipped in phase 1, dropped
+before phase 3). Pre-ruling keeps saves safe: stale ids on the
+keyring and in earned sets fade through the stale-id skip, no
+migration. The gate contracts the dropped chain's data carried
+(militia floors, the captain's trait gate) stay pinned on a fixture
+registry in test support. Phase-3 brief content that named the
+dropped chains — the derelict-line opener candidates, the
+``line_warned`` trigger instance, the pad contents — falls with
+them; the trigger MACHINERY (SETTLED 16) stands and the brief
+re-proposes its content against the one chain before approval.
+dark_berth is the refinement target.
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 42.<p>` works
