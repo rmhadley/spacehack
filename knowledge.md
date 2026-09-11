@@ -151,14 +151,14 @@ Each data file exposes a frozen `@dataclass` + `find_<thing>(id)` that raises `K
 ### City builders (`*_city.py`)
 
 Every authored city module builds on `spacehack.city_kit` — do NOT
-re-implement the shared skeleton (base tiles, showroom ships, service
-terminals, landmark metadata, transit bays/stops, door forecourts).
-Import the kit helpers and pass your city's parameters:
+re-implement the shared skeleton (base tiles, service terminals,
+indoor showroom seating, landmark metadata, transit bays/stops, door
+forecourts). Import the kit helpers and pass your city's parameters:
 
 ```python
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
-    add_service_terminals, add_showroom_ships, base_tiles,
+    add_service_terminals, base_tiles, seat_showroom_ships,
     paint_door_forecourts, paint_transit_bays, set_city_metadata,
 )
 ```
@@ -166,7 +166,11 @@ from .city_kit import (
 A city module should contain only what makes it distinct: terrain
 painters, custom tiles, and landmark placement. Bay/forecourt painters
 take `overwrite_kinds` so they can never bury roads, pads, sidewalks,
-or door approaches; terminals take `dxs`/`dy`/`palette` for dock layout.
+or door approaches; terminals take `dxs`/`dy`/`palette` for dock
+layout. Showroom displays are seated on the spaceport interior's
+berth markers by `seat_showroom_ships` (invoked from the interior
+loader, never from a city module); cities contribute only the
+`showroom_ships` manifest on their spec.
 
 ### Pre-commit gate
 ```bash

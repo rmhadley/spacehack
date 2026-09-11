@@ -90,11 +90,7 @@ SPEC = PlanetSpec(
     service_npc_spots=(
         ("berth_keeper", "bar"),
     ),
-    showroom_ships=(
-        ("hauler", -5, -4),
-        ("cruiser", 0, -5),
-        ("frigate", 5, -4),
-    ),
+    showroom_ships=("hauler", "cruiser", "frigate",),
     npc_overrides=(
         (
             "barkeep",

@@ -16,7 +16,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -263,7 +262,6 @@ def build_lalc_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="lalc_", default_layout_id="lalc_container_maze",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-6, -2, 2),
         palette=TERMINAL_PALETTE_CLASSIC,

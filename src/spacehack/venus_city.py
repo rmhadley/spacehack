@@ -10,7 +10,7 @@ cyan signs, so the avenues read as Tokyo-in-2200 canyons.
 Layout (140x100), authored as `venus_cloudbreak`:
 
   * North rim — Landing Deck: the spaceport NW with the smooth apron
-    (berth, showroom, terminals) and the pad crew.
+    (berth, terminals) and the pad crew.
   * The Promenade — the east-west main avenue off the apron spur.
   * The Cross — central plaza where the north-south spine meets the
     Promenade, carrying the city beacon and the transit hub.
@@ -32,7 +32,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -412,7 +411,6 @@ def build_venus_layout(spec, resolve_ship) -> world.GameMap:
         game_map, LANDMARK_ORIGINS, sidewalk=theme.sidewalk,
     )
     _finalize_deck(game_map, spec, theme, stamps)
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

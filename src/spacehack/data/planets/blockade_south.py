@@ -32,10 +32,7 @@ SPEC = PlanetSpec(
             door_x=116, npc_id="blockade_officer", door_north=True,
         ),
     ),
-    showroom_ships=(
-        ("cruiser", -6, -3),
-        ("frigate", 6, -3),
-    ),
+    showroom_ships=("cruiser", "frigate",),
     city_layout_id="blockade_south_quarantine",
     city_npc_population=BLOCKADE_SOUTH_POPULATION,
     transit_stations=(

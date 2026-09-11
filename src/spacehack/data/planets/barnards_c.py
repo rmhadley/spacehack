@@ -74,9 +74,7 @@ SPEC = PlanetSpec(
         ("spaceport", "barnards_c_spaceport_interior"),
         ("bar", "barnards_c_bar_interior"),
     ),
-    showroom_ships=(
-        ("hauler", -4, -3),
-    ),
+    showroom_ships=("hauler",),
     npc_overrides=(
         (
             "barkeep",

@@ -105,11 +105,7 @@ SPEC = PlanetSpec(
         ("merchants", "indi_merchants_interior"),
         ("militia", "indi_militia_interior"),
     ),
-    showroom_ships=(
-        ("hauler", -6, -4),
-        ("cruiser", 0, -5),
-        ("freighter", 6, -4),
-    ),
+    showroom_ships=("hauler", "cruiser", "freighter",),
     npc_overrides=(
         (
             "barkeep",

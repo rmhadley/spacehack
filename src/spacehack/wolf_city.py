@@ -23,7 +23,6 @@ from dataclasses import replace
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -387,7 +386,6 @@ def build_wolf_layout(spec, resolve_ship):
         for y in range(_CAVE_Y_LO, _CAVE_Y_HI + 1)
         for x in range(_CAVE_X_LO, _CAVE_X_HI + 1)
     }
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec)
     return game_map
 

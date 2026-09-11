@@ -9,7 +9,7 @@ The shared city stamping/transit/NPC machinery remains data-driven.
 from __future__ import annotations
 
 from . import world
-from .city_kit import add_service_terminals, add_showroom_ships, paint_transit_bays
+from .city_kit import add_service_terminals, paint_transit_bays
 from .city_layout import (
     building_records,
     paint_roof_labels,
@@ -250,11 +250,6 @@ def _set_mars_metadata(game_map, spec, stamps) -> None:
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
     """Place port ships and service consoles on the southern apron."""
-    port = spec.buildings[0]
-    add_showroom_ships(
-        game_map, spec, resolve_ship,
-        origin=world.Position(port.x_lo + 5, port.y_hi + 1),
-    )
     add_service_terminals(
         game_map, spec,
         dy=2, dxs=(-3, 0, 3),

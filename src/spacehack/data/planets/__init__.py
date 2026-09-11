@@ -43,9 +43,11 @@ class PlanetSpec:
                           ``npc_id`` per building refers to either the
                           planet-local override map or the global
                           :class:`spacehack.data.npcs.NPCS` catalog.
-      showroom_ships:    ``(ship_id, offset_x, offset_y)`` triples
-                          placed inside the FIRST building (the
-                          spaceport) using the same offsets Earth uses.
+      showroom_ships:    ordered ``(ship_id, ...)`` manifest of the
+                          models this city's spaceport interior
+                          displays, seated onto its ``S`` berth
+                          markers in reading order by
+                          ``city_kit.seat_showroom_ships`` (doc 45).
       npc_overrides:     ``(npc_id, NPC)`` pairs that REPLACE the
                           global NPC entry on this planet only.
                           Missing ids fall through to the global
@@ -74,7 +76,7 @@ class PlanetSpec:
     height: int
     hangar_anchor: world.Position
     buildings: tuple[world.CityBuilding, ...]
-    showroom_ships: tuple[tuple[str, int, int], ...]
+    showroom_ships: tuple[str, ...]
     city_layout_id: str = ""
     interior_layouts: tuple[tuple[str, str], ...] = ()
     transit_stations: tuple[world.TransitStation, ...] = ()

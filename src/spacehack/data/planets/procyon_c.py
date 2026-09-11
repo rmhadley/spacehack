@@ -87,11 +87,7 @@ SPEC = PlanetSpec(
         ("mess", "proc_c_mess_interior"),
         ("depot", "proc_c_depot_interior"),
     ),
-    showroom_ships=(
-        ("scout", -6, -2),
-        ("cruiser", 0, -2),
-        ("freighter", 6, -2),
-    ),
+    showroom_ships=("scout", "cruiser", "freighter",),
     npc_overrides=(
         (
             "cook",

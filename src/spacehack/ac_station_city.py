@@ -13,7 +13,6 @@ from dataclasses import replace
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     paint_transit_bays,
 )
 from .city_layout import (
@@ -164,11 +163,7 @@ def _paint_station_details(tiles, theme, ring_cells) -> None:
 
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
-    """Place showroom ships and a readable service cluster in the dock."""
-    add_showroom_ships(
-        game_map, spec, resolve_ship,
-        origin=world.Position(54, 20),
-    )
+    """Place a readable service cluster in the dock."""
     add_service_terminals(
         game_map, spec,
         dy=3, dxs=(-4, 0, 4),

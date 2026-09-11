@@ -23,7 +23,7 @@ Layout (100x70):
     south-east.
   * The ship-breaker yard fills the east floor: three half-stripped navy
     hulls (frames with blast gaps and torn plating) around a berthing
-    lane where the showroom craft wait beside scrap piles.
+    lane running past the scrap piles.
   * Blast scarring remembers the impact: radial gouges, slag-rimmed
     pock craters, and a frozen melt pool, all kept clear of circulation.
 """
@@ -37,7 +37,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
     paint_transit_bays,
@@ -470,7 +469,6 @@ def build_ross_c_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="ross_c_", default_layout_id="ross_c_scrap_ring",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

@@ -6,7 +6,7 @@
 MAP
 ##############
 #............#
-#..c......c..#
+#..S......c..#
 #............#
 #..*......*..#
 #............#
@@ -23,5 +23,6 @@ TILE: . = CITY_BUILDING_FLOOR
 TILE: c = CITY_BRIDGE
 TILE: * = CITY_ORNAMENT
 TILE: > = EXIT
+TILE: S = SHOWROOM_BERTH
 COLOUR: c = (200, 140, 90) / (62, 40, 22)
 COLOUR: * = (255, 170, 70) / (70, 44, 22)

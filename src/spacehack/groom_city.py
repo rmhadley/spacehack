@@ -25,7 +25,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_EMBER,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -235,7 +234,6 @@ def build_groom_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="groom_", default_layout_id="groom_hardpan_boomtown",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec, palette=TERMINAL_PALETTE_EMBER)
     return game_map
 

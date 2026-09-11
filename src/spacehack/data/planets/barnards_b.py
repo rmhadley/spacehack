@@ -72,10 +72,7 @@ SPEC = PlanetSpec(
         ("bar", "barnards_bar_interior"),
         ("depot", "barnards_depot_interior"),
     ),
-    showroom_ships=(
-        ("cruiser", 2, -5),
-        ("frigate", -6, -5),
-    ),
+    showroom_ships=("cruiser", "frigate",),
     npc_overrides=(),
     quest_npc_spots=(
         ("old_smuggler", "bar"),

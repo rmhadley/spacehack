@@ -92,10 +92,7 @@ SPEC = PlanetSpec(
         ("merchants", "earth_city_merchants_interior"),
         ("militia", "earth_city_militia_interior"),
     ),
-    showroom_ships=(
-        ("scout", 4, 3),
-        ("hauler", 10, 3),
-    ),
+    showroom_ships=("scout", "hauler",),
     npc_overrides=(),    # Earth uses every global NPCS entry verbatim.
     produces=(
         ("electronics", 20),

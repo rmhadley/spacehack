@@ -91,11 +91,7 @@ SPEC = PlanetSpec(
         ("depot", "ross_c_depot_interior"),
     ),
     # Showroom craft sit on the landing pad just north of the owned ship.
-    showroom_ships=(
-        ("hauler",  -6, -2),
-        ("cruiser", -2, -2),
-        ("frigate",  2, -2),
-    ),
+    showroom_ships=("hauler", "cruiser", "frigate",),
     npc_overrides=(
         (
             "barkeep",

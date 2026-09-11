@@ -20,7 +20,6 @@ import math
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     paint_transit_bays,
     set_city_metadata,
 )
@@ -316,7 +315,6 @@ def build_barnards_layout(spec, resolve_ship):
         game_map, spec, stamps,
         prefix="barnards_", default_layout_id="barnards_mine_colony",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec, dy=2, dxs=(-7, -3, 1))
     return game_map
 

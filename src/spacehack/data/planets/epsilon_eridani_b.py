@@ -86,10 +86,7 @@ SPEC = PlanetSpec(
         ("merchants", "eri_merchants_interior"),
         ("militia", "eri_militia_interior"),
     ),
-    showroom_ships=(
-        ("hauler",   7, 2),
-        ("freighter", 15, 2),
-    ),
+    showroom_ships=("hauler", "freighter",),
     npc_overrides=(
         (
             "barkeep",

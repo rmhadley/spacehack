@@ -1,7 +1,7 @@
 # blockade_south_spaceport_interior
 MAP
 #############
-#..T.....T..#
+#..S.....S..#
 #...........#
 #...........#
 #...........#
@@ -13,4 +13,4 @@ TILE: # = CITY_BUILDING_WALL
 TILE: . = CITY_BUILDING_FLOOR
 TILE: P = LANDMARK_ENTRANCE
 TILE: > = EXIT
-TILE: T = CITY_ORNAMENT
+TILE: S = SHOWROOM_BERTH

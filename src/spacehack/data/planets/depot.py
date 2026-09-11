@@ -66,10 +66,7 @@ SPEC = PlanetSpec(
         ("spaceport", "depot_spaceport_interior"),
         ("depot", "depot_depot_interior"),
     ),
-    showroom_ships=(
-        ("hauler", -6, -2),
-        ("freighter", 0, -2),
-    ),
+    showroom_ships=("hauler", "freighter",),
     npc_overrides=(
         (
             "depot_attendant",

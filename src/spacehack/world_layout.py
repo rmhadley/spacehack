@@ -140,29 +140,6 @@ def make_building(
     return tile_changes, _interior_occupant(occupant, x_lo, x_hi, y_lo, y_hi)
 
 
-def _showroom_ships(
-    x_lo: int, y_lo: int,
-) -> list[world.Entity]:
-    """Return the three on-display showroom ships for the space port."""
-    return [
-        world.Entity(
-            char="s", fg=(130, 220, 255),
-            pos=world.Position(x=x_lo + 3, y=y_lo + 2),
-            name="Ship: Scout", ship_id="scout", width=1, height=1,
-        ),
-        world.Entity(
-            char="H", fg=(140, 210, 140),
-            pos=world.Position(x=x_lo + 7, y=y_lo + 2),
-            name="Ship: Hauler", ship_id="hauler", width=2, height=1,
-        ),
-        world.Entity(
-            char="C", fg=(235, 130, 130),
-            pos=world.Position(x=x_lo + 11, y=y_lo + 4),
-            name="Ship: Cruiser", ship_id="cruiser", width=2, height=2,
-        ),
-    ]
-
-
 def make_space_port(
     x_lo: int, x_hi: int, y_lo: int, y_hi: int,
     *,
@@ -170,15 +147,16 @@ def make_space_port(
     label: str = SPACEPORT_LABEL,
 ) -> tuple[list[tuple[world.Position, world.Tile]], list[world.Entity]]:
     """Build the space-port building: a labeled rectangular building
-    (no NPC) plus the three ships on display inside.
+    (no NPC, no display ships — showrooms moved indoors, doc 45).
 
-    A thin composition over :func:`make_building` plus the fixed ship
-    placements, kept for callers that use the ``(tile_changes, ships)`` shape.
+    A thin composition over :func:`make_building`, kept for callers
+    that use the ``(tile_changes, entities)`` shape; ``entities`` is
+    always empty now.
     """
     tile_changes, _npcs = make_building(
         label, x_lo, x_hi, y_lo, y_hi, door_x=door_x,
     )
-    return tile_changes, _showroom_ships(x_lo, y_lo)
+    return tile_changes, []
 
 
 # ---------------------------------------------------------------------------

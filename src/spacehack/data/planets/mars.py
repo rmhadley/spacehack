@@ -102,10 +102,7 @@ SPEC = PlanetSpec(
         ("militia", "mars_militia_interior"),
         ("bounties", "mars_bounties_interior"),
     ),
-    showroom_ships=(
-        ("scout",   1, 0),
-        ("cruiser", 16, 1),
-    ),
+    showroom_ships=("scout", "cruiser",),
     # Planet-local NPC overrides: Mars-flavoured characters.
     npc_overrides=(
         (

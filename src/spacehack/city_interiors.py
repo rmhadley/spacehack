@@ -28,7 +28,7 @@ def _first_interior_npc(game_map: world.GameMap, spawn: world.Position) -> world
         if game_map.tiles[y][x].walkable
         and (x, y) not in occupied
         and (x, y) != (spawn.x, spawn.y)
-        and game_map.tiles[y][x].kind != "exit"
+        and game_map.tiles[y][x].kind not in ("exit", "showroom_berth")
     ]
     if not candidates:
         return None
@@ -94,6 +94,29 @@ def _seat_service_npcs(ctx, game_map: world.GameMap, record: dict) -> None:
         ))
 
 
+def _seat_showroom_displays(ctx, game_map: world.GameMap) -> None:
+    """Seat the city's showroom displays on every interior entry (doc 45).
+
+    The kit helper owns the seating; this adapter resolves the current
+    city's spec and the ownership filter. Berth presence gates the
+    helper, so non-spaceport interiors are a no-op.
+    """
+    from .city_kit import seat_showroom_ships
+    from .data.planets import find_planet_spec
+
+    planet_id = getattr(ctx, "current_city_id", "")
+    if not planet_id:
+        return
+    try:
+        spec = find_planet_spec(planet_id)
+    except KeyError:
+        return
+    owned = getattr(ctx, "player_owned_ship", None)
+    seat_showroom_ships(
+        game_map, spec, owned.ship_id if owned is not None else None,
+    )
+
+
 def _remove_player(game_map: world.GameMap) -> None:
     """Remove transient player entities before reusing a cached map."""
     game_map.entities[:] = [entity for entity in game_map.entities if entity.char != "@"]
@@ -118,6 +141,9 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
     from .main_quest import seat_quest_npcs_in_interior as _seat_quest
     _seat_quest(ctx, game_map, record)
     _seat_service_npcs(ctx, game_map, record)
+    # Showroom displays re-seat on EVERY entry: ownership can change
+    # between visits, and the helper strips before seating (idempotent).
+    _seat_showroom_displays(ctx, game_map)
     spawn = getattr(game_map, "entry_spawn", None)
     if spawn is None:
         raise ValueError(f"City interior {cache_key!r} has no entry spawn")

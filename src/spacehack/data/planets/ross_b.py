@@ -103,11 +103,7 @@ SPEC = PlanetSpec(
         ("bounties", "ross_bounties_interior"),
         ("depot", "ross_depot_interior"),
     ),
-    showroom_ships=(
-        ("hauler", 5, -2),
-        ("cruiser", -3, -2),
-        ("frigate", 0, -4),
-    ),
+    showroom_ships=("hauler", "cruiser", "frigate",),
     npc_overrides=(
         (
             "barkeep",

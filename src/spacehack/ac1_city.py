@@ -18,7 +18,7 @@ Layout (100x70), authored as `ac1_the_claim`:
   * The town is a grid: two east-west streets (North Grid Street and
     South Grid Street) crossed by one north-south avenue (Claim
     Avenue), meeting at the crossroads plaza with the town beacon.
-  * Landing apron NW — smooth pad, showroom ships, terminals.
+  * Landing apron NW — smooth pad, service terminals.
   * Spaceport NW of the apron, door south.
   * "The Claim" bar/assayer east on South Grid Street, door north.
   * Claim stakes and ore piles dot the south salt flat between the
@@ -35,7 +35,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
     paint_transit_bays,
@@ -393,7 +392,6 @@ def _finish_ac1(spec, resolve_ship, tiles, theme):
         game_map, spec, stamps,
         prefix="ac1_", default_layout_id="ac1_the_claim",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

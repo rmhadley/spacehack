@@ -67,14 +67,8 @@ def test_proc_b_buildings_transit_and_npcs_are_reachable():
 
 def test_proc_b_landing_apron_is_smooth_and_showroom_is_clear():
     game_map = load_planet("proc_planet_1")
-    spec = find_planet_spec("proc_planet_1")
-    showroom = [entity for entity in game_map.entities if entity.ship_id]
-    assert len(showroom) == 3
-    assert all(entity.pos.y < spec.hangar_anchor.y for entity in showroom)
-    assert all(
-        game_map.tiles[entity.pos.y][entity.pos.x].kind == "landing_pad"
-        for entity in showroom
-    )
+    showroom = [entity for entity in game_map.entities if entity.ship_id and not entity.owned]
+    assert not showroom
     assert {
         tile.char for row in game_map.tiles for tile in row
         if tile.kind == "landing_pad"

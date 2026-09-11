@@ -36,7 +36,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
     paint_transit_bays,
@@ -407,7 +406,6 @@ def build_barnards_c_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="barnards_c_", default_layout_id="barnards_c_atmo_deck",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-7, -3, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

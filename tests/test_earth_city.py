@@ -49,9 +49,7 @@ def test_earth_city_preserves_core_service_entities():
     assert sum(entity.trade_terminal for entity in game_map.entities) == 1
     assert sum(entity.mech_terminal for entity in game_map.entities) == 1
     assert sum(entity.armory_terminal for entity in game_map.entities) == 1
-    assert {entity.ship_id for entity in game_map.entities if entity.ship_id} == {
-        "scout", "hauler",
-    }
+    assert {entity.ship_id for entity in game_map.entities if entity.ship_id} == set()
 
 
 def test_earth_city_landmark_assets_have_persistable_origins_and_entrances():

@@ -21,7 +21,6 @@ from dataclasses import replace
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -399,7 +398,6 @@ def build_cygni_layout(spec, resolve_ship):
         game_map, spec, stamps,
         prefix="cygni_", default_layout_id="cygni_shipyard_colony",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec, dxs=(-8, -4, 0))
     return game_map
 

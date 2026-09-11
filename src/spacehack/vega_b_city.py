@@ -18,7 +18,7 @@ Layout (140x90), authored as `vega_beacon_station`:
   * The Focus, the 21x21 central hub where the arms overlap, carries
     the station's navigation beacon and a neon ring.
   * North arm — Landing Deck: the spaceport at the arm's tip, the
-    smooth landing apron (berth + showroom + terminals), and the
+    smooth landing apron (berth + terminals), and the
     corridor down to the hub.
   * East arm — Reflector Field: a wedge widening toward the map edge,
     filled by seven mirror rays fanning from the collector tower; the
@@ -41,7 +41,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
     paint_transit_bays,
@@ -364,7 +363,6 @@ def build_vega_b_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="vega_b_", default_layout_id="vega_beacon_station",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

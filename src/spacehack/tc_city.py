@@ -27,7 +27,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_EMBER,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -252,7 +251,6 @@ def build_tc_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="tc_", default_layout_id="tc_canopy_clearing",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec, palette=TERMINAL_PALETTE_EMBER)
     return game_map
 

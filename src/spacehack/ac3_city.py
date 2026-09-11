@@ -17,7 +17,7 @@ Layout (100x70), authored as `ac3_ring_refinery`:
     wisp accents. The platform silhouette — an irregular shape — is
     the walkable deck. No drawn rectangle wall.
   * The Concourse — main east-west avenue across the platform.
-  * Landing apron NW — smooth pad, showroom ships, terminals.
+  * Landing apron NW — smooth pad, service terminals.
   * Spaceport NW of the apron, door south.
   * "The Ring Band" bar east end, door south.
   * Collector tower at the platform's industrial core — a 5x5 block
@@ -37,7 +37,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     in_bounds,
     paint_door_forecourts,
     paint_transit_bays,
@@ -376,7 +375,6 @@ def _finish_ac3(spec, resolve_ship, tiles, theme):
         game_map, spec, stamps,
         prefix="ac3_", default_layout_id="ac3_ring_refinery",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

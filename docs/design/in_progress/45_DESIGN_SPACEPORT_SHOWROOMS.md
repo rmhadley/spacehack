@@ -254,12 +254,12 @@ against the rule as written — exactly one exit, exit row in
 ## Phases
 
 ### Phase 1 — Berths, loader, clean pads, correct doors
-- [ ] `S` marker tile in the layout grammar + kit seating helper
+- [x] `S` marker tile in the layout grammar + kit seating helper
       (the ONE shared path, ownership filter included per SETTLED);
       `showroom_ships` field converted
 - [x] P/exit placement gate in `load_city_interior` (+ editor
       validator mirror); the 11 violating layouts fixed
-- [ ] All 27 interiors authored with berths; outdoor
+- [x] All 27 interiors authored with berths; outdoor
       `add_showroom_ships` retired
 - [ ] Audit tests: P/exit rule over every interior, manifest↔
       markers, reachability from `P`, no outdoor showroom

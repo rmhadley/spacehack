@@ -510,7 +510,7 @@ def test_ross_c_npcs_spawn_outside_the_merchants_facade():
             assert game_map.tiles[entity.pos.y][entity.pos.x].walkable
 
 
-def test_ross_c_uses_three_transit_stops_and_pad_showroom():
+def test_ross_c_uses_three_transit_stops():
     """Cinder keeps only the useful Spaceport, bar, and depot stops."""
     game_map = load_planet("ross_c")
     assert set(game_map.city_transit) == {"spaceport", "long_burn", "depot"}
@@ -518,14 +518,6 @@ def test_ross_c_uses_three_transit_stops_and_pad_showroom():
     assert all(
         set(metadata["destinations"]) == set(game_map.city_transit) - {station_id}
         for station_id, metadata in game_map.city_transit.items()
-    )
-    owned = find_planet_spec("ross_c").hangar_anchor
-    showroom = [entity for entity in game_map.entities if entity.ship_id]
-    assert len(showroom) == 3
-    assert all(entity.pos.y < owned.y for entity in showroom)
-    assert all(
-        game_map.tiles[entity.pos.y][entity.pos.x].kind == "landing_pad"
-        for entity in showroom
     )
 
 
@@ -851,7 +843,7 @@ def test_mars_spaceport_apron_replaces_west_port_road():
         entity for entity in game_map.entities
         if entity.pos.x < 35 and 87 <= entity.pos.y < 94
     ]
-    assert any(entity.ship_id for entity in port_entities)
+    assert not any(entity.ship_id for entity in port_entities)
     assert sum(entity.trade_terminal for entity in port_entities) == 1
     assert sum(entity.mech_terminal for entity in port_entities) == 1
     assert sum(entity.armory_terminal for entity in port_entities) == 1
@@ -867,8 +859,7 @@ def test_mars_spaceport_apron_replaces_west_port_road():
         for x in range(entity.pos.x, entity.pos.x + entity.width)
     }
     assert len(fixture_cells) == sum(entity.width * entity.height for entity in fixtures)
-    assert max(x for x, _ in fixture_cells) - min(x for x, _ in fixture_cells) >= 15
-    assert max(y for _, y in fixture_cells) - min(y for _, y in fixture_cells) >= 3
+    assert max(x for x, _ in fixture_cells) - min(x for x, _ in fixture_cells) >= 5
 
 
 def test_mars_owned_ship_berth_is_marked_and_service_terminals_clustered():

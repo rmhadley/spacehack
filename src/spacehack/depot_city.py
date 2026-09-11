@@ -11,7 +11,7 @@ give the place its stacked, industrial texture.
 Layout (100x70), authored as `depot_waypoint7`:
 
   * Station deck — pressure hull perimeter, no terrain.
-  * Landing bay NW — smooth pad, showroom ships, service terminals.
+  * Landing bay NW — smooth pad, service terminals.
   * The Freightway — main east-west corridor.
   * Spaceport NW, door south.
   * Depot east end, door north onto the freight plaza.
@@ -28,7 +28,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -280,7 +279,6 @@ def _finish_depot(spec, resolve_ship, tiles, theme):
         game_map, spec, stamps,
         prefix="depot_", default_layout_id="depot_waypoint7",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

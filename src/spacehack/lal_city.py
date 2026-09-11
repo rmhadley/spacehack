@@ -24,7 +24,6 @@ from dataclasses import replace
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -357,10 +356,8 @@ def build_lal_layout(spec, resolve_ship):
         game_map, spec, stamps,
         prefix="lal_", default_layout_id="lal_wreck_colony",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec, dy=2)
     return game_map
-
 
 
 __all__ = ["build_lal_layout", "LANDMARK_ORIGINS"]

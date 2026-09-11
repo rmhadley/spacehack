@@ -7,7 +7,6 @@ from dataclasses import replace
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -335,7 +334,6 @@ def build_epsilon_eridani_layout(spec, resolve_ship):
         for x in range(_CANYON_X_LO, _CANYON_X_HI + 1)
     }
     game_map.bridge_crossings = _BRIDGE_ROWS
-    add_showroom_ships(game_map, spec, resolve_ship, origin=_SHIPS_ORIGIN)
     add_service_terminals(game_map, spec)
     return game_map
 

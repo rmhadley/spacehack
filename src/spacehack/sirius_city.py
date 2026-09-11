@@ -11,7 +11,7 @@ golden glow that spills out onto the dark deck at night.
 Layout (100x70), authored as `sirius_binary_eye`:
 
   * Station deck — pressure hull perimeter, no terrain.
-  * Landing bay NW — smooth pad, showroom ships, service terminals.
+  * Landing bay NW — smooth pad, service terminals.
   * The Solar Promenade — main east-west corridor.
   * Spaceport NW, door south.
   * Lab east-central, door north onto the observation terrace.
@@ -28,7 +28,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -265,7 +264,6 @@ def _finish_sirius(spec, resolve_ship, tiles, theme):
         game_map, spec, stamps,
         prefix="sirius_", default_layout_id="sirius_binary_eye",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

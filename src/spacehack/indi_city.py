@@ -26,7 +26,6 @@ from __future__ import annotations
 from . import world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -232,7 +231,6 @@ def build_indi_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="indi_", default_layout_id="indi_farmland_grid",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec)
     return game_map
 

@@ -67,10 +67,7 @@ SPEC = PlanetSpec(
         ("spaceport", "ac3_spaceport_interior"),
         ("bar", "ac3_bar_interior"),
     ),
-    showroom_ships=(
-        ("hauler", -6, -2),
-        ("cruiser", 0, -2),
-    ),
+    showroom_ships=("hauler", "cruiser",),
     npc_overrides=(
         (
             "barkeep",

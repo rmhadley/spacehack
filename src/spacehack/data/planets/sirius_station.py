@@ -67,10 +67,7 @@ SPEC = PlanetSpec(
         ("spaceport", "sirius_spaceport_interior"),
         ("lab", "sirius_lab_interior"),
     ),
-    showroom_ships=(
-        ("hauler", -6, -2),
-        ("cruiser", 0, -2),
-    ),
+    showroom_ships=("hauler", "cruiser",),
     npc_overrides=(
         (
             "research_officer",

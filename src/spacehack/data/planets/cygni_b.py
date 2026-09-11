@@ -89,11 +89,7 @@ SPEC = PlanetSpec(
         ("merchants", "cygni_merchants_interior"),
         ("militia", "cygni_militia_interior"),
     ),
-    showroom_ships=(
-        ("scout", 3, -4),
-        ("hauler", 6, -2),
-        ("freighter", -3, -2),
-    ),
+    showroom_ships=("scout", "hauler", "freighter",),
     npc_overrides=(
         (
             "barkeep",

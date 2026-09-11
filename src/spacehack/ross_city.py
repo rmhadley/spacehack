@@ -9,7 +9,6 @@ from __future__ import annotations
 from . import city_tiles, world
 from .city_kit import (
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     paint_door_forecourts,
     paint_transit_bays,
@@ -202,7 +201,6 @@ def _paint_roads(tiles, theme):
             tiles[y][_DEPOT_DOOR[0]] = theme.sidewalk
 
 
-
 def _paint_pad(tiles, theme):
     pad_tile = world.Tile(
         kind="landing_pad", char=".", walkable=True,
@@ -322,7 +320,6 @@ def build_ross_layout(spec, resolve_ship):
         game_map, spec, stamps,
         prefix="ross_", default_layout_id="ross_volcanic_settlement",
     )
-    add_showroom_ships(game_map, spec, resolve_ship)
     add_service_terminals(game_map, spec)
     return game_map
 

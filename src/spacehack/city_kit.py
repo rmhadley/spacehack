@@ -1,16 +1,20 @@
 """Shared helpers for the sibling ``*_city.py`` layout builders.
 
 Every authored city repeats the same skeleton: a floor-and-border tile
-base, showroom ships plus service terminals on the landing apron,
-landmark metadata, transit bays, and door forecourts. This module owns
-those shared shapes so each city module only contains what makes it
-*distinct* — its terrain painters and landmarks.
+base, service terminals on the landing apron, showroom displays
+seated on interior berth markers, landmark metadata, transit bays,
+and door forecourts. This module owns those shared shapes so each
+city module only contains what makes it *distinct* — its terrain
+painters and landmarks.
 
 Behaviour notes:
 
 * ``add_service_terminals`` places the trade/mechanic/armory terminal
   trio relative to the hangar berth; the offsets, row, and palette are
   parameters because cities legitimately differ in dock layout.
+* ``seat_showroom_ships`` seats a city's display manifest on the
+  spaceport interior's ``S`` berth markers, ownership-filtered (doc
+  45) — the ONE showroom path; city modules never place ships.
 * ``paint_transit_bays`` carves a smooth bay under and around each
   transit stop without touching roads/pads/sidewalks (only the tile
   kinds listed in ``overwrite_kinds`` are replaced).
@@ -23,6 +27,7 @@ from __future__ import annotations
 
 from . import world
 from .city_layout import building_records, stamp_metadata
+from .data.ships import find_ship
 
 
 # Terminal fg palettes observed across the sibling cities. New cities
@@ -64,23 +69,52 @@ def base_tiles(
     return tiles
 
 
-def add_showroom_ships(
+def _showroom_entity(ship, position: world.Position) -> world.Entity:
+    """Build one display entity for a showroom berth."""
+    return world.Entity(
+        char=ship.char, fg=ship.fg, pos=position,
+        name=f"Ship: {ship.name}", ship_id=ship.id,
+        width=ship.width, height=ship.height,
+    )
+
+
+def seat_showroom_ships(
     game_map: world.GameMap,
     spec,
-    resolve_ship,
-    origin: world.Position | None = None,
+    owned_ship_id: str | None,
 ) -> None:
-    """Place the spec's showroom ships relative to ``origin``
-    (default: the hangar anchor)."""
-    berth = origin or spec.hangar_anchor
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        game_map.entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(berth.x + off_x, berth.y + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
+    """Seat the spec's showroom manifest on the interior's berth markers.
+
+    The ONE shared showroom path (doc 45) — no city module places
+    ships itself. Berths are ``showroom_berth`` tiles matched to the
+    manifest in reading order (rows top-to-bottom, columns
+    left-to-right); the owned model's berth seats nothing (the display
+    catalogue is ownership-filtered). Strips unowned ship entities
+    first, so re-seating on every interior entry is idempotent. A map
+    with no berths seats nothing (non-spaceport interiors).
+    """
+    berths = [
+        world.Position(x, y)
+        for y, row in enumerate(game_map.tiles)
+        for x, tile in enumerate(row)
+        if tile.kind == "showroom_berth"
+    ]
+    if not berths:
+        return
+    manifest = tuple(spec.showroom_ships)
+    if len(manifest) != len(berths):
+        raise ValueError(
+            f"{spec.id} showroom manifest has {len(manifest)} ships "
+            f"but its interior has {len(berths)} berths"
+        )
+    game_map.entities[:] = [
+        entity for entity in game_map.entities
+        if not (entity.ship_id and not entity.owned)
+    ]
+    for ship_id, berth in zip(manifest, berths):
+        if ship_id == owned_ship_id:
+            continue
+        game_map.entities.append(_showroom_entity(find_ship(ship_id), berth))
 
 
 def add_service_terminals(
@@ -193,11 +227,11 @@ __all__ = [
     "TERMINAL_PALETTE_CLASSIC",
     "TERMINAL_PALETTE_EMBER",
     "add_service_terminals",
-    "add_showroom_ships",
     "base_tiles",
     "in_bounds",
     "paint_door_forecourts",
     "paint_transit_bays",
     "paint_transit_stops",
+    "seat_showroom_ships",
     "set_city_metadata",
 ]

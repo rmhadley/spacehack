@@ -97,9 +97,7 @@ SPEC = PlanetSpec(
         ("bar", "mercury_bar_interior"),
         ("supply", "mercury_supply_interior"),
     ),
-    showroom_ships=(
-        ("scout", 3, 2),
-    ),
+    showroom_ships=("scout",),
     npc_overrides=(),
     produces=(
         ("research_data", 10),

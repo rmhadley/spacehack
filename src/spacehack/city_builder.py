@@ -101,16 +101,10 @@ def _grid_place_buildings(tiles, entities, spec, resolve_npc) -> None:
         entities.extend(occupants)
 
 
-def _grid_port_entities(spec, port, resolve_ship) -> list[world.Entity]:
+def _grid_port_entities(spec, port) -> list[world.Entity]:
+    """Terminal trio for the grid-path port (showroom displays moved
+    indoors; grid cities have no authored interior, so no ships)."""
     entities: list[world.Entity] = []
-    for ship_id, off_x, off_y in spec.showroom_ships:
-        ship_obj = resolve_ship(ship_id)
-        entities.append(world.Entity(
-            char=ship_obj.char, fg=ship_obj.fg,
-            pos=world.Position(x=port.x_lo + off_x, y=port.y_lo + off_y),
-            name=f"Ship: {ship_obj.name}", ship_id=ship_obj.id,
-            width=ship_obj.width, height=ship_obj.height,
-        ))
     _term = world.Position(x=port.door_x + 2, y=port.y_hi + 1)
     entities.append(world.Entity(
         char="=", fg=(100, 220, 255), pos=_term,
@@ -129,9 +123,9 @@ def _grid_port_entities(spec, port, resolve_ship) -> list[world.Entity]:
     return entities
 
 
-def _grid_port_fixtures(entities, spec, resolve_ship) -> None:
+def _grid_port_fixtures(entities, spec) -> None:
     if spec.buildings:
-        entities.extend(_grid_port_entities(spec, spec.buildings[0], resolve_ship))
+        entities.extend(_grid_port_entities(spec, spec.buildings[0]))
 
 
 def _grid_landing_pad(tiles, width, height, spec, theme) -> None:
@@ -190,7 +184,7 @@ def _build_grid_city(spec, resolve_npc, resolve_ship) -> world.GameMap:
     tiles = _grid_tiles(width, height, theme)
     entities: list[world.Entity] = []
     _grid_place_buildings(tiles, entities, spec, resolve_npc)
-    _grid_port_fixtures(entities, spec, resolve_ship)
+    _grid_port_fixtures(entities, spec)
     world._layout_outside(tiles, width, height, spec.buildings, theme=theme)
     _grid_landing_pad(tiles, width, height, spec, theme)
     game_map = world.GameMap(width=width, height=height,

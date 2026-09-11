@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from . import world
 from .city_kit import (
-    add_showroom_ships,
     base_tiles,
     paint_transit_bays,
     set_city_metadata,
@@ -96,7 +95,6 @@ _SKYLINE_SCHEMES: tuple[tuple[tuple[int, int, int], ...], ...] = (
 def _deck_theme():
     """Mercury's scorched theme, readability-adjusted like every city."""
     return _readable_city_theme(DESERT)
-
 
 
 
@@ -245,14 +243,7 @@ def _new_mercury_map(spec) -> tuple[world.GameMap, object]:
 
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
-    """Add showroom ships on the apron + terminals below the port door."""
-    anchor = spec.hangar_anchor
-    pad_x_lo = max(1, anchor.x - 3)
-    pad_y_lo = spec.buildings[0].y_hi + 1
-    add_showroom_ships(
-        game_map, spec, resolve_ship,
-        origin=world.Position(pad_x_lo, pad_y_lo),
-    )
+    """Add the terminals below the port door."""
     terminal_data = (
         ("=", "Trade Terminal", (10, 11), "trade_terminal", (100, 220, 255)),
         ("%", "Mechanic Terminal", (6, 11), "mech_terminal", (200, 220, 100)),

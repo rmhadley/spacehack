@@ -90,11 +90,7 @@ SPEC = PlanetSpec(
         ("merchants", "venus_merchants_interior"),
         ("depot", "venus_depot_interior"),
     ),
-    showroom_ships=(
-        ("scout", -6, -2),
-        ("cruiser", 0, -2),
-        ("freighter", 6, -2),
-    ),
+    showroom_ships=("scout", "cruiser", "freighter",),
     npc_overrides=(
         (
             "barkeep",

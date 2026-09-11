@@ -103,10 +103,7 @@ SPEC = PlanetSpec(
         ("commons", "ac_ring_commons_interior"),
         ("observation", "ac_ring_observation_interior"),
     ),
-    showroom_ships=(
-        ("scout", 1, 1),
-        ("hauler", 9, 1),
-    ),
+    showroom_ships=("scout", "hauler",),
     # The archive gets the officer needed by the post-prison research
     # step; the lab building's research_officer slot resolves through
     # the global catalog.

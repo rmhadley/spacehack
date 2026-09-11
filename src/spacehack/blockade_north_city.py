@@ -11,7 +11,7 @@ central beacon orients arrivals from the landing bay.
 Layout (100x70), authored as `blockade_north_picket`:
 
   * Station deck — pressure hull perimeter, no terrain.
-  * Landing bay NW — smooth pad, showroom ships, service terminals.
+  * Landing bay NW — smooth pad, service terminals.
   * The Corridor — main east-west military corridor.
   * Spaceport NW, door south.
   * Militia command SE, door north.
@@ -28,7 +28,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -286,7 +285,6 @@ def _finish_blockade_north(spec, resolve_ship, tiles, theme):
         game_map, spec, stamps,
         prefix="blockade_north_", default_layout_id="blockade_north_picket",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

@@ -4,7 +4,7 @@ MAP
 #====.......o.#
 #====..o......#
 #.....o....o..#
-#..o..........#
+#..o...S......#
 #.............#
 #......o......#
 #..o..........#
@@ -19,6 +19,7 @@ TILE: . = CITY_BUILDING_FLOOR
 TILE: o = CITY_ORNAMENT
 TILE: P = CITY_ORNAMENT
 TILE: > = EXIT
+TILE: S = SHOWROOM_BERTH
 COLOUR: = = (205, 220, 242) / (40, 52, 74)
 COLOUR: o = (140, 190, 240) / (34, 44, 66)
 COLOUR: P = (235, 242, 255) / (40, 52, 74)

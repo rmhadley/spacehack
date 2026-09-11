@@ -31,7 +31,6 @@ from . import world
 from .city_kit import (
     TERMINAL_PALETTE_CLASSIC,
     add_service_terminals,
-    add_showroom_ships,
     base_tiles,
     in_bounds,
     paint_door_forecourts,
@@ -422,7 +421,6 @@ def build_proc_c_layout(spec, resolve_ship) -> world.GameMap:
         game_map, spec, stamps,
         prefix="proc_c_", default_layout_id="proc_c_ice_campus",
     )
-    add_showroom_ships(game_map, spec, resolve_ship, origin=spec.hangar_anchor)
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,

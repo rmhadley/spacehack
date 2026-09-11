@@ -77,10 +77,7 @@ SPEC = PlanetSpec(
         ("militia", "blockade_north_militia_interior"),
         ("bounties", "blockade_north_bounties_interior"),
     ),
-    showroom_ships=(
-        ("cruiser", -6, -2),
-        ("frigate", 0, -2),
-    ),
+    showroom_ships=("cruiser", "frigate",),
     npc_overrides=(),
     produces=(
         ("weapons_blackmarket", 5),

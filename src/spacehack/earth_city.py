@@ -18,7 +18,6 @@ from __future__ import annotations
 from . import city_tiles, world
 from .city_tiles import CITY_ORNAMENT
 from .city_kit import (
-    add_showroom_ships,
     base_tiles,
     paint_transit_bays,
     set_city_metadata,
@@ -296,17 +295,11 @@ def _set_city_metadata(game_map, spec, stamps) -> None:
 
 
 def _add_service_entities(game_map, spec, resolve_ship) -> None:
-    """Add showroom ships and spaceport terminals to the street.
+    """Add the spaceport terminals to the street.
 
     Service NPCs live inside their authored interiors (seated when the
     room is first loaded), so nothing stands on the pavement outside.
     """
-    # Showroom ships sit on the landing pad south of the solid hangar roof
-    # (offsets are relative to the pad's top-left corner, x=18 / y=20).
-    add_showroom_ships(
-        game_map, spec, resolve_ship,
-        origin=world.Position(18, 20),
-    )
     terminal_data = (
         ("=", "Trade Terminal", world.Position(34, 29), "trade_terminal", (100, 220, 255)),
         ("%", "Mechanic Terminal", world.Position(30, 29), "mech_terminal", (200, 220, 100)),
