@@ -264,7 +264,15 @@ against the rule as written — exactly one exit, exit row in
 - [x] Audit tests: P/exit rule over every interior, manifest↔
       markers, reachability from `P`, no outdoor showroom
       entities in any built city
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint
+
+#### Phase 1 result (2026-09-11): LANDED + PLAYTEST PASSED
+
+All nine checkpoint items passed on the first SPACEHACK_DEV run
+(berths, filter, no-buy modal check, clean pads, both save/load
+resumes, Ross/Indi/Tc doors, 1-ship backwater, guide unchanged).
+Commits: e459e29 (gate+grammar+doors), e00f7b2 (indoor move),
+f5c4c1c (resolve_ship refactor), 1f731b7 (corpus audits).
 
 #### Implementation brief — Phase 1 (2026-09-11) — APPROVED
 
