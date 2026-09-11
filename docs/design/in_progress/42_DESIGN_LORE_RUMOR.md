@@ -171,6 +171,9 @@ ruled. These bind all phases.
     row (SETTLED 6's "the rumor's authored value"). No specialist
     buy lists. The main-menu Ask Around row shows for a dealer even
     with no askable topics — their trade lives in the sub-menu.
+    AMENDED (phase-2 playtest round 1, 2026-09-11): a dealer won't
+    buy an entry they are an authored source of — the teller knows
+    their own rumor (round note below).
 11. **Priced rows — hidden until affordable.** A dealer's exclusive
     lists only when the player's favor with THAT dealer covers its
     price; the sub-menu body line states the balance ("Favor: N")
@@ -562,9 +565,11 @@ phase 1 closed.
     1. Walk the dark_berth chain to tier 3 (wolf_barkeep →
        deadfall_scrubber → ember_tech); each entry lands in the
        ledger verbatim.
-    2. At a dealer: heard-but-unsold rumors show `Sell:` rows
-       captioned +N; selling updates the Favor line in-menu; the
-       sold row vanishes; favor unchanged on re-check.
+    2. At a dealer: heard-but-unsold rumors they don't already know
+       show `Sell:` rows captioned +N (rumors they told you show no
+       Sell row — no selling back, round-1 ruling); selling updates
+       the Favor line in-menu; the sold row vanishes; favor
+       unchanged on re-check.
     3. Two dealers, two books: sell the same rumor to wolf_barkeep
        and research_officer — each counts it separately.
     4. Requires gate: Favor ≥ 4 from OTHER chains but `dark_berth_3`
@@ -583,6 +588,20 @@ phase 1 closed.
        ID-buyer rows as before; Q → Rumors unchanged.
     8. Guide diff: the favor paragraph quoted before/after; no
        vendor or chain telegraphing.
+
+### Playtest round 1, phase 2 (2026-09-11) — ruling: no selling back
+
+User: "I shouldn't be able to sell a rumor back to the npc I just
+got a rumor from." Amends ruling 10's uniform buy side:
+``offerable_rumors`` — and the ``offer_rumor`` wrapper, self-
+defending like ``buy_exclusive`` — excludes any heard entry the
+dealer is an authored source of. The rule reads the CATALOG's
+sources; who told you is not tracked on the keyring, and co-tellers
+know the rumor too (heard from the wolf or not, deadfall_scrubber
+won't buy dark_berth_1). Tiers a dealer doesn't hold stay buyable —
+the wolf buys your thin-month entries; research_officer, no
+authored sources, buys anything heard. Checklist item 2 amended
+below.
 
 ### Phase 3 — Seed routing + finds that teach
 - [ ] Derived routing module (pure INIT_SEED derivations): chain
