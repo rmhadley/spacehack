@@ -151,10 +151,44 @@ ruled. These bind all phases.
    the main NPC menu next to 'View available work'?"): the main
    menu carries exactly ONE Ask Around row — shown whenever the
    contact holds anything (an unheard opener they can deliver OR a
-   heard chain they can extend) — and the sub-menu lists BOTH kinds
+   heard chain they can extend; ruling 10 adds a dealer's trade) —
+   and the sub-menu lists BOTH kinds
    of rows; no opener rows on the main menu. Topics they can't help
    with are never listed — greyed lists teach; no row at all when
    there's nothing to ask.
+
+## Settled — phase 2, the favor exchange (refine session, 2026-09-11)
+
+9. **Dealers — existing seats, role-keyed books.** The phase-2
+   dealers are authored seats, no new NPCs: `barkeep`, `wolf_barkeep`,
+   `research_officer` (the archivist shape; three systems, three
+   ledgers). Generic ids seat many bars — the ledger keys the ROLE
+   id, so any seat of that id honors the same book: the grapevine,
+   uniform with every other npc-id-keyed table.
+10. **The buy side — uniform, one value per rumor.** Any dealer buys
+    any heard rumor they haven't already bought from you, at the
+    rumor's authored value — one number per rumor, on the catalog
+    row (SETTLED 6's "the rumor's authored value"). No specialist
+    buy lists. The main-menu Ask Around row shows for a dealer even
+    with no askable topics — their trade lives in the sub-menu.
+11. **Priced rows — hidden until affordable.** A dealer's exclusive
+    lists only when the player's favor with THAT dealer covers its
+    price; the sub-menu body line states the balance ("Favor: N")
+    and offer rows caption what they earn. Extends SETTLED 8's
+    no-greyed-rows ruling to the priced surface.
+12. **The option-unlock payoff — the hidden vendor.** An authored
+    exclusive (`dark_berth_4`, tier 4 of the dark-berth chain, never
+    free-asked — empty sources) is held by `wolf_barkeep` this
+    phase. Knowing it unlocks a cut-out install at Whisper — one new
+    single-seat NPC (the berth's keeper; identity tables stay
+    npc-id-keyed), the knowledge the only key, uniform data-gated
+    rows. (The bribe was ruled here first, then re-ruled: doc 39's
+    bribe is a CLOSED RULING with no built interaction — the
+    Commandant, the 100k payment, and the four-tier chain exist in
+    no code, so the payoff could not anchor there.)
+13. **Earned-set home — one field.** `rumor_favor[dealer_id]` values
+    are `{"favor": int, "earned": [rumor ids]}`; no third ctx field.
+    The once-per-(rumor, dealer) set lives in `earned`.
 
 ## Phases
 
@@ -377,7 +411,8 @@ rows next to "View available work" any more.
    data instead of dead keys.
 
 ### Phase 2 — The favor exchange
-- [ ] Dealer spec (`data/lore/`): values, prices, exclusives
+- [ ] Dealer spec (`data/lore/`): exclusives + prices; rumor rows
+      gain their offer values (ruling 10)
 - [ ] `ctx.rumor_favor` per-dealer ledgers + save/load
 - [ ] Offer/ask rows in the shared sub-menu (dealers only)
 - [ ] Exclusive tier gated on favor; once-per-(rumor, dealer)
