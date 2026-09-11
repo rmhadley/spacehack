@@ -1353,15 +1353,21 @@ def test_captured_quest_rows_merge_cells_by_color():
 
 
 def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
-    ship = SimpleNamespace(
-        name="Scout", description="Fast courier.", price=5000,
+    from src.spacehack.data.ships import find_ship
+
+    ship = find_ship("scout")
+    ctx = SimpleNamespace(
+        stats=SimpleNamespace(credits=2000), player_owned_ship=None,
     )
-    ctx = SimpleNamespace(stats=SimpleNamespace(credits=2000))
 
     frame = _ship_buy._ship_buy_frame(ctx, ship, None, 0)
 
     assert frame.title == "SCOUT - FOR SALE"
-    assert frame.body == ("Fast courier.", "You are 3000$ short of the asking price.")
+    assert any(
+        line.startswith("Speed") and "14 moves/day" in line
+        for line in frame.body
+    )
+    assert frame.body[-1] == "You are 3000$ short of the asking price."
     assert frame.rows[0].text == "Buy the Scout - 5000$"
     assert "5000$" in frame.rows[0].detail
     assert "3000$" in frame.rows[0].detail
@@ -1372,14 +1378,16 @@ def test_ship_buy_frame_uses_modern_screen_contract_with_live_price():
 
 
 def test_ship_buy_frame_shows_trade_in_and_affordability():
-    ship = SimpleNamespace(
-        name="Freighter", description="Big hold.", price=8000,
+    from src.spacehack.data.ships import find_ship
+
+    ship = find_ship("freighter")
+    ctx = SimpleNamespace(
+        stats=SimpleNamespace(credits=6000), player_owned_ship=None,
     )
-    ctx = SimpleNamespace(stats=SimpleNamespace(credits=6000))
 
     frame = _ship_buy._ship_buy_frame(ctx, ship, 5000, 0)
 
-    assert any("Trade-in value: 3000$" in line for line in frame.body)
+    assert any("Trade-in value: 35000$" in line for line in frame.body)
     assert any("Credits: 6000$" in line for line in frame.body)
     assert frame.rows[0].text == "Buy the Freighter - 5000$"
     assert "5000$" in frame.rows[0].detail
@@ -1389,7 +1397,9 @@ def test_ship_buy_frame_shows_trade_in_and_affordability():
 def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
     from src.spacehack import pygame_screen
 
-    ship = SimpleNamespace(name="Scout", description="Fast.", price=5000)
+    from src.spacehack.data.ships import find_ship
+
+    ship = find_ship("scout")
     outcomes = iter((("GUIDE", "", 0), ("SELECT", "BUY", 0)))
     captured = {}
 
@@ -1402,7 +1412,7 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
 
     ctx = SimpleNamespace(
         context=object(),
-        stats=SimpleNamespace(credits=6000),
+        stats=SimpleNamespace(credits=6000), player_owned_ship=None,
     )
     assert _ship_buy._run_pygame_ship_buy(ctx, ship, None) is _ship_buy.ShipBuyOutcome.BUY
     assert captured["frame"].title == "SCOUT - FOR SALE"
@@ -1414,7 +1424,7 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
     )
     poor_ctx = SimpleNamespace(
         context=object(),
-        stats=SimpleNamespace(credits=100),
+        stats=SimpleNamespace(credits=100), player_owned_ship=None,
     )
     assert _ship_buy._run_pygame_ship_buy(
         poor_ctx, ship, None,
@@ -1426,9 +1436,25 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
         lambda _context, _frame, **_kwargs: ("BACK", "", 0),
     )
     assert _ship_buy._run_pygame_ship_buy(
-        SimpleNamespace(context=object(), stats=SimpleNamespace(credits=6000)),
+        SimpleNamespace(
+            context=object(), stats=SimpleNamespace(credits=6000),
+            player_owned_ship=None,
+        ),
         ship, None,
     ) is _ship_buy.ShipBuyOutcome.BACK
+
+    monkeypatch.setattr(
+        pygame_screen,
+        "run_for_context",
+        lambda _context, _frame, **_kwargs: ("QUIT", "", 0),
+    )
+    assert _ship_buy._run_pygame_ship_buy(
+        SimpleNamespace(
+            context=object(), stats=SimpleNamespace(credits=6000),
+            player_owned_ship=None,
+        ),
+        ship, None,
+    ) is _ship_buy.ShipBuyOutcome.QUIT
 
 
 def test_pygame_presentation_is_enabled_without_migration_flags():

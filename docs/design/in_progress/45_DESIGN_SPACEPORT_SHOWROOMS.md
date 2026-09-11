@@ -423,21 +423,21 @@ unchanged.
 
 ### Phase 3 — The ship buy screen: a spec sheet, not a riddle
 
-- [ ] Stats ledger in the modal body — for the OFFERED ship, one
+- [x] Stats ledger in the modal body — for the OFFERED ship, one
       line each: Speed (moves/day), Hull, Shields (max + regen, `—`
       when none), Power/turn, Weapon slots, Module slots, Cargo,
       Fuel tank; `Includes:` lines for `start_weapons`/
       `start_modules` — data straight off the Ship spec, no prose
-- [ ] Comparison column — since the player always owns a ship,
+- [x] Comparison column — since the player always owns a ship,
       each stat line carries "yours: N" from the current
       `player_owned_ship`'s base spec, so the trade-in decision is
       visible at a glance; single column when shipless
-- [ ] Price block stays the single source of money truth: price,
+- [x] Price block stays the single source of money truth: price,
       trade-in value, credits, shortfall (existing `pygame_ui`
       helpers); one selectable row: `BUY the <name> - <effective>`
-- [ ] No flow changes — `ShipBuyOutcome` contract, affordability
+- [x] No flow changes — `ShipBuyOutcome` contract, affordability
       path, GUIDE hook, and callers untouched (presentation only)
-- [ ] Tests pin the ledger: every spec stat line present, compare
+- [x] Tests pin the ledger: every spec stat line present, compare
       lines match the owned spec, included-loadout lines, outcome
       mapping unchanged
 - [ ] Playtest checkpoint

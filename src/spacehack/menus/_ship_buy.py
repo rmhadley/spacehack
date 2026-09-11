@@ -10,9 +10,73 @@ from .. import pygame_ui
 from .. import world
 from .. import ship as ship_module
 
+def _shield_stat(spec) -> str:
+    """The shield line: max + regen per turn, or the empty marker."""
+    if spec.base_shield_max == 0:
+        return "-"
+    return f"{spec.base_shield_max} + {spec.base_shield_recharge}/turn"
+
+
+_STAT_ROWS = (
+    ("Speed", lambda spec: f"{spec.speed} moves/day"),
+    ("Hull", lambda spec: str(spec.base_hull)),
+    ("Shields", _shield_stat),
+    ("Power/turn", lambda spec: str(spec.base_power_gen)),
+    ("Weapon slots", lambda spec: str(spec.weapon_slots)),
+    ("Module slots", lambda spec: str(spec.module_slots)),
+    ("Cargo", lambda spec: str(spec.max_cargo)),
+    ("Fuel tank", lambda spec: str(spec.max_fuel)),
+)
+
+
+def _owned_base_spec(ctx):
+    """The owned ship's BASE catalog spec — installed mods never count."""
+    owned = ctx.player_owned_ship
+    if owned is None:
+        return None
+    return ship_module.find_ship(owned.ship_id)
+
+
+def _spec_ledger(ship, yours) -> tuple[str, ...]:
+    """One aligned line per Ship spec stat, with the base-vs-base
+    ``yours:`` comparison when the player owns a ship."""
+    lines = []
+    for label, stat_of in _STAT_ROWS:
+        line = f"{label:<13}{stat_of(ship):<18}"
+        if yours is not None:
+            line += f"yours: {stat_of(yours)}"
+        lines.append(line)
+    return tuple(lines)
+
+
+def _catalog_name(resolver, item_id):
+    """Resolved catalog name for one loadout item, id on a miss."""
+    try:
+        return resolver(item_id).name
+    except KeyError:
+        return item_id
+
+
+def _includes_lines(ship) -> tuple[str, ...]:
+    """The starting-loadout lines: catalog names, id fallback."""
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+
+    lines = []
+    if ship.start_weapons:
+        lines.append("Includes: " + ", ".join(
+            _catalog_name(find_weapon, item_id) for item_id in ship.start_weapons
+        ))
+    if ship.start_modules:
+        lines.append("Includes: " + ", ".join(
+            _catalog_name(find_module, item_id) for item_id in ship.start_modules
+        ))
+    return tuple(lines)
+
+
 def _ship_buy_body(ctx, ship, effective_price, price):
-    """Description plus trade-in and shortfall lines per the shared policy."""
-    body = (ship.description,)
+    """Spec-sheet ledger plus trade-in and shortfall lines."""
+    body = _spec_ledger(ship, _owned_base_spec(ctx)) + _includes_lines(ship)
     if effective_price is not None and effective_price < ship.price:
         _trade_in_save = ship.price - effective_price
         body += (
