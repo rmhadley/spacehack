@@ -176,3 +176,11 @@ def test_knowledge_gates_reference_real_npcs_and_rumors() -> None:
     for npc_id, rumor_id in KNOWLEDGE_GATES.items():
         find_npc(npc_id)
         find_rumor(rumor_id)
+
+
+def test_offer_refuses_unheard_rumors() -> None:
+    # The mutation boundary is self-defending (reviewer round): a
+    # future host can't pay out for knowledge off the keyring.
+    ctx = SimpleNamespace(known_rumors=[], rumor_favor={})
+    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
+    assert ctx.rumor_favor == {}

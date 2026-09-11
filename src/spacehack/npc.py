@@ -453,6 +453,7 @@ def _ask_buy(ctx, npc, payload: str) -> None:
     the buy spends exactly what the row offered."""
     rumor_id, _, price = payload.partition(":")
     if not rumor_module.buy_exclusive(ctx, npc.id, rumor_id, int(price)):
+        ctx.log.add("You don't have the favor for that yet.")
         return
     _show_rumor_readout(ctx, npc, rumor_module.entry_text(rumor_id))
 

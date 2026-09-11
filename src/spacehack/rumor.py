@@ -219,7 +219,10 @@ def _ledger(ctx, dealer_id: str) -> dict:
 
 def offer_rumor(ctx, dealer_id: str, rumor_id: str) -> int:
     """Sell a heard rumor: +its authored value, once per
-    (rumor, dealer). Returns the favor earned (0 on a re-sale)."""
+    (rumor, dealer). Returns the favor earned (0 when the keyring
+    doesn't know it or this book already paid)."""
+    if rumor_id not in ctx.known_rumors:
+        return 0
     value = find_rumor(rumor_id).value
     book = _ledger(ctx, dealer_id)
     if rumor_id in book["earned"]:
