@@ -155,23 +155,31 @@ def _earned(ledgers: dict, dealer_id: str) -> set[str]:
     return set((ledgers.get(dealer_id) or {}).get("earned", ()) or ())
 
 
+def _knows_entry(entry: RumorEntry, dealer_id: str) -> bool:
+    """Whether the dealer is one of the entry's authored tellers —
+    they already know it, so they won't buy it back (round-1
+    ruling)."""
+    return any(source[0] == dealer_id for source in entry.sources)
+
+
 def offerable_rumors(
     known: list[str], ledgers: dict, dealer_id: str,
 ) -> list[tuple[str, int]]:
     """``(rumor_id, value)`` for everything this dealer will buy:
-    heard, never sold to THEM, and worth something (ruling 10's
-    uniform buy side)."""
+    heard, not knowledge they hold (never a source of it), never
+    sold to THEM, and worth something (ruling 10 as amended)."""
     earned = _earned(ledgers, dealer_id)
     rows: list[tuple[str, int]] = []
     for rumor_id in known:
         if rumor_id in earned:
             continue
         try:
-            value = find_rumor(rumor_id).value
+            entry = find_rumor(rumor_id)
         except KeyError:
             continue  # stale id from an older save — nothing to sell
-        if value > 0:
-            rows.append((rumor_id, value))
+        if entry.value <= 0 or _knows_entry(entry, dealer_id):
+            continue
+        rows.append((rumor_id, entry.value))
     return rows
 
 
@@ -219,17 +227,19 @@ def _ledger(ctx, dealer_id: str) -> dict:
 
 def offer_rumor(ctx, dealer_id: str, rumor_id: str) -> int:
     """Sell a heard rumor: +its authored value, once per
-    (rumor, dealer). Returns the favor earned (0 when the keyring
-    doesn't know it or this book already paid)."""
+    (rumor, dealer). Returns the favor earned; 0 when refused —
+    unheard, already known by the dealer, or already paid here."""
     if rumor_id not in ctx.known_rumors:
         return 0
-    value = find_rumor(rumor_id).value
+    entry = find_rumor(rumor_id)
+    if _knows_entry(entry, dealer_id):
+        return 0
     book = _ledger(ctx, dealer_id)
     if rumor_id in book["earned"]:
         return 0
     book["earned"].append(rumor_id)
-    book["favor"] += value
-    return value
+    book["favor"] += entry.value
+    return entry.value
 
 
 def buy_exclusive(ctx, dealer_id: str, rumor_id: str, price: int) -> bool:

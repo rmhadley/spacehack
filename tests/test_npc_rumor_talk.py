@@ -149,16 +149,20 @@ def test_dealer_submenu_shows_sell_rows_and_favor_line(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    ctx = quest_ctx(known_rumors=["thin_month_1", "derelict_line_1"])
+    # dark_berth_1 heard from the wolf: the barkeep doesn't know it,
+    # so it's sellable — thin_month_1 (his own telling) is not.
+    ctx = quest_ctx(known_rumors=["dark_berth_1", "thin_month_1"])
     result = npc_mod._resolve_talk_result(
         ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     _actions = [item.action for item in _seen[0]["items"]]
-    assert "OFFER:thin_month_1" in _actions
-    assert "OFFER:derelict_line_1" in _actions
+    assert "OFFER:dark_berth_1" in _actions
+    assert "OFFER:thin_month_1" not in _actions
     assert _seen[0]["body"] == "Favor: 0"
-    _earn = [item for item in _seen[0]["items"] if item.action == "OFFER:thin_month_1"]
+    _earn = [
+        item for item in _seen[0]["items"] if item.action == "OFFER:dark_berth_1"
+    ]
     assert _earn[0].description == "Earn 1 favor."
 
 
@@ -167,20 +171,20 @@ def test_selling_updates_favor_and_retires_the_row(monkeypatch):
     monkeypatch.setattr(
         npc_mod,
         "_run_choice_submenu",
-        _capture_submenu(_seen, iter(["OFFER:thin_month_1"])),
+        _capture_submenu(_seen, iter(["OFFER:dark_berth_1"])),
     )
-    ctx = quest_ctx(known_rumors=["thin_month_1"])
+    ctx = quest_ctx(known_rumors=["dark_berth_1"])
     npc_mod._resolve_talk_result(
         ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert ctx.rumor_favor["barkeep"]["favor"] == 1
     # Second pass rebuilt live (sell-menu idiom): the sold row is
     # gone and the Favor line moved — no per-transaction modal.
-    assert "OFFER:thin_month_1" not in [
+    assert "OFFER:dark_berth_1" not in [
         item.action for item in _seen[1]["items"]
     ]
     assert _seen[1]["body"] == "Favor: 1"
-    assert "Sold The thin month for 1 favor." in [
+    assert "Sold The dark berths for 1 favor." in [
         entry.text for entry in ctx.log.history()
     ]
 

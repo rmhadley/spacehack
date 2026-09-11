@@ -59,21 +59,48 @@ def test_favor_for_defaults_to_zero() -> None:
 
 
 def test_offerable_lists_heard_unsold_valued_rumors() -> None:
-    ledgers = {"barkeep": {"favor": 0, "earned": ["thin_month_1"]}}
+    # research_officer holds no sources — they buy anything heard.
+    ledgers = {"research_officer": {"favor": 0, "earned": ["thin_month_1"]}}
     rows = rumor.offerable_rumors(
-        ["thin_month_1", "derelict_line_1"], ledgers, "barkeep",
+        ["thin_month_1", "derelict_line_1"], ledgers, "research_officer",
     )
     assert rows == [("derelict_line_1", 1)]
 
 
-def test_offerable_is_per_dealer() -> None:
-    # Sold to the barkeep; research_officer still pays — two books,
-    # one per dealer (ruling 9).
-    ledgers = {"barkeep": {"favor": 1, "earned": ["derelict_line_1"]}}
+def test_dealer_wont_buy_back_their_own_telling() -> None:
+    # Round-1 ruling: no selling back. The barkeep is an authored
+    # source of both openers — neither shows a Sell row at his book.
     assert rumor.offerable_rumors(
-        ["derelict_line_1"], ledgers, "research_officer",
-    ) == [("derelict_line_1", 1)]
-    assert rumor.offerable_rumors(["derelict_line_1"], ledgers, "barkeep") == []
+        ["thin_month_1", "derelict_line_1"], {}, "barkeep",
+    ) == []
+
+
+def test_co_teller_refuses_too() -> None:
+    # Knowledge, not transaction history: dark_berth_1 heard from the
+    # wolf — deadfall (co-source) already knows it too.
+    assert rumor.offerable_rumors(
+        ["dark_berth_1"], {}, "deadfall_scrubber",
+    ) == []
+
+
+def test_dealer_buys_tiers_they_dont_hold() -> None:
+    # The wolf told you dark_berth_1 but holds no thin-month sources
+    # — that entry he buys.
+    rows = rumor.offerable_rumors(
+        ["dark_berth_1", "thin_month_1"], {}, "wolf_barkeep",
+    )
+    assert rows == [("thin_month_1", 1)]
+
+
+def test_offerable_is_per_dealer() -> None:
+    # Sold to the wolf (who holds no thin-month sources);
+    # research_officer still pays — two books, one per dealer
+    # (ruling 9).
+    ledgers = {"wolf_barkeep": {"favor": 1, "earned": ["thin_month_1"]}}
+    assert rumor.offerable_rumors(
+        ["thin_month_1"], ledgers, "research_officer",
+    ) == [("thin_month_1", 1)]
+    assert rumor.offerable_rumors(["thin_month_1"], ledgers, "wolf_barkeep") == []
 
 
 def test_offerable_skips_stale_ids() -> None:
@@ -133,12 +160,12 @@ def test_holding_is_an_explicit_input_the_routing_seam() -> None:
 
 def test_offer_pays_value_once_per_dealer() -> None:
     ctx = SimpleNamespace(known_rumors=["thin_month_1"], rumor_favor={})
-    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 1
+    assert rumor.offer_rumor(ctx, "research_officer", "thin_month_1") == 1
     assert ctx.rumor_favor == {
-        "barkeep": {"favor": 1, "earned": ["thin_month_1"]},
+        "research_officer": {"favor": 1, "earned": ["thin_month_1"]},
     }
-    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
-    assert ctx.rumor_favor["barkeep"]["favor"] == 1
+    assert rumor.offer_rumor(ctx, "research_officer", "thin_month_1") == 0
+    assert ctx.rumor_favor["research_officer"]["favor"] == 1
 
 
 def test_buy_spends_then_hears() -> None:
@@ -182,5 +209,13 @@ def test_offer_refuses_unheard_rumors() -> None:
     # The mutation boundary is self-defending (reviewer round): a
     # future host can't pay out for knowledge off the keyring.
     ctx = SimpleNamespace(known_rumors=[], rumor_favor={})
+    assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
+    assert ctx.rumor_favor == {}
+
+
+def test_offer_refuses_rumors_the_dealer_knows() -> None:
+    # Same boundary, round-1 ruling side: no selling back to a
+    # teller, whatever a host might render.
+    ctx = SimpleNamespace(known_rumors=["thin_month_1"], rumor_favor={})
     assert rumor.offer_rumor(ctx, "barkeep", "thin_month_1") == 0
     assert ctx.rumor_favor == {}
