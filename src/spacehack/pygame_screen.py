@@ -280,14 +280,15 @@ def _fit_font(
 
 def draw_tab_bar(
     pygame: Any, screen: Any, font: Any, palette: Any,
-    tabs: tuple[str, ...], active_tab: int, width: int,
+    tabs: tuple[str, ...], active_tab: int, width: int, top: int,
 ) -> None:
-    """Draw the shared multi-pane tab bar (``ScreenFrame.tabs`` chrome)."""
+    """Draw the shared multi-pane tab bar (``ScreenFrame.tabs``
+    chrome) with its top edge at ``top``."""
     tab_width = max(1, (width - 80) // len(tabs))
     for index, tab in enumerate(tabs):
         tab_x = 40 + index * tab_width
         selected_tab = index == active_tab
-        tab_rect = pygame.Rect(tab_x, 72, tab_width - 8, 36)
+        tab_rect = pygame.Rect(tab_x, top, tab_width - 8, 36)
         pygame.draw.rect(
             screen,
             palette.selected_background if selected_tab else palette.panel,
@@ -300,7 +301,7 @@ def draw_tab_bar(
         )
         pygame_ui.draw_centered_text(
             pygame, screen, font, tab,
-            pygame_ui.Rect(tab_x, 72, tab_width - 8, 36), 80,
+            pygame_ui.Rect(tab_x, top, tab_width - 8, 36), top + 8,
             color=palette.title if selected_tab else palette.description,
         )
 
@@ -318,7 +319,7 @@ def _draw_screen_header(
     pygame_ui.draw_rule(pygame, screen, 48, 62, width - 96, color=palette.border)
     if not frame.tabs:
         return 84
-    draw_tab_bar(pygame, screen, font, palette, frame.tabs, frame.active_tab, width)
+    draw_tab_bar(pygame, screen, font, palette, frame.tabs, frame.active_tab, width, 72)
     return 126
 
 

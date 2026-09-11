@@ -76,7 +76,7 @@ def _render_quests_pane(
     max_w = ui.rule_width(screen_width)
 
     # --- Screen header ---
-    cy = ui.screen_header(console, screen_width, "QUEST LOG")
+    cy = ui.screen_header(console, screen_width, "LOGS")
     cy = _render_main_quest_section(
         console, ctx, col_x, cy, max_w, screen_height,
     )

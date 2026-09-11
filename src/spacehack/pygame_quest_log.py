@@ -257,12 +257,12 @@ def _content_rect(
         from .pygame_screen import draw_tab_bar
         draw_tab_bar(
             pygame, screen, font, palette,
-            frame.tabs, frame.active_tab, width,
+            frame.tabs, frame.active_tab, width, panel.y + 62,
         )
     return pygame_ui.Rect(
-        panel.x + 34, panel.y + (126 if frame.tabs else 76),
+        panel.x + 34, panel.y + (106 if frame.tabs else 76),
         max(1, panel.width - 68),
-        max(1, panel.height - (150 if frame.tabs else 100)),
+        max(1, panel.height - (130 if frame.tabs else 100)),
     )
 
 
@@ -280,7 +280,7 @@ def _draw_rows(
     panel = pygame_ui.Rect(32, 28, width - 64, max(1, panel_bottom - 28))
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     pygame_ui.draw_centered_text(
-        pygame, screen, font, "QUEST LOG",
+        pygame, screen, font, "LOGS",
         panel, panel.y + 22,
         color=palette.title, antialias=True,
     )

@@ -61,7 +61,7 @@ def test_quests_pane_is_the_default():
     console = FrameBuffer(120, 60)
     render_quest_log(console, quest_ctx(), screen_width=120, screen_height=60)
     text = "\n".join(_pane_rows(console))
-    assert "QUEST LOG" in text
+    assert "LOGS" in text
     assert "(no active missions)" in text
 
 
