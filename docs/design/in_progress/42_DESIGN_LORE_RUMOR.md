@@ -483,13 +483,13 @@ phase 1 closed.
    456); the grandfathered backlog (comms.py) is untouched.
 
 ### Phase 2 — The favor exchange
-- [ ] Dealer spec (`data/lore/`): exclusives + prices; rumor rows
+- [x] Dealer spec (`data/lore/`): exclusives + prices; rumor rows
       gain their offer values (ruling 10)
-- [ ] `ctx.rumor_favor` per-dealer ledgers + save/load
-- [ ] Offer/ask rows in the shared sub-menu (dealers only)
-- [ ] Exclusive tier gated on favor; once-per-(rumor, dealer)
+- [x] `ctx.rumor_favor` per-dealer ledgers + save/load
+- [x] Offer/ask rows in the shared sub-menu (dealers only)
+- [x] Exclusive tier gated on favor; once-per-(rumor, dealer)
       earning
-- [ ] An authored option-unlock payoff (an exclusive that changes
+- [x] An authored option-unlock payoff (an exclusive that changes
       an interaction)
 - [ ] Playtest checkpoint
 
