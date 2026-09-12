@@ -34,22 +34,33 @@ class RumorEntry:
         requires: rumor ids that must already be known before this
             entry can surface.
         sources: who can deliver this entry — tuples of
-            ``(npc_id, faction | None, min_standing | None,
-            trait | None)`` in the shipped ``talk_gate`` shape. The
-            floor reads the RESOLVED sheet's standing for ``faction``
-            (``None`` = no floor); ``trait`` demands a quest perk or
-            trait when set. Empty for dealer exclusives — they are
-            never free-asked.
+            ``(npc_id, planet, faction | None, min_standing | None,
+            trait | None)`` (doc 42 phase 3: candidates are
+            planet-scoped; the seed picks the live subset). The
+            floor reads the RESOLVED sheet's standing for
+            ``faction`` (``None`` = no floor); ``trait`` demands a
+            quest perk or trait when set. Empty for trigger-delivered
+            entries and dealer exclusives — neither is free-asked.
         value: the favor a dealer pays to buy it from you once
             heard (0 = nobody buys it; ruling 10).
+        picks: authored width — how many candidates the routing
+            derivation makes live per run (``None`` = every
+            candidate live; SETTLED 15).
+        triggers: authored discovery event ids — world events that
+            hear this entry when they fire (SETTLED 16; e.g.
+            ``dock_dark_port``, ``dark_hail``).
     """
 
     id: str
     chain: str
     tier: int
     requires: tuple[str, ...] = ()
-    sources: tuple[tuple[str, str | None, int | None, str | None], ...] = ()
+    sources: tuple[
+        tuple[str, str, str | None, int | None, str | None], ...
+    ] = ()
     value: int = 0
+    picks: int | None = None
+    triggers: tuple[str, ...] = ()
 
 
 def _build_registry() -> dict[str, RumorEntry]:

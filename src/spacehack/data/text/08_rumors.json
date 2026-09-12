@@ -1,11 +1,10 @@
 {
-  "rumor.dark_berth_1.topic": "the dark berths",
-  "rumor.dark_berth_1.text": "Four ports will berth a hull that doesn't answer: Deadfall, Whisper, Ember, and Wolf 359 b. None of them do it for free - somebody pays for the quiet.",
-  "rumor.dark_berth_1.witness.deadfall_scrubber": "A scrubbed number is half the work. The other half is the berth fee somebody else pays - here they log you as expected. The Wolf doesn't bother. Nobody there logs anything.",
-  "rumor.dark_berth_2.topic": "the dark berths",
-  "rumor.dark_berth_2.text": "The berth fee isn't paid by the ship. Each dark port has a local who settles the port authority monthly - a scrubber here, a fence on Whisper, the tech on Ember. Follow the payouts and the same buyer shows up.",
-  "rumor.dark_berth_3.topic": "the dark berths",
-  "rumor.dark_berth_3.text": "I gut breakers, not ledgers. But every cut-out I install moves through one buyer, and that buyer invoices out of Whisper. Whoever insures the quiet does their books there.",
-  "rumor.dark_berth_4.topic": "the dark berths",
-  "rumor.dark_berth_4.text": "The Whisper buyer is the berth keeper in the Hush. Bring him a hull and he'll gut its transponder on the spot - two thousand, cash, and nothing gets filed anywhere."
+  "rumor.dark_berth_1.topic": "dark ports",
+  "rumor.dark_berth_1.text": "Some ports don't care who you are. They don't check your credentials and don't log your visit. Those dark ships don't really talk about it. Finding someone to speak with will need patience and connections.",
+  "rumor.dark_berth_2.topic": "dark ports",
+  "rumor.dark_berth_2.text": "I know of a few ports that don't check your creds... Deadfall, Whisper, Ember, and Wolf 359 b come to mind. Lots of black-market goods pass through those ports. Obviously, these are pirates using them.",
+  "rumor.dark_berth_3.topic": "dark ports",
+  "rumor.dark_berth_3.text": "Yeah, I'm not going to broadcast my name to all. They track everything! They don't need to know that I frequent Wolf 359 b. You want to be free too? Ask around on Whisper.",
+  "rumor.dark_berth_4.topic": "dark ports",
+  "rumor.dark_berth_4.text": "I know the guy, yeah. You're giving me good info, I can trust you. You can find him right here on Whisper. He hangs around by the containers south of the bounty office sometimes. Tell him The Hush sent you."
 }

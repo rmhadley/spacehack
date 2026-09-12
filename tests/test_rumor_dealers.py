@@ -1,9 +1,10 @@
-"""Dealer-spec integrity + the favor exchange (doc 42 phase 2).
+"""Dealer-spec integrity + the favor exchange (doc 42 phases 2-3).
 
 The exchange is data-defined, so the data test is the enforcement:
-dealers seat real NPCs, exclusives price real rumors, and exclusives
-are never free-asked (empty sources, ruling 12). The resolvers are
-ctx-free; the wrappers are pinned on constructed ledgers.
+dealers seat real NPCs, exclusive candidates price real rumors with
+real dealers, and exclusives are never free-asked (empty sources,
+ruling 12). The resolvers are ctx-free; the wrappers are pinned on
+constructed ledgers.
 """
 
 from types import SimpleNamespace
@@ -12,7 +13,12 @@ import pytest
 
 from spacehack import rumor
 from spacehack.data.lore import find_rumor
-from spacehack.data.lore.dealers import DEALERS, find_dealer, is_dealer
+from spacehack.data.lore.dealers import (
+    DEALERS,
+    EXCLUSIVE_CANDIDATES,
+    find_dealer,
+    is_dealer,
+)
 from spacehack.data.npcs import find_npc
 
 
@@ -26,24 +32,24 @@ def test_dealer_ids_unique() -> None:
     assert len(ids) == len(set(ids))
 
 
-def test_exclusives_price_real_rumors() -> None:
-    for spec in DEALERS:
-        for rumor_id, price in spec.exclusives:
-            find_rumor(rumor_id)
-            assert isinstance(price, int), (spec.dealer_npc_id, rumor_id)
-            assert price > 0, (spec.dealer_npc_id, rumor_id)
+def test_exclusive_candidates_are_well_formed() -> None:
+    for rumor_id, candidates in EXCLUSIVE_CANDIDATES.items():
+        find_rumor(rumor_id)
+        assert len(candidates) >= 2, rumor_id  # a real scatter choice
+        for dealer_id, price in candidates:
+            assert is_dealer(dealer_id), dealer_id
+            assert isinstance(price, int) and price > 0, (rumor_id, dealer_id)
 
 
 def test_exclusives_are_never_free_asked() -> None:
-    for spec in DEALERS:
-        for rumor_id, _price in spec.exclusives:
-            assert find_rumor(rumor_id).sources == (), rumor_id
+    for rumor_id in EXCLUSIVE_CANDIDATES:
+        assert find_rumor(rumor_id).sources == (), rumor_id
+        assert not find_rumor(rumor_id).triggers, rumor_id
 
 
 def test_registry_lookup() -> None:
     assert is_dealer("wolf_barkeep")
     assert not is_dealer("guild_master")
-    assert find_dealer("wolf_barkeep").exclusives == (("dark_berth_4", 4),)
     with pytest.raises(KeyError):
         find_dealer("guild_master")
 
@@ -59,48 +65,51 @@ def test_favor_for_defaults_to_zero() -> None:
 
 
 def test_offerable_lists_heard_unsold_valued_rumors() -> None:
-    # research_officer holds no sources — they buy anything heard.
+    # research_officer is a tier-2 carrier, but tiers 1 and 3 have no
+    # sources — those they buy.
     ledgers = {"research_officer": {"favor": 0, "earned": ["dark_berth_1"]}}
     rows = rumor.offerable_rumors(
-        ["dark_berth_1", "dark_berth_2"], ledgers, "research_officer",
+        ["dark_berth_1", "dark_berth_3"], ledgers, "research_officer",
     )
-    assert rows == [("dark_berth_2", 2)]
+    assert rows == [("dark_berth_3", 3)]
 
 
 def test_dealer_wont_buy_back_their_own_telling() -> None:
-    # Round-1 ruling: no selling back. The wolf is an authored source
-    # of the opener — no Sell row at his book; the scrubber co-tells
-    # tier 2.
-    assert rumor.offerable_rumors(["dark_berth_1"], {}, "wolf_barkeep") == []
-    assert rumor.offerable_rumors(["dark_berth_2"], {}, "deadfall_scrubber") == []
+    # Round-1 ruling: no selling back. Every dealer seats as a tier-2
+    # carrier this phase — the tier they told, they won't buy.
+    for dealer_id in ("wolf_barkeep", "research_officer", "barkeep"):
+        assert rumor.offerable_rumors(
+            ["dark_berth_2"], {}, dealer_id,
+        ) == [], dealer_id
 
 
 def test_co_teller_refuses_too() -> None:
-    # Knowledge, not transaction history: dark_berth_1 heard from the
-    # wolf — deadfall (co-source) already knows it too.
+    # Knowledge, not transaction history: the scrubber and the tech
+    # carry tier 2 — they already know it whoever told you.
     assert rumor.offerable_rumors(
-        ["dark_berth_1"], {}, "deadfall_scrubber",
+        ["dark_berth_2"], {}, "deadfall_scrubber",
     ) == []
+    assert rumor.offerable_rumors(["dark_berth_2"], {}, "ember_tech") == []
 
 
-def test_dealer_buys_tiers_they_dont_hold() -> None:
-    # The wolf told you tier 1, but the scrubber's and the tech's
-    # tiers aren't his knowledge — he buys them.
+def test_dealer_buys_tiers_nobody_carries() -> None:
+    # Tiers 1, 3, 4 are trigger/exclusive-delivered — no dealer is an
+    # authored source, so every book buys them. The chain walk funds
+    # the exclusive exactly: tier 1 + tier 3 = 4 favor.
     rows = rumor.offerable_rumors(
-        ["dark_berth_2", "dark_berth_3"], {}, "wolf_barkeep",
+        ["dark_berth_1", "dark_berth_3"], {}, "wolf_barkeep",
     )
-    assert rows == [("dark_berth_2", 2), ("dark_berth_3", 3)]
+    assert rows == [("dark_berth_1", 1), ("dark_berth_3", 3)]
 
 
 def test_offerable_is_per_dealer() -> None:
-    # Sold to the wolf (a tier he didn't tell); the barkeep, no
-    # sources at all, still pays — two books, one per dealer
-    # (ruling 9).
-    ledgers = {"wolf_barkeep": {"favor": 2, "earned": ["dark_berth_2"]}}
+    # Sold to the wolf; the barkeep, another book, still pays
+    # (ruling 9 — one book per dealer).
+    ledgers = {"wolf_barkeep": {"favor": 1, "earned": ["dark_berth_1"]}}
     assert rumor.offerable_rumors(
-        ["dark_berth_2"], ledgers, "barkeep",
-    ) == [("dark_berth_2", 2)]
-    assert rumor.offerable_rumors(["dark_berth_2"], ledgers, "wolf_barkeep") == []
+        ["dark_berth_1"], ledgers, "barkeep",
+    ) == [("dark_berth_1", 1)]
+    assert rumor.offerable_rumors(["dark_berth_1"], ledgers, "wolf_barkeep") == []
 
 
 def test_offerable_skips_stale_ids() -> None:
@@ -142,17 +151,17 @@ def test_exclusive_gone_once_heard() -> None:
 
 
 def test_holding_is_an_explicit_input_the_routing_seam() -> None:
-    # research_officer holds nothing in DEALERS, yet the resolver
-    # prices the exclusive against the holding the host hands in —
-    # phase-3 scatter composes, no rewrite (requires met by the
-    # keyring, favor from the book).
+    # research_officer is an authored CANDIDATE holder, yet the
+    # resolver prices the exclusive against the holding the host
+    # hands in — phase-3 scatter composes, no rewrite (requires met
+    # by the keyring, favor from the book).
     known = ["dark_berth_1", "dark_berth_2", "dark_berth_3"]
     ledgers = {"research_officer": {"favor": 4, "earned": []}}
     assert rumor.exclusive_offers(
         known, ledgers, "research_officer", (("dark_berth_4", 4),),
     ) == [("dark_berth_4", 4)]
     assert rumor.exclusive_offers(
-        known, ledgers, "research_officer", find_dealer("research_officer").exclusives,
+        known, ledgers, "research_officer", (),
     ) == []
 
 
@@ -217,6 +226,6 @@ def test_offer_refuses_unheard_rumors() -> None:
 def test_offer_refuses_rumors_the_dealer_knows() -> None:
     # Same boundary, round-1 ruling side: no selling back to a
     # teller, whatever a host might render.
-    ctx = SimpleNamespace(known_rumors=["dark_berth_1"], rumor_favor={})
-    assert rumor.offer_rumor(ctx, "wolf_barkeep", "dark_berth_1") == 0
+    ctx = SimpleNamespace(known_rumors=["dark_berth_2"], rumor_favor={})
+    assert rumor.offer_rumor(ctx, "wolf_barkeep", "dark_berth_2") == 0
     assert ctx.rumor_favor == {}

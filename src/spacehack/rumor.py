@@ -12,26 +12,19 @@ the three mutation wrappers (``hear``, ``offer_rumor``,
 
 from __future__ import annotations
 
-from typing import Callable
-
 from .data.lore import RumorEntry, find_rumor, list_rumors
 from .data.lore.dealers import find_dealer, is_dealer
 from .text import get as _text_get
 
 
-def routing_all(rumor_id: str) -> bool:
-    """Phase-1 routing: every authored chain is live this run."""
-    return True
-
-
 def _source_passes(
-    source: tuple[str, str | None, int | None, str | None],
+    source: tuple[str, str, str | None, int | None, str | None],
     resolved_rep: dict[str, int],
     player_traits,
 ) -> bool:
     """The talk-gate comparison: resolved standing meets the floor,
     and a trait-gated source demands the trait."""
-    _, faction, min_standing, trait = source
+    _, _, faction, min_standing, trait = source
     if faction is not None and resolved_rep.get(faction, 0) < (min_standing or 0):
         return False
     if trait is not None and trait not in (player_traits or ()):
@@ -42,11 +35,19 @@ def _source_passes(
 def _delivers(
     entry: RumorEntry,
     npc_id: str,
+    planet_id: str,
     resolved_rep: dict[str, int],
     player_traits,
+    live: dict | None = None,
 ) -> bool:
+    """Whether this contact, on this planet, delivers the entry: a
+    matching planet-scoped candidate that passes its gates and is
+    live this run (``live`` = the routing map; None = every
+    candidate live)."""
     return any(
         source[0] == npc_id
+        and source[1] == planet_id
+        and (live is None or (npc_id, planet_id) in live.get(entry.id, frozenset()))
         and _source_passes(source, resolved_rep, player_traits)
         for source in entry.sources
     )
@@ -94,22 +95,23 @@ def askable_topics(
     resolved_rep: dict[str, int],
     player_traits,
     npc_id: str,
+    planet_id: str,
     *,
-    routing: Callable[[str], bool] = routing_all,
+    live: dict | None = None,
 ) -> list[tuple[str, str]]:
-    """``(topic, rumor_id)`` rows for everything this NPC can tell
-    you: unheard chain openers they can deliver, plus the next tier
-    of any heard chain they can extend. The ONE ask surface — the
-    main talk menu carries a single Ask around row when this is
-    non-empty (user ruling, 2026-09-11)."""
+    """``(topic, rumor_id)`` rows for everything this contact can tell
+    you ON THIS PLANET: unheard chain openers they can deliver, plus
+    the next tier of any heard chain they can extend. ``live`` is the
+    routing map (entry id → live ``(npc, planet)`` candidates; None =
+    every candidate live). The ONE ask surface — the main talk menu
+    carries a single Ask around row when this is non-empty (user
+    ruling, 2026-09-11)."""
     known_set = set(known)
     rows: list[tuple[str, str]] = []
     for entry in list_rumors():
         if entry.tier != 1 or entry.id in known_set:
             continue
-        if not routing(entry.id):
-            continue
-        if not _delivers(entry, npc_id, resolved_rep, player_traits):
+        if not _delivers(entry, npc_id, planet_id, resolved_rep, player_traits, live):
             continue
         rows.append((topic_label(entry.id), entry.id))
     for rumor_id in known:
@@ -122,8 +124,7 @@ def askable_topics(
             nxt is None
             or nxt.id in known_set
             or not _requirements_met(nxt, known_set)
-            or not routing(nxt.id)
-            or not _delivers(nxt, npc_id, resolved_rep, player_traits)
+            or not _delivers(nxt, npc_id, planet_id, resolved_rep, player_traits, live)
         ):
             continue
         rows.append((topic_label(rumor_id), nxt.id))

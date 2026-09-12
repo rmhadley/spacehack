@@ -406,6 +406,19 @@ def _ask_submenu_items(topics, offers, buys) -> list:
     return items
 
 
+def _dealer_holdings(npc_id: str) -> tuple[tuple[str, int], ...]:
+    """The exclusives this dealer offers this pass — the routing seam
+    (doc 42 phase 3; live_holdings lands with rumor_routing)."""
+    from .data.lore.dealers import EXCLUSIVE_CANDIDATES
+
+    return tuple(
+        (rumor_id, price)
+        for rumor_id, candidates in EXCLUSIVE_CANDIDATES.items()
+        for dealer_id, price in candidates
+        if dealer_id == npc_id
+    )
+
+
 def _ask_rows(ctx, npc):
     """(topics, offers, buys) for one sub-menu pass — offers and buys
     exist only at a dealer (ruling 10)."""
@@ -413,7 +426,7 @@ def _ask_rows(ctx, npc):
 
     topics = rumor_module.askable_topics(
         ctx.known_rumors, identity.effective_reputation(ctx),
-        ctx.player_traits, npc.id,
+        ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
     )
     if not rumor_module.is_dealer(npc.id):
         return topics, [], []
@@ -421,8 +434,7 @@ def _ask_rows(ctx, npc):
         ctx.known_rumors, ctx.rumor_favor, npc.id,
     )
     buys = rumor_module.exclusive_offers(
-        ctx.known_rumors, ctx.rumor_favor, npc.id,
-        rumor_module.find_dealer(npc.id).exclusives,
+        ctx.known_rumors, ctx.rumor_favor, npc.id, _dealer_holdings(npc.id),
     )
     return topics, offers, buys
 
@@ -516,7 +528,7 @@ def _offers_rumors(ctx, npc) -> bool:
 
     return bool(rumor_module.askable_topics(
         ctx.known_rumors, identity.effective_reputation(ctx),
-        ctx.player_traits, npc.id,
+        ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
     ))
 
 

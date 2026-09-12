@@ -1,25 +1,26 @@
-"""Catalog integrity for the lore chains (doc 42 phase 1).
+"""Catalog integrity for the lore chains (doc 42 phases 1-3).
 
 The catalog is structural and all prose is JSON-single-source, so the
 data test is the enforcement: every key present, every reference
 resolvable, every ``rumor.*`` key home in exactly one overlay file.
+Phase 3: sources are planet-scoped candidates with authored width,
+and trigger-delivered entries may carry no sources at all.
 """
 
 import json
 from pathlib import Path
 
 from spacehack.data.lore import RumorEntry, find_rumor, list_rumors
-from spacehack.data.lore.dealers import DEALERS
+from spacehack.data.lore.dealers import EXCLUSIVE_CANDIDATES
 from spacehack.data.npcs import find_npc
+from spacehack.data.planets import find_planet_spec
 from spacehack.data.traits.core import ALL_TRAITS, QUEST_PERKS
 from spacehack.faction import _ALL_FACTIONS
 from spacehack.text import overlay
 
 _TEXT_DIR = Path(__file__).resolve().parents[1] / "src" / "spacehack" / "data" / "text"
 _KNOWN_FACTIONS = set(_ALL_FACTIONS)
-_EXCLUSIVE_IDS = {
-    rumor_id for spec in DEALERS for rumor_id, _price in spec.exclusives
-}
+_EXCLUSIVE_IDS = set(EXCLUSIVE_CANDIDATES)
 
 
 def _rumor_keys_in(path: Path) -> set[str]:
@@ -44,14 +45,16 @@ def test_requires_are_same_chain_lower_tier() -> None:
             assert entry.requires, "non-entry tiers need a requires link"
 
 
-def test_sources_reference_real_npcs_gates_and_traits() -> None:
+def test_sources_reference_real_npcs_planets_gates_and_traits() -> None:
     for entry in list_rumors():
         if not entry.sources:
-            # Only a dealer-held exclusive may skip sources — it is
-            # never free-asked (doc 42 ruling 12).
-            assert entry.id in _EXCLUSIVE_IDS, entry.id
-        for npc_id, faction, min_standing, trait in entry.sources:
+            # Only a dealer-held exclusive or a trigger-delivered
+            # entry may skip sources — neither is free-asked (doc 42
+            # rulings 12 + 16).
+            assert entry.id in _EXCLUSIVE_IDS or entry.triggers, entry.id
+        for npc_id, planet, faction, min_standing, trait in entry.sources:
             find_npc(npc_id)
+            find_planet_spec(planet)
             if faction is None:
                 assert min_standing is None
             else:
@@ -61,6 +64,20 @@ def test_sources_reference_real_npcs_gates_and_traits() -> None:
                 assert trait in QUEST_PERKS or any(
                     t.id == trait for t in ALL_TRAITS
                 )
+
+
+def test_picks_respect_the_candidate_pool() -> None:
+    for entry in list_rumors():
+        if entry.picks is None:
+            continue
+        assert entry.sources, entry.id
+        assert 1 <= entry.picks <= len(entry.sources), entry.id
+
+
+def test_triggers_are_nonempty_strings() -> None:
+    for entry in list_rumors():
+        for trigger in entry.triggers:
+            assert isinstance(trigger, str) and trigger, entry.id
 
 
 def test_every_entry_has_text_and_topic_keys() -> None:

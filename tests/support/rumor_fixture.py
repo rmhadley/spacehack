@@ -19,7 +19,7 @@ CHAIN: tuple[RumorEntry, ...] = (
         chain="gate_probe",
         tier=1,
         value=1,
-        sources=(("blockade_officer", "militia", 0, None),),
+        sources=(("blockade_officer", "blockade_south", "militia", 0, None),),
     ),
     RumorEntry(
         id="gate_probe_2",
@@ -27,7 +27,7 @@ CHAIN: tuple[RumorEntry, ...] = (
         tier=2,
         requires=("gate_probe_1",),
         value=2,
-        sources=(("blockade_officer", "militia", 0, None),),
+        sources=(("blockade_officer", "blockade_south", "militia", 0, None),),
     ),
     RumorEntry(
         id="gate_probe_3",
@@ -35,7 +35,7 @@ CHAIN: tuple[RumorEntry, ...] = (
         tier=3,
         requires=("gate_probe_2",),
         value=3,
-        sources=(("militia_captain", "militia", 26, "warrant_license"),),
+        sources=(("militia_captain", "earth", "militia", 26, "warrant_license"),),
     ),
     # A second chain on the same teller: openers and extensions must
     # coexist as rows in one sub-menu.
@@ -44,7 +44,7 @@ CHAIN: tuple[RumorEntry, ...] = (
         chain="side_probe",
         tier=1,
         value=1,
-        sources=(("blockade_officer", "militia", 0, None),),
+        sources=(("blockade_officer", "blockade_south", "militia", 0, None),),
     ),
 )
 

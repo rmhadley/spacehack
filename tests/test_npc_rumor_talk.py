@@ -1,8 +1,11 @@
-"""Host wiring tests for the rumor talk surface (doc 42 phase 1).
+"""Host wiring tests for the rumor talk surface (doc 42 phases 1-3).
 
 One Ask around row on the main talk menu (present whenever the NPC
 holds an unheard opener or a heard extension); everything askable
 lives in the sub-menu. Floors read the RESOLVED sheet the host passes.
+Phase 3: the host scopes delivery to the current planet
+(ctx.current_city_id); tier 1 is trigger-delivered, so no carrier
+holds anything until it has been heard.
 """
 
 from tests.support.quest_ctx import quest_ctx
@@ -21,30 +24,46 @@ def _sheet(monkeypatch, rep):
 
 def test_non_source_npc_gets_no_ask_row(monkeypatch):
     _sheet(monkeypatch, {})
-    assert npc_mod._offers_rumors(quest_ctx(), find_npc("guild_master")) is False
+    assert npc_mod._offers_rumors(
+        quest_ctx(), find_npc("guild_master")) is False
 
 
-def test_source_npc_gets_the_ask_row_pre_hear(monkeypatch):
+def test_no_ask_row_before_discovery(monkeypatch):
+    # Phase 2.5: the chain is not askable at spawn — tier 1 arrives
+    # by trigger, and tier 2 requires it heard. Even a carrier holds
+    # nothing pre-discovery (a non-dealer shows no row at all).
     _sheet(monkeypatch, {})
     assert npc_mod._offers_rumors(
-        quest_ctx(), find_npc("deadfall_scrubber")) is True
+        quest_ctx(city_id="lal_b"), find_npc("deadfall_scrubber")) is False
+
+
+def test_carrier_gets_the_ask_row_once_the_opener_is_heard(monkeypatch):
+    _sheet(monkeypatch, {})
+    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
+    assert npc_mod._offers_rumors(ctx, find_npc("deadfall_scrubber")) is True
+    # ...but only on the carrier's own planet.
+    ctx_off = quest_ctx(city_id="wolf_b", known_rumors=["dark_berth_1"])
+    assert npc_mod._offers_rumors(ctx_off, find_npc("deadfall_scrubber")) is False
 
 
 def test_ask_row_goes_when_the_npc_holds_nothing_more(monkeypatch):
     _sheet(monkeypatch, {})
-    ctx = quest_ctx(known_rumors=["dark_berth_1", "dark_berth_2"])
     # A non-source holds nothing — the row goes...
     assert npc_mod._offers_rumors(quest_ctx(), find_npc("militia_captain")) is False
-    # ...and so does a source who is out of chain (the scrubber told
-    # tiers 1-2)...
-    assert npc_mod._offers_rumors(ctx, find_npc("deadfall_scrubber")) is False
-    # ...while the tech still extends the chain.
-    assert npc_mod._offers_rumors(ctx, find_npc("ember_tech")) is True
+    # ...the tech extends while tier 2 is unheard (his carrier role)...
+    ctx_ross = quest_ctx(city_id="ross_b", known_rumors=["dark_berth_1"])
+    assert npc_mod._offers_rumors(ctx_ross, find_npc("ember_tech")) is True
+    # ...and once tier 2 is heard the chain leaves the city for comms
+    # — NO carrier extends tier 3 (it is hail-delivered).
+    ctx_done = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1", "dark_berth_2"])
+    assert npc_mod._offers_rumors(ctx_done, find_npc("deadfall_scrubber")) is False
+    ctx_ross_done = quest_ctx(city_id="ross_b", known_rumors=["dark_berth_1", "dark_berth_2"])
+    assert npc_mod._offers_rumors(ctx_ross_done, find_npc("ember_tech")) is False
 
 
 def test_dealer_keeps_the_ask_row_with_nothing_askable(monkeypatch):
-    # Ruling 10: the barkeep extends no tier (he sources none), but his
-    # trade lives in the sub-menu — the row stays.
+    # Ruling 10: the barkeep extends no tier, but his trade lives in
+    # the sub-menu — the row stays.
     _sheet(monkeypatch, {})
     ctx = quest_ctx(known_rumors=["dark_berth_1"])
     assert npc_mod._offers_rumors(ctx, find_npc("barkeep")) is True
@@ -57,9 +76,11 @@ def test_floor_withholds_the_ask_row(monkeypatch):
     # authors no floors.
     install(monkeypatch)
     _sheet(monkeypatch, {"militia": -5})
-    assert npc_mod._offers_rumors(quest_ctx(), find_npc("blockade_officer")) is False
+    assert npc_mod._offers_rumors(
+        quest_ctx(city_id="blockade_south"), find_npc("blockade_officer")) is False
     _sheet(monkeypatch, {"militia": 30})
-    assert npc_mod._offers_rumors(quest_ctx(), find_npc("blockade_officer")) is True
+    assert npc_mod._offers_rumors(
+        quest_ctx(city_id="blockade_south"), find_npc("blockade_officer")) is True
 
 
 def test_items_builder_carries_exactly_one_ask_row():
@@ -76,26 +97,27 @@ def test_result_mapping_maps_askaround():
         "SELECT", "ASKAROUND", []) == (npc_mod.TalkOutcome.ASKAROUND, None)
 
 
-def test_ask_around_sitting_hears_opener_then_extension(monkeypatch):
+def test_ask_around_sitting_hears_the_extension(monkeypatch):
     _readouts = []
     monkeypatch.setattr(
         npc_mod, "_show_rumor_readout",
         lambda ctx, npc, text: _readouts.append(text),
     )
-    # One sitting: pick the opener, then the extension, then the
-    # sub-menu is exhausted (a None pick closes it).
-    _picks = iter(["ASKTOPIC:dark_berth_1", "ASKTOPIC:dark_berth_2"])
+    # One sitting: tier 1 already heard (the dock trigger), the
+    # scrubber delivers tier 2, then the sub-menu is exhausted (a
+    # None pick closes it).
+    _picks = iter(["ASKTOPIC:dark_berth_2"])
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu",
         lambda ctx, **kwargs: next(_picks, None),
     )
-    ctx = quest_ctx()
+    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
     result = npc_mod._resolve_talk_result(
         ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     assert ctx.known_rumors == ["dark_berth_1", "dark_berth_2"]
-    assert len(_readouts) == 2
+    assert len(_readouts) == 1
 
 
 def test_ask_around_closes_when_the_npc_is_out_of_rumors(monkeypatch):
@@ -156,22 +178,24 @@ def test_dealer_submenu_shows_sell_rows_and_favor_line(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    # dark_berth_2 heard: the wolf doesn't know it (the scrubber's
-    # telling), so it's sellable — dark_berth_1 (his own telling) is
-    # not.
-    ctx = quest_ctx(known_rumors=["dark_berth_1", "dark_berth_2"])
+    # Tiers 1 and 3 have no authored sources — the wolf buys both;
+    # tier 2 is his own telling and never shows a Sell row.
+    ctx = quest_ctx(
+        city_id="wolf_b", known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
+    )
     result = npc_mod._resolve_talk_result(
         ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     _actions = [item.action for item in _seen[0]["items"]]
-    assert "OFFER:dark_berth_2" in _actions
-    assert "OFFER:dark_berth_1" not in _actions
+    assert "OFFER:dark_berth_1" in _actions
+    assert "OFFER:dark_berth_3" in _actions
+    assert "OFFER:dark_berth_2" not in _actions
     assert _seen[0]["body"] == "Favor: 0"
     _earn = [
-        item for item in _seen[0]["items"] if item.action == "OFFER:dark_berth_2"
+        item for item in _seen[0]["items"] if item.action == "OFFER:dark_berth_1"
     ]
-    assert _earn[0].description == "Earn 2 favor."
+    assert _earn[0].description == "Earn 1 favor."
 
 
 def test_selling_updates_favor_and_retires_the_row(monkeypatch):
@@ -192,7 +216,7 @@ def test_selling_updates_favor_and_retires_the_row(monkeypatch):
         item.action for item in _seen[1]["items"]
     ]
     assert _seen[1]["body"] == "Favor: 1"
-    assert "Sold The dark berths for 1 favor." in [
+    assert "Sold Dark ports for 1 favor." in [
         entry.text for entry in ctx.log.history()
     ]
 
@@ -212,6 +236,7 @@ def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
         _capture_submenu(_seen, iter(["BUY:dark_berth_4:4"])),
     )
     ctx = quest_ctx(
+        city_id="wolf_b",
         known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
         rumor_favor={"wolf_barkeep": {"favor": 4, "earned": []}},
     )
@@ -237,6 +262,7 @@ def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
     ctx = quest_ctx(
+        city_id="wolf_b",
         known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
         rumor_favor={"wolf_barkeep": {"favor": 3, "earned": []}},
     )
@@ -254,7 +280,7 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    ctx = quest_ctx(known_rumors=["dark_berth_1"])
+    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
     npc_mod._resolve_talk_result(
         ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
@@ -271,6 +297,7 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
 def test_knowledge_gated_vendor_hides_rows_until_heard():
     # The Whisper berth keeper's storefront exists only for someone
     # who knows the berth; ungated ember_tech is unaffected either way.
+    # (Phase 3 build 6 moves this NPC outdoors as shady_tech.)
     ctx = quest_ctx()
     assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, None, None)
     assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
