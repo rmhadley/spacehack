@@ -1514,8 +1514,9 @@ amended with the favor exchange.
        wolf_b, barnards_b, procyon_c) explore exactly as before;
        the dark-ports chain end-to-end (dock line, carriers,
        passphrase row) is untouched.
-    8. Prose read-through (prose gate): the reveal template, the
-       three landmark pieces' names/flavor, and the default name
+    8. Prose read-through (prose gate): the reveal template, the two
+       stair-move log lines (dig.stairs_down_log / dig.stairs_up_log),
+       the three landmark pieces' names/flavor, and the default name
        pools — all drafted by the agent, quoted for approval.
 
 ### Phase 5 — The space host + the lie (was phase 4)

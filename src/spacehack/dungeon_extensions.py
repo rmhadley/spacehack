@@ -54,15 +54,22 @@ def _farthest_free_cell(
     game_map: world.GameMap,
     origin: world.Position,
 ) -> world.Position | None:
-    """Return the farthest reachable, unoccupied floor cell from ``origin``."""
+    """Return the farthest reachable, unoccupied floor cell from
+    ``origin`` — landmark footprints are reserved, so the deeper
+    connection never punches through a stamped room."""
     _distances = _walkable_distances(game_map, origin)
     _occupied = {(entity.pos.x, entity.pos.y) for entity in game_map.entities}
+    _footprint = set(getattr(game_map, "landmark_footprint", ()) or ())
     _cells = sorted(
         _distances,
         key=lambda _cell: (-_distances[_cell], _cell[1], _cell[0]),
     )
     for _x, _y in _cells:
-        if (_x, _y) not in _occupied and (_x, _y) != (origin.x, origin.y):
+        if (
+            (_x, _y) not in _occupied
+            and (_x, _y) != (origin.x, origin.y)
+            and (_x, _y) not in _footprint
+        ):
             return world.Position(_x, _y)
     return None
 
@@ -227,7 +234,7 @@ def _stamp_landmark_variant(game_map: world.GameMap, spec, origin: world.Positio
         _stamp = landmark_module.stamp_landmark(game_map, _asset, origin)
     except ValueError:
         return False
-    game_map.landmark_footprint = set(getattr(game_map, "landmark_footprint", ()) or ()) | set(_stamp.footprint)
+    landmark_module.union_footprint(game_map, _stamp.footprint)
     game_map.landmark_variant_id = _layout_id
     return True
 

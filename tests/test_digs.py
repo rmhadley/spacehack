@@ -12,7 +12,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import digs, engine
+from src.spacehack import digs, engine, world, landmark
 from src.spacehack.data.digs import DEFAULT_PREFIXES, DEFAULT_SUFFIXES
 from src.spacehack.data.planets import list_planet_specs, find_planet_spec
 
@@ -142,3 +142,194 @@ def test_parse_cache_key_rejects_other_families():
     assert digs.parse_cache_key("dig:mars:s3") is None
     assert digs.parse_cache_key("dig:mars:s3:x") is None
     assert digs.parse_cache_key("plainly not a key") is None
+
+
+# --- generation (doc 42 phase 4, step 2) -----------------------------------
+
+from src.spacehack.data.digs import LANDMARK_VARIANTS
+from src.spacehack.dungeon_params import DungeonParams as _DParams
+
+
+def _dig_world(monkeypatch, depth=3, chance=None):
+    """A one-planet dig universe with forced depth; returns (ctx, site)."""
+    spec = find_planet_spec("mars")
+    monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: depth)
+    if chance is not None:
+        monkeypatch.setattr(digs, "LANDMARK_CHANCE", chance)
+    ctx, _ = _ctx(monkeypatch)
+    ctx.interiors = {}
+    ctx.dungeon_extension = None
+    site = digs.reveal_site(ctx)
+    return ctx, site
+
+
+def _tile_of(game_map, kind):
+    for y in range(game_map.height):
+        for x in range(game_map.width):
+            if game_map.tiles[y][x].kind == kind:
+                return x, y
+    return None
+
+
+def test_derive_dig_params_from_theme_and_tier():
+    spec = find_planet_spec("mars")
+    params = digs.derive_dig_params(spec)
+    assert params.tile_wall.kind == "dungeon_wall"
+    assert params.tile_floor.kind == "dungeon_floor"
+    assert params.monster_pool
+    low = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=1))
+    high = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=3))
+    assert low.monster_pool != high.monster_pool
+    assert high.monster_density > low.monster_density
+
+
+def test_dig_params_override_wins():
+    custom = _DParams(width=20, height=15)
+    spec = dataclasses.replace(find_planet_spec("mars"), dig_params=custom)
+    assert digs.derive_dig_params(spec) is custom
+
+
+def test_generate_dig_floor_connections(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=3)
+    f1, s1 = digs.get_or_generate_floor(ctx, site, 1)
+    assert f1.tiles[s1.y][s1.x].kind == "exit"          # floor 1: the way out
+    assert _tile_of(f1, "stairs_down") is not None
+    f2, s2 = digs.get_or_generate_floor(ctx, site, 2)
+    assert f2.tiles[s2.y][s2.x].kind == "stairs_up"     # deeper: swapped
+    assert _tile_of(f2, "stairs_down") is not None
+    f3, _s3 = digs.get_or_generate_floor(ctx, site, 3)
+    assert _tile_of(f3, "stairs_up") is not None
+    assert _tile_of(f3, "stairs_down") is None          # the bottom
+    assert ctx.interiors[digs.cache_key(site["planet"], site["id"], 2)] is f2
+
+
+def test_floors_generate_once_then_persist(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    a, _ = digs.get_or_generate_floor(ctx, site, 2)
+    b, _ = digs.get_or_generate_floor(ctx, site, 2)
+    assert a is b
+
+
+def test_landmark_sprinkle_is_seeded_and_optional(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2, chance=1.0)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert getattr(f1, "landmark_footprint", set())
+    ctx2, site2 = _dig_world(monkeypatch, depth=2, chance=0.0)
+    plain, _ = digs.get_or_generate_floor(ctx2, site2, 1)
+    assert not getattr(plain, "landmark_footprint", set())
+
+
+def test_dig_landmark_layouts_load_and_stamp(monkeypatch):
+    """Every authored dig landmark parses and stamps into a fresh dig
+    floor — the three pieces stay legal (entrance, no stairs)."""
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    for variant in LANDMARK_VARIANTS:
+        asset = landmark.load_landmark(variant.layout_id)
+        f1, spawn = digs.generate_dig(ctx, site, 1)
+        stamp = landmark.stamp_landmark(f1, asset, spawn)
+        assert stamp.entrance is not None
+
+
+def test_transition_moves_between_floors(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=3)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    f2, _ = digs.get_or_generate_floor(ctx, site, 2)
+    down_pos = world.Position(*_tile_of(f1, "stairs_down"))
+    state = SimpleNamespace(
+        ctx=ctx, game_map=f1,
+        player=world.Entity(char="@", fg=(255, 255, 255), pos=down_pos, name="Player"),
+    )
+    ctx.game_map, ctx.player = f1, state.player
+    m1, p1 = digs.transition(state, 1)
+    assert m1 is f2
+    assert (p1.pos.x, p1.pos.y) == _tile_of(f2, "stairs_up")
+    state.game_map, state.player = m1, p1
+    m2, p2 = digs.transition(state, -1)
+    assert m2 is f1
+    assert (p2.pos.x, p2.pos.y) == _tile_of(f1, "stairs_down")
+    # The climbed-from floor keeps no stranded player.
+    assert [e for e in f2.entities if e.char == "@"] == []
+
+
+def test_transition_refuses_impossible_moves(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    state = SimpleNamespace(
+        ctx=ctx, game_map=f1,
+        player=world.Entity(char="@", fg=(255, 255, 255), pos=f1.entry_spawn, name="P"),
+    )
+    with pytest.raises(ValueError):
+        digs.transition(state, 1)  # depth 1 — nothing below
+    with pytest.raises(ValueError):
+        digs.transition(SimpleNamespace(ctx=ctx, game_map=object()), 1)
+
+
+def test_stair_handlers_route_dig_floors(monkeypatch):
+    """The game_loop stair handlers delegate dig floors to digs —
+    the full descend/climb round trip through the live handlers."""
+    from src.spacehack import game_loop
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    f2, _ = digs.get_or_generate_floor(ctx, site, 2)
+    state = SimpleNamespace(
+        ctx=ctx, game_map=f1, log=SimpleNamespace(add=lambda *_: None),
+        dungeon_extension=None,
+        player=world.Entity(
+            char="@", fg=(255, 255, 255),
+            pos=world.Position(*_tile_of(f1, "stairs_down")), name="P",
+        ),
+        current_mode="dungeon",
+    )
+    ctx.ground_hp = ctx.ground_max_hp = 30
+    assert game_loop._handle_stairs_down(state) == "HANDLED"
+    assert state.game_map is f2
+    assert game_loop._handle_stairs_up(state) == "HANDLED"
+    assert state.game_map is f1
+
+
+def test_stairs_down_never_lands_in_a_landmark(monkeypatch):
+    """The reviewer-measured hole: with the sprinkle forced on, the
+    deeper connection must respect the stamped footprint (next-farthest
+    free cell outside it)."""
+    for floor in range(1, 6):
+        ctx, site = _dig_world(monkeypatch, depth=3, chance=1.0)
+        game_map, _ = digs.generate_dig(ctx, site, floor)
+        footprint = set(getattr(game_map, "landmark_footprint", ()) or ())
+        down = _tile_of(game_map, "stairs_down")
+        if down is not None:
+            assert down not in footprint
+
+
+def test_dig_tier_clamps_to_the_band():
+    spec = find_planet_spec("mars")
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=1), 1) == 1
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=1), 5) == 3
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=3), 1) == 3
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=0), 2) == 1
+
+
+def test_mid_tier_pool_sits_between_bands():
+    spec = find_planet_spec("mars")
+    low = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=1))
+    mid = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=2))
+    assert low.monster_density < mid.monster_density
+    assert mid.monster_pool != low.monster_pool
+
+
+def test_dim_takes_a_proportion():
+    assert digs._dim((200, 100, 50), 0.5) == (100, 50, 25)
+
+
+def test_find_site_rejects_unknown_ids(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    assert digs.find_site(ctx, site["planet"], site["id"]) is site
+    with pytest.raises(ValueError):
+        digs.find_site(ctx, site["planet"], "s99")
+    with pytest.raises(ValueError):
+        digs.find_site(ctx, "venus", site["id"])
+
+
+def test_stairs_log_lines_resolve_from_text():
+    assert digs.stairs_log_line(1) == "You descend deeper into the dig site."
+    assert digs.stairs_log_line(-1) == "You climb back up through the dig site."

@@ -1,0 +1,22 @@
+# dig_cistern.layout - DRAFT (doc 42 phase 4, checkpoint item 8):
+# the Dry Cistern. A water vault the planet drank centuries ago; the
+# access gallery drops past empty troughs to a silted floor.
+MAP
+#############
+#...........#
+#.#########.#
+#.#.......#.#
+#.#.......#.#
+#.#.......#.#
+#.####.####.#
+#...........#
+######e######
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: e = LANDMARK_ENTRANCE
+
+COLOUR: # = (80, 92, 96) / (18, 24, 26)      # waterproofed masonry
+COLOUR: . = (150, 170, 175) / (30, 42, 46)   # silt over the cistern floor
+COLOUR: e = (180, 220, 230) / (26, 40, 46)   # gallery stair into the vault

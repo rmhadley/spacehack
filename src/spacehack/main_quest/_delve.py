@@ -185,10 +185,7 @@ def _camp_or_far_cache(
         except ValueError:
             _stamp = None
         if _stamp is not None:
-            game_map.landmark_footprint = (
-                set(getattr(game_map, "landmark_footprint", ()) or ())
-                | set(_stamp.footprint)
-            )
+            landmark.union_footprint(game_map, _stamp.footprint)
             _marker = _cache_marker_cell(game_map, _stamp.footprint)
             if _marker is not None:
                 return _marker

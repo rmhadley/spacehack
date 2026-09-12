@@ -12,9 +12,16 @@ attributes are stored on maps.
 
 from __future__ import annotations
 
-from . import engine, rumor
-from .data.digs import DEFAULT_PREFIXES, DEFAULT_SUFFIXES
-from .data.planets import PlanetSpec, list_planet_specs
+from . import engine, rumor, world
+from .data.digs import (
+    DEFAULT_PREFIXES,
+    DEFAULT_SUFFIXES,
+    LANDMARK_CHANCE,
+    LANDMARK_VARIANTS,
+    TIER_POOLS,
+)
+from .data.planets import PlanetSpec, find_planet_spec, list_planet_specs
+from .dungeon_params import DungeonParams
 from .text import get as _text_get
 
 CACHE_PREFIX = "dig:"
@@ -27,6 +34,8 @@ TEXT_KEYS: frozenset[str] = frozenset({
     "dig.reveal.title",
     "dig.reveal.text",
     "dig.pointer_line",
+    "dig.stairs_down_log",
+    "dig.stairs_up_log",
 })
 
 
@@ -106,3 +115,192 @@ def reveal_site(ctx) -> dict:
         ),
     )
     return site
+
+
+# --- generation (SETTLED 26/38): the spec feeds the generator -------------
+
+
+def derive_dig_params(spec: PlanetSpec) -> DungeonParams:
+    """One config per planet, derived from theme + mission tier
+    (SETTLED 26); ``spec.dig_params`` overrides wholesale. Future
+    planets derive automatically — nothing per-site, nothing
+    hardcoded."""
+    if spec.dig_params is not None:
+        return spec.dig_params
+    pool, density = TIER_POOLS[max(1, min(3, spec.mission_tier))]
+    tile_wall, tile_floor = _dig_tiles(spec.theme)
+    return DungeonParams(
+        width=64,
+        height=48,
+        min_room_size=4,
+        max_room_size=12,
+        room_fill_pct=0.6,
+        tile_wall=tile_wall,
+        tile_floor=tile_floor,
+        monster_pool=pool,
+        monster_density=density,
+    )
+
+
+def _dig_tiles(theme) -> tuple[world.Tile, world.Tile]:
+    """The planet's palette, re-kinded for the dig: its ground as the
+    floor, its solid terrain as the bedrock. No theme → the default
+    dungeon tiles."""
+    if theme is None:
+        return world.DUNGEON_WALL, world.DUNGEON_FLOOR
+    wall_src, floor_src = theme.tree, theme.floor
+    tile_wall = world.Tile(
+        kind="dungeon_wall", char="#", walkable=False,
+        fg=wall_src.fg, bg=_dim(wall_src.bg, 0.55),
+    )
+    tile_floor = world.Tile(
+        kind="dungeon_floor", char=".", walkable=True,
+        fg=floor_src.fg, bg=_dim(floor_src.bg, 0.8),
+    )
+    return tile_wall, tile_floor
+
+
+def _dim(color: tuple[int, int, int], factor: float) -> tuple[int, int, int]:
+    return tuple(int(c * factor) for c in color)
+
+
+def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Position]:
+    """One floor of a dig site: the BSP pass + the floor's connections
+    + the landmark sprinkle. Floor 1 keeps the generator's EXIT (the
+    way out); deeper floors swap it for STAIRS_UP; every non-bottom
+    floor gains a farthest STAIRS_DOWN. The caller caches the result
+    under ``dig:<planet>:<id>:<floor>`` — generation happens once per
+    save (SETTLED 29)."""
+    from .dungeon import generate_dungeon, populate_dungeon
+
+    spec = find_planet_spec(site["planet"])
+    params = derive_dig_params(spec)
+    game_map, spawn = generate_dungeon(params)
+    game_map.interior_cache_key = cache_key(site["planet"], site["id"], floor)
+    game_map.location_name = site["name"]
+    game_map.entry_spawn = spawn
+    if floor > 1:
+        # The generic generator's EXIT becomes the up-connection (the
+        # extension idiom).
+        game_map.tiles[spawn.y][spawn.x] = world.STAIRS_UP
+    _maybe_stamp_landmark(game_map, site, floor, spawn)
+    populate_dungeon(game_map, params, spawn, tier=_dig_tier(spec, floor))
+    depth = site_depth(spec, site["id"])
+    if floor < depth:
+        _place_stairs_down(game_map, spawn)
+    return game_map, spawn
+
+
+def _dig_tier(spec: PlanetSpec, floor: int) -> int:
+    """Difficulty climbs with depth (SETTLED 38): tier + floor - 1,
+    inside populate's 1-3 band."""
+    return max(1, min(3, spec.mission_tier + floor - 1))
+
+
+def _place_stairs_down(game_map: world.GameMap, spawn: world.Position) -> None:
+    """The deeper connection at the farthest free cell (the extension
+    idiom), stamped after population so no enemy stands on it."""
+    from .dungeon_extensions import _farthest_free_cell
+
+    down = _farthest_free_cell(game_map, spawn)
+    if down is not None:
+        game_map.tiles[down.y][down.x] = world.STAIRS_DOWN
+
+
+def _maybe_stamp_landmark(
+    game_map: world.GameMap, site: dict, floor: int, spawn: world.Position,
+) -> None:
+    """The authored-room sprinkle (SETTLED 25/32): seeded per
+    site+floor, a minority of floors; a layout that does not fit or
+    route here is skipped, leaving the plain dig."""
+    from . import landmark as landmark_module
+
+    roll = engine.seeded_rng(engine.INIT_SEED, "dig_landmark", site["id"], floor)
+    if roll.random() >= LANDMARK_CHANCE:
+        return
+    layout_id = landmark_module.choose_weighted_variant(
+        LANDMARK_VARIANTS, roll.random(),
+    )
+    try:
+        asset = landmark_module.load_landmark(layout_id)
+        stamp = landmark_module.stamp_landmark(game_map, asset, spawn)
+    except ValueError:
+        return
+    landmark_module.union_footprint(game_map, stamp.footprint)
+
+
+def find_site(ctx, planet_id: str, site_id: str) -> dict:
+    """The site record for a cache key; ValueError when unknown."""
+    for site in ctx.discovered_sites:
+        if site["id"] == site_id and site["planet"] == planet_id:
+            return site
+    raise ValueError(f"unknown dig site {planet_id}:{site_id}")
+
+
+def get_or_generate_floor(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Position]:
+    """Cached-or-fresh: every floor persists under its key (SETTLED
+    29) — cleared stays cleared, looted stays looted."""
+    key = cache_key(site["planet"], site["id"], floor)
+    cached = ctx.interiors.get(key)
+    if cached is not None:
+        return cached, cached.entry_spawn
+    game_map, spawn = generate_dig(ctx, site, floor)
+    ctx.interiors[key] = game_map
+    return game_map, spawn
+
+
+def is_dig_floor(game_map: world.GameMap) -> bool:
+    """Whether this map is a dig-site floor (its persisted cache key
+    carries the dig: prefix — the single identity source)."""
+    return parse_cache_key(getattr(game_map, "interior_cache_key", "")) is not None
+
+
+def transition(state, direction: int) -> tuple[world.GameMap, world.Entity]:
+    """One floor up/down (the extension idiom: arrive at the opposite
+    stair). Returns (map, player) for the caller to install; ValueError
+    when there is no floor that way or this is not a dig floor."""
+    parsed = parse_cache_key(getattr(state.game_map, "interior_cache_key", ""))
+    if parsed is None:
+        raise ValueError("not a dig floor")
+    planet_id, site_id, floor = parsed
+    target = floor + direction
+    if target < 1:
+        raise ValueError("the dig entrance is the top floor")
+    site = find_site(state.ctx, planet_id, site_id)
+    spec = find_planet_spec(planet_id)
+    if target > site_depth(spec, site_id):
+        raise ValueError("no floor below")
+    game_map, _ = get_or_generate_floor(state.ctx, site, target)
+    arrival = _arrival_position(game_map, direction)
+    if arrival is None:
+        raise ValueError("dig floor connection is unavailable")
+    _install_arrival(state, game_map, arrival)
+    return game_map, state.ctx.player
+
+
+def _arrival_position(game_map: world.GameMap, direction: int) -> world.Position | None:
+    """The opposite stair of the move: down-moves arrive at the deeper
+    floor's STAIRS_UP, up-moves at the floor's STAIRS_DOWN."""
+    from .dungeon_extensions import _find_stair_position
+
+    kind = "stairs_up" if direction > 0 else "stairs_down"
+    return _find_stair_position(game_map, kind)
+
+
+def stairs_log_line(direction: int) -> str:
+    """The stair-move log line (data/text single-source)."""
+    key = "dig.stairs_down_log" if direction > 0 else "dig.stairs_up_log"
+    return _text_get(key, "")
+
+
+def _install_arrival(state, game_map: world.GameMap, spawn: world.Position) -> None:
+    """Scrub stale players off both maps, then the shared entry
+    invariants — fog, a fresh transient player, the arrival reveal."""
+    from .dungeon_extensions import _remove_player
+    from .game_interactions import _install_dungeon_player
+
+    _remove_player(state.game_map)
+    _remove_player(game_map)
+    _player = _install_dungeon_player(game_map, spawn)
+    state.ctx.game_map = game_map
+    state.ctx.player = _player

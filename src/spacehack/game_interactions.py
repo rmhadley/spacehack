@@ -151,18 +151,24 @@ def _build_surface_dungeon(ctx, log, pid, planet_obj):
     ctx.interiors[_surface_key] = _dungeon_map
     return (_dungeon_map, _spawn)
 
+def _install_dungeon_player(dungeon_map, spawn):
+    """Fog, a fresh transient player, and the arrival reveal — the
+    shared invariants of every dungeon entry."""
+    from .dungeon import init_fog as _init_fog, reveal_around as _reveal_around
+    if dungeon_map.seen is None:
+        _init_fog(dungeon_map)
+    _dungeon_player = world.Entity(char='@', fg=(255, 255, 255), pos=spawn, name='Player')
+    dungeon_map.entities.append(_dungeon_player)
+    _reveal_around(dungeon_map, spawn)
+    return _dungeon_player
+
 def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     """Move the player onto a planet surface dungeon."""
     ctx = state.ctx
     log = state.log
-    from .dungeon import init_fog as _init_fog, reveal_around as _reveal_around
     # Quest NPCs are city-only: the experts stand in their guild
     # buildings, never inside surface dungeons (no duplicate copies).
-    if dungeon_map.seen is None:
-        _init_fog(dungeon_map)
-    _reveal_around(dungeon_map, spawn)
-    _dungeon_player = world.Entity(char='@', fg=(255, 255, 255), pos=spawn, name='Player')
-    dungeon_map.entities.append(_dungeon_player)
+    _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
     dungeon_map.location_name = f'{planet_obj.name} Surface'
     state.space_game_map = state.game_map
     state.space_player = state.player
@@ -791,12 +797,8 @@ def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard):
     ctx = state.ctx
     console = state.console
     log = state.log
-    from .dungeon import animate_breach as _animate_breach, init_fog as _init_fog, reveal_around as _reveal_around
-    if dungeon_map.seen is None:
-        _init_fog(dungeon_map)
-    _reveal_around(dungeon_map, spawn)
-    _dungeon_player = world.Entity(char='@', fg=(255, 255, 255), pos=spawn, name='Player')
-    dungeon_map.entities.append(_dungeon_player)
+    from .dungeon import animate_breach as _animate_breach
+    _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
     if not is_reboard:
         _animate_breach(ctx, console, dungeon_map, spawn, region_w=state.map_w, region_h=state.map_h)
     dungeon_map.location_name = npcspec.name

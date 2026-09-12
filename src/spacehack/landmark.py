@@ -37,6 +37,16 @@ class LandmarkStamp:
     arrival: world.Position | None = None
 
 
+def union_footprint(game_map: world.GameMap, footprint) -> None:
+    """Record a stamped footprint so panels, spawns, and stairs
+    respect it. Stampers that union footprints route through here;
+    single-landmark floors that replace the record wholesale are the
+    deliberate exception (deep cell)."""
+    game_map.landmark_footprint = (
+        set(getattr(game_map, "landmark_footprint", ()) or ()) | set(footprint)
+    )
+
+
 def choose_weighted_variant(variants, roll: float) -> str:
     """Choose a landmark layout ID from weighted variant data."""
     _positive = tuple(

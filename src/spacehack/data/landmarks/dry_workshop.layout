@@ -1,0 +1,25 @@
+# dry_workshop.layout - DRAFT (doc 42 phase 4, checkpoint item 8):
+# the Dry Workshop. A collapsed maintenance bay off the dig floor; the
+# benches still stand, the tools went to salvage long ago.
+MAP
+###########
+#.........#
+#.ooo.ooo.#
+#.........#
+#....d....#
+#.ooo.ooo.#
+#.........#
+#####e#####
+ENDMAP
+
+TILE: # = DUNGEON_WALL
+TILE: . = DUNGEON_FLOOR
+TILE: o = CITY_ORNAMENT
+TILE: d = DEBRIS
+TILE: e = LANDMARK_ENTRANCE
+
+COLOUR: # = (88, 84, 78) / (22, 21, 20)      # shored earth and rock
+COLOUR: . = (170, 150, 120) / (46, 40, 32)   # tracked-in floor
+COLOUR: o = (150, 130, 100) / (50, 42, 30)   # standing benches
+COLOUR: d = (140, 110, 80) / (52, 40, 28)    # the collapse that never got cleared
+COLOUR: e = (215, 170, 110) / (46, 36, 22)   # lit threshold

@@ -604,9 +604,15 @@ def _handle_non_movement_event(state, event):
 def _handle_stairs_down(state):
     """Handle a descending stair transition."""
     ctx, log = state.ctx, state.log
+    from .digs import is_dig_floor
+    from .digs import stairs_log_line as _dig_stairs_log
+    from .digs import transition as _dig_transition
     from .dungeon_extensions import enter_extension, extension_id_at, transition_floor
     try:
-        if ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
+        if is_dig_floor(state.game_map):
+            _next_map, _next_player = _dig_transition(state, 1)
+            _message = _dig_stairs_log(1)
+        elif ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
             _next_map, _next_player = transition_floor(ctx, 1)
             _message = 'You descend deeper into the facility.'
         else:
@@ -632,15 +638,21 @@ def _handle_stairs_down(state):
 def _handle_stairs_up(state):
     """Handle an ascending stair transition."""
     ctx, log = state.ctx, state.log
+    from .digs import is_dig_floor
+    from .digs import stairs_log_line as _dig_stairs_log
+    from .digs import transition as _dig_transition
     from .dungeon_extensions import leave_extension, transition_floor
     try:
-        if ctx.dungeon_extension is not None and ctx.dungeon_extension.active and ctx.dungeon_extension.current_floor > 1:
+        if is_dig_floor(state.game_map):
+            _parent_map, _parent_player = _dig_transition(state, -1)
+            _message = _dig_stairs_log(-1)
+        elif ctx.dungeon_extension is not None and ctx.dungeon_extension.active and ctx.dungeon_extension.current_floor > 1:
             _parent_map, _parent_player = transition_floor(ctx, -1)
             _message = 'You climb back toward the upper prison.'
         else:
             _parent_map, _parent_player = leave_extension(ctx, state.game_map)
             _message = 'You return to the Mars surface.'
-    except ValueError:
+    except (KeyError, ValueError):
         log.add('The stairs are sealed.')
     else:
         state.game_map, state.player = _parent_map, _parent_player
