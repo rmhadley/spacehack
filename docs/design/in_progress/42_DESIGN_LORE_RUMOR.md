@@ -1017,7 +1017,7 @@ amended with the favor exchange.
       teach-on-pickup (SETTLED 19)
 - [x] Determinism tests (same INIT_SEED → same routing; reroll →
       different legal routing; round-trip stability)
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint — PASSED (user, 2026-09-12)
 
   LANDED 2026-09-12 (builds 51a4846 → 7697f43, seven steps + the
   review round; gate green ~2260 tests). Build deviations from the
@@ -1084,6 +1084,24 @@ amended with the favor exchange.
       section's first paragraph gained one sentence — "New
       subjects reach you in play - by what you see, what you find -
       not only by asking." No chain telegraphing.
+
+### Playtest round (2026-09-12) — PASSED; four findings, all landed
+
+1. **Jump-time crash** (e31ae48): the dark stamp grew the spawn
+   rows to 4-tuples and ``_register_table_batch`` still unpacked 3 —
+   a real-path ``spawn_npcs`` regression test now pins the batch
+   shape (no test had covered it).
+2. **The shady tech is ALWAYS there** (32eab39, the item-7 ruling):
+   knowledge gates the passphrase row, not his existence; the
+   gated-spawn machinery retired in full (see 2.5's payoff bullet).
+3. **Q-screen polish** (5ed1cef, 990514d): the rumors pane's first
+   line shares the quests pane's row (no TAB jump); the ledger
+   strips trailing blanks AFTER the hint split (the phantom
+   scrollbar); the quests-tab empty footer matches the tab idiom
+   ("TAB rumors" / "ESC close").
+4. **T1 re-authored** (8a03475, user verbatim): one line now covers
+   both discovery doors — ships and ports — and closes on the ask
+   loop; see the Prose section.
 
   Implementation brief (3) — PROPOSED (refine session 2026-09-11):
 

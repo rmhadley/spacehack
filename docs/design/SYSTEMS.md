@@ -590,29 +590,49 @@ nobody designs against a ghost.
   origin y per host; TAB/SHIFT_TAB outcomes, host loop flips the
   sheet).
 - **Rumors (lore)** — knowledge as currency (doc 42): frozen
-  `RumorEntry` chains in `data/lore/`, prose single-sourced in
+  `RumorEntry` chains in `data/lore/` (the dark-ports chain — sources
+  are planet-scoped `(npc, planet, faction, floor, trait)` candidates
+  with authored `picks` width; trigger-delivered tiers carry
+  `triggers` and no sources), prose single-sourced in
   `data/text/08_rumors.json` (`rumor.<id>.*`); keyring
   `ctx.known_rumors` saved in heard order; pure resolvers in
-  `rumor.py` — `askable_topics` is the ONE ask surface (routing
-  predicate input, default all); source floors ride the talk_gate
-  shape read off the resolved sheet (dark reads neutral); the talk
-  host shows one Ask around row when the contact holds anything and
-  the sub-menu lists unheard openers + heard extensions; hearing
-  records verbatim through the quest-readout modal; the RUMORS tab
-  renders the ledger verbatim in heard order (`npc.py`:
-  `_handle_ask_around`; `rumor.py`: `hear`).
+  `rumor.py` — `askable_topics(known, rep, traits, npc, PLANET,
+  live=map)` is the ONE ask surface, scoped to the current planet and
+  the run's live routing; source floors ride the talk_gate shape read
+  off the resolved sheet (dark reads neutral); hearing records
+  verbatim through `rumor.present_hearing` (the ONE readout path —
+  hosts, triggers, pads); the RUMORS tab renders the ledger verbatim
+  in heard order (`npc.py`: `_handle_ask_around`; `rumor.py`: `hear`).
+  Seed routing (phase 3): pure INIT_SEED derivations in
+  `rumor_routing.py`, nothing serialized — `live_routes` picks each
+  entry's live candidate pairs (≥1 guaranteed; CONTINUE-stable,
+  Shift+S reroll-legal), `live_holdings` picks the exclusive holder
+  from `dealers.EXCLUSIVE_CANDIDATES`, `choose_dark_groups` marks
+  max(1, groups//4) ambient pirate groups dark (the per-tick
+  stragglers roll `flies_dark_coin` at the same rate). Discovery
+  doors: landing at a `dark_berth` port logs "This port didn't
+  verify any credentials." every landing and fires `dock_dark_port`
+  once (`game_interactions._dark_port_landing_beat`); hailing a
+  dark hull (no Broadcast line — `identity.npc_identity` returns
+  None for `Entity.flies_dark`, round-tripped on
+  `ProceduralSpawn.flies_dark`) fires `dark_hail`
+  (`comms._run_interaction_modal`); kills drop teaching pads while
+  unheard (`data/lore/finds.py`; `loot.maybe_spawn_pad` — knowledge
+  is the item, nothing held).
   Favor exchange (phase 2): `DealerSpec` rows in
   `data/lore/dealers.py` key the books by ROLE id — `ctx.rumor_favor`
   `{favor, earned}` ledgers saved beside the keyring;
   `offerable_rumors` never buys an entry the dealer authors as a
   source (no selling back to the teller, playtest ruling);
   `exclusive_offers` hides priced rows until affordable and takes
-  holdings as an explicit input (the phase-3 routing seam); the ask
-  sub-menu carries a live `Favor: N` line rebuilt per pass; the
-  Whisper berth keeper (`identity.KNOWLEDGE_GATES` read in
-  `npc._priced_rows`) sells the 2000cr cut-out only while
-  `dark_berth_4` is heard (`rumor.py`: `offer_rumor`/`buy_exclusive`;
-  `identity.py`: `CUTOUT_BROKERS`).
+  the live holdings as an explicit input; the ask sub-menu carries a
+  live `Favor: N` line rebuilt per pass. The Whisper shady tech —
+  ALWAYS on the city map by the containers (playtest ruling:
+  knowledge gates the row, not the existence; plain population
+  citizen) — sells the 2000cr cut-out through the passphrase row
+  "The Hush sent me." (`npc._PASSPHRASE_ROWS`, keyring-gated;
+  `identity.py`: `CUTOUT_BROKERS`). Dev: Shift+N logs the live
+  routing (`dev_mode.log_rumor_routing`).
 - **Mission boards** — keyed `(npc_id@planet)`; monthly refresh;
   slot fill from static catalog then faction generator; tier bands
   by planet `mission_tier` (+1 guild trait); militia/lab boards
