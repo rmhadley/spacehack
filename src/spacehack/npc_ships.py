@@ -20,7 +20,7 @@ from . import npc_movement
 from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship, map_speed
 from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
-from .rumor_routing import choose_dark_groups
+from .rumor_routing import choose_dark_groups, flies_dark_coin
 
 
 # ---------------------------------------------------------------------------
@@ -641,15 +641,34 @@ def _tick_spawn_npc(ctx, game_map, system) -> None:
     if _pos is None:
         return
 
-    game_map.entities.append(_make_npc_entity(_tick_spec, _pos, _mid))
-    # squad_id = movement_id so per-kill combat cleanup matches 1:1.
-    ctx.procedural_spawns.setdefault(getattr(system, 'id', ''), []).append(
-        ProceduralSpawn(npc_id=_tick_id, pos=_pos, squad_id=_mid)
+    _register_tick_spawn(
+        ctx, game_map, system, _tick_spec, _tick_id, _mid, _pos,
+        _initial_target,
     )
-    if _initial_target is not None:
-        _set_npc_path(ctx, _mid, _pos, _initial_target, game_map)
+
+
+def _register_tick_spawn(ctx, game_map, system, tick_spec, tick_id,
+                         mid, pos, initial_target) -> None:
+    """Register one tick spawn: the dark coin for pirates (doc 42
+    phase 2.5 — same share rate the arrival batch enforces), the
+    entity + ProceduralSpawn row (squad_id = movement_id so per-kill
+    cleanup matches 1:1), optional path, sensor ping."""
+    _dark = (
+        getattr(tick_spec, 'faction', 'pirate') == 'pirate'
+        and flies_dark_coin(_engine.INIT_SEED, getattr(system, 'id', ''), mid)
+    )
+    _ent = _make_npc_entity(tick_spec, pos, mid)
+    if _dark:
+        _ent.flies_dark = True
+    game_map.entities.append(_ent)
+    ctx.procedural_spawns.setdefault(getattr(system, 'id', ''), []).append(
+        ProceduralSpawn(npc_id=tick_id, pos=pos, squad_id=mid,
+                        flies_dark=_dark)
+    )
+    if initial_target is not None:
+        _set_npc_path(ctx, mid, pos, initial_target, game_map)
     ctx.log.add_colored(
-        f"Sensor ping: 1 signal detected in the area ({_tick_spec.name}).",
+        f"Sensor ping: 1 signal detected in the area ({tick_spec.name}).",
         _ml.COLOR_IMPORTANT_EVENT,
     )
 

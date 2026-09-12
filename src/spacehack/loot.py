@@ -27,7 +27,7 @@ def _loot_choice_label(loot_entity) -> str:
     """Build a friendly compact label for one nearby loot entity."""
     data = loot_entity.loot_data or {}
     if data.get("teaches"):
-        return "Data Pad"
+        return PAD_NAME
     item_type = data.get("item_type")
     if item_type in {"weapon", "armor"}:
         entry = _ground_equipment_loot_entry(loot_entity)
@@ -548,6 +548,9 @@ def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
     )
 
 
+PAD_NAME = "Data Pad"
+
+
 def maybe_spawn_pad(ctx: GameContext, game_map, pos, enemy_id: str) -> bool:
     """Drop a teaching pad beside a kill's loot (doc 42, SETTLED 19) —
     knowledge IS the item: nothing to the hold, nothing sellable. The
@@ -560,7 +563,7 @@ def maybe_spawn_pad(ctx: GameContext, game_map, pos, enemy_id: str) -> bool:
     if rumor_id is None or rumor_id in ctx.known_rumors:
         return False
     game_map.entities.append(_world.Entity(
-        char="%", fg=(255, 215, 0), pos=pos, name="Data Pad",
+        char="%", fg=(255, 215, 0), pos=pos, name=PAD_NAME,
         width=1, height=1, loot_data={"teaches": rumor_id},
     ))
     return True

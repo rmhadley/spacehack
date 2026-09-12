@@ -415,17 +415,24 @@ def _dealer_holdings(npc_id: str, holdings: dict) -> tuple[tuple[str, int], ...]
     return holdings.get(npc_id, ())
 
 
-def _ask_rows(ctx, npc):
-    """(topics, offers, buys) for one sub-menu pass — offers and buys
-    exist only at a dealer (ruling 10)."""
+def _ask_surface(ctx, npc) -> list:
+    """The one ask-surface read shared by the row check and the
+    sub-menu pass: live routing over the resolved sheet, scoped to
+    the current planet."""
     from . import identity
 
     _routes, _holdings = _live_routing()
-    topics = rumor_module.askable_topics(
+    return rumor_module.askable_topics(
         ctx.known_rumors, identity.effective_reputation(ctx),
         ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
         live=_routes,
     )
+
+
+def _ask_rows(ctx, npc):
+    """(topics, offers, buys) for one sub-menu pass — offers and buys
+    exist only at a dealer (ruling 10)."""
+    topics = _ask_surface(ctx, npc)
     if not rumor_module.is_dealer(npc.id):
         return topics, [], []
     offers = rumor_module.offerable_rumors(
@@ -433,7 +440,7 @@ def _ask_rows(ctx, npc):
     )
     buys = rumor_module.exclusive_offers(
         ctx.known_rumors, ctx.rumor_favor, npc.id,
-        _dealer_holdings(npc.id, _holdings),
+        _dealer_holdings(npc.id, _live_routing()[1]),
     )
     return topics, offers, buys
 
@@ -523,14 +530,7 @@ def _offers_rumors(ctx, npc) -> bool:
     extend, read off the RESOLVED sheet (dark reads neutral)."""
     if rumor_module.is_dealer(npc.id):
         return True
-    from . import identity
-
-    _routes, _holdings = _live_routing()
-    return bool(rumor_module.askable_topics(
-        ctx.known_rumors, identity.effective_reputation(ctx),
-        ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
-        live=_routes,
-    ))
+    return bool(_ask_surface(ctx, npc))
 
 
 def _run_npc_talk(

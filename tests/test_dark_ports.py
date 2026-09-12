@@ -259,3 +259,69 @@ def test_log_rumor_routing_names_carriers_and_holder():
         assert "dark pirate groups: 1 in" in _text
     finally:
         engine_mod.INIT_SEED = 0
+
+
+# --- review fixes: Continue rebuild + tick coin + readout dark hulls --------
+
+
+def test_gated_npc_survives_the_continue_rebuild():
+    """The reviewer's blocker repro: city-mode save with the tech
+    spawned → Continue rebuilds via _rebuild_city — the saved
+    position row is the gate proof, so he must survive."""
+    from src.spacehack import city_npcs
+    from src.spacehack.data.planets import load_planet
+    from src.spacehack.data.solar_systems import system_for_planet
+    from src.spacehack.saveload_maps import _rebuild_city
+
+    ctx = _ctx(known=["dark_berth_4"])
+    ctx.game_map = load_planet("lal_c")
+    city_npcs.ensure_gated_npcs(ctx, ctx.game_map, _lal_c_spec())
+    tech = next(
+        e for e in ctx.game_map.entities
+        if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+    )
+    tech.pos = Position(41, 42)  # he wandered before the save
+    saved = city_npcs.save_city_npc_positions(ctx)
+    assert "lalc_shady_tech" in saved
+
+    rebuilt = _rebuild_city(
+        system_for_planet("lal_c").id, ctx.log, None, 10, 10, "lal_c",
+        saved,
+    )
+    tech_after = [
+        e for e in rebuilt.game_map.entities
+        if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+    ]
+    assert len(tech_after) == 1
+    assert (tech_after[0].pos.x, tech_after[0].pos.y) == (41, 42)
+
+
+def _lal_c_spec():
+    from src.spacehack.data.planets import find_planet_spec
+
+    return find_planet_spec("lal_c")
+
+
+def test_tick_coin_is_deterministic_and_share_shaped():
+    from src.spacehack.rumor_routing import flies_dark_coin
+
+    assert flies_dark_coin(3, "sol", "tick_npc_sol_pirate_raider_1") == \
+        flies_dark_coin(3, "sol", "tick_npc_sol_pirate_raider_1")
+    draws = sum(
+        flies_dark_coin(s, "sol", "tick_npc_sol_pirate_raider_1")
+        for s in range(200)
+    )
+    assert 20 < draws < 100, f"share drifted: {draws}/200"
+
+
+def test_shift_n_names_live_dark_hulls():
+    from src.spacehack import dev_mode
+
+    ctx = _pad_ctx()
+    hull = Entity("R", (255, 80, 80), Position(1, 1), "Pirate Raider",
+                  npc_ship_id="pirate_raider")
+    hull.flies_dark = True
+    ctx.game_map.entities.append(hull)
+    dev_mode.log_rumor_routing(ctx)
+    _text = "\n".join(e.text for e in ctx.log.history())
+    assert "dark hulls here: Pirate Raider" in _text

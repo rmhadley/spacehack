@@ -503,4 +503,16 @@ def log_rumor_routing(ctx) -> None:
     for _dealer, _rows in sorted(live_holdings(INIT_SEED).items()):
         for _rumor_id, _price in _rows:
             ctx.log.add(f"  exclusive {_rumor_id}: held by {_dealer} @ {_price}")
-    ctx.log.add(f"  dark pirate groups: 1 in {DARK_GROUP_SHARE} (seeded per system)")
+    _map = getattr(ctx, "game_map", None)
+    _dark_hulls = sorted({
+        getattr(_e, "name", "?")
+        for _e in getattr(_map, "entities", ()) or ()
+        if getattr(_e, "flies_dark", False)
+    })
+    ctx.log.add(
+        "  dark pirate groups: 1 in "
+        f"{DARK_GROUP_SHARE} (seeded per system)"
+    )
+    ctx.log.add(
+        "  dark hulls here: " + (", ".join(_dark_hulls) if _dark_hulls else "none")
+    )

@@ -65,3 +65,11 @@ def choose_dark_groups(
     count = min(len(groups), max(1, len(groups) // DARK_GROUP_SHARE))
     rng = seeded_rng(seed, "rumor_dark", system_id, *groups)
     return frozenset(rng.sample(groups, count))
+
+
+def flies_dark_coin(seed: int, system_id: str, movement_id: str) -> bool:
+    """The share-rate coin for single-group spawns (tick traffic) —
+    the same 1-in-N rate the batch choice enforces with its
+    guaranteed minimum."""
+    rng = seeded_rng(seed, "rumor_dark_tick", system_id, movement_id)
+    return rng.random() < 1 / DARK_GROUP_SHARE
