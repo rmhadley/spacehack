@@ -119,4 +119,6 @@ SPEC = PlanetSpec(
     tech_level=4,
     mission_tier=4,
     dark_berth=True,
+    dig_min_floors=2,
+    dig_max_floors=6,
 )

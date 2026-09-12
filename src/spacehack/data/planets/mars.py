@@ -191,4 +191,6 @@ SPEC = PlanetSpec(
         cache_guardian_pool=("sentry_drone",),
         cache_guardian_count=1,
     ),
+    dig_min_floors=1,
+    dig_max_floors=3,
 )

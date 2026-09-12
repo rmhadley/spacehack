@@ -115,4 +115,6 @@ SPEC = PlanetSpec(
     # missions that out-tier Earth no longer pin to it — they float
     # to any matching-tier planet instead.
     mission_tier=1,
+    dig_min_floors=1,
+    dig_max_floors=2,
 )

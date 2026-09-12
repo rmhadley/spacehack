@@ -132,4 +132,6 @@ SPEC = PlanetSpec(
         ("machine_parts", 8),
     ),
     tech_level=2,
+    dig_min_floors=1,
+    dig_max_floors=2,
 )

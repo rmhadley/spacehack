@@ -62,4 +62,6 @@ SPEC = PlanetSpec(
     demands=(("food_rations", 10), ("electronics", 8), ("fuel_cells", 12)),
     tech_level=4,
     mission_tier=4,
+    dig_min_floors=1,
+    dig_max_floors=2,
 )

@@ -117,10 +117,13 @@ def test_default_pools_fill_unauthored_specs():
 
 def test_depth_lands_within_spec_bounds():
     spec = find_planet_spec("mars")
+    assert (spec.dig_min_floors, spec.dig_max_floors) == (1, 3)
     tight = dataclasses.replace(spec, dig_min_floors=3, dig_max_floors=5)
     for n in range(1, 15):
         assert 3 <= digs.site_depth(tight, f"s{n}") <= 5
-        assert 1 <= digs.site_depth(spec, f"s{n}") <= 2
+        assert 1 <= digs.site_depth(spec, f"s{n}") <= 3
+        default = dataclasses.replace(spec, dig_min_floors=1, dig_max_floors=2)
+        assert 1 <= digs.site_depth(default, f"s{n}") <= 2
 
 
 def test_depth_min_beats_inverted_max():

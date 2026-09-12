@@ -1609,6 +1609,19 @@ amended with the favor exchange.
     (the placeholder spec only), no world-map site pins (menu rows
     only), no derelict-site crossover content, no doc-43 content,
     no SYSTEMS.md close work (phase close).
+
+  **Per-planet depth table (user tuning pass, 2026-09-12 — "let's
+  roll through all planet specs and get some variety in there…
+  max max 8 for now"):** every PlanetSpec now authors
+  ``dig_min_floors``/``dig_max_floors`` — the SETTLED 38 default
+  (1-2) remains for future planets only. Home Sol + the militarized
+  strip stay shallow (Earth/Venus/Mercury/Depot/blockades 1-2;
+  Mars/AC-I/Cygni/Indi/Procyon b/stations 1-3); the mid belt runs
+  1-4 to 2-4 (AC-III, Barnard c, Epsilon Eri, Tau Cet, Groombridge)
+  with the old delve worlds deeper (Barnard b, Procyon c, Vega b
+  2-5); the warlord frontier digs deepest — Deadfall/Whisper 2-6,
+  Ember/Wolf 359 b 3-7, and Cinder is the showpiece at 3-8. Frontier
+  bands with min > 1 mean EVERY site there descends.
   - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
     1. Shift+M: a site reveals — the readout plays; Q → RUMORS
        shows the pointer line ("Charts a buried site: <name>, on

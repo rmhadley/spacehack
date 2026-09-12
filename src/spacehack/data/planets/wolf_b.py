@@ -162,4 +162,6 @@ SPEC = PlanetSpec(
         cache_guardian_pool=(),
     ),
     dark_berth=True,
+    dig_min_floors=3,
+    dig_max_floors=7,
 )

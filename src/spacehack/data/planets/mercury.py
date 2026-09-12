@@ -129,4 +129,6 @@ SPEC = PlanetSpec(
         # the pool serves only layout-less delves.
         cache_guardian_pool=(),
     ),
+    dig_min_floors=1,
+    dig_max_floors=2,
 )

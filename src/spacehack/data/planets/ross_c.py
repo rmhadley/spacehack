@@ -148,4 +148,6 @@ SPEC = PlanetSpec(
     ),
     tech_level=4,
     mission_tier=4,
+    dig_min_floors=3,
+    dig_max_floors=8,
 )
