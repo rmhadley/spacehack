@@ -1351,6 +1351,43 @@ amended with the favor exchange.
     9. Guide diff: the discovery sentence quoted before/after; no
        chain telegraphing.
 
+## Pre-implementation audit — phase 4 (2026-09-12)
+
+1. **Existing classes / modules to extend or reuse.**
+   - Generator: ``dungeon_bsp.generate_dungeon(DungeonParams)`` (dungeon_bsp.py:9; ``DungeonParams`` at dungeon_params.py:10-34 — theming is the two ``world.Tile`` fields ``tile_wall``/``tile_floor``). The BSP generates NO stairs — one EXIT at the spawn wall (dungeon_bsp.py:195-223). Stairs idioms live in dungeon_extensions.py: the EXIT→STAIRS_UP overwrite (:345-353) and the farthest-free-cell pick (:53-67).
+   - Population: ``populate_dungeon(map, params, spawn, tier=)`` (dungeon_population.py:181) — tier scaling built in (clamped 1-3); scatter already excludes stairs/footprints, ≥5 from spawn.
+   - Landmarks: ``landmark.stamp_landmark(map, landmark_map, spawn)`` (:384) + ``choose_weighted_variant`` (:40) + ``load_landmark`` (:57, data/landmarks/); a layout needs one ``landmark_entrance`` (glyph ``e``) or exactly one door, and ≤1 arrival/console/stairs_down (landmark.py:93-131) — dig landmarks author none of those.
+   - Entry idiom: ``_enter_planet_surface`` (game_interactions.py:154-176) — its fog/reveal/player/mode/return-pair block extracts into a shared ``_install_dungeon_entry`` helper that the authored path and the dig path both call. EXIT bump → ``_handle_dungeon_exit_tile`` (game_flow.py:763) returns to space — so floor 1 KEEPS the BSP EXIT; floors >1 overwrite it with STAIRS_UP.
+   - Stairs handling: game_loop ``_handle_stairs_down``/``_handle_stairs_up`` (:604/:632) gain a thin dig branch keyed off the map's ``interior_cache_key`` prefix ``dig:`` — NO new map attributes: the key is already persisted (saveload_maps.py:157) and parsing yields planet/site/floor, so no ``_optional_map_fields``/``_apply_extension_attributes`` twins. Arrival position scans the target map for the opposite stair (the extension idiom), no stored positions.
+   - Menu: ``menus/_planet.py`` ``_build_menu_items`` (:19-34) appends one "Explore <site>" row per discovered site on the planet; ``_run_planet_menu`` (:74-97) resolves the picked site; ``_resolve_planet_wall`` (game_interactions.py:105-116) dispatches to ``digs.enter_dig_site``. Authored-row gating (``has_explorable_sites``, main-quest unlock) untouched.
+   - Doors: ground hook = one line beside the three pool drops in ``combat/_rules_ground.on_kill`` (:740-758); derelict pad = the generic wreck-board branch of ``_boardable_wreck_layout`` (the :701 derelict path — mission salvage and the main-quest wreck excluded); C-terminal roll = the non-capture branch of ``_resolve_computer_terminal`` (:538-550), rolled once at first power-restoration. Pickup: ``loot._open_single_loot_pickup`` (:589) gains a ``reveals_site`` branch beside ``teaches`` (:591-593) → ``digs.reveal_site``.
+   - Ledger: ``_render_rumors_pane`` (menus/_quest_log.py:123-157) appends pointer lines after the keyring loop (:152).
+   - State: ``ctx.discovered_sites`` beside ``interiors`` (game_context.py:265); ``_dig_fields``/``_restore_dig_fields`` in saveload.py beside the lore family (:142-153, wired at :187/:829); New Game clears via fresh GameContext (game_loop.py:884).
+   - Dev: Shift+M is free (_DEV_SHIFT_KEYS, game_loop.py:361-373; matcher in input_helpers.py; grant in dev_mode.py — the ``log_rumor_routing`` shape).
+   - Text: ``data/text/09_digs.json`` auto-registers via the glob (text.py:186); call sites ``.format()`` placeholders (text.py:207; game_interactions.py:419 precedent).
+   - Registry: ``list_planet_specs()`` (data/planets/__init__.py:191) = every planet; PlanetSpec gains the dig fields near ``dungeon_params`` (:106).
+
+2. **Duplication hotspots.**
+   - Dig floor generation vs extension floor generation (BSP + stairs + populate) — digs.py MIRRORS the idiom but shares no extension machinery (no DungeonExtensionSpec); shared primitives are the BSP generator, the farthest-free-cell pick, ``stamp_landmark``, ``populate_dungeon``.
+   - The entry-install block (fog/reveal/player/mode/return-pair) — ONE extracted helper in game_interactions used by both authored surface entry and dig entry.
+   - Extension stairs branch vs dig stairs branch in game_loop — both thin delegates; all dig logic in digs.py.
+   - Pad spawn — ground and derelict doors roll through one ``digs`` helper (rate lookup inside), the shape of ``loot.maybe_spawn_pad``.
+   - Readout + ledger pointer both resolve their templates through data/text — hosts never inline dig prose.
+
+3. **DRY strategy.** One ``digs.py`` facade (reveal / derive / generate / enter / transition / doors); one entry helper; one pad helper; the cache-key parser as the single dig-floor identity source; loot through the pluggable spec in ``data/digs/``.
+
+4. **Ratchet.** Tight modules: combat/_rules_ground 996 (+2 — import + one call; if it crosses, the hook moves beside ``_spawn_loot_drops``'s callers), game_interactions 978 (+~12), game_loop 932 (+~12), saveload 878 (+~12), loot 611 (+~8), _quest_log 598 (+~12), input_helpers 467 (+~6), dev_mode 518 (+~10), game_context 433 (+3), planets/__init__ 432 (+6), menus/_planet 97 (+~15). New: digs.py ~350, data/digs/__init__.py ~80.
+
+5. **Pinned consequences.**
+   - Depth is NOT stored: sites are ``{id, planet, name}`` (brief scope); depth derives pure from ``seeded_rng(INIT_SEED, "dig_depth", site_id)`` within the spec's bounds at every read — Continue-stable, and the list is the only new round-trip.
+   - Site ids sequential ``s<n>`` at reveal; cache keys ``dig:<planet>:<id>:<floor>``; floor 1 keeps EXIT, deeper floors STAIRS_UP; arrive at the opposite stair.
+   - Door rolls ride engine.RNG (runtime, save-pinned RNG state); the reveal derivation (planet/name/depth) rides INIT_SEED (SETTLED 7/28).
+   - The humanoid pad-dropper set excludes ``civillian_bystander`` (combatants only; data-authored, tunable).
+   - Dig Explore rows ignore the main-quest surface gate — discovery is the gate.
+   - Placeholder loot: planet ``produces`` goods in tier+floor-scaled quantities via the pluggable loot spec in data/digs (SETTLED 35).
+   - Landmark sprinkle chance seeded per site+floor; landmarks author no stairs/console/arrival markers.
+   - PROSE GATE: the reveal template, pointer line, default name pools, landmark names/flavor, and the guide sentence are DRAFTS, quoted for approval at the playtest checkpoint (brief item 8).
+
 ### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11; re-scoped 2026-09-12)
 - [ ] Discovered-sites player state + the three RNG-rare discovery
       doors (humanoid-enemy datapads, derelict datapads, the
