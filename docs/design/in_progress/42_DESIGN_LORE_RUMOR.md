@@ -1389,16 +1389,104 @@ amended with the favor exchange.
    - PROSE GATE: the reveal template, pointer line, default name pools, landmark names/flavor, and the guide sentence are DRAFTS, quoted for approval at the playtest checkpoint (brief item 8).
 
 ### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11; re-scoped 2026-09-12)
-- [ ] Discovered-sites player state + the three RNG-rare discovery
+- [x] Discovered-sites player state + the three RNG-rare discovery
       doors (humanoid-enemy datapads, derelict datapads, the
       boarded ship's C terminal) — SETTLED 25, 27, 28
-- [ ] Planet-menu Explore rows per discovered site, proc-generated
+- [x] Planet-menu Explore rows per discovered site, proc-generated
       site names; config-driven BSP generation (spec-fed: theme,
       tier-scaled difficulty/loot; landmark-room sprinkle) —
       SETTLED 25, 26, 28
-- [ ] Persisted revisitable interiors (the martian-caves idiom);
+- [x] Persisted revisitable interiors (the martian-caves idiom);
       placeholder tier-scaled loot — SETTLED 29, 30
 - [ ] Playtest checkpoint
+
+  LANDED 2026-09-12 (builds 6c5f31a → 16a0eba, six review-gated
+  steps; gate green ~2313 tests). Build deviations from the brief,
+  all flagged in the doc or the review rounds: depth is derived pure
+  from INIT_SEED + site id at read time (never stored — the sites
+  list stays ``{id, planet, name}``); cache keys ``dig:<planet>:<id>:<floor>``
+  are the single identity source (parsing replaces new map attrs and
+  their save twins); the reveal pads share the "Data Pad" label;
+  same-planet site names dedupe (seeded walk over the pool cross
+  product, numbered fallback); the landmark-footprint union was
+  extracted to ``landmark.union_footprint`` and the stairs-down now
+  respects footprints (review-measured 53% overlap hole, fixed);
+  dungeon entry state shuffle extracted once
+  (``game_interactions._adopt_dungeon_entry`` — surface, boarding,
+  and dig entries share it); Shift+M shadows the uppercase-M map
+  alias in NON-dev play (pre-existing dev-table pattern; noted on
+  checklist item 1).
+
+  **Playtest checkpoint — checklist** (numbered; SPACEHACK_DEV run;
+  supersedes the brief's checklist where they differ):
+
+  0. Setup: SPACEHACK_DEV run with a fresh dev save (frigate +
+     credits). Shift+S rerolls the seed between items where noted.
+  1. Shift+M: a site reveals — the readout plays; Q → TAB → RUMORS
+     shows "Charts a buried site: <name>, on <planet>."; bumping
+     that planet's tile shows "Explore <name>" on the menu; other
+     planets show nothing new. Press Shift+M again: a SECOND,
+     distinct site appears (stacking, SETTLED 31), each with its own
+     row. (Note: Shift+M shadows uppercase-M's map alias in non-dev
+     play — the pre-existing dev-table pattern; dev builds unaffected.)
+  2. Fly to the site and Explore: a themed, tier-scaled dungeon
+     generates — wall/floor colors from the planet's palette,
+     monsters at the planet's tier, 2-3 supply caches carrying the
+     planet's own trade goods; the location banner reads the site's
+     name.
+  3. Walk back to the EXIT on floor 1 → you return to space.
+     Re-enter via the planet menu: the SAME map, exactly as you left
+     it (cleared stays cleared, looted stays looted, fog stays
+     revealed).
+  4. Depth: Shift+M until a 2-floor site turns up (deeper planets
+     author wider ranges) — descend the '>' stairs: floor 2 is
+     harder and its caches are richer; '<' returns you to floor 1 at
+     the stairs; bottom floors have no stairs down; stairs never sit
+     inside special rooms and caches never cover stairs.
+  5. Landmarks: reveal several sites (Shift+S + Shift+M) — a special
+     room appears on a minority of floors (the Sealed Reliquary /
+     the Dry Workshop / the Dry Cistern), distinct masonry, clean
+     paste, lit threshold.
+  6. Doors (rare by design — 1-in-12 / 1-in-8 / 1-in-6): (a) kill a
+     humanoid enemy (pirate raider, rifleman, consortium enforcer or
+     gunner, militia trooper) on the ground — occasionally a gold
+     "Data Pad" drops beside the loot; pickup consumes it and plays
+     the reveal; (b) board a generic derelict — occasionally a pad
+     is scattered inside; (c) activate a derelict's C terminal
+     (power restore) — occasionally the reveal fires on the first
+     restore. Mission-salvage and main-quest wrecks never carry
+     pads; capture consoles and quest consoles never roll.
+  7. Regression: the authored explorables (mars signal site + caves,
+     mercury, wolf_b, barnards_b, procyon_c) explore exactly as
+     before; the dark-ports chain end-to-end (dock line, carriers,
+     passphrase row) is untouched; plain M still opens the map in
+     dev play.
+  8. Save → quit → Continue: sites, ledger lines, depths, and every
+     visited floor survive with state intact; Shift+S reroll changes
+     only FUTURE reveals — existing sites persist.
+  9. Prose read-through (prose gate) — approve or red-line each:
+     - Readout title: "Buried Site"
+     - Readout body: "The pad holds survey charts for {planet}. One
+       entry is still flagged: a dig site, {name}. The find is
+       logged - the planet's explore options now list it."
+     - Pointer line: "Charts a buried site: {name}, on {planet}."
+     - Stair lines: "You descend deeper into the dig site." /
+       "You climb back up through the dig site."
+     - Entry line: "You descend into {name}."
+     - Menu row description: "Dig into <planet>'s <site name>"
+     - Landmark pieces (names + flavor, layout-file authored): the
+       Sealed Reliquary ("the old crew sealed something behind
+       ornament work and left it lit"), the Dry Workshop ("the
+       benches still stand, the tools went to salvage long ago"),
+       the Dry Cistern ("a water vault the planet drank centuries
+       ago").
+     - Default name pools: prefixes "Sunken, Buried, Silent,
+       Forgotten, Rusted, Hollow, Shattered, Deep, Ashen, Lost" ×
+       suffixes "Vault, Warren, Gallery, Cistern, Reliquary,
+       Foundry, Terrace, Annex, Sublevel, Cache" (spec pools
+       override).
+  10. Guide diff (before/after quoted at the handoff) — the Rumors
+      section's second paragraph gained the site-charts sentence.
 
   (Rulings SETTLED 20-24 + 25-37; legendary loot is deferred per
   SETTLED 21.)
