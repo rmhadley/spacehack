@@ -215,20 +215,6 @@ def restore_city_interior_parent(ctx, rebuilt) -> None:
     interior.city_parent_door = tuple(door)
 
 
-def _ensure_gated_population(state, parent_map) -> None:
-    """The gated city population re-check on interior exit (doc 42
-    phase 2.5) — the shady tech appears once the chain names him."""
-    from .city_npcs import ensure_gated_npcs
-    from .data.planets import find_planet_spec
-    try:
-        ensure_gated_npcs(
-            state.ctx, parent_map,
-            find_planet_spec(getattr(state, "current_city_id", "")),
-        )
-    except KeyError:
-        pass  # no planet spec — nothing gated to place
-
-
 def exit_city_interior(state) -> str:
     """Return from a city interior to its exterior entrance."""
     interior = state.game_map
@@ -259,7 +245,6 @@ def exit_city_interior(state) -> str:
     state.current_mode = "city"
     state.ctx.game_map = parent_map
     state.ctx.player = parent_player
-    _ensure_gated_population(state, parent_map)
     state.log.add("You step back outside.")
     return "HANDLED"
 

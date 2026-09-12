@@ -69,8 +69,12 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
 # The passphrase rows (doc 42 phase 2.5): an install option that IS
-# the passphrase the chain sold you — user-settled wording.
-_PASSPHRASE_ROWS: dict[str, str] = {"shady_tech": "The Hush sent me."}
+# the passphrase the chain sold you — user-settled wording. The row
+# exists only once the gate rumor is heard: knowledge gates access,
+# not existence (the vendor is always on the map).
+_PASSPHRASE_ROWS: dict[str, tuple[str, str]] = {
+    "shady_tech": ("The Hush sent me.", "dark_berth_4"),
+}
 
 
 def _append_priced_items(items, scrub_price, cutout_price, rig_price,
@@ -117,7 +121,7 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
     ]
     _append_priced_items(
         items, scrub_price, cutout_price, rig_price,
-        cutout_label=_PASSPHRASE_ROWS.get(getattr(npc, "id", "")),
+        cutout_label=_passphrase_label(getattr(npc, "id", "")),
     )
     _append_rumor_items(items, ask_around)
     items.extend(
@@ -223,14 +227,31 @@ def _rig_offer(ctx, npc_id: str) -> int | None:
     return rig_price(npc_id)
 
 
+def _passphrase_label(npc_id: str) -> str | None:
+    """A passphrase row's label, when the NPC carries one."""
+    _row = _PASSPHRASE_ROWS.get(npc_id)
+    return _row[0] if _row else None
+
+
+def _passphrase_gate_met(ctx, npc_id: str) -> bool:
+    """A passphrase row's keyring gate — un-gated NPCs pass."""
+    _row = _PASSPHRASE_ROWS.get(npc_id)
+    return _row is None or _row[1] in ctx.known_rumors
+
+
 def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
     """(scrub, cutout, rig) row prices — None where no row shows
-    (unowned, at the right NPC)."""
+    (unowned, at the right NPC; a passphrase row also needs its
+    gate rumor heard)."""
     from . import identity
 
+    _cutout = (
+        _cutout_offer(ctx, npc_id)
+        if _passphrase_gate_met(ctx, npc_id) else None
+    )
     return (
         identity.scrub_price(npc_id),
-        _cutout_offer(ctx, npc_id),
+        _cutout,
         _rig_offer(ctx, npc_id),
     )
 

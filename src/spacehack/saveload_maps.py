@@ -563,7 +563,6 @@ def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id, city_npc_po
     solar_system_module.current_solar_system_id = system_id
 
     game_map = planets_load_planet(city_id)
-    _restore_gated_city_npcs(game_map, city_id, city_npc_positions)
     _restore_city_npc_positions(game_map, city_npc_positions)
     player_ent = _make_walker_entity(world.Position(pos_x, pos_y))
     game_map.entities.append(player_ent)
@@ -571,27 +570,6 @@ def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id, city_npc_po
         hangar = _make_ship_entity(owned_ship, _planet_anchor(city_id))
         game_map.entities.append(hangar)
     return _RebuiltMap(game_map, player_ent, "city", city_id, system_id, None, None)
-
-
-def _restore_gated_city_npcs(game_map, city_id, city_npc_positions) -> None:
-    """Re-place gated population templates that were live at save
-    time (doc 42 phase 2.5). ``place_city_npcs`` never places them
-    and the ensure passes run at landing / interior exit — the load
-    rebuild is the third site. A saved position row IS the proof the
-    gate was met; no keyring read needed (the rebuild is ctx-free)."""
-    if not city_npc_positions:
-        return
-    from .city_npcs import _place_city_npc
-    from .data.planets import find_planet_spec
-    try:
-        _spec = find_planet_spec(city_id)
-    except KeyError:
-        return
-    for _template in getattr(_spec, "city_npc_population", ()) or ():
-        if not getattr(_template, "requires_rumor", ""):
-            continue
-        if _template.id in city_npc_positions:
-            _place_city_npc(game_map, _template)
 
 
 def _restore_city_npc_positions(game_map, city_npc_positions) -> None:

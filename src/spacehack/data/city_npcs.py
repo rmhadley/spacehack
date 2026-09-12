@@ -40,9 +40,6 @@ class CityNpc:
         spawn: ``(x, y)`` anchor on the city map (walkable pavement).
         wander_radius: how far the NPC wanders from its anchor (0 = hold).
         move_chance: probability per city tick of taking a step (0-1).
-        requires_rumor: when set, the template spawns only once that
-            rumor is on the keyring — the gated population
-            (``city_npcs.ensure_gated_npcs``; doc 42 phase 2.5).
     """
     id: str
     npc_char_id: str
@@ -50,7 +47,6 @@ class CityNpc:
     npc_id: str = ""
     wander_radius: int = 80
     move_chance: float = 0.8
-    requires_rumor: str = ""
 
 
 # Earth's ambient population. NPCs are placed on the road-adjacent
@@ -255,12 +251,12 @@ LAL_C_POPULATION: tuple[CityNpc, ...] = (
     CityNpc("lalc_lane_watch", "militia_trooper", (68, 47), wander_radius=55, move_chance=0.8),
     CityNpc("lalc_ledger_runner", "civillian_bystander", (18, 64), wander_radius=18, move_chance=0.85),
     # The dark-ports payoff (doc 42 phase 2.5): a technician who
-    # looks shady, holding by the containers south of the bounty
-    # office — spawns only once the chain names him (tier 4).
+    # looks shady, ALWAYS holding by the containers south of the
+    # bounty office — his install row (the passphrase) is keyed on
+    # the keyring instead; knowledge gates access, not existence.
     CityNpc(
         "lalc_shady_tech", "civillian_bystander", (80, 66),
         npc_id="shady_tech", wander_radius=0, move_chance=0,
-        requires_rumor="dark_berth_4",
     ),
 )
 

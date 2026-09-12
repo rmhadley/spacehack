@@ -198,25 +198,12 @@ def test_already_heard_pad_consumes_silently(monkeypatch):
 # --- the shady tech (doc 42 phase 2.5: the gated city spawn) ---------------
 
 
-def test_shady_tech_spawns_gated_at_the_containers():
-    from src.spacehack import city_npcs
-    from src.spacehack.data.planets import find_planet_spec, load_planet
+def test_shady_tech_is_always_at_the_containers():
+    """Playtest ruling (user, 2026-09-12): he is ALWAYS there —
+    knowledge gates the passphrase row, not his existence."""
+    from src.spacehack.data.planets import load_planet
 
-    spec = find_planet_spec("lal_c")
     game_map = load_planet("lal_c")
-    # The build-time population never places gated templates...
-    assert not any(
-        getattr(e, "city_npc_id", "") == "lalc_shady_tech"
-        for e in game_map.entities
-    )
-    # ...and the ensure pass does nothing while tier 4 is unheard.
-    city_npcs.ensure_gated_npcs(_ctx(), game_map, spec)
-    assert not any(
-        getattr(e, "city_npc_id", "") == "lalc_shady_tech"
-        for e in game_map.entities
-    )
-    # Heard: he appears at his anchor, exactly once.
-    city_npcs.ensure_gated_npcs(_ctx(known=["dark_berth_4"]), game_map, spec)
     tech = [
         e for e in game_map.entities
         if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
@@ -224,11 +211,6 @@ def test_shady_tech_spawns_gated_at_the_containers():
     assert len(tech) == 1
     assert (tech[0].pos.x, tech[0].pos.y) == (80, 66)
     assert tech[0].npc_id == "shady_tech"
-    city_npcs.ensure_gated_npcs(_ctx(known=["dark_berth_4"]), game_map, spec)
-    assert len([
-        e for e in game_map.entities
-        if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
-    ]) == 1
 
 
 def test_shady_tech_anchor_is_walkable_pavement():
@@ -264,23 +246,22 @@ def test_log_rumor_routing_names_carriers_and_holder():
 # --- review fixes: Continue rebuild + tick coin + readout dark hulls --------
 
 
-def test_gated_npc_survives_the_continue_rebuild():
-    """The reviewer's blocker repro: city-mode save with the tech
-    spawned → Continue rebuilds via _rebuild_city — the saved
-    position row is the gate proof, so he must survive."""
+def test_shady_tech_survives_the_continue_rebuild():
+    """A plain population citizen: the Continue rebuild places him
+    with the population and restores his saved position (the
+    former gated-spawn blocker class, gone structurally)."""
     from src.spacehack import city_npcs
     from src.spacehack.data.planets import load_planet
     from src.spacehack.data.solar_systems import system_for_planet
     from src.spacehack.saveload_maps import _rebuild_city
 
-    ctx = _ctx(known=["dark_berth_4"])
+    ctx = _ctx()
     ctx.game_map = load_planet("lal_c")
-    city_npcs.ensure_gated_npcs(ctx, ctx.game_map, _lal_c_spec())
     tech = next(
         e for e in ctx.game_map.entities
         if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
     )
-    tech.pos = Position(41, 42)  # he wandered before the save
+    tech.pos = Position(41, 42)
     saved = city_npcs.save_city_npc_positions(ctx)
     assert "lalc_shady_tech" in saved
 
@@ -294,12 +275,6 @@ def test_gated_npc_survives_the_continue_rebuild():
     ]
     assert len(tech_after) == 1
     assert (tech_after[0].pos.x, tech_after[0].pos.y) == (41, 42)
-
-
-def _lal_c_spec():
-    from src.spacehack.data.planets import find_planet_spec
-
-    return find_planet_spec("lal_c")
 
 
 def test_tick_coin_is_deterministic_and_share_shaped():

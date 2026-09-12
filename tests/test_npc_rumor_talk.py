@@ -362,8 +362,13 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
 # --- doc 42 phase 2.5: the shady tech (the payoff moved outdoors) ----------
 
 
-def test_shady_tech_prices_the_cutout_owners_hide():
+def test_shady_tech_prices_the_cutout_gated_on_the_passphrase():
+    # The row's keyring gate (playtest ruling 2026-09-12): he is
+    # always on the map, but the install row exists only once the
+    # chain names him.
     ctx = quest_ctx()
+    assert npc_mod._priced_rows(ctx, "shady_tech") == (None, None, None)
+    ctx.known_rumors.append("dark_berth_4")
     assert npc_mod._priced_rows(ctx, "shady_tech") == (None, 2000, None)
     assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
     ctx.transponder_cutout = True

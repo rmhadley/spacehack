@@ -407,16 +407,19 @@ first. No tier is askable at spawn.
 - Values and prices unchanged (1/2/3; exclusive at 4 favor). The
   favor economy, hidden-until-affordable, holder scatter, and
   no-selling-back all stand.
-- The payoff is shipped (phase 2) and moves outdoors (user note):
-  hearing tier 4 spawns the fitter on Whisper's city map — by the
-  cargo containers south-east of the bounty office. Talking to him
-  plays his intro ("I don't know you, take off.") with THE
-  PASSPHRASE as the response option — "The Hush sent me." (the
-  option exists because tier 4 is the passphrase, and tier 4 is
-  heard before he ever spawns) — and taking it opens the 2000cr
-  cut-out install. "The Hush" is the name of Whisper's bar. The
-  differential feeds back: lawful ports then refuse the player's
-  dark hull, and the four ports still take it.
+- The payoff is shipped (phase 2) and lives outdoors (user note):
+  the fitter stands on Whisper's city map — by the cargo containers
+  south-east of the bounty office. PLAYTEST RULING (user,
+  2026-09-12, at checklist item 7): "he is always there" —
+  knowledge gates the ACCESS, not the existence; the phase-3
+  spawn gate is retired. Talking to him plays his intro ("I don't
+  know you, take off.") and THE PASSPHRASE — "The Hush sent me."
+  — is the response option once tier 4 is heard (the row is
+  keyring-gated; before that he is a locked door, correctly read).
+  Taking it opens the 2000cr cut-out install. "The Hush" is the
+  name of Whisper's bar. The differential feeds back: lawful ports
+  then refuse the player's dark hull, and the four ports still
+  take it.
 
 ### Binding rules
 
@@ -469,15 +472,14 @@ typos fixed and flagged in chat)
 - Pad content: the pirate-boarding/derelict pad teaching
   ``dark_berth_1``.
 - The vendor move: the fitter's bar seat retires from lal_c's
-  ``service_npc_spots``; he spawns on the city map by the
-  containers once tier 4 is heard (cities rebuild per landing, so
-  the keyring check re-evaluates every visit). Id renamed
-  ``berth_keeper`` → ``shady_tech`` (no save impact — city NPCs
-  spawn fresh); display name "Shady Tech". His talk modal is the
-  intro line plus the passphrase response option; taking the option
-  opens the 2000cr install (``CUTOUT_BROKERS``).
-  ``KNOWLEDGE_GATES`` retires with the bar seat — the spawn plus
-  the passphrase are the gate.
+  ``service_npc_spots``; he is a plain population citizen on the
+  city map by the containers (ALWAYS present — playtest ruling
+  2026-09-12; the phase-3 gated-spawn machinery is retired). Id
+  renamed ``berth_keeper`` → ``shady_tech``; display name "Shady
+  Tech". His talk modal is the intro line plus the passphrase
+  response option once tier 4 is heard (the row is keyring-gated);
+  taking the option opens the 2000cr install
+  (``CUTOUT_BROKERS``).
 - Playtest checklist: re-authored for the one chain, plus the prose
   read-through item.
 - Shift+R: the live-routes readout includes the dark-spawn set.
@@ -1020,7 +1022,10 @@ amended with the favor exchange.
   instrument key is **Shift+N** (the brief's Shift+R is taken by
   dungeon-fog reveal); the review round fixed the Continue-rebuild
   gap (a saved city-NPC position row is the gate proof) and put the
-  tick spawner on the same dark share (a seeded per-group coin).
+  tick spawner on the same dark share (a seeded per-group coin);
+  the PLAYTEST RULING at item 7 then retired the gated spawn
+  entirely — the shady tech is a plain always-present citizen and
+  the passphrase ROW carries the keyring gate.
 
   **Re-authored playtest checkpoint** (numbered; SPACEHACK_DEV run;
   supersedes the brief's checklist, which still names the retired
@@ -1054,11 +1059,12 @@ amended with the favor exchange.
      telling and never sells (no-selling-back); at 4 favor the Buy
      row appears at the live holder only ("Costs 4 favor."); buy —
      the readout names the man by the containers.
-  7. The payoff: on Whisper, exit any building — the Shady Tech
-     stands by the containers south-east of the bounty office; his
-     talk modal is "I don't know you, take off." with the install
-     row "The Hush sent me." — take it: 2000cr, cut-out installed
-     (Shift+B revokes for re-tests). Pre-t4 saves never spawn him.
+  7. The payoff: on Whisper, the Shady Tech is ALWAYS by the
+     containers south-east of the bounty office (check pre-t4 too:
+     he tells you to take off, no install row — a locked door);
+     after the buy his talk modal is "I don't know you, take off."
+     with the install row "The Hush sent me." — take it: 2000cr,
+     cut-out installed (Shift+B revokes for re-tests).
   8. Determinism: save → quit → Continue — Shift+N shows identical
      routing; the Shady Tech survives the reload if spawned; Shift+S
      reroll → different legal routing (items 2-3 repeat against the

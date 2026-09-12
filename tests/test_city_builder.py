@@ -1408,9 +1408,12 @@ def test_lal_c_is_a_tight_container_maze():
         "spaceport", "bar", "merchants", "bounties",
     }
     assert len(game_map.city_transit) == 4
+    # 8 ambient citizens + the shady tech, always by the containers
+    # (doc 42 phase 2.5 playtest ruling: knowledge gates his row,
+    # not his existence).
     assert sum(
         bool(getattr(entity, "city_npc_id", "")) for entity in game_map.entities
-    ) == 8
+    ) == 9
     container_walls = sum(
         tile.kind == "city_building_wall" and tile.char in {"#", "="}
         for row in game_map.tiles for tile in row

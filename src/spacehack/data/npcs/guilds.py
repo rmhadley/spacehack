@@ -53,11 +53,10 @@ NPCS: tuple[NPC, ...] = (
         ),
     ),
     # The Whisper shady tech (doc 42 phase 2.5): the dark-ports
-    # chain's payoff. Spawns on lal_c's CITY MAP by the containers
-    # south-east of the bounty office, only once dark_berth_4 is
-    # heard (city_npcs.ensure_gated_npcs — the spawn IS the gate);
-    # his install row is the passphrase. No guild: no board, no
-    # work rows.
+    # chain's payoff. Always on lal_c's CITY MAP by the containers
+    # south-east of the bounty office (knowledge gates access, not
+    # existence): his install row — the passphrase — exists only
+    # once dark_berth_4 is heard. No guild: no board, no work rows.
     NPC(
         id="shady_tech",
         name="Shady Tech",
