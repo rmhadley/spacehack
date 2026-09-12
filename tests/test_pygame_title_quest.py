@@ -24,7 +24,8 @@ def test_title_frames_include_start_continue_only_when_save_exists():
     assert [item.action for item in pygame_title.options_frames(
         pygame_title.DisplayConfig(),
     )[0].items] == [
-        "TOGGLE_FULLSCREEN", "CYCLE_WINDOW_SIZE", "APPLY_OPTIONS", "BACK_OPTIONS",
+        "TOGGLE_FULLSCREEN", "CYCLE_WINDOW_SIZE", "CYCLE_ANIMATION_SPEED",
+        "APPLY_OPTIONS", "BACK_OPTIONS",
     ]
     assert pygame_menu._initial_selected(no_save) == 0
     assert pygame_menu._initial_selected(with_save) == 1
@@ -142,6 +143,62 @@ def test_options_back_discards_pending_changes(monkeypatch):
     )
 
     assert pygame_title.run_options_for_context(context) is False
+
+
+def test_options_items_show_animation_speed_ladder_labels():
+    items = {
+        item.action: item.label
+        for item in pygame_title._options_items(pygame_title.DisplayConfig())
+    }
+
+    assert items["CYCLE_ANIMATION_SPEED"] == "ANIMATION SPEED: NORMAL"
+    assert items["TOGGLE_FULLSCREEN"] == "FULLSCREEN: Off"
+
+
+def test_animation_speed_label_covers_ladder_and_hand_edited_values():
+    def label(speed: float) -> str:
+        config = pygame_title.DisplayConfig(animation_speed=speed)
+        return pygame_title._animation_speed_label(config)
+
+    assert label(1.0) == "NORMAL"
+    assert label(2.0) == "FAST"
+    assert label(4.0) == "FASTER"
+    assert label(0.0) == "INSTANT"
+    assert label(3.0) == "3x"
+
+
+def test_next_animation_speed_cycles_the_ladder_and_wraps_from_instant():
+    def speed(current: float) -> float:
+        return pygame_title._next_animation_speed(
+            pygame_title.DisplayConfig(animation_speed=current)
+        )
+
+    assert speed(1.0) == 2.0
+    assert speed(2.0) == 4.0
+    assert speed(4.0) == 0.0
+    assert speed(0.0) == 1.0
+    assert speed(3.0) == 1.0
+
+
+def test_options_cycle_and_apply_carries_animation_speed(monkeypatch):
+    calls = []
+    outcomes = iter((
+        ("SELECT", "CYCLE_ANIMATION_SPEED", 0),
+        ("SELECT", "CYCLE_ANIMATION_SPEED", 0),
+        ("SELECT", "APPLY_OPTIONS", 0),
+    ))
+    context = SimpleNamespace(
+        display_config=pygame_title.DisplayConfig(),
+        apply_display_config=lambda config: calls.append(("apply", config)),
+        save_display_config=lambda: calls.append(("save",)),
+    )
+    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+
+    assert pygame_title.run_options_for_context(context) is True
+    assert calls == [
+        ("apply", pygame_title.DisplayConfig(animation_speed=4.0)),
+        ("save",),
+    ]
 
 
 def test_title_runner_maps_pygame_actions_to_legacy_outcomes(monkeypatch):

@@ -1,8 +1,10 @@
-"""Tests for persistent fullscreen and window preferences."""
+"""Tests for persistent fullscreen, window, and animation preferences."""
 
 from __future__ import annotations
 
 from pathlib import Path
+
+import pytest
 
 from src.spacehack.display_config import (
     DEFAULT_WINDOW_HEIGHT,
@@ -74,3 +76,41 @@ def test_save_display_config_creates_parent_and_persists_preferences(tmp_path: P
 
     assert path.exists()
     assert load_display_config(path) == config
+
+
+def test_animation_speed_round_trips_every_supported_value(tmp_path: Path):
+    path = tmp_path / "config.toml"
+    for speed in (1.0, 2.0, 4.0, 0.0, 3.0):
+        save_display_config(DisplayConfig(animation_speed=speed), path)
+
+        assert load_display_config(path) == DisplayConfig(animation_speed=speed)
+
+
+def test_animation_speed_defaults_to_normal_when_key_absent():
+    contents = "[display]\nfullscreen = false\n"
+
+    assert parse_display_config(contents).animation_speed == 1.0
+
+
+def test_animation_speed_malformed_value_falls_back_to_defaults(tmp_path: Path):
+    malformed = tmp_path / "malformed.toml"
+    malformed.write_text("[display]\nanimation_speed = brisk\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        parse_display_config(malformed.read_text(encoding="utf-8"))
+    assert load_display_config(malformed) == DisplayConfig()
+
+
+def test_animation_speed_rejects_non_finite_values(tmp_path: Path):
+    non_finite = tmp_path / "nonfinite.toml"
+    non_finite.write_text("[display]\nanimation_speed = nan\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        parse_display_config(non_finite.read_text(encoding="utf-8"))
+    assert load_display_config(non_finite) == DisplayConfig()
+
+
+def test_animation_speed_normalizes_only_at_the_bounds():
+    assert DisplayConfig(animation_speed=9.0).normalized().animation_speed == 4.0
+    assert DisplayConfig(animation_speed=-1.0).normalized().animation_speed == 0.0
+    assert DisplayConfig(animation_speed=3.0).normalized().animation_speed == 3.0

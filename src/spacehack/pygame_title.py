@@ -72,7 +72,7 @@ def _items(save_available: bool) -> tuple[pygame_menu.MenuItem, ...]:
         )
     items.append(
         pygame_menu.MenuItem(
-            "OPTIONS", "Change fullscreen and window preferences.", "OPTIONS",
+            "OPTIONS", "Change display and animation preferences.", "OPTIONS",
         )
     )
     items.extend((
@@ -92,9 +92,18 @@ _WINDOW_PRESETS: tuple[tuple[int, int], ...] = (
     (1920, 1152),
 )
 
+# Animation speed ladder: multiplier paired with its menu label. 0.0 is
+# instant (frames render with no delay).
+_ANIMATION_SPEEDS: tuple[tuple[float, str], ...] = (
+    (1.0, "NORMAL"),
+    (2.0, "FAST"),
+    (4.0, "FASTER"),
+    (0.0, "INSTANT"),
+)
+
 
 def _options_items(config: DisplayConfig) -> tuple[pygame_menu.MenuItem, ...]:
-    """Build display preference rows for the title Options menu."""
+    """Build preference rows for the title Options menu."""
     mode = "On" if config.fullscreen else "Off"
     return (
         pygame_menu.MenuItem(
@@ -108,8 +117,13 @@ def _options_items(config: DisplayConfig) -> tuple[pygame_menu.MenuItem, ...]:
             "CYCLE_WINDOW_SIZE",
         ),
         pygame_menu.MenuItem(
+            f"ANIMATION SPEED: {_animation_speed_label(config)}",
+            "Cycle gameplay animation speed.",
+            "CYCLE_ANIMATION_SPEED",
+        ),
+        pygame_menu.MenuItem(
             "APPLY",
-            "Apply and save these display preferences.",
+            "Apply and save these preferences.",
             "APPLY_OPTIONS",
         ),
         pygame_menu.MenuItem(
@@ -124,12 +138,12 @@ def options_frames(
     config: DisplayConfig,
     selected: int = 0,
 ) -> tuple[pygame_menu.MenuFrame, ...]:
-    """Build the title Options menu for a pending display configuration."""
+    """Build the title Options menu for a pending configuration."""
     items = _options_items(config)
     return tuple(
         pygame_menu.MenuFrame(
             title="OPTIONS",
-            body="Display preferences are saved separately from game saves.",
+            body="Preferences are saved separately from game saves.",
             items=items,
             hints=(pygame_ui.modal_hint(
                 pygame_ui.NAV_HINT, "ENTER select", "ESC back",
@@ -142,17 +156,63 @@ def options_frames(
     )
 
 
-def _next_window_size(config: DisplayConfig) -> tuple[int, int]:
-    """Return the next supported window preset after the current size."""
+def _cycled(options, current):
+    """Return the next entry in ``options`` after ``current`` (wraps;
+    an unknown value restarts from the first entry).
+    """
     try:
-        index = _WINDOW_PRESETS.index((config.window_width, config.window_height))
+        index = options.index(current)
     except ValueError:
         index = -1
-    return _WINDOW_PRESETS[(index + 1) % len(_WINDOW_PRESETS)]
+    return options[(index + 1) % len(options)]
+
+
+def _next_window_size(config: DisplayConfig) -> tuple[int, int]:
+    """Return the next supported window preset after the current size."""
+    return _cycled(_WINDOW_PRESETS, (config.window_width, config.window_height))
+
+
+def _animation_speed_label(config: DisplayConfig) -> str:
+    """Ladder label for the configured speed; other values show as N x."""
+    for speed, label in _ANIMATION_SPEEDS:
+        if config.animation_speed == speed:
+            return label
+    return f"{config.animation_speed:g}x"
+
+
+def _next_animation_speed(config: DisplayConfig) -> float:
+    """Return the next ladder speed after the configured one."""
+    return _cycled(
+        [speed for speed, _label in _ANIMATION_SPEEDS],
+        config.animation_speed,
+    )
+
+
+def _toggle_fullscreen(config: DisplayConfig) -> DisplayConfig:
+    """Cycler: flip the fullscreen preference."""
+    return replace(config, fullscreen=not config.fullscreen)
+
+
+def _cycle_window_size(config: DisplayConfig) -> DisplayConfig:
+    """Cycler: advance to the next window preset."""
+    width, height = _next_window_size(config)
+    return replace(config, window_width=width, window_height=height)
+
+
+def _cycle_animation_speed(config: DisplayConfig) -> DisplayConfig:
+    """Cycler: advance to the next animation speed ladder step."""
+    return replace(config, animation_speed=_next_animation_speed(config))
+
+
+_OPTION_CYCLERS = {
+    "TOGGLE_FULLSCREEN": _toggle_fullscreen,
+    "CYCLE_WINDOW_SIZE": _cycle_window_size,
+    "CYCLE_ANIMATION_SPEED": _cycle_animation_speed,
+}
 
 
 def run_options_for_context(context: PygameContext) -> bool:
-    """Run title display options; return True only after a successful Apply."""
+    """Run title options; return True only after a successful Apply."""
     pending = context.display_config
     selected = 0
     while True:
@@ -165,11 +225,9 @@ def run_options_for_context(context: PygameContext) -> bool:
             return False
         if outcome != "SELECT":
             raise RuntimeError("Pygame Options menu returned no outcome")
-        if action == "TOGGLE_FULLSCREEN":
-            pending = replace(pending, fullscreen=not pending.fullscreen)
-        elif action == "CYCLE_WINDOW_SIZE":
-            width, height = _next_window_size(pending)
-            pending = replace(pending, window_width=width, window_height=height)
+        cycler = _OPTION_CYCLERS.get(action)
+        if cycler is not None:
+            pending = cycler(pending)
         elif action == "APPLY_OPTIONS":
             try:
                 context.apply_display_config(pending)

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from dataclasses import replace
 
-from . import pygame_engine
+from . import animation_timing, pygame_engine
 from .display_config import (
     DisplayConfig,
     load_display_config,
@@ -172,17 +173,27 @@ class PygameRuntime:
 
     @property
     def display_config(self) -> DisplayConfig:
-        """Return the engine's current display preferences."""
+        """Return the engine's current display preferences.
+
+        The engine only knows windowing; the runtime stitches the
+        animation speed back in so the preference round-trips.
+        """
         if self.engine is not None:
-            return self.engine.display_config
+            return replace(
+                self.engine.display_config,
+                animation_speed=self._display_config.animation_speed,
+            )
         return self._display_config
 
     def apply_display_config(self, config: DisplayConfig) -> None:
-        """Apply display preferences, retaining the logical framebuffer."""
+        """Apply preferences: windowing to the engine, pacing to timing."""
         if self.engine is None:
             raise RuntimeError("PygameRuntime must be open before applying display config")
         self.engine.apply_display_config(config)
-        self._display_config = self.engine.display_config
+        self._display_config = replace(
+            self.engine.display_config, animation_speed=config.animation_speed
+        )
+        animation_timing.set_speed_scale(self._display_config.animation_speed)
 
     def save_display_config(self) -> None:
         """Persist the current display preference to the user config."""
@@ -207,6 +218,7 @@ class PygameRuntime:
         except Exception:
             self.close()
             raise
+        animation_timing.set_speed_scale(self._display_config.animation_speed)
         return self.context
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
