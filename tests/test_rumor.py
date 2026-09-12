@@ -218,3 +218,47 @@ def test_hear_rejects_unknown_ids():
     ctx = SimpleNamespace(known_rumors=[])
     with pytest.raises(KeyError):
         rumor.hear(ctx, "not_a_rumor")
+
+
+# --- discovery triggers (doc 42 phase 3, SETTLED 16) -----------------------
+
+
+def _presented(monkeypatch, seen):
+    monkeypatch.setattr(
+        rumor, "present_hearing",
+        lambda ctx, title, text: seen.append((title, text)),
+    )
+
+
+def test_fire_trigger_hears_the_authored_entry(monkeypatch):
+    _seen = []
+    _presented(monkeypatch, _seen)
+    ctx = SimpleNamespace(known_rumors=[], context=None)
+    assert rumor.fire_trigger(ctx, "dock_dark_port") == ["dark_berth_1"]
+    assert ctx.known_rumors == ["dark_berth_1"]
+    assert _seen == [("dark ports", rumor.entry_text("dark_berth_1"))]
+    # Idempotent — a refire hears nothing, presents nothing.
+    assert rumor.fire_trigger(ctx, "dock_dark_port") == []
+    assert len(_seen) == 1
+
+
+def test_one_event_two_tiers_the_dark_hail(monkeypatch):
+    _seen = []
+    _presented(monkeypatch, _seen)
+    # Early: the hail discovers tier 1.
+    ctx = SimpleNamespace(known_rumors=[], context=None)
+    assert rumor.fire_trigger(ctx, "dark_hail") == ["dark_berth_1"]
+    # Mid-chain: tier 2 unheard — the same hail delivers nothing more.
+    ctx_mid = SimpleNamespace(known_rumors=["dark_berth_1"], context=None)
+    assert rumor.fire_trigger(ctx_mid, "dark_hail") == []
+    # After tier 2: the same hail is the testimony (tier 3).
+    ctx_late = SimpleNamespace(
+        known_rumors=["dark_berth_1", "dark_berth_2"], context=None)
+    assert rumor.fire_trigger(ctx_late, "dark_hail") == ["dark_berth_3"]
+
+
+def test_unknown_event_hears_nothing(monkeypatch):
+    _presented(monkeypatch, [])
+    ctx = SimpleNamespace(known_rumors=[], context=None)
+    assert rumor.fire_trigger(ctx, "no_such_event") == []
+    assert ctx.known_rumors == []

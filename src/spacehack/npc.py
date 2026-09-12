@@ -354,22 +354,9 @@ def _handle_sell_ids(ctx):
 
 
 def _show_rumor_readout(ctx, npc, text: str) -> None:
-    """The heard-text readout — the quest-readout idiom: a modal, not
-    a log line; the guide re-presents it, QUIT exits the game."""
-    from .pygame_story import dismiss
-
-    while True:
-        _outcome = dismiss(
-            ctx.context,
-            title=npc.name.upper(),
-            body=text,
-            caption=f"spacehack - {npc.name}",
-        )
-        if _outcome == "__GUIDE__":
-            continue
-        if _outcome == "QUIT":
-            raise SystemExit
-        return
+    """The host's readout — the shared presentation path lives in
+    ``rumor.present_hearing`` (doc 42 phase 3)."""
+    rumor_module.present_hearing(ctx, npc.name, text)
 
 
 def _labeled(topic: str) -> str:
@@ -406,17 +393,21 @@ def _ask_submenu_items(topics, offers, buys) -> list:
     return items
 
 
-def _dealer_holdings(npc_id: str) -> tuple[tuple[str, int], ...]:
-    """The exclusives this dealer offers this pass — the routing seam
-    (doc 42 phase 3; live_holdings lands with rumor_routing)."""
-    from .data.lore.dealers import EXCLUSIVE_CANDIDATES
+def _live_routing():
+    """The run's live routing (doc 42 phase 3): pure INIT_SEED
+    derivations, read fresh each pass (CONTINUE-stable, reroll-legal)."""
+    from . import rumor_routing
+    from .engine import INIT_SEED
 
-    return tuple(
-        (rumor_id, price)
-        for rumor_id, candidates in EXCLUSIVE_CANDIDATES.items()
-        for dealer_id, price in candidates
-        if dealer_id == npc_id
+    return rumor_routing.live_routes(INIT_SEED), rumor_routing.live_holdings(
+        INIT_SEED
     )
+
+
+def _dealer_holdings(npc_id: str, holdings: dict) -> tuple[tuple[str, int], ...]:
+    """The exclusives the LIVE routing gives this dealer (SETTLED 17
+    — one holder per exclusive this run)."""
+    return holdings.get(npc_id, ())
 
 
 def _ask_rows(ctx, npc):
@@ -424,9 +415,11 @@ def _ask_rows(ctx, npc):
     exist only at a dealer (ruling 10)."""
     from . import identity
 
+    _routes, _holdings = _live_routing()
     topics = rumor_module.askable_topics(
         ctx.known_rumors, identity.effective_reputation(ctx),
         ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
+        live=_routes,
     )
     if not rumor_module.is_dealer(npc.id):
         return topics, [], []
@@ -434,7 +427,8 @@ def _ask_rows(ctx, npc):
         ctx.known_rumors, ctx.rumor_favor, npc.id,
     )
     buys = rumor_module.exclusive_offers(
-        ctx.known_rumors, ctx.rumor_favor, npc.id, _dealer_holdings(npc.id),
+        ctx.known_rumors, ctx.rumor_favor, npc.id,
+        _dealer_holdings(npc.id, _holdings),
     )
     return topics, offers, buys
 
@@ -526,9 +520,11 @@ def _offers_rumors(ctx, npc) -> bool:
         return True
     from . import identity
 
+    _routes, _holdings = _live_routing()
     return bool(rumor_module.askable_topics(
         ctx.known_rumors, identity.effective_reputation(ctx),
         ctx.player_traits, npc.id, getattr(ctx, "current_city_id", ""),
+        live=_routes,
     ))
 
 

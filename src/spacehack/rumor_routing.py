@@ -11,7 +11,6 @@ least one live route, and the dark-hull choice guarantees a minimum.
 from __future__ import annotations
 
 from .engine import seeded_rng
-from .data.lore import list_rumors
 from .data.lore.dealers import EXCLUSIVE_CANDIDATES
 
 # One ambient pirate group in N flies dark this run (doc 42 phase
@@ -25,9 +24,12 @@ def live_routes(seed: int) -> dict[str, frozenset[tuple[str, str]]]:
     Each source-carried entry's derivation picks ``picks`` live
     candidates from its pool (every candidate when ``picks`` is
     None). At least one live route always survives — the derivation
-    can never empty an entry's pool."""
+    can never empty an entry's pool. The catalog is read through the
+    ``rumor`` facade so test registries compose."""
+    from . import rumor
+
     routes: dict[str, frozenset[tuple[str, str]]] = {}
-    for entry in list_rumors():
+    for entry in rumor.list_rumors():
         if not entry.sources:
             continue
         pool = sorted({(source[0], source[1]) for source in entry.sources})

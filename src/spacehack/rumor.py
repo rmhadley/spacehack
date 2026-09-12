@@ -218,6 +218,46 @@ def hear(ctx, rumor_id: str) -> bool:
     return True
 
 
+def present_hearing(ctx, title: str, text: str) -> None:
+    """The heard-text readout — the quest-readout idiom: a modal, not
+    a log line; the guide re-presents it, QUIT exits the game. The
+    ONE presentation path: hosts, triggers, and pads all read out
+    through here (doc 42 phase 3)."""
+    from .pygame_story import dismiss
+
+    while True:
+        _outcome = dismiss(
+            ctx.context,
+            title=title.upper(),
+            body=text,
+            caption=f"spacehack - {title}",
+        )
+        if _outcome == "__GUIDE__":
+            continue
+        if _outcome == "QUIT":
+            raise SystemExit
+        return
+
+
+def fire_trigger(ctx, event_id: str) -> list[str]:
+    """Hear every unheard entry authored with this discovery event
+    (SETTLED 16), requirements met, presented through the readout.
+    Idempotent — a refire hears nothing. Returns the ids newly
+    heard."""
+    known_set = set(ctx.known_rumors)
+    heard: list[str] = []
+    for entry in list_rumors():
+        if event_id not in entry.triggers or entry.id in known_set:
+            continue
+        if not _requirements_met(entry, known_set):
+            continue
+        hear(ctx, entry.id)
+        known_set.add(entry.id)
+        heard.append(entry.id)
+        present_hearing(ctx, topic_label(entry.id), entry_text(entry.id))
+    return heard
+
+
 # --- the favor exchange (phase 2): mutation wrappers -----------------------
 
 

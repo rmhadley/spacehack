@@ -37,28 +37,72 @@ def test_no_ask_row_before_discovery(monkeypatch):
         quest_ctx(city_id="lal_b"), find_npc("deadfall_scrubber")) is False
 
 
+def _seed_where(predicate):
+    """First seed (deterministic) whose live routing satisfies the
+    predicate — the host reads engine.INIT_SEED, pinned per test."""
+    from src.spacehack import engine as engine_mod
+    from src.spacehack import rumor_routing
+
+    seed = next(s for s in range(64) if predicate(rumor_routing, s))
+    engine_mod.INIT_SEED = seed
+    return seed
+
+
 def test_carrier_gets_the_ask_row_once_the_opener_is_heard(monkeypatch):
     _sheet(monkeypatch, {})
-    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
-    assert npc_mod._offers_rumors(ctx, find_npc("deadfall_scrubber")) is True
-    # ...but only on the carrier's own planet.
-    ctx_off = quest_ctx(city_id="wolf_b", known_rumors=["dark_berth_1"])
-    assert npc_mod._offers_rumors(ctx_off, find_npc("deadfall_scrubber")) is False
+    from src.spacehack import rumor
+    from src.spacehack import rumor_routing
+
+    seed = _seed_where(
+        lambda rr, s: ("deadfall_scrubber", "lal_b") in rr.live_routes(s)["dark_berth_2"]
+    )
+    try:
+        ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
+        assert npc_mod._offers_rumors(ctx, find_npc("deadfall_scrubber")) is True
+        # ...but only on the carrier's own planet.
+        ctx_off = quest_ctx(city_id="wolf_b", known_rumors=["dark_berth_1"])
+        assert npc_mod._offers_rumors(ctx_off, find_npc("deadfall_scrubber")) is False
+        # ...and only while the seed made the candidate live (dealers
+        # keep their row by design — ruling 10 — so probe a non-dealer).
+        dead = sorted(
+            pair
+            for pair in (
+                {(s[0], s[1]) for e in rumor.list_rumors()
+                 if e.id == "dark_berth_2" for s in e.sources}
+                - rumor_routing.live_routes(seed)["dark_berth_2"]
+            )
+            if not rumor.is_dealer(pair[0])
+        )
+        if dead:
+            dead_npc, dead_planet = dead[0]
+            assert npc_mod._offers_rumors(
+                quest_ctx(city_id=dead_planet, known_rumors=["dark_berth_1"]),
+                find_npc(dead_npc),
+            ) is False
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def test_ask_row_goes_when_the_npc_holds_nothing_more(monkeypatch):
     _sheet(monkeypatch, {})
     # A non-source holds nothing — the row goes...
     assert npc_mod._offers_rumors(quest_ctx(), find_npc("militia_captain")) is False
-    # ...the tech extends while tier 2 is unheard (his carrier role)...
-    ctx_ross = quest_ctx(city_id="ross_b", known_rumors=["dark_berth_1"])
-    assert npc_mod._offers_rumors(ctx_ross, find_npc("ember_tech")) is True
-    # ...and once tier 2 is heard the chain leaves the city for comms
-    # — NO carrier extends tier 3 (it is hail-delivered).
-    ctx_done = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1", "dark_berth_2"])
-    assert npc_mod._offers_rumors(ctx_done, find_npc("deadfall_scrubber")) is False
-    ctx_ross_done = quest_ctx(city_id="ross_b", known_rumors=["dark_berth_1", "dark_berth_2"])
-    assert npc_mod._offers_rumors(ctx_ross_done, find_npc("ember_tech")) is False
+    _seed_where(
+        lambda rr, s: ("ember_tech", "ross_b") in rr.live_routes(s)["dark_berth_2"]
+    )
+    try:
+        # ...the tech extends while tier 2 is unheard (his carrier role)...
+        ctx_ross = quest_ctx(city_id="ross_b", known_rumors=["dark_berth_1"])
+        assert npc_mod._offers_rumors(ctx_ross, find_npc("ember_tech")) is True
+        # ...and once tier 2 is heard the chain leaves the city for
+        # comms — NO carrier extends tier 3 (it is hail-delivered).
+        ctx_ross_done = quest_ctx(
+            city_id="ross_b", known_rumors=["dark_berth_1", "dark_berth_2"])
+        assert npc_mod._offers_rumors(ctx_ross_done, find_npc("ember_tech")) is False
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def test_dealer_keeps_the_ask_row_with_nothing_askable(monkeypatch):
@@ -103,21 +147,28 @@ def test_ask_around_sitting_hears_the_extension(monkeypatch):
         npc_mod, "_show_rumor_readout",
         lambda ctx, npc, text: _readouts.append(text),
     )
-    # One sitting: tier 1 already heard (the dock trigger), the
-    # scrubber delivers tier 2, then the sub-menu is exhausted (a
-    # None pick closes it).
-    _picks = iter(["ASKTOPIC:dark_berth_2"])
-    monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu",
-        lambda ctx, **kwargs: next(_picks, None),
+    _seed_where(
+        lambda rr, s: ("deadfall_scrubber", "lal_b") in rr.live_routes(s)["dark_berth_2"]
     )
-    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
-    result = npc_mod._resolve_talk_result(
-        ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
-    )
-    assert result == (npc_mod.TalkOutcome.BACK, None)
-    assert ctx.known_rumors == ["dark_berth_1", "dark_berth_2"]
-    assert len(_readouts) == 1
+    try:
+        # One sitting: tier 1 already heard (the dock trigger), the
+        # scrubber delivers tier 2, then the sub-menu is exhausted (a
+        # None pick closes it).
+        _picks = iter(["ASKTOPIC:dark_berth_2"])
+        monkeypatch.setattr(
+            npc_mod, "_run_choice_submenu",
+            lambda ctx, **kwargs: next(_picks, None),
+        )
+        ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
+        result = npc_mod._resolve_talk_result(
+            ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
+        assert result == (npc_mod.TalkOutcome.BACK, None)
+        assert ctx.known_rumors == ["dark_berth_1", "dark_berth_2"]
+        assert len(_readouts) == 1
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def test_ask_around_closes_when_the_npc_is_out_of_rumors(monkeypatch):
@@ -235,25 +286,30 @@ def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
         "_run_choice_submenu",
         _capture_submenu(_seen, iter(["BUY:dark_berth_4:4"])),
     )
-    ctx = quest_ctx(
-        city_id="wolf_b",
-        known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
-        rumor_favor={"wolf_barkeep": {"favor": 4, "earned": []}},
-    )
-    npc_mod._resolve_talk_result(
-        ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
-    )
-    assert "BUY:dark_berth_4:4" in [
-        item.action for item in _seen[0]["items"]
-    ]
-    _cost = [
-        item for item in _seen[0]["items"] if item.action == "BUY:dark_berth_4:4"
-    ]
-    assert _cost[0].description == "Costs 4 favor."
-    assert "dark_berth_4" in ctx.known_rumors
-    assert ctx.rumor_favor["wolf_barkeep"]["favor"] == 0
-    # Bought knowledge reads canonically — no witness variant.
-    assert _readouts == [rumor_module.entry_text("dark_berth_4")]
+    _seed_where(lambda rr, s: "wolf_barkeep" in rr.live_holdings(s))
+    try:
+        ctx = quest_ctx(
+            city_id="wolf_b",
+            known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
+            rumor_favor={"wolf_barkeep": {"favor": 4, "earned": []}},
+        )
+        npc_mod._resolve_talk_result(
+            ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
+        assert "BUY:dark_berth_4:4" in [
+            item.action for item in _seen[0]["items"]
+        ]
+        _cost = [
+            item for item in _seen[0]["items"] if item.action == "BUY:dark_berth_4:4"
+        ]
+        assert _cost[0].description == "Costs 4 favor."
+        assert "dark_berth_4" in ctx.known_rumors
+        assert ctx.rumor_favor["wolf_barkeep"]["favor"] == 0
+        # Bought knowledge reads canonically — no witness variant.
+        assert _readouts == [rumor_module.entry_text("dark_berth_4")]
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
@@ -261,18 +317,23 @@ def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    ctx = quest_ctx(
-        city_id="wolf_b",
-        known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
-        rumor_favor={"wolf_barkeep": {"favor": 3, "earned": []}},
-    )
-    npc_mod._resolve_talk_result(
-        ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
-    )
-    assert not any(
-        item.action.startswith("BUY:") for item in _seen[0]["items"]
-    )
-    assert _seen[0]["body"] == "Favor: 3"
+    _seed_where(lambda rr, s: "wolf_barkeep" in rr.live_holdings(s))
+    try:
+        ctx = quest_ctx(
+            city_id="wolf_b",
+            known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
+            rumor_favor={"wolf_barkeep": {"favor": 3, "earned": []}},
+        )
+        npc_mod._resolve_talk_result(
+            ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
+        assert not any(
+            item.action.startswith("BUY:") for item in _seen[0]["items"]
+        )
+        assert _seen[0]["body"] == "Favor: 3"
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
@@ -280,15 +341,22 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
     )
-    ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
-    npc_mod._resolve_talk_result(
-        ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    _seed_where(
+        lambda rr, s: ("deadfall_scrubber", "lal_b") in rr.live_routes(s)["dark_berth_2"]
     )
-    assert _seen[0]["body"] == '"What do you want to know?"'
-    assert not any(
-        item.action.startswith(("OFFER:", "BUY:"))
-        for item in _seen[0]["items"]
-    )
+    try:
+        ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
+        npc_mod._resolve_talk_result(
+            ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
+        assert _seen[0]["body"] == '"What do you want to know?"'
+        assert not any(
+            item.action.startswith(("OFFER:", "BUY:"))
+            for item in _seen[0]["items"]
+        )
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 # --- doc 42 phase 2: the knowledge-gated vendor ----------------------------
@@ -304,3 +372,46 @@ def test_knowledge_gated_vendor_hides_rows_until_heard():
     ctx.known_rumors.append("dark_berth_4")
     assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, 2000, None)
     assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
+
+
+# --- doc 42 phase 3: holder scatter through the host -----------------------
+
+
+def test_only_the_live_holder_shows_the_buy_row(monkeypatch):
+    from src.spacehack import engine as engine_mod
+    from src.spacehack import rumor_routing
+
+    # A seed whose live holder of dark_berth_4 is NOT the wolf.
+    seed = next(
+        s for s in range(16)
+        if "wolf_barkeep" not in rumor_routing.live_holdings(s)
+    )
+    monkeypatch.setattr(engine_mod, "INIT_SEED", seed)
+    _seen = []
+    monkeypatch.setattr(
+        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+    )
+    _both_rich = {
+        dealer: {"favor": 9, "earned": []}
+        for dealer in ("wolf_barkeep", "barkeep", "research_officer")
+    }
+    _heard = ["dark_berth_1", "dark_berth_2", "dark_berth_3"]
+    npc_mod._resolve_talk_result(
+        quest_ctx(city_id="wolf_b", known_rumors=_heard, rumor_favor=dict(_both_rich)),
+        find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert not any(
+        item.action.startswith("BUY:") for item in _seen[0]["items"]
+    ), "a non-live candidate shows nothing"
+    _holder = next(
+        dealer for dealer, rows in rumor_routing.live_holdings(seed).items()
+        for _row in rows
+    )
+    _seen.clear()
+    npc_mod._resolve_talk_result(
+        quest_ctx(city_id="earth", known_rumors=_heard, rumor_favor=dict(_both_rich)),
+        find_npc(_holder), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
+    assert "BUY:dark_berth_4:4" in [
+        item.action for item in _seen[0]["items"]
+    ]
