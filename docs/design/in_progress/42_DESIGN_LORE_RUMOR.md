@@ -911,6 +911,95 @@ toggle: dev saves pre-install the cut-out, so the owner's empty
 storefront is correct). Phase 2 closed; SYSTEMS.md rumors entry
 amended with the favor exchange.
 
+## Pre-implementation audit — phase 3 (2026-09-12)
+
+1. **Existing classes / modules to extend or reuse.**
+   - Derivation substrate: ``engine.seeded_rng(seed, *parts)`` +
+     ``INIT_SEED`` / ``set_init_seed`` — the city-NPC-route
+     precedent; ``init_seed`` already round-trips
+     (``saveload data["init_seed"]``), so routing is
+     Continue-stable with nothing new serialized.
+   - Dark hulls: ``npc_ships._spawn_table_groups`` /
+     ``_spawn_one_type`` spawn the ambient pirate groups;
+     ``rumor_routing.choose_dark_groups(system_id, movement_ids)``
+     (count ``max(1, groups // DARK_GROUP_SHARE)``, seeded sample)
+     picks the dark set at batch time; ``_make_npc_entity`` stamps
+     ``entity.flies_dark``. ``ProceduralSpawn`` (game_context)
+     gains ``flies_dark: bool = False``;
+     ``saveload_maps._add_procedural_npcs`` restores it — the
+     spawn/load twins both tested ([[parallel-paths-drift]]).
+   - Broadcast: ``identity.npc_identity`` returns ``None`` for
+     ``flies_dark`` hulls — ``_contact_broadcast_line`` is already
+     absent for ``None`` (zero new presentation; wordless read).
+   - Comms fire site: ``_run_interaction_modal`` (comms.py) —
+     ``fire_trigger(ctx, "dark_hail")`` before the hail frames when
+     the contact flies dark; readout first, then the normal hail.
+   - Dock fire site: ``game_interactions._resolve_planet_land`` —
+     after the dark-dock refusal gate, ``spec.dark_berth`` logs the
+     credential line EVERY landing + fires ``dock_dark_port``
+     (idempotent). Module at 961/1000; ~6 lines, headroom holds.
+   - Pads: ``combat/_actions._spawn_loot_drops`` is the shared
+     ship+ground kill-loot path — ``loot.maybe_spawn_pad(ctx, map,
+     pos, enemy_spec.id)`` rides beside it (both callers), spawning
+     only while the entry is unheard;
+     ``loot._open_single_loot_pickup`` gains the ``{"teaches": id}``
+     branch — hear + present + entity removed, nothing to hold.
+   - Host: ``npc._handle_ask_around`` derives the live map once per
+     pass (``ctx.current_city_id`` scopes delivery);
+     ``_show_rumor_readout`` hoists to ``rumor.present_hearing`` —
+     hosts, triggers, and pads present through one path.
+   - Vendor move: ``CityNpc`` gains ``requires_rumor`` —
+     ``place_city_npcs`` skips unheard templates (ctx threaded from
+     ``city_builder._finalize_city``);
+     ``city_interiors.exit_city_interior`` runs the ensure pass
+     (all three dealers seat inside interiors — the exit is the
+     one same-visit transition). ``CUTOUT_BROKERS`` berth_keeper →
+     shady_tech @2000; ``KNOWLEDGE_GATES`` retires (the spawn is
+     the gate); ``_append_priced_items`` reads a per-NPC row-label
+     table — the passphrase row.
+   - Anchor: lal_c's bounty office x73-87/y52-62 (door 80,61); the
+     lower east loop is walkable at y≈65 (population anchors
+     (60,65) and (91,65) bracket it); the final anchor is verified
+     walkable by a data test over the built city.
+2. **Duplication hotspots.** The dark stamp (spawn) vs restore
+   (load) — one field, two writers, both tested; the readout — one
+   wrapper after the hoist; the city spawn gate — place + ensure
+   share the predicate; the pad check — one helper beside both
+   kill paths.
+3. **DRY strategy.** One routing module (``rumor_routing.py``); the
+   live map as one explicit input shape through resolvers + host;
+   ``fire_trigger`` as the single hearing door for dock / hail /
+   pad.
+4. **Ratchet.** game_interactions 961 (+6, holds), npc_ships 955
+   (+~8, holds), game_loop 925 (+~8, holds), comms 624,
+   city_builder 195 — all under; no grandfathered module is
+   touched.
+5. **Pinned consequences.**
+   - The source shape ``(npc, planet, faction, floor, trait)``
+     re-pins every live-data test; the fixture registry mirrors it.
+   - t1/t3 sources are EMPTY (trigger-delivered) and t4 EMPTY
+     (exclusive) — the catalog test's empty-sources exception
+     widens to trigger-or-exclusive entries; the ≥1-live-route
+     assertion covers source-carried entries only.
+   - t2 is the only source-carried tier: the seeded city carriers,
+     planet-scoped candidates with authored width (verified seats:
+     wolf_barkeep→wolf_b, deadfall_scrubber→lal_b, ember_tech→
+     ross_b, research_officer→mercury/procyon_c/sirius_station/
+     ac_planet_2, barkeep→anywhere-seat; exact pool reviewed at
+     playtest).
+   - ``DEALERS``' static exclusives retire into
+     ``EXCLUSIVE_CANDIDATES`` (all three dealers @4); the phase-2
+     wrinkle stands (earned sets may disagree with the live
+     holder; no migration).
+   - Deviation: the brief's Shift+R is TAKEN (dungeon fog,
+     game_loop) — the routing readout takes **Shift+N**; flagged
+     on the checklist.
+   - New player-facing string beyond the settled prose: the pad's
+     loot label "Data Pad" — carried on the checklist for approval
+     (prose gate).
+   - The t4 sell-back edge stays unruled (2.5 Open) — net-negative
+     to the player, not blocked this phase.
+
 ### Phase 3 — Seed routing + discovery (re-scoped 2026-09-11)
 - [ ] Derived routing module (pure INIT_SEED derivations):
       live-candidate subsets per entry (npc+planet candidates,
