@@ -795,12 +795,13 @@ use it verbatim.
 
 Module-level mutable globals are a deliberate exception to the
 ``ctx``-first pattern — each one must be explicitly managed across
-New Game and Continue. Currently two such globals exist:
+New Game and Continue. Currently three such globals exist:
 
 | Variable | Module | Reset (New Game) | Save | Restore (Continue) |
 |----------|--------|-----------------|------|--------------------|
 | ``current_solar_system_id`` | ``solar_system.py`` | ``set_current_solar_system("sol")`` | auto via system_id param | ``solar_system_module.current_solar_system_id = _system_id`` |
 | ``RNG`` | ``engine.py`` | ``seed_rng(os.urandom())`` | ``RNG.getstate()`` | ``RNG.setstate(...)`` |
+| ``_SPEED_SCALE`` | ``animation_timing.py`` | n/a — user preference, set from ``DisplayConfig`` at every runtime open and on Apply (``pygame_runtime``) | no — lives in ``~/.spacehack/config.toml``, never the save | same as reset: re-derived at runtime open |
 
 #### Principle
 

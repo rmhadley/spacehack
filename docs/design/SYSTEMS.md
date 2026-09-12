@@ -800,8 +800,10 @@ nobody designs against a ghost.
   extension (`lighting.py`; `data/lighting.py`: `STATIC_LIGHT_TABLE`).
 - **Animations** — pure frame generators + present loops (descent
   elevator, breach sparks, transit arrival pulse); one pacing-
-  constants module (`descent_animation.py`, `dungeon_animation.py`,
-  `animation_timing.py`).
+  constants module with a user speed multiplier (`Normal/Fast/
+  Faster/Instant`) applied at the four delay choke points
+  (`descent_animation.py`, `dungeon_animation.py`,
+  `animation_timing.py`: `set_speed_scale`/`scaled`).
 - **Presentation shell** — every screen is a pure frame through a
   `run_for_context` loop returning `(outcome, action, selected)`;
   three live modes (city/space/dungeon) with hidden return pairs;
@@ -837,7 +839,10 @@ nobody designs against a ghost.
   for game logic while map generation uses global random
   (`engine.py`).
 - **Display prefs** — user config (not save) in
-  `~/.spacehack/config.toml` (`display_config.py`).
+  `~/.spacehack/config.toml`: windowing + animation speed
+  (`DisplayConfig.animation_speed`; runtime stitches it onto the
+  engine-derived config on Apply, `display_config.py`,
+  `pygame_runtime.py`).
 - **Absent:** multiple save slots; player-facing seed entry UI;
   audio settings; save-schema versioning.
 
