@@ -300,3 +300,39 @@ def test_shift_n_names_live_dark_hulls():
     dev_mode.log_rumor_routing(ctx)
     _text = "\n".join(e.text for e in ctx.log.history())
     assert "dark hulls here: Pirate Raider" in _text
+
+
+# --- the spawn batch end-to-end (playtest crash regression) -----------------
+# The first playtest crashed jumping systems: _spawn_table_groups
+# grew a 4th tuple element (the dark stamp) and a consumer still
+# unpacked 3. Drive the real spawn path so producer/consumer drift
+# can never ship silently again.
+
+
+def test_spawn_npcs_registers_a_legal_batch():
+    from src.spacehack import engine as engine_mod, npc_ships
+    from tests.support.quest_ctx import quest_ctx
+
+    game_map = GameMap(200, 160, [], [])
+    ctx = quest_ctx()
+    ctx.procedural_spawns = {}
+    rows = []
+    for seed in range(64):
+        engine_mod.RNG.seed(seed)
+        ctx.procedural_spawns = {}
+        game_map.entities.clear()
+        npc_ships.spawn_npcs(ctx, game_map, "barnards_star")
+        rows = ctx.procedural_spawns.get("barnards_star", [])
+        if rows:
+            break
+    assert rows, "no spawn batch fired across 64 seeds"
+    by_mid = {
+        getattr(e, "procedural_squad_id", ""): e for e in game_map.entities
+    }
+    for row in rows:
+        ent = by_mid.get(row.squad_id or "")
+        if ent is not None:  # stationary derelicts carry no mid
+            assert ent.flies_dark == row.flies_dark
+    assert any(
+        "signal" in e.text for e in ctx.log.history()
+    ), "the sensor ping logged"

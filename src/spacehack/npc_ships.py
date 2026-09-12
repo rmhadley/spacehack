@@ -488,7 +488,7 @@ def _register_table_batch(ctx, system_id, all_procedural, total) -> None:
     (e.g. derelicts), and log the sensor ping."""
     if not all_procedural:
         return
-    _spawned_ids = {npc_id for _, _, npc_id in all_procedural}
+    _spawned_ids = {npc_id for _, _, npc_id, _dark in all_procedural}
     _preserved = [
         _ps for _ps in ctx.procedural_spawns.get(system_id, [])
         if _ps.npc_id not in _spawned_ids
@@ -500,7 +500,7 @@ def _register_table_batch(ctx, system_id, all_procedural, total) -> None:
         for pos, sid, npc_id, dark in all_procedural
     ]
     _names = set()
-    for _, _, _npc_id in all_procedural:
+    for _, _, _npc_id, _dark in all_procedural:
         try:
             _names.add(_find_npc_ship(_npc_id).name)
         except KeyError:
