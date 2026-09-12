@@ -101,6 +101,7 @@ _HINT_PREFIXES = (
     "UP/DOWN navigate",
     "Press ENTER to abandon",
     "Press ESC to close",
+    "TAB rumors",
 )
 
 

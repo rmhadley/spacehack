@@ -84,9 +84,7 @@ def _render_quests_pane(
 
     # --- Active missions ---
     if not missions:
-        ui.paint_line(console, col_x, cy, "(no active missions)", fg=ui.COLOR_DESCRIPTION)
-        cy += 2
-        ui.paint_line(console, col_x, cy, "Press ESC to close.", fg=ui.COLOR_INSTRUCTION)
+        _render_empty_quests_state(console, col_x, cy)
         return
 
     ui.paint_line(
@@ -109,6 +107,17 @@ def _render_quests_pane(
 
     # The message band is intentionally not painted here — the Pygame
     # quest log renders its own panel over the band area.
+
+
+def _render_empty_quests_state(console, col_x: int, cy: int) -> None:
+    """The no-missions sheet: the empty line + the tab-bar idiom's
+    footer hint (mirrors the rumors pane's "TAB quests"/"ESC close")."""
+    ui.paint_line(console, col_x, cy, "(no active missions)", fg=ui.COLOR_DESCRIPTION)
+    ui.paint_line(
+        console, col_x, cy + 2,
+        pygame_ui.modal_hint("TAB rumors", "ESC close"),
+        fg=ui.COLOR_INSTRUCTION,
+    )
 
 
 def _render_rumors_pane(
