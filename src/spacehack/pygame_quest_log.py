@@ -109,7 +109,16 @@ def _quest_rows(capture: pygame_world.CaptureConsole) -> tuple[tuple[QuestSpan, 
     from .engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
 
     rows = _captured_rows(capture)[:SCREEN_HEIGHT - MSG_LOG_HEIGHT]
-    rows = rows[_LEGACY_HEADER_BLOCK:]
+    return rows[_LEGACY_HEADER_BLOCK:]
+
+
+def _strip_trailing_blank_rows(
+    rows: tuple[tuple[QuestSpan, ...], ...],
+) -> tuple[tuple[QuestSpan, ...], ...]:
+    """Drop trailing blank rows. Runs AFTER the hint split: the
+    legacy hint line is the pane's last non-blank row, so stripping
+    before the split leaves the blanks the scrollbar counts as
+    content (the phantom scrollbar on a fitting ledger)."""
     while rows and not any(span.text.strip() for span in rows[-1]):
         rows = rows[:-1]
     return rows
@@ -145,9 +154,10 @@ def _capture_frame(
         screen_width=SCREEN_WIDTH,
         screen_height=SCREEN_HEIGHT,
     )
-    rows, hint = _split_hint(_quest_rows(capture))
+    rows = _strip_trailing_blank_rows(_quest_rows(capture))
+    rows, hint = _split_hint(rows)
     return QuestFrame(
-        rows=rows,
+        rows=_strip_trailing_blank_rows(rows),
         selected=selected,
         confirm_abandon=confirm_abandon,
         hint=hint,

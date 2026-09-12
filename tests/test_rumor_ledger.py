@@ -135,3 +135,40 @@ def test_frames_for_splits_panes_for_font_fitting():
                for frame in quests)
     assert len(rumors) == 1
     assert rumors[0].active_tab == 1
+
+
+# --- playtest round: pane alignment + the phantom scrollbar -----------------
+
+
+def _first_content_row(frame) -> int:
+    for i, row in enumerate(frame.rows):
+        if any(span.text.strip() for span in row):
+            return i
+    return -1
+
+
+def test_empty_states_share_the_first_content_row():
+    """Tabbing must not jump text: '(nothing heard yet)' and '(no
+    active missions)' land on the same captured row."""
+    from src.spacehack import pygame_quest_log as pql
+
+    rumors = pql._capture_frame(quest_ctx(), 0, False, "rumors")
+    quests = pql._capture_frame(quest_ctx(), -1, False, "quests")
+    assert _first_content_row(rumors) == _first_content_row(quests)
+
+
+def test_fitting_ledger_carries_no_scrollbar_rows():
+    """The phantom scrollbar: trailing blanks (and the fixed-position
+    hint row) were counted as content, so every ledger 'needed'
+    scrolling. The frame now ends at its last text row."""
+    from src.spacehack import pygame_quest_log as pql
+
+    empty = pql._capture_frame(quest_ctx(), 0, False, "rumors")
+    assert len(empty.rows) <= 2  # blank + '(nothing heard yet)'
+    assert empty.hint.startswith("UP/DOWN")
+    heard = pql._capture_frame(
+        quest_ctx(known_rumors=["dark_berth_1", "dark_berth_2"]), 0, False,
+        "rumors",
+    )
+    assert any(span.text.strip() for span in heard.rows[-1])
+    assert heard.hint.startswith("UP/DOWN")

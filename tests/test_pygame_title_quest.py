@@ -208,7 +208,9 @@ def test_quest_log_capture_excludes_header_block_message_log_and_trailing_blank_
         ),
     )
 
-    rows = pygame_quest_log._quest_rows(capture)
+    rows = pygame_quest_log._strip_trailing_blank_rows(
+        pygame_quest_log._quest_rows(capture)
+    )
 
     assert len(rows) == 1
     assert rows[0][0].text == "M"

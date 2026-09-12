@@ -121,6 +121,8 @@ def _render_rumors_pane(
 
     max_w = ui.rule_width(screen_width)
     cy = ui.screen_header(console, screen_width, "RUMORS")
+    cy += 1  # the blank row below the rule — same first-content row
+    # as the quests pane, so TAB does not jump text up and down
     _bottom = screen_height - MSG_LOG_HEIGHT - 3
     entries = rumor_module.known_entries(ctx.known_rumors)
     if not entries:
