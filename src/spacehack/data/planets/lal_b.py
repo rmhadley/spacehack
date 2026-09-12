@@ -121,4 +121,6 @@ SPEC = PlanetSpec(
     dark_berth=True,
     dig_min_floors=2,
     dig_max_floors=6,
+    dig_prefixes=('Dead', 'Fallen', 'Stolen', 'Slim', 'Cut', 'Crooked', 'Gun', 'Smoke'),
+    dig_suffixes=('Fall', 'Drop', 'Cache', 'Hollow', 'Run', 'Hole', 'Gallery', 'Stash'),
 )

@@ -97,4 +97,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('Twin', 'Binary', 'Double', 'Bright', 'Cross', 'Paired', 'Half', 'Far'),
+    dig_suffixes=('Watch', 'Deck', 'Span', 'Vault', 'Gallery', 'Dock', 'Lens', 'Array'),
 )

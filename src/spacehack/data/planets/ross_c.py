@@ -150,4 +150,6 @@ SPEC = PlanetSpec(
     mission_tier=4,
     dig_min_floors=3,
     dig_max_floors=8,
+    dig_prefixes=('Cinder', 'Char', 'Black', 'Slag', 'Cooled', 'Dead', 'Deep', 'Final'),
+    dig_suffixes=('Heart', 'Maw', 'Throat', 'Root', 'Pit', 'Crater', 'Core', 'Bottom'),
 )

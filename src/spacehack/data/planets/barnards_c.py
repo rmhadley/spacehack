@@ -103,4 +103,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=2,
     dig_max_floors=4,
+    dig_prefixes=('Frost', 'White', 'Thin', 'Cold', 'Bare', 'Dim', 'Pale', 'Still'),
+    dig_suffixes=('Shelf', 'Drift', 'Ledge', 'Hollow', 'Vault', 'Vent', 'Spine', 'End'),
 )

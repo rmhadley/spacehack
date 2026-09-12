@@ -156,4 +156,6 @@ SPEC = PlanetSpec(
     ),
     dig_min_floors=2,
     dig_max_floors=5,
+    dig_prefixes=('Ice', 'Frozen', 'White', 'Cold', 'Melt', 'Snow', 'Blue', 'Sealed'),
+    dig_suffixes=('Crevasse', 'Channel', 'Shelf', 'Gallery', 'Fissure', 'Vault', 'Well', 'Vent'),
 )

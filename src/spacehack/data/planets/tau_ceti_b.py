@@ -145,4 +145,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=2,
     dig_max_floors=4,
+    dig_prefixes=('Brick', 'Grain', 'Steel', 'Plain', 'Working', 'Salt', 'Board', 'Common'),
+    dig_suffixes=('Hall', 'Store', 'Yard', 'Works', 'Mill', 'Barn', 'Silo', 'Floor'),
 )

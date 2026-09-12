@@ -137,4 +137,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=2,
     dig_max_floors=4,
+    dig_prefixes=('River', 'Reed', 'Slow', 'Brown', 'Wide', 'Ferry', 'Mud', 'Old'),
+    dig_suffixes=('Bend', 'Ford', 'Channel', 'Culvert', 'Basin', 'Cistern', 'Sluice', 'Bank'),
 )

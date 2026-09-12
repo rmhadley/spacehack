@@ -147,4 +147,6 @@ SPEC = PlanetSpec(
     mission_tier=3,
     dig_min_floors=2,
     dig_max_floors=5,
+    dig_prefixes=('Blue', 'Bright', 'Tall', 'Sharp', 'Wind', 'High', 'Fleet', 'Crowned'),
+    dig_suffixes=('Spire', 'Ledge', 'Reach', 'Gallery', 'Vent', 'Wall', 'Precipice', 'Crown'),
 )

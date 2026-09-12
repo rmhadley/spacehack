@@ -150,4 +150,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('Small', 'Sleepy', 'Slow', 'Cheap', 'Dusty', 'Quiet', 'Lean', 'Lazy'),
+    dig_suffixes=('Corner', 'Stop', 'Crossing', 'Well', 'Shed', 'Row', 'Store', 'Hole'),
 )

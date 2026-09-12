@@ -134,4 +134,6 @@ SPEC = PlanetSpec(
     tech_level=2,
     dig_min_floors=1,
     dig_max_floors=2,
+    dig_prefixes=('Clouded', 'Veiled', 'Sulphur', 'Hazy', 'Golden', 'Sunken', 'Faded', 'Low'),
+    dig_suffixes=('Terrace', 'Cistern', 'Gallery', 'Well', 'Vault', 'Reach', 'Drift', 'Tank'),
 )

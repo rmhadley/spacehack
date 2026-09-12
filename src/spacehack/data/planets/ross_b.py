@@ -156,4 +156,6 @@ SPEC = PlanetSpec(
     dark_berth=True,
     dig_min_floors=3,
     dig_max_floors=7,
+    dig_prefixes=('Ember', 'Burnt', 'Char', 'Smolder', 'Ash', 'Hot', 'Slag', 'Kiln'),
+    dig_suffixes=('Forge', 'Furnace', 'Bed', 'Pit', 'Stack', 'Vent', 'Seam', 'Vault'),
 )

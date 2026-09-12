@@ -96,4 +96,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=4,
+    dig_prefixes=('Outer', 'Far', 'Late', 'Dim', 'Quiet', 'Ashen', 'Third', 'Leeward'),
+    dig_suffixes=('Reach', 'Verge', 'Hollow', 'Warren', 'Annex', 'Shelf', 'Cistern', 'End'),
 )

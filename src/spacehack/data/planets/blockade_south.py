@@ -64,4 +64,6 @@ SPEC = PlanetSpec(
     mission_tier=4,
     dig_min_floors=1,
     dig_max_floors=2,
+    dig_prefixes=('Wire', 'Drum', 'Sand', 'Helm', 'Gun', 'Watch', 'Iron', 'Grim'),
+    dig_suffixes=('Post', 'Bunker', 'Wire', 'Wall', 'Gate', 'Trench', 'Magazine', 'Redoubt'),
 )

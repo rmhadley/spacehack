@@ -117,4 +117,6 @@ SPEC = PlanetSpec(
     mission_tier=1,
     dig_min_floors=1,
     dig_max_floors=2,
+    dig_prefixes=('Old', 'First', 'Still', 'Quiet', 'Buried', 'Deep', 'Humble', 'Low'),
+    dig_suffixes=('Works', 'Cellar', 'Hollow', 'Town', 'Tunnel', 'Roots', 'Knoll', 'Vault'),
 )

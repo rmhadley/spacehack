@@ -111,4 +111,6 @@ SPEC = PlanetSpec(
     ),
     dig_min_floors=2,
     dig_max_floors=5,
+    dig_prefixes=('Old', 'Crooked', 'Rust', 'Buried', 'Hollow', 'Faded', 'Bitter', 'Last'),
+    dig_suffixes=('Stash', 'Vault', 'Tunnel', 'Gallery', 'Cache', 'Run', 'Warren', 'Works'),
 )

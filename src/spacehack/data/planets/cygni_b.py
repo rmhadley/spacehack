@@ -119,4 +119,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('Willow', 'Ferry', 'Mill', 'Quiet', 'Old', 'Green', 'Broad', 'Low'),
+    dig_suffixes=('Ford', 'Landing', 'Crossing', 'Warren', 'Cellar', 'Sluice', 'Common', 'Works'),
 )

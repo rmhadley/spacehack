@@ -127,4 +127,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('Specimen', 'Field', 'Survey', 'White', 'Cold', 'Orbit', 'Glass', 'Data'),
+    dig_suffixes=('Annex', 'Bay', 'Core', 'Shelf', 'Vault', 'Wing', 'Well', 'Spine'),
 )

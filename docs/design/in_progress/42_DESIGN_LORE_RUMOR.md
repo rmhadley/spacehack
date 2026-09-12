@@ -1622,6 +1622,16 @@ amended with the favor exchange.
   2-5); the warlord frontier digs deepest — Deadfall/Whisper 2-6,
   Ember/Wolf 359 b 3-7, and Cinder is the showpiece at 3-8. Frontier
   bands with min > 1 mean EVERY site there descends.
+
+  **Per-planet name pools (same pass, user: "8 prefixes, 8 suffixes
+  per planet… reuse is OK, as long as nothing is copied 8 x 8
+  verbatim"):** every PlanetSpec authors themed ``dig_prefixes``/
+  ``dig_suffixes`` — Mars rust-claims, Deadfall dead-falls, Wolf b
+  dens-and-lairs, Procyon c ice crevasses, Groombridge kept gardens,
+  the blockade posts wire-and-bunkers, Cinder's black-heart showpiece
+  names. Planets added later without pools fall back to the data/digs
+  defaults. PROSE GATE: the full 27-planet table quoted to the user
+  at handoff — red-line in play or by word.
   - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
     1. Shift+M: a site reveals — the readout plays; Q → RUMORS
        shows the pointer line ("Charts a buried site: <name>, on

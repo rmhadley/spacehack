@@ -131,4 +131,6 @@ SPEC = PlanetSpec(
     ),
     dig_min_floors=1,
     dig_max_floors=2,
+    dig_prefixes=('Scorched', 'Flare', 'Furnace', 'Blistered', 'Silent', 'Mirror', 'Fused', 'Bright'),
+    dig_suffixes=('Shelter', 'Vault', 'Bore', 'Gallery', 'Tank', 'Cache', 'Well', 'Shaft'),
 )

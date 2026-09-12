@@ -97,4 +97,6 @@ SPEC = PlanetSpec(
     mission_tier=1,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('First', 'Pioneer', 'Old', 'New', 'Rough', 'Wild', 'Early', 'Poor'),
+    dig_suffixes=('Claim', 'Camp', 'Row', 'Plot', 'Yard', 'Hole', 'Dig', 'Shack'),
 )

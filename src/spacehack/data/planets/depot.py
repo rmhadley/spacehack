@@ -97,4 +97,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=2,
+    dig_prefixes=('Pump', 'Valve', 'Meter', 'Empty', 'Spare', 'Ration', 'Fuel', 'Idle'),
+    dig_suffixes=('Yard', 'Rack', 'Tank', 'Bay', 'Store', 'Line', 'Dock', 'Bunker'),
 )

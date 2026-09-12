@@ -120,4 +120,6 @@ SPEC = PlanetSpec(
     mission_tier=2,
     dig_min_floors=1,
     dig_max_floors=3,
+    dig_prefixes=('Stone', 'Clay', 'Brick', 'Grey', 'River', 'Over', 'Under', 'Mill'),
+    dig_suffixes=('Cut', 'Ford', 'Kiln', 'Yard', 'Culvert', 'Race', 'Weir', 'Bridge'),
 )

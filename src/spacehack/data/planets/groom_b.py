@@ -151,4 +151,6 @@ SPEC = PlanetSpec(
     mission_tier=3,
     dig_min_floors=2,
     dig_max_floors=4,
+    dig_prefixes=('Trim', 'Kept', 'Fenced', 'Mild', 'Gentle', 'Orderly', 'Clean', 'Proud'),
+    dig_suffixes=('Garden', 'Row', 'Green', 'Court', 'Terrace', 'Lawn', 'Walk', 'Plot'),
 )

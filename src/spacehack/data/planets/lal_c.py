@@ -148,4 +148,6 @@ SPEC = PlanetSpec(
     dark_berth=True,
     dig_min_floors=2,
     dig_max_floors=6,
+    dig_prefixes=('Quiet', 'Hushed', 'Soft', 'Muted', 'Low', 'Hidden', 'Silent', 'Still'),
+    dig_suffixes=('Passage', 'Cloak', 'Lane', 'Hollow', 'Vault', 'Stair', 'Door', 'Chamber'),
 )

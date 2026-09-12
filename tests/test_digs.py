@@ -108,7 +108,9 @@ def test_authored_name_pools_win(monkeypatch):
 
 
 def test_default_pools_fill_unauthored_specs():
-    spec = find_planet_spec("mars")
+    spec = dataclasses.replace(
+        find_planet_spec("mars"), dig_prefixes=(), dig_suffixes=(),
+    )
     name = digs.site_name(spec, 7)
     prefix, suffix = name.split(" ")
     assert prefix in DEFAULT_PREFIXES
