@@ -140,3 +140,56 @@ def test_dark_spawn_stamp_round_trips_through_save_parse_and_load():
         e for e in game_map.entities if e.procedural_squad_id == spawn.squad_id
     )
     assert restored.flies_dark is True
+
+
+# --- pads that teach (doc 42 SETTLED 19) -----------------------------------
+
+
+def _pad_ctx(known=None, entities=None):
+    ctx = _ctx(known)
+    ctx.game_map = SimpleNamespace(entities=list(entities or []))
+    return ctx
+
+
+def test_pad_spawns_only_while_unheard():
+    from src.spacehack import loot
+
+    ctx = _pad_ctx()
+    assert loot.maybe_spawn_pad(ctx, ctx.game_map, Position(5, 5), "pirate_raider") is True
+    assert len(ctx.game_map.entities) == 1
+    pad = ctx.game_map.entities[0]
+    assert pad.loot_data == {"teaches": "dark_berth_1"}
+    assert loot._loot_choice_label(pad) == "Data Pad"
+    # Heard by another door: no pad. Unknown carrier: no pad.
+    heard = _pad_ctx(known=["dark_berth_1"])
+    assert loot.maybe_spawn_pad(heard, heard.game_map, Position(5, 5), "pirate_raider") is False
+    assert loot.maybe_spawn_pad(ctx, ctx.game_map, Position(5, 5), "militia_patrol") is False
+
+
+def test_pad_pickup_teaches_presents_and_consumes(monkeypatch):
+    from src.spacehack import loot
+
+    seen = _quiet_present(monkeypatch)
+    ctx = _pad_ctx()
+    loot.maybe_spawn_pad(ctx, ctx.game_map, Position(5, 5), "pirate_raider")
+    pad = ctx.game_map.entities[0]
+    ctx.game_map.entities.append(
+        Entity("@", (255, 255, 255), Position(0, 0), "Player")
+    )
+    loot._open_single_loot_pickup(ctx, pad)
+    assert ctx.known_rumors == ["dark_berth_1"]
+    assert pad not in ctx.game_map.entities, "the pad is consumed"
+    assert seen == [("dark ports", rumor.entry_text("dark_berth_1"))]
+
+
+def test_already_heard_pad_consumes_silently(monkeypatch):
+    from src.spacehack import loot
+
+    seen = _quiet_present(monkeypatch)
+    ctx = _pad_ctx(known=["dark_berth_1"])
+    loot.maybe_spawn_pad(_pad_ctx(), ctx.game_map, Position(5, 5), "pirate_raider")
+    pad = ctx.game_map.entities[0]
+    loot._open_single_loot_pickup(ctx, pad)
+    assert ctx.known_rumors == ["dark_berth_1"]
+    assert pad not in ctx.game_map.entities
+    assert seen == [], "no duplicate readout"

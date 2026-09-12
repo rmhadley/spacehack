@@ -197,6 +197,8 @@ def _finalize_kill(
     )
     if _correct_spec is not None:
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
+        from .. import loot as _loot
+        _loot.maybe_spawn_pad(ctx, game_map, enemy.pos, _correct_spec.id)
     record_kill_pass(state.cr, ctx, _correct_spec, enemy.name,
                      enemy.spec_id, dead_ent)
 

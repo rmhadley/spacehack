@@ -26,6 +26,8 @@ from .loot_selection import nearby_loot_entities
 def _loot_choice_label(loot_entity) -> str:
     """Build a friendly compact label for one nearby loot entity."""
     data = loot_entity.loot_data or {}
+    if data.get("teaches"):
+        return "Data Pad"
     item_type = data.get("item_type")
     if item_type in {"weapon", "armor"}:
         entry = _ground_equipment_loot_entry(loot_entity)
@@ -546,8 +548,46 @@ def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
     )
 
 
+def maybe_spawn_pad(ctx: GameContext, game_map, pos, enemy_id: str) -> bool:
+    """Drop a teaching pad beside a kill's loot (doc 42, SETTLED 19) —
+    knowledge IS the item: nothing to the hold, nothing sellable. The
+    pad exists only while its entry is unheard. Returns whether it
+    spawned."""
+    from .data.lore.finds import pad_for
+    from . import world as _world
+
+    rumor_id = pad_for(enemy_id)
+    if rumor_id is None or rumor_id in ctx.known_rumors:
+        return False
+    game_map.entities.append(_world.Entity(
+        char="%", fg=(255, 215, 0), pos=pos, name="Data Pad",
+        width=1, height=1, loot_data={"teaches": rumor_id},
+    ))
+    return True
+
+
+def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
+    """Teach-on-pickup (SETTLED 19): hear it, present it through the
+    one readout path, consume the pad — the hold is never touched. An
+    already-heard pad (its entry arrived by another door after the
+    spawn) is consumed silently."""
+    from . import rumor
+
+    rumor_id = loot_entity.loot_data.get("teaches", "")
+    heard = rumor.hear(ctx, rumor_id)
+    if loot_entity in ctx.game_map.entities:
+        ctx.game_map.entities.remove(loot_entity)
+    if heard:
+        rumor.present_hearing(
+            ctx, rumor.topic_label(rumor_id), rumor.entry_text(rumor_id),
+        )
+
+
 def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open the existing pickup flow for one selected loot entity."""
+    if loot_entity.loot_data.get("teaches"):
+        _apply_pad_pickup(ctx, loot_entity)
+        return
     item_type = loot_entity.loot_data.get("item_type")
     if item_type in {"weapon", "armor"}:
         _apply_equipment_loot(ctx, loot_entity)
