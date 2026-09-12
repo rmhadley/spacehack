@@ -488,3 +488,19 @@ def advance_to_shift_boundary(ctx) -> int:
     _advance_time(ctx, _days)
     ctx.log.add(f"[DEV MODE] Clock advanced {_days} days to the shift boundary.")
     return _days
+
+
+def log_rumor_routing(ctx) -> None:
+    """Shift+N: log the run's live rumor routing (doc 42 phase 3) —
+    carriers per entry, the live exclusive holder, the dark share."""
+    from .engine import INIT_SEED
+    from .rumor_routing import DARK_GROUP_SHARE, live_holdings, live_routes
+
+    ctx.log.add(f"[DEV] Rumor routing (seed {INIT_SEED}):")
+    for _entry_id, _pairs in sorted(live_routes(INIT_SEED).items()):
+        _carriers = ", ".join(f"{_n}@{_p}" for _n, _p in sorted(_pairs))
+        ctx.log.add(f"  {_entry_id}: {_carriers}")
+    for _dealer, _rows in sorted(live_holdings(INIT_SEED).items()):
+        for _rumor_id, _price in _rows:
+            ctx.log.add(f"  exclusive {_rumor_id}: held by {_dealer} @ {_price}")
+    ctx.log.add(f"  dark pirate groups: 1 in {DARK_GROUP_SHARE} (seeded per system)")

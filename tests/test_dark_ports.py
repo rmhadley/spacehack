@@ -239,3 +239,23 @@ def test_shady_tech_anchor_is_walkable_pavement():
     # on it).
     game_map = load_planet("lal_c")
     assert game_map.is_walkable(80, 66)
+
+
+# --- the Shift+N dev instrument (doc 42 phase 3) ----------------------------
+
+
+def test_log_rumor_routing_names_carriers_and_holder():
+    from src.spacehack import dev_mode
+    from src.spacehack import engine as engine_mod
+
+    engine_mod.INIT_SEED = 7
+    try:
+        ctx = _ctx()
+        dev_mode.log_rumor_routing(ctx)
+        _text = "\n".join(e.text for e in ctx.log.history())
+        assert "[DEV] Rumor routing (seed 7):" in _text
+        assert "dark_berth_2:" in _text
+        assert "exclusive dark_berth_4: held by" in _text
+        assert "dark pirate groups: 1 in" in _text
+    finally:
+        engine_mod.INIT_SEED = 0

@@ -614,9 +614,10 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         body=(
             "Some people know more than small talk. When someone can open a "
             "subject you haven't heard about, their talk menu shows an Ask "
-            "row - take it and hear them out. Once you've heard a subject, "
-            "Ask around appears whenever the person you're talking to can "
-            "take it further."
+            "row - take it and hear them out. New subjects reach you in "
+            "play - by what you see, what you find - not only by asking. "
+            "Once you've heard a subject, Ask around appears whenever the "
+            "person you're talking to can take it further."
             "\n\n"
             "Everything you hear is kept word for word in the quest log: "
             "press Q, then TAB, to read your rumors. Who knows what is yours "

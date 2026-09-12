@@ -408,6 +408,16 @@ def _is_shift_b_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'B')
 
+
+def _is_shift_n_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+N.
+
+    Dev-mode only (``SPACEHACK_DEV``): logs the run's live rumor
+    routing (doc 42 phase 3) — the carriers per entry and the live
+    exclusive holder.
+    """
+    return _is_shift_press(event, 'N')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 
