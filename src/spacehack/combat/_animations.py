@@ -37,7 +37,7 @@ def _present(context, console) -> None:
 
 def _responsive_sleep(seconds: float) -> None:
     """Sleep while polling SDL events to keep the window responsive."""
-    end = time.monotonic() + seconds
+    end = time.monotonic() + animation_timing.scaled(seconds)
     while time.monotonic() < end:
         # Drain queued SDL input during animation frames so keys do not
         # bleed into the next turn. The shared runtime owns the same queue.

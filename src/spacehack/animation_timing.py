@@ -3,6 +3,10 @@
 These values keep animation pacing consistent across combat, navigation,
 transitions, and scripted effects. They are deliberately presentation-only;
 no gameplay turn or state timing depends on them.
+
+The module-level speed scale is user preference (Options menu), not save
+state: it is derived from the config file at startup and updated on Apply,
+like the engine's window settings. Consumers apply it via ``scaled()``.
 """
 from __future__ import annotations
 
@@ -32,3 +36,25 @@ TRANSIT_ARRIVAL: float = 0.05
 DUNGEON_BREACH: float = 0.045
 SIGNAL_WAVE: float = 0.055
 SIGNAL_SETTLE: float = 0.10
+# Descent elevator frames (see descent_animation.animate_descent).
+DESCENT: float = 0.075
+
+# User-selectable animation speed multiplier (0.0 plays frames with no
+# delay). Set from DisplayConfig.animation_speed at startup and on Apply.
+_SPEED_SCALE: float = 1.0
+
+
+def set_speed_scale(scale: float) -> None:
+    """Set the global animation speed multiplier; negative values clamp to 0."""
+    global _SPEED_SCALE
+    _SPEED_SCALE = max(0.0, float(scale))
+
+
+def speed_scale() -> float:
+    """Return the active animation speed multiplier."""
+    return _SPEED_SCALE
+
+
+def scaled(seconds: float) -> float:
+    """Return a frame delay under the active animation speed setting."""
+    return seconds * _SPEED_SCALE

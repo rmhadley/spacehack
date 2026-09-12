@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 
+from . import animation_timing
 from .engine import SCREEN_HEIGHT, SCREEN_WIDTH
 
 # Shaft palette: near-black rock, dim steel rails, warm cage light.
@@ -93,7 +94,7 @@ def paint_descent_frame(console, cage_row: int) -> None:
 _SKIP_GRACE_FRAMES = 8
 
 
-def animate_descent(ctx, console, *, frame_seconds: float = 0.075) -> None:
+def animate_descent(ctx, console, *, frame_seconds: float = animation_timing.DESCENT) -> None:
     """Play the descent: eased cage travel; any key skips to the end.
 
     Presents through the shared Pygame runtime — the same present +

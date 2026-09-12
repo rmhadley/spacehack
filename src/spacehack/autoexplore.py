@@ -47,7 +47,7 @@ from collections import deque
 from dataclasses import dataclass
 
 from . import world
-from .animation_timing import AUTO_EXPLORE
+from .animation_timing import AUTO_EXPLORE, scaled
 
 # ---------------------------------------------------------------------------
 # Interesting content
@@ -577,12 +577,15 @@ def _default_present_frame(ctx, console, game_map, *, map_w, map_h, location) ->
 
 def _poll_cancel_window(ctx) -> bool:
     """True if any keydown arrives during the per-step delay window."""
-    _end = time.monotonic() + AUTO_EXPLORE
-    while time.monotonic() < _end:
+    # Poll once before the deadline check so a zero-length window (instant
+    # animation speed) still sees queued keydowns and stays cancellable.
+    _end = time.monotonic() + scaled(AUTO_EXPLORE)
+    while True:
         for _ev in ctx.context.events():
             if getattr(_ev, "kind", "") == "keydown":
                 return True
-    return False
+        if time.monotonic() >= _end:
+            return False
 
 
 def _step_present_poll_move(

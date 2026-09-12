@@ -341,16 +341,18 @@ def _goto_render_step(console: FrameBuffer, ctx, sx: int, sy: int) -> None:
 
 def _goto_poll_cancel(context, duration: float) -> bool:
     """Return True when the player presses a move key during ``duration``."""
-    _end = time.monotonic() + duration
-    while time.monotonic() < _end:
+    # Poll once before the deadline check so a zero-length window (instant
+    # animation speed) still sees queued keydowns and stays cancellable.
+    _end = time.monotonic() + animation_timing.scaled(duration)
+    while True:
         for _ev in context.events():
             if _ev.kind == "keydown":
                 if _ev.key_name in world.MOVE_KEYS or _ev.key_name in {".", "period"}:
                     return True
         _remaining = _end - time.monotonic()
-        if _remaining > 0:
-            time.sleep(min(_remaining, 0.01))
-    return False
+        if _remaining <= 0:
+            return False
+        time.sleep(min(_remaining, 0.01))
 
 
 def _goto_step_interrupt(ctx, player_entity):
@@ -525,7 +527,7 @@ def _responsive_sleep(seconds: float) -> None:
     spinning beach ball during animation loops that block with
     ``time.sleep``.
     """
-    end = time.monotonic() + seconds
+    end = time.monotonic() + animation_timing.scaled(seconds)
     import pygame
     while time.monotonic() < end:
         pygame.event.get()
