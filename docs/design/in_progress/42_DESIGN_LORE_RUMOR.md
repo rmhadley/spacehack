@@ -390,6 +390,33 @@ dark_berth is the refinement target.
     (supersedes SETTLED 19's "dungeon loot joins as a pad surface"
     for this phase).
 
+## Settled — phase 4, refine round 2 (2026-09-12)
+
+31. **Site stacking confirmed.** Each reveal is a new, distinct
+    site — planet seeded among all planets, site identity seeded;
+    no cap; rarity keeps counts low in practice.
+32. **Three landmark pieces at first; agent drafts, user
+    iterates.** (user: "just 3 landmarks at first, you author
+    first, then we iterate together to refine/polish them.") The
+    prose gate applies to my drafts.
+33. **Site names: prefix/suffix pools ON THE PLANET SPEC.** (user:
+    "I like the idea of the prefix/suffix being configured at the
+    planet spec!") Two-part generated names; each planet authors
+    its own word pools, with a derived default for planets (and
+    future planets) that don't.
+34. **The reveal idiom = the dark-port discovery.** (user:
+    "datapad pickup consumes and you get a rumor unlocked, just
+    like discovering the dark port rumor from previous phase.")
+    Consume-on-pickup, readout modal, permanent record — the same
+    idiom as a hearing.
+35. **Placeholder loot is a pluggable config, not a hardcoded
+    pile.** (user: "as long as there's a system that we can plug in
+    to later when we design better loot") — the site's cache loot
+    spawns through a per-site loot spec the future loot doc
+    expands in place.
+36. **Rarity: three flat rolls, one authored rates table** (opening
+    guesses 1-in-12 / 1-in-8 / 1-in-6), tuned at playtest.
+
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
 The one-chain ruling made ``dark_berth`` the refinement target; the
