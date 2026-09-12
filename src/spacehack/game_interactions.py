@@ -221,6 +221,22 @@ def _dark_dock_refusal(ctx, pid):
     return "Docking request denied: transponder not responding."
 
 
+def _dark_port_landing_beat(ctx, log, pid: str) -> None:
+    """Doc 42 phase 2.5: every landing at a dark port logs the
+    credential line (the militia-scan cadence); the trigger hears
+    once, idempotently."""
+    from . import rumor as _rumor
+    from .data.planets import find_planet_spec as _fps
+    try:
+        _spec = _fps(pid)
+    except KeyError:
+        return
+    if not _spec.dark_berth:
+        return
+    log.add("This port didn't verify any credentials.")
+    _rumor.fire_trigger(ctx, "dock_dark_port")
+
+
 def _resolve_planet_land(state, pid, planet_obj):
     """Handle the planet-menu Land option."""
     ctx = state.ctx
@@ -235,6 +251,7 @@ def _resolve_planet_land(state, pid, planet_obj):
     if not _phlp(pid):
         log.add(f'You see no port on {planet_obj.name}.')
         return 'CONTINUE'
+    _dark_port_landing_beat(ctx, log, pid)
     return _enter_city_landing(state, ctx, console, log, pid, planet_obj)
 
 

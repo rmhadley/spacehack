@@ -229,6 +229,8 @@ def npc_identity(entity) -> dict[str, Any] | None:
     _pid = getattr(entity, "npc_ship_id", "")
     if not _pid:
         return None
+    if getattr(entity, "flies_dark", False):
+        return None  # dark hulls broadcast nothing (doc 42 phase 2.5)
     from .data.npc_ships import find_npc_ship
     try:
         _spec = find_npc_ship(_pid)

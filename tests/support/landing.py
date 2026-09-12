@@ -20,6 +20,10 @@ def landing_state(**ctx_extra) -> game_interactions.GameLoopState:
     ctx = SimpleNamespace(
         current_city_id="earth", game_map=None, player=object(),
         militia_scanned=[], ground_hp=23, ground_max_hp=23,
+        # Doc 42 phase 3: landing at a dark port fires the discovery
+        # trigger through this path — pre-heard so the idempotent
+        # no-op keeps these tests off the presentation modal.
+        known_rumors=["dark_berth_1"],
         **ctx_extra,
     )
     return game_interactions.GameLoopState(

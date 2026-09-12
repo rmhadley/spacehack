@@ -326,6 +326,7 @@ class Entity:
     height: int = 1
     owned: bool = False
     npc_ship_id: str = ""           # references NpcShipSpec.id for NPC ships
+    flies_dark: bool = False        # dark hull (doc 42): broadcasts nothing
     procedural_squad_id: str = ""
     trade_terminal: bool = False
     mech_terminal: bool = False

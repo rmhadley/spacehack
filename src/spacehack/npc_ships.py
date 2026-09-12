@@ -20,6 +20,7 @@ from . import npc_movement
 from . import world
 from .data.npc_ships import find_npc_ship as _find_npc_ship, map_speed
 from .game_context import GameContext, ProceduralSpawn, NpcFlashEvent
+from .rumor_routing import choose_dark_groups
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +392,22 @@ def _spawn_militia_patrols(
     )
 
 
+def _stamp_dark_groups(game_map: world.GameMap, dark_mids: frozenset[str]) -> None:
+    """Mark every entity of a dark pirate group (doc 42 phase 2.5) —
+    dark hulls broadcast nothing and hail silent."""
+    if not dark_mids:
+        return
+    for _ent in game_map.entities:
+        if getattr(_ent, "procedural_squad_id", "") in dark_mids:
+            _ent.flies_dark = True
+
+
 def _spawn_table_groups(
     ctx, game_map, system_id, system, blocked, body_goals,
 ) -> tuple[int, list]:
     """Spawn the weighted npc_spawn_table groups.
 
-    Returns ``(total_spawned, [(pos, movement_id, npc_id), ...])``.
+    Returns ``(total_spawned, [(pos, movement_id, npc_id, dark), ...])``.
     """
     _active: list[str] = [
         _npc_id for _npc_id, _weight in system.npc_spawn_table
@@ -418,7 +429,17 @@ def _spawn_table_groups(
             ctx, game_map, system_id, system, blocked, body_goals,
             _npc_id, _spec, _all,
         )
-    return _total, _all
+    # The dark-hull choice (doc 42): one pirate group in N flies dark
+    # this run — a seeded pick over the batch, guaranteed >= 1.
+    _pirate_mids = {
+        _mid for _pos, _mid, _npc_id in _all
+        if getattr(_find_npc_ship(_npc_id), "faction", "pirate") == "pirate"
+    }
+    _dark = choose_dark_groups(_engine.INIT_SEED, system_id, _pirate_mids)
+    _stamp_dark_groups(game_map, _dark)
+    return _total, [
+        (_pos, _mid, _npc_id, _mid in _dark) for _pos, _mid, _npc_id in _all
+    ]
 
 
 def _spawn_one_type(
@@ -473,8 +494,10 @@ def _register_table_batch(ctx, system_id, all_procedural, total) -> None:
         if _ps.npc_id not in _spawned_ids
     ]
     ctx.procedural_spawns[system_id] = _preserved + [
-        ProceduralSpawn(npc_id=npc_id, pos=pos, squad_id=sid)
-        for pos, sid, npc_id in all_procedural
+        ProceduralSpawn(
+            npc_id=npc_id, pos=pos, squad_id=sid, flies_dark=dark,
+        )
+        for pos, sid, npc_id, dark in all_procedural
     ]
     _names = set()
     for _, _, _npc_id in all_procedural:

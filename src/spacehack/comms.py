@@ -323,6 +323,11 @@ def _run_interaction_modal(
 ) -> tuple[list, list] | None:
     """Run one contact's action modal. ``(specs, positions)`` for
     combat, ``None`` otherwise."""
+    if getattr(contact_entity, "flies_dark", False):
+        # The silent hail (doc 42 phase 2.5): hailing a dark hull is
+        # a discovery event — the readout plays before the hail.
+        from . import rumor
+        rumor.fire_trigger(ctx, "dark_hail")
     interaction_outcome = (
         _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, _contact_options(ctx, contact_spec),
@@ -549,29 +554,9 @@ def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
 
 def _pygame_contact_result(ctx, contacts):
     """Run the contact list through Pygame and return selected contact."""
-    from . import identity
-    from . import pygame_menu, pygame_ui
+    from . import pygame_menu
 
-    _sheet = identity.effective_reputation(ctx)
-    items = tuple(
-        pygame_menu.MenuItem(
-            f"{name} (hostile)" if _get_attitude(_sheet.get(spec.faction, 0)) in ("enemy", "disliked") else name,
-            spec.comms_lines[0] if spec.comms_lines else "...",
-            f"CONTACT:{index}",
-        )
-        for index, (name, spec, _entity) in enumerate(contacts)
-    )
-    frames = tuple(
-        pygame_menu.MenuFrame(
-            f"COMMS - {len(contacts)} contacts in range",
-            "Select a ship to hail.", items,
-            (pygame_ui.modal_hint(
-                pygame_ui.NAV_HINT, "ENTER hail", "ESC close",
-                pygame_ui.GUIDE_HINT,
-            ),), selected,
-        )
-        for selected in range(max(1, len(items)))
-    )
+    frames = _contact_list_frames(ctx, contacts)
     outcome, action, selected = pygame_menu.run_for_context(
         ctx.context,
         frames,
@@ -589,6 +574,34 @@ def _pygame_contact_result(ctx, contacts):
         return contacts[int(action.split(":", 1)[1])]
     except (ValueError, IndexError):
         return None
+
+
+def _contact_list_frames(ctx, contacts):
+    """One menu frame per contact row — the hostile-tagged labels and
+    the comms list chrome (extracted from _pygame_contact_result)."""
+    from . import identity
+    from . import pygame_menu, pygame_ui
+
+    _sheet = identity.effective_reputation(ctx)
+    items = tuple(
+        pygame_menu.MenuItem(
+            f"{name} (hostile)" if _get_attitude(_sheet.get(spec.faction, 0)) in ("enemy", "disliked") else name,
+            spec.comms_lines[0] if spec.comms_lines else "...",
+            f"CONTACT:{index}",
+        )
+        for index, (name, spec, _entity) in enumerate(contacts)
+    )
+    return tuple(
+        pygame_menu.MenuFrame(
+            f"COMMS - {len(contacts)} contacts in range",
+            "Select a ship to hail.", items,
+            (pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER hail", "ESC close",
+                pygame_ui.GUIDE_HINT,
+            ),), selected,
+        )
+        for selected in range(max(1, len(items)))
+    )
 
 def open_comms(
     ctx: GameContext,

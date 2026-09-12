@@ -299,6 +299,7 @@ def _sync_procedural_spawns(ctx: GameContext, system_id: str) -> tuple:
                 cur_pos, cur_mid = ps.pos, ""
             updated.append(ProceduralSpawn(
                 npc_id=ps.npc_id, pos=cur_pos, squad_id=ps.squad_id,
+                flies_dark=ps.flies_dark,
             ))
             mids.append(cur_mid)
         synced_spawns[sys_id] = updated
@@ -565,6 +566,7 @@ def _parse_procedural_spawns(data: dict) -> tuple:
                 npc_id=ps.get("npc_id", ""),
                 pos=world.Position(px, py),
                 squad_id=ps.get("squad_id"),
+                flies_dark=bool(ps.get("flies_dark", False)),
             ))
     mid_map: dict[str, list[str]] = {
         sys_id: [str(m) for m in mids] for sys_id, mids in (proc_mids or {}).items()

@@ -150,6 +150,7 @@ class ProceduralSpawn:
     npc_id: str                      # references NpcShipSpec.id
     pos: world.Position
     squad_id: str | None = None
+    flies_dark: bool = False         # doc 42: the dark-hull spawn stamp
 
 
 @dataclasses.dataclass
