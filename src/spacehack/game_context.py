@@ -323,6 +323,12 @@ class GameContext:
     # ids]} (ruling 13). ID-agnostic: floors follow the face, the
     # book follows the person.
     rumor_favor: dict = dataclasses.field(default_factory=dict)
+    # Discovered dig sites (doc 42 phase 4): {id, planet, name} in
+    # reveal order. The planet menu's Explore rows and the dig-floor
+    # cache read this; the RUMORS pane renders its pointer-line twin
+    # (SETTLED 37). Depth derives from the seed at read time — never
+    # stored.
+    discovered_sites: list[dict] = dataclasses.field(default_factory=list)
     # Ground combat stats (reflexes, strength, stamina).
     ground_stats: _GroundStats = dataclasses.field(default_factory=_GroundStats)
     # Equipped ground weapon instances. Two-handed specs occupy both

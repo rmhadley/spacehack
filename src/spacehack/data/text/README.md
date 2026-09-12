@@ -36,6 +36,9 @@ There are two tiers:
 | `rumor.<id>.text` | Rumor text — the readout modal and the Q-log Rumors pane (file `08_rumors.json`) |
 | `rumor.<id>.topic` | Short askable label — hearing rows and Ask Around topics (file `08_rumors.json`) |
 | `rumor.<id>.witness.<npc>` | Per-source delivery override, conversation flavor only; the ledger keeps `rumor.<id>.text` (file `08_rumors.json`) |
+| `dig.reveal.title` | Discovered-site readout title (file `09_digs.json`) |
+| `dig.reveal.text` | Discovered-site readout body; `{name}` / `{planet}` filled by the game (file `09_digs.json`) |
+| `dig.pointer_line` | The site's pointer line in the Q-log Rumors pane; `{name}` / `{planet}` filled by the game (file `09_digs.json`) |
 
 ## Rules
 
@@ -46,6 +49,10 @@ There are two tiers:
   catalog needs must exist in `08_rumors.json` (and only there);
   `tests/test_rumor_catalog.py` fails loudly on a missing or
   misplaced key.
+- `dig.*` keys are single-source like `rumor.*` — every key in
+  `spacehack.digs.TEXT_KEYS` must exist in `09_digs.json`; the
+  orphan-key test unions that set, so an unclaimed or missing key
+  fails loudly.
 - For `npc.*` / `good.*` / `runtime.*` / `disclosure.*`, **delete a key**
   to fall back to the shipped default text.
 - `{placeholders}` like `{good}`, `{faction}`, `{max}` are filled in by

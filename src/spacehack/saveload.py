@@ -153,6 +153,16 @@ def _restore_lore_fields(ctx: GameContext, data: dict) -> None:
     ctx.rumor_favor = dict(data.get("rumor_favor", {}) or {})
 
 
+def _dig_fields(ctx: GameContext) -> dict:
+    """Serialize the discovered dig sites (doc 42 phase 4)."""
+    return {"discovered_sites": _d(ctx.discovered_sites)}
+
+
+def _restore_dig_fields(ctx: GameContext, data: dict) -> None:
+    """Restore the discovered dig sites."""
+    ctx.discovered_sites = list(data.get("discovered_sites", []) or [])
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
@@ -185,6 +195,7 @@ def _core_fields(ctx: GameContext) -> dict:
         **_progression_fields(ctx),
         **_identity_fields(ctx),
         **_lore_fields(ctx),
+        **_dig_fields(ctx),
     }
 
 
@@ -827,6 +838,7 @@ def _assemble_context(context, data: dict, parsed: _ParsedSave, rebuilt) -> Game
     _restore_ground_fields(ctx, data)
     _restore_progression_fields(ctx, data)
     _restore_lore_fields(ctx, data)
+    _restore_dig_fields(ctx, data)
     _restore_quest_and_tutorial(ctx, data)
     ctx._loaded_mode = rebuilt.mode  # type: ignore[attr-defined]
     if rebuilt.mode == "dungeon":

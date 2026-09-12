@@ -108,6 +108,16 @@ class PlanetSpec:
     # transponder is off). Every port refuses dark by default — the
     # whitelist is the sum of these opt-ins, no id list in code.
     dark_berth: bool = False
+    # Doc 42 phase 4: per-planet dig-site config. Every planet is
+    # depth-capable out of the box (SETTLED 25/38); a spec tightens or
+    # widens the defaults. dig_prefixes/dig_suffixes are the two-part
+    # site-name pools (SETTLED 33; empty = the data/digs defaults);
+    # dig_params overrides the derived DungeonParams (SETTLED 26).
+    dig_prefixes: tuple[str, ...] = ()
+    dig_suffixes: tuple[str, ...] = ()
+    dig_params: object = None
+    dig_min_floors: int = 1
+    dig_max_floors: int = 2
 
 
 # ---------------------------------------------------------------------------

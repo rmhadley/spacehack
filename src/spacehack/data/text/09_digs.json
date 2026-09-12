@@ -1,0 +1,5 @@
+{
+  "dig.reveal.title": "Buried Site",
+  "dig.reveal.text": "The pad holds survey charts for {planet}. One entry is still flagged: a dig site, {name}. The find is logged - the planet's explore options now list it.",
+  "dig.pointer_line": "Charts a buried site: {name}, on {planet}."
+}

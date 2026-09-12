@@ -109,6 +109,11 @@ def _build_test_ctx() -> GameContext:
         "wolf_barkeep": {"favor": 4, "earned": ["dark_berth_1", "dark_berth_2"]},
         "research_officer": {"favor": 1, "earned": ["dark_berth_3"]},
     }
+    # Discovered dig sites (doc 42 phase 4): reveal order preserved.
+    ctx.discovered_sites = [
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+        {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+    ]
     ctx.post_prison_orbit_seen = True
     ctx.post_prison_orbit_pending = True
     ctx.main_quest_chain = "lab"
@@ -219,6 +224,8 @@ class TestSaveLoadRoundTrip:
         assert loaded.known_rumors == original.known_rumors
         # Favor ledgers: books and earned sets survive verbatim.
         assert loaded.rumor_favor == original.rumor_favor
+        # Discovered dig sites: reveal order preserved (doc 42 phase 4).
+        assert loaded.discovered_sites == original.discovered_sites
 
         # Player counters
         assert loaded.player_counters.total_kills == original.player_counters.total_kills

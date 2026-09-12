@@ -193,6 +193,8 @@ def test_shipped_overlay_keys_resolve():
         _known.add(f"rumor.{_entry.id}.topic")
         for _source in _entry.sources:
             _known.add(f"rumor.{_entry.id}.witness.{_source[0]}")
+    from src.spacehack import digs as _digs
+    _known |= _digs.TEXT_KEYS
     from src.spacehack.data.trade_goods.core import TRADE_GOODS
     for _g in TRADE_GOODS:
         _known.add(f"good.{_g.id}.name")
