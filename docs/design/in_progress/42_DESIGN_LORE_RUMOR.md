@@ -310,14 +310,13 @@ ruled. These bind all phases.
     the keyring (saved, New Game clears). AMENDED (2026-09-12,
     SETTLED 25): RNG sites are NOT a new authored planet set —
     every planet can carry them.
-24. **Single-level v1.** Phase 4 wires discovery gating, new dig
-    planets, and pads-in-dungeon-loot on the EXISTING single-level
-    BSP surface generator (tier=mission_tier population, the
-    `ctx.interiors` revisit cache — all shipped machinery).
-    Multi-level proc-gen (floor progression) is its own later
-    phase; "can be multi level" stays the system's destination,
-    not v1. The fragment's seeded destination pick (SETTLED 22)
-    varies WHERE the dig is, not how deep.
+24. **Depth-capable on the shipped machinery.** Phase 4 wires
+    discovery gating and dig generation on the existing BSP
+    generator + ``ctx.interiors`` revisit cache — extended with a
+    generated stairs-down and per-floor persistence (the mars
+    prison extension's floor idiom; SETTLED 38). The fragment's
+    seeded destination pick (SETTLED 22) varies WHERE the dig is;
+    depth is the planet spec's (SETTLED 38).
 
 ## Ruling — one chain (user, 2026-09-11)
 
@@ -428,6 +427,22 @@ dark_berth is the refinement target.
     discovered-sites state stays the source of truth for the planet
     menu and the map cache; the ledger line is its presentation
     twin. SETTLED 27's amendment note is superseded by this ruling.
+
+## Settled — phase 4, refine round 4 (2026-09-12)
+
+38. **Depth ships now; the planet spec defines min/max floors.**
+    (user: "Depth capable with planet spec defining min/max
+    floors." — answering the agent's depth question; "I definitely
+    want multiple floors in the end".) Sites are floor-native from
+    day one: each site's depth rolls seeded within its planet's
+    ``dig_min_floors``/``dig_max_floors`` at reveal; the BSP pass
+    generates a stairs-down per non-bottom floor (stairs are
+    terminals — the shipped idiom); every floor persists under the
+    site's cache; difficulty and placeholder loot scale with
+    tier + floor. Planets without authored bounds derive the
+    default range 1-2 (tunable data) — every planet is depth-capable
+    out of the box, the spec tightens or widens per theme. AMENDS
+    SETTLED 24 (rewritten above).
 
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
@@ -714,7 +729,7 @@ binds its build.
        appears — same physical NPC. Go dark (D): the floored
        source refuses (dark reads neutral); the floorless source
        still serves.
-    6. Regression: quest rows, purchase rows (scrub/cutout/rig),
+    7. Regression: quest rows, purchase rows (scrub/cutout/rig),
        missions, the sell sub-menu, and plain flavor all behave
        exactly as before on the same modal.
     7. Save → quit → Continue: ledger + keyring intact; asking
@@ -1363,9 +1378,15 @@ amended with the favor exchange.
     the name from the planet's pools; records the site, presents
     through ``rumor.present_hearing``), ``derive_dig_params(spec)``
     (theme + ``mission_tier`` → ``DungeonParams``; the spec's
-    ``dig_params`` overrides — SETTLED 26), ``generate_dig(ctx,
-    site)`` (the existing BSP generator + populate at tier; the
-    landmark sprinkle; the placeholder cache), and
+    ``dig_params`` overrides — SETTLED 26) plus the depth bounds
+    (``dig_min_floors``/``dig_max_floors``, derived default 1-2 —
+    SETTLED 38), ``generate_dig(ctx,
+    site, floor)`` (the existing BSP generator + populate at
+    tier + floor; the generated stairs-down on non-bottom floors —
+    stairs are terminals, the prison-extension idiom; the landmark
+    sprinkle; the placeholder cache), ``site_depth(spec, site)``
+    (seeded within the spec's ``dig_min_floors``/``dig_max_floors``
+    at reveal, default 1-2), and
     ``site_loot_rows(spec, tier)`` (the pluggable loot spec,
     SETTLED 35). Data: ``data/digs/`` — the authored rates table
     (1-in-12 humanoid pad / 1-in-8 derelict pad / 1-in-6 C-terminal,
@@ -1382,19 +1403,22 @@ amended with the favor exchange.
     non-capture branch) rolls the reveal on access. Menu:
     ``menus/_planet.py`` — one "Explore <site name>" row per
     discovered site on the planet, hidden until found, each opening
-    the cached-or-fresh dig (cache key ``dig:<planet>:<id>`` in
-    ``ctx.interiors`` — persisted, SETTLED 29). Ledger: the RUMORS
+    the cached-or-fresh dig floor (cache keys
+    ``dig:<planet>:<id>:<floor>`` in ``ctx.interiors`` — every
+    floor persisted, SETTLED 29/38). Ledger: the RUMORS
     pane renders keyring entries, then the site pointer lines from
     ``ctx.discovered_sites`` (SETTLED 37; template + injected name
     + planet). Dev: Shift+M force-reveals a site (checklist
     instrument).
   - **Build order.** (1) state + round-trip + the
-    ``digs.reveal_site`` derivation + name pools (+ PlanetSpec
-    fields) + tests; (2) ``derive_dig_params`` + ``generate_dig``
-    + the landmark stamps + tests; (3) the three doors + the pad
-    pickup + tests; (4) planet-menu rows + the interiors cache
-    revisit + tests; (5) the ledger pointer lines + tests; (6)
-    Shift+M; (7) playtest checkpoint.
+    ``digs.reveal_site`` derivation (planet, name, DEPTH) + name
+    pools (+ PlanetSpec fields, depth bounds) + tests; (2)
+    ``derive_dig_params`` + ``generate_dig`` + the stairs-down +
+    floor transitions + the landmark stamps + tests; (3) the
+    three doors + the pad pickup + tests; (4) planet-menu rows +
+    the per-floor interiors cache + depth-scaled populate/loot +
+    tests; (5) the ledger pointer lines + tests; (6) Shift+M;
+    (7) playtest checkpoint.
   - **Binding rulings.** SETTLED 20-24 as amended, 25-37. Every
     planet, no roster; nothing hardcoded per site; the spec feeds
     the generator; three RNG-rare doors, never guaranteed;
@@ -1411,9 +1435,13 @@ amended with the favor exchange.
     params derivation (theme tiles; tier scaling; ``dig_params``
     override wins); landmark sprinkle (pastes legally, walkable,
     seeded); loot spec (planet goods, tier-scaled quantity; the
-    pluggable shape); menu rows (hidden until found; one per site;
-    the authored Explore row unchanged); revisit (the cache key
-    persists; cleared stays cleared); ledger (pointer lines after
+    pluggable shape; floor-scaled); menu rows (hidden until found;
+    one per site; the authored Explore row unchanged); depth (the
+    seeded roll lands within the spec's bounds; the derived
+    default 1-2; stairs walkable terminals on non-bottom floors;
+    floor transitions + per-floor persistence; tier+floor
+    population scaling); revisit (the cache keys persist; cleared
+    stays cleared on every floor); ledger (pointer lines after
     keyring entries, verbatim template); regression (the five
     authored dungeon planets unchanged; the dark-ports chain
     surfaces untouched).
@@ -1434,17 +1462,22 @@ amended with the favor exchange.
     3. Landmark: Shift+S reroll + Shift+M reveals across several
        sites — a landmark room appears here and there (not every
        dungeon), its pieces paste cleanly.
-    4. Revisit: leave and return — the SAME map (cleared stays
-       cleared, looted stays looted); save → quit → Continue —
-       sites, ledger lines, and the cached maps all survive.
-    5. Doors: kill humanoid enemies — a Data Pad drops rarely;
+    4. Depth: a multi-floor site (Shift+M until one reveals, or a
+       spec-authored deep planet) — descend the generated stairs;
+       deeper floors are harder and the placeholder cache richer;
+       every floor is a persisted map.
+    5. Revisit: leave and return — the SAME maps (cleared stays
+       cleared, looted stays looted, on every floor); save → quit →
+       Continue — sites, ledger lines, depths, and the cached
+       floors all survive.
+    6. Doors: kill humanoid enemies — a Data Pad drops rarely;
        derelict wrecks' loot and the boarded ship's C terminal
        reveal rarely. Numbers feel special, not grindy.
-    6. Regression: the authored explorables (mars caves, mercury,
+    7. Regression: the authored explorables (mars caves, mercury,
        wolf_b, barnards_b, procyon_c) explore exactly as before;
        the dark-ports chain end-to-end (dock line, carriers,
        passphrase row) is untouched.
-    7. Prose read-through (prose gate): the reveal template, the
+    8. Prose read-through (prose gate): the reveal template, the
        three landmark pieces' names/flavor, and the default name
        pools — all drafted by the agent, quoted for approval.
 
