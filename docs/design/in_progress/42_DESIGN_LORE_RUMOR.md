@@ -396,7 +396,7 @@ first. No tier is askable at spawn.
 | 1 | ``dark_berth_1`` | the observation | dock / hail / pad triggers |
 | 2 | ``dark_berth_2`` | the four ports + the ships that use them | seeded city carriers (SETTLED 15) |
 | 3 | ``dark_berth_3`` | testimony from someone living dark | the hail trigger (requires tier 2) |
-| 4 | ``dark_berth_4`` | the man in the Hush, 2000cr | dealer exclusive (SETTLED 17) |
+| 4 | ``dark_berth_4`` | the name, the place, the passphrase | dealer exclusive (SETTLED 17) |
 
 - One event — hailed a dark hull — authors on BOTH tier 1 and
   tier 3: early it is discovery, after tier 2 it is the testimony.
@@ -407,11 +407,14 @@ first. No tier is askable at spawn.
 - Values and prices unchanged (1/2/3; exclusive at 4 favor). The
   favor economy, hidden-until-affordable, holder scatter, and
   no-selling-back all stand.
-- The payoff is shipped (phase 2): hearing tier 4 is the sole key
-  for the berth_keeper storefront in the Hush — the 2000cr cut-out
-  install — which feeds back into the differential: lawful ports
-  then refuse the player's dark hull, and the four ports still take
-  it.
+- The payoff is shipped (phase 2) and moves outdoors (user note):
+  hearing tier 4 spawns the fitter on Whisper's city map — by the
+  cargo containers south-east of the bounty office — where talking
+  to him is the 2000cr cut-out install ("Tell him The Hush sent
+  you" is the passphrase fiction; the passphrase names lal_c's
+  existing Hush site in the upper container row, so map and fiction
+  agree). The differential feeds back: lawful ports then refuse the
+  player's dark hull, and the four ports still take it.
 
 ### Binding rules
 
@@ -427,25 +430,26 @@ first. No tier is askable at spawn.
   discussion. Nothing lands in data until the user approves the
   wording; prose settles before ``/implement-phase 42.3`` runs.
 
-### Prose — DRAFTS (red-line freely; gate applies)
+### Prose — SETTLED (user-authored 2026-09-11, verbatim; obvious
+typos fixed and flagged in chat)
 
 - topic: ``dark ports``
-- Tier 1: "Some ports never check a transponder. No ping, no scan,
-  nothing logged. The hulls that dock quiet don't advertise it, and
-  the people who run them don't talk to just anyone."
-- Tier 2: "Four ports take a quiet hull: Deadfall, Whisper, Ember,
-  and Wolf 359 b. No scan, no questions, nothing in the log. The
-  ships that dock there run contraband, blockade cargo, salvage
-  that was never abandoned. Most of them work out of pirate space."
-- Tier 3 (the pirate, on the channel): "No registration on this
-  channel. Good - names get ships seized. I run quiet. The four
-  ports, no logs, no fees. You want in, the man who fits the
-  transponders works out of Whisper. The Hush. Bring cash."
-- Tier 4: "The Whisper buyer is the keeper of the Hush. Bring him a
-  hull and he'll gut the transponder on the spot - two thousand,
-  cash, and nothing gets filed anywhere."
-- Dock log line: "This port didn't verify any credentials." — user
-  verbatim, settled.
+- Tier 1: "Some ports don't care who you are. They don't check your
+  credentials and don't log your visit. Those dark ships don't
+  really talk about it. Finding someone to speak with will need
+  patience and connections." ("reall" → "really")
+- Tier 2: "I know of a few ports that don't check your creds...
+  Deadfall, Whisper, Ember, and Wolf 359 b come to mind. Lots of
+  black-market goods pass through those ports. Obviously, these are
+  pirates using them." ("blackmarket" → "black-market")
+- Tier 3: "Yeah, I'm not going to broadcast my name to all. They
+  track everything! They don't need to know that I frequent Wolf
+  359 b. You want to be free too? Ask around on Whisper."
+- Tier 4: "I know the guy, yeah. You're giving me good info, I can
+  trust you. You can find him right here on Whisper. He hangs
+  around by the containers south of the bounty office sometimes.
+  Tell him The Hush sent you." ("You've giving" → "You're giving")
+- Dock log line: "This port didn't verify any credentials."
 
 ### Phase-3 brief amendments (this section's scope)
 
@@ -460,6 +464,13 @@ first. No tier is askable at spawn.
 - New: the dock credential log line.
 - Pad content: the pirate-boarding/derelict pad teaching
   ``dark_berth_1``.
+- The vendor move: the fitter's bar seat retires from lal_c's
+  ``service_npc_spots``; he spawns on the city map by the
+  containers once tier 4 is heard (cities rebuild per landing, so
+  the keyring check re-evaluates every visit);
+  ``KNOWLEDGE_GATES``/``CUTOUT_BROKERS`` stand as the row/price
+  source; his display name and flavor are re-authored under the
+  prose gate.
 - Playtest checklist: re-authored for the one chain, plus the prose
   read-through item.
 - Shift+R: the live-routes readout includes the dark-spawn set.
@@ -470,8 +481,11 @@ first. No tier is askable at spawn.
 
 - The authored share of dark pirate spawns (guaranteed minimum +
   share; tuned at playtest).
-- Tier 3's register — the user sets the pirate's voice (prose
-  gate).
+- The fitter's display name and flavor text — "Berth Keeper"
+  retires with the berth (prose gate); whether the passphrase gets
+  a spoken beat in his talk modal or stays fiction-only.
+- Confirm tier 3's "broadcast my name to all" is as intended — kept
+  verbatim (reads as "to everyone", not a typo for "at all").
 
 ## Phases
 
