@@ -49,7 +49,7 @@ def test_landing_syncs_ctx_current_city_id(monkeypatch):
     monkeypatch.setattr(
         game_interactions,
         "_run_planet_menu",
-        lambda _ctx, _planet: game_interactions.PlanetMenuOutcome.LAND,
+        lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.LAND, None),
     )
     monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
 

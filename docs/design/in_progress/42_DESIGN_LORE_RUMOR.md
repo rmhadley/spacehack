@@ -1516,8 +1516,10 @@ amended with the favor exchange.
        passphrase row) is untouched.
     8. Prose read-through (prose gate): the reveal template, the two
        stair-move log lines (dig.stairs_down_log / dig.stairs_up_log),
-       the three landmark pieces' names/flavor, and the default name
-       pools — all drafted by the agent, quoted for approval.
+       the dig-entry log line (dig.enter_log), the dig menu row
+       description ("Dig into <planet>'s <site>"), the three landmark
+       pieces' names/flavor, and the default name pools — all drafted
+       by the agent, quoted for approval.
 
 ### Phase 5 — The space host + the lie (was phase 4)
 - [ ] Ask Around on the comms matrix (talkable contacts);

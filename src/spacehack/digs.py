@@ -36,6 +36,7 @@ TEXT_KEYS: frozenset[str] = frozenset({
     "dig.pointer_line",
     "dig.stairs_down_log",
     "dig.stairs_up_log",
+    "dig.enter_log",
 })
 
 
@@ -185,6 +186,7 @@ def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Posi
         game_map.tiles[spawn.y][spawn.x] = world.STAIRS_UP
     _maybe_stamp_landmark(game_map, site, floor, spawn)
     populate_dungeon(game_map, params, spawn, tier=_dig_tier(spec, floor))
+    _scatter_dig_loot(game_map, spec, floor)
     depth = site_depth(spec, site["id"])
     if floor < depth:
         _place_stairs_down(game_map, spawn)
@@ -239,11 +241,14 @@ def find_site(ctx, planet_id: str, site_id: str) -> dict:
 
 def get_or_generate_floor(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Position]:
     """Cached-or-fresh: every floor persists under its key (SETTLED
-    29) — cleared stays cleared, looted stays looted."""
+    29) — cleared stays cleared, looted stays looted. A cache hit
+    scrubs the stale player entity (the shared re-entry idiom)."""
     key = cache_key(site["planet"], site["id"], floor)
     cached = ctx.interiors.get(key)
     if cached is not None:
-        return cached, cached.entry_spawn
+        from .game_flow import _prep_cached_dungeon
+
+        return cached, _prep_cached_dungeon(cached)
     game_map, spawn = generate_dig(ctx, site, floor)
     ctx.interiors[key] = game_map
     return game_map, spawn
@@ -291,6 +296,57 @@ def stairs_log_line(direction: int) -> str:
     """The stair-move log line (data/text single-source)."""
     key = "dig.stairs_down_log" if direction > 0 else "dig.stairs_up_log"
     return _text_get(key, "")
+
+
+def site_loot_rows(spec: PlanetSpec, floor: int, count: int, rng) -> list[tuple[str, int]]:
+    """One ``(good_id, quantity)`` row per cache: the planet's
+    produces goods, tier+floor-scaled through the pluggable loot spec
+    (SETTLED 26/35). Pure given its inputs."""
+    from .data.digs import DIG_LOOT_SPEC
+
+    tier = max(1, min(3, spec.mission_tier))
+    quantity = (
+        DIG_LOOT_SPEC.base_qty
+        + DIG_LOOT_SPEC.qty_per_tier * (tier - 1)
+        + DIG_LOOT_SPEC.qty_per_floor * (floor - 1)
+    )
+    return [(rng.choice(spec.produces)[0], quantity) for _ in range(count)]
+
+
+def _scatter_dig_loot(game_map: world.GameMap, spec: PlanetSpec, floor: int) -> None:
+    """The placeholder cache scatter (SETTLED 30/35) — the loot rows
+    placed at free cells after population."""
+    from .data.digs import DIG_LOOT_SPEC
+
+    if not spec.produces:
+        return
+    count = engine.RNG.randint(*DIG_LOOT_SPEC.cache_count)
+    for good_id, quantity in site_loot_rows(spec, floor, count, engine.RNG):
+        pos = _free_floor_cell(
+            game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
+        )
+        if pos is None:
+            return
+        game_map.entities.append(world.Entity(
+            char="%", fg=(180, 220, 140), pos=pos, name="Cache",
+            width=1, height=1,
+            loot_data={"good_id": good_id, "quantity": quantity},
+        ))
+
+
+def enter_dig_site(state, planet_obj, site_id: str) -> str:
+    """Enter floor 1 of a discovered site from its planet-menu row —
+    the surface-entry idiom: return pair, dungeon mode, full ground
+    hp; the site's name is the location. Cached floors keep every
+    previous visit's state (SETTLED 29)."""
+    site = find_site(state.ctx, planet_obj.id, site_id)
+    game_map, spawn = get_or_generate_floor(state.ctx, site, 1)
+    from .game_interactions import _adopt_dungeon_entry, _install_dungeon_player
+
+    player = _install_dungeon_player(game_map, spawn)
+    _adopt_dungeon_entry(state, game_map, player)
+    state.log.add(_text_get("dig.enter_log", "").format(name=site["name"]))
+    return "CONTINUE"
 
 
 # --- the discovery doors (SETTLED 27/36): three RNG-rare rolls -----------
@@ -341,15 +397,21 @@ def maybe_reveal_from_terminal(ctx) -> bool:
     return True
 
 
-def _free_floor_cell(game_map) -> world.Position | None:
+def _free_floor_cell(
+    game_map: world.GameMap,
+    avoid_kinds: tuple[str, ...] = (),
+) -> world.Position | None:
     """A random walkable, unoccupied cell — a scattered pad's landing
-    spot; None when the map has nowhere to put one."""
+    spot; None when the map has nowhere to put one. ``avoid_kinds``
+    reserves transition tiles (a cache glyph would hide the stair)."""
     occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
     candidates = [
         (x, y)
         for y in range(game_map.height)
         for x in range(game_map.width)
-        if game_map.tiles[y][x].walkable and (x, y) not in occupied
+        if game_map.tiles[y][x].walkable
+        and (x, y) not in occupied
+        and game_map.tiles[y][x].kind not in avoid_kinds
     ]
     if not candidates:
         return None

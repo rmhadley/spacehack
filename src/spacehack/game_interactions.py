@@ -108,9 +108,12 @@ def _resolve_planet_wall(state, pid):
     log = state.log
     planet_obj = solar_system_module.find_planet(pid)
     log.add(f'You approach {planet_obj.name}.')
-    outcome = _run_planet_menu(ctx, planet_obj)
+    outcome, site_id = _run_planet_menu(ctx, planet_obj)
     if outcome is PlanetMenuOutcome.EXPLORE:
         return _resolve_planet_explore(state, pid, planet_obj)
+    if outcome is PlanetMenuOutcome.DIG:
+        from .digs import enter_dig_site
+        return enter_dig_site(state, planet_obj, site_id)
     if outcome is PlanetMenuOutcome.LAND:
         return _resolve_planet_land(state, pid, planet_obj)
     return 'CONTINUE'
@@ -162,22 +165,28 @@ def _install_dungeon_player(dungeon_map, spawn):
     _reveal_around(dungeon_map, spawn)
     return _dungeon_player
 
+def _adopt_dungeon_entry(state, dungeon_map, player) -> None:
+    """Install a dungeon entry on the game-loop state: the space
+    return pair, the map/player swap, dungeon mode, full ground hp.
+    The ONE entry shuffle — surface, boarding, and dig entries share
+    it."""
+    state.space_game_map = state.game_map
+    state.space_player = state.player
+    state.game_map = dungeon_map
+    state.player = player
+    state.ctx.game_map = dungeon_map
+    state.ctx.player = player
+    state.current_mode = 'dungeon'
+    state.ctx.ground_hp = state.ctx.ground_max_hp
+
 def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     """Move the player onto a planet surface dungeon."""
-    ctx = state.ctx
     log = state.log
     # Quest NPCs are city-only: the experts stand in their guild
     # buildings, never inside surface dungeons (no duplicate copies).
     _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
     dungeon_map.location_name = f'{planet_obj.name} Surface'
-    state.space_game_map = state.game_map
-    state.space_player = state.player
-    state.game_map = dungeon_map
-    state.player = _dungeon_player
-    ctx.game_map = state.game_map
-    ctx.player = state.player
-    state.current_mode = 'dungeon'
-    ctx.ground_hp = ctx.ground_max_hp
+    _adopt_dungeon_entry(state, dungeon_map, _dungeon_player)
     log.add(f'You descend to the surface of {planet_obj.name}.')
     return 'CONTINUE'
 
@@ -815,14 +824,7 @@ def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard):
     if not is_reboard:
         _animate_breach(ctx, console, dungeon_map, spawn, region_w=state.map_w, region_h=state.map_h)
     dungeon_map.location_name = npcspec.name
-    state.space_game_map = state.game_map
-    state.space_player = state.player
-    state.game_map = dungeon_map
-    state.player = _dungeon_player
-    ctx.game_map = state.game_map
-    ctx.player = state.player
-    state.current_mode = 'dungeon'
-    ctx.ground_hp = ctx.ground_max_hp
+    _adopt_dungeon_entry(state, dungeon_map, _dungeon_player)
     log.add(f'You cut through the hull and enter the {npcspec.name}.')
     return 'CONTINUE'
 

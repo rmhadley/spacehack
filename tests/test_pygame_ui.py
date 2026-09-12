@@ -4405,9 +4405,28 @@ def test_planet_menu_items_keep_domain_outcomes_opaque_to_worker():
     items = _planet._build_menu_items(planet, True, ["Alien ruins"])
 
     assert [item[2] for item in items] == [
-        _planet.PlanetMenuOutcome.LAND,
-        _planet.PlanetMenuOutcome.EXPLORE,
-        _planet.PlanetMenuOutcome.BACK,
+        _planet.PlanetMenuOutcome.LAND.name,
+        _planet.PlanetMenuOutcome.EXPLORE.name,
+        _planet.PlanetMenuOutcome.BACK.name,
+    ]
+
+
+def test_planet_menu_carries_dig_site_ids():
+    """Discovered sites get one Explore row each with a DIG action
+    carrying the site id (doc 42 phase 4)."""
+    planet = SimpleNamespace(id="mars", name="Mars")
+    sites = [
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+        {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+    ]
+
+    items = _planet._build_menu_items(planet, False, [], sites)
+
+    assert [item[0] for item in items] == [
+        "Explore Sunken Vault", "Explore Rusted Warren", "Leave",
+    ]
+    assert [item[2] for item in items] == [
+        "DIG:s1", "DIG:s2", _planet.PlanetMenuOutcome.BACK.name,
     ]
 
 

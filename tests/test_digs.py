@@ -445,3 +445,165 @@ def test_wreck_pad_needs_a_free_cell(monkeypatch):
     monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
     assert digs.maybe_spawn_wreck_pad(gm) is False
     assert len(gm.entities) == 64
+
+
+# --- menu rows, dig entry, placeholder loot (doc 42 phase 4, step 4) --------
+
+import random
+
+from src.spacehack.data.digs import DIG_LOOT_SPEC, DigLootSpec
+
+
+def test_site_loot_rows_scale_by_tier_and_floor():
+    spec = find_planet_spec("mars")
+    rng = random.Random(7)
+    rows = digs.site_loot_rows(spec, 1, 2, rng)
+    assert len(rows) == 2
+    produced = {good for good, _ in spec.produces}
+    for good, qty in rows:
+        assert good in produced
+        assert qty == DIG_LOOT_SPEC.base_qty
+    deep = digs.site_loot_rows(
+        dataclasses.replace(spec, mission_tier=3), 3, 1, rng,
+    )
+    assert deep[0][1] == (
+        DIG_LOOT_SPEC.base_qty
+        + DIG_LOOT_SPEC.qty_per_tier * 2
+        + DIG_LOOT_SPEC.qty_per_floor * 2
+    )
+
+
+def test_loot_spec_is_pluggable(monkeypatch):
+    """The placeholder is a config: swapping the spec changes the
+    rows (SETTLED 35 — the loot doc expands it in place)."""
+    from src.spacehack.data import digs as digs_data
+    custom = DigLootSpec(cache_count=(1, 1), base_qty=9, qty_per_tier=0, qty_per_floor=0)
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    spec = find_planet_spec("mars")
+    rows = digs.site_loot_rows(spec, 1, 1, random.Random(1))
+    assert rows[0][1] == 9
+
+
+def test_generate_dig_scatters_caches(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    caches = [
+        e for e in f1.entities
+        if (e.loot_data or {}).get("good_id")
+    ]
+    assert 2 <= len(caches) <= 3
+    produced = {good for good, _ in find_planet_spec("mars").produces}
+    for cache in caches:
+        assert cache.loot_data["good_id"] in produced
+
+
+def test_generate_dig_without_produces_has_no_caches(monkeypatch):
+    spec = dataclasses.replace(find_planet_spec("mars"), produces=())
+    monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
+    monkeypatch.setattr(digs, "find_planet_spec", lambda pid: spec)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert not [
+        e for e in f1.entities if (e.loot_data or {}).get("good_id")
+    ]
+
+
+def test_enter_dig_site_installs_surface_entry_idiom(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    space_map = world.GameMap(width=4, height=4, tiles=[
+        [world.DUNGEON_FLOOR for _ in range(4)] for _ in range(4)
+    ], entities=[])
+    space_player = world.Entity(
+        char="@", fg=(255, 255, 255), pos=world.Position(1, 1), name="P",
+    )
+    ctx.ground_hp = ctx.ground_max_hp = 30
+    state = SimpleNamespace(
+        ctx=ctx, game_map=space_map, player=space_player,
+        log=SimpleNamespace(add=lambda *_: None), current_mode="space",
+    )
+    result = digs.enter_dig_site(state, SimpleNamespace(id=site["planet"]), site["id"])
+    assert result == "CONTINUE"
+    assert state.current_mode == "dungeon"
+    assert state.space_game_map is space_map
+    assert state.space_player is space_player
+    assert state.game_map.location_name == site["name"]
+    key = digs.cache_key(site["planet"], site["id"], 1)
+    assert ctx.interiors[key] is state.game_map
+    assert state.player in state.game_map.entities
+
+
+def test_reentering_a_dig_site_scrubs_the_stale_player(monkeypatch):
+    """Save-inside-floor → Continue → re-enter: the cached floor's old
+    '@' is gone, one player only."""
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    state = SimpleNamespace(
+        ctx=ctx,
+        game_map=world.GameMap(width=4, height=4, tiles=[
+            [world.DUNGEON_FLOOR for _ in range(4)] for _ in range(4)
+        ], entities=[]),
+        player=world.Entity(
+            char="@", fg=(255, 255, 255), pos=world.Position(1, 1), name="P",
+        ),
+        log=SimpleNamespace(add=lambda *_: None), current_mode="space",
+    )
+    ctx.ground_hp = ctx.ground_max_hp = 30
+    digs.enter_dig_site(state, SimpleNamespace(id=site["planet"]), site["id"])
+    first_player = state.player
+    # Leave (state returns to the space pair), then re-enter.
+    state.game_map, state.player = state.space_game_map, state.space_player
+    digs.enter_dig_site(state, SimpleNamespace(id=site["planet"]), site["id"])
+    assert not any(e is first_player for e in state.game_map.entities)
+    assert [e for e in state.game_map.entities if e.char == "@"] == [state.player]
+
+
+def test_planet_menu_dispatch_reaches_dig_entry(monkeypatch):
+    """The planet-wall dispatch unpacks (outcome, site_id) and enters
+    the dig (the mock pins the seam)."""
+    from src.spacehack import game_interactions
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    entered = []
+    monkeypatch.setattr(
+        game_interactions, "_run_planet_menu",
+        lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.DIG, site["id"]),
+    )
+    monkeypatch.setattr(
+        digs, "enter_dig_site",
+        lambda state, planet_obj, site_id: entered.append(site_id) or "CONTINUE",
+    )
+    state = SimpleNamespace(ctx=ctx, log=SimpleNamespace(add=lambda *_: None))
+    assert game_interactions._resolve_planet_wall(state, site["planet"]) == "CONTINUE"
+    assert entered == [site["id"]]
+
+
+def test_caches_never_cover_transition_tiles(monkeypatch):
+    """A cache glyph must never hide a stair: across seeds and floors,
+    no cache sits on an exit/stairs tile (the underlay render contract
+    would paint the '%' over the '>' )."""
+    for seed in (1, 7, 99):
+        monkeypatch.setattr(engine, "INIT_SEED", seed)
+        ctx, site = _dig_world(monkeypatch, depth=3, chance=1.0)
+        for floor in (1, 2):
+            game_map, _ = digs.get_or_generate_floor(ctx, site, floor)
+            transition_kinds = {
+                (x, y)
+                for y in range(game_map.height)
+                for x in range(game_map.width)
+                if game_map.tiles[y][x].kind in {"exit", "stairs_up", "stairs_down"}
+            }
+            for e in game_map.entities:
+                if (e.loot_data or {}).get("good_id"):
+                    assert (e.pos.x, e.pos.y) not in transition_kinds
+
+
+def test_discovered_rows_scope_to_the_bumped_planet(monkeypatch):
+    """The menu filter shows only this planet's sites — a foreign
+    site's row never appears here."""
+    from src.spacehack.menus import _planet
+    ctx = SimpleNamespace(discovered_sites=[
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+        {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+    ])
+    assert [site["id"] for site in _planet._discovered_on(ctx, "mars")] == ["s1"]
+    assert _planet._discovered_on(ctx, "earth") == []
+    assert _planet._discovered_on(SimpleNamespace(discovered_sites=[]), "mars") == []

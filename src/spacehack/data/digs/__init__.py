@@ -4,7 +4,23 @@ site reads. Sites are derived per planet — nothing here is per-site
 fields, and future planets inherit the defaults automatically.
 """
 
+from dataclasses import dataclass as _dataclass
+
 from ..dungeon_extensions import LandmarkVariant
+
+
+@_dataclass(frozen=True)
+class DigLootSpec:
+    """The placeholder dig-cache loot (SETTLED 30/35): the planet's
+    own ``produces`` goods, tier+floor-scaled. The future loot doc
+    expands this config in place — no code change, just fields."""
+    cache_count: tuple[int, int] = (2, 3)
+    base_qty: int = 2
+    qty_per_tier: int = 1
+    qty_per_floor: int = 2
+
+
+DIG_LOOT_SPEC = DigLootSpec()
 
 # Default two-part site-name pools (SETTLED 33) — a planet without
 # authored pools draws its prefix and suffix from these. DRAFTS
