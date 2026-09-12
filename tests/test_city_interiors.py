@@ -132,9 +132,10 @@ def test_city_interior_is_cached_and_reuses_the_same_room_map():
     assert sum(entity.npc_id == "barkeep" for entity in state.game_map.entities) == 1
 
 
-def test_lal_c_bar_seats_the_berth_keeper():
-    """Doc 42 phase 2: the Whisper bar's service seat holds the berth
-    keeper beside the resident registrar."""
+def test_lal_c_bar_seats_only_the_registrar():
+    """Doc 42 phase 2.5: the service seat retired — the payoff moved
+    outdoors (the shady tech spawns on the city map via the gated
+    population, not the bar interior)."""
     game_map = load_planet("lal_c")
     ctx = SimpleNamespace(
         interiors={}, game_map=game_map, player=None,
@@ -151,5 +152,6 @@ def test_lal_c_bar_seats_the_berth_keeper():
     assert city_interiors.enter_city_interior(state) == "ENTERED"
     _npc_ids = {entity.npc_id for entity in state.game_map.entities}
     assert "barkeep" in _npc_ids
-    assert "berth_keeper" in _npc_ids
+    assert "berth_keeper" not in _npc_ids
+    assert "shady_tech" not in _npc_ids
     assert city_interiors.exit_city_interior(state) == "HANDLED"

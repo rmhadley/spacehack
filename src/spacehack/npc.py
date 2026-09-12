@@ -68,7 +68,13 @@ def _run_pygame_menu(ctx, frames, *, caption: str):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
     return pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
-def _append_priced_items(items, scrub_price, cutout_price, rig_price):
+# The passphrase rows (doc 42 phase 2.5): an install option that IS
+# the passphrase the chain sold you — user-settled wording.
+_PASSPHRASE_ROWS: dict[str, str] = {"shady_tech": "The Hush sent me."}
+
+
+def _append_priced_items(items, scrub_price, cutout_price, rig_price,
+                         cutout_label=None):
     """The identity storefront rows (doc 40): each offered only while
     it applies — unowned, at the right NPC."""
     from . import pygame_menu
@@ -76,7 +82,7 @@ def _append_priced_items(items, scrub_price, cutout_price, rig_price):
     _rows = (
         (scrub_price, "Buy a scrubbed ID ({:,}cr)",
          "A hull number with no history, filed to your collection.", "SCRUB"),
-        (cutout_price, "Install a transponder cut-out ({:,}cr)",
+        (cutout_price, cutout_label or "Install a transponder cut-out ({:,}cr)",
          "A one-time job: the transponder can go dark afterward.", "CUTOUT"),
         (rig_price, "Buy a clone rig ({:,}cr)",
          "A reusable rig that allows cloning transponder IDs from a "
@@ -109,7 +115,10 @@ def _npc_pygame_items(npc, missions, quest_options=(), scrub_price=None,
         pygame_menu.MenuItem(label, "Continue the main-quest conversation.", f"QUEST:{step_id}")
         for label, step_id in quest_options
     ]
-    _append_priced_items(items, scrub_price, cutout_price, rig_price)
+    _append_priced_items(
+        items, scrub_price, cutout_price, rig_price,
+        cutout_label=_PASSPHRASE_ROWS.get(getattr(npc, "id", "")),
+    )
     _append_rumor_items(items, ask_around)
     items.extend(
         pygame_menu.MenuItem(
@@ -215,14 +224,10 @@ def _rig_offer(ctx, npc_id: str) -> int | None:
 
 
 def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
-    """(scrub, cutout, rig) row prices — None where no row shows.
-
-    A knowledge-gated NPC's rows exist only once the gate rumor is
-    heard (doc 42 phase 2: the knowledge is the only key)."""
+    """(scrub, cutout, rig) row prices — None where no row shows
+    (unowned, at the right NPC)."""
     from . import identity
-    _gate = identity.KNOWLEDGE_GATES.get(npc_id)
-    if _gate is not None and _gate not in ctx.known_rumors:
-        return (None, None, None)
+
     return (
         identity.scrub_price(npc_id),
         _cutout_offer(ctx, npc_id),

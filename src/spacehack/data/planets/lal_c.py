@@ -85,11 +85,10 @@ SPEC = PlanetSpec(
         ("merchants", "lalc_merchants_interior"),
         ("bounties", "lalc_bounties_interior"),
     ),
-    # The dark-berth payoff's single seat: the keeper works the bar
-    # interior, one slot beside the resident registrar (doc 42 phase 2).
-    service_npc_spots=(
-        ("berth_keeper", "bar"),
-    ),
+    # The dark-ports payoff's home (doc 42 phase 2.5): the shady
+    # tech spawns on the CITY map via the population's gated entry
+    # (city_npcs.py) — by the containers south of the bounty office,
+    # only once dark_berth_4 is heard.
     showroom_ships=("hauler", "cruiser", "frigate",),
     npc_overrides=(
         (

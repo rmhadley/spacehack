@@ -359,19 +359,29 @@ def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
         engine_mod.INIT_SEED = 0
 
 
-# --- doc 42 phase 2: the knowledge-gated vendor ----------------------------
+# --- doc 42 phase 2.5: the shady tech (the payoff moved outdoors) ----------
 
 
-def test_knowledge_gated_vendor_hides_rows_until_heard():
-    # The Whisper berth keeper's storefront exists only for someone
-    # who knows the berth; ungated ember_tech is unaffected either way.
-    # (Phase 3 build 6 moves this NPC outdoors as shady_tech.)
+def test_shady_tech_prices_the_cutout_owners_hide():
     ctx = quest_ctx()
-    assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, None, None)
+    assert npc_mod._priced_rows(ctx, "shady_tech") == (None, 2000, None)
     assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
-    ctx.known_rumors.append("dark_berth_4")
-    assert npc_mod._priced_rows(ctx, "berth_keeper") == (None, 2000, None)
-    assert npc_mod._priced_rows(ctx, "ember_tech") == (None, 2500, None)
+    ctx.transponder_cutout = True
+    assert npc_mod._priced_rows(ctx, "shady_tech") == (None, None, None)
+
+
+def test_shady_techs_install_row_is_the_passphrase():
+    items = npc_mod._npc_pygame_items(
+        find_npc("shady_tech"), [], [], cutout_price=2000,
+    )
+    _row = next(item for item in items if item.action == "CUTOUT")
+    assert _row.label == "The Hush sent me."
+    # Every other broker's row is unchanged.
+    _plain = npc_mod._npc_pygame_items(
+        find_npc("ember_tech"), [], [], cutout_price=2500,
+    )
+    _plain_row = next(item for item in _plain if item.action == "CUTOUT")
+    assert _plain_row.label == "Install a transponder cut-out (2,500cr)"
 
 
 # --- doc 42 phase 3: holder scatter through the host -----------------------

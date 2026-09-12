@@ -207,14 +207,6 @@ def test_buy_refuses_known_rumors() -> None:
     assert ctx.rumor_favor["barkeep"]["favor"] == 9
 
 
-def test_knowledge_gates_reference_real_npcs_and_rumors() -> None:
-    from spacehack.identity import KNOWLEDGE_GATES
-
-    for npc_id, rumor_id in KNOWLEDGE_GATES.items():
-        find_npc(npc_id)
-        find_rumor(rumor_id)
-
-
 def test_offer_refuses_unheard_rumors() -> None:
     # The mutation boundary is self-defending (reviewer round): a
     # future host can't pay out for knowledge off the keyring.

@@ -193,3 +193,49 @@ def test_already_heard_pad_consumes_silently(monkeypatch):
     assert ctx.known_rumors == ["dark_berth_1"]
     assert pad not in ctx.game_map.entities
     assert seen == [], "no duplicate readout"
+
+
+# --- the shady tech (doc 42 phase 2.5: the gated city spawn) ---------------
+
+
+def test_shady_tech_spawns_gated_at_the_containers():
+    from src.spacehack import city_npcs
+    from src.spacehack.data.planets import find_planet_spec, load_planet
+
+    spec = find_planet_spec("lal_c")
+    game_map = load_planet("lal_c")
+    # The build-time population never places gated templates...
+    assert not any(
+        getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+        for e in game_map.entities
+    )
+    # ...and the ensure pass does nothing while tier 4 is unheard.
+    city_npcs.ensure_gated_npcs(_ctx(), game_map, spec)
+    assert not any(
+        getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+        for e in game_map.entities
+    )
+    # Heard: he appears at his anchor, exactly once.
+    city_npcs.ensure_gated_npcs(_ctx(known=["dark_berth_4"]), game_map, spec)
+    tech = [
+        e for e in game_map.entities
+        if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+    ]
+    assert len(tech) == 1
+    assert (tech[0].pos.x, tech[0].pos.y) == (80, 66)
+    assert tech[0].npc_id == "shady_tech"
+    city_npcs.ensure_gated_npcs(_ctx(known=["dark_berth_4"]), game_map, spec)
+    assert len([
+        e for e in game_map.entities
+        if getattr(e, "city_npc_id", "") == "lalc_shady_tech"
+    ]) == 1
+
+
+def test_shady_tech_anchor_is_walkable_pavement():
+    from src.spacehack.data.planets import load_planet
+
+    # By the containers south-east of the bounty office — off the
+    # road lane (a stationary blocker belongs beside the lane, not
+    # on it).
+    game_map = load_planet("lal_c")
+    assert game_map.is_walkable(80, 66)

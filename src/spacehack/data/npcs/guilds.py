@@ -52,22 +52,19 @@ NPCS: tuple[NPC, ...] = (
             "silent hull away. That's the deal."
         ),
     ),
-    # The Whisper berth keeper (doc 42 phase 2): the dark-berth
-    # chain's payoff. Single seat in lal_c's bar via that planet's
-    # service_npc_spots; his storefront is knowledge-gated — priced
-    # rows exist only once dark_berth_4 is heard (identity.
-    # KNOWLEDGE_GATES). No guild: no board, no work rows.
+    # The Whisper shady tech (doc 42 phase 2.5): the dark-ports
+    # chain's payoff. Spawns on lal_c's CITY MAP by the containers
+    # south-east of the bounty office, only once dark_berth_4 is
+    # heard (city_npcs.ensure_gated_npcs — the spawn IS the gate);
+    # his install row is the passphrase. No guild: no board, no
+    # work rows.
     NPC(
-        id="berth_keeper",
-        name="Berth Keeper",
+        id="shady_tech",
+        name="Shady Tech",
         guild="",
         char="h",
         fg=(140, 190, 220),                            # slate blue
-        flavor_text=(
-            "I keep the dark berths. For two thousand your "
-            "transponder goes quiet whenever you want it to - "
-            "same as the rest. No paperwork."
-        ),
+        flavor_text="I don't know you, take off.",
     ),
     NPC(
         id="barkeep",

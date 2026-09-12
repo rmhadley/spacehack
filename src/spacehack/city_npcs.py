@@ -42,35 +42,63 @@ def is_hostile(ctx, entity: world.Entity) -> bool:
     return _spec_is_hostile(ctx, _spec)
 
 
+def _place_city_npc(game_map: world.GameMap, template) -> None:
+    """Place one population template at its anchor (shared by the
+    build-time population pass and the gated ensure pass)."""
+    try:
+        _cspec = _find_npc_char(template.npc_char_id)
+    except KeyError:
+        return
+    rng = seeded_rng(INIT_SEED, "city_npc", template.id)
+    entity = world.Entity(
+        char=_cspec.char,
+        fg=_cspec.fg,
+        pos=world.Position(*template.spawn),
+        name=_cspec.name,
+        city_npc_id=template.id,
+        npc_char_id=template.npc_char_id,
+        npc_id=template.npc_id,
+        blocked_message=f"You bump into {_cspec.name}.",
+    )
+    entity.city_spawn = world.Position(*template.spawn)
+    entity.city_wander_radius = template.wander_radius
+    entity.city_move_chance = template.move_chance
+    entity.city_rng = rng
+    game_map.entities.append(entity)
+
+
 def place_city_npcs(game_map: world.GameMap, population) -> None:
     """Place one ambient NPC entity per catalog entry at its anchor.
 
     Each NPC carries its ``city_npc_id`` and anchor metadata so the
     movement pass can spawn it and save/load can identify it across
     rebuilds. The anchor is a spawn point and save identity only — it
-    does not confine where the citizen may walk.
+    does not confine where the citizen may walk. Gated templates
+    (``requires_rumor``) never place here — they arrive via
+    :func:`ensure_gated_npcs` once their rumor is heard.
     """
     for template in population:
-        try:
-            _cspec = _find_npc_char(template.npc_char_id)
-        except KeyError:
+        if getattr(template, "requires_rumor", ""):
             continue
-        rng = seeded_rng(INIT_SEED, "city_npc", template.id)
-        entity = world.Entity(
-            char=_cspec.char,
-            fg=_cspec.fg,
-            pos=world.Position(*template.spawn),
-            name=_cspec.name,
-            city_npc_id=template.id,
-            npc_char_id=template.npc_char_id,
-            npc_id=template.npc_id,
-            blocked_message=f"You bump into {_cspec.name}.",
-        )
-        entity.city_spawn = world.Position(*template.spawn)
-        entity.city_wander_radius = template.wander_radius
-        entity.city_move_chance = template.move_chance
-        entity.city_rng = rng
-        game_map.entities.append(entity)
+        _place_city_npc(game_map, template)
+
+
+def ensure_gated_npcs(ctx, game_map: world.GameMap, spec) -> None:
+    """Place gated population templates whose rumor is on the
+    keyring (doc 42 phase 2.5). Runs at landing and at interior
+    exits — the check re-evaluates every visit, so the shady tech
+    appears the moment the chain names him. Idempotent by
+    ``city_npc_id``."""
+    for template in getattr(spec, "city_npc_population", ()) or ():
+        _gate = getattr(template, "requires_rumor", "")
+        if not _gate or _gate not in (getattr(ctx, "known_rumors", ()) or ()):
+            continue
+        if any(
+            getattr(_e, "city_npc_id", "") == template.id
+            for _e in game_map.entities
+        ):
+            continue
+        _place_city_npc(game_map, template)
 
 
 _LANDMARK_KINDS = frozenset({

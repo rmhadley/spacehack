@@ -278,6 +278,9 @@ def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
     state.current_city_id = pid
     ctx.current_city_id = pid
     state.current_mode = 'city'
+    from . import city_npcs as _city_npcs
+    from .data.planets import find_planet_spec as _fps
+    _city_npcs.ensure_gated_npcs(ctx, _new_city_map, _fps(pid))
     if ctx.ground_hp < ctx.ground_max_hp:
         ctx.ground_hp = ctx.ground_max_hp
         log.add('You rest at the city and fully recover.')

@@ -288,20 +288,12 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
 # Cut-out techs: NPC id -> credits for the one-time transponder
 # cut-out (doc 40 phase 5 — dark's price of entry). The storefront
 # split is deliberate: scrub at Deadfall's broker, cut-out here.
-# The berth keeper (doc 42 phase 2) undercuts the tech — the quiet
-# trade's own man on Whisper.
+# The shady tech (doc 42 phase 2.5) undercuts the tech — the dark
+# ports' own man on Whisper, found by the containers once the chain
+# names him; the SPAWN plus the passphrase are the gate.
 CUTOUT_BROKERS: dict[str, int] = {
     "ember_tech": 2500,
-    "berth_keeper": 2000,
-}
-
-
-# Knowledge-gated storefronts (doc 42 phase 2): npc id -> the rumor
-# id that must be on the keyring before any of that NPC's priced
-# rows show. The berth keeper trades only with someone who knows
-# the berth exists.
-KNOWLEDGE_GATES: dict[str, str] = {
-    "berth_keeper": "dark_berth_4",
+    "shady_tech": 2000,
 }
 
 
