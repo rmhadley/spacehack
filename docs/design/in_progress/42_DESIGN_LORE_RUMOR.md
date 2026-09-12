@@ -1489,9 +1489,12 @@ amended with the favor exchange.
     no SYSTEMS.md close work (phase close).
   - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
     1. Shift+M: a site reveals — the readout plays; Q → RUMORS
-       shows the pointer line ("...names a site: <name> on
-       <planet>"); the planet menu for that planet shows "Explore
-       <name>"; other planets show nothing new.
+       shows the pointer line ("Charts a buried site: <name>, on
+       <planet>."); the planet menu for that planet shows "Explore
+       <name>"; other planets show nothing new. (Note: Shift+M
+       shadows the uppercase-M map alias in NON-dev play — the
+       pre-existing dev-table pattern — hence this checklist runs
+       under SPACEHACK_DEV.)
     2. Fly there, explore: a themed, tier-scaled single-level
        dungeon generates (planet theme tiles; monsters at the
        planet's tier); the placeholder cache carries the planet's
@@ -1518,8 +1521,9 @@ amended with the favor exchange.
        stair-move log lines (dig.stairs_down_log / dig.stairs_up_log),
        the dig-entry log line (dig.enter_log), the dig menu row
        description ("Dig into <planet>'s <site>"), the three landmark
-       pieces' names/flavor, and the default name pools — all drafted
-       by the agent, quoted for approval.
+       pieces' names/flavor, the default name pools, and the guide's
+       Rumors-section amendment (site charts recorded + Explore rows)
+       — all drafted by the agent, quoted for approval.
 
 ### Phase 5 — The space host + the lie (was phase 4)
 - [ ] Ask Around on the comms matrix (talkable contacts);

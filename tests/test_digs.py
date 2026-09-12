@@ -607,3 +607,12 @@ def test_discovered_rows_scope_to_the_bumped_planet(monkeypatch):
     assert [site["id"] for site in _planet._discovered_on(ctx, "mars")] == ["s1"]
     assert _planet._discovered_on(ctx, "earth") == []
     assert _planet._discovered_on(SimpleNamespace(discovered_sites=[]), "mars") == []
+
+
+def test_shift_m_grant_reveals(monkeypatch):
+    """The Shift+M dev grant plays the full reveal idiom."""
+    from src.spacehack import dev_mode
+    ctx, seen = _ctx(monkeypatch)
+    site = dev_mode.reveal_dev_dig_site(ctx)
+    assert ctx.discovered_sites == [site]
+    assert len(seen) == 1  # the readout played

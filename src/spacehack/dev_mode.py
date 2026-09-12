@@ -490,6 +490,14 @@ def advance_to_shift_boundary(ctx) -> int:
     return _days
 
 
+def reveal_dev_dig_site(ctx) -> dict:
+    """Shift+M: force-reveal a dig site (doc 42 phase 4 checklist
+    instrument) — the full reveal idiom: derivation, record, readout."""
+    from .digs import reveal_site
+
+    return reveal_site(ctx)
+
+
 def log_rumor_routing(ctx) -> None:
     """Shift+N: log the run's live rumor routing (doc 42 phase 3) —
     carriers per entry, the live exclusive holder, the dark share."""

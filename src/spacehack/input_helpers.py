@@ -418,6 +418,15 @@ def _is_shift_n_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'N')
 
+
+def _is_shift_m_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+M.
+
+    Dev-mode only (``SPACEHACK_DEV``): force-reveals a dig site (doc 42
+    phase 4) — the checklist instrument for the discovery flow.
+    """
+    return _is_shift_press(event, 'M')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 
