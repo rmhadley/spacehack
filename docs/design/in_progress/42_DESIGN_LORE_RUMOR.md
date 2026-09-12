@@ -409,12 +409,14 @@ first. No tier is askable at spawn.
   no-selling-back all stand.
 - The payoff is shipped (phase 2) and moves outdoors (user note):
   hearing tier 4 spawns the fitter on Whisper's city map — by the
-  cargo containers south-east of the bounty office — where talking
-  to him is the 2000cr cut-out install ("Tell him The Hush sent
-  you" is the passphrase fiction; the passphrase names lal_c's
-  existing Hush site in the upper container row, so map and fiction
-  agree). The differential feeds back: lawful ports then refuse the
-  player's dark hull, and the four ports still take it.
+  cargo containers south-east of the bounty office. Talking to him
+  plays his intro ("I don't know you, take off.") with THE
+  PASSPHRASE as the response option — "The Hush sent me." (the
+  option exists because tier 4 is the passphrase, and tier 4 is
+  heard before he ever spawns) — and taking it opens the 2000cr
+  cut-out install. "The Hush" is the name of Whisper's bar. The
+  differential feeds back: lawful ports then refuse the player's
+  dark hull, and the four ports still take it.
 
 ### Binding rules
 
@@ -450,6 +452,8 @@ typos fixed and flagged in chat)
   around by the containers south of the bounty office sometimes.
   Tell him The Hush sent you." ("You've giving" → "You're giving")
 - Dock log line: "This port didn't verify any credentials."
+- Shady Tech intro: "I don't know you, take off."
+- Passphrase response option: "The Hush sent me."
 
 ### Phase-3 brief amendments (this section's scope)
 
@@ -467,10 +471,13 @@ typos fixed and flagged in chat)
 - The vendor move: the fitter's bar seat retires from lal_c's
   ``service_npc_spots``; he spawns on the city map by the
   containers once tier 4 is heard (cities rebuild per landing, so
-  the keyring check re-evaluates every visit);
-  ``KNOWLEDGE_GATES``/``CUTOUT_BROKERS`` stand as the row/price
-  source; his display name and flavor are re-authored under the
-  prose gate.
+  the keyring check re-evaluates every visit). Id renamed
+  ``berth_keeper`` → ``shady_tech`` (no save impact — city NPCs
+  spawn fresh); display name "Shady Tech". His talk modal is the
+  intro line plus the passphrase response option; taking the option
+  opens the 2000cr install (``CUTOUT_BROKERS``).
+  ``KNOWLEDGE_GATES`` retires with the bar seat — the spawn plus
+  the passphrase are the gate.
 - Playtest checklist: re-authored for the one chain, plus the prose
   read-through item.
 - Shift+R: the live-routes readout includes the dark-spawn set.
@@ -481,9 +488,6 @@ typos fixed and flagged in chat)
 
 - The authored share of dark pirate spawns (guaranteed minimum +
   share; tuned at playtest).
-- The fitter's display name and flavor text — "Berth Keeper"
-  retires with the berth (prose gate); whether the passphrase gets
-  a spoken beat in his talk modal or stays fiction-only.
 - Confirm tier 3's "broadcast my name to all" is as intended — kept
   verbatim (reads as "to everyone", not a typo for "at all").
 
@@ -922,6 +926,18 @@ amended with the favor exchange.
 - [ ] Playtest checkpoint
 
   Implementation brief (3) — PROPOSED (refine session 2026-09-11):
+
+  AMENDED (2026-09-11, phase 2.5): chain content = the dark-ports
+  chain (see Phase 2.5 above) — the four tiers' sources/triggers/
+  pads, the dock + hail fire sites, the dark-hull spawn derivation,
+  the dock credential log line, and the vendor move to the
+  container-side spawn with the passphrase gate. The brief's
+  derelict candidates, the ``line_warned`` instance, the derelict
+  pad content, and wolf_barkeep's static exclusive entry fall.
+  Everything else stands: routing module, resolver seam, the
+  EXCLUSIVE_CANDIDATES table, determinism tests, Shift+R, guide
+  sentence, and the checklist's shape (items re-authored for the
+  one chain + the prose read-through).
 
   - **Scope.** Data: `RumorEntry.sources` become planet-scoped
     candidates — `(npc_id, planet, faction | None, min_standing |
