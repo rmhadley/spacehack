@@ -756,6 +756,9 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
             game_map, _ent.pos, enemy.spec.field_item_loot_pool,
             count_range=enemy.spec.field_item_loot_count,
         )
+    if _ent is not None and enemy.spec:
+        from ..digs import maybe_spawn_ground_pad
+        maybe_spawn_ground_pad(ctx, game_map, _ent.pos, enemy.spec.id)
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp

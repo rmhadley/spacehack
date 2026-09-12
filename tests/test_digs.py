@@ -333,3 +333,115 @@ def test_find_site_rejects_unknown_ids(monkeypatch):
 def test_stairs_log_lines_resolve_from_text():
     assert digs.stairs_log_line(1) == "You descend deeper into the dig site."
     assert digs.stairs_log_line(-1) == "You climb back up through the dig site."
+
+
+# --- the discovery doors (doc 42 phase 4, step 3) ---------------------------
+
+from src.spacehack import loot as loot_module
+from src.spacehack.data.digs import DOOR_RATES, HUMANOID_PAD_DROPPERS
+
+
+def _floor_map():
+    gm = world.GameMap(width=8, height=8, tiles=[
+        [world.DUNGEON_FLOOR for _ in range(8)] for _ in range(8)
+    ], entities=[])
+    return gm
+
+
+def test_ground_pad_never_spawns_for_non_droppers(monkeypatch):
+    gm = _floor_map()
+    ctx = SimpleNamespace(known_rumors=[])
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
+    assert digs.maybe_spawn_ground_pad(ctx, gm, world.Position(2, 2), "rock_scavenger") is False
+    assert digs.maybe_spawn_ground_pad(
+        ctx, gm, world.Position(2, 2), "civillian_bystander",
+    ) is False
+    assert gm.entities == []
+
+
+def test_ground_pad_roll_is_flat(monkeypatch):
+    gm = _floor_map()
+    ctx = SimpleNamespace(known_rumors=[])
+    rolls = []
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: rolls.pop(0))
+    rolls.append(DOOR_RATES["humanoid_pad"])  # miss
+    assert digs.maybe_spawn_ground_pad(
+        ctx, gm, world.Position(2, 2), "pirate_raider",
+    ) is False
+    rolls.append(1)  # hit
+    assert digs.maybe_spawn_ground_pad(
+        ctx, gm, world.Position(3, 3), "pirate_raider",
+    ) is True
+    pad = gm.entities[0]
+    assert pad.loot_data == {"reveals_site": True}
+    assert pad.name == loot_module.PAD_NAME
+
+
+def test_reveal_pad_pickup_consumes_and_reveals(monkeypatch):
+    gm = _floor_map()
+    revealed = []
+    monkeypatch.setattr(digs, "reveal_site", lambda ctx: revealed.append(ctx))
+    ctx = SimpleNamespace(known_rumors=[], game_map=gm)
+    loot_module.spawn_pad_entity(gm, world.Position(4, 4), {"reveals_site": True})
+    pad = gm.entities[0]
+    loot_module._open_single_loot_pickup(ctx, pad)
+    assert pad not in gm.entities
+    assert revealed == [ctx]
+
+
+def test_wreck_pad_scatters_on_hit(monkeypatch):
+    gm = _floor_map()
+    gm.entities.append(world.Entity(
+        char="@", fg=(255, 255, 255), pos=world.Position(0, 0), name="P",
+    ))
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
+    assert digs.maybe_spawn_wreck_pad(gm) is True
+    assert len(gm.entities) == 2
+    assert gm.entities[1].loot_data == {"reveals_site": True}
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: DOOR_RATES["derelict_pad"])
+    assert digs.maybe_spawn_wreck_pad(_floor_map()) is False
+
+
+def test_terminal_roll_reveals_on_hit(monkeypatch):
+    revealed = []
+    monkeypatch.setattr(digs, "reveal_site", lambda ctx: revealed.append(ctx))
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
+    ctx = SimpleNamespace()
+    assert digs.maybe_reveal_from_terminal(ctx) is True
+    assert revealed == [ctx]
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: DOOR_RATES["terminal"])
+    assert digs.maybe_reveal_from_terminal(ctx) is False
+    assert revealed == [ctx]
+
+
+def test_door_rates_match_the_settled_opening_guesses():
+    assert DOOR_RATES == {"humanoid_pad": 12, "derelict_pad": 8, "terminal": 6}
+    assert "civillian_bystander" not in HUMANOID_PAD_DROPPERS
+
+
+def test_wreck_pad_lands_off_occupied_cells(monkeypatch):
+    """The scatter respects the occupied set: with one free cell left,
+    the pad lands exactly there."""
+    gm = _floor_map()
+    for y in range(8):
+        for x in range(8):
+            if (x, y) != (5, 6):
+                gm.entities.append(world.Entity(
+                    char="x", fg=(0, 0, 0), pos=world.Position(x, y), name="x",
+                ))
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
+    assert digs.maybe_spawn_wreck_pad(gm) is True
+    pad = gm.entities[-1]
+    assert (pad.pos.x, pad.pos.y) == (5, 6)
+
+
+def test_wreck_pad_needs_a_free_cell(monkeypatch):
+    gm = _floor_map()
+    for y in range(8):
+        for x in range(8):
+            gm.entities.append(world.Entity(
+                char="x", fg=(0, 0, 0), pos=world.Position(x, y), name="x",
+            ))
+    monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
+    assert digs.maybe_spawn_wreck_pad(gm) is False
+    assert len(gm.entities) == 64

@@ -293,6 +293,69 @@ def stairs_log_line(direction: int) -> str:
     return _text_get(key, "")
 
 
+# --- the discovery doors (SETTLED 27/36): three RNG-rare rolls -----------
+
+
+def _door_hit(key: str) -> bool:
+    """The SETTLED 36 flat roll: a 1-in-N draw from the rates table."""
+    from .data.digs import DOOR_RATES
+
+    return engine.RNG.randint(1, DOOR_RATES[key]) == 1
+
+
+def maybe_spawn_ground_pad(ctx, game_map, pos, enemy_id: str) -> bool:
+    """Door 1 — the humanoid pad: a 1-in-N roll on combatant ground
+    kills drops a site pad beside the loot. Never guaranteed."""
+    from .data.digs import HUMANOID_PAD_DROPPERS
+    from .loot import spawn_pad_entity
+
+    # ctx is unread but pinned for signature symmetry with
+    # loot.maybe_spawn_pad — the audit's one pad shape.
+    if enemy_id not in HUMANOID_PAD_DROPPERS:
+        return False
+    if not _door_hit("humanoid_pad"):
+        return False
+    return spawn_pad_entity(game_map, pos, {"reveals_site": True})
+
+
+def maybe_spawn_wreck_pad(game_map) -> bool:
+    """Door 2 — the derelict pad: a 1-in-N roll when a generic wreck
+    interior generates; the wreck despawns after boarding, so the
+    interior is one-shot."""
+    from .loot import spawn_pad_entity
+
+    if not _door_hit("derelict_pad"):
+        return False
+    pos = _free_floor_cell(game_map)
+    if pos is None:
+        return False
+    return spawn_pad_entity(game_map, pos, {"reveals_site": True})
+
+
+def maybe_reveal_from_terminal(ctx) -> bool:
+    """Door 3 — the boarded ship's computer: a 1-in-N roll on the
+    first power-restore; a hit plays the full reveal."""
+    if not _door_hit("terminal"):
+        return False
+    reveal_site(ctx)
+    return True
+
+
+def _free_floor_cell(game_map) -> world.Position | None:
+    """A random walkable, unoccupied cell — a scattered pad's landing
+    spot; None when the map has nowhere to put one."""
+    occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    candidates = [
+        (x, y)
+        for y in range(game_map.height)
+        for x in range(game_map.width)
+        if game_map.tiles[y][x].walkable and (x, y) not in occupied
+    ]
+    if not candidates:
+        return None
+    return world.Position(*engine.RNG.choice(candidates))
+
+
 def _install_arrival(state, game_map: world.GameMap, spawn: world.Position) -> None:
     """Scrub stale players off both maps, then the shared entry
     invariants — fog, a fresh transient player, the arrival reveal."""

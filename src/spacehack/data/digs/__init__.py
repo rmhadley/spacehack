@@ -38,3 +38,22 @@ LANDMARK_VARIANTS: tuple[LandmarkVariant, ...] = (
     LandmarkVariant("dry_workshop", 1.0),
     LandmarkVariant("dig_cistern", 1.0),
 )
+
+# SETTLED 36: the three RNG-rare discovery doors as one rates table
+# (1-in-N, opening guesses — tuned at playtest). None is guaranteed.
+DOOR_RATES: dict[str, int] = {
+    "humanoid_pad": 12,
+    "derelict_pad": 8,
+    "terminal": 6,
+}
+
+# Door 1's droppers (SETTLED 27): humanoid combatant NpcCharSpec ids.
+# civillian_bystander is deliberately absent — bystanders are not a
+# loot source.
+HUMANOID_PAD_DROPPERS: tuple[str, ...] = (
+    "pirate_raider",
+    "pirate_rifleman",
+    "consortium_enforcer",
+    "consortium_gunner",
+    "militia_trooper",
+)

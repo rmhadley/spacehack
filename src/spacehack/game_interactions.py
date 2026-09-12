@@ -553,6 +553,8 @@ def _resolve_computer_terminal(state, blocker):
         else:
             _power_interior(state.game_map, state.player.pos)
             log.add_colored('Emergency power restored. Interior sensors online.', message_log.COLOR_IMPORTANT_EVENT)
+            from .digs import maybe_reveal_from_terminal
+            maybe_reveal_from_terminal(ctx)
     return 'CONTINUE'
 
 def _resolve_npc_ship_blocker(state, blocker):
@@ -675,6 +677,20 @@ def _confirm_boarding(ctx, npcspec):
         return PlanetMenuOutcome.LAND
     return None
 
+def _build_generic_derelict(ctx, blocker, npcspec, log):
+    """The generic derelict interior: scout_a plus the site-pad roll
+    (doc 42 phase 4). Returns (map, spawn, handled)."""
+    from .digs import maybe_spawn_wreck_pad
+    from .dungeon import load_layout as _load_layout
+    try:
+        _dungeon_map, _spawn = _load_layout('scout_a', loot_budget=npcspec.loot_budget)
+    except (FileNotFoundError, ValueError):
+        log.add("The derelict's interior is too damaged to explore.")
+        return (None, None, True)
+    maybe_spawn_wreck_pad(_dungeon_map)
+    _despawn_blocker(ctx, blocker, npcspec)
+    return (_dungeon_map, _spawn, False)
+
 def _boardable_wreck_layout(state, blocker, npcspec):
     """Return (dungeon_map, spawn, is_reboard) for a boardable wreck."""
     ctx = state.ctx
@@ -703,12 +719,9 @@ def _boardable_wreck_layout(state, blocker, npcspec):
         if _handled:
             return (None, None, False)
     if _dungeon_map is None and _mission is None and (not (_wreck_sid or '').endswith('_wreck')):
-        try:
-            _dungeon_map, _spawn = _load_layout('scout_a', loot_budget=npcspec.loot_budget)
-        except (FileNotFoundError, ValueError):
-            log.add("The derelict's interior is too damaged to explore.")
+        _dungeon_map, _spawn, _handled = _build_generic_derelict(ctx, blocker, npcspec, log)
+        if _handled:
             return (None, None, False)
-        _despawn_blocker(ctx, blocker, npcspec)
     if _dungeon_map is None:
         log.add("The derelict's interior is too damaged to explore.")
         return (None, None, False)

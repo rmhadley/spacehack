@@ -26,7 +26,7 @@ from .loot_selection import nearby_loot_entities
 def _loot_choice_label(loot_entity) -> str:
     """Build a friendly compact label for one nearby loot entity."""
     data = loot_entity.loot_data or {}
-    if data.get("teaches"):
+    if data.get("teaches") or data.get("reveals_site"):
         return PAD_NAME
     item_type = data.get("item_type")
     if item_type in {"weapon", "armor"}:
@@ -551,22 +551,28 @@ def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
 PAD_NAME = "Data Pad"
 
 
+def spawn_pad_entity(game_map, pos, loot_data: dict) -> bool:
+    """The one pad construction — a gold '%' consumed on pickup
+    (teaching or revealing); nothing to the hold, nothing sellable."""
+    from . import world as _world
+
+    game_map.entities.append(_world.Entity(
+        char="%", fg=(255, 215, 0), pos=pos, name=PAD_NAME,
+        width=1, height=1, loot_data=loot_data,
+    ))
+    return True
+
+
 def maybe_spawn_pad(ctx: GameContext, game_map, pos, enemy_id: str) -> bool:
     """Drop a teaching pad beside a kill's loot (doc 42, SETTLED 19) —
-    knowledge IS the item: nothing to the hold, nothing sellable. The
-    pad exists only while its entry is unheard. Returns whether it
-    spawned."""
+    knowledge IS the item. The pad exists only while its entry is
+    unheard. Returns whether it spawned."""
     from .data.lore.finds import pad_for
-    from . import world as _world
 
     rumor_id = pad_for(enemy_id)
     if rumor_id is None or rumor_id in ctx.known_rumors:
         return False
-    game_map.entities.append(_world.Entity(
-        char="%", fg=(255, 215, 0), pos=pos, name=PAD_NAME,
-        width=1, height=1, loot_data={"teaches": rumor_id},
-    ))
-    return True
+    return spawn_pad_entity(game_map, pos, {"teaches": rumor_id})
 
 
 def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
@@ -586,10 +592,23 @@ def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
         )
 
 
+def _apply_reveal_pad_pickup(ctx: GameContext, loot_entity) -> None:
+    """A site pad is consumed on pickup (SETTLED 34): the reveal
+    records the next site and reads out; nothing enters the hold."""
+    from . import digs
+
+    if loot_entity in ctx.game_map.entities:
+        ctx.game_map.entities.remove(loot_entity)
+    digs.reveal_site(ctx)
+
+
 def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open the existing pickup flow for one selected loot entity."""
     if loot_entity.loot_data.get("teaches"):
         _apply_pad_pickup(ctx, loot_entity)
+        return
+    if loot_entity.loot_data.get("reveals_site"):
+        _apply_reveal_pad_pickup(ctx, loot_entity)
         return
     item_type = loot_entity.loot_data.get("item_type")
     if item_type in {"weapon", "armor"}:
