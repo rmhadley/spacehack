@@ -1001,18 +1001,80 @@ amended with the favor exchange.
      to the player, not blocked this phase.
 
 ### Phase 3 — Seed routing + discovery (re-scoped 2026-09-11)
-- [ ] Derived routing module (pure INIT_SEED derivations):
+- [x] Derived routing module (pure INIT_SEED derivations):
       live-candidate subsets per entry (npc+planet candidates,
       authored width — SETTLED 15), exclusive holder picks
       (SETTLED 17)
-- [ ] Authored discovery triggers: openers enter via trigger / pad
+- [x] Authored discovery triggers: openers enter via trigger / pad
       / carrier (SETTLED 16); the phase-1 chains re-authored so no
       chain is askable at spawn
-- [ ] Loot that teaches: pads on boarded-ship + derelict loot,
+- [x] Loot that teaches: pads on boarded-ship + derelict loot,
       teach-on-pickup (SETTLED 19)
-- [ ] Determinism tests (same INIT_SEED → same routing; reroll →
+- [x] Determinism tests (same INIT_SEED → same routing; reroll →
       different legal routing; round-trip stability)
 - [ ] Playtest checkpoint
+
+  LANDED 2026-09-12 (builds 51a4846 → 7697f43, seven steps + the
+  review round; gate green ~2260 tests). Build deviations from the
+  brief, all flagged in the audit or the review round: the
+  instrument key is **Shift+N** (the brief's Shift+R is taken by
+  dungeon-fog reveal); the review round fixed the Continue-rebuild
+  gap (a saved city-NPC position row is the gate proof) and put the
+  tick spawner on the same dark share (a seeded per-group coin).
+
+  **Re-authored playtest checkpoint** (numbered; SPACEHACK_DEV run;
+  supersedes the brief's checklist, which still names the retired
+  chains):
+  1. Fresh dev run: land at the starting city — NO rumor topics
+     anywhere and no Ask around row on any non-dealer (the chain is
+     not askable at spawn); a dealer's Ask around opens with
+     Favor: 0 and no rows.
+  2. Shift+N: the routing readout lists the t2 carrier planets this
+     run + the live exclusive holder + any dark hulls in-system.
+     Dock at Deadfall (lal_b): the log shows "This port didn't
+     verify any credentials." on EVERY landing (re-land to see it
+     repeat), and the first landing delivers t1 as a readout; the
+     ledger (Q → TAB) records it verbatim; a re-landing does not
+     duplicate.
+  3. Travel to a live t2 carrier planet (Shift+N names them); Ask
+     Around delivers t2 ("I know of a few ports that don't check
+     your creds..."); a carrier on a NON-live pair or the wrong
+     planet shows nothing.
+  4. The silent hail: find a dark hull (Shift+N names live ones —
+     the hail window opens with NO Broadcast line); hailing it
+     delivers t3 as a readout (the pirate's testimony). Honest
+     hulls still broadcast.
+  5. Pads: kill a pirate raider — a "Data Pad" drops with the loot
+     ONLY while t1 is unheard (dock first at a lawful port run to
+     check: kill one first, take the pad, then no more pads);
+     pickup teaches t1 (readout + ledger), nothing enters the
+     hold, the pad is consumed.
+  6. Holder scatter: Shift+N names the live holder of dark_berth_4;
+     sell t1 (1) + t3 (3) to any dealer — t2 is every dealer's own
+     telling and never sells (no-selling-back); at 4 favor the Buy
+     row appears at the live holder only ("Costs 4 favor."); buy —
+     the readout names the man by the containers.
+  7. The payoff: on Whisper, exit any building — the Shady Tech
+     stands by the containers south-east of the bounty office; his
+     talk modal is "I don't know you, take off." with the install
+     row "The Hush sent me." — take it: 2000cr, cut-out installed
+     (Shift+B revokes for re-tests). Pre-t4 saves never spawn him.
+  8. Determinism: save → quit → Continue — Shift+N shows identical
+     routing; the Shady Tech survives the reload if spawned; Shift+S
+     reroll → different legal routing (items 2-3 repeat against the
+     new routes).
+  9. Regression: phase-1/2 behaviors (Q tabs, favor economy,
+     hidden-until-affordable, quest/purchase/ID rows, the sell
+     sub-menu); lawful ports still refuse a DARK hull; ember_tech
+     still sells the 2500cr cut-out.
+  10. Prose read-through (prose gate): all chain text is the
+      user's verbatim 2.5 wording; TWO strings landed flagged for
+      approval: the pad's loot label/name **"Data Pad"** and the
+      guide's discovery sentence (item 11) — approve or red-line.
+  11. Guide diff (before/after quoted at handoff): the Rumors
+      section's first paragraph gained one sentence — "New
+      subjects reach you in play - by what you see, what you find -
+      not only by asking." No chain telegraphing.
 
   Implementation brief (3) — PROPOSED (refine session 2026-09-11):
 
