@@ -45,6 +45,8 @@ def quest_ctx(
         known_rumors=[],
         # Doc 42 phase 2: per-dealer favor ledgers.
         rumor_favor={},
+        # Doc 42 phase 4: discovered dig sites ({id, planet, name}).
+        discovered_sites=[],
         ship_registration="",
         broadcast_dark=False,
         broadcast_identity=None,

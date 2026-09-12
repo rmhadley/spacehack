@@ -172,3 +172,64 @@ def test_fitting_ledger_carries_no_scrollbar_rows():
     )
     assert any(span.text.strip() for span in heard.rows[-1])
     assert heard.hint.startswith("UP/DOWN")
+
+
+# --- dig-site pointer lines (doc 42 phase 4, SETTLED 37) -------------------
+
+
+def test_rumors_pane_renders_site_pointer_lines_after_keyring():
+    _sites = [
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+        {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+    ]
+    console = _render_rumors(quest_ctx(
+        known_rumors=["dark_berth_1"], discovered_sites=_sites,
+    ))
+    text = "\n".join(_pane_rows(console))
+    assert "Charts a buried site: Sunken Vault, on Mars." in text
+    assert "Charts a buried site: Rusted Warren, on Venus." in text
+    _keyring = rumor_module.entry_text("dark_berth_1").split(". ")[0]
+    assert text.index(_keyring) < text.index("Sunken Vault"), \
+        "keyring entries before site pointers"
+
+
+def test_rumors_pane_shows_sites_without_calling_them_heard():
+    console = _render_rumors(quest_ctx(discovered_sites=[
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+    ]))
+    text = "\n".join(_pane_rows(console))
+    assert "Sunken Vault" in text
+    assert "(nothing heard yet)" not in text
+
+
+def test_rumors_pane_pointer_lines_keep_reveal_order():
+    _sites = [
+        {"id": "s5", "planet": "venus", "name": "Alpha Find"},
+        {"id": "s2", "planet": "mars", "name": "Beta Find"},
+    ]
+    console = _render_rumors(quest_ctx(discovered_sites=_sites))
+    text = "\n".join(_pane_rows(console))
+    assert text.index("Alpha Find") < text.index("Beta Find"), \
+        "reveal order preserved"
+
+
+def test_pointer_lines_skip_stale_planets(monkeypatch):
+    from src.spacehack import digs as digs_module
+
+    monkeypatch.setattr(
+        digs_module, "find_planet_spec",
+        lambda pid: (_ for _ in ()).throw(KeyError(pid))
+        if pid == "venus" else type("S", (), {"name": "Mars"}),
+    )
+    lines = digs_module.pointer_lines(SimpleNamespace(discovered_sites=[
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+        {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+    ]))
+    assert lines == ["Charts a buried site: Sunken Vault, on Mars."]
+
+
+def test_pointer_lines_empty_for_no_sites():
+    from src.spacehack import digs as digs_module
+    assert digs_module.pointer_lines(
+        SimpleNamespace(discovered_sites=[]),
+    ) == []

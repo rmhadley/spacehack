@@ -118,6 +118,29 @@ def reveal_site(ctx) -> dict:
     return site
 
 
+def pointer_line(site: dict) -> str:
+    """The ledger's pointer line for one discovered site (SETTLED 37)
+    — the presentation twin of the sites state; hosts never inline the
+    template."""
+    planet_name = find_planet_spec(site["planet"]).name
+    return _text_get("dig.pointer_line", "").format(
+        name=site["name"], planet=planet_name,
+    )
+
+
+def pointer_lines(ctx) -> list[str]:
+    """All site pointer lines in reveal order — the RUMORS pane's
+    tail. A site whose planet spec has vanished is skipped, the
+    stale-id idiom."""
+    lines = []
+    for site in ctx.discovered_sites:
+        try:
+            lines.append(pointer_line(site))
+        except KeyError:
+            continue
+    return lines
+
+
 # --- generation (SETTLED 26/38): the spec feeds the generator -------------
 
 

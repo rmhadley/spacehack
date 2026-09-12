@@ -120,12 +120,31 @@ def _render_empty_quests_state(console, col_x: int, cy: int) -> None:
     )
 
 
+def _paint_wrapped_block(
+    console: FrameBuffer, col_x: int, cy: int, bottom: int, max_w: int,
+    text: str, colour,
+) -> int:
+    """Paint one wrapped paragraph above the bottom clamp; return the
+    next row (a trailing blank line)."""
+    for line in ui.wrap_text(text, max_w):
+        if cy >= bottom:
+            break
+        ui.paint_line(
+            console, col_x, cy, ui.fit_text(line, max_w), fg=colour,
+        )
+        cy += 1
+    return cy + 1
+
+
 def _render_rumors_pane(
     console: FrameBuffer, ctx: GameContext, *, col_x: int,
     screen_width: int, screen_height: int,
 ) -> None:
     """Paint the verbatim rumor ledger (doc 42): heard text in heard
-    order — no titles, no objectives; the notebook never teaches."""
+    order — no titles, no objectives; the notebook never teaches.
+    Discovered dig sites render their pointer lines after the keyring
+    (SETTLED 37)."""
+    from .. import digs as digs_module
     from .. import rumor as rumor_module
 
     max_w = ui.rule_width(screen_width)
@@ -134,22 +153,22 @@ def _render_rumors_pane(
     # as the quests pane, so TAB does not jump text up and down
     _bottom = screen_height - MSG_LOG_HEIGHT - 3
     entries = rumor_module.known_entries(ctx.known_rumors)
-    if not entries:
+    site_lines = digs_module.pointer_lines(ctx)
+    if not entries and not site_lines:
         ui.paint_line(
             console, col_x, cy, "(nothing heard yet)",
             fg=ui.COLOR_DESCRIPTION,
         )
-        cy += 2
     for entry in entries:
-        for line in ui.wrap_text(rumor_module.entry_text(entry.id), max_w):
-            if cy >= _bottom:
-                break
-            ui.paint_line(
-                console, col_x, cy, ui.fit_text(line, max_w),
-                fg=ui.COLOR_VALUE_WHITE,
-            )
-            cy += 1
-        cy += 1  # blank line between entries
+        cy = _paint_wrapped_block(
+            console, col_x, cy, _bottom, max_w,
+            rumor_module.entry_text(entry.id), ui.COLOR_VALUE_WHITE,
+        )
+    for line in site_lines:
+        cy = _paint_wrapped_block(
+            console, col_x, cy, _bottom, max_w,
+            line, ui.COLOR_VALUE_WHITE,
+        )
     ui.paint_line(
         console, col_x, _bottom + 1,
         pygame_ui.modal_hint("UP/DOWN navigate", "TAB quests", "ESC close"),
