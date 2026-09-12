@@ -426,7 +426,7 @@ def _action_explore(session: HeadlessSaveSession, token: str, argument: str) -> 
     for _ in range(count):
         delta = autoexplore.next_explore_step(
             session.ctx.game_map, session.ctx.player.pos,
-            autoexplore.never_fight_seals(session.ctx, session.ctx.game_map),
+            autoexplore.steps_aside_ids(session.ctx, session.ctx.game_map),
         )
         if delta is None:
             break
@@ -443,7 +443,7 @@ def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dic
     target = _parse_coordinate(argument)
     delta = autoexplore.next_goto_step(
         session.ctx.game_map, session.ctx.player.pos, *target,
-        autoexplore.never_fight_seals(session.ctx, session.ctx.game_map),
+        autoexplore.steps_aside_ids(session.ctx, session.ctx.game_map),
     )
     if delta is None:
         return {"action": token, "result": "unreachable", "target": list(target)}
@@ -590,6 +590,9 @@ def _apply_dungeon_step(session: HeadlessSaveSession, delta: tuple[int, int]) ->
     """Move one dungeon step and run its production post-step ordering."""
     if session.mode != "dungeon":
         raise SaveSessionError("explore and goto actions require a dungeon save")
+    from .ground_npcs import swap_step
+    if swap_step(session.ctx, session.ctx.player, session.ctx.game_map, *delta):
+        return _run_dungeon_turn(session)
     code, _ = world.try_move(session.ctx.player, session.ctx.game_map, *delta)
     if code != "moved":
         raise SaveSessionError(f"planned dungeon step was blocked: {code}")

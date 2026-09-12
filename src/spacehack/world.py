@@ -159,6 +159,10 @@ STAIRS_DOWN = Tile(kind="stairs_down", char=">", walkable=True,
                    fg=(130, 255, 180), bg=(20, 55, 35))
 STAIRS_UP = Tile(kind="stairs_up", char="<", walkable=True,
                  fg=(150, 220, 255), bg=(20, 45, 65))
+# The floor-transition tiles: bump-to-swap refuses them (a guard
+# standing on stairs must never carry the player through), and the
+# planners treat them as never-entered.
+TRANSITION_KINDS = frozenset({"exit", "stairs_up", "stairs_down"})
 # Procedural extension feature tiles. They are walkable visual markers rather
 # than entities, so cell doors, posts, and barriers never block pathfinding.
 PRISON_CELL_DOOR = Tile(kind="prison_cell_door", char="|", walkable=True,

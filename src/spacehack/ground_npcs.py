@@ -64,6 +64,39 @@ def _is_hostile(ctx, entity: world.Entity) -> bool:
     return _spec_is_hostile(ctx, _spec)
 
 
+def steps_aside(ctx, entity: world.Entity) -> bool:
+    """Whether a bump asks this body to swap places with the player
+    (doc 42 SETTLED 39 round 2): population monsters only, never
+    dormant security — and only while their face reads non-hostile.
+    The face decides whether a guard fights or steps aside."""
+    if getattr(entity, "powered_down", False):
+        return False
+    if not getattr(entity, "npc_char_id", ""):
+        return False
+    return not _is_hostile(ctx, entity)
+
+
+def swap_step(ctx, player: world.Entity, game_map: world.GameMap, dx: int, dy: int) -> bool:
+    """One bump-to-swap attempt (doc 42 SETTLED 39 round 2): when the
+    target cell holds a non-hostile population monster, exchange
+    places. Refused when the blocker stands on a transition tile — a
+    bump must never carry the player down stairs or out of the dig.
+    True when the swap moved the player; every executor of planned or
+    attempted steps routes through this one implementation."""
+    target_x, target_y = player.pos.x + dx, player.pos.y + dy
+    if not game_map.in_bounds(target_x, target_y):
+        return False
+    if game_map.tiles[target_y][target_x].kind in world.TRANSITION_KINDS:
+        return False
+    blocker = game_map.blocking_entity_at(target_x, target_y, exclude=player)
+    if blocker is None or not steps_aside(ctx, blocker):
+        return False
+    _player_pos = player.pos
+    player.pos = world.Position(target_x, target_y)
+    blocker.pos = _player_pos
+    return True
+
+
 def display_name(entity: world.Entity) -> str:
     """The display name of a ground entity: its own when set; a
     nameless population monster resolves through its NpcCharSpec."""

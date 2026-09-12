@@ -444,26 +444,36 @@ dark_berth is the refinement target.
     out of the box, the spec tightens or widens per theme. AMENDS
     SETTLED 24 (rewritten above).
 
-## Settled — phase 4, playtest round 1 (2026-09-12)
+## Settled — phase 4, playtest rounds 1-2 (2026-09-12)
 
-39. **Dig guards are always-hostile fauna/drones; the face never
-    disarms a site.** (user, mid-checklist: "there's something nera
-    me moving, an M. it doesn't fight me and if I bump it it says
-    you 'You bumped in to .'") The drafted tier pools held
-    faction-checked soldiers (militia_trooper, pirates,
-    consortium), but ground hostility reads the RESOLVED sheet
-    (``faction.spec_is_hostile``): a dark hull reads neutral, an
-    allied face reads friendly — every faction-checked guard stood
-    down, and killing them would have moved standing. The pools now
-    draw ONLY ``always_hostile`` species (fauna/drones: hostile
-    under every face, rep-free kills). Accepted consequence: door 1
-    (the humanoid pad, 1-in-12) no longer fires from dig kills —
-    humanoids still die in authored dungeons, city fights, and
-    wreck crews, where the pad door lives. Same report, same fix:
-    population monsters are built nameless (pre-existing, authored
-    dungeons included), so the entity bump fall-through now resolves
-    the spec name (heals already-cached floors — the user's Earth
-    floor bumps "Militia Trooper" without a regen).
+39. **Dig guards are faction soldiers; the face decides fight or
+    step-aside.** (user, mid-checklist: "there's something nera me
+    moving, an M. it doesn't fight me and if I bump it it says you
+    'You bumped in to .'" — then, on the agent's always-hostile
+    re-pool: "I do like finding data pads in these delves though. I
+    don't mind their being non-hostile npc's because of faction
+    rep. But I don't like that they can block paths") TWO-PART
+    RULING. (1) The blank bump line was a display bug (population
+    monsters are built nameless) — the entity bump resolves the
+    spec name now, healing already-cached floors. (2) The pools
+    REVERT to faction humanoids (the always-hostile re-pool is
+    superseded): ground hostility keeps reading the RESOLVED sheet,
+    and **bump-to-swap** makes that a feature — bumping a
+    non-hostile population monster swaps places instead of
+    blocking (allies step aside; autoexplore plans through them,
+    retiring the never-fight-seal wart), while a hostile guard
+    blocks and fights as always. Pads flow from fighting across
+    hostile lines — a dig is pad country when its guards are your
+    enemies. Rep on guard kills is the shipped ground-kill rule
+    (true sheet); billing the WORN face is parked as its own
+    future ruling, not part of this phase. Edges ruled with it: a
+    guard wandering onto a transition tile never carries the player
+    through (the swap refuses stairs/exit — a bump there just
+    blocks); all three step executors (player move, autoexplore/
+    goto, the headless debug session) share the one swap
+    implementation. GUIDE: no edit — bump semantics are discovered
+    in play and self-explaining; recorded here as the deliberate
+    no-change decision (game guide contract).
 
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
@@ -1452,9 +1462,9 @@ amended with the favor exchange.
      play — the pre-existing dev-table pattern; dev builds unaffected.)
   2. Fly to the site and Explore: a themed, tier-scaled dungeon
      generates — wall/floor colors from the planet's palette,
-     always-hostile fauna/drone guards at the planet's tier (rock
-     scavengers, dust prowlers, sentry/assault drones, hull
-     parasites, ice worms, frost spitters), 2-3 supply caches
+     faction-guard humanoids (and some drones) at the planet's tier
+     whose face-reading follows SETTLED 39: allies step aside when
+     bumped, enemies block and fight — plus 2-3 supply caches
      carrying the planet's own trade goods; the location banner
      reads the site's name.
   3. Walk back to the EXIT on floor 1 → you return to space.
@@ -1471,15 +1481,15 @@ amended with the favor exchange.
      the Dry Workshop / the Dry Cistern), distinct masonry, clean
      paste, lit threshold.
   6. Doors (rare by design — 1-in-12 / 1-in-8 / 1-in-6): (a) kill a
-     humanoid enemy on the ground OUTSIDE dig sites (delve
-     guardians, city fights, wreck crews — dig floors carry
-     fauna/drones only, playtest round 1) — occasionally a gold
-     "Data Pad" drops beside the loot; pickup consumes it and plays
-     the reveal; (b) board a generic derelict — occasionally a pad
-     is scattered inside; (c) activate a derelict's C terminal
-     (power restore) — occasionally the reveal fires on the first
-     restore. Mission-salvage and main-quest wrecks never carry
-     pads; capture consoles and quest consoles never roll.
+     humanoid guard whose face reads hostile to you (SETTLED 39:
+     allies step aside, so pad drops come from fighting across
+     hostile lines) — occasionally a gold "Data Pad" drops beside
+     the loot; pickup consumes it and plays the reveal; (b) board a
+     generic derelict — occasionally a pad is scattered inside; (c)
+     activate a derelict's C terminal (power restore) —
+     occasionally the reveal fires on the first restore.
+     Mission-salvage and main-quest wrecks never carry pads;
+     capture consoles and quest consoles never roll.
   7. Regression: the authored explorables (mars signal site + caves,
      mercury, wolf_b, barnards_b, procyon_c) explore exactly as
      before; the dark-ports chain end-to-end (dock line, carriers,

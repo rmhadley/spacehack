@@ -925,33 +925,32 @@ def _neutral_guards(game_map, x):
     return frozenset(id(g) for g in _guards)
 
 
-def test_neutral_standing_crew_seal_permanently():
-    """The user's pocket repro: guards seal in EVERY frame — the run
-    terminates with the blocker named instead of oscillating."""
+def test_neutral_standing_crew_yield_for_the_planner():
+    """The pocket repro, under bump-to-swap (doc 42 SETTLED 39
+    round 2): neutral guards no longer seal anything — the planner
+    paths through them toward unseen territory and never names them
+    as the way-blocker (the player bumps; they step aside)."""
     gm = _dungeon(width=23, height=5)
     player = _player(19, 2)
     # Everything seen except the pocket floor (x=1) and the wall
-    # column behind it (x=0); no visible frame anywhere (the guards
-    # are outside it — the oscillation's other half).
+    # column behind it (x=0); no visible frame anywhere.
     for y in range(5):
         for x in range(2, 23):
             gm.seen[y][x] = True
-    seals = _neutral_guards(gm, 2)
+    yielding = _neutral_guards(gm, 2)
 
-    # Without the seals the BFS walks straight through the invisible
-    # guards toward the unseen pocket — the leftward half of the loop.
+    # The BFS walks straight through the guards toward the unseen
+    # pocket — with or without the steps-aside set.
     assert next_explore_step(gm, player.pos) == (-1, 0)
-    # Sealed, they block in every frame: nothing reachable is unseen.
-    assert next_explore_step(gm, player.pos, seals) is None
-    _blocker = blocking_way_entity(gm, player.pos, seals)
-    assert _blocker is not None and _blocker.pos.x == 2
+    assert next_explore_step(gm, player.pos, yielding) == (-1, 0)
+    assert blocking_way_entity(gm, player.pos, yielding) is None
 
 
-def test_never_fight_seals_reads_the_sheet():
-    """Seal membership follows the broadcasting sheet: neutral bodies
-    seal; hostile bodies and always-hostile vermin never do (the
-    dark-camper reveal-then-fight contract is theirs)."""
-    from src.spacehack.autoexplore import never_fight_seals
+def test_steps_aside_ids_reads_the_sheet():
+    """Membership follows the broadcasting sheet: neutral bodies
+    step aside; hostile bodies and always-hostile vermin never do
+    (the dark-camper reveal-then-fight contract is theirs)."""
+    from src.spacehack.autoexplore import steps_aside_ids
 
     def _ctx(pirate_rep):
         return SimpleNamespace(
@@ -969,25 +968,26 @@ def test_never_fight_seals_reads_the_sheet():
                              npc_char_id="hull_parasite")
     gm.entities.extend([_guard, _parasite, _player(6, 2)])
 
-    assert never_fight_seals(_ctx(0), gm) == {id(_guard)}
-    assert never_fight_seals(_ctx(-100), gm) == frozenset(), (
+    assert steps_aside_ids(_ctx(0), gm) == {id(_guard)}
+    assert steps_aside_ids(_ctx(-100), gm) == frozenset(), (
         "a hostile sheet keeps the guards out of the seal set — "
         "walking toward them must still reveal and start the fight"
     )
 
 
-def test_neutral_standing_crew_seal_goto():
-    """The goto twin of the pocket repro: a neutral body on the route
-    terminates with 'no path' instead of oscillating — hostile bodies
-    keep the walk-through-and-reveal contract."""
+def test_neutral_standing_crew_yield_for_goto():
+    """The goto twin: a neutral body on the route no longer
+    terminates with 'no path' — the planner paths through it
+    (the bump swaps places). Hostile bodies keep the
+    walk-toward-and-reveal contract unchanged."""
     gm = _dungeon(width=23, height=5)
     player = _player(19, 2)
-    seals = _neutral_guards(gm, 2)
+    yielding = _neutral_guards(gm, 2)
 
-    # Target the pocket floor behind the guards: unsealed, the BFS
-    # paths through the invisible bodies toward it; sealed, no path.
+    # Target the pocket floor behind the guards: the BFS paths
+    # through them in both framings now.
     assert next_goto_step(gm, player.pos, 1, 2) == (-1, 0)
-    assert next_goto_step(gm, player.pos, 1, 2, seals) is None
+    assert next_goto_step(gm, player.pos, 1, 2, yielding) == (-1, 0)
 
 
 def test_fixture_behind_a_door_does_not_toggle_the_frame():
@@ -1049,3 +1049,69 @@ def test_fixture_behind_a_door_does_not_toggle_the_frame():
     gm.visible = [[False] * 20 for _ in range(5)]
     assert next_explore_step(gm, player.pos) is None
     assert blocking_way_entity(gm, player.pos) is _terminal
+
+
+def test_executor_swaps_a_planned_through_guard(monkeypatch):
+    """The planner may step onto a non-hostile body's cell — the
+    executor must SWAP, never stack (the reviewer's blocking case:
+    a stationary guard would otherwise share the player's cell for
+    the whole route)."""
+    from src.spacehack.autoexplore import _step_present_poll_move
+    from src.spacehack import world
+
+    gm = _dungeon(width=9, height=5)
+    player = _player(5, 2)
+    gm.entities.append(player)
+    guard = world.Entity(
+        char="c", fg=(0, 0, 0), pos=world.Position(4, 2), name="",
+        npc_char_id="consortium_gunner",  # behavior "guard" — never wanders
+    )
+    gm.entities.append(guard)
+    ctx = SimpleNamespace(
+        faction_reputation={"pirate": 41},
+        context=SimpleNamespace(events=lambda: []),
+    )
+    moved = []
+    monkeypatch.setattr(
+        "src.spacehack.ground_npcs._is_hostile", lambda c, e: False,
+    )
+
+    def _tick(ctx, console, game_map):
+        moved.append((player.pos.x, player.pos.y))
+        return None
+
+    assert _step_present_poll_move(
+        ctx, None, gm, player, lambda *a, **k: None,
+        9, 5, "test", -1, 0, _tick,
+    ) is None
+    assert (player.pos.x, player.pos.y) == (4, 2)
+    assert (guard.pos.x, guard.pos.y) == (5, 2)
+    assert moved == [(4, 2)]
+
+
+def test_swap_refuses_transition_tiles(monkeypatch):
+    """A guard wandering onto stairs never carries the player through
+    the floor — the swap is refused and the bump just blocks."""
+    from src.spacehack import ground_npcs, world
+
+    gm = _dungeon(width=9, height=5)
+    for y in range(5):
+        for x in range(9):
+            gm.tiles[y][x] = world.DUNGEON_FLOOR
+    gm.tiles[2][4] = world.STAIRS_DOWN
+    player = _player(5, 2)
+    gm.entities.append(player)
+    guard = world.Entity(
+        char="M", fg=(0, 0, 0), pos=world.Position(4, 2), name="",
+        npc_char_id="militia_trooper",
+    )
+    gm.entities.append(guard)
+    monkeypatch.setattr(
+        "src.spacehack.ground_npcs._is_hostile", lambda c, e: False,
+    )
+    assert ground_npcs.swap_step(
+        SimpleNamespace(faction_reputation={"militia": 81}),
+        player, gm, -1, 0,
+    ) is False
+    assert (player.pos.x, player.pos.y) == (5, 2)
+    assert (guard.pos.x, guard.pos.y) == (4, 2)

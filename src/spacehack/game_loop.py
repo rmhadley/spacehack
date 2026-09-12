@@ -756,7 +756,8 @@ def _apply_movement_interaction(state, code, blocker, dx, dy):
 
 def _resolve_move(state, dx, dy):
     """One movement attempt; a dungeon NPC on the target tile counts
-    as an occupied blocker."""
+    as an occupied blocker — unless it is non-hostile population,
+    which swaps places with the player (doc 42 SETTLED 39)."""
     if state.current_mode != 'dungeon':
         return world.try_move(state.player, state.game_map, dx, dy)
     _tx, _ty = (state.player.pos.x + dx, state.player.pos.y + dy)
@@ -764,7 +765,12 @@ def _resolve_move(state, dx, dy):
         _wall_blocker = next((_e for _e in state.game_map.entities if _e.pos.x == _tx and _e.pos.y == _ty and _e.npc_id), None)
         if _wall_blocker is not None:
             return ('occupied', _wall_blocker)
-    return world.try_move(state.player, state.game_map, dx, dy)
+    code, blocker = world.try_move(state.player, state.game_map, dx, dy)
+    if code == 'occupied':
+        from .ground_npcs import swap_step
+        if swap_step(state.ctx, state.player, state.game_map, dx, dy):
+            return ('moved', None)
+    return (code, blocker)
 
 
 def _handle_movement_event(state, event):

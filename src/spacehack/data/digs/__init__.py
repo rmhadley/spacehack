@@ -36,14 +36,16 @@ DEFAULT_SUFFIXES: tuple[str, ...] = (
 
 # Tier-banded dig difficulty (SETTLED 26/38): the planet's mission_tier
 # picks the pool and density; floors climb the band (tier + floor - 1).
-# PLAYTEST FIX (2026-09-12): always-hostile fauna/drones ONLY —
-# faction-checked species read the player's RESOLVED sheet (a dark or
-# well-liked face left dig sites unguarded) and their kills would move
-# faction standing. The guard population must not depend on the face.
+# SETTLED 39 round 2 (user ruling): faction guards stand in the digs —
+# the player's face decides whether a guard fights or steps aside
+# (bump-to-swap), and pads flow from fighting across hostile lines.
 TIER_POOLS: dict[int, tuple[tuple[str, ...], float]] = {
-    1: (("rock_scavenger", "dust_prowler", "hull_parasite"), 1.0),
-    2: (("dust_prowler", "frost_spitter", "sentry_drone", "ice_worm"), 1.4),
-    3: (("sentry_drone", "assault_drone", "hull_parasite", "ice_worm"), 1.8),
+    1: (("pirate_raider", "consortium_gunner", "militia_trooper",
+         "sentry_drone"), 1.0),
+    2: (("pirate_raider", "pirate_rifleman", "consortium_enforcer",
+         "assault_drone"), 1.4),
+    3: (("pirate_rifleman", "consortium_enforcer", "assault_drone",
+         "hull_parasite"), 1.8),
 }
 
 # The authored-room sprinkle (SETTLED 25/32): a seeded minority of

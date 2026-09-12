@@ -26,13 +26,12 @@ passable, so a monster camping a doorway in the dark is revealed by
 walking toward it (the shared tick then starts LOS-based ground
 combat). Only visible solid entities block — and if one sits in the
 only exit, the run stops with ``A <name> blocks the only way
-forward.`` Bodies that can never trigger that reveal-then-fight
-resolution seal PERMANENTLY instead: powered-down security, fixtures
-with no combat body (terminals, consoles, sealed doors), and standing
-bodies whose spec is not hostile to the broadcasting sheet
-(:func:`never_fight_seals` — neutral crew stand down and never
-engage; frame-dependent blocking would oscillate the planner
-forever).
+forward.`` Powered-down security and fixtures with no combat body
+(terminals, consoles, sealed doors) seal PERMANENTLY — the
+reveal-then-fight resolution can never fire for them. Standing
+bodies whose spec is not hostile to the broadcasting sheet never
+block at all: the player bumps and they step aside
+(:func:`steps_aside_ids`; doc 42 SETTLED 39 round 2).
 
 The decision helpers (``interesting_at``, ``newly_interesting_positions``,
 ``next_explore_step``) are pure and testable without Pygame; the thin
@@ -273,6 +272,17 @@ def _adjacent(pos, tx: int, ty: int) -> bool:
     return max(abs(pos.x - tx), abs(pos.y - ty)) <= 1
 
 
+def _permanent_seal(_ent) -> bool:
+    """Powered-down security and fixtures (no combat body) can never
+    resolve the reveal-then-fight contract — frame-dependent blocking
+    just oscillates the planner (playtest 2026-09-09: the
+    terminal-behind-a-door frame toggle), so they seal in every
+    frame."""
+    if getattr(_ent, "powered_down", False):
+        return True
+    return not getattr(_ent, "npc_char_id", "")
+
+
 def _visible_blocker(
     game_map, x: int, y: int, *, exclude=None,
     never_fights=frozenset(),
@@ -284,12 +294,11 @@ def _visible_blocker(
     walks toward it and combat starts on reveal. ``exclude`` skips
     one entity (re-flooding from a blocker's own cell).
 
-    Three classes seal PERMANENTLY, even outside the frame — bodies
-    the reveal-then-fight contract can never resolve, where
-    frame-dependent blocking just oscillates the planner: powered-down
-    security, fixtures (no ``npc_char_id`` — terminals, consoles,
-    sealed doors), and ``never_fights`` members
-    (:func:`never_fight_seals`).
+    Powered-down security and fixtures (no ``npc_char_id`` —
+    terminals, consoles, sealed doors) seal PERMANENTLY, even outside
+    the frame (:func:`_permanent_seal`). ``never_fights`` members are
+    NOT blockers — the player bumps and they step aside
+    (:func:`steps_aside_ids`).
 
     A missing ``visible`` grid falls back to *passable* — ``run_auto_
     explore`` guards the grid, so this only fires in synthetic states.
@@ -297,18 +306,13 @@ def _visible_blocker(
     _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
     if _ent is None:
         return None
-    if getattr(_ent, "powered_down", False):
-        # Dormant security never moves and never triggers the
-        # reveal-then-fight flow, so "walk toward it to reveal it"
-        # oscillates forever. It seals routes permanently — placement
-        # invariants guarantee it strands nothing (doc 30).
+    if _permanent_seal(_ent):
         return _ent
-    if not getattr(_ent, "npc_char_id", "") or id(_ent) in never_fights:
-        # Fixtures and never-fight crew can never resolve the
-        # reveal-then-fight contract — frame-dependent blocking just
-        # oscillates the planner (playtests 2026-09-09: neutral guard
-        # pockets; the terminal-behind-a-door frame toggle).
-        return _ent
+    if id(_ent) in never_fights:
+        # Non-hostile population steps aside when bumped (doc 42
+        # SETTLED 39 round 2, bump-to-swap) — the planner paths
+        # through them instead of sealing.
+        return None
     _visible = game_map.visible
     if _visible is not None and _visible[y][x]:
         return _ent
@@ -401,9 +405,9 @@ def next_explore_step(game_map, player_pos, never_fights=frozenset()):
     to, otherwise the run reports 'everything explored' while the map
     is still dark. Transition tiles (stairs/exit) are never stepped
     on, but an unseen one is walked toward so it can be spotted.
-    ``never_fights`` carries ``id()``s of standing bodies that can
-    never trigger the reveal-then-fight stop; they seal permanently
-    (:func:`never_fight_seals`).
+    ``never_fights`` carries ``id()``s of standing bodies that step
+    aside when bumped — the planner paths through them
+    (:func:`steps_aside_ids`).
     Returns ``(dx, dy)`` relative to ``player_pos``.
 
     ``None`` means every reachable cell, and every cell adjacent to
@@ -467,19 +471,14 @@ def _flood_opens_unseen(game_map, x: int, y: int, *, exclude,
     return False
 
 
-def never_fight_seals(ctx, game_map) -> frozenset[int]:
-    """``id()`` of every standing body that can never trigger the
-    reveal-then-fight stop — NPC-char entities whose spec is NOT
-    hostile to the broadcasting sheet (doc 40 phase 4's uniform
-    ground read: neutral crew stand down and never engage).
-
-    Those bodies seal routes permanently, exactly like powered-down
-    security: "walk toward it to reveal it" has no payoff when
-    nothing ever fights, and frame-dependent blocking oscillates the
-    planner forever (playtest 2026-09-09 — the capture deck's neutral
-    honor guard ping-ponged auto-explore across their pocket).
-    Hostile bodies stay OUT of the set: the dark-camper contract
-    (walk toward, reveal, combat starts) is unchanged for them.
+def steps_aside_ids(ctx, game_map) -> frozenset[int]:
+    """``id()`` of every standing body that steps aside when bumped —
+    NPC-char entities whose spec is NOT hostile to the broadcasting
+    sheet (doc 40 phase 4's uniform ground read: neutral crew stand
+    down; doc 42 SETTLED 39 round 2: the bump swaps places, so the
+    planner paths through them). Hostile bodies stay OUT of the set:
+    the dark-camper contract (walk toward, reveal, combat starts) is
+    unchanged for them.
     """
     from .data.npc_chars import find_npc_char
     from .faction import spec_is_hostile
@@ -503,11 +502,12 @@ def blocking_way_entity(game_map, player_pos, never_fights=frozenset()):
 
     Called when ``next_explore_step`` returns ``None``: a visible
     entity may still be standing in the region's only exit (e.g. a
-    monster camped in a doorway the player can see — or a neutral
-    guard standing in one, which seals regardless of the frame).
-    Returns the nearest such entity whose own cell, if passable,
-    floods to at least one unseen cell — a wall-sealed room with an
-    incidental terminal inside does not qualify.
+    monster camped in a doorway the player can see). Non-hostile
+    population never qualifies — they are passable to the planner
+    (the bump swaps places). Returns the nearest remaining entity
+    whose own cell, if passable, floods to at least one unseen cell —
+    a wall-sealed room with an incidental terminal inside does not
+    qualify.
     """
     _step, _blockers = _plan_step(
         game_map, player_pos, never_fights=never_fights,
@@ -604,7 +604,8 @@ def _step_present_poll_move(
     """One auto-walk step shared by auto-explore and go-to: present the
     frame, poll the cancel window (any keydown aborts; the key is
     swallowed, like ``_run_goto``), move the player, then run the
-    post-step tick.
+    post-step tick. A planned-through non-hostile body swaps places
+    instead of being stacked onto (doc 42 SETTLED 39).
 
     Returns ``"CANCELLED"`` / ``"DEFEAT"`` / ``"COMBAT"`` or ``None``
     (no stop). ``post_step_tick`` MUST refresh the LOS/visible frame.
@@ -612,7 +613,9 @@ def _step_present_poll_move(
     present(ctx, console, game_map, map_w=map_w, map_h=map_h, location=location)
     if _poll_cancel_window(ctx):
         return "CANCELLED"
-    player.pos = world.Position(player.pos.x + dx, player.pos.y + dy)
+    from .ground_npcs import swap_step
+    if not swap_step(ctx, player, game_map, dx, dy):
+        player.pos = world.Position(player.pos.x + dx, player.pos.y + dy)
     return post_step_tick(ctx, console, game_map)
 
 
@@ -637,7 +640,7 @@ def _stop_if_fresh(ctx, game_map, known) -> str | None:
 def _explore_finish(ctx, game_map, player):
     """Return a terminal result when exploration has no next step."""
     _blocker = blocking_way_entity(
-        game_map, player.pos, never_fights=never_fight_seals(ctx, game_map),
+        game_map, player.pos, never_fights=steps_aside_ids(ctx, game_map),
     )
     if _blocker is not None:
         _label = _blocker_label(_blocker)
@@ -660,9 +663,9 @@ def _run_explore_loop(
         if _stop_if_fresh(ctx, game_map, known) is not None:
             return "DONE"
         # Recomputed each step: bodies die in fights mid-run, and the
-        # sheet can change (a mask flipped) — the seal set is live.
-        _seals = never_fight_seals(ctx, game_map)
-        _step = next_explore_step(game_map, player.pos, _seals)
+        # sheet can change (a mask flipped) — the yield set is live.
+        _yielding = steps_aside_ids(ctx, game_map)
+        _step = next_explore_step(game_map, player.pos, _yielding)
         if _step is None:
             return _explore_finish(ctx, game_map, player)
         _ctrl = _step_present_poll_move(
@@ -723,7 +726,7 @@ def _run_goto_loop(
             return "DONE"
         _step = next_goto_step(
             game_map, player.pos, target.x, target.y,
-            never_fight_seals(ctx, game_map),
+            steps_aside_ids(ctx, game_map),
         )
         if _step is None:
             ctx.log.add(f"Cannot reach {target.label}.")

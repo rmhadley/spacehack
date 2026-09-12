@@ -390,3 +390,28 @@ def test_blocked_message_uses_fallback_name():
     assert world.blocked_message_for(wall, fallback_name="Ignored") == (
         wall.blocked_message
     )
+
+
+def test_steps_aside_follows_the_face(monkeypatch):
+    from src.spacehack import ground_npcs, world
+
+    pos = world.Position(2, 2)
+    monster = world.Entity(
+        char="M", fg=(0, 0, 0), pos=pos, name="",
+        npc_char_id="militia_trooper",
+    )
+    dormant = world.Entity(
+        char="s", fg=(0, 0, 0), pos=pos, name="",
+        npc_char_id="sentry_drone", powered_down=True,
+    )
+    fixture = world.Entity(char="=", fg=(0, 0, 0), pos=pos, name="Console")
+    ctx = SimpleNamespace(
+        faction_reputation={"militia": 81}, broadcast_identity=None,
+        broadcast_dark=False,
+    )
+    monkeypatch.setattr(
+        "src.spacehack.ground_npcs._is_hostile", lambda ctx, ent: False,
+    )
+    assert ground_npcs.steps_aside(ctx, monster) is True
+    assert ground_npcs.steps_aside(ctx, dormant) is False   # never dormant
+    assert ground_npcs.steps_aside(ctx, fixture) is False   # population only
