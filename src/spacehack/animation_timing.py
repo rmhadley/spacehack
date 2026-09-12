@@ -56,5 +56,11 @@ def speed_scale() -> float:
 
 
 def scaled(seconds: float) -> float:
-    """Return a frame delay under the active animation speed setting."""
-    return seconds * _SPEED_SCALE
+    """Return a frame delay under the active animation speed setting.
+
+    The scale is a SPEED multiplier: 2.0 halves every delay, 4.0 quarters
+    it, and 0.0 removes the delay entirely (instant playback).
+    """
+    if _SPEED_SCALE <= 0.0:
+        return 0.0
+    return seconds / _SPEED_SCALE

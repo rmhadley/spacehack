@@ -36,19 +36,23 @@ def _present(context, console) -> None:
 
 
 def _responsive_sleep(seconds: float) -> None:
-    """Sleep while polling SDL events to keep the window responsive."""
+    """Sleep while polling SDL events to keep the window responsive.
+
+    Drains queued SDL input during animation frames so keys do not bleed
+    into the next turn; the drain also runs for a zero-length sleep
+    (instant animation speed) for the same reason.
+    """
     end = time.monotonic() + animation_timing.scaled(seconds)
-    while time.monotonic() < end:
-        # Drain queued SDL input during animation frames so keys do not
-        # bleed into the next turn. The shared runtime owns the same queue.
+    while True:
         try:
             import pygame
             pygame.event.get()
         except ModuleNotFoundError:
             pass
         remaining = end - time.monotonic()
-        if remaining > 0:
-            time.sleep(min(remaining, 0.01))
+        if remaining <= 0:
+            return
+        time.sleep(min(remaining, 0.01))
 
 
 def _bresenham_line(

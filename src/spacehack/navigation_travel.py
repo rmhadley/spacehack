@@ -525,15 +525,18 @@ def _responsive_sleep(seconds: float) -> None:
     queue on each iteration so SDL can process OS-level events (mouse
     moves, window updates, etc.). Without this, macOS shows the
     spinning beach ball during animation loops that block with
-    ``time.sleep``.
+    ``time.sleep``. The queue is pumped before the deadline check so a
+    zero-length sleep (instant animation speed) still keeps the window
+    responsive.
     """
     end = time.monotonic() + animation_timing.scaled(seconds)
     import pygame
-    while time.monotonic() < end:
+    while True:
         pygame.event.get()
         remaining = end - time.monotonic()
-        if remaining > 0:
-            time.sleep(min(remaining, 0.01))
+        if remaining <= 0:
+            return
+        time.sleep(min(remaining, 0.01))
 
 
 def _jump_camera(cx: int, cy: int):
