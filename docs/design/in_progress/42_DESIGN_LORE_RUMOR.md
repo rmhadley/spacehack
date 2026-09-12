@@ -332,6 +332,147 @@ them; the trigger MACHINERY (SETTLED 16) stands and the brief
 re-proposes its content against the one chain before approval.
 dark_berth is the refinement target.
 
+## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
+
+The one-chain ruling made ``dark_berth`` the refinement target; the
+back-and-forth re-took the chain's spine. The user (2026-09-11,
+verbatim, typos fixed):
+
+> 1. You discover a port that doesn't check transponder ids (most
+>    obvious way: by docking in one).
+> 2. This needs an event tied to it. Something even as simple as a
+>    message log: "This port didn't verify any credentials."
+> 3. This unlocks a rumor chain — "ask about dark ports".
+> 4. This leads the conversation through RNG NPCs on RNG planets —
+>    following a rumor, learning about dark ports and the ships
+>    that use them.
+> 5. In the end you learn about an NPC that will install the
+>    cut-out.
+
+The earlier credits-trail spine ("who pays for the quiet") is
+dropped — it failed the user's logic audit (nobody pays the
+player's docking fee, and no docking fee exists). The chain is now
+experiential: observe, ask, meet someone living it, buy the tool.
+
+### Verified ground it stands on (all shipped, doc 40)
+
+- The ``dark_berth`` PlanetSpec flag is set on exactly the four
+  ports the chain names: lal_b, lal_c, ross_b, wolf_b. A DARK hull
+  is refused everywhere else ("Docking request denied: transponder
+  not responding") — the differential is real mechanics, not
+  flavor.
+- Landing cargo scans run only where a militia building exists;
+  the four dark ports scan nothing.
+- Every NPC hull broadcasts — "Broadcast: <id> - <faction>" opens
+  the hail window; ``identity.npc_identity`` is the one read, and
+  None means silent.
+
+### The discovery doors (SETTLED 16's first authored instances)
+
+1. **The dock (primary).** Landing at a ``dark_berth`` port logs
+   "This port didn't verify any credentials." (user verbatim) on
+   EVERY landing — the militia-scan cadence — and fires the dock
+   trigger once, idempotent. Data-driven off the PlanetSpec flag: a
+   future dark port joins automatically, no special case.
+2. **The silent hail.** Some pirate spawns fly dark this run: a
+   spawn-time INIT_SEED derivation (SETTLED 7 — deterministic,
+   CONTINUE-stable, reroll-legal) marks an authored share of pirate
+   spawns with a guaranteed minimum live (SETTLED 14 — the chain
+   cannot be seed-blocked). A dark hull broadcasts nothing: the
+   broadcast line is simply absent. Hailing one fires the hail
+   trigger.
+3. **The pad.** Pirate-boarding and derelict loot can carry a pad
+   that teaches the opener (SETTLED 19 — knowledge is the item;
+   nothing held, nothing sellable).
+
+All three doors deliver tier 1 through the hearing idiom (readout
+modal + verbatim ledger); the keyring is idempotent about which came
+first. No tier is askable at spawn.
+
+### The tiers — one of every delivery vector; the template chain
+
+| tier | id | content | delivery vector |
+|---|---|---|---|
+| 1 | ``dark_berth_1`` | the observation | dock / hail / pad triggers |
+| 2 | ``dark_berth_2`` | the four ports + the ships that use them | seeded city carriers (SETTLED 15) |
+| 3 | ``dark_berth_3`` | testimony from someone living dark | the hail trigger (requires tier 2) |
+| 4 | ``dark_berth_4`` | the man in the Hush, 2000cr | dealer exclusive (SETTLED 17) |
+
+- One event — hailed a dark hull — authors on BOTH tier 1 and
+  tier 3: early it is discovery, after tier 2 it is the testimony.
+  ``requires`` ordering keeps the sequence honest.
+- The pointers are CANONICAL text (SETTLED 18): tier 2 names pirate
+  space, tier 3 names the Hush. No per-candidate pointer text is
+  needed; witness overrides stay available for voice.
+- Values and prices unchanged (1/2/3; exclusive at 4 favor). The
+  favor economy, hidden-until-affordable, holder scatter, and
+  no-selling-back all stand.
+- The payoff is shipped (phase 2): hearing tier 4 is the sole key
+  for the berth_keeper storefront in the Hush — the 2000cr cut-out
+  install — which feeds back into the differential: lawful ports
+  then refuse the player's dark hull, and the four ports still take
+  it.
+
+### Binding rules
+
+- Topic becomes "dark ports" (user). Ids stay ``dark_berth_*`` —
+  save-facing, and settled rulings reference them.
+- The dock log fires on every landing (user: "just like the risk of
+  militia scan happens every time you land"); the trigger hears
+  once.
+- Hailing a dark hull is otherwise a normal hail — no new pirate
+  behavior, no bespoke dialogue path. Tier 3 arrives as a readout,
+  the same idiom as every hearing.
+- PROSE GATE: every player-facing string below is a DRAFT for
+  discussion. Nothing lands in data until the user approves the
+  wording; prose settles before ``/implement-phase 42.3`` runs.
+
+### Prose — DRAFTS (red-line freely; gate applies)
+
+- topic: ``dark ports``
+- Tier 1: "Some ports never check a transponder. No ping, no scan,
+  nothing logged. The hulls that dock quiet don't advertise it, and
+  the people who run them don't talk to just anyone."
+- Tier 2: "Four ports take a quiet hull: Deadfall, Whisper, Ember,
+  and Wolf 359 b. No scan, no questions, nothing in the log. The
+  ships that dock there run contraband, blockade cargo, salvage
+  that was never abandoned. Most of them work out of pirate space."
+- Tier 3 (the pirate, on the channel): "No registration on this
+  channel. Good - names get ships seized. I run quiet. The four
+  ports, no logs, no fees. You want in, the man who fits the
+  transponders works out of Whisper. The Hush. Bring cash."
+- Tier 4: "The Whisper buyer is the keeper of the Hush. Bring him a
+  hull and he'll gut the transponder on the spot - two thousand,
+  cash, and nothing gets filed anywhere."
+- Dock log line: "This port didn't verify any credentials." — user
+  verbatim, settled.
+
+### Phase-3 brief amendments (this section's scope)
+
+- The brief's chain content (derelict candidates, the
+  ``line_warned`` instance, the derelict pad — already fallen with
+  the one-chain ruling) is replaced by this chain.
+- Trigger exemplars: the dock fire site (landing path, gated on
+  ``spec.dark_berth``) and the hail fire site (comms, on a
+  dark-hull contact).
+- New: the dark-hull spawn derivation (INIT_SEED, guaranteed
+  minimum) and the broadcast-line suppression that reads it.
+- New: the dock credential log line.
+- Pad content: the pirate-boarding/derelict pad teaching
+  ``dark_berth_1``.
+- Playtest checklist: re-authored for the one chain, plus the prose
+  read-through item.
+- Shift+R: the live-routes readout includes the dark-spawn set.
+- Guide: the discovery sentence stands (how-to only, no
+  telegraphing).
+
+### Open
+
+- The authored share of dark pirate spawns (guaranteed minimum +
+  share; tuned at playtest).
+- Tier 3's register — the user sets the pirate's voice (prose
+  gate).
+
 ## Phases
 
 Build queue — unchecked in order; `/implement-phase 42.<p>` works
