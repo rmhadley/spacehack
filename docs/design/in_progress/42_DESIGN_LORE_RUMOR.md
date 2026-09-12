@@ -439,10 +439,13 @@ first. No tier is askable at spawn.
 typos fixed and flagged in chat)
 
 - topic: ``dark ports``
-- Tier 1: "Some ports don't care who you are. They don't check your
-  credentials and don't log your visit. Those dark ships don't
-  really talk about it. Finding someone to speak with will need
-  patience and connections." ("reall" → "really")
+- Tier 1: "Some ships don't broadcast an ID and some ports don't
+  care who you are. How do they disable their transponder? Those
+  dark ships and ports don't like to share much. Finding someone to
+  speak with will need patience and connections. I should ask
+  around." (RE-AUTHORED by the user at the phase-3 playtest,
+  2026-09-12 — one line now covers both discovery doors, ships and
+  ports, and closes on the ask loop; verbatim)
 - Tier 2: "I know of a few ports that don't check your creds...
   Deadfall, Whisper, Ember, and Wolf 359 b come to mind. Lots of
   black-market goods pass through those ports. Obviously, these are
