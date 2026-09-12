@@ -1348,10 +1348,105 @@ amended with the favor exchange.
       placeholder tier-scaled loot — SETTLED 29, 30
 - [ ] Playtest checkpoint
 
-  (Phase 4 carries its own ruling pass and brief before any code —
-  the generation shape, revisit persistence, and entrance placement
-  are ruled in the refine session; legendary loot is deferred per
+  (Rulings SETTLED 20-24 + 25-37; legendary loot is deferred per
   SETTLED 21.)
+
+  Implementation brief (4) — PROPOSED (refine session 2026-09-12):
+
+  - **Scope.** State: ``ctx.discovered_sites: list[dict]`` —
+    ``{id, planet, name}`` in reveal order — round-tripped in a new
+    ``_dig_fields``/``_restore_dig_fields`` family beside the lore
+    fields; New Game clears via fresh GameContext. Domain: new
+    ``digs.py`` — ``reveal_site(ctx)`` (the seeded derivation:
+    ``seeded_rng(INIT_SEED, "dig_reveal", len(discovered_sites))``
+    picks the planet among ALL planets, the site index on it, and
+    the name from the planet's pools; records the site, presents
+    through ``rumor.present_hearing``), ``derive_dig_params(spec)``
+    (theme + ``mission_tier`` → ``DungeonParams``; the spec's
+    ``dig_params`` overrides — SETTLED 26), ``generate_dig(ctx,
+    site)`` (the existing BSP generator + populate at tier; the
+    landmark sprinkle; the placeholder cache), and
+    ``site_loot_rows(spec, tier)`` (the pluggable loot spec,
+    SETTLED 35). Data: ``data/digs/`` — the authored rates table
+    (1-in-12 humanoid pad / 1-in-8 derelict pad / 1-in-6 C-terminal,
+    SETTLED 36), the default name pools, the humanoid pad-dropper
+    id set (NpcCharSpec ids), and three landmark room stamps
+    (agent-drafted, prose gate; SETTLED 32). PlanetSpec:
+    ``dig_prefixes`` / ``dig_suffixes`` (empty = the default pools)
+    and ``dig_params`` (None = derived). Doors: humanoid ground
+    kills roll the pad beside ``_rules_ground.on_kill`` loot
+    (loot_data ``{"reveals_site": True}`` — pickup calls
+    ``reveal_site``); derelict wreck interior loot spawns roll the
+    pad (``dungeon_layout`` loot construction); the ship-computer
+    terminal (``game_interactions._resolve_computer_terminal``, the
+    non-capture branch) rolls the reveal on access. Menu:
+    ``menus/_planet.py`` — one "Explore <site name>" row per
+    discovered site on the planet, hidden until found, each opening
+    the cached-or-fresh dig (cache key ``dig:<planet>:<id>`` in
+    ``ctx.interiors`` — persisted, SETTLED 29). Ledger: the RUMORS
+    pane renders keyring entries, then the site pointer lines from
+    ``ctx.discovered_sites`` (SETTLED 37; template + injected name
+    + planet). Dev: Shift+M force-reveals a site (checklist
+    instrument).
+  - **Build order.** (1) state + round-trip + the
+    ``digs.reveal_site`` derivation + name pools (+ PlanetSpec
+    fields) + tests; (2) ``derive_dig_params`` + ``generate_dig``
+    + the landmark stamps + tests; (3) the three doors + the pad
+    pickup + tests; (4) planet-menu rows + the interiors cache
+    revisit + tests; (5) the ledger pointer lines + tests; (6)
+    Shift+M; (7) playtest checkpoint.
+  - **Binding rulings.** SETTLED 20-24 as amended, 25-37. Every
+    planet, no roster; nothing hardcoded per site; the spec feeds
+    the generator; three RNG-rare doors, never guaranteed;
+    discovered-sites state is the source of truth (menu + cache),
+    the ledger line is its presentation twin; persisted revisits
+    (cleared stays cleared); placeholder loot through the pluggable
+    spec; no rumor-chain integration (pointer lines only).
+  - **Required tests.** Reveal determinism (same INIT_SEED → same
+    planet/name; reroll → different legal reveal); state
+    round-trip (order preserved; New Game clears); doors (each
+    rolls its rate; the pad consumes + reveals once; a second pad
+    reveals a NEW site — stacking, SETTLED 31); name pools (spec
+    prefixes/suffixes; default fallback; both parts present);
+    params derivation (theme tiles; tier scaling; ``dig_params``
+    override wins); landmark sprinkle (pastes legally, walkable,
+    seeded); loot spec (planet goods, tier-scaled quantity; the
+    pluggable shape); menu rows (hidden until found; one per site;
+    the authored Explore row unchanged); revisit (the cache key
+    persists; cleared stays cleared); ledger (pointer lines after
+    keyring entries, verbatim template); regression (the five
+    authored dungeon planets unchanged; the dark-ports chain
+    surfaces untouched).
+  - **Stop point.** No rumor-chain integration (fragments teach no
+    chain entries), no multi-level floors, no legendary/rich loot
+    (the placeholder spec only), no world-map site pins (menu rows
+    only), no derelict-site crossover content, no doc-43 content,
+    no SYSTEMS.md close work (phase close).
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+    1. Shift+M: a site reveals — the readout plays; Q → RUMORS
+       shows the pointer line ("...names a site: <name> on
+       <planet>"); the planet menu for that planet shows "Explore
+       <name>"; other planets show nothing new.
+    2. Fly there, explore: a themed, tier-scaled single-level
+       dungeon generates (planet theme tiles; monsters at the
+       planet's tier); the placeholder cache carries the planet's
+       goods.
+    3. Landmark: Shift+S reroll + Shift+M reveals across several
+       sites — a landmark room appears here and there (not every
+       dungeon), its pieces paste cleanly.
+    4. Revisit: leave and return — the SAME map (cleared stays
+       cleared, looted stays looted); save → quit → Continue —
+       sites, ledger lines, and the cached maps all survive.
+    5. Doors: kill humanoid enemies — a Data Pad drops rarely;
+       derelict wrecks' loot and the boarded ship's C terminal
+       reveal rarely. Numbers feel special, not grindy.
+    6. Regression: the authored explorables (mars caves, mercury,
+       wolf_b, barnards_b, procyon_c) explore exactly as before;
+       the dark-ports chain end-to-end (dock line, carriers,
+       passphrase row) is untouched.
+    7. Prose read-through (prose gate): the reveal template, the
+       three landmark pieces' names/flavor, and the default name
+       pools — all drafted by the agent, quoted for approval.
 
 ### Phase 5 — The space host + the lie (was phase 4)
 - [ ] Ask Around on the comms matrix (talkable contacts);
