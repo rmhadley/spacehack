@@ -294,10 +294,9 @@ ruled. These bind all phases.
     fragment is a find (the pad pickup machinery) whose row authors
     candidate planets; the seed picks the live destination this run
     (SETTLED 7's "seeded pick among authored candidates" — the
-    candidate set is every planet, SETTLED 25). AMENDED
-    (2026-09-12, SETTLED 27): reveals record in the
-    discovered-sites state, NOT the rumors ledger — the ledger
-    rendering defers with the rumor-extension doc.
+    candidate set is every planet, SETTLED 25). Rendering per
+    SETTLED 37: the ledger line stands, from the discovered-sites
+    state.
 
 ## Settled — phase 4, the dig dungeons (refine session, 2026-09-11)
 
@@ -368,9 +367,9 @@ dark_berth is the refinement target.
     DEFERRED to its own future doc (user: "rumor system will
     definitely be a thing... but let's just keep rumor system in
     mind as we design this and we'll do a design doc to extend
-    rumor system another day") — AMENDS SETTLED 22's rendering:
-    reveals record in the discovered-sites state, not the rumors
-    ledger (the seeded pick among candidate planets stands).
+    rumor system another day") — narrowed by SETTLED 37: no
+    rumor-CHAIN integration now, but the pointer LINE does land in
+    the rumors ledger (rendered from the discovered-sites state).
 28. **The discovered-sites context.** (user: "we need a context
     somewhere that records what random sites you've found and where
     they are. and then there will be explore options on the planet
@@ -416,6 +415,19 @@ dark_berth is the refinement target.
     expands in place.
 36. **Rarity: three flat rolls, one authored rates table** (opening
     guesses 1-in-12 / 1-in-8 / 1-in-6), tuned at playtest.
+
+## Settled — phase 4, refine round 3 (2026-09-12)
+
+37. **Site pointers land in the RUMORS tab (user: "A -- rumors
+    tab").** The reveal is a full hearing: readout modal, a verbatim
+    pointer line in Q → RUMORS rendered from the discovered-sites
+    state (template + injected site name + planet — SETTLED 22's
+    original rendering, RESTORED; round 1's ledger deferral is
+    narrowed to: no rumor-CHAIN integration — fragments teach no
+    chain entries; pointer lines only). The structured
+    discovered-sites state stays the source of truth for the planet
+    menu and the map cache; the ledger line is its presentation
+    twin. SETTLED 27's amendment note is superseded by this ruling.
 
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
