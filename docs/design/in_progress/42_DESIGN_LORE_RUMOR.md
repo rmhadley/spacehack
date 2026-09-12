@@ -1429,7 +1429,12 @@ amended with the favor exchange.
       SETTLED 25, 26, 28
 - [x] Persisted revisitable interiors (the martian-caves idiom);
       placeholder tier-scaled loot — SETTLED 29, 30
-- [ ] Playtest checkpoint
+- [x] Playtest checkpoint — PASSED (user, 2026-09-12: "These work
+      great. Dungeons are feeling great. playtest done") — through
+      two playtest rounds (SETTLED 39), the per-planet depth pass,
+      and the themed name pools; prose approved as-shipped at the
+      read-through (checklist items 9-10, incl. the guide's Rumors
+      amendment)
 
   LANDED 2026-09-12 (builds 6c5f31a → 16a0eba, six review-gated
   steps; gate green ~2313 tests). Build deviations from the brief,
