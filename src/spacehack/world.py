@@ -630,12 +630,16 @@ def try_move(
     return ("moved", None)
 
 
-def blocked_message_for(blocker: Tile | Entity | None) -> str:
-    """Return the player-facing message owned by a movement blocker."""
+def blocked_message_for(blocker: Tile | Entity | None, fallback_name: str = "") -> str:
+    """Return the player-facing message owned by a movement blocker.
+    ``fallback_name`` fills ``{name}`` when the entity carries none —
+    population monsters resolve through their spec at the call site."""
     if blocker is None:
         return "A wall blocks your path."
     if isinstance(blocker, Entity):
-        return blocker.blocked_message.replace("{name}", blocker.name)
+        return blocker.blocked_message.replace(
+            "{name}", blocker.name or fallback_name,
+        )
     return blocker.blocked_message
 
 

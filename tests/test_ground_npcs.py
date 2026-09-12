@@ -355,3 +355,38 @@ def test_last_seen_memory_survives_dungeon_map_round_trip():
 
     assert loaded.last_seen_pos == world.Position(7, 2)
     assert loaded.last_seen_ticks == 3
+
+
+def test_display_name_resolves_nameless_population_monsters():
+    from src.spacehack import ground_npcs, world
+    from src.spacehack.data.npc_chars import find_npc_char
+    pos = world.Position(2, 2)
+    named = world.Entity(char="c", fg=(0, 0, 0), pos=pos, name="Cass")
+    assert ground_npcs.display_name(named) == "Cass"
+    monster = world.Entity(
+        char="M", fg=(0, 0, 0), pos=pos, name="",
+        npc_char_id="militia_trooper",
+    )
+    assert ground_npcs.display_name(monster) == find_npc_char("militia_trooper").name
+    unknown = world.Entity(char="?", fg=(0, 0, 0), pos=pos, name="", npc_char_id="no_such")
+    assert ground_npcs.display_name(unknown) == ""
+    bare = world.Entity(char="%", fg=(0, 0, 0), pos=pos, name="")
+    assert ground_npcs.display_name(bare) == ""
+
+
+def test_blocked_message_uses_fallback_name():
+    from src.spacehack import world
+    pos = world.Position(1, 1)
+    nameless = world.Entity(char="M", fg=(0, 0, 0), pos=pos, name="")
+    assert world.blocked_message_for(nameless, fallback_name="Militia Trooper") == (
+        "You bump into Militia Trooper."
+    )
+    named = world.Entity(char="c", fg=(0, 0, 0), pos=pos, name="Cass")
+    assert world.blocked_message_for(named, fallback_name="Ignored") == (
+        "You bump into Cass."
+    )
+    assert world.blocked_message_for(nameless) == "You bump into ."
+    wall = world.DUNGEON_WALL
+    assert world.blocked_message_for(wall, fallback_name="Ignored") == (
+        wall.blocked_message
+    )

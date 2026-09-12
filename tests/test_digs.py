@@ -616,3 +616,53 @@ def test_shift_m_grant_reveals(monkeypatch):
     site = dev_mode.reveal_dev_dig_site(ctx)
     assert ctx.discovered_sites == [site]
     assert len(seen) == 1  # the readout played
+
+
+def test_dig_pools_are_always_hostile_only():
+    """Dig guards must fight regardless of the player's face and be
+    rep-free to kill: every pool species is always_hostile (the
+    playtest finding — faction soldiers read the resolved sheet and
+    stood down for a dark or allied player)."""
+    from src.spacehack.data import npc_chars
+    from src.spacehack.data.digs import TIER_POOLS
+    registry = npc_chars._registry()
+    for _band, (pool, _density) in TIER_POOLS.items():
+        for enemy_id in pool:
+            assert enemy_id in registry, f"unknown dig monster {enemy_id}"
+            assert registry[enemy_id].always_hostile, (
+                f"{enemy_id} is faction-checked — dig pools take "
+                "always-hostile species only"
+            )
+
+
+def test_dig_pools_cover_all_bands():
+    from src.spacehack.data.digs import TIER_POOLS
+    assert set(TIER_POOLS) == {1, 2, 3}
+    combined = set().union(*(set(pool) for pool, _ in TIER_POOLS.values()))
+    assert len(combined) >= 5  # variety across the bands
+
+
+def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):
+    """The reported seam: walking into a dig monster logs the spec
+    name, not a blank (the composition, not just the halves)."""
+    from src.spacehack import game_interactions
+    lines = []
+    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lines.append))
+    monster = world.Entity(
+        char="M", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
+        npc_char_id="militia_trooper",
+    )
+    assert game_interactions._resolve_occupied(state, monster) is None
+    assert lines == ["You bump into Militia Trooper."]
+
+
+def test_bumping_a_dormant_security_unit_keeps_its_line():
+    from src.spacehack import game_interactions
+    lines = []
+    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lines.append))
+    dormant = world.Entity(
+        char="s", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
+        npc_char_id="sentry_drone", powered_down=True,
+    )
+    assert game_interactions._resolve_occupied(state, dormant) is None
+    assert lines == ["It is a powered down Sentry Drone."]

@@ -444,6 +444,27 @@ dark_berth is the refinement target.
     out of the box, the spec tightens or widens per theme. AMENDS
     SETTLED 24 (rewritten above).
 
+## Settled — phase 4, playtest round 1 (2026-09-12)
+
+39. **Dig guards are always-hostile fauna/drones; the face never
+    disarms a site.** (user, mid-checklist: "there's something nera
+    me moving, an M. it doesn't fight me and if I bump it it says
+    you 'You bumped in to .'") The drafted tier pools held
+    faction-checked soldiers (militia_trooper, pirates,
+    consortium), but ground hostility reads the RESOLVED sheet
+    (``faction.spec_is_hostile``): a dark hull reads neutral, an
+    allied face reads friendly — every faction-checked guard stood
+    down, and killing them would have moved standing. The pools now
+    draw ONLY ``always_hostile`` species (fauna/drones: hostile
+    under every face, rep-free kills). Accepted consequence: door 1
+    (the humanoid pad, 1-in-12) no longer fires from dig kills —
+    humanoids still die in authored dungeons, city fights, and
+    wreck crews, where the pad door lives. Same report, same fix:
+    population monsters are built nameless (pre-existing, authored
+    dungeons included), so the entity bump fall-through now resolves
+    the spec name (heals already-cached floors — the user's Earth
+    floor bumps "Militia Trooper" without a regen).
+
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
 The one-chain ruling made ``dark_berth`` the refinement target; the
@@ -1431,9 +1452,11 @@ amended with the favor exchange.
      play — the pre-existing dev-table pattern; dev builds unaffected.)
   2. Fly to the site and Explore: a themed, tier-scaled dungeon
      generates — wall/floor colors from the planet's palette,
-     monsters at the planet's tier, 2-3 supply caches carrying the
-     planet's own trade goods; the location banner reads the site's
-     name.
+     always-hostile fauna/drone guards at the planet's tier (rock
+     scavengers, dust prowlers, sentry/assault drones, hull
+     parasites, ice worms, frost spitters), 2-3 supply caches
+     carrying the planet's own trade goods; the location banner
+     reads the site's name.
   3. Walk back to the EXIT on floor 1 → you return to space.
      Re-enter via the planet menu: the SAME map, exactly as you left
      it (cleared stays cleared, looted stays looted, fog stays
@@ -1448,8 +1471,9 @@ amended with the favor exchange.
      the Dry Workshop / the Dry Cistern), distinct masonry, clean
      paste, lit threshold.
   6. Doors (rare by design — 1-in-12 / 1-in-8 / 1-in-6): (a) kill a
-     humanoid enemy (pirate raider, rifleman, consortium enforcer or
-     gunner, militia trooper) on the ground — occasionally a gold
+     humanoid enemy on the ground OUTSIDE dig sites (delve
+     guardians, city fights, wreck crews — dig floors carry
+     fauna/drones only, playtest round 1) — occasionally a gold
      "Data Pad" drops beside the loot; pickup consumes it and plays
      the reveal; (b) board a generic derelict — occasionally a pad
      is scattered inside; (c) activate a derelict's C terminal

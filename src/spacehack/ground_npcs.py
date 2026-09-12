@@ -64,6 +64,20 @@ def _is_hostile(ctx, entity: world.Entity) -> bool:
     return _spec_is_hostile(ctx, _spec)
 
 
+def display_name(entity: world.Entity) -> str:
+    """The display name of a ground entity: its own when set; a
+    nameless population monster resolves through its NpcCharSpec."""
+    if entity.name:
+        return entity.name
+    _eid = getattr(entity, "npc_char_id", "")
+    if not _eid:
+        return ""
+    try:
+        return _find_nc(_eid).name
+    except KeyError:
+        return ""
+
+
 def _random_walkable(game_map: world.GameMap) -> tuple[int, int] | None:
     """Return a random walkable cell on the entire map, or None."""
     _attempts = 50
