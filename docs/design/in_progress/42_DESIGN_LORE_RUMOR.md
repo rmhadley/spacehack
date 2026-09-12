@@ -268,7 +268,9 @@ ruled. These bind all phases.
     (authored pad table beside the goods those drops already
     carry). Dungeon loot joins as a pad surface when the dungeon
     system lands (phase 4).
-20. **Dig sites are 100% procedural dungeons — nothing authored.**
+20. **Dig sites are 100% procedurally generated layouts.** (The
+    LAYOUT is proc-gen; authored landmark ROOMS may sprinkle in —
+    AMENDED 2026-09-12, SETTLED 25.)
     (user: "Procedurally generated dungeons entirely. Nothing
     authored. We have lots of planets. We expose a dungeon option
     on that planet if you've 'discovered' it. Can be revisited once
@@ -288,26 +290,27 @@ ruled. These bind all phases.
     module slot?") The dig payoff question is deferred; multi-purpose
     modules are the seed note for that future doc. Dungeons ship
     with ordinary loot (+ pads as info) until then.
-22. **Fragments point at planets, seeded among authored candidates.**
-    A fragment is a find (same pickup machinery as a pad) whose row
-    authors candidate planets; the seed picks the live destination
-    this run (SETTLED 7's "seeded pick among authored candidates").
-    The pointer entry renders with the live planet named — one
-    ledger line per entry stands (canonical template + injected
-    destination), save-stable because routing is INIT_SEED-derived.
+22. **Fragments point at planets, seeded among candidates.** A
+    fragment is a find (the pad pickup machinery) whose row authors
+    candidate planets; the seed picks the live destination this run
+    (SETTLED 7's "seeded pick among authored candidates" — the
+    candidate set is every planet, SETTLED 25). AMENDED
+    (2026-09-12, SETTLED 27): reveals record in the
+    discovered-sites state, NOT the rumors ledger — the ledger
+    rendering defers with the rumor-extension doc.
 
 ## Settled — phase 4, the dig dungeons (refine session, 2026-09-11)
 
-23. **The gate covers NEW dig sites only.** Existing explorables
-    (mercury, wolf_b, barnards_b, procyon_c, the mars signal site)
-    keep today's unconditional Explore option — quest flows and
-    playtested sites untouched. Fragment-gated dig sites are a new
-    set of planets authored with dig params plus the discovery
-    gate; the option is HIDDEN until the site is discovered
-    (user: "We expose a dungeon option on that planet if you've
-    'discovered' it"), shown and revisitable thereafter. The
-    discovered-set is player state like the keyring (saved, New
-    Game clears).
+23. **The gate is discovery; authored dungeons are untouched.**
+    Existing explorables (mercury, wolf_b, barnards_b, procyon_c,
+    the mars signal site) keep today's unconditional Explore option
+    — quest flows and playtested sites untouched. The option is
+    HIDDEN until the site is discovered (user: "We expose a dungeon
+    option on that planet if you've 'discovered' it"), shown and
+    revisitable thereafter; the discovered-set is player state like
+    the keyring (saved, New Game clears). AMENDED (2026-09-12,
+    SETTLED 25): RNG sites are NOT a new authored planet set —
+    every planet can carry them.
 24. **Single-level v1.** Phase 4 wires discovery gating, new dig
     planets, and pads-in-dungeon-loot on the EXISTING single-level
     BSP surface generator (tier=mission_tier population, the
@@ -331,6 +334,61 @@ dropped chains — the derelict-line opener candidates, the
 them; the trigger MACHINERY (SETTLED 16) stands and the brief
 re-proposes its content against the one chain before approval.
 dark_berth is the refinement target.
+
+## Settled — phase 4, the dig dungeons (refine session, 2026-09-12)
+
+25. **Universal sites — every planet, no roster.** (user: "I want
+    every planet in the game to be available. it's a lot but it's
+    worth it. I want the proc gen rumor dungeons to be built in a
+    way that works with any and all planets in the game now and any
+    future ones we add too.") AMENDS SETTLED 23 — the discovery
+    gate is NOT scoped to new dig planets: any planet, existing or
+    future, can carry RNG dig sites; a planet can have several.
+    Authored quest dungeons (the mars caves/prison, mercury, wolf_b,
+    barnards_b, procyon_c surfaces) stay exactly what they are,
+    quest-gated; Mars can have the caves AND an RNG site. AMENDS
+    SETTLED 20's "nothing authored": the LAYOUT is 100% proc-gen,
+    but landmark rooms — authored special-room pieces — may sprinkle
+    in (user: "Not every dungeon needs a landmark, but finding a
+    special room here and there can add some interesting detail").
+26. **The spec feeds the generator.** (user: "a planet spec that
+    seeds the rng dungeon builder with custom settings to produce a
+    dungeon simply... nothing hardcoded in the generator per site.
+    the site feeds the generator a config.") No new generator: the
+    BSP builder is config-driven — size, difficulty, theme.
+    Difficulty and loot quality scale by the planet's tier;
+    tiles/colors come from the planet's spec theme; planets without
+    an authored dig config derive one from theme + tier, so future
+    planets work automatically.
+27. **Discovery: three RNG-rare doors.** (user: "datapads dropped
+    from humanoid enemies. datapads found as loot on derelicts.
+    accessing the C on a boarded ship. all rng based, not
+    guaranteed. rare enough to feel special when you find one.")
+    None guaranteed; rarity-tuned. The rumor-system tie-in is
+    DEFERRED to its own future doc (user: "rumor system will
+    definitely be a thing... but let's just keep rumor system in
+    mind as we design this and we'll do a design doc to extend
+    rumor system another day") — AMENDS SETTLED 22's rendering:
+    reveals record in the discovered-sites state, not the rumors
+    ledger (the seeded pick among candidate planets stands).
+28. **The discovered-sites context.** (user: "we need a context
+    somewhere that records what random sites you've found and where
+    they are. and then there will be explore options on the planet
+    menu based on what you've found. the name of the explore site
+    should be procedurally generated. allllll rng.") Saved player
+    state like the keyring; the planet menu carries one Explore row
+    per discovered site on that planet, hidden until found; site
+    names generate from seeded word pools.
+29. **Revisit = persisted maps and state, "like the martian
+    caves"** — the ``ctx.interiors`` cache idiom; cleared stays
+    cleared, revisitable forever after discovery.
+30. **Dungeon loot is a placeholder pending its own doc.** (user:
+    "I think we're going to need a whole design doc for this. right
+    now we need some placeholder that we can expand another day
+    with a whole design doc.") V1 ships a minimal tier-scaled
+    placeholder; the pad surface INSIDE dungeons defers to that doc
+    (supersedes SETTLED 19's "dungeon loot joins as a pad surface"
+    for this phase).
 
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
@@ -1239,14 +1297,16 @@ amended with the favor exchange.
     9. Guide diff: the discovery sentence quoted before/after; no
        chain telegraphing.
 
-### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11)
-- [ ] Discovery gating: fragment finds + a discovered-sites player
-      state; the dig option hidden until discovered, revisitable
-      after — NEW dig planets only (SETTLED 20, 22, 23)
-- [ ] New dig-site planets authored with dig params, theme extended
-      to dungeon floors
-- [ ] Dungeon loot, incl. pads as a pad surface (SETTLED 19);
-      single-level v1 (SETTLED 24)
+### Phase 4 — Procedural dig-site dungeons (inserted 2026-09-11; re-scoped 2026-09-12)
+- [ ] Discovered-sites player state + the three RNG-rare discovery
+      doors (humanoid-enemy datapads, derelict datapads, the
+      boarded ship's C terminal) — SETTLED 25, 27, 28
+- [ ] Planet-menu Explore rows per discovered site, proc-generated
+      site names; config-driven BSP generation (spec-fed: theme,
+      tier-scaled difficulty/loot; landmark-room sprinkle) —
+      SETTLED 25, 26, 28
+- [ ] Persisted revisitable interiors (the martian-caves idiom);
+      placeholder tier-scaled loot — SETTLED 29, 30
 - [ ] Playtest checkpoint
 
   (Phase 4 carries its own ruling pass and brief before any code —
