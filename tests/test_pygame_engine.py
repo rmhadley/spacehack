@@ -91,6 +91,8 @@ def test_key_normalization_preserves_game_friendly_names():
     assert pygame_engine.normalize_key_name("Return") == "enter"
     assert pygame_engine.normalize_key_name("KP 8") == "kp_8"
     assert pygame_engine.normalize_key_name("[8]") == "kp_8"
+    assert pygame_engine.normalize_key_name("KP Period") == "period"
+    assert pygame_engine.normalize_key_name("[.]") == "period"
     assert pygame_engine.normalize_key_name("J") == "j"
     assert pygame_engine.normalize_key_name("unknown") == "unknown"
 
