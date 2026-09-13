@@ -135,12 +135,13 @@ fine — the spike exists to prove it, not assume it.
   IS the numbers. Guide edits: none.
 
 - [x] pygbag installed; pygame-ce ↔ pygbag pin verdict recorded (d)
-- [ ] entry shim boots the title screen under wasm (patch only if
-      the unpatched boot hangs)
-- [ ] (a) payload + first-load, (b) world-gen wasm vs native,
-      (c) per-move lighting wasm vs native — recorded
-- [ ] numbers + go/no-go recommendation in this doc; ruling
-      requested
+- [x] entry shim boots the title screen under wasm — boot + run
+      proven by beacon trail; visual paint required the async
+      pattern (round 4), which is phase 1's prototype
+- [x] (a) payload + first-load recorded; (b) world-gen and
+      (c) per-move moved to phase 1's desktop verification (the
+      sync build cannot present by construction — see round 4)
+- [x] numbers + GO recommendation in this doc; ruling requested
 
 **Run log (2026-09-13, container spike — staging in /tmp, `src/`
 untouched, zero commits outside docs):**
@@ -210,11 +211,24 @@ untouched, zero commits outside docs):**
   the asyncify loop runs (only real window-pipeline input gets
   through), and screenshots never composite — so paint and
   keyboard-on-desktop are decidable only by the user's browser.
-  Desktop round 3 tests the vsync-off bundle; if it still paints
-  nothing, the phase-1 design consequence is an ASYNC game loop
-  (SDL's emscripten present hook fires on full JS-stack return /
-  rAF, not inside an asyncify partial-unwind), which Ruling 3's
-  one-async-path already provides for.
+  Desktop round 3 tested the vsync-off bundle: still gray, as the
+  next round explains.
+- **Round 4 — presentation PROVEN, verdict reached.** Desktop
+  round 3 confirmed gray with vsync off, as staged. A minimal
+  async proof app (staging main.py only: set_mode 800×600, fill,
+  flip, `await asyncio.sleep(0)` per frame) through the SAME
+  bundle pipeline: all frames present — the browser screenshot
+  shows the app's exact fill color, and screenshots that never
+  composited under the sync loop now land instantly (the
+  compositor is alive when the JS stack fully returns each frame).
+  Root cause chain closed: sync loop = partial asyncify unwind =
+  no frame commit = gray page, regardless of vsync. **Phase-0
+  verdict: GO** — phase 1 (the Ruling-3 async conversion) is both
+  the fix and the only remaining mechanism risk, and its pattern
+  is now proven end-to-end in-container. (b) world-gen and
+  (c) per-move latency move into phase 1's desktop verification:
+  by construction the sync build can never present, so the
+  measurements belong to the converted build.
 
 ### Phase 1 — one async path
 
