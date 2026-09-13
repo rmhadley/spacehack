@@ -384,7 +384,9 @@ nobody designs against a ghost.
   `city_layout_id`, `interior_layouts`, transit stations, NPC
   population, theme, produces/demands, mech/armory stock, tech
   level, mission tier, `explorable_site_name`+`dungeon_params`,
-  `dark_berth`; modules auto-register by exporting `SPEC`
+  `dark_berth`, per-planet dig config (`dig_min_floors`/
+  `dig_max_floors`, themed `dig_prefixes`/`dig_suffixes`,
+  `dig_params` override); modules auto-register by exporting `SPEC`
   (`data/planets/__init__.py`: `PlanetSpec`, `load_planet`).
 - **Port/militia/explorable predicates** — Land needs a `spaceport`
   building; landing scan needs a `militia` building; Explore needs
@@ -529,9 +531,35 @@ nobody designs against a ghost.
   marker (exactly one honored; zero-or-many silently falls back to
   deepest interior) and spawns guardians at generation time
   (`game_interactions._build_surface_dungeon`; `main_quest/_delve.py`).
-- **Absent:** generic multi-level stair dungeons (extensions only);
-  per-save dungeon regen (interiors cache is permanent); mobile
-  dormant AI; extension content beyond the prison.
+- **Dig sites (doc 42 phase 4)** — three RNG-rare discovery doors
+  (humanoid ground kills 1-in-12, generic derelict interiors 1-in-8,
+  a derelict C terminal's first power-restore 1-in-6; `data/digs`
+  `DOOR_RATES`, `digs` helpers) reveal a site derived pure from
+  INIT_SEED: `digs.reveal_site` picks planet/name/depth (depth is
+  never stored) and records `{id, planet, name}` on
+  `ctx.discovered_sites` (saved; New Game clears); readout via
+  `rumor.present_hearing`, pointer lines in the RUMORS tab. The
+  planet menu gains one "Explore <name>" row per discovered site
+  (no quest gate). Floors are BSP-generated from
+  `digs.derive_dig_params` (planet theme tiles + `data/digs`
+  TIER_POOLS at `mission_tier`; `spec.dig_params` overrides),
+  persist per floor under `dig:<planet>:<id>:<floor>` — the cache
+  key is the identity source, no dig attributes on maps; floor 1
+  keeps the EXIT, deeper floors swap it for STAIRS_UP, non-bottom
+  floors gain a farthest STAIRS_DOWN (footprint-aware); landmark
+  rooms sprinkle seeded per site+floor (`landmark.stamp_landmark`);
+  placeholder caches scatter planet `produces` goods through the
+  pluggable `DigLootSpec` (`digs.py`; `data/digs`).
+- **Bump-to-swap (doc 42 SETTLED 39)** — ground population monsters
+  are faction-checked as everywhere: bumping a NON-hostile one
+  swaps places instead of blocking — one shared
+  `ground_npcs.swap_step` across the player move, autoexplore/goto,
+  and the headless debug executor; hostile guards block and fight;
+  autoexplore plans through allies (`steps_aside_ids`) and the swap
+  refuses transition tiles. Bump lines resolve nameless monsters
+  through their spec (`ground_npcs.display_name`).
+- **Absent:** per-save dungeon regen (interiors cache is permanent);
+  mobile dormant AI; extension content beyond the prison.
 
 ## Quests, missions & story
 
@@ -602,7 +630,9 @@ nobody designs against a ghost.
   off the resolved sheet (dark reads neutral); hearing records
   verbatim through `rumor.present_hearing` (the ONE readout path —
   hosts, triggers, pads); the RUMORS tab renders the ledger verbatim
-  in heard order (`npc.py`: `_handle_ask_around`; `rumor.py`: `hear`).
+  in heard order plus the dig-site pointer lines from
+  `ctx.discovered_sites` (`digs.pointer_lines`) (`npc.py`:
+  `_handle_ask_around`; `rumor.py`: `hear`).
   Seed routing (phase 3): pure INIT_SEED derivations in
   `rumor_routing.py`, nothing serialized — `live_routes` picks each
   entry's live candidate pairs (≥1 guaranteed; CONTINUE-stable,
@@ -698,8 +728,10 @@ nobody designs against a ghost.
   ship spec's `loot_budget` across ≤4 passes from per-room pools;
   placed interiors persist in `ctx.interiors`; pickups route by
   type (equipment packs with drop-or-leave, stacks, cargo with hold
-  check) (`dungeon_layout.py`: `_scatter_loot`; `loot.py`;
-  `loot_selection.py`).
+  check); doc-42 pads (`{"teaches": id}` / `{"reveals_site": True}`)
+  are consumed on pickup — knowledge never enters the hold
+  (`dungeon_layout.py`: `_scatter_loot`; `loot.py`;
+  `loot_selection.py`; `digs.reveal_site`).
 - **Quest loot security** — quest-cache pickup completes the step in
   the same action; goods NEVER enter the sellable hold (enforced
   structurally via reservations + `secure_quest_loot`, not at the
@@ -784,8 +816,11 @@ nobody designs against a ghost.
   gear; shortcuts: F3 debug overlay, F5 text hot-reload, F6/F9
   quicksave/load, Shift+X +200 XP, Shift+T teleport-to-port picker,
   Shift+S seed reroll, Shift+R reveal fog, Shift+D +30 days,
-  Shift+O Act-0 faction picker (`dev_mode.py`; `game_loop.
-  _handle_dev_event`).
+  Shift+O Act-0 faction picker, Shift+L blockade manifest,
+  Shift+K service run, Shift+G warrant license, Shift+J advance to
+  shift boundary, Shift+B toggle cut-out, Shift+N live rumor
+  routing, Shift+M force-reveal a dig site (`dev_mode.py`;
+  `game_loop._handle_dev_event`).
 - **Headless save inspector** — `debug_session.py` runs scenario
   tokens (move/wait/reveal/goto/advance) against a copied save,
   read-only, no UI.
