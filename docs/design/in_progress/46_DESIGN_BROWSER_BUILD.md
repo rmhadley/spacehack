@@ -134,13 +134,48 @@ fine — the spike exists to prove it, not assume it.
 - *Playtest checkpoint:* none — no shipped behavior; the handoff
   IS the numbers. Guide edits: none.
 
-- [ ] pygbag installed; pygame-ce ↔ pygbag pin verdict recorded (d)
+- [x] pygbag installed; pygame-ce ↔ pygbag pin verdict recorded (d)
 - [ ] entry shim boots the title screen under wasm (patch only if
       the unpatched boot hangs)
 - [ ] (a) payload + first-load, (b) world-gen wasm vs native,
       (c) per-move lighting wasm vs native — recorded
 - [ ] numbers + go/no-go recommendation in this doc; ruling
       requested
+
+**Run log (2026-09-13, container spike — staging in /tmp, `src/`
+untouched, zero commits outside docs):**
+
+- Payload (a), measured: game bundle transfers as `sh46.tar.gz`
+  = **1.02 MB** (apk 1.28 MB packed — all 524 src/data entries);
+  wasm CPython 3.12 runtime `main.wasm` = **13.4 MB**; pygame-ce
+  wasm wheel = 1.5 MB; BrowserFS shim = 0.24 MB. First-load total
+  ≈ **16.2 MB**, inside the 15–25 MB forecast, dominated by the
+  runtime, not the game.
+- Pin verdict (d): pygbag 0.9.3 provides pygame-ce **2.5.7**
+  wasm32/emscripten on CPython 3.12 — **one patch behind** the
+  repo's ≥ 2.5.8. Desktop keeps 2.5.8 regardless; whether 2.5.7
+  suffices is decided by the boot proof.
+- Boot-chain findings — three defects in the DEFAULT 0.9.3
+  template, each verified in-browser via console capture, each
+  with a bounded workaround: (1) the loader requires
+  crossOriginIsolated (COOP/COEP headers) — a plain static server
+  stalls it; (2) the template references `browserfs.min.js` on the
+  CDN although the CDN removed it ("removed, must be fully
+  provided from template") — the app bundle must ship it;
+  (3) the wheel URL resolves against the page origin
+  (`<origin>/cdn/cp312/…`) — the pygame-ce wheel is mirrored
+  locally. Progress proved stepwise: "BrowserFS not found" →
+  found → apk mounted → wheel fetched → install began.
+- BLOCKER at handoff: once the wheel install starts, the page's
+  main thread pins for 4+ minutes with no further output
+  (headless Chromium, container). A crash would free the thread;
+  a finished import would boot — the desktop test discriminates
+  slow-import vs hang. (b) world-gen and (c) per-move latency are
+  queued behind the boot proof.
+- Packaging-fragility read: the three template defects carry real
+  phase-3 scope (`make web` must own headers + browserfs + wheel
+  mirroring), but all are bounded; none flip feasibility by
+  itself.
 
 ### Phase 1 — one async path
 
