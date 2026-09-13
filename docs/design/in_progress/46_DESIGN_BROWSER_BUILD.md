@@ -238,7 +238,65 @@ Exit gate (requirement #1's): measured frame-pacing and
 input-latency A/B vs pre-change (dev-instrumented), plus a FULL
 desktop playtest pass. No web-only code in this phase.
 
-- [ ] brief approved (written at the phase-0 handoff)
+**Brief (approved 2026-09-13):**
+
+- *Principle:* convert only what parks — a function becomes a
+  coroutine iff it can block waiting for input or time; algorithm
+  `while True` loops (npc, autoexplore, loot, lighting…) stay sync.
+- *Canonical pattern:* `event.wait()` → `event.get()` poll +
+  `await context.pump()`; frame-path `time.sleep(x)` →
+  `await asyncio.sleep(x)`; `pump()` = one new primitive on
+  `PygameContext` (`await asyncio.sleep(seconds)`) — web: full
+  JS-stack return → rAF → present commit + input; desktop: one
+  event-loop yield, semantics unchanged (the desktop loop is
+  event-driven; there is NO clock.tick anywhere).
+- *Build order:* baseline capture (dev-instrumented loop timings,
+  pre-change) → `pump()` + tests → leaf runners one commit each
+  (faction, quantity, quest_log, screen, menu, navigation, split)
+  → title/title_flow → navigation_travel + combat/_animations →
+  runtime poll + game_loop + `__main__` entry → test updates ride
+  → desktop A/B gate → full desktop playtest.
+- *Tests:* updated runner tests ride each commit; new `pump()`
+  tests (desktop yields without timer, deterministic fake);
+  `debug_session` stays untouched (audit-verified: no UI calls).
+- *Stop point:* desktop A/B measured + full desktop playtest
+  passed. NOT in this phase: persistence shim, `make web`, any
+  web integration, `sys.platform` branches.
+- *Playtest checkpoint:* numbered desktop checklist with expected
+  results + the A/B numbers table. **Guide edits: none.**
+
+**Pre-implementation audit (2026-09-13, before code):**
+
+1. **Extend/reuse:** `PygameContext` (pygame_runtime) gains
+   `pump()`; the existing timeout poll path
+   (pygame_runtime.py:254–262, poll + 16 ms sleep) is the
+   canonical shape every runner replicates via ONE shared async
+   helper — `poll_events` itself becomes async rather than each
+   runner re-rolling the pattern; `animation_timing._SPEED_SCALE`
+   continues to scale animation delays (now asyncio.sleep);
+   `tests/support/fake_pygame.py` fakes gain async-capable
+   pump/poll doubles.
+2. **Duplication hotspots:** (a) poll+pump re-rolled per runner —
+   prevented by the shared async `poll_events`; (b) platform
+   branches — forbidden by Ruling 3, `pump()` is the single seam;
+   (c) per-test `asyncio.run(...)` wrappers — extract a
+   tests/support helper if ≥3 sites repeat.
+3. **Cascade map (await transitive closure):** 15 runner defs in
+   8 modules (split, quantity, title+splash, navigation, menu,
+   faction, screen, quest_log) + `pygame_runtime.poll_events` +
+   `title_flow` + `game_loop` central loop + `__main__` entry;
+   direct runner call sites ~25 in 17 modules (help,
+   trait_screen, menus/_ship_menu|_missions|_quest_log|_planet|
+   _mechanic|_ship_buy, dev_mode, pygame_story, navigation_travel,
+   city_transit, character_screen, trade, console_log, comms ×3,
+   npc, input_helpers ×2) + the game_loop dispatch tables (their
+   handlers go async; dispatch awaits). Menu-retry `while True`
+   loops (input_helpers, menus/*) cascade by containing a runner
+   call. Algorithm loops (npc, autoexplore, loot, lighting,
+   dungeon_activation, main_quest, rumor, trade internals) stay
+   sync. `debug_session.py`: verified zero UI calls — untouched.
+
+- [x] brief approved (this section)
 - [ ] one async path landed; measured pacing/input A/B identical
 - [ ] full desktop playtest pass recorded
 
