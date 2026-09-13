@@ -4,18 +4,17 @@
 # near the center. The exit sits directly below the spawn point, so
 # stepping back through the door is one move from where you entered.
 MAP
-##############
-#............#
-#..s....s....#
-#............#
-#..h....h....#
-#............#
-#..s....s....#
-#............#
-#............#
-#......P.....#
-#......>.....#
-##############
+#############
+#...........#
+#..s.....s..#
+#...........#
+#..h.....h..#
+#...........#
+#..s.....s..#
+#...........#
+#...........#
+#.....P.....#
+######>######
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
