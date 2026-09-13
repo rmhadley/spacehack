@@ -406,6 +406,66 @@ config rides the SAME backend: the persisted thing is the
 - [ ] desktop save path/format byte-identical; checklist passes on
       both targets
 
+**Run log (2026-09-13, in-container probe → implementation):**
+
+- **Verdict (iii): nothing persists by default.** The 0.9.3 runtime
+  is ALL-MEMFS: markers written at `/`, `/data`, `/home/web_user`,
+  `/tmp` all died on reload; `FS.filesystems.IDBFS` is undefined (the
+  build was not linked with `-lidbfs.js`), so the mount route is dead.
+  cpythonrc sets `HOME=/home/web_user` (MEMFS) and contains no
+  persistence wiring. Probe facts for posterity: `window.FS` IS the
+  emscripten FS (exposed on the window global — `MM.FS` is not);
+  `aio.fetch.FS` is a manifest-preloader function, not the FS.
+- **Two interpreter constraints (both probe-verified, hard aborts —
+  not catchable exceptions):** awaiting a JS promise from python
+  aborts the interpreter; a JS→python callback firing while python is
+  suspended outside the main await chain (an `ensure_future` task)
+  aborts it. The callback bridge is safe ONLY in the main coroutine.
+  Consequence: `restore()` (boot, main coroutine) uses the callback
+  bridge; `sync_persistence` is a SYNCHRONOUS callback-less
+  fire-and-forget — the IndexedDB transaction commits in JS with no
+  python re-entry at all.
+- **Mechanism (landed):** new `user_data.py` — `spacehack_root()`
+  (same logical path on every target; no platform branch on the path,
+  only the sync layer branches on `sys.platform == "emscripten"`,
+  honoring Ruling 1's flagless browser); `restore()` awaited as the
+  first statement of `_amain` (before tileset/config/title —
+  reviewer-verified downstream ordering); `sync_persistence(path)`
+  after `save_game`'s write, `delete_save`'s unlink (both branches),
+  and `save_display_config`'s write. Reroutes: `_saves_dir`,
+  `default_config_path`, `dev_mode._quicksave_path` (twin folded).
+  `save_game` split into `_save_payload` + write (ratchet; pure
+  extraction, reviewer-verified).
+- **The sh46 shim API (spec for phase 3's web template — the template
+  MUST inject this before the loader):**
+  `window.sh46.put(name, text[, cb])`, `.remove(name[, cb])` with
+  OPTIONAL callbacks (python fires them with none);
+  `.get(name, cb)`, `.keys(cb)` with MANDATORY callbacks; string
+  name = root-relative POSIX path; values are UTF-8 text; backed by
+  IndexedDB db "spacehack", store "files".
+- **In-container e2e (staging bundle, real module chain):** fresh
+  page wrote autosave through `saveload._saves_dir()` +
+  `sync_persistence` (callback-less, no abort); FULL page reload ran
+  `restore()` and materialized the exact bytes
+  (`prev={"probe": "e2e"}` — RED verdict). Durability proven through
+  the real production path.
+- **Rulings recorded:** shim timeout is GRACEFUL (a hung/broken shim
+  never blocks play — `restore()` catches `TimeoutError` and the
+  session continues without cross-reload persistence); fire-and-forget
+  loss window (tab closed before IndexedDB commit = lost, never
+  corrupt, save) is accepted and is exactly the quit-mid-save
+  checklist case. Test divergence from the brief: no platform matrix
+  on `spacehack_root()` — verdict (iii) removed the path branch, so
+  the landed test pins the same path everywhere.
+- Probe-infrastructure notes for phase 3: serve with
+  `Cross-Origin-Embedder-Policy: credentialless` (`require-corp`
+  blocks the CDN's scripts); `browserfs.min.js` and `empty.html` must
+  ship locally (CDN 404s); the pygame-ce wheel fetches fine from the
+  CDN (the phase-0 origin-relative defect no longer applies); python
+  stdout routes to the page's xterm, NOT the browser console —
+  `location.hash` is the reliable exfiltration channel; headless rAF
+  throttling delays composite but never the logic.
+
 ### Phase 3 — `make web` target
 
 pygbag packaging as a sibling of the wheel; fullscreen rides the

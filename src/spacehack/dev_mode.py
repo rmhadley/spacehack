@@ -188,7 +188,9 @@ async def choose_city_teleport(context) -> tuple[Outcome, str | None]:
 
 def _quicksave_path() -> Path:
     """Full path to the dev-mode quicksave checkpoint file."""
-    return Path.home() / ".spacehack" / "saves" / "quicksave.json"
+    from .saveload import _saves_dir
+
+    return _saves_dir() / "quicksave.json"
 
 
 def quick_save(

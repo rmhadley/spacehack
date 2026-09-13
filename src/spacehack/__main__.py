@@ -355,6 +355,9 @@ async def run(context: PygameContext) -> None:
 
 async def _amain() -> None:
     """Open the window, then run splash/title/game flow."""
+    from .user_data import restore as _restore_user_data
+
+    await _restore_user_data()  # web: materialize saves+config before open
     tileset = load_tileset()
     with open_runtime(tileset) as context:
         await run(context)

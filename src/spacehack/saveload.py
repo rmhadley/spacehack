@@ -20,11 +20,12 @@ from .saveload_ground import (  # noqa: F401  # ground family split; re-exported
     _ground_fields,
     _restore_ground_fields,
 )
+from .user_data import spacehack_root, sync_persistence
 
 
 def _saves_dir() -> Path:
     """Return (and create) ``~/.spacehack/saves/``."""
-    _dir = Path.home() / ".spacehack" / "saves"
+    _dir = spacehack_root() / "saves"
     _dir.mkdir(parents=True, exist_ok=True)
     return _dir
 
@@ -46,6 +47,7 @@ def delete_save() -> None:
         _path.unlink()
     except FileNotFoundError:
         pass
+    sync_persistence(_path)
 
 
 # ---------------------------------------------------------------------------
@@ -347,21 +349,8 @@ def _write_rng_state(data: dict) -> None:
     data["init_seed"] = INIT_SEED
 
 
-def save_game(
-    ctx: GameContext,
-    *,
-    mode: str = "city",
-    city_id: str = "earth",
-    system_id: str = "sol",
-    space_player_pos: tuple[int, int] | None = None,
-    path: Path | None = None,
-) -> None:
-    """Save the current game state to a save file (autosave by default).
-
-    ``mode``/``city_id``/``system_id`` come from the caller (the loop's
-    closure locals). ``space_player_pos`` is required for ``dungeon``
-    mode; ``path`` overrides the destination (dev quicksave).
-    """
+def _save_payload(ctx, mode, city_id, system_id, space_player_pos) -> dict:
+    """Assemble the full save-game payload dict."""
     _synced_spawns, _synced_mids, _synced_targets, _synced_paths = (
         _sync_procedural_spawns(ctx, system_id)
     )
@@ -384,9 +373,28 @@ def save_game(
     _data["city_npc_positions"] = _save_city_npc_positions(ctx)
     _write_dungeon_and_interiors(ctx, _data, mode, space_player_pos)
     _write_rng_state(_data)
+    return _data
 
+
+def save_game(
+    ctx: GameContext,
+    *,
+    mode: str = "city",
+    city_id: str = "earth",
+    system_id: str = "sol",
+    space_player_pos: tuple[int, int] | None = None,
+    path: Path | None = None,
+) -> None:
+    """Save the current game state to a save file (autosave by default).
+
+    ``mode``/``city_id``/``system_id`` come from the caller (the loop's
+    closure locals). ``space_player_pos`` is required for ``dungeon``
+    mode; ``path`` overrides the destination (dev quicksave).
+    """
+    _data = _save_payload(ctx, mode, city_id, system_id, space_player_pos)
     _path = path or _autosave_path()
     _path.write_text(json.dumps(_data, indent=2, ensure_ascii=False))
+    sync_persistence(_path)
 
 
 # ---------------------------------------------------------------------------

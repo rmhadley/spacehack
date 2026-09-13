@@ -47,7 +47,9 @@ class DisplayConfig:
 
 def default_config_path() -> Path:
     """Return the per-user display configuration path."""
-    return Path.home() / ".spacehack" / "config.toml"
+    from .user_data import spacehack_root
+
+    return spacehack_root() / "config.toml"
 
 
 def _parse_bool_flag(key: str, raw_value: str) -> bool:
@@ -140,6 +142,9 @@ def load_display_config(path: Path | None = None) -> DisplayConfig:
 
 def save_display_config(config: DisplayConfig, path: Path | None = None) -> None:
     """Persist display preferences, creating the user config directory."""
+    from .user_data import sync_persistence
+
     _path = path or default_config_path()
     _path.parent.mkdir(parents=True, exist_ok=True)
     _path.write_text(serialize_display_config(config), encoding="utf-8")
+    sync_persistence(_path)
