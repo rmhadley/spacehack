@@ -401,7 +401,8 @@ config rides the SAME backend: the persisted thing is the
   shows fresh title). **Guide edits: none** — no player-facing
   change.
 
-- [ ] brief approved (written at the phase-1 checkpoint)
+- [x] brief approved (user, 2026-09-13 — including the config.toml
+      user-data-root amendment)
 - [ ] desktop save path/format byte-identical; checklist passes on
       both targets
 
