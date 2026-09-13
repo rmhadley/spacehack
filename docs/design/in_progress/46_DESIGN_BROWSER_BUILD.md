@@ -295,6 +295,10 @@ desktop playtest pass. No web-only code in this phase.
    call. Algorithm loops (npc, autoexplore, loot, lighting,
    dungeon_activation, main_quest, rumor, trade internals) stay
    sync. `debug_session.py`: verified zero UI calls — untouched.
+   *(Annotation, 2026-09-13: the conversion became necessary anyway —
+   debug_session transitively calls `tutorial.notify_move` and
+   `dungeon_extensions.tick_activation`, which went async; leaving it
+   sync would silently drop those coroutines. Reviewer-verified.)*
 
 - [x] brief approved (this section)
 - [ ] one async path landed; measured pacing/input A/B identical
