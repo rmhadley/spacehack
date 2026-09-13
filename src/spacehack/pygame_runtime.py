@@ -249,7 +249,7 @@ class PygameRuntime:
     ) -> tuple[pygame_engine.PygameInputEvent, ...]:
         """Yield until one relevant event, or time out.
 
-        ``timeout_ms=None`` parks until a relevant event arrives; a
+        ``timeout_ms=None`` (the default) parks until a relevant event arrives; a
         finite timeout polls every frame quantum and returns ``()``
         when no relevant event arrives in time, so the caller can
         redraw idle animations. Polling (never blocking) keeps the
@@ -260,7 +260,11 @@ class PygameRuntime:
         replaced) delivers ONE event — so the rest of each batch is
         retained in ``_event_backlog`` and served on subsequent
         calls. Without it, a fast multi-key burst would drop every
-        event after the first.
+        event after the first. The queue is polled even while the
+        backlog is served: a keyup must be seen while earlier repeat
+        keydowns are still queued, so it can drop them — otherwise a
+        released movement key keeps draining its held-time repeats
+        (doc 46 playtest: the post-release momentum).
         """
         if self.engine is None:
             return ()
@@ -270,17 +274,33 @@ class PygameRuntime:
             time.monotonic() + timeout_ms / 1000.0
         )
         while True:
+            self._drain_sdl_queue(pygame)
             if self._event_backlog:
                 return (self._event_backlog.pop(0),)
-            for event in pygame.event.get():
-                translated = pygame_engine.translate_event(pygame, event)
-                if translated.kind != "other":
-                    self._event_backlog.append(translated)
-            if self._event_backlog:
-                continue
             if deadline is not None and time.monotonic() >= deadline:
                 return ()
             await asyncio.sleep(quantum)
+
+    def _drain_sdl_queue(self, pygame: Any) -> None:
+        """Move queued SDL events into the backlog, purging repeats of released keys."""
+        for event in pygame.event.get():
+            translated = pygame_engine.translate_event(pygame, event)
+            if translated.kind == "other":
+                continue
+            if translated.kind == "keyup":
+                self._drop_backlog_repeats(translated.key_name)
+            self._event_backlog.append(translated)
+
+    def _drop_backlog_repeats(self, key_name: str) -> None:
+        """Discard queued repeat keydowns of a released key."""
+        self._event_backlog = [
+            event for event in self._event_backlog
+            if not (
+                event.kind == "keydown"
+                and event.repeat
+                and event.key_name == key_name
+            )
+        ]
 
     def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
         """Render a console, then an optional native Pygame overlay."""
