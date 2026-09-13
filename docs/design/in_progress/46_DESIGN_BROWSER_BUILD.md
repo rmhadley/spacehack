@@ -335,57 +335,71 @@ BOTH targets, including quit-mid-save and reload.
 `Path` stdlib — `saveload._saves_dir()` (the one choke: mkdir +
 `~/.spacehack/saves/`), `save_game` → `write_text(json.dumps)`
 (saveload.py:389), `_load_json` → `read_text` (:400),
-`save_exists` → `.is_file`, `delete_save` → `.unlink`. ONE twin:
-`dev_mode._quicksave_path()` hardcodes the same root instead of
-routing through the choke (dev-only, folds in here). Display
-config (`~/.spacehack/config.toml`, pygame_runtime) is NOT a save
-— out of scope; under wasm it re-derives defaults harmlessly.
+`save_exists` → `.is_file`, `delete_save` → `.unlink`. TWO twins:
+`dev_mode._quicksave_path()` hardcodes the same saves root instead
+of routing through the choke (dev-only, folds in here), and
+`display_config.default_config_path()` hardcodes
+`~/.spacehack/config.toml` — the TITLE OPTIONS menu's "Apply and
+save" writes it (`pygame_title` → `context.save_display_config()`;
+window mode + animation speed, re-read at every runtime open).
+On web without persistence that silently forgets the player's
+options on every reload — a play-experience degradation, so
+config rides the SAME backend: the persisted thing is the
+`~/.spacehack/` user-data root, not just saves.
 
 **Brief (proposed 2026-09-13, pending approval):**
 
 - *Principle:* the path-based stdlib surface is the contract — if
-  the FS at the saves root is durable on web, every existing call
-  (mkdir/write/read/is_file/unlink) works unchanged; the only new
-  machinery is (a) choosing the root and (b) flushing after
-  writes. Desktop stays byte-identical: same directory, same JSON,
-  same `write_text` call; the flush hook is a no-op there.
+  the FS at the user-data root is durable on web, every existing
+  call (mkdir/write/read/is_file/unlink) works unchanged; the only
+  new machinery is (a) choosing the root and (b) flushing after
+  writes. Desktop stays byte-identical: same directories, same
+  JSON/TOML bytes, same write calls; the flush hook is a no-op
+  there.
 - *Probe first (binding, before any src change):* stage the spike
   bundle (phase-0 pattern, /tmp, repo untouched), boot the
   converted async build, write a probe file under the candidate
   root, reload the page, read it back. Outcome decides the mount
   story: (i) pygbag's runtime already persists the home dir → the
-  root is unchanged `Path.home()/.spacehack/saves` and the shim is
+  root is unchanged `Path.home()/.spacehack` and the shim is
   flush-only; (ii) a persisted mount exists elsewhere → root maps
   there; (iii) nothing persists → explicit IDBFS/BrowserFS mount
   added to the staging entry, surfaced as a phase-3 `make web`
   requirement. Record the verdict + mechanism in this doc.
-- *Scope:* `saveload.py` — `_saves_root()` (environmental
-  selection at the choke; the codebase's ONLY platform branch, per
-  Ruling 1 the browser runs flagless so detection is by platform,
-  never by env var) + `_sync_persistence()` called after
-  `save_game`'s write and after `delete_save`'s unlink (no-op on
-  desktop; FS.syncfs-style flush on emscripten);
-  `dev_mode._quicksave_path()` rerouted through the choke (twin
-  fold). Nothing else.
-- *Build order:* probe → verdict recorded → `_saves_root()`
-  extraction + twin fold + flush no-op + tests (one commit) →
-  emscripten flush body per verdict (one commit) → staging bundle
-  re-verified in-container (build + boot + write) → checklists.
-- *Tests:* `_saves_root()` returns the desktop path (monkeypatched
-  platform matrix: linux/darwin/emscripten); quicksave path rides
-  the choke; `_sync_persistence()` desktop no-op; existing
-  save/load round-trip suite stays green untouched.
-- *Stop point:* no `make web` (phase 3), no config.toml web story,
-  no save export/import, no multi-slot saves, no loading beats.
+- *Scope:* new `user_data.py` — `spacehack_root()` (environmental
+  selection; the codebase's ONLY platform branch, per Ruling 1 the
+  browser runs flagless so detection is by platform, never by env
+  var) + `sync_persistence()` flush hook (no-op on desktop;
+  FS.syncfs-style flush on emscripten). Callers rerouted:
+  `saveload._saves_dir()` and `display_config.default_config_path()`
+  through the root; `dev_mode._quicksave_path()` through the saves
+  choke (twin fold). Flush sites: after `save_game`'s write, after
+  `delete_save`'s unlink, after `save_display_config`'s write.
+  Nothing else.
+- *Build order:* probe → verdict recorded → `user_data.py` + reroutes
+  + flush no-ops + tests (one commit) → emscripten flush body per
+  verdict (one commit) → staging bundle re-verified in-container
+  (build + boot + write) → checklists.
+- *Tests:* `spacehack_root()` returns the desktop path
+  (monkeypatched platform matrix: linux/darwin/emscripten);
+  quicksave + config paths ride the choke; `sync_persistence()`
+  desktop no-op at all three flush sites; existing save/load
+  round-trip + display-config suites stay green untouched.
+- *Stop point:* no `make web` (phase 3), no new options-menu
+  entries, no save export/import, no multi-slot saves, no loading
+  beats.
 - *Playtest checkpoint:* numbered checklist on BOTH targets —
   desktop: new game → ESC save+quit → autosave byte-identical
   shape; Continue exact-state; dev F6/F9 quicksave pair; Shift+S
-  reroll sweep; save-then-immediate-quit reloads uncorrupted.
+  reroll sweep; save-then-immediate-quit reloads uncorrupted;
+  options Apply → relaunch game → preferences hold (regression:
+  config reroute must not disturb the desktop path).
   web (user's browser — container ceiling stands, phase 0 round
-  3): save+quit → close TAB → reopen → Continue restores;
-  quit-mid-save never yields corrupt JSON; Continue deletes the
-  save (second run shows fresh title). **Guide edits: none** —
-  no player-facing change.
+  3): save+quit → close TAB → reopen → Continue restores; options
+  Apply → close TAB → reopen → preferences hold; quit-mid-save
+  never yields corrupt JSON; Continue deletes the save (second run
+  shows fresh title). **Guide edits: none** — no player-facing
+  change.
 
 - [ ] brief approved (written at the phase-1 checkpoint)
 - [ ] desktop save path/format byte-identical; checklist passes on
