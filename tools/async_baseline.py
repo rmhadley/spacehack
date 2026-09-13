@@ -66,10 +66,13 @@ def measure_sync(context):
 async def measure_async(context):
     import pygame
 
-    idle = _time_calls(
-        lambda: asyncio.run(context.wait_events(timeout_ms=IDLE_TIMEOUT_MS)),
-        N_IDLE,
-    )
+    # Await directly: we already run inside the loop the game itself
+    # uses (nested asyncio.run raises). This IS the production shape.
+    idle = []
+    for _ in range(N_IDLE):
+        t0 = time.perf_counter()
+        await context.wait_events(timeout_ms=IDLE_TIMEOUT_MS)
+        idle.append(time.perf_counter() - t0)
     idle_mean = _report("idle cadence (200ms timeout)", idle)
 
     for _ in range(N_EVENTS):
@@ -77,13 +80,10 @@ async def measure_async(context):
             pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
         )
 
-    async def drain():
-        t0 = time.perf_counter()
-        for _ in range(N_EVENTS):
-            await context.wait_events(timeout_ms=None)
-        return (time.perf_counter() - t0) / N_EVENTS
-
-    wait_mean = asyncio.run(drain())
+    t0 = time.perf_counter()
+    for _ in range(N_EVENTS):
+        await context.wait_events(timeout_ms=None)
+    wait_mean = (time.perf_counter() - t0) / N_EVENTS
     print(f"event throughput: {wait_mean * 1000:.3f} ms/event  n={N_EVENTS}")
 
     print(f"BASELINE[async]  idle_mean={idle_mean:.4f}  "
