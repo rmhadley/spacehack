@@ -103,9 +103,8 @@ verification gate closes before any web-only code is written.
 
 ### Phase 0 — spike / go-no-go
 
-Boot the REAL title screen under pygbag from a scratch branch —
-`src/` untouched (this phase cannot degrade anything by
-construction). Measure and record: (a) payload size + first-load
+Boot the REAL title screen under pygbag — `src/` on main untouched
+(this phase cannot degrade anything by construction). Measure and record: (a) payload size + first-load
 time (expect ~15–25 MB: wasm CPython runtime + game; cached after),
 (b) new-game world-gen freeze under wasm vs native, (c) per-move
 lighting-recompute latency under wasm vs native, (d) pygame-ce ↔
@@ -113,6 +112,35 @@ pygbag wheel alignment at the current pin (≥ 2.5.8). Exit: the four
 numbers in this doc + an explicit go/no-go. Pure-Python under wasm
 runs ~3–8× slower; at human input rates that is almost certainly
 fine — the spike exists to prove it, not assume it.
+
+**Brief (approved 2026-09-13):**
+
+- *Scope.* Build staging happens OUTSIDE the repo (/tmp: `main.py`
+  + a `src/` copy); a `spike/pygbag-46` branch exists only if
+  `src/` needs a patch, and it never merges. `pygbag` installed ad
+  hoc — no pyproject/requirements change until the go ruling.
+  Scratch `main.py` entry (`async def main()`, pygbag convention).
+  A minimal yield-per-frame patch to the four event-pumping sites
+  is the throwaway phase-1 prototype and is attempted ONLY if an
+  unpatched boot hangs — cheapest honest boot wins.
+- *Build order:* pin alignment → shim (+ patch if needed) + desktop
+  sanity boot → `pygbag build` + serve → browser-automation play
+  (title → new game → planet → N moves) → record (a)–(d) → tick.
+- *Tests:* no shipped code, no new tests; `make check` green on
+  main and on any branch commit.
+- *Stop point:* recorded numbers + recommendation handed to the
+  user for the go/no-go ruling. Not started: phase 1 landing,
+  desktop A/B work, persistence shim, `make web`.
+- *Playtest checkpoint:* none — no shipped behavior; the handoff
+  IS the numbers. Guide edits: none.
+
+- [ ] pygbag installed; pygame-ce ↔ pygbag pin verdict recorded (d)
+- [ ] entry shim boots the title screen under wasm (patch only if
+      the unpatched boot hangs)
+- [ ] (a) payload + first-load, (b) world-gen wasm vs native,
+      (c) per-move lighting wasm vs native — recorded
+- [ ] numbers + go/no-go recommendation in this doc; ruling
+      requested
 
 ### Phase 1 — one async path
 
@@ -122,12 +150,20 @@ Exit gate (requirement #1's): measured frame-pacing and
 input-latency A/B vs pre-change (dev-instrumented), plus a FULL
 desktop playtest pass. No web-only code in this phase.
 
+- [ ] brief approved (written at the phase-0 handoff)
+- [ ] one async path landed; measured pacing/input A/B identical
+- [ ] full desktop playtest pass recorded
+
 ### Phase 2 — persistence shim
 
 `_saves_dir()` gains a backend target: desktop unchanged (same
 path, same JSON), web = IndexedDB-backed directory + sync-on-save.
 Exit: the save/load/quicksave/autosave/Shift+S-reroll checklist on
 BOTH targets, including quit-mid-save and reload.
+
+- [ ] brief approved (written at the phase-1 checkpoint)
+- [ ] desktop save path/format byte-identical; checklist passes on
+      both targets
 
 ### Phase 3 — `make web` target
 
@@ -137,6 +173,10 @@ loading screen is the first-load UX. Exit: the static bundle boots
 and plays from a plain static web server; desktop build artifacts
 and pipeline unchanged.
 
+- [ ] brief approved (written at the phase-2 checkpoint)
+- [ ] bundle boots from a plain static server; desktop artifacts
+      unchanged
+
 ### Phase 4 — perf + dual playtest
 
 In-browser numbered playtest checklist (browser automation can
@@ -145,6 +185,9 @@ World-gen freeze gets a loading beat ONLY if the spike says it
 needs one (wordless — motion/light, no prose, per house style).
 Exit: both checklists pass; doc close then audits SYSTEMS.md
 (the render path and loop entries gain a web-target note).
+
+- [ ] brief approved (written at the phase-3 checkpoint)
+- [ ] in-browser + desktop checklists pass; `make check` green
 
 ## Risks
 
