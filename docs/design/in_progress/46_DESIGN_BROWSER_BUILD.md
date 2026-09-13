@@ -176,6 +176,32 @@ untouched, zero commits outside docs):**
   phase-3 scope (`make web` must own headers + browserfs + wheel
   mirroring), but all are bounded; none flip feasibility by
   itself.
+- **Round 2 (instrumented, container): the game RUNS under wasm.**
+  Beacon trail proves the full chain: wheel install → all 133
+  spacehack modules import (~instant) → `main()` → splash
+  animation loop alive at rAF rate under a real compositor (xvfb),
+  draw + present + poll every iteration; SDL queue receives
+  browser mouse events. Earlier "4-min pin" reports were
+  `pygame.event.wait()` never returning, not slowness.
+- **THE PATHOLOGY (spike's key finding, A/B-proven):** under this
+  pygame-ce wasm build, blocking waits are each fatal in their own
+  way: `pygame.event.wait()` NEVER returns (hard pin, zero
+  output); `pygame.time.wait(16)` returns instantly WITHOUT
+  yielding (busy spin at ~1700 iter/s: browser starved — no paint,
+  no input = the desktop "gray page"); `time.sleep(0.016)` unwinds
+  via emscripten_sleep and hands the browser a real frame
+  (rAF-rate ticks; queued input delivered). Headless chromium
+  additionally throttles rAF to ~0 without a visible surface —
+  container-only artifact; xvfb headed runs real-rate.
+- **Phase-1 consequence (binding): the async/yield conversion is
+  REQUIRED for playability, not an optimization.** Conversion
+  surface = the blocking-wait inventory of the four event-pumping
+  files (`pygame.event.wait()` + `clock.tick` + animation sleeps),
+  matching Ruling 3's one-async-path. The spike's staging patch
+  (splash loop: get + time.sleep) is the prototype pattern.
+- Still pending: desktop confirmation that paint + keyboard reach
+  the SDL layer through a real browser (mouse proven in-container);
+  then (b) world-gen and (c) per-move latency.
 
 ### Phase 1 — one async path
 
