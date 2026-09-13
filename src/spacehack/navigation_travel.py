@@ -349,7 +349,7 @@ async def _goto_poll_cancel(context, duration: float) -> bool:
     while True:
         for _ev in context.events():
             if _ev.kind == "keydown":
-                if _ev.key_name in world.MOVE_KEYS or _ev.key_name in {".", "period"}:
+                if _ev.key_name in world.MOVE_KEYS or _ev.key_name in world.WAIT_KEYS:
                     return True
         _remaining = _end - time.monotonic()
         if _remaining <= 0:

@@ -583,6 +583,10 @@ MOVE_KEYS: dict[str, tuple[int, int]] = {
     **NUMPAD_DELTAS,
 }
 
+# Key names that mean "wait one turn": top-row period + numpad period
+# (pygame >=2 spells the keypad one "[.]", aliased to "period" upstream).
+WAIT_KEYS: frozenset[str] = frozenset({".", "period"})
+
 
 def find_loot_near(
     game_map: GameMap,
@@ -728,7 +732,7 @@ __all__ = [
     "render_world_view", "camera_for_view",
     "_dim_color", "_is_static_entity", "_tile_render_colors",
     "_entity_render_fg", "_append_tile_commands", "_append_entity_commands",
-    "VIM_DELTAS", "ARROW_DELTAS", "NUMPAD_DELTAS", "MOVE_KEYS",
+    "VIM_DELTAS", "ARROW_DELTAS", "NUMPAD_DELTAS", "MOVE_KEYS", "WAIT_KEYS",
     "find_loot_near", "try_move", "blocked_message_for",
     "try_vim_move", "try_step_with_slip",
 ]

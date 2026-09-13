@@ -12,7 +12,7 @@ from __future__ import annotations
 from .. import pygame_engine
 from .. import world
 from ..engine import RNG
-from ..world import MOVE_KEYS as _MOVE_KEYS
+from ..world import MOVE_KEYS as _MOVE_KEYS, WAIT_KEYS as _WAIT_KEYS
 from ..data.weapons import find_weapon as _fw
 from ..input_helpers import _try_open_guide
 from ..saveload import delete_save as _delete_save
@@ -71,7 +71,7 @@ def _input_action(
         return "BOARD"
     if sym_name in _MOVE_KEYS:
         return f"MOVE:{sym_name}"
-    if sym_name in {".", "period"}:
+    if sym_name in _WAIT_KEYS:
         return "WAIT"
     return f"WEAPON:{_NUM_KEYS[sym_name]}" if sym_name in _NUM_KEYS else ""
 

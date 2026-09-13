@@ -31,7 +31,7 @@ def test_real_numpad_key_names_normalize_into_move_keys():
 def test_real_numpad_period_normalizes_to_a_wait_key():
     name = pygame_engine.normalize_key_name(pygame.key.name(pygame.K_KP_PERIOD))
 
-    assert name in {".", "period"}
+    assert name in world.WAIT_KEYS
 
 
 def test_real_tileset_loads_the_native_glyph_cells(_pygame_headless):

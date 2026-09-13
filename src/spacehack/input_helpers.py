@@ -192,7 +192,7 @@ def _is_period_press(event: pygame_engine.PygameInputEvent) -> bool:
     post-move tick logic (combat detection, pirate movement, shield
     regen) without actually moving the player ship.
     """
-    return pygame_engine.is_keydown(event) and event.key_name in {'.', 'period'}
+    return pygame_engine.is_keydown(event) and event.key_name in world.WAIT_KEYS
 
 def _is_g_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` for the ``G`` key (or its
