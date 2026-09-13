@@ -7,6 +7,80 @@ from types import SimpleNamespace
 
 from src.spacehack import city_interiors, city_landmarks, world
 from src.spacehack.data.planets import load_planet
+from src.spacehack.saveload_maps import _RebuiltMap
+
+
+def _saved_spaceport_room():
+    """A serialized spaceport interior plus its player, as a save would hold them."""
+    record = load_planet("earth").city_buildings["spaceport"]
+    tiles = [[world.INTERIOR for _ in range(6)] for _ in range(6)]
+    saved_room = world.GameMap(width=6, height=6, tiles=tiles, entities=[])
+    saved_room.city_interior_id = record["cache_key"]
+    saved_room.city_building_label = "spaceport"
+    player = world.Entity("@", (255, 255, 255), world.Position(2, 2), name="Player")
+    rebuilt = _RebuiltMap(
+        game_map=saved_room, player_ent=player, mode="dungeon",
+        city_id="earth", system_id="", space_map=None, space_player=None,
+    )
+    return record, saved_room, player, rebuilt
+
+
+def test_rebuild_active_city_interior_resumes_in_saved_room_when_authored_room_is_broken(monkeypatch):
+    record, saved_room, player, rebuilt = _saved_spaceport_room()
+    log_lines = []
+    ctx = SimpleNamespace(interiors={}, log=SimpleNamespace(add=log_lines.append))
+
+    def broken(layout_id):
+        raise ValueError(f"City interior {layout_id!r} has no P spawn")
+
+    monkeypatch.setattr(city_landmarks, "load_city_interior", broken)
+
+    out = city_interiors.rebuild_active_city_interior(ctx, rebuilt)
+
+    assert out is rebuilt
+    assert out.game_map is saved_room
+    assert out.player_ent.pos == world.Position(2, 2)
+    assert log_lines == [city_interiors._INTERIOR_UNAVAILABLE]
+
+
+def test_enter_city_interior_logs_soft_failure_when_authored_room_is_broken(monkeypatch):
+    game_map = load_planet("earth")
+    record = game_map.city_buildings["spaceport"]
+    log_lines = []
+    ctx = SimpleNamespace(
+        interiors={}, game_map=game_map, player=None,
+        log=SimpleNamespace(add=log_lines.append),
+    )
+    player = world.Entity(
+        "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",
+    )
+    game_map.entities.append(player)
+    ctx.player = player
+    state = _state(game_map, player, ctx)
+
+    def broken(layout_id):
+        raise ValueError(f"City interior {layout_id!r} has no P spawn")
+
+    monkeypatch.setattr(city_landmarks, "load_city_interior", broken)
+
+    assert city_interiors.enter_city_interior(state) == "CONTINUE"
+    assert log_lines == [city_interiors._INTERIOR_UNAVAILABLE]
+
+
+def test_rebuild_active_city_interior_still_swaps_to_the_authored_room():
+    record, saved_room, player, rebuilt = _saved_spaceport_room()
+    ctx = SimpleNamespace(
+        interiors={}, current_city_id="earth", player_owned_ship=None,
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    out = city_interiors.rebuild_active_city_interior(ctx, rebuilt)
+
+    assert out.game_map is not saved_room
+    assert out.game_map.city_interior_id == record["cache_key"]
+    assert out.player_ent.pos == out.game_map.entry_spawn
+    assert out.player_ent in out.game_map.entities
+    assert ctx.game_map is out.game_map
 
 
 def _state(game_map, player, ctx):

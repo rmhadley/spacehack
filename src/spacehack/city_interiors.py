@@ -9,6 +9,10 @@ from . import city_landmarks, world
 if TYPE_CHECKING:
     from .saveload_maps import _RebuiltMap
 
+# Shared by the door path and the save/continue rebuild path: an authored
+# room that fails its load gates is a logged soft failure on BOTH paths.
+_INTERIOR_UNAVAILABLE = "The building's interior is not available."
+
 
 def _building_record(game_map: world.GameMap, position: world.Position) -> dict | None:
     """Return the building record whose exterior door is ``position``."""
@@ -178,7 +182,7 @@ def enter_city_interior(state) -> str:
     try:
         interior, spawn = _interior_for_record(state.ctx, record)
     except (FileNotFoundError, ValueError):
-        state.log.add("The building's interior is not available.")
+        state.log.add(_INTERIOR_UNAVAILABLE)
         return "CONTINUE"
     _install_interior_state(state, parent_map, interior, spawn, record)
     state.log.add(f"You enter the {record['display_name']}.")
@@ -263,6 +267,11 @@ def rebuild_active_city_interior(ctx, rebuilt) -> "_RebuiltMap":
     save. The player re-enters through the door at the room's current
     entry spawn; a saved in-room position is ephemeral by design
     (exiting already repositions the player at the exterior door).
+
+    When the authored room is unavailable (e.g. the layout is mid
+    hand-edit and fails its manifest/spawn gates), resume in the room
+    exactly as saved instead of failing the whole load — the same
+    condition is a logged soft failure at the door path.
     """
     from .data.planets import load_planet
 
@@ -271,7 +280,11 @@ def rebuild_active_city_interior(ctx, rebuilt) -> "_RebuiltMap":
     record = getattr(parent, "city_buildings", {}).get(label)
     if record is None or not record.get("interior_layout_id"):
         return rebuilt
-    interior, spawn = _interior_for_record(ctx, record)
+    try:
+        interior, spawn = _interior_for_record(ctx, record)
+    except (FileNotFoundError, ValueError):
+        ctx.log.add(_INTERIOR_UNAVAILABLE)
+        return rebuilt
     player = rebuilt.player_ent
     player.pos = world.Position(spawn.x, spawn.y)
     interior.entities.append(player)
