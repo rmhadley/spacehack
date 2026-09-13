@@ -269,6 +269,52 @@ def test_shared_runtime_wait_events_is_empty_when_closed():
     assert run(runtime.wait_events()) == ()
 
 
+def test_shared_runtime_wait_events_keeps_a_multi_key_burst():
+    """event.get() drains the queue; the backlog must serve the rest.
+
+    A fast two-key burst arrives in ONE SDL batch. The wait_events
+    contract (inherited from event.wait) delivers one event per call
+    without discarding the second keystroke.
+    """
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        KEYUP = 3
+        MOUSEMOTION = 4
+        MOUSEBUTTONDOWN = 5
+        MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
+
+        @staticmethod
+        def name(key):
+            return {10: "h", 11: "j"}.get(key, "?")
+
+    keydowns = (
+        SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),
+        SimpleNamespace(type=FakePygame.KEYDOWN, key=11, mod=0, repeat=False),
+    )
+    polls = iter((keydowns,))
+    fake_pygame = SimpleNamespace(
+        QUIT=FakePygame.QUIT,
+        KEYDOWN=FakePygame.KEYDOWN,
+        KEYUP=FakePygame.KEYUP,
+        MOUSEMOTION=FakePygame.MOUSEMOTION,
+        MOUSEBUTTONDOWN=FakePygame.MOUSEBUTTONDOWN,
+        MOUSEBUTTONUP=FakePygame.MOUSEBUTTONUP,
+        KMOD_SHIFT=FakePygame.KMOD_SHIFT,
+        key=FakePygame,
+        event=SimpleNamespace(get=lambda: next(polls, ())),
+    )
+    runtime = pygame_runtime.PygameRuntime(object())
+    runtime.engine = SimpleNamespace(pygame=fake_pygame)
+
+    first = run(runtime.wait_events())
+    second = run(runtime.wait_events())
+
+    assert [e.key_name for e in first + second] == ["h", "j"]
+    assert runtime._event_backlog == []
+
+
 def test_shared_runtime_pump_sleeps_exactly_the_requested_seconds(monkeypatch):
     slept = []
     real_sleep = asyncio.sleep

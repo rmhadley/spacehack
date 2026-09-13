@@ -181,6 +181,7 @@ class PygameRuntime:
         self.config_path = config_path
         self.engine: pygame_engine.PygameEngine | None = None
         self.game_context: "GameContext | None" = None
+        self._event_backlog: list[pygame_engine.PygameInputEvent] = []
         self.context = PygameContext(self)
 
     @property
@@ -253,6 +254,13 @@ class PygameRuntime:
         when no relevant event arrives in time, so the caller can
         redraw idle animations. Polling (never blocking) keeps the
         host event loop running, which wasm presentation requires.
+
+        ``pygame.event.get()`` drains the whole SDL queue per poll,
+        but this call's contract (like the ``event.wait()`` it
+        replaced) delivers ONE event — so the rest of each batch is
+        retained in ``_event_backlog`` and served on subsequent
+        calls. Without it, a fast multi-key burst would drop every
+        event after the first.
         """
         if self.engine is None:
             return ()
@@ -262,10 +270,14 @@ class PygameRuntime:
             time.monotonic() + timeout_ms / 1000.0
         )
         while True:
+            if self._event_backlog:
+                return (self._event_backlog.pop(0),)
             for event in pygame.event.get():
                 translated = pygame_engine.translate_event(pygame, event)
                 if translated.kind != "other":
-                    return (translated,)
+                    self._event_backlog.append(translated)
+            if self._event_backlog:
+                continue
             if deadline is not None and time.monotonic() >= deadline:
                 return ()
             await asyncio.sleep(quantum)
