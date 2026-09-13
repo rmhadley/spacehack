@@ -16,6 +16,7 @@ import pytest
 from src.spacehack import animation_timing, pygame_runtime
 from src.spacehack.display_config import DisplayConfig
 from tests.support.asyncutil import run
+from tests.support.fake_pygame import FakeSdlEventQueue, raw_event
 
 
 @pytest.fixture(autouse=True)
@@ -34,25 +35,17 @@ def _runtime_with_fake_engine(config: DisplayConfig) -> pygame_runtime.PygameRun
 
 
 _KEY_NAMES = {40: "j", 41: "k"}
+_EVENT_TYPES = {"down": FakeSdlEventQueue.KEYDOWN, "up": FakeSdlEventQueue.KEYUP}
 
 
 def _raw_event(kind: str, key: int, repeat: bool = False):
-    return SimpleNamespace(
-        type={"down": 2, "up": 3}[kind], key=key, mod=0, text="", repeat=repeat,
-    )
+    return raw_event(_EVENT_TYPES[kind], key=key, repeat=repeat)
 
 
-def _input_runtime(batches: list[list[SimpleNamespace]]):
+def _input_runtime(batches: list[list]):
     """A PygameRuntime whose fake SDL queue serves one batch per poll."""
-    fake_pygame = SimpleNamespace(
-        QUIT=1, KEYDOWN=2, KEYUP=3,
-        MOUSEMOTION=4, MOUSEBUTTONDOWN=5, MOUSEBUTTONUP=6,
-        KMOD_SHIFT=3,
-        key=SimpleNamespace(name=_KEY_NAMES.get),
-        event=SimpleNamespace(get=lambda: batches.pop(0) if batches else []),
-    )
     runtime = pygame_runtime.PygameRuntime(tileset=None, display_config=DisplayConfig())
-    runtime.engine = SimpleNamespace(pygame=fake_pygame)
+    runtime.engine = SimpleNamespace(pygame=FakeSdlEventQueue(_KEY_NAMES, batches))
     return runtime
 
 

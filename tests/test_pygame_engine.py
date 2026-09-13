@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 
 from tests.support.asyncutil import run
+from tests.support.fake_pygame import FakeSdlEventQueue, raw_event
 
 from types import SimpleNamespace
 from typing import get_type_hints
@@ -256,33 +257,15 @@ def test_shared_runtime_exposes_explicit_project_event_polling(monkeypatch):
 
 
 def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        KEYUP = 3
-        MOUSEMOTION = 4
-        MOUSEBUTTONDOWN = 5
-        MOUSEBUTTONUP = 6
-        KMOD_SHIFT = 3
-        key = SimpleNamespace(name=lambda _key: "j")
-
-    gets = iter((
-        (SimpleNamespace(type=99),),
-        (SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),),
-    ))
-    fake_pygame = SimpleNamespace(
-        QUIT=FakePygame.QUIT,
-        KEYDOWN=FakePygame.KEYDOWN,
-        KEYUP=FakePygame.KEYUP,
-        MOUSEMOTION=FakePygame.MOUSEMOTION,
-        MOUSEBUTTONDOWN=FakePygame.MOUSEBUTTONDOWN,
-        MOUSEBUTTONUP=FakePygame.MOUSEBUTTONUP,
-        KMOD_SHIFT=FakePygame.KMOD_SHIFT,
-        key=FakePygame.key,
-        event=SimpleNamespace(get=lambda: next(gets, ())),
+    queue = FakeSdlEventQueue(
+        key_names={10: "j"},
+        batches=[
+            (SimpleNamespace(type=99),),
+            (raw_event(FakeSdlEventQueue.KEYDOWN, key=10),),
+        ],
     )
     runtime = pygame_runtime.PygameRuntime(object())
-    runtime.engine = SimpleNamespace(pygame=fake_pygame)
+    runtime.engine = SimpleNamespace(pygame=queue)
 
     assert run(runtime.wait_events()) == (
         pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
@@ -302,37 +285,15 @@ def test_shared_runtime_wait_events_keeps_a_multi_key_burst():
     contract (inherited from event.wait) delivers one event per call
     without discarding the second keystroke.
     """
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        KEYUP = 3
-        MOUSEMOTION = 4
-        MOUSEBUTTONDOWN = 5
-        MOUSEBUTTONUP = 6
-        KMOD_SHIFT = 3
-
-        @staticmethod
-        def name(key):
-            return {10: "h", 11: "j"}.get(key, "?")
-
-    keydowns = (
-        SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),
-        SimpleNamespace(type=FakePygame.KEYDOWN, key=11, mod=0, repeat=False),
-    )
-    polls = iter((keydowns,))
-    fake_pygame = SimpleNamespace(
-        QUIT=FakePygame.QUIT,
-        KEYDOWN=FakePygame.KEYDOWN,
-        KEYUP=FakePygame.KEYUP,
-        MOUSEMOTION=FakePygame.MOUSEMOTION,
-        MOUSEBUTTONDOWN=FakePygame.MOUSEBUTTONDOWN,
-        MOUSEBUTTONUP=FakePygame.MOUSEBUTTONUP,
-        KMOD_SHIFT=FakePygame.KMOD_SHIFT,
-        key=FakePygame,
-        event=SimpleNamespace(get=lambda: next(polls, ())),
+    queue = FakeSdlEventQueue(
+        key_names={10: "h", 11: "j"},
+        batches=[(
+            raw_event(FakeSdlEventQueue.KEYDOWN, key=10),
+            raw_event(FakeSdlEventQueue.KEYDOWN, key=11),
+        )],
     )
     runtime = pygame_runtime.PygameRuntime(object())
-    runtime.engine = SimpleNamespace(pygame=fake_pygame)
+    runtime.engine = SimpleNamespace(pygame=queue)
 
     first = run(runtime.wait_events())
     second = run(runtime.wait_events())
