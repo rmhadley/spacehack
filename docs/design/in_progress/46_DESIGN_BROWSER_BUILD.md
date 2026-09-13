@@ -202,6 +202,19 @@ untouched, zero commits outside docs):**
 - Still pending: desktop confirmation that paint + keyboard reach
   the SDL layer through a real browser (mouse proven in-container);
   then (b) world-gen and (c) per-move latency.
+- **Round 3: SDL video fully works under wasm.** With vsync
+  bypassed under emscripten, beacons prove
+  `driver:emscripten surf:(1600, 960)` — set_mode + the Window API
+  complete on the emscripten backend. Container ceiling reached:
+  under xvfb, CDP can neither dispatch keyboard nor evaluate once
+  the asyncify loop runs (only real window-pipeline input gets
+  through), and screenshots never composite — so paint and
+  keyboard-on-desktop are decidable only by the user's browser.
+  Desktop round 3 tests the vsync-off bundle; if it still paints
+  nothing, the phase-1 design consequence is an ASYNC game loop
+  (SDL's emscripten present hook fires on full JS-stack return /
+  rAF, not inside an asyncify partial-unwind), which Ruling 3's
+  one-async-path already provides for.
 
 ### Phase 1 — one async path
 
