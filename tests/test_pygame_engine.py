@@ -10,7 +10,7 @@ from typing import get_type_hints
 
 import pytest
 
-from src.spacehack import game_context, pygame_engine, pygame_runtime, pygame_ui, saveload
+from src.spacehack import game_context, pygame_engine, pygame_runtime, pygame_ui, saveload, world
 
 
 class FakeWindow:
@@ -89,8 +89,34 @@ def test_logical_position_rejects_letterbox_and_maps_inside_viewport():
 def test_key_normalization_preserves_game_friendly_names():
     assert pygame_engine.normalize_key_name("Return") == "enter"
     assert pygame_engine.normalize_key_name("KP 8") == "kp_8"
+    assert pygame_engine.normalize_key_name("[8]") == "kp_8"
     assert pygame_engine.normalize_key_name("J") == "j"
     assert pygame_engine.normalize_key_name("unknown") == "unknown"
+
+
+def test_numpad_keydowns_resolve_to_movement_deltas():
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        KEYUP = 3
+        MOUSEMOTION = 4
+        MOUSEBUTTONDOWN = 5
+        MOUSEBUTTONUP = 6
+        KMOD_SHIFT = 3
+        # pygame >=2 names keypad digits "[n]" — what actually arrives.
+        key = SimpleNamespace(name=lambda key: f"[{key}]")
+
+    for digit in range(1, 10):
+        event = SimpleNamespace(
+            type=FakePygame.KEYDOWN, key=digit, mod=0, text="", repeat=False,
+        )
+        translated = pygame_engine.translate_event(FakePygame, event)
+
+        assert translated.key_name == f"kp_{digit}"
+        if digit == 5:
+            assert translated.key_name not in world.MOVE_KEYS  # centre: no direction
+        else:
+            assert world.MOVE_KEYS[translated.key_name] == world.NUMPAD_DELTAS[f"kp_{digit}"]
 
 
 def test_pygame_event_translation_is_renderer_neutral():
@@ -423,8 +449,6 @@ def test_entity_glyph_preserves_sidewalk_texture_underlay():
 
 
 def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
-    from src.spacehack import world
-
     blits = []
 
     class FakeSurface:
@@ -462,8 +486,6 @@ def test_pygame_runtime_inherits_tile_background_for_entity_glyphs():
 
 
 def test_pygame_runtime_skips_flat_fill_for_underlay_entity():
-    from src.spacehack import world
-
     blits = []
 
     class FakeSurface:

@@ -18,6 +18,16 @@ def _pygame_headless(monkeypatch):
     pygame.quit()
 
 
+def test_real_numpad_key_names_normalize_into_move_keys():
+    for const in (
+        pygame.K_KP1, pygame.K_KP2, pygame.K_KP3, pygame.K_KP4,
+        pygame.K_KP6, pygame.K_KP7, pygame.K_KP8, pygame.K_KP9,
+    ):
+        name = pygame_engine.normalize_key_name(pygame.key.name(const))
+        assert name in world.MOVE_KEYS
+        assert world.MOVE_KEYS[name] == world.NUMPAD_DELTAS[name]
+
+
 def test_real_tileset_loads_the_native_glyph_cells(_pygame_headless):
     pygame.init()
     try:

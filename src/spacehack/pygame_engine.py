@@ -133,6 +133,17 @@ _KEY_ALIASES: dict[str, str] = {
     "kp 7": "kp_7",
     "kp 8": "kp_8",
     "kp 9": "kp_9",
+    # pygame >=2 (SDL2) reports keypad digits as "[n]"; the "kp n" names
+    # above are pre-2.x spellings kept for older builds.
+    "[1]": "kp_1",
+    "[2]": "kp_2",
+    "[3]": "kp_3",
+    "[4]": "kp_4",
+    "[5]": "kp_5",
+    "[6]": "kp_6",
+    "[7]": "kp_7",
+    "[8]": "kp_8",
+    "[9]": "kp_9",
     "\\": "backslash",
     "nonusbackslash": "backslash",
 }
