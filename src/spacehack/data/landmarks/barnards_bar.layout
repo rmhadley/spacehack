@@ -1,8 +1,8 @@
 # barnards_bar.layout — The Ember cantina door in mid-ring rock wall
 MAP
 ###
-#d#
 ###
+#d#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL

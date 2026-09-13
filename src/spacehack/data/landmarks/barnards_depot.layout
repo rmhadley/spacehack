@@ -1,8 +1,8 @@
 # barnards_depot.layout — salvage depot door in outer-ring rock wall
 MAP
 ###
-#d#
 ###
+#d#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL

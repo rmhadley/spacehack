@@ -1,8 +1,8 @@
 # barnards_spaceport.layout — door carved into outer-ring rock wall
 MAP
 ###
-#d#
 ###
+#d#
 ENDMAP
 
 TILE: # = CITY_BUILDING_WALL
