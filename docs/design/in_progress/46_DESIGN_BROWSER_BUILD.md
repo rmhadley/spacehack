@@ -301,8 +301,28 @@ desktop playtest pass. No web-only code in this phase.
    sync would silently drop those coroutines. Reviewer-verified.)*
 
 - [x] brief approved (this section)
-- [ ] one async path landed; measured pacing/input A/B identical
-- [ ] full desktop playtest pass recorded
+- [x] one async path landed; measured pacing/input A/B identical
+      (idle 200ms cadence 0.2162s sync → 0.2117s async, deadline-paced;
+      event throughput 0.003 → 0.005 ms/event — +2µs, ~0.01% of a
+      16.7ms frame; `tools/async_baseline.py --async`, 2026-09-13)
+- [x] full desktop playtest pass recorded (user, 2026-09-13: "desktop
+      playtest is good")
+
+**Phase-1 run log (2026-09-13):**
+
+- Landed in commit `c83d84d` after recovering a runaway session (no
+  commits, game would not boot, 51 red tests). Closure method: two
+  AST sweeps (async-called-bare; await-on-sync) + a handler-table
+  sweep, all `iscoroutine` hedges replaced with uniform `Awaitable`
+  contracts, over-converted pure lookups reverted. Reviewer APPROVE.
+- **Input-loss bug found by the A/B harness itself:** `event.get()`
+  drains the whole SDL queue, so the converted `wait_events` returned
+  the first relevant event and silently dropped the rest of the batch
+  (a fast two-key burst lost the second keystroke). Fixed with a
+  retained `_event_backlog` on the runtime (one event per call, the
+  old `event.wait()` contract); regression test pins a two-key burst.
+- The harness's own async path had a nested-`asyncio.run` bug (never
+  exercised pre-conversion) — repaired to await directly.
 
 ### Phase 2 — persistence shim
 
