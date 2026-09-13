@@ -323,6 +323,18 @@ desktop playtest pass. No web-only code in this phase.
   old `event.wait()` contract); regression test pins a two-key burst.
 - The harness's own async path had a nested-`asyncio.run` bug (never
   exercised pre-conversion) — repaired to await directly.
+- **Addendum (2026-09-13, found in the phase-2-era desktop playtest):
+  held-key momentum.** The backlog served one event per call from a
+  branch that returned WITHOUT re-polling SDL, so repeat keydowns
+  queued while a key was held sat ahead of its keyup in the backlog
+  and drained one slow async move each after release ("letting go of
+  a movement key should make the movement stop"). Fix: wait_events now
+  polls SDL BEFORE serving the backlog each call, and a keyup drops
+  that key's queued repeat keydowns from the backlog
+  (`_drain_sdl_queue`/`_drop_backlog_repeats`; commit `7f7e765`).
+  Fast taps keep their single press-step (presses are never purged);
+  other keys' repeats survive a release. Renderer-neutral tests in
+  `test_pygame_runtime.py` + the shared `FakeSdlEventQueue` double.
 
 ### Phase 2 — persistence shim
 
