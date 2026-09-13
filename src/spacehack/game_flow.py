@@ -6,6 +6,7 @@ save/exit orchestration for the gameplay loop in :mod:`spacehack.game_loop`.
 
 from __future__ import annotations
 
+
 from . import combat
 from . import main_quest as main_quest_module
 from . import navigation_line as _line_mod
@@ -32,7 +33,7 @@ from .saveload import save_game as _save_game
 # Space-mode helpers (combat + NPC movement shared by multiple input paths)
 # ---------------------------------------------------------------------------
 
-def _run_line_crossing(ctx, console, player):
+async def _run_line_crossing(ctx, console, player):
     """The Line's sweep (doc 41): resolve one crossing.
 
     Returns ``(True, outcome)`` when the challenge hail opened —
@@ -40,27 +41,27 @@ def _run_line_crossing(ctx, console, player):
     ``(False, None)`` for a wave (the hull is through; the step
     continues normally), or ``(False, None)`` when nothing happened.
     """
-    _line = _line_mod.check_crossing(ctx, player.pos)
+    _line = await _line_mod.check_crossing(ctx, player.pos)
     if _line is None:
         return False, None
     _hailed, _payload = _line
     if _payload is None:
         return _hailed, None
-    return _hailed, combat._handle_combat_encounter(ctx, console, _payload)
+    return _hailed, await combat._handle_combat_encounter(ctx, console, _payload)
 
 
-def _auto_warning_outcome(ctx, console, player):
+async def _auto_warning_outcome(ctx, console, player):
     """The auto-comms warning pass: a combat payload runs the fight;
     ``None`` when no warning fired or it carried no combat."""
-    _auto_result = _check_auto_comms_warning(
+    _auto_result = await _check_auto_comms_warning(
         ctx, player.pos, solar_system_module.current_system(),
     )
     if _auto_result is None or _auto_result[1] is None:
         return None
-    return combat._handle_combat_encounter(ctx, console, _auto_result[1])
+    return await combat._handle_combat_encounter(ctx, console, _auto_result[1])
 
 
-def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
+async def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
                      day_pass: bool = False):
     """Run combat encounters in a loop until no more are detected.
 
@@ -73,10 +74,10 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
     NPC-drift tail is SKIPPED (the interior is not a space map). Do
     not "simplify" that guard away.
     """
-    _hailed, _last = _run_line_crossing(ctx, console, player)
+    _hailed, _last = await _run_line_crossing(ctx, console, player)
     if _hailed:
         return _last
-    _last = _auto_warning_outcome(ctx, console, player)
+    _last = await _auto_warning_outcome(ctx, console, player)
     if _last == "BOARDED":
         return _last
 
@@ -86,7 +87,7 @@ def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
         )
         if _encounter is None:
             break
-        _result = combat._handle_combat_encounter(ctx, console, _encounter)
+        _result = await combat._handle_combat_encounter(ctx, console, _encounter)
         _last = _result
         if _result != "VICTORY":
             break
@@ -149,25 +150,25 @@ def _apply_ground_combat_rep(ctx, ground_result) -> None:
             pass
 
 
-def _open_character_for_mode(ctx) -> int:
+async def _open_character_for_mode(ctx) -> int:
     """Open the Character screen with carried-gear management enabled."""
     from .character_screen import open_character_screen
 
-    return open_character_screen(ctx, equipment_management=True)
+    return await open_character_screen(ctx, equipment_management=True)
 
 
-def _pickup_loot_near(ctx) -> bool:
+async def _pickup_loot_near(ctx) -> bool:
     """Open pickup for loot on or next to the current player."""
     _loot = world.find_loot_near(ctx.game_map, ctx.player.pos)
     if _loot is None:
         ctx.log.add("No loot nearby.")
         return False
     from .trade import open_loot_pickup as _open_loot
-    _open_loot(ctx, _loot)
+    await _open_loot(ctx, _loot)
     return True
 
 
-def _run_pygame_dungeon_confirm(
+async def _run_pygame_dungeon_confirm(
     ctx,
     *,
     title: str,
@@ -179,7 +180,7 @@ def _run_pygame_dungeon_confirm(
     """Run a dungeon confirmation in the shared Pygame window."""
     from . import pygame_story
 
-    return pygame_story.confirm(
+    return await pygame_story.confirm(
         ctx,
         title=title,
         body=body,
@@ -189,7 +190,7 @@ def _run_pygame_dungeon_confirm(
     )
 
 
-def _run_pygame_exit_confirm(ctx) -> bool:
+async def _run_pygame_exit_confirm(ctx) -> bool:
     """Ask before saving and returning to the main menu (ESC).
 
     Returns True when the player confirms; the caller then saves and
@@ -197,7 +198,7 @@ def _run_pygame_exit_confirm(ctx) -> bool:
     """
     from . import pygame_story
 
-    result = pygame_story.confirm(
+    result = await pygame_story.confirm(
         ctx,
         title="EXIT TO MAIN MENU",
         body="Save your progress and return to the main menu?",
@@ -218,7 +219,7 @@ def _ground_combat_hostiles(ctx, game_map) -> list:
     return _dgc(ctx, game_map, ctx.player.pos)
 
 
-def _show_ground_defeat(ctx, ground_result) -> None:
+async def _show_ground_defeat(ctx, ground_result) -> None:
     """Show the full-screen death frame when a ground fight ends in defeat."""
     if ground_result is None or ground_result.outcome != "DEFEAT":
         return
@@ -226,7 +227,7 @@ def _show_ground_defeat(ctx, ground_result) -> None:
     # defeat: no HUD, no console log, any key returns to the main
     # menu immediately, and no save is written.
     from .combat._encounter import _render_death_screen as _show_death
-    _show_death(
+    await _show_death(
         ctx,
         lines=(
             "YOU DIED",
@@ -235,7 +236,7 @@ def _show_ground_defeat(ctx, ground_result) -> None:
     )
 
 
-def _run_ground_combat_tick(
+async def _run_ground_combat_tick(
     ctx,
     console,
     game_map,
@@ -268,16 +269,16 @@ def _run_ground_combat_tick(
         return None
     # Tutorial: explain ground combat before the combat UI takes over,
     # and fire the finale once the first fight resolves.
-    tutorial_module.maybe_ground_combat_intro(ctx)
+    await tutorial_module.maybe_ground_combat_intro(ctx)
     ground_init(ctx, _hostiles, game_map, console=console)
-    _ground_result = run_combat(console, ctx, game_map, _rules_ground)
+    _ground_result = await run_combat(console, ctx, game_map, _rules_ground)
     apply_rep(ctx, _ground_result)
-    tutorial_module.notify_ground_combat_ended(ctx)
-    _show_ground_defeat(ctx, _ground_result)
+    await tutorial_module.notify_ground_combat_ended(ctx)
+    await _show_ground_defeat(ctx, _ground_result)
     return _ground_result
 
 
-def _dungeon_post_move_tick(
+async def _dungeon_post_move_tick(
     ctx,
     console,
     game_map,
@@ -299,7 +300,7 @@ def _dungeon_post_move_tick(
     continue), or ``None`` (no combat — caller continues normal
     post-step handling like stairs checks).
     """
-    _ground_result = _run_ground_combat_tick(
+    _ground_result = await _run_ground_combat_tick(
         ctx,
         console,
         game_map,
@@ -312,7 +313,7 @@ def _dungeon_post_move_tick(
             return "DEFEAT"
         return "COMBAT"
     from .dungeon_extensions import tick_activation
-    tick_activation(ctx)
+    await tick_activation(ctx)
     return None
 
 
@@ -336,7 +337,7 @@ def _adopt_dungeon_transition(ctx, game_map, player) -> None:
     ctx.ground_hp = ctx.ground_max_hp
 
 
-def _maybe_show_post_prison_orbit(
+async def _maybe_show_post_prison_orbit(
     ctx,
     current_city_id: str,
     *,
@@ -345,7 +346,7 @@ def _maybe_show_post_prison_orbit(
     """Show the one-time Mars departure scene from a confirmed path."""
     if from_mars_prison or getattr(ctx, "post_prison_orbit_pending", False):
         ctx.post_prison_orbit_pending = True
-        _shown = main_quest_module.play_scene(
+        _shown = await main_quest_module.play_scene(
             ctx, "act1_prison", from_mars_prison=True,
         )
         if _shown:
@@ -353,14 +354,14 @@ def _maybe_show_post_prison_orbit(
         return _shown
     if current_city_id != "mars":
         return False
-    return main_quest_module.play_scene(ctx, "act1_prison")
+    return await main_quest_module.play_scene(ctx, "act1_prison")
 
 
-def _maybe_show_post_prison_orbit_in_space(ctx, current_mode: str) -> bool:
+async def _maybe_show_post_prison_orbit_in_space(ctx, current_mode: str) -> bool:
     """Deliver the orbit scene at the first confirmed space-mode frame."""
     if current_mode != "space":
         return False
-    return _maybe_show_post_prison_orbit(ctx, ctx.current_city_id)
+    return await _maybe_show_post_prison_orbit(ctx, ctx.current_city_id)
 
 
 def _is_mars_surface_map(ctx, game_map) -> bool:
@@ -382,20 +383,20 @@ def _is_mars_facility_map(ctx, game_map) -> bool:
     return getattr(game_map, "extension_id", "") == "mars_alien_prison"
 
 
-def _notify_surface_exit(ctx, exited_map, *, show_orbit=None) -> bool:
+async def _notify_surface_exit(ctx, exited_map, *, show_orbit=None) -> bool:
     """Deliver the post-prison scene when a Mars facility reaches orbit."""
     if show_orbit is None:
         show_orbit = _maybe_show_post_prison_orbit
     if _is_wreck_interior(exited_map) or not _is_mars_facility_map(ctx, exited_map):
         return False
-    return show_orbit(
+    return await show_orbit(
         ctx,
         "mars",
         from_mars_prison=True,
     )
 
 
-def _launch_from_city(
+async def _launch_from_city(
     ctx,
     console,
     city_game_map,
@@ -412,7 +413,7 @@ def _launch_from_city(
         launch_to_space = _launch_to_space
     if show_orbit is None:
         show_orbit = _maybe_show_post_prison_orbit
-    _space_map, _space_player = launch_to_space(
+    _space_map, _space_player = await launch_to_space(
         ctx,
         console,
         city_game_map,
@@ -421,11 +422,11 @@ def _launch_from_city(
         current_city_id=current_city_id,
         city_player=city_player,
     )
-    show_orbit(ctx, current_city_id)
+    await show_orbit(ctx, current_city_id)
     return _space_map, _space_player
 
 
-def _launch_owned_ship(
+async def _launch_owned_ship(
     ctx,
     console,
     result,
@@ -450,7 +451,7 @@ def _launch_owned_ship(
     )
     if _hangar_ship is None:
         return None
-    return _launch_from_city(
+    return await _launch_from_city(
         ctx,
         console,
         city_game_map,
@@ -692,7 +693,7 @@ def _dungeon_exit_log(ctx, exited_map, log) -> None:
         log.add("You return to your ship.")
 
 
-def _leave_dungeon_to_space(
+async def _leave_dungeon_to_space(
     ctx,
     game_map,
     space_game_map,
@@ -724,11 +725,11 @@ def _leave_dungeon_to_space(
         return None
     space_game_map, space_player = _space_transition
     _dungeon_exit_log(ctx, _exited_map, log)
-    show_orbit(ctx, _exited_map)
+    await show_orbit(ctx, _exited_map)
     return space_game_map, space_player
 
 
-def _handle_dungeon_exit(
+async def _handle_dungeon_exit(
     ctx,
     game_map,
     space_game_map,
@@ -741,7 +742,7 @@ def _handle_dungeon_exit(
     show_orbit=None,
 ):
     """Handle an exit tile and return the next space-mode state."""
-    _space_transition = _leave_dungeon_to_space(
+    _space_transition = await _leave_dungeon_to_space(
         ctx,
         game_map,
         space_game_map,
@@ -760,7 +761,7 @@ def _handle_dungeon_exit(
     return _space_map, _space_player, "space"
 
 
-def _handle_dungeon_exit_tile(
+async def _handle_dungeon_exit_tile(
     ctx,
     tile_kind: str,
     game_map,
@@ -776,7 +777,7 @@ def _handle_dungeon_exit_tile(
     """Dispatch an actual dungeon exit tile to the space transition."""
     if tile_kind != "exit":
         return None
-    return _handle_dungeon_exit(
+    return await _handle_dungeon_exit(
         ctx,
         game_map,
         space_game_map,

@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from support.asyncutil import run
 from support.quest_ctx import quest_ctx
 
 
@@ -24,7 +25,7 @@ def test_perk_grants_on_completion_and_is_free():
     ctx = quest_ctx(chain="militia", progress={"epilogue_reward_militia": "available"})
     _points_before = ctx.player_skill_points
 
-    assert complete_step(ctx, "epilogue_reward_militia")
+    assert run(complete_step(ctx, "epilogue_reward_militia"))
 
     assert "warrant_license" in ctx.player_traits
     # Free: level-ups may AWARD points, but none are consumed.
@@ -119,7 +120,7 @@ def test_board_perk_posts_work_immediately_mid_month():
     board.last_refresh_month = ctx.time_month
     assert all(slot is None for slot in board.slots)
 
-    assert _core.complete_step(ctx, "epilogue_reward_militia")
+    assert run(_core.complete_step(ctx, "epilogue_reward_militia"))
 
     filled = [slot for slot in board.slots if slot is not None]
     assert filled, "warrants post the moment the perk lands"

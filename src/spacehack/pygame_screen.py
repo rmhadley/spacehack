@@ -645,13 +645,10 @@ def _physical_log_callback(engine: Any, context: PygameContext):
     return _draw
 
 
-def run_shared(
-    context: PygameContext,
-    frame: ScreenFrame,
-    *,
-    caption: str = "spacehack",
-) -> tuple[str, str, int]:
-    """Run a text screen inside the already-open shared Pygame window."""
+def _prepare_shared_screen(
+    context: PygameContext, frame: ScreenFrame,
+) -> tuple[Any, Any, Any, Any, int, ScreenFrame]:
+    """Validate the shared runtime and fit the frame's font + page offset."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
     if engine is None or engine.logical_surface is None:
@@ -664,6 +661,17 @@ def run_shared(
         frame,
         page_offset=_initial_page_offset(font, frame, width - 80, height),
     )
+    return engine, pygame, screen, font, width, frame
+
+
+async def run_shared(
+    context: PygameContext,
+    frame: ScreenFrame,
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Run a text screen inside the already-open shared Pygame window."""
+    engine, pygame, screen, font, width, frame = _prepare_shared_screen(context, frame)
     while True:
         current = replace(frame, selected=_clamp(frame))
         _draw_shared_frame(
@@ -672,20 +680,23 @@ def run_shared(
         engine.present(
             physical_overlay=_physical_log_callback(engine, context),
         )
-        event = pygame.event.wait()
-        outcome, selected = _handle_key(pygame, event, current)
-        if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
-            frame = replace(
-                frame,
-                selected=selected,
-                page_offset=_page_offset(font, current, width - 80, outcome),
-            )
+        for event in pygame.event.get():
+            outcome, selected = _handle_key(pygame, event, current)
+            if outcome in {"IGNORE", "PAGE_DOWN", "PAGE_UP"}:
+                frame = replace(
+                    frame,
+                    selected=selected,
+                    page_offset=_page_offset(font, current, width - 80, outcome),
+                )
+                break
+            row = current.rows[selected] if outcome == "SELECT" else None
+            return outcome, row.action if row else "", selected
+        else:
+            await context.pump(0.016)
             continue
-        row = current.rows[selected] if outcome == "SELECT" else None
-        return outcome, row.action if row else "", selected
 
 
-def run_for_context(
+async def run_for_context(
     context: PygameContext,
     frame: ScreenFrame,
     *,
@@ -696,6 +707,6 @@ def run_for_context(
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameScreenUnavailable("Shared Pygame runtime is not open")
-    return run_shared(context, frame, caption=caption)
+    return await run_shared(context, frame, caption=caption)
 
 

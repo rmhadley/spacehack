@@ -93,7 +93,7 @@ def _grant_quest_perk(ctx, _step) -> None:
         _refresh(ctx, force=True)
 
 
-def _apply_completion_rewards(ctx, _step) -> None:
+async def _apply_completion_rewards(ctx, _step) -> None:
     """Pay out a completed step's reward block (credits/xp/rep/item/goods)."""
     if _step.rewards_credits:
         ctx.log.add(
@@ -104,7 +104,7 @@ def _apply_completion_rewards(ctx, _step) -> None:
         ctx.stats.credits += _step.rewards_credits
     if _step.rewards_xp:
         from ..xp import add_xp as _add_xp
-        _add_xp(ctx, _step.rewards_xp)
+        await _add_xp(ctx, _step.rewards_xp)
     if _step.rewards_rep:
         from ..faction import modify_rep as _modify_rep
         for _fac, _delta in _step.rewards_rep.items():
@@ -154,7 +154,7 @@ def _release_prior_reward_goods(ctx, step) -> None:
     _owned.mission_reserved = max(0, _owned.mission_reserved)
 
 
-def complete_step(ctx, step_id: str) -> bool:
+async def complete_step(ctx, step_id: str) -> bool:
     """Complete a step: apply rewards, then schedule its next step."""
     _status = step_status(ctx, step_id)
     if _status not in (STATUS_AVAILABLE, STATUS_ACTIVE):
@@ -164,7 +164,7 @@ def complete_step(ctx, step_id: str) -> bool:
     ctx.log.add(
         t_get("runtime.quest_complete_log").format(title=_step.title),
     )
-    _apply_completion_rewards(ctx, _step)
+    await _apply_completion_rewards(ctx, _step)
     _release_prior_reward_goods(ctx, _step)
     if _step.completion_flavor:
         ctx.log.add(_step.completion_flavor)
@@ -226,7 +226,7 @@ def _trigger_smuggle_crate(ctx, _step) -> bool:
     return True
 
 
-def _complete_smuggle_handover(ctx, _step) -> bool:
+async def _complete_smuggle_handover(ctx, _step) -> bool:
     """Complete a smuggle step whose crate is already in the hold."""
     _owned = ctx.player_owned_ship
     if _owned is not None and _step.smuggle_cargo_size > 0:
@@ -251,7 +251,7 @@ def _complete_smuggle_handover(ctx, _step) -> bool:
         t_get("runtime.smuggle_handover_log"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
-    _result = complete_step(ctx, _step.id)
+    _result = await complete_step(ctx, _step.id)
     if _result:
         # Same single-presentation rule as visit steps: the gate popup
         # owns a gated step's flavor; otherwise the readout makes the
@@ -259,7 +259,7 @@ def _complete_smuggle_handover(ctx, _step) -> bool:
         # close, and the completion is invisible (bar playtest v3).
         if not (_step.wait_days > 0 and _step.completion_flavor):
             from ._objectives import show_step_readout
-            show_step_readout(ctx, _step)
+            await show_step_readout(ctx, _step)
     return _result
 
 
@@ -319,7 +319,7 @@ def _active_objective_step(
     return None
 
 
-def _complete_bump_objective(ctx) -> str:
+async def _complete_bump_objective(ctx) -> str:
     """Complete an active ``bump`` objective on this door bump.
 
     Returns the completed step id, or ``""`` if no bump objective is
@@ -335,7 +335,7 @@ def _complete_bump_objective(ctx) -> str:
         t_get("runtime.chip_fragment_log"),
         message_log.COLOR_IMPORTANT_EVENT,
     )
-    complete_step(ctx, _step_id)
+    await complete_step(ctx, _step_id)
     _maybe_auto_trigger_next_smuggle(ctx, _step_id)
     return _step_id
 

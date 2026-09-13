@@ -1,6 +1,7 @@
 """Tests for live space-combat shield-bubble presentation."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 
@@ -376,8 +377,10 @@ def test_finalize_kill_awards_hull_based_xp_and_counts_kill_once(monkeypatch):
         )],
         cr=_rules_space.CombatResult(),
     )
-    _space_kills._finalize_kill(
+    run(
+        _space_kills._finalize_kill(
         state, ctx, SimpleNamespace(entities=[]), state.enemy_insts[0], None,
+    )
     )
 
     _sc = find_ship("scout")

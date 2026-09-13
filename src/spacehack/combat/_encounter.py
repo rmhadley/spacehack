@@ -122,7 +122,7 @@ def _apply_kill_reputation(ctx, _cr, _specs) -> None:
             pass
 
 
-def _complete_bounty_missions(ctx, _cr) -> None:
+async def _complete_bounty_missions(ctx, _cr) -> None:
     """Complete missions whose bounty target died this fight.
 
     Only the specific bounty target entity triggers completion;
@@ -143,7 +143,7 @@ def _complete_bounty_missions(ctx, _cr) -> None:
             continue
         from ..mission import complete_mission as _complete
         _today = ctx.time_day + (ctx.time_month - 1) * 30
-        _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
+        await _complete(_m, ctx.player_owned_ship, ctx.stats, ctx.log, current_day=_today, ctx=ctx)
         if not _m.is_procedural:
             ctx.completed_mission_ids.add(_m.mission_id)
         try:
@@ -179,19 +179,19 @@ def _cleanup_heist_spawns(ctx, _cr) -> None:
             _remove_bounty_spawn(ctx, _hm_spawn, getattr(_hm, 'target_system_id', None))
 
 
-def _handle_victory(ctx, _cr, _specs) -> None:
+async def _handle_victory(ctx, _cr, _specs) -> None:
     """Apply victory bookkeeping: log, per-kill rewards, missions."""
     if len(_cr.defeated_names) == 1:
         ctx.log.add(f"Victory! {_cr.defeated_names[0]} destroyed.")
     else:
         ctx.log.add(f"Victory! {len(_cr.defeated_names)} enemies destroyed.")
     _apply_kill_reputation(ctx, _cr, _specs)
-    _complete_bounty_missions(ctx, _cr)
+    await _complete_bounty_missions(ctx, _cr)
     # Main-quest bounty objective (Act 0 chains): a quest-tagged
     # spawn defeated completes the matching chain step. Runs AFTER
     # the mission-bounty loop so mission spawns don't double-trigger.
     from .. import main_quest as _mq_module
-    _mq_module.maybe_complete_bounty(ctx, _cr.defeated_bounty_ids)
+    await _mq_module.maybe_complete_bounty(ctx, _cr.defeated_bounty_ids)
     _cleanup_heist_spawns(ctx, _cr)
     # Dead enemies are already removed individually during combat by
     # rules.on_kill() (which calls _remove_dead_entity and cleans up
@@ -199,7 +199,7 @@ def _handle_victory(ctx, _cr, _specs) -> None:
     # sweep needed.
 
 
-def _handle_combat_encounter(ctx, console, encounter) -> str:
+async def _handle_combat_encounter(ctx, console, encounter) -> str:
     """Resolve a combat encounter triggered by the dispatcher.
 
     The encounter param is normally ``(specs, positions)`` from
@@ -216,18 +216,18 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
     _breach_mounted, _breach_wid = _mount_breach_charge(ctx)
     from ._rules_space import init as _rs_init
     from ..tutorial import maybe_space_combat_intro as _tut_space_intro
-    _tut_space_intro(ctx)  # one-time tutorial intro, tutorial runs only
+    await _tut_space_intro(ctx)  # one-time tutorial intro, tutorial runs only
     _rs_init(ctx, console, _ship_cat, ctx.player_owned_ship,
              ctx.player.pos, _pilot_skills, _specs, _positions,
              ctx.game_map, ctx.log)
-    _cr = run_combat(console, ctx, ctx.game_map, _rules_space)
+    _cr = await run_combat(console, ctx, ctx.game_map, _rules_space)
     _dismount_breach_charge(ctx, _breach_mounted, _breach_wid)
 
     if _cr.outcome == "VICTORY":
-        _handle_victory(ctx, _cr, _specs)
+        await _handle_victory(ctx, _cr, _specs)
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
-        _render_death_screen(ctx)
+        await _render_death_screen(ctx)
     elif _cr.outcome == "BOARDED":
         # Doc 40 phase 6a: consume the boarded hull and enter its
         # crewed interior (the state-bearing seam lives in
@@ -236,7 +236,7 @@ def _handle_combat_encounter(ctx, console, encounter) -> str:
         # to ABORTED inside begin_capture_boarding — nothing was
         # consumed and there is no interior to adopt.
         from ..game_interactions import begin_capture_boarding
-        begin_capture_boarding(ctx, console, _cr)
+        await begin_capture_boarding(ctx, console, _cr)
 
     return _cr.outcome
 
@@ -347,7 +347,7 @@ def detect_ground_combat(
     return visible_hostiles(ctx, game_map, player_pos, _radius)
 
 
-def _wait_for_death_input(ctx, lines: tuple[str, ...] = ()) -> None:
+async def _wait_for_death_input(ctx, lines: tuple[str, ...] = ()) -> None:
     """Wait for dismissal through the shared Pygame presentation.
 
     Presents the full-screen death frame (no HUD, no console log) and
@@ -356,14 +356,14 @@ def _wait_for_death_input(ctx, lines: tuple[str, ...] = ()) -> None:
     from .. import pygame_combat
 
     pygame_combat.present_death(ctx, lines=lines)
-    for event in ctx.context.wait_events():
+    for event in await ctx.context.wait_events():
         if pygame_engine.is_quit(event):
             raise SystemExit()
         if pygame_engine.is_keydown(event):
             return
 
 
-def _render_death_screen(ctx, *, lines: tuple[str, ...] = ()) -> None:
+async def _render_death_screen(ctx, *, lines: tuple[str, ...] = ()) -> None:
     """Display a dramatic full-screen death overlay and wait for input.
 
     The entire shared surface is painted dark red with a centered
@@ -371,4 +371,4 @@ def _render_death_screen(ctx, *, lines: tuple[str, ...] = ()) -> None:
     returns to the main menu immediately; the death path never
     writes a save.
     """
-    _wait_for_death_input(ctx, lines=lines)
+    await _wait_for_death_input(ctx, lines=lines)

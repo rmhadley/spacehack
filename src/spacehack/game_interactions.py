@@ -40,23 +40,23 @@ class GameLoopState:
     player_active_missions: Any = None
     city_debug: bool = False
 
-def resolve_blocker(state, code, blocker, dx, dy):
+async def resolve_blocker(state, code, blocker, dx, dy):
     """Resolve one movement blocker."""
     if code == 'wall':
-        return _resolve_wall(state, dx, dy, blocker)
+        return await _resolve_wall(state, dx, dy, blocker)
     if code == 'occupied':
-        return _resolve_occupied(state, blocker)
+        return await _resolve_occupied(state, blocker)
     return None
 
-def _resolve_wall(state, dx, dy, blocker):
+async def _resolve_wall(state, dx, dy, blocker):
     """Resolve a wall collision."""
     log = state.log
     if state.current_mode == 'space':
-        return _resolve_space_wall(state, dx, dy, blocker)
+        return await _resolve_space_wall(state, dx, dy, blocker)
     log.add(world.blocked_message_for(blocker))
     return None
 
-def _resolve_space_wall(state, dx, dy, blocker):
+async def _resolve_space_wall(state, dx, dy, blocker):
     """Resolve space jump-point and planet wall interactions."""
     log = state.log
     target_x = state.player.pos.x + dx
@@ -72,21 +72,21 @@ def _resolve_space_wall(state, dx, dy, blocker):
             pid = station_for_bump.city_planet_id
         if jp is not None and jp.connects_to:
             target_system_id, target_jp_id = jp.connects_to[0]
-            _jump_result = _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id)
+            _jump_result = await _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id)
             if _jump_result is not None:
                 return _jump_result
         elif pid is not None:
-            return _resolve_planet_wall(state, pid)
+            return await _resolve_planet_wall(state, pid)
     log.add(world.blocked_message_for(blocker))
     return None
 
-def _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id):
+async def _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id):
     """Handle a selected jump-point interaction."""
     ctx = state.ctx
     console = state.console
     log = state.log
     log.add(f'You approach {jp.name}.')
-    outcome = _run_jump_menu(ctx, jp, target_system_id)
+    outcome = await _run_jump_menu(ctx, jp, target_system_id)
     if outcome is JumpMenuOutcome.JUMP:
         ship_record_for_fuel = ship_module.find_ship(state.player_owned_ship.ship_id)
         if state.player_owned_ship.fuel < ship_module.JUMP_FUEL_COST:
@@ -94,38 +94,38 @@ def _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id):
             return 'CONTINUE'
         state.player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
         log.add(f'Jump drive engaged. Fuel: {state.player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
-        _animate_jump(ctx, console, ctx.player)
-        new_game_map, state.player = _jump_to_system(ctx=ctx, jp=jp, target_system_id=target_system_id, target_jp_id=target_jp_id)
+        await _animate_jump(ctx, console, ctx.player)
+        new_game_map, state.player = await _jump_to_system(ctx=ctx, jp=jp, target_system_id=target_system_id, target_jp_id=target_jp_id)
         state.game_map = new_game_map
         ctx.game_map = state.game_map
         ctx.player = state.player
         return 'CONTINUE'
     return None
 
-def _resolve_planet_wall(state, pid):
+async def _resolve_planet_wall(state, pid):
     """Resolve a planet approach, exploration, or landing."""
     ctx = state.ctx
     log = state.log
     planet_obj = solar_system_module.find_planet(pid)
     log.add(f'You approach {planet_obj.name}.')
-    outcome, site_id = _run_planet_menu(ctx, planet_obj)
+    outcome, site_id = await _run_planet_menu(ctx, planet_obj)
     if outcome is PlanetMenuOutcome.EXPLORE:
-        return _resolve_planet_explore(state, pid, planet_obj)
+        return await _resolve_planet_explore(state, pid, planet_obj)
     if outcome is PlanetMenuOutcome.DIG:
         from .digs import enter_dig_site
         return enter_dig_site(state, planet_obj, site_id)
     if outcome is PlanetMenuOutcome.LAND:
-        return _resolve_planet_land(state, pid, planet_obj)
+        return await _resolve_planet_land(state, pid, planet_obj)
     return 'CONTINUE'
 
-def _resolve_planet_explore(state, pid, planet_obj):
+async def _resolve_planet_explore(state, pid, planet_obj):
     """Handle the planet-menu Explore option."""
-    _dungeon_map, _spawn = _build_surface_dungeon(state.ctx, state.log, pid, planet_obj)
+    _dungeon_map, _spawn = await _build_surface_dungeon(state.ctx, state.log, pid, planet_obj)
     if _dungeon_map is None:
         return 'CONTINUE'
     return _enter_planet_surface(state, pid, planet_obj, _dungeon_map, _spawn)
 
-def _build_surface_dungeon(ctx, log, pid, planet_obj):
+async def _build_surface_dungeon(ctx, log, pid, planet_obj):
     """Return (dungeon_map, spawn) for a planet surface, cached or fresh."""
     from .data.planets import find_planet_spec as _fps
     from .dungeon import generate_dungeon as _generate_dungeon, populate_dungeon as _populate_dungeon
@@ -147,7 +147,7 @@ def _build_surface_dungeon(ctx, log, pid, planet_obj):
     _dungeon_map.entry_spawn = _spawn
     _dungeon_map.interior_cache_key = _surface_key
     if pid == 'mars':
-        main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
+        await main_quest_module.prepare_mars_surface(ctx, _dungeon_map, _spawn)
     else:
         main_quest_module.prepare_delve_site(ctx, _dungeon_map, _spawn, pid)
     _populate_dungeon(_dungeon_map, _params, _spawn, tier=_pspec.mission_tier)
@@ -190,7 +190,7 @@ def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     log.add(f'You descend to the surface of {planet_obj.name}.')
     return 'CONTINUE'
 
-def land_at_city(state, planet_id):
+async def land_at_city(state, planet_id):
     """Land directly on any port city, switching system first.
 
     The dev-mode city teleport (Shift+T) uses this to reuse the exact
@@ -213,7 +213,7 @@ def land_at_city(state, planet_id):
         _system_for(planet_id).id
     )
     planet_obj = solar_system_module.find_planet(planet_id)
-    return _resolve_planet_land(state, planet_id, planet_obj)
+    return await _resolve_planet_land(state, planet_id, planet_obj)
 
 
 def _dark_dock_refusal(ctx, pid):
@@ -236,7 +236,7 @@ def _dark_dock_refusal(ctx, pid):
     return "Docking request denied: transponder not responding."
 
 
-def _dark_port_landing_beat(ctx, log, pid: str) -> None:
+async def _dark_port_landing_beat(ctx, log, pid: str) -> None:
     """Doc 42 phase 2.5: every landing at a dark port logs the
     credential line (the militia-scan cadence); the trigger hears
     once, idempotently."""
@@ -249,10 +249,10 @@ def _dark_port_landing_beat(ctx, log, pid: str) -> None:
     if not _spec.dark_berth:
         return
     log.add("This port didn't verify any credentials.")
-    _rumor.fire_trigger(ctx, "dock_dark_port")
+    await _rumor.fire_trigger(ctx, "dock_dark_port")
 
 
-def _resolve_planet_land(state, pid, planet_obj):
+async def _resolve_planet_land(state, pid, planet_obj):
     """Handle the planet-menu Land option."""
     ctx = state.ctx
     console = state.console
@@ -261,16 +261,16 @@ def _resolve_planet_land(state, pid, planet_obj):
     if _refusal is not None:
         log.add(_refusal)
         return 'CONTINUE'
-    _run_cargo_scan(ctx, pid)
+    await _run_cargo_scan(ctx, pid)
     from .data.planets import has_landable_port as _phlp
     if not _phlp(pid):
         log.add(f'You see no port on {planet_obj.name}.')
         return 'CONTINUE'
-    _dark_port_landing_beat(ctx, log, pid)
-    return _enter_city_landing(state, ctx, console, log, pid, planet_obj)
+    await _dark_port_landing_beat(ctx, log, pid)
+    return await _enter_city_landing(state, ctx, console, log, pid, planet_obj)
 
 
-def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
+async def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
     """Build the city map and move the player (and ship) into city mode."""
     from .data.planets import load_planet as _plp, hangar_anchor as _phang
     _new_city_map = _plp(pid)
@@ -280,7 +280,7 @@ def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
         _ship_spec = ship_module.find_ship(state.player_owned_ship.ship_id)
         _hangar_ship = world.Entity(char=_ship_spec.char, fg=_ship_spec.fg, pos=world.Position(_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1), name=f'Your Ship: {ship_module.ship_display_name(state.player_owned_ship)}', ship_id=_ship_spec.id, owned=True)
         _new_city_map.entities.append(_hangar_ship)
-        _animate_ship_to_y(ctx, console, _hangar_ship, _new_city_map, target_y=_anchor.y, location=pid.replace('_', ' ').title())
+        await _animate_ship_to_y(ctx, console, _hangar_ship, _new_city_map, target_y=_anchor.y, location=pid.replace('_', ' ').title())
         log.add(f'You touch down on {planet_obj.name}.')
     _new_city_map.entities.append(_new_city_player)
     ctx.militia_scanned.clear()
@@ -299,21 +299,21 @@ def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
     return 'CONTINUE'
 
 
-def _resolve_occupied(state, blocker):
+async def _resolve_occupied(state, blocker):
     """Resolve an occupied movement tile."""
     log = state.log
     if blocker.ship_id:
-        return _resolve_ship_blocker(state, blocker)
+        return await _resolve_ship_blocker(state, blocker)
     if blocker.transit_station_id:
-        return _resolve_transit_station(state, blocker)
+        return await _resolve_transit_station(state, blocker)
     if blocker.trade_terminal or blocker.mech_terminal or blocker.armory_terminal or blocker.main_quest_console or blocker.main_quest_door or blocker.interaction_flavor or blocker.dungeon_interaction or blocker.computer_terminal:
-        return _resolve_terminal_blocker(state, blocker)
+        return await _resolve_terminal_blocker(state, blocker)
     if blocker.npc_ship_id:
-        return _resolve_npc_ship_blocker(state, blocker)
+        return await _resolve_npc_ship_blocker(state, blocker)
     if blocker.npc_id:
-        return _resolve_npc_blocker(state, blocker)
+        return await _resolve_npc_blocker(state, blocker)
     if blocker.city_npc_id:
-        return _resolve_city_npc_blocker(state, blocker)
+        return await _resolve_city_npc_blocker(state, blocker)
     if getattr(blocker, 'powered_down', False):
         return _resolve_powered_down_blocker(state, blocker)
     from .ground_npcs import display_name as _display_name
@@ -328,7 +328,7 @@ def _resolve_powered_down_blocker(state, blocker):
     state.log.add(f'It is a powered down {name}.')
     return None
 
-def _resolve_ship_buy(state, blocker, ship):
+async def _resolve_ship_buy(state, blocker, ship):
     """Resolve an unowned display bump: run the buy modal and apply it.
 
     An indoor buy parks the purchase on the parent pad and empties the
@@ -342,7 +342,7 @@ def _resolve_ship_buy(state, blocker, ship):
         _old_ship = ship_module.find_ship(state.player_owned_ship.ship_id)
         _trade_in_value = max(0, _old_ship.price // 2)
     _effective_price = max(0, ship.price - _trade_in_value)
-    result = _run_ship_buy(ctx, blocker, ship, effective_price=_effective_price)
+    result = await _run_ship_buy(ctx, blocker, ship, effective_price=_effective_price)
     if result is ShipBuyOutcome.QUIT:
         return 'QUIT'
     if result is ShipBuyOutcome.BUY:
@@ -363,61 +363,61 @@ def _resolve_ship_buy(state, blocker, ship):
     return None
 
 
-def _resolve_ship_blocker(state, blocker):
+async def _resolve_ship_blocker(state, blocker):
     """Resolve owned-ship launch and ship purchases."""
     ctx = state.ctx
     console = state.console
     ship = ship_module.find_ship(blocker.ship_id)
     if blocker.owned:
-        result = _run_ship_menu(ctx, ship)
+        result = await _run_ship_menu(ctx, ship)
         if result is ShipMenuAction.QUIT:
             return 'QUIT'
-        _launch_result = _launch_owned_ship(ctx, console, result, state.player_owned_ship, state.city_game_map, state.city_player, state.current_city_id, ship)
+        _launch_result = await _launch_owned_ship(ctx, console, result, state.player_owned_ship, state.city_game_map, state.city_player, state.current_city_id, ship)
         if _launch_result is not None:
             state.game_map, state.player = _launch_result
             ctx.game_map = state.game_map
             ctx.player = state.player
             state.current_mode = 'space'
         return 'CONTINUE'
-    return _resolve_ship_buy(state, blocker, ship)
+    return await _resolve_ship_buy(state, blocker, ship)
 
-def _resolve_terminal_blocker(state, blocker):
+async def _resolve_terminal_blocker(state, blocker):
     """Resolve city terminals and dungeon interfaces."""
     ctx = state.ctx
     log = state.log
     if blocker.trade_terminal:
         from .trade import open_trade as _open_trade
-        _open_trade(ctx, state.current_city_id)
+        await _open_trade(ctx, state.current_city_id)
     elif blocker.mech_terminal:
-        _run_mech_menu(ctx, state.current_city_id)
+        await _run_mech_menu(ctx, state.current_city_id)
         return 'CONTINUE'
     elif blocker.armory_terminal:
         from .menus._armory import _run_armory_menu
-        _run_armory_menu(ctx, state.current_city_id)
+        await _run_armory_menu(ctx, state.current_city_id)
         return 'CONTINUE'
     elif blocker.main_quest_console or blocker.main_quest_door:
-        main_quest_module.bump_mars_door(ctx)
+        await main_quest_module.bump_mars_door(ctx)
         return 'CONTINUE'
     elif blocker.interaction_flavor:
         log.add(blocker.interaction_flavor)
     elif blocker.dungeon_interaction:
-        return _resolve_dungeon_interaction(state, blocker)
+        return await _resolve_dungeon_interaction(state, blocker)
     elif blocker.computer_terminal:
-        return _resolve_computer_terminal(state, blocker)
+        return await _resolve_computer_terminal(state, blocker)
     return None
 
 
-def _resolve_transit_station(state, blocker):
+async def _resolve_transit_station(state, blocker):
     """Resolve bumping a city transit stop."""
     from .city_transit import resolve_transit_station as _ride
-    return _ride(state, blocker)
+    return await _ride(state, blocker)
 
 
-def _log_extension_activation(state, interaction) -> None:
+async def _log_extension_activation(state, interaction) -> None:
     """Present and log an activated dungeon interaction."""
     from .main_quest import show_gate_popup
 
-    show_gate_popup(
+    await show_gate_popup(
         state.ctx,
         interaction.faction_label,
         interaction.popup_message,
@@ -434,12 +434,12 @@ def _log_extension_activation(state, interaction) -> None:
     )
 
 
-def _resolve_extension_activation(state, blocker, interaction) -> None:
+async def _resolve_extension_activation(state, blocker, interaction) -> None:
     """Handle activation-state interaction feedback."""
     from .dungeon_extensions import activate_interaction_state
 
-    if activate_interaction_state(state.ctx, blocker.dungeon_interaction):
-        _log_extension_activation(state, interaction)
+    if await activate_interaction_state(state.ctx, blocker.dungeon_interaction):
+        await _log_extension_activation(state, interaction)
     else:
         state.log.add(
             t_get("runtime.prison.interaction_already_active").format(
@@ -448,14 +448,14 @@ def _resolve_extension_activation(state, blocker, interaction) -> None:
         )
 
 
-def _show_descent_flavor(state, interaction) -> None:
+async def _show_descent_flavor(state, interaction) -> None:
     """Play the wordless descent animation, then log the arrival depth."""
     from .descent_animation import animate_descent
-    animate_descent(state.ctx, state.console)
+    await animate_descent(state.ctx, state.console)
     state.log.add(t_get("runtime.prison.descent_log"))
 
 
-def _resolve_extension_transition(state, blocker, interaction) -> None:
+async def _resolve_extension_transition(state, blocker, interaction) -> None:
     """Handle a gated floor transition and its feedback."""
     from .dungeon_extensions import interaction_is_available, transition_floor
 
@@ -467,9 +467,9 @@ def _resolve_extension_transition(state, blocker, interaction) -> None:
         )
         return
     if getattr(interaction, "descent_anim", False):
-        _show_descent_flavor(state, interaction)
+        await _show_descent_flavor(state, interaction)
     try:
-        _next_map, _next_player = transition_floor(
+        _next_map, _next_player = await transition_floor(
             state.ctx,
             interaction.destination_floor - state.ctx.dungeon_extension.current_floor,
         )
@@ -485,7 +485,7 @@ def _resolve_extension_transition(state, blocker, interaction) -> None:
     )
 
 
-def _resolve_dungeon_interaction(state, blocker):
+async def _resolve_dungeon_interaction(state, blocker):
     """Resolve a dungeon extension interaction."""
     from .dungeon_extensions import interaction_spec_at
 
@@ -494,12 +494,12 @@ def _resolve_dungeon_interaction(state, blocker):
         state.log.add(t_get("runtime.prison.interface_unresponsive"))
         return 'CONTINUE'
     if _interaction.action == 'activate_state':
-        _resolve_extension_activation(state, blocker, _interaction)
+        await _resolve_extension_activation(state, blocker, _interaction)
     elif _interaction.action == 'transition_floor':
-        _resolve_extension_transition(state, blocker, _interaction)
+        await _resolve_extension_transition(state, blocker, _interaction)
     return 'CONTINUE'
 
-def _resolve_capture_console(state, blocker, capture_spec_id):
+async def _resolve_capture_console(state, blocker, capture_spec_id):
     """The C console in a captured ship: clone its transponder (6a)."""
     ctx = state.ctx
     log = state.log
@@ -515,7 +515,7 @@ def _resolve_capture_console(state, blocker, capture_spec_id):
     if library_full(ctx):
         log.add("Your ID book is full.")
         return 'CONTINUE'
-    _pygame_clone = _run_pygame_dungeon_confirm(
+    _pygame_clone = await _run_pygame_dungeon_confirm(
         ctx, title='Ship Computer Terminal',
         body=f"Clone the {_spec.name}'s transponder?",
         accept_label='Clone', cancel_label='Leave',
@@ -538,7 +538,7 @@ def _resolve_capture_console(state, blocker, capture_spec_id):
     return 'CONTINUE'
 
 
-def _resolve_computer_terminal(state, blocker):
+async def _resolve_computer_terminal(state, blocker):
     """Resolve the dungeon ship-computer terminal."""
     ctx = state.ctx
     log = state.log
@@ -547,9 +547,9 @@ def _resolve_computer_terminal(state, blocker):
         return None
     _capture_spec = getattr(state.game_map, 'capture_spec_id', '')
     if _capture_spec:
-        return _resolve_capture_console(state, blocker, _capture_spec)
+        return await _resolve_capture_console(state, blocker, _capture_spec)
     _comp_result = None
-    _pygame_comp = _run_pygame_dungeon_confirm(ctx, title='Ship Computer Terminal', body='Restore emergency power to the ship?\n\nThis will boost interior lighting and sensor range.', accept_label='Activate', cancel_label='Leave', caption='spacehack - ship computer')
+    _pygame_comp = await _run_pygame_dungeon_confirm(ctx, title='Ship Computer Terminal', body='Restore emergency power to the ship?\n\nThis will boost interior lighting and sensor range.', accept_label='Activate', cancel_label='Leave', caption='spacehack - ship computer')
     if _pygame_comp == 'QUIT':
         return 'QUIT'
     if _pygame_comp == 'CONFIRM':
@@ -561,10 +561,10 @@ def _resolve_computer_terminal(state, blocker):
             _power_interior(state.game_map, state.player.pos)
             log.add_colored('Emergency power restored. Interior sensors online.', message_log.COLOR_IMPORTANT_EVENT)
             from .digs import maybe_reveal_from_terminal
-            maybe_reveal_from_terminal(ctx)
+            await maybe_reveal_from_terminal(ctx)
     return 'CONTINUE'
 
-def _resolve_npc_ship_blocker(state, blocker):
+async def _resolve_npc_ship_blocker(state, blocker):
     """Resolve boarding a boardable NPC ship."""
     log = state.log
     from .data.npc_ships import find_npc_ship as _find_ship
@@ -572,13 +572,13 @@ def _resolve_npc_ship_blocker(state, blocker):
     try:
         _npcspec = _find_ship(blocker.npc_ship_id)
         if _npcspec.is_boardable:
-            _board_result = _confirm_boarding(state.ctx, _npcspec)
+            _board_result = await _confirm_boarding(state.ctx, _npcspec)
             if _board_result == 'QUIT':
                 return 'QUIT'
             if _board_result is not None:
                 _dungeon_map, _spawn, _is_reboard = _boardable_wreck_layout(state, blocker, _npcspec)
                 if _dungeon_map is not None:
-                    _enter_boarding_dungeon(state, _npcspec, _dungeon_map, _spawn, _is_reboard)
+                    await _enter_boarding_dungeon(state, _npcspec, _dungeon_map, _spawn, _is_reboard)
             _boarded = True
     except KeyError:
         pass
@@ -615,7 +615,7 @@ def _power_interior(game_map, at):
     _reveal_around(game_map, at, radius=POWERED_SIGHT_RADIUS)
 
 
-def _consume_boarded_hull(ctx, cr, spec) -> None:
+async def _consume_boarded_hull(ctx, cr, spec) -> None:
     """The consume books as a full kill minus the exterior loot
     (doc 40 6d): hull + squad drop, XP, counters, rep deltas,
     bounty/heist completion, tombstone. Loot rides the interior —
@@ -627,16 +627,16 @@ def _consume_boarded_hull(ctx, cr, spec) -> None:
     _ent = cr.boarded_ent
     if _ent is not None and _ent in ctx.game_map.entities:
         ctx.game_map.entities.remove(_ent)
-    record_kill_pass(cr, ctx, spec, spec.name, spec.id, _ent)
+    await record_kill_pass(cr, ctx, spec, spec.name, spec.id, _ent)
     # The victory pass, minus the victory: same order, same calls.
     _apply_kill_reputation(ctx, cr, [spec])
-    _complete_bounty_missions(ctx, cr)
+    await _complete_bounty_missions(ctx, cr)
     from . import main_quest as _mq
-    _mq.maybe_complete_bounty(ctx, cr.defeated_bounty_ids)
+    await _mq.maybe_complete_bounty(ctx, cr.defeated_bounty_ids)
     _cleanup_heist_spawns(ctx, cr)
 
 
-def begin_capture_boarding(ctx, console, cr):
+async def begin_capture_boarding(ctx, console, cr):
     """Consume the boarded hull and enter its crewed interior (6a).
 
     Consumption happens at ENTRY — the ship is gone from space the
@@ -665,19 +665,19 @@ def begin_capture_boarding(ctx, console, cr):
         )
         cr.outcome = "ABORTED"  # nothing consumed, no interior to adopt
         return False
-    _consume_boarded_hull(ctx, cr, _spec)
+    await _consume_boarded_hull(ctx, cr, _spec)
     _dungeon_map.capture_spec_id = _spec.id
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
-    _enter_boarding_dungeon(
+    await _enter_boarding_dungeon(
         _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
     )
     _power_interior(_dungeon_map, _spawn)
     return True
 
 
-def _confirm_boarding(ctx, npcspec):
+async def _confirm_boarding(ctx, npcspec):
     """Ask to board; return 'QUIT', PlanetMenuOutcome.LAND, or None."""
-    _pygame_board = _run_pygame_dungeon_confirm(ctx, title=f'Board the {npcspec.name}?', body='The derelict can be searched for salvage and mission cargo.', accept_label='Board', cancel_label='Fly past', caption='spacehack - boarding')
+    _pygame_board = await _run_pygame_dungeon_confirm(ctx, title=f'Board the {npcspec.name}?', body='The derelict can be searched for salvage and mission cargo.', accept_label='Board', cancel_label='Fly past', caption='spacehack - boarding')
     if _pygame_board == 'QUIT':
         return 'QUIT'
     if _pygame_board == 'CONFIRM':
@@ -812,7 +812,7 @@ def _despawn_blocker(ctx, blocker, npcspec):
     except (ValueError, AttributeError):
         pass
 
-def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard):
+async def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard):
     """Move the player into a boardable wreck's interior."""
     ctx = state.ctx
     console = state.console
@@ -820,32 +820,32 @@ def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard):
     from .dungeon import animate_breach as _animate_breach
     _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
     if not is_reboard:
-        _animate_breach(ctx, console, dungeon_map, spawn, region_w=state.map_w, region_h=state.map_h)
+        await _animate_breach(ctx, console, dungeon_map, spawn, region_w=state.map_w, region_h=state.map_h)
     dungeon_map.location_name = npcspec.name
     _adopt_dungeon_entry(state, dungeon_map, _dungeon_player)
     log.add(f'You cut through the hull and enter the {npcspec.name}.')
     return 'CONTINUE'
 
-def _resolve_npc_blocker(state, blocker):
+async def _resolve_npc_blocker(state, blocker):
     """Resolve NPC dialogue, delivery, and mission acceptance."""
     ctx = state.ctx
     npc_obj = npc_module.find_npc(blocker.npc_id)
     _planet_tier = _planet_mission_tier(state)
     _deliverable = mission_module.find_deliverable_missions(state.player_active_missions, npc_obj.id, state.current_city_id, owned_ship=state.player_owned_ship)
-    result, _deliver_mission = _run_npc_talk(ctx, npc_obj, deliver_missions=_deliverable or None)
+    result, _deliver_mission = await _run_npc_talk(ctx, npc_obj, deliver_missions=_deliverable or None)
     if result is TalkOutcome.QUIT:
         return 'QUIT'
     if result is TalkOutcome.QUEST:
         return 'CONTINUE'
     if result is TalkOutcome.DELIVER:
-        _resolve_npc_delivery(state, _deliver_mission)
+        await _resolve_npc_delivery(state, _deliver_mission)
     elif result is TalkOutcome.WORK:
-        _work_result = _resolve_npc_work(state, npc_obj, _planet_tier)
+        _work_result = await _resolve_npc_work(state, npc_obj, _planet_tier)
         if _work_result is not None:
             return _work_result
     return None
 
-def _resolve_city_npc_blocker(state, blocker):
+async def _resolve_city_npc_blocker(state, blocker):
     """Resolve bumping into an ambient city citizen.
 
     Hostile citizens (faction enemy/disliked, or always-hostile mobs)
@@ -854,7 +854,7 @@ def _resolve_city_npc_blocker(state, blocker):
     """
     from . import city_npcs as _cn
     if _cn.is_hostile(state.ctx, blocker):
-        _cn.run_city_fight(state.ctx, state.console, state.game_map, [blocker])
+        await _cn.run_city_fight(state.ctx, state.console, state.game_map, [blocker])
         return 'CONTINUE'
     state.log.add(world.blocked_message_for(blocker))
     return None
@@ -868,7 +868,7 @@ def _planet_mission_tier(state):
     except KeyError:
         return 1
 
-def _resolve_npc_delivery(state, deliver_mission):
+async def _resolve_npc_delivery(state, deliver_mission):
     """Complete a handed-over delivery mission."""
     if deliver_mission is None:
         return None
@@ -878,7 +878,7 @@ def _resolve_npc_delivery(state, deliver_mission):
     if _heist_good is not None and getattr(deliver_mission, 'heist_good_secured', False):
         log.add(f"You hand over the stolen {_heist_good.replace('_', ' ')}.")
     _today = ctx.time_day + (ctx.time_month - 1) * 30
-    mission_module.complete_mission(deliver_mission, state.player_owned_ship, state.stats, log, current_day=_today, ctx=ctx)
+    await mission_module.complete_mission(deliver_mission, state.player_owned_ship, state.stats, log, current_day=_today, ctx=ctx)
     if not deliver_mission.is_procedural:
         ctx.completed_mission_ids.add(deliver_mission.mission_id)
     try:
@@ -888,7 +888,7 @@ def _resolve_npc_delivery(state, deliver_mission):
     ctx.player_active_missions = state.player_active_missions
     return None
 
-def _resolve_npc_work(state, npc_obj, planet_tier):
+async def _resolve_npc_work(state, npc_obj, planet_tier):
     """Offer and accept missions at an NPC's board."""
     ctx = state.ctx
     log = state.log
@@ -905,7 +905,7 @@ def _resolve_npc_work(state, npc_obj, planet_tier):
     if not offerings:
         log.add(f'{npc_obj.name} has no work for you right now.')
         return None
-    outcome, picked = _run_mission_offerings(ctx, npc_obj, offerings)
+    outcome, picked = await _run_mission_offerings(ctx, npc_obj, offerings)
     if outcome is MissionOutcome.QUIT:
         return 'QUIT'
     if outcome is MissionOutcome.ACCEPT and picked is not None and mission_module.try_accept_mission(picked, state.player_owned_ship, log, active_count=len(state.player_active_missions)):

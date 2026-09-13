@@ -6,6 +6,7 @@ file — both now have regression tests.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -72,7 +73,7 @@ class TestSoftLoot:
         calls = []
         monkeypatch.setattr(
             "src.spacehack.ground_reload_ui.reload_exploration",
-            lambda ctx: calls.append(ctx) or True,
+            as_async(lambda ctx: calls.append(ctx) or True),
         )
         ctx = SimpleNamespace()
         state = SimpleNamespace(
@@ -81,10 +82,10 @@ class TestSoftLoot:
             current_mode="dungeon",
         )
 
-        result = game_loop._handle_space_modal_event(
+        result = run(game_loop._handle_space_modal_event(
             state,
             PygameInputEvent(kind="keydown", key_name="r"),
-        )
+        ))
 
         assert result == "HANDLED"
         assert calls == [ctx]
@@ -95,7 +96,7 @@ class TestSoftLoot:
         calls = []
         monkeypatch.setattr(
             "src.spacehack.ground_reload_ui.reload_exploration",
-            lambda ctx: calls.append(ctx) or True,
+            as_async(lambda ctx: calls.append(ctx) or True),
         )
         state = SimpleNamespace(
             ctx=SimpleNamespace(),
@@ -103,10 +104,10 @@ class TestSoftLoot:
             current_mode="city",
         )
 
-        assert game_loop._handle_space_modal_event(
+        assert run(game_loop._handle_space_modal_event(
             state,
             PygameInputEvent(kind="keydown", key_name="r"),
-        ) is None
+        )) is None
         assert calls == []
 
     def test_loot_does_not_block_world_movement(self):
@@ -187,10 +188,10 @@ class TestSoftLoot:
         opened = []
         monkeypatch.setattr(
             "src.spacehack.trade.open_loot_pickup",
-            lambda _ctx, entity: opened.append(entity),
+            as_async(lambda _ctx, entity: opened.append(entity)),
         )
 
-        assert game_main._pickup_loot_near(ctx) is True
+        assert run(game_main._pickup_loot_near(ctx)) is True
         assert opened == [loot]
 
 

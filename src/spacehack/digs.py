@@ -88,7 +88,7 @@ def site_name(spec: PlanetSpec, roll: int, taken: set[str] | None = None) -> str
     return f"{combos[roll % len(combos)]} {len(taken) + 1}"
 
 
-def reveal_site(ctx) -> dict:
+async def reveal_site(ctx) -> dict:
     """Derive and record the next site — the reveal idiom (SETTLED
     34): the caller consumed the find; this records and reads out.
     Returns the new site record. Names never repeat within a planet
@@ -108,7 +108,7 @@ def reveal_site(ctx) -> dict:
         "name": site_name(spec, roll, taken),
     }
     ctx.discovered_sites.append(site)
-    rumor.present_hearing(
+    await rumor.present_hearing(
         ctx,
         _text_get("dig.reveal.title", ""),
         _text_get("dig.reveal.text", "").format(
@@ -411,12 +411,12 @@ def maybe_spawn_wreck_pad(game_map) -> bool:
     return spawn_pad_entity(game_map, pos, {"reveals_site": True})
 
 
-def maybe_reveal_from_terminal(ctx) -> bool:
+async def maybe_reveal_from_terminal(ctx) -> bool:
     """Door 3 — the boarded ship's computer: a 1-in-N roll on the
     first power-restore; a hit plays the full reveal."""
     if not _door_hit("terminal"):
         return False
-    reveal_site(ctx)
+    await reveal_site(ctx)
     return True
 
 

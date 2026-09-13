@@ -361,7 +361,7 @@ def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
         if rng is not None:
             entity.city_pause_ticks = rng.randint(3, 8)
 
-def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
+async def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
     """Run a direct-contact ground fight vs the engaged hostile citizens.
 
     Wired from the occupied (bump) dispatch when the player walks into a
@@ -373,11 +373,11 @@ def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
     from .combat import _rules_ground as _rg
     from .combat._loop import run_combat as _run_combat
     from .game_flow import _apply_ground_combat_rep as _apply_rep
-    _tutorial.maybe_ground_combat_intro(ctx)
+    await _tutorial.maybe_ground_combat_intro(ctx)
     _rg.init(ctx, hostiles, game_map, console=console)
-    _result = _run_combat(console, ctx, game_map, _rg)
+    _result = await _run_combat(console, ctx, game_map, _rg)
     _apply_rep(ctx, _result)
-    _tutorial.notify_ground_combat_ended(ctx)
+    await _tutorial.notify_ground_combat_ended(ctx)
     if _result is not None and _result.outcome == 'DEFEAT':
         raise SystemExit()
 

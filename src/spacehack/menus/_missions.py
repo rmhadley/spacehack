@@ -48,7 +48,7 @@ def _mission_board_label(m: mission_module.MissionSpec) -> str:
     _suffix = f" @ {_sys}" if _sys and _sys.lower() not in m.title.lower() else ""
     return f'[{_tag}] {m.title}{_suffix} ({m.reward_credits}$)'
 
-def _run_pygame_menu(
+async def _run_pygame_menu(
     ctx,
     frames: tuple,
     *,
@@ -61,7 +61,7 @@ def _run_pygame_menu(
         raise pygame_menu.PygameMenuUnavailable(
             "Shared Pygame runtime is not open"
         )
-    return pygame_menu.run_shared(ctx.context, frames, caption=caption)
+    return await pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
 def _mission_frames(npc, offerings):
     """Build stable-layout mission frames for the shared menu renderer."""
@@ -84,21 +84,21 @@ def _mission_frames(npc, offerings):
     )
 
 
-def _run_pygame_interactive_missions(
+async def _run_pygame_interactive_missions(
     ctx,
     npc: npc_module.NPC,
     offerings: tuple[mission_module.MissionSpec, ...],
 ) -> tuple[MissionOutcome, mission_module.MissionSpec | None] | None:
     """Run mission offerings through the generic selectable worker."""
     frames = _mission_frames(npc, offerings)
-    outcome, action, selected = _run_pygame_menu(
+    outcome, action, selected = await _run_pygame_menu(
         ctx,
         frames,
         caption="spacehack - available work",
     )
     if outcome == "GUIDE":
         from ..help import _open_context_guide
-        _open_context_guide(ctx, "Missions")
+        await _open_context_guide(ctx, "Missions")
         return MissionOutcome.BACK, None
     if outcome == "QUIT":
         return MissionOutcome.QUIT, None
@@ -112,7 +112,7 @@ def _run_pygame_interactive_missions(
         return MissionOutcome.ACCEPT, picked
     return MissionOutcome.BACK, None
 
-def _run_mission_offerings(
+async def _run_mission_offerings(
     ctx,
     npc: npc_module.NPC,
     offerings: tuple[mission_module.MissionSpec, ...],
@@ -124,7 +124,7 @@ def _run_mission_offerings(
     (:func:`_run_game`) is responsible for swapping
     ``player_active_missions`` once it sees an ACCEPT.
     """
-    result = _run_pygame_interactive_missions(ctx, npc, offerings)
+    result = await _run_pygame_interactive_missions(ctx, npc, offerings)
     if result is None:
         raise RuntimeError("Mission offerings returned no outcome")
     return result

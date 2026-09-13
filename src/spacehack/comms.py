@@ -151,7 +151,7 @@ def _hail_frames(
     )
 
 
-def _pygame_interaction_outcome(
+async def _pygame_interaction_outcome(
     ctx, contact_name, contact_spec, options, contact_entity=None,
     *, dispatch=None, title="Hailing", esc_label="ESC back", lines=None,
 ):
@@ -164,15 +164,15 @@ def _pygame_interaction_outcome(
         ctx, contact_name, contact_spec, options, contact_entity,
         title=title, esc_label=esc_label, lines=lines,
     )
-    outcome, action, _selected = pygame_menu.run_for_context(
+    outcome, action, _selected = await pygame_menu.run_for_context(
         ctx.context,
         _frames,
         caption=f"spacehack - {contact_name}",
     )
     if outcome == "GUIDE":
         from .help import _open_context_guide
-        _open_context_guide(ctx, "NPCs & Factions")
-        return _pygame_interaction_outcome(
+        await _open_context_guide(ctx, "NPCs & Factions")
+        return await _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, options, contact_entity,
             dispatch=dispatch, title=title, esc_label=esc_label, lines=lines,
         )
@@ -314,7 +314,7 @@ def _combat_open_log(ctx, contact_name, contact_spec) -> None:
     )
 
 
-def _run_interaction_modal(
+async def _run_interaction_modal(
     ctx: GameContext,
     console: FrameBuffer,
     contact_name: str,
@@ -327,20 +327,20 @@ def _run_interaction_modal(
         # The silent hail (doc 42 phase 2.5): hailing a dark hull is
         # a discovery event — the readout plays before the hail.
         from . import rumor
-        rumor.fire_trigger(ctx, "dark_hail")
+        await rumor.fire_trigger(ctx, "dark_hail")
     interaction_outcome = (
-        _pygame_interaction_outcome(
+        await _pygame_interaction_outcome(
             ctx, contact_name, contact_spec, _contact_options(ctx, contact_spec),
             contact_entity=contact_entity,
         )
         or _InteractionOutcome.BACK
     )
-    return _handle_interaction(
+    return await _handle_interaction(
         ctx, interaction_outcome, contact_name, contact_spec, contact_entity,
     )
 
 
-def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity):
+async def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity):
     """Resolve one chosen comms action (combat payload, or None)."""
     if outcome is _InteractionOutcome.ATTACK:
         _unprovoked_attack_rep(ctx, contact_spec)
@@ -349,7 +349,7 @@ def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity
 
     if outcome is _InteractionOutcome.ALLOW_SCAN:
         from .navigation import _run_space_cargo_scan as _rscs
-        _rscs(ctx)  # militia: player submits to the scan
+        await _rscs(ctx)  # militia: player submits to the scan
         return None
 
     if outcome is _InteractionOutcome.FLEE:
@@ -363,7 +363,7 @@ def _handle_interaction(ctx, outcome, contact_name, contact_spec, contact_entity
 
     if outcome is _InteractionOutcome.TRADE:
         from .trade import open_npc_trade as _open_npc_trade
-        _open_npc_trade(ctx, contact_spec)
+        await _open_npc_trade(ctx, contact_spec)
         return None
 
     return None  # BACK / QUIT / anything else
@@ -429,19 +429,19 @@ def _identify_face_frames(ctx):
     )
 
 
-def _identify_face_result(ctx):
+async def _identify_face_result(ctx):
     """Run the identify face-choice modal. Returns ``('true', None)``,
     ``('face', entry)``, or ``('silent', None)`` when the player
     refuses to answer."""
     from . import pygame_menu
 
-    outcome, action, _selected = pygame_menu.run_for_context(
+    outcome, action, _selected = await pygame_menu.run_for_context(
         ctx.context, _identify_face_frames(ctx), caption="spacehack - identify",
     )
     if outcome == "GUIDE":
         from .help import _open_context_guide
-        _open_context_guide(ctx, "Identity & Transponder")
-        return _identify_face_result(ctx)
+        await _open_context_guide(ctx, "Identity & Transponder")
+        return await _identify_face_result(ctx)
     if outcome != "SELECT" or not action:
         return ("silent", None)
     if action == "TRUE":
@@ -452,23 +452,23 @@ def _identify_face_result(ctx):
         return ("silent", None)
 
 
-def _identify_choice(ctx):
+async def _identify_choice(ctx):
     """The identify answer: ``('true', None)``, ``('face', entry)``, or
     ``('silent', None)``. No library means only yourself to offer."""
     if not getattr(ctx, "collected_ids", None):
         return ("true", None)
-    return _identify_face_result(ctx)
+    return await _identify_face_result(ctx)
 
 
-def _handle_challenge(ctx, outcome, contact_name, contact_spec, contact_entity):
+async def _handle_challenge(ctx, outcome, contact_name, contact_spec, contact_entity):
     """Resolve one challenge answer. ``(specs, positions)`` for combat
     (the patrol opens fire), ``None`` when the hull is waved through."""
     if outcome is _InteractionOutcome.ATTACK:
-        return _handle_interaction(
+        return await _handle_interaction(
             ctx, outcome, contact_name, contact_spec, contact_entity,
         )
     _passed = False
-    _answered = _identify_choice(ctx) if outcome is _InteractionOutcome.IDENTIFY else ("silent", None)
+    _answered = await _identify_choice(ctx) if outcome is _InteractionOutcome.IDENTIFY else ("silent", None)
     if _answered[0] == "silent":
         # BACK / QUIT / silence: refusing the conversation is an answer
         # too — there is no run (doc 40 ruling).
@@ -502,7 +502,7 @@ def _resolve_contact(entity):
     return getattr(entity, 'name', '') or _spec.name, _spec
 
 
-def open_comms_direct(
+async def open_comms_direct(
     ctx: GameContext,
     entity: object,
 ) -> tuple[list, list] | None:
@@ -515,7 +515,7 @@ def open_comms_direct(
         return None
     _name, _spec = _resolved
     console = make_console()
-    return _run_interaction_modal(ctx, console, _name, _spec, entity)
+    return await _run_interaction_modal(ctx, console, _name, _spec, entity)
 
 
 def _challenge_body_lines(spec):
@@ -528,7 +528,7 @@ def _challenge_body_lines(spec):
     )
 
 
-def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
+async def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
     """The dark-hull challenge (doc 40 3b): NPC-initiated comms with
     TWO options — Identify / Attack; no run. Backing out is refusing
     to answer, and the patrol opens fire on silence.
@@ -537,14 +537,14 @@ def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
     if _resolved is None:
         return None
     _name, _spec = _resolved
-    _outcome = _pygame_interaction_outcome(
+    _outcome = await _pygame_interaction_outcome(
         ctx, _name, _spec, ("Identify", "Attack"),
         contact_entity=entity,
         dispatch=_CHALLENGE_DISPATCH,
         title="Challenge", esc_label="ESC refuse",
         lines=_challenge_body_lines(_spec),
     )
-    return _handle_challenge(
+    return await _handle_challenge(
         ctx, _outcome or _InteractionOutcome.BACK, _name, _spec, entity,
     )
 
@@ -552,20 +552,20 @@ def open_challenge_direct(ctx, entity) -> tuple[list, list] | None:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def _pygame_contact_result(ctx, contacts):
+async def _pygame_contact_result(ctx, contacts):
     """Run the contact list through Pygame and return selected contact."""
     from . import pygame_menu
 
     frames = _contact_list_frames(ctx, contacts)
-    outcome, action, selected = pygame_menu.run_for_context(
+    outcome, action, selected = await pygame_menu.run_for_context(
         ctx.context,
         frames,
         caption="spacehack - comms",
     )
     if outcome == "GUIDE":
         from .help import _open_context_guide
-        _open_context_guide(ctx, "NPCs & Factions")
-        return _pygame_contact_result(ctx, contacts)
+        await _open_context_guide(ctx, "NPCs & Factions")
+        return await _pygame_contact_result(ctx, contacts)
     if outcome == "QUIT":
         return "QUIT"
     if outcome != "SELECT" or not action.startswith("CONTACT:"):
@@ -603,7 +603,7 @@ def _contact_list_frames(ctx, contacts):
         for selected in range(max(1, len(items)))
     )
 
-def open_comms(
+async def open_comms(
     ctx: GameContext,
     player_pos,
 ) -> tuple[list, list] | None:
@@ -625,13 +625,13 @@ def open_comms(
         ctx.log.add("No ships in comms range.")
         return None
 
-    _pygame_contact = _pygame_contact_result(ctx, contacts)
+    _pygame_contact = await _pygame_contact_result(ctx, contacts)
     # Tuple membership (== comparison, no hashing): a selected contact is
     # a ``(name, spec, entity)`` tuple whose ``entity`` is an unhashable
     # ``world.Entity`` — a set lookup would raise ``TypeError``.
     if _pygame_contact in ("QUIT", "BACK", None):
         return None
     _contact_name, _contact_spec, _contact_entity = _pygame_contact
-    return _run_interaction_modal(
+    return await _run_interaction_modal(
         ctx, make_console(), _contact_name, _contact_spec, _contact_entity,
     )

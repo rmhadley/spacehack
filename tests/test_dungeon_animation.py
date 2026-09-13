@@ -7,6 +7,7 @@ viewport as gameplay.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import types
 
@@ -45,14 +46,16 @@ def _hull(width: int, height: int, breaches: list[tuple[int, int]]):
 
 def test_breach_animation_scrolls_hulls_wider_than_the_viewport(monkeypatch):
     monkeypatch.setattr(
-        "src.spacehack.navigation._responsive_sleep", lambda _seconds: None,
+        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds: None),
     )
     game_map = _hull(92, 34, breaches=[(45, 17)])
     ctx = _RecordingContext(80, 54)
 
-    dungeon_animation.animate_breach(
+    run(
+        dungeon_animation.animate_breach(
         ctx, ctx.console, game_map, world.Position(45, 20),
         region_w=80, region_h=54,
+    )
     )
 
     # Four spark frames plus the settled frame.
@@ -66,14 +69,16 @@ def test_breach_animation_scrolls_hulls_wider_than_the_viewport(monkeypatch):
 
 def test_breach_animation_keeps_small_hulls_centered(monkeypatch):
     monkeypatch.setattr(
-        "src.spacehack.navigation._responsive_sleep", lambda _seconds: None,
+        "src.spacehack.navigation._responsive_sleep", as_async(lambda _seconds: None),
     )
     game_map = _hull(20, 10, breaches=[(5, 5)])
     ctx = _RecordingContext(80, 54)
 
-    dungeon_animation.animate_breach(
+    run(
+        dungeon_animation.animate_breach(
         ctx, ctx.console, game_map, world.Position(7, 7),
         region_w=80, region_h=54,
+    )
     )
 
     # A hull smaller than the region is centered: (80-20)//2, (54-10)//2.

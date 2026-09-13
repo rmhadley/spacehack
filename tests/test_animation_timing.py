@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run
 """Tests for the user-selectable animation speed scale.
 
 Covers the pure ``scaled`` helper (a SPEED multiplier: delays divide by
@@ -54,8 +55,8 @@ def test_responsive_sleeps_pump_sdl_and_return_promptly_at_instant(monkeypatch):
     animation_timing.set_speed_scale(0.0)
 
     started = time.monotonic()
-    nav_sleep(0.05)
-    combat_sleep(0.05)
+    run(nav_sleep(0.05))
+    run(combat_sleep(0.05))
     elapsed = time.monotonic() - started
 
     assert len(pumped) == 2  # one drain per sleep, zero delay
@@ -71,14 +72,14 @@ def test_goto_poll_cancel_sees_queued_keydown_at_instant_speed():
     key = SimpleNamespace(kind="keydown", key_name="h")
     context = SimpleNamespace(events=lambda: (key,))
 
-    assert _goto_poll_cancel(context, animation_timing.AUTO_NAV) is True
+    assert run(_goto_poll_cancel(context, animation_timing.AUTO_NAV)) is True
 
 
 def test_goto_poll_cancel_returns_promptly_when_idle_at_instant_speed():
     animation_timing.set_speed_scale(0.0)
     context = SimpleNamespace(events=lambda: ())
 
-    assert _goto_poll_cancel(context, animation_timing.AUTO_NAV) is False
+    assert run(_goto_poll_cancel(context, animation_timing.AUTO_NAV)) is False
 
 
 def test_explore_cancel_window_sees_queued_keydown_at_instant_speed():

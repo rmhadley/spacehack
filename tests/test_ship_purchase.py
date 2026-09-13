@@ -1,6 +1,7 @@
 """Regression tests for ship upgrades preserving installed equipment."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -180,10 +181,10 @@ def test_ship_buy_back_outcome_does_not_mutate_upgrade_state(monkeypatch):
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda *_args, **_kwargs: ("BACK", "", 0),
+        as_async(lambda *_args, **_kwargs: ("BACK", "", 0)),
     )
 
-    result = _ship_buy._run_pygame_ship_buy(ctx, new_ship, 4_750)
+    result = run(_ship_buy._run_pygame_ship_buy(ctx, new_ship, 4_750))
 
     assert result is game_main.ShipBuyOutcome.BACK
     assert ctx.stats.credits == 4_750
@@ -325,7 +326,7 @@ def test_resolve_ship_blocker_routes_buys_by_interior_stamp(monkeypatch):
 
     monkeypatch.setattr(
         game_interactions, "_run_ship_buy",
-        lambda *args, **kwargs: game_main.ShipBuyOutcome.BUY,
+        as_async(lambda *args, **kwargs: game_main.ShipBuyOutcome.BUY),
     )
     old_ship = ship_module.OwnedShip(ship_id="starter")
 
@@ -336,7 +337,7 @@ def test_resolve_ship_blocker_routes_buys_by_interior_stamp(monkeypatch):
         city_game_map=parent, city_player=None, current_city_id="earth",
         player_owned_ship=old_ship, current_mode="dungeon",
     )
-    game_interactions._resolve_ship_blocker(state, display)
+    run(game_interactions._resolve_ship_blocker(state, display))
     anchor = hangar_anchor("earth")
     assert [(e.ship_id, e.pos.x, e.pos.y) for e in parent.entities if e.owned] == [
         ("scout", anchor.x, anchor.y),
@@ -352,7 +353,7 @@ def test_resolve_ship_blocker_routes_buys_by_interior_stamp(monkeypatch):
         city_game_map=parent, city_player=None, current_city_id="earth",
         player_owned_ship=old_ship, current_mode="city",
     )
-    game_interactions._resolve_ship_blocker(state, display)
+    run(game_interactions._resolve_ship_blocker(state, display))
     assert display.owned is True
     assert (display.pos.x, display.pos.y) == (anchor.x, anchor.y)
     assert len([e for e in parent.entities if e.owned]) == 1

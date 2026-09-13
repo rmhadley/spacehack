@@ -163,7 +163,7 @@ def _start_salvage_step(ctx, step) -> bool:
     return _started
 
 
-def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
+async def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     """Advance step_id from an NPC-talk quest option selection."""
     _step = find_main_quest_step(step_id)
     _dialogue = _step.dialogues.get(npc_id)
@@ -177,5 +177,5 @@ def trigger_dialogue(ctx, npc_id: str, step_id: str) -> bool:
     _lock_in_chain(ctx, _dialogue)
     _handler = handler_for(_step.objective_type)
     if _handler is None or _handler.on_trigger is None:
-        return complete_step(ctx, step_id)
-    return _handler.on_trigger(ctx, _step)
+        return await complete_step(ctx, step_id)
+    return await _handler.on_trigger(ctx, _step)

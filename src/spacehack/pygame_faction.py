@@ -328,7 +328,7 @@ def _delete_shown_id(ctx: GameContext) -> None:
         ctx.log.add(f"ID {_id} deleted.")
 
 
-def run_shared(context: PygameContext, ctx: GameContext) -> str:
+async def run_shared(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings inside the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -343,33 +343,34 @@ def run_shared(context: PygameContext, ctx: GameContext) -> str:
         screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
-        event = pygame.event.wait()
-        outcome = _handle_key(pygame, event)
-        if outcome == "DARK":
-            _log_transponder_toggle(ctx)
-            frame = frame_for(ctx)
-            continue
-        if outcome == "DELETE":
-            _delete_shown_id(ctx)
-            frame = frame_for(ctx)
-            continue
-        if outcome == "CYCLE":
-            from . import identity
-            identity.cycle_identity(ctx)
-            frame = frame_for(ctx)
-            continue
-        if outcome == "GUIDE":
-            return outcome
-        if outcome != "IGNORE":
-            return outcome
+        for event in pygame.event.get():
+            outcome = _handle_key(pygame, event)
+            if outcome == "DARK":
+                _log_transponder_toggle(ctx)
+                frame = frame_for(ctx)
+                continue
+            if outcome == "DELETE":
+                _delete_shown_id(ctx)
+                frame = frame_for(ctx)
+                continue
+            if outcome == "CYCLE":
+                from . import identity
+                identity.cycle_identity(ctx)
+                frame = frame_for(ctx)
+                continue
+            if outcome == "GUIDE":
+                return outcome
+            if outcome != "IGNORE":
+                return outcome
+        await context.pump(0.016)
 
 
-def run_for_context(context: PygameContext, ctx: GameContext) -> str:
+async def run_for_context(context: PygameContext, ctx: GameContext) -> str:
     """Run faction standings in the already-open shared Pygame window."""
     from . import pygame_runtime
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameFactionUnavailable("Shared Pygame runtime is not open")
-    return run_shared(context, ctx)
+    return await run_shared(context, ctx)
 
 

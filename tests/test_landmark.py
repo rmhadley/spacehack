@@ -1,6 +1,7 @@
 """Tests for authored landmarks stamped into procedural dungeons."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from collections import deque
 import copy
@@ -314,9 +315,9 @@ def test_mars_surface_rejects_landmark_without_required_markers(monkeypatch):
     )
 
     try:
-        act0.prepare_mars_surface(
+        run(act0.prepare_mars_surface(
             _ctx, _game_map, world.Position(1, 1),
-        )
+        ))
     except ValueError as _error:
         assert "console and stairs" in str(_error)
     else:
@@ -327,9 +328,9 @@ def test_mars_console_bump_runs_discovery_interaction(monkeypatch):
     """The landmark console routes the first bump to the Act 0 handler."""
     _ctx = _quest_ctx({"prologue_mars_entrance": "available"})
     _beats = []
-    monkeypatch.setattr(act0, "show_sealed_door_overlay", lambda ctx, beat: _beats.append(beat))
+    monkeypatch.setattr(act0, "show_sealed_door_overlay", as_async(lambda ctx, beat: _beats.append(beat)))
 
-    bump_mars_door(_ctx)
+    run(bump_mars_door(_ctx))
 
     assert _ctx.main_quest_progress["prologue_mars_entrance"] == "completed"
     assert _beats == ["discover"]
@@ -340,10 +341,10 @@ def test_mars_console_bump_opens_with_prologue_tool(monkeypatch):
     _ctx = _quest_ctx({"prologue_open": "active"})
     _beats = []
     _animations = []
-    monkeypatch.setattr(act0, "show_sealed_door_overlay", lambda ctx, beat: _beats.append(beat))
-    monkeypatch.setattr(act0, "animate_signal_door_opening", lambda *args: _animations.append(args))
+    monkeypatch.setattr(act0, "show_sealed_door_overlay", as_async(lambda ctx, beat: _beats.append(beat)))
+    monkeypatch.setattr(act0, "animate_signal_door_opening", as_async(lambda *args: _animations.append(args)))
 
-    bump_mars_door(_ctx)
+    run(bump_mars_door(_ctx))
 
     assert _ctx.main_quest_progress["prologue_open"] == "completed"
     assert "prison_data" not in _ctx.main_quest_unlocked_items
@@ -393,11 +394,11 @@ def test_mars_door_animation_reveals_stairs_on_real_map(monkeypatch):
     _ctx.game_map = _game_map
     _barrier_positions = act0._signal_door_barrier(_game_map)
     monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: None)
-    monkeypatch.setattr(act0, "show_sealed_door_overlay", lambda *args: None)
+    monkeypatch.setattr(act0, "show_sealed_door_overlay", as_async(lambda *args: None))
     import src.spacehack.navigation as navigation
-    monkeypatch.setattr(navigation, "_responsive_sleep", lambda seconds: None)
+    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds: None))
 
-    bump_mars_door(_ctx)
+    run(bump_mars_door(_ctx))
 
     assert _game_map.tiles[_stamp.stairs.y][_stamp.stairs.x] is world.STAIRS_DOWN
     assert all(
@@ -443,9 +444,9 @@ def test_signal_door_animation_undulates_then_splits(monkeypatch):
     _ctx = MagicMock()
     monkeypatch.setattr(act0, "_render_signal_door_frame", lambda *args: _frames.append(args[-1]))
     import src.spacehack.navigation as navigation
-    monkeypatch.setattr(navigation, "_responsive_sleep", lambda seconds: None)
+    monkeypatch.setattr(navigation, "_responsive_sleep", as_async(lambda seconds: None))
 
-    assert act0.animate_signal_door_opening(_ctx, MagicMock(), _game_map, _spawn)
+    assert run(act0.animate_signal_door_opening(_ctx, MagicMock(), _game_map, _spawn))
 
     assert tuple(_frames[:5]) == act0._SIGNAL_DOOR_WAVE_FRAMES
     assert _frames[5][3] == " "

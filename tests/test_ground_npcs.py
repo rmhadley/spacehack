@@ -1,6 +1,7 @@
 """Tests for selective last-seen pursuit by ground NPCs."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 
@@ -206,7 +207,7 @@ def test_unified_loop_stamps_only_on_disengagement():
         log=SimpleNamespace(add_colored=lambda *_args: None),
         _pygame_combat_presenter=None,
     )
-    result = _loop._run_combat_impl(None, ctx, object(), rules)
+    result = run(_loop._run_combat_impl(None, ctx, object(), rules))
 
     assert result.outcome == "DISENGAGED"
     assert callbacks == ["disengaged"]
@@ -226,7 +227,7 @@ def test_unified_loop_does_not_stamp_memory_for_victory(monkeypatch):
         log=SimpleNamespace(add_colored=lambda *_args: None),
         _pygame_combat_presenter=None,
     )
-    result = _loop._run_combat_impl(None, ctx, object(), rules)
+    result = run(_loop._run_combat_impl(None, ctx, object(), rules))
 
     assert result.outcome == "VICTORY"
     assert callbacks == []

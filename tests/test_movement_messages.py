@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run
 """Regression tests for exploration movement feedback."""
 
 from src.spacehack import game_interactions, saveload, world
@@ -94,7 +95,7 @@ def test_wall_resolution_logs_the_tile_owned_message():
     )
 
     code, blocker = world.try_move(player, game_map, 1, 0)
-    game_interactions.resolve_blocker(state, code, blocker, 1, 0)
+    run(game_interactions.resolve_blocker(state, code, blocker, 1, 0))
 
     assert messages == ["The force field repels you."]
 

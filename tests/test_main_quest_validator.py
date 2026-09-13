@@ -1,6 +1,7 @@
 """Tests for the minimal reusable main-quest data validator."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 from dataclasses import replace
 
@@ -38,7 +39,7 @@ def test_production_main_quest_data_passes_minimal_validator():
         list_raw_main_quest_steps(),
         objective_types=registered_objective_types(),
         heat_tags=registered_heat_tags(),
-        scene_ids=registered_scene_ids(),
+        scene_ids=run(registered_scene_ids()),
         story_values=overlay(),
     ) == ()
 

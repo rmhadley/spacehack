@@ -7,6 +7,7 @@ documented behaviour.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -106,14 +107,14 @@ def test_smuggle_trigger_loads_when_available_hands_over_when_active(monkeypatch
     monkeypatch.setattr(
         _core,
         "_complete_smuggle_handover",
-        lambda _ctx, _step: _calls.append("handover") or True,
+        as_async(lambda _ctx, _step: _calls.append("handover") or True),
     )
 
-    assert _smuggle_trigger(_ctx, _step)
+    assert run(_smuggle_trigger(_ctx, _step))
     assert _calls == ["load"]
 
     _ctx.main_quest_progress["lab_q2_delivery"] = "active"
-    assert _smuggle_trigger(_ctx, _step)
+    assert run(_smuggle_trigger(_ctx, _step))
     assert _calls == ["load", "handover"]
 
 
@@ -157,7 +158,7 @@ def test_payment_trigger_consumes_and_completes():
 
     ctx = _payment_ctx(9_500)
     ctx.main_quest_progress["mer_q4_bribe"] = "available"
-    assert trigger_dialogue(ctx, "depot_attendant", "mer_q4_bribe") is True
+    assert run(trigger_dialogue(ctx, "depot_attendant", "mer_q4_bribe")) is True
     assert ctx.stats.credits == 1_500  # consumed exactly 8,000
     assert step_status(ctx, "mer_q4_bribe") == "completed"
     assert "mer_q5_alloy" in ctx.main_quest_gate, "refit wait registered"
@@ -261,14 +262,14 @@ def test_mer_q5_alloy_completion_loads_the_alloy():
     ctx = _payment_ctx(0)
     ctx.player_owned_ship = SimpleNamespace(inventory={}, mission_reserved=0)
     ctx.main_quest_progress["mer_q5_alloy"] = "available"
-    assert complete_step(ctx, "mer_q5_alloy") is True
+    assert run(complete_step(ctx, "mer_q5_alloy")) is True
     # mission cargo, never the sellable hold (user ruling)
     assert ctx.player_owned_ship.inventory == {}
     assert ctx.player_owned_ship.mission_reserved == 3
     assert step_status(ctx, "mer_q6_survey") == "available"
     # released when the chain's next step completes (the smiths take it)
     ctx.main_quest_progress["mer_q6_survey"] = "available"
-    assert complete_step(ctx, "mer_q6_survey") is True
+    assert run(complete_step(ctx, "mer_q6_survey")) is True
     assert ctx.player_owned_ship.mission_reserved == 0
 
 
@@ -402,12 +403,12 @@ def test_quest_loot_secures_without_loading_the_hold(monkeypatch):
     from src.spacehack.main_quest import _objectives
 
     monkeypatch.setattr(
-        _objectives, "show_step_readout", lambda *_a: True,
+        _objectives, "show_step_readout", as_async(lambda *_a: True),
     )
     ctx = _payment_ctx(0)
     ctx.player_owned_ship = SimpleNamespace(inventory={})
     ctx.main_quest_progress["bar_q3_rigparts"] = "active"
 
     loot = SimpleNamespace(main_quest_step_id="bar_q3_rigparts")
-    assert _objectives.secure_quest_loot(ctx, loot, [("power_cell", 1)])
+    assert run(_objectives.secure_quest_loot(ctx, loot, [("power_cell", 1)]))
     assert ctx.player_owned_ship.inventory == {}

@@ -21,6 +21,8 @@ another solid entity opens a context dialog:
 """
 from __future__ import annotations
 
+import asyncio
+
 
 from . import main_quest as main_quest_module  # noqa: F401 - compatibility surface
 from . import ship as ship_module  # noqa: F401 - compatibility surface
@@ -63,8 +65,8 @@ from .game_flow import (
 # Compatibility adapters preserve the historical __main__ injection seams while
 # the implementations live in game_flow. Existing tests and callers can still
 # replace these module attributes without importing the new module directly.
-def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
-    return _flow_run_combat_loop(
+async def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False):
+    return await _flow_run_combat_loop(
         ctx, console, player, also_move_npcs=also_move_npcs,
     )
 
@@ -83,8 +85,8 @@ def _apply_ground_combat_rep(ctx, ground_result):
     return _flow_apply_ground_combat_rep(ctx, ground_result)
 
 
-def _run_ground_combat_tick(ctx, console, game_map):
-    return _flow_run_ground_combat_tick(
+async def _run_ground_combat_tick(ctx, console, game_map):
+    return await _flow_run_ground_combat_tick(
         ctx,
         console,
         game_map,
@@ -94,10 +96,10 @@ def _run_ground_combat_tick(ctx, console, game_map):
     )
 
 
-def _open_character_for_mode(ctx):
+async def _open_character_for_mode(ctx):
     from .character_screen import open_character_screen
 
-    return open_character_screen(ctx, equipment_management=True)
+    return await open_character_screen(ctx, equipment_management=True)
 
 
 def _pickup_loot_near(ctx):
@@ -106,39 +108,39 @@ def _pickup_loot_near(ctx):
     return _flow_pickup_loot_near(ctx)
 
 
-def _run_pygame_dungeon_confirm(ctx, **kwargs):
+async def _run_pygame_dungeon_confirm(ctx, **kwargs):
     from .game_flow import _run_pygame_dungeon_confirm as _flow_confirm
 
-    return _flow_confirm(ctx, **kwargs)
+    return await _flow_confirm(ctx, **kwargs)
 
 
-def _run_pygame_exit_confirm(ctx):
+async def _run_pygame_exit_confirm(ctx):
     from .game_flow import _run_pygame_exit_confirm as _flow_confirm
 
-    return _flow_confirm(ctx)
+    return await _flow_confirm(ctx)
 
 
-def _maybe_show_post_prison_orbit(ctx, current_city_id, *, from_mars_prison=False):
-    return _flow_maybe_show_post_prison_orbit(
+async def _maybe_show_post_prison_orbit(ctx, current_city_id, *, from_mars_prison=False):
+    return await _flow_maybe_show_post_prison_orbit(
         ctx,
         current_city_id,
         from_mars_prison=from_mars_prison,
     )
 
 
-def _maybe_show_post_prison_orbit_in_space(ctx, current_mode):
-    return _flow_maybe_show_post_prison_orbit_in_space(ctx, current_mode)
+async def _maybe_show_post_prison_orbit_in_space(ctx, current_mode):
+    return await _flow_maybe_show_post_prison_orbit_in_space(ctx, current_mode)
 
 
-def _notify_surface_exit(ctx, exited_map):
-    return _flow_notify_surface_exit(
+async def _notify_surface_exit(ctx, exited_map):
+    return await _flow_notify_surface_exit(
         ctx,
         exited_map,
         show_orbit=_maybe_show_post_prison_orbit,
     )
 
 
-def _launch_owned_ship(
+async def _launch_owned_ship(
     ctx,
     console,
     result,
@@ -148,7 +150,7 @@ def _launch_owned_ship(
     current_city_id,
     ship,
 ):
-    return _flow_launch_owned_ship(
+    return await _flow_launch_owned_ship(
         ctx,
         console,
         result,
@@ -174,7 +176,7 @@ def _is_mars_facility_map(ctx, game_map):
     return _flow_is_mars_facility_map(ctx, game_map)
 
 
-def _launch_from_city(
+async def _launch_from_city(
     ctx,
     console,
     city_game_map,
@@ -183,7 +185,7 @@ def _launch_from_city(
     current_city_id,
     city_player,
 ):
-    return _flow_launch_from_city(
+    return await _flow_launch_from_city(
         ctx,
         console,
         city_game_map,
@@ -242,7 +244,7 @@ def _complete_ship_purchase(
     )
 
 
-def _leave_dungeon_to_space(
+async def _leave_dungeon_to_space(
     ctx,
     game_map,
     space_game_map,
@@ -251,7 +253,7 @@ def _leave_dungeon_to_space(
     player_active_missions,
     log,
 ):
-    return _flow_leave_dungeon_to_space(
+    return await _flow_leave_dungeon_to_space(
         ctx,
         game_map,
         space_game_map,
@@ -264,7 +266,7 @@ def _leave_dungeon_to_space(
     )
 
 
-def _handle_dungeon_exit(
+async def _handle_dungeon_exit(
     ctx,
     game_map,
     space_game_map,
@@ -273,7 +275,7 @@ def _handle_dungeon_exit(
     player_active_missions,
     log,
 ):
-    return _flow_handle_dungeon_exit(
+    return await _flow_handle_dungeon_exit(
         ctx,
         game_map,
         space_game_map,
@@ -294,7 +296,7 @@ def _remove_salvage_wreck(ctx, wreck_spawn_id, space_game_map):
     return _flow_remove_salvage_wreck(ctx, wreck_spawn_id, space_game_map)
 
 
-def _handle_dungeon_exit_tile(
+async def _handle_dungeon_exit_tile(
     ctx,
     tile_kind,
     game_map,
@@ -304,7 +306,7 @@ def _handle_dungeon_exit_tile(
     player_active_missions,
     log,
 ):
-    return _flow_handle_dungeon_exit_tile(
+    return await _flow_handle_dungeon_exit_tile(
         ctx,
         tile_kind,
         game_map,
@@ -317,7 +319,7 @@ def _handle_dungeon_exit_tile(
         show_orbit=_notify_surface_exit,
     )
 
-def _run_game(
+async def _run_game(
     context: PygameContext,
     species_id: str = "",
     class_id: str = "",
@@ -326,7 +328,7 @@ def _run_game(
     tutorial: bool = False,
 ) -> None:
     """Run gameplay inside the already-open shared Pygame runtime."""
-    _run_game_loop(
+    await _run_game_loop(
         context,
         species_id,
         class_id,
@@ -338,23 +340,30 @@ def _run_game(
 from .game_loop import _run_game_loop
 
 
-def run(context: PygameContext) -> None:
+async def run(context: PygameContext) -> None:
     """Show the splash screen and run title/game flow."""
     from . import title_flow
     from .engine import new_game_seed
 
     seed_rng(new_game_seed())
-    title_flow.run_title_flow(
+    await title_flow.run_title_flow(
         context,
         _run_game,
         seed_rng=seed_rng,
     )
 
 
-def main() -> None:
-    """Top-level entry: load assets, open window, then run the flow."""
+async def _amain() -> None:
+    """Open the window, then run splash/title/game flow."""
     tileset = load_tileset()
     with open_runtime(tileset) as context:
-        run(context)
+        await run(context)
+
+
+def main() -> None:
+    """Top-level entry: load assets, open window, then run the flow."""
+    asyncio.run(_amain())
+
+
 if __name__ == '__main__':
     main()

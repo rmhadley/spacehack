@@ -60,13 +60,13 @@ class TalkOutcome(Enum):
     QUEST = auto()  # player picked the main-quest dialogue option row
     ASKAROUND = auto()  # player opened the Ask Around sub-menu (doc 42)
 
-def _run_pygame_menu(ctx, frames, *, caption: str):
+async def _run_pygame_menu(ctx, frames, *, caption: str):
     """Run the menu in the shared Pygame window."""
     from . import pygame_menu, pygame_runtime
 
     if not pygame_runtime.is_shared_context(getattr(ctx, "context", ctx)):
         raise pygame_menu.PygameMenuUnavailable("Shared Pygame runtime is not open")
-    return pygame_menu.run_shared(ctx.context, frames, caption=caption)
+    return await pygame_menu.run_shared(ctx.context, frames, caption=caption)
 
 # The passphrase rows (doc 42 phase 2.5): an install option that IS
 # the passphrase the chain sold you — user-settled wording. The row
@@ -255,7 +255,7 @@ def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
         _rig_offer(ctx, npc_id),
     )
 
-def _run_pygame_npc_talk(
+async def _run_pygame_npc_talk(
     ctx, npc, quest_body, missions, quest_options=(), scrub_price=None,
     cutout_price=None, rig_price=None, sell_ids=False, items=None,
 ):
@@ -268,14 +268,14 @@ def _run_pygame_npc_talk(
         )
     frames = _npc_pygame_frames(npc, quest_body, items)
     while True:
-        outcome, action, _selected = _run_pygame_menu(
+        outcome, action, _selected = await _run_pygame_menu(
             ctx,
             frames,
             caption=f"spacehack - {npc.name}",
         )
         if outcome == "GUIDE":
             from .help import _run_help_guide
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             continue
         return _map_pygame_npc_result(outcome, action, missions)
 
@@ -302,7 +302,7 @@ def _sell_ids_items(ctx) -> list:
     ]
 
 
-def _run_choice_submenu(ctx, *, title, body, items, caption):
+async def _run_choice_submenu(ctx, *, title, body, items, caption):
     """Run one sub-menu pass until ESC (None), QUIT ("QUIT"), or a
     pick (its action string). The shared loop behind the sell and
     Ask Around sub-menus."""
@@ -323,9 +323,9 @@ def _run_choice_submenu(ctx, *, title, body, items, caption):
         for _selected in range(max(1, len(items)))
     )
     while True:
-        _outcome, _action, _selected = _run_pygame_menu(ctx, _frames, caption=caption)
+        _outcome, _action, _selected = await _run_pygame_menu(ctx, _frames, caption=caption)
         if _outcome == "GUIDE":
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             continue
         if _outcome == "SELECT":
             return _action
@@ -334,7 +334,7 @@ def _run_choice_submenu(ctx, *, title, body, items, caption):
         return None
 
 
-def _run_sell_menu(ctx):
+async def _run_sell_menu(ctx):
     """Run the buy sub-menu until ESC (returns None) or a pick
     (returns the ``SELLID:<id>`` action)."""
     while True:
@@ -342,7 +342,7 @@ def _run_sell_menu(ctx):
         if not _items:
             ctx.log.add("You have nothing left to sell.")
             return None
-        return _run_choice_submenu(
+        return await _run_choice_submenu(
             ctx,
             title="The dealer buys",
             body='"Let me see what you have."',
@@ -351,14 +351,14 @@ def _run_sell_menu(ctx):
         )
 
 
-def _handle_sell_ids(ctx):
+async def _handle_sell_ids(ctx):
     """The dealer's buy sub-menu (doc 40 6b): pick an ID, sell it.
 
     Stays open until ESC — multiple sales per sitting."""
     from .identity import remove_id, sell_value
 
     while True:
-        _action = _run_sell_menu(ctx)
+        _action = await _run_sell_menu(ctx)
         if _action == "QUIT":
             return (TalkOutcome.QUIT, None)
         if _action is None:
@@ -379,10 +379,10 @@ def _handle_sell_ids(ctx):
         )
 
 
-def _show_rumor_readout(ctx, npc, text: str) -> None:
+async def _show_rumor_readout(ctx, npc, text: str) -> None:
     """The host's readout — the shared presentation path lives in
     ``rumor.present_hearing`` (doc 42 phase 3)."""
-    rumor_module.present_hearing(ctx, npc.name, text)
+    await rumor_module.present_hearing(ctx, npc.name, text)
 
 
 def _labeled(topic: str) -> str:
@@ -473,12 +473,12 @@ def _ask_body(ctx, npc) -> str:
     return '"What do you want to know?"'
 
 
-def _ask_hear(ctx, npc, rumor_id: str) -> None:
+async def _ask_hear(ctx, npc, rumor_id: str) -> None:
     rumor_module.hear(ctx, rumor_id)
-    _show_rumor_readout(ctx, npc, rumor_module.witness_text(rumor_id, npc.id))
+    await _show_rumor_readout(ctx, npc, rumor_module.witness_text(rumor_id, npc.id))
 
 
-def _ask_offer(ctx, npc, rumor_id: str) -> None:
+async def _ask_offer(ctx, npc, rumor_id: str) -> None:
     _earned = rumor_module.offer_rumor(ctx, npc.id, rumor_id)
     if _earned:
         ctx.log.add(
@@ -487,14 +487,14 @@ def _ask_offer(ctx, npc, rumor_id: str) -> None:
         )
 
 
-def _ask_buy(ctx, npc, payload: str) -> None:
+async def _ask_buy(ctx, npc, payload: str) -> None:
     """A priced pick: the row's holding rides in the action string, so
     the buy spends exactly what the row offered."""
     rumor_id, _, price = payload.partition(":")
     if not rumor_module.buy_exclusive(ctx, npc.id, rumor_id, int(price)):
         ctx.log.add("You don't have the favor for that yet.")
         return
-    _show_rumor_readout(ctx, npc, rumor_module.entry_text(rumor_id))
+    await _show_rumor_readout(ctx, npc, rumor_module.entry_text(rumor_id))
 
 
 _ASK_PICK_HANDLERS = {
@@ -504,15 +504,15 @@ _ASK_PICK_HANDLERS = {
 }
 
 
-def _apply_ask_pick(ctx, npc, action: str) -> None:
+async def _apply_ask_pick(ctx, npc, action: str) -> None:
     """One sub-menu pick: hear it, sell it, or buy it."""
     _prefix, _, _payload = action.partition(":")
     _handler = _ASK_PICK_HANDLERS.get(_prefix)
     if _handler is not None:
-        _handler(ctx, npc, _payload)
+        await _handler(ctx, npc, _payload)
 
 
-def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
+async def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
     """The Ask Around sub-menu (doc 42): askable topics plus — at a
     dealer — Sell offers and priced exclusives over a live Favor line
     (sell-menu idiom: rows rebuild every pass, no per-pick modal).
@@ -521,7 +521,7 @@ def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
         _topics, _offers, _buys = _ask_rows(ctx, npc)
         if not (_topics or _offers or _buys) and not rumor_module.is_dealer(npc.id):
             return (TalkOutcome.BACK, None)
-        _action = _run_choice_submenu(
+        _action = await _run_choice_submenu(
             ctx,
             title="Ask around",
             body=_ask_body(ctx, npc),
@@ -532,7 +532,7 @@ def _handle_ask_around(ctx, npc) -> tuple[TalkOutcome, None]:
             return (TalkOutcome.QUIT, None)
         if _action is None:
             return (TalkOutcome.BACK, None)
-        _apply_ask_pick(ctx, npc, _action)
+        await _apply_ask_pick(ctx, npc, _action)
 
 
 def _refusal_reply(ctx, npc):
@@ -554,7 +554,7 @@ def _offers_rumors(ctx, npc) -> bool:
     return bool(_ask_surface(ctx, npc))
 
 
-def _run_npc_talk(
+async def _run_npc_talk(
     ctx: GameContext,
     npc: NPC,
     *,
@@ -580,18 +580,18 @@ def _run_npc_talk(
         _rig_price, _is_id_buyer(ctx, npc), _ask_around,
     )
     if not items:
-        return _no_options_reply(ctx, npc, _quest_body)
+        return await _no_options_reply(ctx, npc, _quest_body)
 
     # The domain modal: quest rows mutate main-quest state on select.
-    result = _run_pygame_npc_talk(
+    result = await _run_pygame_npc_talk(
         ctx, npc, _quest_body, _missions, _quest_options,
         _scrub_price, _cutout_price, _rig_price, _is_id_buyer(ctx, npc),
         items=items,
     )
-    return _resolve_talk_result(ctx, npc, result)
+    return await _resolve_talk_result(ctx, npc, result)
 
 
-def _resolve_talk_result(ctx, npc, result):
+async def _resolve_talk_result(ctx, npc, result):
     """Post-modal dispatch: purchases, the ID market, rumors, quest rows."""
     if result is None:
         raise RuntimeError("NPC talk returned no outcome")
@@ -599,17 +599,17 @@ def _resolve_talk_result(ctx, npc, result):
     if _purchase is not None:
         return _purchase(ctx, npc)
     if result[0] is TalkOutcome.SELL:
-        return _handle_sell_ids(ctx)
+        return await _handle_sell_ids(ctx)
     if result[0] is TalkOutcome.ASKAROUND:
-        return _handle_ask_around(ctx, npc)
+        return await _handle_ask_around(ctx, npc)
     if result[0] is TalkOutcome.QUEST and isinstance(result[1], str):
-        return _finish_quest_row(ctx, npc, result)
+        return await _finish_quest_row(ctx, npc, result)
     return result
 
 
-def _finish_quest_row(ctx, npc, result):
+async def _finish_quest_row(ctx, npc, result):
     """Resolve a selected quest row (offer -> accept -> trigger)."""
-    _quit = _accept_quest_option(ctx, npc, result[1])
+    _quit = await _accept_quest_option(ctx, npc, result[1])
     if _quit:
         return (TalkOutcome.QUIT, None)
     return (result[0], None)
@@ -621,10 +621,10 @@ def _quest_rows(ctx, npc) -> list[tuple[str, str]]:
     return [_opt] if _opt is not None else []
 
 
-def _no_options_reply(ctx, npc, quest_body):
+async def _no_options_reply(ctx, npc, quest_body):
     """No menu rows: read-only flavor overlay, or the nothing-to-say log."""
     if quest_body != npc.flavor_text:
-        main_quest_module.show_quest_readout(ctx, npc, quest_body)
+        await main_quest_module.show_quest_readout(ctx, npc, quest_body)
     else:
         ctx.log.add(f'{npc.name} has nothing more to say right now.')
     return (TalkOutcome.BACK, None)
@@ -677,17 +677,17 @@ _PURCHASE_HANDLERS = {
 }
 
 
-def _accept_quest_option(ctx, npc, payload) -> bool:
+async def _accept_quest_option(ctx, npc, payload) -> bool:
     """Offer the quest, and on accept trigger it plus follow-ups.
 
     Returns True only when the player quit out of the offer modal.
     """
-    _offer = main_quest_module.show_help_offer(ctx, npc.id, payload)
+    _offer = await main_quest_module.show_help_offer(ctx, npc.id, payload)
     if _offer is main_quest_module.OfferOutcome.QUIT:
         return True
     if _offer is main_quest_module.OfferOutcome.ACCEPT:
-        main_quest_module.trigger_dialogue(ctx, npc.id, payload)
-        main_quest_module.maybe_continue_chain(ctx, npc.id, payload)
+        await main_quest_module.trigger_dialogue(ctx, npc.id, payload)
+        await main_quest_module.maybe_continue_chain(ctx, npc.id, payload)
     return False
 
 # IDENTITY GUARANTEE: ``npc_module.NPC is NPC`` (and ditto for

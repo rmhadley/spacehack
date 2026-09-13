@@ -5,6 +5,7 @@ invisible-regression risk as space combat math.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -224,7 +225,7 @@ def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
 
     monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
-    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.player.pos in {
         world.Position(2, 5), world.Position(3, 5), world.Position(4, 5),
@@ -266,7 +267,7 @@ def test_melee_kill_increments_charger_counter(monkeypatch):
     monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
-    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.player_counters.melee_kills == 1
 
@@ -443,7 +444,7 @@ class TestGroundPointBlankFire:
         monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
         monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         assert _rules_ground.player_ap(_ctx) == 2
         assert _left.hp < 39
@@ -747,10 +748,10 @@ class TestRangeLineHidden:
             _flags_seen.append(_rules_ground._state.range_line_hidden)
             return 0
 
-        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", _fake_impl)
+        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", as_async(_fake_impl))
         _rules_ground._state.range_line_hidden = False
 
-        _result = _rules_ground.run_enemy_turns(_ctx, _game_map)
+        _result = run(_rules_ground.run_enemy_turns(_ctx, _game_map))
 
         assert _flags_seen == [True]
         assert _result == 0
@@ -764,11 +765,11 @@ class TestRangeLineHidden:
         def _boom(ctx, game_map, _enemy_ai):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", _boom)
+        monkeypatch.setattr(_rules_ground, "_run_enemy_turns_impl", as_async(_boom))
         _rules_ground._state.range_line_hidden = False
 
         with pytest.raises(RuntimeError):
-            _rules_ground.run_enemy_turns(_ctx, _game_map)
+            run(_rules_ground.run_enemy_turns(_ctx, _game_map))
         assert _rules_ground._state.range_line_hidden is False
 
 
@@ -1101,7 +1102,7 @@ def test_explosive_fire_counts_successful_primary_hits(monkeypatch):
     monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
-    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.player_counters.explosive_hits == 1
 
@@ -1179,7 +1180,7 @@ def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
         _ai_ground, "RNG", SimpleNamespace(randint=lambda *_args: 1),
     )
 
-    _damage = _rules_ground.run_enemy_turns(_ctx, _game_map)
+    _damage = run(_rules_ground.run_enemy_turns(_ctx, _game_map))
 
     assert _damage == 3
     assert _rules_ground.player_hp(_ctx) == 20
@@ -1192,7 +1193,7 @@ def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatc
     monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
-    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "rockets", 4)]
@@ -1206,7 +1207,7 @@ def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch)
     monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 100))
 
-    _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _primary in _game_map.entities
@@ -1278,7 +1279,7 @@ def test_reload_weapon_fills_magazine_and_charges_ap():
     _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 3, reserve=40)
     _rules_ground.set_player_ap(_ctx, 3)
 
-    assert _rules_ground.reload_weapon(_ctx) is True
+    assert run(_rules_ground.reload_weapon(_ctx)) is True
 
     assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
     assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 31)]
@@ -1289,7 +1290,7 @@ def test_reload_weapon_missing_ammo_leaves_state_and_ap_unchanged():
     _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 3)
     _rules_ground.set_player_ap(_ctx, 3)
 
-    assert _rules_ground.reload_weapon(_ctx) is False
+    assert run(_rules_ground.reload_weapon(_ctx)) is False
 
     assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 3)]
     assert _rules_ground.player_ap(_ctx) == 3
@@ -1318,9 +1319,9 @@ def test_reload_weapon_chooses_between_multiple_active_weapons(monkeypatch):
         choices.append(kwargs["options"])
         return "RELOAD_SLOT:1"
 
-    monkeypatch.setattr(pygame_story, "choose", _choose)
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
 
-    assert _rules_ground.reload_weapon(_ctx) is True
+    assert run(_rules_ground.reload_weapon(_ctx)) is True
     assert len(choices) == 1
     assert choices[0] == (
         ("Kinetic Pistol 3/12 RES 40", "RELOAD_SLOT:0"),
@@ -1339,10 +1340,10 @@ def test_reload_weapon_modal_cancel_preserves_both_weapons(monkeypatch):
 
     _ctx = _dual_wield_ammo_ctx()
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "__BACK__",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "__BACK__"),
     )
 
-    assert _rules_ground.reload_weapon(_ctx) is False
+    assert run(_rules_ground.reload_weapon(_ctx)) is False
     assert _ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 3),
         GroundWeaponInstance("kinetic_pistol", 11),
@@ -1356,10 +1357,10 @@ def test_reload_weapon_modal_rejects_an_invalid_slot(monkeypatch):
 
     _ctx = _dual_wield_ammo_ctx()
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "RELOAD_SLOT:99",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "RELOAD_SLOT:99"),
     )
 
-    assert _rules_ground.reload_weapon(_ctx) is False
+    assert run(_rules_ground.reload_weapon(_ctx)) is False
     assert _ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 3),
         GroundWeaponInstance("kinetic_pistol", 11),

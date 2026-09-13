@@ -15,7 +15,7 @@ from . import animation_timing
 
 
 
-def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:
+async def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, game_map: world.GameMap, *, target_y: int, frame_seconds: float = animation_timing.CITY_TRANSITION, location: str = '') -> None:
     """Walk ``ship_ent.pos.y`` one cell per frame toward ``target_y``.
 
     Each frame paints ``game_map`` (plus HUD + msg log) around the
@@ -34,7 +34,7 @@ def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, game_m
         present_city_transition_frame(
             ctx, console, game_map, ship_ent, location or "",
         )
-        _responsive_sleep(frame_seconds)
+        await _responsive_sleep(frame_seconds)
 
 
 def _build_space_return(
@@ -71,7 +71,7 @@ def _build_space_return(
     return _space_map, _space_player
 
 
-def _launch_to_space(ctx, console: FrameBuffer, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
+async def _launch_to_space(ctx, console: FrameBuffer, city_game_map: world.GameMap, hangar_ship_ent: world.Entity, ship_obj: ship_module.Ship, current_city_id: str, city_player: world.Entity) -> tuple[world.GameMap, world.Entity]:
     """Animate ``hangar_ship_ent`` off the top of the city viewport and
     return ``(space_game_map, space_player_entity)``.
 
@@ -84,7 +84,7 @@ def _launch_to_space(ctx, console: FrameBuffer, city_game_map: world.GameMap, ha
         city_game_map.entities.remove(city_player)
     offscreen_y = -(solar_system_module.SOL_VIEW_H // 2) - 1
     if hangar_ship_ent.pos.y > offscreen_y:
-        _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
+        await _animate_ship_to_y(ctx, console, hangar_ship_ent, city_game_map, target_y=offscreen_y, location=current_city_id.replace('_', ' ').title())
         ctx.log.add(f'You launch the {ship_obj.name} into space.')
     return _build_space_return(ctx, current_city_id, ship_obj)
 

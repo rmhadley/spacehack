@@ -5,6 +5,7 @@ entry, and the capture-target data opt-ins.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -196,14 +197,16 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.game_interactions._enter_boarding_dungeon",
-        lambda state, spec, dm, sp, reboard: _entered.update(
+        as_async(
+            lambda state, spec, dm, sp, reboard: _entered.update(
             spec=spec.id, dm=dm, reboard=reboard,
+        )
         ),
     )
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
                        boarded_ent=_boarded)
 
-    begin_capture_boarding(_ctx, None, _cr)
+    run(begin_capture_boarding(_ctx, None, _cr))
 
     assert _boarded not in _space_map.entities, "the hull is gone"
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
@@ -235,7 +238,7 @@ def test_consume_books_the_kill_pass(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.game_interactions._enter_boarding_dungeon",
-        lambda *a, **k: None,
+        as_async(lambda *a, **k: None),
     )
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
                        boarded_ent=_boarded)
@@ -246,7 +249,7 @@ def test_consume_books_the_kill_pass(monkeypatch):
             squad=getattr(ent, "bounty_squad_id", None)),
     )
 
-    begin_capture_boarding(_ctx, None, _cr)
+    run(begin_capture_boarding(_ctx, None, _cr))
 
     from src.spacehack.data.ships import find_ship
     from src.spacehack.faction import _COMBAT_KILL_DELTAS
@@ -284,21 +287,21 @@ def test_consume_completes_the_bounty(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.game_interactions._enter_boarding_dungeon",
-        lambda *a, **k: None,
+        as_async(lambda *a, **k: None),
     )
     _seen_calls = {}
     monkeypatch.setattr(
         "src.spacehack.combat._encounter._complete_bounty_missions",
-        lambda ctx, cr: _seen_calls.update(bounty=list(cr.defeated_bounty_ids)),
+        as_async(lambda ctx, cr: _seen_calls.update(bounty=list(cr.defeated_bounty_ids))),
     )
     monkeypatch.setattr(
         "src.spacehack.main_quest.maybe_complete_bounty",
-        lambda ctx, ids: _seen_calls.update(main_quest=list(ids)),
+        as_async(lambda ctx, ids: _seen_calls.update(main_quest=list(ids))),
     )
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
                        boarded_ent=_boarded)
 
-    begin_capture_boarding(_ctx, None, _cr)
+    run(begin_capture_boarding(_ctx, None, _cr))
 
     assert _cr.defeated_bounty_ids == ["b_target"]
     assert _seen_calls["bounty"] == ["b_target"], "completion pass ran"
@@ -325,12 +328,12 @@ def test_consume_routes_heist_cargo_into_the_interior(monkeypatch):
     monkeypatch.setattr("src.spacehack.dungeon.load_layout", _load)
     monkeypatch.setattr(
         "src.spacehack.game_interactions._enter_boarding_dungeon",
-        lambda *a, **k: None,
+        as_async(lambda *a, **k: None),
     )
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
                        boarded_ent=_boarded)
 
-    begin_capture_boarding(_ctx, None, _cr)
+    run(begin_capture_boarding(_ctx, None, _cr))
 
     assert _layout_kwargs["component_good_id"] == "engine_core"
     assert _layout_kwargs["component_mission_id"] == "m_heist_1"
@@ -351,7 +354,7 @@ def test_breakaway_books_nothing(monkeypatch):
 
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
                        boarded_ent=_boarded)
-    assert begin_capture_boarding(_ctx, None, _cr) is False
+    assert run(begin_capture_boarding(_ctx, None, _cr)) is False
 
     assert _cr.outcome == "ABORTED"
     assert _boarded in _ctx.game_map.entities, "the hull survives"
@@ -485,7 +488,7 @@ def test_drift_tail_skipped_after_a_boarding(monkeypatch):
 
     _drifted = []
     monkeypatch.setattr(
-        gf, "_check_auto_comms_warning", lambda *a, **k: None,
+        gf, "_check_auto_comms_warning", as_async(lambda *a, **k: None),
     )
     monkeypatch.setattr(
         gf, "_detect_combat_encounter",
@@ -493,14 +496,14 @@ def test_drift_tail_skipped_after_a_boarding(monkeypatch):
     )
     monkeypatch.setattr(
         gf.combat, "_handle_combat_encounter",
-        lambda ctx, console, enc: "BOARDED",
+        as_async(lambda ctx, console, enc: "BOARDED"),
     )
     monkeypatch.setattr(
         gf, "_move_npcs", lambda ctx, gm: _drifted.append(gm),
     )
     _ctx = SimpleNamespace(game_map=object(), player=SimpleNamespace(pos=None),
                            player_active_missions=[])
-    _last = gf._run_combat_loop(_ctx, None, _ctx.player, also_move_npcs=True)
+    _last = run(gf._run_combat_loop(_ctx, None, _ctx.player, also_move_npcs=True))
     assert _last == "BOARDED"
     assert _drifted == [], "no space drift against the interior"
 
@@ -531,6 +534,6 @@ def test_break_away_downgrades_the_outcome(monkeypatch):
                        capture_layout_id="missing_layout",
                        loot_budget=(0, 0)),
     )
-    begin_capture_boarding(_ctx, None, _cr)
+    run(begin_capture_boarding(_ctx, None, _cr))
     assert _cr.outcome == "ABORTED", "the downgrade is the contract"
     assert _boarded in _space_map.entities, "nothing consumed"

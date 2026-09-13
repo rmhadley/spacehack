@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run, as_async
 """Tests for the persistent full-run console log."""
 
 from types import SimpleNamespace
@@ -120,7 +121,7 @@ def test_console_modal_propagates_quit(monkeypatch):
     monkeypatch.setattr(
         console_log.pygame_screen,
         "run_for_context",
-        lambda *_args, **_kwargs: ("QUIT", "", 0),
+        as_async(lambda *_args, **_kwargs: ("QUIT", "", 0)),
     )
 
-    assert console_log.open_console_log(ctx) == "QUIT"
+    assert run(console_log.open_console_log(ctx)) == "QUIT"

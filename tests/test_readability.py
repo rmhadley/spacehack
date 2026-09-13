@@ -1,6 +1,7 @@
 """Readability regressions for the terminal presentation."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 import ast
 import hashlib
@@ -40,12 +41,14 @@ def test_engine_import_does_not_eagerly_import_pygame():
     import subprocess
     import sys
 
-    result = subprocess.run(
+    result = run(
+                 subprocess.run(
         [sys.executable, "-c", "import sys; import src.spacehack.engine; print('pygame' in sys.modules)"],
         capture_output=True,
         text=True,
         check=True,
     )
+             )
 
     assert result.stdout.strip() == "False"
 

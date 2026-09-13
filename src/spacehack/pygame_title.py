@@ -211,12 +211,12 @@ _OPTION_CYCLERS = {
 }
 
 
-def run_options_for_context(context: PygameContext) -> bool:
+async def run_options_for_context(context: PygameContext) -> bool:
     """Run title options; return True only after a successful Apply."""
     pending = context.display_config
     selected = 0
     while True:
-        outcome, action, selected = pygame_menu.run_for_context(
+        outcome, action, selected = await pygame_menu.run_for_context(
             context,
             options_frames(pending, selected),
             caption="spacehack - options",
@@ -233,7 +233,7 @@ def run_options_for_context(context: PygameContext) -> bool:
                 context.apply_display_config(pending)
                 context.save_display_config()
             except (OSError, RuntimeError, ValueError) as exc:
-                pygame_story.dismiss(
+                await pygame_story.dismiss(
                     context,
                     title="DISPLAY ERROR",
                     body=f"Could not apply display preferences: {exc}",
@@ -474,7 +474,7 @@ def _draw_splash(
     _draw_splash_prompt(pygame, screen, font, content, layout["prompt_y"])
 
 
-def run_splash_for_context(context: PygameContext) -> None:
+async def run_splash_for_context(context: PygameContext) -> None:
     """Show the illustrated title splash in the existing shared Pygame window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -487,16 +487,17 @@ def run_splash_for_context(context: PygameContext) -> None:
     while True:
         _draw_splash(pygame, screen, font)
         engine.present()
-        event = pygame.event.wait()
-        if event.type == pygame.QUIT:
-            return
-        if event.type == pygame.KEYDOWN:
-            return
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+            if event.type == pygame.KEYDOWN:
+                return
+        await context.pump(0.016)
 
 
-def run_for_context(context: PygameContext, save_available: bool) -> tuple[ui.TitleMenuOutcome, int]:
+async def run_for_context(context: PygameContext, save_available: bool) -> tuple[ui.TitleMenuOutcome, int]:
     """Run the title menu in the existing shared Pygame window."""
-    outcome, action, selected = pygame_menu.run_for_context(
+    outcome, action, selected = await pygame_menu.run_for_context(
         context,
         frames(save_available),
         caption="spacehack",
@@ -510,7 +511,7 @@ def run_for_context(context: PygameContext, save_available: bool) -> tuple[ui.Ti
     if outcome != "SELECT":
         raise RuntimeError("Pygame title menu returned no outcome")
     if action == "OPTIONS":
-        run_options_for_context(context)
+        await run_options_for_context(context)
         return ui.TitleMenuOutcome.IGNORE, selected
     title_outcome = _TITLE_ACTIONS.get(action)
     if title_outcome is None:

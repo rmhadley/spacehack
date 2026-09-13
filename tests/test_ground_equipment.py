@@ -1,6 +1,7 @@
 """Phase 1 tests for ground equipment ownership and mutation."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import pytest
 
@@ -343,7 +344,7 @@ def test_equipment_loot_pickup_adds_to_pack_and_removes_entity():
         "log": type("Log", (), {"add": lambda self, _message: None})(),
     })()
 
-    assert loot._apply_equipment_loot_pickup(ctx, entity)
+    assert run(loot._apply_equipment_loot_pickup(ctx, entity))
     assert ctx.ground_expedition_inventory == [
         StoredGroundEquipment("weapon", "combat_knife"),
     ]
@@ -368,8 +369,8 @@ def test_full_expedition_pack_leaves_equipment_loot_on_floor(monkeypatch):
         "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
     })()
 
-    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: None)
-    assert not loot._apply_equipment_loot_pickup(ctx, entity)
+    monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: None))
+    assert not run(loot._apply_equipment_loot_pickup(ctx, entity))
     assert entity in ctx.game_map.entities
     assert pack == [
         StoredGroundEquipment("armor", "light_helmet"),
@@ -412,9 +413,9 @@ def test_full_expedition_pack_can_drop_carried_item_for_new_loot(monkeypatch):
         "game_map": type("Map", (), {"entities": entities})(),
         "log": type("Log", (), {"add": lambda self, _message: None})(),
     })()
-    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: 3)
+    monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: 3))
 
-    assert loot._apply_equipment_loot_pickup(ctx, entity)
+    assert run(loot._apply_equipment_loot_pickup(ctx, entity))
     assert pack == [
         StoredGroundEquipment("armor", "light_helmet"),
         StoredGroundEquipment("armor", "light_vest"),
@@ -440,7 +441,7 @@ def test_invalid_equipment_loot_stays_on_floor():
         "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
     })()
 
-    assert not loot._apply_equipment_loot_pickup(ctx, entity)
+    assert not run(loot._apply_equipment_loot_pickup(ctx, entity))
     assert entity in ctx.game_map.entities
     assert any("unknown" in message.lower() for message in messages)
 
@@ -659,7 +660,7 @@ def test_field_ammo_loot_merges_and_leaves_remainder_on_floor():
     )
     ctx.game_map.entities.append(entity)
 
-    assert loot._apply_field_item_loot_pickup(ctx, entity)
+    assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
     assert entity in ctx.game_map.entities
@@ -685,9 +686,9 @@ def test_field_ammo_loot_leaves_full_pack_unchanged(monkeypatch):
         messages=messages,
     )
     ctx.game_map.entities.append(entity)
-    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: None)
+    monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: None))
 
-    assert not loot._apply_field_item_loot_pickup(ctx, entity)
+    assert not run(loot._apply_field_item_loot_pickup(ctx, entity))
 
     assert entity in ctx.game_map.entities
     assert ctx.ground_expedition_items == []
@@ -708,9 +709,9 @@ def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
         StoredGroundEquipment("weapon", "combat_knife"),
     ])
     ctx.game_map.entities.append(entity)
-    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: "DROP_PACK:3")
+    monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: "DROP_PACK:3"))
 
-    assert loot._apply_field_item_loot_pickup(ctx, entity)
+    assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 5)]
     assert entity not in ctx.game_map.entities
@@ -738,9 +739,9 @@ def test_field_ammo_over_capacity_prompts_until_two_items_are_dropped(monkeypatc
     )
     ctx.game_map.entities.append(entity)
     choices = iter(("DROP_PACK:3", "DROP_PACK:2"))
-    monkeypatch.setattr(loot, "_choose_pack_drop", lambda *_args: next(choices))
+    monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: next(choices)))
 
-    assert loot._apply_field_item_loot_pickup(ctx, entity)
+    assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
     assert ctx.ground_expedition_items == [
         GroundItemStack("consumable", "med_pack", 1),

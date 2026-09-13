@@ -40,7 +40,7 @@ def _build_menu_items(
     items.append(("Leave", "Fly past", PlanetMenuOutcome.BACK.name))
     return items
 
-def _run_pygame_planet_menu(ctx, planet_obj, items):
+async def _run_pygame_planet_menu(ctx, planet_obj, items):
     """Run the dynamic planet action list through the Pygame worker."""
     from .. import pygame_menu, pygame_ui
 
@@ -60,14 +60,14 @@ def _run_pygame_planet_menu(ctx, planet_obj, items):
         )
         for selected in range(max(1, len(items)))
     )
-    outcome, action, _selected = pygame_menu.run_for_context(
+    outcome, action, _selected = await pygame_menu.run_for_context(
         ctx.context,
         frames,
         caption=f"spacehack - {planet_obj.name}",
     )
     if outcome == "GUIDE":
         from ..help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return PlanetMenuOutcome.BACK, None
     if outcome == "SELECT":
         if action and action.startswith("DIG:"):
@@ -88,7 +88,7 @@ def _discovered_on(ctx, planet_id: str) -> list[dict]:
         if site.get("planet") == planet_id
     ]
 
-def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> tuple[PlanetMenuOutcome, str | None]:
+async def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> tuple[PlanetMenuOutcome, str | None]:
     """Show the planet-bump modal for ``planet_obj``.
 
     Returns ``(outcome, site_id)`` — the site id is set only for a
@@ -111,7 +111,7 @@ def _run_planet_menu(ctx, planet_obj: solar_system_module.Planet) -> tuple[Plane
         explorable_sites = []
     discovered = _discovered_on(ctx, planet_obj.id)
     items = _build_menu_items(planet_obj, has_port, explorable_sites, discovered)
-    result, site_id = _run_pygame_planet_menu(ctx, planet_obj, items)
+    result, site_id = await _run_pygame_planet_menu(ctx, planet_obj, items)
     if result is None:
         raise RuntimeError("Planet menu returned no outcome")
     return result, site_id

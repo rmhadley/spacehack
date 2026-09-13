@@ -8,6 +8,7 @@ luyten_star column data's consistency.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -46,14 +47,14 @@ def line_system(monkeypatch):
 def _comply(monkeypatch):
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
-        lambda *_a, **_k: navigation_line._Checkpoint.COMPLY,
+        as_async(lambda *_a, **_k: navigation_line._Checkpoint.COMPLY),
     )
 
 
 def _defy(monkeypatch):
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
-        lambda *_a, **_k: navigation_line._Checkpoint.DEFY,
+        as_async(lambda *_a, **_k: navigation_line._Checkpoint.DEFY),
     )
 
 
@@ -63,7 +64,7 @@ def _hails(monkeypatch):
     calls: list = []
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
-        lambda *_a, **_k: calls.append(1) or navigation_line._Checkpoint.COMPLY,
+        as_async(lambda *_a, **_k: calls.append(1) or navigation_line._Checkpoint.COMPLY),
     )
     return calls
 
@@ -73,8 +74,10 @@ def _modals(monkeypatch, reply):
     opened: list = []
     monkeypatch.setattr(
         "src.spacehack.comms._pygame_interaction_outcome",
-        lambda _c, _n, _s, _o, contact_entity=None, dispatch=None,
-        title=None, lines=None, esc_label=None: opened.append(lines) or reply,
+        as_async(
+            lambda _c, _n, _s, _o, contact_entity=None, dispatch=None,
+        title=None, lines=None, esc_label=None: opened.append(lines) or reply
+        ),
     )
     return opened
 
@@ -193,18 +196,18 @@ def test_crossing_hails_once_eastbound_and_not_again_past_column(line_system, mo
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert run(navigation_line.check_crossing(ctx, world.Position(149, 70))) is None
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert result is not None and result[0] is True
     # Phase 3: a complying hull's EAST step past the column is the
     # lie converting — the payload converges, the latch clears,
     # and every later step is silent (a condemned hull is never
     # re-hailed).
-    converted = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    converted = run(navigation_line.check_crossing(ctx, world.Position(151, 70)))
     assert converted is not None and converted[0] is True
     assert ctx.line_defiance_system == "luyten_star"
     assert ctx.line_comply_latch is False
-    assert navigation_line.check_crossing(ctx, world.Position(160, 70)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(160, 70))) is None
     assert len(calls) == 1, "the hail fired once; the conversion is not a hail"
 
 
@@ -212,13 +215,13 @@ def test_crossing_hails_the_first_westbound_return(line_system, monkeypatch):
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(180, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(180, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(151, 70))) is None
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert result is not None and result[0] is True
     # Leaving the column is free — the westbound hull continues home
     # without a second hail.
-    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(149, 70))) is None
     assert len(calls) == 1
 
 
@@ -228,9 +231,9 @@ def test_tripwire_zero_state_stamps_on_first_step(line_system, monkeypatch):
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    assert navigation_line.check_crossing(ctx, world.Position(180, 70)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(180, 70))) is None
     assert calls == []
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert result is not None
     assert len(calls) == 1, "the first entry onto the column after load hails"
 
@@ -243,12 +246,12 @@ def test_leaving_the_line_system_resets_the_tracker(monkeypatch):
     calls = _hails(monkeypatch)
 
     monkeypatch.setattr(solar_system_module, "current_system", lambda: LUYTEN)
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
     monkeypatch.setattr(solar_system_module, "current_system", lambda: sol)
-    navigation_line.check_crossing(ctx, world.Position(100, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(100, 70)))
     monkeypatch.setattr(solar_system_module, "current_system", lambda: LUYTEN)
-    assert navigation_line.check_crossing(ctx, world.Position(140, 70)) is None
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    assert run(navigation_line.check_crossing(ctx, world.Position(140, 70))) is None
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert result is not None
     assert len(calls) == 1, "re-entry stamps, then the first entry hails"
 
@@ -263,8 +266,8 @@ def test_papers_wave_opens_all_clear_comms_and_persists(line_system, monkeypatch
                     ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
 
     assert result == (False, None), "a wave lets the hull through"
     assert len(opened) == 1
@@ -282,13 +285,13 @@ def test_service_run_wave_consumes_the_trait(line_system, monkeypatch):
                     ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) == (False, None)
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) == (False, None)
     assert "blockade_service_run" not in ctx.player_traits
     assert "service-run contract is spent" in _log_text(ctx)
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))  # free retreat
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))  # free retreat
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert result is not None and result[0] is True
     assert len(calls) == 2, "wave comms + the post-consumption challenge"
 
@@ -303,8 +306,8 @@ def test_rank_wave_addresses_the_worn_face(line_system, monkeypatch):
                     ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
 
     assert result == (False, None)
     assert "MIL-0001" in opened[0][0], "the wave addresses the worn face"
@@ -318,8 +321,8 @@ def test_challenge_addresses_the_broadcast_id(line_system, monkeypatch):
     ctx = quest_ctx(ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
 
     assert "SC-4471, this is forbidden space." in opened[0][0]
     assert "not on our list" in opened[0][0]
@@ -333,7 +336,7 @@ def test_dark_checkpoint_addresses_unidentified_hull(line_system, monkeypatch):
                     game_map=SimpleNamespace(
                         entities=_picket_entities(LUYTEN)))
 
-    result = navigation_line.line_dark_hail(ctx, ctx.game_map.entities[0])
+    result = run(navigation_line.line_dark_hail(ctx, ctx.game_map.entities[0]))
 
     assert result is not None
     assert opened[0][0].startswith("Unidentified hull, this is forbidden space.")
@@ -345,8 +348,8 @@ def test_dark_hull_is_never_swept(line_system, monkeypatch):
     calls = _hails(monkeypatch)
     ctx = quest_ctx(broadcast_dark=True, game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is None
     assert calls == []
 
 
@@ -359,15 +362,17 @@ def test_column_supersedes_the_doc39_warning(line_system, monkeypatch):
     opened: list = []
     monkeypatch.setattr(
         "src.spacehack.comms.open_comms_direct",
-        lambda _ctx, _e: opened.append(_e) or None,
+        as_async(lambda _ctx, _e: opened.append(_e) or None),
     )
     ctx = quest_ctx(militia_scanned=set(),
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     picket = ctx.game_map.entities[0]
 
-    result = nc._auto_hail_entity(
+    result = run(
+                 nc._auto_hail_entity(
         ctx, "luyten_star", picket, world.Position(149, 55), LUYTEN,
     )
+             )
 
     assert result is None and opened == []
 
@@ -380,16 +385,16 @@ def test_doc39_warning_stands_without_a_column(monkeypatch):
     monkeypatch.setattr(solar_system_module, "current_system", lambda: sol)
     monkeypatch.setattr(
         "src.spacehack.comms.open_comms_direct",
-        lambda _ctx, _e: None,
+        as_async(lambda _ctx, _e: None),
     )
     ctx = quest_ctx(militia_scanned=set())
     picket = world.Entity("M", (100, 200, 255), world.Position(40, 30),
                           npc_ship_id="militia_blockade")
 
-    result = nc._spec_distance_hail(
+    result = run(nc._spec_distance_hail(
         ctx, "sol", picket, nc.find_npc_ship("militia_blockade"),
         world.Position(41, 30),
-    )
+    ))
 
     assert result is not None and result[0] is True
     assert nc._entity_hail_key(picket) in ctx.militia_scanned
@@ -406,8 +411,8 @@ def test_defy_converges_the_picket_squad_and_raises_interdiction(line_system, mo
         game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
     )
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    result = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    result = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
 
     assert result is not None and result[0] is True
     specs, positions = result[1]
@@ -420,8 +425,8 @@ def test_defy_payload_skips_dead_pickets(line_system, monkeypatch):
     entities = _picket_entities(LUYTEN)[1:]  # the north picket is destroyed
     ctx = quest_ctx(game_map=SimpleNamespace(entities=entities))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    _hailed, payload = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    _hailed, payload = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert len(payload[0]) == 3
 
 
@@ -434,8 +439,8 @@ def test_lured_alive_picket_fights_from_its_live_position(line_system, monkeypat
     entities[0].pos = world.Position(140, 60)  # lured off its post
     ctx = quest_ctx(game_map=SimpleNamespace(entities=entities))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    _hailed, payload = navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    _hailed, payload = run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert len(payload[0]) == 4
     assert (140, 60) in [(_p.x, _p.y) for _p in payload[1]]
 
@@ -448,8 +453,8 @@ def test_dead_squad_ends_the_sweep(line_system, monkeypatch):
     ctx = quest_ctx(faction_reputation={"militia": 100},
                     game_map=SimpleNamespace(entities=[]))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is None
     assert calls == []
     assert ctx.line_defiance_system is None
 
@@ -588,20 +593,20 @@ def test_comply_turn_back_is_free_and_recross_hails(line_system, monkeypatch):
     calls = _hails(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
 
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
-    assert navigation_line.check_crossing(ctx, world.Position(149, 70)) is None, (
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is not None
+    assert run(navigation_line.check_crossing(ctx, world.Position(149, 70))) is None, (
         "the turn-back is never re-hailed"
     )
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is not None
     assert len(calls) == 2, "each entry is a new resolution; retreats are free"
 
     # Same from the east side: comply, continue west unmolested.
     navigation_line.reset_session()
     calls.clear()
-    navigation_line.check_crossing(ctx, world.Position(180, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is not None
-    assert navigation_line.check_crossing(ctx, world.Position(130, 70)) is None
+    run(navigation_line.check_crossing(ctx, world.Position(180, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is not None
+    assert run(navigation_line.check_crossing(ctx, world.Position(130, 70))) is None
     assert len(calls) == 1
 
 
@@ -609,14 +614,14 @@ def test_goto_interrupts_on_the_hail(line_system, monkeypatch):
     """The sweep hail breaks GO TO like comms warnings do."""
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     ship = SimpleNamespace(pos=world.Position(149, 70))
-    navigation_line.check_crossing(ctx, ship.pos)
+    run(navigation_line.check_crossing(ctx, ship.pos))
 
     _comply(monkeypatch)
     ship.pos = world.Position(150, 70)
     assert navigation_travel_goto(ctx, ship) == (GotoOutcome.CANCELLED, None)
 
     navigation_line.reset_session()
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
     _defy(monkeypatch)
     ctx.game_map = SimpleNamespace(entities=_picket_entities(LUYTEN))
     ship.pos = world.Position(150, 70)
@@ -632,7 +637,7 @@ def test_goto_continues_through_a_wave(line_system, monkeypatch):
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     bounty_spawns={}, militia_scanned=set())
     ship = SimpleNamespace(pos=world.Position(149, 70))
-    navigation_line.check_crossing(ctx, ship.pos)
+    run(navigation_line.check_crossing(ctx, ship.pos))
 
     _modals(monkeypatch, navigation_line._Checkpoint.ACK)
     ship.pos = world.Position(150, 70)
@@ -641,7 +646,7 @@ def test_goto_continues_through_a_wave(line_system, monkeypatch):
 
 def navigation_travel_goto(ctx, ship):
     from src.spacehack.navigation_travel import _goto_step_interrupt
-    return _goto_step_interrupt(ctx, ship)
+    return run(_goto_step_interrupt(ctx, ship))
 
 
 def test_run_combat_loop_hail_owns_the_step(line_system, monkeypatch):
@@ -652,20 +657,20 @@ def test_run_combat_loop_hail_owns_the_step(line_system, monkeypatch):
     handled: list = []
     monkeypatch.setattr(
         "src.spacehack.combat._handle_combat_encounter",
-        lambda _c, _console, data: handled.append(data) or "VICTORY",
+        as_async(lambda _c, _console, data: handled.append(data) or "VICTORY"),
     )
     warnings: list = []
     monkeypatch.setattr(
         game_flow, "_check_auto_comms_warning",
-        lambda *_a: warnings.append(1),
+        as_async(lambda *_a: warnings.append(1)),
     )
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     player = SimpleNamespace(pos=world.Position(149, 70))
-    navigation_line.check_crossing(ctx, player.pos)
+    run(navigation_line.check_crossing(ctx, player.pos))
     _defy(monkeypatch)
     player.pos = world.Position(150, 70)
 
-    outcome = game_flow._run_combat_loop(ctx, object(), player)
+    outcome = run(game_flow._run_combat_loop(ctx, object(), player))
 
     assert outcome == "VICTORY"
     assert len(handled) == 1 and warnings == [], "hailed step skips comms"
@@ -680,7 +685,7 @@ def test_run_combat_loop_wave_falls_through(line_system, monkeypatch):
     warnings: list = []
     monkeypatch.setattr(
         game_flow, "_check_auto_comms_warning",
-        lambda *_a: warnings.append(1),
+        as_async(lambda *_a: warnings.append(1)),
     )
     monkeypatch.setattr(game_flow, "_detect_combat_encounter", lambda *_a: None)
     ctx = quest_ctx(player_traits=["blockade_manifest"],
@@ -688,10 +693,10 @@ def test_run_combat_loop_wave_falls_through(line_system, monkeypatch):
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     militia_scanned=set())
     player = SimpleNamespace(pos=world.Position(149, 70))
-    navigation_line.check_crossing(ctx, player.pos)
+    run(navigation_line.check_crossing(ctx, player.pos))
     player.pos = world.Position(150, 70)
 
-    outcome = game_flow._run_combat_loop(ctx, object(), player)
+    outcome = run(game_flow._run_combat_loop(ctx, object(), player))
 
     assert outcome is None
     assert len(opened) == 1 and warnings, "the wave step keeps the normal pass"
@@ -709,8 +714,8 @@ def test_line_dark_hail_scopes_to_picket_spotters(line_system, monkeypatch):
     other = world.Entity("M", (100, 200, 255), world.Position(150, 55),
                          npc_ship_id="militia_patrol")
 
-    assert navigation_line.line_dark_hail(ctx, picket) is not None
-    assert navigation_line.line_dark_hail(ctx, other) is None
+    assert run(navigation_line.line_dark_hail(ctx, picket)) is not None
+    assert run(navigation_line.line_dark_hail(ctx, other)) is None
     assert len(calls) == 1
 
 
@@ -724,15 +729,17 @@ def test_dark_spot_outside_column_keeps_doc40_challenge(monkeypatch):
     challenged: list = []
     monkeypatch.setattr(
         "src.spacehack.comms.open_challenge_direct",
-        lambda _ctx, _e: challenged.append(_e) or None,
+        as_async(lambda _ctx, _e: challenged.append(_e) or None),
     )
     ctx = quest_ctx(broadcast_dark=True, militia_scanned=set())
     patrol = world.Entity("M", (100, 200, 255), world.Position(5, 6),
                           npc_ship_id="militia_patrol")
 
-    result = nc._dark_spot_challenge(
+    result = run(
+                 nc._dark_spot_challenge(
         ctx, patrol, nc.find_npc_ship("militia_patrol"), world.Position(5, 5),
     )
+             )
 
     assert challenged == [patrol]
     assert result is not None and result[0] is True
@@ -744,15 +751,17 @@ def test_dark_spot_by_picket_opens_the_line_checkpoint(line_system, monkeypatch)
     sentinels: list = []
     monkeypatch.setattr(
         navigation_line, "line_dark_hail",
-        lambda _ctx, _e: sentinels.append(_e) or (True, None),
+        as_async(lambda _ctx, _e: sentinels.append(_e) or (True, None)),
     )
     ctx = quest_ctx(broadcast_dark=True, militia_scanned=set())
     picket = world.Entity("M", (100, 200, 255), world.Position(150, 56),
                           npc_ship_id="militia_blockade")
 
-    result = nc._dark_spot_challenge(
+    result = run(
+                 nc._dark_spot_challenge(
         ctx, picket, nc.find_npc_ship("militia_blockade"), world.Position(150, 55),
     )
+             )
 
     assert sentinels == [picket]
     assert result == (True, None)
@@ -814,13 +823,13 @@ def test_dark_spot_rearms_after_leaving_detect_range(line_system, monkeypatch):
     spec = nc.find_npc_ship("militia_blockade")
 
     near = world.Position(150, 26)
-    assert nc._dark_spot_challenge(ctx, picket, spec, near) is not None
-    assert nc._dark_spot_challenge(ctx, picket, spec, near) is None, (
+    assert run(nc._dark_spot_challenge(ctx, picket, spec, near)) is not None
+    assert run(nc._dark_spot_challenge(ctx, picket, spec, near)) is None, (
         "in sight: already answered"
     )
 
-    nc._dark_spot_challenge(ctx, picket, spec, world.Position(150, 60))
-    result = nc._dark_spot_challenge(ctx, picket, spec, near)
+    run(nc._dark_spot_challenge(ctx, picket, spec, world.Position(150, 60)))
+    result = run(nc._dark_spot_challenge(ctx, picket, spec, near))
     assert result is not None, "the retreat re-arms the patrol"
     assert len(opened) == 2
 
@@ -1668,8 +1677,8 @@ def test_papers_never_arm_the_latch(line_system, monkeypatch):
                     ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     militia_scanned=set())
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert ctx.line_comply_latch is False
     assert ctx.line_defiance_system is None
 
@@ -1679,11 +1688,11 @@ def test_latched_east_exit_converts(line_system, monkeypatch):
     converting — payload, flag, latch cleared, the lasers log."""
     _comply(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert ctx.line_comply_latch is True
 
-    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    result = run(navigation_line.check_crossing(ctx, world.Position(151, 70)))
     assert result is not None and result[0] is True and len(result[1][0]) == 4
     assert ctx.line_defiance_system == "luyten_star"
     assert ctx.line_comply_latch is False
@@ -1695,14 +1704,14 @@ def test_latched_retreat_and_lateral_steps_do_nothing(line_system, monkeypatch):
     converts nothing; the latch waits."""
     _comply(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
 
     # lateral along the column (ON it, not re-entering): no hail
-    assert navigation_line.check_crossing(ctx, world.Position(150, 71)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 71))) is None
     # the retreat west: free (the shipped entry rule re-hails only
     # a LATER re-entry, not the retreat itself)
-    assert navigation_line.check_crossing(ctx, world.Position(149, 71)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(149, 71))) is None
     assert ctx.line_defiance_system is None
     assert ctx.line_comply_latch is True
 
@@ -1716,13 +1725,13 @@ def test_latched_east_of_column_retreats_free(line_system, monkeypatch):
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     ctx.line_comply_latch = True  # armed while east, somehow
 
-    assert navigation_line.check_crossing(ctx, world.Position(154, 70)) is None
-    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(154, 70))) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(151, 70))) is None
     assert ctx.line_defiance_system is None, "retreating never converts"
 
-    navigation_line.check_crossing(ctx, world.Position(150, 70))  # fresh hail
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))  # fresh hail
     assert ctx.line_comply_latch is True
-    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    result = run(navigation_line.check_crossing(ctx, world.Position(151, 70)))
     assert result is not None and result[0] is True, "the east exit converts"
 
 
@@ -1732,7 +1741,7 @@ def test_conversion_needs_a_manned_line(line_system, monkeypatch):
     _comply(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=[]))
     ctx.line_comply_latch = True
-    assert navigation_line.check_crossing(ctx, world.Position(151, 70)) is None
+    assert run(navigation_line.check_crossing(ctx, world.Position(151, 70))) is None
     assert ctx.line_defiance_system is None
 
 
@@ -1759,14 +1768,16 @@ def test_flagged_hull_is_never_hailed_or_waved(line_system, monkeypatch):
                     ship_registration="SC-4471",
                     game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)),
                     militia_scanned=set(), line_defiance_system="luyten_star")
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    assert navigation_line.check_crossing(ctx, world.Position(150, 70)) is None
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    assert run(navigation_line.check_crossing(ctx, world.Position(150, 70))) is None
     assert opened == []
     assert "blockade_service_run" in ctx.player_traits, "nothing consumed"
 
-    assert navigation_line.line_dark_hail(
+    assert run(
+               navigation_line.line_dark_hail(
         ctx, ctx.game_map.entities[0],
-    ) is None, "the dark path refuses a condemned hull"
+    )
+           ) is None, "the dark path refuses a condemned hull"
 
 
 def test_converted_goto_step_logs_only_the_lasers(line_system, monkeypatch):
@@ -1777,14 +1788,14 @@ def test_converted_goto_step_logs_only_the_lasers(line_system, monkeypatch):
     _comply(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
     ship = SimpleNamespace(pos=world.Position(149, 70))
-    navigation_line.check_crossing(ctx, ship.pos)
+    run(navigation_line.check_crossing(ctx, ship.pos))
     ship.pos = world.Position(150, 70)
-    nt._goto_step_interrupt(ctx, ship)  # the hail + comply
+    run(nt._goto_step_interrupt(ctx, ship))  # the hail + comply
     assert ctx.line_comply_latch is True
     _before = len(ctx.log._messages)  # the hail's interrupt line is legit
 
     ship.pos = world.Position(151, 70)
-    outcome, payload = nt._goto_step_interrupt(ctx, ship)
+    outcome, payload = run(nt._goto_step_interrupt(ctx, ship))
     assert outcome is nt.GotoOutcome.COMBAT and payload is not None
     _delta = "\n".join(
         m.text for m in ctx.log._messages[_before:]
@@ -1818,14 +1829,14 @@ def test_fresh_process_load_still_converts_the_latch(line_system, monkeypatch):
     converts on its first east step."""
     _comply(monkeypatch)
     ctx = quest_ctx(game_map=SimpleNamespace(entities=_picket_entities(LUYTEN)))
-    navigation_line.check_crossing(ctx, world.Position(149, 70))
-    navigation_line.check_crossing(ctx, world.Position(150, 70))
+    run(navigation_line.check_crossing(ctx, world.Position(149, 70)))
+    run(navigation_line.check_crossing(ctx, world.Position(150, 70)))
     assert ctx.line_comply_latch is True
 
     navigation_line.reset_session()  # the fresh process: tracker gone
     navigation_line.stamp_session(world.Position(150, 70))  # load stamps it
 
-    result = navigation_line.check_crossing(ctx, world.Position(151, 70))
+    result = run(navigation_line.check_crossing(ctx, world.Position(151, 70)))
     assert result is not None and result[0] is True, (
         "the persisted latch converts across the restart"
     )

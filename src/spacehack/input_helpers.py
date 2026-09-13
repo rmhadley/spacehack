@@ -81,7 +81,7 @@ def _is_character_menu(menu: ui.MenuScreen) -> bool:
     """Return whether a menu is one of the two character-creation pickers."""
     return menu.title in {"Choose Your Species", "Choose Your Class"}
 
-def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None] | None:
+async def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None] | None:
     """Run a character picker in the shared Pygame window."""
     from . import pygame_menu
 
@@ -89,7 +89,7 @@ def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]
     if not frames:
         return None
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, _selected = await pygame_menu.run_for_context(
             context,
             frames,
             caption=f"spacehack - {menu.title.lower()}",
@@ -106,7 +106,7 @@ def _run_pygame_pick(context, menu: ui.MenuScreen) -> tuple[Outcome, str | None]
                 return Outcome.CONFIRM, action
         return None
 
-def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | None:
+async def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | None:
     """Run character confirmation in the shared Pygame window."""
     from . import pygame_menu
 
@@ -114,7 +114,7 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
     klass = find_class(class_id)
     frame = _pygame_confirm_frame(species, klass)
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, _selected = await pygame_menu.run_for_context(
             context,
             (frame,),
             caption="spacehack - character creation",
@@ -129,18 +129,18 @@ def _run_pygame_confirm(context, species_id: str, class_id: str) -> Outcome | No
             return Outcome.QUIT
         return None
 
-def _run_pick(context: PygameContext, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
+async def _run_pick(context: PygameContext, menu: ui.MenuScreen) -> tuple[Outcome, str | None]:
     """Run a character picker in the shared Pygame window."""
     if not _is_character_menu(menu):
         raise RuntimeError("Character picker requires the shared Pygame runtime")
-    result = _run_pygame_pick(context, menu)
+    result = await _run_pygame_pick(context, menu)
     if result is None:
         raise RuntimeError("Character picker returned no outcome")
     return result
 
-def _run_confirm(context: PygameContext, species_id: str, class_id: str) -> Outcome:
+async def _run_confirm(context: PygameContext, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""
-    result = _run_pygame_confirm(context, species_id, class_id)
+    result = await _run_pygame_confirm(context, species_id, class_id)
     if result is None:
         raise RuntimeError("Character confirmation returned no outcome")
     return result
@@ -461,7 +461,7 @@ def _is_f9_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f9'
 
-def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
+async def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
     """Open the game guide if ``?`` was pressed.
 
     Returns ``True`` if the guide was opened (caller should return its
@@ -471,6 +471,6 @@ def _try_open_guide(event: pygame_engine.PygameInputEvent, ctx) -> bool:
     """
     if _is_question_press(event):
         from .help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return True
     return False

@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run, as_async
 """Host wiring tests for the rumor talk surface (doc 42 phases 1-3).
 
 One Ask around row on the main talk menu (present whenever the NPC
@@ -145,7 +146,7 @@ def test_ask_around_sitting_hears_the_extension(monkeypatch):
     _readouts = []
     monkeypatch.setattr(
         npc_mod, "_show_rumor_readout",
-        lambda ctx, npc, text: _readouts.append(text),
+        as_async(lambda ctx, npc, text: _readouts.append(text)),
     )
     _seed_where(
         lambda rr, s: ("deadfall_scrubber", "lal_b") in rr.live_routes(s)["dark_berth_2"]
@@ -157,12 +158,14 @@ def test_ask_around_sitting_hears_the_extension(monkeypatch):
         _picks = iter(["ASKTOPIC:dark_berth_2"])
         monkeypatch.setattr(
             npc_mod, "_run_choice_submenu",
-            lambda ctx, **kwargs: next(_picks, None),
+            as_async(lambda ctx, **kwargs: next(_picks, None)),
         )
         ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
-        result = npc_mod._resolve_talk_result(
+        result = run(
+                     npc_mod._resolve_talk_result(
             ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
         )
+                 )
         assert result == (npc_mod.TalkOutcome.BACK, None)
         assert ctx.known_rumors == ["dark_berth_1", "dark_berth_2"]
         assert len(_readouts) == 1
@@ -175,12 +178,14 @@ def test_ask_around_closes_when_the_npc_is_out_of_rumors(monkeypatch):
     _opened = []
     monkeypatch.setattr(
         npc_mod, "_run_choice_submenu",
-        lambda ctx, **kwargs: _opened.append(1) or None,
+        as_async(lambda ctx, **kwargs: _opened.append(1) or None),
     )
     ctx = quest_ctx()
-    result = npc_mod._resolve_talk_result(
+    result = run(
+                 npc_mod._resolve_talk_result(
         ctx, find_npc("guild_master"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
+             )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     assert _opened == [], "nothing askable never opens the sub-menu"
     assert ctx.known_rumors == []
@@ -188,12 +193,14 @@ def test_ask_around_closes_when_the_npc_is_out_of_rumors(monkeypatch):
 
 def test_ask_around_quits_propagate(monkeypatch):
     monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu", lambda ctx, **kwargs: "QUIT",
+        npc_mod, "_run_choice_submenu", as_async(lambda ctx, **kwargs: "QUIT"),
     )
     ctx = quest_ctx()
-    result = npc_mod._resolve_talk_result(
+    result = run(
+                 npc_mod._resolve_talk_result(
         ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
+             )
     assert result == (npc_mod.TalkOutcome.QUIT, None)
     assert ctx.known_rumors == [], "QUIT hears nothing"
 
@@ -207,8 +214,8 @@ def test_full_talk_flow_surfaces_the_ask_row(monkeypatch):
         _seen["actions"] = [item.action for item in items]
         return (npc_mod.TalkOutcome.BACK, None)
 
-    monkeypatch.setattr(npc_mod, "_run_pygame_npc_talk", _fake_talk)
-    npc_mod._run_npc_talk(quest_ctx(), find_npc("barkeep"))
+    monkeypatch.setattr(npc_mod, "_run_pygame_npc_talk", as_async(_fake_talk))
+    run(npc_mod._run_npc_talk(quest_ctx(), find_npc("barkeep")))
     assert "ASKAROUND" in _seen["actions"]
     assert not any(a.startswith("RUMOR:") for a in _seen["actions"])
 
@@ -227,16 +234,18 @@ def _capture_submenu(seen, picks):
 def test_dealer_submenu_shows_sell_rows_and_favor_line(monkeypatch):
     _seen = []
     monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+        npc_mod, "_run_choice_submenu", as_async(_capture_submenu(_seen, iter([]))),
     )
     # Tiers 1 and 3 have no authored sources — the wolf buys both;
     # tier 2 is his own telling and never shows a Sell row.
     ctx = quest_ctx(
         city_id="wolf_b", known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
     )
-    result = npc_mod._resolve_talk_result(
+    result = run(
+                 npc_mod._resolve_talk_result(
         ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
     )
+             )
     assert result == (npc_mod.TalkOutcome.BACK, None)
     _actions = [item.action for item in _seen[0]["items"]]
     assert "OFFER:dark_berth_1" in _actions
@@ -254,11 +263,13 @@ def test_selling_updates_favor_and_retires_the_row(monkeypatch):
     monkeypatch.setattr(
         npc_mod,
         "_run_choice_submenu",
-        _capture_submenu(_seen, iter(["OFFER:dark_berth_1"])),
+        as_async(_capture_submenu(_seen, iter(["OFFER:dark_berth_1"]))),
     )
     ctx = quest_ctx(known_rumors=["dark_berth_1"])
-    npc_mod._resolve_talk_result(
+    run(
+        npc_mod._resolve_talk_result(
         ctx, find_npc("barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
     )
     assert ctx.rumor_favor["barkeep"]["favor"] == 1
     # Second pass rebuilt live (sell-menu idiom): the sold row is
@@ -278,13 +289,13 @@ def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
     _readouts = []
     monkeypatch.setattr(
         npc_mod, "_show_rumor_readout",
-        lambda ctx, npc, text: _readouts.append(text),
+        as_async(lambda ctx, npc, text: _readouts.append(text)),
     )
     _seen = []
     monkeypatch.setattr(
         npc_mod,
         "_run_choice_submenu",
-        _capture_submenu(_seen, iter(["BUY:dark_berth_4:4"])),
+        as_async(_capture_submenu(_seen, iter(["BUY:dark_berth_4:4"]))),
     )
     _seed_where(lambda rr, s: "wolf_barkeep" in rr.live_holdings(s))
     try:
@@ -293,8 +304,10 @@ def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
             known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
             rumor_favor={"wolf_barkeep": {"favor": 4, "earned": []}},
         )
-        npc_mod._resolve_talk_result(
+        run(
+            npc_mod._resolve_talk_result(
             ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
         )
         assert "BUY:dark_berth_4:4" in [
             item.action for item in _seen[0]["items"]
@@ -315,7 +328,7 @@ def test_buy_row_when_affordable_and_buy_flows(monkeypatch):
 def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
     _seen = []
     monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+        npc_mod, "_run_choice_submenu", as_async(_capture_submenu(_seen, iter([]))),
     )
     _seed_where(lambda rr, s: "wolf_barkeep" in rr.live_holdings(s))
     try:
@@ -324,8 +337,10 @@ def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
             known_rumors=["dark_berth_1", "dark_berth_2", "dark_berth_3"],
             rumor_favor={"wolf_barkeep": {"favor": 3, "earned": []}},
         )
-        npc_mod._resolve_talk_result(
+        run(
+            npc_mod._resolve_talk_result(
             ctx, find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
         )
         assert not any(
             item.action.startswith("BUY:") for item in _seen[0]["items"]
@@ -339,15 +354,17 @@ def test_unaffordable_exclusive_shows_no_buy_row(monkeypatch):
 def test_non_dealer_submenu_keeps_the_prompt_body(monkeypatch):
     _seen = []
     monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+        npc_mod, "_run_choice_submenu", as_async(_capture_submenu(_seen, iter([]))),
     )
     _seed_where(
         lambda rr, s: ("deadfall_scrubber", "lal_b") in rr.live_routes(s)["dark_berth_2"]
     )
     try:
         ctx = quest_ctx(city_id="lal_b", known_rumors=["dark_berth_1"])
-        npc_mod._resolve_talk_result(
+        run(
+            npc_mod._resolve_talk_result(
             ctx, find_npc("deadfall_scrubber"), (npc_mod.TalkOutcome.ASKAROUND, None),
+        )
         )
         assert _seen[0]["body"] == '"What do you want to know?"'
         assert not any(
@@ -404,16 +421,18 @@ def test_only_the_live_holder_shows_the_buy_row(monkeypatch):
     monkeypatch.setattr(engine_mod, "INIT_SEED", seed)
     _seen = []
     monkeypatch.setattr(
-        npc_mod, "_run_choice_submenu", _capture_submenu(_seen, iter([])),
+        npc_mod, "_run_choice_submenu", as_async(_capture_submenu(_seen, iter([]))),
     )
     _both_rich = {
         dealer: {"favor": 9, "earned": []}
         for dealer in ("wolf_barkeep", "barkeep", "research_officer")
     }
     _heard = ["dark_berth_1", "dark_berth_2", "dark_berth_3"]
-    npc_mod._resolve_talk_result(
+    run(
+        npc_mod._resolve_talk_result(
         quest_ctx(city_id="wolf_b", known_rumors=_heard, rumor_favor=dict(_both_rich)),
         find_npc("wolf_barkeep"), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
     )
     assert not any(
         item.action.startswith("BUY:") for item in _seen[0]["items"]
@@ -423,9 +442,11 @@ def test_only_the_live_holder_shows_the_buy_row(monkeypatch):
         for _row in rows
     )
     _seen.clear()
-    npc_mod._resolve_talk_result(
+    run(
+        npc_mod._resolve_talk_result(
         quest_ctx(city_id="earth", known_rumors=_heard, rumor_favor=dict(_both_rich)),
         find_npc(_holder), (npc_mod.TalkOutcome.ASKAROUND, None),
+    )
     )
     assert "BUY:dark_berth_4:4" in [
         item.action for item in _seen[0]["items"]

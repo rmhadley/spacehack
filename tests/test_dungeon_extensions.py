@@ -1,6 +1,7 @@
 """Regression tests for the reusable themed dungeon extension runtime."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -108,22 +109,24 @@ def test_activation_threshold_resolves_when_no_deployment_cell_exists(monkeypatc
     seed_rng(15)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     extension_player.pos = _position_between_security_thresholds(extension_map)
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert "prison_floor1_security_alpha" in ctx.dungeon_extension.activated_events
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
     # The event woke its pre-placed dormant squad (doc 30 phase 3):
     # alpha's units are active and hostile now.
     squad = [
@@ -154,12 +157,14 @@ def test_enter_extension_rejects_invalid_parent_key_without_activation():
     ctx = _ctx(parent_map, parent_player)
 
     try:
-        dungeon_extensions.enter_extension(
+        run(
+            dungeon_extensions.enter_extension(
             ctx,
             parent_map,
             parent_player,
             extension_id="mars_alien_prison",
             parent_map_key="surface:missing",
+        )
         )
     except ValueError:
         pass
@@ -177,18 +182,22 @@ def test_first_entry_flavor_shows_once_on_reentry(monkeypatch):
     shown: list[tuple[str, str, str]] = []
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda _ctx, faction, message, *, title: shown.append(
+        as_async(
+            lambda _ctx, faction, message, *, title: shown.append(
             (faction, title, message),
+        )
         ),
     )
 
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
 
     assert len(shown) == 1
     assert shown[0][0:2] == ("ALIEN FACILITY", "THE PRISON BELOW")
@@ -197,12 +206,14 @@ def test_first_entry_flavor_shows_once_on_reentry(monkeypatch):
     assert ctx.dungeon_extension.activated_events == {"__entry_flavor__:floor:1"}
 
     dungeon_extensions.leave_extension(ctx, extension_map)
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
+    )
     )
 
     assert len(shown) == 1
@@ -219,10 +230,10 @@ def test_floor_without_entry_flavor_does_not_mark_state(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: shown.append((args, kwargs)),
+        as_async(lambda *args, **kwargs: shown.append((args, kwargs))),
     )
 
-    dungeon_extensions._show_first_entry_flavor(ctx, state, 1)
+    run(dungeon_extensions._show_first_entry_flavor(ctx, state, 1))
 
     assert not shown
     assert not any(
@@ -236,13 +247,15 @@ def test_extension_entry_and_leave_preserve_parent_position():
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
 
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
 
     assert ctx.dungeon_extension.active
     assert ctx.dungeon_extension.parent_position == world.Position(4, 5)
@@ -272,13 +285,15 @@ def test_prison_exit_does_not_consume_orbit_disclosure_state():
         parent_position=parent_player.pos,
         state_flags={"prison_data_extracted"},
     )
-    extension_map, _ = dungeon_extensions.enter_extension(
+    extension_map, _ = run(
+                           dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                       )
 
     dungeon_extensions.leave_extension(ctx, extension_map)
 
@@ -291,23 +306,25 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
     seed_rng(9)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
 
     shown: list[tuple[str, str]] = []
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda _ctx, faction, message, *, title: shown.append((faction, title)),
+        as_async(lambda _ctx, faction, message, *, title: shown.append((faction, title))),
     )
     event_id = "prison_floor1_security_alpha"
     extension_player.pos = _position_between_security_thresholds(extension_map)
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert event_id in ctx.dungeon_extension.activated_events
     assert "prison_floor1_security_beta" not in ctx.dungeon_extension.activated_events
     assert any(
@@ -319,7 +336,7 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
     assert shown == [("ALIEN SECURITY", "SECURITY POWER RISING")]
     entity_count = len(extension_map.entities)
 
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
     assert len(extension_map.entities) == entity_count
 
 
@@ -327,16 +344,18 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
     seed_rng(12)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     event_id = "prison_floor1_security_beta"
     ctx.dungeon_extension.activated_events.add(
@@ -344,7 +363,7 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
     )
     extension_player.pos = extension_map.down_stair_pos
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert event_id in ctx.dungeon_extension.activated_events
     assert any(
         entity.npc_char_id == "assault_drone"
@@ -358,20 +377,22 @@ def test_progress_trigger_fires_when_anchor_is_skipped(monkeypatch):
     seed_rng(13)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     extension_player.pos = extension_map.down_stair_pos
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert {
         "prison_floor1_security_alpha",
         "prison_floor1_security_beta",
@@ -387,25 +408,29 @@ def test_cached_floor_repairs_pre_phase_two_missing_down_stairs():
     seed_rng(14)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    floor_one, _ = dungeon_extensions.enter_extension(
+    floor_one, _ = run(
+                       dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                   )
     _down = floor_one.down_stair_pos
     floor_one.tiles[_down.y][_down.x] = world.DUNGEON_FLOOR
     del floor_one.down_stair_pos
     dungeon_extensions.leave_extension(ctx, floor_one)
 
-    repaired, _ = dungeon_extensions.enter_extension(
+    repaired, _ = run(
+                      dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                  )
 
     assert repaired.down_stair_pos is not None
     assert repaired.tiles[
@@ -417,20 +442,22 @@ def test_cached_floor_repairs_invalid_stair_metadata():
     seed_rng(13)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
-    floor_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+    )
+    floor_two, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     floor_two.up_stair_pos = world.Position(999, 999)
     floor_two.down_stair_pos = world.Position(-1, -1)
 
-    returned_one, _ = dungeon_extensions.transition_floor(ctx, -1)
+    returned_one, _ = run(dungeon_extensions.transition_floor(ctx, -1))
     assert returned_one.extension_floor == 1
-    restored_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+    restored_two, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     assert restored_two.up_stair_pos is not None
     assert restored_two.down_stair_pos is not None
     assert restored_two.tiles[
@@ -442,21 +469,25 @@ def test_cached_floor_repairs_missing_activation_positions():
     seed_rng(11)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, _ = dungeon_extensions.enter_extension(
+    extension_map, _ = run(
+                           dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                       )
     ctx.dungeon_extension.event_positions.clear()
 
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
+    )
     )
 
     assert set(ctx.dungeon_extension.event_positions) == set(
@@ -585,30 +616,32 @@ def test_phase_three_elevator_requires_power_then_reaches_floor_five():
     seed_rng(305)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
-    dungeon_extensions.transition_floor(ctx, 1)
-    dungeon_extensions.transition_floor(ctx, 1)
-    floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+    )
+    run(dungeon_extensions.transition_floor(ctx, 1))
+    run(dungeon_extensions.transition_floor(ctx, 1))
+    floor_four, _ = run(dungeon_extensions.transition_floor(ctx, 1))
 
     assert ctx.dungeon_extension.current_floor == 4
     assert not dungeon_extensions.elevator_is_powered(ctx)
     try:
-        dungeon_extensions.transition_floor(ctx, 1)
+        run(dungeon_extensions.transition_floor(ctx, 1))
     except ValueError as exc:
         assert "unpowered" in str(exc)
     else:
         raise AssertionError("unpowered elevator should block Floor 5")
 
-    assert dungeon_extensions.restore_power(ctx)
+    assert run(dungeon_extensions.restore_power(ctx))
     assert ctx.dungeon_extension.power_restored
     assert dungeon_extensions.elevator_is_powered(ctx)
-    floor_five, _ = dungeon_extensions.transition_floor(ctx, 1)
+    floor_five, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     assert floor_five.extension_floor == 5
     assert floor_five.location_name == "The Deep Cell"
 
@@ -815,20 +848,22 @@ def test_ascent_events_are_gated_until_data_extraction(monkeypatch):
     seed_rng(409)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     extension_player.pos = extension_map.up_stair_pos
 
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
     assert not any(
         event_id.startswith("prison_ascent_")
         for event_id in ctx.dungeon_extension.activated_events
@@ -836,7 +871,7 @@ def test_ascent_events_are_gated_until_data_extraction(monkeypatch):
 
     ctx.dungeon_extension.state_flags.add("prison_data_extracted")
     extension_player.pos = extension_map.down_stair_pos
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
     assert not ctx.dungeon_extension.activated_events
 
 
@@ -846,21 +881,23 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
     ctx = _ctx(parent_map, parent_player)
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
-    floor_two, _ = dungeon_extensions.enter_extension(
+    floor_two, _ = run(
+                       dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
-    dungeon_extensions.transition_floor(ctx, 1)
+                   )
+    run(dungeon_extensions.transition_floor(ctx, 1))
     floor_two = ctx.game_map
     ctx.dungeon_extension.state_flags.add("prison_data_extracted")
     ctx.player.pos = floor_two.up_stair_pos
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert len(ctx.dungeon_extension.activated_events) == 1
     assert ctx.dungeon_extension.activated_events == {
         "prison_ascent_f2_assault",
@@ -871,7 +908,7 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
         for entity in floor_two.entities
     ) == 2
 
-    assert dungeon_extensions.tick_activation(ctx)
+    assert run(dungeon_extensions.tick_activation(ctx))
     assert ctx.dungeon_extension.activated_events == {
         "prison_ascent_f2_assault",
         "prison_ascent_f2_sentries",
@@ -884,28 +921,30 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
         and not entity.powered_down
         for entity in floor_two.entities
     ) >= 1
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
 
 
 def test_descent_events_are_suppressed_after_extraction(monkeypatch):
     seed_rng(411)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
-    extension_map, extension_player = dungeon_extensions.enter_extension(
+    extension_map, extension_player = run(
+                                          dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                                      )
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     ctx.dungeon_extension.state_flags.add("prison_data_extracted")
     extension_player.pos = extension_map.down_stair_pos
 
-    assert not dungeon_extensions.tick_activation(ctx)
+    assert not run(dungeon_extensions.tick_activation(ctx))
     assert not any(
         event_id.startswith("prison_floor1_security_")
         for event_id in ctx.dungeon_extension.activated_events
@@ -919,38 +958,44 @@ def test_phase_four_extraction_completes_prison_objective(monkeypatch):
     ctx.context = object()
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     from src.spacehack.main_quest import start_step
 
     ctx.main_quest_progress["act1_prison"] = "available"
     start_step(ctx, "act1_prison")
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
-    dungeon_extensions.transition_floor(ctx, 1)
-    dungeon_extensions.transition_floor(ctx, 1)
-    _floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+    )
+    run(dungeon_extensions.transition_floor(ctx, 1))
+    run(dungeon_extensions.transition_floor(ctx, 1))
+    _floor_four, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     assert ctx.dungeon_extension.current_floor == 4
-    assert dungeon_extensions.restore_power(ctx)
+    assert run(dungeon_extensions.restore_power(ctx))
     assert dungeon_extensions.elevator_is_powered(ctx)
-    _floor_five, _ = dungeon_extensions.transition_floor(ctx, 1)
+    _floor_five, _ = run(dungeon_extensions.transition_floor(ctx, 1))
 
     assert ctx.main_quest_progress.get("act1_prison") == "active"
-    assert dungeon_extensions.activate_interaction_state(
+    assert run(
+               dungeon_extensions.activate_interaction_state(
         ctx, "deep_cell_data_terminal",
     )
+           )
     assert "prison_data_extracted" in ctx.dungeon_extension.state_flags
     assert ctx.main_quest_progress.get("act1_prison") == "completed"
     assert ctx.player_xp >= 120
 
-    assert not dungeon_extensions.activate_interaction_state(
+    assert not run(
+                   dungeon_extensions.activate_interaction_state(
         ctx, "deep_cell_data_terminal",
     )
+               )
 
 
 def test_phase_four_entry_activates_prison_objective(monkeypatch):
@@ -960,16 +1005,18 @@ def test_phase_four_entry_activates_prison_objective(monkeypatch):
     ctx.context = object()
     monkeypatch.setattr(
         "src.spacehack.main_quest.show_gate_popup",
-        lambda *args, **kwargs: None,
+        as_async(lambda *args, **kwargs: None),
     )
     ctx.main_quest_progress["act1_prison"] = "available"
 
-    dungeon_extensions.enter_extension(
+    run(
+        dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
+    )
     )
 
     assert ctx.main_quest_progress.get("act1_prison") == "active"
@@ -1058,18 +1105,20 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
 
-    floor_one, _ = dungeon_extensions.enter_extension(
+    floor_one, _ = run(
+                       dungeon_extensions.enter_extension(
         ctx,
         parent_map,
         parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                   )
     floor_one_marker = world.Entity(
         "!", (255, 255, 255), floor_one.entry_spawn, "Test marker",
     )
     floor_one.entities.append(floor_one_marker)
-    floor_two, floor_two_player = dungeon_extensions.transition_floor(ctx, 1)
+    floor_two, floor_two_player = run(dungeon_extensions.transition_floor(ctx, 1))
 
     assert ctx.dungeon_extension.current_floor == 2
     assert floor_two.location_name == "Prisoner Quarters"
@@ -1078,25 +1127,25 @@ def test_phase_two_transition_caches_maps_and_backtracks_to_stairs():
     ][floor_two.up_stair_pos.x] is world.STAIRS_UP
     assert floor_two.down_stair_pos is not None
 
-    floor_three, _ = dungeon_extensions.transition_floor(ctx, 1)
+    floor_three, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     assert ctx.dungeon_extension.current_floor == 3
     assert floor_three.location_name == "Defensive Layer"
     assert floor_three.down_stair_pos is not None
 
-    floor_four, _ = dungeon_extensions.transition_floor(ctx, 1)
+    floor_four, _ = run(dungeon_extensions.transition_floor(ctx, 1))
     assert ctx.dungeon_extension.current_floor == 4
     assert floor_four.location_name == "High-Risk Containment"
 
-    returned_three, returned_player = dungeon_extensions.transition_floor(ctx, -1)
+    returned_three, returned_player = run(dungeon_extensions.transition_floor(ctx, -1))
     assert returned_three is floor_three
     assert returned_player.pos == floor_three.down_stair_pos
     assert ctx.dungeon_extension.current_floor == 3
 
-    returned_two, _ = dungeon_extensions.transition_floor(ctx, -1)
+    returned_two, _ = run(dungeon_extensions.transition_floor(ctx, -1))
     assert returned_two is floor_two
     assert ctx.dungeon_extension.current_floor == 2
 
-    returned_one, _ = dungeon_extensions.transition_floor(ctx, -1)
+    returned_one, _ = run(dungeon_extensions.transition_floor(ctx, -1))
     assert returned_one is floor_one
     assert returned_one.entity_at(
         floor_one_marker.pos.x, floor_one_marker.pos.y,

@@ -5,6 +5,7 @@ placement on the rebuilt Earth map, and bump-to-travel between districts.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -62,13 +63,13 @@ def test_transit_travel_moves_player_to_chosen_destination(monkeypatch):
     monkeypatch.setattr(
         city_transit,
         "_run_transit_menu",
-        lambda _ctx, _station, _dests: "militia",
+        as_async(lambda _ctx, _station, _dests: "militia"),
     )
     monkeypatch.setattr(
-        city_transit, "animate_transit_arrival", lambda *_a, **_k: None,
+        city_transit, "animate_transit_arrival", as_async(lambda *_a, **_k: None),
     )
 
-    result = city_transit.resolve_transit_station(state, port)
+    result = run(city_transit.resolve_transit_station(state, port))
 
     assert result is None
     militia = game_map.city_transit["militia"]["pos"]
@@ -95,9 +96,9 @@ def test_transit_cancel_does_not_move_player(monkeypatch):
     )
     state.log = SimpleNamespace(add=lambda text: None)
 
-    monkeypatch.setattr(city_transit, "_run_transit_menu", lambda *_a, **_k: None)
+    monkeypatch.setattr(city_transit, "_run_transit_menu", as_async(lambda *_a, **_k: None))
 
-    city_transit.resolve_transit_station(state, hub)
+    run(city_transit.resolve_transit_station(state, hub))
 
     assert (state.player.pos.x, state.player.pos.y) == (69, 52)
 
@@ -117,7 +118,7 @@ def test_transit_station_without_routes_logs_and_does_not_move(monkeypatch):
         log=SimpleNamespace(add=lambda text: None),
     )
 
-    city_transit.resolve_transit_station(state, station)
+    run(city_transit.resolve_transit_station(state, station))
 
     assert (state.player.pos.x, state.player.pos.y) == (start.x, start.y)
 
@@ -190,10 +191,10 @@ def test_transit_menu_dispatch_returns_destination(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *_a, **_k: ("SELECT", "bar", 1),
+        as_async(lambda *_a, **_k: ("SELECT", "bar", 1)),
     )
 
-    chosen = city_transit._run_transit_menu(ctx, "Spaceport", destinations)
+    chosen = run(city_transit._run_transit_menu(ctx, "Spaceport", destinations))
 
     assert chosen == "bar"
 
@@ -216,7 +217,7 @@ def test_transit_arrival_pulses_then_restores_the_light_grid(monkeypatch):
         ),
     )
     from src.spacehack import navigation_travel
-    monkeypatch.setattr(navigation_travel, "_responsive_sleep", lambda _s: None)
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s: None))
 
     dest = game_map.city_transit["militia"]["pos"]
     state = SimpleNamespace(
@@ -226,7 +227,7 @@ def test_transit_arrival_pulses_then_restores_the_light_grid(monkeypatch):
         console=FrameBuffer(80, 45),
     )
 
-    city_transit.animate_transit_arrival(state, "Militia Center")
+    run(city_transit.animate_transit_arrival(state, "Militia Center"))
 
     # 12 pulse frames + one clean settle frame.
     assert len(grids_at_present) == 13
@@ -252,7 +253,7 @@ def test_transit_arrival_is_a_noop_without_a_light_grid(monkeypatch):
         console=None,
     )
 
-    city_transit.animate_transit_arrival(state, "Hub")
+    run(city_transit.animate_transit_arrival(state, "Hub"))
 
     assert presented == []
 
@@ -270,15 +271,15 @@ def test_transit_travel_plays_the_arrival_pulse(monkeypatch):
     )
     state.log = SimpleNamespace(add=lambda text: None)
     monkeypatch.setattr(
-        city_transit, "_run_transit_menu", lambda _ctx, _s, _d: "militia",
+        city_transit, "_run_transit_menu", as_async(lambda _ctx, _s, _d: "militia"),
     )
     pulses = []
     monkeypatch.setattr(
         city_transit, "animate_transit_arrival",
-        lambda _state, location, colour=(0, 0, 0): pulses.append(location),
+        as_async(lambda _state, location, colour=(0, 0, 0): pulses.append(location)),
     )
 
-    city_transit.resolve_transit_station(state, port)
+    run(city_transit.resolve_transit_station(state, port))
 
     assert pulses == ["Militia Center"]
 
@@ -315,7 +316,7 @@ def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
     monkeypatch.setattr(city_render, "present_city_transition_frame",
                         lambda *_a, **_k: None)
     from src.spacehack import navigation_travel
-    monkeypatch.setattr(navigation_travel, "_responsive_sleep", lambda _s: None)
+    monkeypatch.setattr(navigation_travel, "_responsive_sleep", as_async(lambda _s: None))
 
     dest = game_map.city_transit and next(iter(game_map.city_transit.values()))
     state = SimpleNamespace(
@@ -325,7 +326,7 @@ def test_arrival_pulse_runs_on_a_previously_unlit_city(monkeypatch):
         console=FrameBuffer(80, 45),
     )
 
-    city_transit.animate_transit_arrival(state, dest["name"])  # must not no-op
+    run(city_transit.animate_transit_arrival(state, dest["name"]))  # must not no-op
 
 
 def test_transit_bays_never_emit_light():

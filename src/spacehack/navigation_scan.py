@@ -103,7 +103,7 @@ def _militia_scan_target(ctx, planet_id: str):
     return owned, spec
 
 
-def _fail_smuggle_mission(ctx, owned, active) -> None:
+async def _fail_smuggle_mission(ctx, owned, active) -> None:
     """Auto-fail a smuggling mission whose cargo was confiscated.
 
     Releases the mission's reserved cargo volume, marks the mission
@@ -131,10 +131,10 @@ def _fail_smuggle_mission(ctx, owned, active) -> None:
     # the quest step — reset it so the Barkeep can re-offer his last
     # crate (the crate's ActiveMission is already removed above).
     if getattr(active, 'main_quest_step_id', ''):
-        main_quest_module.fail_smuggle_step(ctx, active)
+        await main_quest_module.fail_smuggle_step(ctx, active)
 
 
-def _apply_scan_outcome(ctx, owned, failed_missions, confiscated) -> None:
+async def _apply_scan_outcome(ctx, owned, failed_missions, confiscated) -> None:
     """Apply a fired scan's consequences: fail missions, confiscate goods.
 
     Generic losses (inventory contraband, non-main-quest missions)
@@ -143,13 +143,13 @@ def _apply_scan_outcome(ctx, owned, failed_missions, confiscated) -> None:
     cargo raises its own quest-styled window from fail_smuggle_step.
     """
     for _am in failed_missions:
-        _fail_smuggle_mission(ctx, owned, _am)
+        await _fail_smuggle_mission(ctx, owned, _am)
     if confiscated:
         _apply_scan_confiscation(ctx, owned, confiscated)
-    _show_confiscation_modal(ctx, failed_missions, confiscated)
+    await _show_confiscation_modal(ctx, failed_missions, confiscated)
 
 
-def _show_confiscation_modal(ctx, failed_missions, confiscated) -> None:
+async def _show_confiscation_modal(ctx, failed_missions, confiscated) -> None:
     """The militia scan modal, for non-main-quest losses only."""
     from .data.trade_goods import display_name as _good_name
     _lines = [
@@ -164,13 +164,13 @@ def _show_confiscation_modal(ctx, failed_missions, confiscated) -> None:
     if not _lines:
         return
     from . import main_quest as _mq
-    _mq.show_gate_popup(
+    await _mq.show_gate_popup(
         ctx, "Militia", "\n".join(_lines),
         title="Cargo Confiscated",
     )
 
 
-def _run_cargo_scan(ctx, planet_id: str) -> None:
+async def _run_cargo_scan(ctx, planet_id: str) -> None:
     """Landing militia scan: warn at risk, roll 40%, then confiscate/fail.
 
     Smuggler's hold protects mission cargo FIRST (each ``is_smuggle``
@@ -203,10 +203,10 @@ def _run_cargo_scan(ctx, planet_id: str) -> None:
     if not _confiscated and not _failed_missions:
         ctx.log.add("Militia scans your cargo \u2014 clean.")
         return
-    _apply_scan_outcome(ctx, owned, _failed_missions, _confiscated)
+    await _apply_scan_outcome(ctx, owned, _failed_missions, _confiscated)
 
 
-def _run_space_cargo_scan(ctx) -> None:
+async def _run_space_cargo_scan(ctx) -> None:
     """Run a cargo scan triggered by militia auto-hail in space.
 
     Reuses the same exposure/confiscation logic as the planet-landing
@@ -233,6 +233,6 @@ def _run_space_cargo_scan(ctx) -> None:
         modify_rep(ctx, "militia", +1)
         return
 
-    _apply_scan_outcome(ctx, owned, _failed_missions, _confiscated)
+    await _apply_scan_outcome(ctx, owned, _failed_missions, _confiscated)
     from .faction import modify_rep
     modify_rep(ctx, "militia", -5)

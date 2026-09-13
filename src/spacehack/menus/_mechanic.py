@@ -188,7 +188,7 @@ def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots)
     )
 
 
-def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, action):
+async def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, action):
     """Apply one REPAIRS/AMMO/LOADOUT selection; the terminal stays open."""
     if tab_name == "REPAIRS":
         handler = _REPAIRS_ACTIONS.get(action)
@@ -211,11 +211,11 @@ def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, action)
         return
     if tab_name == "LOADOUT" and action == "LOADOUT":
         from ._loadout import _run_loadout_menu
-        _run_loadout_menu(ctx, planet_id)
+        await _run_loadout_menu(ctx, planet_id)
         return
 
 
-def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
+async def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
     """Run the tabbed mechanic terminal through the shared Pygame screen."""
     from .. import pygame_screen
 
@@ -230,14 +230,14 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
         tabs = _mechanic_tabs(missile_slots)
         if tab >= len(tabs):
             tab = 0
-        outcome, action, selected = pygame_screen.run_for_context(
+        outcome, action, selected = await pygame_screen.run_for_context(
             ctx.context,
             _mechanic_frame(ctx, ship_rec, tab, selected, tabs, missile_slots),
             caption="spacehack - mechanic",
         )
         if outcome == "GUIDE":
             from ..help import _open_context_guide
-            _open_context_guide(ctx, "Ships & Equipment")
+            await _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome == "TAB":
             tab = (tab + 1) % len(tabs)
@@ -248,14 +248,14 @@ def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
         if outcome == "QUIT":
             raise SystemExit
         if outcome == "SELECT":
-            _apply_mechanic_selection(
+            await _apply_mechanic_selection(
                 ctx, owned, ship_rec, planet_id, tabs[tab], action,
             )
             continue
         return True  # BACK
 
 
-def _run_mech_menu(ctx, planet_id: str = "") -> None:
+async def _run_mech_menu(ctx, planet_id: str = "") -> None:
     """Show the tabbed mechanic terminal (REPAIRS / AMMO / LOADOUT).
 
     Refuel buys fuel cells for the player's ship at the standard rate.
@@ -272,5 +272,5 @@ def _run_mech_menu(ctx, planet_id: str = "") -> None:
 
     owned = ctx.player_owned_ship
     ship_rec = ship_module.find_ship(owned.ship_id)
-    _run_pygame_mechanic(ctx, planet_id, ship_rec)
+    await _run_pygame_mechanic(ctx, planet_id, ship_rec)
     return

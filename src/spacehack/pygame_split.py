@@ -5,8 +5,9 @@ the shared runtime returns an opaque panel/action selection.
 """
 from __future__ import annotations
 
+
 from dataclasses import dataclass, replace
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from . import pygame_menu, pygame_ui
@@ -460,7 +461,7 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
     return "IGNORE", frame.focus, selected
 
 
-def run_shared(
+async def run_shared(
     context: PygameContext,
     frame: SplitFrame,
     *,
@@ -479,14 +480,17 @@ def run_shared(
         current = replace(frame, selected=_clamp_selected(frame))
         _draw_frame(pygame, screen, font, current, context=context)
         engine.present()
-        event = pygame.event.wait()
-        outcome, focus, selected = _handle_key(pygame, event, current)
-        if outcome == "IGNORE":
-            frame = replace(frame, focus=focus, selected=selected)
+        for event in pygame.event.get():
+            outcome, focus, selected = _handle_key(pygame, event, current)
+            if outcome == "IGNORE":
+                frame = replace(frame, focus=focus, selected=selected)
+                break
+            rows = _rows(current)
+            action = rows[selected].action if outcome == "SELECT" else ""
+            return outcome, action, focus, selected
+        else:
+            await context.pump(0.016)
             continue
-        rows = _rows(current)
-        action = rows[selected].action if outcome == "SELECT" else ""
-        return outcome, action, focus, selected
 
 
 def _build_frame(build_frame: Callable[[], SplitFrame], *, rebuilt: bool = False) -> SplitFrame:
@@ -498,13 +502,13 @@ def _build_frame(build_frame: Callable[[], SplitFrame], *, rebuilt: bool = False
         raise PygameSplitUnavailable(f"Pygame split frame could not be {label}") from exc
 
 
-def _apply_keep_open(
-    apply_action: Callable[[str, int, int], bool],
+async def _apply_keep_open(
+    apply_action: Callable[[str, int, int], Awaitable[bool]],
     outcome: str, action: str, focus: int, selected: int,
 ) -> bool:
     """Apply one selection and report whether the terminal stays open."""
     try:
-        return apply_action(
+        return await apply_action(
             action if outcome == "SELECT" else outcome,
             focus,
             selected,
@@ -513,10 +517,10 @@ def _apply_keep_open(
         raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
 
 
-def run_interactive(
+async def run_interactive(
     ctx: GameContext,
     build_frame: Callable[[], SplitFrame],
-    apply_action: Callable[[str, int, int], bool],
+    apply_action: Callable[[str, int, int], Awaitable[bool]],
     *,
     caption: str,
 ) -> str:
@@ -533,16 +537,16 @@ def run_interactive(
     selected = frame.selected
     while True:
         frame = replace(frame, focus=focus, selected=selected)
-        outcome, action, focus, selected = run_shared(
+        outcome, action, focus, selected = await run_shared(
             ctx.context, frame, caption=caption,
         )
         if outcome == "GUIDE":
             from .help import _run_help_guide
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             frame = _build_frame(build_frame, rebuilt=True)
             continue
         if outcome == "SELECT" or outcome.startswith("MODE:"):
-            keep_open = _apply_keep_open(apply_action, outcome, action, focus, selected)
+            keep_open = await _apply_keep_open(apply_action, outcome, action, focus, selected)
             if keep_open:
                 frame = _build_frame(build_frame, rebuilt=True)
                 continue

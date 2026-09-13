@@ -28,6 +28,7 @@ boundary and inspect state precisely.
 
 from __future__ import annotations
 
+
 import argparse
 import contextlib
 import copy
@@ -99,7 +100,7 @@ class HeadlessPygameContext:
         """Return no queued input events."""
         return ()
 
-    def wait_events(self) -> tuple[()]:
+    async def wait_events(self) -> tuple[()]:
         """Return no events; headless scenarios are script-driven."""
         return ()
 
@@ -168,11 +169,11 @@ class HeadlessSaveSession:
         """Return a stable JSON-safe snapshot suitable for before/after diffing."""
         return _snapshot(self.ctx, self.raw_data, self.source_path, self.mode)
 
-    def run(self, actions: list[str]) -> list[dict[str, Any]]:
+    async def run(self, actions: list[str]) -> list[dict[str, Any]]:
         """Execute actions, stopping when an unsupported combat UI is pending."""
         results = []
         for action in actions:
-            result = _execute_action(self, action)
+            result = await _execute_action(self, action)
             results.append(result)
             if result.get("result") == "combat_pending":
                 break
@@ -387,7 +388,7 @@ def _file_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _execute_action(session: HeadlessSaveSession, token: str) -> dict[str, Any]:
+async def _execute_action(session: HeadlessSaveSession, token: str) -> dict[str, Any]:
     """Execute one scenario token through existing game helpers."""
     name, _, argument = token.partition(":")
     handler = _ACTION_HANDLERS.get(name.strip().lower())
@@ -395,21 +396,21 @@ def _execute_action(session: HeadlessSaveSession, token: str) -> dict[str, Any]:
         raise SaveSessionError(
             f"unknown action {token!r}; use move, wait, tick, reveal, explore, goto, or advance"
         )
-    return handler(session, token, argument.strip())
+    return await handler(session, token, argument.strip())
 
 
-def _action_move(session: HeadlessSaveSession, _token: str, argument: str) -> dict[str, Any]:
+async def _action_move(session: HeadlessSaveSession, _token: str, argument: str) -> dict[str, Any]:
     """Dispatch a directional movement action."""
-    return _move(session, argument)
+    return await _move(session, argument)
 
 
-def _action_tick(session: HeadlessSaveSession, token: str, _argument: str) -> dict[str, Any]:
+async def _action_tick(session: HeadlessSaveSession, token: str, _argument: str) -> dict[str, Any]:
     """Dispatch a wait/tick action."""
-    result = _tick(session)
+    result = await _tick(session)
     return {"action": token, "result": "combat_pending" if result else "ticked"}
 
 
-def _action_reveal(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
+async def _action_reveal(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
     """Dispatch a dungeon reveal action."""
     radius = session.ctx.game_map.sight_radius if not argument else _positive_int(argument, "reveal radius")
     if session.ctx.game_map.seen is None:
@@ -418,7 +419,7 @@ def _action_reveal(session: HeadlessSaveSession, token: str, argument: str) -> d
     return {"action": token, "result": "revealed", "radius": radius}
 
 
-def _action_explore(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
+async def _action_explore(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
     """Dispatch up to a bounded number of existing auto-explore steps."""
     _require_dungeon(session)
     count = 1 if not argument else _positive_int(argument, "explore count")
@@ -430,14 +431,14 @@ def _action_explore(session: HeadlessSaveSession, token: str, argument: str) -> 
         )
         if delta is None:
             break
-        combat_pending = _apply_dungeon_step(session, delta)
+        combat_pending = await _apply_dungeon_step(session, delta)
         steps += 1
         if combat_pending:
             return {"action": token, "result": "combat_pending", "steps": steps}
     return {"action": token, "result": "explored", "steps": steps}
 
 
-def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
+async def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
     """Dispatch one existing auto-goto step."""
     _require_dungeon(session)
     target = _parse_coordinate(argument)
@@ -447,7 +448,7 @@ def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dic
     )
     if delta is None:
         return {"action": token, "result": "unreachable", "target": list(target)}
-    combat_pending = _apply_dungeon_step(session, delta)
+    combat_pending = await _apply_dungeon_step(session, delta)
     return {
         "action": token,
         "result": "combat_pending" if combat_pending else "moved",
@@ -456,7 +457,7 @@ def _action_goto(session: HeadlessSaveSession, token: str, argument: str) -> dic
     }
 
 
-def _action_advance(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
+async def _action_advance(session: HeadlessSaveSession, token: str, argument: str) -> dict[str, Any]:
     """Dispatch an explicit shared-clock advance."""
     days = _positive_int(argument, "advance days")
     time.advance_time(session.ctx, days)
@@ -480,7 +481,7 @@ _ACTION_HANDLERS = {
 }
 
 
-def _move(session: HeadlessSaveSession, direction: str) -> dict[str, Any]:
+async def _move(session: HeadlessSaveSession, direction: str) -> dict[str, Any]:
     """Attempt movement and run non-visual mode updates."""
     try:
         dx, dy = _DIRECTION_DELTAS[direction.lower()]
@@ -490,7 +491,7 @@ def _move(session: HeadlessSaveSession, direction: str) -> dict[str, Any]:
     if session.mode == "space" and _space_combat_pending(session):
         return _movement_result(direction, "combat_pending", before, before, None)
     code, blocker = world.try_move(session.ctx.player, session.ctx.game_map, dx, dy)
-    combat_pending = code == "moved" and _post_player_step(session)
+    combat_pending = code == "moved" and await _post_player_step(session)
     return _movement_result(
         direction,
         "combat_pending" if combat_pending else code,
@@ -517,28 +518,28 @@ def _movement_result(
     }
 
 
-def _tick(session: HeadlessSaveSession) -> bool:
+async def _tick(session: HeadlessSaveSession) -> bool:
     """Run one non-visual simulation turn and report pending combat."""
-    return _run_turn(session)
+    return await _run_turn(session)
 
 
-def _post_player_step(session: HeadlessSaveSession) -> bool:
+async def _post_player_step(session: HeadlessSaveSession) -> bool:
     """Apply non-visual updates and report pending combat."""
-    return _run_turn(session, notify_city=True)
+    return await _run_turn(session, notify_city=True)
 
 
-def _run_turn(session: HeadlessSaveSession, *, notify_city: bool = False) -> bool:
+async def _run_turn(session: HeadlessSaveSession, *, notify_city: bool = False) -> bool:
     """Run the mode's turn ordering, preserving the UI loop semantics."""
     handler = _TURN_HANDLERS.get(session.mode)
     if handler is not None:
-        return handler(session)
+        return await handler(session)
     if notify_city:
         from . import tutorial
-        tutorial.notify_move(session.ctx)
+        await tutorial.notify_move(session.ctx)
     return False
 
 
-def _run_space_turn(session: HeadlessSaveSession) -> bool:
+async def _run_space_turn(session: HeadlessSaveSession) -> bool:
     """Check existing space combat before moving NPCs and time."""
     if _space_combat_pending(session):
         return True
@@ -549,14 +550,14 @@ def _run_space_turn(session: HeadlessSaveSession) -> bool:
     return False
 
 
-def _run_dungeon_turn(session: HeadlessSaveSession) -> bool:
+async def _run_dungeon_turn(session: HeadlessSaveSession) -> bool:
     """Move dungeon NPCs, refresh LOS, then gate activation on combat."""
     game_map = session.ctx.game_map
     ground_npcs.move_ground_npcs(session.ctx, game_map)
     dungeon.reveal_around(game_map, session.ctx.player.pos, radius=game_map.sight_radius)
     if _ground_combat_pending(session):
         return True
-    dungeon_extensions.tick_activation(session.ctx)
+    await dungeon_extensions.tick_activation(session.ctx)
     return False
 
 
@@ -586,17 +587,17 @@ _TURN_HANDLERS = {
 }
 
 
-def _apply_dungeon_step(session: HeadlessSaveSession, delta: tuple[int, int]) -> bool:
+async def _apply_dungeon_step(session: HeadlessSaveSession, delta: tuple[int, int]) -> bool:
     """Move one dungeon step and run its production post-step ordering."""
     if session.mode != "dungeon":
         raise SaveSessionError("explore and goto actions require a dungeon save")
     from .ground_npcs import swap_step
     if swap_step(session.ctx, session.ctx.player, session.ctx.game_map, *delta):
-        return _run_dungeon_turn(session)
+        return await _run_dungeon_turn(session)
     code, _ = world.try_move(session.ctx.player, session.ctx.game_map, *delta)
     if code != "moved":
         raise SaveSessionError(f"planned dungeon step was blocked: {code}")
-    return _run_dungeon_turn(session)
+    return await _run_dungeon_turn(session)
 
 
 def _positive_int(raw: str, label: str) -> int:
@@ -698,7 +699,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
+async def main(argv: list[str] | None = None) -> int:
     """Run the save-debug CLI and return a process status code."""
     args = _build_parser().parse_args(argv)
     try:
@@ -714,7 +715,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "simulate":
             session = HeadlessSaveSession.load(args.save)
             before = session.snapshot()
-            result = {"actions": session.run(args.actions), "before": before, "after": session.snapshot()}
+            result = {"actions": await session.run(args.actions), "before": before, "after": session.snapshot()}
             if args.snapshot_out is not None:
                 _write_or_print(result, args.snapshot_out, protected_path=session.source_path)
             else:

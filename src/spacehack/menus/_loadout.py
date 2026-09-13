@@ -12,6 +12,7 @@ without creating a second equipment system.
 
 from __future__ import annotations
 
+
 from enum import Enum, auto
 
 from .. import ship as ship_module
@@ -250,7 +251,7 @@ def _log_storage_failure(ctx, stored, ship_spec) -> None:
         ctx.log.add("That stored equipment is no longer available.")
 
 
-def _apply_stored_install(ctx, action: str) -> None:
+async def _apply_stored_install(ctx, action: str) -> None:
     """Install a selected stored entry or explain why it remains stored."""
     storage_index = int(action.split(":", 1)[1])
     owned = ctx.player_owned_ship
@@ -271,7 +272,7 @@ def _apply_stored_install(ctx, action: str) -> None:
     _log_storage_failure(ctx, stored, ship_spec)
 
 
-def _choose_stored_action(ctx, action: str) -> str:
+async def _choose_stored_action(ctx, action: str) -> str:
     """Ask whether a stored part should be installed or sold."""
     storage_index = int(action.split(":", 1)[1])
     storage = _storage_list(ctx)
@@ -284,7 +285,7 @@ def _choose_stored_action(ctx, action: str) -> str:
     except (AttributeError, KeyError, TypeError, ValueError):
         return "__BACK__"
     from .. import pygame_story
-    return pygame_story.choose(
+    return await pygame_story.choose(
         ctx,
         title="STORED EQUIPMENT",
         body=spec.name,
@@ -297,15 +298,15 @@ def _choose_stored_action(ctx, action: str) -> str:
     )
 
 
-def _apply_manage_stored_item(ctx, action: str) -> None:
+async def _apply_manage_stored_item(ctx, action: str) -> None:
     """Open the Install/Sell chooser and apply its selected action."""
-    chosen = _choose_stored_action(ctx, action)
+    chosen = await _choose_stored_action(ctx, action)
     if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("INSTALL_STORED:"):
-        _apply_stored_install(ctx, chosen)
+        await _apply_stored_install(ctx, chosen)
     elif chosen.startswith("SELL_STORED:"):
         _apply_sell_stored(ctx, chosen)
 
@@ -331,7 +332,7 @@ def _apply_sell_stored(ctx, action: str) -> None:
     ctx.log.add(f"Sold {stored.item_id.replace('_', ' ').title()} for {sell_price}$.")
 
 
-def _choose_ship_action(ctx, action: str) -> str:
+async def _choose_ship_action(ctx, action: str) -> str:
     """Ask whether an installed part should be stored or sold."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
@@ -353,7 +354,7 @@ def _choose_ship_action(ctx, action: str) -> str:
         "weapon" if item_type == "MANAGE_WEAPON_SLOT" else "module",
         item_id,
     )
-    return pygame_story.choose(
+    return await pygame_story.choose(
         ctx,
         title="MANAGE EQUIPMENT",
         body=spec.name,
@@ -372,20 +373,20 @@ def _choose_ship_action(ctx, action: str) -> str:
     )
 
 
-def _apply_manage_ship_item(ctx, action: str) -> None:
+async def _apply_manage_ship_item(ctx, action: str) -> None:
     """Open the Store/Sell chooser and apply its selected action."""
-    chosen = _choose_ship_action(ctx, action)
+    chosen = await _choose_ship_action(ctx, action)
     if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("STORE_"):
-        _apply_store(ctx, chosen)
+        await _apply_store(ctx, chosen)
     elif chosen.startswith("SELL_"):
-        _apply_sell_installed(ctx, chosen)
+        await _apply_sell_installed(ctx, chosen)
 
 
-def _apply_store(ctx, action: str) -> None:
+async def _apply_store(ctx, action: str) -> None:
     """Store one installed weapon or module."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
@@ -397,7 +398,7 @@ def _apply_store(ctx, action: str) -> None:
         ctx.log.add("That equipment could not be moved to storage.")
 
 
-def _apply_sell_installed(ctx, action: str) -> None:
+async def _apply_sell_installed(ctx, action: str) -> None:
     """Sell one installed weapon or module."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
@@ -427,12 +428,12 @@ def _purchase_spec(item_type: str, item_id: str):
     raise ValueError(f"Unknown purchase type: {item_type!r}")
 
 
-def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
+async def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
     """Ask whether a purchased part should be installed or stored."""
     spec = _purchase_spec(item_type, item_id)
     from .. import pygame_story
 
-    return pygame_story.choose(
+    return await pygame_story.choose(
         ctx,
         title="BUY EQUIPMENT",
         body=spec.name,
@@ -475,7 +476,7 @@ def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None
     ctx.log.add(f"{result} {spec.name} for {spec.price}$.")
 
 
-def _apply_buy(ctx, action: str) -> None:
+async def _apply_buy(ctx, action: str) -> None:
     """Validate funds, open the destination chooser, and complete a buy."""
     action_type, item_id = action.split(":", 1)
     item_type = action_type.removeprefix("BUY_")
@@ -483,7 +484,7 @@ def _apply_buy(ctx, action: str) -> None:
     if ctx.stats.credits < spec.price:
         ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
-    chosen = _choose_purchase_action(ctx, item_type, item_id)
+    chosen = await _choose_purchase_action(ctx, item_type, item_id)
     if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
@@ -508,7 +509,7 @@ _LOADOUT_ACTION_HANDLERS = (
 )
 
 
-def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, planet_id: str) -> bool:
+async def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, planet_id: str) -> bool:
     """Apply one Pygame loadout action using table-driven routing."""
     if not action:
         return True
@@ -518,7 +519,7 @@ def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, pl
     )
     if handler is None:
         raise ValueError(f"Unknown loadout action: {action!r}")
-    handler(ctx, action)
+    await handler(ctx, action)
     return True
 
 
@@ -539,7 +540,7 @@ def _resolve_loadout_catalog(ctx, planet_id: str):
     return weapons, modules
 
 
-def _run_loadout_menu(ctx, planet_id: str = "") -> None:
+async def _run_loadout_menu(ctx, planet_id: str = "") -> None:
     """Show the loadout management terminal in the shared Pygame window."""
     owned = ctx.player_owned_ship
     if owned is None:
@@ -560,16 +561,16 @@ def _run_loadout_menu(ctx, planet_id: str = "") -> None:
             mode,
         )
 
-    def apply_action(action, focus, selected):
+    async def apply_action(action, focus, selected):
         nonlocal mode
         if action.startswith("MODE:"):
             requested = action.split(":", 1)[1]
             if requested in _LOADOUT_MODES:
                 mode = requested
             return True
-        return _apply_pygame_loadout_action(ctx, action, focus, selected, planet_id)
+        return await _apply_pygame_loadout_action(ctx, action, focus, selected, planet_id)
 
-    pygame_split.run_interactive(
+    await pygame_split.run_interactive(
         ctx,
         build_frame,
         apply_action,

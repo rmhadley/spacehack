@@ -13,7 +13,7 @@ def enabled() -> bool:
     return pygame_menu.enabled()
 
 
-def dismiss(
+async def dismiss(
     ctx,
     *,
     title: str,
@@ -36,15 +36,15 @@ def dismiss(
         art_color=art_color,
         art_colors=art_colors,
     )
-    outcome, _action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
+    outcome, _action, _selected = await pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     if outcome == "GUIDE":
         from .help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return "__GUIDE__"
     return outcome
 
 
-def confirm(
+async def confirm(
     ctx,
     *,
     title: str,
@@ -65,11 +65,11 @@ def confirm(
         ),),
         selected=0,
     )
-    outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
+    outcome, action, _selected = await pygame_menu.run_for_context(getattr(ctx, "context", ctx), (frame,), caption=caption)
     if outcome == "GUIDE":
         from .help import _run_help_guide
-        _run_help_guide(ctx)
-        return confirm(
+        await _run_help_guide(ctx)
+        return await confirm(
             ctx,
             title=title,
             body=body,
@@ -106,7 +106,7 @@ def _choice_frames(title, body, options, compact):
     )
 
 
-def choose(
+async def choose(
     ctx,
     *,
     title: str,
@@ -117,13 +117,13 @@ def choose(
 ) -> str:
     """Run a small story choice and return its opaque action ID."""
     frames = _choice_frames(title, body, options, compact)
-    outcome, action, _selected = pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
+    outcome, action, _selected = await pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
     if outcome == "SELECT":
         valid_actions = {option_action for _label, option_action in options}
         return action if action in valid_actions else None
     if outcome == "GUIDE":
         from .help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return "__GUIDE__"
     if outcome == "BACK":
         return "__BACK__"

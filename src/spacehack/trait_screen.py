@@ -60,7 +60,7 @@ def _pick_trait(ctx: GameContext, candidates: list, action: str) -> bool | None:
     return True
 
 
-def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
+async def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | None:
     """Run mandatory trait selection through Pygame."""
     from . import pygame_screen, pygame_ui
 
@@ -80,12 +80,12 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
         ),),
     )
     while True:
-        outcome, action, _selected = pygame_screen.run_for_context(
+        outcome, action, _selected = await pygame_screen.run_for_context(
             ctx.context, frame, caption="spacehack - trait selection",
         )
         if outcome == "GUIDE":
             from .help import _run_help_guide
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             continue
         if outcome in {"BACK", "TAB"}:
             continue
@@ -95,7 +95,7 @@ def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> bool | No
             return _pick_trait(ctx, candidates, action)
         return None
 
-def open_trait_selection(ctx: GameContext) -> None:
+async def open_trait_selection(ctx: GameContext) -> None:
     """Open the trait selection modal.
 
     Lists all traits the player qualifies for (via
@@ -111,7 +111,7 @@ def open_trait_selection(ctx: GameContext) -> None:
         )
         return
 
-    result = _run_pygame_trait_selection(ctx, _candidates)
+    result = await _run_pygame_trait_selection(ctx, _candidates)
     if result is None:
         raise RuntimeError("Trait selection returned no outcome")
     return

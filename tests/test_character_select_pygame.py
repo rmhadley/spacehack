@@ -1,6 +1,7 @@
 """Tests for the Pygame character-creation presentation seam."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -59,12 +60,14 @@ def test_run_pick_uses_shared_pygame_menu_and_preserves_opaque_species_id(monkey
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda context, frames, **kwargs: captured.update(
+        as_async(
+            lambda context, frames, **kwargs: captured.update(
             context=context, frames=frames,
-        ) or ("SELECT", "human", 0),
+        ) or ("SELECT", "human", 0)
+        ),
     )
 
-    outcome, selected_id = input_helpers._run_pick(SimpleNamespace(), menu)
+    outcome, selected_id = run(input_helpers._run_pick(SimpleNamespace(), menu))
 
     assert outcome is input_helpers.Outcome.CONFIRM
     assert selected_id == "human"
@@ -79,10 +82,10 @@ def test_run_confirm_maps_pygame_terminal_outcomes(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("SELECT", "CONFIRM", 0),
+        as_async(lambda *args, **kwargs: ("SELECT", "CONFIRM", 0)),
     )
 
-    assert input_helpers._run_confirm(SimpleNamespace(), "human", "pirate") is input_helpers.Outcome.CONFIRM
+    assert run(input_helpers._run_confirm(SimpleNamespace(), "human", "pirate")) is input_helpers.Outcome.CONFIRM
 
 
 def test_character_picker_rejects_non_character_menu_without_fallback():
@@ -91,7 +94,7 @@ def test_character_picker_rejects_non_character_menu_without_fallback():
     )
 
     try:
-        input_helpers._run_pick(SimpleNamespace(), menu)
+        run(input_helpers._run_pick(SimpleNamespace(), menu))
     except RuntimeError as exc:
         assert "requires the shared Pygame runtime" in str(exc)
     else:
@@ -106,10 +109,10 @@ def test_character_picker_ignores_guide_then_preserves_quit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: next(outcomes),
+        as_async(lambda *args, **kwargs: next(outcomes)),
     )
 
-    assert input_helpers._run_pick(SimpleNamespace(), menu) == (
+    assert run(input_helpers._run_pick(SimpleNamespace(), menu)) == (
         input_helpers.Outcome.QUIT,
         None,
     )
@@ -122,11 +125,11 @@ def test_character_picker_rejects_invalid_action_without_fallback(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("SELECT", "not-a-class", 0),
+        as_async(lambda *args, **kwargs: ("SELECT", "not-a-class", 0)),
     )
 
     try:
-        input_helpers._run_pick(SimpleNamespace(), menu)
+        run(input_helpers._run_pick(SimpleNamespace(), menu))
     except RuntimeError as exc:
         assert "returned no outcome" in str(exc)
     else:
@@ -137,7 +140,7 @@ def test_empty_character_picker_rejects_missing_pygame_outcome():
     menu = ui.MenuScreen("Choose Your Species", "hint", (), {})
 
     try:
-        input_helpers._run_pick(SimpleNamespace(), menu)
+        run(input_helpers._run_pick(SimpleNamespace(), menu))
     except RuntimeError as exc:
         assert "returned no outcome" in str(exc)
     else:
@@ -153,10 +156,10 @@ def test_character_confirm_ignores_guide_then_preserves_quit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: next(outcomes),
+        as_async(lambda *args, **kwargs: next(outcomes)),
     )
 
-    assert input_helpers._run_confirm(SimpleNamespace(), "human", "pirate") is input_helpers.Outcome.QUIT
+    assert run(input_helpers._run_confirm(SimpleNamespace(), "human", "pirate")) is input_helpers.Outcome.QUIT
 
 
 def test_stats_tab_lists_owned_identity_gear():

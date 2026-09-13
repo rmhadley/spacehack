@@ -630,7 +630,7 @@ def _reload_slot(ctx, slot: int) -> bool:
     ctx.log.add(f"Reloaded {_wname} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
     return True
 
-def _choose_reload_slot(ctx, candidates) -> int | None:
+async def _choose_reload_slot(ctx, candidates) -> int | None:
     """Show the compact weapon chooser and return the selected slot."""
     from .. import pygame_story
 
@@ -642,7 +642,7 @@ def _choose_reload_slot(ctx, candidates) -> int | None:
         )
         for _slot, _instance, _spec, _reserve in candidates
     )
-    chosen = pygame_story.choose(
+    chosen = await pygame_story.choose(
         ctx,
         title="RELOAD WEAPON",
         body="Choose a weapon to reload.",
@@ -661,7 +661,7 @@ def _choose_reload_slot(ctx, candidates) -> int | None:
         return None
     return _slot if _slot in {_candidate[0] for _candidate in candidates} else None
 
-def reload_weapon(ctx) -> bool:
+async def reload_weapon(ctx) -> bool:
     """Reload one active weapon, choosing when multiple can reload."""
     _candidates = _reloadable_slots(ctx)
     if not _candidates:
@@ -669,7 +669,7 @@ def reload_weapon(ctx) -> bool:
         return False
     if len(_candidates) == 1:
         return _reload_slot(ctx, _candidates[0][0])
-    _slot = _choose_reload_slot(ctx, _candidates)
+    _slot = await _choose_reload_slot(ctx, _candidates)
     return _slot is not None and _reload_slot(ctx, _slot)
 
 # ---------------------------------------------------------------------------
@@ -737,7 +737,7 @@ def animate_fire(
 # Resolution
 # ---------------------------------------------------------------------------
 
-def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
+async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
     _ent = enemy.entity
     if _ent is not None and _ent in game_map.entities:
         game_map.entities.remove(_ent)
@@ -762,7 +762,7 @@ def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> None:
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp
-        _add_xp(ctx, enemy.spec.xp_reward)
+        await _add_xp(ctx, enemy.spec.xp_reward)
         if hasattr(ctx, 'player_counters'):
             ctx.player_counters.total_kills += 1
 
@@ -834,21 +834,21 @@ def _advance_consumable_effects() -> int:
 # Enemy turns
 # ---------------------------------------------------------------------------
 
-def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
+async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai_ground import run_ground_enemy_turn as _enemy_ai
 
     # The enemy turn is not the player's aiming phase: hide the range
     # line for every movement step and attack animation in it, then
     # restore it for the player's next interactive frame.
     with _range_line_hidden():
-        return _run_enemy_turns_impl(ctx, game_map, _enemy_ai)
+        return await _run_enemy_turns_impl(ctx, game_map, _enemy_ai)
 
 def _player_ground_dodge(ctx) -> int:
     """Return current ground dodge including the Evasive trait."""
     return _calc_ground_move_dodge(_state.cells_moved_this_turn) + _ground_evade_bonus(ctx)
 
 
-def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
+async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     _player_dodge = _player_ground_dodge(ctx)
     _total_dmg = 0
     for _gei in _state.enemies:
@@ -856,7 +856,7 @@ def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
             continue
 
         _ap_before = _gei.ap
-        _new_ap, _dmg, _fired = _enemy_ai(
+        _new_ap, _dmg, _fired = await _enemy_ai(
             ctx,
             enemy_weapon_id=_gei.weapon_id,
             enemy_spec=_gei.spec,

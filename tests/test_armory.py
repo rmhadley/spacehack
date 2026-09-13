@@ -1,6 +1,7 @@
 """Phase 3 tests for armory inventory gating (resolve_armory_inventory)."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -153,11 +154,13 @@ def test_armory_and_expedition_rows_show_field_item_stack_quantities():
 def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
     ctx = _ammo_purchase_context(credits=100)
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", lambda *_args: 12,
+        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 12),
     )
 
-    _armory._purchase_field_item(
+    run(
+        _armory._purchase_field_item(
         ctx, "pistol_rounds", ground_equipment.ARMORY_STORAGE,
+    )
     )
 
     assert ctx.stats.credits == 88
@@ -170,11 +173,13 @@ def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
 def test_purchase_ground_ammo_to_pack_respects_pack_capacity(monkeypatch):
     ctx = _ammo_purchase_context(credits=100)
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", lambda *_args: 40,
+        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 40),
     )
 
-    _armory._purchase_field_item(
+    run(
+        _armory._purchase_field_item(
         ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
+    )
     )
 
     assert ctx.stats.credits == 60
@@ -186,11 +191,13 @@ def test_purchase_ground_ammo_to_pack_respects_pack_capacity(monkeypatch):
 def test_purchase_ground_consumable_to_armory_storage(monkeypatch):
     ctx = _ammo_purchase_context(credits=100)
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", lambda *_args: 1,
+        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 1),
     )
 
-    _armory._purchase_field_item(
+    run(
+        _armory._purchase_field_item(
         ctx, "med_pack", ground_equipment.ARMORY_STORAGE, "consumable",
+    )
     )
 
     assert ctx.stats.credits == 40
@@ -208,11 +215,13 @@ def test_purchase_ground_ammo_does_not_mutate_when_pack_cannot_fit(monkeypatch):
         ground_equipment.StoredGroundEquipment("weapon", "combat_knife"),
     ]
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", lambda *_args: 1,
+        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 1),
     )
 
-    _armory._purchase_field_item(
+    run(
+        _armory._purchase_field_item(
         ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
+    )
     )
 
     assert ctx.stats.credits == 100

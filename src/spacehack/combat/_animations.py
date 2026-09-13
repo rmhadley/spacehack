@@ -13,6 +13,8 @@ context through the shared Pygame runtime.
 
 from __future__ import annotations
 
+import asyncio
+
 import math
 import time
 from dataclasses import dataclass, field
@@ -35,7 +37,7 @@ def _present(context, console) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _responsive_sleep(seconds: float) -> None:
+async def _responsive_sleep(seconds: float) -> None:
     """Sleep while polling SDL events to keep the window responsive.
 
     Drains queued SDL input during animation frames so keys do not bleed
@@ -52,7 +54,7 @@ def _responsive_sleep(seconds: float) -> None:
         remaining = end - time.monotonic()
         if remaining <= 0:
             return
-        time.sleep(min(remaining, 0.01))
+        await asyncio.sleep(min(remaining, 0.01))
 
 
 def _bresenham_line(
@@ -676,7 +678,7 @@ def _queue_explosion_glow(
     _set_glows([glow])
 
 
-def _animate_explosion(
+async def _animate_explosion(
     console,
     context,
     game_map: world.GameMap,
@@ -704,7 +706,7 @@ def _animate_explosion(
         )
         _queue_explosion_glow(center_pos, rings, cam_x, cam_y)
         _present(context, console)
-        _responsive_sleep(animation_timing.EXPLOSION_RING)
+        await _responsive_sleep(animation_timing.EXPLOSION_RING)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
     _draw_flash(
         console, (center_pos.x, center_pos.y),
@@ -712,6 +714,6 @@ def _animate_explosion(
     )
     _queue_explosion_glow(center_pos, len(_COMBAT_EXPLOSION_RINGS), cam_x, cam_y)
     _present(context, console)
-    _responsive_sleep(animation_timing.EXPLOSION_FLASH)
+    await _responsive_sleep(animation_timing.EXPLOSION_FLASH)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
-    _responsive_sleep(animation_timing.EXPLOSION_SETTLE)
+    await _responsive_sleep(animation_timing.EXPLOSION_SETTLE)

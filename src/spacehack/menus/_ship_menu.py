@@ -129,15 +129,15 @@ def _faction_progress_bar(rep: int, width: int = 31) -> str:
     right = ["#" if pos_fill >= index + 1 else "-" for index in range(half)]
     return "".join(left + ["|"] + right)
 
-def _run_faction_view(ctx) -> None:
+async def _run_faction_view(ctx) -> None:
     """Show faction standings with the refreshed Pygame presentation."""
     from .. import pygame_faction
 
     while True:
-        outcome = pygame_faction.run_for_context(ctx.context, ctx)
+        outcome = await pygame_faction.run_for_context(ctx.context, ctx)
         if outcome == "GUIDE":
             from ..help import _open_context_guide
-            _open_context_guide(ctx, "NPCs & Factions")
+            await _open_context_guide(ctx, "NPCs & Factions")
             continue
         return
 
@@ -224,7 +224,7 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
         tabs=_HANGAR_TABS, active_tab=tab,
     )
 
-def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
+async def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:
     """Run the tabbed hangar through the shared Pygame screen.
 
     TAB cycles SHIP → CARGO → LOADOUT → SHIP; ENTER launches from the
@@ -236,14 +236,14 @@ def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | Non
     tab = 0
     selected = 0
     while True:
-        outcome, action, selected = pygame_screen.run_for_context(
+        outcome, action, selected = await pygame_screen.run_for_context(
             getattr(ctx, "context", ctx),
             _ship_hangar_frame(ctx, ship, tab, selected),
             caption="spacehack - ship hangar",
         )
         if outcome == "GUIDE":
             from ..help import _open_context_guide
-            _open_context_guide(ctx, "Ships & Equipment")
+            await _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome == "TAB":
             tab = (tab + 1) % len(_HANGAR_TABS)
@@ -259,19 +259,19 @@ def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | Non
             if tab == 1:
                 from ..trade import _apply_jettison
                 owned = ctx.player_owned_ship
-                if owned is not None and _apply_jettison(ctx, owned, action):
+                if owned is not None and await _apply_jettison(ctx, owned, action):
                     continue
             return None
         return ShipMenuAction.BACK
 
-def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
+async def _run_ship_menu(ctx, ship: ship_module.Ship) -> ShipMenuAction:
     """Show the tabbed hangar modal for ``ship``; return the chosen action.
 
     One tabbed screen (SHIP / CARGO / LOADOUT, the C-screen pattern): no
     nested sub-modals. TAB cycles tabs, ENTER launches on the SHIP tab
     or jettisons on the CARGO tab, ESC walks away.
     """
-    return _run_pygame_ship_hangar(ctx, ship)
+    return await _run_pygame_ship_hangar(ctx, ship)
 
 def _find_hangar_ship(city_game_map: world.GameMap, player_owned_ship: ship_module.OwnedShip | None) -> world.Entity | None:
     """Return the player's owned hangar ship entity in ``city_game_map``."""

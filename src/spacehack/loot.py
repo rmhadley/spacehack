@@ -61,7 +61,7 @@ def _loot_popup_title(loot_entities) -> str:
     return title + (" " * padding)
 
 
-def choose_loot_entity(ctx: GameContext, loot_entities):
+async def choose_loot_entity(ctx: GameContext, loot_entities):
     """Let the player choose one nearby loot entity before opening pickup."""
     from . import pygame_story
 
@@ -70,7 +70,7 @@ def choose_loot_entity(ctx: GameContext, loot_entities):
         for index, entity in enumerate(loot_entities)
     )
     while True:
-        chosen = pygame_story.choose(
+        chosen = await pygame_story.choose(
             ctx,
             title=_loot_popup_title(loot_entities),
             body="Choose an item to pick up.",
@@ -182,12 +182,12 @@ def _pack_drop_options(ctx: GameContext) -> tuple[tuple[str, str], ...]:
     return tuple(options)
 
 
-def _choose_pack_drop(ctx: GameContext, loot_entity) -> str | None:
+async def _choose_pack_drop(ctx: GameContext, loot_entity) -> str | None:
     """Offer a compact drop-or-leave choice when the Expedition Pack is full."""
     from . import pygame_story
 
     options = _pack_drop_options(ctx) + (("Leave new loot", "LEAVE_LOOT"),)
-    chosen = pygame_story.choose(
+    chosen = await pygame_story.choose(
         ctx,
         title="EXPEDITION PACK FULL",
         body="Drop one carried item to make room, or leave the new loot behind.",
@@ -272,11 +272,11 @@ def _rollback_pack_drops(ctx, dropped_items) -> None:
         rollback()
 
 
-def _pack_equipment_after_drops(ctx, loot_entity, entry, name: str) -> bool:
+async def _pack_equipment_after_drops(ctx, loot_entity, entry, name: str) -> bool:
     """Drop as many carried items as needed to fit equipment loot."""
     dropped_items = []
     while not _pack_loot(ctx, entry):
-        chosen = _choose_pack_drop(ctx, loot_entity)
+        chosen = await _choose_pack_drop(ctx, loot_entity)
         if chosen is None:
             _rollback_pack_drops(ctx, dropped_items)
             ctx.log.add(f"Expedition Pack full - left the {name} behind.")
@@ -290,7 +290,7 @@ def _pack_equipment_after_drops(ctx, loot_entity, entry, name: str) -> bool:
     return True
 
 
-def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
+async def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     """Move one ground-equipment drop into the carried Expedition Pack."""
     entry = _ground_equipment_loot_entry(loot_entity)
     try:
@@ -301,7 +301,7 @@ def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     if _pack_loot(ctx, entry):
         _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
         return True
-    return _pack_equipment_after_drops(ctx, loot_entity, entry, name)
+    return await _pack_equipment_after_drops(ctx, loot_entity, entry, name)
 
 
 def _pack_field_item(ctx: GameContext, stack) -> object | None:
@@ -329,7 +329,7 @@ def _leave_field_item_remainder(loot_entity, remainder) -> None:
     }
 
 
-def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bool:
+async def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bool:
     """Drop as many carried items as needed to fit a field-item stack."""
     dropped_items = []
     while True:
@@ -344,7 +344,7 @@ def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bool:
                 f"Packed {name} x{accepted}; left {remainder.quantity} on the floor."
             )
             return True
-        chosen = _choose_pack_drop(ctx, loot_entity)
+        chosen = await _choose_pack_drop(ctx, loot_entity)
         if chosen is None:
             _rollback_pack_drops(ctx, dropped_items)
             ctx.log.add(f"Expedition Pack full - left the {name} behind.")
@@ -356,7 +356,7 @@ def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bool:
         dropped_items.append(dropped)
 
 
-def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
+async def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
     """Pack typed ammo/consumable loot without silently losing overflow."""
     stack = _field_item_loot_stack(loot_entity)
     if stack is None:
@@ -376,10 +376,10 @@ def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
         accepted = stack.quantity - remainder.quantity
         ctx.log.add(f"Packed {name} x{accepted}; left {remainder.quantity} on the floor.")
         return True
-    return _pack_field_item_after_drops(ctx, loot_entity, stack, name)
+    return await _pack_field_item_after_drops(ctx, loot_entity, stack, name)
 
 
-def _apply_loot_pickup(
+async def _apply_loot_pickup(
     ctx: GameContext,
     loot_entity,
     owned,
@@ -392,7 +392,7 @@ def _apply_loot_pickup(
     """Apply a confirmed trade-good or quest loot pickup."""
     if is_quest:
         from . import main_quest as _mq
-        secured = _mq.secure_quest_loot(ctx, loot_entity, goods)
+        secured = await _mq.secure_quest_loot(ctx, loot_entity, goods)
         if not secured:
             for gid, qty in goods:
                 owned.inventory[gid] = owned.inventory.get(gid, 0) + qty
@@ -510,17 +510,17 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     return False
 
 
-def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
+async def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
     """Immediately pack typed ammo/consumable loot."""
-    _apply_field_item_loot_pickup(ctx, loot_entity)
+    await _apply_field_item_loot_pickup(ctx, loot_entity)
 
 
-def _apply_equipment_loot(ctx: GameContext, loot_entity) -> None:
+async def _apply_equipment_loot(ctx: GameContext, loot_entity) -> None:
     """Immediately pack one ground-equipment loot entity."""
-    _apply_equipment_loot_pickup(ctx, loot_entity)
+    await _apply_equipment_loot_pickup(ctx, loot_entity)
 
 
-def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
+async def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
     """Immediately secure trade-good debris, quest caches, or mission cargo."""
     is_quest = bool(getattr(loot_entity, "main_quest_step_id", ""))
     if is_quest:
@@ -543,7 +543,7 @@ def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
         return
     if not _cargo_room(ctx, good, quantity, goods, is_quest, owned):
         return
-    _apply_loot_pickup(
+    await _apply_loot_pickup(
         ctx, loot_entity, owned, is_quest, goods, good_id, quantity, good,
     )
 
@@ -575,7 +575,7 @@ def maybe_spawn_pad(ctx: GameContext, game_map, pos, enemy_id: str) -> bool:
     return spawn_pad_entity(game_map, pos, {"teaches": rumor_id})
 
 
-def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
+async def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
     """Teach-on-pickup (SETTLED 19): hear it, present it through the
     one readout path, consume the pad — the hold is never touched. An
     already-heard pad (its entry arrived by another door after the
@@ -587,44 +587,44 @@ def _apply_pad_pickup(ctx: GameContext, loot_entity) -> None:
     if loot_entity in ctx.game_map.entities:
         ctx.game_map.entities.remove(loot_entity)
     if heard:
-        rumor.present_hearing(
+        await rumor.present_hearing(
             ctx, rumor.topic_label(rumor_id), rumor.entry_text(rumor_id),
         )
 
 
-def _apply_reveal_pad_pickup(ctx: GameContext, loot_entity) -> None:
+async def _apply_reveal_pad_pickup(ctx: GameContext, loot_entity) -> None:
     """A site pad is consumed on pickup (SETTLED 34): the reveal
     records the next site and reads out; nothing enters the hold."""
     from . import digs
 
     if loot_entity in ctx.game_map.entities:
         ctx.game_map.entities.remove(loot_entity)
-    digs.reveal_site(ctx)
+    await digs.reveal_site(ctx)
 
 
-def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
+async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open the existing pickup flow for one selected loot entity."""
     if loot_entity.loot_data.get("teaches"):
-        _apply_pad_pickup(ctx, loot_entity)
+        await _apply_pad_pickup(ctx, loot_entity)
         return
     if loot_entity.loot_data.get("reveals_site"):
-        _apply_reveal_pad_pickup(ctx, loot_entity)
+        await _apply_reveal_pad_pickup(ctx, loot_entity)
         return
     item_type = loot_entity.loot_data.get("item_type")
     if item_type in {"weapon", "armor"}:
-        _apply_equipment_loot(ctx, loot_entity)
+        await _apply_equipment_loot(ctx, loot_entity)
     elif item_type in {"ammo", "consumable"}:
-        _apply_field_item_loot(ctx, loot_entity)
+        await _apply_field_item_loot(ctx, loot_entity)
     else:
-        _apply_trade_good_loot(ctx, loot_entity)
+        await _apply_trade_good_loot(ctx, loot_entity)
 
 
-def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
+async def open_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Choose among nearby loot entities, then open one pickup flow."""
     nearby = nearby_loot_entities(ctx)
     if nearby and loot_entity in nearby:
-        selected = choose_loot_entity(ctx, nearby)
+        selected = await choose_loot_entity(ctx, nearby)
         if selected is None:
             return
         loot_entity = selected
-    _open_single_loot_pickup(ctx, loot_entity)
+    await _open_single_loot_pickup(ctx, loot_entity)

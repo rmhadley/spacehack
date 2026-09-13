@@ -1,6 +1,7 @@
 """Tests for the headless savegame debugging harness."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import json
 from pathlib import Path
@@ -80,7 +81,7 @@ def test_move_uses_production_collision_and_snapshot_diff(monkeypatch, tmp_path)
     session = debug_session.HeadlessSaveSession.load(path)
     before = session.snapshot()
 
-    result = session.run(["move:left"])
+    result = run(session.run(["move:left"]))
     after = session.snapshot()
     changes = debug_session.snapshot_diff(before, after)
 
@@ -95,7 +96,7 @@ def test_city_rejects_dungeon_only_actions(monkeypatch, tmp_path):
     session = debug_session.HeadlessSaveSession.load(path)
 
     try:
-        session.run(["explore"])
+        run(session.run(["explore"]))
     except debug_session.SaveSessionError as exc:
         assert "require a dungeon save" in str(exc)
     else:
@@ -145,17 +146,17 @@ def test_city_move_notifies_tutorial(monkeypatch, tmp_path):
     notified = []
     monkeypatch.setattr(
         "src.spacehack.tutorial.notify_move",
-        lambda ctx: notified.append(ctx),
+        as_async(lambda ctx: notified.append(ctx)),
     )
 
-    result = session.run(["move:left"])
+    result = run(session.run(["move:left"]))
 
     assert result[0]["result"] == "moved"
     assert notified == [session.ctx]
 
 
 def test_cli_returns_failure_for_missing_save(capsys, tmp_path):
-    status = debug_session.main(["validate", str(tmp_path / "missing.json")])
+    status = run(debug_session.main(["validate", str(tmp_path / "missing.json")]))
 
     assert status == 1
     assert '"valid": false' in capsys.readouterr().out
@@ -165,7 +166,7 @@ def test_cli_refuses_output_path_equal_to_source(monkeypatch, tmp_path, capsys):
     path = _save_fixture(monkeypatch, tmp_path)
     before = path.read_bytes()
 
-    status = debug_session.main(["snapshot", str(path), "--out", str(path)])
+    status = run(debug_session.main(["snapshot", str(path), "--out", str(path)]))
 
     assert status == 1
     assert path.read_bytes() == before
@@ -175,9 +176,9 @@ def test_cli_refuses_output_path_equal_to_source(monkeypatch, tmp_path, capsys):
 def test_run_stops_after_combat_pending(monkeypatch, tmp_path):
     path = _save_fixture(monkeypatch, tmp_path)
     session = debug_session.HeadlessSaveSession.load(path)
-    monkeypatch.setattr(debug_session, "_post_player_step", lambda _session: True)
+    monkeypatch.setattr(debug_session, "_post_player_step", as_async(lambda _session: True))
 
-    results = session.run(["move:left", "advance:1"])
+    results = run(session.run(["move:left", "advance:1"]))
 
     assert results == [{
         "action": "move:left",

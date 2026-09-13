@@ -381,7 +381,7 @@ def _prepare_screen(context, ctx):
     return pygame, screen, engine, font, len(ctx.player_active_missions)
 
 
-def run_shared(
+async def run_shared(
     context: PygameContext,
     ctx: GameContext,
     selected: int = 0,
@@ -400,19 +400,20 @@ def run_shared(
         _draw_rows(pygame, screen, font, frame, context=context)
         pygame_ui.draw_context_log(pygame, screen, ctx.context)
         engine.present()
-        event = pygame.event.wait()
-        outcome, selected, confirm, pane = _handle_key(
-            pygame, event, selected, confirm, count, pane,
-        )
-        outcome, selected, confirm, pane, done = _advance_quest_log(
-            outcome, selected, confirm, pane,
-        )
-        if not done:
-            continue
-        return outcome, selected, confirm
+        done = False
+        for event in pygame.event.get():
+            outcome, selected, confirm, pane = _handle_key(
+                pygame, event, selected, confirm, count, pane,
+            )
+            outcome, selected, confirm, pane, done = _advance_quest_log(
+                outcome, selected, confirm, pane,
+            )
+            if done:
+                return outcome, selected, confirm
+        await context.pump(0.016)
 
 
-def run_for_context(
+async def run_for_context(
     ctx: GameContext,
     selected: int = 0,
     confirm_abandon: bool = False,
@@ -422,4 +423,4 @@ def run_for_context(
 
     if not pygame_runtime.is_shared_context(ctx.context):
         raise PygameQuestLogUnavailable("Shared Pygame runtime is not open")
-    return run_shared(ctx.context, ctx, selected, confirm_abandon)
+    return await run_shared(ctx.context, ctx, selected, confirm_abandon)

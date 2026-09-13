@@ -452,7 +452,7 @@ def _install_entry_player(ctx, parent_map, game_map, spawn):
     return _player
 
 
-def enter_extension(
+async def enter_extension(
     ctx,
     parent_map: world.GameMap,
     parent_player: world.Entity,
@@ -473,11 +473,11 @@ def enter_extension(
     _state.parent_position = parent_player.pos
     _floor, _game_map, _spawn = _load_entry_floor(ctx, _state, extension_id)
     _player = _install_entry_player(ctx, parent_map, _game_map, _spawn)
-    _show_first_entry_flavor(ctx, _state, _floor)
+    await _show_first_entry_flavor(ctx, _state, _floor)
     return _game_map, _player
 
 
-def _show_first_entry_flavor(
+async def _show_first_entry_flavor(
     ctx,
     state: DungeonExtensionState,
     floor: int,
@@ -497,7 +497,7 @@ def _show_first_entry_flavor(
         return
     from .main_quest import show_gate_popup
 
-    show_gate_popup(
+    await show_gate_popup(
         ctx,
         _flavor.faction_label,
         _flavor.message,
@@ -620,7 +620,7 @@ def interaction_spec_at(ctx, interaction_id: str):
     )
 
 
-def activate_interaction_state(ctx, interaction_id: str) -> bool:
+async def activate_interaction_state(ctx, interaction_id: str) -> bool:
     """Activate a data-defined current-floor interaction state flag."""
     _interaction = interaction_spec_at(ctx, interaction_id)
     if _interaction is None or not _interaction.state_key:
@@ -642,7 +642,7 @@ def activate_interaction_state(ctx, interaction_id: str) -> bool:
     if _interaction.objective_type:
         from .main_quest import complete_step_by_type
 
-        complete_step_by_type(ctx, _interaction.objective_type)
+        await complete_step_by_type(ctx, _interaction.objective_type)
     return True
 
 
@@ -660,7 +660,7 @@ def interaction_is_available(ctx, interaction_id: str) -> bool:
     return _interaction is not None and interaction_state_active(ctx, interaction_id)
 
 
-def restore_power(ctx) -> bool:
+async def restore_power(ctx) -> bool:
     """Backward-compatible helper for activating a stateful console."""
     _spec = _current_floor_spec(ctx)
     if _spec is None:
@@ -672,7 +672,7 @@ def restore_power(ctx) -> bool:
     )
     if _interaction is None:
         return False
-    return activate_interaction_state(ctx, _interaction.id)
+    return await activate_interaction_state(ctx, _interaction.id)
 
 
 def elevator_is_powered(ctx) -> bool:
@@ -737,7 +737,7 @@ def _prepare_transition_target(ctx, state, target_floor: int, direction: int):
     return _target_map, _position
 
 
-def _install_transition(ctx, state, target_map, target_position, target_floor):
+async def _install_transition(ctx, state, target_map, target_position, target_floor):
     """Move the player onto a target extension floor."""
     _remove_player(ctx.game_map)
     _remove_player(target_map)
@@ -755,11 +755,11 @@ def _install_transition(ctx, state, target_map, target_position, target_floor):
     dungeon_activation.refresh_prison_panels(
         target_map, dungeon_activation._facility_phase(state), target_floor,
     )
-    _show_first_entry_flavor(ctx, state, target_floor)
+    await _show_first_entry_flavor(ctx, state, target_floor)
     return target_map, _player
 
 
-def transition_floor(
+async def transition_floor(
     ctx,
     direction: int,
 ) -> tuple[world.GameMap, world.Entity]:
@@ -769,7 +769,7 @@ def transition_floor(
     _target_map, _target_position = _prepare_transition_target(
         ctx, _state, _target_floor, direction,
     )
-    return _install_transition(
+    return await _install_transition(
         ctx, _state, _target_map, _target_position, _target_floor,
     )
 
@@ -900,7 +900,7 @@ def _activation_event_ready(ctx, state, event) -> bool:
     )
 
 
-def _fire_activation_event(ctx, state, event) -> None:
+async def _fire_activation_event(ctx, state, event) -> None:
     """Persist, present, and log one activation event."""
     _spawned = dungeon_activation.activate_dormant(
         ctx.game_map, squad_prefix=f"{event.id}_security",
@@ -912,7 +912,7 @@ def _fire_activation_event(ctx, state, event) -> None:
     )
     from .main_quest import show_gate_popup
 
-    show_gate_popup(
+    await show_gate_popup(
         ctx,
         event.faction_label,
         event.message,
@@ -924,7 +924,7 @@ def _fire_activation_event(ctx, state, event) -> None:
         ctx.log.add(event.no_deploy_log)
 
 
-def tick_activation(ctx) -> bool:
+async def tick_activation(ctx) -> bool:
     """Activate security as the player progresses toward the next floor."""
     _state = ctx.dungeon_extension
     if _state is None or not _state.active:
@@ -934,7 +934,7 @@ def tick_activation(ctx) -> bool:
     for _event in _spec.activation_events:
         if not _activation_event_ready(ctx, _state, _event):
             continue
-        _fire_activation_event(ctx, _state, _event)
+        await _fire_activation_event(ctx, _state, _event)
         _fired = True
         if getattr(_event, "route_direction", "down") == "up":
             break

@@ -1,6 +1,7 @@
 """Tests for title and Quest Log Pygame presentation seams."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -93,13 +94,13 @@ def test_title_splash_uses_shared_runtime_and_dismisses_on_key(monkeypatch):
     monkeypatch.setattr(
         FakePygame,
         "event",
-        SimpleNamespace(wait=lambda: event),
+        SimpleNamespace(get=lambda: (event,)),
         raising=False,
     )
     monkeypatch.setattr(pygame_title, "_splash_font", lambda *args: SimpleNamespace(get_linesize=lambda: 16))
     monkeypatch.setattr(pygame_title, "_draw_splash", lambda *args: calls.append("draw"))
 
-    pygame_title.run_splash_for_context(context)
+    run(pygame_title.run_splash_for_context(context))
 
     assert calls == ["draw", "present"]
 
@@ -121,9 +122,9 @@ def test_options_cycle_and_apply_uses_context_display_contract(monkeypatch):
         apply_display_config=lambda config: calls.append(("apply", config)),
         save_display_config=lambda: calls.append(("save",)),
     )
-    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)))
 
-    assert pygame_title.run_options_for_context(context) is True
+    assert run(pygame_title.run_options_for_context(context)) is True
     assert calls == [
         ("apply", pygame_title.DisplayConfig(fullscreen=True, window_width=1920, window_height=1152)),
         ("save",),
@@ -139,10 +140,10 @@ def test_options_back_discards_pending_changes(monkeypatch):
     monkeypatch.setattr(
         pygame_title.pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("BACK", "", 0),
+        as_async(lambda *args, **kwargs: ("BACK", "", 0)),
     )
 
-    assert pygame_title.run_options_for_context(context) is False
+    assert run(pygame_title.run_options_for_context(context)) is False
 
 
 def test_options_items_show_animation_speed_ladder_labels():
@@ -192,9 +193,9 @@ def test_options_cycle_and_apply_carries_animation_speed(monkeypatch):
         apply_display_config=lambda config: calls.append(("apply", config)),
         save_display_config=lambda: calls.append(("save",)),
     )
-    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_title.pygame_menu, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)))
 
-    assert pygame_title.run_options_for_context(context) is True
+    assert run(pygame_title.run_options_for_context(context)) is True
     assert calls == [
         ("apply", pygame_title.DisplayConfig(animation_speed=4.0)),
         ("save",),
@@ -205,10 +206,10 @@ def test_title_runner_maps_pygame_actions_to_legacy_outcomes(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("SELECT", "CONTINUE", 1),
+        as_async(lambda *args, **kwargs: ("SELECT", "CONTINUE", 1)),
     )
 
-    assert pygame_title.run_for_context(SimpleNamespace(), True) == (
+    assert run(pygame_title.run_for_context(SimpleNamespace(), True)) == (
         ui.TitleMenuOutcome.CONTINUE,
         1,
     )
@@ -218,10 +219,10 @@ def test_title_runner_preserves_close_as_exit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("QUIT", "", 0),
+        as_async(lambda *args, **kwargs: ("QUIT", "", 0)),
     )
 
-    assert pygame_title.run_for_context(SimpleNamespace(), False) == (
+    assert run(pygame_title.run_for_context(SimpleNamespace(), False)) == (
         ui.TitleMenuOutcome.EXIT,
         0,
     )
@@ -231,13 +232,15 @@ def test_title_runner_propagates_missing_shared_runtime(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
+        as_async(
+            lambda *args, **kwargs: (_ for _ in ()).throw(
             pygame_menu.PygameMenuUnavailable("missing"),
+        )
         ),
     )
 
     try:
-        pygame_title.run_for_context(SimpleNamespace(), False)
+        run(pygame_title.run_for_context(SimpleNamespace(), False))
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
     else:

@@ -197,7 +197,7 @@ def _is_early_completion(active: ActiveMission, current_day: int) -> bool:
     )
 
 
-def complete_mission(
+async def complete_mission(
     active: ActiveMission,
     owned_ship: object,
     stats: object,
@@ -213,7 +213,7 @@ def complete_mission(
         _record_faction_mission(ctx, active)
         if xp > 0:
             from ..xp import add_xp
-            add_xp(ctx, xp)
+            await add_xp(ctx, xp)
         _apply_mission_rep(
             active, ctx, is_early=_is_early_completion(active, current_day),
         )

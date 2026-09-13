@@ -688,9 +688,9 @@ def animate_fire(
 # Resolution
 # ---------------------------------------------------------------------------
 
-def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
+async def on_kill(game_map: world.GameMap, enemy: EnemyInstance, ctx) -> None:
     """Rules interface — the kill chain lives in ``_space_kills``."""
-    _kill_chain(_state, game_map, enemy, ctx)
+    await _kill_chain(_state, game_map, enemy, ctx)
 
 
 def on_player_death(ctx) -> None:
@@ -720,7 +720,7 @@ def handle_defense(ctx) -> None:
 # Enemy turns
 # ---------------------------------------------------------------------------
 
-def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
+async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai import _run_enemy_turn as _enemy_ai
 
     _hit_chances = _build_hit_chances(_alive_target())
@@ -730,7 +730,7 @@ def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         int(_state.player_state.get("piloting", 0) * 0.5),
     )
 
-    _result = _enemy_ai(
+    _result = await _enemy_ai(
         _state,
         hit_chances=_hit_chances,
         evade_bonus=_evade,

@@ -44,7 +44,7 @@ def place_transit_stations(game_map: world.GameMap, spec) -> None:
     game_map.city_transit = lookup
 
 
-def _run_transit_menu(ctx, station_name: str, destinations) -> str | None:
+async def _run_transit_menu(ctx, station_name: str, destinations) -> str | None:
     """Run the Pygame destination menu; return the chosen station id or ``None``."""
     from . import pygame_menu, pygame_ui
 
@@ -68,7 +68,7 @@ def _run_transit_menu(ctx, station_name: str, destinations) -> str | None:
         )
         for selected in range(max(1, len(destinations)))
     )
-    outcome, action, _selected = pygame_menu.run_for_context(
+    outcome, action, _selected = await pygame_menu.run_for_context(
         ctx.context,
         frames,
         caption=f"spacehack - {station_name}",
@@ -77,7 +77,7 @@ def _run_transit_menu(ctx, station_name: str, destinations) -> str | None:
         return action
     if outcome == "GUIDE":
         from .help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return None
     return None
 
@@ -123,7 +123,7 @@ def _arrival_cell(game_map, station_pos, station_id) -> world.Position:
     return world.Position(x2, y2)
 
 
-def resolve_transit_station(state, blocker) -> str | None:
+async def resolve_transit_station(state, blocker) -> str | None:
     """Handle bumping a transit stop: pick a destination and travel there.
 
     Returns a loop sentinel (``None``) or ``'QUIT'`` consistent with other
@@ -142,7 +142,7 @@ def resolve_transit_station(state, blocker) -> str | None:
     if not destinations:
         state.log.add(f"There are no transit routes leaving {current['name']}.")
         return None
-    destination_id = _run_transit_menu(
+    destination_id = await _run_transit_menu(
         state.ctx, current["name"], destinations,
     )
     if destination_id is None:
@@ -154,7 +154,7 @@ def resolve_transit_station(state, blocker) -> str | None:
     state.log.add(
         f"You ride the transit to the {dest['name']} ({dest['district'].title()} district).",
     )
-    animate_transit_arrival(
+    await animate_transit_arrival(
         state, dest["name"],
         colour=_station_colour(state.game_map, destination_id),
     )
@@ -200,7 +200,7 @@ def _present_light_frame(state, game_map, sources, clock, location) -> None:
     )
 
 
-def animate_transit_arrival(
+async def animate_transit_arrival(
     state, location: str, colour=(255, 215, 100),
 ) -> None:
     """Bloom the arrival stop's glow around the player, then settle.
@@ -233,7 +233,7 @@ def animate_transit_arrival(
             _arrival_pulse_sources(base, pos, colour, (1.0 - i / frames) ** 1.6),
             clock, location,
         )
-        _responsive_sleep(animation_timing.TRANSIT_ARRIVAL)
+        await _responsive_sleep(animation_timing.TRANSIT_ARRIVAL)
     game_map.light_grid = snapshot
     from .city_render import present_city_transition_frame
     present_city_transition_frame(

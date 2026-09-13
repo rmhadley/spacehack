@@ -68,7 +68,7 @@ def _guide_list_frame():
     )
 
 
-def _run_pygame_help(
+async def _run_pygame_help(
     ctx: GameContext,
     initial_topic: str | int | None = None,
 ) -> bool | None:
@@ -81,7 +81,7 @@ def _run_pygame_help(
     if initial_index is not None:
         frame = _section_frame(GUIDE_SECTIONS[initial_index])
     while True:
-        outcome, action, _selected = pygame_screen.run_for_context(
+        outcome, action, _selected = await pygame_screen.run_for_context(
             ctx.context, frame, caption="spacehack - guide",
         )
         if outcome == "SELECT" and action.startswith("SECTION:"):
@@ -104,17 +104,17 @@ def _run_pygame_help(
             return True
 
 
-def _run_help_guide(ctx: GameContext) -> None:
+async def _run_help_guide(ctx: GameContext) -> None:
     """Open the game guide as a modal, optionally at a contextual topic."""
     topic = getattr(ctx, "_guide_topic", None)
     if hasattr(ctx, "_guide_topic"):
         delattr(ctx, "_guide_topic")
-    result = _run_pygame_help(ctx, topic)
+    result = await _run_pygame_help(ctx, topic)
     if result is None:
         raise RuntimeError("Guide returned no outcome")
 
 
-def _open_context_guide(ctx: GameContext, topic: str) -> None:
+async def _open_context_guide(ctx: GameContext, topic: str) -> None:
     """Open the guide directly at the topic most relevant to a modal."""
     ctx._guide_topic = topic
-    _run_help_guide(ctx)
+    await _run_help_guide(ctx)

@@ -76,7 +76,7 @@ def _print_sparks(
             )
 
 
-def _render_frame(
+async def _render_frame(
     ctx,
     console: FrameBuffer,
     game_map: world.GameMap,
@@ -114,7 +114,7 @@ def _render_frame(
         region_w=region_w, region_h=region_h,
     )
     ctx.context.present(console)
-    _responsive_sleep(animation_timing.DUNGEON_BREACH)
+    await _responsive_sleep(animation_timing.DUNGEON_BREACH)
 
 
 def _restore_breaches(
@@ -129,7 +129,7 @@ def _restore_breaches(
         ]
 
 
-def animate_breach(
+async def animate_breach(
     ctx,
     console: FrameBuffer,
     game_map: world.GameMap,
@@ -147,12 +147,12 @@ def animate_breach(
     colors = ((255, 200, 100), (255, 160, 60), (255, 120, 40), (255, 255, 255))
     chars = ("*", "+", "o", "#")
     for sparks, char, color in zip(frames, chars, colors):
-        _render_frame(
+        await _render_frame(
             ctx, console, game_map, player_pos, sparks, char, color,
             region_w=region_w, region_h=region_h,
         )
     _restore_breaches(game_map, positions, originals)
-    _render_frame(
+    await _render_frame(
         ctx, console, game_map, player_pos, set(), "", colors[-1],
         region_w=region_w, region_h=region_h,
     )

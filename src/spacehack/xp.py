@@ -48,7 +48,7 @@ def _xp_to_next(level: int) -> int:
 # add_xp — single entry point for all XP gains
 # ---------------------------------------------------------------------------
 
-def add_xp(ctx: GameContext, amount: int) -> None:
+async def add_xp(ctx: GameContext, amount: int) -> None:
     """Award *amount* XP and handle level-ups.
 
     Called from mission completion, combat kills, and future XP sources.
@@ -79,7 +79,7 @@ def add_xp(ctx: GameContext, amount: int) -> None:
         # capstone specialization built on the two traits chosen here).
         if ctx.player_level in (40, 50):
             from .trait_screen import open_trait_selection
-            open_trait_selection(ctx)
+            await open_trait_selection(ctx)
 
 
 # ---------------------------------------------------------------------------

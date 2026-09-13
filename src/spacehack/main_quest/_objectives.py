@@ -50,7 +50,7 @@ def find_salvage_step_for_spawn(ctx, spawn_id: str):
     return None
 
 
-def show_step_readout(ctx, _step) -> bool:
+async def show_step_readout(ctx, _step) -> bool:
     """Show the quest readout popup for a just-completed step.
 
     Body = completion flavor + next-step guidance (a time-gate hint
@@ -79,11 +79,11 @@ def show_step_readout(ctx, _step) -> bool:
     if _what_next:
         _body = f"{_flavor}\n\n{_what_next}"
     from ._act0 import show_quest_readout
-    show_quest_readout(ctx, _npc, _body)
+    await show_quest_readout(ctx, _npc, _body)
     return True
 
 
-def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
+async def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     """Complete a delve/salvage objective whose quest-tagged loot was secured."""
     _step_id = getattr(loot_entity, "main_quest_step_id", "")
     if not _step_id:
@@ -102,14 +102,14 @@ def secure_quest_loot(ctx, loot_entity, goods: list[tuple[str, int]]) -> bool:
     from ..data.trade_goods import display_name as _good_name
     for _gid, _qty in goods:
         ctx.log.add(f"Secured: {_good_name(_gid)} x{_qty}.")
-    _result = complete_step(ctx, _step_id)
+    _result = await complete_step(ctx, _step_id)
     if _result:
         # Salvage wrecks: the handler removes the derelict BountySpawn so it
         # doesn't respawn on re-entry (see _cleanup_salvage_wreck).
         if _handler.on_complete is not None:
             _handler.on_complete(ctx, _step)
         _maybe_auto_trigger_next_smuggle(ctx, _step_id)
-        show_step_readout(ctx, _step)
+        await show_step_readout(ctx, _step)
     return _result
 
 
@@ -127,7 +127,7 @@ def _cleanup_salvage_wreck(ctx, step) -> None:
     _remove_quest_spawn_group(ctx, step)
 
 
-def complete_step_by_type(ctx, objective_type: str) -> bool:
+async def complete_step_by_type(ctx, objective_type: str) -> bool:
     """Complete the first available/active step matching ``objective_type``.
 
     Generic hook used by dungeon-extension interactions (e.g. the Floor 5
@@ -138,45 +138,45 @@ def complete_step_by_type(ctx, objective_type: str) -> bool:
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
-    _result = complete_step(ctx, _step_id)
+    _result = await complete_step(ctx, _step_id)
     if _result:
-        show_step_readout(ctx, _step)
+        await show_step_readout(ctx, _step)
     return _result
 
 
-def maybe_complete_visit(ctx, npc_id: str) -> bool:
+async def maybe_complete_visit(ctx, npc_id: str) -> bool:
     """Complete an active visit step when the player talks to the expert NPC."""
     _step_id = _active_objective_step(ctx, "visit", npc_id=npc_id)
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
-    _result = complete_step(ctx, _step_id)
+    _result = await complete_step(ctx, _step_id)
     if _result:
         # A gated step's flavor is presented by the gate popup that
         # follows the trigger (maybe_continue_chain); showing a readout
         # too would present the same text twice (playtest v15).
         if not (_step.wait_days > 0 and _step.completion_flavor):
-            show_step_readout(ctx, _step)
+            await show_step_readout(ctx, _step)
     return _result
 
 
-def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
+async def maybe_complete_bounty(ctx, defeated_spawn_ids) -> bool:
     """Complete an active bounty step whose quest-tagged BountySpawn was defeated."""
     for _spawn_id in (defeated_spawn_ids or ()):
         _step_id = _active_objective_step(ctx, "bounty", spawn_id=_spawn_id)
         if _step_id is None:
             continue
-        if not complete_step(ctx, _step_id):
+        if not await complete_step(ctx, _step_id):
             return False
         _step = find_main_quest_step(_step_id)
         # Show the quest readout popup with completion flavor + next-step guidance.
-        show_step_readout(ctx, _step)
+        await show_step_readout(ctx, _step)
         _remove_quest_spawn_group(ctx, _step)
         return True
     return False
 
 
-def fail_smuggle_step(ctx, active) -> bool:
+async def fail_smuggle_step(ctx, active) -> bool:
     """Reset a smuggle step whose crate was confiscated or abandoned."""
     _step_id = getattr(active, "main_quest_step_id", "")
     if not _step_id:
@@ -197,7 +197,7 @@ def fail_smuggle_step(ctx, active) -> bool:
             message_log.COLOR_IMPORTANT_EVENT,
         )
         from ._act0 import show_quest_summon
-        show_quest_summon(
+        await show_quest_summon(
             ctx, t_get("runtime.smuggle_lost_summon").format(good=_good),
             objective=_step.description,
         )

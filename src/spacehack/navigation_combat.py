@@ -267,11 +267,11 @@ def _entity_hail_key(_e) -> str:
     return f"{_pid}:{_e.pos.x}:{_e.pos.y}"
 
 
-def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
+async def _fire_warning(ctx, _sys_id: str, _e) -> tuple[bool, object] | None:
     """Mark entity scanned and open comms with the entity."""
     ctx.militia_scanned.add(_entity_hail_key(_e))
     from .comms import open_comms_direct as _ocd
-    _attack_data = _ocd(ctx, _e)
+    _attack_data = await _ocd(ctx, _e)
     return (True, _attack_data)
 
 
@@ -291,7 +291,7 @@ def _check_viewport_visible(e, player_pos, system) -> bool:
             and _cam_y <= e.pos.y < _cam_y + _view_h)
 
 
-def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
+async def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
     """Spec-distance auto-hail branch (blockade + militia patrols + others)."""
     _pid = getattr(e, "npc_ship_id", "")
     _faction = getattr(spec, "faction", "")
@@ -301,7 +301,7 @@ def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
             return None  # the checkpoint is the Line's only hail (doc 41)
         if _entity_hail_key(e) in ctx.militia_scanned:
             return None
-        return _fire_warning(ctx, sys_id, e)
+        return await _fire_warning(ctx, sys_id, e)
     if _faction == "militia":
         _key = _entity_hail_key(e)
         if _key in ctx.militia_scanned:
@@ -311,13 +311,13 @@ def _spec_distance_hail(ctx, sys_id: str, e, spec, player_pos):
         _chance = _militia_scan_chance(ctx)
         if _chance <= 0.0 or _engine.RNG.random() >= _chance:
             return None  # no scan — wave through
-        return _fire_warning(ctx, sys_id, e)
+        return await _fire_warning(ctx, sys_id, e)
     if _entity_hail_key(e) in ctx.militia_scanned:
         return None
-    return _fire_warning(ctx, sys_id, e)
+    return await _fire_warning(ctx, sys_id, e)
 
 
-def _dark_spot_challenge(ctx, e, spec, player_pos):
+async def _dark_spot_challenge(ctx, e, spec, player_pos):
     """Militia physical-spot challenge on a dark hull (doc 40 3b).
 
     Dark beats electronics, not eyeballs: the challenge keys on the
@@ -344,15 +344,15 @@ def _dark_spot_challenge(ctx, e, spec, player_pos):
     if _key in ctx.militia_scanned:
         return None  # already challenged while in sight
     from . import navigation_line
-    _line = navigation_line.line_dark_hail(ctx, e)
+    _line = await navigation_line.line_dark_hail(ctx, e)
     if _line is None:
         from .comms import open_challenge_direct as _challenge
-        _line = (True, _challenge(ctx, e))
+        _line = (True, await _challenge(ctx, e))
     ctx.militia_scanned.add(_key)
     return _line
 
 
-def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):
+async def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):
     """Check one entity's auto-hail triggers; return ``(True, data)`` or ``None``.
 
     A dark transponder is not HAILABLE (no broadcast to hail — the
@@ -369,26 +369,26 @@ def _auto_hail_entity(ctx, sys_id: str, e, player_pos, system):
         return None
     from .identity import broadcast_mode, DARK
     if broadcast_mode(ctx) == DARK:
-        return _dark_spot_challenge(ctx, e, _spec, player_pos)
+        return await _dark_spot_challenge(ctx, e, _spec, player_pos)
     _spec_distance = _spec.comms_warning_range
     _spec_viewport = getattr(_spec, "comms_trigger_viewport", False)
     _entity_bounty_range = getattr(e, "bounty_comms_range", 0)
     if _spec_distance <= 0 and not _spec_viewport and _entity_bounty_range <= 0:
         return None
     if _spec_distance > 0 and _check_spec_distance(e, player_pos, _spec_distance):
-        return _spec_distance_hail(ctx, sys_id, e, _spec, player_pos)
+        return await _spec_distance_hail(ctx, sys_id, e, _spec, player_pos)
     if _entity_bounty_range > 0 and _check_spec_distance(e, player_pos, _entity_bounty_range):
         if _entity_hail_key(e) in ctx.militia_scanned:
             return None
-        return _fire_warning(ctx, sys_id, e)
+        return await _fire_warning(ctx, sys_id, e)
     if _spec_viewport and _check_viewport_visible(e, player_pos, system):
         if _entity_hail_key(e) in ctx.militia_scanned:
             return None
-        return _fire_warning(ctx, sys_id, e)
+        return await _fire_warning(ctx, sys_id, e)
     return None
 
 
-def _check_auto_comms_warning(
+async def _check_auto_comms_warning(
     ctx, player_pos, system,
 ) -> tuple[bool, object] | None:
     """Check if any entity with auto-hail behaviour is within range.
@@ -408,7 +408,7 @@ def _check_auto_comms_warning(
     for _e in ctx.game_map.entities:
         if getattr(_e, "owned", False):
             continue
-        _result = _auto_hail_entity(ctx, _sys_id, _e, player_pos, system)
+        _result = await _auto_hail_entity(ctx, _sys_id, _e, player_pos, system)
         if _result is not None:
             return _result
     return None

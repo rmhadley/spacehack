@@ -26,7 +26,7 @@ from ._animations import (
 )
 
 
-def _combat_action(ctx, console, rules=None) -> str:
+async def _combat_action(ctx, console, rules=None) -> str:
     """Render one interactive combat frame and return its opaque action."""
     from .. import pygame_combat, pygame_runtime
 
@@ -35,12 +35,12 @@ def _combat_action(ctx, console, rules=None) -> str:
             "Combat requires the shared Pygame runtime"
         )
     while True:
-        for event in ctx.context.wait_events():
+        for event in await ctx.context.wait_events():
             if pygame_engine.is_quit(event):
                 return "QUIT"
             if not pygame_engine.is_keydown(event):
                 continue
-            if _try_open_guide(event, ctx):
+            if await _try_open_guide(event, ctx):
                 break
             return _input_action(event, rules)
 
@@ -123,14 +123,14 @@ def _toggle_weapon(
     return active_weapons
 
 
-def _handle_character_action(ctx, rules) -> int:
+async def _handle_character_action(ctx, rules) -> int:
     """Open ground equipment management and charge successful swaps."""
     if rules is not _rules_ground:
         ctx.log.add("The character screen is unavailable here.")
         return 0
     from ..character_screen import open_character_screen
 
-    swaps = open_character_screen(
+    swaps = await open_character_screen(
         ctx,
         equipment_management=True,
         in_ground_combat=True,
@@ -185,12 +185,12 @@ def _prepare_player_attack(rules, ctx, game_map, target, wid) -> None:
         _prepare(ctx, game_map, target, wid)
 
 
-def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int]:
+async def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int]:
     """Record a kill, clear transient modifiers, consume ammo, and return AP."""
     if hit and not rules.enemy_alive(target):
         _record = _rules_hook(rules, "record_player_kill")
         if _record is not None:
-            _record(ctx, wid)
+            await _record(ctx, wid)
     _ap_cost = rules.weapon_ap_cost(wid, ctx)
     _clear = _rules_hook(rules, "clear_attack_modifier")
     if _clear is not None:
@@ -199,7 +199,7 @@ def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int
     return hit, _ap_cost
 
 
-def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
+async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
     """Fire one weapon slot; return ``(hit, ap_cost)`` — 0 if it could not fire."""
     from .. import message_log as _ml
     _wid = rules.player_weapons(ctx)[slot]
@@ -236,12 +236,12 @@ def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -
             _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
             _ml.COLOR_PLAYER_ACTION,
         )
-    return _finish_player_weapon(
+    return await _finish_player_weapon(
         rules, ctx, _wid, slot, target, _hit,
     )
 
 
-def _log_explosive_result(
+async def _log_explosive_result(
     ctx, rules, weapon_id: str, weapon_name: str, target,
     enemy_hits: tuple, player_damage: int, *, primary_hit: bool = True,
 ) -> None:
@@ -272,7 +272,7 @@ def _log_explosive_result(
         )
 
 
-def _process_explosive_kills(
+async def _process_explosive_kills(
     ctx, game_map, rules, weapon_id: str, enemy_hits: tuple,
 ) -> None:
     """Run normal loot/XP handling for every enemy killed by a blast."""
@@ -287,8 +287,8 @@ def _process_explosive_kills(
         )
         _record = _rules_hook(rules, "record_player_kill")
         if _record is not None:
-            _record(ctx, weapon_id)
-        rules.on_kill(game_map, _enemy, ctx)
+            await _record(ctx, weapon_id)
+        await rules.on_kill(game_map, _enemy, ctx)
 
 
 def _record_explosive_hit(ctx, hit: bool) -> None:
@@ -299,7 +299,7 @@ def _record_explosive_hit(ctx, hit: bool) -> None:
         )
 
 
-def _fire_explosive_weapon(
+async def _fire_explosive_weapon(
     console, ctx, game_map, rules, slot: int, target, player_pos,
 ) -> tuple[bool, int]:
     """Fire one explosive weapon and resolve its full friendly-fire blast."""
@@ -326,11 +326,11 @@ def _fire_explosive_weapon(
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
     if _hit or _enemy_hits or _player_damage:
-        _log_explosive_result(
+        await _log_explosive_result(
             ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
             primary_hit=_hit,
         )
-        _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
+        await _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
     else:
         from .. import message_log as _ml
         ctx.log.add_colored(
@@ -341,7 +341,7 @@ def _fire_explosive_weapon(
     return _hit, rules.weapon_ap_cost(_wid, ctx)
 
 
-def _fire_active_slot(
+async def _fire_active_slot(
     console, ctx, game_map, rules, slot: int, target, player_pos,
 ) -> tuple[bool, int, bool]:
     """Fire one active slot and report whether it handled its own kills."""
@@ -350,17 +350,17 @@ def _fire_active_slot(
         rules, "is_explosive", lambda _weapon_id: False,
     )(_wid)
     if _is_explosive:
-        _hit, _ap_cost = _fire_explosive_weapon(
+        _hit, _ap_cost = await _fire_explosive_weapon(
             console, ctx, game_map, rules, slot, target, player_pos,
         )
     else:
-        _hit, _ap_cost = _fire_weapon(
+        _hit, _ap_cost = await _fire_weapon(
             console, ctx, game_map, rules, slot, target, player_pos,
         )
     return _hit, _ap_cost, _is_explosive and not rules.enemy_alive(target)
 
 
-def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
+async def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     """Fire all active weapons; return True if the primary target died."""
     _fire_slots = _fire_slot_indexes(rules.player_weapons(ctx), rules.active_weapons(ctx))
     if not _fire_slots:
@@ -380,7 +380,7 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     for _slot in _fire_slots:
         if not rules.enemy_alive(_target):
             break
-        _hit, _ap_cost, _handled_kills = _fire_active_slot(
+        _hit, _ap_cost, _handled_kills = await _fire_active_slot(
             console, ctx, game_map, rules, _slot, _target, _player_pos,
         )
         _explosive_target_handled = _explosive_target_handled or _handled_kills
@@ -394,15 +394,15 @@ def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
             f"{rules.enemy_name(_target)} destroyed!",
             _ml.COLOR_COMBAT_EVENT,
         )
-        rules.on_kill(game_map, _target, ctx)
+        await rules.on_kill(game_map, _target, ctx)
         return True
     return _any_hit and not rules.enemy_alive(_target)
 
 
-def _end_turn(ctx, game_map, rules) -> str | None:
+async def _end_turn(ctx, game_map, rules) -> str | None:
     """Run enemy turns + reinforcements. Returns "DEFEAT" if player
     died, ``None`` otherwise."""
-    _dmg = rules.run_enemy_turns(ctx, game_map)
+    _dmg = await rules.run_enemy_turns(ctx, game_map)
     if _dmg >= 999:  # signal: player death
         rules.on_player_death(ctx)
         return "DEFEAT"
@@ -450,7 +450,7 @@ def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
     return target_idx
 
 
-def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
+async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
                         target_idx: int = 0):
     """Handle non-combat actions. Returns ``(action, result, redo)``.
 
@@ -468,18 +468,18 @@ def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
         raise SystemExit
     if action == "GUIDE":
         from ..help import _run_help_guide
-        _run_help_guide(ctx)
+        await _run_help_guide(ctx)
         return action, None, True
     if action == "HISTORY":
         from ..console_log import open_console_log as _open_console_log
-        _quit = _open_console_log(ctx) == "QUIT"
+        _quit = await _open_console_log(ctx) == "QUIT"
         if _quit:
             raise SystemExit
         return action, None, True
     return action, None, False
 
 
-def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
+async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
     """Handle one in-combat action. Returns the new ``target_idx``."""
     if action == "TARGET":
         _enemies = rules.get_enemies(ctx)
@@ -498,9 +498,9 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
     elif action == "DEFENSE":
         rules.handle_defense(ctx)
     elif action == "CHARACTER":
-        _handle_character_action(ctx, rules)
+        await _handle_character_action(ctx, rules)
     elif action == "FIRE":
-        _handle_fire(console, ctx, game_map, rules, target_idx)
+        await _handle_fire(console, ctx, game_map, rules, target_idx)
     elif action == "RELOAD":
         _reload = getattr(rules, "reload_weapon", None)
         if _reload is not None:
@@ -516,14 +516,14 @@ def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_i
     return target_idx
 
 
-def _end_player_turn(ctx, game_map, rules, turn: int):
+async def _end_player_turn(ctx, game_map, rules, turn: int):
     """Run enemies when AP is spent. Returns ``(turn, defeat_or_None)``."""
     if rules is _rules_ground and rules.player_hp(ctx) <= 0:
         rules.on_player_death(ctx)
         return turn, "DEFEAT"
     if rules.player_ap(ctx) > 0:
         return turn, None
-    _end_result = _end_turn(ctx, game_map, rules)
+    _end_result = await _end_turn(ctx, game_map, rules)
     if _end_result == "DEFEAT":
         return turn, "DEFEAT"
     rules.reset_turn(ctx)
@@ -546,7 +546,7 @@ def _finish_combat(ctx, rules, result: str | None) -> CombatResult:
     return _cr
 
 
-def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResult:
+async def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResult:
     """Run the unified turn-based combat loop (space or ground).
 
     The caller must call ``rules.init`` first. Owns turn structure, AP, key
@@ -565,8 +565,8 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
         _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _enemies)
         rules.render_frame(console, ctx, game_map)
         _present(ctx, console)
-        _action = _combat_action(ctx, console, rules)
-        _action, _result_now, _redo = _handle_meta_action(
+        _action = await _combat_action(ctx, console, rules)
+        _action, _result_now, _redo = await _handle_meta_action(
             _action, ctx, rules=rules, game_map=game_map,
             target_idx=_target_idx,
         )
@@ -575,22 +575,22 @@ def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> CombatResu
             break
         if _redo:
             continue
-        _target_idx = _dispatch_combat_action(
+        _target_idx = await _dispatch_combat_action(
             console, ctx, game_map, rules, _action, _target_idx,
         )
-        _turn, _defeat = _end_player_turn(ctx, game_map, rules, _turn)
+        _turn, _defeat = await _end_player_turn(ctx, game_map, rules, _turn)
         if _defeat == "DEFEAT":
             _result = "DEFEAT"
             break
     return _finish_combat(ctx, rules, _result)
 
 
-def run_combat(
+async def run_combat(
     console,
     ctx,
     game_map: world.GameMap,
     rules,
 ) -> CombatResult:
     """Run combat through the shared Pygame runtime."""
-    return _run_combat_impl(console, ctx, game_map, rules)
+    return await _run_combat_impl(console, ctx, game_map, rules)
 

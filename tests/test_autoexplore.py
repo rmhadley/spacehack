@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run
 """Tests for dungeon auto-explore (the ``O`` key).
 
 Covers the pure decision helpers (``next_explore_step``,
@@ -756,7 +757,7 @@ def test_run_goto_arrives_beside_stairs():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
-    ctx, result = _run_goto(gm, player, target, tick=tick)
+    ctx, result = run(_run_goto(gm, player, target, tick=tick))
     assert result == "DONE"
     assert player.pos == world.Position(5, 1)  # adjacent, never on top
     assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
@@ -774,7 +775,7 @@ def test_run_goto_does_not_stop_at_own_target():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
         return None
 
-    ctx, result = _run_goto(gm, player, target, tick=tick)
+    ctx, result = run(_run_goto(gm, player, target, tick=tick))
     assert result == "DONE"
     assert player.pos == world.Position(5, 1)  # walked past the sighting
     assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
@@ -793,7 +794,7 @@ def test_run_goto_stops_at_newly_visible_interesting():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
-    ctx, result = _run_goto(gm, player, target, tick=tick)
+    ctx, result = run(_run_goto(gm, player, target, tick=tick))
     assert result == "DONE"
     assert player.pos == world.Position(3, 1)  # stopped at the cache
     assert "cache of supplies" in ctx.log.recent(1)[0].text
@@ -805,7 +806,7 @@ def test_run_goto_cancels_on_keypress():
     target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
     player = _player(1, 1)
     key = SimpleNamespace(kind="keydown", key_name="h")
-    ctx, result = _run_goto(gm, player, target, events=[key])
+    ctx, result = run(_run_goto(gm, player, target, events=[key]))
     assert result == "CANCELLED"
     assert player.pos == world.Position(1, 1)  # never moved
 
@@ -819,7 +820,7 @@ def test_run_goto_stops_when_combat_starts():
     def tick(ctx, console, game_map):
         return "COMBAT"
 
-    ctx, result = _run_goto(gm, player, target, tick=tick)
+    ctx, result = run(_run_goto(gm, player, target, tick=tick))
     assert result == "COMBAT"
     assert player.pos == world.Position(2, 1)  # one step taken
 
@@ -830,7 +831,7 @@ def test_run_goto_cannot_reach_target():
     gm.tiles[1][6] = _stairs(6, 1)
     target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
     player = _player(1, 1)
-    ctx, result = _run_goto(gm, player, target)
+    ctx, result = run(_run_goto(gm, player, target))
     assert result == "DONE"
     assert player.pos == world.Position(1, 1)  # never moved
     assert "Cannot reach a stairway down" in ctx.log.recent(1)[0].text

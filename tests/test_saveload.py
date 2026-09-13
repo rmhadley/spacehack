@@ -7,6 +7,7 @@ every serialized field survived.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -384,7 +385,8 @@ class TestSaveLoadRoundTrip:
         ]
         parent_map = GameMap(12, 12, parent_tiles, [])
         parent_position = Position(4, 5)
-        extension_map, extension_player = dungeon_extensions.enter_extension(
+        extension_map, extension_player = run(
+                                              dungeon_extensions.enter_extension(
             SimpleNamespace(
                 interiors={"surface:mars": parent_map},
                 dungeon_extension=None,
@@ -398,6 +400,7 @@ class TestSaveLoadRoundTrip:
             extension_id="mars_alien_prison",
             parent_map_key="surface:mars",
         )
+                                          )
         # Reuse the state created by enter_extension on a real GameContext.
         ctx.game_map = extension_map
         ctx.player = extension_player
@@ -439,18 +442,20 @@ class TestSaveLoadRoundTrip:
         shown = []
         monkeypatch.setattr(
             "src.spacehack.main_quest.show_gate_popup",
-            lambda *args, **kwargs: shown.append((args, kwargs)),
+            as_async(lambda *args, **kwargs: shown.append((args, kwargs))),
         )
         restored_parent = loaded.interiors["surface:mars"]
         restored_parent_player = Entity(
             "@", (255, 255, 255), parent_position, "Player",
         )
-        dungeon_extensions.enter_extension(
+        run(
+            dungeon_extensions.enter_extension(
             loaded,
             restored_parent,
             restored_parent_player,
             extension_id="mars_alien_prison",
             parent_map_key="surface:mars",
+        )
         )
         assert not shown
 
@@ -498,14 +503,16 @@ class TestSaveLoadRoundTrip:
         assert getattr(loaded.game_map, "interior_cache_key", "") == ""
         monkeypatch.setattr(
             "src.spacehack.main_quest.show_gate_popup",
-            lambda *args, **kwargs: None,
+            as_async(lambda *args, **kwargs: None),
         )
-        extension_map, _ = dungeon_extensions.enter_extension(
+        extension_map, _ = run(
+                               dungeon_extensions.enter_extension(
             loaded,
             loaded.game_map,
             loaded.player,
             extension_id="mars_alien_prison",
         )
+                           )
         assert extension_map.extension_floor == 1
         assert loaded.dungeon_extension.active
 
@@ -598,7 +605,7 @@ class TestSaveLoadRoundTrip:
         )
         monkeypatch.setattr(
             "src.spacehack.main_quest.show_gate_popup",
-            lambda *args, **kwargs: None,
+            as_async(lambda *args, **kwargs: None),
         )
         from src.spacehack.engine import RNG
         RNG.seed(48)
@@ -614,18 +621,20 @@ class TestSaveLoadRoundTrip:
         ctx.game_map = parent_map
         ctx.player = parent_player
         ctx.interiors = {"surface:mars": parent_map}
-        dungeon_extensions.enter_extension(
+        run(
+            dungeon_extensions.enter_extension(
             ctx,
             parent_map,
             parent_player,
             extension_id="mars_alien_prison",
             parent_map_key="surface:mars",
         )
-        floor_two, floor_two_player = dungeon_extensions.transition_floor(ctx, 1)
+        )
+        floor_two, floor_two_player = run(dungeon_extensions.transition_floor(ctx, 1))
         ctx.dungeon_extension.activated_events.clear()
         ctx.dungeon_extension.state_flags.add("prison_data_extracted")
         floor_two_player.pos = floor_two.up_stair_pos
-        assert dungeon_extensions.tick_activation(ctx)
+        assert run(dungeon_extensions.tick_activation(ctx))
         assert ctx.dungeon_extension.activated_events == {
             "prison_ascent_f2_assault",
         }
@@ -652,7 +661,7 @@ class TestSaveLoadRoundTrip:
             for entity in loaded.game_map.entities
         ) == _assault_count
         loaded.player.pos = loaded.game_map.up_stair_pos
-        assert dungeon_extensions.tick_activation(loaded)
+        assert run(dungeon_extensions.tick_activation(loaded))
         assert loaded.dungeon_extension.activated_events == {
             "prison_ascent_f2_assault",
             "prison_ascent_f2_sentries",
@@ -665,7 +674,7 @@ class TestSaveLoadRoundTrip:
             and not entity.powered_down
             for entity in loaded.game_map.entities
         ) >= 1
-        assert not dungeon_extensions.tick_activation(loaded)
+        assert not run(dungeon_extensions.tick_activation(loaded))
         delete_save()
 
     def test_phase_two_floor_round_trip_preserves_links_and_cache(
@@ -678,7 +687,7 @@ class TestSaveLoadRoundTrip:
         )
         monkeypatch.setattr(
             "src.spacehack.main_quest.show_gate_popup",
-            lambda *args, **kwargs: None,
+            as_async(lambda *args, **kwargs: None),
         )
         from src.spacehack.engine import RNG
         RNG.seed(44)
@@ -693,14 +702,16 @@ class TestSaveLoadRoundTrip:
         ctx.interiors = {"surface:mars": parent_map}
         ctx.game_map = parent_map
         ctx.player = parent_player
-        floor_one, _ = dungeon_extensions.enter_extension(
+        floor_one, _ = run(
+                           dungeon_extensions.enter_extension(
             ctx,
             parent_map,
             parent_player,
             extension_id="mars_alien_prison",
             parent_map_key="surface:mars",
         )
-        floor_two, _ = dungeon_extensions.transition_floor(ctx, 1)
+                       )
+        floor_two, _ = run(dungeon_extensions.transition_floor(ctx, 1))
 
         save_game(
             ctx,
@@ -734,10 +745,10 @@ class TestSaveLoadRoundTrip:
         )
         assert floor_one is not floor_two
 
-        dungeon_extensions.transition_floor(loaded, 1)
-        dungeon_extensions.transition_floor(loaded, 1)
+        run(dungeon_extensions.transition_floor(loaded, 1))
+        run(dungeon_extensions.transition_floor(loaded, 1))
         assert loaded.dungeon_extension.current_floor == 4
-        assert dungeon_extensions.restore_power(loaded)
+        assert run(dungeon_extensions.restore_power(loaded))
         save_game(
             loaded,
             mode="dungeon",

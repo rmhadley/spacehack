@@ -1,6 +1,7 @@
 """Tests for the first post-prison Act 1 orbit beat."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -58,12 +59,12 @@ def test_surface_exit_notifies_only_for_mars_and_only_once(monkeypatch):
     monkeypatch.setattr(
         game_main,
         "_maybe_show_post_prison_orbit",
-        lambda _ctx, _city, **_kwargs: _calls.append((_ctx, _city)) or True,
+        as_async(lambda _ctx, _city, **_kwargs: _calls.append((_ctx, _city)) or True),
     )
 
-    assert game_main._notify_surface_exit(ctx, _mars_surface)
+    assert run(game_main._notify_surface_exit(ctx, _mars_surface))
     assert _calls == [(ctx, "mars")]
-    assert not game_main._notify_surface_exit(ctx, object())
+    assert not run(game_main._notify_surface_exit(ctx, object()))
     assert _calls == [(ctx, "mars")]
 
 
@@ -75,12 +76,12 @@ def test_mars_departure_helper_triggers_from_mars_launch(monkeypatch):
     monkeypatch.setattr(
         game_main.main_quest_module,
         "play_scene",
-        lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True,
+        as_async(lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True),
     )
 
-    assert game_main._maybe_show_post_prison_orbit(ctx, "mars")
+    assert run(game_main._maybe_show_post_prison_orbit(ctx, "mars"))
     assert _calls == [ctx]
-    assert not game_main._maybe_show_post_prison_orbit(ctx, "earth")
+    assert not run(game_main._maybe_show_post_prison_orbit(ctx, "earth"))
     assert _calls == [ctx]
 
 
@@ -99,13 +100,15 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     _parent_map.entities.append(_parent_player)
     ctx.interiors = {"surface:mars": _parent_map}
     ctx.dungeon_extension = None
-    _extension_map, _ = dungeon_extensions.enter_extension(
+    _extension_map, _ = run(
+                            dungeon_extensions.enter_extension(
         ctx,
         _parent_map,
         _parent_player,
         extension_id="mars_alien_prison",
         parent_map_key="surface:mars",
     )
+                        )
     ctx.dungeon_extension.state_flags.add("prison_data_extracted")
     dungeon_extensions.leave_extension(ctx, _extension_map)
     ctx.time_day = 1
@@ -116,15 +119,17 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     monkeypatch.setattr(
         _act1,
         "_pygame_disposition_choice",
-        lambda _ctx: "delivered",
+        as_async(lambda _ctx: "delivered"),
     )
 
     _launch_calls = []
     monkeypatch.setattr(
         game_main,
         "_launch_to_space",
-        lambda *_args, **_kwargs: (
+        as_async(
+            lambda *_args, **_kwargs: (
             _launch_calls.append(True) or (_parent_map, _parent_player)
+        )
         ),
     )
     _owned_ship = SimpleNamespace(ship_id="starter")
@@ -135,7 +140,7 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
     _parent_map.entities.append(_hangar_ship)
 
     assert not ctx.post_prison_orbit_seen
-    _space_map, _space_player = game_main._launch_owned_ship(
+    _space_map, _space_player = run(game_main._launch_owned_ship(
         ctx,
         object(),
         game_main.ShipMenuAction.LAUNCH,
@@ -144,12 +149,12 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
         _parent_player,
         "mars",
         object(),
-    )
+    ))
     assert _launch_calls == [True]
     assert (_space_map, _space_player) == (_parent_map, _parent_player)
     assert ctx.post_prison_orbit_seen
     assert ctx.main_quest_disposition == "delivered"
-    _launch_from_city_result = game_main._launch_owned_ship(
+    _launch_from_city_result = run(game_main._launch_owned_ship(
         ctx,
         object(),
         game_main.ShipMenuAction.LAUNCH,
@@ -158,7 +163,7 @@ def test_prison_exit_then_mars_launch_shows_orbit_disclosure_once(monkeypatch):
         _parent_player,
         "mars",
         object(),
-    )
+    ))
     assert _launch_from_city_result == (_parent_map, _parent_player)
     assert _launch_calls == [True, True]
     assert ctx.post_prison_orbit_seen
@@ -201,16 +206,16 @@ def test_space_mode_boundary_delivers_post_prison_scene(monkeypatch):
     monkeypatch.setattr(
         game_main.main_quest_module,
         "play_scene",
-        lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True,
+        as_async(lambda _ctx, _step_id, **_kwargs: _calls.append(_ctx) or True),
     )
 
-    assert game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert run(game_main._maybe_show_post_prison_orbit_in_space(ctx, "space"))
     assert _calls == [ctx]
 
     ctx.current_city_id = "earth"
-    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert not run(game_main._maybe_show_post_prison_orbit_in_space(ctx, "space"))
     assert _calls == [ctx]
-    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "dungeon")
+    assert not run(game_main._maybe_show_post_prison_orbit_in_space(ctx, "dungeon"))
     assert _calls == [ctx]
 
 
@@ -247,10 +252,10 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
     monkeypatch.setattr(
         _act1,
         "_pygame_disposition_choice",
-        lambda _ctx: _modal_calls.append(True) or "kept",
+        as_async(lambda _ctx: _modal_calls.append(True) or "kept"),
     )
 
-    _result = game_main._handle_dungeon_exit_tile(
+    _result = run(game_main._handle_dungeon_exit_tile(
         ctx,
         "exit",
         _mars_surface,
@@ -259,7 +264,7 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
         _ship,
         [],
         ctx.log,
-    )
+    ))
 
     assert _result == (_space_map, _space_player, "space")
     assert (ctx.game_map, ctx.player) == (_space_map, _space_player)
@@ -270,7 +275,7 @@ def test_real_mars_surface_exit_rebuilds_missing_space_state(monkeypatch):
         "return to Mars orbit" in entry.text
         for entry in ctx.log.recent(n=8)
     )
-    assert not game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert not run(game_main._maybe_show_post_prison_orbit_in_space(ctx, "space"))
     assert _modal_calls == [True]
 
 
@@ -303,10 +308,10 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
     monkeypatch.setattr(
         _act1,
         "_pygame_disposition_choice",
-        lambda _ctx: "delivered",
+        as_async(lambda _ctx: "delivered"),
     )
 
-    result = game_main._handle_dungeon_exit_tile(
+    result = run(game_main._handle_dungeon_exit_tile(
         ctx,
         "exit",
         _loaded_prison,
@@ -315,7 +320,7 @@ def test_loaded_mars_prison_exit_does_not_require_surface_cache_identity(monkeyp
         _ship,
         [],
         ctx.log,
-    )
+    ))
 
     assert result == (_space_map, _space_player, "space")
     assert ctx.post_prison_orbit_seen
@@ -336,11 +341,11 @@ def test_orbit_scene_can_resolve_from_prison_without_city_context(monkeypatch):
     monkeypatch.setattr(
         _act1,
         "_pygame_disposition_choice",
-        lambda _ctx: "delivered",
+        as_async(lambda _ctx: "delivered"),
     )
 
-    assert not _act1.maybe_show_post_prison_orbit(ctx)
-    assert _act1.maybe_show_post_prison_orbit(ctx, from_mars_prison=True)
+    assert not run(_act1.maybe_show_post_prison_orbit(ctx))
+    assert run(_act1.maybe_show_post_prison_orbit(ctx, from_mars_prison=True))
     assert ctx.post_prison_orbit_seen
     assert ctx.main_quest_disposition == "delivered"
 
@@ -359,12 +364,12 @@ def test_interrupted_prison_exit_retries_from_space_without_city_context(monkeyp
     monkeypatch.setattr(
         game_main.main_quest_module,
         "play_scene",
-        _resolve,
+        as_async(_resolve),
     )
 
-    assert not game_main._notify_surface_exit(ctx, _mars_surface)
+    assert not run(game_main._notify_surface_exit(ctx, _mars_surface))
     assert ctx.post_prison_orbit_pending
-    assert game_main._maybe_show_post_prison_orbit_in_space(ctx, "space")
+    assert run(game_main._maybe_show_post_prison_orbit_in_space(ctx, "space"))
     assert _calls == [True, True]
     assert not ctx.post_prison_orbit_pending
 
@@ -375,7 +380,7 @@ def test_derelict_exit_keeps_hull_breach_message():
     _space_map = object()
     _space_player = object()
 
-    result = game_main._leave_dungeon_to_space(
+    result = run(game_main._leave_dungeon_to_space(
         ctx,
         _wreck,
         _space_map,
@@ -383,7 +388,7 @@ def test_derelict_exit_keeps_hull_breach_message():
         None,
         [],
         ctx.log,
-    )
+    ))
 
     assert result == (_space_map, _space_player)
     assert any(
@@ -723,7 +728,7 @@ def test_delivered_unlocks_the_chain_reward_step_and_pays():
     assert ctx.main_quest_progress["epilogue_reward_merchants"] == "available"
     assert ctx.main_quest_disposition == "delivered"
 
-    assert complete_step(ctx, "epilogue_reward_merchants")
+    assert run(complete_step(ctx, "epilogue_reward_merchants"))
     assert ctx.stats.credits == 12000  # the 8,000cr bond, with its return
 
 

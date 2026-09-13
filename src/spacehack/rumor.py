@@ -218,7 +218,7 @@ def hear(ctx, rumor_id: str) -> bool:
     return True
 
 
-def present_hearing(ctx, title: str, text: str) -> None:
+async def present_hearing(ctx, title: str, text: str) -> None:
     """The heard-text readout — the quest-readout idiom: a modal, not
     a log line; the guide re-presents it, QUIT exits the game. The
     ONE presentation path: hosts, triggers, and pads all read out
@@ -226,7 +226,7 @@ def present_hearing(ctx, title: str, text: str) -> None:
     from .pygame_story import dismiss
 
     while True:
-        _outcome = dismiss(
+        _outcome = await dismiss(
             ctx.context,
             title=title.upper(),
             body=text,
@@ -239,7 +239,7 @@ def present_hearing(ctx, title: str, text: str) -> None:
         return
 
 
-def fire_trigger(ctx, event_id: str) -> list[str]:
+async def fire_trigger(ctx, event_id: str) -> list[str]:
     """Hear every unheard entry authored with this discovery event
     (SETTLED 16), requirements met, presented through the readout.
     Idempotent — a refire hears nothing. Returns the ids newly
@@ -254,7 +254,7 @@ def fire_trigger(ctx, event_id: str) -> list[str]:
         hear(ctx, entry.id)
         known_set.add(entry.id)
         heard.append(entry.id)
-        present_hearing(ctx, topic_label(entry.id), entry_text(entry.id))
+        await present_hearing(ctx, topic_label(entry.id), entry_text(entry.id))
     return heard
 
 

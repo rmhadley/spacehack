@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run
 """Tests for tools/review_pack.py — the reviewer dispatch pack assembler."""
 
 import subprocess
@@ -7,9 +8,11 @@ TOOL = Path(__file__).resolve().parents[1] / "tools" / "review_pack.py"
 
 
 def _git(repo: Path, *args: str) -> None:
-    subprocess.run(
+    run(
+        subprocess.run(
         ["git", "-c", "user.email=t@example.com", "-c", "user.name=t", *args],
         cwd=repo, check=True, capture_output=True,
+    )
     )
 
 
@@ -22,10 +25,12 @@ def _init_repo(repo: Path) -> None:
 
 
 def _run_pack(repo: Path, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(
+    return run(
+               subprocess.run(
         ["python3", str(TOOL), "--out", str(repo / "pack.md"), *args],
         cwd=repo, capture_output=True, text=True,
     )
+           )
 
 
 def test_untracked_files_are_embedded(tmp_path):

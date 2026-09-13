@@ -81,7 +81,7 @@ def reload_weapon_slot(
     return True
 
 
-def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
+async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
     """Show the chooser for ammo that feeds multiple active weapons."""
     from . import pygame_story
     from .data.ground_weapons import find_ground_weapon
@@ -95,7 +95,7 @@ def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
         )
         for slot in slots
     )
-    chosen = pygame_story.choose(
+    chosen = await pygame_story.choose(
         ctx,
         title="RELOAD WEAPON",
         body="Choose a weapon to reload.",
@@ -115,7 +115,7 @@ def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
     return slot if slot in slots else None
 
 
-def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
+async def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
     """Reload from one ammo stack, choosing among matching weapons."""
     from .data.ground_items import find_ground_ammo
 
@@ -131,7 +131,7 @@ def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
     if not slots:
         ctx.log.add("No equipped weapon needs that ammo.")
         return False
-    slot = _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
+    slot = await _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
     return slot is not None and reload_weapon_slot(
         ctx, slot,
         in_ground_combat=in_ground_combat,
@@ -139,25 +139,25 @@ def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
     )
 
 
-def reload_exploration(ctx) -> bool:
+async def reload_exploration(ctx) -> bool:
     """Reload from the dungeon screen without spending a turn."""
     slots = reloadable_pack_slots(ctx)
     if not slots:
         ctx.log.add("No equipped weapon can be reloaded.")
         return False
-    slot = _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
+    slot = await _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
     return slot is not None and reload_weapon_slot(
         ctx, slot, in_ground_combat=False, charge_ap=False,
     )
 
 
-def manage_pack_ammo(ctx, index: int, in_ground_combat: bool) -> str | None:
+async def manage_pack_ammo(ctx, index: int, in_ground_combat: bool) -> str | None:
     """Offer Reload or Discard for one ammo stack."""
     from . import pygame_story
     from .character_screen import _discard_pack_stack, _item_stack_name
 
     name = _item_stack_name(ctx.ground_expedition_items[index])
-    chosen = pygame_story.choose(
+    chosen = await pygame_story.choose(
         ctx, title="AMMO", body=name,
         options=(
             ("Reload", f"STACK_RELOAD:{index}"),
@@ -170,7 +170,7 @@ def manage_pack_ammo(ctx, index: int, in_ground_combat: bool) -> str | None:
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("STACK_RELOAD:"):
-        return "RELOAD" if reload_pack_ammo(
+        return "RELOAD" if await reload_pack_ammo(
             ctx, index, in_ground_combat,
         ) else None
     if chosen.startswith("STACK_DISCARD:"):

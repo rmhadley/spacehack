@@ -8,6 +8,7 @@ builds its own record, dark records nothing), and the identity hub.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import random
 import sys
@@ -312,7 +313,7 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     fired = []
     monkeypatch.setattr(
         nc, "_fire_warning",
-        lambda _ctx, _sys, _e: fired.append(_e) or (True, None),
+        as_async(lambda _ctx, _sys, _e: fired.append(_e) or (True, None)),
     )
     # The militia scan is a chance roll — pin it so the LIVE case
     # deterministically hails (an unseeded RNG flakes this ~60%).
@@ -328,7 +329,7 @@ def test_dark_suppresses_auto_hail(monkeypatch):
 
     # Live: the hail fires — the warning opens comms.
     spec = nc.find_npc_ship("militia_patrol")
-    nc._spec_distance_hail(ctx, "sol", patrol, spec, ctx.player.pos)
+    run(nc._spec_distance_hail(ctx, "sol", patrol, spec, ctx.player.pos))
     assert fired == [patrol]
 
     # Dark: the electronic hail never happens — the physical spot is
@@ -336,10 +337,10 @@ def test_dark_suppresses_auto_hail(monkeypatch):
     challenged = []
     monkeypatch.setattr(
         "src.spacehack.comms.open_challenge_direct",
-        lambda _ctx, _e: challenged.append(_e) or None,
+        as_async(lambda _ctx, _e: challenged.append(_e) or None),
     )
     ctx.broadcast_dark = True
-    nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
+    run(nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object()))
     assert fired == [patrol], "dark ships are not hailable"
     assert challenged == [patrol], "the spot challenge is what fires"
 
@@ -426,7 +427,7 @@ def test_dark_refusal_precedes_cargo_scan_and_never_builds_city(monkeypatch):
 
     scanned = []
     monkeypatch.setattr(
-        game_interactions, "_run_cargo_scan", lambda _c, _p: scanned.append(_p)
+        game_interactions, "_run_cargo_scan", as_async(lambda _c, _p: scanned.append(_p))
     )
     messages = []
     ctx = SimpleNamespace(
@@ -438,7 +439,7 @@ def test_dark_refusal_precedes_cargo_scan_and_never_builds_city(monkeypatch):
         game_map=object(), current_mode="space",
     )
 
-    result = game_interactions.land_at_city(state, "earth")
+    result = run(game_interactions.land_at_city(state, "earth"))
 
     assert result == "CONTINUE"
     assert state.current_mode == "space"
@@ -458,9 +459,11 @@ def test_dark_refusal_keeps_the_current_system(monkeypatch):
     )
     before = solar_module.current_solar_system_id
 
-    result = game_interactions.land_at_city(
+    result = run(
+                 game_interactions.land_at_city(
         landing_state(broadcast_dark=True), "earth"
     )
+             )
 
     assert result == "CONTINUE"
     assert solar_module.current_solar_system_id == before
@@ -476,10 +479,10 @@ def test_dark_hull_berths_at_whitelisted_port(monkeypatch):
         solar_module, "current_solar_system_id",
         solar_module.current_solar_system_id,
     )
-    monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _c, _p: None)
+    monkeypatch.setattr(game_interactions, "_run_cargo_scan", as_async(lambda _c, _p: None))
     state = landing_state(broadcast_dark=True)
 
-    result = game_interactions.land_at_city(state, "lal_b")
+    result = run(game_interactions.land_at_city(state, "lal_b"))
 
     assert result == "CONTINUE"
     assert state.current_mode == "city"
@@ -513,18 +516,18 @@ def test_dark_hull_is_challenged_by_militia_on_spot(monkeypatch):
     challenged = []
     monkeypatch.setattr(
         "src.spacehack.comms.open_challenge_direct",
-        lambda _ctx, _e: challenged.append(_e) or None,
+        as_async(lambda _ctx, _e: challenged.append(_e) or None),
     )
     ctx = _space_ctx(broadcast_dark=True)
     patrol = _patrol()
 
-    result = nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())
+    result = run(nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object()))
 
     assert challenged == [patrol]
     assert result is not None and result[0] is True
     assert f"dark:{nc._entity_hail_key(patrol)}" in ctx.militia_scanned
     # One-shot: the same patrol does not re-challenge every tick.
-    assert nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object()) is None
+    assert run(nc._auto_hail_entity(ctx, "sol", patrol, ctx.player.pos, object())) is None
 
 
 def test_challenge_is_militia_only_and_outside_detect_radius():
@@ -535,10 +538,10 @@ def test_challenge_is_militia_only_and_outside_detect_radius():
 
     ctx = _space_ctx(broadcast_dark=True)
     pirate = _patrol(npc_ship_id="pirate_scout")
-    assert nc._dark_spot_challenge(ctx, pirate, nc.find_npc_ship("pirate_scout"), ctx.player.pos) is None
+    assert run(nc._dark_spot_challenge(ctx, pirate, nc.find_npc_ship("pirate_scout"), ctx.player.pos)) is None
 
     far = _patrol(pos=(5 + 8, 6))  # beyond militia detect_radius 7
-    assert nc._dark_spot_challenge(ctx, far, nc.find_npc_ship("militia_patrol"), ctx.player.pos) is None
+    assert run(nc._dark_spot_challenge(ctx, far, nc.find_npc_ship("militia_patrol"), ctx.player.pos)) is None
 
 
 def test_broadcasting_hulls_keep_the_normal_hail_path(monkeypatch):
@@ -549,10 +552,10 @@ def test_broadcasting_hulls_keep_the_normal_hail_path(monkeypatch):
     challenged = []
     monkeypatch.setattr(
         "src.spacehack.comms.open_challenge_direct",
-        lambda _ctx, _e: challenged.append(_e) or None,
+        as_async(lambda _ctx, _e: challenged.append(_e) or None),
     )
     hailed = []
-    monkeypatch.setattr(nc, "_spec_distance_hail", lambda *_a: hailed.append(_a) or None)
+    monkeypatch.setattr(nc, "_spec_distance_hail", as_async(lambda *_a: hailed.append(_a) or None))
 
     scrubbed = _space_ctx()
     scrubbed.collected_ids = [{
@@ -561,12 +564,12 @@ def test_broadcasting_hulls_keep_the_normal_hail_path(monkeypatch):
     }]
     scrubbed.broadcast_identity = scrubbed.collected_ids[0]
     patrol = _patrol()
-    nc._auto_hail_entity(scrubbed, "sol", patrol, scrubbed.player.pos, object())
+    run(nc._auto_hail_entity(scrubbed, "sol", patrol, scrubbed.player.pos, object()))
     assert challenged == [], "a broadcasting hull is not challenged"
     assert hailed, "the normal electronic hail path still runs"
 
     live = _space_ctx()
-    nc._auto_hail_entity(live, "sol", patrol, live.player.pos, object())
+    run(nc._auto_hail_entity(live, "sol", patrol, live.player.pos, object()))
     assert challenged == []
 
 
@@ -674,12 +677,14 @@ def test_identify_ends_dark_and_failure_escalates(monkeypatch):
     fail_ctx.broadcast_dark = True
     fail_ctx.collected_ids = [dict(pirate)]
     monkeypatch.setattr(
-        comms, "_identify_face_result", lambda _ctx: ("face", dict(pirate)),
+        comms, "_identify_face_result", as_async(lambda _ctx: ("face", dict(pirate))),
     )
-    payload = comms._handle_challenge(
+    payload = run(
+                  comms._handle_challenge(
         fail_ctx, comms._InteractionOutcome.IDENTIFY,
         "Militia Patrol", spec, patrol,
     )
+              )
     assert payload is not None
     assert fail_ctx.broadcast_identity["faction"] == "pirate"
     assert fail_ctx.broadcast_dark is False
@@ -688,10 +693,12 @@ def test_identify_ends_dark_and_failure_escalates(monkeypatch):
     back_ctx = quest_ctx()
     back_ctx.faction_reputation = {"militia": 10}
     back_ctx.broadcast_dark = True
-    payload = comms._handle_challenge(
+    payload = run(
+                  comms._handle_challenge(
         back_ctx, comms._InteractionOutcome.BACK,
         "Militia Patrol", spec, patrol,
     )
+              )
     assert payload is not None
     assert back_ctx.broadcast_dark is True  # never answered, still dark
 
@@ -703,7 +710,7 @@ def test_identify_choice_without_a_library_never_opens_a_modal():
 
     ctx = quest_ctx()
     ctx.collected_ids = []
-    assert comms._identify_choice(ctx) == ("true", None)
+    assert run(comms._identify_choice(ctx)) == ("true", None)
 
 
 def test_challenge_attack_reuses_the_escalation_and_the_mask():
@@ -718,10 +725,12 @@ def test_challenge_attack_reuses_the_escalation_and_the_mask():
     ctx.faction_reputation = {"militia": 10, "merchant": 5}
     ctx.broadcast_dark = True
 
-    payload = comms._handle_challenge(
+    payload = run(
+                  comms._handle_challenge(
         ctx, comms._InteractionOutcome.ATTACK,
         "Militia Patrol", spec, _patrol(),
     )
+              )
     assert payload is not None
     assert ctx.faction_reputation == {"militia": 10, "merchant": 5}
 
@@ -987,15 +996,15 @@ def test_cutout_row_reaches_the_talk_modal_only_while_uninstalled(monkeypatch):
         calls.append(cutout)
         return (npc_mod.TalkOutcome.BACK, None)
 
-    monkeypatch.setattr(npc_mod, "_run_pygame_npc_talk", _fake_talk)
+    monkeypatch.setattr(npc_mod, "_run_pygame_npc_talk", as_async(_fake_talk))
     _tech = find_npc("ember_tech")
 
     stock = quest_ctx()
-    npc_mod._run_npc_talk(stock, _tech)
+    run(npc_mod._run_npc_talk(stock, _tech))
     assert calls == [2_500], "the stock tech offers exactly the install"
 
     installed = quest_ctx(transponder_cutout=True)
-    result = npc_mod._run_npc_talk(installed, _tech)
+    result = run(npc_mod._run_npc_talk(installed, _tech))
     assert len(calls) == 1, "post-install the modal never opens"
     assert result[0] == npc_mod.TalkOutcome.BACK
 
@@ -1123,20 +1132,20 @@ def test_capture_console_gates_on_the_rig(monkeypatch):
         ),
     )
 
-    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert run(_resolve_capture_console(state, None, "pirate_scout")) == "CONTINUE"
     assert _log[-1] == "No clone rig installed."
 
     ctx.transponder_rig = True
     _prompts = []
     monkeypatch.setattr(
         "src.spacehack.game_interactions._run_pygame_dungeon_confirm",
-        lambda ctx, **k: _prompts.append(k) or "CONFIRM",
+        as_async(lambda ctx, **k: _prompts.append(k) or "CONFIRM"),
     )
-    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert run(_resolve_capture_console(state, None, "pirate_scout")) == "CONTINUE"
     assert len(ctx.collected_ids) == 1
     assert state.game_map.cloned is True
 
-    assert _resolve_capture_console(state, None, "pirate_scout") == "CONTINUE"
+    assert run(_resolve_capture_console(state, None, "pirate_scout")) == "CONTINUE"
     assert _log[-1] == "The transponder is already copied."
     assert len(ctx.collected_ids) == 1, "one console clone per ship"
 
@@ -1185,19 +1194,21 @@ def test_dealer_gate_refuses_below_pirate_liked(monkeypatch):
     _opened = []
     monkeypatch.setattr(
         npc_mod, "_run_pygame_npc_talk",
-        lambda ctx, npc, body, missions, *a, **k: _opened.append(1)
-        or (npc_mod.TalkOutcome.BACK, None),
+        as_async(
+            lambda ctx, npc, body, missions, *a, **k: _opened.append(1)
+        or (npc_mod.TalkOutcome.BACK, None)
+        ),
     )
     ctx = quest_ctx()
 
-    result = npc_mod._run_npc_talk(ctx, _dealer)
+    result = run(npc_mod._run_npc_talk(ctx, _dealer))
     assert result[0] == npc_mod.TalkOutcome.BACK
     assert _log == [], "no chat log — the gate fires before it"
     assert _opened == []
 
     ctx.log = SimpleNamespace(add=_log.append)
     ctx.faction_reputation["pirate"] = -100
-    assert npc_mod._run_npc_talk(ctx, _dealer)[0] == npc_mod.TalkOutcome.BACK
+    assert run(npc_mod._run_npc_talk(ctx, _dealer))[0] == npc_mod.TalkOutcome.BACK
     assert _log == ["Scram."], "the pinned refusal line, verbatim"
 
 
@@ -1211,18 +1222,20 @@ def test_dealer_menu_at_liked_offers_the_rig_once(monkeypatch):
     _calls = []
     monkeypatch.setattr(
         npc_mod, "_run_pygame_npc_talk",
-        lambda ctx, npc, body, missions, *prices, **k:
+        as_async(
+            lambda ctx, npc, body, missions, *prices, **k:
             _calls.append(prices[3])
-            or (npc_mod.TalkOutcome.BACK, None),
+            or (npc_mod.TalkOutcome.BACK, None)
+        ),
     )
     ctx = quest_ctx()
     ctx.faction_reputation["pirate"] = 30  # liked
 
-    npc_mod._run_npc_talk(ctx, _dealer)
+    run(npc_mod._run_npc_talk(ctx, _dealer))
     assert _calls == [9_000]
 
     ctx.transponder_rig = True
-    result = npc_mod._run_npc_talk(ctx, _dealer)
+    result = run(npc_mod._run_npc_talk(ctx, _dealer))
     assert _calls == [9_000], "owned = the row disappears (no modal)"
     assert result[0] == npc_mod.TalkOutcome.BACK
 
@@ -1264,9 +1277,9 @@ def test_dealer_bump_resolves_the_persona_before_the_citizen(monkeypatch):
     )
     monkeypatch.setattr(
         gi, "_run_npc_talk",
-        lambda ctx, npc, **k: _seen.update(name=npc.name) or (None, None),
+        as_async(lambda ctx, npc, **k: _seen.update(name=npc.name) or (None, None)),
     )
-    gi._resolve_occupied(_state, _blocker)
+    run(gi._resolve_occupied(_state, _blocker))
     assert _seen.get("name") == "Rig Dealer", \
         "the persona reaches the talk modal, not the citizen fallback"
 
@@ -1368,7 +1381,7 @@ def test_capture_console_full_line_pinned():
         game_map=SimpleNamespace(capture_spec_id="pirate_scout"),
         log=SimpleNamespace(add=_log.append),
     )
-    assert _resolve_capture_console(_state, None, "pirate_scout") == "CONTINUE"
+    assert run(_resolve_capture_console(_state, None, "pirate_scout")) == "CONTINUE"
     assert _log == ["Your ID book is full."]
 
 
@@ -1451,17 +1464,21 @@ def test_dealer_sell_row_and_sub_menu(monkeypatch):
     _picked = []
     monkeypatch.setattr(
         npc_mod, "_run_pygame_menu",
-        lambda ctx, frames, caption: _picked.append(frames[0].items[0].action)
-        or ("SELECT", _picked[-1], 0),
+        as_async(
+            lambda ctx, frames, caption: _picked.append(frames[0].items[0].action)
+        or ("SELECT", _picked[-1], 0)
+        ),
     )
     monkeypatch.setattr(
         npc_mod, "_run_pygame_npc_talk",
-        lambda ctx, npc, body, missions, *prices, **k:
-            (npc_mod.TalkOutcome.SELL, None),
+        as_async(
+            lambda ctx, npc, body, missions, *prices, **k:
+            (npc_mod.TalkOutcome.SELL, None)
+        ),
     )
 
     ctx.broadcast_identity = dict(_face)  # sell the WORN one
-    result = npc_mod._run_npc_talk(ctx, _dealer)
+    result = run(npc_mod._run_npc_talk(ctx, _dealer))
     assert result == (npc_mod.TalkOutcome.BACK, None)
     assert _picked == ["SELLID:KG-8812"]
     assert ctx.collected_ids == [], "the sold ID left the library"

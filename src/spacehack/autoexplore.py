@@ -766,7 +766,7 @@ def run_goto(
     )
 
 
-def run_dungeon_goto(
+async def run_dungeon_goto(
     ctx,
     console,
     game_map,
@@ -791,7 +791,7 @@ def run_dungeon_goto(
         return "DONE"
     from .navigation import _run_pygame_goto_menu
 
-    _handled, _selected = _run_pygame_goto_menu(
+    _handled, _selected = await _run_pygame_goto_menu(
         ctx, [(t.title, t) for t in _targets],
     )
     if not _handled or _selected is None:

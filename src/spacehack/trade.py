@@ -307,7 +307,7 @@ class _QOut(Enum):
     BACK = auto()
     CONFIRM = auto()
 
-def _run_quantity_prompt(
+async def _run_quantity_prompt(
     ctx: GameContext,
     label: str,
     max_qty: int,
@@ -317,7 +317,7 @@ def _run_quantity_prompt(
     from . import pygame_quantity
 
     try:
-        return pygame_quantity.run_for_context(
+        return await pygame_quantity.run_for_context(
             getattr(ctx, "context", ctx), ctx, label, max_qty, price_per,
         )
     except pygame_quantity.PygameQuantityQuit:
@@ -383,7 +383,7 @@ def _pygame_npc_trade_frame(
         focus, selected,
     )
 
-def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
+async def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
     """Apply one BUY_NPC transaction (prompt quantity, move stock + credits)."""
     owned = ctx.player_owned_ship
     stock = npc_stock.get(good_id, 0)
@@ -393,7 +393,7 @@ def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
         _free_cargo(owned) // max(1, good.volume),
         ctx.stats.credits // max(1, price),
     )
-    quantity = _run_quantity_prompt(
+    quantity = await _run_quantity_prompt(
         ctx, f"Buy {good.name} from {npc_spec.name}", maximum, price,
     ) if maximum else None
     if quantity:
@@ -408,12 +408,12 @@ def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
         )
 
 
-def _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult) -> None:
+async def _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult) -> None:
     """Apply one SELL_NPC transaction (prompt quantity, move stock + credits)."""
     owned = ctx.player_owned_ship
     held = owned.inventory.get(good_id, 0)
     price = int(good.base_price * sell_mult)
-    quantity = _run_quantity_prompt(
+    quantity = await _run_quantity_prompt(
         ctx, f"Sell {good.name} to {npc_spec.name}", min(held, 999), price,
     ) if held else None
     if quantity:
@@ -428,7 +428,7 @@ def _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult) -> None:
         ctx.log.add(f"Sold {quantity}x {good.name} to {npc_spec.name} for {revenue}$.")
 
 
-def _npc_trade_transaction(
+async def _npc_trade_transaction(
     ctx: GameContext,
     npc_spec,
     npc_stock: dict[str, int],
@@ -442,13 +442,13 @@ def _npc_trade_transaction(
         return
     good = find_trade_good(good_id)
     if kind == "BUY_NPC":
-        _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult)
+        await _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult)
     elif kind == "SELL_NPC":
-        _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult)
+        await _npc_sell(ctx, npc_spec, npc_stock, good, good_id, sell_mult)
     else:
         raise ValueError(f"Unknown NPC trade kind: {kind!r}")
 
-def _apply_pygame_npc_trade_action(
+async def _apply_pygame_npc_trade_action(
     ctx: GameContext,
     npc_spec,
     npc_stock: dict[str, int],
@@ -462,12 +462,12 @@ def _apply_pygame_npc_trade_action(
     kind, separator, good_id = action.partition(":")
     if not separator or kind not in {"BUY_NPC", "SELL_NPC"}:
         raise ValueError(f"Unknown NPC trade action: {action!r}")
-    _npc_trade_transaction(
+    await _npc_trade_transaction(
         ctx, npc_spec, npc_stock, buy_mult, sell_mult, kind, good_id,
     )
     return True
 
-def _run_pygame_npc_trade(
+async def _run_pygame_npc_trade(
     ctx: GameContext,
     npc_spec,
     npc_stock: dict[str, int],
@@ -476,7 +476,7 @@ def _run_pygame_npc_trade(
 ) -> bool | None:
     """Run NPC trade in the shared Pygame window."""
     from . import pygame_split
-    result = pygame_split.run_interactive(
+    result = await pygame_split.run_interactive(
         ctx,
         lambda: _pygame_npc_trade_frame(
         ctx, npc_spec, npc_stock, buy_mult, sell_mult,
@@ -523,7 +523,7 @@ def _npc_price_multipliers(ctx: GameContext, attitude: str) -> tuple[float, floa
     return _buy, _sell
 
 
-def open_npc_trade(ctx: GameContext, npc_spec) -> None:
+async def open_npc_trade(ctx: GameContext, npc_spec) -> None:
     """Open a trade modal with an NPC ship.
 
     Generated stock from ``npc_spec.cargo_goods`` using
@@ -544,7 +544,7 @@ def open_npc_trade(ctx: GameContext, npc_spec) -> None:
         ctx, _npc_attitude(ctx, npc_spec),
     )
     ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
-    result = _run_pygame_npc_trade(
+    result = await _run_pygame_npc_trade(
         ctx, npc_spec, _npc_stock, _buy_mult, _sell_mult,
     )
     if result is None:
@@ -586,7 +586,7 @@ def _terminal_trade_gate(ctx: GameContext) -> bool:
     return True
 
 
-def open_trade(ctx: GameContext, planet_id: str) -> None:
+async def open_trade(ctx: GameContext, planet_id: str) -> None:
     """Open the trade modal for ``planet_id``.
 
     Shows a split-screen view: station inventory on the left, player
@@ -602,7 +602,7 @@ def open_trade(ctx: GameContext, planet_id: str) -> None:
         return
     if not _terminal_trade_gate(ctx):
         return
-    result = _run_pygame_trade(ctx, planet_id, _station_goods)
+    result = await _run_pygame_trade(ctx, planet_id, _station_goods)
     if result is None:
         raise RuntimeError("Trade terminal returned no outcome")
 
@@ -714,7 +714,7 @@ def _pygame_trade_frame(
         left_tab_modes=("TRADE", "MARKET"),
     )
 
-def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) -> bool:
+async def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) -> bool:
     """Apply one Pygame trade action through the existing transaction helpers."""
     if not action:
         return True
@@ -731,7 +731,7 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
         stock = ctx.economy_state.get(planet_id, {}).get(good_id, 0)
         free = _free_cargo(owned) if owned is not None else 0
         max_qty = min(stock, free // max(1, good.volume), ctx.stats.credits // max(1, price))
-        quantity = _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price) if max_qty else None
+        quantity = await _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price) if max_qty else None
         if quantity:
             _buy_good(ctx, planet_id, good_id, quantity)
         return True
@@ -739,13 +739,13 @@ def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: str) ->
         owned = ctx.player_owned_ship
         held = owned.inventory.get(good_id, 0) if owned is not None else 0
         price = _sell_price(ctx, planet_id, good_id)
-        quantity = _run_quantity_prompt(ctx, f"Sell {good.name}", held, price) if held else None
+        quantity = await _run_quantity_prompt(ctx, f"Sell {good.name}", held, price) if held else None
         if quantity:
             _sell_good(ctx, planet_id, good_id, quantity)
         return True
     raise ValueError(f"Unknown trade action: {action!r}")
 
-def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
+async def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]) -> bool | None:
     """Run the station trade loop in the shared Pygame window."""
     from . import pygame_split
     mode = "TRADE"
@@ -753,16 +753,16 @@ def _run_pygame_trade(ctx: GameContext, planet_id: str, station_goods: list[str]
     def build_frame():
         return _pygame_trade_frame(ctx, planet_id, station_goods, mode)
 
-    def apply_action(action, _focus, _selected):
+    async def apply_action(action, _focus, _selected):
         nonlocal mode
         if action.startswith("MODE:"):
             requested = action.split(":", 1)[1]
             if requested in ("TRADE", "MARKET"):
                 mode = requested
             return True
-        return _apply_pygame_trade_action(ctx, planet_id, action)
+        return await _apply_pygame_trade_action(ctx, planet_id, action)
 
-    result = pygame_split.run_interactive(
+    result = await pygame_split.run_interactive(
         ctx, build_frame, apply_action,
         caption="spacehack - trade terminal",
     )
@@ -806,7 +806,7 @@ def _cargo_body(owned, max_cargo: int) -> tuple[str, ...]:
         f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
     )
 
-def _apply_jettison(ctx, owned, action: str) -> bool:
+async def _apply_jettison(ctx, owned, action: str) -> bool:
     """Apply one ``JETTISON:<good_id>`` action and return whether it was
     a recognized jettison request (False = malformed/unknown, the caller
     falls back).
@@ -825,7 +825,7 @@ def _apply_jettison(ctx, owned, action: str) -> bool:
     except (KeyError, ValueError):
         return False
     if quantity > 0:
-        quantity_prompt = _run_quantity_prompt(
+        quantity_prompt = await _run_quantity_prompt(
             ctx, f"Jettison {good.name}", quantity, 0,
         )
         if quantity_prompt:
@@ -856,32 +856,32 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
         f"CARGO - {ship_name.upper()}", body, _cargo_rows(owned), footer, selected,
     )
 
-def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None:
+async def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool | None:
     """Run cargo through Pygame, preserving jettison in the parent."""
     from . import pygame_screen
 
     selected = 0
     while True:
-        outcome, action, selected = pygame_screen.run_for_context(
+        outcome, action, selected = await pygame_screen.run_for_context(
             getattr(ctx, "context", ctx),
             _cargo_frame(ctx, owned, ship_name, max_cargo, selected),
             caption="spacehack - cargo",
         )
         if outcome == "GUIDE":
             from .help import _run_help_guide
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             continue
         if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue
         if outcome == "QUIT":
             raise SystemExit
         if outcome == "SELECT":
-            if not _apply_jettison(ctx, owned, action):
+            if not await _apply_jettison(ctx, owned, action):
                 return None
             continue
         return True
 
-def open_cargo(ctx: GameContext) -> None:
+async def open_cargo(ctx: GameContext) -> None:
     """Open the cargo management modal.
 
     Full-screen breakdown of cargo: trade goods (itemized with
@@ -905,7 +905,7 @@ def open_cargo(ctx: GameContext) -> None:
     from . import ship as _ship_mod
     ship_name = ship_module.ship_display_name(owned)
     max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
-    result = _run_pygame_cargo(ctx, owned, ship_name, max_cargo)
+    result = await _run_pygame_cargo(ctx, owned, ship_name, max_cargo)
     if result is None:
         raise RuntimeError("Cargo screen returned no outcome")
     return

@@ -6,6 +6,7 @@ completely invisible to manual playtesting.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -318,11 +319,11 @@ class TestAddXp:
 
     def test_grants_5_sp_per_level(self, monkeypatch):
         import src.spacehack.trait_screen as _ts
-        monkeypatch.setattr(_ts, "open_trait_selection", lambda ctx: None)
+        monkeypatch.setattr(_ts, "open_trait_selection", as_async(lambda ctx: None))
 
         ctx = self._ctx()
         # 300 XP clears level 3 (cumulative 205) with a little spill.
-        add_xp(ctx, 300)
+        run(add_xp(ctx, 300))
         assert ctx.player_level == 3
         assert ctx.player_skill_points == 10
 
@@ -330,11 +331,11 @@ class TestAddXp:
         import src.spacehack.trait_screen as _ts
         calls: list[int] = []
         monkeypatch.setattr(
-            _ts, "open_trait_selection", lambda ctx: calls.append(ctx.player_level),
+            _ts, "open_trait_selection", as_async(lambda ctx: calls.append(ctx.player_level)),
         )
 
         ctx = self._ctx()
-        add_xp(ctx, xp_for_level(51))
+        run(add_xp(ctx, xp_for_level(51)))
         assert ctx.player_level == 51
         assert calls == [40, 50]
         assert ctx.player_skill_points == 5 * 50
@@ -343,10 +344,10 @@ class TestAddXp:
         import src.spacehack.trait_screen as _ts
         calls: list[int] = []
         monkeypatch.setattr(
-            _ts, "open_trait_selection", lambda ctx: calls.append(ctx.player_level),
+            _ts, "open_trait_selection", as_async(lambda ctx: calls.append(ctx.player_level)),
         )
 
         ctx = self._ctx()
-        add_xp(ctx, xp_for_level(39))
+        run(add_xp(ctx, xp_for_level(39)))
         assert ctx.player_level == 39
         assert calls == []

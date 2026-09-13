@@ -36,7 +36,7 @@ def _orbit_scene_is_ready(ctx, *, from_mars_prison: bool = False) -> bool:
     )
 
 
-def _pygame_disposition_choice(ctx) -> str | None:
+async def _pygame_disposition_choice(ctx) -> str | None:
     """Run the deliver-or-keep choice in the shared Pygame window."""
     from ..pygame_story import choose
 
@@ -45,7 +45,7 @@ def _pygame_disposition_choice(ctx) -> str | None:
         f"{_faction_reading(ctx)}\n\n"
         f"{t_get('runtime.orbit_body_route')}"
     )
-    return choose(
+    return await choose(
         ctx,
         title=t_get("runtime.orbit_title"),
         body=body,
@@ -84,7 +84,7 @@ def _apply_disposition(ctx, disposition: str) -> None:
         )
 
 
-def maybe_show_post_prison_orbit(
+async def maybe_show_post_prison_orbit(
     ctx,
     *,
     from_mars_prison: bool = False,
@@ -92,9 +92,9 @@ def maybe_show_post_prison_orbit(
     """Show the deliver-or-keep scene after a confirmed departure."""
     if not _orbit_scene_is_ready(ctx, from_mars_prison=from_mars_prison):
         return False
-    choice = _pygame_disposition_choice(ctx)
+    choice = await _pygame_disposition_choice(ctx)
     while choice == "__GUIDE__":
-        choice = _pygame_disposition_choice(ctx)
+        choice = await _pygame_disposition_choice(ctx)
     if choice == "__QUIT__":
         return False
     if choice in {"__BACK__", "__DISMISS__"}:

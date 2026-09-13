@@ -1,6 +1,7 @@
 """Regression tests for main-quest NPC handoff state changes."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -23,10 +24,10 @@ def test_lab_q1_sample_readout_renders_with_giver_portrait(monkeypatch):
     monkeypatch.setattr(
         _act0,
         "show_quest_readout",
-        lambda _ctx, _npc, _body: _rendered.append((_npc.name, _body)),
+        as_async(lambda _ctx, _npc, _body: _rendered.append((_npc.name, _body))),
     )
 
-    assert _objectives.show_step_readout(_ctx, _step)
+    assert run(_objectives.show_step_readout(_ctx, _step))
     assert _rendered
     _name, _body = _rendered[0]
     assert _name == "Research Officer"
@@ -47,11 +48,13 @@ def test_bump_q1_does_not_fire_accept_offer(monkeypatch):
     monkeypatch.setattr(
         _act0,
         "show_help_offer",
-        lambda _ctx, _npc, _step: _offers.append((_npc, _step))
-        or _act0.OfferOutcome.DECLINE,
+        as_async(
+            lambda _ctx, _npc, _step: _offers.append((_npc, _step))
+        or _act0.OfferOutcome.DECLINE
+        ),
     )
 
-    _act0.maybe_continue_chain(_ctx, "research_officer", "prologue_seek_help")
+    run(_act0.maybe_continue_chain(_ctx, "research_officer", "prologue_seek_help"))
 
     assert _offers == []
 
@@ -70,11 +73,13 @@ def test_talk_q1_still_fires_accept_offer(monkeypatch):
     monkeypatch.setattr(
         _act0,
         "show_help_offer",
-        lambda _ctx, _npc, _step: _offers.append((_npc, _step))
-        or _act0.OfferOutcome.DECLINE,
+        as_async(
+            lambda _ctx, _npc, _step: _offers.append((_npc, _step))
+        or _act0.OfferOutcome.DECLINE
+        ),
     )
 
-    _act0.maybe_continue_chain(_ctx, "militia_captain", "prologue_seek_help")
+    run(_act0.maybe_continue_chain(_ctx, "militia_captain", "prologue_seek_help"))
 
     assert _offers == [("militia_captain", "mil_q1_report")]
 
@@ -115,9 +120,9 @@ def test_smuggle_handover_consumes_cargo_inventory(monkeypatch):
         player_active_missions=[_mission],
         log=SimpleNamespace(add_colored=lambda *_args: None),
     )
-    monkeypatch.setattr(_core, "complete_step", lambda _ctx, _step_id: True)
+    monkeypatch.setattr(_core, "complete_step", as_async(lambda _ctx, _step_id: True))
 
-    assert _core._complete_smuggle_handover(_ctx, _step)
+    assert run(_core._complete_smuggle_handover(_ctx, _step))
 
     assert _ship.inventory == {"reference_recorder": 1}
     assert _ship.mission_reserved == 0
@@ -138,11 +143,11 @@ def test_gated_visit_completion_presents_its_flavor_once(monkeypatch):
     presented = []
     monkeypatch.setattr(
         _objectives, "show_step_readout",
-        lambda _ctx, _step: presented.append(("readout", _step.id)),
+        as_async(lambda _ctx, _step: presented.append(("readout", _step.id))),
     )
     monkeypatch.setattr(
         _act0, "show_gate_popup",
-        lambda _ctx, _fac, flavor: presented.append(("gate", flavor)),
+        as_async(lambda _ctx, _fac, flavor: presented.append(("gate", flavor))),
     )
 
     ctx = SimpleNamespace(
@@ -156,8 +161,8 @@ def test_gated_visit_completion_presents_its_flavor_once(monkeypatch):
         time_day=1, time_month=1, time_year=2200,
     )
 
-    assert trigger_dialogue(ctx, "demolitions_expert", "mil_q4_demolitions")
-    _act0.maybe_continue_chain(ctx, "demolitions_expert", "mil_q4_demolitions")
+    assert run(trigger_dialogue(ctx, "demolitions_expert", "mil_q4_demolitions"))
+    run(_act0.maybe_continue_chain(ctx, "demolitions_expert", "mil_q4_demolitions"))
 
     assert step_status(ctx, "mil_q4_demolitions") == "completed"
     signs_on = [p for p in presented if "signs on" in str(p[1]).lower()]

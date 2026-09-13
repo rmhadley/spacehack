@@ -45,7 +45,7 @@ def _c_log(msg: str, log) -> None:
     log.add_colored(msg, COLOR_COMBAT_EVENT)
 
 
-def _run_enemy_turn(
+async def _run_enemy_turn(
     state,
     *,
     hit_chances: dict,
@@ -68,7 +68,7 @@ def _run_enemy_turn(
         )
         if _esp is None:
             continue
-        if _take_enemy_turn(
+        if await _take_enemy_turn(
             state, _ei, _e_idx, _esp,
             hit_chances=hit_chances, evade_bonus=evade_bonus,
             calc_cam=calc_cam, ctx=ctx,
@@ -77,7 +77,7 @@ def _run_enemy_turn(
     return None
 
 
-def _take_enemy_turn(
+async def _take_enemy_turn(
     state, _ei, _e_idx, _esp, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
     """One enemy's AP turn: advance into range, then fire each AP."""
@@ -91,7 +91,7 @@ def _take_enemy_turn(
         _edist = _distance(_p_pos, _ei.pos)
 
         if _edist > _esp.ai_preferred_range or not _can_shoot:
-            _moved, _cached_path = _advance_one_step(
+            _moved, _cached_path = await _advance_one_step(
                 state, _ei, _e_idx, _cached_path,
                 hit_chances=hit_chances, evade_bonus=evade_bonus,
                 calc_cam=calc_cam,
@@ -101,7 +101,7 @@ def _take_enemy_turn(
 
         if not _moved:
             if _ei.weapons and _can_shoot:
-                if _enemy_attack(
+                if await _enemy_attack(
                     state, _ei,
                     hit_chances=hit_chances, evade_bonus=evade_bonus,
                     calc_cam=calc_cam, ctx=ctx,
@@ -113,7 +113,7 @@ def _take_enemy_turn(
     return None
 
 
-def _advance_one_step(
+async def _advance_one_step(
     state, _ei, _e_idx, _cached_path, *, hit_chances, evade_bonus, calc_cam,
 ):
     """One step toward the player; returns ``(moved, cached_path)``.
@@ -150,11 +150,11 @@ def _advance_one_step(
     if _e_idx >= 0 and _e_idx in state.enemy_ents:
         state.enemy_ents[_e_idx].pos = _ei.pos
     _cached_path.pop(0)
-    _render_step_frame(state, calc_cam(), hit_chances, evade_bonus)
+    await _render_step_frame(state, calc_cam(), hit_chances, evade_bonus)
     return True, _cached_path
 
 
-def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
+async def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
     """One WAIT-mode frame of the enemy's move, then its pacing sleep."""
     _render_anim_frame(
         state.console, state.ctx, state.game_map,
@@ -166,10 +166,10 @@ def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
         hit_chances=hit_chances,
         player_mode="WAIT",
     )
-    _responsive_sleep(animation_timing.GROUND_STEP)
+    await _responsive_sleep(animation_timing.GROUND_STEP)
 
 
-def _enemy_attack(
+async def _enemy_attack(
     state, _ei, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
     """Fire the enemy's first weapon at the player (one AP's attack).
@@ -202,7 +202,7 @@ def _enemy_attack(
         _line = _enemy_attack_line(_ei.name, _wid, _e_ws.name, hit=False)
         _e_log(_line, state.log)
         return None
-    return _apply_enemy_hit(
+    return await _apply_enemy_hit(
         state, _ei, _wid, _e_ws,
         _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing,
         hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam,
@@ -242,7 +242,7 @@ def _resolve_enemy_shot(state, _ei, _wid):
     return _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing, _e_dmg_popup
 
 
-def _apply_enemy_hit(
+async def _apply_enemy_hit(
     state, _ei, _wid, _e_ws, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
     _is_glancing, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
@@ -267,7 +267,7 @@ def _apply_enemy_hit(
         return None
     _e_log("Your ship has been destroyed!", state.log)
     _ecx, _ecy = calc_cam()
-    _animate_explosion(
+    await _animate_explosion(
         state.console, state.ctx, state.game_map,
         state.player_state["pos"],
         cam_x=_ecx, cam_y=_ecy,

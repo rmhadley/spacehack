@@ -15,7 +15,7 @@ import this one at module level.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable
 
 if TYPE_CHECKING:
     from ..data.main_quest import MainQuestStep
@@ -34,7 +34,7 @@ class ObjectiveHandler:
     name: str
     # Trigger path (NPC quest-option select). None = fall through to
     # complete_step (the "talk" behaviour).
-    on_trigger: Callable[["GameContext", "MainQuestStep"], bool] | None = None
+    on_trigger: Callable[["GameContext", "MainQuestStep"], Awaitable[bool]] | None = None
     # Post-completion side effects (e.g. salvage wreck cleanup).
     on_complete: Callable[["GameContext", "MainQuestStep"], None] | None = None
     # True = steps of this type yield quest-tagged loot that
@@ -55,7 +55,7 @@ class ObjectiveHandler:
 # ---------------------------------------------------------------------------
 
 
-def _smuggle_trigger(ctx, step) -> bool:
+async def _smuggle_trigger(ctx, step) -> bool:
     """Load the crate (available) or hand it over (active) on trigger."""
     from ._core import (
         STATUS_ACTIVE,
@@ -64,11 +64,11 @@ def _smuggle_trigger(ctx, step) -> bool:
         step_status,
     )
     if step_status(ctx, step.id) == STATUS_ACTIVE:
-        return _complete_smuggle_handover(ctx, step)
+        return await _complete_smuggle_handover(ctx, step)
     return _trigger_smuggle_crate(ctx, step)
 
 
-def _salvage_trigger(ctx, step) -> bool:
+async def _salvage_trigger(ctx, step) -> bool:
     """Start a salvage step from NPC talk (loads the cargo into the hold)."""
     from ._dialogue import _start_salvage_step
     return _start_salvage_step(ctx, step)
@@ -82,13 +82,13 @@ def _salvage_option_gating(ctx, step, npc_id) -> bool:
     return step_status(ctx, step.id) == STATUS_AVAILABLE
 
 
-def _visit_trigger(ctx, step) -> bool:
+async def _visit_trigger(ctx, step) -> bool:
     """Complete the visit step when the player talks to the expert NPC."""
     from ._objectives import maybe_complete_visit
-    return maybe_complete_visit(ctx, step.requires_npc_id)
+    return await maybe_complete_visit(ctx, step.requires_npc_id)
 
 
-def _bump_trigger(ctx, step) -> bool:
+async def _bump_trigger(ctx, step) -> bool:
     """Bump objectives complete on the door bump, not the talk path."""
     return True
 
@@ -103,14 +103,14 @@ def _payment_option_gating(ctx, step, npc_id) -> bool:
     return ctx.stats.credits >= step.payment_credits
 
 
-def _payment_trigger(ctx, step) -> bool:
+async def _payment_trigger(ctx, step) -> bool:
     """Consume the payment, then complete the step."""
     from ._core import complete_step
 
     if ctx.stats.credits < step.payment_credits:
         return False
     ctx.stats.credits -= step.payment_credits
-    return complete_step(ctx, step.id)
+    return await complete_step(ctx, step.id)
 
 
 def _smuggle_option_gating(ctx, step, npc_id) -> bool:

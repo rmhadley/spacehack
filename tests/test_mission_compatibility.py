@@ -1,5 +1,6 @@
 """Compatibility contract for the mission package extraction."""
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 import random
@@ -268,9 +269,11 @@ def test_complete_mission_records_faction_career_counter_before_xp(
     )
     monkeypatch.setattr(_lifecycle, "_apply_mission_rep", lambda *args, **kwargs: None)
 
-    mission.complete_mission(
+    run(
+        mission.complete_mission(
         active, None, SimpleNamespace(credits=0),
         SimpleNamespace(add=messages.append), ctx=ctx,
+    )
     )
 
     assert ctx.player_counters.bar_missions_completed == 1
@@ -296,9 +299,11 @@ def test_complete_mission_applies_early_bonus_and_releases_cargo():
     stats = SimpleNamespace(credits=0)
     messages: list[str] = []
 
-    mission.complete_mission(
+    run(
+        mission.complete_mission(
         active, owned, stats, SimpleNamespace(add=messages.append),
         current_day=3,
+    )
     )
 
     assert stats.credits == 125
@@ -322,9 +327,11 @@ def test_complete_mission_applies_late_penalty_and_zero_xp():
     stats = SimpleNamespace(credits=7)
     messages: list[str] = []
 
-    mission.complete_mission(
+    run(
+        mission.complete_mission(
         active, OwnedShip(ship_id="starter"), stats,
         SimpleNamespace(add=messages.append), current_day=20,
+    )
     )
 
     assert stats.credits == 57

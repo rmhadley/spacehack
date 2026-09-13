@@ -1,6 +1,7 @@
 """Tests for the refreshed Pygame faction standings screen."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -89,7 +90,7 @@ def test_faction_shared_guide_outcome_is_returned_to_parent(monkeypatch):
         K_KP_ENTER = 12
         K_QUESTION = 13
         event = SimpleNamespace(
-            wait=lambda: SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_QUESTION),
+            get=lambda: (SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_QUESTION),),
         )
 
     class Screen:
@@ -109,7 +110,7 @@ def test_faction_shared_guide_outcome_is_returned_to_parent(monkeypatch):
     monkeypatch.setattr(pygame_faction, "_fit_font", lambda *args: object())
     monkeypatch.setattr(pygame_faction, "_draw_frame", lambda *args: None)
 
-    assert pygame_faction.run_shared(context, ctx) == "GUIDE"
+    assert run(pygame_faction.run_shared(context, ctx)) == "GUIDE"
 
 
 def test_faction_runner_uses_semantic_adapter_and_falls_back(monkeypatch):
@@ -118,12 +119,12 @@ def test_faction_runner_uses_semantic_adapter_and_falls_back(monkeypatch):
     monkeypatch.setattr(
         pygame_faction,
         "run_for_context",
-        lambda context, received: captured.update(context=context, ctx=received) or "BACK",
+        as_async(lambda context, received: captured.update(context=context, ctx=received) or "BACK"),
     )
     monkeypatch.setattr(pygame_faction, "enabled", lambda: True)
 
     from src.spacehack.menus import _ship_menu
-    _ship_menu._run_faction_view(ctx)
+    run(_ship_menu._run_faction_view(ctx))
 
     assert captured["ctx"] is ctx
 
@@ -133,14 +134,16 @@ def test_faction_runner_propagates_unavailable_shared_runtime(monkeypatch):
     monkeypatch.setattr(
         pygame_faction,
         "run_for_context",
-        lambda *args: (_ for _ in ()).throw(
+        as_async(
+            lambda *args: (_ for _ in ()).throw(
             pygame_faction.PygameFactionUnavailable("missing"),
+        )
         ),
     )
 
     from src.spacehack.menus import _ship_menu
     try:
-        _ship_menu._run_faction_view(ctx)
+        run(_ship_menu._run_faction_view(ctx))
     except pygame_faction.PygameFactionUnavailable as exc:
         assert str(exc) == "missing"
     else:

@@ -6,6 +6,8 @@ architecture limit. Every function here stays under 40 lines.
 
 from __future__ import annotations
 
+import asyncio
+
 import time
 from enum import Enum, auto
 
@@ -108,15 +110,15 @@ class NavigationOutcome(Enum):
 # Navigation overlay runner
 # ---------------------------------------------------------------------------
 
-def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
+async def _run_navigation(ctx, ship_pos: world.Position) -> NavigationOutcome:
     """Show the system-map overlay in the shared Pygame window."""
     from . import pygame_navigation
 
     while True:
-        outcome = pygame_navigation.run_for_context(ctx.context, ctx, ship_pos)
+        outcome = await pygame_navigation.run_for_context(ctx.context, ctx, ship_pos)
         if outcome == "GUIDE":
             from .help import _open_context_guide
-            _open_context_guide(ctx, "Navigation & Jump Gates")
+            await _open_context_guide(ctx, "Navigation & Jump Gates")
             continue
         if outcome == "QUIT":
             return NavigationOutcome.QUIT
@@ -169,7 +171,7 @@ def _goto_menu_frames(destinations: list[tuple[str, object]]):
     )
 
 
-def _run_pygame_goto_menu(
+async def _run_pygame_goto_menu(
     ctx, destinations: list[tuple[str, object]],
 ) -> tuple[bool, int | None]:
     """Run the GO TO destination selector through the Pygame worker.
@@ -183,14 +185,14 @@ def _run_pygame_goto_menu(
 
     frames = _goto_menu_frames(destinations)
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, _selected = await pygame_menu.run_for_context(
             getattr(ctx, "context", ctx),
             frames,
             caption="spacehack - go to",
         )
         if outcome == "GUIDE":
             from .help import _open_context_guide
-            _open_context_guide(ctx, "Navigation & Jump Gates")
+            await _open_context_guide(ctx, "Navigation & Jump Gates")
             continue
         if outcome in {"BACK", "QUIT"}:
             return True, None
@@ -339,7 +341,7 @@ def _goto_render_step(console: FrameBuffer, ctx, sx: int, sy: int) -> None:
     )
 
 
-def _goto_poll_cancel(context, duration: float) -> bool:
+async def _goto_poll_cancel(context, duration: float) -> bool:
     """Return True when the player presses a move key during ``duration``."""
     # Poll once before the deadline check so a zero-length window (instant
     # animation speed) still sees queued keydowns and stays cancellable.
@@ -352,14 +354,14 @@ def _goto_poll_cancel(context, duration: float) -> bool:
         _remaining = _end - time.monotonic()
         if _remaining <= 0:
             return False
-        time.sleep(min(_remaining, 0.01))
+        await asyncio.sleep(min(_remaining, 0.01))
 
 
-def _goto_step_interrupt(ctx, player_entity):
+async def _goto_step_interrupt(ctx, player_entity):
     """Return an ``(outcome, combat_data)`` interrupt, or ``None`` to continue."""
     from . import navigation_line as _line_mod
     _latched = ctx.line_comply_latch
-    _line = _line_mod.check_crossing(ctx, player_entity.pos)
+    _line = await _line_mod.check_crossing(ctx, player_entity.pos)
     if _line is not None and _line[0]:
         _hailed, _payload = _line
         # A CONDEMNATION's only voice is the targeting lasers: a
@@ -371,7 +373,7 @@ def _goto_step_interrupt(ctx, player_entity):
         if _payload is not None:
             return (GotoOutcome.COMBAT, _payload)
         return (GotoOutcome.CANCELLED, None)
-    _auto_result = _check_auto_comms_warning(
+    _auto_result = await _check_auto_comms_warning(
         ctx, player_entity.pos, solar_system_module.current_system(),
     )
     if _auto_result is not None:
@@ -389,14 +391,14 @@ def _goto_step_interrupt(ctx, player_entity):
     return None
 
 
-def _goto_step(ctx, console, player_entity, sx: int, sy: int):
+async def _goto_step(ctx, console, player_entity, sx: int, sy: int):
     """Move one auto-nav step; return ``(outcome, combat_data)`` or ``None``."""
     player_entity.pos = world.Position(sx, sy)
     _goto_render_step(console, ctx, sx, sy)
-    if _goto_poll_cancel(ctx.context, animation_timing.AUTO_NAV):
+    if await _goto_poll_cancel(ctx.context, animation_timing.AUTO_NAV):
         ctx.log.add('Auto-nav cancelled.')
         return (GotoOutcome.CANCELLED, None)
-    _interrupt = _goto_step_interrupt(ctx, player_entity)
+    _interrupt = await _goto_step_interrupt(ctx, player_entity)
     if _interrupt is not None:
         return _interrupt
     from . import navigation_line as _line_mod
@@ -407,7 +409,7 @@ def _goto_step(ctx, console, player_entity, sx: int, sy: int):
     return None
 
 
-def _run_goto(
+async def _run_goto(
     ctx, console, player_entity: world.Entity,
 ) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
     """Open the GO TO picker and auto-navigate the ship to the chosen body.
@@ -421,7 +423,7 @@ def _run_goto(
     if not destinations:
         ctx.log.add('There is nothing to navigate to in this system.')
         return (GotoOutcome.CANCELLED, None)
-    _pygame_handled, selected = _run_pygame_goto_menu(ctx, destinations)
+    _pygame_handled, selected = await _run_pygame_goto_menu(ctx, destinations)
     if not _pygame_handled or selected is None:
         return (GotoOutcome.CANCELLED, None)
     chosen_body = destinations[selected][1]
@@ -440,7 +442,7 @@ def _run_goto(
         ctx.log.add('You are already at the destination.')
         return (GotoOutcome.COMPLETED, None)
     for sx, sy in steps:
-        _step_result = _goto_step(ctx, console, player_entity, sx, sy)
+        _step_result = await _goto_step(ctx, console, player_entity, sx, sy)
         if _step_result is not None:
             return _step_result
     ctx.log.add('Auto-nav complete.')
@@ -477,20 +479,20 @@ def _jump_menu_frame(jp, target_system_id: str, fuel, max_fuel):
     )
 
 
-def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel, max_fuel):
+async def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel, max_fuel):
     """Run the jump confirmation through the Pygame menu worker."""
     from . import pygame_menu
 
     frame = _jump_menu_frame(jp, target_system_id, fuel, max_fuel)
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, _selected = await pygame_menu.run_for_context(
             getattr(ctx, "context", ctx),
             (frame,),
             caption="spacehack - jump gate",
         )
         if outcome == "GUIDE":
             from .help import _open_context_guide
-            _open_context_guide(ctx, "Navigation & Jump Gates")
+            await _open_context_guide(ctx, "Navigation & Jump Gates")
             continue
         if outcome == "QUIT":
             return JumpMenuOutcome.QUIT
@@ -499,7 +501,7 @@ def _run_pygame_jump_menu(ctx, jp, target_system_id: str, fuel, max_fuel):
         return JumpMenuOutcome.BACK
 
 
-def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
+async def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
     """Run the jump-point dialog in the shared Pygame window."""
     _fuel: int | None = None
     _max_fuel: int | None = None
@@ -508,7 +510,7 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
         _fuel = ctx.player_owned_ship.fuel
         _max_fuel = ship_rec.max_fuel
     from . import pygame_menu
-    result = _run_pygame_jump_menu(ctx, jp, target_system_id, _fuel, _max_fuel)
+    result = await _run_pygame_jump_menu(ctx, jp, target_system_id, _fuel, _max_fuel)
     if result is None:
         raise pygame_menu.PygameMenuUnavailable("Jump menu returned no outcome")
     return result
@@ -518,7 +520,7 @@ def _run_jump_menu(ctx, jp, target_system_id: str) -> JumpMenuOutcome:
 # Jump animation + system transition
 # ---------------------------------------------------------------------------
 
-def _responsive_sleep(seconds: float) -> None:
+async def _responsive_sleep(seconds: float) -> None:
     """Sleep for ``seconds`` while polling SDL events.
 
     Breaks the sleep into ~0.01 s chunks and calls the Pygame event
@@ -536,7 +538,7 @@ def _responsive_sleep(seconds: float) -> None:
         remaining = end - time.monotonic()
         if remaining <= 0:
             return
-        time.sleep(min(remaining, 0.01))
+        await asyncio.sleep(min(remaining, 0.01))
 
 
 def _jump_camera(cx: int, cy: int):
@@ -607,7 +609,7 @@ def _jump_draw_rings(
         console.print(x=sx, y=sy, string=ship_char, fg=bright_fg)
 
 
-def _render_jump_frame(
+async def _render_jump_frame(
     ctx,
     console: FrameBuffer,
     *,
@@ -629,7 +631,7 @@ def _render_jump_frame(
     )
     if void:
         _jump_present_hud(ctx, console, _cam_x, _cam_y, _view_w, _view_h)
-        _responsive_sleep(_JUMP_FRAME_S)
+        await _responsive_sleep(_JUMP_FRAME_S)
         return
     if not flash_white:
         _jump_draw_rings(
@@ -644,25 +646,25 @@ def _render_jump_frame(
                 fg=(255, 255, 255), bg=(255, 255, 255),
             )
     _jump_present_hud(ctx, console, _cam_x, _cam_y, _view_w, _view_h)
-    _responsive_sleep(_JUMP_FRAME_S)
+    await _responsive_sleep(_JUMP_FRAME_S)
 
 
-def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> None:
+async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) -> None:
     """Render a brief 'jump drive' animation before the system swap."""
     cx = player_entity.pos.x + (player_entity.width - 1) // 2
     cy = player_entity.pos.y + (player_entity.height - 1) // 2
     ship_char = player_entity.char
     ship_fg = player_entity.fg
     for rings in range(len(_JUMP_RING_CHARS)):
-        _render_jump_frame(
+        await _render_jump_frame(
             ctx, console, cx=cx, cy=cy, rings=rings,
             ship_char=ship_char, ship_fg=ship_fg,
         )
-    _render_jump_frame(
+    await _render_jump_frame(
         ctx, console, cx=cx, cy=cy, flash_white=True,
         ship_char=ship_char, ship_fg=ship_fg,
     )
-    _render_jump_frame(
+    await _render_jump_frame(
         ctx, console, cx=cx, cy=cy, void=True,
         ship_char=ship_char, ship_fg=ship_fg,
     )
@@ -702,7 +704,7 @@ def _depart_old_system(ctx) -> str:
     return _src_id
 
 
-def _jump_to_system(
+async def _jump_to_system(
     *, ctx, jp, target_system_id: str, target_jp_id: str,
 ) -> tuple:
     """Jump the player ship from ``jp`` (current gate) to
@@ -734,6 +736,6 @@ def _jump_to_system(
     # Main quest prologue: the garbled transmission fires on the first
     # jump OUT of Sol (see main_quest.maybe_trigger_signal) and arrives
     # as the prologue_signal step's declared incoming-comms overlay.
-    if main_quest_module.maybe_trigger_signal(ctx, _src_id):
-        main_quest_module.play_scene(ctx, "prologue_signal")
+    if await main_quest_module.maybe_trigger_signal(ctx, _src_id):
+        await main_quest_module.play_scene(ctx, "prologue_signal")
     return (new_map, new_ship_ent)

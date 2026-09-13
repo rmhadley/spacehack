@@ -455,7 +455,7 @@ def _handle_key(pygame: Any, event: Any) -> str:
     return "IGNORE"
 
 
-def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
+async def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     """Render navigation inside the already-open game window."""
     runtime = getattr(context, "_runtime", None)
     engine = getattr(runtime, "engine", None)
@@ -468,15 +468,17 @@ def run_shared(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     while True:
         _draw(pygame, screen, font, frame, context=context)
         engine.present()
-        outcome = _handle_key(pygame, pygame.event.wait())
-        if outcome != "IGNORE":
-            return outcome
+        for event in pygame.event.get():
+            outcome = _handle_key(pygame, event)
+            if outcome != "IGNORE":
+                return outcome
+        await context.pump(0.016)
 
 
-def run_for_context(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
+async def run_for_context(context: PygameContext, ctx: GameContext, ship_pos: Any) -> str:
     """Use the shared runtime; otherwise request the normal fallback."""
     from . import pygame_runtime
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameNavigationUnavailable("Navigation requires the shared Pygame runtime")
-    return run_shared(context, ctx, ship_pos)
+    return await run_shared(context, ctx, ship_pos)

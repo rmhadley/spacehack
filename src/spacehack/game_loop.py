@@ -108,14 +108,14 @@ def _render_active_map(state):
     return camera, None
 
 
-def _present_frame(state):
+async def _present_frame(state):
     """Present one gameplay frame."""
     ctx = state.ctx
     main_quest_module.check_quest_gates(ctx)
-    tutorial_module.tick(ctx, mode=state.current_mode)
-    _maybe_show_post_prison_orbit_in_space(ctx, state.current_mode)
+    await tutorial_module.tick(ctx, mode=state.current_mode)
+    await _maybe_show_post_prison_orbit_in_space(ctx, state.current_mode)
     if ctx.main_quest_pending_message:
-        main_quest_module.show_quest_summon(
+        await main_quest_module.show_quest_summon(
             ctx, ctx.main_quest_pending_message,
             objective=ctx.main_quest_pending_objective,
         )
@@ -141,7 +141,7 @@ def _present_frame(state):
         state, ctx, state.console, state.map_h, location, space_view,
     )
 
-def _handle_dev_quest_event(state, event):
+async def _handle_dev_quest_event(state, event):
     """Handle developer main-quest selection."""
     if not _is_shift_o_press(event):
         return None
@@ -152,7 +152,7 @@ def _handle_dev_quest_event(state, event):
         if ctx.main_quest_chain:
             state.log.add(f'[DEV MODE] Act 0 faction already set to {ctx.main_quest_chain}.')
         else:
-            _faction_outcome, _faction_id = _choose_main_quest_faction(ctx.context)
+            _faction_outcome, _faction_id = await _choose_main_quest_faction(ctx.context)
             if _faction_outcome is _DevOutcome.QUIT:
                 return 'QUIT'
             if _faction_outcome is _DevOutcome.CONFIRM and _faction_id is not None:
@@ -260,20 +260,20 @@ def _reveal_all_fog(game_map, log):
     log.add('Dev: fog of war fully revealed.')
 
 
-def _dev_city_teleport(state) -> None:
+async def _dev_city_teleport(state) -> None:
     """Dev-only: pick any port city from a menu and land there (Shift+T)."""
     from .dev_mode import choose_city_teleport as _choose
-    _outcome, _pid = _choose(state.ctx.context)
+    _outcome, _pid = await _choose(state.ctx.context)
     if _pid is None:
         state.log.add('Dev: city teleport cancelled.')
         return
     from .game_interactions import land_at_city as _land
-    _land(state, _pid)
+    await _land(state, _pid)
     if state.current_mode == 'city':
         state.log.add(f'[DEV MODE] Teleported to {_pid}.')
 
 
-def _handle_dev_event(state, event):
+async def _handle_dev_event(state, event):
     """Handle developer-only input."""
     log = state.log
     if _is_f3_press(event):
@@ -290,76 +290,76 @@ def _handle_dev_event(state, event):
     if _is_f9_press(event):
         _dev_quickload(state)
         return 'HANDLED'
-    outcome = _handle_dev_shift_keys(state, event)
+    outcome = await _handle_dev_shift_keys(state, event)
     if outcome is not None:
         return outcome
-    return _handle_dev_quest_event(state, event)
+    return await _handle_dev_quest_event(state, event)
 
 
-def _dev_add_xp(state):
+async def _dev_add_xp(state):
     """Shift+X: 200 XP."""
-    _add_xp(state.ctx, 200)
+    await _add_xp(state.ctx, 200)
 
 
-def _dev_reroll_seed(state):
+async def _dev_reroll_seed(state):
     """Shift+S: reroll the run seed mid-session."""
     from .engine import reroll_run_seed
     state.log.add(f'[DEV MODE] Run seed rerolled: {reroll_run_seed()}')
 
 
-def _dev_reveal_fog(state):
+async def _dev_reveal_fog(state):
     """Shift+R: reveal all dungeon fog (dungeon mode only)."""
     if state.current_mode == 'dungeon':
         _reveal_all_fog(state.game_map, state.log)
 
 
-def _dev_skip_days(state):
+async def _dev_skip_days(state):
     """Shift+D: skip 30 days of world clock."""
     from .time import advance_time as _adv_time
     _adv_time(state.ctx, 30)
     state.log.add('Dev: skipped 30 days.')
 
 
-def _dev_grant_manifest(state):
+async def _dev_grant_manifest(state):
     """Shift+L: grant the blockade manifest marker (doc 41)."""
     from .dev_mode import apply_dev_blockade_manifest as _grant
     _grant(state.ctx)
 
 
-def _dev_grant_service_run(state):
+async def _dev_grant_service_run(state):
     """Shift+K: grant the service-run marker (doc 41)."""
     from .dev_mode import apply_dev_service_run as _grant
     _grant(state.ctx)
 
 
-def _dev_grant_warrant_license(state):
+async def _dev_grant_warrant_license(state):
     """Shift+G: grant the warrant-license perk (doc 42 playtest)."""
     from .dev_mode import apply_dev_warrant_license as _grant
     _grant(state.ctx)
 
 
-def _dev_advance_to_boundary(state):
+async def _dev_advance_to_boundary(state):
     """Shift+J: advance the clock to the next shift boundary (doc 41)."""
     from .dev_mode import advance_to_shift_boundary as _advance
     _advance(state.ctx)
 
 
-def _dev_toggle_cutout(state):
+async def _dev_toggle_cutout(state):
     """Shift+B: toggle the transponder cut-out (doc 42 playtest)."""
     from .dev_mode import toggle_dev_cutout as _toggle
     _toggle(state.ctx)
 
 
-def _dev_log_rumor_routing(state):
+async def _dev_log_rumor_routing(state):
     """Shift+N: log the run's live rumor routing (doc 42 phase 3)."""
     from .dev_mode import log_rumor_routing as _log_routes
     _log_routes(state.ctx)
 
 
-def _dev_reveal_dig_site(state):
+async def _dev_reveal_dig_site(state):
     """Shift+M: force-reveal a dig site (doc 42 phase 4 checklist)."""
     from .dev_mode import reveal_dev_dig_site
-    reveal_dev_dig_site(state.ctx)
+    await reveal_dev_dig_site(state.ctx)
 
 
 # Table-driven dispatch (knowledge.md guardrail): matcher -> action.
@@ -380,28 +380,28 @@ _DEV_SHIFT_KEYS = (
 )
 
 
-def _handle_dev_shift_keys(state, event):
+async def _handle_dev_shift_keys(state, event):
     """Shift-key dev shortcuts; ``None`` when the key is not one of ours."""
     for _matches, _action in _DEV_SHIFT_KEYS:
         if _matches(event):
             if _is_dev():
-                _action(state)
+                await _action(state)
             return 'HANDLED'
     return None
 
-def _handle_menu_event(state, event):
+async def _handle_menu_event(state, event):
     """Handle character, faction, and quest-log input."""
     ctx = state.ctx
     log = state.log
     if _is_f_press(event):
         from .menus._ship_menu import _run_faction_view
-        _run_faction_view(ctx)
+        await _run_faction_view(ctx)
         return 'HANDLED'
     if _is_c_press(event):
-        _open_character_for_mode(ctx)
+        await _open_character_for_mode(ctx)
         return 'HANDLED'
     if _is_q_press(event):
-        outcome, abandoned_idx = _run_quest_log(ctx)
+        outcome, abandoned_idx = await _run_quest_log(ctx)
         if outcome is QuestLogOutcome.QUIT:
             return 'QUIT'
         if outcome is QuestLogOutcome.ABANDONED and abandoned_idx is not None:
@@ -410,7 +410,7 @@ def _handle_menu_event(state, event):
                 log.add(f'You abandoned: {abandoned.title}.')
                 mission_module.abort_mission(abandoned, state.player_owned_ship, log)
                 if getattr(abandoned, 'main_quest_step_id', ''):
-                    main_quest_module.fail_smuggle_step(ctx, abandoned)
+                    await main_quest_module.fail_smuggle_step(ctx, abandoned)
                 if not abandoned.is_procedural:
                     _board = mission_module.find_board_for_mission(ctx, abandoned.mission_id)
                     if _board is not None:
@@ -426,29 +426,29 @@ def _handle_menu_event(state, event):
         return 'HANDLED'
     return None
 
-def _handle_map_navigation_event(state, event):
+async def _handle_map_navigation_event(state, event):
     """Handle the space map shortcut."""
     if state.current_mode != 'space' or not _is_m_press(event):
         return None
-    if _run_navigation(state.ctx, state.player.pos) is NavigationOutcome.QUIT:
+    if await _run_navigation(state.ctx, state.player.pos) is NavigationOutcome.QUIT:
         return 'QUIT'
     return 'HANDLED'
 
 
-def _handle_common_modal_event(state, event):
+async def _handle_common_modal_event(state, event):
     """Handle dungeon/space pickup, reload, cargo, and log modals."""
     ctx = state.ctx
     if state.current_mode == 'dungeon' and _is_r_press(event):
         from .ground_reload_ui import reload_exploration
-        reload_exploration(ctx)
+        await reload_exploration(ctx)
         return 'HANDLED'
     if state.current_mode in ('dungeon', 'space') and _is_p_press(event):
-        if _pickup_loot_near(ctx) and state.current_mode == 'space':
-            tutorial_module.notify_pickup(ctx)
+        if await _pickup_loot_near(ctx) and state.current_mode == 'space':
+            await tutorial_module.notify_pickup(ctx)
         return 'HANDLED'
     if _is_backslash_press(event):
         from .console_log import open_console_log as _open_console_log
-        if _open_console_log(ctx) == 'QUIT':
+        if await _open_console_log(ctx) == 'QUIT':
             _save_and_exit(ctx, state.current_mode, state.current_city_id, state.space_player)
             return 'QUIT'
         return 'HANDLED'
@@ -467,15 +467,15 @@ def _adopt_capture_boarding(state):
     state.player_active_missions = state.ctx.player_active_missions
 
 
-def _handle_goto_event(state, event):
+async def _handle_goto_event(state, event):
     """Handle space Go To."""
     if state.current_mode != 'space' or not _is_g_press(event):
         return None
-    _goto_outcome, _goto_combat = _run_goto(state.ctx, state.console, state.player)
+    _goto_outcome, _goto_combat = await _run_goto(state.ctx, state.console, state.player)
     if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
-        _outcome = combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
+        _outcome = await combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
         if _outcome != "BOARDED":
-            _outcome = _run_combat_loop(state.ctx, state.console, state.player)
+            _outcome = await _run_combat_loop(state.ctx, state.console, state.player)
         if _outcome == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
@@ -483,14 +483,14 @@ def _handle_goto_event(state, event):
     return 'HANDLED'
 
 
-def _handle_comms_event(state, event):
+async def _handle_comms_event(state, event):
     """Handle space comms."""
     if state.current_mode != 'space' or not _is_t_press(event):
         return None
     from .comms import open_comms as _open_comms
-    _attack_data = _open_comms(state.ctx, state.player.pos)
+    _attack_data = await _open_comms(state.ctx, state.player.pos)
     if _attack_data is not None:
-        _outcome = combat._handle_combat_encounter(state.ctx, state.console, _attack_data)
+        _outcome = await combat._handle_combat_encounter(state.ctx, state.console, _attack_data)
         if _outcome == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
@@ -498,12 +498,12 @@ def _handle_comms_event(state, event):
     return 'HANDLED'
 
 
-def _handle_wait_event(state, event):
+async def _handle_wait_event(state, event):
     """Handle period/wait in space or a dungeon."""
     if not _is_period_press(event):
         return None
     if state.current_mode == 'space' and state.player_owned_ship is not None:
-        if _run_combat_loop(
+        if await _run_combat_loop(
             state.ctx, state.console, state.player,
             also_move_npcs=True, day_pass=True,
         ) == "BOARDED":
@@ -518,7 +518,7 @@ def _handle_wait_event(state, event):
         from .time import advance_time as _adv_time
         _adv_time(state.ctx, 1)
     elif state.current_mode == 'dungeon':
-        _dctrl = _dungeon_post_move_tick(state.ctx, state.console, state.game_map)
+        _dctrl = await _dungeon_post_move_tick(state.ctx, state.console, state.game_map)
         if _dctrl == 'DEFEAT':
             return 'QUIT'
         if _dctrl == 'COMBAT':
@@ -542,7 +542,7 @@ def _advance_city_npcs(state):
     _move_city_npcs(state.ctx, state.game_map)
 
 
-def _handle_space_modal_event(state, event):
+async def _handle_space_modal_event(state, event):
     """Handle space, dungeon, and shared modal input."""
     for _handler in (
         _handle_map_navigation_event,
@@ -551,12 +551,12 @@ def _handle_space_modal_event(state, event):
         _handle_comms_event,
         _handle_wait_event,
     ):
-        _result = _handler(state, event)
+        _result = await _handler(state, event)
         if _result is not None:
             return _result
     return None
 
-def _handle_dungeon_automation_event(state, event):
+async def _handle_dungeon_automation_event(state, event):
     """Handle dungeon goto and auto-explore input."""
     ctx = state.ctx
     console = state.console
@@ -564,7 +564,7 @@ def _handle_dungeon_automation_event(state, event):
     map_h = state.map_h
     if state.current_mode == 'dungeon' and _is_g_press(event):
         from .autoexplore import run_dungeon_goto
-        _g_result = run_dungeon_goto(ctx, console, state.game_map, state.player, post_step_tick=_dungeon_post_move_tick, map_w=map_w, map_h=map_h, location=getattr(state.game_map, 'location_name', 'Derelict Ship'))
+        _g_result = await run_dungeon_goto(ctx, console, state.game_map, state.player, post_step_tick=_dungeon_post_move_tick, map_w=map_w, map_h=map_h, location=getattr(state.game_map, 'location_name', 'Derelict Ship'))
         if _g_result == 'DEFEAT':
             return 'QUIT'
         if _g_result == 'COMBAT':
@@ -583,32 +583,32 @@ def _handle_dungeon_automation_event(state, event):
         return 'HANDLED'
     return None
 
-def _handle_non_movement_event(state, event):
+async def _handle_non_movement_event(state, event):
     """Handle global, modal, and dungeon automation events."""
     ctx = state.ctx
     if pygame_engine.quit_or_escape(event):
         if pygame_engine.is_escape(event):
-            if not _run_pygame_exit_confirm(ctx):
+            if not await _run_pygame_exit_confirm(ctx):
                 return 'HANDLED'
         _save_and_exit(ctx, state.current_mode, state.current_city_id, state.space_player)
         return 'QUIT'
-    if _try_open_guide(event, ctx):
+    if await _try_open_guide(event, ctx):
         return 'HANDLED'
-    _result = _handle_dev_event(state, event)
+    _result = await _handle_dev_event(state, event)
     if _result is not None:
         return _result
-    _result = _handle_menu_event(state, event)
+    _result = await _handle_menu_event(state, event)
     if _result is not None:
         return _result
-    _result = _handle_space_modal_event(state, event)
+    _result = await _handle_space_modal_event(state, event)
     if _result is not None:
         return _result
-    _result = _handle_dungeon_automation_event(state, event)
+    _result = await _handle_dungeon_automation_event(state, event)
     if _result is not None:
         return _result
     return None
 
-def _handle_stairs_down(state):
+async def _handle_stairs_down(state):
     """Handle a descending stair transition."""
     ctx, log = state.ctx, state.log
     from .digs import is_dig_floor
@@ -620,14 +620,14 @@ def _handle_stairs_down(state):
             _next_map, _next_player = _dig_transition(state, 1)
             _message = _dig_stairs_log(1)
         elif ctx.dungeon_extension is not None and ctx.dungeon_extension.active:
-            _next_map, _next_player = transition_floor(ctx, 1)
+            _next_map, _next_player = await transition_floor(ctx, 1)
             _message = 'You descend deeper into the facility.'
         else:
             _extension_id = extension_id_at(state.game_map, state.player.pos)
             _parent_key = next((_key for _key, _map in ctx.interiors.items() if _map is state.game_map), '')
             if _extension_id is None:
                 raise ValueError('No dungeon extension is attached here')
-            _next_map, _next_player = enter_extension(
+            _next_map, _next_player = await enter_extension(
                 ctx, state.game_map, state.player,
                 extension_id=_extension_id, parent_map_key=_parent_key,
             )
@@ -642,7 +642,7 @@ def _handle_stairs_down(state):
     return 'HANDLED'
 
 
-def _handle_stairs_up(state):
+async def _handle_stairs_up(state):
     """Handle an ascending stair transition."""
     ctx, log = state.ctx, state.log
     from .digs import is_dig_floor
@@ -654,7 +654,7 @@ def _handle_stairs_up(state):
             _parent_map, _parent_player = _dig_transition(state, -1)
             _message = _dig_stairs_log(-1)
         elif ctx.dungeon_extension is not None and ctx.dungeon_extension.active and ctx.dungeon_extension.current_floor > 1:
-            _parent_map, _parent_player = transition_floor(ctx, -1)
+            _parent_map, _parent_player = await transition_floor(ctx, -1)
             _message = 'You climb back toward the upper prison.'
         else:
             _parent_map, _parent_player = leave_extension(ctx, state.game_map)
@@ -668,12 +668,12 @@ def _handle_stairs_up(state):
     return 'HANDLED'
 
 
-def _handle_dungeon_stairs(state, tile):
+async def _handle_dungeon_stairs(state, tile):
     """Handle one dungeon stair transition, if present."""
     if tile.kind == 'stairs_down':
-        return _handle_stairs_down(state)
+        return await _handle_stairs_down(state)
     if tile.kind == 'stairs_up':
-        return _handle_stairs_up(state)
+        return await _handle_stairs_up(state)
     return None
 
 
@@ -696,17 +696,17 @@ def _remove_secured_salvage_entities(space_game_map, wreck_spawn_id):
     ]
 
 
-def _handle_dungeon_move(state, console, code):
+async def _handle_dungeon_move(state, console, code):
     """Handle dungeon post-move transitions."""
     if code != 'moved' or state.current_mode != 'dungeon':
         return None
-    _dctrl = _dungeon_post_move_tick(state.ctx, console, state.game_map)
+    _dctrl = await _dungeon_post_move_tick(state.ctx, console, state.game_map)
     if _dctrl in {'DEFEAT', 'COMBAT'}:
         return 'QUIT' if _dctrl == 'DEFEAT' else 'HANDLED'
     _tile = state.game_map.tiles[state.player.pos.y][state.player.pos.x]
     if getattr(state.game_map, "city_interior_id", "") and _tile.kind == "exit":
         return exit_city_interior(state)
-    _stairs_result = _handle_dungeon_stairs(state, _tile)
+    _stairs_result = await _handle_dungeon_stairs(state, _tile)
     if _stairs_result is not None:
         return _stairs_result
     if _tile.kind != 'exit':
@@ -718,7 +718,7 @@ def _handle_dungeon_move(state, console, code):
             state.ctx, _wreck_spawn_id, state.player_active_missions,
         )
     )
-    _exit_transition = _handle_dungeon_exit_tile(
+    _exit_transition = await _handle_dungeon_exit_tile(
         state.ctx, _tile.kind, state.game_map, state.space_game_map,
         state.space_player, state.player_owned_ship,
         state.player_active_missions, state.log,
@@ -733,7 +733,7 @@ def _handle_dungeon_move(state, console, code):
         )
     return 'HANDLED'
 
-def _apply_movement_interaction(state, code, blocker, dx, dy):
+async def _apply_movement_interaction(state, code, blocker, dx, dy):
     """Apply blocker interactions and copy state transitions back."""
     _state = GameLoopState(
         ctx=state.ctx, console=state.console, map_w=state.map_w, map_h=state.map_h,
@@ -744,7 +744,7 @@ def _apply_movement_interaction(state, code, blocker, dx, dy):
         space_player=state.space_player, player_owned_ship=state.player_owned_ship,
         player_active_missions=state.player_active_missions,
     )
-    _result = resolve_blocker(_state, code, blocker, dx, dy)
+    _result = await resolve_blocker(_state, code, blocker, dx, dy)
     state.game_map, state.player = _state.game_map, _state.player
     state.current_mode, state.current_city_id = _state.current_mode, _state.current_city_id
     state.city_game_map, state.city_player = _state.city_game_map, _state.city_player
@@ -773,7 +773,7 @@ def _resolve_move(state, dx, dy):
     return (code, blocker)
 
 
-def _handle_movement_event(state, event):
+async def _handle_movement_event(state, event):
     """Handle movement and post-move transitions."""
     ctx = state.ctx
     console = state.console
@@ -783,20 +783,20 @@ def _handle_movement_event(state, event):
     dx, dy = delta
     code, blocker = _resolve_move(state, dx, dy)
     if code == 'moved' and state.current_mode == 'city':
-        tutorial_module.notify_move(ctx)
+        await tutorial_module.notify_move(ctx)
         if enter_city_interior(state) == 'ENTERED':
             return 'HANDLED'
         _advance_city_npcs(state)
     if code == 'moved' and state.current_mode == 'space' and (state.player_owned_ship is not None):
-        if _run_combat_loop(ctx, console, state.player, also_move_npcs=True) == "BOARDED":
+        if await _run_combat_loop(ctx, console, state.player, also_move_npcs=True) == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
         state.player_active_missions = ctx.player_active_missions
         tick_move(ctx)
-    _dungeon_result = _handle_dungeon_move(state, console, code)
+    _dungeon_result = await _handle_dungeon_move(state, console, code)
     if _dungeon_result is not None:
         return _dungeon_result
-    _interaction_result = _apply_movement_interaction(
+    _interaction_result = await _apply_movement_interaction(
         state, code, blocker, dx, dy,
     )
     if _interaction_result == 'QUIT':
@@ -818,25 +818,25 @@ def _has_idle_animations(state) -> bool:
     return has_flickering_sources(sources)
 
 
-def _process_events(state):
+async def _process_events(state):
     """Process input events."""
     ctx = state.ctx
     timeout_ms = 50 if _has_idle_animations(state) else None
-    for event in ctx.context.wait_events(timeout_ms=timeout_ms):
-        _result = _handle_non_movement_event(state, event)
+    for event in await ctx.context.wait_events(timeout_ms=timeout_ms):
+        _result = await _handle_non_movement_event(state, event)
         if _result is not None:
             if _result == 'QUIT':
                 return 'QUIT'
             continue
-        _result = _handle_movement_event(state, event)
+        _result = await _handle_movement_event(state, event)
         if _result == 'QUIT':
             return 'QUIT'
 
-def _run_gameplay(state):
+async def _run_gameplay(state):
     """Run the city, space, and dungeon loop until death or exit."""
     while not state.ctx.player_dead:
-        _present_frame(state)
-        _result = _process_events(state)
+        await _present_frame(state)
+        _result = await _process_events(state)
         if _result == 'QUIT':
             return None
 
@@ -936,7 +936,7 @@ def _new_game_state(context, console, map_w, map_h, species_id, class_id, tutori
     _configure_new_context(ctx, species_id, class_id, tutorial)
     return GameLoopState(ctx=ctx, console=console, map_w=map_w, map_h=map_h, log=log, stats=stats, game_map=game_map, player=player, current_mode='city', current_city_id='earth', city_game_map=game_map, city_player=player, player_owned_ship=owned_ship, player_active_missions=active_missions)
 
-def _run_game_loop(context: PygameContext, species_id: str='', class_id: str='', *, loaded_ctx: GameContext | None=None, tutorial: bool=False) -> None:
+async def _run_game_loop(context: PygameContext, species_id: str='', class_id: str='', *, loaded_ctx: GameContext | None=None, tutorial: bool=False) -> None:
     """Render the small city + HUD + msg log and handle vim movement.
 
     Walking into a wall logs a short message. Walking into a
@@ -954,4 +954,4 @@ def _run_game_loop(context: PygameContext, species_id: str='', class_id: str='',
         state = _loaded_game_state(context, console, map_w, map_h, loaded_ctx)
     else:
         state = _new_game_state(context, console, map_w, map_h, species_id, class_id, tutorial)
-    _run_gameplay(state)
+    await _run_gameplay(state)

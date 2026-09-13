@@ -6,6 +6,7 @@ the runtime. These tests pin both the tag placement and the filter semantics.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -152,13 +153,13 @@ def test_lost_quest_cargo_raises_the_quest_styled_window(monkeypatch):
 
     summon = []
     monkeypatch.setattr(_act0, "show_quest_summon",
-                        lambda _ctx, message, objective="": summon.append((message, objective)))
+                        as_async(lambda _ctx, message, objective="": summon.append((message, objective))))
     ctx = _ctx("bar", {"bar_q5_charged": "active"})
     crate = SimpleNamespace(
         main_quest_step_id="bar_q5_charged", title="The Return Run",
         is_procedural=True, mission_id="mq:bar_q5_charged",
     )
-    assert _mq.fail_smuggle_step(ctx, crate)
+    assert run(_mq.fail_smuggle_step(ctx, crate))
     assert ctx.main_quest_progress["bar_q5_charged"] == "available"
     assert summon and "Power Cell" in summon[0][0]
     assert "Wolf 359" in summon[0][1], "the window breadcrumbs the pickup"
@@ -173,7 +174,7 @@ def test_smuggle_handover_lands_with_a_readout(monkeypatch):
 
     readouts = []
     monkeypatch.setattr(_objectives, "show_step_readout",
-                        lambda _ctx, step: readouts.append(step.id))
+                        as_async(lambda _ctx, step: readouts.append(step.id)))
     ship = SimpleNamespace(inventory={}, mission_reserved=1,
                            ship_id="scout", weapons=(), modules=(), cargo_ammo=0)
     crate = SimpleNamespace(main_quest_step_id="bar_q5_charged")
@@ -185,7 +186,7 @@ def test_smuggle_handover_lands_with_a_readout(monkeypatch):
     ctx.time_day, ctx.time_month, ctx.time_year = 1, 1, 2200
 
     step = _core.find_main_quest_step("bar_q5_charged")
-    assert _core._complete_smuggle_handover(ctx, step)
+    assert run(_core._complete_smuggle_handover(ctx, step))
     assert readouts == ["bar_q5_charged"]
     assert ship.mission_reserved == 0
 
@@ -201,5 +202,5 @@ def test_smuggle_handover_lands_with_a_readout(monkeypatch):
     ctx2.player_xp, ctx2.player_level, ctx2.player_skill_points = 0, 1, 0
     ctx2.main_quest_backing = set()
     ctx2.time_day, ctx2.time_month, ctx2.time_year = 1, 1, 2200
-    assert _core._complete_smuggle_handover(ctx2, gate)
+    assert run(_core._complete_smuggle_handover(ctx2, gate))
     assert readouts == [], "the gate popup owns gated flavor"

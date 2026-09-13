@@ -83,7 +83,7 @@ def _pygame_faction_frames(menu: ui.MenuScreen):
     )
 
 
-def _run_pygame_menu_pick(
+async def _run_pygame_menu_pick(
     context, frames, caption: str, valid_ids: set[str],
 ) -> tuple[Outcome, str | None] | None:
     """Run a dev picker modal; return (Outcome, action) or None to fall back."""
@@ -92,7 +92,7 @@ def _run_pygame_menu_pick(
     if not frames:
         return None
     while True:
-        outcome, action, _selected = pygame_menu.run_for_context(
+        outcome, action, _selected = await pygame_menu.run_for_context(
             context, frames, caption=caption,
         )
         if outcome == "GUIDE":
@@ -106,11 +106,11 @@ def _run_pygame_menu_pick(
         return None
 
 
-def _run_pygame_faction_pick(
+async def _run_pygame_faction_pick(
     context, menu: ui.MenuScreen,
 ) -> tuple[Outcome, str | None] | None:
     """Run the dev faction picker in Pygame, or return None for fallback."""
-    result = _run_pygame_menu_pick(
+    result = await _run_pygame_menu_pick(
         context, _pygame_faction_frames(menu),
         caption="spacehack - choose act 0 faction",
         valid_ids={faction_id for faction_id, _label in menu.options},
@@ -118,9 +118,9 @@ def _run_pygame_faction_pick(
     return result
 
 
-def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
+async def choose_main_quest_faction(context) -> tuple[Outcome, str | None]:
     """Run the Act 0 faction picker in the shared Pygame window."""
-    result = _run_pygame_faction_pick(context, main_quest_faction_menu())
+    result = await _run_pygame_faction_pick(context, main_quest_faction_menu())
     if result is None:
         raise RuntimeError("Developer faction picker returned no outcome")
     return result
@@ -173,10 +173,10 @@ def _pygame_teleport_frames(menu: ui.MenuScreen):
     )
 
 
-def choose_city_teleport(context) -> tuple[Outcome, str | None]:
+async def choose_city_teleport(context) -> tuple[Outcome, str | None]:
     """Run the city teleport picker in the shared Pygame window."""
     menu = city_teleport_menu()
-    result = _run_pygame_menu_pick(
+    result = await _run_pygame_menu_pick(
         context, _pygame_teleport_frames(menu),
         caption="spacehack - teleport to city",
         valid_ids={planet_id for planet_id, _label in menu.options},
@@ -490,12 +490,12 @@ def advance_to_shift_boundary(ctx) -> int:
     return _days
 
 
-def reveal_dev_dig_site(ctx) -> dict:
+async def reveal_dev_dig_site(ctx) -> dict:
     """Shift+M: force-reveal a dig site (doc 42 phase 4 checklist
     instrument) — the full reveal idiom: derivation, record, readout."""
     from .digs import reveal_site
 
-    return reveal_site(ctx)
+    return await reveal_site(ctx)
 
 
 def log_rumor_routing(ctx) -> None:

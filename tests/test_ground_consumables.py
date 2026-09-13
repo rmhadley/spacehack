@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run, as_async
 """Phase 5 tests for ground consumable use and temporary effects."""
 
 from types import SimpleNamespace
@@ -51,10 +52,10 @@ def test_character_consumable_action_uses_a_charge(monkeypatch):
         items=[GroundItemStack("consumable", "med_pack", 1)],
     )
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *args, **kwargs: "STACK_USE:0",
+        pygame_story, "choose", as_async(lambda *args, **kwargs: "STACK_USE:0"),
     )
 
-    assert _manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False) == "USE"
+    assert run(_manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False)) == "USE"
     assert ctx.ground_expedition_items == []
     assert ctx.ground_hp == 23
 
@@ -65,10 +66,10 @@ def test_character_consumable_action_can_discard_a_stack(monkeypatch):
 
     ctx = _context(items=[GroundItemStack("consumable", "med_pack", 1)])
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *args, **kwargs: "STACK_DISCARD:0",
+        pygame_story, "choose", as_async(lambda *args, **kwargs: "STACK_DISCARD:0"),
     )
 
-    assert _manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False) == "DISCARD"
+    assert run(_manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False)) == "DISCARD"
     assert ctx.ground_expedition_items == []
 
 

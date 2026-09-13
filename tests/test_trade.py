@@ -5,6 +5,7 @@ to 0.6× base at surplus (100% stock), with 1× at equilibrium (50%).
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -130,9 +131,9 @@ class TestOpenLootPickup:
         selected = {}
         monkeypatch.setattr(
             "src.spacehack.loot.choose_loot_entity",
-            lambda _ctx, entities: selected.update(entities=entities) or second,
+            as_async(lambda _ctx, entities: selected.update(entities=entities) or second),
         )
-        open_loot_pickup(ctx, first)
+        run(open_loot_pickup(ctx, first))
 
         assert selected["entities"] == (first, second)
         assert second not in game_map.entities
@@ -161,10 +162,10 @@ class TestOpenLootPickup:
         chosen = []
         monkeypatch.setattr(
             "src.spacehack.loot.choose_loot_entity",
-            lambda _ctx, entities: chosen.append(entities) or loot_entity,
+            as_async(lambda _ctx, entities: chosen.append(entities) or loot_entity),
         )
 
-        open_loot_pickup(ctx, loot_entity)
+        run(open_loot_pickup(ctx, loot_entity))
 
         assert chosen == [(loot_entity,)]
         assert loot_entity not in game_map.entities
@@ -204,9 +205,9 @@ class TestOpenLootPickup:
             captured.update(kwargs)
             return "LOOT:1"
 
-        monkeypatch.setattr("src.spacehack.pygame_story.choose", fake_choose)
+        monkeypatch.setattr("src.spacehack.pygame_story.choose", as_async(fake_choose))
 
-        selected = choose_loot_entity(SimpleNamespace(), entities)
+        selected = run(choose_loot_entity(SimpleNamespace(), entities))
 
         assert selected is entities[1]
         assert captured["title"].startswith("CHOOSE LOOT")
@@ -238,9 +239,9 @@ class TestOpenLootPickup:
         )
         monkeypatch.setattr(
             "src.spacehack.loot.choose_loot_entity",
-            lambda _ctx, _entities: None,
+            as_async(lambda _ctx, _entities: None),
         )
-        open_loot_pickup(ctx, first)
+        run(open_loot_pickup(ctx, first))
 
         assert game_map.entities == [first, second]
 
@@ -248,7 +249,7 @@ class TestOpenLootPickup:
         """Unresolvable equipment is not consumed by immediate pickup."""
         ctx = SimpleNamespace(log=MagicMock())
 
-        open_loot_pickup(ctx, self._loot_entity("weapon", "not_a_real_weapon"))
+        run(open_loot_pickup(ctx, self._loot_entity("weapon", "not_a_real_weapon")))
 
         ctx.log.add.assert_called_once_with(
             "Unknown ground equipment - left it behind.",

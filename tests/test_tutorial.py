@@ -7,6 +7,7 @@ idempotence + the tick's early returns (which must never fire a modal).
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 import sys
 from pathlib import Path
@@ -205,7 +206,7 @@ class TestTickOrder:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.tick(ctx, mode=mode)
+            run(tutorial.tick(ctx, mode=mode))
         return fired
 
     def test_accept_then_loadout_then_launch(self):
@@ -286,7 +287,7 @@ class TestSpaceCombatAndLoot:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.tick(ctx, mode=mode)
+            run(tutorial.tick(ctx, mode=mode))
         return fired
 
     def test_space_combat_intro_fires_once(self):
@@ -298,8 +299,8 @@ class TestSpaceCombatAndLoot:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.maybe_space_combat_intro(ctx)
-            tutorial.maybe_space_combat_intro(ctx)
+            run(tutorial.maybe_space_combat_intro(ctx))
+            run(tutorial.maybe_space_combat_intro(ctx))
 
         assert fired == ["space_combat_intro"]
 
@@ -326,10 +327,10 @@ class TestSpaceCombatAndLoot:
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
             # P pressed but loot remains → the beat waits for actual pickup.
-            tutorial.notify_pickup(ctx)
+            run(tutorial.notify_pickup(ctx))
             assert fired == []
             ctx.game_map = SimpleNamespace(entities=[])
-            tutorial.notify_pickup(ctx)
+            run(tutorial.notify_pickup(ctx))
 
         assert fired == ["picked_up_loot"]
 
@@ -374,7 +375,7 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.tick(ctx, mode=mode)
+            run(tutorial.tick(ctx, mode=mode))
         return fired
 
     def test_earth_armory_fires_on_earth_after_signal(self):
@@ -419,8 +420,8 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.maybe_ground_combat_intro(ctx)
-            tutorial.maybe_ground_combat_intro(ctx)
+            run(tutorial.maybe_ground_combat_intro(ctx))
+            run(tutorial.maybe_ground_combat_intro(ctx))
 
         assert fired == ["mars_ground_combat_intro"]
 
@@ -437,7 +438,7 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.notify_ground_combat_ended(ctx)
+            run(tutorial.notify_ground_combat_ended(ctx))
 
         # The level-up lesson fires (not the finale), and the player is
         # guaranteed at least level 2 with skill points to spend.
@@ -460,21 +461,21 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.notify_ground_combat_ended(ctx)
+            run(tutorial.notify_ground_combat_ended(ctx))
             # Points still unspent → tick stays silent.
-            tutorial.tick(ctx, mode="dungeon")
+            run(tutorial.tick(ctx, mode="dungeon"))
             assert fired == ["level_up"]
 
             # Player spends all points via the C character screen.
             ctx.player_skill_points = 0
-            tutorial.tick(ctx, mode="dungeon")
+            run(tutorial.tick(ctx, mode="dungeon"))
             assert fired == ["level_up", "finale"]
             assert ctx.tutorial_complete is True
 
             # After completion every hook and tick must be silent.
-            tutorial.notify_ground_combat_ended(ctx)
-            tutorial.maybe_ground_combat_intro(ctx)
-            tutorial.tick(ctx, mode="city")
+            run(tutorial.notify_ground_combat_ended(ctx))
+            run(tutorial.maybe_ground_combat_intro(ctx))
+            run(tutorial.tick(ctx, mode="city"))
             assert fired == ["level_up", "finale"]
 
     def test_finale_unlocks_mission_boards(self):
@@ -492,9 +493,9 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.notify_ground_combat_ended(ctx)
+            run(tutorial.notify_ground_combat_ended(ctx))
             ctx.player_skill_points = 0
-            tutorial.tick(ctx, mode="dungeon")
+            run(tutorial.tick(ctx, mode="dungeon"))
 
         assert ctx.tutorial_complete is True
         assert fired == ["level_up", "finale"]
@@ -503,7 +504,7 @@ class TestMarsAndFinale:
     def test_level_up_gated_on_ground_intro(self):
         """A stray combat resolution before the intro beat cannot level up."""
         ctx = self._tutorial_ctx()
-        tutorial.notify_ground_combat_ended(ctx)
+        run(tutorial.notify_ground_combat_ended(ctx))
         assert "level_up" not in ctx.tutorial_steps
         assert "finale" not in ctx.tutorial_steps
         assert ctx.tutorial_complete is False
@@ -525,7 +526,7 @@ class TestMarsAndFinale:
             tutorial.mark_step(ctx, step_id)
 
         with patch("src.spacehack.tutorial._show_step", side_effect=_fake_show):
-            tutorial.notify_ground_combat_ended(ctx)
+            run(tutorial.notify_ground_combat_ended(ctx))
 
         assert fired == ["level_up"]
         assert ctx.player_level == 3
@@ -549,21 +550,21 @@ class TestStepState:
         ctx = _StubCtx()
         ctx.tutorial_mode = True
         ctx.tutorial_complete = True
-        tutorial.tick(ctx, mode="city")
+        run(tutorial.tick(ctx, mode="city"))
         assert ctx.tutorial_steps == set()
 
     def test_tick_ignores_non_tutorial_runs(self):
         ctx = _StubCtx()  # tutorial_mode False
-        tutorial.tick(ctx, mode="city")
+        run(tutorial.tick(ctx, mode="city"))
         assert ctx.tutorial_steps == set()
 
     def test_hooks_noop_outside_tutorial(self):
         """Combat/pickup/move hooks must not fire outside tutorial runs."""
         ctx = _StubCtx()  # tutorial_mode False
-        tutorial.notify_move(ctx)
-        tutorial.notify_pickup(ctx)
-        tutorial.maybe_space_combat_intro(ctx)
-        tutorial.maybe_ground_combat_intro(ctx)
-        tutorial.notify_ground_combat_ended(ctx)
+        run(tutorial.notify_move(ctx))
+        run(tutorial.notify_pickup(ctx))
+        run(tutorial.maybe_space_combat_intro(ctx))
+        run(tutorial.maybe_ground_combat_intro(ctx))
+        run(tutorial.notify_ground_combat_ended(ctx))
         assert ctx.tutorial_steps == set()
         assert ctx.tutorial_complete is False

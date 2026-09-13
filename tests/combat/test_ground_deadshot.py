@@ -7,6 +7,7 @@ one round each, and stop on a miss, a survivor, or an empty magazine.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 import sys
 from pathlib import Path
@@ -104,7 +105,7 @@ class TestDeadshotShotCost:
             _inst.hp = 5
         _force_hits(monkeypatch, chain_rolls=[1, 1])
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         assert _rules_ground.player_ap(_ctx) == 0
 
@@ -116,7 +117,7 @@ class TestChain:
             _inst.hp = 5
         _force_hits(monkeypatch, chain_rolls=[1, 1])
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         # Primary + two chain kills (nearest first), all dead.
         assert all(not _e.alive for _e in _rules_ground._state.enemies)
@@ -134,7 +135,7 @@ class TestChain:
         _rules_ground._state.enemies[2].hp = 30
         _force_hits(monkeypatch, chain_rolls=[1])
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         assert not _rules_ground._state.enemies[0].alive
         assert _rules_ground._state.enemies[1].alive
@@ -150,7 +151,7 @@ class TestChain:
         # First chain shot misses (roll 100 > hit chance).
         _force_hits(monkeypatch, chain_rolls=[100])
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         assert not _rules_ground._state.enemies[0].alive
         assert _rules_ground._state.enemies[1].alive
@@ -162,7 +163,7 @@ class TestChain:
         _rules_ground._state.enemies[0].hp = 5
         _force_hits(monkeypatch, chain_rolls=[])
 
-        _loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0)
+        run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
         assert not _rules_ground._state.enemies[0].alive
         assert _ctx.player_counters.railgun_kills == 1

@@ -33,16 +33,16 @@ def _frame(ctx: GameContext) -> pygame_screen.ScreenFrame:
     )
 
 
-def open_console_log(ctx: GameContext) -> str:
+async def open_console_log(ctx: GameContext) -> str:
     """Open the full console history until the player dismisses it."""
     while True:
-        outcome, _action, _selected = pygame_screen.run_for_context(
+        outcome, _action, _selected = await pygame_screen.run_for_context(
             ctx.context,
             _frame(ctx),
             caption="spacehack - console log",
         )
         if outcome == "GUIDE":
             from .help import _run_help_guide
-            _run_help_guide(ctx)
+            await _run_help_guide(ctx)
             continue
         return outcome

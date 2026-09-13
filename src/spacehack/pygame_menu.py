@@ -524,7 +524,7 @@ def _handle_key(pygame: Any, event: Any, selected: int, count: int) -> tuple[str
         return ("SELECT", selected) if count else ("DISMISS", selected)
     return "IGNORE", selected
 
-def _run_shared_loop(
+async def _run_shared_loop(
     pygame: Any,
     engine: Any,
     screen: Any,
@@ -541,16 +541,18 @@ def _run_shared_loop(
             screen.fill(pygame_ui.DEFAULT_PALETTE.background)
         _draw_shared_frame(pygame, screen, font, frame, context)
         engine.present()
-        outcome, selected = _handle_key(
-            pygame, pygame.event.wait(), selected, count,
-        )
-        if outcome == "IGNORE":
-            continue
-        action = frame.items[selected].action if outcome == "SELECT" and frame.items else ""
-        return outcome, action, selected
+        for event in pygame.event.get():
+            outcome, selected = _handle_key(
+                pygame, event, selected, count,
+            )
+            if outcome == "IGNORE":
+                continue
+            action = frame.items[selected].action if outcome == "SELECT" and frame.items else ""
+            return outcome, action, selected
+        await context.pump(0.016)
 
 
-def run_shared(
+async def run_shared(
     context: PygameContext,
     frames: tuple[MenuFrame, ...],
     *,
@@ -571,12 +573,12 @@ def run_shared(
         # size — the menu is unavailable, not broken.
         raise PygameMenuUnavailable("Shared Pygame surface has no size")
     font = _fit_shared_font(pygame, frames, width, height)
-    return _run_shared_loop(
+    return await _run_shared_loop(
         pygame, engine, engine.logical_surface, font, frames, context,
     )
 
 
-def run_for_context(
+async def run_for_context(
     context: PygameContext,
     frames: tuple[MenuFrame, ...],
     *,
@@ -587,6 +589,6 @@ def run_for_context(
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameMenuUnavailable("Shared Pygame runtime is not open")
-    return run_shared(context, frames, caption=caption)
+    return await run_shared(context, frames, caption=caption)
 
 

@@ -216,20 +216,20 @@ def _ship_buy_frame(ctx, ship: ship_module.Ship, effective_price: int | None, se
         body_runs=body_runs,
     )
 
-def _run_pygame_ship_buy(ctx, ship: ship_module.Ship, effective_price: int | None) -> "ShipBuyOutcome | None":
+async def _run_pygame_ship_buy(ctx, ship: ship_module.Ship, effective_price: int | None) -> "ShipBuyOutcome | None":
     """Run Ship Buy in the shared Pygame screen."""
     from .. import pygame_screen
 
     selected = 0
     while True:
-        outcome, action, selected = pygame_screen.run_for_context(
+        outcome, action, selected = await pygame_screen.run_for_context(
             ctx.context,
             _ship_buy_frame(ctx, ship, effective_price, selected),
             caption="spacehack - ship buy",
         )
         if outcome == "GUIDE":
             from ..help import _open_context_guide
-            _open_context_guide(ctx, "Ships & Equipment")
+            await _open_context_guide(ctx, "Ships & Equipment")
             continue
         if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue
@@ -255,13 +255,13 @@ class ShipBuyOutcome(Enum):
     TOO_EXPENSIVE = auto()
     QUIT = auto()
 
-def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship, *, effective_price: int | None = None) -> ShipBuyOutcome:
+async def _run_ship_buy(ctx, blocker: world.Entity, ship: ship_module.Ship, *, effective_price: int | None = None) -> ShipBuyOutcome:
     """Show the ship-buy modal for ``ship``.
 
     When ``effective_price`` is provided (trade-in), the dialog uses
     it for afford checks instead of ``ship.price``.
     """
-    result = _run_pygame_ship_buy(ctx, ship, effective_price)
+    result = await _run_pygame_ship_buy(ctx, ship, effective_price)
     if result is None:
         raise RuntimeError("Ship-buy menu returned no outcome")
     return result

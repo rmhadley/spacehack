@@ -2,6 +2,7 @@
 pools, depth bounds, and the cache-key contract."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 import dataclasses
 import sys
@@ -27,7 +28,7 @@ def _ctx(monkeypatch, sites=None):
     seen = []
     monkeypatch.setattr(
         digs.rumor, "present_hearing",
-        lambda ctx, title, text: seen.append((title, text)),
+        as_async(lambda ctx, title, text: seen.append((title, text))),
     )
     return SimpleNamespace(discovered_sites=list(sites or [])), seen
 
@@ -37,14 +38,14 @@ def test_reveal_is_deterministic_per_seed_and_ordinal(monkeypatch):
     ordinal keys the derivation (SETTLED 7/28)."""
     first, _ = _ctx(monkeypatch)
     second, _ = _ctx(monkeypatch)
-    a = digs.reveal_site(first)
-    b = digs.reveal_site(second)
+    a = run(digs.reveal_site(first))
+    b = run(digs.reveal_site(second))
     assert a == b
 
 
 def test_reveal_records_and_presents(monkeypatch):
     ctx, seen = _ctx(monkeypatch)
-    site = digs.reveal_site(ctx)
+    site = run(digs.reveal_site(ctx))
     assert ctx.discovered_sites == [site]
     assert set(site) == {"id", "planet", "name"}
     assert site["id"] == "s1"
@@ -59,8 +60,8 @@ def test_reveal_stacks_a_new_site(monkeypatch):
     """Each reveal is a new, distinct site (SETTLED 31); the ordinal
     advances, so the derivation moves on."""
     ctx, _ = _ctx(monkeypatch)
-    one = digs.reveal_site(ctx)
-    two = digs.reveal_site(ctx)
+    one = run(digs.reveal_site(ctx))
+    two = run(digs.reveal_site(ctx))
     assert one["id"] == "s1" and two["id"] == "s2"
     assert ctx.discovered_sites == [one, two]
 
@@ -73,7 +74,7 @@ def test_rerolled_seed_yields_a_different_legal_reveal(monkeypatch):
     for seed in range(40):
         monkeypatch.setattr(engine, "INIT_SEED", seed)
         ctx, _ = _ctx(monkeypatch)
-        site = digs.reveal_site(ctx)
+        site = run(digs.reveal_site(ctx))
         assert site["planet"] in planets
         draws.add((site["planet"], site["name"]))
     assert len(draws) > 1
@@ -89,9 +90,9 @@ def test_same_planet_sites_never_share_a_name(monkeypatch):
     )
     monkeypatch.setattr(digs, "list_planet_specs", lambda: [narrow])
     ctx, _ = _ctx(monkeypatch)
-    one = digs.reveal_site(ctx)
-    two = digs.reveal_site(ctx)
-    three = digs.reveal_site(ctx)
+    one = run(digs.reveal_site(ctx))
+    two = run(digs.reveal_site(ctx))
+    three = run(digs.reveal_site(ctx))
     assert one["name"] == "Only Name"
     assert two["name"] == "Only Name 2"
     assert three["name"] == "Only Name 3"
@@ -165,7 +166,7 @@ def _dig_world(monkeypatch, depth=3, chance=None):
     ctx, _ = _ctx(monkeypatch)
     ctx.interiors = {}
     ctx.dungeon_extension = None
-    site = digs.reveal_site(ctx)
+    site = run(digs.reveal_site(ctx))
     return ctx, site
 
 
@@ -287,9 +288,9 @@ def test_stair_handlers_route_dig_floors(monkeypatch):
         current_mode="dungeon",
     )
     ctx.ground_hp = ctx.ground_max_hp = 30
-    assert game_loop._handle_stairs_down(state) == "HANDLED"
+    assert run(game_loop._handle_stairs_down(state)) == "HANDLED"
     assert state.game_map is f2
-    assert game_loop._handle_stairs_up(state) == "HANDLED"
+    assert run(game_loop._handle_stairs_up(state)) == "HANDLED"
     assert state.game_map is f1
 
 
@@ -385,11 +386,11 @@ def test_ground_pad_roll_is_flat(monkeypatch):
 def test_reveal_pad_pickup_consumes_and_reveals(monkeypatch):
     gm = _floor_map()
     revealed = []
-    monkeypatch.setattr(digs, "reveal_site", lambda ctx: revealed.append(ctx))
+    monkeypatch.setattr(digs, "reveal_site", as_async(lambda ctx: revealed.append(ctx)))
     ctx = SimpleNamespace(known_rumors=[], game_map=gm)
     loot_module.spawn_pad_entity(gm, world.Position(4, 4), {"reveals_site": True})
     pad = gm.entities[0]
-    loot_module._open_single_loot_pickup(ctx, pad)
+    run(loot_module._open_single_loot_pickup(ctx, pad))
     assert pad not in gm.entities
     assert revealed == [ctx]
 
@@ -409,13 +410,13 @@ def test_wreck_pad_scatters_on_hit(monkeypatch):
 
 def test_terminal_roll_reveals_on_hit(monkeypatch):
     revealed = []
-    monkeypatch.setattr(digs, "reveal_site", lambda ctx: revealed.append(ctx))
+    monkeypatch.setattr(digs, "reveal_site", as_async(lambda ctx: revealed.append(ctx)))
     monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
     ctx = SimpleNamespace()
-    assert digs.maybe_reveal_from_terminal(ctx) is True
+    assert run(digs.maybe_reveal_from_terminal(ctx)) is True
     assert revealed == [ctx]
     monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: DOOR_RATES["terminal"])
-    assert digs.maybe_reveal_from_terminal(ctx) is False
+    assert run(digs.maybe_reveal_from_terminal(ctx)) is False
     assert revealed == [ctx]
 
 
@@ -570,14 +571,14 @@ def test_planet_menu_dispatch_reaches_dig_entry(monkeypatch):
     entered = []
     monkeypatch.setattr(
         game_interactions, "_run_planet_menu",
-        lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.DIG, site["id"]),
+        as_async(lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.DIG, site["id"])),
     )
     monkeypatch.setattr(
         digs, "enter_dig_site",
         lambda state, planet_obj, site_id: entered.append(site_id) or "CONTINUE",
     )
     state = SimpleNamespace(ctx=ctx, log=SimpleNamespace(add=lambda *_: None))
-    assert game_interactions._resolve_planet_wall(state, site["planet"]) == "CONTINUE"
+    assert run(game_interactions._resolve_planet_wall(state, site["planet"])) == "CONTINUE"
     assert entered == [site["id"]]
 
 
@@ -618,7 +619,7 @@ def test_shift_m_grant_reveals(monkeypatch):
     """The Shift+M dev grant plays the full reveal idiom."""
     from src.spacehack import dev_mode
     ctx, seen = _ctx(monkeypatch)
-    site = dev_mode.reveal_dev_dig_site(ctx)
+    site = run(dev_mode.reveal_dev_dig_site(ctx))
     assert ctx.discovered_sites == [site]
     assert len(seen) == 1  # the readout played
 
@@ -656,7 +657,7 @@ def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):
         char="M", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
         npc_char_id="militia_trooper",
     )
-    assert game_interactions._resolve_occupied(state, monster) is None
+    assert run(game_interactions._resolve_occupied(state, monster)) is None
     assert lines == ["You bump into Militia Trooper."]
 
 
@@ -668,7 +669,7 @@ def test_bumping_a_dormant_security_unit_keeps_its_line():
         char="s", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
         npc_char_id="sentry_drone", powered_down=True,
     )
-    assert game_interactions._resolve_occupied(state, dormant) is None
+    assert run(game_interactions._resolve_occupied(state, dormant)) is None
     assert lines == ["It is a powered down Sentry Drone."]
 
 

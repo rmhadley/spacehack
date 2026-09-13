@@ -1,6 +1,9 @@
 """Tests for the Pygame-owned engine foundation."""
 
 from __future__ import annotations
+import asyncio
+
+from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 from typing import get_type_hints
@@ -237,9 +240,9 @@ def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
         KMOD_SHIFT = 3
         key = SimpleNamespace(name=lambda _key: "j")
 
-    waits = iter((
-        SimpleNamespace(type=99),
-        SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),
+    gets = iter((
+        (SimpleNamespace(type=99),),
+        (SimpleNamespace(type=FakePygame.KEYDOWN, key=10, mod=0, repeat=False),),
     ))
     fake_pygame = SimpleNamespace(
         QUIT=FakePygame.QUIT,
@@ -250,12 +253,12 @@ def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
         MOUSEBUTTONUP=FakePygame.MOUSEBUTTONUP,
         KMOD_SHIFT=FakePygame.KMOD_SHIFT,
         key=FakePygame.key,
-        event=SimpleNamespace(wait=lambda: next(waits)),
+        event=SimpleNamespace(get=lambda: next(gets, ())),
     )
     runtime = pygame_runtime.PygameRuntime(object())
     runtime.engine = SimpleNamespace(pygame=fake_pygame)
 
-    assert runtime.wait_events() == (
+    assert run(runtime.wait_events()) == (
         pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
     )
 
@@ -263,7 +266,41 @@ def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
 def test_shared_runtime_wait_events_is_empty_when_closed():
     runtime = pygame_runtime.PygameRuntime(object())
 
-    assert runtime.wait_events() == ()
+    assert run(runtime.wait_events()) == ()
+
+
+def test_shared_runtime_pump_sleeps_exactly_the_requested_seconds(monkeypatch):
+    slept = []
+    real_sleep = asyncio.sleep
+
+    async def fake_sleep(seconds):
+        slept.append(seconds)
+        await real_sleep(0)
+
+    monkeypatch.setattr(pygame_runtime.asyncio, "sleep", fake_sleep)
+    runtime = pygame_runtime.PygameRuntime(object())
+    context = pygame_runtime.PygameContext(runtime)
+
+    assert run(context.pump(0.016)) is None
+    assert run(context.pump()) is None
+
+    assert slept == [0.016, 0.0]
+
+
+def test_shared_runtime_pump_yields_control_back_to_the_event_loop():
+    order = []
+    runtime = pygame_runtime.PygameRuntime(object())
+    context = pygame_runtime.PygameContext(runtime)
+
+    async def main():
+        task = asyncio.ensure_future(context.pump(0))
+        order.append("scheduled")
+        await task
+        order.append("resumed")
+
+    run(main())
+
+    assert order == ["scheduled", "resumed"]
 
 
 def test_shared_runtime_does_not_patch_third_party_event_queue():

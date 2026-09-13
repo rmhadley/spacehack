@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run, as_async
 """Tests for the player-facing in-game manual catalog and presenter contract."""
 
 from types import SimpleNamespace
@@ -61,9 +62,9 @@ def test_guide_index_handles_contextual_and_invalid_topics():
 def test_guide_rejects_malformed_section_actions(monkeypatch):
     monkeypatch.setattr(
         "src.spacehack.pygame_screen.run_for_context",
-        lambda *_args, **_kwargs: ("SELECT", "SECTION:not-an-index", 0),
+        as_async(lambda *_args, **_kwargs: ("SELECT", "SECTION:not-an-index", 0)),
     )
 
-    result = game_help._run_pygame_help(SimpleNamespace(context=None))
+    result = run(game_help._run_pygame_help(SimpleNamespace(context=None)))
 
     assert result is None

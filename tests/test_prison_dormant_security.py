@@ -5,6 +5,7 @@ encounter, never patrols, and survives save/load in its exact state.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 
@@ -75,7 +76,7 @@ def test_bumping_a_dormant_unit_reports_and_never_fights():
         current_mode="dungeon",
     )
     drone = _dormant_drone(8, 4)
-    assert resolve_blocker(state, "occupied", drone, 1, 0) is None
+    assert run(resolve_blocker(state, "occupied", drone, 1, 0)) is None
     assert any("powered down Sentry Drone" in m for m in messages)
 
 

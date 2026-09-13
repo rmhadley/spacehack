@@ -25,9 +25,10 @@ def _build() -> dict[str, object]:
     from . import _act0
     from . import _act1
     _SCENES["prologue_transmission"] = _act0.show_prologue_transmission
-    _SCENES["sealed_door_discover"] = (
-        lambda ctx, **kw: _act0.show_sealed_door_overlay(ctx, "discover")
-    )
+    async def _sealed_door_discover(ctx, **kw):
+        await _act0.show_sealed_door_overlay(ctx, "discover")
+
+    _SCENES["sealed_door_discover"] = _sealed_door_discover
     _SCENES["sealed_door_open"] = _act0._play_sealed_door_open
     _SCENES["orbit_disclosure"] = _act1.maybe_show_post_prison_orbit
     return _SCENES
@@ -38,7 +39,7 @@ def registered_scene_ids() -> tuple[str, ...]:
     return tuple(sorted(_build().keys()))
 
 
-def play_scene(ctx, step_id: str, **kwargs) -> object:
+async def play_scene(ctx, step_id: str, **kwargs) -> object:
     """Play the scene declared on ``step_id``'s step data, if any.
 
     Returns the scene's return value (``None`` for fire-and-forget
@@ -59,7 +60,7 @@ def play_scene(ctx, step_id: str, **kwargs) -> object:
         raise ValueError(
             f"unregistered main quest scene id: {_scene_id!r} (step {step_id!r})"
         )
-    return _impl(ctx, **kwargs)
+    return await _impl(ctx, **kwargs)
 
 
 __all__ = ["play_scene", "registered_scene_ids"]

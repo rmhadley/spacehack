@@ -9,6 +9,7 @@ until a save/continue restored ``ctx.current_city_id`` from the save file.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -49,11 +50,11 @@ def test_landing_syncs_ctx_current_city_id(monkeypatch):
     monkeypatch.setattr(
         game_interactions,
         "_run_planet_menu",
-        lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.LAND, None),
+        as_async(lambda _ctx, _planet: (game_interactions.PlanetMenuOutcome.LAND, None)),
     )
-    monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
+    monkeypatch.setattr(game_interactions, "_run_cargo_scan", as_async(lambda _ctx, _pid: None))
 
-    game_interactions._resolve_planet_wall(state, "mercury")
+    run(game_interactions._resolve_planet_wall(state, "mercury"))
 
     assert state.current_city_id == "mercury"
     assert ctx.current_city_id == "mercury"

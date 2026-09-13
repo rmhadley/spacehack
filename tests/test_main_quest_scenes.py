@@ -9,6 +9,7 @@ and the auto-load flag.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -63,18 +64,18 @@ def test_play_scene_dispatches_to_the_registered_impl(monkeypatch):
     _scenes._build()
     monkeypatch.setitem(
         _scenes._SCENES, "prologue_transmission",
-        lambda ctx, **kw: _calls.append(ctx),
+        as_async(lambda ctx, **kw: _calls.append(ctx)),
     )
-    _scenes.play_scene(_CTX, "prologue_signal")
+    run(_scenes.play_scene(_CTX, "prologue_signal"))
     assert _calls == [_CTX]
 
 
 def test_sealed_door_discover_scene_plays_the_discover_overlay(monkeypatch):
     _beats = []
     monkeypatch.setattr(
-        _act0, "show_sealed_door_overlay", lambda ctx, beat: _beats.append(beat),
+        _act0, "show_sealed_door_overlay", as_async(lambda ctx, beat: _beats.append(beat)),
     )
-    _scenes.play_scene(_CTX, "prologue_mars_entrance")
+    run(_scenes.play_scene(_CTX, "prologue_mars_entrance"))
     assert _beats == ["discover"]
 
 
@@ -84,13 +85,13 @@ def test_sealed_door_open_impl_animates_then_overlays(monkeypatch):
     # that impl's presentation order.
     _order = []
     monkeypatch.setattr(
-        _act0, "animate_signal_door_opening", lambda *a, **k: _order.append("animate"),
+        _act0, "animate_signal_door_opening", as_async(lambda *a, **k: _order.append("animate")),
     )
     monkeypatch.setattr(
-        _act0, "show_sealed_door_overlay", lambda ctx, beat: _order.append(beat),
+        _act0, "show_sealed_door_overlay", as_async(lambda ctx, beat: _order.append(beat)),
     )
     _ctx = SimpleNamespace(game_map=None, player=SimpleNamespace(pos=None))
-    _act0._play_sealed_door_open(_ctx)
+    run(_act0._play_sealed_door_open(_ctx))
     assert _order == ["animate", "open"]
 
 
@@ -99,25 +100,25 @@ def test_orbit_disclosure_scene_forwards_kwargs(monkeypatch):
     _scenes._build()
     monkeypatch.setitem(
         _scenes._SCENES, "orbit_disclosure",
-        lambda ctx, **kw: _seen.append(kw) or True,
+        as_async(lambda ctx, **kw: _seen.append(kw) or True),
     )
-    assert _scenes.play_scene(_CTX, "act1_prison", from_mars_prison=True) is True
+    assert run(_scenes.play_scene(_CTX, "act1_prison", from_mars_prison=True)) is True
     assert _seen == [{"from_mars_prison": True}]
 
 
 def test_play_scene_noops_for_steps_without_a_scene():
-    assert _scenes.play_scene(_CTX, "prologue_seek_help") is None
+    assert run(_scenes.play_scene(_CTX, "prologue_seek_help")) is None
 
 
 def test_play_scene_noops_for_unknown_step():
-    assert _scenes.play_scene(_CTX, "not_a_real_step") is None
+    assert run(_scenes.play_scene(_CTX, "not_a_real_step")) is None
 
 
 def test_play_scene_raises_on_unregistered_scene(monkeypatch):
     _fake = MainQuestStep(id="fake", scene="bogus_scene")
     monkeypatch.setattr(_scenes, "find_main_quest_step", lambda _id: _fake)
     try:
-        _scenes.play_scene(_CTX, "fake")
+        run(_scenes.play_scene(_CTX, "fake"))
     except ValueError as _error:
         assert "bogus_scene" in str(_error)
     else:

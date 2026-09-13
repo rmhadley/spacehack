@@ -25,7 +25,7 @@ from ._shot_animations import _animate_ground_shot
 _GUARD_LEASH_RADIUS: int = 8
 
 
-def run_ground_enemy_turn(
+async def run_ground_enemy_turn(
     ctx,
     *,
     enemy_weapon_id: str,
@@ -53,14 +53,14 @@ def run_ground_enemy_turn(
     except KeyError:
         return (enemy_ap, 0, False)
 
-    return _spend_ground_ap(
+    return await _spend_ground_ap(
         ctx, console, render_callback, game_map,
         enemy_entity, player_pos, enemy_weapon_id, _ews,
         enemy_spec, armor_defense, player_dodge, enemy_ap,
     )
 
 
-def _spend_ground_ap(
+async def _spend_ground_ap(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge, enemy_ap,
 ):
@@ -85,7 +85,7 @@ def _spend_ground_ap(
             _result_ap -= _ap_cost
             _fired = True
             break
-        _stepped, _cached_path, _path_goal, _halt = _ground_advance(
+        _stepped, _cached_path, _path_goal, _halt = await _ground_advance(
             ctx, console, render_callback, game_map,
             enemy_entity, player_pos, _post, _cached_path, _path_goal,
         )
@@ -158,7 +158,7 @@ def _roll_ground_shot(ctx, enemy_weapon_id, enemy_spec, armor_defense, player_do
     return True, _damage, _damage_popup_for(_damage, 0, False)
 
 
-def _ground_advance(
+async def _ground_advance(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     _post, _cached_path, _path_goal,
 ):
@@ -196,5 +196,5 @@ def _ground_advance(
     if render_callback is not None and console is not None:
         render_callback(console, ctx, game_map)
         _present(ctx, console)
-        _responsive_sleep(animation_timing.GROUND_STEP)
+        await _responsive_sleep(animation_timing.GROUND_STEP)
     return True, _cached_path, _path_goal, False

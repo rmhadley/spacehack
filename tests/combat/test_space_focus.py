@@ -7,6 +7,7 @@ toggles, so the trait is a per-round commitment like Charger/Deadshot.
 """
 
 from __future__ import annotations
+from tests.support.asyncutil import run
 
 import sys
 from pathlib import Path
@@ -268,7 +269,7 @@ class TestRulesIntegration:
         )
         monkeypatch.setattr(_rules_space, "animate_fire", lambda *a, **k: None)
         try:
-            _loop._handle_fire(None, _ctx, _state.game_map, _rules_space, target_idx=0)
+            run(_loop._handle_fire(None, _ctx, _state.game_map, _rules_space, target_idx=0))
 
             assert _rules_space.player_ap(_ctx) == 6  # 8 - 2 focused AP
             assert _state.player_state["power_pool"] == 18  # 20 - 2 focused power

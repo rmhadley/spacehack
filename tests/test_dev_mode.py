@@ -1,6 +1,7 @@
 """Tests for developer-only playtesting shortcuts."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from pathlib import Path
 import sys
@@ -72,13 +73,17 @@ def test_pygame_faction_picker_maps_select_and_preserves_outcome(monkeypatch):
     """Pygame selection returns the same opaque faction ID and Outcome."""
     from src.spacehack import pygame_menu
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(
+                                                            lambda *args, **kwargs: (
         "SELECT", "lab", 3,
-    ))
+    )
+                                                        ))
 
-    result = dev_mode._run_pygame_faction_pick(
+    result = run(
+                 dev_mode._run_pygame_faction_pick(
         object(), main_quest_faction_menu(),
     )
+             )
 
     assert result == (dev_mode.Outcome.CONFIRM, "lab")
 
@@ -88,28 +93,34 @@ def test_pygame_faction_picker_ignores_guide_like_legacy_picker(monkeypatch):
     from src.spacehack import pygame_menu
 
     outcomes = iter((("GUIDE", "", 0), ("SELECT", "militia", 0)))
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)))
 
-    assert dev_mode._run_pygame_faction_pick(
+    assert run(
+               dev_mode._run_pygame_faction_pick(
         object(), main_quest_faction_menu(),
-    ) == (dev_mode.Outcome.CONFIRM, "militia")
+    )
+           ) == (dev_mode.Outcome.CONFIRM, "militia")
 
 
 def test_pygame_faction_picker_rejects_invalid_action_and_empty_menu(monkeypatch):
     """Invalid worker data and empty menus remain safe fallback cases."""
     from src.spacehack import pygame_menu, ui
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(
+                                                            lambda *args, **kwargs: (
         "SELECT", "not-a-faction", 0,
-    ))
-    assert dev_mode._run_pygame_faction_pick(
+    )
+                                                        ))
+    assert run(
+               dev_mode._run_pygame_faction_pick(
         object(), main_quest_faction_menu(),
-    ) is None
+    )
+           ) is None
 
     empty = ui.MenuScreen(
         title="Empty", instruction="", options=(), descriptions={},
     )
-    assert dev_mode._run_pygame_faction_pick(object(), empty) is None
+    assert run(dev_mode._run_pygame_faction_pick(object(), empty)) is None
 
 
 def test_choose_main_quest_faction_uses_pygame_when_enabled(monkeypatch):
@@ -121,13 +132,15 @@ def test_choose_main_quest_faction_uses_pygame_when_enabled(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda context, frames, **kwargs: seen.update(
+        as_async(
+            lambda context, frames, **kwargs: seen.update(
             context=context, frames=frames,
-        ) or ("SELECT", "bar", 2),
+        ) or ("SELECT", "bar", 2)
+        ),
     )
 
     context = object()
-    assert dev_mode.choose_main_quest_faction(context) == (
+    assert run(dev_mode.choose_main_quest_faction(context)) == (
         dev_mode.Outcome.CONFIRM, "bar",
     )
     assert seen["context"] is context
@@ -138,27 +151,37 @@ def test_pygame_faction_picker_maps_back_quit_and_propagates_failure(monkeypatch
     """Cancel/quit remain distinct, while worker failure is explicit."""
     from src.spacehack import pygame_menu
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(
+                                                            lambda *args, **kwargs: (
         "BACK", "", 0,
-    ))
-    assert dev_mode._run_pygame_faction_pick(
+    )
+                                                        ))
+    assert run(
+               dev_mode._run_pygame_faction_pick(
         object(), main_quest_faction_menu(),
-    ) == (dev_mode.Outcome.BACK, None)
+    )
+           ) == (dev_mode.Outcome.BACK, None)
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: (
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(
+                                                            lambda *args, **kwargs: (
         "QUIT", "", 0,
-    ))
-    assert dev_mode._run_pygame_faction_pick(
+    )
+                                                        ))
+    assert run(
+               dev_mode._run_pygame_faction_pick(
         object(), main_quest_faction_menu(),
-    ) == (dev_mode.Outcome.QUIT, None)
+    )
+           ) == (dev_mode.Outcome.QUIT, None)
 
     def unavailable(*args, **kwargs):
         raise pygame_menu.PygameMenuUnavailable("missing")
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", unavailable)
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(unavailable))
     try:
-        dev_mode._run_pygame_faction_pick(
+        run(
+            dev_mode._run_pygame_faction_pick(
             object(), main_quest_faction_menu(),
+        )
         )
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
@@ -175,10 +198,10 @@ def test_choose_main_quest_faction_delegates_to_picker(monkeypatch):
         _seen.append((context, menu))
         return _expected
 
-    monkeypatch.setattr(dev_mode, "_run_pygame_faction_pick", _fake_pick)
+    monkeypatch.setattr(dev_mode, "_run_pygame_faction_pick", as_async(_fake_pick))
     _context = object()
 
-    assert dev_mode.choose_main_quest_faction(_context) == _expected
+    assert run(dev_mode.choose_main_quest_faction(_context)) == _expected
     assert _seen[0][0] is _context
     assert _seen[0][1].selected_id == "militia"
 
@@ -345,13 +368,13 @@ def test_land_at_city_switches_system_and_enters_city(monkeypatch):
         solar_module.current_solar_system_id,
     )
     state = landing_state()
-    monkeypatch.setattr(game_interactions, "_run_cargo_scan", lambda _ctx, _pid: None)
+    monkeypatch.setattr(game_interactions, "_run_cargo_scan", as_async(lambda _ctx, _pid: None))
     monkeypatch.setattr(
         game_interactions, "_animate_ship_to_y",
-        lambda *_args, **_kw: None,
+        as_async(lambda *_args, **_kw: None),
     )
 
-    result = game_interactions.land_at_city(state, "tc_b")
+    result = run(game_interactions.land_at_city(state, "tc_b"))
 
     assert result == "CONTINUE"
     assert solar_module.current_solar_system_id == "tau_ceti"
@@ -371,7 +394,7 @@ def test_land_at_city_rejects_portless_planet():
         log=SimpleNamespace(add=messages.append),
     )
 
-    result = game_interactions.land_at_city(state, "no_such_city")
+    result = run(game_interactions.land_at_city(state, "no_such_city"))
 
     assert result == "CONTINUE"
     assert messages and "no port" in messages[0]

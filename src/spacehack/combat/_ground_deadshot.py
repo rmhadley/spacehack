@@ -55,7 +55,7 @@ def ap_power_damage_bonus(ctx, weapon_id: str) -> int:
     return max(0, _rules.player_ap(ctx) - 2) * 4
 
 
-def record_player_kill(ctx, weapon_id: str) -> None:
+async def record_player_kill(ctx, weapon_id: str) -> None:
     """Count a Deadshot railgun kill, then resolve the follow-up chain.
 
     Called from :func:`._ground_charger.record_player_kill` after every
@@ -65,7 +65,7 @@ def record_player_kill(ctx, weapon_id: str) -> None:
     if not is_deadshot(ctx, weapon_id) or not hasattr(ctx, "player_counters"):
         return
     ctx.player_counters.railgun_kills += 1
-    _resolve_chain(ctx, weapon_id)
+    await _resolve_chain(ctx, weapon_id)
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +133,7 @@ def _consume_chain_round(ctx, weapon_id: str) -> bool:
     return False
 
 
-def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bool:
+async def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bool:
     """Fire one chain shot at ``target``; return True if it killed.
 
     Rolls a base-stats railgun shot, spends the round's ammo (already
@@ -161,11 +161,11 @@ def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bool:
         return False
     if hasattr(ctx, "player_counters"):
         ctx.player_counters.railgun_kills += 1
-    _rules.on_kill(game_map, target, ctx)
+    await _rules.on_kill(game_map, target, ctx)
     return True
 
 
-def _resolve_chain(ctx, weapon_id: str) -> None:
+async def _resolve_chain(ctx, weapon_id: str) -> None:
     """Fire automatic follow-up shots until the chain breaks.
 
     Each link targets the nearest living enemy in range + LOS, spends
@@ -183,7 +183,7 @@ def _resolve_chain(ctx, weapon_id: str) -> None:
             break
         if not _consume_chain_round(ctx, weapon_id):
             break
-        if not _fire_chain_link(
+        if not await _fire_chain_link(
             ctx, _state.game_map, _state.console, weapon_id, _target,
         ):
             break

@@ -94,7 +94,7 @@ def paint_descent_frame(console, cage_row: int) -> None:
 _SKIP_GRACE_FRAMES = 8
 
 
-def animate_descent(ctx, console, *, frame_seconds: float = animation_timing.DESCENT) -> None:
+async def animate_descent(ctx, console, *, frame_seconds: float = animation_timing.DESCENT) -> None:
     """Play the descent: eased cage travel; any key skips to the end.
 
     Presents through the shared Pygame runtime — the same present +
@@ -114,7 +114,7 @@ def animate_descent(ctx, console, *, frame_seconds: float = animation_timing.DES
             context.present(console)
         if frame_index >= _SKIP_GRACE_FRAMES and _skip_requested(context):
             break
-        _responsive_sleep(frame_seconds)
+        await _responsive_sleep(frame_seconds)
 
 
 def _skip_requested(context) -> bool:

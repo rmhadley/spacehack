@@ -788,7 +788,7 @@ def _entered_column(prev_x: int | None, new_x: int, column_x: int) -> bool:
     return prev_x is not None and new_x == column_x and prev_x != column_x
 
 
-def check_crossing(ctx, pos):
+async def check_crossing(ctx, pos):
     """The movement pass's Line check (runs before the auto-comms
     warning; a hailed step skips that pass).
 
@@ -825,7 +825,7 @@ def check_crossing(ctx, pos):
         service=has_trait(ctx, SERVICE_TRAIT),
         rank_rep=column.rank_rep,
     )
-    return _apply_verdict(ctx, column, system, verdict)
+    return await _apply_verdict(ctx, column, system, verdict)
 
 
 def _latch_converting(ctx, prev_x: int | None, new_x: int, column) -> bool:
@@ -855,12 +855,12 @@ def _checkpoint_address(ctx) -> str:
     return _id if _id else "Unidentified hull"
 
 
-def _line_modal(ctx, column, lines, options, dispatch, esc_label):
+async def _line_modal(ctx, column, lines, options, dispatch, esc_label):
     """One comms-shaped Line modal — the checkpoint's single
     presentation; returns the player's reply. The column's message
     templates carry an ``{id}`` placeholder for the address."""
     from . import comms
-    return comms._pygame_interaction_outcome(
+    return await comms._pygame_interaction_outcome(
         ctx, column.label, None, options,
         contact_entity=None, dispatch=dispatch, title="Hailing",
         esc_label=esc_label,
@@ -870,11 +870,11 @@ def _line_modal(ctx, column, lines, options, dispatch, esc_label):
     )
 
 
-def _wave_through(ctx, column, lines) -> tuple[bool, None]:
+async def _wave_through(ctx, column, lines) -> tuple[bool, None]:
     """A waved crossing: the blockade's all-clear comms (one
     Acknowledge option; ESC counts), then a terse log line.
     ``(False, None)`` — the player is through; GO TO continues."""
-    _line_modal(
+    await _line_modal(
         ctx, column, lines, ("Acknowledge",), _ACK_DISPATCH,
         "ESC acknowledge",
     )
@@ -882,16 +882,16 @@ def _wave_through(ctx, column, lines) -> tuple[bool, None]:
     return (False, None)
 
 
-def _wave_papers(ctx, column, system):
-    return _wave_through(ctx, column, column.manifest_lines or column.hail_lines)
+async def _wave_papers(ctx, column, system):
+    return await _wave_through(ctx, column, column.manifest_lines or column.hail_lines)
 
 
-def _wave_rank(ctx, column, system):
-    return _wave_through(ctx, column, column.rank_lines or column.hail_lines)
+async def _wave_rank(ctx, column, system):
+    return await _wave_through(ctx, column, column.rank_lines or column.hail_lines)
 
 
-def _wave_service(ctx, column, system):
-    _wave_through(ctx, column, column.service_lines or column.hail_lines)
+async def _wave_service(ctx, column, system):
+    await _wave_through(ctx, column, column.service_lines or column.hail_lines)
     if has_trait(ctx, SERVICE_TRAIT):
         ctx.player_traits.remove(SERVICE_TRAIT)
     ctx.log.add("The service-run contract is spent.")
@@ -902,11 +902,11 @@ def _wave_service(ctx, column, system):
 # The checkpoint (one hail shape everywhere — ruling 3)
 # ---------------------------------------------------------------------------
 
-def _run_checkpoint(ctx, column, system):
+async def _run_checkpoint(ctx, column, system):
     """The hail: Comply = turn back, Defy = converge. ESC/window-
     close is Defy — refusing the conversation is an answer too
     (doc-40 precedent)."""
-    outcome = _line_modal(
+    outcome = await _line_modal(
         ctx, column, column.hail_lines, ("Comply", "Defy"),
         _CHECKPOINT_DISPATCH, "ESC defy",
     )
@@ -965,14 +965,14 @@ _HANDLERS = {
 }
 
 
-def _apply_verdict(ctx, column, system, verdict):
+async def _apply_verdict(ctx, column, system, verdict):
     """Dispatch one sweep verdict in ``check_crossing``'s shape."""
     if verdict is SweepVerdict.BLIND:
         return None
-    return _HANDLERS[verdict](ctx, column, system)
+    return await _HANDLERS[verdict](ctx, column, system)
 
 
-def line_dark_hail(ctx, entity):
+async def line_dark_hail(ctx, entity):
     """The in-column dark-spot hail, or None when the spotter is not
     a Line picket (the doc-40 challenge stands there). The Line's
     cruisers are the only hulls of their id, so the spotter names
@@ -985,7 +985,7 @@ def line_dark_hail(ctx, entity):
         or defiance_active(ctx, getattr(system, "id", ""))
     ):
         return None  # a condemned hull is never re-offered Comply
-    return _run_checkpoint(ctx, column, system)
+    return await _run_checkpoint(ctx, column, system)
 
 
 def column_supersedes_warning() -> bool:

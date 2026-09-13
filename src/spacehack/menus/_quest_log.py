@@ -15,14 +15,14 @@ from ..game_context import GameContext
 from ..engine import MSG_LOG_HEIGHT
 from .. import pygame_engine
 
-def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
+async def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
     """Run the Quest Log in the shared Pygame screen."""
     from ..pygame_quest_log import run_for_context
 
     selected = 0
     confirm_abandon = False
     while True:
-        outcome, selected, confirm_abandon = run_for_context(
+        outcome, selected, confirm_abandon = await run_for_context(
             ctx, selected, confirm_abandon,
         )
         if outcome == "ABANDONED":
@@ -31,7 +31,7 @@ def _run_pygame_quest_log(ctx) -> tuple[QuestLogOutcome, int | None] | None:
             return QuestLogOutcome.QUIT, None
         if outcome == "GUIDE":
             from ..help import _open_context_guide
-            _open_context_guide(ctx, "Missions")
+            await _open_context_guide(ctx, "Missions")
             continue
         return QuestLogOutcome.BACK, None
 
@@ -604,14 +604,14 @@ def _quest_log_navigate(
         return (selected + 1) % n
     return None
 
-def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
+async def _run_quest_log(ctx) -> tuple[QuestLogOutcome, int | None]:
     """Show the city quest-log overlay and return the outcome.
 
     Returns ``(outcome, abandoned_index)``: ``abandoned_index`` is
     the index of the abandoned mission (for removal from the list),
     or ``None``.
     """
-    result = _run_pygame_quest_log(ctx)
+    result = await _run_pygame_quest_log(ctx)
     if result is None:
         raise RuntimeError("Quest Log returned no outcome")
     return result

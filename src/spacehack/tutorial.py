@@ -214,10 +214,10 @@ def _active(ctx) -> bool:
     )
 
 
-def _show_step(ctx, step_id: str) -> None:
+async def _show_step(ctx, step_id: str) -> None:
     """Show step's popup (dismiss-only, gate-popup style) and mark done."""
     from .main_quest import show_gate_popup
-    show_gate_popup(
+    await show_gate_popup(
         ctx,
         "TUTORIAL",
         _STEP_BODIES[step_id],
@@ -352,7 +352,7 @@ _TICK_STEPS: tuple[tuple[str, Callable[[Any, str], bool]], ...] = (
 )
 
 
-def tick(ctx, mode: str = "city") -> None:
+async def tick(ctx, mode: str = "city") -> None:
     """Evaluate tutorial step conditions once per game-loop frame.
 
     Fires at most one popup per call and returns immediately when not
@@ -368,7 +368,7 @@ def tick(ctx, mode: str = "city") -> None:
         if _step_id in ctx.tutorial_steps:
             continue
         if _condition(ctx, mode):
-            _show_step(ctx, _step_id)
+            await _show_step(ctx, _step_id)
             if _step_id == "finale":
                 ctx.tutorial_complete = True
                 # Boards visited during the tutorial are marked refreshed
@@ -385,13 +385,13 @@ def tick(ctx, mode: str = "city") -> None:
 # ---------------------------------------------------------------------------
 
 
-def notify_move(ctx) -> None:
+async def notify_move(ctx) -> None:
     """First city move — point the player at the bounty guild."""
     if _active(ctx) and "first_move" not in ctx.tutorial_steps:
-        _show_step(ctx, "first_move")
+        await _show_step(ctx, "first_move")
 
 
-def notify_pickup(ctx) -> None:
+async def notify_pickup(ctx) -> None:
     """Space loot was cleared by pickup — teach jumping next.
 
     Fires only once the space map holds no loot (the player actually
@@ -403,22 +403,22 @@ def notify_pickup(ctx) -> None:
         and "space_combat_intro" in ctx.tutorial_steps
         and not _any_loot(ctx)
     ):
-        _show_step(ctx, "picked_up_loot")
+        await _show_step(ctx, "picked_up_loot")
 
 
-def maybe_space_combat_intro(ctx) -> None:
+async def maybe_space_combat_intro(ctx) -> None:
     """First space combat — fired before the combat UI takes over."""
     if _active(ctx) and "space_combat_intro" not in ctx.tutorial_steps:
-        _show_step(ctx, "space_combat_intro")
+        await _show_step(ctx, "space_combat_intro")
 
 
-def maybe_ground_combat_intro(ctx) -> None:
+async def maybe_ground_combat_intro(ctx) -> None:
     """First ground combat — fired before the combat UI takes over."""
     if _active(ctx) and "mars_ground_combat_intro" not in ctx.tutorial_steps:
-        _show_step(ctx, "mars_ground_combat_intro")
+        await _show_step(ctx, "mars_ground_combat_intro")
 
 
-def notify_ground_combat_ended(ctx) -> None:
+async def notify_ground_combat_ended(ctx) -> None:
     """First ground combat resolved — guarantee a level-up, then teach
     the character screen (C + skill points).
 
@@ -430,11 +430,11 @@ def notify_ground_combat_ended(ctx) -> None:
         and "level_up" not in ctx.tutorial_steps
         and "mars_ground_combat_intro" in ctx.tutorial_steps
     ):
-        _ensure_level_up(ctx)
-        _show_step(ctx, "level_up")
+        await _ensure_level_up(ctx)
+        await _show_step(ctx, "level_up")
 
 
-def _ensure_level_up(ctx) -> None:
+async def _ensure_level_up(ctx) -> None:
     """Guarantee the player reaches level 2 after the first ground combat.
 
     Level 2 needs 90 XP; a single Mars cave fight may not reach it, so
@@ -445,4 +445,4 @@ def _ensure_level_up(ctx) -> None:
     from .xp import add_xp, xp_for_level
     _needed = xp_for_level(2) - getattr(ctx, "player_xp", 0)
     if _needed > 0:
-        add_xp(ctx, _needed)
+        await add_xp(ctx, _needed)

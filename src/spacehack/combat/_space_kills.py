@@ -29,7 +29,7 @@ def pop_dead_entity(
     return _dead_ent
 
 
-def _animate_kill_explosion(
+async def _animate_kill_explosion(
     state: SpaceCombatState, ctx, game_map: world.GameMap,
     enemy: EnemyInstance,
 ) -> None:
@@ -43,7 +43,7 @@ def _animate_kill_explosion(
         state.player_state.get("cells_moved_this_turn", 0),
         int(state.player_state.get("piloting", 0) * 0.5),
     )
-    _animate_explosion(
+    await _animate_explosion(
         state.console, ctx, game_map,
         enemy.pos,
         cam_x=_cam_x, cam_y=_cam_y,
@@ -120,7 +120,7 @@ def mark_static_spawn_defeated(ctx, dead_ent: Any) -> None:
         _ledger.add(_key)
 
 
-def _record_defeat(cr, ctx, dead_ent: Any) -> None:
+async def _record_defeat(cr, ctx, dead_ent: Any) -> None:
     """Append the kill to the encounter result and drop the spawn."""
     if dead_ent is not None:
         _bid = getattr(dead_ent, 'bounty_spawn_id', None)
@@ -140,7 +140,7 @@ def _record_defeat(cr, ctx, dead_ent: Any) -> None:
     mark_static_spawn_defeated(ctx, dead_ent)
 
 
-def record_kill_pass(cr, ctx, spec, name: str, spec_id: str,
+async def record_kill_pass(cr, ctx, spec, name: str, spec_id: str,
                      dead_ent: Any) -> None:
     """The shared kill-core: XP, counters, defeat record (doc 40 6d).
 
@@ -154,14 +154,14 @@ def record_kill_pass(cr, ctx, spec, name: str, spec_id: str,
     if spec is not None:
         try:
             _sc = _find_ship_cat(spec.ship_id)
-            _add_xp(ctx, _sc.base_hull * 2)
+            await _add_xp(ctx, _sc.base_hull * 2)
         except (KeyError, ImportError):
             pass
     if hasattr(ctx, 'player_counters'):
         ctx.player_counters.total_kills += 1
     cr.defeated_names.append(name)
     cr.defeated_spec_ids.append(spec_id)
-    _record_defeat(cr, ctx, dead_ent)
+    await _record_defeat(cr, ctx, dead_ent)
 
 
 def heist_cargo_mission(ctx, dead_ent: Any):
@@ -184,7 +184,7 @@ def heist_cargo_mission(ctx, dead_ent: Any):
     return None
 
 
-def _finalize_kill(
+async def _finalize_kill(
     state: SpaceCombatState, ctx, game_map: world.GameMap,
     enemy: EnemyInstance, dead_ent: Any,
 ) -> None:
@@ -199,15 +199,15 @@ def _finalize_kill(
         _spawn_loot_drops(game_map, enemy.pos, _correct_spec)
         from .. import loot as _loot
         _loot.maybe_spawn_pad(ctx, game_map, enemy.pos, _correct_spec.id)
-    record_kill_pass(state.cr, ctx, _correct_spec, enemy.name,
+    await record_kill_pass(state.cr, ctx, _correct_spec, enemy.name,
                      enemy.spec_id, dead_ent)
 
 
-def on_kill(
+async def on_kill(
     state: SpaceCombatState, game_map: world.GameMap,
     enemy: EnemyInstance, ctx,
 ) -> None:
     _dead_ent = pop_dead_entity(state, game_map, enemy)
-    _animate_kill_explosion(state, ctx, game_map, enemy)
+    await _animate_kill_explosion(state, ctx, game_map, enemy)
     _spawn_heist_loot(state, ctx, game_map, enemy, _dead_ent)
-    _finalize_kill(state, ctx, game_map, enemy, _dead_ent)
+    await _finalize_kill(state, ctx, game_map, enemy, _dead_ent)

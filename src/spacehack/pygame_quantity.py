@@ -76,7 +76,7 @@ def _draw_quantity(
     )
 
 
-def run_shared(
+async def run_shared(
     context: PygameContext,
     ctx: Any,
     label: str,
@@ -98,22 +98,25 @@ def run_shared(
         )
         pygame_ui.draw_context_log(pygame, screen, context)
         engine.present()
-        event = pygame.event.wait()
-        outcome, quantity = _handle_key(pygame, event, quantity, maximum)
-        if outcome == "IGNORE":
+        for event in pygame.event.get():
+            outcome, quantity = _handle_key(pygame, event, quantity, maximum)
+            if outcome == "IGNORE":
+                continue
+            if outcome == "CONFIRM":
+                return quantity
+            if outcome == "QUIT":
+                raise PygameQuantityQuit("Quantity window closed")
+            if outcome == "GUIDE":
+                from .help import _run_help_guide
+                await _run_help_guide(ctx)
+                break
+            return None
+        else:
+            await context.pump(0.016)
             continue
-        if outcome == "CONFIRM":
-            return quantity
-        if outcome == "QUIT":
-            raise PygameQuantityQuit("Quantity window closed")
-        if outcome == "GUIDE":
-            from .help import _run_help_guide
-            _run_help_guide(ctx)
-            continue
-        return None
 
 
-def run_for_context(
+async def run_for_context(
     context: PygameContext,
     ctx: Any,
     label: str,
@@ -127,6 +130,6 @@ def run_for_context(
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameQuantityUnavailable("Shared Pygame runtime is not open")
-    return run_shared(context, ctx, label, maximum, price)
+    return await run_shared(context, ctx, label, maximum, price)
 
 

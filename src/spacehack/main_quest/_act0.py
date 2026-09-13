@@ -69,7 +69,7 @@ def _signal_door_frames(width: int) -> tuple[str, ...]:
 # Signal trigger
 # ---------------------------------------------------------------------------
 
-def maybe_trigger_signal(ctx, system_id: str) -> bool:
+async def maybe_trigger_signal(ctx, system_id: str) -> bool:
     """Fire the prologue signal on the first jump out of Sol."""
     if system_id != _SIGNAL_SYSTEM_ID:
         return False
@@ -81,7 +81,7 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
         message_log.COLOR_IMPORTANT_EVENT,
     )
     ctx.log.add(t_get("runtime.signal_log_coordinates"))
-    complete_step(ctx, "prologue_signal")
+    await complete_step(ctx, "prologue_signal")
     return True
 
 # ---------------------------------------------------------------------------
@@ -93,10 +93,10 @@ def maybe_trigger_signal(ctx, system_id: str) -> bool:
 # Mars surface + sealed door
 # ---------------------------------------------------------------------------
 
-def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) -> None:
+async def prepare_mars_surface(ctx, game_map: world.GameMap, spawn: world.Position) -> None:
     """Stamp the Mars signal landmark into the fresh surface dungeon."""
     if step_status(ctx, "prologue_mars_unlocked") == STATUS_AVAILABLE:
-        complete_step(ctx, "prologue_mars_unlocked")
+        await complete_step(ctx, "prologue_mars_unlocked")
     if step_status(ctx, "prologue_mars_entrance") == STATUS_AVAILABLE:
         start_step(ctx, "prologue_mars_entrance")
     if step_status(ctx, "prologue_open") != STATUS_COMPLETED:
@@ -256,7 +256,7 @@ def _open_signal_door_tiles(
         game_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
         game_map.extension_entry_id = "mars_alien_prison"
 
-def animate_signal_door_opening(
+async def animate_signal_door_opening(
     ctx,
     console,
     game_map: world.GameMap,
@@ -270,7 +270,7 @@ def animate_signal_door_opening(
     from ..navigation import _responsive_sleep
     for _frame in _signal_door_frames(len(_barrier)):
         _render_signal_door_frame(ctx, console, game_map, player_pos, _barrier, _frame)
-        _responsive_sleep(animation_timing.SIGNAL_WAVE)
+        await _responsive_sleep(animation_timing.SIGNAL_WAVE)
     _open_signal_door_tiles(game_map, _barrier, _stairs)
     _render_signal_door_frame(
         ctx,
@@ -280,7 +280,7 @@ def animate_signal_door_opening(
         _barrier,
         " " * len(_barrier),
     )
-    _responsive_sleep(animation_timing.SIGNAL_SETTLE)
+    await _responsive_sleep(animation_timing.SIGNAL_SETTLE)
     return True
 
 def start_prison_objective(ctx) -> None:
@@ -327,50 +327,50 @@ def _spawn_door_ambush(ctx, *, count: int = 3) -> bool:
         enemy_id="pirate_raider", count=count, label="door_ambush",
     ) > 0
 
-def _chip_bump_objective(ctx, bumped_step: str) -> None:
+async def _chip_bump_objective(ctx, bumped_step: str) -> None:
     """Show the quest readout modal for a chipped bump objective."""
     from ._objectives import show_step_readout as _ssr
-    _ssr(ctx, find_main_quest_step(bumped_step))
+    await _ssr(ctx, find_main_quest_step(bumped_step))
     # The lab sample draws attention: pirates watching the dig
     # spring an ambush in the door's room the moment it's chipped.
     if bumped_step == "lab_q1_sample" and _spawn_door_ambush(ctx):
-        show_gate_popup(
+        await show_gate_popup(
             ctx, t_get("runtime.door_ambush_faction"),
             t_get("runtime.door_ambush_body"),
             title=t_get("runtime.door_ambush_title"),
         )
 
 
-def _play_sealed_door_open(ctx) -> None:
+async def _play_sealed_door_open(ctx) -> None:
     """Play the door-opening scene: animate the doors, then the overlay."""
-    animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
-    show_sealed_door_overlay(ctx, "open")
+    await animate_signal_door_opening(ctx, make_console(), ctx.game_map, ctx.player.pos)
+    await show_sealed_door_overlay(ctx, "open")
 
 
-def bump_mars_door(ctx) -> None:
+async def bump_mars_door(ctx) -> None:
     """Handle bumping the sealed alien door on Mars."""
-    _bumped_step = _complete_bump_objective(ctx)
+    _bumped_step = await _complete_bump_objective(ctx)
     if _bumped_step:
-        _chip_bump_objective(ctx, _bumped_step)
+        await _chip_bump_objective(ctx, _bumped_step)
         return
     _open_status = step_status(ctx, "prologue_open")
     if _open_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
-        complete_step(ctx, "prologue_open")
+        await complete_step(ctx, "prologue_open")
         ctx.log.add_colored(
             t_get("runtime.door_open_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
         ctx.log.add(t_get("runtime.door_open_log2"))
-        play_scene(ctx, "prologue_open")
+        await play_scene(ctx, "prologue_open")
         return
     _entrance_status = step_status(ctx, "prologue_mars_entrance")
     if _entrance_status in (STATUS_AVAILABLE, STATUS_ACTIVE):
-        complete_step(ctx, "prologue_mars_entrance")
+        await complete_step(ctx, "prologue_mars_entrance")
         ctx.log.add_colored(
             t_get("runtime.door_discover_log"),
             message_log.COLOR_IMPORTANT_EVENT,
         )
-        play_scene(ctx, "prologue_mars_entrance")
+        await play_scene(ctx, "prologue_mars_entrance")
         return
     if step_status(ctx, "prologue_open") == STATUS_COMPLETED:
         ctx.log.add(t_get("runtime.door_gapes_log"))
@@ -527,8 +527,8 @@ _SIGNAL_ART_COLORS: tuple[tuple[int, int, int], ...] = (
     *(_SIGNAL_TRACE_FG for _ in _SIGNAL_STATIC),
 )
 
-def show_prologue_transmission(ctx) -> None:
-    _show_pygame_dismiss(
+async def show_prologue_transmission(ctx) -> None:
+    await _show_pygame_dismiss(
         ctx,
         title=t_get("runtime.transmission_title"),
         body=t_get("runtime.transmission_body"),
@@ -542,9 +542,9 @@ def show_prologue_transmission(ctx) -> None:
 # Quest summon overlay
 # ---------------------------------------------------------------------------
 
-def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
+async def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
     _body = message if not objective else f"{message}\n\n{objective}"
-    _show_pygame_dismiss(
+    await _show_pygame_dismiss(
         ctx,
         title=t_get("runtime.summon_title"),
         body=_body,
@@ -555,11 +555,11 @@ def show_quest_summon(ctx, message: str, *, objective: str = "") -> None:
 # Gate popup (time-gate explanation)
 # ---------------------------------------------------------------------------
 
-def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "") -> None:
+async def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "") -> None:
     """Show a dismiss-only modal popup (time-gate explanation, ambush, etc.)."""
     if not title:
         title = t_get("runtime.gate_popup_default_title")
-    _show_pygame_dismiss(
+    await _show_pygame_dismiss(
         ctx,
         title=title,
         body=f"FACTION: {faction.upper()}\n\n{body_text}",
@@ -570,7 +570,7 @@ def show_gate_popup(ctx, faction: str, body_text: str, *, title: str = "") -> No
 # Chain continuation (after dialogue trigger)
 # ---------------------------------------------------------------------------
 
-def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
+async def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
     """After trigger_dialogue completes step_id, handle follow-up popups."""
     from ._dialogue import trigger_dialogue
     _step = find_main_quest_step(step_id)
@@ -583,18 +583,18 @@ def maybe_continue_chain(ctx, npc_id: str, step_id: str) -> None:
                 and step_status(ctx, _q1.id) == STATUS_AVAILABLE \
                 and _q1.objective_type == "talk" \
                 and npc_id in _q1.dialogues:
-            _offer = show_help_offer(ctx, npc_id, _q1.id)
+            _offer = await show_help_offer(ctx, npc_id, _q1.id)
             if _offer is OfferOutcome.QUIT:
                 return
             if _offer is OfferOutcome.ACCEPT:
-                trigger_dialogue(ctx, npc_id, _q1.id)
+                await trigger_dialogue(ctx, npc_id, _q1.id)
                 _step = find_main_quest_step(_q1.id)
             else:
                 return
     if (_step.wait_days > 0 and _step.completion_flavor
             and step_status(ctx, _step.id) == STATUS_COMPLETED):
         _fac = (_step.chain or "faction").capitalize()
-        show_gate_popup(ctx, _fac, _step.completion_flavor)
+        await show_gate_popup(ctx, _fac, _step.completion_flavor)
 
 # ---------------------------------------------------------------------------
 # Sealed door overlay
@@ -645,10 +645,10 @@ _DOOR_ART: dict[str, tuple[str, ...]] = {
     "open": _DOOR_ART_OPEN,
 }
 
-def show_sealed_door_overlay(ctx, beat: str) -> None:
+async def show_sealed_door_overlay(ctx, beat: str) -> None:
     _title = t_get(f"runtime.door_{beat}_title")
     _art = _DOOR_ART[beat]
-    _show_pygame_dismiss(
+    await _show_pygame_dismiss(
         ctx,
         title=_title,
         body=t_get(f"runtime.door_{beat}_body")
@@ -668,7 +668,7 @@ def show_sealed_door_overlay(ctx, beat: str) -> None:
 # Help-offer modal
 # ---------------------------------------------------------------------------
 
-def _show_pygame_dismiss(
+async def _show_pygame_dismiss(
     ctx,
     *,
     title: str,
@@ -682,7 +682,7 @@ def _show_pygame_dismiss(
     from ..pygame_story import dismiss
 
     while True:
-        outcome = dismiss(
+        outcome = await dismiss(
             ctx,
             title=title,
             body=body,
@@ -697,11 +697,11 @@ def _show_pygame_dismiss(
             raise SystemExit
         return True
 
-def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
+async def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
     """Map the Pygame help offer back to quest outcomes."""
     from ..pygame_story import choose
 
-    _action = choose(
+    _action = await choose(
         ctx,
         title="AN OFFER OF HELP",
         body=f"OFFERED BY: {npc_name.upper()}\n\n{offer_text}",
@@ -714,7 +714,7 @@ def _run_pygame_help_offer(ctx, npc_name: str, offer_text: str) -> OfferOutcome:
         return OfferOutcome.QUIT
     return OfferOutcome.DECLINE
 
-def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
+async def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
     _step = find_main_quest_step(step_id)
     _dialogue = _step.dialogues.get(npc_id)
     if _dialogue is None:
@@ -725,14 +725,14 @@ def show_help_offer(ctx, npc_id: str, step_id: str) -> OfferOutcome:
         return OfferOutcome.DECLINE
     from ..data.npcs import find_npc as _find_npc
     _npc_name = _find_npc(npc_id).name
-    return _run_pygame_help_offer(ctx, _npc_name, _offer_text)
+    return await _run_pygame_help_offer(ctx, _npc_name, _offer_text)
 
 # ---------------------------------------------------------------------------
 # Quest readout overlay
 # ---------------------------------------------------------------------------
 
-def show_quest_readout(ctx, npc, body_text: str) -> None:
-    _show_pygame_dismiss(
+async def show_quest_readout(ctx, npc, body_text: str) -> None:
+    await _show_pygame_dismiss(
         ctx,
         title=npc.name.upper(),
         body=body_text,

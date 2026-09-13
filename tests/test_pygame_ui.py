@@ -1,6 +1,7 @@
 """Tests for the Pygame presentation and shared-runtime seam."""
 
 from __future__ import annotations
+from tests.support.asyncutil import run, as_async
 
 from types import SimpleNamespace
 
@@ -47,10 +48,12 @@ def test_character_screen_shift_tab_moves_to_previous_tab():
     from src.spacehack.character_screen import _advance_character_screen
 
     ctx = SimpleNamespace()
-    assert _advance_character_screen(
+    assert run(
+               _advance_character_screen(
         ctx, "SHIFT_TAB", "", 0, 0, 0,
         equipment_management=False, in_ground_combat=False,
-    ) == (2, 0, 0, False)
+    )
+           ) == (2, 0, 0, False)
 
 
 def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):
@@ -59,12 +62,12 @@ def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):
     calls = []
     monkeypatch.setattr(
         "src.spacehack.character_screen.open_character_screen",
-        lambda ctx, **kwargs: calls.append((ctx, kwargs)) or 0,
+        as_async(lambda ctx, **kwargs: calls.append((ctx, kwargs)) or 0),
     )
     ctx = SimpleNamespace()
 
     for mode in ("city", "space", "dungeon"):
-        assert game_main._open_character_for_mode(ctx) == 0
+        assert run(game_main._open_character_for_mode(ctx)) == 0
 
     assert [kwargs for _ctx, kwargs in calls] == [
         {"equipment_management": True},
@@ -108,10 +111,10 @@ def test_character_equipment_backpack_discard_removes_selected_item(monkeypatch)
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *_args, **_kwargs: "PACK_DISCARD:0",
+        as_async(lambda *_args, **_kwargs: "PACK_DISCARD:0"),
     )
 
-    assert character_screen._manage_pack_item(ctx, "PACK_ITEM:0") == "DISCARD"
+    assert run(character_screen._manage_pack_item(ctx, "PACK_ITEM:0")) == "DISCARD"
     assert ctx.ground_expedition_inventory == []
     assert messages == ["Discarded Laser Rifle."]
 
@@ -135,9 +138,9 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
         choices.append(kwargs)
         return "PACK_EQUIP:0" if kwargs["title"] == "BACKPACK ITEM" else "__BACK__"
 
-    monkeypatch.setattr(pygame_story, "choose", choose)
+    monkeypatch.setattr(pygame_story, "choose", as_async(choose))
 
-    assert character_screen._manage_pack_item(ctx, "PACK_ITEM:0") == "EQUIP"
+    assert run(character_screen._manage_pack_item(ctx, "PACK_ITEM:0")) == "EQUIP"
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_expedition_inventory[0].item_id == "laser_pistol"
     assert choices[0]["options"] == (
@@ -162,12 +165,14 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__",
+        as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
     )
 
-    assert character_screen._manage_pack_item(
+    assert run(
+               character_screen._manage_pack_item(
         ctx, "PACK_ITEM:0", swap_allowed=False,
-    ) is None
+    )
+           ) is None
     assert captured["options"] == (
         ("Equip (requires 1 AP)", "PACK_EQUIP:0"),
         ("Discard", "PACK_DISCARD:0"),
@@ -188,10 +193,10 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
         log=SimpleNamespace(add=lambda _message: None),
     )
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "RELOAD_SLOT:1",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "RELOAD_SLOT:1"),
     )
 
-    assert reload_exploration(ctx) is True
+    assert run(reload_exploration(ctx)) is True
     assert ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 2),
         GroundWeaponInstance("kinetic_pistol", 12),
@@ -207,7 +212,7 @@ def test_character_equipment_ammo_stack_reloads_matching_weapon():
         log=SimpleNamespace(add=lambda _message: None),
     )
 
-    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)
+    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False))
 
     assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
@@ -227,9 +232,9 @@ def test_character_weapon_row_offers_reload_before_pack_swap(monkeypatch):
         captured.update(kwargs)
         return "RELOAD_SLOT:0"
 
-    monkeypatch.setattr(pygame_story, "choose", _choose)
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
 
-    assert character_screen._swap_from_pack(ctx, "SWAP:weapon:0") is True
+    assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:0")) is True
     assert captured["options"][0] == ("Reload", "RELOAD_SLOT:0")
     assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
@@ -251,9 +256,9 @@ def test_character_ammo_reload_chooses_between_dual_wielded_weapons(monkeypatch)
         captured.update(kwargs)
         return "RELOAD_SLOT:1"
 
-    monkeypatch.setattr(pygame_story, "choose", _choose)
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
 
-    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False) is True
+    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)) is True
     assert captured["title"] == "RELOAD WEAPON"
     assert ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 2),
@@ -273,10 +278,10 @@ def test_character_ammo_reload_cancel_preserves_dual_wielded_weapons(monkeypatch
         log=SimpleNamespace(add=lambda _message: None),
     )
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "__BACK__",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "__BACK__"),
     )
 
-    assert character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False) is False
+    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)) is False
     assert ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 2),
         GroundWeaponInstance("kinetic_pistol", 11),
@@ -299,7 +304,7 @@ def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
     monkeypatch.setattr(
         character_screen,
         "_swap_from_pack",
-        lambda *_args, **_kwargs: True,
+        as_async(lambda *_args, **_kwargs: True),
     )
     outcomes = iter((
         ("TAB", "", 0),
@@ -308,12 +313,14 @@ def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda *_args, **_kwargs: next(outcomes),
+        as_async(lambda *_args, **_kwargs: next(outcomes)),
     )
 
-    assert character_screen._run_pygame_character_screen(
+    assert run(
+               character_screen._run_pygame_character_screen(
         ctx, equipment_management=True, in_ground_combat=True,
-    ) == 1
+    )
+           ) == 1
 
 
 def test_combat_character_action_charges_only_reported_swaps(monkeypatch):
@@ -333,10 +340,10 @@ def test_combat_character_action_charges_only_reported_swaps(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.character_screen.open_character_screen",
-        lambda *_args, **_kwargs: 1,
+        as_async(lambda *_args, **_kwargs: 1),
     )
 
-    assert _loop._handle_character_action(ctx, rules) == 1
+    assert run(_loop._handle_character_action(ctx, rules)) == 1
     assert ("ap", 2) in calls
     assert "refresh" in calls
 
@@ -354,10 +361,10 @@ def test_combat_character_action_is_free_when_screen_reports_cancel(monkeypatch)
     monkeypatch.setattr(_loop, "_rules_ground", rules)
     monkeypatch.setattr(
         "src.spacehack.character_screen.open_character_screen",
-        lambda *_args, **_kwargs: 0,
+        as_async(lambda *_args, **_kwargs: 0),
     )
 
-    assert _loop._handle_character_action(ctx, rules) == 0
+    assert run(_loop._handle_character_action(ctx, rules)) == 0
     assert not any(item[0] == "ap" for item in calls if isinstance(item, tuple))
 
 
@@ -368,7 +375,7 @@ def test_combat_character_action_is_unavailable_for_space_rules():
     ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
     rules = SimpleNamespace()
 
-    assert _loop._handle_character_action(ctx, rules) == 0
+    assert run(_loop._handle_character_action(ctx, rules)) == 0
     assert messages == ["The character screen is unavailable here."]
 
 
@@ -429,14 +436,14 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
     opened = []
     monkeypatch.setattr(
         "src.spacehack.console_log.open_console_log",
-        lambda ctx: opened.append(ctx) or "BACK",
+        as_async(lambda ctx: opened.append(ctx) or "BACK"),
     )
     monkeypatch.setattr(_loop, "_present", lambda ctx, console: None)
     actions = iter(("HISTORY", "QUIT"))  # QUIT ends the loop under test
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console, rules=None: next(actions),
+        as_async(lambda ctx, console, rules=None: next(actions)),
     )
 
     ctx = SimpleNamespace(
@@ -444,7 +451,7 @@ def test_combat_history_opens_console_log_and_resumes(monkeypatch):
     )
     import pytest
     with pytest.raises(SystemExit):
-        _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
+        run(_loop._run_combat_impl(None, ctx, object(), _combat_history_rules()))
 
     assert opened == [ctx]  # the log opened once, then the fight resumed
 
@@ -458,7 +465,7 @@ def test_combat_window_close_quits_game(monkeypatch):
     monkeypatch.setattr(
         _loop,
         "_combat_action",
-        lambda ctx, console, rules=None: next(actions),
+        as_async(lambda ctx, console, rules=None: next(actions)),
     )
 
     ctx = SimpleNamespace(
@@ -466,7 +473,7 @@ def test_combat_window_close_quits_game(monkeypatch):
     )
     import pytest
     with pytest.raises(SystemExit):
-        _loop._run_combat_impl(None, ctx, object(), _combat_history_rules())
+        run(_loop._run_combat_impl(None, ctx, object(), _combat_history_rules()))
 
 
 def test_combat_action_ignores_triggering_key_release_before_next_action(monkeypatch):
@@ -477,7 +484,7 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
     shared_ctx = SimpleNamespace(
         context=SimpleNamespace(
             _runtime=SimpleNamespace(engine=object()),
-            wait_events=lambda: next(waits),
+            wait_events=as_async(lambda: next(waits)),
         ),
     )
     monkeypatch.setattr(
@@ -486,20 +493,20 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
         lambda _context: True,
     )
 
-    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "WAIT", \
+    assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == "WAIT", \
         "no rules: the action still resolves"
 
     unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     waits = iter(((unknown_key,), (key_down,)))
-    monkeypatch.setattr(shared_ctx.context, "wait_events", lambda: next(waits))
-    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == ""
+    monkeypatch.setattr(shared_ctx.context, "wait_events", as_async(lambda: next(waits)))
+    assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == ""
 
     monkeypatch.setattr(
         shared_ctx.context,
         "wait_events",
-        lambda: (pygame_engine.PygameInputEvent(kind="quit"),),
+        as_async(lambda: (pygame_engine.PygameInputEvent(kind="quit"),)),
     )
-    assert _loop._combat_action(shared_ctx, SimpleNamespace()) == "QUIT"
+    assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == "QUIT"
 
 
 
@@ -652,9 +659,9 @@ def test_render_death_screen_presents_full_screen_and_waits_for_key(monkeypatch)
     )
     key_down = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     ctx = SimpleNamespace(
-        context=SimpleNamespace(wait_events=lambda: (key_down,)),
+        context=SimpleNamespace(wait_events=as_async(lambda: (key_down,))),
     )
-    _encounter._render_death_screen(ctx)
+    run(_encounter._render_death_screen(ctx))
 
     assert calls == [(ctx, ())]
 
@@ -682,21 +689,21 @@ def test_ground_defeat_shows_full_screen_death_frame(monkeypatch):
     monkeypatch.setattr(game_main, "_ground_init", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         game_main, "_run_combat_unified",
-        lambda *args: CombatResult(outcome="DEFEAT"),
+        as_async(lambda *args: CombatResult(outcome="DEFEAT")),
     )
     monkeypatch.setattr(game_main, "_apply_ground_combat_rep", lambda *args: None)
     monkeypatch.setattr(
-        game_main.tutorial_module, "maybe_ground_combat_intro", lambda *args: None,
+        game_main.tutorial_module, "maybe_ground_combat_intro", as_async(lambda *args: None),
     )
     monkeypatch.setattr(
-        game_main.tutorial_module, "notify_ground_combat_ended", lambda *args: None,
+        game_main.tutorial_module, "notify_ground_combat_ended", as_async(lambda *args: None),
     )
     monkeypatch.setattr(
         _encounter, "_render_death_screen",
-        lambda ctx, **kwargs: shown.append((ctx, kwargs)),
+        as_async(lambda ctx, **kwargs: shown.append((ctx, kwargs))),
     )
 
-    result = game_main._run_ground_combat_tick(ctx, console, game_map)
+    result = run(game_main._run_ground_combat_tick(ctx, console, game_map))
 
     assert result.outcome == "DEFEAT"
     assert shown and shown[0][0] is ctx
@@ -923,9 +930,9 @@ def test_goto_menu_pygame_maps_destination_index(monkeypatch):
         captured["frames"] = frames
         return ("SELECT", "DEST:1", 1)
 
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda _context, frames, **kwargs: fake_run(frames, **kwargs))
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(lambda _context, frames, **kwargs: fake_run(frames, **kwargs)))
 
-    assert navigation._run_pygame_goto_menu(SimpleNamespace(context=object()), destinations) == (True, 1)
+    assert run(navigation._run_pygame_goto_menu(SimpleNamespace(context=object()), destinations)) == (True, 1)
     assert captured["frames"][1].items[1].action == "DEST:1"
     assert captured["frames"][1].items[1].description == "A stable gate."
 
@@ -936,12 +943,14 @@ def test_goto_menu_pygame_back_is_handled_as_cancel(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("BACK", "", 0),
+        as_async(lambda *args, **kwargs: ("BACK", "", 0)),
     )
 
-    assert navigation._run_pygame_goto_menu(
+    assert run(
+               navigation._run_pygame_goto_menu(
         SimpleNamespace(context=object()), [("Mars", SimpleNamespace(name="Mars"))],
-    ) == (True, None)
+    )
+           ) == (True, None)
 
 
 def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
@@ -950,14 +959,18 @@ def test_goto_menu_pygame_unavailable_is_explicit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
+        as_async(
+            lambda *args, **kwargs: (_ for _ in ()).throw(
             pygame_menu.PygameMenuUnavailable("missing")
+        )
         ),
     )
 
     try:
-        navigation._run_pygame_goto_menu(
+        run(
+            navigation._run_pygame_goto_menu(
             SimpleNamespace(context=object()), [("Mars", SimpleNamespace(name="Mars"))],
+        )
         )
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
@@ -972,7 +985,7 @@ def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda _context, frames, **kwargs: ("SELECT", "JUMP", 0),
+        as_async(lambda _context, frames, **kwargs: ("SELECT", "JUMP", 0)),
     )
     monkeypatch.setattr(
         navigation_travel.solar_systems_module,
@@ -980,9 +993,11 @@ def test_jump_menu_pygame_maps_opaque_action(monkeypatch):
         lambda _system_id: SimpleNamespace(name="Sirius"),
     )
 
-    assert navigation._run_pygame_jump_menu(
+    assert run(
+               navigation._run_pygame_jump_menu(
         SimpleNamespace(context=object()), jump, "sirius", 20, 30,
-    ) is navigation.JumpMenuOutcome.JUMP
+    )
+           ) is navigation.JumpMenuOutcome.JUMP
 
 
 def test_npc_trade_frame_uses_opaque_buy_and_sell_actions():
@@ -1166,7 +1181,7 @@ def test_loot_parent_apply_removes_entity_and_grants_inventory():
     )
     good = SimpleNamespace(name="Food")
 
-    loot._apply_loot_pickup(ctx, entity, owned, False, [], "food", 2, good)
+    run(loot._apply_loot_pickup(ctx, entity, owned, False, [], "food", 2, good))
 
     assert owned.inventory == {"food": 2}
     assert entity not in ctx.game_map.entities
@@ -1273,15 +1288,17 @@ def test_pygame_comms_preserves_distress_beacon_line_breaks(monkeypatch):
         captured["frame"] = frames[0]
         return "BACK", "", 0
 
-    monkeypatch.setattr(menu, "run_for_context", fake_run)
+    monkeypatch.setattr(menu, "run_for_context", as_async(fake_run))
     monkeypatch.setattr(comms, "_INTERACTION_DISPATCH", {})
 
-    result = comms._pygame_interaction_outcome(
+    result = run(
+                 comms._pygame_interaction_outcome(
         SimpleNamespace(context=object()),
         "Derelict Scout",
         contact_spec,
         ["End Transmission"],
     )
+             )
 
     assert result is comms._InteractionOutcome.BACK
     assert captured["frame"].body == (
@@ -1314,15 +1331,17 @@ def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
     monkeypatch.setattr(
         comms,
         "_run_interaction_modal",
-        lambda _ctx, _console, name, spec, ent: hailed.update(
+        as_async(
+            lambda _ctx, _console, name, spec, ent: hailed.update(
             name=name, spec=spec, ent=ent,
+        )
         ),
     )
 
     # A selected contact tuple (unhashable entity inside) must NOT crash
     # the sentinel check — it proceeds to hail the contact.
-    monkeypatch.setattr(comms, "_pygame_contact_result", lambda _ctx, _contacts: contact)
-    assert comms.open_comms(ctx, SimpleNamespace(x=0, y=0)) is None
+    monkeypatch.setattr(comms, "_pygame_contact_result", as_async(lambda _ctx, _contacts: contact))
+    assert run(comms.open_comms(ctx, SimpleNamespace(x=0, y=0))) is None
     assert hailed["ent"] is entity
 
     # Every sentinel short-circuits without invoking the interaction modal.
@@ -1330,9 +1349,9 @@ def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
         monkeypatch.setattr(
             comms,
             "_pygame_contact_result",
-            lambda _ctx, _contacts, _s=sentinel: _s,
+            as_async(lambda _ctx, _contacts, _s=sentinel: _s),
         )
-        assert comms.open_comms(ctx, SimpleNamespace(x=0, y=0)) is None
+        assert run(comms.open_comms(ctx, SimpleNamespace(x=0, y=0))) is None
         assert hailed == {
             "name": "Pirate Scout", "spec": contact[1], "ent": entity,
         }
@@ -1407,54 +1426,60 @@ def test_ship_buy_pygame_maps_buy_expensive_and_guide(monkeypatch):
         captured["frame"] = frame
         return next(outcomes)
 
-    monkeypatch.setattr(pygame_screen, "run_for_context", fake_run)
-    monkeypatch.setattr("src.spacehack.help._open_context_guide", lambda _ctx, _topic: None)
+    monkeypatch.setattr(pygame_screen, "run_for_context", as_async(fake_run))
+    monkeypatch.setattr("src.spacehack.help._open_context_guide", as_async(lambda _ctx, _topic: None))
 
     ctx = SimpleNamespace(
         context=object(),
         stats=SimpleNamespace(credits=6000), player_owned_ship=None,
     )
-    assert _ship_buy._run_pygame_ship_buy(ctx, ship, None) is _ship_buy.ShipBuyOutcome.BUY
+    assert run(_ship_buy._run_pygame_ship_buy(ctx, ship, None)) is _ship_buy.ShipBuyOutcome.BUY
     assert captured["frame"].title == "SCOUT - FOR SALE"
 
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda _context, _frame, **_kwargs: ("SELECT", "BUY", 0),
+        as_async(lambda _context, _frame, **_kwargs: ("SELECT", "BUY", 0)),
     )
     poor_ctx = SimpleNamespace(
         context=object(),
         stats=SimpleNamespace(credits=100), player_owned_ship=None,
     )
-    assert _ship_buy._run_pygame_ship_buy(
+    assert run(
+               _ship_buy._run_pygame_ship_buy(
         poor_ctx, ship, None,
-    ) is _ship_buy.ShipBuyOutcome.TOO_EXPENSIVE
+    )
+           ) is _ship_buy.ShipBuyOutcome.TOO_EXPENSIVE
 
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda _context, _frame, **_kwargs: ("BACK", "", 0),
+        as_async(lambda _context, _frame, **_kwargs: ("BACK", "", 0)),
     )
-    assert _ship_buy._run_pygame_ship_buy(
+    assert run(
+               _ship_buy._run_pygame_ship_buy(
         SimpleNamespace(
             context=object(), stats=SimpleNamespace(credits=6000),
             player_owned_ship=None,
         ),
         ship, None,
-    ) is _ship_buy.ShipBuyOutcome.BACK
+    )
+           ) is _ship_buy.ShipBuyOutcome.BACK
 
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda _context, _frame, **_kwargs: ("QUIT", "", 0),
+        as_async(lambda _context, _frame, **_kwargs: ("QUIT", "", 0)),
     )
-    assert _ship_buy._run_pygame_ship_buy(
+    assert run(
+               _ship_buy._run_pygame_ship_buy(
         SimpleNamespace(
             context=object(), stats=SimpleNamespace(credits=6000),
             player_owned_ship=None,
         ),
         ship, None,
-    ) is _ship_buy.ShipBuyOutcome.QUIT
+    )
+           ) is _ship_buy.ShipBuyOutcome.QUIT
 
 
 def test_pygame_presentation_is_enabled_without_migration_flags():
@@ -1711,10 +1736,10 @@ def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=messages.append),
     )
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: None)
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: None))
 
-    _loadout._apply_manage_stored_item(ctx, "MANAGE_STORED:0")
-    _loadout._apply_manage_ship_item(ctx, "MANAGE_WEAPON_SLOT:0")
+    run(_loadout._apply_manage_stored_item(ctx, "MANAGE_STORED:0"))
+    run(_loadout._apply_manage_ship_item(ctx, "MANAGE_WEAPON_SLOT:0"))
 
     assert ctx.stats.credits == 1000
     assert ctx.player_owned_ship.weapons == ("light_laser",)
@@ -1732,12 +1757,14 @@ def test_split_interactive_preserves_initial_focus_and_selection(monkeypatch):
     monkeypatch.setattr(
         pygame_split,
         "run_shared",
-        lambda _context, current, **kwargs: seen.append(current) or ("BACK", "", 1, 3),
+        as_async(lambda _context, current, **kwargs: seen.append(current) or ("BACK", "", 1, 3)),
     )
 
-    assert pygame_split.run_interactive(
+    assert run(
+               pygame_split.run_interactive(
         SimpleNamespace(context=object()), lambda: frame, lambda *args: True, caption="test",
-    ) == "BACK"
+    )
+           ) == "BACK"
     assert seen[0].focus == 1
     assert seen[0].selected == 3
 
@@ -1754,17 +1781,19 @@ def test_split_interactive_preserves_focus_and_selection_after_action(monkeypatc
         return next(outcomes)
 
     monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
-    monkeypatch.setattr(pygame_split, "run_shared", lambda _context, current, **kwargs: fake_run(current, **kwargs))
+    monkeypatch.setattr(pygame_split, "run_shared", as_async(lambda _context, current, **kwargs: fake_run(current, **kwargs)))
     applied = []
 
-    result = pygame_split.run_interactive(
+    result = run(
+                 pygame_split.run_interactive(
         SimpleNamespace(context=object()),
         lambda: frame,
-        lambda action, focus, selected: applied.append(
+        as_async(lambda action, focus, selected: applied.append(
             (action, focus, selected)
-        ) or True,
+        ) or True),
         caption="test",
     )
+             )
 
     assert result == "BACK"
     assert applied == [("BUY:item", 1, 3)]
@@ -2041,7 +2070,7 @@ def test_character_equipment_management_reports_empty_compatible_choices():
         log=SimpleNamespace(add=messages.append),
     )
 
-    assert character_screen._swap_from_pack(ctx, "SWAP:weapon:0") is False
+    assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:0")) is False
     assert messages == ["No compatible items are in your Expedition Pack."]
 
 
@@ -2110,8 +2139,8 @@ def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
     def fake_run(_ctx, frame_builder, _apply, **_kwargs):
         captured["frame"] = frame_builder()
 
-    monkeypatch.setattr(pygame_split, "run_interactive", fake_run)
-    _armory._run_armory_menu(ctx, "earth")
+    monkeypatch.setattr(pygame_split, "run_interactive", as_async(fake_run))
+    run(_armory._run_armory_menu(ctx, "earth"))
 
     assert captured["frame"].title == "ARMORY - EARTH"
 
@@ -2175,7 +2204,7 @@ def test_armory_pygame_empty_slot_action_is_noop():
         log=SimpleNamespace(add=lambda _message: None),
     )
 
-    assert _armory._apply_pygame_armory_action(ctx, "", 1, 1) is True
+    assert run(_armory._apply_pygame_armory_action(ctx, "", 1, 1)) is True
     assert ctx.stats.credits == 1000
 
 
@@ -2188,7 +2217,7 @@ def test_armory_pygame_rejects_unknown_action():
     )
 
     try:
-        _armory._apply_pygame_armory_action(ctx, "BROKEN", 0, 0)
+        run(_armory._apply_pygame_armory_action(ctx, "BROKEN", 0, 0))
     except ValueError as exc:
         assert "Unknown armory action" in str(exc)
     else:
@@ -2211,11 +2240,13 @@ def test_armory_buy_action_opens_destination_chooser(monkeypatch):
         captured["args"] = args
         return "BUY_ARMORY:weapon:laser_pistol"
 
-    monkeypatch.setattr(_armory, "_choose_destination", choose_destination)
+    monkeypatch.setattr(_armory, "_choose_destination", as_async(choose_destination))
 
-    keep_open = _armory._apply_pygame_armory_action(
+    keep_open = run(
+                    _armory._apply_pygame_armory_action(
         ctx, "BUY_WEAPON:laser_pistol", 0, 1,
     )
+                )
 
     assert keep_open is True
     assert ctx.equipped_ground_weapons == []
@@ -2232,10 +2263,10 @@ def test_armory_purchase_chooser_labels_equip(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__",
+        as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
     )
 
-    _armory._choose_destination(SimpleNamespace(), "weapon", "laser_pistol")
+    run(_armory._choose_destination(SimpleNamespace(), "weapon", "laser_pistol"))
 
     assert captured["options"][0] == (
         "Equip", "BUY_INSTALL:weapon:laser_pistol",
@@ -2258,10 +2289,10 @@ def test_armory_container_transfer_uses_domain_helper(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0",
+        as_async(lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0"),
     )
 
-    assert _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0) is True
+    assert run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)) is True
     assert ctx.ground_armory_storage == []
     assert ctx.ground_expedition_inventory == [
         _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2292,12 +2323,14 @@ def test_armory_equipment_transfer_counts_field_item_slots(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0",
+        as_async(lambda *_args, **_kwargs: "MOVE_TO_EXPEDITION:0"),
     )
 
-    assert _armory._apply_pygame_armory_action(
+    assert run(
+               _armory._apply_pygame_armory_action(
         ctx, "MANAGE_ARMORY:0", 0, 0,
-    ) is True
+    )
+           ) is True
     assert len(ctx.ground_armory_storage) == 1
     assert len(ctx.ground_expedition_inventory) == 3
     assert ctx.ground_expedition_items == [
@@ -2309,7 +2342,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
     from src.spacehack import pygame_story
 
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "INSTALL_ARMORY:0"),
     )
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
@@ -2322,7 +2355,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
         log=SimpleNamespace(add=lambda _message: None),
     )
 
-    _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
+    run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
 
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_armory_storage == []
@@ -2336,7 +2369,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
     from src.spacehack import pygame_story
 
     monkeypatch.setattr(
-        pygame_story, "choose", lambda *_args, **_kwargs: "INSTALL_ARMORY:0",
+        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "INSTALL_ARMORY:0"),
     )
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
@@ -2354,7 +2387,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
         log=SimpleNamespace(add=lambda _message: None),
     )
 
-    _armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0)
+    run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
 
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_expedition_inventory[-1].item_id == "combat_boots"
@@ -2381,10 +2414,10 @@ def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatc
     )
     monkeypatch.setattr(
         _armory, "_choose_destination",
-        lambda *_args: "BUY_INSTALL:weapon:laser_rifle",
+        as_async(lambda *_args: "BUY_INSTALL:weapon:laser_rifle"),
     )
 
-    _armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_rifle", 0, 0)
+    run(_armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_rifle", 0, 0))
 
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert [entry.item_id for entry in ctx.ground_armory_storage] == [
@@ -2408,10 +2441,10 @@ def test_armory_purchase_dismissal_preserves_credits_and_ownership(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *_args, **_kwargs: "__DISMISS__",
+        as_async(lambda *_args, **_kwargs: "__DISMISS__"),
     )
 
-    _armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_pistol", 0, 0)
+    run(_armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:laser_pistol", 0, 0))
 
     assert ctx.stats.credits == 1000
     assert ctx.equipped_ground_weapons == []
@@ -2431,12 +2464,14 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
     )
     monkeypatch.setattr(
         _armory, "_choose_destination",
-        lambda *_args: "BUY_INSTALL:weapon:laser_pistol",
+        as_async(lambda *_args: "BUY_INSTALL:weapon:laser_pistol"),
     )
 
-    keep_open = _armory._apply_pygame_armory_action(
+    keep_open = run(
+                    _armory._apply_pygame_armory_action(
         ctx, "BUY_WEAPON:laser_pistol", 0, 1,
     )
+                )
 
     assert keep_open is True
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_pistol")]
@@ -2533,11 +2568,13 @@ def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):
         monkeypatch.setattr(
             pygame_screen,
             "run_for_context",
-            lambda *args, _outcome=outcome, **kwargs: (_outcome, "", 0),
+            as_async(lambda *args, _outcome=outcome, **kwargs: (_outcome, "", 0)),
         )
-        assert _ship_menu._run_pygame_ship_hangar(
+        assert run(
+                   _ship_menu._run_pygame_ship_hangar(
             ctx, ship,
-        ) is _ship_menu.ShipMenuAction[outcome]
+        )
+               ) is _ship_menu.ShipMenuAction[outcome]
 
 
 def test_ship_hangar_pygame_maps_launch(monkeypatch):
@@ -2554,12 +2591,14 @@ def test_ship_hangar_pygame_maps_launch(monkeypatch):
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda _context, frame, **kwargs: ("SELECT", "LAUNCH", len(frame.rows) - 1),
+        as_async(lambda _context, frame, **kwargs: ("SELECT", "LAUNCH", len(frame.rows) - 1)),
     )
 
-    assert _ship_menu._run_pygame_ship_hangar(
+    assert run(
+               _ship_menu._run_pygame_ship_hangar(
         ctx, ship,
-    ) is _ship_menu.ShipMenuAction.LAUNCH
+    )
+           ) is _ship_menu.ShipMenuAction.LAUNCH
 
 
 def test_ship_hangar_pygame_tab_cycles_all_tabs_and_wraps(monkeypatch):
@@ -2580,11 +2619,13 @@ def test_ship_hangar_pygame_tab_cycles_all_tabs_and_wraps(monkeypatch):
         seen.append(frame)
         return next(outcomes)
 
-    monkeypatch.setattr(pygame_screen, "run_for_context", fake_run)
+    monkeypatch.setattr(pygame_screen, "run_for_context", as_async(fake_run))
 
-    assert _ship_menu._run_pygame_ship_hangar(
+    assert run(
+               _ship_menu._run_pygame_ship_hangar(
         ctx, ship,
-    ) is _ship_menu.ShipMenuAction.BACK
+    )
+           ) is _ship_menu.ShipMenuAction.BACK
     assert [frame.active_tab for frame in seen] == [0, 1, 2, 0]
     assert seen[1].selected == 0
     assert seen[3].selected == 0
@@ -2603,13 +2644,15 @@ def test_ship_hangar_pygame_guide_reopens(monkeypatch):
     )
     outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
     monkeypatch.setattr(
-        pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes),
+        pygame_screen, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)),
     )
-    monkeypatch.setattr("src.spacehack.help._open_context_guide", lambda _ctx, _topic: None)
+    monkeypatch.setattr("src.spacehack.help._open_context_guide", as_async(lambda _ctx, _topic: None))
 
-    assert _ship_menu._run_pygame_ship_hangar(
+    assert run(
+               _ship_menu._run_pygame_ship_hangar(
         ctx, ship,
-    ) is _ship_menu.ShipMenuAction.BACK
+    )
+           ) is _ship_menu.ShipMenuAction.BACK
 
 
 def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
@@ -2633,13 +2676,15 @@ def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
         ("BACK", "", 0),
     ))
     monkeypatch.setattr(
-        pygame_screen, "run_for_context", lambda *args, **kwargs: next(outcomes),
+        pygame_screen, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)),
     )
-    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 2)
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 2))
 
-    assert _ship_menu._run_pygame_ship_hangar(
+    assert run(
+               _ship_menu._run_pygame_ship_hangar(
         ctx, ship,
-    ) is _ship_menu.ShipMenuAction.BACK
+    )
+           ) is _ship_menu.ShipMenuAction.BACK
     assert owned.inventory == {}
 
 
@@ -2685,12 +2730,12 @@ def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *args, **kwargs: choices.append(kwargs) or "__BACK__",
+        as_async(lambda *args, **kwargs: choices.append(kwargs) or "__BACK__"),
     )
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
-    )
+    ))
     assert choices[0]["options"] == (
         ("Install", "BUY_INSTALL_WEAPON:light_laser"),
         ("Store", "BUY_STORE_WEAPON:light_laser"),
@@ -2712,11 +2757,11 @@ def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message: None),
     )
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_INSTALL_WEAPON:light_laser")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:light_laser"))
 
-    _loadout._apply_pygame_loadout_action(
+    run(_loadout._apply_pygame_loadout_action(
         ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
-    )
+    ))
 
     assert ctx.stats.credits == 970
     assert ctx.player_owned_ship.weapons == ("light_laser",)
@@ -2736,11 +2781,11 @@ def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message: None),
     )
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_STORE_WEAPON:heavy_laser")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_STORE_WEAPON:heavy_laser"))
 
-    _loadout._apply_pygame_loadout_action(
+    run(_loadout._apply_pygame_loadout_action(
         ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
-    )
+    ))
 
     assert ctx.stats.credits == 910
     assert ctx.player_owned_ship.weapons == ("light_laser", "light_laser")
@@ -2763,11 +2808,11 @@ def test_loadout_buy_install_full_slot_does_not_charge(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=messages.append),
     )
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_laser")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_laser"))
 
-    _loadout._apply_pygame_loadout_action(
+    run(_loadout._apply_pygame_loadout_action(
         ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
-    )
+    ))
 
     assert ctx.stats.credits == 1000
     assert ctx.ship_storage == []
@@ -2982,8 +3027,8 @@ def test_compact_shared_menu_preserves_underlying_surface(monkeypatch):
 
     class Events:
         @staticmethod
-        def wait():
-            return SimpleNamespace(type=Pygame.KEYDOWN, key=Pygame.K_ESCAPE)
+        def get():
+            return (SimpleNamespace(type=Pygame.KEYDOWN, key=Pygame.K_ESCAPE),)
 
     class Pygame:
         QUIT = 1
@@ -3013,7 +3058,7 @@ def test_compact_shared_menu_preserves_underlying_surface(monkeypatch):
     monkeypatch.setattr(pygame_menu, "_fit_shared_font", lambda *args: SimpleNamespace())
     monkeypatch.setattr(pygame_menu, "_draw_shared_frame", lambda *args, **kwargs: None)
 
-    pygame_menu.run_shared(context, (frame,))
+    run(pygame_menu.run_shared(context, (frame,)))
 
     assert surface.fills == 0
 
@@ -3028,7 +3073,7 @@ def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
             "src.spacehack.pygame_story", fromlist=["choose"]
         ),
         "choose",
-        lambda *args, **kwargs: chosen.append(kwargs["options"]) or "__BACK__",
+        as_async(lambda *args, **kwargs: chosen.append(kwargs["options"]) or "__BACK__"),
     )
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
@@ -3037,9 +3082,9 @@ def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
         log=SimpleNamespace(add=lambda _message: None),
     )
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth",
-    )
+    ))
     assert chosen == [(
         ("Store", "STORE_WEAPON_SLOT:0"),
         ("Sell for 15$", "SELL_WEAPON_SLOT:0"),
@@ -3058,15 +3103,15 @@ def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatc
         stats=SimpleNamespace(credits=0),
         log=SimpleNamespace(add=lambda _message: None),
     )
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "STORE_WEAPON_SLOT:0")
-    _loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "STORE_WEAPON_SLOT:0"))
+    run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
     assert ctx.player_owned_ship.weapons == ()
     assert ctx.ship_storage[0].item_id == "light_laser"
 
     ctx.player_owned_ship = OwnedShip(ship_id="scout", weapons=("light_laser",))
     ctx.ship_storage.clear()
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "SELL_WEAPON_SLOT:0")
-    _loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "SELL_WEAPON_SLOT:0"))
+    run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
     assert ctx.player_owned_ship.weapons == ()
     assert ctx.ship_storage == []
     assert ctx.stats.credits > 0
@@ -3087,12 +3132,12 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "choose",
-        lambda *args, **kwargs: captured.append(kwargs["options"]) or "__BACK__",
+        as_async(lambda *args, **kwargs: captured.append(kwargs["options"]) or "__BACK__"),
     )
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    )
+    ))
     assert captured == [
         (
             ("Install", "INSTALL_STORED:0"),
@@ -3101,18 +3146,18 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
     ]
     assert ctx.ship_storage == [StoredEquipment("weapon", "light_missile", 1)]
 
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "SELL_STORED:0")
-    _loadout._apply_pygame_loadout_action(
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "SELL_STORED:0"))
+    run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    )
+    ))
     assert ctx.ship_storage == []
     assert ctx.stats.credits == 20
 
     ctx.ship_storage = [StoredEquipment("weapon", "light_missile", 1)]
-    monkeypatch.setattr(pygame_story, "choose", lambda *args, **kwargs: "INSTALL_STORED:0")
-    _loadout._apply_pygame_loadout_action(
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "INSTALL_STORED:0"))
+    run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    )
+    ))
     assert ctx.player_owned_ship.weapons == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
@@ -3130,12 +3175,12 @@ def test_loadout_storage_chooser_invalid_index_is_safe(monkeypatch):
     )
     monkeypatch.setattr(
         "src.spacehack.pygame_story.choose",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("chooser must not open")),
+        as_async(lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("chooser must not open"))),
     )
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_STORED:9", 0, 0, "earth",
-    )
+    ))
     assert ctx.stats.credits == 0
 
 
@@ -3152,15 +3197,15 @@ def test_loadout_store_and_install_actions_preserve_partial_ammo():
     )
     ctx.player_owned_ship.weapon_ammo[0] = 1
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "STORE_WEAPON_SLOT:0", 1, 0, "earth",
-    )
+    ))
     assert ctx.player_owned_ship.weapons == ()
     assert ctx.ship_storage[0].ammo == 1
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "INSTALL_STORED:0", 0, 0, "earth",
-    )
+    ))
     assert ctx.player_owned_ship.weapons == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
@@ -3180,9 +3225,9 @@ def test_loadout_install_full_slot_keeps_storage_and_logs_reason():
         log=SimpleNamespace(add=messages.append),
     )
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "INSTALL_STORED:0", 0, 0, "earth",
-    )
+    ))
     assert ctx.ship_storage == [StoredEquipment("weapon", "heavy_laser")]
     assert any("No compatible weapon slot" in message for message in messages)
 
@@ -3211,9 +3256,9 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
     )
     original = ctx.player_owned_ship.weapons
 
-    assert _loadout._apply_pygame_loadout_action(
+    assert run(_loadout._apply_pygame_loadout_action(
         ctx, "SELL_WEAPON_SLOT:1", 1, 2, "earth",
-    )
+    ))
     assert original == ("light_laser", "light_laser")
     assert ctx.player_owned_ship.weapons == ("light_laser",)
 
@@ -3221,11 +3266,13 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
 def test_split_interactive_frame_build_failure_is_explicit(monkeypatch):
     monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
     try:
-        pygame_split.run_interactive(
+        run(
+            pygame_split.run_interactive(
             SimpleNamespace(context=object()),
             lambda: (_ for _ in ()).throw(KeyError("bad inventory")),
             lambda *args: True,
             caption="test",
+        )
         )
     except pygame_split.PygameSplitUnavailable as exc:
         assert "could not be built" in str(exc)
@@ -3239,14 +3286,16 @@ def test_split_interactive_malformed_action_is_explicit(monkeypatch):
     monkeypatch.setattr(
         pygame_split,
         "run_shared",
-        lambda *args, **kwargs: ("SELECT", "BROKEN:action", 0, 0),
+        as_async(lambda *args, **kwargs: ("SELECT", "BROKEN:action", 0, 0)),
     )
 
     try:
-        pygame_split.run_interactive(
+        run(
+            pygame_split.run_interactive(
             SimpleNamespace(context=object()), lambda: frame,
             lambda action, focus, selected: int(action.split(":", 1)[1]),
             caption="test",
+        )
         )
     except pygame_split.PygameSplitUnavailable as exc:
         assert "could not be rebuilt" in str(exc)
@@ -3411,9 +3460,9 @@ def test_apply_jettison_removes_selected_quantity(monkeypatch):
     owned.inventory = {"food_rations": 5}
     messages = []
     ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
-    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 3)
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 3))
 
-    assert trade._apply_jettison(ctx, owned, "JETTISON:food_rations") is True
+    assert run(trade._apply_jettison(ctx, owned, "JETTISON:food_rations")) is True
     assert owned.inventory == {"food_rations": 2}
     assert messages
 
@@ -3425,9 +3474,9 @@ def test_apply_jettison_full_quantity_removes_the_good(monkeypatch):
     owned = OwnedShip(ship_id="starter")
     owned.inventory = {"food_rations": 4}
     ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
-    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 4)
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 4))
 
-    assert trade._apply_jettison(ctx, owned, "JETTISON:food_rations") is True
+    assert run(trade._apply_jettison(ctx, owned, "JETTISON:food_rations")) is True
     assert owned.inventory == {}
 
 
@@ -3438,9 +3487,9 @@ def test_apply_jettison_rejects_malformed_or_unknown_actions():
     owned = OwnedShip(ship_id="starter")
     ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
 
-    assert trade._apply_jettison(ctx, owned, "BROKEN") is False
-    assert trade._apply_jettison(ctx, owned, "JETTISON:") is False
-    assert trade._apply_jettison(ctx, owned, "JETTISON:unknown_good") is False
+    assert run(trade._apply_jettison(ctx, owned, "BROKEN")) is False
+    assert run(trade._apply_jettison(ctx, owned, "JETTISON:")) is False
+    assert run(trade._apply_jettison(ctx, owned, "JETTISON:unknown_good")) is False
 
 
 
@@ -4136,7 +4185,7 @@ def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
     monkeypatch.setattr(trade, "_unit_price", lambda *_args: 10)
     monkeypatch.setattr(trade, "_sell_price", lambda *_args: 7)
     monkeypatch.setattr(trade, "_free_cargo", lambda _owned: 5)
-    monkeypatch.setattr(trade, "_run_quantity_prompt", lambda *_args: 1)
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 1))
     monkeypatch.setattr(trade, "_buy_good", lambda *args: calls.append(("BUY", args)) or True)
     monkeypatch.setattr(trade, "_sell_good", lambda *args: calls.append(("SELL", args)) or True)
 
@@ -4146,8 +4195,8 @@ def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
         stats=SimpleNamespace(credits=100),
     )
 
-    assert trade._apply_pygame_trade_action(ctx, "earth", "BUY:food") is True
-    assert trade._apply_pygame_trade_action(ctx, "earth", "SELL:food") is True
+    assert run(trade._apply_pygame_trade_action(ctx, "earth", "BUY:food")) is True
+    assert run(trade._apply_pygame_trade_action(ctx, "earth", "SELL:food")) is True
     assert [kind for kind, _args in calls] == ["BUY", "SELL"]
 
 
@@ -4193,41 +4242,47 @@ def test_story_menu_dismisses_with_enter_without_items():
 
 def test_story_confirm_maps_confirm_and_back(monkeypatch):
     outcomes = iter((("SELECT", "CONFIRM", 0), ("BACK", "", 0)))
-    monkeypatch.setattr(pygame_menu, "run_for_context", lambda *args, **kwargs: next(outcomes))
+    monkeypatch.setattr(pygame_menu, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)))
 
-    assert pygame_story.confirm(
+    assert run(
+               pygame_story.confirm(
         SimpleNamespace(),
         title="Computer",
         body="Restore power?",
         accept_label="Activate",
         cancel_label="Leave",
         caption="test",
-    ) == "CONFIRM"
-    assert pygame_story.confirm(
+    )
+           ) == "CONFIRM"
+    assert run(
+               pygame_story.confirm(
         SimpleNamespace(),
         title="Computer",
         body="Restore power?",
         accept_label="Activate",
         cancel_label="Leave",
         caption="test",
-    ) == "BACK"
+    )
+           ) == "BACK"
 
 
 def test_story_confirm_preserves_quit(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("QUIT", "", 0),
+        as_async(lambda *args, **kwargs: ("QUIT", "", 0)),
     )
 
-    assert pygame_story.confirm(
+    assert run(
+               pygame_story.confirm(
         SimpleNamespace(),
         title="Board",
         body="Board the wreck?",
         accept_label="Board",
         cancel_label="Fly past",
         caption="test",
-    ) == "QUIT"
+    )
+           ) == "QUIT"
 
 
 def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
@@ -4240,9 +4295,10 @@ def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda _context, frames, **kwargs: fake_run(frames, **kwargs),
+        as_async(lambda _context, frames, **kwargs: fake_run(frames, **kwargs)),
     )
-    result = pygame_story.dismiss(
+    result = run(
+                 pygame_story.dismiss(
         SimpleNamespace(),
         title="Transmission",
         body="Body",
@@ -4250,6 +4306,7 @@ def test_story_dismiss_attaches_ascii_art_to_worker_frame(monkeypatch):
         art=("STATIC",),
         art_color=(90, 150, 90),
     )
+             )
 
     assert result == "DISMISS"
     assert captured["frame"].art == ("STATIC",)
@@ -4261,11 +4318,11 @@ def test_main_quest_story_art_preserves_transmission_and_door_flavor(monkeypatch
 
     monkeypatch.setattr(
         "src.spacehack.pygame_story.dismiss",
-        lambda _ctx, **kwargs: captured.append(kwargs) or "DISMISS",
+        as_async(lambda _ctx, **kwargs: captured.append(kwargs) or "DISMISS"),
     )
 
-    _act0.show_prologue_transmission(SimpleNamespace())
-    _act0.show_sealed_door_overlay(SimpleNamespace(), "discover")
+    run(_act0.show_prologue_transmission(SimpleNamespace()))
+    run(_act0.show_sealed_door_overlay(SimpleNamespace(), "discover"))
 
     assert captured[0]["art"] == _act0._SIGNAL_ART
     assert captured[0]["art_color"] == _act0._SIGNAL_TRACE_FG
@@ -4292,15 +4349,17 @@ def test_story_frames_preserve_opaque_archive_choices(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda _context, frames, **kwargs: fake_run(frames, **kwargs),
+        as_async(lambda _context, frames, **kwargs: fake_run(frames, **kwargs)),
     )
-    result = pygame_story.choose(
+    result = run(
+                 pygame_story.choose(
         SimpleNamespace(),
         title="THE FIRST READING",
         body="Archive body",
         options=(("Share fragment", "diagnostic_fragment"), ("Keep sealed", "archive_sealed")),
         caption="test",
     )
+             )
 
     assert result == "archive_sealed"
     assert captured["frames"][1].items[1].action == "archive_sealed"
@@ -4310,30 +4369,36 @@ def test_story_choice_rejects_unknown_worker_action(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda _context, frames, **kwargs: ("SELECT", "mutate_quest", 0),
+        as_async(lambda _context, frames, **kwargs: ("SELECT", "mutate_quest", 0)),
     )
 
-    assert pygame_story.choose(
+    assert run(
+               pygame_story.choose(
         SimpleNamespace(),
         title="THE FIRST READING",
         body="Archive body",
         options=(("Keep sealed", "archive_sealed"),),
         caption="test",
-    ) is None
+    )
+           ) is None
 
 
 def test_story_dismiss_is_explicit_when_shared_runtime_unavailable(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: (_ for _ in ()).throw(
+        as_async(
+            lambda *args, **kwargs: (_ for _ in ()).throw(
             pygame_menu.PygameMenuUnavailable("missing")
+        )
         ),
     )
 
     try:
-        pygame_story.dismiss(
+        run(
+            pygame_story.dismiss(
             SimpleNamespace(context=object()), title="Message", body="Body", caption="test",
+        )
         )
     except pygame_menu.PygameMenuUnavailable as exc:
         assert str(exc) == "missing"
@@ -4345,12 +4410,14 @@ def test_story_dismiss_preserves_worker_quit_outcome(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda *args, **kwargs: ("QUIT", "", 0),
+        as_async(lambda *args, **kwargs: ("QUIT", "", 0)),
     )
 
-    assert pygame_story.dismiss(
+    assert run(
+               pygame_story.dismiss(
         SimpleNamespace(context=object()), title="Message", body="Body", caption="test",
-    ) == "QUIT"
+    )
+           ) == "QUIT"
 
 
 def test_story_dismiss_propagates_quit_to_act0(monkeypatch):
@@ -4359,12 +4426,14 @@ def test_story_dismiss_propagates_quit_to_act0(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "dismiss",
-        lambda *args, **kwargs: "QUIT",
+        as_async(lambda *args, **kwargs: "QUIT"),
     )
 
     try:
-        _act0._show_pygame_dismiss(
+        run(
+            _act0._show_pygame_dismiss(
             SimpleNamespace(), title="Message", body="Body", caption="test",
+        )
         )
     except SystemExit:
         pass
@@ -4438,15 +4507,17 @@ def test_npc_pygame_actions_map_back_to_existing_outcomes(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0),
+        as_async(lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0)),
     )
 
     from src.spacehack import pygame_runtime
     monkeypatch.setattr(pygame_runtime, "is_shared_context", lambda _context: True)
-    monkeypatch.setattr(pygame_menu, "run_shared", lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0))
-    result = npc._run_pygame_npc_talk(
+    monkeypatch.setattr(pygame_menu, "run_shared", as_async(lambda _context, frames, **kwargs: ("SELECT", "DELIVER:0", 0)))
+    result = run(
+                 npc._run_pygame_npc_talk(
         SimpleNamespace(context=object()), npc_obj, "Welcome", [mission],
     )
+             )
 
     assert result == (npc.TalkOutcome.DELIVER, mission)
 
@@ -4465,6 +4536,7 @@ def test_shared_menu_runner_uses_existing_engine_and_returns_action(monkeypatch)
         K_QUESTION = 17
         event = SimpleNamespace(
             wait=lambda: SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_RETURN),
+            get=lambda: [SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_RETURN)],
         )
 
     class Surface:
@@ -4486,7 +4558,7 @@ def test_shared_menu_runner_uses_existing_engine_and_returns_action(monkeypatch)
     monkeypatch.setattr(pygame_menu, "_fit_font", lambda *args: object())
     monkeypatch.setattr(pygame_menu, "_draw_frame", lambda *args: None)
 
-    assert pygame_menu.run_shared(context, (frame,), caption="test") == (
+    assert run(pygame_menu.run_shared(context, (frame,), caption="test")) == (
         "SELECT", "WORK", 0,
     )
 
@@ -4502,11 +4574,11 @@ def test_mission_menu_routes_to_shared_window_without_worker(monkeypatch):
         captured["frames"] = frames
         return "BACK", "", 0
 
-    monkeypatch.setattr(pygame_menu, "run_shared", fake_shared)
+    monkeypatch.setattr(pygame_menu, "run_shared", as_async(fake_shared))
     ctx = SimpleNamespace(context=object())
     npc_obj = SimpleNamespace(name="Guild Master")
 
-    result = _missions._run_pygame_interactive_missions(ctx, npc_obj, ())
+    result = run(_missions._run_pygame_interactive_missions(ctx, npc_obj, ()))
 
     assert result == (_missions.MissionOutcome.BACK, None)
     assert captured["context"] is ctx.context
@@ -4522,14 +4594,16 @@ def test_npc_talk_routes_to_shared_window_without_worker(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_shared",
-        lambda context, frames, **kwargs: captured.update(
+        as_async(
+            lambda context, frames, **kwargs: captured.update(
             context=context, frames=frames,
-        ) or ("SELECT", "WORK", 0),
+        ) or ("SELECT", "WORK", 0)
+        ),
     )
     ctx = SimpleNamespace(context=object())
     npc_obj = SimpleNamespace(name="Guild Master", guild="merchants", flavor_text="Welcome")
 
-    result = npc._run_pygame_npc_talk(ctx, npc_obj, "Welcome", [])
+    result = run(npc._run_pygame_npc_talk(ctx, npc_obj, "Welcome", []))
 
     assert result == (npc.TalkOutcome.WORK, None)
     assert captured["context"] is ctx.context
@@ -4553,29 +4627,29 @@ def test_all_shared_adapters_route_through_run_shared(monkeypatch):
 
     monkeypatch.setattr(
         pygame_menu, "run_shared",
-        lambda *args, **kwargs: calls.append("menu") or ("BACK", "", 0),
+        as_async(lambda *args, **kwargs: calls.append("menu") or ("BACK", "", 0)),
     )
     monkeypatch.setattr(
         pygame_screen, "run_shared",
-        lambda *args, **kwargs: calls.append("screen") or ("BACK", "", 0),
+        as_async(lambda *args, **kwargs: calls.append("screen") or ("BACK", "", 0)),
     )
     monkeypatch.setattr(
         pygame_split, "run_shared",
-        lambda *args, **kwargs: calls.append("split") or ("BACK", "", 0, 0),
+        as_async(lambda *args, **kwargs: calls.append("split") or ("BACK", "", 0, 0)),
     )
     monkeypatch.setattr(
         pygame_quantity, "run_shared",
-        lambda *args, **kwargs: calls.append("quantity") or None,
+        as_async(lambda *args, **kwargs: calls.append("quantity") or None),
     )
     monkeypatch.setattr(
         pygame_quest_log, "run_shared",
-        lambda *args, **kwargs: calls.append("quest_log") or ("BACK", 0),
+        as_async(lambda *args, **kwargs: calls.append("quest_log") or ("BACK", 0)),
     )
 
-    assert pygame_menu.run_for_context(context, (menu_frame,))[0] == "BACK"
-    assert pygame_screen.run_for_context(context, screen_frame)[0] == "BACK"
-    assert pygame_quantity.run_for_context(context, game_ctx, "Buy", 1) is None
-    assert pygame_quest_log.run_for_context(game_ctx)[0] == "BACK"
+    assert run(pygame_menu.run_for_context(context, (menu_frame,)))[0] == "BACK"
+    assert run(pygame_screen.run_for_context(context, screen_frame))[0] == "BACK"
+    assert run(pygame_quantity.run_for_context(context, game_ctx, "Buy", 1)) is None
+    assert run(pygame_quest_log.run_for_context(game_ctx))[0] == "BACK"
     assert calls == ["menu", "screen", "quantity", "quest_log"]
 
 
@@ -4584,15 +4658,19 @@ def test_story_adapters_use_the_shared_menu_runner(monkeypatch):
     monkeypatch.setattr(
         pygame_menu,
         "run_for_context",
-        lambda context, frames, **kwargs: captured.append(
+        as_async(
+            lambda context, frames, **kwargs: captured.append(
             (context, frames),
-        ) or ("DISMISS", "", 0),
+        ) or ("DISMISS", "", 0)
+        ),
     )
     ctx = SimpleNamespace(context=object())
 
-    assert pygame_story.dismiss(
+    assert run(
+               pygame_story.dismiss(
         ctx, title="Signal", body="Message", caption="test",
-    ) == "DISMISS"
+    )
+           ) == "DISMISS"
     assert captured[0][0] is ctx.context
     assert captured[0][1][0].title == "Signal"
 
@@ -4605,17 +4683,19 @@ def test_quest_log_guide_reopens_the_same_shared_modal(monkeypatch):
     states = []
     monkeypatch.setattr(
         "src.spacehack.help._run_help_guide",
-        lambda ctx: calls.append(ctx),
+        as_async(lambda ctx: calls.append(ctx)),
     )
     monkeypatch.setattr(
         "src.spacehack.pygame_quest_log.run_for_context",
-        lambda ctx, selected=0, confirm=False: states.append(
+        as_async(
+            lambda ctx, selected=0, confirm=False: states.append(
             (selected, confirm),
-        ) or next(outcomes),
+        ) or next(outcomes)
+        ),
     )
     ctx = SimpleNamespace()
 
-    assert _quest_log._run_pygame_quest_log(ctx) == (_quest_log.QuestLogOutcome.BACK, None)
+    assert run(_quest_log._run_pygame_quest_log(ctx)) == (_quest_log.QuestLogOutcome.BACK, None)
     assert calls == [ctx]
     assert states == [(0, False), (2, True)]
 
@@ -4627,9 +4707,11 @@ def test_cargo_screen_uses_context_adapter_when_fixture_has_no_context(monkeypat
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        lambda context, frame, **kwargs: captured.update(
+        as_async(
+            lambda context, frame, **kwargs: captured.update(
             context=context, frame=frame,
-        ) or ("BACK", "", frame.selected),
+        ) or ("BACK", "", frame.selected)
+        ),
     )
     owned = SimpleNamespace(
         ship_id="starter",
@@ -4644,7 +4726,7 @@ def test_cargo_screen_uses_context_adapter_when_fixture_has_no_context(monkeypat
         stats=SimpleNamespace(credits=0),
     )
 
-    result = trade._run_pygame_cargo(ctx, owned, "Scout", 10)
+    result = run(trade._run_pygame_cargo(ctx, owned, "Scout", 10))
 
     assert result is True
     assert captured["context"] is ctx
@@ -4742,13 +4824,15 @@ def test_exit_to_menu_confirm_returns_true_only_on_confirm(monkeypatch):
     monkeypatch.setattr(
         pygame_story,
         "confirm",
-        lambda ctx, **kwargs: captured.update(
+        as_async(
+            lambda ctx, **kwargs: captured.update(
             ctx=ctx, kwargs=kwargs,
-        ) or "CONFIRM",
+        ) or "CONFIRM"
+        ),
     )
     ctx = SimpleNamespace()
 
-    assert game_main._run_pygame_exit_confirm(ctx) is True
+    assert run(game_main._run_pygame_exit_confirm(ctx)) is True
     assert captured["ctx"] is ctx
     assert captured["kwargs"]["title"] == "EXIT TO MAIN MENU"
     assert captured["kwargs"]["accept_label"] == "Save & Exit"
@@ -4758,9 +4842,9 @@ def test_exit_to_menu_confirm_returns_true_only_on_confirm(monkeypatch):
         monkeypatch.setattr(
             pygame_story,
             "confirm",
-            lambda *args, _result=dismissal, **kwargs: _result,
+            as_async(lambda *args, _result=dismissal, **kwargs: _result),
         )
-        assert game_main._run_pygame_exit_confirm(ctx) is False
+        assert run(game_main._run_pygame_exit_confirm(ctx)) is False
 
 
 def test_guide_says_esc_saves_and_confirms_before_exit():

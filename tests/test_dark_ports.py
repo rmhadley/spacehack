@@ -1,3 +1,4 @@
+from tests.support.asyncutil import run, as_async
 """The dark-ports discovery beats (doc 42 phase 2.5 / phase 3).
 
 The dock credential line, the silent hail, the dark-hull spawn stamp
@@ -37,7 +38,7 @@ def _quiet_present(monkeypatch):
         if mod is not None:
             monkeypatch.setattr(
                 mod, "present_hearing",
-                lambda ctx, title, text: seen.append((title, text)),
+                as_async(lambda ctx, title, text: seen.append((title, text))),
             )
     return seen
 
@@ -46,7 +47,7 @@ def test_dock_beat_logs_every_landing_and_hears_once(monkeypatch):
     seen = _quiet_present(monkeypatch)
     ctx = _ctx()
     # A dark port: the line logs...
-    game_interactions._dark_port_landing_beat(ctx, ctx.log, "lal_c")
+    run(game_interactions._dark_port_landing_beat(ctx, ctx.log, "lal_c"))
     assert "This port didn't verify any credentials." in [
         e.text for e in ctx.log.history()
     ]
@@ -54,7 +55,7 @@ def test_dock_beat_logs_every_landing_and_hears_once(monkeypatch):
     assert seen == [("dark ports", rumor.entry_text("dark_berth_1"))]
     # ...on EVERY landing (the militia-scan cadence; the log collapses
     # the repeat with its x2 marker)...
-    game_interactions._dark_port_landing_beat(ctx, ctx.log, "lal_c")
+    run(game_interactions._dark_port_landing_beat(ctx, ctx.log, "lal_c"))
     assert any(
         e.text.startswith("This port didn't verify any credentials.")
         for e in ctx.log.history()
@@ -67,7 +68,7 @@ def test_dock_beat_logs_every_landing_and_hears_once(monkeypatch):
 def test_dock_beat_silent_at_lawful_ports(monkeypatch):
     _quiet_present(monkeypatch)
     ctx = _ctx()
-    game_interactions._dark_port_landing_beat(ctx, ctx.log, "earth")
+    run(game_interactions._dark_port_landing_beat(ctx, ctx.log, "earth"))
     assert ctx.known_rumors == []
     assert ctx.log.history() == []
 
@@ -77,19 +78,23 @@ def test_hailing_a_dark_hull_fires_the_trigger(monkeypatch):
 
     seen = _quiet_present(monkeypatch)
     monkeypatch.setattr(
-        comms, "_pygame_interaction_outcome", lambda *a, **k: None,
+        comms, "_pygame_interaction_outcome", as_async(lambda *a, **k: None),
     )
     monkeypatch.setattr(
-        comms, "_handle_interaction", lambda *a, **k: None,
+        comms, "_handle_interaction", as_async(lambda *a, **k: None),
     )
     ctx = _ctx()
-    comms._run_interaction_modal(
+    run(
+        comms._run_interaction_modal(
         ctx, None, "Pirate Raider", SimpleNamespace(), SimpleNamespace(),
+    )
     )
     assert ctx.known_rumors == []
     dark_contact = SimpleNamespace(flies_dark=True)
-    comms._run_interaction_modal(
+    run(
+        comms._run_interaction_modal(
         ctx, None, "Pirate Raider", _ContactSpec(), dark_contact,
+    )
     )
     assert ctx.known_rumors == ["dark_berth_1"]
     assert seen == [("dark ports", rumor.entry_text("dark_berth_1"))]
@@ -176,7 +181,7 @@ def test_pad_pickup_teaches_presents_and_consumes(monkeypatch):
     ctx.game_map.entities.append(
         Entity("@", (255, 255, 255), Position(0, 0), "Player")
     )
-    loot._open_single_loot_pickup(ctx, pad)
+    run(loot._open_single_loot_pickup(ctx, pad))
     assert ctx.known_rumors == ["dark_berth_1"]
     assert pad not in ctx.game_map.entities, "the pad is consumed"
     assert seen == [("dark ports", rumor.entry_text("dark_berth_1"))]
@@ -189,7 +194,7 @@ def test_already_heard_pad_consumes_silently(monkeypatch):
     ctx = _pad_ctx(known=["dark_berth_1"])
     loot.maybe_spawn_pad(_pad_ctx(), ctx.game_map, Position(5, 5), "pirate_raider")
     pad = ctx.game_map.entities[0]
-    loot._open_single_loot_pickup(ctx, pad)
+    run(loot._open_single_loot_pickup(ctx, pad))
     assert ctx.known_rumors == ["dark_berth_1"]
     assert pad not in ctx.game_map.entities
     assert seen == [], "no duplicate readout"
