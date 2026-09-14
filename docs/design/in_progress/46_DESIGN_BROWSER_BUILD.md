@@ -751,50 +751,65 @@ Exit: both checklists pass; doc close then audits SYSTEMS.md
       playtest report)
 - [ ] in-browser + desktop checklists pass; `make check` green
 
-**Brief (proposed 2026-09-14, pending the phase-3 playtest report
-— perf observations from the user's browser shape the final
-scope):**
+**Feel report (user, 2026-09-14, shaping this brief):** "Earth
+was slow. probably the animation layer for lighting/river. Space
+was responsive and felt good. No animation scenes play at all.
+Launch, Land, G in space, jump, etc."
 
-- *Principle:* the user's browser measures (the
-  user-testable-deploy ruling extends to perf — container
-  numbers are advisory only). No new machinery is expected; the
-  phase's default shape is two checklists and a decision.
-- *Scope:* (a) the in-browser numbered checklist below, run by
-  the user against `make serve-web`; (b) the desktop regression
-  checklist (unchanged game — cheap pass); (c) ONE possible
-  addition, only if the user's world-gen observation demands it:
-  a wordless loading beat (motion/light, descent_animation-style
-  — never prose), web-visible only if trivially uniform, else
-  web-side; (d) doc close: move to complete/ + the full
-  SYSTEMS.md audit (the render-path and loop entries gain
-  web-target notes; the persistence entry gains the IndexedDB
-  mirror + sh46 fetch seam; a web-build entry for
-  make-web/serve-web/boot-beacon).
-- *Build order:* user's phase-3 checklist results → loading-beat
-  ruling (yes/no) → if yes: the beat lands with its own tests →
-  dual checklists → close + SYSTEMS.md audit.
-- *Binding rulings:* R1 (flagless — no perf flags in the
-  bundle), R5 (self-contained — any beat ships in the bundle),
-  requirement #1 items 2/6 (feel-identical desktop; content
-  parity — a loading beat is presentation of EXISTING work, not
-  content).
-- *Tests:* `make check` green; if the beat lands, its timing
-  tests ride the commit (pygame-input-triggered animation
-  contract).
+**Brief (amended 2026-09-14 with the feel report — pending
+approval):**
+
+- *Principle:* diagnose before building. Two of the three report
+  lines may be one config-state reading (animation speed 0.0 =
+  legal instant-playback setting — "no animation scenes play at
+  all" is its exact signature); the Earth slowness is real either
+  way (pure-Python ground frames under wasm run 3–8× slower, the
+  spike's own forecast). The user's browser measures; container
+  numbers are advisory.
+- *Scope:*
+  - **Diagnostic 0 (user, seconds):** web options → animation
+    speed. If 0, set 1.0 and re-test launch/land/jump/G. Plays ⇒
+    config state, not a defect — recorded, dropped from scope.
+  - **If animations still skip at 1.0:** instrument via the xterm
+    (tracebacks already route there), fix per findings. Hypotheses
+    in priority order: emscripten SDL event delivery tripping the
+    skip-on-keydown / queue-flush contract (the phase-1 held-key
+    and release-tail lessons); aio-loop timing of animation
+    sleeps; an early-return on a web-specific value.
+  - **Earth/ground perf:** profile the ground frame path under
+    wasm (what is actually per-frame: river/water animation tiles,
+    city render, lighting cadence — the "lighting/river" read is
+    the user's guess, not verified). Mitigation must be UNIFORM —
+    cheaper for desktop too (requirement #1 item 2: feel-identical
+    desktop; no platform branches per Ruling 3's spirit).
+  - **Loading-beat ruling:** deferred into this phase — after the
+    animation question settles (a world-gen beat is the same
+    wordless-mechanic family as launch/land scenes). Wordless if
+    it lands: motion/light, descent_animation-style, never prose.
+  - Doc close: move to complete/ + full SYSTEMS.md audit (render
+    path + loop entries gain web-target notes; persistence entry
+    gains the IndexedDB mirror + sh46 fetch seam; a web-build
+    entry for make-web/serve-web/boot-beacon).
+- *Build order:* diagnostic 0 (user) → animations verdict →
+  Earth-perf profile + uniform mitigation → beat ruling → dual
+  checklists → close + SYSTEMS.md audit.
+- *Binding rulings:* R1 (flagless), R5 (self-contained), requirement #1
+  items 2/6 (feel-identical desktop; content parity).
+- *Tests:* `make check` green; any perf/animation change ships
+  with its timing/skip tests updated in the same commit.
 - *Stop point:* no hosting/deploy/itch, no touch input, no PWA,
-  no save export/import, no balance or content changes.
+  no save export/import, no content or balance changes.
 - *Playtest checkpoint (in-browser, user):*
-  1. New game → world-gen: observe the freeze — seconds,
-     painful or fine? (the loading-beat ruling hangs on this)
-  2. Planet landing → ≥20 moves + one transit: per-move feel.
-  3. Save/quit → close tab → reopen → Continue restores (the
-     phase-2 core through the phase-3 bundle).
-  4. Options Apply → tab close/reopen → preferences hold.
-  5. Fullscreen enter/exit (Window API path) — clean or graceful.
-  6. Long-ish session (10+ min): steady or degrading?
-  7. Desktop regression: run.py boot → save/quit → Continue;
-     `make check` green.
-  8. Guide diff: NONE (requirement #1 item 6).
+  1. Animation scenes play at speed 1.0: launch, land, G, jump.
+  2. New game → world-gen freeze ruling (beat yes/no).
+  3. Earth/city: moves + transit feel post-mitigation.
+  4. Save/quit → tab close → Continue; options hold.
+  5. Fullscreen enter/exit — clean or graceful.
+  6. Desktop regression: run.py boot → save/quit → Continue;
+     animations + feel unchanged; `make check` green.
+  7. Guide diff: NONE (requirement #1 item 6) — unless the beat
+     lands, in which case it still self-explains in play (guide
+     stays out per the pure-how-to-play rule).
 
 ## Risks
 
