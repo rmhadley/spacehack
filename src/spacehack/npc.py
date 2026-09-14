@@ -568,7 +568,7 @@ async def _run_npc_talk(
     if _refused is not None:
         return _refused
     ctx.log.add(f"You chat briefly with {npc.name}.")
-    _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id)
+    _quest_body, _ = main_quest_module.resolve_npc_dialogue(ctx, npc.id, speaker=npc)
     _missions = deliver_missions or []
     _quest_options = _quest_rows(ctx, npc)
     _ask_around = _offers_rumors(ctx, npc)

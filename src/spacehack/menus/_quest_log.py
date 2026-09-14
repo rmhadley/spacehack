@@ -541,21 +541,13 @@ def _npc_ship_name(ship_id: str | None) -> str:
 def _npc_display_name(planet_id: str, npc_id: str) -> str:
     """Resolve the planet-local NPC display name (e.g. 'Mars Barkeep').
 
-    Checks the planet's ``npc_overrides`` first so a bartender on Mars
-    shows as "Mars Barkeep" rather than the generic "Barkeep", then
-    falls back to the global NPC catalog. Returns "" if unresolvable.
+    Resolution goes through :func:`data.planets.find_planet_npc`
+    (planet overrides first, global catalog fallback). Returns "" if
+    unresolvable.
     """
     try:
-        from ..data.planets import find_planet_spec as _fps_dn
-        _spec = _fps_dn(planet_id)
-        for _oid, _npc in getattr(_spec, 'npc_overrides', ()) or ():
-            if _oid == npc_id:
-                return _npc.name
-    except (KeyError, ImportError):
-        pass
-    try:
-        from ..data.npcs import find_npc as _fnpc_dn
-        return _fnpc_dn(npc_id).name
+        from ..data.planets import find_planet_npc as _fpn_dn
+        return _fpn_dn(npc_id, planet_id).name
     except (KeyError, ImportError):
         return ""
 

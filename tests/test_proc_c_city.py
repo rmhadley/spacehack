@@ -4,8 +4,32 @@ from __future__ import annotations
 
 from collections import deque
 
+import pytest
+
 from src.spacehack import city_interiors, city_landmarks
-from src.spacehack.data.planets import find_planet_spec, load_planet
+from src.spacehack.data.planets import find_planet_npc, find_planet_spec, load_planet
+
+
+def test_find_planet_npc_prefers_spec_overrides():
+    assert find_planet_npc("cook", "proc_planet_2").name == "Campus Cook"
+
+
+def test_find_planet_npc_falls_through_to_catalog():
+    assert find_planet_npc("research_officer", "proc_planet_2").id == "research_officer"
+
+
+def test_find_planet_npc_unknown_planet_uses_catalog():
+    assert find_planet_npc("research_officer", "no_such_planet").id == "research_officer"
+
+
+def test_find_planet_npc_none_planet_uses_catalog():
+    with pytest.raises(KeyError):
+        find_planet_npc("cook", None)
+
+
+def test_find_planet_npc_unknown_id_raises_keyerror():
+    with pytest.raises(KeyError):
+        find_planet_npc("cook", "earth")
 
 
 def _reachable(game_map, start):

@@ -5,7 +5,6 @@ from typing import Any
 import time
 from . import main_quest as main_quest_module, message_log
 from . import mission as mission_module
-from . import npc as npc_module
 from . import ship as ship_module
 from . import solar_system as solar_system_module
 from . import ui
@@ -829,7 +828,8 @@ async def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard
 async def _resolve_npc_blocker(state, blocker):
     """Resolve NPC dialogue, delivery, and mission acceptance."""
     ctx = state.ctx
-    npc_obj = npc_module.find_npc(blocker.npc_id)
+    from .data.planets import find_planet_npc
+    npc_obj = find_planet_npc(blocker.npc_id, state.current_city_id)
     _planet_tier = _planet_mission_tier(state)
     _deliverable = mission_module.find_deliverable_missions(state.player_active_missions, npc_obj.id, state.current_city_id, owned_ship=state.player_owned_ship)
     result, _deliver_mission = await _run_npc_talk(ctx, npc_obj, deliver_missions=_deliverable or None)

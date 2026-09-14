@@ -63,38 +63,52 @@ def _live_dialogue(ctx, npc_id: str) -> tuple[MainQuestStep, "QuestDialogue"] | 
     return None
 
 
-def resolve_npc_dialogue(ctx, npc_id: str) -> tuple[str, str | None]:
-    """Return (dialogue_text, trigger_step_id or None) for this NPC."""
+def _dialogue_flavor(npc_id: str, speaker) -> str:
+    """Flavor text for an NPC: the resolved speaker first, catalog fallback.
+
+    Planet override NPCs (e.g. Procyon C's Campus Cook) exist only as
+    spec overrides, so a bare catalog re-lookup raises KeyError.
+    """
+    if speaker is not None:
+        return speaker.flavor_text
     from ..data.npcs import find_npc as _find_npc
+    return _find_npc(npc_id).flavor_text
+
+
+def resolve_npc_dialogue(ctx, npc_id: str, speaker=None) -> tuple[str, str | None]:
+    """Return (dialogue_text, trigger_step_id or None) for this NPC.
+
+    ``speaker`` is the already-resolved NPC the player is talking to;
+    flavor-text fallbacks consult it before the catalog.
+    """
     _live = _live_dialogue(ctx, npc_id)
-    if _live is not None:
-        _step, _dialogue = _live
-        _status = ctx.main_quest_progress[_step.id]
-        if _dialogue_is_locked(ctx, _dialogue):
-            _locked = _dialogue.locked or _find_npc(npc_id).flavor_text
-            return (_locked, None)
-        _handler = handler_for(_step.objective_type)
-        _gating_ok = (
-            _handler is None
-            or _handler.option_gating is None
-            or _handler.option_gating(ctx, _step, npc_id)
-        )
-        _trigger = (
-            _step.id
-            if _dialogue.trigger_on_talk
-            and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
-            and _gating_ok
-            else None
-        )
-        if _trigger is not None:
-            return (_find_npc(npc_id).flavor_text, _trigger)
-        _text = (
-            _dialogue.active if _status == STATUS_ACTIVE
-            else _dialogue.intro if _status == STATUS_AVAILABLE
-            else _dialogue.complete
-        )
-        return (_text, None)
-    return (_find_npc(npc_id).flavor_text, None)
+    if _live is None:
+        return (_dialogue_flavor(npc_id, speaker), None)
+    _step, _dialogue = _live
+    _status = ctx.main_quest_progress[_step.id]
+    if _dialogue_is_locked(ctx, _dialogue):
+        return (_dialogue.locked or _dialogue_flavor(npc_id, speaker), None)
+    _handler = handler_for(_step.objective_type)
+    _gating_ok = (
+        _handler is None
+        or _handler.option_gating is None
+        or _handler.option_gating(ctx, _step, npc_id)
+    )
+    _trigger = (
+        _step.id
+        if _dialogue.trigger_on_talk
+        and _status in (STATUS_AVAILABLE, STATUS_ACTIVE)
+        and _gating_ok
+        else None
+    )
+    if _trigger is not None:
+        return (_dialogue_flavor(npc_id, speaker), _trigger)
+    _text = (
+        _dialogue.active if _status == STATUS_ACTIVE
+        else _dialogue.intro if _status == STATUS_AVAILABLE
+        else _dialogue.complete
+    )
+    return (_text, None)
 
 
 def quest_option_for(ctx, npc_id: str) -> tuple[str, str] | None:

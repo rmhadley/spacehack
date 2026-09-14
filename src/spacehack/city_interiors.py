@@ -43,7 +43,7 @@ def _first_interior_npc(game_map: world.GameMap, spawn: world.Position) -> world
     )
 
 
-def _seat_building_npc(game_map: world.GameMap, record: dict) -> None:
+def _seat_building_npc(game_map: world.GameMap, record: dict, planet_id: str) -> None:
     """Place the building's service NPC inside its authored interior."""
     npc_id = record.get("npc_id", "")
     if not npc_id:
@@ -52,8 +52,8 @@ def _seat_building_npc(game_map: world.GameMap, record: dict) -> None:
     if override is not None:
         npc = override
     else:
-        from .data.npcs import find_npc
-        npc = find_npc(npc_id)
+        from .data.planets import find_planet_npc
+        npc = find_planet_npc(npc_id, planet_id)
     spawn = getattr(game_map, "entry_spawn", None)
     position = _first_interior_npc(game_map, spawn) if spawn is not None else None
     if position is None:
@@ -70,8 +70,7 @@ def _seat_service_npcs(ctx, game_map: world.GameMap, record: dict) -> None:
     The unconditional sibling of the quest seater: additive beside the
     resident, idempotent on cache hits, data-driven by the planet's
     ``service_npc_spots``."""
-    from .data.npcs import find_npc
-    from .data.planets import find_planet_spec
+    from .data.planets import find_planet_npc, find_planet_spec
 
     label = record.get("label", "")
     planet_id = getattr(ctx, "current_city_id", "")
@@ -91,7 +90,7 @@ def _seat_service_npcs(ctx, game_map: world.GameMap, record: dict) -> None:
         if position is None:
             ctx.log.add(f"[SERVICE NPC] {npc_id} has no clear cell in {label}.")
             continue
-        npc = find_npc(npc_id)
+        npc = find_planet_npc(npc_id, planet_id)
         game_map.entities.append(world.Entity(
             char=npc.char, fg=npc.fg, pos=position,
             name=npc.name, npc_id=npc.id, width=1, height=1,
@@ -139,7 +138,7 @@ def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Positi
         game_map.city_parent_door = record["entrance"]
         game_map.location_name = record["display_name"]
         ctx.interiors[cache_key] = game_map
-        _seat_building_npc(game_map, record)
+        _seat_building_npc(game_map, record, getattr(ctx, "current_city_id", ""))
     # Live quest NPCs stand beside the resident (idempotent on cache hits;
     # interiors are deterministic-authored, so completed steps stop seating).
     from .main_quest import seat_quest_npcs_in_interior as _seat_quest

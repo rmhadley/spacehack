@@ -405,38 +405,51 @@ def load_planet(planet_id: str) -> world.GameMap:
     )
 
 
+def find_planet_npc(npc_id: str, planet_id: str | None) -> npc_module.NPC:
+    """Resolve an NPC id on a planet: spec overrides first, then the catalog.
+
+    The single override-aware lookup behind the ``npc_overrides``
+    contract (see ``data/npcs``): bump-talk resolution, delivery
+    matching, display names, and interior seating all resolve through
+    here, so a planet-local NPC is talkable everywhere its entity
+    appears. An unknown or ``None`` planet falls through to the
+    catalog. Raises KeyError for an id neither knows. Override ids
+    collide across planets (barkeep and friends), so callers MUST pass
+    the planet that authored the entity — a wrong-but-known planet
+    silently resolves a different NPC.
+    """
+    if planet_id:
+        try:
+            spec = find_planet_spec(planet_id)
+        except KeyError:
+            spec = None
+        if spec is not None:
+            for oid, npc_obj in spec.npc_overrides:
+                if oid == npc_id:
+                    return npc_obj
+    return npc_module.find_npc(npc_id)
+
+
 def _resolve_npc_entity(
     npc_id: str, spec: PlanetSpec,
 ) -> world.Entity | None:
     """Resolve an NPC id to a placeholder :class:`world.Entity`.
 
-    Checks planet-local overrides (:attr:`PlanetSpec.npc_overrides`)
-    first, then falls through to the global NPCS catalog. Both
-    branches return ``None`` for an empty id (no occupant). The
-    returned entity's ``pos`` is a placeholder: :func:`world.make_building`
-    re-anchors it to the building interior before splicing.
+    Resolution goes through :func:`find_planet_npc` (overrides first,
+    then the catalog). The returned entity's ``pos`` is a placeholder:
+    :func:`world.make_building` re-anchors it to the building interior
+    before splicing.
     """
     if not npc_id:
         return None
-    # Planet-local override first.
-    for oid, npc_obj in spec.npc_overrides:
-        if oid == npc_id:
-            return world.Entity(
-                char=npc_obj.char, fg=npc_obj.fg,
-                pos=world.Position(0, 0),
-                name=npc_obj.name,
-                npc_id=npc_obj.id,
-                width=1, height=1,
-            )
-    # Fall through to the global catalog.
-    global_npc = npc_module.find_npc(npc_id)
+    npc_obj = find_planet_npc(npc_id, spec.id)
     return world.Entity(
-        char=global_npc.char, fg=global_npc.fg,
+        char=npc_obj.char, fg=npc_obj.fg,
         pos=world.Position(0, 0),
-        name=global_npc.name,
-        npc_id=global_npc.id,
+        name=npc_obj.name,
+        npc_id=npc_obj.id,
         width=1, height=1,
     )
 
 
-__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "list_planet_specs", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]
+__all__ = ["PlanetSpec", "load_planet", "find_planet_spec", "find_planet_npc", "list_planet_specs", "hangar_anchor", "has_explorable_sites", "has_landable_port", "has_militia_presence"]

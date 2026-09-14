@@ -33,14 +33,10 @@ def _delivery_target_matches(
     if not target_planet:
         return False
     try:
-        from ..data.planets import find_planet_spec as _fps_m
-        _spec = _fps_m(target_planet)
-        for _oid, _npc in getattr(_spec, "npc_overrides", ()) or ():
-            if _oid == target_npc:
-                return _npc.id == npc_id
+        from ..data.planets import find_planet_npc as _fpn_m
+        return _fpn_m(target_npc, target_planet).id == npc_id
     except (KeyError, ImportError):
         return False
-    return False
 
 
 def is_deliverable_at(
