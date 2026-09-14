@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "ruff"]
+dev = ["pytest", "ruff", "pygbag==0.9.3"]
 
 [project.scripts]
 spacehack = "spacehack.__main__:main"
