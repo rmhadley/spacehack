@@ -654,6 +654,12 @@ unchanged.
       artifacts unchanged (boot beacon 2026-09-14: `b46:main`
       reached, game window opens 1600×960, 18 requests ALL local,
       zero 404; `git diff --stat -- src/` empty across the phase)
+- [x] user browser playtest PASSED (user, 2026-09-14, after the
+      localhost-8 fix + hard refresh: "1. game launches! 2. options
+      work and persist 3. save/continue works and persists").
+      Not separately reported — fullscreen behavior, desktop
+      regression, and gameplay feel all live in phase 4's
+      checklist by design (the perf + dual-playtest phase).
 
 **Phase-3 run log (2026-09-14):**
 
