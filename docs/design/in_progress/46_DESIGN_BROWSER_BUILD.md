@@ -766,33 +766,36 @@ frames do. NOT config state.**
 **Brief (amended 2026-09-14 with the feel report — pending
 approval):**
 
-- *Principle:* diagnose before building, in the container where
-  possible: with the async build, screenshots composite under
-  xvfb (phase-0 round 4), so the build session can SEE the game;
-  the round-3 "CDP can't dispatch keyboard" finding predates the
-  async fix and gets one retry — if input lands, the animation
-  defect is reproducible and fixable in-container; if not, the
-  user's browser is the repro instrument via staging-only
-  instrumentation (patch the STAGED copy, never the repo bundle).
+- *Principle (user, 2026-09-14 — binding workflow):* **the user
+  runs the app; the agent doesn't** — the desktop-app workflow,
+  extended to web. Fix cycles are code-reasoned candidate →
+  `make web` → user playtests → report; a cycle costs the user
+  ~a minute. NO in-container repro machinery, screenshot-driving,
+  or instrumentation builds. The in-container boot beacon stays
+  (dead-on-arrival proof only); gameplay verification is the
+  user's alone.
 - *Scope:*
   - **Animation frames don't commit on web (the G evidence):**
-    the runners (`navigation_travel._render_jump_frame` +
-    `_responsive_sleep`, the launch/land/descent family) present
-    through the same runtime path as the game/modal loops, so
-    the defect is a present/commit or yield-depth differential
-    only visible at runtime. Diagnostic order: (1) xvfb +
-    playwright keyboard retry → drive a transit; (2) if blind,
-    staging-only frame-beacon instrumentation (xterm print per
-    presented frame) through a patched staged copy; (3) fix per
-    findings — candidates: asyncify unwind depth inside nested
-    animation coroutines, the engine's present/flip variant
-    under vsync=1 emscripten, an overlay blit that no-ops under
-    wasm.
-  - **Earth/ground perf:** profile the ground frame path under
-    wasm (river/water animation tiles, city render, lighting
-    cadence — the "lighting/river" read is the user's guess).
-    Mitigation must be UNIFORM — cheaper for desktop too
-    (requirement #1 item 2; no platform branches).
+    the runners already pump SDL per chunk
+    (`_responsive_sleep` calls `pygame.event.get()`), so the
+    surviving differential is the YIELD PRIMITIVE — animation
+    loops await bare `asyncio.sleep` chunks while game/modal
+    loops yield through the runtime's `wait_events`/`pump()`
+    path ("the full JS-stack return is what lets SDL commit").
+    Candidate order, one cycle each: (1) align the animation
+    sleeps (`navigation_travel._responsive_sleep` +
+    `combat/_animations`' helper) with `context.pump()` per
+    chunk — uniform, no platform branch, desktop-neutral;
+    (2) if still frozen, ship a two-line xterm beacon at
+    animation start/end (b46-family diagnostics — proves
+    whether frames render at all); (3) present/flip variant
+    under vsync=1 emscripten.
+  - **Earth/ground perf:** code-reasoned from the ground frame
+    path (river/water animation tiles, city render, lighting
+    cadence — the "lighting/river" read is the user's guess);
+    uniform mitigations only — cheaper for desktop too
+    (requirement #1 item 2; no platform branches); the user's
+    feel is the measure.
   - **Loading-beat ruling:** deferred until the animation
     question settles (same wordless-mechanic family); if it
     lands: motion/light, descent_animation-style, never prose.
@@ -800,9 +803,9 @@ approval):**
     path + loop entries gain web-target notes; persistence entry
     gains the IndexedDB mirror + sh46 fetch seam; a web-build
     entry for make-web/serve-web/boot-beacon).
-- *Build order:* animation repro + fix → Earth-perf profile +
-  uniform mitigation → beat ruling → dual checklists → close +
-  SYSTEMS.md audit.
+- *Build order:* fix cycle (1) → user playtest → report → next
+  candidate if needed → Earth-perf pass → beat ruling → dual
+  checklists → close + SYSTEMS.md audit.
 - *Binding rulings:* R1 (flagless — instrumentation is
   staging-only, never the shipped bundle), R5 (self-contained),
   requirement #1 items 2/6 (feel-identical desktop; content
