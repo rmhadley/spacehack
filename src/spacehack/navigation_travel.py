@@ -353,6 +353,10 @@ async def _goto_poll_cancel(context, duration: float) -> bool:
                     return True
         _remaining = _end - time.monotonic()
         if _remaining <= 0:
+            # Zero-length cancel window (instant speed) still yields: a
+            # whole transit at instant must not grind with zero JS
+            # returns — its frames would never commit on web.
+            await asyncio.sleep(0)
             return False
         await asyncio.sleep(min(_remaining, 0.01))
 
@@ -558,6 +562,10 @@ async def _responsive_sleep(seconds: float) -> None:
         pygame.event.get()
         remaining = end - time.monotonic()
         if remaining <= 0:
+            # Instant speed still yields once per frame: the compositor
+            # only commits presented frames when the JS stack returns
+            # (web), and desktop keeps its near-instant flash.
+            await asyncio.sleep(0)
             return
         await asyncio.sleep(min(remaining, 0.01))
 

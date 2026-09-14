@@ -41,6 +41,7 @@ and ``present_frame`` are injected so tests run headless.
 """
 from __future__ import annotations
 
+import asyncio
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -588,7 +589,7 @@ def _poll_cancel_window(ctx) -> bool:
             return False
 
 
-def _step_present_poll_move(
+async def _step_present_poll_move(
     ctx,
     console,
     game_map,
@@ -608,7 +609,9 @@ def _step_present_poll_move(
     instead of being stacked onto (doc 42 SETTLED 39).
 
     Returns ``"CANCELLED"`` / ``"DEFEAT"`` / ``"COMBAT"`` or ``None``
-    (no stop). ``post_step_tick`` MUST refresh the LOS/visible frame.
+    (no stop). ``post_step_tick`` MUST refresh the LOS/visible frame;
+    it is an async seam — the production tick is a coroutine function
+    (awaited here; phase-1's uniform-Awaitable contract, no hedge).
     """
     present(ctx, console, game_map, map_w=map_w, map_h=map_h, location=location)
     if _poll_cancel_window(ctx):
@@ -616,7 +619,7 @@ def _step_present_poll_move(
     from .ground_npcs import swap_step
     if not swap_step(ctx, player, game_map, dx, dy):
         player.pos = world.Position(player.pos.x + dx, player.pos.y + dy)
-    return post_step_tick(ctx, console, game_map)
+    return await post_step_tick(ctx, console, game_map)
 
 
 def _stop_if_fresh(ctx, game_map, known) -> str | None:
@@ -654,7 +657,7 @@ def _explore_finish(ctx, game_map, player):
     return "DONE"
 
 
-def _run_explore_loop(
+async def _run_explore_loop(
     ctx, console, game_map, player, present, post_step_tick,
     map_w, map_h, location, known,
 ):
@@ -668,15 +671,18 @@ def _run_explore_loop(
         _step = next_explore_step(game_map, player.pos, _yielding)
         if _step is None:
             return _explore_finish(ctx, game_map, player)
-        _ctrl = _step_present_poll_move(
+        _ctrl = await _step_present_poll_move(
             ctx, console, game_map, player, present,
             map_w, map_h, location, *_step, post_step_tick,
         )
         if _ctrl is not None:
             return _ctrl
+        # One yield per step: the walk must return to the JS stack each
+        # frame or the whole run grinds without committing (web).
+        await asyncio.sleep(0)
 
 
-def run_auto_explore(
+async def run_auto_explore(
     ctx,
     console,
     game_map,
@@ -702,7 +708,7 @@ def run_auto_explore(
     _memory.add(_standing_pos)
     _known = _seed_known_interesting(game_map)
     ctx.log.add("Auto-explore engaged.")
-    return _run_explore_loop(
+    return await _run_explore_loop(
         ctx, console, game_map, player, _present, post_step_tick,
         map_w, map_h, location, _known,
     )
@@ -713,7 +719,7 @@ def run_auto_explore(
 # ---------------------------------------------------------------------------
 
 
-def _run_goto_loop(
+async def _run_goto_loop(
     ctx, console, game_map, player, target, present, post_step_tick,
     map_w, map_h, location, known,
 ):
@@ -731,15 +737,17 @@ def _run_goto_loop(
         if _step is None:
             ctx.log.add(f"Cannot reach {target.label}.")
             return "DONE"
-        _ctrl = _step_present_poll_move(
+        _ctrl = await _step_present_poll_move(
             ctx, console, game_map, player, present,
             map_w, map_h, location, *_step, post_step_tick,
         )
         if _ctrl is not None:
             return _ctrl
+        # One yield per step (see _run_explore_loop).
+        await asyncio.sleep(0)
 
 
-def run_goto(
+async def run_goto(
     ctx,
     console,
     game_map,
@@ -760,7 +768,7 @@ def run_goto(
     _known = _seed_known_interesting(game_map)
     _known.add((target.x, target.y))
     ctx.log.add(f"Auto-nav engaged. Walking to {target.label}...")
-    return _run_goto_loop(
+    return await _run_goto_loop(
         ctx, console, game_map, player, target, _present, post_step_tick,
         map_w, map_h, location, _known,
     )
@@ -796,7 +804,7 @@ async def run_dungeon_goto(
     )
     if not _handled or _selected is None:
         return "DONE"
-    return run_goto(
+    return await run_goto(
         ctx, console, game_map, player,
         target=_targets[_selected],
         post_step_tick=post_step_tick,

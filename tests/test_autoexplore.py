@@ -1,4 +1,4 @@
-from tests.support.asyncutil import run
+from tests.support.asyncutil import as_async, run
 """Tests for dungeon auto-explore (the ``O`` key).
 
 Covers the pure decision helpers (``next_explore_step``,
@@ -112,24 +112,24 @@ class _Events:
 def _run(gm, player, *, events=None, tick=None):
     """Run auto-explore headless with stub present/tick hooks."""
     ctx = SimpleNamespace(log=MessageLog(20), context=_Events(*(events or ())))
-    tick = tick or (lambda ctx, console, game_map: None)
-    result = run_auto_explore(
+    tick = as_async(tick or (lambda ctx, console, game_map: None))
+    result = run(run_auto_explore(
         ctx, console=None, game_map=gm, player=player,
         post_step_tick=tick, map_w=8, map_h=3,
         present_frame=lambda *a, **k: None,
-    )
+    ))
     return ctx, result
 
 
 def _run_goto(gm, player, target, *, events=None, tick=None):
     """Run go-to headless with stub present/tick hooks."""
     ctx = SimpleNamespace(log=MessageLog(20), context=_Events(*(events or ())))
-    tick = tick or (lambda ctx, console, game_map: None)
-    result = run_goto(
+    tick = as_async(tick or (lambda ctx, console, game_map: None))
+    result = run(run_goto(
         ctx, console=None, game_map=gm, player=player, target=target,
         post_step_tick=tick, map_w=8, map_h=3,
         present_frame=lambda *a, **k: None,
-    )
+    ))
     return ctx, result
 
 
@@ -757,7 +757,7 @@ def test_run_goto_arrives_beside_stairs():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
-    ctx, result = run(_run_goto(gm, player, target, tick=tick))
+    ctx, result = _run_goto(gm, player, target, tick=tick)
     assert result == "DONE"
     assert player.pos == world.Position(5, 1)  # adjacent, never on top
     assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
@@ -775,7 +775,7 @@ def test_run_goto_does_not_stop_at_own_target():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=2)
         return None
 
-    ctx, result = run(_run_goto(gm, player, target, tick=tick))
+    ctx, result = _run_goto(gm, player, target, tick=tick)
     assert result == "DONE"
     assert player.pos == world.Position(5, 1)  # walked past the sighting
     assert "arrive at a stairway down" in ctx.log.recent(1)[0].text
@@ -794,7 +794,7 @@ def test_run_goto_stops_at_newly_visible_interesting():
         _reveal_frame(gm, player.pos.x, player.pos.y, radius=1)
         return None
 
-    ctx, result = run(_run_goto(gm, player, target, tick=tick))
+    ctx, result = _run_goto(gm, player, target, tick=tick)
     assert result == "DONE"
     assert player.pos == world.Position(3, 1)  # stopped at the cache
     assert "cache of supplies" in ctx.log.recent(1)[0].text
@@ -806,7 +806,7 @@ def test_run_goto_cancels_on_keypress():
     target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
     player = _player(1, 1)
     key = SimpleNamespace(kind="keydown", key_name="h")
-    ctx, result = run(_run_goto(gm, player, target, events=[key]))
+    ctx, result = _run_goto(gm, player, target, events=[key])
     assert result == "CANCELLED"
     assert player.pos == world.Position(1, 1)  # never moved
 
@@ -820,7 +820,7 @@ def test_run_goto_stops_when_combat_starts():
     def tick(ctx, console, game_map):
         return "COMBAT"
 
-    ctx, result = run(_run_goto(gm, player, target, tick=tick))
+    ctx, result = _run_goto(gm, player, target, tick=tick)
     assert result == "COMBAT"
     assert player.pos == world.Position(2, 1)  # one step taken
 
@@ -831,7 +831,7 @@ def test_run_goto_cannot_reach_target():
     gm.tiles[1][6] = _stairs(6, 1)
     target = GotoTarget(title="Stairs down", label="a stairway down", x=6, y=1)
     player = _player(1, 1)
-    ctx, result = run(_run_goto(gm, player, target))
+    ctx, result = _run_goto(gm, player, target)
     assert result == "DONE"
     assert player.pos == world.Position(1, 1)  # never moved
     assert "Cannot reach a stairway down" in ctx.log.recent(1)[0].text
@@ -894,11 +894,11 @@ def test_engage_while_standing_on_stairs_explores_instead_of_stopping():
     )
     messages: list[str] = []
     ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
-    outcome = run_auto_explore(
+    outcome = run(run_auto_explore(
         ctx, object(), game_map, player,
-        post_step_tick=lambda: None, map_w=80, map_h=45,
+        post_step_tick=as_async(lambda *a, **k: None), map_w=80, map_h=45,
         present_frame=lambda *a, **k: None,
-    )
+    ))
     assert outcome == "DONE"  # fully-seen map: nothing to explore
     assert any("Auto-explore engaged" in m for m in messages)
     assert not any("standing at" in m for m in messages), (
@@ -1081,10 +1081,10 @@ def test_executor_swaps_a_planned_through_guard(monkeypatch):
         moved.append((player.pos.x, player.pos.y))
         return None
 
-    assert _step_present_poll_move(
+    assert run(_step_present_poll_move(
         ctx, None, gm, player, lambda *a, **k: None,
-        9, 5, "test", -1, 0, _tick,
-    ) is None
+        9, 5, "test", -1, 0, as_async(_tick),
+    )) is None
     assert (player.pos.x, player.pos.y) == (4, 2)
     assert (guard.pos.x, guard.pos.y) == (5, 2)
     assert moved == [(4, 2)]
@@ -1116,3 +1116,30 @@ def test_swap_refuses_transition_tiles(monkeypatch):
     ) is False
     assert (player.pos.x, player.pos.y) == (5, 2)
     assert (guard.pos.x, guard.pos.y) == (4, 2)
+
+
+def test_auto_explore_drives_async_post_step_tick():
+    """The production tick is a coroutine function (phase-1 contract).
+
+    Regression pin (doc 46.4 cycle 3, reviewer): _step_present_poll_move
+    used to return the tick's coroutine undriven — one step per press,
+    LOS/NPC/auto-combat ticks silently dropped.
+    """
+    gm = _corridor()
+    player = world.Entity(
+        char="@", fg=(255, 255, 255),
+        pos=world.Position(0, 1), name="Player",
+    )
+    ran: list[int] = []
+
+    async def tick(ctx, console, game_map):
+        ran.append(1)
+        px, py = player.pos.x, player.pos.y
+        for yy in range(max(0, py - 1), min(3, py + 2)):
+            for xx in range(max(0, px - 1), min(8, px + 2)):
+                game_map.seen[yy][xx] = True
+        return None
+
+    ctx, result = _run(gm, player, tick=tick)
+    assert result == "DONE"
+    assert ran, "the async post-step tick must actually run per step"

@@ -575,7 +575,7 @@ async def _handle_dungeon_automation_event(state, event):
             ctx.log.add('Auto-explore only works inside dungeons.')
             return 'HANDLED'
         from .autoexplore import run_auto_explore
-        _ae_result = run_auto_explore(ctx, console, state.game_map, state.player, post_step_tick=_dungeon_post_move_tick, map_w=map_w, map_h=map_h, location=getattr(state.game_map, 'location_name', 'Derelict Ship'))
+        _ae_result = await run_auto_explore(ctx, console, state.game_map, state.player, post_step_tick=_dungeon_post_move_tick, map_w=map_w, map_h=map_h, location=getattr(state.game_map, 'location_name', 'Derelict Ship'))
         if _ae_result == 'DEFEAT':
             return 'QUIT'
         if _ae_result == 'COMBAT':

@@ -53,6 +53,9 @@ async def _responsive_sleep(seconds: float) -> None:
             pass
         remaining = end - time.monotonic()
         if remaining <= 0:
+            # Instant speed still yields once per frame — a zero-length
+            # sleep must not grind without a JS return (web commits).
+            await asyncio.sleep(0)
             return
         await asyncio.sleep(min(remaining, 0.01))
 

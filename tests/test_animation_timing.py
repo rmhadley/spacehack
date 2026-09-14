@@ -154,3 +154,34 @@ def test_web_beacon_end_reports_frames_and_elapsed(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert out.startswith("b46:goto-end frames=7 t=")
     assert out.endswith("s\n")
+
+
+def test_instant_speed_still_yields_per_frame(monkeypatch):
+    """Zero-length animation sleeps must await at least once.
+
+    The instant-speed paths used to return without yielding, so a whole
+    animation ground with zero JS-stack returns — nothing ever committed
+    on web and the transit blocked invisibly until arrival.
+    """
+    import sys as _sys
+
+    from src.spacehack import navigation_travel as nt
+    from src.spacehack.combat import _animations
+
+    yields: list[float] = []
+
+    async def fake_sleep(seconds):
+        yields.append(seconds)
+
+    monkeypatch.setitem(_sys.modules, "pygame", SimpleNamespace(
+        event=SimpleNamespace(get=lambda: ())))
+    animation_timing.set_speed_scale(0.0)
+    for module in (nt, _animations):
+        monkeypatch.setattr(module.asyncio, "sleep", fake_sleep)
+        run(module._responsive_sleep(0.05))
+    assert yields, "instant-speed animation sleep must still yield"
+
+    context = SimpleNamespace(events=lambda: ())
+    _before = len(yields)
+    assert run(nt._goto_poll_cancel(context, animation_timing.AUTO_NAV)) is False
+    assert len(yields) > _before, "zero-length cancel window must yield"
