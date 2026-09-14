@@ -750,6 +750,10 @@ Exit: both checklists pass; doc close then audits SYSTEMS.md
       46.4 invocation after the workflow amendment: the user runs
       the app; cycle 1 = the xterm beacon diagnostic)
 - [ ] in-browser + desktop checklists pass; `make check` green
+- [ ] beacon disposition ruled before doc close (strip vs keep as
+      quiet web diagnostics) — they currently print on every web
+      session by design for the fix loop; the "staging-only"
+      wording in the rulings below is superseded by this box
 
 **Feel report (user, 2026-09-14, shaping this brief):** "Earth
 was slow. probably the animation layer for lighting/river. Space
@@ -811,6 +815,27 @@ approval):**
     path + loop entries gain web-target notes; persistence entry
     gains the IndexedDB mirror + sh46 fetch seam; a web-build
     entry for make-web/serve-web/boot-beacon).
+**Cycle log:**
+
+- Cycle 1 (60c1c96): beacons shipped. User report: **launch
+  animation SHOWS; goto and jump still frozen** — animation frames
+  CAN commit on web, killing the asyncify-depth theory. Static
+  analysis had already eliminated the yield-primitive (pump() IS
+  asyncio.sleep) and present-path (glide and transit share
+  present_exploration) theories. The surviving correlation: every
+  frozen scene runs immediately after a MODAL closes (goto, jump,
+  land-behind-confirm); the working launch glide does not.
+- Cycle 2 (this build): the user's pastes were the DEVTOOLS
+  console, not the page xterm — the beacons now MIRROR to
+  console.log so their natural paste carries them, and every end
+  marker gained ELAPSED TIME (`web_beacon_end`): frames>0 at full
+  duration ⇒ renders happened, frames never committed (SDL/
+  emscripten present after a modal); frames>0 at ~0s ⇒ the ride
+  was skipped outright (the modal's key-press tail — the phase-1
+  input pathology class). Reviewer APPROVE; its three minors
+  taken (mirror positive-path test, web_beacon_end DRY fold,
+  this record + the beacon-disposition checkbox).
+
 - *Build order:* fix cycle (1) → user playtest → report → next
   candidate if needed → Earth-perf pass → beat ruling → dual
   checklists → close + SYSTEMS.md audit.
