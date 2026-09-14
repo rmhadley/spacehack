@@ -84,8 +84,12 @@ not part of this port.
 Rejected: a TypeScript/web rewrite (reimplementing 80k lines plus
 the data toolchain to preserve a proven engine), and hosted
 streaming (server cost + latency for a single-player game). The
-result is a static bundle hostable anywhere (itch embed, GitHub
-Pages — user-run ops, outside the container).
+result is a static bundle hostable anywhere a header-capable host
+will take it (itch direct with its experimental SharedArrayBuffer
+toggle, or a `_headers`-capable static host; GitHub Pages ruled out
+2026-09-14 — no custom response headers, and the wasm runtime's
+SharedArrayBuffer requirement makes COOP/COEP unavoidable) —
+user-run ops, outside the container.
 
 **Ruling 3 (this doc, subordinate to requirement #1): ONE async
 path, no dual loops.** The frame pump yields to the event loop each
@@ -94,6 +98,24 @@ frame; on desktop `asyncio.run(main())` drives it with
 and verified by measurement anyway (phase 1 exit gate). If
 verification fails, the phase does not land; there is no
 platform-conditional loop fallback.
+
+**Ruling 4 (user, 2026-09-14): phase-3 verification is LOCAL/LAN
+only — a header-serving local static server is the exit target.**
+Hosting (itch with its experimental SharedArrayBuffer toggle, or a
+`_headers`-capable static host) is a later want, user-run per
+Ruling 2; the bundle ships host-ready but unshipped. GitHub Pages
+is out: it cannot set custom response headers, and the wasm
+runtime's SharedArrayBuffer requirement makes the loader's
+COOP/COEP need unavoidable (measured, phase-0 defect 1). The
+phase-3 exit gate is therefore amended: "plain" (header-less)
+static servers stall the loader by construction.
+
+**Ruling 5 (user, 2026-09-14): the shipped bundle is
+self-contained — `make web` mirrors the pinned pygame-ce wasm
+wheel (1.5 MB) into the bundle.** The player's first load touches
+nothing third-party (requirement #1's spirit; mirroring already
+proven mechanically in phase 0). pygbag's CDN stays a build-time
+concern only.
 
 ## Phases
 
@@ -485,13 +507,89 @@ config rides the SAME backend: the persisted thing is the
 
 pygbag packaging as a sibling of the wheel; fullscreen rides the
 Window API and degrades gracefully on a fixed canvas; pygbag's
-loading screen is the first-load UX. Exit: the static bundle boots
-and plays from a plain static web server; desktop build artifacts
-and pipeline unchanged.
+loading screen is the first-load UX. Exit: the self-contained
+bundle boots and plays from the local header-serving server
+(`make serve-web`, Ruling 4); desktop build artifacts and pipeline
+unchanged.
 
-- [ ] brief approved (written at the phase-2 checkpoint)
-- [ ] bundle boots from a plain static server; desktop artifacts
-      unchanged
+**Brief (proposed 2026-09-14, pending approval):**
+
+- *Principle:* everything the spike learned in-container becomes
+  OWNED machinery — the three template defects (COI headers, local
+  browserfs, wheel URL) and the sh46 shim stop being staging hacks
+  and become a committed template + two Makefile targets. Desktop
+  untouched by construction: no `src/` changes; the only
+  existing-file edits are `Makefile` and the pyproject dev extras.
+- *Scope:* new `web/` (top level): `main.py` (pygbag-convention
+  async entry: `await spacehack.__main__._amain()`); `sh46.js`
+  (the phase-2 shim spec verbatim: `put`/`remove` optional
+  callbacks, `get`/`keys` mandatory, root-relative POSIX names,
+  UTF-8 text, IndexedDB db "spacehack" store "files", injected
+  BEFORE the loader); vendored `browserfs.min.js` + `empty.html`
+  with a provenance README (source + version; references-corpus
+  convention) — foreign JS as build tooling, never game assets;
+  the template-override mechanism pygbag 0.9.3 supports for the
+  injection + local refs. `Makefile`: `web` (stage app dir →
+  pygbag build → post-process: mirror the pinned pygame-ce 2.5.7
+  wasm wheel into the bundle, rewrite its URL local, self-
+  containment gate) and `serve-web` (stdlib http server setting
+  `Cross-Origin-Opener-Policy: same-origin` +
+  `Cross-Origin-Embedder-Policy: credentialless` on every
+  response, serving `build/web/`). `pyproject.toml`: pygbag
+  ==0.9.3 in dev extras (the phase-0 no-pyproject freeze is lifted
+  by the GO ruling). Output to `build/web/` (already gitignored);
+  the mirrored wheel is cached under build/, never committed. **No
+  `src/` changes expected — any that surface are flagged, not
+  smuggled.**
+- *Build order:* pyproject + web/ skeleton + provenance README →
+  sh46.js + vendored files + template overrides + `main.py` →
+  `make web` + self-containment gate (grep the built bundle for
+  runtime `https://` fetches — must find none) → `make serve-web`
+  + header test → in-container verification (phase-0/2 pattern:
+  serve, headless-browser beacon trail via `location.hash`,
+  title → new game → moves; python stdout reads from the xterm,
+  not the console) → `make check` → user's browser checkpoint.
+- *Binding rulings:* R1 (the bundle adds zero flag/query-param
+  plumbing); R3 (one async path — the web entry just awaits
+  `_amain`); R4 (local/LAN verification; hosting later; GitHub
+  Pages out); R5 (wheel mirrored); requirement #1 items 1/4/6
+  (native path unchanged; 2.5.7-wasm vs 2.5.8-desktop lockstep
+  tax accepted — web waits, desktop ships; same data bundle, no
+  web-specific content); phase-2's shim rulings carry over
+  (graceful timeout; fire-and-forget sync).
+- *Tests:* serve-web handler test (both headers present on every
+  response — stdlib, renderer-neutral); `make check` green
+  throughout; the in-container beacon trail is the phase's real
+  gate, not pytest. `web/` JS sits outside Ruff scope by
+  construction.
+- *Stop point:* bundle verified in-container + user's browser
+  checkpoint passed. NOT started: phase 4 (perf numbers, dual
+  playtest, world-gen loading beat), any hosting/deploy work,
+  itch upload, touch input, PWA, save export/import.
+- *Playtest checkpoint (user's browser — the container ceiling
+  stands):*
+  1. `make web` on a clean tree: succeeds; `build/web/` holds the
+     bundle incl. mirrored wheel + browserfs.min.js + sh46.js;
+     self-containment grep clean.
+  2. `make serve-web` → browser → pygbag loading screen → TITLE
+     PAINTS (the gray-page pathology absent; first load ≈16 MB,
+     cached after).
+  3. Keyboard reaches the game: menu navigation → new game →
+     ≥10 moves + one planet landing on the surface.
+  4. Persistence through the real bundle: save+quit → close tab →
+     reopen → Continue restores; options Apply survives a tab
+     close/reopen.
+  5. Fullscreen via the Window API path: enters/exits cleanly or
+     degrades gracefully on the fixed canvas — never locks up.
+  6. Desktop regression (cheap — no src/ changed): `run.py` boots
+     to title; one save/quit → Continue cycle; `make check`
+     green.
+  7. Guide diff: NONE (the game is the game — requirement #1
+     item 6).
+
+- [ ] brief approved (proposed 2026-09-14 — this section)
+- [ ] bundle boots from the local header-serving server; desktop
+      artifacts unchanged
 
 ### Phase 4 — perf + dual playtest
 
