@@ -29,12 +29,17 @@ async def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, 
     per-frame sleep; 0.08 reads as a brisk but visible glide.
     """
     direction = -1 if ship_ent.pos.y > target_y else 1
+    animation_timing.web_beacon(
+        f"b46:cityglide-start total={abs(target_y - ship_ent.pos.y)}")
+    _played = 0
     while ship_ent.pos.y != target_y:
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
         present_city_transition_frame(
             ctx, console, game_map, ship_ent, location or "",
         )
+        _played += 1
         await _responsive_sleep(frame_seconds)
+    animation_timing.web_beacon(f"b46:cityglide-end frames={_played}")
 
 
 def _build_space_return(

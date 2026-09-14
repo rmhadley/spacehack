@@ -10,6 +10,19 @@ like the engine's window settings. Consumers apply it via ``scaled()``.
 """
 from __future__ import annotations
 
+import sys
+
+
+def web_beacon(tag: str) -> None:
+    """Print a web-boot/animation diagnostic to the page's xterm.
+
+    The doc-46 error-report channel: on web, python stdout lands in
+    the page terminal, so a marker printed here is readable straight
+    off the user's paste. Deliberately silent on desktop.
+    """
+    if sys.platform == "emscripten":
+        print(tag)
+
 
 COMBAT_BEAM: float = 0.025
 COMBAT_IMPACT: float = 0.03

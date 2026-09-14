@@ -409,6 +409,27 @@ async def _goto_step(ctx, console, player_entity, sx: int, sy: int):
     return None
 
 
+async def _goto_transit(
+    ctx, console, player_entity, steps,
+) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None] | None:
+    """Run the auto-nav steps; returns an interrupt result, or None.
+
+    The xterm beacons (doc 46) ride the loop, with the end marker
+    in a finally so a combat interrupt still reports its frame count.
+    """
+    animation_timing.web_beacon(f"b46:goto-start steps={len(steps)}")
+    _played = 0
+    try:
+        for sx, sy in steps:
+            _step_result = await _goto_step(ctx, console, player_entity, sx, sy)
+            _played += 1
+            if _step_result is not None:
+                return _step_result
+    finally:
+        animation_timing.web_beacon(f"b46:goto-end frames={_played}")
+    return None
+
+
 async def _run_goto(
     ctx, console, player_entity: world.Entity,
 ) -> tuple[GotoOutcome, tuple[list, list[world.Position]] | None]:
@@ -441,10 +462,9 @@ async def _run_goto(
     if not steps:
         ctx.log.add('You are already at the destination.')
         return (GotoOutcome.COMPLETED, None)
-    for sx, sy in steps:
-        _step_result = await _goto_step(ctx, console, player_entity, sx, sy)
-        if _step_result is not None:
-            return _step_result
+    _transit = await _goto_transit(ctx, console, player_entity, steps)
+    if _transit is not None:
+        return _transit
     ctx.log.add('Auto-nav complete.')
     return (GotoOutcome.COMPLETED, None)
 
@@ -655,11 +675,14 @@ async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) 
     cy = player_entity.pos.y + (player_entity.height - 1) // 2
     ship_char = player_entity.char
     ship_fg = player_entity.fg
+    animation_timing.web_beacon("b46:jump-start")
+    _frames = 0
     for rings in range(len(_JUMP_RING_CHARS)):
         await _render_jump_frame(
             ctx, console, cx=cx, cy=cy, rings=rings,
             ship_char=ship_char, ship_fg=ship_fg,
         )
+        _frames += 1
     await _render_jump_frame(
         ctx, console, cx=cx, cy=cy, flash_white=True,
         ship_char=ship_char, ship_fg=ship_fg,
@@ -668,6 +691,7 @@ async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) 
         ctx, console, cx=cx, cy=cy, void=True,
         ship_char=ship_char, ship_fg=ship_fg,
     )
+    animation_timing.web_beacon(f"b46:jump-end frames={_frames + 2}")
 
 
 def _arrival_spawn_exclusion(dest_jp) -> set[tuple[int, int]]:

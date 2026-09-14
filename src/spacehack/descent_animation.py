@@ -108,13 +108,17 @@ async def animate_descent(ctx, console, *, frame_seconds: float = animation_timi
     if context is not None:
         context.events()  # flush the calling keypress and its tail
     total_frames = max(24, int(SCREEN_HEIGHT * 0.9))
+    animation_timing.web_beacon(f"b46:descent-start total={total_frames}")
+    _played = 0
     for frame_index, cage_row in enumerate(descent_rows(total_frames, SCREEN_HEIGHT)):
         paint_descent_frame(console, min(cage_row, console.height + 1))
         if context is not None:
             context.present(console)
+        _played += 1
         if frame_index >= _SKIP_GRACE_FRAMES and _skip_requested(context):
             break
         await _responsive_sleep(frame_seconds)
+    animation_timing.web_beacon(f"b46:descent-end frames={_played}")
 
 
 def _skip_requested(context) -> bool:

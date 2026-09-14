@@ -95,3 +95,30 @@ def test_explore_cancel_window_returns_promptly_when_idle_at_instant_speed():
     ctx = SimpleNamespace(context=SimpleNamespace(events=lambda: ()))
 
     assert _poll_cancel_window(ctx) is False
+
+
+def test_web_beacon_prints_only_on_emscripten(capsys, monkeypatch):
+    monkeypatch.setattr(animation_timing.sys, "platform", "linux")
+    animation_timing.web_beacon("b46:quiet")
+    assert capsys.readouterr().out == ""
+
+    monkeypatch.setattr(animation_timing.sys, "platform", "emscripten")
+    animation_timing.web_beacon("b46:mark")
+    assert capsys.readouterr().out == "b46:mark\n"
+
+
+def test_goto_transit_beacons_and_interrupt_passthrough(capsys, monkeypatch):
+    from src.spacehack import navigation_travel as nt
+
+    monkeypatch.setattr(animation_timing.sys, "platform", "emscripten")
+
+    async def fake_step(ctx, console, player_entity, sx, sy):
+        return ("interrupted", None) if sy == 2 else None
+
+    monkeypatch.setattr(nt, "_goto_step", fake_step)
+    result = run(nt._goto_transit(None, None, None, [(0, 1), (0, 2), (0, 3)]))
+    out = capsys.readouterr().out
+
+    assert result == ("interrupted", None)
+    assert "b46:goto-start steps=3" in out
+    assert "b46:goto-end frames=2" in out  # the interrupting frame is counted
