@@ -9,8 +9,8 @@ runtime) lands in `build/web/` — gitignored, never committed.
 
 | File | Role |
 |------|------|
-| `main.py` | pygbag entry: awaits `spacehack.__main__._amain()`, marks boot milestones in the URL hash |
-| `sh46.js` | `window.sh46` IndexedDB persistence shim (phase-2 spec: db `spacehack`, store `files`, POSIX rel-paths, UTF-8 text) + `window.b46mark` boot-diagnostic helper. Injected BEFORE the loader by `index.tmpl`. |
+| `main.py` | pygbag entry: awaits `spacehack.__main__._amain()`, prints `b46:main`/`b46:done` milestones to the xterm (the error-report channel). PEP 723 header declares pygame-ce (the runtime resolves packages from it); the trailing `asyncio.run(main())` is what actually starts the coroutine on pygbag's aio loop. |
+| `sh46.js` | `window.sh46` IndexedDB persistence shim (phase-2 spec: db `spacehack`, store `files`, POSIX rel-paths, UTF-8 text) + a `window.fetch` host rewrite that keeps the runtime's hardcoded pygbag-CDN fetches on the local `/cdn/` mirror (Ruling 5). Injected BEFORE the loader by `index.tmpl`. |
 | `index.tmpl` | pygbag 0.9.3 `default.tmpl` + exactly ONE patch: a `sh46.js` script tag injected before the pythons.js loader (verified: the only line that differs from upstream). The template's service-worker registration is already commented out upstream — no patch needed. |
 | `browserfs.min.js` | vendored — removed from the pygbag CDN (404); boot stalls without it (`PyMain: BrowserFS not found`) |
 | `empty.html` | vendored — likewise 404 on the CDN; loader iframe fallback |
