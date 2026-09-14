@@ -599,6 +599,53 @@ unchanged.
      verbatim back to the agent; the fix loop is fix →
      `make web` → `make serve-web` → retest.
 
+**Pre-implementation audit (2026-09-14, before code):**
+
+1. **Extend/reuse:** `spacehack.__main__._amain` (`__main__.py:356`)
+   is the self-contained async entry — `web/main.py` awaits it, zero
+   src/ changes. `user_data.py` fixes the shim contract exactly
+   (`platform.window.sh46`; `put`/`remove` fired with NO callback,
+   `get`/`keys` with one; missing key ⇒ callback with null) —
+   `web/sh46.js` implements nothing more. pygbag 0.9.3 CLI surface
+   (verified in-container): `--build`, `--template` accepts a LOCAL
+   file, `--cdn` is baked into index.html and every runtime URL
+   derives from it, `--width/--height` set the canvas framebuffer,
+   `--ume_block 0` drops the user-gesture gate (safe: no audio).
+   Output = `<appdir>/build/web`. `tools/`-behind-make precedent
+   (`save-debug`) → `tools/web_build.py` + `tools/serve_web.py`
+   behind thin Makefile wrappers. Browser automation =
+   `.docker_venv` playwright 1.62 (spike-proven; headless shell +
+   `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS` + apt libs, all
+   re-provisioned this session).
+2. **Duplication hotspots:** (a) TWO servers drifting — the boot
+   check must IMPORT `serve_web`'s handler, never re-roll a server;
+   (b) staging copy logic vs `packaging/` — one `_stage()` inside
+   `web_build.py` only, packaging/ untouched; (c) the CDN mirror
+   list duplicated between builder and checker — it lives ONCE as
+   a table in `web_build.py`; the boot check asserts network
+   silence (no non-local requests), not the list itself.
+3. **DRY strategy:** the mirror set is a table-driven list of
+   (remote path → local path) pairs; vendored-vs-downloaded is a
+   column in that table; template patches (sh46 injection, service-
+   worker block removal) are the ONLY diffs from upstream
+   default.tmpl and are documented in web/README.md.
+4. **Empirical facts this audit is built on (measured
+   2026-09-14):** full runtime fetch set enumerated by booting the
+   real bundle against the default CDN — versioned dir
+   `cdn/0.9.3/`: pythons.js, cpython312/{main.js, main.data,
+   main.wasm}, cpythonrc.py; root `cdn/`: index-0.9.3-cp312.json,
+   vtx.js, vt/{xterm.js, xterm.css, xterm-addon-image.js},
+   cp312/pygame_ce-2.5.7-cp312-cp312-wasm32_bi_emscripten.whl;
+   `browserfs.min.js` + `empty.html` are GONE from the CDN
+   (vendored from the pygbag repo, 251354 B — matches phase-0's
+   measurement); the missing BrowserFS stalls boot before python
+   starts ("PyMain: BrowserFS not found"), which is why the
+   wheel request only appears with BrowserFS present. The
+   template's service-worker registration is cross-origin on the
+   default CDN = silently never worked; dropped rather than
+   mirrored (PWA is a non-goal, and a same-origin SW would
+   cache-stale during fix loops).
+
 - [x] brief approved (user, 2026-09-14 — including the
       user-testable-deploy amendment: the user's browser is the
       primary instrument, in-container checks are boot-beacon
