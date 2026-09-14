@@ -626,9 +626,10 @@ unchanged.
    silence (no non-local requests), not the list itself.
 3. **DRY strategy:** the mirror set is a table-driven list of
    (remote path → local path) pairs; vendored-vs-downloaded is a
-   column in that table; template patches (sh46 injection, service-
-   worker block removal) are the ONLY diffs from upstream
-   default.tmpl and are documented in web/README.md.
+   column in that table; the template patch (sh46 injection — the
+   ONLY diff from upstream default.tmpl; the service-worker block
+   is already commented out upstream) is documented in
+   web/README.md.
 4. **Empirical facts this audit is built on (measured
    2026-09-14):** full runtime fetch set enumerated by booting the
    real bundle against the default CDN — versioned dir
@@ -642,9 +643,8 @@ unchanged.
    starts ("PyMain: BrowserFS not found"), which is why the
    wheel request only appears with BrowserFS present. The
    template's service-worker registration is cross-origin on the
-   default CDN = silently never worked; dropped rather than
-   mirrored (PWA is a non-goal, and a same-origin SW would
-   cache-stale during fix loops).
+   default CDN = silently never worked — and is already commented
+   out upstream, so nothing to patch or mirror there.
 
 - [x] brief approved (user, 2026-09-14 — including the
       user-testable-deploy amendment: the user's browser is the
