@@ -710,6 +710,23 @@ unchanged.
   drift, traceback routed to stdout. Round 2 APPROVE; its three
   minors (wipe ordering, fail-open gate, dead guard) fixed
   mechanically.
+- **Mid-playtest fix (user report, 2026-09-14): the wheel fetch
+  died on `localhost:8460`.** The user's browser console showed
+  the wheel request going to `http://localhost:8000/cdn/...` —
+  pygbag's packed aio module carries a DEV-MODE heuristic that
+  rewrites the package-repo base to its own dev server
+  (`http://localhost:8000/cdn/`) whenever the page URL starts
+  with `http://localhost:8`. The in-container beacon never saw
+  it: it used `127.0.0.1` (hostname doesn't match) and ephemeral
+  ports (no 8-prefix). Fix: the sh46 fetch rewrite is now the
+  GENERAL rule — any cross-origin URL whose path starts with
+  `/cdn/` lands on the page origin — covering the -CDN- base,
+  the localhost-8 heuristic, and any future variant. The boot
+  check now runs at the user-facing condition (`localhost`,
+  fixed port 8460) and is green with the heuristic visibly
+  firing (`9ca7f4c`). Also adopted the user's Makefile PY_WEB
+  preference (project venv first, `.docker_venv` chained behind
+  it for the container).
 - Rebuild reuses the mirror cache (verified: second `make web`
   does zero downloads); desktop untouched by construction —
   zero `src/` changes all phase.
