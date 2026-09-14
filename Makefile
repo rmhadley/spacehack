@@ -13,7 +13,7 @@
 #   ├── run_spacehack.bat           # Windows: double-click
 #   └── run_spacehack               # macOS/Linux: terminal: sh run_spacehack
 
-.PHONY: dist zip app pyinstaller clean architecture lint test check save-debug review-pack
+.PHONY: dist zip app pyinstaller clean architecture lint test check save-debug review-pack web serve-web
 
 # Use the project venv if available (avoids macOS "externally-managed" errors
 # and ensures build/pip are both present).  Falls back to bare python3.
@@ -136,6 +136,19 @@ check:
 	$(MAKE) architecture
 	$(MAKE) lint
 	$(MAKE) test
+
+# ──────────────────────────────────────────────
+# web — self-contained pygbag bundle + local header server (doc 46)
+# The container keeps a dedicated venv with pygbag/playwright; the
+# project venv carries pygbag via the dev extra everywhere else.
+# ──────────────────────────────────────────────
+PY_WEB := $(shell if [ -x .docker_venv/bin/python3 ]; then echo .docker_venv/bin/python3; else echo $(PYTHON); fi)
+
+web:
+	$(PY_WEB) tools/web_build.py
+
+serve-web:
+	$(PY_WEB) tools/serve_web.py $(ARGS)
 
 # ──────────────────────────────────────────────
 # clean
