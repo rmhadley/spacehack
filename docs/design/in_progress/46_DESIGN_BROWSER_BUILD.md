@@ -599,7 +599,10 @@ unchanged.
      verbatim back to the agent; the fix loop is fix →
      `make web` → `make serve-web` → retest.
 
-- [ ] brief approved (proposed 2026-09-14 — this section)
+- [x] brief approved (user, 2026-09-14 — including the
+      user-testable-deploy amendment: the user's browser is the
+      primary instrument, in-container checks are boot-beacon
+      only)
 - [ ] bundle boots from the local header-serving server; desktop
       artifacts unchanged
 
