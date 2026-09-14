@@ -650,8 +650,69 @@ unchanged.
       user-testable-deploy amendment: the user's browser is the
       primary instrument, in-container checks are boot-beacon
       only)
-- [ ] bundle boots from the local header-serving server; desktop
-      artifacts unchanged
+- [x] bundle boots from the local header-serving server; desktop
+      artifacts unchanged (boot beacon 2026-09-14: `b46:main`
+      reached, game window opens 1600×960, 18 requests ALL local,
+      zero 404; `git diff --stat -- src/` empty across the phase)
+
+**Phase-3 run log (2026-09-14):**
+
+- Landed: `web/` (main.py entry, sh46.js shim, index.tmpl,
+  vendored browserfs/empty.html + provenance README),
+  `tools/web_build.py` (stage → pygbag → mirror → gate) and
+  `tools/serve_web.py` behind `make web` / `make serve-web`,
+  `tools/web_boot_check.py` (xvfb beacon + Ruling-5 network
+  silence gate), header test, pygbag==0.9.3 dev extra. Commits
+  d40d590 + 0a610c5 (plus 712f9af/bbde00e scaffolding).
+- **Four load-bearing boot facts, each found by a failed boot:**
+  (1) `--cdn` must be ROOT-relative (`/cdn/0.9.3/`) — vtx.js
+  derives an ES-module import specifier from it, and a bare
+  relative specifier fails to resolve; (2) the PEP 723 header in
+  web/main.py is how the runtime resolves packages — no header ⇒
+  no wheel ⇒ the module-level import dies SILENTLY and the
+  wrapper prints done + drops to a REPL; (3) the trailing
+  `asyncio.run(main())` is what starts the coroutine — pygbag's
+  aio layer intercepts it; a bare `async def main` is imported
+  and never run; (4) the runtime's packed aio module HARDCODES
+  the pygbag CDN as its wheel-repo base (not patchable as a
+  file) — sh46.js rewrites `window.fetch`'s host so those
+  fetches land on the local mirror: Ruling 5 enforced at one
+  seam, proven by the request log (index + wheel both 200 local).
+- **Beacon mechanics (supersedes the brief's "location.hash
+  channel"):** headless chromium is NOT viable — the runtime's
+  aio loop pumps on rAF, throttled to ~0 headless (the phase-0
+  round-2/3 ceiling); the beacon runs HEADED under Xvfb.
+  Milestones print to the xterm (python stdout) and are read via
+  a guarded CDP evaluate. URL-hash marking was tried and dropped:
+  the game runs inside the template's sandboxed iframe, whose
+  history is invisible to the top-frame URL. The xterm is also
+  the user's error-report channel (checkpoint item 8).
+- Boot beacon GREEN, twice: loader → wheel install (local,
+  redirected) → runtime import → `b46:main` → window
+  `(1600, 960)` open; 18 requests, all local, zero 404s; bundle
+  25.6 MB (first-load in-browser ≈ 21 MB: runtime 20 MB
+  dominates). favicon isn't emitted by pygbag under a local cdn —
+  mirrored + copied to the bundle root. `--ume_block 0` (no
+  audio ⇒ no gesture gate), `--width/--height 1600/960`.
+- **Reviewer loop (2 dispatches):** round 1 REQUEST_CHANGES with
+  7 findings — the two blockers were real contract breaks:
+  sh46's shared write() helper passed `(value, name)` to IDB
+  delete (DataError swallowed ⇒ **remove() never deleted —
+  deleted saves would resurrect**, undetected because the
+  phase-2 e2e never exercised delete), and `_stage_app` wiped
+  all of `build/` (mirror cache + last-good bundle) every
+  rebuild. Both fixed (split put/remove; stage-only wipe +
+  mirror-before-replace), plus minors: one PYGBAG_VERSION
+  constant, atomic `.part` downloads, broadened index gate +
+  a build-time index↔wheel consistency check (fail-closed —
+  a pygbag index bump now fails the BUILD with an update-the-pin
+  message instead of 404ing at runtime), boot-check docstring
+  drift, traceback routed to stdout. Round 2 APPROVE; its three
+  minors (wipe ordering, fail-open gate, dead guard) fixed
+  mechanically.
+- Rebuild reuses the mirror cache (verified: second `make web`
+  does zero downloads); desktop untouched by construction —
+  zero `src/` changes all phase.
 
 ### Phase 4 — perf + dual playtest
 
@@ -662,8 +723,55 @@ needs one (wordless — motion/light, no prose, per house style).
 Exit: both checklists pass; doc close then audits SYSTEMS.md
 (the render path and loop entries gain a web-target note).
 
-- [ ] brief approved (written at the phase-3 checkpoint)
+- [ ] brief approved (proposed 2026-09-14 at the phase-3
+      checkpoint — to be finalized against the user's phase-3
+      playtest report)
 - [ ] in-browser + desktop checklists pass; `make check` green
+
+**Brief (proposed 2026-09-14, pending the phase-3 playtest report
+— perf observations from the user's browser shape the final
+scope):**
+
+- *Principle:* the user's browser measures (the
+  user-testable-deploy ruling extends to perf — container
+  numbers are advisory only). No new machinery is expected; the
+  phase's default shape is two checklists and a decision.
+- *Scope:* (a) the in-browser numbered checklist below, run by
+  the user against `make serve-web`; (b) the desktop regression
+  checklist (unchanged game — cheap pass); (c) ONE possible
+  addition, only if the user's world-gen observation demands it:
+  a wordless loading beat (motion/light, descent_animation-style
+  — never prose), web-visible only if trivially uniform, else
+  web-side; (d) doc close: move to complete/ + the full
+  SYSTEMS.md audit (the render-path and loop entries gain
+  web-target notes; the persistence entry gains the IndexedDB
+  mirror + sh46 fetch seam; a web-build entry for
+  make-web/serve-web/boot-beacon).
+- *Build order:* user's phase-3 checklist results → loading-beat
+  ruling (yes/no) → if yes: the beat lands with its own tests →
+  dual checklists → close + SYSTEMS.md audit.
+- *Binding rulings:* R1 (flagless — no perf flags in the
+  bundle), R5 (self-contained — any beat ships in the bundle),
+  requirement #1 items 2/6 (feel-identical desktop; content
+  parity — a loading beat is presentation of EXISTING work, not
+  content).
+- *Tests:* `make check` green; if the beat lands, its timing
+  tests ride the commit (pygame-input-triggered animation
+  contract).
+- *Stop point:* no hosting/deploy/itch, no touch input, no PWA,
+  no save export/import, no balance or content changes.
+- *Playtest checkpoint (in-browser, user):*
+  1. New game → world-gen: observe the freeze — seconds,
+     painful or fine? (the loading-beat ruling hangs on this)
+  2. Planet landing → ≥20 moves + one transit: per-move feel.
+  3. Save/quit → close tab → reopen → Continue restores (the
+     phase-2 core through the phase-3 bundle).
+  4. Options Apply → tab close/reopen → preferences hold.
+  5. Fullscreen enter/exit (Window API path) — clean or graceful.
+  6. Long-ish session (10+ min): steady or degrading?
+  7. Desktop regression: run.py boot → save/quit → Continue;
+     `make check` green.
+  8. Guide diff: NONE (requirement #1 item 6).
 
 ## Risks
 
