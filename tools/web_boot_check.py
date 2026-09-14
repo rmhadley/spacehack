@@ -43,6 +43,11 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "build" / "web"
 DEFAULT_TIMEOUT_S = 480
 XVFB_DISPLAY = ":46"
+# The user-facing condition, reproduced: the fixed serve-web port on
+# the localhost hostname (pygbag's runtime rewrites its wheel-repo
+# base to http://localhost:8000/cdn/ for any http://localhost:8...
+# page URL — the fetch shim must cover that too).
+CHECK_PORT = 8460
 
 
 def _start_xvfb() -> subprocess.Popen:
@@ -59,10 +64,11 @@ def _start_xvfb() -> subprocess.Popen:
 def _run(timeout_s: int) -> int:
     requests: dict[str, str] = {}
     console: list[str] = []
-    srv = serve_web.make_server(WEB, 0)
+    srv = serve_web.make_server(WEB, CHECK_PORT)
     server_thread = threading.Thread(target=srv.serve_forever, daemon=True)
     server_thread.start()
-    url = f"http://127.0.0.1:{srv.server_address[1]}/"
+    origin = f"http://localhost:{srv.server_address[1]}"
+    url = f"{origin}/"
     failures: list[str] = []
 
     with sync_playwright() as pw:
@@ -101,7 +107,7 @@ def _run(timeout_s: int) -> int:
     for url_, status in sorted(requests.items()):
         if url_.startswith("blob:"):  # page-generated, not a network fetch
             continue
-        if not url_.startswith("http://127.0.0.1"):
+        if not (url_.startswith(origin) or url_.startswith("http://127.0.0.1")):
             failures.append(f"external request (Ruling 5): {status} {url_}")
         elif status != "200":
             failures.append(f"bad status {status}: {url_}")

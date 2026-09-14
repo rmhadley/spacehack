@@ -16,10 +16,11 @@
 //
 // 2. window.fetch rewrite — self-containment (Ruling 5): the
 //    runtime's package machinery hardcodes the pygbag CDN as its
-//    wheel-repo base (assembled inside its packed aio module —
-//    not patchable as a file); rewriting the host at the page's
-//    single fetch seam keeps every runtime request on the local
-//    /cdn/ mirror.
+//    wheel-repo base in two places (the index's "-CDN-" entry and
+//    a localhost-8 dev-mode heuristic pointing at pygbag's own
+//    dev server, port 8000); rewriting any cross-origin /cdn/...
+//    URL onto the page origin keeps every runtime request on the
+//    local /cdn/ mirror.
 (function () {
     "use strict";
     var DB_NAME = "spacehack";
@@ -78,18 +79,27 @@
         }
     };
 
-    // Self-containment (doc 46, Ruling 5): the runtime's package
-    // machinery hardcodes the pygbag CDN as its wheel-repo base
-    // (assembled inside its packed aio module — not patchable as a
-    // file). Rewriting the host here, at the page's single fetch
-    // seam, keeps every runtime request on the local mirror (the
-    // /cdn/... paths mirror the CDN layout one-to-one).
-    var PYGBAG_ORIGIN = "https://pygame-web.github.io";
+    // Self-containment (doc 46, Ruling 5): the runtime hardcodes
+    // the pygbag CDN as its wheel-repo base in TWO places inside
+    // its packed aio module — the index's "-CDN-" entry, and a
+    // dev-mode heuristic that rewrites the base to
+    // http://localhost:8000/cdn/ whenever the page URL starts with
+    // http://localhost:8 (pygbag's own dev server). Neither is
+    // patchable as a file; rewriting ANY cross-origin /cdn/... URL
+    // onto the page origin at this single fetch seam keeps every
+    // runtime request on the local mirror regardless of which
+    // base fired.
+    var PAGE_ORIGIN = location.origin;
     var nativeFetch = window.fetch;
     window.fetch = function (input, init) {
-        var url = typeof input === "string" ? input : input.url;
-        if (typeof url === "string" && url.startsWith(PYGBAG_ORIGIN)) {
-            input = url.slice(PYGBAG_ORIGIN.length);
+        var url = typeof input === "string" ? input : (input && input.url);
+        if (typeof url === "string" && url.indexOf("/cdn/") !== -1) {
+            try {
+                var abs = new URL(url, PAGE_ORIGIN);
+                if (abs.origin !== PAGE_ORIGIN && abs.pathname.indexOf("/cdn/") === 0) {
+                    input = abs.pathname + abs.search + abs.hash;
+                }
+            } catch (e) { /* unparsable input: pass it through */ }
         }
         return nativeFetch.call(window, input, init);
     };

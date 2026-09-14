@@ -139,10 +139,12 @@ check:
 
 # ──────────────────────────────────────────────
 # web — self-contained pygbag bundle + local header server (doc 46)
-# The container keeps a dedicated venv with pygbag/playwright; the
-# project venv carries pygbag via the dev extra everywhere else.
+# The project venv (pygbag via the dev extra) is preferred; the
+# container's dedicated .docker_venv serves when the project venv
+# isn't runnable there (mac-built interpreter symlinks dangle in
+# the container).
 # ──────────────────────────────────────────────
-PY_WEB := $(shell if [ -x .docker_venv/bin/python3 ]; then echo .docker_venv/bin/python3; else echo $(PYTHON); fi)
+PY_WEB := $(shell if [ -x .venv/bin/python3 ]; then echo .venv/bin/python3; elif [ -x .docker_venv/bin/python3 ]; then echo .docker_venv/bin/python3; else echo $(PYTHON); fi)
 
 web:
 	$(PY_WEB) tools/web_build.py
