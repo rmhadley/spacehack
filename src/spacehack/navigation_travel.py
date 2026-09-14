@@ -419,6 +419,7 @@ async def _goto_transit(
     """
     animation_timing.web_beacon(f"b46:goto-start steps={len(steps)}")
     _played = 0
+    _t0 = time.monotonic()
     try:
         for sx, sy in steps:
             _step_result = await _goto_step(ctx, console, player_entity, sx, sy)
@@ -426,7 +427,7 @@ async def _goto_transit(
             if _step_result is not None:
                 return _step_result
     finally:
-        animation_timing.web_beacon(f"b46:goto-end frames={_played}")
+        animation_timing.web_beacon_end("goto", _played, _t0)
     return None
 
 
@@ -677,6 +678,7 @@ async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) 
     ship_fg = player_entity.fg
     animation_timing.web_beacon("b46:jump-start")
     _frames = 0
+    _t0 = time.monotonic()
     for rings in range(len(_JUMP_RING_CHARS)):
         await _render_jump_frame(
             ctx, console, cx=cx, cy=cy, rings=rings,
@@ -691,7 +693,7 @@ async def _animate_jump(ctx, console: FrameBuffer, player_entity: world.Entity) 
         ctx, console, cx=cx, cy=cy, void=True,
         ship_char=ship_char, ship_fg=ship_fg,
     )
-    animation_timing.web_beacon(f"b46:jump-end frames={_frames + 2}")
+    animation_timing.web_beacon_end("jump", _frames + 2, _t0)
 
 
 def _arrival_spawn_exclusion(dest_jp) -> set[tuple[int, int]]:

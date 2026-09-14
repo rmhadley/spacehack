@@ -5,6 +5,8 @@ and :func:`_return_to_city`.
 """
 
 from __future__ import annotations
+import time
+
 from .framebuffer import FrameBuffer
 from . import world
 from . import ship as ship_module
@@ -31,6 +33,7 @@ async def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, 
     direction = -1 if ship_ent.pos.y > target_y else 1
     animation_timing.web_beacon(
         f"b46:cityglide-start total={abs(target_y - ship_ent.pos.y)}")
+    _t0 = time.monotonic()
     _played = 0
     while ship_ent.pos.y != target_y:
         ship_ent.pos = world.Position(ship_ent.pos.x, ship_ent.pos.y + direction)
@@ -39,7 +42,7 @@ async def _animate_ship_to_y(ctx, console: FrameBuffer, ship_ent: world.Entity, 
         )
         _played += 1
         await _responsive_sleep(frame_seconds)
-    animation_timing.web_beacon(f"b46:cityglide-end frames={_played}")
+    animation_timing.web_beacon_end("cityglide", _played, _t0)
 
 
 def _build_space_return(

@@ -11,6 +11,18 @@ like the engine's window settings. Consumers apply it via ``scaled()``.
 from __future__ import annotations
 
 import sys
+import time
+
+
+def web_beacon_end(name: str, frames: int, t0: float) -> None:
+    """Emit the uniform end marker: frame count + elapsed seconds.
+
+    The elapsed number is the diagnostic payload: frames>0 over the
+    full authored duration means renders happened and frames never
+    committed; frames>0 in ~zero time means the ride was skipped
+    outright (the input-tail pathology).
+    """
+    web_beacon(f"b46:{name}-end frames={frames} t={time.monotonic() - t0:.2f}s")
 
 
 def web_beacon(tag: str) -> None:
@@ -18,10 +30,21 @@ def web_beacon(tag: str) -> None:
 
     The doc-46 error-report channel: on web, python stdout lands in
     the page terminal, so a marker printed here is readable straight
-    off the user's paste. Deliberately silent on desktop.
+    off the user's paste. Also mirrored to the browser console —
+    the user's devtools paste is the channel they naturally reach
+    for. Deliberately silent on desktop.
     """
-    if sys.platform == "emscripten":
-        print(tag)
+    if sys.platform != "emscripten":
+        return
+    print(tag)
+    try:
+        import platform
+
+        log = getattr(platform.window.console, "log", None)
+        if log is not None:
+            log(f"b46 {tag}")
+    except Exception:
+        pass
 
 
 COMBAT_BEAM: float = 0.025

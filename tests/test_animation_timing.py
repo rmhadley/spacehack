@@ -122,3 +122,35 @@ def test_goto_transit_beacons_and_interrupt_passthrough(capsys, monkeypatch):
     assert result == ("interrupted", None)
     assert "b46:goto-start steps=3" in out
     assert "b46:goto-end frames=2" in out  # the interrupting frame is counted
+
+
+def test_web_beacon_mirrors_to_browser_console(monkeypatch, capsys):
+    import sys as _sys
+    from types import SimpleNamespace
+
+    seen = []
+    fake_platform = SimpleNamespace(
+        window=SimpleNamespace(console=SimpleNamespace(log=seen.append)))
+    monkeypatch.setattr(animation_timing.sys, "platform", "emscripten")
+    monkeypatch.setitem(_sys.modules, "platform", fake_platform)
+
+    animation_timing.web_beacon("b46:mark")
+
+    assert capsys.readouterr().out == "b46:mark\n"
+    assert seen == ["b46 b46:mark"]
+
+
+def test_web_beacon_end_reports_frames_and_elapsed(monkeypatch, capsys):
+    import sys as _sys
+    import time as _time
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(animation_timing.sys, "platform", "emscripten")
+    monkeypatch.setitem(_sys.modules, "platform", SimpleNamespace(
+        window=SimpleNamespace(console=SimpleNamespace(log=lambda *_: None))))
+
+    animation_timing.web_beacon_end("goto", 7, _time.monotonic() - 1.0)
+
+    out = capsys.readouterr().out
+    assert out.startswith("b46:goto-end frames=7 t=")
+    assert out.endswith("s\n")
