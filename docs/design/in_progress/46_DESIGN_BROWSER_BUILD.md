@@ -746,9 +746,9 @@ needs one (wordless — motion/light, no prose, per house style).
 Exit: both checklists pass; doc close then audits SYSTEMS.md
 (the render path and loop entries gain a web-target note).
 
-- [ ] brief approved (proposed 2026-09-14 at the phase-3
-      checkpoint — to be finalized against the user's phase-3
-      playtest report)
+- [x] brief approved (user, 2026-09-14 — via the /implement-phase
+      46.4 invocation after the workflow amendment: the user runs
+      the app; cycle 1 = the xterm beacon diagnostic)
 - [ ] in-browser + desktop checklists pass; `make check` green
 
 **Feel report (user, 2026-09-14, shaping this brief):** "Earth
@@ -776,20 +776,25 @@ approval):**
   user's alone.
 - *Scope:*
   - **Animation frames don't commit on web (the G evidence):**
-    the runners already pump SDL per chunk
-    (`_responsive_sleep` calls `pygame.event.get()`), so the
-    surviving differential is the YIELD PRIMITIVE — animation
-    loops await bare `asyncio.sleep` chunks while game/modal
-    loops yield through the runtime's `wait_events`/`pump()`
-    path ("the full JS-stack return is what lets SDL commit").
-    Candidate order, one cycle each: (1) align the animation
-    sleeps (`navigation_travel._responsive_sleep` +
-    `combat/_animations`' helper) with `context.pump()` per
-    chunk — uniform, no platform branch, desktop-neutral;
-    (2) if still frozen, ship a two-line xterm beacon at
-    animation start/end (b46-family diagnostics — proves
-    whether frames render at all); (3) present/flip variant
-    under vsync=1 emscripten.
+    static analysis ELIMINATED the brief's first three candidates
+    — `pump()` is literally `asyncio.sleep` (no yield-primitive
+    differential), the G transit already pumps SDL every chunk
+    (`_goto_poll_cancel` calls `context.events()` per iteration),
+    and it presents through the same `present_exploration` as
+    the WORKING space view. The surviving candidates (asyncify
+    unwind depth / aio green-thread switching during nested
+    animation coroutines vs the shallow game loop) are only
+    separable at the user's runtime. Cycle 1 = the minimal xterm
+    beacon (below); its frame count splits the space cleanly:
+    frames>0 + frozen screen ⇒ commit problem; frames=0 or no
+    start marker ⇒ the loop never runs as expected.
+  - **Cycle 1 beacon (this build):** `animation_timing.web_beacon`
+    — xterm print, web-only (`sys.platform == "emscripten"`,
+    the user_data precedent), silent on desktop. Instrumented:
+    the G transit (`_run_goto` start/end + step count, end rides
+    a finally for combat interrupts), `animate_descent`
+    (launch/land), `_animate_jump`. Start/end + COUNT only —
+    never per-frame prints.
   - **Earth/ground perf:** code-reasoned from the ground frame
     path (river/water animation tiles, city render, lighting
     cadence — the "lighting/river" read is the user's guess);
@@ -826,6 +831,30 @@ approval):**
   7. Guide diff: NONE (requirement #1 item 6) — unless the beat
      lands, in which case it still self-explains in play (guide
      stays out per the pure-how-to-play rule).
+
+**Pre-implementation audit (2026-09-14, before code):**
+
+1. **Extend/reuse:** `animation_timing` — the shared timing
+   module every animation already imports — gains the one
+   web-only `web_beacon(tag)` (xterm print; `sys.platform ==
+   "emscripten"` gate, the `user_data._is_web` precedent; silent
+   on desktop per the UI-text-economy rule). Instrument points:
+   `_run_goto`'s steps loop (G transit), `animate_descent`
+   (launch/land), `_animate_jump`. The channel is the b46 xterm
+   family (`web/main.py` prints; user pastes terminal text).
+2. **Duplication hotspots:** (a) the `_responsive_sleep` TWINS
+   (`navigation_travel.py` / `combat/_animations.py`) — any
+   future sleep fix lands in BOTH; this cycle instruments only
+   the four user-reported scenes, combat stays clean;
+   (b) beacon spam — start/end markers + a frame COUNT, never
+   per-frame prints (xterm writes cost time and would perturb
+   the very frame loop under measurement); (c) early returns —
+   the goto loop returns mid-transit on combat interrupts, so
+   its end beacon rides a `finally`.
+3. **DRY:** one beacon function in `animation_timing`; each call
+   site counts its own frames (the loops differ in shape —
+   descent iterates `descent_rows`, goto iterates steps, jump
+   iterates ring frames — so no shared counter abstraction).
 
 ## Risks
 
