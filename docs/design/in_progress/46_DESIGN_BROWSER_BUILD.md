@@ -825,7 +825,7 @@ approval):**
   present_exploration) theories. The surviving correlation: every
   frozen scene runs immediately after a MODAL closes (goto, jump,
   land-behind-confirm); the working launch glide does not.
-- Cycle 2 (this build): the user's pastes were the DEVTOOLS
+- Cycle 2 (4e8f2e3): the user's pastes were the DEVTOOLS
   console, not the page xterm — the beacons now MIRROR to
   console.log so their natural paste carries them, and every end
   marker gained ELAPSED TIME (`web_beacon_end`): frames>0 at full
@@ -834,7 +834,46 @@ approval):**
   was skipped outright (the modal's key-press tail — the phase-1
   input pathology class). Reviewer APPROVE; its three minors
   taken (mirror positive-path test, web_beacon_end DRY fold,
-  this record + the beacon-disposition checkbox).
+  the cycle-1 record + the beacon-disposition checkbox).
+- Cycle 3 (ROOT CAUSE, user observation 2026-09-14): "This works
+  on all animation speeds except 'instant'. On instant I wait on
+  the auto-nav screen for a bit and then it goes away. In desktop
+  instant is just very very fast — auto-nav can't just block when
+  on instant until you're there." **Instant speed made every
+  animation helper return without a single await** (scaled(0) ⇒
+  zero deadline ⇒ pump-once-and-return), so the whole animation
+  ground with zero JS-stack returns — nothing committed, the
+  transit blocked invisibly until arrival. The after-modal
+  correlation was an artifact (the modal path was where
+  instant-speed was being tested). FIX, whole pathology class:
+  one `await asyncio.sleep(0)` on the zero-length completion path
+  (both `_responsive_sleep` twins + `_goto_poll_cancel`) —
+  instant stays near-instant, every frame reaches the compositor
+  (the phase-0 round-4 proof app presented on exactly
+  sleep(0)/frame). The class ALSO included the ground walks
+  (`_run_explore_loop`/`_run_goto_loop` + their entrypoints) —
+  fully SYNC at every speed, i.e. always frozen on web — now
+  async with one yield per step (desktop unchanged: same
+  fast-walk, one scheduler tick per step).
+  **Design ruling (user, verbatim): instant = "very very fast",
+  never a blocking grind — auto-nav must not block until arrival.**
+- Cycle 3 reviewer catch (BLOCKING, pre-existing desktop bug): the
+  async conversion exposed that `_step_present_poll_move` returned
+  the post-step tick's coroutine UNDRIVEN — the production tick
+  went async in phase 1, so **dungeon O and dungeon G have taken
+  one step per press with LOS/NPC/auto-combat ticks silently
+  dropped on desktop since c83d84d**. The phase-1 AST sweeps
+  missed it because the tick is an injected parameter, and every
+  test injected a sync tick. Fixed in the same commit:
+  `_step_present_poll_move` is async, awaits the tick (uniform
+  Awaitable contract, no hedge), both loops await it, tests
+  bridge their stubs with `as_async`, and a production-shaped
+  async-tick regression pin drives the walk (an LOS-refreshing
+  stub tick — termination depends on the tick updating seen).
+  Also noted for the Earth-perf pass: `_poll_cancel_window`
+  busy-spins its ~20ms window with no sleep — dead polling on
+  web (input only arrives between JS turns); bounded by the
+  per-step yield, not a freeze, but it belongs in the perf pass.
 
 - *Build order:* fix cycle (1) → user playtest → report → next
   candidate if needed → Earth-perf pass → beat ruling → dual
