@@ -754,53 +754,66 @@ Exit: both checklists pass; doc close then audits SYSTEMS.md
 **Feel report (user, 2026-09-14, shaping this brief):** "Earth
 was slow. probably the animation layer for lighting/river. Space
 was responsive and felt good. No animation scenes play at all.
-Launch, Land, G in space, jump, etc."
+Launch, Land, G in space, jump, etc." Refined by follow-up:
+animation speed was tried on EVERY setting — never shows. Exact
+symptom (the G transit): the destination modal is live (arrow
+keys redraw it), but from selection until arrival the screen
+FREEZES on the modal's last frame, then the arrival frame
+appears — the transit coroutine runs to completion over real
+time. **Animation-runner frames don't commit; game and modal
+frames do. NOT config state.**
 
 **Brief (amended 2026-09-14 with the feel report — pending
 approval):**
 
-- *Principle:* diagnose before building. Two of the three report
-  lines may be one config-state reading (animation speed 0.0 =
-  legal instant-playback setting — "no animation scenes play at
-  all" is its exact signature); the Earth slowness is real either
-  way (pure-Python ground frames under wasm run 3–8× slower, the
-  spike's own forecast). The user's browser measures; container
-  numbers are advisory.
+- *Principle:* diagnose before building, in the container where
+  possible: with the async build, screenshots composite under
+  xvfb (phase-0 round 4), so the build session can SEE the game;
+  the round-3 "CDP can't dispatch keyboard" finding predates the
+  async fix and gets one retry — if input lands, the animation
+  defect is reproducible and fixable in-container; if not, the
+  user's browser is the repro instrument via staging-only
+  instrumentation (patch the STAGED copy, never the repo bundle).
 - *Scope:*
-  - **Diagnostic 0 (user, seconds):** web options → animation
-    speed. If 0, set 1.0 and re-test launch/land/jump/G. Plays ⇒
-    config state, not a defect — recorded, dropped from scope.
-  - **If animations still skip at 1.0:** instrument via the xterm
-    (tracebacks already route there), fix per findings. Hypotheses
-    in priority order: emscripten SDL event delivery tripping the
-    skip-on-keydown / queue-flush contract (the phase-1 held-key
-    and release-tail lessons); aio-loop timing of animation
-    sleeps; an early-return on a web-specific value.
+  - **Animation frames don't commit on web (the G evidence):**
+    the runners (`navigation_travel._render_jump_frame` +
+    `_responsive_sleep`, the launch/land/descent family) present
+    through the same runtime path as the game/modal loops, so
+    the defect is a present/commit or yield-depth differential
+    only visible at runtime. Diagnostic order: (1) xvfb +
+    playwright keyboard retry → drive a transit; (2) if blind,
+    staging-only frame-beacon instrumentation (xterm print per
+    presented frame) through a patched staged copy; (3) fix per
+    findings — candidates: asyncify unwind depth inside nested
+    animation coroutines, the engine's present/flip variant
+    under vsync=1 emscripten, an overlay blit that no-ops under
+    wasm.
   - **Earth/ground perf:** profile the ground frame path under
-    wasm (what is actually per-frame: river/water animation tiles,
-    city render, lighting cadence — the "lighting/river" read is
-    the user's guess, not verified). Mitigation must be UNIFORM —
-    cheaper for desktop too (requirement #1 item 2: feel-identical
-    desktop; no platform branches per Ruling 3's spirit).
-  - **Loading-beat ruling:** deferred into this phase — after the
-    animation question settles (a world-gen beat is the same
-    wordless-mechanic family as launch/land scenes). Wordless if
-    it lands: motion/light, descent_animation-style, never prose.
+    wasm (river/water animation tiles, city render, lighting
+    cadence — the "lighting/river" read is the user's guess).
+    Mitigation must be UNIFORM — cheaper for desktop too
+    (requirement #1 item 2; no platform branches).
+  - **Loading-beat ruling:** deferred until the animation
+    question settles (same wordless-mechanic family); if it
+    lands: motion/light, descent_animation-style, never prose.
   - Doc close: move to complete/ + full SYSTEMS.md audit (render
     path + loop entries gain web-target notes; persistence entry
     gains the IndexedDB mirror + sh46 fetch seam; a web-build
     entry for make-web/serve-web/boot-beacon).
-- *Build order:* diagnostic 0 (user) → animations verdict →
-  Earth-perf profile + uniform mitigation → beat ruling → dual
-  checklists → close + SYSTEMS.md audit.
-- *Binding rulings:* R1 (flagless), R5 (self-contained), requirement #1
-  items 2/6 (feel-identical desktop; content parity).
-- *Tests:* `make check` green; any perf/animation change ships
-  with its timing/skip tests updated in the same commit.
+- *Build order:* animation repro + fix → Earth-perf profile +
+  uniform mitigation → beat ruling → dual checklists → close +
+  SYSTEMS.md audit.
+- *Binding rulings:* R1 (flagless — instrumentation is
+  staging-only, never the shipped bundle), R5 (self-contained),
+  requirement #1 items 2/6 (feel-identical desktop; content
+  parity).
+- *Tests:* `make check` green; any animation-loop change updates
+  the input-triggered-animation contract tests in the same
+  commit (queue-flush, grace-period skip, skip-on-keydown).
 - *Stop point:* no hosting/deploy/itch, no touch input, no PWA,
   no save export/import, no content or balance changes.
 - *Playtest checkpoint (in-browser, user):*
-  1. Animation scenes play at speed 1.0: launch, land, G, jump.
+  1. Animation scenes play: launch, land, G, jump.
   2. New game → world-gen freeze ruling (beat yes/no).
   3. Earth/city: moves + transit feel post-mitigation.
   4. Save/quit → tab close → Continue; options hold.
