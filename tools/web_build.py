@@ -14,6 +14,7 @@ Output: ``build/web/`` — serve with ``make serve-web``.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -105,6 +106,24 @@ def _run_pygbag() -> None:
         import pygbag  # noqa: F401 — availability check only
     except ImportError:
         sys.exit("pygbag is missing — pip install -e '.[dev]' first")
+    # pygbag's icon fetch joins --cdn + favicon into a ROOT-RELATIVE
+    # url its urllib downloader can't follow (no scheme) and raises.
+    # pygbag also clears build/web-cache whenever build/version.txt
+    # is missing — and staging wipes it every build. Seed BOTH: the
+    # version marker (so the cache survives) and the md5-named
+    # favicon (so the icon resolves from cache, quietly — pygbag
+    # then copies it into the bundle itself).
+    favicon = _mirror_one(f"{PYGBAG_VERSION}/favicon.png")
+    pycache = STAGE / "build"
+    pycache.mkdir(parents=True, exist_ok=True)
+    (pycache / "version.txt").write_text(PYGBAG_VERSION)
+    # a "valid" cache also skips pygbag's own make_cache_dirs
+    (pycache / "web").mkdir(exist_ok=True)
+    if favicon.is_file():
+        seed_dir = pycache / "web-cache"
+        seed_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(favicon, seed_dir / (
+            hashlib.md5(f"/{VDIR}favicon.png".encode()).hexdigest() + ".png"))
     template = (ROOT / "web" / "index.tmpl").resolve()
     cmd = [sys.executable, "-m", "pygbag", *PYGBAG_ARGS,
            f"--template={template}", STAGE.name]
