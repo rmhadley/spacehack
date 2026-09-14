@@ -520,6 +520,13 @@ unchanged.
   and become a committed template + two Makefile targets. Desktop
   untouched by construction: no `src/` changes; the only
   existing-file edits are `Makefile` and the pyproject dev extras.
+  **The loop's deliverable is a USER-TESTABLE local deploy (user,
+  2026-09-14): the user's real browser is the primary verification
+  instrument — they report results/errors faster and more
+  faithfully than the agent's limited docker shell and its
+  inability to read non-text inputs. In-container checks exist
+  ONLY to prove the handover isn't dead on arrival; no gameplay
+  is attempted in-container.**
 - *Scope:* new `web/` (top level): `main.py` (pygbag-convention
   async entry: `await spacehack.__main__._amain()`); `sh46.js`
   (the phase-2 shim spec verbatim: `put`/`remove` optional
@@ -545,10 +552,12 @@ unchanged.
   sh46.js + vendored files + template overrides + `main.py` →
   `make web` + self-containment gate (grep the built bundle for
   runtime `https://` fetches — must find none) → `make serve-web`
-  + header test → in-container verification (phase-0/2 pattern:
-  serve, headless-browser beacon trail via `location.hash`,
-  title → new game → moves; python stdout reads from the xterm,
-  not the console) → `make check` → user's browser checkpoint.
+  (prints the URL; serves until interrupted; rebuild reuses the
+  cached wheel mirror) + header test → in-container BOOT beacon
+  only (loader → wheel install → runtime import → `main()`
+  entered, via the proven `location.hash` channel — proof the
+  handover isn't dead on arrival) → `make check` → HAND OVER.
+  Fix loop on user reports: fix → `make web` → re-serve.
 - *Binding rulings:* R1 (the bundle adds zero flag/query-param
   plumbing); R3 (one async path — the web entry just awaits
   `_amain`); R4 (local/LAN verification; hosting later; GitHub
@@ -566,8 +575,8 @@ unchanged.
   checkpoint passed. NOT started: phase 4 (perf numbers, dual
   playtest, world-gen loading beat), any hosting/deploy work,
   itch upload, touch input, PWA, save export/import.
-- *Playtest checkpoint (user's browser — the container ceiling
-  stands):*
+- *Playtest checkpoint (user's browser — the PRIMARY instrument,
+  per the principle):*
   1. `make web` on a clean tree: succeeds; `build/web/` holds the
      bundle incl. mirrored wheel + browserfs.min.js + sh46.js;
      self-containment grep clean.
@@ -586,6 +595,9 @@ unchanged.
      green.
   7. Guide diff: NONE (the game is the game — requirement #1
      item 6).
+  8. On any failure: paste the page's xterm/console output
+     verbatim back to the agent; the fix loop is fix →
+     `make web` → `make serve-web` → retest.
 
 - [ ] brief approved (proposed 2026-09-14 — this section)
 - [ ] bundle boots from the local header-serving server; desktop
