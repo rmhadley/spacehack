@@ -415,8 +415,11 @@ config rides the SAME backend: the persisted thing is the
 
 - [x] brief approved (user, 2026-09-13 — including the config.toml
       user-data-root amendment)
-- [ ] desktop save path/format byte-identical; checklist passes on
-      both targets
+- [x] desktop save path/format byte-identical; checklist passes on
+      both targets (user, 2026-09-14: "passed, both targets" —
+      desktop exact-state Continue / quicksave pair / Shift+S reroll /
+      options hold; web tab-close Continue restore, options hold,
+      no corrupt JSON)
 
 **Run log (2026-09-13, in-container probe → implementation):**
 
