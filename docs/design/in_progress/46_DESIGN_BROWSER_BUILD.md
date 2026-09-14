@@ -790,10 +790,13 @@ approval):**
     start marker ⇒ the loop never runs as expected.
   - **Cycle 1 beacon (this build):** `animation_timing.web_beacon`
     — xterm print, web-only (`sys.platform == "emscripten"`,
-    the user_data precedent), silent on desktop. Instrumented:
-    the G transit (`_run_goto` start/end + step count, end rides
-    a finally for combat interrupts), `animate_descent`
-    (launch/land), `_animate_jump`. Start/end + COUNT only —
+    the user_data precedent), silent on desktop. Instrumented
+    (reviewer-corrected mapping): the G transit (`_goto_transit`
+    start/end + step count, end rides a finally for combat
+    interrupts), LAUNCH + LAND (`city._animate_ship_to_y`, the
+    ship glide both scenes share), jump (`_animate_jump`), plus
+    the dungeon elevator (`animate_descent`, bonus instrument —
+    NOT launch/land as first drafted). Start/end + COUNT only —
     never per-frame prints.
   - **Earth/ground perf:** code-reasoned from the ground frame
     path (river/water animation tiles, city render, lighting
@@ -834,27 +837,33 @@ approval):**
 
 **Pre-implementation audit (2026-09-14, before code):**
 
-1. **Extend/reuse:** `animation_timing` — the shared timing
-   module every animation already imports — gains the one
+1. **Extend/reuse:** `animation_timing` — the shared timing module
+   every animation already imports — gains the one
    web-only `web_beacon(tag)` (xterm print; `sys.platform ==
-   "emscripten"` gate, the `user_data._is_web` precedent; silent
-   on desktop per the UI-text-economy rule). Instrument points:
-   `_run_goto`'s steps loop (G transit), `animate_descent`
-   (launch/land), `_animate_jump`. The channel is the b46 xterm
-   family (`web/main.py` prints; user pastes terminal text).
-2. **Duplication hotspots:** (a) the `_responsive_sleep` TWINS
-   (`navigation_travel.py` / `combat/_animations.py`) — any
-   future sleep fix lands in BOTH; this cycle instruments only
-   the four user-reported scenes, combat stays clean;
-   (b) beacon spam — start/end markers + a frame COUNT, never
-   per-frame prints (xterm writes cost time and would perturb
-   the very frame loop under measurement); (c) early returns —
-   the goto loop returns mid-transit on combat interrupts, so
-   its end beacon rides a `finally`.
+   "emscripten"` gate — kept INLINE rather than routing through
+   `user_data._is_web()`, a deliberate decision: the leaf timing
+   module must not import from the persistence layer; the
+   predicate twin is accepted and recorded here). Instrument
+   points (mapping reviewer-corrected): `_goto_transit` (G
+   transit), `city._animate_ship_to_y` (launch + land glide),
+   `_animate_jump`, `animate_descent` (dungeon elevator, bonus).
+   The channel is the b46 xterm family (`web/main.py` prints;
+   user pastes terminal text).
+2. **Duplication hotspots:** (a) the `_responsive_sleep` family —
+   now THREE sites (`navigation_travel.py`, `combat/_animations.py`,
+   and `navigation.py` re-exported into `city.py`) — any future
+   sleep fix lands in ALL; this cycle instruments only the
+   user-reported scenes, combat stays clean; (b) beacon spam —
+   start/end markers + a frame COUNT, never per-frame prints
+   (xterm writes cost time and would perturb the very frame loop
+   under measurement); (c) early returns — the goto loop returns
+   mid-transit on combat interrupts, so its end beacon rides a
+   `finally`.
 3. **DRY:** one beacon function in `animation_timing`; each call
    site counts its own frames (the loops differ in shape —
-   descent iterates `descent_rows`, goto iterates steps, jump
-   iterates ring frames — so no shared counter abstraction).
+   the glide iterates cells, descent iterates `descent_rows`,
+   goto iterates steps, jump iterates ring frames — so no shared
+   counter abstraction).
 
 ## Risks
 
