@@ -475,6 +475,96 @@ dark_berth is the refinement target.
     in play and self-explaining; recorded here as the deliberate
     no-change decision (game guide contract).
 
+## Settled — phase 5, the space host + the lie (refine session, 2026-09-14)
+
+40. **Space sources — spec id + system.** A space candidate is
+    ``(ship_spec_id, system_id)`` (plus the same gate triple): any
+    hull of that spec flying in that system delivers — the direct
+    twin of the city ``(npc_id, planet)`` shape (SETTLED 15). One
+    resolver, the same ``picks`` width knobs; SETTLED 14's
+    ≥1-live-route guarantee extends to space candidates. (user
+    picked spec+system over faction+system and spec-global.)
+41. **The row — every talkable contact; hearsay ignores hostility.**
+    SETTLED 8 lands on comms verbatim: patrols, merchants, and
+    pirates alike carry the Ask Around row (knowledge-gated — shown
+    only when the contact holds something); derelicts and the
+    restricted-space blockade stay End-Transmission-only. Hostility
+    does not gate gossip — pirates already testify in the
+    dark-ports chain.
+42. **Scuttlebutt is ask-initiated.** "Free" (SETTLED 6) means no
+    favor cost, not unprompted: all space delivery rides the Ask
+    Around sub-menu. Unprompted hearings remain authored triggers
+    (the dark-hail precedent) — no chatter-on-hail ambience.
+43. **The content — one new space-native chain with the lie inside
+    it.** Agent drafts the spine (next section); the prose gate
+    applies. dark_berth stays complete and city-bound.
+44. **The lie's route — a false dig site; the dig IS the reveal.**
+    Hearing the lie charts a site that isn't what it claims (the
+    fragment idiom — hear-on-chart, pointer line, Explore row,
+    persisted map). Following it is real play: guards at the
+    planet's tier and a GUARANTEED truth-teaching pad in the
+    depths — the "dead end whose search reveals the lie" arm of
+    SETTLED 5, instantiated on the shipped dig stack (site-shape
+    knobs — guard boost, loot — authored and tunable). The site
+    persists after the reveal: a real place you were fooled about,
+    revisitable like any dig.
+45. **The reveal — a truth entry; the lie's records stay
+    untouched.** The truth is a separate authored entry landing
+    like any hearing (keyring + verbatim ledger). The lie's ledger
+    line is never rewritten and its keyring status never changes —
+    ``requires`` chains still treat it heard (knowing the lie is
+    knowing something). No strike-through, no removal.
+46. **Revealed lies won't sell.** ``offerable_rumors`` excludes a
+    lie whose truth entry is heard — derived at read time, no new
+    state. Before the reveal, selling the lie is honest trade at
+    its authored value.
+47. **Exclusives carry value 0** (the t4 edge, carried unruled
+    since phase 3): ``dark_berth_4``'s authored value 2 → 0 — an
+    exclusive is never sellable (``offerable_rumors`` already
+    requires value > 0); you pay favor for it, it is not tradeable
+    info. One data edit; ships with the phase-5 build.
+
+## Phase 5 — the lost-convoy chain (spine DRAFT, 2026-09-14 — for iteration; PROSE GATE)
+
+The space host's content package (SETTLED 43): one space-native
+chain, the lie inside it. Agent-drafted structure below — names,
+numbers, and every player-facing string are DRAFTS for discussion;
+nothing lands in data until the user approves the wording.
+
+**The subject:** a consortium pay-haul convoy that vanished running
+the mid belt. Merchants still mutter about it; patrols won't put it
+in a report; and out on the frontier somebody sells its burial
+site. The truth: a warlord squadron took it at the picket — the
+haul sits in a frontier vault, and nothing is buried anywhere.
+
+| tier | id | content (DRAFT) | delivery |
+|---|---|---|---|
+| 1 | ``lost_convoy_1`` | the legend — the convoy, the silence, the questions nobody answers | wide space sources: merchants + a patrol (picks ~2-3 of ~6 candidates) |
+| 2 | ``lost_convoy_2`` | what it carried — a consortium pay-haul, hard currency | narrower space sources: a caravan that knew the manifest + the patrol that buried the report |
+| L | ``lost_convoy_lie`` | THE LIE — the site is for sale: the haul is buried on a named planet, and the teller will mark it for you | ONE live conman hull this run (pirate or too-friendly caravan candidates, picks=1); requires t1; value 3; on hear → charts the false dig |
+| 3 | ``lost_convoy_3`` | the real fate — taken at the picket, the haul bankrolled a frontier garrison | space sources; requires t2 |
+| T | ``lost_convoy_truth`` | the reveal — the charts are con work: the marker was planted to be found, nothing is buried | NO sources — the false site's guaranteed truth pad (deepest floor); value 2 |
+
+- Chain id ``lost_convoy``; topic string "the lost convoy" (DRAFT).
+- The lie is a BRANCH: the spine t1→t2→t3 completes without taking
+  the bait; lie and truth hang off it as optional depth.
+- The false site's planet: authored candidates (a mid-belt hike —
+  the con wants runway), seeded pick 1 (the SETTLED 22 idiom);
+  theme, tier, and depth bounds come from the planet spec like any
+  dig.
+- Values 1/2/3 on the spine; the lie at 3 (the con is worth
+  repeating — pre-reveal it sells, SETTLED 46); the truth at 2.
+- Candidate source pools (DRAFT, exact pairs tuned at playtest):
+  merchants in sirius / alpha_centauri / vega / cygni; patrols in
+  sol / luyten_star; the conman among pirate_raider /
+  pirate_marauder in lalande_21185 / ross_154 / wolf_359 plus a
+  merchant_caravan variant (the con wears many faces — the seed
+  picks the role too).
+- PROSE GATE: every string above is a draft. The tier texts, the
+  conman's pitch, the truth pad's label, the site readout, and the
+  guide amendment are quoted for approval before
+  ``/implement-phase 42.5`` runs; prose lands in its own commit.
+
 ## Phase 2.5 — the dark-ports chain (design 2026-09-11; implements with phase 3)
 
 The one-chain ruling made ``dark_berth`` the refinement target; the
@@ -632,12 +722,14 @@ typos fixed and flagged in chat)
 - Guide: the discovery sentence stands (how-to only, no
   telegraphing).
 
-### Open
+### Open — closed (2026-09-14)
 
-- The authored share of dark pirate spawns (guaranteed minimum +
-  share; tuned at playtest).
-- Confirm tier 3's "broadcast my name to all" is as intended — kept
-  verbatim (reads as "to everyone", not a typo for "at all").
+Both bullets resolved in play: the dark share shipped as
+``choose_dark_groups`` ``max(1, groups // 4)`` (plus the per-tick
+stragglers' ``flies_dark_coin`` at the same rate) and passed the
+phase-3 playtest; tier 3's "broadcast my name to all" survived the
+user's mid-playtest T1 re-authoring untouched and the read-through —
+confirmed as intended.
 
 ## Phases
 
@@ -1676,9 +1768,142 @@ amended with the favor exchange.
        — all drafted by the agent, quoted for approval.
 
 ### Phase 5 — The space host + the lie (was phase 4)
-- [ ] Ask Around on the comms matrix (talkable contacts);
-      scuttlebutt vector (patrol chatter as free hearsay)
-- [ ] The authored lie: false flag honored, false route, in-world
-      reveal
-- [ ] Playtest checkpoint
+- [ ] Space sources in the catalog + routing: ``(spec, system)``
+      candidates through ``live_routes``, ≥1-live-route guarantee
+      extended to space (SETTLED 40)
+- [ ] Ask Around on the comms matrix: every talkable contact,
+      knowledge-gated row, shared sub-menu, ask-initiated delivery
+      (SETTLED 41-42)
+- [ ] The lost-convoy chain: spine + lie + truth, space-delivered
+      (SETTLED 43; spine DRAFT above — prose settles before the
+      build)
+- [ ] The lie machinery: false flag honored, false dig site on
+      hear, guaranteed truth pad in the depths, revealed lies won't
+      sell (SETTLED 44-46)
+- [ ] Exclusive value fix: ``dark_berth_4`` value 2 → 0 (SETTLED 47)
+- [ ] Playtest checkpoint (checklist in the brief)
+
+  Implementation brief (5) — PROPOSED (refine session, 2026-09-14):
+
+  - **Scope.** Data: ``RumorEntry`` gains the lie authoring fields
+    — ``truth_id: str | None = None`` (None = a true entry; names
+    the reveal) and ``false_site_planets: tuple[str, ...] = ()``
+    (the seeded pick-1 destination candidates, SETTLED 22 idiom);
+    ``data/lore/chains.py`` gains the lost-convoy chain per the
+    spine draft (ids final at approval; prose keys
+    ``rumor.lost_convoy_*`` in ``data/text/08_rumors.json`` —
+    PROSE GATE, strings land only after approval, in their own
+    commit; no witness keys on the truth entry — pad-delivered
+    knowledge has one text). Space sources: the source tuple's
+    scope slot admits system ids paired with ``npc_ships`` spec-id
+    tellers — ``(ship_spec_id, system_id, faction, floor, trait)``
+    — no legacy form; the catalog test validates spec ids against
+    ``data/npc_ships`` and system ids against the system registry
+    (the same real-ids assertions the city shape carries).
+    ``dark_berth_4`` value 2 → 0 (SETTLED 47). Routing:
+    ``rumor_routing.live_routes`` folds space candidates into the
+    same per-entry derivation — pure INIT_SEED, ≥1 live route
+    across BOTH source kinds combined, nothing serialized. Digs:
+    hearing a lie-charted entry calls ``digs.chart_false_site`` —
+    records the site in ``ctx.discovered_sites`` carrying a
+    ``lie_of: <rumor_id>`` key (the generic dict round-trip absorbs
+    it; no new save family), presents through
+    ``rumor.present_hearing``; ``generate_dig`` reads the marker —
+    the truth pad (a ``teaches``-branch pad entity) guaranteed in
+    the deepest floor's cache scatter, guards per the planet tier
+    (authored boost knob, tunable). Resolver (``rumor.py``):
+    ``askable_topics`` takes the scope as an explicit pure input —
+    planet id on the ground, ``(spec_id, system_id)`` in space (one
+    resolver, two scope predicates; city call sites unchanged);
+    ``offerable_rumors`` excludes a lie whose ``truth_id`` entry is
+    heard (SETTLED 46). Host (``comms.py``): ``_contact_options``
+    appends one "Ask Around" row for every non-derelict,
+    non-blockade contact when the contact holds anything
+    (live-routed opener or extension — SETTLED 8's rule, hostility
+    ignored); picking it opens the SHARED Ask Around sub-menu (the
+    ``rumor.py`` frames builder — same look/feel as the city host,
+    no parallel modal) with a thin handler in
+    ``_run_interaction_modal``. Dev: ``Shift+N`` extends to list
+    live space carriers + the conman + the false-site planet.
+    Guide: the Rumors section's ask-around wording widens by one
+    sentence (hailed contacts can be asked too) — quoted for
+    approval on the checklist.
+  - **Build order.** (1) space source shape + catalog-test
+    extensions + the routing fold + determinism tests; (2) the
+    resolver scope input + tests; (3) the comms row + shared
+    sub-menu host + tests; (4) the value-0 exclusive edit +
+    revealed-lie sale exclusion + tests; (5) the lie fields +
+    ``chart_false_site`` + the truth pad + tests; (6) the chain
+    rows once prose is approved (own commit); (7) the guide
+    sentence; (8) playtest checkpoint.
+  - **Binding rulings.** SETTLED 5, 8, 14-19 as extended by 40-47.
+    The seed never gates a chain (space candidates included);
+    nothing new serialized (the site dict's ``lie_of`` key rides
+    the existing round-trip); one sub-menu, one readout path
+    (``rumor.present_hearing``); the keyring never gates; hearsay
+    is free — no dealer rows on comms (SETTLED 6's V1 line); the
+    lie's records are never rewritten after the reveal; the false
+    site persists and revisits like any dig.
+  - **Required tests.** Routing determinism incl. space candidates
+    (same INIT_SEED → same live routes; ≥1 across both kinds;
+    reroll → different legal derivation); catalog integrity (space
+    sources are real ship spec ids on real system ids; a lie's
+    ``truth_id`` references a real entry; truth entries carry no
+    sources — the empty-sources exception widens); resolver (a
+    space contact delivers on the (spec, system) match; wrong
+    system or wrong spec delivers nothing; city-path behavior
+    unchanged); host (the row appears only when the contact holds
+    something; derelicts + the blockade never show it; a hostile
+    contact shows it; the sub-menu matches the city host's shape);
+    lie (hear → the site records with the marker + the pointer line
+    renders + the Explore row appears; the truth pad is guaranteed
+    in the deepest floor; pad pickup teaches the truth verbatim;
+    the lie still satisfies ``requires`` after the reveal; the lie
+    sells before the truth is heard, never after; the site survives
+    save/load and New Game clears); exclusive (``dark_berth_4``
+    never offerable anywhere); round-trip (keyring, ledgers, the
+    marked site, cached dig floors).
+  - **Stop point.** No second chain, no city-side changes to the
+    ask flow, no unprompted chatter or new triggers, no ordinary
+    dungeon loot pads (the truth pad is the ONLY in-dungeon pad —
+    the future loot doc owns that surface), no legendary loot, no
+    doc-43 content, no SYSTEMS.md close work (doc close after the
+    playtest).
+  - **Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+    1. Space asking: hail merchants/patrols/pirates — the Ask
+       Around row appears ONLY on live carriers (Shift+N lists the
+       space routes); a non-carrier shows no row; derelicts and
+       the blockade stay End-Transmission-only.
+    2. Ask a live t1 carrier: the readout plays, the ledger
+       records verbatim; a hostile pirate carrier delivers too
+       (hearsay ignores hostility); a wrong-system hull of the
+       same spec holds nothing.
+    3. Walk the spine t2 → t3 across systems per the live routing;
+       save → quit → Continue — Shift+N shows identical routing;
+       Shift+S reroll → different legal carriers (item 2 repeats).
+    4. The con: find the live lie-holder (Shift+N names them) —
+       the pitch charts the site; Q → RUMORS shows the pointer
+       line; the planet menu shows "Explore <name>".
+    5. Follow it: fly there, explore — guards at the planet's
+       tier, thin loot; descend to the bottom floor — the truth
+       pad; pickup teaches the truth (readout + ledger); the lie's
+       ledger line still sits verbatim, untouched; the site
+       persists and revisits.
+    6. Favor: sell the lie BEFORE the truth at some dealer (+3),
+       then hear the truth — the Sell row vanishes everywhere;
+       after the reveal the lie never sells; ``dark_berth_4`` has
+       no Sell row anywhere, ever.
+    7. Regression: the city host end-to-end (dark_berth chain,
+       dealers, favor economy, Q tabs); the dark-hail trigger,
+       dock line, kill-dropped pads; REAL dig sites unchanged
+       (pads, depths, landmarks); the Ask Around sub-menu on city
+       NPCs is untouched.
+    8. Save → quit → Continue: keyring, ledgers, the false site,
+       and its cached floors all survive; New Game clears
+       everything.
+    9. Prose read-through (gate): the tier texts, the conman's
+       pitch, the truth pad's label/name, the site readout
+       wording, and the guide sentence — approve or red-line each.
+    10. Guide diff (before/after quoted at handoff): the Rumors
+        section's one-sentence widening.
 
