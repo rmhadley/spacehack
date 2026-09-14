@@ -1326,8 +1326,12 @@ class TestCityInteriorSaveMigration:
         result = _restore_interiors(ctx, {}, rebuilt)
         fresh = result.game_map
         assert fresh is not stale
-        # The current asset's door-side spawn, not the stale mid-floor one.
-        assert (player.pos.x, player.pos.y) == (9, 8)
+        # The current asset's door-side spawn — asserted against the
+        # authored asset itself so layout polish can't stale this pin —
+        # not the stale mid-floor one.
+        from src.spacehack.city_landmarks import load_city_interior
+        authored = load_city_interior("barnards_c_bar_interior")
+        assert (player.pos.x, player.pos.y) == (authored.spawn.x, authored.spawn.y)
         assert ctx.interiors["city:barnards_c:bar"] is fresh
         assert ctx.game_map is fresh
         assert ctx.player is player
