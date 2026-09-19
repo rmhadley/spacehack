@@ -2,8 +2,9 @@
 
 **Status: DESIGN IN PROGRESS — no implementation until the user
 explicitly requests it.** Draft opened 2026-09-19; the user's four
-polish notes and the full open-question pass (same day) are
-settled below. Remaining opens are prose-gated or authoring-tuned.
+polish notes, the full open-question pass, and the phase-2
+quality pass (all same day) are settled below. Remaining opens
+are phase-4-shaped.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -154,7 +155,8 @@ opens a drop-one chooser whose "drop" spawns a floor entity.
   path uses.
 - **Rare pickups get a modal beat** (common ones stay log lines):
   the penalties-are-modals ruling read symmetrically — gains the
-  player must not miss get a modal. Applies once rarity exists.
+  player must not miss get a modal. Deferred to phase 4 with the
+  legendaries (SETTLED 12).
 
 ### B. The quality system (SETTLED 1-2, open-question pass)
 
@@ -271,21 +273,46 @@ question list they replaced.
    playtested before any quality work; then quality → modules →
    legendary/credits, each its own implement+playtest cycle.
 
-## Remaining opens (prose-gated or authoring-tuned)
+## Settled — the phase-2 quality pass (2026-09-19)
 
-- Quality tier token words, the derelict warning wording, chip/
-  lockbox names — PROSE GATE, proposed with their phases.
+Four rulings from the quality-system refinement session
+(numbering continues the pass above):
+
+10. **Tier tokens (user, verbatim): "modded, overclocked,
+    prototype"** — t1/t2/t3, prefixing item names ("Modded
+    Kinetic Pistol"; title-cased at the label seam like item
+    names). Legendaries carry no token: the rolled randart name
+    IS the label (phase 4).
+11. **Legendary stays dormant until phase 4.** The ladder table
+    carries the legendary multiplier row so sell/read paths ship
+    complete, but no phase-2 source can roll it; phase 4 turns on
+    delve-bottom rolls and the randart generator together. No
+    proto-legendary interim form — a legendary without its rolled
+    name is the hand-tuned unique the randart ruling retired.
+12. **No rare-pickup modal in phase 2.** The beat defers to
+    phase 4, where the legendaries (the modal-worthy event) land;
+    t1-t3 pickups stay log lines.
+13. **Kit weapons roll quality at NPC EQUIP time (user,
+    verbatim):** "yes. but the roll should happen at npc equip
+    time. if you get a t3 weapon from an npc, that means the npc
+    was firing a t3 weapon at you." The diegetic strong form: the
+    enemy's wielded weapon is quality-variant, its combat stats
+    scale with the quality, and the kill drops THAT instance — no
+    re-roll at death. Beyond-the-weapon extras (armor, sidearms)
+    roll at drop time with the same kill-source rates.
+
+## Remaining opens (phase-4-shaped or authoring-tuned)
+
 - Randart specifics — property spread (axis count, magnitude
   ranges) and whether randarts can carry TRADEOFFS/drawback axes
   (the Qud pattern) or are pure upside; name-pool register
   (call-signs? relic style?). Authored with phase 4; fragments
   PROSE GATE. Hand-authored uniques stay deferred (SETTLED 1
   amendment) — not a phase-4 item.
-- Chip/lockbox value curve vs. trade-goods income — playtest.
-- Section A leftovers still candidate-not-ruled: discard-drops-to-
-  floor, ground cap parity. They ride phase 1 unless red-lined at
-  its brief; the rare-pickup modal rides phase 2 (needs quality
-  to define "rare").
+- Rare-pickup modal shape + strings (SETTLED 12 moved it to
+  phase 4) — PROSE GATE with its phase.
+- Chip/lockbox names + value curve vs. trade-goods income —
+  phase 4; PROSE GATE / playtest.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
@@ -298,19 +325,24 @@ question list they replaced.
   build survived a mid-session PC crash and a reviewer-outage
   fallback), all 9 playtest items PASSED (guide diff: none, as
   expected). SYSTEMS.md audited at close.
-- [ ] 2. **Quality system** — instance quality field on stored gear +
-  modules, the ladder table (three tiers + rolled legendary
-  top, SETTLED 1-2), per-source rates (legendary delve-only),
-  sell price × tier multiplier (SETTLED 4), quality brightness
-  on glyphs (SETTLED 5), rare-pickup modal,
-  `TradeGood.rarity` removal, `DigLootSpec` expansion.
+- [ ] 2. **Quality system** — instance quality through the equip
+  round-trip (stored entries + weapon instances + the
+  equipped-armor dict migration), the ladder table (three tiers
+  + dormant legendary row, SETTLED 1-2/11), NPC equip-time
+  weapon rolls (SETTLED 13), per-source drop rates (legendary
+  unroll-able until phase 4), sell price × tier multiplier
+  (SETTLED 4), quality brightness on glyphs (SETTLED 5), tokens
+  modded/overclocked/prototype (SETTLED 10), `TradeGood.rarity`
+  removal, `DigLootSpec` quality rates. No rare-pickup modal
+  (SETTLED 12 — phase 4).
 - [ ] 3. **Modules as loot** — payload shape → ship storage,
   boarding/derelict room pools, boarded-ship live `modules`
   drops, mechanic economy check.
 - [ ] 4. **Legendary randarts + credits + pads** — the randart
   generator (seeded name composition from word pools + property
-  spread over `ModuleSpec`'s bonus axes), delve-bottom
-  guarantee, chips/lockboxes in wrecks/digs (SETTLED 6),
+  spread over `ModuleSpec`'s bonus axes), legendary activation
+  (delve-bottom rolls turn on, SETTLED 11), the rare-pickup
+  modal (SETTLED 12), chips/lockboxes in wrecks/digs (SETTLED 6),
   valuable pads, doc-43 hookup. Prose gate before any data
   strings land.
 
@@ -505,3 +537,180 @@ content, no SYSTEMS.md work (phase close only).
 9. Guide diff (before/after quoted at handoff): expected NONE —
   colour language explains itself in play; the guide's pickup
   row wording unchanged.
+
+## Pre-implementation audit — phase 2 (2026-09-19)
+
+**Reuse (verified):**
+
+- Equip-time roll site: `_build_enemy_instance`
+  (`combat/_rules_ground.py:160-184`) — where `weapons[0]` /
+  `weapon_pick` resolve to `weapon_id`; `GroundEnemyInstance`
+  is declared in the same module (`:74`), so `weapon_quality`
+  is a same-file declared field, no cross-module setattr.
+- Enemy attack stats: `_ai_ground.run_ground_enemy_turn(
+  enemy_weapon_id=…)` resolves `_find_gw` at `_ai_ground.py:52`
+  and threads the spec — the enemy-side scaling seam. Player
+  side: `hit_chance` / `damage` (`_rules_ground.py:395,416`)
+  read the bare id internally; the CALLERS hold the equipped
+  `GroundWeaponInstance` (with quality) — thread from there.
+- The armor migration lands inside two sum helpers:
+  `sum_armor_defense` / `sum_armor_bonus`
+  (`ground_equipment.py:28,48`) — combat (`_rules_ground:198,
+  211`), HUD (`hud.py:503`), traits (`trait_screen.py:25`) all
+  pass `ctx.equipped_ground_armor.values()` and stay textually
+  identical when values become entries.
+- Kill drops already flow through `spawn_kill_drops(…,
+  weapon_id)` (phase 1) — gains the rolled `weapon_quality`
+  parameter.
+- `loot_data` serializes wholesale (`saveload.py:248`) and the
+  restore path already routes colour through `loot_fg`
+  (`saveload.py:699`) — a `quality` key rides save/load free
+  and brightness is one function.
+- Legacy-migration precedent to copy: `parse_weapon_instance`
+  (`ground_equipment.py:145-175`) seeds defaults for older
+  shapes (bare string → full instance).
+- Sell path pops the entry (`sell_stored`), so quality is in
+  hand at `_sell_price` (`menus/_armory.py:63`).
+
+**Duplication hotspots:**
+
+1. Effective-stat reads — player attack, enemy attack, armor
+   sums, sell, labels: six sites that could each hand-multiply.
+2. Token labels — P chooser, pack rows, armory list, sell rows:
+   four screens that could each prefix.
+3. Save/load twins — `_save_loot`/`_restore_loot_entities`
+   (quality key), and `saveload_ground` parse/serialize for all
+   three instance shapes (stored entry, weapon instance,
+   equipped-armor dict).
+
+**DRY strategy:**
+
+1. One helper pair in the quality module —
+   `effective_weapon_spec(id, quality)` /
+   `effective_armor_spec(id, quality)` (`dataclasses.replace`
+   copies with scaled fields); callers never multiply inline.
+   Catalogs stay descriptive.
+2. One `display_name(entry)` label helper; screens never prefix.
+3. Ratchet watch: `_rules_ground.py` sits at 981 lines —
+   phase-2 edits must be line-neutral or better (the equip-time
+   roll is a small pure-helper extraction candidate).
+
+**Data-first:** `src/spacehack/data/quality.py` — tokens,
+per-family multiplier rows (weapon + armor now; the module row
+lands phase 3 with its consumer), per-source 1-in-N rate tables,
+pure `roll_quality` / `quality_multiplier`. No catalog edits.
+
+### Phase 2 — Quality system (brief PROPOSED 2026-09-19)
+
+**Scope (files + hook points):**
+
+1. **Quality data module** — `src/spacehack/data/quality.py`:
+   tokens `("modded", "overclocked", "prototype")` (SETTLED 10,
+   user-dictated — the only new prose this phase); multiplier
+   rows per family (weapon damage + accuracy contribution,
+   armor protection + bonus fields; ~1.15/1.30/1.45-shaped,
+   exact values authored then tuned at playtest; the legendary
+   row exists but nothing rolls it — SETTLED 11); rate ladders
+   `KILL_QUALITY_RATES` (used at BOTH NPC equip time and
+   kill-extras drop time — SETTLED 13), `WRECK_QUALITY_RATES`
+   (dungeon scatter), `DIG_QUALITY_RATES` (dig caches); pure
+   `roll_quality(rates)`, `quality_multiplier(family, quality)`,
+   `effective_weapon_spec` / `effective_armor_spec`.
+2. **Instance threading** — `StoredGroundEquipment` +
+   `quality: int = 0`; `GroundWeaponInstance` + `quality:
+   int = 0` (equip/unequip/store/swap/install/displace preserve
+   it); `ctx.equipped_ground_armor` becomes
+   `dict[str, StoredGroundEquipment]` (`game_context.py:342`
+   field type + the `ground_equipment` armor functions + the
+   `.get(slot)` readers at `menus/_armory.py:325,515,526,857`
+   and `character_screen.py:348,471` now read `.item_id`; the
+   two sum helpers multiply per-entry quality internally).
+3. **Save/load** — `saveload_ground.py`: serialize/parse all
+   three shapes with legacy migration (missing/invalid quality
+   → 0; legacy armor dict of bare ids → base entries). Plus the
+   loot-entity round-trip (the quality key rides `loot_data`).
+4. **NPC equip-time rolls** — `_build_enemy_instance` rolls the
+   wielded weapon's quality (KILL rates, seeded) onto
+   `GroundEnemyInstance.weapon_quality`; enemy attack scaling
+   threads it through `_ai_ground`; `spawn_kill_drops` drops
+   the wielded weapon AT its rolled quality (no re-roll).
+5. **Drop-time rolls** — kill extras, dungeon-scatter equipment
+   entries (`dungeon_layout` pools), dig caches (`DigLootSpec`
+   gains quality-rate FIELDS only — rare-cache variant,
+   legendary guarantee, out-of-produce pool stay phase 4);
+   equipment `loot_data` gains `quality`; `loot.py:101` pickup
+   threads it into the stored entry.
+6. **Presentation + economy** — `display_name(entry)` token
+   prefix at the P chooser, pack rows, armory list + sell rows;
+   `loot_fg` brightness steps within the equipment hue (SETTLED
+   5); `_sell_price` × `quality_multiplier` (int-rounded,
+   min 1); `TradeGood.rarity` deleted + its data authors
+   cleaned.
+
+**Build order:** quality module + unit tests → instance
+threading + save migration → armor-dict migration → combat
+scaling (equip-time roll, enemy attack, player attack) →
+drop-time rolls + loot_data → labels/brightness/sell →
+rarity removal.
+
+**Binding rulings:** SETTLED 1/2/4/5/10-13; shops, starting
+gear, quest gear, and mission cargo NEVER variant (base only);
+space weapons and installed ship modules don't variant (module
+instances are phase 3's payload); the system's name is
+"quality" everywhere — `tech_level` owns "tier"
+(`tier_filtered_equipment` is the unrelated NPC-drop gate);
+quest-loot security do-not-break; deadshot/charger gate on
+weapon_id identity (unaffected by quality); prose gate — beyond
+the three user-dictated tokens, no new strings (the guide entry
+below is the one addition, approval-gated).
+
+**Tests:** multipliers/effective specs parametrized; equip
+round-trip preserves quality through store/swap/install/
+displace; legacy-save migration for all three shapes;
+mixed-quality armor sums; seeded equip-time roll (read RNG via
+module attr) with enemy stats scaling; the dropped weapon
+carries the same rolled quality (no re-roll); extras/scatter/
+dig rolls; token labels; sell × multiplier + rounding;
+loot_fg brightness per tier; loot_data save/load round-trip
+with quality; TradeGood surface after rarity removal.
+
+**Stop point:** no module payload or module-storage migration
+(phase 3), no randart generator/name pools/legendary activation
+(phase 4), no rare-pickup modal (phase 4), no chips/lockboxes/
+valuable pads, no DigLootSpec rare-cache/guarantee/out-of-
+produce fields, no economy re-tuning beyond the authored rate
+tables, no SYSTEMS.md edits (phase close only).
+
+**Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+
+1. Seeded fight vs a weaponed NPC whose wielded weapon rolled a
+   tier: it hits accordingly, and its corpse drops THAT weapon
+   with the token label — not a re-roll.
+2. Kill extras occasionally carry tokens; ammo, cargo, and
+   quest goods never do.
+3. Equip an overclocked weapon: the damage readout scales;
+   unequip → the pack row keeps its token; armory transfers
+   keep it too.
+4. Armory sells variant gear at half catalog × multiplier;
+   shop stock never carries tokens.
+5. Floor glyphs: the equipment hue brightens by quality; the
+   phase-1 category hues are unchanged.
+6. A pre-quality save loads clean: all gear base, nothing lost
+   (equipped-armor migration included).
+7. Delve caches: equipment can carry tokens; rates read thin,
+   not absent.
+8. Regression: pack-full swap drops keep quality; P chooser
+   labels; reload/displacement flows; quest caches secured and
+   never variant; heist cargo cyan and unvarianted; deadshot/
+   charger with variant weapons; discard-to-floor round-trip.
+9. Guide diff: NEW entry (draft below) — approve or red-line
+   before it lands; everything else unchanged.
+
+**Guide entry draft (PROSE GATE — for approval with this
+brief):**
+
+    QUALITY: Loot weapons and armor can be modded, overclocked,
+    or prototype grade — stronger than standard gear and worth
+    more to buyers. Shops stock standard only; the better grades
+    come off bodies and out of wrecks. What an enemy fought with
+    is what drops.
