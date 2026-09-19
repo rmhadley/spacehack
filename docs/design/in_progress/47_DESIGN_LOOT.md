@@ -166,7 +166,11 @@ equipped/read. One mechanism covers weapons, armor, AND modules;
 catalogs stay descriptive (base stats only); quality rides
 existing save/load per instance. Cost: the instance shape
 changes everywhere ids are treated as identity (pack, ship
-storage, choosers, equip paths, sell prices, tests).
+storage, choosers, equip paths, sell prices, tests). Design
+consequence of the randart ruling: the phase-2 instance field
+must anticipate legendary instances carrying a GENERATED
+MANIFEST (rolled name + property spread), not just a tier enum —
+shape it once so randarts extend it rather than rework it.
 
 Quality RATES live in authored `1-in-N` tables per drop source —
 the exact shape of dig `DOOR_RATES` (`data/digs/__init__.py:
@@ -189,12 +193,13 @@ legendary bottom-floor guarantee — per-planet authoring through
   system-slot), and the diegetic strong form: boarded ships drop
   from their own live `modules` list. Modules are quality-variant
   gear (ruling 2) — a found shield generator can be a good one.
-- **Legendary multi-stat modules** (rulings 4 + SETTLED 1): the
-  top rolled tier, delve-exclusive, never shop-stockable; a
-  legendary module roll gains extra bonus axes at roll time.
-  Doc 43 expects "legendary loot" aboard the far-side find
+- **Legendary randarts** (rulings 4 + SETTLED 1, amended): the
+  top rolled tier, delve-exclusive, never shop-stockable. A
+  legendary roll generates a randart — name from authored word
+  pools, 2-4 rolled bonus axes (the multi-stat form). Doc 43
+  expects "legendary loot" aboard the far-side find
   (`43_DESIGN_FAR_SIDE.md:59`) — that hookup stays doc 43's.
-  Tier tokens/names are PROSE GATE.
+  Name-pool fragments and tier tokens are PROSE GATE.
 - **Ordinary dungeon loot pads** — the surface doc 42 ceded.
   Distinct from teaching pads (knowledge): VALUABLE pads (salvage
   logs, manifests) with trade/credit worth. Exact economy shape
@@ -210,11 +215,22 @@ question list they replaced.
 1. **Quality model: instance tiers for EVERYTHING.** Stored gear
    gains a rolled quality; even legendaries are rolled outcomes,
    not authored uniques — the top tier of the ladder IS legendary.
-   For modules, a legendary-tier roll gains extra bonus axes at
-   roll time (the multi-stat form of ruling 4); weapons/armor
-   legendaries are their own stats at the top multiplier. No
-   hand-tuned legendary catalog; legendary identity comes from
-   WHERE it rolled (delve bottoms only) and what it carries.
+   No hand-tuned legendary catalog. Amended same day (user):
+   > My ruling on the legendaries rolled is that I want more of a
+   > RANDART feel than hand authored uniques. We might add a
+   > unique concept later. But first I want randart system.
+
+   Legendary outcomes are RANDARTS (the Qud lineage — doc 39's
+   seed notes): a rolled NAME composed from authored word pools
+   (the dig-site two-part name pools, `data/digs/__init__.py:
+   26-44`, are the in-repo precedent — fragments prose-gated,
+   composition seeded so a randart is THE same artifact all run)
+   plus a rolled PROPERTY SPREAD — the mash picks 2-4 bonus axes
+   with rolled magnitudes (`ModuleSpec` already carries ~11 bonus
+   fields to mash; weapons/armor mash their own stat axes).
+   Hand-authored uniques are explicitly deferred ("might add a
+   unique concept later" — a future doc/phase, the SETTLED 21
+   deferral pattern repeating).
 2. **Ladder: three rolled tiers above base, percentage bumps.**
    base → t1 → t2 → t3 → legendary (the rarest tier, reconcile
    with 1: legendary is the fourth rolled tier, delve-gated).
@@ -259,8 +275,12 @@ question list they replaced.
 
 - Quality tier token words, the derelict warning wording, chip/
   lockbox names — PROSE GATE, proposed with their phases.
-- Legendary bonus-axis generation for modules (how many axes,
-  value ranges) — authored with phase 4, tuned at playtest.
+- Randart specifics — property spread (axis count, magnitude
+  ranges) and whether randarts can carry TRADEOFFS/drawback axes
+  (the Qud pattern) or are pure upside; name-pool register
+  (call-signs? relic style?). Authored with phase 4; fragments
+  PROSE GATE. Hand-authored uniques stay deferred (SETTLED 1
+  amendment) — not a phase-4 item.
 - Chip/lockbox value curve vs. trade-goods income — playtest.
 - Section A leftovers still candidate-not-ruled: discard-drops-to-
   floor, ground cap parity, rare-pickup modal. They ride phase 1
@@ -282,7 +302,9 @@ question list they replaced.
 3. **Modules as loot** — payload shape → ship storage,
    boarding/derelict room pools, boarded-ship live `modules`
    drops, mechanic economy check.
-4. **Legendary + credits + pads** — legendary module axis
-   generation + delve-bottom guarantee, chips/lockboxes in
-   wrecks/digs (SETTLED 6), valuable pads, doc-43 hookup. Prose
-   gate before any data strings land.
+4. **Legendary randarts + credits + pads** — the randart
+   generator (seeded name composition from word pools + property
+   spread over `ModuleSpec`'s bonus axes), delve-bottom
+   guarantee, chips/lockboxes in wrecks/digs (SETTLED 6),
+   valuable pads, doc-43 hookup. Prose gate before any data
+   strings land.
