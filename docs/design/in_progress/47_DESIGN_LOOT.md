@@ -289,23 +289,134 @@ question list they replaced.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
-1. **Polish** — category colour language (brightness arrives with
-   phase 2), discard-drops, ground cap parity, diegetic kit drops
-   (SETTLED 3: always + pools shrink), derelict one-shot SAY-SO
-   (SETTLED 7; wording PROSE GATE). Playtest checklist carries
-   the guide-diff item.
-2. **Quality system** — instance quality field on stored gear +
-   modules, the ladder table (three tiers + rolled legendary
-   top, SETTLED 1-2), per-source rates (legendary delve-only),
-   sell price × tier multiplier (SETTLED 4), quality brightness
-   on glyphs (SETTLED 5), rare-pickup modal,
-   `TradeGood.rarity` removal, `DigLootSpec` expansion.
-3. **Modules as loot** — payload shape → ship storage,
-   boarding/derelict room pools, boarded-ship live `modules`
-   drops, mechanic economy check.
-4. **Legendary randarts + credits + pads** — the randart
-   generator (seeded name composition from word pools + property
-   spread over `ModuleSpec`'s bonus axes), delve-bottom
-   guarantee, chips/lockboxes in wrecks/digs (SETTLED 6),
-   valuable pads, doc-43 hookup. Prose gate before any data
-   strings land.
+- [ ] 1. **Polish** — category colour language (brightness arrives
+  with phase 2), discard-drops, ground cap parity, diegetic kit
+  drops (SETTLED 3: always + pools shrink), derelict one-shot
+  SAY-SO (SETTLED 7; wording PROSE GATE). Playtest checklist
+  carries the guide-diff item.
+- [ ] 2. **Quality system** — instance quality field on stored gear +
+  modules, the ladder table (three tiers + rolled legendary
+  top, SETTLED 1-2), per-source rates (legendary delve-only),
+  sell price × tier multiplier (SETTLED 4), quality brightness
+  on glyphs (SETTLED 5), rare-pickup modal,
+  `TradeGood.rarity` removal, `DigLootSpec` expansion.
+- [ ] 3. **Modules as loot** — payload shape → ship storage,
+  boarding/derelict room pools, boarded-ship live `modules`
+  drops, mechanic economy check.
+- [ ] 4. **Legendary randarts + credits + pads** — the randart
+  generator (seeded name composition from word pools + property
+  spread over `ModuleSpec`'s bonus axes), delve-bottom
+  guarantee, chips/lockboxes in wrecks/digs (SETTLED 6),
+  valuable pads, doc-43 hookup. Prose gate before any data
+  strings land.
+
+### Phase 1 — Polish (brief PROPOSED 2026-09-19 — not buildable
+until approved)
+
+**Audit findings the brief stands on** (verified this session):
+
+- C (character screen) is a GLOBAL key — open in space mode too
+  (`game_loop.py:392-401` → `_handle_non_movement_event`), so
+  Discard needs a no-floor answer.
+- Monster weapons are real catalog rows
+  (`data/ground_weapons/monsters.py`, `price=0,
+  shop_available=False`) — an authored no-drop gate is needed or
+  kit drops would scatter Monster Claws.
+- Space-path eviction (`combat/_actions.py:154-193`) has NO
+  quest/heist/pad exemption — exterior heist cargo can be
+  evicted by churn today. The cap step fixes both paths with one
+  shared helper.
+- Derelict interiors carry `location_name="Derelict Ship"` and
+  exit via the shared exit-tile handler — the say-so hook point.
+
+**Scope (files + hook points):**
+
+1. **Category colours** — one pure `loot_fg(loot_data, …)`
+  table: equipment → muted steel `(130,145,170)`; field items →
+  amber `(200,175,110)`; cargo/trade → gold `(255,215,0)`;
+  data/quest pads AND quest caches → pale violet `(190,190,255)`
+  (the objective read); mission cargo keeps its cyan (verify
+  exact RGB at build). Applied at EVERY constructor:
+  `combat/_actions.py` (`_append_loot_entity`, space debris),
+  `dungeon_layout.py` `_append_loot`, `digs.py` (caches + both
+  pad spawners), `loot.py` (pads, pack-full drops),
+  `combat/_space_kills.py` (heist cargo), quest placements in
+  `game_interactions.py` / `main_quest/`. Initial values tuned
+  at playtest; renderer untouched (entity fg already honored).
+2. **Discard drops** — `_discard_pack_item` /
+  `_discard_pack_stack` (`character_screen.py:491,692`) pop →
+  spawn a floor entity at the player's position via the pack-full
+  drop helper (extract the shared drop path if it isn't already
+  one function). Space mode (no floor): the Discard row is
+  HIDDEN — the verb means "put it on the ground", so where there
+  is no ground there is no verb.
+3. **Loot cap, both paths** — extract `_enforce_loot_cap(
+  game_map)` from the inline eviction, with an exemption
+  predicate (`main_quest_step_id` in `loot_data`, entity
+  `heist_mission`, `teaches`/`reveals_site` pads); called by
+  space `_spawn_loot_drops` AND ground `on_kill` drops. Eviction
+  stays silent (SETTLED 8). Fixes the space heist-cargo eviction
+  latent bug in the same commit.
+4. **Diegetic kit drops** — `on_kill`
+  (`combat/_rules_ground.py:740-767`) reads the enemy's resolved
+  weapon (the combat state's `weapon_id`; audit the exact
+  retrieval at build): spawn THAT weapon (fixed, no pool roll)
+  + an ammo stack when `ammo_type` is set (size roll reuses the
+  field-drop sizing `1..min(5, stack capacity)`). Gate:
+  `GroundWeaponSpec` gains `loot_droppable: bool = True`;
+  `data/ground_weapons/monsters.py` rows author `False` (organic
+  parts never drop). Pool thinning per the rule — pools become
+  beyond-the-weapon extras only (armor, sidearms), applied spec
+  by spec in `data/npc_chars/core.py`; monsters untouched.
+5. **Derelict say-so** — leaving a derelict interior with floor
+  loot still present shows a confirm modal before the loss
+  (exit-tile handler gated on the derelict interior); leave
+  clean → no prompt. DRAFT strings (PROSE GATE — approve or
+  red-line with the brief):
+  - Modal title: "ABANDON THE DERELICT?"
+  - Body: "Anything left inside is lost when you leave."
+  - Choices: "Leave it" / "Stay a moment"
+
+**Build order:** colours → cap helper → discard → kit drops →
+derelict say-so (approved strings land in their own commit,
+last).
+
+**Binding rulings:** SETTLED 3/5/7/8 + polish note 1; prose gate
+on every new string; quest-loot security (SYSTEMS.md "Quest
+loot security") is do-not-break; no payload-shape changes; cap
+checks are per-kill O(n) — no per-tick cost.
+
+**Tests:** category→colour mapping parametrized across every
+constructor; discard round-trip (pop → floor entity at player →
+P restores; space-mode row absence); cap (31st non-exempt evicts
+oldest; quest/heist/pad never evicted — both paths); kit drops
+(exact weapon + correct `ammo_type` stack; melee → no ammo;
+`loot_droppable=False` → nothing; thinned pools respected;
+monster pools unchanged); derelict prompt fires only with loot
+present (strings pinned post-approval).
+
+**Stop point:** no quality field/tiers/brightness, no module
+payload, no `TradeGood.rarity` removal, no sell/economy changes,
+no `DigLootSpec` changes, no new payload shapes, no doc-43
+content, no SYSTEMS.md work (phase close only).
+
+**Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+1. Kill a consortium enforcer: kinetic pistol + pistol rounds on
+  the corpse tile + thinner extras; colours read by category.
+2. Kill a rock scavenger: no claws on the floor; its usual drops
+  unchanged.
+3. Kill a knife-wielding pirate/civilian: the knife drops, no
+  ammo stack.
+4. Dungeon: Discard a pack item → it lands at your feet; P picks
+  it back up; save → quit → Continue → still there.
+5. Space mode: character screen shows NO Discard row.
+6. Spawn a big ground fight (>30 loot entities): oldest plain
+  loot evaporates; quest caches/pads/heist cargo never do.
+7. Derelict with loot on the floor: leaving shows the confirm;
+  leaving clean shows nothing.
+8. Regression: P chooser labels, autoexplore cache labels, quest
+  cache secure flow, heist cargo exterior pickup, save/load
+  round-trip of dropped/discarded items.
+9. Guide diff (before/after quoted at handoff): expected NONE —
+  colour language explains itself in play; the guide's pickup
+  row wording unchanged.
