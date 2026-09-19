@@ -310,6 +310,68 @@ question list they replaced.
   valuable pads, doc-43 hookup. Prose gate before any data
   strings land.
 
+## Pre-implementation audit — phase 1 (2026-09-19)
+
+**Reuse (verified):**
+
+- Floor items are one representation: `world.Entity(char="%",
+  loot_data=…)` — colour is construction-time `fg`; the renderer
+  already honors it. No renderer work needed.
+- Spawn helpers to build on: `combat/_actions.py`
+  `_append_loot_entity` + the three `_spawn_*_at_position`
+  functions; `_MAX_LOOT_ENTITIES` + the inline eviction inside
+  `_spawn_loot_drops` (the extraction source).
+- `on_kill(game_map, enemy: GroundEnemyInstance, ctx)`
+  (`combat/_rules_ground.py:740`) — the resolved weapon is
+  already on the instance (`enemy.weapon_id`); no entity
+  stamping, no `world.py` touch.
+- `loot.py` `_drop_expedition_entry_at_loot` /
+  `_drop_expedition_stack_at_loot` — the pack-full drop path
+  discard reuses (parameterized from loot-position to any
+  position).
+- Derelict discriminator: every persisted interior stamps
+  `location_name` (boarding `:823`, digs `:204`, city, surfaces);
+  the generic derelict map never does. The build stamps
+  `"Derelict Ship"` explicitly in `_build_generic_derelict` and
+  the say-so gates on it at `_handle_dungeon_exit` top.
+- Confirm-modal pattern: `_run_pygame_exit_confirm` (game_flow).
+- Character-screen context flags have a precedent
+  (`in_ground_combat=True` from ground combat — the ONLY combat
+  caller; floor always exists there).
+- Mode strings: `'space' | 'city' | 'dungeon'`; the C handler
+  chain has `state.current_mode` at `_handle_menu_event`.
+
+**Duplication hotspots:**
+
+1. Seven constructor sites each hard-coding `fg` (the wart
+   itself) — copy-paste risk grows with every new source.
+2. Discard vs pack-full drop: two paths about to spawn pack
+   entries as entities.
+3. Cap eviction: space's inline block vs the new ground need —
+   a born twin.
+4. `combat/_rules_ground.py` sits at 999 lines — the kit-drop
+   step cannot add lines without breaching the 1000 ratchet.
+
+**DRY strategy:**
+
+1. New leaf module `loot_common.py`: pure table-driven
+   `loot_fg(loot_data, mission=…)` + `is_protected_loot(entity)`
+   + `enforce_loot_cap(game_map)`; imports only `world` —
+   cycle-proof from every constructor site.
+2. Discard reuses the pack-full helpers after parameterizing
+   the drop position.
+3. The cap lives once in `loot_common`, called by both paths —
+   and fixes the space path's missing exemption in the same
+   commit.
+4. `on_kill`'s four drop blocks extract to
+   `combat/_actions.spawn_kill_drops(game_map, pos, spec,
+   weapon_id)` — `_rules_ground` nets ~15 lines (≈984), the
+   ratchet holds, and the drop sequence reads as one unit.
+
+**Data-first:** `GroundWeaponSpec.loot_droppable: bool = True`
+(authored `False` on the four organic monster rows); pool
+thinning edits `data/npc_chars/core.py` specs only.
+
 ### Phase 1 — Polish (brief PROPOSED 2026-09-19 — not buildable
 until approved)
 
