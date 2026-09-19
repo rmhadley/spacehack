@@ -398,7 +398,9 @@ async def _handle_menu_event(state, event):
         await _run_faction_view(ctx)
         return 'HANDLED'
     if _is_c_press(event):
-        await _open_character_for_mode(ctx)
+        await _open_character_for_mode(
+            ctx, floor_available=state.current_mode != 'space',
+        )
         return 'HANDLED'
     if _is_q_press(event):
         outcome, abandoned_idx = await _run_quest_log(ctx)

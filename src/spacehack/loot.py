@@ -128,8 +128,8 @@ def _field_item_loot_name(stack) -> str:
     return find_ground_item(stack.item_type, stack.item_id).name
 
 
-def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
-    """Drop one carried Expedition Pack equipment item at the loot position."""
+def _drop_expedition_entry_at(ctx: GameContext, pos, index: int):
+    """Drop one carried Expedition Pack equipment item at pos."""
     from . import world
 
     from .loot_common import loot_fg
@@ -139,7 +139,7 @@ def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
     dropped_entity = world.Entity(
         char="%",
         fg=loot_fg(_payload),
-        pos=loot_entity.pos,
+        pos=pos,
         name="Dropped Ground Equipment",
         loot_data=_payload,
     )
@@ -147,8 +147,8 @@ def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
     return dropped, dropped_entity
 
 
-def _drop_expedition_stack_at_loot(ctx: GameContext, loot_entity, index: int):
-    """Drop one carried field-item stack at the loot position."""
+def _drop_expedition_stack_at(ctx: GameContext, pos, index: int):
+    """Drop one carried field-item stack at pos."""
     from . import world
 
     from .loot_common import loot_fg
@@ -162,7 +162,7 @@ def _drop_expedition_stack_at_loot(ctx: GameContext, loot_entity, index: int):
     dropped_entity = world.Entity(
         char="%",
         fg=loot_fg(_payload),
-        pos=loot_entity.pos,
+        pos=pos,
         name="Dropped Field Item",
         loot_data=_payload,
     )
@@ -258,12 +258,12 @@ def _drop_selected_pack_item(ctx: GameContext, loot_entity, chosen):
     if kind == "DROP_PACK":
         if not 0 <= index < len(ctx.ground_expedition_inventory):
             return None
-        dropped, entity = _drop_expedition_entry_at_loot(ctx, loot_entity, index)
+        dropped, entity = _drop_expedition_entry_at(ctx, loot_entity.pos, index)
         rollback = lambda: ctx.ground_expedition_inventory.insert(index, dropped)
     elif kind == "DROP_STACK":
         if not 0 <= index < len(ctx.ground_expedition_items):
             return None
-        dropped, entity = _drop_expedition_stack_at_loot(ctx, loot_entity, index)
+        dropped, entity = _drop_expedition_stack_at(ctx, loot_entity.pos, index)
         rollback = lambda: ctx.ground_expedition_items.insert(index, dropped)
     else:
         return None

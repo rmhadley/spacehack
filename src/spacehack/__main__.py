@@ -96,10 +96,12 @@ async def _run_ground_combat_tick(ctx, console, game_map):
     )
 
 
-async def _open_character_for_mode(ctx):
+async def _open_character_for_mode(ctx, *, floor_available: bool = True):
     from .character_screen import open_character_screen
 
-    return await open_character_screen(ctx, equipment_management=True)
+    return await open_character_screen(
+        ctx, equipment_management=True, floor_available=floor_available,
+    )
 
 
 def _pickup_loot_near(ctx):

@@ -70,9 +70,39 @@ def test_character_c_opens_managed_equipment_in_every_game_mode(monkeypatch):
         assert run(game_main._open_character_for_mode(ctx)) == 0
 
     assert [kwargs for _ctx, kwargs in calls] == [
-        {"equipment_management": True},
-        {"equipment_management": True},
-        {"equipment_management": True},
+        {"equipment_management": True, "floor_available": True},
+        {"equipment_management": True, "floor_available": True},
+        {"equipment_management": True, "floor_available": True},
+    ]
+    assert run(game_main._open_character_for_mode(ctx, floor_available=False)) == 0
+    assert calls[-1][1] == {
+        "equipment_management": True, "floor_available": False,
+    }
+
+
+def test_character_c_key_hides_discard_verb_in_space_mode(monkeypatch):
+    from src.spacehack import game_loop
+    from src.spacehack.pygame_engine import PygameInputEvent
+
+    calls = []
+    monkeypatch.setattr(
+        game_loop,
+        "_open_character_for_mode",
+        as_async(lambda ctx, **kwargs: calls.append(kwargs) or 0),
+    )
+    event = PygameInputEvent(kind="keydown", key_name="c")
+    for mode in ("city", "dungeon", "space"):
+        state = SimpleNamespace(
+            ctx=SimpleNamespace(),
+            log=SimpleNamespace(add=lambda _message: None),
+            current_mode=mode,
+        )
+        assert run(game_loop._handle_menu_event(state, event)) == 'HANDLED'
+
+    assert calls == [
+        {"floor_available": True},
+        {"floor_available": True},
+        {"floor_available": False},
     ]
 
 
@@ -95,12 +125,20 @@ def test_character_equipment_backpack_rows_are_selectable():
     assert backpack_row.selectable is True
 
 
-def test_character_equipment_backpack_discard_removes_selected_item(monkeypatch):
-    from src.spacehack import pygame_story
+def test_character_equipment_backpack_discard_drops_item_at_the_player(monkeypatch):
+    from src.spacehack import pygame_story, world
     from src.spacehack.ground_equipment import StoredGroundEquipment
 
     messages = []
+    player = world.Entity("@", (255, 255, 255), world.Position(2, 2), "Player")
+    game_map = world.GameMap(
+        5, 5,
+        [[world.DUNGEON_FLOOR for _ in range(5)] for _ in range(5)],
+        [player],
+    )
     ctx = SimpleNamespace(
+        player=player,
+        game_map=game_map,
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[
@@ -116,7 +154,57 @@ def test_character_equipment_backpack_discard_removes_selected_item(monkeypatch)
 
     assert run(character_screen._manage_pack_item(ctx, "PACK_ITEM:0")) == "DISCARD"
     assert ctx.ground_expedition_inventory == []
-    assert messages == ["Discarded Laser Rifle."]
+    assert messages == ["Dropped Laser Rifle."]
+    dropped = world.find_loot_near(ctx.game_map, ctx.player.pos)
+    assert dropped is not None
+    assert dropped.pos == ctx.player.pos
+    assert dropped.loot_data == {"item_type": "weapon", "item_id": "laser_rifle"}
+
+
+def test_character_equipment_backpack_options_hide_discard_without_a_floor(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+
+    captured = {}
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
+    )
+
+    assert run(
+        character_screen._manage_pack_item(
+            ctx, "PACK_ITEM:0", floor_available=False,
+        )
+    ) is None
+    assert captured["options"] == (("Equip", "PACK_EQUIP:0"),)
+
+
+def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.ground_reload_ui import manage_pack_ammo
+
+    captured = {}
+    ctx = SimpleNamespace(
+        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 12)],
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story,
+        "choose",
+        as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
+    )
+
+    assert run(manage_pack_ammo(ctx, 0, False, floor_available=False)) is None
+    assert captured["options"] == (("Reload", "STACK_RELOAD:0"),)
 
 
 def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
@@ -2000,6 +2088,13 @@ def test_character_equipment_management_explains_backpack_actions():
     assert "[R] reload" not in frame.footer[0]
     assert "TAB stats" in frame.footer[0]
     assert frame.footer[0].endswith("ESC close   ? guide")
+
+    space_frame = character_screen._character_frame(
+        ctx, 1, 0, equipment_management=True, floor_available=False,
+    )
+    assert space_frame.body[1] == (
+        "Select a row and press ENTER to equip, use, or reload."
+    )
 
 
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():

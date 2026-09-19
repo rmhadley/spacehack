@@ -150,11 +150,13 @@ def _apply_ground_combat_rep(ctx, ground_result) -> None:
             pass
 
 
-async def _open_character_for_mode(ctx) -> int:
+async def _open_character_for_mode(ctx, *, floor_available: bool = True) -> int:
     """Open the Character screen with carried-gear management enabled."""
     from .character_screen import open_character_screen
 
-    return await open_character_screen(ctx, equipment_management=True)
+    return await open_character_screen(
+        ctx, equipment_management=True, floor_available=floor_available,
+    )
 
 
 async def _pickup_loot_near(ctx) -> bool:

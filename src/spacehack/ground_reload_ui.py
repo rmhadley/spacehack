@@ -151,18 +151,21 @@ async def reload_exploration(ctx) -> bool:
     )
 
 
-async def manage_pack_ammo(ctx, index: int, in_ground_combat: bool) -> str | None:
-    """Offer Reload or Discard for one ammo stack."""
+async def manage_pack_ammo(
+    ctx, index: int, in_ground_combat: bool, *,
+    floor_available: bool = True,
+) -> str | None:
+    """Offer Reload (and Discard, with a floor) for one ammo stack."""
     from . import pygame_story
     from .character_screen import _discard_pack_stack, _item_stack_name
 
     name = _item_stack_name(ctx.ground_expedition_items[index])
+    options = (("Reload", f"STACK_RELOAD:{index}"),)
+    if floor_available:
+        options += (("Discard", f"STACK_DISCARD:{index}"),)
     chosen = await pygame_story.choose(
         ctx, title="AMMO", body=name,
-        options=(
-            ("Reload", f"STACK_RELOAD:{index}"),
-            ("Discard", f"STACK_DISCARD:{index}"),
-        ),
+        options=options,
         caption="spacehack - ammo", compact=True,
     )
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:

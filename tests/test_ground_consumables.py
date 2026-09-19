@@ -71,6 +71,31 @@ def test_character_consumable_action_can_discard_a_stack(monkeypatch):
 
     assert run(_manage_pack_stack(ctx, "PACK_STACK:0", in_ground_combat=False)) == "DISCARD"
     assert ctx.ground_expedition_items == []
+    dropped = [e for e in ctx.game_map.entities if e.loot_data is not None]
+    assert len(dropped) == 1
+    assert dropped[0].pos == ctx.player.pos
+    assert dropped[0].loot_data == {
+        "item_type": "consumable", "item_id": "med_pack", "quantity": 1,
+    }
+
+
+def test_character_consumable_options_hide_discard_without_a_floor(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.character_screen import _manage_consumable_stack
+
+    captured = {}
+    ctx = _context(items=[GroundItemStack("consumable", "med_pack", 1)])
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *args, **kwargs: captured.update(kwargs) or "__BACK__"),
+    )
+
+    assert run(
+        _manage_consumable_stack(
+            ctx, 0, in_ground_combat=False, floor_available=False,
+        )
+    ) is None
+    assert captured["options"] == (("Use", "STACK_USE:0"),)
 
 
 def _context(hp=10, items=None):

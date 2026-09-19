@@ -44,6 +44,7 @@ def _character_frame(
     equipment_management: bool = False,
     swap_allowed: bool = True,
     in_ground_combat: bool = False,
+    floor_available: bool = True,
 ):
     """Build a Pygame snapshot for one Character tab."""
     from .xp import xp_for_level, _xp_to_next
@@ -59,6 +60,7 @@ def _character_frame(
             ctx, title, selected,
             equipment_management=equipment_management,
             swap_allowed=swap_allowed,
+            floor_available=floor_available,
         )
     return _cargo_character_frame(ctx, title, selected)
 
@@ -104,6 +106,7 @@ def _equipment_frame(
     *,
     equipment_management: bool,
     swap_allowed: bool,
+    floor_available: bool = True,
 ):
     """Build the Equipment-tab frame (loadout + backpack)."""
     from . import pygame_screen, pygame_ui
@@ -114,10 +117,11 @@ def _equipment_frame(
         swap_allowed=swap_allowed,
     )
     capacity = _expedition_capacity(ctx)
+    _verbs = "equip, use, reload, or discard" if floor_available else "equip, use, or reload"
     body = (
         f"Equipped ground gear    Expedition Pack: "
         f"{_expedition_used_slots(ctx)}/{capacity}",
-        "Select a row and press ENTER to equip, use, reload, or discard."
+        f"Select a row and press ENTER to {_verbs}."
         if equipment_management
         else "Equipment is read-only outside management mode.",
     )
@@ -489,16 +493,19 @@ def _pack_weapon_slots(ctx: GameContext, pack_index: int) -> tuple[str, ...]:
 
 
 def _discard_pack_item(ctx: GameContext, pack_index: int) -> bool:
-    """Discard one carried pack item."""
+    """Drop one carried pack item to the floor at the player's feet
+    (doc 47.1: Discard puts it down, never destroys)."""
+    from .loot import _drop_expedition_entry_at
+
     if not 0 <= pack_index < len(ctx.ground_expedition_inventory):
         ctx.log.add("That backpack item is no longer available.")
         return False
-    entry = ctx.ground_expedition_inventory.pop(pack_index)
     try:
-        name = _pack_entry_name(entry)
+        name = _pack_entry_name(ctx.ground_expedition_inventory[pack_index])
     except (KeyError, TypeError, ValueError):
         name = "equipment"
-    ctx.log.add(f"Discarded {name}.")
+    _drop_expedition_entry_at(ctx, ctx.player.pos, pack_index)
+    ctx.log.add(f"Dropped {name}.")
     return True
 
 
@@ -559,13 +566,30 @@ async def _equip_weapon_pack_item(ctx: GameContext, entry, pack_index: int) -> b
     return _swap_pack_entry(ctx, "weapon", _parts[-1], pack_index)
 
 
+def _pack_item_options(equip_label: str, pack_index: int, floor_available: bool):
+    """Equip always; Discard only where there is a floor to drop on."""
+    options = [(equip_label, f"PACK_EQUIP:{pack_index}")]
+    if floor_available:
+        options.append(("Discard", f"PACK_DISCARD:{pack_index}"))
+    return tuple(options)
+
+
+def _stack_options(use_label: str, index: int, floor_available: bool):
+    """Use/Reload always; Discard only where there is a floor."""
+    options = [(use_label, f"STACK_USE:{index}")]
+    if floor_available:
+        options.append(("Discard", f"STACK_DISCARD:{index}"))
+    return tuple(options)
+
+
 async def _manage_pack_item(
     ctx: GameContext,
     action: str,
     *,
     swap_allowed: bool = True,
+    floor_available: bool = True,
 ) -> str | None:
-    """Offer Equip or Discard for one selectable backpack row."""
+    """Offer Equip (and Discard, with a floor) for one backpack row."""
     from . import pygame_story
 
     pack_index = int(action.split(":", 1)[1])
@@ -581,10 +605,7 @@ async def _manage_pack_item(
     equip_label = "Equip" if swap_allowed else "Equip (requires 1 AP)"
     chosen = await pygame_story.choose(
         ctx, title="BACKPACK ITEM", body=name,
-        options=(
-            (equip_label, f"PACK_EQUIP:{pack_index}"),
-            ("Discard", f"PACK_DISCARD:{pack_index}"),
-        ),
+        options=_pack_item_options(equip_label, pack_index, floor_available),
         caption="spacehack - backpack", compact=True,
     )
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
@@ -602,8 +623,9 @@ async def _manage_pack_item(
 
 async def _manage_consumable_stack(
     ctx: GameContext, index: int, *, in_ground_combat: bool,
+    floor_available: bool = True,
 ) -> str | None:
-    """Offer Use or Discard for one consumable stack."""
+    """Offer Use (and Discard, with a floor) for one consumable stack."""
     from . import pygame_story
 
     stack = ctx.ground_expedition_items[index]
@@ -611,10 +633,7 @@ async def _manage_consumable_stack(
         ctx,
         title="CONSUMABLE",
         body=_item_stack_name(stack),
-        options=(
-            ("Use", f"STACK_USE:{index}"),
-            ("Discard", f"STACK_DISCARD:{index}"),
-        ),
+        options=_stack_options("Use", index, floor_available),
         caption="spacehack - consumable", compact=True,
     )
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
@@ -633,8 +652,9 @@ async def _manage_consumable_stack(
 
 async def _manage_pack_stack(
     ctx: GameContext, action: str, *, in_ground_combat: bool,
+    floor_available: bool = True,
 ) -> str | None:
-    """Offer Reload/Use or Discard for one field-item stack."""
+    """Offer Reload/Use (and Discard, with a floor) for one stack."""
     index = int(action.split(":", 1)[1])
     items = getattr(ctx, "ground_expedition_items", [])
     if not 0 <= index < len(items):
@@ -644,18 +664,26 @@ async def _manage_pack_stack(
         if items[index].item_type == "consumable":
             return await _manage_consumable_stack(
                 ctx, index, in_ground_combat=in_ground_combat,
+                floor_available=floor_available,
             )
-        return await _manage_pack_ammo(ctx, index, in_ground_combat)
+        return await _manage_pack_ammo(
+            ctx, index, in_ground_combat, floor_available=floor_available,
+        )
     except (KeyError, TypeError, ValueError):
         ctx.log.add("That item is invalid.")
         return None
 
 
-async def _manage_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool) -> str | None:
-    """Offer Reload or Discard for one ammo stack."""
+async def _manage_pack_ammo(
+    ctx: GameContext, index: int, in_ground_combat: bool,
+    floor_available: bool = True,
+) -> str | None:
+    """Offer Reload (and Discard, with a floor) for one ammo stack."""
     from .ground_reload_ui import manage_pack_ammo
 
-    return await manage_pack_ammo(ctx, index, in_ground_combat)
+    return await manage_pack_ammo(
+        ctx, index, in_ground_combat, floor_available=floor_available,
+    )
 
 
 def _weapon_reload_option(ctx: GameContext, slot: str) -> tuple[str, str] | None:
@@ -690,17 +718,20 @@ async def _reload_pack_ammo(ctx: GameContext, index: int, in_ground_combat: bool
 
 
 def _discard_pack_stack(ctx: GameContext, index: int) -> bool:
-    """Discard one carried field-item stack."""
+    """Drop one carried field-item stack to the floor at the player's
+    feet (doc 47.1: Discard puts it down, never destroys)."""
+    from .loot import _drop_expedition_stack_at
+
     items = getattr(ctx, "ground_expedition_items", [])
     if not 0 <= index < len(items):
         ctx.log.add("That item is no longer available.")
         return False
-    stack = items.pop(index)
     try:
-        name = _item_stack_name(stack)
+        name = _item_stack_name(items[index])
     except (KeyError, TypeError, ValueError):
         name = "item"
-    ctx.log.add(f"Discarded {name}.")
+    _drop_expedition_stack_at(ctx, ctx.player.pos, index)
+    ctx.log.add(f"Dropped {name}.")
     return True
 
 
@@ -761,6 +792,7 @@ async def _run_pygame_character_screen(
     *,
     equipment_management: bool = False,
     in_ground_combat: bool = False,
+    floor_available: bool = True,
 ) -> int | None:
     """Run Character through the shared Pygame screen."""
     from . import pygame_screen
@@ -775,6 +807,7 @@ async def _run_pygame_character_screen(
                 ctx, tab, selected,
                 equipment_management=equipment_management,
                 in_ground_combat=in_ground_combat,
+                floor_available=floor_available,
                 swap_allowed=(
                     not in_ground_combat
                     or _combat_ap_available(ctx, reserved=swap_count)
@@ -786,6 +819,7 @@ async def _run_pygame_character_screen(
             ctx, outcome, action, tab, selected, swap_count,
             equipment_management=equipment_management,
             in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
         )
         if done:
             return swap_count
@@ -801,6 +835,7 @@ async def _advance_character_screen(
     *,
     equipment_management: bool,
     in_ground_combat: bool,
+    floor_available: bool = True,
 ) -> tuple[int, int, int, bool]:
     """Advance one loop iteration; return ``(tab, selected, swap_count, done)``."""
     if outcome == "GUIDE":
@@ -821,6 +856,7 @@ async def _advance_character_screen(
             ctx, action, tab, swap_count,
             equipment_management=equipment_management,
             in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
         )
         return tab, selected, swap_count, should_return
     if outcome in {"PAGE_UP", "PAGE_DOWN"}:
@@ -836,6 +872,7 @@ async def _apply_equipment_select(
     swap_count: int,
     *,
     in_ground_combat: bool,
+    floor_available: bool = True,
 ) -> tuple[int, bool]:
     if action.startswith("SWAP:") and await _swap_from_pack(
         ctx, action, in_ground_combat=in_ground_combat,
@@ -849,11 +886,15 @@ async def _apply_equipment_select(
                 not in_ground_combat
                 or _combat_ap_available(ctx, reserved=swap_count)
             ),
+            floor_available=floor_available,
         )
         if _pack_result == "EQUIP" and in_ground_combat:
             return swap_count + 1, True
     if action.startswith("PACK_STACK:"):
-        _pack_result = await _manage_pack_stack(ctx, action, in_ground_combat=in_ground_combat)
+        _pack_result = await _manage_pack_stack(
+            ctx, action, in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
+        )
         if _pack_result in {"RELOAD", "USE"} and in_ground_combat:
             return swap_count, True
     return swap_count, False
@@ -867,6 +908,7 @@ async def _apply_character_select(
     *,
     equipment_management: bool,
     in_ground_combat: bool,
+    floor_available: bool = True,
 ) -> tuple[int, bool]:
     from .xp import _apply_skill_point
 
@@ -879,6 +921,7 @@ async def _apply_character_select(
         return await _apply_equipment_select(
             ctx, action, swap_count,
             in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
         )
     return swap_count, False
 
@@ -894,12 +937,14 @@ async def open_character_screen(
     *,
     equipment_management: bool = False,
     in_ground_combat: bool = False,
+    floor_available: bool = True,
 ) -> int:
     """Open the Character screen and return successful swap count."""
     result = await _run_pygame_character_screen(
         ctx,
         equipment_management=equipment_management,
         in_ground_combat=in_ground_combat,
+        floor_available=floor_available,
     )
     if result is None:
         raise RuntimeError("Character screen returned no outcome")
