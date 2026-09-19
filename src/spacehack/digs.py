@@ -340,6 +340,7 @@ def _scatter_dig_loot(game_map: world.GameMap, spec: PlanetSpec, floor: int) -> 
     """The placeholder cache scatter (SETTLED 30/35) — the loot rows
     placed at free cells after population."""
     from .data.digs import DIG_LOOT_SPEC
+    from .loot_common import loot_fg
 
     if not spec.produces:
         return
@@ -351,7 +352,7 @@ def _scatter_dig_loot(game_map: world.GameMap, spec: PlanetSpec, floor: int) -> 
         if pos is None:
             return
         game_map.entities.append(world.Entity(
-            char="%", fg=(180, 220, 140), pos=pos, name="Cache",
+            char="%", fg=loot_fg({"good_id": good_id, "quantity": quantity}), pos=pos, name="Cache",
             width=1, height=1,
             loot_data={"good_id": good_id, "quantity": quantity},
         ))

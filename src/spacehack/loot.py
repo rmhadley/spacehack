@@ -132,13 +132,16 @@ def _drop_expedition_entry_at_loot(ctx: GameContext, loot_entity, index: int):
     """Drop one carried Expedition Pack equipment item at the loot position."""
     from . import world
 
+    from .loot_common import loot_fg
+
     dropped = ctx.ground_expedition_inventory.pop(index)
+    _payload = {"item_type": dropped.item_type, "item_id": dropped.item_id}
     dropped_entity = world.Entity(
         char="%",
-        fg=(255, 215, 0),
+        fg=loot_fg(_payload),
         pos=loot_entity.pos,
         name="Dropped Ground Equipment",
-        loot_data={"item_type": dropped.item_type, "item_id": dropped.item_id},
+        loot_data=_payload,
     )
     ctx.game_map.entities.append(dropped_entity)
     return dropped, dropped_entity
@@ -148,17 +151,20 @@ def _drop_expedition_stack_at_loot(ctx: GameContext, loot_entity, index: int):
     """Drop one carried field-item stack at the loot position."""
     from . import world
 
+    from .loot_common import loot_fg
+
     dropped = ctx.ground_expedition_items.pop(index)
+    _payload = {
+        "item_type": dropped.item_type,
+        "item_id": dropped.item_id,
+        "quantity": dropped.quantity,
+    }
     dropped_entity = world.Entity(
         char="%",
-        fg=(255, 215, 0),
+        fg=loot_fg(_payload),
         pos=loot_entity.pos,
         name="Dropped Field Item",
-        loot_data={
-            "item_type": dropped.item_type,
-            "item_id": dropped.item_id,
-            "quantity": dropped.quantity,
-        },
+        loot_data=_payload,
     )
     ctx.game_map.entities.append(dropped_entity)
     return dropped, dropped_entity
@@ -552,12 +558,14 @@ PAD_NAME = "Data Pad"
 
 
 def spawn_pad_entity(game_map, pos, loot_data: dict) -> bool:
-    """The one pad construction — a gold '%' consumed on pickup
-    (teaching or revealing); nothing to the hold, nothing sellable."""
+    """The one pad construction — a data-violet '%' consumed on
+    pickup (teaching or revealing); nothing to the hold, nothing
+    sellable."""
     from . import world as _world
+    from .loot_common import loot_fg
 
     game_map.entities.append(_world.Entity(
-        char="%", fg=(255, 215, 0), pos=pos, name=PAD_NAME,
+        char="%", fg=loot_fg(loot_data), pos=pos, name=PAD_NAME,
         width=1, height=1, loot_data=loot_data,
     ))
     return True

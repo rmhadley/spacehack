@@ -69,8 +69,10 @@ def _spawn_heist_loot(
         return
     from .. import message_log as _ml
     _good_id = _m.heist_target_good_id
+    from ..loot_common import loot_fg
+
     _loot_ent = world.Entity(
-        char='%', fg=(0, 255, 255),
+        char='%', fg=loot_fg(None, mission=True),
         pos=enemy.pos,
         name=f'Mission Cargo: {_good_id.replace("_", " ").title()}',
         width=1, height=1,

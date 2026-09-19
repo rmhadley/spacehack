@@ -33,7 +33,6 @@ from ._actions import (
     _sync_back_hull,
     _remove_dead_entity,
     _spawn_loot_drops,
-    _MAX_LOOT_ENTITIES,
 )
 from ._animations import (
     _responsive_sleep,

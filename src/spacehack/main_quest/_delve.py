@@ -11,6 +11,7 @@ from collections import Counter, deque
 from .. import dungeon
 from .. import landmark
 from .. import world
+from ..loot_common import loot_fg
 from ..data.main_quest import find_main_quest_step
 from ._core import _active_objective_step
 
@@ -265,7 +266,7 @@ def prepare_delve_site(
     )
     _cache = world.Entity(
         char="%",
-        fg=(255, 215, 0),
+        fg=loot_fg({"goods": list(_step.delve_good_ids)}),
         pos=_cache_pos,
         name="Quest Cache",
         width=1, height=1,

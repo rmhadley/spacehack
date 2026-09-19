@@ -259,9 +259,10 @@ def _append_loot(
 ) -> None:
     """Append one salvage container entity."""
     colour = colours.get("%")
+    from .loot_common import loot_fg
     build.entities.append(world.Entity(
         char="%",
-        fg=colour.fg if colour else (180, 220, 140),
+        fg=colour.fg if colour else loot_fg({"good_id": good_id, "quantity": quantity}),
         pos=world.Position(x, y),
         name="Salvage Container",
         width=1,
@@ -361,9 +362,10 @@ def _place_component(
     marker = build.loot_markers[RNG.randint(0, len(build.loot_markers) - 1)]
     cells = _room_cells_for_marker(build, marker) or [(marker[1], marker[2])]
     x, y = cells[RNG.randint(0, len(cells) - 1)]
+    from .loot_common import loot_fg
     component = world.Entity(
         char="%",
-        fg=(255, 215, 0),
+        fg=loot_fg({"good_id": good_id, "quantity": 1}, mission=True),
         pos=world.Position(x, y),
         name=f"Mission Component: {good_id.replace('_', ' ').title()}",
         width=1,

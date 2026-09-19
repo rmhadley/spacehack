@@ -15,14 +15,10 @@ from ._stats import _roll_ap
 from ..data.weapons import find_weapon
 from ..data.modules import find_module as find_module_spec
 from ..engine import RNG
+from ..loot_common import enforce_loot_cap, loot_fg
 
 if TYPE_CHECKING:
     from ..ship import OwnedShip
-
-
-# Max number of loot entities allowed on the map at once.
-# Beyond this, oldest loot is removed when new loot spawns.
-_MAX_LOOT_ENTITIES: int = 30
 
 
 def _append_loot_entity(
@@ -32,7 +28,7 @@ def _append_loot_entity(
 ) -> None:
     """Append one neutral loot entity with the supplied payload."""
     game_map.entities.append(world.Entity(
-        char="%", fg=(255, 215, 0),
+        char="%", fg=loot_fg(loot_data),
         pos=pos,
         name="Loot", width=1, height=1,
         loot_data=loot_data,
@@ -158,8 +154,9 @@ def _spawn_loot_drops(
 ) -> None:
     """Spawn 1-2 loot items near a destroyed enemy ship.
 
-    Caps total loot entities at :data:`_MAX_LOOT_ENTITIES` — removes
-    the oldest loot first to prevent unbounded entity-list growth.
+    Caps total loot via :func:`loot_common.enforce_loot_cap` —
+    evicts the oldest NON-protected loot (quest/pad/heist exempt)
+    to prevent unbounded entity-list growth.
     Uses the shared :func:`_spawn_loot_at_position` for the actual
     entity creation so both ship and ground loot behave identically.
     """
@@ -169,15 +166,6 @@ def _spawn_loot_drops(
         _loot_items = ["scrap_metal"]
 
     _drop_count = max(1, min(len(_loot_items), RNG.randint(1, 2)))
-    _existing_loot = [e for e in game_map.entities if e.loot_data is not None]
-    _excess = max(0, len(_existing_loot) + _drop_count - _MAX_LOOT_ENTITIES)
-    for _ in range(_excess):
-        if _existing_loot:
-            try:
-                game_map.entities.remove(_existing_loot[0])
-            except ValueError:
-                pass
-            _existing_loot.pop(0)
 
     for _li in range(_drop_count):
         _lx = target_pos.x + RNG.randint(-1, 1)
@@ -191,6 +179,7 @@ def _spawn_loot_drops(
             count_range=(1, 1),
             qty_range=(1, 3),
         )
+    enforce_loot_cap(game_map)
 
 
 def can_afford_action(

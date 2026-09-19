@@ -372,6 +372,16 @@ question list they replaced.
 (authored `False` on the four organic monster rows); pool
 thinning edits `data/npc_chars/core.py` specs only.
 
+**Audit gap found in review (2026-09-19):** the constructor list
+missed `saveload._restore_loot_entities` (`saveload.py:696`) —
+the colour authority on load for every non-dungeon map, because
+`_save_loot` does not serialize `fg`. Without routing it through
+`loot_fg`, all space-map loot reloads gold and heist cargo loses
+its cyan. Fixed in commit 1 with a load-path round-trip test;
+lesson: colour-authority sweeps must include the restore paths,
+not just spawn paths (the parallel-twins rule applies to
+save/load twins too).
+
 ### Phase 1 — Polish (brief PROPOSED 2026-09-19 — not buildable
 until approved)
 

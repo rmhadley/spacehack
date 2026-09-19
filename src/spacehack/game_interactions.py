@@ -797,7 +797,9 @@ def _place_quest_loot(dungeon_map, pos, step_id, goods):
     except (KeyError, ImportError):
         _gname = goods[0][0].replace('_', ' ').title()
     _mq_loot_name = f'Quest Component: {_gname}'
-    _mq_loot = world.Entity(char='%', fg=(255, 215, 0), pos=world.Position(pos[0], pos[1]), name=_mq_loot_name, width=1, height=1, loot_data={'goods': goods})
+    from .loot_common import loot_fg
+    _mq_payload = {'goods': goods}
+    _mq_loot = world.Entity(char='%', fg=loot_fg(_mq_payload), pos=world.Position(pos[0], pos[1]), name=_mq_loot_name, width=1, height=1, loot_data=_mq_payload)
     _mq_loot.main_quest_step_id = step_id
     dungeon_map.entities.append(_mq_loot)
 

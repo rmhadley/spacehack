@@ -691,9 +691,12 @@ def _parse_ship_storage(data: dict) -> list:
 
 def _restore_loot_entities(data: dict, game_map) -> None:
     """Restore map loot entities (dungeon loot is already restored)."""
+    from .loot_common import loot_fg
+
     for ld in data.get("map_loot", []) or []:
         loot = world.Entity(
-            char='%', fg=(255, 215, 0),
+            char='%',
+            fg=loot_fg(ld.get("loot_data"), mission=bool(ld.get("heist_mission", False))),
             pos=world.Position(ld.get("x", 0), ld.get("y", 0)),
             name='Loot', width=1, height=1,
             loot_data=ld.get("loot_data"),
