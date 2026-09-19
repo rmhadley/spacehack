@@ -103,6 +103,35 @@ def _spawn_field_item_loot_at_position(
         )
 
 
+def spawn_kill_drops(game_map: world.GameMap, pos, spec, ctx) -> None:
+    """The full ground-kill drop sequence (doc 47.1): authored pools,
+    the site-reveal pad, then the shared entity cap.
+
+    ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only.
+    """
+    from ..digs import maybe_spawn_ground_pad
+    from ..ground_equipment import tier_filtered_equipment
+
+    if spec.loot_pool:
+        _min, _max = spec.loot_count
+        _spawn_loot_at_position(
+            game_map, pos, spec.loot_pool,
+            count_range=(_min, _max), qty_range=(1, 2),
+        )
+    if spec.equipment_loot_pool:
+        _spawn_equipment_loot_at_position(
+            game_map, pos,
+            tier_filtered_equipment(spec.equipment_loot_pool, spec.tier),
+        )
+    if spec.field_item_loot_pool:
+        _spawn_field_item_loot_at_position(
+            game_map, pos, spec.field_item_loot_pool,
+            count_range=spec.field_item_loot_count,
+        )
+    maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
+    enforce_loot_cap(game_map)
+
+
 def set_combat_locks(locked: bool, entities) -> None:
     """Mark/unmark entities so ambient patrol systems leave them alone.
 

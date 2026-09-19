@@ -364,9 +364,10 @@ question list they replaced.
    and fixes the space path's missing exemption in the same
    commit.
 4. `on_kill`'s four drop blocks extract to
-   `combat/_actions.spawn_kill_drops(game_map, pos, spec,
-   weapon_id)` — `_rules_ground` nets ~15 lines (≈984), the
-   ratchet holds, and the drop sequence reads as one unit.
+   `combat/_actions.spawn_kill_drops(game_map, pos, spec, ctx)` —
+   landed 981 lines, ratchet holds, drop sequence reads as one
+   unit. The `weapon_id` parameter arrives with step 4 (diegetic
+   kit drops).
 
 **Data-first:** `GroundWeaponSpec.loot_droppable: bool = True`
 (authored `False` on the four organic monster rows); pool

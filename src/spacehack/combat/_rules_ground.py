@@ -24,7 +24,6 @@ from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     sum_armor_defense as _sum_armor_defense,
-    tier_filtered_equipment as _tier_loot,
 )
 from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
 from ..xp import (
@@ -54,9 +53,6 @@ from ._ground_charger import (
 from . import _ground_deadshot
 from ._actions import (
     move_entity,
-    _spawn_loot_at_position as _shared_loot,
-    _spawn_equipment_loot_at_position as _shared_equipment_loot,
-    _spawn_field_item_loot_at_position as _shared_field_item_loot,
     set_combat_locks,
 )
 from ._animations import (
@@ -742,23 +738,9 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
     if _ent is not None and _ent in game_map.entities:
         game_map.entities.remove(_ent)
 
-    if _ent is not None and enemy.spec and enemy.spec.loot_pool:
-        _min, _max = enemy.spec.loot_count
-        _shared_loot(
-            game_map, _ent.pos, enemy.spec.loot_pool,
-            count_range=(_min, _max), qty_range=(1, 2),
-        )
-    if _ent is not None and enemy.spec and enemy.spec.equipment_loot_pool:
-        _pool = _tier_loot(enemy.spec.equipment_loot_pool, enemy.spec.tier)
-        _shared_equipment_loot(game_map, _ent.pos, _pool)
-    if _ent is not None and enemy.spec and enemy.spec.field_item_loot_pool:
-        _shared_field_item_loot(
-            game_map, _ent.pos, enemy.spec.field_item_loot_pool,
-            count_range=enemy.spec.field_item_loot_count,
-        )
     if _ent is not None and enemy.spec:
-        from ..digs import maybe_spawn_ground_pad
-        maybe_spawn_ground_pad(ctx, game_map, _ent.pos, enemy.spec.id)
+        from ._actions import spawn_kill_drops
+        spawn_kill_drops(game_map, _ent.pos, enemy.spec, ctx)
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp

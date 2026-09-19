@@ -221,3 +221,71 @@ class TestSaveLoadColourRoundTrip:
 
         assert any(e is ancient for e in gm.entities)
         assert not any(e is twin for e in gm.entities)
+
+
+class TestGroundKillDrops:
+    """The extracted ground drop sequence keeps pool behavior and
+    enforces the shared cap (doc 47.1 step 2)."""
+
+    def _spec(self, **overrides):
+        from types import SimpleNamespace
+
+        spec = SimpleNamespace(
+            loot_pool=("scrap_metal",), loot_count=(1, 1),
+            equipment_loot_pool=(("weapon", "kinetic_pistol"),),
+            field_item_loot_pool=(("ammo", "pistol_rounds"),),
+            field_item_loot_count=(1, 1), tier=1, id="rock_scavenger",
+        )
+        for key, value in overrides.items():
+            setattr(spec, key, value)
+        return spec
+
+    def test_spawns_all_pool_kinds(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from spacehack.engine import RNG
+        from types import SimpleNamespace
+
+        # The equipment count rolls (0, 1) on the global RNG — seed it
+        # and retry within a bound so the assertion is deterministic,
+        # never a coin flip (reviewer-caught flake).
+        RNG.seed(4747)
+        gm = _make_map(1, 1)
+        kinds = set()
+        for _ in range(20):
+            spawn_kill_drops(gm, Position(0, 0), self._spec(), SimpleNamespace())
+            kinds = {
+                e.loot_data.get("item_type", "cargo")
+                for e in gm.entities if e.loot_data is not None
+            }
+            if kinds == {"cargo", "weapon", "ammo"}:
+                break
+        assert kinds == {"cargo", "weapon", "ammo"}
+
+    def test_pad_door_receives_the_spec_id(self, monkeypatch):
+        import spacehack.digs as digs
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        seen = []
+
+        def _record(ctx, game_map, pos, spec_id):
+            seen.append(spec_id)
+            return False
+
+        monkeypatch.setattr(digs, "maybe_spawn_ground_pad", _record)
+        spec = self._spec(id="pirate_raider")
+        spawn_kill_drops(_make_map(1, 1), Position(0, 0), spec, SimpleNamespace())
+        assert seen == ["pirate_raider"]
+
+    def test_caps_the_map_across_many_kills(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        gm = _make_map(1, 1)
+        spec = self._spec(equipment_loot_pool=(), field_item_loot_pool=())
+        ctx = SimpleNamespace(known_rumors=set())
+        for _ in range(MAX_LOOT_ENTITIES + 5):
+            spawn_kill_drops(gm, Position(0, 0), spec, ctx)
+
+        loot = [e for e in gm.entities if e.loot_data is not None]
+        assert len(loot) == MAX_LOOT_ENTITIES
