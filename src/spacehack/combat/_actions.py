@@ -103,11 +103,51 @@ def _spawn_field_item_loot_at_position(
         )
 
 
-def spawn_kill_drops(game_map: world.GameMap, pos, spec, ctx) -> None:
-    """The full ground-kill drop sequence (doc 47.1): authored pools,
-    the site-reveal pad, then the shared entity cap.
+def _spawn_kit_drop(game_map: world.GameMap, pos, weapon_id: str) -> None:
+    """Diegetic kit drop (doc 47.1): the slain fighter's resolved weapon
+    always falls, plus one matching ammo stack (field-drop sizing).
+    Organic/unwieldable weapons (``loot_droppable=False``) never drop.
+    """
+    if not weapon_id:
+        return
+    from ..data.ground_items import list_ground_ammo
+    from ..data.ground_weapons import find_ground_weapon
+    from ..ground_equipment import item_stack_capacity
 
-    ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only.
+    try:
+        _ws = find_ground_weapon(weapon_id)
+    except KeyError:
+        return
+    if not _ws.loot_droppable:
+        return
+    _append_loot_entity(
+        game_map, pos,
+        {"item_type": "weapon", "item_id": _ws.id},
+    )
+    if _ws.ammo_type is None:
+        return
+    _ammo_id = next(
+        (_a.id for _a in list_ground_ammo() if _a.ammo_type == _ws.ammo_type),
+        None,
+    )
+    if _ammo_id is None:
+        return
+    _qty = RNG.randint(1, min(5, item_stack_capacity("ammo", _ammo_id)))
+    _append_loot_entity(
+        game_map, pos,
+        {"item_type": "ammo", "item_id": _ammo_id, "quantity": _qty},
+    )
+
+
+def spawn_kill_drops(
+    game_map: world.GameMap, pos, spec, ctx, weapon_id: str = "",
+) -> None:
+    """The full ground-kill drop sequence (doc 47.1): authored pools,
+    the kit drop, the site-reveal pad, then the shared entity cap.
+
+    ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only;
+    ``weapon_id`` is the combat state's resolved enemy weapon. The kit
+    drop lands after the pools so pool extras age out of the cap first.
     """
     from ..digs import maybe_spawn_ground_pad
     from ..ground_equipment import tier_filtered_equipment
@@ -128,6 +168,7 @@ def spawn_kill_drops(game_map: world.GameMap, pos, spec, ctx) -> None:
             game_map, pos, spec.field_item_loot_pool,
             count_range=spec.field_item_loot_count,
         )
+    _spawn_kit_drop(game_map, pos, weapon_id)
     maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
     enforce_loot_cap(game_map)
 

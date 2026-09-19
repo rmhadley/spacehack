@@ -235,6 +235,7 @@ class TestGroundKillDrops:
             equipment_loot_pool=(("weapon", "kinetic_pistol"),),
             field_item_loot_pool=(("ammo", "pistol_rounds"),),
             field_item_loot_count=(1, 1), tier=1, id="rock_scavenger",
+            xp_reward=10,
         )
         for key, value in overrides.items():
             setattr(spec, key, value)
@@ -289,3 +290,96 @@ class TestGroundKillDrops:
 
         loot = [e for e in gm.entities if e.loot_data is not None]
         assert len(loot) == MAX_LOOT_ENTITIES
+
+    def _bare_spec(self):
+        """A spec whose every pool is empty — only the kit drop fires."""
+        return self._spec(
+            loot_pool=(), equipment_loot_pool=(), field_item_loot_pool=(),
+        )
+
+    def test_kit_drop_spawns_resolved_weapon_and_matching_ammo(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+            "kinetic_pistol",
+        )
+        payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
+        assert {"item_type": "weapon", "item_id": "kinetic_pistol"} in payloads
+        ammo = [p for p in payloads if p.get("item_type") == "ammo"]
+        assert len(ammo) == 1
+        assert ammo[0]["item_id"] == "pistol_rounds"
+        assert 1 <= ammo[0]["quantity"] <= 5
+
+    def test_kit_drop_melee_weapon_brings_no_ammo(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+            "combat_knife",
+        )
+        payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
+        assert payloads == [{"item_type": "weapon", "item_id": "combat_knife"}]
+
+    def test_kit_drop_skips_organic_and_unknown_weapons(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        for weapon_id in ("monster_claws", "fists", "does_not_exist", ""):
+            gm = _make_map(1, 1)
+            spawn_kill_drops(
+                gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+                weapon_id,
+            )
+            assert [e for e in gm.entities if e.loot_data is not None] == []
+
+    def test_organic_weapons_are_authored_not_droppable(self):
+        from spacehack.data.ground_weapons import find_ground_weapon
+
+        organic = (
+            "monster_claws", "drone_laser", "frost_bolt",
+            "parasite_mandibles", "fists",
+        )
+        for weapon_id in organic:
+            assert find_ground_weapon(weapon_id).loot_droppable is False
+        assert find_ground_weapon("kinetic_pistol").loot_droppable is True
+
+    def test_equipment_pools_stay_beyond_the_wielded_weapons(self):
+        from spacehack.data.npc_chars import _registry
+
+        for spec in _registry().values():
+            wielded = set(spec.weapons or ()) | set(spec.weapon_pick or ())
+            pooled = {
+                item_id
+                for kind, item_id in (spec.equipment_loot_pool or ())
+                if kind == "weapon"
+            }
+            assert not (pooled & wielded), (spec.id, pooled & wielded)
+
+    def test_on_kill_forwards_the_resolved_weapon(self, monkeypatch):
+        from tests.support.asyncutil import run, as_async
+        from spacehack.combat import _actions, _rules_ground
+        from spacehack import xp as xp_module
+        from types import SimpleNamespace
+
+        seen = []
+        monkeypatch.setattr(
+            _actions, "spawn_kill_drops",
+            lambda *args, **kwargs: seen.append(args),
+        )
+        monkeypatch.setattr(xp_module, "add_xp", as_async(lambda *a, **k: None))
+
+        ent = Entity(
+            char="r", fg=(255, 255, 255), pos=Position(0, 0), name="raider",
+        )
+        gm = _make_map(1, 1)
+        gm.entities.append(ent)
+        enemy = _rules_ground.GroundEnemyInstance(
+            entity=ent, spec=self._bare_spec(), weapon_id="kinetic_pistol",
+        )
+        run(_rules_ground.on_kill(gm, enemy, SimpleNamespace()))
+        assert seen and seen[0][-1] == "kinetic_pistol"

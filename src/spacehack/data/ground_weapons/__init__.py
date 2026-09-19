@@ -43,6 +43,8 @@ class GroundWeaponSpec:
         shop_available: False hides the weapon from armories entirely
             (monster/enemy-only weapons — the armory lists every
             registered weapon, so this flag is the shop-leak guard).
+        loot_droppable: False = never spawns as a diegetic kill drop
+            (organic monster parts, bare fists; doc 47.1).
     """
     id: str
     name: str
@@ -61,6 +63,7 @@ class GroundWeaponSpec:
     tech_level: int = 1
     shop_available: bool = True
     armor_bypass: bool = False    # True ignores target armor DR entirely
+    loot_droppable: bool = True   # False = organic/unwieldable, never drops
 
 
 # ---------------------------------------------------------------------------

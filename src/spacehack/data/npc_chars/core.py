@@ -85,9 +85,9 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         detect_radius=4,
         tier=1,
         loot_pool=("food_rations", "fuel_cells", "scrap_metal"),
+        # wielded weapons arrive as kit drops (doc 47.1) — pool is
+        # beyond-the-weapon extras only
         equipment_loot_pool=(
-            ("weapon", "combat_knife"),
-            ("weapon", "kinetic_pistol"),
             ("armor", "light_helmet"),
         ),
         field_item_loot_pool=(

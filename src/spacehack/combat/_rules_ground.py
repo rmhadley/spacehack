@@ -740,7 +740,7 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
 
     if _ent is not None and enemy.spec:
         from ._actions import spawn_kill_drops
-        spawn_kill_drops(game_map, _ent.pos, enemy.spec, ctx)
+        spawn_kill_drops(game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id)
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp

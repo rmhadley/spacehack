@@ -20,6 +20,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         price=0,
         tech_level=1,
         shop_available=False,
+        loot_droppable=False,
     ),
     GroundWeaponSpec(
         id="combat_knife",
