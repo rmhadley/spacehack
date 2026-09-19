@@ -2,8 +2,8 @@
 
 **Status: DESIGN IN PROGRESS — no implementation until the user
 explicitly requests it.** Draft opened 2026-09-19; the user's four
-polish notes are recorded as rulings below — everything else stays
-open until a refine session says so.
+polish notes and the full open-question pass (same day) are
+settled below. Remaining opens are prose-gated or authoring-tuned.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -156,30 +156,24 @@ opens a drop-one chooser whose "drop" spawns a floor entity.
   the penalties-are-modals ruling read symmetrically — gains the
   player must not miss get a modal. Applies once rarity exists.
 
-### B. The quality system (ruled in — model open)
+### B. The quality system (SETTLED 1-2, open-question pass)
 
-Quality tiers exist on loot; shops stock base items only. What's
-open is the mechanism:
-
-- **(i) Instance quality field (recommended):** stored items gain
-  a `quality` (default base); an authored quality table gives
-  each tier a name token and stat modifiers, resolved when the
-  item is equipped/read. One mechanism covers weapons, armor,
-  AND modules; catalogs stay descriptive (base stats only);
-  quality rides existing save/load per instance. Cost: the
-  instance shape changes everywhere ids are treated as identity
-  (pack, ship storage, choosers, equip paths, tests).
-- (ii) Authored variant rows (`kinetic_pistol_mk2`…): no
-  instance state, registries unchanged — but every catalog ×
-  every tier multiplies rows, pools must enumerate variants, and
-  tech-tier filtering/shop exclusion fight the flat registries.
+Quality tiers exist on loot; shops stock base items only.
+Mechanism (settled): stored items gain a `quality` (default
+base) — an authored quality table gives each tier a name token
+and percentage multipliers, resolved when the item is
+equipped/read. One mechanism covers weapons, armor, AND modules;
+catalogs stay descriptive (base stats only); quality rides
+existing save/load per instance. Cost: the instance shape
+changes everywhere ids are treated as identity (pack, ship
+storage, choosers, equip paths, sell prices, tests).
 
 Quality RATES live in authored `1-in-N` tables per drop source —
 the exact shape of dig `DOOR_RATES` (`data/digs/__init__.py:
-67-71`) — tunable at playtest. Legendary never rolls outside RNG
-delve bottoms (ruling 4). `TradeGood.rarity` gets deleted either
-way (dead field; consume-or-remove resolved as remove — trade
-goods are cargo value, not gear, and don't variant).
+67-71`) — tunable at playtest. Legendary is the fourth rolled
+tier and never rolls outside RNG delve bottoms (ruling 4 +
+SETTLED 1/2). `TradeGood.rarity` gets deleted (dead field;
+trade goods are cargo value, not gear, and don't variant).
 
 `DigLootSpec` expands in place per SETTLED 35: fields for quality
 rates, a rare cache variant, an out-of-produce pool, and the
@@ -195,57 +189,100 @@ legendary bottom-floor guarantee — per-planet authoring through
   system-slot), and the diegetic strong form: boarded ships drop
   from their own live `modules` list. Modules are quality-variant
   gear (ruling 2) — a found shield generator can be a good one.
-- **Legendary multi-stat modules** (rulings 4 + SETTLED 21):
-  `ModuleSpec` already expresses multi-axis bonuses; legendaries
-  = 2-3 bonus axes, delve-exclusive, never shop-stockable. Doc 43
-  expects "legendary loot" aboard the far-side find
+- **Legendary multi-stat modules** (rulings 4 + SETTLED 1): the
+  top rolled tier, delve-exclusive, never shop-stockable; a
+  legendary module roll gains extra bonus axes at roll time.
+  Doc 43 expects "legendary loot" aboard the far-side find
   (`43_DESIGN_FAR_SIDE.md:59`) — that hookup stays doc 43's.
-  Names/descriptions are PROSE GATE.
+  Tier tokens/names are PROSE GATE.
 - **Ordinary dungeon loot pads** — the surface doc 42 ceded.
   Distinct from teaching pads (knowledge): VALUABLE pads (salvage
   logs, manifests) with trade/credit worth. Exact economy shape
   open.
-- **Credits pickups** — still open (see questions): no direct-
-  money drop exists today; credit chips would change the
-  economy's texture.
+- **Credits pickups (SETTLED 6): wrecks/digs only** — chips and
+  lockboxes as container loot; kill drops stay trade-goods.
 
-## Open questions (for the refine)
+## Settled — the open-question pass (2026-09-19)
 
-1. Quality model (i) instance field vs (ii) variant rows —
-   recommendation on the table is (i).
-2. The quality ladder itself: how many tiers between base and
-   legendary, their name tokens (PROSE GATE), and what a tier
-   modifies (flat bumps? multipliers? a bonus re-roll?) — per
-   item family or one table?
-3. Diegetic kit (ruling 1): does the weapon ALWAYS drop, or roll?
-   And do authored equipment pools shrink to armor/sidearms, or
-   retire entirely for weaponed NPCs?
-4. Do found modules sell (is there module sellback at all?), and
-   does quality multiply sell value? Includes the legendary
-   sellability question — a sellable legendary converts delve
-   risk into a credit printer.
-5. Colour-by-category palette — which categories get which
-   accents, and does mission cargo stay cyan?
-6. Do credits pickups exist? (If yes: payload shape and sources.)
-7. Generic derelicts: cache their interiors (uniform with every
-   other interior) or keep one-shot as the derelict identity —
-   and if kept, does the player get to know the stakes before
-   leaving?
-8. Does the space-path silent eviction get a log line?
-9. Scope check: is the polish pass (A + ruling 1) its own
-   phase/commit before quality/modules, or do they land together?
+All nine questions ruled in one sitting. Numbering matches the
+question list they replaced.
 
-## Phases (skeleton — restructured at refine like doc 42's were)
+1. **Quality model: instance tiers for EVERYTHING.** Stored gear
+   gains a rolled quality; even legendaries are rolled outcomes,
+   not authored uniques — the top tier of the ladder IS legendary.
+   For modules, a legendary-tier roll gains extra bonus axes at
+   roll time (the multi-stat form of ruling 4); weapons/armor
+   legendaries are their own stats at the top multiplier. No
+   hand-tuned legendary catalog; legendary identity comes from
+   WHERE it rolled (delve bottoms only) and what it carries.
+2. **Ladder: three rolled tiers above base, percentage bumps.**
+   base → t1 → t2 → t3 → legendary (the rarest tier, reconcile
+   with 1: legendary is the fourth rolled tier, delve-gated).
+   One authored per-family table applies ~+15/+30/+45%-style
+   multipliers to the stats that matter (weapon damage/accuracy,
+   armor protection, module bonuses); legendary sits at the top
+   multiplier. Tier name tokens are PROSE GATE.
+3. **Kit drops: the weapon ALWAYS drops; pools shrink.** Weaponed
+   NPCs drop weapon + rolled-size ammo stack every time; authored
+   equipment pools become the beyond-the-weapon extras (armor,
+   sidearms), re-tuned thinner. Monsters without weapons keep
+   their pools.
+4. **Selling: everything sells, legendaries too — quality
+   multiplies the price.** (Correction from the user during this
+   pass, verified: gear sellback ALREADY exists — armory sells
+   ground weapons/armor at half catalog price,
+   `menus/_armory.py:63`; the mechanic buys and sells ship
+   modules, `menus/_mechanic.py:162`; only ammo/consumables are
+   unsellable.) Sell price = half catalog × tier multiplier;
+   legendaries carry a high multiplier. Watch-item for playtest:
+   delve bottom-runs must not out-earn their risk (tune legendary
+   rates/multipliers, not the policy).
+5. **Colours: category hue + quality brightness.** Hue answers
+   WHAT (equipment / field items / cargo / data; mission cargo
+   keeps its own colour); brightness answers HOW GOOD once
+   quality lands. Exact colours tuned at playtest.
+6. **Credits pickups: yes — wrecks/digs only.** Credit chips /
+   lockboxes as container loot in wrecks and dig sites; kill
+   drops stay trade-goods — the combat economy keeps its
+   vendor-trash identity, containers get immediate-reward texture.
+7. **Derelicts: keep one-shot, but SAY SO.** The identity stays;
+   the stakes become visible before leaving (exit-door wording or
+   log line — PROSE GATE). No caching.
+8. **Eviction: stay silent.** The 30-entity space cap evicts
+   oldest-first with no line.
+9. **Phasing: polish first, own phase.** Phase 1 = presentation +
+   behavior warts + diegetic kit drops, implemented and
+   playtested before any quality work; then quality → modules →
+   legendary/credits, each its own implement+playtest cycle.
 
-1. **Polish** — colour language, discard-drops, ground cap,
-   diegetic kit drops (ruling 1). Playtest checklist carries the
-   guide-diff item.
-2. **Quality system** — instance field (or ruling otherwise),
-   quality table, per-source rates, `TradeGood.rarity` removal,
-   rare-pickup modal, `DigLootSpec` expansion.
-3. **Modules as loot** — payload shape, boarding/derelict pools,
-   boarded-ship `modules` drops, shop-vs-loot economy check.
-4. **Legendary + pads (+ credits if ruled in)** — delve-bottom
-   legendary guarantee, multi-stat module authoring (PROSE GATE),
-   valuable pads, doc-43 hookup. Prose gate before any data
-   strings land.
+## Remaining opens (prose-gated or authoring-tuned)
+
+- Quality tier token words, the derelict warning wording, chip/
+  lockbox names — PROSE GATE, proposed with their phases.
+- Legendary bonus-axis generation for modules (how many axes,
+  value ranges) — authored with phase 4, tuned at playtest.
+- Chip/lockbox value curve vs. trade-goods income — playtest.
+- Section A leftovers still candidate-not-ruled: discard-drops-to-
+  floor, ground cap parity, rare-pickup modal. They ride phase 1
+  unless red-lined at its brief.
+
+## Phases (SETTLED 9 — polish first, each phase its own cycle)
+
+1. **Polish** — category colour language (brightness arrives with
+   phase 2), discard-drops, ground cap parity, diegetic kit drops
+   (SETTLED 3: always + pools shrink), derelict one-shot SAY-SO
+   (SETTLED 7; wording PROSE GATE). Playtest checklist carries
+   the guide-diff item.
+2. **Quality system** — instance quality field on stored gear +
+   modules, the ladder table (three tiers + rolled legendary
+   top, SETTLED 1-2), per-source rates (legendary delve-only),
+   sell price × tier multiplier (SETTLED 4), quality brightness
+   on glyphs (SETTLED 5), rare-pickup modal,
+   `TradeGood.rarity` removal, `DigLootSpec` expansion.
+3. **Modules as loot** — payload shape → ship storage,
+   boarding/derelict room pools, boarded-ship live `modules`
+   drops, mechanic economy check.
+4. **Legendary + credits + pads** — legendary module axis
+   generation + delve-bottom guarantee, chips/lockboxes in
+   wrecks/digs (SETTLED 6), valuable pads, doc-43 hookup. Prose
+   gate before any data strings land.
