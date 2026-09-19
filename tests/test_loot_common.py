@@ -383,3 +383,111 @@ class TestGroundKillDrops:
         )
         run(_rules_ground.on_kill(gm, enemy, SimpleNamespace()))
         assert seen and seen[0][-1] == "kinetic_pistol"
+
+
+class TestDerelictSaySo:
+    """Leaving a loot-laden one-shot derelict confirms first (47.1.5)."""
+
+    def _derelict_map(self, with_loot: bool = True) -> GameMap:
+        gm = _make_map(2, 2)
+        gm.derelict_interior = True
+        if with_loot:
+            gm.entities.append(
+                _loot({"good_id": "scrap_metal", "quantity": 1})
+            )
+        return gm
+
+    def _run_exit(self, monkeypatch, game_map, confirm_result):
+        from tests.support.asyncutil import run
+        import spacehack.game_flow as game_flow
+        from types import SimpleNamespace
+
+        asks = []
+        leaves = []
+
+        async def _confirm(ctx):
+            asks.append(True)
+            return confirm_result
+
+        async def _leave(*args, **kwargs):
+            leaves.append(True)
+            return None
+
+        monkeypatch.setattr(game_flow, "_confirm_abandon_derelict", _confirm)
+        monkeypatch.setattr(game_flow, "_leave_dungeon_to_space", _leave)
+        result = run(game_flow._handle_dungeon_exit(
+            SimpleNamespace(), game_map, None, None, None, [], [],
+        ))
+        return result, asks, leaves
+
+    def test_loot_laden_derelict_asks_and_leave_proceeds(self, monkeypatch):
+        _result, asks, leaves = self._run_exit(
+            monkeypatch, self._derelict_map(), confirm_result=True,
+        )
+        assert asks == [True]
+        assert leaves == [True]
+
+    def test_stay_aborts_before_the_transition(self, monkeypatch):
+        _result, asks, leaves = self._run_exit(
+            monkeypatch, self._derelict_map(), confirm_result=False,
+        )
+        assert asks == [True]
+        assert leaves == []
+
+    def test_clean_derelict_and_cached_dungeons_never_ask(self, monkeypatch):
+        _r, asks, leaves = self._run_exit(
+            monkeypatch, self._derelict_map(with_loot=False), True,
+        )
+        assert asks == []
+        assert leaves == [True]
+
+        gm_cached = _make_map(2, 2)
+        gm_cached.entities.append(
+            _loot({"good_id": "scrap_metal", "quantity": 1})
+        )
+        _r, asks, leaves = self._run_exit(monkeypatch, gm_cached, True)
+        assert asks == []
+        assert leaves == [True]
+
+    def test_confirm_uses_the_approved_strings(self, monkeypatch):
+        from tests.support.asyncutil import run, as_async
+        import spacehack.game_flow as game_flow
+        from types import SimpleNamespace
+
+        captured = {}
+        monkeypatch.setattr(
+            game_flow,
+            "_run_pygame_dungeon_confirm",
+            as_async(lambda ctx, **kw: captured.update(kw) or "CONFIRM"),
+        )
+        assert run(game_flow._confirm_abandon_derelict(SimpleNamespace()))
+        assert captured == {
+            "title": "ABANDON THE DERELICT?",
+            "body": "This derelict ship is highly unstable, you won't "
+            "be able to safely breach and dock it again.",
+            "accept_label": "Leave",
+            "cancel_label": "Stay",
+            "caption": "spacehack - derelict",
+        }
+
+    def test_generic_derelict_constructor_stamps_the_flag(self):
+        from types import SimpleNamespace
+        from spacehack.game_interactions import _build_generic_derelict
+
+        ctx = SimpleNamespace(game_map=SimpleNamespace(entities=[]))
+        npcspec = SimpleNamespace(loot_budget=(50, 100), id="scout_wreck")
+        dungeon_map, _spawn, handled = _build_generic_derelict(
+            ctx, object(), npcspec, SimpleNamespace(add=lambda _m: None),
+        )
+        assert handled is False
+        assert dungeon_map.derelict_interior is True
+
+    def test_derelict_stamp_survives_save_load(self):
+        from spacehack import saveload_maps
+
+        gm = _make_map(2, 2)
+        gm.derelict_interior = True
+        dd = saveload_maps._dungeon_to_dict(gm, None)
+        assert dd["derelict_interior"] is True
+        restored, _pos = saveload_maps._dungeon_from_dict(dd)
+        assert restored.derelict_interior is True

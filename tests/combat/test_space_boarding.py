@@ -211,6 +211,7 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     assert _boarded not in _space_map.entities, "the hull is gone"
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
     assert _interior.capture_spec_id == "pirate_scout"
+    assert _interior.derelict_interior is True, "one-shot interior says so on exit"
     assert _entered == {"spec": "pirate_scout", "dm": _interior, "reboard": False}
     # A live ship is powered from entry — lit rooms, full sensor
     # range; the derelict's dark-until-console arc is dead-hull

@@ -666,6 +666,7 @@ async def begin_capture_boarding(ctx, console, cr):
         return False
     await _consume_boarded_hull(ctx, cr, _spec)
     _dungeon_map.capture_spec_id = _spec.id
+    _dungeon_map.derelict_interior = True
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
     await _enter_boarding_dungeon(
         _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
@@ -694,6 +695,7 @@ def _build_generic_derelict(ctx, blocker, npcspec, log):
         log.add("The derelict's interior is too damaged to explore.")
         return (None, None, True)
     maybe_spawn_wreck_pad(_dungeon_map)
+    _dungeon_map.derelict_interior = True
     _despawn_blocker(ctx, blocker, npcspec)
     return (_dungeon_map, _spawn, False)
 

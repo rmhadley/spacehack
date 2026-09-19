@@ -415,6 +415,11 @@ class GameMap:
     # and serialized with the dungeon payload (see saveload_maps).
     capture_spec_id: str = ""   # boarded ship spec — routes the C console
     cloned: bool = False        # its transponder is already copied
+    # One-shot breach interiors (doc 47.1): True on derelicts whose
+    # interior is lost on exit — leaving with floor loot must confirm
+    # first (game_flow._derelict_loot_remains); serialized alongside
+    # capture_spec_id.
+    derelict_interior: bool = False
     cave_cells: set[tuple[int, int]] | None = None
     bridge_crossings: tuple | None = None
     # Time-varying per-cell coloured light grid (see

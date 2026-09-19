@@ -148,6 +148,7 @@ def _optional_map_fields(gm) -> dict:
     return {
         "wreck_spawn_id": getattr(gm, 'wreck_spawn_id', None),
         "capture_spec_id": getattr(gm, 'capture_spec_id', ''),
+        "derelict_interior": bool(getattr(gm, 'derelict_interior', False)),
         "cloned": bool(getattr(gm, 'cloned', False)),
         "extension_id": getattr(gm, 'extension_id', ''),
         "extension_floor": getattr(gm, 'extension_floor', 0),
@@ -356,6 +357,8 @@ def _apply_dungeon_attributes(dungeon_map: world.GameMap, dd: dict) -> None:
     if _wsid:
         dungeon_map.wreck_spawn_id = _wsid
     dungeon_map.capture_spec_id = dd.get("capture_spec_id", "")
+    if dd.get("derelict_interior", False):
+        dungeon_map.derelict_interior = True
     dungeon_map.cloned = bool(dd.get("cloned", False))
     _set_position_attr(dungeon_map, dd, "entry_spawn", "entry_spawn")
     _set_position_attr(dungeon_map, dd, "up_stair_pos", "up_stair_pos")

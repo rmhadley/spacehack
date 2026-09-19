@@ -399,8 +399,15 @@ until approved)
   quest/heist/pad exemption — exterior heist cargo can be
   evicted by churn today. The cap step fixes both paths with one
   shared helper.
-- Derelict interiors carry `location_name="Derelict Ship"` and
-  exit via the shared exit-tile handler — the say-so hook point.
+- Derelict interiors exit via the shared exit-tile handler — the
+  say-so hook point. (Audit correction at build: interiors do NOT
+  carry `location_name="Derelict Ship"` — that's only a getattr
+  fallback; `_enter_boarding_dungeon` stamps the ship's
+  `npcspec.name`. The build instead stamps a persisted
+  `derelict_interior` flag at the two one-shot constructors —
+  `begin_capture_boarding` and `_build_generic_derelict` — with
+  save/load twins; cached mission wrecks, digs, city interiors,
+  and surfaces are revisit-able and stay unwarned.)
 
 **Scope (files + hook points):**
 
@@ -444,11 +451,12 @@ until approved)
 5. **Derelict say-so** — leaving a derelict interior with floor
   loot still present shows a confirm modal before the loss
   (exit-tile handler gated on the derelict interior); leave
-  clean → no prompt. DRAFT strings (PROSE GATE — approve or
-  red-line with the brief):
+  clean → no prompt. Strings APPROVED 2026-09-19 (user red-lined
+  body + choices; title as drafted):
   - Modal title: "ABANDON THE DERELICT?"
-  - Body: "Anything left inside is lost when you leave."
-  - Choices: "Leave it" / "Stay a moment"
+  - Body: "This derelict ship is highly unstable, you won't be
+    able to safely breach and dock it again."
+  - Choices: "Leave" / "Stay"
 
 **Build order:** colours → cap helper → discard → kit drops →
 derelict say-so (approved strings land in their own commit,

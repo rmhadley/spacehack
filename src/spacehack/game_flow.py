@@ -731,6 +731,31 @@ async def _leave_dungeon_to_space(
     return space_game_map, space_player
 
 
+def _derelict_loot_remains(game_map) -> bool:
+    """True inside a one-shot derelict interior still holding floor
+    loot — leaving is a loss, so it must say so (doc 47.1)."""
+    if not getattr(game_map, "derelict_interior", False):
+        return False
+    return any(
+        getattr(_entity, "loot_data", None) is not None
+        for _entity in game_map.entities
+    )
+
+
+async def _confirm_abandon_derelict(ctx) -> bool:
+    """Ask before abandoning a loot-laden derelict (approved strings)."""
+    _result = await _run_pygame_dungeon_confirm(
+        ctx,
+        title="ABANDON THE DERELICT?",
+        body="This derelict ship is highly unstable, you won't be able "
+        "to safely breach and dock it again.",
+        accept_label="Leave",
+        cancel_label="Stay",
+        caption="spacehack - derelict",
+    )
+    return _result == "CONFIRM"
+
+
 async def _handle_dungeon_exit(
     ctx,
     game_map,
@@ -744,6 +769,9 @@ async def _handle_dungeon_exit(
     show_orbit=None,
 ):
     """Handle an exit tile and return the next space-mode state."""
+    if _derelict_loot_remains(game_map):
+        if not await _confirm_abandon_derelict(ctx):
+            return None
     _space_transition = await _leave_dungeon_to_space(
         ctx,
         game_map,
