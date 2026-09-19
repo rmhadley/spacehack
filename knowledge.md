@@ -986,7 +986,12 @@ Any issue found is blocking: fix it before commit, even if the change ``works.``
 ### Reviewer subagent (`.zcode/agents/reviewer.md`)
 
 A workspace subagent pinned to `zai/glm-5.3` (read-only: Read + Bash)
-that enforces this file's rules as a second pair of eyes. Spawn it via
+that enforces this file's rules as a second pair of eyes. The pin
+requires `thoughtLevel: max` in the frontmatter — the client's model
+registry rejects reasoning-enabled models spawned without a reasoning
+level ("Reasoning level is required for zai/glm-5.3"), and the agent
+registry rebuilds only at client start, so frontmatter changes need a
+restart before a probe spawn. Spawn it via
 the Agent tool (`subagent_type: reviewer`) before committing **code**
 changes (src/ or tests/) — after the self-audit pass AND after
 `make check` passes (the gate catches mechanical failures cheaper than
