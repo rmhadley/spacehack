@@ -283,8 +283,9 @@ question list they replaced.
   amendment) — not a phase-4 item.
 - Chip/lockbox value curve vs. trade-goods income — playtest.
 - Section A leftovers still candidate-not-ruled: discard-drops-to-
-  floor, ground cap parity, rare-pickup modal. They ride phase 1
-  unless red-lined at its brief.
+  floor, ground cap parity. They ride phase 1 unless red-lined at
+  its brief; the rare-pickup modal rides phase 2 (needs quality
+  to define "rare").
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
