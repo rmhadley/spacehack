@@ -1,8 +1,9 @@
 # DESIGN: Loot — Dropped-Loot Polish + Interesting Finds
 
 **Status: DESIGN IN PROGRESS — no implementation until the user
-explicitly requests it.** Draft opened 2026-09-19; nothing below is
-settled until a refine session says so.
+explicitly requests it.** Draft opened 2026-09-19; the user's four
+polish notes are recorded as rulings below — everything else stays
+open until a refine session says so.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -28,6 +29,57 @@ Doc 42 explicitly deferred three surfaces here:
 
 Plus the standing ask (2026-09-19): **a polish pass on how dropped
 loot currently works, then new, more interesting loot.**
+
+## Rulings — the user's polish notes (2026-09-19, verbatim)
+
+> 1. Loot should make sense. If you kill a pirate with a kinetic
+>    pistol, it should drop a kinetic pistol and ammo for it.
+> 2. I want a loot quality system. Right now all loot is static.
+>    You can equip yourself from stores with basic things. But I
+>    want more interesting variants of the base loot.
+> 3. Ship module loot needs to be a thing. I want to be able to
+>    find and loot a shield generator. Possibly makes sense when
+>    raiding a ship or a derelict.
+> 4. Legendary loot will be the rarest quality loot and found in
+>    the RNG delves you discover from datapads/rumors. Multi stat
+>    ship modules.
+
+What each rules, grounded:
+
+1. **Diegetic drops — the kit you fought is the kit that drops.**
+   The enemy's actual weapon already exists at runtime:
+   `NpcCharSpec.weapons[0]` or a seeded `weapon_pick` roll,
+   resolved into `GroundEnemyInstance.weapon_id` at first
+   engagement (`combat/_rules_ground.py:170-174`). On kill, that
+   weapon drops, plus a stack of its `ammo_type` field items
+   (`GroundWeaponSpec.ammo_type`; melee/infinite weapons drop no
+   ammo). Authored pools (`equipment_loot_pool` etc.) become what
+   they carried BEYOND their weapon — armor, sidearms — not a
+   random replacement for it. Monsters (no `weapons`) keep their
+   pools unchanged.
+2. **A quality tier system on loot.** Shops stock the base items;
+   interesting variants come from LOOT — that's the economy's new
+   identity. Load-bearing fact: owned gear has NO per-instance
+   state today — `StoredGroundEquipment` is a frozen
+   `(item_type, item_id)` pair (`ground_equipment.py:85-89`) and
+   ship storage holds plain module ids (`ship.py:139`). Variants
+   therefore need item INSTANCES (a quality field on the stored
+   item, resolved against an authored quality table) — see B
+   below. Field items (ammo/consumables) are stacks and stay
+   unvarianted.
+3. **Modules are loot.** A new module payload shape (pickup → ship
+   global storage), sourced from boarding captures and derelicts.
+   Two feeders, both diegetic: room-typed wreck pools gain module
+   entries (`slot_type` "engine"/"system" maps naturally onto
+   engine_room/systems rooms), and — the strong form — a boarded
+   ship drops from ITS OWN `modules` list, which already rides
+   into combat on every `EnemyInstance` (`combat/_stats.py:257`):
+   raid the ship that was actually flying that shield generator.
+4. **Legendary = the rarest quality tier, RNG delves only.** The
+   dig sites discovered from datapads/rumors (doc 42 phase 4) are
+   the exclusive source; the legendary form is multi-stat ship
+   modules (the SETTLED 21 seed note). Placement follows
+   environment-as-gate: the delve's danger self-selects.
 
 ## Current state — the audit (2026-09-19, code-anchored)
 
@@ -104,78 +156,96 @@ opens a drop-one chooser whose "drop" spawns a floor entity.
   the penalties-are-modals ruling read symmetrically — gains the
   player must not miss get a modal. Applies once rarity exists.
 
-### B. Rarity — one uniform model (phase 2 candidate)
+### B. The quality system (ruled in — model open)
 
-No loot rarity exists today; the two live tier systems (enemy
-`tier` gating equipment via `tech_level`; shop stocking via
-`tech_level`) don't cover it. Options:
+Quality tiers exist on loot; shops stock base items only. What's
+open is the mechanism:
 
-- **(i) Authored rates tables per source** (recommended): one
-  `1-in-N` dict per drop source — the exact shape of dig
-  `DOOR_RATES` (`data/digs/__init__.py:67-71`) — gating a
-  rare-roll pass. `TradeGood.rarity` gets deleted (dead field,
-  consume-or-remove resolved as remove). Rarity stays in authored
-  data where it's tunable at playtest, and catalogs stay purely
-  descriptive.
-- (ii) Revive `TradeGood.rarity` as a spawn weight every pool roll
-  reads. One field drives everything, but it only covers trade
-  goods, and it hides tuning inside catalog rows.
+- **(i) Instance quality field (recommended):** stored items gain
+  a `quality` (default base); an authored quality table gives
+  each tier a name token and stat modifiers, resolved when the
+  item is equipped/read. One mechanism covers weapons, armor,
+  AND modules; catalogs stay descriptive (base stats only);
+  quality rides existing save/load per instance. Cost: the
+  instance shape changes everywhere ids are treated as identity
+  (pack, ship storage, choosers, equip paths, tests).
+- (ii) Authored variant rows (`kinetic_pistol_mk2`…): no
+  instance state, registries unchanged — but every catalog ×
+  every tier multiplies rows, pools must enumerate variants, and
+  tech-tier filtering/shop exclusion fight the flat registries.
 
-`DigLootSpec` expands in place per SETTLED 35: fields for a rare
-cache variant, an out-of-produce pool, and rate overrides —
-per-planet authoring through `dig_*` spec fields, planets inherit
-defaults.
+Quality RATES live in authored `1-in-N` tables per drop source —
+the exact shape of dig `DOOR_RATES` (`data/digs/__init__.py:
+67-71`) — tunable at playtest. Legendary never rolls outside RNG
+delve bottoms (ruling 4). `TradeGood.rarity` gets deleted either
+way (dead field; consume-or-remove resolved as remove — trade
+goods are cargo value, not gear, and don't variant).
 
-### C. New loot (phase 3 candidates)
+`DigLootSpec` expands in place per SETTLED 35: fields for quality
+rates, a rare cache variant, an out-of-produce pool, and the
+legendary bottom-floor guarantee — per-planet authoring through
+`dig_*` spec fields, planets inherit defaults.
 
-- **Multi-purpose ship modules** — the user's seed note, verbatim
-  lineage: "A shield generator AND cargo space all in one module
-  slot?" `ModuleSpec` (`data/modules/__init__.py:14-45`) already
-  expresses multi-axis bonuses; legendary modules = 2-3 bonus axes
-  at strong-but-not-shop values, never shop-stockable. Placement
-  follows the environment-as-gate principle: deep-dive bottoms and
-  far-side wrecks — the trip is the check. Doc 43 already expects
-  "legendary loot" aboard (`43_DESIGN_FAR_SIDE.md:59`). All
-  names/descriptions are PROSE GATE.
+### C. New loot (ruled in — shapes open)
+
+- **Ship modules as loot** (ruling 3): new payload shape
+  (`{"item_type": "module", "item_id": …}` → ship global
+  storage), from boarding captures + derelicts via room-typed
+  pools (engine rooms → engine-slot modules, systems rooms →
+  system-slot), and the diegetic strong form: boarded ships drop
+  from their own live `modules` list. Modules are quality-variant
+  gear (ruling 2) — a found shield generator can be a good one.
+- **Legendary multi-stat modules** (rulings 4 + SETTLED 21):
+  `ModuleSpec` already expresses multi-axis bonuses; legendaries
+  = 2-3 bonus axes, delve-exclusive, never shop-stockable. Doc 43
+  expects "legendary loot" aboard the far-side find
+  (`43_DESIGN_FAR_SIDE.md:59`) — that hookup stays doc 43's.
+  Names/descriptions are PROSE GATE.
 - **Ordinary dungeon loot pads** — the surface doc 42 ceded.
   Distinct from teaching pads (knowledge): VALUABLE pads (salvage
-  logs, manifests) — pickups with trade/credit worth, consume or
-  keep-and-sell. Exact economy shape open.
-- **Credits pickups** — open question: no direct-money drop exists
-  today (credits arrive only through trade). Credit chips as a
-  sixth payload shape would change the economy's texture; worth
-  deciding once, early.
-- **Kill-drop spice**: tier-gated equipment already scales with
-  enemy tier; the rarity pass (B) is what makes kills interesting
-  again. No separate mechanism proposed.
+  logs, manifests) with trade/credit worth. Exact economy shape
+  open.
+- **Credits pickups** — still open (see questions): no direct-
+  money drop exists today; credit chips would change the
+  economy's texture.
 
 ## Open questions (for the refine)
 
-1. Colour-by-category palette — which categories get which
+1. Quality model (i) instance field vs (ii) variant rows —
+   recommendation on the table is (i).
+2. The quality ladder itself: how many tiers between base and
+   legendary, their name tokens (PROSE GATE), and what a tier
+   modifies (flat bumps? multipliers? a bonus re-roll?) — per
+   item family or one table?
+3. Diegetic kit (ruling 1): does the weapon ALWAYS drop, or roll?
+   And do authored equipment pools shrink to armor/sidearms, or
+   retire entirely for weaponed NPCs?
+4. Do found modules sell (is there module sellback at all?), and
+   does quality multiply sell value? Includes the legendary
+   sellability question — a sellable legendary converts delve
+   risk into a credit printer.
+5. Colour-by-category palette — which categories get which
    accents, and does mission cargo stay cyan?
-2. Rarity model (i) vs (ii) above.
-3. Do credits pickups exist? (If yes: their payload shape, and
-   what drops them.)
-4. Are legendary modules sellable? (Quest goods are never
-   sellable by ruling; legendaries aren't quest goods, but a
-   sellable legendary converts deep-dive risk into a credit
-   printer.)
-5. Generic derelicts: cache their interiors (uniform with every
+6. Do credits pickups exist? (If yes: payload shape and sources.)
+7. Generic derelicts: cache their interiors (uniform with every
    other interior) or keep one-shot as the derelict identity —
    and if kept, does the player get to know the stakes before
    leaving?
-6. Does the space-path silent eviction get a log line?
-7. Scope check: is the polish pass (A) its own phase/commit
-   before any new loot, or do they land together?
+8. Does the space-path silent eviction get a log line?
+9. Scope check: is the polish pass (A + ruling 1) its own
+   phase/commit before quality/modules, or do they land together?
 
 ## Phases (skeleton — restructured at refine like doc 42's were)
 
-1. **Polish** — colour language, discard-drops, ground cap, rare
-   pickup modal (modal arrives with rarity if phased). Playtest
-   checklist carries the guide-diff item (guide's pickup row /
-   any colour language that becomes how-to-play).
-2. **Rarity + richer tables** — rates tables, `TradeGood.rarity`
-   removal, `DigLootSpec` expansion, wreck pool enrichment.
-3. **Interesting loot** — legendary modules (+ doc-43 hookup),
-   valuable pads, credits (if ruled in). Prose gate before any
-   data strings land.
+1. **Polish** — colour language, discard-drops, ground cap,
+   diegetic kit drops (ruling 1). Playtest checklist carries the
+   guide-diff item.
+2. **Quality system** — instance field (or ruling otherwise),
+   quality table, per-source rates, `TradeGood.rarity` removal,
+   rare-pickup modal, `DigLootSpec` expansion.
+3. **Modules as loot** — payload shape, boarding/derelict pools,
+   boarded-ship `modules` drops, shop-vs-loot economy check.
+4. **Legendary + pads (+ credits if ruled in)** — delve-bottom
+   legendary guarantee, multi-stat module authoring (PROSE GATE),
+   valuable pads, doc-43 hookup. Prose gate before any data
+   strings land.
