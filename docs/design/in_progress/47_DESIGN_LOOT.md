@@ -289,11 +289,15 @@ question list they replaced.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
-- [ ] 1. **Polish** — category colour language (brightness arrives
+- [x] 1. **Polish** — category colour language (brightness arrives
   with phase 2), discard-drops, ground cap parity, diegetic kit
   drops (SETTLED 3: always + pools shrink), derelict one-shot
   SAY-SO (SETTLED 7; wording PROSE GATE). Playtest checklist
-  carries the guide-diff item.
+  carries the guide-diff item. **CLOSED 2026-09-19** — built in
+  five steps (1f188f7, ae06f7e, 8651635, 64dcc63, 782efca; the
+  build survived a mid-session PC crash and a reviewer-outage
+  fallback), all 9 playtest items PASSED (guide diff: none, as
+  expected). SYSTEMS.md audited at close.
 - [ ] 2. **Quality system** — instance quality field on stored gear +
   modules, the ladder table (three tiers + rolled legendary
   top, SETTLED 1-2), per-source rates (legendary delve-only),
@@ -383,8 +387,8 @@ lesson: colour-authority sweeps must include the restore paths,
 not just spawn paths (the parallel-twins rule applies to
 save/load twins too).
 
-### Phase 1 — Polish (brief PROPOSED 2026-09-19 — not buildable
-until approved)
+### Phase 1 — Polish (brief PROPOSED 2026-09-19; BUILT same day;
+PLAYTEST PASSED same day — closed, see the Phases queue entry)
 
 **Audit findings the brief stands on** (verified this session):
 

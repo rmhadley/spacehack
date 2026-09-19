@@ -351,6 +351,14 @@ nobody designs against a ghost.
   dmg per tile); Deadshot railgun (+5 hit/+4 dmg per AP >2, kills
   chain auto-shots ≤12 links) (`combat/_ground_charger.py`,
   `_ground_deadshot.py`).
+- **Kill drops** — authored pools (trade goods, tier-filtered
+  equipment, field stacks) plus the diegetic kit: the enemy's
+  resolved weapon always falls with one matching ammo stack
+  (field sizing 1–5); `GroundWeaponSpec.loot_droppable=False`
+  keeps organic monster parts and fists off the floor; pools are
+  beyond-the-weapon extras only; everything shares the silent
+  30-entity cap (`combat/_actions.spawn_kill_drops` /
+  `_spawn_kit_drop`; pools authored in `data/npc_chars/`).
 - **Player kit** — HP 20 + stamina/3 + armor + traits; AP 4 +
   bonuses; reload costs AP in combat (free at dungeon screen);
   consumables with timed effects; equipment swaps cost 1 AP
@@ -732,6 +740,23 @@ nobody designs against a ghost.
   are consumed on pickup — knowledge never enters the hold
   (`dungeon_layout.py`: `_scatter_loot`; `loot.py`;
   `loot_selection.py`; `digs.reveal_site`).
+- **Loot presentation & entity economy (doc 47.1)** — the `%`
+  glyph's hue answers content at every constructor including the
+  save/load restore path (equipment steel, field items amber,
+  cargo gold, quest pads/caches violet, mission cargo cyan —
+  `loot_common.loot_fg`); ONE identity-based 30-entity cap on
+  both kill paths evicts the oldest plain loot silently and never
+  quest caches, pads, or heist cargo (`loot_common.enforce_loot_cap`);
+  character-screen Discard drops the carried item at the player's
+  feet, never destroys — space mode hides the verb, there being no
+  floor (`character_screen._discard_pack_*` →
+  `loot._drop_expedition_*_at`, `floor_available` threaded from
+  the C-key's `current_mode`); leaving a one-shot derelict
+  interior with floor loot confirms first (`GameMap.derelict_interior`
+  — capture boardings + generic derelicts, save/load round-trip;
+  "ABANDON THE DERELICT?" / Leave / Stay), while cached mission
+  wrecks, digs, and city interiors are revisit-able and never
+  prompt (`game_flow._derelict_loot_remains`).
 - **Quest loot security** — quest-cache pickup completes the step in
   the same action; goods NEVER enter the sellable hold (enforced
   structurally via reservations + `secure_quest_loot`, not at the
