@@ -44,8 +44,15 @@ def _raw_event(kind: str, key: int, repeat: bool = False):
 
 def _input_runtime(batches: list[list]):
     """A PygameRuntime whose fake SDL queue serves one batch per poll."""
+    queue = FakeSdlEventQueue(_KEY_NAMES, batches)
     runtime = pygame_runtime.PygameRuntime(tileset=None, display_config=DisplayConfig())
-    runtime.engine = SimpleNamespace(pygame=FakeSdlEventQueue(_KEY_NAMES, batches))
+    runtime.engine = SimpleNamespace(
+        pygame=queue,
+        events=lambda: tuple(
+            pygame_engine.translate_event(queue, event)
+            for event in queue.event.get()
+        ),
+    )
     return runtime
 
 
@@ -126,9 +133,60 @@ def test_drain_sdl_batch_filters_irrelevant_events():
         batches=[(SimpleNamespace(type=99), _raw_event("down", 40))],
     )
 
-    batch = pygame_runtime._drain_sdl_batch(queue)
+    batch = pygame_runtime._drain_sdl_batch(queue, set())
 
     assert [(e.kind, e.key_name) for e in batch] == [("keydown", "j")]
+
+
+def test_repeats_are_stamped_by_keydown_keyup_pairing():
+    """pygame never exposes SDL's repeat flag — the runtime derives it.
+
+    A keydown for a key already held (keydown seen, no keyup since) is
+    a repeat, including a second keydown within the same batch.
+    """
+    runtime = _input_runtime([
+        [_raw_event("down", 40)],
+        [_raw_event("down", 40, repeat=True)],
+        [_raw_event("down", 40), _raw_event("down", 40)],
+        [_raw_event("up", 40)],
+        [_raw_event("down", 40)],
+    ])
+
+    first = run(runtime.wait_events())
+    held_press = run(runtime.wait_events())
+    same_batch = run(runtime.wait_events())
+    release = run(runtime.wait_events())
+    fresh = run(runtime.wait_events())
+
+    assert [(e.kind, e.repeat) for e in first] == [("keydown", False)]
+    assert [(e.kind, e.repeat) for e in held_press] == [("keydown", True)]
+    assert [(e.kind, e.repeat) for e in same_batch] == [
+        ("keydown", True), ("keydown", True),
+    ]
+    assert [e.kind for e in release] == ["keyup"]
+    assert [(e.kind, e.repeat) for e in fresh] == [("keydown", False)]
+    assert runtime._held_keys == {"j"}
+
+
+def test_sync_events_stamp_repeats_and_note_drained_clears_held():
+    runtime = _input_runtime([
+        [_raw_event("down", 41), _raw_event("up", 41)],
+        [_raw_event("down", 41)],
+    ])
+
+    flushed = runtime.events()
+    held_press = runtime.events()
+
+    assert [(e.kind, e.repeat) for e in flushed] == [
+        ("keydown", False), ("keyup", False),
+    ]
+    assert [(e.kind, e.repeat) for e in held_press] == [("keydown", False)]
+    assert runtime._held_keys == {"k"}
+
+    runtime.note_drained((_raw_event("up", 41),))
+    assert runtime._held_keys == set()
+    runtime.note_drained((_raw_event("down", 40),))
+    assert runtime._held_keys == {"j"}
 
 
 def test_display_config_property_stitches_animation_speed_onto_engine_state():

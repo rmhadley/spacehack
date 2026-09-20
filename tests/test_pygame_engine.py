@@ -189,6 +189,16 @@ def test_project_input_predicates_cover_quit_escape_shift_and_guide():
     assert not pygame_engine.quit_or_escape(keyup)
 
 
+def test_guide_key_ignores_held_key_repeats():
+    """A held ? must not reopen the guide once the modal releases the key."""
+    repeat_press = pygame_engine.PygameInputEvent(
+        kind="keydown", key_name="slash", modifiers=3, shift=True,
+        text="?", repeat=True,
+    )
+
+    assert not pygame_engine.guide_key(repeat_press)
+
+
 def test_translate_event_defaults_repeat_to_false():
     class FakePygame:
         QUIT = 1
@@ -249,13 +259,22 @@ def test_shared_runtime_exposes_explicit_project_event_polling(monkeypatch):
     class FakeEngine:
         pygame = SimpleNamespace()
         def events(self):
-            return events
+            # Fresh (value-equal) event per poll: the runtime stamps
+            # held-key state, so a reused instance would read as a
+            # repeat on the second poll.
+            return (
+                pygame_engine.PygameInputEvent(kind="keydown", key_name="j"),
+            )
 
     runtime = pygame_runtime.PygameRuntime(object())
     runtime.engine = FakeEngine()
 
     assert runtime.events() == events
-    assert runtime.context.events() == events
+    # The second poll sees the same held key, so the runtime stamps it
+    # as a repeat — the pairing that pygame's hidden repeat flag needs.
+    assert runtime.context.events() == (
+        pygame_engine.PygameInputEvent(kind="keydown", key_name="j", repeat=True),
+    )
 
 
 def test_shared_runtime_wait_events_skips_irrelevant_events():

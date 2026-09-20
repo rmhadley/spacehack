@@ -67,13 +67,38 @@ def _paint_world_commands(engine, commands: tuple[Any, ...]) -> None:
         )
 
 
-def _drain_sdl_batch(pygame: Any) -> tuple[pygame_engine.PygameInputEvent, ...]:
-    """Drain the SDL queue once, keeping only relevant translated events."""
-    translated = [
-        pygame_engine.translate_event(pygame, event)
-        for event in pygame.event.get()
-    ]
-    return tuple(event for event in translated if event.kind != "other")
+def _drain_sdl_batch(
+    pygame: Any, held: set[str],
+) -> tuple[pygame_engine.PygameInputEvent, ...]:
+    """Drain the SDL queue once, stamping repeats and dropping irrelevant events.
+
+    pygame-ce never exposes SDL's repeat flag on KEYDOWN events (its
+    own ``set_repeat`` timer posts plain keydowns), so the runtime
+    derives it: a keydown for a key already in ``held`` — keydown
+    seen, no keyup since — is a repeat. ``held`` is updated in place;
+    every SDL drain must flow through this stamping or its keyups go
+    stale and the next real press misreads as a repeat.
+    """
+    batch = []
+    for event in pygame.event.get():
+        translated = pygame_engine.translate_event(pygame, event)
+        if translated.kind == "other":
+            continue
+        batch.append(_stamp_held_state(translated, held))
+    return tuple(batch)
+
+
+def _stamp_held_state(
+    event: pygame_engine.PygameInputEvent, held: set[str],
+) -> pygame_engine.PygameInputEvent:
+    """Return the event with its repeat flag derived from ``held``."""
+    if event.kind == "keydown":
+        repeated = event.key_name in held
+        held.add(event.key_name)
+        return replace(event, repeat=True) if repeated else event
+    if event.kind == "keyup":
+        held.discard(event.key_name)
+    return event
 
 
 def _drop_released_repeats(
@@ -81,9 +106,10 @@ def _drop_released_repeats(
 ) -> tuple[pygame_engine.PygameInputEvent, ...]:
     """Drop repeat keydowns whose key is released later in the same batch.
 
-    SDL emits repeats only while the key is held and every poll drains
-    the full queue, so a stale repeat can only ever coexist with its
-    keyup inside one batch. Taps (non-repeat presses) keep their press.
+    The repeat timer emits keydowns only while the key is held and
+    every poll drains the full queue, so a stale repeat can only ever
+    coexist with its keyup inside one batch. Taps (non-repeat presses)
+    keep their press.
     """
     released = {event.key_name for event in batch if event.kind == "keyup"}
     return tuple(
@@ -128,6 +154,10 @@ class PygameContext:
     def events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
         """Poll all currently queued project-owned input events."""
         return self._runtime.events()
+
+    def note_drained(self, raw_events: tuple[Any, ...]) -> None:
+        """Keep held-key state accurate when a loop drains SDL directly."""
+        self._runtime.note_drained(raw_events)
 
     async def wait_events(
         self, *, timeout_ms: int | None = None,
@@ -210,6 +240,9 @@ class PygameRuntime:
         self.config_path = config_path
         self.engine: pygame_engine.PygameEngine | None = None
         self.game_context: "GameContext | None" = None
+        # Keys whose keydown was drained without a keyup since — the
+        # basis for stamping repeat keydowns (pygame hides SDL's flag).
+        self._held_keys: set[str] = set()
         self.context = PygameContext(self)
 
     @property
@@ -267,10 +300,29 @@ class PygameRuntime:
         self.close()
 
     def events(self) -> tuple[pygame_engine.PygameInputEvent, ...]:
-        """Poll Pygame once and return project-owned input events."""
+        """Poll Pygame once, stamping repeats, and return input events."""
         if self.engine is None:
             return ()
-        return self.engine.events()
+        return tuple(
+            _stamp_held_state(event, self._held_keys)
+            for event in self.engine.events()
+        )
+
+    def note_drained(self, raw_events: tuple[Any, ...]) -> None:
+        """Update held-key state from raw SDL events drained elsewhere.
+
+        Animation loops drain SDL directly to stay responsive; without
+        this call their swallowed keyups would leave keys stuck in
+        ``_held_keys`` and the next real press would misread as a
+        repeat. The events themselves stay consumed by the drainer.
+        """
+        if self.engine is None:
+            return
+        pygame = self.engine.pygame
+        for event in raw_events:
+            translated = pygame_engine.translate_event(pygame, event)
+            if translated.kind in ("keydown", "keyup"):
+                _stamp_held_state(translated, self._held_keys)
 
     async def wait_events(
         self, *, timeout_ms: int | None = None,
@@ -286,11 +338,12 @@ class PygameRuntime:
         ``pygame.event.get()`` drains the whole SDL queue per poll and
         the batch is returned whole: nothing is retained between
         calls, so events can never leak from one screen into the next
-        (the stale keypresses after modals, doc 46). A keyup drops
-        earlier repeat keydowns of the same key within its batch —
-        repeats queued while a frame ran long are stale the moment
-        the key is released (the doc 46 held-key momentum fix); taps
-        keep their press.
+        (the stale keypresses after modals, doc 46). Repeats are
+        stamped by keydown/keyup pairing (pygame hides SDL's repeat
+        flag) and a keyup drops earlier repeat keydowns of the same
+        key within its batch — repeats queued while a frame ran long
+        are stale the moment the key is released (the doc 46 held-key
+        momentum fix); taps keep their press.
         """
         if self.engine is None:
             return ()
@@ -300,7 +353,7 @@ class PygameRuntime:
             time.monotonic() + timeout_ms / 1000.0
         )
         while True:
-            batch = _drain_sdl_batch(pygame)
+            batch = _drain_sdl_batch(pygame, self._held_keys)
             if batch:
                 return _drop_released_repeats(batch)
             if deadline is not None and time.monotonic() >= deadline:
