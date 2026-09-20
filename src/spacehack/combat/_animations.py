@@ -37,20 +37,26 @@ def _present(context, console) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def _responsive_sleep(seconds: float) -> None:
+async def _responsive_sleep(seconds: float, context=None) -> None:
     """Sleep while polling SDL events to keep the window responsive.
 
     Drains queued SDL input during animation frames so keys do not bleed
     into the next turn; the drain also runs for a zero-length sleep
-    (instant animation speed) for the same reason.
+    (instant animation speed) for the same reason. When ``context`` is
+    the shared runtime the drained events feed its held-key state — a
+    keyup swallowed here must still release its key, or the next real
+    press misreads as a repeat.
     """
     end = time.monotonic() + animation_timing.scaled(seconds)
     while True:
+        drained = ()
         try:
             import pygame
-            pygame.event.get()
+            drained = tuple(pygame.event.get())
         except ModuleNotFoundError:
             pass
+        if drained and context is not None:
+            context.note_drained(drained)
         remaining = end - time.monotonic()
         if remaining <= 0:
             # Instant speed still yields once per frame — a zero-length
@@ -709,7 +715,7 @@ async def _animate_explosion(
         )
         _queue_explosion_glow(center_pos, rings, cam_x, cam_y)
         _present(context, console)
-        await _responsive_sleep(animation_timing.EXPLOSION_RING)
+        await _responsive_sleep(animation_timing.EXPLOSION_RING, context)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
     _draw_flash(
         console, (center_pos.x, center_pos.y),
@@ -717,6 +723,6 @@ async def _animate_explosion(
     )
     _queue_explosion_glow(center_pos, len(_COMBAT_EXPLOSION_RINGS), cam_x, cam_y)
     _present(context, console)
-    await _responsive_sleep(animation_timing.EXPLOSION_FLASH)
+    await _responsive_sleep(animation_timing.EXPLOSION_FLASH, context)
     _explosion_frame(console, context, game_map, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx, log, weapon_list=weapon_list, active_weapons=active_weapons, evade_bonus=evade_bonus, hit_chances=hit_chances)
-    await _responsive_sleep(animation_timing.EXPLOSION_SETTLE)
+    await _responsive_sleep(animation_timing.EXPLOSION_SETTLE, context)

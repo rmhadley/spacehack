@@ -7,7 +7,7 @@ toggles, so the trait is a per-round commitment like Charger/Deadshot.
 """
 
 from __future__ import annotations
-from tests.support.asyncutil import run
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -267,7 +267,7 @@ class TestRulesIntegration:
             _actions, "RNG",
             SimpleNamespace(randint=lambda *_a: 1, uniform=lambda *_a: 1.0),
         )
-        monkeypatch.setattr(_rules_space, "animate_fire", lambda *a, **k: None)
+        monkeypatch.setattr(_rules_space, "animate_fire", as_async(lambda *a, **k: None))
         try:
             run(_loop._handle_fire(None, _ctx, _state.game_map, _rules_space, target_idx=0))
 

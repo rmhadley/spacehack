@@ -77,7 +77,7 @@ async def _spend_ground_ap(
     _path_goal: tuple[int, int] | None = None
 
     while _result_ap > 0:
-        _shot = _try_ground_fire(
+        _shot = await _try_ground_fire(
             ctx, console, render_callback, game_map,
             enemy_entity, player_pos, enemy_weapon_id, _ews,
             enemy_spec, armor_defense, player_dodge, enemy_weapon_quality,
@@ -104,7 +104,7 @@ async def _spend_ground_ap(
     return (_result_ap, _damage_dealt, _fired)
 
 
-def _try_ground_fire(
+async def _try_ground_fire(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge,
     enemy_weapon_quality=0,
@@ -130,7 +130,7 @@ def _try_ground_fire(
         ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
         enemy_weapon_quality,
     )
-    _present_enemy_shot(
+    await _present_enemy_shot(
         ctx, console, render_callback, game_map,
         enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
         enemy_spec, _hit, _damage, _popup,
@@ -138,7 +138,7 @@ def _try_ground_fire(
     return _damage, (_ews.ap_cost if _ews else 1)
 
 
-def _present_enemy_shot(
+async def _present_enemy_shot(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, enemy_weapon_quality, enemy_spec, hit, damage, popup,
 ) -> None:
@@ -152,7 +152,7 @@ def _present_enemy_shot(
     )
     ctx.log.add_colored(_line, _ml.COLOR_ENEMY_ACTION)
     if console is not None and render_callback is not None:
-        _animate_ground_shot(
+        await _animate_ground_shot(
             console, ctx, game_map,
             enemy_entity.pos, player_pos,
             enemy_weapon_id, is_hit=hit,
@@ -229,5 +229,5 @@ async def _ground_advance(
     if render_callback is not None and console is not None:
         render_callback(console, ctx, game_map)
         _present(ctx, console)
-        await _responsive_sleep(animation_timing.GROUND_STEP)
+        await _responsive_sleep(animation_timing.GROUND_STEP, ctx.context)
     return True, _cached_path, _path_goal, False

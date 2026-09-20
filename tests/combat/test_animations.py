@@ -140,3 +140,33 @@ def test_set_frame_floater_queues_only_in_viewport(monkeypatch) -> None:
         cam_x=2, cam_y=3, view_w=80, view_h=54,
     )
     assert _animations.active_floaters() == ()
+
+
+def test_family_animation_awaits_its_driver_sleep():
+    """Shot animators must await ``driver.sleep``.
+
+    The async conversion left the sleeps as discarded coroutines
+    (RuntimeWarning: never awaited): animations ran instant and their
+    SDL drain never executed, so held-key repeats bled into the next
+    turn. A sync call records nothing — only a real await runs the
+    recorder's body.
+    """
+    from types import SimpleNamespace
+    from tests.support.asyncutil import run
+
+    sleeps: list[float] = []
+
+    async def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    driver = _shot_animations._FrameDriver(
+        base_frame=lambda: None, present=lambda: None, sleep=_sleep,
+    )
+    console = SimpleNamespace(print=lambda **_kwargs: None)
+
+    run(_shot_animations._run_family_animation(
+        console, driver, world.Position(0, 0), world.Position(3, 0),
+        "light_laser", None, cam_x=0, cam_y=0, view_w=80, view_h=30,
+    ))
+
+    assert sleeps, "driver.sleep coroutines were created but never awaited"

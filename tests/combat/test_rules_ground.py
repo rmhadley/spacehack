@@ -224,7 +224,7 @@ def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
     assert _ok
     assert "Charge" in _reason
 
-    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
@@ -265,7 +265,7 @@ def test_melee_kill_increments_charger_counter(monkeypatch):
     _rules_ground.init(_ctx, [_primary, _neighbor], _game_map)
     _rules_ground._state.enemies[0].hp = 1
     _primary.hp = 1
-    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
@@ -442,7 +442,7 @@ class TestGroundPointBlankFire:
         )
 
         _rules_ground.init(_ctx, [_left, _right], _game_map)
-        monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+        monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
         monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
         run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
@@ -720,19 +720,19 @@ class TestRangeLineHidden:
 
         _flags_seen: list = []
 
-        def _fake_shot(console, ctx, game_map, from_pos, to_pos, weapon_id,
-                       *, is_hit, damage, render_callback):
+        async def _fake_shot(console, ctx, game_map, from_pos, to_pos, weapon_id,
+                             *, is_hit, damage, render_callback):
             _flags_seen.append(_rules_ground._state.range_line_hidden)
             render_callback(console, ctx, game_map)  # one frame mid-shot
 
         monkeypatch.setattr(_rules_ground, "_animate_ground_shot", _fake_shot)
         _rules_ground._state.range_line_hidden = False
 
-        _rules_ground.animate_fire(
+        run(_rules_ground.animate_fire(
             _console, _ctx, _game_map,
             world.Position(3, 3), world.Position(3, 5), True,
             None, weapon_id="fists",
-        )
+        ))
 
         assert _flags_seen == [True]
         assert _line_calls == []  # the mid-shot frame drew no range line
@@ -1100,7 +1100,7 @@ def test_demolitionist_increases_explosive_splash_without_increasing_primary():
 def test_explosive_fire_counts_successful_primary_hits(monkeypatch):
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
     _ctx.player_counters = SimpleNamespace(explosive_hits=0)
-    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
@@ -1191,7 +1191,7 @@ def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatc
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
     _rules_ground._state.enemies[1].hp = 5
     _neighbor.hp = 5
-    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
@@ -1205,7 +1205,7 @@ def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatc
 
 def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch):
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
-    monkeypatch.setattr(_rules_ground, "animate_fire", lambda *args, **kwargs: None)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 100))
 
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))

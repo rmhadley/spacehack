@@ -701,7 +701,7 @@ def _range_line_hidden() -> Iterator[None]:
     finally:
         _state.range_line_hidden = _was_hidden
 
-def animate_fire(
+async def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
     damage: DamagePopup = None,
@@ -715,7 +715,7 @@ def animate_fire(
     """
     _wid = weapon_id or ((player_weapons(ctx) or ["fists"])[0])
     with _range_line_hidden():
-        _animate_ground_shot(
+        await _animate_ground_shot(
             console, ctx, game_map,
             from_pos, to_pos,
             _wid, is_hit=is_hit,

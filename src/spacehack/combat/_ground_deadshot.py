@@ -163,7 +163,7 @@ async def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bo
         from ._animations import _MISS_POPUP, _damage_popup_for
         from ._shot_animations import _animate_ground_shot
         _popup = _MISS_POPUP if not _hit else _damage_popup_for(_dmg, 0, False)
-        _animate_ground_shot(
+        await _animate_ground_shot(
             console, ctx, game_map,
             ctx.player.pos, target.pos, weapon_id,
             is_hit=_hit, damage=_popup,

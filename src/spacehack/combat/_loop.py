@@ -42,14 +42,31 @@ async def _combat_action(ctx, console, rules=None) -> str:
                 continue
             if await _try_open_guide(event, ctx):
                 break
-            return _input_action(event, rules)
+            action = _input_action(event, rules)
+            if action:
+                return action
 
 
 def _input_action(
     event: pygame_engine.PygameInputEvent, rules=None,
 ) -> str:
-    """Translate a project input event to opaque combat action IDs."""
-    sym_name = event.key_name.lower()
+    """Translate a project input event to opaque combat action IDs.
+
+    Key repeats drive movement only — every other combat action runs
+    on the initial press. A held fire key must not keep spending AP on
+    later turns: the shot animations drain SDL while they play (so the
+    release is swallowed) while repeats that land between the last
+    animation drain and the next input poll still arrive, which reads
+    as a stuck key auto-firing.
+    """
+    action = _key_action(event.key_name.lower(), rules)
+    if event.repeat and not action.startswith("MOVE:"):
+        return ""
+    return action
+
+
+def _key_action(sym_name: str, rules=None) -> str:
+    """Map one combat key to its action id ("" when unmapped)."""
     if sym_name == "tab":
         return "TARGET"
     if sym_name in {"backslash", "nonusbackslash", "\\"}:
@@ -246,7 +263,7 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
         rules, ctx, _wid, target, _hit, _quality,
     )
-    rules.animate_fire(
+    await rules.animate_fire(
         console, ctx, game_map, ctx.player.pos, rules.enemy_pos(target),
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
@@ -340,7 +357,7 @@ async def _fire_explosive_weapon(
         0,
     )
     _popup = _damage_popup_for(_primary_damage, 0, False)
-    rules.animate_fire(
+    await rules.animate_fire(
         console, ctx, game_map, player_pos, rules.enemy_pos(target),
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )

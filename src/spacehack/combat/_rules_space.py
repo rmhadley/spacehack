@@ -655,7 +655,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.
 
-def animate_fire(
+async def animate_fire(
     console, ctx, game_map: world.GameMap,
     from_pos: world.Position, to_pos: world.Position, is_hit: bool,
     damage: DamagePopup = None,
@@ -672,7 +672,7 @@ def animate_fire(
     )
 
     _wid = weapon_id or (_state.weapons_list[0] if _state.weapons_list else "light_laser")
-    _animate_weapon_shot(
+    await _animate_weapon_shot(
         console, ctx, game_map,
         from_pos, to_pos,
         _wid, is_hit=is_hit,

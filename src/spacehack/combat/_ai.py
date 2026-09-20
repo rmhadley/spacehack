@@ -166,7 +166,7 @@ async def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
         hit_chances=hit_chances,
         player_mode="WAIT",
     )
-    await _responsive_sleep(animation_timing.GROUND_STEP)
+    await _responsive_sleep(animation_timing.GROUND_STEP, state.ctx.context)
 
 
 async def _enemy_attack(
@@ -183,7 +183,7 @@ async def _enemy_attack(
     ) = _resolve_enemy_shot(state, _ei, _wid)
     _e_ws = find_weapon(_wid)
     _ecx, _ecy = calc_cam()
-    _animate_weapon_shot(
+    await _animate_weapon_shot(
         state.console, state.ctx, state.game_map,
         _ei.pos, state.player_state["pos"],
         _wid, is_hit=_e_hit,

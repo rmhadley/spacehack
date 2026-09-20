@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Callable
+from typing import Awaitable, Callable
 
 from .. import world
 from ..data.weapons import find_weapon
@@ -93,7 +93,7 @@ class _FrameDriver:
 
     base_frame: Callable[[], None]
     present: Callable[[], None]
-    sleep: Callable[[float], None]
+    sleep: Callable[[float], Awaitable[None]]
 
 
 def _path_cells(
@@ -114,7 +114,7 @@ def _path_cells(
 # ---------------------------------------------------------------------------
 
 
-def _animate_floater_tail(
+async def _animate_floater_tail(
     driver: _FrameDriver,
     to_pos: world.Position,
     damage: DamagePopup,
@@ -143,10 +143,10 @@ def _animate_floater_tail(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.DAMAGE_POPUP)
+        await driver.sleep(animation_timing.DAMAGE_POPUP)
 
 
-def _animate_impact(
+async def _animate_impact(
     console,
     driver: _FrameDriver,
     to_pos: world.Position,
@@ -161,12 +161,12 @@ def _animate_impact(
     """Impact flash + floating-text drift at the target cell."""
     if damage is None:
         return
-    _impact_flash(
+    await _impact_flash(
         console, driver, to_pos, damage, _is_miss(damage),
         _popup_lifetime(damage),
         cam_x, cam_y, view_w, view_h, region_x, region_y,
     )
-    _animate_floater_tail(
+    await _animate_floater_tail(
         driver, to_pos, damage, 2,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -174,7 +174,7 @@ def _animate_impact(
     )
 
 
-def _impact_flash(
+async def _impact_flash(
     console,
     driver: _FrameDriver,
     to_pos: world.Position,
@@ -204,10 +204,10 @@ def _impact_flash(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.COMBAT_IMPACT)
+        await driver.sleep(animation_timing.COMBAT_IMPACT)
 
 
-def _animate_burst(
+async def _animate_burst(
     console,
     driver: _FrameDriver,
     center: tuple[int, int],
@@ -224,15 +224,15 @@ def _animate_burst(
     if damage is None:
         return
     lifetime = _popup_lifetime(damage)
-    _burst_rings(
+    await _burst_rings(
         console, driver, center, to_pos, damage, lifetime,
         cam_x, cam_y, view_w, view_h, region_x, region_y,
     )
-    _burst_flash(
+    await _burst_flash(
         console, driver, center, to_pos, damage, lifetime,
         cam_x, cam_y, view_w, view_h, region_x, region_y,
     )
-    _animate_floater_tail(
+    await _animate_floater_tail(
         driver, to_pos, damage, 4,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -240,7 +240,7 @@ def _animate_burst(
     )
 
 
-def _burst_rings(
+async def _burst_rings(
     console, driver, center, to_pos, damage, lifetime,
     cam_x, cam_y, view_w, view_h, region_x, region_y,
 ) -> None:
@@ -260,10 +260,10 @@ def _burst_rings(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.EXPLOSION_RING)
+        await driver.sleep(animation_timing.EXPLOSION_RING)
 
 
-def _burst_flash(
+async def _burst_flash(
     console, driver, center, to_pos, damage, lifetime,
     cam_x, cam_y, view_w, view_h, region_x, region_y,
 ) -> None:
@@ -282,7 +282,7 @@ def _burst_flash(
         region_x=region_x, region_y=region_y,
     )
     driver.present()
-    driver.sleep(animation_timing.EXPLOSION_FLASH)
+    await driver.sleep(animation_timing.EXPLOSION_FLASH)
 
 
 # ---------------------------------------------------------------------------
@@ -290,7 +290,7 @@ def _burst_flash(
 # ---------------------------------------------------------------------------
 
 
-def _animate_beam(
+async def _animate_beam(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -307,11 +307,11 @@ def _animate_beam(
     cells = _path_cells(from_pos, to_pos)
     lifetime = _popup_lifetime(damage)
     for frame in range(3):
-        _beam_frame(
+        await _beam_frame(
             console, driver, cells, to_pos, damage, frame, lifetime,
             cam_x, cam_y, view_w, view_h, region_x, region_y,
         )
-    _animate_impact(
+    await _animate_impact(
         console, driver, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -319,7 +319,7 @@ def _animate_beam(
     )
 
 
-def _beam_frame(
+async def _beam_frame(
     console, driver, cells, to_pos, damage, frame, lifetime,
     cam_x, cam_y, view_w, view_h, region_x, region_y,
 ) -> None:
@@ -346,10 +346,10 @@ def _beam_frame(
         region_x=region_x, region_y=region_y,
     )
     driver.present()
-    driver.sleep(animation_timing.COMBAT_BEAM)
+    await driver.sleep(animation_timing.COMBAT_BEAM)
 
 
-def _animate_plasma_bolt(
+async def _animate_plasma_bolt(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -365,11 +365,11 @@ def _animate_plasma_bolt(
     """Plasma: a glowing green bolt traveling one cell per frame."""
     cells = _path_cells(from_pos, to_pos)
     for i, (bx, by) in enumerate(cells):
-        _plasma_bolt_frame(
+        await _plasma_bolt_frame(
             console, driver, cells, i, (bx, by),
             cam_x, cam_y, view_w, view_h, region_x, region_y,
         )
-    _animate_impact(
+    await _animate_impact(
         console, driver, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -377,7 +377,7 @@ def _animate_plasma_bolt(
     )
 
 
-def _plasma_bolt_frame(
+async def _plasma_bolt_frame(
     console, driver, cells, i, head,
     cam_x, cam_y, view_w, view_h, region_x, region_y,
 ) -> None:
@@ -404,10 +404,10 @@ def _plasma_bolt_frame(
         region_x=region_x, region_y=region_y,
     )
     driver.present()
-    driver.sleep(animation_timing.COMBAT_PROJECTILE)
+    await driver.sleep(animation_timing.COMBAT_PROJECTILE)
 
 
-def _animate_missile(
+async def _animate_missile(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -424,11 +424,11 @@ def _animate_missile(
     cells = _path_cells(from_pos, to_pos)
     burst_center = _missile_burst_center(cells, _is_miss(damage))
     for i, (bx, by) in enumerate(cells):
-        _missile_frame(
+        await _missile_frame(
             console, driver, cells, i, (bx, by),
             cam_x, cam_y, view_w, view_h, region_x, region_y,
         )
-    _animate_burst(
+    await _animate_burst(
         console, driver, burst_center, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -467,7 +467,7 @@ def _missile_exhaust(
             )
 
 
-def _missile_frame(
+async def _missile_frame(
     console, driver, cells, i, head,
     cam_x, cam_y, view_w, view_h, region_x, region_y,
 ) -> None:
@@ -495,7 +495,7 @@ def _missile_frame(
             region_x=region_x, region_y=region_y,
         )
     driver.present()
-    driver.sleep(animation_timing.COMBAT_MISSILE)
+    await driver.sleep(animation_timing.COMBAT_MISSILE)
 
 
 def _tracer_char(cells: list[tuple[int, int]], index: int) -> str:
@@ -510,7 +510,7 @@ def _tracer_char(cells: list[tuple[int, int]], index: int) -> str:
     return "|"
 
 
-def _animate_tracer(
+async def _animate_tracer(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -524,11 +524,11 @@ def _animate_tracer(
     region_y: int = 0,
 ) -> None:
     """Kinetic: a muzzle flash, then a fast tracer two cells per frame."""
-    _tracer_travel(
+    await _tracer_travel(
         console, driver, from_pos, _path_cells(from_pos, to_pos),
         cam_x, cam_y, view_w, view_h, region_x, region_y,
     )
-    _animate_impact(
+    await _animate_impact(
         console, driver, to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -536,7 +536,7 @@ def _animate_tracer(
     )
 
 
-def _tracer_travel(
+async def _tracer_travel(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -557,7 +557,7 @@ def _tracer_travel(
         region_x=region_x, region_y=region_y,
     )
     driver.present()
-    driver.sleep(animation_timing.COMBAT_PROJECTILE)
+    await driver.sleep(animation_timing.COMBAT_PROJECTILE)
     for i in range(0, len(cells), 2):
         driver.base_frame()
         _draw_path_glyph(
@@ -567,10 +567,10 @@ def _tracer_travel(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.COMBAT_PROJECTILE)
+        await driver.sleep(animation_timing.COMBAT_PROJECTILE)
 
 
-def _animate_grenade(
+async def _animate_grenade(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -598,8 +598,8 @@ def _animate_grenade(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.COMBAT_MISSILE)
-    _animate_burst(
+        await driver.sleep(animation_timing.COMBAT_MISSILE)
+    await _animate_burst(
         console, driver, cells[-1], to_pos, damage,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -607,7 +607,7 @@ def _animate_grenade(
     )
 
 
-def _animate_melee(
+async def _animate_melee(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -636,8 +636,8 @@ def _animate_melee(
             region_x=region_x, region_y=region_y,
         )
         driver.present()
-        driver.sleep(animation_timing.COMBAT_MELEE)
-    _animate_floater_tail(
+        await driver.sleep(animation_timing.COMBAT_MELEE)
+    await _animate_floater_tail(
         driver, to_pos, damage, 2,
         cam_x=cam_x, cam_y=cam_y,
         view_w=view_w, view_h=view_h,
@@ -657,7 +657,7 @@ _FAMILY_ANIMATORS: dict[str, Callable] = {
 }
 
 
-def _run_family_animation(
+async def _run_family_animation(
     console,
     driver: _FrameDriver,
     from_pos: world.Position,
@@ -677,7 +677,7 @@ def _run_family_animation(
     animator = _FAMILY_ANIMATORS.get(
         _shot_family(weapon_id, ground=ground), _animate_beam,
     )
-    animator(
+    await animator(
         console, driver, from_pos, to_pos, damage,
         cam_x, cam_y, view_w, view_h, region_x, region_y,
     )
@@ -688,7 +688,7 @@ def _run_family_animation(
 # ---------------------------------------------------------------------------
 
 
-def _animate_weapon_shot(
+async def _animate_weapon_shot(
     console,
     context,
     game_map: world.GameMap,
@@ -717,7 +717,7 @@ def _animate_weapon_shot(
         player_state, enemies, target_idx, log, weapon_list,
         active_weapons, evade_bonus, hit_chances,
     )
-    _run_family_animation(
+    await _run_family_animation(
         console, driver, shooter_pos, target_pos, weapon_id,
         _MISS_POPUP if not is_hit else damage,
         cam_x=cam_x, cam_y=cam_y,
@@ -757,7 +757,7 @@ def _space_frame_driver(
     return _FrameDriver(
         base_frame=_base,
         present=lambda: _present(context, console),
-        sleep=_responsive_sleep,
+        sleep=lambda seconds: _responsive_sleep(seconds, context),
     )
 
 
@@ -766,7 +766,7 @@ def _space_frame_driver(
 # ---------------------------------------------------------------------------
 
 
-def _animate_ground_shot(
+async def _animate_ground_shot(
     console,
     ctx,
     game_map: world.GameMap,
@@ -782,7 +782,7 @@ def _animate_ground_shot(
     driver, cam_x, cam_y, rx, ry, gw, gh = _ground_frame_driver(
         ctx, console, game_map, render_callback,
     )
-    _run_family_animation(
+    await _run_family_animation(
         console, driver, from_pos, to_pos, weapon_id,
         _MISS_POPUP if not is_hit else damage,
         cam_x=cam_x, cam_y=cam_y,
@@ -806,6 +806,6 @@ def _ground_frame_driver(ctx, console, game_map, render_callback):
     driver = _FrameDriver(
         base_frame=_base,
         present=lambda: _present(ctx, console),
-        sleep=_responsive_sleep,
+        sleep=lambda seconds: _responsive_sleep(seconds, ctx.context),
     )
     return driver, cam_x, cam_y, rx, ry, _gw, _gh

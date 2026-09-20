@@ -7,7 +7,7 @@ one round each, and stop on a miss, a survivor, or an empty magazine.
 """
 
 from __future__ import annotations
-from tests.support.asyncutil import run
+from tests.support.asyncutil import run, as_async
 
 import sys
 from pathlib import Path
@@ -64,7 +64,7 @@ def _force_hits(monkeypatch, chain_rolls):
         SimpleNamespace(randint=lambda *_a: next(_rolls)),
     )
     monkeypatch.setattr(
-        _rules_ground, "animate_fire", lambda *a, **k: None,
+        _rules_ground, "animate_fire", as_async(lambda *a, **k: None),
     )
 
 
