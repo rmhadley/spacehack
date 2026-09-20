@@ -41,6 +41,21 @@ _ROOM_EQUIPMENT_POOLS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 WRECK_EQUIPMENT_RATE: int = 3
 
+# Room-typed module presence (doc 47.3 SETTLED 15): spare reactors in
+# the engine room, crate-packed system modules in the cargo bay — no
+# layout has a "systems" room. Opening guesses, tuned at playtest;
+# pool contents are authoring guesses, never mechanism bans (SETTLED 17).
+_ROOM_MODULE_POOLS: dict[str, tuple[tuple[str, str], ...]] = {
+    "engine_room": (
+        ("module", "compact_reactor"), ("module", "reactor_mk2"),
+    ),
+    "cargo_bay": (
+        ("module", "shield_mk1"), ("module", "shield_capacitor"),
+        ("module", "targeting_computer"), ("module", "expanded_cargo"),
+    ),
+}
+WRECK_MODULE_RATE: int = 4
+
 
 @dataclass
 class _LayoutBuild:
@@ -378,18 +393,19 @@ def _append_equipment_loot(
     _append_container(build, x, y, loot_fg(payload), payload)
 
 
-def _scatter_room_equipment(build: _LayoutBuild) -> None:
-    """Roll one gear presence per equipment-bearing loot marker.
-
-    Runs strictly after the goods passes so pre-existing seeded
-    layouts draw the same goods they always did.
-    """
+def _scatter_pool_presence(
+    build: _LayoutBuild,
+    pools: dict[str, tuple[tuple[str, str], ...]],
+    rate: int,
+) -> None:
+    """Roll one 1-in-N presence per pool-bearing loot marker; a hit
+    drops one pooled item at WRECK-ladder quality."""
     from .engine import RNG
 
     for marker in build.loot_markers:
         room_type = marker[0]
-        pool = _ROOM_EQUIPMENT_POOLS.get(room_type)
-        if not pool or RNG.randint(1, WRECK_EQUIPMENT_RATE) != 1:
+        pool = pools.get(room_type)
+        if not pool or RNG.randint(1, rate) != 1:
             continue
         cells = _room_cells_for_marker(build, marker)
         if not cells:
@@ -398,6 +414,17 @@ def _scatter_room_equipment(build: _LayoutBuild) -> None:
         item_type, item_id = RNG.choice(pool)
         quality = roll_quality(WRECK_QUALITY_RATES, RNG)
         _append_equipment_loot(build, x, y, item_type, item_id, quality)
+
+
+def _scatter_room_equipment(build: _LayoutBuild) -> None:
+    """Roll gear + module presence per equipment-bearing loot marker.
+
+    Runs strictly after the goods passes so pre-existing seeded
+    layouts draw the same goods they always did; the equipment pool
+    draws before the module pool so its sequence is unchanged too.
+    """
+    _scatter_pool_presence(build, _ROOM_EQUIPMENT_POOLS, WRECK_EQUIPMENT_RATE)
+    _scatter_pool_presence(build, _ROOM_MODULE_POOLS, WRECK_MODULE_RATE)
 
 
 # The capture strip's room (doc 47.3 SETTLED 15's audit follow-on):

@@ -13,8 +13,18 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import pytest
+
+from src.spacehack import dungeon_layout
 from src.spacehack.dungeon_layout import load_layout
 from src.spacehack.ship import StoredEquipment
+
+
+@pytest.fixture(autouse=True)
+def _no_room_module_pool(monkeypatch):
+    """Strip tests isolate the capture path from the wreck room pool
+    (pool tests override the rate or script the RNG themselves)."""
+    monkeypatch.setattr(dungeon_layout, "WRECK_MODULE_RATE", 10**9)
 
 _ENGINE_ROOM_LAYOUT = """\
 MAP
@@ -125,3 +135,86 @@ def test_capture_strip_survives_a_spawnless_layout(tmp_path):
         (payload["item_id"], payload.get("quality", 0))
         for payload in _module_payloads(game_map)
     ] == [("shield_mk1", 0)]
+
+
+# ---------------------------------------------------------------------------
+# Wreck room pools (doc 47.3 SETTLED 15)
+# ---------------------------------------------------------------------------
+
+_BOTH_ROOMS_LAYOUT = """\
+MAP
+#############
+#P..#3...#4.#
+#...#....#..#
+#############
+ENDMAP
+TILE: . = DUNGEON_FLOOR
+LOOT: 3 = engine_room
+LOOT: 4 = cargo_bay
+"""
+
+
+class _LowRng:
+    """Every randint returns its low bound: every presence roll hits,
+    first cell, first pool entry, tier-3 quality."""
+
+    def randint(self, low, high):
+        return low
+
+    def choice(self, seq):
+        return seq[0]
+
+    def random(self):
+        return 0.0
+
+    def shuffle(self, seq):
+        pass
+
+
+class _HighRng:
+    """Every randint returns its high bound: every presence roll
+    misses."""
+
+    def randint(self, low, high):
+        return high
+
+    def choice(self, seq):
+        return seq[0]
+
+    def random(self):
+        return 1.0
+
+    def shuffle(self, seq):
+        pass
+
+
+def test_room_module_pools_feed_engine_and_cargo_rooms(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.spacehack.engine.RNG", _LowRng())
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _BOTH_ROOMS_LAYOUT),
+    )
+    # Engine rooms host engine-slot reactors; cargo bays host the
+    # system-slot spare-parts pool (SETTLED 15).
+    assert {
+        (payload["item_id"], payload.get("quality", 0))
+        for payload in _module_payloads(game_map)
+    } == {("compact_reactor", 3), ("shield_mk1", 3)}
+
+
+def test_room_module_presence_misses_leave_no_modules(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.spacehack.engine.RNG", _HighRng())
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _BOTH_ROOMS_LAYOUT),
+    )
+    assert _module_payloads(game_map) == []
+
+
+def test_wreck_module_rate_wiring_is_one_in_n(tmp_path, monkeypatch):
+    """The authored rate threads through: a 1-in-1 rate always hits."""
+    from src.spacehack import dungeon_layout
+
+    monkeypatch.setattr(dungeon_layout, "WRECK_MODULE_RATE", 1)
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+    )
+    assert len(_module_payloads(game_map)) == 1
