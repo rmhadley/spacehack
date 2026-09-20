@@ -657,6 +657,7 @@ async def begin_capture_boarding(ctx, console, cr):
             _spec.capture_layout_id, loot_budget=_spec.loot_budget,
             component_good_id=getattr(_heist_m, 'heist_target_good_id', None),
             component_mission_id=getattr(_heist_m, 'mission_id', None),
+            capture_modules=getattr(cr, 'boarded_modules', ()) or (),
         )
     except (FileNotFoundError, ValueError):
         ctx.log.add(

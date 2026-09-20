@@ -400,6 +400,69 @@ def _scatter_room_equipment(build: _LayoutBuild) -> None:
         _append_equipment_loot(build, x, y, item_type, item_id, quality)
 
 
+# The capture strip's room (doc 47.3 SETTLED 15's audit follow-on):
+# engine rooms host the pulled hardware.
+_CAPTURE_STRIP_ROOM = "engine_room"
+
+
+def _walkable_cell(build: _LayoutBuild, x: int, y: int) -> bool:
+    """True when (x, y) is an in-bounds walkable cell."""
+    return (
+        0 <= y < len(build.tiles)
+        and 0 <= x < len(build.tiles[0])
+        and build.tiles[y][x].walkable
+    )
+
+
+def _spawn_adjacent_positions(build: _LayoutBuild) -> list[tuple[int, int]]:
+    """Walkable cells in the spawn's 8-neighborhood (strip fallback)."""
+    spawn = build.spawn_pos
+    if spawn is None:
+        return []
+    return [
+        (spawn.x + dx, spawn.y + dy)
+        for dy in (-1, 0, 1)
+        for dx in (-1, 0, 1)
+        if (dx or dy) and _walkable_cell(build, spawn.x + dx, spawn.y + dy)
+    ]
+
+
+def _capture_strip_cell(
+    build: _LayoutBuild, markers, index: int, fallback, rng,
+) -> tuple[int, int] | None:
+    """Pick one cell for strip item ``index``: round-robin engine-room
+    markers first, spawn-adjacent fallback, the spawn cell last."""
+    if markers:
+        cells = _room_cells_for_marker(build, markers[index % len(markers)])
+        if cells:
+            return cells[rng.randint(0, len(cells) - 1)]
+    if fallback:
+        return fallback[index % len(fallback)]
+    spawn = build.spawn_pos
+    return (spawn.x, spawn.y) if spawn is not None else None
+
+
+def _seed_capture_modules(build: _LayoutBuild, capture_modules) -> None:
+    """The capture strip (doc 47.3 SETTLED 14/16): an intact capture
+    drops its whole flown module list — the instances that fought, at
+    the quality they flew, no re-roll. Dead-ship interiors (wrecks,
+    derelicts, mission salvage) never pass modules: their hardware
+    died with the hull, so they feed from room scatter only."""
+    from .engine import RNG
+
+    engine_markers = [
+        marker for marker in build.loot_markers
+        if marker[0] == _CAPTURE_STRIP_ROOM
+    ]
+    fallback = _spawn_adjacent_positions(build)
+    for index, entry in enumerate(capture_modules):
+        pos = _capture_strip_cell(build, engine_markers, index, fallback, RNG)
+        if pos is not None:
+            _append_equipment_loot(
+                build, pos[0], pos[1], "module", entry.item_id, entry.quality,
+            )
+
+
 def _scatter_loot(build: _LayoutBuild, parsed: layout_format.ParsedLayout, budget) -> None:
     """Scatter guaranteed or budget-constrained loot containers."""
     from .engine import RNG
@@ -442,16 +505,46 @@ def _place_component(
     build.entities.append(component)
 
 
+def _populate_build(
+    build: _LayoutBuild,
+    parsed: layout_format.ParsedLayout,
+    layout_id: str,
+    *,
+    loot_budget,
+    component_good_id: str | None,
+    component_mission_id: str | None,
+    capture_modules: tuple,
+) -> None:
+    """Run the full scatter/populate pipeline over a built layout.
+
+    Order is load-bearing: enemies → goods → mission component →
+    gear presence → capture strip, so pre-existing seeded layouts
+    keep drawing the goods they always did before any new consumer.
+    """
+    _scatter_layout_enemies(build, parsed, layout_id)
+    _scatter_loot(build, parsed, loot_budget)
+    if component_good_id is not None and component_mission_id is not None:
+        _place_component(build, parsed, component_good_id, component_mission_id)
+    _scatter_room_equipment(build)
+    if capture_modules:
+        _seed_capture_modules(build, capture_modules)
+
+
 def load_layout(
     layout_id: str,
     *,
     loot_budget: tuple[int, int] | None = None,
     component_good_id: str | None = None,
     component_mission_id: str | None = None,
+    capture_modules: tuple = (),
     layout_dir: pathlib.Path | None = None,
     require_spawn: bool = True,
 ) -> tuple[world.GameMap, world.Position | None]:
-    """Parse an authored layout and return its runtime map and spawn."""
+    """Parse an authored layout and return its runtime map and spawn.
+
+    ``capture_modules`` (flown ``StoredEquipment`` instances) seeds the
+    intact-capture strip — only the combat boarding path passes it.
+    """
     path = (layout_dir or _LAYOUT_DIR) / f"{layout_id}.layout"
     if not path.exists():
         raise FileNotFoundError(f"Layout not found: {path}")
@@ -461,13 +554,13 @@ def load_layout(
     build = _build_tiles(parsed, require_spawn)
     _apply_hull_groups(build, parsed.map_lines)
     _apply_colours(build, parsed.map_lines, parsed.colour_overrides)
-    _scatter_layout_enemies(build, parsed, layout_id)
-    _scatter_loot(build, parsed, loot_budget)
-    if component_good_id is not None and component_mission_id is not None:
-        _place_component(build, parsed, component_good_id, component_mission_id)
-    # Gear presence runs after mission component placement so a
-    # presence hit never shifts a mission component's position.
-    _scatter_room_equipment(build)
+    _populate_build(
+        build, parsed, layout_id,
+        loot_budget=loot_budget,
+        component_good_id=component_good_id,
+        component_mission_id=component_mission_id,
+        capture_modules=capture_modules,
+    )
     game_map = world.GameMap(
         width=parsed.width,
         height=parsed.height,
