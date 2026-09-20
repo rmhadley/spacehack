@@ -335,6 +335,16 @@ Four rulings from the quality-system refinement session
   modded/overclocked/prototype (SETTLED 10), `TradeGood.rarity`
   removal, `DigLootSpec` quality rates. No rare-pickup modal
   (SETTLED 12 — phase 4).
+  **BUILT 2026-09-19** in seven reviewed commits (4080e2e quality
+  data module; 596fe7d instance threading; 3f8a896 armor-dict
+  migration; f40e82e combat scaling; 9d36095 drop-time rolls;
+  4c5a784 labels/brightness/sell; d5f329e rarity removal) — every
+  code commit reviewer-gated (three rounds came back
+  REQUEST_CHANGES: deadshot chain + HUD readouts unthreaded; false
+  test pins + a band-2 tech leak; a stray-async manage-chooser
+  regression + reload/attack-line label seams — all fixed and
+  re-reviewed). Awaiting playtest; guide entry drafted in the
+  brief, approval-gated at the checkpoint.
 - [ ] 3. **Modules as loot** — payload shape → ship storage,
   boarding/derelict room pools, boarded-ship live `modules`
   drops, mechanic economy check.
