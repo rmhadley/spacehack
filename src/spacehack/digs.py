@@ -340,10 +340,25 @@ def _site_tier(spec: PlanetSpec) -> int:
     return max(1, min(3, spec.mission_tier))
 
 
+def _goods_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
+    """The goods cache payload: a 1-in-N off-world hit swaps the
+    planet's own good for a pool import (doc 47.4 SETTLED 23). A pool
+    exhausted by this planet's produces keeps the row."""
+    from .data.digs import DIG_LOOT_SPEC, OUT_OF_PRODUCE_GOODS
+
+    if engine.RNG.randint(1, DIG_LOOT_SPEC.out_of_produce_rate) == 1:
+        produced = {good_id for good_id, _qty in spec.produces}
+        pool = [good for good in OUT_OF_PRODUCE_GOODS if good not in produced]
+        if pool:
+            return {"good_id": engine.RNG.choice(pool), "quantity": goods_row[1]}
+    return {"good_id": goods_row[0], "quantity": goods_row[1]}
+
+
 def _dig_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
     """One cache payload: the lockbox rare-cache variant (doc 47.4
     SETTLED 22), else tier-banded gear on the equipment roll, else
-    the goods row (doc 47.2). Quality rolls through the spec's rates."""
+    the goods row with the off-world swap (doc 47.2/47.4). Quality
+    rolls through the spec's rates."""
     from .data.digs import DIG_LOOT_SPEC, TIER_EQUIPMENT_POOLS
     from .data.quality import roll_quality
     from .loot_common import LOCKBOX_KIND, credits_payload, equipment_payload
@@ -353,7 +368,7 @@ def _dig_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
             engine.RNG.randint(*DIG_LOOT_SPEC.lockbox_value), LOCKBOX_KIND,
         )
     if engine.RNG.randint(1, DIG_LOOT_SPEC.equipment_rate) != 1:
-        return {"good_id": goods_row[0], "quantity": goods_row[1]}
+        return _goods_cache_payload(spec, goods_row)
     item_type, item_id = engine.RNG.choice(
         TIER_EQUIPMENT_POOLS[_site_tier(spec)],
     )

@@ -496,7 +496,8 @@ def test_generate_dig_scatters_caches(monkeypatch):
     caches = [
         e for e in f1.entities
         if e.loot_data and ("good_id" in e.loot_data
-                            or e.loot_data.get("item_type") in {"weapon", "armor"})
+                            or e.loot_data.get("item_type") in {"weapon", "armor"}
+                            or e.loot_data.get("credits_kind") == "lockbox")
     ]
     assert 2 <= len(caches) <= 3
     produced = {good for good, _ in find_planet_spec("mars").produces}
@@ -504,11 +505,16 @@ def test_generate_dig_scatters_caches(monkeypatch):
     tier_pool = {item for _, item in TIER_EQUIPMENT_POOLS[1]}
     for cache in caches:
         if "good_id" in cache.loot_data:
-            assert cache.loot_data["good_id"] in produced
-        else:
+            # The row's own good, or an off-world pool import on the
+            # 1-in-N swap (SETTLED 23) — never anything else.
+            from src.spacehack.data.digs import OUT_OF_PRODUCE_GOODS
+            assert cache.loot_data["good_id"] in produced | set(OUT_OF_PRODUCE_GOODS)
+        elif "item_id" in cache.loot_data:
             # Gear caches draw from the site tier's pool (doc 47.2).
             assert cache.loot_data["item_id"] in tier_pool
             assert "quantity" not in cache.loot_data
+        # else: a lockbox replaced this cache (its value range is
+        # pinned by the dedicated lockbox test).
 
 
 def test_generate_dig_without_produces_has_no_goods_caches(monkeypatch):
@@ -812,3 +818,76 @@ def test_dig_lockbox_is_the_rare_cache_variant(monkeypatch):
     assert not [
         e for e in f1.entities if (e.loot_data or {}).get("good_id")
     ]
+
+
+
+# --- the off-world cache pool (doc 47 phase 4, SETTLED 23) --------------------
+
+
+def test_off_world_rolls_exclude_the_planets_own_produces(monkeypatch):
+    from src.spacehack.data import digs as digs_data
+    from src.spacehack.data.digs import OUT_OF_PRODUCE_GOODS
+    custom = dataclasses.replace(
+        DIG_LOOT_SPEC, out_of_produce_rate=1, cache_count=(4, 4),
+        equipment_rate=10**9, lockbox_rate=10**9, legendary_bottom=False,
+    )
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    produced = {good for good, _qty in find_planet_spec("mars").produces}
+    goods_caches = [
+        e for e in f1.entities if (e.loot_data or {}).get("good_id")
+    ]
+    assert len(goods_caches) == 4
+    for cache in goods_caches:
+        assert cache.loot_data["good_id"] not in produced
+        assert cache.loot_data["good_id"] in OUT_OF_PRODUCE_GOODS
+
+
+def test_exhausted_off_world_pool_keeps_the_goods_row(monkeypatch):
+    """A planet producing every pool good keeps its own goods: the
+    off-world roll HITS (rate 1, roll 1), the pool filters empty, and
+    no choice draw may happen."""
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(DIG_LOOT_SPEC, out_of_produce_rate=1)
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    spec = dataclasses.replace(
+        find_planet_spec("mars"),
+        produces=tuple((good, 5) for good in digs_data.OUT_OF_PRODUCE_GOODS),
+    )
+
+    class _ScriptRng:
+        """Bounds-asserting scripted rolls ([2, 2, 1] = lockbox miss,
+        presence miss, guaranteed off-world hit)."""
+
+        def __init__(self):
+            self._values = [2, 2, 1]
+
+        def randint(self, low, high):
+            value = self._values.pop(0)
+            assert low <= value <= high, (value, low, high)
+            return value
+
+        def choice(self, seq):
+            raise AssertionError("no draw once the pool filters empty")
+
+    monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=_ScriptRng()))
+    assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
+        "good_id": "ore_processed", "quantity": 3,
+    }
+
+
+def test_off_world_pool_stays_off_the_story_goods():
+    """Quest-loot security: the pool draws only ordinary market goods
+    — the act0 chain's story goods can never roll in a cache."""
+    from src.spacehack.data.digs import OUT_OF_PRODUCE_GOODS
+    from src.spacehack.data.trade_goods import _registry
+
+    story_goods = {
+        "power_cell", "power_cell_charged", "escrow_ore",
+        "sealed_requisition", "smelted_alloy", "reference_recorder",
+        "alien_device", "calibration_data", "unregistered_arms",
+    }
+    assert set(OUT_OF_PRODUCE_GOODS) <= set(_registry())
+    assert set(OUT_OF_PRODUCE_GOODS) & story_goods == set()
+

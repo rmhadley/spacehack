@@ -611,10 +611,9 @@ class TestDropTimeQualityRolls:
     def test_dig_cache_payload_gear_and_goods_branches(self, monkeypatch):
         from spacehack import digs
 
-        spec = SimpleNamespace(mission_tier=2)
-        # [lockbox miss, presence miss] -> goods (doc 47.4 added the
-        # lockbox draw ahead of the equipment presence roll).
-        rng = self._ScriptRng([2, 2, 0, 1, 1, 1])
+        spec = SimpleNamespace(mission_tier=2, produces=(("ore_processed", 5),))
+        # [lockbox miss, presence miss, off-world miss] -> the row's good.
+        rng = self._ScriptRng([2, 2, 2])
         monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
         assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
             "good_id": "ore_processed", "quantity": 3,
@@ -636,6 +635,18 @@ class TestDropTimeQualityRolls:
         monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
         assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
             "credits": 500, "credits_kind": "lockbox",
+        }
+
+        # [lockbox miss, presence miss, off-world hit] -> a pool good
+        # this planet does not produce (SETTLED 23).
+        rng = self._ScriptRng([2, 2, 1, 0])
+        monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
+        payload = digs._dig_cache_payload(spec, ("ore_processed", 3))
+        assert payload["quantity"] == 3
+        from spacehack.data.digs import OUT_OF_PRODUCE_GOODS
+        assert payload["good_id"] in {
+            good for good in OUT_OF_PRODUCE_GOODS
+            if good != "ore_processed"
         }
 
     def test_pickup_threads_quality_into_the_stored_entry(self):

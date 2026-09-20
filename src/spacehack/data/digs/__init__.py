@@ -40,6 +40,17 @@ class DigLootSpec:
 
 DIG_LOOT_SPEC = DigLootSpec()
 
+# The off-world pool (doc 47 phase 4, SETTLED 23): ordinary market
+# goods most planets don't produce — import flavor, better margins
+# selling elsewhere. Story-bound goods (the act0 chain's power cells,
+# escrow ore, sealed requisitions) stay out. Opening guess, tuned at
+# playtest; the draw additionally excludes the planet's own produces.
+OUT_OF_PRODUCE_GOODS: tuple[str, ...] = (
+    "medical_supplies", "pharmaceuticals", "electronics",
+    "luxury_goods", "machine_parts", "ship_components",
+    "rare_earth_metals", "textiles",
+)
+
 # Phase-2 dig-cache gear (doc 47.2): an equipment cache rolls one
 # entry from the site tier's pool. Pools draw from existing catalogs;
 # opening guesses, tuned at playtest.
