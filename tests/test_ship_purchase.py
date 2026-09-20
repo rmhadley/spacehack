@@ -48,7 +48,7 @@ def test_ship_upgrade_moves_old_loadout_to_storage_and_keeps_new_starting_loadou
     old_ship = ship_module.OwnedShip(
         ship_id="starter",
         weapons=("light_missile", "light_laser"),
-        modules=("shield_mk1", "shield_mk1"),
+        modules=(ship_module.StoredEquipment("module", "shield_mk1"),) * 2,
         mission_reserved=7,
     )
     old_ship.weapon_ammo[0] = 1
@@ -68,7 +68,7 @@ def test_ship_upgrade_moves_old_loadout_to_storage_and_keeps_new_starting_loadou
     assert purchased is ctx.player_owned_ship
     assert purchased.ship_id == "scout"
     assert purchased.weapons == new_ship.start_weapons
-    assert purchased.modules == new_ship.start_modules
+    assert purchased.modules == ship_module.base_module_entries(new_ship.start_modules)
     assert purchased.mission_reserved == 7
     assert ctx.stats.credits == 5_250
     assert old_entity not in game_map.entities
@@ -86,7 +86,7 @@ def test_unaffordable_ship_upgrade_leaves_old_ship_and_storage_unchanged():
     old_ship = ship_module.OwnedShip(
         ship_id="starter",
         weapons=("light_laser",),
-        modules=("shield_mk1",),
+        modules=(ship_module.StoredEquipment("module", "shield_mk1"),),
     )
     ctx, game_map, old_entity, blocker = _purchase_context(old_ship, credits=100)
     new_ship = ship_module.find_ship("scout")
@@ -105,7 +105,7 @@ def test_unaffordable_ship_upgrade_leaves_old_ship_and_storage_unchanged():
     assert ctx.stats.credits == 100
     assert ctx.player_owned_ship is old_ship
     assert old_ship.weapons == ("light_laser",)
-    assert old_ship.modules == ("shield_mk1",)
+    assert old_ship.modules == (ship_module.StoredEquipment("module", "shield_mk1"),)
     assert ctx.ship_storage == []
     assert old_entity in game_map.entities
     assert blocker.owned is False
@@ -117,7 +117,7 @@ def test_ship_buy_result_buy_routes_through_upgrade_transfer():
     old_ship = ship_module.OwnedShip(
         ship_id="starter",
         weapons=("light_missile",),
-        modules=("shield_mk1",),
+        modules=(ship_module.StoredEquipment("module", "shield_mk1"),),
     )
     ctx, game_map, old_entity, blocker = _purchase_context(old_ship, credits=4_750)
     new_ship = ship_module.find_ship("scout")
@@ -173,7 +173,7 @@ def test_ship_buy_back_outcome_does_not_mutate_upgrade_state(monkeypatch):
     old_ship = ship_module.OwnedShip(
         ship_id="starter",
         weapons=("light_missile",),
-        modules=("shield_mk1",),
+        modules=(ship_module.StoredEquipment("module", "shield_mk1"),),
     )
     ctx, game_map, old_entity, blocker = _purchase_context(old_ship, credits=4_750)
     ctx.context = object()
@@ -240,7 +240,7 @@ def test_indoor_buy_parks_on_parent_pad_and_empties_showroom():
     old_ship = ship_module.OwnedShip(
         ship_id="starter",
         weapons=("light_laser",),
-        modules=("shield_mk1",),
+        modules=(ship_module.StoredEquipment("module", "shield_mk1"),),
         mission_reserved=3,
     )
     ctx, parent, interior, old_entity, display = _indoor_purchase_context(old_ship)

@@ -13,8 +13,7 @@ from .. import world
 from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
-from ..data.modules import find_module as find_module_spec
-from ..data.quality import KILL_QUALITY_RATES, roll_quality
+from ..data.quality import KILL_QUALITY_RATES, effective_module_spec, roll_quality
 from ..engine import RNG
 from ..loot_common import enforce_loot_cap, equipment_payload, loot_fg
 
@@ -410,11 +409,13 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     same fractional regeneration with carry as the player.
     """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
-    # Module shield recharge bonus.
+    # Module shield recharge bonus (quality-scaled, doc 47.3).
     _module_recharge = 0
-    for _mod_id in getattr(enemy, 'modules', ()) or ():
+    for _entry in getattr(enemy, 'modules', ()) or ():
         try:
-            _module_recharge += find_module_spec(_mod_id).shield_recharge_bonus
+            _module_recharge += effective_module_spec(
+                _entry.item_id, _entry.quality,
+            ).shield_recharge_bonus
         except KeyError:
             pass
     if enemy.max_shields > 0 and enemy.shields < enemy.max_shields:

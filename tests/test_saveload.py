@@ -807,7 +807,7 @@ class TestSaveLoadRoundTrip:
         ctx.player_owned_ship = OwnedShip(
             ship_id="starter",
             weapons=("light_missile", "light_laser"),
-            modules=("shield_mk1", "shield_mk1"),
+            modules=(StoredEquipment("module", "shield_mk1"),) * 2,
         )
         ctx.player_owned_ship.weapon_ammo[0] = 1
         move_installed_equipment_to_storage(
@@ -1356,6 +1356,80 @@ class TestSaveLoadRoundTrip:
         delete_save()
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
+
+    def test_module_quality_survives_installed_and_stored(self, monkeypatch, tmp_path):
+        """Variant modules keep their tier through Continue, both
+        installed on the ship and sitting in storage (doc 47.3)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(47)
+        from src.spacehack.ship import OwnedShip
+
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "shield_mk2", quality=2),
+                StoredEquipment("module", "compact_reactor"),
+            ),
+        )
+        ctx.ship_storage = [StoredEquipment("module", "armor_plating", quality=3)]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        ship = loaded.player_owned_ship
+        assert ship is not None
+        assert ship.modules == (
+            StoredEquipment("module", "shield_mk2", quality=2),
+            StoredEquipment("module", "compact_reactor"),
+        )
+        assert loaded.ship_storage == [
+            StoredEquipment("module", "armor_plating", quality=3),
+        ]
+        delete_save()
+
+    def test_legacy_owned_ship_modules_migrate_to_base_entries(self):
+        """Pre-instance saves carry bare module ids (or dicts without
+        quality) — both load as base entries, unknown ids drop."""
+        from src.spacehack.saveload import _parse_owned_ship
+
+        osh = _parse_owned_ship({"player_owned_ship": {
+            "ship_id": "scout",
+            "modules": [
+                "shield_mk1",
+                {"item_type": "module", "item_id": "shield_mk2", "quality": 3},
+                {"item_type": "module", "item_id": "no_such_module"},
+                42,
+            ],
+        }})
+        assert osh is not None
+        assert osh.modules == (
+            StoredEquipment("module", "shield_mk1"),
+            StoredEquipment("module", "shield_mk2", quality=3),
+        )
+
+    def test_stored_equipment_quality_parses_or_migrates_to_base(self):
+        from src.spacehack.saveload import _stored_equipment_from_dict
+
+        base = {"item_type": "module", "item_id": "shield_mk1"}
+        assert _stored_equipment_from_dict(base) == StoredEquipment(
+            "module", "shield_mk1",
+        )
+        assert _stored_equipment_from_dict(
+            {**base, "quality": 2},
+        ) == StoredEquipment("module", "shield_mk1", quality=2)
+        # Malformed or out-of-ladder quality migrates to base (0).
+        assert _stored_equipment_from_dict(
+            {**base, "quality": "junk"},
+        ) == StoredEquipment("module", "shield_mk1")
+        assert _stored_equipment_from_dict(
+            {**base, "quality": 99},
+        ) == StoredEquipment("module", "shield_mk1")
 
 
 class TestCityInteriorSaveMigration:

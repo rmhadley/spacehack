@@ -18,11 +18,48 @@ from .data.ships import Ship, find_ship
 
 @dataclass(frozen=True)
 class StoredEquipment:
-    """One ship weapon or module held in the player's global storage."""
+    """One ship weapon or module held in the player's global storage.
+
+    ``quality`` is the rolled instance tier (doc 47.3): 0 = base shop
+    stock; looted modules carry the tier they dropped at.
+    """
 
     item_type: str
     item_id: str
     ammo: int | None = None
+    quality: int = 0
+
+
+def parse_module_entry(raw) -> StoredEquipment | None:
+    """Parse one installed-module save entry, migrating legacy shapes.
+
+    Legacy ``OwnedShip.modules`` entries were bare id strings; the
+    instance shape is ``StoredEquipment``. A missing or malformed
+    quality tier migrates to base (0). Unknown ids return None.
+    """
+    from .ground_equipment import parse_quality
+
+    if isinstance(raw, str):
+        module_id, quality = raw, 0
+    elif isinstance(raw, dict):
+        module_id = raw.get("item_id")
+        quality = parse_quality(raw.get("quality"))
+    else:
+        return None
+    if not isinstance(module_id, str) or not module_id:
+        return None
+    from .data.modules import find_module as _fm
+    try:
+        _fm(module_id)
+    except KeyError:
+        return None
+    return StoredEquipment("module", module_id, quality=quality)
+
+
+def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
+    """Base-quality entries for a bare-id module list (ship catalog
+    starts, NPC specs, out-of-combat displays)."""
+    return tuple(StoredEquipment("module", module_id) for module_id in module_ids)
 
 
 def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
@@ -136,7 +173,9 @@ class OwnedShip:
     display_name: str | None = None
     hull_damage_pct: int = 0
     weapons: tuple[str, ...] = field(default_factory=tuple)
-    modules: tuple[str, ...] = field(default_factory=tuple)
+    # Installed modules as quality-bearing instances (doc 47.3) —
+    # StoredEquipment items everywhere; readers take ``.item_id``.
+    modules: tuple[StoredEquipment, ...] = field(default_factory=tuple)
     fuel: int = 0  # current fuel; reset to ship.max_fuel by the buy-ship flow
     cargo_ammo: int = 0           # cargo consumed by missile ammo (mutated by combat)
     mission_reserved: int = 0     # cargo reserved by active delivery missions
@@ -199,54 +238,51 @@ def hull_integrity_pct(owned: OwnedShip) -> int:
     return max(0, min(100, 100 - getattr(owned, 'hull_damage_pct', 0)))
 
 
+def _effective_installed(owned: OwnedShip):
+    """Yield the effective spec of every installed module instance."""
+    from .data.quality import effective_module_spec
+
+    for entry in getattr(owned, 'modules', ()) or ():
+        try:
+            yield effective_module_spec(entry.item_id, entry.quality)
+        except KeyError:
+            pass
+
+
 def hull_cur_max(owned: OwnedShip, ship_spec: Ship) -> tuple[int, int]:
     """Return ``(current, max)`` hull for ``owned`` in hull points.
 
     Mirrors the combat hull model exactly — ``base_hull`` plus the sum
-    of ``max_hull_bonus`` from equipped modules, damage applied as a
-    percentage of that max — so every status display (HUD, hangar,
-    mechanic, cargo) reads the same numbers combat does. Pure.
+    of effective ``max_hull_bonus`` from equipped module instances
+    (quality-scaled, doc 47.3), damage applied as a percentage of that
+    max — so every status display (HUD, hangar, mechanic, cargo) reads
+    the same numbers combat does. Pure.
     """
-    from .data.modules import find_module as _fms
-
     _max = getattr(ship_spec, 'base_hull', 100)
-    for _mod_id in getattr(owned, 'modules', ()) or ():
-        if not _mod_id:
-            continue
-        try:
-            _max += _fms(_mod_id).max_hull_bonus
-        except KeyError:
-            pass
+    for ms in _effective_installed(owned):
+        _max += ms.max_hull_bonus
     _dmg = getattr(owned, 'hull_damage_pct', 0)
     _cur = max(1, _max * (100 - _dmg) // 100)
     return _cur, _max
 
 
 def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:
-    """Sum base ship speed + all module speed_bonuses.
+    """Sum base ship speed + effective module speed_bonuses.
 
     This is the moves-per-day value used by tick_move() to
     determine when to advance the game clock.
     """
-    from .data.modules import find_module as _fm
     total = ship_spec.speed
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).speed_bonus
-        except KeyError:
-            pass
+    for ms in _effective_installed(owned):
+        total += ms.speed_bonus
     return max(1, total)
 
 
 def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
-    """Sum base max cargo + all module cargo_bonuses."""
-    from .data.modules import find_module as _fm
+    """Sum base max cargo + effective module cargo_bonuses."""
     total = ship_spec.max_cargo
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).cargo_bonus
-        except KeyError:
-            pass
+    for ms in _effective_installed(owned):
+        total += ms.cargo_bonus
     return max(0, total)
 
 
@@ -255,13 +291,9 @@ def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
     quest perk (10% of the hull's natural cargo, minimum 1, on every
     ship the perk holder flies). 0 without either.
     """
-    from .data.modules import find_module as _fm
     total = 0
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).smuggler_cargo
-        except KeyError:
-            pass
+    for ms in _effective_installed(owned):
+        total += ms.smuggler_cargo
     if ctx is not None:
         from .xp import has_trait
         if has_trait(ctx, 'smugglers_instinct'):
@@ -328,15 +360,16 @@ def _remove_weapon(owned: OwnedShip, index: int) -> tuple[str, ...]:
     return new
 
 
-def _install_module(owned: OwnedShip, module_id: str, ship_spec: Ship) -> bool:
-    """Install ``module_id`` into the first empty module slot.
+def _install_module(owned: OwnedShip, entry: StoredEquipment, ship_spec: Ship) -> bool:
+    """Install one module instance into the first empty module slot.
 
-    Returns True on success. Returns False if all module slots
-    are full.
+    Returns True on success. Returns False if all module slots are
+    full. The entry carries its quality — the buy path constructs a
+    base entry, looted parts install at their rolled tier.
     """
     if len(owned.modules) >= ship_spec.module_slots:
         return False
-    owned.modules = owned.modules + (module_id,)
+    owned.modules = owned.modules + (entry,)
     return True
 
 
@@ -431,16 +464,16 @@ def store_module(
     storage: list[StoredEquipment],
     slot_index: int,
 ) -> bool:
-    """Move one installed module into storage."""
+    """Move one installed module into storage, preserving its quality."""
     if not (0 <= slot_index < len(owned.modules)):
         return False
-    module_id = owned.modules[slot_index]
+    entry = owned.modules[slot_index]
     try:
         from .data.modules import find_module as _fm
-        _fm(module_id)
+        _fm(entry.item_id)
     except KeyError:
         return False
-    storage.append(StoredEquipment("module", module_id))
+    storage.append(StoredEquipment("module", entry.item_id, quality=entry.quality))
     _remove_module(owned, slot_index)
     return True
 
@@ -466,7 +499,7 @@ def install_stored_equipment(
             capacity = _fw(stored.item_id).ammo_capacity
             owned.weapon_ammo[slot_index] = max(0, min(stored.ammo, capacity))
     else:
-        if not _install_module(owned, stored.item_id, ship_spec):
+        if not _install_module(owned, stored, ship_spec):
             return False
     storage.pop(storage_index)
     return True
@@ -489,8 +522,8 @@ def move_installed_equipment_to_storage(
     try:
         for weapon_id in owned.weapons:
             _fw(weapon_id)
-        for module_id in owned.modules:
-            _fm(module_id)
+        for entry in owned.modules:
+            _fm(entry.item_id)
     except KeyError as exc:
         raise ValueError("Cannot store an unknown installed item") from exc
     while owned.weapons:
@@ -516,11 +549,14 @@ def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | No
     return result
 
 
-def _find_module_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | None, int]]:
+def _find_module_slots(
+    owned: OwnedShip, ship_spec: Ship,
+) -> list[tuple[StoredEquipment | None, int]]:
     """Build a list of all module slots with their installed state.
 
-    Returns ``[(module_id or None, slot_index), ...]`` so the UI
-    can render each slot row. Empty slots show as ``(None, index)``.
+    Returns ``[(module entry or None, slot_index), ...]`` so the UI
+    can render each slot row (read ``.item_id``/``.quality`` for the
+    installed instance). Empty slots show as ``(None, index)``.
     """
     result: list[tuple[str | None, int]] = []
     for i in range(ship_spec.module_slots):

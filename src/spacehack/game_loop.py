@@ -902,7 +902,7 @@ def _new_character_context(context, species_id, class_id):
         owned=True,
     )
     game_map.entities.append(starter_entity)
-    owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=starter_ship.start_weapons, modules=starter_ship.start_modules, fuel=starter_ship.max_fuel)
+    owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=starter_ship.start_weapons, modules=ship_module.base_module_entries(starter_ship.start_modules), fuel=starter_ship.max_fuel)
     log.add(f'Your {ship_name} is docked at the space port.')
     from .dev_mode import apply_dev_overrides as _apply_dev_overrides
     starter_ship, starter_entity, owned_ship = _apply_dev_overrides(starter_ship, starter_entity, owned_ship, stats, log)

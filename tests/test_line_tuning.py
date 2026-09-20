@@ -56,8 +56,11 @@ def _picket_volley(dodge: int) -> float:
 
 
 def _picket_ehp() -> int:
+    from src.spacehack.ship import base_module_entries
+
     _spec = find_npc_ship("militia_blockade")
-    return _calc_hull_for_enemy(_spec) + _calc_max_shields(_spec, _spec)
+    _modules = base_module_entries(_spec.modules)
+    return _calc_hull_for_enemy(_spec, _modules) + _calc_max_shields(_spec, _modules)
 
 
 # The canonical fits (skill points = 5/level; a min-maxed combat

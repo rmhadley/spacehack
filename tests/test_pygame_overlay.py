@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import pygame_overlay, pygame_runtime, pygame_target_card, world
+from src.spacehack import (
+    pygame_overlay, pygame_runtime, pygame_target_card, world,
+)
+from src.spacehack.ship import StoredEquipment
+
+
+def _module(module_id: str, quality: int = 0):
+    """One installed module entry (the OwnedShip.modules shape)."""
+    return StoredEquipment("module", module_id, quality=quality)
 
 
 def test_overlay_segments_group_adjacent_cells_by_color_and_split_gaps():
@@ -587,7 +595,7 @@ def test_shield_bubbles_keep_matching_owned_shield_loadout():
         region_h=6,
         player_owned_ship=SimpleNamespace(
             ship_id="cruiser",
-            modules=("shield_mk1",),
+            modules=(_module("shield_mk1"),),
         ),
     )
 
@@ -615,7 +623,7 @@ def test_shield_bubbles_omit_unshielded_owned_hull_when_loadout_is_shielded():
         region_h=6,
         player_owned_ship=SimpleNamespace(
             ship_id="cruiser",
-            modules=("shield_mk1",),
+            modules=(_module("shield_mk1"),),
         ),
     )
 

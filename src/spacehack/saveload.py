@@ -107,8 +107,11 @@ def _stored_equipment_from_dict(raw: object):
             ammo = int(ammo_raw)
         except (TypeError, ValueError):
             return None
+    from .ground_equipment import parse_quality
     from . import ship as ship_module
-    return ship_module.StoredEquipment(item_type, item_id, ammo)
+    return ship_module.StoredEquipment(
+        item_type, item_id, ammo, parse_quality(raw.get("quality")),
+    )
 
 
 def _identity_fields(ctx: GameContext) -> dict:
@@ -475,7 +478,14 @@ def _parse_owned_ship(data: dict):
         fuel=osh.get("fuel", 0),
         hull_damage_pct=osh.get("hull_damage_pct", 0),
         weapons=tuple(osh.get("weapons", ()) or ()),
-        modules=tuple(osh.get("modules", ()) or ()),
+        # Instance migration (doc 47.3): legacy saves carry bare module
+        # ids — parse_module_entry seeds those as base entries and
+        # drops unknown records.
+        modules=tuple(
+            entry
+            for raw in (osh.get("modules", ()) or ())
+            if (entry := ship_module.parse_module_entry(raw)) is not None
+        ),
         inventory=osh.get("inventory", {}) or {},
         mission_reserved=osh.get("mission_reserved", 0),
         weapon_ammo=ammo,

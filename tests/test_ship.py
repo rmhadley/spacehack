@@ -14,6 +14,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.ship import (
+    StoredEquipment,
     total_ammo_cargo,
     hull_integrity_pct,
     hull_cur_max,
@@ -25,9 +26,17 @@ from src.spacehack.ship import (
 )
 
 # ship.py functions use local imports from data modules at call time.
-# Mock the source modules, not the ship module itself.
+# Mock the source modules, not the ship module itself. The bonus-reading
+# helpers resolve modules through data.quality.effective_module_spec
+# (doc 47.3), so that binding is the patch point for spec mocks.
 _MODULE_PATCH = "src.spacehack.data.modules.find_module"
+_EFFECTIVE_PATCH = "src.spacehack.data.quality.effective_module_spec"
 _SHIP_PATCH = "src.spacehack.ship.find_ship"
+
+
+def _module(module_id: str, quality: int = 0) -> StoredEquipment:
+    """One installed-module entry (the OwnedShip.modules shape)."""
+    return StoredEquipment("module", module_id, quality=quality)
 
 
 # ---------------------------------------------------------------------------
@@ -69,19 +78,19 @@ class TestEffectiveSpeed:
     def test_base_only(self):
         cat = SimpleNamespace(speed=5)
         owned = SimpleNamespace(modules=())
-        with mock.patch(_MODULE_PATCH, return_value=_SPEED_MOCK):
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_SPEED_MOCK):
             assert effective_speed(cat, owned) == 5
 
     def test_with_module(self):
         cat = SimpleNamespace(speed=5)
-        owned = SimpleNamespace(modules=("compact_reactor",))
-        with mock.patch(_MODULE_PATCH, return_value=_SPEED_MOCK):
+        owned = SimpleNamespace(modules=(_module("compact_reactor"),))
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_SPEED_MOCK):
             assert effective_speed(cat, owned) == 7
 
     def test_min_1(self):
         cat = SimpleNamespace(speed=0)
         owned = SimpleNamespace(modules=())
-        with mock.patch(_MODULE_PATCH, return_value=_SPEED_MOCK):
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_SPEED_MOCK):
             assert effective_speed(cat, owned) == 1
 
 
@@ -96,19 +105,19 @@ class TestEffectiveMaxCargo:
     def test_base_only(self):
         cat = SimpleNamespace(max_cargo=100)
         owned = SimpleNamespace(modules=())
-        with mock.patch(_MODULE_PATCH, return_value=_CARGO_MOCK):
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_CARGO_MOCK):
             assert effective_max_cargo(cat, owned) == 100
 
     def test_with_module(self):
         cat = SimpleNamespace(max_cargo=100)
-        owned = SimpleNamespace(modules=("expanded_cargo",))
-        with mock.patch(_MODULE_PATCH, return_value=_CARGO_MOCK):
+        owned = SimpleNamespace(modules=(_module("expanded_cargo"),))
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_CARGO_MOCK):
             assert effective_max_cargo(cat, owned) == 130
 
     def test_min_0(self):
         cat = SimpleNamespace(max_cargo=0)
         owned = SimpleNamespace(modules=())
-        with mock.patch(_MODULE_PATCH, return_value=_CARGO_MOCK):
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_CARGO_MOCK):
             assert effective_max_cargo(cat, owned) == 0
 
 
@@ -122,12 +131,12 @@ _SMUGGLE_MOCK = SimpleNamespace(smuggler_cargo=10)
 class TestSmugglerHoldCapacity:
     def test_no_modules(self):
         owned = SimpleNamespace(modules=())
-        with mock.patch(_MODULE_PATCH, return_value=_SMUGGLE_MOCK):
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_SMUGGLE_MOCK):
             assert smuggler_hold_capacity(owned) == 0
 
     def test_with_smuggler(self):
-        owned = SimpleNamespace(modules=("smuggler_hold",))
-        with mock.patch(_MODULE_PATCH, return_value=_SMUGGLE_MOCK):
+        owned = SimpleNamespace(modules=(_module("smuggler_hold"),))
+        with mock.patch(_EFFECTIVE_PATCH, return_value=_SMUGGLE_MOCK):
             assert smuggler_hold_capacity(owned) == 10
 
 
@@ -208,29 +217,27 @@ class TestHullCurMax:
         ) == (1, 25)  # combat floors current at 1
 
     def test_module_max_hull_bonus_raises_max(self, monkeypatch):
-        from src.spacehack.data import modules as _mods
-
         monkeypatch.setattr(
-            _mods, "find_module",
-            lambda _mid: SimpleNamespace(max_hull_bonus=10, power_gen_bonus=0),
+            "src.spacehack.data.quality.effective_module_spec",
+            lambda _mid, _quality=0: SimpleNamespace(max_hull_bonus=10),
         )
         owned = SimpleNamespace(
-            ship_id="scout", modules=("some_armor",), hull_damage_pct=0,
+            ship_id="scout", modules=(_module("some_armor"),), hull_damage_pct=0,
         )
         assert hull_cur_max(owned, SimpleNamespace(base_hull=25)) == (35, 35)
 
     def test_unknown_module_ids_are_skipped(self):
-        from src.spacehack.data.modules import find_module
+        from src.spacehack.data.quality import effective_module_spec
 
         try:
-            find_module("no_such_module")
+            effective_module_spec("no_such_module")
         except KeyError:
             pass
         else:
             raise AssertionError("expected KeyError from find_module")
         assert hull_cur_max(
             SimpleNamespace(
-                ship_id="scout", modules=("no_such_module",), hull_damage_pct=0,
+                ship_id="scout", modules=(_module("no_such_module"),), hull_damage_pct=0,
             ),
             SimpleNamespace(base_hull=30),
         ) == (30, 30)

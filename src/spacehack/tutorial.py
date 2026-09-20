@@ -267,7 +267,7 @@ def _has_loadout(owned_ship) -> bool:
     from .data.modules import find_module
     for _mid in owned_ship.modules or ():
         try:
-            if find_module(_mid).max_shield_bonus > 0:
+            if find_module(_mid.item_id).max_shield_bonus > 0:
                 return True
         except KeyError:
             continue

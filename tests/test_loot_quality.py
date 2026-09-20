@@ -9,6 +9,7 @@ import pytest
 from spacehack.data import quality
 from spacehack.data.ground_armor import find_ground_armor
 from spacehack.data.ground_weapons import find_ground_weapon
+from spacehack.data.modules import find_module
 
 
 class _SeqRng:
@@ -149,24 +150,61 @@ def test_effective_specs_reject_unknown_ids():
 
 
 def test_effective_module_spec_base_is_the_catalog_row():
-    from spacehack.data.modules import find_module
-
     spec = find_module("shield_mk2")
     assert quality.effective_module_spec("shield_mk2", 0) is spec
     assert quality.effective_module_spec("shield_mk2", -1) is spec
 
 
-def test_effective_module_spec_scales_every_bonus_field():
-    from spacehack.data.modules import find_module
+# The ten literal bonus axes (a ModuleSpec field added to this set must
+# scale too — the completeness test below pins the tuple against the
+# dataclass, this list pins the scaling against synthetic values).
+_ALL_MODULE_AXES = (
+    "power_gen_bonus", "max_shield_bonus", "shield_recharge_bonus",
+    "cargo_bonus", "gunnery_bonus", "piloting_bonus",
+    "engineering_bonus", "max_hull_bonus", "speed_bonus",
+    "smuggler_cargo",
+)
 
-    t2 = quality.effective_module_spec("shield_mk2", 2)  # max_shield_bonus 40
-    assert t2.max_shield_bonus == 52      # 40 * 1.30
-    # The other nine fields scale identically; heavy_reactor carries a
-    # mixed load (power 6, cargo -1, speed 1).
-    reactor_t3 = quality.effective_module_spec("heavy_reactor", 3)
-    assert reactor_t3.power_gen_bonus == 9   # 6 * 1.45 = 8.7 -> 9
-    assert reactor_t3.speed_bonus == 1       # 1 * 1.45 = 1.45 -> 1
-    assert find_module("heavy_reactor").cargo_bonus == -1
+
+def test_effective_module_spec_scales_every_bonus_axis(monkeypatch):
+    import dataclasses
+
+    from spacehack.data import quality as quality_module
+    from spacehack.data.modules import ModuleSpec
+
+    synthetic = ModuleSpec(
+        id="synthetic", name="Synthetic", slot_type="system",
+        description="", price=100, tech_level=1,
+        **{name: 7 for name in _ALL_MODULE_AXES},
+    )
+    monkeypatch.setattr(quality_module, "find_module", lambda _mid: synthetic)
+    t1 = quality.effective_module_spec("synthetic", 1)
+    for name in _ALL_MODULE_AXES:
+        assert getattr(t1, name) == 8      # 7 * 1.15 = 8.05 -> 8
+    # One negative axis scales in magnitude through the same seam.
+    negative = dataclasses.replace(synthetic, cargo_bonus=-7)
+    monkeypatch.setattr(quality_module, "find_module", lambda _mid: negative)
+    assert quality.effective_module_spec("synthetic", 1).cargo_bonus == -8
+
+
+def test_module_bonus_fields_pin_the_module_spec_axes():
+    import dataclasses
+
+    from spacehack.data.modules import ModuleSpec
+
+    non_bonus = {"id", "name", "slot_type", "description", "price", "tech_level"}
+    assert set(quality._MODULE_BONUS_FIELDS) == {
+        f.name for f in dataclasses.fields(ModuleSpec)
+        if f.name not in non_bonus
+    }
+
+
+def test_effective_module_spec_real_rows_scale():
+    # Concrete catalog anchors alongside the synthetic-axis sweep.
+    assert quality.effective_module_spec("shield_mk2", 2).max_shield_bonus == 52
+    reactor = quality.effective_module_spec("heavy_reactor", 3)
+    assert reactor.power_gen_bonus == 9   # 6 * 1.45 = 8.7 -> 9
+    assert reactor.speed_bonus == 1       # 1 * 1.45 = 1.45 -> 1
 
 
 def test_effective_module_spec_scales_negatives_in_magnitude():
@@ -191,8 +229,6 @@ def test_scaler_rounds_exact_halves_up_in_magnitude():
 
 
 def test_effective_module_spec_leaves_price_slot_and_tech_alone():
-    from spacehack.data.modules import find_module
-
     base = find_module("compact_reactor")
     t4 = quality.effective_module_spec("compact_reactor", 4)
     assert t4.price == base.price

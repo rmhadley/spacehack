@@ -321,10 +321,10 @@ def _dev_owned_ship() -> Any:
             "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
             "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
         ),
-        modules=(
+        modules=ship_module.base_module_entries((
             "reactor_mk4", "shield_mk4", "shield_recharger",
             "targeting_mk4", "gyro_mk4", "armor_mk4",
-        ),
+        )),
         fuel=999,
     )
 

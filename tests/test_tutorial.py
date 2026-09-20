@@ -21,6 +21,7 @@ from src.spacehack import mission
 from src.spacehack import tutorial
 from src.spacehack.ground_equipment import GroundWeaponInstance
 from src.spacehack.ship import OwnedShip
+from src.spacehack.ship import StoredEquipment
 
 
 class _StubLog:
@@ -176,7 +177,7 @@ class TestLoadoutPredicate:
         with_shield = OwnedShip(
             ship_id="starter",
             weapons=("light_laser", "light_laser"),
-            modules=("shield_mk1",),
+            modules=(StoredEquipment("module", "shield_mk1"),),
         )
         assert tutorial._has_loadout(with_shield) is True
 
@@ -217,7 +218,7 @@ class TestTickOrder:
         ctx.player_owned_ship = OwnedShip(
             ship_id="starter",
             weapons=("light_laser", "light_laser"),
-            modules=("shield_mk1",),
+            modules=(StoredEquipment("module", "shield_mk1"),),
         )
 
         assert self._run(ctx, "city") == ["accepted_crimson"]
@@ -232,7 +233,7 @@ class TestTickOrder:
         ctx.player_owned_ship = OwnedShip(
             ship_id="starter",
             weapons=("light_laser", "light_laser"),
-            modules=("shield_mk1",),
+            modules=(StoredEquipment("module", "shield_mk1"),),
         )
 
         assert self._run(ctx, "city") == []  # no contract yet — nothing fires

@@ -231,15 +231,20 @@ def _ship_shield_capacity(entity: Any, player_owned_ship: Any | None = None) -> 
                 and getattr(player_owned_ship, "ship_id", "") == entity.ship_id
                 else _ship
             )
-            return _calc_max_shields(_ship, _owned)
+            return _calc_max_shields(
+                _ship, getattr(_owned, "modules", ()) or (),
+            )
         npc_id = getattr(entity, "npc_ship_id", "")
         if npc_id:
             from .data.npc_ships import find_npc_ship
             npc = find_npc_ship(npc_id)
             # Match combat initialization: NPC modules define their
             # installed shield capacity; the player hull catalog's base
-            # shields do not leak into an NPC's loadout.
-            return _calc_max_shields(npc, npc)
+            # shields do not leak into an NPC's loadout. Out of combat
+            # the modules read at base quality (no fly-time roll).
+            return _calc_max_shields(
+                npc, ship_module.base_module_entries(npc.modules),
+            )
     except (KeyError, ImportError):
         return 0
     return 0

@@ -566,7 +566,7 @@ def _new_owned_ship(ship, old_reserved: int) -> "ship_module.OwnedShip":
     return ship_module.OwnedShip(
         ship_id=ship.id,
         weapons=ship.start_weapons,
-        modules=ship.start_modules,
+        modules=ship_module.base_module_entries(ship.start_modules),
         fuel=ship.max_fuel,
         mission_reserved=old_reserved,
     )

@@ -126,7 +126,7 @@ class TestEquipmentStorage:
     def test_store_module_preserves_duplicate_parts(self):
         owned = OwnedShip(
             ship_id="scout",
-            modules=("shield_mk1", "shield_mk1"),
+            modules=(StoredEquipment("module", "shield_mk1"),) * 2,
         )
         storage = []
 
@@ -192,7 +192,7 @@ class TestEquipmentStorage:
         owned = OwnedShip(
             ship_id="scout",
             weapons=("light_laser", "light_missile"),
-            modules=("shield_mk1",),
+            modules=(StoredEquipment("module", "shield_mk1"),),
         )
         owned.weapon_ammo[1] = 2
         storage = []
@@ -206,3 +206,60 @@ class TestEquipmentStorage:
             StoredEquipment("weapon", "light_missile", 2),
             StoredEquipment("module", "shield_mk1"),
         ]
+
+
+class TestModuleQualityInstances:
+    """Installed modules are quality-bearing instances (doc 47.3)."""
+
+    def test_install_store_round_trip_preserves_quality(self):
+        owned = OwnedShip(ship_id="scout")
+        storage = [StoredEquipment("module", "shield_mk2", quality=2)]
+
+        assert install_stored_equipment(owned, storage, 0, _scout_spec())
+        assert owned.modules == (StoredEquipment("module", "shield_mk2", quality=2),)
+        assert store_module(owned, storage, 0)
+        assert storage == [StoredEquipment("module", "shield_mk2", quality=2)]
+
+    def test_bulk_transfer_preserves_quality(self):
+        owned = OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "compact_reactor", quality=1),
+                StoredEquipment("module", "armor_plating", quality=3),
+            ),
+        )
+        storage = []
+
+        move_installed_equipment_to_storage(owned, storage)
+
+        assert owned.modules == ()
+        assert storage == [
+            StoredEquipment("module", "compact_reactor", quality=1),
+            StoredEquipment("module", "armor_plating", quality=3),
+        ]
+
+    def test_base_entries_wrap_bare_ids(self):
+        from src.spacehack.ship import base_module_entries
+
+        assert base_module_entries(("shield_mk1",)) == (
+            StoredEquipment("module", "shield_mk1"),
+        )
+
+    def test_parse_module_entry_migrates_legacy_shapes(self):
+        from src.spacehack.ship import parse_module_entry
+
+        # Legacy bare id -> base instance.
+        assert parse_module_entry("shield_mk1") == StoredEquipment(
+            "module", "shield_mk1",
+        )
+        # Instance dict keeps its quality; malformed quality -> base.
+        assert parse_module_entry(
+            {"item_type": "module", "item_id": "shield_mk2", "quality": 3},
+        ) == StoredEquipment("module", "shield_mk2", quality=3)
+        assert parse_module_entry(
+            {"item_type": "module", "item_id": "shield_mk2", "quality": "junk"},
+        ) == StoredEquipment("module", "shield_mk2")
+        # Unknown ids and malformed records drop.
+        assert parse_module_entry("no_such_module") is None
+        assert parse_module_entry(42) is None
+        assert parse_module_entry({"item_id": ""}) is None

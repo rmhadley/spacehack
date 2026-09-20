@@ -38,7 +38,7 @@ def test_perk_grants_on_completion_and_is_free():
 def test_smugglers_instinct_conceals_a_cut_of_every_hull():
     """10% of natural cargo, minimum 1, stacking with modules."""
     from src.spacehack.data.modules.smuggler import MODULES
-    from src.spacehack.ship import smuggler_hold_capacity
+    from src.spacehack.ship import StoredEquipment, smuggler_hold_capacity
 
     ctx = quest_ctx()
     cruiser = type("O", (), {"ship_id": "cruiser", "modules": ()})()
@@ -49,7 +49,7 @@ def test_smugglers_instinct_conceals_a_cut_of_every_hull():
     assert smuggler_hold_capacity(cruiser, ctx) == 20  # 200 cargo // 10
     assert smuggler_hold_capacity(starter, ctx) == 5  # 50 cargo // 10
     _mk2 = next(m for m in MODULES if m.smuggler_cargo == 25)
-    loaded = type("O", (), {"ship_id": "cruiser", "modules": (_mk2.id,)})()
+    loaded = type("O", (), {"ship_id": "cruiser", "modules": (StoredEquipment("module", _mk2.id),)})()
     assert smuggler_hold_capacity(loaded, ctx) == 45  # perk stacks
 
 

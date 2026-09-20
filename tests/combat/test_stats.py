@@ -281,40 +281,48 @@ _MOD_MOCK = SimpleNamespace(max_hull_bonus=5, power_gen_bonus=-1, max_shield_bon
                             shield_recharge_bonus=0)
 
 
+def _module(module_id: str, quality: int = 0):
+    """One installed/flown module entry (StoredEquipment shape)."""
+    from src.spacehack.ship import StoredEquipment
+
+    return StoredEquipment("module", module_id, quality=quality)
+
+
+
 class TestCalcHull:
     def test_full_hull(self):
         """0% damage → 100% of max."""
         cat = SimpleNamespace(base_hull=100)
         owned = SimpleNamespace(modules=(), hull_damage_pct=0)
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_hull(cat, owned) == 100
 
     def test_damaged(self):
         """50% damage → half hull."""
         cat = SimpleNamespace(base_hull=100)
         owned = SimpleNamespace(modules=(), hull_damage_pct=50)
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_hull(cat, owned) == 50
 
     def test_damaged_rounding(self):
         """33% damage: 100 * 67 // 100 = 67."""
         cat = SimpleNamespace(base_hull=100)
         owned = SimpleNamespace(modules=(), hull_damage_pct=33)
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_hull(cat, owned) == 67
 
     def test_min_1(self):
         """99% damage still leaves at least 1 HP."""
         cat = SimpleNamespace(base_hull=100)
         owned = SimpleNamespace(modules=(), hull_damage_pct=99)
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_hull(cat, owned) == 1
 
     def test_with_module_bonuses(self):
         """Module with max_hull_bonus=5 increases max hull."""
         cat = SimpleNamespace(base_hull=100)
-        owned = SimpleNamespace(modules=("armor_plating",), hull_damage_pct=0)
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        owned = SimpleNamespace(modules=(_module("armor_plating"),), hull_damage_pct=0)
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_hull(cat, owned) == 105
 
 
@@ -322,76 +330,76 @@ class TestCalcMaxHull:
     def test_base_only(self):
         cat = SimpleNamespace(base_hull=100)
         owned = SimpleNamespace(modules=())
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_max_hull(cat, owned) == 100
 
     def test_with_modules(self):
         cat = SimpleNamespace(base_hull=100)
-        owned = SimpleNamespace(modules=("armor_plating",))
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        owned = SimpleNamespace(modules=(_module("armor_plating"),))
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_max_hull(cat, owned) == 105
 
     def test_default_fallback(self):
         """Uses 100 when catalog has no base_hull."""
         cat = SimpleNamespace()  # no base_hull attr
         owned = SimpleNamespace(modules=())
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_max_hull(cat, owned) == 100
 
 
 class TestCalcHullForEnemy:
     def test_from_spec(self):
         """Enemy spec with ship_id pointing to a ship with base_hull=80."""
-        enemy_spec = SimpleNamespace(ship_id="scout_a", modules=())
+        enemy_spec = SimpleNamespace(ship_id="scout_a")
         with mock.patch(
             "src.spacehack.combat._stats._ship_mod.find_ship",
             return_value=SimpleNamespace(base_hull=80),
         ), mock.patch(
-            "src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK,
+            "src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK,
         ):
-            assert _calc_hull_for_enemy(enemy_spec) == 80
+            assert _calc_hull_for_enemy(enemy_spec, ()) == 80
 
     def test_with_modules(self):
-        enemy_spec = SimpleNamespace(ship_id="scout_a", modules=("armor_plating",))
+        enemy_spec = SimpleNamespace(ship_id="scout_a")
         with mock.patch(
             "src.spacehack.combat._stats._ship_mod.find_ship",
             return_value=SimpleNamespace(base_hull=80),
         ), mock.patch(
-            "src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK,
+            "src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK,
         ):
-            assert _calc_hull_for_enemy(enemy_spec) == 85
+            assert _calc_hull_for_enemy(enemy_spec, (_module("armor_plating"),)) == 85
 
     def test_missing_ship_fallback(self):
         """Unknown ship_id falls back to 100 base hull."""
-        enemy_spec = SimpleNamespace(ship_id="nonexistent", modules=())
+        enemy_spec = SimpleNamespace(ship_id="nonexistent")
         with mock.patch(
             "src.spacehack.combat._stats._ship_mod.find_ship",
             side_effect=KeyError,
         ), mock.patch(
-            "src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK,
+            "src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK,
         ):
-            assert _calc_hull_for_enemy(enemy_spec) == 100
+            assert _calc_hull_for_enemy(enemy_spec, ()) == 100
 
 
 class TestCalcPowerGen:
     def test_base_only(self):
         cat = SimpleNamespace(base_power_gen=3)
         owned = SimpleNamespace(modules=())
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_power_gen(cat, owned) == 3
 
     def test_with_modules(self):
         """armor_plating has power_gen_bonus=-1."""
         cat = SimpleNamespace(base_power_gen=5)
-        owned = SimpleNamespace(modules=("armor_plating",))
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        owned = SimpleNamespace(modules=(_module("armor_plating"),))
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_power_gen(cat, owned) == 4
 
     def test_negative_floor(self):
         """Power gen can't go below 0."""
         cat = SimpleNamespace(base_power_gen=0)
-        owned = SimpleNamespace(modules=("armor_plating",))
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
+        owned = SimpleNamespace(modules=(_module("armor_plating"),))
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
             assert _calc_power_gen(cat, owned) == 0
 
 
@@ -399,14 +407,14 @@ class TestCalcMaxShields:
     def test_no_shields(self):
         cat = SimpleNamespace(base_shield_max=0)
         owned = SimpleNamespace(modules=())
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
-            assert _calc_max_shields(cat, owned) == 0
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
+            assert _calc_max_shields(cat, owned.modules) == 0
 
     def test_with_modules(self):
         cat = SimpleNamespace(base_shield_max=10)
-        owned = SimpleNamespace(modules=("shield_mk1",))
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_MOD_MOCK):
-            assert _calc_max_shields(cat, owned) == 30
+        owned = SimpleNamespace(modules=(_module("shield_mk1"),))
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
+            assert _calc_max_shields(cat, owned.modules) == 30
 
 
 # ---------------------------------------------------------------------------
@@ -446,8 +454,8 @@ class TestPlayerFreeRegen:
     def test_base_plus_module_bonus(self):
         """Base 5 + Shield Recharger +3 = 8 free regen."""
         cat = SimpleNamespace(base_shield_recharge=5)
-        owned = SimpleNamespace(modules=("shield_recharger",))
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_REGEN_MOD):
+        owned = SimpleNamespace(modules=(_module("shield_recharger"),))
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_REGEN_MOD):
             assert _player_free_regen(cat, owned) == 8
 
     def test_no_base_fallback(self):
@@ -466,7 +474,7 @@ class TestInitCombatState:
             base_shield_recharge=5,
         )
         owned = SimpleNamespace(
-            modules=("shield_recharger",), weapons=(), weapon_ammo={}, hull_damage_pct=0,
+            modules=(_module("shield_recharger"),), weapons=(), weapon_ammo={}, hull_damage_pct=0,
         )
         skills = PilotSkills(gunnery=10, piloting=10, engineering=10)
         enemy_spec = SimpleNamespace(
@@ -480,7 +488,7 @@ class TestInitCombatState:
     def test_free_regen_folds_ship_base_and_module(self):
         """shield_recharge_bonus = ship base 5 + module 3; S rate starts 0."""
         cat, owned, skills, enemy_spec = self._fixtures()
-        with mock.patch("src.spacehack.combat._stats.find_module_spec", return_value=_REGEN_MOD), mock.patch(
+        with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_REGEN_MOD), mock.patch(
             "src.spacehack.combat._stats._ship_mod.find_ship",
             return_value=SimpleNamespace(base_hull=80),
         ):
