@@ -344,6 +344,17 @@ continues the passes above):
     "Capturing a pirate ship would definitely be a solid path
     to finding a smugglers hold. Capturing a merchant would be
     a solid path to finding a cargo hold."
+18. **Scaled stats round fractions UP, always (user, playtest
+    ruling 2026-09-20): "Round up always (ceiling)".** Exact
+    half-up let a tier round a bump away at small magnitudes —
+    a Modded Stun Baton read the same damage 2 as its base
+    (2 x 1.15 = 2.3 -> 2). Ceiling in magnitude at both signs:
+    every nonzero scaled stat visibly moves at every tier; a
+    tier never lands on its base value. Values already rounding
+    up are unchanged; the <0.5 fractions (stun baton 2 -> 3,
+    Compact Reactor speed 1 -> 2 at t1-3, Armor Plating's -1
+    draw -> -2 at t1) gain 1. Sell prices keep their own
+    formula (unchanged).
 
 ## Remaining opens (phase-4-shaped or authoring-tuned)
 

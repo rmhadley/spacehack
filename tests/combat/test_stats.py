@@ -539,7 +539,7 @@ class TestFlyTimeModuleRolls:
             hull_enemy = _build_enemy(
                 self._spec(("armor_plating",)), Position(0, 0),
             )
-            assert hull_enemy.max_hull == 87  # base 80 + 5*1.45=7.25 -> 7
+            assert hull_enemy.max_hull == 88  # base 80 + 5*1.45 -> 8 (ceiling)
 
     def test_build_enemy_stays_base_when_no_tier_hits(self, monkeypatch):
         class _AlwaysMiss:

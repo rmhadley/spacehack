@@ -258,7 +258,7 @@ def test_shared_runtime_exposes_explicit_project_event_polling(monkeypatch):
     assert runtime.context.events() == events
 
 
-def test_shared_runtime_wait_events_skips_irrelevant_events_and_returns_one():
+def test_shared_runtime_wait_events_skips_irrelevant_events():
     queue = FakeSdlEventQueue(
         key_names={10: "j"},
         batches=[
@@ -281,11 +281,11 @@ def test_shared_runtime_wait_events_is_empty_when_closed():
 
 
 def test_shared_runtime_wait_events_keeps_a_multi_key_burst():
-    """event.get() drains the queue; the backlog must serve the rest.
+    """A fast two-key burst arrives in ONE SDL batch and is returned whole.
 
-    A fast two-key burst arrives in ONE SDL batch. The wait_events
-    contract (inherited from event.wait) delivers one event per call
-    without discarding the second keystroke.
+    ``event.get()`` drains the queue; nothing is retained between
+    calls, so the burst must be delivered together or the second
+    keystroke is lost.
     """
     queue = FakeSdlEventQueue(
         key_names={10: "h", 11: "j"},
@@ -297,11 +297,9 @@ def test_shared_runtime_wait_events_keeps_a_multi_key_burst():
     runtime = pygame_runtime.PygameRuntime(object())
     runtime.engine = SimpleNamespace(pygame=queue)
 
-    first = run(runtime.wait_events())
-    second = run(runtime.wait_events())
+    delivered = run(runtime.wait_events())
 
-    assert [e.key_name for e in first + second] == ["h", "j"]
-    assert runtime._event_backlog == []
+    assert [e.key_name for e in delivered] == ["h", "j"]
 
 
 def test_shared_runtime_pump_sleeps_exactly_the_requested_seconds(monkeypatch):

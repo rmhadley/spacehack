@@ -80,8 +80,8 @@ def test_sum_armor_bonus_skips_empty_and_unknown_ids():
 def test_armor_sums_scale_with_each_entrys_quality():
     # A mixed-quality loadout sums per-entry effective specs (doc 47.2).
     assert sum_armor_defense([_armor("light_vest", 2)]) == 3  # 2 * 1.30
-    assert sum_armor_defense([_armor("light_vest"), _armor("light_vest", 1)]) == 2 + 2
-    assert sum_armor_bonus([_armor("cybernetic_eyes", 1)], "hit_bonus") == 9  # 8 * 1.15
+    assert sum_armor_defense([_armor("light_vest"), _armor("light_vest", 1)]) == 2 + 3  # ceiling
+    assert sum_armor_bonus([_armor("cybernetic_eyes", 1)], "hit_bonus") == 10  # 8 * 1.15 -> 10
 
 
 def test_sum_armor_bonus_rejects_unknown_field():

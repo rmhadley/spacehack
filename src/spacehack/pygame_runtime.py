@@ -67,6 +67,35 @@ def _paint_world_commands(engine, commands: tuple[Any, ...]) -> None:
         )
 
 
+def _drain_sdl_batch(pygame: Any) -> tuple[pygame_engine.PygameInputEvent, ...]:
+    """Drain the SDL queue once, keeping only relevant translated events."""
+    translated = [
+        pygame_engine.translate_event(pygame, event)
+        for event in pygame.event.get()
+    ]
+    return tuple(event for event in translated if event.kind != "other")
+
+
+def _drop_released_repeats(
+    batch: tuple[pygame_engine.PygameInputEvent, ...],
+) -> tuple[pygame_engine.PygameInputEvent, ...]:
+    """Drop repeat keydowns whose key is released later in the same batch.
+
+    SDL emits repeats only while the key is held and every poll drains
+    the full queue, so a stale repeat can only ever coexist with its
+    keyup inside one batch. Taps (non-repeat presses) keep their press.
+    """
+    released = {event.key_name for event in batch if event.kind == "keyup"}
+    return tuple(
+        event for event in batch
+        if not (
+            event.kind == "keydown"
+            and event.repeat
+            and event.key_name in released
+        )
+    )
+
+
 class PygameContext:
     """Project-owned presentation context backed by the shared Pygame runtime."""
 
@@ -103,7 +132,7 @@ class PygameContext:
     async def wait_events(
         self, *, timeout_ms: int | None = None,
     ) -> tuple[pygame_engine.PygameInputEvent, ...]:
-        """Yield to the host until the next relevant input event, or time out.
+        """Yield to the host until relevant input events arrive, or time out.
 
         ``timeout_ms=None`` (the default) parks until an event arrives.
         A finite timeout polls for input and returns an empty
@@ -168,7 +197,7 @@ def _physical_overlay_callback(
 
 
 class PygameRuntime:
-    """Own one Pygame engine and its explicit input queue."""
+    """Own the single Pygame engine for the whole game."""
 
     def __init__(
         self,
@@ -181,7 +210,6 @@ class PygameRuntime:
         self.config_path = config_path
         self.engine: pygame_engine.PygameEngine | None = None
         self.game_context: "GameContext | None" = None
-        self._event_backlog: list[pygame_engine.PygameInputEvent] = []
         self.context = PygameContext(self)
 
     @property
@@ -247,7 +275,7 @@ class PygameRuntime:
     async def wait_events(
         self, *, timeout_ms: int | None = None,
     ) -> tuple[pygame_engine.PygameInputEvent, ...]:
-        """Yield until one relevant event, or time out.
+        """Yield until relevant events arrive, or time out.
 
         ``timeout_ms=None`` (the default) parks until a relevant event arrives; a
         finite timeout polls every frame quantum and returns ``()``
@@ -255,16 +283,14 @@ class PygameRuntime:
         redraw idle animations. Polling (never blocking) keeps the
         host event loop running, which wasm presentation requires.
 
-        ``pygame.event.get()`` drains the whole SDL queue per poll,
-        but this call's contract (like the ``event.wait()`` it
-        replaced) delivers ONE event — so the rest of each batch is
-        retained in ``_event_backlog`` and served on subsequent
-        calls. Without it, a fast multi-key burst would drop every
-        event after the first. The queue is polled even while the
-        backlog is served: a keyup must be seen while earlier repeat
-        keydowns are still queued, so it can drop them — otherwise a
-        released movement key keeps draining its held-time repeats
-        (doc 46 playtest: the post-release momentum).
+        ``pygame.event.get()`` drains the whole SDL queue per poll and
+        the batch is returned whole: nothing is retained between
+        calls, so events can never leak from one screen into the next
+        (the stale keypresses after modals, doc 46). A keyup drops
+        earlier repeat keydowns of the same key within its batch —
+        repeats queued while a frame ran long are stale the moment
+        the key is released (the doc 46 held-key momentum fix); taps
+        keep their press.
         """
         if self.engine is None:
             return ()
@@ -274,33 +300,12 @@ class PygameRuntime:
             time.monotonic() + timeout_ms / 1000.0
         )
         while True:
-            self._drain_sdl_queue(pygame)
-            if self._event_backlog:
-                return (self._event_backlog.pop(0),)
+            batch = _drain_sdl_batch(pygame)
+            if batch:
+                return _drop_released_repeats(batch)
             if deadline is not None and time.monotonic() >= deadline:
                 return ()
             await asyncio.sleep(quantum)
-
-    def _drain_sdl_queue(self, pygame: Any) -> None:
-        """Move queued SDL events into the backlog, purging repeats of released keys."""
-        for event in pygame.event.get():
-            translated = pygame_engine.translate_event(pygame, event)
-            if translated.kind == "other":
-                continue
-            if translated.kind == "keyup":
-                self._drop_backlog_repeats(translated.key_name)
-            self._event_backlog.append(translated)
-
-    def _drop_backlog_repeats(self, key_name: str) -> None:
-        """Discard queued repeat keydowns of a released key."""
-        self._event_backlog = [
-            event for event in self._event_backlog
-            if not (
-                event.kind == "keydown"
-                and event.repeat
-                and event.key_name == key_name
-            )
-        ]
 
     def present(self, console: FrameBuffer, *, overlay: Any | None = None) -> None:
         """Render a console, then an optional native Pygame overlay."""

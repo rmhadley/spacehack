@@ -84,12 +84,13 @@ def quality_multiplier(family: str, quality: int) -> float:
 
 
 def _scaled(value: int, pct: int) -> int:
-    """Scale one stat by hundredths, rounding exactly half-up in
-    magnitude — negative bonuses grow more negative, never toward
-    zero (doc 47.3's "more of what it is")."""
+    """Scale one stat by hundredths, rounding fractions UP in
+    magnitude at both signs — a tier never rounds a bump away
+    (user ruling 2026-09-20: ceiling; damage 2 x 1.15 must read 3,
+    not round back to 2)."""
     if value >= 0:
-        return (value * pct + 50) // 100
-    return -((-value * pct + 50) // 100)
+        return (value * pct + 99) // 100
+    return -((-value * pct + 99) // 100)
 
 
 def effective_weapon_spec(weapon_id: str, quality: int = 0):

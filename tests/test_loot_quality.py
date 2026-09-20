@@ -108,8 +108,8 @@ def test_effective_specs_scale_exact_halves_up():
 
 def test_effective_weapon_spec_legendary_row_resolves():
     t4 = quality.effective_weapon_spec("kinetic_pistol", quality.LEGENDARY_QUALITY)
-    assert t4.damage == 13         # 6 * 2.20 = 13.2 -> 13
-    assert t4.accuracy == 158      # 72 * 2.20 = 158.4 -> 158
+    assert t4.damage == 14         # 6 * 2.20 = 13.2 -> 14 (ceiling)
+    assert t4.accuracy == 159      # 72 * 2.20 = 158.4 -> 159 (ceiling)
 
 
 def test_effective_armor_spec_base_is_the_catalog_row():
@@ -119,10 +119,10 @@ def test_effective_armor_spec_base_is_the_catalog_row():
 
 def test_effective_armor_spec_scales_defense_and_bonus_fields():
     t2 = quality.effective_armor_spec("cybernetic_eyes", 2)  # hit_bonus 8
-    assert t2.hit_bonus == 10      # 8 * 1.30 = 10.4 -> 10
+    assert t2.hit_bonus == 11      # 8 * 1.30 = 10.4 -> 11 (ceiling)
     assert t2.defense == 0         # base 0 stays 0
     vest_t3 = quality.effective_armor_spec("medium_vest", 3)  # defense 3
-    assert vest_t3.defense == 4    # 3 * 1.45 = 4.35 -> 4
+    assert vest_t3.defense == 5    # 3 * 1.45 = 4.35 -> 5 (ceiling)
     assert vest_t3.slot == find_ground_armor("medium_vest").slot
 
 
@@ -180,11 +180,11 @@ def test_effective_module_spec_scales_every_bonus_axis(monkeypatch):
     monkeypatch.setattr(quality_module, "find_module", lambda _mid: synthetic)
     t1 = quality.effective_module_spec("synthetic", 1)
     for name in _ALL_MODULE_AXES:
-        assert getattr(t1, name) == 8      # 7 * 1.15 = 8.05 -> 8
+        assert getattr(t1, name) == 9      # 7 * 1.15 = 8.05 -> 9 (ceiling)
     # One negative axis scales in magnitude through the same seam.
     negative = dataclasses.replace(synthetic, cargo_bonus=-7)
     monkeypatch.setattr(quality_module, "find_module", lambda _mid: negative)
-    assert quality.effective_module_spec("synthetic", 1).cargo_bonus == -8
+    assert quality.effective_module_spec("synthetic", 1).cargo_bonus == -9
 
 
 def test_module_bonus_fields_pin_the_module_spec_axes():
@@ -203,8 +203,8 @@ def test_effective_module_spec_real_rows_scale():
     # Concrete catalog anchors alongside the synthetic-axis sweep.
     assert quality.effective_module_spec("shield_mk2", 2).max_shield_bonus == 52
     reactor = quality.effective_module_spec("heavy_reactor", 3)
-    assert reactor.power_gen_bonus == 9   # 6 * 1.45 = 8.7 -> 9
-    assert reactor.speed_bonus == 1       # 1 * 1.45 = 1.45 -> 1
+    assert reactor.power_gen_bonus == 9   # 6 * 1.45 = 8.7
+    assert reactor.speed_bonus == 2       # 1 * 1.45 = 1.45 -> 2 (ceiling)
 
 
 def test_effective_module_spec_scales_negatives_in_magnitude():
@@ -214,17 +214,18 @@ def test_effective_module_spec_scales_negatives_in_magnitude():
     assert t3.max_hull_bonus == 15      # 10 * 1.45 = 14.5 -> 15
     assert t3.power_gen_bonus == -3     # |2| * 1.45 = 2.9 -> 3
     t1 = quality.effective_module_spec("armor_plating", 1)  # power -1
-    assert t1.power_gen_bonus == -1     # |1| * 1.15 = 1.15 -> 1
+    assert t1.power_gen_bonus == -2     # |1| * 1.15 -> 2 (ceiling)
     t4 = quality.effective_module_spec("armor_mk4", 4)      # power -4
     assert t4.power_gen_bonus == -9     # |4| * 2.20 = 8.8 -> 9
 
 
-def test_scaler_rounds_exact_halves_up_in_magnitude():
-    # 11.5 rounds to 12 at either sign — no catalog module carries a
-    # -10 draw, so pin the arithmetic at the seam it lives on.
-    assert quality._scaled(10, 115) == 12
+def test_scaler_rounds_fractions_up_in_magnitude():
+    # Ceiling at both signs (user ruling 2026-09-20): a tier never
+    # rounds a bump away — 1.15 must read 2, not fall back to 1.
+    assert quality._scaled(10, 115) == 12      # 11.5 -> 12
     assert quality._scaled(-10, 115) == -12
-    assert quality._scaled(-1, 115) == -1      # 1.15 -> 1
+    assert quality._scaled(-1, 115) == -2      # 1.15 -> 2
+    assert quality._scaled(2, 115) == 3        # the stun-baton flat spot
     assert quality._scaled(0, 220) == 0
 
 
@@ -426,9 +427,9 @@ def test_module_detail_swaps_to_effective_stats_for_variants():
     # Base keeps the authored description (its numbers are correct).
     assert module_detail("shield_mk1") == find_module("shield_mk1").description
     # Variants render the effective stats — authored prose would lie.
-    assert module_detail("shield_mk1", 2) == "Shields: +26"  # 20 * 1.30
+    assert module_detail("shield_mk1", 2) == "Shields: +26"  # 20 * 1.30 exact
     # Label order follows the stat-line table; negatives keep their sign.
-    assert module_detail("armor_plating", 3) == "Power: -1  Hull: +7"
+    assert module_detail("armor_plating", 3) == "Power: -2  Hull: +8"
 
 
 def test_module_pickup_lands_in_ship_storage():
