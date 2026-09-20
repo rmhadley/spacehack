@@ -15,11 +15,10 @@ from __future__ import annotations
 from .. import ground_equipment
 from ..game_context import GameContext
 
-_ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
-_ARMOR_SLOT_LABELS: dict[str, str] = {
-    "head": "Head", "body": "Body", "hands": "Hands",
-    "legs": "Legs", "feet": "Feet",
-}
+from ..ground_equipment import (  # noqa: F401 — re-exported slot tables
+    ARMOR_SLOTS as _ARMOR_SLOTS,
+    ARMOR_SLOT_LABELS as _ARMOR_SLOT_LABELS,
+)
 _ARMORY_MODES: tuple[str, ...] = ("BUY", "ARMORY", "EXPEDITION")
 _MODE_TABS: tuple[str, ...] = ("[B]uy", "[A]rmory")
 
@@ -60,15 +59,19 @@ def _strength(ctx: GameContext) -> int:
     from ..xp import pack_mule_capacity_bonus
     return int(getattr(getattr(ctx, "ground_stats", None), "strength", 10)) + pack_mule_capacity_bonus(ctx) * 10
 
-def _sell_price(item_id: str) -> int:
-    """Return half the catalog price for one ground item."""
+def _sell_price(item_id: str, quality: int = 0) -> int:
+    """Half the catalog price scaled by the quality tier, minimum 1."""
     from ..data.ground_armor import find_ground_armor
     from ..data.ground_weapons import find_ground_weapon
+    from ..data.quality import quality_multiplier_pct
 
     try:
-        return find_ground_weapon(item_id).price // 2
+        family, price = "weapon", find_ground_weapon(item_id).price
     except KeyError:
-        return find_ground_armor(item_id).price // 2
+        family, price = "armor", find_ground_armor(item_id).price
+    if quality <= 0:
+        return price // 2
+    return max(1, (price * quality_multiplier_pct(family, quality) + 100) // 200)
 
 def _weapon_detail(spec) -> str:
     """Format a ground weapon's useful armory details."""
@@ -101,21 +104,18 @@ def _armor_detail(spec) -> str:
     )
 
 def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
-    """Resolve one stored item's display name."""
-    if entry.item_type == "weapon":
-        from ..data.ground_weapons import find_ground_weapon
-        return find_ground_weapon(entry.item_id).name
-    from ..data.ground_armor import find_ground_armor
-    return find_ground_armor(entry.item_id).name
+    """Resolve one stored item's token-prefixed display name."""
+    return ground_equipment.display_name(
+        entry.item_type, entry.item_id, entry.quality,
+    )
 
 def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
-    """Resolve one stored item's display details."""
+    """Resolve one stored item's effective (tier-scaled) details."""
+    from ..data.quality import effective_armor_spec, effective_weapon_spec
+
     if entry.item_type == "weapon":
-        from ..data.ground_weapons import find_ground_weapon
-        return _weapon_detail(find_ground_weapon(entry.item_id))
-    from ..data.ground_armor import find_ground_armor
-    spec = find_ground_armor(entry.item_id)
-    return _armor_detail(spec)
+        return _weapon_detail(effective_weapon_spec(entry.item_id, entry.quality))
+    return _armor_detail(effective_armor_spec(entry.item_id, entry.quality))
 
 def _catalog_items(planet_id: str, month: int):
     """Resolve the buyable ``(weapons, armor)`` for ``planet_id``.
@@ -212,7 +212,7 @@ def _storage_rows(
             rows.append(
                 pygame_split.SplitRow(
                     _equipment_name(entry),
-                    pygame_ui.sell_cell(_sell_price(entry.item_id)),
+                    pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
                     _equipment_detail(entry),
                     f"{action_prefix}:{index}",
                 )
@@ -283,7 +283,7 @@ def _field_item_rows(
 def _weapon_slot_rows(ctx: GameContext):
     """Build the weapon-slot rows for the active ground loadout."""
     from .. import pygame_split, pygame_ui
-    from ..data.ground_weapons import find_ground_weapon
+    from ..data.quality import effective_weapon_spec
 
     rows = [pygame_split.section_header("WEAPON SLOTS")]
     weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
@@ -300,16 +300,17 @@ def _weapon_slot_rows(ctx: GameContext):
         if index >= len(weapons):
             rows.append(pygame_split.SplitRow(f"Weapon {index + 1}: [empty]", "", "", "", False))
             continue
+        _quality = ctx.equipped_ground_weapons[index].quality
         try:
-            spec = find_ground_weapon(weapons[index])
+            spec = effective_weapon_spec(weapons[index], _quality)
         except KeyError:
             rows.append(pygame_split.SplitRow(
                 f"Weapon {index + 1}: [unavailable]", "", "", "", False, False,
             ))
             continue
         rows.append(pygame_split.SplitRow(
-            f"Weapon {index + 1}: {spec.name}",
-            pygame_ui.sell_cell(_sell_price(spec.id)),
+            f"Weapon {index + 1}: {ground_equipment.display_name('weapon', spec.id, _quality)}",
+            pygame_ui.sell_cell(_sell_price(spec.id, _quality)),
             _weapon_detail(spec),
             f"MANAGE_WEAPON:{index}",
         ))
@@ -318,7 +319,6 @@ def _weapon_slot_rows(ctx: GameContext):
 def _armor_slot_rows(ctx: GameContext):
     """Build the armor-slot rows for the active ground loadout."""
     from .. import pygame_split, pygame_ui
-    from ..data.ground_armor import find_ground_armor
 
     rows = [pygame_split.section_header("ARMOUR SLOTS")]
     for slot in _ARMOR_SLOTS:
@@ -326,10 +326,12 @@ def _armor_slot_rows(ctx: GameContext):
         if entry is None:
             rows.append(pygame_split.SplitRow(f"{_ARMOR_SLOT_LABELS[slot]}: [empty]", "", "", "", False))
             continue
-        spec = find_ground_armor(entry.item_id)
+        from ..data.quality import effective_armor_spec
+
+        spec = effective_armor_spec(entry.item_id, entry.quality)
         rows.append(pygame_split.SplitRow(
-            f"{_ARMOR_SLOT_LABELS[slot]}: {spec.name}",
-            pygame_ui.sell_cell(_sell_price(entry.item_id)),
+            f"{_ARMOR_SLOT_LABELS[slot]}: {ground_equipment.display_name('armor', entry.item_id, entry.quality)}",
+            pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
             f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
         ))
@@ -605,7 +607,7 @@ async def _choose_container_action(ctx, entries, index: int, container: str) -> 
     entry = entries[index]
     try:
         name = _equipment_name(entry)
-        price = _sell_price(entry.item_id)
+        price = _sell_price(entry.item_id, entry.quality)
     except (KeyError, ValueError):
         return "__BACK__"
     transfer_label, transfer_action = {
@@ -714,7 +716,7 @@ def _sell_from_container(ctx, entries, index: int) -> None:
     entry = entries[index]
     try:
         removed = ground_equipment.sell_stored(entries, index)
-        price = _sell_price(removed.item_id)
+        price = _sell_price(removed.item_id, removed.quality)
     except (IndexError, KeyError, ValueError):
         ctx.log.add("That equipment is no longer available.")
         return
@@ -801,17 +803,18 @@ async def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
     from .. import pygame_story
 
     item_type = "weapon" if kind == "MANAGE_WEAPON" else "armor"
-    entry = ground_equipment.StoredGroundEquipment(item_type, item_id)
+    quality = _managed_slot_quality(ctx, kind, slot)
+    entry = ground_equipment.StoredGroundEquipment(item_type, item_id, quality)
     label = _equipment_name(entry)
     if kind == "MANAGE_WEAPON":
         options = (
             ("Store in Armory", f"STORE_WEAPON:{slot}"),
-            (f"Sell for {_sell_price(item_id)}$", f"SELL_WEAPON:{slot}"),
+            (f"Sell for {_sell_price(item_id, quality)}$", f"SELL_WEAPON:{slot}"),
         )
     else:
         options = (
             ("Store in Armory", f"STORE_ARMOR:{slot}"),
-            (f"Sell for {_sell_price(item_id)}$", f"SELL_ARMOR:{slot}"),
+            (f"Sell for {_sell_price(item_id, quality)}$", f"SELL_ARMOR:{slot}"),
         )
     return await pygame_story.choose(
         ctx, title="MANAGE LOADOUT", body=label,
@@ -835,14 +838,22 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
         elif chosen.startswith("SELL_WEAPON:"):
             slot = int(chosen.split(":", 1)[1])
             removed = ground_equipment.remove_weapon(ctx.equipped_ground_weapons, slot)
-            ctx.stats.credits += _sell_price(removed.item_id)
+            ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
         elif chosen.startswith("SELL_ARMOR:"):
             removed = ground_equipment.remove_armor(
                 ctx.equipped_ground_armor, chosen.split(":", 1)[1],
             )
-            ctx.stats.credits += _sell_price(removed.item_id)
+            ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
+
+def _managed_slot_quality(ctx, kind: str, slot) -> int:
+    """The equipped tier of one managed loadout slot."""
+    if kind == "MANAGE_WEAPON":
+        return ctx.equipped_ground_weapons[int(slot)].quality
+    entry = ctx.equipped_ground_armor.get(slot)
+    return entry.quality if entry is not None else 0
+
 
 async def _manage_loadout(ctx, action: str) -> None:
     """Open the active-loadout Store/Sell chooser."""

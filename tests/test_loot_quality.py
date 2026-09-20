@@ -156,3 +156,131 @@ def test_token_prefix_title_cases_the_settled_tokens(tier, expected):
 
 def test_quality_tokens_are_the_user_wording_verbatim():
     assert quality.QUALITY_TOKENS == ("modded", "overclocked", "prototype")
+
+
+# ---------------------------------------------------------------------------
+# Presentation + economy (doc 47 phase 2 step 6)
+# ---------------------------------------------------------------------------
+
+
+def test_display_name_prefixes_the_token_at_the_label_seam():
+    from spacehack.ground_equipment import display_name
+
+    assert display_name("weapon", "kinetic_pistol", 1) == "Modded Kinetic Pistol"
+    assert display_name("weapon", "kinetic_pistol", 3) == "Prototype Kinetic Pistol"
+    assert display_name("armor", "cybernetic_eyes", 2) == "Overclocked Cybernetic Eyes"
+    assert display_name("weapon", "kinetic_pistol") == "Kinetic Pistol"
+    assert display_name("armor", "light_vest", 4) == "Light Armor Vest"  # randart name later
+
+
+def test_loot_label_carries_the_token():
+    from types import SimpleNamespace
+
+    from spacehack.loot import _loot_choice_label
+
+    entity = SimpleNamespace(loot_data={
+        "item_type": "weapon", "item_id": "smg", "quality": 2,
+    })
+    assert _loot_choice_label(entity) == "Overclocked SMG"
+
+
+def test_sell_price_scales_half_catalog_by_tier():
+    from spacehack.menus._armory import _sell_price
+    from spacehack.data.ground_weapons import find_ground_weapon
+
+    base_price = find_ground_weapon("kinetic_pistol").price  # 35
+    assert _sell_price("kinetic_pistol") == base_price // 2
+    assert _sell_price("kinetic_pistol", 1) == 20   # 17.5 * 1.15 = 20.125
+    assert _sell_price("kinetic_pistol", 3) == 25   # 17.5 * 1.45 = 25.375
+    assert _sell_price("kinetic_pistol", 4) == 39   # 17.5 * 2.20 = 38.5 -> 39
+    # Base gear keeps the exact legacy half-catalog price.
+    assert _sell_price("light_vest") == 50 // 2
+    # A worthless catalog row still sells for the minimum.
+    assert _sell_price("monster_claws", 3) == 1
+
+
+def test_armory_names_and_details_read_the_tier():
+
+    from spacehack.ground_equipment import StoredGroundEquipment
+    from spacehack.menus._armory import _equipment_detail, _equipment_name
+
+    entry = StoredGroundEquipment("weapon", "kinetic_pistol", 2)
+    assert _equipment_name(entry) == "Overclocked Kinetic Pistol"
+    assert "Damage: 8" in _equipment_detail(entry)  # 6 * 1.30
+    base = StoredGroundEquipment("armor", "cybernetic_eyes")
+    assert _equipment_name(base) == "Cybernetic Eyes"
+
+
+@pytest.mark.parametrize(
+    "quality,expected",
+    [
+        (0, (130, 145, 170)),
+        (1, (143, 160, 187)),
+        (2, (159, 177, 207)),
+        (3, (177, 197, 231)),
+        (4, (202, 225, 264 - 9)),  # clamped channels cap at 255
+    ],
+)
+def test_loot_fg_brightens_equipment_by_quality(quality, expected):
+    from spacehack.loot_common import loot_fg
+
+    fg = loot_fg({"item_type": "weapon", "item_id": "smg", "quality": quality})
+    assert fg == expected
+
+
+def test_loot_fg_categories_ignore_quality():
+    from spacehack.loot_common import loot_fg
+
+    # Non-equipment payloads keep their phase-1 category hues exactly.
+    assert loot_fg({"item_type": "ammo", "item_id": "pistol_rounds",
+                    "quality": 3}) == (200, 175, 110)
+    assert loot_fg({"good_id": "scrap_metal", "quantity": 2,
+                    "quality": 3}) == (255, 215, 0)
+    assert loot_fg({"item_type": "weapon", "item_id": "smg"}) == (130, 145, 170)
+
+
+def test_managed_slot_quality_reads_equipped_tiers_synchronously():
+    from types import SimpleNamespace
+
+    from spacehack.ground_equipment import StoredGroundEquipment
+    from spacehack.menus._armory import _managed_slot_quality
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[SimpleNamespace(quality=2)],
+        equipped_ground_armor={
+            "body": StoredGroundEquipment("armor", "light_vest", 3),
+        },
+    )
+    # Plain ints, not coroutines — the manage chooser calls this sync.
+    assert _managed_slot_quality(ctx, "MANAGE_WEAPON", 0) == 2
+    assert _managed_slot_quality(ctx, "MANAGE_ARMOR", "body") == 3
+    assert _managed_slot_quality(ctx, "MANAGE_ARMOR", "head") == 0
+
+
+def test_reload_target_carries_the_token_prefixed_name():
+    from types import SimpleNamespace
+
+    from spacehack.ground_equipment import weapon_instance
+    from spacehack.ground_reload_ui import _resolve_reload_target
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("smg", 2)],
+        log=SimpleNamespace(add=lambda *_: None),
+    )
+    _instance, _spec, name = _resolve_reload_target(ctx, 0)
+    assert name == "Overclocked SMG"
+
+
+def test_player_side_weapon_name_carries_the_tier():
+    from types import SimpleNamespace
+
+    from spacehack.combat import _rules_ground, _rules_space
+
+    ctx = SimpleNamespace()
+    assert _rules_ground.weapon_name("smg", ctx, 2) == "Overclocked SMG"
+    assert _rules_ground.weapon_name("smg", ctx) == "SMG"
+    # The space twin accepts and ignores the seam.
+    _space_ctx = SimpleNamespace()
+    assert _rules_space.weapon_name(
+        "light_laser", _space_ctx, 3,
+    ) == _rules_space.weapon_name("light_laser", _space_ctx)

@@ -22,6 +22,13 @@ ARMORY_STORAGE = "armory"
 EXPEDITION_INVENTORY = "expedition"
 BASE_EXPEDITION_SLOTS = 4
 WEAPON_SLOT_COUNT = 2
+# The five equipped-armor slots and their row labels (shared by the
+# character screen and the armory terminal).
+ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
+ARMOR_SLOT_LABELS: dict[str, str] = {
+    "head": "Head", "body": "Body", "hands": "Hands",
+    "legs": "Legs", "feet": "Feet",
+}
 _ARMOR_BONUS_FIELDS: tuple[str, ...] = ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
 ITEM_STACK_TYPES: tuple[str, ...] = ("ammo", "consumable")
 
@@ -148,6 +155,21 @@ def weapon_instance(weapon_id: str, quality: int = 0) -> GroundWeaponInstance:
     if spec.ammo_capacity <= 0:
         return GroundWeaponInstance(weapon_id, None, quality)
     return GroundWeaponInstance(weapon_id, spec.ammo_capacity, quality)
+
+
+def display_name(item_type: str, item_id: str, quality: int = 0) -> str:
+    """Return the catalog name with the quality token prefixed.
+
+    "Modded Kinetic Pistol" — the token title-cases at this seam
+    (SETTLED 10); base and legendary carry no token.
+    """
+    from .data.quality import token_prefix
+
+    if item_type == "weapon":
+        name = find_ground_weapon(item_id).name
+    else:
+        name = find_ground_armor(item_id).name
+    return f"{token_prefix(quality)}{name}"
 
 
 def weapon_entry(instance: GroundWeaponInstance) -> StoredGroundEquipment:

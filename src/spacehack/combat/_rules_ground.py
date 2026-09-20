@@ -560,8 +560,10 @@ def weapon_ap_cost(weapon_id: str, ctx) -> int:
     )
     return max(1, _charge_attack_ap_cost(ctx, weapon_id, _state.player_ap) - _discount)
 
-def weapon_name(weapon_id: str, ctx) -> str:
-    return _find_gw(weapon_id).name
+def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
+    from ..ground_equipment import display_name
+
+    return display_name("weapon", weapon_id, quality)
 
 def consume_shot(slot_idx: int, ctx) -> None:
     """Decrement one weapon instance's loaded ammo after an accepted shot."""
@@ -593,9 +595,11 @@ def _reload_slot(ctx, slot: int) -> bool:
     """Reload one validated slot transactionally and charge its AP cost."""
     from ..ground_equipment import apply_reload
 
+    from ..ground_equipment import display_name
+
     _instance = ctx.equipped_ground_weapons[slot]
     _spec = _find_gw(_instance.weapon_id)
-    _wname = _spec.name
+    _wname = display_name("weapon", _instance.weapon_id, _instance.quality)
     if _state.player_ap < _spec.reload_ap_cost:
         ctx.log.add(
             f"Need {_spec.reload_ap_cost} AP to reload "
@@ -617,9 +621,12 @@ async def _choose_reload_slot(ctx, candidates) -> int | None:
     """Show the compact weapon chooser and return the selected slot."""
     from .. import pygame_story
 
+    from ..ground_equipment import display_name as _display_name
+
     options = tuple(
         (
-            f"{_spec.name} {_instance.loaded_ammo}/{_spec.ammo_capacity} "
+            f"{_display_name('weapon', _instance.weapon_id, _instance.quality)} "
+            f"{_instance.loaded_ammo}/{_spec.ammo_capacity} "
             f"RES {_reserve}",
             f"RELOAD_SLOT:{_slot}",
         )

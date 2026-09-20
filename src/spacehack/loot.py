@@ -110,13 +110,12 @@ def _ground_equipment_loot_entry(loot_entity):
 
 
 def _ground_equipment_loot_name(entry) -> str:
-    """Return the catalog display name for an equipment loot entry."""
-    from .data.ground_armor import find_ground_armor
-    from .data.ground_weapons import find_ground_weapon
+    """Return the token-prefixed display name for an equipment entry."""
+    from . import ground_equipment
 
-    if entry.item_type == "weapon":
-        return find_ground_weapon(entry.item_id).name
-    return find_ground_armor(entry.item_id).name
+    return ground_equipment.display_name(
+        entry.item_type, entry.item_id, entry.quality,
+    )
 
 
 def _field_item_loot_stack(loot_entity):

@@ -116,7 +116,9 @@ def _toggle_weapon(
         _state = "ON" if active_weapons[idx] else "OFF"
         if idx < len(_weapons):
             try:
-                _name = rules.weapon_name(_weapons[idx], ctx)
+                _name = rules.weapon_name(
+                    _weapons[idx], ctx, _slot_quality(rules, ctx, idx),
+                )
             except KeyError:
                 _name = _weapons[idx]
             ctx.log.add(f"Weapon {idx + 1} ({_name}): {_state}")
@@ -228,9 +230,10 @@ async def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[boo
 async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
     """Fire one weapon slot; return ``(hit, ap_cost)`` — 0 if it could not fire."""
     _wid = rules.player_weapons(ctx)[slot]
+    _quality = _slot_quality(rules, ctx, slot)
     _ok, _reason = rules.can_fire(slot, ctx)
     try:
-        _wname = rules.weapon_name(_wid, ctx)
+        _wname = rules.weapon_name(_wid, ctx, _quality)
     except KeyError:
         _wname = _wid
     if not _ok:
@@ -239,7 +242,6 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
     if _reason:
         ctx.log.add(_reason)
     _prepare_player_attack(rules, ctx, game_map, target, _wid)
-    _quality = _slot_quality(rules, ctx, slot)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
         rules, ctx, _wid, target, _hit, _quality,
@@ -320,14 +322,14 @@ async def _fire_explosive_weapon(
 ) -> tuple[bool, int]:
     """Fire one explosive weapon and resolve its full friendly-fire blast."""
     _wid = rules.player_weapons(ctx)[slot]
+    _quality = _slot_quality(rules, ctx, slot)
     _ok, _reason = rules.can_fire(slot, ctx)
-    _wname = rules.weapon_name(_wid, ctx)
+    _wname = rules.weapon_name(_wid, ctx, _quality)
     if not _ok:
         ctx.log.add(f"{_wname}: {_reason}")
         return False, 0
     if _reason:
         ctx.log.add(_reason)
-    _quality = _slot_quality(rules, ctx, slot)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _record_explosive_hit(ctx, _hit)
     _enemy_hits, _player_damage = rules.explosive_blast(

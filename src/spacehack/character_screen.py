@@ -25,11 +25,10 @@ _SKILL_DESCRIPTIONS: dict[str, str] = {
     "strength": "+1 melee damage per 5 pts; +1 pack slot per 5 pts above 10",
     "stamina": "max ground HP 20 + Stamina//3 (+1 HP per 3 pts)",
 }
-_ARMOR_SLOTS: tuple[str, ...] = ("head", "body", "hands", "legs", "feet")
-_ARMOR_SLOT_LABELS: dict[str, str] = {
-    "head": "Head", "body": "Body", "hands": "Hands",
-    "legs": "Legs", "feet": "Feet",
-}
+from .ground_equipment import (  # noqa: F401 — re-exported slot tables
+    ARMOR_SLOTS as _ARMOR_SLOTS,
+    ARMOR_SLOT_LABELS as _ARMOR_SLOT_LABELS,
+)
 
 def _trait_names(trait_ids) -> list[str]:
     from .data.traits.core import trait_name
@@ -196,22 +195,20 @@ def _armor_effects(spec) -> str:
 
 
 def _pack_entry_name(entry) -> str:
-    """Return the display name for one Expedition Pack entry."""
-    from .data.ground_armor import find_ground_armor
-    from .data.ground_weapons import find_ground_weapon
+    """Return the token-prefixed display name for one pack entry."""
+    from . import ground_equipment
 
-    if entry.item_type == "weapon":
-        return find_ground_weapon(entry.item_id).name
-    return find_ground_armor(entry.item_id).name
+    return ground_equipment.display_name(
+        entry.item_type, entry.item_id, entry.quality,
+    )
 
 
 def _pack_entry_detail(entry) -> str:
-    """Return the useful detail text for one Expedition Pack entry."""
-    from .data.ground_armor import find_ground_armor
-    from .data.ground_weapons import find_ground_weapon
+    """Return the useful (tier-scaled) detail text for one pack entry."""
+    from .data.quality import effective_armor_spec, effective_weapon_spec
 
     if entry.item_type == "weapon":
-        spec = find_ground_weapon(entry.item_id)
+        spec = effective_weapon_spec(entry.item_id, entry.quality)
         hands = "2H" if spec.hands == 2 else "1H"
         bypass = "  Armor bypass" if spec.armor_bypass else ""
         return (
@@ -219,7 +216,7 @@ def _pack_entry_detail(entry) -> str:
             f"Accuracy {spec.accuracy}%  Range {spec.min_range}-{spec.max_range}"
             f"{bypass}"
         )
-    spec = find_ground_armor(entry.item_id)
+    spec = effective_armor_spec(entry.item_id, entry.quality)
     return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"
 
 
@@ -341,7 +338,6 @@ def _armor_rows(
     ctx: GameContext, equipment_management: bool, swap_allowed: bool,
 ) -> list:
     """Build the five armor-slot rows for the active ground loadout."""
-    from .data.ground_armor import find_ground_armor
 
     rows: list = []
     for slot in _ARMOR_SLOTS:
@@ -349,10 +345,13 @@ def _armor_rows(
         label = f"{_ARMOR_SLOT_LABELS[slot]} armor"
         if entry is not None:
             try:
-                spec = find_ground_armor(entry.item_id)
+                from . import ground_equipment
+                from .data.quality import effective_armor_spec
+
+                spec = effective_armor_spec(entry.item_id, entry.quality)
                 _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
                 rows.append(_equipment_row(
-                    f"{label}: {spec.name}",
+                    f"{label}: {ground_equipment.display_name('armor', entry.item_id, entry.quality)}",
                     f"Defense {spec.defense}{_armor_effects(spec)}   {spec.description}",
                     action=f"SWAP:armor:{slot}" if _managed else "",
                     selectable=True if not equipment_management else _managed,

@@ -130,20 +130,35 @@ def _try_ground_fire(
         ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
         enemy_weapon_quality,
     )
+    _present_enemy_shot(
+        ctx, console, render_callback, game_map,
+        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
+        enemy_spec, _hit, _damage, _popup,
+    )
+    return _damage, (_ews.ap_cost if _ews else 1)
+
+
+def _present_enemy_shot(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_weapon_id, enemy_weapon_quality, enemy_spec, hit, damage, popup,
+) -> None:
+    """Log and animate one enemy shot at the wielded variant's label."""
+    from ..ground_equipment import display_name
+
     _line = _enemy_attack_line(
-        enemy_spec.name, enemy_weapon_id, _ews.name,
-        hit=_hit, hull_dmg=_damage,
+        enemy_spec.name, enemy_weapon_id,
+        display_name("weapon", enemy_weapon_id, enemy_weapon_quality),
+        hit=hit, hull_dmg=damage,
     )
     ctx.log.add_colored(_line, _ml.COLOR_ENEMY_ACTION)
     if console is not None and render_callback is not None:
         _animate_ground_shot(
             console, ctx, game_map,
             enemy_entity.pos, player_pos,
-            enemy_weapon_id, is_hit=_hit,
-            damage=_popup,
+            enemy_weapon_id, is_hit=hit,
+            damage=popup,
             render_callback=render_callback,
         )
-    return _damage, (_ews.ap_cost if _ews else 1)
 
 
 def _roll_ground_shot(

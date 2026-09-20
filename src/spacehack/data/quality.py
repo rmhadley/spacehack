@@ -54,14 +54,19 @@ def roll_quality(rates: tuple[int, ...], rng) -> int:
     return 0
 
 
-def quality_multiplier(family: str, quality: int) -> float:
-    """Return the multiplier for one family and tier (hundredths / 100)."""
+def quality_multiplier_pct(family: str, quality: int) -> int:
+    """Return the multiplier in integer hundredths for one family/tier."""
     row = _FAMILY_ROWS.get(family)
     if row is None:
         raise ValueError(f"unknown quality family: {family!r}")
     if not 0 <= quality < len(row):
         raise ValueError(f"unknown quality tier: {quality!r}")
-    return row[quality] / 100
+    return row[quality]
+
+
+def quality_multiplier(family: str, quality: int) -> float:
+    """Return the multiplier for one family and tier (hundredths / 100)."""
+    return quality_multiplier_pct(family, quality) / 100
 
 
 def _scaled(value: int, pct: int) -> int:

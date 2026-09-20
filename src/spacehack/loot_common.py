@@ -32,6 +32,21 @@ _TYPE_FG = {
 # loot is evicted when new loot spawns (silently — SETTLED 8).
 MAX_LOOT_ENTITIES: int = 30
 
+# Brightness answers HOW GOOD (SETTLED 5): each tier above base steps
+# the equipment hue brighter. The legendary row is the phase-4 glow
+# slot — present but unreachable until randarts land. Initial values,
+# tuned at playtest.
+_QUALITY_BRIGHTNESS: tuple[float, ...] = (1.0, 1.10, 1.22, 1.36, 1.55)
+
+
+def _brighten(rgb: tuple[int, int, int], quality: int) -> tuple[int, int, int]:
+    """Step one hue brighter by tier, clamped at the display maximum."""
+    if quality <= 0:
+        return rgb
+    index = min(quality, len(_QUALITY_BRIGHTNESS) - 1)
+    factor = _QUALITY_BRIGHTNESS[index]
+    return tuple(min(255, int(channel * factor + 0.5)) for channel in rgb)
+
 # Entity-level markers (set post-construction, read via getattr).
 _PROTECTED_ATTRS = ("main_quest_step_id", "heist_mission")
 
@@ -46,14 +61,21 @@ def equipment_payload(item_type: str, item_id: str, quality: int = 0) -> dict:
 
 
 def loot_fg(loot_data: dict | None, *, mission: bool = False):
-    """Return the category colour for one loot payload (pure)."""
+    """Return the category colour for one loot payload (pure).
+
+    Equipment hues brighten with the payload's rolled quality;
+    every other category ignores it.
+    """
     if mission:
         return MISSION_FG
     if loot_data is None:
         return CARGO_FG
     if any(key in loot_data for key in _DATA_KEYS):
         return DATA_FG
-    return _TYPE_FG.get(loot_data.get("item_type"), CARGO_FG)
+    fg = _TYPE_FG.get(loot_data.get("item_type"), CARGO_FG)
+    if fg is EQUIPMENT_FG:
+        return _brighten(fg, loot_data.get("quality", 0))
+    return fg
 
 
 def is_protected_loot(entity) -> bool:

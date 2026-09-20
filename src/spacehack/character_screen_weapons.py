@@ -59,17 +59,20 @@ def _weapon_row(
     swap_allowed: bool,
 ):
     """Build one weapon-slot row (filled, empty, or occupied-by-2H)."""
-    from .data.ground_weapons import find_ground_weapon
 
     label = f"Weapon slot {index}"
     if occupied_by_two_handed:
         return _lazy()._equipment_row(f"{label}: --- (occupied by 2H)")
     if instance is not None:
         try:
-            spec = find_ground_weapon(instance.weapon_id)
+            from .data.quality import effective_weapon_spec
+            from .ground_equipment import display_name
+
+            spec = effective_weapon_spec(instance.weapon_id, instance.quality)
             _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
             return _lazy()._equipment_row(
-                f"{label}: {spec.name}{_weapon_ammo_indicator(spec, instance)}",
+                f"{label}: {display_name('weapon', instance.weapon_id, instance.quality)}"
+                f"{_weapon_ammo_indicator(spec, instance)}",
                 _weapon_detail_text(spec),
                 action=f"SWAP:weapon:{index - 1}" if _managed else "",
                 selectable=True if not equipment_management else _managed,

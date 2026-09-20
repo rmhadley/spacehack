@@ -39,6 +39,23 @@ def weapon_reload_option(ctx, slot: str) -> tuple[str, str] | None:
     return "Reload", f"RELOAD_SLOT:{_slot}"
 
 
+def _resolve_reload_target(ctx, slot):
+    """``(instance, spec, token-prefixed name)`` for one slot, or None."""
+    from .data.ground_weapons import find_ground_weapon
+    from .ground_equipment import display_name
+
+    try:
+        instance = ctx.equipped_ground_weapons[slot]
+        spec = find_ground_weapon(instance.weapon_id)
+    except (IndexError, KeyError, TypeError, ValueError):
+        ctx.log.add("That weapon cannot be reloaded.")
+        return None
+    return (
+        instance, spec,
+        display_name("weapon", instance.weapon_id, instance.quality),
+    )
+
+
 def reload_weapon_slot(
     ctx,
     slot: int,
@@ -49,16 +66,13 @@ def reload_weapon_slot(
     """Reload one selected weapon, optionally charging combat AP."""
     from . import ground_equipment
     from .combat import _rules_ground
-    from .data.ground_weapons import find_ground_weapon
 
-    try:
-        _instance = ctx.equipped_ground_weapons[slot]
-        _spec = find_ground_weapon(_instance.weapon_id)
-    except (IndexError, KeyError, TypeError, ValueError):
-        ctx.log.add("That weapon cannot be reloaded.")
+    _target = _resolve_reload_target(ctx, slot)
+    if _target is None:
         return False
+    _instance, _spec, _name = _target
     if slot not in reloadable_pack_slots(ctx):
-        ctx.log.add(f"{_spec.name}: no matching ammo or magazine is full.")
+        ctx.log.add(f"{_name}: no matching ammo or magazine is full.")
         return False
     if in_ground_combat and _rules_ground.player_ap(ctx) < _spec.reload_ap_cost:
         ctx.log.add(
@@ -71,13 +85,13 @@ def reload_weapon_slot(
             ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
         )
     except (IndexError, KeyError, ValueError) as exc:
-        ctx.log.add(f"{_spec.name}: {exc}")
+        ctx.log.add(f"{_name}: {exc}")
         return False
     if in_ground_combat and charge_ap:
         _rules_ground.set_player_ap(
             ctx, _rules_ground.player_ap(ctx) - _spec.reload_ap_cost,
         )
-    ctx.log.add(f"Reloaded {_spec.name} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
+    ctx.log.add(f"Reloaded {_name} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
     return True
 
 
@@ -85,15 +99,17 @@ async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
     """Show the chooser for ammo that feeds multiple active weapons."""
     from . import pygame_story
     from .data.ground_weapons import find_ground_weapon
+    from .ground_equipment import display_name
 
     choices = tuple(
         (
-            f"{find_ground_weapon(ctx.equipped_ground_weapons[slot].weapon_id).name} "
-            f"{ctx.equipped_ground_weapons[slot].loaded_ammo}/"
-            f"{find_ground_weapon(ctx.equipped_ground_weapons[slot].weapon_id).ammo_capacity}",
+            f"{display_name('weapon', instance.weapon_id, instance.quality)} "
+            f"{instance.loaded_ammo}/"
+            f"{find_ground_weapon(instance.weapon_id).ammo_capacity}",
             f"RELOAD_SLOT:{slot}",
         )
-        for slot in slots
+        for slot, instance in enumerate(ctx.equipped_ground_weapons)
+        if slot in slots
     )
     chosen = await pygame_story.choose(
         ctx,

@@ -13,9 +13,9 @@ from spacehack.loot_common import (
     FIELD_ITEM_FG,
     MISSION_FG,
     MAX_LOOT_ENTITIES,
-    enforce_loot_cap,
     is_protected_loot,
     loot_fg,
+    enforce_loot_cap,
 )
 
 
@@ -154,13 +154,17 @@ class TestConstructorRouting:
             gm, pos, (("ammo", "pistol_rounds"),), count_range=(1, 1),
         )
 
-        by_type = {
-            e.loot_data.get("item_type", "cargo"): e.fg
+        by_payload = {
+            e.loot_data.get("item_type", "cargo"): (e.fg, e.loot_data)
             for e in gm.entities if e.loot_data is not None
         }
-        assert by_type["cargo"] == CARGO_FG
-        assert by_type["weapon"] == EQUIPMENT_FG
-        assert by_type["ammo"] == FIELD_ITEM_FG
+        assert by_payload["cargo"][0] == CARGO_FG
+        assert by_payload["ammo"][0] == FIELD_ITEM_FG
+        # Equipment colour routes through loot_fg at whatever tier the
+        # drop rolled (the equipment hue or its brightened steps).
+        _weapon_fg, _weapon_payload = by_payload["weapon"]
+        assert _weapon_fg == loot_fg(_weapon_payload)
+        assert _weapon_fg == EQUIPMENT_FG or _weapon_payload.get("quality", 0) > 0
 
     def test_pad_entity_is_data_coloured(self):
         from spacehack.loot import spawn_pad_entity

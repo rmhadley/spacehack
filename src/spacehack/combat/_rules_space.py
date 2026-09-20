@@ -364,7 +364,8 @@ def weapon_ap_cost(weapon_id: str, ctx) -> int:
     """AP cost to fire ``weapon_id``: doubled for the focused weapon."""
     return _space_focus.ap_cost(weapon_id, ctx)
 
-def weapon_name(weapon_id: str, ctx) -> str:
+def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
+    # ``quality``: the ground-instance tier seam (ignored in space).
     from ..data.weapons import find_weapon as _fw
     return _fw(weapon_id).name
 
