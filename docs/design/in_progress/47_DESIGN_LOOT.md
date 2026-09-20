@@ -600,6 +600,35 @@ per-family multiplier rows (weapon + armor now; the module row
 lands phase 3 with its consumer), per-source 1-in-N rate tables,
 pure `roll_quality` / `quality_multiplier`. No catalog edits.
 
+**Build-discovery amendments (2026-09-19, implementation session):**
+
+- Neither dungeon scatter nor dig caches carry EQUIPMENT today —
+  `_LOOT_POOLS` rooms are trade-goods-only and `DigLootSpec` is the
+  planet's produces. The WRECK/DIG rate ladders therefore need a
+  thin authored equipment presence to have any consumer (playtest
+  item 7 tests delve-cache tokens): wreck `personal_storage` and
+  `engine_room` gain small `(item_type, item_id)` gear pools with a
+  1-in-N presence roll per marker; dig caches gain
+  `DigLootSpec.equipment_rate` (1-in-N caches carry gear instead of
+  goods) + tier-banded gear pools in `data/digs`. Pools draw from
+  existing catalogs — no new prose, no new payload shapes.
+- The player-side quality thread: the shared loop already has
+  slot-keyed rules entry points (`can_fire`/`consume_shot` in BOTH
+  rule sets), so `hit_chance`/`damage` gain an optional
+  `quality: int = 0` kwarg in both rule sets (space ignores it) and
+  the loop resolves ground quality through a duck-typed
+  `player_weapon_quality` rules hook (absent on space → 0).
+  `explosive_blast`/`is_explosive` are ground-only (duck-typed in
+  the loop) — no space signature change needed.
+- Ratchet headroom for the 981-line `_rules_ground.py`:
+  `_ground_hit_chance_raw` + `_ground_damage_raw` move to
+  `_ground_math.py` (pure math joins pure math) in the combat
+  commit, keeping the module line-neutral or better.
+- Equip-time rolls gate on `GroundWeaponSpec.loot_droppable` (the
+  phase-1 authored organic discriminator): body parts never roll —
+  "Modded Monster Claws" is not a thing and monsters shouldn't
+  consume roll RNG.
+
 ### Phase 2 — Quality system (brief PROPOSED 2026-09-19)
 
 **Scope (files + hook points):**
@@ -637,9 +666,12 @@ pure `roll_quality` / `quality_multiplier`. No catalog edits.
 5. **Drop-time rolls** — kill extras, dungeon-scatter equipment
    entries (`dungeon_layout` pools), dig caches (`DigLootSpec`
    gains quality-rate FIELDS only — rare-cache variant,
-   legendary guarantee, out-of-produce pool stay phase 4);
-   equipment `loot_data` gains `quality`; `loot.py:101` pickup
-   threads it into the stored entry.
+   legendary guarantee, out-of-produce pool stay phase 4; the
+   thin equipment presence the audit amendment authors
+   supersedes this "fields only" limit — the WRECK/DIG ladders
+   need something to consume); equipment `loot_data` gains
+   `quality`; `loot.py:101` pickup threads it into the stored
+   entry.
 6. **Presentation + economy** — `display_name(entry)` token
    prefix at the P chooser, pack rows, armory list + sell rows;
    `loot_fg` brightness steps within the equipment hue (SETTLED
