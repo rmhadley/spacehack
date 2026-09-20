@@ -3,8 +3,9 @@
 **Status: DESIGN IN PROGRESS — no implementation until the user
 explicitly requests it.** Draft opened 2026-09-19; the user's four
 polish notes, the full open-question pass, and the phase-2
-quality pass (all same day) are settled below. Remaining opens
-are phase-4-shaped.
+quality pass (all same day), plus the phase-3 module pass
+(2026-09-20), are settled below. Remaining opens are
+phase-4-shaped.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -188,12 +189,14 @@ legendary bottom-floor guarantee — per-planet authoring through
 
 ### C. New loot (ruled in — shapes open)
 
-- **Ship modules as loot** (ruling 3): new payload shape
-  (`{"item_type": "module", "item_id": …}` → ship global
-  storage), from boarding captures + derelicts via room-typed
-  pools (engine rooms → engine-slot modules, systems rooms →
-  system-slot), and the diegetic strong form: boarded ships drop
-  from their own live `modules` list. Modules are quality-variant
+- **Ship modules as loot** (ruling 3; shape SETTLED 14-16): new
+  payload shape (`{"item_type": "module", "item_id": …}` → ship
+  global storage), from room-typed pools (engine rooms →
+  engine-slot modules, CARGO BAYS → system-slot — no "systems"
+  room exists in any layout, SETTLED 15) plus the diegetic
+  strong form: an INTACT CAPTURE is stripped of its whole live
+  `modules` list at the quality it flew (SETTLED 14/16); dead
+  ships yield room scatter only. Modules are quality-variant
   gear (ruling 2) — a found shield generator can be a good one.
 - **Legendary randarts** (rulings 4 + SETTLED 1, amended): the
   top rolled tier, delve-exclusive, never shop-stockable. A
@@ -301,6 +304,34 @@ Four rulings from the quality-system refinement session
     re-roll at death. Beyond-the-weapon extras (armor, sidearms)
     roll at drop time with the same kill-source rates.
 
+## Settled — the phase-3 module pass (2026-09-20)
+
+Three rulings from the module-loot refinement session (numbering
+continues the passes above):
+
+14. **Module quality flies with the ship (SETTLED 13, extended
+    to space).** Ships in combat roll their installed modules'
+    quality at combat entry (KILL rates, per-module, seeded);
+    their hull/shield/gunnery/etc. scale with the rolled tiers;
+    an intact capture drops THOSE instances — no re-roll. Dead
+    ships (wrecks, derelicts, mission salvage — hulls that never
+    fought back) roll at interior-build time through the WRECK
+    ladder. Two seams, each the space twin of its ground
+    precedent: flown modules = the wielded weapon (equip-time),
+    room scatter = the carried extras (drop-time).
+15. **Room pools: engine_room hosts engine-slot modules,
+    cargo_bay hosts system-slot.** No layout edits — the audit
+    found NO "systems" room type in any of the eight authored
+    ship layouts (only engine_room, mess_hall, personal_storage,
+    cargo_bay carry LOOT markers), so system modules take the
+    cargo bay (spare-parts-in-crates framing). Data-only pools
+    mirroring phase-2's `_ROOM_EQUIPMENT_POOLS` + 1-in-N rate.
+16. **The live-`modules` drop is intact captures only — the
+    whole installed list.** A captured ship is stripped of
+    everything it flew; a destroyed-then-boarded wreck's
+    hardware died with the hull, so dead ships (mission wrecks
+    and derelicts included) yield room scatter only.
+
 ## Remaining opens (phase-4-shaped or authoring-tuned)
 
 - Randart specifics — property spread (axis count, magnitude
@@ -351,8 +382,12 @@ Four rulings from the quality-system refinement session
   added; kill-drops, loot presentation, dig-caches, and Absent
   entries amended).
 - [ ] 3. **Modules as loot** — payload shape → ship storage,
-  boarding/derelict room pools, boarded-ship live `modules`
-  drops, mechanic economy check.
+  room pools (engine_room → engine-slot, cargo_bay →
+  system-slot, SETTLED 15), the capture-only live-`modules`
+  strip at flown quality (SETTLED 14/16), installed-module
+  instances through install/store/sell/save (mechanic economy:
+  half catalog × multiplier, SETTLED 4), the module quality
+  family row. Brief PROPOSED 2026-09-20 (below).
 - [ ] 4. **Legendary randarts + credits + pads** — the randart
   generator (seeded name composition from word pools + property
   spread over `ModuleSpec`'s bonus axes), legendary activation
@@ -771,3 +806,213 @@ brief):**
     more to buyers. Shops stock standard only; the better grades
     come off bodies and out of wrecks. What an enemy fought with
     is what drops.
+
+## Pre-implementation audit — phase 3 (2026-09-20)
+
+**Reuse (verified):**
+
+- Ship storage already exists: `ctx.ship_storage` holds
+  `StoredEquipment("module", id)` pairs (`ship.py:19-24`,
+  `game_context.py:251`) — module loot appends there, no new
+  container. The save parse exists (`saveload.py:95-112`).
+- The pickup payload is already generic:
+  `loot_common.equipment_payload("module", id, quality)` emits
+  the shape; the quality key rides `loot_data` wholesale.
+  `loot.py:627-633` dispatches by item_type (weapon/armor →
+  equipment flow, ammo/consumable → field items, else → trade
+  goods) — the module branch inserts there.
+- Room-pool pattern: `_ROOM_EQUIPMENT_POOLS` +
+  `WRECK_EQUIPMENT_RATE` (`dungeon_layout.py:33-42`) is the
+  exact table shape `_ROOM_MODULE_POOLS` mirrors; scatter hooks
+  the same per-marker loop in `_scatter_loot`.
+- Enemy modules already ride into combat:
+  `EnemyInstance.modules=enemy_spec.modules`
+  (`combat/_stats.py:258`), and specs carry real lists
+  (`data/npc_ships/`: warships 2-5 modules; scouts mostly none —
+  so generic derelicts, which reuse `scout_a` at
+  `game_interactions.py:693`, feed from room pools exactly as
+  SETTLED 16 wants).
+- Stat-sum seams: player/enemy module-bonus sums concentrate in
+  `combat/_stats.py` (`_calc_max_hull`, `_calc_hull_for_enemy`,
+  `_calc_power_gen`, `_calc_max_shields`, skill-bonus sums) and
+  `ship.py`'s four helpers (`hull_cur_max`, `effective_speed`,
+  `effective_max_cargo`, `smuggler_hold_capacity`) —
+  `effective_module_spec` slots under all of them.
+- Migration precedents to copy: `parse_weapon_instance`
+  (bare-id → instance, `ground_equipment.py:145`) and the
+  phase-2 armor-dict migration (callers keep passing the
+  collection; sums go quality-aware internally).
+- Sell seam: `_sell_price(item_type, item_id)` (`ship.py:356`)
+  serves every sell path (stored `menus/_loadout.py:284,323`,
+  installed `:353,416`) — gains quality once.
+
+**Duplication hotspots:**
+
+1. Module-bonus sums: ~8 reader functions across `_stats.py` +
+   `ship.py` could each hand-multiply quality inline.
+2. Token labels: loadout stored rows, ship-slot rows, sell
+   choosers, install/log lines — four-plus screens that could
+   each prefix.
+3. Save/load twins: `StoredEquipment` parse/serialize AND
+   `OwnedShip.modules` (new instance shape + legacy bare-id
+   migration) — both directions.
+4. The capture strip lands in `game_interactions.py` — 997
+   lines, 3 lines of ratchet headroom.
+
+**DRY strategy:**
+
+1. One `effective_module_spec(id, quality)` in `data/quality.py`
+   with the module family row — callers never multiply inline.
+2. One module display-name seam (token prefix + spec.name) next
+   to `StoredEquipment` in `ship.py`; screens never prefix.
+3. The capture strip is a pure helper (flown instances → floor
+   entities at engine-room markers, spawn-adjacent fallback)
+   living in `combat/_actions.py`, CALLED from the capture path
+   — `game_interactions.py` stays line-neutral.
+4. `OwnedShip.modules` becomes entries (the armor-dict pattern:
+   `StoredEquipment` items everywhere, `.item_id` at readers) —
+   no parallel quality tuple to drift; flown modules on
+   `EnemyInstance` follow the same instances-not-parallels
+   shape (the `weapon_id`+`weapon_quality` pattern, plural).
+
+**Data-first:** `MODULE_MULTIPLIER_PCT` family row; room pools
+`engine_room: (compact_reactor, reactor_mk2)` /
+`cargo_bay: (shield_mk1, shield_capacitor, targeting_computer,
+expanded_cargo)` + `WRECK_MODULE_RATE` 1-in-N — opening
+guesses, tuned at playtest; smuggler holds stay shop-only this
+phase (pool-excluded). No catalog edits.
+
+### Phase 3 — Modules as loot (brief PROPOSED 2026-09-20)
+
+**Scope (files + hook points):**
+
+1. **Quality family row** — `data/quality.py`:
+   `MODULE_MULTIPLIER_PCT` (the ~115/130/145/220 shape, tuned at
+   playtest) + `effective_module_spec(module_id, quality)`
+   scaling all ten bonus fields proportionally; NEGATIVE bonuses
+   scale in magnitude ("more of what it is" — a prototype Armor
+   Plating gives more hull AND a bigger power draw); price,
+   tech_level, slot_type untouched.
+2. **Instance threading** — `StoredEquipment` gains
+   `quality: int = 0`; `OwnedShip.modules` becomes
+   `tuple[StoredEquipment, ...]`: `_install_module` takes an
+   entry (the buy path constructs base), `store_module` /
+   `_remove_module` / `move_installed_equipment_to_storage`
+   preserve quality, `can_install_stored_equipment` and the
+   slot/find helpers read `.item_id`; reader sweep:
+   `ship.py` helpers, `combat/_stats.py` sums, `tutorial.py:268`,
+   `_ship_menu`/`_loadout` rows.
+3. **Save/load** — `saveload.py`: the StoredEquipment quality
+   key (missing/invalid → 0) and the `OwnedShip.modules`
+   migration (legacy bare-id tuples → base entries).
+4. **Enemy fly-time rolls** — `EnemyInstance`'s flown modules
+   become quality-bearing instances rolled at instance build
+   (KILL rates, per-module, seeded — SETTLED 14); enemy stat
+   builds thread them through `effective_module_spec`
+   (`_calc_hull_for_enemy`, `_calc_max_shields`, power/skill
+   sums — verify exact sites at build); disengage/re-engage
+   re-rolls (the accepted ground continuity gap, space-side).
+5. **Capture strip** — the intact-capture interior seeds floor
+   entities from the fought instance's (id, quality) pairs at
+   engine-room markers (spawn-adjacent fallback): pure helper in
+   `combat/_actions.py`, threaded from the combat BOARD path
+   through `_consume_boarded_hull` → the capture
+   `_load_layout(capture_layout_id, …)` call; dead-ship
+   interiors (wrecks, derelicts, mission salvage) NEVER seed
+   from the list (SETTLED 16).
+6. **Room pools** — `dungeon_layout.py`: `_ROOM_MODULE_POOLS`
+   (engine_room → engine-slot, cargo_bay → system-slot) +
+   `WRECK_MODULE_RATE` 1-in-N per marker, quality through the
+   WRECK ladder, hooking the same marker loop as the equipment
+   pools.
+7. **Pickup + presentation** — `loot.py`: the module branch in
+   `_open_single_loot_pickup` → `_apply_module_loot` appends
+   `StoredEquipment("module", id, quality)` to
+   `ctx.ship_storage` (no pack check — storage is uncapped like
+   bought parts) + one log line (string below, gated);
+   `loot_common.loot_fg` treats item_type "module" as equipment
+   (hue + quality brightness); the display-name seam covers
+   chooser labels, loadout rows, and log lines; module detail
+   rows render from the effective spec where a stats line shows
+   (match the ground armory's phase-2 behavior).
+8. **Economy** — `_sell_price` gains quality: exact
+   `(price*pct+100)//200`, min 1 (the armory formula, SETTLED 4);
+   shop stock and buy paths stay base.
+
+**Build order:** quality row + effective spec → stored/installed
+instance migration + save/load → pickup branch + labels +
+loot_fg → fly-time rolls + combat threading → capture strip →
+room pools → sell × multiplier → guide (own commit,
+approval-gated).
+
+**Binding rulings:** SETTLED 14/15/16 + rulings 2/3, SETTLED 4;
+shops, starting gear, and quest gear never variant; exterior
+space kills NEVER drop modules (ruling 3 is raiding, not
+debris); smuggler holds stay shop-only this phase (revisit at
+playtest if pirate wrecks should carry them); quest-loot
+security do-not-break; mission salvage steps feed from room
+pools only (their ships are dead); no new room types or layout
+edits; prose gate — beyond the strings below, no new prose.
+
+**Tests:** effective module spec parametrized (ten fields,
+negative-magnitude scaling, half-up rounding both signs);
+install/store/sell/upgrade-transfer round-trips preserve
+quality; legacy-save migration (bare-id modules,
+quality-less StoredEquipment); seeded fly-time roll scales
+enemy hull/shields; the capture strip drops the fought
+instances exactly (no re-roll) and dead interiors never strip;
+room pool presence + rates (both rooms); pickup → ship_storage;
+loot_fg module hue/brightness; sell integer-exact at every
+tier; no source can roll legendary.
+
+**Stop point:** no randart generator/name pools/legendary
+activation (phase 4), no rare-pickup modal (phase 4), no
+chips/lockboxes/valuable pads, no dig-site module sources
+(delve legendaries are phase 4's), no enemy loadout re-authoring
+by site tier (doc 48 owns that surface), no exterior-kill module
+drops, no layout/room-type edits, no SYSTEMS.md work (phase
+close only).
+
+**Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+
+1. Fight a warship (gunboat/cruiser) until one rolls a module
+   tier: it tanks/hits accordingly; BOARD under capture
+   conditions and win — its installed modules lie in the engine
+   room with tokens matching what flew against you.
+2. Reduce a ship to a dead hull, then board it: room scatter
+   only, no installed-list pile (its hardware died with it).
+3. Wreck/derelict rooms: engine rooms can yield reactors;
+   cargo bays yield shield/targeting gear; token rates read
+   thin, not absent.
+4. Pick a module up: storage gains it (mechanic STORAGE view),
+   log line reads, the glyph shows the equipment hue brightening
+   with quality.
+5. Install an overclocked Shield Mk. 2: max shields rise by the
+   scaled bonus; store it — the token survives; save → quit →
+   Continue — quality survives both stored and installed.
+6. Mechanic: sell a variant module at half catalog ×
+   multiplier; shop stock never carries tokens; the economy
+   reads sane (captures don't out-earn their risk).
+7. Regression: ground quality flows unchanged; transponder
+   clone/capture flow unchanged; derelict one-shot prompt;
+   mission salvage steps; ship-upgrade transfer; tutorial
+   hints.
+8. Guide diff: Ships & Equipment gains the module-loot
+   paragraph (draft below) — approve or red-line before it
+   lands; everything else unchanged.
+
+**Strings drafts (PROSE GATE — for approval with this brief):**
+
+Pickup log line (follows the `Packed ground equipment: …`
+convention; `{name}` carries the token prefix through the
+display-name seam):
+
+    Stored ship module: {name}.
+
+Guide entry (lands in "Ships & Equipment" after the mechanic
+paragraph):
+
+    Ship modules can be looted as well. Capture an enemy ship
+    and you strip the modules it was flying; search wrecks and
+    derelicts for spare parts in the engine room and the cargo
+    bay. Modules carry the same quality grades as ground gear.
