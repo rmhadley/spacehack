@@ -1189,6 +1189,39 @@ dig-loot config. Ratchet: every touched module has headroom
 the pure roll; dig container/off-world fields on `DigLootSpec`;
 no catalog edits.
 
+**Build-discovery amendments (2026-09-20, implementation session):**
+
+- All audit anchors re-verified against the tree at build start; the
+  one number drift: the module catalog counts **31** rows, not 30 —
+  the uniform legendary base roll uses `list_modules()` as-is.
+- Wreck chips need an explicit gate: `load_layout` also serves city
+  landmarks, dig landmark rooms, and intact captures — none of those
+  are wrecks (SETTLED 6 scopes chips to wrecks/digs). The build adds
+  a `credit_chips: bool = False` kwarg threaded `True` at exactly the
+  three dead-ship callers (`_build_generic_derelict`, mission
+  salvage, main-quest wreck) — all single-line calls, so
+  `game_interactions.py` stays 998/1000.
+- Strings follow the phase-2/3 precedent: brief-drafted strings ride
+  the mechanical commit whose consumer needs them (name pools with
+  the generator; chip/lockbox lines with the credits path; modal
+  strings with the modal), the GUIDE sentence lands in its own
+  approval-gated commit, and EVERY phase-4 string is listed verbatim
+  at the playtest checkpoint for review. The eight build-authored
+  axis labels (the brief delegated their phrasing) live with the
+  axes table in `data/randarts.py` and join that checkpoint list.
+- The delve-bottom seed draw must be **strictly ≥ 1**:
+  `parse_randart_seed` migrates 0 to "not a randart", so a generated
+  0-seed would silently de-legendary on its first save/load
+  round-trip (reviewer flag, step 1). `engine.RNG.randint(1, …)`,
+  never raw `getrandbits`.
+- Dig scatter keeps the existing goods-cache RNG order first; chips
+  and the legendary place after the cache loop, so fresh dig floors
+  draw the same goods sequence they always did.
+- `store_module` re-constructs its `StoredEquipment` — the seed
+  thread sweeps EVERY construction site (the phase-3
+  instances-not-parallels lesson): pickup entry, store, both save
+  parsers; buy/install paths stay base by design.
+
 ### Phase 4 — Legendary randarts + credit containers (brief
 PROPOSED 2026-09-20)
 
