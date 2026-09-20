@@ -435,11 +435,12 @@ def _remove_module(owned: OwnedShip, index: int) -> tuple[str, ...]:
     return new
 
 
-def _sell_price(item_type: str, item_id: str) -> int:
-    """Sell-back value for an installed part: 50% of buy price.
+def _sell_price(item_type: str, item_id: str, quality: int = 0) -> int:
+    """Sell-back value for a part: 50% of buy price scaled by tier.
 
-    ``item_type`` is ``"weapon"`` or ``"module"``. Returns at
-    least 1 credit.
+    ``item_type`` is ``"weapon"`` or ``"module"``; a module's quality
+    tier multiplies the price (doc 47.3 SETTLED 4 — the armory
+    formula, half-up). Returns at least 1 credit.
     """
     if item_type == "weapon":
         from .data.weapons import find_weapon as _fw
@@ -450,11 +451,14 @@ def _sell_price(item_type: str, item_id: str) -> int:
         return max(1, spec.price // 2)
     elif item_type == "module":
         from .data.modules import find_module as _fm
+        from .data.quality import quality_multiplier_pct
         try:
             spec = _fm(item_id)
         except KeyError:
             return 0
-        return max(1, spec.price // 2)
+        if quality <= 0:
+            return max(1, spec.price // 2)
+        return max(1, (spec.price * quality_multiplier_pct("module", quality) + 100) // 200)
     return 0
 
 

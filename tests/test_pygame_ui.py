@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from tests.support.asyncutil import run, as_async
+from tests.support.module_entries import module_entry
 
 from types import SimpleNamespace
 
@@ -2578,7 +2579,7 @@ def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
         player_owned_ship=OwnedShip(
             ship_id="starter",
             weapons=("light_laser",),
-            modules=(_ship_menu.ship_module.StoredEquipment("module", "shield_mk1"),),
+            modules=(module_entry("shield_mk1"),),
             fuel=12,
         ),
         stats=SimpleNamespace(credits=321),
@@ -2634,9 +2635,7 @@ def test_slot_rows_mark_unknown_ids_and_empty_slots():
     from src.spacehack.menus import _ship_menu
 
     rows = _ship_menu._slot_rows(
-        2,
-        (_ship_menu.ship_module.StoredEquipment("module", "not_a_real_module"),),
-        _ship_menu._module_row,
+        2, (module_entry("not_a_real_module"),), _ship_menu._module_row,
     )
 
     assert rows[0].text == "not_a_real_module"
@@ -5055,3 +5054,82 @@ def test_bundled_dejavu_mono_font_ships_with_the_package():
     bundled = Path(pygame_ui.__file__).parent / "data" / "DejaVuSansMono.ttf"
 
     assert bundled.is_file()
+
+
+def test_loadout_buy_install_module_lands_as_base_entry(monkeypatch):
+    """The buy path constructs a base module entry — doc 47.3's
+    instance threading through the purchase flow."""
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "BUY_INSTALL_MODULE:shield_mk1"),
+    )
+
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, "BUY_MODULE:shield_mk1", 0, 0, "earth",
+    ))
+
+    assert ctx.player_owned_ship.modules == (
+        StoredEquipment("module", "shield_mk1"),
+    )
+    assert ctx.stats.credits == 1000 - 60
+    assert ctx.ship_storage == []
+
+
+def test_loadout_manage_module_slot_threads_quality(monkeypatch):
+    """MANAGE_MODULE_SLOT on a variant: the chooser body carries the
+    token, the sell option prices the tier, and SELL credits it
+    (shield_mk2 150: half 75 * 1.30 = 98)."""
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    seen = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(StoredEquipment("module", "shield_mk2", quality=2),),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **kwargs: seen.append(kwargs) or "SELL_MODULE_SLOT:0"),
+    )
+
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, "MANAGE_MODULE_SLOT:0", 1, 0, "earth",
+    ))
+
+    assert seen[0]["body"] == "Overclocked Shield Mk. 2"
+    assert ("Sell for 98$", "SELL_MODULE_SLOT:0") in seen[0]["options"]
+    assert ctx.stats.credits == 100 + 98
+    assert ctx.player_owned_ship.modules == ()
+
+
+def test_loadout_sell_stored_module_scales_with_quality():
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[StoredEquipment("module", "shield_mk2", quality=2)],
+        stats=SimpleNamespace(credits=0),
+        log=SimpleNamespace(add=lambda _message: None),
+    )
+
+    _loadout._apply_sell_stored(ctx, "SELL_STORED:0")
+
+    assert ctx.stats.credits == 98
+    assert ctx.ship_storage == []

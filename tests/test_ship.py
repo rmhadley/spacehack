@@ -146,7 +146,7 @@ class TestSmugglerHoldCapacity:
 # ---------------------------------------------------------------------------
 
 class TestSellPrice:
-    """50% of buy price, minimum 1 credit."""
+    """50% of buy price, minimum 1 credit; module tiers scale it."""
 
     def test_weapon(self):
         """light_laser: price=30 → 15."""
@@ -155,6 +155,19 @@ class TestSellPrice:
     def test_module(self):
         """compact_reactor: price=50 → 25."""
         assert _sell_price("module", "compact_reactor") == 25
+
+    def test_module_quality_scales_half_catalog(self):
+        """shield_mk2 (150): 75 base; 86/98/109/165 across the ladder
+        (doc 47.3 SETTLED 4 — the armory formula, half-up)."""
+        assert _sell_price("module", "shield_mk2") == 75
+        assert _sell_price("module", "shield_mk2", 1) == 86   # 86.75
+        assert _sell_price("module", "shield_mk2", 2) == 98   # 97.5 -> 98
+        assert _sell_price("module", "shield_mk2", 3) == 109  # 109.25
+        assert _sell_price("module", "shield_mk2", 4) == 165  # 165.5 -> 165
+
+    def test_weapons_never_variant(self):
+        """Space weapons stay base regardless of a stray tier."""
+        assert _sell_price("weapon", "light_laser", 3) == 15
 
     def test_min_1(self):
         """Item with price=1 → 0 after floor division, clamped to 1."""

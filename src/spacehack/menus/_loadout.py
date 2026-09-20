@@ -68,6 +68,14 @@ def _weapon_detail(spec, *, ammo: int | None = None) -> str:
     return detail
 
 
+def _stored_label(stored) -> str:
+    """Display label for one stored part (token seam for modules)."""
+    if stored.item_type == "module":
+        from ..ship import module_display_name
+        return module_display_name(stored.item_id, stored.quality)
+    return stored.item_id.replace('_', ' ').title()
+
+
 def _stored_row(stored, index: int):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
@@ -289,21 +297,16 @@ async def _choose_stored_action(ctx, action: str) -> str:
         return "__BACK__"
     stored = storage[storage_index]
     try:
-        spec = _stored_spec(stored)
-        sell_price = ship_module._sell_price(stored.item_type, stored.item_id)
+        sell_price = ship_module._sell_price(
+            stored.item_type, stored.item_id, stored.quality,
+        )
     except (AttributeError, KeyError, TypeError, ValueError):
         return "__BACK__"
     from .. import pygame_story
-    from ..ship import module_display_name
-    body = (
-        module_display_name(stored.item_id, stored.quality)
-        if stored.item_type == "module"
-        else spec.name
-    )
     return await pygame_story.choose(
         ctx,
         title="STORED EQUIPMENT",
-        body=body,
+        body=_stored_label(stored),
         options=(
             ("Install", f"INSTALL_STORED:{storage_index}"),
             (f"Sell for {sell_price}$", f"SELL_STORED:{storage_index}"),
@@ -335,7 +338,9 @@ def _apply_sell_stored(ctx, action: str) -> None:
         return
     stored = storage[storage_index]
     try:
-        sell_price = ship_module._sell_price(stored.item_type, stored.item_id)
+        sell_price = ship_module._sell_price(
+            stored.item_type, stored.item_id, stored.quality,
+        )
     except (AttributeError, KeyError, TypeError, ValueError):
         ctx.log.add("That storage entry is no longer available.")
         return
@@ -344,21 +349,18 @@ def _apply_sell_stored(ctx, action: str) -> None:
         return
     storage.pop(storage_index)
     ctx.stats.credits += sell_price
-    if stored.item_type == "module":
-        from ..ship import module_display_name
-        label = module_display_name(stored.item_id, stored.quality)
-    else:
-        label = stored.item_id.replace('_', ' ').title()
-    ctx.log.add(f"Sold {label} for {sell_price}$.")
+    ctx.log.add(f"Sold {_stored_label(stored)} for {sell_price}$.")
 
 
-def _installed_item_label(kind: str, item) -> tuple[str, str]:
-    """Return (chooser body, sell id) for one installed slot item."""
+def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
+    """Return (chooser body, sell id, quality) for one slot item."""
     if kind == "weapon":
         from ..data.weapons import find_weapon
-        return find_weapon(item).name, item
+        return find_weapon(item).name, item, 0
     from ..ship import module_display_name
-    return module_display_name(item.item_id, item.quality), item.item_id
+    return (
+        module_display_name(item.item_id, item.quality), item.item_id, item.quality,
+    )
 
 
 async def _choose_ship_action(ctx, action: str) -> str:
@@ -374,9 +376,9 @@ async def _choose_ship_action(ctx, action: str) -> str:
     )
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return "__BACK__"
-    body, sell_id = _installed_item_label(kind, slots[slot][0])
+    body, sell_id, quality = _installed_item_label(kind, slots[slot][0])
     from .. import pygame_story
-    sell_price = ship_module._sell_price(kind, sell_id)
+    sell_price = ship_module._sell_price(kind, sell_id, quality)
     noun = kind.upper()
     return await pygame_story.choose(
         ctx,
@@ -431,9 +433,10 @@ async def _apply_sell_installed(ctx, action: str) -> None:
     item = slots[slot][0]
     remove = ship_module._remove_weapon if item_type == "SELL_WEAPON_SLOT" else ship_module._remove_module
     remove(owned, slot)
-    ctx.stats.credits += ship_module._sell_price(
-        "weapon" if item_type == "SELL_WEAPON_SLOT" else "module",
-        item if item_type == "SELL_WEAPON_SLOT" else item.item_id,
+    ctx.stats.credits += (
+        ship_module._sell_price("weapon", item)
+        if item_type == "SELL_WEAPON_SLOT"
+        else ship_module._sell_price("module", item.item_id, item.quality)
     )
 
 

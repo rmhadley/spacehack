@@ -123,15 +123,29 @@ def _ground_equipment_loot_name(entry) -> str:
     )
 
 
-def _module_loot_name(loot_entity) -> str:
-    """Return the token-prefixed display name for a module loot entity."""
+def _module_loot_entry(loot_entity):
+    """Build the stored-module entry from a module loot entity.
+
+    The payload's rolled quality threads into the entry (the ground
+    ``_ground_equipment_loot_entry`` twin, doc 47.3).
+    """
     from . import ship as ship_module
     from .ground_equipment import parse_quality
 
     loot_data = loot_entity.loot_data or {}
-    return ship_module.module_display_name(
-        str(loot_data.get("item_id", "")), parse_quality(loot_data.get("quality")),
+    return ship_module.StoredEquipment(
+        "module",
+        str(loot_data.get("item_id", "")),
+        quality=parse_quality(loot_data.get("quality")),
     )
+
+
+def _module_loot_name(loot_entity) -> str:
+    """Return the token-prefixed display name for a module loot entity."""
+    from . import ship as ship_module
+
+    entry = _module_loot_entry(loot_entity)
+    return ship_module.module_display_name(entry.item_id, entry.quality)
 
 
 def _field_item_loot_stack(loot_entity):
@@ -545,19 +559,14 @@ def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
     required. The payload's rolled quality threads into the entry.
     """
     from . import ship as ship_module
-    from .ground_equipment import parse_quality
 
-    loot_data = loot_entity.loot_data or {}
-    module_id = str(loot_data.get("item_id", ""))
-    quality = parse_quality(loot_data.get("quality"))
+    entry = _module_loot_entry(loot_entity)
     try:
-        name = ship_module.module_display_name(module_id, quality)
+        name = ship_module.module_display_name(entry.item_id, entry.quality)
     except (KeyError, TypeError, ValueError):
         ctx.log.add("Unknown ship module - left it behind.")
         return
-    ctx.ship_storage.append(
-        ship_module.StoredEquipment("module", module_id, quality=quality),
-    )
+    ctx.ship_storage.append(entry)
     _finish_loot_pickup(ctx, loot_entity, f"Stored ship module: {name}.")
 
 
