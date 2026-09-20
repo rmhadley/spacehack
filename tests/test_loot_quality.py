@@ -61,6 +61,7 @@ def test_rate_ladders_are_three_ascending_runs():
     [
         ("weapon", quality.WEAPON_MULTIPLIER_PCT),
         ("armor", quality.ARMOR_MULTIPLIER_PCT),
+        ("module", quality.MODULE_MULTIPLIER_PCT),
     ],
 )
 def test_quality_multiplier_rows(family, row):
@@ -72,7 +73,7 @@ def test_quality_multiplier_rows(family, row):
 
 def test_quality_multiplier_rejects_unknown_family_and_tier():
     with pytest.raises(ValueError):
-        quality.quality_multiplier("module", 1)
+        quality.quality_multiplier("cargo", 1)
     with pytest.raises(ValueError):
         quality.quality_multiplier("weapon", quality.LEGENDARY_QUALITY + 1)
     with pytest.raises(ValueError):
@@ -138,6 +139,71 @@ def test_effective_specs_reject_unknown_ids():
         quality.effective_weapon_spec("no_such_weapon", 1)
     with pytest.raises(KeyError):
         quality.effective_armor_spec("no_such_armor", 1)
+    with pytest.raises(KeyError):
+        quality.effective_module_spec("no_such_module", 1)
+
+
+# ---------------------------------------------------------------------------
+# Effective module specs (doc 47 phase 3)
+# ---------------------------------------------------------------------------
+
+
+def test_effective_module_spec_base_is_the_catalog_row():
+    from spacehack.data.modules import find_module
+
+    spec = find_module("shield_mk2")
+    assert quality.effective_module_spec("shield_mk2", 0) is spec
+    assert quality.effective_module_spec("shield_mk2", -1) is spec
+
+
+def test_effective_module_spec_scales_every_bonus_field():
+    from spacehack.data.modules import find_module
+
+    t2 = quality.effective_module_spec("shield_mk2", 2)  # max_shield_bonus 40
+    assert t2.max_shield_bonus == 52      # 40 * 1.30
+    # The other nine fields scale identically; heavy_reactor carries a
+    # mixed load (power 6, cargo -1, speed 1).
+    reactor_t3 = quality.effective_module_spec("heavy_reactor", 3)
+    assert reactor_t3.power_gen_bonus == 9   # 6 * 1.45 = 8.7 -> 9
+    assert reactor_t3.speed_bonus == 1       # 1 * 1.45 = 1.45 -> 1
+    assert find_module("heavy_reactor").cargo_bonus == -1
+
+
+def test_effective_module_spec_scales_negatives_in_magnitude():
+    # "More of what it is": a better Armor Plating gives more hull AND
+    # a bigger power draw — half-up on the magnitude, both signs.
+    t3 = quality.effective_module_spec("armor_mk2", 3)  # hull 10, power -2
+    assert t3.max_hull_bonus == 15      # 10 * 1.45 = 14.5 -> 15
+    assert t3.power_gen_bonus == -3     # |2| * 1.45 = 2.9 -> 3
+    t1 = quality.effective_module_spec("armor_plating", 1)  # power -1
+    assert t1.power_gen_bonus == -1     # |1| * 1.15 = 1.15 -> 1
+    t4 = quality.effective_module_spec("armor_mk4", 4)      # power -4
+    assert t4.power_gen_bonus == -9     # |4| * 2.20 = 8.8 -> 9
+
+
+def test_scaler_rounds_exact_halves_up_in_magnitude():
+    # 11.5 rounds to 12 at either sign — no catalog module carries a
+    # -10 draw, so pin the arithmetic at the seam it lives on.
+    assert quality._scaled(10, 115) == 12
+    assert quality._scaled(-10, 115) == -12
+    assert quality._scaled(-1, 115) == -1      # 1.15 -> 1
+    assert quality._scaled(0, 220) == 0
+
+
+def test_effective_module_spec_leaves_price_slot_and_tech_alone():
+    from spacehack.data.modules import find_module
+
+    base = find_module("compact_reactor")
+    t4 = quality.effective_module_spec("compact_reactor", 4)
+    assert t4.price == base.price
+    assert t4.tech_level == base.tech_level
+    assert t4.slot_type == base.slot_type
+    assert t4.id == base.id and t4.name == base.name
+
+
+def test_effective_module_spec_legendary_row_resolves():
+    t4 = quality.effective_module_spec("shield_mk2", quality.LEGENDARY_QUALITY)
+    assert t4.max_shield_bonus == 88     # 40 * 2.20
 
 
 @pytest.mark.parametrize(

@@ -14,6 +14,7 @@ import dataclasses
 
 from .ground_armor import find_ground_armor
 from .ground_weapons import find_ground_weapon
+from .modules import find_module
 
 # SETTLED 10 (user, verbatim): t1/t2/t3 tokens, title-cased at the
 # label seam ("Modded Kinetic Pistol"). Legendaries carry no token —
@@ -25,9 +26,21 @@ LEGENDARY_QUALITY: int = 4
 # Per-family multiplier rows indexed by quality (0 = base), authored
 # in integer hundredths so scaling rounds exactly half-up (SETTLED 2's
 # ~15/30/45% shape; legendary sits high per SETTLED 4). Tuned at
-# playtest. The module row lands phase 3 with its consumer.
+# playtest.
 WEAPON_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
 ARMOR_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
+MODULE_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
+
+# The ten ModuleSpec bonus fields quality scales (doc 47.3). Price,
+# tech_level, and slot_type stay catalog-fixed; negative bonuses scale
+# in magnitude ("more of what it is" — a prototype Armor Plating has
+# more hull AND a bigger power draw).
+_MODULE_BONUS_FIELDS: tuple[str, ...] = (
+    "power_gen_bonus", "max_shield_bonus", "shield_recharge_bonus",
+    "cargo_bonus", "gunnery_bonus", "piloting_bonus",
+    "engineering_bonus", "max_hull_bonus", "speed_bonus",
+    "smuggler_cargo",
+)
 
 # Per-source 1-in-N rate ladders (t1, t2, t3) — the DOOR_RATES shape.
 # Opening guesses, tuned at playtest.
@@ -38,6 +51,7 @@ DIG_QUALITY_RATES: tuple[int, int, int] = (5, 12, 28)
 _FAMILY_ROWS: dict[str, tuple[int, ...]] = {
     "weapon": WEAPON_MULTIPLIER_PCT,
     "armor": ARMOR_MULTIPLIER_PCT,
+    "module": MODULE_MULTIPLIER_PCT,
 }
 
 
@@ -70,8 +84,12 @@ def quality_multiplier(family: str, quality: int) -> float:
 
 
 def _scaled(value: int, pct: int) -> int:
-    """Scale one stat by hundredths, rounding exactly half-up."""
-    return (value * pct + 50) // 100
+    """Scale one stat by hundredths, rounding exactly half-up in
+    magnitude — negative bonuses grow more negative, never toward
+    zero (doc 47.3's "more of what it is")."""
+    if value >= 0:
+        return (value * pct + 50) // 100
+    return -((-value * pct + 50) // 100)
 
 
 def effective_weapon_spec(weapon_id: str, quality: int = 0):
@@ -108,6 +126,27 @@ def effective_armor_spec(armor_id: str, quality: int = 0):
         **{
             name: _scaled(getattr(spec, name), pct)
             for name in ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
+        },
+    )
+
+
+def effective_module_spec(module_id: str, quality: int = 0):
+    """Return the catalog ship module with all ten bonus fields scaled.
+
+    Base quality (or a malformed negative tier) returns the catalog
+    row itself; higher tiers return a ``dataclasses.replace`` copy
+    with every bonus field scaled in magnitude — price, tech_level,
+    and slot_type never change.
+    """
+    spec = find_module(module_id)
+    if quality <= 0:
+        return spec
+    pct = _FAMILY_ROWS["module"][quality]
+    return dataclasses.replace(
+        spec,
+        **{
+            name: _scaled(getattr(spec, name), pct)
+            for name in _MODULE_BONUS_FIELDS
         },
     )
 
