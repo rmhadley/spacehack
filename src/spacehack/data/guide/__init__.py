@@ -328,6 +328,11 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "plasma or heavy weapon punches through. Equipment found on defeated "
             "enemies reflects how dangerous they were, so deeper sites and "
             "tougher machines yield better gear."
+            "\n\n"
+            "Loot weapons and armor can be modded, overclocked, or prototype "
+            "grade - stronger than standard gear and worth more to buyers. "
+            "Shops stock standard only; the better grades come off bodies and "
+            "out of wrecks. What an enemy fought with is what drops."
         ),
     ),
     GuideSection(
