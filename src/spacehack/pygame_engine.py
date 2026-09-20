@@ -103,8 +103,12 @@ def movement_key_name(event: PygameInputEvent) -> str:
 
 
 def guide_key(event: PygameInputEvent) -> bool:
-    """Return whether a keydown event represents the question-mark key."""
-    return is_keydown(event) and (
+    """Return whether a fresh keydown event is the question-mark key.
+
+    Repeats never open the guide: a held ``?`` would reopen it on every
+    poll once the modal's own input loop released the key.
+    """
+    return is_keydown(event) and not event.repeat and (
         event.key_name in {"question", "?"}
         or (event.key_name == "slash" and event.shift)
         or event.text == "?"

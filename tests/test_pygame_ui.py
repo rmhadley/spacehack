@@ -483,6 +483,31 @@ def test_combat_key_mapping_returns_opaque_actions():
     ) == "WEAPON:8"
 
 
+def test_combat_action_keys_ignore_held_key_repeats():
+    """Repeats drive movement only — a held fire key must not spend AP.
+
+    Shot animations drain SDL while they play (swallowing the release),
+    so repeats landing between the last animation drain and the next
+    input poll arrive as fresh-looking keydowns. Actions run on the
+    initial press only (the stuck-fire fix); movement keeps repeats.
+    """
+    from src.spacehack.combat import _loop
+
+    def _key(name: str, repeat: bool):
+        return pygame_engine.PygameInputEvent(
+            kind="keydown", key_name=name, repeat=repeat,
+        )
+
+    for name in ("f", "s", "w", "r", "c", "v", "1", "tab", "backslash", "period"):
+        assert _loop._input_action(_key(name, repeat=True)) == "", name
+    assert _loop._input_action(
+        _key("d", repeat=True), rules=SimpleNamespace(try_board=lambda *_a: True),
+    ) == ""
+    assert _loop._input_action(_key("f", repeat=False)) == "FIRE"
+    assert _loop._input_action(_key("j", repeat=True)) == "MOVE:j"
+    assert _loop._input_action(_key("j", repeat=False)) == "MOVE:j"
+
+
 def test_combat_present_requires_shared_runtime(monkeypatch):
     ctx = SimpleNamespace(
         context=SimpleNamespace(present=lambda _console: None),
@@ -584,7 +609,8 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
     unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
     waits = iter(((unknown_key,), (key_down,)))
     monkeypatch.setattr(shared_ctx.context, "wait_events", as_async(lambda: next(waits)))
-    assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == ""
+    assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == "WAIT", \
+        "unmapped keydowns are skipped, not surfaced as actions"
 
     monkeypatch.setattr(
         shared_ctx.context,

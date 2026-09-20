@@ -404,11 +404,11 @@ def test_input_d_maps_to_board_not_a_movement_key():
     the VIM south-west diagonal and moved instead of boarding)."""
     from src.spacehack.combat._loop import _input_action
 
-    _event = SimpleNamespace(key_name="d")
+    _event = SimpleNamespace(key_name="d", repeat=False)
     assert _input_action(
         _event, rules=SimpleNamespace(try_board=lambda *a: True),
     ) == "BOARD"
-    assert _input_action(SimpleNamespace(key_name="n")) == "MOVE:n", \
+    assert _input_action(SimpleNamespace(key_name="n", repeat=False)) == "MOVE:n", \
         "the rest of the VIM set still moves"
 
 
@@ -478,16 +478,16 @@ def test_ground_combat_keeps_the_b_diagonal_and_a_dead_d():
     rules map "d" to BOARD."""
     from src.spacehack.combat._loop import _input_action
 
-    assert _input_action(SimpleNamespace(key_name="b")) == "MOVE:b", \
+    assert _input_action(SimpleNamespace(key_name="b", repeat=False)) == "MOVE:b", \
         "no rules: plain movement"
-    assert _input_action(SimpleNamespace(key_name="b"), rules=SimpleNamespace()) \
+    assert _input_action(SimpleNamespace(key_name="b", repeat=False), rules=SimpleNamespace()) \
         == "MOVE:b", "rules without try_board: plain movement"
-    assert _input_action(SimpleNamespace(key_name="d")) == "", \
+    assert _input_action(SimpleNamespace(key_name="d", repeat=False)) == "", \
         "d without the board hook: not movement, no action"
-    assert _input_action(SimpleNamespace(key_name="d"), rules=SimpleNamespace()) \
+    assert _input_action(SimpleNamespace(key_name="d", repeat=False), rules=SimpleNamespace()) \
         == "", "same dead key under ground-style rules"
     assert _input_action(
-        SimpleNamespace(key_name="d"), rules=SimpleNamespace(try_board=lambda *a: True),
+        SimpleNamespace(key_name="d", repeat=False), rules=SimpleNamespace(try_board=lambda *a: True),
     ) == "BOARD"
 
 

@@ -378,6 +378,36 @@ desktop playtest pass. No web-only code in this phase.
   burst in combat keeps only the first actionable key (the second
   used to be deferred to the next frame by the backlog — that
   deferral was itself the stale-input mechanism).
+- **Addendum (2026-09-20, follow-up): repeats are RUNTIME-STAMPED —
+  pygame never exposes the flag.** Two dead mechanisms compounded
+  after the batch rewrite, both found by chasing the user's residual
+  stuck-fire ("fires 2x, uses 2AP"): (1) pygame-ce posts its
+  ``set_repeat`` timer events as plain KEYDOWNs — no ``.repeat``
+  attribute exists on any real event (verified against the installed
+  2.5.8 by ctypes-injecting SDL events) — so ``translate_event``'s
+  repeat flag was silently False since the async conversion, and the
+  7f7e765 purge + every downstream repeat gate was dead code.
+  (2) The shot animators called ``driver.sleep`` sync-style on the
+  async ``_responsive_sleep`` — discarded coroutines (RuntimeWarning:
+  never awaited): weapon animations ran instant and their SDL drain
+  never executed, so held-key repeats sailed through to the next
+  turn's input poll looking like fresh presses. Fixes: the runtime
+  stamps repeats itself by keydown/keyup pairing (``_held_keys`` +
+  ``_stamp_held_state``; both runtime drains and animation sleeps via
+  ``note_drained`` keep it accurate); the whole shot-animation stack
+  is async and awaits ``driver.sleep`` (``_FrameDriver.sleep`` is
+  ``Callable[[float], Awaitable[None]]`` — the annotation hole that
+  let the sync calls typecheck); combat actions are press-only
+  (``_input_action`` gates repeats to ``MOVE:`` only — a held fire
+  key can no longer spend AP on later turns); ``guide_key`` ignores
+  repeats the same way; ``_combat_action`` skips no-op keydowns so a
+  batch head can't swallow a fresh press behind it. Known edge: raw
+  ``event.get()`` modal runners (``pygame_ui.is_guide_key`` family)
+  bypass the stamping — a held ``?`` inside a modal can still reopen
+  the guide there. Guide reviewed and deliberately left unchanged —
+  no section documents hold-to-repeat behavior. Shot animations now
+  visibly pace again at 1x (they were instant since the async
+  conversion; INSTANT speed reproduces the old feel).
 
 ### Phase 2 — persistence shim
 
