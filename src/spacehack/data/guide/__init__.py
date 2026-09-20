@@ -332,7 +332,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "Loot weapons and armor can be modded, overclocked, or prototype "
             "grade - stronger than standard gear and worth more to buyers. "
             "Shops stock standard only; the better grades come off bodies and "
-            "out of wrecks. What an enemy fought with is what drops."
+            "out of wrecks. What an enemy fought with is what drops. "
+            "The rarest modules are only talked about in legends."
         ),
     ),
     GuideSection(
