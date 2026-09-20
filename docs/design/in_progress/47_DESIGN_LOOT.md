@@ -325,7 +325,7 @@ Four rulings from the quality-system refinement session
   build survived a mid-session PC crash and a reviewer-outage
   fallback), all 9 playtest items PASSED (guide diff: none, as
   expected). SYSTEMS.md audited at close.
-- [ ] 2. **Quality system** — instance quality through the equip
+- [x] 2. **Quality system** — instance quality through the equip
   round-trip (stored entries + weapon instances + the
   equipped-armor dict migration), the ladder table (three tiers
   + dormant legendary row, SETTLED 1-2/11), NPC equip-time
@@ -343,8 +343,13 @@ Four rulings from the quality-system refinement session
   REQUEST_CHANGES: deadshot chain + HUD readouts unthreaded; false
   test pins + a band-2 tech leak; a stray-async manage-chooser
   regression + reload/attack-line label seams — all fixed and
-  re-reviewed). Awaiting playtest; guide entry drafted in the
-  brief, approval-gated at the checkpoint.
+  re-reviewed). **CLOSED 2026-09-20 — PLAYTEST PASSED** (the only
+  feedback: enemies don't scale with site difficulty, which became
+  the seed for doc 48); guide entry USER-APPROVED verbatim and
+  landed (e496383, one bitmap-gate accommodation: em-dash →
+  hyphen). SYSTEMS.md audited at close (quality-system entry
+  added; kill-drops, loot presentation, dig-caches, and Absent
+  entries amended).
 - [ ] 3. **Modules as loot** — payload shape → ship storage,
   boarding/derelict room pools, boarded-ship live `modules`
   drops, mechanic economy check.

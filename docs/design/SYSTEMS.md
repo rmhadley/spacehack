@@ -354,7 +354,9 @@ nobody designs against a ghost.
 - **Kill drops** — authored pools (trade goods, tier-filtered
   equipment, field stacks) plus the diegetic kit: the enemy's
   resolved weapon always falls with one matching ammo stack
-  (field sizing 1–5); `GroundWeaponSpec.loot_droppable=False`
+  (field sizing 1–5) AT its equip-time rolled quality — no
+  re-roll; extras roll quality at drop time (KILL ladder);
+  `GroundWeaponSpec.loot_droppable=False`
   keeps organic monster parts and fists off the floor; pools are
   beyond-the-weapon extras only; everything shares the silent
   30-entity cap (`combat/_actions.spawn_kill_drops` /
@@ -556,8 +558,10 @@ nobody designs against a ghost.
   keeps the EXIT, deeper floors swap it for STAIRS_UP, non-bottom
   floors gain a farthest STAIRS_DOWN (footprint-aware); landmark
   rooms sprinkle seeded per site+floor (`landmark.stamp_landmark`);
-  placeholder caches scatter planet `produces` goods through the
-  pluggable `DigLootSpec` (`digs.py`; `data/digs`).
+  caches scatter planet `produces` goods or tier-banded gear
+  through the pluggable `DigLootSpec` (doc 47.2: 1-in-4
+  `equipment_rate` carries gear from monotone `tech<=band` pools,
+  rolled at `quality_rates`; `digs.py`; `data/digs`).
 - **Bump-to-swap (doc 42 SETTLED 39)** — ground population monsters
   are faction-checked as everywhere: bumping a NON-hostile one
   swaps places instead of blocking — one shared
@@ -744,7 +748,9 @@ nobody designs against a ghost.
   glyph's hue answers content at every constructor including the
   save/load restore path (equipment steel, field items amber,
   cargo gold, quest pads/caches violet, mission cargo cyan —
-  `loot_common.loot_fg`); ONE identity-based 30-entity cap on
+  `loot_common.loot_fg`; the equipment hue BRIGHTENS by quality
+  tier, other categories ignore it — doc 47.2); ONE
+  identity-based 30-entity cap on
   both kill paths evicts the oldest plain loot silently and never
   quest caches, pads, or heist cargo (`loot_common.enforce_loot_cap`);
   character-screen Discard drops the carried item at the player's
@@ -761,9 +767,35 @@ nobody designs against a ghost.
   the same action; goods NEVER enter the sellable hold (enforced
   structurally via reservations + `secure_quest_loot`, not at the
   sell counter) (`main_quest/_objectives.py`).
-- **Absent:** `TradeGood.rarity` is a dead field (zero consumers);
-  no tariffs beyond the confiscation fine; no equipment selling at
-  terminals; no persistent NPC-trader stock.
+- **Loot quality system (doc 47.2)** — stored gear carries a rolled
+  tier above base (0): tokens Modded/Overclocked/Prototype
+  (user-verbatim) title-cased at the one `display_name` label seam
+  (`ground_equipment`); integer-hundredths multiplier rows scale
+  weapon damage+accuracy and armor defense+4 bonus fields via
+  `effective_*_spec` (`dataclasses.replace` copies; catalogs stay
+  descriptive); the legendary row (4) ships DORMANT — sell/read
+  paths complete, no phase-2 source rolls it. Rates are authored
+  1-in-N ladders checked rarest-first (KILL/WRECK/DIG in
+  `data/quality.py`). Quality rides: `StoredGroundEquipment` +
+  `GroundWeaponInstance` fields (every equip/store/swap/install/
+  reload reconstruction preserves it), the equipped-armor dict
+  (`dict[slot, StoredGroundEquipment]`, legacy bare-id saves
+  migrate to base), NPC weapon rolls at EQUIP time gated on
+  `loot_droppable` (what was firing at you is what drops),
+  combat math end-to-end (one weapon, one stat set: enemy AI,
+  player fire paths, explosive splash, deadshot chains, HUD
+  readouts — `combat/_ground_math` owns the raw fns), and drop
+  sources (kill extras, wreck room pools 1-in-3 per
+  engine_room/personal_storage marker, dig caches 1-in-4).
+  Economy: armory sell = exact `price//2` at base, integer-exact
+  `(price*pct+100)//200` above, min 1; shops never variant.
+  Save/load: `parse_quality` migrates all shapes; `loot_data`
+  quality keys ride wholesale.
+- **Absent:** `TradeGood.rarity` deleted (doc 47.2 — quest-cargo
+  legality is now the explicit `QUEST_LEGAL_MARKET_GOODS` allowlist
+  in `tools/quest_lint.py`); no tariffs beyond the confiscation
+  fine; no equipment selling at terminals; no persistent
+  NPC-trader stock.
 
 ## Progression
 
