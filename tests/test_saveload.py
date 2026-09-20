@@ -907,6 +907,14 @@ class TestSaveLoadRoundTrip:
         ctx.ground_expedition_inventory = [
             StoredGroundEquipment("armor", "light_helmet"),
         ]
+        quality_loot = Entity(
+            char="%", fg=(130, 145, 170), pos=Position(3, 3),
+            name="Loot", width=1, height=1,
+            loot_data={
+                "item_type": "weapon", "item_id": "smg", "quality": 2,
+            },
+        )
+        dungeon_map.entities.append(quality_loot)
 
         save_game(
             ctx,
@@ -924,6 +932,13 @@ class TestSaveLoadRoundTrip:
         )
         assert restored_loot.loot_data == {
             "item_type": "weapon", "item_id": "combat_knife",
+        }
+        restored_quality = next(
+            entity for entity in loaded.game_map.entities
+            if (entity.loot_data or {}).get("quality")
+        )
+        assert restored_quality.loot_data == {
+            "item_type": "weapon", "item_id": "smg", "quality": 2,
         }
         assert loaded.ground_expedition_inventory == [
             StoredGroundEquipment("armor", "light_helmet"),

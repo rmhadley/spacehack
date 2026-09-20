@@ -94,13 +94,18 @@ async def choose_loot_entity(ctx: GameContext, loot_entities):
 
 
 def _ground_equipment_loot_entry(loot_entity):
-    """Build and validate a stored entry from an equipment loot entity."""
+    """Build and validate a stored entry from an equipment loot entity.
+
+    The payload's rolled quality threads into the stored entry —
+    picking up the tiered corpse weapon keeps its tier (doc 47.2).
+    """
     from . import ground_equipment
 
     loot_data = loot_entity.loot_data or {}
     return ground_equipment.StoredGroundEquipment(
         str(loot_data.get("item_type", "")),
         str(loot_data.get("item_id", "")),
+        ground_equipment.parse_quality(loot_data.get("quality")),
     )
 
 
@@ -132,10 +137,12 @@ def _drop_expedition_entry_at(ctx: GameContext, pos, index: int):
     """Drop one carried Expedition Pack equipment item at pos."""
     from . import world
 
-    from .loot_common import loot_fg
+    from .loot_common import equipment_payload, loot_fg
 
     dropped = ctx.ground_expedition_inventory.pop(index)
-    _payload = {"item_type": dropped.item_type, "item_id": dropped.item_id}
+    _payload = equipment_payload(
+        dropped.item_type, dropped.item_id, dropped.quality,
+    )
     dropped_entity = world.Entity(
         char="%",
         fg=loot_fg(_payload),

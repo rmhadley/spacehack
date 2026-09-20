@@ -495,12 +495,20 @@ def test_generate_dig_scatters_caches(monkeypatch):
     f1, _ = digs.get_or_generate_floor(ctx, site, 1)
     caches = [
         e for e in f1.entities
-        if (e.loot_data or {}).get("good_id")
+        if e.loot_data and ("good_id" in e.loot_data
+                            or e.loot_data.get("item_type") in {"weapon", "armor"})
     ]
     assert 2 <= len(caches) <= 3
     produced = {good for good, _ in find_planet_spec("mars").produces}
+    from src.spacehack.data.digs import TIER_EQUIPMENT_POOLS
+    tier_pool = {item for _, item in TIER_EQUIPMENT_POOLS[1]}
     for cache in caches:
-        assert cache.loot_data["good_id"] in produced
+        if "good_id" in cache.loot_data:
+            assert cache.loot_data["good_id"] in produced
+        else:
+            # Gear caches draw from the site tier's pool (doc 47.2).
+            assert cache.loot_data["item_id"] in tier_pool
+            assert "quantity" not in cache.loot_data
 
 
 def test_generate_dig_without_produces_has_no_caches(monkeypatch):

@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 
 from . import layout_format, world
+from .data.quality import WRECK_QUALITY_RATES, roll_quality
 from .dungeon_population import _room_cells, _scatter_squad
 
 
@@ -24,6 +25,21 @@ _LOOT_POOLS: dict[str, list[tuple[str, int, int]]] = {
     "cargo_bay": [("ore_processed", 2, 5), ("machine_parts", 1, 3), ("textiles", 1, 3)],
 }
 LOOT_ROOM_TYPES = frozenset(_LOOT_POOLS)
+
+# Room-typed gear presence (doc 47.2): workgear in the engine room,
+# personal effects in storage — what a wreck's crew actually left
+# behind. Presence is a 1-in-N roll per loot marker; quality rolls
+# through the WRECK ladder. Opening guesses, tuned at playtest.
+_ROOM_EQUIPMENT_POOLS: dict[str, tuple[tuple[str, str], ...]] = {
+    "engine_room": (
+        ("weapon", "survival_axe"), ("armor", "reinforced_gauntlets"),
+    ),
+    "personal_storage": (
+        ("weapon", "kinetic_pistol"), ("weapon", "combat_knife"),
+        ("armor", "light_vest"), ("armor", "tactical_gloves"),
+    ),
+}
+WRECK_EQUIPMENT_RATE: int = 3
 
 
 @dataclass
@@ -249,6 +265,21 @@ def _find_enemy(enemy_id: str):
     return find_npc_char(enemy_id)
 
 
+def _append_container(
+    build: _LayoutBuild, x: int, y: int, fg, payload: dict,
+) -> None:
+    """Append one salvage container entity."""
+    build.entities.append(world.Entity(
+        char="%",
+        fg=fg,
+        pos=world.Position(x, y),
+        name="Salvage Container",
+        width=1,
+        height=1,
+        loot_data=payload,
+    ))
+
+
 def _append_loot(
     build: _LayoutBuild,
     x: int,
@@ -257,18 +288,15 @@ def _append_loot(
     quantity: int,
     colours: dict[str, layout_format.ColourOverride],
 ) -> None:
-    """Append one salvage container entity."""
-    colour = colours.get("%")
+    """Append one trade-good container; authored ``%`` overrides win."""
     from .loot_common import loot_fg
-    build.entities.append(world.Entity(
-        char="%",
-        fg=colour.fg if colour else loot_fg({"good_id": good_id, "quantity": quantity}),
-        pos=world.Position(x, y),
-        name="Salvage Container",
-        width=1,
-        height=1,
-        loot_data={"good_id": good_id, "quantity": quantity},
-    ))
+
+    colour = colours.get("%")
+    _append_container(
+        build, x, y,
+        colour.fg if colour else loot_fg({"good_id": good_id, "quantity": quantity}),
+        {"good_id": good_id, "quantity": quantity},
+    )
 
 
 def _room_cells_for_marker(
@@ -333,6 +361,43 @@ def _scatter_loot_pass(
         remaining -= value
         placed_any = True
     return remaining, placed_any
+
+
+def _append_equipment_loot(
+    build: _LayoutBuild,
+    x: int,
+    y: int,
+    item_type: str,
+    item_id: str,
+    quality: int,
+) -> None:
+    """Append one quality-variant ground-equipment container entity."""
+    from .loot_common import equipment_payload, loot_fg
+
+    payload = equipment_payload(item_type, item_id, quality)
+    _append_container(build, x, y, loot_fg(payload), payload)
+
+
+def _scatter_room_equipment(build: _LayoutBuild) -> None:
+    """Roll one gear presence per equipment-bearing loot marker.
+
+    Runs strictly after the goods passes so pre-existing seeded
+    layouts draw the same goods they always did.
+    """
+    from .engine import RNG
+
+    for marker in build.loot_markers:
+        room_type = marker[0]
+        pool = _ROOM_EQUIPMENT_POOLS.get(room_type)
+        if not pool or RNG.randint(1, WRECK_EQUIPMENT_RATE) != 1:
+            continue
+        cells = _room_cells_for_marker(build, marker)
+        if not cells:
+            continue
+        x, y = cells[RNG.randint(0, len(cells) - 1)]
+        item_type, item_id = RNG.choice(pool)
+        quality = roll_quality(WRECK_QUALITY_RATES, RNG)
+        _append_equipment_loot(build, x, y, item_type, item_id, quality)
 
 
 def _scatter_loot(build: _LayoutBuild, parsed: layout_format.ParsedLayout, budget) -> None:
@@ -400,6 +465,9 @@ def load_layout(
     _scatter_loot(build, parsed, loot_budget)
     if component_good_id is not None and component_mission_id is not None:
         _place_component(build, parsed, component_good_id, component_mission_id)
+    # Gear presence runs after mission component placement so a
+    # presence hit never shifts a mission component's position.
+    _scatter_room_equipment(build)
     game_map = world.GameMap(
         width=parsed.width,
         height=parsed.height,

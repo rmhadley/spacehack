@@ -2,6 +2,9 @@
 
 import pytest
 
+from types import SimpleNamespace
+
+from spacehack.ground_equipment import StoredGroundEquipment
 from spacehack.world import DUNGEON_FLOOR, Entity, GameMap, Position
 from spacehack.loot_common import (
     CARGO_FG,
@@ -520,3 +523,134 @@ class TestDerelictSaySo:
         assert dd["derelict_interior"] is True
         restored, _pos = saveload_maps._dungeon_from_dict(dd)
         assert restored.derelict_interior is True
+
+
+class TestDropTimeQualityRolls:
+    """Kill extras, wreck rooms, and dig caches roll tiers at drop
+    time; pickup and pack-drops keep the rolled tier (doc 47.2)."""
+
+    class _ScriptRng:
+        """Serves scripted rolls; choice picks by list order."""
+
+        def __init__(self, values):
+            self._values = list(values)
+
+        def randint(self, low, high):
+            value = self._values.pop(0)
+            assert low <= value <= high, (value, low, high)
+            return value
+
+        def choice(self, seq):
+            self._values.pop(0)
+            return seq[0]
+
+    def test_kill_extras_roll_quality_at_drop_time(self, monkeypatch):
+        from spacehack.combat import _actions
+
+        # count roll 1; pool choice; then the KILL ladder (t3 1-in-25
+        # hit -> tier 3).
+        rng = self._ScriptRng([1, 0, 1, 1, 1])
+        monkeypatch.setattr(_actions, "RNG", rng)
+        gm = _make_map(1, 1)
+        _actions._spawn_equipment_loot_at_position(
+            gm, Position(0, 0), (("armor", "light_vest"),), (1, 1),
+        )
+        (payload,) = [e.loot_data for e in gm.entities]
+        assert payload == {
+            "item_type": "armor", "item_id": "light_vest", "quality": 3,
+        }
+
+    def test_kill_extras_base_roll_omits_the_quality_key(self, monkeypatch):
+        from spacehack.combat import _actions
+
+        rng = self._ScriptRng([1, 0, 2, 2, 2])
+        monkeypatch.setattr(_actions, "RNG", rng)
+        gm = _make_map(1, 1)
+        _actions._spawn_equipment_loot_at_position(
+            gm, Position(0, 0), (("armor", "light_vest"),), (1, 1),
+        )
+        (payload,) = [e.loot_data for e in gm.entities]
+        assert payload == {"item_type": "armor", "item_id": "light_vest"}
+
+    def test_wreck_room_equipment_rolls_presence_then_quality(self, monkeypatch):
+        from spacehack import dungeon_layout, engine
+
+        build = SimpleNamespace(
+            entities=[], loot_markers=[("personal_storage", 1, 1)],
+        )
+        monkeypatch.setattr(
+            dungeon_layout, "_room_cells_for_marker", lambda build, m: [(2, 2)],
+        )
+        # presence 1-in-3 hit; cell pick; pool choice consumes one;
+        # WRECK ladder: t3 miss, t2 hit -> tier 2.
+        rng = self._ScriptRng([1, 0, 2, 2, 1, 2])
+        monkeypatch.setattr(engine, "RNG", rng)
+        dungeon_layout._scatter_room_equipment(build)
+        (entity,) = build.entities
+        assert entity.loot_data == {
+            "item_type": "weapon", "item_id": "kinetic_pistol",
+            "quality": 2,
+        }
+
+    def test_wreck_room_equipment_presence_miss_spawns_nothing(self, monkeypatch):
+        from spacehack import dungeon_layout, engine
+
+        build = SimpleNamespace(
+            entities=[], loot_markers=[("personal_storage", 1, 1)],
+        )
+        rng = self._ScriptRng([2])  # pool present; presence roll misses
+        monkeypatch.setattr(engine, "RNG", rng)
+        dungeon_layout._scatter_room_equipment(build)
+        assert build.entities == []
+        assert rng._values == []
+
+    def test_dig_cache_payload_gear_and_goods_branches(self, monkeypatch):
+        from spacehack import digs
+
+        spec = SimpleNamespace(mission_tier=2)
+        rng = self._ScriptRng([2, 0, 1, 1, 1])  # presence miss -> goods
+        monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
+        assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
+            "good_id": "ore_processed", "quantity": 3,
+        }
+
+        rng = self._ScriptRng([1, 0, 1, 1, 1])  # presence hit -> tier-2 gear
+        monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
+        payload = digs._dig_cache_payload(spec, ("ore_processed", 3))
+        from spacehack.data.digs import TIER_EQUIPMENT_POOLS
+        assert payload["item_type"] in {"weapon", "armor"}
+        assert payload["item_id"] in {
+            item for _, item in TIER_EQUIPMENT_POOLS[2]
+        }
+        assert payload.get("quality", 0) in {0, 1, 2, 3}
+
+    def test_pickup_threads_quality_into_the_stored_entry(self):
+        from spacehack import loot
+
+        entity = SimpleNamespace(loot_data={
+            "item_type": "weapon", "item_id": "smg", "quality": 2,
+        })
+        assert loot._ground_equipment_loot_entry(entity) == StoredGroundEquipment(
+            "weapon", "smg", 2,
+        )
+        base = SimpleNamespace(loot_data={"item_type": "armor", "item_id": "light_vest"})
+        assert loot._ground_equipment_loot_entry(base) == StoredGroundEquipment(
+            "armor", "light_vest",
+        )
+
+    def test_pack_drop_writes_the_rolled_quality(self, monkeypatch):
+        from spacehack import loot
+
+        gm = _make_map(1, 1)
+        ctx = SimpleNamespace(
+            game_map=gm,
+            ground_expedition_inventory=[
+                StoredGroundEquipment("weapon", "smg", 3),
+            ],
+        )
+        loot._drop_expedition_entry_at(ctx, Position(0, 0), 0)
+        (entity,) = gm.entities
+        assert entity.loot_data == {
+            "item_type": "weapon", "item_id": "smg", "quality": 3,
+        }
+        assert ctx.ground_expedition_inventory == []

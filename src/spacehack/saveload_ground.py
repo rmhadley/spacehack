@@ -28,8 +28,8 @@ def _ground_equipment_from_dict(raw: object):
             find_ground_armor(item_id)
     except (ImportError, KeyError):
         return None
-    from .ground_equipment import StoredGroundEquipment, _parse_quality
-    return StoredGroundEquipment(item_type, item_id, _parse_quality(raw.get("quality")))
+    from .ground_equipment import StoredGroundEquipment, parse_quality
+    return StoredGroundEquipment(item_type, item_id, parse_quality(raw.get("quality")))
 
 
 def _ground_fields(ctx: GameContext) -> dict:
@@ -70,7 +70,7 @@ def _parse_equipped_ground_armor(raw) -> dict:
     entries with a rolled quality tier.
     """
     from .data.ground_armor import find_ground_armor
-    from .ground_equipment import StoredGroundEquipment, _parse_quality
+    from .ground_equipment import StoredGroundEquipment, parse_quality
 
     if not isinstance(raw, dict):
         return {}
@@ -87,7 +87,7 @@ def _parse_equipped_ground_armor(raw) -> dict:
             and isinstance(value.get("item_id"), str)
         ):
             entry = StoredGroundEquipment(
-                "armor", value["item_id"], _parse_quality(value.get("quality")),
+                "armor", value["item_id"], parse_quality(value.get("quality")),
             )
         else:
             continue

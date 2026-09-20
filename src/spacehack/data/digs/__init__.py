@@ -7,20 +7,48 @@ fields, and future planets inherit the defaults automatically.
 from dataclasses import dataclass as _dataclass
 
 from ..dungeon_extensions import LandmarkVariant
+from ..quality import DIG_QUALITY_RATES
 
 
 @_dataclass(frozen=True)
 class DigLootSpec:
-    """The placeholder dig-cache loot (SETTLED 30/35): the planet's
-    own ``produces`` goods, tier+floor-scaled. The future loot doc
-    expands this config in place — no code change, just fields."""
+    """The dig-cache loot config (SETTLED 30/35 + doc 47 phase 2):
+    the planet's own ``produces`` goods, tier+floor-scaled — plus
+    the phase-2 gear presence: a 1-in-``equipment_rate`` cache carries
+    tier-banded equipment instead of goods, rolled at ``quality_rates``.
+    The rare-cache variant, legendary guarantee, and out-of-produce
+    pool stay phase 4."""
     cache_count: tuple[int, int] = (2, 3)
     base_qty: int = 2
     qty_per_tier: int = 1
     qty_per_floor: int = 2
+    equipment_rate: int = 4
+    quality_rates: tuple[int, int, int] = DIG_QUALITY_RATES
 
 
 DIG_LOOT_SPEC = DigLootSpec()
+
+# Phase-2 dig-cache gear (doc 47.2): an equipment cache rolls one
+# entry from the site tier's pool. Pools draw from existing catalogs;
+# opening guesses, tuned at playtest.
+TIER_EQUIPMENT_POOLS: dict[int, tuple[tuple[str, str], ...]] = {
+    1: (
+        ("weapon", "kinetic_pistol"), ("weapon", "combat_knife"),
+        ("weapon", "laser_pistol"), ("armor", "light_vest"),
+        ("armor", "light_helmet"), ("armor", "tactical_gloves"),
+    ),
+    2: (
+        ("weapon", "smg"), ("weapon", "shotgun"),
+        ("weapon", "stun_baton"), ("armor", "medium_vest"),
+        ("armor", "heavy_helmet"), ("armor", "reinforced_gauntlets"),
+        ("armor", "armour_pads"),
+    ),
+    3: (
+        ("weapon", "battle_rifle"), ("weapon", "plasma_pistol"),
+        ("weapon", "vibroblade"), ("armor", "heavy_vest"),
+        ("armor", "visor_helmet"), ("armor", "cybernetic_eyes"),
+    ),
+}
 
 # Default two-part site-name pools (SETTLED 33) — a planet without
 # authored pools draws its prefix and suffix from these. DRAFTS

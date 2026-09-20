@@ -182,7 +182,7 @@ def parse_weapon_instance(raw) -> GroundWeaponInstance | None:
         spec = find_ground_weapon(weapon_id)
     except KeyError:
         return None
-    quality = _parse_quality(raw.get("quality"))
+    quality = parse_quality(raw.get("quality"))
     if spec.ammo_capacity <= 0:
         return GroundWeaponInstance(weapon_id, None, quality)
     loaded = raw.get("loaded_ammo")
@@ -197,8 +197,11 @@ def parse_weapon_instance(raw) -> GroundWeaponInstance | None:
     )
 
 
-def _parse_quality(raw) -> int:
-    """Parse one stored quality tier, migrating malformed values to base."""
+def parse_quality(raw) -> int:
+    """Parse one quality tier, migrating malformed values to base.
+
+    Shared by the save/load parse paths and the loot-pickup boundary.
+    """
     try:
         quality = int(raw)
     except (TypeError, ValueError):

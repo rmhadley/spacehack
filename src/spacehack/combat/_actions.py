@@ -14,8 +14,9 @@ from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
 from ..data.modules import find_module as find_module_spec
+from ..data.quality import KILL_QUALITY_RATES, roll_quality
 from ..engine import RNG
-from ..loot_common import enforce_loot_cap, loot_fg
+from ..loot_common import enforce_loot_cap, equipment_payload, loot_fg
 
 if TYPE_CHECKING:
     from ..ship import OwnedShip
@@ -61,7 +62,11 @@ def _spawn_equipment_loot_at_position(
     equipment_pool: tuple[tuple[str, str], ...],
     count_range: tuple[int, int] = (0, 1),
 ) -> None:
-    """Drop ground-equipment loot using ``(item_type, item_id)`` entries."""
+    """Drop ground-equipment loot using ``(item_type, item_id)`` entries.
+
+    Beyond-the-weapon extras (armor, sidearms) roll their quality at
+    DROP time with the kill-source rates (doc 47.2 SETTLED 13).
+    """
     if not equipment_pool:
         return
     _min_c, _max_c = count_range
@@ -70,7 +75,9 @@ def _spawn_equipment_loot_at_position(
         item_type, item_id = RNG.choice(equipment_pool)
         _append_loot_entity(
             game_map, pos,
-            {"item_type": item_type, "item_id": item_id},
+            equipment_payload(
+                item_type, item_id, roll_quality(KILL_QUALITY_RATES, RNG),
+            ),
         )
 
 
@@ -124,10 +131,10 @@ def _spawn_kit_drop(
         return
     if not _ws.loot_droppable:
         return
-    _payload = {"item_type": "weapon", "item_id": _ws.id}
-    if weapon_quality > 0:
-        _payload["quality"] = weapon_quality
-    _append_loot_entity(game_map, pos, _payload)
+    _append_loot_entity(
+        game_map, pos,
+        equipment_payload("weapon", _ws.id, weapon_quality),
+    )
     if _ws.ammo_type is None:
         return
     _ammo_id = next(

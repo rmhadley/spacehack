@@ -151,7 +151,7 @@ def derive_dig_params(spec: PlanetSpec) -> DungeonParams:
     hardcoded."""
     if spec.dig_params is not None:
         return spec.dig_params
-    pool, density = TIER_POOLS[max(1, min(3, spec.mission_tier))]
+    pool, density = TIER_POOLS[_site_tier(spec)]
     tile_wall, tile_floor = _dig_tiles(spec.theme)
     return DungeonParams(
         width=64,
@@ -327,34 +327,59 @@ def site_loot_rows(spec: PlanetSpec, floor: int, count: int, rng) -> list[tuple[
     (SETTLED 26/35). Pure given its inputs."""
     from .data.digs import DIG_LOOT_SPEC
 
-    tier = max(1, min(3, spec.mission_tier))
     quantity = (
         DIG_LOOT_SPEC.base_qty
-        + DIG_LOOT_SPEC.qty_per_tier * (tier - 1)
+        + DIG_LOOT_SPEC.qty_per_tier * (_site_tier(spec) - 1)
         + DIG_LOOT_SPEC.qty_per_floor * (floor - 1)
     )
     return [(rng.choice(spec.produces)[0], quantity) for _ in range(count)]
 
 
+def _site_tier(spec: PlanetSpec) -> int:
+    """The dig's equipment/difficulty band, clamped to the authored 1-3."""
+    return max(1, min(3, spec.mission_tier))
+
+
+def _dig_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
+    """One cache payload: tier-banded gear on the equipment roll, else
+    the goods row (doc 47.2). Quality rolls through the spec's rates."""
+    from .data.digs import DIG_LOOT_SPEC, TIER_EQUIPMENT_POOLS
+    from .data.quality import roll_quality
+
+    if engine.RNG.randint(1, DIG_LOOT_SPEC.equipment_rate) != 1:
+        return {"good_id": goods_row[0], "quantity": goods_row[1]}
+    from .loot_common import equipment_payload
+
+    item_type, item_id = engine.RNG.choice(
+        TIER_EQUIPMENT_POOLS[_site_tier(spec)],
+    )
+    return equipment_payload(
+        item_type, item_id,
+        roll_quality(DIG_LOOT_SPEC.quality_rates, engine.RNG),
+    )
+
+
 def _scatter_dig_loot(game_map: world.GameMap, spec: PlanetSpec, floor: int) -> None:
-    """The placeholder cache scatter (SETTLED 30/35) — the loot rows
-    placed at free cells after population."""
+    """The cache scatter — goods rows (SETTLED 30/35) with the phase-2
+    gear presence, placed at free cells after population."""
     from .data.digs import DIG_LOOT_SPEC
     from .loot_common import loot_fg
 
     if not spec.produces:
         return
     count = engine.RNG.randint(*DIG_LOOT_SPEC.cache_count)
-    for good_id, quantity in site_loot_rows(spec, floor, count, engine.RNG):
+    rows = iter(site_loot_rows(spec, floor, count, engine.RNG))
+    for _ in range(count):
         pos = _free_floor_cell(
             game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
         )
         if pos is None:
             return
+        payload = _dig_cache_payload(spec, next(rows))
         game_map.entities.append(world.Entity(
-            char="%", fg=loot_fg({"good_id": good_id, "quantity": quantity}), pos=pos, name="Cache",
+            char="%", fg=loot_fg(payload), pos=pos, name="Cache",
             width=1, height=1,
-            loot_data={"good_id": good_id, "quantity": quantity},
+            loot_data=payload,
         ))
 
 
