@@ -16,6 +16,8 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack.combat._stats import (
+    _build_enemy,
+    _roll_flown_modules,
     calc_hit_chance,
     _calc_dodge_bonus,
     _calc_ap,
@@ -493,3 +495,63 @@ class TestInitCombatState:
         assert state["shield_recharge_bonus"] == 8
         assert state["shield_regen_rate"] == 0
         assert enemy.name == "Pirate"
+
+
+class TestFlyTimeModuleRolls:
+    """SETTLED 14 (doc 47.3): modules roll quality at combat entry;
+    hull/shields scale with the flown tiers; no re-roll at death."""
+
+    def _spec(self, modules):
+        return SimpleNamespace(
+            id="e1", name="Pirate", char="P", fg=(255, 0, 0),
+            ship_id="scout_a", faction="pirate", weapons=(),
+            modules=modules, min_power_gen=3,
+            pilot_piloting=10, pilot_gunnery=10, pilot_engineering=10,
+            ai_accuracy_bonus=0, ai_dodge_bonus=0,
+        )
+
+    def test_flown_modules_roll_the_kill_ladder(self, monkeypatch):
+        class _AlwaysHit:
+            def randint(self, low, high):
+                return 1
+
+        monkeypatch.setattr("src.spacehack.engine.RNG", _AlwaysHit())
+        flown = _roll_flown_modules(("shield_mk1", "armor_plating"))
+        assert [entry.quality for entry in flown] == [3, 3]
+        assert [entry.item_id for entry in flown] == [
+            "shield_mk1", "armor_plating",
+        ]
+
+    def test_build_enemy_stats_scale_with_flown_quality(self, monkeypatch):
+        class _AlwaysHit:
+            def randint(self, low, high):
+                return 1
+
+        monkeypatch.setattr("src.spacehack.engine.RNG", _AlwaysHit())
+        with mock.patch(
+            "src.spacehack.combat._stats._ship_mod.find_ship",
+            return_value=SimpleNamespace(base_hull=80),
+        ):
+            enemy = _build_enemy(self._spec(("shield_mk1",)), Position(0, 0))
+            assert enemy.max_shields == 29   # shield_mk1 +20 at t3 (145%)
+            assert enemy.shields == 29
+            assert enemy.modules[0].quality == 3
+            hull_enemy = _build_enemy(
+                self._spec(("armor_plating",)), Position(0, 0),
+            )
+            assert hull_enemy.max_hull == 87  # base 80 + 5*1.45=7.25 -> 7
+
+    def test_build_enemy_stays_base_when_no_tier_hits(self, monkeypatch):
+        class _AlwaysMiss:
+            def randint(self, low, high):
+                return 2
+
+        monkeypatch.setattr("src.spacehack.engine.RNG", _AlwaysMiss())
+        with mock.patch(
+            "src.spacehack.combat._stats._ship_mod.find_ship",
+            return_value=SimpleNamespace(base_hull=80),
+        ):
+            enemy = _build_enemy(self._spec(("shield_mk1",)), Position(0, 0))
+            assert enemy.max_shields == 20
+            assert enemy.max_hull == 80
+            assert enemy.modules[0].quality == 0

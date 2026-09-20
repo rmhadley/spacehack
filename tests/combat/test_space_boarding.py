@@ -122,6 +122,33 @@ def test_attempt_board_sets_the_result(monkeypatch):
     assert seen == {"reason": True}, "the denial was logged, fight continues"
 
 
+def test_attempt_board_stamps_the_flown_modules(monkeypatch):
+    """The capture strip's source (doc 47.3 SETTLED 14/16): the result
+    carries the fought instance's flown modules exactly — no re-roll,
+    module-less doubles stamp empty."""
+    from src.spacehack.ship import StoredEquipment
+
+    monkeypatch.setattr(
+        "src.spacehack.data.npc_ships.find_npc_ship",
+        lambda sid: SimpleNamespace(capture_layout_id="scout_crew"),
+    )
+    state, _ent = _state()
+    state.enemy_insts[0].modules = (
+        StoredEquipment("module", "shield_mk1", quality=2),
+        StoredEquipment("module", "armor_plating"),
+    )
+
+    assert attempt_board(state, 0) is True
+    assert state.cr.boarded_modules == (
+        StoredEquipment("module", "shield_mk1", quality=2),
+        StoredEquipment("module", "armor_plating"),
+    )
+
+    bare, _ = _state()  # no modules attr at all
+    assert attempt_board(bare, 0) is True
+    assert bare.cr.boarded_modules == ()
+
+
 def test_capture_targets_are_data_optins():
     from src.spacehack.data.npc_ships import find_npc_ship
 

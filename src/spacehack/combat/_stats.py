@@ -218,6 +218,23 @@ def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
     return w_ammo
 
 
+def _roll_flown_modules(module_ids) -> tuple:
+    """Fly-time quality roll (doc 47.3 SETTLED 14): every installed
+    module rolls the KILL ladder at combat entry — the ship tanks and
+    shoots with these tiers, and an intact capture drops these exact
+    instances. No re-roll at death; re-engagement re-rolls (the
+    accepted ground-side continuity gap, space twin)."""
+    from ..data.quality import KILL_QUALITY_RATES, roll_quality
+    from ..engine import RNG
+    from ..ship import StoredEquipment
+    return tuple(
+        StoredEquipment(
+            "module", module_id, quality=roll_quality(KILL_QUALITY_RATES, RNG),
+        )
+        for module_id in module_ids
+    )
+
+
 def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyInstance:
     """Construct the EnemyInstance from an NPC ship template."""
     e_ap = _calc_ap(enemy_spec.pilot_piloting)
@@ -230,7 +247,7 @@ def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyIns
         except KeyError:
             e_ammo[wid] = -1
 
-    _flown = _ship_mod.base_module_entries(enemy_spec.modules)
+    _flown = _roll_flown_modules(enemy_spec.modules)
     enemy_max_hull = _calc_hull_for_enemy(enemy_spec, _flown)
     _shields = _calc_max_shields(enemy_spec, _flown)
 

@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .. import world
+
+if TYPE_CHECKING:
+    from ..ship import StoredEquipment
 
 
 class CombatPhase(Enum):
@@ -47,7 +50,9 @@ class EnemyInstance:
     ap_carry_twentieths: int = 0
     pos: world.Position = field(default_factory=lambda: world.Position(0, 0))
     weapons: tuple[str, ...] = ()
-    modules: tuple[str, ...] = ()
+    # Flown module instances (doc 47.3): quality rolled at combat
+    # entry — what flies against the player is what a capture drops.
+    modules: tuple["StoredEquipment", ...] = ()
     weapon_ammo: dict[str, int] = field(default_factory=dict)
     pilot_gunnery: int = 20
     pilot_piloting: int = 20
@@ -73,6 +78,9 @@ class CombatResult:
     # consumed at board entry (doc 40 phase 6a).
     boarded_spec_id: str = ""
     boarded_ent: Any = None
+    # The boarded ship's flown module instances at their rolled
+    # quality (doc 47.3 SETTLED 14/16) — the capture strip's source.
+    boarded_modules: tuple = ()
 
 
 @dataclass
