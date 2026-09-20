@@ -284,3 +284,13 @@ def test_player_side_weapon_name_carries_the_tier():
     assert _rules_space.weapon_name(
         "light_laser", _space_ctx, 3,
     ) == _rules_space.weapon_name("light_laser", _space_ctx)
+
+
+def test_trade_good_surface_dropped_the_dead_rarity_field():
+    import dataclasses
+
+    from src.spacehack.data.trade_goods import find_trade_good
+
+    fields = {f.name for f in dataclasses.fields(find_trade_good("scrap_metal"))}
+    assert "rarity" not in fields
+    assert find_trade_good("power_cell") is not None  # authors construct clean

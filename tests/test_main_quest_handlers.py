@@ -298,6 +298,7 @@ def test_quest_cargo_is_quest_goods_not_market_goods():
     v15: "cargo for quests should be mission cargo"). The bar chain's
     crate is the dedicated contraband quest good; the delve yields the
     power cell (virtual mission cargo)."""
+    from tools.quest_lint import QUEST_LEGAL_MARKET_GOODS
     from src.spacehack.data.main_quest import list_main_quest_steps
     from src.spacehack.data.trade_goods import find_trade_good
 
@@ -308,10 +309,10 @@ def test_quest_cargo_is_quest_goods_not_market_goods():
         good_ids += [gid for gid, _qty in step.rewards_goods]
         for gid in good_ids:
             try:
-                good = find_trade_good(gid)
+                find_trade_good(gid)
             except KeyError:
                 continue  # virtual mission cargo (no catalog entry)
-            assert good.rarity <= 0.1, (
+            assert gid in QUEST_LEGAL_MARKET_GOODS, (
                 f"{step.id} hands out market good {gid!r}"
             )
 

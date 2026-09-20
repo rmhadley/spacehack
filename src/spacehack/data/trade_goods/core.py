@@ -16,7 +16,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=20,
         category="biological",
         volume=1,
-        rarity=0.6,
     ),
     TradeGood(
         id="medical_supplies",
@@ -25,7 +24,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=60,
         category="biological",
         volume=1,
-        rarity=0.4,
     ),
     TradeGood(
         id="pharmaceuticals",
@@ -34,7 +32,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=90,
         category="biological",
         volume=1,
-        rarity=0.3,
     ),
     # --- Industrial ---
     TradeGood(
@@ -44,7 +41,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=80,
         category="industrial",
         volume=1,
-        rarity=0.5,
     ),
     TradeGood(
         id="machine_parts",
@@ -53,7 +49,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=50,
         category="industrial",
         volume=2,
-        rarity=0.5,
     ),
     TradeGood(
         id="ship_components",
@@ -62,7 +57,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=110,
         category="industrial",
         volume=2,
-        rarity=0.4,
     ),
     TradeGood(
         id="textiles",
@@ -71,7 +65,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=35,
         category="industrial",
         volume=2,
-        rarity=0.6,
     ),
     # --- Raw Materials ---
     TradeGood(
@@ -81,7 +74,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=10,
         category="raw_material",
         volume=1,
-        rarity=0.8,
     ),
     TradeGood(
         id="fuel_cells",
@@ -90,7 +82,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=40,
         category="raw_material",
         volume=1,
-        rarity=0.6,
     ),
     TradeGood(
         id="ore_processed",
@@ -99,7 +90,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=30,
         category="raw_material",
         volume=2,
-        rarity=0.7,
     ),
     # --- Luxury ---
     TradeGood(
@@ -109,7 +99,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=150,
         category="luxury",
         volume=1,
-        rarity=0.3,
     ),
     TradeGood(
         id="rare_earth_metals",
@@ -118,7 +107,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=200,
         category="luxury",
         volume=1,
-        rarity=0.2,
     ),
     # --- Tech ---
     TradeGood(
@@ -128,7 +116,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=120,
         category="tech",
         volume=1,
-        rarity=0.3,
     ),
     TradeGood(
         id="reference_recorder",
@@ -140,7 +127,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=200,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="alien_device",
@@ -152,7 +138,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=200,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="calibration_data",
@@ -165,7 +150,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=250,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="power_cell",
@@ -178,7 +162,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=100,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="power_cell_charged",
@@ -190,7 +173,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=300,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="unregistered_arms",
@@ -202,7 +184,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=250,
         category="contraband",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="escrow_ore",
@@ -214,7 +195,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=150,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="sealed_requisition",
@@ -226,7 +206,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=200,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     TradeGood(
         id="smelted_alloy",
@@ -238,7 +217,6 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=300,
         category="tech",
         volume=1,
-        rarity=0.1,
     ),
     # --- Contraband ---
     TradeGood(
@@ -248,6 +226,5 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         base_price=250,
         category="contraband",
         volume=1,
-        rarity=0.1,
     ),
 )

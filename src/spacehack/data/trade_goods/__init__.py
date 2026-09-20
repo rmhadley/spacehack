@@ -26,7 +26,6 @@ class TradeGood:
         category:    ``"industrial"`` | ``"biological"`` | ``"luxury"``
                      | ``"raw_material"`` | ``"tech"`` | ``"contraband"``.
         volume:      cargo units consumed per crate (1 typical, 2 for bulk).
-        rarity:      0.0 = always available, 1.0 = very rare (loot weight).
     """
     id: str
     name: str
@@ -34,7 +33,6 @@ class TradeGood:
     base_price: int
     category: str
     volume: int = 1
-    rarity: float = 0.5
 
 
 # Lazy-built registry

@@ -84,6 +84,16 @@ def _check_smuggle_active_texts(errors: list[str]) -> None:
                 )
 
 
+# Market goods a quest step may hand out (the quest-flavoured set the
+# retired ``TradeGood.rarity`` tier used to encode; doc 47.2 made the
+# allowlist explicit when the dead field was deleted).
+QUEST_LEGAL_MARKET_GOODS: tuple[str, ...] = (
+    "alien_device", "calibration_data", "escrow_ore", "power_cell",
+    "power_cell_charged", "reference_recorder", "sealed_requisition",
+    "smelted_alloy", "unregistered_arms", "weapons_blackmarket",
+)
+
+
 def _check_quest_cargo(errors: list[str]) -> None:
     """Quest cargo is named quest goods or virtual mission cargo —
     never market goods (the recorder standard, enforced at authoring
@@ -95,14 +105,15 @@ def _check_quest_cargo(errors: list[str]) -> None:
         good_ids += [gid for gid, _qty in step.rewards_goods]
         for gid in good_ids:
             try:
-                good = find_trade_good(gid)
+                find_trade_good(gid)
             except KeyError:
                 continue  # virtual mission cargo
-            if good.rarity > 0.1:
+            if gid not in QUEST_LEGAL_MARKET_GOODS:
                 errors.append(
                     f"step {step.id!r} hands out market good "
-                    f"{gid!r} (rarity {good.rarity}) — quest cargo is "
-                    f"named quest goods or virtual"
+                    f"{gid!r} — quest cargo is named quest goods or "
+                    f"virtual (add it to QUEST_LEGAL_MARKET_GOODS only "
+                    f"by explicit ruling)"
                 )
 
 
