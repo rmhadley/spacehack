@@ -321,7 +321,9 @@ nobody designs against a ghost.
   spawns, and quest-lifecycle ships board; the consume books the
   full kill pass minus exterior loot (XP, counters, rep through
   the broadcast gate, bounty completion, tombstone —
-  `game_interactions._consume_boarded_hull`); heist cargo rides
+  `game_interactions._consume_boarded_hull`); the capture
+  interior seeds the flown-module strip at engine-room markers
+  (doc 47.3); heist cargo rides
   the interior via the component seam (one-shot: exit without
   pickup strands the intercept — user-confirmed).
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
@@ -740,7 +742,8 @@ nobody designs against a ghost.
   ship spec's `loot_budget` across ≤4 passes from per-room pools;
   placed interiors persist in `ctx.interiors`; pickups route by
   type (equipment packs with drop-or-leave, stacks, cargo with hold
-  check); doc-42 pads (`{"teaches": id}` / `{"reveals_site": True}`)
+  check, modules → ship storage — doc 47.3); doc-42 pads
+  (`{"teaches": id}` / `{"reveals_site": True}`)
   are consumed on pickup — knowledge never enters the hold
   (`dungeon_layout.py`: `_scatter_loot`; `loot.py`;
   `loot_selection.py`; `digs.reveal_site`).
@@ -773,8 +776,9 @@ nobody designs against a ghost.
   (`ground_equipment`); integer-hundredths multiplier rows scale
   weapon damage+accuracy and armor defense+4 bonus fields via
   `effective_*_spec` (`dataclasses.replace` copies; catalogs stay
-  descriptive); the legendary row (4) ships DORMANT — sell/read
-  paths complete, no phase-2 source rolls it. Rates are authored
+  descriptive; the module family row + `effective_module_spec`
+  landed doc 47.3); the legendary row (4) ships DORMANT —
+  sell/read paths complete, no shipped source rolls it. Rates are authored
   1-in-N ladders checked rarest-first (KILL/WRECK/DIG in
   `data/quality.py`). Quality rides: `StoredGroundEquipment` +
   `GroundWeaponInstance` fields (every equip/store/swap/install/
@@ -791,9 +795,35 @@ nobody designs against a ghost.
   `(price*pct+100)//200` above, min 1; shops never variant.
   Save/load: `parse_quality` migrates all shapes; `loot_data`
   quality keys ride wholesale.
+- **Ship module loot (doc 47.3)** — modules are a sixth loot
+  payload: `item_type "module"` pickups append a quality-bearing
+  `StoredEquipment` to global ship storage — no pack check, one
+  log line, glyph reads the equipment hue + brightness
+  (`loot._apply_module_loot`; `loot_common` maps module →
+  EQUIPMENT_FG). Sources: INTACT CAPTURES strip the whole flown
+  `modules` list at the quality it flew — per-module KILL-rate
+  rolls at combat entry (`_stats._roll_flown_modules`; enemy
+  hull/shields/skill sums scale through `effective_module_spec`)
+  with the strip seeding engine-room markers from
+  `cr.boarded_modules` (stamped at `_space_boarding`; no
+  re-roll) — while DEAD hulls (wrecks, derelicts, mission
+  salvage) never strip, room scatter only; wreck rooms host
+  authored module pools (`dungeon_layout._ROOM_MODULE_POOLS`:
+  engine_room → engine-slot, cargo_bay → system-slot, 1-in-4
+  per marker — no "systems" room exists in any layout).
+  `OwnedShip.modules` is `tuple[StoredEquipment, ...]` (legacy
+  bare-id saves migrate via `ship.parse_module_entry`);
+  `MODULE_MULTIPLIER_PCT (100,115,130,145,220)` scales all ten
+  bonus fields in magnitude with ceiling rounding (SETTLED 18);
+  sell = `(price*pct+100)//200` min 1 at the one `_sell_price`;
+  shops and buy paths stay base. No module id is barred from
+  payload/pool/strip paths (themed capture sources are doc 48's
+  authoring).
 - **Absent:** `TradeGood.rarity` deleted (doc 47.2 — quest-cargo
   legality is now the explicit `QUEST_LEGAL_MARKET_GOODS` allowlist
-  in `tools/quest_lint.py`); no tariffs beyond the confiscation
+  in `tools/quest_lint.py`); no module drops from exterior space
+  kills or dig sites (modules come from raiding — doc 47.3; delve
+  legendaries are doc 47.4); no tariffs beyond the confiscation
   fine; no equipment selling at terminals; no persistent
   NPC-trader stock.
 
@@ -851,7 +881,9 @@ nobody designs against a ghost.
 - **Load migrations** — heuristic/field-presence based (no schema
   version field): ammo reseed, storage renames, board re-keys,
   disposition backfill, registration re-mint, planet-surface saves
-  rebound to `surface:<city>` (`saveload.py`, `saveload_maps.py`).
+  rebound to `surface:<city>`, module lists migrated to
+  quality-bearing instances (doc 47.3) (`saveload.py`,
+  `saveload_maps.py`).
 - **Map rebuild on Continue** — mode dispatch rebuilds space
   (tombstones skipped) / dungeon (+hidden return pair) / city
   (authored rebuild + saved NPC positions) (`saveload_maps.py`).

@@ -405,7 +405,7 @@ continues the passes above):
   hyphen). SYSTEMS.md audited at close (quality-system entry
   added; kill-drops, loot presentation, dig-caches, and Absent
   entries amended).
-- [ ] 3. **Modules as loot** — payload shape → ship storage,
+- [x] 3. **Modules as loot** — payload shape → ship storage,
   room pools (engine_room → engine-slot, cargo_bay →
   system-slot, SETTLED 15), the capture-only live-`modules`
   strip at flown quality (SETTLED 14/16), installed-module
@@ -422,9 +422,12 @@ continues the passes above):
   sell × multiplier + review minors). Two reviewer rounds came
   back REQUEST_CHANGES (the 3174f81 sweep missed the menu readers
   and the buy-path install; the hangar stat helpers silently
-  dropped entries) — all fixed and re-reviewed. Playtest
-  checklist below; guide entry NOT landed (approval-gated with
-  the playtest, phase-2 precedent).
+  dropped entries) — all fixed and re-reviewed.
+  **CLOSED 2026-09-20 — PLAYTEST PASSED** (no feedback items);
+  guide entry USER-APPROVED verbatim and landed (8587219, own
+  commit). SYSTEMS.md audited at close (module-loot entry
+  added; loot, quality, boarding, save/load, Absent entries
+  amended).
 - [ ] 4. **Legendary randarts + credits + pads** — the randart
   generator (seeded name composition from word pools + property
   spread over `ModuleSpec`'s bonus axes), legendary activation
@@ -953,7 +956,9 @@ No catalog edits.
   directives become map rows). Strip tests isolate from the
   room pool via an autouse 1-in-10^9 rate fixture.
 
-### Phase 3 — Modules as loot (brief PROPOSED 2026-09-20)
+### Phase 3 — Modules as loot (brief PROPOSED 2026-09-20; BUILT
+same day; PLAYTEST PASSED 2026-09-20 — closed, see the Phases
+queue entry)
 
 **Scope (files + hook points):**
 
