@@ -97,7 +97,7 @@ def test_effective_weapon_spec_scales_damage_and_accuracy_only():
     assert t1.id == base.id and t1.name == base.name
 
 
-def test_effective_specs_scale_exact_halves_up():
+def test_effective_specs_round_fractions_up():
     # 10 * 1.15 = 11.5 and 70 * 1.15 = 80.5 must round UP — float
     # arithmetic rounds 80.4999... down, so scaling is integer-exact.
     rifle_t1 = quality.effective_weapon_spec("kinetic_rifle", 1)  # damage 10
@@ -209,7 +209,7 @@ def test_effective_module_spec_real_rows_scale():
 
 def test_effective_module_spec_scales_negatives_in_magnitude():
     # "More of what it is": a better Armor Plating gives more hull AND
-    # a bigger power draw — half-up on the magnitude, both signs.
+    # a bigger power draw — ceiling on the magnitude, both signs.
     t3 = quality.effective_module_spec("armor_mk2", 3)  # hull 10, power -2
     assert t3.max_hull_bonus == 15      # 10 * 1.45 = 14.5 -> 15
     assert t3.power_gen_bonus == -3     # |2| * 1.45 = 2.9 -> 3

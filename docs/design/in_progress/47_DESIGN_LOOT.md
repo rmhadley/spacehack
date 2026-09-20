@@ -1029,7 +1029,8 @@ or layout edits; prose gate — beyond the strings below, no new
 prose.
 
 **Tests:** effective module spec parametrized (ten fields,
-negative-magnitude scaling, half-up rounding both signs);
+negative-magnitude scaling, ceiling rounding both signs —
+amended by SETTLED 18);
 install/store/sell/upgrade-transfer round-trips preserve
 quality; legacy-save migration (bare-id modules,
 quality-less StoredEquipment); seeded fly-time roll scales

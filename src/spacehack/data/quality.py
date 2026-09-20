@@ -24,9 +24,10 @@ QUALITY_TOKENS: tuple[str, ...] = ("modded", "overclocked", "prototype")
 LEGENDARY_QUALITY: int = 4
 
 # Per-family multiplier rows indexed by quality (0 = base), authored
-# in integer hundredths so scaling rounds exactly half-up (SETTLED 2's
-# ~15/30/45% shape; legendary sits high per SETTLED 4). Tuned at
-# playtest.
+# in integer hundredths so scaling is integer-exact; fractions round
+# UP in magnitude — a tier never rounds a bump away (SETTLED 18;
+# SETTLED 2's ~15/30/45% shape, legendary sits high per SETTLED 4).
+# Tuned at playtest.
 WEAPON_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
 ARMOR_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
 MODULE_MULTIPLIER_PCT: tuple[int, ...] = (100, 115, 130, 145, 220)
