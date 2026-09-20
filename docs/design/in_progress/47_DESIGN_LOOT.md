@@ -401,6 +401,19 @@ continues the passes above):
   instances through install/store/sell/save (mechanic economy:
   half catalog × multiplier, SETTLED 4), the module quality
   family row. Brief PROPOSED 2026-09-20 (below).
+  **BUILT 2026-09-20** in eight reviewed commits (0e40bcf quality
+  family row + effective_module_spec; 3174f81 stored/installed
+  instance migration + save migration; cce36ce pickup branch +
+  display seam + glyph hue; 187eb02 review fix — _ship_menu stat
+  helpers delegated to the shared sums; 32f79fa enemy fly-time
+  rolls + boarded_modules stamp; dcda6e5 capture strip at
+  engine-room markers; 81452dc wreck room module pools; 7d48d0d
+  sell × multiplier + review minors). Two reviewer rounds came
+  back REQUEST_CHANGES (the 3174f81 sweep missed the menu readers
+  and the buy-path install; the hangar stat helpers silently
+  dropped entries) — all fixed and re-reviewed. Playtest
+  checklist below; guide entry NOT landed (approval-gated with
+  the playtest, phase-2 precedent).
 - [ ] 4. **Legendary randarts + credits + pads** — the randart
   generator (seeded name composition from word pools + property
   spread over `ModuleSpec`'s bonus axes), legendary activation
@@ -896,6 +909,38 @@ guesses, tuned at playtest; smuggler holds sit out the authored
 pools this phase (SETTLED 17 — an authoring guess, never a
 mechanism exclusion; doc 48 seeds the themed capture sources).
 No catalog edits.
+
+**Build-discovery amendments (2026-09-20, implementation session):**
+
+- The capture-strip helper lives in `dungeon_layout.py`, not
+  `combat/_actions.py` as the DRY sketch placed it: placement
+  needs the loot-marker/room-cell internals only that module
+  owns. The constraint the sketch protected held — the strip is
+  a pure helper, and `game_interactions.py` stays at 998/1000
+  (one kwarg threaded into the existing `_load_layout` call).
+- The reader sweep was wider than the audit's list: the review
+  of 3174f81 caught `_loadout`'s three slot readers and
+  `_apply_purchase`'s install still in bare-id shape (crash +
+  a str landing in the modules tuple), plus `_ship_menu`'s
+  `_effective_shields`/`_effective_power_gen` silently dropping
+  entries (swallowed KeyErrors = wrong hangar numbers, no
+  crash). Both menu stat helpers now DELEGATE to
+  `combat._stats`'s quality-aware sums — the parallel twins
+  died rather than gained a quality branch. Lesson: an
+  instances-not-parallels migration must sweep the MENUS in the
+  same commit as the storage shape, and the test fixture that
+  pins the broken screen is the one that keeps the gate green
+  through it.
+- `start_enemy_turn`'s module shield-regen sum
+  (`combat/_actions.py`) is a ninth module-bonus reader the
+  audit undercounted ("~8") — now effective-spec-aware.
+- The fly-time roll writes `StoredEquipment`, whose third
+  positional is AMMO (the ground twin's third is quality) —
+  quality must thread as a keyword (caught by test).
+- Authored test layouts need `TILE: . = DUNGEON_FLOOR`
+  (a bare `.` is VOID without it) and `ENDMAP` (without it,
+  directives become map rows). Strip tests isolate from the
+  room pool via an autouse 1-in-10^9 rate fixture.
 
 ### Phase 3 — Modules as loot (brief PROPOSED 2026-09-20)
 
