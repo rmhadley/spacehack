@@ -357,6 +357,27 @@ desktop playtest pass. No web-only code in this phase.
   Fast taps keep their single press-step (presses are never purged);
   other keys' repeats survive a release. Renderer-neutral tests in
   `test_pygame_runtime.py` + the shared `FakeSdlEventQueue` double.
+- **Addendum (2026-09-20): the backlog itself removed — batch
+  delivery.** The two fixes above were patches on a layer whose
+  one-event-per-call contract no caller depended on (all three
+  production callers iterate the returned tuple), while the retained
+  backlog became the stuck-keys/unplanned-keypress source: three
+  uncoordinated SDL drains existed (wait_events, the sync `events()`
+  flush path, raw `event.get()` in modal runners) and only the first
+  did the backlog's bookkeeping, so keyups eaten by a modal or flush
+  stranded banked repeats, and backlog residue spilled into the next
+  screen. `wait_events` now drains SDL once per poll, filters
+  irrelevant events, drops repeat keydowns whose keyup shares their
+  batch (the momentum fix, now in-batch — SDL only emits repeats
+  while held, so a stale repeat can only ever coexist with its keyup
+  in one batch), and returns the whole tuple
+  (`_drain_sdl_batch`/`_drop_released_repeats`; commit `a667e70`).
+  Held-key repeats still flow (hold-to-move unchanged); taps keep
+  their press; the 16ms poll quantum and timeout semantics are
+  unchanged. Batch semantics change one edge: a same-poll keydown
+  burst in combat keeps only the first actionable key (the second
+  used to be deferred to the next frame by the backlog — that
+  deferral was itself the stale-input mechanism).
 
 ### Phase 2 — persistence shim
 
