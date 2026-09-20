@@ -33,7 +33,10 @@ def _module_bonus_sum(modules, field: str) -> int:
     for entry in modules:
         try:
             total += getattr(
-                effective_module_spec(entry.item_id, entry.quality), field,
+                effective_module_spec(
+                    entry.item_id, entry.quality, entry.randart_seed,
+                ),
+                field,
             )
         except KeyError:
             pass

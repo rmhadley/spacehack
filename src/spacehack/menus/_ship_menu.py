@@ -71,10 +71,11 @@ def _module_row(entry):
     from ..ship import module_detail, module_display_name
 
     quality = getattr(entry, "quality", 0)
+    seed = getattr(entry, "randart_seed", None)
     try:
         return pygame_screen.ScreenRow(
-            module_display_name(entry.item_id, quality),
-            module_detail(entry.item_id, quality),
+            module_display_name(entry.item_id, quality, seed),
+            module_detail(entry.item_id, quality, seed),
             selectable=True,
         )
     except KeyError:

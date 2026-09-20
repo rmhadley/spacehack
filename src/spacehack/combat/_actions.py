@@ -414,7 +414,7 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     for _entry in getattr(enemy, 'modules', ()) or ():
         try:
             _module_recharge += effective_module_spec(
-                _entry.item_id, _entry.quality,
+                _entry.item_id, _entry.quality, _entry.randart_seed,
             ).shield_recharge_bonus
         except KeyError:
             pass

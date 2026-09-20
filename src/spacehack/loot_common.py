@@ -52,12 +52,18 @@ def _brighten(rgb: tuple[int, int, int], quality: int) -> tuple[int, int, int]:
 _PROTECTED_ATTRS = ("main_quest_step_id", "heist_mission")
 
 
-def equipment_payload(item_type: str, item_id: str, quality: int = 0) -> dict:
+def equipment_payload(
+    item_type: str, item_id: str, quality: int = 0,
+    randart_seed: int | None = None,
+) -> dict:
     """One equipment loot payload; the quality key rides only when > 0
-    (base-tier payloads stay byte-identical to the pre-quality shape)."""
+    and the randart seed only when set (base-tier payloads stay
+    byte-identical to the pre-quality shape)."""
     payload = {"item_type": item_type, "item_id": item_id}
     if quality > 0:
         payload["quality"] = quality
+    if randart_seed is not None:
+        payload["randart_seed"] = randart_seed
     return payload
 
 

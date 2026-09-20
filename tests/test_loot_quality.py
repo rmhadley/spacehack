@@ -497,3 +497,172 @@ def test_loot_fg_treats_modules_as_brightenable_equipment():
     assert loot_fg({
         "item_type": "module", "item_id": "shield_mk1", "quality": 2,
     }) == (159, 177, 207)
+
+
+# ---------------------------------------------------------------------------
+# Randart threading (doc 47 phase 4): effective stats, labels, save/load
+# ---------------------------------------------------------------------------
+
+
+def test_effective_module_spec_applies_axes_on_top_of_the_scaled_base():
+    from spacehack.data.quality import _scaled, effective_module_spec
+    from spacehack.data.modules import find_module
+    from spacehack.data.randarts import roll_randart
+    from spacehack.data.quality import MODULE_MULTIPLIER_PCT
+
+    seed = 1234
+    manifest = roll_randart("shield_mk2", seed)
+    spec = effective_module_spec("shield_mk2", 4, seed)
+    base = find_module("shield_mk2")
+    pct = MODULE_MULTIPLIER_PCT[4]
+    deltas = dict(manifest.axes)
+    for field in (
+        "power_gen_bonus", "max_shield_bonus", "shield_recharge_bonus",
+        "cargo_bonus", "gunnery_bonus", "piloting_bonus",
+        "engineering_bonus", "max_hull_bonus", "speed_bonus",
+        "smuggler_cargo",
+    ):
+        scaled = _scaled(getattr(base, field), pct)
+        assert getattr(spec, field) == scaled + deltas.get(field, 0)
+    # Price/slot/tech never scale and never take axes.
+    assert spec.price == base.price
+    assert spec.slot_type == base.slot_type
+    assert spec.tech_level == base.tech_level
+
+
+def test_effective_module_spec_seed_at_base_quality_applies_axes_only():
+    from spacehack.data.quality import effective_module_spec
+    from spacehack.data.modules import find_module
+    from spacehack.data.randarts import roll_randart
+
+    seed = 77
+    spec = effective_module_spec("reactor_mk2", 0, seed)
+    base = find_module("reactor_mk2")
+    deltas = dict(roll_randart("reactor_mk2", seed).axes)
+    assert spec.power_gen_bonus == base.power_gen_bonus + deltas.get("power_gen_bonus", 0)
+    assert spec.speed_bonus == base.speed_bonus + deltas.get("speed_bonus", 0)
+
+
+def test_effective_module_spec_seed_is_deterministic():
+    from spacehack.data.quality import effective_module_spec
+
+    assert effective_module_spec("shield_mk1", 4, 42) == \
+        effective_module_spec("shield_mk1", 4, 42)
+    assert effective_module_spec("shield_mk1", 4, 42) != \
+        effective_module_spec("shield_mk1", 4, 43)
+
+
+def test_module_display_name_shows_the_manifest_name():
+    from spacehack.ship import module_display_name
+    from spacehack.data.randarts import roll_randart
+
+    seed = 5
+    expected = roll_randart("shield_mk1", seed).name
+    # The name IS the label — no token at legendary (SETTLED 10/21).
+    assert module_display_name("shield_mk1", 4, seed) == expected
+    assert "Prototype" not in expected and "Modded" not in expected
+
+
+def test_module_detail_for_a_randart_includes_the_axes():
+    from spacehack.ship import module_detail
+    from spacehack.data.randarts import roll_randart
+
+    seed = 9
+    detail = module_detail("shield_mk1", 4, seed)
+    for field, delta in roll_randart("shield_mk1", seed).axes:
+        assert f"{delta:+d}" in detail
+
+
+def test_equipment_payload_carries_the_seed_only_when_set():
+    from spacehack.loot_common import equipment_payload
+
+    assert equipment_payload("module", "shield_mk1") == {
+        "item_type": "module", "item_id": "shield_mk1",
+    }
+    assert equipment_payload("module", "shield_mk1", 4, 60) == {
+        "item_type": "module", "item_id": "shield_mk1",
+        "quality": 4, "randart_seed": 60,
+    }
+
+
+def test_stored_equipment_save_round_trip_keeps_the_seed():
+    from spacehack.saveload import _d, _stored_equipment_from_dict
+    from spacehack.ship import StoredEquipment
+
+    entry = StoredEquipment("module", "shield_mk1", quality=4, randart_seed=606)
+    assert _stored_equipment_from_dict(_d(entry)) == entry
+    # Legacy shapes migrate to not-a-randart.
+    legacy = _stored_equipment_from_dict({
+        "item_type": "module", "item_id": "shield_mk1", "quality": 2,
+    })
+    assert legacy == StoredEquipment("module", "shield_mk1", quality=2)
+    malformed = _stored_equipment_from_dict({
+        "item_type": "module", "item_id": "shield_mk1",
+        "quality": 4, "randart_seed": "junk",
+    })
+    assert malformed.randart_seed is None
+
+
+def test_parse_module_entry_migrates_the_seed():
+    from spacehack.ship import StoredEquipment, parse_module_entry
+
+    parsed = parse_module_entry({
+        "item_id": "shield_mk1", "quality": 4, "randart_seed": 31,
+    })
+    assert parsed == StoredEquipment("module", "shield_mk1", quality=4, randart_seed=31)
+    assert parse_module_entry("shield_mk1").randart_seed is None
+
+
+def test_no_ladder_or_parse_path_can_produce_legendary():
+    """The delve bottom is the ONLY quality-4 source (binding ruling):
+    every roll_quality ladder is three entries, and quality parses cap
+    at the legendary constant only via explicit authoring."""
+    from spacehack.data.quality import (
+        KILL_QUALITY_RATES, WRECK_QUALITY_RATES, DIG_QUALITY_RATES,
+    )
+
+    for rates in (KILL_QUALITY_RATES, WRECK_QUALITY_RATES, DIG_QUALITY_RATES):
+        assert len(rates) == 3
+
+    class _AlwaysOne:
+        def randint(self, low, high):
+            return 1
+
+    from spacehack.data.quality import roll_quality
+    for rates in (KILL_QUALITY_RATES, WRECK_QUALITY_RATES, DIG_QUALITY_RATES):
+        # Even a maximally lucky roll stops at t3.
+        assert roll_quality(rates, _AlwaysOne()) == 3
+
+
+def test_seeded_bonuses_flow_through_the_readers():
+    """A seeded module's axes reach the sums and the screens — the
+    phase-3 lesson: the fixture that pins the broken reader is the
+    one that keeps the gate green through the sweep."""
+    from types import SimpleNamespace
+
+    from spacehack.data.randarts import roll_randart
+    from spacehack.menus._loadout import _stored_label
+    from spacehack.ship import StoredEquipment, hull_cur_max
+
+    seed = 321
+    deltas = dict(roll_randart("armor_mk4", seed).axes)
+    entry = StoredEquipment("module", "armor_mk4", quality=4, randart_seed=seed)
+    owned = SimpleNamespace(
+        ship_id="scout", modules=(entry,), hull_damage_pct=0,
+    )
+    _cur, hull_max = hull_cur_max(owned, SimpleNamespace(base_hull=25))
+    # 25 base + ceiling(25 * 2.2) + the rolled hull axis, if any.
+    from spacehack.data.quality import _scaled, MODULE_MULTIPLIER_PCT
+    expected = 25 + _scaled(25, MODULE_MULTIPLIER_PCT[4]) + deltas.get("max_hull_bonus", 0)
+    assert hull_max == expected
+    # The stored-row label reads the manifest name (seed threaded).
+    assert _stored_label(entry) == roll_randart("armor_mk4", seed).name
+
+
+def test_seeded_label_refuses_unknown_module_ids():
+    import pytest
+
+    from spacehack.ship import module_display_name
+
+    with pytest.raises(KeyError):
+        module_display_name("no_such_module", 4, 123)

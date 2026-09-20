@@ -22,12 +22,16 @@ class StoredEquipment:
 
     ``quality`` is the rolled instance tier (doc 47.3): 0 = base shop
     stock; looted modules carry the tier they dropped at.
+    ``randart_seed`` is the legendary identity (doc 47.4): None for
+    everything except a rolled randart — the seed recomposes the name
+    and bonus spread wherever the entry travels.
     """
 
     item_type: str
     item_id: str
     ammo: int | None = None
     quality: int = 0
+    randart_seed: int | None = None
 
 
 def parse_module_entry(raw) -> StoredEquipment | None:
@@ -35,15 +39,18 @@ def parse_module_entry(raw) -> StoredEquipment | None:
 
     Legacy ``OwnedShip.modules`` entries were bare id strings; the
     instance shape is ``StoredEquipment``. A missing or malformed
-    quality tier migrates to base (0). Unknown ids return None.
+    quality tier migrates to base (0); a missing or malformed randart
+    seed migrates to "not a randart" (None). Unknown ids return None.
     """
+    from .data.randarts import parse_randart_seed
     from .ground_equipment import parse_quality
 
     if isinstance(raw, str):
-        module_id, quality = raw, 0
+        module_id, quality, seed = raw, 0, None
     elif isinstance(raw, dict):
         module_id = raw.get("item_id")
         quality = parse_quality(raw.get("quality"))
+        seed = parse_randart_seed(raw.get("randart_seed"))
     else:
         return None
     if not isinstance(module_id, str) or not module_id:
@@ -53,7 +60,7 @@ def parse_module_entry(raw) -> StoredEquipment | None:
         _fm(module_id)
     except KeyError:
         return None
-    return StoredEquipment("module", module_id, quality=quality)
+    return StoredEquipment("module", module_id, quality=quality, randart_seed=seed)
 
 
 def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
@@ -62,8 +69,9 @@ def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
     return tuple(StoredEquipment("module", module_id) for module_id in module_ids)
 
 
-def module_display_name(module_id: str, quality: int = 0) -> str:
-    """Token-prefixed module name — "Overclocked Shield Mk. 2".
+def module_display_name(module_id: str, quality: int = 0, randart_seed: int | None = None) -> str:
+    """Module label — "Overclocked Shield Mk. 2", or the randart's
+    rolled name when a seed is set (doc 47.4: the name IS the label).
 
     The module label seam (doc 47.3): screens never prefix. Mirrors
     ground_equipment.display_name.
@@ -71,6 +79,11 @@ def module_display_name(module_id: str, quality: int = 0) -> str:
     from .data.modules import find_module as _fm
     from .data.quality import token_prefix
 
+    if randart_seed is not None:
+        from .data.randarts import roll_randart
+
+        _fm(module_id)  # unknown ids must refuse here like every branch
+        return roll_randart(module_id, randart_seed).name
     return f"{token_prefix(quality)}{_fm(module_id).name}"
 
 
@@ -94,20 +107,21 @@ def module_stat_line(spec) -> str:
     )
 
 
-def module_detail(module_id: str, quality: int = 0) -> str:
+def module_detail(module_id: str, quality: int = 0, randart_seed: int | None = None) -> str:
     """Detail line for one module at its quality.
 
     Base modules keep their authored description (its numbers are
     correct at base); variants render the effective stat line — the
-    authored prose would state wrong numbers.
+    authored prose would state wrong numbers. A randart's effective
+    stat line includes its axis deltas (doc 47.4).
     """
     from .data.modules import find_module as _fm
     from .data.quality import effective_module_spec
 
-    if quality <= 0:
+    if quality <= 0 and randart_seed is None:
         return _fm(module_id).description
     return module_stat_line(
-        effective_module_spec(module_id, quality),
+        effective_module_spec(module_id, quality, randart_seed),
     ) or _fm(module_id).description
 
 
@@ -293,7 +307,9 @@ def _effective_installed(owned: OwnedShip):
 
     for entry in getattr(owned, 'modules', ()) or ():
         try:
-            yield effective_module_spec(entry.item_id, entry.quality)
+            yield effective_module_spec(
+                entry.item_id, entry.quality, entry.randart_seed,
+            )
         except KeyError:
             pass
 
@@ -517,7 +533,8 @@ def store_module(
     storage: list[StoredEquipment],
     slot_index: int,
 ) -> bool:
-    """Move one installed module into storage, preserving its quality."""
+    """Move one installed module into storage, preserving its quality
+    and randart identity."""
     if not (0 <= slot_index < len(owned.modules)):
         return False
     entry = owned.modules[slot_index]
@@ -526,7 +543,10 @@ def store_module(
         _fm(entry.item_id)
     except KeyError:
         return False
-    storage.append(StoredEquipment("module", entry.item_id, quality=entry.quality))
+    storage.append(StoredEquipment(
+        "module", entry.item_id,
+        quality=entry.quality, randart_seed=entry.randart_seed,
+    ))
     _remove_module(owned, slot_index)
     return True
 

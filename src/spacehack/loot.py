@@ -126,10 +126,12 @@ def _ground_equipment_loot_name(entry) -> str:
 def _module_loot_entry(loot_entity):
     """Build the stored-module entry from a module loot entity.
 
-    The payload's rolled quality threads into the entry (the ground
-    ``_ground_equipment_loot_entry`` twin, doc 47.3).
+    The payload's rolled quality and randart seed thread into the
+    entry (the ground ``_ground_equipment_loot_entry`` twin, doc
+    47.3/47.4).
     """
     from . import ship as ship_module
+    from .data.randarts import parse_randart_seed
     from .ground_equipment import parse_quality
 
     loot_data = loot_entity.loot_data or {}
@@ -137,15 +139,19 @@ def _module_loot_entry(loot_entity):
         "module",
         str(loot_data.get("item_id", "")),
         quality=parse_quality(loot_data.get("quality")),
+        randart_seed=parse_randart_seed(loot_data.get("randart_seed")),
     )
 
 
 def _module_loot_name(loot_entity) -> str:
-    """Return the token-prefixed display name for a module loot entity."""
+    """Return the display name for a module loot entity (randart name
+    when seeded, else the token-prefixed label)."""
     from . import ship as ship_module
 
     entry = _module_loot_entry(loot_entity)
-    return ship_module.module_display_name(entry.item_id, entry.quality)
+    return ship_module.module_display_name(
+        entry.item_id, entry.quality, entry.randart_seed,
+    )
 
 
 def _field_item_loot_stack(loot_entity):
@@ -562,7 +568,9 @@ def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
 
     entry = _module_loot_entry(loot_entity)
     try:
-        name = ship_module.module_display_name(entry.item_id, entry.quality)
+        name = ship_module.module_display_name(
+            entry.item_id, entry.quality, entry.randart_seed,
+        )
     except (KeyError, TypeError, ValueError):
         ctx.log.add("Unknown ship module - left it behind.")
         return

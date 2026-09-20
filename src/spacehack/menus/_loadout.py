@@ -72,7 +72,9 @@ def _stored_label(stored) -> str:
     """Display label for one stored part (token seam for modules)."""
     if stored.item_type == "module":
         from ..ship import module_display_name
-        return module_display_name(stored.item_id, stored.quality)
+        return module_display_name(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
     return stored.item_id.replace('_', ' ').title()
 
 
@@ -86,8 +88,12 @@ def _stored_row(stored, index: int):
         spec = find_weapon(stored.item_id)
         name, detail = spec.name, _weapon_detail(spec, ammo=stored.ammo)
     elif stored.item_type == "module":
-        name = module_display_name(stored.item_id, stored.quality)
-        detail = module_detail(stored.item_id, stored.quality)
+        name = module_display_name(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
+        detail = module_detail(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
     else:
         raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
     return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}")
@@ -187,8 +193,12 @@ def _ship_rows(ctx, ship_spec, mode: str):
         value = ""
         rows.append(
             pygame_split.SplitRow(
-                module_display_name(entry.item_id, entry.quality), value,
-                module_detail(entry.item_id, entry.quality), action,
+                module_display_name(
+                    entry.item_id, entry.quality, entry.randart_seed,
+                ), value,
+                module_detail(
+                    entry.item_id, entry.quality, entry.randart_seed,
+                ), action,
             )
         )
     return tuple(rows)
@@ -354,7 +364,10 @@ def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
         return find_weapon(item).name, item, 0
     from ..ship import module_display_name
     return (
-        module_display_name(item.item_id, item.quality), item.item_id, item.quality,
+        module_display_name(
+            item.item_id, item.quality, item.randart_seed,
+        ),
+        item.item_id, item.quality,
     )
 
 

@@ -218,3 +218,67 @@ def test_wreck_module_rate_wiring_is_one_in_n(tmp_path, monkeypatch):
         "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
     )
     assert len(_module_payloads(game_map)) == 1
+
+
+# ---------------------------------------------------------------------------
+# Randart instance travel (doc 47 phase 4): pickup → storage → install →
+# store keeps the seed at every construction site.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingLog:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def add(self, message: str) -> None:
+        self.lines.append(message)
+
+
+def test_randart_pickup_carries_the_seed_into_storage():
+    from types import SimpleNamespace
+
+    from src.spacehack.loot import _apply_module_loot
+    from src.spacehack.data.randarts import roll_randart
+
+    entity = SimpleNamespace(
+        loot_data={
+            "item_type": "module", "item_id": "shield_mk1",
+            "quality": 4, "randart_seed": 4242,
+        },
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_RecordingLog(), ship_storage=[],
+        game_map=SimpleNamespace(entities=[entity]),
+    )
+
+    _apply_module_loot(ctx, entity)
+
+    (entry,) = ctx.ship_storage
+    assert entry.item_id == "shield_mk1"
+    assert entry.quality == 4
+    assert entry.randart_seed == 4242
+    assert ctx.log.lines == [
+        f"Stored ship module: {roll_randart('shield_mk1', 4242).name}.",
+    ]
+
+
+def test_randart_seed_survives_install_and_store():
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.ship import (
+        OwnedShip, StoredEquipment, install_stored_equipment, store_module,
+    )
+
+    owned = OwnedShip(ship_id="starter")
+    ship_spec = find_ship("starter")
+    storage = [StoredEquipment("module", "reactor_mk2", quality=4, randart_seed=99)]
+
+    assert install_stored_equipment(owned, storage, 0, ship_spec)
+    assert owned.modules[0].randart_seed == 99
+    assert store_module(owned, storage, 0)
+    assert storage[0].randart_seed == 99
+
+    assert install_stored_equipment(owned, storage, 0, ship_spec)
+    assert owned.modules[0].randart_seed == 99
+    assert store_module(owned, storage, 0)
+    assert storage[0].randart_seed == 99

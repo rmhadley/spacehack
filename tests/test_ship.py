@@ -233,7 +233,7 @@ class TestHullCurMax:
     def test_module_max_hull_bonus_raises_max(self, monkeypatch):
         monkeypatch.setattr(
             "src.spacehack.data.quality.effective_module_spec",
-            lambda _mid, _quality=0: SimpleNamespace(max_hull_bonus=10),
+            lambda _mid, _quality=0, _seed=None: SimpleNamespace(max_hull_bonus=10),
         )
         owned = SimpleNamespace(
             ship_id="scout", modules=(_module("some_armor"),), hull_damage_pct=0,

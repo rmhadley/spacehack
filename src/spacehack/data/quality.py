@@ -132,22 +132,36 @@ def effective_armor_spec(armor_id: str, quality: int = 0):
     )
 
 
-def effective_module_spec(module_id: str, quality: int = 0):
+def effective_module_spec(module_id: str, quality: int = 0, randart_seed: int | None = None):
     """Return the catalog ship module with all ten bonus fields scaled.
 
     Base quality (or a malformed negative tier) returns the catalog
     row itself; higher tiers return a ``dataclasses.replace`` copy
     with every bonus field scaled in magnitude — price, tech_level,
-    and slot_type never change.
+    and slot_type never change. A randart seed applies its rolled
+    axis deltas on top of the scaled base (doc 47.4: deltas are
+    integers and never round — SETTLED 18 governs the scaled part).
     """
     spec = find_module(module_id)
-    if quality <= 0:
-        return spec
-    pct = _FAMILY_ROWS["module"][quality]
+    scaled = spec
+    if quality > 0:
+        pct = _FAMILY_ROWS["module"][quality]
+        scaled = dataclasses.replace(
+            spec,
+            **{
+                name: _scaled(getattr(spec, name), pct)
+                for name in _MODULE_BONUS_FIELDS
+            },
+        )
+    if randart_seed is None:
+        return scaled
+    from .randarts import roll_randart
+
+    deltas = dict(roll_randart(module_id, randart_seed).axes)
     return dataclasses.replace(
-        spec,
+        scaled,
         **{
-            name: _scaled(getattr(spec, name), pct)
+            name: getattr(scaled, name) + deltas.get(name, 0)
             for name in _MODULE_BONUS_FIELDS
         },
     )

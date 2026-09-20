@@ -385,11 +385,12 @@ def _append_equipment_loot(
     item_type: str,
     item_id: str,
     quality: int,
+    randart_seed: int | None = None,
 ) -> None:
     """Append one quality-variant ground-equipment container entity."""
     from .loot_common import equipment_payload, loot_fg
 
-    payload = equipment_payload(item_type, item_id, quality)
+    payload = equipment_payload(item_type, item_id, quality, randart_seed)
     _append_container(build, x, y, loot_fg(payload), payload)
 
 
@@ -487,6 +488,7 @@ def _seed_capture_modules(build: _LayoutBuild, capture_modules) -> None:
         if pos is not None:
             _append_equipment_loot(
                 build, pos[0], pos[1], "module", entry.item_id, entry.quality,
+                entry.randart_seed,
             )
 
 

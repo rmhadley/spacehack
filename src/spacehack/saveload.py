@@ -107,10 +107,12 @@ def _stored_equipment_from_dict(raw: object):
             ammo = int(ammo_raw)
         except (TypeError, ValueError):
             return None
+    from .data.randarts import parse_randart_seed
     from .ground_equipment import parse_quality
     from . import ship as ship_module
     return ship_module.StoredEquipment(
         item_type, item_id, ammo, parse_quality(raw.get("quality")),
+        randart_seed=parse_randart_seed(raw.get("randart_seed")),
     )
 
 
