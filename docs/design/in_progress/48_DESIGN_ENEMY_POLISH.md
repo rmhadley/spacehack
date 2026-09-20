@@ -16,6 +16,27 @@ ruling (tactics come from behavior×attack×terrain combos, not stats).
 > If I'm in a t4 delve, I should be going against pirates with
 > monoblades and rocket launchers.
 
+## Seed addendum — ship-side loadouts (user, 2026-09-20, verbatim)
+
+From the doc 47.3 refinement (SETTLED 17 there): themed ship
+loadouts are wanted and live HERE. Space-side LOADOUT authoring
+joins this doc's territory; space AI behavior stays out (doc-34
+seed, unchanged — see G).
+
+> I agree with you that we need more detailed ship specs that
+> have modules installed that make sense for them and their hull.
+> Capturing a pirate ship would definitely be a solid path to
+> finding a smugglers hold. Capturing a merchant would be a solid
+> path to finding a cargo hold.
+
+Grounding: no NPC ship spec flies a smuggler hold today (the only
+catalog-adjacent reference is wolf_b's fixed mechanic stock); the
+47.3 capture strip drops whatever the spec flies at fly-time
+quality, so authored themed modules become capturable loot with
+zero new mechanics — this doc just decides the authoring shape
+(which hulls fly what, and whether band scaling applies
+ship-side). Joins the open-question pass below.
+
 ## Current state — the audit (2026-09-20, code-anchored)
 
 **How enemies scale today: by spec swap, not by loadout.**
@@ -125,10 +146,12 @@ names are PROSE GATE.
 
 ### G. Scope boundary
 
-Space-side enemies are OUT (the space behavior-matrix proposal
-is its own pending decision, doc-34 seed). Authored-layout
-`ENEMY:` markers are hand-tuned and presumably stay fixed — open
-question 7 confirms.
+Space-side AI behavior is OUT (the space behavior-matrix
+proposal is its own pending decision, doc-34 seed) — but
+ship-side LOADOUT authoring is IN per the seed addendum above
+(user, 2026-09-20): themed installed modules per hull. Authored-
+layout `ENEMY:` markers are hand-tuned and presumably stay
+fixed — open question 7 confirms.
 
 ## Philosophy alignment
 

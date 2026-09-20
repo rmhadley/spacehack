@@ -331,6 +331,19 @@ continues the passes above):
     everything it flew; a destroyed-then-boarded wreck's
     hardware died with the hull, so dead ships (mission wrecks
     and derelicts included) yield room scatter only.
+17. **No module is excluded from loot, structurally (user,
+    2026-09-20).** The phase-3 pool contents are an authored
+    opening guess, not a system ban — every module id can drop
+    through the payload, pool, and capture-strip paths, and
+    nothing in the build may bar a module from the wild
+    ("as long as in 47.3 we aren't excluding the future option
+    of these modules being found in the wild"). Themed capture
+    sources are ruled WANTED and seeded in doc 48 (same day,
+    verbatim): "more detailed ship specs that have modules
+    installed that make sense for them and their hull" —
+    "Capturing a pirate ship would definitely be a solid path
+    to finding a smugglers hold. Capturing a merchant would be
+    a solid path to finding a cargo hold."
 
 ## Remaining opens (phase-4-shaped or authoring-tuned)
 
@@ -879,8 +892,10 @@ brief):**
 `engine_room: (compact_reactor, reactor_mk2)` /
 `cargo_bay: (shield_mk1, shield_capacitor, targeting_computer,
 expanded_cargo)` + `WRECK_MODULE_RATE` 1-in-N — opening
-guesses, tuned at playtest; smuggler holds stay shop-only this
-phase (pool-excluded). No catalog edits.
+guesses, tuned at playtest; smuggler holds sit out the authored
+pools this phase (SETTLED 17 — an authoring guess, never a
+mechanism exclusion; doc 48 seeds the themed capture sources).
+No catalog edits.
 
 ### Phase 3 — Modules as loot (brief PROPOSED 2026-09-20)
 
@@ -945,14 +960,17 @@ loot_fg → fly-time rolls + combat threading → capture strip →
 room pools → sell × multiplier → guide (own commit,
 approval-gated).
 
-**Binding rulings:** SETTLED 14/15/16 + rulings 2/3, SETTLED 4;
-shops, starting gear, and quest gear never variant; exterior
+**Binding rulings:** SETTLED 14/15/16/17 + rulings 2/3, SETTLED
+4; shops, starting gear, and quest gear never variant; exterior
 space kills NEVER drop modules (ruling 3 is raiding, not
-debris); smuggler holds stay shop-only this phase (revisit at
-playtest if pirate wrecks should carry them); quest-loot
-security do-not-break; mission salvage steps feed from room
-pools only (their ships are dead); no new room types or layout
-edits; prose gate — beyond the strings below, no new prose.
+debris); smuggler holds sit out this phase's AUTHORED POOLS
+only — an authoring guess, never a mechanism exclusion (SETTLED
+17: no module id is barred from the payload/pool/capture-strip
+paths; themed capture sources are doc 48's loadout re-authoring);
+quest-loot security do-not-break; mission salvage steps feed
+from room pools only (their ships are dead); no new room types
+or layout edits; prose gate — beyond the strings below, no new
+prose.
 
 **Tests:** effective module spec parametrized (ten fields,
 negative-magnitude scaling, half-up rounding both signs);
