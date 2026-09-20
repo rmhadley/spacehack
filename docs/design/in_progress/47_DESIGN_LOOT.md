@@ -5,7 +5,8 @@ explicitly requests it.** Draft opened 2026-09-19; the user's four
 polish notes, the full open-question pass, and the phase-2
 quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
-No open questions remain; phase 4's brief is proposed below.
+No open questions remain; phase 4 is BUILT (2026-09-20) —
+awaiting the playtest checkpoint and the guide-sentence ruling.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -473,6 +474,17 @@ item.
   the off-world cache pool (SETTLED 23). No pads (SETTLED 25);
   no doc-43 content. Prose gate before any data strings land.
   Brief PROPOSED 2026-09-20 (below).
+  **BUILT 2026-09-20** in six reviewed commits (932cfa0 randart
+  generator; 87d5d69 randart_seed threading through the instance
+  shape, stats, labels, and save/load; 3757b83 delve-bottom
+  activation + container fields; 80bfd14 credit containers; 2f7d964
+  off-world pool; a57f719 pickup modal). One review round came back
+  REQUEST_CHANGES (the off-world tests: a session-RNG-flaky cache
+  assertion + a vacuous exhausted-pool script — both rewritten with
+  bounds-asserting scripts and mutation-verified). All strings are
+  the brief's drafts plus the eight delegated axis labels — every
+  one listed verbatim at the playtest checkpoint; the guide
+  sentence awaits approve/red-line before it lands.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
