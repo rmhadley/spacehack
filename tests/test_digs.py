@@ -511,7 +511,7 @@ def test_generate_dig_scatters_caches(monkeypatch):
             assert "quantity" not in cache.loot_data
 
 
-def test_generate_dig_without_produces_has_no_caches(monkeypatch):
+def test_generate_dig_without_produces_has_no_goods_caches(monkeypatch):
     spec = dataclasses.replace(find_planet_spec("mars"), produces=())
     monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
     monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
@@ -711,3 +711,67 @@ def test_bump_keeps_blocking_a_hostile_guard(monkeypatch):
     assert code == "occupied" and blocker is guard
     assert (player.pos.x, player.pos.y) == (4, 4)
     assert (guard.pos.x, guard.pos.y) == (5, 4)
+
+
+# --- the delve-bottom legendary guarantee (doc 47 phase 4) -------------------
+
+
+def _module_randarts(game_map):
+    from src.spacehack.data.modules import list_modules
+    catalog = {spec.id for spec in list_modules()}
+    return [
+        entity for entity in game_map.entities
+        if (entity.loot_data or {}).get("item_type") == "module"
+        and entity.loot_data.get("quality") == 4
+        and entity.loot_data.get("randart_seed", 0) >= 1
+        and entity.loot_data["item_id"] in catalog
+    ]
+
+
+def test_bottom_floor_carries_the_legendary_guarantee(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    _f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    f2, _ = digs.get_or_generate_floor(ctx, site, 2)
+    assert len(_module_randarts(f2)) == 1
+
+
+def test_non_bottom_floors_never_roll_legendary(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=3)
+    for floor in (1, 2):
+        game_map, _ = digs.get_or_generate_floor(ctx, site, floor)
+        modules = [
+            e for e in game_map.entities
+            if (e.loot_data or {}).get("item_type") == "module"
+        ]
+        assert modules == []
+
+
+def test_legendary_bottom_false_disables_the_guarantee(monkeypatch):
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(DIG_LOOT_SPEC, legendary_bottom=False)
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert _module_randarts(f1) == []
+
+
+def test_no_produce_bottom_still_guarantees_the_legendary(monkeypatch):
+    spec = dataclasses.replace(find_planet_spec("mars"), produces=())
+    monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
+    monkeypatch.setattr(digs, "find_planet_spec", lambda pid: spec)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert len(_module_randarts(f1)) == 1
+
+
+def test_legendary_glyph_reads_the_equipment_glow():
+    from src.spacehack.loot_common import EQUIPMENT_FG, loot_fg
+
+    payload = {
+        "item_type": "module", "item_id": "shield_mk1",
+        "quality": 4, "randart_seed": 5,
+    }
+    fg = loot_fg(payload)
+    assert fg != EQUIPMENT_FG
+    assert all(channel >= base for channel, base in zip(fg, EQUIPMENT_FG))

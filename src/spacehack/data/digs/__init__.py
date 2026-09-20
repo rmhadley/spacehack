@@ -12,18 +12,30 @@ from ..quality import DIG_QUALITY_RATES
 
 @_dataclass(frozen=True)
 class DigLootSpec:
-    """The dig-cache loot config (SETTLED 30/35 + doc 47 phase 2):
-    the planet's own ``produces`` goods, tier+floor-scaled — plus
-    the phase-2 gear presence: a 1-in-``equipment_rate`` cache carries
-    tier-banded equipment instead of goods, rolled at ``quality_rates``.
-    The rare-cache variant, legendary guarantee, and out-of-produce
-    pool stay phase 4."""
+    """The dig-cache loot config (SETTLED 30/35 + doc 47 phases 2/4):
+    the planet's own ``produces`` goods, tier+floor-scaled — plus the
+    phase-2 gear presence (a 1-in-``equipment_rate`` cache carries
+    tier-banded equipment instead of goods, rolled at
+    ``quality_rates``) and the phase-4 container fields: the
+    ``legendary_bottom`` guarantee (one module randart on the deepest
+    floor — the game's only legendary source) plus the lockbox
+    rare-cache (1-in-``lockbox_rate``), off-world pool
+    (1-in-``out_of_produce_rate``), and chip counts/values, whose
+    spawners land with the phase-4 container steps (dormant until
+    then). Per-planet overrides ride the ``dig_*`` spec fields;
+    planets inherit these defaults."""
     cache_count: tuple[int, int] = (2, 3)
     base_qty: int = 2
     qty_per_tier: int = 1
     qty_per_floor: int = 2
     equipment_rate: int = 4
     quality_rates: tuple[int, int, int] = DIG_QUALITY_RATES
+    legendary_bottom: bool = True
+    lockbox_rate: int = 6
+    out_of_produce_rate: int = 4
+    chip_count: tuple[int, int] = (1, 2)
+    chip_value: tuple[int, int] = (40, 120)
+    lockbox_value: tuple[int, int] = (300, 900)
 
 
 DIG_LOOT_SPEC = DigLootSpec()

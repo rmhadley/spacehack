@@ -209,8 +209,8 @@ def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Posi
         game_map.tiles[spawn.y][spawn.x] = world.STAIRS_UP
     _maybe_stamp_landmark(game_map, site, floor, spawn)
     populate_dungeon(game_map, params, spawn, tier=_dig_tier(spec, floor))
-    _scatter_dig_loot(game_map, spec, floor)
     depth = site_depth(spec, site["id"])
+    _scatter_dig_loot(game_map, spec, floor, bottom=floor >= depth)
     if floor < depth:
         _place_stairs_down(game_map, spawn)
     return game_map, spawn
@@ -359,28 +359,67 @@ def _dig_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
     )
 
 
-def _scatter_dig_loot(game_map: world.GameMap, spec: PlanetSpec, floor: int) -> None:
-    """The cache scatter — goods rows (SETTLED 30/35) with the phase-2
-    gear presence, placed at free cells after population."""
-    from .data.digs import DIG_LOOT_SPEC
+def _append_cache_entity(
+    game_map: world.GameMap, pos: world.Position, payload: dict,
+) -> None:
+    """Place one dig-cache loot entity (the digs `_append_container`
+    twin — every dig cache constructor routes here)."""
     from .loot_common import loot_fg
 
-    if not spec.produces:
+    game_map.entities.append(world.Entity(
+        char="%", fg=loot_fg(payload), pos=pos, name="Cache",
+        width=1, height=1, loot_data=payload,
+    ))
+
+
+def _scatter_dig_loot(
+    game_map: world.GameMap,
+    spec: PlanetSpec,
+    floor: int,
+    *,
+    bottom: bool = False,
+) -> None:
+    """The cache scatter — goods rows (SETTLED 30/35) with the phase-2
+    gear presence, placed at free cells after population. The bottom
+    floor additionally places the legendary guarantee (doc 47.4)."""
+    from .data.digs import DIG_LOOT_SPEC
+
+    if spec.produces:
+        count = engine.RNG.randint(*DIG_LOOT_SPEC.cache_count)
+        rows = iter(site_loot_rows(spec, floor, count, engine.RNG))
+        for _ in range(count):
+            pos = _free_floor_cell(
+                game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
+            )
+            if pos is None:
+                return
+            _append_cache_entity(game_map, pos, _dig_cache_payload(spec, next(rows)))
+    if bottom and DIG_LOOT_SPEC.legendary_bottom:
+        _place_legendary_cache(game_map)
+
+
+def _place_legendary_cache(game_map: world.GameMap) -> None:
+    """The delve-bottom guarantee (doc 47.4 SETTLED 11/35): one module
+    randart waits at the site's deepest floor — the game's only
+    legendary source. The base rolls uniformly from the full catalog
+    (SETTLED 19, both slot types); identity rolls at generation and
+    the payload carries it wholesale (floors cache; save/load rides
+    loot_data). The seed draws strictly >= 1: parse_randart_seed
+    migrates 0 to not-a-randart."""
+    from .data.modules import list_modules
+    from .data.quality import LEGENDARY_QUALITY
+    from .loot_common import equipment_payload
+
+    pos = _free_floor_cell(
+        game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
+    )
+    if pos is None:
         return
-    count = engine.RNG.randint(*DIG_LOOT_SPEC.cache_count)
-    rows = iter(site_loot_rows(spec, floor, count, engine.RNG))
-    for _ in range(count):
-        pos = _free_floor_cell(
-            game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
-        )
-        if pos is None:
-            return
-        payload = _dig_cache_payload(spec, next(rows))
-        game_map.entities.append(world.Entity(
-            char="%", fg=loot_fg(payload), pos=pos, name="Cache",
-            width=1, height=1,
-            loot_data=payload,
-        ))
+    payload = equipment_payload(
+        "module", engine.RNG.choice(list_modules()).id, LEGENDARY_QUALITY,
+        engine.RNG.randint(1, 2**31 - 1),
+    )
+    _append_cache_entity(game_map, pos, payload)
 
 
 def enter_dig_site(state, planet_obj, site_id: str) -> str:

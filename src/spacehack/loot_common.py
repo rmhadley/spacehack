@@ -34,9 +34,9 @@ _TYPE_FG = {
 MAX_LOOT_ENTITIES: int = 30
 
 # Brightness answers HOW GOOD (SETTLED 5): each tier above base steps
-# the equipment hue brighter. The legendary row is the phase-4 glow
-# slot — present but unreachable until randarts land. Initial values,
-# tuned at playtest.
+# the equipment hue brighter. The legendary row (4) is live since the
+# doc-47 phase-4 delve-bottom guarantee — randarts are its only source.
+# Initial values, tuned at playtest.
 _QUALITY_BRIGHTNESS: tuple[float, ...] = (1.0, 1.10, 1.22, 1.36, 1.55)
 
 
