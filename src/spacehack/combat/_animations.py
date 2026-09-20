@@ -42,10 +42,11 @@ async def _responsive_sleep(seconds: float, context=None) -> None:
 
     Drains queued SDL input during animation frames so keys do not bleed
     into the next turn; the drain also runs for a zero-length sleep
-    (instant animation speed) for the same reason. When ``context`` is
-    the shared runtime the drained events feed its held-key state — a
-    keyup swallowed here must still release its key, or the next real
-    press misreads as a repeat.
+    (instant animation speed) for the same reason. When ``context``
+    carries the shared runtime (directly, or as a GameContext's
+    ``.context``) the drained events feed its held-key state — a keyup
+    swallowed here must still release its key, or the next real press
+    misreads as a repeat.
     """
     end = time.monotonic() + animation_timing.scaled(seconds)
     while True:
@@ -55,8 +56,8 @@ async def _responsive_sleep(seconds: float, context=None) -> None:
             drained = tuple(pygame.event.get())
         except ModuleNotFoundError:
             pass
-        if drained and context is not None:
-            context.note_drained(drained)
+        if drained:
+            _note_drained(context, drained)
         remaining = end - time.monotonic()
         if remaining <= 0:
             # Instant speed still yields once per frame — a zero-length
@@ -64,6 +65,19 @@ async def _responsive_sleep(seconds: float, context=None) -> None:
             await asyncio.sleep(0)
             return
         await asyncio.sleep(min(remaining, 0.01))
+
+
+def _note_drained(context, drained: tuple) -> None:
+    """Feed foreign-drained events to the runtime's held-key state.
+
+    Callers pass either the PygameContext or the whole GameContext
+    (space combat hands its ``ctx`` through the frame driver); a
+    context without the hook (test doubles, headless) is skipped.
+    """
+    runtime_context = getattr(context, "context", context)
+    note = getattr(runtime_context, "note_drained", None)
+    if note is not None:
+        note(drained)
 
 
 def _bresenham_line(

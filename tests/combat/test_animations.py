@@ -170,3 +170,49 @@ def test_family_animation_awaits_its_driver_sleep():
     ))
 
     assert sleeps, "driver.sleep coroutines were created but never awaited"
+
+
+def test_responsive_sleep_notes_drained_events_for_both_context_shapes():
+    """Space combat hands the GameContext through its frame driver.
+
+    _responsive_sleep must resolve the runtime context from either
+    shape (GameContext carries it as ``.context``) and feed every
+    drained SDL event to note_drained — the space paths crashed on
+    the first drained event before this (review round 3).
+    """
+    from types import SimpleNamespace
+    from tests.support.asyncutil import run
+
+    noted: list[tuple] = []
+    runtime_context = SimpleNamespace(note_drained=noted.append)
+
+    class _FakePygameModule:
+        class event:
+            @staticmethod
+            def get():
+                return (SimpleNamespace(type=2, key=102, mod=0, text="",
+                                         repeat=False),)
+
+    import builtins
+    real_import = builtins.__import__
+
+    def _fake_import(name, *args, **kwargs):
+        if name == "pygame":
+            return _FakePygameModule
+        return real_import(name, *args, **kwargs)
+
+    from src.spacehack import animation_timing
+    animation_timing.set_speed_scale(1.0)
+    builtins.__import__ = _fake_import
+    try:
+        run(_animations._responsive_sleep(
+            0, SimpleNamespace(context=runtime_context),
+        ))
+        run(_animations._responsive_sleep(0, runtime_context))
+        run(_animations._responsive_sleep(0, SimpleNamespace()))
+    finally:
+        builtins.__import__ = real_import
+        animation_timing.set_speed_scale(1.0)
+
+    assert len(noted) == 2
+    assert all(getattr(event, "key", None) == 102 for batch in noted for event in batch)

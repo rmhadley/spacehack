@@ -500,10 +500,6 @@ async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
         return action, None, True
     if action == "QUIT":
         raise SystemExit
-    if action == "GUIDE":
-        from ..help import _run_help_guide
-        await _run_help_guide(ctx)
-        return action, None, True
     if action == "HISTORY":
         from ..console_log import open_console_log as _open_console_log
         _quit = await _open_console_log(ctx) == "QUIT"

@@ -393,21 +393,28 @@ desktop playtest pass. No web-only code in this phase.
   never executed, so held-key repeats sailed through to the next
   turn's input poll looking like fresh presses. Fixes: the runtime
   stamps repeats itself by keydown/keyup pairing (``_held_keys`` +
-  ``_stamp_held_state``; both runtime drains and animation sleeps via
-  ``note_drained`` keep it accurate); the whole shot-animation stack
-  is async and awaits ``driver.sleep`` (``_FrameDriver.sleep`` is
+  ``_stamp_held_state``; both runtime drains and the combat animation
+  sleeps — via ``note_drained``, which accepts the PygameContext or a
+  GameContext carrying it — keep it accurate); the whole shot-animation
+  stack is async and awaits ``driver.sleep`` (``_FrameDriver.sleep`` is
   ``Callable[[float], Awaitable[None]]`` — the annotation hole that
   let the sync calls typecheck); combat actions are press-only
   (``_input_action`` gates repeats to ``MOVE:`` only — a held fire
   key can no longer spend AP on later turns); ``guide_key`` ignores
   repeats the same way; ``_combat_action`` skips no-op keydowns so a
-  batch head can't swallow a fresh press behind it. Known edge: raw
-  ``event.get()`` modal runners (``pygame_ui.is_guide_key`` family)
-  bypass the stamping — a held ``?`` inside a modal can still reopen
-  the guide there. Guide reviewed and deliberately left unchanged —
-  no section documents hold-to-repeat behavior. Shot animations now
-  visibly pace again at 1x (they were instant since the async
-  conversion; INSTANT speed reproduces the old feel).
+  batch head can't swallow a fresh press behind it. Known edge (both
+  directions): the raw ``event.get()`` consumers — the modal runners
+  (``pygame_ui.is_guide_key`` family) and navigation's own
+  ``_responsive_sleep`` twin (jump/transit/descent animations) —
+  bypass the stamping, so a keyup eaten there strands its key in
+  ``_held_keys`` and the NEXT genuine press of that key misreads as a
+  repeat for one press-release cycle (one swallowed guide open or one
+  swallowed non-MOVE combat press; movement unaffected) — and a held
+  ``?`` inside a modal can still reopen the guide there. Guide
+  reviewed and deliberately left unchanged — no section documents
+  hold-to-repeat behavior. Combat shot animations now visibly pace
+  again at 1x (they were instant since the async conversion; INSTANT
+  speed reproduces the old feel).
 
 ### Phase 2 — persistence shim
 
