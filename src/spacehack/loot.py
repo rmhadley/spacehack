@@ -28,6 +28,8 @@ def _loot_choice_label(loot_entity) -> str:
     data = loot_entity.loot_data or {}
     if data.get("teaches") or data.get("reveals_site"):
         return PAD_NAME
+    if "credits" in data:
+        return f"{_CREDITS_LABELS.get(data.get('credits_kind'), 'Credits')} ({data['credits']}$)"
     item_type = data.get("item_type")
     if item_type in {"weapon", "armor"}:
         entry = _ground_equipment_loot_entry(loot_entity)
@@ -618,6 +620,18 @@ async def _apply_trade_good_loot(ctx: GameContext, loot_entity) -> None:
 
 PAD_NAME = "Data Pad"
 
+# Credit-container labels and pickup lines (doc 47.4 SETTLED 6/22 —
+# the brief's drafted strings, reviewed verbatim at the playtest
+# checkpoint).
+_CREDITS_LABELS: dict[str, str] = {
+    "chip": "Credit Chip",
+    "lockbox": "Lockbox",
+}
+_CREDITS_PICKUP_LINES: dict[str, str] = {
+    "chip": "Picked up a credit chip: {amount}$.",
+    "lockbox": "Opened a lockbox: {amount}$.",
+}
+
 
 def spawn_pad_entity(game_map, pos, loot_data: dict) -> bool:
     """The one pad construction — a data-violet '%' consumed on
@@ -672,6 +686,18 @@ async def _apply_reveal_pad_pickup(ctx: GameContext, loot_entity) -> None:
     await digs.reveal_site(ctx)
 
 
+def _apply_credits_loot(ctx: GameContext, loot_entity) -> None:
+    """Pick up a credit container (doc 47.4 SETTLED 6/22): immediate
+    credits, one log line, entity consumed — the hold is never
+    touched, so containers need no cargo room."""
+    data = loot_entity.loot_data or {}
+    amount = int(data.get("credits", 0))
+    kind = str(data.get("credits_kind", "chip"))
+    ctx.stats.credits += amount
+    template = _CREDITS_PICKUP_LINES.get(kind, _CREDITS_PICKUP_LINES["chip"])
+    _finish_loot_pickup(ctx, loot_entity, template.format(amount=amount))
+
+
 async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     """Open the existing pickup flow for one selected loot entity."""
     if loot_entity.loot_data.get("teaches"):
@@ -679,6 +705,9 @@ async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
         return
     if loot_entity.loot_data.get("reveals_site"):
         await _apply_reveal_pad_pickup(ctx, loot_entity)
+        return
+    if "credits" in loot_entity.loot_data:
+        _apply_credits_loot(ctx, loot_entity)
         return
     item_type = loot_entity.loot_data.get("item_type")
     if item_type == "module":

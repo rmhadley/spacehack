@@ -341,15 +341,19 @@ def _site_tier(spec: PlanetSpec) -> int:
 
 
 def _dig_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:
-    """One cache payload: tier-banded gear on the equipment roll, else
+    """One cache payload: the lockbox rare-cache variant (doc 47.4
+    SETTLED 22), else tier-banded gear on the equipment roll, else
     the goods row (doc 47.2). Quality rolls through the spec's rates."""
     from .data.digs import DIG_LOOT_SPEC, TIER_EQUIPMENT_POOLS
     from .data.quality import roll_quality
+    from .loot_common import LOCKBOX_KIND, credits_payload, equipment_payload
 
+    if engine.RNG.randint(1, DIG_LOOT_SPEC.lockbox_rate) == 1:
+        return credits_payload(
+            engine.RNG.randint(*DIG_LOOT_SPEC.lockbox_value), LOCKBOX_KIND,
+        )
     if engine.RNG.randint(1, DIG_LOOT_SPEC.equipment_rate) != 1:
         return {"good_id": goods_row[0], "quantity": goods_row[1]}
-    from .loot_common import equipment_payload
-
     item_type, item_id = engine.RNG.choice(
         TIER_EQUIPMENT_POOLS[_site_tier(spec)],
     )
@@ -394,8 +398,27 @@ def _scatter_dig_loot(
             if pos is None:
                 return
             _append_cache_entity(game_map, pos, _dig_cache_payload(spec, next(rows)))
+    _scatter_dig_chips(game_map)
     if bottom and DIG_LOOT_SPEC.legendary_bottom:
         _place_legendary_cache(game_map)
+
+
+def _scatter_dig_chips(game_map: world.GameMap) -> None:
+    """Credit chips on every dig floor (doc 47.4 SETTLED 6/22): common
+    small-value scatter, produces-independent — containers, not
+    economy."""
+    from .data.digs import DIG_LOOT_SPEC
+    from .loot_common import CREDIT_CHIP_KIND, credits_payload
+
+    for _ in range(engine.RNG.randint(*DIG_LOOT_SPEC.chip_count)):
+        pos = _free_floor_cell(
+            game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
+        )
+        if pos is None:
+            return
+        _append_cache_entity(game_map, pos, credits_payload(
+            engine.RNG.randint(*DIG_LOOT_SPEC.chip_value), CREDIT_CHIP_KIND,
+        ))
 
 
 def _place_legendary_cache(game_map: world.GameMap) -> None:

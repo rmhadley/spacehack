@@ -612,13 +612,16 @@ class TestDropTimeQualityRolls:
         from spacehack import digs
 
         spec = SimpleNamespace(mission_tier=2)
-        rng = self._ScriptRng([2, 0, 1, 1, 1])  # presence miss -> goods
+        # [lockbox miss, presence miss] -> goods (doc 47.4 added the
+        # lockbox draw ahead of the equipment presence roll).
+        rng = self._ScriptRng([2, 2, 0, 1, 1, 1])
         monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
         assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
             "good_id": "ore_processed", "quantity": 3,
         }
 
-        rng = self._ScriptRng([1, 0, 1, 1, 1])  # presence hit -> tier-2 gear
+        # [lockbox miss, presence hit] -> tier-2 gear.
+        rng = self._ScriptRng([2, 1, 0, 1, 1, 1])
         monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
         payload = digs._dig_cache_payload(spec, ("ore_processed", 3))
         from spacehack.data.digs import TIER_EQUIPMENT_POOLS
@@ -627,6 +630,13 @@ class TestDropTimeQualityRolls:
             item for _, item in TIER_EQUIPMENT_POOLS[2]
         }
         assert payload.get("quality", 0) in {0, 1, 2, 3}
+
+        # A lockbox hit returns the credit container instead.
+        rng = self._ScriptRng([1, 500])
+        monkeypatch.setattr(digs, "engine", SimpleNamespace(RNG=rng))
+        assert digs._dig_cache_payload(spec, ("ore_processed", 3)) == {
+            "credits": 500, "credits_kind": "lockbox",
+        }
 
     def test_pickup_threads_quality_into_the_stored_entry(self):
         from spacehack import loot
@@ -658,3 +668,90 @@ class TestDropTimeQualityRolls:
             "item_type": "weapon", "item_id": "smg", "quality": 3,
         }
         assert ctx.ground_expedition_inventory == []
+
+
+# --- credit containers (doc 47 phase 4) --------------------------------------
+
+
+class _CreditsLog:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def add(self, message: str) -> None:
+        self.lines.append(message)
+
+
+def test_credits_payload_shape():
+    from spacehack.loot_common import CREDIT_CHIP_KIND, LOCKBOX_KIND, credits_payload
+
+    assert credits_payload(86, CREDIT_CHIP_KIND) == {
+        "credits": 86, "credits_kind": "chip",
+    }
+    assert credits_payload(640, LOCKBOX_KIND) == {
+        "credits": 640, "credits_kind": "lockbox",
+    }
+
+
+def test_loot_fg_credits_reads_the_gold_cargo_hue():
+    from spacehack.loot_common import CARGO_FG, loot_fg
+
+    assert loot_fg({"credits": 86, "credits_kind": "chip"}) == CARGO_FG
+    assert loot_fg({"credits": 640, "credits_kind": "lockbox"}) == CARGO_FG
+
+
+def test_credits_pickup_adds_credits_logs_and_consumes():
+    from types import SimpleNamespace
+
+    from tests.support.asyncutil import run
+    from spacehack.loot import _open_single_loot_pickup
+
+    entity = SimpleNamespace(
+        loot_data={"credits": 86, "credits_kind": "chip"},
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_CreditsLog(), stats=SimpleNamespace(credits=100),
+        game_map=SimpleNamespace(entities=[entity]),
+        ground_expedition_inventory=[], ground_expedition_items=[],
+        ship_storage=[], player_owned_ship=None,
+    )
+
+    run(_open_single_loot_pickup(ctx, entity))
+
+    assert ctx.stats.credits == 186
+    assert ctx.log.lines == ["Picked up a credit chip: 86$."]
+    assert entity not in ctx.game_map.entities
+
+
+def test_lockbox_pickup_line_reads_the_lockbox_wording():
+    from types import SimpleNamespace
+
+    from tests.support.asyncutil import run
+    from spacehack.loot import _open_single_loot_pickup
+
+    entity = SimpleNamespace(
+        loot_data={"credits": 640, "credits_kind": "lockbox"},
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_CreditsLog(), stats=SimpleNamespace(credits=0),
+        game_map=SimpleNamespace(entities=[entity]),
+        ground_expedition_inventory=[], ground_expedition_items=[],
+        ship_storage=[], player_owned_ship=None,
+    )
+
+    run(_open_single_loot_pickup(ctx, entity))
+
+    assert ctx.stats.credits == 640
+    assert ctx.log.lines == ["Opened a lockbox: 640$."]
+
+
+def test_credits_chooser_labels_show_the_value_precommit():
+    from types import SimpleNamespace
+
+    from spacehack.loot import _loot_choice_label
+
+    chip = SimpleNamespace(loot_data={"credits": 86, "credits_kind": "chip"})
+    box = SimpleNamespace(loot_data={"credits": 640, "credits_kind": "lockbox"})
+    assert _loot_choice_label(chip) == "Credit Chip (86$)"
+    assert _loot_choice_label(box) == "Lockbox (640$)"

@@ -282,3 +282,30 @@ def test_randart_seed_survives_install_and_store():
     assert owned.modules[0].randart_seed == 99
     assert store_module(owned, storage, 0)
     assert storage[0].randart_seed == 99
+
+
+# --- the wreck credit-chip pass (doc 47 phase 4, SETTLED 6/22) ---------------
+
+
+def test_wreck_chip_pass_scatters_two_to_four_chips(tmp_path):
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+        credit_chips=True,
+    )
+    chips = [
+        e for e in game_map.entities
+        if (e.loot_data or {}).get("credits_kind") == "chip"
+    ]
+    assert 2 <= len(chips) <= 4
+    for chip in chips:
+        assert 40 <= chip.loot_data["credits"] <= 120
+
+
+def test_wreck_chip_pass_stays_gated_off_by_default(tmp_path):
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+    )
+    assert not [
+        e for e in game_map.entities
+        if (e.loot_data or {}).get("credits")
+    ]

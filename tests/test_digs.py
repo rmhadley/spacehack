@@ -775,3 +775,40 @@ def test_legendary_glyph_reads_the_equipment_glow():
     fg = loot_fg(payload)
     assert fg != EQUIPMENT_FG
     assert all(channel >= base for channel, base in zip(fg, EQUIPMENT_FG))
+
+
+# --- dig chips + the lockbox rare cache (doc 47 phase 4) ---------------------
+
+
+def _credit_containers(game_map, kind):
+    return [
+        entity for entity in game_map.entities
+        if (entity.loot_data or {}).get("credits_kind") == kind
+    ]
+
+
+def test_dig_floors_scatter_chips(monkeypatch):
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    chips = _credit_containers(f1, "chip")
+    assert 1 <= len(chips) <= 2
+    for chip in chips:
+        assert 40 <= chip.loot_data["credits"] <= 120
+
+
+def test_dig_lockbox_is_the_rare_cache_variant(monkeypatch):
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(
+        DIG_LOOT_SPEC, lockbox_rate=1, cache_count=(3, 3),
+        equipment_rate=10**9, legendary_bottom=False,
+    )
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    boxes = _credit_containers(f1, "lockbox")
+    assert len(boxes) == 3  # every cache rolled the 1-in-1 lockbox
+    for box in boxes:
+        assert 300 <= box.loot_data["credits"] <= 900
+    assert not [
+        e for e in f1.entities if (e.loot_data or {}).get("good_id")
+    ]

@@ -67,6 +67,18 @@ def equipment_payload(
     return payload
 
 
+# Container kinds (doc 47.4 SETTLED 6/22): chips are common
+# small-value scatter; the lockbox is the digs' rare-cache variant.
+CREDIT_CHIP_KIND = "chip"
+LOCKBOX_KIND = "lockbox"
+
+
+def credits_payload(amount: int, kind: str) -> dict:
+    """One credit-container payload — picked up as immediate credits
+    (never enters the hold; kill drops stay trade-goods)."""
+    return {"credits": int(amount), "credits_kind": kind}
+
+
 def loot_fg(loot_data: dict | None, *, mission: bool = False):
     """Return the category colour for one loot payload (pure).
 
@@ -79,6 +91,8 @@ def loot_fg(loot_data: dict | None, *, mission: bool = False):
         return CARGO_FG
     if any(key in loot_data for key in _DATA_KEYS):
         return DATA_FG
+    if "credits" in loot_data:
+        return CARGO_FG  # chips/lockboxes read as immediate value (gold)
     fg = _TYPE_FG.get(loot_data.get("item_type"), CARGO_FG)
     if fg is EQUIPMENT_FG:
         return _brighten(fg, loot_data.get("quality", 0))

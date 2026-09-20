@@ -56,6 +56,11 @@ _ROOM_MODULE_POOLS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 WRECK_MODULE_RATE: int = 4
 
+# The wreck credit-chip pass (doc 47.4 SETTLED 6/22): small-value
+# immediate-reward scatter. Opening guesses, tuned at playtest.
+WRECK_CHIP_COUNT: tuple[int, int] = (2, 4)
+WRECK_CHIP_VALUE: tuple[int, int] = (40, 120)
+
 
 @dataclass
 class _LayoutBuild:
@@ -428,6 +433,27 @@ def _scatter_room_equipment(build: _LayoutBuild) -> None:
     _scatter_pool_presence(build, _ROOM_MODULE_POOLS, WRECK_MODULE_RATE)
 
 
+def _scatter_wreck_chips(build: _LayoutBuild) -> None:
+    """The wreck chip pass (doc 47.4): a handful of small-value credit
+    containers at loot-marker cells. Gated to dead-ship interiors by
+    the caller — cities, landmarks, and intact captures stay out."""
+    from .engine import RNG
+    from .loot_common import CREDIT_CHIP_KIND, credits_payload, loot_fg
+
+    for _ in range(RNG.randint(*WRECK_CHIP_COUNT)):
+        if not build.loot_markers:
+            return
+        marker = build.loot_markers[RNG.randint(0, len(build.loot_markers) - 1)]
+        cells = _room_cells_for_marker(build, marker)
+        if not cells:
+            continue
+        x, y = cells[RNG.randint(0, len(cells) - 1)]
+        payload = credits_payload(
+            RNG.randint(*WRECK_CHIP_VALUE), CREDIT_CHIP_KIND,
+        )
+        _append_container(build, x, y, loot_fg(payload), payload)
+
+
 # The capture strip's room (doc 47.3 SETTLED 15's audit follow-on):
 # engine rooms host the pulled hardware.
 _CAPTURE_STRIP_ROOM = "engine_room"
@@ -543,12 +569,14 @@ def _populate_build(
     component_good_id: str | None,
     component_mission_id: str | None,
     capture_modules: tuple,
+    credit_chips: bool = False,
 ) -> None:
     """Run the full scatter/populate pipeline over a built layout.
 
     Order is load-bearing: enemies → goods → mission component →
-    gear presence → capture strip, so pre-existing seeded layouts
-    keep drawing the goods they always did before any new consumer.
+    gear presence → capture strip → credit chips, so pre-existing
+    seeded layouts keep drawing the goods they always did before any
+    new consumer.
     """
     _scatter_layout_enemies(build, parsed, layout_id)
     _scatter_loot(build, parsed, loot_budget)
@@ -557,6 +585,20 @@ def _populate_build(
     _scatter_room_equipment(build)
     if capture_modules:
         _seed_capture_modules(build, capture_modules)
+    if credit_chips:
+        _scatter_wreck_chips(build)
+
+
+def _parse_layout_file(
+    layout_id: str, layout_dir: pathlib.Path | None,
+) -> layout_format.ParsedLayout:
+    """Read and parse one authored layout file from disk."""
+    path = (layout_dir or _LAYOUT_DIR) / f"{layout_id}.layout"
+    if not path.exists():
+        raise FileNotFoundError(f"Layout not found: {path}")
+    return layout_format.parse_layout(
+        path.read_text(encoding="utf-8").splitlines(), layout_id,
+    )
 
 
 def load_layout(
@@ -568,18 +610,15 @@ def load_layout(
     capture_modules: tuple = (),
     layout_dir: pathlib.Path | None = None,
     require_spawn: bool = True,
+    credit_chips: bool = False,
 ) -> tuple[world.GameMap, world.Position | None]:
     """Parse an authored layout and return its runtime map and spawn.
 
     ``capture_modules`` (flown ``StoredEquipment`` instances) seeds the
     intact-capture strip — only the combat boarding path passes it.
+    ``credit_chips`` gates the wreck chip pass to dead-ship interiors.
     """
-    path = (layout_dir or _LAYOUT_DIR) / f"{layout_id}.layout"
-    if not path.exists():
-        raise FileNotFoundError(f"Layout not found: {path}")
-    parsed = layout_format.parse_layout(
-        path.read_text(encoding="utf-8").splitlines(), layout_id,
-    )
+    parsed = _parse_layout_file(layout_id, layout_dir)
     build = _build_tiles(parsed, require_spawn)
     _apply_hull_groups(build, parsed.map_lines)
     _apply_colours(build, parsed.map_lines, parsed.colour_overrides)
@@ -589,6 +628,7 @@ def load_layout(
         component_good_id=component_good_id,
         component_mission_id=component_mission_id,
         capture_modules=capture_modules,
+        credit_chips=credit_chips,
     )
     game_map = world.GameMap(
         width=parsed.width,
