@@ -797,3 +797,79 @@ def test_ground_consumable_loot_is_typed_and_respects_stack_capacity():
     assert game_map.entities[0].loot_data["item_type"] == "consumable"
     assert game_map.entities[0].loot_data["item_id"] == "med_pack"
     assert 1 <= game_map.entities[0].loot_data["quantity"] <= 3
+
+
+# ---------------------------------------------------------------------------
+# Loot quality (doc 47 phase 2) — the rolled tier rides every instance
+# ---------------------------------------------------------------------------
+
+
+def test_weapon_instance_carries_quality():
+    assert weapon_instance("kinetic_pistol", 2) == GroundWeaponInstance(
+        "kinetic_pistol", 12, 2,
+    )
+    assert weapon_instance("combat_knife", 1) == GroundWeaponInstance(
+        "combat_knife", None, 1,
+    )
+    assert weapon_instance("smg").quality == 0
+
+
+def test_store_and_remove_weapon_preserve_quality():
+    equipped = [weapon_instance("smg", 3)]
+    storage: list = []
+    assert store_weapon(equipped, storage, 0) == StoredGroundEquipment(
+        "weapon", "smg", 3,
+    )
+    equipped = [weapon_instance("railgun", 2)]
+    assert remove_weapon(equipped, 0) == StoredGroundEquipment(
+        "weapon", "railgun", 2,
+    )
+
+
+def test_install_weapon_equips_the_rolled_quality():
+    storage = [StoredGroundEquipment("weapon", "kinetic_pistol", 2)]
+    equipped: list = []
+    install_weapon(equipped, storage, 0, container=ARMORY_STORAGE)
+    assert equipped == [weapon_instance("kinetic_pistol", 2)]
+
+
+def test_swap_displaces_2h_weapon_with_its_quality():
+    equipped = [weapon_instance("railgun", 3)]  # two-handed
+    pack = [StoredGroundEquipment("weapon", "smg", 2)]
+    swap_weapon_from_expedition(equipped, pack, 0, 0, strength=10)
+    assert equipped == [weapon_instance("smg", 2)]
+    assert pack == [StoredGroundEquipment("weapon", "railgun", 3)]
+
+
+def test_install_displacement_keeps_displaced_quality():
+    # Installing a 2H weapon over an equipped variant stores the
+    # displaced weapon at its rolled tier.
+    equipped = [weapon_instance("kinetic_pistol", 3)]
+    storage = [StoredGroundEquipment("weapon", "railgun", 1)]
+    install_weapon(
+        equipped, storage, 0,
+        displaced_storage=storage, container=ARMORY_STORAGE,
+        displaced_container=ARMORY_STORAGE, strength=10,
+    )
+    assert equipped == [weapon_instance("railgun", 1)]
+    assert StoredGroundEquipment("weapon", "kinetic_pistol", 3) in storage
+
+
+def test_shot_and_reload_preserve_quality():
+    fired = consume_weapon_round(weapon_instance("kinetic_pistol", 2))
+    assert (fired.loaded_ammo, fired.quality) == (11, 2)
+    equipped = [GroundWeaponInstance("kinetic_pistol", 0, 1)]
+    items = [GroundItemStack("ammo", "pistol_rounds", 10)]
+    reloaded = apply_reload(equipped, 0, items)
+    assert (reloaded.loaded_ammo, reloaded.quality) == (10, 1)
+
+
+def test_parse_weapon_instance_migrates_quality():
+    assert parse_weapon_instance(
+        {"weapon_id": "smg", "loaded_ammo": 5, "quality": 2},
+    ) == GroundWeaponInstance("smg", 5, 2)
+    assert parse_weapon_instance({"weapon_id": "smg"}).quality == 0
+    assert parse_weapon_instance({"weapon_id": "smg", "quality": "x"}).quality == 0
+    assert parse_weapon_instance({"weapon_id": "smg", "quality": 9}).quality == 0
+    assert parse_weapon_instance({"weapon_id": "smg", "quality": -1}).quality == 0
+    assert parse_weapon_instance("smg").quality == 0  # legacy string entry

@@ -9,6 +9,7 @@ every serialized field survived.
 from __future__ import annotations
 from tests.support.asyncutil import run, as_async
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -987,6 +988,77 @@ class TestSaveLoadRoundTrip:
         assert loaded.equipped_ground_weapons == [
             GroundWeaponInstance("kinetic_pistol", 3),
             GroundWeaponInstance("kinetic_pistol", 11),
+        ]
+        delete_save()
+
+    def test_round_trip_weapon_quality_survives_continue(
+        self, monkeypatch, tmp_path,
+    ):
+        """Rolled quality tiers ride every equipment shape (doc 47.2)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(62)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("smg", 5, 2),
+            GroundWeaponInstance("combat_knife", None, 3),
+        ]
+        ctx.ground_armory_storage = [
+            StoredGroundEquipment("weapon", "railgun", 1),
+            StoredGroundEquipment("armor", "heavy_vest", 2),
+        ]
+        ctx.ground_expedition_inventory = [
+            StoredGroundEquipment("weapon", "shotgun", 3),
+        ]
+
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("smg", 5, 2),
+            GroundWeaponInstance("combat_knife", None, 3),
+        ]
+        assert loaded.ground_armory_storage == [
+            StoredGroundEquipment("weapon", "railgun", 1),
+            StoredGroundEquipment("armor", "heavy_vest", 2),
+        ]
+        assert loaded.ground_expedition_inventory == [
+            StoredGroundEquipment("weapon", "shotgun", 3),
+        ]
+        delete_save()
+
+    def test_legacy_qualityless_stored_entries_migrate_to_base(
+        self, monkeypatch, tmp_path,
+    ):
+        """Pre-quality saves load every stored item at base tier."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(63)
+        ctx = _build_test_ctx()
+        ctx.ground_armory_storage = [
+            StoredGroundEquipment("weapon", "laser_rifle"),
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        # Strip the quality key the way a pre-quality save would look.
+        path = tmp_path / "autosave.json"
+        raw = json.loads(path.read_text())
+        for key in ("ground_armory_storage", "ground_expedition_inventory"):
+            for entry in raw.get(key, []):
+                entry.pop("quality", None)
+        path.write_text(json.dumps(raw))
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.ground_armory_storage == [
+            StoredGroundEquipment("weapon", "laser_rifle", 0),
         ]
         delete_save()
 

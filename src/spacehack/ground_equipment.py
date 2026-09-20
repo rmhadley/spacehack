@@ -15,6 +15,7 @@ from typing import Iterable
 from .data.ground_armor import find_ground_armor
 from .data.ground_items import find_ground_ammo, find_ground_consumable
 from .data.ground_weapons import find_ground_weapon
+from .data.quality import LEGENDARY_QUALITY
 
 
 ARMORY_STORAGE = "armory"
@@ -83,10 +84,16 @@ def tier_filtered_equipment(
 
 @dataclass(frozen=True)
 class StoredGroundEquipment:
-    """One owned ground weapon or armor item."""
+    """One owned ground weapon or armor item.
+
+    ``quality`` is the rolled loot tier (doc 47 phase 2): 0 = base
+    (shops, starting gear, quest gear), 1-3 = modded/overclocked/
+    prototype. Legendaries (4) arrive with phase 4's randarts.
+    """
 
     item_type: str
     item_id: str
+    quality: int = 0
 
 
 @dataclass(frozen=True)
@@ -110,10 +117,13 @@ class GroundWeaponInstance:
     ``loaded_ammo`` is ``None`` for infinite/melee weapons and an int
     clamped to ``[0, ammo_capacity]`` for reloadable weapons. Duplicate
     weapon ids are separate instances with independent magazines.
+    ``quality`` rides the instance so the equipped weapon fights at
+    its rolled tier and keeps it through equip/store round-trips.
     """
 
     weapon_id: str
     loaded_ammo: int | None
+    quality: int = 0
 
 
 def expedition_capacity(strength: int) -> int:
@@ -129,12 +139,17 @@ def weapon_hands(weapon_id: str) -> int:
     return find_ground_weapon(weapon_id).hands
 
 
-def weapon_instance(weapon_id: str) -> GroundWeaponInstance:
+def weapon_instance(weapon_id: str, quality: int = 0) -> GroundWeaponInstance:
     """Build a fresh instance for a catalog weapon, seeded at full magazine."""
     spec = find_ground_weapon(weapon_id)
     if spec.ammo_capacity <= 0:
-        return GroundWeaponInstance(weapon_id, None)
-    return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
+        return GroundWeaponInstance(weapon_id, None, quality)
+    return GroundWeaponInstance(weapon_id, spec.ammo_capacity, quality)
+
+
+def weapon_entry(instance: GroundWeaponInstance) -> StoredGroundEquipment:
+    """Return the owned-equipment entry for one active weapon instance."""
+    return StoredGroundEquipment("weapon", instance.weapon_id, instance.quality)
 
 
 def weapon_ids(instances: Iterable[GroundWeaponInstance]) -> list[str]:
@@ -147,7 +162,8 @@ def parse_weapon_instance(raw) -> GroundWeaponInstance | None:
 
     Legacy ``list[str]`` save entries are seeded at full magazine; a dict
     carrying ``weapon_id`` + ``loaded_ammo`` is validated and clamped to
-    ``[0, ammo_capacity]``. Unknown ids return ``None``.
+    ``[0, ammo_capacity]``. A missing or malformed ``quality`` tier
+    migrates to base (0). Unknown ids return ``None``.
     """
     if isinstance(raw, str):
         try:
@@ -163,16 +179,28 @@ def parse_weapon_instance(raw) -> GroundWeaponInstance | None:
         spec = find_ground_weapon(weapon_id)
     except KeyError:
         return None
+    quality = _parse_quality(raw.get("quality"))
     if spec.ammo_capacity <= 0:
-        return GroundWeaponInstance(weapon_id, None)
+        return GroundWeaponInstance(weapon_id, None, quality)
     loaded = raw.get("loaded_ammo")
     if loaded is None:
-        return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
+        return GroundWeaponInstance(weapon_id, spec.ammo_capacity, quality)
     try:
         loaded = int(loaded)
     except (TypeError, ValueError):
-        return GroundWeaponInstance(weapon_id, spec.ammo_capacity)
-    return GroundWeaponInstance(weapon_id, min(max(0, loaded), spec.ammo_capacity))
+        return GroundWeaponInstance(weapon_id, spec.ammo_capacity, quality)
+    return GroundWeaponInstance(
+        weapon_id, min(max(0, loaded), spec.ammo_capacity), quality,
+    )
+
+
+def _parse_quality(raw) -> int:
+    """Parse one stored quality tier, migrating malformed values to base."""
+    try:
+        quality = int(raw)
+    except (TypeError, ValueError):
+        return 0
+    return quality if 0 < quality <= LEGENDARY_QUALITY else 0
 
 
 def weapon_slot_occupancy(weapon_ids: Iterable[str]) -> int:
@@ -272,12 +300,13 @@ def _apply_weapon_install(
     displaced_storage: list[StoredGroundEquipment] | None,
     displaced: list[StoredGroundEquipment],
     fits_without_replacement: bool,
+    quality: int = 0,
 ) -> None:
     """Apply a previously validated weapon installation."""
     storage.pop(storage_index)
     if displaced_storage is not None:
         displaced_storage.extend(displaced)
-    instance = weapon_instance(weapon_id)
+    instance = weapon_instance(weapon_id, quality)
     if fits_without_replacement:
         equipped_weapons.append(instance)
     else:
@@ -297,7 +326,7 @@ def store_weapon(
     if not 0 <= slot_index < len(equipped_weapons):
         raise IndexError("Invalid ground weapon slot")
     instance = equipped_weapons[slot_index]
-    entry = StoredGroundEquipment("weapon", instance.weapon_id)
+    entry = weapon_entry(instance)
     _validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
@@ -354,7 +383,7 @@ def remove_weapon(
     if not 0 <= slot_index < len(equipped_weapons):
         raise IndexError("Invalid ground weapon slot")
     instance = equipped_weapons[slot_index]
-    entry = StoredGroundEquipment("weapon", instance.weapon_id)
+    entry = weapon_entry(instance)
     _validate_entry(entry)
     del equipped_weapons[slot_index]
     return entry
@@ -382,14 +411,11 @@ def _replace_weapon_slot(
     current = list(equipped_weapons)
     selected_hands = weapon_hands(weapon_id)
     if selected_hands == 2:
-        return [
-            StoredGroundEquipment("weapon", instance.weapon_id)
-            for instance in current
-        ]
+        return [weapon_entry(instance) for instance in current]
     if len(current) == 1 and weapon_hands(current[0].weapon_id) == 2:
-        return [StoredGroundEquipment("weapon", current[0].weapon_id)]
+        return [weapon_entry(current[0])]
     if slot_index < len(current):
-        return [StoredGroundEquipment("weapon", current[slot_index].weapon_id)]
+        return [weapon_entry(current[slot_index])]
     return []
 
 
@@ -445,7 +471,7 @@ def _set_swapped_weapon(
 ) -> None:
     """Install a swapped-in weapon into the requested active slot."""
     selected_hands = weapon_hands(selected.item_id)
-    instance = weapon_instance(selected.item_id)
+    instance = weapon_instance(selected.item_id, selected.quality)
     if selected_hands == 2:
         equipped_weapons[:] = [instance]
     elif len(equipped_weapons) == 1 and weapon_hands(equipped_weapons[0].weapon_id) == 2:
@@ -513,6 +539,7 @@ def install_weapon(
     _apply_weapon_install(
         equipped_weapons, storage, storage_index, selected.item_id,
         displaced_storage, displaced, fits_without_replacement,
+        quality=selected.quality,
     )
     return selected
 
@@ -530,8 +557,7 @@ def _plan_weapon_install(
     current = list(equipped_weapons)
     fits_without_replacement = can_fit_weapons(current, weapon_id)
     displaced = [] if fits_without_replacement else [
-        StoredGroundEquipment("weapon", instance.weapon_id)
-        for instance in current
+        weapon_entry(instance) for instance in current
     ]
     if displaced_storage is None and displaced:
         raise ValueError("A destination is required for displaced weapons")
@@ -847,6 +873,7 @@ def consume_weapon_round(instance: GroundWeaponInstance) -> GroundWeaponInstance
     spec = find_ground_weapon(instance.weapon_id)
     return GroundWeaponInstance(
         instance.weapon_id, max(0, instance.loaded_ammo - spec.ammo_per_shot),
+        instance.quality,
     )
 
 
@@ -897,7 +924,9 @@ def _apply_reload_at(
         items[stack_index] = GroundItemStack("ammo", stack.item_id, remaining)
     else:
         del items[stack_index]
-    new_instance = GroundWeaponInstance(instance.weapon_id, loaded + amount)
+    new_instance = GroundWeaponInstance(
+        instance.weapon_id, loaded + amount, instance.quality,
+    )
     equipped_weapons[slot_index] = new_instance
     return new_instance
 

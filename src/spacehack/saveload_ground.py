@@ -28,8 +28,8 @@ def _ground_equipment_from_dict(raw: object):
             find_ground_armor(item_id)
     except (ImportError, KeyError):
         return None
-    from .ground_equipment import StoredGroundEquipment
-    return StoredGroundEquipment(item_type, item_id)
+    from .ground_equipment import StoredGroundEquipment, _parse_quality
+    return StoredGroundEquipment(item_type, item_id, _parse_quality(raw.get("quality")))
 
 
 def _ground_fields(ctx: GameContext) -> dict:
