@@ -34,26 +34,16 @@ _HANGAR_TABS: tuple[str, ...] = ("SHIP", "CARGO", "LOADOUT")
 # ---------------------------------------------------------------------------
 
 def _effective_shields(ship_spec, owned) -> int:
-    """Sum base shield max + all module max_shield_bonuses."""
-    from ..data.modules import find_module as _fm
-    total = ship_spec.base_shield_max
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).max_shield_bonus
-        except KeyError:
-            pass
-    return total
+    """Sum base shield max + effective module max_shield_bonuses."""
+    from ..combat._stats import _calc_max_shields
+    return _calc_max_shields(
+        ship_spec, getattr(owned, 'modules', ()) or (),
+    )
 
 def _effective_power_gen(ship_spec, owned) -> int:
-    """Sum base power gen + all module power_gen_bonuses."""
-    from ..data.modules import find_module as _fm
-    total = ship_spec.base_power_gen
-    for mid in getattr(owned, 'modules', ()) or ():
-        try:
-            total += _fm(mid).power_gen_bonus
-        except KeyError:
-            pass
-    return max(0, total)
+    """Sum base power gen + effective module power_gen_bonuses."""
+    from ..combat._stats import _calc_power_gen
+    return _calc_power_gen(ship_spec, owned)
 
 def _weapon_row(weapon_id: str):
     """Build one filled weapon-slot row (name + stats detail)."""

@@ -281,12 +281,7 @@ _MOD_MOCK = SimpleNamespace(max_hull_bonus=5, power_gen_bonus=-1, max_shield_bon
                             shield_recharge_bonus=0)
 
 
-def _module(module_id: str, quality: int = 0):
-    """One installed/flown module entry (StoredEquipment shape)."""
-    from src.spacehack.ship import StoredEquipment
-
-    return StoredEquipment("module", module_id, quality=quality)
-
+from tests.support.module_entries import module_entry as _module
 
 
 class TestCalcHull:

@@ -7,12 +7,7 @@ from types import SimpleNamespace
 from src.spacehack import (
     pygame_overlay, pygame_runtime, pygame_target_card, world,
 )
-from src.spacehack.ship import StoredEquipment
-
-
-def _module(module_id: str, quality: int = 0):
-    """One installed module entry (the OwnedShip.modules shape)."""
-    return StoredEquipment("module", module_id, quality=quality)
+from tests.support.module_entries import module_entry as _module
 
 
 def test_overlay_segments_group_adjacent_cells_by_color_and_split_gaps():

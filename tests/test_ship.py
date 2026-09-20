@@ -13,8 +13,9 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tests.support.module_entries import module_entry
+
 from src.spacehack.ship import (
-    StoredEquipment,
     total_ammo_cargo,
     hull_integrity_pct,
     hull_cur_max,
@@ -34,9 +35,9 @@ _EFFECTIVE_PATCH = "src.spacehack.data.quality.effective_module_spec"
 _SHIP_PATCH = "src.spacehack.ship.find_ship"
 
 
-def _module(module_id: str, quality: int = 0) -> StoredEquipment:
+def _module(module_id: str, quality: int = 0):
     """One installed-module entry (the OwnedShip.modules shape)."""
-    return StoredEquipment("module", module_id, quality=quality)
+    return module_entry(module_id, quality)
 
 
 # ---------------------------------------------------------------------------
@@ -234,7 +235,7 @@ class TestHullCurMax:
         except KeyError:
             pass
         else:
-            raise AssertionError("expected KeyError from find_module")
+            raise AssertionError("expected KeyError from effective_module_spec")
         assert hull_cur_max(
             SimpleNamespace(
                 ship_id="scout", modules=(_module("no_such_module"),), hull_damage_pct=0,
