@@ -32,6 +32,7 @@ from src.spacehack.combat._rules_ground import (
 from src.spacehack.ground_equipment import (
     GroundItemStack,
     GroundWeaponInstance,
+    StoredGroundEquipment,
     weapon_instance as _weapon,
 )
 
@@ -353,7 +354,7 @@ def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     )
     _ctx = SimpleNamespace(
         ground_stats=SimpleNamespace(strength=20),
-        equipped_ground_armor={"hands": "cybernetic_arms"},
+        equipped_ground_armor={"hands": StoredGroundEquipment("armor", "cybernetic_arms")},
     )
     _dmg, _glance = _rules_ground.damage("fists", _enemy, _ctx)
     assert _dmg == 4  # 1 + 4 (str) + 2 (cyber arms) - 3 (armor)
@@ -525,7 +526,7 @@ class TestGroundPointBlankFire:
 def test_refresh_equipment_state_rebuilds_weapon_and_armor_cache(monkeypatch):
     _ctx = SimpleNamespace(
         equipped_ground_weapons=[_weapon("laser_pistol")],
-        equipped_ground_armor={"body": "heavy_vest"},
+        equipped_ground_armor={"body": StoredGroundEquipment("armor", "heavy_vest")},
     )
     monkeypatch.setattr(
         _rules_ground,
@@ -677,8 +678,8 @@ def test_ground_player_panel_shows_current_armor():
     """The player panel exposes the combined flat armor defense."""
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _ctx.equipped_ground_armor = {
-        "head": "light_helmet",
-        "body": "light_vest",
+        "head": StoredGroundEquipment("armor", "light_helmet"),
+        "body": StoredGroundEquipment("armor", "light_vest"),
     }
     _rules_ground.init(_ctx, [_enemy], _game_map)
     _frame = FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -789,7 +790,7 @@ def test_init_locks_engaged_enemies():
 def test_init_applies_cybernetic_ap_and_hp_bonuses():
     """Cybernetic legs add +1 AP; cybernetic torso adds +3 max ground HP."""
     _ctx, _game_map, _, _enemy = _ground_fixture()
-    _ctx.equipped_ground_armor = {"legs": "cybernetic_legs", "body": "cybernetic_torso"}
+    _ctx.equipped_ground_armor = {"legs": StoredGroundEquipment("armor", "cybernetic_legs"), "body": StoredGroundEquipment("armor", "cybernetic_torso")}
     _rules_ground.init(_ctx, [_enemy], _game_map)
 
     assert _rules_ground.player_ap_total(_ctx) == 5  # 4 + 1

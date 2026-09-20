@@ -337,9 +337,12 @@ class GameContext:
     equipped_ground_weapons: list[ground_equipment_module.GroundWeaponInstance] = dataclasses.field(
         default_factory=list,
     )
-    # Equipped ground armor by slot: slot -> GroundArmorSpec id.
-    # Slots: head, body, hands, legs, feet.
-    equipped_ground_armor: dict[str, str] = dataclasses.field(default_factory=dict)
+    # Equipped ground armor by slot. Slots: head, body, hands, legs,
+    # feet. Values are stored entries (not bare ids) so each piece
+    # carries its rolled quality tier (doc 47 phase 2).
+    equipped_ground_armor: dict[str, ground_equipment_module.StoredGroundEquipment] = dataclasses.field(
+        default_factory=dict,
+    )
     # Unlimited terminal-only warehouse for owned ground equipment.
     ground_armory_storage: list[ground_equipment_module.StoredGroundEquipment] = dataclasses.field(
         default_factory=list,

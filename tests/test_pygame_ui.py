@@ -26,6 +26,7 @@ from src.spacehack.main_quest import _act0
 from src.spacehack.ground_equipment import (
     GroundItemStack,
     GroundWeaponInstance,
+    StoredGroundEquipment,
     weapon_instance,
 )
 from tests.support.fake_pygame import FakeFont as _FakeFont
@@ -107,7 +108,6 @@ def test_character_c_key_hides_discard_verb_in_space_mode(monkeypatch):
 
 
 def test_character_equipment_backpack_rows_are_selectable():
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
@@ -127,7 +127,6 @@ def test_character_equipment_backpack_rows_are_selectable():
 
 def test_character_equipment_backpack_discard_drops_item_at_the_player(monkeypatch):
     from src.spacehack import pygame_story, world
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     messages = []
     player = world.Entity("@", (255, 255, 255), world.Position(2, 2), "Player")
@@ -163,7 +162,6 @@ def test_character_equipment_backpack_discard_drops_item_at_the_player(monkeypat
 
 def test_character_equipment_backpack_options_hide_discard_without_a_floor(monkeypatch):
     from src.spacehack import pygame_story
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     captured = {}
     ctx = SimpleNamespace(
@@ -209,7 +207,6 @@ def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
 
 def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
     from src.spacehack import pygame_story
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     choices = []
     ctx = SimpleNamespace(
@@ -239,7 +236,6 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
 
 def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_available(monkeypatch):
     from src.spacehack import pygame_story
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
@@ -1983,7 +1979,7 @@ def test_character_equipment_rows_offer_only_weapon_one_for_two_handed_pack_item
 def test_character_equipment_rows_mirror_loadout_slots():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
-        equipped_ground_armor={"body": "light_vest"},
+        equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
     )
 
     rows = character_screen._equipment_rows(ctx)
@@ -2015,7 +2011,7 @@ def test_character_equipment_rows_mirror_loadout_slots():
 def test_character_equipment_rows_show_cybernetic_effects():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
-        equipped_ground_armor={"legs": "cybernetic_legs"},
+        equipped_ground_armor={"legs": StoredGroundEquipment("armor", "cybernetic_legs")},
     )
 
     rows = character_screen._equipment_rows(ctx)
@@ -2100,7 +2096,7 @@ def test_character_equipment_management_explains_backpack_actions():
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
-        equipped_ground_armor={"body": "light_vest"},
+        equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
         ground_expedition_inventory=[],
     )
 
@@ -2118,7 +2114,6 @@ def test_character_equipment_management_keeps_slots_selectable_without_pack_item
 
 
 def test_character_equipment_down_reaches_second_active_weapon():
-    from src.spacehack.ground_equipment import StoredGroundEquipment
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[

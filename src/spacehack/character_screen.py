@@ -345,11 +345,11 @@ def _armor_rows(
 
     rows: list = []
     for slot in _ARMOR_SLOTS:
-        item_id = ctx.equipped_ground_armor.get(slot)
+        entry = ctx.equipped_ground_armor.get(slot)
         label = f"{_ARMOR_SLOT_LABELS[slot]} armor"
-        if item_id:
+        if entry is not None:
             try:
-                spec = find_ground_armor(item_id)
+                spec = find_ground_armor(entry.item_id)
                 _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
                 rows.append(_equipment_row(
                     f"{label}: {spec.name}",

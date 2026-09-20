@@ -15,7 +15,7 @@ from typing import Iterable
 from .data.ground_armor import find_ground_armor
 from .data.ground_items import find_ground_ammo, find_ground_consumable
 from .data.ground_weapons import find_ground_weapon
-from .data.quality import LEGENDARY_QUALITY
+from .data.quality import LEGENDARY_QUALITY, effective_armor_spec
 
 
 ARMORY_STORAGE = "armory"
@@ -26,34 +26,37 @@ _ARMOR_BONUS_FIELDS: tuple[str, ...] = ("ap_bonus", "hit_bonus", "melee_bonus", 
 ITEM_STACK_TYPES: tuple[str, ...] = ("ammo", "consumable")
 
 
-def sum_armor_bonus(armor_ids: Iterable[str], attr: str) -> int:
-    """Sum one numeric armor bonus field across a list of armor ids.
+def sum_armor_bonus(armor_entries: Iterable[StoredGroundEquipment], attr: str) -> int:
+    """Sum one numeric armor bonus field across equipped armor entries.
 
-    Skips ``None``/empty ids and unknown catalog ids so a stale save
-    entry never raises. ``attr`` must be one of the four cybernetic
-    bonus fields on :class:`~spacehack.data.ground_armor.GroundArmorSpec`.
+    Skips ``None`` entries and unknown catalog ids so a stale save
+    entry never raises. Each entry's rolled quality scales its
+    effective spec (doc 47 phase 2). ``attr`` must be one of the four
+    cybernetic bonus fields on
+    :class:`~spacehack.data.ground_armor.GroundArmorSpec`.
     """
     if attr not in _ARMOR_BONUS_FIELDS:
         raise ValueError(f"unknown armor bonus field: {attr!r}")
     total = 0
-    for armor_id in armor_ids:
-        if not armor_id:
+    for entry in armor_entries:
+        if not entry:
             continue
         try:
-            total += getattr(find_ground_armor(armor_id), attr)
+            spec = effective_armor_spec(entry.item_id, entry.quality)
         except KeyError:
             continue
+        total += getattr(spec, attr)
     return total
 
 
-def sum_armor_defense(armor_ids: Iterable[str]) -> int:
-    """Sum flat damage reduction across equipped armor ids."""
+def sum_armor_defense(armor_entries: Iterable[StoredGroundEquipment]) -> int:
+    """Sum flat damage reduction across equipped armor entries."""
     total = 0
-    for armor_id in armor_ids:
-        if not armor_id:
+    for entry in armor_entries:
+        if not entry:
             continue
         try:
-            total += find_ground_armor(armor_id).defense
+            total += effective_armor_spec(entry.item_id, entry.quality).defense
         except KeyError:
             continue
     return total
@@ -337,18 +340,22 @@ def store_weapon(
 
 
 def store_armor(
-    equipped_armor: dict[str, str],
+    equipped_armor: dict[str, StoredGroundEquipment],
     storage: list[StoredGroundEquipment],
     slot: str,
     *,
     container: str = ARMORY_STORAGE,
     strength: int = 10,
 ) -> StoredGroundEquipment:
-    """Move one active armor piece into a storage container atomically."""
+    """Move one active armor piece into a storage container atomically.
+
+    The equipped dict holds stored entries, so the piece keeps its
+    rolled quality through every equip/store round-trip.
+    """
     _require_container(container)
     if slot not in equipped_armor:
         raise KeyError(f"No equipped armor in slot: {slot}")
-    entry = StoredGroundEquipment("armor", equipped_armor[slot])
+    entry = equipped_armor[slot]
     _validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
@@ -390,13 +397,13 @@ def remove_weapon(
 
 
 def remove_armor(
-    equipped_armor: dict[str, str],
+    equipped_armor: dict[str, StoredGroundEquipment],
     slot: str,
 ) -> StoredGroundEquipment:
     """Remove one active armor piece and return its owned-equipment entry."""
     if slot not in equipped_armor:
         raise KeyError(f"No equipped armor in slot: {slot}")
-    entry = StoredGroundEquipment("armor", equipped_armor[slot])
+    entry = equipped_armor[slot]
     _validate_entry(entry)
     del equipped_armor[slot]
     return entry
@@ -483,7 +490,7 @@ def _set_swapped_weapon(
 
 
 def swap_armor_from_expedition(
-    equipped_armor: dict[str, str],
+    equipped_armor: dict[str, StoredGroundEquipment],
     pack: list[StoredGroundEquipment],
     pack_index: int,
     slot: str,
@@ -501,7 +508,7 @@ def swap_armor_from_expedition(
     if selected_slot != slot:
         raise ValueError("Stored armor does not fit that slot")
     displaced = (
-        [StoredGroundEquipment("armor", equipped_armor[slot])]
+        [equipped_armor[slot]]
         if equipped_armor.get(slot) else []
     )
     proposed_pack = [
@@ -510,7 +517,7 @@ def swap_armor_from_expedition(
     _require_expedition_capacity(proposed_pack, strength)
     validate_storage(proposed_pack)
     pack[:] = proposed_pack
-    equipped_armor[slot] = selected.item_id
+    equipped_armor[slot] = selected
     return selected
 
 
@@ -574,7 +581,7 @@ def _plan_weapon_install(
 
 
 def install_armor(
-    equipped_armor: dict[str, str],
+    equipped_armor: dict[str, StoredGroundEquipment],
     storage: list[StoredGroundEquipment],
     storage_index: int,
     *,
@@ -598,12 +605,12 @@ def install_armor(
     storage.pop(storage_index)
     if displaced_storage is not None:
         displaced_storage.extend(displaced)
-    equipped_armor[slot] = selected.item_id
+    equipped_armor[slot] = selected
     return selected
 
 
 def _plan_armor_install(
-    equipped_armor: dict[str, str],
+    equipped_armor: dict[str, StoredGroundEquipment],
     storage: list[StoredGroundEquipment],
     armor_id: str,
     displaced_storage: list[StoredGroundEquipment] | None,
@@ -613,11 +620,8 @@ def _plan_armor_install(
 ) -> tuple[list[StoredGroundEquipment], str]:
     """Compute same-slot displacement and validate the destination."""
     slot = find_ground_armor(armor_id).slot
-    displaced_id = equipped_armor.get(slot)
-    displaced = (
-        [StoredGroundEquipment("armor", displaced_id)]
-        if displaced_id else []
-    )
+    displaced_entry = equipped_armor.get(slot)
+    displaced = [displaced_entry] if displaced_entry else []
     if displaced and displaced_storage is None:
         raise ValueError("A destination is required for displaced armor")
     if displaced and displaced_container is None:

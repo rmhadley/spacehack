@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import hud
+from src.spacehack.ground_equipment import StoredGroundEquipment
 from src.spacehack.framebuffer import FrameBuffer
 
 _WHITE = (255, 255, 255)
@@ -164,7 +165,7 @@ def test_city_hud_shows_current_ground_armor():
         ground_stats=None,
         ground_hp=10,
         ground_max_hp=10,
-        equipped_ground_armor={"body": "light_vest"},
+        equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
         time_day=1,
         time_month=1,
         time_year=2200,

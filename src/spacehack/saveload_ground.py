@@ -62,23 +62,41 @@ def _safe_ground_int(
     return min(value, maximum) if maximum is not None else value
 
 
-def _parse_equipped_ground_armor(raw) -> dict[str, str]:
-    """Rebuild valid armor slots, ignoring malformed or mismatched records."""
+def _parse_equipped_ground_armor(raw) -> dict:
+    """Rebuild valid armor slots, ignoring malformed or mismatched records.
+
+    Legacy saves carry bare armor ids (doc 47 phase 2 migration): they
+    load as base-quality stored entries. Dict values parse as full
+    entries with a rolled quality tier.
+    """
     from .data.ground_armor import find_ground_armor
+    from .ground_equipment import StoredGroundEquipment, _parse_quality
 
     if not isinstance(raw, dict):
         return {}
     slots = {"head", "body", "hands", "legs", "feet"}
-    parsed: dict[str, str] = {}
-    for slot, item_id in raw.items():
-        if slot not in slots or not isinstance(item_id, str):
+    parsed: dict[str, StoredGroundEquipment] = {}
+    for slot, value in raw.items():
+        if slot not in slots:
+            continue
+        if isinstance(value, str):
+            entry = StoredGroundEquipment("armor", value)
+        elif (
+            isinstance(value, dict)
+            and value.get("item_type") == "armor"
+            and isinstance(value.get("item_id"), str)
+        ):
+            entry = StoredGroundEquipment(
+                "armor", value["item_id"], _parse_quality(value.get("quality")),
+            )
+        else:
             continue
         try:
-            if find_ground_armor(item_id).slot != slot:
+            if find_ground_armor(entry.item_id).slot != slot:
                 continue
         except KeyError:
             continue
-        parsed[slot] = item_id
+        parsed[slot] = entry
     return parsed
 
 

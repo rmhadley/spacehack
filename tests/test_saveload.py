@@ -944,7 +944,10 @@ class TestSaveLoadRoundTrip:
             GroundWeaponInstance("laser_pistol", 37),
             GroundWeaponInstance("combat_knife", None),
         ]
-        ctx.equipped_ground_armor = {"body": "light_vest"}
+        ctx.equipped_ground_armor = {
+            "body": StoredGroundEquipment("armor", "light_vest", 2),
+            "head": StoredGroundEquipment("armor", "light_helmet"),
+        }
         ctx.ground_armory_storage = [
             StoredGroundEquipment("weapon", "laser_rifle"),
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -1213,6 +1216,8 @@ class TestSaveLoadRoundTrip:
             "head": "missing_armor",
             "hands": "light_vest",
             "invalid": "light_vest",
+            "legs": {"item_type": "armor", "item_id": "armour_pads", "quality": 2},
+            "feet": {"item_type": "armor", "item_id": "combat_boots", "quality": "bad"},
         }
         payload["ground_hp"] = "bad"
         payload["ground_max_hp"] = 0
@@ -1224,10 +1229,26 @@ class TestSaveLoadRoundTrip:
         assert loaded.ground_stats.reflexes == 10
         assert loaded.ground_stats.strength == 100
         assert loaded.ground_stats.stamina == 0
-        assert loaded.equipped_ground_armor == {"body": "light_vest"}
+        assert loaded.equipped_ground_armor == {
+            "body": StoredGroundEquipment("armor", "light_vest"),
+            "legs": StoredGroundEquipment("armor", "armour_pads", 2),
+            "feet": StoredGroundEquipment("armor", "combat_boots"),
+        }
         assert loaded.ground_max_hp == 1
         assert loaded.ground_hp == 1
         delete_save()
+
+    def test_equipped_armor_parser_rejects_non_armor_values(self):
+        """Only str and armor-typed dict values load; the rest drop."""
+        from src.spacehack.saveload_ground import _parse_equipped_ground_armor
+
+        parsed = _parse_equipped_ground_armor({
+            "body": {"item_type": "weapon", "item_id": "laser_pistol"},
+            "head": 42,
+            "legs": {"item_id": "armour_pads"},  # missing item_type
+            "feet": {"item_type": "armor", "item_id": "combat_boots"},
+        })
+        assert parsed == {"feet": StoredGroundEquipment("armor", "combat_boots")}
 
     def test_legacy_ground_storage_migrates_to_armory(self, monkeypatch, tmp_path):
         """The intermediate single-storage name loads into Armory Storage."""

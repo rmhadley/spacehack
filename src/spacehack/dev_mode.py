@@ -226,17 +226,19 @@ def quick_load(context: PygameContext) -> GameContext | None:
 _GROUND_ARMOR_SLOTS = ("head", "body", "hands", "legs", "feet")
 
 
-def _best_ground_armor() -> dict[str, str]:
-    """Return the strongest registered armor id for every armor slot."""
+def _best_ground_armor() -> dict[str, ground_equipment.StoredGroundEquipment]:
+    """Return the strongest registered base armor entry for every slot."""
     _by_slot: dict[str, list] = {slot: [] for slot in _GROUND_ARMOR_SLOTS}
     for _armor in list_ground_armor():
         if _armor.slot in _by_slot:
             _by_slot[_armor.slot].append(_armor)
     return {
-        _slot: max(
-            _items,
-            key=lambda _item: (_item.defense, _item.tech_level, _item.price),
-        ).id
+        _slot: ground_equipment.StoredGroundEquipment(
+            "armor", max(
+                _items,
+                key=lambda _item: (_item.defense, _item.tech_level, _item.price),
+            ).id,
+        )
         for _slot, _items in _by_slot.items()
         if _items
     }
@@ -259,7 +261,7 @@ _DEV_PACK_WEAPONS: tuple[str, ...] = (
 )
 
 
-def _dev_ground_loadout() -> tuple[list[ground_equipment.GroundWeaponInstance], dict[str, str]]:
+def _dev_ground_loadout() -> tuple[list[ground_equipment.GroundWeaponInstance], dict[str, ground_equipment.StoredGroundEquipment]]:
     """Return the standard developer starting ground loadout."""
     return [ground_equipment.weapon_instance(_best_ground_weapon())], _best_ground_armor()
 

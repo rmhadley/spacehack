@@ -25,7 +25,7 @@ from src.spacehack.dev_mode import (
 )
 from src.spacehack.input_helpers import _is_shift_o_press
 from src.spacehack.pygame_engine import PygameInputEvent
-from src.spacehack.ground_equipment import GroundWeaponInstance
+from src.spacehack.ground_equipment import GroundWeaponInstance, StoredGroundEquipment
 
 
 def _key_o(shift: bool) -> PygameInputEvent:
@@ -249,11 +249,11 @@ def test_advance_main_quest_rejects_unknown_faction():
 def test_best_ground_armor_selects_highest_defense_per_slot():
     """Developer armor selection covers every slot with strongest gear."""
     assert _best_ground_armor() == {
-        "head": "assault_helmet",
-        "body": "powered_vest",
-        "hands": "powered_gloves",
-        "legs": "assault_greaves",
-        "feet": "mag_boots",
+        "head": StoredGroundEquipment("armor", "assault_helmet"),
+        "body": StoredGroundEquipment("armor", "powered_vest"),
+        "hands": StoredGroundEquipment("armor", "powered_gloves"),
+        "legs": StoredGroundEquipment("armor", "assault_greaves"),
+        "feet": StoredGroundEquipment("armor", "mag_boots"),
     }
 
 
@@ -279,11 +279,11 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
         GroundWeaponInstance("rocket_launcher", 4),
     ]
     assert _ctx.equipped_ground_armor == {
-        "head": "assault_helmet",
-        "body": "powered_vest",
-        "hands": "powered_gloves",
-        "legs": "assault_greaves",
-        "feet": "mag_boots",
+        "head": StoredGroundEquipment("armor", "assault_helmet"),
+        "body": StoredGroundEquipment("armor", "powered_vest"),
+        "hands": StoredGroundEquipment("armor", "powered_gloves"),
+        "legs": StoredGroundEquipment("armor", "assault_greaves"),
+        "feet": StoredGroundEquipment("armor", "mag_boots"),
     }
     assert [e.item_id for e in _ctx.ground_expedition_inventory] == [
         "plasma_caster", "railgun", "power_fist", "power_fist",

@@ -51,20 +51,37 @@ def test_expedition_capacity_uses_strength_bonus():
     assert expedition_capacity(40) == 10
 
 
+def _armor(item_id: str, quality: int = 0) -> StoredGroundEquipment:
+    return StoredGroundEquipment("armor", item_id, quality)
+
+
 def test_sum_armor_bonus_totals_a_single_field_across_armor():
-    assert sum_armor_bonus(["cybernetic_legs", "cybernetic_eyes"], "ap_bonus") == 1
-    assert sum_armor_bonus(["cybernetic_eyes"], "hit_bonus") == 8
-    assert sum_armor_bonus(["cybernetic_torso"], "hp_bonus") == 3
+    assert sum_armor_bonus(
+        [_armor("cybernetic_legs"), _armor("cybernetic_eyes")], "ap_bonus",
+    ) == 1
+    assert sum_armor_bonus([_armor("cybernetic_eyes")], "hit_bonus") == 8
+    assert sum_armor_bonus([_armor("cybernetic_torso")], "hp_bonus") == 3
 
 
 def test_sum_armor_defense_totals_equipped_pieces():
-    assert sum_armor_defense(["light_helmet", "light_vest", "missing_id"]) == 3
+    assert sum_armor_defense(
+        [_armor("light_helmet"), _armor("light_vest"), _armor("missing_id")],
+    ) == 3
     assert sum_armor_defense([None]) == 0
 
 
 def test_sum_armor_bonus_skips_empty_and_unknown_ids():
-    assert sum_armor_bonus([None, "missing_id", "cybernetic_arms"], "melee_bonus") == 2
+    assert sum_armor_bonus(
+        [None, _armor("missing_id"), _armor("cybernetic_arms")], "melee_bonus",
+    ) == 2
     assert sum_armor_bonus([], "ap_bonus") == 0
+
+
+def test_armor_sums_scale_with_each_entrys_quality():
+    # A mixed-quality loadout sums per-entry effective specs (doc 47.2).
+    assert sum_armor_defense([_armor("light_vest", 2)]) == 3  # 2 * 1.30
+    assert sum_armor_defense([_armor("light_vest"), _armor("light_vest", 1)]) == 2 + 2
+    assert sum_armor_bonus([_armor("cybernetic_eyes", 1)], "hit_bonus") == 9  # 8 * 1.15
 
 
 def test_sum_armor_bonus_rejects_unknown_field():
@@ -129,7 +146,7 @@ def test_store_weapon_is_atomic_when_expedition_pack_is_full():
 
 
 def test_store_armor_moves_one_item_and_preserves_duplicates():
-    equipped = {"body": "light_vest"}
+    equipped = {"body": _armor("light_vest")}
     storage = [StoredGroundEquipment("armor", "light_vest")]
     entry = store_armor(equipped, storage, "body")
     assert entry == StoredGroundEquipment("armor", "light_vest")
@@ -178,7 +195,7 @@ def test_two_handed_install_without_destination_leaves_state_unchanged():
 
 
 def test_install_armor_replaces_same_slot_into_destination():
-    equipped = {"body": "light_vest"}
+    equipped = {"body": _armor("light_vest")}
     storage = [StoredGroundEquipment("armor", "heavy_vest")]
     displaced = []
     install_armor(
@@ -186,7 +203,7 @@ def test_install_armor_replaces_same_slot_into_destination():
         displaced_storage=displaced,
         displaced_container=ARMORY_STORAGE,
     )
-    assert equipped == {"body": "heavy_vest"}
+    assert equipped == {"body": StoredGroundEquipment("armor", "heavy_vest")}
     assert storage == []
     assert displaced == [StoredGroundEquipment("armor", "light_vest")]
 
@@ -301,7 +318,7 @@ def test_add_stored_rejects_full_expedition_pack_atomically():
 
 def test_remove_active_ground_equipment_returns_owned_entry():
     weapons = [weapon_instance("laser_pistol"), weapon_instance("combat_knife")]
-    armor = {"body": "light_vest"}
+    armor = {"body": _armor("light_vest")}
 
     assert remove_weapon(weapons, 0) == StoredGroundEquipment("weapon", "laser_pistol")
     assert remove_armor(armor, "body") == StoredGroundEquipment("armor", "light_vest")
@@ -447,12 +464,12 @@ def test_invalid_equipment_loot_stays_on_floor():
 
 
 def test_swap_armor_from_expedition_preserves_replaced_armor():
-    equipped = {"body": "light_vest"}
+    equipped = {"body": _armor("light_vest")}
     pack = [StoredGroundEquipment("armor", "heavy_vest")]
 
     swap_armor_from_expedition(equipped, pack, 0, "body")
 
-    assert equipped == {"body": "heavy_vest"}
+    assert equipped == {"body": StoredGroundEquipment("armor", "heavy_vest")}
     assert pack == [StoredGroundEquipment("armor", "light_vest")]
 
 

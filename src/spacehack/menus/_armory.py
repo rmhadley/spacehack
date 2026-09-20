@@ -322,14 +322,14 @@ def _armor_slot_rows(ctx: GameContext):
 
     rows = [pygame_split.section_header("ARMOUR SLOTS")]
     for slot in _ARMOR_SLOTS:
-        item_id = ctx.equipped_ground_armor.get(slot)
-        if not item_id:
+        entry = ctx.equipped_ground_armor.get(slot)
+        if entry is None:
             rows.append(pygame_split.SplitRow(f"{_ARMOR_SLOT_LABELS[slot]}: [empty]", "", "", "", False))
             continue
-        spec = find_ground_armor(item_id)
+        spec = find_ground_armor(entry.item_id)
         rows.append(pygame_split.SplitRow(
             f"{_ARMOR_SLOT_LABELS[slot]}: {spec.name}",
-            pygame_ui.sell_cell(_sell_price(item_id)),
+            pygame_ui.sell_cell(_sell_price(entry.item_id)),
             f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
         ))
@@ -854,9 +854,10 @@ async def _manage_loadout(ctx, action: str) -> None:
         item_id = ctx.equipped_ground_weapons[slot].weapon_id
     else:
         slot = slot_text
-        item_id = ctx.equipped_ground_armor.get(slot)
-        if not item_id:
+        entry = ctx.equipped_ground_armor.get(slot)
+        if entry is None:
             return
+        item_id = entry.item_id
     chosen = await _manage_choice(ctx, kind, slot, item_id)
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
         return
