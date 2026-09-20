@@ -17,7 +17,7 @@ from src.spacehack.combat._types import CombatResult, SpaceCombatState
 def _state(player_pos=(10, 10), ent=None, enemy_pos=(11, 10), **enemy_kwargs):
     _enemy = dict(
         alive=True, spec_id="pirate_scout", name="Pirate Scout",
-        shields=0, max_shields=0, hull=20, max_hull=100,
+        shields=0, max_shields=0, hull=20, max_hull=100, modules=(),
     )
     _enemy.update(enemy_kwargs)
     _ent = ent if ent is not None else SimpleNamespace(
@@ -47,7 +47,7 @@ def test_board_denial_truth_table():
 
     _escorted, _ = _state()
     _escorted.enemy_insts.append(SimpleNamespace(
-        alive=True, shields=0, hull=10, max_hull=100,
+        alive=True, shields=0, hull=10, max_hull=100, modules=(),
         pos=world.Position(30, 30),
     ))
     assert "escorts" in board_denial(_escorted, _escorted.enemy_insts[0], _ent)
@@ -144,7 +144,7 @@ def test_attempt_board_stamps_the_flown_modules(monkeypatch):
         StoredEquipment("module", "armor_plating"),
     )
 
-    bare, _ = _state()  # no modules attr at all
+    bare, _ = _state()  # module-less hull stamps empty
     assert attempt_board(bare, 0) is True
     assert bare.cr.boarded_modules == ()
 
@@ -218,9 +218,10 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     _space_map = _ctx.game_map
     _interior = SimpleNamespace(entities=[], seen=None)
     _entered = {}
+    _load_kwargs = {}
     monkeypatch.setattr(
         "src.spacehack.dungeon.load_layout",
-        lambda lid, **k: (_interior, world.Position(8, 15)),
+        lambda lid, **k: (_load_kwargs.update(k) or (_interior, world.Position(8, 15))),
     )
     monkeypatch.setattr(
         "src.spacehack.game_interactions._enter_boarding_dungeon",
@@ -230,12 +231,20 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
         )
         ),
     )
+    from src.spacehack.ship import StoredEquipment
+
     _cr = CombatResult(outcome="BOARDED", boarded_spec_id="pirate_scout",
-                       boarded_ent=_boarded)
+                       boarded_ent=_boarded,
+                       boarded_modules=(
+                           StoredEquipment("module", "reactor_mk2", quality=2),
+                       ))
 
     run(begin_capture_boarding(_ctx, None, _cr))
 
     assert _boarded not in _space_map.entities, "the hull is gone"
+    # The strip's source threads through: the fought instances reach
+    # the layout load unchanged (doc 47.3 SETTLED 14/16).
+    assert _load_kwargs["capture_modules"] == _cr.boarded_modules
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
     assert _interior.capture_spec_id == "pirate_scout"
     assert _interior.derelict_interior is True, "one-shot interior says so on exit"
@@ -411,7 +420,7 @@ def test_attempt_board_resolves_through_the_alive_list():
         shields=0, hull=0, max_hull=100, pos=world.Position(5, 5),
     )
     _live = SimpleNamespace(
-        alive=True, spec_id="pirate_raider", name="Live Raider",
+        alive=True, spec_id="pirate_raider", name="Live Raider", modules=(),
         shields=0, hull=10, max_hull=100, pos=world.Position(11, 10),
     )
     _live_ent = SimpleNamespace(

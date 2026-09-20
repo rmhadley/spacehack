@@ -88,6 +88,6 @@ def attempt_board(state: SpaceCombatState, target_idx: int) -> bool:
     state.cr.boarded_ent = ent
     # The capture strip's source (doc 47.3 SETTLED 14/16): the flown
     # module instances exactly as they fought — no re-roll.
-    state.cr.boarded_modules = tuple(getattr(enemy, "modules", ()) or ())
+    state.cr.boarded_modules = tuple(enemy.modules)
     state.log.add(f"You bring your ship alongside and board the {enemy.name}.")
     return True
