@@ -35,6 +35,11 @@ def _loot_choice_label(loot_entity) -> str:
             return _ground_equipment_loot_name(entry)
         except (KeyError, TypeError, ValueError):
             return str(data.get("item_id", "Unknown equipment"))
+    if item_type == "module":
+        try:
+            return _module_loot_name(loot_entity)
+        except (KeyError, TypeError, ValueError):
+            return str(data.get("item_id", "Unknown ship module"))
     if item_type in {"ammo", "consumable"}:
         stack = _field_item_loot_stack(loot_entity)
         if stack is not None:
@@ -115,6 +120,17 @@ def _ground_equipment_loot_name(entry) -> str:
 
     return ground_equipment.display_name(
         entry.item_type, entry.item_id, entry.quality,
+    )
+
+
+def _module_loot_name(loot_entity) -> str:
+    """Return the token-prefixed display name for a module loot entity."""
+    from . import ship as ship_module
+    from .ground_equipment import parse_quality
+
+    loot_data = loot_entity.loot_data or {}
+    return ship_module.module_display_name(
+        str(loot_data.get("item_id", "")), parse_quality(loot_data.get("quality")),
     )
 
 
@@ -522,6 +538,29 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     return False
 
 
+def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
+    """Move one looted ship module into global storage (doc 47.3).
+
+    Storage is uncapped like bought parts — no pack check, no ship
+    required. The payload's rolled quality threads into the entry.
+    """
+    from . import ship as ship_module
+    from .ground_equipment import parse_quality
+
+    loot_data = loot_entity.loot_data or {}
+    module_id = str(loot_data.get("item_id", ""))
+    quality = parse_quality(loot_data.get("quality"))
+    try:
+        name = ship_module.module_display_name(module_id, quality)
+    except (KeyError, TypeError, ValueError):
+        ctx.log.add("Unknown ship module - left it behind.")
+        return
+    ctx.ship_storage.append(
+        ship_module.StoredEquipment("module", module_id, quality=quality),
+    )
+    _finish_loot_pickup(ctx, loot_entity, f"Stored ship module: {name}.")
+
+
 async def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
     """Immediately pack typed ammo/consumable loot."""
     await _apply_field_item_loot_pickup(ctx, loot_entity)
@@ -625,7 +664,9 @@ async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
         await _apply_reveal_pad_pickup(ctx, loot_entity)
         return
     item_type = loot_entity.loot_data.get("item_type")
-    if item_type in {"weapon", "armor"}:
+    if item_type == "module":
+        _apply_module_loot(ctx, loot_entity)
+    elif item_type in {"weapon", "armor"}:
         await _apply_equipment_loot(ctx, loot_entity)
     elif item_type in {"ammo", "consumable"}:
         await _apply_field_item_loot(ctx, loot_entity)

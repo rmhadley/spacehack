@@ -396,3 +396,103 @@ def test_trade_good_surface_dropped_the_dead_rarity_field():
     fields = {f.name for f in dataclasses.fields(find_trade_good("scrap_metal"))}
     assert "rarity" not in fields
     assert find_trade_good("power_cell") is not None  # authors construct clean
+
+
+# ---------------------------------------------------------------------------
+# Module loot pickup + presentation (doc 47 phase 3)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingLog:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def add(self, message: str) -> None:
+        self.lines.append(message)
+
+
+def test_module_display_name_prefixes_the_token():
+    from spacehack.ship import module_display_name
+
+    assert module_display_name("shield_mk2") == "Shield Mk. 2"
+    assert module_display_name("shield_mk2", 2) == "Overclocked Shield Mk. 2"
+    assert module_display_name("compact_reactor", 3) == "Prototype Compact Reactor Mk. 1"
+
+
+def test_module_detail_swaps_to_effective_stats_for_variants():
+    from spacehack.data.modules import find_module
+    from spacehack.ship import module_detail
+
+    # Base keeps the authored description (its numbers are correct).
+    assert module_detail("shield_mk1") == find_module("shield_mk1").description
+    # Variants render the effective stats — authored prose would lie.
+    assert module_detail("shield_mk1", 2) == "Shields: +26"  # 20 * 1.30
+    # Label order follows the stat-line table; negatives keep their sign.
+    assert module_detail("armor_plating", 3) == "Power: -1  Hull: +7"
+
+
+def test_module_pickup_lands_in_ship_storage():
+    from types import SimpleNamespace
+
+    from spacehack.loot import _apply_module_loot
+    from spacehack.ship import StoredEquipment
+
+    entity = SimpleNamespace(
+        loot_data={"item_type": "module", "item_id": "shield_mk2", "quality": 2},
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_RecordingLog(), ship_storage=[],
+        game_map=SimpleNamespace(entities=[entity]),
+    )
+
+    _apply_module_loot(ctx, entity)
+
+    assert ctx.ship_storage == [StoredEquipment("module", "shield_mk2", quality=2)]
+    assert ctx.log.lines == ["Stored ship module: Overclocked Shield Mk. 2."]
+    assert entity not in ctx.game_map.entities
+
+
+def test_unknown_module_pickup_is_left_behind():
+    from types import SimpleNamespace
+
+    from spacehack.loot import _apply_module_loot
+
+    entity = SimpleNamespace(
+        loot_data={"item_type": "module", "item_id": "no_such_module"},
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_RecordingLog(), ship_storage=[],
+        game_map=SimpleNamespace(entities=[entity]),
+    )
+
+    _apply_module_loot(ctx, entity)
+
+    assert ctx.ship_storage == []
+    assert ctx.log.lines == ["Unknown ship module - left it behind."]
+    assert entity in ctx.game_map.entities
+
+
+def test_loot_choice_label_module_carries_the_token():
+    from types import SimpleNamespace
+
+    from spacehack.loot import _loot_choice_label
+
+    entity = SimpleNamespace(loot_data={
+        "item_type": "module", "item_id": "shield_mk2", "quality": 1,
+    })
+    assert _loot_choice_label(entity) == "Modded Shield Mk. 2"
+    plain = SimpleNamespace(loot_data={"item_type": "module", "item_id": "shield_mk2"})
+    assert _loot_choice_label(plain) == "Shield Mk. 2"
+
+
+def test_loot_fg_treats_modules_as_brightenable_equipment():
+    from spacehack.loot_common import loot_fg
+
+    assert loot_fg({"item_type": "module", "item_id": "shield_mk1"}) == (
+        130, 145, 170,
+    )
+    assert loot_fg({
+        "item_type": "module", "item_id": "shield_mk1", "quality": 2,
+    }) == (159, 177, 207)

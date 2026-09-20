@@ -75,19 +75,22 @@ def _weapon_row(weapon_id: str):
             weapon_id, "Unknown weapon specification", selectable=True,
         )
 
-def _module_row(module_id: str):
-    """Build one filled module-slot row (name + description)."""
+def _module_row(entry):
+    """Build one filled module-slot row (name + detail at its quality)."""
     from .. import pygame_screen
-    from ..data.modules import find_module
+    from ..ship import module_detail, module_display_name
 
+    quality = getattr(entry, "quality", 0)
     try:
-        module = find_module(module_id)
         return pygame_screen.ScreenRow(
-            module.name, module.description, selectable=True,
+            module_display_name(entry.item_id, quality),
+            module_detail(entry.item_id, quality),
+            selectable=True,
         )
     except KeyError:
         return pygame_screen.ScreenRow(
-            module_id, "Unknown module specification", selectable=True,
+            str(getattr(entry, "item_id", entry)),
+            "Unknown module specification", selectable=True,
         )
 
 def _slot_rows(slot_count: int, installed, make_row) -> tuple:

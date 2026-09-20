@@ -24,6 +24,7 @@ _DATA_KEYS = ("teaches", "reveals_site", "goods")
 _TYPE_FG = {
     "weapon": EQUIPMENT_FG,
     "armor": EQUIPMENT_FG,
+    "module": EQUIPMENT_FG,
     "ammo": FIELD_ITEM_FG,
     "consumable": FIELD_ITEM_FG,
 }

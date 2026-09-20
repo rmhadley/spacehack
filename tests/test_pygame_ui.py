@@ -2578,7 +2578,7 @@ def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
         player_owned_ship=OwnedShip(
             ship_id="starter",
             weapons=("light_laser",),
-            modules=("shield_mk1",),
+            modules=(_ship_menu.ship_module.StoredEquipment("module", "shield_mk1"),),
             fuel=12,
         ),
         stats=SimpleNamespace(credits=321),
@@ -2633,7 +2633,11 @@ def test_slot_rows_render_installed_gear_beyond_slot_count():
 def test_slot_rows_mark_unknown_ids_and_empty_slots():
     from src.spacehack.menus import _ship_menu
 
-    rows = _ship_menu._slot_rows(2, ("not_a_real_module",), _ship_menu._module_row)
+    rows = _ship_menu._slot_rows(
+        2,
+        (_ship_menu.ship_module.StoredEquipment("module", "not_a_real_module"),),
+        _ship_menu._module_row,
+    )
 
     assert rows[0].text == "not_a_real_module"
     assert rows[0].detail == "Unknown module specification"

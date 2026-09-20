@@ -71,18 +71,18 @@ def _weapon_detail(spec, *, ammo: int | None = None) -> str:
 def _stored_row(stored, index: int):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
-    from ..data.modules import find_module
     from ..data.weapons import find_weapon
+    from ..ship import module_detail, module_display_name
 
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
-        detail = _weapon_detail(spec, ammo=stored.ammo)
+        name, detail = spec.name, _weapon_detail(spec, ammo=stored.ammo)
     elif stored.item_type == "module":
-        spec = find_module(stored.item_id)
-        detail = spec.description
+        name = module_display_name(stored.item_id, stored.quality)
+        detail = module_detail(stored.item_id, stored.quality)
     else:
         raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    return pygame_split.SplitRow(spec.name, "", detail, f"MANAGE_STORED:{index}")
+    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}")
 
 
 def _stored_spec(stored):
@@ -152,8 +152,8 @@ def _market_rows(weapon_ids, module_ids):
 def _ship_rows(ctx, ship_spec, mode: str):
     """Build active-ship rows whose Enter action opens Store/Sell choices."""
     from .. import pygame_split
-    from ..data.modules import find_module
     from ..data.weapons import find_weapon
+    from ..ship import module_detail, module_display_name
 
     rows = [pygame_split.section_header("WEAPON SLOTS")]
     for item_id, slot_index in ship_module._find_weapon_slots(ctx.player_owned_ship, ship_spec):
@@ -171,14 +171,18 @@ def _ship_rows(ctx, ship_spec, mode: str):
             )
         )
     rows.append(pygame_split.section_header("MODULE SLOTS"))
-    for item_id, slot_index in ship_module._find_module_slots(ctx.player_owned_ship, ship_spec):
-        if item_id is None:
+    for entry, slot_index in ship_module._find_module_slots(ctx.player_owned_ship, ship_spec):
+        if entry is None:
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
-        spec = find_module(item_id)
         action = f"MANAGE_MODULE_SLOT:{slot_index}"
         value = ""
-        rows.append(pygame_split.SplitRow(spec.name, value, spec.description, action))
+        rows.append(
+            pygame_split.SplitRow(
+                module_display_name(entry.item_id, entry.quality), value,
+                module_detail(entry.item_id, entry.quality), action,
+            )
+        )
     return tuple(rows)
 
 
@@ -267,7 +271,12 @@ async def _apply_stored_install(ctx, action: str) -> None:
         ctx.log.add("That stored equipment is no longer available.")
         return
     if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec):
-        ctx.log.add(f"Installed {stored.item_id.replace('_', ' ').title()} from storage.")
+        if stored.item_type == "module":
+            from ..ship import module_display_name
+            label = module_display_name(stored.item_id, stored.quality)
+        else:
+            label = stored.item_id.replace('_', ' ').title()
+        ctx.log.add(f"Installed {label} from storage.")
         return
     _log_storage_failure(ctx, stored, ship_spec)
 
@@ -285,10 +294,16 @@ async def _choose_stored_action(ctx, action: str) -> str:
     except (AttributeError, KeyError, TypeError, ValueError):
         return "__BACK__"
     from .. import pygame_story
+    from ..ship import module_display_name
+    body = (
+        module_display_name(stored.item_id, stored.quality)
+        if stored.item_type == "module"
+        else spec.name
+    )
     return await pygame_story.choose(
         ctx,
         title="STORED EQUIPMENT",
-        body=spec.name,
+        body=body,
         options=(
             ("Install", f"INSTALL_STORED:{storage_index}"),
             (f"Sell for {sell_price}$", f"SELL_STORED:{storage_index}"),
@@ -329,44 +344,47 @@ def _apply_sell_stored(ctx, action: str) -> None:
         return
     storage.pop(storage_index)
     ctx.stats.credits += sell_price
-    ctx.log.add(f"Sold {stored.item_id.replace('_', ' ').title()} for {sell_price}$.")
+    if stored.item_type == "module":
+        from ..ship import module_display_name
+        label = module_display_name(stored.item_id, stored.quality)
+    else:
+        label = stored.item_id.replace('_', ' ').title()
+    ctx.log.add(f"Sold {label} for {sell_price}$.")
+
+
+def _installed_item_label(kind: str, item) -> tuple[str, str]:
+    """Return (chooser body, sell id) for one installed slot item."""
+    if kind == "weapon":
+        from ..data.weapons import find_weapon
+        return find_weapon(item).name, item
+    from ..ship import module_display_name
+    return module_display_name(item.item_id, item.quality), item.item_id
 
 
 async def _choose_ship_action(ctx, action: str) -> str:
     """Ask whether an installed part should be stored or sold."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
+    kind = "weapon" if item_type == "MANAGE_WEAPON_SLOT" else "module"
     owned = ctx.player_owned_ship
     ship_spec = ship_module.find_ship(owned.ship_id)
     slots = (
-        ship_module._find_weapon_slots(owned, ship_spec)
-        if item_type == "MANAGE_WEAPON_SLOT"
+        ship_module._find_weapon_slots(owned, ship_spec) if kind == "weapon"
         else ship_module._find_module_slots(owned, ship_spec)
     )
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return "__BACK__"
-    item_id = slots[slot][0]
-    from ..data.modules import find_module
-    from ..data.weapons import find_weapon
-    spec = find_weapon(item_id) if item_type == "MANAGE_WEAPON_SLOT" else find_module(item_id)
+    body, sell_id = _installed_item_label(kind, slots[slot][0])
     from .. import pygame_story
-    sell_price = ship_module._sell_price(
-        "weapon" if item_type == "MANAGE_WEAPON_SLOT" else "module",
-        item_id,
-    )
+    sell_price = ship_module._sell_price(kind, sell_id)
+    noun = kind.upper()
     return await pygame_story.choose(
         ctx,
         title="MANAGE EQUIPMENT",
-        body=spec.name,
+        body=body,
         options=(
-            (
-                "Store",
-                f"STORE_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}",
-            ),
-            (
-                f"Sell for {sell_price}$",
-                f"SELL_{'WEAPON' if item_type == 'MANAGE_WEAPON_SLOT' else 'MODULE'}_SLOT:{slot}",
-            ),
+            ("Store", f"STORE_{noun}_SLOT:{slot}"),
+            (f"Sell for {sell_price}$", f"SELL_{noun}_SLOT:{slot}"),
         ),
         caption="spacehack - manage equipment",
         compact=True,
@@ -410,10 +428,13 @@ async def _apply_sell_installed(ctx, action: str) -> None:
     )
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return
-    item_id = slots[slot][0]
+    item = slots[slot][0]
     remove = ship_module._remove_weapon if item_type == "SELL_WEAPON_SLOT" else ship_module._remove_module
     remove(owned, slot)
-    ctx.stats.credits += ship_module._sell_price("weapon" if item_type == "SELL_WEAPON_SLOT" else "module", item_id)
+    ctx.stats.credits += ship_module._sell_price(
+        "weapon" if item_type == "SELL_WEAPON_SLOT" else "module",
+        item if item_type == "SELL_WEAPON_SLOT" else item.item_id,
+    )
 
 
 def _purchase_spec(item_type: str, item_id: str):
@@ -455,12 +476,13 @@ def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None
         ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
     if destination == "INSTALL":
-        installer = (
-            ship_module._install_weapon
-            if item_type == "WEAPON"
-            else ship_module._install_module
-        )
-        if not installer(owned, item_id, ship_spec):
+        if item_type == "WEAPON":
+            installed = ship_module._install_weapon(owned, item_id, ship_spec)
+        else:
+            installed = ship_module._install_module(
+                owned, ship_module.StoredEquipment("module", item_id), ship_spec,
+            )
+        if not installed:
             slot_type = "weapon" if item_type == "WEAPON" else "module"
             ctx.log.add(f"No compatible {slot_type} slot is available on this ship.")
             return

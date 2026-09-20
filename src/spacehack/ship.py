@@ -62,6 +62,55 @@ def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
     return tuple(StoredEquipment("module", module_id) for module_id in module_ids)
 
 
+def module_display_name(module_id: str, quality: int = 0) -> str:
+    """Token-prefixed module name — "Overclocked Shield Mk. 2".
+
+    The module label seam (doc 47.3): screens never prefix. Mirrors
+    ground_equipment.display_name.
+    """
+    from .data.modules import find_module as _fm
+    from .data.quality import token_prefix
+
+    return f"{token_prefix(quality)}{_fm(module_id).name}"
+
+
+# Mechanical stat-line labels — the loadout twin of the ground
+# armory's "Damage: X  Accuracy: Y%" readout.
+_MODULE_STAT_LABELS: tuple[tuple[str, str], ...] = (
+    ("power_gen_bonus", "Power"), ("max_shield_bonus", "Shields"),
+    ("shield_recharge_bonus", "Regen"), ("cargo_bonus", "Cargo"),
+    ("gunnery_bonus", "Gunnery"), ("piloting_bonus", "Piloting"),
+    ("engineering_bonus", "Engineering"), ("max_hull_bonus", "Hull"),
+    ("speed_bonus", "Speed"), ("smuggler_cargo", "Smuggler"),
+)
+
+
+def module_stat_line(spec) -> str:
+    """Render one module's effective bonuses as a stat line (pure)."""
+    return "  ".join(
+        f"{label}: {getattr(spec, field):+d}"
+        for field, label in _MODULE_STAT_LABELS
+        if getattr(spec, field)
+    )
+
+
+def module_detail(module_id: str, quality: int = 0) -> str:
+    """Detail line for one module at its quality.
+
+    Base modules keep their authored description (its numbers are
+    correct at base); variants render the effective stat line — the
+    authored prose would state wrong numbers.
+    """
+    from .data.modules import find_module as _fm
+    from .data.quality import effective_module_spec
+
+    if quality <= 0:
+        return _fm(module_id).description
+    return module_stat_line(
+        effective_module_spec(module_id, quality),
+    ) or _fm(module_id).description
+
+
 def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
     """Cargo cells consumed by ammo for the supplied weapon list.
 
