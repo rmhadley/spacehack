@@ -6,7 +6,7 @@ polish notes, the full open-question pass, and the phase-2
 quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
 No open questions remain; phase 4 is BUILT (2026-09-20) —
-awaiting the playtest checkpoint and the guide-sentence ruling.
+awaiting the playtest checkpoint (guide sentence landed 212d48a).
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -483,8 +483,11 @@ item.
   assertion + a vacuous exhausted-pool script — both rewritten with
   bounds-asserting scripts and mutation-verified). All strings are
   the brief's drafts plus the eight delegated axis labels — every
-  one listed verbatim at the playtest checkpoint; the guide
-  sentence awaits approve/red-line before it lands.
+  one listed verbatim at the playtest checkpoint. The guide sentence
+  was red-lined at the checkpoint (the draft spent the discovery:
+  where legendaries live and what they carry) and the user's wording
+  landed verbatim — "The rarest modules are only talked about in
+  legends." (212d48a, own commit).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
