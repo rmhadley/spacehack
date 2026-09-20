@@ -31,6 +31,12 @@ class DigLootSpec:
     equipment_rate: int = 4
     quality_rates: tuple[int, int, int] = DIG_QUALITY_RATES
     legendary_bottom: bool = True
+    # SETTLED 26 (doc 47.4): axis-count weights per dig band — T1
+    # delves dish 2-stat randarts most of the time, band-3 delves
+    # lean 4-stat. Weights index the (2, 3, 4) counts by band-1.
+    legendary_axes_weights: tuple[tuple[int, int, int], ...] = (
+        (70, 25, 5), (40, 40, 20), (15, 35, 50),
+    )
     lockbox_rate: int = 6
     out_of_produce_rate: int = 4
     chip_count: tuple[int, int] = (1, 2)

@@ -415,7 +415,7 @@ def _scatter_dig_loot(
             _append_cache_entity(game_map, pos, _dig_cache_payload(spec, next(rows)))
     _scatter_dig_chips(game_map)
     if bottom and DIG_LOOT_SPEC.legendary_bottom:
-        _place_legendary_cache(game_map)
+        _place_legendary_cache(game_map, _site_tier(spec))
 
 
 def _scatter_dig_chips(game_map: world.GameMap) -> None:
@@ -436,14 +436,41 @@ def _scatter_dig_chips(game_map: world.GameMap) -> None:
         ))
 
 
-def _place_legendary_cache(game_map: world.GameMap) -> None:
+def _weighted_axis_count(weights: tuple[int, int, int], rng) -> int:
+    """Roll one axis count (2/3/4) from a band's weight row."""
+    roll = rng.randint(1, sum(weights))
+    for count, weight in zip((2, 3, 4), weights):
+        if roll <= weight:
+            return count
+        roll -= weight
+    return 4
+
+
+def _seed_for_axis_count(module_id: str, axes: int) -> int:
+    """Draw seeds until the manifest rolls the wanted axis count.
+
+    ``roll_randart``'s count is uniform, so this converges in ~3
+    draws; the rejection keeps the SEED the sole persisted identity —
+    read paths (stats, labels, save/load) never need the delve band
+    that picked the count (doc 47.4 SETTLED 26)."""
+    from .data.randarts import roll_randart
+
+    while True:
+        seed = engine.RNG.randint(1, 2**31 - 1)
+        if len(roll_randart(module_id, seed).axes) == axes:
+            return seed
+
+
+def _place_legendary_cache(game_map: world.GameMap, band: int) -> None:
     """The delve-bottom guarantee (doc 47.4 SETTLED 11/35): one module
     randart waits at the site's deepest floor — the game's only
     legendary source. The base rolls uniformly from the full catalog
-    (SETTLED 19, both slot types); identity rolls at generation and
-    the payload carries it wholesale (floors cache; save/load rides
-    loot_data). The seed draws strictly >= 1: parse_randart_seed
-    migrates 0 to not-a-randart."""
+    (SETTLED 19, both slot types); the dig band weights the axis
+    count (SETTLED 26); identity rolls at generation and the payload
+    carries it wholesale (floors cache; save/load rides loot_data).
+    The seed draws strictly >= 1: parse_randart_seed migrates 0 to
+    not-a-randart."""
+    from .data.digs import DIG_LOOT_SPEC
     from .data.modules import list_modules
     from .data.quality import LEGENDARY_QUALITY
     from .loot_common import equipment_payload
@@ -453,9 +480,13 @@ def _place_legendary_cache(game_map: world.GameMap) -> None:
     )
     if pos is None:
         return
+    module_id = engine.RNG.choice(list_modules()).id
+    axes = _weighted_axis_count(
+        DIG_LOOT_SPEC.legendary_axes_weights[band - 1], engine.RNG,
+    )
     payload = equipment_payload(
-        "module", engine.RNG.choice(list_modules()).id, LEGENDARY_QUALITY,
-        engine.RNG.randint(1, 2**31 - 1),
+        "module", module_id, LEGENDARY_QUALITY,
+        _seed_for_axis_count(module_id, axes),
     )
     _append_cache_entity(game_map, pos, payload)
 

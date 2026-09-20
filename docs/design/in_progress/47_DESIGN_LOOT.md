@@ -397,6 +397,22 @@ continues the passes above):
     surface stays ceded-but-unused; teaching/truth pads are
     doc 42's, untouched.
 
+## Settled — the phase-4 playtest rulings (2026-09-20)
+
+26. **Band-weighted randart axes (user, verbatim):** "that's what
+   we use then. the harder and deeper a delve is, the higher
+   chance you get a 4 stat legendary. a T1 delve dishes out 2
+   stat legendaries most of the time." The dig's site band
+   weights the axis count — `DigLootSpec.legendary_axes_weights`
+   rows (70/25/5), (40/40/20), (15/35/50) for bands 1/2/3 —
+   and the seed stays the SOLE randart identity: generation
+   draws seeds until the manifest carries the rolled count, so
+   no count or band threads through any read path. "Deeper"
+   rides the authored tier/depth correlation (T1 digs run 1-3
+   floors; the T3/T4 planets run 2-8) — depth per se does not
+   shift the row; if depth should matter within a band, that is
+   a playtest tuning ruling on this table.
+
 ## Remaining opens — none (phase-4 pass settled 2026-09-20)
 
 Every open question is settled (1-25 above). What stays gated:
@@ -487,7 +503,8 @@ item.
   was red-lined at the checkpoint (the draft spent the discovery:
   where legendaries live and what they carry) and the user's wording
   landed verbatim — "The rarest modules are only talked about in
-  legends." (212d48a, own commit).
+  legends." (212d48a, own commit). Post-BUILT ruling: SETTLED 26
+  (band-weighted axes) landed with its verbatim record above.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
@@ -1331,6 +1348,9 @@ the authored tables, no SYSTEMS.md work (phase close only).
 1. Delve to the bottom of an RNG dig site: a legendary module
    cache waits (guaranteed); taking it fires the modal — name,
    base identity, full spread; the log line carries the name.
+   The spread's WIDTH reads the band (SETTLED 26): a T1 delve's
+   bottom dishes a 2-stat randart most of the time; a band-3
+   (T3/T4-planet) bottom leans 4-stat.
 2. The same randart after save → quit → Continue: same name,
    same axes, same stats (the seed is stable).
 3. Install it: ship stats move by scaled base + axes (a
@@ -1351,9 +1371,12 @@ the authored tables, no SYSTEMS.md work (phase close only).
    discard-drops, cap eviction, kit drops, quality tiers,
    module room pools, capture strip) unchanged; quest caches,
    heist cargo, and every pad untouched.
-9. Guide diff: the QUALITY entry gains one sentence (draft
-   below) — approve or red-line before it lands; everything
-   else unchanged.
+9. Guide diff: the QUALITY entry gained the user's vague sentence
+   (212d48a — "The rarest modules are only talked about in
+   legends."). SETTLED 26 deliberately changes NO guide text: the
+   landed sentence says nothing about counts, bands, or locations,
+   and that is the ruling — leave it alone; everything else
+   unchanged.
 
 **Strings drafts (PROSE GATE — for approval with this
 brief):**

@@ -891,3 +891,83 @@ def test_off_world_pool_stays_off_the_story_goods():
     assert set(OUT_OF_PRODUCE_GOODS) <= set(_registry())
     assert set(OUT_OF_PRODUCE_GOODS) & story_goods == set()
 
+
+
+# --- band-weighted axis counts (doc 47 phase 4, SETTLED 26) ------------------
+
+
+def _legendary_of(game_map):
+    from src.spacehack.data.randarts import roll_randart
+    payloads = [
+        entity.loot_data for entity in game_map.entities
+        if (entity.loot_data or {}).get("quality") == 4
+        and entity.loot_data.get("randart_seed")
+    ]
+    assert len(payloads) == 1
+    return roll_randart(payloads[0]["item_id"], payloads[0]["randart_seed"])
+
+
+def test_band_one_delves_dish_two_stat_randarts(monkeypatch):
+    """Weights pinned to certainty: a T1 delve bottom always rolls a
+    2-axis manifest, a band-3 bottom a 4-axis one (SETTLED 26)."""
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(
+        DIG_LOOT_SPEC, legendary_axes_weights=((100, 0, 0),) * 3,
+    )
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert len(_legendary_of(f1).axes) == 2
+
+
+def test_band_three_delves_lean_four_stat(monkeypatch):
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(
+        DIG_LOOT_SPEC, legendary_axes_weights=((0, 0, 100),) * 3,
+    )
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert len(_legendary_of(f1).axes) == 4
+
+
+def test_band_weights_key_off_the_site_tier(monkeypatch):
+    """Mars is band 1, wolf_b band 3: with the counts distinguishable
+    per band (band 1 always 2, band 3 always 4), each planet's bottom
+    reads its own row."""
+    from src.spacehack.data import digs as digs_data
+    custom = dataclasses.replace(
+        DIG_LOOT_SPEC,
+        legendary_axes_weights=((100, 0, 0), (0, 100, 0), (0, 0, 100)),
+    )
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    for planet_id, expected_axes in (("mars", 2), ("wolf_b", 4)):
+        spec = dataclasses.replace(
+            find_planet_spec(planet_id), dig_min_floors=1, dig_max_floors=1,
+        )
+        monkeypatch.setattr(digs, "list_planet_specs", lambda s=spec: [s])
+        monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
+        monkeypatch.setattr(digs, "find_planet_spec", lambda pid, s=spec: s)
+        ctx, site = _dig_world(monkeypatch, depth=1)
+        f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+        assert len(_legendary_of(f1).axes) == expected_axes
+
+
+def test_weighted_axis_count_partitions_the_weights():
+    from src.spacehack.digs import _weighted_axis_count
+
+    class _Rng:
+        def __init__(self, roll):
+            self.roll = roll
+
+        def randint(self, low, high):
+            return self.roll
+
+    # (70, 25, 5): rolls 1-70 -> 2, 71-95 -> 3, 96-100 -> 4.
+    for roll, expected in ((1, 2), (70, 2), (71, 3), (95, 3), (96, 4), (100, 4)):
+        assert _weighted_axis_count((70, 25, 5), _Rng(roll)) == expected
+
+
+def test_default_axes_weights_sum_positive_per_band():
+    for row in DIG_LOOT_SPEC.legendary_axes_weights:
+        assert len(row) == 3 and sum(row) > 0
