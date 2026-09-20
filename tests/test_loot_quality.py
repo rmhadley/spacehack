@@ -435,6 +435,7 @@ def test_module_detail_swaps_to_effective_stats_for_variants():
 def test_module_pickup_lands_in_ship_storage():
     from types import SimpleNamespace
 
+    from tests.support.asyncutil import run
     from spacehack.loot import _apply_module_loot
     from spacehack.ship import StoredEquipment
 
@@ -447,7 +448,7 @@ def test_module_pickup_lands_in_ship_storage():
         game_map=SimpleNamespace(entities=[entity]),
     )
 
-    _apply_module_loot(ctx, entity)
+    run(_apply_module_loot(ctx, entity))
 
     assert ctx.ship_storage == [StoredEquipment("module", "shield_mk2", quality=2)]
     assert ctx.log.lines == ["Stored ship module: Overclocked Shield Mk. 2."]
@@ -457,6 +458,7 @@ def test_module_pickup_lands_in_ship_storage():
 def test_unknown_module_pickup_is_left_behind():
     from types import SimpleNamespace
 
+    from tests.support.asyncutil import run
     from spacehack.loot import _apply_module_loot
 
     entity = SimpleNamespace(
@@ -468,7 +470,7 @@ def test_unknown_module_pickup_is_left_behind():
         game_map=SimpleNamespace(entities=[entity]),
     )
 
-    _apply_module_loot(ctx, entity)
+    run(_apply_module_loot(ctx, entity))
 
     assert ctx.ship_storage == []
     assert ctx.log.lines == ["Unknown ship module - left it behind."]

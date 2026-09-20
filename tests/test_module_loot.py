@@ -234,11 +234,19 @@ class _RecordingLog:
         self.lines.append(message)
 
 
-def test_randart_pickup_carries_the_seed_into_storage():
+def test_randart_pickup_carries_the_seed_into_storage(monkeypatch):
     from types import SimpleNamespace
 
+    from tests.support.asyncutil import as_async, run
+    from src.spacehack import loot as loot_mod
     from src.spacehack.loot import _apply_module_loot
     from src.spacehack.data.randarts import roll_randart
+
+    presented = []
+    monkeypatch.setattr(
+        loot_mod, "_present_randart_find",
+        as_async(lambda ctx, mid, seed: presented.append((mid, seed))),
+    )
 
     entity = SimpleNamespace(
         loot_data={
@@ -252,7 +260,7 @@ def test_randart_pickup_carries_the_seed_into_storage():
         game_map=SimpleNamespace(entities=[entity]),
     )
 
-    _apply_module_loot(ctx, entity)
+    run(_apply_module_loot(ctx, entity))
 
     (entry,) = ctx.ship_storage
     assert entry.item_id == "shield_mk1"
@@ -261,6 +269,7 @@ def test_randart_pickup_carries_the_seed_into_storage():
     assert ctx.log.lines == [
         f"Stored ship module: {roll_randart('shield_mk1', 4242).name}.",
     ]
+    assert presented == [("shield_mk1", 4242)]
 
 
 def test_randart_seed_survives_install_and_store():
@@ -309,3 +318,52 @@ def test_wreck_chip_pass_stays_gated_off_by_default(tmp_path):
         e for e in game_map.entities
         if (e.loot_data or {}).get("credits")
     ]
+
+
+# --- the legendary pickup modal (doc 47 phase 4, SETTLED 24) ------------------
+
+
+def test_randart_frame_is_the_stat_sheet():
+    from src.spacehack.loot import _randart_frame
+    from src.spacehack.data.randarts import roll_randart
+
+    seed = 88
+    frame = _randart_frame("shield_mk1", seed)
+    manifest = roll_randart("shield_mk1", seed)
+    assert frame.title == "LEGENDARY FIND"
+    assert frame.body[0] == manifest.name
+    assert frame.body[1] == "A Shield Mk. 1, modified far beyond factory spec:"
+    from src.spacehack.data.randarts import axis_line
+    assert list(frame.body[2:]) == [
+        axis_line(field, delta) for field, delta in manifest.axes
+    ]
+    assert frame.rows[0].text == "Continue"
+    # The name line is the only accented run.
+    assert frame.body_runs[0] is not None
+    assert all(run is None for run in frame.body_runs[1:])
+
+
+def test_unseeded_module_pickups_never_fire_the_modal(monkeypatch):
+    from types import SimpleNamespace
+
+    from tests.support.asyncutil import as_async, run
+    from src.spacehack import loot as loot_mod
+    from src.spacehack.loot import _apply_module_loot
+
+    presented = []
+    monkeypatch.setattr(
+        loot_mod, "_present_randart_find",
+        as_async(lambda ctx, mid, seed: presented.append((mid, seed))),
+    )
+    entity = SimpleNamespace(
+        loot_data={"item_type": "module", "item_id": "shield_mk2", "quality": 3},
+        pos=SimpleNamespace(x=1, y=1),
+    )
+    ctx = SimpleNamespace(
+        log=_RecordingLog(), ship_storage=[],
+        game_map=SimpleNamespace(entities=[entity]),
+    )
+
+    run(_apply_module_loot(ctx, entity))
+
+    assert presented == []  # t1-t3 stay log lines (SETTLED 12/24)

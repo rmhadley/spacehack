@@ -560,11 +560,56 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     return False
 
 
-def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
+def _randart_frame(module_id: str, seed: int):
+    """The legendary-find modal frame (doc 47.4 SETTLED 24): the
+    celebration IS the stat sheet — accent name, base identity, the
+    full axes list. Pure; the strings are the brief's drafts."""
+    from . import pygame_screen, pygame_ui
+    from .data.modules import find_module
+    from .data.randarts import axis_line, roll_randart
+
+    manifest = roll_randart(module_id, seed)
+    body = (
+        manifest.name,
+        f"A {find_module(module_id).name}, modified far beyond factory spec:",
+        *(axis_line(field, delta) for field, delta in manifest.axes),
+    )
+    runs = [None] * len(body)
+    runs[0] = ((manifest.name, pygame_ui.DEFAULT_PALETTE.accent),)
+    return pygame_screen.ScreenFrame(
+        title="LEGENDARY FIND",
+        body=body,
+        rows=(pygame_screen.ScreenRow("Continue", "CONTINUE"),),
+        body_runs=tuple(runs),
+    )
+
+
+async def _present_randart_find(ctx: GameContext, module_id: str, seed: int) -> None:
+    """Play the legendary-find modal; Continue (or Escape) closes it."""
+    from . import pygame_screen
+
+    while True:
+        outcome, _action, _selected = await pygame_screen.run_for_context(
+            ctx.context, _randart_frame(module_id, seed),
+            caption="spacehack - legendary find",
+        )
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            await _run_help_guide(ctx)
+            continue
+        if outcome in {"SELECT", "BACK"}:
+            return
+        if outcome == "QUIT":
+            raise SystemExit
+
+
+async def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
     """Move one looted ship module into global storage (doc 47.3).
 
     Storage is uncapped like bought parts — no pack check, no ship
-    required. The payload's rolled quality threads into the entry.
+    required. The payload's rolled quality and randart seed thread
+    into the entry; a seeded take fires the legendary modal after the
+    pickup completes (doc 47.4 SETTLED 24 — t1-t3 stay log lines).
     """
     from . import ship as ship_module
 
@@ -578,6 +623,8 @@ def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
         return
     ctx.ship_storage.append(entry)
     _finish_loot_pickup(ctx, loot_entity, f"Stored ship module: {name}.")
+    if entry.randart_seed is not None:
+        await _present_randart_find(ctx, entry.item_id, entry.randart_seed)
 
 
 async def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
@@ -711,7 +758,7 @@ async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
         return
     item_type = loot_entity.loot_data.get("item_type")
     if item_type == "module":
-        _apply_module_loot(ctx, loot_entity)
+        await _apply_module_loot(ctx, loot_entity)
     elif item_type in {"weapon", "armor"}:
         await _apply_equipment_loot(ctx, loot_entity)
     elif item_type in {"ammo", "consumable"}:

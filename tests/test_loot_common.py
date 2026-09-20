@@ -766,3 +766,30 @@ def test_credits_chooser_labels_show_the_value_precommit():
     box = SimpleNamespace(loot_data={"credits": 640, "credits_kind": "lockbox"})
     assert _loot_choice_label(chip) == "Credit Chip (86$)"
     assert _loot_choice_label(box) == "Lockbox (640$)"
+
+
+def test_credits_payload_round_trips_save_load():
+    """A chip entity survives the map-loot save path with its gold hue
+    recomputed on restore (the credits twin of the quality round-trip)."""
+    from spacehack import saveload, world
+    from spacehack.loot_common import CARGO_FG, credits_payload
+
+    game_map = world.GameMap(width=2, height=1, tiles=[
+        [world.DUNGEON_FLOOR, world.DUNGEON_FLOOR],
+    ], entities=[])
+    chip = world.Entity(
+        char="%", fg=CARGO_FG, pos=world.Position(0, 0), name="Cache",
+        loot_data=credits_payload(86, "chip"),
+    )
+    game_map.entities.append(chip)
+
+    saved = saveload._save_loot(game_map)
+    restored = world.GameMap(width=2, height=1, tiles=[
+        [world.DUNGEON_FLOOR, world.DUNGEON_FLOOR],
+    ], entities=[])
+    saveload._restore_loot_entities({"map_loot": saved}, restored)
+
+    (entity,) = restored.entities
+    assert entity.loot_data == {"credits": 86, "credits_kind": "chip"}
+    assert entity.fg == CARGO_FG
+    assert (entity.pos.x, entity.pos.y) == (0, 0)
