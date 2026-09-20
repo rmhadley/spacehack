@@ -3,9 +3,9 @@
 **Status: DESIGN IN PROGRESS — no implementation until the user
 explicitly requests it.** Draft opened 2026-09-19; the user's four
 polish notes, the full open-question pass, and the phase-2
-quality pass (all same day), plus the phase-3 module pass
-(2026-09-20), are settled below. Remaining opens are
-phase-4-shaped.
+quality pass (all same day), plus the phase-3 module pass and
+the phase-4 legendary pass (both 2026-09-20), are settled below.
+No open questions remain; phase 4's brief is proposed below.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -187,7 +187,7 @@ rates, a rare cache variant, an out-of-produce pool, and the
 legendary bottom-floor guarantee — per-planet authoring through
 `dig_*` spec fields, planets inherit defaults.
 
-### C. New loot (ruled in — shapes open)
+### C. New loot (ruled in — shapes settled)
 
 - **Ship modules as loot** (ruling 3; shape SETTLED 14-16): new
   payload shape (`{"item_type": "module", "item_id": …}` → ship
@@ -205,10 +205,9 @@ legendary bottom-floor guarantee — per-planet authoring through
   expects "legendary loot" aboard the far-side find
   (`43_DESIGN_FAR_SIDE.md:59`) — that hookup stays doc 43's.
   Name-pool fragments and tier tokens are PROSE GATE.
-- **Ordinary dungeon loot pads** — the surface doc 42 ceded.
-  Distinct from teaching pads (knowledge): VALUABLE pads (salvage
-  logs, manifests) with trade/credit worth. Exact economy shape
-  open.
+- **Ordinary dungeon loot pads — DROPPED (SETTLED 25).** The
+  surface doc 42 ceded stays ceded-but-unused: no pad payloads
+  ship. Teaching pads and truth pads are doc 42's, untouched.
 - **Credits pickups (SETTLED 6): wrecks/digs only** — chips and
   lockboxes as container loot; kill drops stay trade-goods.
 
@@ -356,18 +355,55 @@ continues the passes above):
     draw -> -2 at t1) gain 1. Sell prices keep their own
     formula (unchanged).
 
-## Remaining opens (phase-4-shaped or authoring-tuned)
+## Settled — the phase-4 legendary pass (2026-09-20)
 
-- Randart specifics — property spread (axis count, magnitude
-  ranges) and whether randarts can carry TRADEOFFS/drawback axes
-  (the Qud pattern) or are pure upside; name-pool register
-  (call-signs? relic style?). Authored with phase 4; fragments
-  PROSE GATE. Hand-authored uniques stay deferred (SETTLED 1
-  amendment) — not a phase-4 item.
-- Rare-pickup modal shape + strings (SETTLED 12 moved it to
-  phase 4) — PROSE GATE with its phase.
-- Chip/lockbox names + value curve vs. trade-goods income —
-  phase 4; PROSE GATE / playtest.
+Seven rulings from the legendary-refinement session (numbering
+continues the passes above):
+
+19. **Legendary families: MODULES ONLY (user, 2026-09-20).**
+    Ruling 4 verbatim holds — the legendary form is multi-stat
+    ship modules. Delve bottoms roll randart modules from the full
+    catalog (both slot types); ground weapons and armor cap at
+    prototype. Weapon/armor randarts are a possible later
+    extension, never ruled in.
+20. **Mixed axes — drawbacks can roll (the Qud pattern).** The
+    2-4 rolled axes can include drawbacks (e.g. +gunnery, -power
+    draw): the module system's native shape (Armor Plating already
+    draws power), and the rarest find is an equip decision, not a
+    strict upgrade.
+21. **Randart names: two-part relic register.** Prefix+suffix
+    drawn from authored word pools — the dig-site name-composition
+    machinery (seeded, stable all run). The name IS the label;
+    base identity lives in the detail row. Fragments PROSE GATE.
+22. **Chips common, lockbox rare — the lockbox IS the digs'
+    rare-cache variant.** Credit chips: small-value scatter,
+    common in wrecks and digs. Lockboxes: rarer, much larger,
+    pure credits — in digs the lockbox is SETTLED 35's rare-cache
+    field. Names/values PROSE GATE / playtest.
+23. **Out-of-produce pool: off-world goods.** A minority of dig
+    caches carry trade goods the planet does not produce — import
+    flavor, better margins selling elsewhere. Authored pool +
+    1-in-N field on DigLootSpec.
+24. **Legendary pickup modal: name + full spread.** Title beat,
+    the randart's name, its base identity, and the full
+    rolled-axes list — the celebration IS the stat sheet. t1-t3
+    stay log lines (SETTLED 12). Strings PROSE GATE.
+25. **Valuable pads DROPPED (user, 2026-09-20: "I don't know
+    that we need valuable pads?").** The document-flavored pad
+    concept leaves the doc — chips/lockboxes cover container
+    value, randarts the rare beat. Doc 42's cession assigned the
+    pad surface's ownership; it never ordered content. The
+    surface stays ceded-but-unused; teaching/truth pads are
+    doc 42's, untouched.
+
+## Remaining opens — none (phase-4 pass settled 2026-09-20)
+
+Every open question is settled (1-25 above). What stays gated:
+randart name fragments, modal strings, chip/lockbox names —
+PROSE GATE with the phase-4 brief below; value curves and rate
+tables are opening guesses tuned at playtest. Hand-authored
+uniques stay deferred (SETTLED 1 amendment) — not a phase-4
+item.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
@@ -428,13 +464,15 @@ continues the passes above):
   commit). SYSTEMS.md audited at close (module-loot entry
   added; loot, quality, boarding, save/load, Absent entries
   amended).
-- [ ] 4. **Legendary randarts + credits + pads** — the randart
-  generator (seeded name composition from word pools + property
-  spread over `ModuleSpec`'s bonus axes), legendary activation
-  (delve-bottom rolls turn on, SETTLED 11), the rare-pickup
-  modal (SETTLED 12), chips/lockboxes in wrecks/digs (SETTLED 6),
-  valuable pads, doc-43 hookup. Prose gate before any data
-  strings land.
+- [ ] 4. **Legendary randarts + credit containers** — module
+  randarts only (SETTLED 19): the generator (seeded two-part
+  names + 2-4 mixed-sign axes over the ten bonus fields, SETTLED
+  20/21), delve-bottom activation with the guarantee (SETTLED
+  11/35), the name+spread pickup modal (SETTLED 24), chips
+  common + lockbox rare-cache in wrecks/digs (SETTLED 6/22),
+  the off-world cache pool (SETTLED 23). No pads (SETTLED 25);
+  no doc-43 content. Prose gate before any data strings land.
+  Brief PROPOSED 2026-09-20 (below).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
@@ -1096,3 +1134,219 @@ paragraph):
     and you strip the modules it was flying; search wrecks and
     derelicts for spare parts in the engine room and the cargo
     bay. Modules carry the same quality grades as ground gear.
+
+## Pre-implementation audit — phase 4 (2026-09-20)
+
+**Reuse (verified):**
+
+- `engine.seeded_rng(seed, *parts)` — stable manifest
+  derivation; the dig-site two-part name composition is the
+  in-repo precedent (`DEFAULT_PREFIXES/SUFFIXES`,
+  `data/digs/__init__.py:56-63`).
+- `StoredEquipment` + the phase-3 module display seam
+  (`ship.py`) — the randart label lands exactly where the
+  token prefix would; `token_prefix(4)` already returns "".
+- `effective_module_spec` (`data/quality.py:135`) — every
+  module-stat reader already routes through it (the phase-3
+  nine-reader sweep); axis application lands once, here.
+- `loot_data` rides save/load wholesale (`saveload.py:248`)
+  and the restore path re-derives colour through `loot_fg` —
+  the `randart_seed` / `credits` keys ride free (the quality
+  precedent, phase 2).
+- `_scatter_dig_loot` + `_free_floor_cell` (`digs.py:362,
+  373`) — the cache scatter and free-cell placement;
+  `site_depth(spec, site_id)` is already computed in
+  `generate_dig` (line 213) — reorder or pass it in.
+- `_scatter_loot` / `_scatter_pool_presence` marker loop
+  (`dungeon_layout.py:427, 493`) — the wreck chip pass hooks
+  the same loop the module pools use.
+- Payload dispatch + `_apply_module_loot` (`loot.py:605-619,
+  555`) — the credits branch and the modal hook insert there.
+- ScreenFrame body_runs — the data-bearing modal paints
+  through the shared runs pattern, never a bespoke paint path.
+- `DigLootSpec` (`data/digs/__init__.py:14`) — SETTLED 35's
+  in-place expansion point; per-planet override through
+  `dig_*` spec fields, planets inherit defaults.
+
+**Duplication hotspots:**
+
+1. Randart label reads could hand-compose name+base per
+   screen — extend the ONE phase-3 seam, never per-screen
+   prefixing.
+2. Chip spawners: the wreck pass vs the dig scatter are a born
+   twin — one credits-payload builder serves both.
+3. Manifest derivation could be re-seeded differently per
+   reader — ONE pure `roll_randart`; every reader (label,
+   stats, modal, sell) calls it.
+
+**DRY strategy:** single generator + single label seam +
+single credits-payload builder; `DigLootSpec` stays the only
+dig-loot config. Ratchet: every touched module has headroom
+(digs 480, loot 694, dungeon_layout 597, quality 164 lines);
+`game_interactions.py` stays untouched (998/1000).
+
+**Data-first:** `data/randarts.py` — pools + the axes table +
+the pure roll; dig container/off-world fields on `DigLootSpec`;
+no catalog edits.
+
+### Phase 4 — Legendary randarts + credit containers (brief
+PROPOSED 2026-09-20)
+
+**Scope (files + hook points):**
+
+1. **Randart generator** — `src/spacehack/data/randarts.py`:
+   frozen `RandartManifest` (name + axes as `(field, delta)`
+   pairs); `RANDART_AXES` — one signed-range entry per bonus
+   field (opening guesses: most positive, a few
+   negative-leaning per SETTLED 20); `RANDART_PREFIXES` /
+   `RANDART_SUFFIXES` (drafts below, PROSE GATE); pure
+   `roll_randart(module_id, seed)` — seeded composition of
+   name + 2-4 distinct axes with rolled integer deltas. Same
+   seed + module → the same manifest, always.
+2. **Instance + stat threading** — `StoredEquipment` gains
+   `randart_seed: int | None = None`; `loot_data` carries the
+   seed alongside `quality`; `effective_module_spec(module_id,
+   quality, randart_seed=None)` applies axis deltas on top of
+   the scaled base (multiplier path unchanged, ceiling per
+   SETTLED 18; axes are integer deltas — no rounding); the
+   phase-3 display seam shows the manifest name in place of
+   token+spec.name when the seed is set. Save/load: the seed
+   through `StoredEquipment` AND `loot_data` (legacy default
+   None), both directions.
+3. **Delve-bottom activation** — `digs.py`: `_scatter_dig_loot`
+   learns bottom-ness; on the bottom floor, one ADDITIONAL
+   cache entity: a module payload (base rolled uniformly from
+   the full 30-row catalog — SETTLED 19), quality 4, seed from
+   `engine.RNG` (floors cache at generation; the payload
+   carries identity wholesale). `DigLootSpec` gains
+   `legendary_bottom: bool = True`, `lockbox_rate: int`,
+   `out_of_produce_rate: int` (SETTLED 35's in-place fields).
+4. **Credit containers** — payload shape `{"credits": N}`; the
+   `loot.py` dispatch branch → `ctx.stats.credits += N` + log
+   line; `loot_fg` credits → the cargo/trade gold hue; chips:
+   a wreck scatter pass (the `dungeon_layout` marker loop) +
+   1-2 dig scatter entities per floor (value 40-120);
+   lockboxes: the dig rare-cache variant (a 1-in-`lockbox_rate`
+   cache becomes a lockbox, value 300-900). One shared
+   credits-payload builder for every spawner. Value ranges are
+   opening guesses tuned at playtest (SETTLED 4 watch-item:
+   delve runs must not out-earn their risk).
+5. **Off-world pool** — `data/digs`: `OUT_OF_PRODUCE_GOODS`
+   authored list; a cache rolling out-of-produce draws goods
+   NOT in the planet's produces (SETTLED 23).
+6. **Pickup modal** — a randart take fires the modal
+   (ScreenFrame + body_runs): title beat, accent name line,
+   base identity line, the full axes list; single "Continue"
+   choice. t1-t3 modules and all ground gear stay log lines
+   (SETTLED 12/24). Strings drafts below.
+
+**Build order:** randarts module + unit tests → instance/stat/
+label threading + save/load → delve-bottom activation +
+DigLootSpec fields → credits payload + chip/lockbox spawners →
+off-world pool → modal → strings commit (own commit,
+approval-gated) + guide sentence.
+
+**Binding rulings:** SETTLED 1-2/4-6/10-12/18-25 as amended;
+the delve bottom is the ONLY legendary source — wrecks,
+derelicts, kills, shops, and fly-time rolls never produce 4
+(`roll_quality`'s ladder triples cannot reach it; keep it that
+way); shops, starting gear, and quest gear never variant;
+quest-loot security do-not-break; sell price stays the phase-3
+formula at the 220 row — axes never price; prose gate —
+nothing beyond the drafts below lands without approval.
+
+**Tests:** `roll_randart` determinism (same seed+module →
+identical manifest; different seeds differ), axis count 2-4,
+distinct fields, deltas inside the authored signed ranges;
+effective spec = scaled base + exact axis deltas (ceiling on
+the scaled part); label seam (manifest name, no token at 4);
+bottom-floor guarantee (bottom cache is quality 4 + seed;
+non-bottom floors never; `legendary_bottom=False` honored); no
+non-delve source can produce quality 4 (parametrized over
+KILL/WRECK/DIG ladders, equip-time, fly-time); credits pickup
+(stats delta + log + gold hue + chooser label); chip/lockbox
+presence rates (wreck scatter, dig scatter, rare-cache);
+out-of-produce exclusion (rolled goods never in the planet's
+produces); save/load round-trips (StoredEquipment seed,
+loot_data seed, credits payload); legacy saves default clean;
+the modal fires on randart takes only.
+
+**Stop point:** no doc-43 content (the far-side placement is
+theirs), no weapon/armor randarts (SETTLED 19 — a later
+extension, not this phase), no hand-authored uniques (deferred),
+no pad payloads of any kind (SETTLED 25), no exterior-kill
+credit drops, no enemy randarts, no economy re-tuning beyond
+the authored tables, no SYSTEMS.md work (phase close only).
+
+**Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+
+1. Delve to the bottom of an RNG dig site: a legendary module
+   cache waits (guaranteed); taking it fires the modal — name,
+   base identity, full spread; the log line carries the name.
+2. The same randart after save → quit → Continue: same name,
+   same axes, same stats (the seed is stable).
+3. Install it: ship stats move by scaled base + axes (a
+   drawback axis visibly draws); mechanic STORAGE shows the
+   name; the sell price is half catalog × legendary
+   multiplier — axes don't price.
+4. Non-bottom dig floors, wrecks, derelicts, kills, and shops:
+   never a legendary; enemy fly-time rolls still cap at
+   prototype.
+5. Wrecks: credit chips scatter (2-4, 40-120$); digs: chips +
+   the rare lockbox cache (300-900$); pickups add credits with
+   the log line; the glyphs read gold (cargo hue).
+6. Dig caches: out-of-produce rolls show goods the planet
+   doesn't make; rates read thin, not absent.
+7. Economy watch (SETTLED 4): a full delve bottom-run's
+   earnings vs its risk — tune rates/multipliers, not policy.
+8. Regression: phase 1-3 flows (category colours,
+   discard-drops, cap eviction, kit drops, quality tiers,
+   module room pools, capture strip) unchanged; quest caches,
+   heist cargo, and every pad untouched.
+9. Guide diff: the QUALITY entry gains one sentence (draft
+   below) — approve or red-line before it lands; everything
+   else unchanged.
+
+**Strings drafts (PROSE GATE — for approval with this
+brief):**
+
+Randart name fragments (prefix + suffix compose the label;
+CP437-safe, any pairing must read clean):
+
+    Prefixes: Pale, Silent, Iron, Hollow, Ember, Quiet,
+    Sundered, Cold, Late, Vagrant, Ashen, Patient
+    Suffixes: Meridian, Covenant, Vigil, Ledger, Compass,
+    Lantern, Sentinel, Requiem, Furnace, Harbor, Testament,
+    Beacon
+
+Legendary pickup modal:
+
+    Title:   LEGENDARY FIND
+    Body:    [accent] Pale Meridian
+             A Shield Mk. 1, modified far beyond factory spec:
+             +6 max shields
+             +2 gunnery
+             -1 power generated per turn
+    Choice:  Continue
+
+    (Axis lines phrase to match the module detail-row
+    conventions at build; the identity line names whichever
+    base rolled.)
+
+Log lines (chip/lockbox; the randart keeps the phase-3
+convention "Stored ship module: {name}"):
+
+    Picked up a credit chip: 86$.
+    Opened a lockbox: 640$.
+
+Chooser labels (value shown pre-commit — the only examine loot
+has):
+
+    Credit Chip (86$)
+    Lockbox (640$)
+
+Guide sentence (appended to the QUALITY entry):
+
+    The rarest grade, legendary, carries its own rolled name
+    and bonus spread - and only ever turns up at the bottom of
+    a dig site.
