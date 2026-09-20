@@ -313,6 +313,32 @@ class TestGroundKillDrops:
         assert ammo[0]["item_id"] == "pistol_rounds"
         assert 1 <= ammo[0]["quantity"] <= 5
 
+    def test_kit_drop_carries_the_rolled_quality_without_reroll(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+            "kinetic_pistol", 2,
+        )
+        payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
+        weapon = next(p for p in payloads if p.get("item_type") == "weapon")
+        assert weapon == {
+            "item_type": "weapon", "item_id": "kinetic_pistol", "quality": 2,
+        }
+        # Base-tier drops keep the legacy payload shape (no quality key).
+        gm2 = _make_map(1, 1)
+        spawn_kill_drops(
+            gm2, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+            "kinetic_pistol", 0,
+        )
+        base = next(
+            e.loot_data for e in gm2.entities
+            if e.loot_data.get("item_type") == "weapon"
+        )
+        assert "quality" not in base
+
     def test_kit_drop_melee_weapon_brings_no_ammo(self):
         from spacehack.combat._actions import spawn_kill_drops
         from types import SimpleNamespace
@@ -380,9 +406,12 @@ class TestGroundKillDrops:
         gm.entities.append(ent)
         enemy = _rules_ground.GroundEnemyInstance(
             entity=ent, spec=self._bare_spec(), weapon_id="kinetic_pistol",
+            weapon_quality=2,
         )
         run(_rules_ground.on_kill(gm, enemy, SimpleNamespace()))
-        assert seen and seen[0][-1] == "kinetic_pistol"
+        # The resolved weapon AND its equip-time rolled tier forward —
+        # the corpse drops what was firing at you, no re-roll (47.2).
+        assert seen and seen[0][-2:] == ("kinetic_pistol", 2)
 
 
 class TestDerelictSaySo:

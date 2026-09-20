@@ -148,7 +148,17 @@ def _fire_slot_indexes(weapons: list, active: list) -> list[int]:
     return [i for i in range(len(weapons)) if i < len(active) and active[i]]
 
 
-def _resolve_shot_damage(rules, ctx, wid, target, hit: bool):
+def _slot_quality(rules, ctx, slot: int) -> int:
+    """The firing slot's rolled weapon quality (0 in space combat).
+
+    Ground rules expose ``player_weapon_quality``; the space rules
+    have no such hook and ship weapons never variant.
+    """
+    _hook = getattr(rules, "player_weapon_quality", None)
+    return _hook(ctx, slot) if _hook is not None else 0
+
+
+def _resolve_shot_damage(rules, ctx, wid, target, hit: bool, quality: int = 0):
     """Resolve a hit into ``(dmg, stripped, is_strip, is_glancing, popup)``.
 
     A miss returns zeroed values. Ground enemies have no shields field;
@@ -157,7 +167,7 @@ def _resolve_shot_damage(rules, ctx, wid, target, hit: bool):
     if not hit:
         return 0, 0, False, False, None
     _pre_shields = getattr(target, 'shields', 0)
-    _dmg, _is_glancing = rules.damage(wid, target, ctx)
+    _dmg, _is_glancing = rules.damage(wid, target, ctx, quality)
     _stripped = max(0, _pre_shields - getattr(target, 'shields', 0))
     _is_strip = False
     if _stripped > 0:
@@ -185,6 +195,22 @@ def _prepare_player_attack(rules, ctx, game_map, target, wid) -> None:
         _prepare(ctx, game_map, target, wid)
 
 
+def _shot_outcome_log(
+    ctx, rules, wid, wname, target, hit, dmg, stripped, is_strip, glancing,
+) -> None:
+    """Log one player shot's outcome line (hit or miss)."""
+    from .. import message_log as _ml
+
+    ctx.log.add_colored(
+        _player_attack_line(
+            wid, wname, rules.enemy_name(target),
+            hit=hit, hull_dmg=dmg, shield_dmg=stripped,
+            is_strip=is_strip, is_glancing=glancing,
+        ),
+        _ml.COLOR_PLAYER_ACTION,
+    )
+
+
 async def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int]:
     """Record a kill, clear transient modifiers, consume ammo, and return AP."""
     if hit and not rules.enemy_alive(target):
@@ -201,7 +227,6 @@ async def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[boo
 
 async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_pos) -> tuple[bool, int]:
     """Fire one weapon slot; return ``(hit, ap_cost)`` — 0 if it could not fire."""
-    from .. import message_log as _ml
     _wid = rules.player_weapons(ctx)[slot]
     _ok, _reason = rules.can_fire(slot, ctx)
     try:
@@ -214,28 +239,19 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
     if _reason:
         ctx.log.add(_reason)
     _prepare_player_attack(rules, ctx, game_map, target, _wid)
-    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
+    _quality = _slot_quality(rules, ctx, slot)
+    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
-        rules, ctx, _wid, target, _hit,
+        rules, ctx, _wid, target, _hit, _quality,
     )
     rules.animate_fire(
         console, ctx, game_map, ctx.player.pos, rules.enemy_pos(target),
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
-    if _hit:
-        ctx.log.add_colored(
-            _player_attack_line(
-                _wid, _wname, rules.enemy_name(target),
-                hit=True, hull_dmg=_dmg, shield_dmg=_stripped,
-                is_strip=_is_strip, is_glancing=_is_glancing,
-            ),
-            _ml.COLOR_PLAYER_ACTION,
-        )
-    else:
-        ctx.log.add_colored(
-            _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
-            _ml.COLOR_PLAYER_ACTION,
-        )
+    _shot_outcome_log(
+        ctx, rules, _wid, _wname, target, _hit,
+        _dmg, _stripped, _is_strip, _is_glancing,
+    )
     return await _finish_player_weapon(
         rules, ctx, _wid, slot, target, _hit,
     )
@@ -311,10 +327,11 @@ async def _fire_explosive_weapon(
         return False, 0
     if _reason:
         ctx.log.add(_reason)
-    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx)
+    _quality = _slot_quality(rules, ctx, slot)
+    _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _record_explosive_hit(ctx, _hit)
     _enemy_hits, _player_damage = rules.explosive_blast(
-        _wid, target, ctx, primary_hit=_hit,
+        _wid, target, ctx, primary_hit=_hit, quality=_quality,
     )
     _primary_damage = next(
         (_dmg for _enemy, _dmg, _primary in _enemy_hits if _primary),
@@ -332,10 +349,8 @@ async def _fire_explosive_weapon(
         )
         await _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
     else:
-        from .. import message_log as _ml
-        ctx.log.add_colored(
-            _player_attack_line(_wid, _wname, rules.enemy_name(target), hit=False),
-            _ml.COLOR_PLAYER_ACTION,
+        _shot_outcome_log(
+            ctx, rules, _wid, _wname, target, False, 0, 0, False, False,
         )
     rules.consume_shot(slot, ctx)
     return _hit, rules.weapon_ap_cost(_wid, ctx)

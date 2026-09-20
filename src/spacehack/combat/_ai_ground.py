@@ -29,6 +29,7 @@ async def run_ground_enemy_turn(
     ctx,
     *,
     enemy_weapon_id: str,
+    enemy_weapon_quality: int = 0,
     enemy_spec,
     enemy_ap: int,
     player_pos: world.Position,
@@ -57,12 +58,14 @@ async def run_ground_enemy_turn(
         ctx, console, render_callback, game_map,
         enemy_entity, player_pos, enemy_weapon_id, _ews,
         enemy_spec, armor_defense, player_dodge, enemy_ap,
+        enemy_weapon_quality,
     )
 
 
 async def _spend_ground_ap(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge, enemy_ap,
+    enemy_weapon_quality=0,
 ):
     """Run the enemy's AP loop: fire when able, else advance per AP.
 
@@ -72,13 +75,12 @@ async def _spend_ground_ap(
     _result_ap, _damage_dealt, _fired = enemy_ap, 0, False
     _cached_path: list[tuple[int, int]] | None = None
     _path_goal: tuple[int, int] | None = None
-    _post = getattr(enemy_entity, 'guard_post', None)
 
     while _result_ap > 0:
         _shot = _try_ground_fire(
             ctx, console, render_callback, game_map,
             enemy_entity, player_pos, enemy_weapon_id, _ews,
-            enemy_spec, armor_defense, player_dodge,
+            enemy_spec, armor_defense, player_dodge, enemy_weapon_quality,
         )
         if _shot is not None:
             _damage_dealt, _ap_cost = _shot
@@ -87,7 +89,7 @@ async def _spend_ground_ap(
             break
         _stepped, _cached_path, _path_goal, _halt = await _ground_advance(
             ctx, console, render_callback, game_map,
-            enemy_entity, player_pos, _post, _cached_path, _path_goal,
+            enemy_entity, player_pos, _cached_path, _path_goal,
         )
         if _stepped:
             _result_ap -= 1
@@ -105,6 +107,7 @@ async def _spend_ground_ap(
 def _try_ground_fire(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge,
+    enemy_weapon_quality=0,
 ):
     """One shot when in range with LOS: ``(damage, ap_cost)``, else None.
 
@@ -125,6 +128,7 @@ def _try_ground_fire(
 
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
+        enemy_weapon_quality,
     )
     _line = _enemy_attack_line(
         enemy_spec.name, enemy_weapon_id, _ews.name,
@@ -142,38 +146,52 @@ def _try_ground_fire(
     return _damage, (_ews.ap_cost if _ews else 1)
 
 
-def _roll_ground_shot(ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge):
-    """(hit, damage, popup) for one ground shot — miss damage is 0."""
-    from ._rules_ground import _ground_hit_chance_raw, _ground_damage_raw
+def _roll_ground_shot(
+    ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
+    enemy_weapon_quality=0,
+):
+    """(hit, damage, popup) for one ground shot — miss damage is 0.
 
-    _hit = RNG.randint(1, 100) <= _ground_hit_chance_raw(
+    The wielded weapon fights at its equip-time rolled quality
+    (SETTLED 13): what was firing at you is what drops.
+    """
+    from ._ground_math import ground_damage_raw, ground_hit_chance_raw
+
+    _hit = RNG.randint(1, 100) <= ground_hit_chance_raw(
         enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
-        target_dodge_bonus=player_dodge,
+        target_dodge_bonus=player_dodge, quality=enemy_weapon_quality,
     )
     if not _hit:
         return False, 0, None
-    _damage = _ground_damage_raw(
+    _damage = ground_damage_raw(
         enemy_weapon_id, enemy_spec.strength, armor_defense,
+        quality=enemy_weapon_quality,
     )
     return True, _damage, _damage_popup_for(_damage, 0, False)
 
 
+def _chase_goal(player_pos, guard_post) -> tuple[int, int]:
+    """The chase goal: the player, or the guard post beyond the leash."""
+    from ._stats import _distance
+
+    if guard_post is not None and _distance(player_pos, guard_post) > _GUARD_LEASH_RADIUS:
+        return (guard_post.x, guard_post.y)
+    return (player_pos.x, player_pos.y)
+
+
 async def _ground_advance(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    _post, _cached_path, _path_goal,
+    _cached_path, _path_goal,
 ):
     """One step toward the chase goal.
 
     Returns ``(stepped, cached_path, path_goal, halt)``: the path is
-    computed once per goal (guards head back to their post once the
-    player leaves the leash radius) and recomputed when a step is
-    blocked; ``halt`` ends the enemy's turn (no path, or at the player).
+    computed once per goal and recomputed when a step is blocked;
+    ``halt`` ends the enemy's turn (no path, or at the player).
     """
-    from ._stats import _distance
-
-    _goal = (player_pos.x, player_pos.y)
-    if _post is not None and _distance(player_pos, _post) > _GUARD_LEASH_RADIUS:
-        _goal = (_post.x, _post.y)
+    _goal = _chase_goal(
+        player_pos, getattr(enemy_entity, 'guard_post', None),
+    )
 
     if _cached_path is None or _path_goal != _goal:
         _cached_path = world.find_path(

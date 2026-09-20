@@ -1367,3 +1367,139 @@ def test_reload_weapon_modal_rejects_an_invalid_slot(monkeypatch):
         GroundWeaponInstance("kinetic_pistol", 11),
     ]
     assert _rules_ground.player_ap(_ctx) == 3
+
+
+# ---------------------------------------------------------------------------
+# Loot quality combat scaling (doc 47 phase 2)
+# ---------------------------------------------------------------------------
+
+
+class TestQualityCombatScaling:
+    """The wielded weapon fights at its equip-time rolled tier."""
+
+    def _entity(self, npc_id: str):
+        return world.Entity(
+            char="r", fg=(255, 255, 255), pos=world.Position(0, 0),
+            name="enemy", npc_char_id=npc_id,
+        )
+
+    def test_equip_time_roll_matches_the_ladder(self):
+        """A fixed-weapon NPC's tier is exactly the seeded KILL roll."""
+        from src.spacehack.data.quality import KILL_QUALITY_RATES, roll_quality
+        from src.spacehack import engine
+
+        engine.RNG.seed(9095)  # rolls tier 1: pins a nonzero alignment
+        expected = roll_quality(KILL_QUALITY_RATES, engine.RNG)
+        assert expected > 0
+        engine.RNG.seed(9095)
+        instance = _rules_ground._build_enemy_instance(
+            self._entity("consortium_gunner"),
+        )
+        assert instance.weapon_id == "kinetic_pistol"
+        assert instance.weapon_quality == expected
+
+    def test_organic_weapons_never_roll_or_consume_rng(self):
+        from src.spacehack import engine
+
+        engine.RNG.seed(9092)
+        instance = _rules_ground._build_enemy_instance(
+            self._entity("rock_scavenger"),
+        )
+        assert instance.weapon_id == "monster_claws"
+        assert instance.weapon_quality == 0
+        # No roll consumed: the post-build stream still follows the seed.
+        engine.RNG.seed(9093)
+        expected_first = engine.RNG.randint(1, 100)
+        engine.RNG.seed(9093)
+        _rules_ground._build_enemy_instance(self._entity("rock_scavenger"))
+        assert engine.RNG.randint(1, 100) == expected_first
+
+    def test_chase_goal_leaves_the_player_inside_the_leash(self):
+        from src.spacehack.combat._ai_ground import _chase_goal
+
+        player = world.Position(0, 0)
+        post = world.Position(5, 5)
+        near = _chase_goal(world.Position(4, 4), post)
+        assert near == (4, 4)  # inside the leash: chase the player
+        far = _chase_goal(world.Position(20, 20), post)
+        assert far == (5, 5)  # beyond the leash: return to the post
+        assert _chase_goal(player, None) == (0, 0)  # no post: pure chase
+
+    def test_deadshot_chain_links_fire_at_the_equipped_quality(self):
+        from src.spacehack.combat import _ground_deadshot
+
+        ctx = SimpleNamespace(
+            ground_stats=SimpleNamespace(reflexes=10, strength=10),
+            equipped_ground_weapons=[_weapon("railgun", 2)],
+        )
+        spec = SimpleNamespace(reflexes=10, armor=0)
+        enemy = SimpleNamespace(spec=spec, cells_moved_this_turn=0,
+                                pos=world.Position(1, 0))
+        ctx.player = SimpleNamespace(pos=world.Position(0, 0))
+        assert _ground_deadshot._equipped_quality(ctx, "railgun") == 2
+        assert _ground_deadshot._equipped_quality(ctx, "smg") == 0
+        assert _ground_deadshot._chain_hit_chance(
+            ctx, enemy, "railgun", 2,
+        ) > _ground_deadshot._chain_hit_chance(ctx, enemy, "railgun")
+        assert _ground_deadshot._chain_damage(
+            ctx, enemy, "railgun", 2,
+        ) > _ground_deadshot._chain_damage(ctx, enemy, "railgun")
+
+    def test_quality_scales_hit_chance_and_damage(self):
+        from src.spacehack.combat._ground_math import (
+            ground_damage_raw,
+            ground_hit_chance_raw,
+        )
+
+        assert ground_hit_chance_raw(
+            "kinetic_pistol", 10, 10, quality=3,
+        ) > ground_hit_chance_raw("kinetic_pistol", 10, 10)
+        assert ground_damage_raw(
+            "kinetic_pistol", 10, 0, quality=2,
+        ) > ground_damage_raw("kinetic_pistol", 10, 0)
+
+    def test_enemy_shot_scales_with_wielded_quality(self, monkeypatch):
+        from src.spacehack.combat import _ai_ground
+
+        monkeypatch.setattr(_ai_ground, "RNG", _AlwaysHitRng())
+        ctx = SimpleNamespace(ground_stats=SimpleNamespace(reflexes=10))
+        spec = SimpleNamespace(reflexes=10, strength=10)
+        _hit, base_damage, _ = _ai_ground._roll_ground_shot(
+            ctx, "kinetic_pistol", spec, 0, 0,
+        )
+        _hit, tuned_damage, _ = _ai_ground._roll_ground_shot(
+            ctx, "kinetic_pistol", spec, 0, 0, 2,
+        )
+        assert _hit
+        assert tuned_damage > base_damage
+
+    def test_player_weapon_quality_reads_the_equipped_instance(self):
+        ctx = SimpleNamespace(
+            equipped_ground_weapons=[
+                _weapon("kinetic_pistol"), _weapon("smg", 3),
+            ],
+        )
+        assert _rules_ground.player_weapon_quality(ctx, 0) == 0
+        assert _rules_ground.player_weapon_quality(ctx, 1) == 3
+        assert _rules_ground.player_weapon_quality(ctx, 9) == 0
+
+    def test_slot_quality_helper_reads_the_ground_hook_only(self):
+        from src.spacehack.combat import _loop
+
+        class _GroundRules:
+            @staticmethod
+            def player_weapon_quality(ctx, slot):
+                return 2
+
+        class _SpaceRules:
+            pass
+
+        assert _loop._slot_quality(_GroundRules(), None, 0) == 2
+        assert _loop._slot_quality(_SpaceRules(), None, 0) == 0
+
+
+class _AlwaysHitRng:
+    """Deterministic RNG double: every hit roll succeeds."""
+
+    def randint(self, low: int, high: int) -> int:
+        return low

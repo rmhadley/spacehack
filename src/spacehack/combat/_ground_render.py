@@ -19,6 +19,7 @@ from .. import ui, world
 from ..engine import SCREEN_WIDTH, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
+from ..data.quality import effective_weapon_spec
 from ..hud import (
     _bar_str,
     _render_action_pairs,
@@ -136,6 +137,25 @@ def _render_ground_world(
             alive[_state.target_idx].entity,
         )
     return cam_x, cam_y, rx, ry
+
+
+def _first_active_slot(ctx, rules_mod) -> int:
+    """Slot index of the first weapon still marked active (0 fallback)."""
+    _state = rules_mod._state
+    for i in range(len(_state.active_weapon_list)):
+        if _state.active_weapon_list[i]:
+            return i
+    return 0
+
+
+def _first_active_hit_chance(ctx, rules_mod, target, active_wid):
+    """Hit chance of the first active weapon at its rolled quality."""
+    if not active_wid:
+        return None
+    return rules_mod.hit_chance(
+        active_wid, target, ctx,
+        rules_mod.player_weapon_quality(ctx, _first_active_slot(ctx, rules_mod)),
+    )
 
 
 def _active_weapon_ids(ctx, weapons: list[str]) -> list[str]:
@@ -264,33 +284,45 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
         console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
     y += 1
     for i, wid in enumerate(weapons):
-        try:
-            ws = _find_gw(wid)
-        except KeyError:
-            continue
-        is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
-        sel = "[x]" if is_active else "[ ]"
-        name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
-        console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {ws.name}"[:HUD_TEXT_MAX], fg=name_fg)
-        y += 1
-        hc = _rules().hit_chance(wid, alive[_state.target_idx], ctx) if _state.target_idx < len(alive) else 0
-        console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
-        y += 1
-        _min_range, _max_range = _rules().weapon_range(wid, ctx, _state.player_ap)
-        console.print(x=hud_x, y=y, string=f"     RNG {_min_range}-{_max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
-        y += 1
-        _inst = (
-            ctx.equipped_ground_weapons[i]
-            if i < len(ctx.equipped_ground_weapons) else None
-        )
-        if _inst is not None and _inst.loaded_ammo is not None:
-            console.print(
-                x=hud_x, y=y,
-                string=f"     AMMO {_inst.loaded_ammo}/{ws.ammo_capacity} RES {_reserve_count(ctx, ws.ammo_type)}",
-                fg=ui.COLOR_VALUE_DIM,
-            )
-            y += 1
+        y = _print_weapon_block(console, ctx, hud_x, y, i, wid, alive)
     return y + 1
+
+
+def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, alive) -> int:
+    """Paint one weapon's panel block; return the next row.
+
+    Stats read the slot's effective (quality-scaled) spec so the
+    readout agrees with the actual roll (doc 47.2).
+    """
+    _state = _rules()._state
+    _inst = (
+        ctx.equipped_ground_weapons[i]
+        if i < len(ctx.equipped_ground_weapons) else None
+    )
+    _quality = _inst.quality if _inst is not None else 0
+    try:
+        ws = effective_weapon_spec(wid, _quality)
+    except KeyError:
+        return y
+    is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
+    sel = "[x]" if is_active else "[ ]"
+    name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
+    console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {ws.name}"[:HUD_TEXT_MAX], fg=name_fg)
+    y += 1
+    hc = _rules().hit_chance(wid, alive[_state.target_idx], ctx, _quality) if _state.target_idx < len(alive) else 0
+    console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)
+    y += 1
+    _min_range, _max_range = _rules().weapon_range(wid, ctx, _state.player_ap)
+    console.print(x=hud_x, y=y, string=f"     RNG {_min_range}-{_max_range} AP {ws.ap_cost}", fg=ui.COLOR_VALUE_DIM)
+    y += 1
+    if _inst is not None and _inst.loaded_ammo is not None:
+        console.print(
+            x=hud_x, y=y,
+            string=f"     AMMO {_inst.loaded_ammo}/{ws.ammo_capacity} RES {_reserve_count(ctx, ws.ammo_type)}",
+            fg=ui.COLOR_VALUE_DIM,
+        )
+        y += 1
+    return y
 
 
 def toggle_target_card(ctx) -> None:
@@ -319,7 +351,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     _target = alive[_state.target_idx]
     _active = _active_weapon_ids(ctx, _rules_mod.player_weapons(ctx))
     _active_wid = _active[0] if _active else None
-    _hit = _rules_mod.hit_chance(_active_wid, _target, ctx) if _active_wid else None
+    _hit = _first_active_hit_chance(ctx, _rules_mod, _target, _active_wid)
     _avoid = [ctx.player.pos]
     _avoid.extend(_e.pos for _e in alive)
     return _build_target_card(

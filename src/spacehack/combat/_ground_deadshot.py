@@ -95,8 +95,16 @@ def _chain_target(ctx, weapon_id: str):
     return _best
 
 
-def _chain_hit_chance(ctx, enemy, weapon_id: str) -> int:
-    """Hit chance for a chain shot: base railgun stats, no Deadshot bonus."""
+def _equipped_quality(ctx, weapon_id: str) -> int:
+    """The equipped weapon instance's rolled quality (0 when absent)."""
+    for _inst in getattr(ctx, "equipped_ground_weapons", []):
+        if _inst.weapon_id == weapon_id:
+            return _inst.quality
+    return 0
+
+
+def _chain_hit_chance(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
+    """Hit chance for a chain shot: railgun stats, no Deadshot bonus."""
     from . import _rules_ground as _rules
     _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
@@ -106,16 +114,17 @@ def _chain_hit_chance(ctx, enemy, weapon_id: str) -> int:
     return _rules._ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=0, range_penalty=_penalty,
+        quality=quality,
     )
 
 
-def _chain_damage(ctx, enemy, weapon_id: str) -> int:
-    """Damage for a chain shot: base railgun stats, no Deadshot bonus."""
+def _chain_damage(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
+    """Damage for a chain shot: railgun stats, no Deadshot bonus."""
     from . import _rules_ground as _rules
     _armor = enemy.spec.armor if enemy.spec else 0
     return _rules._ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
-        strength_step=_rules._PLAYER_STRENGTH_STEP,
+        strength_step=_rules._PLAYER_STRENGTH_STEP, quality=quality,
     )
 
 
@@ -141,8 +150,11 @@ async def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bo
     pipeline (loot, XP, counters) plus the railgun kill counter.
     """
     from . import _rules_ground as _rules
-    _hit = RNG.randint(1, 100) <= _chain_hit_chance(ctx, target, weapon_id)
-    _dmg = _chain_damage(ctx, target, weapon_id) if _hit else 0
+    _quality = _equipped_quality(ctx, weapon_id)
+    _hit = RNG.randint(1, 100) <= _chain_hit_chance(
+        ctx, target, weapon_id, _quality,
+    )
+    _dmg = _chain_damage(ctx, target, weapon_id, _quality) if _hit else 0
     if _hit:
         target.hp -= _dmg
         if target.entity is not None:

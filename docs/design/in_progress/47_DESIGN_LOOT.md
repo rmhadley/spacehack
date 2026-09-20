@@ -623,11 +623,21 @@ pure `roll_quality` / `quality_multiplier`. No catalog edits.
 - Ratchet headroom for the 981-line `_rules_ground.py`:
   `_ground_hit_chance_raw` + `_ground_damage_raw` move to
   `_ground_math.py` (pure math joins pure math) in the combat
-  commit, keeping the module line-neutral or better.
+  commit. Landed at 986 lines (+5, under the 1000 limit) — later
+  phase-2 steps have 14 lines of headroom there, not 19.
 - Equip-time rolls gate on `GroundWeaponSpec.loot_droppable` (the
   phase-1 authored organic discriminator): body parts never roll —
   "Modded Monster Claws" is not a thing and monsters shouldn't
   consume roll RNG.
+- Re-review findings folded into step 4 (2026-09-19): the deadshot
+  chain links (`_ground_deadshot._chain_*`) and the combat HUD
+  readouts (weapons panel + target card in `_ground_render`) thread
+  the equipped quality too — one weapon, one stat set everywhere the
+  player can see or be hit by it. Known accepted behavior:
+  `_build_enemy_instance` re-runs on re-engagement, so a survivor of
+  a disengaged fight re-rolls its weapon tier (the `weapon_pick`
+  class already re-rolled the id the same way — pre-existing
+  continuity gap; wounds persist, tiers don't).
 
 ### Phase 2 — Quality system (brief PROPOSED 2026-09-19)
 

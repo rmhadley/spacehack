@@ -19,6 +19,7 @@ from .. import message_log as _ml
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
+from ..data.quality import KILL_QUALITY_RATES, roll_quality
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
@@ -40,8 +41,11 @@ from ._types import CombatResult
 from ._stats import _distance, _roll_ap
 from ._ground_math import (
     calc_ground_move_dodge as _calc_ground_move_dodge,
+    ground_damage_raw as _ground_damage_raw,
+    ground_hit_chance_raw as _ground_hit_chance_raw,
     ground_point_blank_penalty as _ground_point_blank_penalty,
 )
+from ._ground_math import _PLAYER_STRENGTH_STEP
 from ._ground_charger import (
     attack_ap_cost as _charge_attack_ap_cost,
     charge_bonuses as _charge_bonuses,
@@ -77,6 +81,7 @@ class GroundEnemyInstance:
     entity: world.Entity
     spec: Any
     weapon_id: str = ""
+    weapon_quality: int = 0
     hp: int = 30
     max_hp: int = 30
     ap: int = 4
@@ -150,6 +155,22 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
+def _rolled_weapon_quality(weapon_id: str) -> int:
+    """Roll the wielded weapon's quality tier at equip time (SETTLED 13).
+
+    Real gear only: organic parts (``loot_droppable=False``) never
+    variant and never consume roll RNG.
+    """
+    if not weapon_id:
+        return 0
+    try:
+        if not _find_gw(weapon_id).loot_droppable:
+            return 0
+    except KeyError:
+        return 0
+    return roll_quality(KILL_QUALITY_RATES, RNG)
+
+
 def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
     """Build one enemy instance from a map entity (init + mid-fight joins).
 
@@ -179,6 +200,7 @@ def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
     _ent.hp = _cur_hp
     return GroundEnemyInstance(
         entity=_ent, spec=_spec, weapon_id=_wid,
+        weapon_quality=_rolled_weapon_quality(_wid),
         hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
     )
 
@@ -195,10 +217,10 @@ def _build_enemies(
 
 def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
-    armor_ids = ctx.equipped_ground_armor.values()
+    armor_entries = ctx.equipped_ground_armor.values()
     max_hp = (
         20 + ctx.ground_stats.stamina // 3
-        + _sum_armor_bonus(armor_ids, "hp_bonus")
+        + _sum_armor_bonus(armor_entries, "hp_bonus")
         + _ground_max_hp_bonus(ctx)
     )
     delta = max_hp - ctx.ground_max_hp
@@ -299,6 +321,12 @@ def player_weapons(ctx) -> list[str]:
     _w = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
     return _w if _w else ["fists"]
 
+
+def player_weapon_quality(ctx, slot: int) -> int:
+    """The equipped weapon instance's rolled quality for one slot."""
+    _weapons = ctx.equipped_ground_weapons
+    return _weapons[slot].quality if 0 <= slot < len(_weapons) else 0
+
 def active_weapons(ctx) -> list[bool]:
     return list(_state.active_weapon_list)
 
@@ -344,55 +372,9 @@ def enemy_alive(enemy: GroundEnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
-def _ground_hit_chance_raw(
-    weapon_id: str,
-    attacker_reflexes: int,
-    target_reflexes: int,
-    target_dodge_bonus: int = 0,
-    hit_bonus: int = 0,
-    range_penalty: int = 0,
+def hit_chance(
+    weapon_id: str, enemy: GroundEnemyInstance, ctx, quality: int = 0,
 ) -> int:
-    """Base hit chance before movement dodge.
-
-    Half-rate convention shared with ship combat (Gunnery * 0.5):
-    each point of attacker Reflexes adds +0.5% accuracy and each
-    point of target Reflexes subtracts 0.5% (dodge). All six stats
-    live on the same 0-100 scale. ``hit_bonus`` carries permanent
-    bonuses (e.g. the Sharpshooter trait's +10%)."""
-    _ws = _find_gw(weapon_id)
-    return max(5, min(95,
-        _ws.accuracy + attacker_reflexes // 2 - target_reflexes // 2
-        - target_dodge_bonus + hit_bonus - range_penalty,
-    ))
-
-# Player stat progression steps every 5 points: every 5 Strength adds
-# +1 melee damage. Monsters keep the legacy 10-point divisor so their
-# tuned damage values are unchanged.
-_PLAYER_STRENGTH_STEP: int = 5
-
-
-def _ground_damage_raw(
-    weapon_id: str, strength: int, armor_defense: int,
-    melee_bonus: int = 0, strength_step: int = 10,
-) -> int:
-    """Raw hit damage: base + melee bonuses - armor, minimum 1.
-
-    ``armor_bypass`` weapons ignore armor entirely; plasma halves
-    ``armor_defense``; ``melee_bonus`` (cybernetic arms) applies only
-    to melee weapons. ``strength_step`` is the divisor for the melee
-    strength bonus — the player passes ``_PLAYER_STRENGTH_STEP`` (5)
-    so every 5 points of Strength adds +1 melee damage.
-    """
-    _ws = _find_gw(weapon_id)
-    _str_bonus = (strength // strength_step) if _ws.damage_type == 'melee' else 0
-    _melee = melee_bonus if _ws.damage_type == 'melee' else 0
-    if _ws.armor_bypass:
-        armor_defense = 0
-    elif _ws.damage_type == 'plasma':
-        armor_defense = armor_defense // 2
-    return max(1, _ws.damage + _str_bonus + _melee - armor_defense)
-
-def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     _er = enemy.spec.reflexes if enemy.spec else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
     _distance_cells = int(_distance(ctx.player.pos, enemy.pos))
@@ -410,10 +392,12 @@ def hit_chance(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> int:
     return _ground_hit_chance_raw(
         weapon_id, ctx.ground_stats.reflexes, _er,
         target_dodge_bonus=_move_dodge, hit_bonus=_hit_bonus,
-        range_penalty=_range_penalty,
+        range_penalty=_range_penalty, quality=quality,
     )
 
-def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
+def damage(
+    weapon_id: str, enemy: GroundEnemyInstance, ctx, quality: int = 0,
+) -> tuple[int, bool]:
     """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
 
     Enemy armor (``enemy.spec.armor``) is subtracted here, with plasma
@@ -428,7 +412,7 @@ def damage(weapon_id: str, enemy: GroundEnemyInstance, ctx) -> tuple[int, bool]:
         _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
     _dmg = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
-        strength_step=_PLAYER_STRENGTH_STEP,
+        strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
     )
     if _ground_deadshot.is_deadshot(ctx, weapon_id):
         _dmg += _ground_deadshot.ap_power_damage_bonus(ctx, weapon_id)
@@ -451,6 +435,7 @@ def _apply_explosive_enemy_hit(
     ctx,
     *,
     primary_hit: bool = True,
+    quality: int = 0,
 ) -> tuple[GroundEnemyInstance, int, bool] | None:
     """Apply one enemy's primary-or-splash share of an explosion."""
     if not enemy.alive:
@@ -462,7 +447,7 @@ def _apply_explosive_enemy_hit(
     _armor = enemy.spec.armor if enemy.spec else 0
     _full_damage = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
-        strength_step=_PLAYER_STRENGTH_STEP,
+        strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
     )
     _is_primary = enemy is primary and primary_hit
     if _is_primary:
@@ -481,6 +466,7 @@ def explosive_blast(
     ctx,
     *,
     primary_hit: bool = True,
+    quality: int = 0,
 ) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
     """Resolve an explosive impact around ``primary`` with friendly fire.
 
@@ -491,13 +477,14 @@ def explosive_blast(
         _hit for _enemy in _state.enemies
         if (_hit := _apply_explosive_enemy_hit(
             weapon_id, _enemy, primary, ctx, primary_hit=primary_hit,
+            quality=quality,
         )) is not None
     )
     _player_dx = abs(ctx.player.pos.x - primary.pos.x)
     _player_dy = abs(ctx.player.pos.y - primary.pos.y)
     if _player_dx <= 1 and _player_dy <= 1:
         _full_damage = _ground_damage_raw(
-            weapon_id, 0, _state.armor_defense,
+            weapon_id, 0, _state.armor_defense, quality=quality,
         )
         _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
         _splash_damage = max(1, _full_damage * _splash_pct // 100)
@@ -740,7 +727,10 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
 
     if _ent is not None and enemy.spec:
         from ._actions import spawn_kill_drops
-        spawn_kill_drops(game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id)
+        spawn_kill_drops(
+            game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id,
+            enemy.weapon_quality,
+        )
 
     if enemy.spec:
         from ..xp import add_xp as _add_xp
@@ -836,40 +826,55 @@ async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     for _gei in _state.enemies:
         if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
             continue
-
-        _ap_before = _gei.ap
-        _new_ap, _dmg, _fired = await _enemy_ai(
-            ctx,
-            enemy_weapon_id=_gei.weapon_id,
-            enemy_spec=_gei.spec,
-            enemy_ap=_gei.ap,
-            player_pos=ctx.player.pos,
-            enemy_entity=_gei.entity,
-            game_map=game_map,
-            armor_defense=_state.armor_defense,
-            console=_state.console,
-            render_callback=render_frame,
-            player_dodge=_player_dodge,
+        _dmg = await _spend_one_enemy_turn(
+            ctx, game_map, _enemy_ai, _gei, _player_dodge,
         )
-        _ap_spent = _ap_before - _new_ap
-        if _fired:
-            try:
-                _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
-            except KeyError:
-                _weapon_ap = 1
-            _gei.cells_moved_this_turn += max(0, _ap_spent - _weapon_ap)
-        else:
-            _gei.cells_moved_this_turn += _ap_spent
-        _gei.ap = _new_ap
-
-        if _dmg > 0:
-            _dmg = ground_damage_taken(ctx, _dmg)
-            _state.player_hp -= _dmg
-            _total_dmg += _dmg
-            if _state.player_hp <= 0:
-                return 999
-
+        if _dmg >= 999:
+            return 999
+        _total_dmg += _dmg
     return _total_dmg
+
+
+async def _spend_one_enemy_turn(
+    ctx, game_map: world.GameMap, _enemy_ai, _gei, _player_dodge: int,
+) -> int:
+    """Run one enemy's turn; returns player damage taken (999 = player down).
+
+    The enemy fights with its equip-time rolled weapon quality — what
+    was firing at the player is what drops (doc 47.2 SETTLED 13).
+    """
+    _ap_before = _gei.ap
+    _new_ap, _dmg, _fired = await _enemy_ai(
+        ctx,
+        enemy_weapon_id=_gei.weapon_id,
+        enemy_weapon_quality=_gei.weapon_quality,
+        enemy_spec=_gei.spec,
+        enemy_ap=_gei.ap,
+        player_pos=ctx.player.pos,
+        enemy_entity=_gei.entity,
+        game_map=game_map,
+        armor_defense=_state.armor_defense,
+        console=_state.console,
+        render_callback=render_frame,
+        player_dodge=_player_dodge,
+    )
+    _ap_spent = _ap_before - _new_ap
+    if _fired:
+        try:
+            _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
+        except KeyError:
+            _weapon_ap = 1
+        _gei.cells_moved_this_turn += max(0, _ap_spent - _weapon_ap)
+    else:
+        _gei.cells_moved_this_turn += _ap_spent
+    _gei.ap = _new_ap
+
+    if _dmg > 0:
+        _dmg = ground_damage_taken(ctx, _dmg)
+        _state.player_hp -= _dmg
+        if _state.player_hp <= 0:
+            return 999
+    return _dmg
 
 def refresh_engaged(ctx, game_map: world.GameMap) -> None:
     """Join scan: any hostile now visible to the player joins immediately.

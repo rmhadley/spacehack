@@ -291,7 +291,9 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
-def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
+def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> int:
+    # ``quality`` is the ground-instance tier seam the unified loop
+    # threads; ship weapons never variant and ignore it.
     _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dodge = _calc_dodge_bonus(
         enemy.cells_moved_this_turn,
@@ -314,7 +316,9 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx) -> int:
         min_range=_space_focus.min_range(weapon_id, ctx),
     )
 
-def damage(weapon_id: str, enemy: EnemyInstance, ctx) -> tuple[int, bool]:
+def damage(
+    weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0,
+) -> tuple[int, bool]:
     """Apply weapon damage to an enemy. Returns ``(hull_dmg, is_glancing)``.
 
     The glance flag rides the return so the caller can label the
