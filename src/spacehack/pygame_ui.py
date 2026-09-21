@@ -77,7 +77,9 @@ FOOTER_PAD = 30
 # to 13 at the user's request ("3 more items before scrolling"). At a
 # 1600x960 logical window the armory can no longer hold 13 rows at 24px, so
 # its font drops to ~19px; revert to 10 to restore uniform 24px everywhere.
-MAX_VISIBLE_ROWS = 13
+MAX_VISIBLE_ROWS = 13   # pygame_screen/pygame_menu cap; the SPLIT family
+# reserves its own 11 (pygame_split.MAX_VISIBLE_ROWS) so its fixed
+# worst-case height fits the size-24 ladder top — do not reunify
 MAX_DETAIL_LINES = 2
 
 

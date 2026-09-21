@@ -73,9 +73,14 @@ def _selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
     )
 
 
-# Row/detail caps for the fit solver + viewport — shared single source of
-# truth in pygame_ui (see 15_DESIGN_UNIFIED_TERMINAL_UX.md decision #8).
-MAX_VISIBLE_ROWS = pygame_ui.MAX_VISIBLE_ROWS
+# Row/detail caps for the fit solver + viewport. The split reserves
+# its FULL row budget in _frame_height (cross-tab font stability,
+# 561d209) — 13 rows pushed that reserve past the panel budget and
+# locked the split one ladder step below every text-screen tab
+# (loadout vs Repairs/Ammo, user report 2026-09-21). 11 rows keeps
+# the size-24 top of the ladder at the standard window, matching the
+# pygame_screen family; lists simply scroll two rows sooner.
+MAX_VISIBLE_ROWS = 11
 MAX_DETAIL_LINES = pygame_ui.MAX_DETAIL_LINES
 
 # Pinned-detail geometry (decision #7 experiment): the focused panel's

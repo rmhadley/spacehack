@@ -118,3 +118,37 @@ def test_real_pygame_event_translates_into_project_input(_pygame_headless):
         )
     finally:
         pygame.quit()
+
+
+def test_split_font_matches_the_text_screen_family(_pygame_headless):
+    """The loadout (split) and the mechanic tabs (text screens) fit
+    through the same ladder top at the standard window — the split's
+    fixed row reserve must not lock it a step below every other tab
+    (playtest report 2026-09-21: loadout font vs Repairs/Ammo)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.menus import _loadout, _mechanic
+    from src.spacehack.pygame_screen import _fit_font as screen_fit
+    from src.spacehack.pygame_split import _fit_font as split_fit
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    pygame.display.init()
+    pygame.font.init()
+    pygame.display.set_mode((1600, 960))
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="frigate", modules=(
+            StoredEquipment("module", "shield_mk1"),
+        )),
+        ship_storage=[], stats=SimpleNamespace(credits=5000),
+        log=SimpleNamespace(add=lambda *_: None),
+    )
+    mechanic_frame = _mechanic._mechanic_frame(
+        ctx, find_ship("frigate"), 0, 0, ("REPAIRS", "AMMO", "LOADOUT"), [],
+    )
+    loadout_frame = _loadout._pygame_loadout_frame(ctx, mode="STORE")
+    screen_font = screen_fit(pygame, mechanic_frame, 1600, 960, reserve_log=True)
+    split_font = split_fit(pygame, loadout_frame, 1600, 960)
+    # Equality AND the pinned 24-step glyph height: both families at
+    # the ladder top, and neither can silently drop with the other.
+    assert split_font.get_height() == screen_font.get_height() == 28
