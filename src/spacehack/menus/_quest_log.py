@@ -576,7 +576,7 @@ def _smuggle_scan_risk(ctx, am) -> tuple[str, tuple[int, int, int]]:
     """
     from .. import ship as _ship_sm
     _cargo = am.required_cargo_size
-    _hold = _ship_sm.smuggler_hold_capacity(ctx.player_owned_ship)
+    _hold = _ship_sm.smuggler_hold_capacity(ctx.player_owned_ship, ctx)
     for _div, _label, _fg in _SCAN_RISK_STEPS:
         if _hold >= _cargo // _div:
             return _label, _fg

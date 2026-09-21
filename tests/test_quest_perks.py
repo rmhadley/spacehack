@@ -70,20 +70,20 @@ def test_perked_hold_protects_a_hot_crate_from_scans():
         "mission_reserved": 8, "cargo_ammo": 0,
     })()
 
-    failed, _confiscated = _compute_scan_exposure(owned, [crate])
+    failed, _confiscated, _hold_left = _compute_scan_exposure(owned, [crate])
     assert failed == [crate]  # no perk: the crate overflows the 0 hold
 
     ctx = quest_ctx()
     ctx.player_traits.append("smugglers_instinct")
     # Starter perk hold is 5 — an 8-unit crate still overflows.
-    failed, _confiscated = _compute_scan_exposure(owned, [crate], ctx=ctx)
+    failed, _confiscated, _hold_left = _compute_scan_exposure(owned, [crate], ctx=ctx)
     assert failed == [crate]
     # A cruiser's 20-unit perk hold covers it.
     owned_cruiser = type("O", (), {
         "ship_id": "cruiser", "modules": (), "inventory": {},
         "mission_reserved": 8, "cargo_ammo": 0,
     })()
-    failed, _confiscated = _compute_scan_exposure(owned_cruiser, [crate], ctx=ctx)
+    failed, _confiscated, _hold_left = _compute_scan_exposure(owned_cruiser, [crate], ctx=ctx)
     assert failed == []
 
 
@@ -127,3 +127,47 @@ def test_board_perk_posts_work_immediately_mid_month():
     assert all(
         ctx.generated_missions[s].tier >= 3 for s in filled
     )
+
+
+# --- the cargo screens' hold capacity/fill display (doc 47.4 SETTLED 30) -----
+
+
+class _SmuggleMission:
+    is_smuggle = True
+    is_procedural = True
+    main_quest_step_id = ""
+
+    def __init__(self, volume):
+        self.required_cargo_size = volume
+        self.title = f"hot run {volume}"
+        self.mission_id = f"mq:test{volume}"
+
+
+class _Owned:
+    def __init__(self, modules=(), inventory=None):
+        self.ship_id = "starter"
+        self.modules = tuple(modules)
+        self.inventory = inventory or {}
+        self.mission_reserved = 0
+        self.cargo_ammo = 0
+
+
+def test_smuggler_hold_usage_mirrors_scan_priority():
+    from src.spacehack.navigation_scan import smuggler_hold_usage
+    from src.spacehack.ship import StoredEquipment
+
+    hold = (StoredEquipment("module", "smuggler_hold_mk1"),)  # capacity 10
+    # Empty: nothing used.
+    assert smuggler_hold_usage(_Owned(hold), []) == (0, 10)
+    # A mission within capacity conceals first.
+    assert smuggler_hold_usage(_Owned(hold), [_SmuggleMission(8)]) == (8, 10)
+    # Contraband crates consume by volume after missions.
+    assert smuggler_hold_usage(
+        _Owned(hold, {"weapons_blackmarket": 2}), [],
+    ) == (2, 10)  # volume 1 per crate -> 2 used
+    # An overflowing mission exposes everything after it: hold reads full.
+    assert smuggler_hold_usage(
+        _Owned(hold, {"weapons_blackmarket": 5}), [_SmuggleMission(11)],
+    ) == (10, 10)
+    # No hold installed: zero capacity.
+    assert smuggler_hold_usage(_Owned(), [_SmuggleMission(8)]) == (0, 0)

@@ -12,16 +12,18 @@ from . import mission as mission_module
 from . import ship as ship_module
 
 
-def _compute_scan_exposure(owned, active_missions, ctx=None) -> tuple[list, list]:
+def _compute_scan_exposure(owned, active_missions, ctx=None) -> tuple[list, list, int]:
     """Pure: compute what a militia scan would confiscate.
 
-    Returns ``(failed_missions, confiscated)`` where ``failed_missions``
-    are active ``is_smuggle`` missions whose cargo overflows the
-    smuggler's hold, and ``confiscated`` is ``(good_id, qty, fine)``
-    triples for exposed inventory contraband. Mutates nothing — the
-    caller applies the outcome only after the scan roll succeeds.
+    Returns ``(failed_missions, confiscated, hold_remaining)`` where
+    ``failed_missions`` are active ``is_smuggle`` missions whose cargo
+    overflows the smuggler's hold, ``confiscated`` is
+    ``(good_id, qty, fine)`` triples for exposed inventory contraband,
+    and ``hold_remaining`` is the unconsumed hold volume (the cargo
+    screens' capacity/fill display reads it — one consumption source).
+    Mutates nothing — the caller applies the outcome only after the
+    scan roll succeeds.
     """
-    from .data.trade_goods import find_trade_good as _ftg
     _hold_cap = ship_module.smuggler_hold_capacity(owned, ctx)
     _failed_missions: list = []
     for _am in list(active_missions):
@@ -33,7 +35,16 @@ def _compute_scan_exposure(owned, active_missions, ctx=None) -> tuple[list, list
         else:
             _failed_missions.append(_am)
             _hold_cap = 0
-    _confiscated: list[tuple[str, int, int]] = []
+    _hold_cap, _confiscated = _conceal_contraband(owned, _hold_cap)
+    return _failed_missions, _confiscated, _hold_cap
+
+
+def _conceal_contraband(owned, hold_cap: int) -> tuple[int, list]:
+    """Conceal inventory contraband crates in the remaining hold volume,
+    greedily by crate volume in inventory order. Returns the remaining
+    hold volume and ``(good_id, exposed_qty, fine)`` triples."""
+    from .data.trade_goods import find_trade_good as _ftg
+    confiscated: list[tuple[str, int, int]] = []
     for gid, qty in list(owned.inventory.items()):
         try:
             good = _ftg(gid)
@@ -42,16 +53,28 @@ def _compute_scan_exposure(owned, active_missions, ctx=None) -> tuple[list, list
         if good.category != "contraband":
             continue
         # The hold conceals crates up to its remaining volume capacity.
-        _protected_crates = 0
-        if _hold_cap > 0 and good.volume > 0:
-            _protected_crates = min(qty, _hold_cap // good.volume)
-            _hold_cap -= _protected_crates * good.volume
-        _lose = qty - _protected_crates
-        if _lose <= 0:
+        protected_crates = 0
+        if hold_cap > 0 and good.volume > 0:
+            protected_crates = min(qty, hold_cap // good.volume)
+            hold_cap -= protected_crates * good.volume
+        lose = qty - protected_crates
+        if lose <= 0:
             continue
-        _fine = good.base_price * _lose // 2
-        _confiscated.append((gid, _lose, _fine))
-    return _failed_missions, _confiscated
+        confiscated.append((gid, lose, good.base_price * lose // 2))
+    return hold_cap, confiscated
+
+
+def smuggler_hold_usage(owned, active_missions, ctx=None) -> tuple[int, int]:
+    """Pure: ``(used, capacity)`` of the smuggler's hold at scan
+    priority — missions conceal first, then contraband crates by
+    volume, an overflowing mission exposing everything after it. The
+    display twin of :func:`_compute_scan_exposure`, sharing its
+    consumption exactly."""
+    capacity = ship_module.smuggler_hold_capacity(owned, ctx)
+    _failed, _confiscated, remaining = _compute_scan_exposure(
+        owned, active_missions, ctx=ctx,
+    )
+    return capacity - remaining, capacity
 
 
 def _apply_scan_confiscation(ctx, owned, confiscated) -> None:
@@ -185,7 +208,7 @@ async def _run_cargo_scan(ctx, planet_id: str) -> None:
     if _target is None:
         return
     owned, spec = _target
-    _failed_missions, _confiscated = _compute_scan_exposure(
+    _failed_missions, _confiscated, _ = _compute_scan_exposure(
         owned, ctx.player_active_missions, ctx=ctx,
     )
     if _confiscated or _failed_missions:
@@ -218,7 +241,7 @@ async def _run_space_cargo_scan(ctx) -> None:
         ctx.log.add("The militia patrol can't scan an empty hold?")
         return
 
-    _failed_missions, _confiscated = _compute_scan_exposure(
+    _failed_missions, _confiscated, _ = _compute_scan_exposure(
         owned, ctx.player_active_missions, ctx=ctx,
     )
 

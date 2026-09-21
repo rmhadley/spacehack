@@ -798,13 +798,26 @@ def _cargo_rows(owned):
         items = [pygame_screen.ScreenRow("No trade goods in hold", selectable=False)]
     return tuple(items)
 
-def _cargo_body(owned, max_cargo: int) -> tuple[str, ...]:
-    """Build the cargo summary body lines (shared by the cargo modal and
-    the tabbed hangar's CARGO tab)."""
-    return (
+def _cargo_body(ctx, owned, max_cargo: int) -> tuple[str, ...]:
+    """Build the cargo summary body lines (shared by the cargo modal,
+    the character screen's CARGO tab, and the hangar's CARGO tab).
+
+    The smuggler hold line rides only when the ship has hold capacity
+    (doc 47.4 SETTLED 30 — the player must see how much they have and
+    how much is available)."""
+    lines = [
         f"Cargo: {owned.cargo_used} / {max_cargo}    Free: {max(0, max_cargo - owned.cargo_used)}",
         f"Mission cargo reserved: {owned.mission_reserved}    Ammo: {owned.cargo_ammo}",
+    ]
+    from .navigation_scan import smuggler_hold_usage
+    used, capacity = smuggler_hold_usage(
+        owned, getattr(ctx, "player_active_missions", ()) or (), ctx=ctx,
     )
+    if capacity > 0:
+        lines.append(
+            f"Smuggler hold: {used} / {capacity}    Free: {capacity - used}"
+        )
+    return tuple(lines)
 
 async def _apply_jettison(ctx, owned, action: str) -> bool:
     """Apply one ``JETTISON:<good_id>`` action and return whether it was
@@ -847,7 +860,7 @@ def _cargo_frame(ctx, owned, ship_name: str, max_cargo: int, selected: int):
     _hull_cur, _hull_max = ship_module.hull_cur_max(
         owned, ship_module.find_ship(owned.ship_id),
     )
-    body = (*_cargo_body(owned, max_cargo), f"Hull: {_hull_cur}/{_hull_max}")
+    body = (*_cargo_body(ctx, owned, max_cargo), f"Hull: {_hull_cur}/{_hull_max}")
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER jettison selected", "ESC close",
         pygame_ui.GUIDE_HINT,

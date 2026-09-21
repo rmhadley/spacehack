@@ -254,3 +254,36 @@ class TestOpenLootPickup:
         ctx.log.add.assert_called_once_with(
             "Unknown ground equipment - left it behind.",
         )
+
+
+def test_cargo_body_states_hold_capacity_and_free():
+    from types import SimpleNamespace
+
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+    from src.spacehack.trade import _cargo_body
+
+    class _SmuggleMission:
+        is_smuggle = True
+        is_procedural = True
+        main_quest_step_id = ""
+
+        def __init__(self, volume):
+            self.required_cargo_size = volume
+            self.title = "hot run"
+            self.mission_id = "mq:test"
+
+    def ctx(missions=()):
+        return SimpleNamespace(player_active_missions=list(missions))
+
+    plain = OwnedShip(ship_id="starter")
+    assert _cargo_body(ctx(), plain, 60) == (
+        "Cargo: 0 / 60    Free: 60",
+        "Mission cargo reserved: 0    Ammo: 0",
+    )  # no hold: no line (SETTLED 30 — zero capacity is noise)
+
+    holding = OwnedShip(
+        ship_id="starter",
+        modules=(StoredEquipment("module", "smuggler_hold_mk1"),),
+    )
+    body = _cargo_body(ctx([_SmuggleMission(8)]), holding, 60)
+    assert body[-1] == "Smuggler hold: 8 / 10    Free: 2"
