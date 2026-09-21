@@ -234,6 +234,13 @@ class TestGroundKillDrops:
     """The extracted ground drop sequence keeps pool behavior and
     enforces the shared cap (doc 47.1 step 2)."""
 
+    @pytest.fixture(autouse=True)
+    def _no_tinker_kit(self, monkeypatch):
+        """Kill-drop tests isolate the kit roll (kit tests force it)."""
+        from spacehack.data import quality
+
+        monkeypatch.setattr(quality, "KIT_KILL_RATE", 10**9)
+
     def _spec(self, **overrides):
         from types import SimpleNamespace
 
@@ -370,6 +377,32 @@ class TestGroundKillDrops:
             )
             assert [e for e in gm.entities if e.loot_data is not None] == []
 
+    def test_tinker_kit_kill_roll_spawns_one_qty1_stack(self, monkeypatch):
+        from spacehack.combat._actions import spawn_kill_drops
+        from spacehack.data import quality
+        from spacehack.ground_consumables import kit_drop_payload
+        from types import SimpleNamespace
+
+        monkeypatch.setattr(quality, "KIT_KILL_RATE", 1)
+        gm = _make_map(1, 1)
+        spawn_kill_drops(gm, Position(0, 0), self._bare_spec(), SimpleNamespace())
+        payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
+        assert payloads.count(kit_drop_payload()) == 1
+
+    def test_space_debris_never_produces_tinker_kits(self):
+        from spacehack.combat._actions import _spawn_loot_drops
+        from spacehack.engine import RNG
+        from types import SimpleNamespace
+
+        RNG.seed(97531)
+        gm = _make_map(3, 3)
+        spec = SimpleNamespace(cargo_goods=("scrap_metal", "fuel_cells"))
+        for _ in range(12):
+            _spawn_loot_drops(gm, Position(1, 1), spec)
+        payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
+        assert payloads
+        assert all("item_type" not in p for p in payloads)
+
     def test_organic_weapons_are_authored_not_droppable(self):
         from spacehack.data.ground_weapons import find_ground_weapon
 
@@ -419,6 +452,17 @@ class TestGroundKillDrops:
         # The resolved weapon AND its equip-time rolled tier forward —
         # the corpse drops what was firing at you, no re-roll (47.2).
         assert seen and seen[0][-2:] == ("kinetic_pistol", 2)
+
+
+def test_tinker_kit_rates_pin_the_briefs_opening_guesses():
+    """The rates are playtest-tunable data — the pins make every
+    retune a deliberate test edit, never a silent drift. Module
+    scope: the kill-drop class's autouse fixture forces the rate."""
+    from spacehack.data import quality
+
+    assert quality.KIT_KILL_RATE == 40
+    assert quality.KIT_WRECK_RATE == 12
+    assert quality.KIT_DIG_RATE == 16
 
 
 class TestDerelictSaySo:

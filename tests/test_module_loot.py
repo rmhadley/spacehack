@@ -23,8 +23,11 @@ from src.spacehack.ship import StoredEquipment
 @pytest.fixture(autouse=True)
 def _no_room_module_pool(monkeypatch):
     """Strip tests isolate the capture path from the wreck room pool
-    (pool tests override the rate or script the RNG themselves)."""
+    and the tinker-kit roll (both have tests that force the rate)."""
+    from src.spacehack.data import quality
+
     monkeypatch.setattr(dungeon_layout, "WRECK_MODULE_RATE", 10**9)
+    monkeypatch.setattr(quality, "KIT_WRECK_RATE", 10**9)
 
 _ENGINE_ROOM_LAYOUT = """\
 MAP
@@ -299,7 +302,7 @@ def test_randart_seed_survives_install_and_store():
 def test_wreck_chip_pass_scatters_two_to_four_chips(tmp_path):
     game_map, _spawn = load_layout(
         "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
-        credit_chips=True,
+        wreck_scatter=True,
     )
     chips = [
         e for e in game_map.entities
@@ -318,6 +321,43 @@ def test_wreck_chip_pass_stays_gated_off_by_default(tmp_path):
         e for e in game_map.entities
         if (e.loot_data or {}).get("credits")
     ]
+
+
+# --- the wreck tinker-kit roll (doc 47 phase 5, SETTLED 34) -------------------
+
+
+def _tinker_kits(game_map):
+    from src.spacehack.ground_consumables import KIT_ITEM_ID
+
+    return [
+        e for e in game_map.entities
+        if (e.loot_data or {}).get("item_id") == KIT_ITEM_ID
+    ]
+
+
+def test_wreck_scatter_rolls_one_tinker_kit(tmp_path, monkeypatch):
+    from src.spacehack.data import quality
+
+    monkeypatch.setattr(quality, "KIT_WRECK_RATE", 1)
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+        wreck_scatter=True,
+    )
+    kits = _tinker_kits(game_map)
+    assert len(kits) == 1
+    assert kits[0].loot_data == {
+        "item_type": "consumable", "item_id": "tinker_kit", "quantity": 1,
+    }
+
+
+def test_wreck_kit_roll_gates_with_the_dead_ship_flag(tmp_path, monkeypatch):
+    from src.spacehack.data import quality
+
+    monkeypatch.setattr(quality, "KIT_WRECK_RATE", 1)
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+    )
+    assert not _tinker_kits(game_map)
 
 
 # --- the legendary pickup modal (doc 47 phase 4, SETTLED 24) ------------------

@@ -49,6 +49,14 @@ KILL_QUALITY_RATES: tuple[int, int, int] = (5, 11, 25)
 WRECK_QUALITY_RATES: tuple[int, int, int] = (6, 14, 30)
 DIG_QUALITY_RATES: tuple[int, int, int] = (5, 12, 28)
 
+# Tinker-kit drop rates (doc 47.5 SETTLED 34): 1-in-N presence on the
+# three ground loot paths — kills, wreck scatter, dig scatter. Never
+# shops, never exterior space kills, no delve-bottom guarantee.
+# Opening guesses (rarer than the 1-in-6 lockbox), tuned at playtest.
+KIT_KILL_RATE: int = 40
+KIT_WRECK_RATE: int = 12
+KIT_DIG_RATE: int = 16
+
 _FAMILY_ROWS: dict[str, tuple[int, ...]] = {
     "weapon": WEAPON_MULTIPLIER_PCT,
     "armor": ARMOR_MULTIPLIER_PCT,

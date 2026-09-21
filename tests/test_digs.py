@@ -802,6 +802,42 @@ def test_dig_floors_scatter_chips(monkeypatch):
         assert 40 <= chip.loot_data["credits"] <= 120
 
 
+def _tinker_kits(game_map):
+    from src.spacehack.ground_consumables import KIT_ITEM_ID
+
+    return [
+        e for e in game_map.entities
+        if (e.loot_data or {}).get("item_id") == KIT_ITEM_ID
+    ]
+
+
+def test_dig_floors_roll_tinker_kits_on_any_floor(monkeypatch):
+    """Floor 1 of a 2-floor site is not the bottom — the kit roll is
+    per-floor, never a bottom guarantee (doc 47.5 SETTLED 34)."""
+    from src.spacehack.data import quality
+
+    monkeypatch.setattr(quality, "KIT_DIG_RATE", 1)
+    ctx, site = _dig_world(monkeypatch, depth=2)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    kits = _tinker_kits(f1)
+    assert len(kits) == 1
+    assert kits[0].loot_data == {
+        "item_type": "consumable", "item_id": "tinker_kit", "quantity": 1,
+    }
+
+
+def test_dig_bottom_keeps_the_legendary_beat_no_kit_guarantee(monkeypatch):
+    """At an unreachable kit rate the bottom still lands its legendary
+    and never a kit — the guarantee belongs to the randart alone."""
+    from src.spacehack.data import quality
+
+    monkeypatch.setattr(quality, "KIT_DIG_RATE", 10**9)
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert not _tinker_kits(f1)
+    assert _legendary_of(f1)
+
+
 def test_dig_lockbox_is_the_rare_cache_variant(monkeypatch):
     from src.spacehack.data import digs as digs_data
     custom = dataclasses.replace(

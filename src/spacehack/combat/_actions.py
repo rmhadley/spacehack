@@ -149,6 +149,17 @@ def _spawn_kit_drop(
     )
 
 
+def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
+    """The tinker-kit kill roll (doc 47.5 SETTLED 34): a global 1-in-N
+    presence on every ground kill — monsters and weaponed NPCs alike."""
+    from ..data.quality import KIT_KILL_RATE
+    from ..ground_consumables import kit_drop_payload
+
+    if RNG.randint(1, KIT_KILL_RATE) != 1:
+        return
+    _append_loot_entity(game_map, pos, kit_drop_payload())
+
+
 def spawn_kill_drops(
     game_map: world.GameMap, pos, spec, ctx, weapon_id: str = "",
     weapon_quality: int = 0,
@@ -159,7 +170,8 @@ def spawn_kill_drops(
     ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only;
     ``weapon_id`` is the combat state's resolved enemy weapon at its
     equip-time rolled ``weapon_quality``. The kit drop lands after the
-    pools so pool extras age out of the cap first.
+    pools so pool extras age out of the cap first. The tinker-kit roll
+    draws last so pre-existing seeded kill sequences stay unchanged.
     """
     from ..digs import maybe_spawn_ground_pad
     from ..ground_equipment import tier_filtered_equipment
@@ -182,6 +194,7 @@ def spawn_kill_drops(
         )
     _spawn_kit_drop(game_map, pos, weapon_id, weapon_quality)
     maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
+    _spawn_tinker_kit_drop(game_map, pos)
     enforce_loot_cap(game_map)
 
 

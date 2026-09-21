@@ -416,6 +416,7 @@ def _scatter_dig_loot(
     _scatter_dig_chips(game_map)
     if bottom and DIG_LOOT_SPEC.legendary_bottom:
         _place_legendary_cache(game_map, _site_tier(spec))
+    _scatter_dig_kits(game_map)
 
 
 def _scatter_dig_chips(game_map: world.GameMap) -> None:
@@ -434,6 +435,24 @@ def _scatter_dig_chips(game_map: world.GameMap) -> None:
         _append_cache_entity(game_map, pos, credits_payload(
             engine.RNG.randint(*DIG_LOOT_SPEC.chip_value), CREDIT_CHIP_KIND,
         ))
+
+
+def _scatter_dig_kits(game_map: world.GameMap) -> None:
+    """The dig-floor tinker-kit roll (doc 47.5 SETTLED 34): one 1-in-N
+    presence per floor, any floor — no bottom guarantee (the legendary
+    keeps that beat). Draws last so the cache/chip/legendary sequences
+    stay unchanged."""
+    from .data.quality import KIT_DIG_RATE
+    from .ground_consumables import kit_drop_payload
+
+    if engine.RNG.randint(1, KIT_DIG_RATE) != 1:
+        return
+    pos = _free_floor_cell(
+        game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
+    )
+    if pos is None:
+        return
+    _append_cache_entity(game_map, pos, kit_drop_payload())
 
 
 def _weighted_axis_count(weights: tuple[int, int, int], rng) -> int:

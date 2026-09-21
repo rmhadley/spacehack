@@ -454,6 +454,27 @@ def _scatter_wreck_chips(build: _LayoutBuild) -> None:
         _append_container(build, x, y, loot_fg(payload), payload)
 
 
+def _scatter_wreck_kits(build: _LayoutBuild) -> None:
+    """The wreck tinker-kit roll (doc 47.5 SETTLED 34): one 1-in-N
+    presence per dead-ship interior — very rare, never guaranteed, at
+    a loot-marker cell like the chip pass. Draws after the chips so
+    pre-existing wreck sequences stay unchanged."""
+    from .data.quality import KIT_WRECK_RATE
+    from .engine import RNG
+    from .ground_consumables import kit_drop_payload
+    from .loot_common import loot_fg
+
+    if not build.loot_markers or RNG.randint(1, KIT_WRECK_RATE) != 1:
+        return
+    marker = build.loot_markers[RNG.randint(0, len(build.loot_markers) - 1)]
+    cells = _room_cells_for_marker(build, marker)
+    if not cells:
+        return
+    x, y = cells[RNG.randint(0, len(cells) - 1)]
+    payload = kit_drop_payload()
+    _append_container(build, x, y, loot_fg(payload), payload)
+
+
 # The capture strip's room (doc 47.3 SETTLED 15's audit follow-on):
 # engine rooms host the pulled hardware.
 _CAPTURE_STRIP_ROOM = "engine_room"
@@ -569,14 +590,14 @@ def _populate_build(
     component_good_id: str | None,
     component_mission_id: str | None,
     capture_modules: tuple,
-    credit_chips: bool = False,
+    wreck_scatter: bool = False,
 ) -> None:
     """Run the full scatter/populate pipeline over a built layout.
 
     Order is load-bearing: enemies → goods → mission component →
-    gear presence → capture strip → credit chips, so pre-existing
-    seeded layouts keep drawing the goods they always did before any
-    new consumer.
+    gear presence → capture strip → wreck scatter (chips, then
+    tinker kits), so pre-existing seeded layouts keep drawing the
+    goods they always did before any new consumer.
     """
     _scatter_layout_enemies(build, parsed, layout_id)
     _scatter_loot(build, parsed, loot_budget)
@@ -585,8 +606,9 @@ def _populate_build(
     _scatter_room_equipment(build)
     if capture_modules:
         _seed_capture_modules(build, capture_modules)
-    if credit_chips:
+    if wreck_scatter:
         _scatter_wreck_chips(build)
+        _scatter_wreck_kits(build)
 
 
 def _parse_layout_file(
@@ -610,13 +632,14 @@ def load_layout(
     capture_modules: tuple = (),
     layout_dir: pathlib.Path | None = None,
     require_spawn: bool = True,
-    credit_chips: bool = False,
+    wreck_scatter: bool = False,
 ) -> tuple[world.GameMap, world.Position | None]:
     """Parse an authored layout and return its runtime map and spawn.
 
     ``capture_modules`` (flown ``StoredEquipment`` instances) seeds the
     intact-capture strip — only the combat boarding path passes it.
-    ``credit_chips`` gates the wreck chip pass to dead-ship interiors.
+    ``wreck_scatter`` gates the dead-ship-only scatter passes (credit
+    chips, tinker kits) to wreck/derelict/salvage interiors.
     """
     parsed = _parse_layout_file(layout_id, layout_dir)
     build = _build_tiles(parsed, require_spawn)
@@ -628,7 +651,7 @@ def load_layout(
         component_good_id=component_good_id,
         component_mission_id=component_mission_id,
         capture_modules=capture_modules,
-        credit_chips=credit_chips,
+        wreck_scatter=wreck_scatter,
     )
     game_map = world.GameMap(
         width=parsed.width,

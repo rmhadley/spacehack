@@ -10,6 +10,16 @@ from dataclasses import dataclass
 
 from .data.ground_items import GroundConsumableSpec, find_ground_consumable
 
+# The tinker kit's catalog identity (doc 47.5): one authored constant,
+# never a scattered string compare. The kit raises one eligible owned
+# item's quality by one tier, capped at prototype (SETTLED 31/32).
+KIT_ITEM_ID = "tinker_kit"
+
+
+def kit_drop_payload() -> dict:
+    """One qty-1 tinker-kit field-item payload (doc 47.5 SETTLED 34)."""
+    return {"item_type": "consumable", "item_id": KIT_ITEM_ID, "quantity": 1}
+
 
 @dataclass(frozen=True)
 class ActiveConsumableEffect:
