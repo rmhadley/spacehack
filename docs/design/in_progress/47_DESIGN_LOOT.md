@@ -1683,6 +1683,34 @@ beside the quality ladders in `data/quality.py`.
 
 ### Phase 5 — Tinker kits (brief PROPOSED 2026-09-21)
 
+**Build-discovery amendments (2026-09-21, implementation session):**
+
+- All audit anchors re-verified against the tree at build start;
+  `character_screen.py` reads **982**/1000 (not 976), so the chooser +
+  apply flow lives in a new domain module `src/spacehack/tinker.py`
+  (eligible-target enumeration, chooser presentation, apply, log); the
+  screen's kit branch is a 3-line delegation —
+  `tinker.try_manage_kit(ctx, index)` returns `None` when the stack
+  isn't a kit (falls through to `use_consumable`), else `True`/`False`
+  for applied/not.
+- The audit's per-family `raise_quality` sketch collapses to ONE
+  generic pure helper in `tinker.py`: every eligible container holds a
+  frozen dataclass with a `quality` field, so one
+  `dataclasses.replace(entry, quality=q+1)` is uniform across all five
+  sites (equipped weapons preserve their loaded ammo through the
+  replace). No ground_equipment/ship.py edit needed.
+- The wreck kit gate renames `load_layout(credit_chips=...)` to
+  `wreck_scatter=...` (two defs, three dead-ship callers, one test):
+  the flag's meaning is "dead-ship interior" and both wreck-only
+  scatter passes — chips and kits — gate on it (7 mechanical edits,
+  no behavior change).
+- `GroundConsumableSpec.effect_label` defaults to `""`, but the
+  wording is already approved — it rides the catalog-row commit and is
+  listed verbatim at the checkpoint, per the phase-4 string precedent.
+- Empty-targets edge: Use with nothing eligible logs one line and
+  consumes nothing (the one build-authored string beyond the settled
+  three; listed verbatim at the checkpoint for review).
+
 **Scope (files + hook points):**
 
 1. **Catalog row + shop gate** — `data/ground_items/
