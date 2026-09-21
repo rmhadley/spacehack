@@ -572,12 +572,14 @@ the question list above):
 
 ## Remaining opens — none (tinker-kit pass settled 2026-09-21)
 
-Every question is settled (1-36 above). What stays gated: the
-kit's `effect_label` and the apply log line — PROSE GATE with
-the phase-5 brief below. Hand-authored uniques stay deferred
-(SETTLED 1 amendment); weapon/armor randarts stay a possible
-later extension (SETTLED 19); value curves and rate tables
-remain playtest-tunable.
+Every question is settled (1-36 above) and the phase-5 prose
+gate is closed: the effect_label landed in user-approved
+wording (typo fixes flagged in the brief) with the
+chooser-teaches rationale recorded; the apply log line stood
+unobjected and rides the build checkpoint-listed. Hand-authored
+uniques stay deferred (SETTLED 1 amendment); weapon/armor
+randarts stay a possible later extension (SETTLED 19); value
+curves and rate tables remain playtest-tunable.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
@@ -1766,16 +1768,25 @@ re-tuning beyond the authored rates, no SYSTEMS.md work
 7. Guide diff: NONE by ruling (SETTLED 36) — quote before/
    after to confirm.
 
-**Strings drafts (PROSE GATE — for approval with this
-brief):**
+**Strings (settled 2026-09-21 — user-approved wording):**
 
 Item effect_label (the SETTLED 36 self-explanation; shown in
-inventory/armory rows):
+inventory/armory rows) — user wording verbatim, three obvious
+typos fixed and flagged (Modifiy→Modify, it's→its,
+Protoype→Prototype), nothing else changed:
 
-    Raises a weapon, armor, or ship module one quality grade,
-    up to Prototype
+    Modify an item of your choice, increasing its
+    effectiveness, up to Prototype.
 
-Apply log line (states the outcome, pickup-line register):
+Design note recorded with the approval (user, verbatim):
+"It'll be clear the types of items they can use it on on first
+use." — the description deliberately does NOT enumerate target
+types; the CHOOSE TARGET list is the teacher (SETTLED 33's
+chooser is the first-use surface).
+
+Apply log line (drafted with the brief; stood unobjected in
+the approval pass — rides the apply commit, listed verbatim at
+the checkpoint):
 
     Tinker kit: {name} is now {token}.
 
