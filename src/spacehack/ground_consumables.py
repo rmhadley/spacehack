@@ -14,6 +14,40 @@ from .data.ground_items import GroundConsumableSpec, find_ground_consumable
 # never a scattered string compare. The kit raises one eligible owned
 # item's quality by one tier, capped at prototype (SETTLED 31/32).
 KIT_ITEM_ID = "tinker_kit"
+KIT_EFFECT_ID = "tinker"
+
+
+def is_tinker_kit(spec: GroundConsumableSpec) -> bool:
+    """True for the quality-raise consumable (doc 47.5 SETTLED 33)."""
+    return spec.effect_id == KIT_EFFECT_ID
+
+
+def resolve_pack_consumable(ctx, index: int) -> GroundConsumableSpec | None:
+    """Resolve one pack stack to its consumable spec, or None.
+
+    The single stack-resolution seam: the kit manage flow and the kit
+    charge consume must agree on what sits at ``index`` for the
+    bump-then-consume transaction to hold.
+    """
+    items = getattr(ctx, "ground_expedition_items", [])
+    if not 0 <= index < len(items):
+        return None
+    stack = items[index]
+    if stack.item_type != "consumable":
+        return None
+    try:
+        return find_ground_consumable(stack.item_id)
+    except KeyError:
+        return None
+
+
+def consume_kit_charge(ctx, index: int) -> bool:
+    """Consume one tinker-kit charge from a validated pack stack."""
+    spec = resolve_pack_consumable(ctx, index)
+    if spec is None or not is_tinker_kit(spec):
+        return False
+    _decrement_stack(getattr(ctx, "ground_expedition_items", []), index)
+    return True
 
 
 def kit_drop_payload() -> dict:

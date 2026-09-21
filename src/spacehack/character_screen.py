@@ -672,7 +672,11 @@ async def _manage_consumable_stack(
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("STACK_USE:"):
+        from . import tinker
         from .ground_consumables import use_consumable
+        _kit = await tinker.try_manage_kit(ctx, index)
+        if _kit is not None:
+            return "USE" if _kit else None
         return "USE" if use_consumable(
             ctx, index, in_combat=in_ground_combat,
         ) else None
