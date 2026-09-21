@@ -422,9 +422,18 @@ continues the passes above):
    order, through the shared axis_line voice. The spread is the
    total the module installs with, matching every detail row.
 
+28. **Engineering axis raised to the gunnery/piloting band (user,
+   2026-09-21, verbatim):** "+3 engineering barely does anything.
+   Let's bring that up to the rest at least. +3 to +10?" —
+   `RANDART_AXES` engineering moves 1-3 → 3-10. Engineering is
+   pure randart territory (no catalog module grants it), so the
+   axis carries the whole effect. Table edits re-derive held
+   randarts' spreads (the seed, not the manifest, persists) —
+   expected across versions mid-playtest.
+
 ## Remaining opens — none (phase-4 pass settled 2026-09-20)
 
-Every open question is settled (1-27 above). What stays gated:
+Every open question is settled (1-28 above). What stays gated:
 randart name fragments, modal strings, chip/lockbox names —
 PROSE GATE with the phase-4 brief below; value curves and rate
 tables are opening guesses tuned at playtest. Hand-authored
@@ -513,9 +522,9 @@ item.
   where legendaries live and what they carry) and the user's wording
   landed verbatim — "The rarest modules are only talked about in
    legends." (212d48a, own commit). Post-BUILT rulings: SETTLED 26
-   (band-weighted axes) and SETTLED 27 (the modal shows the
-   complete effective sheet) landed with their verbatim records
-   above.
+   (band-weighted axes), SETTLED 27 (the modal shows the complete
+   effective sheet), and SETTLED 28 (engineering axis 3-10) landed
+   with their verbatim records above.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 

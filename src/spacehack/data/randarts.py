@@ -29,7 +29,8 @@ RANDART_SUFFIXES: tuple[str, ...] = (
 # One signed range per ModuleSpec bonus field (SETTLED 20): most axes
 # lean positive, a few can roll drawbacks — the rarest find is an
 # equip decision, not a strict upgrade. Zero never rolls (a zero
-# delta would be a nothing-axis). Opening guesses, tuned at playtest.
+# delta would be a nothing-axis). Opening guesses, tuned at playtest
+# (engineering raised to the gunnery/piloting band, SETTLED 28).
 RANDART_AXES: tuple[tuple[str, int, int], ...] = (
     ("power_gen_bonus", -2, 4),
     ("max_shield_bonus", 5, 25),
@@ -37,7 +38,7 @@ RANDART_AXES: tuple[tuple[str, int, int], ...] = (
     ("cargo_bonus", -10, 30),
     ("gunnery_bonus", 3, 10),
     ("piloting_bonus", 3, 10),
-    ("engineering_bonus", 1, 3),
+    ("engineering_bonus", 3, 10),
     ("max_hull_bonus", 5, 20),
     ("speed_bonus", -1, 2),
     ("smuggler_cargo", 5, 20),
