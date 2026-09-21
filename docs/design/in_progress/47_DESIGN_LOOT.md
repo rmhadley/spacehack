@@ -7,8 +7,8 @@ quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
 Phase 4 CLOSED 2026-09-21 — playtest passed (rulings 26-30 and
 two pre-existing-UI bug rounds recorded in its queue entry).
-Phase 5 (tinker kits) OPENED 2026-09-21: the user's feature note
-is recorded below; its open questions (31-36) are unsettled.
+Phase 5 (tinker kits) BUILT 2026-09-21 in three reviewed commits —
+awaiting playtest; rulings 31-36 settled, strings approved.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -690,6 +690,15 @@ curves and rate tables remain playtest-tunable.
   rare loot-only drop (SETTLED 34), unsellable (SETTLED 35),
   self-explaining via its item description with no guide entry
   (SETTLED 36). Brief PROPOSED 2026-09-21 (below).
+  **BUILT 2026-09-21** in three reviewed commits (f280a33 the
+  catalog row + `shop_available` gate; 0f7a106 the rates + three
+  spawn hooks + the `credit_chips`→`wreck_scatter` rename;
+  14b298d the apply flow — `tinker.py`'s one chooser over SIX
+  containers, the armory warehouse included after a build-time
+  audit correction). One review round came back REQUEST_CHANGES
+  (a swallowed `__QUIT__` in the kit chooser + the
+  consume/resolve twin pair) — fixed and re-approved. Awaiting
+  playtest.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
@@ -1676,10 +1685,12 @@ beside the quality ladders in `data/quality.py`.
   (`KIT_EFFECT_ID = "tinker"`) via a `ground_consumables`
   predicate, never a scattered string compare.
 - Ground gear storage IS the pack (the armory screen views it;
-  there is no separate armory container) — "stored items at
-  the mechanic/armory" (SETTLED 33) therefore enumerates as:
+  there is no separate armory container) — "stored items at the
+  mechanic/armory" (SETTLED 33) therefore enumerates as:
   equipped + pack + ship_storage + installed. One chooser
-  covers everything owned.
+  covers everything owned. **[WRONG at build — corrected below:
+  `ground_armory_storage` is a real sixth container and joins the
+  chooser.]**
 
 ### Phase 5 — Tinker kits (brief PROPOSED 2026-09-21)
 
@@ -1693,10 +1704,19 @@ beside the quality ladders in `data/quality.py`.
   `tinker.try_manage_kit(ctx, index)` returns `None` when the stack
   isn't a kit (falls through to `use_consumable`), else `True`/`False`
   for applied/not.
+- **Audit correction (build-time):** the audit's claim "Ground gear
+  storage IS the pack... there is no separate armory container" was
+  WRONG — `ground_armory_storage` (+ `ground_armory_items`) is a real
+  unlimited doc-19 warehouse, and SETTLED 33's user wording explicitly
+  names it ("stored items at the mechanic/armory"). The chooser
+  enumerates SIX containers (the new `KIT:ARMORY_STORAGE:{i}`
+  family). The related single-USE-seam claim DID hold: the armory-side
+  stack manage offers only Move/Discard, so Use stays a pack verb (a
+  warehouse kit moves to the pack first, same as med packs).
 - The audit's per-family `raise_quality` sketch collapses to ONE
   generic pure helper in `tinker.py`: every eligible container holds a
   frozen dataclass with a `quality` field, so one
-  `dataclasses.replace(entry, quality=q+1)` is uniform across all five
+  `dataclasses.replace(entry, quality=q+1)` is uniform across all six
   sites (equipped weapons preserve their loaded ammo through the
   replace). No ground_equipment/ship.py edit needed.
 - The wreck kit gate renames `load_layout(credit_chips=...)` to
