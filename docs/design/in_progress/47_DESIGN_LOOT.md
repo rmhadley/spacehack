@@ -492,8 +492,8 @@ Phase 5's seed. What the settled systems already give it:
   user's own wording; ammo/consumables/trade goods have no
   quality and are not targets.
 
-### Open questions — the tinker-kit pass (unsettled; rulings
-### will record as SETTLED 31+)
+### Open questions — the tinker-kit pass (SETTLED 2026-09-21,
+### same day — rulings recorded below)
 
 31. **Tier ceiling.** "Any non-legendary item" literally admits
     a t3 module → quality 4 — but a 4 without a randart seed is
@@ -527,15 +527,57 @@ Phase 5's seed. What the settled systems already give it:
     are log lines) and a guide entry drafted with the brief
     (PROSE GATE) — a new core mechanic is the guide's remit.
 
-## Remaining opens — the tinker-kit pass (31-36) is OPEN
+## Settled — the tinker-kit pass (2026-09-21)
 
-Every phase 1-4 question is settled (1-30 above); the phase-4
-prose gate closed at the playtest checkpoint (every string was
-listed verbatim and reviewed). Hand-authored uniques stay
-deferred (SETTLED 1 amendment); weapon/armor randarts stay a
-possible later extension (SETTLED 19); value curves and rate
-tables remain playtest-tunable. Phase 5's open questions
-(31-36) live in the feature section above.
+All six questions ruled in the user's reply (numbering matches
+the question list above):
+
+31. **Ceiling: prototype (user, verbatim): "ceiling is
+    prototype, yes."** Kits never produce quality 4 — t3 items
+    are ineligible targets, the chooser filters them;
+    legendaries stay delve-bottom-only, SETTLED 11 untouched.
+    Eligibility correction to the grounded read above: the
+    never-variant rulings govern SOURCES (what givers hand
+    out); the kit is the player's own spend — eligibility is by
+    quality alone (0-2), no per-origin markers, no new
+    machinery.
+32. **Step size: one kit = one tier, +1 (user, verbatim:
+    "step size is +1, yes.")** Base→prototype costs three
+    kits; rarity does the economic work.
+33. **Surface: ONE chooser over everything owned (user,
+    verbatim): "it shows you all items you could possibly use
+    it on in your possesion, including your stored items at
+    the mechanic/armory."** Use from the pack's consumable
+    manage modal → a CHOOSE TARGET list of every eligible owned
+    item — equipped weapon + armor, pack weapons/armor,
+    ship-storage modules (the mechanic's STORAGE), installed
+    modules — rows previewing current → next token. The single
+    USE seam is `character_screen._manage_consumable_stack`
+    (verified: the only `use_consumable` caller); the kit works
+    wherever the C screen opens.
+34. **Sources: loot-only, very rare, no guarantee (user,
+    verbatim): "never shops. no guarantee. just a very rare
+    drop."** Authored 1-in-N presence on the three ground
+    paths (kill drops, wreck scatter, dig scatter); never
+    shops, never exterior space kills, no delve-bottom
+    guarantee.
+35. **No selling (user, verbatim): "no selling -- just like
+    med packs/combat sims."** Consumables are already
+    unsellable — free.
+36. **No guide entry (user, verbatim): "no need to put
+    anything in the guide about this. let's make the item
+    description explain itself."** The item's `effect_label`
+    IS the explanation (draft in the brief, PROSE GATE); the
+    guide gains nothing.
+
+## Remaining opens — none (tinker-kit pass settled 2026-09-21)
+
+Every question is settled (1-36 above). What stays gated: the
+kit's `effect_label` and the apply log line — PROSE GATE with
+the phase-5 brief below. Hand-authored uniques stay deferred
+(SETTLED 1 amendment); weapon/armor randarts stay a possible
+later extension (SETTLED 19); value curves and rate tables
+remain playtest-tunable.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
@@ -641,9 +683,11 @@ tables remain playtest-tunable. Phase 5's open questions
    rulings 26-30).
 - [ ] 5. **Tinker kits** — a stackable consumable field item
   that raises the quality of a non-legendary quality-bearing
-  item (user note verbatim above). Ceiling, step size,
-  application surface, sources, and economy ride open
-  questions 31-36; brief proposed only after they settle.
+  item one tier, capped at prototype (SETTLED 31-32), through
+  one chooser over everything owned (SETTLED 33), as a very
+  rare loot-only drop (SETTLED 34), unsellable (SETTLED 35),
+  self-explaining via its item description with no guide entry
+  (SETTLED 36). Brief PROPOSED 2026-09-21 (below).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
@@ -1560,3 +1604,182 @@ Guide sentence (appended to the QUALITY entry):
     The rarest grade, legendary, carries its own rolled name
     and bonus spread - and only ever turns up at the bottom of
     a dig site.
+
+## Pre-implementation audit — phase 5 (2026-09-21)
+
+**Reuse (verified):**
+
+- The kit rides the doc-19 consumable model whole: a
+  `GroundConsumableSpec` row + the existing field-item payload
+  (`item_type "consumable"` + quantity → pack stack, amber
+  glyph, armory owned-stack rows). ZERO save/load migration —
+  stacks and the `quality` field already round-trip; the bump
+  needs no new persisted state anywhere.
+- The USE seam is single: `character_screen._manage_pack_stack`
+  → `_manage_consumable_stack` → `use_consumable` (grep: ONE
+  caller). The kit intercepts at `_manage_consumable_stack`,
+  before effect application — no combat-effect integration (the
+  C screen is the only path, and it opens in ground combat
+  too); `use_ap_cost` never applies.
+- The chooser is the shared modal machinery
+  (`pygame_story.choose(ctx, title, body, options, …)` — the
+  same component the armory buy rows use for long lists).
+- Targets are frozen dataclasses carrying `quality`; every
+  reader derives stats (`effective_*_spec`, the label seams) —
+  a bump is `dataclasses.replace(entry, quality=q+1)` at five
+  container sites: the equipped weapon instance, the
+  equipped-armor dict, the pack list, `ctx.ship_storage`, and
+  `OwnedShip.modules` (installed). Nothing cached, nothing to
+  invalidate.
+- Kill-path precedent for a global rare roll: the site-reveal
+  pad roll inside `spawn_kill_drops` — the kit's kill roll
+  slots beside it; wreck/dig scatter precedents are the chip
+  passes (`dungeon_layout` marker loop; `digs` post-cache-loop
+  scatter with RNG-order care).
+
+**Duplication hotspots:**
+
+1. The bump reconstructs entries at five container sites —
+   inline `replace` per site would drift (the
+   instances-not-parallels lesson).
+2. Chooser row building spans ground gear AND modules — one
+   builder, never per-screen enumeration.
+3. Kit rates could scatter per path — one authored table.
+
+**DRY strategy:** one `raise_quality` helper per family
+(`ground_equipment`, `ship.py` — beside their constructors),
+ONE target-chooser builder listing every eligible owned entry,
+ONE rates table. Ratchet: all touched modules have headroom;
+`character_screen.py` sits at 976/1000 — the chooser + kit
+branch must extract lean (the equipment-half extraction is the
+noted next-touch debt).
+
+**Data-first:** the catalog row (incl. the gated
+`effect_label`); `GroundConsumableSpec` gains
+`shop_available: bool = True` (uniform with weapons — the
+armory buy rows list EVERY consumable today, so the gate is
+load-bearing, not cosmetic); `KIT_*_RATE` 1-in-N constants
+beside the quality ladders in `data/quality.py`.
+
+**Audit findings the brief stands on** (verified this session):
+
+- `_armory._buy_consumable_rows` builds buy rows from the WHOLE
+  catalog sorted by price — without a `shop_available` field
+  the kit would be purchasable at once (SETTLED 34 violation).
+- `effect_from_spec` builds combat effects only from
+  regen/AP-bearing rows — a kit row (duration 0, no bonuses)
+  produces no effect, so falling through to `use_consumable`
+  would fizzle: the intercept at the manage-modal seam is the
+  correct branch point, keyed on one authored constant
+  (`KIT_EFFECT_ID = "tinker"`) via a `ground_consumables`
+  predicate, never a scattered string compare.
+- Ground gear storage IS the pack (the armory screen views it;
+  there is no separate armory container) — "stored items at
+  the mechanic/armory" (SETTLED 33) therefore enumerates as:
+  equipped + pack + ship_storage + installed. One chooser
+  covers everything owned.
+
+### Phase 5 — Tinker kits (brief PROPOSED 2026-09-21)
+
+**Scope (files + hook points):**
+
+1. **Catalog row + shop gate** — `data/ground_items/
+   consumables.py`: the tinker kit row (opening guesses:
+   `quantity_per_stack` 2, `use_ap_cost` 0, `price` 0);
+   `GroundConsumableSpec` gains `shop_available: bool = True`,
+   the kit authors `False`; `_armory._buy_consumable_rows`
+   filters on it. Unsellable by type (consumables never sell —
+   SETTLED 35 free).
+2. **Drop rates + three spawn hooks** — `data/quality.py`:
+   `KIT_KILL_RATE` / `KIT_WRECK_RATE` / `KIT_DIG_RATE` 1-in-N
+   (opening guesses 40 / 12 / 16 — rarer than the 1-in-6
+   lockbox; tuned at playtest). Hooks: a global kit roll in
+   `spawn_kill_drops` (beside the pad roll — monsters and
+   weaponed NPCs alike, one qty-1 stack); a per-wreck presence
+   in the `dungeon_layout` scatter (chip-pass pattern); a
+   per-floor roll in `digs` scatter (after the cache loop,
+   goods RNG order unchanged). Never shops, never exterior
+   space kills, no delve guarantee (SETTLED 34).
+3. **The apply flow** — `ground_consumables`: the
+   `KIT_EFFECT_ID` predicate + consume-one (reuse
+   `_decrement_stack`); `character_screen`: the kit branch in
+   `_manage_consumable_stack` → the CHOOSE TARGET modal
+   (`pygame_story.choose`) listing every eligible owned entry
+   (equipped weapon + armor, pack weapons/armor, ship-storage
+   modules, installed modules — SETTLED 33), each row
+   previewing current → next token through the existing label
+   seams; on selection: bump via the family helpers (quality
+   0→1→2→3 only; 3 and any randart-seeded entry filtered —
+   SETTLED 31), consume one kit, log the apply line.
+4. **Strings** (own commit, approval-gated): the
+   `effect_label` (SETTLED 36's self-explanation) + the apply
+   log line — drafts below.
+
+**Build order:** catalog row + shop gate → rates + spawn
+hooks → chooser + apply → strings commit.
+
+**Binding rulings:** SETTLED 31-36; eligibility is quality
+0-2 with no randart seed — the never-variant source rulings
+are untouched (they govern givers, not the player's spend);
+quest-loot security do-not-break (a kit is an ordinary field
+item — never spawns on quest payloads); prose gate — nothing
+beyond the drafts below lands without approval; no guide text.
+
+**Tests:** eligibility filter (quality 3 and randart-seeded
+excluded; 0-2 accepted across all five containers); bump
+round-trips (equipped/pack/stored/installed preserve and
+re-derive stats + labels); the chooser lists everything owned
+incl. mechanic storage; consume-one decrements then removes
+the empty stack; kill/wreck/dig rates parametrized (seeded;
+no other source produces kits — shops, space kills, delve
+bottoms); armory buy rows exclude the kit; save/load
+round-trip (kit stack + raised gear, legacy saves clean — no
+migration to exercise); the manage modal's Use on a kit never
+calls `use_consumable`.
+
+**Stop point:** no quality-4 production or randart generation
+of any kind, no combat-use integration beyond the C screen's
+existing reach, no selling, no guide changes, no economy
+re-tuning beyond the authored rates, no SYSTEMS.md work
+(phase close only).
+
+**Playtest checkpoint** (numbered; SPACEHACK_DEV run):
+
+1. Find a kit (dev grant or seeded rate sweep): the armory
+   never sells it; the drop reads very rare, not absent, on
+   all three paths.
+2. Use one from the pack: the chooser lists EVERY eligible
+   owned item — equipped, packed, mechanic-stored, installed —
+   with current → next token previews; t3 and legendary rows
+   never appear.
+3. Apply to a base weapon: stats, labels, and sell price all
+   move one tier; the stack loses one charge; save → quit →
+   Continue — the raised tier and the remaining charges both
+   survive.
+4. Take a base module to t3 over three kits; attempt a fourth:
+   the module no longer appears in the chooser.
+5. Discard flow and pack-full behavior around kit stacks
+   unchanged from other consumables.
+6. Regression: phase 1-4 flows (colours, cap, kit drops,
+   quality rolls, module loot, randarts, containers)
+   unchanged; quest caches/pads/heist cargo untouched.
+7. Guide diff: NONE by ruling (SETTLED 36) — quote before/
+   after to confirm.
+
+**Strings drafts (PROSE GATE — for approval with this
+brief):**
+
+Item effect_label (the SETTLED 36 self-explanation; shown in
+inventory/armory rows):
+
+    Raises a weapon, armor, or ship module one quality grade,
+    up to Prototype
+
+Apply log line (states the outcome, pickup-line register):
+
+    Tinker kit: {name} is now {token}.
+
+Chooser presentation: title "TINKER KIT", options as
+`{current label} -> {next label}` rows (ASCII arrow — bitmap
+gate); exact row phrasing at build, listed verbatim at the
+checkpoint.
