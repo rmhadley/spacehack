@@ -443,6 +443,22 @@ continues the passes above):
    base-driven. Guide: NO guide text — the skill rows are
    self-evident data display.
 
+30. **Cargo screens state the smuggler hold (user, 2026-09-21,
+   verbatim):** "I thought at one point we showed smugglers hold
+   capacity and fill on the cargo screen. I could be wrong. But
+   either way, we need to communicate this to the player. how much
+   smuggler hold they have and how much is available." The shared
+   cargo body appends `Smuggler hold: U / C    Free: F` when hold
+   capacity exists (zero capacity stays silent) — one builder, all
+   three cargo surfaces (modal, character CARGO tab, hangar CARGO
+   tab). The numbers derive from `_compute_scan_exposure`'s own
+   consumption (missions first; an overflowing mission reads the
+   hold full) — the display cannot drift from the scan. Review
+   fold: the Q-log's scan-risk label now honors the perk like the
+   scan does. Guide: leave-alone — the guide's Cargo line
+   enumerates hold contents, not summary lines; the new line
+   self-explains (same shape as the Cargo line).
+
 ## Remaining opens — none (phase-4 pass settled 2026-09-20)
 
 Every open question is settled (1-29 above). What stays gated:
@@ -535,9 +551,9 @@ item.
   landed verbatim — "The rarest modules are only talked about in
    legends." (212d48a, own commit). Post-BUILT rulings: SETTLED 26
    (band-weighted axes), SETTLED 27 (the modal shows the complete
-   effective sheet), SETTLED 28 (engineering axis 3-10), and
-   SETTLED 29 (C-screen effective skills) landed with their
-   verbatim records above. Playtest bug round (2026-09-21, both
+   effective sheet), SETTLED 28 (engineering axis 3-10), SETTLED 29
+   (C-screen effective skills), and SETTLED 30 (cargo-screen hold
+   capacity/free) landed with their verbatim records above. Playtest bug round (2026-09-21, both
    measured pre-existing, not phase-4 regressions): the split
    terminal's fixed row reserve locked the loadout one font-ladder
    step below every text-screen tab — now 11 rows, size-24 parity
