@@ -431,9 +431,21 @@ continues the passes above):
    randarts' spreads (the seed, not the manifest, persists) —
    expected across versions mid-playtest.
 
+29. **The C screen shows effective skills with the bonus annotated
+   (user, 2026-09-21, verbatim):** "I think on the C screen we
+   should show actual stats and calculated stats. I have +9
+   gunnery so it would be cool to see '36 (+9)' instead of
+   '25'" — the Stats tab's ship skills read base +
+   installed-module bonuses through `_player_skill_bonuses` (the
+   SAME sum combat uses — one source, no parallel math) and
+   annotate the delta ("36 (+9)", "13 (-12)"); ground stats and
+   bonus-less skills stay plain; the [+]/MAX spend marker stays
+   base-driven. Guide: NO guide text — the skill rows are
+   self-evident data display.
+
 ## Remaining opens — none (phase-4 pass settled 2026-09-20)
 
-Every open question is settled (1-28 above). What stays gated:
+Every open question is settled (1-29 above). What stays gated:
 randart name fragments, modal strings, chip/lockbox names —
 PROSE GATE with the phase-4 brief below; value curves and rate
 tables are opening guesses tuned at playtest. Hand-authored
@@ -523,8 +535,9 @@ item.
   landed verbatim — "The rarest modules are only talked about in
    legends." (212d48a, own commit). Post-BUILT rulings: SETTLED 26
    (band-weighted axes), SETTLED 27 (the modal shows the complete
-   effective sheet), and SETTLED 28 (engineering axis 3-10) landed
-   with their verbatim records above.
+   effective sheet), SETTLED 28 (engineering axis 3-10), and
+   SETTLED 29 (C-screen effective skills) landed with their
+   verbatim records above.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 

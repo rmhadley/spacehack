@@ -64,14 +64,46 @@ def _character_frame(
     return _cargo_character_frame(ctx, title, selected)
 
 
+def _skill_base(ctx: GameContext, index: int, skill: str) -> int:
+    """One skill's base value — ship skills read ctx.stats, ground
+    stats ctx.ground_stats (the first three _SKILLS are the ship set)."""
+    return getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10)
+
+
+def _skill_value_display(ctx: GameContext, index: int, skill: str) -> str:
+    """One skill's value cell: ship skills read base + installed-module
+    bonuses — the same effective sum combat uses — with the bonus
+    annotated ("36 (+9)", "13 (-12)"); ground stats and bonus-less
+    skills show the plain value (doc 47.4 SETTLED 29)."""
+    from .combat._stats import _player_skill_bonuses
+
+    base = _skill_base(ctx, index, skill)
+    owned = getattr(ctx, "player_owned_ship", None)
+    if index >= 3 or owned is None:
+        return f"{base:>3}"
+    effective = _player_skill_bonuses(owned, ctx.stats)[index]
+    bonus = effective - base
+    return f"{effective} ({bonus:+d})" if bonus else f"{base:>3}"
+
+
+def _skill_spend_marker(ctx: GameContext, index: int, skill: str) -> str:
+    """The [+]/MAX spend marker — base-value driven, as spending is."""
+    base = _skill_base(ctx, index, skill)
+    if ctx.player_skill_points > 0 and base < 100:
+        return "[+]"
+    return "MAX" if base >= 100 else ""
+
+
 def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
     """Build the Stats-tab frame (skills, XP, traits)."""
     from . import pygame_screen, pygame_ui
 
     rows = tuple(
         pygame_screen.ScreenRow(
-            text=f"{skill.title():<12} {getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10):>3}  "
-            f"{'[+]' if ctx.player_skill_points > 0 and getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) < 100 else 'MAX' if getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10) >= 100 else ''}",
+            text=(
+                f"{skill.title():<12} {_skill_value_display(ctx, index, skill)}"
+                f"  {_skill_spend_marker(ctx, index, skill)}"
+            ).rstrip(),
             detail=_SKILL_DESCRIPTIONS[skill],
             action=f"SPEND:{skill}",
         )
