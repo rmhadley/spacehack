@@ -544,6 +544,11 @@ item.
    (94ea18a); shift+tab exited the hangar/mechanic (and crashed the
    trait screen) — both hosts cycle backward via
    pygame_screen.cycled_tab, the wider host class swept (8f3d70a).
+   Round 2: the shared viewport counted only SELECTABLE rows toward
+   its cap, so the marker-heavy LOADOUT tabs still rendered whole and
+   shrank — visible_window/window_height gained a max_total
+   total-row clamp through fit and draw; long lists page at the
+   24-step top (pending commit).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
