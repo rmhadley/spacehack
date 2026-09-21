@@ -624,3 +624,32 @@ def test_cutout_toggle_gated_and_reversible(monkeypatch):
     assert toggle_dev_cutout(_ctx) is True
     assert _ctx.transponder_cutout is True
     assert any("installed" in m for m in _logged)
+
+
+def test_tinker_kit_grant_tops_up_or_appends():
+    """Doc 47 phase 5: Shift+Y grants a full kit stack — topping up a
+    partial stack when one exists, never duplicating stacks."""
+    from types import SimpleNamespace
+
+    from src.spacehack.dev_mode import apply_dev_tinker_kit
+    from src.spacehack.ground_consumables import KIT_ITEM_ID
+    from src.spacehack.ground_equipment import GroundItemStack
+
+    def _ctx(items):
+        return SimpleNamespace(
+            ground_expedition_items=list(items),
+            log=SimpleNamespace(add=lambda m: None),
+        )
+
+    fresh = _ctx([])
+    apply_dev_tinker_kit(fresh)
+    apply_dev_tinker_kit(fresh)
+    assert fresh.ground_expedition_items == [
+        GroundItemStack("consumable", KIT_ITEM_ID, 2),
+    ]
+
+    partial = _ctx([GroundItemStack("consumable", KIT_ITEM_ID, 1)])
+    apply_dev_tinker_kit(partial)
+    assert partial.ground_expedition_items == [
+        GroundItemStack("consumable", KIT_ITEM_ID, 2),
+    ]

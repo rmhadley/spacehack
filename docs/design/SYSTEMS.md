@@ -950,7 +950,8 @@ nobody designs against a ghost.
   Shift+O Act-0 faction picker, Shift+L blockade manifest,
   Shift+K service run, Shift+G warrant license, Shift+J advance to
   shift boundary, Shift+B toggle cut-out, Shift+N live rumor
-  routing, Shift+M force-reveal a dig site (`dev_mode.py`;
+  routing, Shift+M force-reveal a dig site, Shift+Y grant a
+  tinker-kit stack (`dev_mode.py`;
   `game_loop._handle_dev_event`).
 - **Headless save inspector** — `debug_session.py` runs scenario
   tokens (move/wait/reveal/goto/advance) against a copied save,

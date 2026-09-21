@@ -528,3 +528,29 @@ def log_rumor_routing(ctx) -> None:
     ctx.log.add(
         "  dark hulls here: " + (", ".join(_dark_hulls) if _dark_hulls else "none")
     )
+
+
+def apply_dev_tinker_kit(ctx) -> None:
+    """Shift+Y: grant a full tinker-kit stack (doc 47 phase 5).
+
+    Checklist instrument for a drop authored to be very rare — tops
+    up a partial stack when one exists, else appends a full one.
+    """
+    from .data.ground_items import find_ground_consumable
+    from .ground_consumables import KIT_ITEM_ID
+    from .ground_equipment import GroundItemStack
+
+    cap = find_ground_consumable(KIT_ITEM_ID).quantity_per_stack
+    for index, stack in enumerate(ctx.ground_expedition_items):
+        if stack.item_type == "consumable" and stack.item_id == KIT_ITEM_ID:
+            if stack.quantity >= cap:
+                return
+            ctx.ground_expedition_items[index] = GroundItemStack(
+                stack.item_type, stack.item_id, cap,
+            )
+            ctx.log.add("Dev: tinker kit stack granted.")
+            return
+    ctx.ground_expedition_items.append(
+        GroundItemStack("consumable", KIT_ITEM_ID, cap),
+    )
+    ctx.log.add("Dev: tinker kit stack granted.")

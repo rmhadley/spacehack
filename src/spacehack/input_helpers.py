@@ -427,6 +427,15 @@ def _is_shift_m_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'M')
 
+def _is_shift_y_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+Y.
+
+    Dev-mode only (``SPACEHACK_DEV``): grants a full tinker-kit stack
+    (doc 47 phase 5) — the checklist instrument for a drop authored
+    to be very rare.
+    """
+    return _is_shift_press(event, 'Y')
+
 def _is_f3_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F3 key.
 
