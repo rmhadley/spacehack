@@ -128,6 +128,14 @@ def test_buy_rows_include_ground_consumables():
     assert "restore_hp" not in med_pack.detail
 
 
+def test_buy_rows_exclude_loot_only_consumables():
+    rows = _armory._buy_consumable_rows()
+
+    assert not any(
+        row.action == "BUY_CONSUMABLE:tinker_kit" for row in rows
+    )
+
+
 def test_armory_and_expedition_rows_show_field_item_stack_quantities():
     stacks = [
         ground_equipment.GroundItemStack("ammo", "pistol_rounds", 12),

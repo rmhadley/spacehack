@@ -54,6 +54,23 @@ def test_stim_catalog_duration_and_ap_bonus_are_data_driven():
     assert spec.effect_label == "Temporary AP boost"
 
 
+def test_tinker_kit_catalog_row_is_loot_only_and_self_explaining():
+    spec = find_ground_consumable("tinker_kit")
+    assert spec.effect_id == "tinker"
+    assert spec.quantity_per_stack == 2
+    assert spec.use_ap_cost == 0
+    assert spec.shop_available is False
+    assert spec.effect_label == (
+        "Modify an item of your choice, increasing its "
+        "effectiveness, up to Prototype."
+    )
+
+
+def test_shop_available_defaults_true_for_purchasable_consumables():
+    assert find_ground_consumable("med_pack").shop_available is True
+    assert find_ground_consumable("stim").shop_available is True
+
+
 def test_find_ground_item_dispatches_by_type():
     assert find_ground_item("ammo", "pistol_rounds").name == "Pistol Rounds"
     assert find_ground_item("consumable", "stim").name == "Combat Stim"

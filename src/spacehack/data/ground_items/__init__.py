@@ -55,6 +55,8 @@ class GroundConsumableSpec:
         duration_turns: combat effect duration, starting at 3 for Phase 5.
         combat_ap_bonus: temporary AP added to later combat turns.
         effect_label: friendly effect text shown in inventory and shops.
+        shop_available: whether the armory lists this row for purchase
+            (doc 47.5 SETTLED 34 — loot-only consumables author False).
     """
 
     id: str
@@ -69,6 +71,7 @@ class GroundConsumableSpec:
     duration_turns: int = 0
     combat_ap_bonus: int = 0
     effect_label: str = ""
+    shop_available: bool = True
 
 
 # ---------------------------------------------------------------------------

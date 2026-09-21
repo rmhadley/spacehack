@@ -196,6 +196,7 @@ def _buy_consumable_rows():
             f"BUY_CONSUMABLE:{spec.id}",
         )
         for spec in sorted(list_ground_consumables(), key=lambda item: item.price)
+        if spec.shop_available
     )
     return tuple(rows)
 
