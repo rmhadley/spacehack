@@ -5,8 +5,8 @@ explicitly requests it.** Draft opened 2026-09-19; the user's four
 polish notes, the full open-question pass, and the phase-2
 quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
-No open questions remain; phase 4 is BUILT (2026-09-20) —
-awaiting the playtest checkpoint (guide sentence landed 212d48a).
+Phase 4 CLOSED 2026-09-21 — playtest passed (rulings 26-30 and
+two pre-existing-UI bug rounds recorded in its queue entry).
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -527,7 +527,7 @@ item.
   commit). SYSTEMS.md audited at close (module-loot entry
   added; loot, quality, boarding, save/load, Absent entries
   amended).
-- [ ] 4. **Legendary randarts + credit containers** — module
+- [x] 4. **Legendary randarts + credit containers** — module
   randarts only (SETTLED 19): the generator (seeded two-part
   names + 2-4 mixed-sign axes over the ten bonus fields, SETTLED
   20/21), delve-bottom activation with the guarantee (SETTLED
@@ -564,7 +564,12 @@ item.
    its cap, so the marker-heavy LOADOUT tabs still rendered whole and
    shrank — visible_window/window_height gained a max_total
    total-row clamp through fit and draw; long lists page at the
-   24-step top (pending commit).
+   24-step top (6194719).
+   **CLOSED 2026-09-21 — PLAYTEST PASSED** (final session clean;
+   no further feedback items). SYSTEMS.md audited at close
+   (legendary-randart + credit-container entry added; quality,
+   Absent, smuggler-hold, and XP/levels entries amended for
+   rulings 26-30).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 

@@ -730,7 +730,13 @@ nobody designs against a ghost.
   listed in produces/demands (`trade._can_sell_here`).
 - **Smuggler's hold** — hidden volume from smuggler modules
   (Mk1 10 / Mk2 25 / Mk3 50) + Smuggler's Instinct perk (+10% hull,
-  min 1) (`ship.smuggler_hold_capacity`).
+  min 1) (`ship.smuggler_hold_capacity`). The shared cargo body
+  states hold capacity/free on all three cargo surfaces (modal,
+  character CARGO tab, hangar CARGO tab; zero capacity stays
+  silent) derived from the scan's own consumption so the display
+  cannot drift from the scan; the Q-log's scan-risk label honors
+  the perk like the scan does (doc 47.4 SETTLED 30)
+  (`trade._cargo_body` → `navigation_scan.smuggler_hold_usage`).
 - **Scan exposure (computed before the roll)** — smuggle missions
   claim `required_cargo_size` first (overflow auto-fails the
   mission), remaining capacity shields inventory contraband; exposed
@@ -777,8 +783,10 @@ nobody designs against a ghost.
   weapon damage+accuracy and armor defense+4 bonus fields via
   `effective_*_spec` (`dataclasses.replace` copies; catalogs stay
   descriptive; the module family row + `effective_module_spec`
-  landed doc 47.3); the legendary row (4) ships DORMANT —
-  sell/read paths complete, no shipped source rolls it. Rates are authored
+  landed doc 47.3); the legendary row (4) activates ONLY at
+  RNG-delve bottoms (doc 47.4 randarts — no other source rolls
+  it). All scaled stats ceiling-round in magnitude (SETTLED 18 —
+  a tier never lands on its base value). Rates are authored
   1-in-N ladders checked rarest-first (KILL/WRECK/DIG in
   `data/quality.py`). Quality rides: `StoredGroundEquipment` +
   `GroundWeaponInstance` fields (every equip/store/swap/install/
@@ -819,11 +827,40 @@ nobody designs against a ghost.
   shops and buy paths stay base. No module id is barred from
   payload/pool/strip paths (themed capture sources are doc 48's
   authoring).
+- **Legendary randarts + credit containers (doc 47.4)** — the
+  delve bottom is the ONLY quality-4 source: every RNG dig's
+  bottom floor places one extra cache holding a module payload
+  (base rolled uniformly from the catalog, quality 4, seeded;
+  non-bottom floors and every other source never produce 4 —
+  `DigLootSpec.legendary_bottom`, `digs._scatter_dig_loot`). A
+  randart is its SEED: `roll_randart(module_id, seed)` derives
+  the name + 2-4 distinct signed axes deterministically (same
+  seed → same manifest all run; seeds draw ≥1 —
+  `parse_randart_seed` migrates 0 to not-a-randart); the
+  composed name IS the label, base identity lives in the detail
+  row (`data/randarts.py`). Axis COUNT is band-weighted
+  (`DigLootSpec.legendary_axes_weights`: T1 digs lean 2-stat,
+  band-3 lean 4) with the seed the sole identity — no count
+  threads any read path. Deltas apply on top of the
+  ceiling-rounded scaled base (`effective_module_spec(…,
+  randart_seed=…)`); engineering 3-10 is pure randart territory;
+  axes never price (sell stays the phase-3 formula at the 220
+  row). Pickup fires the LEGENDARY FIND modal (ScreenFrame
+  body_runs) listing the COMPLETE effective sheet — the scaled
+  base's own nonzero fields alongside the rolled axes, in
+  axes-table order (SETTLED 27). Credit containers:
+  `{"credits": N}` payload adds credits + log line, gold hue;
+  chips scatter in wrecks and digs (40-120), the dig rare-cache
+  lockbox (300-900, `lockbox_rate`) — the `credit_chips=True`
+  kwarg threaded at exactly the three dead-ship `load_layout`
+  callers. Dig caches can roll off-world goods the planet does
+  not produce (`out_of_produce_rate`).
 - **Absent:** `TradeGood.rarity` deleted (doc 47.2 — quest-cargo
   legality is now the explicit `QUEST_LEGAL_MARKET_GOODS` allowlist
   in `tools/quest_lint.py`); no module drops from exterior space
-  kills or dig sites (modules come from raiding — doc 47.3; delve
-  legendaries are doc 47.4); no tariffs beyond the confiscation
+  kills or ordinary dig floors (modules come from raiding — doc
+  47.3; the bottom-floor legendary cache is the sole dig-site
+  module source — doc 47.4); no tariffs beyond the confiscation
   fine; no equipment selling at terminals; no persistent
   NPC-trader stock.
 
@@ -832,6 +869,11 @@ nobody designs against a ghost.
 - **XP/levels** — curve 40 + next-level×25, hard cap 60 (XP accrues
   past cap); 5 skill points/level across six 0–100 skills
   (`xp.py`: `add_xp`, `_apply_skill_point`, `MAX_PLAYER_LEVEL`).
+  The C screen's Stats tab reads ship skills as base +
+  installed-module bonuses with the delta annotated ("36 (+9)")
+  through the SAME sum combat uses (`_stats._player_skill_bonuses`
+  — doc 47.4 SETTLED 29); ground stats and bonus-less skills
+  stay plain.
 - **Milestone traits** — levels 40 and 50: mandatory modal from the
   shared pool filtered by counters/stats; defers if none qualify
   (`xp.py`: `_qualifying_traits`; `trait_screen.py`).
