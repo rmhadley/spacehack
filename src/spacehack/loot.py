@@ -560,19 +560,28 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     return False
 
 
-def _randart_frame(module_id: str, seed: int):
-    """The legendary-find modal frame (doc 47.4 SETTLED 24): the
-    celebration IS the stat sheet — accent name, base identity, the
-    full axes list. Pure; the strings are the brief's drafts."""
+def _randart_frame(module_id: str, quality: int, seed: int):
+    """The legendary-find modal frame (doc 47.4 SETTLED 24/27): the
+    celebration IS the COMPLETE stat sheet — accent name, base
+    identity, then every nonzero effective bonus (scaled base + axes)
+    in the axes-table order. Pure; the strings are the brief's
+    drafts. Quality threads through like every read seam — the modal
+    shows exactly what installs."""
     from . import pygame_screen, pygame_ui
     from .data.modules import find_module
-    from .data.randarts import axis_line, roll_randart
+    from .data.quality import effective_module_spec
+    from .data.randarts import AXIS_LABELS, axis_line, roll_randart
 
     manifest = roll_randart(module_id, seed)
+    spec = effective_module_spec(module_id, quality, seed)
     body = (
         manifest.name,
         f"A {find_module(module_id).name}, modified far beyond factory spec:",
-        *(axis_line(field, delta) for field, delta in manifest.axes),
+        *(
+            axis_line(field, getattr(spec, field))
+            for field in AXIS_LABELS
+            if getattr(spec, field)
+        ),
     )
     runs = [None] * len(body)
     runs[0] = ((manifest.name, pygame_ui.DEFAULT_PALETTE.accent),)
@@ -584,13 +593,15 @@ def _randart_frame(module_id: str, seed: int):
     )
 
 
-async def _present_randart_find(ctx: GameContext, module_id: str, seed: int) -> None:
+async def _present_randart_find(
+    ctx: GameContext, module_id: str, quality: int, seed: int,
+) -> None:
     """Play the legendary-find modal; Continue (or Escape) closes it."""
     from . import pygame_screen
 
     while True:
         outcome, _action, _selected = await pygame_screen.run_for_context(
-            ctx.context, _randart_frame(module_id, seed),
+            ctx.context, _randart_frame(module_id, quality, seed),
             caption="spacehack - legendary find",
         )
         if outcome == "GUIDE":
@@ -624,7 +635,9 @@ async def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
     ctx.ship_storage.append(entry)
     _finish_loot_pickup(ctx, loot_entity, f"Stored ship module: {name}.")
     if entry.randart_seed is not None:
-        await _present_randart_find(ctx, entry.item_id, entry.randart_seed)
+        await _present_randart_find(
+            ctx, entry.item_id, entry.quality, entry.randart_seed,
+        )
 
 
 async def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:

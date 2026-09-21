@@ -245,7 +245,7 @@ def test_randart_pickup_carries_the_seed_into_storage(monkeypatch):
     presented = []
     monkeypatch.setattr(
         loot_mod, "_present_randart_find",
-        as_async(lambda ctx, mid, seed: presented.append((mid, seed))),
+        as_async(lambda ctx, mid, quality, seed: presented.append((mid, seed))),
     )
 
     entity = SimpleNamespace(
@@ -323,24 +323,46 @@ def test_wreck_chip_pass_stays_gated_off_by_default(tmp_path):
 # --- the legendary pickup modal (doc 47 phase 4, SETTLED 24) ------------------
 
 
-def test_randart_frame_is_the_stat_sheet():
+def test_randart_frame_is_the_complete_stat_sheet():
+    """SETTLED 27: the spread lists every nonzero EFFECTIVE bonus —
+    the scaled base's own fields too (a legendary targeting Mk. 3
+    must show its +44 gunnery), in the axes-table order."""
     from src.spacehack.loot import _randart_frame
-    from src.spacehack.data.randarts import roll_randart
+    from src.spacehack.data.quality import LEGENDARY_QUALITY, effective_module_spec
+    from src.spacehack.data.randarts import AXIS_LABELS, axis_line, roll_randart
 
     seed = 88
-    frame = _randart_frame("shield_mk1", seed)
+    frame = _randart_frame("shield_mk1", 4, seed)
     manifest = roll_randart("shield_mk1", seed)
     assert frame.title == "LEGENDARY FIND"
     assert frame.body[0] == manifest.name
     assert frame.body[1] == "A Shield Mk. 1, modified far beyond factory spec:"
-    from src.spacehack.data.randarts import axis_line
+    spec = effective_module_spec("shield_mk1", LEGENDARY_QUALITY, seed)
     assert list(frame.body[2:]) == [
-        axis_line(field, delta) for field, delta in manifest.axes
+        axis_line(field, getattr(spec, field))
+        for field in AXIS_LABELS
+        if getattr(spec, field)
     ]
     assert frame.rows[0].text == "Continue"
     # The name line is the only accented run.
     assert frame.body_runs[0] is not None
     assert all(run is None for run in frame.body_runs[1:])
+
+
+def test_randart_frame_shows_base_fields_no_axis_touched():
+    """The playtest case: a targeting Mk. 3 whose axes rolled
+    elsewhere still shows the scaled +44 gunnery (base 20 x 2.2)."""
+    from src.spacehack.loot import _randart_frame
+    from src.spacehack.data.randarts import roll_randart
+
+    seed = next(
+        s for s in range(1, 500)
+        if "gunnery_bonus" not in {
+            field for field, _delta in roll_randart("targeting_mk3", s).axes
+        }
+    )
+    frame = _randart_frame("targeting_mk3", 4, seed)
+    assert "+44 gunnery" in frame.body
 
 
 def test_unseeded_module_pickups_never_fire_the_modal(monkeypatch):
@@ -353,7 +375,7 @@ def test_unseeded_module_pickups_never_fire_the_modal(monkeypatch):
     presented = []
     monkeypatch.setattr(
         loot_mod, "_present_randart_find",
-        as_async(lambda ctx, mid, seed: presented.append((mid, seed))),
+        as_async(lambda ctx, mid, quality, seed: presented.append((mid, seed))),
     )
     entity = SimpleNamespace(
         loot_data={"item_type": "module", "item_id": "shield_mk2", "quality": 3},

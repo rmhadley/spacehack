@@ -397,7 +397,7 @@ continues the passes above):
     surface stays ceded-but-unused; teaching/truth pads are
     doc 42's, untouched.
 
-## Settled — the phase-4 playtest rulings (2026-09-20)
+## Settled — the phase-4 playtest rulings (mid-playtest; entries dated)
 
 26. **Band-weighted randart axes (user, verbatim):** "that's what
    we use then. the harder and deeper a delve is, the higher
@@ -413,9 +413,18 @@ continues the passes above):
    shift the row; if depth should matter within a band, that is
    a playtest tuning ruling on this table.
 
+27. **The modal shows the complete effective sheet (user,
+   2026-09-21, verbatim):** "The gunnery +44 was absent on the
+   legendary screen. I think it should show." The pickup modal's
+   spread lists every nonzero EFFECTIVE bonus — the scaled
+   base's own fields (a legendary Targeting Mk. 3 shows its
+   +44 gunnery) alongside the rolled axes, in the axes-table
+   order, through the shared axis_line voice. The spread is the
+   total the module installs with, matching every detail row.
+
 ## Remaining opens — none (phase-4 pass settled 2026-09-20)
 
-Every open question is settled (1-25 above). What stays gated:
+Every open question is settled (1-27 above). What stays gated:
 randart name fragments, modal strings, chip/lockbox names —
 PROSE GATE with the phase-4 brief below; value curves and rate
 tables are opening guesses tuned at playtest. Hand-authored
@@ -503,8 +512,10 @@ item.
   was red-lined at the checkpoint (the draft spent the discovery:
   where legendaries live and what they carry) and the user's wording
   landed verbatim — "The rarest modules are only talked about in
-  legends." (212d48a, own commit). Post-BUILT ruling: SETTLED 26
-  (band-weighted axes) landed with its verbatim record above.
+   legends." (212d48a, own commit). Post-BUILT rulings: SETTLED 26
+   (band-weighted axes) and SETTLED 27 (the modal shows the
+   complete effective sheet) landed with their verbatim records
+   above.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
