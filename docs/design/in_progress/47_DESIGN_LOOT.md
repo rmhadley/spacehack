@@ -537,7 +537,13 @@ item.
    (band-weighted axes), SETTLED 27 (the modal shows the complete
    effective sheet), SETTLED 28 (engineering axis 3-10), and
    SETTLED 29 (C-screen effective skills) landed with their
-   verbatim records above.
+   verbatim records above. Playtest bug round (2026-09-21, both
+   measured pre-existing, not phase-4 regressions): the split
+   terminal's fixed row reserve locked the loadout one font-ladder
+   step below every text-screen tab — now 11 rows, size-24 parity
+   (94ea18a); shift+tab exited the hangar/mechanic (and crashed the
+   trait screen) — both hosts cycle backward via
+   pygame_screen.cycled_tab, the wider host class swept (8f3d70a).
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
