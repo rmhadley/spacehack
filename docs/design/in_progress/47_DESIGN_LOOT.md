@@ -7,6 +7,8 @@ quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
 Phase 4 CLOSED 2026-09-21 — playtest passed (rulings 26-30 and
 two pre-existing-UI bug rounds recorded in its queue entry).
+Phase 5 (tinker kits) OPENED 2026-09-21: the user's feature note
+is recorded below; its open questions (31-36) are unsettled.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -459,14 +461,81 @@ continues the passes above):
    enumerates hold contents, not summary lines; the new line
    self-explains (same shape as the Cargo line).
 
-## Remaining opens — none (phase-4 pass settled 2026-09-20)
+## The tinker-kit feature (user note, 2026-09-21, verbatim)
 
-Every open question is settled (1-29 above). What stays gated:
-randart name fragments, modal strings, chip/lockbox names —
-PROSE GATE with the phase-4 brief below; value curves and rate
-tables are opening guesses tuned at playtest. Hand-authored
-uniques stay deferred (SETTLED 1 amendment) — not a phase-4
-item.
+> But there's a new loot-based feature I'd like to add after
+> going through all 4 phases: tinker kits. I want a consumable
+> item (stackable) called tinker kit that allows you to raise
+> the quality level of any non-legendary item that can have
+> quality. And I want them to be fairly rare to find.
+
+Phase 5's seed. What the settled systems already give it:
+
+- The kit itself rides the doc-19 field-item model whole: a
+  stackable `GroundConsumableSpec` — the pack already has a Use
+  verb for consumable stacks
+  (`character_screen._manage_consumable_stack` →
+  `ground_consumables.use_consumable`, effect_id-registry
+  keyed), and the loot payload shape (`item_type
+  "consumable"` + quantity) already round-trips save/load.
+- The target set is exactly the quality-bearing instances the
+  doc threads: stored/equipped ground weapons and armor
+  (`StoredGroundEquipment` / `GroundWeaponInstance`) and
+  stored/installed ship modules (`StoredEquipment`). Quality is
+  identity and stats are always derived
+  (`effective_*_spec`) — a kit is a +1 field bump; no stored
+  derived stat can drift anywhere (the seed-not-manifest
+  lesson, working for us).
+- Binding rulings carried forward: quest gear, starting gear,
+  and shop-bought gear NEVER variant — ineligible as targets
+  (chooser-filtered); randarts (quality 4) ineligible by the
+  user's own wording; ammo/consumables/trade goods have no
+  quality and are not targets.
+
+### Open questions — the tinker-kit pass (unsettled; rulings
+### will record as SETTLED 31+)
+
+31. **Tier ceiling.** "Any non-legendary item" literally admits
+    a t3 module → quality 4 — but a 4 without a randart seed is
+    SETTLED 11's banned proto-legendary form, and a kit-rolled
+    randart would break "the delve bottom is the ONLY legendary
+    source" (phase-4 binding ruling). RECOMMEND: kits cap at
+    prototype — t3 items are ineligible targets, the chooser
+    filters them.
+32. **Step size.** One kit = one tier (+1)? RECOMMEND yes:
+    base→prototype costs three kits, so rarity does the economic
+    work. (Alternative: one kit jumps straight to t3 — richer,
+    but collapses three finds into one.)
+33. **Application surface.** RECOMMEND one uniform flow, no
+    per-screen verbs: Use the kit from the pack → a CHOOSE
+    TARGET modal (the loot-chooser machinery) listing every
+    eligible owned item — pack + equipped ground gear AND
+    ship-storage modules — each row previewing current → next
+    token.
+34. **Sources + rarity.** RECOMMEND loot-only, never shops
+    (shops-stock-base is the economy's identity): thin 1-in-N
+    presence on the existing wreck/dig/kill field-item paths,
+    authored rates tuned at playtest. Delve bottoms stay the
+    legendary beat — no kit guarantee there.
+35. **Sellability.** Field items are unsellable today (the
+    SETTLED 4 audit). RECOMMEND keep unsellable (uniform with
+    every other consumable); the alternative — the first
+    sellable consumable, at an authored price — is a deliberate
+    pattern break to rule in if wanted.
+36. **Apply feedback + guide.** RECOMMEND a log line on apply
+    (a deliberate action, quieter than a pickup; t1-t3 pickups
+    are log lines) and a guide entry drafted with the brief
+    (PROSE GATE) — a new core mechanic is the guide's remit.
+
+## Remaining opens — the tinker-kit pass (31-36) is OPEN
+
+Every phase 1-4 question is settled (1-30 above); the phase-4
+prose gate closed at the playtest checkpoint (every string was
+listed verbatim and reviewed). Hand-authored uniques stay
+deferred (SETTLED 1 amendment); weapon/armor randarts stay a
+possible later extension (SETTLED 19); value curves and rate
+tables remain playtest-tunable. Phase 5's open questions
+(31-36) live in the feature section above.
 
 ## Phases (SETTLED 9 — polish first, each phase its own cycle)
 
@@ -570,6 +639,11 @@ item.
    (legendary-randart + credit-container entry added; quality,
    Absent, smuggler-hold, and XP/levels entries amended for
    rulings 26-30).
+- [ ] 5. **Tinker kits** — a stackable consumable field item
+  that raises the quality of a non-legendary quality-bearing
+  item (user note verbatim above). Ceiling, step size,
+  application surface, sources, and economy ride open
+  questions 31-36; brief proposed only after they settle.
 
 ## Pre-implementation audit — phase 1 (2026-09-19)
 
