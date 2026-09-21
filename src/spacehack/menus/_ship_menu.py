@@ -239,9 +239,9 @@ async def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction
             from ..help import _open_context_guide
             await _open_context_guide(ctx, "Ships & Equipment")
             continue
-        if outcome == "TAB":
-            tab = (tab + 1) % len(_HANGAR_TABS)
-            selected = 0
+        _next_tab = pygame_screen.cycled_tab(outcome, tab, len(_HANGAR_TABS))
+        if _next_tab is not None:
+            tab, selected = _next_tab, 0
             continue
         if outcome in {"PAGE_UP", "PAGE_DOWN"}:
             continue

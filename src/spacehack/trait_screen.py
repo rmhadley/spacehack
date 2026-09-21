@@ -87,7 +87,7 @@ async def _run_pygame_trait_selection(ctx: GameContext, candidates: list) -> boo
             from .help import _run_help_guide
             await _run_help_guide(ctx)
             continue
-        if outcome in {"BACK", "TAB"}:
+        if outcome in {"BACK", "TAB", "SHIFT_TAB"}:
             continue
         if outcome == "QUIT":
             raise SystemExit

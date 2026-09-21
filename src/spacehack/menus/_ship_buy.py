@@ -231,7 +231,7 @@ async def _run_pygame_ship_buy(ctx, ship: ship_module.Ship, effective_price: int
             from ..help import _open_context_guide
             await _open_context_guide(ctx, "Ships & Equipment")
             continue
-        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+        if outcome in {"TAB", "SHIFT_TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue
         if outcome == "SELECT" and action == "BUY":
             _price = effective_price if effective_price is not None else ship.price

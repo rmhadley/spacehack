@@ -239,9 +239,9 @@ async def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
             from ..help import _open_context_guide
             await _open_context_guide(ctx, "Ships & Equipment")
             continue
-        if outcome == "TAB":
-            tab = (tab + 1) % len(tabs)
-            selected = 0
+        _next_tab = pygame_screen.cycled_tab(outcome, tab, len(tabs))
+        if _next_tab is not None:
+            tab, selected = _next_tab, 0
             continue
         if outcome in {"PAGE_UP", "PAGE_DOWN"}:
             continue

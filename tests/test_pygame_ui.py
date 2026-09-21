@@ -1,6 +1,9 @@
 """Tests for the Pygame presentation and shared-runtime seam."""
 
 from __future__ import annotations
+
+import pytest
+
 from tests.support.asyncutil import run, as_async
 from tests.support.module_entries import module_entry
 
@@ -5159,3 +5162,20 @@ def test_loadout_sell_stored_module_scales_with_quality():
 
     assert ctx.stats.credits == 98
     assert ctx.ship_storage == []
+
+
+# --- backward tab cycling (2026-09-21 playtest report) ---------------
+
+
+@pytest.mark.parametrize(
+    "outcome,active,count,expected",
+    [
+        ("TAB", 0, 3, 1), ("TAB", 2, 3, 0),
+        ("SHIFT_TAB", 0, 3, 2), ("SHIFT_TAB", 1, 3, 0),
+        ("SELECT", 1, 3, None), ("BACK", 1, 3, None),
+    ],
+)
+def test_cycled_tab_advances_both_directions(outcome, active, count, expected):
+    from spacehack.pygame_screen import cycled_tab
+
+    assert cycled_tab(outcome, active, count) == expected

@@ -299,6 +299,20 @@ def _fit_font(
     )
 
 
+def cycled_tab(outcome: str, active: int, count: int) -> int | None:
+    """Advance a tab sheet for TAB/SHIFT_TAB; None leaves it alone.
+
+    The tab-treatment contract: hosts advance the sheet on BOTH
+    directions (pygame_quest_log / character_screen precedent) —
+    falling through on SHIFT_TAB exits the modal instead.
+    """
+    if outcome == "TAB":
+        return (active + 1) % count
+    if outcome == "SHIFT_TAB":
+        return (active - 1) % count
+    return None
+
+
 def draw_tab_bar(
     pygame: Any, screen: Any, font: Any, palette: Any,
     tabs: tuple[str, ...], active_tab: int, width: int, top: int,

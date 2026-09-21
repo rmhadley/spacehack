@@ -102,8 +102,6 @@ async def _run_pygame_interactive_missions(
         return MissionOutcome.BACK, None
     if outcome == "QUIT":
         return MissionOutcome.QUIT, None
-    if outcome == "TAB":
-        return MissionOutcome.BACK, None
     if outcome == "SELECT" and offerings:
         try:
             picked = offerings[int(action)]

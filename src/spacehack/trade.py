@@ -871,7 +871,7 @@ async def _run_pygame_cargo(ctx, owned, ship_name: str, max_cargo: int) -> bool 
             from .help import _run_help_guide
             await _run_help_guide(ctx)
             continue
-        if outcome in {"TAB", "PAGE_UP", "PAGE_DOWN"}:
+        if outcome in {"TAB", "SHIFT_TAB", "PAGE_UP", "PAGE_DOWN"}:
             continue
         if outcome == "QUIT":
             raise SystemExit
