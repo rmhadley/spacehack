@@ -143,12 +143,26 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
         ship_storage=[], stats=SimpleNamespace(credits=5000),
         log=SimpleNamespace(add=lambda *_: None),
     )
-    mechanic_frame = _mechanic._mechanic_frame(
-        ctx, find_ship("frigate"), 0, 0, ("REPAIRS", "AMMO", "LOADOUT"), [],
+    spec = find_ship("frigate")
+    tabs = ("REPAIRS", "AMMO", "LOADOUT")
+    # The reported surface: every mechanic tab AND the hangar's tabbed
+    # tabs, on a FULL loadout (all slots installed — the marker-heavy
+    # worst case), plus the split manage screen. All at the 24-step
+    # glyph height, none droppable.
+    ctx.player_owned_ship.weapons = ("light_laser",) * 8  # the full rack:
+    # 15/18 selectable rows is the true worst case (markers measure
+    # cheaper than installed rows)
+    ctx.player_owned_ship.modules = tuple(
+        StoredEquipment("module", "targeting_mk3", quality=4, randart_seed=99)
+        for _ in range(spec.module_slots)
     )
+    from src.spacehack.menus import _ship_menu
+    for tab in range(3):
+        frame = _mechanic._mechanic_frame(ctx, spec, tab, 0, tabs, [1])
+        assert screen_fit(pygame, frame, 1600, 960, reserve_log=True).get_height() == 28
+    for tab in range(3):
+        frame = _ship_menu._ship_hangar_frame(ctx, spec, tab, 0)
+        assert screen_fit(pygame, frame, 1600, 960, reserve_log=True).get_height() == 28
     loadout_frame = _loadout._pygame_loadout_frame(ctx, mode="STORE")
-    screen_font = screen_fit(pygame, mechanic_frame, 1600, 960, reserve_log=True)
     split_font = split_fit(pygame, loadout_frame, 1600, 960)
-    # Equality AND the pinned 24-step glyph height: both families at
-    # the ladder top, and neither can silently drop with the other.
-    assert split_font.get_height() == screen_font.get_height() == 28
+    assert split_font.get_height() == 28

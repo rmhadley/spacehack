@@ -209,6 +209,10 @@ def _rows_height(font: Any, frame: ScreenFrame) -> int:
         frame.rows, pygame_ui.MAX_VISIBLE_ROWS,
         is_selectable=lambda row: row.selectable,
         selectable_step=line_height + 14, info_step=line_height + 4,
+        # Bound the TOTAL window (headers/empties included): a
+        # selectable-light, marker-heavy list otherwise renders whole
+        # and shrinks the fitted font (playtest 2026-09-21).
+        max_total=pygame_ui.MAX_VISIBLE_ROWS,
     )
     if row_height == 0 and frame.rows:
         row_height = _info_window(frame)[1] * (line_height + 4)
@@ -535,6 +539,7 @@ def _draw_screen_rows(
     window_top, window_count = pygame_ui.visible_window(
         frame.rows, selected, pygame_ui.MAX_VISIBLE_ROWS,
         is_selectable=lambda row: row.selectable,
+        max_total=pygame_ui.MAX_VISIBLE_ROWS,  # match the fit's measure
     )
     if window_count == 0:
         window_top, window_count = _info_window(frame)

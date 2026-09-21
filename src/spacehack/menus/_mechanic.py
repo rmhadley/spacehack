@@ -159,7 +159,9 @@ def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
             "LOADOUT",
         ),
     ) + _loadout_rows(owned, ship_rec)
-    body = ("Buy and sell ship weapons and modules.",)
+    # No body line: it tipped the fitted font below every other tab
+    # (playtest 2026-09-21) and restated the Manage row's detail.
+    body = ()
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER manage loadout", next_hint,
         "ESC back", pygame_ui.GUIDE_HINT,

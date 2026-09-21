@@ -4049,6 +4049,62 @@ def test_menu_and_screen_viewports_reuse_the_shared_window():
     assert selectable_in_window == 13
 
 
+def test_visible_window_total_clamp_keeps_selection_and_boundaries():
+    """max_total bounds TOTAL rows (headers/empties included) — the
+    selectable-light, marker-heavy lists that otherwise render whole
+    and shrink the fitted font (playtest 2026-09-21)."""
+    def header_heavy(count):
+        return tuple(
+            pygame_screen.ScreenRow(
+                "H" if index % 3 else "item",
+                selectable=(index % 3 != 0),
+            )
+            for index in range(count)
+        )
+
+    # At exactly max_total the clamp must not fire.
+    rows = header_heavy(13)
+    top, count = pygame_ui.visible_window(
+        rows, 1, 13, is_selectable=lambda r: r.selectable, max_total=13,
+    )
+    assert (top, count) == (0, 13)
+
+    # One over: the window clamps to 13 total and keeps the selection.
+    rows = header_heavy(14)
+    for selected in (0, 1, 6, 13, 99):  # edges, middle, out-of-range
+        top, count = pygame_ui.visible_window(
+            rows, selected, 13,
+            is_selectable=lambda r: r.selectable, max_total=13,
+        )
+        assert count == 13
+        assert 0 <= top <= 1
+        nearest = min(
+            (i for i, r in enumerate(rows) if r.selectable),
+            key=lambda i: abs(i - selected),
+        )
+        assert top <= nearest < top + count
+
+    # Off by default: no clamp for existing consumers.
+    top, count = pygame_ui.visible_window(
+        rows, 1, 13, is_selectable=lambda r: r.selectable,
+    )
+    assert count == 14
+
+    # The height measure applies the same clamp (fit/draw coherence).
+    tall = pygame_ui.window_height(
+        rows, 13,
+        is_selectable=lambda r: r.selectable,
+        selectable_step=42, info_step=32, max_total=13,
+    )
+    unclamped = pygame_ui.window_height(
+        rows, 13,
+        is_selectable=lambda r: r.selectable,
+        selectable_step=42, info_step=32,
+    )
+    assert tall < unclamped
+    assert tall <= 13 * 42  # no window can exceed 13 tallest steps
+
+
 def test_log_panel_height_matches_world_band():
     """Modals reserve exactly the world renderer's log band height."""
     from src.spacehack.engine import MSG_LOG_HEIGHT, TILE_HEIGHT

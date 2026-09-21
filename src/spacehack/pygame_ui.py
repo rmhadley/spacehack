@@ -110,6 +110,7 @@ def visible_window(
     cap: int,
     *,
     is_selectable: Callable[[Any], bool],
+    max_total: int | None = None,
 ) -> tuple[int, int]:
     """Return the ``(top, count)`` viewport window centered on ``selected``.
 
@@ -117,13 +118,18 @@ def visible_window(
     adjacent non-selectable rows (section headers, dividers), and the
     selection is always inside it. An out-of-range selection clamps to the
     nearest selectable item; empty or all-non-selectable collections yield
-    ``(0, 0)``.
+    ``(0, 0)``. ``max_total`` bounds the TOTAL row count (headers and
+    markers included) — without it a selectable-light, header-heavy list
+    renders whole and the font solver shrinks the type to cram it.
     """
     indices = tuple(index for index, item in enumerate(items) if is_selectable(item))
     if not indices or cap <= 0:
         return 0, 0
     if selected not in indices:
         selected = min(indices, key=lambda index: abs(index - selected))
+    if max_total is not None and len(items) > max_total:
+        top = max(0, min(selected - max_total // 2, len(items) - max_total))
+        return top, max_total
     position = indices.index(selected)
     start = max(0, min(position - cap // 2, len(indices) - cap))
     first = indices[start]
@@ -144,6 +150,7 @@ def window_height(
     is_selectable: Callable[[Any], bool],
     selectable_step: int,
     info_step: int,
+    max_total: int | None = None,
 ) -> int:
     """Return the pixel height of the tallest capped viewport window.
 
@@ -159,7 +166,10 @@ def window_height(
         sum(steps[top:top + count])
         for position in range(len(indices))
         for top, count in (
-            visible_window(items, indices[position], cap, is_selectable=is_selectable),
+            visible_window(
+                items, indices[position], cap,
+                is_selectable=is_selectable, max_total=max_total,
+            ),
         )
     )
 
