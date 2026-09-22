@@ -879,6 +879,35 @@ Rulings:
 - Doc 43's inhabitants handoff: draws from this catalog. Topic E
   CLOSED.
 
+## SETTLED 30 (2026-09-22) — fauna: every biome, bands, apexes guard the legendary (topic F CLOSED)
+
+User, verbatim:
+
+> 3. all biomes should have themed pools. because all biomes are
+> capable of having a delve.
+> 1 and 2 are good. An apex per biome theme is a great plan.
+> something deep in a T4 delve making getting that legendary module
+> a risk.
+
+Rulings:
+
+- **Every biome theme carries a native fauna pool** — any biome can
+  host a delve, so every biome needs faces (LUSH, VOLCANIC,
+  SCRAP_RING, CANYON join DESERT and ICE; theme→planet mapping is a
+  brief-time survey).
+- **Fauna join the band system** — no separate difficulty machinery:
+  band-aware pool composition + stat derivation through the same
+  band→effective-level mapping as humanoids (SETTLED 15).
+- **One apex per biome theme**, prose-gated names — and the apex is
+  the guardian pressure at delve bottoms: "something deep in a T4
+  delve making getting that legendary module a risk" (ties directly
+  to 47.4's delve-bottom legendary activation — the legendary
+  finally has teeth in front of it).
+- **Fauna stay `always_hostile`** (answers Q4: non-sentient, no
+  faction, no rep; the LOS doctrine already treats them right).
+- Topic F CLOSED. Names, row shapes, biome→planet wiring at brief
+  time.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1168,8 +1197,8 @@ Doctrinal (phase-1 topics):
 3. ~~Merchant ground presence: crews of their own,
    consortium-as-crew, or none?~~ ANSWERED — SETTLED 5: honest crews
    of their own; row shape is Q10.
-4. Fauna under value 3: stay `always_hostile`, or do biome sites get
-   faction flavor?
+4. ~~Fauna under value 3: stay `always_hostile`?~~ ANSWERED —
+   SETTLED 30: they stay always_hostile; bands scale pools + stats.
 5. ~~Band vocabulary~~ ANSWERED — SETTLED 14: one ladder
    (mission_tier = site band = tech_level ceiling), unclamped to 4;
    consortium excluded from ambient pools.
