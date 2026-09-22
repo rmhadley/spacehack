@@ -1071,6 +1071,22 @@ Rulings:
   cross-registry pin re-derivation; the flagged-decision block
   reduces to D3's re-derived pin list.
 
+Addition (same day, user, verbatim):
+
+> One quick note: with the char/color combo, this does open to the
+> possibilty of using the same char across families as long as the
+> color is distinct enough. If needed.
+
+Ruling: the (glyph, color) PAIR is the identity — SETTLED 32's
+uniqueness rule, read literally. Family letters need NOT be
+globally unique: two families may share a char when their family
+colors separate (the separation lint's threshold is the enabling
+guard, not just a nicety). This relaxes the "reserving the family
+letter" phrasing above — reservation matters only within a spawn
+context. Ships already work this way (every faction's cruiser is
+`C`); ground families may do the same where phase-4+ authoring
+needs it — "if needed" is an allowance, not a goal.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1750,7 +1766,8 @@ act0_bar re-key covered).
   - SEPARATION (hard, tunable constant): pairwise max-channel
     distance between identity-group family colors ≥ 60 — the
     teal / consortium-blue / machine-blue neighborhood is why it
-    exists.
+    exists, and it is what legalizes reusing a char across
+    families where authoring needs it (SETTLED 34 addition).
   - CROSS-REGISTRY (pinned): ground/space glyph overlap among
     hostile-capable faces equals exactly {scout `s` vs
     rock_scavenger `s`}; a new overlap fails the pin. Case
