@@ -263,3 +263,19 @@ class TestModuleQualityInstances:
         assert parse_module_entry("no_such_module") is None
         assert parse_module_entry(42) is None
         assert parse_module_entry({"item_id": ""}) is None
+
+
+class TestBuyAmmoCargoSync:
+    def test_magazine_buy_recalc_cargo_ammo(self):
+        """buy_ammo keeps cargo_ammo == total_ammo_cargo (doc 48.3 punch)."""
+        from src.spacehack.ship import buy_ammo, total_ammo_cargo
+
+        owned = OwnedShip(
+            ship_id="scout", weapons=("light_missile",), modules=(),
+        )
+        # Simulate a stale reserve (e.g. legacy save): cargo off by 3.
+        owned.cargo_ammo = total_ammo_cargo(owned.weapons) - 3
+        owned.weapon_ammo = {0: 0}  # magazine emptied by combat
+        ok, _cost, _reason = buy_ammo(owned, 0, 1, credits=10_000)
+        assert ok is True
+        assert owned.cargo_ammo == total_ammo_cargo(owned.weapons)

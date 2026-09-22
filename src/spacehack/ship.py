@@ -203,6 +203,7 @@ def buy_ammo(
         return False, 0, f"Need {ws.ammo_price}$ for 1 round."
     cost = buy * ws.ammo_price
     owned.weapon_ammo[slot_index] = current + buy
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
     return True, cost, ""
 
 
