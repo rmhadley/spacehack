@@ -172,10 +172,10 @@ def test_capture_layouts_carry_console_and_crew():
     from src.spacehack.dungeon_layout import load_layout
 
     # scattered entities carry the npc_char spec's char (raider r /
-    # rifleman R / enforcer c / gunner g), not the authored map glyph
+    # rifleman R / enforcer E / gunner e), not the authored map glyph
     crew_glyphs = {"scout_crew": "r", "cruiser_crew": "rR",
-                   "hauler_crew": "cg", "frigate_crew": "rR",
-                   "freightliner_crew": "cg"}
+                   "hauler_crew": "Ee", "frigate_crew": "rR",
+                   "freightliner_crew": "Ee"}
     for lid, crew in crew_glyphs.items():
         _map, _spawn = load_layout(lid)
         assert _spawn is not None, lid

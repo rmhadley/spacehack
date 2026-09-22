@@ -5,6 +5,15 @@ Each :class:`NpcCharSpec` has a ``faction`` field so hostility is
 determined by faction reputation rather than a hardcoded flag —
 exactly how :class:`NpcShipSpec` works for space combat.
 
+Ground identity families (doc 48 SETTLED 34, the
+:data:`CHAR_CLASS_FAMILIES` table): one LETTER per family, members
+are case variants of it (lowercase common / uppercase serious), ONE
+consistent color per family — pirate `r`/`R` rust, militia `m` teal,
+consortium `e`/`E` corporate blue, civilian `c`, machines `d`/`D`
+bronze. The (glyph, color) PAIR is the identity — a char may repeat
+across families when the colors separate. Fauna are not families:
+species glyphs in biome palettes, bold apexes later (phase 10).
+
 Adding a new NPC character is one entry in an ``NPC_CHARS`` tuple
 in any submodule — no if/else chains, no registry edits.
 """
@@ -12,6 +21,41 @@ in any submodule — no if/else chains, no registry edits.
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class CharClassFamily:
+    """One ground identity family (SETTLED 34).
+
+    ``faction`` families recruit every spec carrying that faction;
+    explicit ``members`` list ids for factionless families (the
+    contemporary machines — fauna share ``faction=""`` but stay out).
+    """
+
+    letter: str
+    color: tuple[int, int, int]
+    faction: str = ""
+    members: tuple[str, ...] = ()
+
+
+CHAR_CLASS_FAMILIES: dict[str, CharClassFamily] = {
+    "pirate": CharClassFamily(
+        letter="r", color=(220, 120, 80), faction="pirate",
+    ),
+    "militia": CharClassFamily(
+        letter="m", color=(130, 230, 220), faction="militia",
+    ),
+    "consortium": CharClassFamily(
+        letter="e", color=(120, 160, 220), faction="consortium",
+    ),
+    "civilian": CharClassFamily(
+        letter="c", color=(235, 215, 175), faction="civilian",
+    ),
+    "machine": CharClassFamily(
+        letter="d", color=(200, 180, 110),
+        members=("sentry_drone", "assault_drone"),
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -26,8 +70,12 @@ class NpcCharSpec:
     Attributes:
         id: registry key, e.g. ``pirate_raider``.
         name: display name shown in combat HUD.
-        char: glyph on the dungeon map, e.g. ``r``.
-        fg: foreground colour tuple.
+        char: glyph on the dungeon map, e.g. ``r`` — a case variant
+            of the spec's family letter (SETTLED 34; see
+            :data:`CHAR_CLASS_FAMILIES`).
+        fg: the family's ONE color (SETTLED 34) — members render in
+            the same family color exactly; fauna keep species
+            palettes.
         faction: ``"pirate"`` | ``"merchant"`` | ``"militia"`` |
             ``"consortium"`` (hidden axis, doc 48) | ``"civilian"``
             (retired as a rep axis — an ambient-dressing accounting
