@@ -1707,7 +1707,7 @@ act0_bar re-key covered).
    no-op; any hit becomes a called-out before/after).
 
 ### Phase 3 Implementation brief (RE-CUT v2 2026-09-22 — SETTLED
-### 33/34 folded in; awaiting approval)
+### 33/34 + the char-reuse addition folded in; APPROVED same day)
 
 **Verified foundations (2026-09-22):**
 
