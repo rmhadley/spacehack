@@ -687,9 +687,39 @@ def _parse_save_header(data: dict) -> _ParsedSave:
         counters=_parse_counters(data),
         economy_state=economy_state,
         generated_missions=generated_missions,
-        faction_reputation=data.get("faction_reputation", {}) or {},
+        faction_reputation=_sanitize_rep_sheet(
+            data.get("faction_reputation", {}) or {}, seed_defaults=True,
+        ),
         log=_parse_log(data),
     )
+
+
+def _sanitize_rep_sheet(sheet: dict, *, seed_defaults: bool) -> dict:
+    """Rep-sheet save migration (doc 48 phase 2): retired axes drop
+    (civilian, SETTLED 8) and only current axes survive. The true
+    sheet seeds absent axes at their start value — an old save gains
+    the consortium key at −100, preserving the re-tagged corporate
+    guards' on-sight hostility exactly. Worn-ID sheets seed nothing:
+    blank paper reads neutral at the reader's ``.get`` (doc 40)."""
+    from . import faction
+    kept = {
+        fac: val for fac, val in sheet.items()
+        if fac in faction._ALL_FACTIONS
+    }
+    if seed_defaults:
+        for fac in faction._ALL_FACTIONS:
+            kept.setdefault(fac, faction._DEFAULT_REP.get(fac, 0))
+    return kept
+
+
+def _migrate_worn_sheet(entry: dict) -> dict:
+    """Drop retired axes from one collected-ID sheet; absent keys stay
+    absent so a face with no corporate record reads neutral. Entries
+    without a sheet are untouched (no sheet materialized on load)."""
+    rep = entry.get("rep")
+    if isinstance(rep, dict):
+        entry["rep"] = _sanitize_rep_sheet(rep, seed_defaults=False)
+    return entry
 
 
 def _parse_ship_storage(data: dict) -> list:
@@ -791,6 +821,26 @@ def _restore_dungeon_extension(ctx: GameContext, data: dict) -> None:
     )
 
 
+def _restore_identity_layer(ctx: GameContext, data: dict) -> None:
+    """Restore the transponder/ID layer (doc 40), migrating worn sheets."""
+    ctx.ship_registration = data.get("ship_registration", "")
+    ctx.broadcast_dark = bool(data.get("broadcast_dark", False))
+    ctx.broadcast_identity = data.get("broadcast_identity") or None
+    ctx.collected_ids = [
+        _migrate_worn_sheet(entry) if isinstance(entry, dict) else entry
+        for entry in (data.get("collected_ids") or [])
+    ]
+    ctx.transponder_cutout = bool(data.get("transponder_cutout", False))
+    ctx.transponder_rig = bool(data.get("transponder_rig", False))
+    if not ctx.transponder_cutout and ctx.broadcast_dark:
+        # Load invariant (doc 40 phase 5): no cut-out ⇒ never dark.
+        ctx.broadcast_dark = False
+        ctx.log.add("No cut-out installed - transponder restored to live.")
+    if not ctx.ship_registration:
+        from .identity import ensure_registration
+        ensure_registration(ctx)
+
+
 def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
     """Restore main-quest, tutorial, and dungeon-extension state."""
     ctx.main_quest_progress = dict(data.get("main_quest_progress", {}) or {})
@@ -811,19 +861,7 @@ def _restore_quest_and_tutorial(ctx: GameContext, data: dict) -> None:
         "main_quest_disposition",
         "delivered" if data.get("main_quest_disclosure", "") else "",
     )
-    ctx.ship_registration = data.get("ship_registration", "")
-    ctx.broadcast_dark = bool(data.get("broadcast_dark", False))
-    ctx.broadcast_identity = data.get("broadcast_identity") or None
-    ctx.collected_ids = list(data.get("collected_ids") or [])
-    ctx.transponder_cutout = bool(data.get("transponder_cutout", False))
-    ctx.transponder_rig = bool(data.get("transponder_rig", False))
-    if not ctx.transponder_cutout and ctx.broadcast_dark:
-        # Load invariant (doc 40 phase 5): no cut-out ⇒ never dark.
-        ctx.broadcast_dark = False
-        ctx.log.add("No cut-out installed - transponder restored to live.")
-    if not ctx.ship_registration:
-        from .identity import ensure_registration
-        ensure_registration(ctx)
+    _restore_identity_layer(ctx, data)
     ctx.post_prison_orbit_seen = bool(data.get("post_prison_orbit_seen", False))
     ctx.post_prison_orbit_pending = bool(data.get("post_prison_orbit_pending", False))
     ctx.tutorial_mode = bool(data.get("tutorial_mode", False))

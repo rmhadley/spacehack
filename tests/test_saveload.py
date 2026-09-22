@@ -56,8 +56,12 @@ def _build_test_ctx() -> GameContext:
         player=player,
         stats=stats,
     )
-    # Set non-default fields with known values.
-    ctx.faction_reputation = {"pirate": -50, "merchant": 25}
+    # Set non-default fields with known values (full four-axis sheet —
+    # doc 48 phase 2; the load migration seeds absent axes, so a
+    # partial fixture would not round-trip equal).
+    ctx.faction_reputation = {
+        "pirate": -50, "merchant": 25, "militia": 50, "consortium": -100,
+    }
     ctx.player_xp = 500
     ctx.player_level = 4
     ctx.player_skill_points = 3
@@ -1606,3 +1610,86 @@ def test_legacy_save_without_rumor_ledgers_loads_empty(monkeypatch, tmp_path):
     assert loaded is not None
     assert loaded.rumor_favor == {}
     delete_save()
+
+
+# ---------------------------------------------------------------------------
+# Doc 48 phase 2 — rep-sheet migration (retired civilian, absent consortia)
+# ---------------------------------------------------------------------------
+
+class TestReputationSheetMigration:
+    """The load path drops retired axes; the true sheet seeds absent
+    axes at their start value, worn-ID sheets stay blank paper."""
+
+    def test_true_sheet_drops_civilian_and_seeds_consortium(self):
+        from src.spacehack.saveload import _sanitize_rep_sheet
+        legacy = {"pirate": -50, "merchant": 20, "civilian": 30, "militia": 60}
+        migrated = _sanitize_rep_sheet(legacy, seed_defaults=True)
+        assert migrated == {
+            "pirate": -50, "merchant": 20, "militia": 60, "consortium": -100,
+        }
+
+    def test_true_sheet_never_overwrites_an_existing_consortium(self):
+        from src.spacehack.saveload import _sanitize_rep_sheet
+        migrated = _sanitize_rep_sheet(
+            {"pirate": -50, "consortium": -42}, seed_defaults=True,
+        )
+        assert migrated["consortium"] == -42
+
+    def test_worn_sheet_drops_civilian_without_seeding(self):
+        from src.spacehack.saveload import _sanitize_rep_sheet
+        migrated = _sanitize_rep_sheet(
+            {"pirate": 40, "civilian": 5}, seed_defaults=False,
+        )
+        assert migrated == {"pirate": 40}  # absent keys read neutral
+
+    def test_collected_ids_sheets_migrate(self):
+        from src.spacehack.saveload import _migrate_worn_sheet
+        entry = {"id": "SC-1234", "kind": "scrubbed",
+                 "rep": {"pirate": 40, "civilian": 5, "merchant": 0}}
+        assert _migrate_worn_sheet(entry) == {
+            "id": "SC-1234", "kind": "scrubbed",
+            "rep": {"pirate": 40, "merchant": 0},
+        }
+
+    def test_sheetless_entries_untouched(self):
+        from src.spacehack.saveload import _migrate_worn_sheet
+        entry = {"id": "SC-9999", "kind": "cloned"}
+        assert _migrate_worn_sheet(entry) == {"id": "SC-9999", "kind": "cloned"}
+
+    def test_legacy_civilian_rep_keys_migrate_through_load(
+        self, monkeypatch, tmp_path,
+    ):
+        """A pre-doc-48 save loads with civilian dropped from BOTH rep
+        stores and the consortium axis seeded at −100 on the true
+        sheet only (worn sheets stay blank paper)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(62)
+        ctx = _build_test_ctx()
+        ctx.collected_ids = [{
+            "id": "SC-1234", "kind": "scrubbed", "faction": None,
+            "rep": {"pirate": 40, "merchant": 0,
+                    "militia": 0, "civilian": 5},
+        }]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload["faction_reputation"] = {
+            "pirate": -50, "merchant": 25, "civilian": 30, "militia": 60,
+        }
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.faction_reputation == {
+            "pirate": -50, "merchant": 25, "militia": 60,
+            "consortium": -100,
+        }
+        entry = loaded.collected_ids[0]
+        assert entry["rep"] == {"pirate": 40, "merchant": 0, "militia": 0}
+        delete_save()
