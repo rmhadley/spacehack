@@ -1140,6 +1140,37 @@ Rulings:
   16); consortium absent (SETTLED 12); monsters keep their band-3/4
   seats.
 
+## SETTLED 36 (2026-09-22) — phase-5 brief-time rulings (detect_radius, consumables, panic movement)
+
+Rulings (user, option-pick 2026-09-22 — all four on the uniform path):
+
+- **Ground `detect_radius` is RETIRED.** Authored on every ground spec
+  (values 4-7) but consumed by nothing ground-side; ships keep their own
+  live field. Hearing stays the flat per-weapon-radius check (SETTLED 17)
+  — no per-spec hearing column is minted. Retirement follows the
+  `ai_flee_threshold` precedent: the field and its authored values leave
+  the dataclass (authoring one afterwards raises TypeError).
+- **Enemy consumables are PRE-ROLLED, not re-authored.** What they drop
+  is what they carry: the EXISTING `field_item_loot_pool` consumable
+  entries resolve onto the enemy as live carried items; unused at death
+  an item drops as loot, used it is consumed and never drops. Zero new
+  authoring; no second carries= table.
+- **ANY carrier can use them** — uniform, no humanoid/beast split:
+  raiders pop stims mid-fight, beasts gobble scavenged med packs (the
+  user's DCSS precedent: monsters quaff). Same effects and AP cost as
+  the player's items.
+- **Combat-time movement includes NON-COMBATANTS.** During a live
+  ground fight every un-engaged entity moves at AP speed — bystanders
+  included, reading as panic scattering. They still ignore gunfire (no
+  attractor, SETTLED 22); once the fight ends everything folds back to
+  the 1-tick stroll (SETTLED 25).
+
+Build-shape consequence (from the doctrine, recorded here): the
+`noise_hostiles` stub's OR-into-visible placement (`_encounter.py`) is
+SUPERSEDED — heard entities are never combatants (SETTLED 16: LOS is the
+only aggro). The stub retires; noise routes emission → attractor stamps →
+the existing LOS join scans.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1566,9 +1597,10 @@ with doctrinal 10-13):
 - [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
-  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27);
-  owns the `detect_radius` disposition (consume or retire) and the
-  door-walkability verification.
+  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27 + 36:
+  `detect_radius` RETIRED, consumables pre-rolled + any-carrier,
+  non-combatants join combat-time movement); owns the
+  door-walkability verification. Brief below (PROPOSED 2026-09-22).
 - [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
   tables, deck re-authoring (militia strike crews, merchant crew
   row + droid-dial weights, pirate crews incl. the heavy), the
@@ -2054,6 +2086,160 @@ updated to the resolver.
    "deeper sites and tougher machines yield better gear"; this
    phase makes it true. Confirm-grep; any hit becomes a called-out
    before/after.
+
+### Phase 5 Implementation brief (PROPOSED 2026-09-22 — SETTLED
+### 16-18, 22, 24-27 + 36)
+
+**Scope (files / hook points):**
+
+- **Weapon noise data** (`data/ground_weapons/__init__.py` + family
+  modules): `noise: int = 8` on the spec; authored leans
+  (playtest-tunable): explosives 12, rifles 8, pistols/SMG 5-6, melee
+  1-2 (knife kills stay quiet), plasma 4 (the energy lever — quieter
+  than kinetic), organic monster weapons 4-5. Registry completeness
+  test: every catalog weapon carries a value.
+- **Per-spec AP + detect_radius retirement** (`data/npc_chars/
+  __init__.py` + rows): `ap: int = 4` on NpcCharSpec; authored leans:
+  predators 5-6 (dust_prowler 6; ice_worm, rock_scavenger,
+  hull_parasite 5), armored anchors 3 (assault_drone, brute), all
+  humanoids + sentry_drone 4. Ground `detect_radius` RETIRES per
+  SETTLED 36 (field + ~15 authored values; authoring it raises
+  TypeError — the `ai_flee_threshold` pin pattern). `NpcShipSpec`
+  untouched (its field is live).
+- **The noise system** (new `src/spacehack/noise.py` — pure emission
+  and hearing scan, thin mutators):
+  - `emit(ctx, game_map, origin, radius)` for the firing report;
+    explosives ALSO `emit` at the impact cell (blast draws from where
+    it lands, SETTLED 17/22). Hearing = flat Chebyshev radius check,
+    walls do not block; the heard set is hostile-reading combatants
+    only (`spec_is_hostile` | `always_hostile`) — skips `powered_down`
+    (dormant deaf, SETTLED 22), skips engaged entities, non-hostile
+    NPCs (bystanders) ignore gunfire.
+  - Heard = the EXISTING last-seen machinery (`ground_npcs`
+    `last_seen_pos`/`last_seen_ticks`) stamped at the sound origin —
+    one attractor slot, latest event wins, same 5-tick decay. Guards
+    honor it within their leash; beyond it the post goal wins
+    (SETTLED 18 composition).
+  - Emission sites, both sides symmetric: the player's ground fire
+    resolution (with `consume_shot`, `combat/_rules_ground.py` / the
+    fire action in `combat/_actions.py`) and enemy `_try_ground_fire`
+    (`combat/_ai_ground.py`); blast events at `explosive_blast` /
+    `_apply_explosive_enemy_hit` + the player-side explosive impact.
+  - The `noise_hostiles` stub (`combat/_encounter.py:249`) RETIRES
+    (SETTLED 36) — investigators reach combat only via the existing
+    LOS join scans. Feedback is wordless: their movement is the tell;
+    no new prose for noise.
+- **Combat-time movement + stepwise LOS join** (`ground_npcs.py`):
+  `move_ground_npcs` gains the mode — while a ground fight is live,
+  every UN-engaged entity (bystanders included, SETTLED 36) moves up
+  to its AP in tiles instead of 1; after EACH tile the mover
+  re-checks the player's visible grid (the `_visible_hostile_entities`
+  FOV logic) and STOPS on acquisition — investigators never overshoot
+  past LOS (SETTLED 17). Mode key = ground combat fight-live state;
+  both callers inherit (between-rounds `_rules_ground.py:937`, explore
+  `game_flow.py:216`); fight over → everything folds back to the
+  1-tick stroll (SETTLED 25).
+- **Range management + leash** (`combat/_ai_ground.py`): the universal
+  loop takes the ROLLED weapon's [min_range…max_range] — beyond max,
+  close (one A* step per AP); in band, hold and fire; inside min, back
+  off to the nearest cell restoring ≥ min_range, LOS-keeping steps
+  preferred (SETTLED 26). Leftover AP after the one-shot cap
+  repositions. Melee untouched by construction (band [1…1]). Guard
+  leash `_GUARD_LEASH_RADIUS = 8` dies → per-instance derivation from
+  the rolled weapon (`max_range + 2`, SETTLED 18); hunters stay
+  unbound.
+- **AP derivation + enemy consumables** (`combat/_rules_ground.py` +
+  `combat/_ai_ground.py`):
+  - `ap=4, ap_total=4` in `_build_enemy_instance`'s return becomes
+    spec-derived through a modifier-aware calc (spec AP + worn
+    cybernetics `ap_bonus` seam + stim temp +1) so phase-11
+    consortium wearers just work (SETTLED 27).
+  - Carried consumables (SETTLED 36): resolved ONCE at first combat
+    entry, stamped idempotently on the entity (new `world.Entity`
+    field, serialized in `_entity_to_dict` + load — dataclass-field
+    cohesion), seeded from the spec's `field_item_loot_pool`
+    consumable entries with the same distribution the death roll uses.
+    The death-drop site (`combat/_actions.py:198`) reads the stamp:
+    unused items drop, used items never do — one resolution, no
+    double roll.
+  - Use logic in the enemy turn (AP cost = the item's `use_ap_cost`):
+    med_pack at HP ≤ 50% (heal 5 + regen 2×3 turns, mirroring
+    `apply_consumable_effect`); stim when engaged with LOS and not
+    already stimmed (+1 AP ×3 turns — instance temp fields, ticked
+    per round). ANY carrier may use (SETTLED 36). Log lines in the
+    house "{name} moves into position." format via
+    `COLOR_ENEMY_ACTION` — wording PROSE GATE, proposed: "{name} uses
+    a Med Pack." / "{name} injects a Combat Stim."
+- **Door verification** (audit flag closed): a test pinning enemy A*
+  through DOOR/DUNGEON_DOOR tiles (all `walkable=True` — verify no
+  runtime state gate blocks the path; fix forward if one exists).
+- **Ratchet note:** `_rules_ground.py` (993) is at the ceiling — new
+  logic lands in `noise.py` / `ground_npcs.py`; `_rules_ground` edits
+  stay line-neutral or carry a same-commit extraction.
+
+**Build order:** weapon/spec data fields + detect_radius retirement
+(registry tests) → `noise.py` + both emission wirings + attractor
+stamps → combat-time movement + stepwise join → range management +
+leash derivation → AP derivation + consumables (stamp, use, drop,
+save/load) → dev grants + full gate.
+
+**Binding rulings:** SETTLED 16, 17, 18, 22, 24 (the in-combat
+memory-chase is WITHDRAWN — do not build), 25, 26, 27, 36. LOS is the
+only aggro; heard ≠ combatant, ever; no collective squad aggro
+ground-side; no reinforcement mechanic (SETTLED 21); the
+one-shot-per-turn cap stands; squad sizes never band-scaled.
+
+**Stop point:** no crew/role-token markers or deck re-authoring
+(phase 6); no ship-side work of any kind — no space noise, no enemy
+AP/energy/regen parity (phases 7-8); no ancient machines (phase 9);
+no WEARERS of the cyber-AP seam — the seam lands, consortium content
+doesn't (phase 11); no new pursuit/memory machinery beyond the
+existing last-seen stamps.
+
+**Required tests:** noise completeness (every weapon authored);
+hearing-scan selectivity (combatants only, dormant deaf, engaged
+skip, bystander ignore, latest-wins re-stamp); blast emits at the
+impact cell; combat-time movement ≤ AP with the stepwise-join stop
+(never overshoots) and peace mode = 1 tile; range management (close /
+hold / back-off restores ≥ min_range; melee never backs off); leash =
+rolled max_range + 2 per instance; AP default + authored values +
+stim tick-down; consumables (idempotent pre-roll, drop-if-unused,
+consume-on-use, HP/stim triggers, save/load round-trip incl. stim
+state); `detect_radius` gone (TypeError pin, ground registry only);
+door-path pin; bystander AP movement during a live fight.
+
+**Playtest checkpoint:**
+
+1. T2 dig (dev planet pin, pinned seed): open a fight with a rifle —
+   enemies from the next room arrive mid-fight (visible investigate
+   movement), engaging only when YOU can see them, never through
+   walls.
+2. Quiet knife kill: melee-kill a straggler without waking the next
+   room; then fire a rocket into a pack — the blast draws the
+   neighborhood from where it LANDED.
+3. Hug a rifleman: he backs off to restore his min_range; corner him
+   against a wall and he goes inert (counter-play by design). A guard
+   holds its post; draw it beyond its weapon max + 2 and it breaks
+   off.
+4. (dev grant: adjacent enemies pre-stamped with med_pack/stim) The
+   wounded one uses a Med Pack (log line, target-card HP visibly up);
+   the stimmed one acts 5 AP for three rounds; unused items drop on
+   death, used ones never do.
+5. City fight: bystanders scatter at AP speed while the fight is
+   live; none attack; end the fight → everyone strolls again.
+6. Save/quit mid-investigation → Continue: attractors, wounds,
+   carried items, stim countdown identical.
+7. Regression: dig/dungeon/city spawn suites + phase-4 band scaling
+   unchanged; space combat untouched.
+8. Guide-diff item: ONE new line in the ground combat guide section
+   (proposed wording — approve or amend with the brief): "Gunfire
+   draws enemies from nearby rooms — the louder the weapon, the wider
+   the draw. Melee is near-silent. Explosions are heard where they
+   land."
+
+Dev grants: phase-4's disjoint per-face slices stand; add the
+deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
++ `test_dev_mode.py`).
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
 
