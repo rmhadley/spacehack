@@ -13,6 +13,7 @@ from typing import Any
 
 from .. import ui, world
 from ..data.ground_weapons import find_ground_weapon as _find_gw
+from ..ground_scale import band_level
 from ..hud import COLOR_RANGE_GREEN, COLOR_RANGE_ORANGE, COLOR_RANGE_RED
 from ..pygame_target_card import (
     TARGET_CARD_TEXT,
@@ -56,7 +57,9 @@ def _ground_card_rows(
     )
     _armor = enemy.spec.armor if enemy.spec else 0
     rows = [
-        title_row(enemy.name),
+        title_row(
+            f"LVL {band_level(getattr(enemy, 'band', 0))} {enemy.name}",
+        ),
         hp_row,
         text_row(f"Armor {_armor}  AP {getattr(enemy, 'ap', getattr(enemy, 'ap_total', 0))}"),
     ]

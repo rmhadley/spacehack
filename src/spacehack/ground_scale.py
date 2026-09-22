@@ -64,6 +64,11 @@ def clamp_band(band: int) -> int:
     return max(0, min(4, int(band)))
 
 
+def band_level(band: int) -> int:
+    """The band's effective player level (SETTLED 35: 3/10/18/30)."""
+    return BAND_LEVELS[max(1, clamp_band(band)) - 1]
+
+
 def band_budget(band: int) -> int:
     """Total stat points the band's effective level grants: 5×(L−1)."""
     band = clamp_band(band)

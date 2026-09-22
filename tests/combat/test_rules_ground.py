@@ -869,7 +869,7 @@ class TestBuildTargetCard:
         assert card.avoid_cells == ((2, 2), (5, 3))
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
-            "Assault Drone", "HP 12/30", "  HIT 62%", "Armor 3  AP 4",
+            "LVL 3 Assault Drone", "HP 12/30", "  HIT 62%", "Armor 3  AP 4",
             "Drone Laser", "DMG 4  RNG 1-6", "[V] hide",
         ]
         assert _segs[0][1] == pygame_target_card.TARGET_CARD_TITLE
@@ -892,7 +892,7 @@ class TestBuildTargetCard:
         assert card.avoid_cells == ()
         _segs = [seg for row in card.rows for seg in row]
         assert [t for t, _c in _segs] == [
-            "Assault Drone", "HP 12/30", "  HIT --", "Armor 3  AP 4",
+            "LVL 3 Assault Drone", "HP 12/30", "  HIT --", "Armor 3  AP 4",
             "Unarmed", "[V] hide",
         ]
 
@@ -977,7 +977,9 @@ class TestTargetCardToggle:
 
         card = _rules_ground.presentation_target_card(ctx=_ctx)
         assert card is not None
-        assert card.rows[0] == (("Assault Drone", pygame_target_card.TARGET_CARD_TITLE),)
+        assert card.rows[0] == (
+            ("LVL 3 Assault Drone", pygame_target_card.TARGET_CARD_TITLE),
+        )
 
         _rules_ground.toggle_target_card(_ctx)
 

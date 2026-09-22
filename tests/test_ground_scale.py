@@ -370,3 +370,27 @@ def test_quest_camp_landmarks_stamp_the_planet_band():
             game_map, world.Position(2, 2), "wolf_camp", band=3,
         )
     assert seen == {"wolf_camp": 3}
+
+
+def test_band_level_maps_settled_levels():
+    assert [ground_scale.band_level(b) for b in (1, 2, 3, 4)] == [
+        3, 10, 18, 30,
+    ]
+    assert ground_scale.band_level(0) == 3   # no band reads band 1
+    assert ground_scale.band_level(9) == 30
+
+
+def test_target_card_title_states_the_level():
+    """The combat card's title reads ``LVL <level> <name>`` (user
+    wording, 2026-09-22) — the band's effective level, stated."""
+    from types import SimpleNamespace
+
+    from src.spacehack.combat._ground_presentation import _ground_card_rows
+
+    enemy = SimpleNamespace(
+        name="Pirate Raider", hp=24, max_hp=24, ap=4, band=4,
+        spec=SimpleNamespace(armor=0),
+    )
+    rows = _ground_card_rows(enemy, None, None)
+    title = "".join(text for text, _fg in rows[0])
+    assert title == "LVL 30 Pirate Raider"
