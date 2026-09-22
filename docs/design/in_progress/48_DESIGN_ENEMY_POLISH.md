@@ -231,6 +231,20 @@ Rulings:
 - Replaces the audit-era "ground-only consortium" option. With
   SETTLED 5: hidden REP axis + real, unmistakable BODY.
 
+Correction (same day, user, verbatim):
+
+> note: overclocked is not a consortium adj. overclocked landed in
+> the loot polish doc. it's a tier of quality. and it goes up to
+> prototype. I just meant decked out in HIGH QUALITY cyber gear.
+
+The signature is **cyber gear at high quality** — the doc-47 quality
+ladder (base → modded → overclocked → prototype,
+`data/quality.py` `QUALITY_TOKENS`), not an "overclocked" faction
+adjective or row name. Consortium rows are distinguished by degree of
+augmentation; their equipment rolls at the top of the quality ladder.
+Whether cyber gear is a droppable player category or spec-side flavor
+is Q15.
+
 ## SETTLED 7 (2026-09-22) — merchant difficulty is droids
 
 User, verbatim:
@@ -305,10 +319,10 @@ Rulings:
 
 | Faction | Ground | Space | Rep axis | Settled identity | Open |
 |---|---|---|---|---|---|
-| Pirate | raider + rifleman (rename-legacy; three-axis scaling in C) + band-4 faces (Q11) | 6 specs today; class ladders in G | visible, starts −100 | the outlaw economy; organized through the bar guild; loses the heat-squad role to consortium (SETTLED 6) | band-4 faces; pirate-class kinship (doc 49) |
-| Militia | trooper + organized strike/defender crews (PROSE GATE; SETTLED 10: well equipped, work together) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | row shape at brief time; dig-band guard role (Q5) |
+| Pirate | raider + rifleman (rename-legacy; three-axis scaling in C) + band-4 faces (Q17) | 6 specs today; class ladders in G | visible, starts −100 | the outlaw economy; organized through the bar guild; loses the heat-squad role to consortium (SETTLED 6) | band-4 faces; pirate-class kinship (doc 49) |
+| Militia | trooper + organized strike/defender crews + a heavy-hitting row (lean: sniper, precision not explosive) — all PROSE GATE (SETTLED 10) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | row shape at brief time; dig-band guard role (Q5) |
 | Merchant | light honest crews (PROSE GATE) + security-droid wealth-dial | 3 specs (flee, don't fight — stands) | visible; guild mission pay scales it (SETTLED 8) | honest everyday folk; the trade economy; interests ripple to hidden consortium rep (SETTLED 9) | crew-row shape at brief time |
-| Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; the main-quest hunt is the showcase | spec roster + gated contexts (brief time); dig presence (Q5); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
+| Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; cyber gear at HIGH QUALITY (modded→overclocked→prototype — quality vocabulary, NOT a faction adjective); the main-quest hunt is the showcase | rung↔band mapping (Q14); cyber gear category (Q15); gated contexts (brief time); dig presence (Q5); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
 | Civilian | bystander, ambient-only | none | RETIRED (SETTLED 8) | the population — no organization | — |
 | Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite | — | none (`always_hostile`) | biome system (doc 11, stands); contemporary-vs-ancient machine split (SETTLED 4) | fauna difficulty axis + expansion (F); ancient machines (E) |
 | Neutral (derelicts) | — | 2 derelict specs | non-faction | stationary wrecks; the boarding loot path | vocabulary cleanup (punch list); derelict crews (D) |
@@ -329,6 +343,16 @@ Rulings:
   crews that fight as a unit.
 - **Topic A is CLOSED** (SETTLED 5-10). The rep-inversion punch-list
   items ride the coherence build phase.
+
+Addition (same day, user, verbatim):
+
+> Militia should also have a heavy hitting row. Maybe not the same
+> explosive force of pirate. maybe this is the sniper row.
+
+Militia fields THREE rows: trooper, the strike/defender crew, and a
+heavy-hitting row — lean: sniper (long-range precision), explicitly
+NOT the pirate heavy's explosive profile. Names PROSE GATE; matrix
+cell tuning at brief time.
 
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
@@ -465,21 +489,30 @@ Doctrinal (phase-1 topics):
     (same-day amendment): militia notices crime; guild mission pay
     re-keys to merchant.
 
-Scaling (topic C — carried from the 2026-09-20 dump; 3 and 6 answered
-by the design values):
+14. Consortium rungs: does the augmentation ladder (baseline →
+    heavily cybered) map to bands (authored encounter difficulty) or
+    to the reserved escalation tiers — or both? (Lean: bands now —
+    it is the usable knob while gating is reserved.)
+15. Cyber gear: a droppable player equipment category (big — a new
+    loot family feeding 47.x quality/kit drops) or spec-side flavor
+    on weapons/armor stats? Ruled at catalog/brief time.
 
-10. Mechanism: uniform family ladder (each pick entry resolves within
+Scaling (topic C — carried from the 2026-09-20 dump; original 3 and 6
+answered by the design values; renumbered 16-21 to clear the collision
+with doctrinal 10-13):
+
+16. Mechanism: uniform family ladder (each pick entry resolves within
     its weapon family to the band's top — preserves melee/ranged
     characterization, fixes the rifleman structurally), catalog filter,
     or per-spec band tables?
-11. Band-4 faces: existing specs with better kit, new veteran/heavy
+17. Band-4 faces: existing specs with better kit, new veteran/heavy
     rows, or both?
-12. Fixed `weapons=` lists: respected as characterization or replaced
+18. Fixed `weapons=` lists: respected as characterization or replaced
     by family resolution?
-13. Quality floors by band: in scope or deferred to a 47 tune pass?
-14. Site scope: digs + dungeons + city ambient (one resolver), or a
+19. Quality floors by band: in scope or deferred to a 47 tune pass?
+20. Site scope: digs + dungeons + city ambient (one resolver), or a
     subset?
-15. Bystanders: exempt from scaling (presumably yes)?
+21. Bystanders: exempt from scaling (presumably yes)?
 
 ## Phases
 
