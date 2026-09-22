@@ -1117,9 +1117,10 @@ draw from C's row catalogs) → D → E → F → G → B.
   is Watcher / Custodian / Warden (user-named); own weapon family;
   authored-areas-only; prison re-pins on arrival; doc 43 draws from
   it.
-- **F. Monster refinement** — value 7: refine/expand the biome concept;
-  a difficulty axis for fauna (bigger-fauna bands? new rows,
-  prose-gated).
+- **F. Monster refinement** — CLOSED (SETTLED 30): every biome theme
+  gets a native pool; fauna join the band system; one prose-gated
+  apex per biome guarding delve-bottom legendaries; always_hostile
+  stands.
 - **G. Ship progression** — value 4: identifiable class ladders per
   spacefaring faction; themed modules per hull (the 2026-09-20 seed
   addendum folds in here — capture strips whatever the spec flies, so
