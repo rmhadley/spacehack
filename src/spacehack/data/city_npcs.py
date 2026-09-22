@@ -374,23 +374,6 @@ ROSS_B_POPULATION: tuple[CityNpc, ...] = (
 )
 
 PROC_C_POPULATION: tuple[CityNpc, ...] = (
-    # Pad crew working the west apron.
-    CityNpc("procc_pad_crew_a", "civilian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
-    CityNpc("procc_pad_crew_b", "civilian_bystander", (26, 22), wander_radius=6, move_chance=0.8),
-    # Researchers crossing the quad between buildings.
-    CityNpc("procc_researcher_a", "civilian_bystander", (66, 48), wander_radius=8, move_chance=0.85),
-    CityNpc("procc_researcher_b", "civilian_bystander", (84, 48), wander_radius=8, move_chance=0.85),
-    # Drill crew tending the rig near the lab terrace.
-    CityNpc("procc_drill_crew", "civilian_bystander", (94, 26), wander_radius=8, move_chance=0.85),
-    # A caretaker walking the frozen channel bank.
-    CityNpc("procc_channel_caretaker", "civilian_bystander", (70, 84), wander_radius=8, move_chance=0.85),
-    # A regular loitering near the mess hall.
-    CityNpc("procc_mess_regular", "civilian_bystander", (48, 66), wander_radius=5, move_chance=0.8),
-    # One campus marshal patrolling the quad.
-    CityNpc("procc_campus_marshal", "militia_trooper", (70, 40), wander_radius=12, move_chance=0.85),
-)
-
-PROC_C_POPULATION: tuple[CityNpc, ...] = (
     # Pad crew working the apron west of the spaceport.
     CityNpc("procc_pad_crew_a", "civilian_bystander", (14, 22), wander_radius=6, move_chance=0.8),
     CityNpc("procc_pad_crew_b", "civilian_bystander", (28, 20), wander_radius=6, move_chance=0.8),
