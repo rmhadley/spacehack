@@ -325,7 +325,7 @@ Rulings:
 | Merchant | light honest crews (PROSE GATE) + security-droid wealth-dial | 3 specs (flee, don't fight — stands) | visible; guild mission pay scales it (SETTLED 8) | honest everyday folk; the trade economy; interests ripple to hidden consortium rep (SETTLED 9) | crew-row shape at brief time |
 | Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; cyber gear = the existing armor cybernetics at high quality (SETTLED 11 — droppable, quality-rollable); rungs = authored bands, AUTHORED-ONLY exposure (SETTLED 12); the main-quest hunt is the showcase | spec roster + authored exposure beats (user-held plans); dig presence (Q5 — lean now "no"); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
 | Civilian | bystander, ambient-only | none | RETIRED (SETTLED 8) | the population — no organization | — |
-| Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite | — | none (`always_hostile`) | biome system (doc 11, stands); contemporary-vs-ancient machine split (SETTLED 4) | fauna difficulty axis + expansion (F); ancient machines (E) |
+| Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite; ancient: Watcher/Custodian/Warden (SETTLED 29) | — | none (`always_hostile`) | biome system (doc 11, stands); machine split (SETTLED 4/29) | fauna difficulty axis + expansion (F) |
 | Neutral (derelicts) | — | 2 derelict specs | non-faction | stationary wrecks; the boarding loot path | vocabulary cleanup (punch list); derelict crews (D) |
 
 ## SETTLED 10 (2026-09-22) — militia ground doctrine; topic A closed
@@ -837,6 +837,48 @@ Rulings:
   boarding economy keeps its risk. Topic D CLOSED; crew tables,
   role weights, and the marker migration are brief-time authoring.
 
+## SETTLED 29 (2026-09-22) — the ancient machines: Watcher, Custodian, Warden (topic E CLOSED)
+
+User, verbatim:
+
+> help me think. ancient advanced alien tech.
+> 1. some sort of floating round eye like droid with a precise and
+> powerful laser
+> 2. bipedal robot with multiple melee limbs
+> 3. full assault droid, heavily armed
+
+> for 2. the player can already attack with multiple weeapons if they
+> are wielding 2 one handed weapons. the mechanic is already written.
+
+> Watcher, Custodian, Warden are great. keep those
+
+Rulings:
+
+- **The ancient catalog is three rows, user-named:**
+  - **Watcher** — the floating eye: precise, powerful laser; drifts
+    to keep LOS; fragile (lens on a hover field). The sentinel cell.
+  - **Custodian** — the multi-limb biped: melee pressure. **Wields a
+    LIST of one-handed weapons through the existing multi-weapon
+    attack** (the player's active-weapons pattern, reused enemy-side)
+    — no flurry weapon, no one-attack-cap exception; the enemy
+    weapon builder carries a loadout instead of picking one.
+    One-handedness constraint verified at brief time.
+  - **Warden** — the heavy assault anchor: armored, slow (low AP),
+    devastating fire, holds ground.
+- Their attacks are their OWN weapon family (never cross-resolves
+  with human bands); difficulty = authored row-picking per site
+  (entry floors seeded with Watchers, deep cells guarded by Wardens).
+- Switchover when specs exist: the prison's floors/activation events
+  re-pin from sentry/assault drones; the dormant-security fallback
+  gains an authored override for alien sites; contemporary drones
+  keep every non-alien job.
+- **No usable drops** — the sites pay in alien tech; the machines
+  aren't a farmable source (monster-weapon `loot_droppable` rule).
+- The controller-node archetype is NAMED and deliberately not built
+  (coordination machinery; a possible far-side boss shape later).
+- Doc 43's inhabitants handoff: draws from this catalog. Topic E
+  CLOSED.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1042,8 +1084,10 @@ draw from C's row catalogs) → D → E → F → G → B.
 - **D. Crew & interior coherence** — CLOSED (SETTLED 28): role-token
   markers + per-faction CREW_ROLES tables; kill deltas by crew
   faction; derelict squatters stay.
-- **E. Machine split** — SETTLED 4's details: alien-machine authoring,
-  which areas count as ancient, doc 43 handoff.
+- **E. Machine split** — CLOSED (SETTLED 4 + 29): the ancient catalog
+  is Watcher / Custodian / Warden (user-named); own weapon family;
+  authored-areas-only; prison re-pins on arrival; doc 43 draws from
+  it.
 - **F. Monster refinement** — value 7: refine/expand the biome concept;
   a difficulty axis for fauna (bigger-fauna bands? new rows,
   prose-gated).
