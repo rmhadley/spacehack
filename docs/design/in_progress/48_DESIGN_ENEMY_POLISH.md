@@ -1258,12 +1258,12 @@ Doctrinal (phase-1 topics):
 5. ~~Band vocabulary~~ ANSWERED — SETTLED 14: one ladder
    (mission_tier = site band = tech_level ceiling), unclamped to 4;
    consortium excluded from ambient pools.
-6. Alien machines: authoring shape, which areas count as ancient, doc
-   43 handoff.
-7. Recognition identity: which glyph/color scheme per enemy; where it
-   lives in data (value 8).
-8. Extensibility: what is still code that should be data (spawn
-   tables? bands? crew wiring?) so a new enemy is a new data row only.
+6. ~~Alien machines~~ ANSWERED — SETTLED 29 (Watcher/Custodian/
+   Warden; phase 9; doc 43 draws from it).
+7. ~~Recognition identity~~ ANSWERED — SETTLED 32 (glyph+color per
+   context, families, lint; phases 3-onward).
+8. Extensibility: what is still code that should be data — audited
+   at phase 10's close against the "new enemy = data row" criterion.
 9. ~~Interior kill deltas~~ ANSWERED — SETTLED 28: deltas apply by
    crew faction (militia/merchant+crime/hidden-consortium).
 10. ~~Merchant crew shape~~ ANSWERED — SETTLED 7: light crews, fixed
@@ -1315,139 +1315,173 @@ with doctrinal 10-13):
     Decision-loop internals + the four ported design notes are
     brief-time.
 
-## Phases (RE-CUT 2026-09-22 at phase-1 close — SETTLED 1-32)
+## Phases (RE-CUT v2 2026-09-22 — reviewer ADVISE pass folded in; SETTLED 1-32)
 
 - [x] 1. **Doctrine** — CLOSED 2026-09-22: all seven topics settled
   (SETTLED 1-32); audits landed (ecosystem, tactics, space-systems);
   doc 34 folded; doc 43 handoff recorded.
-- [ ] 2. **Faction coherence + identity foundation** — consortium
-  real (tables, hidden-rep axis v1 movers-only, per-identity hidden
-  standing, re-tags, the merchant-deck rep inversion fixed);
-  civilian rep retired (save migration, militia crime rule, guild
-  pay → merchant); glyph/color collision fixes + faction color
-  families + the collision lint; mechanical cleanup punch list.
-  Brief below (PROPOSED).
-- [ ] 3. **Band 4 + three-axis scaling + the new faces** — band
+- [ ] 2. **Faction mechanics & coherence** — consortium real:
+  tables, hidden axis v1 (start −100, movers-only, log-suppressed,
+  per-sheet), save migration, re-tags, the two-id pool de-list +
+  substitution (keeps SETTLED 12 true in-window), militia crime +
+  guild re-key, the full civilian-retirement blast radius. Brief
+  below (PROPOSED v2).
+- [ ] 3. **Identity & cleanup** — glyph/color families + the
+  collision lint (same-context hard rule, cross-registry warning),
+  enforcer glyph de-collision (`E` proposed), `civillian` rename +
+  alias, punch list (PROC_C dedup, `ai_flee_threshold` retirement,
+  buy_ammo sync, faction-vocabulary docstrings, dual-registry
+  ambiguity note).
+- [ ] 4. **Band 4 + three-axis scaling + new faces** — band
   vocabulary unified (mission_tier = tech_level = dig band, band 4
-  unclamped), TIER_POOLS re-authored (consortium out; hostile-weight
-  rule), the family ladder, band→effective-level stat derivation
-  (full 6-block), quality rides band, one resolver at every spawn;
-  the catalog's new rows land here (pirate heavy, militia marine +
-  sniper, merchant crew — names in the brief).
-- [ ] 4. **Ground tactics wave** — the noise system (per-weapon
+  unclamped), full TIER_POOLS re-author (consortium out;
+  hostile-weight rule), the family ladder, band→effective-level
+  stat derivation (full 6-block), quality rides band, one resolver
+  at every spawn; new rows: pirate heavy, militia marine + sniper
+  (names in the brief; the merchant crew row moved to 6 with its
+  consumer).
+- [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
-  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27).
-- [ ] 5. **Crews + interiors** — role-token markers, CREW_ROLES
-  tables, deck re-authoring (militia strike crews, merchant crew +
-  droid dial weights, pirate crews incl. the heavy), derelict
-  squatters (SETTLED 28). Depends on 3's rows.
-- [ ] 6. **Space Tier 0: parity** — hull-catalog stats (base
+  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27);
+  owns the `detect_radius` disposition (consume or retire) and the
+  door-walkability verification.
+- [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
+  tables, deck re-authoring (militia strike crews, merchant crew
+  row + droid-dial weights, pirate crews incl. the heavy), the
+  always-hostile-interiors override (SETTLED 3's boarding principle,
+  currently unimplemented — militia decks must fight even at +50),
+  guard-artillery deck placements (SETTLED 18), derelict squatters
+  (SETTLED 28).
+- [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
   spec verification, themed modules (smuggler/cargo holds —
-  capturable) (SETTLED 19/21 + audits).
-- [ ] 7. **Space Tier 1: the decision loop** — fire/regen/move per
+  capturable), and the SHIP-SIDE band/loadout rolling (SETTLED 31's
+  "pairs differ by band/loadout" — resolution lives here with the
+  loadouts).
+- [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
   (SETTLED 19/21/23).
-- [ ] 8. **Ancient machines** — Watcher / Custodian / Warden, their
+- [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
   weapon family, the Custodian's multi-weapon loadout, prison
-  re-pin, dormant override for alien sites (SETTLED 29).
-- [ ] 9. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
+  re-pin (+ the rock_scavenger prison-floor pin), dormant override
+  for alien sites (SETTLED 29).
+- [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
-  delve-bottom legendaries (SETTLED 30). Names in the brief.
-- [ ] 10. **Consortium content + the hunt** — cybernetic ground
+  delve-bottom legendaries (SETTLED 30). Names in the brief. At its
+  close: the extensibility audit (acceptance criterion — adding an
+  enemy is a data edit) against the whole campaign.
+- [ ] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
-  hunt reskinned as a new enemy class, hidden-rep movers live,
-  strictly-gated exposure (SETTLED 6/12/19). Depends on 2, 6-7.
+  hunt reskinned as a new enemy class (with the `_heat.py`
+  hired-pirate docstring cleanup), strictly-gated exposure; ADDS
+  the up-movers + site/loot/hunt movers over v1's landed down-
+  movers (SETTLED 6/9/12/19). Depends on 2, 7-8.
 
-Order rationale: coherence first (everything reads correct factions);
-scaling before tactics (tactics reads bands); crews after faces;
+Order rationale: mechanics before identity (lint needs final
+factions); scaling before tactics; crews carry their own rows;
 parity before brains; the hunt last (needs its body and its foes).
+Reviewer ADVISE 2026-09-22 folded in: phase split (old 2 → 2+3),
+blocking fixes in the v2 brief, punch-list owners assigned,
+merchant-crew row moved to its consumer, ship-band rolling homed at
+Tier 0, placements homed at crews, ledger 6-7 struck.
 
-### Phase 2 Implementation brief (PROPOSED — awaiting approval)
+### Phase 2 Implementation brief (PROPOSED v2 — reviewer fixes folded in)
 
 **Scope (files / hook points):**
 
 - `faction.py` — consortium joins `_ALL_FACTIONS` (five factions);
-  `_DEFAULT_REP` consortium = 0; consortium row in
+  `_DEFAULT_REP` consortium = **−100** (preserves today's
+  enforcer/gunner hostility exactly; flavor: the hidden hand trusts
+  no one — flag for user confirmation); consortium row in
   `_COMBAT_KILL_DELTAS` (proposed: consortium −3, pirate +1 —
-  hurting the corporation pleases outlaws; exact numbers tunable);
-  `HIDDEN_FACTIONS = {"consortium"}` — excluded from the standings
-  screen, present in every calculation (SETTLED 9: uniform, no
-  special case — hidden is presentation-only). Civilian REMOVED
-  from every table (`_DEFAULT_REP`, `_CLASS_REP`, kill deltas);
-  guild map (`_GUILD_FACTION`) re-keys civilian → merchant.
-- Hidden-rep movers v1 (SETTLED 9): kill-delta path
-  (`game_flow.py` ground, `combat/_encounter.py` space) — killing
-  consortium-tagged specs moves the hidden axis; the merchant
-  ripple rides merchant-crew kills (slow, small: proposed −1 per
-  crew kill; "sustained harm" tuning at playtest).
+  in-family with existing magnitudes); `HIDDEN_FACTIONS =
+  {"consortium"}` — excluded from the standings screen AND from
+  the rep-delta LOG lines (`_apply_rep_delta`, `faction.py:450-457`
+  — hidden is presentation-only everywhere, SETTLED 9 "renders
+  nowhere"). Civilian retirement — the REP AXIS dies (start table,
+  `_CLASS_REP`, `_SPECIES_REP`, `_MISSION_REP_DELTAS`,
+  `_COMBAT_UNPROVOKED_DELTAS`), with TWO stated carve-outs: the
+  `civilian` kill-delta row KEEPS `{militia: −2}` (the honest-folk
+  crime ledger — bystander stays tagged `civilian`, a non-faction
+  accounting tag) and the merchant kill row GAINS a militia −2
+  component (piracy is crime — flag for user confirmation); guild
+  map re-keys civilian → merchant INCLUDING the hardcoded
+  `guild_to_faction` fallback (`faction.py:264` + its test).
+- Hidden-rep movers v1 (SETTLED 9, hooked correctly): direct =
+  killing consortium-tagged specs (kill-delta path); ripple = the
+  existing `merchant_kills` counter (`combat/_encounter.py:114`,
+  already saved at `saveload.py:625`) — each merchant-ship
+  kill (including booked boardings) drops the hidden axis −1.
+  NOT crew-kill-based (those are consortium-crew events — the
+  direct mover already fires there).
 - `data/npc_chars/core.py` — `consortium_enforcer`/`consortium_gunner`
-  re-tag `faction="consortium"` (the merchant-deck rep inversion
-  dies: killing a hauler's consortium crew no longer raises
-  merchant rep).
+  re-tag `faction="consortium"`.
+- `data/digs/__init__.py` — **the two-id pool de-list rides THIS
+  phase** (not phase 4's re-author): consortium_gunner out of band
+  1, consortium_enforcer out of bands 2-3, substituted with
+  pirate/militia weight per SETTLED 16 — so the re-tag window never
+  has procedurally-spawned consortium (SETTLED 12 stays true) and
+  bands never read peaceful (SETTLED 16).
 - `identity.py` — verify `effective_reputation` carries consortium
-  per sheet unchanged (worn IDs carry their own corporate standing;
-  no new branching).
-- `saveload.py` — load drops stored `"civilian"` rep keys
-  (migration, old saves load clean); consortium key persists via
-  the existing dict.
-- Militia crime rule (SETTLED 8): killing `civillian_bystander` or
-  merchant crew adds the militia kill delta.
-- Glyph/color (SETTLED 32): enforcer glyph de-collided from
-  bystander (proposed: `C` — uppercase corporate, case convention);
-  militia trooper / hauler map-glyph cross-collision resolved;
-  faction color families pass over hostile specs.
-- `tests/test_enemy_identity.py` — the collision lint (unique
-  glyph+color per hostile per spawn context).
-- Cleanup punch list: `PROC_C_POPULATION` dedup (`city_npcs.py`);
-  `ai_flee_threshold` field retired across `NpcShipSpec` + all rows
-  (SETTLED 20); `buy_ammo`/`cargo_ammo` sync fix (`ship.py`);
-  `civillian_bystander` id rename WITH load-time alias migration
-  (id appears in city populations and saved entity state).
+  per sheet unchanged; sweep worn-ID sheets for civilian keys
+  (migration consistency).
+- `saveload.py` — load drops stored `"civilian"` rep keys (top
+  level AND identity sheets); consortium persists via the existing
+  dict.
+- `pygame_faction.py` — the standings render filters
+  `HIDDEN_FACTIONS` (render hook loops `_ALL_FACTIONS`, `:74`).
+- Blast-radius sweep (reviewer-verified consumers): `trade.py:495`
+  civilian fallback attr; `_MISSION_REP_DELTAS` civilian entries;
+  quest reward `rewards_rep={"civilian": −5}` (`act0_bar.py:62` —
+  re-key to merchant, user-flagged since it changes a live quest's
+  rep payout); registry docstrings (`npc_chars/__init__.py:31`,
+  `npc_ships/__init__.py:26`).
+- `main_quest/_heat.py:77-83` docstrings stay AS-IS (hired-pirate
+  fiction is true until phase 11 reskins the hunt) — annotated,
+  not edited.
 
-**Build order:** faction tables + hidden axis + save migration →
-re-tags + crime/guild rules → glyph/color pass + lint → mechanical
-cleanup → full gate.
+**Build order:** faction tables + hidden axis (start, suppression,
+movers) + save migration → re-tags + the two-id pool de-list →
+crime/guild rules + blast-radius sweep → full gate.
 
-**Binding rulings:** SETTLED 5, 8, 9, 20, 32. Hidden axis gates
-NOTHING, renders NOWHERE (v1 is state + movers only). No new
-consortium spawns anywhere (authored-only exposure, SETTLED 12).
+**Binding rulings:** SETTLED 5, 8, 9, 12, 16, 20, 32. Hidden axis
+gates NOTHING, renders NOWHERE (standings AND log). No new
+consortium spawns anywhere.
 
-**Stop point:** do NOT start band/scaling work, pool re-authoring,
-weapon-family changes, or the heat-squad reskin — the hunt keeps
-its pirate hulls until phase 10 gives consortium its body
-(SETTLED 6's fiction retirement is content-complete there).
+**Stop point:** no band-4 work, no family ladder, no weapon-family
+changes, no glyph/color pass (phase 3), no heat reskin (phase 11).
+The pool edit above is a two-id de-list, NOT the band re-author.
 
 **Required tests:** five-faction table integrity; hidden axis
-absent from the standings render, present in the rep dict;
-consortium kill deltas + merchant-ripple mover amounts; civilian
-save-key migration (old save → clean load); militia crime delta on
-bystander/merchant-crew kills; collision lint green; merchants
-chain + militia suites green (heat squads unchanged).
+absent from standings AND from log output on a mover; consortium
+kill deltas + ripple (merchant_kills counter → hidden −1);
+civilian migration incl. identity sheets; crime row (bystander →
+militia −2; merchant kill → merchant deltas + militia −2);
+merchants-chain + militia suites green (heat squads unchanged,
+act0_bar re-key covered).
 
 **Playtest checkpoint:**
 
-1. Faction standings: FOUR bars (pirate/merchant/militia — no
-   civilian); consortium nowhere on any screen.
-2. T1 delve with dev mode (SPACEHACK_DEV, pinned seed): corporate
-   guards fight as before; kills move nothing visible (by design) —
+1. Faction standings: THREE bars (pirate/merchant/militia — no
+   civilian, no consortium).
+2. T1 delve (SPACEHACK_DEV, pinned seed): corporate guards fight on
+   sight exactly as today (start −100 preserves behavior); their
+   kills log NOTHING (no "Consortium faction" line anywhere) —
    quit and inspect the save's rep dict: the consortium key moved.
-3. Board a merchant hauler (dev frigate): crew deaths now DROP
-   merchant rep and cost militia rep — the inversion is dead.
-4. Kill a city bystander: militia rep drops; no civilian bar
-   exists to move.
-5. One delve, eyeball the field: no two hostiles share glyph+color;
-   the enforcer no longer reads as a civilian.
-6. Save/quit → continue: old save loads clean, standings intact.
-7. Regression: merchants chain heat squads still spawn and fight
-   (pirate hulls, unchanged); militia scans unchanged.
-8. Guide-diff item: the guide's standings/faction section — before
-   build, grep for "civilian" mentions; if the guide names the
-   rep bars, the exact before/after lands for review (guide edits
-   never ride silently).
+3. Destroy a merchant hauler in space: merchant rep drops AND the
+   hidden counter ticks (save-file check); militia −2 fires.
+4. Kill a city bystander: militia −2 fires; no civilian bar to
+   move.
+5. Save/quit → continue: old save loads clean, standings intact.
+6. Regression: merchants chain heat squads spawn and fight
+   (pirate hulls + fiction unchanged); militia scans unchanged;
+   act0_bar's rep reward lands on merchant.
+7. Guide-diff item: reviewer verified the guide contains NO
+   civilian mentions — the checkpoint is a confirm-grep (expected
+   no-op; any hit becomes a called-out before/after).
 
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
