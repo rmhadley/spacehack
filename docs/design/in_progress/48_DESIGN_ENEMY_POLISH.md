@@ -1087,6 +1087,59 @@ context. Ships already work this way (every faction's cruiser is
 `C`); ground families may do the same where phase-4+ authoring
 needs it — "if needed" is an allowance, not a goal.
 
+## SETTLED 35 (2026-09-22) — phase-4 brief-time rulings (names, bands, ladder, pools)
+
+User, verbatim:
+
+> 1. "Pirate Brute"
+> 2. these are fine bands to start with. we'll tweak as we playtest
+> and tune.
+> 3. good
+> 4. sure. we can tune as we playtest.
+
+(Same-day correction exchange: stat SCALE caps at 100; the LEVEL cap
+is 60 with 5 points/level = 295 max points — band 4 at effective L30
+is +145 ≈ half a maxed player's budget, two primaries near 100.)
+
+Rulings:
+
+- **Names:** the pirate heavy is **Pirate Brute** (user verbatim);
+  Militia Marine + Militia Sniper stand. Glyphs complete SETTLED 34's
+  plan: trooper re-cases `M`→`m` (common), marine `M` (serious),
+  **sniper bold `M`**; pirate family `r`/`R` with **brute bold `R`**
+  — bold rides the serious case as the unique callout. Ground
+  identity key becomes (char, fg, elite) so a bold variant of a
+  family letter never collides with its plain case (brute vs
+  rifleman).
+- **Band → effective level: 3 / 10 / 18 / 30** (budgets +10 / +45 /
+  +85 / +145 points over base 10, all six stats). Distribution: the
+  band budget splits by face archetype weights; space skills take a
+  flat minor share (all six per SETTLED 19). Profiles: raider even,
+  rifleman reflexes-biased, brute strength/stamina-heavy +
+  reflexes-poor (the slow-hunter cell), marine reflexes/strength
+  balanced, sniper reflexes-max. Tunable from playtest.
+- **Family ladder:** humanoid specs name weapon FAMILIES (the ground
+  catalog's own modules — melee, pistols, rifles, plasma,
+  explosives); the band rolls the tier within the family, top-two
+  window weighted up: band 1 {1}; band 2 {1,2} 70/30; band 3 {2,3}
+  30/70; band 4 {3,4} 30/70. Picks: raider {melee, pistols},
+  rifleman {rifles}, brute {explosives} (grenade→rocket), marine
+  {rifles, pistols}, sniper {rifles} PINNED to the window's top
+  (railgun at band 4 — the precision payoff). No fixed weapons=
+  lists survive on humanoid rows (SETTLED 14); fauna keep organic
+  fixed weapons (monster family is its own thing).
+- **Quality rides band:** equip-time KILL rates step (5,11,25)% at
+  band 1 → (10,20,40)% at band 4 (B2 (7,14,30), B3 (8,17,35));
+  drop-time quality rolls shift with band identically.
+- **Pools (bands 1-4, tunable):** densities 1.0 / 1.4 / 1.8 / 2.2;
+  band 1 (raider, raider, trooper, sentry_drone); band 2 (raider,
+  rifleman, rifleman, assault_drone); band 3 (rifleman, brute,
+  assault_drone, hull_parasite); band 4 (rifleman, brute, brute,
+  assault_drone). Militia = the flavor face (trooper seat band 1 +
+  cities/authored content — never the difficulty carrier, SETTLED
+  16); consortium absent (SETTLED 12); monsters keep their band-3/4
+  seats.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1884,6 +1937,99 @@ suites — verify at build).
    confirm-grep of `data/guide/`; any hit becomes a called-out
    before/after. Glyph/color values are single-point data edits —
    tweak freely in playtest; the lint re-checks on every gate run.
+
+### Phase 4 Implementation brief (PROPOSED 2026-09-22 — SETTLED 35
+### + 13/14/15/16/19/30/34)
+
+**Scope (files / hook points):**
+
+- **The resolver** (new `spacehack/ground_scale.py`, pure functions):
+  `band_budget(band) -> int` (5×(eff_level−1); levels 3/10/18/30),
+  `derive_stats(spec, band) -> GroundStats-like 6-block` (base 10,
+  budget split by the spec's archetype weights; space skills take
+  the flat minor share), `roll_weapon(spec, band, rng) -> weapon_id`
+  (family pick + top-two tier window per SETTLED 35), and the
+  per-band quality-rate table (B1 (5,11,25) → B4 (10,20,40)).
+  Consumed at EVERY NpcCharSpec spawn: digs (`digs.py`
+  population), procgen mission dungeons + city ambient
+  (`dungeon_population.py` / `city_npcs.py` sites), quest-guard
+  ensure (`main_quest/_spawns.py` path), and capture-deck ENEMY
+  markers (authored markers fix the SPEC; the site's band — parent
+  planet `mission_tier` — still sizes stats/gear: uniform
+  mechanism, no special case).
+- **Spec data** (`data/npc_chars/__init__.py` + rows): humanoid rows
+  replace fixed `weapons=`/`weapon_pick` with
+  `weapon_families: tuple[str, ...]` (catalog module names); all
+  rows gain `stat_weights: tuple[float, ...]` (six; archetype
+  profiles per SETTLED 35) — authored reflexes/strength/stamina
+  RETIRE (band derives them; fauna too, SETTLED 30; organic monster
+  weapons stay fixed). `elite: bool = False` on NpcCharSpec (brute +
+  sniper True — theater-uniform with ships). New rows: **Pirate
+  Brute** (bold `R`, explosives family, strength/stamina-heavy
+  slow-hunter, armor anchor), **Militia Marine** (`M`,
+  strike-crew), **Militia Sniper** (bold `M`, reflexes-max, rifles
+  pinned to window top). Trooper `M`→`m`.
+- **Band wiring:** `_site_tier` unclamped to 4 (`digs.py`);
+  `TIER_POOLS` re-authored to four bands + densities
+  1.0/1.4/1.8/2.2 (`data/digs/__init__.py`); quality equip/drop
+  rates read band (`data/quality.py` band-indexed table; drop paths
+  in `ground_equipment`/kill-drop sites).
+- **Entity/save contract:** ground entities stamp their band at
+  spawn (`Entity.spawn_band: int = 0`); serialized in
+  `_entity_to_dict` + load (0 = derive from context — legacy-save
+  default). Combat stat reads go through the resolver output, not
+  spec fields.
+- **Lint amendment** (`tests/test_enemy_identity.py`): ground
+  identity key becomes (char, fg, elite); family conformance covers
+  the new rows (brute/sniper bold serious-case).
+
+**Build order:** resolver + spec fields + row migration (pure core,
+tests first) → band wiring (unclamp, pools, densities, quality) →
+new faces + trooper re-case + ground bold at the four ground entity
+construction sites → entity/save stamping → full gate.
+
+**Binding rulings:** SETTLED 13, 14, 15, 16, 19, 30, 34, 35. Squad
+sizes spec-authored (bands never scale them); bystanders exempt;
+militia never the difficulty carrier; consortium absent from pools;
+authored markers fix specs, not stats.
+
+**Stop point:** no tactics-wave work (noise, combat-time AP
+movement, range management, per-spec AP field, consumables — phase
+5); no role-token crew markers or deck re-authoring (phase 6); no
+ship-side band/loadout rolling (phase 7); no merchant crew row
+(phase 6); no ancient machines (phase 9); `detect_radius`
+disposition stays phase 5's.
+
+**Required tests:** resolver purity (budget math, weight split,
+window/weight tables per band, quality rates per band, sniper
+top-pin); pools table shape (four bands, no consortium id,
+densities); derived-stats migration (no spec reads the retired
+fields — grep-pinned); entity band round-trips save/load; bold
+ground render (brute/sniper emit bold=True commands); lint amended
+key green with the new rows; existing dig/dungeon/city suites
+updated to the resolver.
+
+**Playtest checkpoint:**
+
+1. T1 dig (dev planet pin): raiders/trooper feel like today (no
+   nerf), all t1 gear, quality baseline.
+2. T2 dig: riflemen with kinetic rifles/battle rifles at the 70/30
+   window; stats visibly up (~30s primaries).
+3. T3 dig: **brutes present** — bold `R`, grenade→rocket family,
+   slow heavy hunters; T4 dig: brutes heavier still, rifleman
+   railguns/ion blasters appear, band-4 quality rolls visible on
+   wielded-drops.
+4. Militia faces where authored/city: trooper now lowercase `m`,
+   marine `M`, sniper **bold `M`** with the top-tier rifle.
+5. Save/quit mid-delve → Continue: enemy stats, wounds, and
+   band-stamped state identical.
+6. Regression: capture decks crewed by their pinned specs; monsters
+   scale by band (same scavenger row tougher at T4); bystanders
+   identical everywhere.
+7. Guide-diff item: expected NONE — the guide already promises
+   "deeper sites and tougher machines yield better gear"; this
+   phase makes it true. Confirm-grep; any hit becomes a called-out
+   before/after.
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
 
