@@ -653,6 +653,24 @@ Rulings:
   day): the PLAYER-side economy is the mirror target — every
   spendable, rate, and dial an enemy AI must learn to spend.
 
+## SETTLED 22 (2026-09-22) — noise detail confirmations (ladder #4)
+
+User, verbatim: "Yes, #4 is good."
+
+Rulings (SETTLED 17's design confirmed in detail):
+
+- **Emitters are symmetric:** both sides' weapon fire emits at origin
+  per the weapon's noise column, plus the blast event at impact
+  cells — third parties converge on the fight, not on a side.
+  Movement/waiting never emit.
+- **No cap, latest-wins:** the radius is the only limiter (tuned per
+  weapon); engaged entities ignore new noise; investigators re-target
+  to the newest sound.
+- **Combatants only hear:** hostile-reading monsters and NPCs gain
+  the investigate attractor; dormant security stays deaf (authored
+  activations remain the only wake trigger); non-hostile-reading NPCs
+  ignore gunfire. Ladder #4 CLOSED.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
