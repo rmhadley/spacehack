@@ -1539,6 +1539,23 @@ with doctrinal 10-13):
   at every spawn; new rows: pirate heavy, militia marine + sniper
   (names in the brief; the merchant crew row moved to 6 with its
   consumer).
+  LANDED 2026-09-22 in five builds (e64bbdc7 audit; ac42c7c7
+  resolver+data, fb929f5e consumption+stamping, 72c10cd2 faces,
+  1291b822 band wiring, 4611303c grant fix). Reviewer: five passes —
+  build 1 REQUEST_CHANGES (bystander all-six-zero exemption fix,
+  band-3 window pin, DRY minors) → APPROVE; build 2 REQUEST_CHANGES
+  (the delve-camp stamp catch — wolf_b's camp read band 1 — plus
+  planet_band DRY collapse, stale wield data) → APPROVE; builds 3-4
+  REQUEST_CHANGES (dev grant starved the sniper on shared cells +
+  untested; fixed with disjoint per-face slices, sniper at band 4,
+  placement test). Build-order note: the faces build landed BEFORE
+  the pools build (the band-3/4 pools name the brute row —
+  dependency inverted from the brief's listing). The quest-guard
+  ensure consumer named in the brief is ship-side (nothing ground to
+  wire; phase 7 owns it). Prison activation security stamps band =
+  floor (the dig formula at Mars T1); the mars_alien_prison floor-4
+  events are the tree's only band-4 combat until a T4 dig. Awaiting
+  playtest.
 - [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
