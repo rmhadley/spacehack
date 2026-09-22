@@ -67,8 +67,15 @@ def test_ground_family_membership_and_shape():
     }
     for spec in list_npc_chars():
         family = _family_for(spec)
+        if spec.faction:
+            # Every faction-tagged row MUST belong to a family — a new
+            # faction (merchant crew, phase-11 rungs) fails the lint
+            # until its family is authored, never silently.
+            assert family is not None, (
+                f"{spec.id} (faction {spec.faction!r}) has no family — "
+                "author its CHAR_CLASS_FAMILIES entry"
+            )
         if spec.faction in faction_families or spec.id in listed_members:
-            assert family is not None, f"{spec.id} has no family"
             assert spec.char in (
                 family.letter.lower(), family.letter.upper(),
             ), (
@@ -182,14 +189,13 @@ def _map_with(entity: world.Entity) -> world.GameMap:
 
 
 def _ship_entity(spec_id: str) -> world.Entity:
+    """Build through the REAL spawn factory so a dropped `bold=`
+    at any construction site fails this test, not a playtest."""
+    from src.spacehack import npc_ships
     from src.spacehack.data.npc_ships import find_npc_ship
 
     spec = find_npc_ship(spec_id)
-    return world.Entity(
-        char=spec.char, fg=spec.fg, pos=world.Position(1, 1),
-        name=spec.name, width=1, height=1,
-        npc_ship_id=spec.id, bold=spec.elite,
-    )
+    return npc_ships._make_npc_entity(spec, world.Position(1, 1), "lint_squad")
 
 
 def _entity_commands(entity: world.Entity):

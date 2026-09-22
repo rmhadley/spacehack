@@ -172,13 +172,12 @@ def buy_ammo(
     rounds: int,
     credits: int,
 ) -> tuple[bool, int, str]:
-    """Buy ``rounds`` of ammo for the missile launcher in ``slot_index``.
+    """Buy ``rounds`` for a missile slot; returns ``(ok, cost, reason)``.
 
-    Mutates ``owned.weapon_ammo`` (keyed by slot) and returns
-    ``(ok, cost, reason)``. Caps rounds at magazine capacity minus
-    current, and clamps to what the player can afford. ``credits`` is
-    the player's current balance (read-only — the caller deducts the
-    returned cost so the credits mutation stays with the caller).
+    Mutates ``weapon_ammo`` (keyed by slot) and recalcs ``cargo_ammo``
+    (the full-magazine reserve, same as install/remove). Caps at
+    magazine capacity minus current; ``credits`` stays read-only (the
+    caller deducts the returned cost).
     """
     from .data.weapons import find_weapon as _fw
     if not (0 <= slot_index < len(owned.weapons)):
@@ -241,7 +240,7 @@ class OwnedShip:
     # StoredEquipment items everywhere; readers take ``.item_id``.
     modules: tuple[StoredEquipment, ...] = field(default_factory=tuple)
     fuel: int = 0  # current fuel; reset to ship.max_fuel by the buy-ship flow
-    cargo_ammo: int = 0           # cargo consumed by missile ammo (mutated by combat)
+    cargo_ammo: int = 0           # full-magazine missile reserve; recalced by install/remove/buy_ammo
     mission_reserved: int = 0     # cargo reserved by active delivery missions
     inventory: dict[str, int] = field(default_factory=dict)  # trade_good_id -> crate count
     # Persistent missile ammo: weapon SLOT index -> rounds remaining.
