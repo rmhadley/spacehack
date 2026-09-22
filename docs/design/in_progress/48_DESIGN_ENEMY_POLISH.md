@@ -727,6 +727,26 @@ gunner's inline comment cites "doc 34" for the ground behavior
 matrix but the ground rule lives in doc 35 §8 (comment mislabel);
 enemy power regens with no spender found.
 
+## SETTLED 20 (2026-09-22) — fleeing is not a thing in space combat
+
+User, verbatim: "Fleeing is not a thing in space combat."
+
+Rulings:
+
+- **In-combat flee is RULED OUT.** Space fights run to their
+  conclusion — death or boarding. No flee decision, no flee
+  behavior, no escape-outcome machinery will be built; the
+  encounter system keeps its single outcome family.
+- `ai_flee_threshold` retires as dead data (coherence build phase):
+  nothing reads it today and nothing ever will. Out-of-combat map
+  avoidance (merchants steering away from nearby pirates) is not
+  fleeing-in-combat and stays as-is.
+- Closes Q23's second call. Doc 34's disposition question (fold its
+  remaining scope into 48 vs leave it in `future/`) stays open — its
+  brawler/artillery verbs arrived via data (ladder #3), resource AI
+  via SETTLED 19, retreat-to-band rides Tier 1's range management,
+  and flee — its last unclaimed piece — is now ruled out entirely.
+
 ## The space-systems audit (2026-09-22 — grounds the Q23 ruling)
 
 **The player's economy is a three-resource turn**: AP (fractional
