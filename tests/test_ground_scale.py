@@ -45,6 +45,12 @@ def test_band_budget_levels_map_to_settled_budgets():
     ]
 
 
+def test_planet_band_clamps_into_range():
+    assert [ground_scale.planet_band(t) for t in (0, 1, 4, 5, 9)] == [
+        1, 1, 4, 4, 4,
+    ]
+
+
 def test_band_budget_clamps_out_of_range():
     assert ground_scale.band_budget(0) == 0
     assert ground_scale.band_budget(-3) == 0
@@ -178,8 +184,8 @@ def _map_with_key(key):
 
 def test_context_band_dig_key_rederives_climbed_band():
     # Mars is mission_tier 1, so floors 1-2 read bands 1-2 — the climb
-    # without touching the tier cap (which phase 4's unclamp raises
-    # from 3 to 4; deeper assertions live in the digs suite).
+    # without touching the tier cap (the band-wiring build raises that
+    # cap 3 -> 4 and re-pins the digs suite).
     assert ground_scale.context_band(_map_with_key("dig:mars:s7:1")) == 1
     assert ground_scale.context_band(_map_with_key("dig:mars:s7:2")) == 2
 
@@ -241,3 +247,126 @@ def test_ladder_families_are_populated():
     for family in weapon_families():
         tiers = family_tiers(family)
         assert tiers, family
+
+
+# --- consumption + stamping (doc 48 phase 4 build 2) ---------------------------
+
+def test_no_straggler_reads_of_the_retired_fields():
+    """Grep-pin: nothing reads the retired spec fields (they no longer
+    exist — this pins that no consumer regrows one via getattr)."""
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "grep", "-n", "-E",
+         r"weapon_pick|spec\.reflexes|spec\.strength|spec\.stamina",
+         "src/spacehack/"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode in (0, 1), result.stderr
+    assert not result.stdout, f"straggler reads:\n{result.stdout}"
+
+
+def test_enemy_instance_resolves_through_the_band():
+    """The combat-entry build derives stats/weapon at the stamped band."""
+    from src.spacehack import world
+    from src.spacehack.combat import _rules_ground
+
+    entity = world.Entity(
+        char="R", fg=(220, 120, 80), pos=world.Position(1, 1), name="",
+        npc_char_id="pirate_rifleman", spawn_band=4,
+    )
+    instance = _rules_ground._build_enemy_instance(entity, None)
+    assert instance.band == 4
+    # rifleman: reflexes-biased profile — reflexes leads the ground trio
+    assert instance.stats.reflexes > instance.stats.stamina > 10
+    # band-4 window {3,4} 30/70: either tier legal, never below t3
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+    assert find_ground_weapon(instance.weapon_id).tech_level >= 3
+
+
+def test_unstamped_entity_derives_band_one_stats():
+    """Band 0 (no stamp, no site) reads base-leaning band-1 numbers."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.combat import _rules_ground
+
+    entity = world.Entity(
+        char="r", fg=(220, 120, 80), pos=world.Position(1, 1), name="",
+        npc_char_id="pirate_raider",
+    )
+    instance = _rules_ground._build_enemy_instance(
+        entity, SimpleNamespace(interior_cache_key=""),
+    )
+    assert instance.band == 1
+    # base 10 + band-1 budget 10: every ground stat in [11, 14]
+    for value in (
+        instance.stats.reflexes, instance.stats.strength,
+        instance.stats.stamina,
+    ):
+        assert 11 <= value <= 14
+
+
+def test_entity_spawn_band_round_trips_save_load():
+    """The band serializes with the entity (ground bold restore gets
+    its real assert when the elite rows land, build 4)."""
+    from src.spacehack import world
+    from src.spacehack.saveload_maps import _entity_from_dict, _entity_to_dict
+
+    entity = world.Entity(
+        char="R", fg=(220, 120, 80), pos=world.Position(2, 3), name="",
+        npc_char_id="pirate_raider", spawn_band=3,
+    )
+    restored = _entity_from_dict(_entity_to_dict(entity))
+    assert restored.spawn_band == 3
+
+
+def test_dig_population_stamps_the_tier_band():
+    """populate_dungeon stamps its tier on every placed enemy."""
+    from src.spacehack import dungeon_population, world
+    from src.spacehack.dungeon_params import DungeonParams
+
+    tiles = [
+        [world.DUNGEON_FLOOR for _ in range(30)] for _ in range(30)
+    ]
+    game_map = world.GameMap(30, 30, tiles, [])
+    params = DungeonParams(
+        width=30, height=30, min_room_size=4, max_room_size=8,
+        room_fill_pct=0.6, monster_pool=("pirate_raider",),
+        monster_density=6.0,
+    )
+    from src.spacehack import engine
+    engine.RNG.seed(4242)
+    dungeon_population.populate_dungeon(
+        game_map, params, world.Position(15, 15), tier=3,
+    )
+    stamped = [e for e in game_map.entities if e.npc_char_id]
+    assert stamped
+    assert all(e.spawn_band == 3 for e in stamped)
+
+
+def test_quest_camp_landmarks_stamp_the_planet_band():
+    """Delve-camp ENEMY markers carry the parent planet's tier (the
+    build-2 review's blocking catch: wolf_b's camp read band 1)."""
+    from unittest.mock import patch as mock_patch
+
+    from src.spacehack import world
+    from src.spacehack.main_quest import _delve
+
+    seen = {}
+
+    def fake_load(layout_id, spawn_band=0):
+        seen[layout_id] = spawn_band
+        return world.GameMap(4, 4, [[world.DUNGEON_FLOOR] * 4 for _ in range(4)], [])
+
+    def fake_stamp(game_map, asset, spawn):
+        raise ValueError  # stamp fails -> loop continues, load recorded
+
+    tiles = [[world.DUNGEON_FLOOR for _ in range(20)] for _ in range(20)]
+    game_map = world.GameMap(20, 20, tiles, [])
+    with mock_patch.object(_delve.landmark, "load_landmark", fake_load), \
+            mock_patch.object(_delve.landmark, "stamp_landmark", fake_stamp):
+        _delve._camp_or_far_cache(
+            game_map, world.Position(2, 2), "wolf_camp", band=3,
+        )
+    assert seen == {"wolf_camp": 3}

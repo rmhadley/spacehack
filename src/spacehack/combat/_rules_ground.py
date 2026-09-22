@@ -19,7 +19,8 @@ from .. import message_log as _ml
 from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from ..data.quality import KILL_QUALITY_RATES, roll_quality
+from ..data.quality import roll_quality
+from .. import ground_scale
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
@@ -82,6 +83,10 @@ class GroundEnemyInstance:
     spec: Any
     weapon_id: str = ""
     weapon_quality: int = 0
+    # The band this enemy spawned at (doc 48 SETTLED 35) and its
+    # derived six-block — combat math reads these, never spec fields.
+    band: int = 0
+    stats: Any = None
     hp: int = 30
     max_hp: int = 30
     ap: int = 4
@@ -155,12 +160,10 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def _rolled_weapon_quality(weapon_id: str) -> int:
-    """Roll the wielded weapon's quality tier at equip time (SETTLED 13).
-
-    Real gear only: organic parts (``loot_droppable=False``) never
-    variant and never consume roll RNG.
-    """
+def _rolled_weapon_quality(weapon_id: str, band: int) -> int:
+    """Equip-time quality roll (SETTLED 13/35): the ladder rides the
+    spawn band. Real gear only — organic parts never variant, never
+    consume roll RNG."""
     if not weapon_id:
         return 0
     try:
@@ -168,27 +171,32 @@ def _rolled_weapon_quality(weapon_id: str) -> int:
             return 0
     except KeyError:
         return 0
-    return roll_quality(KILL_QUALITY_RATES, RNG)
+    return roll_quality(ground_scale.quality_rates(band), RNG)
 
 
-def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
+def _build_enemy_instance(
+    _ent: world.Entity, game_map=None,
+) -> GroundEnemyInstance | None:
     """Build one enemy instance from a map entity (init + mid-fight joins).
 
     Reads/stamps ``entity.hp`` so wounds persist across combat sessions:
     LOS aggro ends fights with survivors, and re-engaging must continue
     at the same HP — never a heal-on-retrigger. Guards also get their
-    ``guard_post`` stamped here (the leash anchor).
+    ``guard_post`` stamped here (the leash anchor). Stats, weapon, and
+    quality resolve through the band resolver (doc 48 SETTLED 35) —
+    the spec's archetype data plus the spawn's band, never spec fields.
     """
     try:
         _spec = _find_nc(_ent.npc_char_id)
     except KeyError:
         return None
-    _wid = ""
-    if _spec.weapons:
-        _wid = _spec.weapons[0]
-    elif _spec.weapon_pick:
-        _wid = RNG.choice(_spec.weapon_pick)
-    _max_hp = _spec.hp + _spec.stamina // 3
+    _band = ground_scale.entity_band(_ent, game_map)
+    _stats = ground_scale.derive_stats(_spec, _band)
+    if _spec.weapon_families:
+        _wid = ground_scale.roll_weapon(_spec, _band, RNG)
+    else:
+        _wid = _spec.weapons[0] if _spec.weapons else ""
+    _max_hp = _spec.hp + _stats.stamina // 3
     # Guard leash anchor: stamp once at first engagement and never
     # move it. LOS aggro can end fights with a guard mid-chase; re-
     # stamping on every re-engagement would drag the post to wherever
@@ -196,21 +204,23 @@ def _build_enemy_instance(_ent: world.Entity) -> GroundEnemyInstance | None:
     # drone's defense area across the map. Save/load also preserves it.
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
-    _cur_hp = getattr(_ent, "hp", 0) or _max_hp
+    _cur_hp = min(getattr(_ent, "hp", 0) or _max_hp, _max_hp)
     _ent.hp = _cur_hp
     return GroundEnemyInstance(
         entity=_ent, spec=_spec, weapon_id=_wid,
-        weapon_quality=_rolled_weapon_quality(_wid),
+        weapon_quality=_rolled_weapon_quality(_wid, _band),
+        band=_band, stats=_stats,
         hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
     )
 
+
 def _build_enemies(
-    enemy_entities: list[world.Entity],
+    enemy_entities: list[world.Entity], game_map=None,
 ) -> list[GroundEnemyInstance]:
     """Build combat instances for every valid enemy entity."""
     enemies: list[GroundEnemyInstance] = []
     for entity in enemy_entities:
-        instance = _build_enemy_instance(entity)
+        instance = _build_enemy_instance(entity, game_map)
         if instance is not None:
             enemies.append(instance)
     return enemies
@@ -242,7 +252,7 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     """Set up combat session state for a ground combat encounter."""
     global _state
 
-    _enemies = _build_enemies(enemy_entities)
+    _enemies = _build_enemies(enemy_entities, game_map)
     _player_hp, _player_max_hp = _player_hp_state(ctx)
     _armor_defense = _armor_defense_total(ctx)
     _weapons = player_weapons(ctx)
@@ -375,7 +385,7 @@ def enemy_alive(enemy: GroundEnemyInstance) -> bool:
 def hit_chance(
     weapon_id: str, enemy: GroundEnemyInstance, ctx, quality: int = 0,
 ) -> int:
-    _er = enemy.spec.reflexes if enemy.spec else 10
+    _er = enemy.stats.reflexes if enemy.stats else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
     _distance_cells = int(_distance(ctx.player.pos, enemy.pos))
     _range_penalty = _ground_point_blank_penalty(
@@ -736,7 +746,7 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
         from ._actions import spawn_kill_drops
         spawn_kill_drops(
             game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id,
-            enemy.weapon_quality,
+            enemy.weapon_quality, band=enemy.band,
         )
 
     if enemy.spec:
@@ -855,20 +865,16 @@ async def _spend_one_enemy_turn(
         ctx,
         enemy_weapon_id=_gei.weapon_id,
         enemy_weapon_quality=_gei.weapon_quality,
-        enemy_spec=_gei.spec,
-        enemy_ap=_gei.ap,
-        player_pos=ctx.player.pos,
-        enemy_entity=_gei.entity,
-        game_map=game_map,
-        armor_defense=_state.armor_defense,
-        console=_state.console,
-        render_callback=render_frame,
+        enemy_spec=_gei.spec, enemy_stats=_gei.stats, enemy_ap=_gei.ap,
+        player_pos=ctx.player.pos, enemy_entity=_gei.entity,
+        game_map=game_map, armor_defense=_state.armor_defense,
+        console=_state.console, render_callback=render_frame,
         player_dodge=_player_dodge,
     )
     _ap_spent = _ap_before - _new_ap
     if _fired:
         try:
-            _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
+            _weapon_ap = _find_gw(_gei.weapon_id).ap_cost  # 1 on miss
         except KeyError:
             _weapon_ap = 1
         _gei.cells_moved_this_turn += max(0, _ap_spent - _weapon_ap)
@@ -899,7 +905,7 @@ def refresh_engaged(ctx, game_map: world.GameMap) -> None:
     for _ent in _visible:
         if id(_ent) in _engaged:
             continue
-        _inst = _build_enemy_instance(_ent)
+        _inst = _build_enemy_instance(_ent, game_map)
         if _inst is not None:
             _joined.append(_inst)
     if _joined:

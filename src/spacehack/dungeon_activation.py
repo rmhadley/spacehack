@@ -74,17 +74,27 @@ def floor_key(extension_id: str, floor: int) -> str:
 _DORMANT_GREY = (110, 110, 110)
 
 
+def _floor_band(spec) -> int:
+    """The extension floor's band: the dig climb formula at the parent
+    planet's tier 1 (doc 48 SETTLED 14) — band = floor, capped 4.
+    Phase 9 re-pins these machines wholesale (doc 48 SETTLED 29)."""
+    return min(4, max(1, spec.floor))
+
+
 def _place_dormant_units(
     game_map: world.GameMap,
     enemy_id: str,
     cells: list[tuple[int, int]],
     squad_id: str,
+    band: int = 0,
 ) -> int:
     """Place dormant (grey, inert) security units on ``cells``.
 
     Deterministic by construction: cells arrive ring-ordered from
     ``_activation_cells`` and are consumed in order — no RNG draws, so
-    seeded generation sequences are untouched.
+    seeded generation sequences are untouched. ``band`` stamps the
+    floor's difficulty (doc 48 SETTLED 35 — dormant units fight at
+    the band they wake on).
     """
     from .data.npc_chars import find_npc_char
 
@@ -103,6 +113,8 @@ def _place_dormant_units(
             height=1,
             npc_char_id=enemy_id,
             squad_id=squad_id,
+            spawn_band=band,
+            bold=spec.elite,
             powered_down=True,
         ))
         placed += 1
@@ -517,6 +529,7 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
         dormant_placed.update(cells)
         _place_dormant_units(
             game_map, event.enemy_id, cells, f"{event.id}_security",
+            band=_floor_band(spec),
         )
     if spec.lockdown_extras <= 0:
         return
@@ -638,6 +651,7 @@ def _stock_lockdown_extras(
         dormant_placed.update(cells)
         _place_dormant_units(
             game_map, enemy_id, cells, f"lockdown_extras_{spec.floor}_{i}",
+            band=_floor_band(spec),
         )
 
 

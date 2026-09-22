@@ -13,7 +13,7 @@ from .. import world
 from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
-from ..data.quality import KILL_QUALITY_RATES, effective_module_spec, roll_quality
+from ..data.quality import effective_module_spec, roll_quality
 from ..engine import RNG
 from ..loot_common import enforce_loot_cap, equipment_payload, loot_fg
 
@@ -60,14 +60,19 @@ def _spawn_equipment_loot_at_position(
     pos: world.Position,
     equipment_pool: tuple[tuple[str, str], ...],
     count_range: tuple[int, int] = (0, 1),
+    *,
+    band: int = 0,
 ) -> None:
     """Drop ground-equipment loot using ``(item_type, item_id)`` entries.
 
     Beyond-the-weapon extras (armor, sidearms) roll their quality at
-    DROP time with the kill-source rates (doc 47.2 SETTLED 13).
+    DROP time with the kill-source rates (doc 47.2 SETTLED 13) — the
+    ladder rides the spawn's band (doc 48 SETTLED 35).
     """
     if not equipment_pool:
         return
+    from .. import ground_scale
+
     _min_c, _max_c = count_range
     _count = RNG.randint(_min_c, _max_c)
     for _ in range(_count):
@@ -75,7 +80,8 @@ def _spawn_equipment_loot_at_position(
         _append_loot_entity(
             game_map, pos,
             equipment_payload(
-                item_type, item_id, roll_quality(KILL_QUALITY_RATES, RNG),
+                item_type, item_id,
+                roll_quality(ground_scale.quality_rates(band), RNG),
             ),
         )
 
@@ -162,14 +168,15 @@ def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
 
 def spawn_kill_drops(
     game_map: world.GameMap, pos, spec, ctx, weapon_id: str = "",
-    weapon_quality: int = 0,
+    weapon_quality: int = 0, *, band: int = 0,
 ) -> None:
     """The full ground-kill drop sequence (doc 47.1): authored pools,
     the kit drop, the site-reveal pad, then the shared entity cap.
 
     ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only;
     ``weapon_id`` is the combat state's resolved enemy weapon at its
-    equip-time rolled ``weapon_quality``. The kit drop lands after the
+    equip-time rolled ``weapon_quality``; ``band`` sizes the drop-time
+    quality ladder (doc 48 SETTLED 35). The kit drop lands after the
     pools so pool extras age out of the cap first. The tinker-kit roll
     draws last so pre-existing seeded kill sequences stay unchanged.
     """
@@ -186,6 +193,7 @@ def spawn_kill_drops(
         _spawn_equipment_loot_at_position(
             game_map, pos,
             tier_filtered_equipment(spec.equipment_loot_pool, spec.tier),
+            band=band,
         )
     if spec.field_item_loot_pool:
         _spawn_field_item_loot_at_position(

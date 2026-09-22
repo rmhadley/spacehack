@@ -31,6 +31,7 @@ async def run_ground_enemy_turn(
     enemy_weapon_id: str,
     enemy_weapon_quality: int = 0,
     enemy_spec,
+    enemy_stats,
     enemy_ap: int,
     player_pos: world.Position,
     enemy_entity: world.Entity,
@@ -57,15 +58,15 @@ async def run_ground_enemy_turn(
     return await _spend_ground_ap(
         ctx, console, render_callback, game_map,
         enemy_entity, player_pos, enemy_weapon_id, _ews,
-        enemy_spec, armor_defense, player_dodge, enemy_ap,
+        enemy_spec, enemy_stats, armor_defense, player_dodge, enemy_ap,
         enemy_weapon_quality,
     )
 
 
 async def _spend_ground_ap(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge, enemy_ap,
-    enemy_weapon_quality=0,
+    enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
+    player_dodge, enemy_ap, enemy_weapon_quality=0,
 ):
     """Run the enemy's AP loop: fire when able, else advance per AP.
 
@@ -80,7 +81,8 @@ async def _spend_ground_ap(
         _shot = await _try_ground_fire(
             ctx, console, render_callback, game_map,
             enemy_entity, player_pos, enemy_weapon_id, _ews,
-            enemy_spec, armor_defense, player_dodge, enemy_weapon_quality,
+            enemy_spec, enemy_stats, armor_defense, player_dodge,
+            enemy_weapon_quality,
         )
         if _shot is not None:
             _damage_dealt, _ap_cost = _shot
@@ -98,16 +100,15 @@ async def _spend_ground_ap(
 
     if not _fired:
         ctx.log.add_colored(
-            f"{enemy_spec.name} moves into position.",
-            _ml.COLOR_ENEMY_ACTION,
+            f"{enemy_spec.name} moves into position.", _ml.COLOR_ENEMY_ACTION,
         )
     return (_result_ap, _damage_dealt, _fired)
 
 
 async def _try_ground_fire(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    enemy_weapon_id, _ews, enemy_spec, armor_defense, player_dodge,
-    enemy_weapon_quality=0,
+    enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
+    player_dodge, enemy_weapon_quality=0,
 ):
     """One shot when in range with LOS: ``(damage, ap_cost)``, else None.
 
@@ -127,7 +128,7 @@ async def _try_ground_fire(
         return None  # can't shoot through walls — caller moves instead
 
     _hit, _damage, _popup = _roll_ground_shot(
-        ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
+        ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
         enemy_weapon_quality,
     )
     await _present_enemy_shot(
@@ -162,24 +163,25 @@ async def _present_enemy_shot(
 
 
 def _roll_ground_shot(
-    ctx, enemy_weapon_id, enemy_spec, armor_defense, player_dodge,
+    ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
     enemy_weapon_quality=0,
 ):
     """(hit, damage, popup) for one ground shot — miss damage is 0.
 
-    The wielded weapon fights at its equip-time rolled quality
-    (SETTLED 13): what was firing at you is what drops.
+    ``enemy_stats`` is the instance's band-derived block (doc 48
+    SETTLED 35). The wielded weapon fights at its equip-time rolled
+    quality (SETTLED 13): what was firing at you is what drops.
     """
     from ._ground_math import ground_damage_raw, ground_hit_chance_raw
 
     _hit = RNG.randint(1, 100) <= ground_hit_chance_raw(
-        enemy_weapon_id, enemy_spec.reflexes, ctx.ground_stats.reflexes,
+        enemy_weapon_id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
         target_dodge_bonus=player_dodge, quality=enemy_weapon_quality,
     )
     if not _hit:
         return False, 0, None
     _damage = ground_damage_raw(
-        enemy_weapon_id, enemy_spec.strength, armor_defense,
+        enemy_weapon_id, enemy_stats.strength, armor_defense,
         quality=enemy_weapon_quality,
     )
     return True, _damage, _damage_popup_for(_damage, 0, False)

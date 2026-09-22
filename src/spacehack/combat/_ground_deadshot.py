@@ -106,7 +106,7 @@ def _equipped_quality(ctx, weapon_id: str) -> int:
 def _chain_hit_chance(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
     """Hit chance for a chain shot: railgun stats, no Deadshot bonus."""
     from . import _rules_ground as _rules
-    _er = enemy.spec.reflexes if enemy.spec else 10
+    _er = enemy.stats.reflexes if enemy.stats else 10
     _move_dodge = _calc_ground_move_dodge(enemy.cells_moved_this_turn)
     _penalty = _rules._ground_point_blank_penalty(
         weapon_id, int(_distance(ctx.player.pos, enemy.pos)),

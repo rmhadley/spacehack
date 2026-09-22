@@ -96,6 +96,11 @@ def derive_stats(spec, band: int) -> GroundBandStats:
     ))
 
 
+def planet_band(mission_tier: int) -> int:
+    """A planet's mission tier as a band, clamped into [1, 4]."""
+    return max(1, min(4, int(mission_tier)))
+
+
 def quality_rates(band: int) -> tuple[int, int, int]:
     """The band's equip/drop quality ladder (band 0 reads band 1)."""
     return BAND_QUALITY_RATES[max(1, clamp_band(band)) - 1]

@@ -244,8 +244,10 @@ def _scatter_layout_enemies(
     build: _LayoutBuild,
     parsed: layout_format.ParsedLayout,
     layout_id: str,
+    band: int = 0,
 ) -> None:
-    """Scatter authored enemy markers through their connected rooms."""
+    """Scatter authored ENEMY markers; ``band`` (the site's, doc 48
+    SETTLED 35) sizes stats/gear — markers fix specs, not stats."""
     from .engine import RNG
 
     squad_counter = 0
@@ -257,8 +259,7 @@ def _scatter_layout_enemies(
             build.tiles,
             len(build.tiles[0]),
             len(build.tiles),
-            mx,
-            my,
+            mx, my,
             {(entity.pos.x, entity.pos.y) for entity in build.entities},
         )
         if not cells:
@@ -275,6 +276,8 @@ def _scatter_layout_enemies(
             squad_id=squad_id,
             char=_spec.char,
             fg=parsed.colour_overrides.get(glyph, layout_format.ColourOverride((255, 100, 100))).fg,
+            band=band,
+            bold=_spec.elite,
         )
 
 
@@ -591,6 +594,7 @@ def _populate_build(
     component_mission_id: str | None,
     capture_modules: tuple,
     wreck_scatter: bool = False,
+    spawn_band: int = 0,
 ) -> None:
     """Run the full scatter/populate pipeline over a built layout.
 
@@ -599,7 +603,7 @@ def _populate_build(
     tinker kits), so pre-existing seeded layouts keep drawing the
     goods they always did before any new consumer.
     """
-    _scatter_layout_enemies(build, parsed, layout_id)
+    _scatter_layout_enemies(build, parsed, layout_id, spawn_band)
     _scatter_loot(build, parsed, loot_budget)
     if component_good_id is not None and component_mission_id is not None:
         _place_component(build, parsed, component_good_id, component_mission_id)
@@ -633,6 +637,7 @@ def load_layout(
     layout_dir: pathlib.Path | None = None,
     require_spawn: bool = True,
     wreck_scatter: bool = False,
+    spawn_band: int = 0,
 ) -> tuple[world.GameMap, world.Position | None]:
     """Parse an authored layout and return its runtime map and spawn.
 
@@ -640,6 +645,7 @@ def load_layout(
     intact-capture strip — only the combat boarding path passes it.
     ``wreck_scatter`` gates the dead-ship-only scatter passes (credit
     chips, tinker kits) to wreck/derelict/salvage interiors.
+    ``spawn_band`` stamps the site's band on ENEMY markers (doc 48).
     """
     parsed = _parse_layout_file(layout_id, layout_dir)
     build = _build_tiles(parsed, require_spawn)
@@ -652,6 +658,7 @@ def load_layout(
         component_mission_id=component_mission_id,
         capture_modules=capture_modules,
         wreck_scatter=wreck_scatter,
+        spawn_band=spawn_band,
     )
     game_map = world.GameMap(
         width=parsed.width,

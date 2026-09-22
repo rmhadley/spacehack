@@ -415,10 +415,14 @@ class TestGroundKillDrops:
         assert find_ground_weapon("kinetic_pistol").loot_droppable is True
 
     def test_equipment_pools_stay_beyond_the_wielded_weapons(self):
+        from spacehack.data.ground_weapons import family_tiers
         from spacehack.data.npc_chars import _registry
 
         for spec in _registry().values():
-            wielded = set(spec.weapons or ()) | set(spec.weapon_pick or ())
+            wielded = set(spec.weapons or ())
+            for family in spec.weapon_families:
+                for members in family_tiers(family).values():
+                    wielded |= set(members)
             pooled = {
                 item_id
                 for kind, item_id in (spec.equipment_loot_pool or ())
@@ -552,7 +556,7 @@ class TestDerelictSaySo:
 
     def test_generic_derelict_constructor_stamps_the_flag(self):
         from types import SimpleNamespace
-        from spacehack.game_interactions import _build_generic_derelict
+        from spacehack.boarding_wrecks import _build_generic_derelict
 
         ctx = SimpleNamespace(game_map=SimpleNamespace(entities=[]))
         npcspec = SimpleNamespace(loot_budget=(50, 100), id="scout_wreck")

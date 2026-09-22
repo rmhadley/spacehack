@@ -86,13 +86,14 @@ class NpcCharSpec:
             (retired as a rep axis — an ambient-dressing accounting
             tag, SETTLED 8) — links to faction reputation for
             hostility.
-        hp: base HP before stamina bonus (total = ``hp + stamina // 3``,
-            stamina derived at the spawn's band).
+        hp: base HP before the derived stamina bonus (total =
+            ``hp + stamina // 3`` at the spawn's band, doc 48 SETTLED 35).
         weapons: ground weapon ids the NPC always carries — fixed
             rows (fauna, machines) whose organic parts never ladder.
         weapon_families: catalog family modules the band's tier
             window rolls in (doc 48 SETTLED 35); empty = the row is
-            fixed via ``weapons``.
+            fixed via ``weapons``. Families take precedence when both
+            are set — never author both.
         stat_weights: six archetype shares (reflexes, strength,
             stamina + the flat 0.05 space-skill share each, SETTLED
             19/35) splitting the band's stat budget; all-zero = the
@@ -101,9 +102,6 @@ class NpcCharSpec:
             callout (brute, sniper); theater-uniform with ships.
         pin_window_top: take the tier window's ceiling tier outright
             (the sniper's top-rifle pin, SETTLED 35).
-        reflexes, strength, stamina: authored stat constants —
-            RETIRE with the band consumption (doc 48 phase 4,
-            build 2): the spawn's band derives all six.
         detect_radius: Chebyshev distance — triggers combat when player
             enters range AND has line-of-sight.
         loot_pool: trade good ids the NPC may drop on death.
@@ -133,16 +131,9 @@ class NpcCharSpec:
     hp: int = 20
     weapons: tuple[str, ...] = ()
     weapon_families: tuple[str, ...] = ()
-    # RETIRES with the band consumption (doc 48 phase 4, build 2):
-    # humanoid rows migrate to weapon_families; kept so this commit
-    # stays behavior-neutral.
-    weapon_pick: tuple[str, ...] = ()
     stat_weights: tuple[float, ...] = ()
     elite: bool = False
     pin_window_top: bool = False
-    reflexes: int = 10
-    strength: int = 10
-    stamina: int = 10
     detect_radius: int = 4
     loot_pool: tuple[str, ...] = ()
     equipment_loot_pool: tuple[tuple[str, str], ...] = ()

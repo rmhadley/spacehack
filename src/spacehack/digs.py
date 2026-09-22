@@ -207,8 +207,9 @@ def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Posi
         # The generic generator's EXIT becomes the up-connection (the
         # extension idiom).
         game_map.tiles[spawn.y][spawn.x] = world.STAIRS_UP
-    _maybe_stamp_landmark(game_map, site, floor, spawn)
-    populate_dungeon(game_map, params, spawn, tier=_dig_tier(spec, floor))
+    _tier = _dig_tier(spec, floor)
+    _maybe_stamp_landmark(game_map, site, floor, spawn, band=_tier)
+    populate_dungeon(game_map, params, spawn, tier=_tier)
     depth = site_depth(spec, site["id"])
     _scatter_dig_loot(game_map, spec, floor, bottom=floor >= depth)
     if floor < depth:
@@ -234,10 +235,12 @@ def _place_stairs_down(game_map: world.GameMap, spawn: world.Position) -> None:
 
 def _maybe_stamp_landmark(
     game_map: world.GameMap, site: dict, floor: int, spawn: world.Position,
+    band: int = 0,
 ) -> None:
     """The authored-room sprinkle (SETTLED 25/32): seeded per
     site+floor, a minority of floors; a layout that does not fit or
-    route here is skipped, leaving the plain dig."""
+    route here is skipped, leaving the plain dig. Any landmark ENEMY
+    markers stamp the floor's band (doc 48 SETTLED 35)."""
     from . import landmark as landmark_module
 
     roll = engine.seeded_rng(engine.INIT_SEED, "dig_landmark", site["id"], floor)
@@ -247,7 +250,7 @@ def _maybe_stamp_landmark(
         LANDMARK_VARIANTS, roll.random(),
     )
     try:
-        asset = landmark_module.load_landmark(layout_id)
+        asset = landmark_module.load_landmark(layout_id, spawn_band=band)
         stamp = landmark_module.stamp_landmark(game_map, asset, spawn)
     except ValueError:
         return

@@ -55,8 +55,11 @@ def _scatter_squad(
     squad_id: str,
     char: str,
     fg: tuple[int, int, int],
+    band: int = 0,
+    bold: bool = False,
 ) -> int:
-    """Place up to ``count`` distinct enemy entities and return the count."""
+    """Place ``count`` entities; ``band``/``bold`` stamp the site's
+    band + elite flag on each (doc 48 SETTLED 33/35)."""
     from .engine import RNG
 
     if not cells:
@@ -69,14 +72,9 @@ def _scatter_squad(
         if (cx, cy) in occupied:
             continue
         entities.append(world.Entity(
-            char=char,
-            fg=fg,
-            pos=world.Position(cx, cy),
-            name="",
-            width=1,
-            height=1,
-            npc_char_id=enemy_id,
-            squad_id=squad_id,
+            char=char, fg=fg, pos=world.Position(cx, cy),
+            npc_char_id=enemy_id, squad_id=squad_id,
+            spawn_band=band, bold=bold,
         ))
         occupied.add((cx, cy))
         placed += 1
@@ -146,6 +144,7 @@ def _place_population_anchor(
     target: int,
     placed: int,
     squad_counter: int,
+    band: int = 0,
 ) -> tuple[int, int]:
     """Try to place one configured monster squad at an anchor."""
     from .data.npc_chars import find_npc_char
@@ -168,12 +167,9 @@ def _place_population_anchor(
     placed += _scatter_squad(
         game_map.entities,
         occupied,
-        enemy_id=enemy_id,
-        cells=cells,
-        count=squad_size,
-        squad_id=squad_id,
-        char=spec.char,
-        fg=spec.fg,
+        enemy_id=enemy_id, cells=cells, count=squad_size,
+        squad_id=squad_id, char=spec.char, fg=spec.fg,
+        band=band, bold=spec.elite,
     )
     return placed, squad_counter + 1
 
@@ -206,7 +202,7 @@ def populate_dungeon(
     for anchor in floor:
         placed, squad_counter = _place_population_anchor(
             game_map, params, spawn_pos, anchor, occupied, protected,
-            target, placed, squad_counter,
+            target, placed, squad_counter, band=tier,
         )
         if placed >= target:
             break

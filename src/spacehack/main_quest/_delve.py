@@ -80,6 +80,7 @@ def _spawn_squad_near(
     count: int,
     label: str,
     room_cap: int = 40,
+    band: int = 0,
 ) -> int:
     """Scatter ``count`` copies of ``enemy_id`` in the room around ``near_pos``.
 
@@ -106,10 +107,8 @@ def _spawn_squad_near(
         _occupied,
         enemy_id=enemy_id,
         cells=[(_cell.x, _cell.y) for _cell in _room],
-        count=count,
-        squad_id=_squad_id,
-        char=_spec.char,
-        fg=_spec.fg,
+        count=count, squad_id=_squad_id,
+        char=_spec.char, fg=_spec.fg, band=band, bold=_spec.elite,
     )
 
 def _spawn_cache_guardian(
@@ -132,6 +131,7 @@ def _spawn_cache_guardian(
     _pool = tuple(getattr(_params, "cache_guardian_pool", ()) or ())
     if not _pool:
         return 0
+    from .. import ground_scale
     from ..engine import RNG as _RNG
     _eid = _RNG.choice(_pool)
     _count = getattr(_params, "cache_guardian_count", 1)
@@ -141,7 +141,7 @@ def _spawn_cache_guardian(
     return _spawn_squad_near(
         game_map, near_pos,
         enemy_id=_eid, count=_count, label="cache_guardian",
-        room_cap=10,
+        room_cap=10, band=ground_scale.planet_band(_pspec.mission_tier),
     )
 
 # ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ def _delve_layout_candidates(layout_id: str, variants) -> list[str]:
 
 def _camp_or_far_cache(
     game_map: world.GameMap, spawn: world.Position,
-    layout_id: str, variants: tuple = (),
+    layout_id: str, variants: tuple = (), band: int = 0,
 ) -> world.Position:
     """The cache position: inside the step's authored camp landmark if
     one stamped cleanly, else the farthest walkable cell.
@@ -181,7 +181,7 @@ def _camp_or_far_cache(
     """
     for _candidate in _delve_layout_candidates(layout_id, variants):
         try:
-            _asset = landmark.load_landmark(_candidate)
+            _asset = landmark.load_landmark(_candidate, spawn_band=band)
             _stamp = landmark.stamp_landmark(game_map, _asset, spawn)
         except ValueError:
             _stamp = None
@@ -261,8 +261,12 @@ def prepare_delve_site(
     if _step_id is None:
         return False
     _step = find_main_quest_step(_step_id)
+    from .. import ground_scale
+    from ..data.planets import find_planet_spec as _fps
+
     _cache_pos = _camp_or_far_cache(
         game_map, spawn, _step.delve_layout_id, _step.delve_layout_variants,
+        band=ground_scale.planet_band(_fps(planet_id).mission_tier),
     )
     _cache = world.Entity(
         char="%",

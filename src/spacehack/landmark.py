@@ -64,12 +64,17 @@ def choose_weighted_variant(variants, roll: float) -> str:
     return _positive[-1].layout_id
 
 
-def load_landmark(layout_id: str) -> world.GameMap:
-    """Load a hand-authored landmark layout without requiring a player spawn."""
+def load_landmark(layout_id: str, spawn_band: int = 0) -> world.GameMap:
+    """Load a hand-authored landmark layout without requiring a player spawn.
+
+    ``spawn_band`` stamps the site's band on any ENEMY markers (doc 48
+    SETTLED 35); 0 leaves them to the map-context fallback.
+    """
     game_map, _spawn = dungeon.load_layout(
         layout_id,
         layout_dir=_LANDMARK_DIR,
         require_spawn=False,
+        spawn_band=spawn_band,
     )
     return game_map
 

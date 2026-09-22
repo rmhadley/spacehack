@@ -95,6 +95,7 @@ def _entity_to_dict(e) -> dict:
         "last_seen_pos": _position_list(getattr(e, 'last_seen_pos', None)),
         "last_seen_ticks": getattr(e, 'last_seen_ticks', 0),
         "blocked_message": getattr(e, 'blocked_message', "You bump into {name}."),
+        "spawn_band": getattr(e, 'spawn_band', 0),
     }
 
 
@@ -226,13 +227,27 @@ def _build_entity_base(ed: dict) -> world.Entity:
         npc_id=ed.get("npc_id", ""),
         squad_id=ed.get("squad_id", ""),
         hp=ed.get("hp", 0),
+        spawn_band=ed.get("spawn_band", 0),
         blocked_message=ed.get("blocked_message", "You bump into {name}."),
     )
+
+
+def _restore_ground_elite(e: world.Entity) -> None:
+    """Ground elite render flag is spec-derived, never serialized
+    (doc 48 SETTLED 33/34) — restore it like the ship rebuilders."""
+    from .data.npc_chars import find_npc_char as _fnc
+
+    try:
+        e.bold = _fnc(e.npc_char_id).elite
+    except KeyError:
+        pass
 
 
 def _entity_from_dict(ed: dict) -> world.Entity:
     """Rebuild one dungeon entity, restoring its optional flags."""
     e = _build_entity_base(ed)
+    if e.npc_char_id:
+        _restore_ground_elite(e)
     _gp = ed.get("guard_post")
     if isinstance(_gp, (list, tuple)) and len(_gp) >= 2:
         # Guard leash anchor (LOS aggro): preserved across save/load so a

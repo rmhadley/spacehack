@@ -42,13 +42,17 @@ def is_hostile(ctx, entity: world.Entity) -> bool:
     return _spec_is_hostile(ctx, _spec)
 
 
-def place_city_npcs(game_map: world.GameMap, population) -> None:
+def place_city_npcs(
+    game_map: world.GameMap, population, band: int = 0,
+) -> None:
     """Place one ambient NPC entity per catalog entry at its anchor.
 
     Each NPC carries its ``city_npc_id`` and anchor metadata so the
     movement pass can spawn it and save/load can identify it across
     rebuilds. The anchor is a spawn point and save identity only — it
-    does not confine where the citizen may walk.
+    does not confine where the citizen may walk. ``band`` is the
+    city planet's mission tier (doc 48 SETTLED 14/35) — bystanders
+    are weight-exempt, so the stamp only arms the militia faces.
     """
     for template in population:
         try:
@@ -64,6 +68,8 @@ def place_city_npcs(game_map: world.GameMap, population) -> None:
             city_npc_id=template.id,
             npc_char_id=template.npc_char_id,
             npc_id=template.npc_id,
+            spawn_band=band,
+            bold=_cspec.elite,
             blocked_message=f"You bump into {_cspec.name}.",
         )
         entity.city_spawn = world.Position(*template.spawn)

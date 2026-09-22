@@ -232,8 +232,9 @@ def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
         world.Position(2, 5), world.Position(3, 5), world.Position(4, 5),
     }
     assert _rules_ground.player_ap(_ctx) == 0
-    # fists 1 + strength 10//5 (2) + charge bonus (2) = 5; 17 - 5 = 12.
-    assert _rules_ground._state.enemies[0].hp == 12
+    # fists 1 + strength 10//5 (2) + charge bonus (2) = 5; the
+    # scavenger's band-1 derived stamina (13) maxes HP at 18; 18 - 5 = 13.
+    assert _rules_ground._state.enemies[0].hp == 13
 
 
 def test_charger_uses_shortest_walkable_path_and_scales_bonuses():
@@ -1064,8 +1065,8 @@ def test_explosive_blast_hits_primary_full_and_neighbors_half():
         ("Assault Drone", 13, False),
     ]
     assert _player_damage == 0
-    assert _primary.hp == 12
-    assert _neighbor.hp == 26
+    assert _primary.hp == 11
+    assert _neighbor.hp == 25
 
 
 def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
@@ -1135,8 +1136,8 @@ def test_explosive_miss_splashes_primary_and_neighbors_for_half_damage():
         ("Assault Drone", 13, False),
     ]
     assert _player_damage == 0
-    assert _primary.hp == 26
-    assert _neighbor.hp == 26
+    assert _primary.hp == 25
+    assert _neighbor.hp == 25
 
 
 def test_explosive_miss_can_still_damage_player_with_friendly_fire():
@@ -1155,7 +1156,7 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
     )
     assert _player_damage == 15
     assert _rules_ground.player_hp(_ctx) == 8
-    assert _primary.hp == 26
+    assert _primary.hp == 25
 
 
 def test_plasma_savant_reduces_ground_plasma_ap_cost():
@@ -1213,8 +1214,8 @@ def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch)
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _primary in _game_map.entities
     assert _neighbor in _game_map.entities
-    assert _primary.hp == 26
-    assert _neighbor.hp == 26
+    assert _primary.hp == 25
+    assert _neighbor.hp == 25
     assert _rules_ground.player_ap(_ctx) == 1
 
 
@@ -1384,18 +1385,26 @@ class TestQualityCombatScaling:
         )
 
     def test_equip_time_roll_matches_the_ladder(self):
-        """A fixed-weapon NPC's tier is exactly the seeded KILL roll."""
+        """A rolling NPC's quality tier is exactly the seeded band-1
+        ladder roll, after the family-ladder weapon draws."""
+        from src.spacehack import engine, ground_scale
+        from src.spacehack.data.npc_chars import find_npc_char
         from src.spacehack.data.quality import KILL_QUALITY_RATES, roll_quality
-        from src.spacehack import engine
 
-        engine.RNG.seed(9095)  # rolls tier 1: pins a nonzero alignment
-        expected = roll_quality(KILL_QUALITY_RATES, engine.RNG)
-        assert expected > 0
-        engine.RNG.seed(9095)
+        gunner = find_npc_char("consortium_gunner")
+        # First seed whose post-weapon-draw quality roll lands tier 1+
+        # (pins a nonzero alignment deterministically).
+        for seed in range(9090, 9110):
+            engine.RNG.seed(seed)
+            weapon = ground_scale.roll_weapon(gunner, 1, engine.RNG)
+            expected = roll_quality(KILL_QUALITY_RATES, engine.RNG)
+            if expected > 0:
+                break
+        engine.RNG.seed(seed)
         instance = _rules_ground._build_enemy_instance(
             self._entity("consortium_gunner"),
         )
-        assert instance.weapon_id == "kinetic_pistol"
+        assert instance.weapon_id == weapon
         assert instance.weapon_quality == expected
 
     def test_organic_weapons_never_roll_or_consume_rng(self):
@@ -1432,8 +1441,10 @@ class TestQualityCombatScaling:
             ground_stats=SimpleNamespace(reflexes=10, strength=10),
             equipped_ground_weapons=[_weapon("railgun", 2)],
         )
-        spec = SimpleNamespace(reflexes=10, armor=0)
-        enemy = SimpleNamespace(spec=spec, cells_moved_this_turn=0,
+        spec = SimpleNamespace(armor=0)
+        stats = SimpleNamespace(reflexes=10)
+        enemy = SimpleNamespace(spec=spec, stats=stats,
+                                cells_moved_this_turn=0,
                                 pos=world.Position(1, 0))
         ctx.player = SimpleNamespace(pos=world.Position(0, 0))
         assert _ground_deadshot._equipped_quality(ctx, "railgun") == 2
@@ -1463,12 +1474,12 @@ class TestQualityCombatScaling:
 
         monkeypatch.setattr(_ai_ground, "RNG", _AlwaysHitRng())
         ctx = SimpleNamespace(ground_stats=SimpleNamespace(reflexes=10))
-        spec = SimpleNamespace(reflexes=10, strength=10)
+        stats = SimpleNamespace(reflexes=10, strength=10)
         _hit, base_damage, _ = _ai_ground._roll_ground_shot(
-            ctx, "kinetic_pistol", spec, 0, 0,
+            ctx, "kinetic_pistol", stats, 0, 0,
         )
         _hit, tuned_damage, _ = _ai_ground._roll_ground_shot(
-            ctx, "kinetic_pistol", spec, 0, 0, 2,
+            ctx, "kinetic_pistol", stats, 0, 0, 2,
         )
         assert _hit
         assert tuned_damage > base_damage
