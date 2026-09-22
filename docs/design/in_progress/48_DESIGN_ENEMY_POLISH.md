@@ -322,7 +322,7 @@ Rulings:
 | Pirate | raider + rifleman (rename-legacy; three-axis scaling in C) + band-4 faces (Q17) | 6 specs today; class ladders in G | visible, starts −100 | the outlaw economy; organized through the bar guild; loses the heat-squad role to consortium (SETTLED 6) | band-4 faces; pirate-class kinship (doc 49) |
 | Militia | trooper + organized strike/defender crews + a heavy-hitting row (lean: sniper, precision not explosive) — all PROSE GATE (SETTLED 10) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | row shape at brief time; dig-band guard role (Q5) |
 | Merchant | light honest crews (PROSE GATE) + security-droid wealth-dial | 3 specs (flee, don't fight — stands) | visible; guild mission pay scales it (SETTLED 8) | honest everyday folk; the trade economy; interests ripple to hidden consortium rep (SETTLED 9) | crew-row shape at brief time |
-| Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; cyber gear at HIGH QUALITY (modded→overclocked→prototype — quality vocabulary, NOT a faction adjective); the main-quest hunt is the showcase | rung↔band mapping (Q14); cyber gear category (Q15); gated contexts (brief time); dig presence (Q5); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
+| Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; cyber gear = the existing armor cybernetics at high quality (SETTLED 11 — droppable, quality-rollable); rungs = authored bands, AUTHORED-ONLY exposure (SETTLED 12); the main-quest hunt is the showcase | spec roster + authored exposure beats (user-held plans); dig presence (Q5 — lean now "no"); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
 | Civilian | bystander, ambient-only | none | RETIRED (SETTLED 8) | the population — no organization | — |
 | Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite | — | none (`always_hostile`) | biome system (doc 11, stands); contemporary-vs-ancient machine split (SETTLED 4) | fauna difficulty axis + expansion (F); ancient machines (E) |
 | Neutral (derelicts) | — | 2 derelict specs | non-faction | stationary wrecks; the boarding loot path | vocabulary cleanup (punch list); derelict crews (D) |
@@ -353,6 +353,47 @@ Militia fields THREE rows: trooper, the strike/defender crew, and a
 heavy-hitting row — lean: sniper (long-range precision), explicitly
 NOT the pirate heavy's explosive profile. Names PROSE GATE; matrix
 cell tuning at brief time.
+
+## SETTLED 11 (2026-09-22) — cyber gear IS the existing armor cybernetics
+
+User, verbatim:
+
+> cybernetics is already a concept in game. it counts as armor and
+> yes that means it can be dropped. Skip the leg armor heavy pads and
+> equip cybernetic legs giving you + AP per turn.
+
+Rulings (anchors verified same day):
+
+- Cyber gear is the EXISTING cybernetic armor subfamily
+  (`data/ground_armor/vests.py`): cybernetic_eyes (head, T3-T4+),
+  cybernetic_torso (body, T4+), cybernetic_arms (hands, T2-T3+),
+  cybernetic_legs (legs, T3-T4+) — with the dedicated bonus fields on
+  `GroundArmorSpec` (`ap_bonus` / `hit_bonus` / `melee_bonus` /
+  `hp_bonus`, `ground_armor/__init__.py:24-27`). No new equipment
+  category; more pieces may be authored later as content.
+- **Droppable, quality-rollable**: armor-category drops and the 47.x
+  quality ladder (armor-family multipliers) apply as-is. The
+  consortium signature = these pieces at high quality — and via 47.1
+  kit drops, killing them can hand the pieces over. Answers Q15.
+
+## SETTLED 12 (2026-09-22) — consortium rungs = authored bands; authored-only exposure
+
+User, verbatim:
+
+> consortium rings... authored encounter difficulty. yes. there's
+> lots of things about the consortium and how they'll be exposed that
+> are still just in my head. so keep it authored stuff only for now.
+
+Rulings:
+
+- The augmentation ladder maps to BANDS — authored encounter
+  difficulty decides which rung you meet. Answers Q14.
+- **Authored-only exposure guard:** consortium presence appears ONLY
+  in authored content (quest beats, authored sites). Nothing
+  procedural or systemic spawns them — the user holds unshared plans
+  for how the consortium gets revealed, and no system may expose them
+  ahead of that. Strengthens SETTLED 6's strict gate; the Q5 dig-band
+  consortium lean is now effectively "no" (formal ruling stays in C2).
 
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
@@ -489,13 +530,11 @@ Doctrinal (phase-1 topics):
     (same-day amendment): militia notices crime; guild mission pay
     re-keys to merchant.
 
-14. Consortium rungs: does the augmentation ladder (baseline →
-    heavily cybered) map to bands (authored encounter difficulty) or
-    to the reserved escalation tiers — or both? (Lean: bands now —
-    it is the usable knob while gating is reserved.)
-15. Cyber gear: a droppable player equipment category (big — a new
-    loot family feeding 47.x quality/kit drops) or spec-side flavor
-    on weapons/armor stats? Ruled at catalog/brief time.
+14. ~~Consortium rungs: bands or escalation tiers?~~ ANSWERED —
+    SETTLED 12: authored bands; authored-only exposure guard.
+15. ~~Cyber gear: new category or flavor?~~ ANSWERED — SETTLED 11:
+    the existing armor cybernetics subfamily — droppable,
+    quality-rollable, no new category.
 
 Scaling (topic C — carried from the 2026-09-20 dump; original 3 and 6
 answered by the design values; renumbered 16-21 to clear the collision
