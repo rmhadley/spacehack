@@ -1472,7 +1472,12 @@ with doctrinal 10-13):
   reviewer APPROVE — four minors folded: family-membership guard,
   elite test drives the real spawn factory, buy_ammo docstring +
   stale cargo_ammo comment, old-save glyph residue noted for the
-  playtest). PLAYTEST PENDING — checklist at the brief's checkpoint.
+  playtest). PLAYTEST PASSED 2026-09-22 (user: "playtest complete
+  and passes") — mid-playtest rulings recorded below (militia
+  blue + consortium navy; freighter F→B→h/H cargo pair);
+  SYSTEMS.md audited same commit (new entries "Enemy ship
+  identity" + "Ground identity families"; Combat AI flee line and
+  Cargo model amended).
 - [ ] 4. **Band 4 + three-axis scaling + new faces** — band
   vocabulary unified (mission_tier = tech_level = dig band, band 4
   unclamped), full TIER_POOLS re-author (consortium out;

@@ -155,6 +155,21 @@ nobody designs against a ghost.
 - **System maps** — big walkable grids (Sol 200×140); planets/
   gates/stations are multi-cell unwalkable footprints driving bump
   detection (`solar_system.py`: `planet_id_at`, `jump_point_at`).
+- **Enemy ship identity (doc 48 phase 3)** — glyph = the FLOWN
+  HULL's own char, single-sourced in the hull catalog
+  (`data/ships/core.py`: skiff `t`, scout `s`, hauler `h`, cruiser
+  `C`, frigate `F`, freighter `H` — the h/H case pair is the cargo
+  family); color = the faction's ONE family color (pirate red
+  (220,60,60), militia blue (100,200,255), merchant green
+  (100,220,140), derelicts amber/brass); class twins render
+  identical by design — weight reads from the hull, faction from
+  color. Elite/flagship bold: `NpcShipSpec.elite` (pirate captain +
+  warlord) → `Entity.bold` at every spec-driven construction site →
+  rides `WorldDrawCommand` → `FrameCell` → `GlyphAtlas.blit(bold=)`
+  picking the +1-column widened atlas. Enforced by the identity
+  lint (`tests/test_enemy_identity.py`: hull pin, one-fg-per-
+  faction, ≥60 max-channel separation per theater, cross-registry
+  glyph pin {s}).
 - **Jump gates** — bump opens a fuel-vs-cost dialog; jump deducts 10
   fuel, rebuilds the map, re-stamps spawns (arrival exclusion
   radius 12), clears the old system's hail memory
@@ -321,8 +336,9 @@ nobody designs against a ghost.
   `ai_preferred_range` or no LOS, else fire; fights to the death
   (`combat/_ai.py`). **Dead data:** `ai_aggressiveness` unread
   (doc 48 rules it the future fire-vs-reposition dial);
-  `ai_flee_threshold` retires (fleeing ruled out of space combat,
-  doc 48 SETTLED 20 — doc 34 folded there).
+  `ai_flee_threshold` RETIRED in doc 48 phase 3 (field deleted,
+  TypeError-pinned; fleeing ruled out of space combat, SETTLED 20 —
+  doc 34 folded there).
 - **Reinforcements** — per-round re-detection joins newly triggered
   squads mid-fight (`combat/_rules_space.check_reinforcements`).
 - **Kill bookkeeping** — XP = hull×2; 1–2 loot drops; rep deltas by
@@ -360,6 +376,17 @@ nobody designs against a ghost.
 - **Trigger** — pure LOS aggro: visible hostiles within
   `sight_radius` (8); `noise_hostiles` is a wired, EMPTY seam
   (`combat/_encounter.detect_ground_combat`).
+- **Ground identity families (doc 48 phase 3)** —
+  `CHAR_CLASS_FAMILIES` (`data/npc_chars/__init__.py`): one LETTER
+  per family, members are case variants of it, ONE family color —
+  pirate `r`/`R` rust (220,120,80), militia `m` blue, consortium
+  `e`/`E` navy (90,120,200), civilian `c`, machines `d`/`D` bronze
+  (200,180,110); fauna are not families (species glyphs, biome
+  palettes). The (glyph, color) PAIR is the identity — a char may
+  repeat across families when colors separate ≥60. Enforcer `E` /
+  gunner `e`; `civillian_bystander` renamed with the `_ID_ALIASES`
+  save-compat alias in `find_npc_char`; ground bold wearers arrive
+  with doc 48 phase 4's faces.
 - **End states** — all dead = VICTORY; survivors out of sight =
   DISENGAGED (they keep wounds — HP syncs to `entity.hp`, so
   re-engaging never heals them) (`combat/_rules_ground.py`).
@@ -751,6 +778,8 @@ nobody designs against a ghost.
 - **Cargo model** — `cargo_used` = ammo + `mission_reserved` +
   inventory; capacity = hull + module bonus; full-screen hold modal
   with jettison (`ship.py`: `cargo_used`; `trade.open_cargo`).
+  Every weapon-ammo mutator (install/remove/`buy_ammo`) recalcs
+  `cargo_ammo` = the full-magazine reserve (`total_ammo_cargo`).
 - **Mission-reserved space** — deliveries reserve on accept,
   released on complete/abort/fail; heist pickup reserves its
   volume; mission cargo never enters the sellable hold
