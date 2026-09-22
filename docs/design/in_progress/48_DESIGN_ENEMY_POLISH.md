@@ -962,6 +962,68 @@ Rulings:
 - Topic B CLOSED. **Phase 1 (doctrine) CLOSED — SETTLED 1-32; all
   seven topics settled; build phases re-cut below.**
 
+## SETTLED 33 (2026-09-22) — ship identity: hull glyph + faction color + bold flagship
+
+User, verbatim:
+
+> I like this better. You know what kind of ship you're up against
+> because you know the ship glyphs from flying them yourself.
+
+> Maybe for the boss glyphs we BOLD or something the glyph in addition
+> to coloring them the family color?
+
+> Let's call this as settled for ship glyphs. Do this with the bold
+> variant work.
+
+Rulings (anchors verified same day):
+
+- **Glyph = the hull flown.** A ship spec's glyph names its hull
+  (`ship_id` → the hull catalog), not an authored faction identity.
+  Verified: the catalog is six hulls (`data/ships/core.py` — starter/
+  scout/hauler/cruiser/frigate/freighter) and all 15 NPC specs fly
+  five of them (scout ×4, cruiser ×4, frigate ×3, freighter ×3,
+  hauler ×1; nothing flies the starter). The player learns the
+  alphabet by flying the same hulls — SETTLED 19's "same kind of
+  ships" mirror, made visible. Hull letters themselves = brief-time
+  authoring.
+- **Color = the faction family — now the SOLE at-a-glance faction
+  carrier.** The SETTLED 32 color-family audit stops being
+  documentation-only and becomes load-bearing: families must separate
+  readably on the map. Flagged neighbor risk to check at brief time
+  with real swatches: militia teal vs consortium corporate cold blue.
+- **Bold = the flagship/elite class flag.** A data field on the spec
+  (value 8 — any spec may carry it), rendered as a WIDENED glyph
+  variant: the existing readability transform (`_widen_glyph_tile`,
+  `engine.py:422`) applied +1 ink column at load into a second 16×16
+  atlas; `GlyphAtlas.blit` (`pygame_engine.py:327`) picks the atlas;
+  the flag rides the world draw command (`world_render.py`) through
+  the single `render_world_view` path — one mechanism, both theaters.
+  Wearing it: pirate captain + warlord (identical bold frigates that
+  differ by band — SETTLED 31 verbatim); phase 11's consortium hunt
+  anchor is the next intended wearer. NOT militia patrol_heavy —
+  weight ≠ elite, and the hull glyph already carries weight.
+- **Bold-bright ruled OUT** — lerping fg toward white bends the family
+  color, the one channel carrying faction.
+- Consequences: pirate interceptors (scout + hound) render identical;
+  the line pair (raider + marauder) identical; the `D`/`W` boss
+  glyphs retire. The militia `B` ladder reads as scout/cruiser/frigate
+  in one teal — hull weight becomes readable pre-scan (today `B`
+  spans three different hulls); blockade + patrol collapse to one
+  identity (same weight class; the role difference is learned in
+  play). Derelict wrecks keep their amber/brass and the glyph now
+  honestly names the hull (already half-true today: `s`/`f`).
+- **D1–D3 disposition:** D1's ship half is SUPERSEDED — no
+  `SHIP_CLASS_FAMILIES` tables; the lint's ship rule becomes "spec
+  `char` == its hull glyph" (keep the `char` field, pin equality — no
+  consumer changes). D2 is dissolved (the ladder IS the hulls). D3's
+  cross-registry pin list is re-derived against the chosen hull
+  alphabet at the phase-3 brief re-cut — some overlaps dissolve for
+  free (hauler `M`, captain `D`, pirate `p`/`P` all change); others
+  persist wherever a hull letter meets a ground glyph (e.g. a `s`
+  scout meets rock_scavenger `s`). SETTLED 32's case-convention line
+  is amended for ships; it remains the GROUND rule. The ground half
+  of D1 (`CHAR_CLASS_FAMILIES` for phase-4 faces) stays open.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
