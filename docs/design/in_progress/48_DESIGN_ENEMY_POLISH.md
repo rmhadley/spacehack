@@ -494,6 +494,52 @@ Rulings:
 - Scaling-eligible: pirate + militia faces. Merchant crew and
   bystanders exempt (SETTLED 7, Q21).
 
+## SETTLED 16 (2026-09-22) — band composition rulings + the LOS-aggro doctrine
+
+User, verbatim:
+
+> 1. squad growth: spec defined. tier bands don't change squad sizes.
+> 2. replacing with militia may have consequences in that the militia
+> are highly likely to be non-aggressive. let's just make sure we're
+> not making some delve bands that are real easy to make too
+> peaceful.
+> 3. confirmed, we can tune later after we finish balancing and
+> polishing based off of playtest feels
+> 4. yes, we can tune from the playtest. important bit is that we
+> have the knobs.
+>
+> One thing to remember in all this for ground combat: Even if it's a
+> squad you've confronted, player LOS is still the aggro mechanic.
+> It's what feels natural. Other squad members can "hear" the fight
+> if it's loud, sure. But that would mean they move to investigate
+> (non-combat enemies do move between rounds) and can aggro if they
+> get in LOS. We tried the ship system where aggroing a single ship
+> in a squad aggros the whole squad and that just does not play
+> naturally in dark cooridors.
+
+Rulings:
+
+- **Squad sizes are spec-authored; bands never scale them.** Pack
+  feel comes from WHICH specs live in a band, not band-scaled squad
+  math.
+- **Hostile weight constraint:** a band's pool must carry enough
+  hostile-for-typical-players faces that no delve band reads
+  peaceful. The militia-backfill lean for the consortium seats is
+  WITHDRAWN — militia start liked (+50) and mostly won't fight;
+  their pool presence stays the SETTLED 39 flavor face
+  (fight-or-step-aside), never the difficulty carrier. Exact band
+  re-author (pirate/monster weighting) at brief time.
+- Densities 1.0/1.4/1.8/~2.2 confirmed; uniform pool proportions
+  confirmed — both tuned from playtest; the knobs are the point.
+- **THE GROUND AGGRO DOCTRINE (binding on every tactics idea):**
+  player LOS is THE aggro mechanic — it is what feels natural. Noise
+  may cause un-engaged enemies to INVESTIGATE (out-of-combat movement
+  toward the sound), aggroing only on LOS acquisition. Collective
+  squad aggro — the ship system, where aggroing one member aggros
+  the wing — is explicitly REJECTED for ground: "does not play
+  naturally in dark corridors." Ship-style collective aggro remains
+  space-only.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
