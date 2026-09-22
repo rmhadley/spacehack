@@ -201,17 +201,86 @@ Rulings:
   consortium security". SETTLED 3 stands, sharper: every deck crewed
   by the hull's own people.
 
+## SETTLED 6 (2026-09-22) — consortium is a real faction (cybernetic, gated)
+
+User, verbatim:
+
+> I know there's lore that says it but that's because we had pirates
+> so we threw pirates in so we could playtest. I want consortium to
+> be a real separate faction. think -- enemies with overclocked
+> cybernetic equipement. But still running in to them will be strictly
+> gated. There's a part of the main quest where the consortium hunts
+> you. How cool would that be if it were a new class of enemy you
+> haven't encountered before instead of just a merchant ship with a
+> pirate escort.
+
+Rulings:
+
+- Consortium fields its OWN specs — ground and space. The
+  hired-pirate heat fiction ("the consortium hires pirates") is
+  retired filler; the main-quest hunt becomes an encounter with a new
+  enemy class, the showcase use case.
+- Signature identity: **overclocked cybernetic equipment** — the
+  combat flavor seed (stats/gear shape at brief time). Names PROSE
+  GATE.
+- Encounters are **strictly gated** — never ambient spawn-table filler;
+  you meet consortium where the game deliberately places them (quest
+  beats, corporate sites). Open detail (topic C): whether ambient dig
+  bands may still field consortium guards or that violates the gate —
+  folded into Q5.
+- Replaces the audit-era "ground-only consortium" option. With
+  SETTLED 5: hidden REP axis + real, unmistakable BODY.
+
+## SETTLED 7 (2026-09-22) — merchant difficulty is droids
+
+User, verbatim:
+
+> Yes, merchant crew doesn't need to be as kitted out as pirates.
+> Maybe the way we distinguish difficulty with a well off merchant is
+> through droid presence with the merchants?
+
+Rulings:
+
+- Merchant crews are LIGHT — honest workers, lighter gear than
+  pirates, not a difficulty axis (no band scaling).
+- The wealth dial is **security-droid presence**: a well-off
+  merchant's deck carries more contemporary security droids alongside
+  the light crew (SETTLED 4's contemporary side of the machine split).
+  Droid complement authored per spec/deck — value 8 data.
+
+## SETTLED 8 (2026-09-22) — civilian rep retired (the organization principle)
+
+User, verbatim:
+
+> yes, civilian rep makes no sense. civilians have zero organization.
+> how do you have rep with just random folk? pirates have an
+> unorganized system and guild through the bar. merchants are
+> organized. militia is organized. civilian rep makes no sense.
+
+Rulings:
+
+- **Reputation requires an organization to hold the opinion.** Pirate
+  (bar guild), merchant, militia, consortium qualify; civilians do
+  not. The civilian rep axis is RETIRED; bystanders stay ambient-only
+  city dressing.
+- Unruled details (Q13): the consequence for harming honest folk
+  (bystanders/merchant crew — militia crime rep proposed, not yet
+  ruled) and the guild mission-pay scaling that reads civilian rep
+  today (re-key to merchant proposed, not yet ruled). Save migration
+  (dropping stored civilian keys) is a coherence-build-phase detail.
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
 re-cut with briefs. Proposed order, A first (everything hangs off it):
 
-- **A. Faction matrix** — SETTLED 5 settled the merchant/consortium
-  split (real consortium faction, hidden rep; honest merchant crews).
-  Remaining: hidden-rep mechanics (Q12), merchant crew shape (Q10),
-  consortium encounter surface (Q11), civilian's fate (Q2), the
-  militia marine row, dig-pool reshuffle timing (now or topic C), and
-  the rep-inversion punch-list items.
+- **A. Faction matrix** — SETTLED 5-8 settled the shape: consortium
+  real + hidden + cybernetic + strictly gated (6), honest merchant
+  crews with a droid wealth-dial (5+7), civilian retired on the
+  organization principle (8). Remaining: hidden-rep mechanics (Q12,
+  next batch), the honest-folk-harm + guild re-key details (Q13), the
+  militia marine row's matrix cell, and the rep-inversion punch-list
+  items. Dig-pool consortium presence rides Q5 (topic C).
 - **B. Recognition & identity** — glyph/color/name identity per enemy
   (value 1 + value 8: "even down to the npc's char and color"); fixing
   the collisions; where identity lives in data.
@@ -248,8 +317,9 @@ re-cut with briefs. Proposed order, A first (everything hangs off it):
   consortium. the corporate overloads running things behind the scenes.
   might be worth it's own design doc, but I'd like to explore this
   concept in the roster revamp."
-  - Explored in topic A — SETTLED 5 made it real + hidden; mechanics
-    in Q12. If it grows beyond the roster it spawns a dedicated doc.
+  - Explored in topic A — SETTLED 5 made it real + hidden, SETTLED 6
+    gave it the cybernetic body and the hunt showcase; mechanics in
+    Q12. If it grows beyond the roster it spawns a dedicated doc.
 
 ## The 2026-09-20 seed (preserved verbatim)
 
@@ -298,15 +368,16 @@ Doctrinal (phase-1 topics):
 1. ~~Consortium: fifth faction, pirates-on-contract, or hidden rep?~~
    ANSWERED — SETTLED 5: real faction, hidden rep axis, clean
    merchant separation.
-2. Civilian: keep as a rep bar, fold into ambient-only, or retire the
-   faction?
+2. ~~Civilian: keep as a rep bar, fold into ambient-only, or retire?~~
+   ANSWERED — SETTLED 8: retired; rep requires an organization.
 3. ~~Merchant ground presence: crews of their own,
    consortium-as-crew, or none?~~ ANSWERED — SETTLED 5: honest crews
    of their own; row shape is Q10.
 4. Fauna under value 3: stay `always_hostile`, or do biome sites get
    faction flavor?
 5. Band vocabulary: the ONE ladder and its band-4 shape (which specs,
-   what density).
+   what density) — including whether ambient dig bands may field
+   consortium guards under SETTLED 6's strict gating.
 6. Alien machines: authoring shape, which areas count as ancient, doc
    43 handoff.
 7. Recognition identity: which glyph/color scheme per enemy; where it
@@ -315,15 +386,18 @@ Doctrinal (phase-1 topics):
    tables? bands? crew wiring?) so a new enemy is a new data row only.
 9. Interior kill deltas: does killing a boarded (hostile-by-boarding)
    crew move rep as today?
-10. Merchant crew shape: how many rows, which behavior cell, what gear
-    band, how tough — boarding a merchant should feel like evicting
-    scared workers, not fighting soldiers.
-11. Consortium encounter surface: where you SEE them (corporate
-    sites? dig guards stay?); do heat squads stay hired-pirate
-    (deniable) rather than a consortium navy?
+10. ~~Merchant crew shape~~ ANSWERED — SETTLED 7: light crews, fixed
+    light gear, no band scaling; the wealth dial is security-droid
+    presence.
+11. ~~Consortium encounter surface~~ ANSWERED — SETTLED 6: own specs
+    ground + space, cybernetic identity, strictly gated encounters;
+    the main-quest hunt is the showcase; dig-band presence rides Q5.
 12. Hidden consortium rep mechanics: what moves it, what it gates,
     whether merchant-interest outcomes ripple through the "layers of
     upper management" or only direct corporate encounters count.
+13. Honest-folk harm + guild re-key (SETTLED 8 leftovers): does
+    killing bystanders/merchant crew cost militia rep (crime), and
+    does guild mission-pay scaling re-key from civilian to merchant?
 
 Scaling (topic C — carried from the 2026-09-20 dump; 3 and 6 answered
 by the design values):
