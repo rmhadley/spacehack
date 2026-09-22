@@ -423,6 +423,7 @@ def _add_bounty_npcs(game_map, spawns, find_npc) -> None:
             pos=bs.pos, name=display_name,
             width=1, height=1,
             npc_ship_id=bs.enemy_id,
+            bold=espec.elite,
         )
         if bs.salvage_wreck:
             # Non-combatant mission wreck: boardable, persists until the
@@ -460,6 +461,7 @@ def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None
             pos=ps.pos, name=espec.name,
             width=1, height=1,
             npc_ship_id=ps.npc_id,
+            bold=espec.elite,
             flies_dark=getattr(ps, "flies_dark", False),
         )
         # Stationary ships (map_speed 0, e.g. derelicts) don't get

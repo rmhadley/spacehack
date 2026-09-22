@@ -275,11 +275,26 @@ def translate_event(pygame: Any, event: Any) -> PygameInputEvent:
 
 
 class GlyphAtlas:
-    """A Pygame surface atlas for fixed-size map glyphs."""
+    """A Pygame surface atlas for fixed-size map glyphs.
 
-    def __init__(self, pygame: Any, surface: Any, tile_width: int, tile_height: int):
+    Carries a second, WIDENED surface (every glyph +1 ink column,
+    built by :func:`engine._widen_glyph_tile`) for the elite/bold
+    render flag — ``blit(..., bold=True)`` picks it (doc 48 S33).
+    """
+
+    def __init__(
+        self,
+        pygame: Any,
+        surface: Any,
+        tile_width: int,
+        tile_height: int,
+        bold_surface: Any | None = None,
+    ):
         self._pygame = pygame
         self.surface = surface
+        # Falls back to the base surface when no bold variant was built
+        # (test doubles) — bold then renders identically to normal.
+        self.bold_surface = surface if bold_surface is None else bold_surface
         self.tile_width = tile_width
         self.tile_height = tile_height
         self._codepoints = tuple(CP437_CHARMAP)
@@ -291,22 +306,31 @@ class GlyphAtlas:
         rows = TILESHEET_ROWS
         tile_width = tileset.tile_width
         tile_height = tileset.tile_height
-        atlas = pygame.Surface(
-            (columns * tile_width, rows * tile_height),
-            pygame.SRCALPHA,
-        )
-        atlas.fill((0, 0, 0, 0))
+
+        def _blank_atlas() -> Any:
+            atlas = pygame.Surface(
+                (columns * tile_width, rows * tile_height),
+                pygame.SRCALPHA,
+            )
+            atlas.fill((0, 0, 0, 0))
+            return atlas
+
+        from .engine import _widen_glyph_tile
+
+        atlas = _blank_atlas()
+        bold_atlas = _blank_atlas()
         for index, codepoint in enumerate(CP437_CHARMAP):
             try:
                 tile = tileset[codepoint]
             except KeyError:
                 continue
-            atlas.blit(
-                tile,
-                ((index % columns) * tile_width,
-                 (index // columns) * tile_height),
+            position = (
+                (index % columns) * tile_width,
+                (index // columns) * tile_height,
             )
-        return cls(pygame, atlas, tile_width, tile_height)
+            atlas.blit(tile, position)
+            bold_atlas.blit(_widen_glyph_tile(tile, 1), position)
+        return cls(pygame, atlas, tile_width, tile_height, bold_surface=bold_atlas)
 
     def _source_rect(self, character: str) -> Any | None:
         """Return the source rectangle for ``character``, if mapped."""
@@ -333,6 +357,7 @@ class GlyphAtlas:
         *,
         fg: Color,
         bg: Color | None = None,
+        bold: bool = False,
     ) -> None:
         """Paint one tinted glyph and optionally its background."""
         rect = self._pygame.Rect(
@@ -343,7 +368,8 @@ class GlyphAtlas:
         source_rect = self._source_rect(character)
         if source_rect is None or character == " ":
             return
-        glyph = self.surface.subsurface(source_rect).copy()
+        surface = self.bold_surface if bold else self.surface
+        glyph = surface.subsurface(source_rect).copy()
         glyph.fill((*fg, 255), special_flags=self._pygame.BLEND_RGBA_MULT)
         target.blit(glyph, rect)
 

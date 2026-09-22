@@ -93,6 +93,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         fg=(220, 60, 60),       # pirate family red; flagship = bold render (elite)
         ship_id="frigate",
         faction="pirate",
+        elite=True,
         weapons=("heavy_laser", "heavy_missile", "plasma_cannon", "light_laser"),
         modules=("shield_mk1", "shield_capacitor", "shield_recharger", "targeting_computer", "armor_plating"),
         cargo_goods=("weapons_blackmarket", "luxury_goods", "rare_earth_metals", "research_data"),

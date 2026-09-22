@@ -257,6 +257,7 @@ def make_static_entity(espec, pos, spawn_key):
         char=espec.char, fg=espec.fg, pos=pos,
         name=espec.name, width=1, height=1,
         npc_ship_id=espec.id, static_spawn_key=spawn_key,
+        bold=espec.elite,
     )
 
 

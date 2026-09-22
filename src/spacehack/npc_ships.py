@@ -60,7 +60,7 @@ def _make_npc_entity(spec, pos: world.Position, movement_id: str) -> world.Entit
     return world.Entity(
         char=spec.char, fg=spec.fg, pos=pos,
         name=spec.name, width=1, height=1,
-        npc_ship_id=spec.id,
+        npc_ship_id=spec.id, bold=spec.elite,
         procedural_squad_id=movement_id,
     )
 
@@ -245,7 +245,7 @@ def _spawn_derelict(
     _derelict_ent = world.Entity(
         char=_spec.char, fg=_spec.fg, pos=_pos,
         name=_spec.name, width=1, height=1,
-        npc_ship_id=_spec.id,
+        npc_ship_id=_spec.id, bold=_spec.elite,
     )
     game_map.entities.append(_derelict_ent)
 

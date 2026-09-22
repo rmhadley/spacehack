@@ -18,6 +18,7 @@ Rules against the spec data, run by the standard gate:
   faces equals exactly the pinned set; a new overlap fails.
 """
 
+from src.spacehack import world
 from src.spacehack.data.npc_chars import (
     CHAR_CLASS_FAMILIES,
     CharClassFamily,
@@ -25,6 +26,8 @@ from src.spacehack.data.npc_chars import (
 )
 from src.spacehack.data.npc_ships import list_npc_ships
 from src.spacehack.data.ships import find_ship
+from src.spacehack.framebuffer import FrameBuffer
+from src.spacehack.world_render import world_draw_commands
 
 # Pairwise family-color separation floor (max-channel RGB distance).
 SEPARATION_MIN = 60
@@ -167,3 +170,67 @@ def test_cross_registry_glyph_overlap_is_pinned():
         f"ground/space glyph overlap {sorted(overlap)} != pinned "
         f"{sorted(CROSS_REGISTRY_PIN)}"
     )
+
+
+def _map_with(entity: world.Entity) -> world.GameMap:
+    tile = world.Tile("floor", ".", True, (200, 210, 220), (10, 20, 30))
+    return world.GameMap(
+        width=4, height=3,
+        tiles=[[tile for _ in range(4)] for _ in range(3)],
+        entities=[entity],
+    )
+
+
+def _ship_entity(spec_id: str) -> world.Entity:
+    from src.spacehack.data.npc_ships import find_npc_ship
+
+    spec = find_npc_ship(spec_id)
+    return world.Entity(
+        char=spec.char, fg=spec.fg, pos=world.Position(1, 1),
+        name=spec.name, width=1, height=1,
+        npc_ship_id=spec.id, bold=spec.elite,
+    )
+
+
+def _entity_commands(entity: world.Entity):
+    game_map = _map_with(entity)
+    return world_draw_commands(
+        game_map, region_x=0, region_y=0, region_w=4, region_h=3,
+    )
+
+
+def test_flagship_specs_carry_elite():
+    elite = {spec.id for spec in list_npc_ships() if spec.elite}
+    assert elite == {"pirate_captain", "pirate_warlord"}
+
+
+def test_elite_entity_renders_bold_command():
+    for spec_id in ("pirate_captain", "pirate_warlord"):
+        commands = _entity_commands(_ship_entity(spec_id))
+        entity_commands = [c for c in commands if c.char == "F"]
+        assert entity_commands and all(c.bold for c in entity_commands), (
+            f"{spec_id} must render its glyph bold"
+        )
+
+
+def test_normal_entity_renders_plain_command():
+    commands = _entity_commands(_ship_entity("pirate_raider"))
+    entity_commands = [c for c in commands if c.char == "C"]
+    assert entity_commands and not any(c.bold for c in entity_commands)
+
+
+def test_bold_survives_console_round_trip():
+    console = FrameBuffer(4, 3)
+    for command in _entity_commands(_ship_entity("pirate_warlord")):
+        console.print(
+            x=command.x, y=command.y, string=command.char, fg=command.fg,
+            preserve_underlay=command.preserve_underlay,
+            underlay_char=command.underlay_char,
+            underlay_fg=command.underlay_fg,
+            underlay_bg=command.underlay_bg,
+            bold=command.bold,
+        )
+    rebuilt = [
+        c for c in console.to_commands() if c.preserve_underlay
+    ]
+    assert rebuilt and all(c.bold for c in rebuilt)

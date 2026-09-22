@@ -37,6 +37,7 @@ class WorldDrawCommand:
     underlay_char: str | None = None
     underlay_fg: tuple[int, int, int] | None = None
     underlay_bg: tuple[int, int, int] | None = None
+    bold: bool = False
 
 
 def _dim_color(color: tuple[int, int, int]) -> tuple[int, int, int]:
@@ -164,6 +165,7 @@ def _append_one_entity(
                 underlay_char=underlay_tile.char,
                 underlay_fg=underlay_fg,
                 underlay_bg=underlay_bg,
+                bold=entity.bold,
             ))
 
 
@@ -259,6 +261,7 @@ def _render_commands(
             "underlay_char": command.underlay_char,
             "underlay_fg": command.underlay_fg,
             "underlay_bg": command.underlay_bg,
+            "bold": command.bold,
         }
         if command.bg is not None:
             kwargs["bg"] = command.bg

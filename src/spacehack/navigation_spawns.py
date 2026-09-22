@@ -97,6 +97,7 @@ def _bounty_leader_entity(_bs, _espec) -> world.Entity:
         name=_bs.bounty_target_name or _espec.name,
         width=1, height=1,
         npc_ship_id=_bs.enemy_id,
+        bold=_espec.elite,
     )
     if _bs.squad_group_id is None:
         _ent.bounty_spawn_id = _bs.spawn_id
@@ -116,6 +117,7 @@ def _salvage_wreck_entity(_bs, _espec) -> world.Entity:
         name=_espec.name,
         width=1, height=1,
         npc_ship_id=_bs.enemy_id,
+        bold=_espec.elite,
     )
     _ent.salvage_wreck_spawn_id = _bs.spawn_id
     return _ent

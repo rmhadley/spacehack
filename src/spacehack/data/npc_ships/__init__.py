@@ -32,6 +32,10 @@ class NpcShipSpec:
         faction: "pirate" | "merchant" | "militia" | "consortium"
             (hidden axis, doc 48) | "civilian" (retired as a rep
             axis, SETTLED 8) | "neutral" (derelicts).
+        elite: flagship/elite class flag (doc 48 SETTLED 33) — renders
+            the glyph through the widened (bold) atlas. Weight is NOT
+            elite: the hull glyph already carries weight. Wearers:
+            pirate captain + warlord; the phase-11 hunt anchor next.
         weapons / modules: equipment fitted at spawn.
         cargo_goods: which trade goods this ship can carry
             (dropped on destruction for pirates, traded for merchants).
@@ -55,6 +59,7 @@ class NpcShipSpec:
     fg: tuple[int, int, int]
     ship_id: str
     faction: str
+    elite: bool = False
 
     # Equipment
     weapons: tuple[str, ...] = ()

@@ -804,3 +804,28 @@ def test_pygame_runtime_closes_partial_engine_after_open_failure(monkeypatch):
         raise AssertionError("broken engine must propagate during direct runtime setup")
 
     assert closed == [True]
+
+
+def test_glyph_atlas_bold_surface_widens_sample_glyphs():
+    """The bold (elite) atlas is a real second atlas (doc 48 S33)."""
+    pygame = pytest.importorskip("pygame")
+    from src.spacehack.engine import load_tileset
+
+    pygame.init()
+    try:
+        atlas = pygame_engine.GlyphAtlas.from_processed_tileset(
+            pygame, load_tileset(),
+        )
+        for character in ("F", "s", "C"):
+            source_rect = atlas._source_rect(character)
+            base = atlas.surface.subsurface(source_rect)
+            bold = atlas.bold_surface.subsurface(source_rect)
+            assert base.get_size() == bold.get_size()
+            pixels_differ = any(
+                base.get_at((x, y)) != bold.get_at((x, y))
+                for x in range(base.get_width())
+                for y in range(base.get_height())
+            )
+            assert pixels_differ, f"bold {character!r} is identical to base"
+    finally:
+        pygame.quit()

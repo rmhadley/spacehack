@@ -360,6 +360,7 @@ class Entity:
     city_pause_ticks: int = 0  # ticks to wait after arriving at a destination
     blocked_message: str = "You bump into {name}."
     static_spawn_key: str = ""  # tombstone id for static system spawns (doc 41) — combat moves the hull, the key does not
+    bold: bool = False  # elite/flagship render flag (doc 48 SETTLED 33) — glyph paints through the widened atlas
 
 
 # Anchor where the player's bought ship is parked outside the

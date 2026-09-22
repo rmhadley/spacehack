@@ -30,6 +30,7 @@ class FrameCell:
     underlay_char: str | None = None
     underlay_fg: Color | None = None
     underlay_bg: Color | None = None
+    bold: bool = False
 
 
 class FrameBuffer:
@@ -119,6 +120,7 @@ class FrameBuffer:
         underlay_char: str | None = None,
         underlay_fg: Color | None = None,
         underlay_bg: Color | None = None,
+        bold: bool = False,
         **_kwargs: object,
     ) -> None:
         """Write clipped text using the legacy renderer call shape."""
@@ -139,6 +141,7 @@ class FrameBuffer:
                     underlay_char=underlay_char,
                     underlay_fg=underlay_fg,
                     underlay_bg=underlay_bg,
+                    bold=bold,
                 ),
             )
             cell_x += 1
@@ -161,6 +164,7 @@ class FrameBuffer:
         underlay_char: str | None = None,
         underlay_fg: Color | None = None,
         underlay_bg: Color | None = None,
+        bold: bool = False,
     ) -> None:
         """Write one already-positioned cell with normal clipping."""
         self._write_cell(
@@ -174,6 +178,7 @@ class FrameBuffer:
                 underlay_char=underlay_char,
                 underlay_fg=underlay_fg,
                 underlay_bg=underlay_bg,
+                bold=bold,
             ),
         )
 
@@ -186,6 +191,7 @@ class FrameBuffer:
             WorldDrawCommand(
                 x, y, cell.char, cell.fg, cell.bg, cell.preserve_underlay,
                 cell.underlay_char, cell.underlay_fg, cell.underlay_bg,
+                cell.bold,
             )
             for x, y, cell in self.iter_cells()
             if cell != self._default or (x, y) in self._written

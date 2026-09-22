@@ -30,6 +30,7 @@ def _command_from_data(data: Any) -> world.WorldDrawCommand:
             underlay_char=data.get("underlay_char"),
             underlay_fg=None if data.get("underlay_fg") is None else tuple(data["underlay_fg"]),
             underlay_bg=None if data.get("underlay_bg") is None else tuple(data["underlay_bg"]),
+            bold=bool(data.get("bold", False)),
         )
     return world.WorldDrawCommand(
         x=int(data.x),
@@ -41,4 +42,5 @@ def _command_from_data(data: Any) -> world.WorldDrawCommand:
         underlay_char=getattr(data, "underlay_char", None),
         underlay_fg=getattr(data, "underlay_fg", None),
         underlay_bg=getattr(data, "underlay_bg", None),
+        bold=bool(getattr(data, "bold", False)),
     )

@@ -64,6 +64,7 @@ def _paint_world_commands(engine, commands: tuple[Any, ...]) -> None:
             int(command.x) * engine.glyphs.tile_width,
             int(command.y) * engine.glyphs.tile_height,
             fg=tuple(command.fg), bg=background,
+            bold=bool(getattr(command, "bold", False)),
         )
 
 
