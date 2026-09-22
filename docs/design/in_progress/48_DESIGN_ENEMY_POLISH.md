@@ -2127,6 +2127,106 @@ updated to the resolver.
   grouping off the spec data, no `SHIP_CLASS_FAMILIES` table (D1
   stays superseded).
 
+## Pre-implementation audit — phase 4 (2026-09-22)
+
+**Reuse (verified):**
+
+- **`_build_enemy_instance` (`combat/_rules_ground.py:174`) is the ONE
+  combat-entry resolution point** (init + refresh_engaged mid-fight
+  joins): weapon pick, quality roll, and stat reads all funnel there.
+  The resolver lands once, inside it; wound persistence (`entity.hp`)
+  and the guard-post stamp already work per-entity.
+- **`_scatter_squad` (`dungeon_population.py:48`) is the shared ground
+  factory** for dig population AND authored-layout ENEMY markers;
+  city ambient, prison activation, and the save-load path are the
+  three local constructions — six stamping surfaces total (below).
+- **`load_layout(...)` keyword seam** (`dungeon_layout.py:626`) reaches
+  every authored interior: capture decks, derelict/mission wrecks
+  (game_interactions ×4), dig + quest landmarks (landmark.py), city
+  interiors (city_landmarks.py). Callers hold the parent context.
+- **The player math anchors the budget**: 5 pts/level, cap 60
+  (`xp.py:27-30`), base 10 (`character.py:34,39`) — SETTLED 35's
+  budgets are that system read at levels 3/10/18/30.
+- **Quality needs no new mechanism**: `roll_quality(rates, rng)`
+  already takes an arbitrary ladder; the band table is a new ladder
+  whose band-1 row EQUALS `KILL_QUALITY_RATES` — unstamped sites and
+  legacy saves read exactly today's rates.
+- **The dig floor-climb formula covers the prison with no special
+  case**: activation security stamps `min(4, mission_tier + floor − 1)`
+  — Mars T1 → band = floor, the same math digs use.
+- **The weapons registry auto-discovers family modules** (`WARES`);
+  the family→tier table derives from the catalog filtered on
+  `loot_droppable=True` (fists + organic parts excluded by the
+  existing doc-47.1 flag — no new exclusion list).
+- Ground stat reads are exactly THREE sites (`_rules_ground.py:378`,
+  `_ground_deadshot.py:109`, `_ai_ground.py:176,182`); the AI's
+  `enemy_spec` param carries name+stats mixed — stats move to the
+  instance (`GroundEnemyInstance.stats`), the name stays on spec.
+- `Entity.bold` + the whole render chain shipped in phase 3; ground
+  wearers only set `spec.elite` at the construction sites. Bold is
+  NOT serialized — the ground load path restores it from the spec
+  (as the ship rebuilders already do).
+
+**Duplication hotspots:**
+
+1. **Band stamping across six spawn surfaces + the load path**
+   (digs populate / authored decks+derelicts / landmarks+city
+   interiors / city ambient / prison activation / saveload) — a
+   forgotten site silently spawns base-stat enemies: no crash, no
+   lint.
+2. **The floor-climb formula** exists in `digs._dig_tier` and would
+   be re-derived by the legacy-context fallback — a twin by
+   construction.
+3. **Straggler reads of the retiring fields**: `reflexes` /
+   `strength` / `stamina` / `weapon_pick` have consumers in combat
+   rules, AI, deadshot, and tests; leaving any read behind compiles
+   fine and silently reads nothing.
+
+**DRY strategy:**
+
+1. `ground_scale.py` owns every band question: `band_budget`,
+   `derive_stats`, `roll_weapon`, `quality_rates`, and
+   `entity_band(entity, game_map)` — the legacy-context fallback
+   reuses `digs.parse_cache_key` + the same climb formula (lazy
+   import; the `from .dungeon_extensions import _farthest_free_cell`
+   precedent) rather than re-deriving it.
+2. The retiring fields leave the DATACLASS (a straggler read raises
+   AttributeError at once, not silently) + a grep test pins zero
+   `weapon_pick`/spec-stat reads; the resolution is dataclass-field
+   cohesion, not runtime attachment.
+3. `roll_weapon` is the only tier-window implementation;
+   `data/ground_weapons` owns `family_tiers()` beside the catalog.
+
+**Build-discovered decisions (called out for the playtest):**
+
+- **The brief's "quest-guard ensure" consumer is ship-side**
+  (`main_quest/_spawns.py` builds `npc_ship_id` entities) — nothing
+  ground-side to wire; ship banding is phase 7. Noted, dropped.
+- **Landmark/city-interior ENEMY markers stamp the parent planet
+  tier at their `load_layout` call sites** — the brief named capture
+  decks, but the same loader serves mercury_vault-class quest
+  landmarks and dig landmarks; one keyword threads all of them.
+- **Band 0 semantics**: base-10 stats, B1 quality. The bystander
+  exemption is DATA — all-zero `stat_weights` (scale-invariant), so
+  cities may stamp uniformly. Unstamped legacy saves fall back to
+  `entity_band` (dig keys re-derive the floor band; anything else
+  reads band 1 ≈ today's numbers).
+- **Prison security bands = the dig formula** (band = floor, cap 4):
+  F1 ≈ today (sentries ~equal; the F1 assault drone's strength reads
+  below today's flat 25), F3+ hotter. Phase 9 re-pins these machines
+  wholesale; exact numbers on the playtest checklist.
+- **The new militia faces have no ambient consumer until phase 6** —
+  a SPACEHACK_DEV Shift+grant (marine + sniper + brute adjacent to
+  the player) makes checkpoint item 4 checkable (dev-mode precedent).
+- **T4 dig support rows**: `TIER_EQUIPMENT_POOLS` gains band 4;
+  `legendary_axes_weights` gains a 4th row (the ladder's
+  continuation, (5, 25, 70)); `_MONSTER_TIERS` gains (2.2, 34) —
+  all three would IndexError/KeyError today at tier 4.
+- **Ratchet headroom**: `game_interactions.py` (998) and
+  `_rules_ground.py` (993) sit at the module ceiling — the band
+  threading must land line-neutral or with a small same-commit
+  extraction.
+
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
 1. Every topic A-G carries a dated SETTLED section (or an explicit
