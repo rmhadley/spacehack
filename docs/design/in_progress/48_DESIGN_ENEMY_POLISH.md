@@ -1841,6 +1841,102 @@ suites — verify at build).
    before/after. Glyph/color values are single-point data edits —
    tweak freely in playtest; the lint re-checks on every gate run.
 
+## Pre-implementation audit — phase 3 (2026-09-22)
+
+**Reuse (verified):**
+
+- **The hull alphabet ships as data** (`data/ships/core.py`): skiff
+  `t`, scout `s`, hauler `H`, cruiser `C`, frigate `F` purple,
+  freighter `F` gold. `find_ship(spec.ship_id).char` is the lint's
+  single source; no alphabet is authored.
+- **NPC-ship Entity construction is SEVEN spec-driven sites** (the
+  `Entity.bold` sweep): `_make_npc_entity` (`npc_ships.py:58`),
+  derelict spawn (`npc_ships.py:245`), `make_static_entity`
+  (`navigation_line.py:253`, shared by the Line pickets),
+  bounty/quest leader+wings + salvage wreck (`navigation_spawns.py:93`
+  and `:112`), and the two load rebuilders (`saveload_maps.py:420`
+  bounty, `:457` procedural). Mid-fight joiners reuse the AMBIENT
+  entity (`_join_reinforcements` attaches to `_found_entity`,
+  `_rules_space.py:815` — no new Entity built); clones are SHEETS,
+  not entities (`clone_transponder` rolls rep dicts). Seven sites,
+  each with its spec in scope — `bold=spec.elite` rides beside
+  `char=`/`fg=`.
+- **The bold flag's render chain** (five seams, all defaulted so
+  nothing else breaks): `WorldDrawCommand` (`world_render.py`) →
+  `FrameCell`/`print`/`write_cell` + `commands` reconstruction
+  (`framebuffer.py` — the `preserve_underlay` precedent) →
+  `_paint_world_commands` (`pygame_runtime.py:44`) → `GlyphAtlas.blit`
+  (`pygame_engine.py:327`). Two side doors carry it too:
+  `_command_from_data` (`pygame_world.py:20`, dict+object normalizer)
+  and `_map_console` (`pygame_combat.py:146`, combat's cell-by-cell
+  copy — the field-enumeration path that historically drops fields).
+- **The widen transform exists**: `_widen_glyph_tile` (engine.py:422,
+  nearest-neighbour ink-bounds resize) reused at +1 column.
+  `GlyphAtlas.from_processed_tileset` (`pygame_engine.py:288`) is the
+  ONE atlas construction site (`PygameEngine.open` + two test
+  callers) — the bold atlas builds there from the same processed
+  tiles, so bold letters compose with the +3 text-spacing pass.
+- **Registries expose the lint surface**: `list_npc_ships()` exists;
+  npc_chars gets the symmetric `list_npc_chars()` sibling (its
+  `_registry()` is private today).
+- **The alias seam for the rename is `find_npc_char`** — saves persist
+  `npc_char_id` verbatim (`saveload_maps.py:80,225`), so one
+  id-alias resolution point covers old saves and any straggler
+  reference.
+
+**Duplication hotspots:**
+
+1. **The seven-site bold sweep is parallel-paths drift by nature**
+   (spawn stampers vs load rebuilders are twins: navigation_spawns ↔
+   saveload_maps). A future eighth site that forgets `bold=` silently
+   drops flagship rendering — no crash, no lint.
+2. **The command chain repeats the field at five seams** — the
+   combat copy path (`_map_console` → `write_cell`) enumerates fields
+   by hand and is the one most likely to drop the new one.
+3. **Family colors exist in two theaters** (ship faction colors live
+   in each `NpcShipSpec.fg`; ground family colors live in
+   `CHAR_CLASS_FAMILIES`). Pirate + militia span both; drift between
+   the theater tables could quietly re-create the cold-blue crowding
+   the separation rule exists to catch.
+
+**DRY strategy:**
+
+1. `Entity.bold: bool = False` (defaulted) + the lint's elite render
+   test (flagship specs → `bold=True` on their world command through
+   the REAL draw path) — a forgotten site fails the gate, not the
+   playtest.
+2. `bold` threads the chain exactly as `preserve_underlay` does
+   today: one defaulted keyword, stored on `FrameCell`, reconstructed
+   in `commands`, passed through the normalizer and the combat copy.
+3. ONE ground table (`CHAR_CLASS_FAMILIES`: letter + case + color);
+   ships keep NO family table (SETTLED 33) — the lint derives ship
+   family colors from the data itself (all specs of a faction share
+   exactly one fg; neutral keeps its amber/brass pair). The
+   separation rule runs per theater over each table — cross-theater
+   pairs (ground rust vs derelict amber) never share a spawn context,
+   matching SETTLED 32's per-context uniqueness.
+
+**Build-discovered decisions (called out for the playtest):**
+
+- **Ground militia family color = teal (130,230,220), same as
+  space.** The trooper's live (120,200,255) sits max-channel 40 from
+  consortium's corporate blue — exactly the cold-blue crowding the
+  separation rule exists to catch; the family doctrine (one color per
+  family, SETTLED 32/34) resolves to the established militia teal.
+- **Machine bronze leans (200,180,110), not (200,170,110).** The
+  brief's stated pair — pirate rust (220,120,80) vs bronze
+  (200,170,110) — is max-channel 50 apart, failing the brief's own
+  ≥ 60 constant. The +10 green-channel nudge (imperceptible against
+  the live assault-drone bronze) satisfies the stated rule at the
+  stated constant; the rule and constant are the durable parts, the
+  tuple a playtest-tunable lean.
+- **Ship-side family color pin**: the brief's lint names only the
+  hull-pin for ships; without a one-fg-per-faction assertion the
+  "class twins render identical" intent (SETTLED 31/33) is unpinned
+  data drift. The lint adds it as part of the SHIP rule — faction
+  grouping off the spec data, no `SHIP_CLASS_FAMILIES` table (D1
+  stays superseded).
+
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
 1. Every topic A-G carries a dated SETTLED section (or an explicit
