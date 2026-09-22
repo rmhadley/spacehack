@@ -540,6 +540,45 @@ Rulings:
   naturally in dark corridors." Ship-style collective aggro remains
   space-only.
 
+## SETTLED 17 (2026-09-22) — combat-time movement + the noise system
+
+User, verbatim:
+
+> a. yes - uniform combat-time ap movement. but move ap tiles until
+> they're in LOS. if they have 4 AP and in 2 AP they are in LOS,
+> then it stops and they join combat.
+> b. yes. but also explosives probably need to emit a noise at where
+> it explodes?
+
+Rulings:
+
+- **Two movement modes, uniform (no special cases):** peace time —
+  everything moves 1 tile per tick (the stroll); combat time (any
+  live fight on the map) — every un-engaged entity moves its AP in
+  tiles.
+- **Stepwise LOS acquisition:** the approach checks LOS after EACH
+  tile; the moment an entity sees the player it STOPS and joins the
+  engaged set mid-approach — investigators never overshoot past LOS.
+  Composes with per-spec AP (ladder #8): a 6-AP predator hearing a
+  fight arrives fast.
+- **The noise system (minimal, diegetic):**
+  - Per-weapon `noise` radius as a data column (value 8 — data-driven,
+    tunable). Firing emits at the shot's origin. Loudness sketch:
+    rockets/grenades 10-12, rifles 8, pistols/SMGs 5-6, melee 1-2
+    (knife kills stay quiet — a real tactical choice); a flavor lever
+    exists (lasers near-silent vs kinetic loud), tuned at brief time.
+  - **Explosives emit TWICE** (user addendum): the firing report at
+    the shooter AND a blast event at the impact cell — the blast
+    draws entities from where it LANDS, not where it was fired.
+  - Hearing = flat radius check; sound ignores walls (one room over
+    draws, two away doesn't). No attenuation/propagation sim — add
+    only if the playtest begs.
+  - Heard ≠ aggroed, ever (SETTLED 16): the heard entity gains an
+    investigate attractor at the sound's origin, moves at combat-time
+    AP, aggros only via LOS. Reuses the last-seen machinery pointed
+    at a noise instead of a disengagement.
+- This settles ladder item #4's design ahead of the walkthrough.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
