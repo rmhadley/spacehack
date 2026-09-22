@@ -1,15 +1,15 @@
 # DESIGN: Loot — Dropped-Loot Polish + Interesting Finds
 
-**Status: DESIGN IN PROGRESS — no implementation until the user
-explicitly requests it.** Draft opened 2026-09-19; the user's four
+**Status: COMPLETE (2026-09-22) — all five phases landed and
+playtest-passed.** Draft opened 2026-09-19; the user's four
 polish notes, the full open-question pass, and the phase-2
 quality pass (all same day), plus the phase-3 module pass and
 the phase-4 legendary pass (both 2026-09-20), are settled below.
 Phase 4 CLOSED 2026-09-21 — playtest passed (rulings 26-30 and
 two pre-existing-UI bug rounds recorded in its queue entry).
-Phase 5 (tinker kits) PLAYTEST PASSED 2026-09-21 — all five
-phases done, awaiting the close; rulings 31-36 settled, strings
-approved, drop-rarity live-watch recorded in the queue entry.
+Phase 5 (tinker kits) CLOSED 2026-09-22 — playtest passed
+2026-09-21; rulings 31-36 settled, strings approved, drop-rarity
+live-watch recorded in the queue entry.
 
 Companions: `42_DESIGN_LORE_RUMOR.md` (this doc inherits its
 deferrals); `19_DESIGN_GROUND_AMMO_AND_FIELD_ITEMS.md` (field-item
@@ -700,9 +700,10 @@ curves and rate tables remain playtest-tunable.
   (a swallowed `__QUIT__` in the kit chooser + the
   consume/resolve twin pair) — fixed and re-approved. A Shift+Y
   dev grant (658c12d) instruments the checklist.
-  **PLAYTEST PASSED 2026-09-21** — checklist clean, no feedback
-  items. Rarity carries a live watch (user, verbatim): "We'll
-  make sure rarity is good as I play without dev mode" — the
+  **CLOSED 2026-09-22 — PLAYTEST PASSED 2026-09-21**
+  (checklist clean, no feedback items). Rarity carries a live
+  watch (user, verbatim): "We'll make sure rarity is good as I
+  play without dev mode" — the
   authored rates (kill 1-in-40 / wreck 1-in-12 / dig 1-in-16)
   are being verified in normal play; tuning is a
   `data/quality.py` table edit (with its pinned rate test)

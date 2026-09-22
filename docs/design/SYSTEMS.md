@@ -360,8 +360,9 @@ nobody designs against a ghost.
   re-roll; extras roll quality at drop time (KILL ladder);
   `GroundWeaponSpec.loot_droppable=False`
   keeps organic monster parts and fists off the floor; pools are
-  beyond-the-weapon extras only; everything shares the silent
-  30-entity cap (`combat/_actions.spawn_kill_drops` /
+  beyond-the-weapon extras only; a very rare tinker-kit roll
+  draws after the pad roll (doc 47.5); everything shares the
+  silent 30-entity cap (`combat/_actions.spawn_kill_drops` /
   `_spawn_kit_drop`; pools authored in `data/npc_chars/`).
 - **Player kit** — HP 20 + stamina/3 + armor + traits; AP 4 +
   bonuses; reload costs AP in combat (free at dungeon screen);
@@ -466,9 +467,11 @@ nobody designs against a ghost.
   ammo types (6), reload picks among weapons sharing the ammo
   (`ground_equipment.py`: `expedition_capacity`; `data/ground_items/
   ammo.py`: `AMMO`).
-- **Consumables** — exactly two (med_pack heal+regen, stim +1 AP),
-  AP-costed in combat, stack decrements only after the effect
-  validates (`ground_consumables.use_consumable`).
+- **Consumables** — med_pack heal+regen, stim +1 AP, tinker kit
+  quality-raise (loot-only, never sold — doc 47.5); AP-costed in
+  combat, stack decrements only after the effect validates
+  (`ground_consumables.use_consumable`; the kit intercepts
+  earlier, at the manage modal — see Tinker kits).
 - **Absent:** citizen day/night schedules; transit fares/fuel;
   shopping inside interiors (outdoor terminals only); crime/witness/
   city-guard systems; weather; survival needs.
@@ -851,16 +854,50 @@ nobody designs against a ghost.
   axes-table order (SETTLED 27). Credit containers:
   `{"credits": N}` payload adds credits + log line, gold hue;
   chips scatter in wrecks and digs (40-120), the dig rare-cache
-  lockbox (300-900, `lockbox_rate`) — the `credit_chips=True`
-  kwarg threaded at exactly the three dead-ship `load_layout`
-  callers. Dig caches can roll off-world goods the planet does
-  not produce (`out_of_produce_rate`).
+  lockbox (300-900, `lockbox_rate`) — the `wreck_scatter=True`
+  kwarg gates every dead-ship-only scatter pass (chips and
+  tinker kits alike) at exactly the three dead-ship
+  `load_layout` callers. Dig caches can roll off-world goods the
+  planet does not produce (`out_of_produce_rate`).
+- **Tinker kits (doc 47.5)** — a stackable consumable that
+  raises one owned item's quality one tier, capped at prototype.
+  Very rare loot-only drops on the three ground paths (kill
+  1-in-40 after the pad roll, wreck scatter 1-in-12, any dig
+  floor 1-in-16 after the legendary placement — every roll draws
+  after all pre-existing draws on its path; rates are authored
+  `KIT_*_RATE` constants in `data/quality.py`, pinned by test);
+  never shops (`GroundConsumableSpec.shop_available=False` gates
+  the armory buy rows — the load-bearing default-True field),
+  never exterior space kills, no delve-bottom guarantee. Use
+  from the pack's consumable manage modal intercepts at
+  `character_screen._manage_consumable_stack` →
+  `tinker.try_manage_kit` (returns None for non-kits, falling
+  through to `use_consumable`); one CHOOSE TARGET chooser over
+  every eligible owned entry across SIX containers — equipped
+  weapons, equipped armor, expedition pack, armory warehouse
+  (`ground_armory_storage`), mechanic ship-storage modules
+  (item_type "module" only — space weapons never variant),
+  installed modules — rows preview `current -> next` token,
+  title TINKER KIT, body the self-explaining effect_label (no
+  guide entry, SETTLED 36). Eligibility is quality 0-2 with no
+  randart seed (SETTLED 31 — prototype items and randarts never
+  list), re-checked inside every apply; the bump is one
+  `dataclasses.replace(entry, quality=q+1)` (all other fields —
+  loaded ammo included — preserved; stats/labels/sell re-derive
+  through the existing seams); a charge is consumed only on a
+  completed bump (`ground_consumables.consume_kit_charge` via
+  `_decrement_stack`); unsellable like every consumable. The
+  row and the apply share ONE `_Target` walk per container
+  (`tinker.eligible_targets`) so the chooser can never drift
+  from what it bumps.
 - **Absent:** `TradeGood.rarity` deleted (doc 47.2 — quest-cargo
   legality is now the explicit `QUEST_LEGAL_MARKET_GOODS` allowlist
   in `tools/quest_lint.py`); no module drops from exterior space
   kills or ordinary dig floors (modules come from raiding — doc
   47.3; the bottom-floor legendary cache is the sole dig-site
-  module source — doc 47.4); no tariffs beyond the confiscation
+  module source — doc 47.4); tinker kits never sell and never
+  appear in shops, exterior space kills, or delve-bottom
+  guarantees (doc 47.5); no tariffs beyond the confiscation
   fine; no equipment selling at terminals; no persistent
   NPC-trader stock.
 
