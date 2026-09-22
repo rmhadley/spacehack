@@ -1024,6 +1024,53 @@ Rulings (anchors verified same day):
   is amended for ships; it remains the GROUND rule. The ground half
   of D1 (`CHAR_CLASS_FAMILIES` for phase-4 faces) stays open.
 
+## SETTLED 34 (2026-09-22) — ground identity: family letter + case variant + family color; bold for uniques
+
+User, verbatim:
+
+> I think we clearly have families here too. And the convention should
+> be a glyph with a lower/upper case variant and a consistent color
+> for that family, we can use bold when needed for calling out
+> something unique (like the militia sniper or the pirate heavy).
+
+Rulings:
+
+- **Ground families are identity groups** — pirate, militia,
+  consortium, civilian bystander, contemporary machines. One LETTER
+  per family; members are case variants of it (SETTLED 32's
+  lowercase-common / uppercase-serious convention promoted INTO the
+  family mechanism); ONE consistent color per family. Live today as
+  proof: pirate `r`/`R` and machine `d`/`D`. The machine pair's
+  colors unify (sentry (150,185,255) vs assault (200,170,110) — one
+  machine color, which wins is brief-time); pirate raider/rifleman
+  likewise share one family color instead of today's rust-orange vs
+  faded red.
+- **Bold = the unique callout, theater-uniform** (SETTLED 33's flag):
+  the pirate heavy and the militia sniper are the named wearers
+  (user's examples). The phase-10 biome apexes and phase-9 ancients
+  are the natural next — "calling out something unique" is exactly
+  what an apex or a Warden is.
+- **Case variants are distinct glyphs**, so the same-context
+  uniqueness lint needs NO family exception ground-side. The
+  `CHAR_CLASS_FAMILIES` table's job becomes enforcing family color
+  consistency and reserving the family letter. `SHIP_CLASS_FAMILIES`
+  is dead (SETTLED 33 — hull derivation replaced it).
+- **Fauna are not letter-families** — no faction, no case structure;
+  they keep species glyphs in biome palettes (SETTLED 30). Apexes
+  wear bold.
+- Concrete reads (letters/cases/colors brief-time): militia family
+  letter `m` — trooper common-case, marine serious-case, sniper
+  bold; consortium family letter `e` — enforcer's ruled `E` is the
+  serious case, phase-11 rungs slot in as case/bold variants (the
+  delisted `g` gunner re-authors then); the bystander keeps `c`.
+  The trooper's `M` → common-case re-assignment rides phase 4 with
+  the marine (no re-case before the pair exists).
+- **D1 is now fully CLOSED** (ship half superseded by SETTLED 33,
+  ground half ruled here). The phase-3 brief re-cut folds: lint =
+  hull-glyph pin (ships) + family color consistency (ground) +
+  cross-registry pin re-derivation; the flagged-decision block
+  reduces to D3's re-derived pin list.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
