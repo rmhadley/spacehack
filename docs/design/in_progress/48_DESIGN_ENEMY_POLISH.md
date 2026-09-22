@@ -727,6 +727,44 @@ gunner's inline comment cites "doc 34" for the ground behavior
 matrix but the ground rule lives in doc 35 §8 (comment mislabel);
 enemy power regens with no spender found.
 
+## The space-systems audit (2026-09-22 — grounds the Q23 ruling)
+
+**The player's economy is a three-resource turn**: AP (fractional
+carry, wired identically both sides), power (hull + module
+generation; two sinks — energy/plasma shots and the paid S-dial
+shield regen with engineering discount), shields (module-built max +
+paid dial + free module recharge), finite missiles, positional
+dodge/range bands. Full weapon cost table + hull table in the audit
+record (six hulls — Skiff exists beyond the five).
+
+**The mirror is half-built (the headline):**
+
+- `EnemyInstance` carries fields for ALL of it; `start_enemy_turn`
+  contains the paid-regen power spend VERBATIM but unreachable
+  (`shield_regen_rate` pinned 0, `combat/_actions.py:437-445`).
+- The enemy `weapon_ammo` dict is built and never read — infinite
+  missiles. Enemy power fills and is never spent on weapons.
+- **Enemy modules are half-honored**: shields-from-modules wired
+  (the ONLY enemy shield source); reactor `power_gen`,
+  `targeting_computer` gunnery, and `gyro` piloting all UNWIRED —
+  the hound's gyro and the militia targeting computers are
+  decorative today.
+- **Enemy hulls are half-honored**: hull HP yes, but no base
+  shields/recharge/power — an enemy Cruiser flies WITHOUT its hull's
+  25 shields, 3 recharge, 5 power (`NpcShipSpec` lacks the fields).
+  "The same kind of ships we're in" is currently false at the stat
+  layer.
+- The AI reads almost none of it: advance + `weapons[0]` at a flat
+  1 AP (a 2-AP plasma costs the enemy 1); no power/ammo checks, no
+  weapon choice, no regen, no EMP-strip decision.
+- `ai_aggressiveness` / `ai_flee_threshold` re-confirmed dead.
+
+**Audit flags:** mid-fight reinforcement joiners are built from the
+PLAYER's hull catalog and cloned player skills
+(`_rules_space.py:765-788`) — joiner stats may not match their spec;
+`buy_ammo` does not update `cargo_ammo` (observed inconsistency,
+out of scope — punch list). Both to the punch list.
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
