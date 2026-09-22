@@ -114,8 +114,14 @@ def _registry() -> dict[str, NpcCharSpec]:
 
 
 def find_npc_char(char_id: str) -> NpcCharSpec:
-    """Look up a :class:`NpcCharSpec` by id; raises :class:`KeyError` on miss."""
+    """Look up an :class:`NpcCharSpec` by id; raises :class:`KeyError` on miss."""
     try:
         return _registry()[char_id]
     except KeyError:
         raise KeyError(f"unknown npc char id: {char_id!r}") from None
+
+
+def list_npc_chars() -> tuple[NpcCharSpec, ...]:
+    """All registered specs, in registry order (the test/lint surface
+    for catalog-wide assertions — sibling of ``list_npc_ships``)."""
+    return tuple(_registry().values())

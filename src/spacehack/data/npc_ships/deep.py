@@ -27,8 +27,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_hound",
         name="Pirate Hound",
-        char="p",
-        fg=(255, 90, 90),         # bright red — reads as fast / hot
+        char="s",
+        fg=(220, 60, 60),        # pirate family red
         ship_id="scout",
         faction="pirate",
         weapons=("medium_laser", "light_laser"),
@@ -58,8 +58,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_marauder",
         name="Pirate Marauder",
-        char="P",
-        fg=(220, 60, 80),    # angry red — heavier than the scout red
+        char="C",
+        fg=(220, 60, 60),      # pirate family red
         ship_id="cruiser",
         faction="pirate",
         weapons=("heavy_laser", "plasma_cannon", "heavy_missile"),
@@ -89,8 +89,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_warlord",
         name="Pirate Warlord",
-        char="W",
-        fg=(200, 30, 40),       # deep crimson — the boss palette
+        char="F",
+        fg=(220, 60, 60),       # pirate family red; flagship = bold render (elite)
         ship_id="frigate",
         faction="pirate",
         weapons=("heavy_laser", "heavy_missile", "plasma_cannon", "light_laser"),

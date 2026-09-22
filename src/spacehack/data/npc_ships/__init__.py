@@ -21,7 +21,13 @@ class NpcShipSpec:
     Attributes:
         id: registry key, e.g. "pirate_scout".
         name: display name shown in combat HUD / comms.
-        char / fg: glyph + colour on the solar system map.
+        char: the FLOWN HULL's glyph (doc 48 SETTLED 33) — must equal
+            ``find_ship(ship_id).char``; identity is single-sourced in
+            the hull catalog.
+        fg: the faction's ONE family color (SETTLED 33) — pirate red
+            (220,60,60), militia teal (130,230,220), merchant green
+            (100,220,140); derelicts keep the neutral amber/brass
+            tones. Class twins render identical by design.
         ship_id: hull reference (scout/hauler/cruiser).
         faction: "pirate" | "merchant" | "militia" | "consortium"
             (hidden axis, doc 48) | "civilian" (retired as a rep

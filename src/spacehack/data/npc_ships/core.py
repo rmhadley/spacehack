@@ -1,5 +1,13 @@
 """NPC ship catalog — the single source for all non-player ships.
 
+Identity doctrine (doc 48 SETTLED 33): glyph = the hull flown (the
+player shipyard alphabet — scout `s`, hauler `H`, cruiser `C`,
+frigate/freighter `F`), color = the faction's ONE family color —
+pirate red (220,60,60), militia teal (130,230,220), merchant green
+(100,220,140); derelicts keep amber/brass. Class twins render
+identical by design — weight reads from the hull glyph, faction from
+the color, elites from the bold flag.
+
 Pirates migrated from ``data/enemies/pirates.py`` (which is now deleted).
 Merchant and civilian specs added alongside them.
 """
@@ -44,8 +52,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="derelict_freighter",
         name="Derelict Freighter",
-        char="f",
-        fg=(190, 140, 60),    # dull brass — distinct from scout's amber, reads as a larger wreck
+        char="F",
+        fg=(190, 140, 60),    # dull brass — the neutral family's wreck tones (amber/brass)
         ship_id="freighter",
         faction="neutral",
         is_boardable=True,
@@ -77,8 +85,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_scout",
         name="Pirate Scout",
-        char="p",
-        fg=(255, 100, 100),
+        char="s",
+        fg=(220, 60, 60),      # pirate family red
         ship_id="scout",
         faction="pirate",
         weapons=("light_laser",),
@@ -111,8 +119,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_raider",
         name="Pirate Raider",
-        char="P",
-        fg=(220, 60, 60),
+        char="C",
+        fg=(220, 60, 60),      # pirate family red
         ship_id="cruiser",
         faction="pirate",
         weapons=("light_laser", "light_missile"),
@@ -144,8 +152,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="militia_blockade",
         name="Militia Blockade",
-        char="B",
-        fg=(130, 230, 220),                    # teal — distinct from pirate red/merchant green
+        char="C",
+        fg=(130, 230, 220),                    # militia family teal
         ship_id="cruiser",
         faction="militia",
         weapons=("light_laser", "light_laser"),
@@ -180,8 +188,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="pirate_captain",
         name="Pirate Captain",
-        char="D",
-        fg=(200, 40, 40),
+        char="F",
+        fg=(220, 60, 60),      # pirate family red; flagship = bold render (elite)
         ship_id="frigate",
         faction="pirate",
         weapons=("heavy_laser", "heavy_missile", "light_laser"),
@@ -213,8 +221,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="militia_patrol_light",
         name="Militia Scout",
-        char="B",
-        fg=(150, 220, 210),    # lighter teal — reads as a lighter patrol unit
+        char="s",
+        fg=(130, 230, 220),    # militia family teal — weight reads from the hull glyph
         ship_id="scout",
         faction="militia",
         weapons=("light_laser",),
@@ -245,8 +253,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="militia_patrol",
         name="Militia Patrol",
-        char="B",
-        fg=(130, 230, 220),    # standard teal (same as blockade — reads as same org)
+        char="C",
+        fg=(130, 230, 220),    # militia family teal
         ship_id="cruiser",
         faction="militia",
         weapons=("heavy_laser", "light_missile"),
@@ -276,8 +284,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="militia_patrol_heavy",
         name="Militia Enforcer",
-        char="B",
-        fg=(100, 200, 190),    # darker teal — reads as heavier/threatening
+        char="F",
+        fg=(130, 230, 220),    # militia family teal — weight reads from the hull glyph
         ship_id="frigate",
         faction="militia",
         weapons=("heavy_laser", "heavy_missile", "plasma_cannon"),
@@ -309,8 +317,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="merchant_hauler",
         name="Merchant Hauler",
-        char="M",
-        fg=(100, 220, 140),
+        char="H",
+        fg=(100, 220, 140),   # merchant family green
         ship_id="hauler",
         faction="merchant",
         weapons=(),
@@ -339,7 +347,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         id="merchant_freighter",
         name="Merchant Freighter",
         char="F",
-        fg=(80, 200, 120),
+        fg=(100, 220, 140),   # merchant family green
         ship_id="freighter",
         faction="merchant",
         weapons=("light_laser", "light_laser"),
@@ -366,8 +374,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="merchant_caravan",
         name="Merchant Caravan",
-        char="C",
-        fg=(60, 180, 100),
+        char="F",
+        fg=(100, 220, 140),   # merchant family green — wealth reads in the hull + droid dial, not color
         ship_id="freighter",
         faction="merchant",
         weapons=("light_laser", "light_laser", "heavy_laser"),
