@@ -671,6 +671,29 @@ Rulings (SETTLED 17's design confirmed in detail):
   activations remain the only wake trigger); non-hostile-reading NPCs
   ignore gunfire. Ladder #4 CLOSED.
 
+## SETTLED 23 (2026-09-22) — the aggressiveness dial's semantics (ladder #5)
+
+User, verbatim: "this is good as is. all sounds logical."
+
+Rulings:
+
+- **One dial, one job: fire-vs-reposition.** When in weapon band with
+  LOS (both firing and moving legal), `ai_aggressiveness` (10-90,
+  already authored) weights the choice: aggressive ships fire every
+  affordable AP (damage-tanks — sitting still forfeits movement
+  dodge); low-aggression ships reposition within the band
+  (dodge-tanks stacking +5%/cell at damage cost). The existing
+  movement-dodge economy does the balancing.
+- **Regen is never touched by it** — regen stays state-driven
+  (shields low + power available). Personality and survival each get
+  one clean input; if cowardly-regen ships are ever wanted, that is
+  a separate authored field.
+- Authored 10-90 values come alive as-is; no re-authoring.
+- The band-maintenance guard (ported note 1, SETTLED 21) owns the
+  high-piloting-dancer risk; aggressiveness is the per-spec knob.
+- **Space-only** — ground personality stays the `behavior` field's
+  job. Ladder #5 CLOSED.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
