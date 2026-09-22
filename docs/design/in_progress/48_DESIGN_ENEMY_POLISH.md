@@ -741,6 +741,31 @@ Rulings:
   movement, memory investigation, posts). No extension to
   memory-holders; closes SETTLED 24's open detail.
 
+## SETTLED 26 (2026-09-22) — universal ground range management (ladder #7)
+
+User, verbatim: "7 is good."
+
+Rulings:
+
+- **The band is the weapon's own data** [min_range…max_range]:
+  beyond max, close (1 A* step per AP); in band, hold and fire;
+  inside min, **back off** — AP spent reaching the nearest cell that
+  restores ≥ min_range, preferring LOS-keeping steps.
+- **Cornering is the counter-play, by design:** open ground lets
+  ranged faces skate away; pinned against a wall with no in-band
+  cell, a ranged enemy is inert. The hug-a-rifleman exploit becomes
+  a chase you must win.
+- **Leftover AP after the one-shot cap goes to repositioning** — the
+  skirmisher dance emerges from band + AP budget (no skirmisher
+  flag). One-shot-per-turn cap unchanged.
+- **Melee untouched by construction** (claw band [1…1]: adjacency is
+  always in-band — no back-off, no knife-dancers).
+- **Uniform across behaviors; leashes compose and win** — a guard's
+  retreat drifts toward its post; beyond the leash (weapon max + 2,
+  SETTLED 18) the post goal takes precedence.
+- Space-side range management is Tier 1's move decision (SETTLED
+  21); this ruling is ground-only. Ladder #7 CLOSED.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
