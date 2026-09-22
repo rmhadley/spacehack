@@ -612,6 +612,46 @@ Rulings:
   to do as I fight them"). The hug-a-rifleman exploit is the missing
   half, not a special case. Detail lands at ladder #7.
 
+## SETTLED 19 (2026-09-22) — all six skills + full-kit resource-aware space AI
+
+User, verbatim:
+
+> just to be clear: "pilot skills fully live" -- I mean all 6
+> skills. NPCs should have all 6 skills. So even in ground combat
+> their 3 ground skills shape their difficulty.
+> 2. no -- we need ships using their full kit. we're supposed to
+> feel like we're fighting others in the same kind of ships that we
+> are in. the AI needs to look at all the factors, range, AP, energy,
+> shields. and make decisions on how to spend each resource. This is
+> much more complicated than now, but it will make space combat so
+> much deeper. Get the edge on them draining their shields and now
+> they're not firing as much because they have their energy going to
+> shield regen.
+
+Rulings:
+
+- **All six skills on every NPC** (extends SETTLED 15): the 6-block
+  — gunnery/piloting/engineering + reflexes/strength/stamina — is
+  the universal character model; each theater's difficulty derives
+  from its three. Band→effective-level derivation distributes
+  across the full block.
+- **Full-kit, resource-aware space AI RULED IN.** Enemy ships use
+  their whole weapon kit and decide how to spend AP, energy, and
+  shields through the same systems the player flies: "we're supposed
+  to feel like we're fighting others in the same kind of ships that
+  we're in." Design north star, user's example: drain their shields
+  → they divert energy to regen → they fire less. Supersedes the
+  weapons[0]-only acceptance in ladder #3; the cosmetic enemy
+  ledgers (SETTLED 15's remainder) become real systems — energy
+  pools, authored shield-regen rates, per-weapon costs.
+- **Boundary change:** resource-decision AI enters THIS campaign's
+  territory (the old "space AI behavior OUT, doc-34" boundary no
+  longer holds for it). Whether doc-34's movement verbs (kiting,
+  fleeing) fold into this design or stay separate = open (Q23).
+- Mechanics land only after the space-systems audit (dispatched same
+  day): the PLAYER-side economy is the mirror target — every
+  spendable, rate, and dial an enemy AI must learn to spend.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -844,10 +884,15 @@ with doctrinal 10-13):
 21. ~~Bystanders~~ ANSWERED — SETTLED 14: exempt.
 22. Band-scaled tactics: audit LANDED (the tactical mechanics
     audit above). v1 = pool composition + squad shape (SETTLED 14);
-   the CHEAP/NEW ladder (noise aggro, in-combat last-seen,
-   aggressiveness juke, back-off step, per-spec AP) presented for
-   ruling — aggressiveness and space-flee carry the doc-34 boundary
-   call.
+   the ladder walkthrough is mid-flight (SETTLED 16-18: composition
+   + LOS doctrine, noise + combat-time movement, guard-artillery +
+   leash + range management; SETTLED 17 pre-settled noise aggro).
+23. Full-kit resource-aware space AI (SETTLED 19): systems audit
+    dispatched 2026-09-22 — the player-side energy/weapon/shield
+    economy is the mirror target. After it lands: the enemy
+    decision model (fire selection, energy budgeting, shield-regen
+    trades), and whether doc-34's movement verbs fold in or stay
+    their own pass.
 
 ## Phases
 
