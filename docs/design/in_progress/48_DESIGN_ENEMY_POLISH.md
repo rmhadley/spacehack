@@ -1938,7 +1938,7 @@ suites — verify at build).
    before/after. Glyph/color values are single-point data edits —
    tweak freely in playtest; the lint re-checks on every gate run.
 
-### Phase 4 Implementation brief (PROPOSED 2026-09-22 — SETTLED 35
+### Phase 4 Implementation brief (APPROVED 2026-09-22 — SETTLED 35
 ### + 13/14/15/16/19/30/34)
 
 **Scope (files / hook points):**
