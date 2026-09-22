@@ -395,6 +395,27 @@ Rulings:
   ahead of that. Strengthens SETTLED 6's strict gate; the Q5 dig-band
   consortium lean is now effectively "no" (formal ruling stays in C2).
 
+## SETTLED 13 (2026-09-22) — the type catalogs close (C1)
+
+User, verbatim: "1 and 2: good as is."
+
+Rulings:
+
+- **PIRATE — three faces:** raider (stays; mixed melee/ranged
+  opportunist) + rifleman (stays; becomes a real rifleman under the
+  scaling mechanism) + heavy (NEW, PROSE GATE: slow, explosive, the
+  band-4 face, fills the slow-heavy-hunter matrix cell). Answers Q17:
+  existing specs scale AND one new face.
+- **MILITIA — three rows** (SETTLED 10): trooper, organized
+  strike/defender crew, heavy/sniper (precision, not explosive).
+- **MERCHANT — one row + dial** (SETTLED 5/7): light honest crew
+  (PROSE GATE); wealth scaling is the security-droid complement.
+- **CONSORTIUM — the augmentation ladder** (SETTLED 6/11/12): rungs =
+  authored bands, authored-only exposure, cyber gear = existing
+  armor cybernetics at high quality.
+- **C1 CLOSED.** Names, statblocks, matrix-cell tuning, rung counts =
+  brief-time authoring.
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
@@ -411,13 +432,11 @@ draw from C's row catalogs) → D → E → F → G → B.
 - **C. Roster catalogs + difficulty doctrine** — promoted 2026-09-22
   (the user asked where NPC scaling + per-faction NPC types live; the
   catalogs were implicit brief-time detail, now explicit). **C1, the
-  type catalogs:** which rows each faction fields — pirate faces
-  incl. the band-4 heavy; militia strike/defender crews; merchant
-  light crew + the droid dial; the consortium cybernetic ladder
-  (names PROSE GATE). **C2, how everything scales:** ONE band
-  vocabulary (mission_tier = tech_level = dig band, extended to 4),
-  the three axes (SETTLED 2) and where each applies (digs, dungeons,
-  cities, ships); the carried mechanism questions below.
+  type catalogs: CLOSED (SETTLED 13).** **C2, how everything
+  scales:** ONE band vocabulary (mission_tier = tech_level = dig
+  band, extended to 4), the three axes (SETTLED 2) and where each
+  applies (digs, dungeons, cities, ships); the carried mechanism
+  questions below.
 - **D. Crew & interior coherence** — SETTLED 3's details: crew tables
   per hull (drawn from C1's catalogs), always-hostile interiors,
   kill-delta handling, what crews derelicts carry.
@@ -544,8 +563,9 @@ with doctrinal 10-13):
     its weapon family to the band's top — preserves melee/ranged
     characterization, fixes the rifleman structurally), catalog filter,
     or per-spec band tables?
-17. Band-4 faces: existing specs with better kit, new veteran/heavy
-    rows, or both?
+17. ~~Band-4 faces: existing specs with better kit, new rows, or
+    both?~~ ANSWERED — SETTLED 13: both — raider/rifleman scale, the
+    heavy is the new band-4 face.
 18. Fixed `weapons=` lists: respected as characterization or replaced
     by family resolution?
 19. Quality floors by band: in scope or deferred to a 47 tune pass?
