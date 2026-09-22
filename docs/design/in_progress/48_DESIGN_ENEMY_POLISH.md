@@ -2563,6 +2563,120 @@ deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
   threading must land line-neutral or with a small same-commit
   extraction.
 
+## Pre-implementation audit — phase 5 (2026-09-22)
+
+**Reuse (verified):**
+
+- **`consume_shot` is the ONE per-accepted-player-shot seam**
+  (`combat/_rules_ground.py:578`): both fire paths call it
+  (`_finish_player_weapon` for normal shots, `_fire_explosive_weapon`
+  directly). The firing-report emission rides it at `ctx.player.pos`
+  with the slot's weapon — melee included (it flows through the same
+  [f] action), so the authored melee noise 1-2 is the quiet dial. The
+  blast emission rides `explosive_blast` (`:473`) whose impact cell is
+  `primary.pos` — ONE site covers `_apply_explosive_enemy_hit` (it
+  runs per-enemy INSIDE `explosive_blast`; emitting there would
+  multi-fire). Enemy-side report at `_try_ground_fire`
+  (`combat/_ai_ground.py:108`).
+- **The last-seen machinery is the attractor slot**
+  (`ground_npcs.py:204-282`): `last_seen_pos` repurposed as the
+  investigation goal (SETTLED 37), `last_seen_ticks` retires; the
+  goal-walker replaces `_move_toward_last_seen` (give-up = unreachable
+  or LOS-on-goal — never a tick countdown). `remember_last_seen` stays
+  the single stamper for BOTH sources (disengage via `on_disengage`,
+  noise via the new emit).
+- **`faction.spec_is_hostile` folds `always_hostile`** (`faction.py:128`)
+  — the ONE hostility predicate already shared by encounter, ground
+  NPCs, and city NPCs; the hearer filter reuses it. City bystanders
+  carry `npc_char_id` (`city_npcs.py:69`, verified) — they flow through
+  `move_ground_npcs` between rounds exactly as the brief assumes.
+- **`world.find_path` walkability is tile-only** (`is_walkable` reads
+  `tiles[y][x].walkable`; DOOR/DUNGEON_DOOR author `walkable=True`,
+  no runtime state gate found in `world_path.py`) — the door-path test
+  pins the audit flag CLOSED with a fixture, no fix expected.
+- **The resolver owns weapon identity**: `ground_scale.roll_weapon` +
+  `entity_band` resolve the rolled weapon idempotently at FIRST
+  resolution — `_build_enemy_instance` (combat entry) and the guard
+  hearing gate call the same helper; the stamp lands on the entity.
+- **`_build_enemy_instance` (`:177`) is the single combat-entry point**
+  for weapon persist + consumable pre-roll + AP derivation;
+  `reset_turn` (`:972`) is the per-round tick site for stim/regen.
+  Consumable catalog: med_pack (use_ap_cost 1, heal 5, regen 2,
+  duration 3), stim (use_ap_cost 1, AP +1, duration 3) — names match
+  the approved log lines verbatim ("Med Pack" / "Combat Stim").
+- **`ActiveConsumableEffect` / `effect_from_spec`**
+  (`ground_consumables.py`) shape the enemy-side mirror — heal 5 +
+  regen 2×3 and +1 AP ×3 are exactly the catalog values.
+- **Save path**: `_entity_to_dict`/`_entity_from_dict`
+  (`saveload_maps.py:70,246`) — carried stamp, rolled weapon, and goal
+  serialize beside the existing `last_seen_pos`. `guard_post` is an
+  UNDECLARED runtime attribute today (grandfathered) — declaring it on
+  `Entity` while paying the cohesion debt is in-scope.
+- **Dev-grant pattern**: `spawn_dev_enemy_faces` (`dev_mode.py`) —
+  Shift+key, `test_dev_mode.py` pin; the carrier grant follows it.
+
+**Duplication hotspots:**
+
+1. **The hostile-combatant check is about to become a THIRD twin**
+   (`_encounter._is_hostile_combatant`, `ground_npcs._is_hostile`, and
+   an inline hearer filter) — plus the stepwise-stop predicate would
+   duplicate `_visible_hostile_entities`' per-entity logic.
+2. **Weapon/quality resolution**: `_build_enemy_instance` rolls today;
+   the guard leash gate needs the SAME rolled weapon — an inline
+   re-roll would fork the resolver and double-draw RNG.
+3. **Three emission sites** (player report, enemy report, blast)
+   hand-assembling (origin, radius) pairs + the reaction line; and the
+   movement pass would re-derive AP/step semantics per caller.
+
+**DRY strategy:**
+
+1. `noise.py` owns `emit(...)` (the only emitter constructor — origin,
+   radius, blast flag — reaction line inside), the hearer scan
+   (reusing `spec_is_hostile` via `_encounter`'s single predicate), and
+   the per-entity stepwise-stop helper that `_encounter` exposes and
+   `ground_npcs` consumes (mode + stop predicate imported, not
+   re-derived).
+2. ONE `ensure_rolled_weapon(entity, game_map, rng)` in `noise.py`
+   (lazy `ground_scale` import) — the idempotent first-resolution
+   stamp both consumers call; quality stamps beside it.
+3. Combat-time movement is ONE mode branch inside `move_ground_npcs`
+   (per-entity AP walk with the shared stop predicate); callers
+   (`check_reinforcements`, explore tick, debug session) inherit
+   unchanged.
+
+**Build-discovered decisions (called out for the playtest):**
+
+- **Weapon quality persists beside the weapon** (same first-resolution
+  stamp) — otherwise a persisted weapon could drop at a different
+  quality than it fired with, breaking doc-47.2 SETTLED 13's
+  "what fired is what drops".
+- **Enemy explosives have NO blast resolution today** (single-target
+  `_roll_ground_shot`) — enemy-side emission is the firing report
+  only; there is no enemy blast site to wire (player-side
+  `explosive_blast` is the only blast emitter, and it is one site).
+- **Reaction-line quiet gate**: melee/organic noise ≤ 2 never logs the
+  line even when an adjacent fresh hearer exists — SETTLED 36 verbatim
+  ("quiet weapons never trigger it"), a named tunable constant.
+- **Guard post re-stamps where the investigation ends** (playtest item
+  4: "settles at a new perch near the sound, then guards THERE") —
+  keeps the combat leash coherent with the new perch.
+- **Stationary behaviors hold during fights unless investigating**: a
+  guard without a goal does NOT pace at AP during a live fight (it
+  holds its post; playtest item 4's "does NOT come"), hunters and
+  bystanders move — the uniform reading of SETTLED 17's "every
+  un-engaged entity" against SETTLED 18's area-guardian doctrine.
+- **`last_seen_ticks` retirement is load-compatible**: old saves
+  carrying the field load clean (ticks ignored, a live goal restored
+  by position alone); the pursuit give-up becomes unreachable/LOS.
+
+**Ratchet plan:** `_rules_ground.py` sits at 999/1000 — the player
+consumable-effect pass (`apply_consumable_effect` +
+`_advance_consumable_effects` + `_consumable_name_for_effect`, ~60
+lines) extracts to a new `combat/_ground_effects.py`, which is also
+the natural home for the enemy-side effect mirror (stim/regen tick);
+the emission wirings inside `_rules_ground` stay line-neutral against
+that extraction, paying the debt in-commit per the brief.
+
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
 1. Every topic A-G carries a dated SETTLED section (or an explicit
