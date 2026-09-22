@@ -258,3 +258,17 @@ def test_misspelled_bystander_id_survives_only_as_alias():
     assert strays == ["src/spacehack/data/npc_chars/__init__.py"], (
         f"stray 'civillian' refs outside the alias file: {strays}"
     )
+
+
+def test_flee_threshold_field_is_retired():
+    """Fleeing is ruled out (doc 48 SETTLED 20) — the field is gone."""
+    import pytest
+
+    from src.spacehack.data.npc_ships import NpcShipSpec
+
+    with pytest.raises(TypeError):
+        NpcShipSpec(
+            id="x", name="X", char="s", fg=(1, 2, 3),
+            ship_id="scout", faction="pirate",
+            ai_flee_threshold=0.15,
+        )

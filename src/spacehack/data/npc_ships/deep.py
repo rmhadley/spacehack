@@ -9,12 +9,11 @@ bar-mission spawns elsewhere:
   to pin down; dies fast when caught but chews through shields
   while it dances.
 * ``pirate_marauder`` — the T4 line soldier. A cruiser with a
-  heavy mixed loadout, shield + armor kit, and nearly no surrender
-  threshold. The meat of any deep-space squad.
+  heavy mixed loadout and a shield + armor kit. The meat of any
+  deep-space squad.
 * ``pirate_warlord`` — the end-of-arm boss. A frigate with the
-  top-shelf arsenal, a recharger-backed shield, and a 0.02 flee
-  threshold: it fights to the last hull point. Static warlord
-  garrisons guard both deep systems.
+  top-shelf arsenal and a recharger-backed shield: it fights to the
+  last hull point. Static warlord garrisons guard both deep systems.
 
 All three keep ``comms_warning_range=0`` like the other random
 pirates — they engage by proximity, not by hailing first.
@@ -39,7 +38,6 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(250, 800),
         ai_aggressiveness=85,
         ai_preferred_range=3,
-        ai_flee_threshold=0.15,
         ai_accuracy_bonus=10,
         ai_dodge_bonus=28,     # the whole point of a hound — hard to hit
         pilot_gunnery=28,
@@ -70,7 +68,6 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(700, 2100),
         ai_aggressiveness=80,
         ai_preferred_range=4,
-        ai_flee_threshold=0.08,
         ai_accuracy_bonus=25,
         ai_dodge_bonus=5,
         pilot_gunnery=38,
@@ -102,7 +99,6 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(1400, 4200),
         ai_aggressiveness=90,
         ai_preferred_range=3,
-        ai_flee_threshold=0.02,
         ai_accuracy_bonus=35,
         ai_dodge_bonus=10,
         pilot_gunnery=48,

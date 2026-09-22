@@ -42,7 +42,6 @@ class NpcShipSpec:
         cargo_count: how many unique goods to stock on spawn (0 = none).
         ai_aggressiveness: 0-100 chance to attack vs reposition.
         ai_preferred_range: AI tries to maintain this distance.
-        ai_flee_threshold: hull % (0.0-1.0) below which AI flees.
         ai_accuracy_bonus / ai_dodge_bonus: per-difficulty modifiers.
         pilot_gunnery / pilot_piloting / pilot_engineering: skills.
         min_power_gen: base power per turn.
@@ -72,7 +71,6 @@ class NpcShipSpec:
     # Combat
     ai_aggressiveness: int = 50
     ai_preferred_range: int = 3
-    ai_flee_threshold: float = 0.15
     ai_accuracy_bonus: int = 0
     ai_dodge_bonus: int = 0
     pilot_gunnery: int = 20
