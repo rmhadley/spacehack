@@ -10,7 +10,7 @@ Additional NPC char types (mercenaries, colonists) can be added as new
 entries in the ``NPC_CHARS`` tuple.
 """
 
-from . import NpcCharSpec
+from . import NpcCharSpec, six_weights
 
 
 NPC_CHARS: tuple[NpcCharSpec, ...] = (
@@ -27,6 +27,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="consortium",
         hp=22,
         weapon_pick=("combat_knife", "kinetic_pistol"),
+        weapon_families=("melee", "pistols"),
+        stat_weights=six_weights(0.25, 0.40, 0.20),
         reflexes=12,
         strength=16,
         stamina=14,
@@ -56,6 +58,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="consortium",
         hp=28,
         weapons=("kinetic_pistol",),
+        weapon_families=("pistols",),
+        stat_weights=six_weights(0.45, 0.15, 0.25),
         reflexes=14,
         strength=12,
         stamina=16,
@@ -82,6 +86,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="pirate",
         hp=20,
         weapon_pick=("combat_knife", "kinetic_pistol"),  # 50/50 melee vs ranged
+        weapon_families=("melee", "pistols"),
+        stat_weights=six_weights(0.2834, 0.2833, 0.2833),  # even (SETTLED 35)
         reflexes=12,
         strength=16,
         stamina=14,
@@ -108,6 +114,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="pirate",
         hp=30,
         weapons=("kinetic_pistol",),
+        weapon_families=("rifles",),   # a real rifleman under the ladder (SETTLED 13)
+        stat_weights=six_weights(0.45, 0.15, 0.25),
         reflexes=14,
         strength=12,
         stamina=16,
@@ -134,6 +142,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="civilian",
         hp=15,
         weapon_pick=("combat_knife",),  # can defend if forced
+        weapon_families=("melee",),
+        stat_weights=six_weights(0.0, 0.0, 0.0),  # band-exempt (SETTLED 14)
         reflexes=8,
         strength=8,
         stamina=10,
@@ -151,6 +161,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="militia",
         hp=26,
         weapon_pick=("kinetic_pistol", "combat_knife"),
+        weapon_families=("pistols", "melee"),
+        stat_weights=six_weights(0.30, 0.25, 0.30),
         reflexes=13,
         strength=12,
         stamina=14,

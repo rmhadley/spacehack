@@ -10,7 +10,7 @@ procedural dungeon population. ``tier`` gates equipment drops and
 Design doc: ``docs/design/in_progress/11_DESIGN_DUNGEON_MONSTERS.md``
 """
 
-from . import NpcCharSpec
+from . import NpcCharSpec, six_weights
 
 NPC_CHARS: tuple[NpcCharSpec, ...] = (
     NpcCharSpec(
@@ -21,6 +21,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=14,
         weapons=("monster_claws",),
+        stat_weights=six_weights(0.30, 0.25, 0.30),
         reflexes=10,
         strength=12,
         stamina=10,
@@ -46,6 +47,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=18,
         weapons=("drone_laser",),
+        stat_weights=six_weights(0.40, 0.10, 0.35),
         reflexes=14,
         strength=10,
         stamina=12,
@@ -77,6 +79,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=26,
         weapons=("monster_claws",),
+        stat_weights=six_weights(0.10, 0.55, 0.20),
         reflexes=12,
         strength=32,              # claws 3 + 3 = 6 per hit
         stamina=14,
@@ -97,6 +100,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=22,
         weapons=("monster_claws",),
+        stat_weights=six_weights(0.35, 0.30, 0.20),
         reflexes=13,
         strength=18,
         stamina=12,
@@ -117,6 +121,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=34,
         weapons=("monster_claws",),
+        stat_weights=six_weights(0.10, 0.50, 0.25),
         reflexes=10,
         strength=25,              # slow but hits hard (claws 3 + 2 = 5)
         stamina=16,
@@ -148,6 +153,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=20,
         weapons=("frost_bolt",),
+        stat_weights=six_weights(0.45, 0.10, 0.30),
         reflexes=13,
         strength=10,
         stamina=12,
@@ -172,6 +178,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         faction="",
         hp=16,
         weapons=("parasite_mandibles",),
+        stat_weights=six_weights(0.35, 0.30, 0.20),
         reflexes=12,
         strength=12,
         stamina=10,

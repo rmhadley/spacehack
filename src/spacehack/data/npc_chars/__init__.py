@@ -86,12 +86,24 @@ class NpcCharSpec:
             (retired as a rep axis — an ambient-dressing accounting
             tag, SETTLED 8) — links to faction reputation for
             hostility.
-        hp: base HP before stamina bonus (total = ``hp + stamina // 3``).
-        weapons: ground weapon ids the NPC always carries.
-        weapon_pick: ground weapon ids for RNG selection at spawn time.
-        reflexes: hit/dodge stat (0-100), used in hit-chance formula.
-        strength: melee damage bonus stat (0-100).
-        stamina: HP bonus stat (0-100).
+        hp: base HP before stamina bonus (total = ``hp + stamina // 3``,
+            stamina derived at the spawn's band).
+        weapons: ground weapon ids the NPC always carries — fixed
+            rows (fauna, machines) whose organic parts never ladder.
+        weapon_families: catalog family modules the band's tier
+            window rolls in (doc 48 SETTLED 35); empty = the row is
+            fixed via ``weapons``.
+        stat_weights: six archetype shares (reflexes, strength,
+            stamina + the flat 0.05 space-skill share each, SETTLED
+            19/35) splitting the band's stat budget; all-zero = the
+            band-exempt bystander. Build via :func:`six_weights`.
+        elite: bold-render flag (doc 48 SETTLED 33/34) — the unique
+            callout (brute, sniper); theater-uniform with ships.
+        pin_window_top: take the tier window's ceiling tier outright
+            (the sniper's top-rifle pin, SETTLED 35).
+        reflexes, strength, stamina: authored stat constants —
+            RETIRE with the band consumption (doc 48 phase 4,
+            build 2): the spawn's band derives all six.
         detect_radius: Chebyshev distance — triggers combat when player
             enters range AND has line-of-sight.
         loot_pool: trade good ids the NPC may drop on death.
@@ -120,7 +132,14 @@ class NpcCharSpec:
     faction: str
     hp: int = 20
     weapons: tuple[str, ...] = ()
+    weapon_families: tuple[str, ...] = ()
+    # RETIRES with the band consumption (doc 48 phase 4, build 2):
+    # humanoid rows migrate to weapon_families; kept so this commit
+    # stays behavior-neutral.
     weapon_pick: tuple[str, ...] = ()
+    stat_weights: tuple[float, ...] = ()
+    elite: bool = False
+    pin_window_top: bool = False
     reflexes: int = 10
     strength: int = 10
     stamina: int = 10
@@ -136,6 +155,25 @@ class NpcCharSpec:
     squad_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
+
+
+# The flat minor share every archetype gives its space skills
+# (SETTLED 19: all six on every NPC; SETTLED 35: the share is flat).
+SPACE_SKILL_SHARE: tuple[float, float, float] = (0.05, 0.05, 0.05)
+
+
+def six_weights(
+    reflexes: float, strength: float, stamina: float,
+) -> tuple[float, ...]:
+    """Close one archetype's three ground shares into a six-tuple.
+
+    The ground shares must sum to 0.85; the lint pins the flat space
+    tail. Three zero shares mean the band-exempt bystander — the
+    exemption is ALL SIX zero, so no stamp ever moves anything.
+    """
+    if not (reflexes or strength or stamina):
+        return (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    return (reflexes, strength, stamina) + SPACE_SKILL_SHARE
 
 
 # ---------------------------------------------------------------------------

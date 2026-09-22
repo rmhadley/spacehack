@@ -73,6 +73,17 @@ class GroundWeaponSpec:
 _BY_ID: dict[str, GroundWeaponSpec] | None = None
 
 
+def _iter_family_modules():
+    """Import every family module under this package (the registry's
+    auto-discovery walk, shared with :func:`weapon_families`)."""
+    import importlib, pkgutil
+
+    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
+        if name.startswith("_"):
+            continue
+        yield importlib.import_module(f"{__name__}.{name}")
+
+
 def _build_registry() -> dict[str, GroundWeaponSpec]:
     """Auto-discover all ground-weapon modules under this package.
 
@@ -80,12 +91,8 @@ def _build_registry() -> dict[str, GroundWeaponSpec]:
     registered — just drop a new ``.py`` in ``data/ground_weapons/``
     and it's picked up without touching any registry code.
     """
-    import importlib, pkgutil
     combined: dict[str, GroundWeaponSpec] = {}
-    for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
-        if name.startswith("_"):
-            continue
-        mod = importlib.import_module(f"{__name__}.{name}")
+    for mod in _iter_family_modules():
         if hasattr(mod, "WARES"):
             for w in mod.WARES:
                 combined[w.id] = w
@@ -110,3 +117,39 @@ def find_ground_weapon(weapon_id: str) -> GroundWeaponSpec:
 def list_ground_weapons() -> tuple[GroundWeaponSpec, ...]:
     """All registered ground weapons, in undefined order."""
     return tuple(_registry().values())
+
+
+def weapon_families() -> tuple[str, ...]:
+    """Family module names that carry at least one ladder-eligible
+    (``loot_droppable``) weapon — the legal ``weapon_families`` values
+    (doc 48 SETTLED 35). ``monsters`` is structurally absent: organic
+    parts never drop, so it can never appear here."""
+
+    return tuple(sorted(
+        mod.__name__.rsplit(".", 1)[-1]
+        for mod in _iter_family_modules()
+        if hasattr(mod, "WARES")
+        and any(w.loot_droppable for w in mod.WARES)
+    ))
+
+
+def family_tiers(family: str) -> dict[int, tuple[str, ...]]:
+    """Ladder-eligible weapon ids by tech level for one family.
+
+    The family ladder's single source (doc 48 SETTLED 35): specs name
+    families, bands roll the tier. Only ``loot_droppable`` rows ladder
+    — the doc-47.1 flag doubles as the gate that keeps bare fists and
+    organic monster parts out. Unknown family raises ``KeyError``.
+    """
+    import importlib
+
+    try:
+        mod = importlib.import_module(f".{family}", __name__)
+    except (ImportError, TypeError) as exc:
+        raise KeyError(f"unknown weapon family: {family!r}") from exc
+    wares = getattr(mod, "WARES", ())
+    tiers: dict[int, list[str]] = {}
+    for w in wares:
+        if w.loot_droppable:
+            tiers.setdefault(w.tech_level, []).append(w.id)
+    return {tier: tuple(ids) for tier, ids in sorted(tiers.items())}
