@@ -463,7 +463,10 @@ nobody designs against a ghost.
   animates offscreen and returns, keeping identity; launch spawns
   space with a spawn-exclusion ring (`city.py`: `_launch_to_space`).
 - **Ground gear** — strength-capped expedition pack (4 + 1/5 STR
-  over 10), 2 weapon slots, five armor slots; per-weapon magazines +
+  over 10), 2 weapon slots, five armor slots (incl. the cybernetics
+  subfamily — eyes/torso/arms/legs pieces whose
+  `ap/hit/melee/hp_bonus` fields are the cyber identity,
+  `data/ground_armor/vests.py`); per-weapon magazines +
   ammo types (6), reload picks among weapons sharing the ammo
   (`ground_equipment.py`: `expedition_capacity`; `data/ground_items/
   ammo.py`: `AMMO`).
