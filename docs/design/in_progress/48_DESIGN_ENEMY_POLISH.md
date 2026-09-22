@@ -1554,8 +1554,11 @@ with doctrinal 10-13):
   ensure consumer named in the brief is ship-side (nothing ground to
   wire; phase 7 owns it). Prison activation security stamps band =
   floor (the dig formula at Mars T1); the mars_alien_prison floor-4
-  events are the tree's only band-4 combat until a T4 dig. Awaiting
-  playtest.
+  events are the tree's only band-4 combat until a T4 dig. Same-day
+  follow-up (user-directed): the ground target card's title states
+  the band's effective level — "LVL 30 Pirate Raider" (user wording
+  verbatim); no guide diff (the card explains itself in play).
+  Awaiting playtest.
 - [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
