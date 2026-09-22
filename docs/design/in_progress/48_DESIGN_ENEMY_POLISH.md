@@ -1196,6 +1196,51 @@ Rulings:
   pulse at the shot origin (transit-arrival style) is a noted future
   polish, out of phase 5.
 
+## SETTLED 37 (2026-09-22) — investigation is goal-based; guards are area guardians; squads follow noise as a unit
+
+User, verbatim (ruling on the reviewer ADVISE pass over the phase-5
+brief):
+
+> 1A -- yes the idea of the guards are that they are guarding a
+> specific area. like a vault in some cases.
+> 2 -- I didn't realize there was a 5 tick memory. that explains some
+> troubles I've had with kiting some mobs with line of sight. Can we
+> drop that concept? A mob decides to investigate an area -- they move
+> until they can have line of site on that area. full stop. once they
+> get there if they see nothing, they continue as they were. if they
+> see you, then line of sight combat rule interrupts.
+> 3. if they are wandering as a unit, then they follow a noise as a
+> unit.
+
+Rulings:
+
+- **Investigation is GOAL-BASED, not time-boxed.** The 5-tick memory
+  is RETIRED — for the noise attractor AND the existing disengage
+  investigation (amends SETTLED 24's recorded 5-tick behavior; the
+  WITHDRAWAL of in-combat memory-chase stands untouched — this changes
+  only the post-event walker). A mob that decides to investigate an
+  area moves until it holds line of sight on that area — full stop.
+  On arrival/LOS: sees the player → the normal LOS combat rule
+  interrupts; sees nothing → continues as it was (patrol, post,
+  wander). Give-up conditions: the goal is unreachable (no path), or
+  a newer event re-stamps (latest-wins). Founding evidence: the
+  user's kiting troubles ("that explains some troubles I've had with
+  kiting some mobs with line of sight") — mobs giving up mid-corner.
+- **Guards are area guardians** (1A confirmed — "guarding a specific
+  area. like a vault in some cases"): hearing is LEASH-GATED — a
+  guard gains the noise stamp only when it sits within its rolled
+  weapon's max_range + 2 of the sound origin. The rolled weapon
+  PERSISTS on the entity (idempotent first-resolution stamp,
+  serialized), which also ends today's per-engagement weapon re-roll.
+  A guard that investigates holds where the search ends — a new
+  perch, bounded by the leash; return-to-post is a trivial future
+  addition via the same goal-walker if vault-guard drift ever reads
+  wrong in play.
+- **Squads follow noise as a unit:** stamps land per-entity; squad
+  pursuit keys on ANY member's goal — one hearing member draws the
+  squad. LOS aggro stays individual (SETTLED 16 intact: no
+  collective squad aggro).
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1622,10 +1667,13 @@ with doctrinal 10-13):
 - [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
-  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27 + 36:
-  `detect_radius` RETIRED, consumables pre-rolled + any-carrier,
-  non-combatants join combat-time movement); owns the
-  door-walkability verification. Brief below (PROPOSED 2026-09-22).
+  max + 2, per-spec AP field, enemy consumables (SETTLED 16-27 +
+  36/37: `detect_radius` RETIRED, consumables pre-rolled +
+  any-carrier, non-combatants join combat-time movement,
+  investigation is GOAL-BASED — the 5-tick memory retires, guards
+  hear leash-gated as area guardians, squads follow noise as a
+  unit); owns the door-walkability verification. Brief below
+  (PROPOSED v2 2026-09-22 — reviewer pass folded).
 - [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
   tables, deck re-authoring (militia strike crews, merchant crew
   row + droid-dial weights, pirate crews incl. the heavy), the
@@ -2112,8 +2160,9 @@ updated to the resolver.
    phase makes it true. Confirm-grep; any hit becomes a called-out
    before/after.
 
-### Phase 5 Implementation brief (PROPOSED 2026-09-22 — SETTLED
-### 16-18, 22, 24-27 + 36)
+### Phase 5 Implementation brief (PROPOSED v2 2026-09-22 — SETTLED
+### 16-18, 22, 24-27 + 36/37; reviewer ADVISE pass and its rulings
+### folded)
 
 **Scope (files / hook points):**
 
@@ -2140,11 +2189,22 @@ updated to the resolver.
     only (`spec_is_hostile` | `always_hostile`) — skips `powered_down`
     (dormant deaf, SETTLED 22), skips engaged entities, non-hostile
     NPCs (bystanders) ignore gunfire.
-  - Heard = the EXISTING last-seen machinery (`ground_npcs`
-    `last_seen_pos`/`last_seen_ticks`) stamped at the sound origin —
-    one attractor slot, latest event wins, same 5-tick decay. Guards
-    honor it within their leash; beyond it the post goal wins
-    (SETTLED 18 composition).
+  - Heard = the EXISTING last-seen machinery (`ground_npcs`) stamped
+    at the sound origin — one attractor slot, latest event wins.
+    Investigation is GOAL-BASED (SETTLED 37): the hearer moves until
+    it holds LOS on the goal area — NO tick decay; arrival with
+    nothing seen → revert to prior behavior; unreachable goal (no
+    path) → give up. Stamp semantics include hunters, ambushers, and
+    — leash-gated — guards (SETTLED 37: area guardians): a guard is
+    stamped only when within its rolled weapon's max_range + 2 of the
+    sound origin, and the rolled weapon PERSISTS on the entity
+    (idempotent first-resolution stamp, serialized — also ends
+    today's per-engagement weapon re-roll; a guard that investigates
+    holds where the search ends, a leash-bounded new perch).
+  - **Squads follow noise as a unit** (SETTLED 37): stamps are
+    per-entity; `_move_squad` pursuit keys on ANY member's goal — one
+    hearing member draws the squad; LOS aggro stays individual
+    (SETTLED 16).
   - Emission sites, both sides symmetric: the player's ground fire
     resolution (with `consume_shot`, `combat/_rules_ground.py` / the
     fire action in `combat/_actions.py`) and enemy `_try_ground_fire`
@@ -2154,10 +2214,10 @@ updated to the resolver.
     (SETTLED 36) — investigators reach combat only via the existing
     LOS join scans. Player-facing feedback (SETTLED 36 addition): ONE
     reaction line, "Something to the {direction} heard that."
-    (COLOR_IMPORTANT_EVENT) — fires when a not-already-investigating/
-    engaged hostile first hears player-caused noise (report or blast),
-    naming the 8-way direction to the NEAREST new hearer; once per
-    new-hearer event (sustained fire never spams); enemy fire and
+    (COLOR_IMPORTANT_EVENT) — fires when an emission stamps at least
+    one FRESH hearer (no active attractor goal, not combat-locked),
+    player-relative 8-way direction to the nearest fresh hearer; once
+    per new-hearer event (sustained fire never spams); enemy fire and
     quiet weapons never trigger it — the line's absence is the
     stealth signal.
 - **Combat-time movement + stepwise LOS join** (`ground_npcs.py`):
@@ -2167,9 +2227,14 @@ updated to the resolver.
   re-checks the player's visible grid (the `_visible_hostile_entities`
   FOV logic) and STOPS on acquisition — investigators never overshoot
   past LOS (SETTLED 17). Mode key = ground combat fight-live state;
-  both callers inherit (between-rounds `_rules_ground.py:937`, explore
-  `game_flow.py:216`); fight over → everything folds back to the
-  1-tick stroll (SETTLED 25).
+  the callers inherit (between-rounds `_rules_ground.py:937`, explore
+  `game_flow.py:216`, debug `debug_session.py:556`); fight over →
+  everything folds back to the 1-tick stroll (SETTLED 25). City
+  bystanders flow through the between-rounds pass during a live fight
+  (city NPCs carry `npc_char_id`) — `move_city_npcs` on explore ticks
+  is NOT wired to the mode. Perf (repo rule: cache, don't recompute):
+  one cached A* path per investigator per pass, walked up to AP tiles
+  with the stepwise LOS re-check between tiles.
 - **Range management + leash** (`combat/_ai_ground.py`): the universal
   loop takes the ROLLED weapon's [min_range…max_range] — beyond max,
   close (one A* step per AP); in band, hold and fire; inside min, back
@@ -2191,13 +2256,19 @@ updated to the resolver.
     cohesion), seeded from the spec's `field_item_loot_pool`
     consumable entries with the same distribution the death roll uses.
     The death-drop site (`combat/_actions.py:198`) reads the stamp:
-    unused items drop, used items never do — one resolution, no
-    double roll.
+    unused items drop, used items never do — one resolution for the
+    CONSUMABLE entries only (ammo/equipment entries keep their
+    death-time roll); carried stack qty uses the same qty roll the
+    death site uses today (a partly-used stack's remainder drops); an
+    enemy dying without ever being instance-built falls back to
+    today's death roll.
   - Use logic in the enemy turn (AP cost = the item's `use_ap_cost`):
     med_pack at HP ≤ 50% (heal 5 + regen 2×3 turns, mirroring
     `apply_consumable_effect`); stim when engaged with LOS and not
     already stimmed (+1 AP ×3 turns — instance temp fields, ticked
-    per round). ANY carrier may use (SETTLED 36). Log lines in the
+    per round; fight-scoped: not serialized, the once-per-fight
+    trigger reads once per instance build). ANY carrier may use
+    (SETTLED 36). Log lines in the
     house "{name} moves into position." format via
     `COLOR_ENEMY_ACTION` — wording APPROVED 2026-09-22 (SETTLED 36
     addition): "{name} uses a Med Pack." / "{name} injects a Combat
@@ -2205,9 +2276,12 @@ updated to the resolver.
 - **Door verification** (audit flag closed): a test pinning enemy A*
   through DOOR/DUNGEON_DOOR tiles (all `walkable=True` — verify no
   runtime state gate blocks the path; fix forward if one exists).
-- **Ratchet note:** `_rules_ground.py` (993) is at the ceiling — new
-  logic lands in `noise.py` / `ground_npcs.py`; `_rules_ground` edits
-  stay line-neutral or carry a same-commit extraction.
+- **Ratchet note:** `_rules_ground.py` is at 999 of 1000 lines — the
+  emission wirings that must land inside it (player fire beside
+  `consume_shot`, `explosive_blast`, `_apply_explosive_enemy_hit`)
+  make a same-commit extraction MANDATORY, not contingent. New logic
+  lands in `noise.py` / `ground_npcs.py`; `_rules_ground` edits pay
+  the debt in-commit.
 
 **Build order:** weapon/spec data fields + detect_radius retirement
 (registry tests) → `noise.py` + both emission wirings + attractor
@@ -2216,10 +2290,13 @@ leash derivation → AP derivation + consumables (stamp, use, drop,
 save/load) → dev grants + full gate.
 
 **Binding rulings:** SETTLED 16, 17, 18, 22, 24 (the in-combat
-memory-chase is WITHDRAWN — do not build), 25, 26, 27, 36. LOS is the
-only aggro; heard ≠ combatant, ever; no collective squad aggro
-ground-side; no reinforcement mechanic (SETTLED 21); the
-one-shot-per-turn cap stands; squad sizes never band-scaled.
+memory-chase is WITHDRAWN — do not build), 25, 26, 27, 36, 37. LOS is
+the only aggro; heard ≠ combatant, ever; investigation is goal-based
+(no tick memory anywhere); guards hear leash-gated (area guardians,
+weapon persisted on the entity); squads follow noise as a unit; no
+collective squad aggro ground-side; no reinforcement mechanic
+(SETTLED 21); the one-shot-per-turn cap stands; squad sizes never
+band-scaled.
 
 **Stop point:** no crew/role-token markers or deck re-authoring
 (phase 6); no ship-side work of any kind — no space noise, no enemy
@@ -2231,16 +2308,24 @@ existing last-seen stamps.
 **Required tests:** noise completeness (every weapon authored);
 hearing-scan selectivity (combatants only, dormant deaf, engaged
 skip, bystander ignore, latest-wins re-stamp); blast emits at the
-impact cell; the reaction line (fires on new-hearer events only,
-correct 8-way direction to the nearest new hearer, quiet weapons
-never trigger); combat-time movement ≤ AP with the stepwise-join stop
-(never overshoots) and peace mode = 1 tile; range management (close /
+impact cell; the reaction line (fires on fresh-hearer events only —
+no active goal + not combat-locked — correct player-relative 8-way
+direction, quiet weapons never trigger); goal-based investigation
+(persists until LOS on the goal, arrival with nothing seen reverts,
+unreachable gives up — NO tick countdown anywhere); guard leash gate
+(stamped only within rolled max_range + 2; weapon persists on the
+entity through save/load; re-engagement never re-rolls); squads
+follow noise as a unit (any-member key; LOS aggro individual);
+combat-time movement ≤ AP with the stepwise-join stop (never
+overshoots) and peace mode = 1 tile; range management (close /
 hold / back-off restores ≥ min_range; melee never backs off); leash =
 rolled max_range + 2 per instance; AP default + authored values +
-stim tick-down; consumables (idempotent pre-roll, drop-if-unused,
-consume-on-use, HP/stim triggers, save/load round-trip incl. stim
-state); `detect_radius` gone (TypeError pin, ground registry only);
-door-path pin; bystander AP movement during a live fight.
+stim tick-down (fight-scoped, not serialized); consumables
+(idempotent pre-roll, drop-if-unused incl. partly-used remainders,
+consume-on-use, HP/stim triggers, no-stamp death fallback, save/load
+round-trip of the carried stamp + attractor goal); `detect_radius`
+gone (TypeError pin, ground registry only); door-path pin;
+bystander AP movement during a live fight.
 
 **Playtest checkpoint:**
 
@@ -2248,24 +2333,29 @@ door-path pin; bystander AP movement during a live fight.
    enemies from the next room arrive mid-fight (visible investigate
    movement), engaging only when YOU can see them, never through
    walls.
-2. Quiet knife kill: melee-kill a straggler without waking the next
+2. Kite check: break LOS around a corner and lurk — the pursuer keeps
+   investigating until it gets eyes on where you vanished, then
+   reverts to patrol when it finds nothing (the 5-tick retirement;
+   no more giving up mid-corner).
+3. Quiet knife kill: melee-kill a straggler without waking the next
    room; then fire a rocket into a pack — the blast draws the
    neighborhood from where it LANDED.
-3. Hug a rifleman: he backs off to restore his min_range; corner him
+4. Hug a rifleman: he backs off to restore his min_range; corner him
    against a wall and he goes inert (counter-play by design). A guard
-   holds its post; draw it beyond its weapon max + 2 and it breaks
-   off.
-4. (dev grant: adjacent enemies pre-stamped with med_pack/stim) The
+   holds its post; fire near one from beyond its weapon max + 2 and
+   it does NOT come; within range it investigates — and settles at a
+   new perch near the sound, then guards THERE.
+5. (dev grant: adjacent enemies pre-stamped with med_pack/stim) The
    wounded one uses a Med Pack (log line, target-card HP visibly up);
    the stimmed one acts 5 AP for three rounds; unused items drop on
    death, used ones never do.
-5. City fight: bystanders scatter at AP speed while the fight is
+6. City fight: bystanders scatter at AP speed while the fight is
    live; none attack; end the fight → everyone strolls again.
-6. Save/quit mid-investigation → Continue: attractors, wounds,
-   carried items, stim countdown identical.
-7. Regression: dig/dungeon/city spawn suites + phase-4 band scaling
+7. Save/quit mid-investigation → Continue: attractor goals, wounds,
+   carried items identical (the goal survives the round-trip).
+8. Regression: dig/dungeon/city spawn suites + phase-4 band scaling
    unchanged; space combat untouched.
-8. Noise feedback + guide-diff item: fire a loud weapon with an
+9. Noise feedback + guide-diff item: fire a loud weapon with an
    off-screen enemy in the next room — "Something to the {direction}
    heard that." fires once with the correct direction; knife-kill a
    straggler — NO line (quiet stays quiet). Guide: expected NONE —
