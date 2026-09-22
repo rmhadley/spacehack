@@ -1388,6 +1388,93 @@ blocking fixes in the v2 brief, punch-list owners assigned,
 merchant-crew row moved to its consumer, ship-band rolling homed at
 Tier 0, placements homed at crews, ledger 6-7 struck.
 
+## Pre-implementation audit — phase 2 (2026-09-22)
+
+**Structural reading (resolves the brief's "five factions" phrasing):**
+`_ALL_FACTIONS` becomes the four REP AXES — pirate, merchant,
+militia, consortium (three visible + one hidden). Civilian LEAVES
+the axis set (never seeded, `modify_rep` no-ops it, no decay) but
+STAYS as the bystander's accounting tag keying its kill-delta row —
+the "five-faction table" is `_COMBAT_KILL_DELTAS`' five row keys.
+Standings filter = `HIDDEN_FACTIONS` only; three bars render.
+
+**Reuse (verified):**
+
+- `faction.py` is table-driven end to end: `_ALL_FACTIONS` drives
+  seeding (`starting_reputation`), `apply_monthly_decay`, and the
+  `modify_rep` legality guard — the axis swap is data edits plus one
+  suppression hook. `_apply_rep_delta` (`faction.py:425`) is the
+  SINGLE log seam: every write funnels through it (kills, missions,
+  decay, `identity.apply_worn_delta` for spoofed sheets), so hiding
+  the log there covers all movers at once.
+- `identity.effective_reputation` reads any faction via
+  `.get(faction, 0)`; consortium hostility flows through
+  `spec_is_hostile` with zero hostility-code changes once specs
+  re-tag. `buy_scrubbed_id` (`identity.py:280`) and
+  `roll_clone_sheet` (`identity.py:433`) iterate `_ALL_FACTIONS` —
+  worn sheets pick up the consortium key automatically (blank paper
+  reads 0, per the doc-40 scrub ruling; the true sheet's −100 is the
+  "trusts no one" start, same asymmetry as militia +50).
+- Both kill-delta paths exist and are symmetric table consumers:
+  space `combat/_encounter._apply_kill_reputation` (`:97-122`, also
+  the `merchant_kills` counter site — the ripple hooks beside it)
+  and ground `game_flow._apply_ground_combat_rep` (`:132-150`).
+  Both `.get(faction, {})` — the consortium row and the crime
+  carve-outs land by table edit, inherited by both theaters.
+- Save path: `_parse_save_header` restores `faction_reputation`
+  verbatim (`saveload.py:690`), `collected_ids` at `:817` — the two
+  migration points are single functions.
+- Standings render: `pygame_faction._faction_rows` loops
+  `_ALL_FACTIONS` (`:74`) — the ONLY standings renderer (the F-screen
+  ship menu contributes only `_faction_progress_bar`; no twin).
+- `trade.py:495` `getattr(npc_spec, "faction", "civilian")` is a
+  read-side fallback only (specs all carry `faction`); the retired
+  axis means the fallback key must change — `""` reads neutral, the
+  monsters' convention.
+
+**Duplication hotspots:**
+
+1. Hidden suppression has TWO presentation surfaces (the log seam
+   and the standings loop) — a future third surface (a modal listing
+   factions) could forget the filter.
+2. The civilian-key migration has TWO stores (top-level
+   `faction_reputation` AND every `collected_ids[*].rep` sheet) —
+   the classic parallel-paths drift: fix one, forget the other.
+3. The kill-delta application is a twin (space `_encounter` /
+   ground `game_flow`); the merchant militia −2 crime component must
+   ride the TABLE so both inherit — while the merchant_kills ripple
+   must live ONLY beside the space counter (ground merchant-crew
+   kills are the direct mover's job, not the ripple's).
+
+**DRY strategy:**
+
+1. `HIDDEN_FACTIONS` defined once in `faction.py`;
+   `_apply_rep_delta` suppresses the log for hidden axes;
+   `_faction_rows` filters the same constant. No per-caller
+   branches anywhere.
+2. One `_sanitize_reputation` helper in `saveload.py` (drop retired
+   keys, seed an absent consortium at the axis start value) applied
+   to BOTH the top-level dict and each identity sheet — same
+   function, two call sites.
+3. Crime carve-outs live only in `_COMBAT_KILL_DELTAS`; the ripple
+   is one line beside the existing counter increment.
+
+**Called-out consequences (visible at playtest, one-line changes if
+ruled otherwise):**
+
+- Decay is uniform: the hidden axis ages like any enemy-zone axis
+  (+3/month toward neutral from −100, invisible — no log). ~25
+  months to leave hostility; excluding it would be the special case
+  the no-special-cases ruling forbids.
+- Killing a consortium enforcer still logs the pirate +1 component
+  (a pirate-axis line); only the consortium line is suppressed.
+- `TIER_POOLS` substitution is repetition-weighted (uniform draws
+  over the tuple): gunner seat → `pirate_raider` (band 1), enforcer
+  seat → `pirate_rifleman` (bands 2-3) — preserves each band's
+  hostile share exactly, no new faces (band re-author is phase 4).
+- Old-save consortium seeding: flat −100 (no species/class rows
+  exist for it); a save that already carries the key is untouched.
+
 ### Phase 2 Implementation brief (APPROVED 2026-09-22 — reviewer v2
 fixes folded in; the three flagged decisions confirmed by the user:
 hidden-axis start −100, piracy-is-crime incl. the act0_bar re-key,
