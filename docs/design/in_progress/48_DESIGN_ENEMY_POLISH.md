@@ -723,6 +723,24 @@ pursuit is wanted, the mode boundary extends to "or any entity
 holds an active memory/attractor" — one-line change, awaiting
 ruling.
 
+## SETTLED 25 (2026-09-22) — movement modes confirmed; post-disengage folds to ambient
+
+User, verbatim:
+
+> right. once an enemy leaves combat it just gets folded in to the
+> systems already in place. so if you're in combat with nothing,
+> back to 1 tile movement. if you're still in combat, then it follow
+> in combat non-aggrod movement rules
+
+Rulings:
+
+- **The mode boundary stands as SETTLED 17 wrote it** — keyed on
+  "any live fight on the map": during a live fight, un-engaged
+  entities (investigators included) move at AP; once the fight ends,
+  everything folds back into the existing ambient systems (1-tick
+  movement, memory investigation, posts). No extension to
+  memory-holders; closes SETTLED 24's open detail.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
