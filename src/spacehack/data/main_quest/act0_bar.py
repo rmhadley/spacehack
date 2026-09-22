@@ -59,7 +59,9 @@ STEPS: tuple[MainQuestStep, ...] = (
         },
         rewards_credits=100,
         rewards_xp=80,
-        rewards_rep={"pirate": +2, "merchant": -5, "civilian": -5, "militia": -8},
+        # Doc 48 phase 2: the retired civilian −5 re-keys to merchant
+        # (SETTLED 8) — the honest-folk economy holds the opinion now.
+        rewards_rep={"pirate": +2, "merchant": -10, "militia": -8},
     ),
     MainQuestStep(
         id="bar_q3_rigparts",

@@ -17,11 +17,14 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
     NpcCharSpec(
         # The merchants chain's antagonist: the consortium's claims
         # enforcement crews (ground side of the heat system's squads).
+        # faction="consortium" since doc 48 phase 2 — the hidden axis
+        # (start −100) keeps them hostile on sight exactly as the old
+        # pirate tag read; the hired-pirate fiction retires in phase 11.
         id="consortium_enforcer",
         name="Consortium Enforcer",
         char="c",
         fg=(120, 160, 220),      # corporate blue — claims division
-        faction="pirate",        # hostile to the player, pirate-side AI
+        faction="consortium",
         hp=22,
         weapon_pick=("combat_knife", "kinetic_pistol"),
         reflexes=12,
@@ -50,7 +53,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         name="Consortium Gunner",
         char="g",
         fg=(150, 190, 255),      # pale corporate — heavy weapons
-        faction="pirate",
+        faction="consortium",
         hp=28,
         weapons=("kinetic_pistol",),
         reflexes=14,

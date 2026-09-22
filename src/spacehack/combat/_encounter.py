@@ -112,6 +112,11 @@ def _apply_kill_reputation(ctx, _cr, _specs) -> None:
             if hasattr(ctx, 'player_counters'):
                 if getattr(_es, 'faction', '') == 'merchant':
                     ctx.player_counters.merchant_kills += 1
+                    # The hidden ripple (doc 48 SETTLED 9): sustained
+                    # harm to merchant interests quietly drops the
+                    # consortium axis — one per merchant-ship kill,
+                    # logged nowhere (HIDDEN_FACTIONS).
+                    modify_rep(ctx, "consortium", -1)
             # Faction reputation deltas.
             _deltas = _COMBAT_KILL_DELTAS.get(_es.faction, {})
             for _fac, _delta in _deltas.items():

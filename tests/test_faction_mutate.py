@@ -144,3 +144,139 @@ class TestModifyRep:
         msg = ctx.log.add_colored.call_args[0][0]
         assert "Allied" in msg
         assert "Liked" in msg
+
+
+# ---------------------------------------------------------------------------
+# Doc 48 phase 2 — hidden axis + retired axis + the kill paths
+# ---------------------------------------------------------------------------
+
+from types import SimpleNamespace
+
+
+class TestHiddenAxis:
+    """Consortium state moves, clamps, and renders nowhere (SETTLED 9)."""
+
+    def test_hidden_delta_moves_state_without_logging(self):
+        ctx = _mock_ctx({"consortium": -50})
+        modify_rep(ctx, "consortium", -3)
+        assert ctx.faction_reputation["consortium"] == -53
+        ctx.log.add_colored.assert_not_called()
+
+    def test_hidden_zone_transition_also_silent(self):
+        ctx = _mock_ctx({"consortium": -80})  # enemy
+        modify_rep(ctx, "consortium", +10)  # → -70 (disliked)
+        assert ctx.faction_reputation["consortium"] == -70
+        ctx.log.add_colored.assert_not_called()
+
+    def test_visible_faction_still_logs(self):
+        ctx = _mock_ctx({"consortium": -50, "pirate": -50})
+        modify_rep(ctx, "pirate", +1)
+        assert ctx.log.add_colored.called
+
+    def test_retired_civilian_axis_is_a_noop(self):
+        ctx = _mock_ctx({"pirate": -50, "civilian": 30})
+        modify_rep(ctx, "civilian", -5)
+        assert ctx.faction_reputation["civilian"] == 30  # untouched
+        ctx.log.add_colored.assert_not_called()
+
+    def test_hidden_worn_sheet_write_is_silent(self):
+        """Spoofed broadcasts move the worn ID's own consortium sheet,
+        silently (SETTLED 9 — hidden on each spoofed transponder)."""
+        from src.spacehack import identity
+        ctx = _mock_ctx({"consortium": -100})
+        entry = {"id": "SC-1234", "kind": "scrubbed", "rep": {"consortium": -10}}
+        ctx.collected_ids = [entry]
+        ctx.broadcast_identity = dict(entry)
+        identity.apply_worn_delta(ctx, "consortium", -3)
+        assert entry["rep"]["consortium"] == -13
+        ctx.log.add_colored.assert_not_called()
+
+
+class _RecordingLog:
+    """Capture add_colored calls with the real MessageLog shape."""
+
+    def __init__(self):
+        self.lines: list[str] = []
+
+    def add_colored(self, msg, color):
+        self.lines.append(str(msg))
+
+
+def _kill_ctx(rep: dict[str, int] | None = None):
+    """A fake ctx for the kill paths — MagicMock base with every field
+    the exercised paths read pinned to real values."""
+    ctx = MagicMock()
+    ctx.faction_reputation = dict(rep or {})
+    ctx.log = _RecordingLog()
+    ctx.player_counters = SimpleNamespace(merchant_kills=0, total_kills=0)
+    ctx.broadcast_dark = False
+    ctx.broadcast_identity = None
+    return ctx
+
+
+class TestSpaceKillReputation:
+    """_apply_kill_reputation: merchant ripple + consortium row."""
+
+    def test_merchant_kill_fires_ripple_and_crime_component(self):
+        from src.spacehack.combat._encounter import _apply_kill_reputation
+        from src.spacehack.data.npc_ships import find_npc_ship
+        ctx = _kill_ctx({
+            "pirate": -50, "merchant": 0, "militia": 50, "consortium": -50,
+        })
+        hauler = find_npc_ship("merchant_hauler")
+        _cr = SimpleNamespace(defeated_spec_ids=("merchant_hauler",))
+        _apply_kill_reputation(ctx, _cr, [hauler])
+        assert ctx.player_counters.merchant_kills == 1
+        # Ripple: the hidden axis drops −1 per merchant-ship kill.
+        assert ctx.faction_reputation["consortium"] == -51
+        # Piracy is crime: merchant deltas incl. militia −2.
+        assert ctx.faction_reputation["merchant"] == -4
+        assert ctx.faction_reputation["militia"] == 48
+        # No Consortium line anywhere; the merchant lines do log.
+        assert not any("Consortium" in line for line in ctx.log.lines)
+        assert any("Merchant" in line for line in ctx.log.lines)
+
+    def test_ripple_clamps_at_minus_100_silently(self):
+        from src.spacehack.combat._encounter import _apply_kill_reputation
+        from src.spacehack.data.npc_ships import find_npc_ship
+        ctx = _kill_ctx({
+            "pirate": -50, "merchant": 0, "militia": 50, "consortium": -100,
+        })
+        hauler = find_npc_ship("merchant_hauler")
+        _apply_kill_reputation(
+            ctx, SimpleNamespace(defeated_spec_ids=("merchant_hauler",)), [hauler],
+        )
+        assert ctx.faction_reputation["consortium"] == -100
+        assert ctx.player_counters.merchant_kills == 1
+        # Clamped or not, the hidden axis never logs.
+        assert not any("Consortium" in line for line in ctx.log.lines)
+
+
+class TestGroundKillReputation:
+    """_apply_ground_combat_rep: the consortium direct mover."""
+
+    def test_consortium_kill_moves_hidden_axis_and_pirate(self):
+        from src.spacehack.game_flow import _apply_ground_combat_rep
+        ctx = _kill_ctx({
+            "pirate": -50, "merchant": 0, "militia": 50, "consortium": -50,
+        })
+        result = SimpleNamespace(outcome="VICTORY",
+                                 defeated_spec_ids=("consortium_enforcer",))
+        _apply_ground_combat_rep(ctx, result)
+        assert ctx.faction_reputation["consortium"] == -53  # direct mover
+        assert ctx.faction_reputation["pirate"] == -49      # +1, in-family
+        assert not any("Consortium" in line for line in ctx.log.lines)
+        assert any("Pirate" in line for line in ctx.log.lines)
+
+    def test_bystander_kill_costs_militia_only(self):
+        from src.spacehack.game_flow import _apply_ground_combat_rep
+        ctx = _kill_ctx({
+            "pirate": -50, "merchant": 0, "militia": 50, "consortium": -50,
+        })
+        result = SimpleNamespace(outcome="VICTORY",
+                                 defeated_spec_ids=("civillian_bystander",))
+        _apply_ground_combat_rep(ctx, result)
+        assert ctx.faction_reputation["militia"] == 48  # militia notices crime
+        assert ctx.faction_reputation["merchant"] == 0
+        assert ctx.faction_reputation["pirate"] == -50
+        assert ctx.faction_reputation["consortium"] == -50

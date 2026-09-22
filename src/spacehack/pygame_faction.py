@@ -64,14 +64,18 @@ def _faction_rows(ctx: GameContext) -> tuple[FactionRow, ...]:
     """Build bright, renderer-neutral rows from the broadcasting ID's
     sheet (doc 40 phase 4): what the screen shows is literally what
     readers resolve — the worn ID's values while spoofed, all-neutral
-    while dark, the true ratings while live."""
+    while dark, the true ratings while live. Hidden axes (doc 48
+    SETTLED 9) render nowhere: consortium state exists but never
+    gets a bar."""
     from . import identity
-    from .faction import _ALL_FACTIONS, get_attitude
+    from .faction import _ALL_FACTIONS, HIDDEN_FACTIONS, get_attitude
     from .menus._ship_menu import _faction_progress_bar
 
     sheet = identity.effective_reputation(ctx)
     rows = []
     for faction_id in _ALL_FACTIONS:
+        if faction_id in HIDDEN_FACTIONS:
+            continue
         reputation = int(sheet.get(faction_id, 0))
         attitude = get_attitude(reputation).title()
         rows.append(FactionRow(

@@ -9,19 +9,22 @@ from src.spacehack import pygame_faction
 
 
 def test_faction_frame_contains_bright_semantic_rows_and_safe_bars():
+    # The stray civilian/consortium keys model a pre-migration sheet:
+    # neither may render (doc 48 phase 2 — three bars only).
     frame = pygame_faction.frame_for(
         SimpleNamespace(
             faction_reputation={
                 "pirate": -100,
                 "merchant": 0,
-                "civilian": 45,
                 "militia": 100,
+                "civilian": 45,
+                "consortium": -100,
             },
         ),
     )
 
     assert frame.title == "FACTION STANDINGS"
-    assert [row.label for row in frame.rows] == ["Pirate", "Merchant", "Civilian", "Militia"]
+    assert [row.label for row in frame.rows] == ["Pirate", "Merchant", "Militia"]
     assert frame.rows[0].attitude == "Enemy"
     assert frame.rows[-1].attitude == "Allied"
     assert pygame_faction._ATTITUDE_CODES == {

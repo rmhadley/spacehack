@@ -953,9 +953,11 @@ def test_steps_aside_ids_reads_the_sheet():
     (the dark-camper reveal-then-fight contract is theirs)."""
     from src.spacehack.autoexplore import steps_aside_ids
 
-    def _ctx(pirate_rep):
+    def _ctx(consortium_rep):
+        # Doc 48 phase 2: the enforcer reads the (hidden) consortium
+        # axis since its re-tag — hostility follows that sheet.
         return SimpleNamespace(
-            faction_reputation={"pirate": pirate_rep},
+            faction_reputation={"consortium": consortium_rep},
             broadcast_dark=False, broadcast_identity=None,
             collected_ids=[],
         )

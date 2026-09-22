@@ -19,6 +19,10 @@ Starting reputation is computed from species + class adjustment tables.
 All call sites that need to decide whether a specific NPC ship is
 hostile/neutral/friendly to the player route through :func:`get_attitude`
 rather than hardcoding ``faction == 'pirate'``.
+
+Doc 48 phase 2: four rep axes (pirate/merchant/militia/consortium);
+consortium is hidden (``HIDDEN_FACTIONS`` — state, never rendered);
+civilian is retired as an axis (SETTLED 8).
 """
 
 from __future__ import annotations
@@ -55,12 +59,16 @@ def get_attitude(reputation: int) -> str:
 # Per-faction baseline before species/class adjustments.
 # These represent the neutral starting point before character identity
 # modifies them — pirates start deeply negative (everyone's enemies),
-# militia start slightly positive (law-and-order baseline).
+# militia start slightly positive (law-and-order baseline), consortium
+# starts deeply negative (the hidden hand trusts no one — doc 48
+# phase 2; preserves the ex-pirate-tagged enforcer/gunner hostility).
+# Civilian is RETIRED as an axis (doc 48 SETTLED 8): rep requires an
+# organization, and civilians have none.
 _DEFAULT_REP: dict[str, int] = {
     "pirate": -100,
     "merchant": 0,
-    "civilian": 0,
     "militia": 50,
+    "consortium": -100,
 }
 
 # Species adjustments (added on top of defaults + class).
@@ -77,37 +85,43 @@ _CLASS_REP: dict[str, dict[str, int]] = {
     "pirate": {
         "pirate": +30,
         "merchant": -10,
-        "civilian": -10,
         "militia": -20,
     },
     "merchant": {
         "pirate": +10,
         "merchant": +10,
-        "civilian": +5,
         "militia": +5,
     },
     "bounty_hunter": {
         "pirate": -20,
         "merchant": +5,
-        "civilian": +5,
         "militia": +15,
     },
 }
 
-# All factions the system tracks (used to seed the dict with zeroes
-# for any faction not covered by the adjustment tables).
-_ALL_FACTIONS: tuple[str, ...] = ("pirate", "merchant", "civilian", "militia")
+# All factions carrying a rep axis (doc 48 phase 2): the four organized
+# bodies — pirate, merchant, militia, consortium. Civilian is out
+# (SETTLED 8); the bystander's "civilian" tag remains a non-faction
+# accounting key on the kill-delta table below, never an axis.
+_ALL_FACTIONS: tuple[str, ...] = ("pirate", "merchant", "militia", "consortium")
+
+# Axes that exist as state but render NOWHERE (doc 48 SETTLED 9):
+# no standings row, no rep-delta log line. Presentation-only — the
+# rep still moves, clamps, decays, and persists like any axis.
+HIDDEN_FACTIONS: frozenset[str] = frozenset({"consortium"})
 
 # Guild → faction mapping for mission board pay scaling.
 # When a player talks to an NPC from guild X, the board's faction
-# reputation determines the pay adjustment (never access).
+# reputation determines the pay adjustment (never access). Unknown
+# guilds read merchant (doc 48 SETTLED 8 re-key: the honest-trade
+# economy replaced the retired civilian default).
 _GUILD_FACTION: dict[str, str] = {
     "merchants": "merchant",
     "bhguild": "militia",   # bounty hunters work with militia/patrols
     "militia": "militia",
     "bar": "pirate",       # bar missions are pirate-aligned
-    "lab": "civilian",
-    "depot": "civilian",
+    "lab": "merchant",
+    "depot": "merchant",
 }
 
 
@@ -173,31 +187,26 @@ _MISSION_REP_DELTAS: dict[str, dict[str, int]] = {
     "bounty": {
         "pirate": -1,
         "merchant": +1,
-        "civilian": +1,
         "militia": +2,
     },
     "intercept": {
         "pirate": +2,
         "merchant": -5,
-        "civilian": -1,
         "militia": -2,
     },
     "smuggling": {
         "pirate": +1,
         "merchant": -2,
-        "civilian": -2,
         "militia": -4,
     },
     "extortion": {
         "pirate": +2,
         "merchant": -2,
-        "civilian": -1,
         "militia": -1,
     },
     "salvage": {
         "pirate": +1,
         "merchant": -1,
-        "civilian": 0,
         "militia": -1,
     },
 }
@@ -207,36 +216,40 @@ _REP_GAIN_COLOR: tuple[int, int, int] = (100, 235, 115)    # green
 _REP_LOSS_COLOR: tuple[int, int, int] = (255, 95, 95)      # red
 
 
-# Combat rep deltas — keyed by the defeated enemy's faction (pirate, merchant,
-# civilian, militia). Applied per-kill when an enemy ship is destroyed.
+# Combat rep deltas — keyed by the defeated enemy's faction tag. Applied
+# per-kill when an enemy is destroyed (space) or defeated (ground).
 # Halved in the reputation-balance pass: pirate-killing used to be a
-# universal faucet feeding militia/merchant/civilian bars at once, and
-# killing lawmen needs to stay punitive but no longer grants huge pirate
-# swings per kill. The +50 soft cap applies on top (see modify_rep).
+# universal faucet feeding every bar at once, and killing lawmen needs
+# to stay punitive but no longer grants huge pirate swings per kill.
+# The +50 soft cap applies on top (see modify_rep).
+# Doc 48 phase 2: the "civilian" ROW is the honest-folk crime ledger —
+# the bystander's accounting tag keys it, but the only surviving
+# component is the militia penalty (militia notices crime, SETTLED 8);
+# piracy is crime, so the merchant row carries the same militia −2.
+# The consortium row is the hidden axis's direct down-mover (SETTLED 9)
+# — its consortium component logs nothing (HIDDEN_FACTIONS).
 _COMBAT_KILL_DELTAS: dict[str, dict[str, int]] = {
     "pirate": {
         "pirate": -1,
         "merchant": +1,
-        "civilian": +1,
         "militia": +1,
     },
     "merchant": {
         "pirate": +2,
         "merchant": -4,
-        "civilian": -1,
         "militia": -2,
     },
     "civilian": {
-        "pirate": +2,
-        "merchant": -2,
-        "civilian": -4,
         "militia": -2,
     },
     "militia": {
         "pirate": +4,
         "merchant": -2,
-        "civilian": -2,
         "militia": -6,
+    },
+    "consortium": {
+        "consortium": -3,
+        "pirate": +1,
     },
 }
 
@@ -246,7 +259,6 @@ _COMBAT_KILL_DELTAS: dict[str, dict[str, int]] = {
 _COMBAT_UNPROVOKED_DELTAS: dict[str, int] = {
     "pirate": +2,
     "merchant": -2,
-    "civilian": -2,
     "militia": -3,
 }
 
@@ -258,10 +270,10 @@ _COMBAT_UNPROVOKED_DELTAS: dict[str, int] = {
 def guild_to_faction(guild: str) -> str:
     """Map a guild ID ("merchants", "bhguild", etc.) to its faction key.
 
-    Returns "civilian" for unrecognised guilds so the player can always
+    Returns "merchant" for unrecognised guilds so the player can always
     get *some* missions from unknown NPC types.
     """
-    return _GUILD_FACTION.get(guild, "civilian")
+    return _GUILD_FACTION.get(guild, "merchant")
 
 
 def adjust_reward_pct(attitude: str) -> int:
@@ -442,6 +454,12 @@ def _apply_rep_delta(
 
     new_val: int = max(-100, min(100, old_val + delta))
     target[faction] = new_val
+
+    # Hidden axes render nowhere (doc 48 SETTLED 9): the write lands,
+    # the log line does not. Every mover funnels through here, so this
+    # single gate silences kills, missions, decay, and worn sheets alike.
+    if faction in HIDDEN_FACTIONS:
+        return
 
     new_attitude: str = get_attitude(new_val)
 

@@ -96,12 +96,16 @@ DEFAULT_SUFFIXES: tuple[str, ...] = (
 # SETTLED 39 round 2 (user ruling): faction guards stand in the digs —
 # the player's face decides whether a guard fights or steps aside
 # (bump-to-swap), and pads flow from fighting across hostile lines.
+# Doc 48 phase 2: the two consortium ids are DE-LISTED (SETTLED 12 —
+# no procedurally-spawned consortium; authored content still pins raw
+# ids). Their seats carry pirate weight so no band reads peaceful
+# (SETTLED 16) — repetition IS weight under the uniform draws.
 TIER_POOLS: dict[int, tuple[tuple[str, ...], float]] = {
-    1: (("pirate_raider", "consortium_gunner", "militia_trooper",
+    1: (("pirate_raider", "pirate_raider", "militia_trooper",
          "sentry_drone"), 1.0),
-    2: (("pirate_raider", "pirate_rifleman", "consortium_enforcer",
+    2: (("pirate_raider", "pirate_rifleman", "pirate_rifleman",
          "assault_drone"), 1.4),
-    3: (("pirate_rifleman", "consortium_enforcer", "assault_drone",
+    3: (("pirate_rifleman", "pirate_rifleman", "assault_drone",
          "hull_parasite"), 1.8),
 }
 
