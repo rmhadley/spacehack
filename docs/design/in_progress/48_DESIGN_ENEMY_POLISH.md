@@ -766,6 +766,46 @@ Rulings:
 - Space-side range management is Tier 1's move decision (SETTLED
   21); this ruling is ground-only. Ladder #7 CLOSED.
 
+## SETTLED 27 (2026-09-22) — per-spec AP + enemy gear/consumable parity (ladder #8 — LADDER CLOSED)
+
+User, verbatim:
+
+> Yes, AP should default to 4. I think right now the only way to
+> change AP in game is cybernetics or combat stims.
+> So the question is ... for non-humans, should AP be different? I
+> think for humans AP should be 4 + modifiers that exist. Later on
+> we might decide that certain armor gives -AP. And in that case,
+> when we add that feature, it should wrap in to the modifiers
+> calculation and just work with enemies too. But I don't want to
+> throw -AP on to armor yet. Later.
+> But yes, AP should be a spec field. And wearing cybernetics should
+> change the enemy accordingly. Should enemies be able to use combat
+> stims if they have them? I don't see why not. In DCSS enemies can
+> zap wands/etc. Enemies should be able to use consumables if
+> they're carrying them.
+
+Rulings:
+
+- **AP is a spec field, default 4.** Humans: base 4 + existing
+  modifiers (today: Ace Pilot trait +1 — the third modifier beyond
+  cybernetic legs and stims — plus cybernetics' `ap_bonus`, plus
+  stims' temp +1). **Non-humans: authored base** — the speed axis
+  (predators 5-6, heavies/anchors 3; exact values brief-time).
+  Flat integers, one-shot cap intact, band-unscaled.
+- **Enemy gear flows through the same modifier math** — cybernetics
+  an enemy wears change it accordingly (consortium cyber-legs make
+  faster consortium; SETTLED 11's pieces go live on their wearers).
+- **Future armor -AP: deferred.** When built, it wraps into the
+  shared modifier calculation so enemies inherit it automatically —
+  one mechanism, both sides, no enemy-side special case.
+- **Enemy consumable use RULED IN** (user precedent: DCSS enemies
+  zap wands): enemies use consumables they carry — stims, med packs.
+  Carried-inventory shape + use triggers = brief-time; interplay
+  with 47.1 kit drops (a used consumable is consumed, not dropped)
+  noted.
+- **The tactics ladder is CLOSED** — all eight rungs dispositioned
+  across SETTLED 16-27. Q22 answered.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1102,11 +1142,13 @@ with doctrinal 10-13):
 20. ~~Site scope~~ ANSWERED — SETTLED 14: one resolver at every
     spawn; authored ENEMY: markers fixed.
 21. ~~Bystanders~~ ANSWERED — SETTLED 14: exempt.
-22. Band-scaled tactics: audit LANDED (the tactical mechanics
-    audit above). v1 = pool composition + squad shape (SETTLED 14);
-   the ladder walkthrough is mid-flight (SETTLED 16-18: composition
-   + LOS doctrine, noise + combat-time movement, guard-artillery +
-   leash + range management; SETTLED 17 pre-settled noise aggro).
+22. ~~Band-scaled tactics~~ ANSWERED — the tactics ladder CLOSED:
+    composition + LOS doctrine (16), noise + combat-time movement
+    (17), guard-artillery + leash (18), all-6 skills + resource AI
+    (19), no fleeing (20), tiering + doc-34 fold (21), noise
+    details (22), aggressiveness dial (23), in-combat memory
+    withdrawn (24), movement modes (25), range management (26),
+    per-spec AP + consumables (27).
 23. ~~Full-kit resource-aware space AI~~ ANSWERED — SETTLED 19
     (ruled in), the space-systems audit (above) grounds it, SETTLED
     21 confirms the Tier 0 / Tier 1 split and folds doc 34.
