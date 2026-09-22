@@ -360,7 +360,7 @@ def test_ground_pad_never_spawns_for_non_droppers(monkeypatch):
     monkeypatch.setattr(digs.engine.RNG, "randint", lambda a, b: 1)
     assert digs.maybe_spawn_ground_pad(ctx, gm, world.Position(2, 2), "rock_scavenger") is False
     assert digs.maybe_spawn_ground_pad(
-        ctx, gm, world.Position(2, 2), "civillian_bystander",
+        ctx, gm, world.Position(2, 2), "civilian_bystander",
     ) is False
     assert gm.entities == []
 
@@ -422,7 +422,7 @@ def test_terminal_roll_reveals_on_hit(monkeypatch):
 
 def test_door_rates_match_the_settled_opening_guesses():
     assert DOOR_RATES == {"humanoid_pad": 12, "derelict_pad": 8, "terminal": 6}
-    assert "civillian_bystander" not in HUMANOID_PAD_DROPPERS
+    assert "civilian_bystander" not in HUMANOID_PAD_DROPPERS
 
 
 def test_wreck_pad_lands_off_occupied_cells(monkeypatch):

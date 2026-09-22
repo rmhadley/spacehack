@@ -128,7 +128,7 @@ DOOR_RATES: dict[str, int] = {
 }
 
 # Door 1's droppers (SETTLED 27): humanoid combatant NpcCharSpec ids.
-# civillian_bystander is deliberately absent — bystanders are not a
+# civilian_bystander is deliberately absent — bystanders are not a
 # loot source.
 HUMANOID_PAD_DROPPERS: tuple[str, ...] = (
     "pirate_raider",

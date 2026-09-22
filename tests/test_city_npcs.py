@@ -58,7 +58,7 @@ def test_move_city_npcs_traverses_to_destination(monkeypatch):
     anchor = (4, 4)
     npc = world.Entity(
         "p", (255, 100, 100), world.Position(4, 4),
-        city_npc_id="npc", npc_char_id="civillian_bystander",
+        city_npc_id="npc", npc_char_id="civilian_bystander",
     )
     npc.city_spawn = world.Position(*anchor)
     npc.city_wander_radius = 10
@@ -92,7 +92,7 @@ def test_move_city_npcs_skips_combat_locked(monkeypatch):
     """Combat-locked citizens are frozen (combat AI owns their position)."""
     moving = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2),
-        city_npc_id="moving", npc_char_id="civillian_bystander",
+        city_npc_id="moving", npc_char_id="civilian_bystander",
     )
     moving.city_spawn = world.Position(2, 2)
     moving.city_move_chance = 1.0
@@ -105,7 +105,7 @@ def test_move_city_npcs_skips_combat_locked(monkeypatch):
 
     locked = world.Entity(
         "g", (200, 200, 200), world.Position(5, 5),
-        city_npc_id="locked", npc_char_id="civillian_bystander",
+        city_npc_id="locked", npc_char_id="civilian_bystander",
     )
     locked.combat_locked = True
     locked.city_spawn = world.Position(5, 5)

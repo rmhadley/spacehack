@@ -127,7 +127,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         xp_reward=35,
     ),
     NpcCharSpec(
-        id="civillian_bystander",
+        id="civilian_bystander",
         name="Civilian Bystander",
         char="c",
         fg=(235, 215, 175),       # warm civilian clothing

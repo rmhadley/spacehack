@@ -274,7 +274,7 @@ class TestGroundKillReputation:
             "pirate": -50, "merchant": 0, "militia": 50, "consortium": -50,
         })
         result = SimpleNamespace(outcome="VICTORY",
-                                 defeated_spec_ids=("civillian_bystander",))
+                                 defeated_spec_ids=("civilian_bystander",))
         _apply_ground_combat_rep(ctx, result)
         assert ctx.faction_reputation["militia"] == 48  # militia notices crime
         assert ctx.faction_reputation["merchant"] == 0

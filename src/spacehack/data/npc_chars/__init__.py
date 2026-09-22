@@ -161,8 +161,14 @@ def _registry() -> dict[str, NpcCharSpec]:
     return _BY_ID
 
 
+# Save-compat alias (doc 48 phase 3): pre-rename saves carry the
+# misspelled bystander id in ``npc_char_id`` — resolve to the fixed id.
+_ID_ALIASES = {"civillian_bystander": "civilian_bystander"}
+
+
 def find_npc_char(char_id: str) -> NpcCharSpec:
     """Look up an :class:`NpcCharSpec` by id; raises :class:`KeyError` on miss."""
+    char_id = _ID_ALIASES.get(char_id, char_id)
     try:
         return _registry()[char_id]
     except KeyError:

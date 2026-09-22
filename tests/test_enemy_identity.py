@@ -234,3 +234,27 @@ def test_bold_survives_console_round_trip():
         c for c in console.to_commands() if c.preserve_underlay
     ]
     assert rebuilt and all(c.bold for c in rebuilt)
+
+
+def test_bystander_rename_alias_resolves_old_saves():
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    old = find_npc_char("civillian_bystander")
+    new = find_npc_char("civilian_bystander")
+    assert old is new
+    assert new.id == "civilian_bystander"
+
+
+def test_misspelled_bystander_id_survives_only_as_alias():
+    """The typo lives in exactly one place: the alias table."""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[1]
+    strays = [
+        str(path.relative_to(repo))
+        for path in sorted((repo / "src").rglob("*.py"))
+        if "civillian" in path.read_text()
+    ]
+    assert strays == ["src/spacehack/data/npc_chars/__init__.py"], (
+        f"stray 'civillian' refs outside the alias file: {strays}"
+    )
