@@ -8,8 +8,8 @@ exactly how :class:`NpcShipSpec` works for space combat.
 Ground identity families (doc 48 SETTLED 34, the
 :data:`CHAR_CLASS_FAMILIES` table): one LETTER per family, members
 are case variants of it (lowercase common / uppercase serious), ONE
-consistent color per family — pirate `r`/`R` rust, militia `m` teal,
-consortium `e`/`E` corporate blue, civilian `c`, machines `d`/`D`
+consistent color per family — pirate `r`/`R` rust, militia `m` blue,
+consortium `e`/`E` corporate navy, civilian `c`, machines `d`/`D`
 bronze. The (glyph, color) PAIR is the identity — a char may repeat
 across families when the colors separate. Fauna are not families:
 species glyphs in biome palettes, bold apexes later (phase 10).
@@ -48,10 +48,10 @@ CHAR_CLASS_FAMILIES: dict[str, CharClassFamily] = {
         letter="r", color=(220, 120, 80), faction="pirate",
     ),
     "militia": CharClassFamily(
-        letter="m", color=(130, 230, 220), faction="militia",
+        letter="m", color=(100, 200, 255), faction="militia",
     ),
     "consortium": CharClassFamily(
-        letter="e", color=(120, 160, 220), faction="consortium",
+        letter="e", color=(90, 120, 200), faction="consortium",
     ),
     "civilian": CharClassFamily(
         letter="c", color=(235, 215, 175), faction="civilian",

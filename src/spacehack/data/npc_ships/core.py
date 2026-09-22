@@ -3,7 +3,7 @@
 Identity doctrine (doc 48 SETTLED 33): glyph = the hull flown (the
 player shipyard alphabet — scout `s`, hauler `H`, cruiser `C`,
 frigate/freighter `F`), color = the faction's ONE family color —
-pirate red (220,60,60), militia teal (130,230,220), merchant green
+pirate red (220,60,60), militia blue (100,200,255), merchant green
 (100,220,140); derelicts keep amber/brass. Class twins render
 identical by design — weight reads from the hull glyph, faction from
 the color, elites from the bold flag.
@@ -149,7 +149,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         id="militia_blockade",
         name="Militia Blockade",
         char="C",
-        fg=(130, 230, 220),                    # militia family teal
+        fg=(100, 200, 255),                    # militia family blue
         ship_id="cruiser",
         faction="militia",
         weapons=("light_laser", "light_laser"),
@@ -217,7 +217,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         id="militia_patrol_light",
         name="Militia Scout",
         char="s",
-        fg=(130, 230, 220),    # militia family teal — weight reads from the hull glyph
+        fg=(100, 200, 255),    # militia family blue — weight reads from the hull glyph
         ship_id="scout",
         faction="militia",
         weapons=("light_laser",),
@@ -248,7 +248,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         id="militia_patrol",
         name="Militia Patrol",
         char="C",
-        fg=(130, 230, 220),    # militia family teal
+        fg=(100, 200, 255),    # militia family blue
         ship_id="cruiser",
         faction="militia",
         weapons=("heavy_laser", "light_missile"),
@@ -278,7 +278,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         id="militia_patrol_heavy",
         name="Militia Enforcer",
         char="F",
-        fg=(130, 230, 220),    # militia family teal — weight reads from the hull glyph
+        fg=(100, 200, 255),    # militia family blue — weight reads from the hull glyph
         ship_id="frigate",
         faction="militia",
         weapons=("heavy_laser", "heavy_missile", "plasma_cannon"),

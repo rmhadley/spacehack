@@ -30,7 +30,7 @@ class NpcShipSpec:
             ``find_ship(ship_id).char``; identity is single-sourced in
             the hull catalog.
         fg: the faction's ONE family color (SETTLED 33) — pirate red
-            (220,60,60), militia teal (130,230,220), merchant green
+            (220,60,60), militia blue (100,200,255), merchant green
             (100,220,140); derelicts keep the neutral amber/brass
             tones. Class twins render identical by design.
         ship_id: hull reference (scout/hauler/cruiser).
