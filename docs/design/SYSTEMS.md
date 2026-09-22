@@ -385,8 +385,28 @@ nobody designs against a ghost.
   palettes). The (glyph, color) PAIR is the identity — a char may
   repeat across families when colors separate ≥60. Enforcer `E` /
   gunner `e`; `civillian_bystander` renamed with the `_ID_ALIASES`
-  save-compat alias in `find_npc_char`; ground bold wearers arrive
-  with doc 48 phase 4's faces.
+  save-compat alias in `find_npc_char`; the uniqueness key is
+  (char, fg, elite) — phase 4's faces: trooper `m`, marine `M`,
+  sniper bold `M`, pirate brute bold `R` (elite flags exactly
+  {brute, sniper}).
+- **Ground band scaling (doc 48 phase 4)** — `ground_scale.py`
+  owns every band question. `Entity.spawn_band` stamps the site's
+  band at EVERY spawn (dig populate via its floor-climbed tier,
+  authored layouts via `load_layout(spawn_band=)`, city ambient via
+  planet tier, prison activation via band=floor, quest camps +
+  guardians via planet tier, boarding wrecks via the city planet;
+  0 = derive from context — dig cache keys re-climb, else band 1 —
+  the legacy-save bridge). Stats: base 10 + 5×(level−1)
+  (levels 3/10/18/30) split by the spec's six `stat_weights`
+  (largest-remainder; space tail a flat 0.05×3; bystander ALL-zero =
+  the exemption); combat math reads
+  `GroundEnemyInstance.stats`/`.band`, never spec fields (authored
+  stats + `weapon_pick` retired, grep-pinned). Weapons: specs name
+  FAMILIES, bands roll the tier window (B1 {1}; B2 {1,2} 70/30;
+  B3 {2,3} 30/70; B4 {3,4} 30/70; `pin_window_top` = the sniper's
+  top tier; empty tiers snap up — explosives sit t3-t4). Equip- and
+  drop-time quality ride the band ladder (B1 == KILL ladder). The
+  target card title states `LVL <level> <name>`.
 - **End states** — all dead = VICTORY; survivors out of sight =
   DISENGAGED (they keep wounds — HP syncs to `entity.hp`, so
   re-engaging never heals them) (`combat/_rules_ground.py`).
@@ -408,7 +428,8 @@ nobody designs against a ghost.
   equipment, field stacks) plus the diegetic kit: the enemy's
   resolved weapon always falls with one matching ammo stack
   (field sizing 1–5) AT its equip-time rolled quality — no
-  re-roll; extras roll quality at drop time (KILL ladder);
+  re-roll; extras roll quality at drop time — both ladders ride
+  the spawn's band (band 1 == KILL ladder, doc 48 phase 4);
   `GroundWeaponSpec.loot_droppable=False`
   keeps organic monster parts and fists off the floor; pools are
   beyond-the-weapon extras only; a very rare tinker-kit roll
@@ -611,7 +632,9 @@ nobody designs against a ghost.
   planet menu gains one "Explore <name>" row per discovered site
   (no quest gate). Floors are BSP-generated from
   `digs.derive_dig_params` (planet theme tiles + `data/digs`
-  TIER_POOLS at `mission_tier`; `spec.dig_params` overrides),
+  TIER_POOLS at `mission_tier`, four bands, densities
+  1.0/1.4/1.8/2.2; the floor band climbs tier + floor − 1 capped 4;
+  `spec.dig_params` overrides),
   persist per floor under `dig:<planet>:<id>:<floor>` — the cache
   key is the identity source, no dig attributes on maps; floor 1
   keeps the EXIT, deeper floors swap it for STAIRS_UP, non-bottom

@@ -1531,7 +1531,7 @@ with doctrinal 10-13):
   SYSTEMS.md audited same commit (new entries "Enemy ship
   identity" + "Ground identity families"; Combat AI flee line and
   Cargo model amended).
-- [ ] 4. **Band 4 + three-axis scaling + new faces** — band
+- [x] 4. **Band 4 + three-axis scaling + new faces** — band
   vocabulary unified (mission_tier = tech_level = dig band, band 4
   unclamped), full TIER_POOLS re-author (consortium out;
   hostile-weight rule), the family ladder, band→effective-level
@@ -1558,7 +1558,11 @@ with doctrinal 10-13):
   follow-up (user-directed): the ground target card's title states
   the band's effective level — "LVL 30 Pirate Raider" (user wording
   verbatim); no guide diff (the card explains itself in play).
-  Awaiting playtest.
+  PLAYTEST PASSED 2026-09-22 ("This playtest is passing") —
+  SYSTEMS.md audited same commit (new "Ground band scaling" entry;
+  identity-families key amended to (char, fg, elite) with the four
+  faces; kill-drop and delve entries note the band ladders and the
+  four-band pools).
 - [ ] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
