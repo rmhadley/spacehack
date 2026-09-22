@@ -1325,7 +1325,11 @@ with doctrinal 10-13):
   per-sheet), save migration, re-tags, the two-id pool de-list +
   substitution (keeps SETTLED 12 true in-window), militia crime +
   guild re-key, the full civilian-retirement blast radius. Brief
-  below (PROPOSED v2).
+  below (PROPOSED v2). BUILT 2026-09-22 (f5c3448a mechanics+re-tags,
+  341c408b save migration, 0cbc03e1 sweep; reviewer APPROVE, four
+  minors folded — clamp-test silence assert, load-path migration
+  test, accidental bool() wrap reverted, fixture docstring) —
+  awaiting playtest.
 - [ ] 3. **Identity & cleanup** — glyph/color families + the
   collision lint (same-context hard rule, cross-registry warning),
   enforcer glyph de-collision (`E` proposed), `civillian` rename +
