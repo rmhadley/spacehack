@@ -1824,6 +1824,13 @@ fork remains.
   pin stays {s}. Hull catalog + 3 freighter-hulled specs
   (derelict_freighter, merchant_freighter, merchant_caravan); the
   hull-pin lint carried the change.
+- **Refined same day: `B` → the h/H cargo pair.** User: "how about
+  we make hauler h and freighter H?" — hauler `H` → `h`, freighter
+  `B` → `H`. The case pair IS the cargo family: lowercase = the
+  smaller hauler, uppercase = the massive freighter, matching the
+  small-ships-lowercase convention (t, s) and freeing `B`. Alphabet
+  now t/s/h/C/F/H; cross-registry pin still {s}; both h and H
+  clear every planet/station glyph.
 
 **Build order:** ship char/color data + lint ship rule → ground
 families + `E`/`e` + lint family/separation/pin → bold wiring

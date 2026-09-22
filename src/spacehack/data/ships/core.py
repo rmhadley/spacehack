@@ -86,7 +86,7 @@ SHIPS: tuple[Ship, ...] = (
     Ship(
         id="hauler",
         name="Hauler",
-        char="H",
+        char="h",
         fg=(140, 210, 140),
         price=12000,
         width=1, height=1,
@@ -161,7 +161,7 @@ SHIPS: tuple[Ship, ...] = (
     Ship(
         id="freighter",
         name="Freighter",
-        char="B",
+        char="H",
         fg=(255, 180, 80),                                               # gold — distinct from hauler green
         price=40000,
         width=1, height=1,

@@ -1,8 +1,9 @@
 """NPC ship catalog — the single source for all non-player ships.
 
 Identity doctrine (doc 48 SETTLED 33): glyph = the hull flown (the
-player shipyard alphabet — scout `s`, hauler `H`, cruiser `C`,
-frigate `F`, freighter `B`), color = the faction's ONE family color —
+player shipyard alphabet — scout `s`, hauler `h`, cruiser `C`,
+frigate `F`, freighter `H`; the h/H case pair is the cargo family
+(small hauler / big freighter), color = the faction's ONE family color —
 pirate red (220,60,60), militia blue (100,200,255), merchant green
 (100,220,140); derelicts keep amber/brass. Class twins render
 identical by design — weight reads from the hull glyph, faction from
@@ -51,7 +52,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="derelict_freighter",
         name="Derelict Freighter",
-        char="B",
+        char="H",
         fg=(190, 140, 60),    # dull brass — the neutral family's wreck tones (amber/brass)
         ship_id="freighter",
         faction="neutral",
@@ -309,7 +310,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="merchant_hauler",
         name="Merchant Hauler",
-        char="H",
+        char="h",
         fg=(100, 220, 140),   # merchant family green
         ship_id="hauler",
         faction="merchant",
@@ -337,7 +338,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="merchant_freighter",
         name="Merchant Freighter",
-        char="B",
+        char="H",
         fg=(100, 220, 140),   # merchant family green
         ship_id="freighter",
         faction="merchant",
@@ -364,7 +365,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
     NpcShipSpec(
         id="merchant_caravan",
         name="Merchant Caravan",
-        char="B",
+        char="H",
         fg=(100, 220, 140),   # merchant family green — wealth reads in the hull + droid dial, not color
         ship_id="freighter",
         faction="merchant",
