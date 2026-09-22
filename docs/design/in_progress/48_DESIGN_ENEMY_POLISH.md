@@ -1171,6 +1171,31 @@ SUPERSEDED — heard entities are never combatants (SETTLED 16: LOS is the
 only aggro). The stub retires; noise routes emission → attractor stamps →
 the existing LOS join scans.
 
+Addition (same day, user, verbatim):
+
+> 1 is fine
+> 2, instead, I'd rather communicate noise in game somehow, instead of
+> having a guide entry that explains it. even just a combat log line
+> would do for now?
+
+> ok I like 3 but I also like the directional hint on 2. how can we
+> combine both?
+
+Rulings:
+
+- **The consumable-use lines are APPROVED** as proposed: "{name} uses
+  a Med Pack." / "{name} injects a Combat Stim."
+- **NO guide entry for noise — the mechanic is communicated in play.**
+  v1 = one reaction log line, **"Something to the {direction} heard
+  that."** (COLOR_IMPORTANT_EVENT): fires once per new-hearer event
+  when a not-already-investigating/engaged hostile first hears
+  player-caused noise (firing report or blast), naming the 8-way
+  direction to the NEAREST new hearer. Enemy fire never triggers it
+  (their shots already log as attack lines); quiet weapons never
+  trigger it — the line's absence is the stealth signal. A visual
+  pulse at the shot origin (transit-arrival style) is a noted future
+  polish, out of phase 5.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -2127,8 +2152,14 @@ updated to the resolver.
     `_apply_explosive_enemy_hit` + the player-side explosive impact.
   - The `noise_hostiles` stub (`combat/_encounter.py:249`) RETIRES
     (SETTLED 36) — investigators reach combat only via the existing
-    LOS join scans. Feedback is wordless: their movement is the tell;
-    no new prose for noise.
+    LOS join scans. Player-facing feedback (SETTLED 36 addition): ONE
+    reaction line, "Something to the {direction} heard that."
+    (COLOR_IMPORTANT_EVENT) — fires when a not-already-investigating/
+    engaged hostile first hears player-caused noise (report or blast),
+    naming the 8-way direction to the NEAREST new hearer; once per
+    new-hearer event (sustained fire never spams); enemy fire and
+    quiet weapons never trigger it — the line's absence is the
+    stealth signal.
 - **Combat-time movement + stepwise LOS join** (`ground_npcs.py`):
   `move_ground_npcs` gains the mode — while a ground fight is live,
   every UN-engaged entity (bystanders included, SETTLED 36) moves up
@@ -2168,8 +2199,9 @@ updated to the resolver.
     already stimmed (+1 AP ×3 turns — instance temp fields, ticked
     per round). ANY carrier may use (SETTLED 36). Log lines in the
     house "{name} moves into position." format via
-    `COLOR_ENEMY_ACTION` — wording PROSE GATE, proposed: "{name} uses
-    a Med Pack." / "{name} injects a Combat Stim."
+    `COLOR_ENEMY_ACTION` — wording APPROVED 2026-09-22 (SETTLED 36
+    addition): "{name} uses a Med Pack." / "{name} injects a Combat
+    Stim."
 - **Door verification** (audit flag closed): a test pinning enemy A*
   through DOOR/DUNGEON_DOOR tiles (all `walkable=True` — verify no
   runtime state gate blocks the path; fix forward if one exists).
@@ -2199,7 +2231,9 @@ existing last-seen stamps.
 **Required tests:** noise completeness (every weapon authored);
 hearing-scan selectivity (combatants only, dormant deaf, engaged
 skip, bystander ignore, latest-wins re-stamp); blast emits at the
-impact cell; combat-time movement ≤ AP with the stepwise-join stop
+impact cell; the reaction line (fires on new-hearer events only,
+correct 8-way direction to the nearest new hearer, quiet weapons
+never trigger); combat-time movement ≤ AP with the stepwise-join stop
 (never overshoots) and peace mode = 1 tile; range management (close /
 hold / back-off restores ≥ min_range; melee never backs off); leash =
 rolled max_range + 2 per instance; AP default + authored values +
@@ -2231,11 +2265,13 @@ door-path pin; bystander AP movement during a live fight.
    carried items, stim countdown identical.
 7. Regression: dig/dungeon/city spawn suites + phase-4 band scaling
    unchanged; space combat untouched.
-8. Guide-diff item: ONE new line in the ground combat guide section
-   (proposed wording — approve or amend with the brief): "Gunfire
-   draws enemies from nearby rooms — the louder the weapon, the wider
-   the draw. Melee is near-silent. Explosions are heard where they
-   land."
+8. Noise feedback + guide-diff item: fire a loud weapon with an
+   off-screen enemy in the next room — "Something to the {direction}
+   heard that." fires once with the correct direction; knife-kill a
+   straggler — NO line (quiet stays quiet). Guide: expected NONE —
+   noise is communicated in play via the reaction line, never a guide
+   entry (user ruling 2026-09-22); the confirm-grep stands as the
+   checkpoint.
 
 Dev grants: phase-4's disjoint per-face slices stand; add the
 deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
