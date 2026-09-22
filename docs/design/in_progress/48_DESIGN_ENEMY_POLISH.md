@@ -694,6 +694,35 @@ Rulings:
 - **Space-only** — ground personality stays the `behavior` field's
   job. Ladder #5 CLOSED.
 
+## SETTLED 24 (2026-09-22) — ladder #6 withdrawn (the disengage mechanic already does it)
+
+User, verbatim:
+
+> hmm. but if you break LOS you break combat don't you? doesn't all
+> this just happen to work right now because of that simple mechanic?
+
+Verified — the user is right. Ground `combat_should_end` is pure
+player-LOS (`_rules_ground.py:945-957`): the fight ends the round no
+hostile is in view; survivors get the last-seen stamp
+(`on_disengage`) and investigate where LOS broke for 5 ticks, then
+revert to post/patrol, re-triggering via normal LOS aggro. The
+break-LOS-to-escape play already works. **The in-combat memory-chase
+proposal is WITHDRAWN** — no new pursuit machinery.
+
+Residual (narrow, left as-is unless ruled otherwise): mixed
+visibility — while the player still sees ONE hostile the fight stays
+live, and an unseen squadmate's chase goal is the player's live
+position (pathing "through walls" until it turns a corner and
+becomes visible). Brief window, judged not worth machinery.
+
+Open detail surfaced by this step: SETTLED 17's movement modes key
+on "any live fight" — after disengage there is no fight, so
+investigating survivors move at the 1-tick peace rate (today's
+tuned behavior, 5 ticks ≈ 5 tiles). If hotter post-disengage
+pursuit is wanted, the mode boundary extends to "or any entity
+holds an active memory/attractor" — one-line change, awaiting
+ruling.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
