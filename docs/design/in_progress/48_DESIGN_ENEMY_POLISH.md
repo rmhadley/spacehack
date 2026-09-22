@@ -263,24 +263,70 @@ Rulings:
   (bar guild), merchant, militia, consortium qualify; civilians do
   not. The civilian rep axis is RETIRED; bystanders stay ambient-only
   city dressing.
-- Unruled details (Q13): the consequence for harming honest folk
-  (bystanders/merchant crew — militia crime rep proposed, not yet
-  ruled) and the guild mission-pay scaling that reads civilian rep
-  today (re-key to merchant proposed, not yet ruled). Save migration
-  (dropping stored civilian keys) is a coherence-build-phase detail.
+- Honest-folk harm and the guild re-key, ruled the same day, verbatim:
+  "yes, militia notices crime. yes, merchant rep should scale
+  merchant pay, I didn't know civilian rep scaled merchant guild
+  pay" — killing bystanders or merchant crew costs militia rep; guild
+  mission-pay scaling re-keys from civilian to merchant. (The user
+  was unaware it read civilian — further evidence for the
+  retirement.) Save migration (dropping stored civilian keys) is a
+  coherence-build-phase detail.
+
+## SETTLED 9 (2026-09-22) — hidden rep v1: movers only
+
+User, verbatim:
+
+> What moves it: yes. we can go with your list here at the start.
+> just to get it in the system and get knobs to tune.
+> What it gates: I want to keep this part for later. Right now it
+> gates nothing.
+> What the player sees: No bar at first. I reserve the future decision
+> of having a gate that allows the player to expose the bar.
+> spoofed transponder: I think we're going to need to treat it like
+> any other, yeah. just -- it's hidden on each spoofed transponder.
+
+Rulings:
+
+- **Movers adopted (v1 — knobs to tune):** direct encounters (killing
+  consortium crews/specs and looting corporate sites move it down;
+  serving corporate operations moves it up) plus the merchant ripple —
+  sustained harm to merchant interests (murdered crews, taken cargo)
+  slowly drops it; the ripple is slow and quiet, direct contact loud.
+- **Gates nothing in v1.** The axis lands as state + movers; gating
+  (the hunt thermostat, access locks) is a reserved future decision.
+- **No bar.** Hidden presentation; a future diegetic gate may EXPOSE
+  the bar (reserved).
+- **Identity layer: uniform, no special case** — consortium rep lives
+  on each identity sheet like any other faction, simply hidden per
+  sheet ("it's hidden on each spoofed transponder"); a worn ID carries
+  its own corporate standing.
+
+## The faction matrix (topic A working table — settled vs open)
+
+| Faction | Ground | Space | Rep axis | Settled identity | Open |
+|---|---|---|---|---|---|
+| Pirate | raider + rifleman (rename-legacy; three-axis scaling in C) + band-4 faces (Q11) | 6 specs today; class ladders in G | visible, starts −100 | the outlaw economy; organized through the bar guild; loses the heat-squad role to consortium (SETTLED 6) | band-4 faces; pirate-class kinship (doc 49) |
+| Militia | trooper + one marine row (PROSE GATE; disciplined-defender lean) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | marine-row ruling; dig-band guard role (Q5) |
+| Merchant | light honest crews (PROSE GATE) + security-droid wealth-dial | 3 specs (flee, don't fight — stands) | visible; guild mission pay scales it (SETTLED 8) | honest everyday folk; the trade economy; interests ripple to hidden consortium rep (SETTLED 9) | crew-row shape at brief time |
+| Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; the main-quest hunt is the showcase | spec roster + gated contexts (brief time); dig presence (Q5); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
+| Civilian | bystander, ambient-only | none | RETIRED (SETTLED 8) | the population — no organization | — |
+| Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite | — | none (`always_hostile`) | biome system (doc 11, stands); contemporary-vs-ancient machine split (SETTLED 4) | fauna difficulty axis + expansion (F); ancient machines (E) |
+| Neutral (derelicts) | — | 2 derelict specs | non-faction | stationary wrecks; the boarding loot path | vocabulary cleanup (punch list); derelict crews (D) |
 
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
 re-cut with briefs. Proposed order, A first (everything hangs off it):
 
-- **A. Faction matrix** — SETTLED 5-8 settled the shape: consortium
-  real + hidden + cybernetic + strictly gated (6), honest merchant
-  crews with a droid wealth-dial (5+7), civilian retired on the
-  organization principle (8). Remaining: hidden-rep mechanics (Q12,
-  next batch), the honest-folk-harm + guild re-key details (Q13), the
-  militia marine row's matrix cell, and the rep-inversion punch-list
-  items. Dig-pool consortium presence rides Q5 (topic C).
+- **A. Faction matrix** — SETTLED 5-9 settled the shape (see the
+  working table above): consortium real + hidden + cybernetic +
+  strictly gated, hidden rep v1 movers-only, honest merchant crews
+  with a droid wealth-dial, civilian retired on the organization
+  principle, militia notices crime, guild pay re-keys to merchant.
+  Remaining: the militia marine row (lean recorded: disciplined
+  defender, PROSE GATE name) and the rep-inversion punch-list items
+  (ride the coherence build phase). Dig-pool consortium presence
+  rides Q5 (topic C).
 - **B. Recognition & identity** — glyph/color/name identity per enemy
   (value 1 + value 8: "even down to the npc's char and color"); fixing
   the collisions; where identity lives in data.
@@ -392,12 +438,13 @@ Doctrinal (phase-1 topics):
 11. ~~Consortium encounter surface~~ ANSWERED — SETTLED 6: own specs
     ground + space, cybernetic identity, strictly gated encounters;
     the main-quest hunt is the showcase; dig-band presence rides Q5.
-12. Hidden consortium rep mechanics: what moves it, what it gates,
-    whether merchant-interest outcomes ripple through the "layers of
-    upper management" or only direct corporate encounters count.
-13. Honest-folk harm + guild re-key (SETTLED 8 leftovers): does
-    killing bystanders/merchant crew cost militia rep (crime), and
-    does guild mission-pay scaling re-key from civilian to merchant?
+12. ~~Hidden consortium rep mechanics~~ ANSWERED — SETTLED 9: movers
+    adopted (direct encounters + merchant ripple); gates NOTHING in
+    v1 (reserved); no bar (a diegetic expose-gate reserved);
+    per-identity hidden standing on the identity layer.
+13. ~~Honest-folk harm + guild re-key~~ ANSWERED — SETTLED 8
+    (same-day amendment): militia notices crime; guild mission pay
+    re-keys to merchant.
 
 Scaling (topic C — carried from the 2026-09-20 dump; 3 and 6 answered
 by the design values):
