@@ -1,27 +1,225 @@
-# DESIGN: Enemy polish — difficulty-scaled enemies
+# DESIGN: Enemy roster revamp — doctrine, scaling, coherence
 
-**Status: DESIGN IN PROGRESS — no implementation until the user
-explicitly requests it.** Dumped 2026-09-20 from the user's seed;
-nothing below is settled — open questions feed `/refine-design 48`.
+**Status: DESIGN IN PROGRESS — phase 1 is a discovery/discussion/planning
+phase; nothing is implemented until a build phase carries an approved
+brief.**
 
-Companions: `47_DESIGN_LOOT.md` (the kit-drop + quality systems this
-doc builds on — phases 1-2 landed); `SYSTEMS.md` "Ground combat" /
-"Kill drops" / "RNG delve sites" entries; the stored behavior-tactics
-ruling (tactics come from behavior×attack×terrain combos, not stats).
+Reframed 2026-09-22 from "enemy polish — difficulty-scaled enemies" into
+the whole-roster campaign (same file, wider scope). The 2026-09-20 seed
+and its scaling audit are preserved below; they became the
+difficulty-doctrine topic (C).
 
-## The seed (user, 2026-09-20, verbatim)
+Companions: `47_DESIGN_LOOT.md` (complete/ — kit drops + quality make
+scaled loadouts scale loot automatically); `49_DESIGN_SPECIES_CLASS.md`
+(player identity — interlocks via the faction rep tables);
+`SYSTEMS.md` "Ground combat" / "Kill drops" / "RNG delve sites" /
+"Space spawns" entries; `future/34_DESIGN_SPACE_COMBAT_BEHAVIORS.md`
+(space AI verbs — still deferred, still OUT of this doc).
+
+## SETTLED 1 (2026-09-22) — the reframe
+
+User, verbatim:
+
+> I don't want all of this to feel like it was just cobbled together. we
+> need a plan. ... We never made a decision about enemies in this game --
+> they just got added as needed as we kept pushing the concept of enemies
+> to the back burner so we could get other features.
+>
+> We need to approach this with purpose.
+
+> I want phase 1 to just be a discovery/discussion/planning phase. I want
+> the universe to be rich and that includes enemy design.
+
+Rulings:
+
+- Doc 48 owns the WHOLE enemy roster: ground specs, ship specs, capture
+  interiors, fauna, machines, spawn tables, bands.
+- Phase 1 = doctrine (discovery/discussion/planning only). It runs in
+  `/refine-design` sessions, not `/implement-phase`; its output is
+  settled SETTLED sections here plus re-cut build phases with briefs.
+- Player species/class differentiation split to doc 49.
+- The 2026-09-20 loadout-scaling seed survives as topic C input.
+
+## The ecosystem audit (2026-09-22, code-anchored)
+
+**Three ladders grew independently; none was ever designed as a layer.**
+
+1. **Difficulty = spec swap only.** Bands pick WHICH row spawns, never
+   what it wields. `TIER_POOLS` has bands 1-3; `_site_tier` clamps to 3,
+   so the six `mission_tier=4` planets run the band-3 pool. All humanoid
+   rows wield t1/t2 gear regardless of their own tier field. Band 4 does
+   not exist.
+2. **Faction strong in space, hollow on the ground.** Space-side each
+   faction behaves (patrols scan, merchants flee, pickets converge).
+   Ground-side everything combatant is pirate-tagged or a monster:
+   `consortium_*` rows are `faction="pirate"`
+   (`data/npc_chars/core.py:24,53`); merchant has ZERO ground rows;
+   civilian is a ghost faction (one bystander row, no ships). Killing a
+   merchant freighter's consortium crew RAISES merchant rep (kill deltas
+   key off the crew's pirate tag, `faction.py:216-241`).
+3. **Theme = intentional fauna + two borrowed drones.** Doc 11's biome
+   system is the one deliberate roster work. The game owns exactly two
+   machine specs (`sentry_drone`, `assault_drone`) and they serve dig
+   bands, all five capture decks, "Militia watch drone" landmarks, AND
+   the ancient-alien prison branded "ALIEN SECURITY"
+   (`data/text/00_runtime.json:77,88`). No lore distinguishes ancient
+   from contemporary machines. Doc 43's inhabitants are an open
+   question — the double duty would deepen.
+
+**Capture-deck crew map (every boarded interior funnels into pirate or
+consortium rows regardless of hull faction):**
+
+| Layout | Crew rows | Flown by |
+|---|---|---|
+| `scout_crew` | pirate_raider/rifleman | pirate_scout, **militia_patrol_light**, pirate_hound |
+| `cruiser_crew` | pirate_raider/rifleman | pirate_raider, **militia_blockade, militia_patrol**, pirate_marauder |
+| `frigate_crew` | pirate_raider/rifleman | pirate_captain, **militia_patrol_heavy**, pirate_warlord |
+| `hauler_crew` | consortium (pirate-tagged) | merchant_hauler |
+| `freightliner_crew` | consortium (pirate-tagged) | merchant_freighter, merchant_caravan |
+| derelicts (generic `scout_a`) | pirate_raider/rifleman | "no crew" derelicts spawn pirates anyway |
+
+Board a militia cruiser → fight pirates, militia pays +4 rep/kill
+(`faction.py` militia kill delta). Net: the boarding layer (doc 40)
+inherited the faction gap wholesale.
+
+**Archaeology verdict (git + doc history):** intent lived in per-feature
+docs (monsters→11, militia→06, city ambient→26, consortium→32,
+captain→bounty doc); filler landed wherever a feature needed bodies
+(ground pirates = renames of a doc-less prototype pair, `ea31d5a`; deep
+trio hound/marauder/warlord = one Codebuff-generated commit `6341318`,
+adopted retroactively by docs 39/40). The only whole-roster docs (34,
+48) were both pending until this reframe; the one roster-wide rule
+("fill behavior×attack×terrain cells, no stat-wall squads", doc 35 §8)
+post-dates most of the roster.
+
+**Roster counts (2026-09-22):** ground 13 rows — pirate-tagged 4
+(incl. both consortium rows), monsters 7, civilian 1, militia 1,
+merchant 0. Ships 15 — pirate 6, militia 4, merchant 3, neutral
+derelicts 2, civilian 0.
+
+**Incoherence + cleanup punch list (verified, rides a build phase):**
+
+- Consortium = pirate reskin everywhere (no faction tables, pirate kill
+  deltas, heat squads are pirate ships).
+- Militia decks crewed by pirates; merchant decks by pirate-tagged
+  consortium; rep math contradicts fiction.
+- Glyph collisions: `consortium_enforcer` 'c' = `civillian_bystander'
+  'c' (same context); militia_trooper 'M' = the map's Merchant Hauler
+  glyph (cross-context).
+- `civillian_bystander` typo (id + all 24 city population tuples).
+- `PROC_C_POPULATION` defined twice (`city_npcs.py:376,393`) — first is
+  dead data.
+- `rock_scavenger` on prison floor 2 (desert fauna in a station prison).
+- `pirate_raider` id exists in both registries (NpcCharSpec +
+  NpcShipSpec) — works, but bare-id consumers are ambiguous.
+- Faction vocabulary off-contract: "neutral" (derelicts) and ""
+  (monsters) are not in `_ALL_FACTIONS`.
+
+## Design values (user, 2026-09-22, verbatim — the doctrine's pillars)
+
+1. "you learn an enemy by playing the game. but once you learn the enemy
+   you recognize it clearly in game and know how to handle it"
+2. "enemy scaling is something viable and usable. better stats, better
+   gear, better tactics"
+3. "just like ships -- ground enemies should be aggressive only based on
+   your faction"
+4. "ships need to follow a progression path too. for any enemy type that
+   is space faring -- it should have clearly identifiable ship classes."
+5. "the interriors of a ship should be populated with the correct
+   enemies. interriors should always be hostile though, since to get on
+   one you have to start combat and aggro it yourself"
+6. "ancient alien tech needs to be a separate thing that is only used
+   for ancient alien areas."
+7. "themed monsters are in a better spot, but I think we can refine and
+   expand the concept. we need a way to up the difficulty"
+8. "easily extended system. we have more things we haven't gotten to
+   yet. I want all this to be data driven and extensible. even down to
+   the npc's char and color."
+
+## SETTLED 2 (2026-09-22) — scaling is three axes
+
+Value 2 supersedes the 2026-09-20 seed's loadout-only framing: scaling
+means **stats AND gear AND tactics**. Answers open question 3 from the
+original dump (stats: loadouts-only vs scaled) — stats scale too. The
+mechanism questions (how each axis scales, where) are topic C work.
+
+## SETTLED 3 (2026-09-22) — hostility + interior doctrine (direction)
+
+- Ground aggression is **faction-based only** (value 3) — mirrors the
+  space model; the broadcasting-ID sheet reads rep. Whether fauna stay
+  `always_hostile` (presumably yes — non-sentient) is a topic A/F
+  detail.
+- Capture interiors are populated with **the hull's correct enemies**
+  (value 5) — militia decks crewed by militia, merchant decks by
+  merchant-side crews.
+- Capture interiors are **always hostile** (value 5) — boarding is the
+  player's aggression; crews fight regardless of faction rep. Whether
+  kill rep deltas still apply (killing a boarded militia crew costs
+  militia rep?) is a topic D detail.
+
+## SETTLED 4 (2026-09-22) — the machine split
+
+Ancient alien tech is a **separate authored thing, used only in ancient
+alien areas** (value 6). The contemporary sentry/assault drones stop
+doubling as alien security; alien machines get their own specs (names
+PROSE GATE). Pre-answers doc 43's open inhabitants question — authoring
+shape is topic E.
+
+## Phase-1 discussion map (DRAFT — the planning agenda)
+
+Seven topics; each becomes dated SETTLED sections, then the build phases
+re-cut with briefs. Proposed order, A first (everything hangs off it):
+
+- **A. Faction matrix** — the real factions and what each fields
+  ground+space; consortium's fate (true fifth faction / explicitly
+  pirates-on-contract / the hidden-rep concept below); civilian's fate;
+  merchant ground presence; the militia/pirate rep inversions in the
+  punch list.
+- **B. Recognition & identity** — glyph/color/name identity per enemy
+  (value 1 + value 8: "even down to the npc's char and color"); fixing
+  the collisions; where identity lives in data.
+- **C. Difficulty doctrine** — ONE band vocabulary (mission_tier =
+  tech_level = dig band, extended to 4); the three scaling axes and
+  where each applies (digs, dungeons, cities, ships); the carried
+  mechanism questions below.
+- **D. Crew & interior coherence** — SETTLED 3's details: crew tables
+  per hull, always-hostile interiors, kill-delta handling, what crews
+  derelicts carry.
+- **E. Machine split** — SETTLED 4's details: alien-machine authoring,
+  which areas count as ancient, doc 43 handoff.
+- **F. Monster refinement** — value 7: refine/expand the biome concept;
+  a difficulty axis for fauna (bigger-fauna bands? new rows,
+  prose-gated).
+- **G. Ship progression** — value 4: identifiable class ladders per
+  spacefaring faction; themed modules per hull (the 2026-09-20 seed
+  addendum folds in here — capture strips whatever the spec flies, so
+  authored modules become capturable loot with zero new mechanics).
+
+## Later-phase topics (user, 2026-09-22, verbatim)
+
+- "civilian rep. where did it even come from? I never green lighted
+  this. it must have snuck in to a design doc at some point and escaped
+  my review. is there a need for it?"
+  - Archaeology answer (2026-09-22): civilian entered as one of the four
+    original factions in doc 01 Phase 1 (`f8d2f98`, 5-zone attitudes +
+    starting rep) and as a planned `civilian_transport` ship class in
+    `DESIGN_NPC_SHIPS_COMMS.md` (never built — zero ship rows). A later
+    commit scrubbed "spurious civilian/militia deltas" from delivery
+    missions (`cb4f779`). Whether it EARNS its rep bar is a topic A
+    ruling.
+- "consortium rep. what if we had a hidden rep. and it was the
+  consortium. the corporate overloads running things behind the scenes.
+  might be worth it's own design doc, but I'd like to explore this
+  concept in the roster revamp."
+  - Explored in topic A; if it grows mechanics of its own it spawns a
+    dedicated doc.
+
+## The 2026-09-20 seed (preserved verbatim)
 
 > Alright, before we refine phase 3, let's dump a new design doc:
 > enemy polish. we need better enemies that scale with difficulty.
 > If I'm in a t4 delve, I should be going against pirates with
 > monoblades and rocket launchers.
-
-## Seed addendum — ship-side loadouts (user, 2026-09-20, verbatim)
-
-From the doc 47.3 refinement (SETTLED 17 there): themed ship
-loadouts are wanted and live HERE. Space-side LOADOUT authoring
-joins this doc's territory; space AI behavior stays out (doc-34
-seed, unchanged — see G).
 
 > I agree with you that we need more detailed ship specs that
 > have modules installed that make sense for them and their hull.
@@ -29,189 +227,119 @@ seed, unchanged — see G).
 > finding a smugglers hold. Capturing a merchant would be a solid
 > path to finding a cargo hold.
 
-Grounding: no NPC ship spec flies a smuggler hold today (the only
-catalog-adjacent reference is wolf_b's fixed mechanic stock); the
-47.3 capture strip drops whatever the spec flies at fly-time
-quality, so authored themed modules become capturable loot with
-zero new mechanics — this doc just decides the authoring shape
-(which hulls fly what, and whether band scaling applies
-ship-side). Joins the open-question pass below.
+## The scaling audit (2026-09-20, code-anchored — feeds topic C)
 
-## Current state — the audit (2026-09-20, code-anchored)
+- Humanoid fighters are ~6 `NpcCharSpec` rows; every one wields t1/t2
+  gear regardless of spec tier: raider/enforcer/militia pick from
+  `(combat_knife, kinetic_pistol)`; gunner and rifleman carry a fixed
+  `kinetic_pistol` — the rifleman is a tier-2 spec with a t1 weapon and
+  no rifle. Resolution is `RNG.choice(weapon_pick)` at spawn
+  (`combat/_rules_ground.py:189-190`).
+- `NpcCharSpec.tier` gates DROPS only (`tier_filtered_equipment`,
+  `ground_equipment.py:72`); it never touches the wielded weapon.
+- Catalogs already carry the full ladder: weapons t1-t4 (t4 = rocket
+  launcher, mono blade, power fist, plasma caster, railgun, ion
+  blaster), armor to t4. The catalog files ARE families (melee
+  knife→baton→vibroblade→mono blade/power fist; rifles shotgun→kinetic
+  rifle→battle rifle→railgun/ion blaster; explosives t3-t4 only).
+- Doc 47 wired the diegetic consequences: the wielded weapon always
+  drops and rolls quality at NPC equip time — scaled loadouts scale
+  loot automatically; the economies are one system.
+- Stats (`hp`, `reflexes`, `strength`, `armor`) are per-spec authored
+  constants — now ruled a scaling axis (SETTLED 2).
+- Authored-layout `ENEMY:` markers pin fixed spec ids.
 
-**How enemies scale today: by spec swap, not by loadout.**
+**Warts:** difficulty invisible in the enemy's hands; the t4 equipment
+band exists but almost nothing wields it; the guide already promises
+"deeper sites and tougher machines yield better gear" (true today only
+via spec swap + drop gates); rifleman breaks its own name.
 
-- The humanoid fighters are ~8 `NpcCharSpec` rows
-  (`data/npc_chars/core.py`), and every one of them wields
-  tier-1 gear regardless of the spec's own tier field: pirate
-  raiders/enforcers/militia pick from `(combat_knife,
-  kinetic_pistol)`, consortium gunners and pirate riflemen carry a
-  fixed `kinetic_pistol` — the rifleman is a **tier-2 spec with a
-  t1 weapon and no rifle**.
-- Site difficulty picks WHICH specs spawn: `data/digs.TIER_POOLS`
-  bands 1-3 (raider/drone → rifleman/enforcer → rifleman/enforcer/
-  parasite) plus a density scalar. `_site_tier` clamps
-  `mission_tier` to 3 — and six planets are `mission_tier=4`, so
-  **the t4 delve the user describes currently runs the tier-3
-  pool**. Floors do climb (`_dig_tier` = tier + floor - 1, clamped
-  the same way), so deep floors of low-tier planets top out at 3
-  too. The band-4 the seed asks for does not exist.
-- `NpcCharSpec.tier` gates DROPS only (`tier_filtered_equipment`:
-  equipment pool entries filter to `tech_level <= tier`); it never
-  touches the wielded weapon.
-- Catalogs already carry the full ladder: shop weapons band t1-t4
-  (t4 = rocket launcher, mono blade, power fist, plasma caster,
-  railgun, ion blaster), armor to t4 (assault helmet, powered
-  vest…). Nothing new needs authoring for gear to scale INTO.
-- Doc 47 wired the diegetic consequences: the wielded weapon
-  always drops (47.1 kit drops) and rolls quality at NPC equip
-  time with site-independent KILL rates (47.2). Scaled loadouts
-  therefore scale loot automatically — the economies are one
-  system now.
-- Stats (`hp`, `reflexes`, `strength`, `armor`) are per-spec
-  authored constants; scaling them is a separate axis from
-  loadouts.
-- Authored-layout `ENEMY:` markers pin fixed spec ids — hand-tuned
-  interiors (wrecks, mission dungeons) don't route through any
-  band.
+## Open questions
 
-**The warts:**
+Doctrinal (phase-1 topics):
 
-1. Difficulty is invisible in the enemy's hands — a t4 planet's
-   delve fight looks identical to a t1's, then ends faster.
-2. The t4 equipment band exists but almost nothing in the world
-   wields it; the player's own t4 gear has no mirror.
-3. The guide (newly landed, user-approved) already PROMISES
-   "deeper sites and tougher machines yield better gear" — today
-   that's only true via spec swap + drop-tier gates.
-4. `pirate_rifleman` breaks its own name: tier-2 rifleman, t1
-   pistol.
+1. Consortium: fifth faction, pirates-on-contract, or hidden rep
+   (user concept above)?
+2. Civilian: keep as a rep bar, fold into ambient-only, or retire the
+   faction?
+3. Merchant ground presence: crews of their own, consortium-as-crew
+   made explicit, or none?
+4. Fauna under value 3: stay `always_hostile`, or do biome sites get
+   faction flavor?
+5. Band vocabulary: the ONE ladder and its band-4 shape (which specs,
+   what density).
+6. Alien machines: authoring shape, which areas count as ancient, doc
+   43 handoff.
+7. Recognition identity: which glyph/color scheme per enemy; where it
+   lives in data (value 8).
+8. Extensibility: what is still code that should be data (spawn
+   tables? bands? crew wiring?) so a new enemy is a new data row only.
+9. Interior kill deltas: does killing a boarded (hostile-by-boarding)
+   crew move rep as today?
 
-## First-pass shape (for review — nothing settled)
+Scaling (topic C — carried from the 2026-09-20 dump; 3 and 6 answered
+by the design values):
 
-### A. Loadout scaling — the headline
+10. Mechanism: uniform family ladder (each pick entry resolves within
+    its weapon family to the band's top — preserves melee/ranged
+    characterization, fixes the rifleman structurally), catalog filter,
+    or per-spec band tables?
+11. Band-4 faces: existing specs with better kit, new veteran/heavy
+    rows, or both?
+12. Fixed `weapons=` lists: respected as characterization or replaced
+    by family resolution?
+13. Quality floors by band: in scope or deferred to a 47 tune pass?
+14. Site scope: digs + dungeons + city ambient (one resolver), or a
+    subset?
+15. Bystanders: exempt from scaling (presumably yes)?
 
-A site-band → gear-band mapping so high-tier sites field high-tier
-kit. Candidate mechanisms (open question 1):
+## Phases
 
-- **(a) Uniform band filter** — every weaponed spec's
-  `weapon_pick` resolves at spawn against the site band
-  (`tech_level <= band`, biased toward the band's top). One rule,
-  every spec, no per-spec tables; the favorite per the
-  no-special-cases ruling. Fixed `weapons=` lists are
-  characterization vs scalably-wrong — open question 4.
-- **(b) Per-spec tier-indexed picks** — each spec authors
-  pick-lists per band (raider t1: knife/pistol; raider t4:
-  mono blade/rocket launcher). Most control, most authoring,
-  drifts toward special cases.
-- **(c) New high-tier specs** — a veteran/heavy row per faction
-  (the "t4 pirate" as its own statblock). Overlaps with the
-  behavior-matrix phase below.
+- [ ] 1. **Doctrine — discovery/discussion/planning** — the seven
+  topics A-G above, settled with the user in `/refine-design` sessions;
+  build phases re-cut with briefs at close. No implementation.
+- [ ] 2+. **Re-cut at phase-1 close.** Candidate order (DRAFT, to be
+  ruled): coherence + cleanup (crew correctness, consortium tag, punch
+  list) → band vocabulary + three-axis scaling → ancient machines →
+  monster expansion → new faces (behavior-matrix cells, PROSE GATE) →
+  ship class ladders.
 
-### B. The band-4 itself
+## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
-Extend `TIER_POOLS` to a fourth band (which specs, what density)
-and unclamp `_site_tier` — t4 planets and deep floors reach it.
-Band vocabulary question: `mission_tier` 1-4 vs equipment
-`tech_level` 1-4 vs dig bands 1-3 are three overlapping ladders;
-this doc should settle ONE mapping.
+1. Every topic A-G carries a dated SETTLED section (or an explicit
+   deferred note with a home).
+2. Build phases re-cut from the settled doctrine; each proposed phase
+   has an Implementation brief ready for approval.
+3. Doc 43's inhabitants question pre-answered by the machine split (or
+   explicitly handed to 43).
+4. Doc 49 consulted wherever the faction-matrix rulings change the rep
+   interlock.
+5. The cleanup punch list is assigned to a phase.
+6. SYSTEMS.md untouched until build phases land (inventory updates at
+   phase closes, per contract).
 
-### C. Stat scaling — separate axis, separate ruling
+## Acceptance criteria (DRAFT)
 
-Do hp/reflexes/armor scale with band too, or do the same bodies
-just carry better gear (deadlier via loadout + quality, not
-bigger numbers)? The seed's framing is loadout-only.
-
-### D. Quality interplay (47.2)
-
-High bands could roll better quality FLOORS (e.g. the site band
-shifts the equip-time KILL ladder from 1-in-5/11/25 toward
-1-in-3/7/15). "Deeper sites yield better gear" becomes true on
-both axes.
-
-### E. Economy watch-items
-
-Kit drops mean t4 pirates drop t4 weapons — intended, but the
-power curve needs a playtest look: free mono blades vs armory
-prices, XP vs risk, whether delve income still tracks the 47.2
-watch-item ("bottom-runs must not out-earn their risk").
-
-### F. Behavior/tactics — the matrix axis (companion, its own phase)
-
-Stored ruling: tactics come from behavior×attack×terrain combos;
-open cells include ambusher+ranged, zone-guard, slow-heavy
-hunter. A band-4 "pirate heavy" (slow hunter, rocket launcher)
-fills the slow-heavy cell AND gives the t4 band a face. New spec
-names are PROSE GATE.
-
-### G. Scope boundary
-
-Space-side AI behavior is OUT (the space behavior-matrix
-proposal is its own pending decision, doc-34 seed) — but
-ship-side LOADOUT authoring is IN per the seed addendum above
-(user, 2026-09-20): themed installed modules per hull. Authored-
-layout `ENEMY:` markers are hand-tuned and presumably stay
-fixed — open question 7 confirms.
+- The roster reads as designed: every enemy has a faction home, a
+  recognizable identity, and a place in the difficulty ladder.
+- Site difficulty reads in the enemy's hands before the first punch
+  lands — stats, gear, and tactics all scale.
+- Interiors are crewed by the hull's faction and are hostile on
+  boarding; rep math matches fiction.
+- Ancient alien content is its own authored thing, used only in
+  ancient areas.
+- Adding an enemy is a data edit: spec row (+ optional pool/crew
+  wiring), never a code change.
+- The 47.x loot systems absorb everything with no new payload shapes.
 
 ## Philosophy alignment
 
 | Guardrail | How this doc obeys it |
 |-----------|----------------------|
-| No special cases — uniform mechanisms | Band filter over per-spec exception tables (mechanism a) if ruled |
-| Data-first | Bands, picks, densities live in `data/npc_chars` + `data/digs` specs; no code dicts |
-| Knowledge gates access, not existence | Gear exists in catalogs; bands gate who WIELDS it |
+| No special cases — uniform mechanisms | One band vocabulary, one hostility model, one resolver (topic C's mechanism) |
+| Data-first | Bands, pools, crews, identities, class ladders live in data specs; extensibility is value 8 |
+| Knowledge gates access, not existence | Gear/roster exist; bands gate who wields/meets them |
 | Diegetic economy (47.1/47.2) | Scaled loadouts drop scaled loot through the existing kit-drop path |
-| Prose gate | New spec names / any new strings land only post-approval |
-| No prose without discussion | This dump is chat-first; data strings settle at refine |
-
-## Open questions (for `/refine-design 48`)
-
-1. **Mechanism:** uniform band filter (a), per-spec tier tables
-   (b), new specs (c), or a mix (e.g. (a) + a few (c) faces)?
-2. **Band-4 faces:** does t4 reuse existing specs with better
-   gear, add veteran/heavy rows, or both?
-3. **Stats:** do hp/reflexes/armor scale with band, or loadouts
-   only?
-4. **Fixed `weapons=` lists** (gunner's pistol, rifleman's…):
-   scaled by band or respected as characterization?
-5. **Quality floors by band** (D): in scope here or deferred to a
-   47 tune pass?
-6. **Monsters** (organic specs): flat forever, or bigger-fauna
-   variants per band (new rows, prose-gated names)?
-7. **Scope of "site":** RNG delves only, or also procgen
-   dungeons/city sewers? Authored interiors stay fixed?
-8. **Bystanders/civilians:** exempt from scaling (presumably yes)?
-9. **Phasing:** what splits into separate implement+playtest
-   cycles (candidate: band+loadouts → stats/quality → new specs)?
-
-## Phases (DRAFT — refined after the open-question pass)
-
-- [ ] 1. **Band 4 + loadout scaling** — `TIER_POOLS` t4 band,
-  `_site_tier` unclamped, site-band loadout resolution per the
-  ruled mechanism, kit-drop/quality interplay verified, economy
-  watch pass.
-- [ ] 2. **Stat and/or quality scaling** (if ruled in) — band-
-  scaled stats and/or quality floors, power-curve check.
-- [ ] 3. **New high-tier specs** — behavior-matrix cells filled
-  (pirate heavy etc.), PROSE GATE on names, band pools refreshed.
-
-## PLAYTEST — phase 1 (DRAFT; concretized at brief time)
-
-1. A tier-4 planet's delve: pirates wield band-appropriate gear
-   (mono blades, rocket launchers at the top), visibly different
-   from a t1 planet's delve.
-2. Deep floors of lower-tier planets climb toward the same band.
-3. Corpse drops mirror the new loadouts (diegetic kit, 47.1).
-4. Regression: t1 sites unchanged; authored interiors unchanged;
-   monsters unchanged (unless ruled); save/load clean.
-
-## Acceptance criteria (DRAFT)
-
-- Site difficulty reads in the enemy's hands before the first
-  punch lands.
-- One uniform mechanism, no per-spec special cases (or per-spec
-  authoring ruled explicitly over it).
-- The full t1-t4 equipment catalog is mirrored by something in
-  the world that wields it.
-- The 47.x loot systems absorb the change with no new payload
-  shapes.
+| Behavior×attack×terrain (stored ruling) | New faces fill matrix cells, never stat walls |
+| Prose gate | New spec names / any strings land only post-approval |
+| Uniform hostility model | Ground mirrors space: faction rep decides (SETTLED 3) |
