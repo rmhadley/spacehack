@@ -16,6 +16,11 @@ species glyphs in biome palettes, bold apexes later (phase 10).
 
 Adding a new NPC character is one entry in an ``NPC_CHARS`` tuple
 in any submodule — no if/else chains, no registry edits.
+
+Note: ``pirate_raider`` names a ground row HERE and a ship in
+``data/npc_ships/`` — one pirate crew, two registries. Bare-id
+consumers must know which registry they mean (``find_npc_char`` vs
+``find_npc_ship``).
 """
 
 from __future__ import annotations

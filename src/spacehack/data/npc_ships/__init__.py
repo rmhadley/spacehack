@@ -4,6 +4,11 @@ Replaces ``data/enemies/``. Pirates, merchants, civilians, and future
 militia all share a single :class:`NpcShipSpec` dataclass. Faction
 field drives default attitude (pirate = hostile, merchant = neutral)
 and supports future reputation-based flipping.
+
+Note: ``pirate_raider`` names a ship HERE and a ground row in
+``data/npc_chars/`` — one pirate crew, two registries. Bare-id
+consumers must know which registry they mean (``find_npc_ship`` vs
+``find_npc_char``).
 """
 
 from __future__ import annotations
