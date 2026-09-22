@@ -165,16 +165,53 @@ doubling as alien security; alien machines get their own specs (names
 PROSE GATE). Pre-answers doc 43's open inhabitants question — authoring
 shape is topic E.
 
+## SETTLED 5 (2026-09-22) — merchant/consortium clean separation
+
+User, verbatim:
+
+> I want to separate merchant and consortium cleanly. right now
+> they're mingled together in a bit of a confusing way.
+>
+> Merchants: everyday joes just trying to make a living with honest
+> work. they only work for consortium through layers of upper
+> management without ever knowing it.
+>
+> Consotrium: the hidden corporate overlords pulling the strings
+> behind the scenes. when you see consortium you know it's not just
+> regular merchants.
+
+Rulings:
+
+- Merchant and consortium separate CLEANLY. The current mingling
+  (consortium crews aboard merchant haulers, corporate flavor riding
+  on trade content) is the bug this doctrine fixes.
+- **Merchants are honest, ordinary working folk.** No corporate
+  identity. Their ships' crews are their OWN people — everyday crew,
+  not soldiers, not consortium. Merchant decks get honest-crew rows
+  (names PROSE GATE; shape = Q10).
+- **Consortium is the hidden corporate layer**: a real faction with a
+  HIDDEN rep axis (no visible bar), unmistakable when encountered —
+  "when you see consortium you know it's not just regular merchants"
+  (visual identity = topic B). Encounters happen at corporate
+  operations, never as "just merchants" (surface = Q11).
+- The management-layers fiction (merchants serving consortium
+  interests unknowingly) is plot/lore texture — candidate doc 42
+  rumor substrate — NOT a mechanic unless ruled.
+- Supersedes the audit-era option "merchant decks crewed by
+  consortium security". SETTLED 3 stands, sharper: every deck crewed
+  by the hull's own people.
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
 re-cut with briefs. Proposed order, A first (everything hangs off it):
 
-- **A. Faction matrix** — the real factions and what each fields
-  ground+space; consortium's fate (true fifth faction / explicitly
-  pirates-on-contract / the hidden-rep concept below); civilian's fate;
-  merchant ground presence; the militia/pirate rep inversions in the
-  punch list.
+- **A. Faction matrix** — SETTLED 5 settled the merchant/consortium
+  split (real consortium faction, hidden rep; honest merchant crews).
+  Remaining: hidden-rep mechanics (Q12), merchant crew shape (Q10),
+  consortium encounter surface (Q11), civilian's fate (Q2), the
+  militia marine row, dig-pool reshuffle timing (now or topic C), and
+  the rep-inversion punch-list items.
 - **B. Recognition & identity** — glyph/color/name identity per enemy
   (value 1 + value 8: "even down to the npc's char and color"); fixing
   the collisions; where identity lives in data.
@@ -211,8 +248,8 @@ re-cut with briefs. Proposed order, A first (everything hangs off it):
   consortium. the corporate overloads running things behind the scenes.
   might be worth it's own design doc, but I'd like to explore this
   concept in the roster revamp."
-  - Explored in topic A; if it grows mechanics of its own it spawns a
-    dedicated doc.
+  - Explored in topic A — SETTLED 5 made it real + hidden; mechanics
+    in Q12. If it grows beyond the roster it spawns a dedicated doc.
 
 ## The 2026-09-20 seed (preserved verbatim)
 
@@ -258,12 +295,14 @@ via spec swap + drop gates); rifleman breaks its own name.
 
 Doctrinal (phase-1 topics):
 
-1. Consortium: fifth faction, pirates-on-contract, or hidden rep
-   (user concept above)?
+1. ~~Consortium: fifth faction, pirates-on-contract, or hidden rep?~~
+   ANSWERED — SETTLED 5: real faction, hidden rep axis, clean
+   merchant separation.
 2. Civilian: keep as a rep bar, fold into ambient-only, or retire the
    faction?
-3. Merchant ground presence: crews of their own, consortium-as-crew
-   made explicit, or none?
+3. ~~Merchant ground presence: crews of their own,
+   consortium-as-crew, or none?~~ ANSWERED — SETTLED 5: honest crews
+   of their own; row shape is Q10.
 4. Fauna under value 3: stay `always_hostile`, or do biome sites get
    faction flavor?
 5. Band vocabulary: the ONE ladder and its band-4 shape (which specs,
@@ -276,6 +315,15 @@ Doctrinal (phase-1 topics):
    tables? bands? crew wiring?) so a new enemy is a new data row only.
 9. Interior kill deltas: does killing a boarded (hostile-by-boarding)
    crew move rep as today?
+10. Merchant crew shape: how many rows, which behavior cell, what gear
+    band, how tough — boarding a merchant should feel like evicting
+    scared workers, not fighting soldiers.
+11. Consortium encounter surface: where you SEE them (corporate
+    sites? dig guards stay?); do heat squads stay hired-pirate
+    (deniable) rather than a consortium navy?
+12. Hidden consortium rep mechanics: what moves it, what it gates,
+    whether merchant-interest outcomes ripple through the "layers of
+    upper management" or only direct corporate encounters count.
 
 Scaling (topic C — carried from the 2026-09-20 dump; 3 and 6 answered
 by the design values):
