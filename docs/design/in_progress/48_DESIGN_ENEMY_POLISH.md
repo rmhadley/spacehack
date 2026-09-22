@@ -1578,6 +1578,127 @@ act0_bar re-key covered).
    civilian mentions — the checkpoint is a confirm-grep (expected
    no-op; any hit becomes a called-out before/after).
 
+### Phase 3 Implementation brief (PROPOSED 2026-09-22 — awaiting
+### approval; flagged decisions D1-D3 below)
+
+**Scope (files / hook points):**
+
+- **The collision lint** (new `tests/test_enemy_identity.py`, beside
+  `test_glyph_map.py`'s CP437 sweep): iterates both spec registries
+  directly (identity is single-sourced in `char`/`fg` — SETTLED 32).
+  - Same-registry HARD rule: no two hostile-capable specs (always_
+    hostile OR faction in the four axes) share an identical
+    (glyph, color) pair, UNLESS the pair sits in a declared
+    class-family table.
+  - Class families as data: `SHIP_CLASS_FAMILIES` in
+    `data/npc_ships/__init__.py` + `CHAR_CLASS_FAMILIES` in
+    `data/npc_chars/__init__.py` (empty today — the mechanism is
+    documented for phase-4+ faces). Ship families from the 2026-09-22
+    inventory: `p` = (pirate_scout, pirate_hound) interceptor, `P` =
+    (pirate_raider, pirate_marauder) line, `B` = (militia_blockade,
+    militia_patrol, militia_patrol_heavy, militia_patrol_light)
+    weight ladder. A glyph in a family may not be used by any spec
+    outside it.
+  - Cross-registry WARNING, pinned: ground/space glyph overlap among
+    hostile-capable faces equals exactly the known list (trooper `M`
+    vs hauler `M`, assault_drone `D` vs captain `D`, dust_prowler
+    `p` vs scout/hound `p`, frost_spitter `f` vs derelict_freighter
+    `f`, rock_scavenger `s` vs derelict_scout `s`). A NEW overlap
+    fails the pin — a conscious decision, never an accident. (The
+    theaters never co-render; boarding interiors show crew glyphs
+    only.)
+- **Enforcer glyph de-collision (user-ruled, phase-2 brief):**
+  `consortium_enforcer.char` `'c'` → `'E'` (case convention:
+  uppercase serious). Sweep render/test references; the name is
+  PROSE-GATED and untouched.
+- **`civillian` → `civilian_bystander` rename:** the spec id in
+  `data/npc_chars/core.py`, the ~195 references across the
+  population tuples in `data/city_npcs.py` (scripted one-pass edit),
+  the `HUMANOID_PAD_DROPPERS` comment in `data/digs/__init__.py`,
+  tests. Save compat: `find_npc_char` resolves the retired typo id
+  via a one-line alias table (verify first whether any persisted
+  surface carries the spec id — `defeated_static_spawns` keys embed
+  CityNpc/static-spawn ids, not spec ids; if the grep confirms no
+  spec-id persistence the alias is belt-and-suspenders only).
+- **Punch list (audit items homed here):**
+  - `PROC_C_POPULATION` defined twice (`data/city_npcs.py:376,393`)
+    — delete the dead first definition (verify which is live by
+    registry use).
+  - `ai_flee_threshold` RETIREMENT (SETTLED 20: dead data, nothing
+    reads it, nothing ever will): remove the field from
+    `NpcShipSpec`, the docstring line, and all ~12 authored values
+    across `npc_ships/core.py` + `deep.py`.
+  - `buy_ammo` sync: recalc `owned.cargo_ammo = total_ammo_cargo(
+    owned.weapons)` after purchase — uniform with install/remove
+    weapon (`ship.py:391,414`); today buying is the only magazine
+    mutation that skips the recalc (latent trap; capacity-derived
+    today so the recalc is usually a no-op — the uniformity is the
+    fix).
+  - Dual-registry `pirate_raider` (NpcCharSpec + NpcShipSpec): a
+    docstring note at both registries marking the ambiguity for
+    bare-id consumers. No machinery.
+- **Color-family audit (SETTLED 32, documentation pass):** the
+  faction families (pirate warm/rust, militia blue, consortium
+  corporate cold blue, merchant trade greens, monsters as-is) are
+  recorded in the registry docstrings; current specs already comply
+  (2026-09-22 inventory). Ancient machines get their family in
+  phase 9 — contemporary drone colors are NOT re-cut here.
+
+**Flagged decisions (need user ruling before build):**
+
+- **D1 — class-family identity model.** RECOMMENDED (A): a declared
+  family shares glyph AND color as ONE at-a-glance identity — the
+  class is the face; members differ by band/loadout, which are
+  scan/HUD facts (matches SETTLED 31 verbatim and value 1's
+  class-level "know how to handle it"). Alternative (B): family
+  members share the glyph but colors must differ visibly (a
+  minimum separation, e.g. ≥40 max-channel) — SETTLED 32's
+  "unique per hostile face" read literally; under (B) the militia
+  and pirate ship families get color re-authors this phase. The
+  lint implements whichever is ruled.
+- **D2 — militia `B` ladder:** under (A) the four B's collapse to
+  one identity (blockade and patrol are already an identical pair —
+  day-one lint failure without the family declaration); under (B)
+  their colors separate visibly. Rides D1.
+- **D3 — cross-registry overlaps:** the pinned-warning list above
+  stands as-is (recommended — never co-rendered), or any entry the
+  user wants broken gets a glyph change.
+
+**Build order:** lint + families (D1-dependent) → enforcer `E` →
+rename + alias → punch list (PROC_C dedup, ai_flee_threshold,
+buy_ammo, dual-registry note) → full gate.
+
+**Binding rulings:** SETTLED 20, 32; value 1; value 8 (families as
+data). No new faces, no stat changes, no prose.
+
+**Stop point:** no band-4/scaling work (phase 4), no role-token
+markers or crew re-authoring (phase 6), no ancient-machine re-cut
+(phase 9), no marker-glyph work. The color audit documents only.
+
+**Required tests:** the lint itself (families + uniqueness + pinned
+cross-registry set); enforcer `E` pinned; rename — alias resolves,
+every population tuple references a live spec id (existing
+`test_city_npcs` suites cover), no `civillian` string survives
+outside the alias; `ai_flee_threshold` gone (authoring it raises
+TypeError — pinned via registry build); `buy_ammo` cargo recalc
+(magazine buy → `cargo_ammo` matches `total_ammo_cargo`);
+`PROC_C_POPULATION` single definition (population tests cover).
+
+**Playtest checkpoint:**
+
+1. Visual sweep: consortium enforcers render `E` (was `c`);
+   everything else renders exactly as today (militia B's, pirate
+   p/P's, monsters — no color churn under D1-A).
+2. City: bystanders look identical (same glyph/color, corrected
+   id); killed bystanders still cost militia −2 (phase 2 rule).
+3. Save/quit → Continue on the phase-2-era save: bystanders spawn,
+   no missing-spec log lines, tombstones honored.
+4. Space: buy missile ammo → cargo HUD math unchanged/consistent;
+   militia patrols + blockade render as today.
+5. Guide-diff item: expected NONE (glyphs/ids are internal) —
+   confirm-grep of `data/guide/`; any hit becomes a called-out
+   before/after.
+
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
 1. Every topic A-G carries a dated SETTLED section (or an explicit
