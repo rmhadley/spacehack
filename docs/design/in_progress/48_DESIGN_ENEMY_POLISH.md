@@ -1456,7 +1456,7 @@ with doctrinal 10-13):
   test, accidental bool() wrap reverted, fixture docstring).
   PLAYTEST PASSED 2026-09-22 (user: "Phase 2 is good") — SYSTEMS.md
   audited same commit.
-- [ ] 3. **Identity & cleanup** — RE-CUT (SETTLED 33/34): ship
+- [x] 3. **Identity & cleanup** — RE-CUT (SETTLED 33/34): ship
   glyphs = the hull catalog's own chars + one family color per
   faction + the bold flagship wiring (widened atlas, `elite`
   field); ground family tables (letter + case variants + one
@@ -1464,7 +1464,15 @@ with doctrinal 10-13):
   family conformance, family-color separation, one-entry
   cross-registry pin); enforcer `E`; `civillian` rename + alias;
   punch list (PROC_C dedup, `ai_flee_threshold` retirement,
-  buy_ammo sync, dual-registry note).
+  buy_ammo sync, dual-registry note). Brief below (APPROVED v2).
+  LANDED 2026-09-22 (bfb49492 ship identity + lint, 0de395a2 ground
+  families, c04026f1 bold wiring, f5ba6054 rename+alias, 3ecae95e
+  PROC_C dedup, b730673a flee-threshold retirement, 6c752350
+  buy_ammo sync, 4b47ce27 docstrings, c71fd603 reviewer minors;
+  reviewer APPROVE — four minors folded: family-membership guard,
+  elite test drives the real spawn factory, buy_ammo docstring +
+  stale cargo_ammo comment, old-save glyph residue noted for the
+  playtest). PLAYTEST PENDING — checklist at the brief's checkpoint.
 - [ ] 4. **Band 4 + three-axis scaling + new faces** — band
   vocabulary unified (mission_tier = tech_level = dig band, band 4
   unclamped), full TIER_POOLS re-author (consortium out;
