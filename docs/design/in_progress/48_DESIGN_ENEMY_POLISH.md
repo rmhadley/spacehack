@@ -306,37 +306,56 @@ Rulings:
 | Faction | Ground | Space | Rep axis | Settled identity | Open |
 |---|---|---|---|---|---|
 | Pirate | raider + rifleman (rename-legacy; three-axis scaling in C) + band-4 faces (Q11) | 6 specs today; class ladders in G | visible, starts −100 | the outlaw economy; organized through the bar guild; loses the heat-squad role to consortium (SETTLED 6) | band-4 faces; pirate-class kinship (doc 49) |
-| Militia | trooper + one marine row (PROSE GATE; disciplined-defender lean) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | marine-row ruling; dig-band guard role (Q5) |
+| Militia | trooper + organized strike/defender crews (PROSE GATE; SETTLED 10: well equipped, work together) | 4 specs (doc-06 intent, stands) | visible, starts +50 | the state's arm; notices crime (harming honest folk costs militia rep) | row shape at brief time; dig-band guard role (Q5) |
 | Merchant | light honest crews (PROSE GATE) + security-droid wealth-dial | 3 specs (flee, don't fight — stands) | visible; guild mission pay scales it (SETTLED 8) | honest everyday folk; the trade economy; interests ripple to hidden consortium rep (SETTLED 9) | crew-row shape at brief time |
 | Consortium | NEW cybernetic specs (PROSE GATE) | NEW hunter ships (PROSE GATE) | HIDDEN — movers-only v1, no gates, no bar; per-identity hidden standing | the corporate layer behind everything; strictly gated encounters; the main-quest hunt is the showcase | spec roster + gated contexts (brief time); dig presence (Q5); gates + expose-the-bar (reserved); Act 2 / doc 42 substrate (reserved) |
 | Civilian | bystander, ambient-only | none | RETIRED (SETTLED 8) | the population — no organization | — |
 | Monsters (`""`) | 7 rows: contemporary drones + biome fauna + parasite | — | none (`always_hostile`) | biome system (doc 11, stands); contemporary-vs-ancient machine split (SETTLED 4) | fauna difficulty axis + expansion (F); ancient machines (E) |
 | Neutral (derelicts) | — | 2 derelict specs | non-faction | stationary wrecks; the boarding loot path | vocabulary cleanup (punch list); derelict crews (D) |
 
+## SETTLED 10 (2026-09-22) — militia ground doctrine; topic A closed
+
+User, verbatim:
+
+> Militia: organized strike/defender crews, well equipped, work
+> together.
+
+Rulings:
+
+- Militia's ground identity: **organized strike/defender crews — well
+  equipped, working together** (squad-coordination feel). Row shape
+  (strike vs defender split, count, stats) at brief time; names PROSE
+  GATE. The earlier disciplined-defender lean is subsumed: these are
+  crews that fight as a unit.
+- **Topic A is CLOSED** (SETTLED 5-10). The rep-inversion punch-list
+  items ride the coherence build phase.
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
-re-cut with briefs. Proposed order, A first (everything hangs off it):
+re-cut with briefs. Order: A (closed) → **C next** (D's crew tables
+draw from C's row catalogs) → D → E → F → G → B.
 
-- **A. Faction matrix** — SETTLED 5-9 settled the shape (see the
-  working table above): consortium real + hidden + cybernetic +
-  strictly gated, hidden rep v1 movers-only, honest merchant crews
-  with a droid wealth-dial, civilian retired on the organization
-  principle, militia notices crime, guild pay re-keys to merchant.
-  Remaining: the militia marine row (lean recorded: disciplined
-  defender, PROSE GATE name) and the rep-inversion punch-list items
-  (ride the coherence build phase). Dig-pool consortium presence
-  rides Q5 (topic C).
-- **B. Recognition & identity** — glyph/color/name identity per enemy
-  (value 1 + value 8: "even down to the npc's char and color"); fixing
-  the collisions; where identity lives in data.
-- **C. Difficulty doctrine** — ONE band vocabulary (mission_tier =
-  tech_level = dig band, extended to 4); the three scaling axes and
-  where each applies (digs, dungeons, cities, ships); the carried
-  mechanism questions below.
+- **A. Faction matrix** — CLOSED (SETTLED 5-10; see the working table
+  above): consortium real + hidden + cybernetic + strictly gated,
+  hidden rep v1 movers-only, honest merchant crews with a droid
+  wealth-dial, civilian retired on the organization principle,
+  militia notices crime + organized strike/defender crews, guild pay
+  re-keys to merchant. Rep-inversion punch-list items ride the
+  coherence build phase; dig-pool consortium presence rides Q5.
+- **C. Roster catalogs + difficulty doctrine** — promoted 2026-09-22
+  (the user asked where NPC scaling + per-faction NPC types live; the
+  catalogs were implicit brief-time detail, now explicit). **C1, the
+  type catalogs:** which rows each faction fields — pirate faces
+  incl. the band-4 heavy; militia strike/defender crews; merchant
+  light crew + the droid dial; the consortium cybernetic ladder
+  (names PROSE GATE). **C2, how everything scales:** ONE band
+  vocabulary (mission_tier = tech_level = dig band, extended to 4),
+  the three axes (SETTLED 2) and where each applies (digs, dungeons,
+  cities, ships); the carried mechanism questions below.
 - **D. Crew & interior coherence** — SETTLED 3's details: crew tables
-  per hull, always-hostile interiors, kill-delta handling, what crews
-  derelicts carry.
+  per hull (drawn from C1's catalogs), always-hostile interiors,
+  kill-delta handling, what crews derelicts carry.
 - **E. Machine split** — SETTLED 4's details: alien-machine authoring,
   which areas count as ancient, doc 43 handoff.
 - **F. Monster refinement** — value 7: refine/expand the biome concept;
