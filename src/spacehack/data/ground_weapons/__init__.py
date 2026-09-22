@@ -45,6 +45,12 @@ class GroundWeaponSpec:
             registered weapon, so this flag is the shop-leak guard).
         loot_droppable: False = never spawns as a diegetic kill drop
             (organic monster parts, bare fists; doc 47.1).
+        noise: hearing radius in cells when fired (doc 48 SETTLED 17
+            — the noise system's per-weapon data column). Authored
+            leans: explosives 12, kinetic rifles 8, pistols/SMG 5-6,
+            energy/plasma 4 (the energy lever — quieter than
+            kinetic), melee 1-2 (knife kills stay quiet), organic
+            monster parts 4-5.
     """
     id: str
     name: str
@@ -64,6 +70,7 @@ class GroundWeaponSpec:
     shop_available: bool = True
     armor_bypass: bool = False    # True ignores target armor DR entirely
     loot_droppable: bool = True   # False = organic/unwieldable, never drops
+    noise: int = 8                # hearing radius when fired (doc 48 SETTLED 17)
 
 
 # ---------------------------------------------------------------------------

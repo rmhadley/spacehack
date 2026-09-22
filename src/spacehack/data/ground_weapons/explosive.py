@@ -22,6 +22,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_type="grenade",
         price=480,
         tech_level=3,
+        noise=12,
     ),
     GroundWeaponSpec(
         id="rocket_launcher",
@@ -38,5 +39,6 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         reload_ap_cost=2,
         price=1100,
         tech_level=4,
+        noise=12,
     ),
 )

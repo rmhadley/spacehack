@@ -25,6 +25,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         tech_level=1,
         shop_available=False,
         loot_droppable=False,
+        noise=4,
     ),
     GroundWeaponSpec(
         id="drone_laser",
@@ -41,6 +42,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         tech_level=2,
         shop_available=False,
         loot_droppable=False,
+        noise=4,
     ),
     GroundWeaponSpec(
         id="frost_bolt",
@@ -57,6 +59,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         tech_level=2,
         shop_available=False,
         loot_droppable=False,
+        noise=5,
     ),
     GroundWeaponSpec(
         id="parasite_mandibles",
@@ -73,5 +76,6 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         tech_level=1,
         shop_available=False,
         loot_droppable=False,
+        noise=4,
     ),
 )

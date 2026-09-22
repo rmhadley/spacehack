@@ -21,6 +21,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         tech_level=1,
         shop_available=False,
         loot_droppable=False,
+        noise=1,
     ),
     GroundWeaponSpec(
         id="combat_knife",
@@ -35,6 +36,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=20,
         tech_level=1,
+        noise=1,
     ),
     GroundWeaponSpec(
         id="stun_baton",
@@ -49,6 +51,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=35,
         tech_level=2,
+        noise=2,
     ),
     GroundWeaponSpec(
         id="survival_axe",
@@ -63,6 +66,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=45,
         tech_level=1,
+        noise=2,
     ),
     GroundWeaponSpec(
         id="vibroblade",
@@ -77,6 +81,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=180,
         tech_level=3,
+        noise=2,
     ),
     GroundWeaponSpec(
         id="mono_blade",
@@ -92,6 +97,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=420,
         tech_level=4,
+        noise=2,
     ),
     GroundWeaponSpec(
         id="power_fist",
@@ -106,5 +112,6 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=560,
         tech_level=4,
+        noise=2,
     ),
 )

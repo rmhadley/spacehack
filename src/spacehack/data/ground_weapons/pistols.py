@@ -21,6 +21,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_type="energy_cell",
         price=50,
         tech_level=1,
+        noise=4,
     ),
     GroundWeaponSpec(
         id="kinetic_pistol",
@@ -36,6 +37,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_type="kinetic_pistol",
         price=35,
         tech_level=1,
+        noise=5,
     ),
     GroundWeaponSpec(
         id="smg",
@@ -51,6 +53,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_type="kinetic_pistol",
         price=120,
         tech_level=2,
+        noise=6,
     ),
     GroundWeaponSpec(
         id="laser_carbine",
@@ -66,5 +69,6 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_type="energy_cell",
         price=240,
         tech_level=3,
+        noise=4,
     ),
 )

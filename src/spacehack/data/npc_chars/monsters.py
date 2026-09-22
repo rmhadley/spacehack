@@ -22,7 +22,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=14,
         weapons=("monster_claws",),
         stat_weights=six_weights(0.30, 0.25, 0.30),
-        detect_radius=4,
         behavior="hunter",
         squad_size=(3, 5),        # swarmer — always hunts in packs
         always_hostile=True,
@@ -35,6 +34,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         ),
         loot_count=(1, 2),
         xp_reward=10,
+        ap=5,
     ),
     NpcCharSpec(
         id="sentry_drone",
@@ -45,7 +45,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=18,
         weapons=("drone_laser",),
         stat_weights=six_weights(0.40, 0.10, 0.35),
-        detect_radius=6,
         behavior="guard",         # holds position, fires at range
         squad_size=(1, 1),
         always_hostile=True,
@@ -74,7 +73,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=26,
         weapons=("monster_claws",),
         stat_weights=six_weights(0.10, 0.55, 0.20),
-        detect_radius=5,
         behavior="ambusher",      # holds still, bursts out on approach
         squad_size=(1, 2),
         always_hostile=True,
@@ -82,6 +80,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         loot_pool=("scrap_metal", "research_data"),
         loot_count=(1, 1),
         xp_reward=20,
+        ap=5,
     ),
     NpcCharSpec(
         id="dust_prowler",
@@ -92,7 +91,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=22,
         weapons=("monster_claws",),
         stat_weights=six_weights(0.35, 0.30, 0.20),
-        detect_radius=5,
         behavior="hunter",        # fast, aggressive single/duo hunter
         squad_size=(1, 2),
         always_hostile=True,
@@ -100,6 +98,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         loot_pool=("scrap_metal", "food_rations"),
         loot_count=(1, 2),
         xp_reward=18,
+        ap=6,
     ),
     NpcCharSpec(
         id="assault_drone",
@@ -110,7 +109,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=34,
         weapons=("monster_claws",),
         stat_weights=six_weights(0.10, 0.50, 0.25),
-        detect_radius=5,
         behavior="guard",         # armored bruiser — holds its post
         squad_size=(1, 1),
         always_hostile=True,
@@ -129,6 +127,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         ),
         loot_count=(1, 2),
         xp_reward=30,
+        ap=3,
     ),
     NpcCharSpec(
         id="frost_spitter",
@@ -143,7 +142,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "energy_cells"),
             ("consumable", "med_pack"),
         ),
-        detect_radius=6,
         behavior="hunter",        # ranged harasser, hunts in pairs/trios
         squad_size=(2, 3),
         always_hostile=True,
@@ -161,7 +159,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=16,
         weapons=("parasite_mandibles",),
         stat_weights=six_weights(0.35, 0.30, 0.20),
-        detect_radius=4,
         behavior="ambusher",      # lurks in derelicts, bursts out on approach
         squad_size=(2, 4),
         always_hostile=True,
@@ -169,5 +166,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         loot_pool=("scrap_metal", "research_data"),
         loot_count=(1, 1),
         xp_reward=15,
+        ap=5,
     ),
 )

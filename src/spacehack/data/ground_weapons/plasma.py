@@ -21,6 +21,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=220,
         tech_level=2,
+        noise=4,
     ),
     GroundWeaponSpec(
         id="plasma_rifle",
@@ -35,6 +36,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=520,
         tech_level=3,
+        noise=4,
     ),
     GroundWeaponSpec(
         id="plasma_caster",
@@ -49,5 +51,6 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         ammo_capacity=-1,
         price=980,
         tech_level=4,
+        noise=4,
     ),
 )

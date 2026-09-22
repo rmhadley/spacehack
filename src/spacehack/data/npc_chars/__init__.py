@@ -102,8 +102,10 @@ class NpcCharSpec:
             callout (brute, sniper); theater-uniform with ships.
         pin_window_top: take the tier window's ceiling tier outright
             (the sniper's top-rifle pin, SETTLED 35).
-        detect_radius: Chebyshev distance — triggers combat when player
-            enters range AND has line-of-sight.
+        ap: action points per combat round (doc 48 SETTLED 27) —
+            humans default 4; non-humans author the speed axis
+            (predators 5-6, armored anchors 3). Also the combat-time
+            movement budget for un-engaged entities (SETTLED 17).
         loot_pool: trade good ids the NPC may drop on death.
         equipment_loot_pool: optional ``(item_type, item_id)`` ground gear
             entries dropped on death.
@@ -134,7 +136,7 @@ class NpcCharSpec:
     stat_weights: tuple[float, ...] = ()
     elite: bool = False
     pin_window_top: bool = False
-    detect_radius: int = 4
+    ap: int = 4
     loot_pool: tuple[str, ...] = ()
     equipment_loot_pool: tuple[tuple[str, str], ...] = ()
     field_item_loot_pool: tuple[tuple[str, str], ...] = ()
