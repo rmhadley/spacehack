@@ -579,6 +579,39 @@ Rulings:
     at a noise instead of a disengagement.
 - This settles ladder item #4's design ahead of the walkthrough.
 
+## SETTLED 18 (2026-09-22) — guard-artillery + leash + range management (ladder #2)
+
+User, verbatim:
+
+> for 3 -- maybe this is for ladder 7, shouldn't enemies try to move
+> within their ideal range for the weapon they are using? I know
+> that's what I try to do as I fight them.
+> for 4. leash should maybe match max range of their current weapon?
+>
+> this is good. on to 3
+
+Rulings:
+
+- **Cell ownership:** drones carry ambient guard-artillery (sentry
+  band 1, assault bands 2-3 — the armored anchor); humanoid
+  guard-artillery lives in AUTHORED content — the consortium gunner
+  at corporate sites, the militia sniper as a guard (perched,
+  holds sightlines, precision — SETTLED 10's doctrine, minus the
+  chasing). Pirate stays three faces; no fourth face minted.
+- **The heavy is a slow hunter** (the slow-heavy-hunter cell): it
+  comes to you, ponderously.
+- **Leash = weapon max_range + 2**, derived per instance from the
+  rolled weapon — authority is reach plus reposition room; snipers
+  get big kingdoms, pistol guards small ones; the hardcoded 8 dies;
+  the just-outside-range dead zone (plink a short-gunned guard
+  forever with zero response) is designed out.
+- **Range management is the universal principle** (ladder #7's
+  settled shape, arrived early): enemies move to their weapon's
+  ideal band — too far, close; too close, back off; in band, hold
+  and fire. The mirror of player kiting ("I know that's what I try
+  to do as I fight them"). The hug-a-rifleman exploit is the missing
+  half, not a special case. Detail lands at ladder #7.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
