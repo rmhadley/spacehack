@@ -35,7 +35,7 @@ class DigLootSpec:
     # delves dish 2-stat randarts most of the time, band-3 delves
     # lean 4-stat. Weights index the (2, 3, 4) counts by band-1.
     legendary_axes_weights: tuple[tuple[int, int, int], ...] = (
-        (70, 25, 5), (40, 40, 20), (15, 35, 50),
+        (70, 25, 5), (40, 40, 20), (15, 35, 50), (5, 25, 70),
     )
     lockbox_rate: int = 6
     out_of_produce_rate: int = 4
@@ -77,6 +77,11 @@ TIER_EQUIPMENT_POOLS: dict[int, tuple[tuple[str, str], ...]] = {
         ("weapon", "vibroblade"), ("armor", "heavy_vest"),
         ("armor", "visor_helmet"), ("armor", "cybernetic_eyes"),
     ),
+    4: (
+        ("weapon", "railgun"), ("weapon", "plasma_caster"),
+        ("weapon", "mono_blade"), ("weapon", "power_fist"),
+        ("armor", "powered_vest"), ("armor", "assault_helmet"),
+    ),
 }
 
 # Default two-part site-name pools (SETTLED 33) — a planet without
@@ -105,8 +110,10 @@ TIER_POOLS: dict[int, tuple[tuple[str, ...], float]] = {
          "sentry_drone"), 1.0),
     2: (("pirate_raider", "pirate_rifleman", "pirate_rifleman",
          "assault_drone"), 1.4),
-    3: (("pirate_rifleman", "pirate_rifleman", "assault_drone",
+    3: (("pirate_rifleman", "pirate_brute", "assault_drone",
          "hull_parasite"), 1.8),
+    4: (("pirate_rifleman", "pirate_brute", "pirate_brute",
+         "assault_drone"), 2.2),
 }
 
 # The authored-room sprinkle (SETTLED 25/32): a seeded minority of
@@ -133,7 +140,10 @@ DOOR_RATES: dict[str, int] = {
 HUMANOID_PAD_DROPPERS: tuple[str, ...] = (
     "pirate_raider",
     "pirate_rifleman",
+    "pirate_brute",
     "consortium_enforcer",
     "consortium_gunner",
     "militia_trooper",
+    "militia_marine",
+    "militia_sniper",
 )

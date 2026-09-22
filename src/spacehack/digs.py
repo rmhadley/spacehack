@@ -219,8 +219,8 @@ def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Posi
 
 def _dig_tier(spec: PlanetSpec, floor: int) -> int:
     """Difficulty climbs with depth (SETTLED 38): tier + floor - 1,
-    inside populate's 1-3 band."""
-    return max(1, min(3, spec.mission_tier + floor - 1))
+    inside the band vocabulary's 1-4 (doc 48 SETTLED 14/35)."""
+    return max(1, min(4, spec.mission_tier + floor - 1))
 
 
 def _place_stairs_down(game_map: world.GameMap, spawn: world.Position) -> None:
@@ -339,8 +339,9 @@ def site_loot_rows(spec: PlanetSpec, floor: int, count: int, rng) -> list[tuple[
 
 
 def _site_tier(spec: PlanetSpec) -> int:
-    """The dig's equipment/difficulty band, clamped to the authored 1-3."""
-    return max(1, min(3, spec.mission_tier))
+    """The dig's equipment/difficulty band, clamped to the 1-4
+    vocabulary (doc 48 SETTLED 14 — band 4 unclamped)."""
+    return max(1, min(4, spec.mission_tier))
 
 
 def _goods_cache_payload(spec: PlanetSpec, goods_row: tuple[str, int]) -> dict:

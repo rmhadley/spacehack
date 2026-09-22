@@ -308,10 +308,12 @@ def test_stairs_down_never_lands_in_a_landmark(monkeypatch):
 
 
 def test_dig_tier_clamps_to_the_band():
+    """The floor climb caps at the vocabulary's band 4 (SETTLED 14/35)."""
     spec = find_planet_spec("mars")
     assert digs._dig_tier(dataclasses.replace(spec, mission_tier=1), 1) == 1
-    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=1), 5) == 3
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=1), 5) == 4
     assert digs._dig_tier(dataclasses.replace(spec, mission_tier=3), 1) == 3
+    assert digs._dig_tier(dataclasses.replace(spec, mission_tier=4), 5) == 4
     assert digs._dig_tier(dataclasses.replace(spec, mission_tier=0), 2) == 1
 
 
@@ -655,10 +657,22 @@ def test_dig_pools_resolve_and_feed_the_pad_door():
 
 
 def test_dig_pools_cover_all_bands():
+    """SETTLED 35 verbatim: four bands, the brute seats at 3-4, no
+    consortium id, densities 1.0/1.4/1.8/2.2."""
     from src.spacehack.data.digs import TIER_POOLS
-    assert set(TIER_POOLS) == {1, 2, 3}
-    combined = set().union(*(set(pool) for pool, _ in TIER_POOLS.values()))
-    assert len(combined) >= 5  # variety across the bands
+    assert set(TIER_POOLS) == {1, 2, 3, 4}
+    assert TIER_POOLS == {
+        1: (("pirate_raider", "pirate_raider", "militia_trooper",
+             "sentry_drone"), 1.0),
+        2: (("pirate_raider", "pirate_rifleman", "pirate_rifleman",
+             "assault_drone"), 1.4),
+        3: (("pirate_rifleman", "pirate_brute", "assault_drone",
+             "hull_parasite"), 1.8),
+        4: (("pirate_rifleman", "pirate_brute", "pirate_brute",
+             "assault_drone"), 2.2),
+    }
+    for pool, _density in TIER_POOLS.values():
+        assert not any("consortium" in eid for eid in pool)
 
 
 def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):

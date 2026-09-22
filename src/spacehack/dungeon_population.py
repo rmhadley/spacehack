@@ -14,6 +14,7 @@ _MONSTER_TIERS: tuple[tuple[float, int], ...] = (
     (1.0, 16),
     (1.4, 22),
     (1.8, 28),
+    (2.2, 34),
 )
 
 
