@@ -120,6 +120,94 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         xp_reward=35,
     ),
     NpcCharSpec(
+        # The band-3/4 heavy face (SETTLED 13/35): slow, explosive,
+        # strength/stamina-heavy and reflexes-poor — the slow-heavy-
+        # hunter matrix cell. Bold `R`: the family's serious case,
+        # elite-flagged (SETTLED 34/35).
+        id="pirate_brute",
+        name="Pirate Brute",
+        char="R",
+        fg=(220, 120, 80),       # pirate family rust (bold serious case)
+        faction="pirate",
+        hp=34,
+        weapon_families=("explosive",),  # grenade -> rocket as bands climb
+        stat_weights=six_weights(0.10, 0.50, 0.25),
+        detect_radius=4,
+        behavior="hunter",       # it comes to you, ponderously
+        squad_size=(1, 2),
+        elite=True,
+        tier=3,
+        armor=2,
+        loot_pool=("machine_parts", "fuel_cells", "scrap_metal"),
+        equipment_loot_pool=(
+            ("armor", "heavy_vest"),
+            ("armor", "visor_helmet"),
+        ),
+        field_item_loot_pool=(
+            ("ammo", "rockets"),
+            ("consumable", "stim"),
+        ),
+        loot_count=(1, 2),
+        xp_reward=45,
+    ),
+    NpcCharSpec(
+        # The strike-crew face (SETTLED 10/13): organized, well
+        # equipped, fights as a unit — squad_size carries the pack
+        # feel until the tactics wave (phase 5).
+        id="militia_marine",
+        name="Militia Marine",
+        char="M",                # militia family serious case
+        fg=(100, 200, 255),      # militia family blue (matches the fleet)
+        faction="militia",
+        hp=28,
+        weapon_families=("rifles", "pistols"),
+        stat_weights=six_weights(0.35, 0.30, 0.20),
+        detect_radius=5,
+        behavior="hunter",
+        squad_size=(2, 3),
+        tier=2,
+        armor=1,
+        loot_pool=("machine_parts",),
+        equipment_loot_pool=(
+            ("armor", "reinforced_gauntlets"),
+            ("weapon", "stun_baton"),
+        ),
+        field_item_loot_pool=(
+            ("ammo", "rifle_rounds"),
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(1, 1),
+        xp_reward=30,
+    ),
+    NpcCharSpec(
+        # The heavy-hitting precision row (SETTLED 10/18): a perched
+        # guard that holds sightlines — precision, not the pirate
+        # heavy's explosive profile. Bold `M`; rifles PINNED to the
+        # window's top (SETTLED 35: the railgun at band 4 is the
+        # precision payoff).
+        id="militia_sniper",
+        name="Militia Sniper",
+        char="M",
+        fg=(100, 200, 255),      # militia family blue (bold serious case)
+        faction="militia",
+        hp=24,
+        weapon_families=("rifles",),
+        pin_window_top=True,
+        stat_weights=six_weights(0.60, 0.10, 0.15),
+        detect_radius=7,
+        behavior="guard",        # perched — holds the sightline, no chase
+        squad_size=(1, 1),
+        elite=True,
+        tier=4,
+        armor=1,
+        loot_pool=("machine_parts", "electronics"),
+        field_item_loot_pool=(
+            ("ammo", "rifle_rounds"),
+        ),
+        loot_count=(1, 1),
+        xp_reward=40,
+    ),
+    NpcCharSpec(
         id="civilian_bystander",
         name="Civilian Bystander",
         char="c",
@@ -137,7 +225,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
     NpcCharSpec(
         id="militia_trooper",
         name="Militia Trooper",
-        char="M",                # re-cases to `m` at phase 4 with the marine
+        char="m",                # militia family common case (SETTLED 34/35)
         fg=(100, 200, 255),      # militia family blue (matches the fleet)
         faction="militia",
         hp=26,

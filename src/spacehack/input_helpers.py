@@ -427,6 +427,16 @@ def _is_shift_m_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'M')
 
+def _is_shift_v_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+V.
+
+    Dev-mode only (``SPACEHACK_DEV``): spawns the phase-4 faces
+    (brute/marine/sniper) beside the player (doc 48 phase 4) — the
+    checklist instrument for rows with no ambient consumer yet.
+    """
+    return _is_shift_press(event, 'V')
+
+
 def _is_shift_y_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+Y.
 

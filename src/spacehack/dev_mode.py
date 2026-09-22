@@ -530,6 +530,38 @@ def log_rumor_routing(ctx) -> None:
     )
 
 
+def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
+    """Shift+V: spawn the doc-48 phase-4 faces beside the player.
+
+    The brute/marine/sniper have no ambient consumer until the crew
+    decks re-author (phase 6) — this is the playtest's only window
+    onto them. Stamps band 3 so the numbers read mid-ladder.
+    """
+    from .dungeon_population import _scatter_squad
+    from .data.npc_chars import find_npc_char
+
+    cells = [
+        (dx, dy)
+        for dy in range(-2, 3)
+        for dx in range(-2, 3)
+        if (dx or dy)
+        and game_map.in_bounds(player_pos.x + dx, player_pos.y + dy)
+        and game_map.tiles[player_pos.y + dy][player_pos.x + dx].walkable
+    ][:6]
+    placed = 0
+    for spec_id in ("pirate_brute", "militia_marine", "militia_sniper"):
+        spec = find_npc_char(spec_id)
+        placed += _scatter_squad(
+            game_map.entities,
+            {(e.pos.x, e.pos.y) for e in game_map.entities},
+            enemy_id=spec_id, cells=cells[:2], count=1,
+            squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
+            band=3, bold=spec.elite,
+        )
+    ctx.log.add(f"[DEV] Spawned {placed} phase-4 faces at band 3.")
+    return placed
+
+
 def apply_dev_tinker_kit(ctx) -> None:
     """Shift+Y: grant a full tinker-kit stack (doc 47 phase 5).
 

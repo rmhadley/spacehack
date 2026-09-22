@@ -102,11 +102,14 @@ def test_ground_family_members_exist():
 
 
 def test_ground_context_glyph_color_pairs_unique():
-    pairs: dict[tuple[str, tuple[int, int, int]], str] = {}
+    # SETTLED 35: the identity key is (char, fg, elite) — a bold
+    # variant of a family letter never collides with its plain case
+    # (the brute vs the rifleman, the sniper vs the marine).
+    pairs: dict[tuple[str, tuple[int, int, int], bool], str] = {}
     for spec in list_npc_chars():
         if not _hostile_capable(spec):
             continue
-        key = (spec.char, spec.fg)
+        key = (spec.char, spec.fg, spec.elite)
         assert key not in pairs, (
             f"{spec.id} and {pairs[key]} share identity {key} "
             "in the ground context"
@@ -208,6 +211,49 @@ def _entity_commands(entity: world.Entity):
 def test_flagship_specs_carry_elite():
     elite = {spec.id for spec in list_npc_ships() if spec.elite}
     assert elite == {"pirate_captain", "pirate_warlord"}
+
+
+def test_ground_elite_specs_carry_elite():
+    # SETTLED 34/35: the brute and the sniper are the named wearers.
+    elite = {
+        spec.id for spec in list_npc_chars() if spec.elite
+    }
+    assert elite == {"pirate_brute", "militia_sniper"}
+
+
+def _ground_entity(spec_id: str) -> world.Entity:
+    """Build through the REAL squad factory so a dropped `bold=`
+    at any ground construction site fails this test, not a playtest."""
+    from src.spacehack.data.npc_chars import find_npc_char
+    from src.spacehack.dungeon_population import _scatter_squad
+
+    spec = find_npc_char(spec_id)
+    entities: list = []
+    _scatter_squad(
+        entities, set(),
+        enemy_id=spec_id, cells=[(1, 1)], count=1,
+        squad_id="lint_squad", char=spec.char, fg=spec.fg,
+        band=3, bold=spec.elite,
+    )
+    return entities[0]
+
+
+def test_elite_ground_entity_renders_bold_command():
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    for spec_id in ("pirate_brute", "militia_sniper"):
+        commands = _entity_commands(_ground_entity(spec_id))
+        glyph = find_npc_char(spec_id).char
+        entity_commands = [c for c in commands if c.char == glyph]
+        assert entity_commands and all(c.bold for c in entity_commands), (
+            f"{spec_id} must render its glyph bold"
+        )
+
+
+def test_normal_ground_entity_renders_plain_command():
+    commands = _entity_commands(_ground_entity("militia_marine"))
+    entity_commands = [c for c in commands if c.char == "M"]
+    assert entity_commands and not any(c.bold for c in entity_commands)
 
 
 def test_elite_entity_renders_bold_command():
