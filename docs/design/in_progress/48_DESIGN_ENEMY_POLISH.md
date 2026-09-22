@@ -472,17 +472,102 @@ Rulings:
   skill points distribute by the same math players use. Level-per-
   band mapping + distribution shape = brief-time (needs the player
   progression curves as input).
-- **Wiring state (verified same day):** ground stats ARE live —
-  enemy reflexes feed hit math (`_rules_ground.py:378,393`), strength
-  feeds damage (`_ai_ground.py:182`), `stamina//3` feeds HP
-  (`_rules_ground.py:191`). Pilot skills are NOT —
-  `pilot_gunnery/piloting/engineering` exist only in `data/npc_ships`
-  with zero combat consumers. **Wiring pilot skills into space
-  combat at parity with player formulas is a doctrine-level build
-  item** ("an ace pirate pilot should have a high piloting skill just
-  like an ace player pilot").
+- **Wiring state (verified same day; corrected by the tactics audit
+  below):** ground stats ARE live — enemy reflexes feed hit math
+  (`_rules_ground.py:378,393`), strength feeds damage
+  (`_ai_ground.py:182`), `stamina//3` feeds HP
+  (`_rules_ground.py:191`). **Pilot skills are ALSO wired** — the
+  audit corrected an earlier truncated-grep claim ("no consumers"
+  read from a cut-off result list): `_build_enemy`
+  (`combat/_stats.py:275-279`) folds all three into live math —
+  gunnery (+`ai_accuracy_bonus`) into `calc_hit_chance`
+  (`_stats.py:144-180`); piloting (+`ai_dodge_bonus`) into defender
+  dodge, the damage-quality glancing floor, AND enemy AP per round
+  (`(60+piloting)/20`, `_stats.py:87-105`); engineering into
+  `max_power` (its regen discount inert — enemy `shield_regen_rate`
+  pinned 0). The ace pilot is already real: `deep.py`'s warlord
+  piloting=38 buys AP, dodge, and glancing reduction. What REMAINS
+  of the mirroring work: skills are hand-authored constants, not
+  level-derived (the band→effective-level mapping above), and enemy
+  resource ledgers are cosmetic (no ammo/power spent, never
+  reloads).
 - Scaling-eligible: pirate + militia faces. Merchant crew and
   bystanders exempt (SETTLED 7, Q21).
+
+## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
+
+**Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
+and the differences live mostly OUT of combat — hunter patrols,
+guard holds a persisted post, ambusher is stationary with a
+"bursts out" log line. IN combat one universal loop serves everyone
+(`combat/_ai_ground.py:65-104`): fire if in range+LOS (max one shot
+per turn), else A* one tile toward the player — pursuit is
+omniscient (paths to the live position; LOS only gates firing).
+Guards alone branch, via the leash (chase only within 8 of post).
+
+- **Last-known-position memory EXISTS, out-of-combat only**: stamped
+  at disengage (`on_disengage`, `_rules_ground.py:933-943`) so
+  survivors investigate where the fight broke; hunters then path to
+  the remembered cell for 5 ticks (`ground_npcs.py:229-282`). No
+  IN-combat memory — mid-fight the AI reads the live position.
+- **Aggro = the player's own vision** (`_encounter.py:336-347`,
+  sight_radius 8, symmetric by design); NO propagation — one
+  alerted enemy alerts nobody; `noise_hostiles` is a wired EMPTY
+  stub, the single OR-in seam for gunfire-drawn mobs
+  (`_encounter.py:244-265`). `detect_radius` on NpcCharSpec is DEAD
+  data (no consumer).
+- **Squads move together only out of combat** (`_move_squad`); in
+  combat every enemy runs the independent loop. Pack feel is
+  emergent bodies, not coordination.
+- **AP hardcoded 4 for every enemy** (`_rules_ground.py:204`); one
+  shot/turn; infinite ammo, never reloads (the player's reload
+  economy has no enemy mirror). No trait verbs exist on enemies
+  (charger/deadshot are player-only).
+- **Live exploit:** an enemy inside its own weapon `min_range` can
+  neither fire nor retreat — hugging a kinetic rifleman (min 2)
+  shuts him down completely.
+- No cover/chokepoint/door logic in AI; movement is plain A*.
+
+**Space AI:** per-enemy loop (`combat/_ai.py:80-113`): advance while
+beyond `ai_preferred_range` or no LOS, else fire — multi-fire and
+move+fire mix allowed; first weapon only; fights run to destruction.
+`ai_preferred_range` (0-4) is the ONLY behavioral differentiator
+between specs. `ai_aggressiveness`/`ai_flee_threshold`/`comms_range`
+confirmed dead. Pilot skills fully wired (SETTLED 15 correction);
+enemy power/ammo ledgers cosmetic. Squad trigger IS collective
+space-side (any member's detection pulls the wing;
+`navigation_combat.py:125-130`); in combat, zero coordination — one
+target, each ship independently closes.
+
+**The proposal seeds (each tagged BUILT = data-only today /
+CHEAP = primitive exists, needs wiring / NEW = new mechanics):**
+
+1. BUILT — band pack-composition pressure (already v1, SETTLED 14).
+2. BUILT — guard-artillery faces: guard + long rifle holds a room at
+   8 tiles, leash guarantees no chase (band 2+).
+3. BUILT — space brawler (preferred_range 1 + high piloting + short
+   heavy gun) and artillery (preferred_range = weapon max) as pure
+   data on the live loop.
+4. CHEAP — noise aggro: fill the `noise_hostiles` stub; gunfire
+   draws mobs within a band-scaled radius. Converts squad linkage
+   from none to gunfire-mediated; loud fights snowball.
+5. CHEAP — revive `ai_aggressiveness` as per-AP attack-vs-reposition
+   (~10 lines in `_take_enemy_turn`): juking ships. NOTE: this is
+   doc-34 territory (space behavior verbs) — boundary call.
+6. CHEAP — in-combat last-seen memory: stamp the existing primitive
+   on LOS loss and chase the memory, not the live position.
+   Band-independent fairness change — breaking LOS starts working.
+7. NEW — ranged back-off step (step toward max_range when target
+   inside min/half-range): fixes the inert-rifleman exploit AND
+   mints skirmishers. Small.
+8. NEW — per-spec ground AP field (fast predators 6 AP, bruisers 3):
+   trivial diff. Space flee is NOT cheap (combat runs to victory;
+   no disengage machinery) — stays out with doc 34.
+
+**Audit flags:** door walkability for enemy A* unverified; the
+gunner's inline comment cites "doc 34" for the ground behavior
+matrix but the ground rule lives in doc 35 §8 (comment mislabel);
+enemy power regens with no spender found.
 
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
@@ -639,11 +724,12 @@ with doctrinal 10-13):
 20. ~~Site scope~~ ANSWERED — SETTLED 14: one resolver at every
     spawn; authored ENEMY: markers fixed.
 21. ~~Bystanders~~ ANSWERED — SETTLED 14: exempt.
-22. Band-scaled tactics: honest mechanics look IN FLIGHT (audit
-    dispatched 2026-09-22 — ground AI primitives incl. last-known-
-    position memory, space loop + dead AI fields, pilot-skill wiring,
-    player-side mirrors); v1 = pool composition + squad shape until
-    its proposals land.
+22. Band-scaled tactics: audit LANDED (the tactical mechanics
+    audit above). v1 = pool composition + squad shape (SETTLED 14);
+   the CHEAP/NEW ladder (noise aggro, in-combat last-seen,
+   aggressiveness juke, back-off step, per-spec AP) presented for
+   ruling — aggressiveness and space-flee carry the doc-34 boundary
+   call.
 
 ## Phases
 
