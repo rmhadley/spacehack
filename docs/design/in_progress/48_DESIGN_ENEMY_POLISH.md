@@ -1801,6 +1801,30 @@ gunner `e` now rather than phase 11. Every value is a single-point
 data edit and the lint re-checks on every gate run — no blocking
 fork remains.
 
+**Playtest rulings (2026-09-22, mid-checkpoint):**
+
+- **Militia teal → BLUE (100,200,255); consortium → navy
+  (90,120,200).** User: "militia color and merchant color are very
+  very close to each other... especially when the ship has the blue
+  shield around it, it really stands out as merchant green." Teal
+  was hue-adjacent to merchant green despite passing the ≥60 lint,
+  and the cyan shield ring (80,210,255) compounded it. Militia
+  reads true blue now (militia↔merchant 115, blue-vs-green hue
+  split); consortium vacated the blue middle (any militia blue
+  collides with the old corporate (120,160,220)) — militia↔
+  consortium 80. Landed c60fb3a2.
+- **Freighter re-lettered `F` → `B`; frigate keeps `F`.** User
+  (after reading a Merchant Caravan's `F` and double-checking):
+  "we need a new glyph for freighter's. I like F for frigate."
+  Supersedes the brief's F-pair lean (shipyard knowledge loss
+  accepted by this ruling). `B`: chunky bulk read, uppercase
+  capital-ship convention, free of every space-map letter (Mars
+  `M`, Jupiter `J`, Saturn `S`, stations `^`, gates `>`/`<`,
+  planets `p/P/O/o`) and the ground-hostile set — cross-registry
+  pin stays {s}. Hull catalog + 3 freighter-hulled specs
+  (derelict_freighter, merchant_freighter, merchant_caravan); the
+  hull-pin lint carried the change.
+
 **Build order:** ship char/color data + lint ship rule → ground
 families + `E`/`e` + lint family/separation/pin → bold wiring
 (`elite` field → `Entity.bold` at every construction site →
