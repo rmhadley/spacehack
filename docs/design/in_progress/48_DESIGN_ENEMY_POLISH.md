@@ -908,6 +908,36 @@ Rulings:
 - Topic F CLOSED. Names, row shapes, biome→planet wiring at brief
   time.
 
+## SETTLED 31 (2026-09-22) — ship class ladders + themed modules (topic G CLOSED)
+
+User, verbatim:
+
+> Ladders sound good for first pass. consortium -- yes, nothing
+> wild. two ships. one has to be a frigate class hull.
+
+Rulings:
+
+- **First-pass ladders confirmed:** pirate three classes over six
+  specs (interceptor: scout + hound; line: raider + marauder;
+  flagship: captain + warlord — pairs within a class differ by
+  band/loadout, not role); militia's weight ladder (picket +
+  light/standard/heavy patrol — pickets hold, heavies brawl);
+  merchant's wealth ladder (cargo + armament + the droid dial —
+  classes say how rich, not how scary).
+- **Consortium fleet: two ships, one a frigate hull** ("nothing
+  wild"). Frigate = the hunt's anchor/heavy; the second is the
+  pursuit hunter (hull lean: cruiser — distinct from pirate scouts;
+  brief-time call). Names PROSE GATE; more ships only when the
+  hunt's full design demands them — two silhouettes stay
+  unmistakable.
+- **Themed modules confirmed** (the original seed addendum): pirates
+  fly smuggler holds, merchants fly cargo holds + trade modules,
+  militia fly military suites (largely already true), consortium
+  flies top-quality everything (high-quality rolls — even their
+  ships are loot). Data on the existing `modules=` field; the 47.3
+  capture strip makes it capturable loot with zero new mechanics.
+- Topic G CLOSED.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1121,10 +1151,11 @@ draw from C's row catalogs) → D → E → F → G → B.
   gets a native pool; fauna join the band system; one prose-gated
   apex per biome guarding delve-bottom legendaries; always_hostile
   stands.
-- **G. Ship progression** — value 4: identifiable class ladders per
-  spacefaring faction; themed modules per hull (the 2026-09-20 seed
-  addendum folds in here — capture strips whatever the spec flies, so
-  authored modules become capturable loot with zero new mechanics).
+- **G. Ship progression** — CLOSED (SETTLED 31): first-pass ladders
+  confirmed; consortium = two ships, one a frigate hull; themed
+  modules (smuggler/cargo/military/top-quality) capturable via 47.3
+  (the 2026-09-20 seed addendum: capture strips whatever the spec
+  flies).
 
 ## Later-phase topics (user, 2026-09-22, verbatim)
 
