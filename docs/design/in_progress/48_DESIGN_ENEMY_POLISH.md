@@ -1320,16 +1320,17 @@ with doctrinal 10-13):
 - [x] 1. **Doctrine** — CLOSED 2026-09-22: all seven topics settled
   (SETTLED 1-32); audits landed (ecosystem, tactics, space-systems);
   doc 34 folded; doc 43 handoff recorded.
-- [ ] 2. **Faction mechanics & coherence** — consortium real:
+- [x] 2. **Faction mechanics & coherence** — consortium real:
   tables, hidden axis v1 (start −100, movers-only, log-suppressed,
   per-sheet), save migration, re-tags, the two-id pool de-list +
   substitution (keeps SETTLED 12 true in-window), militia crime +
   guild re-key, the full civilian-retirement blast radius. Brief
-  below (PROPOSED v2). BUILT 2026-09-22 (f5c3448a mechanics+re-tags,
+  below (APPROVED v2). LANDED 2026-09-22 (f5c3448a mechanics+re-tags,
   341c408b save migration, 0cbc03e1 sweep; reviewer APPROVE, four
   minors folded — clamp-test silence assert, load-path migration
-  test, accidental bool() wrap reverted, fixture docstring) —
-  awaiting playtest.
+  test, accidental bool() wrap reverted, fixture docstring).
+  PLAYTEST PASSED 2026-09-22 (user: "Phase 2 is good") — SYSTEMS.md
+  audited same commit.
 - [ ] 3. **Identity & cleanup** — glyph/color families + the
   collision lint (same-context hard rule, cross-registry warning),
   enforcer glyph de-collision (`E` proposed), `civillian` rename +

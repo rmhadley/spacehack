@@ -34,7 +34,7 @@ nobody designs against a ghost.
   `buy_transponder_cutout`; `npc.py`: `_cutout_offer`). LOAD
   INVARIANT: a save without a cut-out never loads dark — a legacy
   dark save restores live with a log line
-  (`saveload.py`: `_restore_quest_and_tutorial`). Storefront split
+  (`saveload.py`: `_restore_identity_layer`). Storefront split
   is deliberate: scrub at Deadfall's broker only, cut-out at
   Ember's tech only.
 - **The one read resolver** — every reader pulls the broadcasting
@@ -51,11 +51,34 @@ nobody designs against a ghost.
   negatives uncapped (`faction.py`: `_soft_cap_delta`).
 - **Attitude zones** — enemy ≤ −76, disliked ≤ −26, neutral ≤ +25,
   liked ≤ +75, allied ≥ +76 (`faction.get_attitude`).
-- **Starting rep** — `_DEFAULT_REP` pirate −100 (enemy — why early
-  pirates attack), militia +50, merchant/civilian 0; species adj
-  (martian: militia +10, pirate −10) + class tables; clamped
-  [−100, 100] (`faction.py`: `starting_reputation`, `_SPECIES_REP`,
-  `_CLASS_REP`).
+- **Starting rep** — four axes (doc 48 phase 2): `_DEFAULT_REP`
+  pirate −100 (enemy — why early pirates attack), militia +50,
+  merchant 0, consortium −100 (hidden); species adj (martian:
+  militia +10, pirate −10) + class tables; clamped [−100, 100]
+  (`faction.py`: `starting_reputation`, `_SPECIES_REP`,
+  `_CLASS_REP`). Civilian is RETIRED as an axis (doc 48 SETTLED 8 —
+  rep requires an organization); the bystander's `civilian` tag
+  survives only as a kill-delta accounting key.
+- **Hidden axis (doc 48 phase 2)** — `HIDDEN_FACTIONS =
+  {"consortium"}`: state that renders NOWHERE — no standings row
+  (`pygame_faction._faction_rows` filters it) and no rep-delta log
+  line (the write lands, `_apply_rep_delta` returns before the log
+  build — every mover funnels there). Movers v1: killing
+  consortium-tagged specs (kill row: consortium −3, pirate +1 — the
+  pirate component still logs) and a −1 ripple per merchant-ship
+  kill beside the `merchant_kills` counter, space path only (booked
+  boardings included; ground merchant-crew kills are the direct
+  mover's job). Gates nothing; decays uniformly with the monthly
+  pass.
+- **Civilian retirement blast radius (doc 48 phase 2)** — the
+  bystander kill row is the honest-folk crime ledger
+  `{"militia": −2}` (militia notices crime); the merchant kill row
+  carries the same militia −2 (piracy is crime); guild pay re-keys
+  civilian → merchant (`guild_to_faction` lab/depot/fallback);
+  save migration drops civilian from BOTH rep stores and seeds an
+  absent consortium at −100 on the true sheet only (worn sheets
+  stay blank paper — absent keys read neutral; `saveload.py`:
+  `_sanitize_rep_sheet`, `_migrate_worn_sheet`).
 - **Rep delta sources** — per-mission-type, per-kill-by-victim-
   faction, and unprovoked-attack tables (`faction.py`:
   `_MISSION_REP_DELTAS`, `_COMBAT_KILL_DELTAS`,
