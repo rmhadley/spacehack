@@ -1221,6 +1221,26 @@ def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch)
     assert _rules_ground.player_ap(_ctx) == 1
 
 
+def test_explosive_blast_emits_noise_at_the_impact_cell():
+    """The blast event stamps hearers at the impact cell — where it
+    LANDED, not where it was fired (doc 48 SETTLED 17/22)."""
+    _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
+    _hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(8, 8),
+        npc_char_id="dust_prowler",
+    )
+    _game_map.entities.append(_hunter)
+    _instance = _rules_ground.get_enemies(_ctx)[0]
+
+    _rules_ground.explosive_blast("rocket_launcher", _instance, _ctx)
+
+    # The impact cell is the primary's position (3,5) — a blast at the
+    # shooter (3,3) would stamp a different goal.
+    assert _hunter.last_seen_pos == world.Position(3, 5)
+    # Engaged combatants (the blast victims) ignore noise entirely.
+    assert _primary.last_seen_pos is None
+
+
 def test_ground_balance_roles_keep_explosives_burstier_than_infinite_plasma():
     """Catalog guardrails for the first hybrid-ammo balance pass."""
     from src.spacehack.data.ground_weapons import find_ground_weapon
@@ -1272,11 +1292,24 @@ def test_can_fire_blocks_empty_magazine():
 
 
 def test_consume_shot_decrements_loaded_ammo():
-    _ctx = SimpleNamespace(
-        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
-    )
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 5)
     _rules_ground.consume_shot(0, _ctx)
     assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 4)]
+
+
+def test_consume_shot_emits_the_firing_report():
+    """The accepted shot is heard: an un-engaged hostile within the
+    weapon's noise radius gains an investigation goal at the player's
+    cell (doc 48 SETTLED 17/22)."""
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 5)
+    _hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(6, 6),
+        npc_char_id="dust_prowler",
+    )
+    _game_map.entities.append(_hunter)
+    _rules_ground.consume_shot(0, _ctx)
+    assert _hunter.last_seen_pos == _ctx.player.pos  # radius 5 reaches (6,6)
+    assert _enemy.last_seen_pos is None  # engaged entities ignore noise
 
 
 def test_reload_weapon_fills_magazine_and_charges_ap():

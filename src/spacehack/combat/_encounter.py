@@ -246,30 +246,6 @@ async def _handle_combat_encounter(ctx, console, encounter) -> str:
     return _cr.outcome
 
 
-def noise_hostiles(
-    ctx,
-    game_map,
-    player_pos,
-    radius: int,
-) -> list:
-    """Hostiles drawn by gunfire/sound — the future noise seam (stub).
-
-    v1 is pure LOS (design doc 12, decision #3): noise is deferred, so
-    this stub returns an empty list. It exists to prove the seam:
-    ``visible_hostiles`` ORs this in, and because the combat trigger,
-    the mid-fight join scan, and the end-of-combat check all call
-    ``visible_hostiles``, a real noise scan can be added here later
-    with ZERO changes to those consumers — the single OR-in point.
-
-    The args are the seam contract — deliberately unused today, but
-    already wired: the player's position is the shot origin and
-    ``radius`` is the hearing range. When noise lands, only this
-    function's body (and optionally the call in
-    ``visible_hostiles``) changes; nothing else in combat reads it.
-    """
-    return []
-
-
 def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
     """Hostile map entities within ``radius`` that the player can see.
 
@@ -326,16 +302,12 @@ def visible_hostiles(
     The single player-LOS aggro predicate (design doc 12) shared by the
     combat trigger, the mid-fight join scan, and the end-of-combat
     check. Side-effect free: no squad linkage, no assist radius, no
-    auto-reveal — the fight is exactly what the player sees. The noise
-    seam (decision #3) ORs in here; ``noise_hostiles`` is the only
-    additional source of hostiles, so future gunfire-drawn mobs need
-    no consumer changes.
+    auto-reveal — the fight is exactly what the player sees. Noise
+    never ORs in here (doc 48 SETTLED 36): heard entities investigate
+    via :mod:`spacehack.noise` and reach combat only through this LOS
+    scan — heard is never combatant.
     """
-    _result = _visible_hostile_entities(ctx, game_map, player_pos, radius)
-    # Noise seam: mobs drawn by gunfire OR into the visible set here.
-    # Empty stub in v1 — the single OR-in point for the future system.
-    _result.extend(noise_hostiles(ctx, game_map, player_pos, radius))
-    return _result
+    return _visible_hostile_entities(ctx, game_map, player_pos, radius)
 
 
 def detect_ground_combat(

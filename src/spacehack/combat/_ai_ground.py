@@ -126,7 +126,14 @@ async def _try_ground_fire(
         player_pos.x, player_pos.y,
     ):
         return None  # can't shoot through walls — caller moves instead
+    from .. import noise
 
+    # Firing report at the shooter (SETTLED 22, symmetric): third
+    # parties converge on the fight — enemy fire never logs the
+    # player-facing reaction line.
+    noise.emit(
+        ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
+    )
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
         enemy_weapon_quality,

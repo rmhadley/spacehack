@@ -1,4 +1,5 @@
-"""Tests for selective last-seen pursuit by ground NPCs."""
+"""Tests for ground NPC investigation goals and patrol movement
+(doc 48 SETTLED 37: goal-based pursuit — no tick memory)."""
 
 from __future__ import annotations
 from tests.support.asyncutil import run
@@ -34,6 +35,7 @@ def test_hunter_pursues_remembered_player_cell(monkeypatch):
         npc_char_id="dust_prowler",
     )
     game_map = _floor_map(player, hunter)
+    game_map.tiles[2][4] = world.DUNGEON_WALL  # goal out of sight
     ctx = SimpleNamespace(player=player, faction_reputation={})
 
     assert ground_npcs.remember_last_seen([hunter], player.pos) == 1
@@ -42,8 +44,8 @@ def test_hunter_pursues_remembered_player_cell(monkeypatch):
 
     ground_npcs.move_ground_npcs(ctx, game_map)
 
-    assert hunter.pos.x > 2
-    assert hunter.last_seen_ticks == 4
+    assert hunter.pos != world.Position(2, 2)  # stepped around the wall
+    assert hunter.last_seen_pos == player.pos  # goal persists (no decay)
 
 
 def test_move_ground_npcs_skips_combat_locked_entities(monkeypatch):
@@ -76,6 +78,7 @@ def test_active_pursuit_bypasses_normal_move_roll(monkeypatch):
         npc_char_id="dust_prowler",
     )
     game_map = _floor_map(player, hunter)
+    game_map.tiles[2][4] = world.DUNGEON_WALL  # goal out of sight
     ctx = SimpleNamespace(player=player, faction_reputation={})
     ground_npcs.remember_last_seen([hunter], player.pos)
     monkeypatch.setattr(ground_npcs, "_MOVE_CHANCE", 0.0)
@@ -83,8 +86,8 @@ def test_active_pursuit_bypasses_normal_move_roll(monkeypatch):
 
     ground_npcs.move_ground_npcs(ctx, game_map)
 
-    assert hunter.pos.x > 2
-    assert hunter.last_seen_ticks == 4
+    assert hunter.pos != world.Position(2, 2)
+    assert hunter.last_seen_pos == player.pos
 
 
 def test_unknown_npcs_do_not_receive_unconsumed_memory():
@@ -97,10 +100,9 @@ def test_unknown_npcs_do_not_receive_unconsumed_memory():
         [unknown], world.Position(7, 2),
     ) == 0
     assert unknown.last_seen_pos is None
-    assert unknown.last_seen_ticks == 0
 
 
-def test_only_hunters_receive_last_seen_memory():
+def test_only_hunters_receive_goals_by_default():
     player_pos = world.Position(7, 2)
     hunter = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2),
@@ -119,14 +121,11 @@ def test_only_hunters_receive_last_seen_memory():
         [hunter, guard, ambusher], player_pos,
     ) == 1
     assert hunter.last_seen_pos == player_pos
-    assert hunter.last_seen_ticks == 5
     assert guard.last_seen_pos is None
-    assert guard.last_seen_ticks == 0
     assert ambusher.last_seen_pos is None
-    assert ambusher.last_seen_ticks == 0
 
 
-def test_blocked_pursuit_still_expires():
+def test_unreachable_goal_gives_up():
     game_map = _floor_map()
     for _x, _y in (
         (1, 1), (2, 1), (3, 1),
@@ -139,34 +138,43 @@ def test_blocked_pursuit_still_expires():
         npc_char_id="dust_prowler",
     )
     hunter.last_seen_pos = world.Position(7, 2)
-    hunter.last_seen_ticks = 1
     game_map.entities.append(hunter)
 
-    ground_npcs._move_toward_last_seen(hunter, game_map)
+    assert not ground_npcs._investigate_step(hunter, game_map)
 
     assert hunter.pos == world.Position(2, 2)
     assert hunter.last_seen_pos is None
-    assert hunter.last_seen_ticks == 0
 
 
-def test_pursuit_memory_clears_when_expired_or_reached():
+def test_goal_completes_when_los_on_goal():
+    """Open floor: the hunter already holds LOS on the goal cell — the
+    investigation completes without a step (SETTLED 37)."""
     game_map = _floor_map()
     hunter = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2),
         npc_char_id="dust_prowler",
     )
     hunter.last_seen_pos = world.Position(7, 2)
-    hunter.last_seen_ticks = 1
 
-    assert ground_npcs._move_toward_last_seen(hunter, game_map)
+    assert not ground_npcs._investigate_step(hunter, game_map)
+    assert hunter.pos == world.Position(2, 2)
     assert hunter.last_seen_pos is None
-    assert hunter.last_seen_ticks == 0
 
-    hunter.last_seen_pos = world.Position(hunter.pos.x, hunter.pos.y)
-    hunter.last_seen_ticks = 3
-    assert not ground_npcs._move_toward_last_seen(hunter, game_map)
-    assert hunter.last_seen_pos is None
-    assert hunter.last_seen_ticks == 0
+
+def test_goal_steps_until_los_then_clears():
+    """A wall blocks direct LOS but not the path: the hunter steps
+    around it and the goal holds until LOS opens."""
+    game_map = _floor_map()
+    game_map.tiles[2][4] = world.DUNGEON_WALL
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    hunter.last_seen_pos = world.Position(7, 2)
+
+    assert ground_npcs._investigate_step(hunter, game_map)
+    assert hunter.last_seen_pos == world.Position(7, 2)
+    assert hunter.pos != world.Position(2, 2)
 
 
 def test_disengagement_stamps_surviving_hunter():
@@ -186,7 +194,6 @@ def test_disengagement_stamps_surviving_hunter():
         _rules_ground.on_disengage(ctx, game_map)
 
         assert hunter.last_seen_pos == player.pos
-        assert hunter.last_seen_ticks == 5
     finally:
         _rules_ground._state = _old_state
 
@@ -331,23 +338,23 @@ def test_invalid_pursuit_memory_is_ignored_on_dungeon_load():
         "y": 2,
         "npc_char_id": "dust_prowler",
         "last_seen_pos": ["bad", 2],
-        "last_seen_ticks": "bad",
     }]
 
     restored, _ = saveload._dungeon_from_dict(saved)
     loaded = restored.entities[0]
 
     assert loaded.last_seen_pos is None
-    assert loaded.last_seen_ticks == 0
 
 
-def test_last_seen_memory_survives_dungeon_map_round_trip():
+def test_goal_and_rolled_weapon_survive_round_trip():
+    """The investigation goal and the persisted rolled-weapon stamp
+    survive save/load (doc 48 SETTLED 37)."""
     hunter = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2),
         npc_char_id="dust_prowler",
     )
     hunter.last_seen_pos = world.Position(7, 2)
-    hunter.last_seen_ticks = 3
+    hunter.rolled_weapon = ("kinetic_rifle", 2)
     game_map = _floor_map(hunter)
 
     saved = saveload._dungeon_to_dict(game_map, None)
@@ -355,7 +362,7 @@ def test_last_seen_memory_survives_dungeon_map_round_trip():
     loaded = restored.entities[0]
 
     assert loaded.last_seen_pos == world.Position(7, 2)
-    assert loaded.last_seen_ticks == 3
+    assert loaded.rolled_weapon == ("kinetic_rifle", 2)
 
 
 def test_display_name_resolves_nameless_population_monsters():

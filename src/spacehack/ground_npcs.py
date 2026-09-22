@@ -32,11 +32,10 @@ _paths: dict[str, tuple[int, int, list[tuple[int, int]]]] = {}
 
 # How often NPCs attempt to move (per tick).
 _MOVE_CHANCE: float = 0.8
-_LAST_SEEN_TICKS: int = 5
 _PURSUIT_BEHAVIORS: frozenset[str] = frozenset(("hunter",))
 
 
-def _spec_behavior(ctx, entity: world.Entity) -> str:
+def _spec_behavior(entity: world.Entity) -> str:
     """Out-of-combat behavior for this NPC ("hunter" when unknown)."""
     _eid = getattr(entity, 'npc_char_id', '')
     if not _eid:
@@ -201,18 +200,31 @@ def _patrol_path(
     return _path
 
 
-def _last_seen_goal(entity: world.Entity) -> tuple[int, int] | None:
-    """Return an active remembered player cell for a pursuit-capable NPC."""
+def _goal_cell(entity: world.Entity) -> tuple[int, int] | None:
+    """The entity's active investigation goal (noise or disengage)."""
     _pos = getattr(entity, "last_seen_pos", None)
-    if getattr(entity, "last_seen_ticks", 0) <= 0 or _pos is None:
+    if _pos is None:
         return None
     return (_pos.x, _pos.y)
 
 
-def _clear_last_seen(entity: world.Entity) -> None:
-    """Discard an NPC's expired or reached last-seen player cell."""
+def _clear_goal(entity: world.Entity) -> None:
+    """Discard an entity's investigation goal."""
     entity.last_seen_pos = None
-    entity.last_seen_ticks = 0
+
+
+def _settle_guard(entity: world.Entity) -> None:
+    """A guard's investigation ended: it holds where the search ends —
+    a new perch, bounded by the leash (doc 48 SETTLED 37)."""
+    if _spec_behavior(entity) == "guard":
+        entity.guard_post = world.Position(entity.pos.x, entity.pos.y)
+
+
+def _end_investigation(entity: world.Entity) -> None:
+    """Goal gained-LOS, reached, or unreachable: revert to prior
+    behavior (patrol, post, wander) — no tick countdown anywhere."""
+    _clear_goal(entity)
+    _settle_guard(entity)
 
 
 def _is_pursuit_capable(entity: world.Entity) -> bool:
@@ -230,13 +242,16 @@ def remember_last_seen(
     entities: list[world.Entity], player_pos: world.Position,
     *, include_stationary: bool = False,
 ) -> int:
-    """Stamp a bounded pursuit memory onto entities.
+    """Stamp an investigation goal onto entities (goal-based, doc 48
+    SETTLED 37 — no tick decay: the holder walks until it holds LOS on
+    the goal cell, then reverts).
 
-    By default only hunters receive memory — guards defend their post
+    By default only hunters receive goals — guards defend their post
     and ambushers remain a stationary surprise. ``include_stationary``
-    stamps everyone: combat disengage uses it so surviving guards
-    INVESTIGATE where the fight broke before resuming their post
-    (playtest ruling 2026-09-02). Returns the number stamped.
+    stamps everyone: combat disengage uses it so surviving guards and
+    ambushers INVESTIGATE where the fight broke before settling. Noise
+    events (:mod:`spacehack.noise`) stamp their own filtered hearer
+    sets. Returns the number stamped.
     """
     _stamped = 0
     for _entity in entities:
@@ -245,7 +260,6 @@ def remember_last_seen(
         if not include_stationary and not _is_pursuit_capable(_entity):
             continue
         _entity.last_seen_pos = world.Position(player_pos.x, player_pos.y)
-        _entity.last_seen_ticks = _LAST_SEEN_TICKS
         _stamped += 1
     return _stamped
 
@@ -262,23 +276,41 @@ def _pursuit_path(
     ) or []
 
 
-def _move_toward_last_seen(entity: world.Entity, game_map: world.GameMap) -> bool:
-    """Take one pursuit step; return whether the memory remains active."""
-    _goal = _last_seen_goal(entity)
-    if _goal is None:
+def _has_los_to(game_map, x: int, y: int, gx: int, gy: int) -> bool:
+    """Bresenham LOS to a cell (lazy import — combat owns the caster)."""
+    from .combat._animations import _has_los
+
+    return _has_los(game_map, x, y, gx, gy)
+
+
+def _investigate_step(
+    entity: world.Entity, game_map: world.GameMap,
+    goal: tuple[int, int] | None = None,
+) -> bool:
+    """One step toward an investigation goal (SETTLED 37: goal-based —
+    the holder walks until it holds LOS on the goal cell; arrival with
+    nothing seen reverts to prior behavior, an unreachable goal gives
+    up — never a tick countdown).
+
+    ``goal`` (another member's cell) drives the squad-follow members
+    that hold no goal of their own — squads follow noise as a unit.
+    Returns whether the walked goal stays active.
+    """
+    _own = _goal_cell(entity)
+    _target = _own if _own is not None else goal
+    if _target is None:
         return False
-    if (entity.pos.x, entity.pos.y) == _goal:
-        _clear_last_seen(entity)
+    if _has_los_to(
+        game_map, entity.pos.x, entity.pos.y, _target[0], _target[1],
+    ):
+        _end_investigation(entity)
         return False
-    _path = _pursuit_path(entity, game_map, _goal)
+    _path = _pursuit_path(entity, game_map, _target)
     if not _path:
-        _clear_last_seen(entity)
+        _end_investigation(entity)
         return False
     _nx, _ny = _path[0]
     _try_move_entity(entity, _nx - entity.pos.x, _ny - entity.pos.y, game_map)
-    entity.last_seen_ticks -= 1
-    if entity.last_seen_ticks <= 0 or (entity.pos.x, entity.pos.y) == _goal:
-        _clear_last_seen(entity)
     return True
 
 
@@ -342,19 +374,29 @@ def _move_squad(
     is_hostile: bool,
     squad_id: str,
 ) -> None:
-    """Move one squad: pursue last-seen cells, patrol, or wander."""
+    """Move one squad: investigate goals, patrol, or wander."""
     if not members:
         return
-    _leader = members[0]
 
     if not is_hostile:
         # Neutral squad: each member wanders independently.
         for _m in members:
             _wander_step(_m, game_map)
         return
-    if _last_seen_goal(_leader) is not None:
+    _squad_goal = next(
+        (
+            _goal_cell(_m) for _m in members
+            if _goal_cell(_m) is not None
+        ),
+        None,
+    )
+    if _squad_goal is not None:
+        # Squads follow noise as a unit (SETTLED 37): any member's
+        # goal draws the squad — members with their own goal walk it,
+        # the rest follow the squad's. LOS aggro stays individual
+        # (SETTLED 16 — no collective squad aggro).
         for _member in members:
-            _move_toward_last_seen(_member, game_map)
+            _investigate_step(_member, game_map, _squad_goal)
         return
     _patrol_step(members, game_map, squad_id)
 
@@ -387,11 +429,11 @@ def _is_movable_this_tick(ctx, entity: world.Entity) -> bool:
         return False  # dormant prison security (doc 30)
     if getattr(entity, 'combat_locked', False):
         return False
-    if _spec_behavior(ctx, entity) in ("guard", "ambusher"):
-        # Stationary by design — EXCEPT while investigating where a
-        # broken fight's LOS ended (memory clears on arrival/expiry).
-        return _last_seen_goal(entity) is not None
-    return _last_seen_goal(entity) is not None or RNG.random() < _MOVE_CHANCE
+    if _spec_behavior(entity) in ("guard", "ambusher"):
+        # Stationary by design — EXCEPT while investigating a goal
+        # (noise or a broken fight's LOS end; cleared on arrival/give-up).
+        return _goal_cell(entity) is not None
+    return _goal_cell(entity) is not None or RNG.random() < _MOVE_CHANCE
 
 
 def _partition_movers(ctx, game_map) -> tuple[dict, list]:
@@ -412,12 +454,12 @@ def _partition_movers(ctx, game_map) -> tuple[dict, list]:
 
 
 def _move_solo(_e: world.Entity, ctx, game_map: world.GameMap) -> None:
-    """Move one squadless NPC: pursue, patrol (uncached), or wander."""
+    """Move one squadless NPC: investigate, patrol (uncached), or wander."""
     if not _is_hostile(ctx, _e):
         _wander_step(_e, game_map)
         return
-    if _last_seen_goal(_e) is not None:
-        _move_toward_last_seen(_e, game_map)
+    if _goal_cell(_e) is not None:
+        _investigate_step(_e, game_map)
         return
     # Solo-hostile: patrol without caching (A* per tick is fine for singles).
     _path = _patrol_path("", _e, game_map, cache={})

@@ -93,7 +93,10 @@ def _entity_to_dict(e) -> dict:
         "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
         "interaction_flavor": getattr(e, 'interaction_flavor', ''),
         "last_seen_pos": _position_list(getattr(e, 'last_seen_pos', None)),
-        "last_seen_ticks": getattr(e, 'last_seen_ticks', 0),
+        "rolled_weapon": (
+            [e.rolled_weapon[0], e.rolled_weapon[1]]
+            if getattr(e, 'rolled_weapon', None) else None
+        ),
         "blocked_message": getattr(e, 'blocked_message', "You bump into {name}."),
         "spawn_band": getattr(e, 'spawn_band', 0),
     }
@@ -243,6 +246,25 @@ def _restore_ground_elite(e: world.Entity) -> None:
         pass
 
 
+def _restore_goal_and_weapon(e: world.Entity, ed: dict) -> None:
+    """Investigation goal + persisted rolled weapon (doc 48 SETTLED 37).
+
+    The goal is position-only (no tick countdown): a live goal survives
+    the round-trip by its cell alone, and pre-phase-5 saves that carried
+    ``last_seen_ticks`` load clean — the old key is simply ignored. The
+    rolled-weapon stamp means re-engagement never re-rolls.
+    """
+    _pair = _coordinate_pair(ed.get("last_seen_pos"))
+    if _pair is not None:
+        e.last_seen_pos = world.Position(*_pair)
+    _rolled = ed.get("rolled_weapon")
+    if isinstance(_rolled, (list, tuple)) and len(_rolled) == 2:
+        try:  # corrupt saves skip the stamp; combat re-resolves on entry
+            e.rolled_weapon = (str(_rolled[0]), int(_rolled[1]))
+        except (TypeError, ValueError):
+            pass
+
+
 def _entity_from_dict(ed: dict) -> world.Entity:
     """Rebuild one dungeon entity, restoring its optional flags."""
     e = _build_entity_base(ed)
@@ -271,15 +293,7 @@ def _entity_from_dict(ed: dict) -> world.Entity:
     _flavor = ed.get("interaction_flavor", "")
     if _flavor:
         e.interaction_flavor = str(_flavor)
-    _last_seen = ed.get("last_seen_pos")
-    _last_seen_pair = _coordinate_pair(_last_seen)
-    try:
-        _last_seen_ticks = max(0, int(ed.get("last_seen_ticks", 0)))
-    except (TypeError, ValueError):
-        _last_seen_ticks = 0
-    if _last_seen_pair is not None and _last_seen_ticks > 0:
-        e.last_seen_pos = world.Position(*_last_seen_pair)
-        e.last_seen_ticks = _last_seen_ticks
+    _restore_goal_and_weapon(e, ed)
     return e
 
 

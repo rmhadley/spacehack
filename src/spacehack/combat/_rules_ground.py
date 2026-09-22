@@ -16,10 +16,10 @@ from typing import Any, Iterator
 
 from .. import world
 from .. import message_log as _ml
-from ..engine import RNG, SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
+from .. import noise
+from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from ..data.quality import roll_quality
 from .. import ground_scale
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..data.ground_items import list_ground_consumables as _list_gc
@@ -160,20 +160,6 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def _rolled_weapon_quality(weapon_id: str, band: int) -> int:
-    """Equip-time quality roll (SETTLED 13/35): the ladder rides the
-    spawn band. Real gear only — organic parts never variant, never
-    consume roll RNG."""
-    if not weapon_id:
-        return 0
-    try:
-        if not _find_gw(weapon_id).loot_droppable:
-            return 0
-    except KeyError:
-        return 0
-    return roll_quality(ground_scale.quality_rates(band), RNG)
-
-
 def _build_enemy_instance(
     _ent: world.Entity, game_map=None,
 ) -> GroundEnemyInstance | None:
@@ -182,9 +168,10 @@ def _build_enemy_instance(
     Reads/stamps ``entity.hp`` so wounds persist across combat sessions:
     LOS aggro ends fights with survivors, and re-engaging must continue
     at the same HP — never a heal-on-retrigger. Guards also get their
-    ``guard_post`` stamped here (the leash anchor). Stats, weapon, and
-    quality resolve through the band resolver (doc 48 SETTLED 35) —
-    the spec's archetype data plus the spawn's band, never spec fields.
+    ``guard_post`` stamped here (the leash anchor). Stats resolve
+    through the band resolver (doc 48 SETTLED 35); the weapon resolves
+    ONCE and persists on the entity (SETTLED 37 — re-engagement never
+    re-rolls; what fired at you is what drops).
     """
     try:
         _spec = _find_nc(_ent.npc_char_id)
@@ -192,23 +179,23 @@ def _build_enemy_instance(
         return None
     _band = ground_scale.entity_band(_ent, game_map)
     _stats = ground_scale.derive_stats(_spec, _band)
-    if _spec.weapon_families:
-        _wid = ground_scale.roll_weapon(_spec, _band, RNG)
-    else:
-        _wid = _spec.weapons[0] if _spec.weapons else ""
+    _wid = noise.ensure_rolled_weapon(_ent, game_map, _spec)
+    _quality = _ent.rolled_weapon[1] if _ent.rolled_weapon else 0
     _max_hp = _spec.hp + _stats.stamina // 3
     # Guard leash anchor: stamp once at first engagement and never
-    # move it. LOS aggro can end fights with a guard mid-chase; re-
-    # stamping on every re-engagement would drag the post to wherever
-    # the guard last stood, letting peek-a-boo slowly relocate a
-    # drone's defense area across the map. Save/load also preserves it.
+    # move it — except where an investigation ends (SETTLED 37's new
+    # perch, stamped by the goal-walker). LOS aggro can end fights
+    # with a guard mid-chase; re-stamping on every re-engagement
+    # would drag the post to wherever the guard last stood, letting
+    # peek-a-boo slowly relocate a drone's defense area across the
+    # map. Save/load also preserves it.
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
     _cur_hp = min(getattr(_ent, "hp", 0) or _max_hp, _max_hp)
     _ent.hp = _cur_hp
     return GroundEnemyInstance(
         entity=_ent, spec=_spec, weapon_id=_wid,
-        weapon_quality=_rolled_weapon_quality(_wid, _band),
+        weapon_quality=_quality,
         band=_band, stats=_stats,
         hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
     )
@@ -502,6 +489,12 @@ def explosive_blast(
         _state.player_hp -= _player_damage
     else:
         _player_damage = 0
+    # Blast event at the impact cell (SETTLED 17/22): the explosion
+    # draws entities from where it landed, not where it was fired —
+    # the firing report already emitted at the shooter.
+    noise.emit(
+        ctx, _state.game_map, primary.pos, weapon_id, by_player=True,
+    )
     return _enemy_hits, _player_damage
 
 # ---------------------------------------------------------------------------
@@ -576,14 +569,20 @@ def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
     return display_name("weapon", weapon_id, quality)
 
 def consume_shot(slot_idx: int, ctx) -> None:
-    """Decrement one weapon instance's loaded ammo after an accepted shot."""
-    if slot_idx >= len(ctx.equipped_ground_weapons):
-        return  # implicit fists: infinite
-    from ..ground_equipment import consume_weapon_round
+    """Decrement one weapon instance's loaded ammo after an accepted
+    shot and emit the firing report (doc 48 SETTLED 17/22) — every
+    accepted shot is heard at the shooter's cell per the weapon's
+    noise column, both sides symmetric."""
+    _wid = "fists"  # implicit fists: infinite ammo, near-silent
+    if slot_idx < len(ctx.equipped_ground_weapons):
+        from ..ground_equipment import consume_weapon_round
 
-    ctx.equipped_ground_weapons[slot_idx] = consume_weapon_round(
-        ctx.equipped_ground_weapons[slot_idx],
-    )
+        _wid = ctx.equipped_ground_weapons[slot_idx].weapon_id
+        ctx.equipped_ground_weapons[slot_idx] = consume_weapon_round(
+            ctx.equipped_ground_weapons[slot_idx],
+        )
+    if _state is not None:  # no live session = no map to hear the shot
+        noise.emit(ctx, _state.game_map, ctx.player.pos, _wid, by_player=True)
 
 def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
     """Return active weapons with a matching reserve and room to reload."""

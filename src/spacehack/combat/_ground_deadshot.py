@@ -150,7 +150,11 @@ async def _fire_chain_link(ctx, game_map, console, weapon_id: str, target) -> bo
     pipeline (loot, XP, counters) plus the railgun kill counter.
     """
     from . import _rules_ground as _rules
+    from .. import noise
     _quality = _equipped_quality(ctx, weapon_id)
+    # Firing report — the same uniform seam every accepted shot emits
+    # (doc 48 SETTLED 17/22; same origin/weapon as the primary shot).
+    noise.emit(ctx, game_map, ctx.player.pos, weapon_id, by_player=True)
     _hit = RNG.randint(1, 100) <= _chain_hit_chance(
         ctx, target, weapon_id, _quality,
     )

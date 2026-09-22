@@ -335,8 +335,9 @@ def test_what_the_player_sees_can_see_the_player():
 
 
 def test_guards_investigate_last_seen_then_resume_their_post():
-    """A guard with disengage memory moves toward the last-seen cell;
-    without memory it holds position as always."""
+    """A guard with a disengage goal moves toward the goal cell; without
+    one it holds position as always (doc 48 SETTLED 37: goal-based —
+    the goal holds until the guard gains LOS on it, no tick decay)."""
     from src.spacehack.ground_npcs import remember_last_seen
 
     guard = world.Entity(
@@ -352,20 +353,26 @@ def test_guards_investigate_last_seen_then_resume_their_post():
 
     from src.spacehack.ground_npcs import move_ground_npcs
 
-    # Corridor: guard at (9,2), open row 2 from x=1..9 — memory at (2,2).
+    # Bent corridor: guard at (9,2), goal at (2,2) — the bend at x=5
+    # blocks LOS so the guard must WALK the corner (a straight open
+    # row would complete the investigation from where it stands).
     width, height = 12, 5
     tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
     for x in range(1, width - 1):
         tiles[2][x] = world.DUNGEON_FLOOR
+        tiles[1][x] = world.DUNGEON_FLOOR
+    for x in (4, 5, 6):
+        tiles[2][x] = world.DUNGEON_WALL  # the bend: row 1 is the detour
     game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[guard])
     ctx = SimpleNamespace(player=SimpleNamespace(pos=world.Position(2, 3)))
     move_ground_npcs(ctx, game_map)
-    assert guard.pos.x < 9, "guard with fresh memory must investigate"
+    assert guard.pos != world.Position(9, 2), "guard with a goal must investigate"
     guard.last_seen_pos = None
-    guard.last_seen_ticks = 0
     move_ground_npcs(ctx, game_map)
-    assert guard.pos == world.Position(*((guard.pos.x, guard.pos.y))), (
-        "guard without memory holds position"
+    _after = (guard.pos.x, guard.pos.y)
+    move_ground_npcs(ctx, game_map)
+    assert (guard.pos.x, guard.pos.y) == _after, (
+        "guard without a goal holds position"
     )
 
 

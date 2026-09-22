@@ -347,8 +347,12 @@ class Entity:
     transit_station_id: str = ""  # city transit stop — bump opens the station menu
     dungeon_interaction: str = ""  # reusable themed-extension interaction id
     interaction_flavor: str = ""  # bump text for non-interactive set-dressing (inactive terminals)
-    last_seen_pos: Position | None = None  # ground hunter's remembered player cell
-    last_seen_ticks: int = 0  # remaining dungeon ticks to pursue that cell
+    # Ground investigation goal (doc 48 SETTLED 37): the attractor slot
+    # stamped by noise events and combat disengage alike — the holder
+    # walks until it holds LOS on that cell (no tick decay, latest wins).
+    last_seen_pos: Position | None = None
+    guard_post: Position | None = None  # guard leash anchor (doc 48); re-stamped where an investigation ends
+    rolled_weapon: tuple[str, int] | None = None  # persisted (weapon_id, quality) first-resolution stamp (doc 48 SETTLED 37)
     city_npc_id: str = ""  # ambient city citizen — placed/moved by city_npcs
     city_spawn: Position | None = None  # ambient anchor; wander returns here
     city_wander_radius: int = 0  # district radius around city_spawn for destination picks
