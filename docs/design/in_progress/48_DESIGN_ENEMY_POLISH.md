@@ -806,6 +806,37 @@ Rulings:
 - **The tactics ladder is CLOSED** — all eight rungs dispositioned
   across SETTLED 16-27. Q22 answered.
 
+## SETTLED 28 (2026-09-22) — crew layouts via role tokens; topic D CLOSED
+
+User, verbatim:
+
+> My first concern with D is how we make the
+> src/spacehack/data/layouts/*_crew.layout work with this system.
+> these layouts determine enemies present chances and squad sizes.
+> so right now they're calling out specifically pirates/etc.
+
+> yes. all of this sounds good.
+
+Rulings:
+
+- **Markers name roles, not species.** The `ENEMY:` vocabulary
+  becomes faction-neutral role tokens — `line` / `heavy` /
+  `marksman` / `security_drone` / `stowaway` (elite later) — and a
+  per-faction **CREW_ROLES data table** resolves role → spec id at
+  load. One geometry serves every faction; the user-polished layouts
+  are NOT forked per faction. Raw spec ids stay legal for authored
+  specials (the survey wreck's consortium crew).
+- **The merchant droid dial (SETTLED 7) = the `security_drone`
+  role's weight**, tunable per deck — the caravan runs heavier drone
+  markers than the hauler without touching geometry.
+- **Kill deltas apply by crew faction** (answers Q9): militia
+  marines → militia rep; merchant crew → merchant rep + the SETTLED
+  8 honest-folk crime rule; consortium security → the hidden axis.
+  Existing tables, correctly tagged — no new machinery.
+- **Derelict squatters stay** — wrecks attract scavengers; the
+  boarding economy keeps its risk. Topic D CLOSED; crew tables,
+  role weights, and the marker migration are brief-time authoring.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1008,9 +1039,9 @@ draw from C's row catalogs) → D → E → F → G → B.
   band, extended to 4), the three axes (SETTLED 2) and where each
   applies (digs, dungeons, cities, ships). **C2 core CLOSED (SETTLED
   14-15)**; the tactics ruling awaits the Q22 audit.
-- **D. Crew & interior coherence** — SETTLED 3's details: crew tables
-  per hull (drawn from C1's catalogs), always-hostile interiors,
-  kill-delta handling, what crews derelicts carry.
+- **D. Crew & interior coherence** — CLOSED (SETTLED 28): role-token
+  markers + per-faction CREW_ROLES tables; kill deltas by crew
+  faction; derelict squatters stay.
 - **E. Machine split** — SETTLED 4's details: alien-machine authoring,
   which areas count as ancient, doc 43 handoff.
 - **F. Monster refinement** — value 7: refine/expand the biome concept;
@@ -1104,8 +1135,8 @@ Doctrinal (phase-1 topics):
    lives in data (value 8).
 8. Extensibility: what is still code that should be data (spawn
    tables? bands? crew wiring?) so a new enemy is a new data row only.
-9. Interior kill deltas: does killing a boarded (hostile-by-boarding)
-   crew move rep as today?
+9. ~~Interior kill deltas~~ ANSWERED — SETTLED 28: deltas apply by
+   crew faction (militia/merchant+crime/hidden-consortium).
 10. ~~Merchant crew shape~~ ANSWERED — SETTLED 7: light crews, fixed
     light gear, no band scaling; the wealth dial is security-droid
     presence.
