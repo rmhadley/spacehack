@@ -13,8 +13,9 @@ Companions: `47_DESIGN_LOOT.md` (complete/ — kit drops + quality make
 scaled loadouts scale loot automatically); `49_DESIGN_SPECIES_CLASS.md`
 (player identity — interlocks via the faction rep tables);
 `SYSTEMS.md` "Ground combat" / "Kill drops" / "RNG delve sites" /
-"Space spawns" entries; `future/34_DESIGN_SPACE_COMBAT_BEHAVIORS.md`
-(space AI verbs — still deferred, still OUT of this doc).
+"Space spawns" entries. Doc 34 (space combat behaviors, seeded
+2026-09-03) is FOLDED into this campaign — SETTLED 21; file removed
+from `future/`.
 
 ## SETTLED 1 (2026-09-22) — the reframe
 
@@ -747,6 +748,54 @@ Rulings:
   via SETTLED 19, retreat-to-band rides Tier 1's range management,
   and flee — its last unclaimed piece — is now ruled out entirely.
 
+## SETTLED 21 (2026-09-22) — tiering confirmed; no-reinforcement doctrine; doc 34 folded
+
+User, verbatim:
+
+> 1. yes, that's fine.
+> 2. mid-fight reinforcements aren't a real thing. other ships flying
+> by can aggro you and join in combat. but there is no reinforcement
+> mechanic.
+> 3. I guess we're doing this doc now but way more detailed. yes,
+> fold its remaining scope in to 48. I didn't realize what this
+> doc 34 you kept mentioning was.
+
+Rulings:
+
+- **Tiering confirmed (closes Q23's core):** Tier 0 = parity wiring
+  (hull-catalog stats, module effects + honest costs, per-weapon
+  AP/power/ammo, authored shield-regen rates) as its own build phase
+  and playtest; Tier 1 = the decision loop (fire best affordable /
+  regen when hurting / move to preferred band;
+  `ai_aggressiveness` = fire-vs-reposition bias). Decision-loop
+  internals are brief-time.
+- **The no-reinforcement doctrine:** there is NO reinforcement
+  mechanic and none is built. Mid-fight joins are ambient ships
+  flying by and aggroing through normal detection. The audit's
+  joiner flag is reframed as a Tier-0 verification: whatever code
+  constructs a joining ship must carry THAT ship's own spec/hull —
+  player-catalog + cloned-player-skill construction, if real, is a
+  bug to fix, not a mechanic.
+- **Doc 34 folded into this campaign; file removed.** (History: doc
+  34 was a deferred first-pass from the 2026-09-03 Wolf 359 playtest
+  proposing space behavior verbs; seeded this campaign's whole
+  tactics thread.) Its verbs and dead fields are all dispositioned
+  above; its four unclaimed design questions port into Tier 1:
+
+  1. **Band-maintenance AP economics** — does a high-AP ship
+     retreating to its preferred band simply stay away forever?
+     Range management needs a tuning guard.
+  2. **Counters must be tactical, not loadout-only** — if every
+     answer is "buy missiles," that's stats, not tactics.
+  3. **In-combat coordination** — escort/guard interplay (an
+     artillery ship defending a leader) — open; solo verbs may
+     compose well enough.
+  4. **Cover near spawns** — LOS-baiting only matters if encounters
+     place near planets/stations; encounter-placement work, possibly
+     bigger than the AI itself.
+  (Missile interception stays out — 34 flagged it "needs its own
+  pass" and nothing here claims it.)
+
 ## The space-systems audit (2026-09-22 — grounds the Q23 ruling)
 
 **The player's economy is a three-resource turn**: AP (fractional
@@ -945,12 +994,11 @@ with doctrinal 10-13):
    the ladder walkthrough is mid-flight (SETTLED 16-18: composition
    + LOS doctrine, noise + combat-time movement, guard-artillery +
    leash + range management; SETTLED 17 pre-settled noise aggro).
-23. Full-kit resource-aware space AI (SETTLED 19): systems audit
-    dispatched 2026-09-22 — the player-side energy/weapon/shield
-    economy is the mirror target. After it lands: the enemy
-    decision model (fire selection, energy budgeting, shield-regen
-    trades), and whether doc-34's movement verbs fold in or stay
-    their own pass.
+23. ~~Full-kit resource-aware space AI~~ ANSWERED — SETTLED 19
+    (ruled in), the space-systems audit (above) grounds it, SETTLED
+    21 confirms the Tier 0 / Tier 1 split and folds doc 34.
+    Decision-loop internals + the four ported design notes are
+    brief-time.
 
 ## Phases
 

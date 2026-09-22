@@ -296,9 +296,10 @@ nobody designs against a ghost.
   (`combat/_rules_space.sync_state`, `handle_defense`).
 - **Combat AI** — per-ENEMY AP loop: advance when beyond own
   `ai_preferred_range` or no LOS, else fire; fights to the death
-  (`combat/_ai.py`). **Dead data:** `ai_aggressiveness`,
-  `ai_flee_threshold` unread anywhere — no kiter/brawler/artillery
-  verbs (doc-34 seed open).
+  (`combat/_ai.py`). **Dead data:** `ai_aggressiveness` unread
+  (doc 48 rules it the future fire-vs-reposition dial);
+  `ai_flee_threshold` retires (fleeing ruled out of space combat,
+  doc 48 SETTLED 20 — doc 34 folded there).
 - **Reinforcements** — per-round re-detection joins newly triggered
   squads mid-fight (`combat/_rules_space.check_reinforcements`).
 - **Kill bookkeeping** — XP = hull×2; 1–2 loot drops; rep deltas by
