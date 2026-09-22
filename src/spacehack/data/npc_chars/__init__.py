@@ -28,8 +28,11 @@ class NpcCharSpec:
         name: display name shown in combat HUD.
         char: glyph on the dungeon map, e.g. ``r``.
         fg: foreground colour tuple.
-        faction: ``"pirate"`` | ``"merchant"`` | ``"civilian"`` |
-            ``"militia"`` — links to faction reputation for hostility.
+        faction: ``"pirate"`` | ``"merchant"`` | ``"militia"`` |
+            ``"consortium"`` (hidden axis, doc 48) | ``"civilian"``
+            (retired as a rep axis — an ambient-dressing accounting
+            tag, SETTLED 8) — links to faction reputation for
+            hostility.
         hp: base HP before stamina bonus (total = ``hp + stamina // 3``).
         weapons: ground weapon ids the NPC always carries.
         weapon_pick: ground weapon ids for RNG selection at spawn time.

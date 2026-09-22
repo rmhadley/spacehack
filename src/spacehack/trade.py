@@ -492,7 +492,9 @@ def _npc_attitude(ctx: GameContext, npc_spec) -> str:
     """Faction attitude toward the player for this NPC ship."""
     from . import identity
     from .faction import get_attitude
-    _npc_faction = getattr(npc_spec, "faction", "civilian")
+    # Untagged specs read neutral — "" is the monsters' convention
+    # (civilian is retired as an axis, doc 48 SETTLED 8).
+    _npc_faction = getattr(npc_spec, "faction", "")
     return get_attitude(identity.effective_reputation(ctx).get(_npc_faction, 0))
 
 

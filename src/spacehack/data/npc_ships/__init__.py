@@ -23,7 +23,9 @@ class NpcShipSpec:
         name: display name shown in combat HUD / comms.
         char / fg: glyph + colour on the solar system map.
         ship_id: hull reference (scout/hauler/cruiser).
-        faction: "pirate" | "merchant" | "civilian" | "militia".
+        faction: "pirate" | "merchant" | "militia" | "consortium"
+            (hidden axis, doc 48) | "civilian" (retired as a rep
+            axis, SETTLED 8) | "neutral" (derelicts).
         weapons / modules: equipment fitted at spawn.
         cargo_goods: which trade goods this ship can carry
             (dropped on destruction for pirates, traded for merchants).
