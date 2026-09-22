@@ -416,6 +416,74 @@ Rulings:
 - **C1 CLOSED.** Names, statblocks, matrix-cell tuning, rung counts =
   brief-time authoring.
 
+## SETTLED 14 (2026-09-22) — the difficulty doctrine core (C2)
+
+User, verbatim:
+
+> 1. yes. this is good.
+> 2. yes, we can name a family instead of a weapon in the spec. and
+> then the difficulty t# tier rolls higher tiered weapons. ...
+> 5. this sounds good.
+> 6. ... I think quality items should be more likely on higher t#
+> enemies at the minimum.
+
+Rulings:
+
+- **ONE band vocabulary** (answers Q5): planet `mission_tier` (1-4) =
+  site band = equipment `tech_level` ceiling. `_site_tier` unclamped
+  to 4; floor climb (`tier + floor - 1`) capped at 4. Band-4 dig
+  pools are pirate/militia/monsters only — **consortium formally
+  excluded** (SETTLED 12). Pool contents + densities = brief-time.
+- **Family ladder confirmed** (answers Q16, Q18): specs name weapon
+  FAMILIES in their pick lists; the band rolls the tier within the
+  family (top-two-tier window weighted to the top — weights
+  brief-time). No fixed `weapons=` lists survive; characterization =
+  the family mix.
+- **Quality rides band** (answers Q19; reverses the defer lean):
+  higher bands roll higher quality more often — at minimum the
+  equip-time KILL ladder and drop-time rolls shift toward rarer
+  tiers with band ("at the minimum" — richer interplay may come
+  later). Exact rates brief-time; economy watch in the build
+  playtest.
+- **One resolver at every spawn** (answers Q20): digs (site band),
+  procgen mission dungeons (their tier), city ambient (planet
+  `mission_tier`). Authored-layout `ENEMY:` markers stay fixed.
+- **Bystanders exempt** (answers Q21).
+- Tactics axis: v1 mechanism = pool composition + squad shape; the
+  deeper ruling awaits the honest mechanics look (Q22, audit
+  dispatched same day).
+
+## SETTLED 15 (2026-09-22) — stats mirror the player system
+
+User, verbatim:
+
+> Stats need to better mirror player stats and player stat
+> progression. how this looks, I don't know. maybe we look at
+> effective level we want the bands to be at and use that to
+> determine stat points to distribute? I don't know that NPC
+> pilots/ground stats are fully used in the game mechanics yet. if
+> they're not then we need to wire them up. An ace pirate pilot
+> should have a high piloting skill just like an ace player pilot.
+
+Rulings:
+
+- **No flat multiplier table.** NPC stats derive from the PLAYER
+  progression system: each band maps to an effective level; stat and
+  skill points distribute by the same math players use. Level-per-
+  band mapping + distribution shape = brief-time (needs the player
+  progression curves as input).
+- **Wiring state (verified same day):** ground stats ARE live —
+  enemy reflexes feed hit math (`_rules_ground.py:378,393`), strength
+  feeds damage (`_ai_ground.py:182`), `stamina//3` feeds HP
+  (`_rules_ground.py:191`). Pilot skills are NOT —
+  `pilot_gunnery/piloting/engineering` exist only in `data/npc_ships`
+  with zero combat consumers. **Wiring pilot skills into space
+  combat at parity with player formulas is a doctrine-level build
+  item** ("an ace pirate pilot should have a high piloting skill just
+  like an ace player pilot").
+- Scaling-eligible: pirate + militia faces. Merchant crew and
+  bystanders exempt (SETTLED 7, Q21).
+
 ## Phase-1 discussion map (DRAFT — the planning agenda)
 
 Seven topics; each becomes dated SETTLED sections, then the build phases
@@ -435,8 +503,8 @@ draw from C's row catalogs) → D → E → F → G → B.
   type catalogs: CLOSED (SETTLED 13).** **C2, how everything
   scales:** ONE band vocabulary (mission_tier = tech_level = dig
   band, extended to 4), the three axes (SETTLED 2) and where each
-  applies (digs, dungeons, cities, ships); the carried mechanism
-  questions below.
+  applies (digs, dungeons, cities, ships). **C2 core CLOSED (SETTLED
+  14-15)**; the tactics ruling awaits the Q22 audit.
 - **D. Crew & interior coherence** — SETTLED 3's details: crew tables
   per hull (drawn from C1's catalogs), always-hostile interiors,
   kill-delta handling, what crews derelicts carry.
@@ -524,9 +592,9 @@ Doctrinal (phase-1 topics):
    of their own; row shape is Q10.
 4. Fauna under value 3: stay `always_hostile`, or do biome sites get
    faction flavor?
-5. Band vocabulary: the ONE ladder and its band-4 shape (which specs,
-   what density) — including whether ambient dig bands may field
-   consortium guards under SETTLED 6's strict gating.
+5. ~~Band vocabulary~~ ANSWERED — SETTLED 14: one ladder
+   (mission_tier = site band = tech_level ceiling), unclamped to 4;
+   consortium excluded from ambient pools.
 6. Alien machines: authoring shape, which areas count as ancient, doc
    43 handoff.
 7. Recognition identity: which glyph/color scheme per enemy; where it
@@ -559,19 +627,23 @@ Scaling (topic C — carried from the 2026-09-20 dump; original 3 and 6
 answered by the design values; renumbered 16-21 to clear the collision
 with doctrinal 10-13):
 
-16. Mechanism: uniform family ladder (each pick entry resolves within
-    its weapon family to the band's top — preserves melee/ranged
-    characterization, fixes the rifleman structurally), catalog filter,
-    or per-spec band tables?
+16. ~~Mechanism~~ ANSWERED — SETTLED 14: the family ladder — specs
+    name families, bands roll the tier.
 17. ~~Band-4 faces: existing specs with better kit, new rows, or
     both?~~ ANSWERED — SETTLED 13: both — raider/rifleman scale, the
     heavy is the new band-4 face.
-18. Fixed `weapons=` lists: respected as characterization or replaced
-    by family resolution?
-19. Quality floors by band: in scope or deferred to a 47 tune pass?
-20. Site scope: digs + dungeons + city ambient (one resolver), or a
-    subset?
-21. Bystanders: exempt from scaling (presumably yes)?
+18. ~~Fixed `weapons=` lists~~ ANSWERED — SETTLED 14: none survive;
+    everything resolves by family + band.
+19. ~~Quality floors by band~~ ANSWERED — SETTLED 14: quality rides
+    band (user reversed the defer lean — "at the minimum").
+20. ~~Site scope~~ ANSWERED — SETTLED 14: one resolver at every
+    spawn; authored ENEMY: markers fixed.
+21. ~~Bystanders~~ ANSWERED — SETTLED 14: exempt.
+22. Band-scaled tactics: honest mechanics look IN FLIGHT (audit
+    dispatched 2026-09-22 — ground AI primitives incl. last-known-
+    position memory, space loop + dead AI fields, pilot-skill wiring,
+    player-side mirrors); v1 = pool composition + squad shape until
+    its proposals land.
 
 ## Phases
 
