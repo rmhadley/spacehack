@@ -1388,7 +1388,10 @@ blocking fixes in the v2 brief, punch-list owners assigned,
 merchant-crew row moved to its consumer, ship-band rolling homed at
 Tier 0, placements homed at crews, ledger 6-7 struck.
 
-### Phase 2 Implementation brief (PROPOSED v2 — reviewer fixes folded in)
+### Phase 2 Implementation brief (APPROVED 2026-09-22 — reviewer v2
+fixes folded in; the three flagged decisions confirmed by the user:
+hidden-axis start −100, piracy-is-crime incl. the act0_bar re-key,
+enforcer glyph `E`)
 
 **Scope (files / hook points):**
 
