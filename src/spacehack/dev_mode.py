@@ -535,7 +535,8 @@ def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
 
     The brute/marine/sniper have no ambient consumer until the crew
     decks re-author (phase 6) — this is the playtest's only window
-    onto them. Stamps band 3 so the numbers read mid-ladder.
+    onto them — the sniper at band 4 so the pin's railgun payoff
+    reads through this instrument.
     """
     from .dungeon_population import _scatter_squad
     from .data.npc_chars import find_npc_char
@@ -548,17 +549,23 @@ def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
         and game_map.in_bounds(player_pos.x + dx, player_pos.y + dy)
         and game_map.tiles[player_pos.y + dy][player_pos.x + dx].walkable
     ][:6]
+    faces = (
+        ("pirate_brute", 3), ("militia_marine", 3), ("militia_sniper", 4),
+    )
     placed = 0
-    for spec_id in ("pirate_brute", "militia_marine", "militia_sniper"):
+    for index, (spec_id, band) in enumerate(faces):
         spec = find_npc_char(spec_id)
+        # Disjoint cell slices per face — a shared slice starves the
+        # later squads (the occupied set only sees earlier placements).
         placed += _scatter_squad(
             game_map.entities,
             {(e.pos.x, e.pos.y) for e in game_map.entities},
-            enemy_id=spec_id, cells=cells[:2], count=1,
+            enemy_id=spec_id, cells=cells[index * 2:index * 2 + 2],
+            count=1,
             squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
-            band=3, bold=spec.elite,
+            band=band, bold=spec.elite,
         )
-    ctx.log.add(f"[DEV] Spawned {placed} phase-4 faces at band 3.")
+    ctx.log.add(f"[DEV] Spawned {placed} phase-4 faces.")
     return placed
 
 

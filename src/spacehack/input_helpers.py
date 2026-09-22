@@ -427,6 +427,7 @@ def _is_shift_m_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return _is_shift_press(event, 'M')
 
+
 def _is_shift_v_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+V.
 

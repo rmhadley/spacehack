@@ -653,3 +653,31 @@ def test_tinker_kit_grant_tops_up_or_appends():
     assert partial.ground_expedition_items == [
         GroundItemStack("consumable", KIT_ITEM_ID, 2),
     ]
+
+
+def test_spawn_dev_enemy_faces_places_all_three():
+    """The grant must place every face — disjoint cells per squad, the
+    sniper at band 4 so its pinned railgun reads (doc 48.4)."""
+    from types import SimpleNamespace
+
+    from src.spacehack import dev_mode, world
+
+    tiles = [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)]
+    game_map = world.GameMap(12, 12, tiles, [])
+    player = world.Entity("@", (255, 255, 255), world.Position(6, 6), "P")
+    game_map.entities.append(player)
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
+
+    placed = dev_mode.spawn_dev_enemy_faces(ctx, game_map, player.pos)
+
+    faces = sorted(
+        e.npc_char_id for e in game_map.entities if e.npc_char_id
+    )
+    assert placed == 3
+    assert faces == ["militia_marine", "militia_sniper", "pirate_brute"]
+    bands = {e.npc_char_id: e.spawn_band for e in game_map.entities if e.npc_char_id}
+    assert bands["militia_sniper"] == 4
+    assert bands["pirate_brute"] == 3
+    bold = {e.npc_char_id: e.bold for e in game_map.entities if e.npc_char_id}
+    assert bold["militia_sniper"] and bold["pirate_brute"]
+    assert not bold["militia_marine"]
