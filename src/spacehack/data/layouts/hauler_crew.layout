@@ -75,15 +75,14 @@ TILE: b = BREACH
 TILE: > = EXIT
 
 # Crew — role tokens (doc 48 SETTLED 28): merchant hulls crew honest
-# light Merchants (SETTLED 5/7/38); defense is droids — h is the
-# single-slot assault-drone anchor, q the security-drone dial (the
-# boarded spec's wealth multiplier scales it at load). 22 stamps, 10
-# profiles; the cockpit guard is the guaranteed anchor.
-ENEMY: n = line@1.0#2-3
-ENEMY: u = line@0.5#1-2
-ENEMY: f = line@0.45#1-2
-ENEMY: k = line@0.45#1-2
-ENEMY: g = line@0.4#1-2
+# light Merchants (SETTLED 5/7/38); defense is droids. The lean hauler
+# (dial x0.5): a small crew anchor, a handful of dial-scaled sentries,
+# one rare assault-drone anchor. Playtest-tuned 2026-09-23.
+ENEMY: n = line@1.0#1-2
+ENEMY: u = security_drone@0.5#1-2
+ENEMY: f = security_drone@0.45#1-2
+ENEMY: k = security_drone@0.45#1-2
+ENEMY: g = security_drone@0.4#1-2
 ENEMY: j = line@0.3#1-1
 ENEMY: h = heavy@0.35#1-1
 ENEMY: m = stowaway@0.15#2-4

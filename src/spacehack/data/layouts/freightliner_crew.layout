@@ -82,18 +82,17 @@ TILE: a = AIRLOCK
 TILE: b = BREACH
 TILE: > = EXIT
 
-# Crew — role tokens (doc 48 SETTLED 28): merchant hulls crew honest
-# light Merchants (SETTLED 5/7/38); defense is droids — h is the
-# single-slot assault-drone anchor, q the security-drone dial (the
-# boarded spec's wealth multiplier scales it at load). 30 stamps, 10
-# profiles; the cockpit honor guard is the guaranteed anchor.
-ENEMY: n = line@1.0#2-3
-ENEMY: u = line@0.5#1-2
-ENEMY: k = line@0.45#1-2
-ENEMY: f = line@0.45#1-2
-ENEMY: g = line@0.4#1-2
+# Crew — role tokens (doc 48 SETTLED 28): the H hulls are the rich
+# top tier — BIG decks, light crew, droids as the entire defense
+# (playtest ruling 2026-09-23): dial-scaled sentries throughout and a
+# standing complement of assault drones (h, 2-4 per boarding).
+ENEMY: n = line@1.0#1-2
+ENEMY: u = line@0.5#1-1
+ENEMY: k = security_drone@0.35#1-2
+ENEMY: f = security_drone@0.35#1-2
+ENEMY: g = line@0.4#1-1
 ENEMY: j = line@0.3#1-1
-ENEMY: h = heavy@0.35#1-1
+ENEMY: h = heavy@1.0#1-2
 ENEMY: m = stowaway@0.15#2-4
 ENEMY: o = stowaway@0.2#1-2
 ENEMY: q = security_drone@0.7#1-2
