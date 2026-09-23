@@ -932,3 +932,22 @@ def test_corrupt_carried_entries_skip_individually():
 
     restored, _ = saveload._dungeon_from_dict(saved)
     assert restored.entities[0].carried_items == [["consumable", "stim", 1]]
+
+
+# --- door walkability pin (doc 48 phase 5: the audit flag closed) -------------
+
+def test_enemy_paths_through_door_tiles():
+    """DOOR/DUNGEON_DOOR tiles are walkable by enemy A* — no runtime
+    state gate blocks the path (phase-5 audit flag, verified closed)."""
+    for _door in (world.DOOR, world.DUNGEON_DOOR):
+        tiles = [
+            [world.DUNGEON_WALL for _ in range(7)]
+            for _ in range(5)
+        ]
+        for x in range(1, 6):
+            tiles[2][x] = world.DUNGEON_FLOOR
+        tiles[2][3] = _door  # the only gap in the wall column
+        game_map = world.GameMap(7, 5, tiles, [])
+        path = world.find_path((1, 2), {(5, 2)}, game_map)
+        assert path, f"no path through {_door.kind}"
+        assert (3, 2) in path  # it walks the door cell itself
