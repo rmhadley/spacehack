@@ -1664,7 +1664,7 @@ with doctrinal 10-13):
   identity-families key amended to (char, fg, elite) with the four
   faces; kill-drop and delve entries note the band ladders and the
   four-band pools).
-- [ ] 5. **Ground tactics wave** — the noise system (per-weapon
+- [x] 5. **Ground tactics wave** — the noise system (per-weapon
   column, blast-at-impact, investigate attractor), combat-time AP
   movement + stepwise LOS join, range management + leash = weapon
   max + 2, per-spec AP field, enemy consumables (SETTLED 16-27 +
@@ -1673,7 +1673,31 @@ with doctrinal 10-13):
   investigation is GOAL-BASED — the 5-tick memory retires, guards
   hear leash-gated as area guardians, squads follow noise as a
   unit); owns the door-walkability verification. Brief below
-  (PROPOSED v2 2026-09-22 — reviewer pass folded).
+  (PROPOSED v2 2026-09-22 — reviewer pass folded; APPROVED by the
+  /implement-phase 48.5 run). LANDED 2026-09-22 in six builds
+  (88d59a34 audit; 4251c505 data columns + detect_radius retirement,
+  d2425bba noise + goal-based investigation + stamps/save, 45630d01
+  combat-time movement + sight stop + the `_ground_effects` ratchet
+  extraction, a2acbbac range management + derived leash, f81e0fc0 AP
+  derivation + carried consumables, + the Shift+C carrier grant).
+  Reviewer: five code passes — b1 APPROVE (two minors: the energy
+  lever reading confirmed intended, a transitively-sound parametrize);
+  b2 REQUEST_CHANGES (missing squad-any-member + blast-at-impact
+  tests, tolerant parse, deadshot emission seam) → folded;
+  b3 REQUEST_CHANGES (solo patrol path-pop bug, predicate order,
+  leader-pace consistency, stale-session mode key, patrol pins) →
+  folded; b4 REQUEST_CHANGES (a `_free_cell` DRY twin, off-path
+  cache invalidation, close-leg + loop-level pins) → folded;
+  b5 REQUEST_CHANGES (regen-resurrection guard, corrupt-save
+  tolerance on the carried twin, empty-stamp survival) → folded.
+  Build-landed readings (audit-amending): hearing's leash gate
+  measures guard-position-to-sound (SETTLED 37); the investigation
+  completes WITHOUT walking when the holder already has LOS on the
+  goal (open-ground sounds are looked at, not walked to); squad
+  patrol marches at the LEADER's AP (a unit moves together) while
+  investigators budget per member; the deadshot chain emits through
+  the same seam as every accepted shot. PLAYTEST PENDING — checklist
+  below at the brief's checkpoint.
 - [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
   tables, deck re-authoring (militia strike crews, merchant crew
   row + droid-dial weights, pirate crews incl. the heavy), the
