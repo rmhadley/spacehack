@@ -361,11 +361,31 @@ nobody designs against a ghost.
   spawns, and quest-lifecycle ships board; the consume books the
   full kill pass minus exterior loot (XP, counters, rep through
   the broadcast gate, bounty completion, tombstone —
+  `combat/_space_kills.record_kill_pass`,
   `game_interactions._consume_boarded_hull`); the capture
   interior seeds the flown-module strip at engine-room markers
   (doc 47.3); heist cargo rides
   the interior via the component seam (one-shot: exit without
   pickup strands the intercept — user-confirmed).
+- **Crew roles (doc 48 phase 6)** — `data/npc_chars/crew_roles.py`:
+  ENEMY markers name faction-neutral ROLE tokens
+  (line/heavy/marksman/security_drone/stowaway); `load_layout`'s
+  `crew_faction` resolves them through `CREW_ROLES` (raw spec ids
+  pass through; an omitted role skips — militia boards no
+  stowaways). One deck geometry serves every faction: pirate decks
+  field raider/rifleman/brute crews, militia decks
+  trooper/marine-strike/sniper (the sniper rides the heavy slot —
+  SETTLED 10's heavy-hitting row), merchant decks field the light
+  Merchant crew + droids (`heavy`=assault drone; the
+  `security_drone` role scales by the boarded hull's
+  `NpcShipSpec.security_drones` wealth dial — hauler 0.5 /
+  freighter 1.0 / caravan 1.5; H decks guarantee their heavy pair).
+  Marker COLOUR overrides are RETIRED — crew identity renders the
+  resolved spec's family color (landmark drone decks included).
+  Every capture/derelict interior is HOSTILE on entry regardless of
+  rep (`GameMap.hostile_interior` through `spec_is_hostile`'s
+  optional game_map param — the one uniform seam, serialized);
+  kill deltas land by crew faction through the existing tables.
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
   mines-as-entities; no salvage drones; no player-called allies; no
   flee-from-space-combat; `NpcShipSpec.comms_range` documented
@@ -423,7 +443,9 @@ nobody designs against a ghost.
 - **Ground identity families (doc 48 phase 3)** —
   `CHAR_CLASS_FAMILIES` (`data/npc_chars/__init__.py`): one LETTER
   per family, members are case variants of it, ONE family color —
-  pirate `r`/`R` rust (220,120,80), militia `m` blue, consortium
+  pirate `r`/`R` rust (220,120,80), militia `m` blue, merchant `h`
+  green (100,220,140) — the honest crew row (doc 48 phase 6, fixed
+  pistol+knife, band-exempt), consortium
   `e`/`E` navy (90,120,200), civilian `c`, machines `d`/`D` bronze
   (200,180,110); fauna are not families (species glyphs, biome
   palettes). The (glyph, color) PAIR is the identity — a char may
@@ -646,7 +668,9 @@ nobody designs against a ghost.
   count); stops on newly-visible interesting content; only VISIBLE
   solid entities block (dormant units always block); single
   "blocks the only way forward" report for sealed exits
-  (`autoexplore.py`: `run_auto_explore`).
+  (`autoexplore.py`: `run_auto_explore`). Blockers read from a
+  per-plan occupancy snapshot and FOV hull-wall seeds from a
+  per-map cache (doc 48 phase 6 perf pass — 4.5x on big decks).
 - **Go-to (G)** — picker over discovered targets, shared stop
   semantics, stops 8-adjacent; interaction names override tile
   titles (`autoexplore.py`: `run_dungeon_goto`).
@@ -1142,6 +1166,10 @@ nobody designs against a ghost.
   blend 190); fog-masked; cities seed once; never serialized.
   Emission is a tile-kind table — adding a row is the whole
   extension (`lighting.py`; `data/lighting.py`: `STATIC_LIGHT_TABLE`).
+  Static sources derive ONCE per map and cache on it (doc 48 phase
+  6 perf pass); `GameMap.replace_tile` is the one runtime tile
+  writer and drops the derived caches (light sources, hull-wall
+  cells) so the next reveal re-derives.
 - **Animations** — pure frame generators + present loops (descent
   elevator, breach sparks, transit arrival pulse); one pacing-
   constants module with a user speed multiplier (`Normal/Fast/

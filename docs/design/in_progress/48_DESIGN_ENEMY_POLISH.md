@@ -1836,6 +1836,11 @@ with doctrinal 10-13):
   stamps): pirate flagships always carry two brutes, the militia
   patrol-heavy two perched snipers. Cruisers keep the chance slot;
   scouts stay heavy-free.
+  PLAYTEST PASSED 2026-09-23 (user: "much better performance. much
+  better droid distribution. much better difficulty... 10/10") — the
+  noise-alerted brute rocket kill cited as working-as-intended.
+  SYSTEMS.md audited same commit (new "Crew roles" entry; Boarding,
+  Ground identity families, Lighting, Auto-explore amended).
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
