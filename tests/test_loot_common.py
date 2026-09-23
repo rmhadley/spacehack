@@ -546,12 +546,12 @@ class TestDerelictSaySo:
         )
         assert run(game_flow._confirm_abandon_derelict(SimpleNamespace()))
         assert captured == {
-            "title": "ABANDON THE DERELICT?",
-            "body": "This derelict ship is highly unstable, you won't "
-            "be able to safely breach and dock it again.",
+            "title": "ABANDON THE SHIP?",
+            "body": "This ship won't survive a second breach, anything "
+            "left behind is gone.",
             "accept_label": "Leave",
             "cancel_label": "Stay",
-            "caption": "spacehack - derelict",
+            "caption": "spacehack - abandon ship",
         }
 
     def test_generic_derelict_constructor_stamps_the_flag(self):

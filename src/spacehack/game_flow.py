@@ -743,15 +743,19 @@ def _derelict_loot_remains(game_map) -> bool:
 
 
 async def _confirm_abandon_derelict(ctx) -> bool:
-    """Ask before abandoning a loot-laden derelict (approved strings)."""
+    """Ask before abandoning a loot-laden one-shot interior.
+
+    One wording for every leave-and-it's-gone hull — true derelicts
+    and live captures alike (the hull was consumed at entry); user
+    wording, 2026-09-23."""
     _result = await _run_pygame_dungeon_confirm(
         ctx,
-        title="ABANDON THE DERELICT?",
-        body="This derelict ship is highly unstable, you won't be able "
-        "to safely breach and dock it again.",
+        title="ABANDON THE SHIP?",
+        body="This ship won't survive a second breach, anything left "
+        "behind is gone.",
         accept_label="Leave",
         cancel_label="Stay",
-        caption="spacehack - derelict",
+        caption="spacehack - abandon ship",
     )
     return _result == "CONFIRM"
 
