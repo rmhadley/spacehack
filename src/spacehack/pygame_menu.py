@@ -29,6 +29,10 @@ class MenuItem:
     label: str
     description: str
     action: str
+    # Optional (text, colour) segments that PAINT ``label`` — the
+    # plain label stays authoritative; a None colour paints at the row
+    # default. The joined run text must equal ``label``.
+    runs: tuple[tuple[str, tuple[int, int, int] | None], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -276,7 +280,7 @@ def _draw_compact_rows(
         pygame_ui.draw_menu_row(
             pygame, screen, font, item.label, popup.x + inset, y,
             content_width, selected=index == frame.selected,
-            palette=pygame_ui.DEFAULT_PALETTE,
+            palette=pygame_ui.DEFAULT_PALETTE, runs=item.runs,
         )
         y += row_height
 
@@ -441,7 +445,8 @@ def _draw_standard_body(
             break
         pygame_ui.draw_menu_row(
             pygame, screen, font, item.label, x, y, content_width,
-            selected=index == frame.selected, palette=pygame_ui.DEFAULT_PALETTE,
+            selected=index == frame.selected,
+            palette=pygame_ui.DEFAULT_PALETTE, runs=item.runs,
         )
         y += row_height
     y += 8

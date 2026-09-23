@@ -484,7 +484,7 @@ def draw_text_runs(
     pygame: Any,
     screen: Any,
     font: Any,
-    runs: tuple[tuple[str, Color], ...],
+    runs: tuple[tuple[str, Color | None], ...],
     x: int,
     y: int,
     *,
@@ -561,6 +561,39 @@ def draw_wrapped_text(
     return y + max(1, len(lines)) * step
 
 
+def _row_height(font: Any) -> int:
+    """One menu-row's height (text line plus the shared row padding)."""
+    return font.get_linesize() + 14
+
+
+def _draw_row_runs(
+    pygame: Any, screen: Any, font: Any, marker: str,
+    runs: tuple[tuple[str, Color | None], ...], x: int, y: int, width: int,
+    *, row_color: Color,
+) -> int:
+    """Paint one row as a marker plus fitted colour runs; return next y.
+
+    ``None`` run colours paint at ``row_color``; explicit colours
+    survive row selection (the quality-name cue).
+    """
+    measure = lambda value: measure_font(font, value)
+    draw_text(pygame, screen, font, marker, x + 12, y + 2, color=row_color)
+    draw_text_runs(
+        pygame, screen, font, runs, x + 12 + measure(marker), y + 2,
+        fallback=row_color, width=width - measure(marker),
+    )
+    return y + _row_height(font)
+
+
+def _menu_row_color(
+    color: Color | None, selected: bool, palette: Palette,
+) -> Color:
+    """A row's text colour — explicit overrides stay when selected."""
+    if color is not None:
+        return color
+    return palette.title if selected else palette.text
+
+
 def draw_menu_row(
     pygame: Any,
     screen: Any,
@@ -574,29 +607,33 @@ def draw_menu_row(
     palette: Palette = DEFAULT_PALETTE,
     antialias: bool = True,
     color: Color | None = None,
+    runs: tuple[tuple[str, Color | None], ...] | None = None,
 ) -> int:
-    """Render one selectable row and return its recommended next y.
-
-    ``color`` overrides the default text colour (used by terminals that
-    colour-code rows, e.g. trade demand/surplus cues). The colour is
-    kept even when selected so the cue survives navigation.
+    """Render one selectable row; ``color`` overrides the text colour
+    (kept when selected so terminal cues survive navigation) and
+    ``runs`` paints the label as ``(text, colour)`` segments whose
+    joined text equals ``label``.
     """
-    row_height = font.get_linesize() + 14
     if selected:
-        row = pygame.Rect(x, y - 5, width, row_height)
+        row = pygame.Rect(x, y - 5, width, _row_height(font))
         pygame.draw.rect(screen, palette.selected_background, row, border_radius=3)
         pygame.draw.rect(screen, palette.selected_border, row, width=1, border_radius=3)
     marker = "> " if selected else "  "
     measure = lambda value: measure_font(font, value)
-    available_width = width - measure(marker)
-    fitted_label = fit_text(label, available_width, measure)
+    row_color = _menu_row_color(color, selected, palette)
+    if runs is not None:
+        return _draw_row_runs(
+            pygame, screen, font, marker, runs, x, y, width,
+            row_color=row_color,
+        )
+    fitted_label = fit_text(label, width - measure(marker), measure)
     draw_text(
         pygame, screen, font, marker + fitted_label,
         x + 12, y + 2,
-        color=color if color is not None else (palette.text if not selected else palette.title),
+        color=row_color,
         antialias=antialias,
     )
-    return y + row_height
+    return y + _row_height(font)
 
 
 def draw_informational_row(
@@ -610,10 +647,16 @@ def draw_informational_row(
     *,
     color: Color = DEFAULT_PALETTE.description,
     antialias: bool = True,
+    runs: tuple[tuple[str, Color | None], ...] | None = None,
 ) -> int:
-    """Render a muted non-selectable row with menu-row geometry."""
-    row_height = font.get_linesize() + 14
+    """Render a muted non-selectable row; ``runs`` mirrors
+    :func:`draw_menu_row`."""
     marker = "  "
+    if runs is not None:
+        return _draw_row_runs(
+            pygame, screen, font, marker, runs, x, y, width,
+            row_color=color,
+        )
     measure = lambda value: measure_font(font, value)
     fitted_label = fit_text(label, width - measure(marker), measure)
     draw_text(
@@ -622,7 +665,7 @@ def draw_informational_row(
         color=color,
         antialias=antialias,
     )
-    return y + row_height
+    return y + _row_height(font)
 
 
 # ---------------------------------------------------------------------------

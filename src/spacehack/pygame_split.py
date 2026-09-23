@@ -35,6 +35,11 @@ class SplitRow:
     divider: bool = False
     selectable: bool = True
     fg: tuple[int, int, int] | None = None
+    # Optional (text, colour) segments that PAINT ``label`` — the
+    # plain label stays authoritative; a None colour paints at the row
+    # colour (``fg`` or the palette default). The value cell and
+    # detail area never take runs.
+    runs: tuple[tuple[str, tuple[int, int, int] | None], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -253,9 +258,19 @@ def _draw_panel_row(
         return pygame_ui.draw_informational_row(
             pygame, screen, font, row.label,
             content_x, y, content_width,
-            color=row.fg or palette.description,
+            color=row.fg or palette.description, runs=row.runs,
         )
     selected_row = focused and index == selected
+    if row.runs is not None:
+        # Runs paint the label; the value cell rides as a plain
+        # trailing run so both stay inside one fitted row.
+        runs = row.runs + (((f"  {row.value}", None),) if row.value else ())
+        return pygame_ui.draw_menu_row(
+            pygame, screen, font, row.label,
+            content_x, y, content_width,
+            selected=selected_row, palette=palette,
+            color=row.fg, runs=runs,
+        )
     return pygame_ui.draw_menu_row(
         pygame, screen, font,
         f"{row.label}  {row.value}".rstrip(),

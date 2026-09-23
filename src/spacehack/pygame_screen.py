@@ -40,6 +40,11 @@ class ScreenRow:
     action: str = ""
     selectable: bool = True
     header: bool = False
+    # Optional (text, colour) segments that PAINT ``text`` — the plain
+    # text stays authoritative. A None colour paints at the row
+    # default; an explicit colour survives selection. The joined run
+    # text must equal ``text`` (quality item names colour this way).
+    runs: tuple[tuple[str, tuple[int, int, int] | None], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -519,12 +524,12 @@ def _draw_visible_rows(
         if row.selectable:
             y = pygame_ui.draw_menu_row(
                 pygame, screen, font, row.text, row_x, y, row_width,
-                selected=index == selected, palette=palette,
+                selected=index == selected, palette=palette, runs=row.runs,
             )
         else:
             y = pygame_ui.draw_informational_row(
                 pygame, screen, font, row.text, row_x, y, row_width,
-                color=palette.description,
+                color=palette.description, runs=row.runs,
             )
     return y
 

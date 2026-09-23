@@ -85,10 +85,15 @@ async def confirm(
 
 
 def _choice_frames(title, body, options, compact):
-    """One MenuFrame per selectable index; the menu never needs rebuild."""
+    """One MenuFrame per selectable index; the menu never needs rebuild.
+
+    An option may carry an optional third element — inline runs that
+    paint its label (quality item names colour this way).
+    """
     items = tuple(
-        pygame_menu.MenuItem(label, "", action)
-        for label, action in options
+        pygame_menu.MenuItem(label, "", action, runs=runs)
+        for label, action, *extra in options
+        for runs in (extra[0] if extra else None,)
     )
     return tuple(
         pygame_menu.MenuFrame(
@@ -111,7 +116,7 @@ async def choose(
     *,
     title: str,
     body: str,
-    options: tuple[tuple[str, str], ...],
+    options: tuple[tuple[str, str], ...] | tuple[tuple[str, str, tuple], ...],
     caption: str,
     compact: bool = False,
 ) -> str:
@@ -119,7 +124,7 @@ async def choose(
     frames = _choice_frames(title, body, options, compact)
     outcome, action, _selected = await pygame_menu.run_for_context(getattr(ctx, "context", ctx), frames, caption=caption)
     if outcome == "SELECT":
-        valid_actions = {option_action for _label, option_action in options}
+        valid_actions = {option[1] for option in options}
         return action if action in valid_actions else None
     if outcome == "GUIDE":
         from .help import _run_help_guide

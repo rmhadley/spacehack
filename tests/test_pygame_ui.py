@@ -1731,6 +1731,93 @@ def test_informational_split_rows_match_selectable_row_spacing():
     assert informational_screen.blit_calls[0][1] == (112, 202)
 
 
+def test_menu_row_runs_paint_each_segment_in_its_own_colour():
+    """Runs colour segments of a row; None colours take the row default."""
+
+    class Font:
+        def get_linesize(self):
+            return 24
+
+        def size(self, text):
+            return len(text) * 10, 24
+
+        def render(self, text, _antialias, color):
+            return (text, color)
+
+    class Screen:
+        def __init__(self):
+            self.blit_calls = []
+
+        def blit(self, surface, position):
+            self.blit_calls.append((surface, position))
+
+    class Rect:
+        def __init__(self, *_args):
+            pass
+
+    class Draw:
+        @staticmethod
+        def rect(*_args, **_kwargs):
+            pass
+
+    class Pygame:
+        pass
+
+    Pygame.Rect = Rect
+    Pygame.draw = Draw
+
+    screen = Screen()
+    pygame_ui.draw_menu_row(
+        Pygame, screen, Font(), "Weapon 1: Modded Mono Blade",
+        100, 200, 800, selected=True,
+        runs=(
+            ("Weapon 1: ", None),
+            ("Modded Mono Blade", (100, 235, 115)),
+        ),
+    )
+
+    # marker paints at the selected title colour, then each run.
+    assert screen.blit_calls == [
+        (("> ", pygame_ui.DEFAULT_PALETTE.title), (112, 202)),
+        (("Weapon 1: ", pygame_ui.DEFAULT_PALETTE.title), (132, 202)),
+        (("Modded Mono Blade", (100, 235, 115)), (232, 202)),
+    ]
+
+
+def test_menu_row_runs_ellipsis_on_the_tail_when_the_row_overflows():
+    class Font:
+        def get_linesize(self):
+            return 24
+
+        def size(self, text):
+            return len(text) * 10, 24
+
+        def render(self, text, _antialias, color):
+            return (text, color)
+
+    class Screen:
+        def __init__(self):
+            self.blit_calls = []
+
+        def blit(self, surface, position):
+            self.blit_calls.append((surface, position))
+
+    class Pygame:
+        pass
+
+    screen = Screen()
+    pygame_ui.draw_menu_row(
+        Pygame, screen, Font(), "Prototype Mono Blade",
+        0, 0, 100, selected=False,
+        runs=(("Prototype Mono Blade", (190, 140, 255)),),
+    )
+
+    assert screen.blit_calls[0][0] == (
+        "  ", pygame_ui.DEFAULT_PALETTE.text,
+    )
+    assert screen.blit_calls[1][0] == ("Proto...", (190, 140, 255))
+
+
 def test_split_key_mapping_skips_informational_rows():
     frame = pygame_split.SplitFrame(
         "ARMORY", "Loadout", "Owned",
@@ -5235,3 +5322,98 @@ def test_cycled_tab_advances_both_directions(outcome, active, count, expected):
     from spacehack.pygame_screen import cycled_tab
 
     assert cycled_tab(outcome, active, count) == expected
+
+
+# --- inline row runs (quality item-name colours) ----------------------
+
+
+def test_story_choice_options_may_carry_runs_into_menu_items():
+    from spacehack import pygame_story
+
+    frames = pygame_story._choice_frames(
+        "RELOAD WHICH?", "", (
+            ("Mono Blade 12/12", "RELOAD_SLOT:0", (("Mono Blade", (100, 235, 115)),)),
+            ("Rusty Pistol 6/6", "RELOAD_SLOT:1",),
+        ),
+        True,
+    )
+
+    assert frames[0].items[0].runs == (("Mono Blade", (100, 235, 115)),)
+    assert frames[1].items[1].runs is None
+
+
+def test_split_row_runs_paint_label_segments_with_value_trailing(monkeypatch):
+    from spacehack import pygame_split
+
+    captured = {}
+
+    def fake_draw_menu_row(
+        _pygame, _screen, _font, label, x, y, width, *,
+        selected, palette, color=None, runs=None,
+    ):
+        captured.update(
+            label=label, runs=runs, selected=selected, color=color,
+        )
+        return y + 30
+
+    monkeypatch.setattr(pygame_split.pygame_ui, "draw_menu_row", fake_draw_menu_row)
+    row = pygame_split.SplitRow(
+        "Overclocked Shield Mk. 2", "45$", "Shields: +9",
+        "MANAGE_MODULE_SLOT:0",
+        runs=(("Overclocked Shield Mk. 2", (130, 210, 240)),),
+    )
+
+    class Font:
+        def get_linesize(self):
+            return 24
+
+    pygame_split._draw_panel_row(
+        object(), object(), Font(), SimpleNamespace(width=400), row,
+        0, True, 0, 40, 60, 400, 0,
+        lambda text: len(text) * 10, pygame_ui.DEFAULT_PALETTE,
+    )
+
+    assert captured["label"] == "Overclocked Shield Mk. 2"
+    assert captured["runs"] == (
+        ("Overclocked Shield Mk. 2", (130, 210, 240)),
+        ("  45$", None),
+    )
+
+
+def test_screen_rows_thread_runs_into_the_row_painter(monkeypatch):
+    from spacehack import pygame_screen
+
+    captured = []
+    monkeypatch.setattr(
+        pygame_screen.pygame_ui,
+        "draw_menu_row",
+        lambda _pygame, _screen, _font, text, x, y, w, *, selected,
+        palette, runs=None: captured.append((text, runs)) or y + 30,
+    )
+    frame = pygame_screen.ScreenFrame(
+        title="MY SHIP",
+        body=(),
+        rows=(
+            pygame_screen.ScreenRow(
+                "Prototype Compact Reactor Mk. 1", "Power: +3",
+                runs=(("Prototype Compact Reactor Mk. 1", (190, 140, 255)),),
+            ),
+            pygame_screen.ScreenRow("Shield Mk. 1", "Shields: +2"),
+        ),
+    )
+
+    class Font:
+        def get_linesize(self):
+            return 24
+
+    pygame_screen._draw_visible_rows(
+        object(), object(), Font(), frame, 800, 0,
+        SimpleNamespace(footer_start=600), pygame_ui.DEFAULT_PALETTE,
+        0, 2, 0,
+    )
+
+    assert captured[0] == (
+        "Prototype Compact Reactor Mk. 1",
+        (("Prototype Compact Reactor Mk. 1", (190, 140, 255)),),
+    )
+    assert captured[1] == ("Shield Mk. 1", None)
