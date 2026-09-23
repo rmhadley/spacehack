@@ -170,17 +170,35 @@ def test_capture_targets_are_data_optins():
 
 def test_capture_layouts_carry_console_and_crew():
     from src.spacehack.dungeon_layout import load_layout
+    from src.spacehack.data.npc_chars.crew_roles import CREW_ROLES
 
-    # scattered entities carry the npc_char spec's char (raider r /
-    # rifleman R / enforcer E / gunner e), not the authored map glyph
-    crew_glyphs = {"scout_crew": "r", "cruiser_crew": "rR",
-                   "hauler_crew": "Ee", "frigate_crew": "rR",
-                   "freightliner_crew": "Ee"}
-    for lid, crew in crew_glyphs.items():
+    # Decks re-authored to role tokens (doc 48 SETTLED 28/38) resolve
+    # through the BOARDING HULL'S faction: the guaranteed @1.0 anchor
+    # crew must be present and every spawned body must belong to that
+    # faction's role table (machines + parasites included). Each
+    # per-file re-authoring commit moves its deck into this table.
+    deck_factions = {
+        "scout_crew": "pirate",
+    }
+    for lid, faction in deck_factions.items():
+        _map, _spawn = load_layout(lid, crew_faction=faction)
+        assert _spawn is not None, lid
+        assert any(e.char == "C" for e in _map.entities), lid
+        crew = [
+            e.npc_char_id for e in _map.entities
+            if getattr(e, "npc_char_id", "")
+        ]
+        legal = set(CREW_ROLES[faction].values())
+        assert set(crew) <= legal, (lid, sorted(set(crew) - legal))
+        assert CREW_ROLES[faction]["line"] in crew, (lid, "no anchor crew")
+
+    # Decks still on raw spec ids load bare (no crew_faction needed).
+    for lid in ("cruiser_crew", "frigate_crew", "hauler_crew",
+                "freightliner_crew"):
         _map, _spawn = load_layout(lid)
         assert _spawn is not None, lid
         assert any(e.char == "C" for e in _map.entities), lid
-        assert any(e.char in crew for e in _map.entities), lid
+        assert any(getattr(e, "npc_char_id", "") for e in _map.entities), lid
 
 
 def _consume_ctx(_boarded, **over):
@@ -456,7 +474,7 @@ def test_capture_stamps_round_trip_through_the_dungeon_payload():
 
     from src.spacehack.dungeon_layout import load_layout
 
-    _map, _spawn = load_layout("scout_crew")
+    _map, _spawn = load_layout("scout_crew", crew_faction="pirate")
     _map.capture_spec_id = "pirate_scout"
     _map.cloned = False
     _data = _dungeon_to_dict(_map, None)

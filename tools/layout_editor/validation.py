@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from src.spacehack import city_landmarks, layout_format, world
 from src.spacehack.dungeon_layout import LOOT_ROOM_TYPES
 from src.spacehack.data.npc_chars import find_npc_char
+from src.spacehack.data.npc_chars.crew_roles import CREW_ROLE_TOKENS
 
 from .model import AssetMode, EditorDocument
 
@@ -63,12 +64,16 @@ def _validate_directives(document: EditorDocument) -> list[ValidationIssue]:
     for glyph, directive in document.enemy_directives.items():
         if len(glyph) != 1:
             issues.append(_issue("Enemy glyphs must contain one character", directive="ENEMY"))
-        try:
-            find_npc_char(directive.enemy_id)
-        except KeyError:
-            issues.append(_issue(
-                f"Unknown enemy id {directive.enemy_id!r}", directive="ENEMY",
-            ))
+        # Gate hygiene only (doc 48 SETTLED 38): role tokens are legal
+        # ENEMY ids in shipped decks — the editor is otherwise not a
+        # role-token consumer.
+        if directive.enemy_id not in CREW_ROLE_TOKENS:
+            try:
+                find_npc_char(directive.enemy_id)
+            except KeyError:
+                issues.append(_issue(
+                    f"Unknown enemy id {directive.enemy_id!r}", directive="ENEMY",
+                ))
         if not 0 <= directive.chance <= 1:
             issues.append(_issue("Enemy chance must be between 0 and 1", directive="ENEMY"))
         if directive.squad_min < 1 or directive.squad_min > directive.squad_max:

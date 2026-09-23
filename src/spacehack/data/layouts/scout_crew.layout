@@ -4,8 +4,9 @@
 #   Aft:               split engine/hold compartments + two-hatch wings
 #                      (a) — external airlocks on the swept wings
 #   Bottom center:     enclosed breach stub (b) — spawn at P, exit > inside
-#   Content:           pirate raider/rifleman varied spawns (bridge watch
-#                      @1.0 anchor), scout-scale loot
+#   Content:           role-token crew (doc 48 SETTLED 28) — the boarding
+#                      hull's faction resolves line/marksman/drones/
+#                      stowaways at load; scout-scale loot
 MAP
 ###########################
 #E........................#
@@ -74,14 +75,17 @@ TILE: > = EXIT
 COLOUR: # = (120, 130, 150)
 COLOUR: b = (200, 120, 90)
 
-# Crew — varied spawns: scout-scale (9 stamps, 6 profiles). The bridge
-# watch is the guaranteed anchor; everything else rolls per visit.
-ENEMY: S = pirate_raider@1.0#1-2
-ENEMY: R = pirate_rifleman@0.5#1-2
-ENEMY: r = pirate_raider@0.35#1-1
-ENEMY: g = pirate_raider@0.4#1-1
-ENEMY: m = hull_parasite@0.15#1-3
-ENEMY: q = sentry_drone@0.25#1-1
+# Crew — role tokens (doc 48 SETTLED 28): the boarding hull's faction
+# resolves line/heavy/marksman/security_drone/stowaway at load. Scout
+# scale (9 stamps, 6 profiles): the bridge watch is the guaranteed
+# anchor; everything else rolls per visit. No heavy — a small boat
+# carries no brute.
+ENEMY: S = line@1.0#1-2
+ENEMY: R = marksman@0.5#1-2
+ENEMY: r = line@0.35#1-1
+ENEMY: g = line@0.4#1-1
+ENEMY: m = stowaway@0.15#1-3
+ENEMY: q = security_drone@0.25#1-1
 
 # Loot mappings — scout stores
 LOOT: 1 = cargo_bay
@@ -89,7 +93,8 @@ LOOT: 2 = personal_storage
 LOOT: 3 = engine_room
 LOOT: 4 = mess_hall
 
-# Color overrides
+# Color overrides — tiles only; crew identity renders from the
+# resolved spec's family color (doc 48 SETTLED 38)
 COLOUR: # = (120, 130, 150)
 COLOUR: . = (200, 200, 210)
 COLOUR: d = (100, 220, 255)
@@ -97,9 +102,3 @@ COLOUR: a = (100, 200, 255)
 COLOUR: b = (255, 120, 50)
 COLOUR: C = (255, 200, 80)
 COLOUR: > = (100, 255, 120)
-COLOUR: S = (220, 120, 80)
-COLOUR: R = (200, 80, 80)
-COLOUR: r = (220, 120, 80)
-COLOUR: g = (220, 120, 80)
-COLOUR: m = (175, 140, 190)
-COLOUR: q = (150, 230, 255)

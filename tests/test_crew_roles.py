@@ -257,6 +257,8 @@ def test_marker_crews_render_spec_family_colors():
     for entity in crew:
         spec = find_npc_char(entity.npc_char_id)
         assert (entity.char, entity.fg) == (spec.char, spec.fg)
-    assert {find_npc_char(e.npc_char_id).faction for e in crew} == {
-        "consortium", "",
-    }
+    factions = {find_npc_char(e.npc_char_id).faction for e in crew}
+    # the @1.0 gunner anchor guarantees the consortium presence;
+    # parasites (faction "") are a chance roll, never a wrong faction
+    assert "consortium" in factions
+    assert factions <= {"consortium", ""}
