@@ -1799,6 +1799,19 @@ with doctrinal 10-13):
   assertions, redundant imports); build 4 APPROVE (base chance parsed
   from the authored deck). Build-discovered readings recorded in the
   phase-6 audit below. PLAYTEST PENDING.
+  Mid-playtest rulings (2026-09-23): (1) the abandon-interior confirm
+  went GENERIC — "This ship won't survive a second breach, anything
+  left behind is gone." (user wording verbatim) — one message for
+  every leave-and-it's-gone hull, live captures included (5040518b).
+  (2) Merchant decks re-tuned after the first H boarding read
+  crew-heavy and drone-invisible (14 Merchants vs ~1 sentry): an H
+  hull is the RICH TOP TIER and BIG inside — the dial now scales
+  every sentry marker, the crews read light, and the H deck carries a
+  STANDING assault complement (heavy@1.0#1-2, 2-4 per boarding;
+  c84c0bbb). The heavy role stays outside the dial (SETTLED 38's
+  scope stands — the complement is flat-authored). Simulated reads
+  (400 loads): hauler 4 crew / 2.6 sentries / 0.7 assault; freighter
+  3.2 / 8.5 / 3.0; caravan 3.1 / 12.5 / 3.0.
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
