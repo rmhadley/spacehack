@@ -1,4 +1,4 @@
-"""Loot category colours + the shared entity cap (doc 47 phase 1)."""
+"""Loot category colours + spawn-path behaviour (doc 47 phase 1)."""
 
 import pytest
 
@@ -12,10 +12,7 @@ from spacehack.loot_common import (
     EQUIPMENT_FG,
     FIELD_ITEM_FG,
     MISSION_FG,
-    MAX_LOOT_ENTITIES,
-    is_protected_loot,
     loot_fg,
-    enforce_loot_cap,
 )
 
 
@@ -57,85 +54,48 @@ class TestLootFg:
         assert loot_fg({"good_id": "electronics", "quantity": 1}, mission=True) == MISSION_FG
 
 
-class TestProtection:
-    """Quest/pad/heist loot never answers to the cap."""
+class TestNoSilentEviction:
+    """Spawning loot NEVER deletes existing loot (cap removed
+    2026-09-23 — the perf pass removed the need, and the old cap
+    silently ate a floor-placed legendary when a guard squad's drops
+    pushed the map over the limit)."""
 
-    def test_plain_cargo_is_not_protected(self):
-        assert not is_protected_loot(_loot({"good_id": "scrap_metal", "quantity": 1}))
+    def test_space_debris_spawns_never_evict_placed_loot(self):
+        from spacehack.combat import _actions
+        from types import SimpleNamespace
 
-    def test_quest_cache_goods_manifest_is_protected(self):
-        assert is_protected_loot(_loot({"goods": [("ore_processed", 3)]}))
-
-    def test_step_id_marker_is_protected(self):
-        entity = _loot({"good_id": "research_data", "quantity": 1})
-        entity.main_quest_step_id = "mq_step_2"
-        assert is_protected_loot(entity)
-
-    def test_heist_marker_is_protected(self):
-        entity = _loot({"good_id": "fuel_cells", "quantity": 1})
-        entity.heist_mission = True
-        assert is_protected_loot(entity)
-
-    def test_pads_are_protected(self):
-        assert is_protected_loot(_loot({"teaches": "some_rumor"}))
-        assert is_protected_loot(_loot({"reveals_site": True}))
-
-    def test_non_loot_entity_is_not_protected(self):
-        assert not is_protected_loot(Entity(char="@", fg=(255, 255, 255), pos=Position(0, 0)))
-
-
-class TestEnforceLootCap:
-    """Oldest non-protected loot evicts beyond the cap, silently."""
-
-    def test_under_cap_untouched(self):
-        gm = _make_map(1, 1)
-        keep = [_loot({"good_id": "scrap_metal", "quantity": 1}) for _ in range(5)]
-        gm.entities.extend(keep)
-
-        enforce_loot_cap(gm)
-
-        assert gm.entities == keep
-
-    def test_over_cap_evicts_oldest_first(self):
-        gm = _make_map(1, 1)
-        oldest = _loot({"good_id": "scrap_metal", "quantity": 1})
-        newer = [_loot({"good_id": "electronics", "quantity": 1}) for _ in range(MAX_LOOT_ENTITIES)]
-        gm.entities.append(oldest)
-        gm.entities.extend(newer)
-
-        enforce_loot_cap(gm)
+        gm = _make_map(3, 3)
+        legendary = _loot({
+            "item_type": "module", "item_id": "shield_mk1",
+            "quality": 4, "randart_seed": 4242,
+        })
+        gm.entities.append(legendary)
+        spec = SimpleNamespace(cargo_goods=("scrap_metal",))
+        for _ in range(40):
+            _actions._spawn_loot_drops(gm, Position(1, 1), spec)
 
         loot = [e for e in gm.entities if e.loot_data is not None]
-        assert len(loot) == MAX_LOOT_ENTITIES
-        assert oldest not in loot
+        assert len(loot) > 30          # no cap: debris keeps piling up
+        assert any(e is legendary for e in gm.entities)
 
-    def test_protected_loot_survives_regardless_of_age(self):
-        gm = _make_map(1, 1)
-        ancient_pad = _loot({"teaches": "some_rumor"})
-        fillers = [_loot({"good_id": "scrap_metal", "quantity": 1}) for _ in range(MAX_LOOT_ENTITIES)]
-        gm.entities.append(ancient_pad)
-        gm.entities.extend(fillers)
+    def test_ground_kills_never_evict_placed_loot(self):
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
 
-        enforce_loot_cap(gm)
-
-        loot = [e for e in gm.entities if e.loot_data is not None]
-        assert ancient_pad in loot
-        assert len(loot) == MAX_LOOT_ENTITIES
-
-    def test_non_loot_entities_never_counted_or_evicted(self):
-        gm = _make_map(1, 1)
-        npc = Entity(char="N", fg=(255, 255, 255), pos=Position(0, 0))
-        gm.entities.append(npc)
-        gm.entities.extend(
-            _loot({"good_id": "scrap_metal", "quantity": 1})
-            for _ in range(MAX_LOOT_ENTITIES + 3)
+        gm = _make_map(3, 3)
+        early = _loot({"good_id": "electronics", "quantity": 1})
+        gm.entities.append(early)
+        spec = SimpleNamespace(
+            loot_pool=("scrap_metal",), loot_count=(1, 1),
+            equipment_loot_pool=(), field_item_loot_pool=(),
+            field_item_loot_count=(0, 0), tier=1, id="rock_scavenger",
+            xp_reward=10,
         )
+        for _ in range(40):
+            spawn_kill_drops(gm, Position(1, 1), spec, SimpleNamespace(known_rumors=set()))
 
-        enforce_loot_cap(gm)
-
-        assert npc in gm.entities
-        loot = [e for e in gm.entities if e.loot_data is not None]
-        assert len(loot) == MAX_LOOT_ENTITIES
+        assert any(e is early for e in gm.entities)
+        assert len([e for e in gm.entities if e.loot_data is not None]) > 30
 
 
 class TestConstructorRouting:
@@ -173,19 +133,6 @@ class TestConstructorRouting:
         assert spawn_pad_entity(gm, Position(0, 0), {"teaches": "some_rumor"})
         assert gm.entities[0].fg == DATA_FG
 
-    def test_space_debris_spawn_enforces_cap(self):
-        from spacehack.combat import _actions
-        from types import SimpleNamespace
-
-        gm = _make_map(1, 1)
-        spec = SimpleNamespace(cargo_goods=("scrap_metal",))
-        for _ in range(MAX_LOOT_ENTITIES + 5):
-            _actions._spawn_loot_drops(gm, Position(0, 0), spec)
-
-        loot = [e for e in gm.entities if e.loot_data is not None]
-        assert len(loot) == MAX_LOOT_ENTITIES
-
-
 class TestSaveLoadColourRoundTrip:
     """The restore path is the colour authority for non-dungeon maps
     (fg is not serialized) — it must rebuild through loot_fg."""
@@ -207,32 +154,10 @@ class TestSaveLoadColourRoundTrip:
         colours = sorted(e.fg for e in restored.entities)
         assert colours == sorted([CARGO_FG, FIELD_ITEM_FG, MISSION_FG])
 
-    def test_eviction_is_identity_based_against_value_equal_twins(self):
-        ancient = _loot({"good_id": "fuel_cells", "quantity": 1})
-        ancient.heist_mission = True
-        twin = _loot({"good_id": "fuel_cells", "quantity": 1})
-        assert ancient == twin  # value-equal despite protection
-
-        # ancient (protected) first, its plain twin SECOND — inside
-        # the doomed window — then fillers to one over cap: a
-        # value-based remove(twin) would delete ancient instead.
-        gm = _make_map(1, 1)
-        gm.entities.append(ancient)
-        gm.entities.append(twin)
-        gm.entities.extend(
-            _loot({"good_id": "scrap_metal", "quantity": 1})
-            for _ in range(MAX_LOOT_ENTITIES - 1)
-        )
-
-        enforce_loot_cap(gm)
-
-        assert any(e is ancient for e in gm.entities)
-        assert not any(e is twin for e in gm.entities)
-
 
 class TestGroundKillDrops:
-    """The extracted ground drop sequence keeps pool behavior and
-    enforces the shared cap (doc 47.1 step 2)."""
+    """The extracted ground drop sequence keeps pool behavior
+    (doc 47.1 step 2)."""
 
     @pytest.fixture(autouse=True)
     def _no_tinker_kit(self, monkeypatch):
@@ -291,19 +216,6 @@ class TestGroundKillDrops:
         spec = self._spec(id="pirate_raider")
         spawn_kill_drops(_make_map(1, 1), Position(0, 0), spec, SimpleNamespace())
         assert seen == ["pirate_raider"]
-
-    def test_caps_the_map_across_many_kills(self):
-        from spacehack.combat._actions import spawn_kill_drops
-        from types import SimpleNamespace
-
-        gm = _make_map(1, 1)
-        spec = self._spec(equipment_loot_pool=(), field_item_loot_pool=())
-        ctx = SimpleNamespace(known_rumors=set())
-        for _ in range(MAX_LOOT_ENTITIES + 5):
-            spawn_kill_drops(gm, Position(0, 0), spec, ctx)
-
-        loot = [e for e in gm.entities if e.loot_data is not None]
-        assert len(loot) == MAX_LOOT_ENTITIES
 
     def _bare_spec(self):
         """A spec whose every pool is empty — only the kit drop fires."""

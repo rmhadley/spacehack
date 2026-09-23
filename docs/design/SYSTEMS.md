@@ -925,10 +925,11 @@ nobody designs against a ghost.
   save/load restore path (equipment steel, field items amber,
   cargo gold, quest pads/caches violet, mission cargo cyan —
   `loot_common.loot_fg`; the equipment hue BRIGHTENS by quality
-  tier, other categories ignore it — doc 47.2); ONE
-  identity-based 30-entity cap on
-  both kill paths evicts the oldest plain loot silently and never
-  quest caches, pads, or heist cargo (`loot_common.enforce_loot_cap`); tiered
+  tier, other categories ignore it — doc 47.2); loot is NEVER
+  capped or evicted — the doc-47 30-entity cap was REMOVED 2026-09-23
+  (the doc-48 perf pass removed the need, and the cap silently ate a
+  floor-placed legendary when a guard squad's mass drops pushed the
+  map over the limit); tiered
   NAMES colour their text everywhere they render — modded green,
   overclocked blue, prototype purple, legendary orange, base plain
   (`data/quality.QUALITY_COLORS` + `quality_mark`; inline runs:

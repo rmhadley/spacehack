@@ -29,10 +29,6 @@ _TYPE_FG = {
     "consumable": FIELD_ITEM_FG,
 }
 
-# Max loot entities on one map; beyond this the oldest NON-protected
-# loot is evicted when new loot spawns (silently — SETTLED 8).
-MAX_LOOT_ENTITIES: int = 30
-
 # Brightness answers HOW GOOD (SETTLED 5): each tier above base steps
 # the equipment hue brighter. The legendary row (4) is live since the
 # doc-47 phase-4 delve-bottom guarantee — randarts are its only source.
@@ -47,10 +43,6 @@ def _brighten(rgb: tuple[int, int, int], quality: int) -> tuple[int, int, int]:
     index = min(quality, len(_QUALITY_BRIGHTNESS) - 1)
     factor = _QUALITY_BRIGHTNESS[index]
     return tuple(min(255, int(channel * factor + 0.5)) for channel in rgb)
-
-# Entity-level markers (set post-construction, read via getattr).
-_PROTECTED_ATTRS = ("main_quest_step_id", "heist_mission")
-
 
 def equipment_payload(
     item_type: str, item_id: str, quality: int = 0,
@@ -99,36 +91,3 @@ def loot_fg(loot_data: dict | None, *, mission: bool = False):
     return fg
 
 
-def is_protected_loot(entity) -> bool:
-    """True for loot that must never be evicted by the cap.
-
-    Quest caches (goods manifest or step id), teaching/reveal pads,
-    and heist/mission cargo — the quest-loot security classes.
-    """
-    data = getattr(entity, "loot_data", None)
-    if data is None:
-        return False
-    if any(key in data for key in _DATA_KEYS):
-        return True
-    return any(getattr(entity, attr, None) for attr in _PROTECTED_ATTRS)
-
-
-def enforce_loot_cap(game_map) -> None:
-    """Evict the oldest non-protected loot beyond the cap (silent).
-
-    Removal is identity-based: Entity equality is value-based
-    (plain dataclass), so a protected entity can be ``==`` to plain
-    debris — evicting by value could delete the protected twin.
-    """
-    loot = [e for e in game_map.entities if getattr(e, "loot_data", None) is not None]
-    excess = len(loot) - MAX_LOOT_ENTITIES
-    doomed: set[int] = set()
-    for entity in loot:
-        if excess <= 0:
-            break
-        if is_protected_loot(entity):
-            continue
-        doomed.add(id(entity))
-        excess -= 1
-    if doomed:
-        game_map.entities[:] = [e for e in game_map.entities if id(e) not in doomed]

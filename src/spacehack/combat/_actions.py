@@ -15,7 +15,7 @@ from ._stats import _roll_ap
 from ..data.weapons import find_weapon
 from ..data.quality import effective_module_spec, roll_quality
 from ..engine import RNG
-from ..loot_common import enforce_loot_cap, equipment_payload, loot_fg
+from ..loot_common import equipment_payload, loot_fg
 
 if TYPE_CHECKING:
     from ..ship import OwnedShip
@@ -269,7 +269,6 @@ def spawn_kill_drops(
     _spawn_kit_drop(game_map, pos, weapon_id, weapon_quality)
     maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
     _spawn_tinker_kit_drop(game_map, pos)
-    enforce_loot_cap(game_map)
 
 
 def set_combat_locks(locked: bool, entities) -> None:
@@ -323,9 +322,6 @@ def _spawn_loot_drops(
 ) -> None:
     """Spawn 1-2 loot items near a destroyed enemy ship.
 
-    Caps total loot via :func:`loot_common.enforce_loot_cap` —
-    evicts the oldest NON-protected loot (quest/pad/heist exempt)
-    to prevent unbounded entity-list growth.
     Uses the shared :func:`_spawn_loot_at_position` for the actual
     entity creation so both ship and ground loot behave identically.
     """
@@ -348,7 +344,6 @@ def _spawn_loot_drops(
             count_range=(1, 1),
             qty_range=(1, 3),
         )
-    enforce_loot_cap(game_map)
 
 
 def can_afford_action(
