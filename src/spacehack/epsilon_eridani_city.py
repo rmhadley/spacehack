@@ -173,10 +173,10 @@ def _paint_apron(tiles, theme, spec):
     for y in range(31, 50):
         for x in range(18, 52):
             tiles[y][x] = pad_tile
+    # Plaza alone marks the berth — no neon corners (the focal-point
+    # brightness removed fleet-wide, user 2026-09-23).
     berth = spec.hangar_anchor
     tiles[berth.y][berth.x] = theme.plaza
-    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        tiles[berth.y + dy][berth.x + dx] = theme.neon
 
 
 _TRANSIT_BAY_TILE = world.Tile(

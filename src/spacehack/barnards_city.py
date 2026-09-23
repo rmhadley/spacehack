@@ -260,7 +260,9 @@ def _paint_work_lights(tiles, theme):
         if 0 <= y < CITY_HEIGHT and 0 <= x < CITY_WIDTH:
             if tiles[y][x].kind == "floor" and tiles[y][x].char != "○":
                 tiles[y][x] = _WORK_LIGHT
-    tiles[_CENTER_Y][_CENTER_X] = theme.neon
+    # The city center is the landing berth: the plaza mark, not a
+    # neon post — the player lands dark (user 2026-09-23).
+    tiles[_CENTER_Y][_CENTER_X] = theme.plaza
 
 
 def _paint_acents(tiles, theme):

@@ -1788,3 +1788,26 @@ def test_every_transit_station_destinations_is_a_tuple_of_sibling_ids():
                 f"{spec.id}:{station.id} destinations "
                 f"{station.destinations} reference non-sibling ids"
             )
+
+
+def test_no_city_lands_the_player_on_a_light():
+    """The landing berth is never on or beside an emitting tile: four
+    cities painted neon at/around the berth (mars + ac_station corners,
+    eri_b corners, barnards_b center post) and the player landed at
+    the focal point of their light. Behavioral pin over every planet —
+    any future painter breaks it, whatever shape it uses (user
+    playtest 2026-09-23)."""
+    from src.spacehack.data.lighting import STATIC_LIGHT_TABLE
+
+    for spec in list_planet_specs():
+        game_map = load_planet(spec.id)
+        berth = spec.hangar_anchor
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                x, y = berth.x + dx, berth.y + dy
+                if 0 <= x < game_map.width and 0 <= y < game_map.height:
+                    kind = game_map.tiles[y][x].kind
+                    assert kind not in STATIC_LIGHT_TABLE, (
+                        f"{spec.id}: {kind} emitter at "
+                        f"({x},{y}), {max(abs(dx), abs(dy))} from the berth"
+                    )
