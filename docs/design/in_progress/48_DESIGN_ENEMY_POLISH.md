@@ -1823,7 +1823,14 @@ with doctrinal 10-13):
   caches — every live-map write swept to it); the BFS reads blockers
   from a per-plan occupancy snapshot; lit-cell reveal intersects the
   source cache. Measured: 4.6 → 1.0 ms/step (4.5x) with an IDENTICAL
-  step sequence under the same seed.
+  step sequence under the same seed. (4) The faction-population sim
+  (pirate/derelict unchanged by construction) caught MILITIA inverted
+  — sniper-saturated decks (5.7-6.3 elite perch guards riding marksman
+  markers authored for riflemen), marines nearly absent. User swap
+  ruling: the sniper IS the heavy-hitting row (SETTLED 10) — sniper
+  rides the single-slot heavy marker, marines ride marksman in their
+  authored squads (8157856c). Simulated: cruiser 8.2 troopers / 5.7
+  marines / 0.4 snipers; frigate 5.2 / 6.3 / 0.7; scout none.
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
