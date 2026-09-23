@@ -1145,3 +1145,34 @@ def test_auto_explore_drives_async_post_step_tick():
     ctx, result = _run(gm, player, tick=tick)
     assert result == "DONE"
     assert ran, "the async post-step tick must actually run per step"
+
+
+def test_blocker_index_matches_the_scan_read():
+    """The BFS's per-plan occupancy snapshot agrees with the scan form
+    on every covered cell: loot never blocks, multi-cell bodies block
+    their whole footprint, first entity wins (doc 48 phase 6 perf
+    pass)."""
+    from src.spacehack import world
+    from src.spacehack.autoexplore import _blocker_index, _visible_blocker
+
+    floor = world.Tile("dungeon_floor", ".", True, (200, 200, 200), (10, 10, 20))
+    gm = world.GameMap(
+        width=6, height=5,
+        tiles=[[floor for _ in range(6)] for _ in range(5)],
+        entities=[
+            # loot on (1,1): interactable, never blocks
+            world.Entity(char="%", fg=(255, 215, 0), pos=world.Position(1, 1),
+                         name="Loot", loot_data={"good_id": "ore", "quantity": 1}),
+            # a 2x2 body anchored at (3,1): blocks all four cells
+            world.Entity(char="C", fg=(255, 200, 80), pos=world.Position(3, 1),
+                         name="Console", width=2, height=2,
+                         computer_terminal=True),
+        ],
+    )
+    index = _blocker_index(gm)
+    assert set(index) == {(3, 1), (4, 1), (3, 2), (4, 2)}, "loot stays out"
+    for x in range(6):
+        for y in range(5):
+            via_snapshot = _visible_blocker(gm, x, y, index=index)
+            via_scan = _visible_blocker(gm, x, y)
+            assert via_snapshot is via_scan, (x, y)

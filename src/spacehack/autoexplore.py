@@ -284,9 +284,25 @@ def _permanent_seal(_ent) -> bool:
     return not getattr(_ent, "npc_char_id", "")
 
 
+def _blocker_index(game_map) -> dict[tuple[int, int], object]:
+    """One per-plan snapshot of every blocking entity's footprint
+    cells — O(1) blocker reads for the BFS loops instead of an
+    O(entities) scan per visited cell (big-interior perf, doc 48
+    phase 6 playtest). First entity wins, matching
+    ``GameMap.blocking_entity_at``."""
+    index: dict[tuple[int, int], object] = {}
+    for entity in game_map.entities:
+        if entity.loot_data is not None:
+            continue
+        for dy in range(entity.height):
+            for dx in range(entity.width):
+                index.setdefault((entity.pos.x + dx, entity.pos.y + dy), entity)
+    return index
+
+
 def _visible_blocker(
     game_map, x: int, y: int, *, exclude=None,
-    never_fights=frozenset(),
+    never_fights=frozenset(), index=None,
 ):
     """Blocking entity at ``(x, y)`` the player can currently see, else
     ``None``.
@@ -304,7 +320,10 @@ def _visible_blocker(
     A missing ``visible`` grid falls back to *passable* — ``run_auto_
     explore`` guards the grid, so this only fires in synthetic states.
     """
-    _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
+    if index is not None and exclude is None:
+        _ent = index.get((x, y))  # per-plan snapshot (doc 48 perf pass)
+    else:
+        _ent = game_map.blocking_entity_at(x, y, exclude=exclude)
     if _ent is None:
         return None
     if _permanent_seal(_ent):
@@ -331,7 +350,7 @@ def _bfs_goal_step(prev, start, current, target):
 
 def _visit_bfs_neighbors(
     game_map, current, start, target, seen, prev, visited, queue, blockers,
-    blocker_ids, never_fights=frozenset(),
+    blocker_ids, never_fights=frozenset(), index=None,
 ):
     """Visit one BFS cell and return a step when it reaches a goal."""
     _cx, _cy = current
@@ -347,7 +366,7 @@ def _visit_bfs_neighbors(
                 )
             continue
         _ent = _visible_blocker(
-            game_map, _nx, _ny, never_fights=never_fights,
+            game_map, _nx, _ny, never_fights=never_fights, index=index,
         )
         if _ent is not None:
             if target is None and id(_ent) not in blocker_ids:
@@ -370,6 +389,7 @@ def _bfs_step(game_map, start, target, never_fights=frozenset()):
     _visited = {start}
     _blockers = []
     _blocker_ids = set()
+    _index = _blocker_index(game_map)
     while _queue:
         _current = _queue.popleft()
         _goal = _bfs_goal_step(_prev, start, _current, target)
@@ -377,7 +397,7 @@ def _bfs_step(game_map, start, target, never_fights=frozenset()):
             return _goal, _blockers
         _step = _visit_bfs_neighbors(
             game_map, _current, start, target, _seen, _prev, _visited,
-            _queue, _blockers, _blocker_ids, never_fights,
+            _queue, _blockers, _blocker_ids, never_fights, _index,
         )
         if _step is not None:
             return _step, _blockers
