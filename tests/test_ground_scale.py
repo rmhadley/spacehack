@@ -394,3 +394,33 @@ def test_target_card_title_states_the_level():
     rows = _ground_card_rows(enemy, None, None)
     title = "".join(text for text, _fg in rows[0])
     assert title == "LVL 30 Pirate Raider"
+
+
+def test_target_card_colours_wielded_variant_name_without_token():
+    """The card's weapon line takes the tier COLOUR on the base name —
+    no "Modded" token (user ruling 2026-09-23: colour teaches, clutter
+    stays off the card)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.combat._ground_presentation import (
+        _ground_card_rows, enemy_weapon_fg,
+    )
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+    from src.spacehack.pygame_target_card import TARGET_CARD_DIM
+
+    weapon = find_ground_weapon("mono_blade")
+    enemy = SimpleNamespace(
+        name="Pirate Raider", hp=24, max_hp=24, ap=4, band=0,
+        spec=SimpleNamespace(armor=0), weapon_quality=2,
+    )
+
+    rows = _ground_card_rows(enemy, weapon, None)
+
+    assert rows[3] == (("Mono Blade", (130, 210, 240)),)
+    assert enemy_weapon_fg(enemy, TARGET_CARD_DIM) == (130, 210, 240)
+    # Base-quality enemies keep the plain dim treatment.
+    enemy.weapon_quality = 0
+    assert _ground_card_rows(enemy, weapon, None)[3] == (
+        ("Mono Blade", TARGET_CARD_DIM),
+    )
+    assert enemy_weapon_fg(enemy, TARGET_CARD_DIM) == TARGET_CARD_DIM

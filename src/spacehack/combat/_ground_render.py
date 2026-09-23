@@ -40,6 +40,7 @@ from ._ground_presentation import (
     build_target_card as _build_target_card,
     enemy_detail_lines,
     enemy_threat_color,
+    enemy_weapon_fg,
 )
 from ..pygame_target_card import quick_row
 
@@ -408,12 +409,19 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             )
             y += 1
             if is_target:
-                for _line in enemy_detail_lines(gei):
+                # The weapon line (index 1) takes the wielded variant's
+                # tier colour; armour and stats lines stay dim.
+                _armor_line, _weapon_line, _stats_line = enemy_detail_lines(gei)
+                for _line, _fg in (
+                    (_armor_line, ui.COLOR_VALUE_DIM),
+                    (_weapon_line, enemy_weapon_fg(gei, ui.COLOR_VALUE_DIM)),
+                    (_stats_line, ui.COLOR_VALUE_DIM),
+                ):
                     if not _line:
                         continue
                     console.print(
                         x=hud_x, y=y, string=f"  {_line}"[:HUD_TEXT_MAX],
-                        fg=ui.COLOR_VALUE_DIM,
+                        fg=_fg,
                     )
                     y += 1
     return y + 1

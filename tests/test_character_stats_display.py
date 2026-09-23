@@ -38,7 +38,7 @@ def test_ship_skills_show_effective_with_annotated_bonus():
     rows = _row_texts(_ctx(modules=[
         StoredEquipment("module", "targeting_computer"),  # gunnery +10
     ]))
-    assert rows[0] == "Gunnery      35 (+10)"
+    assert rows[0] == "Gunnery       35 (+10)"
     assert rows[1] == "Piloting      20"
     assert rows[2] == "Engineering   15"
 
@@ -57,7 +57,7 @@ def test_quality_and_randart_bonuses_reach_the_display():
     rows = _row_texts(ship)
     gunnery_delta = 22 + deltas.get("gunnery_bonus", 0)  # 10 base x 2.2
     if gunnery_delta:
-        assert rows[0] == f"Gunnery      {25 + gunnery_delta} ({gunnery_delta:+d})"
+        assert rows[0] == f"Gunnery       {25 + gunnery_delta} ({gunnery_delta:+d})"
     else:
         assert rows[0] == "Gunnery       25"
 
@@ -79,7 +79,7 @@ def test_negative_bonuses_annotate_with_sign(monkeypatch):
     probe = dataclasses.replace(find_module("targeting_computer"), gunnery_bonus=-12)
     monkeypatch.setitem(_registry(), "neg_probe", probe)
     rows = _row_texts(_ctx(modules=[StoredEquipment("module", "neg_probe")]))
-    assert rows[0] == "Gunnery      13 (-12)"
+    assert rows[0] == "Gunnery       13 (-12)"
     assert rows[1] == "Piloting      20"
 
 
@@ -95,8 +95,19 @@ def test_spend_marker_still_reads_the_base_value():
     ctx = _ctx(modules=[StoredEquipment("module", "targeting_computer")])
     ctx.player_skill_points = 1
     rows = _row_texts(ctx)
-    assert rows[0] == "Gunnery      35 (+10)  [+]"
+    assert rows[0] == "Gunnery       35 (+10)  [+]"
     capped = _ctx(modules=[StoredEquipment("module", "targeting_computer")])
     capped.stats = SimpleNamespace(gunnery=100, piloting=20, engineering=15)
     capped.player_skill_points = 1
     assert _row_texts(capped)[0] == "Gunnery      110 (+10)  MAX"
+
+
+def test_modified_skill_numbers_stay_in_the_plain_value_column():
+    """A bonus annotation must not shift the number column (2026-09-23
+    playtest: "Engineering 35 (+10)" sat one char left of its rows)."""
+    rows = _row_texts(_ctx(modules=[
+        StoredEquipment("module", "targeting_computer"),  # gunnery +10
+    ]))
+    plain = rows[1]           # Piloting 20
+    boosted = rows[0]         # Gunnery 35 (+10)
+    assert plain.index("20") == boosted.index("35")

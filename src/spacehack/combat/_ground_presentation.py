@@ -16,6 +16,7 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..ground_scale import band_level
 from ..hud import COLOR_RANGE_GREEN, COLOR_RANGE_ORANGE, COLOR_RANGE_RED
 from ..pygame_target_card import (
+    TARGET_CARD_DIM,
     TARGET_CARD_TEXT,
     TargetCard,
     dim_row,
@@ -64,12 +65,32 @@ def _ground_card_rows(
         text_row(f"Armor {_armor}  AP {getattr(enemy, 'ap', getattr(enemy, 'ap_total', 0))}"),
     ]
     if weapon:
-        rows.append(dim_row(weapon.name))
+        rows.append(_weapon_name_row(enemy, weapon))
         rows.append(text_row(f"DMG {weapon.damage}  RNG {weapon.min_range}-{weapon.max_range}"))
     else:
         rows.append(dim_row("Unarmed"))
     rows.append(hint_row())
     return tuple(rows)
+
+
+def _weapon_name_row(enemy: Any, weapon: Any):
+    """The wielded variant's BASE name — no tier token, the card stays
+    terse — painted in its tier colour so the palette teaches itself
+    (user ruling 2026-09-23: colour, not prefix)."""
+    from ..data.quality import quality_color
+
+    color = quality_color(getattr(enemy, "weapon_quality", 0))
+    return ((weapon.name, color or TARGET_CARD_DIM),)
+
+
+def enemy_weapon_fg(
+    enemy: Any, default: tuple[int, int, int],
+) -> tuple[int, int, int]:
+    """The HUD weapon-name line's fg — tier colour when the enemy
+    wields a variant (base name, no token), else the caller's default."""
+    from ..data.quality import quality_color
+
+    return quality_color(getattr(enemy, "weapon_quality", 0)) or default
 
 
 def enemy_detail_lines(enemy: Any) -> tuple[str, str, str]:

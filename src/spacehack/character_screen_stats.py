@@ -50,7 +50,9 @@ def _skill_value_display(ctx: GameContext, index: int, skill: str) -> str:
         return f"{base:>3}"
     effective = _player_skill_bonuses(owned, ctx.stats)[index]
     bonus = effective - base
-    return f"{effective} ({bonus:+d})" if bonus else f"{base:>3}"
+    # The number keeps its right-aligned width-3 column when the
+    # bonus rides along, so tiered rows stay in line with plain ones.
+    return f"{effective:>3} ({bonus:+d})" if bonus else f"{base:>3}"
 
 
 def _skill_spend_marker(ctx: GameContext, index: int, skill: str) -> str:
