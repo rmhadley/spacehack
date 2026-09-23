@@ -354,7 +354,14 @@ def _apply_sell_stored(ctx, action: str) -> None:
         return
     storage.pop(storage_index)
     ctx.stats.credits += sell_price
-    ctx.log.add(f"Sold {_stored_label(stored)} for {sell_price}$.")
+    from .. import message_log
+    from ..data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Sold ", quality_mark(_stored_label(stored), stored.quality),
+        f" for {sell_price}$.",
+    )
+    ctx.log.add(_msg, runs=_runs)
 
 
 def _installed_item_label(kind: str, item) -> tuple[str, str, int]:

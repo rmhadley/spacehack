@@ -141,7 +141,7 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
             StoredEquipment("module", "shield_mk1"),
         )),
         ship_storage=[], stats=SimpleNamespace(credits=5000),
-        log=SimpleNamespace(add=lambda *_: None),
+        log=SimpleNamespace(add=lambda *_, **_kw: None),
     )
     spec = find_ship("frigate")
     tabs = ("REPAIRS", "AMMO", "LOADOUT")

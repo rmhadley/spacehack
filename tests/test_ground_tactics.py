@@ -42,10 +42,10 @@ def _ctx(player, log=None):
     lines: list[tuple[str, tuple]] = []
 
     class _Log:
-        def add_colored(self, text, color):
+        def add_colored(self, text, color, **_kwargs):
             lines.append((text, color))
 
-        def add(self, text):
+        def add(self, text, **_kwargs):
             lines.append((text, None))
 
     return SimpleNamespace(
@@ -573,7 +573,7 @@ def _turn_ctx(player):
         def add(self, text):
             lines.append(text)
 
-        def add_colored(self, text, _color):
+        def add_colored(self, text, _color, **_kwargs):
             lines.append(text)
 
     return SimpleNamespace(

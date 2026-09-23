@@ -99,7 +99,7 @@ def test_character_c_key_hides_discard_verb_in_space_mode(monkeypatch):
     for mode in ("city", "dungeon", "space"):
         state = SimpleNamespace(
             ctx=SimpleNamespace(),
-            log=SimpleNamespace(add=lambda _message: None),
+            log=SimpleNamespace(add=lambda _message, **_kwargs: None),
             current_mode=mode,
         )
         assert run(game_loop._handle_menu_event(state, event)) == 'HANDLED'
@@ -147,7 +147,7 @@ def test_character_equipment_backpack_discard_drops_item_at_the_player(monkeypat
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
         ],
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -174,7 +174,7 @@ def test_character_equipment_backpack_options_hide_discard_without_a_floor(monke
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
         ],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -197,7 +197,7 @@ def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
     captured = {}
     ctx = SimpleNamespace(
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 12)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -220,7 +220,7 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
             StoredGroundEquipment("weapon", "laser_rifle"),
         ],
         ground_stats=SimpleNamespace(strength=10),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     def choose(_ctx, **kwargs):
@@ -247,7 +247,7 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
         ],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     captured = {}
     monkeypatch.setattr(
@@ -278,7 +278,7 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
             GroundWeaponInstance("kinetic_pistol", 11),
         ],
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story, "choose", as_async(lambda *_args, **_kwargs: "RELOAD_SLOT:1"),
@@ -297,7 +297,7 @@ def test_character_equipment_ammo_stack_reloads_matching_weapon():
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
         equipped_ground_armor={},
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False))
@@ -312,7 +312,7 @@ def test_character_weapon_row_offers_reload_before_pack_swap(monkeypatch):
         equipped_ground_armor={},
         ground_expedition_inventory=[],
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     captured = {}
 
@@ -336,7 +336,7 @@ def test_character_ammo_reload_chooses_between_dual_wielded_weapons(monkeypatch)
         ],
         equipped_ground_armor={},
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     captured = {}
 
@@ -363,7 +363,7 @@ def test_character_ammo_reload_cancel_preserves_dual_wielded_weapons(monkeypatch
         ],
         equipped_ground_armor={},
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story, "choose", as_async(lambda *_args, **_kwargs: "__BACK__"),
@@ -460,7 +460,7 @@ def test_combat_character_action_is_unavailable_for_space_rules():
     from src.spacehack.combat import _loop
 
     messages = []
-    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)))
     rules = SimpleNamespace()
 
     assert run(_loop._handle_character_action(ctx, rules)) == 0
@@ -787,7 +787,7 @@ def test_ground_defeat_shows_full_screen_death_frame(monkeypatch):
 
     ctx = SimpleNamespace(
         player=SimpleNamespace(pos=SimpleNamespace(x=1, y=1)),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     game_map = SimpleNamespace(sight_radius=8)
     console = object()
@@ -1291,7 +1291,7 @@ def test_loot_parent_apply_removes_entity_and_grants_inventory():
     ctx = SimpleNamespace(
         player_owned_ship=owned,
         game_map=SimpleNamespace(entities=[entity]),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     good = SimpleNamespace(name="Food")
 
@@ -1436,7 +1436,7 @@ def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
     ctx = SimpleNamespace(
         game_map=SimpleNamespace(entities=[]),
         faction_reputation={},
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
         context=object(),
     )
     hailed = {}
@@ -1935,7 +1935,7 @@ def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
         ),
         ship_storage=[_loadout.ship_module.StoredEquipment("module", "shield_mk1")],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: None))
 
@@ -2274,7 +2274,7 @@ def test_character_equipment_management_reports_empty_compatible_choices():
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
     assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:0")) is False
@@ -2408,7 +2408,7 @@ def test_armory_pygame_empty_slot_action_is_noop():
         equipped_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     assert run(_armory._apply_pygame_armory_action(ctx, "", 1, 1)) is True
@@ -2420,7 +2420,7 @@ def test_armory_pygame_rejects_unknown_action():
         equipped_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     try:
@@ -2440,7 +2440,7 @@ def test_armory_buy_action_opens_destination_chooser(monkeypatch):
         ground_armory_storage=[],
         ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
     def choose_destination(*args):
@@ -2491,7 +2491,7 @@ def test_armory_container_transfer_uses_domain_helper(monkeypatch):
         ],
         ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -2525,7 +2525,7 @@ def test_armory_equipment_transfer_counts_field_item_slots(monkeypatch):
         ground_expedition_items=[GroundItemStack("consumable", "med_pack", 1)],
         stats=SimpleNamespace(credits=1000),
         ground_stats=SimpleNamespace(strength=10),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -2559,7 +2559,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
         ],
         ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
@@ -2591,7 +2591,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
         ],
         ground_expedition_items=[GroundItemStack("consumable", "med_pack", 1)],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
@@ -2617,7 +2617,7 @@ def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatc
             _armory.ground_equipment.StoredGroundEquipment("weapon", "combat_knife"),
         ],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(
         _armory, "_choose_destination",
@@ -2643,7 +2643,7 @@ def test_armory_purchase_dismissal_preserves_credits_and_ownership(monkeypatch):
         ground_armory_storage=[],
         ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -2667,7 +2667,7 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
         ground_armory_storage=[],
         ground_expedition_inventory=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(
         _armory, "_choose_destination",
@@ -2876,7 +2876,7 @@ def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
         context=object(),
         player_owned_ship=owned,
         stats=SimpleNamespace(credits=321),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     # TAB to the CARGO tab first (SHIP is the default), then jettison.
     outcomes = iter((
@@ -2934,7 +2934,7 @@ def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story,
@@ -2964,7 +2964,7 @@ def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:light_laser"))
 
@@ -2988,7 +2988,7 @@ def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
         ),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_STORE_WEAPON:heavy_laser"))
 
@@ -3015,7 +3015,7 @@ def test_loadout_buy_install_full_slot_does_not_charge(monkeypatch):
         ),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_laser"))
 
@@ -3288,7 +3288,7 @@ def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     assert run(_loadout._apply_pygame_loadout_action(
@@ -3310,7 +3310,7 @@ def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatc
         player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
         ship_storage=[],
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "STORE_WEAPON_SLOT:0"))
     run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
@@ -3335,7 +3335,7 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[StoredEquipment("weapon", "light_missile", 1)],
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     captured = []
     monkeypatch.setattr(
@@ -3380,7 +3380,7 @@ def test_loadout_storage_chooser_invalid_index_is_safe(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[],
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         "src.spacehack.pygame_story.choose",
@@ -3402,7 +3402,7 @@ def test_loadout_store_and_install_actions_preserve_partial_ammo():
         player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_missile",)),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     ctx.player_owned_ship.weapon_ammo[0] = 1
 
@@ -3431,7 +3431,7 @@ def test_loadout_install_full_slot_keeps_storage_and_logs_reason():
         ),
         ship_storage=[StoredEquipment("weapon", "heavy_laser")],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
     assert run(_loadout._apply_pygame_loadout_action(
@@ -3450,7 +3450,7 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
         player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
         ship_storage=[StoredEquipment("module", "shield_mk1")],
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
     from src.spacehack.ship import OwnedShip
@@ -3461,7 +3461,7 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
             weapons=("light_laser", "light_laser"),
         ),
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     original = ctx.player_owned_ship.weapons
 
@@ -3668,7 +3668,7 @@ def test_apply_jettison_removes_selected_quantity(monkeypatch):
     owned = OwnedShip(ship_id="starter")
     owned.inventory = {"food_rations": 5}
     messages = []
-    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)))
     monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 3))
 
     assert run(trade._apply_jettison(ctx, owned, "JETTISON:food_rations")) is True
@@ -5239,7 +5239,7 @@ def test_loadout_buy_install_module_lands_as_base_entry(monkeypatch):
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story, "choose",
@@ -5273,7 +5273,7 @@ def test_loadout_manage_module_slot_threads_quality(monkeypatch):
         ),
         ship_storage=[],
         stats=SimpleNamespace(credits=100),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
         pygame_story, "choose",
@@ -5298,7 +5298,7 @@ def test_loadout_sell_stored_module_scales_with_quality():
         player_owned_ship=OwnedShip(ship_id="scout"),
         ship_storage=[StoredEquipment("module", "shield_mk2", quality=2)],
         stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     _loadout._apply_sell_stored(ctx, "SELL_STORED:0")

@@ -12,6 +12,7 @@ from types import SimpleNamespace
 
 from tests.support.asyncutil import as_async, run
 
+from src.spacehack import message_log
 from src.spacehack.ground_consumables import (
     KIT_EFFECT_ID,
     KIT_ITEM_ID,
@@ -31,8 +32,8 @@ from src.spacehack.tinker import NO_TARGETS_LINE, try_manage_kit
 def _messages():
     lines = []
     return lines, SimpleNamespace(
-        add=lines.append,
-        add_colored=lambda message, _color: lines.append(message),
+        add=lambda text, **_kwargs: lines.append(text),
+        add_colored=lambda message, _color, **_kwargs: lines.append(message),
     )
 
 
@@ -71,7 +72,7 @@ class TestEligibility:
         from src.spacehack.tinker import chooser_rows, eligible_targets
 
         ctx, _ = _context()
-        keys = [key for _label, key in chooser_rows(eligible_targets(ctx))]
+        keys = [key for _label, key, *_extra in chooser_rows(eligible_targets(ctx))]
 
         assert keys == [
             "KIT:WEAPON:0", "KIT:ARMOR:body", "KIT:PACK:0",
@@ -102,7 +103,7 @@ class TestEligibility:
         from src.spacehack.tinker import chooser_rows, eligible_targets
 
         ctx, _ = _context()
-        rows = {key: label for label, key in chooser_rows(eligible_targets(ctx))}
+        rows = {key: label for label, key, *_extra in chooser_rows(eligible_targets(ctx))}
         assert rows["KIT:WEAPON:0"] == "Kinetic Pistol -> Modded Kinetic Pistol"
         assert rows["KIT:STORED:0"] == "Shield Mk. 1 -> Modded Shield Mk. 1"
         assert rows["KIT:ARMORY_STORAGE:0"] == (
@@ -372,3 +373,29 @@ class TestSaveLoad:
         assert fresh.ground_expedition_items == [
             GroundItemStack("consumable", "med_pack", 1),
         ]
+
+
+def test_kit_log_line_colours_current_name_and_new_token():
+    from src.spacehack.tinker import _kit_log_line
+
+    line = _kit_log_line("Modded Mono Blade", 2)
+    assert line == "Tinker kit: Modded Mono Blade is now Overclocked."
+    assert line.runs == (
+        ("Tinker kit: ", message_log.COLOR_MESSAGE),
+        ("Modded Mono Blade", (100, 235, 115)),
+        (" is now ", message_log.COLOR_MESSAGE),
+        ("Overclocked", (130, 210, 240)),
+        (".", message_log.COLOR_MESSAGE),
+    )
+
+
+def test_base_kit_log_line_stays_plain():
+    from src.spacehack.tinker import _kit_log_line
+
+    line = _kit_log_line("Mono Blade", 1)
+    assert line == "Tinker kit: Mono Blade is now Modded."
+    assert line.runs == (
+        ("Tinker kit: Mono Blade is now ", message_log.COLOR_MESSAGE),
+        ("Modded", (100, 235, 115)),
+        (".", message_log.COLOR_MESSAGE),
+    )

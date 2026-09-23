@@ -283,9 +283,9 @@ def _pack_loot(ctx: GameContext, entry) -> bool:
     return True
 
 
-def _finish_loot_pickup(ctx: GameContext, loot_entity, message: str) -> None:
+def _finish_loot_pickup(ctx: GameContext, loot_entity, message: str, runs=None) -> None:
     """Log the pickup and remove the loot entity from the map."""
-    ctx.log.add(message)
+    ctx.log.add(message, runs=runs)
     if loot_entity in ctx.game_map.entities:
         ctx.game_map.entities.remove(loot_entity)
 
@@ -329,15 +329,33 @@ async def _pack_equipment_after_drops(ctx, loot_entity, entry, name: str) -> boo
         chosen = await _choose_pack_drop(ctx, loot_entity)
         if chosen is None:
             _rollback_pack_drops(ctx, dropped_items)
-            ctx.log.add(f"Expedition Pack full - left the {name} behind.")
+            from . import message_log
+            from .data.quality import quality_mark
+
+            _msg, _runs = message_log.with_runs(
+                "Expedition Pack full - left the ",
+                quality_mark(name, entry.quality), " behind.",
+            )
+            ctx.log.add(_msg, runs=_runs)
             return False
         dropped = _drop_selected_pack_item(ctx, loot_entity, chosen)
         if dropped is None:
             _rollback_pack_drops(ctx, dropped_items)
             return False
         dropped_items.append(dropped)
-    _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
+    _pack_equipment_log(ctx, loot_entity, entry, name)
     return True
+
+
+def _pack_equipment_log(ctx: GameContext, loot_entity, entry, name: str) -> None:
+    """Complete one equipment pickup with the tiered name coloured."""
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Packed ground equipment: ", quality_mark(name, entry.quality), ".",
+    )
+    _finish_loot_pickup(ctx, loot_entity, _msg, _runs)
 
 
 async def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
@@ -349,7 +367,7 @@ async def _apply_equipment_loot_pickup(ctx: GameContext, loot_entity) -> bool:
         ctx.log.add("Unknown ground equipment - left it behind.")
         return False
     if _pack_loot(ctx, entry):
-        _finish_loot_pickup(ctx, loot_entity, f"Packed ground equipment: {name}.")
+        _pack_equipment_log(ctx, loot_entity, entry, name)
         return True
     return await _pack_equipment_after_drops(ctx, loot_entity, entry, name)
 
@@ -633,7 +651,14 @@ async def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
         ctx.log.add("Unknown ship module - left it behind.")
         return
     ctx.ship_storage.append(entry)
-    _finish_loot_pickup(ctx, loot_entity, f"Stored ship module: {name}.")
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Stored ship module: ",
+        quality_mark(name, entry.quality), ".",
+    )
+    _finish_loot_pickup(ctx, loot_entity, _msg, _runs)
     if entry.randart_seed is not None:
         await _present_randart_find(
             ctx, entry.item_id, entry.quality, entry.randart_seed,

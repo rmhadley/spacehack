@@ -279,7 +279,7 @@ def test_stair_handlers_route_dig_floors(monkeypatch):
     f1, _ = digs.get_or_generate_floor(ctx, site, 1)
     f2, _ = digs.get_or_generate_floor(ctx, site, 2)
     state = SimpleNamespace(
-        ctx=ctx, game_map=f1, log=SimpleNamespace(add=lambda *_: None),
+        ctx=ctx, game_map=f1, log=SimpleNamespace(add=lambda *_, **_kw: None),
         dungeon_extension=None,
         player=world.Entity(
             char="@", fg=(255, 255, 255),
@@ -542,7 +542,7 @@ def test_enter_dig_site_installs_surface_entry_idiom(monkeypatch):
     ctx.ground_hp = ctx.ground_max_hp = 30
     state = SimpleNamespace(
         ctx=ctx, game_map=space_map, player=space_player,
-        log=SimpleNamespace(add=lambda *_: None), current_mode="space",
+        log=SimpleNamespace(add=lambda *_, **_kw: None), current_mode="space",
     )
     result = digs.enter_dig_site(state, SimpleNamespace(id=site["planet"]), site["id"])
     assert result == "CONTINUE"
@@ -567,7 +567,7 @@ def test_reentering_a_dig_site_scrubs_the_stale_player(monkeypatch):
         player=world.Entity(
             char="@", fg=(255, 255, 255), pos=world.Position(1, 1), name="P",
         ),
-        log=SimpleNamespace(add=lambda *_: None), current_mode="space",
+        log=SimpleNamespace(add=lambda *_, **_kw: None), current_mode="space",
     )
     ctx.ground_hp = ctx.ground_max_hp = 30
     digs.enter_dig_site(state, SimpleNamespace(id=site["planet"]), site["id"])
@@ -593,7 +593,7 @@ def test_planet_menu_dispatch_reaches_dig_entry(monkeypatch):
         digs, "enter_dig_site",
         lambda state, planet_obj, site_id: entered.append(site_id) or "CONTINUE",
     )
-    state = SimpleNamespace(ctx=ctx, log=SimpleNamespace(add=lambda *_: None))
+    state = SimpleNamespace(ctx=ctx, log=SimpleNamespace(add=lambda *_, **_kw: None))
     assert run(game_interactions._resolve_planet_wall(state, site["planet"])) == "CONTINUE"
     assert entered == [site["id"]]
 
@@ -680,7 +680,7 @@ def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):
     name, not a blank (the composition, not just the halves)."""
     from src.spacehack import game_interactions
     lines = []
-    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lines.append))
+    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lambda text, **_kw: lines.append(text)))
     monster = world.Entity(
         char="M", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
         npc_char_id="militia_trooper",
@@ -692,7 +692,7 @@ def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):
 def test_bumping_a_dormant_security_unit_keeps_its_line():
     from src.spacehack import game_interactions
     lines = []
-    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lines.append))
+    state = SimpleNamespace(ctx=SimpleNamespace(), log=SimpleNamespace(add=lambda text, **_kw: lines.append(text)))
     dormant = world.Entity(
         char="s", fg=(0, 0, 0), pos=world.Position(3, 3), name="",
         npc_char_id="sentry_drone", powered_down=True,

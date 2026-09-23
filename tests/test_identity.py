@@ -435,7 +435,7 @@ def test_dark_refusal_precedes_cargo_scan_and_never_builds_city(monkeypatch):
         broadcast_dark=True,
     )
     state = SimpleNamespace(
-        ctx=ctx, console=object(), log=SimpleNamespace(add=messages.append),
+        ctx=ctx, console=object(), log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
         game_map=object(), current_mode="space",
     )
 

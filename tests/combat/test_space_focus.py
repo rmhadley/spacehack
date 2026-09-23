@@ -29,8 +29,8 @@ def _focus_fixture(*, traits=("focus",), active=(True,), weapons=("light_laser",
         ),
         player=world.Entity("@", (255, 255, 255), world.Position(0, 0), "Player"),
         log=SimpleNamespace(
-            add=lambda _message: None,
-            add_colored=lambda _message, _color: None,
+            add=lambda _message, **_kwargs: None,
+            add_colored=lambda _message, _color, **_kwargs: None,
         ),
     )
     _tiles = [[world.DUNGEON_FLOOR for _ in range(11)] for _ in range(11)]

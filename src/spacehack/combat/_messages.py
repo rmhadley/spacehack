@@ -15,6 +15,15 @@ history (``\\`` in combat) can tell exactly what happened and why.
 
 from __future__ import annotations
 
+from ..message_log import RunLine
+
+
+class AttackLine(RunLine):
+    """One attack line; ``runs`` colours the weapon-name segment when
+    the wielded variant carries a quality tier (``None`` run colours
+    paint at the line colour; base-quality lines carry ``runs is
+    None``)."""
+
 
 def weapon_family(weapon_id: str) -> str:
     """Return the verb-driving family: ``"missile"``, ``"melee"`` or ``"ranged"``.
@@ -40,24 +49,46 @@ def _indefinite_article(weapon_name: str) -> str:
     return "an" if weapon_name[:1].lower() in "aeiou" else "a"
 
 
+def _name_part(weapon_name: str, quality: int):
+    """The weapon name as a coloured run for tiered variants, else the
+    plain string (``data.quality.quality_mark``)."""
+    from ..data.quality import quality_mark
+
+    return quality_mark(weapon_name, quality)
+
+
+def _player_opening_parts(weapon_id: str, weapon_name: str, quality: int):
+    """Player opening as ``(prefix, name part, suffix)`` segments."""
+    _fam = weapon_family(weapon_id)
+    _name = _name_part(weapon_name, quality)
+    if _fam == "melee":
+        return "You swing your ", _name, " at"
+    if _fam == "missile":
+        return f"You launch {_indefinite_article(weapon_name)} ", _name, " at"
+    return "You fire your ", _name, " at"
+
+
+def _enemy_opening_parts(enemy_name: str, weapon_id: str, weapon_name: str, quality: int):
+    """Enemy opening as ``(prefix, name part, suffix)`` segments."""
+    _fam = weapon_family(weapon_id)
+    _name = _name_part(weapon_name, quality)
+    if _fam == "melee":
+        return f"{enemy_name} swings its ", _name, " at"
+    if _fam == "missile":
+        return f"{enemy_name} launches {_indefinite_article(weapon_name)} ", _name, " at"
+    return f"{enemy_name} fires its ", _name, " at"
+
+
 def _player_opening(weapon_id: str, weapon_name: str) -> str:
     """Player attack opening: ``"You fire your Light Laser at"``."""
-    _fam = weapon_family(weapon_id)
-    if _fam == "melee":
-        return f"You swing your {weapon_name} at"
-    if _fam == "missile":
-        return f"You launch {_indefinite_article(weapon_name)} {weapon_name} at"
-    return f"You fire your {weapon_name} at"
+    _prefix, _name, _suffix = _player_opening_parts(weapon_id, weapon_name, 0)
+    return f"{_prefix}{_name}{_suffix}"
 
 
 def _enemy_opening(enemy_name: str, weapon_id: str, weapon_name: str) -> str:
     """Enemy attack opening: ``"Pirate Raider fires its Light Laser at"``."""
-    _fam = weapon_family(weapon_id)
-    if _fam == "melee":
-        return f"{enemy_name} swings its {weapon_name} at"
-    if _fam == "missile":
-        return f"{enemy_name} launches {_indefinite_article(weapon_name)} {weapon_name} at"
-    return f"{enemy_name} fires its {weapon_name} at"
+    _prefix, _name, _suffix = _enemy_opening_parts(enemy_name, weapon_id, weapon_name, 0)
+    return f"{_prefix}{_name}{_suffix}"
 
 
 def _result_clause(
@@ -91,6 +122,20 @@ def _result_clause(
     return f"It {_verb} {_total} damage{_split}!"
 
 
+def _assemble_line(
+    opening_parts: tuple, tail: str,
+) -> AttackLine:
+    """Join one opening's parts and tail, colouring the name run."""
+    _prefix, _name, _suffix = opening_parts
+    if not isinstance(_name, tuple):
+        return AttackLine(f"{_prefix}{_name}{_suffix}{tail}")
+    _text, _colour = _name
+    return AttackLine(
+        f"{_prefix}{_text}{_suffix}{tail}",
+        ((_prefix, None), (_text, _colour), (_suffix + tail, None)),
+    )
+
+
 def player_attack_line(
     weapon_id: str,
     weapon_name: str,
@@ -101,16 +146,22 @@ def player_attack_line(
     shield_dmg: int = 0,
     is_strip: bool = False,
     is_glancing: bool = False,
-) -> str:
+    quality: int = 0,
+) -> AttackLine:
     """Full player-attack message: ``"{opening} {target}. {result}"``.
 
     ``hull_dmg`` is the damage to the target's health pool (hull in
     space, HP on the ground); ``shield_dmg`` is what shields absorbed
     (always 0 in ground combat). ``is_strip`` marks EMP-style hits.
+    ``quality`` colours the weapon-name segment (``.runs``).
     """
-    return (
-        f"{_player_opening(weapon_id, weapon_name)} {target_name}. "
-        f"{_result_clause(hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg, is_strip=is_strip, is_glancing=is_glancing)}"
+    return _assemble_line(
+        _player_opening_parts(weapon_id, weapon_name, quality),
+        f" {target_name}. "
+        + _result_clause(
+            hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg,
+            is_strip=is_strip, is_glancing=is_glancing,
+        ),
     )
 
 
@@ -124,9 +175,14 @@ def enemy_attack_line(
     shield_dmg: int = 0,
     is_strip: bool = False,
     is_glancing: bool = False,
-) -> str:
+    quality: int = 0,
+) -> AttackLine:
     """Full enemy-attack message: ``"{enemy} {opening} you. {result}"``."""
-    return (
-        f"{_enemy_opening(enemy_name, weapon_id, weapon_name)} you. "
-        f"{_result_clause(hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg, is_strip=is_strip, is_glancing=is_glancing)}"
+    return _assemble_line(
+        _enemy_opening_parts(enemy_name, weapon_id, weapon_name, quality),
+        " you. "
+        + _result_clause(
+            hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg,
+            is_strip=is_strip, is_glancing=is_glancing,
+        ),
     )

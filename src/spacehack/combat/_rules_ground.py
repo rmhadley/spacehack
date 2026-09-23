@@ -621,11 +621,26 @@ def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
             candidates.append((_slot, _instance, _spec, _reserve))
     return tuple(candidates)
 
+def _reload_option(_slot, _instance, _spec, _reserve) -> tuple:
+    """One combat reload-chooser option with the name coloured."""
+    from .. import message_log
+    from ..data.quality import quality_mark
+    from ..ground_equipment import display_name
+
+    _name = display_name("weapon", _instance.weapon_id, _instance.quality)
+    _label, _runs = message_log.with_runs(
+        quality_mark(_name, _instance.quality),
+        f" {_instance.loaded_ammo}/{_spec.ammo_capacity} RES {_reserve}",
+    )
+    return (_label, f"RELOAD_SLOT:{_slot}", _runs)
+
+
 def _reload_slot(ctx, slot: int) -> bool:
     """Reload one validated slot transactionally and charge its AP cost."""
     from ..ground_equipment import apply_reload
 
     from ..ground_equipment import display_name
+    from ..ground_reload_ui import _log_name_line
 
     _instance = ctx.equipped_ground_weapons[slot]
     _spec = _find_gw(_instance.weapon_id)
@@ -641,25 +656,21 @@ def _reload_slot(ctx, slot: int) -> bool:
             ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
         )
     except (IndexError, KeyError, ValueError) as exc:
-        ctx.log.add(f"{_wname}: {exc}")
+        _log_name_line(ctx, "", _wname, _instance.quality, f": {exc}")
         return False
     _state.player_ap -= _spec.reload_ap_cost
-    ctx.log.add(f"Reloaded {_wname} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
+    _log_name_line(
+        ctx, "Reloaded ", _wname, _instance.quality,
+        f" ({_new.loaded_ammo}/{_spec.ammo_capacity}).",
+    )
     return True
 
 async def _choose_reload_slot(ctx, candidates) -> int | None:
     """Show the compact weapon chooser and return the selected slot."""
     from .. import pygame_story
 
-    from ..ground_equipment import display_name as _display_name
-
     options = tuple(
-        (
-            f"{_display_name('weapon', _instance.weapon_id, _instance.quality)} "
-            f"{_instance.loaded_ammo}/{_spec.ammo_capacity} "
-            f"RES {_reserve}",
-            f"RELOAD_SLOT:{_slot}",
-        )
+        _reload_option(_slot, _instance, _spec, _reserve)
         for _slot, _instance, _spec, _reserve in candidates
     )
     chosen = await pygame_story.choose(

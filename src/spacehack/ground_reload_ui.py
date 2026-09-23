@@ -72,42 +72,81 @@ def reload_weapon_slot(
         return False
     _instance, _spec, _name = _target
     if slot not in reloadable_pack_slots(ctx):
-        ctx.log.add(f"{_name}: no matching ammo or magazine is full.")
+        _log_name_line(ctx, "", _name, _instance.quality,
+                       ": no matching ammo or magazine is full.")
         return False
-    if in_ground_combat and _rules_ground.player_ap(ctx) < _spec.reload_ap_cost:
-        ctx.log.add(
-            f"Need {_spec.reload_ap_cost} AP to reload "
-            f"(have {_rules_ground.player_ap(ctx)}).",
-        )
+    if not _reload_ap_gate(ctx, _spec, in_ground_combat):
         return False
     try:
         _new = ground_equipment.apply_reload(
             ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
         )
     except (IndexError, KeyError, ValueError) as exc:
-        ctx.log.add(f"{_name}: {exc}")
+        _log_name_line(ctx, "", _name, _instance.quality, f": {exc}")
         return False
     if in_ground_combat and charge_ap:
         _rules_ground.set_player_ap(
             ctx, _rules_ground.player_ap(ctx) - _spec.reload_ap_cost,
         )
-    ctx.log.add(f"Reloaded {_name} ({_new.loaded_ammo}/{_spec.ammo_capacity}).")
+    _log_name_line(
+        ctx, "Reloaded ", _name, _instance.quality,
+        f" ({_new.loaded_ammo}/{_spec.ammo_capacity}).",
+    )
     return True
+
+
+def _reload_ap_gate(ctx, spec, in_ground_combat: bool) -> bool:
+    """True when the combat AP cost is affordable (non-combat passes)."""
+    from .combat import _rules_ground
+
+    if not in_ground_combat:
+        return True
+    _ap, _cost = _rules_ground.player_ap(ctx), spec.reload_ap_cost
+    if _ap < _cost:
+        ctx.log.add(f"Need {_cost} AP to reload (have {_ap}).")
+        return False
+    return True
+
+
+def _log_name_line(
+    ctx, prefix: str, name: str, quality: int, suffix: str,
+) -> None:
+    """Log ``prefix + name + suffix`` with a tiered name coloured.
+
+    Prefix and suffix paint at the line colour; the name run takes
+    the quality colour (plain when base).
+    """
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        prefix, quality_mark(name, quality), suffix,
+    )
+    ctx.log.add(_msg, runs=_runs)
+
+
+def _reload_choice(slot: int, instance) -> tuple:
+    """One reload-chooser option with the weapon name coloured."""
+    from . import message_log
+    from .data.ground_weapons import find_ground_weapon
+    from .data.quality import quality_mark
+    from .ground_equipment import display_name
+
+    _name = display_name("weapon", instance.weapon_id, instance.quality)
+    _label, _runs = message_log.with_runs(
+        quality_mark(_name, instance.quality),
+        f" {instance.loaded_ammo}/"
+        f"{find_ground_weapon(instance.weapon_id).ammo_capacity}",
+    )
+    return (_label, f"RELOAD_SLOT:{slot}", _runs)
 
 
 async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
     """Show the chooser for ammo that feeds multiple active weapons."""
     from . import pygame_story
-    from .data.ground_weapons import find_ground_weapon
-    from .ground_equipment import display_name
 
     choices = tuple(
-        (
-            f"{display_name('weapon', instance.weapon_id, instance.quality)} "
-            f"{instance.loaded_ammo}/"
-            f"{find_ground_weapon(instance.weapon_id).ammo_capacity}",
-            f"RELOAD_SLOT:{slot}",
-        )
+        _reload_choice(slot, instance)
         for slot, instance in enumerate(ctx.equipped_ground_weapons)
         if slot in slots
     )

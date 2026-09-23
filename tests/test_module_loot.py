@@ -233,7 +233,7 @@ class _RecordingLog:
     def __init__(self) -> None:
         self.lines: list[str] = []
 
-    def add(self, message: str) -> None:
+    def add(self, message: str, **_kwargs) -> None:
         self.lines.append(message)
 
 

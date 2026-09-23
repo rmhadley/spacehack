@@ -394,7 +394,7 @@ def test_reload_target_carries_the_token_prefixed_name():
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("smg", 2)],
-        log=SimpleNamespace(add=lambda *_: None),
+        log=SimpleNamespace(add=lambda *_, **_kw: None),
     )
     _instance, _spec, name = _resolve_reload_target(ctx, 0)
     assert name == "Overclocked SMG"
@@ -434,7 +434,7 @@ class _RecordingLog:
     def __init__(self) -> None:
         self.lines: list[str] = []
 
-    def add(self, message: str) -> None:
+    def add(self, message: str, **_kwargs) -> None:
         self.lines.append(message)
 
 

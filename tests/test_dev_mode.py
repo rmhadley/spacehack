@@ -391,7 +391,7 @@ def test_land_at_city_rejects_portless_planet():
     messages = []
     state = SimpleNamespace(
         ctx=SimpleNamespace(militia_scanned=[], ground_hp=23, ground_max_hp=23),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
     result = run(game_interactions.land_at_city(state, "no_such_city"))

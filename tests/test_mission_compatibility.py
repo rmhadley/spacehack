@@ -207,7 +207,7 @@ def test_accept_validation_does_not_mutate_then_commit_reserves_cargo():
     )
     owned = OwnedShip(ship_id="starter")
     messages: list[str] = []
-    log = SimpleNamespace(add=messages.append)
+    log = SimpleNamespace(add=lambda text, **_kw: messages.append(text))
 
     assert mission.try_accept_mission(spec, owned, log) is True
     assert owned.mission_reserved == 0
@@ -236,7 +236,7 @@ def test_release_and_abort_include_secured_intercept_cargo():
     expected = active.required_cargo_size + find_trade_good("electronics").volume
     messages: list[str] = []
 
-    mission.abort_mission(active, owned, SimpleNamespace(add=messages.append))
+    mission.abort_mission(active, owned, SimpleNamespace(add=lambda text, **_kw: messages.append(text)))
 
     assert owned.mission_reserved == 100 - expected
     capacity = effective_max_cargo(find_ship(owned.ship_id), owned)
@@ -264,7 +264,7 @@ def test_complete_mission_records_faction_career_counter_before_xp(
     ctx = SimpleNamespace(
         generated_missions={spec.id: spec},
         player_counters=game_context.PlayerCounters(),
-        log=SimpleNamespace(add=messages.append),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
         faction_reputation={},
     )
     monkeypatch.setattr(_lifecycle, "_apply_mission_rep", lambda *args, **kwargs: None)
@@ -272,7 +272,7 @@ def test_complete_mission_records_faction_career_counter_before_xp(
     run(
         mission.complete_mission(
         active, None, SimpleNamespace(credits=0),
-        SimpleNamespace(add=messages.append), ctx=ctx,
+        SimpleNamespace(add=lambda text, **_kw: messages.append(text)), ctx=ctx,
     )
     )
 
@@ -301,7 +301,7 @@ def test_complete_mission_applies_early_bonus_and_releases_cargo():
 
     run(
         mission.complete_mission(
-        active, owned, stats, SimpleNamespace(add=messages.append),
+        active, owned, stats, SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
         current_day=3,
     )
     )
@@ -330,7 +330,7 @@ def test_complete_mission_applies_late_penalty_and_zero_xp():
     run(
         mission.complete_mission(
         active, OwnedShip(ship_id="starter"), stats,
-        SimpleNamespace(add=messages.append), current_day=20,
+        SimpleNamespace(add=lambda text, **_kw: messages.append(text)), current_day=20,
     )
     )
 

@@ -722,7 +722,14 @@ def _sell_from_container(ctx, entries, index: int) -> None:
         ctx.log.add("That equipment is no longer available.")
         return
     ctx.stats.credits += price
-    ctx.log.add(f"Sold {_equipment_name(entry)} for {price}$.")
+    from .. import message_log
+    from ..data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Sold ", quality_mark(_equipment_name(entry), entry.quality),
+        f" for {price}$.",
+    )
+    ctx.log.add(_msg, runs=_runs)
 
 def _purchase_spec(item_type: str, item_id: str):
     """Resolve the spec for one buy action."""

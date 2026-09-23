@@ -304,9 +304,9 @@ async def _present_enemy_shot(
     _line = _enemy_attack_line(
         enemy_spec.name, enemy_weapon_id,
         display_name("weapon", enemy_weapon_id, enemy_weapon_quality),
-        hit=hit, hull_dmg=damage,
+        hit=hit, hull_dmg=damage, quality=enemy_weapon_quality,
     )
-    ctx.log.add_colored(_line, _ml.COLOR_ENEMY_ACTION)
+    ctx.log.add_colored(_line, _ml.COLOR_ENEMY_ACTION, runs=_line.runs)
     if console is not None and render_callback is not None:
         await _animate_ground_shot(
             console, ctx, game_map,

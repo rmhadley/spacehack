@@ -358,7 +358,7 @@ def test_equipment_loot_pickup_adds_to_pack_and_removes_entity():
         "ground_stats": type("Stats", (), {"strength": 10})(),
         "ground_expedition_inventory": [],
         "game_map": type("Map", (), {"entities": [entity]})(),
-        "log": type("Log", (), {"add": lambda self, _message: None})(),
+        "log": type("Log", (), {"add": lambda self, _message, **_kw: None})(),
     })()
 
     assert run(loot._apply_equipment_loot_pickup(ctx, entity))
@@ -383,7 +383,7 @@ def test_full_expedition_pack_leaves_equipment_loot_on_floor(monkeypatch):
         "ground_stats": type("Stats", (), {"strength": 10})(),
         "ground_expedition_inventory": pack,
         "game_map": type("Map", (), {"entities": [entity]})(),
-        "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
+        "log": type("Log", (), {"add": lambda self, message, **_kw: messages.append(message)})(),
     })()
 
     monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: None))
@@ -428,7 +428,7 @@ def test_full_expedition_pack_can_drop_carried_item_for_new_loot(monkeypatch):
         "ground_stats": type("Stats", (), {"strength": 10})(),
         "ground_expedition_inventory": pack,
         "game_map": type("Map", (), {"entities": entities})(),
-        "log": type("Log", (), {"add": lambda self, _message: None})(),
+        "log": type("Log", (), {"add": lambda self, _message, **_kw: None})(),
     })()
     monkeypatch.setattr(loot, "_choose_pack_drop", as_async(lambda *_args: 3))
 
@@ -455,7 +455,7 @@ def test_invalid_equipment_loot_stays_on_floor():
         "ground_stats": type("Stats", (), {"strength": 10})(),
         "ground_expedition_inventory": [],
         "game_map": type("Map", (), {"entities": [entity]})(),
-        "log": type("Log", (), {"add": lambda self, message: messages.append(message)})(),
+        "log": type("Log", (), {"add": lambda self, message, **_kw: messages.append(message)})(),
     })()
 
     assert not run(loot._apply_equipment_loot_pickup(ctx, entity))
@@ -653,7 +653,7 @@ def _field_loot_context(pack=None, items=None, messages=None):
         "ground_expedition_items": list(items or []),
         "game_map": type("Map", (), {"entities": []})(),
         "log": type("Log", (), {
-            "add": lambda self, message: (messages.append(message) if messages is not None else None),
+            "add": lambda self, message, **_kw: (messages.append(message) if messages is not None else None),
         })(),
     })()
 

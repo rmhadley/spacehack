@@ -398,8 +398,8 @@ class TestGroundCanFire:
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
-                add=lambda _message: None,
-                add_colored=lambda _message, _color: None,
+                add=lambda _message, **_kwargs: None,
+                add_colored=lambda _message, _color, **_kwargs: None,
             ),
         )
 
@@ -437,8 +437,8 @@ class TestGroundPointBlankFire:
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
-                add=_messages.append,
-                add_colored=lambda _message, _color: _messages.append(_message),
+                add=lambda text, **_kw: _messages.append(text),
+                add_colored=lambda _message, _color, **_kwargs: _messages.append(_message),
             ),
         )
 
@@ -473,8 +473,8 @@ class TestGroundPointBlankFire:
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
-                add=lambda _message: None,
-                add_colored=lambda _message, _color: None,
+                add=lambda _message, **_kwargs: None,
+                add_colored=lambda _message, _color, **_kwargs: None,
             ),
         )
 
@@ -510,8 +510,8 @@ class TestGroundPointBlankFire:
             equipped_ground_armor={},
             player_traits=[],
             log=SimpleNamespace(
-                add=lambda _message: None,
-                add_colored=lambda _message, _color: None,
+                add=lambda _message, **_kwargs: None,
+                add_colored=lambda _message, _color, **_kwargs: None,
             ),
         )
 
@@ -587,8 +587,8 @@ def _ground_fixture():
         equipped_ground_armor={},
         player_traits=[],
         log=SimpleNamespace(
-            add=lambda _message: None,
-            add_colored=lambda _message, _color: None,
+            add=lambda _message, **_kwargs: None,
+            add_colored=lambda _message, _color, **_kwargs: None,
         ),
     )
     _console = SimpleNamespace(clear=lambda: None, print=lambda *a, **k: None)
@@ -1046,8 +1046,8 @@ def _explosive_fixture(*, player_pos=world.Position(3, 3)):
         player_level=1,
         player_skill_points=0,
         log=SimpleNamespace(
-            add=lambda _message: None,
-            add_colored=lambda _message, _color: None,
+            add=lambda _message, **_kwargs: None,
+            add_colored=lambda _message, _color, **_kwargs: None,
         ),
     )
     _rules_ground.init(_ctx, [_primary, _neighbor], _game_map)
@@ -1364,8 +1364,8 @@ def test_reload_weapon_chooses_between_multiple_active_weapons(monkeypatch):
     assert run(_rules_ground.reload_weapon(_ctx)) is True
     assert len(choices) == 1
     assert choices[0] == (
-        ("Kinetic Pistol 3/12 RES 40", "RELOAD_SLOT:0"),
-        ("Kinetic Pistol 11/12 RES 40", "RELOAD_SLOT:1"),
+        ("Kinetic Pistol 3/12 RES 40", "RELOAD_SLOT:0", None),
+        ("Kinetic Pistol 11/12 RES 40", "RELOAD_SLOT:1", None),
     )
     assert _ctx.equipped_ground_weapons == [
         GroundWeaponInstance("kinetic_pistol", 3),

@@ -403,11 +403,14 @@ def _message_segments(
             continue
         # Runs chain on the same row: each segment starts at the cell
         # where the previous run's text ended (glyph-accurate chaining
-        # in _segment_position).
+        # in _segment_position). A None run colour paints at the row's
+        # line colour.
         cell_x = 0
         for run_text, run_color in runs:
             if run_text:
-                segments.append(OverlaySegment(cell_x, y, run_text, run_color))
+                segments.append(
+                    OverlaySegment(cell_x, y, run_text, run_color or color),
+                )
                 cell_x += len(run_text)
     return tuple(segments)
 

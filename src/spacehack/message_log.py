@@ -39,6 +39,22 @@ class MessageEntry:
 _REPEAT_SUFFIX = re.compile(r"^(.*) x(\d+)$")
 
 
+class RunLine(str):
+    """One log line that may carry inline colour runs.
+
+    ``runs`` joins to exactly this string; ``None`` run colours paint
+    at the line colour. Being a ``str`` subclass, existing string
+    callers and serialization are unchanged.
+    """
+
+    __slots__ = ("runs",)
+
+    def __new__(cls, text: str, runs=None):
+        line = super().__new__(cls, text)
+        line.runs = runs
+        return line
+
+
 def prefixed_runs(entry, prefix: str = "> ") -> tuple | None:
     """Return an entry's runs with the console prefix prepended, or
     ``None`` for run-less entries (the shared builder for the message

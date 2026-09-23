@@ -108,7 +108,7 @@ def _ammo_purchase_context(credits=100):
         ground_expedition_items=[],
         ground_armory_storage=[],
         ground_expedition_inventory=[],
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
 

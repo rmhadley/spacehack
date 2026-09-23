@@ -893,7 +893,7 @@ def test_engage_while_standing_on_stairs_explores_instead_of_stopping():
         pos=world.Position(2, 2), name="Player",
     )
     messages: list[str] = []
-    ctx = SimpleNamespace(log=SimpleNamespace(add=messages.append))
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)))
     outcome = run(run_auto_explore(
         ctx, object(), game_map, player,
         post_step_tick=as_async(lambda *a, **k: None), map_w=80, map_h=45,

@@ -28,7 +28,7 @@ def landing_state(**ctx_extra) -> game_interactions.GameLoopState:
     )
     return game_interactions.GameLoopState(
         ctx=ctx, console=object(), map_w=40, map_h=24,
-        log=SimpleNamespace(add=lambda _msg: None), stats=object(),
+        log=SimpleNamespace(add=lambda _msg, **_kwargs: None), stats=object(),
         game_map=object(), player=object(), current_mode="space",
         current_city_id="earth", player_owned_ship=None,
         player_active_missions=[],

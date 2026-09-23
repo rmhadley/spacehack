@@ -47,8 +47,8 @@ def _deadshot_fixture(*, n_enemies: int = 3):
         player_level=1,
         player_skill_points=0,
         log=SimpleNamespace(
-            add=lambda _message: None,
-            add_colored=lambda _message, _color: None,
+            add=lambda _message, **_kwargs: None,
+            add_colored=lambda _message, _color, **_kwargs: None,
         ),
     )
     _rules_ground.init(_ctx, _enemies, _game_map)

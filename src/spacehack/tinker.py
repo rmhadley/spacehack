@@ -37,9 +37,21 @@ def _raised(entry):
 
 
 def _kit_log_line(label: str, new_quality: int) -> str:
-    """The apply log line at its single seam (draft in the brief)."""
+    """The apply log line at its single seam (draft in the brief).
+
+    The current name and the new token each carry their tier colour
+    (a base name stays plain); returns a RunLine so the seam callers
+    stay string-shaped.
+    """
+    from . import message_log
+    from .data.quality import quality_color, quality_mark
+
     token = QUALITY_TOKENS[new_quality - 1].title()
-    return f"Tinker kit: {label} is now {token}."
+    _msg, _runs = message_log.with_runs(
+        "Tinker kit: ", quality_mark(label, new_quality - 1), " is now ",
+        (token, quality_color(new_quality)), ".",
+    )
+    return message_log.RunLine(_msg, _runs)
 
 
 def _ground_label(entry) -> str:
@@ -67,16 +79,21 @@ class _Target:
     key: str
     row: str
     apply: object
+    runs: object = None
 
 
 def _target(key: str, entry, label_of, apply) -> _Target:
     """Build one target: the preview row and the deferred bump share
-    the same entry, so rows and applies can never drift apart."""
-    return _Target(
-        key,
-        f"{label_of(entry)} -> {label_of(_raised(entry))}",
-        apply,
+    the same entry, so rows and applies can never drift apart. Both
+    preview names carry their tier colour in ``runs``."""
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _row, _runs = message_log.with_runs(
+        quality_mark(label_of(entry), entry.quality), " -> ",
+        quality_mark(label_of(_raised(entry)), entry.quality + 1),
     )
+    return _Target(key, _row, apply, _runs)
 
 
 def _indexed_apply(entries: list, index: int, label_of):
@@ -215,9 +232,9 @@ def eligible_targets(ctx) -> tuple[_Target, ...]:
     )
 
 
-def chooser_rows(targets) -> tuple[tuple[str, str], ...]:
+def chooser_rows(targets) -> tuple[tuple, ...]:
     """The chooser options: one current -> next preview per target."""
-    return tuple((target.row, target.key) for target in targets)
+    return tuple((target.row, target.key, target.runs) for target in targets)
 
 
 def _apply_chosen(ctx, index: int, targets, chosen) -> bool:
@@ -238,7 +255,7 @@ def _apply_chosen(ctx, index: int, targets, chosen) -> bool:
     line = target.apply()
     if line is None or not consume_kit_charge(ctx, index):
         return False
-    ctx.log.add(line)
+    ctx.log.add(line, runs=getattr(line, "runs", None))
     return True
 
 

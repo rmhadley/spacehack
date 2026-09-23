@@ -532,11 +532,18 @@ def _discard_pack_item(ctx: GameContext, pack_index: int) -> bool:
         ctx.log.add("That backpack item is no longer available.")
         return False
     try:
-        name = _pack_entry_name(ctx.ground_expedition_inventory[pack_index])
+        _entry = ctx.ground_expedition_inventory[pack_index]
+        name, quality = _pack_entry_name(_entry), _entry.quality
     except (KeyError, TypeError, ValueError):
-        name = "equipment"
+        name, quality = "equipment", 0
     _drop_expedition_entry_at(ctx, ctx.player.pos, pack_index)
-    ctx.log.add(f"Dropped {name}.")
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Dropped ", quality_mark(name, quality), ".",
+    )
+    ctx.log.add(_msg, runs=_runs)
     return True
 
 

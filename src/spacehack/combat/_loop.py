@@ -132,13 +132,18 @@ def _toggle_weapon(
         _weapons = rules.player_weapons(ctx)
         _state = "ON" if active_weapons[idx] else "OFF"
         if idx < len(_weapons):
+            from .. import message_log as _ml
+            from ..data.quality import quality_mark
+            _quality = _slot_quality(rules, ctx, idx)
             try:
-                _name = rules.weapon_name(
-                    _weapons[idx], ctx, _slot_quality(rules, ctx, idx),
-                )
+                _name = rules.weapon_name(_weapons[idx], ctx, _quality)
             except KeyError:
                 _name = _weapons[idx]
-            ctx.log.add(f"Weapon {idx + 1} ({_name}): {_state}")
+            _msg, _runs = _ml.with_runs(
+                f"Weapon {idx + 1} (", quality_mark(_name, _quality),
+                f"): {_state}",
+            )
+            ctx.log.add(_msg, runs=_runs)
     return active_weapons
 
 
@@ -216,18 +221,30 @@ def _prepare_player_attack(rules, ctx, game_map, target, wid) -> None:
 
 def _shot_outcome_log(
     ctx, rules, wid, wname, target, hit, dmg, stripped, is_strip, glancing,
+    quality: int = 0,
 ) -> None:
     """Log one player shot's outcome line (hit or miss)."""
     from .. import message_log as _ml
 
-    ctx.log.add_colored(
-        _player_attack_line(
-            wid, wname, rules.enemy_name(target),
-            hit=hit, hull_dmg=dmg, shield_dmg=stripped,
-            is_strip=is_strip, is_glancing=glancing,
-        ),
-        _ml.COLOR_PLAYER_ACTION,
+    _line = _player_attack_line(
+        wid, wname, rules.enemy_name(target),
+        hit=hit, hull_dmg=dmg, shield_dmg=stripped,
+        is_strip=is_strip, is_glancing=glancing, quality=quality,
     )
+    ctx.log.add_colored(
+        _line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs,
+    )
+
+
+def _log_weapon_reason(ctx, wname: str, quality: int, reason: str) -> None:
+    """``"Prototype Cutter: out of ammo"`` with the name coloured."""
+    from .. import message_log as _ml
+    from ..data.quality import quality_mark
+
+    _msg, _runs = _ml.with_runs(
+        quality_mark(wname, quality), f": {reason}",
+    )
+    ctx.log.add(_msg, runs=_runs)
 
 
 async def _finish_player_weapon(rules, ctx, wid, slot, target, hit) -> tuple[bool, int]:
@@ -254,7 +271,7 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
     except KeyError:
         _wname = _wid
     if not _ok:
-        ctx.log.add(f"{_wname}: {_reason}")
+        _log_weapon_reason(ctx, _wname, _quality, _reason)
         return False, 0
     if _reason:
         ctx.log.add(_reason)
@@ -269,7 +286,7 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
     )
     _shot_outcome_log(
         ctx, rules, _wid, _wname, target, _hit,
-        _dmg, _stripped, _is_strip, _is_glancing,
+        _dmg, _stripped, _is_strip, _is_glancing, _quality,
     )
     return await _finish_player_weapon(
         rules, ctx, _wid, slot, target, _hit,
@@ -279,32 +296,39 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
 async def _log_explosive_result(
     ctx, rules, weapon_id: str, weapon_name: str, target,
     enemy_hits: tuple, player_damage: int, *, primary_hit: bool = True,
+    quality: int = 0,
 ) -> None:
     """Log primary, splash, and friendly-fire results for one blast."""
     from .. import message_log as _ml
+    from ..data.quality import quality_mark
 
     _primary_damage = next(
         (_dmg for _enemy, _dmg, _primary in enemy_hits if _primary),
         0,
     )
+    _line = _player_attack_line(
+        weapon_id, weapon_name, rules.enemy_name(target),
+        hit=primary_hit, hull_dmg=_primary_damage if primary_hit else 0,
+        quality=quality,
+    )
     ctx.log.add_colored(
-        _player_attack_line(
-            weapon_id, weapon_name, rules.enemy_name(target),
-            hit=primary_hit, hull_dmg=_primary_damage if primary_hit else 0,
-        ),
-        _ml.COLOR_PLAYER_ACTION,
+        _line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs,
     )
     for _enemy, _dmg, _primary in enemy_hits:
         if not _primary:
-            ctx.log.add_colored(
-                f"{weapon_name} blast hits {_enemy.name} for {_dmg} damage.",
-                _ml.COLOR_PLAYER_ACTION,
+            _msg, _runs = _ml.with_runs(
+                quality_mark(weapon_name, quality),
+                f" blast hits {_enemy.name} for {_dmg} damage.",
+                base=_ml.COLOR_PLAYER_ACTION,
             )
+            ctx.log.add_colored(_msg, _ml.COLOR_PLAYER_ACTION, runs=_runs)
     if player_damage > 0:
-        ctx.log.add_colored(
-            f"The {weapon_name.lower()} blast catches you for {player_damage} damage!",
-            _ml.COLOR_COMBAT_EVENT,
+        _msg, _runs = _ml.with_runs(
+            "The ", quality_mark(weapon_name.lower(), quality),
+            f" blast catches you for {player_damage} damage!",
+            base=_ml.COLOR_COMBAT_EVENT,
         )
+        ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT, runs=_runs)
 
 
 async def _process_explosive_kills(
@@ -343,7 +367,7 @@ async def _fire_explosive_weapon(
     _ok, _reason = rules.can_fire(slot, ctx)
     _wname = rules.weapon_name(_wid, ctx, _quality)
     if not _ok:
-        ctx.log.add(f"{_wname}: {_reason}")
+        _log_weapon_reason(ctx, _wname, _quality, _reason)
         return False, 0
     if _reason:
         ctx.log.add(_reason)
@@ -364,12 +388,13 @@ async def _fire_explosive_weapon(
     if _hit or _enemy_hits or _player_damage:
         await _log_explosive_result(
             ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
-            primary_hit=_hit,
+            primary_hit=_hit, quality=_quality,
         )
         await _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
     else:
         _shot_outcome_log(
             ctx, rules, _wid, _wname, target, False, 0, 0, False, False,
+            _quality,
         )
     rules.consume_shot(slot, ctx)
     return _hit, rules.weapon_ap_cost(_wid, ctx)

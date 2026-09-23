@@ -175,7 +175,8 @@ def _entry_payload(entry) -> dict:
     payload = {"text": entry.text, "fg": list(entry.fg)}
     if entry.runs:
         payload["runs"] = [
-            [run_text, list(colour)] for run_text, colour in entry.runs
+            [run_text, list(colour) if colour is not None else None]
+            for run_text, colour in entry.runs
         ]
     return payload
 
@@ -670,9 +671,12 @@ def _parse_log_runs(raw) -> tuple | None:
         if not isinstance(segment, (list, tuple)) or len(segment) != 2:
             return None
         text, colour = segment
-        if not isinstance(text, str) or not isinstance(colour, (list, tuple)):
+        if not isinstance(text, str):
             return None
-        if len(colour) != 3:
+        if colour is None:  # paints at the entry's line colour
+            runs.append((text, None))
+            continue
+        if not isinstance(colour, (list, tuple)) or len(colour) != 3:
             return None
         try:
             runs.append((text, tuple(max(0, min(255, int(c))) for c in colour)))

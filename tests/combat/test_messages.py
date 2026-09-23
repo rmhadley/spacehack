@@ -199,3 +199,38 @@ class TestEnemyAttackLine:
             "Pirate Raider fires its Light Laser at you. "
             "It hits for 4 damage (4 shields)!"
         )
+
+
+class TestQualityRuns:
+    """Tiered weapon names colour their segment inside attack lines."""
+
+    def test_base_quality_line_is_plain(self):
+        line = _messages.player_attack_line(
+            "mono_blade", "Mono Blade", "Sentry Drone",
+            hit=True, hull_dmg=5,
+        )
+        assert line == "You swing your Mono Blade at Sentry Drone. It hits for 5 damage!"
+        assert line.runs is None
+
+    def test_tiered_line_carries_the_name_run(self):
+        line = _messages.player_attack_line(
+            "mono_blade", "Modded Mono Blade", "Sentry Drone",
+            hit=False, quality=1,
+        )
+        assert line == "You swing your Modded Mono Blade at Sentry Drone. It misses!"
+        assert line.runs == (
+            ("You swing your ", None),
+            ("Modded Mono Blade", (100, 235, 115)),
+            (" at Sentry Drone. It misses!", None),
+        )
+
+    def test_enemy_line_colours_the_wielded_variant(self):
+        line = _messages.enemy_attack_line(
+            "Assault Drone", "mono_blade", "Prototype Mono Blade",
+            hit=True, hull_dmg=4, quality=3,
+        )
+        assert line == (
+            "Assault Drone swings its Prototype Mono Blade at you. "
+            "It hits for 4 damage!"
+        )
+        assert line.runs[1] == ("Prototype Mono Blade", (190, 140, 255))

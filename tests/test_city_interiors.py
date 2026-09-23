@@ -71,7 +71,7 @@ def test_rebuild_active_city_interior_still_swaps_to_the_authored_room():
     record, saved_room, player, rebuilt = _saved_spaceport_room()
     ctx = SimpleNamespace(
         interiors={}, current_city_id="earth", player_owned_ship=None,
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
     out = city_interiors.rebuild_active_city_interior(ctx, rebuilt)
@@ -98,7 +98,7 @@ def _state(game_map, player, ctx):
 
 def test_every_earth_functional_building_enters_a_distinct_authored_room():
     game_map = load_planet("earth")
-    ctx = SimpleNamespace(interiors={}, game_map=game_map, player=None, log=SimpleNamespace(add=lambda _message: None))
+    ctx = SimpleNamespace(interiors={}, game_map=game_map, player=None, log=SimpleNamespace(add=lambda _message, **_kwargs: None))
 
     for label, record in game_map.city_buildings.items():
         player = world.Entity(
@@ -153,7 +153,7 @@ def test_ac_ring_archive_and_lab_preserve_research_officers():
     game_map = load_planet("ac_station")
     ctx = SimpleNamespace(
         interiors={}, game_map=game_map, player=None,
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     for label, expected_npc in (("archive", "research_officer"), ("lab", "research_officer")):
         record = game_map.city_buildings[label]
@@ -173,7 +173,7 @@ def test_eri_b_service_npcs_survive_authored_interior_entry():
     game_map = load_planet("eri_b")
     ctx = SimpleNamespace(
         interiors={}, game_map=game_map, player=None,
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     for label, expected_name in (("bar", "Settler"), ("merchants", "Settlement Trader")):
         record = game_map.city_buildings[label]
@@ -193,7 +193,7 @@ def test_city_interior_is_cached_and_reuses_the_same_room_map():
     record = game_map.city_buildings["bar"]
     player = world.Entity("@", (255, 255, 255), world.Position(*record["entrance"]), name="Player")
     game_map.entities.append(player)
-    ctx = SimpleNamespace(interiors={}, game_map=game_map, player=player, log=SimpleNamespace(add=lambda _message: None))
+    ctx = SimpleNamespace(interiors={}, game_map=game_map, player=player, log=SimpleNamespace(add=lambda _message, **_kwargs: None))
     state = _state(game_map, player, ctx)
 
     assert city_interiors.enter_city_interior(state) == "ENTERED"
@@ -214,7 +214,7 @@ def test_lal_c_bar_seats_only_the_registrar():
     ctx = SimpleNamespace(
         interiors={}, game_map=game_map, player=None,
         current_city_id="lal_c",
-        log=SimpleNamespace(add=lambda _message: None),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     record = game_map.city_buildings["bar"]
     player = world.Entity(

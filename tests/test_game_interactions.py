@@ -33,7 +33,7 @@ def _state(city_id: str = "earth"):
         console=object(),
         map_w=40,
         map_h=24,
-        log=SimpleNamespace(add=lambda _msg: None),
+        log=SimpleNamespace(add=lambda _msg, **_kwargs: None),
         stats=object(),
         game_map=object(),
         player=object(),
