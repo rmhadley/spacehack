@@ -1773,13 +1773,32 @@ with doctrinal 10-13):
   "Ground movement modes" / "Ground range management" / "Enemy
   consumables + AP" entries; Trigger, Guard leash, and Kill drops
   amended).
-- [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
+- [x] 6. **Crews + interiors** — role-token markers, CREW_ROLES
   tables, deck re-authoring (militia strike crews, merchant crew
   row + droid-dial weights, pirate crews incl. the heavy), the
   always-hostile-interiors override (SETTLED 3's boarding principle,
   currently unimplemented — militia decks must fight even at +50),
   guard-artillery deck placements (SETTLED 18), derelict squatters
   (SETTLED 28).
+  LANDED 2026-09-23 in four builds (4e4eb3d3 seam: CREW_ROLES +
+  crew_faction/security_drones kwargs + hostile_interior threaded at
+  all five ground hostility read sites + wiring at all four boarding
+  callers; cfa7fbf9 the Merchant row + merchant family + cross-registry
+  `h` pin; deck re-authoring dec8cbbd COLOUR retirement + 3678ffe7/
+  0d2b1699/433f9d21/83e46dde/68b242ca/5b5f682b/65ade4a2/93868260 —
+  the seven decks + survey_a, DIRECTIVE BLOCKS ONLY, zero grid-line
+  edits + 30d7b0d7 deck-correctness tests; b921edd3 the
+  NpcShipSpec.security_drones dial, merchant trio 0.5/1.0/1.5).
+  Reviewer: three code passes — build 1 APPROVE (three minors folded:
+  occupied-set DRY, the merchant-cell integrity test landed with
+  build 2, getattr shims collapsed in build 4); build 2 APPROVE (loot
+  fields pinned); build 3 APPROVE over the whole range (grid
+  invariance verified byte-identical at every intermediate commit;
+  four minors folded: repro_autoexplore's bare scout_a load, seeded
+  chance-roll tests, the merchant kill-delta + frigate-brute
+  assertions, redundant imports); build 4 APPROVE (base chance parsed
+  from the authored deck). Build-discovered readings recorded in the
+  phase-6 audit below. PLAYTEST PENDING.
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
