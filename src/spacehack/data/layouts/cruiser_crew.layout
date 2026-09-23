@@ -5,7 +5,9 @@
 #   Center:            Spine hall along the sealed waist channel; piloting forward
 #   Bottom center:     Enclosed breach stub (b) — spawn at P, exit > inside
 #   Mid-forward:       Two-hatch airlock (a...a) to the exterior
-#   Content:           raider/rifleman crew, engine/storage/cargo/mess loot
+#   Content:           role-token crew (doc 48 SETTLED 28) — the boarding
+#                      hull's faction resolves the markers; one single-slot
+#                      heavy anchors the deck; engine/storage/cargo/mess loot
 MAP
                                                                                                 #############################################                                                         
                                                                                                 #....................#......................#                                                         
@@ -94,17 +96,20 @@ TILE: a = AIRLOCK
 TILE: b = BREACH
 TILE: > = EXIT
 
-# Crew — varied spawns: 21 stamps, 9 profiles. The console-room squad
-# is the guaranteed anchor; everything else rolls, so visits differ.
-ENEMY: S = pirate_raider@1.0#2-3
-ENEMY: R = pirate_rifleman@0.5#2-3
-ENEMY: r = pirate_raider@0.45#1-2
-ENEMY: w = pirate_rifleman@0.35#2-4
-ENEMY: x = pirate_raider@0.35#1-1
-ENEMY: y = pirate_raider@0.4#1-2
-ENEMY: z = pirate_raider@0.4#1-1
-ENEMY: m = hull_parasite@0.15#2-4
-ENEMY: q = sentry_drone@0.25#1-2
+# Crew — role tokens (doc 48 SETTLED 28): the boarding hull's faction
+# resolves line/heavy/marksman/security_drone/stowaway at load. 21
+# stamps, 9 profiles; the console-room squad is the guaranteed anchor,
+# everything else rolls, so visits differ. z is the single-slot heavy —
+# one brute anchors the pirate deck, one marine the militia deck.
+ENEMY: S = line@1.0#2-3
+ENEMY: R = marksman@0.5#2-3
+ENEMY: r = line@0.45#1-2
+ENEMY: w = marksman@0.35#2-4
+ENEMY: x = line@0.35#1-1
+ENEMY: y = line@0.4#1-2
+ENEMY: z = heavy@0.4#1-1
+ENEMY: m = stowaway@0.15#2-4
+ENEMY: q = security_drone@0.25#1-2
 
 # Loot mappings
 LOOT: 1 = engine_room
@@ -112,7 +117,8 @@ LOOT: 2 = personal_storage
 LOOT: 3 = cargo_bay
 LOOT: 4 = mess_hall
 
-# Color overrides
+# Color overrides — tiles only; crew identity renders from the
+# resolved spec's family color (doc 48 SETTLED 38)
 COLOUR: # = (120, 130, 150)
 COLOUR: . = (200, 200, 210)
 COLOUR: d = (100, 220, 255)
@@ -121,11 +127,3 @@ COLOUR: b = (255, 120, 50)
 COLOUR: C = (255, 200, 80)
 COLOUR: E = (180, 200, 220)
 COLOUR: > = (100, 255, 120)
-COLOUR: r = (220, 120, 80)
-COLOUR: R = (200, 80, 80)
-COLOUR: S = (220, 120, 80)
-COLOUR: w = (200, 80, 80)
-COLOUR: x = (220, 120, 80)
-COLOUR: y = (220, 120, 80)
-COLOUR: z = (220, 120, 80)
-COLOUR: q = (150, 230, 255)
