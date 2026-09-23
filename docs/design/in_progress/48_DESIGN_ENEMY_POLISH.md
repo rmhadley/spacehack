@@ -2608,9 +2608,6 @@ boarding/layout-compile/city suites updated.
 9. Guide-diff item: expected NONE — boarding is documented flow and
    crews explain themselves in play; confirm-grep of the guide, any
    hit becomes a called-out before/after.
-8. Guide-diff item: expected NONE — boarding is documented flow and
-   crews explain themselves in play; confirm-grep of the guide, any
-   hit becomes a called-out before/after.
 
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
@@ -2922,6 +2919,110 @@ lines) extracts to a new `combat/_ground_effects.py`, which is also
 the natural home for the enemy-side effect mirror (stim/regen tick);
 the emission wirings inside `_rules_ground` stay line-neutral against
 that extraction, paying the debt in-commit per the brief.
+
+## Pre-implementation audit — phase 6 (2026-09-23)
+
+**Reuse (verified):**
+
+- **The marker pipeline is ONE seam and stays value-agnostic**:
+  `layout_format._parse_enemy` treats a role token exactly like a raw
+  spec id (`enemy_spawn_specs[glyph] = (id, chance, min, max)` — no
+  parser change needed); `_scatter_layout_enemies`
+  (`dungeon_layout.py:243`) is the single resolution + scatter site.
+  Role resolution, the drone dial, and the fg single-sourcing all land
+  inside it; `load_layout` → `_populate_build` → scatter threads two
+  new kwargs (`crew_faction: str = ""`, `security_drones: float =
+  1.0`) exactly as `spawn_band` already threads (phase-4 precedent).
+- **Four ENEMY-bearing boarding callers hold their spec** (verified
+  by grep): `begin_capture_boarding` (`game_interactions.py:657` —
+  the boarded spec's faction + dial), `_build_generic_derelict`
+  (scout_a), the mission-salvage branch, and `_build_main_quest_wreck`
+  (`boarding_wrecks.py:51,78,115` — pirate; survey_a's raw ids
+  bypass). `landmark.py`/`city_landmarks.py` are raw-id callers —
+  the only other ENEMY directives in data/ are the three landmark
+  drone decks (wolf_camp/mercury_vault/barnards_cache, raw
+  `sentry_drone@1.0`, NO marker COLOUR lines — they render the
+  scatter seam's hardcoded fallback red today, so the fg
+  single-sourcing recolors them bronze with zero landmark edits).
+- **The hostility seam is shared by exactly five ground read sites**:
+  `faction.spec_is_hostile` (`faction.py:128`) feeds
+  `_encounter._is_hostile_combatant` (via `_entity_in_player_sight`,
+  game_map in scope at the caller), `ground_npcs._is_hostile` /
+  `steps_aside`, `city_npcs.is_hostile`, `noise._hears` (game_map
+  already a param), and `autoexplore.steps_aside_ids`. An optional
+  `game_map` param threads all five; every caller has its map in
+  scope (verified: `swap_step`, `move_ground_npcs`/`_move_solo`,
+  `_resolve_city_bump` via `state.game_map`, `_hears`, the
+  steps_aside loop).
+- **Map-field serialization is table-driven**:
+  `GameMap.hostile_interior` declares beside `derelict_interior`
+  (`world.py:429`); `_optional_map_fields` (`saveload_maps.py:154`)
+  and `_apply_dungeon_attributes` (`:407`) are the two single-function
+  touch points.
+- **The Merchant row is a pure data row**: NpcCharSpec +
+  `CHAR_CLASS_FAMILIES["merchant"]` recruits by `faction="merchant"`
+  (the phase-3 family machinery needs zero code); the lint pin
+  `CROSS_REGISTRY_PIN` gains `"h"` (space hauler `h` —
+  merchant_hauler flies it; never co-rendered with the ground row).
+- **The dial is one spec field**: `NpcShipSpec.security_drones:
+  float = 1.0` beside `capture_layout_id`
+  (`data/npc_ships/__init__.py:125`) — `begin_capture_boarding`
+  already reads the boarded spec there.
+
+**Duplication hotspots:**
+
+1. Role resolution inlined at more than one site (scatter loop +
+   any future consumer) would fork the token vocabulary.
+2. The two new kwargs thread through three layers (load_layout →
+   _populate_build → scatter) — a shortcut (module-global set by
+   callers) would be parallel-paths drift.
+3. The five hostility sites could each read
+   `game_map.hostile_interior` directly — that forks the override
+   across five files and mints a sixth reader later.
+
+**DRY strategy:**
+
+1. `data/npc_chars/crew_roles.py` owns `CREW_ROLES` +
+   `CREW_ROLE_TOKENS` (the vocabulary set) — one frozen table, one
+   source; `_scatter_layout_enemies` imports both; no other module
+   resolves roles. Raw ids pass through unchanged; an omitted role
+   skips its markers; a role token with no faction table raises
+   ValueError (caught by the boarding callers' existing except →
+   "breaks away" — the authoring-error surface).
+2. Kwargs thread exactly as `spawn_band` does (three layers,
+   defaulted); the boarding callers pass
+   `crew_faction=spec.faction`-equivalents inline.
+3. `spec_is_hostile(ctx, spec, game_map=None)` returns True when the
+   flag is set; all five sites pass their map; no site reads the
+   flag directly.
+
+**Ratchet headroom:** every touched module sits ≤ 869 of 1000 lines
+(dungeon_layout 669, game_interactions 869, boarding_wrecks 177,
+faction 477, world 750, saveload_maps 810, ground_npcs 578,
+city_npcs 443, noise 194, autoexplore 813, _encounter 371) — no
+same-commit extraction is forced this phase; keep additions small.
+
+**Build-discovered decisions (called out for the playtest):**
+
+- **Marker-letter reuse keeps every grid edit OUT of this phase's
+  re-authoring**: each deck's existing letters re-point their ENEMY
+  directives to role tokens (marker letters are geometry keys, not
+  render glyphs). The only directive-level retunes beyond the token
+  swap: cruiser `z` and frigate `g` (the single-slot #1-1 markers)
+  become `heavy`; hauler/freightliner `h` becomes `heavy`
+  (assault_drone); merchant `q` chances 0.25 → 0.7 (the required
+  dial-read retune). NO map-grid lines change in any of the seven
+  files — the SETTLED 38 grid-edit review applies to the marker
+  BLOCKS, and the playtest checklist says so.
+- **Sniper counts ride the marksman markers unchanged**: cruiser/frigate
+  marksman markers keep today's squad sizes (up to 2-4 per marker) —
+  pirate riflemen and militia snipers share the geometry (one geometry
+  serves every faction, SETTLED 28); militia sniper count tuning is a
+  playtest knob (chances/sizes, user-reviewed).
+- **Survey_a keeps raw ids but loses its dead marker COLOUR lines**
+  (c/g/m) — the mechanism single-sources its consortium crew to
+  family navy and the parasite to its spec mauve; leaving stale
+  directives would be exactly the retirement this phase performs.
 
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
