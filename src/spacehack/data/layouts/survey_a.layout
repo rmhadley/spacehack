@@ -72,7 +72,8 @@ LOOT: 2 = mess_hall
 LOOT: 3 = personal_storage
 LOOT: 4 = cargo_bay
 
-# Color overrides — civilian survey hull, pale grey-white over navy
+# Color overrides — civilian survey hull, pale grey-white over navy;
+# crew identity renders from the spec family colors (SETTLED 38)
 COLOUR: # = (140, 145, 150)     # hull/bulkhead — pale civilian grey
 COLOUR: { = (140, 145, 150)     # hull bracket — LOS-transparent skin
 COLOUR: } = (140, 145, 150)     # hull bracket
@@ -83,6 +84,3 @@ COLOUR: d = (100, 220, 255)     # door — cyan glow
 COLOUR: C = (255, 200, 80)      # cockpit computer — warm gold
 COLOUR: E = (180, 200, 220)     # engine — muted blue-white
 COLOUR: > = (100, 255, 120)     # exit — bright green arrow
-COLOUR: c = (120, 160, 220)     # consortium enforcer — corporate blue
-COLOUR: g = (150, 190, 255)     # consortium gunner — pale corporate
-COLOUR: m = (175, 140, 190)     # hull parasite — sickly mauve
