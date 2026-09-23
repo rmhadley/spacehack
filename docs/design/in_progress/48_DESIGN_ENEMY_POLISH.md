@@ -1831,6 +1831,11 @@ with doctrinal 10-13):
   rides the single-slot heavy marker, marines ride marksman in their
   authored squads (8157856c). Simulated: cruiser 8.2 troopers / 5.7
   marines / 0.4 snipers; frigate 5.2 / 6.3 / 0.7; scout none.
+  (5) Follow-up ruling: FRIGATES GUARANTEE their heavies (f5ecb7e5) —
+  frigate_crew's g marker certain (0.35 -> 1.0, two single-slot
+  stamps): pirate flagships always carry two brutes, the militia
+  patrol-heavy two perched snipers. Cruisers keep the chance slot;
+  scouts stay heavy-free.
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
