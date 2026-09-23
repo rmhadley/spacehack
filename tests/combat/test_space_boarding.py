@@ -182,6 +182,7 @@ def test_capture_layouts_carry_console_and_crew():
         "cruiser_crew": "pirate",
         "frigate_crew": "pirate",
         "hauler_crew": "merchant",
+        "freightliner_crew": "merchant",
     }
     for lid, faction in deck_factions.items():
         _map, _spawn = load_layout(lid, crew_faction=faction)
@@ -194,13 +195,6 @@ def test_capture_layouts_carry_console_and_crew():
         legal = set(CREW_ROLES[faction].values())
         assert set(crew) <= legal, (lid, sorted(set(crew) - legal))
         assert CREW_ROLES[faction]["line"] in crew, (lid, "no anchor crew")
-
-    # Decks still on raw spec ids load bare (no crew_faction needed).
-    for lid in ("freightliner_crew",):
-        _map, _spawn = load_layout(lid)
-        assert _spawn is not None, lid
-        assert any(e.char == "C" for e in _map.entities), lid
-        assert any(getattr(e, "npc_char_id", "") for e in _map.entities), lid
 
 
 def _consume_ctx(_boarded, **over):

@@ -82,18 +82,21 @@ TILE: a = AIRLOCK
 TILE: b = BREACH
 TILE: > = EXIT
 
-# Crew — varied spawns: 30 stamps, 10 profiles. The cockpit honor
-# guard is the guaranteed anchor; everything else rolls per visit.
-ENEMY: n = consortium_enforcer@1.0#2-3
-ENEMY: u = consortium_gunner@0.5#1-2
-ENEMY: k = consortium_enforcer@0.45#1-2
-ENEMY: f = consortium_gunner@0.45#1-2
-ENEMY: g = consortium_gunner@0.4#1-2
-ENEMY: j = consortium_enforcer@0.3#1-1
-ENEMY: h = consortium_enforcer@0.35#1-1
-ENEMY: m = hull_parasite@0.15#2-4
-ENEMY: o = hull_parasite@0.2#1-2
-ENEMY: q = sentry_drone@0.25#1-2
+# Crew — role tokens (doc 48 SETTLED 28): merchant hulls crew honest
+# light Merchants (SETTLED 5/7/38); defense is droids — h is the
+# single-slot assault-drone anchor, q the security-drone dial (the
+# boarded spec's wealth multiplier scales it at load). 30 stamps, 10
+# profiles; the cockpit honor guard is the guaranteed anchor.
+ENEMY: n = line@1.0#2-3
+ENEMY: u = line@0.5#1-2
+ENEMY: k = line@0.45#1-2
+ENEMY: f = line@0.45#1-2
+ENEMY: g = line@0.4#1-2
+ENEMY: j = line@0.3#1-1
+ENEMY: h = heavy@0.35#1-1
+ENEMY: m = stowaway@0.15#2-4
+ENEMY: o = stowaway@0.2#1-2
+ENEMY: q = security_drone@0.7#1-2
 
 # Loot mappings — the container stack pays in cargo
 LOOT: 1 = cargo_bay
@@ -101,7 +104,8 @@ LOOT: 2 = personal_storage
 LOOT: 3 = engine_room
 LOOT: 4 = mess_hall
 
-# Color overrides
+# Color overrides — tiles only; crew identity renders from the
+# resolved spec's family color (doc 48 SETTLED 38)
 COLOUR: # = (120, 130, 150)
 COLOUR: . = (200, 200, 210)
 COLOUR: d = (100, 220, 255)
@@ -109,13 +113,3 @@ COLOUR: a = (100, 200, 255)
 COLOUR: b = (200, 120, 90)
 COLOUR: C = (255, 200, 80)
 COLOUR: > = (100, 255, 120)
-COLOUR: n = (220, 150, 80)
-COLOUR: u = (200, 110, 80)
-COLOUR: k = (220, 150, 80)
-COLOUR: f = (200, 110, 80)
-COLOUR: g = (200, 110, 80)
-COLOUR: j = (220, 150, 80)
-COLOUR: h = (220, 150, 80)
-COLOUR: m = (175, 140, 190)
-COLOUR: o = (175, 140, 190)
-COLOUR: q = (150, 230, 255)
