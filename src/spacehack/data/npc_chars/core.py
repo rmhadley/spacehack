@@ -202,6 +202,24 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         xp_reward=40,
     ),
     NpcCharSpec(
+        # The honest working crew (doc 48 SETTLED 5/7/38): everyday
+        # joes — light gear, band-exempt, no difficulty axis. A deck's
+        # defense is its droid complement (the CREW_ROLES dial), never
+        # these hands.
+        id="merchant",
+        name="Merchant",
+        char="h",                # merchant family letter (SETTLED 38)
+        fg=(100, 220, 140),      # merchant family green (matches the fleet)
+        faction="merchant",
+        hp=16,
+        weapons=("kinetic_pistol", "combat_knife"),  # fixed light gear — no ladder
+        stat_weights=six_weights(0.0, 0.0, 0.0),  # band-exempt
+        tier=1,
+        loot_pool=("food_rations", "textiles"),
+        loot_count=(1, 1),
+        xp_reward=12,
+    ),
+    NpcCharSpec(
         id="civilian_bystander",
         name="Civilian Bystander",
         char="c",

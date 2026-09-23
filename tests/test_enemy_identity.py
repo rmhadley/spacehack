@@ -33,8 +33,10 @@ from src.spacehack.world_render import world_draw_commands
 SEPARATION_MIN = 60
 
 # The full tolerated ground/space glyph overlap among hostile-capable
-# faces (doc 48 phase 3): the scout hull meets the rock scavenger.
-CROSS_REGISTRY_PIN = {"s"}
+# faces (doc 48 phase 3 + phase 6): the scout hull meets the rock
+# scavenger; the hauler hull meets the ground Merchant row (never
+# co-rendered — a boarded deck replaces the space map).
+CROSS_REGISTRY_PIN = {"s", "h"}
 
 
 def _hostile_capable(spec) -> bool:

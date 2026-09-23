@@ -9,10 +9,11 @@ Ground identity families (doc 48 SETTLED 34, the
 :data:`CHAR_CLASS_FAMILIES` table): one LETTER per family, members
 are case variants of it (lowercase common / uppercase serious), ONE
 consistent color per family — pirate `r`/`R` rust, militia `m` blue,
-consortium `e`/`E` corporate navy, civilian `c`, machines `d`/`D`
-bronze. The (glyph, color) PAIR is the identity — a char may repeat
-across families when the colors separate. Fauna are not families:
-species glyphs in biome palettes, bold apexes later (phase 10).
+merchant `h` green, consortium `e`/`E` corporate navy, civilian `c`,
+machines `d`/`D` bronze. The (glyph, color) PAIR is the identity — a
+char may repeat across families when the colors separate. Fauna are
+not families: species glyphs in biome palettes, bold apexes later
+(phase 10).
 
 Adding a new NPC character is one entry in an ``NPC_CHARS`` tuple
 in any submodule — no if/else chains, no registry edits.
@@ -49,6 +50,9 @@ CHAR_CLASS_FAMILIES: dict[str, CharClassFamily] = {
     ),
     "militia": CharClassFamily(
         letter="m", color=(100, 200, 255), faction="militia",
+    ),
+    "merchant": CharClassFamily(
+        letter="h", color=(100, 220, 140), faction="merchant",
     ),
     "consortium": CharClassFamily(
         letter="e", color=(90, 120, 200), faction="consortium",
