@@ -235,8 +235,10 @@ def test_marker_crews_render_spec_family_colors():
     ENEMY-marker crew renders its resolved spec's char/fg, so the
     landmark drone decks drop the old fallback red for machine bronze
     and the survey wreck's consortium crew reads family navy."""
+    from src.spacehack import engine
     from src.spacehack.data.npc_chars import find_npc_char
 
+    engine.RNG.seed(7)  # draws the chance-rolled parasites too
     landmark_dir = (
         Path(__file__).resolve().parent.parent
         / "src" / "spacehack" / "data" / "landmarks"
@@ -262,3 +264,103 @@ def test_marker_crews_render_spec_family_colors():
     # parasites (faction "") are a chance roll, never a wrong faction
     assert "consortium" in factions
     assert factions <= {"consortium", ""}
+
+
+class _RecordingLog:
+    def __init__(self):
+        self.lines: list[str] = []
+
+    def add(self, line, *_a, **_k):
+        self.lines.append(line)
+
+    def add_colored(self, line, *_a, **_k):
+        self.lines.append(line)
+
+
+def test_militia_deck_crews_its_own_and_fights_at_liked_rep():
+    """SETTLED 3/38: board a militia cruiser at +50 militia rep and
+    the deck fights anyway — troopers, a marine (the single-slot
+    heavy), a perched sniper — through the hostile_interior read on
+    the real map."""
+    from src.spacehack import engine, ground_npcs
+
+    engine.RNG.seed(3)
+    game_map, _spawn = load_layout("cruiser_crew", crew_faction="militia")
+    crew = _npc_entities(game_map)
+    ids = {e.npc_char_id for e in crew}
+    assert {"militia_trooper", "militia_marine", "militia_sniper"} <= ids
+    assert ids <= {"militia_trooper", "militia_marine", "militia_sniper",
+                   "sentry_drone"}
+
+    game_map.hostile_interior = True  # the boarding callers stamp this
+    ctx = _rep_ctx({"militia": 50})  # liked — the rep read alone says no
+    reads = [ground_npcs._is_hostile(ctx, e, game_map) for e in crew]
+    assert all(reads), "a boarded militia deck fights at +50 rep"
+    assert not any(
+        ground_npcs._is_hostile(ctx, e) for e in crew
+    ), "the same crew reads peaceful off the boarded deck"
+
+
+def test_pirate_big_decks_field_a_brute():
+    from src.spacehack import engine
+
+    for lid in ("cruiser_crew", "frigate_crew"):
+        engine.RNG.seed(3)  # draws both decks' single-slot heavy markers
+        game_map, _spawn = load_layout(lid, crew_faction="pirate")
+        assert "pirate_brute" in _crew_ids(game_map), lid
+
+
+def test_scout_deck_stays_brute_free():
+    from src.spacehack import engine
+
+    for seed in range(6):
+        engine.RNG.seed(seed)
+        game_map, _spawn = load_layout("scout_crew", crew_faction="pirate")
+        assert "pirate_brute" not in _crew_ids(game_map), seed
+
+
+def test_merchant_decks_crew_merchants_and_droids():
+    from src.spacehack import engine
+
+    engine.RNG.seed(4)
+    game_map, _spawn = load_layout(
+        "freightliner_crew", crew_faction="merchant",
+    )
+    ids = _crew_ids(game_map)
+    assert "merchant" in ids          # the honest crew
+    assert "sentry_drone" in ids      # the wealth dial's droids
+    assert "assault_drone" in ids     # the armored anchor
+    assert ids <= {"merchant", "sentry_drone", "assault_drone",
+                   "hull_parasite"}
+
+
+def test_derelicts_stay_pirate_squatters():
+    from src.spacehack import engine
+
+    engine.RNG.seed(0)
+    game_map, _spawn = load_layout("scout_a", crew_faction="pirate")
+    ids = _crew_ids(game_map)
+    assert "pirate_raider" in ids
+    assert ids <= {"pirate_raider", "pirate_rifleman", "hull_parasite"}
+
+
+def test_militia_crew_kills_move_militia_rep():
+    """SETTLED 28: kill deltas land by CREW faction — wiping a boarded
+    militia deck visibly costs militia rep through the existing
+    table."""
+    from src.spacehack.game_flow import _apply_ground_combat_rep
+
+    ctx = SimpleNamespace(
+        faction_reputation={"militia": 50, "pirate": -50, "merchant": 0},
+        log=_RecordingLog(),
+        broadcast_dark=False,
+        broadcast_identity=None,
+    )
+    result = SimpleNamespace(
+        outcome="VICTORY",
+        defeated_spec_ids=("militia_trooper", "militia_marine"),
+    )
+    _apply_ground_combat_rep(ctx, result)
+    assert ctx.faction_reputation["militia"] == 50 - 6 - 6
+    assert ctx.faction_reputation["pirate"] == -50 + 4 + 4
+    assert ctx.faction_reputation["merchant"] == 0 - 2 - 2

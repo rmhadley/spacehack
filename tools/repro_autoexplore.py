@@ -49,7 +49,7 @@ def flood_unseen(game_map, start, *, allow_transitions):
 
 
 def main():
-    gm, spawn = load_layout("scout_a")
+    gm, spawn = load_layout("scout_a", crew_faction="pirate")
     init_fog(gm)
     player = world.Entity(char="@", fg=(255, 255, 255),
                           pos=spawn or world.Position(3, 9))
