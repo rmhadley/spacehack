@@ -1812,6 +1812,18 @@ with doctrinal 10-13):
   scope stands — the complement is flat-authored). Simulated reads
   (400 loads): hauler 4 crew / 2.6 sentries / 0.7 assault; freighter
   3.2 / 8.5 / 3.0; caravan 3.1 / 12.5 / 3.0.
+  (3) Big-interior PERF PASS (9ed83969..d608aa97, reviewer APPROVE
+  with three minors folded): profiling a full 2,497-step auto-explore
+  of the freightliner showed ~half the planning time in a per-step
+  full-map light-source rescan (54.5M table lookups per exploration —
+  crew decks contain ZERO emitting kinds), plus per-cell O(entities)
+  blocker scans in the BFS and per-reveal hull-wall seed scans.
+  Static sources + hull-wall cells now derive once per map
+  (GameMap.replace_tile is the ONE runtime tile writer and drops both
+  caches — every live-map write swept to it); the BFS reads blockers
+  from a per-plan occupancy snapshot; lit-cell reveal intersects the
+  source cache. Measured: 4.6 → 1.0 ms/step (4.5x) with an IDENTICAL
+  step sequence under the same seed.
 - [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
