@@ -374,8 +374,52 @@ nobody designs against a ghost.
 ## Ground combat
 
 - **Trigger** — pure LOS aggro: visible hostiles within
-  `sight_radius` (8); `noise_hostiles` is a wired, EMPTY seam
-  (`combat/_encounter.detect_ground_combat`).
+  `sight_radius` (8) (`combat/_encounter.detect_ground_combat`).
+  The doc-48 `noise_hostiles` OR-in seam is RETIRED (phase 5,
+  SETTLED 36): heard entities investigate via the goal system and
+  reach combat only through this LOS scan — heard is never
+  combatant.
+- **Ground noise (doc 48 phase 5)** — `noise.py`: every accepted
+  shot emits at the shooter per the weapon's `noise` column
+  (explosives 12, kinetic rifles 8, pistols/SMG 5-6, energy/plasma
+  4, melee 1-2, organic 4-5; both sides symmetric, deadshot chain
+  included via `consume_shot` / `_try_ground_fire` /
+  `_fire_chain_link`), explosive impacts emit a SECOND event at the
+  impact cell (`explosive_blast`). Hearing = flat Chebyshev radius
+  (walls don't block), hostile-reading un-engaged combatants only —
+  dormant deaf, engaged skip, non-hostiles ignore gunfire (SETTLED
+  22). A hearer gains an investigation GOAL at the sound origin
+  (latest wins); guards hear only within their leash of the sound
+  (area guardians, SETTLED 37). Player feedback is ONE reaction
+  line per fresh-hearer event — "Something to the {direction} heard
+  that." — 8-way player-relative, never for quiet weapons (noise ≤2)
+  or enemy fire; no guide entry (communicated in play, user ruling).
+- **Ground movement modes (doc 48 phase 5)** —
+  `ground_npcs.move_ground_npcs`: peace = the 1-tile stroll; while a
+  ground fight is live (`_rules_ground.combat_active`), every
+  un-engaged entity moves its spec AP in tiles — bystanders panic-
+  scatter with no brake (SETTLED 36) — and hostile walkers STOP on
+  the tile they enter the player's sight (never overshoot; join via
+  the existing LOS scans; `_encounter.hostile_in_player_sight`).
+  Investigation is GOAL-BASED (SETTLED 37): the walker holds its
+  goal until it gains LOS on the goal cell (completes without
+  walking when already visible), the goal is unreachable (gives
+  up), or a newer event re-stamps — no tick countdown anywhere (the
+  5-tick memory retired). Guards settle where the search ends (the
+  post re-stamps — a new perch). Squads follow noise as a unit (any
+  member's goal draws them; LOS aggro stays individual), patrol
+  marches at the leader's AP. The goal + rolled weapon + carried
+  stamp all round-trip save/load (`saveload_maps`).
+- **Ground range management (doc 48 phase 5)** — the universal
+  enemy loop (`combat/_ai_ground`): fire ONE shot per turn inside
+  the rolled weapon's [min..max] with LOS; beyond max or without
+  LOS, close one A* step per AP; inside min, back off
+  (restoring-steps first, LOS preferred, progress allowed, PINNED =
+  inert — cornering is the counter-play, SETTLED 26); leftover AP
+  after the shot repositions inside the band for ranged only
+  (melee holds — no knife-dancers). Guard leash = the entity's
+  rolled weapon `max_range + 2` (`noise.guard_leash`), per instance
+  — the hardcoded 8 retired (SETTLED 18/37).
 - **Ground identity families (doc 48 phase 3)** —
   `CHAR_CLASS_FAMILIES` (`data/npc_chars/__init__.py`): one LETTER
   per family, members are case variants of it, ONE family color —
@@ -410,9 +454,22 @@ nobody designs against a ghost.
 - **End states** — all dead = VICTORY; survivors out of sight =
   DISENGAGED (they keep wounds — HP syncs to `entity.hp`, so
   re-engaging never heals them) (`combat/_rules_ground.py`).
-- **Guard leash** — guard NPCs abandon chase beyond distance 8 and
-  return to post; a 5-tick last-seen memory bounds investigation
-  (`combat/_ai_ground.py`; `ground_npcs.py`: `remember_last_seen`).
+- **Guard leash** — guard NPCs abandon chase beyond their rolled
+  weapon's `max_range + 2` and return to post; investigation is
+  goal-based (see Ground movement modes) — no tick memory
+  (`combat/_ai_ground._chase_goal`; `noise.guard_leash`).
+- **Enemy consumables + AP (doc 48 phase 5)** — per-spec AP
+  (`NpcCharSpec.ap`, default 4; predators 5-6, anchors 3) derives
+  through `_ground_effects.enemy_ap_total` (the cybernetics
+  `ap_bonus` seam — no wearers yet). Consumables are PRE-ROLLED
+  once onto `Entity.carried_items` at first combat entry (same
+  distribution as the death roll, consumable subset) — what they
+  drop is what they carry: med pack at ≤50% HP (heal + regen),
+  stim with LOS when not stimmed (+AP ×3 rounds), ANY carrier, use
+  AP spent apart from the dodge ledger, approved log lines
+  ("{name} uses a Med Pack." / "{name} injects a Combat Stim.");
+  effect state is fight-scoped (never serialized; the dead never
+  regenerate).
 - **Math** — hit = accuracy + reflexes/2 − target reflexes/2 − move
   dodge − point-blank 35/cell inside min range; damage = base +
   str/5 melee − armor (plasma halves armor, `armor_bypass` ignores),
@@ -428,11 +485,15 @@ nobody designs against a ghost.
   equipment, field stacks) plus the diegetic kit: the enemy's
   resolved weapon always falls with one matching ammo stack
   (field sizing 1–5) AT its equip-time rolled quality — no
-  re-roll; extras roll quality at drop time — both ladders ride
-  the spawn's band (band 1 == KILL ladder, doc 48 phase 4);
-  `GroundWeaponSpec.loot_droppable=False`
+  re-roll (the weapon+quality stamp persists on the entity across
+  engagements, doc 48 phase 5); extras roll quality at drop time —
+  both ladders ride the spawn's band (band 1 == KILL ladder, doc 48
+  phase 4); `GroundWeaponSpec.loot_droppable=False`
   keeps organic monster parts and fists off the floor; pools are
-  beyond-the-weapon extras only; a very rare tinker-kit roll
+  beyond-the-weapon extras only; the pre-rolled carried stamp is
+  the ONE resolution for consumable entries — unused charges drop
+  at their remainder, used ones never do, ammo keeps the death
+  roll (doc 48 phase 5); a very rare tinker-kit roll
   draws after the pad roll (doc 47.5); everything shares the
   silent 30-entity cap (`combat/_actions.spawn_kill_drops` /
   `_spawn_kit_drop`; pools authored in `data/npc_chars/`).

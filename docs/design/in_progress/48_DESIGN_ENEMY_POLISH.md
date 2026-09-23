@@ -1696,8 +1696,13 @@ with doctrinal 10-13):
   goal (open-ground sounds are looked at, not walked to); squad
   patrol marches at the LEADER's AP (a unit moves together) while
   investigators budget per member; the deadshot chain emits through
-  the same seam as every accepted shot. PLAYTEST PENDING — checklist
-  below at the brief's checkpoint.
+  the same seam as every accepted shot. PLAYTEST PASSED 2026-09-23
+  (user: "basic run through looks very good. mark this done. any
+  tweaks can happen as I play more later") — tweaks deferred to live
+  play; SYSTEMS.md audited same commit (new "Ground noise" /
+  "Ground movement modes" / "Ground range management" / "Enemy
+  consumables + AP" entries; Trigger, Guard leash, and Kill drops
+  amended).
 - [ ] 6. **Crews + interiors** — role-token markers, CREW_ROLES
   tables, deck re-authoring (militia strike crews, merchant crew
   row + droid-dial weights, pirate crews incl. the heavy), the
