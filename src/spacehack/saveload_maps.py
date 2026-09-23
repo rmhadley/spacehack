@@ -97,6 +97,10 @@ def _entity_to_dict(e) -> dict:
             [e.rolled_weapon[0], e.rolled_weapon[1]]
             if getattr(e, 'rolled_weapon', None) else None
         ),
+        "carried_items": (
+            [list(_c) for _c in e.carried_items]
+            if getattr(e, 'carried_items', None) is not None else None
+        ),
         "blocked_message": getattr(e, 'blocked_message', "You bump into {name}."),
         "spawn_band": getattr(e, 'spawn_band', 0),
     }
@@ -246,13 +250,15 @@ def _restore_ground_elite(e: world.Entity) -> None:
         pass
 
 
-def _restore_goal_and_weapon(e: world.Entity, ed: dict) -> None:
-    """Investigation goal + persisted rolled weapon (doc 48 SETTLED 37).
+def _restore_ground_stamps(e: world.Entity, ed: dict) -> None:
+    """Ground tactic stamps (doc 48 SETTLED 36/37): investigation goal,
+    persisted rolled weapon, and pre-rolled carried consumables.
 
     The goal is position-only (no tick countdown): a live goal survives
     the round-trip by its cell alone, and pre-phase-5 saves that carried
     ``last_seen_ticks`` load clean — the old key is simply ignored. The
-    rolled-weapon stamp means re-engagement never re-rolls.
+    rolled-weapon stamp means re-engagement never re-rolls; the carried
+    stamp is what they drop (used charges are gone forever).
     """
     _pair = _coordinate_pair(ed.get("last_seen_pos"))
     if _pair is not None:
@@ -263,6 +269,19 @@ def _restore_goal_and_weapon(e: world.Entity, ed: dict) -> None:
             e.rolled_weapon = (str(_rolled[0]), int(_rolled[1]))
         except (TypeError, ValueError):
             pass
+    _carried = ed.get("carried_items")
+    if isinstance(_carried, list):
+        # Malformed entries skip individually (corrupt-save tolerance,
+        # matching the rolled-weapon twin above); a resolved-empty
+        # stamp `[]` survives as-is — re-rolling would mint charges.
+        _stamp: list[list] = []
+        for _c in _carried:
+            try:
+                if isinstance(_c, (list, tuple)) and len(_c) == 3:
+                    _stamp.append([str(_c[0]), str(_c[1]), int(_c[2])])
+            except (TypeError, ValueError):
+                continue
+        e.carried_items = _stamp
 
 
 def _entity_from_dict(ed: dict) -> world.Entity:
@@ -293,7 +312,7 @@ def _entity_from_dict(ed: dict) -> world.Entity:
     _flavor = ed.get("interaction_flavor", "")
     if _flavor:
         e.interaction_flavor = str(_flavor)
-    _restore_goal_and_weapon(e, ed)
+    _restore_ground_stamps(e, ed)
     return e
 
 

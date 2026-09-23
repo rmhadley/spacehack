@@ -86,17 +86,81 @@ def _spawn_equipment_loot_at_position(
         )
 
 
+def roll_carried_consumables(spec) -> list[list]:
+    """Pre-roll the consumables an enemy CARRIES (doc 48 SETTLED 36):
+    the consumable entries of ``field_item_loot_pool`` resolve onto the
+    fighter as live items — what they drop is what they carry, used
+    items are consumed and never drop. Same distribution the death
+    roll uses; ammo/equipment entries keep their death-time roll."""
+    from ..ground_equipment import item_stack_capacity
+
+    _pool = tuple(
+        _entry for _entry in spec.field_item_loot_pool
+        if _entry[0] == "consumable"
+    )
+    if not _pool:
+        return []
+    _min_c, _max_c = spec.field_item_loot_count
+    _carried: list[list] = []
+    for _ in range(RNG.randint(_min_c, _max_c)):
+        item_type, item_id = RNG.choice(_pool)
+        try:
+            _max_quantity = item_stack_capacity(item_type, item_id)
+        except (KeyError, ValueError):
+            continue
+        _carried.append([
+            item_type, item_id, RNG.randint(1, min(5, _max_quantity)),
+        ])
+    return _carried
+
+
+def _drop_stamped_carried(
+    game_map: world.GameMap, pos: world.Position,
+    item_pool: tuple[tuple[str, str], ...], carried: list,
+) -> tuple[tuple[str, str], ...]:
+    """Drop the carried stamp's unused consumable charges at their
+    remainder qty (doc 48 SETTLED 36) and return the pool the
+    death-time roll still owns — the non-consumable entries."""
+    for _entry in carried:
+        _item_type, _item_id, _quantity = _entry
+        if _quantity > 0:
+            _append_loot_entity(
+                game_map, pos,
+                {
+                    "item_type": _item_type,
+                    "item_id": _item_id,
+                    "quantity": _quantity,
+                },
+            )
+    return tuple(
+        _entry for _entry in item_pool if _entry[0] != "consumable"
+    )
+
+
 def _spawn_field_item_loot_at_position(
     game_map: world.GameMap,
     pos: world.Position,
     item_pool: tuple[tuple[str, str], ...],
     count_range: tuple[int, int] = (0, 1),
+    *,
+    carried: list | None = None,
 ) -> None:
-    """Drop authored ammo/consumable stacks with valid quantities."""
+    """Drop authored ammo/consumable stacks with valid quantities.
+
+    A present ``carried`` stamp (doc 48 SETTLED 36) is the ONE
+    resolution for the consumable entries — unused charges drop, used
+    ones never do — while ammo entries keep this death-time roll. No
+    stamp (never instance-built, or a legacy save): today's full-pool
+    roll.
+    """
     if not item_pool:
         return
     from ..ground_equipment import item_stack_capacity
 
+    if carried is not None:
+        item_pool = _drop_stamped_carried(game_map, pos, item_pool, carried)
+        if not item_pool:
+            return
     _min_c, _max_c = count_range
     for _ in range(RNG.randint(_min_c, _max_c)):
         item_type, item_id = RNG.choice(item_pool)
@@ -168,7 +232,7 @@ def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
 
 def spawn_kill_drops(
     game_map: world.GameMap, pos, spec, ctx, weapon_id: str = "",
-    weapon_quality: int = 0, *, band: int = 0,
+    weapon_quality: int = 0, *, band: int = 0, carried: list | None = None,
 ) -> None:
     """The full ground-kill drop sequence (doc 47.1): authored pools,
     the kit drop, the site-reveal pad, then the shared entity cap.
@@ -176,9 +240,11 @@ def spawn_kill_drops(
     ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only;
     ``weapon_id`` is the combat state's resolved enemy weapon at its
     equip-time rolled ``weapon_quality``; ``band`` sizes the drop-time
-    quality ladder (doc 48 SETTLED 35). The kit drop lands after the
-    pools so pool extras age out of the cap first. The tinker-kit roll
-    draws last so pre-existing seeded kill sequences stay unchanged.
+    quality ladder (doc 48 SETTLED 35); ``carried`` is the entity's
+    pre-rolled consumable stamp (doc 48 SETTLED 36) — unused charges
+    drop, used ones never do. The kit drop lands after the pools so
+    pool extras age out of the cap first. The tinker-kit roll draws
+    last so pre-existing seeded kill sequences stay unchanged.
     """
     from ..digs import maybe_spawn_ground_pad
     from ..ground_equipment import tier_filtered_equipment
@@ -198,7 +264,7 @@ def spawn_kill_drops(
     if spec.field_item_loot_pool:
         _spawn_field_item_loot_at_position(
             game_map, pos, spec.field_item_loot_pool,
-            count_range=spec.field_item_loot_count,
+            count_range=spec.field_item_loot_count, carried=carried,
         )
     _spawn_kit_drop(game_map, pos, weapon_id, weapon_quality)
     maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)

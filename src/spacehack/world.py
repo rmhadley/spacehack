@@ -353,6 +353,7 @@ class Entity:
     last_seen_pos: Position | None = None
     guard_post: Position | None = None  # guard leash anchor (doc 48); re-stamped where an investigation ends
     rolled_weapon: tuple[str, int] | None = None  # persisted (weapon_id, quality) first-resolution stamp (doc 48 SETTLED 37)
+    carried_items: list | None = None  # pre-rolled consumable stamp [[type, id, qty], ...] (doc 48 SETTLED 36); None = unrolled
     city_npc_id: str = ""  # ambient city citizen — placed/moved by city_npcs
     city_spawn: Position | None = None  # ambient anchor; wander returns here
     city_wander_radius: int = 0  # district radius around city_spawn for destination picks

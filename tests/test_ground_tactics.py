@@ -730,3 +730,205 @@ def test_guard_re_perches_where_its_investigation_ends():
     assert guard.guard_post == guard.pos        # guards THERE now
     assert guard.guard_post != world.Position(2, 2)
 
+
+
+# --- AP derivation + enemy consumables (SETTLED 27/36) -----------------------
+
+def _instance(entity, **over):
+    """A GroundEnemyInstance built straight from an entity (no combat
+    session) — the consumable-effect test harness."""
+    from src.spacehack.combat._rules_ground import GroundEnemyInstance
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    _fields = dict(
+        entity=entity, spec=find_npc_char(entity.npc_char_id),
+        weapon_id="fists", hp=30, max_hp=30, ap=4, ap_total=4,
+    )
+    _fields.update(over)
+    return GroundEnemyInstance(**_fields)
+
+
+def test_enemy_ap_derives_from_spec():
+    """Instance AP is the spec's authored base (SETTLED 27): predators
+    fast, anchors slow, humanoids 4."""
+    from src.spacehack.combat._rules_ground import _build_enemy_instance
+
+    for spec_id, expected in (
+        ("dust_prowler", 6), ("pirate_brute", 3), ("assault_drone", 3),
+        ("pirate_raider", 4), ("civilian_bystander", 4),
+    ):
+        _e = world.Entity(
+            "x", (255, 0, 0), world.Position(2, 2), npc_char_id=spec_id,
+        )
+        _inst = _build_enemy_instance(_e, _open_map(_e))
+        assert _inst.ap_total == expected, spec_id
+        assert _inst.ap == expected
+
+
+def test_carried_stamp_resolves_once():
+    """The consumable pre-roll is idempotent: a second instance build
+    keeps the first stamp (SETTLED 36 — no re-roll)."""
+    from src.spacehack.combat._rules_ground import _build_enemy_instance
+
+    raider = world.Entity(
+        "r", (220, 120, 80), world.Position(2, 2),
+        npc_char_id="pirate_raider",  # pool: pistol_rounds + med_pack
+    )
+    _open_map(raider)
+    _first = _build_enemy_instance(raider)
+    _stamped = list(raider.carried_items)
+    _second = _build_enemy_instance(raider)
+    assert raider.carried_items == _stamped
+    assert _second.hp == _first.hp
+
+
+def test_med_pack_at_half_health():
+    """The wounded carrier uses a Med Pack (ANY carrier — SETTLED 36):
+    heal now, regen queued, one charge consumed, approved line logged."""
+    from src.spacehack.combat._ground_effects import use_carried_consumable
+
+    player = world.Entity("@", (255, 255, 255), world.Position(8, 8))
+    prowler = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    prowler.carried_items = [["consumable", "med_pack", 2]]
+    game_map = _open_map(player, prowler)
+    inst = _instance(prowler, hp=8, max_hp=30)  # <= 50%
+    ctx, lines = _ctx(player)
+
+    spent = use_carried_consumable(ctx, inst, game_map, player.pos)
+
+    assert spent == 1  # use_ap_cost
+    assert inst.hp == 13  # +5 heal
+    assert inst.regen_turns == 3 and inst.regen_amount == 2
+    assert prowler.carried_items == [["consumable", "med_pack", 1]]
+    assert lines == [("Dust Prowler uses a Med Pack.", (255, 95, 95))]
+
+
+def test_stim_requires_los_and_lasts_three_rounds():
+    """A stim fires only with LOS (SETTLED 36) and grants +1 AP for
+    three round starts (SETTLED 27's mirror)."""
+    from src.spacehack.combat._ground_effects import (
+        advance_enemy_effects, use_carried_consumable,
+    )
+
+    player = world.Entity("@", (255, 255, 255), world.Position(8, 2))
+    raider = world.Entity(
+        "r", (220, 120, 80), world.Position(2, 2),
+        npc_char_id="pirate_raider",
+    )
+    raider.carried_items = [["consumable", "stim", 1]]
+    game_map = _open_map(player, raider)
+    game_map.tiles[2][5] = world.DUNGEON_WALL  # blocks the LOS ray
+    inst = _instance(raider)
+    ctx, lines = _ctx(player)
+
+    # No LOS: the stim does not fire.
+    assert use_carried_consumable(ctx, inst, game_map, player.pos) == 0
+    assert lines == []
+
+    game_map.tiles[2][5] = world.DUNGEON_FLOOR  # sightline opens
+    assert use_carried_consumable(ctx, inst, game_map, player.pos) == 1
+    assert lines == [("Pirate Raider injects a Combat Stim.", (255, 95, 95))]
+    assert inst.stim_turns == 3
+    assert raider.carried_items == []  # last charge consumed
+
+    assert [advance_enemy_effects(inst) for _ in range(4)] == [1, 1, 1, 0]
+
+
+def test_death_drop_reads_the_carried_stamp():
+    """Unused charges drop at their remainder; a spent stack never
+    drops; ammo entries keep their death-time roll (SETTLED 36)."""
+    from src.spacehack.combat._actions import spawn_kill_drops
+    from src.spacehack.data.npc_chars import find_npc_char
+    from src.spacehack import engine
+
+    player = world.Entity("@", (255, 255, 255), world.Position(8, 8))
+    game_map = _open_map(player)
+    spec = find_npc_char("pirate_raider")  # pool: pistol_rounds + med_pack
+
+    engine.RNG.seed(4242)
+    spawn_kill_drops(
+        game_map, world.Position(5, 5), spec, _ctx(player)[0],
+        carried=[["consumable", "med_pack", 1]],
+    )
+    payloads = [e.loot_data for e in game_map.entities if e.loot_data]
+
+    meds = [p for p in payloads if p.get("item_id") == "med_pack"]
+    assert meds and all(p["quantity"] == 1 for p in meds)
+    stims = [p for p in payloads if p.get("item_id") == "stim"]
+    assert stims == []  # the raider's stim was USED before death
+
+
+def test_carried_stamp_survives_save_load():
+    """The carried stamp round-trips — a fight interrupted mid-use keeps
+    the remainder (doc 48 SETTLED 36 save contract)."""
+    from src.spacehack import saveload
+
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    hunter.carried_items = [["consumable", "med_pack", 2]]
+    game_map = _floor_map(hunter)
+
+    saved = saveload._dungeon_to_dict(game_map, None)
+    restored, _ = saveload._dungeon_from_dict(saved)
+
+    assert restored.entities[0].carried_items == [
+        ["consumable", "med_pack", 2],
+    ]
+
+
+def test_dead_enemies_do_not_regenerate():
+    """An instance killed inside its regen window stays dead — the
+    round-start tick never resurrects (review catch, doc 48 phase 5)."""
+    from src.spacehack.combat._ground_effects import advance_enemy_effects
+
+    inst = _instance(world.Entity(
+        "r", (220, 120, 80), world.Position(2, 2), npc_char_id="pirate_raider",
+    ), hp=0, max_hp=30, regen_turns=1, regen_amount=2)
+
+    assert advance_enemy_effects(inst) == 0
+    assert inst.hp == 0
+    assert not inst.alive
+
+
+def test_empty_carried_stamp_survives_and_mints_nothing():
+    """A resolved-empty stamp (rolled zero, or used the last charge)
+    round-trips as [] — never re-rolled into fresh charges."""
+    from src.spacehack import saveload
+
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    hunter.carried_items = []
+    game_map = _floor_map(hunter)
+
+    saved = saveload._dungeon_to_dict(game_map, None)
+    assert saved["entities"][0]["carried_items"] == []
+    restored, _ = saveload._dungeon_from_dict(saved)
+    assert restored.entities[0].carried_items == []
+
+
+def test_corrupt_carried_entries_skip_individually():
+    """A malformed carried row is dropped, the load never crashes, and
+    valid siblings survive (corrupt-save tolerance, the stamp twin)."""
+    from src.spacehack import saveload
+
+    game_map = _floor_map()
+    saved = saveload._dungeon_to_dict(game_map, None)
+    saved["entities"] = [{
+        "char": "p", "fg_r": 255, "fg_g": 100, "fg_b": 100,
+        "x": 2, "y": 2, "npc_char_id": "dust_prowler",
+        "carried_items": [
+            ["consumable", "med_pack", "two"],   # bad qty
+            ["consumable"],                       # short row
+            ["consumable", "stim", 1],            # valid
+        ],
+    }]
+
+    restored, _ = saveload._dungeon_from_dict(saved)
+    assert restored.entities[0].carried_items == [["consumable", "stim", 1]]

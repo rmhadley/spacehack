@@ -90,6 +90,13 @@ class GroundEnemyInstance:
     max_hp: int = 30
     ap: int = 4
     ap_total: int = 4
+    # Enemy-side consumable effect state (doc 48 SETTLED 36) —
+    # fight-scoped, never serialized: a new fight re-derives from the
+    # entity's pre-rolled carried stamp.
+    stim_turns: int = 0
+    stim_ap_bonus: int = 0
+    regen_turns: int = 0
+    regen_amount: int = 0
     cells_moved_this_turn: int = 0
 
     @property
@@ -159,6 +166,18 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
+def _stamp_enemy_loadout(_ent: world.Entity, _spec) -> int:
+    """First-resolution stamps at combat entry (doc 48 SETTLED 36/37):
+    the pre-rolled carried consumables land once (what they drop is
+    what they carry); returns the spec-derived AP total."""
+    from ._actions import roll_carried_consumables
+    from ._ground_effects import enemy_ap_total
+
+    if getattr(_ent, "carried_items", None) is None:
+        _ent.carried_items = roll_carried_consumables(_spec)
+    return enemy_ap_total(_spec)
+
+
 def _build_enemy_instance(
     _ent: world.Entity, game_map=None,
 ) -> GroundEnemyInstance | None:
@@ -167,10 +186,10 @@ def _build_enemy_instance(
     Reads/stamps ``entity.hp`` so wounds persist across combat sessions:
     LOS aggro ends fights with survivors, and re-engaging must continue
     at the same HP — never a heal-on-retrigger. Guards also get their
-    ``guard_post`` stamped here (the leash anchor). Stats resolve
-    through the band resolver (doc 48 SETTLED 35); the weapon resolves
-    ONCE and persists on the entity (SETTLED 37 — re-engagement never
-    re-rolls; what fired at you is what drops).
+    ``guard_post`` stamped here (the leash anchor — once, never dragged
+    by peek-a-boo re-engagement; SETTLED 37's investigation perch is the
+    only re-stamp). Stats resolve through the band resolver (SETTLED 35);
+    the weapon resolves ONCE and persists on the entity (SETTLED 37).
     """
     try:
         _spec = _find_nc(_ent.npc_char_id)
@@ -180,14 +199,8 @@ def _build_enemy_instance(
     _stats = ground_scale.derive_stats(_spec, _band)
     _wid = noise.ensure_rolled_weapon(_ent, game_map, _spec)
     _quality = _ent.rolled_weapon[1] if _ent.rolled_weapon else 0
+    _ap_total = _stamp_enemy_loadout(_ent, _spec)
     _max_hp = _spec.hp + _stats.stamina // 3
-    # Guard leash anchor: stamp once at first engagement and never
-    # move it — except where an investigation ends (SETTLED 37's new
-    # perch, stamped by the goal-walker). LOS aggro can end fights
-    # with a guard mid-chase; re-stamping on every re-engagement
-    # would drag the post to wherever the guard last stood, letting
-    # peek-a-boo slowly relocate a drone's defense area across the
-    # map. Save/load also preserves it.
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
     _cur_hp = min(getattr(_ent, "hp", 0) or _max_hp, _max_hp)
@@ -196,7 +209,7 @@ def _build_enemy_instance(
         entity=_ent, spec=_spec, weapon_id=_wid,
         weapon_quality=_quality,
         band=_band, stats=_stats,
-        hp=_cur_hp, max_hp=_max_hp, ap=4, ap_total=4,
+        hp=_cur_hp, max_hp=_max_hp, ap=_ap_total, ap_total=_ap_total,
     )
 
 
@@ -754,6 +767,7 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
         spawn_kill_drops(
             game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id,
             enemy.weapon_quality, band=enemy.band,
+            carried=getattr(_ent, "carried_items", None),
         )
 
     if enemy.spec:
@@ -810,14 +824,30 @@ async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     return _total_dmg
 
 
+def _spent_as_movement(_gei, _fired: bool, _ap_spent: int) -> int:
+    """AP spent this turn that reads as movement (the dodge ledger):
+    everything except the fired shot's weapon cost (1 on a miss)."""
+    if not _fired:
+        return _ap_spent
+    try:
+        _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
+    except KeyError:
+        _weapon_ap = 1
+    return max(0, _ap_spent - _weapon_ap)
+
+
 async def _spend_one_enemy_turn(
     ctx, game_map: world.GameMap, _enemy_ai, _gei, _player_dodge: int,
 ) -> int:
     """Run one enemy's turn; returns player damage taken (999 = player down).
 
-    The enemy fights with its equip-time rolled weapon quality — what
-    was firing at the player is what drops (doc 47.2 SETTLED 13).
+    Fights at the equip-time rolled quality (doc 47.2 SETTLED 13); may
+    first spend AP on a carried consumable (doc 48 SETTLED 36) — booked
+    apart so a use never inflates the movement-dodge ledger.
     """
+    from ._ground_effects import use_carried_consumable
+
+    _gei.ap -= use_carried_consumable(ctx, _gei, game_map, ctx.player.pos)
     _ap_before = _gei.ap
     _new_ap, _dmg, _fired = await _enemy_ai(
         ctx,
@@ -829,15 +859,8 @@ async def _spend_one_enemy_turn(
         console=_state.console, render_callback=render_frame,
         player_dodge=_player_dodge,
     )
-    _ap_spent = _ap_before - _new_ap
-    if _fired:
-        try:
-            _weapon_ap = _find_gw(_gei.weapon_id).ap_cost  # 1 on miss
-        except KeyError:
-            _weapon_ap = 1
-        _gei.cells_moved_this_turn += max(0, _ap_spent - _weapon_ap)
-    else:
-        _gei.cells_moved_this_turn += _ap_spent
+    _gei.cells_moved_this_turn += _spent_as_movement(_gei, _fired,
+                                                     _ap_before - _new_ap)
     _gei.ap = _new_ap
 
     if _dmg > 0:
@@ -929,8 +952,9 @@ def set_player_ap(ctx, ap: int) -> None:
 
 def reset_turn(ctx) -> None:
     # Consumable AP bonuses (stim effects) add to this round's gain
-    # before the fractional roll, so a temporary +1 is a full extra AP.
-    from ._ground_effects import advance_player_effects
+    # before the fractional roll, so a temporary +1 is a full extra AP;
+    # enemy instances tick their own effects (regen heals, stim APs).
+    from ._ground_effects import advance_enemy_effects, advance_player_effects
 
     _gain = (
         _state.player_ap_gain_twentieths
@@ -942,7 +966,7 @@ def reset_turn(ctx) -> None:
     _state.player_ap = _avail
     _state.cells_moved_this_turn = 0
     for _gei in _state.enemies:
-        _gei.ap = _gei.ap_total
+        _gei.ap = _gei.ap_total + advance_enemy_effects(_gei)
         _gei.cells_moved_this_turn = 0
 
 def sync_state(ctx) -> None:
