@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from tests.support.asyncutil import run
+
 import pytest
 
 from src.spacehack import noise, world
@@ -435,6 +437,213 @@ def test_combat_time_squad_patrol_marches_leader_pace(monkeypatch):
     ground_npcs.move_ground_npcs(ctx, game_map)
 
     assert members[0].pos == world.Position(6, 2)  # leader's AP: the pace
+
+
+# --- range management + leash (SETTLED 18/26) --------------------------------
+
+def _open_map(*entities, width: int = 20, height: int = 12) -> world.GameMap:
+    tiles = [
+        [world.DUNGEON_FLOOR for _ in range(width)]
+        for _ in range(height)
+    ]
+    return world.GameMap(width, height, tiles, list(entities))
+
+
+def test_back_off_restores_min_range():
+    """A hugger inside min_range buys distance until the band restores
+    (SETTLED 26 — the inert-rifleman exploit dies)."""
+    from src.spacehack.combat._ai_ground import _back_off_step
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 5),
+        npc_char_id="pirate_rifleman",
+    )
+    game_map = _open_map(player, rifleman)
+    _ews = find_ground_weapon("kinetic_rifle")  # band [2..7]
+
+    stepped = run(_back_off_step(
+        None, None, None, game_map, rifleman, player.pos, _ews,
+    ))
+
+    assert stepped is True
+    _new = max(
+        abs(rifleman.pos.x - player.pos.x), abs(rifleman.pos.y - player.pos.y),
+    )
+    assert _new >= 2  # min_range restored
+
+
+def test_pinned_rifleman_is_inert():
+    """A ranged face cornered with no qualifying cell does nothing —
+    cornering is the counter-play, by design (SETTLED 26)."""
+    from src.spacehack.combat._ai_ground import _back_off_step
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 4),
+        npc_char_id="pirate_rifleman",
+    )
+    game_map = _open_map(player, rifleman)
+    # Dead-end pocket: wall the rifleman's back and both flanks so the
+    # only free cells sit AT or BEHIND the player (distance never grows).
+    for _x, _y in ((4, 3), (5, 3), (6, 3), (4, 4), (6, 4)):
+        game_map.tiles[_y][_x] = world.DUNGEON_WALL
+    _ews = find_ground_weapon("kinetic_rifle")  # min_range 2
+
+    stepped = run(_back_off_step(
+        None, None, None, game_map, rifleman, player.pos, _ews,
+    ))
+
+    assert stepped is False
+    assert rifleman.pos == world.Position(5, 4)  # inert
+
+
+def test_melee_never_backs_off_or_dances():
+    """Melee band [1..1]: adjacency is always in-band — no back-off,
+    and a fired melee face holds (no knife-dancers, SETTLED 26)."""
+    from src.spacehack.combat._ai_ground import _range_step
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    brute = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 6),
+        npc_char_id="pirate_brute",
+    )
+    game_map = _open_map(player, brute)
+    _claws = find_ground_weapon("monster_claws")  # band [1..1]
+
+    # Adjacent + fired + LOS: hold — not a reposition, not a back-off.
+    _stepped, *_path_state = run(_range_step(
+        None, None, None, game_map, brute, player.pos,
+        _claws, 1.0, True, True, None, None,
+    ))
+    assert _stepped is False
+    assert brute.pos == world.Position(5, 6)
+
+
+def test_fired_rifleman_repositions_within_band():
+    """Leftover AP after the one-shot cap buys the skirmisher dance: a
+    random in-band, LOS-keeping step (SETTLED 26)."""
+    from src.spacehack.combat._ai_ground import _reposition_step
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 8),
+        npc_char_id="pirate_rifleman",
+    )
+    game_map = _open_map(player, rifleman)
+    _ews = find_ground_weapon("kinetic_rifle")  # band [2..7]
+
+    stepped = run(_reposition_step(
+        None, None, None, game_map, rifleman, player.pos, _ews,
+    ))
+
+    assert stepped is True
+    _new = max(
+        abs(rifleman.pos.x - player.pos.x), abs(rifleman.pos.y - player.pos.y),
+    )
+    assert 2 <= _new <= 7  # still in band
+    assert rifleman.pos != world.Position(5, 8)  # it danced
+
+
+def test_guard_leash_derives_from_the_rolled_weapon():
+    """The leash is per-instance: max_range + 2 of the entity's rolled
+    weapon (SETTLED 18/37) — the hardcoded 8 is gone."""
+    from src.spacehack import noise
+
+    guard = world.Entity(
+        "d", (200, 180, 110), world.Position(2, 2),
+        npc_char_id="sentry_drone",
+    )
+    guard.rolled_weapon = ("drone_laser", 0)  # max_range 6
+    assert noise.guard_leash(guard) == 8
+
+    guard.rolled_weapon = ("railgun", 0)  # max_range 9 — a sniper's kingdom
+    assert noise.guard_leash(guard) == 11
+
+
+def _turn_ctx(player):
+    """ctx double for run_ground_enemy_turn with a recording log."""
+    lines: list[str] = []
+
+    class _Log:
+        def add(self, text):
+            lines.append(text)
+
+        def add_colored(self, text, _color):
+            lines.append(text)
+
+    return SimpleNamespace(
+        player=player, faction_reputation={}, log=_Log(), lines=lines,
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+    ), lines
+
+
+def test_distant_enemy_closes_one_step_per_ap(monkeypatch):
+    """Beyond max range: one A* step per AP — the close leg of range
+    management (SETTLED 26); nothing fires."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(2, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(16, 6),
+        npc_char_id="pirate_rifleman",
+    )
+    game_map = _open_map(player, rifleman)  # kinetic_rifle band [2..7]; dist 14
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 100, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
+        ctx, enemy_weapon_id="kinetic_rifle",
+        enemy_spec=find_npc_char("pirate_rifleman"),
+        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+        game_map=game_map, armor_defense=0,
+    ))
+
+    assert _fired is False
+    assert _remaining == 0  # every AP bought a step
+    assert abs(rifleman.pos.x - player.pos.x) == 14 - 4  # closed one per AP
+    assert any("moves into position" in _l for _l in lines)
+
+
+def test_one_shot_per_turn_then_the_dance(monkeypatch):
+    """In band with LOS: exactly ONE shot per turn (the cap stands) —
+    leftover AP repositions within the band (SETTLED 26)."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    game_map = _open_map(player, rifleman)  # dist 4, in band [2..7]
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1,  # every shot hits
+        choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
+        ctx, enemy_weapon_id="kinetic_rifle",
+        enemy_spec=find_npc_char("pirate_rifleman"),
+        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+        game_map=game_map, armor_defense=0,
+    ))
+
+    assert _fired is True
+    assert _damage > 0
+    assert sum("Kinetic Rifle" in _l for _l in lines) == 1  # ONE shot only
+    assert _remaining == 0  # 2 AP on the shot, 2 on the dance
+    assert rifleman.pos != world.Position(10, 2)  # it danced
 
 
 def test_bystanders_panic_scatter_at_ap_during_a_fight(monkeypatch):

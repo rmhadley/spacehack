@@ -1181,7 +1181,10 @@ def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
 
     from src.spacehack.combat import _ai_ground
     monkeypatch.setattr(
-        _ai_ground, "RNG", SimpleNamespace(randint=lambda *_args: 1),
+        _ai_ground, "RNG", SimpleNamespace(
+            randint=lambda *_args: 1,
+            choice=lambda seq: seq[0],  # post-shot reposition pick
+        ),
     )
 
     _damage = run(_rules_ground.run_enemy_turns(_ctx, _game_map))
@@ -1463,11 +1466,16 @@ class TestQualityCombatScaling:
 
         player = world.Position(0, 0)
         post = world.Position(5, 5)
-        near = _chase_goal(world.Position(4, 4), post)
+        guard = world.Entity(
+            "d", (200, 180, 110), world.Position(5, 5),
+            npc_char_id="sentry_drone",
+        )
+        guard.rolled_weapon = ("drone_laser", 0)  # max_range 6 -> leash 8
+        near = _chase_goal(world.Position(4, 4), post, guard)
         assert near == (4, 4)  # inside the leash: chase the player
-        far = _chase_goal(world.Position(20, 20), post)
+        far = _chase_goal(world.Position(20, 20), post, guard)
         assert far == (5, 5)  # beyond the leash: return to the post
-        assert _chase_goal(player, None) == (0, 0)  # no post: pure chase
+        assert _chase_goal(player, None, guard) == (0, 0)  # no post: pure chase
 
     def test_deadshot_chain_links_fire_at_the_equipped_quality(self):
         from src.spacehack.combat import _ground_deadshot
