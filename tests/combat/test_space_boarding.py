@@ -583,7 +583,7 @@ def test_break_away_downgrades_the_outcome(monkeypatch):
         lambda sid: NS(id="pirate_scout", name="Pirate Scout",
                        ship_id="scout", faction="pirate",
                        capture_layout_id="missing_layout",
-                       loot_budget=(0, 0)),
+                       loot_budget=(0, 0), security_drones=1.0),
     )
     run(begin_capture_boarding(_ctx, None, _cr))
     assert _cr.outcome == "ABORTED", "the downgrade is the contract"

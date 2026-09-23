@@ -56,6 +56,11 @@ class NpcShipSpec:
         base_speed: explicit map speed in tiles/day, or None to
             derive from the hull (find_ship(ship_id).speed) — see
             map_speed(). Derelicts pin 0: the stationary gate.
+        security_drones: the boarded deck's wealth dial (doc 48
+            SETTLED 7/38) — multiplies ``security_drone``-role crew
+            marker chances at load, capped at 1.0. 1.0 = no dial;
+            authored on the merchant fleet only (caravan 1.5,
+            freighter 1.0, hauler 0.5).
     """
     id: str
     name: str
@@ -123,6 +128,11 @@ class NpcShipSpec:
     # enters this layout, ENEMY markers spawn the crew, the C console
     # clones the transponder. The data opt-ins ARE the target list.
     capture_layout_id: str = ""
+    # The boarded deck's security-droid dial (doc 48 SETTLED 7/38):
+    # scales ``security_drone``-role marker chances at load (capped at
+    # 1.0) — a well-off merchant hull carries a dronier deck. 1.0 =
+    # no dial; authored on the merchant fleet only.
+    security_drones: float = 1.0
 
 
 _BY_ID: dict[str, NpcShipSpec] | None = None

@@ -559,7 +559,9 @@ class TestDerelictSaySo:
         from spacehack.boarding_wrecks import _build_generic_derelict
 
         ctx = SimpleNamespace(game_map=SimpleNamespace(entities=[]))
-        npcspec = SimpleNamespace(loot_budget=(50, 100), id="scout_wreck")
+        npcspec = SimpleNamespace(
+            loot_budget=(50, 100), id="scout_wreck", security_drones=1.0,
+        )
         dungeon_map, _spawn, handled = _build_generic_derelict(
             ctx, object(), npcspec, SimpleNamespace(add=lambda _m: None),
         )

@@ -168,6 +168,41 @@ def test_security_drone_dial_scales_role_chances(tmp_path):
     assert "sentry_drone" not in _crew_ids(emptied)
 
 
+def test_merchant_fleet_dial_orders_caravan_above_freighter_above_hauler():
+    """The wealth dial (SETTLED 7/38): the merchant fleet's only
+    authors, in order; effective drone chances are the decks' authored
+    security_drone base chance scaled by each hull's dial."""
+    from src.spacehack import layout_format
+    from src.spacehack.data.npc_ships import list_npc_ships
+    from src.spacehack.dungeon_layout import _marker_chance
+
+    deck_path = (
+        Path(__file__).resolve().parent.parent
+        / "src" / "spacehack" / "data" / "layouts" / "hauler_crew.layout"
+    )
+    parsed = layout_format.parse_layout_file(deck_path)
+    token, base, _min, _max = parsed.enemy_spawn_specs["q"]
+    assert token == "security_drone"  # the dial's target marker
+
+    dial = {
+        spec.id: spec.security_drones
+        for spec in list_npc_ships() if spec.faction == "merchant"
+    }
+    assert dial == {
+        "merchant_hauler": 0.5, "merchant_freighter": 1.0,
+        "merchant_caravan": 1.5,
+    }
+    effective = {
+        hull: _marker_chance("security_drone", base, value)
+        for hull, value in dial.items()
+    }
+    assert effective == {
+        "merchant_hauler": base * 0.5,
+        "merchant_freighter": base,
+        "merchant_caravan": min(1.0, base * 1.5),
+    }
+
+
 def _rep_ctx(rep: dict) -> SimpleNamespace:
     return SimpleNamespace(
         broadcast_dark=False,

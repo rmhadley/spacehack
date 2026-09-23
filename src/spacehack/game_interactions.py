@@ -654,7 +654,7 @@ def _load_capture_deck(ctx, cr, spec):
             capture_modules=getattr(cr, 'boarded_modules', ()) or (),
             spawn_band=_parent_band(ctx),
             crew_faction=spec.faction,
-            security_drones=getattr(spec, 'security_drones', 1.0),
+            security_drones=spec.security_drones,
         )
     except (FileNotFoundError, ValueError):
         return None

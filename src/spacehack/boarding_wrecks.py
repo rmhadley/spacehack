@@ -51,7 +51,7 @@ def _build_generic_derelict(ctx, blocker, npcspec, log):
     from .digs import maybe_spawn_wreck_pad
     from .dungeon import load_layout as _load_layout
     try:
-        _dungeon_map, _spawn = _load_layout('scout_a', loot_budget=npcspec.loot_budget, wreck_scatter=True, spawn_band=_parent_band(ctx), crew_faction='pirate', security_drones=getattr(npcspec, 'security_drones', 1.0))
+        _dungeon_map, _spawn = _load_layout('scout_a', loot_budget=npcspec.loot_budget, wreck_scatter=True, spawn_band=_parent_band(ctx), crew_faction='pirate', security_drones=npcspec.security_drones)
     except (FileNotFoundError, ValueError):
         log.add("The derelict's interior is too damaged to explore.")
         return (None, None, True)
@@ -79,7 +79,7 @@ def _boardable_wreck_layout(state, blocker, npcspec):
         _is_reboard = True
     elif _mission is not None and _mission.salvage_layout_id:
         try:
-            _dungeon_map, _spawn = _load_layout(_mission.salvage_layout_id, loot_budget=npcspec.loot_budget, component_good_id=_mission.heist_target_good_id, component_mission_id=_mission.mission_id, wreck_scatter=True, spawn_band=_parent_band(state.ctx), crew_faction='pirate', security_drones=getattr(npcspec, 'security_drones', 1.0))
+            _dungeon_map, _spawn = _load_layout(_mission.salvage_layout_id, loot_budget=npcspec.loot_budget, component_good_id=_mission.heist_target_good_id, component_mission_id=_mission.mission_id, wreck_scatter=True, spawn_band=_parent_band(state.ctx), crew_faction='pirate', security_drones=npcspec.security_drones)
         except (FileNotFoundError, ValueError):
             log.add("The derelict's interior is too damaged to explore.")
             return (None, None, False)
@@ -117,7 +117,7 @@ def _build_main_quest_wreck(ctx, npcspec, wreck_sid, log):
     if not _mq_ok:
         return (None, None, False)
     try:
-        _dungeon_map, _spawn = _load_layout(_mq_step.salvage_layout_id, loot_budget=npcspec.loot_budget, wreck_scatter=True, spawn_band=_parent_band(ctx), crew_faction='pirate', security_drones=getattr(npcspec, 'security_drones', 1.0))
+        _dungeon_map, _spawn = _load_layout(_mq_step.salvage_layout_id, loot_budget=npcspec.loot_budget, wreck_scatter=True, spawn_band=_parent_band(ctx), crew_faction='pirate', security_drones=npcspec.security_drones)
     except (FileNotFoundError, ValueError):
         log.add("The derelict's interior is too damaged to explore.")
         return (None, None, True)
