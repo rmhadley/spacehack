@@ -127,18 +127,30 @@ def _cast_visible_rays(
                 _cast_ray(game_map, pos.x, pos.y, dx, dy)
 
 
-def _lit_cells_in_visible(game_map: world.GameMap) -> list[tuple[int, int]]:
-    """Return currently-visible cells whose tile kind emits light."""
-    from .data.lighting import light_spec_for_kind
+def _static_light_sources(game_map: world.GameMap) -> list:
+    """The map's static light sources, derived once and cached on the
+    map (replace_tile invalidates) — the per-reveal tile scan was
+    O(map) on big interiors."""
+    if game_map.light_sources is None:
+        from .lighting import collect_light_sources
 
+        game_map.light_sources = collect_light_sources(game_map)
+    return game_map.light_sources
+
+
+def _lit_cells_in_visible(game_map: world.GameMap) -> list[tuple[int, int]]:
+    """Return currently-visible cells whose tile kind emits light.
+
+    Intersects the cached source list with ``visible`` — same cells
+    the old full-map scan found, at O(sources).
+    """
     if game_map.visible is None:
         return []
-    cells: list[tuple[int, int]] = []
-    for y, row in enumerate(game_map.tiles):
-        for x, tile in enumerate(row):
-            if game_map.visible[y][x] and light_spec_for_kind(tile.kind):
-                cells.append((x, y))
-    return cells
+    return [
+        (source.x, source.y)
+        for source in _static_light_sources(game_map)
+        if game_map.visible[source.y][source.x]
+    ]
 
 
 def _reveal_lit_sources(game_map: world.GameMap) -> None:
@@ -203,14 +215,9 @@ def _seed_dungeon_light_grid(game_map: world.GameMap) -> None:
     per-frame recompute can animate flickering dungeon sources (e.g.
     the pulsing alien door) without rescanning tiles.
     """
-    from .lighting import collect_light_sources, mask_grid_to_visible, propagate_light
+    from .lighting import mask_grid_to_visible, propagate_light
 
-    # Static sources are collected ONCE per map and cached (tiles
-    # rarely change; runtime swaps invalidate via replace_tile) — the
-    # per-step rescan cost O(map) on big interiors.
-    if game_map.light_sources is None:
-        game_map.light_sources = collect_light_sources(game_map)
-    sources = game_map.light_sources
+    sources = _static_light_sources(game_map)
     if not sources:
         game_map.light_grid = None
         return

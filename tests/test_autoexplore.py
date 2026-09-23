@@ -1171,6 +1171,14 @@ def test_blocker_index_matches_the_scan_read():
     )
     index = _blocker_index(gm)
     assert set(index) == {(3, 1), (4, 1), (3, 2), (4, 2)}, "loot stays out"
+    # Two overlapping non-loot bodies: first entity in list order wins
+    # the shared cell, exactly like the scan.
+    gm.entities.append(world.Entity(
+        char="r", fg=(220, 120, 80), pos=world.Position(3, 1),
+        name="Raider", npc_char_id="pirate_raider",
+    ))
+    index = _blocker_index(gm)
+    assert index[(3, 1)] is gm.entities[1], "first in list wins the overlap"
     for x in range(6):
         for y in range(5):
             via_snapshot = _visible_blocker(gm, x, y, index=index)

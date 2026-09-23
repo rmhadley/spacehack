@@ -693,20 +693,19 @@ def _panel_kind(phase: str, floor: int) -> world.Tile:
 def refresh_prison_panels(game_map: world.GameMap, phase: str, floor: int) -> bool:
     """Rewrite every panel tile to its ``phase`` kind; invalidate light.
 
-    Idempotent. Light caches are dropped rather than recomputed: the
-    per-step FOV reveal reseeds both from the new tile kinds, and the
-    per-frame recompute skips until then. Returns whether any panel
-    changed.
+    Idempotent. replace_tile drops the derived light caches; the grid
+    is cleared too so the per-frame render skips until the per-step
+    reveal reseeds both from the new tile kinds. Returns whether any
+    panel changed.
     """
     target = _panel_kind(phase, floor)
     changed = False
-    for row in game_map.tiles:
+    for y, row in enumerate(game_map.tiles):
         for x, tile in enumerate(row):
             if tile.kind.startswith("prison_panel_") and tile.kind != target.kind:
-                row[x] = target
+                game_map.replace_tile(x, y, target)
                 changed = True
     if changed:
-        game_map.light_sources = None
         game_map.light_grid = None
     return changed
 
