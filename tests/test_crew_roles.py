@@ -224,3 +224,39 @@ def test_landmark_interiors_stay_rep_read():
         "wolf_camp", layout_dir=landmark_dir, require_spawn=False,
     )
     assert game_map.hostile_interior is False
+
+
+def _npc_entities(game_map) -> list:
+    return [e for e in game_map.entities if getattr(e, "npc_char_id", "")]
+
+
+def test_marker_crews_render_spec_family_colors():
+    """SETTLED 38: marker COLOUR overrides are RETIRED — every
+    ENEMY-marker crew renders its resolved spec's char/fg, so the
+    landmark drone decks drop the old fallback red for machine bronze
+    and the survey wreck's consortium crew reads family navy."""
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    landmark_dir = (
+        Path(__file__).resolve().parent.parent
+        / "src" / "spacehack" / "data" / "landmarks"
+    )
+    wolf, _spawn = load_layout(
+        "wolf_camp", layout_dir=landmark_dir, require_spawn=False,
+    )
+    drones = _npc_entities(wolf)
+    assert drones, "wolf camp must field its sentry drones"
+    for entity in drones:
+        spec = find_npc_char(entity.npc_char_id)
+        assert (entity.char, entity.fg) == (spec.char, spec.fg)
+    assert {e.fg for e in drones} == {(200, 180, 110)}  # machine bronze
+
+    survey, _spawn = load_layout("survey_a")
+    crew = _npc_entities(survey)
+    assert crew
+    for entity in crew:
+        spec = find_npc_char(entity.npc_char_id)
+        assert (entity.char, entity.fg) == (spec.char, spec.fg)
+    assert {find_npc_char(e.npc_char_id).faction for e in crew} == {
+        "consortium", "",
+    }

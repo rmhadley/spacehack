@@ -275,7 +275,6 @@ def _marker_chance(token: str, chance: float, security_drones: float) -> float:
 
 def _scatter_marker_squad(
     build: _LayoutBuild,
-    parsed: layout_format.ParsedLayout,
     glyph: str,
     marker: tuple[str, int, int],
     enemy_id: str,
@@ -304,9 +303,7 @@ def _scatter_marker_squad(
         count=count,
         squad_id=f"{layout_id}_{glyph}_{mx}_{my}",
         char=_spec.char,
-        fg=parsed.colour_overrides.get(
-            glyph, layout_format.ColourOverride((255, 100, 100)),
-        ).fg,
+        fg=_spec.fg,  # identity is single-sourced in the spec (SETTLED 38)
         band=band,
         bold=_spec.elite,
     )
@@ -336,7 +333,7 @@ def _scatter_layout_enemies(
         if RNG.random() >= _marker_chance(token, chance, security_drones):
             continue
         _scatter_marker_squad(
-            build, parsed, glyph, marker, enemy_id,
+            build, glyph, marker, enemy_id,
             RNG.randint(squad_min, squad_max), layout_id, band,
         )
 
