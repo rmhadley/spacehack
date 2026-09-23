@@ -345,6 +345,35 @@ def test_pirate_big_decks_field_a_brute():
         assert "pirate_brute" in _crew_ids(game_map), lid
 
 
+def test_frigates_always_field_their_heavies():
+    """User ruling 2026-09-23: frigate decks guarantee >= 1 heavy —
+    the g marker is certain, so every boarding carries both squads
+    (pirate brutes / militia perched snipers)."""
+    from src.spacehack import engine
+
+    heavy = {"pirate": "pirate_brute", "militia": "militia_sniper"}
+    for faction, spec_id in heavy.items():
+        for seed in range(12):
+            engine.RNG.seed(seed)
+            game_map, _spawn = load_layout(
+                "frigate_crew", crew_faction=faction,
+            )
+            crew = [
+                e.npc_char_id for e in game_map.entities
+                if getattr(e, "npc_char_id", "")
+            ]
+            assert crew.count(spec_id) >= 1, (faction, seed)
+        engine.RNG.seed(0)
+        game_map, _spawn = load_layout("frigate_crew", crew_faction=faction)
+        placed = [
+            e.npc_char_id for e in game_map.entities
+            if getattr(e, "npc_char_id", "")
+        ]
+        assert placed.count(spec_id) == 2, (
+            faction, "both g stamps fire — the frigate's standing pair",
+        )
+
+
 def test_scout_deck_stays_brute_free():
     from src.spacehack import engine
 

@@ -108,14 +108,15 @@ TILE: > = EXIT
 # Crew — role tokens (doc 48 SETTLED 28): the boarding hull's faction
 # resolves line/heavy/marksman/security_drone/stowaway at load. 16
 # stamps, 7 profiles; the cockpit honor guard is the guaranteed
-# anchor, everything else rolls per visit. g is the single-slot heavy
-# (two stamps, one squad each): the warlord's brutes, the militia
-# patrol's marines.
+# anchor, everything else rolls per visit. g is the GUARANTEED heavy
+# (user ruling 2026-09-23: frigates field >= 1 heavy, always) — two
+# stamps, one squad each: the warlord's brutes, the patrol-heavy's
+# perched snipers.
 ENEMY: S = line@1.0#2-3
 ENEMY: R = marksman@0.5#2-3
 ENEMY: r = line@0.45#1-2
 ENEMY: f = marksman@0.4#2-4
-ENEMY: g = heavy@0.35#1-1
+ENEMY: g = heavy@1.0#1-1
 ENEMY: m = stowaway@0.15#2-4
 ENEMY: q = security_drone@0.25#1-2
 
