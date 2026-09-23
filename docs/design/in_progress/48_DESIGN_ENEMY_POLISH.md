@@ -1298,6 +1298,19 @@ Rulings:
   pirate tables keep `security_drone` (repurposed hardware); derelict
   wrecks stay pirate-crewed via the pirate table.
 
+Addition (2026-09-23, on the reviewer's editor finding, user
+verbatim):
+
+> The layout editor was an experiment. It turns out I edit way
+> faster and better in vim.
+
+Ruling: **the layout editor is a RETIRED EXPERIMENT — vim is the
+layout authoring/review tool.** Role tokens get NO editor support
+work; the editor's validity flags and palette are not consumers of
+this phase. The only editor obligation is gate hygiene:
+`test_layout_editor_model`'s pin on scout_a's parsed enemy specs
+updates when the markers re-role (it reads real layout data).
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -2453,8 +2466,9 @@ Dev grants: phase-4's disjoint per-face slices stand; add the
 deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
 + `test_dev_mode.py`).
 
-## Phase 6 Implementation brief (PROPOSED 2026-09-23 — SETTLED 3/5/7/
-## 10/13/18/28/38)
+## Phase 6 Implementation brief (FINAL v2 2026-09-23 — SETTLED 3/5/7/
+## 10/13/18/28/38; ADVISE reviewer pass + its folds + the editor
+## ruling folded — ready for /implement-phase 48.6)
 
 **Scope (files / hook points):**
 
@@ -2484,7 +2498,8 @@ deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
   raw ids bypass) — BEFORE any deck re-authors (omitted-role-skips
   would load crewless decks at intermediate commits); `landmark.py` /
   `city_landmarks.py` raw-id layouts unchanged (grep-verified caller
-  list — seven src sites + the tools/ editor, reviewer-found).
+  list — seven src sites; the tools/ layout editor is a retired
+  experiment per SETTLED 38's addition — not a consumer).
 - **The Merchant row** (`data/npc_chars/core.py` + family): id
   `merchant`, name **"Merchant"** (SETTLED 38), char `h`, fg
   (100,220,140), faction merchant, band-exempt (all-zero
