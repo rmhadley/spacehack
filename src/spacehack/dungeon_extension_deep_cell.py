@@ -69,11 +69,11 @@ def stamp_dead_terminals(
 def _prepare_landmark(game_map, origin, asset):
     """Stamp the authored landmark and preserve its arrival metadata."""
     if game_map.in_bounds(origin.x, origin.y):
-        game_map.tiles[origin.y][origin.x] = world.DUNGEON_FLOOR
+        game_map.replace_tile(origin.x, origin.y, world.DUNGEON_FLOOR)
     _stamp = landmark.stamp_landmark(game_map, asset, origin)
     game_map.landmark_footprint = set(_stamp.footprint)
     if _stamp.arrival is not None:
-        game_map.tiles[_stamp.arrival.y][_stamp.arrival.x] = world.STAIRS_UP
+        game_map.replace_tile(_stamp.arrival.x, _stamp.arrival.y, world.STAIRS_UP)
     game_map.landmark_interaction_cells = [
         entity.pos for entity in game_map.entities
         if entity.name == "Landmark Terminal"
@@ -89,7 +89,7 @@ def _paint_deep_cell_floor(game_map, footprint) -> None:
     for _x, _y in footprint:
         _tile = game_map.tiles[_y][_x]
         if _tile.kind == "dungeon_floor":
-            game_map.tiles[_y][_x] = world.Tile(
+            game_map.replace_tile(_x, _y, world.Tile(
                 kind="deep_cell_floor",
                 char=_tile.char,
                 walkable=_tile.walkable,
@@ -97,7 +97,7 @@ def _paint_deep_cell_floor(game_map, footprint) -> None:
                 bg=_tile.bg,
                 bg_override=_tile.bg_override,
                 blocked_message=_tile.blocked_message,
-            )
+            ))
 
 
 def stamp_deep_cell(

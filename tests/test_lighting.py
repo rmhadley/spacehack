@@ -233,3 +233,65 @@ def test_blended_output_luma_cap_keeps_bright_floors_readable():
     assert blend_toward_light(bright_floor, (40, 46, 60), (0, 0, 0)) == (
         bright_floor, (40, 46, 60),
     )
+
+
+def test_static_light_sources_collect_once_per_map(monkeypatch):
+    """The per-reveal light recompute uses the cached static source
+    list — the full-map tile scan runs ONCE per map, not per step
+    (big-interior perf, doc 48 phase 6 playtest)."""
+    from src.spacehack import lighting, world
+    from src.spacehack.dungeon import init_fog, reveal_around
+
+    floor = world.Tile("dungeon_floor", ".", True, (200, 200, 200), (10, 10, 20))
+    neon = world.Tile("neon", "*", False, (255, 100, 180), (10, 10, 20))
+    gm = world.GameMap(
+        width=5, height=5,
+        tiles=[[neon if (x, y) == (2, 2) else floor for x in range(5)]
+               for y in range(5)],
+        entities=[],
+    )
+    init_fog(gm)
+
+    calls = []
+    real = lighting.collect_light_sources
+
+    def counting(game_map):
+        calls.append(1)
+        return real(game_map)
+
+    monkeypatch.setattr(lighting, "collect_light_sources", counting)
+    reveal_around(gm, world.Position(1, 1))
+    reveal_around(gm, world.Position(1, 2))
+    reveal_around(gm, world.Position(1, 3))
+    assert calls, "the first reveal must collect"
+    assert len(calls) == 1, "later reveals read the cache, not the tiles"
+
+
+def test_replace_tile_invalidates_the_static_light_cache(monkeypatch):
+    """A runtime tile swap through replace_tile drops the cache, so the
+    next reveal re-derives sources (a terminal lighting up, a panel
+    going dark)."""
+    from src.spacehack import lighting, world
+    from src.spacehack.dungeon import init_fog, reveal_around
+
+    floor = world.Tile("dungeon_floor", ".", True, (200, 200, 200), (10, 10, 20))
+    gm = world.GameMap(
+        width=5, height=5,
+        tiles=[[floor for _ in range(5)] for _ in range(5)],
+        entities=[],
+    )
+    init_fog(gm)
+
+    calls = []
+    real = lighting.collect_light_sources
+    monkeypatch.setattr(
+        lighting, "collect_light_sources",
+        lambda game_map: calls.append(1) or real(game_map),
+    )
+    reveal_around(gm, world.Position(2, 2))
+    assert len(calls) == 1
+
+    gm.replace_tile(2, 2, world.Tile("live_terminal", "&", True, (120, 255, 160), (10, 10, 20)))
+    reveal_around(gm, world.Position(2, 2))
+    assert len(calls) == 2, "a tile swap re-derives the source list"
+    assert any(s.x == 2 and s.y == 2 for s in gm.light_sources)

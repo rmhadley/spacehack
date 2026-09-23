@@ -25,7 +25,7 @@ def _replace_breaches(
     for position in positions:
         key = (position.x, position.y)
         originals[key] = game_map.tiles[position.y][position.x]
-        game_map.tiles[position.y][position.x] = world.DUNGEON_WALL
+        game_map.replace_tile(position.x, position.y, world.DUNGEON_WALL)
     return originals
 
 
@@ -124,9 +124,9 @@ def _restore_breaches(
 ) -> None:
     """Restore authored breach tiles after the explosion."""
     for position in positions:
-        game_map.tiles[position.y][position.x] = originals[
-            (position.x, position.y)
-        ]
+        game_map.replace_tile(
+            position.x, position.y, originals[(position.x, position.y)],
+        )
 
 
 async def animate_breach(

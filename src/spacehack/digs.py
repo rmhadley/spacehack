@@ -206,7 +206,7 @@ def generate_dig(ctx, site: dict, floor: int) -> tuple[world.GameMap, world.Posi
     if floor > 1:
         # The generic generator's EXIT becomes the up-connection (the
         # extension idiom).
-        game_map.tiles[spawn.y][spawn.x] = world.STAIRS_UP
+        game_map.replace_tile(spawn.x, spawn.y, world.STAIRS_UP)
     _tier = _dig_tier(spec, floor)
     _maybe_stamp_landmark(game_map, site, floor, spawn, band=_tier)
     populate_dungeon(game_map, params, spawn, tier=_tier)
@@ -230,7 +230,7 @@ def _place_stairs_down(game_map: world.GameMap, spawn: world.Position) -> None:
 
     down = _farthest_free_cell(game_map, spawn)
     if down is not None:
-        game_map.tiles[down.y][down.x] = world.STAIRS_DOWN
+        game_map.replace_tile(down.x, down.y, world.STAIRS_DOWN)
 
 
 def _maybe_stamp_landmark(

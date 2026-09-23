@@ -244,8 +244,8 @@ def _cache_marker_cell(
         and game_map.tiles[y][x].kind != "quest_cache"
     )
     _x, _y = _cells[0]
-    game_map.tiles[_y][_x] = (
-        _floors.most_common(1)[0][0] if _floors else world.DUNGEON_FLOOR
+    game_map.replace_tile(
+        _x, _y, _floors.most_common(1)[0][0] if _floors else world.DUNGEON_FLOOR,
     )
     return world.Position(_x, _y)
 

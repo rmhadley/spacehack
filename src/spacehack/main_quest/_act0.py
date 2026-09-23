@@ -129,7 +129,7 @@ def _conceal_mars_stairs(
         ),
         world.DUNGEON_WALL,
     )
-    game_map.tiles[stairs.y][stairs.x] = _wall
+    game_map.replace_tile(stairs.x, stairs.y, _wall)
 
 def _signal_door_barrier(game_map: world.GameMap) -> list[world.Position]:
     """Return one contiguous authored alien barrier, ordered left-to-right."""
@@ -251,9 +251,9 @@ def _open_signal_door_tiles(
     """Commit the opened barrier and reveal its walkable stairs marker."""
     _floor = _landmark_floor_near_barrier(game_map, barrier)
     for _position in barrier:
-        game_map.tiles[_position.y][_position.x] = _floor
+        game_map.replace_tile(_position.x, _position.y, _floor)
     if game_map.in_bounds(stairs.x, stairs.y):
-        game_map.tiles[stairs.y][stairs.x] = world.STAIRS_DOWN
+        game_map.replace_tile(stairs.x, stairs.y, world.STAIRS_DOWN)
         game_map.extension_entry_id = "mars_alien_prison"
 
 async def animate_signal_door_opening(

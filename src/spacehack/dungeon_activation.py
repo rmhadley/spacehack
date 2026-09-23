@@ -494,9 +494,9 @@ def _carve_dock(game_map: world.GameMap, cell: tuple[int, int]) -> None:
     for dx, dy in ((0, -1), (1, 0), (0, 1), (-1, 0)):
         nx, ny = x + dx, y + dy
         if game_map.in_bounds(nx, ny) and game_map.tiles[ny][nx].walkable:
-            game_map.tiles[y][x] = game_map.tiles[ny][nx]
+            game_map.replace_tile(x, y, game_map.tiles[ny][nx])
             return
-    game_map.tiles[y][x] = world.DUNGEON_FLOOR
+    game_map.replace_tile(x, y, world.DUNGEON_FLOOR)
 
 
 def _stock_dormant_security(game_map, spec, spawn) -> None:

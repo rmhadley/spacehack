@@ -505,8 +505,20 @@ class GameMap:
                 return _entity
         return None
 
+    def invalidate_tile_caches(self) -> None:
+        """Drop the derived static-light cache — runtime tile swaps
+        must route through :meth:`replace_tile` (which calls this) so
+        the next reveal re-derives sources instead of lighting a
+        remembered map."""
+        self.light_sources = None
+
     def replace_tile(self, x: int, y: int, tile: Tile) -> None:
+        """The ONE runtime tile writer — swaps the tile and drops the
+        derived per-tile caches (static light sources). Build-time
+        painters may assign ``tiles`` directly; anything mutating a
+        LIVE map uses this."""
         self.tiles[y][x] = tile
+        self.invalidate_tile_caches()
 
     def is_revealed(self, x: int, y: int) -> bool:
         """Whether a cell is revealed by fog of war (remembered).

@@ -98,13 +98,13 @@ def _place_interaction(game_map, interaction, position, used) -> bool:
             _authored.dungeon_interaction = interaction.id
             _authored.interaction_flavor = ""
             if getattr(interaction, "emits_light", False):
-                game_map.tiles[position.y][position.x] = world.LIVE_TERMINAL
+                game_map.replace_tile(position.x, position.y, world.LIVE_TERMINAL)
             return True
     if interaction.action != "transition_floor" and (position.x, position.y) in used:
         return False
     used.add((position.x, position.y))
     if getattr(interaction, "emits_light", False):
-        game_map.tiles[position.y][position.x] = world.LIVE_TERMINAL
+        game_map.replace_tile(position.x, position.y, world.LIVE_TERMINAL)
     game_map.entities.append(world.Entity(
         char=interaction.char,
         fg=(180, 240, 255),
@@ -237,4 +237,4 @@ def _ensure_glow_tiles(game_map, spec) -> None:
         if entity is None:
             continue
         if game_map.tiles[entity.pos.y][entity.pos.x].kind != "live_terminal":
-            game_map.tiles[entity.pos.y][entity.pos.x] = world.LIVE_TERMINAL
+            game_map.replace_tile(entity.pos.x, entity.pos.y, world.LIVE_TERMINAL)

@@ -193,8 +193,12 @@ def _seed_dungeon_light_grid(game_map: world.GameMap) -> None:
     """
     from .lighting import collect_light_sources, mask_grid_to_visible, propagate_light
 
-    sources = collect_light_sources(game_map)
-    game_map.light_sources = sources
+    # Static sources are collected ONCE per map and cached (tiles
+    # rarely change; runtime swaps invalidate via replace_tile) — the
+    # per-step rescan cost O(map) on big interiors.
+    if game_map.light_sources is None:
+        game_map.light_sources = collect_light_sources(game_map)
+    sources = game_map.light_sources
     if not sources:
         game_map.light_grid = None
         return

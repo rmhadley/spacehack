@@ -130,7 +130,7 @@ def _stamp_features(
             continue
         if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
             continue
-        game_map.tiles[_y][_x] = tile
+        game_map.replace_tile(_x, _y, tile)
         used.add((_x, _y))
         _placed += 1
 
@@ -294,7 +294,7 @@ def _stamp_engineering_room(
             if game_map.tiles[_y][_x].kind in {"stairs_up", "stairs_down"}:
                 continue
             if game_map.tiles[_y][_x].walkable:
-                game_map.tiles[_y][_x] = world.ENGINEERING_FLOOR
+                game_map.replace_tile(_x, _y, world.ENGINEERING_FLOOR)
 
 
 from .dungeon_extension_interactions import (
@@ -351,20 +351,20 @@ def _generate_floor_once(extension_id: str, floor: int, phase: str = "dormant"):
     _generated_spawn = _spawn
     # The generic generator creates an EXIT at its spawn wall. An extension
     # floor uses an explicit up-connection marker instead.
-    _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
+    _game_map.replace_tile(_spawn.x, _spawn.y, world.STAIRS_UP)
     _set_floor_metadata(_game_map, extension_id, floor, _spec, _spawn)
     _stamp_floor_features(_game_map, _spec, _spawn)
     _spawn = getattr(_game_map, "entry_spawn", _generated_spawn)
     _set_floor_metadata(_game_map, extension_id, floor, _spec, _spawn)
     if _game_map.in_bounds(_spawn.x, _spawn.y):
-        _game_map.tiles[_spawn.y][_spawn.x] = world.STAIRS_UP
+        _game_map.replace_tile(_spawn.x, _spawn.y, world.STAIRS_UP)
     # Populate before selecting the deeper connection so the stair tile is
     # guaranteed not to overlap a procedural enemy.
     dungeon.populate_dungeon(_game_map, _spec.params, _generated_spawn)
     if _spec.has_down_stairs:
         _down = _farthest_free_cell(_game_map, _spawn)
         if _down is not None:
-            _game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
+            _game_map.replace_tile(_down.x, _down.y, world.STAIRS_DOWN)
             _game_map.down_stair_pos = _down
     _game_map.activation_positions = _activation_positions(
         _game_map, _spawn, _spec.activation_events,
@@ -548,7 +548,7 @@ def _ensure_floor_connections(
     if _entry is None or not game_map.in_bounds(_entry.x, _entry.y):
         return
     if game_map.tiles[_entry.y][_entry.x].kind != "stairs_up":
-        game_map.tiles[_entry.y][_entry.x] = world.STAIRS_UP
+        game_map.replace_tile(_entry.x, _entry.y, world.STAIRS_UP)
     _set_floor_metadata(game_map, extension_id, floor, _spec, _entry)
     if not _spec.has_down_stairs:
         _ensure_floor_interactions(game_map, _spec, _entry)
@@ -559,7 +559,7 @@ def _ensure_floor_connections(
     if not _valid_stair_position(game_map, _down, "stairs_down"):
         _down = _farthest_free_cell(game_map, _entry)
         if _down is not None:
-            game_map.tiles[_down.y][_down.x] = world.STAIRS_DOWN
+            game_map.replace_tile(_down.x, _down.y, world.STAIRS_DOWN)
     if _valid_stair_position(game_map, _down, "stairs_down"):
         game_map.down_stair_pos = _down
     _ensure_floor_interactions(game_map, _spec, _entry)
