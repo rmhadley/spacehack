@@ -438,6 +438,16 @@ def _is_shift_v_press(event: pygame_engine.PygameInputEvent) -> bool:
     return _is_shift_press(event, 'V')
 
 
+def _is_shift_c_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+C.
+
+    Dev-mode only (``SPACEHACK_DEV``): spawns consumable carriers
+    beside the player (doc 48 phase 5) — the checklist instrument for
+    enemy med-pack/stim use.
+    """
+    return _is_shift_press(event, 'C')
+
+
 def _is_shift_y_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+Y.
 

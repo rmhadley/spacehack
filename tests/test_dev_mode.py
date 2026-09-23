@@ -681,3 +681,41 @@ def test_spawn_dev_enemy_faces_places_all_three():
     bold = {e.npc_char_id: e.bold for e in game_map.entities if e.npc_char_id}
     assert bold["militia_sniper"] and bold["pirate_brute"]
     assert not bold["militia_marine"]
+
+
+def test_spawn_dev_consumable_carriers_pre_stamps():
+    """Shift+C places one wounded med-pack carrier and one stim carrier,
+    deterministically stamped — the doc 48.5 checklist instrument."""
+    from types import SimpleNamespace
+
+    from src.spacehack import dev_mode, world
+
+    tiles = [[world.DUNGEON_FLOOR for _ in range(12)] for _ in range(12)]
+    game_map = world.GameMap(12, 12, tiles, [])
+    player = world.Entity("@", (255, 255, 255), world.Position(6, 6), "P")
+    game_map.entities.append(player)
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
+
+    placed = dev_mode.spawn_dev_consumable_carriers(ctx, game_map, player.pos)
+
+    carriers = sorted(
+        (e.squad_id, e.carried_items, e.hp, e.spawn_band)
+        for e in game_map.entities
+        if e.squad_id.startswith("dev_carrier_")
+    )
+    assert placed == 2
+    assert all(_row[3] == 2 for _row in carriers)  # band-2 scaling
+
+    # A double-tap must not re-supply or re-wound the earlier carriers.
+    _carrier_0 = next(
+        e for e in game_map.entities if e.squad_id == "dev_carrier_0"
+    )
+    _carrier_0.carried_items = []
+    _carrier_0.hp = 20
+    dev_mode.spawn_dev_consumable_carriers(ctx, game_map, player.pos)
+    assert _carrier_0.carried_items == []
+    assert _carrier_0.hp == 20
+    assert carriers == [
+        ("dev_carrier_0", [["consumable", "med_pack", 1]], 5, 2),
+        ("dev_carrier_1", [["consumable", "stim", 1]], 0, 2),
+    ]

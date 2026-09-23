@@ -530,6 +530,18 @@ def log_rumor_routing(ctx) -> None:
     )
 
 
+def _adjacent_cells(game_map, player_pos, count: int) -> list:
+    """The first ``count`` walkable cells beside the player (dev grants)."""
+    return [
+        (dx, dy)
+        for dy in range(-2, 3)
+        for dx in range(-2, 3)
+        if (dx or dy)
+        and game_map.in_bounds(player_pos.x + dx, player_pos.y + dy)
+        and game_map.tiles[player_pos.y + dy][player_pos.x + dx].walkable
+    ][:count]
+
+
 def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
     """Shift+V: spawn the doc-48 phase-4 faces beside the player.
 
@@ -541,14 +553,7 @@ def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
     from .dungeon_population import _scatter_squad
     from .data.npc_chars import find_npc_char
 
-    cells = [
-        (dx, dy)
-        for dy in range(-2, 3)
-        for dx in range(-2, 3)
-        if (dx or dy)
-        and game_map.in_bounds(player_pos.x + dx, player_pos.y + dy)
-        and game_map.tiles[player_pos.y + dy][player_pos.x + dx].walkable
-    ][:6]
+    cells = _adjacent_cells(game_map, player_pos, 6)
     faces = (
         ("pirate_brute", 3), ("militia_marine", 3), ("militia_sniper", 4),
     )
@@ -593,3 +598,43 @@ def apply_dev_tinker_kit(ctx) -> None:
         GroundItemStack("consumable", KIT_ITEM_ID, cap),
     )
     ctx.log.add("Dev: tinker kit stack granted.")
+
+
+def spawn_dev_consumable_carriers(ctx, game_map, player_pos) -> int:
+    """Shift+C: spawn enemy consumable carriers beside the player.
+
+    Two raiders, deterministically pre-stamped (doc 48 phase 5): one
+    wounded med-pack carrier and one stim carrier — the playtest's
+    window onto enemy consumable use (any carrier, used items never
+    drop). The stamps bypass the pre-roll so the checklist is exact.
+    """
+    from .dungeon_population import _scatter_squad
+    from .data.npc_chars import find_npc_char
+
+    cells = _adjacent_cells(game_map, player_pos, 2)
+    if len(cells) < 2:
+        ctx.log.add("[DEV] No room for the carriers beside you.")
+        return 0
+    spec = find_npc_char("pirate_raider")
+    grants = {
+        "dev_carrier_0": [["consumable", "med_pack", 1]],
+        "dev_carrier_1": [["consumable", "stim", 1]],
+    }
+    placed = 0
+    for index, (squad_id, stamps) in enumerate(grants.items()):
+        _before = len(game_map.entities)
+        placed += _scatter_squad(
+            game_map.entities,
+            {(e.pos.x, e.pos.y) for e in game_map.entities},
+            enemy_id="pirate_raider", cells=[cells[index]], count=1,
+            squad_id=squad_id, char=spec.char, fg=spec.fg,
+            band=2, bold=False,
+        )
+        # Stamp ONLY what this press added — a double-tap must never
+        # re-supply or re-wound an earlier grant's carriers.
+        for _e in game_map.entities[_before:]:
+            _e.carried_items = [list(_s) for _s in stamps]
+            if squad_id == "dev_carrier_0":
+                _e.hp = 5  # wounded: the med trigger reads on sight
+    ctx.log.add(f"[DEV] Spawned {placed} consumable carriers.")
+    return placed

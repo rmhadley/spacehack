@@ -20,7 +20,7 @@ from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
 from .xp import add_xp as _add_xp
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_j_press, _is_shift_l_press, _is_shift_g_press, _is_shift_o_press, _is_shift_b_press, _is_shift_n_press, _is_shift_m_press, _is_shift_y_press, _is_shift_t_press, _is_shift_s_press, _is_shift_v_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_x_press, _is_shift_r_press, _is_shift_d_press, _is_shift_k_press, _is_shift_j_press, _is_shift_l_press, _is_shift_g_press, _is_shift_o_press, _is_shift_b_press, _is_shift_n_press, _is_shift_m_press, _is_shift_y_press, _is_shift_t_press, _is_shift_s_press, _is_shift_v_press, _is_shift_c_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -377,6 +377,15 @@ async def _dev_spawn_enemy_faces(state):
         )
 
 
+async def _dev_spawn_consumable_carriers(state):
+    """Shift+C: spawn pre-stamped consumable carriers (doc 48.5)."""
+    from .dev_mode import spawn_dev_consumable_carriers
+    if state.current_mode == 'dungeon':
+        spawn_dev_consumable_carriers(
+            state.ctx, state.game_map, state.player.pos,
+        )
+
+
 # Table-driven dispatch (knowledge.md guardrail): matcher -> action.
 # Every action runs SPACEHACK_DEV-gated; mode guards live in the action.
 _DEV_SHIFT_KEYS = (
@@ -394,6 +403,7 @@ _DEV_SHIFT_KEYS = (
     (_is_shift_m_press, _dev_reveal_dig_site),
     (_is_shift_y_press, _dev_grant_tinker_kit),
     (_is_shift_v_press, _dev_spawn_enemy_faces),
+    (_is_shift_c_press, _dev_spawn_consumable_carriers),
 )
 
 
