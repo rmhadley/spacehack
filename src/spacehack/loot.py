@@ -87,22 +87,11 @@ def _loot_choice_runs(loot_entity):
         entry = _module_loot_entry(loot_entity)
         try:
             return message_log.with_runs(
-                quality_mark(
-                    ship_module_label(entry), entry.quality,
-                ),
+                quality_mark(_module_loot_name(loot_entity), entry.quality),
             )[1]
         except (KeyError, TypeError, ValueError):
             return None
     return None
-
-
-def ship_module_label(entry) -> str:
-    """The entry's display name (module label seam twin for this module)."""
-    from . import ship as ship_module
-
-    return ship_module.module_display_name(
-        entry.item_id, entry.quality, entry.randart_seed,
-    )
 
 
 async def choose_loot_entity(ctx: GameContext, loot_entities):

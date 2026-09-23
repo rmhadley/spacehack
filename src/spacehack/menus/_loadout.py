@@ -304,7 +304,14 @@ async def _apply_stored_install(ctx, action: str) -> None:
         ctx.log.add("That stored equipment is no longer available.")
         return
     if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec):
-        ctx.log.add(f"Installed {_stored_label(stored)} from storage.")
+        from .. import message_log
+        from ..data.quality import quality_mark
+
+        _msg, _runs = message_log.with_runs(
+            "Installed ", quality_mark(_stored_label(stored), stored.quality),
+            " from storage.",
+        )
+        ctx.log.add(_msg, runs=_runs)
         return
     _log_storage_failure(ctx, stored, ship_spec)
 

@@ -136,8 +136,10 @@ def test_runs_entries_round_trip_and_coalesce_by_full_payload():
 
     history = log.history()
     assert len(history) == 2
-    assert history[0].runs == runs
     assert history[0].text.endswith("x2")
+    # The coalesced text outgrew its runs — they drop so the joined
+    # run text always equals the entry text (paint invariant).
+    assert history[0].runs is None
     assert history[1].runs == different
 
 

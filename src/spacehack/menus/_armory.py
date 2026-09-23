@@ -147,67 +147,6 @@ a blank id falls back to the full shop-available catalog.
     ]
     return weapons, list_ground_armor()
 
-def _buy_rows(weapons, armor):
-    """Build catalog rows for the Buy view from resolved stock lists."""
-    from .. import pygame_split, pygame_ui
-
-    rows = [pygame_split.section_header("WEAPONS")]
-    rows.extend(
-        pygame_split.SplitRow(
-            spec.name,
-            pygame_ui.price_cell(spec.price),
-            _weapon_detail(spec),
-            f"BUY_WEAPON:{spec.id}",
-        )
-        for spec in sorted(weapons, key=lambda item: item.price)
-    )
-    rows.append(pygame_split.section_header("ARMOUR"))
-    rows.extend(
-        pygame_split.SplitRow(
-            spec.name,
-            pygame_ui.price_cell(spec.price),
-            _armor_detail(spec),
-            f"BUY_ARMOR:{spec.id}",
-        )
-        for spec in sorted(armor, key=lambda item: item.price)
-    )
-    return tuple(rows)
-
-def _buy_ammo_rows():
-    """Build buy rows for the ground ammo catalog."""
-    from .. import pygame_split, pygame_ui
-    from ..data.ground_items import list_ground_ammo
-
-    rows = [pygame_split.section_header("AMMUNITION")]
-    rows.extend(
-        pygame_split.SplitRow(
-            spec.name,
-            pygame_ui.price_cell(spec.price_per_round),
-            f"Ammo stack 0/{spec.rounds_per_stack}  {spec.price_per_round}$/round",
-            f"BUY_AMMO:{spec.id}",
-        )
-        for spec in sorted(list_ground_ammo(), key=lambda item: item.price_per_round)
-    )
-    return tuple(rows)
-
-def _buy_consumable_rows():
-    """Build buy rows for the ground consumable catalog."""
-    from .. import pygame_split, pygame_ui
-    from ..data.ground_items import list_ground_consumables
-
-    rows = [pygame_split.section_header("CONSUMABLES")]
-    rows.extend(
-        pygame_split.SplitRow(
-            spec.name,
-            pygame_ui.price_cell(spec.price),
-            f"Stack 0/{spec.quantity_per_stack}  {spec.effect_label or spec.name}",
-            f"BUY_CONSUMABLE:{spec.id}",
-        )
-        for spec in sorted(list_ground_consumables(), key=lambda item: item.price)
-        if spec.shop_available
-    )
-    return tuple(rows)
-
 def _storage_rows(
     entries: list[ground_equipment.StoredGroundEquipment],
     action_prefix: str,
@@ -590,7 +529,19 @@ def _install_from_container(
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return
-    ctx.log.add(f"Equipped {_equipment_name(entry)}.")
+    _log_equipped(ctx, entry)
+
+
+def _log_equipped(ctx, entry) -> None:
+    """``"Equipped Prototype Mono Blade."`` with the tier name coloured."""
+    from .. import message_log
+    from ..data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Equipped ",
+        quality_mark(_equipment_name(entry), entry.quality), ".",
+    )
+    ctx.log.add(_msg, runs=_runs)
 
 def _transfer_container_item(ctx, entries, index: int, source: str) -> None:
     """Move one stored item between the armory and expedition containers."""
@@ -989,3 +940,12 @@ async def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     await pygame_split.run_interactive(
         ctx, build_frame, apply_action, caption="spacehack - armory",
     )
+
+
+# Buy-view row builders live in the sibling module (ratchet split);
+# re-exported so callers keep _armory.* import paths.
+from ._armory_buy import (  # noqa: F401 — re-export surface
+    _buy_ammo_rows,
+    _buy_consumable_rows,
+    _buy_rows,
+)

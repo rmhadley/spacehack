@@ -676,13 +676,26 @@ def _discard_pack_stack(ctx: GameContext, index: int) -> bool:
 
 
 def _pack_manage_choices(ctx, item_type: str, slot: str, options, reload_option):
-    """Build weapon reload and compatible pack choices."""
+    """Build weapon reload and compatible pack choices (tiered names
+    coloured)."""
     choices = [reload_option] if reload_option is not None else []
     choices.extend(
-        (name, f"PACK_SWAP:{item_type}:{slot}:{index}")
+        (
+            name, f"PACK_SWAP:{item_type}:{slot}:{index}",
+            _pack_option_runs(ctx, index),
+        )
         for index, name, _detail in options
     )
     return tuple(choices)
+
+
+def _pack_option_runs(ctx, pack_index: int):
+    """Runs colouring one swap option's tiered name, if the entry still
+    resolves."""
+    try:
+        return _pack_entry_runs(ctx.ground_expedition_inventory[pack_index])[1]
+    except (IndexError, KeyError, TypeError, ValueError):
+        return None
 
 
 async def _swap_from_pack(

@@ -33,7 +33,7 @@ class MessageEntry:
     # the joined run text MUST equal ``text``; ``fg`` stays the line
     # colour for run-less painters and the fallback colour of any
     # run painted without one.
-    runs: tuple[tuple[str, tuple[int, int, int]], ...] | None = None
+    runs: tuple[tuple[str, tuple[int, int, int] | None], ...] | None = None
 
 
 _REPEAT_SUFFIX = re.compile(r"^(.*) x(\d+)$")
@@ -151,7 +151,10 @@ class MessageLog:
             last = self._messages[-1]
             base, count = _repeat_parts(last.text)
             if last.fg == fg and last.runs == runs and base == msg:
+                # A coalesced entry's text gains the " xN" suffix, so
+                # its runs no longer join to it — paint plain.
                 last.text = f"{msg} x{count + 1}"
+                last.runs = None
                 return
         self._messages.append(MessageEntry(text=msg, fg=fg, runs=runs))
 

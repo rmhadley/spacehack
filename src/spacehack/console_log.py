@@ -21,6 +21,7 @@ def _frame(ctx: GameContext) -> pygame_screen.ScreenFrame:
                 "ESC close", pygame_ui.GUIDE_HINT,
             ),),
             scrollable=True,
+            body_colors=(message_log.COLOR_MESSAGE,),
             start_at_end=True,
         )
     return pygame_screen.ScreenFrame(
