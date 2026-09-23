@@ -47,14 +47,26 @@ def _cast_ray(game_map: world.GameMap, ox: int, oy: int, dx: int, dy: int) -> No
             return
 
 
+def _hull_wall_cells(game_map: world.GameMap) -> list[tuple[int, int]]:
+    """The map's hull-wall cells, derived once and cached on the map
+    (replace_tile invalidates) — the per-reveal kind scan was O(map)."""
+    if game_map.hull_wall_cells is None:
+        game_map.hull_wall_cells = [
+            (x, y)
+            for y in range(game_map.height)
+            for x in range(game_map.width)
+            if game_map.tiles[y][x].kind == "hull_wall"
+        ]
+    return game_map.hull_wall_cells
+
+
 def _propagate_flags(game_map: world.GameMap, flags: list[list[bool]]) -> None:
     """Propagate a visibility flag through connected hull-wall groups."""
     width, height = game_map.width, game_map.height
     seeds = [
         (x, y)
-        for y in range(height)
-        for x in range(width)
-        if game_map.tiles[y][x].kind == "hull_wall" and flags[y][x]
+        for x, y in _hull_wall_cells(game_map)
+        if flags[y][x]
     ]
     visited: set[tuple[int, int]] = set()
     for seed in seeds:

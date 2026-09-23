@@ -295,3 +295,36 @@ def test_replace_tile_invalidates_the_static_light_cache(monkeypatch):
     reveal_around(gm, world.Position(2, 2))
     assert len(calls) == 2, "a tile swap re-derives the source list"
     assert any(s.x == 2 and s.y == 2 for s in gm.light_sources)
+
+
+def test_hull_wall_seed_cache_invalidates_on_tile_swap():
+    """The FOV flag-propagation seeds come from the cached hull-wall
+    cell list; a runtime tile swap re-derives it (doc 48 phase 6 perf
+    pass)."""
+    from src.spacehack import world
+    from src.spacehack.dungeon import init_fog, reveal_around
+    from src.spacehack.dungeon_fov import _propagate_flags
+
+    floor = world.Tile("dungeon_floor", ".", True, (200, 200, 200), (10, 10, 20))
+    wall = world.Tile("dungeon_wall", "#", False, (120, 130, 150), (10, 10, 20))
+    hull = world.Tile("hull_wall", "#", False, (120, 130, 150), (10, 10, 20))
+    gm = world.GameMap(
+        width=5, height=5,
+        tiles=[[floor if 1 <= x <= 3 and y == 2 else (wall if x in (0, 4) else floor)
+                for x in range(5)] for y in range(5)],
+        entities=[],
+    )
+    gm.tiles[2][2] = hull
+    init_fog(gm)
+
+    flags = [[False] * 5 for _ in range(5)]
+    flags[2][2] = True
+    _propagate_flags(gm, flags)
+    assert gm.hull_wall_cells == [(2, 2)]
+
+    # A runtime swap that removes the hull wall drops the cache.
+    gm.replace_tile(2, 2, floor)
+    assert gm.hull_wall_cells is None
+    _propagate_flags(gm, flags)
+    assert gm.hull_wall_cells == []
+    reveal_around(gm, world.Position(2, 2))  # no hull seeds: still sound

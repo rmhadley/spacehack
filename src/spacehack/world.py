@@ -445,6 +445,10 @@ class GameMap:
     # the render path reuses this list each frame instead of rescanning
     # the tile grid. Derived: never serialised.
     light_sources: list | None = None
+    # Cached hull-wall cell list (dungeon FOV's flag-propagation seeds).
+    # Derived from tiles; invalidated beside light_sources by
+    # replace_tile; never serialised.
+    hull_wall_cells: list[tuple[int, int]] | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:
@@ -506,11 +510,13 @@ class GameMap:
         return None
 
     def invalidate_tile_caches(self) -> None:
-        """Drop the derived static-light cache — runtime tile swaps
-        must route through :meth:`replace_tile` (which calls this) so
-        the next reveal re-derives sources instead of lighting a
-        remembered map."""
+        """Drop the derived tile caches (static lights, hull-wall
+        cells) — runtime tile swaps must route through
+        :meth:`replace_tile` (which calls this) so the next reveal
+        re-derives them instead of lighting or seeding a remembered
+        map."""
         self.light_sources = None
+        self.hull_wall_cells = None
 
     def replace_tile(self, x: int, y: int, tile: Tile) -> None:
         """The ONE runtime tile writer — swaps the tile and drops the
