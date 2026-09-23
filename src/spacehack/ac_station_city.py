@@ -137,17 +137,16 @@ def _paint_ring_routes(tiles, theme, ring_cells) -> None:
 
 
 def _paint_dock_apron(tiles, theme, spec) -> None:
-    """Reserve the top-sector dock apron around the player berth."""
+    """Reserve the top-sector dock apron around the player berth.
+
+    The plaza tile alone marks the berth — no neon corners (the same
+    focal-point brightness removed from Mars, user 2026-09-23)."""
     berth = spec.hangar_anchor
     for y in range(19, 26):
         for x in range(53, 68):
             if 0 <= x < RING_WIDTH and 0 <= y < RING_HEIGHT:
                 tiles[y][x] = theme.landing_pad
     tiles[berth.y][berth.x] = theme.plaza
-    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        x, y = berth.x + dx, berth.y + dy
-        if 0 <= x < RING_WIDTH and 0 <= y < RING_HEIGHT:
-            tiles[y][x] = theme.neon
 
 
 def _paint_station_details(tiles, theme, ring_cells) -> None:
