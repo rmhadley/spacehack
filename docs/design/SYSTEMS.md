@@ -928,7 +928,13 @@ nobody designs against a ghost.
   tier, other categories ignore it — doc 47.2); ONE
   identity-based 30-entity cap on
   both kill paths evicts the oldest plain loot silently and never
-  quest caches, pads, or heist cargo (`loot_common.enforce_loot_cap`);
+  quest caches, pads, or heist cargo (`loot_common.enforce_loot_cap`); tiered
+  NAMES colour their text everywhere they render — modded green,
+  overclocked blue, prototype purple, legendary orange, base plain
+  (`data/quality.QUALITY_COLORS` + `quality_mark`; inline runs:
+  `MessageEntry.runs` through the log band/overlay/console history,
+  `ScreenRow/MenuItem/SplitRow.runs`, combat `AttackLine`, the combat
+  HUD weapon block — `message_log.with_runs`/`RunLine`, 2026-09-23);
   character-screen Discard drops the carried item at the player's
   feet, never destroys — space mode hides the verb, there being no
   floor (`character_screen._discard_pack_*` →
