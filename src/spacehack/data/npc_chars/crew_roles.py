@@ -26,8 +26,12 @@ CREW_ROLES: dict[str, dict[str, str]] = {
     },
     "militia": {
         "line": "militia_trooper",
-        "heavy": "militia_marine",
-        "marksman": "militia_sniper",
+        # The sniper IS the heavy-hitting row (SETTLED 10): one
+        # perched elite per deck's heavy slot; the marksman markers
+        # field the strike-crew marines in their authored squads
+        # (user swap ruling, 2026-09-23 — amends SETTLED 38's lean).
+        "heavy": "militia_sniper",
+        "marksman": "militia_marine",
         "security_drone": "sentry_drone",
         # stowaway omitted (weight 0, SETTLED 38) — the marker stays
         # legal; a militia deck simply never boards parasites.
