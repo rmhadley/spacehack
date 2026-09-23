@@ -103,6 +103,14 @@ def _armor_detail(spec) -> str:
         f"{_armor_effects(spec)}  {spec.description}"
     )
 
+def _name_with_tier(name: str, quality: int, prefix: str = "") -> tuple:
+    """``(label, runs)`` — the tiered name coloured inside its label."""
+    from .. import message_log
+    from ..data.quality import quality_mark
+
+    return message_log.with_runs(prefix, quality_mark(name, quality))
+
+
 def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
     """Resolve one stored item's token-prefixed display name."""
     return ground_equipment.display_name(
@@ -210,12 +218,14 @@ def _storage_rows(
     rows = [pygame_split.section_header(section_label)]
     for index, entry in enumerate(entries):
         try:
+            _label, _runs = _name_with_tier(_equipment_name(entry), entry.quality)
             rows.append(
                 pygame_split.SplitRow(
-                    _equipment_name(entry),
+                    _label,
                     pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
                     _equipment_detail(entry),
                     f"{action_prefix}:{index}",
+                    runs=_runs,
                 )
             )
         except (AttributeError, KeyError, TypeError, ValueError):
@@ -309,11 +319,16 @@ def _weapon_slot_rows(ctx: GameContext):
                 f"Weapon {index + 1}: [unavailable]", "", "", "", False, False,
             ))
             continue
+        _label, _runs = _name_with_tier(
+            ground_equipment.display_name("weapon", spec.id, _quality), _quality,
+            prefix=f"Weapon {index + 1}: ",
+        )
         rows.append(pygame_split.SplitRow(
-            f"Weapon {index + 1}: {ground_equipment.display_name('weapon', spec.id, _quality)}",
+            _label,
             pygame_ui.sell_cell(_sell_price(spec.id, _quality)),
             _weapon_detail(spec),
             f"MANAGE_WEAPON:{index}",
+            runs=_runs,
         ))
     return rows
 
@@ -330,11 +345,16 @@ def _armor_slot_rows(ctx: GameContext):
         from ..data.quality import effective_armor_spec
 
         spec = effective_armor_spec(entry.item_id, entry.quality)
+        _label, _runs = _name_with_tier(
+            ground_equipment.display_name("armor", entry.item_id, entry.quality),
+            entry.quality, prefix=f"{_ARMOR_SLOT_LABELS[slot]}: ",
+        )
         rows.append(pygame_split.SplitRow(
-            f"{_ARMOR_SLOT_LABELS[slot]}: {ground_equipment.display_name('armor', entry.item_id, entry.quality)}",
+            _label,
             pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
             f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
+            runs=_runs,
         ))
     return rows
 

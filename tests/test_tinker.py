@@ -12,7 +12,6 @@ from types import SimpleNamespace
 
 from tests.support.asyncutil import as_async, run
 
-from src.spacehack import message_log
 from src.spacehack.ground_consumables import (
     KIT_EFFECT_ID,
     KIT_ITEM_ID,
@@ -381,11 +380,11 @@ def test_kit_log_line_colours_current_name_and_new_token():
     line = _kit_log_line("Modded Mono Blade", 2)
     assert line == "Tinker kit: Modded Mono Blade is now Overclocked."
     assert line.runs == (
-        ("Tinker kit: ", message_log.COLOR_MESSAGE),
+        ("Tinker kit: ", None),
         ("Modded Mono Blade", (100, 235, 115)),
-        (" is now ", message_log.COLOR_MESSAGE),
+        (" is now ", None),
         ("Overclocked", (130, 210, 240)),
-        (".", message_log.COLOR_MESSAGE),
+        (".", None),
     )
 
 
@@ -395,7 +394,7 @@ def test_base_kit_log_line_stays_plain():
     line = _kit_log_line("Mono Blade", 1)
     assert line == "Tinker kit: Mono Blade is now Modded."
     assert line.runs == (
-        ("Tinker kit: Mono Blade is now ", message_log.COLOR_MESSAGE),
+        ("Tinker kit: Mono Blade is now ", None),
         ("Modded", (100, 235, 115)),
-        (".", message_log.COLOR_MESSAGE),
+        (".", None),
     )

@@ -288,6 +288,25 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     return y + 1
 
 
+def _print_weapon_name(console, hud_x, y, wid, quality, index, is_active):
+    """One weapon's checkbox + name row; the tiered name paints in its
+    quality colour while the active/dim cue stays on the checkbox (a
+    tier colour always reads active)."""
+    from ..data.quality import quality_color
+    from ..ground_equipment import display_name
+
+    sel = "[x]" if is_active else "[ ]"
+    name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
+    label = display_name("weapon", wid, quality)[:HUD_TEXT_MAX]
+    prefix = f"{sel}[{index+1}] "
+    console.print(x=hud_x, y=y, string=prefix, fg=name_fg)
+    console.print(
+        x=hud_x + len(prefix), y=y,
+        string=label[: max(0, HUD_TEXT_MAX - len(prefix))],
+        fg=quality_color(quality) or name_fg,
+    )
+
+
 def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, alive) -> int:
     """Paint one weapon's panel block; return the next row.
 
@@ -304,13 +323,8 @@ def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, aliv
         ws = effective_weapon_spec(wid, _quality)
     except KeyError:
         return y
-    from ..ground_equipment import display_name
-
     is_active = _state.active_weapon_list[i] if i < len(_state.active_weapon_list) else True
-    sel = "[x]" if is_active else "[ ]"
-    name_fg = _COLOR_GROUND_WEAPON if is_active else _COLOR_GROUND_WEAPON_DIM
-    _label = display_name("weapon", wid, _quality)
-    console.print(x=hud_x, y=y, string=f"{sel}[{i+1}] {_label}"[:HUD_TEXT_MAX], fg=name_fg)
+    _print_weapon_name(console, hud_x, y, wid, _quality, i, is_active)
     y += 1
     hc = _rules().hit_chance(wid, alive[_state.target_idx], ctx, _quality) if _state.target_idx < len(alive) else 0
     console.print(x=hud_x, y=y, string=f"     DMG {ws.damage} HIT {hc}%", fg=ui.COLOR_VALUE_DIM)

@@ -67,28 +67,29 @@ def prefixed_runs(entry, prefix: str = "> ") -> tuple | None:
 
 
 def with_runs(
-    *parts, base: tuple[int, int, int] = COLOR_MESSAGE,
-) -> tuple[str, tuple[tuple[str, tuple[int, int, int]], ...] | None]:
-    """Build ``(plain text, runs)`` for one log/screen line from parts.
+    *parts,
+) -> tuple[str, tuple[tuple[str, tuple[int, int, int] | None], ...] | None]:
+    """Build ``(plain text, runs)`` for one log or screen line.
 
     A part is a plain string or a ``(text, colour)`` run (as produced
-    by ``data.quality.quality_mark``); plain parts paint at ``base``,
-    which must match the line colour the entry is added with. When no
-    part leaves ``base`` the line needs no runs and returns
-    ``(text, None)`` — the painter's plain path. Adjacent same-colour
-    parts merge so equivalent lines compare equal for coalescing.
+    by ``data.quality.quality_mark``); plain parts carry ``None`` and
+    paint at whatever the context's default colour is — the entry's
+    line colour in the log, the row colour on a screen. When no part
+    colours, the line needs no runs and returns ``(text, None)``.
+    Adjacent same-colour parts merge so equivalent lines compare
+    equal for coalescing.
     """
-    runs: list[tuple[str, tuple[int, int, int]]] = []
+    runs: list[tuple[str, tuple[int, int, int] | None]] = []
     for part in parts:
-        text, colour = part if isinstance(part, tuple) else (part, base)
-        if colour is None:
-            colour = base
+        text, colour = part if isinstance(part, tuple) else (part, None)
+        if not text:
+            continue
         if runs and runs[-1][1] == colour:
             runs[-1] = (runs[-1][0] + text, colour)
         else:
             runs.append((text, colour))
     text = "".join(run_text for run_text, _colour in runs)
-    if all(colour == base for _text, colour in runs):
+    if all(colour is None for _text, colour in runs):
         return text, None
     return text, tuple(runs)
 

@@ -11,29 +11,10 @@ from __future__ import annotations
 
 from .game_context import GameContext
 
-_SKILLS: tuple[str, ...] = (
-    "gunnery", "piloting", "engineering",
-    "reflexes", "strength", "stamina",
-)
-# One-line general description per skill, shown at the bottom of the
-# Stats tab. Kept in sync with the guide's Character & Skills section.
-_SKILL_DESCRIPTIONS: dict[str, str] = {
-    "gunnery": "+0.5% hit chance per point in space combat",
-    "piloting": "AP per round (3 + Piloting/20, fractional with carry) and +0.5% dodge/pt",
-    "engineering": "+1 max power per 5 pts; paid shield regen -1 power per 20 pts",
-    "reflexes": "+0.5% accuracy and +0.5% dodge per point on foot",
-    "strength": "+1 melee damage per 5 pts; +1 pack slot per 5 pts above 10",
-    "stamina": "max ground HP 20 + Stamina//3 (+1 HP per 3 pts)",
-}
 from .ground_equipment import (  # noqa: F401 — re-exported slot tables
     ARMOR_SLOTS as _ARMOR_SLOTS,
     ARMOR_SLOT_LABELS as _ARMOR_SLOT_LABELS,
 )
-
-def _trait_names(trait_ids) -> list[str]:
-    from .data.traits.core import trait_name
-    return [trait_name(t) for t in trait_ids]
-
 
 def _character_frame(
     ctx: GameContext,
@@ -62,72 +43,6 @@ def _character_frame(
             floor_available=floor_available,
         )
     return _cargo_character_frame(ctx, title, selected)
-
-
-def _skill_base(ctx: GameContext, index: int, skill: str) -> int:
-    """One skill's base value — ship skills read ctx.stats, ground
-    stats ctx.ground_stats (the first three _SKILLS are the ship set)."""
-    return getattr(ctx.stats if index < 3 else ctx.ground_stats, skill, 10)
-
-
-def _skill_value_display(ctx: GameContext, index: int, skill: str) -> str:
-    """One skill's value cell: ship skills read base + installed-module
-    bonuses — the same effective sum combat uses — with the bonus
-    annotated ("36 (+9)", "13 (-12)"); ground stats and bonus-less
-    skills show the plain value (doc 47.4 SETTLED 29)."""
-    from .combat._stats import _player_skill_bonuses
-
-    base = _skill_base(ctx, index, skill)
-    owned = getattr(ctx, "player_owned_ship", None)
-    if index >= 3 or owned is None:
-        return f"{base:>3}"
-    effective = _player_skill_bonuses(owned, ctx.stats)[index]
-    bonus = effective - base
-    return f"{effective} ({bonus:+d})" if bonus else f"{base:>3}"
-
-
-def _skill_spend_marker(ctx: GameContext, index: int, skill: str) -> str:
-    """The [+]/MAX spend marker — base-value driven, as spending is."""
-    base = _skill_base(ctx, index, skill)
-    if ctx.player_skill_points > 0 and base < 100:
-        return "[+]"
-    return "MAX" if base >= 100 else ""
-
-
-def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
-    """Build the Stats-tab frame (skills, XP, traits)."""
-    from . import pygame_screen, pygame_ui
-
-    rows = tuple(
-        pygame_screen.ScreenRow(
-            text=(
-                f"{skill.title():<12} {_skill_value_display(ctx, index, skill)}"
-                f"  {_skill_spend_marker(ctx, index, skill)}"
-            ).rstrip(),
-            detail=_SKILL_DESCRIPTIONS[skill],
-            action=f"SPEND:{skill}",
-        )
-        for index, skill in enumerate(_SKILLS)
-    )
-    _gear = [
-        _name for _flag, _name in (
-            (getattr(ctx, "transponder_cutout", False), "transponder cut-out"),
-            (getattr(ctx, "transponder_rig", False), "clone rig"),
-        ) if _flag
-    ]
-    body = (
-        f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
-        f"Traits: {', '.join(_trait_names(ctx.player_traits)) or 'None'}",
-        *(("Gear: " + ", ".join(_gear),) if _gear else ()),
-    )
-    footer = (pygame_ui.modal_hint(
-        pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
-        "ESC close", pygame_ui.GUIDE_HINT,
-    ),)
-    return pygame_screen.ScreenFrame(
-        title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=0,
-    )
 
 
 def _equipment_frame(
@@ -169,49 +84,6 @@ def _equipment_frame(
         page_offset=max(0, selected - 5),
     )
 
-def _cargo_character_frame(ctx: GameContext, title: str, selected: int):
-    """Build the Cargo tab by reusing the cargo manifest presentation."""
-    from . import ship as ship_module
-    from .trade import _cargo_body, _cargo_rows
-    from . import pygame_screen, pygame_ui
-
-    owned = ctx.player_owned_ship
-    if owned is None:
-        return pygame_screen.ScreenFrame(
-            title, ("No ship available.",), (),
-            (pygame_ui.modal_hint("TAB next tab", "ESC close", pygame_ui.GUIDE_HINT),),
-            tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
-        )
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    max_cargo = ship_module.effective_max_cargo(ship_spec, owned)
-    body = _cargo_body(ctx, owned, max_cargo)
-    return pygame_screen.ScreenFrame(
-        title, body, _cargo_rows(owned),
-        (pygame_ui.modal_hint(
-            pygame_ui.NAV_HINT, "ENTER jettison selected", "TAB equipment", "ESC close", pygame_ui.GUIDE_HINT,
-        ),),
-        selected, tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
-    )
-
-
-def _expedition_capacity(ctx: GameContext) -> int:
-    """Return the current Expedition Pack capacity."""
-    from . import ground_equipment
-
-    from .xp import pack_mule_capacity_bonus
-
-    strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
-    strength += pack_mule_capacity_bonus(ctx) * 10
-    return ground_equipment.expedition_capacity(strength)
-
-
-def _expedition_used_slots(ctx: GameContext) -> int:
-    """Return Expedition Pack slot usage (equipment + item stacks)."""
-    return len(ctx.ground_expedition_inventory) + len(
-        getattr(ctx, "ground_expedition_items", []),
-    )
-
-
 def _armor_effects(spec) -> str:
     """Format one armor piece's cybernetic bonuses, or an empty string."""
     bonuses = []
@@ -232,6 +104,16 @@ def _pack_entry_name(entry) -> str:
 
     return ground_equipment.display_name(
         entry.item_type, entry.item_id, entry.quality,
+    )
+
+
+def _pack_entry_runs(entry) -> tuple:
+    """``(label, runs)`` for one backpack row — the tier name coloured."""
+    from . import message_log
+    from .data.quality import quality_mark
+
+    return message_log.with_runs(
+        quality_mark(_pack_entry_name(entry), entry.quality),
     )
 
 
@@ -333,12 +215,13 @@ def _equipment_row(
     *,
     action: str = "",
     selectable: bool = False,
+    runs=None,
 ):
     """Build one consistently spaced Equipment-tab row."""
     from . import pygame_screen
 
     return pygame_screen.ScreenRow(
-        text, detail, action, selectable=selectable,
+        text, detail, action, selectable=selectable, runs=runs,
     )
 
 
@@ -375,29 +258,43 @@ def _armor_rows(
     for slot in _ARMOR_SLOTS:
         entry = ctx.equipped_ground_armor.get(slot)
         label = f"{_ARMOR_SLOT_LABELS[slot]} armor"
-        if entry is not None:
-            try:
-                from . import ground_equipment
-                from .data.quality import effective_armor_spec
-
-                spec = effective_armor_spec(entry.item_id, entry.quality)
-                _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
-                rows.append(_equipment_row(
-                    f"{label}: {ground_equipment.display_name('armor', entry.item_id, entry.quality)}",
-                    f"Defense {spec.defense}{_armor_effects(spec)}   {spec.description}",
-                    action=f"SWAP:armor:{slot}" if _managed else "",
-                    selectable=True if not equipment_management else _managed,
-                ))
-                continue
-            except KeyError:
-                pass
         _managed = _armor_managed(ctx, slot, equipment_management, swap_allowed)
-        rows.append(_equipment_row(
+        _filled = (
+            _filled_armor_row(entry, label, ctx, slot, equipment_management, _managed)
+            if entry is not None else None
+        )
+        rows.append(_filled if _filled is not None else _equipment_row(
             f"{label}: None", "",
             action=f"SWAP:armor:{slot}" if _managed else "",
             selectable=False if not equipment_management else _managed,
         ))
     return rows
+
+
+def _filled_armor_row(entry, label: str, ctx, slot, equipment_management, managed):
+    """One filled armor-slot row with the tier name coloured, or None
+    when the entry no longer resolves."""
+    from . import ground_equipment, message_log
+    from .data.quality import effective_armor_spec, quality_mark
+
+    try:
+        spec = effective_armor_spec(entry.item_id, entry.quality)
+    except KeyError:
+        return None
+    _text, _runs = message_log.with_runs(
+        f"{label}: ",
+        quality_mark(
+            ground_equipment.display_name("armor", entry.item_id, entry.quality),
+            entry.quality,
+        ),
+    )
+    return _equipment_row(
+        _text,
+        f"Defense {spec.defense}{_armor_effects(spec)}   {spec.description}",
+        action=f"SWAP:armor:{slot}" if managed else "",
+        selectable=True if not equipment_management else managed,
+        runs=_runs,
+    )
 
 
 def _armor_managed(
@@ -431,9 +328,10 @@ def _backpack_equipment_rows(ctx: GameContext) -> list:
     rows: list = []
     for index, entry in enumerate(ctx.ground_expedition_inventory):
         try:
+            _label, _runs = _pack_entry_runs(entry)
             rows.append(_equipment_row(
-                _pack_entry_name(entry), _pack_entry_detail(entry),
-                action=f"PACK_ITEM:{index}", selectable=True,
+                _label, _pack_entry_detail(entry),
+                action=f"PACK_ITEM:{index}", selectable=True, runs=_runs,
             ))
         except (KeyError, TypeError, ValueError):
             continue
@@ -991,3 +889,20 @@ async def open_character_screen(
     if result is None:
         raise RuntimeError("Character screen returned no outcome")
     return result
+
+
+# Stats/cargo builders and skill tables live in the sibling module
+# (ratchet split); re-exported so every caller keeps
+# character_screen.* import paths.
+from .character_screen_stats import (  # noqa: F401 — re-export surface
+    _cargo_character_frame,
+    _expedition_capacity,
+    _expedition_used_slots,
+    _SKILLS,
+    _skill_base,
+    _skill_spend_marker,
+    _skill_value_display,
+    _SKILL_DESCRIPTIONS,
+    _stats_frame,
+    _trait_names,
+)

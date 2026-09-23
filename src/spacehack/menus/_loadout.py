@@ -68,6 +68,19 @@ def _weapon_detail(spec, *, ammo: int | None = None) -> str:
     return detail
 
 
+def _module_runs(module_id: str, quality: int, randart_seed) -> tuple | None:
+    """Runs colouring one module row's label at its tier (the randart
+    name counts as legendary)."""
+    from ..data.quality import LEGENDARY_QUALITY, quality_color
+    from ..ship import module_display_name
+
+    _tier = LEGENDARY_QUALITY if randart_seed is not None else quality
+    _color = quality_color(_tier)
+    if _color is None:
+        return None
+    return ((module_display_name(module_id, quality, randart_seed), _color),)
+
+
 def _stored_label(stored) -> str:
     """Display label for one stored part (token seam for modules)."""
     if stored.item_type == "module":
@@ -86,7 +99,7 @@ def _stored_row(stored, index: int):
 
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
-        name, detail = spec.name, _weapon_detail(spec, ammo=stored.ammo)
+        name, detail, runs = spec.name, _weapon_detail(spec, ammo=stored.ammo), None
     elif stored.item_type == "module":
         name = module_display_name(
             stored.item_id, stored.quality, stored.randart_seed,
@@ -94,9 +107,12 @@ def _stored_row(stored, index: int):
         detail = module_detail(
             stored.item_id, stored.quality, stored.randart_seed,
         )
+        runs = _module_runs(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
     else:
         raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}")
+    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}", runs=runs)
 
 
 def _stored_spec(stored):
@@ -175,13 +191,11 @@ def _ship_rows(ctx, ship_spec, mode: str):
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
         spec = find_weapon(item_id)
-        action = f"MANAGE_WEAPON_SLOT:{slot_index}"
-        value = ""
         rows.append(
             pygame_split.SplitRow(
-                spec.name, value,
+                spec.name, "",
                 _weapon_detail(spec, ammo=ctx.player_owned_ship.weapon_ammo.get(slot_index)),
-                action,
+                f"MANAGE_WEAPON_SLOT:{slot_index}",
             )
         )
     rows.append(pygame_split.section_header("MODULE SLOTS"))
@@ -189,16 +203,17 @@ def _ship_rows(ctx, ship_spec, mode: str):
         if entry is None:
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
-        action = f"MANAGE_MODULE_SLOT:{slot_index}"
-        value = ""
         rows.append(
             pygame_split.SplitRow(
                 module_display_name(
                     entry.item_id, entry.quality, entry.randart_seed,
-                ), value,
+                ), "",
                 module_detail(
                     entry.item_id, entry.quality, entry.randart_seed,
-                ), action,
+                ), f"MANAGE_MODULE_SLOT:{slot_index}",
+                runs=_module_runs(
+                    entry.item_id, entry.quality, entry.randart_seed,
+                ),
             )
         )
     return tuple(rows)

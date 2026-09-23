@@ -234,3 +234,16 @@ def test_purchase_ground_ammo_does_not_mutate_when_pack_cannot_fit(monkeypatch):
 
     assert ctx.stats.credits == 100
     assert ctx.ground_expedition_items == []
+
+
+def test_storage_rows_colour_the_tiered_names():
+    from spacehack.ground_equipment import StoredGroundEquipment
+    from spacehack.menus._armory import _storage_rows
+
+    rows = _storage_rows(
+        [StoredGroundEquipment("weapon", "mono_blade", 2)],
+        "MANAGE_ARMORY_STORAGE",
+    )
+
+    assert rows[1].label == "Overclocked Mono Blade"
+    assert rows[1].runs == (("Overclocked Mono Blade", (130, 210, 240)),)

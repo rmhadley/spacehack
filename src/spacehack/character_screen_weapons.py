@@ -49,6 +49,35 @@ def _first_weapon_is_two_handed(weapons: list[str]) -> bool:
         return False
 
 
+def _filled_weapon_row(ctx, index, instance, *, equipment_management, swap_allowed):
+    """One filled weapon-slot row with the tier name coloured, or None
+    when the instance no longer resolves."""
+    from . import message_log
+    from .data.quality import effective_weapon_spec, quality_mark
+    from .ground_equipment import display_name
+
+    try:
+        spec = effective_weapon_spec(instance.weapon_id, instance.quality)
+    except KeyError:
+        return None
+    _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
+    _text, _runs = message_log.with_runs(
+        f"Weapon slot {index}: ",
+        quality_mark(
+            display_name("weapon", instance.weapon_id, instance.quality),
+            instance.quality,
+        ),
+        _weapon_ammo_indicator(spec, instance),
+    )
+    return _lazy()._equipment_row(
+        _text,
+        _weapon_detail_text(spec),
+        action=f"SWAP:weapon:{index - 1}" if _managed else "",
+        selectable=True if not equipment_management else _managed,
+        runs=_runs,
+    )
+
+
 def _weapon_row(
     ctx: GameContext,
     index: int,
@@ -64,21 +93,12 @@ def _weapon_row(
     if occupied_by_two_handed:
         return _lazy()._equipment_row(f"{label}: --- (occupied by 2H)")
     if instance is not None:
-        try:
-            from .data.quality import effective_weapon_spec
-            from .ground_equipment import display_name
-
-            spec = effective_weapon_spec(instance.weapon_id, instance.quality)
-            _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
-            return _lazy()._equipment_row(
-                f"{label}: {display_name('weapon', instance.weapon_id, instance.quality)}"
-                f"{_weapon_ammo_indicator(spec, instance)}",
-                _weapon_detail_text(spec),
-                action=f"SWAP:weapon:{index - 1}" if _managed else "",
-                selectable=True if not equipment_management else _managed,
-            )
-        except KeyError:
-            pass
+        row = _filled_weapon_row(
+            ctx, index, instance,
+            equipment_management=equipment_management, swap_allowed=swap_allowed,
+        )
+        if row is not None:
+            return row
     _managed = _weapon_managed(ctx, index - 1, equipment_management, swap_allowed)
     return _lazy()._equipment_row(
         f"{label}: Fists", "",

@@ -319,14 +319,12 @@ async def _log_explosive_result(
             _msg, _runs = _ml.with_runs(
                 quality_mark(weapon_name, quality),
                 f" blast hits {_enemy.name} for {_dmg} damage.",
-                base=_ml.COLOR_PLAYER_ACTION,
             )
             ctx.log.add_colored(_msg, _ml.COLOR_PLAYER_ACTION, runs=_runs)
     if player_damage > 0:
         _msg, _runs = _ml.with_runs(
             "The ", quality_mark(weapon_name.lower(), quality),
             f" blast catches you for {player_damage} damage!",
-            base=_ml.COLOR_COMBAT_EVENT,
         )
         ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT, runs=_runs)
 

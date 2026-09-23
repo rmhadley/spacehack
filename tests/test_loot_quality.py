@@ -694,3 +694,38 @@ def test_seeded_label_refuses_unknown_module_ids():
 
     with pytest.raises(KeyError):
         module_display_name("no_such_module", 4, 123)
+
+
+def test_equipment_rows_colour_weapon_armor_and_pack_names():
+    from types import SimpleNamespace
+
+    from spacehack import character_screen
+    from spacehack.ground_equipment import GroundWeaponInstance, StoredGroundEquipment
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("mono_blade", None, 1),
+        ],
+        equipped_ground_armor={
+            "body": StoredGroundEquipment("armor", "light_vest", 3),
+        },
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "mono_blade", 1),
+        ],
+        ground_stats=SimpleNamespace(strength=10),
+        ground_expedition_items=[],
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    assert rows[0].runs == (
+        ("Weapon slot 1: ", None), ("Modded Mono Blade", (100, 235, 115)),
+    )
+    armor = next(r for r in rows if "Body armor" in r.text)
+    assert armor.runs == (
+        ("Body armor: ", None),
+        ("Prototype Light Armor Vest", (190, 140, 255)),
+    )
+    pack_rows = character_screen._backpack_equipment_rows(ctx)
+    assert [r.text for r in pack_rows] == ["Modded Mono Blade"]
+    assert pack_rows[0].runs == (("Modded Mono Blade", (100, 235, 115)),)

@@ -373,6 +373,11 @@ def test_randart_frame_is_the_complete_stat_sheet():
 
     seed = 88
     frame = _randart_frame("shield_mk1", 4, seed)
+    from spacehack.data.quality import quality_color
+
+    assert frame.body_runs[0] == (
+        (frame.body[0], quality_color(4)),
+    )
     manifest = roll_randart("shield_mk1", seed)
     assert frame.title == "LEGENDARY FIND"
     assert frame.body[0] == manifest.name

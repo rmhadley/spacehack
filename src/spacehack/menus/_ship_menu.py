@@ -72,11 +72,14 @@ def _module_row(entry):
 
     quality = getattr(entry, "quality", 0)
     seed = getattr(entry, "randart_seed", None)
+    from ..menus._loadout import _module_runs
+
     try:
         return pygame_screen.ScreenRow(
             module_display_name(entry.item_id, quality, seed),
             module_detail(entry.item_id, quality, seed),
             selectable=True,
+            runs=_module_runs(entry.item_id, quality, seed),
         )
     except KeyError:
         return pygame_screen.ScreenRow(

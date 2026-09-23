@@ -93,8 +93,7 @@ def test_console_log_frame_formats_oldest_first_and_is_scrollable():
     assert "PAGE UP/DOWN" not in frame.footer[0]
 
 
-def test_with_runs_returns_none_until_a_part_leaves_the_base_colour():
-    base = message_log.COLOR_MESSAGE
+def test_with_runs_returns_none_until_a_part_carries_a_colour():
     text, runs = message_log.with_runs("Packed: ", "Mono Blade", ".")
     assert text == "Packed: Mono Blade."
     assert runs is None
@@ -104,9 +103,9 @@ def test_with_runs_returns_none_until_a_part_leaves_the_base_colour():
     )
     assert text == "Packed: Modded Mono Blade."
     assert runs == (
-        ("Packed: ", base),
+        ("Packed: ", None),
         ("Modded Mono Blade", (100, 235, 115)),
-        (".", base),
+        (".", None),
     )
 
 
@@ -119,9 +118,9 @@ def test_with_runs_merges_adjacent_same_colour_parts():
     )
     assert text == "You fire your Prototype Mono Blade at the drone"
     assert runs == (
-        ("You fire your ", message_log.COLOR_MESSAGE),
+        ("You fire your ", None),
         ("Prototype Mono Blade", (190, 140, 255)),
-        (" at the drone", message_log.COLOR_MESSAGE),
+        (" at the drone", None),
     )
 
 

@@ -68,12 +68,52 @@ def _loot_popup_title(loot_entities) -> str:
     return title + (" " * padding)
 
 
+def _loot_choice_runs(loot_entity):
+    """Runs colouring one loot chooser option's tiered name (None for
+    every non-equipment label)."""
+    from . import message_log
+    from .data.quality import quality_mark
+
+    data = loot_entity.loot_data or {}
+    if data.get("item_type") in {"weapon", "armor"}:
+        entry = _ground_equipment_loot_entry(loot_entity)
+        try:
+            return message_log.with_runs(
+                quality_mark(_ground_equipment_loot_name(entry), entry.quality),
+            )[1]
+        except (KeyError, TypeError, ValueError):
+            return None
+    if data.get("item_type") == "module":
+        entry = _module_loot_entry(loot_entity)
+        try:
+            return message_log.with_runs(
+                quality_mark(
+                    ship_module_label(entry), entry.quality,
+                ),
+            )[1]
+        except (KeyError, TypeError, ValueError):
+            return None
+    return None
+
+
+def ship_module_label(entry) -> str:
+    """The entry's display name (module label seam twin for this module)."""
+    from . import ship as ship_module
+
+    return ship_module.module_display_name(
+        entry.item_id, entry.quality, entry.randart_seed,
+    )
+
+
 async def choose_loot_entity(ctx: GameContext, loot_entities):
     """Let the player choose one nearby loot entity before opening pickup."""
     from . import pygame_story
 
     options = tuple(
-        (_loot_choice_label(entity), f"LOOT:{index}")
+        (
+            _loot_choice_label(entity), f"LOOT:{index}",
+            _loot_choice_runs(entity),
+        )
         for index, entity in enumerate(loot_entities)
     )
     while True:
@@ -585,7 +625,7 @@ def _randart_frame(module_id: str, quality: int, seed: int):
     in the axes-table order. Pure; the strings are the brief's
     drafts. Quality threads through like every read seam — the modal
     shows exactly what installs."""
-    from . import pygame_screen, pygame_ui
+    from . import pygame_screen
     from .data.modules import find_module
     from .data.quality import effective_module_spec
     from .data.randarts import AXIS_LABELS, axis_line, roll_randart
@@ -601,8 +641,10 @@ def _randart_frame(module_id: str, quality: int, seed: int):
             if getattr(spec, field)
         ),
     )
+    from .data.quality import quality_color
+
     runs = [None] * len(body)
-    runs[0] = ((manifest.name, pygame_ui.DEFAULT_PALETTE.accent),)
+    runs[0] = ((manifest.name, quality_color(4)),)
     return pygame_screen.ScreenFrame(
         title="LEGENDARY FIND",
         body=body,

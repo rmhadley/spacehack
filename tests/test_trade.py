@@ -214,8 +214,8 @@ class TestOpenLootPickup:
         assert captured["body"] == "Choose an item to pick up."
         assert captured["compact"] is True
         assert captured["options"] == (
-            ("Pistol Rounds x2", "LOOT:0"),
-            ("Rifle Rounds x1", "LOOT:1"),
+            ("Pistol Rounds x2", "LOOT:0", None),
+            ("Rifle Rounds x1", "LOOT:1", None),
         )
 
     def test_p_pickup_chooser_cancel_leaves_everything(self, monkeypatch):
