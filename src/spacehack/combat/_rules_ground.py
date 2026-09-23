@@ -22,12 +22,11 @@ from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from .. import ground_scale
 from ..data.npc_chars import find_npc_char as _find_nc
-from ..data.ground_items import list_ground_consumables as _list_gc
 from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     sum_armor_defense as _sum_armor_defense,
 )
-from ..ground_consumables import ActiveConsumableEffect, effect_from_spec
+from ..ground_consumables import ActiveConsumableEffect
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -247,9 +246,11 @@ def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, co
     _player_ap_total = _player_ap_gain // 20
 
     # Clear combat locks from an abnormally-ended previous fight (e.g.
-    # an exception that skipped sync_state) so those NPCs patrol again.
+    # an exception that skipped sync_state) so those NPCs patrol again;
+    # the same recovery retires the stale session's movement mode.
     if _state is not None:
         _set_combat_locks(False)
+        _state.active = False
 
     _state = GroundCombatState(
         ctx=ctx, game_map=game_map,
@@ -304,6 +305,13 @@ def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
 
 def player_hp(ctx) -> int:
     return _state.player_hp
+
+
+def combat_active(ctx) -> bool:
+    """Whether a ground fight is live — the combat-time movement mode
+    key (doc 48 SETTLED 17/25): un-engaged entities move their AP in
+    tiles while True, everyone folds back to the 1-tick stroll after."""
+    return _state is not None and _state.active
 
 def player_max_hp(ctx) -> int:
     return _state.player_max_hp
@@ -765,58 +773,9 @@ def handle_defense(ctx) -> None:
 
 def apply_consumable_effect(ctx, spec) -> bool:
     """Apply a validated consumable effect to the active combat state."""
-    if spec.effect_id == "restore_hp":
-        _before = _state.player_hp
-        _state.player_hp = min(
-            _state.player_max_hp,
-            _state.player_hp + spec.combat_heal_amount,
-        )
-        _healed = _state.player_hp - _before
-        if _healed > 0:
-            ctx.log.add_colored(
-                f"{spec.name}: +{_healed} HP.",
-                _ml.COLOR_PLAYER_ACTION,
-            )
-    _effect = effect_from_spec(spec)
-    if _effect is not None:
-        _state.active_consumable_effects[spec.effect_id] = _effect
-    return spec.effect_id in {"restore_hp", "stim"}
+    from ._ground_effects import apply_player_effect
 
-def _consumable_name_for_effect(effect_id: str) -> str:
-    """Resolve a friendly catalog name for a temporary effect."""
-    for _spec in _list_gc():
-        if _spec.effect_id == effect_id:
-            return _spec.name
-    return "Regeneration"
-
-def _advance_consumable_effects() -> int:
-    """Apply regeneration and return the current temporary AP bonus."""
-    _ap_bonus = 0
-    _remaining: dict[str, ActiveConsumableEffect] = {}
-    for _effect_id, _effect in _state.active_consumable_effects.items():
-        if _effect.regen_amount:
-            _before = _state.player_hp
-            _state.player_hp = min(
-                _state.player_max_hp,
-                _state.player_hp + _effect.regen_amount,
-            )
-            _healed = _state.player_hp - _before
-            if _healed > 0:
-                _effect_name = _consumable_name_for_effect(_effect_id)
-                _state.ctx.log.add_colored(
-                    f"{_effect_name} regeneration: +{_healed} HP.",
-                    _ml.COLOR_PLAYER_ACTION,
-                )
-        if _effect.ap_bonus:
-            _ap_bonus += _effect.ap_bonus
-        _next = _effect.remaining_turns - 1
-        if _next > 0:
-            _remaining[_effect_id] = ActiveConsumableEffect(
-                _effect.effect_id, _next,
-                _effect.regen_amount, _effect.ap_bonus,
-            )
-    _state.active_consumable_effects = _remaining
-    return _ap_bonus
+    return apply_player_effect(_state, ctx, spec)
 
 # ---------------------------------------------------------------------------
 # Enemy turns
@@ -971,7 +930,12 @@ def set_player_ap(ctx, ap: int) -> None:
 def reset_turn(ctx) -> None:
     # Consumable AP bonuses (stim effects) add to this round's gain
     # before the fractional roll, so a temporary +1 is a full extra AP.
-    _gain = _state.player_ap_gain_twentieths + 20 * _advance_consumable_effects()
+    from ._ground_effects import advance_player_effects
+
+    _gain = (
+        _state.player_ap_gain_twentieths
+        + 20 * advance_player_effects(_state)
+    )
     _avail, _carry = _roll_ap(_state.player_ap_carry_twentieths, _gain)
     _state.player_ap_carry_twentieths = _carry
     _state.player_ap_total = _avail

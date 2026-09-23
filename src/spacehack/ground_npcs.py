@@ -283,34 +283,43 @@ def _has_los_to(game_map, x: int, y: int, gx: int, gy: int) -> bool:
     return _has_los(game_map, x, y, gx, gy)
 
 
-def _investigate_step(
+def _investigate_walk(
     entity: world.Entity, game_map: world.GameMap,
     goal: tuple[int, int] | None = None,
+    steps: int = 1, stop_check=None,
 ) -> bool:
-    """One step toward an investigation goal (SETTLED 37: goal-based —
-    the holder walks until it holds LOS on the goal cell; arrival with
-    nothing seen reverts to prior behavior, an unreachable goal gives
-    up — never a tick countdown).
-
-    ``goal`` (another member's cell) drives the squad-follow members
-    that hold no goal of their own — squads follow noise as a unit.
-    Returns whether the walked goal stays active.
-    """
+    """Walk an investigation goal (doc 48 SETTLED 17/37) — the one
+    walker for peace (one tile per call) and combat time (``steps``
+    tiles on ONE cached path per pass): LOS-on-goal is re-checked per
+    tile (a walker rounding a corner completes mid-walk), a combat-time
+    ``stop_check`` halts the walker the moment it enters the player's
+    sight — investigators never overshoot past LOS — and an
+    unreachable goal gives up. ``goal`` (another member's cell) drives
+    squad-follow members that hold no goal of their own. True when the
+    walked goal stays active."""
     _own = _goal_cell(entity)
     _target = _own if _own is not None else goal
     if _target is None:
         return False
-    if _has_los_to(
-        game_map, entity.pos.x, entity.pos.y, _target[0], _target[1],
-    ):
-        _end_investigation(entity)
-        return False
-    _path = _pursuit_path(entity, game_map, _target)
-    if not _path:
-        _end_investigation(entity)
-        return False
-    _nx, _ny = _path[0]
-    _try_move_entity(entity, _nx - entity.pos.x, _ny - entity.pos.y, game_map)
+    _path: list[tuple[int, int]] = []
+    for _ in range(max(1, steps)):
+        if _has_los_to(
+            game_map, entity.pos.x, entity.pos.y, _target[0], _target[1],
+        ):
+            _end_investigation(entity)
+            return False
+        if not _path:
+            _path = _pursuit_path(entity, game_map, _target)
+            if not _path:
+                _end_investigation(entity)
+                return False
+        _nx, _ny = _path.pop(0)
+        if not _try_move_entity(
+            entity, _nx - entity.pos.x, _ny - entity.pos.y, game_map,
+        ):
+            return True  # blocked this pass — the goal holds
+        if stop_check is not None and stop_check(entity):
+            return True  # sighted mid-approach: stop, never overshoot
     return True
 
 
@@ -368,20 +377,49 @@ def _patrol_step(
     _rejoin_stragglers(members, _start_positions, game_map)
 
 
+def _ground_fight_live(ctx) -> bool:
+    """Whether a ground fight is live (the mode key, SETTLED 17/25)."""
+    from .combat import _rules_ground
+
+    return _rules_ground.combat_active(ctx)
+
+
+def _sighted_stop(ctx, game_map):
+    """Combat-time stop predicate: the mover entered the player's
+    sight (doc 48 SETTLED 17 — stop on acquisition, join via LOS)."""
+    from .combat._encounter import hostile_in_player_sight
+
+    return lambda entity: hostile_in_player_sight(ctx, game_map, entity)
+
+
+def _step_budget(entity: world.Entity, *, combat: bool) -> int:
+    """Tiles this entity may walk per pass: its spec AP in combat
+    time, one in peace (SETTLED 17 — the stroll)."""
+    if not combat:
+        return 1
+    try:
+        return max(1, _find_nc(entity.npc_char_id).ap)
+    except KeyError:
+        return 1
+
+
 def _move_squad(
     members: list[world.Entity],
     game_map: world.GameMap,
     is_hostile: bool,
     squad_id: str,
+    *,
+    ctx=None, combat: bool = False,
 ) -> None:
     """Move one squad: investigate goals, patrol, or wander."""
     if not members:
         return
-
     if not is_hostile:
-        # Neutral squad: each member wanders independently.
+        # Neutral squad (bystanders panic-scatter at AP during a live
+        # fight — SETTLED 36): each member wanders independently.
         for _m in members:
-            _wander_step(_m, game_map)
+            for _ in range(_step_budget(_m, combat=combat)):
+                _wander_step(_m, game_map)
         return
     _squad_goal = next(
         (
@@ -395,10 +433,35 @@ def _move_squad(
         # goal draws the squad — members with their own goal walk it,
         # the rest follow the squad's. LOS aggro stays individual
         # (SETTLED 16 — no collective squad aggro).
+        _stop = _sighted_stop(ctx, game_map) if combat else None
         for _member in members:
-            _investigate_step(_member, game_map, _squad_goal)
+            _investigate_walk(
+                _member, game_map, goal=_squad_goal,
+                steps=_step_budget(_member, combat=combat),
+                stop_check=_stop,
+            )
         return
-    _patrol_step(members, game_map, squad_id)
+    _patrol_walk(members, game_map, squad_id, combat=combat, ctx=ctx)
+
+
+def _patrol_walk(
+    members: list[world.Entity],
+    game_map: world.GameMap,
+    squad_id: str,
+    *, combat: bool = False, ctx=None,
+) -> None:
+    """March the squad's cached patrol path — one cell in peace, up to
+    the LEADER's AP cells in combat time (a squad moves as a unit at
+    its leader's pace; investigators with goals budget per member),
+    stopping the moment a member is sighted."""
+    if not combat:
+        _patrol_step(members, game_map, squad_id)
+        return
+    _stop = _sighted_stop(ctx, game_map)
+    for _ in range(_step_budget(members[0], combat=True)):
+        _patrol_step(members, game_map, squad_id)
+        if any(_stop(_m) for _m in members):
+            return
 
 
 def _wander_step(entity: world.Entity, game_map: world.GameMap) -> None:
@@ -418,12 +481,14 @@ def _prune_dead_squad_paths(game_map: world.GameMap) -> None:
         del _paths[k]
 
 
-def _is_movable_this_tick(ctx, entity: world.Entity) -> bool:
+def _is_movable_this_tick(entity: world.Entity, *, combat: bool = False) -> bool:
     """Whether the patrol pass should move ``entity`` this tick.
 
     Dormant prison security stands where placed; combat participants
-    are driven by the combat AI; guards/ambushers hold position; and
-    idle NPCs skip some ticks via the move-chance roll.
+    are driven by the combat AI; guards/ambushers hold position unless
+    investigating; idle NPCs skip some ticks via the move-chance roll —
+    except in combat time, when every un-engaged mover walks its AP
+    (SETTLED 17).
     """
     if getattr(entity, 'powered_down', False):
         return False  # dormant prison security (doc 30)
@@ -433,17 +498,19 @@ def _is_movable_this_tick(ctx, entity: world.Entity) -> bool:
         # Stationary by design — EXCEPT while investigating a goal
         # (noise or a broken fight's LOS end; cleared on arrival/give-up).
         return _goal_cell(entity) is not None
+    if combat:
+        return True
     return _goal_cell(entity) is not None or RNG.random() < _MOVE_CHANCE
 
 
-def _partition_movers(ctx, game_map) -> tuple[dict, list]:
+def _partition_movers(ctx, game_map, *, combat: bool = False) -> tuple[dict, list]:
     """Split this tick's movable NPCs into squads and solos."""
     _squad_map: dict[str, list[world.Entity]] = {}
     _solos: list[world.Entity] = []
     for _e in game_map.entities:
         if _e is ctx.player or not getattr(_e, 'npc_char_id', ''):
             continue
-        if not _is_movable_this_tick(ctx, _e):
+        if not _is_movable_this_tick(_e, combat=combat):
             continue
         _sid = getattr(_e, 'squad_id', '')
         if _sid:
@@ -453,35 +520,59 @@ def _partition_movers(ctx, game_map) -> tuple[dict, list]:
     return _squad_map, _solos
 
 
-def _move_solo(_e: world.Entity, ctx, game_map: world.GameMap) -> None:
+def _move_solo(
+    _e: world.Entity, ctx, game_map: world.GameMap,
+    *, combat: bool = False,
+) -> None:
     """Move one squadless NPC: investigate, patrol (uncached), or wander."""
     if not _is_hostile(ctx, _e):
-        _wander_step(_e, game_map)
+        for _ in range(_step_budget(_e, combat=combat)):
+            _wander_step(_e, game_map)
         return
     if _goal_cell(_e) is not None:
-        _investigate_step(_e, game_map)
+        _investigate_walk(
+            _e, game_map,
+            steps=_step_budget(_e, combat=combat),
+            stop_check=_sighted_stop(ctx, game_map) if combat else None,
+        )
         return
     # Solo-hostile: patrol without caching (A* per tick is fine for singles).
     _path = _patrol_path("", _e, game_map, cache={})
-    if _path:
-        _nx, _ny = _path[0]
+    if not _path:
+        return
+    _stop = _sighted_stop(ctx, game_map) if combat else None
+    for _ in range(_step_budget(_e, combat=combat)):
+        if not _path:
+            return
+        _nx, _ny = _path.pop(0)
         _dx = _nx - _e.pos.x
         _dy = _ny - _e.pos.y
         if abs(_dx) <= 1 and abs(_dy) <= 1:
             _try_move_entity(_e, _dx, _dy, game_map)
+        if _stop is not None and _stop(_e):
+            return
 
 
 def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
     """Move ground NPCs one tick — patrol for hostiles, wander for neutrals.
 
-    Entities sharing a ``squad_id`` move as a group — the leader's
-    A* path is shared, followers trail in the same direction.
-    Called after the player moves in dungeon mode.
+    Two movement modes (doc 48 SETTLED 17/25): peace time is the 1-tile
+    stroll; while a ground fight is live, every UN-engaged entity —
+    bystanders included (SETTLED 36) — moves its spec AP in tiles.
+    Hostile walkers stop tile-by-tile the moment they enter the
+    player's sight; bystander panic scatter has no brake (they never
+    join the fight). Entities sharing a ``squad_id`` move as a group;
+    called after the player moves in dungeon mode and between combat
+    rounds.
     """
+    _combat = _ground_fight_live(ctx)
     _prune_dead_squad_paths(game_map)
-    _squad_map, _solos = _partition_movers(ctx, game_map)
+    _squad_map, _solos = _partition_movers(ctx, game_map, combat=_combat)
     for _sid, _members in _squad_map.items():
         if _members:
-            _move_squad(_members, game_map, _is_hostile(ctx, _members[0]), _sid)
+            _move_squad(
+                _members, game_map, _is_hostile(ctx, _members[0]), _sid,
+                ctx=ctx, combat=_combat,
+            )
     for _e in _solos:
-        _move_solo(_e, ctx, game_map)
+        _move_solo(_e, ctx, game_map, combat=_combat)

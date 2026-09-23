@@ -140,7 +140,7 @@ def test_unreachable_goal_gives_up():
     hunter.last_seen_pos = world.Position(7, 2)
     game_map.entities.append(hunter)
 
-    assert not ground_npcs._investigate_step(hunter, game_map)
+    assert not ground_npcs._investigate_walk(hunter, game_map)
 
     assert hunter.pos == world.Position(2, 2)
     assert hunter.last_seen_pos is None
@@ -156,7 +156,7 @@ def test_goal_completes_when_los_on_goal():
     )
     hunter.last_seen_pos = world.Position(7, 2)
 
-    assert not ground_npcs._investigate_step(hunter, game_map)
+    assert not ground_npcs._investigate_walk(hunter, game_map)
     assert hunter.pos == world.Position(2, 2)
     assert hunter.last_seen_pos is None
 
@@ -172,7 +172,7 @@ def test_goal_steps_until_los_then_clears():
     )
     hunter.last_seen_pos = world.Position(7, 2)
 
-    assert ground_npcs._investigate_step(hunter, game_map)
+    assert ground_npcs._investigate_walk(hunter, game_map)
     assert hunter.last_seen_pos == world.Position(7, 2)
     assert hunter.pos != world.Position(2, 2)
 

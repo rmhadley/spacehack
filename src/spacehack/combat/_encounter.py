@@ -246,6 +246,31 @@ async def _handle_combat_encounter(ctx, console, encounter) -> str:
     return _cr.outcome
 
 
+def _entity_in_player_sight(ctx, game_map, player_pos, radius, _e) -> bool:
+    """One entity: hostile-reading, within ``radius``, and seen through
+    the player's own FOV grid when present (fog maps), else Bresenham
+    LOS — the per-entity predicate shared by the aggro scan and the
+    combat-time movement stop check. Cheap positional/hostility checks
+    run first; the LOS read is last."""
+    if (
+        (_e.pos.x, _e.pos.y) == (player_pos.x, player_pos.y)
+        or max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) > radius
+        or getattr(_e, 'powered_down', False)
+    ):
+        return False
+    from ..data.npc_chars import find_npc_char as _fnc
+    from .. import faction as _faction
+    if not _is_hostile_combatant(ctx, _e, _fnc, _faction):
+        return False
+    _visible = getattr(game_map, "visible", None)
+    if _visible is not None:
+        return _visible[_e.pos.y][_e.pos.x]
+    from ._animations import _has_los
+    return _has_los(
+        game_map, player_pos.x, player_pos.y, _e.pos.x, _e.pos.y,
+    )
+
+
 def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
     """Hostile map entities within ``radius`` that the player can see.
 
@@ -255,28 +280,23 @@ def _visible_hostile_entities(ctx, game_map, player_pos, radius) -> list:
     be able to see them (playtest finding, 2026-09-02). Falls back to
     Bresenham LOS on maps without fog.
     """
-    from ..data.npc_chars import find_npc_char as _fnc
-    from .. import faction as _faction
-    from ._animations import _has_los
-
-    _visible = getattr(game_map, "visible", None)
-
-    def _seen(e) -> bool:
-        if _visible is not None:
-            return _visible[e.pos.y][e.pos.x]
-        return _has_los(
-            game_map, player_pos.x, player_pos.y, e.pos.x, e.pos.y,
-        )
-
     return [
         _e for _e in game_map.entities
         if _e is not None
-        and (_e.pos.x, _e.pos.y) != (player_pos.x, player_pos.y)
-        and max(abs(_e.pos.x - player_pos.x), abs(_e.pos.y - player_pos.y)) <= radius
-        and not getattr(_e, 'powered_down', False)
-        and _is_hostile_combatant(ctx, _e, _fnc, _faction)
-        and _seen(_e)
+        and _entity_in_player_sight(ctx, game_map, player_pos, radius, _e)
     ]
+
+
+def hostile_in_player_sight(ctx, game_map, entity) -> bool:
+    """The stepwise-join stop predicate (doc 48 SETTLED 17): one
+    hostile-reading entity currently visible to the player. The
+    combat-time movement pass halts a walker the moment this turns
+    True — investigators never overshoot past LOS; the join itself
+    happens through the existing LOS scans."""
+    _radius = getattr(game_map, "sight_radius", 8)
+    return _entity_in_player_sight(
+        ctx, game_map, ctx.player.pos, _radius, entity,
+    )
 
 
 def _is_hostile_combatant(ctx, entity, find_char, faction) -> bool:

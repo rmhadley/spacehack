@@ -320,6 +320,151 @@ def test_fixed_rows_roll_their_authored_weapons():
     assert noise.rolled_weapon_quality("monster_claws", 4) == 0  # never rolls
 
 
+# --- combat-time movement + stepwise LOS join (SETTLED 17/25/36) -------------
+
+def _approach_fixture():
+    """A hunter at the west end of a row, its goal far east behind
+    walls (LOS blocked, path detours), the player's fog sightline
+    opening at x=4 — the walker must stop there mid-approach."""
+    player = world.Entity("@", (255, 255, 255), world.Position(7, 2))
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(0, 2),
+        npc_char_id="dust_prowler",  # ap 6
+    )
+    hunter.last_seen_pos = world.Position(19, 2)
+    game_map = _wide_map(player, hunter)
+    game_map.tiles[2][10] = world.DUNGEON_WALL  # goal out of sight:
+    game_map.tiles[2][11] = world.DUNGEON_WALL  # path detours via row 1
+    game_map.visible = [
+        [x >= 4 for x in range(game_map.width)]
+        for _ in range(game_map.height)
+    ]
+    game_map.seen = [row[:] for row in game_map.visible]
+    return player, hunter, game_map
+
+
+def test_combat_time_investigator_walks_ap_and_stops_at_sight(monkeypatch):
+    """During a live fight an un-engaged hunter walks its spec AP in
+    tiles — and STOPS the moment it enters the player's sight, never
+    overshooting past LOS (SETTLED 17)."""
+    from src.spacehack import ground_npcs
+
+    player, hunter, game_map = _approach_fixture()
+    ctx, _ = _ctx(player)
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: True)
+
+    ground_npcs.move_ground_npcs(ctx, game_map)
+
+    assert hunter.pos == world.Position(4, 2)  # stopped AT the sightline
+    assert hunter.pos.x < 6  # AP left unspent — no overshoot
+    assert hunter.last_seen_pos == world.Position(19, 2)  # goal holds
+
+
+def test_peace_time_movement_stays_one_tile(monkeypatch):
+    """No live fight: everything strolls one tile per tick (SETTLED 25)."""
+    from src.spacehack import ground_npcs
+
+    player, hunter, game_map = _approach_fixture()
+    ctx, _ = _ctx(player)
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: False)
+
+    ground_npcs.move_ground_npcs(ctx, game_map)
+
+    assert hunter.pos == world.Position(1, 2)  # the stroll: one tile
+
+
+def test_combat_time_solo_patrol_walks_ap(monkeypatch):
+    """A solo hostile without a goal patrols its AP in tiles during a
+    live fight (SETTLED 17) — the path head pops per step — and one
+    tile in peace."""
+    from src.spacehack import ground_npcs
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 10))
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(0, 2),
+        npc_char_id="dust_prowler",  # ap 6
+    )
+    game_map = _wide_map(player, hunter)
+    game_map.visible = [  # never sighted: the patrol keeps its budget
+        [False for _ in range(game_map.width)]
+        for _ in range(game_map.height)
+    ]
+    ctx, _ = _ctx(player)
+    monkeypatch.setattr(
+        ground_npcs, "_patrol_path",
+        lambda _sid, e, _map, cache=None: [
+            (x, e.pos.y) for x in range(e.pos.x + 1, 20)
+        ],
+    )
+
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: True)
+    ground_npcs.move_ground_npcs(ctx, game_map)
+    assert hunter.pos == world.Position(6, 2)  # full AP along the path
+
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: False)
+    monkeypatch.setattr(ground_npcs, "_MOVE_CHANCE", 1.0)
+    ground_npcs.move_ground_npcs(ctx, game_map)
+    assert hunter.pos == world.Position(7, 2)  # one tile per tick
+
+
+def test_combat_time_squad_patrol_marches_leader_pace(monkeypatch):
+    """A patrolling squad marches its cached path at the LEADER's AP in
+    combat time — a unit moves together (SETTLED 17/37)."""
+    from src.spacehack import ground_npcs
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 10))
+    members = [
+        world.Entity("p", (255, 100, 100), world.Position(0, 2),
+                     npc_char_id="dust_prowler", squad_id="pack"),  # ap 6
+        world.Entity("p", (255, 100, 100), world.Position(0, 3),
+                     npc_char_id="dust_prowler", squad_id="pack"),
+    ]
+    game_map = _wide_map(player, *members)
+    game_map.visible = [
+        [False for _ in range(game_map.width)]
+        for _ in range(game_map.height)
+    ]
+    ctx, _ = _ctx(player)
+    ground_npcs._paths.pop("pack", None)
+    monkeypatch.setattr(
+        ground_npcs, "_patrol_path",
+        lambda _sid, e, _map, cache=None: [(e.pos.x + 1, e.pos.y)],
+    )
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: True)
+
+    ground_npcs.move_ground_npcs(ctx, game_map)
+
+    assert members[0].pos == world.Position(6, 2)  # leader's AP: the pace
+
+
+def test_bystanders_panic_scatter_at_ap_during_a_fight(monkeypatch):
+    """Non-combatants join combat-time movement (SETTLED 36): a
+    bystander wanders its AP in tiles while a fight is live, ignoring
+    gunfire (no attractor), one tile in peace."""
+    from src.spacehack import ground_npcs
+
+    player = world.Entity("@", (255, 255, 255), world.Position(15, 2))
+    bystander = world.Entity(
+        "c", (235, 215, 175), world.Position(5, 5),
+        npc_char_id="civilian_bystander",  # ap 4, non-hostile: wanders
+    )
+    game_map = _wide_map(player, bystander)
+    ctx, _ = _ctx(player)
+    monkeypatch.setattr(
+        ground_npcs, "_random_adjacent",
+        lambda _e, _map: (_e.pos.x + 1, _e.pos.y),  # flee east, deterministically
+    )
+
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: True)
+    ground_npcs.move_ground_npcs(ctx, game_map)
+    assert bystander.pos.x == 5 + 4  # AP tiles of panic
+
+    monkeypatch.setattr(ground_npcs, "_ground_fight_live", lambda _ctx: False)
+    monkeypatch.setattr(ground_npcs, "_MOVE_CHANCE", 1.0)
+    ground_npcs.move_ground_npcs(ctx, game_map)
+    assert bystander.pos.x == 5 + 4 + 1  # back to the 1-tick stroll
+
+
 # --- squads follow noise as a unit (SETTLED 37) ------------------------------
 
 def test_squad_follows_any_members_goal():
@@ -369,7 +514,7 @@ def test_guard_re_perches_where_its_investigation_ends():
     game_map = _floor_map()
     game_map.tiles[2][5] = world.DUNGEON_WALL  # LOS blocked until walked
 
-    while ground_npcs._investigate_step(guard, game_map):
+    while ground_npcs._investigate_walk(guard, game_map):
         pass  # walk the goal out (bounded by the map edge)
 
     assert guard.last_seen_pos is None          # investigation done
