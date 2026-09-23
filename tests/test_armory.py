@@ -247,3 +247,24 @@ def test_storage_rows_colour_the_tiered_names():
 
     assert rows[1].label == "Overclocked Mono Blade"
     assert rows[1].runs == (("Overclocked Mono Blade", (130, 210, 240)),)
+
+
+def test_log_equipped_colours_the_tiered_name():
+    from types import SimpleNamespace as NS
+
+    from spacehack import message_log
+    from spacehack.ground_equipment import StoredGroundEquipment
+    from spacehack.menus._armory import _log_equipped
+
+    log = message_log.MessageLog()
+    _log_equipped(
+        NS(log=log), StoredGroundEquipment("weapon", "mono_blade", 3),
+    )
+
+    entry = log.history()[-1]
+    assert entry.text == "Equipped Prototype Mono Blade."
+    assert entry.runs == (
+        ("Equipped ", None),
+        ("Prototype Mono Blade", (190, 140, 255)),
+        (".", None),
+    )

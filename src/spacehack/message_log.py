@@ -111,7 +111,11 @@ class MessageLog:
 
     Consecutive identical messages (same text and color) are coalesced into
     a single entry with an ``x<count>`` suffix, e.g.
-    ``"A wall blocks your path. x3"``.
+    ``"A wall blocks your path. x3"``. Run-bearing entries coalesce only
+    into an already-plain entry: a coalesced line drops its runs (its
+    text gains the count suffix, which the runs no longer join to), so
+    the next identical run-bearing line starts a fresh entry — tiered
+    lines pair (``x2``) instead of counting up.
 
     Supports colored messages via :meth:`add_colored`. The plain
     :meth:`add` method uses :data:`COLOR_MESSAGE` for backward

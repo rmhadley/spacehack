@@ -5417,3 +5417,61 @@ def test_screen_rows_thread_runs_into_the_row_painter(monkeypatch):
         (("Prototype Compact Reactor Mk. 1", (190, 140, 255)),),
     )
     assert captured[1] == ("Shield Mk. 1", None)
+
+
+def test_pack_manage_choices_colour_tiered_swap_options():
+    from types import SimpleNamespace as NS
+
+    from spacehack import character_screen
+    from spacehack.ground_equipment import StoredGroundEquipment
+
+    ctx = NS(
+        equipped_ground_weapons=[],
+        equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("armor", "light_vest", 2),
+        ],
+        ground_stats=NS(strength=10),
+        ground_expedition_items=[],
+    )
+    options = character_screen._swap_options(ctx, "armor", "body")
+
+    choices = character_screen._pack_manage_choices(
+        ctx, "armor", "body", options, None,
+    )
+
+    assert choices == (
+        (
+            "Overclocked Light Armor Vest", "PACK_SWAP:armor:body:0",
+            (("Overclocked Light Armor Vest", (130, 210, 240)),),
+        ),
+    )
+
+
+def test_pack_option_runs_drops_to_none_for_unresolvable_entries():
+    from types import SimpleNamespace as NS
+
+    from spacehack import character_screen
+
+    ctx = NS(ground_expedition_inventory=[NS(item_type="weapon", item_id="ghost", quality=0)])
+    assert character_screen._pack_option_runs(ctx, 0) is None
+    assert character_screen._pack_option_runs(ctx, 9) is None
+
+
+def test_log_installed_colours_the_tiered_name():
+    from types import SimpleNamespace as NS
+
+    from spacehack import message_log
+    from spacehack.menus._loadout import _log_installed
+    from spacehack.ship import StoredEquipment
+
+    log = message_log.MessageLog()
+    _log_installed(NS(log=log), StoredEquipment("module", "shield_mk2", quality=2))
+
+    entry = log.history()[-1]
+    assert entry.text == "Installed Overclocked Shield Mk. 2 from storage."
+    assert entry.runs == (
+        ("Installed ", None),
+        ("Overclocked Shield Mk. 2", (130, 210, 240)),
+        (" from storage.", None),
+    )

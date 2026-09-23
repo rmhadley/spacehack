@@ -12,6 +12,15 @@ choice routing only; equipment mutation lives in :mod:`spacehack.ground_equipmen
 
 from __future__ import annotations
 
+from ._armory_buy import (  # noqa: F401 — detail helpers + re-exported buy rows
+    _armor_detail,
+    _armor_effects,
+    _buy_ammo_rows,
+    _buy_consumable_rows,
+    _buy_rows,
+    _weapon_detail,
+)
+
 from .. import ground_equipment
 from ..game_context import GameContext
 
@@ -72,36 +81,6 @@ def _sell_price(item_id: str, quality: int = 0) -> int:
     if quality <= 0:
         return price // 2
     return max(1, (price * quality_multiplier_pct(family, quality) + 100) // 200)
-
-def _weapon_detail(spec) -> str:
-    """Format a ground weapon's useful armory details."""
-    hands = "2H" if spec.hands == 2 else "1H"
-    bypass = "  Armor bypass" if spec.armor_bypass else ""
-    return (
-        f"{hands}  {spec.damage_type.title()}  Damage: {spec.damage}  "
-        f"Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}"
-        f"{bypass}"
-    )
-
-def _armor_effects(spec) -> str:
-    """Format one armor piece's cybernetic bonuses, or an empty string."""
-    bonuses = []
-    if spec.ap_bonus:
-        bonuses.append(f"+{spec.ap_bonus} AP")
-    if spec.hit_bonus:
-        bonuses.append(f"+{spec.hit_bonus}% Hit")
-    if spec.melee_bonus:
-        bonuses.append(f"+{spec.melee_bonus} Melee")
-    if spec.hp_bonus:
-        bonuses.append(f"+{spec.hp_bonus} HP")
-    return f"  {' '.join(bonuses)}" if bonuses else ""
-
-def _armor_detail(spec) -> str:
-    """Format one armor piece's slot, defense, and cybernetic effects."""
-    return (
-        f"{spec.slot.title()}  Defense: {spec.defense}"
-        f"{_armor_effects(spec)}  {spec.description}"
-    )
 
 def _name_with_tier(name: str, quality: int, prefix: str = "") -> tuple:
     """``(label, runs)`` — the tiered name coloured inside its label."""
@@ -940,12 +919,3 @@ async def _run_armory_menu(ctx: GameContext, planet_id: str = "") -> None:
     await pygame_split.run_interactive(
         ctx, build_frame, apply_action, caption="spacehack - armory",
     )
-
-
-# Buy-view row builders live in the sibling module (ratchet split);
-# re-exported so callers keep _armory.* import paths.
-from ._armory_buy import (  # noqa: F401 — re-export surface
-    _buy_ammo_rows,
-    _buy_consumable_rows,
-    _buy_rows,
-)
