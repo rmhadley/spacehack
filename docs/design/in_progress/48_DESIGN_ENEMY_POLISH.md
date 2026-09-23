@@ -2477,12 +2477,14 @@ deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
   `_scatter_layout_enemies` resolves a role token through
   `CREW_ROLES[crew_faction]` (raw spec ids pass through unchanged);
   the dial scales `security_drone`-role markers' spawn chance
-  (`chance × weight`, capped 1.0). Callers passing ENEMY-bearing
-  layouts pass the faction: `game_interactions.begin_capture_boarding`
-  (the boarded spec's faction + dial), `boarding_wrecks` derelict +
-  salvage paths (pirate; survey_a's raw ids bypass); `landmark.py` /
+  (`chance × weight`, capped 1.0). The SEAM build wires
+  `crew_faction` at every ENEMY-bearing caller —
+  `game_interactions.begin_capture_boarding` (the boarded spec's
+  faction) and the three `boarding_wrecks` paths (pirate; survey_a's
+  raw ids bypass) — BEFORE any deck re-authors (omitted-role-skips
+  would load crewless decks at intermediate commits); `landmark.py` /
   `city_landmarks.py` raw-id layouts unchanged (grep-verified caller
-  list — seven sites).
+  list — seven src sites + the tools/ editor, reviewer-found).
 - **The Merchant row** (`data/npc_chars/core.py` + family): id
   `merchant`, name **"Merchant"** (SETTLED 38), char `h`, fg
   (100,220,140), faction merchant, band-exempt (all-zero
@@ -2514,16 +2516,27 @@ deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
   (crew `line` markers, droid `security_drone` markers, one
   `heavy`=assault_drone slot, parasites → `stowaway`); derelict
   scout_a/freightliner_a → pirate tokens (same specs resolve);
-  survey_a UNTOUCHED (raw consortium pins). Marker-letter
-  `COLOUR:` overrides RETIRE — `_scatter_layout_enemies` renders the
-  resolved spec's `fg` (single-sourced identity; fixes the off-rust
-  riflemen), and the stale directives leave the files (tile colors
-  untouched).
+  survey_a's markers stay raw-pinned. Chances/sizes MAY be retuned
+  per role inside the user-reviewed blocks — the one required retune:
+  merchant `security_drone` base chances rise to 0.6-0.8 so the dial
+  reads (×1.5 caps at 1.0, ×0.5 still spawns — reviewer-caught: at
+  today's 0.25, "the caravan is dronier" is not reliably observable).
+  Marker-letter `COLOUR:` overrides RETIRE — `_scatter_layout_enemies`
+  renders the resolved spec's `fg` (single-sourced identity), and the
+  stale directives leave the files (tile colors untouched). The
+  MECHANISM recolors every ENEMY-marker layout, not just the seven:
+  landmark drone decks (wolf_camp/mercury_vault/barnards_cache) drop
+  their fallback red for machine bronze, and survey_a's consortium
+  crew shifts to family navy — the same fix extended, playtest line
+  added.
 
-**Build order:** CREW_ROLES + resolution seam + always-hostile flag
-(pure core, tests first) → the Merchant row + family + lint pin →
-deck re-authoring (markers + COLOUR retirement, per-file commits) →
-dial field + boarding-caller wiring → full gate.
+**Build order:** CREW_ROLES + resolution seam + crew_faction
+wiring at all four boarding callers + always-hostile flag (pure
+core, tests first — the wiring lands BEFORE any deck re-authors) →
+the Merchant row + family + lint pin → deck re-authoring (markers +
+COLOUR retirement, per-file commits) → dial field + dial-read
+chances → full gate. (Reviewer-caught inversion: decks re-authored
+before the wiring would load crewless — the phase-4 lesson again.)
 
 **Binding rulings:** SETTLED 3, 5, 7, 10, 13, 18 (perched marksmen
 via marker placement), 28, 38. One geometry serves every faction —
@@ -2569,8 +2582,17 @@ boarding/layout-compile/city suites updated.
    never share a screen.
 6. Save/quit inside a deck → Continue: crew, hostility, and dial
    state identical.
-7. Regression: dig/dungeon/city spawns, phase-4 band scaling, and
+7. Identity beyond the decks: landmark drone sites (wolf camp,
+   mercury vault) read machine bronze, and the survey wreck's
+   consortium crew reads family navy — the color-fix extended; on
+   merchant decks, eyeball the green `h` Merchant against the green
+   `>` exit tile (35 apart, different glyphs — identity holds, feel
+   rules).
+8. Regression: dig/dungeon/city spawns, phase-4 band scaling, and
    phase-5 tactics unchanged; space combat untouched.
+9. Guide-diff item: expected NONE — boarding is documented flow and
+   crews explain themselves in play; confirm-grep of the guide, any
+   hit becomes a called-out before/after.
 8. Guide-diff item: expected NONE — boarding is documented flow and
    crews explain themselves in play; confirm-grep of the guide, any
    hit becomes a called-out before/after.
