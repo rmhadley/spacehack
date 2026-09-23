@@ -182,13 +182,13 @@ def _paint_port_apron(tiles, theme, spec) -> None:
 
 
 def _paint_player_berth(tiles, theme, spec) -> None:
-    """Mark the player's reserved berth inside the port landing apron."""
+    """Mark the player's reserved berth inside the port landing apron.
+
+    The plaza tile alone marks the berth — no neon corners: the
+    landing tile sat at the focal point of four emitters and read
+    very bright (user playtest 2026-09-23)."""
     berth = spec.hangar_anchor
     tiles[berth.y][berth.x] = theme.plaza
-    for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        x, y = berth.x + dx, berth.y + dy
-        if 0 <= x < MARS_CITY_WIDTH and 0 <= y < MARS_CITY_HEIGHT:
-            tiles[y][x] = theme.neon
 
 
 def _paint_decorations(tiles, theme) -> None:

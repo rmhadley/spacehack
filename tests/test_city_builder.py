@@ -825,13 +825,7 @@ def test_mars_spaceport_apron_replaces_west_port_road():
     """The port's west side is landing space; the city road starts east."""
     game_map = load_planet("mars")
     berth = find_planet_spec("mars").hangar_anchor
-    marked_berth = {
-        (berth.x, berth.y),
-        (berth.x - 1, berth.y - 1),
-        (berth.x + 1, berth.y - 1),
-        (berth.x - 1, berth.y + 1),
-        (berth.x + 1, berth.y + 1),
-    }
+    marked_berth = {(berth.x, berth.y)}
     for y in range(87, 94):
         for x in range(3, 35):
             if (x, y) not in marked_berth:
