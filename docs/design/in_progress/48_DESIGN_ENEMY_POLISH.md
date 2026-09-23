@@ -1241,6 +1241,63 @@ Rulings:
   squad. LOS aggro stays individual (SETTLED 16 intact: no
   collective squad aggro).
 
+## SETTLED 38 (2026-09-23) — phase-6 brief-time rulings (role tables, the Merchant row, hostility scope, authoring bounds)
+
+User, verbatim (four batches in one pass):
+
+> batch 1: merchant needs heavy/marksman/security_drone filled out.
+> heavy = assault droid? marksman = droid that best matches.
+> batch 2: 1 - "Merchant" alone is what's sitting best with me.
+> Since it's merchants + droids, that should work? We can always come
+> back around and rename it if needed. 2 - h and match ship color.
+> 3 - agree
+> batch 3: yes -- capture/derelict only. droid concern for merchant
+> droid exception is covered in my batch 1 ruling.
+> batch 4: yes color overrides retire (I suspect they already
+> override). if you need to add a letter or move a letter, it's fine
+> but as long as I'm the reviewer. it's too easy to mess up map
+> geometry.
+
+Rulings:
+
+- **Merchant defense is DROIDS across the roles** (completes the
+  merchant CREW_ROLES row): `heavy` = **assault_drone** (the armored
+  anchor, ap 3 — SETTLED 18/27's machine anchor), `marksman` = the
+  best-matching droid = **sentry_drone** (the only ranged machine —
+  drone_laser), `security_drone` = **sentry_drone** (the namesake and
+  the dial's target). Marksman and security_drone share a spec for
+  now — the ROLES differ (marksman markers ride perch positions at
+  fixed weight; security_drone markers carry the wealth dial); a
+  future dedicated droid row can split them. The merchant table is
+  the SETTLED 7 doctrine as data: honest light crew + droids as the
+  entire defense shape.
+- **The merchant crew row is named "Merchant"** (rename reserved —
+  "we can always come back around and rename it"). Ground family:
+  letter **`h`**, color = the fleet's merchant green (100,220,140)
+  (theater-matching, like militia's blue). Cross-registry pin gains
+  the `h` entry (ground Merchant vs space hauler — never co-rendered).
+- **Merchant row shape stands as proposed** (batch 2 item 3 "agree"):
+  band-exempt (all-zero weights), fixed light weapons
+  (kinetic_pistol/combat_knife — no family ladder), hp ~16, ap 4,
+  small loot, low xp.
+- **The always-hostile override is CAPTURE/DERELICT INTERIORS ONLY**
+  — cities, quest landmarks, and authored sites keep reading rep.
+  The merchant-droid hostility question is covered by the batch-1
+  table (droids are always_hostile rows; the Merchant crew row is
+  what the override flips inside a boarded deck).
+- **Marker COLOUR: overrides RETIRE** (crew identity renders from
+  the resolved spec's family color — single-sourced; fixes today's
+  off-rust riflemen). Tile colors (walls/floors/doors) untouched.
+- **Grid edits are allowed with the USER AS REVIEWER** — new or moved
+  marker letters are fine, called out for review ("it's too easy to
+  mess up map geometry"): the brief lists every geometry-touching
+  edit, and the playtest eyeballs each deck.
+- Leans ruled by silence (no objection in the batch-1 response):
+  militia `heavy` = marine (the strike face as the serious case);
+  `stowaway` weight 0 for militia (marker legal, table omits it);
+  pirate tables keep `security_drone` (repurposed hardware); derelict
+  wrecks stay pirate-crewed via the pirate table.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -2395,6 +2452,129 @@ bystander AP movement during a live fight.
 Dev grants: phase-4's disjoint per-face slices stand; add the
 deterministic carrier grant for item 4 (SPACEHACK_DEV, `dev_mode.py`
 + `test_dev_mode.py`).
+
+## Phase 6 Implementation brief (PROPOSED 2026-09-23 — SETTLED 3/5/7/
+## 10/13/18/28/38)
+
+**Scope (files / hook points):**
+
+- **The role-token grammar + CREW_ROLES** (new
+  `data/npc_chars/crew_roles.py`, frozen table): `CREW_ROLES:
+  dict[faction, dict[role, spec_id]]` resolving the SETTLED 28
+  vocabulary (`line` / `heavy` / `marksman` / `security_drone` /
+  `stowaway`) per faction — pirate {line: raider, heavy: brute,
+  marksman: rifleman, security_drone: sentry_drone, stowaway:
+  hull_parasite}; militia {line: trooper, heavy: marine, marksman:
+  sniper, security_drone: sentry_drone — stowaway OMITTED (weight 0,
+  SETTLED 38)}; merchant {line: Merchant, heavy: assault_drone,
+  marksman: sentry_drone, security_drone: sentry_drone, stowaway:
+  hull_parasite}; consortium {line: enforcer, marksman: gunner,
+  security_drone: sentry_drone, stowaway: hull_parasite — authored
+  decks only (SETTLED 12), raw ids stay legal}. Omitted role = the
+  marker skips at load.
+- **Marker resolution seam** (`dungeon_layout.py`): `load_layout`
+  gains `crew_faction: str = ""` + `security_drones: float = 1.0`;
+  `_scatter_layout_enemies` resolves a role token through
+  `CREW_ROLES[crew_faction]` (raw spec ids pass through unchanged);
+  the dial scales `security_drone`-role markers' spawn chance
+  (`chance × weight`, capped 1.0). Callers passing ENEMY-bearing
+  layouts pass the faction: `game_interactions.begin_capture_boarding`
+  (the boarded spec's faction + dial), `boarding_wrecks` derelict +
+  salvage paths (pirate; survey_a's raw ids bypass); `landmark.py` /
+  `city_landmarks.py` raw-id layouts unchanged (grep-verified caller
+  list — seven sites).
+- **The Merchant row** (`data/npc_chars/core.py` + family): id
+  `merchant`, name **"Merchant"** (SETTLED 38), char `h`, fg
+  (100,220,140), faction merchant, band-exempt (all-zero
+  `stat_weights`), fixed light weapons
+  (`weapons=("kinetic_pistol", "combat_knife")`), hp 16, ap 4, small
+  loot pool, xp ~12. `CHAR_CLASS_FAMILIES` gains the merchant family
+  (letter `h`, faction recruiter); the cross-registry lint pin gains
+  the `h` entry (ground Merchant vs space hauler — never
+  co-rendered).
+- **The droid dial on the spec** (`data/npc_ships/`):
+  `security_drones: float = 1.0` on NpcShipSpec — merchant_caravan
+  1.5, merchant_freighter 1.0, merchant_hauler 0.5 (tunable leans);
+  every other spec leaves the default.
+- **Always-hostile capture/derelict interiors** (SETTLED 3/38):
+  `GameMap.hostile_interior: bool = False` (declared field);
+  `begin_capture_boarding` + the `boarding_wrecks` paths stamp it at
+  load; `faction.spec_is_hostile` gains an optional `game_map` param
+  that returns True when the flag is set (the one uniform seam —
+  ground read sites `_entity_in_player_sight`, `ground_npcs`,
+  `city_npcs` pass their map); serialized in
+  `saveload_maps._optional_map_fields`. Crew specs KEEP their faction
+  tags — rep deltas land by crew faction through the existing tables
+  (SETTLED 28).
+- **Deck re-authoring** (7 layout files — the marker blocks only;
+  every geometry-touching edit called out for USER REVIEW, SETTLED
+  38): scout/cruiser/frigate_crew → pirate role tokens (one
+  single-slot marker per big deck becomes `heavy`; the small scout
+  deck stays brute-free); hauler/freightliner_crew → merchant tokens
+  (crew `line` markers, droid `security_drone` markers, one
+  `heavy`=assault_drone slot, parasites → `stowaway`); derelict
+  scout_a/freightliner_a → pirate tokens (same specs resolve);
+  survey_a UNTOUCHED (raw consortium pins). Marker-letter
+  `COLOUR:` overrides RETIRE — `_scatter_layout_enemies` renders the
+  resolved spec's `fg` (single-sourced identity; fixes the off-rust
+  riflemen), and the stale directives leave the files (tile colors
+  untouched).
+
+**Build order:** CREW_ROLES + resolution seam + always-hostile flag
+(pure core, tests first) → the Merchant row + family + lint pin →
+deck re-authoring (markers + COLOUR retirement, per-file commits) →
+dial field + boarding-caller wiring → full gate.
+
+**Binding rulings:** SETTLED 3, 5, 7, 10, 13, 18 (perched marksmen
+via marker placement), 28, 38. One geometry serves every faction —
+never fork a layout; the user reviews every grid edit; interiors
+hostile in capture/derelict scope only; merchant defense is droids
+across heavy/marksman/security_drone.
+
+**Stop point:** no space Tier 0/1 (phases 7-8), no ancient machines
+(9), no biome fauna or machine expansion (10 — a second droid row to
+split marksman/security_drone is FUTURE authoring), no consortium
+exposure beyond the table row + survey_a as-is (11), no prison
+re-pins.
+
+**Required tests:** CREW_ROLES integrity (every cell a live spec id;
+militia omits stowaway; merchant fills all five); role resolution
+per faction at load + raw-id passthrough; deck crew correctness
+(militia deck crews troopers/marines/snipers at +50 rep AND fights —
+the hostile_interior read; merchant deck crews Merchants + sentry
+droids; pirate decks include a brute; derelicts unchanged);
+hostile_interior round-trips save/load and stays OUT of
+cities/landmarks; the dial scales security_drone chances (caravan >
+freighter > hauler, pinned); Merchant row band-exempt + fixed
+weapons + family lint green; crew renders family colors (no COLOUR
+override — a boarded rifleman reads family rust); kill-rep deltas by
+crew faction (militia crew kills move militia rep); existing
+boarding/layout-compile/city suites updated.
+
+**Playtest checkpoint:**
+
+1. Board a militia cruiser (dev: force a patrol fight at +50
+   militia rep): the deck fights on entry — troopers, marines, and a
+   perched sniper holding a sightline; wiping the crew visibly costs
+   militia rep.
+2. Board each merchant hull: Merchants (green `h`, light pistols)
+   plus droids — the caravan noticeably dronier than the hauler
+   (dial), one armored assault droid anchoring the bigger decks.
+3. Board a pirate cruiser/frigate: pirates including a brute; a
+   scout decks out with no brute (small boat).
+4. Derelict wrecks feel unchanged (pirate squatters + parasites);
+   the survey wreck still fields consortium rows.
+5. Identity: every boarded crew reads its family color (no more
+   off-color riflemen); ground `h` Merchant vs space `h` hauler
+   never share a screen.
+6. Save/quit inside a deck → Continue: crew, hostility, and dial
+   state identical.
+7. Regression: dig/dungeon/city spawns, phase-4 band scaling, and
+   phase-5 tactics unchanged; space combat untouched.
+8. Guide-diff item: expected NONE — boarding is documented flow and
+   crews explain themselves in play; confirm-grep of the guide, any
+   hit becomes a called-out before/after.
+
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
 
