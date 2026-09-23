@@ -26,8 +26,8 @@ def test_parse_ship_layout_preserves_map_and_directive_semantics():
         "3": "personal_storage",
         "4": "cargo_bay",
     }
-    assert parsed.enemy_spawn_specs["R"] == ("pirate_rifleman", 1.0, 2, 4)
-    assert parsed.enemy_spawn_specs["m"] == ("hull_parasite", 0.15, 2, 4)
+    assert parsed.enemy_spawn_specs["R"] == ("marksman", 1.0, 2, 4)
+    assert parsed.enemy_spawn_specs["m"] == ("stowaway", 0.15, 2, 4)
     assert parsed.colour_overrides["#"].fg == (120, 130, 150)
 
 

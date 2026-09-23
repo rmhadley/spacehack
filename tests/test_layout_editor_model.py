@@ -31,7 +31,7 @@ def test_existing_ship_document_round_trips_through_canonical_text():
     assert document.mode is AssetMode.SHIP
     assert reparsed.map_lines == document.grid.lines()
     assert reparsed.tile_map["#"] is layout_format.tile_for_name("DUNGEON_WALL")
-    assert reparsed.enemy_spawn_specs["R"] == ("pirate_rifleman", 1.0, 2, 4)
+    assert reparsed.enemy_spawn_specs["R"] == ("marksman", 1.0, 2, 4)
     assert reparsed.loot_zones["4"] == "cargo_bay"
 
 

@@ -52,11 +52,13 @@ TILE: { = HULL_WALL
 TILE: } = HULL_WALL
 TILE: % = DEBRIS
 
-# Enemy spawn markers class@chance#min_num-max_num
-ENEMY: r = pirate_raider@1.0
-ENEMY: R = pirate_rifleman@1.0#2-4
-ENEMY: S = pirate_raider@1.0#3-3
-ENEMY: m = hull_parasite@0.15#2-4
+# Enemy spawn markers — role tokens (doc 48 SETTLED 28): derelicts
+# attract pirate squatters (the boarding_wrecks callers resolve this
+# deck through the pirate table); r/R/S raiders, parasites nest.
+ENEMY: r = line@1.0
+ENEMY: R = marksman@1.0#2-4
+ENEMY: S = line@1.0#3-3
+ENEMY: m = stowaway@0.15#2-4
 
 # Loot mappings
 LOOT: 1 = engine_room
@@ -64,7 +66,8 @@ LOOT: 2 = mess_hall
 LOOT: 3 = personal_storage
 LOOT: 4 = cargo_bay
 
-# Color overrides — each tile type gets a distinct color
+# Color overrides — each tile type gets a distinct color; crew
+# identity renders from the resolved spec's family color (SETTLED 38)
 COLOUR: # = (120, 130, 150)     # hull/bulkhead — steel grey
 COLOUR: { = (120, 130, 150)     # hull bracket — cool steel blue, slightly brighter than #
 COLOUR: } = (120, 130, 150)     # hull bracket -- cool steel blue, slightly brighter than #
@@ -75,6 +78,3 @@ COLOUR: d = (100, 220, 255)     # door — cyan glow
 COLOUR: C = (255, 200, 80)      # cockpit computer — warm gold
 COLOUR: E = (180, 200, 220)     # engine — muted blue-white
 COLOUR: > = (100, 255, 120)     # exit — bright green arrow
-COLOUR: r = (220, 120, 80)      # pirate raider — rust-orange
-COLOUR: R = (200, 80, 80)       # pirate rifleman — faded red
-COLOUR: m = (175, 140, 190)     # hull parasite — sickly mauve

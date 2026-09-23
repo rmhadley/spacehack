@@ -598,7 +598,7 @@ def test_run_auto_explore_real_derelict_escapes_spawn_shaft():
     """
     from src.spacehack.dungeon import load_layout, init_fog, reveal_around
 
-    gm, spawn = load_layout("scout_a")
+    gm, spawn = load_layout("scout_a", crew_faction="pirate")
     assert spawn is not None
     init_fog(gm)
     # Strip scatter-RNG-dependent enemies so no entity can seal the
