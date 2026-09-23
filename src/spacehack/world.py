@@ -427,6 +427,12 @@ class GameMap:
     # first (game_flow._derelict_loot_remains); serialized alongside
     # capture_spec_id.
     derelict_interior: bool = False
+    # Boarded decks fight on entry regardless of faction rep (doc 48
+    # SETTLED 3/38): capture and derelict interiors only — cities,
+    # quest landmarks, and authored sites never stamp it. Read through
+    # faction.spec_is_hostile's game_map param; serialized alongside
+    # the flags above.
+    hostile_interior: bool = False
     cave_cells: set[tuple[int, int]] | None = None
     bridge_crossings: tuple | None = None
     # Time-varying per-cell coloured light grid (see

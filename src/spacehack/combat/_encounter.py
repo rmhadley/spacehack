@@ -260,7 +260,7 @@ def _entity_in_player_sight(ctx, game_map, player_pos, radius, _e) -> bool:
         return False
     from ..data.npc_chars import find_npc_char as _fnc
     from .. import faction as _faction
-    if not _is_hostile_combatant(ctx, _e, _fnc, _faction):
+    if not _is_hostile_combatant(ctx, _e, _fnc, _faction, game_map):
         return False
     _visible = getattr(game_map, "visible", None)
     if _visible is not None:
@@ -299,7 +299,7 @@ def hostile_in_player_sight(ctx, game_map, entity) -> bool:
     )
 
 
-def _is_hostile_combatant(ctx, entity, find_char, faction) -> bool:
+def _is_hostile_combatant(ctx, entity, find_char, faction, game_map=None) -> bool:
     """Whether ``entity`` is an aggro-eligible hostile NPC."""
     _eid = getattr(entity, 'npc_char_id', '')
     if not _eid:
@@ -308,7 +308,7 @@ def _is_hostile_combatant(ctx, entity, find_char, faction) -> bool:
         _spec = find_char(_eid)
     except KeyError:
         return False
-    return faction.spec_is_hostile(ctx, _spec)
+    return faction.spec_is_hostile(ctx, _spec, game_map)
 
 
 def visible_hostiles(

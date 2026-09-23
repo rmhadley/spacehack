@@ -125,7 +125,7 @@ _GUILD_FACTION: dict[str, str] = {
 }
 
 
-def spec_is_hostile(ctx, spec) -> bool:
+def spec_is_hostile(ctx, spec, game_map=None) -> bool:
     """True if a ground NPC char spec is hostile toward the player.
 
     Monsters (``always_hostile=True``) are always hostile regardless
@@ -134,12 +134,20 @@ def spec_is_hostile(ctx, spec) -> bool:
     from the BROADCASTING ID's sheet — on the ground the read is the
     same as the ship's transponder (doc 40 phase 4).
 
+    ``game_map`` (optional) carries the boarded-deck override (doc 48
+    SETTLED 3/38): on a ``hostile_interior`` map every crew fights —
+    boarding is the player's aggression. The five ground read sites
+    pass their map; maps without the flag read rep exactly as before.
+
     Duck-typed: callers may pass any spec object with
     ``always_hostile`` / ``faction`` attributes (e.g. an
     :class:`~spacehack.data.npc_chars.NpcCharSpec`). Shared by
     ``combat._encounter.detect_ground_combat``,
-    ``ground_npcs._is_hostile``, and ``city_npcs.is_hostile``.
+    ``ground_npcs._is_hostile``, ``city_npcs.is_hostile``,
+    ``noise._hears``, and ``autoexplore.steps_aside_ids``.
     """
+    if game_map is not None and game_map.hostile_interior:
+        return True
     if getattr(spec, "always_hostile", False):
         return True
     from . import identity

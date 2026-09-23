@@ -712,7 +712,7 @@ def test_bump_swaps_a_non_hostile_guard(monkeypatch):
     guard = world.Entity(char="M", fg=(0, 0, 0), pos=world.Position(5, 4), name="", npc_char_id="militia_trooper")
     gm.entities.append(guard)
     state = SimpleNamespace(ctx=SimpleNamespace(), game_map=gm, player=player, current_mode="dungeon")
-    monkeypatch.setattr("src.spacehack.ground_npcs._is_hostile", lambda ctx, ent: False)
+    monkeypatch.setattr("src.spacehack.ground_npcs._is_hostile", lambda ctx, ent, game_map=None: False)
     assert game_loop._resolve_move(state, 1, 0) == ("moved", None)
     assert (player.pos.x, player.pos.y) == (5, 4)
     assert (guard.pos.x, guard.pos.y) == (4, 4)
@@ -726,7 +726,7 @@ def test_bump_keeps_blocking_a_hostile_guard(monkeypatch):
     guard = world.Entity(char="r", fg=(0, 0, 0), pos=world.Position(5, 4), name="", npc_char_id="pirate_raider")
     gm.entities.append(guard)
     state = SimpleNamespace(ctx=SimpleNamespace(), game_map=gm, player=player, current_mode="dungeon")
-    monkeypatch.setattr("src.spacehack.ground_npcs._is_hostile", lambda ctx, ent: True)
+    monkeypatch.setattr("src.spacehack.ground_npcs._is_hostile", lambda ctx, ent, game_map=None: True)
     code, blocker = game_loop._resolve_move(state, 1, 0)
     assert code == "occupied" and blocker is guard
     assert (player.pos.x, player.pos.y) == (4, 4)

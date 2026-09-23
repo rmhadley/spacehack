@@ -30,8 +30,10 @@ from .data.npc_chars import find_npc_char as _find_npc_char
 from .faction import spec_is_hostile as _spec_is_hostile
 
 
-def is_hostile(ctx, entity: world.Entity) -> bool:
-    """True if a city NPC's faction is hostile toward the player."""
+def is_hostile(ctx, entity: world.Entity, game_map=None) -> bool:
+    """True if a city NPC's faction is hostile toward the player
+    (or the hostile-interior override when ``game_map`` carries it —
+    doc 48 SETTLED 3/38; city maps never stamp the flag)."""
     _charid = getattr(entity, "npc_char_id", "")
     if not _charid:
         return False
@@ -39,7 +41,7 @@ def is_hostile(ctx, entity: world.Entity) -> bool:
         _spec = _find_npc_char(_charid)
     except KeyError:
         return False
-    return _spec_is_hostile(ctx, _spec)
+    return _spec_is_hostile(ctx, _spec, game_map)
 
 
 def place_city_npcs(

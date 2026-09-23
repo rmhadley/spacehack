@@ -418,7 +418,7 @@ def test_steps_aside_follows_the_face(monkeypatch):
         broadcast_dark=False,
     )
     monkeypatch.setattr(
-        "src.spacehack.ground_npcs._is_hostile", lambda ctx, ent: False,
+        "src.spacehack.ground_npcs._is_hostile", lambda ctx, ent, game_map=None: False,
     )
     assert ground_npcs.steps_aside(ctx, monster) is True
     assert ground_npcs.steps_aside(ctx, dormant) is False   # never dormant

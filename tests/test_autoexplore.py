@@ -1076,7 +1076,7 @@ def test_executor_swaps_a_planned_through_guard(monkeypatch):
     )
     moved = []
     monkeypatch.setattr(
-        "src.spacehack.ground_npcs._is_hostile", lambda c, e: False,
+        "src.spacehack.ground_npcs._is_hostile", lambda c, e, game_map=None: False,
     )
 
     def _tick(ctx, console, game_map):
@@ -1110,7 +1110,7 @@ def test_swap_refuses_transition_tiles(monkeypatch):
     )
     gm.entities.append(guard)
     monkeypatch.setattr(
-        "src.spacehack.ground_npcs._is_hostile", lambda c, e: False,
+        "src.spacehack.ground_npcs._is_hostile", lambda c, e, game_map=None: False,
     )
     assert ground_npcs.swap_step(
         SimpleNamespace(faction_reputation={"militia": 81}),

@@ -126,7 +126,7 @@ def _hears(
         return False  # dormant security stays deaf (SETTLED 22)
     if getattr(entity, "combat_locked", False):
         return False  # engaged entities ignore new noise (SETTLED 22)
-    if not _spec_is_hostile(ctx, spec):
+    if not _spec_is_hostile(ctx, spec, game_map):
         return False  # non-hostile NPCs ignore gunfire (SETTLED 22)
     _dist = max(
         abs(entity.pos.x - origin.x), abs(entity.pos.y - origin.y),

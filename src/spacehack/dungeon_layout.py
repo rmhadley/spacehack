@@ -240,44 +240,104 @@ def _apply_colours(
             )
 
 
+def _resolve_crew_marker(enemy_id: str, crew_faction: str) -> str | None:
+    """Resolve one ENEMY directive id (doc 48 SETTLED 28/38).
+
+    A role token resolves through ``CREW_ROLES[crew_faction]``; an
+    omitted role returns None (the marker skips at load). Raw spec ids
+    pass through unchanged. A role token without a usable faction
+    table is an authoring error — ValueError surfaces it at the load
+    seam the boarding callers already guard.
+    """
+    from .data.npc_chars.crew_roles import CREW_ROLES, CREW_ROLE_TOKENS
+
+    if enemy_id not in CREW_ROLE_TOKENS:
+        return enemy_id
+    table = CREW_ROLES.get(crew_faction)
+    if table is None:
+        raise ValueError(
+            f"role token {enemy_id!r} cannot resolve without a crew "
+            f"faction table (got crew_faction {crew_faction!r})"
+        )
+    return table.get(enemy_id)
+
+
+_SECURITY_DRONE_ROLE = "security_drone"
+
+
+def _marker_chance(token: str, chance: float, security_drones: float) -> float:
+    """The merchant wealth dial: ``security_drone``-role marker chances
+    scale by the boarded hull's dial, capped at 1.0 (SETTLED 7/38)."""
+    if token == _SECURITY_DRONE_ROLE:
+        return min(1.0, chance * security_drones)
+    return chance
+
+
+def _scatter_marker_squad(
+    build: _LayoutBuild,
+    parsed: layout_format.ParsedLayout,
+    glyph: str,
+    marker: tuple[str, int, int],
+    enemy_id: str,
+    count: int,
+    layout_id: str,
+    band: int,
+) -> None:
+    """Place one resolved marker's squad in its room cells."""
+    _glyph, mx, my = marker
+    occupied = {(entity.pos.x, entity.pos.y) for entity in build.entities}
+    cells = _room_cells(
+        build.tiles,
+        len(build.tiles[0]),
+        len(build.tiles),
+        mx, my,
+        occupied,
+    )
+    if not cells:
+        cells = [(mx, my)]
+    _spec = _find_enemy(enemy_id)
+    _scatter_squad(
+        build.entities,
+        occupied,
+        enemy_id=enemy_id,
+        cells=cells,
+        count=count,
+        squad_id=f"{layout_id}_{glyph}_{mx}_{my}",
+        char=_spec.char,
+        fg=parsed.colour_overrides.get(
+            glyph, layout_format.ColourOverride((255, 100, 100)),
+        ).fg,
+        band=band,
+        bold=_spec.elite,
+    )
+
+
 def _scatter_layout_enemies(
     build: _LayoutBuild,
     parsed: layout_format.ParsedLayout,
     layout_id: str,
     band: int = 0,
+    crew_faction: str = "",
+    security_drones: float = 1.0,
 ) -> None:
     """Scatter authored ENEMY markers; ``band`` (the site's, doc 48
-    SETTLED 35) sizes stats/gear — markers fix specs, not stats."""
+    SETTLED 35) sizes stats/gear — markers fix specs, not stats.
+    ``crew_faction`` resolves role tokens through CREW_ROLES (raw ids
+    pass through); ``security_drones`` is the merchant wealth dial,
+    scaling ``security_drone``-role marker chances (SETTLED 7/38)."""
     from .engine import RNG
 
-    squad_counter = 0
-    for glyph, mx, my in build.enemy_markers:
-        enemy_id, chance, squad_min, squad_max = parsed.enemy_spawn_specs[glyph]
-        if RNG.random() >= chance:
+    for marker in build.enemy_markers:
+        glyph = marker[0]
+        token, chance, squad_min, squad_max = parsed.enemy_spawn_specs[glyph]
+        enemy_id = _resolve_crew_marker(token, crew_faction)
+        if enemy_id is None:
             continue
-        cells = _room_cells(
-            build.tiles,
-            len(build.tiles[0]),
-            len(build.tiles),
-            mx, my,
-            {(entity.pos.x, entity.pos.y) for entity in build.entities},
-        )
-        if not cells:
-            cells = [(mx, my)]
-        squad_id = f"{layout_id}_{glyph}_{squad_counter}"
-        squad_counter += 1
-        _spec = _find_enemy(enemy_id)
-        _scatter_squad(
-            build.entities,
-            {(entity.pos.x, entity.pos.y) for entity in build.entities},
-            enemy_id=enemy_id,
-            cells=cells,
-            count=RNG.randint(squad_min, squad_max),
-            squad_id=squad_id,
-            char=_spec.char,
-            fg=parsed.colour_overrides.get(glyph, layout_format.ColourOverride((255, 100, 100))).fg,
-            band=band,
-            bold=_spec.elite,
+        if RNG.random() >= _marker_chance(token, chance, security_drones):
+            continue
+        _scatter_marker_squad(
+            build, parsed, glyph, marker, enemy_id,
+            RNG.randint(squad_min, squad_max), layout_id, band,
         )
 
 
@@ -595,6 +655,8 @@ def _populate_build(
     capture_modules: tuple,
     wreck_scatter: bool = False,
     spawn_band: int = 0,
+    crew_faction: str = "",
+    security_drones: float = 1.0,
 ) -> None:
     """Run the full scatter/populate pipeline over a built layout.
 
@@ -603,7 +665,9 @@ def _populate_build(
     tinker kits), so pre-existing seeded layouts keep drawing the
     goods they always did before any new consumer.
     """
-    _scatter_layout_enemies(build, parsed, layout_id, spawn_band)
+    _scatter_layout_enemies(
+        build, parsed, layout_id, spawn_band, crew_faction, security_drones,
+    )
     _scatter_loot(build, parsed, loot_budget)
     if component_good_id is not None and component_mission_id is not None:
         _place_component(build, parsed, component_good_id, component_mission_id)
@@ -627,6 +691,19 @@ def _parse_layout_file(
     )
 
 
+def _wrap_build(
+    build: _LayoutBuild, parsed: layout_format.ParsedLayout,
+) -> tuple[world.GameMap, world.Position | None]:
+    """Wrap one populated build into its runtime map and spawn."""
+    game_map = world.GameMap(
+        width=parsed.width,
+        height=parsed.height,
+        tiles=build.tiles,
+        entities=build.entities,
+    )
+    return game_map, build.spawn_pos
+
+
 def load_layout(
     layout_id: str,
     *,
@@ -638,14 +715,18 @@ def load_layout(
     require_spawn: bool = True,
     wreck_scatter: bool = False,
     spawn_band: int = 0,
+    crew_faction: str = "",
+    security_drones: float = 1.0,
 ) -> tuple[world.GameMap, world.Position | None]:
     """Parse an authored layout and return its runtime map and spawn.
 
-    ``capture_modules`` (flown ``StoredEquipment`` instances) seeds the
-    intact-capture strip — only the combat boarding path passes it.
-    ``wreck_scatter`` gates the dead-ship-only scatter passes (credit
-    chips, tinker kits) to wreck/derelict/salvage interiors.
-    ``spawn_band`` stamps the site's band on ENEMY markers (doc 48).
+    ``capture_modules`` (flown ``StoredEquipment``) seeds the intact-
+    capture strip; ``wreck_scatter`` gates the dead-ship scatter
+    passes; ``spawn_band`` stamps the site's band on ENEMY markers
+    (doc 48 SETTLED 35); ``crew_faction`` resolves role tokens
+    through CREW_ROLES and ``security_drones`` scales
+    ``security_drone``-role chances — the boarded hull's crew and
+    wealth dial (doc 48 SETTLED 28/38).
     """
     parsed = _parse_layout_file(layout_id, layout_dir)
     build = _build_tiles(parsed, require_spawn)
@@ -659,11 +740,7 @@ def load_layout(
         capture_modules=capture_modules,
         wreck_scatter=wreck_scatter,
         spawn_band=spawn_band,
+        crew_faction=crew_faction,
+        security_drones=security_drones,
     )
-    game_map = world.GameMap(
-        width=parsed.width,
-        height=parsed.height,
-        tiles=build.tiles,
-        entities=build.entities,
-    )
-    return game_map, build.spawn_pos
+    return _wrap_build(build, parsed)

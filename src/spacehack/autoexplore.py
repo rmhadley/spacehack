@@ -492,7 +492,7 @@ def steps_aside_ids(ctx, game_map) -> frozenset[int]:
             _spec = find_npc_char(_cid)
         except KeyError:
             continue
-        if not spec_is_hostile(ctx, _spec):
+        if not spec_is_hostile(ctx, _spec, game_map):
             _seals.add(id(_ent))
     return frozenset(_seals)
 

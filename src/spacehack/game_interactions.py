@@ -636,6 +636,30 @@ async def _consume_boarded_hull(ctx, cr, spec) -> None:
     _cleanup_heist_spawns(ctx, cr)
 
 
+def _load_capture_deck(ctx, cr, spec):
+    """Load the boarded hull's crewed interior, or None on failure.
+
+    Threads the boarded spec's faction (role-token resolution,
+    doc 48 SETTLED 28), its security-drone dial (SETTLED 7/38), and
+    the parent planet's band (SETTLED 35) into the one load call."""
+    from .combat._space_kills import heist_cargo_mission
+    from .dungeon import load_layout as _load_layout
+
+    _heist_m = heist_cargo_mission(ctx, cr.boarded_ent)
+    try:
+        return _load_layout(
+            spec.capture_layout_id, loot_budget=spec.loot_budget,
+            component_good_id=getattr(_heist_m, 'heist_target_good_id', None),
+            component_mission_id=getattr(_heist_m, 'mission_id', None),
+            capture_modules=getattr(cr, 'boarded_modules', ()) or (),
+            spawn_band=_parent_band(ctx),
+            crew_faction=spec.faction,
+            security_drones=getattr(spec, 'security_drones', 1.0),
+        )
+    except (FileNotFoundError, ValueError):
+        return None
+
+
 async def begin_capture_boarding(ctx, console, cr):
     """Consume the boarded hull and enter its crewed interior (6a).
 
@@ -647,29 +671,21 @@ async def begin_capture_boarding(ctx, console, cr):
     re-board. Returns False when the boarding breaks away (interior
     load failed): nothing consumed, nothing booked.
     """
-    from .combat._space_kills import heist_cargo_mission
     from .data.npc_ships import find_npc_ship
-    from .dungeon import load_layout as _load_layout
 
     _spec = find_npc_ship(cr.boarded_spec_id)
-    _heist_m = heist_cargo_mission(ctx, cr.boarded_ent)
-    try:
-        _dungeon_map, _spawn = _load_layout(
-            _spec.capture_layout_id, loot_budget=_spec.loot_budget,
-            component_good_id=getattr(_heist_m, 'heist_target_good_id', None),
-            component_mission_id=getattr(_heist_m, 'mission_id', None),
-            capture_modules=getattr(cr, 'boarded_modules', ()) or (),
-            spawn_band=_parent_band(ctx),
-        )
-    except (FileNotFoundError, ValueError):
+    _loaded = _load_capture_deck(ctx, cr, _spec)
+    if _loaded is None:
         ctx.log.add(
             f"The boarding attempt fails - the {_spec.name} breaks away."
         )
         cr.outcome = "ABORTED"  # nothing consumed, no interior to adopt
         return False
+    _dungeon_map, _spawn = _loaded
     await _consume_boarded_hull(ctx, cr, _spec)
     _dungeon_map.capture_spec_id = _spec.id
     _dungeon_map.derelict_interior = True
+    _dungeon_map.hostile_interior = True
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
     await _enter_boarding_dungeon(
         _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
@@ -729,7 +745,7 @@ async def _resolve_city_npc_blocker(state, blocker):
     runtime; friendly citizens just block foot traffic with a bump line.
     """
     from . import city_npcs as _cn
-    if _cn.is_hostile(state.ctx, blocker):
+    if _cn.is_hostile(state.ctx, blocker, state.game_map):
         await _cn.run_city_fight(state.ctx, state.console, state.game_map, [blocker])
         return 'CONTINUE'
     state.log.add(world.blocked_message_for(blocker))

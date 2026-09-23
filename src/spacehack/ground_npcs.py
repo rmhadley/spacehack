@@ -46,11 +46,12 @@ def _spec_behavior(entity: world.Entity) -> str:
         return "hunter"
 
 
-def _is_hostile(ctx, entity: world.Entity) -> bool:
+def _is_hostile(ctx, entity: world.Entity, game_map=None) -> bool:
     """True if this NPC's faction is hostile toward the player.
 
     Monsters (``always_hostile``) are always hostile; everyone else
-    follows faction reputation. Shares logic with
+    follows faction reputation — unless ``game_map`` is a hostile
+    boarded interior (doc 48 SETTLED 3/38). Shares logic with
     ``combat._encounter.detect_ground_combat``.
     """
     _eid = getattr(entity, 'npc_char_id', '')
@@ -60,10 +61,10 @@ def _is_hostile(ctx, entity: world.Entity) -> bool:
         _spec = _find_nc(_eid)
     except KeyError:
         return False
-    return _spec_is_hostile(ctx, _spec)
+    return _spec_is_hostile(ctx, _spec, game_map)
 
 
-def steps_aside(ctx, entity: world.Entity) -> bool:
+def steps_aside(ctx, entity: world.Entity, game_map=None) -> bool:
     """Whether a bump asks this body to swap places with the player
     (doc 42 SETTLED 39 round 2): population monsters only, never
     dormant security — and only while their face reads non-hostile.
@@ -72,7 +73,7 @@ def steps_aside(ctx, entity: world.Entity) -> bool:
         return False
     if not getattr(entity, "npc_char_id", ""):
         return False
-    return not _is_hostile(ctx, entity)
+    return not _is_hostile(ctx, entity, game_map)
 
 
 def swap_step(ctx, player: world.Entity, game_map: world.GameMap, dx: int, dy: int) -> bool:
@@ -88,7 +89,7 @@ def swap_step(ctx, player: world.Entity, game_map: world.GameMap, dx: int, dy: i
     if game_map.tiles[target_y][target_x].kind in world.TRANSITION_KINDS:
         return False
     blocker = game_map.blocking_entity_at(target_x, target_y, exclude=player)
-    if blocker is None or not steps_aside(ctx, blocker):
+    if blocker is None or not steps_aside(ctx, blocker, game_map):
         return False
     _player_pos = player.pos
     player.pos = world.Position(target_x, target_y)
@@ -525,7 +526,7 @@ def _move_solo(
     *, combat: bool = False,
 ) -> None:
     """Move one squadless NPC: investigate, patrol (uncached), or wander."""
-    if not _is_hostile(ctx, _e):
+    if not _is_hostile(ctx, _e, game_map):
         for _ in range(_step_budget(_e, combat=combat)):
             _wander_step(_e, game_map)
         return
@@ -571,7 +572,8 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
     for _sid, _members in _squad_map.items():
         if _members:
             _move_squad(
-                _members, game_map, _is_hostile(ctx, _members[0]), _sid,
+                _members, game_map,
+                _is_hostile(ctx, _members[0], game_map), _sid,
                 ctx=ctx, combat=_combat,
             )
     for _e in _solos:
