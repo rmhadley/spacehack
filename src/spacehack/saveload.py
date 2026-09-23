@@ -170,13 +170,22 @@ def _restore_dig_fields(ctx: GameContext, data: dict) -> None:
     ctx.discovered_sites = list(data.get("discovered_sites", []) or [])
 
 
+def _entry_payload(entry) -> dict:
+    """Serialize one message-history entry, runs included when set."""
+    payload = {"text": entry.text, "fg": list(entry.fg)}
+    if entry.runs:
+        payload["runs"] = [
+            [run_text, list(colour)] for run_text, colour in entry.runs
+        ]
+    return payload
+
+
 def _core_fields(ctx: GameContext) -> dict:
     """Serialize character, ship, mission, economy, and clock fields."""
     return {
         "character_info": _d(ctx.character_info),
         "message_history": [
-            {"text": entry.text, "fg": list(entry.fg)}
-            for entry in ctx.log.history()
+            _entry_payload(entry) for entry in ctx.log.history()
         ],
         "stats": {
             "hp": ctx.stats.hp,
@@ -648,6 +657,30 @@ def _parse_economy_and_generated(data: dict) -> tuple:
     return econ, generated
 
 
+def _parse_log_runs(raw) -> tuple | None:
+    """Parse one entry's inline runs, or ``None`` when absent/corrupt.
+
+    Runs survive only when every segment is a ``(str, colour)`` pair
+    joining back to the entry text — anything else paints plain.
+    """
+    if not isinstance(raw, (list, tuple)):
+        return None
+    runs = []
+    for segment in raw:
+        if not isinstance(segment, (list, tuple)) or len(segment) != 2:
+            return None
+        text, colour = segment
+        if not isinstance(text, str) or not isinstance(colour, (list, tuple)):
+            return None
+        if len(colour) != 3:
+            return None
+        try:
+            runs.append((text, tuple(max(0, min(255, int(c))) for c in colour)))
+        except (TypeError, ValueError):
+            return None
+    return tuple(runs) or None
+
+
 def _parse_log(data: dict):
     """Rebuild the message log from the save payload."""
     from . import message_log
@@ -663,7 +696,10 @@ def _parse_log(data: dict):
             color = tuple(max(0, min(255, int(channel))) for channel in fg)
         except (TypeError, ValueError):
             color = message_log.COLOR_MESSAGE
-        history.append(message_log.MessageEntry(entry["text"], color))
+        runs = _parse_log_runs(entry.get("runs"))
+        if runs is not None and "".join(t for t, _c in runs) != entry["text"]:
+            runs = None
+        history.append(message_log.MessageEntry(entry["text"], color, runs))
     log.load_history(history)
     log.add("Game loaded.")
     return log

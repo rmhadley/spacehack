@@ -57,6 +57,18 @@ KIT_KILL_RATE: int = 40
 KIT_WRECK_RATE: int = 12
 KIT_DIG_RATE: int = 16
 
+# Tier name colours (user spec 2026-09-23): modded green, overclocked
+# blue, prototype purple, legendary orange; base stays uncoloured.
+# Green/blue reuse the UI accent family (positive/accent) so names read
+# on the same palette as the screens around them.
+QUALITY_COLORS: tuple[tuple[int, int, int] | None, ...] = (
+    None,                   # base — paints as today
+    (100, 235, 115),        # t1 modded — green
+    (130, 210, 240),        # t2 overclocked — blue
+    (190, 140, 255),        # t3 prototype — purple
+    (255, 170, 60),         # t4 legendary — orange
+)
+
 _FAMILY_ROWS: dict[str, tuple[int, ...]] = {
     "weapon": WEAPON_MULTIPLIER_PCT,
     "armor": ARMOR_MULTIPLIER_PCT,
@@ -173,6 +185,24 @@ def effective_module_spec(module_id: str, quality: int = 0, randart_seed: int | 
             for name in _MODULE_BONUS_FIELDS
         },
     )
+
+
+def quality_color(quality: int) -> tuple[int, int, int] | None:
+    """Return the tier's name colour, or ``None`` for base (paint
+    plain — base names colour exactly as they did before tiers)."""
+    if not 0 < quality < len(QUALITY_COLORS):
+        return None
+    return QUALITY_COLORS[quality]
+
+
+def quality_mark(name: str, quality: int):
+    """Return the name as a coloured run for line builders.
+
+    ``(name, colour)`` when the tier colours, else the plain string —
+    feed straight into ``message_log.with_runs`` parts.
+    """
+    colour = quality_color(quality)
+    return (name, colour) if colour else name
 
 
 def token_prefix(quality: int) -> str:

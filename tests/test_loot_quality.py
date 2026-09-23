@@ -261,6 +261,32 @@ def test_quality_tokens_are_the_user_wording_verbatim():
     assert quality.QUALITY_TOKENS == ("modded", "overclocked", "prototype")
 
 
+@pytest.mark.parametrize(
+    "tier,expected",
+    [
+        (0, None),
+        (1, (100, 235, 115)),   # modded — green
+        (2, (130, 210, 240)),   # overclocked — blue
+        (3, (190, 140, 255)),   # prototype — purple
+        (quality.LEGENDARY_QUALITY, (255, 170, 60)),  # legendary — orange
+        (-1, None),
+        (99, None),
+    ],
+)
+def test_quality_color_matches_the_user_colour_spec(tier, expected):
+    assert quality.quality_color(tier) == expected
+
+
+def test_quality_mark_wraps_only_tiered_names():
+    assert quality.quality_mark("Mono Blade", 0) == "Mono Blade"
+    assert quality.quality_mark("Mono Blade", 2) == (
+        "Mono Blade", (130, 210, 240),
+    )
+    assert quality.quality_mark("Whisper's Hush", quality.LEGENDARY_QUALITY) == (
+        "Whisper's Hush", (255, 170, 60),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Presentation + economy (doc 47 phase 2 step 6)
 # ---------------------------------------------------------------------------

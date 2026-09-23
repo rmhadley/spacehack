@@ -9,26 +9,34 @@ from .game_context import GameContext
 from . import message_log, pygame_screen, pygame_ui
 
 
-def _history_lines(log: message_log.MessageLog) -> tuple[tuple[str, tuple[int, int, int]], ...]:
-    """Format the complete log as oldest-first modal lines with colors."""
-    entries = log.history()
-    if not entries:
-        return (("No console messages yet.", message_log.COLOR_MESSAGE),)
-    return tuple((f"> {entry.text}", entry.fg) for entry in entries)
-
-
 def _frame(ctx: GameContext) -> pygame_screen.ScreenFrame:
     """Build the console history screen from the live log."""
-    history = _history_lines(ctx.log)
+    entries = ctx.log.history()
+    if not entries:
+        return pygame_screen.ScreenFrame(
+            title="CONSOLE LOG",
+            body=("No console messages yet.",),
+            rows=(),
+            footer=(pygame_ui.modal_hint(
+                "ESC close", pygame_ui.GUIDE_HINT,
+            ),),
+            scrollable=True,
+            start_at_end=True,
+        )
     return pygame_screen.ScreenFrame(
         title="CONSOLE LOG",
-        body=tuple(line for line, _color in history),
+        body=tuple(f"> {entry.text}" for entry in entries),
         rows=(),
         footer=(pygame_ui.modal_hint(
             "ESC close", pygame_ui.GUIDE_HINT,
         ),),
         scrollable=True,
-        body_colors=tuple(color for _line, color in history),
+        body_colors=tuple(entry.fg for entry in entries),
+        # Inline runs carry the "> " prefix so run text joins to the
+        # body line exactly (the runs-fit-or-plain guard measures it).
+        body_runs=tuple(
+            message_log.prefixed_runs(entry) for entry in entries
+        ),
         start_at_end=True,
     )
 

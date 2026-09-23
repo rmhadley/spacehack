@@ -13,6 +13,7 @@ from typing import Any
 
 from .engine import MSG_LOG_HEIGHT, TILE_HEIGHT, TILE_WIDTH
 from .game_context import GameContext
+from .message_log import prefixed_runs
 from .pygame_runtime import PygameContext
 
 
@@ -244,22 +245,23 @@ def cell_font(pygame: Any, *, line_height: int) -> Any:
     return pygame.font.Font(path, 10)
 
 
-def log_band_rows(log: Any) -> tuple[tuple[str, tuple[int, int, int]], ...]:
-    """Return the message-band rows as ``(text, fg)``, bottom-aligned.
+def log_band_rows(log: Any) -> tuple[tuple[str, tuple[int, int, int], tuple | None], ...]:
+    """Return the message-band rows as ``(text, fg, runs)``, bottom-aligned.
 
     Single source of truth for the console-log band content, shared by
     the menu painter (:func:`draw_message_band`) and the exploration
     overlay (:mod:`spacehack.pygame_overlay`). Returns only the
     non-empty rows, in display order — painters place them on the
     bottom ``MSG_LOG_HEIGHT`` rows so a short log stays put when more
-    entries arrive.
+    entries arrive. ``runs`` covers the full row including its
+    ``"> "`` prefix; ``None`` rows paint plain.
     """
     entries = log.recent(MSG_LOG_HEIGHT)
-    rows: list[tuple[str, tuple[int, int, int]]] = []
+    rows: list[tuple[str, tuple[int, int, int], tuple | None]] = []
     for entry in entries:
         if entry is None or not entry.text:
             continue
-        rows.append(("> " + entry.text, tuple(entry.fg)))
+        rows.append(("> " + entry.text, tuple(entry.fg), prefixed_runs(entry)))
     return tuple(rows)
 
 
@@ -279,13 +281,16 @@ def _draw_message_rows(
     content_x = panel.x + padding_x
     content_width = max(1, panel.width - 2 * padding_x)
     top = panel.y + (MSG_LOG_HEIGHT - len(rows)) * tile_height
-    for index, (line_text, color) in enumerate(rows):
+    for index, (line_text, color, runs) in enumerate(rows):
+        y = top + index * tile_height
+        if runs is not None:
+            draw_text_runs(
+                pygame, screen, font, runs, content_x, y,
+                fallback=color, width=content_width,
+            )
+            continue
         line = fit_text(line_text, content_width, measure)
-        draw_text(
-            pygame, screen, font, line,
-            content_x, top + index * tile_height,
-            color=color,
-        )
+        draw_text(pygame, screen, font, line, content_x, y, color=color)
 
 
 def draw_message_band(
@@ -484,18 +489,29 @@ def draw_text_runs(
     y: int,
     *,
     fallback: Color,
+    width: int | None = None,
 ) -> None:
     """Render one line of ``(text, colour)`` runs left to right.
 
-    The caller guarantees the runs concatenate to a line that fits one
-    rendered row (the shared body path paints run lines unwrapped and
-    falls back to plain colour when the source line wraps)."""
+    Without ``width`` the caller guarantees the runs concatenate to a
+    line that fits one rendered row (the shared body path paints run
+    lines unwrapped and falls back to plain colour when the source
+    line wraps). With ``width`` each run is fitted to the remaining
+    pixel budget — the first run that cannot fully fit is ellipsised
+    and ends the line (the message-band behaviour)."""
+    measure = lambda text: measure_font(font, text)
     cursor = x
     for text, color in runs:
         if not text:
             continue
-        draw_text(pygame, screen, font, text, cursor, y, color=color or fallback)
-        cursor += measure_font(font, text)
+        fitted = (
+            fit_text(text, max(1, x + width - cursor), measure)
+            if width is not None else text
+        )
+        draw_text(pygame, screen, font, fitted, cursor, y, color=color or fallback)
+        cursor += measure(fitted)
+        if fitted != text:
+            break
 
 
 def draw_centered_text(

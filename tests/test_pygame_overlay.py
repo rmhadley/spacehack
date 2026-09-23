@@ -5,7 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import (
-    pygame_overlay, pygame_runtime, pygame_target_card, world,
+    pygame_overlay, pygame_overlay_paint, pygame_runtime,
+    pygame_target_card, world,
 )
 from tests.support.module_entries import module_entry as _module
 
@@ -140,7 +141,7 @@ def test_physical_message_panel_respects_letterbox_origin(monkeypatch):
         lambda _pygame, **_kwargs: object(),
     )
     monkeypatch.setattr(
-        pygame_overlay,
+        pygame_overlay_paint,
         "_draw_segments",
         lambda *_args, **kwargs: origins.append(
             (kwargs["origin_x"], kwargs["origin_y"])
@@ -190,6 +191,47 @@ def test_overlay_capture_log_band_keeps_full_text(monkeypatch):
     )
 
     assert frame.messages[-1].text == "> " + long_line
+
+
+def test_overlay_log_band_runs_expand_to_chained_same_row_segments(monkeypatch):
+    """Quality-coloured log rows become chained per-run segments.
+
+    Each segment starts at the cell where the previous run's text
+    ended, so glyph-accurate chaining in _segment_position keeps the
+    row visually contiguous while colours split inside it.
+    """
+    from src.spacehack import hud, message_log
+
+    monkeypatch.setattr(hud, "render_hud", lambda *_a, **_k: None)
+
+    _text, runs = message_log.with_runs(
+        "Stored ship module: ",
+        ("Overclocked Shield Mk. 2", (130, 210, 240)),
+        ".",
+    )
+    log = message_log.MessageLog(capacity=6)
+    log.add(_text, runs=runs)
+    log.add("plain row")
+
+    frame = pygame_overlay.capture(
+        SimpleNamespace(log=log),
+        mode="city",
+        location="Earth",
+        screen_width=100,
+        screen_height=60,
+        hud_view_height=54,
+    )
+
+    run_row_y = next(s.y for s in frame.messages if "Overclocked" in s.text)
+    run_row = [s for s in frame.messages if s.y == run_row_y]
+    assert [(s.x, s.text, s.color) for s in run_row] == [
+        (0, "> ", message_log.COLOR_MESSAGE),
+        (2, "Stored ship module: ", message_log.COLOR_MESSAGE),
+        (22, "Overclocked Shield Mk. 2", (130, 210, 240)),
+        (46, ".", message_log.COLOR_MESSAGE),
+    ]
+    plain_row = [s for s in frame.messages if s.text == "> plain row"]
+    assert len(plain_row) == 1
 
 
 def test_capture_keeps_world_hud_text_past_window_width(monkeypatch):

@@ -146,6 +146,33 @@ def _build_test_ctx() -> GameContext:
 class TestSaveLoadRoundTrip:
     """Build → save → load → assert field-level equality."""
 
+    def test_message_history_runs_survive_round_trip(self):
+        """Inline colour runs serialize, reload, and drop when corrupt."""
+        from src.spacehack import message_log, saveload
+
+        text, runs = message_log.with_runs(
+            "Stored ship module: ", ("Prototype Shield Mk. 2", (190, 140, 255)), ".",
+        )
+        entry = message_log.MessageEntry(text, (9, 9, 9), runs)
+        payload = {"message_history": [saveload._entry_payload(entry)]}
+
+        log = saveload._parse_log(payload)
+        restored = log.history()[0]
+
+        assert restored.text == text
+        assert restored.fg == (9, 9, 9)
+        assert restored.runs == runs
+
+        corrupt = {
+            "message_history": [
+                {"text": text, "fg": [9, 9, 9], "runs": [["orphan", [1, 2, 3]]]},
+                {"text": "legacy entry", "fg": [1, 1, 1]},
+            ],
+        }
+        log = saveload._parse_log(corrupt)
+        assert log.history()[0].runs is None  # runs text != entry text
+        assert log.history()[1].runs is None  # legacy saves carry no runs key
+
     def test_round_trip_city_mode(self, monkeypatch, tmp_path):
         """City-mode save/load preserves all serialized fields."""
         # Redirect saves to a temp directory so the test doesn't touch

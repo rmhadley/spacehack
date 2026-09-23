@@ -93,6 +93,72 @@ def test_console_log_frame_formats_oldest_first_and_is_scrollable():
     assert "PAGE UP/DOWN" not in frame.footer[0]
 
 
+def test_with_runs_returns_none_until_a_part_leaves_the_base_colour():
+    base = message_log.COLOR_MESSAGE
+    text, runs = message_log.with_runs("Packed: ", "Mono Blade", ".")
+    assert text == "Packed: Mono Blade."
+    assert runs is None
+
+    text, runs = message_log.with_runs(
+        "Packed: ", ("Modded Mono Blade", (100, 235, 115)), ".",
+    )
+    assert text == "Packed: Modded Mono Blade."
+    assert runs == (
+        ("Packed: ", base),
+        ("Modded Mono Blade", (100, 235, 115)),
+        (".", base),
+    )
+
+
+def test_with_runs_merges_adjacent_same_colour_parts():
+    text, runs = message_log.with_runs(
+        "You fire your ",
+        ("Prototype Mono Blade", (190, 140, 255)),
+        (" at ", None),
+        "the drone",
+    )
+    assert text == "You fire your Prototype Mono Blade at the drone"
+    assert runs == (
+        ("You fire your ", message_log.COLOR_MESSAGE),
+        ("Prototype Mono Blade", (190, 140, 255)),
+        (" at the drone", message_log.COLOR_MESSAGE),
+    )
+
+
+def test_runs_entries_round_trip_and_coalesce_by_full_payload():
+    log = message_log.MessageLog()
+    _text, runs = message_log.with_runs(
+        "Stored ship module: ", ("Overclocked Shield Mk. 2", (130, 210, 240)), ".",
+    )
+    log.add(_text, runs=runs)
+    log.add(_text, runs=runs)
+    different = tuple((t, (0, 0, 0)) for t, _c in runs)
+    log.add(_text, runs=different)
+
+    history = log.history()
+    assert len(history) == 2
+    assert history[0].runs == runs
+    assert history[0].text.endswith("x2")
+    assert history[1].runs == different
+
+
+def test_console_log_frame_carries_entry_runs_with_prefix():
+    log = message_log.MessageLog()
+    _text, runs = message_log.with_runs(
+        "Packed ground equipment: ", ("Modded Mono Blade", (100, 235, 115)), ".",
+    )
+    log.add(_text, runs=runs)
+    log.add("plain line")
+    ctx = SimpleNamespace(log=log)
+
+    frame = console_log._frame(ctx)
+
+    assert frame.body_runs == (
+        (("> ", message_log.COLOR_MESSAGE), *runs),
+        None,
+    )
+
+
 def test_backslash_input_accepts_normalized_name_and_rejects_other_events():
     assert input_helpers._is_backslash_press(
         pygame_engine.PygameInputEvent(kind="keydown", key_name="backslash"),
