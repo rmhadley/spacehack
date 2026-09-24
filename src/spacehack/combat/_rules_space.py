@@ -762,30 +762,14 @@ def _find_reinforcement_entity(game_map: world.GameMap, pos: world.Position) -> 
             return _ge
     return None
 
-def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance | None:
-    """Build one reinforcement enemy instance, or None if the ship is unknown."""
-    from ..data.ships import find_ship as _fs
-    try:
-        _ship_cat = _fs(_state.ctx.player_owned_ship.ship_id)
-    except (KeyError, AttributeError):
-        return None
-
-    from ..data.pilot_skills import PilotSkills
-    _pilot = PilotSkills(
-        gunnery=_state.player_state.get("gunnery", 30),
-        piloting=_state.player_state.get("piloting", 30),
-        engineering=_state.player_state.get("engineering", 30),
-    )
-    _ap_bonus = _ace_pilot_bonus(_state.ctx)
-    _, _new_ei = init_combat_state(
-        _ship_cat, _state.ctx.player_owned_ship,
-        _state.player_state["pos"], _pilot,
-        spec, pos,
-        ap_bonus=_ap_bonus,
-        plasma_ap_discount=_plasma_ap_discount(_state.ctx),
-        max_power_bonus=_systems_expert_bonus(_state.ctx),
-    )
-    return _new_ei
+def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance:
+    """Build one joiner from the JOINER's own spec — the one enemy
+    construction path (doc 48 SETTLED 21: joiner stats must match
+    their spec). The old player-hull reads fed a discarded player
+    state and a spurious None dropped legitimate joiners whenever the
+    PLAYER's catalog lookup failed."""
+    from ._stats import _build_enemy
+    return _build_enemy(spec, pos)
 
 def _join_reinforcements(
     ctx,
@@ -805,8 +789,6 @@ def _join_reinforcements(
         ):
             continue
         _new_ei = _build_reinforcement_enemy(_ns, _np)
-        if _new_ei is None:
-            continue
         _state.enemy_insts.append(_new_ei)
         _state.enemy_specs.append(_ns)
         if _found_entity is not None:
