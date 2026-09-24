@@ -220,10 +220,9 @@ def _ship_weapon_loot_entry(loot_entity):
 
 def _ship_weapon_loot_name(entry) -> str:
     """The token-prefixed weapon label at its rolled quality."""
-    from .data.quality import token_prefix
-    from .data.weapons import find_weapon
+    from . import ship as ship_module
 
-    return f"{token_prefix(entry.quality)}{find_weapon(entry.item_id).name}"
+    return ship_module.weapon_display_name(entry.item_id, entry.quality)
 
 
 def _field_item_loot_stack(loot_entity):

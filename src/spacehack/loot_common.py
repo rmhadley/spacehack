@@ -25,6 +25,7 @@ _TYPE_FG = {
     "weapon": EQUIPMENT_FG,
     "armor": EQUIPMENT_FG,
     "module": EQUIPMENT_FG,
+    "ship_weapon": EQUIPMENT_FG,
     "ammo": FIELD_ITEM_FG,
     "consumable": FIELD_ITEM_FG,
 }

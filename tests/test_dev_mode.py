@@ -726,15 +726,27 @@ def test_dev_pirate_cycle_covers_the_ladder_and_missile_led():
     order, then the missile-led captain variant (its weapons[0] is a
     missile — registered as a dev-authored spec so it rides the ONE
     id-resolved spawn path)."""
+    from src.spacehack.data import npc_ships as _npc_ships
+
     cycle = dev_mode._dev_pirate_cycle()
-    assert [spec.id for spec in cycle] == [
-        "pirate_scout", "pirate_hound", "pirate_raider",
-        "pirate_marauder", "pirate_captain", "pirate_warlord",
-        "dev_missile_captain",
-    ]
-    assert cycle[-1].weapons[0] == "heavy_missile"
-    from src.spacehack.data.npc_ships import find_npc_ship
-    assert find_npc_ship("dev_missile_captain") is cycle[-1]
+    try:
+        assert [spec.id for spec in cycle] == [
+            "pirate_scout", "pirate_hound", "pirate_raider",
+            "pirate_marauder", "pirate_captain", "pirate_warlord",
+            "dev_missile_captain",
+        ]
+        assert cycle[-1].weapons[0] == "heavy_missile"
+        assert _npc_ships.find_npc_ship("dev_missile_captain") is cycle[-1]
+    finally:
+        _drop_dev_pirate_registry_row()
+
+
+def _drop_dev_pirate_registry_row():
+    """The grant-time registry insert is a DEV-RUNTIME act — tests
+    restore the production catalog so identity pins stay exact."""
+    from src.spacehack.data import npc_ships as _npc_ships
+
+    _npc_ships._BY_ID.pop("dev_missile_captain", None)
 
 
 def test_spawn_dev_pirate_cycles_by_press_count():
@@ -752,18 +764,21 @@ def test_spawn_dev_pirate_cycles_by_press_count():
     )
     player = _world.Entity("t", (1, 1, 1), _world.Position(5, 5))
     spawned = []
-    for _ in range(3):
-        assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 1
-        spawned.append(game_map.entities[-1])
-    assert [e.npc_ship_id for e in spawned] == [
-        "pirate_scout", "pirate_hound", "pirate_raider",
-    ]
-    assert all(
-        max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 1 for e in spawned
-    )
-    # The block message when no cell is free.
-    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
-        game_map.entities.append(_world.Entity(
-            "x", (1, 1, 1), _world.Position(5 + dx, 5 + dy),
-        ))
-    assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 0
+    try:
+        for _ in range(3):
+            assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 1
+            spawned.append(game_map.entities[-1])
+        assert [e.npc_ship_id for e in spawned] == [
+            "pirate_scout", "pirate_hound", "pirate_raider",
+        ]
+        assert all(
+            max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 1 for e in spawned
+        )
+        # The block message when no cell is free.
+        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
+            game_map.entities.append(_world.Entity(
+                "x", (1, 1, 1), _world.Position(5 + dx, 5 + dy),
+            ))
+        assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 0
+    finally:
+        _drop_dev_pirate_registry_row()

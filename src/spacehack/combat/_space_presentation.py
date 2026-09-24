@@ -10,9 +10,9 @@ from __future__ import annotations
 from typing import Any
 
 from .. import world
-from ..data.quality import token_prefix
-from ..data.weapons import find_weapon as _find_w
 from ..ground_scale import band_level
+from ..ship import weapon_display_name
+from ..data.weapons import find_weapon as _find_w
 from ..hud import ap_pool_str
 from ..pygame_target_card import (
     TARGET_CARD_TEXT,
@@ -51,10 +51,11 @@ def _space_card_rows(
             _ws = _find_w(_entry.item_id)
         except KeyError:
             continue
-        # Flown weapons are quality-bearing (doc 48.7): the token
-        # prefix reads the rolled tier — a band-4 flagship's card
-        # says "Overclocked Heavy Laser".
-        rows.append(dim_row(f"{token_prefix(_entry.quality)}{_ws.name}"))
+        # Flown weapons are quality-bearing (doc 48.7): the label
+        # seam reads the rolled tier — "Overclocked Heavy Laser".
+        rows.append(dim_row(
+            weapon_display_name(_entry.item_id, _entry.quality),
+        ))
         rows.append(text_row(f"DMG {_ws.damage}  RNG {_ws.min_range}-{_ws.max_range}"))
     if not enemy.weapons:
         rows.append(dim_row("Unarmed"))

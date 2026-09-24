@@ -69,6 +69,16 @@ def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
     return tuple(StoredEquipment("module", module_id) for module_id in module_ids)
 
 
+def weapon_display_name(weapon_id: str, quality: int = 0) -> str:
+    """Weapon label — "Overclocked Heavy Laser" (the module label
+    seam's weapon twin, doc 48.7: flown weapons are quality-bearing;
+    base reads plain like shop stock)."""
+    from .data.quality import token_prefix
+    from .data.weapons import find_weapon
+
+    return f"{token_prefix(quality)}{find_weapon(weapon_id).name}"
+
+
 def module_display_name(module_id: str, quality: int = 0, randart_seed: int | None = None) -> str:
     """Module label — "Overclocked Shield Mk. 2", or the randart's
     rolled name when a seed is set (doc 47.4: the name IS the label).
