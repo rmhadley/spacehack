@@ -1457,6 +1457,26 @@ Rulings (anchors verified same day):
   (counters tactical, not loadout-only) is the phase's playtest LENS,
   not a build item.
 
+Addition (same day, user, verbatim):
+
+> I will confirm a, but also I will point out that I have better
+> plans for combat simulation and balancing in a future design doc
+> already stashed in design/future.
+
+Rulings:
+
+- **The Line harness EXTENDS with the real terms (treatment a).**
+  `_picket_volley` gains the aggressiveness factor (agg 70 → ~30% of
+  decision points reposition instead of firing), `_picket_regen`
+  gains the threshold-gated paid divert term; the fits re-pin from
+  whatever the honest numbers say, toward harder never softer
+  (SETTLED 39). No Line-specific shortcut — the closed form derives
+  from the one uniform loop ("once you aggro the blockade, you're in
+  combat with the blockade").
+- **The extension is INTERIM by design:**
+  `future/50_DESIGN_COMBAT_BALANCE_SIMULATOR.md` (the user's stashed
+  successor) supersedes closed-form pinning when it lands.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -2041,7 +2061,7 @@ with doctrinal 10-13):
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
-  (SETTLED 19/21/23). Brief below (PROPOSED 2026-09-24).
+  (SETTLED 19/21/23). Brief below (FINAL 2026-09-24).
 - [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
   weapon family, the Custodian's multi-weapon loadout, prison
   re-pin (+ the rock_scavenger prison-floor pin), dormant override
@@ -3056,8 +3076,9 @@ Dev grants: Shift+P (SPACEHACK_DEV) spawns a chosen pirate spec
 adjacent (cycles scout→warlord, incl. the missile-led variant for
 item 3) (`dev_mode.py` + `test_dev_mode.py` pin).
 
-### Phase 8 Implementation brief (PROPOSED 2026-09-24 — SETTLED 40 +
-### 19/20/21/23/39; ready for /implement-phase 48.8)
+### Phase 8 Implementation brief (FINAL 2026-09-24 — SETTLED 40 +
+### 19/20/21/23/39; reviewer ADVISE pass folded, 10 issues; ready for
+### /implement-phase 48.8)
 
 **Scope (files / hook points):**
 
@@ -3137,8 +3158,8 @@ item 3) (`dev_mode.py` + `test_dev_mode.py` pin).
 tests first) → the scorer + decision-point loop (retire
 `_first_affordable_weapon`) → divert threshold gating in
 `start_enemy_turn` → back-off + reposition-in-band + the
-aggressiveness roll → `test_line_tuning` per the Line harness
-treatment (open ruling, below) → full gate.
+aggressiveness roll → `test_line_tuning` per the harness extension
+ruling (SETTLED 40 addition) → full gate.
 
 **Binding rulings:** SETTLED 19 (full-kit, resource-aware), 20 (no
 fleeing — nothing here may disengage), 21 (Tier 0/Tier 1 boundary),
@@ -3177,20 +3198,19 @@ migrate to scorer pins (the import dies with the function);
 `test_line_tuning` per the harness ruling below; existing combat/
 navigation suites green.
 
-**Line harness — OPEN RULING (blocks approval):** the pickets never
-back off (light_laser ×2, min 1 — verified), so phase 8's Line
-effects are exactly the two terms the closed form does not model: the
-aggressiveness roll (blockade 70 converts ~30% of decision points to
-reposition steps, thinning the full-AP-volley assumption of
-`_picket_volley`) and the threshold-gated paid divert (blockade rate
-2 raises effective regen below half shields; `_picket_regen` models
-the free tier only). Net direction indeterminate in the current
-harness. Two treatments: (a) EXTEND `_picket_volley`/`_picket_regen`
-with the aggro factor and the paid term — the harness keeps deriving
-from the real formulas (the phase-7 MOVED BRACKET precedent); (b)
-declare the closed form an UPPER-BOUND reading (full volley, free
-regen only) and re-pin only the fit numbers. Either way the re-pin
-tunes TOWARD harder, never softer (SETTLED 39).
+**Line harness — SETTLED (SETTLED 40 addition, treatment a):** the
+pickets never back off (light_laser ×2, min 1 — verified), so phase
+8's Line effects are exactly the two terms the closed form does not
+model: the aggressiveness roll (blockade 70 converts ~30% of
+decision points to reposition steps, thinning the full-AP-volley
+assumption of `_picket_volley`) and the threshold-gated paid divert
+(blockade rate 2 raises effective regen below half shields;
+`_picket_regen` models the free tier only). The harness EXTENDS with
+both terms — `_picket_volley` × the aggro factor, `_picket_regen` +
+the paid term below the threshold — and the fits re-pin from the
+honest numbers, toward harder never softer (SETTLED 39). INTERIM by
+design: `future/50_DESIGN_COMBAT_BALANCE_SIMULATOR.md` supersedes
+closed-form pinning when it lands.
 
 **Playtest checkpoint:**
 
