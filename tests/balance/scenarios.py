@@ -46,7 +46,7 @@ class PlayerSheet:
     Level-1 sheets derive skills through ``starting_pilot_skills``;
     higher levels will carry declared skill spends when a scenario
     needs them (the harness raises on level != 1 until then).
-    ``ground_*`` fields exist for the phase-3 ground theater; space
+    ``ground_*`` fields exist for the phase-2 ground theater; space
     runs ignore them.
     """
 
@@ -97,7 +97,7 @@ class BalanceScenario:
     """One protected situation: both sides, the grid, the stance, N runs."""
 
     id: str
-    theater: str                  # "space" (ground rows join phase 3)
+    theater: str                  # "space" (ground rows join phase 2)
     goal: str                     # the stated feel goal, verbatim
     player: PlayerSheet
     player_start: tuple[int, int]  # the live fight's first-trigger cell

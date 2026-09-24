@@ -171,7 +171,7 @@ flow through while the matchup stays declared:
 @dataclass(frozen=True)
 class BalanceScenario:
     id: str                    # "goal_1_starter_vs_jack"
-    theater: str               # "space" (ground rows join phase 3)
+    theater: str               # "space" (ground rows join phase 2)
     goal: str                  # the stated feel goal, verbatim
     player: PlayerSheet        # level/stats->skills, hull id,
                                #   weapon ids, module ids, traits
@@ -190,7 +190,7 @@ class BalanceScenario:
 `PlayerSheet` carries the full sheet SETTLED 2 demands — level and
 stats (the skills the flown ship fights with), the hull id, weapon
 ids, module ids, traits (ground loadout fields exist on the row
-shape; space runs ignore them until phase 3). The harness builds
+shape; space runs ignore them until phase 2). The harness builds
 REAL objects from the ids — `OwnedShip` through the ship module's
 own install helpers, `PilotSkills` from the declared level/stats —
 never hand-built structs with copied numbers.
@@ -239,14 +239,16 @@ never hand-built structs with copied numbers.
   tuning ruling (Skiff power gen 2→3, 33104dd7) measured in at 0.960;
   thresholds ruled as a win-rate BAND — floor 0.95, ceiling 0.99,
   "never a sure thing" (user ruling) — asserted green (cb159520).
-- [ ] 2. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
+- [ ] 2. **Ground theater** — the ground harness (`_rules_ground` +
+  `_ai_ground` through the same runner), the first ground scenario
+  (Line checkpoint fight / delve guardian candidates). Cut when the
+  first ground balance question exists. Swapped ahead of the CLI
+  front (user, 2026-09-24): real machinery with a live trigger (doc
+  48's ground work) beats an optional front.
+- [ ] 3. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
   reading the same rows for bulk runs and richer output than an
   assert (SETTLED 1's optional front). Cut only when a tuning session
   actually wants it; adding scenarios needs none of this.
-- [ ] 3. **Ground theater** — the ground harness (`_rules_ground` +
-  `_ai_ground` through the same runner), the first ground scenario
-  (Line checkpoint fight / delve guardian candidates). Cut when the
-  first ground balance question exists.
 - [ ] 4. **Line closed-form migration** — author the Line watch
   scenario on the Line grid and retire `tests/test_line_tuning.py`'s
   closed form per doc 48's INTERIM note. Needs its own brief-time
@@ -400,8 +402,8 @@ DEFEAT / TIMEOUT (no hangs); aggregate math correctness (pure);
 post-checkpoint — every thresholds-bearing row passes its own goal
 in `make check`. Existing combat suites stay green.
 
-**Stop point:** no CLI front (2), no ground rows or ground harness
-(3), no Line migration (4), no new stances beyond STAND_AND_TRADE,
+**Stop point:** no ground rows or ground harness (2), no CLI
+front (3), no Line migration (4), no new stances beyond STAND_AND_TRADE,
 no balance CHANGES to any spec — phase 1 measures and pins; if the
 measurement says the fight misses the goal, the fix is a separate
 tuning decision with its own commits. No guide edits (nothing
