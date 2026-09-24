@@ -219,6 +219,16 @@ never hand-built structs with copied numbers.
    AI?~~ ANSWERED — real AI, derived-seed batches (SETTLED 3a).
 6. ~~Player-side AI: fixed script, heuristic, or mirrored enemy AI?~~
    ANSWERED — stance scripts from a declared vocabulary (SETTLED 3).
+7. **Is shield regen too expensive?** (user, 2026-09-24, deferred by
+   ruling): in the tutorial sprint any divert is a race loss (rate 0
+   → 0.95, best divert rate 2 → 0.91; power spent on shields is
+   power not spent on guns) — but that says nothing about mid-game
+   economies. Answerable by a scenario row once bigger ships have
+   rows (Cruiser + shield_mk2 class, longer fights). NOTE the
+   ship-independent half already measured: the rate ladder prices
+   non-monotonically (one tap = 1 power/point; two taps = 1 power
+   per 2 points at engineering 20-39) — the cautious single tap is
+   the worst deal at ANY power level.
 
 ## Phases (cut 2026-09-24 — SETTLED 1/2/3)
 
