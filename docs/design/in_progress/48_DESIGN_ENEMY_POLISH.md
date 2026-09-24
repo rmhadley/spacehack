@@ -2058,10 +2058,46 @@ with doctrinal 10-13):
   Combat math / Combat AI / Resources / Reinforcements / Boarding /
   Ship module loot amended; new "Ship band scaling" entry beside its
   ground twin).
-- [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
+- [x] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
   (SETTLED 19/21/23). Brief below (FINAL 2026-09-24).
+  LANDED 2026-09-24 in five builds (9b86c504 divert spec fields +
+  authored rates — blockade/patrol_heavy 2, captain/warlord 3,
+  threshold 0.5 default; a63304a7 the scorer + decision-point loop —
+  `score_weapon` EV-per-AP through the same `calc_hit_chance` the
+  shot resolves with, EMP scores expected strip, tie first-slot;
+  `_first_affordable_weapon` retired, the seven walk pins migrated to
+  scorer pins; d56f7d39 the threshold-gated paid divert in
+  `start_enemy_turn` (free tier unconditional); ca7f0e58 back-off +
+  reposition-in-band + the aggressiveness roll — `_apply_step` the
+  one shared step tail, `_step_open` the one legality rule, the
+  band-reference fallback (top scorer ignoring affordability) for
+  power-dry dances; 8b3321cd the Line harness extension per the
+  SETTLED 40 addition — volley ×0.70, regen 3+2 sustained below
+  half, shape holds with NO fit moved, honest softening documented:
+  the super sheet's costly win widened from the knife edge
+  (die 12.6 / clear 12.25) to die 23.5 / clear 15.2, dense-watch
+  caveat noted, frigate lever stands).
+  Reviewer: build 1 REQUEST_CHANGES (stale Tier-0 comment, spec-fake
+  DRY) folded; builds 2-3 APPROVE (gen-before-divert pin, `_run_turn`
+  migration folded; the `_e_idx`/`_esp` dead-param seam declared for
+  build 4); build 4 REQUEST_CHANGES — the stale-cached-path TELEPORT
+  (back-off/reposition relocate the ship off its cached advance
+  route; a stale head moves it multi-cell for 1 AP) — folded with
+  off-route invalidation (head Chebyshev ≠ 1 recomputes) + a
+  mixed-turn 8-adjacency pin; re-review REQUEST_CHANGES once more
+  (the pin passed pre-fix by geometric luck) — re-geometry per the
+  reviewer's traced scenario, pin PROVEN to fail pre-fix, plus the
+  Chebyshev-0 own-cell hop hardening; build 5 APPROVE (net-gen 4
+  constant corrected in harness + audit, threshold 0.5 pin,
+  dense-watch calibration caveat).
+  Build-discovered readings: the termination is RESTATED-live
+  (power-dry ships spend leftover AP dodging — two Tier-0-era test
+  expectations updated); the blocked-advance-beyond-pref fire and the
+  blocked-no-LOS break both preserved; merchants' authored 10-15
+  dials read as designed for the first time (rare fire,
+  dodge-stack). PLAYTEST PENDING.
 - [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
   weapon family, the Custodian's multi-weapon loadout, prison
   re-pin (+ the rock_scavenger prison-floor pin), dormant override
@@ -3812,8 +3848,9 @@ fix; every other touched module ≤ 900.
 - **The Line harness functions are parameter-local**:
   `_picket_volley` / `_picket_regen` are pure spec-readers — the aggro
   factor (×0.70; agg 70) and the paid divert term (+2 below half
-  shields, power-sustained: 2.8 laser power + 1 divert < 5 gen) extend
-  them in place; the parity pin test names both terms.
+  shields, power-sustained: ~2.8 laser power + 1 divert = 3.8 vs the
+  flown build's net gen 4 — cruiser 5 base minus armor plating 1)
+  extend them in place; the parity pin test names both terms.
 
 **Duplication hotspots:**
 
