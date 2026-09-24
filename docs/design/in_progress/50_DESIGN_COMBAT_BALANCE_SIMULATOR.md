@@ -702,6 +702,118 @@ checklist.
 center is item 3, the threshold ruling; the phase ticks only with
 the ruled numbers asserted green.
 
+## Pre-implementation audit (Phase 2 — 2026-09-25, code-verified)
+
+### 1. Existing modules / patterns to reuse
+
+- **The R-key bug, pinned to its lines.** `_loop._dispatch_combat_action`'s
+  RELOAD branch calls `_reload(ctx)` with no await
+  (`combat/_loop.py:557-562`); `_rules_ground.reload_weapon` is a
+  coroutine (`_rules_ground.py:695`) whose multi-candidate path awaits
+  `_choose_reload_slot` → `pygame_story.choose` — the never-run modal.
+  The fix: await the call, drop `_choose_reload_slot` + `_reload_option`
+  (combat-side only — `ground_reload_ui.py`'s exploration chooser is a
+  SEPARATE flow and stays), reload `_reloadable_slots()[0][0]` always.
+  `_reloadable_slots` already returns active+dry+reserve slots in slot
+  order, so "first dry active slot with reserve" is `[0]`. Existing
+  chooser pins to update: `tests/combat/test_rules_ground.py:1352-1403`
+  (three modal tests become deterministic first-slot tests).
+- **The live delve pipeline, exactly as the fight runs it.**
+  `game_interactions._build_surface_dungeon` (game_interactions.py:131):
+  `generate_dungeon(params)` (dungeon_bsp.py:9 — tiles only, reads
+  `engine.RNG` at call time) → `prepare_mars_surface(ctx, map, spawn)`
+  for Mars (main_quest/_act0.py:96 — landmark stamp + concealed stairs +
+  one cache guardian via `_spawn_cache_guardian`, all reading
+  `engine.RNG`/module state at call time) → `populate_dungeon(map,
+  params, spawn, tier=mission_tier)` (dungeon_population.py:178 — the
+  entity scatter; `_SPAWN_CLEAR_RADIUS=5` keeps squads ≥6 Chebyshev from
+  spawn while `sight_radius=8`, so at-spawn first sight is reachable).
+  Planet mode runs generate + prepare, skips populate, strips ALL map
+  entities (the guardian included — it is generated scatter), seeds the
+  declared combatants. Entry invariants from
+  `_install_dungeon_player`: `init_fog` (dungeon_fov.py:16) then
+  `reveal_around` at spawn — the fog `visible` grid is what
+  `visible_hostiles`/`refresh_engaged`/`combat_should_end` read
+  (`_encounter.py:261-277` uses the FOV grid when present).
+- **Ground entry call shape**: `_run_ground_combat_tick`
+  (game_flow.py:231) — detect (after `move_ground_npcs` + reveal) →
+  `_rules_ground.init(ctx, hostiles, game_map, console=console)` → the
+  unified `run_combat`. The harness mirrors init + the same
+  `_mirror_loop` (rules-module polymorphic — ground slots straight in;
+  `_end_player_turn` already branches on ground for the pre-turn death
+  check, `_finish_combat` deletes the save only on DEFEAT — the
+  sandboxed HOME covers it).
+- **Ground sheet builders are the game's own.**
+  `character.starting_ground_stats(species, class)` (character.py:90,
+  the `starting_pilot_skills` idiom); weapons via `weapon_instance` +
+  `install_weapon` (magazines seed FULL at capacity — 12 for the
+  kinetic_pistol; ground_equipment.py:152, 549); armor via
+  `install_armor` into catalog slots; ammo as
+  `add_item_stack`/`add_item_quantity` pack stacks. ctx ground fields
+  (GameContext defaults are the leak to avoid: `ground_hp=23`):
+  `ground_stats`, `ground_hp=ground_max_hp=28`, `equipped_ground_weapons`
+  (list), `equipped_ground_armor` (dict slot→entry),
+  `ground_expedition_items` (stacks; `reserve_ammo_count` matches by
+  `ammo_type`).
+- **Enemy construction stamps**: `world.Entity(npc_char_id=..., spawn_band=...)`
+  — `_build_enemy_instance` resolves spec through `npc_char_id`, band
+  through `ground_scale.entity_band` (entity stamp wins; 0 derives from
+  the site — with `interior_cache_key` unset, context_band returns 1),
+  weapon via `noise.ensure_rolled_weapon` (inside the seeded run),
+  carried consumables via `roll_carried_consumables`. `faction.
+  spec_is_hostile` — Mars pool monsters are `always_hostile=True`, so an
+  empty `faction_reputation` is honest.
+- **`hold_range` reads**: `can_fire(slot, ctx)` is the real band gate
+  (out-of-max, LOS, AP, ammo — `_rules_ground.py:525`); the band itself
+  is `_ground_charger.weapon_range(wid, ctx, ap)` → (min, max);
+  `find_path` (world) for step choice; TARGET cycles through
+  `_dispatch_combat_action`. The tutorial sheet's pistols are
+  min_range 1 — the back-off branch needs a synthetic min≥2 row (as
+  SETTLED 5 says).
+- **XP path is sim-safe**: `xp.add_xp` (on_kill awaits it) opens no
+  modal below level 40 — level-ups log only.
+- **Guide lines the R fix touches**: `data/guide/__init__.py:161`
+  (Controls: "R: reload your active weapon (ground combat)" — stays
+  true), `:292-297` (Ground Gear: describes the combat R opening "a
+  chooser" — never-shipped behavior; must be re-worded to the
+  deterministic first-dry-slot reload, keeping the exploration chooser
+  sentence true), `:247` (combat body: "press R to reload" — finally
+  true), `:515` (exploration tip — unchanged).
+
+### 2. Duplication hotspots + DRY strategy
+
+1. **Space vs ground paths inside the harness** (the drift risk):
+   one `begin_run` dispatching on `row.theater` to two thin builders
+   (`_begin_space_run` = today's body, `_begin_ground_run`), sharing
+   the snapshot/rebind/teardown spine, the ctx factory, and the
+   `_mirror_loop`. No second loop, no second aggregate.
+2. **Grid builders**: `build_game_map` (system mode) gains a planet
+   mode sibling `_build_planet_grid` — both return `world.GameMap`;
+   the synthetic-blocks mode stays. Dims assert idiom shared (assert
+   vs `DungeonParams.width/height`, assert generated spawn == the
+   row's pinned `player_start` — loud on planet-spec drift, never
+   silent).
+3. **Stance step-choice vs enemy AI movement**: the stance's one-step
+   band move must reuse `move_entity`/walkable checks + `find_path`,
+   not re-implement walking. `hold_range` itself decomposes into
+   module-level helpers (`_reference_target`, `_band_step_action`) so
+   each policy phase is pin-testable in isolation.
+
+### 3. The first-sight audit pin (measured 2026-09-25)
+
+Live pipeline scan (generate → prepare → populate → entry invariants →
+`detect_ground_combat` at spawn) over 129 grid seeds: at-spawn first
+sight is the minority case (≈17% of seeds), single monsters dominate;
+multi-monster groups are 5 seeds, all single-squad. **Reference grid
+seed = 115**: spawn **(100, 47)**, first-sight group = THREE
+`rock_scavenger` from one squad at **(106, 44), (107, 44), (108, 43)**
+(distances 6/7/8 Chebyshev, LOS clear, all `spawn_band=1`) — the
+swarm-pack fight the tutorial teaches into (scavenger squads run 3-5;
+`hp=14`, `monster_claws`, hunter behavior). Alternatives measured:
+seed 88 (2 scavengers @6), seed 39 (2 dust_prowlers @7), seed 8/91/118
+(lone sentry_drone — the guard read, weaker as the tutorial's
+representative swarm moment).
+
 ## Pre-implementation audit (Phase 1 — 2026-09-24, code-verified)
 
 ### 1. Existing modules / patterns to reuse
