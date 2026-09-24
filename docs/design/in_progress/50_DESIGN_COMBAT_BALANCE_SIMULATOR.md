@@ -60,16 +60,33 @@ exercised headlessly in the test suite; `tools/save_debug.py` shows the
 project's pattern for a CLI tool that drives real game logic outside the
 UI (though it explicitly stops at the combat boundary today).
 
+## Settled rulings
+
+**SETTLED (2026-09-24, user): the simulator is part of the TEST
+SUITES.** Battle-sim scenarios live as tests — every new scenario gets
+tested as balance is tweaked across the game's life. Goal 1 is the
+first such test (the starter-vs-Jack benchmark asserted in pytest,
+riding `make check` like every other gate). A `tools/balance_sim.py`
+CLI may still exist as the exploration/reporting FRONT for the same
+scenario data (bulk runs, richer output than an assert), but the
+benchmarks' home is the suite — answers open question 3. Precedent in
+the tree: `tests/test_line_tuning.py` already pins a balance contract
+(closed form); this generalizes the pattern to simulated matchups.
+
 ## Open questions (settle before expanding this into a full design)
 
 1. What are the target feel benchmarks, per matchup class? (win rate,
-   round count, resource cost — needs the user's numbers, not guesses)
+   round count, resource cost — needs the user's numbers, not guesses.
+   Goal 1's "pretty easily beat" needs a number when it becomes a
+   test — e.g. win rate floor + round ceiling.)
 2. Which axis is being tuned first — ship combat, ground combat, or both
    in parallel?
-3. Does this run as a one-off CLI (`tools/balance_sim.py`) or become part
-   of `make check` as a regression gate once benchmarks exist?
+3. ~~One-off CLI vs `make check` regression gate?~~ ANSWERED — the
+   suite is the home (SETTLED above); a CLI front is optional.
 4. How is enemy/gear variation parameterized — sweep every stat block in
    `data/`, or a curated matchup list the user maintains by hand?
 5. AI behavior: use the real combat AI (`combat/_ai.py`,
-   `combat/_ai_ground.py`) as-is, or does simulation need simplified/seeded
+   `_ai_ground.py`) as-is, or does simulation need simplified/seeded
    AI to get statistically clean, reproducible results across N runs?
+   (The suite-home ruling leans real-AI: a benchmark pinned against
+   simplified AI would lie the moment the loop changes.)
