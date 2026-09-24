@@ -1946,6 +1946,16 @@ with doctrinal 10-13):
   the missile-led captain, a grant-time registry insert riding the
   one id-resolved path; identity elite lint scoped to production
   rows). PLAYTEST PENDING.
+  Mid-playtest rulings (2026-09-24): (1) **DERELICTS SHOW NO SHIELD
+  BUBBLE** (user report: "they're not active ships") — the parity
+  change had credited every NPC hull with its base shields on the
+  space map, wrecks included; the map read now zeroes capacity for
+  hulls pinned `base_speed=0` (the derelicts' own stationary gate —
+  a dead hull's deflector is down with the drive). Amends SETTLED 39's
+  parity line: hull shields are honored for ships under way; derelicts
+  are boarded, never fought, and the combat build is unreachable for
+  them (detect_radius 0, boarding bypasses combat) — pinned
+  (live pirate_scout still reads 5).
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
