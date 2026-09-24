@@ -197,14 +197,11 @@ never hand-built structs with copied numbers.
 
 ## Open questions (settle before expanding this into a full design)
 
-1. What are the target feel benchmarks, per matchup class? (win rate,
-   round count, resource cost — needs the user's numbers, not guesses.
-   Goal 1's "pretty easily beat" needs a number when it becomes a
-   test — e.g. win rate floor + round ceiling. SETTLED 2 moves this
-   INTO the scenario row: each scenario states its own goal.)
-   **REMAINS OPEN, narrowed by SETTLED 3:** Goal 1's floor/ceiling
-   get RULED at the Phase-1 checkpoint from the measured report —
-   nothing to settle ahead of it.
+1. ~~What are the target feel benchmarks, per matchup class?~~
+   ANSWERED — SETTLED 2 moved each scenario's goal INTO its row, and
+   Goal 1's numbers were ruled at the phase-1 checkpoint (win-rate
+   band [0.94, 0.99] over the measured 0.950; rounds/damage ceilings
+   left unstated — the fight's shape didn't need them).
 2. ~~Which axis is being tuned first — ship combat, ground combat, or
    both in parallel?~~ ANSWERED — space first; ground lands with the
    first ground balance question (SETTLED 3).
