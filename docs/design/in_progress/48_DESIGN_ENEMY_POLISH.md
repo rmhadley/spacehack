@@ -1926,6 +1926,26 @@ with doctrinal 10-13):
   capturable), and the SHIP-SIDE band/loadout rolling (SETTLED 31's
   "pairs differ by band/loadout" — resolution lives here with the
   loadouts). Brief below (PROPOSED 2026-09-24).
+  LANDED 2026-09-24 in seven builds (0ec9211e resolver+spec bands —
+  reviewer APPROVE; 40103850 the parity swap (EnemyInstance
+  StoredEquipment weapons, slot-keyed ammo, hull shields/recharge/
+  power, band-derived skills + module bonuses + dials, field
+  retirements with TypeError pins, line-harness re-pin) — reviewer
+  REQUEST_CHANGES folded (start_enemy_turn contract tests, the
+  hand-folded harness DRY, honest ~5x claim); 8caafe03 honest fire
+  (weapon_costs shared economy table, first-affordable walk, real
+  AP/power/ammo per shot incl. misses, weapon-quality damage —
+  player bit-identical at 0) — reviewer REQUEST_CHANGES folded (the
+  dropped LOS firing gate, regression-pinned + loop-level
+  termination tests); a18ca042 joiner fix; c9f88707 the LVL card
+  line; 0afe57f0 capture-strip weapons (the ship_weapon loot route —
+  the bare 'weapon' namespace stays ground-only, pickups land in
+  ship storage at flown quality); e6b11c02 themed loadouts
+  (smuggler_hold, merchant wealth suites, blockade untouched);
+  84310b75 the Shift+P dev grant (stateless cycle scout→warlord +
+  the missile-led captain, a grant-time registry insert riding the
+  one id-resolved path; identity elite lint scoped to production
+  rows). PLAYTEST PENDING.
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
@@ -3426,6 +3446,43 @@ same-commit extraction is forced this phase; keep additions small.
 **Ratchet note:** no hud.py edit remains (the LVL line lives in the
 target card); `_rules_space.py` (870) has headroom for the joiner
 fix; every other touched module ≤ 900.
+
+**Build-discovered decisions (called out for the playtest):**
+
+- **THE MOVED BRACKET (the Line):** the parity numbers make the
+  band-2 picket ~70% hotter than the doc-41 tuning (derived gunnery
+  44 vs 15 — the targeting computer now counts; cruiser hull shields
+  25 + free regen 3/turn; AP 4). Under the closed form the old
+  level-30 knife-edge fit loses the full watch ~5x; the re-pinned
+  harness derives FIT_25/29 honestly and gives the costly win to
+  FIT_SUPER — the max sheet the ruling itself names ("a brute force
+  skip... for a super powered player"). If the watch reads too hard
+  in play, that is a user ruling, not a lever — the named
+  frigate-hull escalation only goes harder. Parity pins: g44/p32/e22,
+  EHP 125, regen 3 (`test_line_tuning.py`).
+- **AP now reads the folded piloting** (uniform with the player):
+  the hound derives piloting 34 + gyro 10 + dial 28 = 72 → 6 AP
+  (today 4). The interceptor got FAST. Playtest-tunable via the
+  dials/weights; flagged because it is the largest single live-delta
+  outside the Line.
+- **Merchant weights are engineering-heavy** (0.20/0.10/0.70): the
+  brief's "piloting-light" could have spiked caravan gunnery to ~59
+  on a 45% share; the engineering split keeps merchants non-threats
+  and reads wealth in the reactor (engineering feeds max_power).
+  Passive-dodge delta pinned: caravan 10 vs today's 7.
+- **The unknown-hull fallback is now zero, not 100** (modules-only
+  stats): unreachable on real data (all 15 specs resolve their
+  hulls) — a data error degrades instead of granting a free
+  frigate-grade hull.
+- **The dev missile-led variant registers at grant time**
+  (SPACEHACK_DEV-gated `dev_missile_captain`): the encounter system
+  is id-resolved, so a variant spec row is the only way it rides the
+  ONE spawn path; the identity lint excludes the `dev_` namespace
+  from production-exactness pins.
+- **The ships-only skill base is 11** (band-1 three-skill total 43,
+  inside today's authored 40-45): band totals read 43/78/118/178 —
+  band-3 cruisers/captains land ABOVE their old authored sums (the
+  honest-claim line); playtest tunes via the one constant.
 
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
