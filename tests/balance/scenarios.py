@@ -114,8 +114,13 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             "pretty easily beat the forced tutorial Crimson Jack fight."
         ),
         player=PlayerSheet(
+            # The tutorial's own forced combo (title_flow.py:74 runs
+            # new games as human merchant — character creation is
+            # skipped). Corrected 2026-09-24: the first cut wrongly
+            # pinned human bounty_hunter, a better pilot than the
+            # tutorial actually flies (gunnery 16 vs 12).
             species_id="human",
-            class_id="bounty_hunter",
+            class_id="merchant",
             hull_id="starter",
             weapon_ids=("light_laser", "light_laser"),
             module_ids=("shield_mk1",),
@@ -128,8 +133,8 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         seed=20260924,
         # Ruled at the phase-1 checkpoint (2026-09-24): win the fight
         # easily (>=0.95) but never a sure thing (<=0.99 — at least
-        # one upset survives the declared batch). Measured 0.960
-        # under the landed power-gen ruling.
+        # one upset survives the declared batch). Measured 0.950
+        # under the true tutorial sheet + the landed power-gen ruling.
         thresholds=Thresholds(
             win_rate_floor=0.95,
             win_rate_ceiling=0.99,
