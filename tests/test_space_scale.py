@@ -50,6 +50,23 @@ def test_militia_weight_ladder_bands():
     assert find_npc_ship("militia_blockade").band == 2
 
 
+def test_paid_divert_rates_authored_on_warships_only():
+    """SETTLED 40: the paid divert is spec-authored personality —
+    blockade/patrol_heavy 2, captain/warlord 3, everyone else 0
+    (merchants and derelicts never divert); threshold defaults 0.5."""
+    rates = {s.id: s.shield_regen_rate for s in list_npc_ships()}
+    assert rates["militia_blockade"] == 2
+    assert rates["militia_patrol_heavy"] == 2
+    assert rates["pirate_captain"] == 3
+    assert rates["pirate_warlord"] == 3
+    assert all(
+        rate == 0 for sid, rate in rates.items()
+        if sid not in {"militia_blockade", "militia_patrol_heavy",
+                       "pirate_captain", "pirate_warlord"}
+    )
+    assert all(s.shield_regen_threshold == 0.5 for s in list_npc_ships())
+
+
 def test_merchant_wealth_ladder_bands():
     ladder = [find_npc_ship(f"merchant_{name}").band for name in (
         "hauler", "freighter", "caravan",

@@ -517,8 +517,10 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
     if enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
         room = enemy.max_shields - enemy.shields
-        # Tier 1: paid regen from base rate (dormant in Tier 0 — no
-        # enemy sets a divert rate; the decision is Tier 1's).
+        # Tier 1: paid divert from the spec's authored rate (doc 48
+        # SETTLED 40) — the AI's S-dial. Ungated until the Tier-1
+        # build lands the threshold (divert only below threshold ×
+        # max_shields).
         if enemy.shield_regen_rate > 0:
             full_cost = max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
             paid_regen = min(enemy.shield_regen_rate, room, enemy.power_pool * enemy.shield_regen_rate // full_cost)

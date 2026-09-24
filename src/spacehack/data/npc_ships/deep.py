@@ -99,6 +99,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         ai_preferred_range=3,
         ai_accuracy_bonus=35,
         ai_dodge_bonus=10,
+        shield_regen_rate=3,    # paid divert below half shields (doc 48 SETTLED 40)
         detect_radius=14,
         comms_warning_range=0,
         comms_lines=(

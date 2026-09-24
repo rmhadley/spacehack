@@ -151,6 +151,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(600, 1800),
         ai_aggressiveness=70,
         ai_preferred_range=4,
+        # Paid divert below half shields (doc 48 SETTLED 40): the
+        # picket diverts 2/turn — the Tier-1 term the harness models.
+        shield_regen_rate=2,
         # Doc 41 phase 3 tuning (the 30-floor harness): pickets are
         # LIGHT cutters — one is a threat to a normal hauler, ten
         # converging are the level-30 gate. See test_line_tuning.py.
@@ -188,6 +191,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         ai_preferred_range=3,
         ai_accuracy_bonus=25,
         ai_dodge_bonus=10,
+        shield_regen_rate=3,    # paid divert below half shields (doc 48 SETTLED 40)
         detect_radius=12,
         comms_warning_range=0,    # random pirates don't auto-hail — only zone defenders do
         comms_lines=(
@@ -274,6 +278,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         ai_preferred_range=3,
         ai_accuracy_bonus=30,
         ai_dodge_bonus=15,
+        shield_regen_rate=2,    # paid divert below half shields (doc 48 SETTLED 40)
         detect_radius=8,
         comms_warning_range=20,
         comms_lines=(

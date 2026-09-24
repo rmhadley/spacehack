@@ -277,7 +277,8 @@ def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyIns
     """Construct the EnemyInstance — the parity mirror (doc 48
     SETTLED 39): hull-catalog shields/recharge/power, module effects
     onto band-derived skills, flown equipment at band quality, and
-    the paid shield divert left unset (Tier 1)."""
+    the spec's paid-divert dials (doc 48 SETTLED 40 — rate +
+    threshold)."""
     _weapons, _flown = _enemy_flown_loadout(enemy_spec)
     _hull = _enemy_hull(enemy_spec)
     _g, _p, _e = _enemy_skills(enemy_spec, _flown)
@@ -308,6 +309,8 @@ def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyIns
         power_gen=_pwr_gen,
         max_power=_max_power,
         band=enemy_spec.band,
+        shield_regen_rate=enemy_spec.shield_regen_rate,
+        shield_regen_threshold=enemy_spec.shield_regen_threshold,
         shield_recharge_bonus=_free_shield_regen(_hull, _flown),
     )
 

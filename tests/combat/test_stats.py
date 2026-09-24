@@ -460,6 +460,19 @@ class TestFreeShieldRegen:
         assert _free_shield_regen(cat, ()) == 0
 
 
+def _fake_enemy_spec(modules=()):
+    """The shared spec fake for _build_enemy paths — every optional
+    field pinned explicitly (the MagicMock-trap rule)."""
+    return SimpleNamespace(
+        id="e1", name="Pirate", char="P", fg=(255, 0, 0),
+        ship_id="scout_a", faction="pirate", weapons=(),
+        modules=modules, band=1,
+        skill_weights=(1 / 3, 1 / 3, 1 / 3),
+        ai_accuracy_bonus=0, ai_dodge_bonus=0,
+        shield_regen_rate=0, shield_regen_threshold=0.5,
+    )
+
+
 class TestInitCombatState:
     """Combat state seeds the S-key rate at 0 and folds free regen in."""
 
@@ -472,12 +485,7 @@ class TestInitCombatState:
             modules=(_module("shield_recharger"),), weapons=(), weapon_ammo={}, hull_damage_pct=0,
         )
         skills = PilotSkills(gunnery=10, piloting=10, engineering=10)
-        enemy_spec = SimpleNamespace(
-            id="e1", name="Pirate", char="P", fg=(255, 0, 0),
-            ship_id="scout_a", faction="pirate", weapons=(), modules=(),
-            band=1, skill_weights=(1 / 3, 1 / 3, 1 / 3),
-            ai_accuracy_bonus=0, ai_dodge_bonus=0,
-        )
+        enemy_spec = _fake_enemy_spec()
         return cat, owned, skills, enemy_spec
 
     def test_free_regen_folds_ship_base_and_module(self):
@@ -500,13 +508,7 @@ class TestFlyTimeModuleRolls:
     hull/shields scale with the flown tiers; no re-roll at death."""
 
     def _spec(self, modules):
-        return SimpleNamespace(
-            id="e1", name="Pirate", char="P", fg=(255, 0, 0),
-            ship_id="scout_a", faction="pirate", weapons=(),
-            modules=modules, band=1,
-            skill_weights=(1 / 3, 1 / 3, 1 / 3),
-            ai_accuracy_bonus=0, ai_dodge_bonus=0,
-        )
+        return _fake_enemy_spec(modules)
 
     def test_flown_modules_roll_the_kill_ladder(self, monkeypatch):
         class _AlwaysHit:
@@ -579,7 +581,8 @@ class TestBuildEnemyParity:
         assert enemy.power_gen == 6 - 1
         assert enemy.max_power == max(10, 5 * 2) + enemy.pilot_engineering // 5
         assert enemy.power_pool == enemy.max_power
-        assert enemy.shield_regen_rate == 0  # paid divert stays Tier 1
+        assert enemy.shield_regen_rate == 3  # authored paid divert (doc 48 SETTLED 40)
+        assert enemy.shield_regen_threshold == 0.5
 
     def test_module_skill_bonuses_and_dials_fold(self, monkeypatch):
         enemy = self._build(monkeypatch)

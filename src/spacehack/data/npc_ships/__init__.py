@@ -59,6 +59,10 @@ class NpcShipSpec:
             non-threats).
         ai_aggressiveness: 0-100 chance to attack vs reposition.
         ai_preferred_range: AI tries to maintain this distance.
+        shield_regen_rate: paid shield-divert rate per turn (0 = the
+            ship never diverts power to shields; doc 48 SETTLED 40).
+        shield_regen_threshold: divert only while shields sit below
+            this fraction of max (default 0.5).
         ai_accuracy_bonus / ai_dodge_bonus: per-spec reconciliation
             dials folded onto the band-derived skills at build.
         detect_radius: cells before auto-engaging combat (0 = never).
@@ -103,6 +107,13 @@ class NpcShipSpec:
     ai_preferred_range: int = 3
     ai_accuracy_bonus: int = 0
     ai_dodge_bonus: int = 0
+    # Paid shield divert (doc 48 SETTLED 40 — Tier 1): the AI's
+    # answer to the player's S-dial. Rate 0 = never diverts (merchants,
+    # derelicts, every spec unlisted below); warships carry small
+    # authored rates. The threshold gates WHEN (divert only while
+    # shields sit below threshold × max_shields; default half).
+    shield_regen_rate: int = 0
+    shield_regen_threshold: float = 0.5
     detect_radius: int = 0
 
     # Comms / interaction

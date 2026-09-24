@@ -63,13 +63,17 @@ class EnemyInstance:
     power_gen: int = 3
     max_power: int = 10
     cells_moved_this_turn: int = 0
+    # Paid shield divert (doc 48 SETTLED 40 — Tier 1): the rate is the
+    # spec's authored S-dial answer; the threshold gates it (divert
+    # only while shields sit below threshold × max_shields).
     shield_regen_rate: int = 0
+    shield_regen_threshold: float = 0.5
     # The spec's authored band (doc 48 SETTLED 39) — the LVL card line
     # reads it; skills and flown quality derive from it at build.
     band: int = 0
     # Free shield regen per turn: hull base + module bonus, folded at
-    # build (doc 48 SETTLED 39). The paid divert (shield_regen_rate
-    # above) stays 0 in Tier 0 — when-to-divert is a Tier 1 decision.
+    # build (doc 48 SETTLED 39). The paid divert above fires only
+    # below the threshold while power lasts.
     shield_recharge_bonus: int = 0
     alive: bool = True
 
