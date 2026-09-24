@@ -66,7 +66,11 @@ class NpcShipSpec:
         comms_lines: flavour text for comms hail.
         base_speed: explicit map speed in tiles/day, or None to
             derive from the hull (find_ship(ship_id).speed) — see
-            map_speed(). Derelicts pin 0: the stationary gate.
+            map_speed(). Derelicts pin 0: the stationary gate, which
+            also reads as "dead in space" (no active deflector — the
+            map shield read zeroes them; doc 48 playtest ruling
+            2026-09-24). A future LIVE-but-stationary spec would need
+            that coupling revisited.
         security_drones: the boarded deck's wealth dial (doc 48
             SETTLED 7/38) — multiplies ``security_drone``-role crew
             marker chances at load, capped at 1.0. 1.0 = no dial;

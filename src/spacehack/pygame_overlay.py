@@ -235,6 +235,11 @@ def _ship_shield_capacity(entity: Any, player_owned_ship: Any | None = None) -> 
             from .data.npc_ships import find_npc_ship
             from .combat._stats import _enemy_hull
             npc = find_npc_ship(npc_id)
+            # A hull pinned to zero speed is dead in space (derelicts
+            # pin 0 — the stationary gate): the deflector is down with
+            # the drive, so a wreck shows no shield bubble.
+            if npc.base_speed == 0:
+                return 0
             # Parity (doc 48 phase 7): the hull's own base shields are
             # the NPC's too — same formula combat builds from. Out of
             # combat the modules read at base quality (no fly-time

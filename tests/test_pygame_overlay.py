@@ -1245,3 +1245,38 @@ def test_shared_context_forwards_optional_overlay_to_runtime():
     context.present(console, overlay=overlay)
 
     assert calls == [(console, {"overlay": overlay})]
+
+
+def test_derelicts_show_no_shield_bubble():
+    """Dead hulks carry no active shields (playtest ruling 2026-09-24):
+    a wreck's deflector is down with the drive — only ships under way
+    get the parity hull shields. Derelicts pin base_speed 0."""
+    game_map = world.GameMap(
+        width=10,
+        height=8,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(10)] for _ in range(8)],
+        entities=[
+            world.Entity(
+                "s", (200, 160, 80), world.Position(3, 2),
+                npc_ship_id="derelict_scout",
+            ),
+            world.Entity(
+                "H", (190, 140, 60), world.Position(6, 5),
+                npc_ship_id="derelict_freighter",
+            ),
+        ],
+    )
+    assert pygame_overlay.shield_bubbles_for_map(
+        game_map, camera_x=0, camera_y=0, region_w=10, region_h=8,
+    ) == ()
+
+    for derelict in ("derelict_scout", "derelict_freighter"):
+        _ent = world.Entity(
+            "s", (1, 1, 1), world.Position(3, 2),
+            npc_ship_id=derelict,
+        )
+        assert pygame_overlay._ship_shield_capacity(_ent) == 0
+    _live = world.Entity(
+        "s", (1, 1, 1), world.Position(3, 2), npc_ship_id="pirate_scout",
+    )
+    assert pygame_overlay._ship_shield_capacity(_live) == 5
