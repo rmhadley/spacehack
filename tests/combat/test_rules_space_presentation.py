@@ -151,6 +151,7 @@ def _card_enemy():
         max_shields=10,
         ap_remaining=2,
         ap_total=3,
+        band=1,
         pos=world.Position(5, 3),
         weapons=(StoredEquipment("weapon", "light_laser"),),
     )
@@ -165,7 +166,7 @@ def test_space_card_rows_show_hull_shield_ap_and_weapons():
     rows = _space_presentation._space_card_rows(_card_enemy(), hit_chance=62)
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
-        "Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 3",
+        "LVL 3 Pirate Scout", "HULL 20/30", "  HIT 62%", "SHD 8/10", "AP 3",
         "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
     ]
 
@@ -211,7 +212,7 @@ def test_space_card_rows_omit_shield_when_unshielded():
     rows = _space_presentation._space_card_rows(enemy, hit_chance=None)
     _segs = [seg for row in rows for seg in row]
     assert [t for t, _c in _segs] == [
-        "Pirate Scout", "HULL 20/30", "  HIT --", "AP 3",
+        "LVL 3 Pirate Scout", "HULL 20/30", "  HIT --", "AP 3",
         "Light Laser", "DMG 4  RNG 1-5", "[V] hide",
     ]
 
@@ -327,7 +328,7 @@ def test_presentation_target_card_toggles_and_requires_active():
     try:
         card = _rules_space.presentation_target_card(ctx=ctx)
         assert card is not None
-        assert card.rows[0] == (("Pirate Scout", pygame_target_card.TARGET_CARD_TITLE),)
+        assert card.rows[0] == (("LVL 3 Pirate Scout", pygame_target_card.TARGET_CARD_TITLE),)
 
         _rules_space.toggle_target_card(ctx)
         assert _rules_space.presentation_target_card(ctx=ctx) is None
@@ -388,3 +389,12 @@ def test_finalize_kill_awards_hull_based_xp_and_counts_kill_once(monkeypatch):
     assert ctx.player_xp == _sc.base_hull * 2
     assert ctx.player_counters.total_kills == 1
     assert state.cr.defeated_spec_ids == ["pirate_scout"]
+
+
+def test_space_card_title_states_the_band_level():
+    """Doc 48 SETTLED 39: the ground card's twin — 'LVL 30 Pirate
+    Warlord' reads the spec-authored band."""
+    enemy = _card_enemy()
+    enemy.band = 4
+    rows = _space_presentation._space_card_rows(enemy, hit_chance=None)
+    assert rows[0][0][0] == "LVL 30 Pirate Scout"
