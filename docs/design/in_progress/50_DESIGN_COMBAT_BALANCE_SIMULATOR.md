@@ -252,7 +252,7 @@ N=100, seed base 20260924, stand_and_trade):**
 
 | configuration | win rate | defeats | mean turns (won) | mean hull dmg (won) |
 |---|---|---|---|---|
-| as shipped | 0.86 | 14 | 3.93 | 1.53 |
+| as shipped (gen 2) | 0.86 | 14 | 3.93 | 1.53 |
 | starter hull 15→20 | 0.89 | 11 | 3.99 | 2.00 |
 | starter power_gen 2→3 | 0.96 | 4 | 3.46 | 0.76 |
 | hull 20 + power_gen 3 | 0.97 | 3 | 3.48 | 0.93 |
@@ -263,11 +263,17 @@ N=100, seed base 20260924, stand_and_trade):**
 Reads: the two-laser player's binding constraint is POWER (bursts
 cost 2 and the Skiff regens 2/turn — the player goes dry mid-fight
 and stands idle); the fumbler's constraint is HULL (half firepower
-never runs dry, but attrition in a long race kills it). The probes
-were uncommitted spec edits, measured and reverted; no balance change
-has landed. Awaiting the user's ruling: the tuning decision and the
-Goal-1 thresholds (the gate's batch is seed-fixed, so a floor near
-the measured rate is a stable pin, not a flaky one).
+never runs dry, but attrition in a long race kills it).
+
+**RULING (user, 2026-09-24): land `base_power_gen` 2→3** (content
+commit 33104dd7), chosen over hull for the progression it buys:
+tutorial (2 light lasers) → mid (2 medium lasers) → Scout, each stage
+a real step. Post-landing measurements through the live spec:
+Goal 1 (light pair) **0.960** / 3.46 turns / 0.76 dmg — the probe
+number, reproduced exactly; the medium pair under gen 3 **1.00** /
+2.84 turns / 0.00 dmg (0.97 / 0.44 under gen 2 — the buff helps both
+pairs, as both cost 2 power per burst). Goal 1's THRESHOLDS remain
+unruled pending the user's in-game feel playtest of the landed buff.
 
 1. `python3 -m tests.balance.report` — read Goal 1's measured table
    (win rate, mean/max rounds, mean hull damage taken, timeouts) and
