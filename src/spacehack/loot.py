@@ -42,6 +42,11 @@ def _loot_choice_label(loot_entity) -> str:
             return _module_loot_name(loot_entity)
         except (KeyError, TypeError, ValueError):
             return str(data.get("item_id", "Unknown ship module"))
+    if item_type == SHIP_WEAPON_LOOT_TYPE:
+        try:
+            return _ship_weapon_loot_name(_ship_weapon_loot_entry(loot_entity))
+        except (KeyError, TypeError, ValueError):
+            return str(data.get("item_id", "Unknown ship weapon"))
     if item_type in {"ammo", "consumable"}:
         stack = _field_item_loot_stack(loot_entity)
         if stack is not None:
@@ -88,6 +93,14 @@ def _loot_choice_runs(loot_entity):
         try:
             return message_log.with_runs(
                 quality_mark(_module_loot_name(loot_entity), entry.quality),
+            )[1]
+        except (KeyError, TypeError, ValueError):
+            return None
+    if data.get("item_type") == SHIP_WEAPON_LOOT_TYPE:
+        entry = _ship_weapon_loot_entry(loot_entity)
+        try:
+            return message_log.with_runs(
+                quality_mark(_ship_weapon_loot_name(entry), entry.quality),
             )[1]
         except (KeyError, TypeError, ValueError):
             return None
@@ -183,6 +196,34 @@ def _module_loot_name(loot_entity) -> str:
     return ship_module.module_display_name(
         entry.item_id, entry.quality, entry.randart_seed,
     )
+
+
+# Loot payloads' item_type for SHIP weapons. The bare "weapon"
+# namespace is the ground catalog's: ship and ground weapons share
+# dispatch branches nowhere (doc 48.7).
+SHIP_WEAPON_LOOT_TYPE = "ship_weapon"
+
+
+def _ship_weapon_loot_entry(loot_entity):
+    """Build the stored-weapon entry from a ship-weapon loot entity
+    (the module twin, doc 48.7: what FLEW is what drops)."""
+    from . import ship as ship_module
+    from .ground_equipment import parse_quality
+
+    loot_data = loot_entity.loot_data or {}
+    return ship_module.StoredEquipment(
+        "weapon",
+        str(loot_data.get("item_id", "")),
+        quality=parse_quality(loot_data.get("quality")),
+    )
+
+
+def _ship_weapon_loot_name(entry) -> str:
+    """The token-prefixed weapon label at its rolled quality."""
+    from .data.quality import token_prefix
+    from .data.weapons import find_weapon
+
+    return f"{token_prefix(entry.quality)}{find_weapon(entry.item_id).name}"
 
 
 def _field_item_loot_stack(loot_entity):
@@ -696,6 +737,27 @@ async def _apply_module_loot(ctx: GameContext, loot_entity) -> None:
         )
 
 
+async def _apply_ship_weapon_loot(ctx: GameContext, loot_entity) -> None:
+    """Move one looted ship weapon into global storage (the module
+    twin, doc 48.7): the capture strip's flown instance at its rolled
+    quality — what fought is what installs."""
+    entry = _ship_weapon_loot_entry(loot_entity)
+    try:
+        name = _ship_weapon_loot_name(entry)
+    except (KeyError, TypeError, ValueError):
+        ctx.log.add("Unknown ship weapon - left it behind.")
+        return
+    ctx.ship_storage.append(entry)
+    from . import message_log
+    from .data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Stored ship weapon: ",
+        quality_mark(name, entry.quality), ".",
+    )
+    _finish_loot_pickup(ctx, loot_entity, _msg, _runs)
+
+
 async def _apply_field_item_loot(ctx: GameContext, loot_entity) -> None:
     """Immediately pack typed ammo/consumable loot."""
     await _apply_field_item_loot_pickup(ctx, loot_entity)
@@ -828,6 +890,8 @@ async def _open_single_loot_pickup(ctx: GameContext, loot_entity) -> None:
     item_type = loot_entity.loot_data.get("item_type")
     if item_type == "module":
         await _apply_module_loot(ctx, loot_entity)
+    elif item_type == SHIP_WEAPON_LOOT_TYPE:
+        await _apply_ship_weapon_loot(ctx, loot_entity)
     elif item_type in {"weapon", "armor"}:
         await _apply_equipment_loot(ctx, loot_entity)
     elif item_type in {"ammo", "consumable"}:

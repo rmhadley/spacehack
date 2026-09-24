@@ -652,6 +652,7 @@ def _load_capture_deck(ctx, cr, spec):
             component_good_id=getattr(_heist_m, 'heist_target_good_id', None),
             component_mission_id=getattr(_heist_m, 'mission_id', None),
             capture_modules=getattr(cr, 'boarded_modules', ()) or (),
+            capture_weapons=getattr(cr, 'boarded_weapons', ()) or (),
             spawn_band=_parent_band(ctx),
             crew_faction=spec.faction,
             security_drones=spec.security_drones,

@@ -91,6 +91,9 @@ class CombatResult:
     # The boarded ship's flown module instances at their rolled
     # quality (doc 47.3 SETTLED 14/16) — the capture strip's source.
     boarded_modules: tuple = ()
+    # The flown weapon instances beside them (doc 48.7): weapons are
+    # quality-bearing now — what FLEW is what drops.
+    boarded_weapons: tuple = ()
 
 
 @dataclass

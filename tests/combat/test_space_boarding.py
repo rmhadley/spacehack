@@ -18,6 +18,7 @@ def _state(player_pos=(10, 10), ent=None, enemy_pos=(11, 10), **enemy_kwargs):
     _enemy = dict(
         alive=True, spec_id="pirate_scout", name="Pirate Scout",
         shields=0, max_shields=0, hull=20, max_hull=100, modules=(),
+        weapons=(),
     )
     _enemy.update(enemy_kwargs)
     _ent = ent if ent is not None else SimpleNamespace(
@@ -48,7 +49,7 @@ def test_board_denial_truth_table():
     _escorted, _ = _state()
     _escorted.enemy_insts.append(SimpleNamespace(
         alive=True, shields=0, hull=10, max_hull=100, modules=(),
-        pos=world.Position(30, 30),
+        weapons=(), pos=world.Position(30, 30),
     ))
     assert "escorts" in board_denial(_escorted, _escorted.enemy_insts[0], _ent)
 
@@ -259,6 +260,7 @@ def test_begin_capture_boarding_consumes_the_hull(monkeypatch):
     # The strip's source threads through: the fought instances reach
     # the layout load unchanged (doc 47.3 SETTLED 14/16).
     assert _load_kwargs["capture_modules"] == _cr.boarded_modules
+    assert _load_kwargs["capture_weapons"] == _cr.boarded_weapons
     assert _ctx.procedural_spawns["sol"] == [], "the spawn record is dropped"
     assert _interior.capture_spec_id == "pirate_scout"
     assert _interior.derelict_interior is True, "one-shot interior says so on exit"
@@ -435,7 +437,7 @@ def test_attempt_board_resolves_through_the_alive_list():
     )
     _live = SimpleNamespace(
         alive=True, spec_id="pirate_raider", name="Live Raider", modules=(),
-        shields=0, hull=10, max_hull=100, pos=world.Position(11, 10),
+        weapons=(), shields=0, hull=10, max_hull=100, pos=world.Position(11, 10),
     )
     _live_ent = SimpleNamespace(
         procedural_squad_id="sq_2", npc_ship_id="pirate_raider",
@@ -588,3 +590,22 @@ def test_break_away_downgrades_the_outcome(monkeypatch):
     run(begin_capture_boarding(_ctx, None, _cr))
     assert _cr.outcome == "ABORTED", "the downgrade is the contract"
     assert _boarded in _space_map.entities, "nothing consumed"
+
+
+def test_attempt_board_stamps_the_flown_weapons(monkeypatch):
+    """Doc 48.7: the flown weapon instances stamp beside the modules
+    — quality-bearing, what fought is what drops."""
+    from src.spacehack.ship import StoredEquipment
+
+    monkeypatch.setattr(
+        "src.spacehack.data.npc_ships.find_npc_ship",
+        lambda sid: SimpleNamespace(capture_layout_id="scout_crew"),
+    )
+    state, _ent = _state()
+    state.enemy_insts[0].weapons = (
+        StoredEquipment("weapon", "heavy_laser", quality=3),
+    )
+    assert attempt_board(state, 0) is True
+    assert state.cr.boarded_weapons == (
+        StoredEquipment("weapon", "heavy_laser", quality=3),
+    )

@@ -577,25 +577,31 @@ def _capture_strip_cell(
     return (spawn.x, spawn.y) if spawn is not None else None
 
 
-def _seed_capture_modules(build: _LayoutBuild, capture_modules) -> None:
-    """The capture strip (doc 47.3 SETTLED 14/16): an intact capture
-    drops its whole flown module list — the instances that fought, at
-    the quality they flew, no re-roll. Dead-ship interiors (wrecks,
-    derelicts, mission salvage) never pass modules: their hardware
-    died with the hull, so they feed from room scatter only."""
+def _seed_capture_equipment(build: _LayoutBuild, capture_equipment) -> None:
+    """The capture strip (doc 47.3 SETTLED 14/16 + 48.7): an intact
+    capture drops what FLEW — weapons and modules, the exact
+    instances that fought at the quality they flew, no re-roll.
+    Dead-ship interiors (wrecks, derelicts, mission salvage) never
+    pass equipment: their hardware died with the hull, so they feed
+    from room scatter only."""
     from .engine import RNG
+    from .loot import SHIP_WEAPON_LOOT_TYPE
 
+    # StoredEquipment's "weapon" is the SHIP namespace; loot payloads
+    # keep ship and ground weapons apart by type key.
+    _payload_type = {"weapon": SHIP_WEAPON_LOOT_TYPE, "module": "module"}
     engine_markers = [
         marker for marker in build.loot_markers
         if marker[0] == _CAPTURE_STRIP_ROOM
     ]
     fallback = _spawn_adjacent_positions(build)
-    for index, entry in enumerate(capture_modules):
+    for index, entry in enumerate(capture_equipment):
         pos = _capture_strip_cell(build, engine_markers, index, fallback, RNG)
         if pos is not None:
             _append_equipment_loot(
-                build, pos[0], pos[1], "module", entry.item_id, entry.quality,
-                entry.randart_seed,
+                build, pos[0], pos[1],
+                _payload_type.get(entry.item_type, entry.item_type),
+                entry.item_id, entry.quality, entry.randart_seed,
             )
 
 
@@ -654,6 +660,7 @@ def _populate_build(
     spawn_band: int = 0,
     crew_faction: str = "",
     security_drones: float = 1.0,
+    capture_weapons: tuple = (),
 ) -> None:
     """Run the full scatter/populate pipeline over a built layout.
 
@@ -670,7 +677,9 @@ def _populate_build(
         _place_component(build, parsed, component_good_id, component_mission_id)
     _scatter_room_equipment(build)
     if capture_modules:
-        _seed_capture_modules(build, capture_modules)
+        _seed_capture_equipment(build, capture_modules)
+    if capture_weapons:
+        _seed_capture_equipment(build, capture_weapons)
     if wreck_scatter:
         _scatter_wreck_chips(build)
         _scatter_wreck_kits(build)
@@ -714,16 +723,15 @@ def load_layout(
     spawn_band: int = 0,
     crew_faction: str = "",
     security_drones: float = 1.0,
+    capture_weapons: tuple = (),
 ) -> tuple[world.GameMap, world.Position | None]:
     """Parse an authored layout and return its runtime map and spawn.
 
-    ``capture_modules`` (flown ``StoredEquipment``) seeds the intact-
-    capture strip; ``wreck_scatter`` gates the dead-ship scatter
-    passes; ``spawn_band`` stamps the site's band on ENEMY markers
-    (doc 48 SETTLED 35); ``crew_faction`` resolves role tokens
-    through CREW_ROLES and ``security_drones`` scales
-    ``security_drone``-role chances — the boarded hull's crew and
-    wealth dial (doc 48 SETTLED 28/38).
+    The boarding context threads straight through to
+    :func:`_populate_build` — the flown capture strip (modules AND
+    weapons, quality-bearing, doc 48.7), wreck scatter, the site's
+    band, crew faction, and the security-drone dial; see there for
+    the load-bearing populate order.
     """
     parsed = _parse_layout_file(layout_id, layout_dir)
     build = _build_tiles(parsed, require_spawn)
@@ -739,5 +747,6 @@ def load_layout(
         spawn_band=spawn_band,
         crew_faction=crew_faction,
         security_drones=security_drones,
+        capture_weapons=capture_weapons,
     )
     return _wrap_build(build, parsed)

@@ -434,3 +434,51 @@ def test_unseeded_module_pickups_never_fire_the_modal(monkeypatch):
     run(_apply_module_loot(ctx, entity))
 
     assert presented == []  # t1-t3 stay log lines (SETTLED 12/24)
+
+
+def test_capture_strip_drops_the_flown_weapons(tmp_path):
+    """Doc 48.7: the strip seeds the flown weapon instances at their
+    rolled quality — ship weapons carry the ``ship_weapon`` payload
+    type (the bare 'weapon' namespace is the ground catalog's)."""
+    game_map, _spawn = load_layout(
+        "strip_probe", layout_dir=_layout_dir(tmp_path, _ENGINE_ROOM_LAYOUT),
+        capture_weapons=(
+            StoredEquipment("weapon", "heavy_laser", quality=3),
+            StoredEquipment("weapon", "light_missile"),
+        ),
+    )
+    payloads = [
+        entity.loot_data
+        for entity in game_map.entities
+        if (getattr(entity, "loot_data", None) or {}).get("item_type")
+        == "ship_weapon"
+    ]
+    assert {
+        (payload["item_id"], payload.get("quality", 0))
+        for payload in payloads
+    } == {("heavy_laser", 3), ("light_missile", 0)}
+
+
+def test_ship_weapon_loot_pickup_lands_in_storage():
+    """The loot route: a strip-seeded weapon entity picks up into
+    ship storage at its flown quality (the module twin)."""
+    from types import SimpleNamespace
+    from tests.support.asyncutil import run
+    from src.spacehack import loot as _loot_mod
+    from src.spacehack.message_log import MessageLog
+    from src.spacehack.world import Position
+
+    entity = SimpleNamespace(
+        pos=Position(1, 1),
+        loot_data={"item_type": "ship_weapon", "item_id": "heavy_laser",
+                   "quality": 2},
+    )
+    ctx = SimpleNamespace(
+        ship_storage=[], log=MessageLog(10),
+        game_map=SimpleNamespace(entities=[entity]),
+    )
+    run(_loot_mod._apply_ship_weapon_loot(ctx, entity))
+    assert [e.item_id for e in ctx.ship_storage] == ["heavy_laser"]
+    assert ctx.ship_storage[0].item_type == "weapon"
+    assert ctx.ship_storage[0].quality == 2
+    assert any("Overclocked Heavy Laser" in entry.text for entry in ctx.log.recent())
