@@ -1,16 +1,16 @@
 # DESIGN: Headless Combat Balance Simulator
 
-**Status: IN IMPLEMENTATION (phase 1, 2026-09-24) — moved from
-`future/` 2026-09-24; questions settled + Phase 1 brief proposed same
-day (SETTLED 1-3); brief approved via `/implement-phase 50.1`.**
-The seed's blocker is lifted: doc 48's phases 7-8 landed space
-combat's Tier-0 parity (hull/module stats, honest costs) and Tier-1
-decision loop (the volley scorer, the aggressiveness dial, the
-divert) — combat is now in the purposefully-designed state this doc
-was waiting for, and doc 48 SETTLED 40 already named this tool the
-successor to closed-form Line pinning (`tests/test_line_tuning.py`
-carries the INTERIM note). Goal 1 is set (below); the Phase 1 brief
-awaits approval, then `/implement-phase 50.1`.
+**Status: IN IMPLEMENTATION — phase 1 LANDED 2026-09-24 (harness +
+Goal 1 asserted green, win-rate band [0.94, 0.99]); phase 2 (ground
+theater) settled same day (SETTLED 4), brief PROPOSED below.**
+Moved from `future/` 2026-09-24; questions settled + Phase 1 brief
+proposed same day (SETTLED 1-3). The seed's blocker was lifted when
+doc 48's phases 7-8 landed space combat's Tier-0 parity (hull/module
+stats, honest costs) and Tier-1 decision loop (the volley scorer, the
+aggressiveness dial, the divert); doc 48 SETTLED 40 already named this
+tool the successor to closed-form Line pinning
+(`tests/test_line_tuning.py` carries the INTERIM note). The Phase 2
+brief awaits approval, then `/implement-phase 50.2`.
 
 ## Goal 1 (user, 2026-09-24)
 
@@ -161,6 +161,59 @@ two mechanical rulings proposed alongside and not vetoed:
   paths are exercised; the gate never breaks on keymap rebinding,
   and the stance is not coupled to SDL events.
 
+## SETTLED 4 (2026-09-24, user) — the ground theater rulings (phase 2)
+
+- **The first ground scenario is the tutorial Mars fight** — the
+  ground twin of Goal 1: the same forced tutorial sheet (human
+  merchant), the loadout the tutorial itself teaches (two Kinetic
+  Pistols + a stack of Pistol Rounds — `tutorial.py`
+  "earth_armory"), against the Mars signal delve's first-sight group
+  (`monster_pool` rock_scavenger / dust_prowler / sentry_drone,
+  band 1; `data/planets/mars.py`). Doc 48's ground rework (phases
+  4-7 re-derived every ground enemy's stats, bands, and gear) is the
+  live trigger: the tutorial's ground fight has zero measured
+  protection. CORRECTION to the phase-2 cut note: the "Line
+  checkpoint fight" candidate is a SPACE fight (picket squads at
+  the blockade) — protecting it later is a space ROW under the
+  phase-1 harness, not ground machinery.
+- **Ground grids are planet-pinned generated delves.** `GridSpec`
+  gains a planet mode — the idiom of `system_id`: the harness runs
+  the REAL delve generator on the planet's own `DungeonParams`
+  (dims asserted against the catalog) with the row's declared grid
+  seed, keeps the tiles, discards the generated entity scatter, and
+  seeds the declared combatants. Real rooms/walls, reproducible, a
+  planet param change flows in. Synthetic blocks stay available for
+  hand-built geometry.
+- **The ground stance is a NEW vocabulary key: `hold_range`.** User,
+  verbatim: "we need a new mode for ground. in ground fighting
+  there's a clear ideal distance for most weapons. so the move
+  should be move so that the closest target to you is within ideal
+  range for your weapon." "Within ideal range" = inside the
+  weapon's `[min_range, max_range]` band with LOS — the mirror of
+  the enemy AI's own range rule (doc 48 SETTLED 26) from the player
+  seat; inside the band ground accuracy is FLAT
+  (`ground_point_blank_penalty` bites only inside min_range), so a
+  scalar ideal distance would have no mechanical effect today.
+  Policy order: FIRE while any active slot can fire (through the
+  real `can_fire`) → RELOAD a dry slot when a reserve remains (the
+  tutorial teaches the R key — a tutorial-honest pilot doesn't
+  stand idle on a dry magazine) → MOVE one step per the band rule
+  (approach when the closest target is beyond the reference
+  weapon's max_range or has no LOS; back off when inside min_range)
+  → WAIT. Reference weapon = the first active slot.
+  `stand_and_trade` stays the space policy, unchanged.
+- **Row-shape amendments (approved as a batch):** `EnemySide` gains
+  `band` (stamped `spawn_band` — `ground_scale.entity_band` reads
+  it; a 0 stamp would derive from the site, so the row declares
+  it); `PlayerSheet.ground_armor_id: str` → `ground_armor_ids:
+  tuple[str, ...]` (armor is five slots — head/body/hands/legs/
+  feet); new `PlayerSheet.ground_ammo: tuple[tuple[str, int], ...]`
+  (pack stacks by catalog id + rounds, e.g. `(("pistol_rounds",
+  40),)` — the stack's `ammo_type` links it to the weapon through
+  the real matching helpers); the ground map seeds ONLY the
+  declared combatants — the isolated first-sight fight (ambient
+  wander-in is a later scenario's question).
+
 ## The scenario data model (the row — SETTLED 2 + 3 shape)
 
 Authoring a protected situation = adding one frozen row. Composition
@@ -174,8 +227,10 @@ class BalanceScenario:
     theater: str               # "space" (ground rows join phase 2)
     goal: str                  # the stated feel goal, verbatim
     player: PlayerSheet        # level/stats->skills, hull id,
-                               #   weapon ids, module ids, traits
-    enemies: tuple[EnemySide, ...]   # spec id + start cell each
+                               #   weapon ids, module ids, traits;
+                               #   ground rows add ground_weapon_ids,
+                               #   ground_armor_ids, ground_ammo
+    enemies: tuple[EnemySide, ...]   # spec id + start cell + band
     grid: GridSpec             # size + obstacle cells (space: open
                                #   grid; coords from the live fight)
     stance: str                # STANCES vocabulary key
@@ -189,11 +244,15 @@ class BalanceScenario:
 
 `PlayerSheet` carries the full sheet SETTLED 2 demands — level and
 stats (the skills the flown ship fights with), the hull id, weapon
-ids, module ids, traits (ground loadout fields exist on the row
-shape; space runs ignore them until phase 2). The harness builds
+ids, module ids, traits; ground rows additionally declare the ground
+loadout (`ground_weapon_ids`, `ground_armor_ids` across the five
+slots, `ground_ammo` pack stacks — SETTLED 4), and each theater
+ignores the other's fields. The harness builds
 REAL objects from the ids — `OwnedShip` through the ship module's
-own install helpers, `PilotSkills` from the declared level/stats —
-never hand-built structs with copied numbers.
+own install helpers, `PilotSkills` from the declared level/stats,
+ground weapons/armor/ammo through the ground equipment module's own
+install and stack helpers — never hand-built structs with copied
+numbers.
 
 ## Open questions (settle before expanding this into a full design)
 
@@ -239,12 +298,13 @@ never hand-built structs with copied numbers.
   tuning ruling (Skiff power gen 2→3, 33104dd7) measured in at 0.960;
   thresholds ruled as a win-rate BAND — floor 0.95, ceiling 0.99,
   "never a sure thing" (user ruling) — asserted green (cb159520).
-- [ ] 2. **Ground theater** — the ground harness (`_rules_ground` +
-  `_ai_ground` through the same runner), the first ground scenario
-  (Line checkpoint fight / delve guardian candidates). Cut when the
-  first ground balance question exists. Swapped ahead of the CLI
-  front (user, 2026-09-24): real machinery with a live trigger (doc
-  48's ground work) beats an optional front.
+- [ ] 2. **Ground theater** — the ground builders + the `hold_range`
+  stance through the same runner; first row = the tutorial Mars
+  fight on a planet-pinned delve grid (SETTLED 4, ruled 2026-09-24 —
+  the Line candidate was space-side, see the correction there).
+  Swapped ahead of the CLI front (user, 2026-09-24): real machinery
+  with a live trigger (doc 48's ground work) beats an optional
+  front. Brief below (PROPOSED).
 - [ ] 3. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
   reading the same rows for bulk runs and richer output than an
   assert (SETTLED 1's optional front). Cut only when a tuning session
@@ -410,6 +470,129 @@ tuning decision with its own commits. No guide edits (nothing
 player-facing changed).
 
 **Playtest checkpoint:** the Phase 1 PLAYTEST list above — its
+center is item 3, the threshold ruling; the phase ticks only with
+the ruled numbers asserted green.
+
+### Phase 2 PLAYTEST (checkpoint = the Goal-2 ruling)
+
+1. `python3 -m tests.balance.report` — read the Mars row's measured
+   table (win rate, mean/max turns, mean HP damage taken, timeouts)
+   and the batch parameters (N, base seed, grid seed).
+2. Sanity-check the read against the lived fight: you fought Mars
+   delves through doc 48's ground playtests — if the measured
+   number contradicts the feel, that is a finding (stance wrong,
+   reference delve unrepresentative, or the feel wrong); say which.
+3. RULE the numbers: state the win-rate band (floor + ceiling per
+   the Goal-1 precedent) and optionally turns/damage ceilings. They
+   land as the row's `thresholds` + the parameterized assert, and
+   the phase ticks.
+4. Optional cross-check: play the tutorial Mars fight once (fresh
+   new game or dev mode) — the sim's verdict should match your
+   sense of "pretty easily."
+5. `make check` with the assert live: green, and the batch's suite
+   cost stays reasonable.
+6. Save/load: nothing to check — the sim is test-only surface; no
+   runtime path changed. Guide diff: NONE (no player-facing change;
+   no guide edit made).
+
+### Phase 2 Implementation brief (PROPOSED 2026-09-24 — SETTLED 1-4;
+### ready for /implement-phase 50.2 on approval)
+
+**Scope (files / hook points):**
+
+- **Row-shape amendments** (`tests/balance/scenarios.py`): the
+  SETTLED 4 batch — `EnemySide.band: int` (stamped `spawn_band`);
+  `PlayerSheet.ground_armor_id` → `ground_armor_ids:
+  tuple[str, ...] = ()`; new `PlayerSheet.ground_ammo:
+  tuple[tuple[str, int], ...] = ()`; `GridSpec` gains `planet_id:
+  str = ""` + `grid_seed: int = 0` (planet mode: dims asserted
+  against the planet's `DungeonParams`).
+- **Ground builders** (`tests/balance/harness.py`, extended):
+  - Sheet: `starting_ground_stats(species, class)` (the real
+    builder, the `starting_pilot_skills` idiom); ground weapons via
+    the ground equipment module's own install path (slot occupancy
+    enforced, magazines seeded as the real equip path seeds them);
+    armor pieces into their catalog slots; `ground_ammo` as pack
+    stacks through the real storage helpers. ctx carries the ground
+    fields the rules touch (`ground_stats`, `ground_hp` /
+    `ground_max_hp` at their honest new-game values, the equipped
+    lists) — audit-pin the new-game ground HP baseline, don't
+    guess.
+  - Grid: planet mode runs the REAL delve generator (the planet's
+    `DungeonParams`, the row's grid seed), keeps tiles, discards
+    the generated entity scatter; seeds ONLY the declared
+    combatants — player `Entity(owned=True)` + enemies stamped
+    `npc_char_id` + `spawn_band` (SETTLED 4). Mirror the live
+    pre-combat LOS frame (`reveal_around` at the player start) if
+    the audit shows the ground AI reads it.
+  - `begin_run` ground path: the real `_rules_ground.init(ctx,
+    enemy_entities, game_map, console=absorbing)` — ground init is
+    simpler than space's; enemy weapon/carried-consumable rolls
+    (`noise.ensure_rolled_weapon`, `roll_carried_consumables`)
+    happen inside the seeded run, the `roll_flown_equipment`
+    doctrine.
+- **`hold_range` stance** (`tests/balance/harness.py` STANCES): the
+  SETTLED 4 policy — FIRE while any active slot passes the real
+  `can_fire` → RELOAD a dry slot with reserve (through the real
+  dispatch's RELOAD) → MOVE one step per the band rule (approach
+  beyond max_range / no LOS, back off inside min_range; the
+  SETTLED-26 mirror; step choice via the real walkable checks /
+  `find_path`) → WAIT. Reference weapon = first active slot.
+  Emits keyboard action strings through `_dispatch_combat_action`
+  only — never calls rules internals directly.
+- **The Goal-2 row** (`tests/balance/scenarios.py`):
+  `goal_2_starter_mars_delve` — theater "ground"; the tutorial
+  moment's full sheet: human/merchant level 1, the space side as
+  goal_1 pins it (the player flies the starter + 2 light lasers +
+  shield_mk1 to Mars) AND the taught ground side (kinetic_pistol
+  ×2, `(("pistol_rounds", 40),)`, no armor); enemies = the
+  reference delve's first-sight group with band 1 (audit-pinned:
+  generate Mars delves, measure the canonical first-sight
+  engagement — which monster(s), what cells, at what sight radius —
+  choose the reference grid seed from that measurement, never a
+  guess); stance `hold_range`; runs/seed in the goal_1 idiom;
+  `thresholds=None` until the checkpoint rules them. Proposed goal
+  wording (settled at approval): "A fresh pilot with two Kinetic
+  Pistols can win the tutorial's Mars ground fight pretty easily."
+- **Report**: rides the existing `python3 -m tests.balance.report`
+  (it loops every row) — ground rows' damage column is ground HP;
+  relabel hull→HP in the header if trivial.
+
+**Build order:** row-shape amendments → ground sheet builder →
+planet-mode grid builder + combatant seeding → `begin_run` ground
+path → `hold_range` → the audit-pinned Goal-2 row → determinism
+pins → full gate → PLAYTEST checkpoint (the ruling) → land the
+ruled `thresholds` + assert as the phase's closing commit.
+
+**Binding rulings:** SETTLED 1-4 in full. Measure-then-rule for the
+Goal-2 numbers (SETTLED 3's precedent — report-only until the
+checkpoint). Composition by id everywhere (specs, planet, ammo);
+the row pins COMPOSITION, the catalog flows through. Real AI, real
+dispatch, derived combat seeds, the fixed grid seed declared by the
+row. No `src/spacehack/` edits expected — if the build reaches for
+one, stop: that is a design question, not a fix.
+
+**Required tests:** ground determinism (same row twice → identical
+aggregates end to end); `hold_range` unit pins (fires in-band
+through the real `can_fire`; reloads a dry slot with reserve via
+the real reload path; approaches when the closest target is beyond
+max or unseen; backs off inside min; WAITs only when nothing else
+applies; never emits a fire out of band); planet-grid pin (dims
+asserted vs `DungeonParams`; identical tiles from the same
+`grid_seed`); entity stamps (`npc_char_id` + `spawn_band` → the
+instance resolves at the declared band through `ground_scale`);
+Goal 2 runs to completion across N runs with every run resolving
+VICTORY / DEFEAT / TIMEOUT (no hangs); the phase-1 space row and
+existing combat suites stay green.
+
+**Stop point:** no CLI front (3), no Line migration (4), no new
+stances beyond `hold_range`, no scenarios beyond the Goal-2 row
+(later rows are doctrine, not phase work), no balance changes to
+any ground spec — phase 2 measures and pins; a miss against the
+goal is a separate tuning decision with its own commits. No guide
+edits (nothing player-facing changes).
+
+**Playtest checkpoint:** the Phase 2 PLAYTEST list above — its
 center is item 3, the threshold ruling; the phase ticks only with
 the ruled numbers asserted green.
 
