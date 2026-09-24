@@ -27,10 +27,14 @@ class Thresholds:
     Every field is optional at the data-shape level but a thresholds-
     bearing row must state at least one; ``None`` overall means
     report-only (SETTLED 3: Goal 1 rules its numbers at the phase-1
-    checkpoint from the measured report).
+    checkpoint from the measured report). The win-rate bars form a
+    BAND: the floor keeps the goal honest, the ceiling keeps the
+    fight honest — a matchup that can never be lost is as broken as
+    one that can't be won.
     """
 
     win_rate_floor: float | None = None      # fraction of runs won, 0..1
+    win_rate_ceiling: float | None = None    # never a sure thing, 0..1
     rounds_ceiling: float | None = None      # mean turns per run
     damage_taken_ceiling: float | None = None  # mean hull damage per run
 
@@ -122,9 +126,14 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=100,
         seed=20260924,
-        # Report-only until the phase-1 checkpoint rules the numbers
-        # (SETTLED 3, measure-then-rule).
-        thresholds=None,
+        # Ruled at the phase-1 checkpoint (2026-09-24): win the fight
+        # easily (>=0.95) but never a sure thing (<=0.99 — at least
+        # one upset survives the declared batch). Measured 0.960
+        # under the landed power-gen ruling.
+        thresholds=Thresholds(
+            win_rate_floor=0.95,
+            win_rate_ceiling=0.99,
+        ),
     ),
 )
 

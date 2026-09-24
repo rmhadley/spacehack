@@ -70,6 +70,12 @@ def test_meets_thresholds_checks_every_stated_bar() -> None:
     )
     assert meets_thresholds(report, Thresholds(win_rate_floor=0.7))
     assert not meets_thresholds(report, Thresholds(win_rate_floor=0.9))
+    # The ceiling bar bites on both sides: a 0.8 batch passes under
+    # 0.99, a sure-thing 1.0 batch fails it ("never a sure thing").
+    assert meets_thresholds(report, Thresholds(win_rate_ceiling=0.99))
+    assert not meets_thresholds(report, Thresholds(win_rate_ceiling=0.79))
+    sure_thing = dataclasses.replace(report, win_rate=1.0)
+    assert not meets_thresholds(sure_thing, Thresholds(win_rate_ceiling=0.99))
     assert meets_thresholds(report, Thresholds(rounds_ceiling=4.0))
     assert not meets_thresholds(report, Thresholds(rounds_ceiling=3.9))
     assert meets_thresholds(
@@ -144,6 +150,7 @@ def test_scenario_thresholds(row) -> None:
         pytest.skip("report-only until thresholds are ruled")
     assert any(bar is not None for bar in (
         row.thresholds.win_rate_floor,
+        row.thresholds.win_rate_ceiling,
         row.thresholds.rounds_ceiling,
         row.thresholds.damage_taken_ceiling,
     )), "a thresholds row must state at least one bar"

@@ -576,11 +576,13 @@ def threshold_checks(report: BatchReport, thresholds) -> tuple:
     """
     _DIRECTIONS = {
         "win_rate_floor": ">=",
+        "win_rate_ceiling": "<=",
         "rounds_ceiling": "<=",
         "damage_taken_ceiling": "<=",
     }
     pairs = (
         ("win_rate_floor", report.win_rate, thresholds.win_rate_floor),
+        ("win_rate_ceiling", report.win_rate, thresholds.win_rate_ceiling),
         ("rounds_ceiling", report.mean_turns, thresholds.rounds_ceiling),
         (
             "damage_taken_ceiling",
