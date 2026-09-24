@@ -1389,6 +1389,74 @@ Rulings:
   ship_id/spec re-author with its own harness pass, not part of
   phase 7.
 
+## SETTLED 40 (2026-09-24) — phase-8 brief-time rulings (the volley, the divert, back-off)
+
+User, verbatim (six answers in one pass):
+
+> 1. don't forget that this game's space combat is all about not just
+> choosing which weapon, but which weapons, to fire. do you take an
+> extra power draw hit and fire 4 lasers at once?
+> 2. emergent is good for now
+> 3. yeah, it can live on the npc spec. we can then tune it if
+> gameplay makes it feel needed
+> 4. I think this should also live on the npc spec? again, that makes
+> it easily tunable per spec. so then we have another knob to tune if
+> needed. default can be < 50% max for sure
+> 5. yeah this is fine
+> 6. we can defer dispositions. I can bring it up later if playtesting
+> feels like it needs it.
+
+Rulings (anchors verified same day):
+
+- **The fire decision is a VOLLEY, not a weapon.** The enemy commits a
+  SET of weapons per turn under the shared AP/power budget — "do you
+  take an extra power draw hit and fire 4 lasers at once?" is the
+  exact trade the AI makes. Verified: the player fires per slot, each
+  weapon paying its own AP/power into the shared pool — there is NO
+  per-volley surcharge; the cumulative draw IS the extra hit, and it
+  competes with the regen divert for the same pool (the SETTLED 19
+  example's engine). The volley is COMPOSED, not planned: each
+  decision point fires the top-scoring affordable weapon until AP,
+  power, or positive scores run out — a thin pool reads as the
+  low-draw volley (lasers over plasma), a fat one dumps the rack.
+- **Scoring:** expected value per AP — damage × hit-chance-at-current-
+  distance (the min/max band penalties fold in through the same
+  `calc_hit_chance` the shot resolves with) ÷ ap_cost; shield-strip
+  weapons score by expected strip — `min(strip, target's current
+  shields) × hit chance ÷ AP` — an EMP never fires on bare shields
+  and outranks damage on a fat shield. No live loadout carries one;
+  the rule future-proofs it.
+- **Conservation is EMERGENT** — finite-ammo weapons simply win the
+  scoring while tubes last (opening salvo, then the beam duel —
+  today's list-order read, now principled); no reserve rule, no
+  scarcity math.
+- **`shield_regen_rate` is AUTHORED ON THE SPEC** — the AI answering
+  the player's S-dial; personality, not band. Warships carry small
+  rates; merchants and derelicts leave the default 0. Tunable per
+  spec.
+- **The low-shields gate is ALSO on the spec** — a per-spec threshold
+  field, DEFAULT 50% of max shields. The divert fires only while
+  shields sit below the threshold; power availability bounds it (the
+  machinery's existing min). Two knobs, both per-spec.
+- **Back-off + the bounded guard stand as proposed:** the authored
+  `ai_preferred_range` STAYS (no weapon derivation — a ship carries
+  multiple weapons spanning multiple bands; one authored stand-off is
+  the honest shape); while inside the ACTIVE weapon's min_range the
+  ship spends AP backing toward the nearest cell restoring ≥
+  min_range, LOS-keeping steps preferred; the bound IS the guard —
+  back-off fires only below min_range and stops at restoration, so no
+  ship retreats beyond its own minimum engagement distance, and the
+  in-band dodge-tank is SETTLED 23's blessed behavior. No per-turn
+  step cap. **Closes doc-34 note 1.**
+- **Doc-34 notes 3 (escort/guard coordination) and 4 (cover near
+  spawns): dispositions DEFERRED** — no machinery in phase 8; the
+  user holds the trigger ("I can bring it up later if playtesting
+  feels like it needs it"). Note 4's mechanics half already works
+  (unwalkable bodies block `_has_los` — baiting around a planet is
+  live today); the open piece is encounter PLACEMENT, not LOS. Note 2
+  (counters tactical, not loadout-only) is the phase's playtest LENS,
+  not a build item.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -1973,7 +2041,7 @@ with doctrinal 10-13):
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
-  (SETTLED 19/21/23).
+  (SETTLED 19/21/23). Brief below (PROPOSED 2026-09-24).
 - [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
   weapon family, the Custodian's multi-weapon loadout, prison
   re-pin (+ the rock_scavenger prison-floor pin), dormant override
@@ -2987,6 +3055,184 @@ re-pinned per the blockade ruling (absent from v1 — reviewer issue
 Dev grants: Shift+P (SPACEHACK_DEV) spawns a chosen pirate spec
 adjacent (cycles scout→warlord, incl. the missile-led variant for
 item 3) (`dev_mode.py` + `test_dev_mode.py` pin).
+
+### Phase 8 Implementation brief (PROPOSED 2026-09-24 — SETTLED 40 +
+### 19/20/21/23/39; ready for /implement-phase 48.8)
+
+**Scope (files / hook points):**
+
+- **Volley selection** (`combat/_ai.py`): `_first_affordable_weapon`
+  retires into a scorer — `score_weapon(weapon_spec, distance,
+  target_shields) -> float`: normal weapons score damage ×
+  hit-chance-at-distance ÷ ap_cost (the SAME `calc_hit_chance` the
+  shot resolves with — band penalties fold in); shield-strip weapons
+  score `min(shield_strip, target_shields) × hit chance ÷ ap_cost`
+  (an EMP on bare shields scores 0, never picked). The turn loop
+  becomes decision-point based, evaluated per spend of AP:
+  1. no LOS or beyond `ai_preferred_range` → advance one step
+     (existing);
+  2. inside the ACTIVE weapon's min_range → back off one step;
+  3. in band with LOS → the aggressiveness roll (RNG vs
+     `ai_aggressiveness`, re-rolled each decision point): roll BELOW
+     the dial → fire the top-scoring AFFORDABLE weapon; roll at/above
+     → one reposition step inside the band (agg 85 fires ~85% of
+     decision points — merchants at 10-15 rarely fire, SETTLED 23's
+     no-re-authoring consequence). The volley composes greedily —
+     fire top scorer, re-evaluate under the remaining AP/power/ammo —
+     a thin pool reads as the low-draw set, a fat one dumps the rack
+     (SETTLED 40).
+  The ACTIVE weapon = the current top-scoring affordable entry; it
+  governs the band (min_range for back-off, the [min…max] window for
+  reposition steps). A weaponless spec (derelicts, the hauler) has no
+  active weapon and no decision point 3 — it breaks at once.
+  **Termination, restated for the new step semantics** (supersedes
+  the Tier-0 "never move-while-in-band" line): with nothing
+  affordable to fire, remaining AP goes to reposition steps while a
+  legal in-band step exists (a power-dry ship dodges while it
+  recharges); the turn breaks when no verb is legal — no affordable
+  weapon, no positive score, no legal step.
+- **Reposition-in-band** (`combat/_ai.py`): a step that stays within
+  the active weapon's [min…max] band and keeps LOS; movement dodge
+  accrues through the existing `cells_moved` economy (+5%/cell, cap
+  30) — the SETTLED 23 dodge-tank. No step cap; authored values fire
+  as-is.
+- **Back-off** (`combat/_ai.py`): while distance < active weapon
+  min_range, ONE greedy adjacent step — the walkable neighbor that
+  most increases distance, LOS-keeping preferred — stopping at
+  restoration (O(1) per step, the `_advance_one_step` single-step
+  economics; NOT a nearest-cell search). Cornered (no step restores
+  min_range — map edge, bodies): fall through to the fire branch and
+  shoot through the min-penalty, today's blocked-advance behavior.
+  The bound IS the dancer guard (SETTLED 40): back-off fires only
+  below min_range and stops at restoration — no ship retreats beyond
+  its own minimum engagement distance. Never triggers for min-1
+  loadouts (all-laser ships, merchants included; verified live
+  carriers of a min>1 weapon: raider + militia_patrol light_missile
+  min 2; captain, patrol_heavy, marauder, warlord heavy_missile min
+  3). **Authoring invariant (pinned by test):**
+  `ai_preferred_range` ≥ the carried min-2+ weapon's min_range —
+  advance and back-off share one axis; not violated by any live spec
+  (closest: patrol_heavy/captain/warlord sit exactly at 3 = 3).
+- **Regen divert data** (`data/npc_ships/__init__.py` +
+  `core.py`/`deep.py`): `shield_regen_rate: int = 0` +
+  `shield_regen_threshold: float = 0.5` on NpcShipSpec, stamped onto
+  `EnemyInstance` at build (the rate field exists, pinned 0 since
+  Tier 0; the threshold field is NEW — declared at the owner). No
+  conflict with SETTLED 39's "no new spec field": that ruling covered
+  the FREE tier (the rates are the hull/module data); the paid
+  divert's two fields are the Tier-1 decision SETTLED 39 itself
+  deferred. Authored leans BY SPEC ID (playtest-tunable; both knobs
+  per spec): militia_blockade 2, militia_patrol_heavy 2,
+  pirate_captain 3, pirate_warlord 3; every other spec leaves the
+  defaults (rate 0 = no divert). `start_enemy_turn` gates the PAID
+  tier on the threshold (divert only while shields < threshold ×
+  max_shields; power availability already bounds it) — the FREE tier
+  (hull base + module bonus) stays unconditional, the player's
+  mirror.
+- **Doc-34 notes 3/4: NO WORK** (SETTLED 40 — deferred, user-held
+  trigger); note 2 is the playtest lens, note 1 closed by back-off's
+  bound.
+
+**Build order:** spec fields + authored rates/thresholds (registry
+tests first) → the scorer + decision-point loop (retire
+`_first_affordable_weapon`) → divert threshold gating in
+`start_enemy_turn` → back-off + reposition-in-band + the
+aggressiveness roll → `test_line_tuning` per the Line harness
+treatment (open ruling, below) → full gate.
+
+**Binding rulings:** SETTLED 19 (full-kit, resource-aware), 20 (no
+fleeing — nothing here may disengage), 21 (Tier 0/Tier 1 boundary),
+23 (aggressiveness semantics — regen NEVER touched by the dial; the
+roll applies only in-band with LOS), 39 (honest costs stand), 40.
+Authored `ai_aggressiveness`/`ai_preferred_range` values fire as-is —
+no re-authoring. Player-side fire/Focus/costs are read-only mirrors —
+zero player behavior changes.
+
+**Stop point:** no coordination machinery (note 3 deferred), no
+encounter-placement work (note 4 deferred), no ancient machines (9),
+no consortium ships (11), no biome fauna (10), no new weapons or
+loadout re-authoring beyond the divert rates, no guide entry (enemy
+brains mirror the player's own rules).
+
+**Required tests:** scorer purity (band-folded EV via
+`calc_hit_chance`; EMP zero on bare shields, top on fat; ammo/AP/
+power affordability filter); volley composition under budgets —
+missiles-then-beams ordering, thin-power pool prefers the low-draw
+set (deterministic under seeded RNG); aggressiveness roll (aggressive
+spec fires ~every affordable AP; passive spec repositions — both
+pinned at the roll extremes, direction correct); back-off (triggers
+only below min_range, greedy neighbor step, stops at restoration,
+never exceeds it; cornered falls through to fire; min-1 loadouts
+never trigger); the authoring invariant (every spec's
+`ai_preferred_range` ≥ its min-2+ weapon's min_range); reposition
+steps stay in-band and accrue `cells_moved`; termination restated
+(power-dry ship repositions leftover AP while a legal step exists;
+breaks only when no verb is legal; weaponless specs break at once);
+divert gating (below threshold fires with power spend + engineering
+discount; at/above does not; free tier unconditional; threshold
+default 0.5 + per-spec override); merchants/derelicts pinned (rate 0
+→ no divert, never back off);
+`tests/combat/test_enemy_fire.py`'s seven first-affordable walk pins
+migrate to scorer pins (the import dies with the function);
+`test_line_tuning` per the harness ruling below; existing combat/
+navigation suites green.
+
+**Line harness — OPEN RULING (blocks approval):** the pickets never
+back off (light_laser ×2, min 1 — verified), so phase 8's Line
+effects are exactly the two terms the closed form does not model: the
+aggressiveness roll (blockade 70 converts ~30% of decision points to
+reposition steps, thinning the full-AP-volley assumption of
+`_picket_volley`) and the threshold-gated paid divert (blockade rate
+2 raises effective regen below half shields; `_picket_regen` models
+the free tier only). Net direction indeterminate in the current
+harness. Two treatments: (a) EXTEND `_picket_volley`/`_picket_regen`
+with the aggro factor and the paid term — the harness keeps deriving
+from the real formulas (the phase-7 MOVED BRACKET precedent); (b)
+declare the closed form an UPPER-BOUND reading (full volley, free
+regen only) and re-pin only the fit numbers. Either way the re-pin
+tunes TOWARD harder, never softer (SETTLED 39).
+
+**Playtest checkpoint:**
+
+1. Pirate captain (Shift+P cycle): opens with the missile volley,
+   then settles into the heavy/light laser duel — target-card ammo
+   visibly drains; no list-order artifacts.
+2. Hug a missile carrier at dist 1 — a raider or militia patrol
+   (light_missile min 2), or a captain/warlord (heavy_missile min 3):
+   it backs off to its min_range and resumes fire — never retreats
+   past the band; corner it against a body and it fires through the
+   min-penalty instead.
+3. Push a cruiser's shields below half: its fire visibly THINS (the
+   divert — shields tick back up while its shots sparse out); let it
+   climb above the threshold and the fire returns. The drain economy
+   is the counter (note-2 lens).
+4. Aggressiveness read: the hound (85, 6 AP) mixes reposition steps
+   between shots — your hit chance drops as it moves; a brute-force
+   ship (90 warlord) sits and fires every AP, eating your return
+   fire.
+5. Power trough: the warlord's plasma turns thin when its pool drains
+   — it steps down to lasers, never inert.
+6. The Line: still EXTREMELY hard. The pickets never back off
+   (light lasers) — what changes is the ~30% reposition thinning
+   (agg 70) and the below-half divert (rate 2); the harness treatment
+   is the open ruling above. If the full watch reads SOFT from the
+   thinning, say so — the frigate-hull lever stands (SETTLED 39).
+7. Merchants: still non-threats — no divert, never back off, and now
+   rarely fire (aggressiveness 10-15 live for the first time — the
+   SETTLED 23 no-re-authoring consequence; they dodge-stack instead
+   of shooting). Patrols scan unchanged.
+8. Save/quit on the map mid-fight-adjacent state → Continue:
+   identical state (combat never serializes — instances rebuild from
+   specs per fight; the divert reads spec-authored fields, nothing
+   new serializes).
+9. Regression: phase 4-7 suites; the dev missile-led variant now
+   scores its EMP-less rack properly; first-affordable is gone.
+10. Guide-diff item: expected NONE — enemy decision-making mirrors
+    the player's own rules; confirm-grep the SPACE-COMBAT guide
+    section, any hit becomes a called-out before/after.
+
+Dev grants: the phase-7 Shift+P cycle stands (items 1-2 targets); no
+new grants.
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
 
