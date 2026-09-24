@@ -376,10 +376,12 @@ the ruled numbers asserted green.
   OwnedShip through the real install path (slot caps enforced);
   `character.starting_pilot_skills(species, class)` folds the real
   base+bonuses.
-- **Real FrameBuffer as the console.** `framebuffer.FrameBuffer` is
-  renderer-neutral (clear/print/to_commands, no pygame import) — the
-  sim uses a real one at SCREEN_WIDTH×SCREEN_HEIGHT; every painter
-  (HUD, range line, world view) runs for real into it.
+- **Real FrameBuffer as the console** → AMENDED at build: the real
+  FrameBuffer feeds a ~50ms/frame overlay build the sim doesn't need
+  (measured); the shipped double is an ABSORBING console (the
+  ``fake_pygame`` pattern extended — paints swallowed, frames report
+  empty, frame counts and pacing awaits still real). Outcome-neutral
+  by construction: combat logic never reads the console.
 - **Fake PygameContext per the `tests/support/fake_pygame.py`
   pattern** — SimpleNamespace with `pump`/`wait_events` returning
   empty batches, absorbing `present`, a `note_drained` hook, and
@@ -399,14 +401,15 @@ the ruled numbers asserted green.
   (npc_ships/core.py:99). The player flies Earth→Mercury due west, so
   the canonical first-trigger cell is 8.0 east of Jack: **player
   (88, 52)** — open space, LOS clear.
-- **Grid = the live fight's map**: Sol 200×140 with the bodies'
-  footprints as obstacle rects (sun, 8 planets, 4 jump points; stars
-  are walkable decoration, omitted). GridSpec declares it explicitly
-  (size + rect blocks), so the end-turn reinforcement path behaves
-  exactly as live: `check_reinforcements` → `move_npcs` spawns
-  ambient traffic at real Sol body goals (in-bounds, seeded) and
-  `_detect_combat_encounter` re-detects honestly — joins can happen
-  in the sim like they can in the fight.
+- **Grid = the live fight's map**: Sol 200×140, pinned BY ID —
+  `system_id="sol"` (dims asserted against the catalog, body
+  footprints derived from it at build time, reviewer-round amendment:
+  a copied rect list would drift on a body move). The end-turn
+  reinforcement path behaves exactly as live:
+  `check_reinforcements` → `move_npcs` spawns ambient traffic at real
+  Sol body goals (in-bounds, seeded) and `_detect_combat_encounter`
+  re-detects honestly — joins can happen in the sim like they can in
+  the fight.
 - **Starter sheet** (all by id): hull `starter` (Skiff — base_hull
   15, 2 weapon slots, 1 module slot, base_power_gen 2,
   base_shield_max 0, base_shield_recharge 0); `light_laser` ×2 (dmg 4,
