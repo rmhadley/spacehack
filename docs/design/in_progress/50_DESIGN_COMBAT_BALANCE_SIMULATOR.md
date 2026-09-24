@@ -62,7 +62,7 @@ UI (though it explicitly stops at the combat boundary today).
 
 ## Settled rulings
 
-**SETTLED (2026-09-24, user): the simulator is part of the TEST
+**SETTLED 1 (2026-09-24, user): the simulator is part of the TEST
 SUITES.** Battle-sim scenarios live as tests — every new scenario gets
 tested as balance is tweaked across the game's life. Goal 1 is the
 first such test (the starter-vs-Jack benchmark asserted in pytest,
@@ -73,20 +73,72 @@ benchmarks' home is the suite — answers open question 3. Precedent in
 the tree: `tests/test_line_tuning.py` already pins a balance contract
 (closed form); this generalizes the pattern to simulated matchups.
 
+**SETTLED 2 (2026-09-24, user) — the scenario doctrine.** User,
+verbatim:
+
+> I imagine using this for various situations that I don't want the
+> balance to change on. So I'd like it to be flexible enough to set
+> up new scenarios easily. What the player is fighting. What the
+> player's level/stats are. What the player is flying and which
+> modules it has installed. What ground equipment the player has
+> equipped. What traits the player has. All the things. The idea is
+> that we set up a scenario on a specified map grid, and we sim the
+> fight and take an average outcome to determine if the stated goal
+> of the scenario passes/fails.
+
+Rulings read from it:
+
+- **Scenarios are the unit of balance protection** — each one pins a
+  situation the user does not want drifting ("various situations that
+  I don't want the balance to change on"). Adding protection = adding
+  a scenario; that must be EASY (the flexibility requirement).
+- **The scenario fully specifies BOTH sides**: the opposition (spec,
+  squad, band), and the complete player sheet — level and stats,
+  the flown hull with its installed modules, the equipped ground
+  loadout, traits. "All the things" — a scenario never depends on
+  ambient state; everything is declared.
+- **The scenario declares its map grid** — fights sim on a specified
+  grid, so geometry-sensitive reads (chokepoints, dense watches,
+  kiting room) are reproducible.
+- **Verdict = average outcome vs the scenario's stated goal**: N runs
+  under the real resolution (+ real AI, per the Q5 lean), aggregate
+  win rate / rounds / cost, pass/fail against thresholds the
+  scenario states. With SETTLED 1: that verdict is a pytest.
+- **Shape lean (refine-time to settle): scenarios are DATA, not test
+  code** — the repo's data-first doctrine: a scenario table (frozen
+  dataclass rows, like every `data/` catalog) + ONE parameterized
+  pytest that loads every row and asserts its goal. Authoring a new
+  protected situation = adding a row, zero new test code. Whether the
+  table lives in `data/` or `tests/` is a refine-time call.
+
 ## Open questions (settle before expanding this into a full design)
 
 1. What are the target feel benchmarks, per matchup class? (win rate,
    round count, resource cost — needs the user's numbers, not guesses.
    Goal 1's "pretty easily beat" needs a number when it becomes a
-   test — e.g. win rate floor + round ceiling.)
+   test — e.g. win rate floor + round ceiling. SETTLED 2 moves this
+   INTO the scenario row: each scenario states its own goal.)
 2. Which axis is being tuned first — ship combat, ground combat, or both
-   in parallel?
+   in parallel? (SETTLED 2's ground-equipment clause implies BOTH
+   theaters are in scope from the start — a scenario names its
+   theater; confirm at refine.)
 3. ~~One-off CLI vs `make check` regression gate?~~ ANSWERED — the
-   suite is the home (SETTLED above); a CLI front is optional.
-4. How is enemy/gear variation parameterized — sweep every stat block in
-   `data/`, or a curated matchup list the user maintains by hand?
+   suite is the home (SETTLED 1); a CLI front is optional.
+4. ~~How is enemy/gear variation parameterized — sweep every stat block
+   in `data/`, or a curated matchup list?~~ ANSWERED by SETTLED 2 —
+   the curated scenario table; every side of every matchup is
+   declared per row. (A full-catalog sweep may still exist as a
+   REPORT, not a gate.)
 5. AI behavior: use the real combat AI (`combat/_ai.py`,
    `_ai_ground.py`) as-is, or does simulation need simplified/seeded
    AI to get statistically clean, reproducible results across N runs?
    (The suite-home ruling leans real-AI: a benchmark pinned against
-   simplified AI would lie the moment the loop changes.)
+   simplified AI would lie the moment the loop changes. SETTLED 2's
+   "average outcome" implies seeded-RNG batches for reproducibility —
+   how to seed N runs cleanly is refine-time.)
+6. Player-side AI: the scenario declares the player SHEET but not (yet)
+   the player's TACTICS — does the sim fly the player with a fixed
+   script (e.g. "fire both lasers every turn, S-dial at 2"), a
+   heuristic, or the enemy AI mirrored? The goal thresholds are only
+   honest relative to a declared player policy. (Refine-time; the
+   user's word "average outcome" presumes something flies the ship.)
