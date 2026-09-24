@@ -319,28 +319,50 @@ nobody designs against a ghost.
   disengaging once a space fight starts** — fights run to VICTORY.
 - **Space combat init** — encounter wrapper builds player state +
   one EnemyInstance per spec, dedupes overlapping spawns
-  (`combat/_encounter._handle_combat_encounter`).
+  (`combat/_encounter._handle_combat_encounter`). The enemy build is
+  the PARITY MIRROR (doc 48.7): hull-catalog shields/recharge/power
+  via `_stats._enemy_hull` (unknown hulls contribute nothing), module
+  skill bonuses + the per-spec dials folded onto band-derived skills
+  (`_enemy_skills` — targeting/gyro count), flown weapons AND
+  modules as quality-rolled `StoredEquipment`, ammo keyed by weapon
+  slot; `pilot_*`/`min_power_gen` retired from the spec
+  (TypeError-pinned).
 - **Combat math** — fractional AP in twentieths with banked carry
   (both sides); hit = accuracy + gunnery/2 + close bonus − range
   penalties − dodge, clamp 5–95; dodge +5%/cell moved (cap 30) —
   kiting is the core defense; damage × quality × 0.8–1.2 variance,
-  hull-then-shields (`combat/_stats.py`, `_actions.resolve_damage`).
+  hull-then-shields (`combat/_stats.py`, `_actions.resolve_damage` —
+  the roll now carries the SHOOTER's weapon quality: enemy fire at
+  its flown tier, the player path bit-identical at 0, doc 48.7).
 - **Volley + Focus** — F fires all active weapons (max single AP
   cost); Focus trait (one weapon): 2× AP/power cost, doubled
   ranges, 2× damage beyond normal max — the kiting payoff
   (`combat/_loop.py`; `combat/_space_focus.py`).
 - **Resources** — hull/ammo sync to the owned ship at fight end;
   power pool regen/turn; S = paid shield regen 0–10
-  (`combat/_rules_space.sync_state`, `handle_defense`).
+  (`combat/_rules_space.sync_state`, `handle_defense`). Enemies
+  regenerate shields FREE at hull base + module bonus per turn
+  (folded at build into `EnemyInstance.shield_recharge_bonus`,
+  `start_enemy_turn`; the paid divert stays unset — Tier 1, doc
+  48.7).
 - **Combat AI** — per-ENEMY AP loop: advance when beyond own
   `ai_preferred_range` or no LOS, else fire; fights to the death
-  (`combat/_ai.py`). **Dead data:** `ai_aggressiveness` unread
-  (doc 48 rules it the future fire-vs-reposition dial);
-  `ai_flee_threshold` RETIRED in doc 48 phase 3 (field deleted,
-  TypeError-pinned; fleeing ruled out of space combat, SETTLED 20 —
-  doc 34 folded there).
+  (`combat/_ai.py`). HONEST FIRE (doc 48.7): every shot pays real
+  AP/power/ammo through the shared `weapon_costs` table (misses
+  included; the player's `can_afford_action` reads the same table);
+  weapons[0] unaffordable walks the list to the FIRST affordable —
+  unaffordable entries skipped, never waited on; LOS stays a firing
+  precondition (a blocked no-LOS step breaks the turn — never fires
+  through cover); nothing affordable ends the turn. **Dead data:**
+  `ai_aggressiveness` unread (doc 48 rules it the future
+  fire-vs-reposition dial); `ai_flee_threshold` RETIRED in doc 48
+  phase 3 (field deleted, TypeError-pinned; fleeing ruled out of
+  space combat, SETTLED 20 — doc 34 folded there).
 - **Reinforcements** — per-round re-detection joins newly triggered
-  squads mid-fight (`combat/_rules_space.check_reinforcements`).
+  squads mid-fight (`combat/_rules_space.check_reinforcements`);
+  joiners build from their OWN spec through the one enemy
+  construction path (`_build_reinforcement_enemy` → `_build_enemy`
+  — the old player-hull reads + spurious None dropped, doc 48.7).
 - **Kill bookkeeping** — XP = hull×2; 1–2 loot drops; rep deltas by
   victim faction (+squad bonus); completes bounty missions;
   tombstones quest guards (`combat/_rules_space.on_kill`;
@@ -363,8 +385,10 @@ nobody designs against a ghost.
   the broadcast gate, bounty completion, tombstone —
   `combat/_space_kills.record_kill_pass`,
   `game_interactions._consume_boarded_hull`); the capture
-  interior seeds the flown-module strip at engine-room markers
-  (doc 47.3); heist cargo rides
+  interior seeds the flown-equipment strip at engine-room markers —
+  modules AND quality-bearing weapons (`cr.boarded_weapons` beside
+  the modules, `ship_weapon` payloads; doc 47.3 + 48.7); heist
+  cargo rides
   the interior via the component seam (one-shot: exit without
   pickup strands the intercept — user-confirmed).
 - **Crew roles (doc 48 phase 6)** — `data/npc_chars/crew_roles.py`:
@@ -473,6 +497,26 @@ nobody designs against a ghost.
   top tier; empty tiers snap up — explosives sit t3-t4). Equip- and
   drop-time quality ride the band ladder (B1 == KILL ladder). The
   target card title states `LVL <level> <name>`.
+- **Ship band scaling (doc 48 phase 7)** — `space_scale.py`, the
+  ground resolver's space twin (imports `ground_scale`'s band
+  machinery; the largest-remainder allocator is ONE shared helper).
+  A ship's band is SPEC-AUTHORED (`NpcShipSpec.band` + three-slot
+  `skill_weights`; nothing stamps a band at spawn): pirate
+  1/2/2/3/3/4, militia weight ladder 1/2/3 (blockade 2 — the Line),
+  merchant wealth 1/2/3 piloting-light, derelicts 0. Pilot skills =
+  base 11 (the ships dial: band-1 total 43) + the band budget split
+  by weights; the LVL line rides the ground card's exact title
+  format on the space target card. Fly-time quality rolls are
+  band-indexed for weapons AND modules (band 1 == KILL ladder)
+  through `roll_flown_equipment` — `_roll_flown_modules` retired.
+  The Line's closed-form harness re-pinned for parity numbers: the
+  costly full-watch win belongs to the super-powered sheet (the
+  MOVED BRACKET, `tests/test_line_tuning.py`). Themed loadouts
+  (doc 48.7): pirate flagships fly the EXISTING smuggler-hold
+  family (mk3/mk4, mk = band — no new module id, playtest ruling
+  2026-09-24); merchant wealth scales cargo+shield suites; the map
+  shield read credits hull base shields for ships under way only —
+  hulls pinned `base_speed=0` (derelicts) show no bubble.
 - **End states** — all dead = VICTORY; survivors out of sight =
   DISENGAGED (they keep wounds — HP syncs to `entity.hp`, so
   re-engaging never heals them) (`combat/_rules_ground.py`).
@@ -977,17 +1021,23 @@ nobody designs against a ghost.
   `(price*pct+100)//200` above, min 1; shops never variant.
   Save/load: `parse_quality` migrates all shapes; `loot_data`
   quality keys ride wholesale.
-- **Ship module loot (doc 47.3)** — modules are a sixth loot
+- **Ship module loot (doc 47.3 + 48.7)** — modules are a loot
   payload: `item_type "module"` pickups append a quality-bearing
   `StoredEquipment` to global ship storage — no pack check, one
   log line, glyph reads the equipment hue + brightness
   (`loot._apply_module_loot`; `loot_common` maps module →
-  EQUIPMENT_FG). Sources: INTACT CAPTURES strip the whole flown
-  `modules` list at the quality it flew — per-module KILL-rate
-  rolls at combat entry (`_stats._roll_flown_modules`; enemy
-  hull/shields/skill sums scale through `effective_module_spec`)
+  EQUIPMENT_FG). WEAPONS are a seventh payload (doc 48.7):
+  `item_type "ship_weapon"` (the bare "weapon" namespace is the
+  ground catalog's) lands in storage at its flown quality through
+  the module twin (`loot._apply_ship_weapon_loot`;
+  `ship.weapon_display_name` is the label seam). Sources: INTACT
+  CAPTURES strip the whole flown equipment list at the quality it
+  flew — per-item BAND-INDEXED rolls at combat entry
+  (`space_scale.roll_flown_equipment`; enemy hull/shields/skill
+  sums scale through `effective_module_spec`)
   with the strip seeding engine-room markers from
-  `cr.boarded_modules` (stamped at `_space_boarding`; no
+  `cr.boarded_modules`/`boarded_weapons` (stamped at
+  `_space_boarding`; no
   re-roll) — while DEAD hulls (wrecks, derelicts, mission
   salvage) never strip, room scatter only; wreck rooms host
   authored module pools (`dungeon_layout._ROOM_MODULE_POOLS`:

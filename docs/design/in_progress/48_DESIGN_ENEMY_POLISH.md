@@ -1919,7 +1919,7 @@ with doctrinal 10-13):
   noise-alerted brute rocket kill cited as working-as-intended.
   SYSTEMS.md audited same commit (new "Crew roles" entry; Boarding,
   Ground identity families, Lighting, Auto-explore amended).
-- [ ] 7. **Space Tier 0: parity** — hull-catalog stats (base
+- [x] 7. **Space Tier 0: parity** — hull-catalog stats (base
   shields/recharge/power), module effects wired + honest costs,
   per-weapon AP/power/ammo, authored shield-regen rates, joiner
   spec verification, themed modules (smuggler/cargo holds —
@@ -1965,6 +1965,11 @@ with doctrinal 10-13):
   smuggler's-hold-as-pirate-loot seed resolves through existing data.
   The brief's "ONE new id" line is superseded; zero new module ids
   this phase.
+  PLAYTEST PASSED 2026-09-24 (user: "alright this is playtesting
+  fine") — SYSTEMS.md audited same commit (Space combat init /
+  Combat math / Combat AI / Resources / Reinforcements / Boarding /
+  Ship module loot amended; new "Ship band scaling" entry beside its
+  ground twin).
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
