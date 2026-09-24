@@ -11,6 +11,7 @@ import pytest
 
 from src.spacehack import space_scale
 from src.spacehack.data.npc_ships import find_npc_ship, list_npc_ships
+from src.spacehack.data.weapons import find_weapon
 from src.spacehack.ground_scale import allocate_budget, band_budget
 
 
@@ -65,6 +66,21 @@ def test_paid_divert_rates_authored_on_warships_only():
                        "pirate_captain", "pirate_warlord"}
     )
     assert all(s.shield_regen_threshold == 0.5 for s in list_npc_ships())
+
+
+def test_authoring_invariant_preferred_range_covers_weapon_mins():
+    """SETTLED 40: advance and back-off share one axis — every spec's
+    ai_preferred_range must sit at or beyond the min_range of any
+    min-2+ weapon it carries. Merchants and derelicts carry none
+    (min-1 or weaponless: the back-off verb can never fire for them)."""
+    for spec in list_npc_ships():
+        for wid in spec.weapons:
+            if find_weapon(wid).min_range >= 2:
+                assert spec.ai_preferred_range >= find_weapon(wid).min_range, spec.id
+        if spec.faction in ("merchant", "neutral"):
+            assert all(
+                find_weapon(w).min_range < 2 for w in spec.weapons
+            ), spec.id
 
 
 def test_merchant_wealth_ladder_bands():

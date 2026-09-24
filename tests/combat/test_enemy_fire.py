@@ -140,10 +140,10 @@ def test_enemy_quality_scales_damage():
     assert (100 - fh3) > (100 - fh0)  # the scaled roll is strictly bigger
 
 
-# --- loop-level termination (the turn itself) --------------------------------
+# --- loop-level behavior (the turn itself) -----------------------------------
 
 
-def _turn_state(enemy, *, los: bool):
+def _turn_state(enemy, *, los: bool, enemy_at=(8, 4)):
     """A minimal SpaceCombatState-shaped fake: open floor when LOS
     should hold, a wall between the pair when it should not."""
     from types import SimpleNamespace
@@ -156,7 +156,7 @@ def _turn_state(enemy, *, los: bool):
             tiles[y][6] = _world.WALL
     game_map = _world.GameMap(width, height, tiles, [])
     player_pos = _world.Position(2, 4)
-    enemy.pos = _world.Position(8, 4)
+    enemy.pos = _world.Position(*enemy_at)
     return SimpleNamespace(
         ctx=None, console=None, game_map=game_map, log=[],
         player_state={"pos": player_pos, "hull": 50, "shields": 0},
@@ -166,12 +166,24 @@ def _turn_state(enemy, *, los: bool):
     )
 
 
-def test_turn_breaks_when_nothing_is_affordable_in_band():
-    """In range with LOS but an unaffordable loadout: the turn ends
-    without firing — never a spin (the termination rule)."""
+def test_power_dry_ship_dodges_leftover_ap(monkeypatch):
+    """The restated termination (SETTLED 40): with nothing affordable
+    to fire, remaining AP goes to reposition steps while a legal
+    in-band step exists — a power-dry ship dodges while it recharges;
+    it never sits, never spins."""
     enemy = _enemy(("heavy_laser",), ap=4, power=0)  # 2 power/shot, none left
-    _run_turn(enemy)
-    assert enemy.ap_remaining == 4      # nothing spent, nothing fired
+    _run_turn(enemy, monkeypatch=monkeypatch)
+    assert enemy.ap_remaining == 0
+    assert enemy.cells_moved_this_turn == 4
+    assert enemy.power_pool == 0
+
+
+def test_weaponless_spec_breaks_at_once(monkeypatch):
+    """A weaponless ship (derelicts, the hauler) has no decision
+    point in position — nothing to fire, no band to dance in."""
+    enemy = _enemy((), ap=4, power=10)
+    _run_turn(enemy, monkeypatch=monkeypatch)
+    assert enemy.ap_remaining == 4      # breaks immediately, nothing spent
 
 
 def test_blocked_enemy_without_los_never_fires():
@@ -216,18 +228,36 @@ def _record_shots(monkeypatch):
     return shots
 
 
-def _run_turn(enemy, *, los=True, pref=6):
+def _run_turn(enemy, *, los=True, pref=6, agg=100, enemy_at=(8, 4),
+              rng_pin=None, monkeypatch=None):
+    """Run one enemy turn under the fake state. ``agg`` is the spec's
+    dial; ``rng_pin`` fixes the aggressiveness roll (1 always fires,
+    100 always repositions) so volley sequences pin deterministically.
+    Rendering is stubbed out — these pin decisions, not frames."""
     from tests.support.asyncutil import run
     from src.spacehack.combat import _ai
 
-    state = _turn_state(enemy, los=los)
-    spec = SimpleNamespace(ai_preferred_range=pref)
+    async def _no_render(*_a, **_kw):
+        pass
+
+    monkeypatch.setattr(_ai, "_render_step_frame", _no_render)
+    if rng_pin is not None:
+        monkeypatch.setattr(
+            _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: rng_pin),
+        )
+    state = _turn_state(enemy, los=los, enemy_at=enemy_at)
+    spec = SimpleNamespace(ai_preferred_range=pref, ai_aggressiveness=agg)
     run(_ai._take_enemy_turn(
         state, enemy, 0, spec,
         hit_chances={}, evade_bonus=0,
         calc_cam=lambda: (0, 0), ctx=None,
     ))
     return state
+
+
+def _dist_to_player(state, enemy) -> float:
+    _p = state.player_state["pos"]
+    return ((_p.x - enemy.pos.x) ** 2 + (_p.y - enemy.pos.y) ** 2) ** 0.5
 
 
 def test_volley_opens_with_missiles_then_settles_into_beams(monkeypatch):
@@ -238,7 +268,7 @@ def test_volley_opens_with_missiles_then_settles_into_beams(monkeypatch):
         ("heavy_missile", "heavy_laser"), ap=4, power=6,
         ammo={0: 1, 1: -1},
     )
-    _run_turn(enemy)
+    _run_turn(enemy, rng_pin=1, monkeypatch=monkeypatch)
     assert shots == ["heavy_missile", "heavy_laser", "heavy_laser"]
     assert enemy.ap_remaining == 0
     assert enemy.weapon_ammo[0] == 0
@@ -250,7 +280,149 @@ def test_thin_power_pool_reads_as_the_low_draw_volley(monkeypatch):
     a fat pool dumps the rack, a thin one reads low-draw."""
     shots = _record_shots(monkeypatch)
     enemy = _enemy(("heavy_laser", "light_laser"), ap=4, power=3)
-    _run_turn(enemy)
+    _run_turn(enemy, rng_pin=1, monkeypatch=monkeypatch)
     assert shots == ["heavy_laser", "light_laser"]
-    assert enemy.ap_remaining == 2      # power dry: AP left, nothing legal
     assert enemy.power_pool == 0
+    assert enemy.ap_remaining == 0      # power dry: leftover AP went to dodging
+    assert enemy.cells_moved_this_turn == 2
+
+
+# --- the aggressiveness dial (SETTLED 23/40) -----------------------------------
+
+
+def test_aggressive_spec_fires_every_affordable_ap(monkeypatch):
+    """The fire extreme: agg 100 fires ~every decision point — a
+    brute-force ship sits and shoots, eating return fire."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser",), ap=4, power=10)
+    _run_turn(enemy, agg=100, rng_pin=1, monkeypatch=monkeypatch)
+    assert shots == ["light_laser"] * 4
+    assert enemy.cells_moved_this_turn == 0
+
+
+def test_passive_spec_dodge_stacks_instead_of_shooting(monkeypatch):
+    """The reposition extreme: agg 0 never wins the roll — the ship
+    dodge-stacks through the movement economy, every step landing
+    inside the active weapon's [min..max] band (the merchant read,
+    SETTLED 23/40)."""
+    from src.spacehack.combat._stats import _calc_dodge_bonus
+
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser",), ap=4, power=10)
+    state = _run_turn(enemy, agg=0, monkeypatch=monkeypatch)
+    assert shots == []
+    assert enemy.cells_moved_this_turn == 4
+    assert 1 <= _dist_to_player(state, enemy) <= 5   # never left the band
+    assert _calc_dodge_bonus(enemy.cells_moved_this_turn, 0) == 20  # 4 cells
+
+
+# --- back-off (SETTLED 40) ------------------------------------------------------
+
+
+def test_back_off_restores_min_range_then_resumes_fire(monkeypatch):
+    """Hugged inside a min-3 missile's floor at dist 1, the ship
+    backs off greedily until restoration (never past the band), then
+    resumes fire."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("heavy_missile",), ap=4, power=10, ammo={0: 3})
+    state = _run_turn(
+        enemy, pref=4, rng_pin=1, enemy_at=(3, 4), monkeypatch=monkeypatch,
+    )
+    assert _dist_to_player(state, enemy) >= 3.0   # restored to the floor
+    assert shots == ["heavy_missile"]
+    assert enemy.cells_moved_this_turn == 2
+
+
+def test_cornered_missile_ship_fires_through_the_min_penalty(monkeypatch):
+    """Walled in with no distance-gaining step: fall through and shoot
+    through the min-range penalty — today's blocked-advance read."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+    from src.spacehack import world as _world
+
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("heavy_missile",), ap=4, power=10, ammo={0: 3})
+    state = _turn_state(enemy, los=True, enemy_at=(3, 4))
+    for _x, _y in ((2, 3), (2, 5), (3, 3), (3, 5), (4, 3), (4, 4), (4, 5)):
+        state.game_map.tiles[_y][_x] = _world.WALL
+    monkeypatch.setattr(
+        _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 1),
+    )
+    spec = SimpleNamespace(ai_preferred_range=4, ai_aggressiveness=100)
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["heavy_missile", "heavy_missile"]  # 2 AP each
+    assert enemy.cells_moved_this_turn == 0
+    assert _dist_to_player(state, enemy) == 1.0         # never escaped the hug
+
+
+def test_min_1_loadouts_never_back_off(monkeypatch):
+    """Adjacency is in-band for a min-1 weapon (all lasers, merchants
+    included): the back-off verb can never fire."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser",), ap=4, power=10)
+    _run_turn(
+        enemy, pref=4, rng_pin=1, enemy_at=(3, 4), monkeypatch=monkeypatch,
+    )
+    assert enemy.cells_moved_this_turn == 0
+    assert shots == ["light_laser"] * 4
+
+
+def test_player_dodge_pins_the_shared_read():
+    """The one dodge read both the shot and the scorer resolve with:
+    4 cells (+20) and half-rate piloting 10 (+5)."""
+    from src.spacehack.combat._ai import _player_dodge
+
+    assert _player_dodge({"cells_moved_this_turn": 4, "piloting": 10}) == 25
+    assert _player_dodge({}) == 0
+
+
+def test_mixed_turn_never_teleports_off_a_stale_path(monkeypatch):
+    """Advance and the in-position verbs interleave: back-off and
+    reposition relocate the ship off its cached route, and the next
+    advance must recompute (the stale-path teleport regression — a
+    passive pref-3 missile ship closes to its floor, backs off the
+    diagonal, then advances again; every hop stays 8-adjacent)."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+    from src.spacehack import world as _world
+
+    enemy = _enemy(("heavy_missile",), ap=7, power=10, ammo={0: 3})
+    width, height = 16, 12
+    game_map = _world.GameMap(
+        width, height,
+        [[_world.DUNGEON_FLOOR] * width for _ in range(height)], [],
+    )
+    enemy.pos = _world.Position(9, 9)
+    state = SimpleNamespace(
+        ctx=None, console=None, game_map=game_map, log=[],
+        player_state={"pos": _world.Position(2, 2), "hull": 50, "shields": 0},
+        enemy_insts=[enemy], enemy_ents={}, player_ent=None,
+        weapons_list=[], active_weapons=[], target_idx=0,
+        view_w=80, view_h=54,
+    )
+    hops: list[tuple[tuple[int, int], tuple[int, int]]] = []
+    real_apply = _ai._apply_step
+
+    async def _record_apply(_state, _ei, _e_idx, nx, ny, **_kw):
+        hops.append(((_ei.pos.x, _ei.pos.y), (nx, ny)))
+        await real_apply(_state, _ei, _e_idx, nx, ny, **_kw)
+
+    async def _no_render(*_a, **_kw):
+        pass
+
+    monkeypatch.setattr(_ai, "_apply_step", _record_apply)
+    monkeypatch.setattr(_ai, "_render_step_frame", _no_render)
+    spec = SimpleNamespace(ai_preferred_range=3, ai_aggressiveness=0)
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert enemy.ap_remaining == 0            # a full dance, never broke
+    assert len(hops) == 7                     # every AP spent on a step
+    for (fx, fy), (tx, ty) in hops:
+        assert max(abs(tx - fx), abs(ty - fy)) == 1   # 8-adjacent, no teleports
