@@ -247,6 +247,28 @@ machinery. Each later phase gets its brief at its own refine time.
 
 ### Phase 1 PLAYTEST (checkpoint = the Goal-1 ruling)
 
+**Checkpoint record (2026-09-24, measured through the harness,
+N=100, seed base 20260924, stand_and_trade):**
+
+| configuration | win rate | defeats | mean turns (won) | mean hull dmg (won) |
+|---|---|---|---|---|
+| as shipped | 0.86 | 14 | 3.93 | 1.53 |
+| starter hull 15→20 | 0.89 | 11 | 3.99 | 2.00 |
+| starter power_gen 2→3 | 0.96 | 4 | 3.46 | 0.76 |
+| hull 20 + power_gen 3 | 0.97 | 3 | 3.48 | 0.93 |
+| one-laser "fumbler" proxy (as shipped) | 0.82 | 18 | 5.17 | 3.26 |
+| fumbler + hull 20 | 0.92 | 8 | 5.28 | 4.75 |
+| fumbler + power_gen 3 | 0.82 | 18 | 5.17 | 3.26 |
+
+Reads: the two-laser player's binding constraint is POWER (bursts
+cost 2 and the Skiff regens 2/turn — the player goes dry mid-fight
+and stands idle); the fumbler's constraint is HULL (half firepower
+never runs dry, but attrition in a long race kills it). The probes
+were uncommitted spec edits, measured and reverted; no balance change
+has landed. Awaiting the user's ruling: the tuning decision and the
+Goal-1 thresholds (the gate's batch is seed-fixed, so a floor near
+the measured rate is a stable pin, not a flaky one).
+
 1. `python3 -m tests.balance.report` — read Goal 1's measured table
    (win rate, mean/max rounds, mean hull damage taken, timeouts) and
    the batch parameters (N, base seed).
