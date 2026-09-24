@@ -77,11 +77,10 @@ async def _run_enemy_turn(
 async def _take_enemy_turn(
     state, _ei, _e_idx, _esp, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
-    """One enemy's AP turn: advance into range, then fire each AP.
-
-    Honest costs (doc 48 SETTLED 39): every shot pays its weapon's
-    real AP/power/ammo; when nothing is affordable the turn ends —
-    never a spin, never moving while in firing band."""
+    """One enemy's AP turn as decision points (doc 48 SETTLED 40):
+    each AP spends on a verb — advance to stand-off, or the in-position
+    engagement decision. The turn breaks when no verb is legal —
+    never a spin. Honest costs stand (SETTLED 39)."""
     _cached_path: list[tuple[int, int]] | None = None
     while _ei.ap_remaining > 0:
         _p_pos = state.player_state["pos"]
@@ -97,44 +96,98 @@ async def _take_enemy_turn(
                 hit_chances=hit_chances, evade_bonus=evade_bonus,
                 calc_cam=calc_cam,
             )
-        else:
-            _moved = False
-
-        if not _moved:
-            # LOS is a firing precondition (the player's can_fire
-            # twin: "Blocked by obstacle") — a blocked no-LOS step
-            # breaks the turn rather than firing through cover.
-            _slot = _first_affordable_weapon(_ei) if _can_shoot else None
-            if _slot is None:
+            if _moved:
+                continue
+            if not _can_shoot:
+                # A blocked step with no LOS breaks the turn rather
+                # than firing through cover.
                 break
-            if await _enemy_attack(
-                state, _ei, _slot,
-                hit_chances=hit_chances, evade_bonus=evade_bonus,
-                calc_cam=calc_cam, ctx=ctx,
-            ) == "DEFEAT":
-                return "DEFEAT"
+            # Blocked with LOS: fall through — the weapon may still
+            # reach from here (today's blocked-advance behavior).
+        _outcome = await _engagement_decision(
+            state, _ei, _e_idx, _esp, _edist,
+            hit_chances=hit_chances, evade_bonus=evade_bonus,
+            calc_cam=calc_cam, ctx=ctx,
+        )
+        if _outcome == "DEFEAT":
+            return "DEFEAT"
+        if _outcome == "BREAK":
+            break
     return None
 
 
-def _first_affordable_weapon(_ei) -> int | None:
-    """The Tier-0 walk: the FIRST weapon the ship can actually fire —
-    real AP, power, and ammo. Unaffordable entries are SKIPPED, never
-    waited on (a 2-AP missile at 1 AP is skipped). Real best-weapon
-    selection is Tier 1 (SETTLED 39)."""
+async def _engagement_decision(
+    state, _ei, _e_idx, _esp, _edist, *, hit_chances, evade_bonus, calc_cam, ctx,
+) -> str:
+    """The in-position decision point (doc 48 SETTLED 40): fire the
+    volley's top-scoring affordable weapon, greedily re-evaluated each
+    spend of AP. Returns ``"SPENT"`` (a verb consumed AP), ``"BREAK"``
+    (nothing legal — the turn ends), or ``"DEFEAT"``."""
+    _fire = _select_fire_weapon(_ei, _edist, state.player_state)
+    if _fire is None:
+        return "BREAK"
+    if await _enemy_attack(
+        state, _ei, _fire[0],
+        hit_chances=hit_chances, evade_bonus=evade_bonus,
+        calc_cam=calc_cam, ctx=ctx,
+    ) == "DEFEAT":
+        return "DEFEAT"
+    return "SPENT"
+
+
+def score_weapon(
+    ws, distance: float, target_shields: int,
+    gunnery: int, target_dodge: int,
+) -> float:
+    """Expected value per AP (doc 48 SETTLED 40): damage x
+    hit-chance-at-distance / ap_cost — the SAME ``calc_hit_chance``
+    the shot resolves with, so range-band penalties fold into the
+    choice. Shield-strip weapons score their expected STRIP instead:
+    an EMP on bare shields scores 0 and is never picked."""
+    _chance = calc_hit_chance(ws.id, gunnery, distance, target_dodge)
+    _ap = weapon_costs(ws)[0]
+    if ws.shield_strip > 0:
+        return min(ws.shield_strip, target_shields) * (_chance / 100.0) / _ap
+    return ws.damage * (_chance / 100.0) / _ap
+
+
+def _weapon_affordable(_ei, slot: int, ws) -> bool:
+    """Real AP, power, and ammo in the bank for one shot of ``ws``."""
+    _ap, _power, _ammo = weapon_costs(ws)
+    if _ei.ap_remaining < _ap:
+        return False
+    if _power and _ei.power_pool < _power:
+        return False
+    if _ammo and _ei.weapon_ammo.get(slot, 0) < _ammo:
+        return False
+    return True
+
+
+def _select_fire_weapon(_ei, distance: float, player_state: dict):
+    """The volley's next pick: the top-scoring WEAPON, not the first
+    affordable one (supersedes the Tier-0 list walk). Tie-break is
+    first slot. Returns ``(slot, weapon_spec)`` or ``None``."""
+    _dodge = _calc_dodge_bonus(
+        player_state.get("cells_moved_this_turn", 0),
+        int(player_state.get("piloting", 0) * 0.5),
+    )
+    _best: tuple[float, int, object] | None = None
     for _slot, _entry in enumerate(_ei.weapons):
         try:
             _ws = find_weapon(_entry.item_id)
         except KeyError:
             continue
-        _ap, _power, _ammo = weapon_costs(_ws)
-        if _ei.ap_remaining < _ap:
+        if not _weapon_affordable(_ei, _slot, _ws):
             continue
-        if _power and _ei.power_pool < _power:
+        _score = score_weapon(
+            _ws, distance, player_state.get("shields", 0),
+            _ei.pilot_gunnery, _dodge,
+        )
+        if _score <= 0:
             continue
-        if _ammo and _ei.weapon_ammo.get(_slot, 0) < _ammo:
-            continue
-        return _slot
-    return None
+        if _best is None or _score > _best[0]:
+            _best = (_score, _slot, _ws)
+    return None if _best is None else (_best[1], _best[2])
 
 
 def _pay_fire_costs(_ei, slot: int, ws) -> None:
