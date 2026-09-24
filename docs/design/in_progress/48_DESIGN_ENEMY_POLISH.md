@@ -1359,9 +1359,11 @@ Rulings (user, option-pick 2026-09-24 — the space Tier-0 foundation):
   never had (damage already multiplies by quality; capture strips
   those exact instances — band-4 flagships fly near-overclocked gear).
   Uniform with ground SETTLED 14.
-- **The space readout states the level.** The HUD enemy row mirrors
-  the ground card — the "LVL 30 Pirate Raider" wording
-  (`_ground_presentation` LVL line, space twin).
+- **The space readout states the level.** The space TARGET CARD
+  mirrors the ground card's title row — the "LVL 30 Pirate Raider"
+  wording (`_ground_presentation` LVL line, space twin via
+  `_space_presentation.title_row`; the hud enemy row keeps
+  name + distance — reviewer fold, the card is the structural twin).
 
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
@@ -2723,8 +2725,9 @@ boarding/layout-compile/city suites updated.
    hit becomes a called-out before/after.
 
 
-### Phase 7 Implementation brief (PROPOSED 2026-09-24 — SETTLED 39
-### + 14/15/19/21/31/33)
+### Phase 7 Implementation brief (PROPOSED v2 2026-09-24 — SETTLED
+### 39 + 14/15/19/21/31/33; reviewer ADVISE pass folded, 14 issues;
+### the blockade band is OPEN — user decision pending)
 
 **Scope (files / hook points):**
 
@@ -2732,14 +2735,28 @@ boarding/layout-compile/city suites updated.
   `band: int = 0` + `skill_weights: tuple[float, float, float]`
   (gunnery/piloting/engineering) on NpcShipSpec;
   `pilot_gunnery`/`pilot_piloting`/`pilot_engineering`/`min_power_gen`
-  RETIRE (authoring one raises TypeError — the registry pin pattern).
-  Band leans (playtest-tunable): pirate scout 1 / hound 2 / raider 2 /
-  marauder 3 / captain 3 / warlord 4; militia patrol_light 1 /
-  patrol 2 / patrol_heavy 3 / blockade 3; merchant hauler 1 /
-  freighter 2 / caravan 3; derelicts 0; deep ships 2-4 per system
-  danger. Skill-weight leans: interceptors piloting-biased, line
-  gunnery-biased, flagship balanced, merchants piloting-biased
-  (they run).
+  RETIRE (authoring one raises TypeError — the registry pin pattern);
+  `ai_accuracy_bonus`/`ai_dodge_bonus` SURVIVE as the per-spec
+  reconciliation dials. Band leans (playtest-tunable): pirate scout 1
+  / hound 2 / raider 2 / marauder 3 / captain 3 / warlord 4; militia
+  patrol_light 1 / patrol 2 / patrol_heavy 3; **blockade — OPEN
+  (reviewer issue 2: the hull mirror alone adds +25 shields / +3
+  regen to every cruiser; band 1 = −15 skills, band 2 = +20, band 3 =
+  +60 vs today's 55-sum — pick the gentlest bump + re-pin the
+  harness, or band 3 + re-tune watch counts)**; merchant hauler 1 /
+  freighter 2 / caravan 3 with piloting-LIGHT weights (cornered
+  merchants stay non-threats — pin the passive-dodge delta in the
+  checkpoint); derelicts 0; deep ships 2-4 per system danger.
+  Skill-weight leans: interceptors piloting-biased, line
+  gunnery-biased, flagship balanced.
+- **Skill totals MOVE — the honest claim** (reviewer issue 1): band
+  1 preserves today's QUALITY rates, NOT today's skill sums (authored
+  totals 40-115 vs band totals 40/75/115/175; patrol_light matches
+  band 1 exactly, warlord/blockade/caravan move most — and piloting
+  dips are doubly visible: AP `(60+piloting)//20`, dodge half-rate).
+  The tuning dial: a ships-only skill base inside `derive_skills`
+  (lean: chosen so band-1 totals ≈ today's fixed-roster sums 40-45),
+  pinned by test; playtest tunes from there.
 - **Themed modules** (SETTLED 31; `data/modules/`): ONE new id —
   `smuggler_hold`, name "Smuggler's Hold" (PROSE GATE — the trait
   catalog already says "concealed as smuggler's hold"; stats lean
@@ -2750,103 +2767,155 @@ boarding/layout-compile/city suites updated.
 - **The ship resolver** (new `spacehack/space_scale.py`, pure —
   imports `ground_scale.BAND_LEVELS`/`band_budget`/`quality_rates`,
   never re-derives): `derive_skills(spec) -> tuple[int, int, int]`
-  (band budget over the three skills by weights, base 10) and
-  `roll_flown_equipment(ids, band, rng)` (StoredEquipment instances
-  at band quality rates — ONE fly-time roll helper for weapons AND
-  modules; `_roll_flown_modules` moves here beside it).
+  and `roll_flown_equipment(ids, band, rng)` (StoredEquipment
+  instances at band quality rates — ONE fly-time roll helper for
+  weapons AND modules; `_roll_flown_modules` retires into it). The
+  largest-remainder allocator lifts into ONE shared helper consumed
+  by BOTH ground's `derive_stats` and ships' `derive_skills` (no
+  band math re-derived, allocation loop included).
+- **`EnemyInstance` type changes** (`combat/_types.py` — declared at
+  the owner): `weapons` becomes the rolled `StoredEquipment` tuple
+  (content-type change — consumers migrated below);
+  `weapon_ammo` re-keys by SLOT INDEX to twin the player (id keys
+  collide on today's duplicate light_lasers); new `band: int = 0`
+  (the LVL line reads it); new `shield_recharge_bonus: int = 0` (the
+  free-regen field = hull base + module bonus at build — the
+  player_state twin's own key name).
 - **`_build_enemy`** (`combat/_stats.py`): shields = hull
   `base_shield_max` + module `max_shield_bonus` (quality-scaled);
-  free regen = hull `base_shield_recharge` + module
-  `shield_recharge_bonus` (the `_player_free_regen` formula — enemy
-  twin); power_gen/max_power = hull `base_power_gen` + module
-  `power_gen_bonus`; module `gunnery_bonus`/`piloting_bonus` summed
-  onto the derived skills (the `_player_skill_bonuses` twin —
-  targeting/gyro go live enemy-side); `weapons` becomes the rolled
-  StoredEquipment tuple; `weapon_ammo` seeds from real
-  `ammo_capacity`. `shield_regen_rate` stays 0 (paid divert = Tier 1
-  decision, SETTLED 39).
+  `shield_recharge_bonus` = hull `base_shield_recharge` + module
+  `shield_recharge_bonus`; power_gen/max_power = hull
+  `base_power_gen` + module `power_gen_bonus`; module
+  `gunnery_bonus`/`piloting_bonus` summed onto the derived skills
+  (the `_player_skill_bonuses` twin — targeting/gyro go live
+  enemy-side); weapons roll via the resolver; ammo seeds per slot
+  from real `ammo_capacity`. `shield_regen_rate` stays 0 (paid
+  divert = Tier 1 decision, SETTLED 39).
+- **Weapon-quality damage path** (`combat/_actions.py`
+  `resolve_damage` — reviewer issue 3: space damage has NO
+  weapon-quality term today; player space weapons are quality-0):
+  gains a shooter-weapon-quality parameter — the PLAYER path passes
+  0 (bit-identical behavior, test-pinned), enemy fire passes the
+  flown instance's rolled quality. Without this the weapons-quality
+  ruling is cosmetic.
 - **Honest fire** (`combat/_ai.py` `_take_enemy_turn`/
-  `_enemy_attack`): pay real `ap_cost` from ap_remaining,
-  `power_cost` from power_pool, decrement `weapon_ammo`;
-  weapons[0] unaffordable → walk the list, fire the first affordable
-  (SETTLED 39); nothing affordable → movement only.
+  `_enemy_attack`, plus the plain-id consumers `_ei.weapons[0]`
+  (`_ai.py:179`) and the target card's `for _wid in enemy.weapons`
+  (`_space_presentation.py:42-49`) — both resolve through the
+  instances): pay real `ap_cost` from ap_remaining, `power_cost`
+  from power_pool, decrement `weapon_ammo`; weapons[0] unaffordable
+  → walk the list in order, SKIP unaffordable entries (a 2-AP
+  missile at 1 AP is skipped, not waited on), fire the first
+  affordable. TERMINATION RULE (reviewer issue 6): no affordable
+  weapon AND no legal step (in range, holding LOS) → the existing
+  break ends the turn — never spin, never move-while-in-band.
 - **Free-regen mirror** (`combat/_actions.py` `start_enemy_turn`):
-  the free tier gains the hull-base term (the module term is already
-  coded there); the paid tier stays dormant.
+  the free tier reads `shield_recharge_bonus`; the paid tier stays
+  dormant.
 - **Joiner fix** (`combat/_rules_space.py`
-  `_build_reinforcement_enemy`): build via `_build_enemy(spec, pos)`
-  — the joiner's OWN hull/spec/skills, never the player's catalog or
-  cloned player skills (the SETTLED 21 verification). One enemy
-  construction path; the fork deletes.
-- **HUD** (`hud.py` `_render_enemy_row`): the name gains the LVL
-  prefix — `f"LVL {band_level(spec.band)} {name}"`
-  (the `_ground_presentation.py:62` twin).
+  `_build_reinforcement_enemy` — reviewer issue 9, narrower than the
+  audit first read): the build already flows to `_build_enemy` with
+  the JOINER's spec; the live defect is the spurious `return None`
+  when the PLAYER's hull-catalog read fails (drops legitimate
+  joiners; the player-hull/skill reads feed a discarded player
+  state). Delete the player reads + the None path — one enemy
+  construction path remains.
+- **Weapon capture strip** (reviewer issue 4: `CombatResult` carries
+  `boarded_modules` only today): `boarded_weapons` beside it
+  (`combat/_types.py` + `_space_boarding.py`); the strip seeds
+  weapon entries (`dungeon_layout.py` beside the module seeding) —
+  what FLEW is what drops, weapons now quality-bearing.
+- **The LVL line** (`combat/_space_presentation.py:38` title_row —
+  the ground card's true twin; reviewer issue 7):
+  `f"LVL {band_level(band)} {name}"`. NO hud.py edit at all.
 
 **Build order:** spec fields + retirements + band/weight authoring
-(registry tests first) → `space_scale.py` resolver (pure, tests
-first) → `_build_enemy` rewrite → honest fire + fallback →
-free-regen term → joiner fix → HUD line → themed module id +
-loadout re-author → full gate.
+(registry tests first) → `space_scale.py` resolver + shared allocator
+(pure, tests first) → `EnemyInstance` fields + `_build_enemy` rewrite
+→ quality param in resolve_damage (player pinned 0) → honest fire +
+fallback + consumer migration → free-regen term → joiner fix → LVL
+card line → capture-strip extension → themed module id + loadout
+re-author (+ `test_line_tuning` re-pin once the blockade band is
+ruled) → full gate.
 
 **Binding rulings:** SETTLED 14 (quality rides band, now ship-side),
 15/19 (band-derived skills), 21 (Tier 0 = parity only; every
 decision-loop behavior is Tier 1), 31 (ladders + themes), 33 (hull
 identity — no glyph changes here), 39. No context banding anywhere;
-band 1 preserves today's feel (band-1 quality = KILL rates); no new
-spec stat fields beyond `band` + `skill_weights`.
+band-1 quality = KILL rates (skill totals move — the honest-claim
+line); no new spec stat fields beyond `band` + `skill_weights`.
 
 **Stop point:** no Tier-1 decision loop — no fire-BEST-affordable
 selection (the walk is degenerate), no regen-when-hurting divert, no
 move-to-band changes, no aggressiveness dial; no ancient machines
 (9), no consortium ships (11), no biome fauna (10); no guide entry
 (honest costs are the player's own rules mirrored); no player-side
-combat changes.
+BEHAVIOR changes (the shared resolver's quality param defaults the
+player path to today's numbers).
 
 **Required tests:** registry TypeError pins (pilot_* / min_power_gen
 gone); band assignments pinned (warlord 4, merchant wealth ladder,
-derelicts 0); derive_skills purity (budget math, weight splits,
-band 0 = base 10); fly-time rolls (weapons AND modules at band
-quality rates — band 1 equals KILL rates; the re-engagement re-roll
-gap stands); `_build_enemy` parity (hull shields/recharge/power
-honored; targeting/gyro bonuses land; ammo seeded from capacity);
-honest fire (AP/power/ammo spent per shot; step-to-first-affordable
-on dry missiles; movement when nothing affordable);
-`start_enemy_turn` free regen includes the hull base; the joiner
-builds from its own spec (not the player hull — stats pinned); the
-HUD row carries LVL; smuggler_hold in the catalog + pirate loadouts
-reference it; existing combat/navigation suites green.
+derelicts 0; blockade per its ruling); derive_skills purity (budget
+math, weight splits, the ships-base dial landing band-1 ≈ today's
+fixed-roster sums, band 0 = base); fly-time rolls (weapons AND
+modules at band quality rates — band 1 equals KILL rates; the
+quit-mid-fight re-roll gap stands, economy-watched); `_build_enemy`
+parity (hull shields/recharge/power honored; targeting/gyro bonuses
+land; ammo seeded per slot — duplicate weapons keyed apart); honest
+fire (AP/power/ammo spent per shot; the walk SKIPS unaffordable
+entries; in-range-nothing-affordable breaks the turn);
+resolve_damage (player path bit-identical at quality 0; enemy damage
+scales with rolled quality); `start_enemy_turn` free regen includes
+the hull base; the joiner never returns None on a player-catalog
+failure; `boarded_weapons` round-trips into the strip; the LVL card
+line; smuggler_hold in the catalog + pirate loadouts reference it;
+**`tests/test_line_tuning.py` updated for the field retirement +
+re-pinned per the blockade ruling (absent from v1 — reviewer issue
+2)**; existing combat/navigation suites green.
 
 **Playtest checkpoint:**
 
 1. Sol pirate scout (band 1, dev grant): the fight reads like today
-   — no nerf; HUD shows "LVL 3 Pirate Scout"; shields tick each turn
-   (scout hull base + module recharge).
+   — skills within a hair of live, "LVL 3 Pirate Scout" on the
+   target card; shields tick each turn (scout hull base + module
+   recharge).
 2. Deep warlord (band 4, bold F): "LVL 30"; derived skills bite
-   (dodge, AP); board it — the capture strip carries what flew,
-   weapons now quality-bearing (near-overclocked at band 4).
-3. Missile boat (pirate captain): after its real missile count it
-   steps to lasers mid-fight — never inert, never infinite.
+   (dodge, AP); board it — the strip carries what flew, weapons
+   quality-bearing (near-overclocked at band 4).
+3. Missile-LED ship (dev grant variant whose weapons[0] is a
+   missile): after its real missile count it steps to the next
+   affordable weapon mid-fight — never inert, never infinite. (The
+   captain leads heavy_laser — its missiles fire in power troughs,
+   not after a count.)
 4. Power honesty: an energy-heavy ship's output visibly thins when
    its pool drains (heavy laser costs 2/shot → it steps to the
    1-power light laser); pool refills at hull+module rate.
 5. Joiner: fight beside a second squad and let it join mid-fight —
-   the joiner's readout and stats are ITS spec (not a player-hull
-   clone).
-6. Militia patrol_heavy / blockade: LVL 18, military suite — realer
-   than today's flat skills, no pirate gear.
-7. Merchant caravan: light (its wealth band), flees; the droid dial
-   unchanged; capture strip = cargo modules + light arms +
-   (pirate decks) a Smuggler's Hold.
-8. Regression: The Line pickets, bounty leaders, derelicts (band 0,
-   amber), phase 4-6 ground, merchant chains unchanged; save/quit on
-   the map → Continue identical.
-9. Guide-diff item: expected NONE — honest costs are the player's
-   own rules; confirm-grep of `data/guide/`, any hit becomes a
-   called-out before/after.
+   with the player's ship in ANY state the joiner still joins (the
+   None path is gone) and reads its own spec's stats.
+6. Militia patrol_heavy: LVL 18, military suite — realer than
+   today's flat skills, no pirate gear. The Line: per the blockade
+   ruling — the re-pinned harness numbers verified in play (full
+   watch at 30, thin watch mid-20s).
+7. Merchant caravan: light (its wealth band, piloting-light weights
+   — cornering one stays easy; PIN the passive-dodge delta vs
+   today's ~7%), flees; droid dial unchanged; capture strip = cargo
+   modules + light arms + (pirate decks) a Smuggler's Hold.
+8. Regression: The Line pickets per item 6; bounty leaders,
+   derelicts (band 0, amber), phase 4-6 ground, merchant chains
+   unchanged; save/quit on the map → Continue identical.
+9. Economy watch: quit-mid-fight → Continue re-rolls a band-4
+   flagship's flown gear (save-scum avenue for near-overclocked
+   weapons once stripping lands) — accepted ground-precedent gap;
+   note anything absurd.
+10. Guide-diff item: expected NONE — honest costs are the player's
+   own rules; confirm-grep the SPACE-COMBAT and CAPTURE guide
+   sections specifically (weapon stripping extends "what flew is
+   what drops"), any hit becomes a called-out before/after.
 
 Dev grants: Shift+P (SPACEHACK_DEV) spawns a chosen pirate spec
-adjacent (cycles scout→warlord) so items 1-4 are checkable without
-traveling (`dev_mode.py` + `test_dev_mode.py` pin).
+adjacent (cycles scout→warlord, incl. the missile-led variant for
+item 3) (`dev_mode.py` + `test_dev_mode.py` pin).
 
 ## Pre-implementation audit — phase 3 (2026-09-22)
 
@@ -3284,17 +3353,26 @@ same-commit extraction is forced this phase; keep additions small.
   exactly what the enemy twin reads — hull base + module bonus at
   quality. `_calc_hull_for_enemy` already honors hull + modules (the
   one wired half today).
-- **`EnemyInstance`** (`combat/_types.py`) carries every field Tier 0
-  needs — `power_gen`/`max_power`/`shield_regen_rate`/
-  `weapon_ammo`/`modules` — zero type changes; only `_build_enemy`'s
-  values change.
-- **The joiner bug is ONE function**
-  (`_rules_space._build_reinforcement_enemy`: reads the player's hull
-  catalog, clones player skills at 30); routing it through
-  `_build_enemy` deletes the fork outright.
-- **The HUD seam**: `_render_enemy_row` (`hud.py:760`) paints
-  name + distance + bars — the LVL prefix lands beside the name
-  (the `_ground_presentation.py:62` twin).
+- **`EnemyInstance`** (`combat/_types.py`) carries the resource
+  fields Tier 0 needs — `power_gen`/`max_power`/`shield_regen_rate`/
+  `weapon_ammo`/`modules` — but NOT with zero type changes (v1's
+  claim, corrected per the reviewer): `weapons` changes content type
+  (ids → rolled StoredEquipment), `weapon_ammo` re-keys by slot
+  (id keys collide on duplicate light_lasers), and two fields are
+  NEW — `band` (the LVL line) and `shield_recharge_bonus` (the
+  free-regen term; `start_enemy_turn` recomputes only the module
+  bonus today, so the hull base has nowhere to live without it). All
+  declared at the owner (dataclass cohesion).
+- **The joiner defect is ONE function, and NARROWER than first
+  read** (`_rules_space._build_reinforcement_enemy`): the build
+  already flows to `_build_enemy` with the JOINER's spec — the
+  player-hull read and the 30-default skill clone feed a DISCARDED
+  player state; the live bug is the spurious `return None` when the
+  player-catalog read fails, silently dropping legitimate joiners.
+  Deleting the player reads + the None path completes it.
+- **The LVL seam**: the space TARGET CARD title row
+  (`_space_presentation.py:38`, the `_ground_presentation.py:62`
+  twin) — no hud.py involvement at all.
 
 **Duplication hotspots:**
 
@@ -3313,12 +3391,13 @@ same-commit extraction is forced this phase; keep additions small.
    (hull+module regen, shield, power, skill-bonus helpers) consumed
    by BOTH the player and enemy paths — the mirror is one
    implementation read twice.
-3. `space_scale.derive_skills` composes `ground_scale` primitives;
-   no band math is re-derived.
+3. A second band-derivation implementation (ship skills vs ground
+   stats) drifting from `BAND_LEVELS`/`band_budget` — INCLUDING the
+   largest-remainder allocation loop itself (`derive_stats`'s
+   splitter): lift it into one shared helper both resolvers call.
 
-**Ratchet note:** `hud.py` sits at 994/1000 — the LVL edit must be
-line-neutral or pay a same-commit extraction (the `_rules_ground`
-999 precedent); `_rules_space.py` (870) has headroom for the joiner
+**Ratchet note:** no hud.py edit remains (the LVL line lives in the
+target card); `_rules_space.py` (870) has headroom for the joiner
 fix; every other touched module ≤ 900.
 
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
