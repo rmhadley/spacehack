@@ -1,7 +1,8 @@
 # DESIGN: Headless Combat Balance Simulator
 
-**Status: DESIGN IN PROGRESS — moved from `future/` 2026-09-24;
-questions settled + Phase 1 brief proposed same day (SETTLED 1-3).**
+**Status: IN IMPLEMENTATION (phase 1, 2026-09-24) — moved from
+`future/` 2026-09-24; questions settled + Phase 1 brief proposed same
+day (SETTLED 1-3); brief approved via `/implement-phase 50.1`.**
 The seed's blocker is lifted: doc 48's phases 7-8 landed space
 combat's Tier-0 parity (hull/module stats, honest costs) and Tier-1
 decision loop (the volley scorer, the aggressiveness dial, the
@@ -354,3 +355,118 @@ player-facing changed).
 **Playtest checkpoint:** the Phase 1 PLAYTEST list above — its
 center is item 3, the threshold ruling; the phase ticks only with
 the ruled numbers asserted green.
+
+## Pre-implementation audit (Phase 1 — 2026-09-24, code-verified)
+
+### 1. Existing modules / patterns to reuse
+
+- **Loop mirror shares the real bodies.** The sim loop imports and
+  calls `_loop`'s own helpers — `_log_combat_start`,
+  `_combat_end_check`, `_retarget_if_dead`, `_dispatch_combat_action`,
+  `_end_player_turn`, `_finish_combat` (`combat/_loop.py`) — replacing
+  only render/present (dropped) and input (the stance). End-turn
+  costs, retargeting, and reinforcements ride the real dispatch.
+- **Real entry, NOT the encounter wrapper.** `init(ctx, console,
+  ship_cat, owned, pos, skills, specs, positions, game_map, log)` at
+  the `_encounter.py:225` shape. `_handle_combat_encounter` is
+  avoided on purpose: it opens the tutorial-intro modal and the death
+  screen (input-waiting presentation the sim must never open).
+- **Sheet builders are the game's own.** `ship.
+  install_stored_equipment` + `base_module_entries` build the
+  OwnedShip through the real install path (slot caps enforced);
+  `character.starting_pilot_skills(species, class)` folds the real
+  base+bonuses.
+- **Real FrameBuffer as the console.** `framebuffer.FrameBuffer` is
+  renderer-neutral (clear/print/to_commands, no pygame import) — the
+  sim uses a real one at SCREEN_WIDTH×SCREEN_HEIGHT; every painter
+  (HUD, range line, world view) runs for real into it.
+- **Fake PygameContext per the `tests/support/fake_pygame.py`
+  pattern** — SimpleNamespace with `pump`/`wait_events` returning
+  empty batches, absorbing `present`, a `note_drained` hook, and
+  `_runtime.engine` set so `pygame_runtime.is_shared_context` passes
+  (it is a duck-typed check, not an identity check).
+- **Aggregate/report precedent:** `tests/test_line_tuning.py` (the
+  closed-form interim this doc's phase 4 later retires).
+
+### 2. Live-fight geometry pins (Goal 1) — read from code, not guessed
+
+- **Jack's spawn**: `_pick_bounty_spawn_pos(sol)`
+  (navigation_spawns.py:44) → first free landmark nearest the system
+  centre = Mercury's `(pos.x+width+3, pos.y+height//2)` = **(80, 52)**
+  (sol.py: mercury at (75,51), 2×2; game_interactions.py:842).
+- **Trigger distance**: `_trigger_bounty_spawns` fires at
+  `0 < dist <= detect_radius` and `pirate_scout.detect_radius=8`
+  (npc_ships/core.py:99). The player flies Earth→Mercury due west, so
+  the canonical first-trigger cell is 8.0 east of Jack: **player
+  (88, 52)** — open space, LOS clear.
+- **Grid = the live fight's map**: Sol 200×140 with the bodies'
+  footprints as obstacle rects (sun, 8 planets, 4 jump points; stars
+  are walkable decoration, omitted). GridSpec declares it explicitly
+  (size + rect blocks), so the end-turn reinforcement path behaves
+  exactly as live: `check_reinforcements` → `move_npcs` spawns
+  ambient traffic at real Sol body goals (in-bounds, seeded) and
+  `_detect_combat_encounter` re-detects honestly — joins can happen
+  in the sim like they can in the fight.
+- **Starter sheet** (all by id): hull `starter` (Skiff — base_hull
+  15, 2 weapon slots, 1 module slot, base_power_gen 2,
+  base_shield_max 0, base_shield_recharge 0); `light_laser` ×2 (dmg 4,
+  acc 80, band 1–5, 1 AP, 1 power); module `shield_mk1` (+20 max
+  shields → max 20, free regen stays 0); species `human` + class
+  `bounty_hunter` at level 1 through `starting_pilot_skills` =
+  gunnery 16 / piloting 14 / engineering 16 (base 10 + 2/0/2 + 4/4/4);
+  traits `[]` (a tutorial pilot has none). The level-1 median class
+  pick — pirate would shoot better, merchant worse.
+- **Enemy** (`pirate_scout`, read live via `find_npc_ship`): band 1,
+  `ai_aggressiveness` 60, `ai_preferred_range` 3, one `light_laser`,
+  `compact_reactor`, `ai_accuracy_bonus` 5, `ai_dodge_bonus` 10;
+  flown-equipment quality rolls (`roll_flown_equipment`) happen inside
+  the seeded run.
+- Map entities at init: player `Entity(owned=True)` at (88,52) and
+  Jack's `npc_ship_id="pirate_scout"` entity named "Crimson Jack" at
+  (80,52) — the `_match_enemy_entities` position match + name stamp
+  need both.
+
+### 3. Presentation-inert surface (what the doubles satisfy)
+
+- `pygame_combat.present(ctx, console)` → `is_shared_context` passes
+  on the fake's `_runtime.engine`; `_console_commands` reads the real
+  FrameBuffer; overlay building is pure computation; the final
+  `ctx.context.present(...)` is absorbed — nothing blits to a window.
+- `_responsive_sleep` polls real `pygame.event.get()` unconditionally
+  (only ModuleNotFoundError is caught; container-verified: it raises
+  `pygame.error` until init). Harness: `pygame.init()` once headless
+  (the `test_pygame_integration` pattern — initializing the real
+  library is not monkeypatching) + INSTANT timing
+  (`animation_timing.set_speed_scale(0.0)` — zero-length sleeps that
+  still yield).
+- `_message_segments` reads only `ctx.log` (real `MessageLog`).
+- `_rules_space._state` is a module global: `init` re-creates it per
+  run (clearing previous locks), and the runner nulls it + releases
+  combat locks in a `finally` so runs cannot bleed.
+
+### 4. RNG rebind hazard (the determinism contract)
+
+`engine.seed_rng` REBINDS `engine.RNG`, but `_loop`, `_ai`, and
+`_actions` hold import-time `from ..engine import RNG` references —
+the hit/loot roll sites. Production is unaffected (saveload restores
+in place via `setstate`; the stale instance is entropy-seeded and
+never replayed). A sim that rebinds only `engine.RNG` would SPLIT its
+rolls across two instances and lose per-run reproducibility. Harness
+contract: per run *i*, one `random.Random(base+i)` instance assigned
+to `engine.RNG` AND the touched modules' `RNG` attributes (loop, ai,
+actions) — same instance, refreshed each run, test-side only.
+
+### 5. Duplication hotspots + DRY strategy
+
+1. **Sim loop vs `_run_combat_impl`** (highest drift risk): share the
+   real helper bodies per §1; the mirror keeps only sequencing and
+   cross-references `_run_combat_impl` step by step.
+2. **Sim ctx vs `tests/support/quest_ctx.py`**: one pinned-field
+   factory in the harness (SimpleNamespace, real `PlayerCounters`,
+   real `MessageLog`, no MagicMock), fields enumerated from §2–§3
+   reads — not a second ad-hoc namespace grown one failure at a time.
+3. **Scenario rows vs `data/` catalogs**: frozen dataclasses in the
+   house catalog idiom (`SCENARIOS` tuple + `find_scenario`), living
+   in `tests/` per SETTLED 3; composition pinned by id everywhere.
+   Seed derivation (`base+i`) is ONE helper shared by harness and
+   tests — never two implementations.
