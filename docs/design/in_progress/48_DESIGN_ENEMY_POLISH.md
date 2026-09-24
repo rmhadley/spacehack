@@ -1955,7 +1955,16 @@ with doctrinal 10-13):
   parity line: hull shields are honored for ships under way; derelicts
   are boarded, never fought, and the combat build is unreachable for
   them (detect_radius 0, boarding bypasses combat) — pinned
-  (live pirate_scout still reads 5).
+  (live pirate_scout still reads 5). (2) **NO NEW SMUGGLER MODULE**
+  (user: "pirates should run smuggler's holds that already exist in
+  the game. remove the new module") — the build's `smuggler_hold` id
+  (cargo+speed stats) is REMOVED; SETTLED 31's "smuggler holds" means
+  the catalog's own concealment family (`smuggler_hold_mk1-4`). The
+  pirate captain flies mk3, the warlord mk4 (mk tier = the ship's
+  band); capture strips the concealment hold that flew — the
+  smuggler's-hold-as-pirate-loot seed resolves through existing data.
+  The brief's "ONE new id" line is superseded; zero new module ids
+  this phase.
 - [ ] 8. **Space Tier 1: the decision loop** — fire/regen/move per
   AP, `ai_aggressiveness` as fire-vs-reposition, weapon selection
   (EMP/conservation), the four ported doc-34 design notes
