@@ -1365,6 +1365,30 @@ Rulings (user, option-pick 2026-09-24 — the space Tier-0 foundation):
   `_space_presentation.title_row`; the hud enemy row keeps
   name + distance — reviewer fold, the card is the structural twin).
 
+Addition (same day, user, verbatim — the Line ruling):
+
+> sure. band 2. I'm not worried about it being too hard. I want it
+> to be extremely hard. it's a brute force skip the run around
+> shortcut for a super powered player. so if anything, even just
+> making them frigate level marine hulls would even be an option.
+
+Rulings:
+
+- **militia_blockade carries band 2.** The harness
+  (`test_line_tuning`) re-pins against the new numbers with the
+  doc-39 contract's SHAPE intact — full watch unwinnable below 30 /
+  a costly win at 30+, thin watch the mid-20s timing play.
+- **The Line's difficulty doctrine: EXTREMELY hard is the design.**
+  The full watch is the brute-force skip for a super-powered player
+  — when the closed-form race lands marginal, the re-pin tunes
+  TOWARD harder, never softer.
+- **The frigate-hull escalation is a NAMED LEVER, not Tier-0
+  scope:** if the fight ever reads soft in play (honest costs
+  thinning picket volleys), re-authoring the pickets onto
+  frigate-level militia hulls is the user-blessed next step — a
+  ship_id/spec re-author with its own harness pass, not part of
+  phase 7.
+
 ## The tactical mechanics audit (2026-09-22 — grounds the Q22 ruling)
 
 **Ground AI:** exactly three behavior verbs (hunter/guard/ambusher),
@@ -2725,9 +2749,10 @@ boarding/layout-compile/city suites updated.
    hit becomes a called-out before/after.
 
 
-### Phase 7 Implementation brief (PROPOSED v2 2026-09-24 — SETTLED
-### 39 + 14/15/19/21/31/33; reviewer ADVISE pass folded, 14 issues;
-### the blockade band is OPEN — user decision pending)
+### Phase 7 Implementation brief (FINAL 2026-09-24 — SETTLED 39 +
+### its same-day addition + 14/15/19/21/31/33; reviewer ADVISE pass
+### folded, 14 issues; blockade band 2 ruled — ready for
+### /implement-phase 48.7)
 
 **Scope (files / hook points):**
 
@@ -2739,11 +2764,11 @@ boarding/layout-compile/city suites updated.
   `ai_accuracy_bonus`/`ai_dodge_bonus` SURVIVE as the per-spec
   reconciliation dials. Band leans (playtest-tunable): pirate scout 1
   / hound 2 / raider 2 / marauder 3 / captain 3 / warlord 4; militia
-  patrol_light 1 / patrol 2 / patrol_heavy 3; **blockade — OPEN
-  (reviewer issue 2: the hull mirror alone adds +25 shields / +3
-  regen to every cruiser; band 1 = −15 skills, band 2 = +20, band 3 =
-  +60 vs today's 55-sum — pick the gentlest bump + re-pin the
-  harness, or band 3 + re-tune watch counts)**; merchant hauler 1 /
+  patrol_light 1 / patrol 2 / patrol_heavy 3; **blockade 2 (SETTLED
+  39 addition: the harness re-pin tunes TOWARD harder, never softer
+  — the Line is the brute-force skip; the frigate-hull re-author is
+  the named escalation lever if the fight ever reads soft)**;
+  merchant hauler 1 /
   freighter 2 / caravan 3 with piloting-LIGHT weights (cornered
   merchants stay non-threats — pin the passive-dodge delta in the
   checkpoint); derelicts 0; deep ships 2-4 per system danger.
@@ -2855,7 +2880,7 @@ player path to today's numbers).
 
 **Required tests:** registry TypeError pins (pilot_* / min_power_gen
 gone); band assignments pinned (warlord 4, merchant wealth ladder,
-derelicts 0; blockade per its ruling); derive_skills purity (budget
+derelicts 0; blockade band 2); derive_skills purity (budget
 math, weight splits, the ships-base dial landing band-1 ≈ today's
 fixed-roster sums, band 0 = base); fly-time rolls (weapons AND
 modules at band quality rates — band 1 equals KILL rates; the
@@ -2894,9 +2919,11 @@ re-pinned per the blockade ruling (absent from v1 — reviewer issue
    with the player's ship in ANY state the joiner still joins (the
    None path is gone) and reads its own spec's stats.
 6. Militia patrol_heavy: LVL 18, military suite — realer than
-   today's flat skills, no pirate gear. The Line: per the blockade
-   ruling — the re-pinned harness numbers verified in play (full
-   watch at 30, thin watch mid-20s).
+   today's flat skills, no pirate gear. The Line (blockade band 2):
+   still EXTREMELY hard by design — full watch unwinnable below 30,
+   a costly win at 30+, thin watch the mid-20s timing play; if the
+   re-pinned fight reads SOFT in play, say so — the frigate-hull
+   lever is the user's named escalation.
 7. Merchant caravan: light (its wealth band, piloting-light weights
    — cornering one stays easy; PIN the passive-dodge delta vs
    today's ~7%), flees; droid dial unchanged; capture strip = cargo
