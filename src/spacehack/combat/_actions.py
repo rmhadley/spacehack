@@ -518,10 +518,13 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     if enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
         room = enemy.max_shields - enemy.shields
         # Tier 1: paid divert from the spec's authored rate (doc 48
-        # SETTLED 40) — the AI's S-dial. Ungated until the Tier-1
-        # build lands the threshold (divert only below threshold ×
-        # max_shields).
-        if enemy.shield_regen_rate > 0:
+        # SETTLED 40) — the AI's S-dial, fired only while shields sit
+        # below the spec's threshold of max (default half); power
+        # availability bounds it below.
+        _below_threshold = enemy.shields < (
+            enemy.shield_regen_threshold * enemy.max_shields
+        )
+        if enemy.shield_regen_rate > 0 and _below_threshold:
             full_cost = max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
             paid_regen = min(enemy.shield_regen_rate, room, enemy.power_pool * enemy.shield_regen_rate // full_cost)
             if paid_regen > 0:

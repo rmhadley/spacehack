@@ -163,9 +163,10 @@ class TestResolveDamage:
 
 
 class TestStartEnemyTurn:
-    """Doc 48 SETTLED 39: the free-regen tier reads the build-time
-    hull+module fold (`shield_recharge_bonus`); the paid divert stays
-    dormant in Tier 0."""
+    """Doc 48 SETTLED 39/40: the free-regen tier reads the build-time
+    hull+module fold (`shield_recharge_bonus`); the paid divert fires
+    only below the spec's threshold of max (default half) while power
+    lasts."""
 
     def _enemy(self, **overrides):
         from src.spacehack.combat._types import EnemyInstance
@@ -184,7 +185,7 @@ class TestStartEnemyTurn:
         start_enemy_turn(enemy)
         assert enemy.shields == 15      # min(5, room 20) — no power spent
         assert enemy.power_pool == 7    # 3 + gen 4; the free tier is free
-        assert enemy.shield_regen_rate == 0  # the paid divert stays unset
+        assert enemy.shield_regen_rate == 0  # no divert authored
 
     def test_free_regen_capped_by_room(self):
         enemy = self._enemy(shields=28, max_shields=30)
@@ -196,3 +197,56 @@ class TestStartEnemyTurn:
         start_enemy_turn(enemy)
         assert enemy.ap_remaining == 4  # 80 twentieths gain
         assert enemy.cells_moved_this_turn == 0
+
+    def test_divert_fires_below_threshold_with_power_spend(self):
+        """Below half of 30 (gate 15): shields 10 divert — rate 2 for
+        2 power (engineering 10 buys no discount yet), on top of the
+        free tier."""
+        enemy = self._enemy(shield_regen_rate=2)
+        start_enemy_turn(enemy)
+        assert enemy.shields == 17      # +2 paid, +5 free
+        assert enemy.power_pool == 5    # 3 + gen 4 - 2 spent
+
+    def test_divert_holds_at_or_above_threshold(self):
+        """Shields 15 of 30 sit AT the default gate — the paid tier
+        holds; the free tier is unconditional."""
+        enemy = self._enemy(shields=15, shield_regen_rate=2)
+        start_enemy_turn(enemy)
+        assert enemy.shields == 20      # free tier only
+        assert enemy.power_pool == 7
+
+    def test_divert_threshold_is_per_spec(self):
+        """A tuned 0.3 gate diverts later in the drain (shields 10 of
+        30 still above a gate of 9)."""
+        enemy = self._enemy(
+            shields=10, shield_regen_rate=2, shield_regen_threshold=0.3,
+        )
+        start_enemy_turn(enemy)
+        assert enemy.shields == 15      # free tier only
+        low = self._enemy(
+            shields=8, shield_regen_rate=2, shield_regen_threshold=0.3,
+        )
+        start_enemy_turn(low)
+        assert low.shields == 8 + 2 + 5  # below the 9 gate: divert fires
+
+    def test_divert_power_bounded_and_engineering_discounted(self):
+        """Engineering 40 halves the rate-2 cost to 1 power; an empty
+        pool diverts nothing."""
+        enemy = self._enemy(
+            shield_regen_rate=2, pilot_engineering=40,
+        )
+        start_enemy_turn(enemy)
+        assert enemy.shields == 17
+        assert enemy.power_pool == 6    # 3 + 4 - 1 (discounted)
+        # Gen lands BEFORE the divert decision (the player twin's
+        # order): an empty pool with generation still diverts.
+        refilled = self._enemy(
+            shield_regen_rate=2, power_pool=0,
+        )
+        start_enemy_turn(refilled)
+        assert refilled.power_pool == 2  # 0 + 4 - 2
+        dry = self._enemy(
+            shield_regen_rate=2, power_pool=0, power_gen=0,
+        )
+        start_enemy_turn(dry)
+        assert dry.shields == 15        # free tier only — no power to divert
