@@ -7,6 +7,8 @@ NpcShipSpec row.
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.spacehack import space_scale
 from src.spacehack.data.npc_ships import find_npc_ship, list_npc_ships
 from src.spacehack.ground_scale import allocate_budget, band_budget
@@ -147,17 +149,17 @@ def test_allocate_budget_zero_weight_slots_never_receive_points():
 # --- themed loadouts (doc 48 SETTLED 31) -------------------------------------
 
 
-def test_smuggler_hold_in_the_catalog():
+def test_pirate_flagships_fly_the_existing_smuggler_holds():
+    """The theme ruling resolves to the CATALOG's own family (playtest
+    ruling 2026-09-24: no new id) — pirates run the concealment holds
+    that already exist, mk tier matching the ship's band."""
+    assert "smuggler_hold_mk3" in find_npc_ship("pirate_captain").modules
+    assert "smuggler_hold_mk4" in find_npc_ship("pirate_warlord").modules
     from src.spacehack.data.modules import find_module
 
-    spec = find_module("smuggler_hold")
-    assert spec.name == "Smuggler's Hold"
-    assert spec.cargo_bonus > 0 and spec.speed_bonus > 0
-
-
-def test_pirate_flagships_fly_the_smuggler_hold():
-    for spec_id in ("pirate_captain", "pirate_warlord"):
-        assert "smuggler_hold" in find_npc_ship(spec_id).modules, spec_id
+    assert find_module("smuggler_hold_mk3").smuggler_cargo > 0
+    with pytest.raises(KeyError):
+        find_module("smuggler_hold")
 
 
 def test_merchant_wealth_scales_the_module_suite():

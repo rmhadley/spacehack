@@ -9,15 +9,6 @@ militia scan outcome.
 from . import ModuleSpec
 
 MODULES: tuple[ModuleSpec, ...] = (
-    # The pirate theme's flying hardware (doc 48 SETTLED 31): fast
-    # hulls with hidden bays — capturable off a flagship.
-    ModuleSpec(
-        id="smuggler_hold", name="Smuggler's Hold",
-        slot_type="system",
-        description="Hidden bays and a hot drive. +40 cargo, +2 speed.",
-        cargo_bonus=40, speed_bonus=2, price=250,
-        tech_level=2,
-    ),
     ModuleSpec(
         id="smuggler_hold_mk1", name="Smuggler's Hold Mk. 1",
         slot_type="system",
