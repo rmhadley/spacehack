@@ -233,13 +233,14 @@ def _ship_shield_capacity(entity: Any, player_owned_ship: Any | None = None) -> 
         npc_id = getattr(entity, "npc_ship_id", "")
         if npc_id:
             from .data.npc_ships import find_npc_ship
+            from .combat._stats import _enemy_hull
             npc = find_npc_ship(npc_id)
-            # Match combat initialization: NPC modules define their
-            # installed shield capacity; the player hull catalog's base
-            # shields do not leak into an NPC's loadout. Out of combat
-            # the modules read at base quality (no fly-time roll).
+            # Parity (doc 48 phase 7): the hull's own base shields are
+            # the NPC's too — same formula combat builds from. Out of
+            # combat the modules read at base quality (no fly-time
+            # roll), matching the combat twin.
             return _calc_max_shields(
-                npc, ship_module.base_module_entries(npc.modules),
+                _enemy_hull(npc), ship_module.base_module_entries(npc.modules),
             )
     except (KeyError, ImportError):
         return 0

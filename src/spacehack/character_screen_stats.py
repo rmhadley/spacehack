@@ -42,13 +42,15 @@ def _skill_value_display(ctx: GameContext, index: int, skill: str) -> str:
     bonuses — the same effective sum combat uses — with the bonus
     annotated ("36 (+9)", "13 (-12)"); ground stats and bonus-less
     skills show the plain value (doc 47.4 SETTLED 29)."""
-    from .combat._stats import _player_skill_bonuses
+    from .combat._stats import _skill_bonuses
 
     base = _skill_base(ctx, index, skill)
     owned = getattr(ctx, "player_owned_ship", None)
     if index >= 3 or owned is None:
         return f"{base:>3}"
-    effective = _player_skill_bonuses(owned, ctx.stats)[index]
+    effective = _skill_bonuses(
+        ctx.stats, getattr(owned, "modules", ()) or (),
+    )[index]
     bonus = effective - base
     # The number keeps its right-aligned width-3 column when the
     # bonus rides along, so tiered rows stay in line with plain ones.

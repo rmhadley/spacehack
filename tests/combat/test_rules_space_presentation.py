@@ -8,6 +8,7 @@ from types import SimpleNamespace
 from src.spacehack import world, pygame_overlay, pygame_target_card
 from src.spacehack.combat import _rules_space, _space_presentation
 from src.spacehack.combat._types import EnemyInstance
+from src.spacehack.ship import StoredEquipment
 
 
 def _state(*, player_shields=12, enemy_shields=8, active=True):
@@ -151,7 +152,7 @@ def _card_enemy():
         ap_remaining=2,
         ap_total=3,
         pos=world.Position(5, 3),
-        weapons=("light_laser",),
+        weapons=(StoredEquipment("weapon", "light_laser"),),
     )
 
 

@@ -13,7 +13,7 @@ from .. import world
 from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
-from ..data.quality import effective_module_spec, roll_quality
+from ..data.quality import roll_quality
 from ..engine import RNG
 from ..loot_common import equipment_payload, loot_fg
 
@@ -487,22 +487,15 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
     """Reset per-turn resources for an enemy and apply shield regen.
 
     Mirrors :func:`start_player_turn` — base regen costs power with
-    engineering discount; module recharge bonus is free. AP uses the
+    engineering discount; the free tier (hull base + module bonus,
+    folded at build — doc 48 SETTLED 39) needs no power. AP uses the
     same fractional regeneration with carry as the player.
     """
     enemy.power_pool = min(enemy.max_power, enemy.power_pool + enemy.power_gen)
-    # Module shield recharge bonus (quality-scaled, doc 47.3).
-    _module_recharge = 0
-    for _entry in getattr(enemy, 'modules', ()) or ():
-        try:
-            _module_recharge += effective_module_spec(
-                _entry.item_id, _entry.quality, _entry.randart_seed,
-            ).shield_recharge_bonus
-        except KeyError:
-            pass
     if enemy.max_shields > 0 and enemy.shields < enemy.max_shields:
         room = enemy.max_shields - enemy.shields
-        # Tier 1: paid regen from base rate.
+        # Tier 1: paid regen from base rate (dormant in Tier 0 — no
+        # enemy sets a divert rate; the decision is Tier 1's).
         if enemy.shield_regen_rate > 0:
             full_cost = max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
             paid_regen = min(enemy.shield_regen_rate, room, enemy.power_pool * enemy.shield_regen_rate // full_cost)
@@ -512,9 +505,9 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
                 enemy.power_pool -= paid_cost
                 enemy.shields += paid_regen
                 room -= paid_regen
-        # Tier 2: free regen from module bonus.
-        if _module_recharge > 0 and room > 0:
-            enemy.shields += min(_module_recharge, room)
+        # Tier 2: free regen — the build-time hull+module term.
+        if enemy.shield_recharge_bonus > 0 and room > 0:
+            enemy.shields += min(enemy.shield_recharge_bonus, room)
     _avail, _carry = _roll_ap(enemy.ap_carry_twentieths, enemy.ap_gain_twentieths)
     enemy.ap_carry_twentieths = _carry
     enemy.ap_total = _avail

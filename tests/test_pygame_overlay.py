@@ -481,7 +481,7 @@ def test_target_card_cells_favor_above_when_player_below():
     assert cells == (4, 1)
 
 
-def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
+def test_pirate_scout_shields_match_across_combat_and_exploration():
     from src.spacehack.combat._stats import init_combat_state
     from src.spacehack.data.npc_ships import find_npc_ship
     from src.spacehack.data.ships import find_ship
@@ -502,8 +502,11 @@ def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
         world.Position(3, 2),
     )
 
+    # Parity (doc 48.7): the scout flies the SCOUT hull — its 5 base
+    # shields are the enemy's too (previously the hull base never
+    # reached NPC loadouts, so both read 0).
     assert player_state["max_shields"] == 0
-    assert enemy.shields == 0
+    assert enemy.shields == 5
 
     game_map = world.GameMap(
         width=8,
@@ -516,16 +519,21 @@ def test_pirate_scout_combat_and_exploration_both_have_zero_shields():
             ),
         ],
     )
-    assert pygame_overlay.shield_bubbles_for_map(
+    # Exploration reads the same 5-shield capacity — full strength
+    # between encounters (combat and exploration agree).
+    bubbles = pygame_overlay.shield_bubbles_for_map(
         game_map,
         camera_x=0,
         camera_y=0,
         region_w=8,
         region_h=6,
-    ) == ()
+    )
+    assert len(bubbles) == 1 and bubbles[0].strength == 1.0
 
 
-def test_shield_bubbles_omit_unshielded_pirate_scout():
+def test_shield_bubbles_omit_ships_without_a_known_hull():
+    """Every real NPC hull carries base shields now (doc 48.7) — the
+    omit path is an entity whose npc_ship_id resolves to nothing."""
     game_map = world.GameMap(
         width=8,
         height=6,
@@ -533,7 +541,7 @@ def test_shield_bubbles_omit_unshielded_pirate_scout():
         entities=[
             world.Entity(
                 "p", (255, 100, 100), world.Position(3, 2),
-                npc_ship_id="pirate_scout",
+                npc_ship_id="ghost_unknown_id",
             ),
         ],
     )

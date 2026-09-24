@@ -99,10 +99,6 @@ class NpcShipSpec:
     ai_preferred_range: int = 3
     ai_accuracy_bonus: int = 0
     ai_dodge_bonus: int = 0
-    pilot_gunnery: int = 20
-    pilot_piloting: int = 20
-    pilot_engineering: int = 10
-    min_power_gen: int = 3
     detect_radius: int = 0
 
     # Comms / interaction

@@ -176,7 +176,7 @@ async def _enemy_attack(
 
     Returns ``"DEFEAT"`` when the hit destroys the player.
     """
-    _wid = _ei.weapons[0]
+    _wid = _ei.weapons[0].item_id
     (
         _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
         _is_glancing, _e_dmg_popup,

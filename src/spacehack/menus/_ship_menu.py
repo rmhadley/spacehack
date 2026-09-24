@@ -43,7 +43,9 @@ def _effective_shields(ship_spec, owned) -> int:
 def _effective_power_gen(ship_spec, owned) -> int:
     """Sum base power gen + effective module power_gen_bonuses."""
     from ..combat._stats import _calc_power_gen
-    return _calc_power_gen(ship_spec, owned)
+    return _calc_power_gen(
+        ship_spec, getattr(owned, 'modules', ()) or (),
+    )
 
 def _weapon_row(weapon_id: str):
     """Build one filled weapon-slot row (name + stats detail)."""

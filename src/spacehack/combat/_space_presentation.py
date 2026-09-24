@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from .. import world
+from ..data.quality import token_prefix
 from ..data.weapons import find_weapon as _find_w
 from ..hud import ap_pool_str
 from ..pygame_target_card import (
@@ -39,12 +40,15 @@ def _space_card_rows(
     if enemy.max_shields > 0:
         rows.append(text_row(f"SHD {enemy.shields}/{enemy.max_shields}"))
     rows.append(text_row(f"AP {ap_pool_str(enemy.ap_total, enemy.ap_carry_twentieths)}"))
-    for _wid in enemy.weapons:
+    for _entry in enemy.weapons:
         try:
-            _ws = _find_w(_wid)
+            _ws = _find_w(_entry.item_id)
         except KeyError:
             continue
-        rows.append(dim_row(_ws.name))
+        # Flown weapons are quality-bearing (doc 48.7): the token
+        # prefix reads the rolled tier — a band-4 flagship's card
+        # says "Overclocked Heavy Laser".
+        rows.append(dim_row(f"{token_prefix(_entry.quality)}{_ws.name}"))
         rows.append(text_row(f"DMG {_ws.damage}  RNG {_ws.min_range}-{_ws.max_range}"))
     if not enemy.weapons:
         rows.append(dim_row("Unarmed"))

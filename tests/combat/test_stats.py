@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack.combat._stats import (
     _build_enemy,
-    _roll_flown_modules,
     calc_hit_chance,
     _calc_dodge_bonus,
     _calc_ap,
@@ -29,9 +28,10 @@ from src.spacehack.combat._stats import (
     _calc_power_gen,
     _calc_max_shields,
     _distance,
+    _free_shield_regen,
     init_combat_state,
-    _player_free_regen,
 )
+from src.spacehack.space_scale import roll_flown_equipment
 from src.spacehack.data.pilot_skills import PilotSkills
 from src.spacehack.world import Position
 
@@ -367,7 +367,8 @@ class TestCalcHullForEnemy:
             assert _calc_hull_for_enemy(enemy_spec, (_module("armor_plating"),)) == 85
 
     def test_missing_ship_fallback(self):
-        """Unknown ship_id falls back to 100 base hull."""
+        """An unknown hull contributes nothing (doc 48.7): the enemy
+        degrades to modules-only stats, never the old flat 100."""
         enemy_spec = SimpleNamespace(ship_id="nonexistent")
         with mock.patch(
             "src.spacehack.combat._stats._ship_mod.find_ship",
@@ -375,29 +376,28 @@ class TestCalcHullForEnemy:
         ), mock.patch(
             "src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK,
         ):
-            assert _calc_hull_for_enemy(enemy_spec, ()) == 100
+            assert _calc_hull_for_enemy(enemy_spec, ()) == 0
 
 
 class TestCalcPowerGen:
     def test_base_only(self):
         cat = SimpleNamespace(base_power_gen=3)
-        owned = SimpleNamespace(modules=())
         with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
-            assert _calc_power_gen(cat, owned) == 3
+            assert _calc_power_gen(cat, ()) == 3
 
     def test_with_modules(self):
         """armor_plating has power_gen_bonus=-1."""
         cat = SimpleNamespace(base_power_gen=5)
-        owned = SimpleNamespace(modules=(_module("armor_plating"),))
+        modules = (_module("armor_plating"),)
         with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
-            assert _calc_power_gen(cat, owned) == 4
+            assert _calc_power_gen(cat, modules) == 4
 
     def test_negative_floor(self):
         """Power gen can't go below 0."""
         cat = SimpleNamespace(base_power_gen=0)
-        owned = SimpleNamespace(modules=(_module("armor_plating"),))
+        modules = (_module("armor_plating"),)
         with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_MOD_MOCK):
-            assert _calc_power_gen(cat, owned) == 0
+            assert _calc_power_gen(cat, modules) == 0
 
 
 class TestCalcMaxShields:
@@ -431,7 +431,7 @@ class TestDistance:
 
 
 # ---------------------------------------------------------------------------
-# _player_free_regen, init_combat_state
+# _free_shield_regen, init_combat_state
 # ---------------------------------------------------------------------------
 
 _REGEN_MOD = SimpleNamespace(
@@ -441,25 +441,23 @@ _REGEN_MOD = SimpleNamespace(
 )
 
 
-class TestPlayerFreeRegen:
+class TestFreeShieldRegen:
     def test_ship_base_only(self):
         """Ship model's base_shield_recharge is free regen (no modules)."""
         cat = SimpleNamespace(base_shield_recharge=5)
-        owned = SimpleNamespace(modules=())
-        assert _player_free_regen(cat, owned) == 5
+        assert _free_shield_regen(cat, ()) == 5
 
     def test_base_plus_module_bonus(self):
         """Base 5 + Shield Recharger +3 = 8 free regen."""
         cat = SimpleNamespace(base_shield_recharge=5)
-        owned = SimpleNamespace(modules=(_module("shield_recharger"),))
+        modules = (_module("shield_recharger"),)
         with mock.patch("src.spacehack.combat._stats.effective_module_spec", return_value=_REGEN_MOD):
-            assert _player_free_regen(cat, owned) == 8
+            assert _free_shield_regen(cat, modules) == 8
 
     def test_no_base_fallback(self):
         """Catalog without the field contributes 0."""
         cat = SimpleNamespace()
-        owned = SimpleNamespace(modules=())
-        assert _player_free_regen(cat, owned) == 0
+        assert _free_shield_regen(cat, ()) == 0
 
 
 class TestInitCombatState:
@@ -477,8 +475,8 @@ class TestInitCombatState:
         enemy_spec = SimpleNamespace(
             id="e1", name="Pirate", char="P", fg=(255, 0, 0),
             ship_id="scout_a", faction="pirate", weapons=(), modules=(),
-            min_power_gen=3, pilot_piloting=10, pilot_gunnery=10,
-            pilot_engineering=10, ai_accuracy_bonus=0, ai_dodge_bonus=0,
+            band=1, skill_weights=(1 / 3, 1 / 3, 1 / 3),
+            ai_accuracy_bonus=0, ai_dodge_bonus=0,
         )
         return cat, owned, skills, enemy_spec
 
@@ -505,8 +503,8 @@ class TestFlyTimeModuleRolls:
         return SimpleNamespace(
             id="e1", name="Pirate", char="P", fg=(255, 0, 0),
             ship_id="scout_a", faction="pirate", weapons=(),
-            modules=modules, min_power_gen=3,
-            pilot_piloting=10, pilot_gunnery=10, pilot_engineering=10,
+            modules=modules, band=1,
+            skill_weights=(1 / 3, 1 / 3, 1 / 3),
             ai_accuracy_bonus=0, ai_dodge_bonus=0,
         )
 
@@ -516,7 +514,9 @@ class TestFlyTimeModuleRolls:
                 return 1
 
         monkeypatch.setattr("src.spacehack.engine.RNG", _AlwaysHit())
-        flown = _roll_flown_modules(("shield_mk1", "armor_plating"))
+        flown = roll_flown_equipment(
+            "module", ("shield_mk1", "armor_plating"), 1, _AlwaysHit(),
+        )
         assert [entry.quality for entry in flown] == [3, 3]
         assert [entry.item_id for entry in flown] == [
             "shield_mk1", "armor_plating",
@@ -555,3 +555,80 @@ class TestFlyTimeModuleRolls:
             assert enemy.max_shields == 20
             assert enemy.max_hull == 80
             assert enemy.modules[0].quality == 0
+
+
+class TestBuildEnemyParity:
+    """Doc 48 phase 7 (SETTLED 39): the build mirrors the player —
+    hull-catalog shields/recharge/power, module skill bonuses,
+    band-derived skills, per-slot ammo, and the flown StoredEquipment
+    weapons. The real spec + hull catalogs, no mocks."""
+
+    def _build(self, monkeypatch):
+        monkeypatch.setattr("src.spacehack.engine.RNG", _NoHitsRng())
+        from src.spacehack.data.npc_ships import find_npc_ship
+        return _build_enemy(
+            find_npc_ship("pirate_captain"), Position(0, 0),
+        )
+
+    def test_hull_shields_recharge_and_power_honored(self, monkeypatch):
+        enemy = self._build(monkeypatch)
+        # Frigate hull: 40 base shields, 5 base recharge, 6 base power;
+        # +shield_mk1 20 +capacitor 15 shields, -1 power from plating.
+        assert enemy.max_shields == 40 + 20 + 15
+        assert enemy.shield_recharge_bonus == 5
+        assert enemy.power_gen == 6 - 1
+        assert enemy.max_power == max(10, 5 * 2) + enemy.pilot_engineering // 5
+        assert enemy.power_pool == enemy.max_power
+        assert enemy.shield_regen_rate == 0  # paid divert stays Tier 1
+
+    def test_module_skill_bonuses_and_dials_fold(self, monkeypatch):
+        enemy = self._build(monkeypatch)
+        from src.spacehack.space_scale import derive_skills
+        from src.spacehack.data.npc_ships import find_npc_ship
+        spec = find_npc_ship("pirate_captain")
+        g, p, e = derive_skills(spec)
+        assert enemy.pilot_gunnery == g + 10 + spec.ai_accuracy_bonus  # targeting computer
+        assert enemy.pilot_engineering == e
+
+    def test_weapons_roll_as_stored_equipment_and_ammo_keys_by_slot(self, monkeypatch):
+        enemy = self._build(monkeypatch)
+        assert [w.item_type for w in enemy.weapons] == ["weapon"] * 3
+        assert [w.item_id for w in enemy.weapons] == [
+            "heavy_laser", "heavy_missile", "light_laser",
+        ]
+        assert enemy.weapon_ammo == {0: -1, 1: 3, 2: -1}
+
+    def test_duplicate_weapons_key_apart(self, monkeypatch):
+        monkeypatch.setattr("src.spacehack.engine.RNG", _NoHitsRng())
+        from src.spacehack.data.npc_ships import find_npc_ship
+        enemy = _build_enemy(find_npc_ship("militia_blockade"), Position(0, 0))
+        assert [w.item_id for w in enemy.weapons] == ["light_laser"] * 2
+        assert enemy.weapon_ammo == {0: -1, 1: -1}
+        assert enemy.band == 2  # the Line ruling
+
+
+class _NoHitsRng:
+    """Every quality roll misses: all flown gear reads base."""
+
+    def randint(self, low, high):
+        return 2
+
+
+def test_retired_ship_fields_raise_on_authoring():
+    """The registry pin pattern (ai_flee_threshold precedent): the
+    retired fields leave the dataclass — authoring one is a TypeError."""
+    import pytest
+    from src.spacehack.data.npc_ships import NpcShipSpec
+
+    base = dict(
+        id="x", name="X", char="s", fg=(1, 2, 3),
+        ship_id="scout", faction="pirate",
+    )
+    with pytest.raises(TypeError):
+        NpcShipSpec(**base, pilot_gunnery=20)
+    with pytest.raises(TypeError):
+        NpcShipSpec(**base, pilot_piloting=20)
+    with pytest.raises(TypeError):
+        NpcShipSpec(**base, pilot_engineering=10)
+    with pytest.raises(TypeError):
+        NpcShipSpec(**base, min_power_gen=3)

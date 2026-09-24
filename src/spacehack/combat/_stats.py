@@ -7,6 +7,7 @@ and have no UI side effects. Suitable for testing in isolation.
 from __future__ import annotations
 
 import math
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 from .. import world
@@ -15,6 +16,7 @@ from ..data.pilot_skills import PilotSkills
 from ..data.weapons import find_weapon
 from ..data.quality import effective_module_spec
 from .. import ship as _ship_mod
+from ..space_scale import derive_skills, roll_flown_equipment
 
 if TYPE_CHECKING:
     from ..data.ships import Ship
@@ -57,29 +59,43 @@ def _calc_max_hull(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
     )
 
 
+def _enemy_hull(enemy_spec: NpcShipSpec):
+    """The flown hull's catalog record — the parity mirror's source
+    (doc 48 SETTLED 39): enemy shields, recharge, and power read the
+    same hull the player would fly. A hull id that misses the
+    catalog contributes nothing (modules-only stats) — a data error
+    degrades, never crashes mid-game."""
+    try:
+        return _ship_mod.find_ship(enemy_spec.ship_id)
+    except KeyError:
+        return SimpleNamespace(
+            base_hull=0, base_shield_max=0,
+            base_shield_recharge=0, base_power_gen=0,
+        )
+
+
 def _calc_hull_for_enemy(enemy_spec: NpcShipSpec, modules) -> int:
     """Compute an enemy ship's max (and initial) hull HP from its
     ship_id plus the quality-bearing modules it flies (doc 47.3:
     pass base entries for out-of-combat reads, rolled instances
     inside combat)."""
-    try:
-        _ship_rec = _ship_mod.find_ship(enemy_spec.ship_id)
-        _base_hull = _ship_rec.base_hull
-    except KeyError:
-        _base_hull = 100
-    return _base_hull + _module_bonus_sum(modules, 'max_hull_bonus')
-
-
-def _calc_power_gen(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
-    base = getattr(ship_catalog, 'base_power_gen', 3)
-    base += _module_bonus_sum(
-        getattr(owned_ship, 'modules', ()) or (), 'power_gen_bonus',
+    return _enemy_hull(enemy_spec).base_hull + _module_bonus_sum(
+        modules, 'max_hull_bonus',
     )
-    return max(0, base)
 
 
-def _calc_max_shields(ship_catalog: Ship | NpcShipSpec, modules) -> int:
-    """Max shields for a hull plus module instances (entries)."""
+def _calc_power_gen(ship_catalog: Ship, modules) -> int:
+    """Power generated per turn: hull base + module bonuses — one
+    implementation read by both the player and enemy paths."""
+    return max(0, getattr(ship_catalog, 'base_power_gen', 3) + _module_bonus_sum(
+        modules, 'power_gen_bonus',
+    ))
+
+
+def _calc_max_shields(ship_catalog: Ship, modules) -> int:
+    """Max shields for a hull plus module instances (entries). The
+    enemy path passes :func:`_enemy_hull`'s record — same formula the
+    player and the exploration overlay read."""
     base = getattr(ship_catalog, 'base_shield_max', 0)
     return max(0, base + _module_bonus_sum(modules, 'max_shield_bonus'))
 
@@ -180,9 +196,9 @@ def calc_hit_chance(
     return max(5, min(95, chance))
 
 
-def _player_skill_bonuses(owned_ship: OwnedShip, skills: PilotSkills) -> tuple[int, int, int]:
-    """Sum module skill bonuses onto the pilot's base skill values."""
-    modules = getattr(owned_ship, 'modules', ()) or ()
+def _skill_bonuses(skills: PilotSkills, modules) -> tuple[int, int, int]:
+    """Sum module skill bonuses onto base skill values — the one
+    implementation both the player and enemy builds read."""
     return (
         skills.gunnery + _module_bonus_sum(modules, 'gunnery_bonus'),
         skills.piloting + _module_bonus_sum(modules, 'piloting_bonus'),
@@ -190,11 +206,11 @@ def _player_skill_bonuses(owned_ship: OwnedShip, skills: PilotSkills) -> tuple[i
     )
 
 
-def _player_free_regen(ship_catalog: Ship, owned_ship: OwnedShip) -> int:
-    """Free shield regen per turn: ship base + module recharge bonuses."""
-    total = getattr(ship_catalog, 'base_shield_recharge', 0)
-    return total + _module_bonus_sum(
-        getattr(owned_ship, 'modules', ()) or (), 'shield_recharge_bonus',
+def _free_shield_regen(ship_catalog, modules) -> int:
+    """Free shield regen per turn: hull base + module recharge bonuses
+    (both sides read this one function)."""
+    return getattr(ship_catalog, 'base_shield_recharge', 0) + _module_bonus_sum(
+        modules, 'shield_recharge_bonus',
     )
 
 
@@ -221,39 +237,54 @@ def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
     return w_ammo
 
 
-def _roll_flown_modules(module_ids) -> tuple:
-    """Fly-time quality roll (doc 47.3 SETTLED 14): every installed
-    module rolls the KILL ladder at combat entry — the ship tanks and
-    shoots with these tiers, and an intact capture drops these exact
-    instances. No re-roll at death; re-engagement re-rolls (the
-    accepted ground-side continuity gap, space twin)."""
-    from ..data.quality import KILL_QUALITY_RATES, roll_quality
+def _enemy_flown_loadout(enemy_spec):
+    """Roll the spec's flown weapons + modules at its band's fly-time
+    quality (weapons first — one deterministic draw order)."""
     from ..engine import RNG
-    from ..ship import StoredEquipment
-    return tuple(
-        StoredEquipment(
-            "module", module_id, quality=roll_quality(KILL_QUALITY_RATES, RNG),
-        )
-        for module_id in module_ids
+
+    return (
+        roll_flown_equipment("weapon", enemy_spec.weapons, enemy_spec.band, RNG),
+        roll_flown_equipment("module", enemy_spec.modules, enemy_spec.band, RNG),
     )
 
 
-def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyInstance:
-    """Construct the EnemyInstance from an NPC ship template."""
-    e_ap = _calc_ap(enemy_spec.pilot_piloting)
-    e_gain = _calc_ap_twentieths(enemy_spec.pilot_piloting)
-    e_ammo: dict[str, int] = {}
-    for wid in enemy_spec.weapons:
+def _enemy_skills(enemy_spec, flown) -> tuple[int, int, int]:
+    """Band-derived skills + module bonuses + the per-spec
+    reconciliation dials — the fold order the harness mirrors."""
+    g, p, e = derive_skills(enemy_spec)
+    return (
+        g + _module_bonus_sum(flown, 'gunnery_bonus') + enemy_spec.ai_accuracy_bonus,
+        p + _module_bonus_sum(flown, 'piloting_bonus') + enemy_spec.ai_dodge_bonus,
+        e + _module_bonus_sum(flown, 'engineering_bonus'),
+    )
+
+
+def _slot_ammo(flown_weapons) -> dict[int, int]:
+    """Magazine sizes keyed by weapon SLOT index (duplicates keep
+    independent magazines); -1 = energy weapon, no ammo."""
+    ammo: dict[int, int] = {}
+    for slot, entry in enumerate(flown_weapons):
         try:
-            ws = find_weapon(wid)
-            e_ammo[wid] = ws.ammo_capacity if ws.ammo_capacity > 0 else -1
+            ws = find_weapon(entry.item_id)
         except KeyError:
-            e_ammo[wid] = -1
+            ammo[slot] = -1
+            continue
+        ammo[slot] = ws.ammo_capacity if ws.ammo_capacity > 0 else -1
+    return ammo
 
-    _flown = _roll_flown_modules(enemy_spec.modules)
+
+def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyInstance:
+    """Construct the EnemyInstance — the parity mirror (doc 48
+    SETTLED 39): hull-catalog shields/recharge/power, module effects
+    onto band-derived skills, flown equipment at band quality, and
+    the paid shield divert left unset (Tier 1)."""
+    _weapons, _flown = _enemy_flown_loadout(enemy_spec)
+    _hull = _enemy_hull(enemy_spec)
+    _g, _p, _e = _enemy_skills(enemy_spec, _flown)
     enemy_max_hull = _calc_hull_for_enemy(enemy_spec, _flown)
-    _shields = _calc_max_shields(enemy_spec, _flown)
-
+    _shields = _calc_max_shields(_hull, _flown)
+    _pwr_gen = _calc_power_gen(_hull, _flown)
+    _max_power = max(10, _pwr_gen * 2) + _e // 5
     return EnemyInstance(
         spec_id=enemy_spec.id,
         name=enemy_spec.name,
@@ -263,20 +294,21 @@ def _build_enemy(enemy_spec: NpcShipSpec, enemy_pos: world.Position) -> EnemyIns
         max_hull=enemy_max_hull,
         shields=_shields,
         max_shields=_shields,
-        power_pool=enemy_spec.min_power_gen,
-        ap_remaining=e_ap,
-        ap_total=e_ap,
-        ap_gain_twentieths=e_gain,
-        ap_carry_twentieths=0,
+        power_pool=_max_power,
+        ap_remaining=_calc_ap(_p),
+        ap_total=_calc_ap(_p),
+        ap_gain_twentieths=_calc_ap_twentieths(_p),
         pos=enemy_pos,
-        weapons=enemy_spec.weapons,
+        weapons=_weapons,
         modules=_flown,
-        weapon_ammo=e_ammo,
-        pilot_gunnery=enemy_spec.pilot_gunnery + enemy_spec.ai_accuracy_bonus,
-        pilot_piloting=enemy_spec.pilot_piloting + enemy_spec.ai_dodge_bonus,
-        pilot_engineering=enemy_spec.pilot_engineering,
-        power_gen=enemy_spec.min_power_gen,
-        max_power=max(10, enemy_spec.min_power_gen * 2) + enemy_spec.pilot_engineering // 5,
+        weapon_ammo=_slot_ammo(_weapons),
+        pilot_gunnery=_g,
+        pilot_piloting=_p,
+        pilot_engineering=_e,
+        power_gen=_pwr_gen,
+        max_power=_max_power,
+        band=enemy_spec.band,
+        shield_recharge_bonus=_free_shield_regen(_hull, _flown),
     )
 
 
@@ -288,34 +320,30 @@ def _player_combat_values(
     max_power_bonus: int,
 ) -> tuple:
     """Derive the player's combat numbers from ship catalog + skills."""
-    gunnery, piloting, engineering = _player_skill_bonuses(player_owned_ship, player_pilot_skills)
-    pwr_gen = _calc_power_gen(player_ship_catalog, player_owned_ship)
+    _owned_modules = getattr(player_owned_ship, 'modules', ()) or ()
+    gunnery, piloting, engineering = _skill_bonuses(
+        player_pilot_skills, _owned_modules,
+    )
+    pwr_gen = _calc_power_gen(player_ship_catalog, _owned_modules)
     return (
         gunnery, piloting, engineering,
         _calc_ap(piloting, ap_bonus),
         _calc_ap_twentieths(piloting, ap_bonus),
         pwr_gen,
-        _calc_max_shields(player_ship_catalog, getattr(player_owned_ship, 'modules', ()) or ()),
+        _calc_max_shields(player_ship_catalog, _owned_modules),
         _calc_hull(player_ship_catalog, player_owned_ship),
         _calc_max_hull(player_ship_catalog, player_owned_ship),
         max(10, pwr_gen * 2) + engineering // 5 + max_power_bonus,
     )
 
 
-def init_combat_state(
-    player_ship_catalog: Ship, player_owned_ship: OwnedShip,
-    player_pos: world.Position, player_pilot_skills: PilotSkills,
-    enemy_spec: NpcShipSpec, enemy_pos: world.Position,
-    ap_bonus: int = 0,
-    plasma_ap_discount: int = 0,
-    max_power_bonus: int = 0,
-) -> tuple[dict, EnemyInstance]:
-    """Create initial combat state dict for the player and EnemyInstance."""
-    (_g, _p, _e, _ap, _ap_gain, _pwr_gen, _max_shield, _hull, _max_hull, _power_max) = _player_combat_values(
-        player_ship_catalog, player_owned_ship, player_pilot_skills,
-        ap_bonus, max_power_bonus,
-    )
-    player_state = {
+def _player_state_dict(
+    player_pos: world.Position, values: tuple, plasma_ap_discount: int,
+    owned_ship: "OwnedShip", ship_catalog: Ship,
+) -> dict:
+    """Assemble the player's combat state dict from derived values."""
+    (_g, _p, _e, _ap, _ap_gain, _pwr_gen, _max_shield, _hull, _max_hull, _power_max) = values
+    return {
         "hull": _hull,
         "max_hull": _max_hull,
         "shields": _max_shield,
@@ -335,9 +363,34 @@ def init_combat_state(
         "plasma_ap_discount": plasma_ap_discount,
         "cells_moved_this_turn": 0,
         "shield_regen_rate": 0,
-        "shield_recharge_bonus": _player_free_regen(player_ship_catalog, player_owned_ship),
-        "weapons": tuple(getattr(player_owned_ship, 'weapons', ()) or ()),
-        "weapon_ammo": _player_weapon_ammo(player_owned_ship),
+        "shield_recharge_bonus": _free_shield_regen(
+            ship_catalog, getattr(owned_ship, 'modules', ()) or (),
+        ),
+        "weapons": tuple(getattr(owned_ship, 'weapons', ()) or ()),
+        "weapon_ammo": _player_weapon_ammo(owned_ship),
     }
 
-    return player_state, _build_enemy(enemy_spec, enemy_pos)
+
+def init_combat_state(
+    player_ship_catalog: Ship,
+    player_owned_ship: OwnedShip,
+    player_pos: world.Position,
+    player_pilot_skills: PilotSkills,
+    enemy_spec: NpcShipSpec,
+    enemy_pos: world.Position,
+    ap_bonus: int = 0,
+    plasma_ap_discount: int = 0,
+    max_power_bonus: int = 0,
+) -> tuple[dict, EnemyInstance]:
+    """Create initial combat state dict for the player and EnemyInstance."""
+    _values = _player_combat_values(
+        player_ship_catalog, player_owned_ship, player_pilot_skills,
+        ap_bonus, max_power_bonus,
+    )
+    return (
+        _player_state_dict(
+            player_pos, _values, plasma_ap_discount,
+            player_owned_ship, player_ship_catalog,
+        ),
+        _build_enemy(enemy_spec, enemy_pos),
+    )

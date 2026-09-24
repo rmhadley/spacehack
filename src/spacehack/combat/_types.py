@@ -49,11 +49,14 @@ class EnemyInstance:
     ap_gain_twentieths: int = 60
     ap_carry_twentieths: int = 0
     pos: world.Position = field(default_factory=lambda: world.Position(0, 0))
-    weapons: tuple[str, ...] = ()
-    # Flown module instances (doc 47.3): quality rolled at combat
-    # entry — what flies against the player is what a capture drops.
+    # Flown equipment (doc 47.3 + 48.7): weapons AND modules roll
+    # quality at combat entry — what flies against the player is what
+    # a capture drops. Weapons are StoredEquipment instances now.
+    weapons: tuple["StoredEquipment", ...] = ()
     modules: tuple["StoredEquipment", ...] = ()
-    weapon_ammo: dict[str, int] = field(default_factory=dict)
+    # Ammo keyed by weapon SLOT index (the player twin): duplicate
+    # weapons keep independent magazines; -1 = energy (no ammo).
+    weapon_ammo: dict[int, int] = field(default_factory=dict)
     pilot_gunnery: int = 20
     pilot_piloting: int = 20
     pilot_engineering: int = 10
@@ -61,6 +64,13 @@ class EnemyInstance:
     max_power: int = 10
     cells_moved_this_turn: int = 0
     shield_regen_rate: int = 0
+    # The spec's authored band (doc 48 SETTLED 39) — the LVL card line
+    # reads it; skills and flown quality derive from it at build.
+    band: int = 0
+    # Free shield regen per turn: hull base + module bonus, folded at
+    # build (doc 48 SETTLED 39). The paid divert (shield_regen_rate
+    # above) stays 0 in Tier 0 — when-to-divert is a Tier 1 decision.
+    shield_recharge_bonus: int = 0
     alive: bool = True
 
 

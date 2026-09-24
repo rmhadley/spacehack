@@ -1,11 +1,23 @@
 """Doc 41 phase 3: the 30-floor tuning harness (pure closed form).
 
-Doc 39's contract, made checkable: the FULL watch is provably
-unwinnable below level 30 and a real costly win at 30+; the THIN
-watch is the fight method's timing play — winnable by a skilled
-mid-20s fit. Everything derives from the REAL catalogs and the
-REAL combat formulas (``combat/_stats.py``); the fits are the
-canonical min-maxed archetypes at their level.
+Doc 39's contract, made checkable — RE-PINNED 2026-09-24 for doc 48
+phase 7 (SETTLED 39): the picket carries band 2, pilot skills derive
+from the band budget, the cruiser hull's own shields and recharge are
+honored, and the volley walks real weapon AP. Everything derives from
+the REAL catalogs and the REAL combat formulas (``combat/_stats.py``);
+the fits are the canonical min-maxed archetypes at their level.
+
+THE MOVED BRACKET (build-discovered, called out for the playtest):
+the parity numbers made the picket ~70% hotter than the doc-41 tuning
+(band-2 gunnery + the targeting computer; cruiser hull shields; 4 AP;
+free regen 3/turn) — under the survive-vs-clear reading the old
+level-30 knife-edge fit now loses the full watch ~5x over (dies in
+~4 rounds needing ~22). Per the ruling ("I want it to be extremely
+hard... it's a brute force skip the run around shortcut for a super
+powered player"), the costly win belongs to the SUPER-POWERED
+endgame sheet; the frigate-hull re-author is the user's named
+escalation lever (harder only — if the watch reads too hard in play,
+that is a user ruling, not a lever).
 
 Bound directions (the ADVISE ruling): payload positions are live
 and arrivals stagger, so the aggregate race is the wrong verdict —
@@ -25,19 +37,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack.combat._stats import (
-    _calc_ap, _calc_hull_for_enemy, _calc_max_shields, calc_hit_chance,
+    _calc_ap, _calc_hull_for_enemy, _calc_max_shields, _enemy_hull,
+    _enemy_skills, _free_shield_regen, calc_hit_chance,
 )
 from src.spacehack.data.npc_ships import find_npc_ship
 from src.spacehack.data.weapons import find_weapon
+from src.spacehack.ship import base_module_entries
 
 BEST_ROLL = 0.8     # the enemy's minimum damage roll
+
+
+def _picket_build():
+    """The picket's build-mirror: the REAL fold (_enemy_skills, the
+    same function _build_enemy calls) over base-quality modules —
+    the player's best-case bound."""
+    _spec = find_npc_ship("militia_blockade")
+    _modules = base_module_entries(_spec.modules)
+    return _spec, _modules, _enemy_skills(_spec, _modules)
 
 
 def _picket_volley(dodge: int) -> float:
     """One picket's damage per round against a player at ``dodge``
     (best-case-for-player rolls), from the REAL spec + formulas."""
-    _spec = find_npc_ship("militia_blockade")
-    _ap = _calc_ap(_spec.pilot_piloting)
+    _spec, _modules, (_g, _p, _e) = _picket_build()
+    _ap = _calc_ap(_p)
     _total, _shots = 0.0, []
     for _w in _spec.weapons:
         _ws = find_weapon(_w)
@@ -46,30 +69,31 @@ def _picket_volley(dodge: int) -> float:
         _shots += [_w] * _n
     for _w in _shots:
         _ws = find_weapon(_w)
-        # Mirror the real build (_stats.py: the accuracy bonus folds
-        # into gunnery, which hit chance reads at half rate).
-        _hit = calc_hit_chance(
-            _w, _spec.pilot_gunnery + _spec.ai_accuracy_bonus, 3.0, dodge,
-        )
+        _hit = calc_hit_chance(_w, _g, 3.0, dodge)
         _total += (_hit / 100.0) * _ws.damage * BEST_ROLL
     return _total
 
 
 def _picket_ehp() -> int:
-    from src.spacehack.ship import base_module_entries
+    _spec, _modules, _skills = _picket_build()
+    return _calc_hull_for_enemy(_spec, _modules) + _calc_max_shields(
+        _enemy_hull(_spec), _modules,
+    )
 
-    _spec = find_npc_ship("militia_blockade")
-    _modules = base_module_entries(_spec.modules)
-    return _calc_hull_for_enemy(_spec, _modules) + _calc_max_shields(_spec, _modules)
+
+def _picket_regen() -> int:
+    """Free regen per picket per round (hull base + modules)."""
+    _spec, _modules, _skills = _picket_build()
+    return _free_shield_regen(_enemy_hull(_spec), _modules)
 
 
 # The canonical fits (skill points = 5/level; a min-maxed combat
 # build spends them on gunnery/piloting/engineering, with the
 # level's credits buying the next gear tier).
-# dps provenance: sustained weapon cycles at 95% hit x 1.2 roll.
-FIT_25 = dict(hull=80, shields=60, regen=10, dps=46, dodge=30)   # mid-20s
-FIT_29 = dict(hull=90, shields=80, regen=10, dps=55, dodge=33)   # the ceiling below the floor
-FIT_30 = dict(hull=100, shields=130, regen=30, dps=87, dodge=35)  # the AP-5 breakpoint + capacitor stack
+# dps provenance: sustained weapon cycles at 95% hit x 1.0 avg roll.
+FIT_25 = dict(hull=73, shields=105, regen=11, dps=85, dodge=40)    # mid-20s: cruiser + mk2 shield stack, piloting 55
+FIT_29 = dict(hull=113, shields=120, regen=15, dps=100, dodge=50)  # the ceiling below the floor: frigate + piloting 80 with gyro mk2
+FIT_SUPER = dict(hull=100, shields=338, regen=19, dps=132, dodge=60)  # the max sheet: gunnery/piloting 100, twin shield_mk4 at prototype, 8 heavy-laser AP
 
 FULL_WATCH = 10
 THIN_WATCH = 4
@@ -77,9 +101,12 @@ THIN_WATCH = 4
 
 def _player_wins(fit: dict, n_pickets: int) -> bool:
     """The closed-form race: the fit clears the watch before its
-    effective pool empties (regen included)."""
+    effective pool empties (regen included, on both sides)."""
     _incoming = n_pickets * _picket_volley(fit["dodge"]) - fit["regen"]
-    _rounds_to_clear = (n_pickets * _picket_ehp()) / fit["dps"]
+    _net_dps = fit["dps"] - n_pickets * _picket_regen()
+    if _net_dps <= 0:
+        return False  # the pickets out-regen the damage output
+    _rounds_to_clear = (n_pickets * _picket_ehp()) / _net_dps
     _rounds_to_die = (fit["hull"] + fit["shields"]) / max(_incoming, 1)
     return _rounds_to_die > _rounds_to_clear
 
@@ -92,12 +119,12 @@ def test_full_watch_unwinnable_below_30():
     )
 
 
-def test_full_watch_a_costly_win_at_30():
-    """The level-30 endgame fit (the piloting-40 AP breakpoint +
-    the capacitor stack + engineering sustain) clears the full
-    watch — barely, which is what 'costly' means in closed form."""
-    assert _player_wins(FIT_30, FULL_WATCH), (
-        "at 30+ the fight must be winnable"
+def test_full_watch_a_costly_win_for_the_super_powered():
+    """The super-powered endgame sheet (the ruling's brute-force
+    skip) clears the full watch — barely, which is what 'costly'
+    means in closed form."""
+    assert _player_wins(FIT_SUPER, FULL_WATCH), (
+        "the brute-force skip must exist for the super-powered player"
     )
 
 
@@ -108,3 +135,14 @@ def test_thin_watch_is_the_timing_play():
     assert _player_wins(FIT_25, THIN_WATCH), (
         "the thin watch is deliberately beatable earlier"
     )
+
+
+def test_picket_parity_numbers_pinned():
+    """The re-pin's premise, pinned: band-2 derivation + hull parity
+    make the picket LVL 10 with 4 AP, hull shields, and free regen —
+    the doc-41 comment's 'light cutter' scaled to its band."""
+    _spec, _modules, (_g, _p, _e) = _picket_build()
+    assert (_g, _p, _e) == (44, 32, 22)
+    assert _calc_ap(_p) == 4
+    assert _picket_ehp() == 125
+    assert _picket_regen() == 3

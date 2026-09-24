@@ -13,7 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack import world
 from src.spacehack.engine import RNG
-from src.spacehack.combat._actions import resolve_damage, set_combat_locks
+from src.spacehack.combat._actions import (resolve_damage, set_combat_locks,
+                                              start_enemy_turn)
 
 
 def _seed(n: int = 42) -> None:
@@ -159,3 +160,39 @@ class TestResolveDamage:
         assert shield_dmg == 0
         assert final_hull == 99
         assert glancing is False
+
+
+class TestStartEnemyTurn:
+    """Doc 48 SETTLED 39: the free-regen tier reads the build-time
+    hull+module fold (`shield_recharge_bonus`); the paid divert stays
+    dormant in Tier 0."""
+
+    def _enemy(self, **overrides):
+        from src.spacehack.combat._types import EnemyInstance
+        base = dict(
+            shields=10, max_shields=30, shield_recharge_bonus=5,
+            power_pool=3, max_power=20, power_gen=4,
+            ap_gain_twentieths=80,
+        )
+        base.update(overrides)
+        return EnemyInstance(
+            spec_id="x", name="X", char="X", fg=(1, 2, 3), **base,
+        )
+
+    def test_free_regen_includes_the_folded_term(self):
+        enemy = self._enemy()
+        start_enemy_turn(enemy)
+        assert enemy.shields == 15      # min(5, room 20) — no power spent
+        assert enemy.power_pool == 7    # 3 + gen 4; the free tier is free
+        assert enemy.shield_regen_rate == 0  # the paid divert stays unset
+
+    def test_free_regen_capped_by_room(self):
+        enemy = self._enemy(shields=28, max_shields=30)
+        start_enemy_turn(enemy)
+        assert enemy.shields == 30      # capped at max
+
+    def test_paid_tier_is_dormant_at_zero_rate(self):
+        enemy = self._enemy()
+        start_enemy_turn(enemy)
+        assert enemy.ap_remaining == 4  # 80 twentieths gain
+        assert enemy.cells_moved_this_turn == 0
