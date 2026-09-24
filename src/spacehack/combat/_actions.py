@@ -13,7 +13,7 @@ from .. import world
 from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
-from ..data.quality import roll_quality
+from ..data.quality import quality_multiplier, roll_quality
 from ..engine import RNG
 from ..loot_common import equipment_payload, loot_fg
 
@@ -369,22 +369,37 @@ def can_afford_action(
         player_state.get("plasma_ap_discount", 0)
         if ws.slot_type == "plasma" else 0
     )
-    _effective_ap = max(1, ws.ap_cost - _ap_discount) * ap_mult
-    if player_state["ap_remaining"] < _effective_ap:
-        return False, f"Need {_effective_ap} AP (have {player_state['ap_remaining']})"
+    _ap, _power, _ammo = weapon_costs(
+        ws, ap_discount=_ap_discount, ap_mult=ap_mult, power_mult=power_mult,
+    )
+    if player_state["ap_remaining"] < _ap:
+        return False, f"Need {_ap} AP (have {player_state['ap_remaining']})"
 
-    if ws.slot_type in ("energy", "plasma"):
-        _power_needed = ws.power_cost * power_mult
-        if player_state["power_pool"] < _power_needed:
-            return False, f"Need {_power_needed} power (have {player_state['power_pool']})"
-    elif ws.slot_type == "missile":
+    if _power:
+        if player_state["power_pool"] < _power:
+            return False, f"Need {_power} power (have {player_state['power_pool']})"
+    elif _ammo:
         ammo = player_state["weapon_ammo"].get(slot_idx, 0)
         if ammo <= 0:
             return False, "Out of ammo"
-        if ammo < ws.ammo_per_shot:
-            return False, f"Need {ws.ammo_per_shot} ammo (have {ammo})"
+        if ammo < _ammo:
+            return False, f"Need {_ammo} ammo (have {ammo})"
 
     return True, ""
+
+
+def weapon_costs(ws, *, ap_discount: int = 0, ap_mult: int = 1,
+                 power_mult: int = 1) -> tuple[int, int, int]:
+    """One weapon's real fire costs — ``(ap, power, ammo_per_shot)``.
+
+    The ONE slot-type economy table both sides read (doc 48 SETTLED
+    39): energy/plasma pay power, missiles pay rounds; the plasma AP
+    discount and Focus trait mults fold in on the player's side.
+    """
+    ap = max(1, ws.ap_cost - ap_discount) * ap_mult
+    power = ws.power_cost * power_mult if ws.slot_type in ("energy", "plasma") else 0
+    ammo = ws.ammo_per_shot if ws.slot_type == "missile" else 0
+    return ap, power, ammo
 
 
 def _damage_quality(target_pilot_piloting: int) -> tuple[float, bool]:
@@ -411,14 +426,22 @@ def resolve_damage(
     target_shields: int,
     target_pilot_piloting: int = 0,
     damage_taken_mult: float = 1.0,
+    *,
+    weapon_quality: int = 0,
 ) -> tuple[int, int, int, bool]:
-    """Apply weapon damage and return hull, shield, final-hull, glancing state."""
+    """Apply weapon damage and return hull, shield, final-hull, glancing state.
+
+    ``weapon_quality`` is the SHOOTER's flown weapon tier (doc 48.7):
+    quality multiplies damage — enemy fire passes the rolled instance
+    tier, the player path passes 0 (player ship weapons are never
+    variant; bit-identical to the pre-parameter math)."""
     weapon = find_weapon(weapon_id)
     if weapon.shield_strip > 0:
         strip = min(weapon.shield_strip, target_shields)
         return 0, strip, target_hull, False
     quality, is_glancing = _damage_quality(target_pilot_piloting)
-    raw_damage = weapon.damage * quality * RNG.uniform(0.8, 1.2)
+    _gear_mult = quality_multiplier("weapon", weapon_quality)
+    raw_damage = weapon.damage * _gear_mult * quality * RNG.uniform(0.8, 1.2)
     damage = max(1, int(raw_damage * damage_taken_mult))
     hull_damage, shield_damage, final_hull = _apply_hull_and_shields(
         damage, target_hull, target_shields,

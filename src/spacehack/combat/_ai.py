@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from .. import world
 from ..engine import RNG
-from ..message_log import COLOR_ENEMY_ACTION, COLOR_COMBAT_EVENT
+from ..message_log import COLOR_ENEMY_ACTION
 from ..data.weapons import find_weapon
 
 from ._messages import enemy_attack_line as _enemy_attack_line
@@ -25,6 +25,7 @@ from ._stats import (
 from ._actions import (
     start_enemy_turn,
     resolve_damage,
+    weapon_costs,
 )
 from .. import animation_timing
 from ._animations import (
@@ -39,10 +40,6 @@ from ._shot_animations import _animate_weapon_shot
 
 def _e_log(msg: str, log) -> None:
     log.add_colored(msg, COLOR_ENEMY_ACTION)
-
-
-def _c_log(msg: str, log) -> None:
-    log.add_colored(msg, COLOR_COMBAT_EVENT)
 
 
 async def _run_enemy_turn(
@@ -80,7 +77,11 @@ async def _run_enemy_turn(
 async def _take_enemy_turn(
     state, _ei, _e_idx, _esp, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
-    """One enemy's AP turn: advance into range, then fire each AP."""
+    """One enemy's AP turn: advance into range, then fire each AP.
+
+    Honest costs (doc 48 SETTLED 39): every shot pays its weapon's
+    real AP/power/ammo; when nothing is affordable the turn ends —
+    never a spin, never moving while in firing band."""
     _cached_path: list[tuple[int, int]] | None = None
     while _ei.ap_remaining > 0:
         _p_pos = state.player_state["pos"]
@@ -100,17 +101,52 @@ async def _take_enemy_turn(
             _moved = False
 
         if not _moved:
-            if _ei.weapons and _can_shoot:
-                if await _enemy_attack(
-                    state, _ei,
-                    hit_chances=hit_chances, evade_bonus=evade_bonus,
-                    calc_cam=calc_cam, ctx=ctx,
-                ) == "DEFEAT":
-                    return "DEFEAT"
-                _ei.ap_remaining -= 1
-            else:
+            # LOS is a firing precondition (the player's can_fire
+            # twin: "Blocked by obstacle") — a blocked no-LOS step
+            # breaks the turn rather than firing through cover.
+            _slot = _first_affordable_weapon(_ei) if _can_shoot else None
+            if _slot is None:
                 break
+            if await _enemy_attack(
+                state, _ei, _slot,
+                hit_chances=hit_chances, evade_bonus=evade_bonus,
+                calc_cam=calc_cam, ctx=ctx,
+            ) == "DEFEAT":
+                return "DEFEAT"
     return None
+
+
+def _first_affordable_weapon(_ei) -> int | None:
+    """The Tier-0 walk: the FIRST weapon the ship can actually fire —
+    real AP, power, and ammo. Unaffordable entries are SKIPPED, never
+    waited on (a 2-AP missile at 1 AP is skipped). Real best-weapon
+    selection is Tier 1 (SETTLED 39)."""
+    for _slot, _entry in enumerate(_ei.weapons):
+        try:
+            _ws = find_weapon(_entry.item_id)
+        except KeyError:
+            continue
+        _ap, _power, _ammo = weapon_costs(_ws)
+        if _ei.ap_remaining < _ap:
+            continue
+        if _power and _ei.power_pool < _power:
+            continue
+        if _ammo and _ei.weapon_ammo.get(_slot, 0) < _ammo:
+            continue
+        return _slot
+    return None
+
+
+def _pay_fire_costs(_ei, slot: int, ws) -> None:
+    """Every shot pays its real costs (SETTLED 39): AP, power for
+    energy/plasma, rounds for missiles — the player's own economy."""
+    _ap, _power, _ammo = weapon_costs(ws)
+    _ei.ap_remaining -= _ap
+    if _power:
+        _ei.power_pool -= _power
+    if _ammo:
+        _left = _ei.weapon_ammo.get(slot, 0)
+        _ei.weapon_ammo[slot] = max(0, _left - _ammo)
 
 
 async def _advance_one_step(
@@ -169,19 +205,10 @@ async def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
     await _responsive_sleep(animation_timing.GROUND_STEP, state.ctx.context)
 
 
-async def _enemy_attack(
-    state, _ei, *, hit_chances, evade_bonus, calc_cam, ctx,
-) -> str | None:
-    """Fire the enemy's first weapon at the player (one AP's attack).
-
-    Returns ``"DEFEAT"`` when the hit destroys the player.
-    """
-    _wid = _ei.weapons[0].item_id
-    (
-        _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
-        _is_glancing, _e_dmg_popup,
-    ) = _resolve_enemy_shot(state, _ei, _wid)
-    _e_ws = find_weapon(_wid)
+async def _animate_enemy_shot(
+    state, _ei, _wid, _e_hit, _e_dmg_popup, evade_bonus, calc_cam,
+) -> None:
+    """Present the enemy's shot through the shared animator."""
     _ecx, _ecy = calc_cam()
     await _animate_weapon_shot(
         state.console, state.ctx, state.game_map,
@@ -198,6 +225,26 @@ async def _enemy_attack(
         active_weapons=state.active_weapons,
         evade_bonus=evade_bonus,
     )
+
+
+async def _enemy_attack(
+    state, _ei, _slot: int, *, hit_chances, evade_bonus, calc_cam, ctx,
+) -> str | None:
+    """Fire the enemy's weapon in ``_slot`` at the player (one attack),
+    paying its real costs. Returns ``"DEFEAT"`` when the hit destroys
+    the player.
+    """
+    _entry = _ei.weapons[_slot]
+    _wid = _entry.item_id
+    (
+        _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
+        _is_glancing, _e_dmg_popup,
+    ) = _resolve_enemy_shot(state, _ei, _wid, _entry.quality)
+    _e_ws = find_weapon(_wid)
+    await _animate_enemy_shot(
+        state, _ei, _wid, _e_hit, _e_dmg_popup, evade_bonus, calc_cam,
+    )
+    _pay_fire_costs(_ei, _slot, _e_ws)
     if not _e_hit:
         _line = _enemy_attack_line(_ei.name, _wid, _e_ws.name, hit=False)
         _e_log(_line, state.log)
@@ -210,12 +257,13 @@ async def _enemy_attack(
     )
 
 
-def _resolve_enemy_shot(state, _ei, _wid):
+def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
     """Roll and resolve one enemy shot.
 
     Damage resolves BEFORE animating so the floating damage number
     rides the shot's impact frames. Misses return zeroed damage with
-    the current hull.
+    the current hull. ``_weapon_quality`` is the flown instance's
+    rolled tier (doc 48.7) — quality multiplies damage.
     """
     _dist = _distance(state.player_state["pos"], _ei.pos)
     _dodge = _calc_dodge_bonus(
@@ -232,6 +280,7 @@ def _resolve_enemy_shot(state, _ei, _wid):
             _wid, state.player_state["hull"],
             state.player_state["shields"],
             target_pilot_piloting=state.player_state.get("piloting", 0),
+            weapon_quality=_weapon_quality,
         )
         _e_ws = find_weapon(_wid)
         _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
