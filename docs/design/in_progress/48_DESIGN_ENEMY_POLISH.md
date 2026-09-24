@@ -3774,6 +3774,103 @@ fix; every other touched module ≤ 900.
   band-3 cruisers/captains land ABOVE their old authored sums (the
   honest-claim line); playtest tunes via the one constant.
 
+## Pre-implementation audit — phase 8 (2026-09-24)
+
+**Reuse (verified):**
+
+- **The Tier-0 loop skeleton is the whole foundation** (`_take_enemy_turn`,
+  `combat/_ai.py:77`): the while-per-AP shape, cached-path advance,
+  blocked-step break, LOS firing gate, and cost payment
+  (`_pay_fire_costs`, `weapon_costs`) all stand — phase 8 replaces the
+  weapon PICK (`_first_affordable_weapon` → the scorer) and adds two
+  step verbs around the fire branch. `_advance_one_step`'s move
+  application (pos, cells_moved, AP, entity sync, render frame)
+  extracts into the ONE shared step helper all three verbs call.
+- **`calc_hit_chance` (`_stats.py:160`) is the scorer's hit term
+  verbatim** — the SAME function the shot resolves with
+  (`_resolve_enemy_shot` → `calc_hit_chance`), so min/max band penalties
+  fold into the EV with zero new math. Clamped 5-95, so a normal weapon
+  always scores > 0; the only zero-score case is strip-on-bare-shields
+  (`min(strip, 0) = 0`) — exactly SETTLED 40's EMP rule.
+- **`start_enemy_turn` (`_actions.py:509`) already contains the paid
+  divert verbatim** (power spend, engineering discount, proportional
+  bounding) — Tier 8 adds ONE gate line: the paid tier fires only while
+  `shields < shield_regen_threshold × max_shields`. The free tier
+  (hull base + module bonus, folded at build) stays unconditional.
+- **`EnemyInstance.shield_regen_rate` exists** (`_types.py:66`, pinned
+  0 since Tier 0) — only `shield_regen_threshold: float = 0.5` is NEW
+  (declared at BOTH owners: NpcShipSpec + EnemyInstance, stamped in
+  `_build_enemy`, the one enemy construction path — joiner and dev
+  grant flow through it).
+- **Authored aggressiveness/preferred-range values are complete**:
+  `ai_aggressiveness` has ZERO live consumers today (dead since
+  authoring — phase 8 is its first read); `ai_preferred_range` has
+  exactly one (`_ai.py:94`). No re-authoring (SETTLED 23/40).
+- **The strip weapon exists for tests**: `emp_missile` (strip 20,
+  damage 0, min 2 / max 10, ap 2 — `data/weapons/missiles.py:30`);
+  no live loadout carries it, matching SETTLED 40's future-proofing.
+- **The Line harness functions are parameter-local**:
+  `_picket_volley` / `_picket_regen` are pure spec-readers — the aggro
+  factor (×0.70; agg 70) and the paid divert term (+2 below half
+  shields, power-sustained: 2.8 laser power + 1 divert < 5 gen) extend
+  them in place; the parity pin test names both terms.
+
+**Duplication hotspots:**
+
+1. Three step verbs (advance / back-off / reposition) each hand-rolling
+   the move application (pos write, cells_moved, AP spend, entity sync,
+   render frame) — the classic parallel-paths drift.
+2. The affordability filter existing twice: `_select_fire_weapon`'s
+   scan and any back-off/band logic re-deriving "what can this ship
+   still fire".
+3. The volley selection re-implemented in the Line harness
+   (`_picket_volley` walks weapons by list order — the phase-8 loop
+   walks them by score; the harness must mirror the LOOP's semantics,
+   not grow its own).
+
+**DRY strategy:**
+
+1. ONE `_apply_step` helper (the extraction of `_advance_one_step`'s
+   tail) consumed by all three verbs; each verb only chooses the
+   destination cell.
+2. ONE `_select_fire_weapon(_ei, distance, ..., affordable_only=)`
+   — the scorer scan with an affordability switch; the band reference
+   for a power-dry ship is the SAME call with the switch off (top
+   scorer ignoring cost — the weapon it wants, so the dance happens in
+   the band it will fight from when power returns). No second picker.
+3. The harness's volley term derives from the same numbers the loop
+   uses (agg factor = the spec's dial / 100 applied to the full-AP
+   volley; the divert term = spec rate below the spec threshold) —
+   constants read off the spec, never re-derived locally.
+
+**Build-time decisions (called out; within the brief's bounds):**
+
+- **`score_weapon` signature concretized**: the brief's
+  `(weapon_spec, distance, target_shields)` omits the inputs its own
+  parenthetical requires — the same `calc_hit_chance` the shot
+  resolves with needs gunnery + target dodge. Real signature:
+  `score_weapon(ws, distance, target_shields, gunnery, target_dodge)`.
+  Damage is the CATALOG damage (brief formula verbatim — flown quality
+  is not folded into ranking; it multiplies the resolved shot, not the
+  choice); duplicate weapons tie-break first-slot.
+- **The reposition destination** (legality is specified; preference is
+  not): best-scoring legal in-band LOS-keeping step, tie → first scan
+  order — no directional artifact, the skirmisher drifts toward its
+  ideal firing distance while dodge-stacking. Back-off destination per
+  the brief: the distance-maximizing neighbor, LOS-keeping preferred.
+- **Decision 1's blocked step breaks the turn** (existing cover rule,
+  pinned by `test_blocked_enemy_without_los_never_fires`); a ship at
+  dist beyond `ai_preferred_range` with a blocked path but weapon-LOS
+  still fires (today's behavior — preserved by "in band" meaning the
+  ACTIVE weapon's [min…max], and pref ≤ every live weapon's max).
+- **Weaponless specs break at once BY CONSTRUCTION**: no weapons → no
+  scorer pick → no band → no legal step → the termination clause fires.
+  No special case for derelicts/the hauler.
+- **Authoring invariant holds today** (verified across all 15 specs):
+  every min-2+ weapon carrier has pref ≥ that min (raider/patrol 4 ≥ 2;
+  captain/patrol_heavy/marauder/warlord 3 = 3); min-1-only loadouts
+  (blockade, hound, scouts, merchants) never trigger back-off.
+
 ## REVIEW — phase 1 checkpoint (planning phase; no in-game items)
 
 1. Every topic A-G carries a dated SETTLED section (or an explicit
