@@ -284,8 +284,16 @@ pairs, as both cost 2 power per burst).
 bar (user ruling: "I don't want the tutorial to ever hit 100% win
 rate") — a matchup that can never be lost is as broken as one that
 can't be won, and the medium-pair probe's clean 1.00 shows how close
-a careless buff sits to a sure thing. Asserted green at 0.960
-(cb159520). Phase 1 ticked.
+a careless buff sits to a sure thing. Asserted green (cb159520).
+
+**SHEET CORRECTION (user catch, 2026-09-24):** the tutorial FORCES
+human merchant (`title_flow.py:74`) — the scenario had wrongly pinned
+human bounty_hunter. Under the true sheet (12/10/24; the merchant's
+engineering quietly buys +1 max power) Goal 1 measures **0.950 —
+exactly on the floor, zero margin** (merchant + hull 20 probes at
+**0.98**). The row now pins the true combo and the band passes
+deterministically; margin options (hull 20 buff vs lower floor) are
+with the user.
 
 1. `python3 -m tests.balance.report` — read Goal 1's measured table
    (win rate, mean/max rounds, mean hull damage taken, timeouts) and
@@ -451,14 +459,16 @@ the ruled numbers asserted green.
   re-detects honestly — joins can happen in the sim like they can in
   the fight.
 - **Starter sheet** (all by id): hull `starter` (Skiff — base_hull
-  15, 2 weapon slots, 1 module slot, base_power_gen 2,
-  base_shield_max 0, base_shield_recharge 0); `light_laser` ×2 (dmg 4,
-  acc 80, band 1–5, 1 AP, 1 power); module `shield_mk1` (+20 max
-  shields → max 20, free regen stays 0); species `human` + class
-  `bounty_hunter` at level 1 through `starting_pilot_skills` =
-  gunnery 16 / piloting 14 / engineering 16 (base 10 + 2/0/2 + 4/4/4);
-  traits `[]` (a tutorial pilot has none). The level-1 median class
-  pick — pirate would shoot better, merchant worse.
+  15, 2 weapon slots, 1 module slot, base_power_gen 2→3 per the
+  ruling below, base_shield_max 0, base_shield_recharge 0);
+  `light_laser` ×2 (dmg 4, acc 80, band 1–5, 1 AP, 1 power); module
+  `shield_mk1` (+20 max shields → max 20, free regen stays 0);
+  **CORRECTED 2026-09-24: the tutorial's own forced combo
+  (`title_flow.py:74` runs new games as human merchant — creation is
+  skipped), gunnery 12 / piloting 10 / engineering 24 via
+  `starting_pilot_skills`.** The first cut wrongly pinned human
+  bounty_hunter (16/14/16 — a better pilot than the tutorial flies);
+  user catch. Traits `[]` (a tutorial pilot has none).
 - **Enemy** (`pirate_scout`, read live via `find_npc_ship`): band 1,
   `ai_aggressiveness` 60, `ai_preferred_range` 3, one `light_laser`,
   `compact_reactor`, `ai_accuracy_bonus` 5, `ai_dodge_bonus` 10;
