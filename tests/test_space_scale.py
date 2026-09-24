@@ -142,3 +142,39 @@ def test_allocate_budget_whole_budget_lands_with_ties_to_earlier():
 
 def test_allocate_budget_zero_weight_slots_never_receive_points():
     assert allocate_budget(10, (0.0, 1.0, 0.0)) == [0, 10, 0]
+
+
+# --- themed loadouts (doc 48 SETTLED 31) -------------------------------------
+
+
+def test_smuggler_hold_in_the_catalog():
+    from src.spacehack.data.modules import find_module
+
+    spec = find_module("smuggler_hold")
+    assert spec.name == "Smuggler's Hold"
+    assert spec.cargo_bonus > 0 and spec.speed_bonus > 0
+
+
+def test_pirate_flagships_fly_the_smuggler_hold():
+    for spec_id in ("pirate_captain", "pirate_warlord"):
+        assert "smuggler_hold" in find_npc_ship(spec_id).modules, spec_id
+
+
+def test_merchant_wealth_scales_the_module_suite():
+    """The wealth ladder reads in cargo + shield hardware: the
+    caravan's suite strictly contains the hauler's."""
+    hauler = set(find_npc_ship("merchant_hauler").modules)
+    freighter = set(find_npc_ship("merchant_freighter").modules)
+    caravan = set(find_npc_ship("merchant_caravan").modules)
+    assert hauler <= freighter <= caravan
+    assert "expanded_cargo" in hauler
+
+
+def test_every_loadout_fits_its_hull_slots():
+    from src.spacehack.data.ships import find_ship
+
+    for spec in list_npc_ships():
+        slots = find_ship(spec.ship_id).module_slots
+        assert len(spec.modules) <= slots, spec.id
+        weapons = find_ship(spec.ship_id).weapon_slots
+        assert len(spec.weapons) <= weapons, spec.id
