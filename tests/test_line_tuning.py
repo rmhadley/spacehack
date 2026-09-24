@@ -7,6 +7,24 @@ honored, and the volley walks real weapon AP. Everything derives from
 the REAL catalogs and the REAL combat formulas (``combat/_stats.py``);
 the fits are the canonical min-maxed archetypes at their level.
 
+EXTENDED 2026-09-24 for doc 48 phase 8 (SETTLED 40 addition, treatment
+a — INTERIM by design; ``future/50_DESIGN_COMBAT_BALANCE_SIMULATOR.md``
+supersedes closed-form pinning when it lands): the volley carries the
+aggressiveness factor (agg 70 -> ~30% of decision points reposition
+instead of firing) and regen gains the threshold-gated paid divert
+(authored rate 2 below half shields, power-sustained). Honest net: the
+thinning softens the picket volley MORE than the divert hardens its
+regen — the super sheet's costly win widened from the knife edge
+(die 12.6 vs clear 12.25) to a comfortable margin. The shape stands
+(full watch unwinnable below 30 / costly win for the super-powered /
+thin watch the mid-20s timing play); if the watch reads SOFT in play,
+say so — the frigate-hull re-author is the user's named escalation
+lever (harder only). Calibration caveat for that read: the flat
+x0.70 is the open-floor expectation — a DENSE watch crowds the
+player's ring until pickets have no legal reposition cell, and the
+loop then fires unthinned, so the model reads softer than reality
+exactly when the full watch is dense.
+
 THE MOVED BRACKET (build-discovered, called out for the playtest):
 the parity numbers made the picket ~70% hotter than the doc-41 tuning
 (band-2 gunnery + the targeting computer; cruiser hull shields; 4 AP;
@@ -58,7 +76,10 @@ def _picket_build():
 
 def _picket_volley(dodge: int) -> float:
     """One picket's damage per round against a player at ``dodge``
-    (best-case-for-player rolls), from the REAL spec + formulas."""
+    (best-case-for-player rolls), from the REAL spec + formulas. The
+    Tier-1 aggro factor (doc 48 SETTLED 40): the dial (70) converts
+    ~30% of decision points to reposition steps, thinning the
+    full-AP volley by the fire fraction."""
     _spec, _modules, (_g, _p, _e) = _picket_build()
     _ap = _calc_ap(_p)
     _total, _shots = 0.0, []
@@ -71,7 +92,7 @@ def _picket_volley(dodge: int) -> float:
         _ws = find_weapon(_w)
         _hit = calc_hit_chance(_w, _g, 3.0, dodge)
         _total += (_hit / 100.0) * _ws.damage * BEST_ROLL
-    return _total
+    return _total * (_spec.ai_aggressiveness / 100.0)
 
 
 def _picket_ehp() -> int:
@@ -82,9 +103,15 @@ def _picket_ehp() -> int:
 
 
 def _picket_regen() -> int:
-    """Free regen per picket per round (hull base + modules)."""
+    """Sustained regen per picket per round: the free tier (hull base
+    + modules) plus the threshold-gated paid divert (doc 48 SETTLED
+    40) — the race's decisive stretch runs below half shields, where
+    the blockade's authored rate 2 diverts (power-sustained: ~2.8
+    laser power + 1 divert = 3.8 vs the flown build's net gen 4 —
+    cruiser 5 base minus armor plating 1)."""
     _spec, _modules, _skills = _picket_build()
-    return _free_shield_regen(_enemy_hull(_spec), _modules)
+    _free = _free_shield_regen(_enemy_hull(_spec), _modules)
+    return _free + _spec.shield_regen_rate
 
 
 # The canonical fits (skill points = 5/level; a min-maxed combat
@@ -140,9 +167,18 @@ def test_thin_watch_is_the_timing_play():
 def test_picket_parity_numbers_pinned():
     """The re-pin's premise, pinned: band-2 derivation + hull parity
     make the picket LVL 10 with 4 AP, hull shields, and free regen —
-    the doc-41 comment's 'light cutter' scaled to its band."""
+    the doc-41 comment's 'light cutter' scaled to its band. The
+    phase-8 extension pins the two Tier-1 terms: the volley carries
+    the 0.70 fire fraction and regen gains the below-half divert."""
     _spec, _modules, (_g, _p, _e) = _picket_build()
     assert (_g, _p, _e) == (44, 32, 22)
     assert _calc_ap(_p) == 4
     assert _picket_ehp() == 125
-    assert _picket_regen() == 3
+    assert _picket_regen() == 3 + 2   # free tier + the authored divert
+    _spec_agg = _spec.ai_aggressiveness
+    assert _spec_agg == 70
+    assert _spec.shield_regen_threshold == 0.5   # the "below half" gate
+    # The factor: the volley is the full-AP walk scaled by agg/100.
+    _full = _picket_volley(40) / (_spec_agg / 100.0)
+    assert _full > _picket_volley(40)          # the thinning is live
+    assert abs(_picket_volley(40) - _full * 0.70) < 1e-9
