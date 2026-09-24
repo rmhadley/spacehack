@@ -438,6 +438,17 @@ def _is_shift_v_press(event: pygame_engine.PygameInputEvent) -> bool:
     return _is_shift_press(event, 'V')
 
 
+def _is_shift_p_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+P.
+
+    Dev-mode only (``SPACEHACK_DEV``): spawns the next pirate spec
+    beside the player in space (doc 48 phase 7) — the playtest's
+    window onto band-derived ship combat, including the missile-led
+    variant.
+    """
+    return _is_shift_press(event, 'P')
+
+
 def _is_shift_c_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+C.
 

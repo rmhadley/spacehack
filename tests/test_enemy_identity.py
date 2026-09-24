@@ -211,7 +211,12 @@ def _entity_commands(entity: world.Entity):
 
 
 def test_flagship_specs_carry_elite():
-    elite = {spec.id for spec in list_npc_ships() if spec.elite}
+    # The dev_ namespace (grant-time instruments like the missile-led
+    # captain) is outside the production pin.
+    elite = {
+        spec.id for spec in list_npc_ships()
+        if spec.elite and not spec.id.startswith("dev_")
+    }
     assert elite == {"pirate_captain", "pirate_warlord"}
 
 

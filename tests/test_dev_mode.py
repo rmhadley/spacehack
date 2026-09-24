@@ -719,3 +719,51 @@ def test_spawn_dev_consumable_carriers_pre_stamps():
         ("dev_carrier_0", [["consumable", "med_pack", 1]], 5, 2),
         ("dev_carrier_1", [["consumable", "stim", 1]], 0, 2),
     ]
+
+
+def test_dev_pirate_cycle_covers_the_ladder_and_missile_led():
+    """Doc 48.7's Shift+P instrument: the six pirate classes in band
+    order, then the missile-led captain variant (its weapons[0] is a
+    missile — registered as a dev-authored spec so it rides the ONE
+    id-resolved spawn path)."""
+    cycle = dev_mode._dev_pirate_cycle()
+    assert [spec.id for spec in cycle] == [
+        "pirate_scout", "pirate_hound", "pirate_raider",
+        "pirate_marauder", "pirate_captain", "pirate_warlord",
+        "dev_missile_captain",
+    ]
+    assert cycle[-1].weapons[0] == "heavy_missile"
+    from src.spacehack.data.npc_ships import find_npc_ship
+    assert find_npc_ship("dev_missile_captain") is cycle[-1]
+
+
+def test_spawn_dev_pirate_cycles_by_press_count():
+    """Stateless cycling: the index derives from the dev pirates
+    already on the map; each press spawns adjacent with its spec id."""
+    from src.spacehack import world as _world
+
+    from src.spacehack.message_log import MessageLog
+
+    ctx = SimpleNamespace(log=MessageLog(10))
+    game_map = _world.GameMap(
+        width=10, height=10,
+        tiles=[[_world.DUNGEON_FLOOR] * 10 for _ in range(10)],
+        entities=[],
+    )
+    player = _world.Entity("t", (1, 1, 1), _world.Position(5, 5))
+    spawned = []
+    for _ in range(3):
+        assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 1
+        spawned.append(game_map.entities[-1])
+    assert [e.npc_ship_id for e in spawned] == [
+        "pirate_scout", "pirate_hound", "pirate_raider",
+    ]
+    assert all(
+        max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 1 for e in spawned
+    )
+    # The block message when no cell is free.
+    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
+        game_map.entities.append(_world.Entity(
+            "x", (1, 1, 1), _world.Position(5 + dx, 5 + dy),
+        ))
+    assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 0

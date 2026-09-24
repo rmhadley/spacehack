@@ -638,3 +638,58 @@ def spawn_dev_consumable_carriers(ctx, game_map, player_pos) -> int:
                 _e.hp = 5  # wounded: the med trigger reads on sight
     ctx.log.add(f"[DEV] Spawned {placed} consumable carriers.")
     return placed
+
+
+def _dev_pirate_cycle() -> tuple:
+    """Shift+P's cycle (doc 48.7): the six pirate classes in ladder
+    order, then the missile-led captain the checklist's item 3 needs
+    (its weapons[0] is a missile — the dry-then-step read). The
+    variant registers as a dev-authored spec row at grant time: the
+    encounter system is id-resolved, so it rides the ONE spawn path."""
+    import dataclasses
+
+    from .data.npc_ships import _registry, find_npc_ship
+
+    _missile_led = dataclasses.replace(
+        find_npc_ship("pirate_captain"),
+        id="dev_missile_captain",
+        weapons=("heavy_missile", "heavy_laser", "light_laser"),
+    )
+    _registry().setdefault(_missile_led.id, _missile_led)
+    return tuple(find_npc_ship(spec_id) for spec_id in (
+        "pirate_scout", "pirate_hound", "pirate_raider",
+        "pirate_marauder", "pirate_captain", "pirate_warlord",
+    )) + (_missile_led,)
+
+
+def spawn_dev_pirate(ctx, game_map, player_pos) -> int:
+    """Shift+P: spawn the next pirate spec beside the player (space
+    mode). The cycle is stateless — its index is how many dev pirates
+    the map already carries — and the spawn rides the ambient entity
+    factory so detect-radius aggro pulls it into a real fight."""
+    from .npc_ships import _make_npc_entity
+    from . import world as _world
+
+    cycle = _dev_pirate_cycle()
+    index = sum(
+        1 for _e in game_map.entities
+        if str(getattr(_e, "procedural_squad_id", "")).startswith("dev_pirate_")
+    ) % len(cycle)
+    spec = cycle[index]
+    occupied = {(_e.pos.x, _e.pos.y) for _e in game_map.entities}
+    cell = next(
+        ((player_pos.x + dx, player_pos.y + dy)
+         for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1))
+         if game_map.in_bounds(player_pos.x + dx, player_pos.y + dy)
+         and game_map.tiles[player_pos.y + dy][player_pos.x + dx].walkable
+         and (player_pos.x + dx, player_pos.y + dy) not in occupied),
+        None,
+    )
+    if cell is None:
+        ctx.log.add("[DEV] No room beside you for the pirate grant.")
+        return 0
+    game_map.entities.append(_make_npc_entity(
+        spec, _world.Position(*cell), f"dev_pirate_{index}",
+    ))
+    ctx.log.add(f"[DEV] Spawned {spec.name} (band {spec.band}) beside you.")
+    return 1
