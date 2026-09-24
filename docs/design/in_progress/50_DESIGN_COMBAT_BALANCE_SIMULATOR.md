@@ -181,7 +181,8 @@ class BalanceScenario:
     stance: str                # STANCES vocabulary key
     runs: int                  # N per batch
     seed: int                  # base; run i rebinds RNG to base+i
-    thresholds: Thresholds | None   # win_rate_floor, rounds_ceiling,
+    thresholds: Thresholds | None   # win_rate_floor, win_rate_ceiling,
+                                    #   rounds_ceiling,
                                     #   damage_taken_ceiling;
                                     #   None = report-only
 ```
@@ -221,12 +222,16 @@ never hand-built structs with copied numbers.
 
 ## Phases (cut 2026-09-24 — SETTLED 1/2/3)
 
-- [ ] 1. **The harness + Goal 1 (measure, then rule)** — the scenario
+- [x] 1. **The harness + Goal 1 (measure, then rule)** — the scenario
   table, the sheet/grid builders, the seeded sim runner driving the
   real space-combat loop through real action dispatch, the aggregate
   report, and Goal 1 as its first row in report-only mode; the
   checkpoint rules Goal 1's thresholds from the measured numbers and
   the assert lands with them (SETTLED 3). Brief below (PROPOSED).
+  LANDED 2026-09-24: harness + gate green under two reviewer passes;
+  tuning ruling (Skiff power gen 2→3, 33104dd7) measured in at 0.960;
+  thresholds ruled as a win-rate BAND — floor 0.95, ceiling 0.99,
+  "never a sure thing" (user ruling) — asserted green (cb159520).
 - [ ] 2. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
   reading the same rows for bulk runs and richer output than an
   assert (SETTLED 1's optional front). Cut only when a tuning session
@@ -272,8 +277,15 @@ a real step. Post-landing measurements through the live spec:
 Goal 1 (light pair) **0.960** / 3.46 turns / 0.76 dmg — the probe
 number, reproduced exactly; the medium pair under gen 3 **1.00** /
 2.84 turns / 0.00 dmg (0.97 / 0.44 under gen 2 — the buff helps both
-pairs, as both cost 2 power per burst). Goal 1's THRESHOLDS remain
-unruled pending the user's in-game feel playtest of the landed buff.
+pairs, as both cost 2 power per burst).
+
+**THRESHOLDS RULED (user, 2026-09-24): a win-rate BAND** —
+`win_rate_floor=0.95`, `win_rate_ceiling=0.99`. The ceiling is a new
+bar (user ruling: "I don't want the tutorial to ever hit 100% win
+rate") — a matchup that can never be lost is as broken as one that
+can't be won, and the medium-pair probe's clean 1.00 shows how close
+a careless buff sits to a sure thing. Asserted green at 0.960
+(cb159520). Phase 1 ticked.
 
 1. `python3 -m tests.balance.report` — read Goal 1's measured table
    (win rate, mean/max rounds, mean hull damage taken, timeouts) and
