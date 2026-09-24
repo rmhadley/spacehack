@@ -45,11 +45,22 @@ class NpcShipSpec:
         cargo_goods: which trade goods this ship can carry
             (dropped on destruction for pirates, traded for merchants).
         cargo_count: how many unique goods to stock on spawn (0 = none).
+        band: the ship's DIFFICULTY band, SPEC-AUTHORED (doc 48
+            SETTLED 39 — the class ladder IS the band ladder; systems
+            gate danger by which specs their spawn table carries, and
+            nothing stamps a band at spawn). 0 = no band (derelicts,
+            boarded-not-fought). Band sizes pilot skills
+            (``space_scale.derive_skills``) and the fly-time quality
+            ladder of everything the ship flies.
+        skill_weights: the band budget's gunnery/piloting/engineering
+            split (fractions summing to 1; SETTLED 39 — interceptors
+            piloting-biased, line gunnery-biased, flagships balanced,
+            merchants piloting-light so cornered merchants stay
+            non-threats).
         ai_aggressiveness: 0-100 chance to attack vs reposition.
         ai_preferred_range: AI tries to maintain this distance.
-        ai_accuracy_bonus / ai_dodge_bonus: per-difficulty modifiers.
-        pilot_gunnery / pilot_piloting / pilot_engineering: skills.
-        min_power_gen: base power per turn.
+        ai_accuracy_bonus / ai_dodge_bonus: per-spec reconciliation
+            dials folded onto the band-derived skills at build.
         detect_radius: cells before auto-engaging combat (0 = never).
         comms_range: cells within which player can hail via comms.
         comms_lines: flavour text for comms hail.
@@ -77,6 +88,11 @@ class NpcShipSpec:
     # Cargo
     cargo_goods: tuple[str, ...] = ()
     cargo_count: int = 0
+
+    # Difficulty (doc 48 SETTLED 39): spec-authored band + the
+    # three-skill budget split the band distributes over.
+    band: int = 0
+    skill_weights: tuple[float, float, float] = (1.0 / 3, 1.0 / 3, 1.0 / 3)
 
     # Combat
     ai_aggressiveness: int = 50

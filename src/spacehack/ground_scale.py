@@ -75,27 +75,36 @@ def band_budget(band: int) -> int:
     return 0 if band == 0 else 5 * (BAND_LEVELS[band - 1] - 1)
 
 
-def derive_stats(spec, band: int) -> GroundBandStats:
-    """Base-10 six-block plus the band budget split by the spec's
-    ``stat_weights``.
+def allocate_budget(budget: int, weights) -> list[int]:
+    """Largest-remainder split of ``budget`` over ``weights`` — the
+    ONE allocation loop both theaters' resolvers call (ground stats,
+    ship skills; doc 48 phases 4+7).
 
-    Largest-remainder allocation (fractional ties to the earlier
-    stat) over the WEIGHTED stats only, so the whole budget lands;
-    zero-weight stats never receive remainder points. An all-zero row
-    (the band-exempt bystander) reads flat base at every band. Each
-    stat caps at 100.
+    Fractional ties go to the earlier slot; zero-weight slots never
+    receive remainder points; the whole budget lands when weights sum
+    to 1.
     """
-    budget = band_budget(band)
-    if not any(spec.stat_weights):
-        return GroundBandStats()
-    raw = [budget * weight for weight in spec.stat_weights]
+    raw = [budget * weight for weight in weights]
     floors = [int(value) for value in raw]
     candidates = sorted(
-        (i for i, weight in enumerate(spec.stat_weights) if weight > 0),
+        (i for i, weight in enumerate(weights) if weight > 0),
         key=lambda i: (-(raw[i] - floors[i]), i),
     )
     for i in range(min(budget - sum(floors), len(candidates))):
         floors[candidates[i]] += 1
+    return floors
+
+
+def derive_stats(spec, band: int) -> GroundBandStats:
+    """Base-10 six-block plus the band budget split by the spec's
+    ``stat_weights``.
+
+    An all-zero row (the band-exempt bystander) reads flat base at
+    every band. Each stat caps at 100.
+    """
+    if not any(spec.stat_weights):
+        return GroundBandStats()
+    floors = allocate_budget(band_budget(band), spec.stat_weights)
     return GroundBandStats(*(
         min(STAT_CAP, STAT_BASE + floors[i]) for i in range(len(floors))
     ))
