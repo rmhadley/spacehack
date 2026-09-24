@@ -49,7 +49,12 @@ SHIPS: tuple[Ship, ...] = (
         module_slots=1,
         max_cargo=50,   # 5 × T1 delivery max (10)
         max_fuel=80,
-        base_power_gen=2,
+        # Power gen 3 (doc 50 goal-1 ruling, 2026-09-24): bursts of two
+        # 1-power weapons outpace gen 2 mid-fight and the tutorial pilot
+        # goes dry standing in Jack's sights — 3 keeps both the light and
+        # the medium laser pairs firing (measured: goal-1 win rate 0.86
+        # -> 0.96).
+        base_power_gen=3,
         base_shield_max=0,
         base_hull=15,
         start_weapons=('light_laser',),
