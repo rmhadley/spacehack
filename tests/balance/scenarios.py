@@ -57,6 +57,10 @@ class PlayerSheet:
     module_ids: tuple[str, ...]
     trait_ids: tuple[str, ...] = ()
     level: int = 1
+    # Declared level-up spends, (("gunnery", 5), ...) — 5 points per
+    # level past 1, applied by the harness onto the starting skills
+    # (the same +1-per-point fold ``xp._apply_skill_point`` does).
+    skill_spends: tuple[tuple[str, int], ...] = ()
     ground_weapon_ids: tuple[str, ...] = ()
     ground_armor_id: str = ""
 
@@ -132,11 +136,13 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         runs=100,
         seed=20260924,
         # Ruled at the phase-1 checkpoint (2026-09-24): win the fight
-        # easily (>=0.95) but never a sure thing (<=0.99 — at least
-        # one upset survives the declared batch). Measured 0.950
-        # under the true tutorial sheet + the landed power-gen ruling.
+        # easily but never a sure thing (<=0.99 — at least one upset
+        # survives the declared batch). Floor eased 0.95 -> 0.94
+        # (user ruling: measured 0.950 sat exactly on the bar; a hair
+        # of room keeps the pin from tripping on the first whisper of
+        # drift).
         thresholds=Thresholds(
-            win_rate_floor=0.95,
+            win_rate_floor=0.94,
             win_rate_ceiling=0.99,
         ),
     ),

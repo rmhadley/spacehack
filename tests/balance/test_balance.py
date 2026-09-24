@@ -174,3 +174,24 @@ def test_goal_1_batch_aggregate_determinism() -> None:
         find_scenario("goal_1_starter_vs_jack"), runs=3,
     )
     assert aggregate(run_batch(row)) == aggregate(run_batch(row))
+
+
+def test_skill_spends_fold_onto_starting_skills() -> None:
+    """A level-2 sheet spends exactly its 5 points, +1 per point; a
+    mis-budgeted row fails loudly (the guard bites)."""
+    from tests.balance.scenarios import PlayerSheet
+
+    sheet = PlayerSheet(
+        species_id="human", class_id="merchant", hull_id="starter",
+        weapon_ids=(), module_ids=(),
+        level=2, skill_spends=(("gunnery", 5),),
+    )
+    skills = harness.build_pilot_skills(sheet)
+    base = harness.starting_pilot_skills("human", "merchant")
+    assert skills.gunnery == base.gunnery + 5
+    assert skills.piloting == base.piloting
+    assert skills.engineering == base.engineering
+    with pytest.raises(ValueError):
+        harness.build_pilot_skills(dataclasses.replace(
+            sheet, level=2, skill_spends=(("gunnery", 3),),
+        ))

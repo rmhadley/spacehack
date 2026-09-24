@@ -234,17 +234,23 @@ def build_owned_ship(sheet) -> OwnedShip:
 
 
 def build_pilot_skills(sheet) -> PilotSkills:
-    """Level-1 skills through the real species/class fold.
+    """Starting skills through the real species/class fold, plus the
+    sheet's declared level-up spends — the same +1-per-point fold
+    ``xp._apply_skill_point`` performs, with the same 100 cap.
 
-    Higher-level sheets need declared skill spends; nothing authors
-    that shape until a scenario asks for it.
+    The spend budget must match the level (5 points per level past
+    1); anything else is a mis-authored row and fails loudly.
     """
-    if sheet.level != 1:
+    if sheet.level != 1 + sum(points for _skill, points in sheet.skill_spends) // 5:
         raise ValueError(
-            f"level {sheet.level} sheets need declared skill spends "
-            "(not yet authored)"
+            f"level {sheet.level} grants 5 skill points per level past 1 — "
+            f"declared spends {sheet.skill_spends} do not match"
         )
-    return starting_pilot_skills(sheet.species_id, sheet.class_id)
+    skills = starting_pilot_skills(sheet.species_id, sheet.class_id)
+    for skill, points in sheet.skill_spends:
+        spent = min(points, 100 - getattr(skills, skill))
+        setattr(skills, skill, getattr(skills, skill) + spent)
+    return skills
 
 
 def build_ctx(sheet, game_map, player_start) -> SimpleNamespace:
