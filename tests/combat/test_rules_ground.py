@@ -30,7 +30,6 @@ from src.spacehack.combat._rules_ground import (
     _ground_point_blank_penalty,
 )
 from src.spacehack.ground_equipment import (
-    GroundItemStack,
     GroundWeaponInstance,
     StoredGroundEquipment,
     weapon_instance as _weapon,
@@ -1040,7 +1039,8 @@ def _explosive_fixture(*, player_pos=world.Position(3, 3)):
         ground_max_hp=23,
         equipped_ground_weapons=[_weapon("rocket_launcher")],
         equipped_ground_armor={},
-        ground_expedition_items=[GroundItemStack("ammo", "rockets", 4)],
+        ground_expedition_items=[],
+        bandolier={"rocket": 4},
         player_traits=[],
         player_xp=0,
         player_level=1,
@@ -1203,7 +1203,7 @@ def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatc
     run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
 
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
-    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "rockets", 4)]
+    assert _ctx.bandolier == {"rocket": 4}
     assert _neighbor not in _game_map.entities
     assert _primary in _game_map.entities
     assert _rules_ground.player_ap(_ctx) == 1
@@ -1277,12 +1277,11 @@ def _ammo_ctx(weapon_id: str, loaded: int, *, reserve: int = 0):
     _ctx, _game_map, _, _enemy = _ground_fixture()
     _ctx.equipped_ground_weapons = [GroundWeaponInstance(weapon_id, loaded)]
     _ctx.ground_expedition_items = []
+    _ctx.bandolier = {}
     if reserve:
         from src.spacehack.data.ground_weapons import find_ground_weapon
-        from src.spacehack.data.ground_items import list_ground_ammo
         ammo_type = find_ground_weapon(weapon_id).ammo_type
-        ammo_id = next(a.id for a in list_ground_ammo() if a.ammo_type == ammo_type)
-        _ctx.ground_expedition_items = [GroundItemStack("ammo", ammo_id, reserve)]
+        _ctx.bandolier = {ammo_type: reserve}
     _rules_ground.init(_ctx, [_enemy], _game_map)
     return _ctx, _game_map, _enemy
 
@@ -1322,7 +1321,7 @@ def test_reload_weapon_fills_magazine_and_charges_ap():
     assert run(_rules_ground.reload_weapon(_ctx)) is True
 
     assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
-    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 31)]
+    assert _ctx.bandolier == {"kinetic_pistol": 31}
     assert _rules_ground.player_ap(_ctx) == 2
 
 
@@ -1348,7 +1347,7 @@ def _dual_wield_ammo_ctx():
         GroundWeaponInstance("kinetic_pistol", 11),
         GroundWeaponInstance("kinetic_pistol", 3),
     ]
-    _ctx.ground_expedition_items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    _ctx.bandolier = {"kinetic_pistol": 40}
     _rules_ground.init(_ctx, [_enemy], _game_map)
     _rules_ground.set_player_ap(_ctx, 3)
     return _ctx
@@ -1367,7 +1366,7 @@ def test_reload_weapon_reloads_first_dry_active_slot_deterministically():
         GroundWeaponInstance("kinetic_pistol", 12),
         GroundWeaponInstance("kinetic_pistol", 3),
     ]
-    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
+    assert _ctx.bandolier == {"kinetic_pistol": 39}
     assert _rules_ground.player_ap(_ctx) == 2
 
 

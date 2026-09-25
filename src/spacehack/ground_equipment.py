@@ -770,11 +770,11 @@ def transfer_item_stack(
 # Weapon ammo and reload — design doc 19, Phase 3
 # The engine moved to :mod:`spacehack.ground_weapon_ammo` (doc 51
 # phase 3 ratchet split); re-exported so callers keep these paths.
+# The reserve store is the bandolier since doc 52 phase 1.
 # ---------------------------------------------------------------------------
 from .ground_weapon_ammo import (  # noqa: F401 — re-export surface
     apply_reload,
     consume_weapon_round,
-    matching_ammo_stack_index,
     reload_amount,
     reload_slot_for_ammo,
     reserve_ammo_count,

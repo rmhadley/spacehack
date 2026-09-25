@@ -342,14 +342,14 @@ def test_hold_range_reloads_first_dry_slot_through_real_reload() -> None:
             from src.spacehack.ground_equipment import reserve_ammo_count
 
             assert reserve_ammo_count(
-                ctx.ground_expedition_items, "kinetic_pistol",
+                ctx.bandolier, "kinetic_pistol",
             ) == 28
             # No reserve at all: no RELOAD — the band rule takes over.
             ctx.equipped_ground_weapons = [
                 GroundWeaponInstance("kinetic_pistol", 0),
                 GroundWeaponInstance("kinetic_pistol", 0),
             ]
-            ctx.ground_expedition_items = []
+            ctx.bandolier = {}
             assert _async_run(stance(ctx, rules)).startswith("MOVE:")
         finally:
             harness.end_run(rules)

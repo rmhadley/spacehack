@@ -14,7 +14,6 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack.ground_equipment import GroundItemStack
 from src.spacehack.trade import trade_price, open_loot_pickup
 from src.spacehack.world import Entity, Position
 
@@ -126,6 +125,7 @@ class TestOpenLootPickup:
             ground_stats=SimpleNamespace(strength=10),
             ground_expedition_inventory=[],
             ground_expedition_items=[],
+            bandolier={},
             log=MagicMock(),
         )
         selected = {}
@@ -138,9 +138,9 @@ class TestOpenLootPickup:
         assert selected["entities"] == (first, second)
         assert second not in game_map.entities
         assert first in game_map.entities
-        assert ctx.ground_expedition_items == [
-            GroundItemStack("ammo", "rifle_rounds", 3),
-        ]
+        # Doc 52: ammo pickups refill the bandolier, never the pack.
+        assert ctx.bandolier == {"rifle_round": 3}
+        assert ctx.ground_expedition_items == []
 
     def test_single_pickup_still_uses_the_compact_chooser(self, monkeypatch):
         """One reachable stack is picked up directly after chooser selection."""
@@ -157,6 +157,7 @@ class TestOpenLootPickup:
             ground_stats=SimpleNamespace(strength=10),
             ground_expedition_inventory=[],
             ground_expedition_items=[],
+            bandolier={},
             log=MagicMock(),
         )
         chosen = []
@@ -169,9 +170,8 @@ class TestOpenLootPickup:
 
         assert chosen == [(loot_entity,)]
         assert loot_entity not in game_map.entities
-        assert ctx.ground_expedition_items == [
-            GroundItemStack("ammo", "pistol_rounds", 2),
-        ]
+        assert ctx.bandolier == {"kinetic_pistol": 2}
+        assert ctx.ground_expedition_items == []
 
     def test_long_loot_label_reserves_extra_compact_width(self):
         """Long cargo labels receive width slack instead of early ellipsis."""

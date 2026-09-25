@@ -617,7 +617,7 @@ def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
         _spec = _find_gw(_instance.weapon_id)
         if _instance.loaded_ammo is None or _instance.loaded_ammo >= _spec.ammo_capacity:
             continue
-        _reserve = reserve_ammo_count(ctx.ground_expedition_items, _spec.ammo_type)
+        _reserve = reserve_ammo_count(ctx.bandolier, _spec.ammo_type)
         if _reserve > 0:
             candidates.append((_slot, _instance, _spec, _reserve))
     return tuple(candidates)
@@ -640,7 +640,7 @@ def _reload_slot(ctx, slot: int) -> bool:
         return False
     try:
         _new = apply_reload(
-            ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
+            ctx.equipped_ground_weapons, slot, ctx.bandolier,
         )
     except (IndexError, KeyError, ValueError) as exc:
         _log_name_line(ctx, "", _wname, _instance.quality, f": {exc}")

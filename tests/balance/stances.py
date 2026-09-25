@@ -70,7 +70,7 @@ def _dry_reloadable_slot(ctx, rules, slots) -> int | None:
         spec = find_ground_weapon(instance.weapon_id)
         if instance.loaded_ammo >= spec.ammo_per_shot:
             continue
-        if reserve_ammo_count(ctx.ground_expedition_items, spec.ammo_type) <= 0:
+        if reserve_ammo_count(ctx.bandolier, spec.ammo_type) <= 0:
             continue
         if rules.player_ap(ctx) < spec.reload_ap_cost:
             continue

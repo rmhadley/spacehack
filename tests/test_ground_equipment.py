@@ -29,7 +29,6 @@ from src.spacehack.ground_equipment import (
     GroundWeaponInstance,
     apply_reload,
     consume_weapon_round,
-    matching_ammo_stack_index,
     parse_weapon_instance,
     reload_amount,
     reload_slot_for_ammo,
@@ -452,61 +451,50 @@ def test_consume_weapon_round_leaves_infinite_weapons_untouched():
     assert consume_weapon_round(instance) is instance
 
 
-def test_matching_ammo_stack_index_finds_by_ammo_type():
-    items = [
-        GroundItemStack("ammo", "shotgun_shells", 10),
-        GroundItemStack("ammo", "rifle_rounds", 20),
-    ]
-    assert matching_ammo_stack_index(items, "rifle_round") == 1
-    assert matching_ammo_stack_index(items, "grenade") is None
+def test_reserve_ammo_count_reads_the_bandolier_caliber():
+    bandolier = {"rifle_round": 25, "shotgun_shell": 10}
+    assert reserve_ammo_count(bandolier, "rifle_round") == 25
+    assert reserve_ammo_count(bandolier, "grenade") == 0
 
 
-def test_reserve_ammo_count_sums_matching_stacks():
-    items = [
-        GroundItemStack("ammo", "rifle_rounds", 20),
-        GroundItemStack("ammo", "rifle_rounds", 5),
-        GroundItemStack("ammo", "shotgun_shells", 10),
-    ]
-    assert reserve_ammo_count(items, "rifle_round") == 25
-
-
-def test_apply_reload_fills_magazine_and_drains_stack():
+def test_apply_reload_fills_magazine_and_drains_bandolier():
     equipped = [GroundWeaponInstance("kinetic_pistol", 3)]
-    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
-    result = apply_reload(equipped, 0, items)
+    bandolier = {"kinetic_pistol": 40}
+    result = apply_reload(equipped, 0, bandolier)
     assert result == GroundWeaponInstance("kinetic_pistol", 12)
-    assert items == [GroundItemStack("ammo", "pistol_rounds", 31)]
+    assert bandolier == {"kinetic_pistol": 31}
 
 
 def test_apply_reload_partial_when_reserve_is_short():
     equipped = [GroundWeaponInstance("kinetic_pistol", 10)]
-    items = [GroundItemStack("ammo", "pistol_rounds", 1)]
-    result = apply_reload(equipped, 0, items)
+    bandolier = {"kinetic_pistol": 1}
+    result = apply_reload(equipped, 0, bandolier)
     assert result == GroundWeaponInstance("kinetic_pistol", 11)
-    assert items == []
+    assert bandolier == {"kinetic_pistol": 0}
 
 
 def test_apply_reload_rejects_full_magazine_without_mutation():
     equipped = [GroundWeaponInstance("kinetic_pistol", 12)]
-    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    bandolier = {"kinetic_pistol": 40}
     with pytest.raises(ValueError, match="full"):
-        apply_reload(equipped, 0, items)
-    assert items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+        apply_reload(equipped, 0, bandolier)
+    assert bandolier == {"kinetic_pistol": 40}
 
 
 def test_apply_reload_rejects_missing_ammo_without_mutation():
     equipped = [GroundWeaponInstance("kinetic_pistol", 3)]
-    items: list = []
-    with pytest.raises(ValueError, match="No kinetic_pistol ammo"):
-        apply_reload(equipped, 0, items)
+    bandolier: dict = {"grenade": 6}
+    with pytest.raises(ValueError, match="No kinetic_pistol ammo in the bandolier"):
+        apply_reload(equipped, 0, bandolier)
     assert equipped == [GroundWeaponInstance("kinetic_pistol", 3)]
+    assert bandolier == {"grenade": 6}
 
 
 def test_apply_reload_rejects_non_reloadable_weapon():
     equipped = [GroundWeaponInstance("combat_knife", None)]
-    items = [GroundItemStack("ammo", "pistol_rounds", 40)]
+    bandolier = {"kinetic_pistol": 40}
     with pytest.raises(ValueError, match="cannot be reloaded"):
-        apply_reload(equipped, 0, items)
+        apply_reload(equipped, 0, bandolier)
 
 
 def test_reload_slot_for_ammo_picks_first_matching_not_full():
@@ -519,11 +507,12 @@ def test_reload_slot_for_ammo_picks_first_matching_not_full():
     assert reload_slot_for_ammo(full, "kinetic_pistol") is None
 
 
-def _field_loot_context(pack=None, items=None, messages=None):
+def _field_loot_context(pack=None, items=None, messages=None, bandolier=None):
     return type("Context", (), {
         "ground_stats": type("Stats", (), {"strength": 10})(),
         "ground_expedition_inventory": list(pack or []),
         "ground_expedition_items": list(items or []),
+        "bandolier": dict(bandolier or {}),
         "game_map": type("Map", (), {"entities": []})(),
         "log": type("Log", (), {
             "add": lambda self, message, **_kw: (messages.append(message) if messages is not None else None),
@@ -531,7 +520,28 @@ def _field_loot_context(pack=None, items=None, messages=None):
     })()
 
 
-def test_field_ammo_loot_merges_and_leaves_remainder_on_floor():
+def test_field_ammo_pickup_refills_bandolier_and_consumes_entity():
+    """Doc 52: an ammo drop tops the bandolier on pickup, never the pack."""
+    messages = []
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(messages=messages)
+    ctx.game_map.entities.append(entity)
+
+    assert run(loot._apply_field_item_loot_pickup(ctx, entity))
+
+    assert ctx.bandolier == {"kinetic_pistol": 5}
+    assert ctx.ground_expedition_items == []
+    assert entity not in ctx.game_map.entities
+    assert any("Picked up Pistol Rounds x5" in m for m in messages)
+
+
+def test_field_ammo_pickup_partial_fit_forfeits_overflow():
+    """SETTLED 2: a partial fit consumes the entity; overflow is ignored."""
     messages = []
     entity = type("Loot", (), {
         "pos": type("Position", (), {"x": 2, "y": 2})(),
@@ -540,30 +550,90 @@ def test_field_ammo_loot_merges_and_leaves_remainder_on_floor():
         },
     })()
     ctx = _field_loot_context(
+        bandolier={"kinetic_pistol": 158}, messages=messages,
+    )
+    ctx.game_map.entities.append(entity)
+
+    assert run(loot._apply_field_item_loot_pickup(ctx, entity))
+
+    assert ctx.bandolier == {"kinetic_pistol": 160}
+    assert entity not in ctx.game_map.entities
+    assert any("Picked up Pistol Rounds x2" in m for m in messages)
+
+
+def test_field_ammo_pickup_over_cap_is_silently_ignored():
+    """SETTLED 2: a drop past the cap doesn't refill — the pickup is
+    ignored, the entity stays on the floor for later, no log line."""
+    messages = []
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+        },
+    })()
+    ctx = _field_loot_context(
+        bandolier={"kinetic_pistol": 160}, messages=messages,
+    )
+    ctx.game_map.entities.append(entity)
+
+    assert not run(loot._apply_field_item_loot_pickup(ctx, entity))
+
+    assert ctx.bandolier == {"kinetic_pistol": 160}
+    assert ctx.ground_expedition_items == []
+    assert entity in ctx.game_map.entities
+    assert messages == []
+
+
+def test_exploration_reload_draws_from_bandolier():
+    """Doc 52: the free exploration R reloads from the bandolier store."""
+    messages = []
+    ctx = _field_loot_context(
+        bandolier={"kinetic_pistol": 40}, messages=messages,
+    )
+    ctx.equipped_ground_weapons = [GroundWeaponInstance("kinetic_pistol", 3)]
+    from src.spacehack import ground_reload_ui
+
+    assert ground_reload_ui.reloadable_slots(ctx) == (0,)
+    assert ground_reload_ui.reload_weapon_slot(ctx, 0)
+
+    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert ctx.bandolier == {"kinetic_pistol": 31}
+    assert any("Reloaded" in message for message in messages)
+
+
+def test_field_consumable_loot_merges_and_leaves_remainder_on_floor():
+    messages = []
+    entity = type("Loot", (), {
+        "pos": type("Position", (), {"x": 2, "y": 2})(),
+        "loot_data": {
+            "item_type": "consumable", "item_id": "med_pack", "quantity": 2,
+        },
+    })()
+    ctx = _field_loot_context(
         pack=[
             StoredGroundEquipment("armor", "light_helmet"),
             StoredGroundEquipment("armor", "light_vest"),
             StoredGroundEquipment("armor", "combat_boots"),
         ],
-        items=[GroundItemStack("ammo", "pistol_rounds", 38)],
+        items=[GroundItemStack("consumable", "med_pack", 2)],
         messages=messages,
     )
     ctx.game_map.entities.append(entity)
 
     assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+    assert ctx.ground_expedition_items == [GroundItemStack("consumable", "med_pack", 3)]
     assert entity in ctx.game_map.entities
-    assert entity.loot_data["quantity"] == 3
-    assert any("left 3" in message for message in messages)
+    assert entity.loot_data["quantity"] == 1
+    assert any("left 1" in message for message in messages)
 
 
-def test_field_ammo_loot_leaves_full_pack_unchanged(monkeypatch):
+def test_field_consumable_loot_leaves_full_pack_unchanged(monkeypatch):
     messages = []
     entity = type("Loot", (), {
         "pos": type("Position", (), {"x": 2, "y": 2})(),
         "loot_data": {
-            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+            "item_type": "consumable", "item_id": "med_pack", "quantity": 2,
         },
     })()
     ctx = _field_loot_context(
@@ -585,11 +655,11 @@ def test_field_ammo_loot_leaves_full_pack_unchanged(monkeypatch):
     assert any("full" in message.lower() for message in messages)
 
 
-def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
+def test_field_consumable_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
     entity = type("Loot", (), {
         "pos": type("Position", (), {"x": 2, "y": 2})(),
         "loot_data": {
-            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+            "item_type": "consumable", "item_id": "med_pack", "quantity": 2,
         },
     })()
     ctx = _field_loot_context(pack=[
@@ -603,7 +673,9 @@ def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
 
     assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 5)]
+    assert ctx.ground_expedition_items == [
+        GroundItemStack("consumable", "med_pack", 2),
+    ]
     assert entity not in ctx.game_map.entities
     assert any(
         dropped.loot_data == {"item_type": "weapon", "item_id": "combat_knife"}
@@ -611,11 +683,11 @@ def test_field_ammo_loot_can_drop_equipment_for_a_full_stack(monkeypatch):
     )
 
 
-def test_field_ammo_over_capacity_prompts_until_two_items_are_dropped(monkeypatch):
+def test_field_consumable_over_capacity_prompts_until_two_items_are_dropped(monkeypatch):
     entity = type("Loot", (), {
         "pos": type("Position", (), {"x": 2, "y": 2})(),
         "loot_data": {
-            "item_type": "ammo", "item_id": "pistol_rounds", "quantity": 5,
+            "item_type": "consumable", "item_id": "med_pack", "quantity": 2,
         },
     })()
     ctx = _field_loot_context(
@@ -625,7 +697,7 @@ def test_field_ammo_over_capacity_prompts_until_two_items_are_dropped(monkeypatc
             StoredGroundEquipment("armor", "combat_boots"),
             StoredGroundEquipment("weapon", "combat_knife"),
         ],
-        items=[GroundItemStack("consumable", "med_pack", 1)],
+        items=[GroundItemStack("consumable", "stim", 1)],
     )
     ctx.game_map.entities.append(entity)
     choices = iter(("DROP_PACK:3", "DROP_PACK:2"))
@@ -634,8 +706,8 @@ def test_field_ammo_over_capacity_prompts_until_two_items_are_dropped(monkeypatc
     assert run(loot._apply_field_item_loot_pickup(ctx, entity))
 
     assert ctx.ground_expedition_items == [
-        GroundItemStack("consumable", "med_pack", 1),
-        GroundItemStack("ammo", "pistol_rounds", 5),
+        GroundItemStack("consumable", "stim", 1),
+        GroundItemStack("consumable", "med_pack", 2),
     ]
     assert len(ctx.ground_expedition_inventory) == 2
     assert entity not in ctx.game_map.entities
@@ -736,8 +808,8 @@ def test_shot_and_reload_preserve_quality():
     fired = consume_weapon_round(weapon_instance("kinetic_pistol", 2))
     assert (fired.loaded_ammo, fired.quality) == (11, 2)
     equipped = [GroundWeaponInstance("kinetic_pistol", 0, 1)]
-    items = [GroundItemStack("ammo", "pistol_rounds", 10)]
-    reloaded = apply_reload(equipped, 0, items)
+    bandolier = {"kinetic_pistol": 10}
+    reloaded = apply_reload(equipped, 0, bandolier)
     assert (reloaded.loaded_ammo, reloaded.quality) == (10, 1)
 
 

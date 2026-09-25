@@ -269,7 +269,7 @@ def _reserve_count(ctx, ammo_type: str) -> int:
     """Total reserve rounds carried for a weapon's ammo type."""
     from ..ground_equipment import reserve_ammo_count
 
-    return reserve_ammo_count(getattr(ctx, "ground_expedition_items", []), ammo_type)
+    return reserve_ammo_count(getattr(ctx, "bandolier", None) or {}, ammo_type)
 
 
 def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:

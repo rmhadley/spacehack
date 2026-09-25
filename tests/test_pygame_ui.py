@@ -288,7 +288,8 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
             GroundWeaponInstance("kinetic_pistol", 11),
         ],
         holstered_ground_weapons=[],
-        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        ground_expedition_items=[],
+        bandolier={"kinetic_pistol": 40},
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
@@ -300,7 +301,7 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
         GroundWeaponInstance("kinetic_pistol", 2),
         GroundWeaponInstance("kinetic_pistol", 12),
     ]
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
+    assert ctx.bandolier == {"kinetic_pistol": 39}
 
 
 def test_character_weapon_row_chooser_offers_store_and_pack_entries(monkeypatch):

@@ -48,10 +48,10 @@ from src.spacehack.data.npc_ships import find_npc_ship
 from src.spacehack.data.pilot_skills import PilotSkills
 from src.spacehack.data.ships import find_ship
 from src.spacehack.game_context import PlayerCounters
+from src.spacehack.bandolier import add_rounds, effective_cap
+from src.spacehack.data.ground_items import find_ground_ammo
 from src.spacehack.ground_equipment import (
-    GroundItemStack,
     StoredGroundEquipment,
-    add_item_stack,
     install_armor,
     sum_armor_bonus,
 )
@@ -401,8 +401,9 @@ def _seed_enemy_entities(game_map, enemies) -> None:
 def build_ground_loadout(sheet) -> tuple:
     """The declared ground kit through the set-aware install path:
     weapons found their class homes (magazines seed FULL via the
-    entry default), armor fills its catalog slot, pack stacks land
-    through ``add_item_stack``'s capacity rules."""
+    entry default), armor fills its catalog slot, ammo seeds the
+    bandolier at each caliber's effective cap (doc 52 phase 1 — a
+    store swap, not a policy change: declared quantities must fit)."""
     weapons: list = []
     holstered: list = []
     storage = [
@@ -416,17 +417,18 @@ def build_ground_loadout(sheet) -> tuple:
         install_armor(
             armor, [StoredGroundEquipment("armor", armor_id)], 0,
         )
-    items: list = []
+    bandolier: dict[str, int] = {}
     for item_id, quantity in sheet.ground_ammo:
-        remainder = add_item_stack(
-            [], items, GroundItemStack("ammo", item_id, quantity),
-            strength=sheet_strength(sheet),
+        spec = find_ground_ammo(item_id)
+        before = bandolier.get(spec.ammo_type, 0)
+        bandolier = add_rounds(
+            bandolier, spec.ammo_type, quantity, effective_cap(spec.ammo_type),
         )
-        assert remainder is None, (
-            f"ground_ammo {item_id}x{quantity} does not fit the pack "
-            "(expedition capacity is strength-derived)"
+        assert bandolier.get(spec.ammo_type, 0) - before == quantity, (
+            f"ground_ammo {item_id}x{quantity} exceeds the caliber's "
+            "carry cap (bars would silently clamp)"
         )
-    return weapons, holstered, armor, items
+    return weapons, holstered, armor, bandolier
 
 
 def sheet_strength(sheet) -> int:
@@ -444,13 +446,14 @@ def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
         "@", (255, 255, 255), world.Position(*player_start), "Player",
     )
     fields = _ctx_core(sheet, game_map, player)
-    weapons, holstered, armor, items = build_ground_loadout(sheet)
+    weapons, holstered, armor, bandolier = build_ground_loadout(sheet)
     stats = starting_ground_stats(sheet.species_id, sheet.class_id)
     fields["ground_stats"] = stats
     fields["equipped_ground_weapons"] = weapons
     fields["holstered_ground_weapons"] = holstered
     fields["equipped_ground_armor"] = armor
-    fields["ground_expedition_items"] = items
+    fields["ground_expedition_items"] = []
+    fields["bandolier"] = bandolier
     ctx = SimpleNamespace(**fields)
     # The trait-aware max (the same fold ``_player_hp_state`` performs);
     # seeded full — the default 23 never leaks into a ground ctx.
@@ -583,17 +586,13 @@ class RunResult:
 
 
 def _ground_ammo_total(ctx) -> int | None:
-    """All ground rounds currently carried (loaded + reserve stacks),
+    """All ground rounds currently carried (loaded + bandolier reserve),
     or ``None`` off the ground theater (no ammo economy to measure)."""
     weapons = getattr(ctx, "equipped_ground_weapons", None)
     if weapons is None:
         return None
     loaded = sum(w.loaded_ammo or 0 for w in weapons)
-    reserve = sum(
-        stack.quantity
-        for stack in getattr(ctx, "ground_expedition_items", ())
-        if getattr(stack, "item_type", "") == "ammo"
-    )
+    reserve = sum((getattr(ctx, "bandolier", None) or {}).values())
     return loaded + reserve
 
 

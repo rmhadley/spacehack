@@ -1326,7 +1326,9 @@ class TestSaveLoadRoundTrip:
         delete_save()
 
     def test_round_trip_ground_item_stacks(self, monkeypatch, tmp_path):
-        """Field-item ammo and consumable stacks survive Continue."""
+        """Field-item consumable stacks survive Continue; ammo lives in
+        the bandolier (doc 52) — armory ammo stacks are phase 2's
+        legacy scope and still round-trip verbatim."""
         monkeypatch.setattr(
             "src.spacehack.saveload._autosave_path",
             lambda: tmp_path / "autosave.json",
@@ -1339,8 +1341,9 @@ class TestSaveLoadRoundTrip:
             GroundItemStack("consumable", "med_pack", 3),
         ]
         ctx.ground_expedition_items = [
-            GroundItemStack("ammo", "shotgun_shells", 7),
+            GroundItemStack("consumable", "med_pack", 2),
         ]
+        ctx.bandolier = {"kinetic_pistol": 132}
 
         save_game(ctx, mode="city", city_id="earth", system_id="sol")
         loaded = load_game(ctx.context)
@@ -1348,6 +1351,68 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None
         assert loaded.ground_armory_items == ctx.ground_armory_items
         assert loaded.ground_expedition_items == ctx.ground_expedition_items
+        assert loaded.bandolier == {"kinetic_pistol": 132}
+        delete_save()
+
+    def test_pre52_pack_ammo_migrates_to_bandolier_with_refund(
+        self, monkeypatch, tmp_path,
+    ):
+        """A pre-52 save's pack stacks convert into bandolier counts at
+        cap, overflow refunds credits, slots free, armory stacks stay
+        (doc 52 phase 1 migration)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(62)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("bandolier", None)
+        payload["ground_expedition_items"] = [
+            {"item_type": "ammo", "item_id": "pistol_rounds", "quantity": 40},
+            {"item_type": "ammo", "item_id": "pistol_rounds", "quantity": 40},
+            {"item_type": "ammo", "item_id": "pistol_rounds", "quantity": 40},
+            {"item_type": "ammo", "item_id": "pistol_rounds", "quantity": 40},
+            {"item_type": "ammo", "item_id": "pistol_rounds", "quantity": 40},
+            {"item_type": "ammo", "item_id": "rockets", "quantity": 4},
+            {"item_type": "ammo", "item_id": "rockets", "quantity": 4},
+            {"item_type": "ammo", "item_id": "rockets", "quantity": 4},
+            {"item_type": "consumable", "item_id": "med_pack", "quantity": 3},
+        ]
+        payload["ground_armory_items"] = [
+            {"item_type": "ammo", "item_id": "rifle_rounds", "quantity": 12},
+        ]
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        # 200 pistol rounds → 160 cap (40 over × 1 cr); 12 rockets →
+        # 10 cap (2 over × 20 cr); refund 40 + 40 = 80 cr.
+        assert loaded.bandolier == {"kinetic_pistol": 160, "rocket": 10}
+        assert loaded.ground_expedition_items == [
+            GroundItemStack("consumable", "med_pack", 3),
+        ]
+        assert loaded.ground_armory_items == [
+            GroundItemStack("ammo", "rifle_rounds", 12),
+        ]
+        assert loaded.stats.credits == ctx.stats.credits + 80
+        history = " ".join(entry.text for entry in loaded.log.history())
+        assert "Packed 170 reserve rounds into the bandolier." in history
+        assert "Refunded 42 rounds past carry caps: 80$." in history
+
+        # Migrated save re-saves and re-loads cleanly (sniff test).
+        save_game(loaded, mode="city", city_id="earth", system_id="sol")
+        reloaded = load_game(ctx.context)
+        assert reloaded is not None
+        assert reloaded.bandolier == {"kinetic_pistol": 160, "rocket": 10}
+        assert reloaded.ground_expedition_items == [
+            GroundItemStack("consumable", "med_pack", 3),
+        ]
         delete_save()
 
     def test_round_trip_bandolier(self, monkeypatch, tmp_path):

@@ -493,14 +493,43 @@ async def _pack_field_item_after_drops(ctx, loot_entity, stack, name: str) -> bo
         dropped_items.append(dropped)
 
 
+async def _apply_ammo_loot_pickup(ctx: GameContext, loot_entity, stack, name: str) -> bool:
+    """Refill the bandolier from one ammo drop (doc 52 SETTLED 2).
+
+    Overflow past the caliber's cap is ignored: a fully-topped drop
+    is left on the floor untouched (silently — nothing was picked
+    up), a partial fit consumes the entity and forfeits the rest.
+    """
+    from .bandolier import refill
+
+    try:
+        added = refill(ctx, _ammo_caliber(stack), stack.quantity)
+    except (KeyError, TypeError, ValueError) as exc:
+        ctx.log.add(f"Invalid field item - left it behind ({exc}).")
+        return False
+    if added <= 0:
+        return False
+    _finish_loot_pickup(ctx, loot_entity, f"Picked up {name} x{added}.")
+    return True
+
+
+def _ammo_caliber(stack) -> str:
+    """The weapon-side ``ammo_type`` one ammo stack feeds."""
+    from .data.ground_items import find_ground_ammo
+
+    return find_ground_ammo(stack.item_id).ammo_type
+
+
 async def _apply_field_item_loot_pickup(ctx: GameContext, loot_entity) -> bool:
-    """Pack typed ammo/consumable loot without silently losing overflow."""
+    """Apply typed ammo/consumable loot without silently losing overflow."""
     stack = _field_item_loot_stack(loot_entity)
     if stack is None:
         ctx.log.add("Unknown field item - left it behind.")
         return False
     try:
         name = _field_item_loot_name(stack)
+        if stack.item_type == "ammo":
+            return await _apply_ammo_loot_pickup(ctx, loot_entity, stack, name)
         remainder = _pack_field_item(ctx, stack)
     except (KeyError, TypeError, ValueError) as exc:
         ctx.log.add(f"Invalid field item - left it behind ({exc}).")

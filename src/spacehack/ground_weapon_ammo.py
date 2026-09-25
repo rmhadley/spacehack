@@ -1,16 +1,18 @@
-"""Ground-weapon magazine and reserve-ammo engine (doc 19 phase 3).
+"""Ground-weapon magazine and bandolier-reserve engine (doc 19 phase 3;
+bandolier store swap doc 52 phase 1).
 
 Pure magazine decrements, reserve counting, and the transactional
 reload moved here when ground_equipment hit the architecture ratchet
 (doc 51 phase 3 build); ground_equipment re-exports the surface so
-every caller import stays stable.
+every caller import stays stable. The reserve store is the bandolier
+dict (``ammo_type`` → rounds) since doc 52 — pack stacks are legacy
+records, migrated into the bandolier on load.
 """
 
 from __future__ import annotations
 
-from .data.ground_items import find_ground_ammo
 from .data.ground_weapons import find_ground_weapon
-from .ground_equipment import GroundItemStack, GroundWeaponInstance
+from .ground_equipment import GroundWeaponInstance
 
 
 def consume_weapon_round(instance: GroundWeaponInstance) -> GroundWeaponInstance:
@@ -29,29 +31,17 @@ def reload_amount(loaded: int, capacity: int, reserve: int) -> int:
     return min(max(0, capacity - loaded), reserve)
 
 
-def matching_ammo_stack_index(items, ammo_type: str) -> int | None:
-    """Return the index of the first ammo stack feeding ``ammo_type``."""
-    for index, stack in enumerate(items):
-        if stack.item_type == "ammo" and find_ground_ammo(stack.item_id).ammo_type == ammo_type:
-            return index
-    return None
-
-
-def reserve_ammo_count(items, ammo_type: str) -> int:
-    """Total reserve rounds carried for ``ammo_type`` across all stacks."""
-    total = 0
-    for stack in items:
-        if stack.item_type == "ammo" and find_ground_ammo(stack.item_id).ammo_type == ammo_type:
-            total += stack.quantity
-    return total
+def reserve_ammo_count(bandolier: dict[str, int], ammo_type: str) -> int:
+    """Reserve rounds carried for ``ammo_type`` in the bandolier."""
+    return bandolier.get(ammo_type, 0)
 
 
 def _apply_reload_at(
     equipped_weapons: list[GroundWeaponInstance],
     slot_index: int,
-    items,
+    bandolier: dict[str, int],
 ) -> GroundWeaponInstance:
-    """Reload the weapon at ``slot_index`` from the pack; transactional."""
+    """Reload the weapon at ``slot_index`` from the bandolier; transactional."""
     instance = equipped_weapons[slot_index]
     spec = find_ground_weapon(instance.weapon_id)
     if spec.ammo_capacity <= 0 or spec.ammo_type is None:
@@ -59,18 +49,11 @@ def _apply_reload_at(
     loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
     if loaded >= spec.ammo_capacity:
         raise ValueError("Magazine is already full")
-    stack_index = matching_ammo_stack_index(items, spec.ammo_type)
-    if stack_index is None:
-        raise ValueError(f"No {spec.ammo_type} ammo in the Expedition Pack")
-    stack = items[stack_index]
-    amount = reload_amount(loaded, spec.ammo_capacity, stack.quantity)
+    reserve = bandolier.get(spec.ammo_type, 0)
+    amount = reload_amount(loaded, spec.ammo_capacity, reserve)
     if amount <= 0:
-        raise ValueError("No ammo to load")
-    remaining = stack.quantity - amount
-    if remaining > 0:
-        items[stack_index] = GroundItemStack("ammo", stack.item_id, remaining)
-    else:
-        del items[stack_index]
+        raise ValueError(f"No {spec.ammo_type} ammo in the bandolier")
+    bandolier[spec.ammo_type] = reserve - amount
     new_instance = GroundWeaponInstance(
         instance.weapon_id, loaded + amount, instance.quality,
     )
@@ -81,12 +64,12 @@ def _apply_reload_at(
 def apply_reload(
     equipped_weapons: list[GroundWeaponInstance],
     slot_index: int,
-    items,
+    bandolier: dict[str, int],
 ) -> GroundWeaponInstance:
-    """Reload one active weapon from the Expedition Pack transactionally."""
+    """Reload one active weapon from the bandolier transactionally."""
     if not 0 <= slot_index < len(equipped_weapons):
         raise IndexError("Invalid ground weapon slot")
-    return _apply_reload_at(equipped_weapons, slot_index, items)
+    return _apply_reload_at(equipped_weapons, slot_index, bandolier)
 
 
 def reload_slot_for_ammo(

@@ -10,8 +10,8 @@ apply that :func:`reload_exploration` drives.
 from __future__ import annotations
 
 
-def reloadable_pack_slots(ctx, ammo_type: str | None = None) -> tuple[int, ...]:
-    """Return equipped reloadable slots with reserve ammo available."""
+def reloadable_slots(ctx, ammo_type: str | None = None) -> tuple[int, ...]:
+    """Return equipped reloadable slots with bandolier reserve available."""
     from . import ground_equipment
     from .data.ground_weapons import find_ground_weapon
 
@@ -28,7 +28,7 @@ def reloadable_pack_slots(ctx, ammo_type: str | None = None) -> tuple[int, ...]:
         if ammo_type is not None and spec.ammo_type != ammo_type:
             continue
         if ground_equipment.reserve_ammo_count(
-            getattr(ctx, "ground_expedition_items", []), spec.ammo_type,
+            getattr(ctx, "bandolier", None) or {}, spec.ammo_type,
         ) > 0:
             slots.append(slot)
     return tuple(slots)
@@ -64,13 +64,13 @@ def reload_weapon_slot(ctx, slot: int) -> bool:
     if _target is None:
         return False
     _instance, _spec, _name = _target
-    if slot not in reloadable_pack_slots(ctx):
+    if slot not in reloadable_slots(ctx):
         _log_name_line(ctx, "", _name, _instance.quality,
                        ": no matching ammo or magazine is full.")
         return False
     try:
         _new = ground_equipment.apply_reload(
-            ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
+            ctx.equipped_ground_weapons, slot, ctx.bandolier,
         )
     except (IndexError, KeyError, ValueError) as exc:
         _log_name_line(ctx, "", _name, _instance.quality, f": {exc}")
@@ -146,7 +146,7 @@ async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
 
 async def reload_exploration(ctx) -> bool:
     """Reload from the dungeon screen without spending a turn."""
-    slots = reloadable_pack_slots(ctx)
+    slots = reloadable_slots(ctx)
     if not slots:
         ctx.log.add("No equipped weapon can be reloaded.")
         return False
