@@ -1,11 +1,10 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
 **Status: BUILDING (2026-09-25) — phase 1 LANDED (af2c9388) +
-PLAYTEST PASSED (six/six); phase 2 brief APPROVED (the
-/implement-phase 51.2 invocation) + ADVISE-folded pre-build (3
-blockers, no ruling changes). Core rulings SETTLED 1–2; open
-questions 1–2 (tutorial wording, board immunity) parked at their
-phases.**
+PLAYTEST PASSED (six/six); phase 2 BUILT (488f5cb9 refactor +
+271375f8..1b999796, REVIEW APPROVE zero blocking) — AWAITING
+PLAYTEST (list below). Core rulings SETTLED 1–2; open questions
+1–2 (tutorial wording, board immunity) parked at their phases.**
 
 ## Overview
 
@@ -465,8 +464,10 @@ branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
   `test_dev_mode.py:265-295` (equipped `[rocket_launcher]`, pack
   list, log line, strength) re-shapes in-commit; its SimpleNamespace
   ctx gains the holstered field (ADVISE fold 7).
-  `_best_ground_weapon` keeps selecting `rocket_launcher` — the
-  overall max is also the ranged max.
+  `_best_ground_weapon` is DELETED (replaced by the class-filtered
+  `_best_set_weapon`; zero dangling references, picks identical —
+  build-session call under self-audit dead-code rule, REVIEW minor 4;
+  the ranged max is still `rocket_launcher`, melee max `mono_blade`).
 - **Guide** (`data/guide/__init__.py`): Controls & Keybindings, in
   the Combat list after the R line — exact wording (proposed, red-
   line at approval): `- X: swap weapon sets (free while exploring,
@@ -592,6 +593,18 @@ ctx-free convention preserved, testable directly. The
 (post-refactor budget); its gate reads
 `_is_x_press(event) and state.current_mode != 'space'` at the
 2-line branch so the mode gate is visible at the call site.
+
+**Build record (2026-09-25):** REVIEW verdict **APPROVE, zero
+blocking** (4 minors: the dev-grant log line re-derivation — fixed
+to read the seated instances; `_handle_menu_event` landed at
+EXACTLY 40 lines — the next key added there forces an extraction;
+the holster row's getattr read-tolerance — kept, matches
+`_reserve_count`'s file idiom, no declared-field violation; the
+`_best_ground_weapon` deletion vs the brief's "keeps" wording —
+doc corrected here). The reviewer AST-verified the refactor commit
+as a verbatim one-way move, simulated the ADVISE fold-1 bug to
+prove the fists-floor pin bites, and mapped all 17 brief-required
+tests present.
 
 ### Phase 2 PLAYTEST (the verb)
 
