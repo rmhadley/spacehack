@@ -81,6 +81,7 @@ def _key_action(sym_name: str, rules=None) -> str:
         "r": "RELOAD",
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
+        "x": "SWAP_SETS",
     }.get(sym_name)
     if _action is not None:
         return _action
@@ -532,6 +533,15 @@ async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
     return action, None, False
 
 
+async def _run_rules_hook(ctx, rules, hook_name: str, unavailable_line: str) -> None:
+    """Await an optional rules-module hook; log when the mode lacks it."""
+    _hook = getattr(rules, hook_name, None)
+    if _hook is not None:
+        await _hook(ctx)
+    else:
+        ctx.log.add(unavailable_line)
+
+
 async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
     """Handle one in-combat action. Returns the new ``target_idx``."""
     if action == "TARGET":
@@ -555,11 +565,9 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
     elif action == "FIRE":
         await _handle_fire(console, ctx, game_map, rules, target_idx)
     elif action == "RELOAD":
-        _reload = getattr(rules, "reload_weapon", None)
-        if _reload is not None:
-            await _reload(ctx)
-        else:
-            ctx.log.add("Reload is unavailable here.")
+        await _run_rules_hook(ctx, rules, "reload_weapon", "Reload is unavailable here.")
+    elif action == "SWAP_SETS":
+        await _run_rules_hook(ctx, rules, "swap_weapon_sets", "Weapon swap is unavailable here.")
     elif action.startswith("WEAPON:"):
         _idx = int(action.partition(":")[2])
         _toggle_weapon(_idx, rules.active_weapons(ctx), ctx, rules)

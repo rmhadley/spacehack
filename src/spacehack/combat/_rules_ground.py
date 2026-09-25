@@ -27,6 +27,7 @@ from ..ground_equipment import (
     sum_armor_defense as _sum_armor_defense,
 )
 from ..ground_consumables import ActiveConsumableEffect
+from ..ground_weapon_sets import swap_sets_logged
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -663,6 +664,26 @@ async def reload_weapon(ctx) -> bool:
         ctx.log.add("No active weapon can be reloaded.")
         return False
     return _reload_slot(ctx, _candidates[0][0])
+
+
+async def swap_weapon_sets(ctx) -> bool:
+    """Swap the whole active set for the holstered set (doc 51 phase 2).
+
+    One mid-turn action: 1 AP, never turn-ending. Magazines and quality
+    ride the instances; the fresh set arrives all-armed (combat-start
+    flags over the fists-fallback weapon list — an empty active set
+    swaps to fists, the SETTLED 1 floor). Out of 1 AP: refuse, no
+    mutation.
+    """
+    if _state.player_ap < 1:
+        ctx.log.add("Not enough AP to swap weapon sets.")
+        return False
+    swap_sets_logged(
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, ctx.log,
+    )
+    _state.active_weapon_list = [True] * len(player_weapons(ctx))
+    _state.player_ap -= 1
+    return True
 
 # ---------------------------------------------------------------------------
 # Player movement

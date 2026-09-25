@@ -78,6 +78,17 @@ def exchange_weapon_sets(
     holstered[:] = staged
 
 
+def swap_sets_logged(equipped, holstered, log) -> None:
+    """Exchange the sets and log the shared outcome line (doc 51 phase 2).
+
+    The one home of ``"Weapon sets swapped."`` — the combat hook and
+    the free explore path both route through here so the outcome line
+    can never drift between them. Lists + log, still ctx-free.
+    """
+    exchange_weapon_sets(equipped, holstered)
+    log.add("Weapon sets swapped.")
+
+
 def partition_weapon_sets(
     instances: list[GroundWeaponInstance],
 ) -> tuple[list[GroundWeaponInstance], list[GroundWeaponInstance]]:

@@ -146,3 +146,200 @@ def test_partition_splits_mixed_pair_on_slot_zero_class():
 
 def test_partition_empty_loadout_yields_two_empty_sets():
     assert ground_weapon_sets.partition_weapon_sets([]) == ([], [])
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — the verb (X / SWAP_SETS), input paths, HUD, free explore swap
+# ---------------------------------------------------------------------------
+
+from tests.support.asyncutil import run, as_async  # noqa: E402
+
+from src.spacehack import world  # noqa: E402
+from src.spacehack.combat import _loop, _rules_ground  # noqa: E402
+from src.spacehack.combat import _ground_render  # noqa: E402
+
+
+class _LogCapture:
+    def __init__(self):
+        self.lines = []
+
+    def add(self, message, **kwargs):
+        self.lines.append(message)
+
+    def add_colored(self, message, color, **kwargs):
+        self.lines.append(message)
+
+
+class _Console:
+    def __init__(self):
+        self.prints = []
+
+    def print(self, x, y, string, fg=None, **kwargs):
+        self.prints.append((string, fg))
+
+
+def _swap_fixture(equipped, holstered):
+    """Map + ctx + enemy for ground-rules verb tests (doc 51 phase 2)."""
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(7)] for _ in range(7)]
+    _game_map = world.GameMap(7, 7, _tiles, [])
+    _player = world.Entity("@", (255, 255, 255), world.Position(3, 3), "Player")
+    _enemy = world.Entity(
+        "D", (255, 100, 100), world.Position(3, 5), "Assault Drone",
+        npc_char_id="assault_drone",
+    )
+    _game_map.entities.extend((_player, _enemy))
+    _ctx = SimpleNamespace(
+        player=_player,
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        ground_hp=23,
+        ground_max_hp=23,
+        equipped_ground_weapons=equipped,
+        holstered_ground_weapons=holstered,
+        equipped_ground_armor={},
+        player_traits=[],
+        log=_LogCapture(),
+    )
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    return _ctx, _game_map
+
+
+def test_swap_sets_logged_swaps_and_logs_the_shared_outcome_line():
+    equipped = [GroundWeaponInstance("kinetic_pistol", 5)]
+    holstered = [GroundWeaponInstance("combat_knife", None)]
+    log = _LogCapture()
+    ground_weapon_sets.swap_sets_logged(equipped, holstered, log)
+    assert equipped == [GroundWeaponInstance("combat_knife", None)]
+    assert holstered == [GroundWeaponInstance("kinetic_pistol", 5)]
+    assert log.lines == ["Weapon sets swapped."]
+
+
+def test_combat_action_table_maps_x_to_swap_sets():
+    assert _loop._key_action("x") == "SWAP_SETS"
+
+
+def test_combat_x_input_path_plain_and_shift_blind():
+    """The combat table is shift-blind: Shift+X also swaps (uniform
+    with Shift+R = RELOAD) — pinned per SETTLED 1/2."""
+    assert _loop._input_action(SimpleNamespace(key_name="x", repeat=False)) == "SWAP_SETS"
+    assert _loop._input_action(
+        SimpleNamespace(key_name="x", repeat=False, shift=True),
+    ) == "SWAP_SETS"
+
+
+def test_combat_x_key_repeats_are_swallowed():
+    """Held X must not keep swapping on later turns."""
+    assert _loop._input_action(SimpleNamespace(key_name="x", repeat=True)) == ""
+
+
+def test_x_is_not_a_movement_key():
+    assert "x" not in world.MOVE_KEYS
+
+
+def test_space_rules_lack_swap_hook_and_dispatch_logs_unavailable():
+    from src.spacehack.combat import _rules_space
+
+    assert getattr(_rules_space, "swap_weapon_sets", None) is None
+    _ctx = SimpleNamespace(log=_LogCapture())
+    run(_loop._dispatch_combat_action(None, _ctx, None, _rules_space, "SWAP_SETS", 0))
+    assert "Weapon swap is unavailable here." in _ctx.log.lines
+
+
+def test_rules_hook_runner_still_routes_reload():
+    """The runner extraction preserved RELOAD both ways."""
+    _ctx = SimpleNamespace(log=_LogCapture())
+    run(_loop._dispatch_combat_action(None, _ctx, None, SimpleNamespace(), "RELOAD", 0))
+    assert "Reload is unavailable here." in _ctx.log.lines
+
+    _calls = []
+
+    class _Rules:
+        async def reload_weapon(self, ctx):
+            _calls.append(ctx)
+            return True
+
+    _ctx2 = SimpleNamespace(log=_LogCapture())
+    run(_loop._dispatch_combat_action(None, _ctx2, None, _Rules(), "RELOAD", 0))
+    assert _calls == [_ctx2]
+    assert not _ctx2.log.lines
+
+
+def test_swap_weapon_sets_charges_one_ap_and_resets_flags():
+    _pistol = GroundWeaponInstance("kinetic_pistol", 5)
+    _smg = GroundWeaponInstance("smg", 9, 2)
+    _mono = GroundWeaponInstance("mono_blade", None, 1)
+    _ctx, _ = _swap_fixture([_pistol, _smg], [_mono])
+    _rules_ground.set_player_ap(_ctx, 3)
+    _rules_ground.set_active_weapons(_ctx, [True, False])
+
+    assert run(_rules_ground.swap_weapon_sets(_ctx)) is True
+
+    assert _ctx.equipped_ground_weapons == [_mono]
+    assert _ctx.holstered_ground_weapons == [_pistol, _smg]
+    assert _rules_ground.player_ap(_ctx) == 2
+    assert _rules_ground.active_weapons(_ctx) == [True]
+    assert "Weapon sets swapped." in _ctx.log.lines
+
+
+def test_swap_weapon_sets_refuses_at_zero_ap_without_mutation():
+    _pistol = GroundWeaponInstance("kinetic_pistol", 5)
+    _knife = GroundWeaponInstance("combat_knife", None)
+    _ctx, _ = _swap_fixture([_pistol], [_knife])
+    _rules_ground.set_player_ap(_ctx, 0)
+
+    assert run(_rules_ground.swap_weapon_sets(_ctx)) is False
+
+    assert _ctx.equipped_ground_weapons == [_pistol]
+    assert _ctx.holstered_ground_weapons == [_knife]
+    assert _rules_ground.player_ap(_ctx) == 0
+    assert "Not enough AP to swap weapon sets." in _ctx.log.lines
+
+
+def test_swap_to_empty_set_fists_floor_still_fires(monkeypatch):
+    """ADVISE fold 1: flags must cover the fists fallback, so FIRE
+    works after swapping to an empty set (SETTLED 1 floor)."""
+    _ctx, _game_map = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
+
+    assert run(_rules_ground.swap_weapon_sets(_ctx)) is True
+    assert _ctx.equipped_ground_weapons == []
+    assert _rules_ground.player_weapons(_ctx) == ["fists"]
+    assert _rules_ground.active_weapons(_ctx) == [True]
+
+    _ctx.player.pos = world.Position(3, 4)  # fists reach: adjacent
+    monkeypatch.setattr(
+        _rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None),
+    )
+    monkeypatch.setattr(
+        _loop, "RNG", SimpleNamespace(randint=lambda *_args: 1),
+    )
+    _rules_ground._state.enemies[0].hp = 10
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
+    assert _rules_ground._state.enemies[0].hp < 10
+
+
+def test_double_swap_mid_fight_is_identity_with_magazines_intact(monkeypatch):
+    _pistol = GroundWeaponInstance("kinetic_pistol", 6)
+    _knife = GroundWeaponInstance("combat_knife", None, 2)
+    _ctx, _game_map = _swap_fixture([_pistol], [_knife])
+    _rules_ground.set_player_ap(_ctx, 9)
+
+    monkeypatch.setattr(
+        _rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None),
+    )
+    monkeypatch.setattr(
+        _loop, "RNG", SimpleNamespace(randint=lambda *_args: 1),
+    )
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
+    # Frozen instances: the volley REPLACES the equipped entry, so read
+    # the live list, not the construction-time reference.
+    _live = _ctx.equipped_ground_weapons[0]
+    _fired_rounds = 6 - _live.loaded_ammo
+    assert _fired_rounds >= 1
+    _ap_after_fire = _rules_ground.player_ap(_ctx)
+
+    run(_rules_ground.swap_weapon_sets(_ctx))
+    run(_rules_ground.swap_weapon_sets(_ctx))
+
+    assert _ctx.equipped_ground_weapons == [_live]
+    assert _ctx.holstered_ground_weapons == [_knife]
+    assert _ctx.equipped_ground_weapons[0].loaded_ammo == 6 - _fired_rounds
+    assert _rules_ground.player_ap(_ctx) == _ap_after_fire - 2
