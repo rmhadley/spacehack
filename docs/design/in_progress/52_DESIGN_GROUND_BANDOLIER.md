@@ -44,6 +44,14 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
 - Migration as drafted stands: pack stacks convert into bandolier
   counts (capped), overflow refunded as credits.
 
+## SETTLED 2 (2026-09-25, user — the phase-2 economy rulings)
+
+- **Overflow pickups: IGNORED.** A drop past a caliber's cap simply
+  doesn't refill; the HUD reads "topped up" (phase 3). No credits.
+- **Restock pricing: PER-ROUND.** Armory restock-to-cap charges
+  rounds-actually-added x `price_per_round` (1/1/2/2/8/20 across the
+  six calibers).
+
 ## Measured evidence (doc 50 session, 2026-09-25)
 
 A 4-floor delve (Mars reference: real generator, 16 mobs/floor, 64
@@ -258,9 +266,8 @@ board re-rule (5), no tutorial prose (6).
    mechanic).
 2. ~~**Cap levels**~~ ANSWERED — SETTLED 1: the proposed table
    confirmed as-is.
-3. **Overflow pickups**: ignored (lean) vs converted to credits.
-4. **Restock pricing**: rounds-added × price_per_round (lean) vs flat
-   per restock.
+3. ~~**Overflow pickups**~~ ANSWERED — SETTLED 2: ignored.
+4. ~~**Restock pricing**~~ ANSWERED — SETTLED 2: per-round.
 5. ~~**Sequencing with doc 51**~~ ANSWERED — SETTLED 1: after doc
    51's core lands.
 6. **Bandolier visibility off-load**: does the character screen show
