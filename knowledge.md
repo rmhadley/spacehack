@@ -218,7 +218,22 @@ or (c) burying oversized logic in a way that merely dodges the line count. If
 the code belongs in the module, the module gets refactored.
 
 The generic spirit is **code that belongs in module X goes in module X** — even
-when X is oversized and touching it forces a refactor. Its mechanical,
+when X is oversized and touching it forces a refactor.
+
+**Design is never steered by the counter (user ruling, 2026-09-25).**
+Design and briefing decisions place code by COHESION (responsibility,
+testability, seam quality) — never by how close a module sits to a
+ratchet trigger. No process — briefs, advisor/reviewer dispatches,
+design passes — checks file or function size to decide where code
+lives. If the ratchet fires at implementation time, that is the
+intended moment: the build session does the real thinking with the
+actual code open and pays the debt in-commit. A brief MAY carry a
+budget note ("this touches an oversized module; expect the in-commit
+refactor") so the build isn't ambushed — a forecast, never a
+placement driver. Choosing a module to *avoid* triggering the gate
+is gate-gaming, the same violation as any other workaround.
+
+Its mechanical,
 enforced incarnation is **dataclass-field cohesion**: new state on a type must
 be declared as a field in that type's own module, never attached at runtime
 (``setattr`` / ``obj.attr = ...``) from a different file while the owning module
