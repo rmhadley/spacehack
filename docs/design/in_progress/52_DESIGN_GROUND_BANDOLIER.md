@@ -100,7 +100,8 @@ rows (doc 50 SETTLED 6).
   | ammo type | cap | endurance (measured) |
   |---|---|---|
   | pistol_rounds | 160 | ~39 kills (pistol pair) |
-  | rifle_rounds | 240 | ~41 (rifle) / ~85 (battle ×2) |
+  | rifle_rounds | 240 | ~41 (rifle) / ~85 (battle ×2, estimate —
+    unmeasured until phase 5) |
   | energy_cells | 250 | 38 (laser pistol pair) – 104 (carbine pair) |
   | shotgun_shells | 130 | ~41 |
   | grenades | 18 | ~10 fights (premium scarcity) |
@@ -129,9 +130,9 @@ rows (doc 50 SETTLED 6).
 - Pack: the ammo stack class RETIRES from the expedition pack
   (consumables/kits remain); migration converts carried stacks into
   bandolier counts, overflow → credits.
-- Drops: `field_item_loot_pool` ammo entries refill the bandolier
-  (capped); over-cap pickups ignored (HUD reads "topped up" —
-  ruling pending).
+- Drops: ammo entities refill the bandolier ON PICKUP (capped;
+  over-cap ignored per SETTLED 2; the spawners themselves are
+  unchanged).
 - Armory terminal: **restock-to-cap** per carried caliber replaces
   stack purchase (price = rounds added × `price_per_round`).
 - HUD: current/max per carried caliber (like fuel/power lines).
@@ -192,31 +193,55 @@ Each phase gets its Implementation brief at its own refine time.
 - **The ctx field** (`game_context.py`): declared
   `bandolier: dict[str, int]` (ammo_type → rounds), default empty;
   serialized in `saveload_ground.py`.
-- **Bandolier helpers** (`ground_equipment.py`): `add_rounds(ctx,
-  ammo_type, n)` clamping at the effective cap (phase 1 = base cap;
-  the gear-bonus seam lands with phase 4, same fold as
-  `sum_armor_bonus`), `bandolier_space`, and the reload re-point —
-  `_reloadable_slots` / `_ground_ammo_reason` /
-  `reserve_ammo_count` call sites read the bandolier instead of pack
-  stacks; `apply_reload` draws from it.
-- **Drop re-point** (`combat/_actions.py
-  _spawn_field_item_loot_at_position`): ammo entries become
-  `add_rounds` refills (capped), never pack stacks — SETTLED 1's
-  interim-dead-cargo fix.
+- **Bandolier module** (NEW `src/spacehack/bandolier.py` — the
+  doc-51 `ground_weapon_sets.py` sibling precedent; ADVISE issue 3:
+  `ground_equipment.py` sits at 987/1000 lines and the ratchet makes
+  its debt blocking the moment it is touched): a PURE core —
+  `add_rounds(bandolier, ammo_type, n, cap) -> dict` (clamped),
+  `space_remaining`, `effective_cap` (base cap in phase 1; the gear
+  fold's seam ready for phase 4) — plus thin ctx wrappers. Pure
+  core ships with pytest in the same commit.
+- **Reload re-point** (complete call-site list, ADVISE issue 2):
+  `combat/_rules_ground._reloadable_slots` + `apply_reload`
+  (`_rules_ground.py:641` caller) AND `ground_reload_ui.
+  reloadable_pack_slots` + `apply_reload` (`ground_reload_ui.py:81`
+  caller — this gates the EXPLORATION R key via `reload_exploration`,
+  `game_loop.py:483`) read the bandolier instead of pack stacks; the
+  HUD reserve read `_ground_render._reserve_count` re-points or it
+  shows 0 post-migration. (`_ground_ammo_reason` needs NO re-point —
+  it reads only the magazine; removed from the earlier draft's list.)
+- **Pickup re-point** (`loot.py` `_pack_field_item` /
+  `add_item_stack` ammo branch, ADVISE issue 1): picking up an ammo
+  entity refills the bandolier via `add_rounds` — over-cap ignored
+  (SETTLED 2, and SETTLED 2's own wording is PICKUP-time). BOTH
+  spawners (`_spawn_field_item_loot_at_position`,
+  `_spawn_kit_drop`) keep spawning map entities unchanged — which
+  also converts legacy on-map stack entities on pickup for free
+  (ADVISE issue 8) and keeps the sim's bars untouched (stances never
+  pick up).
 - **Migration** (`saveload_ground.py` load path): carried pack ammo
   stacks convert into bandolier counts at their cap; overflow
-  refunds credits (logged); the pack slots free up.
-- **Doc-50 seam** (`tests/balance/harness.py`): `_ground_ammo_total`
-  counts `ctx.bandolier` alongside magazines, and
-  `build_ground_loadout` seeds the bandolier from
-  `PlayerSheet.ground_ammo` instead of pack stacks — the rows'
-  declared 40-round reserves ride the new store; the board's ammo
-  bars must not move (same rounds available, same seeds — verified
-  in-build).
+  refunds credits (logged); the pack slots free up. Load-side parse
+  for `bandolier`: clamp at `carry_cap`, skip unknown ammo_type keys
+  (the file's existing clamp/skip conventions). Armory-STORED stacks
+  (`ground_armory_items`) are NOT converted here — explicitly phase
+  2's "legacy stacks" scope (ADVISE issue 9a).
+- **Doc-50 seam** (`tests/balance/harness.py` + `tests/balance/
+  stances.py`, ADVISE issue 7): `_ground_ammo_total` counts
+  `ctx.bandolier` alongside magazines; `build_ground_loadout` seeds
+  the bandolier from `PlayerSheet.ground_ammo` instead of pack
+  stacks; `build_ground_ctx` gains the `bandolier` field; AND
+  `stances._dry_reloadable_slot`'s reserve read re-points — without
+  it every ground stance reads 0 reserve and never reloads. This is
+  a BEHAVIOR-PRESERVING STORE SWAP, not a policy change: doc 50
+  SETTLED 6's benchmark-revision clause is NOT triggered, and the
+  checkpoint verifies it via the report DIFF (bars are ceilings —
+  green tests alone would hide downward drift; ADVISE issue 4).
 
-**Build order:** catalog caps → ctx field + serialization → helpers
-+ reload re-point → drop re-point → migration → doc-50 harness seam
-→ full gate → PLAYTEST checkpoint.
+**Build order:** catalog caps → ctx field + serialization →
+bandolier module (pure core + tests) → reload re-point (all call
+sites) → pickup re-point → migration → doc-50 harness/stances seam →
+full gate → PLAYTEST checkpoint.
 
 **Binding rulings:** SETTLED 1 (caps table; build-after-51; drop
 re-point in-phase; migration-with-refund). Fixed points from the
@@ -224,14 +249,17 @@ draft: independent per-type pools; plasma/melee never touch the
 bandolier; magazine mechanics and the R key unchanged; multi-caliber
 carried simultaneously is intended.
 
-**Required tests:** cap clamp + multi-caliber independence (pure
-helpers); reload integration (dry slot reloads from bandolier,
-decrements it, charges AP — update the existing reload pins that
-seed pack stacks); save round-trip (fresh saves carry the bandolier);
-migration (a pre-52 save with stacks loads to bandolier counts +
-credit refund + freed slots); drop re-point (a pool drop tops the
-bandolier, never the pack); board bars unchanged
-(`test_balance` green without edits beyond the seam).
+**Required tests:** cap clamp + multi-caliber independence (the pure
+bandolier core); reload integration (dry slot reloads from
+bandolier, decrements it, charges AP — update the existing reload
+pins that seed pack stacks, BOTH the combat and exploration reload
+paths); save round-trip (fresh saves carry the bandolier; parse
+clamps + skips); migration (a pre-52 save with stacks loads to
+bandolier counts + credit refund + freed slots); pickup re-point (a
+dropped entity tops the bandolier on walk-over, never the pack;
+over-cap ignored; a legacy pre-52 entity converts on pickup);
+board bars unchanged via the report diff (same seeds, same 40
+rounds).
 
 **Stop point:** no armory restock UI (2), no pack ammo-class
 retirement or market handling (2), no HUD or character-screen
@@ -244,12 +272,14 @@ board re-rule (5), no tutorial prose (6).
    refund logged, slots freed (pack view).
 2. Any ground fight: dry a magazine, press R — reload draws from the
    bandolier (same behavior, new store).
-3. Kill a sentry drone / raider whose pool drops ammo — the pickup
-   tops the bandolier (no stack appears in the pack).
+3. Kill a sentry drone / raider whose pool drops ammo — walk over
+   the drop and the bandolier tops up (no stack enters the pack;
+   an over-cap pickup is silently ignored).
 4. Sustained fight: fire past the old 40-round reserve — reloads
    keep working to the cap.
 5. `make check` green; `python3 -m tests.balance.report` — the
-   board's ammo numbers unchanged from the standard.
+   board's ammo numbers byte-identical to the standard's recorded
+   baseline (verified by DIFF, not just green bars).
 6. Guide diff: NONE this phase, but the Ground Gear line "need
    matching ammunition in your Expedition Pack" is now stale — its
    rewrite is phase 3, wording settles at this checkpoint (guide
@@ -272,3 +302,11 @@ board re-rule (5), no tutorial prose (6).
    51's core lands.
 6. **Bandolier visibility off-load**: does the character screen show
    all six calibers or only carried ones (lean: carried only)?
+7. **The armory gap (ADVISE issue 5)**: between phase 1 (reload
+   reads the bandolier) and phase 2 (restock-to-cap), the armory
+   still SELLS pack stacks that are dead cargo — and it is the only
+   ammo source for a new character (the tutorial's taught flow is
+   buying a stack). Accept the one-session gap (phases build
+   back-to-back), retire the ammunition buy section in phase 1
+   (leaving new characters without a source until phase 2), or pull
+   a minimal restock into phase 1?
