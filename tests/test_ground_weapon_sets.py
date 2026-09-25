@@ -157,6 +157,7 @@ from tests.support.asyncutil import run, as_async  # noqa: E402
 from src.spacehack import world  # noqa: E402
 from src.spacehack.combat import _loop, _rules_ground  # noqa: E402
 from src.spacehack.combat import _ground_render  # noqa: E402
+from src.spacehack.input_helpers import _is_x_press  # noqa: E402
 
 
 class _LogCapture:
@@ -233,6 +234,15 @@ def test_combat_x_key_repeats_are_swallowed():
 
 def test_x_is_not_a_movement_key():
     assert "x" not in world.MOVE_KEYS
+
+
+def test_is_x_press_matrix():
+    """Main-loop matcher: plain x only — shift excluded (dev XP owns
+    Shift+X there), keyup never fires."""
+    assert _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=False))
+    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=True))
+    assert not _is_x_press(SimpleNamespace(kind="keyup", key_name="x", shift=False))
+    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="c", shift=False))
 
 
 def test_space_rules_lack_swap_hook_and_dispatch_logs_unavailable():
@@ -345,18 +355,6 @@ def test_double_swap_mid_fight_is_identity_with_magazines_intact(monkeypatch):
     assert _rules_ground.player_ap(_ctx) == _ap_after_fire - 2
 
 
-from src.spacehack.input_helpers import _is_x_press  # noqa: E402
-
-
-def test_is_x_press_matrix():
-    """Main-loop matcher: plain x only — shift excluded (dev XP owns
-    Shift+X there), keyup never fires."""
-    assert _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=False))
-    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=True))
-    assert not _is_x_press(SimpleNamespace(kind="keyup", key_name="x", shift=False))
-    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="c", shift=False))
-
-
 def _menu_state(mode, equipped, holstered):
     from src.spacehack import game_loop
 
@@ -418,3 +416,37 @@ def test_menu_shift_x_never_swaps():
         GroundWeaponInstance("kinetic_pistol", 5),
     ]
     assert not _state.log.lines
+
+
+def test_hud_holster_row_lists_holstered_names_dim():
+    _ctx, _ = _swap_fixture(
+        [GroundWeaponInstance("kinetic_pistol", 5)],
+        [GroundWeaponInstance("mono_blade", None, 2)],
+    )
+    _console = _Console()
+    _ground_render._render_weapons_panel(
+        _console, _ctx, _rules_ground.player_weapons(_ctx),
+        _rules_ground._state.enemies, 0,
+    )
+    _holster = [(s, fg) for s, fg in _console.prints if s.startswith("HOLSTER")]
+    assert len(_holster) == 1
+    assert "Mono Blade" in _holster[0][0]
+    assert _holster[0][1] == _ground_render._COLOR_GROUND_WEAPON_DIM
+
+
+def test_hud_holster_row_hidden_when_set_empty():
+    _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
+    _console = _Console()
+    _ground_render._render_weapons_panel(
+        _console, _ctx, _rules_ground.player_weapons(_ctx),
+        _rules_ground._state.enemies, 0,
+    )
+    assert not [s for s, _ in _console.prints if s.startswith("HOLSTER")]
+
+
+def test_hud_actions_legend_carries_swap_entry():
+    _console = _Console()
+    _ground_render._render_actions_panel(_console, ["kinetic_pistol"], 0)
+    assert any(
+        "[x]" in s and "Swap" in s for s, _ in _console.prints
+    )

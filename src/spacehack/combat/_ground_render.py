@@ -286,6 +286,31 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     y += 1
     for i, wid in enumerate(weapons):
         y = _print_weapon_block(console, ctx, hud_x, y, i, wid, alive)
+    y = _print_holster_row(console, ctx, hud_x, y)
+    return y + 1
+
+
+def _print_holster_row(console, ctx, hud_x: int, y: int) -> int:
+    """Paint the dim holstered-set names row; hidden when empty (doc 51).
+
+    The holstered set needs no per-weapon detail — a dim names line
+    says what X reaches for. The empty set stays silent: the fists
+    floor needs no advertisement (SETTLED 2).
+    """
+    from ..ground_equipment import display_name
+
+    _holstered = getattr(ctx, "holstered_ground_weapons", [])
+    if not _holstered:
+        return y
+    _names = ", ".join(
+        display_name("weapon", _inst.weapon_id, _inst.quality)
+        for _inst in _holstered
+    )
+    console.print(
+        x=hud_x, y=y,
+        string=f"HOLSTER  {_names}"[:HUD_TEXT_MAX],
+        fg=_COLOR_GROUND_WEAPON_DIM,
+    )
     return y + 1
 
 
@@ -434,8 +459,8 @@ def _render_actions_panel(console, weapons: list[str], y: int) -> None:
     y += 1
     actions = [
         ("[Tab]", "Target"), ("[m]", "Move"), ("[f]", "Fire"), ("[r]", "Reload"),
-        ("[w]", "Wait"), ("[v]", "Info"),
+        ("[x]", "Swap"), ("[w]", "Wait"), ("[v]", "Info"),
     ]
     if len(weapons) > 1:
-        actions.insert(4, (f"[1-{len(weapons)}]", "Toggle Wpn"))
+        actions.insert(5, (f"[1-{len(weapons)}]", "Toggle Wpn"))
     _render_action_pairs(console, hud_x, y, actions, _COLOR_GROUND_ACTION)
