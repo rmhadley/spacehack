@@ -1,9 +1,11 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
 **Status: BUILDING (2026-09-25) — phase 1 LANDED (af2c9388) +
-PLAYTEST PASSED (six/six); phase 2 unbriefed (next refine). Core
-rulings SETTLED 1; open questions 1–2 (tutorial wording, board
-immunity) parked at their phases.**
+PLAYTEST PASSED (six/six); phase 2 brief APPROVED (the
+/implement-phase 51.2 invocation) + ADVISE-folded pre-build (3
+blockers, no ruling changes). Core rulings SETTLED 1–2; open
+questions 1–2 (tutorial wording, board immunity) parked at their
+phases.**
 
 ## Overview
 
@@ -392,29 +394,47 @@ branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
 **Scope (files / hook points; all sizes verified on the tree):**
 
 - **game_loop refactor FIRST** (own commit, before any X wiring):
-  extract the dev shift-key block — the 16 `_dev_*` async handlers,
-  `_DEV_SHIFT_KEYS`, `_handle_dev_shift_keys` (game_loop.py ~340-428)
-  — into a new sibling (working name `game_loop_dev.py`);
-  game_loop re-imports `_handle_dev_shift_keys` so the public
-  surface is unchanged. This drops game_loop to ~910/1000, paying
-  the ratchet debt the X wiring forces (SETTLED 2). If a handler
-  reference fights the extraction at build time, stop and re-scope
-  in this doc — do not grow game_loop instead.
+  extract the dev shift-key block — the 16 `_dev_*` async handlers
+  (`_dev_city_teleport` :264-274 + the fifteen at :300-397),
+  `_DEV_SHIFT_KEYS` (:401), `_handle_dev_shift_keys` (:422), PLUS
+  `_is_dev` (:245) and `_reveal_all_fog` (:251, only
+  `_dev_reveal_fog` reads it) — into a new sibling (working name
+  `game_loop_dev.py`); game_loop re-imports `_is_dev` +
+  `_handle_dev_shift_keys` so the public surface is unchanged.
+  Import direction ONE-WAY (game_loop → game_loop_dev): `_is_dev`
+  moves with the block or the module-level table cycles (ADVISE
+  fold 4). The extraction commit also PRUNES game_loop's
+  now-unused imports (Ruff F401): `_add_xp`, the shift matchers
+  minus `_is_shift_o_press` (stays — quest handler :147),
+  `dump_ground_weapon_sets` (ADVISE fold 5). True block ≈165
+  lines → game_loop lands ≈840/1000 (the "~88/~910" figures in
+  SETTLED 2 undercounted — ADVISE fold 6, safe direction). If a
+  handler reference fights the extraction at build time, stop and
+  re-scope in this doc — do not grow game_loop instead.
 - **Combat verb** (`combat/_loop.py` 649/1000): `"x": "SWAP_SETS"`
   in `_key_action`'s action table (:77); `_dispatch_combat_action`
-  elif in the RELOAD shape (:557): `getattr(rules,
-  "swap_weapon_sets", None)` — present on ground rules, absent in
-  space, which logs `"Weapon swap is unavailable here."`.
-- **The rules hook** (`combat/_rules_ground.py` 958/1000, +42
-  budget): `swap_weapon_sets(ctx) -> bool` — refuse when
-  `player_ap < 1` (`"Not enough AP to swap weapon sets."`, no
-  mutation); otherwise call
+  routes SWAP_SETS through a NEW module-level
+  `_run_rules_hook(ctx, rules, hook_name, unavailable_line)` with
+  RELOAD refactored onto the same runner (:557-562 today) — a
+  sixth inline elif pushes the 35-line dispatcher past the 40-line
+  ratchet (ADVISE fold 2) and the twin branches deduplicate on the
+  same extraction. Hook present on ground rules, absent in space,
+  which logs `"Weapon swap is unavailable here."`.
+- **The rules hook** (`combat/_rules_ground.py` 958/1000, ~13-line
+  hook → lands ≈971): `async def swap_weapon_sets(ctx) -> bool`
+  (async like `reload_weapon` — the dispatch awaits it; ADVISE
+  fold 8) — refuse when `player_ap < 1` (`"Not enough AP to swap
+  weapon sets."`, no mutation); otherwise call
   `ground_weapon_sets.exchange_weapon_sets(ctx.equipped_ground_weapons,
   ctx.holstered_ground_weapons)`, reset
-  `_state.active_weapon_list = [True] * len(equipped)` (combat-start
-  semantics, :275), charge 1 AP, log `"Weapon sets swapped."`
-  (same outcome line on the free out-of-combat path — states, never
-  teaches). Empty active set needs no special case: `player_weapons`
+  `_state.active_weapon_list = [True] * len(player_weapons(ctx))`
+  — the fists-fallback list, combat-start semantics (:257 + :275).
+  `len(equipped)` breaks the empty-set swap: FIRE's
+  `_fire_slot_indexes(["fists"], [])` returns `[]` and the player
+  cannot attack at all (ADVISE fold 1 — the SETTLED-1 fists
+  floor). Charge 1 AP, log `"Weapon sets swapped."` (same outcome
+  line on the free out-of-combat path — states, never teaches).
+  Empty active set needs no special case: `player_weapons`
   already falls back to `["fists"]` (:338-340).
 - **Free out-of-combat X** (`input_helpers.py` + `game_loop.py`):
   NEW `_is_x_press` matcher — keydown, key_name `'x'`, **shift
@@ -422,8 +442,12 @@ branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
   exclusion it would collide with the dev XP grant, which owns
   Shift+X in the main loop). Handler in `_handle_menu_event`
   (game_loop:431) gated to `state.current_mode != 'space'`: the
-  free exchange + the shared log line. No flag work — combat state
-  is per-fight and derives flags fresh on start.
+  free exchange + the shared log line. The branch is a 2-line
+  delegation to a module-level `_swap_weapon_sets_explore(state)`
+  helper — `_handle_menu_event` sits at 38 lines and an inline
+  branch breaches the 40-line ratchet (ADVISE fold 3). No flag
+  work — combat state is per-fight and derives flags fresh on
+  start.
 - **HUD** (`combat/_ground_render.py` 441/1000): after the weapons
   loop in `_render_weapons_panel` (:275) — when
   `ctx.holstered_ground_weapons` is non-empty, one dim row
@@ -432,9 +456,17 @@ branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
   in `_render_actions_panel` (:430): `("[x]", "Swap")`.
 - **Dev grant** (`dev_mode.py` 726/1000): `_dev_ground_loadout`
   returns the strongest-ranged instance + strongest-melee instance
-  (class-filtered picks over `list_ground_weapons()` by the existing
-  damage key); `apply_dev_ground_loadout` seats them active +
-  holstered; the `[DEV MODE]` log line names both sets.
+  (class-filtered picks over `list_ground_weapons()` via
+  `ground_weapon_sets.weapon_set`, not re-derived damage strings);
+  `apply_dev_ground_loadout` seats them active + holstered; the
+  `[DEV MODE]` log line names both sets. Pack + strength-30 bump
+  stay (pack stays 6); the strongest melee riding holstered AND in
+  the pack is harmless dev duplication. Existing pin
+  `test_dev_mode.py:265-295` (equipped `[rocket_launcher]`, pack
+  list, log line, strength) re-shapes in-commit; its SimpleNamespace
+  ctx gains the holstered field (ADVISE fold 7).
+  `_best_ground_weapon` keeps selecting `rocket_launcher` — the
+  overall max is also the ranged max.
 - **Guide** (`data/guide/__init__.py`): Controls & Keybindings, in
   the Combat list after the R line — exact wording (proposed, red-
   line at approval): `- X: swap weapon sets (free while exploring,
@@ -478,6 +510,88 @@ same commit.
 per-weapon until phase 3 — including no holstered visibility in
 the C screen), no pack-capacity work, no balance/board/`toggle_sets`
 stance work (phase 4), no tutorial or other guide edits (phase 5).
+
+### Phase 2 ADVISE pass (2026-09-25, pre-build — brief approved by
+### the /implement-phase 51.2 invocation; this pass is the missing
+### every-brief advisor round)
+
+Verdict: **ADVICE — 3 blocking, 5 minor; no ruling changes.** All
+eight folded into the brief above. Blockers: (1) the flag-reset
+formula must count `player_weapons(ctx)` (fists fallback), not the
+raw equipped list — else the empty-active swap kills FIRE entirely,
+breaking the SETTLED-1 fists floor; (2) a sixth inline dispatch
+elif breaches the 40-line ratchet on the 35-line
+`_dispatch_combat_action` — extract the `_run_rules_hook` runner;
+(3) `_handle_menu_event` (38 lines) takes the X branch as a 2-line
+delegation only. Minors: `_is_dev` + `_reveal_all_fog` move with
+the extraction (module-level table would cycle otherwise);
+post-move import pruning (Ruff F401); SETTLED 2's "~88 lines/~910"
+figures undercounted (true ≈165 lines → ≈840); the
+`test_dev_mode.py:265-295` grant pin re-shapes in-commit; the
+rules hook is async like `reload_weapon`. The pass also VERIFIED:
+import graph acyclic with the one-way direction; no test or caller
+references any moved symbol; `_handle_non_movement_event`
+reachable in all modes with dev-keys-first ordering keeping
+Shift+X dev-owned; plain-x unused everywhere today (faction-viewer
+X is modal-scoped); combat table shift-blind (key names
+lowercase-normalized, no x alias); dispatch can never fire with
+`_state` None (`rules.init` contract); HUD budget absorbs the
+HOLSTER row (worst case ends ACTIONS ≈row 48 of 60).
+
+### Phase 2 pre-implementation audit (2026-09-25, build session)
+
+**1. Existing modules to reuse** (anchors verified on the tree at
+911fc181):
+
+- `ground_weapon_sets.exchange_weapon_sets` + `weapon_set` (phase
+  1) — the verb body; the dev grant's class-filtered picks resolve
+  through `weapon_set`, never re-derived damage strings.
+- `combat/_loop.py` RELOAD dispatch (:557-562) — the rules-hook
+  shape the `_run_rules_hook` runner generalizes (RELOAD moves onto
+  it in the same commit; the 6a action-table entry at :77).
+- `_rules_ground` init semantics (:257 `player_weapons(ctx)` →
+  :275 `[True] * len(_weapons)`) — the swap's flag reset reuses the
+  same expression; `refresh_equipment_state` (:354) is the
+  precedent for flag maintenance after equipment changes.
+- `input_helpers` matcher family (`_is_c_press` shape + the
+  `_is_shift_press` factory :291) — `_is_x_press` mirrors `_is_c_press`
+  plus `not pygame_engine.has_shift(event)`.
+- `_ground_render` panel idioms: `_render_weapons_panel`'s return-y
+  flow, `display_name` + `[:HUD_TEXT_MAX]` truncation, and
+  `_COLOR_GROUND_WEAPON_DIM` for the HOLSTER row; the actions
+  legend pairs in `_render_actions_panel` (:435-440).
+- `dev_mode.apply_dev_ground_loadout` (:269) +
+  `_best_ground_weapon` (:247, stays = strongest-ranged) — the
+  grant re-shape site.
+
+**2. Duplication hotspots:** (a) the swap outcome line
+`"Weapon sets swapped."` written at two call sites (combat hook +
+explore helper) — drift risk against the UI-text-economy rule;
+(b) the dev grant re-deriving class filtering — folded to
+`weapon_set` (ADVISE); (c) the HUD row re-deriving name-join +
+truncation instead of the panel idiom; (d) RELOAD and SWAP_SETS
+twin dispatch branches — the runner IS the dedup (ADVISE fold 2).
+
+**3. DRY strategy:** (a) single-source the outcome line inside
+`ground_weapon_sets` as a lists+log mutation-wrapper
+(`exchange_weapon_sets` stays pure; the wrapper stays ctx-free —
+lists + log in, no ctx), both call sites route through it;
+(b) `weapon_set` for every class question; (c) one
+`_holster_names_row` helper inside `_ground_render` building the
+joined, truncated label; (d) the shared `_run_rules_hook` runner.
+Ratchet posture: game_loop ≈840 after the refactor (X branch +
+helper fit trivially); `_loop.py` ≈660; `_rules_ground.py` ≈971;
+`_ground_render.py` ≈455; `dev_mode.py` ≈735 — all under 1000,
+every touched function ≤40 (the two 40-line-wall sites handled per
+the folds).
+
+**Build-session rulings:** the outcome-line wrapper (3a) hosts in
+`ground_weapon_sets.py` taking `(equipped, holstered, log)` —
+ctx-free convention preserved, testable directly. The
+`_swap_weapon_sets_explore` helper lives at game_loop module level
+(post-refactor budget); its gate reads
+`_is_x_press(event) and state.current_mode != 'space'` at the
+2-line branch so the mode gate is visible at the call site.
 
 ### Phase 2 PLAYTEST (the verb)
 
