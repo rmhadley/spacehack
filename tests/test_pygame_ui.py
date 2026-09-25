@@ -2208,12 +2208,15 @@ def test_equipment_tab_split_frame_pairs_management_with_bandolier():
     right = list(frame.right_rows)
     assert len(right) == 6
     assert all(not row.selectable and not row.action for row in right)
-    labels = {row.label.split(" ")[0]: row.label for row in right}
-    assert "Pistol" in labels and labels["Pistol"].startswith("Pistol Rounds 132/160")
-    assert labels["Pistol"].endswith("(Kinetic Pistol)")
-    assert labels["Energy"].startswith("Energy Cells 0/250")
-    assert labels["Energy"].endswith("(Laser Pistol)")
-    assert labels["Rockets"].startswith("Rockets 0/10")
+    labels = [row.label for row in right]
+    # 52.3 playtest ruling: feeder suffixes removed, counts column-
+    # aligned (name column padded, both numbers right-justified to the
+    # cap width so cur, "/", and cap each own a column).
+    assert "Pistol Rounds   132/160" in labels
+    assert "Energy Cells      0/250" in labels
+    assert "Rockets           0/ 10" in labels
+    assert not any("(" in label for label in labels)
+    assert {label.index("/") for label in labels} == {19}
 
 
 def test_split_frame_explicit_tab_modes_override_label_defaults():

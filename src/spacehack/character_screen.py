@@ -92,46 +92,34 @@ def _split_equipment_rows(rows) -> tuple:
     )
 
 
-def _bandolier_feeder_names(weapons, ammo_type: str) -> list[str]:
-    """Display names of the equipped weapons feeding one caliber."""
-    from .data.ground_weapons import find_ground_weapon
-    from .ground_equipment import display_name
-
-    feeders = []
-    for _inst in weapons:
-        try:
-            if find_ground_weapon(_inst.weapon_id).ammo_type == ammo_type:
-                feeders.append(
-                    display_name("weapon", _inst.weapon_id, _inst.quality),
-                )
-        except KeyError:
-            continue
-    return feeders
-
-
 def _bandolier_rows(ctx: GameContext) -> tuple:
-    """The read-only bandolier panel: every caliber's current/max plus
-    the equipped weapons that feed it (doc 52.3 — the inventory view
-    the HUD's carried-caliber lines deliberately omit)."""
+    """The read-only bandolier panel: every caliber's current/max in an
+    aligned readout (doc 52.3 — the inventory view the HUD's
+    carried-caliber lines deliberately omit). Feeder names removed and
+    the counts column-aligned by the 52.3 playtest ruling (the
+    "(Rocket Launcher)" style suffixes read as noise and broke the
+    count column)."""
     from . import bandolier as _bandolier, pygame_split
     from .data.ground_items import list_ground_ammo
 
-    weapons = (
-        list(getattr(ctx, "equipped_ground_weapons", None) or [])
-        + list(getattr(ctx, "holstered_ground_weapons", None) or [])
-    )
     pool = getattr(ctx, "bandolier", None) or {}
-    rows = []
-    for spec in list_ground_ammo():
-        current = pool.get(spec.ammo_type, 0)
-        label = (
-            f"{spec.name} {current}/{_bandolier.effective_cap(spec.ammo_type)}"
+    entries = [
+        (
+            spec.name,
+            pool.get(spec.ammo_type, 0),
+            _bandolier.effective_cap(spec.ammo_type),
         )
-        feeders = _bandolier_feeder_names(weapons, spec.ammo_type)
-        if feeders:
-            label = f"{label}  ({', '.join(feeders)})"
-        rows.append(pygame_split.SplitRow(label, "", "", "", selectable=False))
-    return tuple(rows)
+        for spec in list_ground_ammo()
+    ]
+    name_w = max(len(name) for name, _cur, _cap in entries) + 2
+    num_w = max(len(str(cap)) for _name, _cur, cap in entries)
+    return tuple(
+        pygame_split.SplitRow(
+            f"{name:<{name_w}}{cur:>{num_w}}/{cap:>{num_w}}",
+            "", "", "", selectable=False,
+        )
+        for name, cur, cap in entries
+    )
 
 def _armor_effects(spec) -> str:
     """Format one armor piece's cybernetic bonuses, or an empty string."""
