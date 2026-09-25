@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from .. import world
-from .. import hud as _hud
+from .. import hud_combat as _hud
 from .. import message_log as _ml
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ..data.weapons import find_weapon as _find_weapon

@@ -583,7 +583,7 @@ def _paint_combat_hud(
 ) -> None:
     """Paint the combat HUD panel via the shared renderer."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
-    from .. import hud as _hud
+    from .. import hud_combat as _hud
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH,

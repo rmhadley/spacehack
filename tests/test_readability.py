@@ -16,7 +16,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import engine, hud, message_log, ui, world
+from src.spacehack import engine, hud, hud_combat, message_log, ui, world
 
 
 
@@ -255,7 +255,7 @@ def test_ascii_replacements_cover_known_runtime_glyphs():
     """Representative map/UI replacements remain explicit and readable."""
     assert world.TABLE.char == "~"
     assert ui.fit_text("A long mission title", 10) == "A long mi..."
-    assert hud._UNLIMITED_AMMO_LABEL == "INF"
+    assert hud_combat._UNLIMITED_AMMO_LABEL == "INF"
 
 
 def test_exploration_hud_advertises_console_log_in_space_and_ground_modes():
@@ -320,9 +320,9 @@ def test_primary_reading_palette_is_high_contrast_on_black():
         hud.COLOR_LABEL,
         hud.COLOR_SHIP_LABEL,
         hud.COLOR_HELP_DESC,
-        hud.COLOR_POWER,
-        hud.COLOR_COMBAT_WEAPON_DIM,
-        hud.COLOR_COMBAT_ACTION,
+        hud_combat.COLOR_POWER,
+        hud_combat.COLOR_COMBAT_WEAPON_DIM,
+        hud_combat.COLOR_COMBAT_ACTION,
     ):
         assert _contrast_against_black(color) >= 10.0, color
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.spacehack import hud
+from src.spacehack import hud, hud_combat
 from src.spacehack.ground_equipment import StoredGroundEquipment
 from src.spacehack.framebuffer import FrameBuffer
 
@@ -14,7 +14,7 @@ _WHITE = (255, 255, 255)
 def _shield_row(player_state: dict) -> tuple[str, list[int]]:
     """Render the shield row into a wide frame; return (row, white cells)."""
     console = FrameBuffer(40, 3)
-    hud._render_hull_shield_rows(console, 0, 0, player_state)
+    hud_combat._render_hull_shield_rows(console, 0, 0, player_state)
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     white = [x for x in range(40) if console.cell(x, 0).bg == _WHITE]
     return row, white
@@ -83,7 +83,7 @@ def test_weapons_header_keeps_offset_layout_and_is_not_clipped():
         "ap_remaining": 3, "power_pool": 20,
         "weapon_ammo": {i: -1 for i in range(4)},
     }
-    hud._render_weapons_block(
+    hud_combat._render_weapons_block(
         console, 0, 0,
         ("plasma_cannon",) * 4, [True] * 4, player_state, None,
     )
@@ -111,7 +111,7 @@ def test_enemy_name_is_not_clipped_to_nine_chars():
         hull = 20
 
     console = FrameBuffer(40, 1)
-    hud._render_enemy_row(console, 0, 0, Enemy(), True, None, None)
+    hud_combat._render_enemy_row(console, 0, 0, Enemy(), True, None, None)
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row == ">Pirate Interceptor"
 
@@ -293,7 +293,7 @@ def test_dungeon_help_lines_show_reload_control():
 def test_combat_actions_pair_two_per_row():
     """Combat key hints render two per row."""
     console = FrameBuffer(40, 4)
-    next_y = hud._render_combat_actions(console, 0, 0, ("a", "b", "c"))
+    next_y = hud_combat._render_combat_actions(console, 0, 0, ("a", "b", "c"))
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     assert row0 == "ACTIONS"
@@ -306,7 +306,7 @@ def test_space_weapon_row_includes_range():
     from src.spacehack.data.weapons import find_weapon
     ws = find_weapon("heavy_laser")
     console = FrameBuffer(40, 3)
-    hud._render_weapon_row(
+    hud_combat._render_weapon_row(
         console, 0, 0, 0, "heavy_laser", ws, 0, True, {"heavy_laser": 68},
     )
     stats_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
@@ -322,7 +322,7 @@ def test_shield_row_survives_the_wider_combat_console():
         "hull": 135, "max_hull": 135, "shields": 135, "max_shields": 135,
         "shield_regen_rate": 0, "shield_recharge_bonus": 8,
     }
-    hud._render_hull_shield_rows(console, SCREEN_WIDTH - HUD_WIDTH, 0, player_state)
+    hud_combat._render_hull_shield_rows(console, SCREEN_WIDTH - HUD_WIDTH, 0, player_state)
     row = "".join(console.cell(x, 0).char for x in range(SCREEN_WIDTH - HUD_WIDTH, SCREEN_WIDTH + HUD_WIDTH))
     assert row.rstrip() == "Shd  ########## 135/135 +8"
 
@@ -344,7 +344,7 @@ def test_ap_row_shows_pool_with_carry():
         "ap_remaining": 3, "ap_total": 4, "ap_carry_twentieths": 10,
         "power_pool": 10, "max_power": 10, "power_gen": 1,
     }
-    hud._render_ap_evade_pow_rows(console, 0, 0, player_state, None)
+    hud_combat._render_ap_evade_pow_rows(console, 0, 0, player_state, None)
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row.startswith("AP: 3/4.5")
 
@@ -353,7 +353,7 @@ def test_board_hint_only_when_boardable():
     """The [d] Board hint renders only while the target is boardable
     (doc 40 6a) — same conditional rule as the weapon-swap hint."""
     console = FrameBuffer(40, 6)
-    hud._render_combat_actions(console, 0, 0, ("a",), can_board=False)
+    hud_combat._render_combat_actions(console, 0, 0, ("a",), can_board=False)
     _flat = "".join(
         console.cell(x, y).char
         for y in range(6) for x in range(40)
@@ -361,7 +361,7 @@ def test_board_hint_only_when_boardable():
     assert "Board" not in _flat
 
     console = FrameBuffer(40, 6)
-    hud._render_combat_actions(console, 0, 0, ("a",), can_board=True)
+    hud_combat._render_combat_actions(console, 0, 0, ("a",), can_board=True)
     _flat = "".join(
         console.cell(x, y).char
         for y in range(6) for x in range(40)
