@@ -1,5 +1,5 @@
-"""Balance-sim harness (doc 50 phase 1) — build real state, run real
-combat, headless and inert.
+"""Balance-sim harness (doc 50 phases 1-2) — build real state, run real
+combat (space and ground), headless and inert.
 
 Everything the fight needs is REAL: the rules module, the loop's own
 dispatch helpers, the enemy AI, the quality rolls, the reinforcement
@@ -13,8 +13,9 @@ a zero-length yield. No AI or rules internals are monkeypatched.
 The sim loop mirrors ``combat/_loop._run_combat_impl`` step by step,
 sharing its actual helper bodies (end check, retarget, dispatch,
 end-turn, finish) and replacing only the two presentation seams:
-render/present (dropped) and input (the stance). Cross-reference any
-change to ``_run_combat_impl`` here.
+render/present (dropped) and input (the stance). Ground rows build on
+the planet's LIVE delve pipeline under the row's fixed grid seed
+(SETTLED 4/5). Cross-reference any change to ``_run_combat_impl`` here.
 """
 
 from __future__ import annotations
@@ -25,27 +26,58 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Iterator
 
-from src.spacehack import animation_timing, engine, solar_system, world
-from src.spacehack.character import starting_pilot_skills
-from src.spacehack.combat import _actions, _ai, _loop, _rules_space
+from src.spacehack import (
+    animation_timing,
+    engine,
+    ground_npcs,
+    noise,
+    solar_system,
+    world,
+)
+from src.spacehack.character import starting_ground_stats, starting_pilot_skills
+from src.spacehack.combat import (
+    _actions,
+    _ai,
+    _ai_ground,
+    _ground_charger,
+    _loop,
+    _rules_ground,
+    _rules_space,
+)
+from src.spacehack.combat._animations import _has_los
+from src.spacehack.combat._stats import _distance
+from src.spacehack.data.ground_weapons import find_ground_weapon
+from src.spacehack.data.npc_chars import find_npc_char
 from src.spacehack.data.npc_ships import find_npc_ship
 from src.spacehack.data.pilot_skills import PilotSkills
 from src.spacehack.data.ships import find_ship
 from src.spacehack.game_context import PlayerCounters
+from src.spacehack.ground_equipment import (
+    GroundItemStack,
+    StoredGroundEquipment,
+    add_item_stack,
+    install_armor,
+    install_weapon,
+    reserve_ammo_count,
+    sum_armor_bonus,
+)
 from src.spacehack.message_log import MessageLog
 from src.spacehack.ship import (
     OwnedShip,
     StoredEquipment,
     install_stored_equipment,
 )
+from src.spacehack.xp import ground_max_hp_bonus
 
 from tests.support.asyncutil import run as _async_run
 
 # Modules holding import-time ``from ..engine import RNG`` bindings —
 # the hit/loot roll sites. seed_rng REBINDS engine.RNG, so each run
 # must refresh these to the same instance or the batch's rolls split
-# across two Random objects (doc 50 audit §4).
-_RNG_MODULES = (_loop, _ai, _actions)
+# across two Random objects (doc 50 audit §4). The ground theater adds
+# the ground AI, the noise/investigation rolls, and the ambient patrol
+# pass (doc 50 SETTLED 5 rebind set).
+_RNG_MODULES = (_loop, _ai, _actions, _ai_ground, noise, ground_npcs)
 
 # A stuck fight is itself a balance finding, never a hung test.
 TURN_CAP = 200
@@ -253,15 +285,11 @@ def build_pilot_skills(sheet) -> PilotSkills:
     return skills
 
 
-def build_ctx(sheet, game_map, player_start) -> SimpleNamespace:
-    """The combat-side GameContext: every field the fight touches,
-    pinned with real values (no MagicMock defaults to misread)."""
-    player = world.Entity(
-        "@", (255, 255, 255), world.Position(*player_start),
-        "Player", owned=True,
-    )
-    return SimpleNamespace(
-        player_owned_ship=build_owned_ship(sheet),
+def _ctx_core(sheet, game_map, player) -> dict:
+    """Fields every theater's ctx carries, pinned with real values (no
+    MagicMock defaults to misread) — the shared spine of the space and
+    ground ctx builders."""
+    return dict(
         player=player,
         game_map=game_map,
         context=_fake_pygame_context(),
@@ -292,12 +320,23 @@ def build_ctx(sheet, game_map, player_start) -> SimpleNamespace:
         # fields — read (guarded or not) by the reinforcement path.
         line_defiance_system=None,
         line_comply_latch=False,
-        ground_expedition_inventory={},
+        ground_expedition_inventory=[],
         ground_expedition_items=[],
         ship_storage=[],
         broadcast_dark=False,
         broadcast_identity=None,
     )
+
+
+def build_ctx(sheet, game_map, player_start) -> SimpleNamespace:
+    """The space-side ctx: the core spine plus the flown ship."""
+    player = world.Entity(
+        "@", (255, 255, 255), world.Position(*player_start),
+        "Player", owned=True,
+    )
+    fields = _ctx_core(sheet, game_map, player)
+    fields["player_owned_ship"] = build_owned_ship(sheet)
+    return SimpleNamespace(**fields)
 
 
 def _body_rects(system) -> tuple[tuple[int, int, int, int], ...]:
@@ -341,12 +380,7 @@ def build_game_map(grid) -> world.GameMap:
         kind="planet", char="O", walkable=False,
         fg=(200, 180, 120), bg=(40, 36, 24),
     )
-    for bx, by, bw, bh in blocks:
-        for dy in range(bh):
-            for dx in range(bw):
-                x, y = bx + dx, by + dy
-                if 0 <= x < grid.width and 0 <= y < grid.height:
-                    tiles[y][x] = blocked
+    _stamp_blocks(tiles, blocks, blocked)
     return world.GameMap(
         width=grid.width, height=grid.height, tiles=tiles, entities=[],
     )
@@ -364,6 +398,168 @@ def _seed_enemy_entities(game_map, enemies) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Ground builders (doc 50 phase 2, SETTLED 4/5)
+# ---------------------------------------------------------------------------
+
+
+def build_ground_loadout(sheet) -> tuple:
+    """The declared ground kit through the equipment module's own
+    install path: weapons occupy their hands slots (magazines seed
+    FULL via ``weapon_instance``), armor fills its catalog slot, pack
+    stacks land through ``add_item_stack``'s capacity rules."""
+    weapons: list = []
+    storage = [
+        StoredGroundEquipment("weapon", weapon_id)
+        for weapon_id in sheet.ground_weapon_ids
+    ]
+    while storage:
+        install_weapon(weapons, storage, 0)
+    armor: dict = {}
+    for armor_id in sheet.ground_armor_ids:
+        install_armor(
+            armor, [StoredGroundEquipment("armor", armor_id)], 0,
+        )
+    items: list = []
+    for item_id, quantity in sheet.ground_ammo:
+        remainder = add_item_stack(
+            [], items, GroundItemStack("ammo", item_id, quantity),
+            strength=sheet_strength(sheet),
+        )
+        assert remainder is None, (
+            f"ground_ammo {item_id}x{quantity} does not fit the pack "
+            "(expedition capacity is strength-derived)"
+        )
+    return weapons, armor, items
+
+
+def sheet_strength(sheet) -> int:
+    """The sheet's ground Strength — drives expedition pack capacity."""
+    return starting_ground_stats(sheet.species_id, sheet.class_id).strength
+
+
+def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
+    """The ground-side ctx: the core spine plus the ground fields the
+    rules touch. HP seeds at the sheet's true ground max — the
+    GameContext default 23 must never leak into a ground ctx
+    (SETTLED 5: the tutorial sheet's max is 28 = 20 + stamina 24//3,
+    and the fight's own ``_player_hp_state`` growth lands there)."""
+    player = world.Entity(
+        "@", (255, 255, 255), world.Position(*player_start), "Player",
+    )
+    fields = _ctx_core(sheet, game_map, player)
+    weapons, armor, items = build_ground_loadout(sheet)
+    stats = starting_ground_stats(sheet.species_id, sheet.class_id)
+    fields["ground_stats"] = stats
+    fields["equipped_ground_weapons"] = weapons
+    fields["equipped_ground_armor"] = armor
+    fields["ground_expedition_items"] = items
+    ctx = SimpleNamespace(**fields)
+    # The trait-aware max (the same fold ``_player_hp_state`` performs);
+    # seeded full — the default 23 never leaks into a ground ctx.
+    ctx.ground_max_hp = ctx.ground_hp = (
+        20 + stats.stamina // 3
+        + sum_armor_bonus(armor.values(), "hp_bonus")
+        + ground_max_hp_bonus(ctx)
+    )
+    return ctx
+
+
+def _quest_shell_ctx() -> SimpleNamespace:
+    """The minimal ctx the planet-pipeline prepare step reads — quest
+    progress is empty (the tutorial's sealed-door Mars moment: the
+    landmark stamps, the stairs conceal)."""
+    return SimpleNamespace(
+        main_quest_progress={},
+        main_quest_chain="",
+        faction_reputation={},
+        log=MessageLog(capacity=50),
+    )
+
+
+async def build_planet_grid(grid) -> tuple:
+    """Planet mode: the LIVE delve pipeline under the row's fixed grid
+    seed — generate (tiles only) → the planet's prepare step (the tile
+    mutations the fight happens among) → SKIP populate (the entity
+    scatter; SETTLED 4's isolated fight). Returns (map, spawn). The
+    RNG world is snapshotted/restored around the build: the pipeline
+    reads ``engine.RNG`` at call time, and a direct call (outside
+    begin_run) must never leave the process's RNG split across
+    instances."""
+    from src.spacehack.data.planets import find_planet_spec
+    from src.spacehack.dungeon_bsp import generate_dungeon
+    from src.spacehack import main_quest
+
+    pspec = find_planet_spec(grid.planet_id)
+    params = pspec.dungeon_params
+    assert (grid.width, grid.height) == (params.width, params.height), (
+        f"{grid.planet_id} grid must match the planet's "
+        f"{params.width}x{params.height} DungeonParams"
+    )
+    _snapshot_rng_world()
+    try:
+        engine.seed_rng(grid.grid_seed)
+        game_map, spawn = generate_dungeon(params)
+        if grid.planet_id == "mars":
+            await main_quest.prepare_mars_surface(
+                _quest_shell_ctx(), game_map, spawn,
+            )
+        else:
+            main_quest.prepare_delve_site(
+                _quest_shell_ctx(), game_map, spawn, grid.planet_id,
+            )
+    finally:
+        _restore_rng_world()
+    # Only the declared combatants fight: discard everything the
+    # prepare step stamped (the cache guardian included).
+    game_map.entities = []
+    return game_map, spawn
+
+
+def _stamp_blocks(tiles, blocks, tile) -> None:
+    """Stamp unwalkable rect blocks (x, y, w, h) onto a tile grid,
+    clipped to the map — the shared stamping of both grid builders."""
+    height, width = len(tiles), len(tiles[0])
+    for bx, by, bw, bh in blocks:
+        for dy in range(bh):
+            for dx in range(bw):
+                x, y = bx + dx, by + dy
+                if 0 <= x < width and 0 <= y < height:
+                    tiles[y][x] = tile
+
+
+def build_ground_grid(grid) -> world.GameMap:
+    """Synthetic ground geometry (SETTLED 4's hand-built option): a
+    dungeon-floor map with the declared rect blocks stamped as walls."""
+    tiles = [
+        [world.DUNGEON_FLOOR for _ in range(grid.width)]
+        for _ in range(grid.height)
+    ]
+    _stamp_blocks(tiles, grid.blocks, world.DUNGEON_WALL)
+    return world.GameMap(
+        width=grid.width, height=grid.height, tiles=tiles, entities=[],
+    )
+
+
+def _seed_ground_enemies(game_map, enemies) -> list:
+    """Place each declared ground combatant — the ``npc_char_id`` +
+    ``spawn_band`` stamps ``_rules_ground.init`` resolves through."""
+    seeded = []
+    for side in enemies:
+        spec = find_npc_char(side.spec_id)
+        assert game_map.tiles[side.pos[1]][side.pos[0]].walkable, (
+            f"{side.spec_id} cell {side.pos} is not floor on the "
+            "declared grid — the row's audit pin has drifted"
+        )
+        entity = world.Entity(
+            spec.char, spec.fg, world.Position(*side.pos), spec.name,
+            npc_char_id=spec.id, spawn_band=side.band,
+        )
+        game_map.entities.append(entity)
+        seeded.append(entity)
+    return seeded
+
+
+# ---------------------------------------------------------------------------
 # Stances — the player policy vocabulary (SETTLED 3)
 # ---------------------------------------------------------------------------
 
@@ -375,10 +571,150 @@ async def stand_and_trade(ctx, rules) -> str:
     Reads affordability through the real rules — AP, power, LOS — so
     the stance flies exactly what the keyboard's FIRE key would.
     """
-    weapons = rules.player_weapons(ctx)
-    slots = _loop._fire_slot_indexes(weapons, rules.active_weapons(ctx))
+    if any(rules.can_fire(slot, ctx)[0] for slot in _fire_slots(ctx, rules)):
+        return "FIRE"
+    return "WAIT"
+
+
+# (dx, dy) -> a MOVE key name the dispatch accepts, vim letters first
+# so the choice is deterministic.
+_MOVE_KEY_BY_DELTA: dict[tuple[int, int], str] = {}
+for _name, _delta in (
+    *world.VIM_DELTAS.items(),
+    *world.ARROW_DELTAS.items(),
+    *world.NUMPAD_DELTAS.items(),
+):
+    _MOVE_KEY_BY_DELTA.setdefault(_delta, _name)
+
+
+def _fire_slots(ctx, rules) -> list[int]:
+    """Active slot indexes through the real rules' own helpers."""
+    return _loop._fire_slot_indexes(
+        rules.player_weapons(ctx), rules.active_weapons(ctx),
+    )
+
+
+def _dry_reloadable_slot(ctx, rules, slots) -> int | None:
+    """The first active slot whose magazine cannot feed a shot, with a
+    matching reserve remaining and an affordable reload — a RELOAD the
+    dispatch cannot perform would loop forever, so the AP gate lives
+    in the stance too. NOTE: the dispatch's reload picks the first
+    slot with ROOM (a partial magazine tops off), not the first dry
+    one — identical weapons converge (every shipped row); a future
+    mixed-reload-cost row could livelock here until ACTION_CAP raises,
+    loudly."""
+    instances = ctx.equipped_ground_weapons
+    for slot in slots:
+        if slot >= len(instances):
+            continue
+        instance = instances[slot]
+        if instance.loaded_ammo is None:
+            continue  # infinite-ammo weapon is never dry
+        spec = find_ground_weapon(instance.weapon_id)
+        if instance.loaded_ammo >= spec.ammo_per_shot:
+            continue
+        if reserve_ammo_count(ctx.ground_expedition_items, spec.ammo_type) <= 0:
+            continue
+        if rules.player_ap(ctx) < spec.reload_ap_cost:
+            continue
+        return slot
+    return None
+
+
+def _validated_step(ctx, game_map, dx: int, dy: int) -> tuple[int, int] | None:
+    """One candidate step, checked through the real movement collision."""
+    from src.spacehack.combat._actions import move_entity
+
+    _new_pos, ok = move_entity(
+        ctx.player.pos, dx, dy, game_map, exclude=ctx.player,
+    )
+    return (dx, dy) if ok else None
+
+
+def _approach_step(ctx, game_map, target) -> tuple[int, int] | None:
+    """A step toward the reference target via the real A* pathfinder
+    (goal = the cells beside the target — it is occupied)."""
+    from src.spacehack.world_path import find_path
+
+    goals = {
+        (target.pos.x + dx, target.pos.y + dy)
+        for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+        if (dx, dy) != (0, 0)
+    }
+    path = find_path(
+        (ctx.player.pos.x, ctx.player.pos.y), goals, game_map,
+        exclude_entity=ctx.player,
+    )
+    if not path:
+        return None
+    # find_path's path EXCLUDES the start cell — path[0] is the step.
+    step = (path[0][0] - ctx.player.pos.x, path[0][1] - ctx.player.pos.y)
+    return _validated_step(ctx, game_map, *step)
+
+
+def _retreat_step(ctx, game_map, target) -> tuple[int, int] | None:
+    """A step away from the reference target (max distance gain,
+    deterministic by delta order) — the back-off inside min range."""
+    here = (ctx.player.pos.x, ctx.player.pos.y)
+    target_dist = _distance(ctx.player.pos, target.pos)
+    best, best_gain = None, 0.0
+    for dx, dy in _MOVE_KEY_BY_DELTA:
+        step = _validated_step(ctx, game_map, dx, dy)
+        if step is None:
+            continue
+        moved = world.Position(here[0] + dx, here[1] + dy)
+        gain = _distance(moved, target.pos) - target_dist
+        if gain > best_gain:
+            best, best_gain = step, gain
+    return best
+
+
+def _band_step(ctx, rules, target, slots) -> tuple[int, int] | None:
+    """The SETTLED-4 band rule against the reference target: approach
+    when beyond the reference weapon's max range or without LOS; back
+    off inside its min range (the doc 48 SETTLED-26 mirror). Band
+    numbers come from the same ``weapon_range`` ``can_fire`` enforces.
+    """
+    reference = rules.player_weapons(ctx)[slots[0]]
+    min_range, max_range = _ground_charger.weapon_range(
+        reference, ctx, rules.player_ap(ctx),
+    )
+    dist = int(_distance(ctx.player.pos, target.pos))
+    game_map = ctx.game_map
+    los = _has_los(
+        game_map,
+        ctx.player.pos.x, ctx.player.pos.y,
+        target.pos.x, target.pos.y,
+    )
+    if dist > max_range or not los:
+        return _approach_step(ctx, game_map, target)
+    if dist < min_range:
+        return _retreat_step(ctx, game_map, target)
+    return None  # inside the band — hold
+
+
+async def hold_range(ctx, rules) -> str:
+    """The ground policy (SETTLED 4+5): aim at the closest alive enemy,
+    FIRE while any active slot passes the real ``can_fire``, RELOAD a
+    dry slot with reserve, MOVE one step per the band rule, else WAIT.
+    Every action is a keyboard string through the real dispatch — the
+    stance never calls rules internals to mutate state."""
+    enemies = rules.get_enemies(ctx)
+    if not enemies:
+        return "WAIT"
+    distances = [_distance(ctx.player.pos, e.pos) for e in enemies]
+    closest = distances.index(min(distances))
+    if closest != rules._state.target_idx:
+        return "TARGET"
+    slots = _fire_slots(ctx, rules)
     if any(rules.can_fire(slot, ctx)[0] for slot in slots):
         return "FIRE"
+    if _dry_reloadable_slot(ctx, rules, slots) is not None:
+        return "RELOAD"
+    if rules.player_ap(ctx) > 0:
+        step = _band_step(ctx, rules, enemies[closest], slots)
+        if step is not None:
+            return f"MOVE:{_MOVE_KEY_BY_DELTA[step]}"
     return "WAIT"
 
 
@@ -388,6 +724,7 @@ async def stand_and_trade(ctx, rules) -> str:
 # needs one (SETTLED 3); nothing ships here unused.
 STANCES = {
     "stand_and_trade": stand_and_trade,
+    "hold_range": hold_range,
 }
 
 
@@ -398,9 +735,10 @@ STANCES = {
 
 @dataclass(frozen=True)
 class RunResult:
-    """One fight's outcome: result string, turns used, hull damage."""
+    """One fight's outcome: result string, turns used, damage taken
+    (hull in the space theater, HP on the ground)."""
 
-    outcome: str        # "VICTORY" | "DEFEAT" | "TIMEOUT"
+    outcome: str        # "VICTORY" | "DEFEAT" | "TIMEOUT" | "DISENGAGED"
     turns: int
     hull_damage_taken: int
 
@@ -442,9 +780,11 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
 
 async def _run_once_async(row, run_index: int) -> RunResult:
     """One seeded fight: fresh state, real init, the mirror loop."""
-    rules = _rules_space
+    rules = (
+        _rules_ground if row.theater == "ground" else _rules_space
+    )
     try:
-        ctx, game_map, console, rules = begin_run(row, run_index)
+        ctx, game_map, console, rules = await begin_run(row, run_index)
         return await _mirror_loop(
             ctx, game_map, console, rules, STANCES[row.stance],
         )
@@ -454,17 +794,23 @@ async def _run_once_async(row, run_index: int) -> RunResult:
         end_run(rules)
 
 
-def begin_run(row, run_index: int):
+async def begin_run(row, run_index: int):
     """Build one fight's full state: grid, entities, seeded ctx, real init.
 
-    Returns ``(ctx, game_map, console, rules)`` with the RNG already
-    rebound to the run's derived seed, the row's system pinned as the
-    ambient system (so the reinforcement path fights in the declared
-    system no matter what the carrying process left behind), and the
-    borrowed world snapshotted for ``end_run`` — the stance unit
-    tests drive this same state the runner fights from.
+    Dispatches on the row's theater; returns ``(ctx, game_map,
+    console, rules)`` with the RNG already rebound to the run's derived
+    seed and the borrowed world snapshotted for ``end_run`` — the
+    stance unit tests drive this same state the runner fights from.
     """
     _snapshot_rng_world()
+    if row.theater == "ground":
+        return await _begin_ground_run(row, run_index)
+    return _begin_space_run(row, run_index)
+
+
+def _begin_space_run(row, run_index: int):
+    """The space fight's state (phase 1): system map, ship entities,
+    the real ``_rules_space.init`` at the encounter's argument shape."""
     if row.grid.system_id:
         solar_system.set_current_solar_system(row.grid.system_id)
     game_map = build_game_map(row.grid)
@@ -486,6 +832,36 @@ def begin_run(row, run_index: int):
     # camera. Verified outcome-neutral (A/B over identical seeds) —
     # view size feeds render/camera math alone, never combat.
     rules._state.view_w, rules._state.view_h = 40, 27
+    return ctx, game_map, console, rules
+
+
+async def _begin_ground_run(row, run_index: int):
+    """The ground fight's state (phase 2): the planet-pinned delve
+    grid under the row's fixed seed (synthetic geometry when no
+    planet is declared), the declared combatants only, the entry
+    invariants (fog + reveal at spawn), and the real
+    ``_rules_ground.init`` — enemy weapon and carried-consumable rolls
+    resolve inside the seeded run."""
+    if row.grid.planet_id:
+        game_map, spawn = await build_planet_grid(row.grid)
+        assert (spawn.x, spawn.y) == tuple(row.player_start), (
+            f"{row.grid.planet_id} grid_seed {row.grid.grid_seed} now "
+            f"spawns at {(spawn.x, spawn.y)}, not the row's pinned "
+            f"{row.player_start} — the audit pin has drifted"
+        )
+    else:
+        game_map = build_ground_grid(row.grid)
+    ctx = build_ground_ctx(row.player, game_map, row.player_start)
+    game_map.entities.append(ctx.player)
+    enemy_entities = _seed_ground_enemies(game_map, row.enemies)
+    from src.spacehack.dungeon import init_fog, reveal_around
+
+    init_fog(game_map)
+    reveal_around(game_map, ctx.player.pos, radius=game_map.sight_radius)
+    _rebind_run_rng(derived_seed(row.seed, run_index))
+    console = _AbsorbingConsole()
+    rules = _rules_ground
+    rules.init(ctx, enemy_entities, game_map, console=console)
     return ctx, game_map, console, rules
 
 
@@ -536,16 +912,20 @@ class BatchReport:
     ``win_rate`` covers every run; the rounds/damage means cover WON
     runs only — the goal shape is "wins come easily", and losing
     runs' shorter, cheaper fights would flatter those bars.
+    DISENGAGED counts alongside TIMEOUT as unresolved (SETTLED 5) —
+    never a win, never a defeat; a nonzero count is itself a
+    stance/geometry finding named at the checkpoint.
     """
 
     runs: int
     wins: int
     defeats: int
     timeouts: int
-    win_rate: float
-    mean_turns: float
-    max_turns: int
-    mean_hull_damage_taken: float
+    disengagements: int = 0
+    win_rate: float = 0.0
+    mean_turns: float = 0.0
+    max_turns: int = 0
+    mean_hull_damage_taken: float = 0.0
 
 
 def aggregate(results: list[RunResult]) -> BatchReport:
@@ -553,6 +933,7 @@ def aggregate(results: list[RunResult]) -> BatchReport:
     wins = [r for r in results if r.outcome == "VICTORY"]
     defeats = [r for r in results if r.outcome == "DEFEAT"]
     timeouts = [r for r in results if r.outcome == "TIMEOUT"]
+    disengaged = [r for r in results if r.outcome == "DISENGAGED"]
     n = len(results)
     mean_turns = (
         sum(r.turns for r in wins) / len(wins) if wins else 0.0
@@ -565,6 +946,7 @@ def aggregate(results: list[RunResult]) -> BatchReport:
         wins=len(wins),
         defeats=len(defeats),
         timeouts=len(timeouts),
+        disengagements=len(disengaged),
         win_rate=(len(wins) / n) if n else 0.0,
         mean_turns=mean_turns,
         max_turns=max((r.turns for r in results), default=0),

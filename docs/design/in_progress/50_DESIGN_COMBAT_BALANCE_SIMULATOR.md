@@ -282,6 +282,12 @@ GameContext default 23 must never leak into a ground ctx; the
 taught loadout is exactly one 40-round stack; magazines seed full
 at 12; level 1 is honest — the tutorial's level-up top-up fires
 only after the fight and ground math reads `ground_stats` only).
+BUILD-SESSION DEBT (2026-09-25 review pass, recorded for the next
+trait-bearing ground row): `_ground_deadshot` holds an import-time
+`engine.RNG` binding outside the rebind set — unreachable today
+(no shipped row declares traits), but a deadshot-trait row must add
+it to `_RNG_MODULES` or its rolls split across instances (the row's
+determinism pin would catch it loudly).
 
 ## The scenario data model (the row — SETTLED 2-5 shape)
 
@@ -375,7 +381,18 @@ numbers.
   phase as its one ruled src exception).
   Swapped ahead of the CLI front (user, 2026-09-24): real machinery
   with a live trigger (doc 48's ground work) beats an optional
-  front. Brief below (PROPOSED).
+  front. Brief below (PROPOSED → approved by the build session,
+  2026-09-25).
+  BUILT 2026-09-25 (ground theater commit + the R-key fix at
+  603077a2; reviewer APPROVE with four minors, all applied/recorded).
+  Measured through the harness (N=100, seed base 20260925, grid seed
+  115, hold_range): **win rate 1.00 — a SURE THING**; mean turns
+  (won) 3.11, max 4; mean HP damage taken (won) 4.68; zero defeats,
+  timeouts, disengagements. The Goal-1 ceiling precedent reads this
+  as broken the other way ("never a sure thing") — the checkpoint
+  rules the response. Suite cost: the ground batch adds ~105s to
+  `make check` (total gate 196s). The checkbox ticks only with the
+  ruled numbers asserted green.
 - [ ] 3. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
   reading the same rows for bulk runs and richer output than an
   assert (SETTLED 1's optional front). Cut only when a tuning session
@@ -545,6 +562,27 @@ center is item 3, the threshold ruling; the phase ticks only with
 the ruled numbers asserted green.
 
 ### Phase 2 PLAYTEST (checkpoint = the Goal-2 ruling)
+
+**Checkpoint record (2026-09-25, measured through the harness, N=100,
+seed base 20260925, grid seed 115, hold_range):**
+
+| metric | measured |
+|---|---|
+| win rate | **1.00** (100 wins, 0 defeats) |
+| mean turns (won runs) | 3.11 (max 4) |
+| mean HP damage taken (won runs) | 4.68 |
+| timeouts / disengagements | 0 / 0 |
+
+Read: the tutorial's Mars fight is currently a SURE THING — the
+starter with two pistols deletes a three-scavenger first-sight pack
+in ~3 turns taking ~5 HP. The Goal-1 ceiling precedent ("never a
+sure thing") flags this symmetrically: a first ground fight that
+cannot be lost teaches nothing. Also of note: the 40-round reserve
+is never reached (6 volleys × 2 rounds = 12 rounds < one magazine
+pair), so the reload lesson the tutorial teaches is never
+load-bearing in the reference fight. The ruling is the user's:
+ceiling bar as-is, ground-spec tuning as a separate decision, or
+both.
 
 1. `python3 -m tests.balance.report` — read the Mars row's measured
    table (win rate, mean/max turns, mean HP damage taken, timeouts,

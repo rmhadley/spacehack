@@ -44,10 +44,9 @@ class PlayerSheet:
     """The complete player side (SETTLED 2: 'all the things').
 
     Level-1 sheets derive skills through ``starting_pilot_skills``;
-    higher levels will carry declared skill spends when a scenario
-    needs them (the harness raises on level != 1 until then).
-    ``ground_*`` fields exist for the phase-2 ground theater; space
-    runs ignore them.
+    higher levels carry declared skill spends (``skill_spends``). The
+    ground fields declare the ground loadout (SETTLED 4); each theater
+    ignores the other's fields.
     """
 
     species_id: str
@@ -61,16 +60,30 @@ class PlayerSheet:
     # level past 1, applied by the harness onto the starting skills
     # (the same +1-per-point fold ``xp._apply_skill_point`` does).
     skill_spends: tuple[tuple[str, int], ...] = ()
+    # Ground theater (doc 50 SETTLED 4): weapons install through the
+    # equipment module's own path (magazines seed full); armor ids fill
+    # their catalog slots; ground_ammo packs reserve stacks by catalog
+    # id + rounds (``(("pistol_rounds", 40),)`` — the stack's
+    # ammo_type links it to the weapon through the real matching
+    # helpers). Each theater ignores the other's fields.
     ground_weapon_ids: tuple[str, ...] = ()
-    ground_armor_id: str = ""
+    ground_armor_ids: tuple[str, ...] = ()
+    ground_ammo: tuple[tuple[str, int], ...] = ()
 
 
 @dataclass(frozen=True)
 class EnemySide:
-    """One enemy combatant: spec id + start cell (x, y)."""
+    """One enemy combatant: spec id + start cell (x, y).
+
+    ``band`` stamps ``spawn_band`` — the ground band the instance
+    resolves at through ``ground_scale.entity_band`` (doc 50 SETTLED 4;
+    0 = site-derived, so ground rows DECLARE it). Space rows never
+    touch it (SETTLED 5: the landed goal_1 row needed no edit).
+    """
 
     spec_id: str
     pos: tuple[int, int]
+    band: int = 0
 
 
 @dataclass(frozen=True)
@@ -82,14 +95,18 @@ class GridSpec:
     catalog and derives the blocking body footprints from it at build
     time — composition by id, so a body move in the system spec flows
     into scenarios instead of fighting on a stale copy. A
-    system-less grid is synthetic geometry: size + unwalkable rect
-    blocks (x, y, w, h), stamped as-is.
+    ``planet_id`` grid runs the planet's LIVE delve pipeline under the
+    row's fixed ``grid_seed`` (dims asserted against the planet's
+    ``DungeonParams``). A grid with neither is synthetic geometry:
+    size + unwalkable rect blocks (x, y, w, h), stamped as-is.
     """
 
     width: int
     height: int
     blocks: tuple[tuple[int, int, int, int], ...] = ()
     system_id: str = ""
+    planet_id: str = ""
+    grid_seed: int = 0
 
 
 @dataclass(frozen=True)
@@ -97,7 +114,7 @@ class BalanceScenario:
     """One protected situation: both sides, the grid, the stance, N runs."""
 
     id: str
-    theater: str                  # "space" (ground rows join phase 2)
+    theater: str                  # "space" | "ground" (SETTLED 4)
     goal: str                     # the stated feel goal, verbatim
     player: PlayerSheet
     player_start: tuple[int, int]  # the live fight's first-trigger cell
@@ -145,6 +162,43 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             win_rate_floor=0.94,
             win_rate_ceiling=0.99,
         ),
+    ),
+    BalanceScenario(
+        id="goal_2_starter_mars_delve",
+        theater="ground",
+        goal=(
+            "A fresh pilot with two Kinetic Pistols can win the "
+            "tutorial's Mars ground fight pretty easily."
+        ),
+        player=PlayerSheet(
+            # The tutorial moment's full sheet: the space side as
+            # goal_1 pins it (the player flew the starter + laser pair
+            # + shield to Mars) and the taught ground side — two
+            # Kinetic Pistols, exactly one 40-round Pistol Rounds
+            # stack (the tutorial's own armory beat), no armor.
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            ground_weapon_ids=("kinetic_pistol", "kinetic_pistol"),
+            ground_ammo=(("pistol_rounds", 40),),
+        ),
+        # Audit-pinned (doc 50 phase-2 audit §3): grid_seed 115's
+        # live Mars pipeline spawns at (100, 47) with one scavenger
+        # squad's first three members visible at sight edge — the
+        # canonical first-sight fight of the tutorial descent.
+        player_start=(100, 47),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+        ),
+        grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
+        stance="hold_range",
+        runs=100,
+        seed=20260925,
+        thresholds=None,  # report-only until the checkpoint rules them
     ),
 )
 

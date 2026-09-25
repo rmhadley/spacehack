@@ -28,18 +28,22 @@ def _print_row(row) -> None:
     print(
         f"stance={row.stance}  runs={row.runs}  base_seed={row.seed} "
         f"(run i seeds base+i)"
+        + (
+            f"  grid_seed={row.grid.grid_seed} (planet {row.grid.planet_id})"
+            if row.grid.planet_id else ""
+        )
     )
     print(
         f"win_rate={report.win_rate:.3f}  "
         f"wins={report.wins}  defeats={report.defeats}  "
-        f"timeouts={report.timeouts}"
+        f"timeouts={report.timeouts}  disengaged={report.disengagements}"
     )
     print(
         f"turns (won runs): mean={report.mean_turns:.2f}  "
         f"max (all runs)={report.max_turns}"
     )
     print(
-        f"hull damage taken (won runs): "
+        f"damage taken, hull/HP (won runs): "
         f"mean={report.mean_hull_damage_taken:.2f}"
     )
     if row.thresholds is None:
