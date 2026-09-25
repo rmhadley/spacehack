@@ -126,21 +126,14 @@ def _member_label(instance) -> tuple:
     from .data.ground_weapons import find_ground_weapon
     from .data.quality import quality_mark
     from .ground_equipment import display_name
+    from .ground_weapon_ammo import magazine_indicator
 
     name = display_name("weapon", instance.weapon_id, instance.quality)
     spec = find_ground_weapon(instance.weapon_id)
     return message_log.with_runs(
         quality_mark(name, instance.quality),
-        _weapon_ammo_indicator(spec, instance),
+        magazine_indicator(spec, instance),
     )
-
-
-def _weapon_ammo_indicator(spec, instance) -> str:
-    """Return the current/max magazine indicator for reloadable weapons."""
-    if spec.ammo_capacity <= 0:
-        return ""
-    loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
-    return f" [{loaded}/{spec.ammo_capacity}]"
 
 
 def _weapon_detail_text(spec) -> str:

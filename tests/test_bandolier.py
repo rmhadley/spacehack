@@ -64,3 +64,32 @@ def test_refill_mutates_ctx_and_reports_accepted_rounds():
     assert ctx.bandolier["kinetic_pistol"] == 160
     assert refill(ctx, "kinetic_pistol", 10) == 0
     assert ctx.bandolier["kinetic_pistol"] == 160
+
+
+def test_carried_ammo_types_unions_sets_in_catalog_order():
+    from src.spacehack.bandolier import carried_ammo_types
+
+    weapons = [
+        SimpleNamespace(weapon_id="kinetic_rifle"),      # active
+        SimpleNamespace(weapon_id="kinetic_pistol"),     # active (pair mate below)
+        SimpleNamespace(weapon_id="kinetic_pistol"),     # duplicate caliber
+        SimpleNamespace(weapon_id="laser_pistol"),       # holstered
+        SimpleNamespace(weapon_id="mono_blade"),         # melee — no caliber
+    ]
+    assert carried_ammo_types(weapons) == (
+        "kinetic_pistol", "rifle_round", "energy_cell",
+    )
+
+
+def test_carried_ammo_types_skips_unknown_weapon_ids():
+    from src.spacehack.bandolier import carried_ammo_types
+
+    assert carried_ammo_types([SimpleNamespace(weapon_id="musket")]) == ()
+
+
+def test_hud_codes_cover_every_catalog_caliber():
+    from src.spacehack.bandolier import HUD_CODES
+    from src.spacehack.data.ground_items import list_ground_ammo
+
+    catalog_calibers = {spec.ammo_type for spec in list_ground_ammo()}
+    assert set(HUD_CODES) == catalog_calibers

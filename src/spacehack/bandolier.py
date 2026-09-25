@@ -13,6 +13,19 @@ from __future__ import annotations
 
 _SPECS_BY_AMMO_TYPE: dict[str, object] | None = None
 
+# HUD caliber codes (doc 52.3, user-confirmed 2026-09-25) — the
+# AP/EVA/HIT abbreviation voice; the character screen carries full
+# names. Keyed by weapon-side caliber; a catalog caliber without a
+# code fails the completeness pin, never a silent fallback.
+HUD_CODES: dict[str, str] = {
+    "kinetic_pistol": "PST",
+    "rifle_round": "RFL",
+    "energy_cell": "CEL",
+    "shotgun_shell": "SHL",
+    "grenade": "GRN",
+    "rocket": "RKT",
+}
+
 
 def _spec_by_ammo_type() -> dict[str, object]:
     """The ammo catalog keyed by weapon-side caliber (one spec each)."""
@@ -22,6 +35,30 @@ def _spec_by_ammo_type() -> dict[str, object]:
 
         _SPECS_BY_AMMO_TYPE = {spec.ammo_type: spec for spec in list_ground_ammo()}
     return _SPECS_BY_AMMO_TYPE
+
+
+def carried_ammo_types(weapons) -> tuple[str, ...]:
+    """Distinct calibers carried by ``weapons``, in catalog order (pure).
+
+    ``weapons`` is any iterable of ground-weapon instances — the HUDs
+    pass the active + holstered union (doc 52.3's folded default).
+    Melee/plasma (``ammo_type`` None) and unresolvable ids contribute
+    nothing.
+    """
+    from .data.ground_weapons import find_ground_weapon
+
+    carried: set[str] = set()
+    for instance in weapons:
+        try:
+            ammo_type = find_ground_weapon(instance.weapon_id).ammo_type
+        except KeyError:
+            continue
+        if ammo_type is not None:
+            carried.add(ammo_type)
+    return tuple(
+        ammo_type for ammo_type in _spec_by_ammo_type()
+        if ammo_type in carried
+    )
 
 
 def effective_cap(ammo_type: str, bonus: int = 0) -> int:

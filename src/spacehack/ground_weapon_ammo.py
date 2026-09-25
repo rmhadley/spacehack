@@ -26,6 +26,19 @@ def consume_weapon_round(instance: GroundWeaponInstance) -> GroundWeaponInstance
     )
 
 
+def magazine_indicator(spec, instance) -> str:
+    """The ``[loaded/cap]`` magazine suffix for reloadable weapons.
+
+    One formatter for the C screen's member rows and the dungeon HUD's
+    weapon rows (doc 52.3); capacity is the catalog value the reload
+    engine fills to.
+    """
+    if spec.ammo_capacity <= 0:
+        return ""
+    loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
+    return f" [{loaded}/{spec.ammo_capacity}]"
+
+
 def reload_amount(loaded: int, capacity: int, reserve: int) -> int:
     """Rounds that move from reserve into the magazine (0 if none needed)."""
     return min(max(0, capacity - loaded), reserve)
