@@ -800,8 +800,41 @@ checkpoint for sign-off (verbatims):**
    that consumable.`
 
 ### Phase 3 Implementation brief (APPROVED 2026-09-25 — SETTLED 4
-### + the user's HUD-scope amendment: HUD relevant-calibers,
-### character screen full bandolier)
+### + the user's HUD-scope amendment; AMENDED 2026-09-25 pre-build,
+### user — exploration weapons block + split Equipment tab, below)
+
+**Amendment (2026-09-25, user — pre-build design pass):**
+
+- **Exploration weapons block (scope ADD):** "now that we have X and
+  R available outside of combat, I'd like to show the same
+  weapon/ammo lines outside of combat too." The DUNGEON-mode HUD
+  (`hud.py::_render_city_hud`, the mode-gated help lines are the
+  precedent) gains the weapons block: one row per active-set weapon
+  (name + magazine cur/cap — no combat volley checkboxes, no
+  HIT line: no target outside combat), the dim HOLSTER names row,
+  then the shared per-caliber ammo lines (same label family as the
+  combat block). City mode stays as-is (the armory + C screen serve
+  the city loadout view). X swap (game_loop, non-space) and R reload
+  (dungeon) already work beside it.
+- **Equipment tab becomes the split UX (replaces the paged-list
+  section insertion):** "left column is the current equipment tab.
+  right column is the ammo info. using the same split screen
+  multi-col ux experience we already have." The Equipment tab
+  renders as a `pygame_split` two-column frame — LEFT: the equipment
+  rows exactly as today (weapon-set sections, ARMOR, backpack; same
+  actions, same management gating); RIGHT: the BANDOLIER readout
+  (all six calibers, full names, current/max via `effective_cap`,
+  plus which equipped weapons feed each shown caliber). TAB/
+  SHIFT-TAB keep cycling the C tabs on every tab; the right column
+  is a READ-ONLY panel (nothing to select — no panel-focus key
+  needed, no keymap changes to the C screen).
+- **Defaults folded from the design pass (veto at the checkpoint):**
+  HUD caliber labels are 3-letter codes PST/RFL/CEL/SHL/GRN/RKT
+  (matching the AP/EVA/HIT abbreviation voice; the C screen carries
+  full names); the combat block shows the UNION of active + holstered
+  calibers (SETTLED 4's "equipped weapons" reads as both carried
+  sets in doc-51 terms — X-swap reveals a reserve already on
+  screen).
 
 **Scope (files / hook points):**
 
@@ -816,13 +849,21 @@ checkpoint for sign-off (verbatims):**
   weapons panel — the caliber lines' placement relative to it and
   the panel's line budget is settled against the LANDED doc-51 HUD,
   named in this phase's build.
-- **Character screen** (`character_screen.py`): the equipment tab
-  shows the FULL bandolier — all six ammo types with current/max
-  (user amendment: "character screen equipment tab needs to show all
-  ammo types somewhere") — the inventory view the HUD deliberately
-  omits. Placement relative to doc 51's set-aware weapon sections
-  per the landed layout (the paged row list has room; ADVISE
-  issue 9).
+- **Character screen** (`character_screen.py`): per the 2026-09-25
+  amendment, the equipment tab renders as the SPLIT UX — LEFT column
+  the equipment rows exactly as today (weapon-set sections, ARMOR,
+  backpack rows; same actions and management gating), RIGHT column
+  the FULL bandolier: all six ammo types with current/max (user
+  amendment: "character screen equipment tab needs to show all ammo
+  types somewhere") — the inventory view the HUD deliberately
+  omits — plus which equipped weapons feed each shown caliber.
+  Right column is read-only; TAB/SHIFT-TAB keep cycling the C tabs.
+- **Exploration HUD** (`hud.py`): per the same amendment, the
+  DUNGEON-mode branch of `_render_city_hud` gains the weapons block
+  — one row per active-set weapon (name + magazine cur/cap; no
+  volley checkboxes or HIT line — no target outside combat), the
+  dim HOLSTER names row, then the shared per-caliber ammo lines in
+  the combat block's label family. City mode unchanged.
 - **Guide** (`data/guide/__init__.py`) — THREE edits, exact
   before/after (prose-gated — settles at this phase's checkpoint):
   1. GROUND GEAR, the ammunition paragraph (the "matching
@@ -874,27 +915,36 @@ checkpoint for sign-off (verbatims):**
   carried ground weapon", and every space-ammo line (missiles —
   doc 52 is ground-only).
 
-**Build order:** HUD line → character-screen readout → guide
-paragraph (user-approved wording) → tests → full gate → PLAYTEST.
+**Build order:** combat HUD lines → exploration weapons block →
+split equipment tab → guide paragraphs (user-approved wording) →
+tests → full gate → PLAYTEST.
 
-**Binding rulings:** SETTLED 4 (carried calibers only); the guide
+**Binding rulings:** SETTLED 4 (carried calibers only); the 2026-09-25
+pre-build amendment (exploration weapons block; split Equipment tab;
+folded defaults: PST/RFL/CEL/SHL/GRN/RKT HUD codes, active+holstered
+caliber union, dungeon-mode-only exploration block); the guide
 contract (diff rides this checkpoint verbatim); the prose gate
 (wording approved before the data string lands).
 
-**Required tests:** HUD renders current/max for carried calibers
-only (a pistol pair shows one line; plasma/melee show none);
-character screen renders ALL six calibers' current/max;
-guide-content pins for all three rewritten passages.
+**Required tests:** combat HUD renders current/max for carried
+calibers only (a pistol pair shows one line; plasma/melee show
+none); dungeon HUD renders the weapons block + ammo lines (city
+mode renders none); equipment tab renders BOTH columns — left
+actions unchanged, right shows ALL six calibers' current/max,
+read-only; guide-content pins for all three rewritten passages.
 
 **Stop point:** no gear seam work (4 is deferred), no rows (5), no
 tutorial prose beyond the guide (6).
 
 **Playtest checkpoint:** 1) In a ground fight with pistols: the HUD
 shows e.g. 132/160; a reload visibly decrements it. 2) Plasma or
-melee equipped: no ammo line. 3) Character screen equipment tab
-shows all six calibers (current/max each), carried or not.
-4) GUIDE DIFF (before/after, exact —
-   all three edits above). 5) `make check` green.
+melee equipped: no ammo line. 3) Exploring a dungeon (no combat):
+the same weapons/ammo block is on the HUD; X swaps sets, R reloads
+against the shown counts. 4) Character screen equipment tab: two
+columns — left unchanged equipment management, right all six
+calibers (current/max each, carried or not, read-only).
+5) GUIDE DIFF (before/after, exact —
+   all three edits above). 6) `make check` green.
 
 ## Open questions
 
