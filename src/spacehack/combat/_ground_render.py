@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Any
 
 from .. import ui, world
-from ..engine import SCREEN_WIDTH, HUD_WIDTH
+from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.quality import effective_weapon_spec
@@ -64,6 +64,18 @@ _COLOR_GROUND_WEAPON: tuple[int, int, int] = (255, 200, 100)
 _COLOR_GROUND_WEAPON_DIM: tuple[int, int, int] = (120, 100, 60)
 _COLOR_GROUND_ACTION: tuple[int, int, int] = (180, 220, 255)
 _COLOR_GROUND_TEMP_AP: tuple[int, int, int] = (100, 170, 255)
+
+# The enemies listing must leave the panel's closing spacer plus the
+# ACTIONS legend (title + 4 pair rows) inside the ground HUD's rows
+# (0..SCREEN_HEIGHT - MSG_LOG_HEIGHT - 1 — the message band owns the
+# rest), and one enemy block costs 2 rows plus up to 3 target-detail
+# rows. Derived post-re-review: anchoring to SCREEN_HEIGHT under-
+# counted the tail and landed the legend in the message band.
+_ENEMY_BLOCK_ROWS = 5
+_ACTIONS_TAIL_ROWS = 6
+_ENEMY_LIST_BOTTOM = (
+    SCREEN_HEIGHT - MSG_LOG_HEIGHT - _ACTIONS_TAIL_ROWS - _ENEMY_BLOCK_ROWS
+)
 
 
 def _ground_range_line(
@@ -419,6 +431,8 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
         console.print(x=hud_x, y=y, string="ENEMIES", fg=_COLOR_GROUND_TITLE)
         y += 1
         for i, gei in enumerate(alive):
+            if y > _ENEMY_LIST_BOTTOM:
+                break
             is_target = i == _state.target_idx
             name_fg = _COLOR_GROUND_ENEMY_TARGET if is_target else _COLOR_GROUND_ENEMY
             marker = ">" if is_target else " "
@@ -435,22 +449,30 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             )
             y += 1
             if is_target:
-                # The weapon line (index 1) takes the wielded variant's
-                # tier colour; armour and stats lines stay dim.
-                _armor_line, _weapon_line, _stats_line = enemy_detail_lines(gei)
-                for _line, _fg in (
-                    (_armor_line, ui.COLOR_VALUE_DIM),
-                    (_weapon_line, enemy_weapon_fg(gei, ui.COLOR_VALUE_DIM)),
-                    (_stats_line, ui.COLOR_VALUE_DIM),
-                ):
-                    if not _line:
-                        continue
-                    console.print(
-                        x=hud_x, y=y, string=f"  {_line}"[:HUD_TEXT_MAX],
-                        fg=_fg,
-                    )
-                    y += 1
+                y = _print_target_details(console, hud_x, y, gei)
     return y + 1
+
+
+def _print_target_details(console, hud_x: int, y: int, gei) -> int:
+    """Paint the targeted enemy's detail lines; return the next row.
+
+    The weapon line (index 1) takes the wielded variant's tier colour;
+    armour and stats lines stay dim.
+    """
+    _armor_line, _weapon_line, _stats_line = enemy_detail_lines(gei)
+    for _line, _fg in (
+        (_armor_line, ui.COLOR_VALUE_DIM),
+        (_weapon_line, enemy_weapon_fg(gei, ui.COLOR_VALUE_DIM)),
+        (_stats_line, ui.COLOR_VALUE_DIM),
+    ):
+        if not _line:
+            continue
+        console.print(
+            x=hud_x, y=y, string=f"  {_line}"[:HUD_TEXT_MAX],
+            fg=_fg,
+        )
+        y += 1
+    return y
 
 
 def _render_actions_panel(console, weapons: list[str], y: int) -> None:

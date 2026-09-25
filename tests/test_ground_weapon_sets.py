@@ -826,3 +826,32 @@ def test_install_carries_quality_both_ways():
     )
     assert equipped == [GroundWeaponInstance("railgun", 12, 1)]
     assert warehouse == [StoredGroundEquipment("weapon", "kinetic_pistol", 3, 4)]
+
+
+def test_enemies_panel_keeps_the_actions_legend_on_the_hud():
+    """Reviewer re-review (doc 52.3): the listing cap derives from the
+    ground HUD's real budget — rows above the message band, minus the
+    ACTIONS tail and a worst-case enemy block. The legend (5 rows)
+    stays on-panel in huge fights, adversarial targeting included."""
+    from src.spacehack.engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT
+
+    _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
+    _fake = SimpleNamespace(
+        name="Assault Drone", hp=5, max_hp=5,
+        pos=world.Position(3, 5), spec=None, weapon_id=None,
+    )
+    _alive = [_fake] * 60
+    hud_bottom = SCREEN_HEIGHT - MSG_LOG_HEIGHT  # rows 0..hud_bottom-1
+
+    _console = _Console()
+    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
+    assert next_y + 4 <= hud_bottom - 1  # legend's 5 rows end on-panel
+    assert next_y == 45  # exact drift guard: targeted e0 + 9 more listed
+
+    # Adversarial: the boundary-listed enemy is the target — its detail
+    # rows still leave the legend on-panel.
+    _rules_ground._state.target_idx = 9
+    _console = _Console()
+    next_y = _ground_render._render_enemies_panel(_console, _ctx, _alive, 21)
+    assert next_y + 4 <= hud_bottom - 1
+    _rules_ground._state.target_idx = 0
