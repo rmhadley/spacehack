@@ -4,11 +4,10 @@
 PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
 ruling); phase 3 LANDED + PLAYTEST PASSED 2026-09-25 (two review
 rounds APPROVE; one mid-playtest round: both-slot-rows + ARMOR
-header, 2a97a7d1). Next: phase 4 (teaching, prose-gated — needs its
-brief at refine time). The standard re-rule was REMOVED to future
-doc-50 work (SETTLED 4).
-Core rulings SETTLED 1–4; one open question (tutorial wording)
-parked at phase 4.**
+header, 2a97a7d1). Phase 4 (teaching) SETTLED 5 + brief PROPOSED —
+awaiting approval → /implement-phase 51.4; the doc then closes. The
+standard re-rule was REMOVED to future doc-50 work (SETTLED 4).
+Core rulings SETTLED 1–5; no open questions.**
 
 ## Overview
 
@@ -158,6 +157,49 @@ clause is honoured there, not here. Consequence: the old phase 5
 work (phase 4)" stop points refer to the removed phase, and stand as
 written. Open question 2 (balance blast radius / immune bars) closes
 with this ruling.
+
+## SETTLED 5 (2026-09-25, user) — phase 4 rulings (teaching)
+
+- **The armory beat buys for BOTH sets**: two Kinetic Pistols + ONE
+  Combat Knife + a stack of Pistol Rounds (the "2 pistols + 1 knife"
+  ruling — the dual-pistol volley lesson stays intact, the knife
+  founds the melee set, ~130$ of the ~235$ budget). The buy-2+2 and
+  unchanged-beat alternatives were declined.
+- **X is taught in two places** ("armory plants, combat teaches"):
+  the `earth_armory` popup plants the two-sets idea at purchase
+  time; the `mars_ground_combat_intro` popup teaches X live in the
+  fight, where it is used. The stale "Your weapon slots are shown in
+  the HUD - swap between them with the indicated keys" sentence is
+  rewritten under any alternative — it predates sets.
+- **Honesty constraint (build finding)**: kinetic_pistol min_range
+  is 1 — the tutorial's own guns have NO point-blank blind zone, so
+  the combat lesson is the ammo-free melee + the X verb, never a
+  point-blank-accuracy claim.
+- **Settled wording (verbatim, incl. the user's two edits — "and 'X'
+  swaps between them." and "Melee weapons never need ammunition."
+  with the rest of that sentence dropped):**
+
+  `earth_armory` body:
+
+  > Mars has hostile wildlife and raiders - bring a weapon. Visit
+  > the Armory terminal (the 'A' icon, left of the mechanic terminal
+  > outside the space port) and buy two Kinetic Pistols, a Combat
+  > Knife, and a stack of Pistol Rounds.
+  >
+  > The pistols are one-handed, so you can equip both and fire them
+  > together: a 12-damage volley for just 1 AP. Kinetic guns need
+  > ammo - press 'R' to reload when a magazine runs dry. Equip the
+  > knife as well: you carry two weapon sets, one ranged and one
+  > melee, and 'X' swaps between them.
+
+  `mars_ground_combat_intro` body — FIRST and LAST paragraphs
+  unchanged; the middle paragraph becomes:
+
+  > Range and line of sight matter: weapons have min/max ranges and
+  > you can only hit what you can see. Your active set and your
+  > holstered set are shown in the HUD - press 'X' to swap them, 1
+  > AP in combat. Melee weapons never need ammunition. The number
+  > keys toggle which active weapons join a volley.
 
 ## SETTLED 1 (2026-09-25, user) — the core rulings (open questions 1/2/3)
 
@@ -1072,7 +1114,63 @@ the walls breach — the pre-committed seam), tinker ≈300.
   half-empty round-trip (item 6) must be verifiable in-UI on every
   leg, and it's state, not teaching.
 
+### Phase 4 Implementation brief (PROPOSED 2026-09-25 — SETTLED 5;
+### ready for /implement-phase 51.4 on approval)
+
+**Scope (files / hook points; grounded on the tree):**
+
+- **`tutorial.py` ONLY** (`_STEP_BODIES` copy + one code comment):
+  - `earth_armory` body → the SETTLED-5 wording verbatim (buy list
+    gains the Combat Knife; the sets idea + 'X' planted; the
+    dual-pistol volley, ammo, and 'R' teaching retained).
+  - `mars_ground_combat_intro` body → first and last paragraphs
+    UNTOUCHED; the middle paragraph → the SETTLED-5 wording
+    verbatim (X taught live; the number-key volley line kept; the
+    stale "indicated keys" sentence gone).
+  - `TUTORIAL_CREDIT_BONUS` comment updates to the new budget math
+    (2 pistols 70$ + knife 20$ + rounds 40$ = 130$ of ~235$); the
+    VALUE stays 250 — no economy change.
+  - Step ids, titles, conditions, and the `armed_ground` gate are
+    UNTOUCHED (any equipped weapon fires it; the knife founds the
+    holstered set without touching the condition).
+- **Guide: NONE** — phase 3 already landed the Ground Gear set
+  wording + the X Controls entry (playtest-passed); the phase
+  bullet's "guide Ground Gear wording" half is satisfied there.
+
+**Build order:** one prose commit (both bodies + the comment +
+content pins — the phase is a single teaching change) → full
+`make check`.
+
+**Binding rulings:** SETTLED 5, prose gate — the wording above is
+SETTLED and lands verbatim; no rewording at build.
+
+**Required tests:** content pins — the `earth_armory` body names
+the Combat Knife and 'X'; the `mars_ground_combat_intro` body names
+'X' and the number-key volley line; "indicated keys" rg-gone from
+src. The existing condition/order pins in `test_tutorial.py` (they
+pin firing, not copy) stay green untouched.
+
+**Stop point:** no mechanics, conditions, step ids, guide, dev
+grants, HUD, or balance work — nothing beyond `tutorial.py` + its
+tests. This is the doc's LAST phase.
+
+**Playtest checkpoint** (fresh Tutorial run):
+
+1. Signal → land on Earth → GROUND GEAR popup shows the new buy
+   list (two Kinetic Pistols, a Combat Knife, Pistol Rounds).
+2. Buy exactly that with the Equip destination → ranged set = two
+   pistols [ACTIVE], melee set = knife [HOLSTER] (C screen groups;
+   HUD shows the HOLSTER row).
+3. `armed_ground` fires → launch → Mars explore → GROUND COMBAT 101
+   shows the X line; the stale slot sentence is gone.
+4. In the fight: X → knife active, 1 AP, HUD flips; X back →
+   pistols; win the fight.
+5. The tutorial completes as before (level up, finale).
+6. Guide diff: NONE.
+
+After this phase passes, every checkbox is checked and the doc
+closes (move to `complete/`, SYSTEMS.md) on the user's confirmation.
+
 ## Open questions
 
-1. **Tutorial teaching**: does the tutorial's armory beat teach the
-   toggle (buy 2 + 2?), and with what wording? (Prose-gated; phase 4.)
+(none — the tutorial-teaching question closed with SETTLED 5.)
