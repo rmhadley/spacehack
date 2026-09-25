@@ -158,8 +158,8 @@ _STEP_BODIES: dict[str, str] = {
     "earth_armory": (
         "Mars has hostile wildlife and raiders - bring a weapon. Visit "
         "the Armory terminal (the 'A' icon, left of the mechanic "
-        "terminal outside the space port) and buy two Kinetic Pistols, "
-        "a Combat Knife, and a stack of Pistol Rounds.\n\n"
+        "terminal outside the space port) and buy two Kinetic Pistols "
+        "and a Combat Knife, then restock your Pistol Rounds.\n\n"
         "The pistols are one-handed, so you can equip both and fire "
         "them together: a 12-damage volley for just 1 AP. Kinetic guns "
         "need ammo - press 'R' to reload when a magazine runs dry. "

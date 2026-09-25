@@ -88,7 +88,7 @@ class TestDoc51WeaponSetCopy:
 
     def test_earth_armory_buys_knife_and_plants_sets(self):
         body = tutorial._STEP_BODIES["earth_armory"]
-        assert "two Kinetic Pistols, a Combat Knife, and a stack of Pistol Rounds" in body
+        assert "two Kinetic Pistols and a Combat Knife, then restock your Pistol Rounds.\n\n" in body
         assert "you carry two weapon sets, one ranged and one melee" in body
         assert "'X' swaps between them" in body
 
