@@ -1,12 +1,12 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: REFINED 2026-09-25 — SETTLED 1-4; phases 1-3 carry
-APPROVED briefs (phase 1 gated on doc 51's core landing; phase 2
-builds immediately after; phase 3 next). Phase 4 (cap gear) DEFERRED
-to the future armor/cybernetics polish pass — doc 52 ships the
-`effective_cap` seam only. Phases 5 (standard rows — needs the
-landed world's measurements) and 6 (tutorial prose — the prose gate)
-take their briefs at their own refine time. Nothing implemented.**
+**Status: PHASE 1 LANDED 2026-09-25 (playtest pending) — SETTLED 1-5;
+phase 1 built (build record under its brief); phase 2 brief APPROVED
+and builds immediately after phase 1's playtest; phase 3 briefed.
+Phase 4 (cap gear) DEFERRED to the future armor/cybernetics polish
+pass — doc 52 ships the `effective_cap` seam only. Phases 5 (standard
+rows — needs the landed world's measurements) and 6 (tutorial prose —
+the prose gate) take their briefs at their own refine time.**
 
 ## Overview
 
@@ -214,7 +214,7 @@ rows (doc 50 SETTLED 6).
 
 ## Phases
 
-- [ ] 1. **Bandolier core** — caps on the catalog, ctx field,
+- [x] 1. **Bandolier core** — caps on the catalog, ctx field,
   serialization + pack migration, reload draw path re-point, drop
   re-point (SETTLED 1 scope amendment). Tests: round-trip incl.
   migrated saves, cap clamps, multi-caliber independence, reload
@@ -323,8 +323,58 @@ becomes dead (only `_apply_reload_at` called it) — removed with
 its test. `loot.py`'s two spawners stay untouched (verified :113,
 kit-drop path) — legacy on-map entities convert on pickup.
 
-**Build-note surprises to carry forward:** none yet (audit done
-pre-code, as contracted).
+**Build-note surprises to carry forward:**
+- A concurrent design session landed the ratchet ruling
+  (514f84c3) + this doc's cohesion re-grounding (1aba1194)
+  mid-build; the build already conformed (bandolier.py earned its
+  place on cohesion; no size arithmetic was leaned on).
+- Reviewer issue 2 (harness assert semantics): the loadout assert
+  now checks the PER-ROW delta so a future multi-row same-caliber
+  sheet can't false-fail under a mismatched message — fixed
+  in-commit (a01e422a).
+- The four pack-loot choreography pins (merge/remainder, full-pack,
+  drop-to-fit, prompt-twice) converted to CONSUMABLE entities —
+  the pack path is consumables-only now, and those pins keep
+  guarding it verbatim; ammo gets its own three bandolier pins.
+
+### Phase 1 build record (LANDED 2026-09-25 — playtest pending)
+
+**Commits:** 6ca1bb17 (pre-implementation audit) → cc6fe159 (catalog
+`carry_cap`, SETTLED 1 values pinned) → 27f793f4 (`bandolier.py`
+pure core + tests) → b40b88b1 (ctx field + serialization, parse
+clamp/skip) + a8467525 (tinker fake pinned) → a01e422a (the store
+swap: reload re-point at every call site, `reloadable_pack_slots` →
+`reloadable_slots`, pickup re-point, pack migration with refund,
+doc-50 harness/stances seam, updated pins).
+
+**Reviewer (REVIEW): APPROVE** — two [minor]: the prose-gate item
+below (resolved by quoting the lines at this checkpoint), and the
+harness assert semantics (fixed in-commit, see build note).
+
+**Board preservation verified by DIFF, not green bars:** the balance
+report ran on a detached HEAD worktree (pack store) and the working
+tree (bandolier store) — byte-identical (59 lines, all scenarios,
+same seeds). Doc 50 SETTLED 6's benchmark-revision clause NOT
+triggered: this was a behavior-preserving store swap.
+
+**Prose gate — new/changed player-facing strings, landing at this
+checkpoint for sign-off (verbatims):**
+1. Ammo pickup (loot.py): `Picked up {name} x{n}.`
+   (e.g. "Picked up Pistol Rounds x12." — the accepted count only;
+   overflow past cap is forfeited silently per SETTLED 2.)
+2. Migration conversion (saveload_ground.py): `Packed {n} reserve
+   rounds into the bandolier.`
+3. Migration refund (saveload_ground.py): `Refunded {n} rounds past
+   carry caps: {cr}$.`
+4. Swapped reload-failure error (ground_weapon_ammo.py): was `No
+   {ammo_type} ammo in the Expedition Pack`, now `No {ammo_type} ammo
+   in the bandolier` (raw caliber id — pre-existing voice, kept).
+
+**Rulings made at build time (from SETTLED 2's wording, surfaced for
+the playtest):** an AT-CAP pickup is ignored as an event — no log
+line, the entity stays on the floor for later; a PARTIAL fit
+consumes the entity and forfeits the remainder rounds (no floor
+remainder, no credits).
 
 ### Phase 1 Implementation brief (APPROVED 2026-09-25, SETTLED 3 —
 ### amended per the ADVISE pass; gated on doc 51's core landing;
