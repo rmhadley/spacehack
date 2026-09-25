@@ -106,6 +106,18 @@ class TestDoc51WeaponSetCopy:
             assert "weapon slots are shown" not in body, step_id
 
 
+class TestDoc52RestockCopy:
+    """Doc 52 phase 6 — stack-buy phrasing retires from the tutorial.
+
+    The armory beat teaches restock (ammo lives in tracked reserves,
+    not pack stacks); no step body may offer a "stack of" purchase.
+    """
+
+    def test_no_stack_of_purchases_in_any_step_body(self):
+        for step_id, body in tutorial._STEP_BODIES.items():
+            assert "a stack of" not in body, step_id
+
+
 class TestSetupTutorial:
     def test_grants_credit_bonus_and_seeds_bounty_board(self):
         ctx = _StubCtx()

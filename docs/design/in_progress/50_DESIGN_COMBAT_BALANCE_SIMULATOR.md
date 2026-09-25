@@ -167,7 +167,10 @@ two mechanical rulings proposed alongside and not vetoed:
   ground twin of Goal 1: the same forced tutorial sheet (human
   merchant), the loadout the tutorial itself teaches (two Kinetic
   Pistols + a stack of Pistol Rounds — `tutorial.py`
-  "earth_armory"), against the Mars signal delve's first-sight group
+  "earth_armory"; doc 52.6 note 2026-09-25: the stack-buy phrasing
+  is gone — the beat now says "restock your Pistol Rounds" — but
+  the taught LOADOUT is unchanged: two pistols + pistol rounds in
+  reserve), against the Mars signal delve's first-sight group
   (`monster_pool` rock_scavenger / dust_prowler / sentry_drone,
   band 1; `data/planets/mars.py`). Doc 48's ground rework (phases
   4-7 re-derived every ground enemy's stats, bands, and gear) is the

@@ -27,8 +27,10 @@ TUTORIAL_MISSION_IDS = frozenset({"bhguild_sol_scout"})
 # Extra credits granted at tutorial start. Merchant starts with 75$.
 # The scripted ship loadout (2nd light laser 30$ + Shield Mk.1 60$ =
 # 90$) leaves ~235$ for the armory beat: two kinetic pistols (70$) +
-# a Combat Knife (20$) + a 40-round Pistol Rounds stack (40$) = 130$
-# with margin for armor/med packs.
+# a Combat Knife (20$) = 90$, leaving ~145$ for restock (the modal
+# prefills min(affordable, space-to-cap): about 145 pistol rounds at
+# 1$/round). The beat deliberately names no count - spending the
+# margin on rounds vs armor/med packs is the player's choice.
 TUTORIAL_CREDIT_BONUS = 250
 
 
