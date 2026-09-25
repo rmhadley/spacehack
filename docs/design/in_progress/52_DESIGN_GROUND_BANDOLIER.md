@@ -1103,6 +1103,23 @@ all six calibers read-only with feeder names) → be84ec9e (guide ×3)
   safe over-estimate.
 
 **Rulings made at build time (surfaced for the playtest):**
+- **Playtest feedback (mid-checkpoint, 2026-09-25):** the bandolier
+  column's feeder suffixes ("Rockets 8/10 (Rocket Launcher)" — user:
+  "that's weird. remove it.") are REMOVED, and the counts are
+  COLUMN-ALIGNED (name column padded; cur, "/", cap each own a
+  right-justified column) — the variable-length suffixes were also
+  what broke the count alignment ("it's all over the place with 0
+  alignment"). The brief's "which equipped weapons feed each shown
+  caliber" clause is retired by this ruling.
+- **Playtest feedback (mid-checkpoint, 2026-09-25, second ruling):**
+  the player NEVER sees the word "bandolier" — it stays as code
+  vocabulary. The Equipment right panel's title is "Ammo"; every
+  other player-facing reference uses "ammo storage": the guide's
+  ammunition paragraph ("draw from your ammo storage") and Combat
+  R line, the reload error (now "No {ammo_type} ammo in storage"),
+  and the migration line ("Packed {n} reserve rounds into ammo
+  storage."). Supersedes the shipped 52.1 verbatims for the two log
+  lines and the 52.3 guide wording's use of the word.
 - The per-weapon AMMO line dropped its `RES` suffix — the caliber
   lines own the reserve read (the phase-1 "transient RES" rework).
 - The dungeon block renders only when some weapon is carried (the
