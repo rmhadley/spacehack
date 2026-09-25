@@ -1,8 +1,9 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
-**Status: IN REFINEMENT (2026-09-25) — core rulings SETTLED 1 below;
-open questions 1–2 (tutorial wording, board immunity) parked at their
-phases; nothing implemented.**
+**Status: BUILDING (2026-09-25) — phase 1 LANDED (af2c9388) +
+PLAYTEST PASSED (six/six); phase 2 unbriefed (next refine). Core
+rulings SETTLED 1; open questions 1–2 (tutorial wording, board
+immunity) parked at their phases.**
 
 ## Overview
 
@@ -114,7 +115,9 @@ The design is driven by measured failures of the 2-slot world:
 
 ## Phases
 
-- [ ] 1. **Data model + swap core** — classification table, ctx
+- [x] 1. **Data model + swap core** — LANDED af2c9388, PLAYTEST
+  PASSED 2026-09-25 (six/six, no mid-playtest rulings).
+  Classification table, ctx
   field, serialization + migration, `exchange_weapon_sets`, slot-law
   validation. Tests: round-trip incl. migrated saves, classification
   exhaustiveness over the catalog, magazine persistence, empty-set
@@ -157,6 +160,11 @@ Each phase gets its Implementation brief at its own refine time.
   rearrange a set).
 
 ### Phase 1 PLAYTEST (data layer — the save/load sniff)
+
+**PASSED 2026-09-25 — all six items, no failures, no mid-playtest
+rulings.** The mixed-pair migration (item 2) split as ruled: slot
+0's class active, displaced weapon visible only via the Shift+W
+dev dump.
 
 1. **Regression**: continue the current save → active loadout and
    combat are IDENTICAL (F volley, R reload, number-key weapon

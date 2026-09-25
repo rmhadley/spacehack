@@ -669,6 +669,16 @@ nobody designs against a ghost.
   ammo types (6), reload picks among weapons sharing the ammo
   (`ground_equipment.py`: `expedition_capacity`; `data/ground_items/
   ammo.py`: `AMMO`).
+- **Ground weapon sets (doc 51 phase 1 — data layer)** — loadout is
+  two class-pure sets (membership table on `damage_type`: melee vs
+  kinetic/energy/plasma/explosive); the ACTIVE set is still
+  `ctx.equipped_ground_weapons` (combat reads it unchanged) and the
+  other set lives on `ctx.holstered_ground_weapons` — equipment,
+  never pack-counted. Pre-doc-51 saves partition on load (active =
+  original slot 0's class); `exchange_weapon_sets` is the whole-set
+  swap verb (combat wiring = phase 2); Shift+W dev dump prints both
+  sets (`ground_weapon_sets.py`; `saveload_ground.py`:
+  `_restore_weapon_sets`).
 - **Consumables** — med_pack heal+regen, stim +1 AP, tinker kit
   quality-raise (loot-only, never sold — doc 47.5); AP-costed in
   combat, stack decrements only after the effect validates
@@ -1095,7 +1105,8 @@ nobody designs against a ghost.
   `tinker.try_manage_kit` (returns None for non-kits, falling
   through to `use_consumable`); one CHOOSE TARGET chooser over
   every eligible owned entry across SIX containers — equipped
-  weapons, equipped armor, expedition pack, armory warehouse
+  weapons (the holstered weapon set is not yet reachable — doc 51
+  phase 3 will rule), equipped armor, expedition pack, armory warehouse
   (`ground_armory_storage`), mechanic ship-storage modules
   (item_type "module" only — space weapons never variant),
   installed modules — rows preview `current -> next` token,
