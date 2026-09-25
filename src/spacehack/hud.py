@@ -242,6 +242,41 @@ def _footer_rows(hud_view_height: int) -> tuple[int, int, int]:
     return bottom - 3, bottom - 2, bottom - 1
 
 
+def ground_holster_names(ctx) -> str:
+    """Comma-joined holstered-set weapon names ('' when the set is empty).
+
+    One holster-names source for the combat weapons panel and the
+    dungeon HUD block (doc 52.3).
+    """
+    from .ground_equipment import display_name
+
+    return ", ".join(
+        display_name("weapon", _inst.weapon_id, _inst.quality)
+        for _inst in getattr(ctx, "holstered_ground_weapons", None) or []
+    )
+
+
+def bandolier_hud_lines(ctx) -> list[str]:
+    """``CODE cur/max`` per carried caliber — the combat + dungeon ammo lines.
+
+    Calibers are the active+holstered union in catalog order (doc 52.3's
+    folded default); current reads the bandolier dict, max is
+    ``effective_cap`` (the phase-4 gear seam), never the raw catalog cap.
+    """
+    from . import bandolier as _bandolier
+
+    weapons = (
+        list(getattr(ctx, "equipped_ground_weapons", None) or [])
+        + list(getattr(ctx, "holstered_ground_weapons", None) or [])
+    )
+    pool = getattr(ctx, "bandolier", None) or {}
+    return [
+        f"{_bandolier.HUD_CODES[ammo_type]} "
+        f"{pool.get(ammo_type, 0)}/{_bandolier.effective_cap(ammo_type)}"
+        for ammo_type in _bandolier.carried_ammo_types(weapons)
+    ]
+
+
 def _render_help_lines(
     console: FrameBuffer,
     hud_x: int,

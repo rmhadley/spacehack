@@ -24,6 +24,8 @@ from ..hud import (
     _bar_str,
     _render_action_pairs,
     ap_pool_str,
+    bandolier_hud_lines,
+    ground_holster_names,
     COLOR_HP_GOOD,
     COLOR_HP_LOW,
     HUD_TEXT_MAX,
@@ -265,13 +267,6 @@ def _render_player_panel(console, ctx) -> int:
     return y + 2
 
 
-def _reserve_count(ctx, ammo_type: str) -> int:
-    """Total reserve rounds carried for a weapon's ammo type."""
-    from ..ground_equipment import reserve_ammo_count
-
-    return reserve_ammo_count(getattr(ctx, "bandolier", None) or {}, ammo_type)
-
-
 def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     """Paint the weapon list + armed-volley AP cost; return the next row."""
     _state = _rules()._state
@@ -287,7 +282,7 @@ def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:
     for i, wid in enumerate(weapons):
         y = _print_weapon_block(console, ctx, hud_x, y, i, wid, alive)
     y = _print_holster_row(console, ctx, hud_x, y)
-    return y + 1
+    return _print_bandolier_rows(console, ctx, hud_x, y) + 1
 
 
 def _print_holster_row(console, ctx, hud_x: int, y: int) -> int:
@@ -297,21 +292,27 @@ def _print_holster_row(console, ctx, hud_x: int, y: int) -> int:
     says what X reaches for. The empty set stays silent: the fists
     floor needs no advertisement (SETTLED 2).
     """
-    from ..ground_equipment import display_name
-
-    _holstered = getattr(ctx, "holstered_ground_weapons", [])
-    if not _holstered:
+    _names = ground_holster_names(ctx)
+    if not _names:
         return y
-    _names = ", ".join(
-        display_name("weapon", _inst.weapon_id, _inst.quality)
-        for _inst in _holstered
-    )
     console.print(
         x=hud_x, y=y,
         string=f"HOLSTER  {_names}"[:HUD_TEXT_MAX],
         fg=_COLOR_GROUND_WEAPON_DIM,
     )
     return y + 1
+
+
+def _print_bandolier_rows(console, ctx, hud_x: int, y: int) -> int:
+    """Paint the carried-caliber bandolier lines (doc 52.3: current/max,
+    active+holstered union, three-letter codes, ``effective_cap`` max)."""
+    for line in bandolier_hud_lines(ctx):
+        console.print(
+            x=hud_x + 5, y=y, string=line[:HUD_TEXT_MAX],
+            fg=ui.COLOR_VALUE_DIM,
+        )
+        y += 1
+    return y
 
 
 def _print_weapon_name(console, hud_x, y, wid, quality, index, is_active):
@@ -361,7 +362,7 @@ def _print_weapon_block(console, ctx, hud_x: int, y: int, i: int, wid: str, aliv
     if _inst is not None and _inst.loaded_ammo is not None:
         console.print(
             x=hud_x, y=y,
-            string=f"     AMMO {_inst.loaded_ammo}/{ws.ammo_capacity} RES {_reserve_count(ctx, ws.ammo_type)}",
+            string=f"     AMMO {_inst.loaded_ammo}/{ws.ammo_capacity}",
             fg=ui.COLOR_VALUE_DIM,
         )
         y += 1

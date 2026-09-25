@@ -434,6 +434,73 @@ def test_hud_holster_row_lists_holstered_names_dim():
     assert _holster[0][1] == _ground_render._COLOR_GROUND_WEAPON_DIM
 
 
+def test_hud_bandolier_lines_show_union_calibers_current_max():
+    """Doc 52.3: the weapons panel ends with one current/max line per
+    CARRIED caliber — the active+holstered union, three-letter codes,
+    effective_cap max (never the raw catalog cap)."""
+    _ctx, _ = _swap_fixture(
+        [GroundWeaponInstance("kinetic_pistol", 5),
+         GroundWeaponInstance("kinetic_pistol", 7)],
+        [GroundWeaponInstance("laser_pistol", None)],
+    )
+    _ctx.bandolier = {"kinetic_pistol": 132, "energy_cell": 61}
+    _console = _Console()
+    _ground_render._render_weapons_panel(
+        _console, _ctx, _rules_ground.player_weapons(_ctx),
+        _rules_ground._state.enemies, 0,
+    )
+    _ammo = [s for s, _fg in _console.prints if s.startswith("PST ")]
+    assert _ammo == ["PST 132/160"]
+    _cell = [s for s, _fg in _console.prints if s.startswith("CEL ")]
+    assert _cell == ["CEL 61/250"]
+
+
+def test_hud_bandolier_lines_collapse_duplicate_calibers():
+    _ctx, _ = _swap_fixture(
+        [GroundWeaponInstance("kinetic_pistol", 5),
+         GroundWeaponInstance("kinetic_pistol", 7)],
+        [],
+    )
+    _console = _Console()
+    _ground_render._render_weapons_panel(
+        _console, _ctx, _rules_ground.player_weapons(_ctx),
+        _rules_ground._state.enemies, 0,
+    )
+    assert [s for s, _ in _console.prints if "/" in s and s[:3].isupper()] == [
+        "PST 0/160",
+    ]
+
+
+def test_hud_bandolier_lines_absent_for_plasma_and_melee():
+    _ctx, _ = _swap_fixture(
+        [GroundWeaponInstance("plasma_pistol", None)],
+        [GroundWeaponInstance("mono_blade", None)],
+    )
+    _console = _Console()
+    _ground_render._render_weapons_panel(
+        _console, _ctx, _rules_ground.player_weapons(_ctx),
+        _rules_ground._state.enemies, 0,
+    )
+    assert not [
+        s for s, _ in _console.prints
+        if len(s) > 3 and s[:3].isupper() and s[3] == " "
+    ]
+
+
+def test_weapon_block_ammo_line_drops_the_reserve_suffix():
+    """The per-weapon AMMO line shows the magazine only — the caliber
+    lines own the reserve read (doc 52.3 rework of the phase-1 RES)."""
+    _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
+    _console = _Console()
+    _ground_render._print_weapon_block(
+        _console, _ctx, 0, 0, 0, "kinetic_pistol",
+        _rules_ground._state.enemies,
+    )
+    _ammo_lines = [s for s, _ in _console.prints if "AMMO" in s]
+    assert _ammo_lines == ["     AMMO 5/12"]
+    assert not any("RES" in s for s, _ in _console.prints)
+
+
 def test_hud_holster_row_hidden_when_set_empty():
     _ctx, _ = _swap_fixture([GroundWeaponInstance("kinetic_pistol", 5)], [])
     _console = _Console()
