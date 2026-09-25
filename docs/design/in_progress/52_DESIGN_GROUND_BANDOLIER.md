@@ -736,6 +736,17 @@ become the +/-10 coarse keys).
 reload or combat path (stances never shop); the phase-1
 byte-identical board stands.
 
+**Playtest finding (fixed 7decd373, checkpoint item 1):** selecting
+any RESTOCK row crashed — `ValueError: Unknown armory action` from
+`_apply_pygame_armory_action`, surfaced by the split runner as
+"Pygame split frame could not be rebuilt". ROOT CAUSE: RESTOCK was
+wired into `_apply_buy_action` but never into the dispatcher above
+it; every restock pin called the handler directly, bypassing the
+dispatch frame — and the REVIEW verified the transaction, not the
+entry routing. Fix: the dispatcher's buy branch takes
+`("BUY_", "RESTOCK:")`; new dispatcher-level pin fails pre-fix and
+passes post-fix. Playtest resumes from checkpoint item 1.
+
 **Prose gate — new/changed player-facing strings, landing at this
 checkpoint for sign-off (verbatims):**
 1. Quantity modal hint (pygame_quantity.py): `LEFT/RIGHT +/-1,
