@@ -52,6 +52,19 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
   rounds-actually-added x `price_per_round` (1/1/2/2/8/20 across the
   six calibers).
 
+## SETTLED 3 (2026-09-25, user — the armory gap + phase 1 approval)
+
+- **Armory gap: ACCEPTED** — phases 1 and 2 build back-to-back, so
+  the one-session gap (armory selling pack stacks that are dead
+  cargo once reload reads the bandolier) never reaches a player.
+  Phase 2's brief inherits an explicit "builds immediately after
+  phase 1" note.
+- **Phase 1 Implementation brief APPROVED** (amended form, 1ed0b2bd:
+  pickup-time re-point, complete reload call-site list, the
+  `bandolier.py` sibling module for the ratchet, `stances.py` in the
+  doc-50 seam, report-diff verification). Phase 1 is refined and
+  gated on the doc 51 handoff.
+
 ## Measured evidence (doc 50 session, 2026-09-25)
 
 A 4-floor delve (Mars reference: real generator, 16 mobs/floor, 64
@@ -181,9 +194,9 @@ Each phase gets its Implementation brief at its own refine time.
 4. Equip the rig → caps rise; Modded quality scales the bonus.
 5. Endurance rows green in `make check`.
 
-### Phase 1 Implementation brief (PROPOSED 2026-09-25 — SETTLED 1;
-### gated on doc 51's core landing; ready for /implement-phase 52.1
-### on approval + handoff)
+### Phase 1 Implementation brief (APPROVED 2026-09-25, SETTLED 3 —
+### amended per the ADVISE pass; gated on doc 51's core landing;
+### ready for /implement-phase 52.1 on the handoff)
 
 **Scope (files / hook points):**
 
@@ -302,11 +315,5 @@ board re-rule (5), no tutorial prose (6).
    51's core lands.
 6. **Bandolier visibility off-load**: does the character screen show
    all six calibers or only carried ones (lean: carried only)?
-7. **The armory gap (ADVISE issue 5)**: between phase 1 (reload
-   reads the bandolier) and phase 2 (restock-to-cap), the armory
-   still SELLS pack stacks that are dead cargo — and it is the only
-   ammo source for a new character (the tutorial's taught flow is
-   buying a stack). Accept the one-session gap (phases build
-   back-to-back), retire the ammunition buy section in phase 1
-   (leaving new characters without a source until phase 2), or pull
-   a minimal restock into phase 1?
+7. ~~**The armory gap (ADVISE issue 5)**~~ ANSWERED — SETTLED 3:
+   the one-session gap is accepted (phases build back-to-back).
