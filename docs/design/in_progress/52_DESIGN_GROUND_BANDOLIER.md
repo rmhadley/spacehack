@@ -65,6 +65,21 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
   doc-50 seam, report-diff verification). Phase 1 is refined and
   gated on the doc 51 handoff.
 
+## SETTLED 4 (2026-09-25, user — gear deferred, HUD ruled)
+
+- **`ammo_bonus` gear DEFERRED to a future armor/cybernetics polish
+  pass** (user: "Let's make sure we have the future ability to add
+  armor that expands ammo. But I'll tackle that in a future polish
+  pass when we really look at what kind of armor/cybernetics we
+  have available."). Doc 52's obligation is the SEAM only: phase 1's
+  `effective_cap` accepts a bonus term the future pass can feed from
+  a worn-gear fold. The `GroundArmorSpec.ammo_bonus` field, the
+  first items, and the flat-vs-per-type ruling all move to that
+  pass. Phase 4 below is DEFERRED (kept numbered for reference).
+- **HUD/character-screen visibility: CARRIED CALIBERS ONLY** —
+  current/max lines for the calibers your equipped weapons actually
+  use.
+
 ## Measured evidence (doc 50 session, 2026-09-25)
 
 A 4-floor delve (Mars reference: real generator, 16 mobs/floor, 64
@@ -127,12 +142,13 @@ rows (doc 50 SETTLED 6).
   calibers carried are INDEPENDENT pools (doc 51's mixed ranged set —
   pistol + carbine — carries two partial endurance pools: a real
   trade).
-- `GroundArmorSpec` gains `ammo_bonus: int = 0`, folded through the
-  existing `sum_armor_bonus` (fifth bonus field beside ap/hit/
-  melee/hp; quality-scaled). FIRST ITEMS (ruling pending on flat vs
-  per-type): a conventional body-slot rig trading defense for cap,
-  and an endgame cybernetic (the "never count rounds again" piece at
-  eyes/arms/legs pricing).
+- FUTURE PASS (SETTLED 4, out of doc 52's build): `GroundArmorSpec`
+  gains `ammo_bonus: int = 0`, folded through the existing
+  `sum_armor_bonus` (fifth bonus field beside ap/hit/melee/hp;
+  quality-scaled) — the future armor/cybernetics polish pass owns
+  the field, the first items, and the flat-vs-per-type ruling. Doc
+  52's phase 1 ships the `effective_cap(base, bonus)` seam it will
+  feed.
 
 ## Domain changes
 
@@ -148,7 +164,8 @@ rows (doc 50 SETTLED 6).
   unchanged).
 - Armory terminal: **restock-to-cap** per carried caliber replaces
   stack purchase (price = rounds added × `price_per_round`).
-- HUD: current/max per carried caliber (like fuel/power lines).
+- HUD: current/max for CARRIED calibers only (SETTLED 4), like the
+  fuel/power lines.
 - Tutorial: the armory beat's "buy a stack of Pistol Rounds" wording
   → restock phrasing (prose-gated; phase with guide edits).
 - Guide: Ground Gear ammunition paragraph rewrite; Controls
@@ -171,14 +188,13 @@ rows (doc 50 SETTLED 6).
 - [ ] 3. **HUD + guide** — bandolier line(s), Ground Gear paragraph,
   plasma/melee identity wording check. Guide diff rides the phase
   checklist.
-- [ ] 4. **Cap gear** — `ammo_bonus` field + first items (conventional
-  rig + cybernetic per the flat/per-type ruling), quality scaling,
-  armory stock. Tests: bonus fold, effective-cap math, endurance
-  delta rows.
+- [ ] 4. **Cap gear — DEFERRED (SETTLED 4)** to the future armor/
+  cybernetics polish pass: `ammo_bonus` field + first items +
+  quality scaling + the flat-vs-per-type ruling. Doc 52 ships only
+  the `effective_cap` bonus seam (phase 1).
 - [ ] 5. **Standard rows + re-rule** — kills-of-endurance pins per
-  caliber (± cap gear), board re-measure coordinated with doc 51's
-  phase-4 re-rule (one benchmark-revision commit if the waves land
-  together).
+  caliber, board re-measure coordinated with doc 51's re-rule phase
+  (one benchmark-revision commit if the waves land together).
 - [ ] 6. **Teaching** — tutorial armory beat rewording (prose-gated:
   user wording before data strings).
 
@@ -302,18 +318,15 @@ board re-rule (5), no tutorial prose (6).
 
 ## Open questions
 
-1. **`ammo_bonus` shape**: flat (+N to every cap — the no-special-
-   cases move) vs per-type (+N to one caliber — build-defining,
-   needs a type field). Working lean: FLAT on the conventional rig,
-   PER-TYPE on the cybernetic (the premium piece gets the expressive
-   mechanic).
+1. ~~**`ammo_bonus` shape**~~ ANSWERED — SETTLED 4: deferred to the
+   future armor/cybernetics polish pass; doc 52 ships the seam only.
 2. ~~**Cap levels**~~ ANSWERED — SETTLED 1: the proposed table
    confirmed as-is.
 3. ~~**Overflow pickups**~~ ANSWERED — SETTLED 2: ignored.
 4. ~~**Restock pricing**~~ ANSWERED — SETTLED 2: per-round.
 5. ~~**Sequencing with doc 51**~~ ANSWERED — SETTLED 1: after doc
    51's core lands.
-6. **Bandolier visibility off-load**: does the character screen show
-   all six calibers or only carried ones (lean: carried only)?
+6. ~~**Bandolier visibility off-load**~~ ANSWERED — SETTLED 4:
+   carried calibers only.
 7. ~~**The armory gap (ADVISE issue 5)**~~ ANSWERED — SETTLED 3:
    the one-session gap is accepted (phases build back-to-back).
