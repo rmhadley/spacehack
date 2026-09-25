@@ -950,6 +950,107 @@ calibers (current/max each, carried or not, read-only).
 5) GUIDE DIFF (before/after, exact —
    all three edits above). 6) `make check` green.
 
+### Phase 3 Pre-implementation audit (2026-09-25 build session)
+
+**1. Existing modules to extend/reuse (verified in code):**
+
+- `hud.py` — the shared HUD module the combat renderer ALREADY
+  imports from (`_ground_render` pulls `_bar_str`,
+  `_render_action_pairs`, colors): the caliber-line and holster-names
+  builders land THERE so combat and dungeon read one source. hud.py
+  sits at 997/1000 — the dungeon weapons block trips the ratchet →
+  the SPACE-COMBAT HUD family (`render_combat_hud` + its private
+  helpers + combat palette, ~330 lines, untouched by this phase)
+  extracts to `hud_combat.py` in-commit, hud.py re-exporting the
+  externally-read names (verified callers: `combat/_animations.py:587`
+  + `combat/_rules_space.py:639` via `_hud.render_combat_hud`;
+  test_readability reads `COLOR_COMBAT_WEAPON_DIM`/`COLOR_COMBAT_
+  ACTION` off `hud.`).
+- `pygame_split.py` — the split UX family the amendment names. Its
+  armory runner consumes TAB for panel focus; the C screen needs
+  TAB = tab cycle with a read-only right panel → a SECOND entry
+  point (`run_for_screen`) returning pygame_screen's outcome
+  vocabulary + 3-tuple shape, plus `screen_tabs`/`active_screen_tab`
+  frame fields drawn via the shared `pygame_screen.draw_tab_bar`
+  (the one tab treatment), with `_frame_height` reserving the
+  tab-bar height (font-ladder contract: the split's fixed reserve
+  must fit at the ladder top; the 11/13 row caps stay split).
+  `_draw_frame` gains a `selected` override so flag-selectable
+  action-less rows (the C screen's non-management equipment rows)
+  highlight correctly WITHOUT touching the armory's action-based
+  key semantics (phase-2's RESTOCK dispatcher crash is the
+  cautionary tale for divergent entry routing).
+- `character_screen_weapons._weapon_rows` +
+  `character_screen._equipment_rows` — the LEFT column verbatim; a
+  ScreenRow→SplitRow converter (header→divider) at the frame builder
+  leaves every row builder and its pins untouched.
+- `bandolier.effective_cap` — the ONLY max source for the HUD and C
+  screen (ADVISE issue 10); `ground_weapon_ammo.reserve_ammo_count`
+  reads current. `character_screen_weapons._weapon_ammo_indicator`
+  (the `[loaded/cap]` suffix) MOVES to `ground_weapon_ammo.
+  magazine_indicator` — the engine owns magazine presentation and
+  its base-spec capacity is what reload actually fills; hud must not
+  import upward into character_screen_weapons; the old site
+  re-imports.
+- Dungeon R/X verified live before building on them:
+  `game_loop.py:280` (`_swap_weapon_sets_explore`, non-space) and
+  `:331` (`reload_exploration`, dungeon). `render_hud(mode=
+  "dungeon")` flows through `pygame_overlay._render_hud_capture` —
+  no call-site changes; the block gates inside `_render_city_hud`.
+
+**2. Three potential duplication hotspots:**
+
+- THREE renderers of carried-caliber readouts (combat panel, dungeon
+  block, C right column) drifting on labels, max source, or order.
+- TWO weapon-list presentations gaining near-identical rows (combat
+  weapon blocks vs dungeon name+mag rows) beside the C screen's — a
+  third copy of the `[loaded/cap]` format is the trap.
+- The Equipment tab's split frame beside the Stats/Cargo
+  ScreenFrames — a bespoke tab cycle/keymap for one tab (parallel
+  runner drift, the phase-2 dispatcher class).
+
+**3. DRY strategy per hotspot:**
+
+- `bandolier.HUD_CODES` (ammo_type → PST/RFL/CEL/SHL/GRN/RKT, the
+  user-confirmed codes) + `bandolier.carried_ammo_types(weapons)`
+  (catalog-ordered union of the active+holstered sets, pure) +
+  `hud.bandolier_hud_lines(ctx)` (cur/max via `effective_cap`) —
+  combat and dungeon call the same builders; the C right column
+  reuses `carried_ammo_types`/`effective_cap` in its full-name
+  label family (SETTLED 4's split: codes on the HUD, full names on
+  the C screen).
+- `ground_weapon_ammo.magazine_indicator` (moved, one formatter) +
+  `hud.ground_holster_names(ctx)` (one holster-names source;
+  combat's `_print_holster_row` re-points to it).
+- The split gains a RUNNER, not a keymap fork: `run_for_screen`
+  emits pygame_screen's outcomes, so `_advance_character_screen`
+  and the host loop stay untouched (tab-treatment contract:
+  outcomes advance the host's sheet).
+
+**Placement rulings named at build (per the brief's issue-9
+coordination note):** doc 51's landed holstered indicator IS
+`_print_holster_row` — the caliber lines go directly AFTER it at the
+end of the combat weapons panel (≤4 lines, one per union caliber,
+dim, aligned with the weapon-detail indent); the per-weapon AMMO
+line drops its `RES` suffix (the caliber lines supersede it — the
+phase-1 "transient until phase 3" read retires, `_reserve_count`
+goes with it). The dungeon block sits between the stat rows and the
+help lines (the dungeon's terminal section is empty), ≤8 rows.
+
+**Guide BEFORE-correction (verified against the live file):** the
+brief's BEFORE for edit 1 quotes a "select an ammo stack in the
+Equipment tab and choose Reload" sentence that phase 2's dead-code
+sweep already removed — the AFTER lands verbatim on the current
+text. The AFTER's em-dash lands as `" - "` (the guide's CP437-safe
+convention, doc 45's bitmap gate — no em-dash anywhere in the guide
+today); flagged at the checkpoint.
+
+**Budget note (ratchet):** hud.py 997/1000 pays in-commit via the
+`hud_combat.py` extraction above; character_screen.py 895 +
+~50 (split frame builder + converter) stays under; pygame_split.py
+583 + ~90 (runner + fields + override) stays under; every touched
+function stays ≤40 lines.
+
 ## Open questions
 
 1. ~~**`ammo_bonus` shape**~~ ANSWERED — SETTLED 4: deferred to the
