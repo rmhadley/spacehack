@@ -1,8 +1,12 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: DRAFT for review (2026-09-25) — rulings captured from the
-doc-50 tuning session; not yet refined, no briefs, nothing
-implemented. Companion wave to doc 51 (ground weapon sets).**
+**Status: REFINED 2026-09-25 — SETTLED 1-4; phases 1-3 carry
+APPROVED briefs (phase 1 gated on doc 51's core landing; phase 2
+builds immediately after; phase 3 next). Phase 4 (cap gear) DEFERRED
+to the future armor/cybernetics polish pass — doc 52 ships the
+`effective_cap` seam only. Phases 5 (standard rows — needs the
+landed world's measurements) and 6 (tutorial prose — the prose gate)
+take their briefs at their own refine time. Nothing implemented.**
 
 ## Overview
 
@@ -318,7 +322,7 @@ board re-rule (5), no tutorial prose (6).
 7. Save/load: migrated save re-saves and re-loads cleanly (sniff
    test).
 
-### Phase 2 Implementation brief (PROPOSED 2026-09-25 — SETTLED
+### Phase 2 Implementation brief (APPROVED 2026-09-25 — SETTLED
 ### 2/3; builds IMMEDIATELY after phase 1 per the accepted gap)
 
 **Scope (files / hook points):**
@@ -362,7 +366,7 @@ without pack stacks. 2) An old save's armory-stored stacks convert
 4) Restock price reads exactly rounds-added × per-round. 5) `make
 check` green.
 
-### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 4
+### Phase 3 Implementation brief (APPROVED 2026-09-25 — SETTLED 4
 ### + the user's HUD-scope amendment: HUD relevant-calibers,
 ### character screen full bandolier)
 
