@@ -893,6 +893,104 @@ Equipment tab scrolls (doubled rows paginate); the tinker/kit
 mechanics and the purity guards block every state the loader
 would mangle.
 
+### Phase 3 pre-implementation audit (2026-09-25, build session)
+
+**1. Existing modules to reuse** (anchors verified on the tree at
+fb0f0383):
+
+- `ground_weapon_sets.weapon_set` / `can_fit_weapon_set` (phase 1) —
+  every class question and the occupancy+purity check the install
+  flow reuses; no damage-string re-derivation anywhere.
+- `ground_equipment.store_weapon` / `remove_weapon` (:344/:410) —
+  already list-taking (any set list works); magazine preservation
+  rides them free once `weapon_entry` carries ammo. Param rename
+  `equipped_weapons`→`set_weapons` for honesty; positional callers
+  unaffected. `install_armor`/`_plan_armor_install`/`transfer_item`/
+  `preferred_displacement_container` stay untouched (armor twins).
+- `ground_equipment._require_expedition_capacity` +
+  `_validate_transfer_capacity` (:296/:302) — the capacity validation
+  the set-aware install needs; both go PUBLIC
+  (`require_expedition_capacity`/`validate_transfer_capacity`) since
+  the new install lives in `ground_weapon_sets` (one-way import
+  ground_weapon_sets→ground_equipment; ground_equipment NEVER imports
+  ground_weapon_sets — cycle impossible by construction).
+- `pygame_story.choose` 3-tuple options `(label, action, runs?)` —
+  the member chooser and every manage chooser ride the existing
+  modal; `_reload_choice` (:128) is the coloured-option shape.
+- `saveload._d` (saveload.py:58) serializes dataclass fields
+  generically — the new `loaded_ammo` field round-trips with zero
+  serializer edits; `_ground_equipment_from_dict`
+  (saveload_ground.py:14) gains the parse (weapons only, clamped;
+  armor/melee force None).
+- `weapon_instance` seeding (:152) — the entry→instance seam becomes
+  `weapon_instance_from_entry(entry)`: `loaded_ammo` None → today's
+  full-seed default (legacy saves + fresh purchases); int → clamped
+  carry. `weapon_entry` (:175) starts carrying the instance's ammo.
+
+**2. Duplication hotspots:** (a) TWO equip entry points (C-screen
+pack equip, armory install/buy-install) re-deriving home resolution
++ displacement — one `install_set_weapon` mutation primitive in
+`ground_weapon_sets`, screens orchestrate chooser→primitive;
+(b) the C member-row chooser and the pack-row equip path converging —
+both funnel into one `_equip_weapon_pack_item` (class resolved from
+the ENTRY, so the pressed row's context is never load-bearing);
+(c) role markers re-derived per screen — one pure
+`founded_set_role(equipped, holstered, set_class)` helper; (d) the
+retiring `displaced_weapon_count` (:246) is slot-model vocabulary
+whose only caller (`_displacement_container`) recomputes against the
+home — retired WITH the armory commit (ADVISE fold 9's "+helpers"
+closure extends to it; ~153 lines out total).
+
+**3. DRY strategy:** all new set law (planners `resolve_weapon_home`
++ `founded_set_role`, the install mutation) lives in
+`ground_weapon_sets.py` (113→~230 lines); `ground_equipment.py`
+shrinks 987→~835 (retirement + validator renames + entry ammo);
+screens gain orchestration only. Ratchet posture after all commits:
+ground_equipment ≈835, character_screen ≈900 (the pre-committed
+`_apply_equipment_select` extraction pays its wall), armory ≈950
+(install/manage overflow moves to a `_armory_weapons.py` sibling if
+the walls breach — the pre-committed seam), tinker ≈300.
+
+**Build-shape rulings (audit discoveries):**
+
+- **`install_set_weapon` takes `displace_index=None` as AUTO
+  (whole-set) semantics**: fits → append; full + 2H or None → whole
+  set displaced; full + 1H + picked index → that member only. The
+  transitional callers (retirement commit) pass None; the reshape
+  commits (C screen, armory) pass the chooser pick — the primitive
+  supports both from day one so no intermediate caller lies.
+- **Role markers render only for FOUNDED classes** — an unfounded
+  group (empty, or the degenerate same-class-both state) shows no
+  marker: the role materializes when the set is founded
+  (equip-to-wield from double-empty founds ACTIVE per the founding
+  rule). Playtest item 1's flip check is unaffected (dev seed founds
+  both).
+- **C-screen weapon action vocabulary**: `SWAP:weapon:{class}:{idx}`
+  (member rows) / `SWAP:weapon:{class}` (empty-group row); outcomes
+  `SET_STORE:{class}:{idx}` and the existing `PACK_EQUIP:{pack_idx}`
+  (class resolves from the entry — one equip funnel). Armory manage
+  goes `MANAGE_WEAPON:{class}:{idx}`; tinker keys
+  `KIT:WEAPON:{class}:{idx}`.
+- **Menu-reload split verified at build** (as the brief allowed):
+  ground_reload_ui KEEPS `reloadable_pack_slots`,
+  `reload_weapon_slot`, `_resolve_reload_target`, `_reload_ap_gate`,
+  `_log_name_line`, `_reload_choice`, `_choose_reload_slot`,
+  `reload_exploration` (R's engine, combat + dungeon); DELETES
+  `weapon_reload_option`, `reload_pack_ammo`, `manage_pack_ammo`
+  (the pack-ammo branch was its whole reload offering — the stack
+  manage becomes Discard-only, hosted in character_screen beside
+  `_discard_pack_stack`). The three character_screen wrappers
+  (:629-657) and the `RELOAD_SLOT:` branch of `_swap_from_pack` die
+  with them.
+- **The intermediate retirement commit is honestly transitional**:
+  auto whole-set displacement on a full home (matching today's
+  install_weapon) until the C/armory reshape commits land the member
+  chooser — nothing ships between commits.
+- **Stored-weapon magazine visibility**: pack + armory weapon detail
+  gains `Mag x/y` when the entry carries an int — the playtest's
+  half-empty round-trip (item 6) must be verifiable in-UI on every
+  leg, and it's state, not teaching.
+
 ## Open questions
 
 1. **Tutorial teaching**: does the tutorial's armory beat teach the
