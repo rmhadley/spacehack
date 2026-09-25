@@ -497,8 +497,9 @@ async def _apply_ammo_loot_pickup(ctx: GameContext, loot_entity, stack, name: st
     """Refill the bandolier from one ammo drop (doc 52 SETTLED 2).
 
     Overflow past the caliber's cap is ignored: a fully-topped drop
-    is left on the floor untouched (silently — nothing was picked
-    up), a partial fit consumes the entity and forfeits the rest.
+    is left on the floor untouched, logging the at-cap line (user
+    ruling, 52.2 playtest — same wording as the armory restock
+    guard); a partial fit consumes the entity and forfeits the rest.
     """
     from .bandolier import refill
 
@@ -508,6 +509,7 @@ async def _apply_ammo_loot_pickup(ctx: GameContext, loot_entity, stack, name: st
         ctx.log.add(f"Invalid field item - left it behind ({exc}).")
         return False
     if added <= 0:
+        ctx.log.add(f"Your {name} reserve is already full.")
         return False
     _finish_loot_pickup(ctx, loot_entity, f"Picked up {name} x{added}.")
     return True

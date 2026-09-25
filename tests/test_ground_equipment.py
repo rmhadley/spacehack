@@ -561,9 +561,10 @@ def test_field_ammo_pickup_partial_fit_forfeits_overflow():
     assert any("Picked up Pistol Rounds x2" in m for m in messages)
 
 
-def test_field_ammo_pickup_over_cap_is_silently_ignored():
-    """SETTLED 2: a drop past the cap doesn't refill — the pickup is
-    ignored, the entity stays on the floor for later, no log line."""
+def test_field_ammo_pickup_over_cap_logs_full_and_stays_on_floor():
+    """SETTLED 2 + 52.2 playtest ruling: a drop past the cap doesn't
+    refill — the at-cap line logs (same wording as the restock
+    guard), the entity stays on the floor for later."""
     messages = []
     entity = type("Loot", (), {
         "pos": type("Position", (), {"x": 2, "y": 2})(),
@@ -581,7 +582,9 @@ def test_field_ammo_pickup_over_cap_is_silently_ignored():
     assert ctx.bandolier == {"kinetic_pistol": 160}
     assert ctx.ground_expedition_items == []
     assert entity in ctx.game_map.entities
-    assert messages == []
+    assert any(
+        "Your Pistol Rounds reserve is already full." in m for m in messages
+    )
 
 
 def test_exploration_reload_draws_from_bandolier():
