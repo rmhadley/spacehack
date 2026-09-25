@@ -247,6 +247,85 @@ Each phase gets its Implementation brief at its own refine time.
 4. Equip the rig → caps rise; Modded quality scales the bonus.
 5. Endurance rows green in `make check`.
 
+### Phase 1 Pre-implementation audit (2026-09-25 build session)
+
+**1. Existing modules to extend or reuse (verified in code):**
+
+- `ground_weapon_ammo.py` — the reload engine doc 51 phase 3
+  extracted; `reserve_ammo_count` / `apply_reload` /
+  `reload_amount` are THE reserve surface, re-exported by
+  `ground_equipment.py:770-780` so every caller imports stay
+  stable. The re-point swaps their store from the pack list to the
+  bandolier dict; import lines at all call sites stay identical.
+- `GroundItemStack` / `parse_item_stack` / `item_stack_capacity`
+  (`ground_equipment.py:583-625`) — legacy stack parsing STAYS
+  forever (phase-2 brief pins it); migration reads parsed stacks.
+- `saveload_ground.py::_ground_fields` / `_restore_ground_fields`
+  (wired at `saveload.py:251` / `:939`) — the serialization seam;
+  `_safe_ground_int`'s clamp/skip convention is the parse pattern
+  the bandolier follows. Log restore happens at ctx construction
+  (`saveload.py:733`), BEFORE `_restore_ground_fields` — a refund
+  log line in the restore path persists to gameplay.
+- `loot.py::_apply_field_item_loot_pickup` (:496) — the SINGLE
+  field-item pickup entry (`_apply_field_item_loot` :760 delegates
+  to it); the ammo branch re-points here. `_finish_loot_pickup`
+  (:427-475 neighborhood) consumes the entity + logs.
+- `harness.build_ground_loadout` / `build_ground_ctx` /
+  `_ground_ammo_total` (tests/balance/harness.py:401/437/585) and
+  `stances._dry_reloadable_slot` (:54) — the doc-50 seam; sheets
+  declare at most `pistol_rounds`×40 (verified — all 3
+  `ground_ammo` rows), far under the 160 cap, so seeding via
+  `add_rounds` cannot clamp and drift the bars.
+- `dev_mode.apply_dev_ground_loadout` — grants weapons/armor only,
+  no ammo stacks; no phase-1 change (verified :283-310).
+
+**2. Three potential duplication hotspots:**
+
+- TWO reload paths (combat `_rules_ground._reloadable_slots` +
+  `_reload_slot`; exploration `ground_reload_ui.reloadable_pack_slots`
+  + `reload_weapon_slot`) repeating the reserve read and the
+  apply call — risk of re-pointing one and missing the other.
+- The ammo_type→spec lookup (needed by `effective_cap`, the save
+  parser's clamp, and the migration's refund pricing) re-derived
+  in three places from `list_ground_ammo()`.
+- Pickup vs migration both "add rounds, compute accepted vs
+  overflow" — risk of two hand-rolled clamp loops instead of the
+  shared `add_rounds` core.
+
+**3. DRY strategy per hotspot:**
+
+- Both reload paths already delegate to the shared engine
+  (`reserve_ammo_count` + `apply_reload`); the re-point changes
+  each call site's STORE ARGUMENT to `ctx.bandolier` and nothing
+  else — the engine stays single-sourced (the state-table/one-
+  mechanism guardrail). `reloadable_pack_slots` (no external
+  callers — verified) renames to `reloadable_slots` so the name
+  stops lying about the store.
+- `bandolier.py` owns one lazy `_spec_by_ammo_type()` registry;
+  `effective_cap`, the parser, and the migration all resolve
+  calibers through it. `reserve_ammo_count` does NOT get a
+  bandolier twin — one reserve read (the engine's) is re-exported
+  everywhere (no parallel-path drift).
+- Both pickup and migration call the pure `add_rounds` and derive
+  accepted/overflow from the before/after counts; the migration's
+  refund pricing is its own pure step (price × overflow) with no
+  second clamp loop.
+
+**Audited call-site list for the re-point (complete, from grep):**
+`_rules_ground.py:620` + `:642`, `ground_reload_ui.py:30` + `:72`,
+`_ground_render.py:272` (`_reserve_count`), `stances.py:73`,
+`test_balance.py:342`, plus the pack-stack pins in
+`test_ground_equipment.py`, `tests/combat/test_rules_ground.py`
+(`_ammo_ctx` :1275 + reload pins :1319/:1351), and
+`test_saveload.py:1337-1350` (round-trip pins an expedition ammo
+stack — becomes a migration pin). `matching_ammo_stack_index`
+becomes dead (only `_apply_reload_at` called it) — removed with
+its test. `loot.py`'s two spawners stay untouched (verified :113,
+kit-drop path) — legacy on-map entities convert on pickup.
+
+**Build-note surprises to carry forward:** none yet (audit done
+pre-code, as contracted).
+
 ### Phase 1 Implementation brief (APPROVED 2026-09-25, SETTLED 3 —
 ### amended per the ADVISE pass; gated on doc 51's core landing;
 ### ready for /implement-phase 52.1 on the handoff)
