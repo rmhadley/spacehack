@@ -344,10 +344,11 @@ migration/reload/pickup/endurance behaviors confirmed in play, and
 the `RES` HUD read confirmed understood (transient until phase 3's
 current/max rework). The log-line verbatims were exercised in play
 unamended and stand as shipped. The brief's "walk over the drop"
-wording was corrected mid-playtest (see findings below). STILL OPEN
-(non-blocking): the at-cap-silence wording question — settle at
-phase 3's checkpoint, where the HUD "topped up" reading makes the
-state visible in combat.
+wording was corrected mid-playtest (see findings below). The
+at-cap-silence wording question parked here was RESOLVED by user
+ruling during the 52.2 playtest (see the phase-2 build record): a
+short at-cap line now logs on the explicit pickup path, reusing the
+restock guard's wording verbatim.
 
 **Commits:** 6ca1bb17 (pre-implementation audit) → cc6fe159 (catalog
 `carry_cap`, SETTLED 1 values pinned) → 27f793f4 (`bandolier.py`
@@ -758,6 +759,17 @@ pinned at the same count. KEPT (flagged for the checkpoint): the
 ARMORY view's empty-row explanation "Armory Storage is unlimited and
 shared between terminals." — different string, explains storage
 scope; extend the ruling there if wanted.
+
+**Playtest ruling — at-cap pickup speaks (phase 1's parked
+question, ANSWERED):** the user ruled from play ("I do want a short
+message when you try to pick up ammo that you don't have room to
+carry"). An explicit P + chooser pick that cannot fit logs
+`Your {name} reserve is already full.` — VERBATIM the armory
+restock guard's line (one wording per state, both paths); the drop
+still stays on the floor and SETTLED 2's no-credits stand.
+Supersedes the phase-1 build-time silence ruling for the explicit
+pickup path; the doc-52.1 pin converted from
+`..._is_silently_ignored` to `..._logs_full_and_stays_on_floor`.
 
 **Prose gate — new/changed player-facing strings, landing at this
 checkpoint for sign-off (verbatims):**
