@@ -1227,6 +1227,59 @@ reserve, and the Equipment split-frame pins (test_pygame_ui);
 guide-content pins ×3 (test_help_guide). Cohorts + full gate green
 throughout (3026 passed at close).
 
+### Phase 6 Pre-implementation audit (2026-09-25 build session)
+
+**1. Existing modules to extend/reuse (verified in code):**
+
+- `_STEP_BODIES["earth_armory"]` (`tutorial.py:158-168`) — a static
+  copy dict; the clause swap is one string edit with zero machinery
+  (step KEYS, `_show_step`, tick conditions all untouched). Corpus
+  re-verified at build: no body contains "bandolier" or "reserve"
+  (grep exit-1); "Melee weapons never need ammunition." stands at
+  `mars_ground_combat_intro` :181.
+- `TUTORIAL_CREDIT_BONUS` comment block (`tutorial.py:27-31`) — the
+  stale "40-round Pistol Rounds stack (40$) = 130$" arithmetic;
+  nothing reads it (dev-facing only).
+- `tests/test_tutorial.py:91` — the content pin inside
+  `TestDoc51WeaponSetCopy.test_earth_armory_buys_knife_and_plants_sets`;
+  :92-93 (the doc-51 wording pins) stay UNTOUCHED. The banned-phrase
+  loop `test_stale_slot_sentence_gone` (:103-106) is the NAMING model
+  for the new 52.6 corpus test, not its host (ADVISE issue 4).
+- Guide corpus (`data/guide/__init__.py`) — grep-verified: the only
+  "stack" hit (:514) is the loot-chooser flow (live field-item
+  vocabulary); :137's "ammo" is the SPACE Cargo section (doc 52 is
+  ground-only; phase 3's audit classified the space-ammo family).
+  No stack-buy vocabulary anywhere — the guide diff IS none.
+- Doc 50 SETTLED 4 parenthetical (:168-170) — the one-line annotation
+  site; the only other `rg "stack of Pistol Rounds"` hits are doc 52's
+  own BEFORE quotes (historical record, stay).
+
+**2. Three potential duplication hotspots** (copy-only phase — the
+hotspots are drift-shaped, not logic-shaped):
+
+- TWO banned-phrase corpora tests over the same `_STEP_BODIES`
+  (`test_stale_slot_sentence_gone` for doc 51, the new 52.6 test) —
+  risk a future phase bolts its phrase onto the wrong doc-named loop
+  (the exact smell ADVISE issue 4 rejected).
+- The :91 positive pin and the corpus test both encoding the clause —
+  risk of TWO sources of the new wording drifting (a pin edit that
+  stops quoting the settled verbatim).
+- The credit-bonus comment's arithmetic vs the live restock economy —
+  no code reads it, so drift is staleness-only (today's edit is the
+  proof: the stack-buy arithmetic went stale silently).
+
+**3. DRY strategy per hotspot:**
+
+- The 52.6 corpus test is its OWN class (`TestDoc52RestockCopy`) with
+  a docstring naming doc 52 phase 6 and its banned phrase; the doc-51
+  loop stays verbatim. Each doc's concern stays addressable — a future
+  phrase joins the test that OWNS it.
+- The corpus test bans the RETIRED wording only ("a stack of") and
+  never quotes the new clause; the :91 pin is the single positive
+  source of the SETTLED 6 verbatim.
+- The comment rewrite states the restock arithmetic once and mirrors
+  the popup's agnostic stance (names no count in either).
+
 ### Phase 6 Implementation brief (PROPOSED 2026-09-25 — SETTLED 6;
 ### amended per the ADVISE pass (all five issues folded); wording
 ### ruled in-session, prose gate satisfied; doc 52's last phase)
