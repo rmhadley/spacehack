@@ -694,6 +694,22 @@ def test_ground_consumable_loot_is_typed_and_respects_stack_capacity():
 # ---------------------------------------------------------------------------
 
 
+def test_stored_mag_suffix_states_the_preserved_magazine():
+    from src.spacehack.ground_equipment import stored_mag_suffix
+
+    # Unspecified (legacy/fresh) displays as full; carried shows as-is;
+    # non-reloadable weapons carry no magazine.
+    assert stored_mag_suffix(
+        StoredGroundEquipment("weapon", "kinetic_pistol"),
+    ) == "  Mag 12/12"
+    assert stored_mag_suffix(
+        StoredGroundEquipment("weapon", "kinetic_pistol", 1, 5),
+    ) == "  Mag 5/12"
+    assert stored_mag_suffix(
+        StoredGroundEquipment("weapon", "combat_knife", 2, 7),
+    ) == ""
+
+
 def test_weapon_instance_carries_quality():
     assert weapon_instance("kinetic_pistol", 2) == GroundWeaponInstance(
         "kinetic_pistol", 12, 2,
