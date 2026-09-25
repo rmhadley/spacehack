@@ -665,120 +665,233 @@ extraction when it comes).
   warehouse on the armory path — today's displacement containers);
   a 2H pick displaces the whole set as today.
 
-### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 3;
-### ready for /implement-phase 51.3 on approval)
+Phase-3 ADVISE round rulings (2026-09-25, user; the pass itself is
+recorded below the brief):
 
-**Scope (files / hook points; sizes verified on the tree):**
+- **Armory screens go FULLY set-aware**: the equipment view
+  mirrors the C screen (both class groups + role markers); Store/
+  Sell works on members of either set.
+- **The C-screen reload is REMOVED** (user, verbatim): "why do we
+  need a c screen reload? let's just remove it? reload is either
+  in combat or out of combat. not inside the menus." R becomes the
+  single reload verb — in combat at the weapon's reload AP, in
+  dungeon exploration via the existing `reload_exploration`. Every
+  menu reload offering (weapon-row options, pack ammo-stack
+  reload) is deleted; the two-price row/counter tangle dissolves
+  with them.
+- **Magazines PRESERVE through store/displacement**:
+  `StoredGroundEquipment` gains serialized loaded ammo (legacy
+  saves / absent field default to a full magazine); a half-spent
+  pistol stores, displaces, and comes back half-spent. Kills
+  today's store-reseed free-ammo round-trip and makes the
+  Overview's magazine-persistence promise true on every path.
+
+### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 3 +
+### ADVISE-folded; ready for /implement-phase 51.3 on approval)
+
+**Scope (files / hook points; all anchors advisor-verified):**
 
 - **Set-targeting primitives** (`ground_weapon_sets.py`, 113
   lines — owns the set law; `ground_equipment.py` at 987/1000
   cannot absorb anything): NEW pure planners — resolve a weapon's
-  class home (the set currently holding that class; if unfounded,
-  the empty set that is not the other class's home; if both empty,
-  the ACTIVE set — the equip-to-wield intuition), and an equip
-  plan (target list + displacement set when the home is full).
-  Capacity validation imports ground_equipment's existing helpers
-  (one-way import; no cycle).
+  class home and an equip plan (target list + displacement set
+  when the home is full). **Founding rule, TOTAL over reachable
+  states (ADVISE fold 7)**: home = the set holding the class; if
+  BOTH hold it (hand-edited save) the ACTIVE set wins; if unfounded
+  → the empty set that is not the other class's home; if both
+  empty → the ACTIVE set (equip-to-wield). Degenerate mixed sets
+  with no empty set (purity refuses every entry) → deterministic
+  refusal with a log line. Capacity validation imports
+  ground_equipment's existing helpers (one-way; no cycle).
+- **Magazine preservation (SETTLED 3)**: `StoredGroundEquipment`
+  gains a serialized loaded-ammo field (absent/legacy = full via
+  the `weapon_instance` seeding default); `weapon_entry` carries
+  the instance's loaded ammo; every store/displacement path
+  preserves it. The balance harness's "magazines seed FULL"
+  docstring contract updates (its loadouts build full anyway).
 - **The slot-model weapon functions RETIRE** (the ratchet payment
   IS the retirement): `swap_weapon_from_expedition`,
   `install_weapon`, `_plan_weapon_install`, `_apply_weapon_install`,
-  `_replace_weapon_slot`, `_validated_swap_weapon` and their
-  weapon-only helpers leave `ground_equipment.py` (→ ~840/1000),
-  replaced by the set-aware equip/store/install primitives above.
-  Armor twins and shared capacity validators STAY. Dead-code
-  checklist in-commit (rg zero references for every retired name).
+  `_replace_weapon_slot`, `_validated_swap_weapon`, and
+  `_set_swapped_weapon` (the "+helpers" enumeration closed — ADVISE
+  fold 9; 146 lines out → ground_equipment ≈841/1000) leave for
+  the set-aware equip/store/install primitives. **Callers moving
+  in the SAME commit (ADVISE folds 1-2)**: character_screen
+  pack-equip, armory `_install_from_container`, armory
+  `_install_purchase` (the BUY_INSTALL branch — buy-and-equip IS
+  an equip flow; the buy-destination branches stay), AND
+  `tests/balance/harness.py:412` `build_ground_loadout` (rerouted
+  onto the set-aware install — a mechanical caller move, NOT
+  balance work; the stop point does not forbid it). Armor twins
+  and shared validators stay.
 - **C-screen reshape** (`character_screen_weapons.py` 140 +
   `character_screen.py` 921): `_weapon_rows` renders TWO class
   groups with role markers (empty sets shown); manage actions
-  (equip/store/reload) offered per member of BOTH sets;
+  (equip/store) offered per member of BOTH sets;
   `_swap_options`/`_pack_weapon_slots` (the `range(2)` slot
-  vocabulary) → class-set targeting; the pack-equip slot chooser
-  → the member chooser when the class home is full (2H pick
+  vocabulary) → class-set targeting; the pack-equip slot chooser →
+  the member chooser when the class home is full (2H pick
   displaces the whole set); store flow works from either set
-  (storing every active member must leave it EMPTY — the fists
-  floor is reachable through the UI, phase-2 playtest item 3's
-  deferred half); reload options extend to holstered members at
-  the weapon's reload AP (the existing per-weapon cost — separate
-  from the 1-AP edit economy).
-- **Armory install** (`menus/_armory.py` 921,
-  `_install_from_container` :476): the weapon branch routes
-  through the set-aware install — auto-target the class home,
-  displaced members to the existing displacement containers
-  (warehouse/pack logic unchanged). The BUY flow is untouched
-  (buy → storage as today; equipping stays an explicit step).
+  (storing every active member leaves it EMPTY — the fists floor
+  is reachable through the UI, phase-2 playtest item 3's deferred
+  half). **Chooser capacity failure (ADVISE fold 10)**: the
+  chooser is always offered; a 2H displacement whose +1 member
+  overflows the pack aborts atomically with the existing
+  "Expedition inventory is full" line — zero partial mutation.
+  **Menu reload REMOVED (SETTLED 3, verbatim ruling)**:
+  `ground_reload_ui.py` enters scope — the menu-facing plumbing is
+  deleted (character_screen's `weapon_reload_option` row options,
+  `reload_weapon_slot` row handler, `reload_pack_ammo`, and the
+  pack-ammo reload branch of `manage_pack_ammo` — the exact
+  split verified at build), while `reload_exploration` and its
+  internal helpers stay as R's engine. R becomes the only reload
+  verb: in combat at the weapon's reload AP, in dungeon
+  exploration free — the row/counter two-price tangle dissolves.
+- **Armory fully set-aware (SETTLED 3)** (`menus/_armory.py` 921):
+  `_weapon_slot_rows`/`store_weapon`/`remove_weapon` become
+  two-group set-aware (mirroring the C screen); the weapon branch
+  of `_install_from_container` + `_install_purchase` route through
+  the set-aware install with the member chooser;
+  `_needs_displacement`/`_displacement_container` recompute
+  against the class home (not the equipped list — ADVISE fold 3a).
+  The BUY flow's destination logic is otherwise untouched.
 - **Tinker reach** (`tinker.py` 289, `_weapon_targets` :139):
-  enumerate BOTH sets (target keys gain the set, e.g.
-  `KIT:WEAPON:{set}:{index}`); the phase-1 reviewer catch lands.
-- **Guide** (`data/guide/`): Ground Gear section's two-slot wording
-  → set wording. Proposed text (red-line at approval): replace the
-  slot sentence with "Weapons are carried as two sets — one ranged,
-  one melee. Each set holds one two-handed weapon or up to two
-  one-handed weapons; X swaps the whole active set for the holstered
-  set." Own commit per the prose gate.
+  enumerate BOTH sets (`KIT:WEAPON:{set}:{index}` — keys are
+  opaque/equality-matched, no binder change needed); the phase-1
+  reviewer catch lands.
+- **Guide** (`data/guide/`): Ground Gear :317-319 — the two-slot
+  sentence replaced by set wording, RETAINING the trailing
+  "Every weapon lists its damage type…" sentence (ADVISE fold 13);
+  the reload blurb :300-302 reworded for menu-reload removal.
+  Proposed text (red-line at approval): "Weapons are carried as
+  two sets — one ranged, one melee. Each set holds one
+  two-handed weapon or up to two one-handed weapons; X swaps the
+  whole active set for the holstered set." Own commit per the
+  prose gate.
 
-**Build order:** set-targeting primitives + tests → retire/replace
-the slot-model weapon functions (callers move in the same commit —
-character_screen pack-equip + armory install) → C-screen two-group
-reshape + member chooser + store flows → armory install routing →
+**Build order:** magazine field + set-targeting primitives +
+tests → retire/replace the slot-model functions with ALL callers
+(character_screen pack-equip, armory install + buy-install,
+balance harness) → C-screen two-group reshape + member chooser +
+store flows + menu-reload removal → armory set-aware view/manage →
 tinker reach → guide entry (own commit) → full `make check`.
 
-**Binding rulings:** SETTLED 3 (all four) + SETTLED 1 extension
-(uniform 1 AP per change — `_handle_character_action`'s swap
-counter counts every successful equipment change, either set).
-Derived mechanics (red-line at approval): the class-home founding
-rule above (deterministic, equip-to-wield when both sets empty);
-loader tolerance UNCHANGED (a hand-edited mixed-class set loads
-verbatim; the UI labels it by its first member's class, phase-1
-convention); X, the HOLSTER row, and the dev grant are untouched;
-displaced/stored weapons keep magazines (the existing stored-entry
-round-trip). Mid-combat saves remain structurally impossible, so
-the AP economy never meets the save layer.
+**Binding rulings:** SETTLED 3 (all seven — class-keyed sets,
+class groups + markers, uniform 1 AP per change, member chooser,
+armory fully set-aware, menu reload removed, magazines preserve)
++ SETTLED 1 extension (uniform 1 AP: armor economics UNCHANGED —
+armor already counts today, ADVISE fold 11; the new deltas are
+holstered edits and the mid-combat store, both pinned). Derived
+mechanics (red-line at approval): the total founding rule above;
+loader tolerance unchanged (degenerate same-class/mixed saves load
+verbatim and resolve per the rule); X, HOLSTER row, dev grant
+untouched; R's dungeon-exploration gate unchanged (city reload
+was never offered and still isn't — managing ammo happens in
+dungeons or via R in combat). Pre-committed ratchet seams (ADVISE
+fold 12 — no improvising mid-build): character_screen's pack/
+equip manage flows overflow into `character_screen_weapons.py`
+(or a new sibling beside it); the armory's install/manage flows
+overflow into a sibling of `_armory.py`; the four named 40/36-line
+walls (`_swap_from_pack`, `_install_from_container`,
+`reload_weapon_slot` remnant, `_apply_equipment_select`) get
+their extractions as part of their owning commits.
 
-**Required tests:** set targeting — class-home resolution table
-(founded homes, unfounded-with-other-founded, both empty → active,
-full home → displacement plan); member chooser — 1H pick displaces
-the picked member, 2H pick displaces the whole set, displaced
-entries land pack-side/armory-side per path with magazines;
-store — capacity-checked, store-all leaves the active set empty
-(fists floor via UI); equip into a full set never silently refuses
-(the chooser is always offered); uniform AP — a mid-combat
-holstered-set equip charges exactly 1; C-screen rows — both class
-groups render with role markers, empty sets visible, X flips the
-markers; armory install routes to the class home; tinker targets
-enumerate holstered members; pack relief behavioral pin (holstered
-members survive a pack-full state — the phase-1 structural
-promise); save/load round-trip through every new flow; guide entry
-present. Every retired function name rg-verified gone. Every new
-pure/mutation-wrapper function carries its test in the same commit.
+**Required tests:** set targeting — the resolution table incl.
+every degenerate row (founded, unfounded-with-other-founded,
+both-empty → active, same-class-both → active wins, mixed-no-empty
+→ refusal line); member chooser — 1H pick displaces the picked
+member, 2H pick displaces the whole set, 2H-at-pack-capacity
+aborts atomically; magazines — a half-spent instance round-trips
+half-spent through pack-store, displacement, and armory install;
+legacy no-field saves load full; store — capacity-checked,
+store-all leaves the active set empty (fists floor via UI);
+uniform AP — a mid-combat holstered equip AND a mid-combat store
+each charge exactly 1; C-screen rows — both class groups with
+role markers, empty sets visible, X flips markers, NO reload
+options anywhere in the screen; armory — install/buy-install
+route to the class home, store/sell on either set, displacement
+containers correct for a holstered home; tinker targets enumerate
+holstered members; pack relief behavioral pin (holstered members
+survive a pack-full state); save/load round-trip through every
+new flow; guide entries present. **Test surgery named (ADVISE
+fold 8)**: `test_ground_equipment.py` — 15 retired-name
+references across the slot-model tests (rewrite as set-model;
+delete pure slot-behavior pins like
+`test_swap_weapon_from_expedition_replaces_requested_slot`);
+`test_pygame_ui.py` — the "Weapon slot 1/2" row vocabulary,
+`SWAP:weapon:0`, and 6 `RELOAD_SLOT` pins re-anchored;
+`test_tinker.py` — `KIT:WEAPON:0` pins re-keyed. Every retired
+name rg-verified gone (src, tests, tools). Every new pure/
+mutation-wrapper function carries its test in the same commit.
 
-**Stop point:** no balance/board work (phase 4), no tutorial or
-further guide edits (phase 5), no HUD changes (the HOLSTER row and
-explore hint shipped in phase 2), no new keys, no dev-grant
-changes, no space-side anything.
+**Stop point:** no balance/board WORK (phase 4) — the harness
+caller reroute in the retirement commit is a mechanical move, not
+balance work; no tutorial or further guide edits (phase 5); no
+HUD changes; no new keys; no dev-grant changes; no space-side
+anything.
 
 **Playtest checkpoint:**
 
 1. **Two-group C screen**: open C → weapons render as RANGED and
    MELEE groups with `[ACTIVE]`/`[HOLSTER]` markers matching the
-   dev seed (Rocket Launcher ranged-active, Mono Blade
-   melee-holster); X in the dungeon flips the markers.
+   dev seed; X in the dungeon flips the markers.
 2. **Founding**: on a fresh non-dev game, equip a melee weapon from
    the pack → it founds/joins the melee home; the other group shows
    empty.
 3. **Member chooser**: with the ranged set full (2×1H), equip
    another 1H ranged from the pack → chooser lists the set's
-   members; the pick is displaced to the pack.
+   members; the pick is displaced to the pack, magazine intact.
 4. **Uniform AP**: in combat, C-equip into the HOLSTERED set →
-   exactly 1 AP charged (same as an active-set edit).
+   exactly 1 AP (same for a mid-combat store).
 5. **Store-to-empty**: store every active-set member → the group
    shows empty, X swaps to it, F fights with fists.
-6. **Armory**: install a weapon from the warehouse → it lands in
-   its class set; displaced members go to the warehouse.
-7. **Tinker**: the kit's chooser lists holstered members.
-8. **Save/load sniff**: build both sets via the new flows → ESC
-   save → continue → sets, markers, and magazines identical.
-9. **Guide diff**: Ground Gear — the two-slot sentence replaced by
-   the set wording above (exact before/after quoted at handoff).
+6. **Magazines**: fire the pistol half-empty → store → re-equip →
+   still half-empty (no free top-off).
+7. **No menu reload**: the C screen and pack submenus offer no
+   reload options anywhere; R reloads in combat (weapon's reload
+   AP) and in the dungeon (free).
+8. **Armory**: the equipment view shows both groups; install and
+   buy-and-equip land in the class home; store/sell works on
+   holstered members.
+9. **Tinker**: the kit's chooser lists holstered members.
+10. **Save/load sniff**: build both sets via the new flows → ESC
+    save → continue → sets, markers, and magazines identical.
+11. **Guide diff**: Ground Gear — the two-slot sentence replaced
+    (trailing damage-type sentence retained) + the reload blurb
+    reworded; exact before/after quoted at handoff.
+
+### Phase 3 ADVISE pass (2026-09-25, pre-approval — every-brief rule)
+
+Verdict: **ADVICE — 7 blocking, 6 minor; three blocking findings
+escalated to user rulings (armory scope, reload economy → the
+menu-reload removal, magazine round-trip), the rest folded into
+the brief above.** Blockers: (1) the balance harness imports
+`install_weapon` — retirement without rerouting breaks pytest
+collection; (2) the armory BUY_INSTALL branch calls the retired
+function; (3) `_needs_displacement`/`_displacement_container`
+compute against the equipped list + the armory manage flow is
+active-set-only (→ ruled: armory fully set-aware); (4)
+`ground_reload_ui` is slot-keyed (`RELOAD_SLOT:{int}` parsers
+raise on set keys) and was missing from scope; (5) the row-reload
+price is path-dependent today — 1 AP flat on member rows,
+`reload_ap_cost` on ammo stacks (→ ruled: menu reload removed
+entirely); (6) stored weapons carry NO magazine — re-equip seeds
+FULL, contradicting the brief's "keep magazines" line (→ ruled:
+preserve through store); (7) the founding rule wasn't total over
+hand-edited saves (same-class-both-sets tiebreak, mixed-no-empty
+refusal — both folded as derived mechanics). Minors: test surgery
+enumerated (test_ground_equipment ×15, test_pygame_ui row
+vocabulary + 6 RELOAD_SLOT pins, test_tinker key pins);
+`_set_swapped_weapon` named (146 lines total → ≈841 remaining);
+2H-displacement capacity failure stated; armor-AP delta stated
+honestly (no change) + the mid-combat store pin; four ratchet
+walls + module headroom → pre-committed overflow seams; guide
+anchors corrected (trailing sentence retained, reload blurb).
+Verified clean: save/load introduces no new state beyond the
+magazine field; tinker keys are opaque (no binder change); the
+Equipment tab scrolls (doubled rows paginate); the tinker/kit
+mechanics and the purity guards block every state the loader
+would mangle.
 
 ## Open questions
 
