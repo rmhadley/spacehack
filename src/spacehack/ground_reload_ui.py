@@ -1,10 +1,10 @@
 """Shared reload actions for ground weapons.
 
 Doc 51 phase 3 removed the menu-facing reload offerings (R is the
-only reload verb — in combat at the weapon's reload AP, free in
-dungeon exploration). What remains is R's engine: slot resolution,
-the AP gate, and the transactional apply that
-:func:`reload_exploration` drives.
+only reload verb — in combat at the weapon's reload AP through the
+ground rules' own hook, free in dungeon exploration). What remains
+is R's free-exploration engine: slot resolution and the transactional
+apply that :func:`reload_exploration` drives.
 """
 
 from __future__ import annotations

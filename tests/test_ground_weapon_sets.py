@@ -722,8 +722,8 @@ def test_install_bad_displace_index_raises():
 
 def test_install_displacement_requires_a_destination():
     """Whole-set displacement with nowhere to route refuses atomically
-    (``displaced_container`` alone defaults to armory; the storage
-    list is the required part)."""
+    (the storage list is the required first half; the container join
+    is pinned separately below)."""
     equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
     pack = [StoredGroundEquipment("weapon", "laser_pistol")]
     with pytest.raises(ValueError, match="destination"):

@@ -2,7 +2,8 @@
 
 **Status: BUILDING (2026-09-25) — phases 1-2 LANDED + PLAYTEST
 PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
-ruling); phase 3 SETTLED 3 + brief PROPOSED — awaiting approval.
+ruling); phase 3 LANDED (ten commits, two review rounds APPROVE)
+— AWAITING PLAYTEST (the 11-item checklist in the phase-3 brief).
 Core rulings SETTLED 1–3; open questions 1–2 (tutorial wording,
 board immunity) parked at their phases.**
 
@@ -129,11 +130,12 @@ The design is driven by measured failures of the 2-slot world:
   explore HUDs, a8fdd94b). Dispatch action + key (6a law:
   table + VIM + main-loop helpers), 1-AP cost, refresh, HUD
   indicator, input-path tests, guide Controls entry.
-- [ ] 3. **Equipment UI** — armory/character screen set-aware equip;
-  pack relief (holstered never counted); tinker-kit reach must cover
-  holstered members (`tinker.py:141` `eligible_targets` enumerates
-  only the equipped list today — reviewer catch, phase 1 review); UI
-  tests.
+- [x] 3. **Equipment UI** — LANDED 2026-09-25 (ea5bf16d…e2b92e4b +
+  guide deaf038f; two review rounds APPROVE), awaiting playtest.
+  Armory/character screen set-aware equip; pack relief (holstered
+  never counted); tinker-kit reach covers holstered members
+  (`tinker.py` `_weapon_targets`, phase-1 reviewer catch); UI tests.
+  Build record below the brief.
 - [ ] 4. **Standard re-rule** — the doc-50 board re-measured under
   the new world (SETTLED 6 benchmark revision, bars re-ruled in the
   same commit), `toggle_sets` stance, candidate protected row: the
@@ -893,6 +895,49 @@ Equipment tab scrolls (doubled rows paginate); the tinker/kit
 mechanics and the purity guards block every state the loader
 would mangle.
 
+### Phase 3 build record (2026-09-25)
+
+**REVIEW round 1 verdict: APPROVE, zero blocking, six minors** — all
+applied. The reviewer read every commit and every touched module,
+re-ran the focused suites + the architecture check, and verified the
+six contract questions (founding-rule totality + one shared
+`_set_holds_class` across all six callers; magazine preservation end
+to end incl. legacy-full; every C path converging on the single
+`swap_count + 1`; menu reload rg-gone with R's engine intact;
+atomicity incl. chooser-cancel-buys-nothing; no ratchet-dodging —
+ground_equipment genuinely 987→781). Minors: (1) `reload_weapon_slot`'s
+dead combat params + `_reload_ap_gate` stripped (combat R charges
+through the ground rules' own hook); (2) `stored_mag_suffix` +
+`class_home` pins; (3) the C screen's `_SET_GROUPS`/`_class_home`
+duplicates collapsed onto `SET_CLASSES`/`class_home` (+ the vestigial
+`_swap_options` item_type param); (4) the two SETTLED-3 1-AP action
+pins; (5) a dead `SWAP:weapon:0` test vocab rekey; (6) displaced
+installs must name their container — the retired
+destination-container guard restored (a pack destination can never
+silently validate as the unlimited armory default).
+
+**REVIEW round 2 (focused re-review of the fix commits): APPROVE** —
+both contract-touching fixes confirmed clean (the twin-pair collapse
+preserves the empty-list-for-unfounded contract on every caller; the
+container guard is unreachable for legitimate callers, storage-None
+raise ordered first). Four minors: two stale docstrings (module +
+test) and this doc's audit ledger line naming the deleted
+`_reload_ap_gate` — all three corrected in the round-2 follow-up
+commit; the fourth is a commit-attribution note (the round-1 fix
+commits staged overlapping test edits, so 15a43cad/845761ab carry
+neighboring pins that e2b92e4b's message claims — every prescribed
+change IS present in the range; the reviewer ruled a rebase of a
+green landed stack not worth it, recorded here so the ledger stays
+true).
+
+Build shape landed as audited, with `ground_weapon_ammo.py` the one
+addition the audit pre-committed (the ratchet payment for
+ground_equipment's magazine-field lines; the retirement then brought
+it 987→781). Final tree: ground_equipment 781, ground_weapon_sets
+~310, character_screen 929, character_screen_weapons ~150,
+menus/_armory 991, tinker ~300 — all under the wall; `make check`
+green at 2983 tests.
+
 ### Phase 3 pre-implementation audit (2026-09-25, build session)
 
 **1. Existing modules to reuse** (anchors verified on the tree at
@@ -979,7 +1024,9 @@ the walls breach — the pre-committed seam), tinker ≈300.
   `weapon_reload_option`, `reload_pack_ammo`, `manage_pack_ammo`
   (the pack-ammo branch was its whole reload offering — the stack
   manage becomes Discard-only, hosted in character_screen beside
-  `_discard_pack_stack`). The three character_screen wrappers
+  `_discard_pack_stack`). [Review round 1 additionally deleted
+  `_reload_ap_gate` + the dead combat params — combat R charges AP
+  through the ground rules' own hook.] The three character_screen wrappers
   (:629-657) and the `RELOAD_SLOT:` branch of `_swap_from_pack` die
   with them.
 - **The intermediate retirement commit is honestly transitional**:
