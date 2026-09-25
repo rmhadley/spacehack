@@ -240,7 +240,13 @@ claims were independently re-verified in code before ruling.
   has never actually run (the key was dead), so no live UX is
   lost. This is the ONE ruled `src/spacehack/` exception to phase
   2's stop rule — the fix lands as its own commit at the build's
-  start.
+  start. REVIEW-PASS NOTE (2026-09-25): "first dry slot" =
+  `_reloadable_slots()[0]` — the first active slot with ROOM in its
+  magazine (a partial magazine tops off), guide worded to match;
+  `_reload_slot` vs `ground_reload_ui.reload_weapon_slot` remain
+  parallel transactional reload bodies — recorded debt for a later
+  pass (consolidating exceeds this phase's one-ruled-exception
+  budget).
 - **Reference target = closest everywhere.** The stance selects
   the closest alive enemy each turn (cycling TARGET through the
   real dispatch); FIRE and the MOVE band rule reference the same

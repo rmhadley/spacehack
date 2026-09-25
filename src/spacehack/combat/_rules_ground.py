@@ -621,20 +621,6 @@ def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
             candidates.append((_slot, _instance, _spec, _reserve))
     return tuple(candidates)
 
-def _reload_option(_slot, _instance, _spec, _reserve) -> tuple:
-    """One combat reload-chooser option with the name coloured."""
-    from .. import message_log
-    from ..data.quality import quality_mark
-    from ..ground_equipment import display_name
-
-    _name = display_name("weapon", _instance.weapon_id, _instance.quality)
-    _label, _runs = message_log.with_runs(
-        quality_mark(_name, _instance.quality),
-        f" {_instance.loaded_ammo}/{_spec.ammo_capacity} RES {_reserve}",
-    )
-    return (_label, f"RELOAD_SLOT:{_slot}", _runs)
-
-
 def _reload_slot(ctx, slot: int) -> bool:
     """Reload one validated slot transactionally and charge its AP cost."""
     from ..ground_equipment import apply_reload
@@ -665,43 +651,18 @@ def _reload_slot(ctx, slot: int) -> bool:
     )
     return True
 
-async def _choose_reload_slot(ctx, candidates) -> int | None:
-    """Show the compact weapon chooser and return the selected slot."""
-    from .. import pygame_story
-
-    options = tuple(
-        _reload_option(_slot, _instance, _spec, _reserve)
-        for _slot, _instance, _spec, _reserve in candidates
-    )
-    chosen = await pygame_story.choose(
-        ctx,
-        title="RELOAD WEAPON",
-        body="Choose a weapon to reload.",
-        options=options,
-        caption="spacehack - reload",
-        compact=True,
-    )
-    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
-        return None
-    if chosen == "__QUIT__":
-        raise SystemExit
-    try:
-        _slot = int(chosen.split(":", 1)[1])
-    except (IndexError, ValueError):
-        ctx.log.add("That reload choice is invalid.")
-        return None
-    return _slot if _slot in {_candidate[0] for _candidate in candidates} else None
-
 async def reload_weapon(ctx) -> bool:
-    """Reload one active weapon, choosing when multiple can reload."""
+    """Reload the first dry active slot with reserve (doc 50 SETTLED 5).
+
+    Deterministic — no chooser: the multi-slot chooser shipped dead (the
+    dispatch called this coroutine without await, so the live R key
+    never ran), and a tutorial-honest reload is one keypress anyway.
+    """
     _candidates = _reloadable_slots(ctx)
     if not _candidates:
         ctx.log.add("No active weapon can be reloaded.")
         return False
-    if len(_candidates) == 1:
-        return _reload_slot(ctx, _candidates[0][0])
-    _slot = await _choose_reload_slot(ctx, _candidates)
-    return _slot is not None and _reload_slot(ctx, _slot)
+    return _reload_slot(ctx, _candidates[0][0])
 
 # ---------------------------------------------------------------------------
 # Player movement

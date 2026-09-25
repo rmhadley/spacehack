@@ -1337,11 +1337,16 @@ def test_reload_weapon_missing_ammo_leaves_state_and_ap_unchanged():
 
 
 def _dual_wield_ammo_ctx():
-    """Build a two-weapon combat context with both magazines reloadable."""
+    """Two-weapon combat context with both magazines reloadable.
+
+    Slot 0 is first-but-FULLEST (11/12 vs 3/12) so the pin uniquely
+    holds slot ORDER — an emptiest-first implementation would pick
+    slot 1 (reviewer issue 2).
+    """
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _ctx.equipped_ground_weapons = [
-        GroundWeaponInstance("kinetic_pistol", 3),
         GroundWeaponInstance("kinetic_pistol", 11),
+        GroundWeaponInstance("kinetic_pistol", 3),
     ]
     _ctx.ground_expedition_items = [GroundItemStack("ammo", "pistol_rounds", 40)]
     _rules_ground.init(_ctx, [_enemy], _game_map)
@@ -1349,63 +1354,38 @@ def _dual_wield_ammo_ctx():
     return _ctx
 
 
-def test_reload_weapon_chooses_between_multiple_active_weapons(monkeypatch):
-    from src.spacehack import pygame_story
-
+def test_reload_weapon_reloads_first_dry_active_slot_deterministically():
+    """Doc 50 SETTLED 5: R reloads the FIRST dry active slot with
+    reserve — no chooser (the multi-slot modal shipped dead: the
+    dispatch never awaited the coroutine, so the live R key never
+    ran). Slot order, not emptiest-first: slot 0 (11/12) reloads
+    ahead of the emptier slot 1."""
     _ctx = _dual_wield_ammo_ctx()
-    choices = []
-
-    def _choose(_ctx, **kwargs):
-        choices.append(kwargs["options"])
-        return "RELOAD_SLOT:1"
-
-    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
 
     assert run(_rules_ground.reload_weapon(_ctx)) is True
-    assert len(choices) == 1
-    assert choices[0] == (
-        ("Kinetic Pistol 3/12 RES 40", "RELOAD_SLOT:0", None),
-        ("Kinetic Pistol 11/12 RES 40", "RELOAD_SLOT:1", None),
-    )
     assert _ctx.equipped_ground_weapons == [
-        GroundWeaponInstance("kinetic_pistol", 3),
         GroundWeaponInstance("kinetic_pistol", 12),
+        GroundWeaponInstance("kinetic_pistol", 3),
     ]
     assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
     assert _rules_ground.player_ap(_ctx) == 2
 
 
-def test_reload_weapon_modal_cancel_preserves_both_weapons(monkeypatch):
-    from src.spacehack import pygame_story
+def test_dispatch_reload_is_awaited_and_performs_the_reload():
+    """The RELOAD regression pin: the loop's dispatch must AWAIT the
+    rules' reload coroutine — the un-awaited call left the magazine
+    untouched while the tutorial taught the R key (doc 50 SETTLED 5).
+    Sabotage-proven: dropping the await fails this test."""
+    _ctx, _game_map, _enemy = _ammo_ctx("kinetic_pistol", 3, reserve=40)
+    _rules_ground.set_player_ap(_ctx, 3)
+    _console = SimpleNamespace(clear=lambda: None, print=lambda *a, **k: None)
 
-    _ctx = _dual_wield_ammo_ctx()
-    monkeypatch.setattr(
-        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "__BACK__"),
-    )
+    run(_loop._dispatch_combat_action(
+        _console, _ctx, _game_map, _rules_ground, "RELOAD", 0,
+    ))
 
-    assert run(_rules_ground.reload_weapon(_ctx)) is False
-    assert _ctx.equipped_ground_weapons == [
-        GroundWeaponInstance("kinetic_pistol", 3),
-        GroundWeaponInstance("kinetic_pistol", 11),
-    ]
-    assert _ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
-    assert _rules_ground.player_ap(_ctx) == 3
-
-
-def test_reload_weapon_modal_rejects_an_invalid_slot(monkeypatch):
-    from src.spacehack import pygame_story
-
-    _ctx = _dual_wield_ammo_ctx()
-    monkeypatch.setattr(
-        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "RELOAD_SLOT:99"),
-    )
-
-    assert run(_rules_ground.reload_weapon(_ctx)) is False
-    assert _ctx.equipped_ground_weapons == [
-        GroundWeaponInstance("kinetic_pistol", 3),
-        GroundWeaponInstance("kinetic_pistol", 11),
-    ]
-    assert _rules_ground.player_ap(_ctx) == 3
+    assert _ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
+    assert _rules_ground.player_ap(_ctx) == 2
 
 
 # ---------------------------------------------------------------------------

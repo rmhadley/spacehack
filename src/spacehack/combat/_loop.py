@@ -557,7 +557,7 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
     elif action == "RELOAD":
         _reload = getattr(rules, "reload_weapon", None)
         if _reload is not None:
-            _reload(ctx)
+            await _reload(ctx)
         else:
             ctx.log.add("Reload is unavailable here.")
     elif action.startswith("WEAPON:"):
