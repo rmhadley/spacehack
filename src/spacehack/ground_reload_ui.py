@@ -51,16 +51,14 @@ def _resolve_reload_target(ctx, slot):
     )
 
 
-def reload_weapon_slot(
-    ctx,
-    slot: int,
-    *,
-    in_ground_combat: bool,
-    charge_ap: bool,
-) -> bool:
-    """Reload one selected weapon, optionally charging combat AP."""
+def reload_weapon_slot(ctx, slot: int) -> bool:
+    """Reload one selected weapon — R's free exploration engine.
+
+    Combat R charges the weapon's reload AP through the ground rules'
+    own hook; this path never touches AP (doc 51.3 removed the menu
+    reloads that once charged here).
+    """
     from . import ground_equipment
-    from .combat import _rules_ground
 
     _target = _resolve_reload_target(ctx, slot)
     if _target is None:
@@ -70,8 +68,6 @@ def reload_weapon_slot(
         _log_name_line(ctx, "", _name, _instance.quality,
                        ": no matching ammo or magazine is full.")
         return False
-    if not _reload_ap_gate(ctx, _spec, in_ground_combat):
-        return False
     try:
         _new = ground_equipment.apply_reload(
             ctx.equipped_ground_weapons, slot, ctx.ground_expedition_items,
@@ -79,27 +75,10 @@ def reload_weapon_slot(
     except (IndexError, KeyError, ValueError) as exc:
         _log_name_line(ctx, "", _name, _instance.quality, f": {exc}")
         return False
-    if in_ground_combat and charge_ap:
-        _rules_ground.set_player_ap(
-            ctx, _rules_ground.player_ap(ctx) - _spec.reload_ap_cost,
-        )
     _log_name_line(
         ctx, "Reloaded ", _name, _instance.quality,
         f" ({_new.loaded_ammo}/{_spec.ammo_capacity}).",
     )
-    return True
-
-
-def _reload_ap_gate(ctx, spec, in_ground_combat: bool) -> bool:
-    """True when the combat AP cost is affordable (non-combat passes)."""
-    from .combat import _rules_ground
-
-    if not in_ground_combat:
-        return True
-    _ap, _cost = _rules_ground.player_ap(ctx), spec.reload_ap_cost
-    if _ap < _cost:
-        ctx.log.add(f"Need {_cost} AP to reload (have {_ap}).")
-        return False
     return True
 
 
@@ -172,6 +151,4 @@ async def reload_exploration(ctx) -> bool:
         ctx.log.add("No equipped weapon can be reloaded.")
         return False
     slot = await _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
-    return slot is not None and reload_weapon_slot(
-        ctx, slot, in_ground_combat=False, charge_ap=False,
-    )
+    return slot is not None and reload_weapon_slot(ctx, slot)
