@@ -101,7 +101,9 @@ def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
     from ..data.quality import effective_armor_spec, effective_weapon_spec
 
     if entry.item_type == "weapon":
-        return _weapon_detail(effective_weapon_spec(entry.item_id, entry.quality))
+        return _weapon_detail(effective_weapon_spec(entry.item_id, entry.quality)) + (
+            ground_equipment.stored_mag_suffix(entry)
+        )
     return _armor_detail(effective_armor_spec(entry.item_id, entry.quality))
 
 def _catalog_items(planet_id: str, month: int):
@@ -210,42 +212,49 @@ def _field_item_rows(
     return tuple(rows)
 
 def _weapon_slot_rows(ctx: GameContext):
-    """Build the weapon-slot rows for the active ground loadout."""
+    """Two class-group weapon rows mirroring the C screen (doc 51.3)."""
+    from .. import pygame_split
+    from ..ground_weapon_sets import SET_CLASSES, class_home, founded_set_role
+
+    rows = []
+    for set_class, label in SET_CLASSES:
+        role = founded_set_role(
+            ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
+        )
+        marker = f" [{role}]" if role is not None else ""
+        rows.append(pygame_split.section_header(f"WEAPONS - {label}{marker}"))
+        home = class_home(
+            ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
+        )
+        rows.extend(
+            _weapon_member_rows(ctx, home, set_class) if home
+            else [pygame_split.SplitRow("[empty]", "", "", "", False)]
+        )
+    return rows
+
+
+def _weapon_member_rows(ctx: GameContext, home: list, set_class: str) -> list:
+    """One sellable, manageable row per member of a weapon set."""
     from .. import pygame_split, pygame_ui
     from ..data.quality import effective_weapon_spec
 
-    rows = [pygame_split.section_header("WEAPON SLOTS")]
-    weapons = [instance.weapon_id for instance in ctx.equipped_ground_weapons]
-    for index in range(max(2, len(weapons))):
+    rows = []
+    for index, instance in enumerate(home):
         try:
-            two_handed = bool(weapons) and ground_equipment.weapon_hands(weapons[0]) == 2
+            spec = effective_weapon_spec(instance.weapon_id, instance.quality)
         except KeyError:
-            two_handed = False
-        if index == 1 and two_handed:
-            rows.append(pygame_split.SplitRow(
-                "Weapon 2: --- (occupied by 2H)", "", "", "", False, False,
-            ))
-            continue
-        if index >= len(weapons):
-            rows.append(pygame_split.SplitRow(f"Weapon {index + 1}: [empty]", "", "", "", False))
-            continue
-        _quality = ctx.equipped_ground_weapons[index].quality
-        try:
-            spec = effective_weapon_spec(weapons[index], _quality)
-        except KeyError:
-            rows.append(pygame_split.SplitRow(
-                f"Weapon {index + 1}: [unavailable]", "", "", "", False, False,
-            ))
             continue
         _label, _runs = _name_with_tier(
-            ground_equipment.display_name("weapon", spec.id, _quality), _quality,
-            prefix=f"Weapon {index + 1}: ",
+            ground_equipment.display_name(
+                "weapon", instance.weapon_id, instance.quality,
+            ),
+            instance.quality,
         )
         rows.append(pygame_split.SplitRow(
             _label,
-            pygame_ui.sell_cell(_sell_price(spec.id, _quality)),
+            pygame_ui.sell_cell(_sell_price(instance.weapon_id, instance.quality)),
             _weapon_detail(spec),
-            f"MANAGE_WEAPON:{index}",
+            f"MANAGE_WEAPON:{set_class}:{index}",
             runs=_runs,
         ))
     return rows
@@ -446,34 +455,79 @@ async def _purchase_field_item(
     label = "Expedition Pack" if destination == ground_equipment.EXPEDITION_INVENTORY else "Armory Storage"
     ctx.log.add(f"Bought {spec.name} x{quantity} into {label} for {cost}$.")
 
-def _needs_displacement(ctx, entry: ground_equipment.StoredGroundEquipment) -> bool:
-    """Return whether installing an entry would displace active equipment."""
-    if entry.item_type == "weapon":
-        return not ground_equipment.can_fit_weapons(
-            ctx.equipped_ground_weapons, entry.item_id,
-        )
-    from ..data.ground_armor import find_ground_armor
-    return bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
-
-def _displacement_container(ctx, entry, container: str) -> str:
-    """Choose Expedition Pack first, falling back to Armory Storage."""
-    if entry.item_type == "weapon":
-        displaced_count = ground_equipment.displaced_weapon_count(
-            ctx.equipped_ground_weapons, entry.item_id,
-        )
-    else:
-        from ..data.ground_armor import find_ground_armor
-        displaced_count = int(
-            bool(ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot))
-        )
+def _preferred_displaced_destination(
+    ctx, displaced_count: int, source_container: str,
+) -> str:
+    """Expedition Pack first, falling back to unlimited Armory Storage."""
     return ground_equipment.preferred_displacement_container(
         len(_expedition_storage(ctx)) + len(_expedition_items(ctx)),
         ground_equipment.expedition_capacity(_strength(ctx)),
         displaced_count,
-        container,
+        source_container,
     )
 
-def _install_from_container(
+
+def _displaced_storage_for(ctx, container: str) -> list:
+    """The storage list a displacement container names."""
+    return {
+        ground_equipment.ARMORY_STORAGE: _armory_storage(ctx),
+        ground_equipment.EXPEDITION_INVENTORY: _expedition_storage(ctx),
+    }[container]
+
+
+def _chooser_install_destination(
+    ctx, fits: bool, displace_index: int | None, home_len: int,
+    displaced_container: str | None,
+) -> str:
+    """Preferred displacement destination for a chooser install."""
+    count = 0 if fits else (1 if displace_index is not None else home_len)
+    return displaced_container or _preferred_displaced_destination(
+        ctx, count, ground_equipment.ARMORY_STORAGE,
+    )
+
+
+async def _install_weapon_with_chooser(
+    ctx, source: list, index: int, displaced_container: str | None,
+) -> str | None:
+    """Set-aware weapon install with the member chooser (doc 51.3).
+
+    A 1H pick into a full home chooses who leaves; a 2H displaces the
+    whole set. Returns the landing role (``"ACTIVE"``/``"HOLSTER"``)
+    or ``None`` when the chooser was cancelled (nothing changes);
+    raises on validation failures the caller logs.
+    """
+    from .. import ground_weapon_sets
+    from ..character_screen import _choose_displaced_member
+    from ..ground_equipment import weapon_hands
+
+    entry = source[index]
+    resolved = ground_weapon_sets.resolve_weapon_home(
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, entry.item_id,
+    )
+    if resolved is None:
+        raise ValueError(ground_weapon_sets.NO_WEAPON_HOME_LINE)
+    home, role = resolved
+    fits = ground_weapon_sets.can_fit_weapon_set(home, entry.item_id)
+    displace_index = None
+    if not fits and weapon_hands(entry.item_id) == 1:
+        displace_index = await _choose_displaced_member(ctx, home, entry)
+        if displace_index is None:
+            return None
+    destination = _chooser_install_destination(
+        ctx, fits, displace_index, len(home), displaced_container,
+    )
+    ground_weapon_sets.install_set_weapon(
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
+        source, index,
+        displace_index=displace_index,
+        displaced_storage=_displaced_storage_for(ctx, destination),
+        displaced_container=destination,
+        strength=_strength(ctx),
+    )
+    return role
+
+
+async def _install_from_container(
     ctx, entries, index: int, container: str,
     displaced_container: str | None = None,
 ) -> None:
@@ -483,26 +537,23 @@ def _install_from_container(
         return
     entry = entries[index]
     try:
-        if displaced_container is None and _needs_displacement(ctx, entry):
-            displaced_container = _displacement_container(ctx, entry, container)
-        displaced_storage = {
-            ground_equipment.ARMORY_STORAGE: _armory_storage(ctx),
-            ground_equipment.EXPEDITION_INVENTORY: _expedition_storage(ctx),
-        }.get(displaced_container or container)
         if entry.item_type == "weapon":
-            from .. import ground_weapon_sets
-
-            ground_weapon_sets.install_set_weapon(
-                ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
-                entries, index,
-                displaced_storage=displaced_storage,
-                displaced_container=displaced_container or container,
-                strength=_strength(ctx),
-            )
+            if await _install_weapon_with_chooser(
+                ctx, entries, index, displaced_container,
+            ) is None:
+                return
         else:
+            from ..data.ground_armor import find_ground_armor
+
+            if ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot):
+                displaced_container = displaced_container or (
+                    _preferred_displaced_destination(ctx, 1, container)
+                )
             ground_equipment.install_armor(
                 ctx.equipped_ground_armor, entries, index,
-                displaced_storage=displaced_storage,
+                displaced_storage=_displaced_storage_for(
+                    ctx, displaced_container or container,
+                ),
                 container=container,
                 displaced_container=displaced_container or container,
                 strength=_strength(ctx),
@@ -588,7 +639,7 @@ async def _apply_container_choice(ctx, entries, index: int, container: str) -> N
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("INSTALL_"):
-        _install_from_container(ctx, entries, index, container)
+        await _install_from_container(ctx, entries, index, container)
     elif chosen.startswith("MOVE_TO_"):
         _transfer_container_item(ctx, entries, index, container)
     elif chosen.startswith("SELL_"):
@@ -692,38 +743,43 @@ def _purchase_spec(item_type: str, item_id: str):
         return find_ground_weapon(item_id)
     return find_ground_armor(item_id)
 
-def _install_purchase(ctx, entry, item_type: str) -> None:
-    """Equip a fresh purchase, routing displaced gear automatically."""
-    pack = _expedition_storage(ctx)
+async def _install_purchase(ctx, entry, item_type: str) -> str | None:
+    """Equip a fresh purchase; returns the landing role (``None`` =
+    weapon chooser cancelled — do not charge)."""
     source = [entry]
-    displaced_container = _displacement_container(
-        ctx, entry, ground_equipment.ARMORY_STORAGE,
-    )
-    displaced_storage = (
-        pack
-        if displaced_container == ground_equipment.EXPEDITION_INVENTORY
-        else _armory_storage(ctx)
-    )
     if item_type == "weapon":
-        from .. import ground_weapon_sets
+        return await _install_weapon_with_chooser(ctx, source, 0, None)
+    from ..data.ground_armor import find_ground_armor
 
-        ground_weapon_sets.install_set_weapon(
-            ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
-            source, 0,
-            displaced_storage=displaced_storage,
-            displaced_container=displaced_container,
-            strength=_strength(ctx),
+    displaced_container = None
+    if ctx.equipped_ground_armor.get(find_ground_armor(entry.item_id).slot):
+        displaced_container = _preferred_displaced_destination(
+            ctx, 1, ground_equipment.ARMORY_STORAGE,
         )
-    else:
-        ground_equipment.install_armor(
-            ctx.equipped_ground_armor, source, 0,
-            displaced_storage=displaced_storage,
-            container=ground_equipment.ARMORY_STORAGE,
-            displaced_container=displaced_container,
-            strength=_strength(ctx),
-        )
+    ground_equipment.install_armor(
+        ctx.equipped_ground_armor, source, 0,
+        displaced_storage=_displaced_storage_for(
+            ctx, displaced_container or ground_equipment.ARMORY_STORAGE,
+        ),
+        container=ground_equipment.ARMORY_STORAGE,
+        displaced_container=displaced_container or ground_equipment.ARMORY_STORAGE,
+        strength=_strength(ctx),
+    )
+    return "ARMOR"
 
-def _apply_purchase(ctx, action: str) -> None:
+
+def _purchase_destination_label(destination: str, item_type: str, role) -> str:
+    """The buy log's destination — holster-honest for weapons."""
+    if destination == "BUY_INSTALL" and item_type == "weapon":
+        return "active loadout" if role == "ACTIVE" else "the holstered set"
+    return {
+        "BUY_INSTALL": "active loadout",
+        "BUY_ARMORY": "armory storage",
+        "BUY_EXPEDITION": "expedition pack",
+    }[destination]
+
+
+async def _apply_purchase(ctx, action: str) -> None:
     """Complete a validated purchase destination."""
     _destination, item_type, item_id = action.split(":", 2)
     spec = _purchase_spec(item_type, item_id)
@@ -731,9 +787,12 @@ def _apply_purchase(ctx, action: str) -> None:
         ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
     entry = ground_equipment.StoredGroundEquipment(item_type, item_id)
+    role = None
     try:
         if _destination == "BUY_INSTALL":
-            _install_purchase(ctx, entry, item_type)
+            role = await _install_purchase(ctx, entry, item_type)
+            if role is None:
+                return
         elif _destination == "BUY_ARMORY":
             ground_equipment.add_stored(
                 _armory_storage(ctx), entry,
@@ -753,12 +812,21 @@ def _apply_purchase(ctx, action: str) -> None:
         ctx.log.add(str(exc))
         return
     ctx.stats.credits -= spec.price
-    destination_label = {
-        "BUY_INSTALL": "active loadout",
-        "BUY_ARMORY": "armory storage",
-        "BUY_EXPEDITION": "expedition pack",
-    }[_destination]
-    ctx.log.add(f"Bought {spec.name} into {destination_label}.")
+    label = _purchase_destination_label(_destination, item_type, role)
+    ctx.log.add(f"Bought {spec.name} into {label}.")
+
+def _weapon_member(ctx, slot_text: str):
+    """``(home_list, index)`` for one ``{class}:{index}`` member address."""
+    from ..ground_weapon_sets import class_home
+
+    set_class, index_text = slot_text.split(":")
+    home = class_home(
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
+    )
+    index = int(index_text)
+    if home is None or not 0 <= index < len(home):
+        raise IndexError("Invalid weapon set member")
+    return home, index
 
 async def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
     """Open the Store/Sell chooser for one active equipment slot."""
@@ -788,9 +856,9 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
     """Apply a Store/Sell choice from the manage-loadout chooser."""
     try:
         if chosen.startswith("STORE_WEAPON:"):
-            slot = int(chosen.split(":", 1)[1])
+            home, index = _weapon_member(ctx, chosen.split(":", 1)[1])
             ground_equipment.store_weapon(
-                ctx.equipped_ground_weapons, _armory_storage(ctx), slot,
+                home, _armory_storage(ctx), index,
             )
         elif chosen.startswith("STORE_ARMOR:"):
             ground_equipment.store_armor(
@@ -798,8 +866,8 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
                 chosen.split(":", 1)[1],
             )
         elif chosen.startswith("SELL_WEAPON:"):
-            slot = int(chosen.split(":", 1)[1])
-            removed = ground_equipment.remove_weapon(ctx.equipped_ground_weapons, slot)
+            home, index = _weapon_member(ctx, chosen.split(":", 1)[1])
+            removed = ground_equipment.remove_weapon(home, index)
             ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
         elif chosen.startswith("SELL_ARMOR:"):
             removed = ground_equipment.remove_armor(
@@ -812,26 +880,24 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
 def _managed_slot_quality(ctx, kind: str, slot) -> int:
     """The equipped tier of one managed loadout slot."""
     if kind == "MANAGE_WEAPON":
-        return ctx.equipped_ground_weapons[int(slot)].quality
+        home, index = _weapon_member(ctx, slot)
+        return home[index].quality
     entry = ctx.equipped_ground_armor.get(slot)
     return entry.quality if entry is not None else 0
 
 
 async def _manage_loadout(ctx, action: str) -> None:
-    """Open the active-loadout Store/Sell chooser."""
+    """Open the Store/Sell chooser for a member of either weapon set."""
     kind, slot_text = action.split(":", 1)
     if kind == "MANAGE_WEAPON":
-        slot = int(slot_text)
-        if not 0 <= slot < len(ctx.equipped_ground_weapons):
-            return
-        item_id = ctx.equipped_ground_weapons[slot].weapon_id
+        home, index = _weapon_member(ctx, slot_text)
+        item_id = home[index].weapon_id
     else:
-        slot = slot_text
-        entry = ctx.equipped_ground_armor.get(slot)
+        entry = ctx.equipped_ground_armor.get(slot_text)
         if entry is None:
             return
         item_id = entry.item_id
-    chosen = await _manage_choice(ctx, kind, slot, item_id)
+    chosen = await _manage_choice(ctx, kind, slot_text, item_id)
     if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
@@ -841,7 +907,7 @@ async def _manage_loadout(ctx, action: str) -> None:
 async def _apply_buy_action(ctx: GameContext, action: str) -> None:
     """Apply an equipment or ammo purchase action."""
     if action.startswith(("BUY_INSTALL:", "BUY_ARMORY:", "BUY_EXPEDITION:")):
-        _apply_purchase(ctx, action)
+        await _apply_purchase(ctx, action)
         return
     if action.startswith(("BUY_AMMO:", "BUY_CONSUMABLE:")):
         item_type, item_id = action.split(":", 1)
@@ -865,7 +931,7 @@ async def _apply_buy_action(ctx: GameContext, action: str) -> None:
         return
     if chosen == "__QUIT__":
         raise SystemExit
-    _apply_purchase(ctx, chosen)
+    await _apply_purchase(ctx, chosen)
 
 async def _apply_storage_action(ctx: GameContext, action: str) -> None:
     """Apply one equipment or field-item storage action."""

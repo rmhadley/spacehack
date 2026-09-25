@@ -139,9 +139,34 @@ def partition_weapon_sets(
 NO_WEAPON_HOME_LINE = "No weapon set can take that weapon."
 
 
+# The two class-keyed groups and their row labels (shared by the
+# character screen and the armory — SETTLED 3).
+SET_CLASSES: tuple[tuple[str, str], ...] = (
+    ("ranged", "RANGED"), ("melee", "MELEE"),
+)
+
+
 def _set_holds_class(instances: list[GroundWeaponInstance], set_class: str) -> bool:
     """Return whether a set currently holds at least one class member."""
     return any(weapon_set(i.weapon_id) == set_class for i in instances)
+
+
+def class_home(
+    equipped: list[GroundWeaponInstance],
+    holstered: list[GroundWeaponInstance],
+    set_class: str,
+) -> list[GroundWeaponInstance] | None:
+    """The list currently holding a class (``None`` when unfounded).
+
+    The SAME list object the caller holds — mutation through it is
+    visible via ctx. Both hold it (degenerate) → the ACTIVE set wins,
+    matching :func:`resolve_weapon_home`.
+    """
+    if _set_holds_class(equipped, set_class):
+        return equipped
+    if _set_holds_class(holstered, set_class):
+        return holstered
+    return None
 
 
 def resolve_weapon_home(

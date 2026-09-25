@@ -14,7 +14,6 @@ from src.spacehack.ground_equipment import (
     remove_weapon,
     StoredGroundEquipment,
     can_fit_weapons,
-    displaced_weapon_count,
     expedition_capacity,
     preferred_displacement_container,
     install_armor,
@@ -107,10 +106,6 @@ def test_tier_filtered_equipment_skips_unknown_ids():
 
 
 def test_displacement_prefers_pack_then_falls_back_to_armory():
-    assert displaced_weapon_count(
-        [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
-        "laser_rifle",
-    ) == 2
     assert preferred_displacement_container(1, 4, 2, ARMORY_STORAGE) == EXPEDITION_INVENTORY
     assert preferred_displacement_container(3, 4, 2, ARMORY_STORAGE) == ARMORY_STORAGE
     assert preferred_displacement_container(4, 4, 1, EXPEDITION_INVENTORY) == EXPEDITION_INVENTORY

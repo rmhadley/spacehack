@@ -375,13 +375,16 @@ def test_managed_slot_quality_reads_equipped_tiers_synchronously():
     from spacehack.menus._armory import _managed_slot_quality
 
     ctx = SimpleNamespace(
-        equipped_ground_weapons=[SimpleNamespace(quality=2)],
+        equipped_ground_weapons=[
+            SimpleNamespace(weapon_id="kinetic_pistol", quality=2),
+        ],
+        holstered_ground_weapons=[],
         equipped_ground_armor={
             "body": StoredGroundEquipment("armor", "light_vest", 3),
         },
     )
-    # Plain ints, not coroutines — the manage chooser calls this sync.
-    assert _managed_slot_quality(ctx, "MANAGE_WEAPON", 0) == 2
+    # Plain results, not coroutines — the manage chooser calls this sync.
+    assert _managed_slot_quality(ctx, "MANAGE_WEAPON", "ranged:0") == 2
     assert _managed_slot_quality(ctx, "MANAGE_ARMOR", "body") == 3
     assert _managed_slot_quality(ctx, "MANAGE_ARMOR", "head") == 0
 

@@ -2085,16 +2085,17 @@ def test_armory_frame_uses_shared_content_policy():
     manage_cells = [row.value for row in frame.right_rows if row.action.startswith("MANAGE_WEAPON:")]
     assert manage_cells and all(cell.startswith("(sell ") for cell in manage_cells)
 
-    two_handed = _armory._pygame_armory_frame(SimpleNamespace(
+    # The loadout mirrors the C screen's class groups with markers.
+    grouped = _armory._pygame_armory_frame(SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_rifle")],
-        holstered_ground_weapons=[],
+        holstered_ground_weapons=[weapon_instance("combat_knife")],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     ), "earth")
-    disabled = [row for row in two_handed.right_rows if "occupied by 2H" in row.label]
-    assert len(disabled) == 1
-    assert disabled[0].action == ""
-    assert disabled[0].selectable is False
+    labels = [row.label for row in grouped.right_rows if row.divider]
+    assert labels[:2] == ["--- WEAPONS - RANGED [ACTIVE] ---", "--- WEAPONS - MELEE [HOLSTER] ---"]
+    actions = [row.action for row in grouped.right_rows if row.action.startswith("MANAGE_WEAPON:")]
+    assert actions == ["MANAGE_WEAPON:ranged:0", "MANAGE_WEAPON:melee:0"]
 
 
 def test_character_equipment_member_rows_carry_class_actions():
@@ -2637,6 +2638,137 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
         _we(weapon_instance("laser_pistol")),
         _we(weapon_instance("kinetic_pistol")),
     ]
+
+
+def test_armory_install_1h_into_full_set_opens_member_chooser(monkeypatch):
+    """The armory path mirrors the C screen's member chooser (SETTLED 3):
+    the picked member displaces to the pack, magazine intact."""
+    from src.spacehack import pygame_story
+
+    captured = {}
+
+    async def _choose(_ctx, **kwargs):
+        captured.update(kwargs)
+        return "SET_MEMBER:1" if kwargs["title"] == "WEAPON SET IS FULL" else "INSTALL_ARMORY:0"
+
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 5),
+            GroundWeaponInstance("smg", 9),
+        ],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol", 2, 3),
+        ],
+        ground_expedition_inventory=[],
+        ground_expedition_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+    )
+
+    run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
+
+    assert captured["title"] == "WEAPON SET IS FULL"
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 5),
+        GroundWeaponInstance("laser_pistol", 3, 2),
+    ]
+    assert ctx.ground_expedition_inventory == [
+        StoredGroundEquipment("weapon", "smg", 0, 9),
+    ]
+
+
+def test_armory_install_and_buy_land_in_the_class_home(monkeypatch):
+    """Melee installs found the holstered set while ranged holds
+    active; buy-and-equip routes the same way and logs the holster."""
+    from src.spacehack import pygame_story
+
+    messages = []
+
+    async def _choose(_ctx, **kwargs):
+        if kwargs["title"] == "BUY GROUND EQUIPMENT":
+            return "BUY_INSTALL:weapon:mono_blade"
+        raise AssertionError(f"unexpected chooser {kwargs['title']}")
+
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        ground_expedition_items=[],
+        ground_armory_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+
+    run(_armory._apply_pygame_armory_action(ctx, "BUY_WEAPON:mono_blade", 0, 0))
+
+    assert ctx.holstered_ground_weapons == [weapon_instance("mono_blade")]
+    assert ctx.stats.credits == 1000 - _armory._purchase_spec("weapon", "mono_blade").price
+    assert messages[-1] == "Bought Mono Blade into the holstered set."
+
+
+def test_armory_store_and_sell_work_on_holstered_members(monkeypatch):
+    from src.spacehack import pygame_story
+
+    monkeypatch.setattr(
+        pygame_story, "choose", as_async(lambda *_a, **_k: "STORE_WEAPON:melee:0"),
+    )
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[GroundWeaponInstance("mono_blade", None, 2)],
+        equipped_ground_armor={},
+        ground_armory_storage=[],
+        ground_expedition_inventory=[],
+        ground_expedition_items=[],
+        ground_armory_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _m, **_k: None),
+    )
+
+    run(_armory._apply_pygame_armory_action(ctx, "MANAGE_WEAPON:melee:0", 0, 0))
+
+    assert ctx.holstered_ground_weapons == []
+    assert ctx.ground_armory_storage == [
+        StoredGroundEquipment("weapon", "mono_blade", 2),
+    ]
+
+
+def test_armory_half_spent_magazine_round_trips_through_install(monkeypatch):
+    from src.spacehack import pygame_story
+
+    monkeypatch.setattr(
+        pygame_story, "choose", as_async(lambda *_a, **_k: "INSTALL_ARMORY:0"),
+    )
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 4)],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_armory_storage=[
+            StoredGroundEquipment("weapon", "smg", 1, 7),
+        ],
+        ground_expedition_inventory=[],
+        ground_expedition_items=[],
+        ground_armory_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _m, **_k: None),
+    )
+
+    run(_armory._apply_pygame_armory_action(ctx, "MANAGE_ARMORY:0", 0, 0))
+
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 4),
+        GroundWeaponInstance("smg", 7, 1),
+    ]
+    assert ctx.ground_armory_storage == []
 
 
 def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):

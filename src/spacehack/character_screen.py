@@ -124,18 +124,13 @@ def _pack_entry_detail(entry) -> str:
     if entry.item_type == "weapon":
         spec = effective_weapon_spec(entry.item_id, entry.quality)
         hands = "2H" if spec.hands == 2 else "1H"
-        mag = ""
-        if spec.ammo_capacity > 0:
-            loaded = (
-                entry.loaded_ammo
-                if entry.loaded_ammo is not None else spec.ammo_capacity
-            )
-            mag = f"  Mag {loaded}/{spec.ammo_capacity}"
+        from .ground_equipment import stored_mag_suffix
+
         bypass = "  Armor bypass" if spec.armor_bypass else ""
         return (
             f"{hands}  {spec.damage_type.title()}  Damage {spec.damage}  "
             f"Accuracy {spec.accuracy}%  Range {spec.min_range}-{spec.max_range}"
-            f"{mag}{bypass}"
+            f"{stored_mag_suffix(entry)}{bypass}"
         )
     spec = effective_armor_spec(entry.item_id, entry.quality)
     return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"

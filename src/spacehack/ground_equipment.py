@@ -196,6 +196,20 @@ def display_name(item_type: str, item_id: str, quality: int = 0) -> str:
     return f"{token_prefix(quality)}{name}"
 
 
+def stored_mag_suffix(entry: StoredGroundEquipment) -> str:
+    """``"  Mag x/y"`` for a stored reloadable weapon, else ``""``.
+
+    An unspecified magazine displays as full (the seed default);
+    shared by the pack and armory detail rows so the preserved
+    magazine is visible on every storage leg (doc 51 phase 3).
+    """
+    spec = find_ground_weapon(entry.item_id)
+    if spec.ammo_capacity <= 0:
+        return ""
+    loaded = entry.loaded_ammo if entry.loaded_ammo is not None else spec.ammo_capacity
+    return f"  Mag {loaded}/{spec.ammo_capacity}"
+
+
 def weapon_entry(instance: GroundWeaponInstance) -> StoredGroundEquipment:
     """Return the owned-equipment entry for one active weapon instance.
 
@@ -271,14 +285,6 @@ def can_fit_weapons(
 ) -> bool:
     """Return whether a weapon can fit without replacing active weapons."""
     return weapon_slot_occupancy(weapon_ids(instances)) + weapon_hands(new_weapon_id) <= WEAPON_SLOT_COUNT
-
-
-def displaced_weapon_count(
-    instances: Iterable[GroundWeaponInstance], new_weapon_id: str,
-) -> int:
-    """Return how many active weapons an equip action must displace."""
-    current = tuple(instances)
-    return 0 if can_fit_weapons(current, new_weapon_id) else len(current)
 
 
 def preferred_displacement_container(
