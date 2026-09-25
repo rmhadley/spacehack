@@ -2207,6 +2207,10 @@ def test_armory_frame_uses_shared_content_policy():
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
         holstered_ground_weapons=[],
         equipped_ground_armor={},
+        ground_expedition_items=[
+            GroundItemStack("consumable", "stim", 1),
+            GroundItemStack("consumable", "med_pack", 3),
+        ],
         bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -2215,7 +2219,11 @@ def test_armory_frame_uses_shared_content_policy():
 
     assert frame.title == "ARMORY - EARTH"
     assert frame.footer_left == "Credits: 1000$"
-    assert frame.footer_right == "Pack: 0/4  Armory: unlimited"
+    # The Pack count tallies equipment AND field-item stacks (playtest
+    # fix: the footer once counted equipment only, disagreeing with the
+    # tab); the "Armory: unlimited" tail is retired (user ruling).
+    assert frame.footer_right == "Pack: 2/4"
+    assert frame.left_tabs[2] == "[E]xpedition (2/4)"
     assert "B buy" in frame.hint
     assert "A armory" in frame.hint
     assert "E expedition" in frame.hint

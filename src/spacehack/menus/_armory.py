@@ -295,7 +295,7 @@ def _pygame_armory_frame(ctx: GameContext, planet_id: str = "", mode: str = "BUY
     return pygame_split.SplitFrame(
         pygame_ui.terminal_title("ARMORY", planet_id), left_label, "My Loadout",
         left_rows, _loadout_rows(ctx), pygame_ui.credits_label(ctx.stats.credits),
-        f"Pack: {len(_expedition_storage(ctx))}/{capacity}  Armory: unlimited",
+        f"Pack: {pack_count}/{capacity}",
         pygame_ui.modal_hint(
             "UP/DOWN navigate", "TAB switch panel", "ENTER equip/manage",
             "B buy", "A armory", "E expedition", "ESC back", pygame_ui.GUIDE_HINT,
