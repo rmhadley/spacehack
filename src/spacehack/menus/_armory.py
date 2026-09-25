@@ -226,20 +226,27 @@ def _weapon_slot_rows(ctx: GameContext):
         home = class_home(
             ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
         )
-        rows.extend(
-            _weapon_member_rows(ctx, home, set_class) if home
-            else [pygame_split.SplitRow("[empty]", "", "", "", False)]
-        )
+        rows.extend(_weapon_member_rows(ctx, home or [], set_class))
     return rows
 
 
 def _weapon_member_rows(ctx: GameContext, home: list, set_class: str) -> list:
-    """One sellable, manageable row per member of a weapon set."""
+    """Both slot rows for one weapon set — members first, then the
+    empty/occupied pad (mirrors the C screen's capacity display)."""
     from .. import pygame_split, pygame_ui
     from ..data.quality import effective_weapon_spec
+    from ..ground_equipment import WEAPON_SLOT_COUNT
+    from ..ground_weapon_sets import _set_is_two_handed
 
+    del ctx
     rows = []
-    for index, instance in enumerate(home):
+    for index in range(WEAPON_SLOT_COUNT):
+        if index >= len(home):
+            occupied = _set_is_two_handed(home)
+            label = "--- (occupied by 2H)" if occupied else "[empty]"
+            rows.append(pygame_split.SplitRow(label, "", "", "", False, occupied))
+            continue
+        instance = home[index]
         try:
             spec = effective_weapon_spec(instance.weapon_id, instance.quality)
         except KeyError:

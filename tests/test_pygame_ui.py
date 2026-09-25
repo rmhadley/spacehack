@@ -2148,6 +2148,10 @@ def test_armory_frame_uses_shared_content_policy():
     assert labels[:2] == ["--- WEAPONS - RANGED [ACTIVE] ---", "--- WEAPONS - MELEE [HOLSTER] ---"]
     actions = [row.action for row in grouped.right_rows if row.action.startswith("MANAGE_WEAPON:")]
     assert actions == ["MANAGE_WEAPON:ranged:0", "MANAGE_WEAPON:melee:0"]
+    # 2H-founded set pads with the occupied marker, not an empty slot.
+    right_labels = [row.label for row in grouped.right_rows]
+    assert "--- (occupied by 2H)" in right_labels
+    assert right_labels.count("[empty]") == 1  # the melee set's open slot
 
 
 def test_character_equipment_member_rows_carry_class_actions():
@@ -2163,8 +2167,9 @@ def test_character_equipment_member_rows_carry_class_actions():
     rows = character_screen._equipment_rows(ctx, equipment_management=True)
 
     assert rows[1].action == "SWAP:weapon:ranged:0"
-    assert rows[3].action == "SWAP:weapon:melee"
-    assert rows[3].selectable is True
+    assert rows[4].action == "SWAP:weapon:melee"
+    assert rows[5].action == "SWAP:weapon:melee"
+    assert rows[5].selectable is True
 
 
 def test_character_equipment_rows_mirror_class_groups():
@@ -2176,22 +2181,43 @@ def test_character_equipment_rows_mirror_class_groups():
 
     rows = character_screen._equipment_rows(ctx)
 
-    # Two class groups with role markers (SETTLED 3); members beneath.
+    # Two class groups with role markers (SETTLED 3); members beneath,
+    # each set padded to two visible slot rows.
     assert rows[0].text == "--- WEAPONS - RANGED [ACTIVE] ---"
     assert rows[1].selectable
     assert "Laser Pistol" in rows[1].text
     assert "Damage 4" in rows[1].detail
     assert "Accuracy 78%" in rows[1].detail
     assert "Energy" in rows[1].detail
-    assert rows[2].text == "--- WEAPONS - MELEE [HOLSTER] ---"
-    assert "Combat Knife" in rows[3].text
-    assert not rows[3].action  # read-only outside management mode
-    # Empty armor slots first, then the filled body slot.
-    assert not rows[4].selectable
-    assert rows[4].text == "Head armor: None"
-    assert rows[5].selectable
-    assert "Light Armor Vest" in rows[5].text
-    assert "Defense 2" in rows[5].detail
+    assert rows[2].text == "[empty]"
+    assert rows[3].text == "--- WEAPONS - MELEE [HOLSTER] ---"
+    assert "Combat Knife" in rows[4].text
+    assert not rows[4].action  # read-only outside management mode
+    assert rows[5].text == "[empty]"
+    assert rows[6].text == "--- ARMOR ---"
+    assert not rows[7].selectable
+    assert rows[7].text == "Head armor: None"
+    assert rows[8].selectable
+    assert "Light Armor Vest" in rows[8].text
+    assert "Defense 2" in rows[8].detail
+
+
+def test_character_equipment_two_handed_set_shows_occupied_marker():
+    """A founding 2H fills the set: one slot row plus the occupied
+    marker (mid-playtest ruling — capacity stays visible)."""
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("railgun")],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+    )
+
+    rows = character_screen._equipment_rows(ctx)
+
+    assert rows[0].text == "--- WEAPONS - RANGED [ACTIVE] ---"
+    assert "Railgun" in rows[1].text
+    assert rows[2].text == "--- (occupied by 2H)"
+    assert rows[2].selectable is False
+    assert rows[2].action == ""
 
 
 def test_character_equipment_group_markers_flip_with_the_sets():
@@ -2205,13 +2231,13 @@ def test_character_equipment_group_markers_flip_with_the_sets():
     )
     rows = character_screen._equipment_rows(ctx)
     assert rows[0].text == "--- WEAPONS - RANGED [ACTIVE] ---"
-    assert rows[2].text == "--- WEAPONS - MELEE [HOLSTER] ---"
+    assert rows[3].text == "--- WEAPONS - MELEE [HOLSTER] ---"
     exchange_weapon_sets(
         ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
     )
     rows = character_screen._equipment_rows(ctx)
     assert rows[0].text == "--- WEAPONS - RANGED [HOLSTER] ---"
-    assert rows[2].text == "--- WEAPONS - MELEE [ACTIVE] ---"
+    assert rows[3].text == "--- WEAPONS - MELEE [ACTIVE] ---"
 
 
 def test_character_equipment_rows_show_cybernetic_effects():
@@ -2236,14 +2262,18 @@ def test_character_equipment_rows_empty_gear_is_informational():
 
     rows = character_screen._equipment_rows(ctx)
 
-    # Both groups render (unfounded classes carry no role marker).
-    assert len(rows) == 9
+    # Both groups render TWO slot rows (unfounded classes carry no
+    # role marker) and the armor block gets its own header.
+    assert len(rows) == 12
     assert all(not row.selectable for row in rows)
     assert rows[0].text == "--- WEAPONS - RANGED ---"
     assert rows[1].text == "[empty]"
-    assert rows[2].text == "--- WEAPONS - MELEE ---"
-    assert rows[3].text == "[empty]"
-    assert rows[8].text == "Feet armor: None"
+    assert rows[2].text == "[empty]"
+    assert rows[3].text == "--- WEAPONS - MELEE ---"
+    assert rows[4].text == "[empty]"
+    assert rows[5].text == "[empty]"
+    assert rows[6].text == "--- ARMOR ---"
+    assert rows[11].text == "Feet armor: None"
 
 
 def test_character_equipment_weapon_rows_show_magazine_state():
@@ -2271,8 +2301,8 @@ def test_character_equipment_weapon_rows_omit_indicator_for_non_ammo_weapons():
 
     rows = character_screen._equipment_rows(ctx)
 
-    assert rows[3].text == "Combat Knife"
-    assert "[" not in rows[3].text
+    assert rows[4].text == "Combat Knife"
+    assert "[" not in rows[4].text
 
 
 def test_character_equipment_management_explains_backpack_actions():
@@ -2320,13 +2350,14 @@ def test_character_equipment_management_keeps_slots_selectable_without_pack_item
 
     # Managed rows remain actionable even when there is no compatible
     # backpack item; Enter can then explain that the pack has no match.
-    assert rows[1].selectable is True
-    assert rows[1].action == "SWAP:weapon:ranged:0"
-    assert rows[4].selectable is True
-    assert rows[4].action == "SWAP:armor:head"
-    assert rows[5].selectable is True
-    assert rows[5].action == "SWAP:armor:body"
-    assert rows[9].text == "--- BACKPACK ITEMS (0/4) ---"
+    by_action = {row.action: row for row in rows if row.action}
+    assert by_action["SWAP:weapon:ranged:0"].selectable is True
+    assert by_action["SWAP:armor:head"].selectable is True
+    assert by_action["SWAP:armor:body"].selectable is True
+    backpack = next(
+        row for row in rows if row.text == "--- BACKPACK ITEMS (0/4) ---"
+    )
+    assert backpack.action == ""
 
 
 def test_character_equipment_down_reaches_second_active_weapon():

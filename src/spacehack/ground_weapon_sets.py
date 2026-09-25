@@ -168,6 +168,21 @@ def class_home(
     return None
 
 
+def _set_is_two_handed(home: list[GroundWeaponInstance]) -> bool:
+    """Return whether the set is one two-handed weapon (Σ hands = 2).
+
+    Shared by both equipment screens: a set always shows two slot
+    rows (doc 51.3 mid-playtest ruling — capacity stays visible), and
+    a founding 2H marks the second row occupied instead of empty.
+    """
+    if not home:
+        return False
+    try:
+        return weapon_hands(home[0].weapon_id) == 2
+    except KeyError:
+        return False
+
+
 def resolve_weapon_home(
     equipped: list[GroundWeaponInstance],
     holstered: list[GroundWeaponInstance],

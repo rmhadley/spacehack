@@ -188,6 +188,7 @@ def _equipment_rows(
     the screen renderer supplies identical spacing for empty and equipped rows.
     """
     rows = _weapon_rows(ctx, equipment_management, swap_allowed)
+    rows.append(_equipment_row("--- ARMOR ---"))
     rows += _armor_rows(ctx, equipment_management, swap_allowed)
     if equipment_management:
         rows += _backpack_rows(ctx)

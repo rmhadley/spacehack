@@ -51,21 +51,41 @@ def _set_group_header(ctx: GameContext, set_class: str, label: str):
 def _set_member_rows(
     ctx: GameContext, set_class: str, equipment_management: bool, swap_allowed: bool,
 ) -> list:
-    """Member rows for one class group; an empty group shows one row."""
+    """Slot rows for one class group, padded to the set's capacity.
+
+    A set holds up to two weapons, so the group always SHOWS both slot
+    rows (mid-playtest ruling 2026-09-25: capacity must be visible,
+    as the old two-slot screen showed it) — a founding 2H marks the
+    second row occupied instead of empty.
+    """
+    from .ground_equipment import WEAPON_SLOT_COUNT
+
     home = _class_home(ctx, set_class)
-    if not home:
-        managed = equipment_management and swap_allowed
-        return [_lazy()._equipment_row(
-            "[empty]", "",
-            action=f"SWAP:weapon:{set_class}" if managed else "",
-            selectable=managed,
-        )]
-    return [
-        row for index in range(len(home))
-        if (row := _member_row(
-            ctx, set_class, index, equipment_management and swap_allowed,
-        )) is not None
-    ]
+    managed = equipment_management and swap_allowed
+    rows = []
+    for index in range(WEAPON_SLOT_COUNT):
+        member = (
+            _member_row(ctx, set_class, index, managed)
+            if index < len(home) else None
+        )
+        rows.append(
+            member if member is not None
+            else _empty_slot_row(set_class, home, managed)
+        )
+    return rows
+
+
+def _empty_slot_row(set_class: str, home: list, managed: bool):
+    """One open slot row: joinable, or marked occupied by the 2H."""
+    from .ground_weapon_sets import _set_is_two_handed
+
+    if _set_is_two_handed(home):
+        return _lazy()._equipment_row("--- (occupied by 2H)")
+    return _lazy()._equipment_row(
+        "[empty]", "",
+        action=f"SWAP:weapon:{set_class}" if managed else "",
+        selectable=managed,
+    )
 
 
 def _class_home(ctx: GameContext, set_class: str) -> list:
