@@ -1,6 +1,6 @@
 """Catalog BUY rows for the armory split terminal.
 
-The three buy-view row builders (weapons/armour, ammunition,
+The three buy-view row builders (weapons/armour, ammunition restock,
 consumables), split from menus/_armory to pay the 1000-line ratchet
 (2026-09-23); _armory re-exports the surface.
 """
@@ -66,21 +66,27 @@ def _buy_rows(weapons, armor):
     )
     return tuple(rows)
 
-def _buy_ammo_rows():
-    """Build buy rows for the ground ammo catalog."""
+def _restock_rows(ctx):
+    """Build restock rows for every caliber, unconditionally (doc 52.2).
+
+    SETTLED 5: the restock list never filters by what is carried —
+    every bandolier caliber is always a row; the detail shows the
+    current reserve against the effective cap.
+    """
     from .. import pygame_split, pygame_ui
+    from ..bandolier import effective_cap
     from ..data.ground_items import list_ground_ammo
 
     rows = [pygame_split.section_header("AMMUNITION")]
-    rows.extend(
-        pygame_split.SplitRow(
+    for spec in sorted(list_ground_ammo(), key=lambda item: item.price_per_round):
+        current = ctx.bandolier.get(spec.ammo_type, 0)
+        rows.append(pygame_split.SplitRow(
             spec.name,
             pygame_ui.price_cell(spec.price_per_round),
-            f"Ammo stack 0/{spec.rounds_per_stack}  {spec.price_per_round}$/round",
-            f"BUY_AMMO:{spec.id}",
-        )
-        for spec in sorted(list_ground_ammo(), key=lambda item: item.price_per_round)
-    )
+            f"Reserve {current}/{effective_cap(spec.ammo_type)}"
+            f"  {spec.price_per_round}$/round",
+            f"RESTOCK:{spec.id}",
+        ))
     return tuple(rows)
 
 def _buy_consumable_rows():

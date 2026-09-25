@@ -30,14 +30,12 @@ def test_character_rows_show_current_and_max_for_all_stackable_items():
 
     ctx = SimpleNamespace(
         ground_expedition_items=[
-            GroundItemStack("ammo", "pistol_rounds", 12),
             GroundItemStack("consumable", "med_pack", 3),
             GroundItemStack("consumable", "stim", 1),
         ],
     )
 
     assert [row.text for row in _backpack_item_rows(ctx)] == [
-        "Pistol Rounds [12/40]",
         "Med Pack [3/3]",
         "Combat Stim [1/2]",
     ]

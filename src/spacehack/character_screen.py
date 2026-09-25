@@ -280,7 +280,7 @@ def _backpack_equipment_rows(ctx: GameContext) -> list:
 
 
 def _backpack_item_rows(ctx: GameContext) -> list:
-    """Build the field-item (ammo/consumable) stack rows for the backpack."""
+    """Build the consumable stack rows for the backpack."""
     rows: list = []
     for index, stack in enumerate(getattr(ctx, "ground_expedition_items", [])):
         try:
@@ -305,12 +305,10 @@ def _item_stack_name(stack) -> str:
 
 
 def _item_stack_detail(stack) -> str:
-    """Return the useful detail text for one field-item stack."""
+    """Return the useful detail text for one consumable stack."""
     from .data.ground_items import find_ground_item
 
     spec = find_ground_item(stack.item_type, stack.item_id)
-    if stack.item_type == "ammo":
-        return f"Ammo  {stack.quantity}/{spec.rounds_per_stack}  feeds {spec.ammo_type}"
     detail = f"Consumable  {stack.quantity}/{spec.quantity_per_stack}  {spec.effect_label or spec.name}"
     if spec.outside_full_heal:
         detail += f"  combat +{spec.combat_heal_amount} HP/+{spec.combat_regen_amount} HP x{spec.duration_turns}"
@@ -633,53 +631,20 @@ async def _manage_pack_stack(
     ctx: GameContext, action: str, *, in_ground_combat: bool,
     floor_available: bool = True,
 ) -> str | None:
-    """Offer Reload/Use (and Discard, with a floor) for one stack."""
+    """Offer Use (and Discard, with a floor) for one consumable stack."""
     index = int(action.split(":", 1)[1])
     items = getattr(ctx, "ground_expedition_items", [])
     if not 0 <= index < len(items):
         ctx.log.add("That pack item is no longer available.")
         return None
     try:
-        if items[index].item_type == "consumable":
-            return await _manage_consumable_stack(
-                ctx, index, in_ground_combat=in_ground_combat,
-                floor_available=floor_available,
-            )
-        return await _manage_pack_ammo(
-            ctx, index, in_ground_combat, floor_available=floor_available,
+        return await _manage_consumable_stack(
+            ctx, index, in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
         )
     except (KeyError, TypeError, ValueError):
         ctx.log.add("That item is invalid.")
         return None
-
-
-async def _manage_pack_ammo(
-    ctx: GameContext, index: int, in_ground_combat: bool,
-    floor_available: bool = True,
-) -> str | None:
-    """Offer Discard for one ammo stack (menu reload removed, doc 51.3 —
-    R is the only reload verb)."""
-    from . import pygame_story
-
-    del in_ground_combat
-    items = getattr(ctx, "ground_expedition_items", [])
-    if not 0 <= index < len(items):
-        ctx.log.add("That pack item is no longer available.")
-        return None
-    if not floor_available:
-        return None
-    chosen = await pygame_story.choose(
-        ctx, title="AMMO", body=_item_stack_name(items[index]),
-        options=(("Discard", f"STACK_DISCARD:{index}"),),
-        caption="spacehack - ammo", compact=True,
-    )
-    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
-        return None
-    if chosen == "__QUIT__":
-        raise SystemExit
-    if chosen.startswith("STACK_DISCARD:"):
-        return "DISCARD" if _discard_pack_stack(ctx, index) else None
-    return None
 
 
 def _discard_pack_stack(ctx: GameContext, index: int) -> bool:

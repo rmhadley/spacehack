@@ -99,24 +99,41 @@ def test_armory_stock_rolls_over_with_the_month_clock():
     assert month_1 != month_2
 
 
-def _ammo_purchase_context(credits=100):
+def _field_purchase_context(credits=100):
+    lines = []
     return SimpleNamespace(
         context=object(),
         stats=SimpleNamespace(credits=credits),
         ground_stats=SimpleNamespace(strength=10),
+        bandolier={},
         ground_armory_items=[],
         ground_expedition_items=[],
         ground_armory_storage=[],
         ground_expedition_inventory=[],
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+        log=SimpleNamespace(add=lines.append),
+        _lines=lines,
     )
 
 
-def test_buy_rows_include_authored_ground_ammo():
-    rows = _armory._buy_ammo_rows()
+def test_restock_rows_list_every_caliber_unconditionally():
+    """SETTLED 5: every caliber is a row regardless of loadout; the
+    detail reads the current reserve against the effective cap."""
+    ctx = SimpleNamespace(bandolier={"kinetic_pistol": 132})
 
-    assert any(row.action == "BUY_AMMO:pistol_rounds" for row in rows)
-    assert any(row.label == "Pistol Rounds" for row in rows)
+    rows = _armory._restock_rows(ctx)
+
+    actions = [row.action for row in rows]
+    for ammo_id in (
+        "pistol_rounds", "rifle_rounds", "shotgun_shells",
+        "energy_cells", "grenades", "rockets",
+    ):
+        assert f"RESTOCK:{ammo_id}" in actions
+    pistol = next(row for row in rows if row.action == "RESTOCK:pistol_rounds")
+    assert pistol.label == "Pistol Rounds"
+    assert "Reserve 132/160" in pistol.detail
+    assert "1$/round" in pistol.detail
+    empty = next(row for row in rows if row.action == "RESTOCK:rockets")
+    assert "Reserve 0/10" in empty.detail
 
 
 def test_buy_rows_include_ground_consumables():
@@ -137,8 +154,9 @@ def test_buy_rows_exclude_loot_only_consumables():
 
 
 def test_armory_and_expedition_rows_show_field_item_stack_quantities():
+    """Consumables are the only stack class the armory still moves
+    (doc 52.2 — ammo retired to the bandolier)."""
     stacks = [
-        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 12),
         ground_equipment.GroundItemStack("consumable", "med_pack", 3),
         ground_equipment.GroundItemStack("consumable", "stim", 1),
     ]
@@ -151,7 +169,6 @@ def test_armory_and_expedition_rows_show_field_item_stack_quantities():
     )
 
     expected = (
-        "Pistol Rounds [12/40]",
         "Med Pack [3/3]",
         "Combat Stim [1/2]",
     )
@@ -159,52 +176,88 @@ def test_armory_and_expedition_rows_show_field_item_stack_quantities():
     assert tuple(row.label for row in expedition_rows[1:]) == expected
 
 
-def test_purchase_ground_ammo_to_armory_storage(monkeypatch):
-    ctx = _ammo_purchase_context(credits=100)
-    monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 12),
-    )
+def test_restock_charges_rounds_added_times_price_per_round(monkeypatch):
+    """SETTLED 2: rounds-actually-added x price_per_round; the tutorial
+    arithmetic survives (40 pistol rounds for exactly 40 credits)."""
+    from src.spacehack import pygame_quantity
 
-    run(
-        _armory._purchase_field_item(
-        ctx, "pistol_rounds", ground_equipment.ARMORY_STORAGE,
-    )
-    )
+    ctx = _field_purchase_context(credits=100)
+    ctx.bandolier = {"kinetic_pistol": 120}
+    captured = {}
 
-    assert ctx.stats.credits == 88
-    assert ctx.ground_armory_items == [
-        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 12),
-    ]
+    def fake_run(*args, **kwargs):
+        captured.update(zip(("context", "ctx", "label", "maximum", "price"), args))
+        captured.update(kwargs)
+        return 40
+
+    monkeypatch.setattr(pygame_quantity, "run_for_context", as_async(fake_run))
+
+    run(_armory._restock_bandolier(ctx, "pistol_rounds"))
+
+    assert ctx.bandolier == {"kinetic_pistol": 160}
+    assert ctx.stats.credits == 60
+    assert captured["label"] == "RESTOCK Pistol Rounds"
+    assert captured["maximum"] == 40
+    assert captured["price"] == 1
+    assert captured["prefill"] == 40
+    # The retirement pin: restock touches bandolier + credits only.
+    assert ctx.ground_armory_items == []
     assert ctx.ground_expedition_items == []
 
 
-def test_purchase_ground_ammo_to_pack_respects_pack_capacity(monkeypatch):
-    ctx = _ammo_purchase_context(credits=100)
-    monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 40),
-    )
+def test_restock_maximum_binds_at_affordability(monkeypatch):
+    from src.spacehack import pygame_quantity
 
-    run(
-        _armory._purchase_field_item(
-        ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
-    )
-    )
+    ctx = _field_purchase_context(credits=30)
+    ctx.bandolier = {"kinetic_pistol": 0}
+    captured = {}
 
-    assert ctx.stats.credits == 60
-    assert ctx.ground_expedition_items == [
-        ground_equipment.GroundItemStack("ammo", "pistol_rounds", 40),
-    ]
+    def fake_run(*args, **kwargs):
+        captured.update(zip(("label", "maximum", "price"), args[2:]))
+        return 30
+
+    monkeypatch.setattr(pygame_quantity, "run_for_context", as_async(fake_run))
+
+    run(_armory._restock_bandolier(ctx, "pistol_rounds"))
+
+    assert captured["maximum"] == 30
+    assert ctx.bandolier == {"kinetic_pistol": 30}
+    assert ctx.stats.credits == 0
+
+
+def test_restock_at_cap_logs_full_and_changes_nothing():
+    ctx = _field_purchase_context(credits=100)
+    ctx.bandolier = {"kinetic_pistol": 160}
+
+    run(_armory._restock_bandolier(ctx, "pistol_rounds"))
+
+    assert ctx.bandolier == {"kinetic_pistol": 160}
+    assert ctx.stats.credits == 100
+    assert any("already full" in line for line in ctx._lines)
+
+
+def test_restock_without_credits_logs_affordability():
+    ctx = _field_purchase_context(credits=0)
+    ctx.bandolier = {"kinetic_pistol": 0}
+
+    run(_armory._restock_bandolier(ctx, "pistol_rounds"))
+
+    assert ctx.bandolier == {"kinetic_pistol": 0}
+    assert ctx.stats.credits == 0
+    assert any("cannot afford" in line for line in ctx._lines)
 
 
 def test_purchase_ground_consumable_to_armory_storage(monkeypatch):
-    ctx = _ammo_purchase_context(credits=100)
+    from src.spacehack.menus import _armory_field_items
+
+    ctx = _field_purchase_context(credits=100)
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 1),
+        _armory_field_items, "_choose_field_item_quantity", as_async(lambda *_args: 1),
     )
 
     run(
         _armory._purchase_field_item(
-        ctx, "med_pack", ground_equipment.ARMORY_STORAGE, "consumable",
+        ctx, "med_pack", ground_equipment.ARMORY_STORAGE,
     )
     )
 
@@ -214,26 +267,34 @@ def test_purchase_ground_consumable_to_armory_storage(monkeypatch):
     ]
 
 
-def test_purchase_ground_ammo_does_not_mutate_when_pack_cannot_fit(monkeypatch):
-    ctx = _ammo_purchase_context(credits=100)
+def test_purchase_ground_consumable_does_not_mutate_when_pack_cannot_fit(monkeypatch):
+    """A full Expedition Pack refuses the purchase without mutation —
+    the maximum guard fires before the quantity modal ever opens."""
+    from src.spacehack import pygame_quantity
+
+    ctx = _field_purchase_context(credits=100)
     ctx.ground_expedition_inventory = [
         ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
         ground_equipment.StoredGroundEquipment("armor", "light_vest"),
         ground_equipment.StoredGroundEquipment("armor", "combat_boots"),
         ground_equipment.StoredGroundEquipment("weapon", "combat_knife"),
     ]
+    calls = []
     monkeypatch.setattr(
-        _armory, "_choose_field_item_quantity", as_async(lambda *_args: 1),
+        pygame_quantity, "run_for_context",
+        as_async(lambda *_args, **_kwargs: calls.append(1) or 1),
     )
 
     run(
         _armory._purchase_field_item(
-        ctx, "pistol_rounds", ground_equipment.EXPEDITION_INVENTORY,
-    )
+            ctx, "med_pack", ground_equipment.EXPEDITION_INVENTORY,
+        )
     )
 
+    assert calls == []
     assert ctx.stats.credits == 100
     assert ctx.ground_expedition_items == []
+    assert any("cannot hold any more" in line for line in ctx._lines)
 
 
 def test_storage_rows_colour_the_tiered_names():
