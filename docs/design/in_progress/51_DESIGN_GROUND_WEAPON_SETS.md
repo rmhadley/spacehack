@@ -123,7 +123,10 @@ The design is driven by measured failures of the 2-slot world:
   table + VIM + main-loop helpers), 1-AP cost, refresh, HUD
   indicator, input-path tests, guide Controls entry.
 - [ ] 3. **Equipment UI** — armory/character screen set-aware equip;
-  pack relief (holstered never counted); UI tests.
+  pack relief (holstered never counted); tinker-kit reach must cover
+  holstered members (`tinker.py:141` `eligible_targets` enumerates
+  only the equipped list today — reviewer catch, phase 1 review); UI
+  tests.
 - [ ] 4. **Standard re-rule** — the doc-50 board re-measured under
   the new world (SETTLED 6 benchmark revision, bars re-ruled in the
   same commit), `toggle_sets` stance, candidate protected row: the
