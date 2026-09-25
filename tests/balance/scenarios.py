@@ -36,7 +36,8 @@ class Thresholds:
     win_rate_floor: float | None = None      # fraction of runs won, 0..1
     win_rate_ceiling: float | None = None    # never a sure thing, 0..1
     rounds_ceiling: float | None = None      # mean turns per run
-    damage_taken_ceiling: float | None = None  # mean hull damage per run
+    damage_taken_ceiling: float | None = None  # mean hull/HP damage per run
+    ammo_spent_ceiling: float | None = None    # mean ground rounds per run
 
 
 @dataclass(frozen=True)
@@ -126,6 +127,22 @@ class BalanceScenario:
     thresholds: Thresholds | None  # None = report-only
 
 
+# The synthetic corridor grid shared by the lane rows (SETTLED 6):
+# 1-wide lane (col 7, rows 2-7) opening into a room (cols 2-12,
+# rows 8-13); everything else wall.
+LANE_GRID = GridSpec(
+    width=15, height=15,
+    blocks=(
+        (0, 0, 15, 2),   # rows 0-1
+        (0, 2, 7, 6),    # left of the lane
+        (8, 2, 7, 6),    # right of the lane
+        (0, 14, 15, 1),  # room bottom
+        (0, 8, 2, 6),    # room left wall
+        (13, 8, 2, 6),   # room right wall
+    ),
+)
+
+
 SCENARIOS: tuple["BalanceScenario", ...] = (
     BalanceScenario(
         id="goal_1_starter_vs_jack",
@@ -198,7 +215,127 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="hold_range",
         runs=100,
         seed=20260925,
-        thresholds=None,  # report-only until the checkpoint rules them
+        # THE STANDARD (ruled 2026-09-25, doc 50 SETTLED 6): bars from
+        # the measured batch + a hair of slack. Measured 1.00 / 4.68
+        # HP (17%) / 12.56 rounds. The 1.00 win rate is a RECORDED
+        # FINDING parked as the standard's first tuning target (a
+        # sure-thing tutorial fight; no ceiling until tuned).
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=5.0,
+            ammo_spent_ceiling=13.0,
+        ),
+    ),
+    BalanceScenario(
+        id="goal_2_mars_batons",
+        theater="ground",
+        goal=(
+            "The control-melee kit (two Stun Batons) pays for the "
+            "open-floor trade at roughly twice the pistols' health cost."
+        ),
+        player=PlayerSheet(
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            ground_weapon_ids=("stun_baton", "stun_baton"),
+        ),
+        player_start=(100, 47),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+        ),
+        grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
+        stance="hold_range",
+        runs=50,
+        seed=20260926,
+        # Measured (landed row, 2026-09-25): 1.00 / 8.24 HP (29%) /
+        # 0 rounds — the melee-control cost spread vs the pistol pair.
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=8.5,
+        ),
+    ),
+    BalanceScenario(
+        id="goal_2_lane",
+        theater="ground",
+        goal=(
+            "Posted in a 1-wide lane, the same starter pack costs "
+            "almost nothing: geometry, not gear, is the melee answer."
+        ),
+        player=PlayerSheet(
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            ground_weapon_ids=("kinetic_pistol", "kinetic_pistol"),
+            ground_ammo=(("pistol_rounds", 40),),
+        ),
+        # Synthetic corridor: 1-wide lane (col 7, rows 2-7) opening
+        # into a room (cols 2-12, rows 8-13); the pack queues down the
+        # lane, all visible from the post (the fight runs to VICTORY,
+        # not a fog disengage).
+        player_start=(7, 3),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(7, 5), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 7), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 9), band=1),
+        ),
+        grid=LANE_GRID,
+        stance="posted_hold",
+        runs=50,
+        seed=20260927,
+        # Measured (landed row, 2026-09-25): 1.00 / 2.00 HP (7%) /
+        # 11.96 rounds — the geometry contract: melee rushers cannot
+        # answer a lane.
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=2.5,
+            ammo_spent_ceiling=13.0,
+        ),
+    ),
+    BalanceScenario(
+        id="goal_2_lane_countered",
+        theater="ground",
+        goal=(
+            "The lane is not a free win: one sentry drone firing down "
+            "the corridor past its own queue makes posting expensive."
+        ),
+        player=PlayerSheet(
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            ground_weapon_ids=("kinetic_pistol", "kinetic_pistol"),
+            ground_ammo=(("pistol_rounds", 40),),
+        ),
+        player_start=(7, 3),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(7, 5), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 6), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 7), band=1),
+            EnemySide(spec_id="sentry_drone", pos=(7, 9), band=1),
+        ),
+        grid=LANE_GRID,
+        stance="posted_hold",
+        runs=50,
+        seed=20260928,
+        # Measured (landed row, 2026-09-25, reload-enabled stance):
+        # 0.98 (1 defeat in 50) / 12.57 HP (45%) / 19.98 rounds. The
+        # anti-degenerate guard: ranged enemies make posting EXPENSIVE
+        # (45% health vs the uncountered lane's 7%) but rarely fatal —
+        # attrition, not execution. (The pre-reload stance measured
+        # 0.86 with 7 defeats — dry-magazine suicides, an instrument
+        # artifact the review pass caught; review issue 1.)
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=13.5,
+            ammo_spent_ceiling=21.0,
+        ),
     ),
 )
 

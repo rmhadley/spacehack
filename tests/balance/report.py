@@ -46,6 +46,9 @@ def _print_row(row) -> None:
         f"damage taken, hull/HP (won runs): "
         f"mean={report.mean_hull_damage_taken:.2f}"
     )
+    print(
+        f"ammo spent (won runs): mean={report.mean_ammo_spent:.2f}"
+    )
     if row.thresholds is None:
         print("thresholds: none yet — report-only (measure, then rule)")
     else:

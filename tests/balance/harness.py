@@ -39,14 +39,10 @@ from src.spacehack.combat import (
     _actions,
     _ai,
     _ai_ground,
-    _ground_charger,
     _loop,
     _rules_ground,
     _rules_space,
 )
-from src.spacehack.combat._animations import _has_los
-from src.spacehack.combat._stats import _distance
-from src.spacehack.data.ground_weapons import find_ground_weapon
 from src.spacehack.data.npc_chars import find_npc_char
 from src.spacehack.data.npc_ships import find_npc_ship
 from src.spacehack.data.pilot_skills import PilotSkills
@@ -58,7 +54,6 @@ from src.spacehack.ground_equipment import (
     add_item_stack,
     install_armor,
     install_weapon,
-    reserve_ammo_count,
     sum_armor_bonus,
 )
 from src.spacehack.message_log import MessageLog
@@ -69,6 +64,7 @@ from src.spacehack.ship import (
 )
 from src.spacehack.xp import ground_max_hp_bonus
 
+from tests.balance.stances import STANCES
 from tests.support.asyncutil import run as _async_run
 
 # Modules holding import-time ``from ..engine import RNG`` bindings —
@@ -564,168 +560,7 @@ def _seed_ground_enemies(game_map, enemies) -> list:
 # ---------------------------------------------------------------------------
 
 
-async def stand_and_trade(ctx, rules) -> str:
-    """The tutorial-honest policy: fire everything affordable at the
-    current target, never move, end the turn when nothing can fire.
 
-    Reads affordability through the real rules — AP, power, LOS — so
-    the stance flies exactly what the keyboard's FIRE key would.
-    """
-    if any(rules.can_fire(slot, ctx)[0] for slot in _fire_slots(ctx, rules)):
-        return "FIRE"
-    return "WAIT"
-
-
-# (dx, dy) -> a MOVE key name the dispatch accepts, vim letters first
-# so the choice is deterministic.
-_MOVE_KEY_BY_DELTA: dict[tuple[int, int], str] = {}
-for _name, _delta in (
-    *world.VIM_DELTAS.items(),
-    *world.ARROW_DELTAS.items(),
-    *world.NUMPAD_DELTAS.items(),
-):
-    _MOVE_KEY_BY_DELTA.setdefault(_delta, _name)
-
-
-def _fire_slots(ctx, rules) -> list[int]:
-    """Active slot indexes through the real rules' own helpers."""
-    return _loop._fire_slot_indexes(
-        rules.player_weapons(ctx), rules.active_weapons(ctx),
-    )
-
-
-def _dry_reloadable_slot(ctx, rules, slots) -> int | None:
-    """The first active slot whose magazine cannot feed a shot, with a
-    matching reserve remaining and an affordable reload — a RELOAD the
-    dispatch cannot perform would loop forever, so the AP gate lives
-    in the stance too. NOTE: the dispatch's reload picks the first
-    slot with ROOM (a partial magazine tops off), not the first dry
-    one — identical weapons converge (every shipped row); a future
-    mixed-reload-cost row could livelock here until ACTION_CAP raises,
-    loudly."""
-    instances = ctx.equipped_ground_weapons
-    for slot in slots:
-        if slot >= len(instances):
-            continue
-        instance = instances[slot]
-        if instance.loaded_ammo is None:
-            continue  # infinite-ammo weapon is never dry
-        spec = find_ground_weapon(instance.weapon_id)
-        if instance.loaded_ammo >= spec.ammo_per_shot:
-            continue
-        if reserve_ammo_count(ctx.ground_expedition_items, spec.ammo_type) <= 0:
-            continue
-        if rules.player_ap(ctx) < spec.reload_ap_cost:
-            continue
-        return slot
-    return None
-
-
-def _validated_step(ctx, game_map, dx: int, dy: int) -> tuple[int, int] | None:
-    """One candidate step, checked through the real movement collision."""
-    from src.spacehack.combat._actions import move_entity
-
-    _new_pos, ok = move_entity(
-        ctx.player.pos, dx, dy, game_map, exclude=ctx.player,
-    )
-    return (dx, dy) if ok else None
-
-
-def _approach_step(ctx, game_map, target) -> tuple[int, int] | None:
-    """A step toward the reference target via the real A* pathfinder
-    (goal = the cells beside the target — it is occupied)."""
-    from src.spacehack.world_path import find_path
-
-    goals = {
-        (target.pos.x + dx, target.pos.y + dy)
-        for dx in (-1, 0, 1) for dy in (-1, 0, 1)
-        if (dx, dy) != (0, 0)
-    }
-    path = find_path(
-        (ctx.player.pos.x, ctx.player.pos.y), goals, game_map,
-        exclude_entity=ctx.player,
-    )
-    if not path:
-        return None
-    # find_path's path EXCLUDES the start cell — path[0] is the step.
-    step = (path[0][0] - ctx.player.pos.x, path[0][1] - ctx.player.pos.y)
-    return _validated_step(ctx, game_map, *step)
-
-
-def _retreat_step(ctx, game_map, target) -> tuple[int, int] | None:
-    """A step away from the reference target (max distance gain,
-    deterministic by delta order) — the back-off inside min range."""
-    here = (ctx.player.pos.x, ctx.player.pos.y)
-    target_dist = _distance(ctx.player.pos, target.pos)
-    best, best_gain = None, 0.0
-    for dx, dy in _MOVE_KEY_BY_DELTA:
-        step = _validated_step(ctx, game_map, dx, dy)
-        if step is None:
-            continue
-        moved = world.Position(here[0] + dx, here[1] + dy)
-        gain = _distance(moved, target.pos) - target_dist
-        if gain > best_gain:
-            best, best_gain = step, gain
-    return best
-
-
-def _band_step(ctx, rules, target, slots) -> tuple[int, int] | None:
-    """The SETTLED-4 band rule against the reference target: approach
-    when beyond the reference weapon's max range or without LOS; back
-    off inside its min range (the doc 48 SETTLED-26 mirror). Band
-    numbers come from the same ``weapon_range`` ``can_fire`` enforces.
-    """
-    reference = rules.player_weapons(ctx)[slots[0]]
-    min_range, max_range = _ground_charger.weapon_range(
-        reference, ctx, rules.player_ap(ctx),
-    )
-    dist = int(_distance(ctx.player.pos, target.pos))
-    game_map = ctx.game_map
-    los = _has_los(
-        game_map,
-        ctx.player.pos.x, ctx.player.pos.y,
-        target.pos.x, target.pos.y,
-    )
-    if dist > max_range or not los:
-        return _approach_step(ctx, game_map, target)
-    if dist < min_range:
-        return _retreat_step(ctx, game_map, target)
-    return None  # inside the band — hold
-
-
-async def hold_range(ctx, rules) -> str:
-    """The ground policy (SETTLED 4+5): aim at the closest alive enemy,
-    FIRE while any active slot passes the real ``can_fire``, RELOAD a
-    dry slot with reserve, MOVE one step per the band rule, else WAIT.
-    Every action is a keyboard string through the real dispatch — the
-    stance never calls rules internals to mutate state."""
-    enemies = rules.get_enemies(ctx)
-    if not enemies:
-        return "WAIT"
-    distances = [_distance(ctx.player.pos, e.pos) for e in enemies]
-    closest = distances.index(min(distances))
-    if closest != rules._state.target_idx:
-        return "TARGET"
-    slots = _fire_slots(ctx, rules)
-    if any(rules.can_fire(slot, ctx)[0] for slot in slots):
-        return "FIRE"
-    if _dry_reloadable_slot(ctx, rules, slots) is not None:
-        return "RELOAD"
-    if rules.player_ap(ctx) > 0:
-        step = _band_step(ctx, rules, enemies[closest], slots)
-        if step is not None:
-            return f"MOVE:{_MOVE_KEY_BY_DELTA[step]}"
-    return "WAIT"
-
-
-# Stance vocabulary: name -> async (ctx, rules) -> one action string.
-# One action per await — the same call shape as the loop's own
-# ``_combat_action`` input seam. New stances join when a scenario
-# needs one (SETTLED 3); nothing ships here unused.
-STANCES = {
-    "stand_and_trade": stand_and_trade,
-    "hold_range": hold_range,
-}
 
 
 # ---------------------------------------------------------------------------
@@ -736,11 +571,28 @@ STANCES = {
 @dataclass(frozen=True)
 class RunResult:
     """One fight's outcome: result string, turns used, damage taken
-    (hull in the space theater, HP on the ground)."""
+    (hull in the space theater, HP on the ground), and ground rounds
+    spent (0 in space — no ammo economy)."""
 
     outcome: str        # "VICTORY" | "DEFEAT" | "TIMEOUT" | "DISENGAGED"
     turns: int
     hull_damage_taken: int
+    ammo_spent: int = 0
+
+
+def _ground_ammo_total(ctx) -> int | None:
+    """All ground rounds currently carried (loaded + reserve stacks),
+    or ``None`` off the ground theater (no ammo economy to measure)."""
+    weapons = getattr(ctx, "equipped_ground_weapons", None)
+    if weapons is None:
+        return None
+    loaded = sum(w.loaded_ammo or 0 for w in weapons)
+    reserve = sum(
+        stack.quantity
+        for stack in getattr(ctx, "ground_expedition_items", ())
+        if getattr(stack, "item_type", "") == "ammo"
+    )
+    return loaded + reserve
 
 
 async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
@@ -749,6 +601,7 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
     target_idx = 0
     turn = 1
     start_hull = rules.player_hp(ctx)
+    start_ammo = _ground_ammo_total(ctx)
     _loop._log_combat_start(ctx, rules)
     for _iteration in range(ACTION_CAP):
         rules.refresh_engaged(ctx, game_map)
@@ -774,8 +627,10 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
             "a stuck stance, not a stuck fight"
         )
     damage = max(0, start_hull - rules.player_hp(ctx))
+    end_ammo = _ground_ammo_total(ctx)
+    ammo = max(0, start_ammo - end_ammo) if start_ammo is not None else 0
     cr = _loop._finish_combat(ctx, rules, result)
-    return RunResult(cr.outcome, turn, damage)
+    return RunResult(cr.outcome, turn, damage, ammo)
 
 
 async def _run_once_async(row, run_index: int) -> RunResult:
@@ -926,6 +781,7 @@ class BatchReport:
     mean_turns: float = 0.0
     max_turns: int = 0
     mean_hull_damage_taken: float = 0.0
+    mean_ammo_spent: float = 0.0
 
 
 def aggregate(results: list[RunResult]) -> BatchReport:
@@ -941,6 +797,9 @@ def aggregate(results: list[RunResult]) -> BatchReport:
     mean_damage = (
         sum(r.hull_damage_taken for r in wins) / len(wins) if wins else 0.0
     )
+    mean_ammo = (
+        sum(r.ammo_spent for r in wins) / len(wins) if wins else 0.0
+    )
     return BatchReport(
         runs=n,
         wins=len(wins),
@@ -951,6 +810,7 @@ def aggregate(results: list[RunResult]) -> BatchReport:
         mean_turns=mean_turns,
         max_turns=max((r.turns for r in results), default=0),
         mean_hull_damage_taken=mean_damage,
+        mean_ammo_spent=mean_ammo,
     )
 
 
@@ -967,6 +827,7 @@ def threshold_checks(report: BatchReport, thresholds) -> tuple:
         "win_rate_ceiling": "<=",
         "rounds_ceiling": "<=",
         "damage_taken_ceiling": "<=",
+        "ammo_spent_ceiling": "<=",
     }
     pairs = (
         ("win_rate_floor", report.win_rate, thresholds.win_rate_floor),
@@ -976,6 +837,11 @@ def threshold_checks(report: BatchReport, thresholds) -> tuple:
             "damage_taken_ceiling",
             report.mean_hull_damage_taken,
             thresholds.damage_taken_ceiling,
+        ),
+        (
+            "ammo_spent_ceiling",
+            report.mean_ammo_spent,
+            thresholds.ammo_spent_ceiling,
         ),
     )
     return tuple(

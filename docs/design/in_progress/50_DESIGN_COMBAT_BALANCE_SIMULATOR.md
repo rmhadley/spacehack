@@ -1,18 +1,14 @@
 # DESIGN: Headless Combat Balance Simulator
 
-**Status: IN IMPLEMENTATION — phase 1 LANDED 2026-09-24 (harness +
-Goal 1 asserted green, win-rate band [0.94, 0.99]); phase 2 (ground
-theater) settled same day (SETTLED 4, amended SETTLED 5 after an
-ADVISE review pass caught a shipped R-key bug), brief PROPOSED
-below.**
-Moved from `future/` 2026-09-24; questions settled + Phase 1 brief
-proposed same day (SETTLED 1-3). The seed's blocker was lifted when
-doc 48's phases 7-8 landed space combat's Tier-0 parity (hull/module
-stats, honest costs) and Tier-1 decision loop (the volley scorer, the
-aggressiveness dial, the divert); doc 48 SETTLED 40 already named this
-tool the successor to closed-form Line pinning
-(`tests/test_line_tuning.py` carries the INTERIM note). The Phase 2
-brief awaits approval, then `/implement-phase 50.2`.
+**Status: PHASES 1-2 CLOSED (2026-09-25) — the standard is live:
+five pinned rows (space win band + the four-ground-row cost board,
+SETTLED 6) assert green in `make check`; goal_2's measured 1.00 win
+rate is parked as the standard's first tuning target. Remaining
+phases are cut-when-needed (3 = optional CLI front, 4 = Line
+migration); adding a protected matchup is a ROW, not a phase.**
+Moved from `future/` 2026-09-24; settled + built in three sessions
+(SETTLED 1-3 space harness + Goal 1; SETTLED 4-5 ground theater + the
+R-key fix; SETTLED 6 the standard).
 
 ## Goal 1 (user, 2026-09-24)
 
@@ -289,6 +285,69 @@ trait-bearing ground row): `_ground_deadshot` holds an import-time
 it to `_RNG_MODULES` or its rolls split across instances (the row's
 determinism pin would catch it loudly).
 
+## SETTLED 6 (2026-09-25, user) — the standard: how balance is judged
+
+The checkpoint conversation (attrition reframe + the stance
+exploration) produced the measurement doctrine; user, verbatim:
+"**That shape works. it gives us a place to start tuning from.
+Let's choose floors/ceilings from these scenarios we have now. Call
+this the standard. Just so we have a starting point.**"
+
+- **A reference pilot is a yardstick, not a player.** Stances are
+  frozen measurement instruments; once landed, any drift in their
+  measured numbers is drift in the GAME. A policy change to a stance
+  is a benchmark revision: re-measure and re-rule its rows in the
+  same commit.
+- **The ground ladder has two rungs** (no third): `hold_range` =
+  rung 0, the open-floor baseline (tutorial-honest, geometry-blind);
+  `posted_hold` = rung 1, the geometry ceiling (posted in a 1-wide
+  lane, bait, punish arrivals). The rung gap bounds the player
+  population; mastery itself is not modeled.
+- **Metrics by theater** (user rulings): space rows assert a
+  win-rate band; ground rows assert COST — win rate stays as a
+  coarse floor, the load-bearing bars are `damage_taken_ceiling`
+  (health % of the sheet's max) and `ammo_spent_ceiling` (rounds).
+  DISENGAGED is a reported smell column, never a verdict.
+- **The board (the standard, bars = 2026-09-25 measurements + a hair
+  of slack, deterministic batches so any bar movement is a swing):**
+
+  | row | policy | measured (landed rows, 2026-09-25) | bars |
+  |---|---|---|---|
+  | goal_1_starter_vs_jack | space | 0.950 | band [0.94, 0.99] |
+  | goal_2_starter_mars_delve | rung 0, pistols | 1.00 / 4.68 HP (17%) / 12.56 rds | floor 0.94, dmg ≤ 5.0, ammo ≤ 13.0 |
+  | goal_2_mars_batons | rung 0, batons | 1.00 / 8.24 HP (29%) / 0 rds | floor 0.94, dmg ≤ 8.5 |
+  | goal_2_lane | rung 1, full queue | 1.00 / 2.00 HP (7%) / 11.96 rds | floor 0.94, dmg ≤ 2.5, ammo ≤ 13.0 |
+  | goal_2_lane_countered | rung 1 + sentry drone | 0.98 / 12.57 HP (45%) / 19.98 rds | floor 0.94, dmg ≤ 13.5, ammo ≤ 21.0 |
+
+  (The board's baseline = the landed rows' own output — the standard's
+  drift contract requires the record and the pinned batches to agree
+  exactly; review issue 2 caught the first cut quoting the checkpoint's
+  ad-hoc probe numbers instead.)
+
+- **What each row protects**: goal_2 = the naive cost (the main
+  tuning dial); lane = the geometry contract (melee rushers cannot
+  answer a 1-wide lane — collision/LOS/AP-drain mechanics changes
+  fail this row); lane_countered = the anti-degenerate guard (ranged
+  enemies are the pool's answer to turtling — the drone makes posting
+  cost 45% health where the uncountered lane costs 7%, rarely fatal:
+  attrition, not execution).
+- **Probe, then pin**: exploration = ad-hoc `dataclasses.replace`
+  variants through the same harness (the checkpoint session's baton /
+  bait / lane probes; no machinery); a row is pinned only when a
+  number must not drift. Swing tracking = `make check` runs the
+  board; a failing bar IS the swing, `python3 -m tests.balance.report`
+  shows what moved.
+- **Parked findings** (recorded, awaiting tuning): goal_2's measured
+  1.00 win rate — a sure-thing tutorial fight, no ceiling until
+  tuned; the taught 40-round reserve is never reached in the
+  reference fight (the reload lesson is not load-bearing there);
+  open-floor denial-without-geometry disengages (kiting away ends the
+  fight — corridors are load-bearing for rung-1 play).
+- **Deliberately not modeled**: map-scale attrition (sequential
+  fights, re-engagement, the exit-heal valve, med-pack economy) —
+  the deferred map-scale row class; a separate question from fight
+  balance.
+
 ## The scenario data model (the row — SETTLED 2-5 shape)
 
 Authoring a protected situation = adding one frozen row. Composition
@@ -373,7 +432,7 @@ numbers.
   tuning ruling (Skiff power gen 2→3, 33104dd7) measured in at 0.960;
   thresholds ruled as a win-rate BAND — floor 0.95, ceiling 0.99,
   "never a sure thing" (user ruling) — asserted green (cb159520).
-- [ ] 2. **Ground theater** — the ground builders + the `hold_range`
+- [x] 2. **Ground theater** — the ground builders + the `hold_range`
   stance through the same runner; first row = the tutorial Mars
   fight on a planet-pinned delve grid (SETTLED 4 + the SETTLED 5
   review amendments, ruled 2026-09-24 — the Line candidate was
@@ -381,18 +440,25 @@ numbers.
   phase as its one ruled src exception).
   Swapped ahead of the CLI front (user, 2026-09-24): real machinery
   with a live trigger (doc 48's ground work) beats an optional
-  front. Brief below (PROPOSED → approved by the build session,
-  2026-09-25).
-  BUILT 2026-09-25 (ground theater commit + the R-key fix at
-  603077a2; reviewer APPROVE with four minors, all applied/recorded).
-  Measured through the harness (N=100, seed base 20260925, grid seed
-  115, hold_range): **win rate 1.00 — a SURE THING**; mean turns
-  (won) 3.11, max 4; mean HP damage taken (won) 4.68; zero defeats,
-  timeouts, disengagements. The Goal-1 ceiling precedent reads this
-  as broken the other way ("never a sure thing") — the checkpoint
-  rules the response. Suite cost: the ground batch adds ~105s to
-  `make check` (total gate 196s). The checkbox ticks only with the
-  ruled numbers asserted green.
+  front. Brief below (approved by the build session, 2026-09-25).
+  BUILT + CLOSED 2026-09-25: R-key fix 603077a2 (reviewer
+  REQUEST_CHANGES → all fixes applied), ground theater 0d9f7262
+  (reviewer APPROVE, four minors applied/recorded). The checkpoint
+  conversation reframed ground balance as ATTRITION (user: the map
+  is the encounter — 20-40 enemies; win rate is the space lens),
+  added the ammo metric, explored the skill ladder (stun batons
+  31%, open-floor denial DISENGAGES, posted lanes ~7%), and landed
+  THE STANDARD (SETTLED 6): four ground rows with ruled bars from
+  their own landed batches, asserted green — goal_2 1.00/4.68 HP/
+  12.56 rds (the 1.00 parked as the first tuning target), batons
+  8.24 dmg ≤ 8.5, lane 2.00 dmg ≤ 2.5, countered 0.98 (1 defeat in
+  50) / 12.57 dmg ≤ 13.5 — the drone counter prices posting at 45%
+  health, rarely fatal. The standard's own review pass (REQUEST_
+  CHANGES, both blockers fixed in-commit): posted_hold regained the
+  RELOAD rung (its absence made 6 of 7 countered defeats dry-magazine
+  suicides, an instrument artifact), and the board's baseline was
+  re-measured from the landed rows (probe numbers had leaked into the
+  record). Suite cost: balance board ~232s (gate ~5 min).
 - [ ] 3. **CLI reporting front (OPTIONAL)** — `tools/balance_sim.py`
   reading the same rows for bulk runs and richer output than an
   assert (SETTLED 1's optional front). Cut only when a tuning session
@@ -580,9 +646,21 @@ sure thing") flags this symmetrically: a first ground fight that
 cannot be lost teaches nothing. Also of note: the 40-round reserve
 is never reached (6 volleys × 2 rounds = 12 rounds < one magazine
 pair), so the reload lesson the tutorial teaches is never
-load-bearing in the reference fight. The ruling is the user's:
-ceiling bar as-is, ground-spec tuning as a separate decision, or
-both.
+load-bearing in the reference fight.
+
+**RULED (2026-09-25, across the checkpoint conversation — SETTLED
+6):** ground balance is ATTRITION (user: "ground combat is about
+attrition. on any ground combat map, you could fight 20-40 different
+enemies. So 100% win rate isn't the thing to measure... The real
+measure is how much % of your health did it cost you"), plus an
+ammo-cost metric (user: "One more metric I'd like to see. Ammo
+spent"), plus the reference-pilot doctrine after the stance
+exploration ("I don't care to 100% mimic my 30 years of playing
+roguelikes strategy. I just want to be able to properly judge
+balance in these fight sims so we can tune and track unexpected
+balance swings") — landed as the four-row cost board with bars from
+the measured batches ("Call this the standard"). The 1.00 finding
+stays parked (no ceiling until tuned).
 
 1. `python3 -m tests.balance.report` — read the Mars row's measured
    table (win rate, mean/max turns, mean HP damage taken, timeouts,

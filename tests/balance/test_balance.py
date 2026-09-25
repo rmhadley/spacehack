@@ -16,7 +16,7 @@ from src.spacehack.combat import _loop
 from src.spacehack.ground_equipment import GroundWeaponInstance
 from tests.support.asyncutil import run as _async_run
 
-from tests.balance import harness
+from tests.balance import harness, stances
 from tests.balance.harness import (
     BatchReport,
     RunResult,
@@ -50,11 +50,11 @@ def test_aggregate_math_on_a_mixed_batch() -> None:
     """win_rate over all runs; rounds/damage means over WON runs only;
     DISENGAGED counts as its own unresolved column (SETTLED 5)."""
     results = [
-        RunResult("VICTORY", 3, 0),
-        RunResult("VICTORY", 5, 10),
-        RunResult("DEFEAT", 2, 15),
-        RunResult("TIMEOUT", harness.TURN_CAP, 7),
-        RunResult("DISENGAGED", 4, 3),
+        RunResult("VICTORY", 3, 0, 6),
+        RunResult("VICTORY", 5, 10, 8),
+        RunResult("DEFEAT", 2, 15, 4),
+        RunResult("TIMEOUT", harness.TURN_CAP, 7, 2),
+        RunResult("DISENGAGED", 4, 3, 3),
     ]
     report = aggregate(results)
     assert report.runs == 5
@@ -65,6 +65,7 @@ def test_aggregate_math_on_a_mixed_batch() -> None:
     assert report.win_rate == 0.4
     assert report.mean_turns == 4.0          # (3 + 5) / 2 won runs
     assert report.mean_hull_damage_taken == 5.0  # (0 + 10) / 2
+    assert report.mean_ammo_spent == 7.0     # (6 + 8) / 2 won runs
     assert report.max_turns == harness.TURN_CAP
 
 
@@ -79,6 +80,7 @@ def test_meets_thresholds_checks_every_stated_bar() -> None:
     report = BatchReport(
         runs=10, wins=8, defeats=2, timeouts=0, win_rate=0.8,
         mean_turns=4.0, max_turns=7, mean_hull_damage_taken=2.5,
+        mean_ammo_spent=7.0,
     )
     assert meets_thresholds(report, Thresholds(win_rate_floor=0.7))
     assert not meets_thresholds(report, Thresholds(win_rate_floor=0.9))
@@ -96,6 +98,8 @@ def test_meets_thresholds_checks_every_stated_bar() -> None:
     assert not meets_thresholds(
         report, Thresholds(damage_taken_ceiling=2.4),
     )
+    assert meets_thresholds(report, Thresholds(ammo_spent_ceiling=7.0))
+    assert not meets_thresholds(report, Thresholds(ammo_spent_ceiling=6.9))
     # Bars left unstated never fail the batch.
     assert meets_thresholds(report, Thresholds())
 
@@ -165,6 +169,7 @@ def test_scenario_thresholds(row) -> None:
         row.thresholds.win_rate_ceiling,
         row.thresholds.rounds_ceiling,
         row.thresholds.damage_taken_ceiling,
+        row.thresholds.ammo_spent_ceiling,
     )), "a thresholds row must state at least one bar"
     report = aggregate(batch_for(row))
     assert meets_thresholds(report, row.thresholds), report
@@ -287,11 +292,11 @@ def test_hold_range_approaches_then_fires_in_band() -> None:
                 action = _async_run(harness.STANCES[row.stance](ctx, rules))
                 if action == "FIRE":
                     target = rules.get_enemies(ctx)[target_idx]
-                    dist = int(harness._distance(ctx.player.pos, target.pos))
+                    dist = int(stances._distance(ctx.player.pos, target.pos))
                     assert dist <= 4  # inside the pistol band at FIRE time
                     assert any(
                         rules.can_fire(slot, ctx)[0]
-                        for slot in harness._fire_slots(ctx, rules)
+                        for slot in stances._fire_slots(ctx, rules)
                     )
                     fired = True
                     break
@@ -376,8 +381,8 @@ def test_hold_range_backs_off_inside_min_range_when_firing_is_impossible():
             dx, dy = MOVE_KEYS[action.partition(":")[2]]
             here = ctx.player.pos
             enemy_pos = rules.get_enemies(ctx)[0].pos
-            before = harness._distance(here, enemy_pos)
-            after = harness._distance(
+            before = stances._distance(here, enemy_pos)
+            after = stances._distance(
                 Position(here.x + dx, here.y + dy), enemy_pos,
             )
             assert after > before
