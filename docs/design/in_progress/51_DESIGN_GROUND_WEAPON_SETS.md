@@ -159,6 +159,26 @@ Each phase gets its Implementation brief at its own refine time.
   sets; C is for surgical mid-combat edits (swap one weapon,
   rearrange a set).
 
+## SETTLED 2 (2026-09-25, user) — phase 2 rulings
+
+- **X fires EVERYWHERE in phase 2**, not combat-only: a 1-AP
+  mid-turn action in ground combat (RELOAD-shaped rules hook) and
+  FREE out of combat in the main loop (every non-space mode). The
+  user chose this over the combat-only recommendation. Consequence
+  accepted with it: game_loop.py (998/1000) cannot absorb the
+  main-loop handler, so the phase pays its ratchet debt in-commit —
+  the self-contained dev shift-key block (~88 lines: the `_dev_*`
+  handlers + `_DEV_SHIFT_KEYS` + `_handle_dev_shift_keys`) extracts
+  to a sibling module first, as its own refactor commit.
+- **Playtest seeding = the New-Game dev grant**:
+  `apply_dev_ground_loadout` seats the strongest RANGED weapon
+  active + the strongest MELEE weapon holstered — every fresh dev
+  game starts with a real two-set loadout.
+- **HUD indicator = one dim names row**: `HOLSTER  <names>` under
+  the WEAPONS block (names joined, truncated to the panel width),
+  painted dim, HIDDEN when the holstered set is empty — the fists
+  floor needs no advertisement.
+
 ### Phase 1 PLAYTEST (data layer — the save/load sniff)
 
 **PASSED 2026-09-25 — all six items, no failures, no mid-playtest
@@ -365,6 +385,120 @@ branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
   `holstered_ground_weapons`; assertions extended to the post-51
   partition (pistol active at full magazine, knife holstered). The
   strings→full-magazines intent is preserved.
+
+### Phase 2 Implementation brief (PROPOSED 2026-09-25 — SETTLED 2;
+### ready for /implement-phase 51.2 on approval)
+
+**Scope (files / hook points; all sizes verified on the tree):**
+
+- **game_loop refactor FIRST** (own commit, before any X wiring):
+  extract the dev shift-key block — the 16 `_dev_*` async handlers,
+  `_DEV_SHIFT_KEYS`, `_handle_dev_shift_keys` (game_loop.py ~340-428)
+  — into a new sibling (working name `game_loop_dev.py`);
+  game_loop re-imports `_handle_dev_shift_keys` so the public
+  surface is unchanged. This drops game_loop to ~910/1000, paying
+  the ratchet debt the X wiring forces (SETTLED 2). If a handler
+  reference fights the extraction at build time, stop and re-scope
+  in this doc — do not grow game_loop instead.
+- **Combat verb** (`combat/_loop.py` 649/1000): `"x": "SWAP_SETS"`
+  in `_key_action`'s action table (:77); `_dispatch_combat_action`
+  elif in the RELOAD shape (:557): `getattr(rules,
+  "swap_weapon_sets", None)` — present on ground rules, absent in
+  space, which logs `"Weapon swap is unavailable here."`.
+- **The rules hook** (`combat/_rules_ground.py` 958/1000, +42
+  budget): `swap_weapon_sets(ctx) -> bool` — refuse when
+  `player_ap < 1` (`"Not enough AP to swap weapon sets."`, no
+  mutation); otherwise call
+  `ground_weapon_sets.exchange_weapon_sets(ctx.equipped_ground_weapons,
+  ctx.holstered_ground_weapons)`, reset
+  `_state.active_weapon_list = [True] * len(equipped)` (combat-start
+  semantics, :275), charge 1 AP, log `"Weapon sets swapped."`
+  (same outcome line on the free out-of-combat path — states, never
+  teaches). Empty active set needs no special case: `player_weapons`
+  already falls back to `["fists"]` (:338-340).
+- **Free out-of-combat X** (`input_helpers.py` + `game_loop.py`):
+  NEW `_is_x_press` matcher — keydown, key_name `'x'`, **shift
+  excluded** (key names are lowercase-normalized; without the
+  exclusion it would collide with the dev XP grant, which owns
+  Shift+X in the main loop). Handler in `_handle_menu_event`
+  (game_loop:431) gated to `state.current_mode != 'space'`: the
+  free exchange + the shared log line. No flag work — combat state
+  is per-fight and derives flags fresh on start.
+- **HUD** (`combat/_ground_render.py` 441/1000): after the weapons
+  loop in `_render_weapons_panel` (:275) — when
+  `ctx.holstered_ground_weapons` is non-empty, one dim row
+  `HOLSTER  <display names joined>`, truncated to HUD_TEXT_MAX,
+  using `_COLOR_GROUND_WEAPON_DIM`. X also joins the actions legend
+  in `_render_actions_panel` (:430): `("[x]", "Swap")`.
+- **Dev grant** (`dev_mode.py` 726/1000): `_dev_ground_loadout`
+  returns the strongest-ranged instance + strongest-melee instance
+  (class-filtered picks over `list_ground_weapons()` by the existing
+  damage key); `apply_dev_ground_loadout` seats them active +
+  holstered; the `[DEV MODE]` log line names both sets.
+- **Guide** (`data/guide/__init__.py`): Controls & Keybindings, in
+  the Combat list after the R line — exact wording (proposed, red-
+  line at approval): `- X: swap weapon sets (free while exploring,
+  1 AP in combat)`. Lands in its own commit per the prose gate.
+
+**Build order:** game_loop refactor commit → combat verb (table +
+hook + dispatch + verb tests) → free out-of-combat X (matcher +
+menu handler + input-path pins) → HUD row + actions legend → dev
+grant → full `make check` → guide entry (own commit, settled
+wording).
+
+**Binding rulings:** SETTLED 1 (empty-set toggle = fists floor, no
+refusal special case) and SETTLED 2 (X everywhere; New-Game dev
+seed; HOLSTER names row). Derived rulings: mid-turn action like
+FIRE — NEVER turn-ending (doc-50 measured: a turn-forfeit toggle
+inverted the strength ladder); active flags reset all-True on swap;
+0-AP refuses; space combat logs unavailable, space navigation
+leaves X unmapped; the swap is SILENT (no noise event — a harness
+adjustment, not a discharge); in combat Shift+X ALSO swaps — the
+combat table is shift-blind today (Shift+R is already RELOAD) and
+uniformity beats a special case, while the main loop's plain-x
+matcher excludes shift (dev XP owns Shift+X there) — both pinned
+by input-path tests per SETTLED 1.
+
+**Required tests:** input-path (6a law) — plain-x in combat →
+SWAP_SETS; Shift+x in combat → SWAP_SETS (the shift-blind pin);
+main-loop `_is_x_press` false under shift (dev grant keeps
+Shift+X); `x` absent from `MOVE_KEYS`/VIM diagonals (regression
+pin); space rules lack the hook → unavailable log. Verb — 1-AP
+charge, 0-AP refusal leaves sets + AP unchanged, wholesale
+exchange, flags reset all-True, empty-active → fists volley path,
+double-swap identity mid-fight, magazines persist through
+swap→fire. Out of combat — dungeon-mode free swap (no AP concept),
+space-mode no-op. HUD — HOLSTER row present with names when
+populated, hidden when empty. Dev grant — strongest-ranged active +
+strongest-melee holstered. Guide — the Controls entry present.
+Every new pure/mutation-wrapper function carries its test in the
+same commit.
+
+**Stop point:** no equipment-UI changes (C screen and armory stay
+per-weapon until phase 3 — including no holstered visibility in
+the C screen), no pack-capacity work, no balance/board/`toggle_sets`
+stance work (phase 4), no tutorial or other guide edits (phase 5).
+
+### Phase 2 PLAYTEST (the verb)
+
+1. **Dev seed**: fresh game with SPACEHACK_DEV → dev log names both
+   sets (strongest ranged active + strongest melee holstered).
+2. **In combat**: X swaps the WHOLE set — HUD weapon list flips,
+   HOLSTER row flips with it, 1 AP charged, turn continues (enemies
+   do not move); F fires the new set.
+3. **Fists floor**: X to the melee set, C-store both melee weapons,
+   X again → active = ranged, holstered empty, HOLSTER row gone.
+   (Reaching an empty ACTIVE set via C-store of everything is the
+   phase-3 UI's job; the floor is pinned by tests.)
+4. **0-AP refusal**: spend to 0 AP → X → refusal line, sets
+   unchanged.
+5. **Out of combat**: X in the dungeon (and in a city) swaps free
+   with the same log line; X in space does nothing.
+6. **Save/load sniff**: swap out of combat → ESC save → continue →
+   Shift+W shows the swapped arrangement with magazines intact.
+7. **Guide diff**: Controls & Keybindings, Combat list — ADD after
+   the R line: "X: swap weapon sets (free while exploring, 1 AP in
+   combat)". Before: no such line.
 
 ## Open questions
 
