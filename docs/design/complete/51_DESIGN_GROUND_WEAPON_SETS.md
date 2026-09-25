@@ -1,13 +1,7 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
-**Status: BUILDING (2026-09-25) — phases 1-3 LANDED + PLAYTEST
-PASSED (phase 3 with the both-slot-rows + ARMOR-header mid-playtest
-round, 2a97a7d1); phase 4 (teaching) LANDED 47bc4132 (REVIEW
-APPROVE) — PLAYTEST PENDING: fresh Tutorial run, checklist at the
-phase 4 brief. On pass, every checkbox is checked and the doc
-closes (complete/ + SYSTEMS.md) on the user's confirmation. The
-standard re-rule was REMOVED to future doc-50 work (SETTLED 4).
-Core rulings SETTLED 1–5; no open questions.**
+**Status: COMPLETE (2026-09-25) — all four phases landed and
+playtest-passed.**
 
 ## Overview
 
@@ -139,11 +133,11 @@ The design is driven by measured failures of the 2-slot world:
   never counted); tinker-kit reach covers holstered members
   (`tinker.py` `_weapon_targets`, phase-1 reviewer catch); UI tests.
   Build record below the brief.
-- [x] 4. **Teaching** — LANDED 47bc4132 2026-09-25 (REVIEW APPROVE;
-  SETTLED-5 wording verbatim; build record below the brief) —
-  PLAYTEST PENDING (fresh Tutorial run). Tutorial beat; the guide
-  half landed with phase 3 (Ground Gear set wording + X Controls
-  entry, playtest-passed there).
+- [x] 4. **Teaching** — LANDED 47bc4132, PLAYTEST PASSED 2026-09-25
+  (six/six, no mid-playtest rulings; REVIEW APPROVE; SETTLED-5
+  wording verbatim; build record below the brief). Tutorial beat;
+  the guide half landed with phase 3 (Ground Gear set wording + X
+  Controls entry, playtest-passed there).
 
 Each phase gets its Implementation brief at its own refine time.
 

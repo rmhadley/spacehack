@@ -676,7 +676,7 @@ nobody designs against a ghost.
   loaded_ammo`, doc 51.3) (`ground_equipment.py`:
   `expedition_capacity`, `stored_mag_suffix`; `data/ground_items/
   ammo.py`: `AMMO`).
-- **Ground weapon sets (doc 51 phases 1-3)** — loadout is
+- **Ground weapon sets (doc 51, complete)** — loadout is
   two class-pure sets (membership table on `damage_type`: melee vs
   kinetic/energy/plasma/explosive); the ACTIVE set is still
   `ctx.equipped_ground_weapons` (combat reads it unchanged) and the
@@ -947,7 +947,10 @@ nobody designs against a ghost.
   spawned targets (`mission/_lifecycle.py`).
 - **Tutorial** — forced Human Merchant Earth start, pre-seeded
   bounty board (Crimson Jack), ordered popups, guaranteed level-up
-  before the finale lifts board suppression (`tutorial.py`).
+  before the finale lifts board suppression; the armory beat buys
+  two Kinetic Pistols + a Combat Knife (founding both weapon sets)
+  and the ground-combat intro teaches the X set swap (doc 51.4)
+  (`tutorial.py`).
 - **Runtime text** — all quest prose in `data/text/*.json` keyed
   `step.*`/`npc.*`/`runtime.*`; code passes literal defaults; dev F5
   hot-reloads; lint checks coverage (`text.py`; `tools/quest_lint.py`).
@@ -1142,8 +1145,8 @@ nobody designs against a ghost.
   `tinker.try_manage_kit` (returns None for non-kits, falling
   through to `use_consumable`); one CHOOSE TARGET chooser over
   every eligible owned entry across SIX containers — equipped
-  weapons (the holstered weapon set is not yet reachable — doc 51
-  phase 3 will rule), equipped armor, expedition pack, armory warehouse
+  weapons (both weapon sets, doc 51.3), equipped armor, expedition
+  pack, armory warehouse
   (`ground_armory_storage`), mechanic ship-storage modules
   (item_type "module" only — space weapons never variant),
   installed modules — rows preview `current -> next` token,
