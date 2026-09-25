@@ -68,7 +68,7 @@ def _equipment_frame(
         (pygame_ui.NAV_HINT, "TAB stats", "ESC close", pygame_ui.GUIDE_HINT)
     )
     return pygame_split.SplitFrame(
-        title, "Equipment", "Bandolier",
+        title, "Equipment", "Ammo",
         _split_equipment_rows(rows), _bandolier_rows(ctx),
         f"Expedition Pack: {_expedition_used_slots(ctx)}/{capacity}",
         "Ammo is read-only",

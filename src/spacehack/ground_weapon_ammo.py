@@ -65,7 +65,7 @@ def _apply_reload_at(
     reserve = bandolier.get(spec.ammo_type, 0)
     amount = reload_amount(loaded, spec.ammo_capacity, reserve)
     if amount <= 0:
-        raise ValueError(f"No {spec.ammo_type} ammo in the bandolier")
+        raise ValueError(f"No {spec.ammo_type} ammo in storage")
     bandolier[spec.ammo_type] = reserve - amount
     new_instance = GroundWeaponInstance(
         instance.weapon_id, loaded + amount, instance.quality,

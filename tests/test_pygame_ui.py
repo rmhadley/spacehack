@@ -2053,7 +2053,7 @@ def test_screen_runner_keymap_cycles_tabs_and_keeps_focus_left():
         type=fake.KEYDOWN, key=value, unicode="", **kw,
     )
     frame = pygame_split.SplitFrame(
-        "CHARACTER", "Equipment", "Bandolier",
+        "CHARACTER", "Equipment", "Ammo",
         (
             pygame_split.SplitRow("--- WEAPONS ---", "", "", "", divider=True),
             pygame_split.SplitRow("Pistol", "", "detail", "SWAP:weapon:ranged:0"),
@@ -2204,7 +2204,7 @@ def test_equipment_tab_split_frame_pairs_management_with_bandolier():
     assert isinstance(frame, pygame_split.SplitFrame)
     assert frame.left_rows[0].divider is True
     assert frame.left_rows[0].label.startswith("--- WEAPONS - RANGED")
-    assert frame.right_label == "Bandolier"
+    assert frame.right_label == "Ammo"
     right = list(frame.right_rows)
     assert len(right) == 6
     assert all(not row.selectable and not row.action for row in right)

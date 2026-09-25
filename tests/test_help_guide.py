@@ -87,8 +87,8 @@ def test_guide_ground_gear_describes_the_bandolier():
         section for section in GUIDE_SECTIONS if section.title == "Ground Gear"
     )
     assert (
-        "Reloadable weapons draw from your bandolier - the rounds you "
-        "carry for each caliber, topped up at any armory or from "
+        "Reloadable weapons draw from your ammo storage - the rounds "
+        "you carry for each caliber, topped up at any armory or from "
         "battlefield pickups, up to a per-caliber carry limit." in gear.body
     )
     assert "Expedition Pack" not in gear.body.split("Consumables:")[0]
@@ -102,7 +102,7 @@ def test_guide_ground_combat_reload_reads_bandolier():
     combat = next(
         section for section in GUIDE_SECTIONS if section.title == "Combat"
     )
-    assert "press R to reload from your bandolier." in combat.body
+    assert "press R to reload from your ammo storage." in combat.body
     assert "ammunition in your pack" not in combat.body
 
 

@@ -1410,7 +1410,7 @@ class TestSaveLoadRoundTrip:
         )
         assert loaded.stats.credits == ctx.stats.credits + 80
         history = " ".join(entry.text for entry in loaded.log.history())
-        assert "Packed 182 reserve rounds into the bandolier." in history
+        assert "Packed 182 reserve rounds into ammo storage." in history
         assert "Refunded 42 rounds past carry caps: 80$." in history
 
         # Migrated save re-saves and re-loads cleanly (sniff test).

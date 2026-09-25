@@ -288,7 +288,7 @@ def _migrate_stored_ammo_to_bandolier(ctx: GameContext) -> None:
     refund_rounds = pack[1] + armory[1]
     refund_credits = pack[2] + armory[2]
     if total_added > 0:
-        ctx.log.add(f"Packed {total_added} reserve rounds into the bandolier.")
+        ctx.log.add(f"Packed {total_added} reserve rounds into ammo storage.")
     if refund_credits > 0:
         ctx.stats.credits += refund_credits
         ctx.log.add(

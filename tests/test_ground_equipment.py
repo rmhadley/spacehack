@@ -484,7 +484,7 @@ def test_apply_reload_rejects_full_magazine_without_mutation():
 def test_apply_reload_rejects_missing_ammo_without_mutation():
     equipped = [GroundWeaponInstance("kinetic_pistol", 3)]
     bandolier: dict = {"grenade": 6}
-    with pytest.raises(ValueError, match="No kinetic_pistol ammo in the bandolier"):
+    with pytest.raises(ValueError, match="No kinetic_pistol ammo in storage"):
         apply_reload(equipped, 0, bandolier)
     assert equipped == [GroundWeaponInstance("kinetic_pistol", 3)]
     assert bandolier == {"grenade": 6}
