@@ -578,6 +578,119 @@ unchanged, no pack stacks anywhere. 2) An old save's armory-stored stacks conver
 4) Restock price reads exactly rounds-added × per-round. 5) `make
 check` green.
 
+### Phase 2 Pre-implementation audit (2026-09-25 build session)
+
+**1. Existing modules to extend/reuse (verified in code):**
+
+- `pygame_quantity._handle_key` (:30) — the ONE key-mapping point; the
+  fast keys land here plus `QUANTITY_HINT` (:25); `run_shared`/
+  `run_for_context` (:79/:119) gain a `prefill` param clamped to
+  [1, maximum]. Live callers: trade `_run_quantity_prompt` (:310 —
+  planet BUY :736, SELL :744, NPC buy/sell :396/:416, jettison :843
+  with price=0) and armory `_choose_field_item_quantity` (:407).
+  Jettison's price=0 CONFIRMS prefill must be caller-wired, never
+  modal-computed: the modal cannot distinguish buy from sell, and a
+  credits//price prefill would misfire jettison at dump-everything.
+  Build ruling from SETTLED 5's formula: `prefill` is an explicit
+  opt-in parameter, wired at BUY sites only (restock, field-item
+  buys, trade planet BUY, `_npc_buy`); SELL and jettison keep
+  opening at 1.
+- `bandolier.refill` (phase 1) — the one mutation path; restock
+  calls it. `space_remaining` + `effective_cap` give the restock
+  bound: maximum = min(affordable, space-to-cap).
+- `_armory_buy._buy_ammo_rows` (:69) — retired in place by
+  `_restock_rows(ctx)` (row grammar unchanged: SplitRow + price_cell
+  + section_header); `_armory_left_panel`'s BUY branch (:312) swaps
+  the call.
+- `_migrate_pack_ammo_to_bandolier` (`saveload_ground.py:243`) —
+  extends to BOTH containers via one shared per-container converter
+  returning (added, refund_rounds, refund_credits); the phase-1 log
+  verbatims stand, one log pair for both containers.
+- `parse_item_stack` / `item_stack_capacity` (`ground_equipment.py`
+  :602/:583) — STAY verbatim: the load parser constructs legacy ammo
+  stacks forever, and the capacity ammo branch serves those records
+  (pinned by the brief).
+- Test seams: `test_armory._ammo_purchase_context` (fake ctx
+  factory), `as_async`/`run` (tests/support/asyncutil),
+  test_pygame_ui's local FakePygame key constants (:1082-1096) —
+  extend with LEFT/RIGHT/PAGEUP/PAGEDOWN. `_choose_field_item_
+  quantity`'s maximum<1 guard (:418) is the model for the restock
+  full/unaffordable guard.
+
+**2. Three potential duplication hotspots:**
+
+- Restock's flow (compute maximum → modal → charge → log) beside the
+  field-item purchase family (`_choose_field_item_quantity` /
+  `_purchase_field_item`) — risk of a parallel hand-rolled purchase
+  path.
+- The pack migration's convert-and-refund loop duplicated for the
+  armory container (two copies of the refill/tally loop).
+- The ammo-branch retirement repeats the same `item_type == "ammo"`
+  ternary collapse across 6 functions in two files — risk of
+  retiring five and missing two (parallel-paths drift).
+
+**3. DRY strategy per hotspot:**
+
+- Restock is a DIFFERENT transaction (bandolier refill, no container
+  destination) — it gets its own small `_restock_bandolier` handler
+  routed from `_apply_buy_action`, reusing `refill` as the single
+  mutation and the shared modal; it does NOT ride
+  `_purchase_field_item` (that family mutates container stacks —
+  exactly what retires). Pricing is one expression: rounds ×
+  `price_per_round` (SETTLED 2).
+- One `_convert_ammo_stacks(ctx, stacks)` converter (mutates only
+  via `refill`, the only clamp); the migration calls it per
+  container and sums tallies. No second clamp loop.
+- Grep-driven sweep: every ammo branch is enumerated below and
+  removed in one retirement commit; the state-level pin (no ammo
+  stack persists in either container after load/pickup/armory
+  action) is the drift guard.
+
+**Retirement call-site list (complete, from grep):**
+
+- `menus/_armory.py`: `_buy_ammo_rows` re-export (:18) + BUY-panel
+  call (:314); `_field_item_name` ammo max (:165);
+  `_field_item_detail` ammo price/effect (:168-187);
+  `_choose_field_item_destination` ammo title/unit/price
+  (:369-387); `_field_item_purchase_maximum` ammo price (:396);
+  `_choose_field_item_quantity` ammo price (:421);
+  `_purchase_field_item` ammo default + unit price + "afford that
+  ammunition" line (:426-441); `_apply_buy_action`'s BUY_AMMO branch
+  (:919-933) → RESTOCK routing.
+- `character_screen.py`: `_item_stack_detail` ammo branch
+  (:312-313); `_manage_pack_stack` ammo dispatch (:648-650);
+  `_manage_pack_ammo` (:656-682). Brief-name correction: the brief
+  says "`ground_reload_ui.reload_pack_ammo` + `manage_pack_ammo`" —
+  grep shows `reload_pack_ammo` NO LONGER EXISTS (doc 51.3 removed
+  it) and `_manage_pack_ammo` lives in character_screen.py, not
+  ground_reload_ui.
+- Tests converting: `test_armory.py` :115-119 (ammo buy-row pins →
+  restock pins), :139-159 (field-item rows fixture → consumables-
+  only), :162-196 + :217-236 (ammo purchase pins → restock/consumable
+  pins), `test_pygame_ui.py` :213-216 (`_manage_pack_ammo` pins),
+  `test_saveload.py` :1328-1355 (armory-stack round-trip → migration
+  pin), :1357-1416 (armory stack stays → converts; the
+  pre-52 migration pin gains the armory leg), :1466-1502 (malformed
+  armory stacks survive → convert).
+- Stays verbatim: `parse_item_stack`/`item_stack_capacity` ammo
+  branch (legacy records), `loot.py` spawners + the phase-1 pickup
+  re-point, `_discard_pack_stack` (type-generic), trade's SELL/
+  jettison modal calls (prefill deliberately not wired).
+
+**Budget note (ratchet):** `_armory.py` sits at 998/1000 — the
+RESTOCK handler + routing arrives net-positive against the ternary
+collapses; if the module crosses 1000 the in-commit refactor
+extracts the field-item purchase family (or the restock handler)
+into a cohesive sibling of `_armory_buy`. Measured at build, paid
+in-commit.
+
+**Guide sweep (phase-2 scope):** every ground-ammo/armory guide hit
+(:249, :271-272, :294-300) is already classified in the phase-3
+brief's three-edit audit; the quantity modal's keys appear NOWHERE
+in the guide (the modal's own hint line is the only teacher) — so
+the hint rewrite is the modal's business, quoted at this phase's
+checkpoint as a player-facing string. No phase-2 guide edits.
+
 ### Phase 3 Implementation brief (APPROVED 2026-09-25 — SETTLED 4
 ### + the user's HUD-scope amendment: HUD relevant-calibers,
 ### character screen full bandolier)
