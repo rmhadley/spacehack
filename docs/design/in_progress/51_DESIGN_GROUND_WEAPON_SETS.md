@@ -1,11 +1,11 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
-**Status: BUILDING (2026-09-25) — phases 1-2 LANDED + PLAYTEST
-PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
-ruling); phase 3 LANDED + PLAYTEST PASSED 2026-09-25 (two review
-rounds APPROVE; one mid-playtest round: both-slot-rows + ARMOR
-header, 2a97a7d1). Phase 4 (teaching) SETTLED 5 + brief PROPOSED —
-awaiting approval → /implement-phase 51.4; the doc then closes. The
+**Status: BUILDING (2026-09-25) — phases 1-3 LANDED + PLAYTEST
+PASSED (phase 3 with the both-slot-rows + ARMOR-header mid-playtest
+round, 2a97a7d1); phase 4 (teaching) LANDED 47bc4132 (REVIEW
+APPROVE) — PLAYTEST PENDING: fresh Tutorial run, checklist at the
+phase 4 brief. On pass, every checkbox is checked and the doc
+closes (complete/ + SYSTEMS.md) on the user's confirmation. The
 standard re-rule was REMOVED to future doc-50 work (SETTLED 4).
 Core rulings SETTLED 1–5; no open questions.**
 
@@ -139,8 +139,11 @@ The design is driven by measured failures of the 2-slot world:
   never counted); tinker-kit reach covers holstered members
   (`tinker.py` `_weapon_targets`, phase-1 reviewer catch); UI tests.
   Build record below the brief.
-- [ ] 4. **Teaching** — tutorial beat + guide Ground Gear wording
-  (prose-gated: user wording before data strings land).
+- [x] 4. **Teaching** — LANDED 47bc4132 2026-09-25 (REVIEW APPROVE;
+  SETTLED-5 wording verbatim; build record below the brief) —
+  PLAYTEST PENDING (fresh Tutorial run). Tutorial beat; the guide
+  half landed with phase 3 (Ground Gear set wording + X Controls
+  entry, playtest-passed there).
 
 Each phase gets its Implementation brief at its own refine time.
 
@@ -1170,6 +1173,65 @@ tests. This is the doc's LAST phase.
 
 After this phase passes, every checkbox is checked and the doc
 closes (move to `complete/`, SYSTEMS.md) on the user's confirmation.
+
+### Phase 4 pre-implementation audit (2026-09-25, build session)
+
+**1. Existing modules to reuse** (anchors verified on the tree):
+
+- `tutorial._STEP_BODIES` (tutorial.py:76) — the ONLY edit surface;
+  bodies are plain strings rendered by `main_quest.show_gate_popup`
+  (dismiss-only modal), no length/format constraint beyond the
+  existing paragraph idiom (implicit concatenation + `\n\n` breaks).
+- `tests/test_tutorial.py` `TestTutorialRoute` (:70) — the existing
+  copy-anchor pin shape (`"ship icon (t)" in _STEP_BODIES[...]`);
+  the phase's content pins extend the same pattern. The condition/
+  order suites pin firing, not copy — untouched and green.
+- **Price facts verified, not assumed**: kinetic_pistol 35$
+  (pistols.py) ×2 = 70$; combat_knife 20$ (melee.py); pistol_rounds
+  1$/round × 40-round stack = 40$ → 130$ of ~235$ — the brief's
+  comment math holds. Honesty constraint re-verified:
+  kinetic_pistol `min_range=1` — no point-blank claim in the
+  settled wording, correctly.
+
+**2. Duplication hotspots:** (a) the X teaching already lives in the
+guide Controls entry + both explore-HUD help lines — the tutorial
+wording must STATE the same fact in tutorial voice, never re-derive
+or contradict (copy only; no code duplication possible); (b) the 'R'
+reload sentence retained in the armory body stays consistent with
+R-as-single-verb (SETTLED 3); (c) the middle-paragraph rewrite must
+not drift into the first/last paragraphs — pinned by anchors below.
+
+**3. DRY strategy:** no new code, no helpers — a dict-value swap in
+`_STEP_BODIES` plus the `TUTORIAL_CREDIT_BONUS` comment; the value
+stays 250 (no economy change). Content pins assert the Combat Knife
++ 'X' (armory), 'X' + the number-key volley line + first/last
+paragraph anchors (Mars intro), and "indicated keys" absent from
+every body (the pytest pin behind the brief's rg-gone check).
+
+**Audit rulings (build-shape discoveries):** none — the phase is a
+verbatim copy swap; tutorial.py sits at 451 lines on the landed
+tree (448 at HEAD pre-edit; ratchet-neutral —`_STEP_BODIES` is
+module-level data, no function touched). The only pre-existing
+"Kinetic Pistols" text outside tutorial.py lives in
+`tests/balance/scenarios.py:187` — a scenario description of its own
+loadout, not a tutorial-copy pin; out of scope.
+
+### Phase 4 build record (2026-09-25)
+
+**REVIEW verdict: APPROVE, zero blocking, one minor** — the minor
+(this audit's "449 lines" figure matched neither HEAD nor tree) is
+corrected above. The reviewer programmatically verified the SETTLED-5
+wording verbatim (whitespace-collapsed join of the doc quotes vs the
+landed strings, both paragraphs + the user's two edits exactly), the
+Mars first/last paragraphs byte-identical to HEAD, exactly three
+diff hunks in tutorial.py (comment + two bodies; value 250 → 250),
+the stale sentence rg-gone from src, all five positive pins FAILING
+against the HEAD bodies and both negative pins failing on the old
+copy (the pins bite), the comment math against the catalog
+(35×2 + 20 + 40 = 130), pure-ASCII bodies, and zero scope creep
+(three expected files only; guide correctly untouched — phase 3
+landed it). `make check` green at 2987 tests. Landed as ONE prose
+commit per the brief: 47bc4132.
 
 ## Open questions
 
