@@ -99,11 +99,18 @@ class StoredGroundEquipment:
     ``quality`` is the rolled loot tier (doc 47 phase 2): 0 = base
     (shops, starting gear, quest gear), 1-3 = modded/overclocked/
     prototype. Legendaries (4) arrive with phase 4's randarts.
+
+    ``loaded_ammo`` (doc 51 phase 3) preserves a weapon's magazine
+    through every store/displacement round-trip; ``None`` means
+    unspecified — re-equipping seeds a full magazine (legacy saves
+    and fresh purchases). Meaningless for armor; ignored for
+    melee/infinite weapons.
     """
 
     item_type: str
     item_id: str
     quality: int = 0
+    loaded_ammo: int | None = None
 
 
 @dataclass(frozen=True)
@@ -157,6 +164,23 @@ def weapon_instance(weapon_id: str, quality: int = 0) -> GroundWeaponInstance:
     return GroundWeaponInstance(weapon_id, spec.ammo_capacity, quality)
 
 
+def weapon_instance_from_entry(entry: StoredGroundEquipment) -> GroundWeaponInstance:
+    """Seed an instance from a stored entry, preserving its magazine.
+
+    An unspecified (``None``) or legacy magazine seeds full via
+    :func:`weapon_instance`; a carried count clamps to capacity
+    (doc 51 phase 3 — magazines survive every store round-trip).
+    """
+    spec = find_ground_weapon(entry.item_id)
+    if spec.ammo_capacity <= 0 or entry.loaded_ammo is None:
+        return weapon_instance(entry.item_id, entry.quality)
+    return GroundWeaponInstance(
+        entry.item_id,
+        min(max(0, entry.loaded_ammo), spec.ammo_capacity),
+        entry.quality,
+    )
+
+
 def display_name(item_type: str, item_id: str, quality: int = 0) -> str:
     """Return the catalog name with the quality token prefixed.
 
@@ -173,8 +197,14 @@ def display_name(item_type: str, item_id: str, quality: int = 0) -> str:
 
 
 def weapon_entry(instance: GroundWeaponInstance) -> StoredGroundEquipment:
-    """Return the owned-equipment entry for one active weapon instance."""
-    return StoredGroundEquipment("weapon", instance.weapon_id, instance.quality)
+    """Return the owned-equipment entry for one active weapon instance.
+
+    The magazine rides the entry (doc 51 phase 3) so store/displacement
+    round-trips never reseed it.
+    """
+    return StoredGroundEquipment(
+        "weapon", instance.weapon_id, instance.quality, instance.loaded_ammo,
+    )
 
 
 def weapon_ids(instances: Iterable[GroundWeaponInstance]) -> list[str]:
@@ -270,7 +300,7 @@ def preferred_displacement_container(
     return ARMORY_STORAGE
 
 
-def _validate_entry(entry: StoredGroundEquipment) -> None:
+def validate_entry(entry: StoredGroundEquipment) -> None:
     """Raise ValueError when a stored entry is not a valid catalog item."""
     if entry.item_type == "weapon":
         find_ground_weapon(entry.item_id)
@@ -284,7 +314,7 @@ def _validate_entry(entry: StoredGroundEquipment) -> None:
 def validate_storage(entries: Iterable[StoredGroundEquipment]) -> None:
     """Validate every stored entry before a batch mutation."""
     for entry in entries:
-        _validate_entry(entry)
+        validate_entry(entry)
 
 
 def _require_container(container: str) -> None:
@@ -293,13 +323,13 @@ def _require_container(container: str) -> None:
         raise ValueError(f"Unknown ground equipment container: {container!r}")
 
 
-def _require_expedition_capacity(entries: list[StoredGroundEquipment], strength: int) -> None:
+def require_expedition_capacity(entries: list[StoredGroundEquipment], strength: int) -> None:
     """Ensure a proposed expedition container fits the character."""
     if len(entries) > expedition_capacity(strength):
         raise ValueError("Expedition inventory is full")
 
 
-def _validate_transfer_capacity(
+def validate_transfer_capacity(
     source: list[StoredGroundEquipment],
     destination: list[StoredGroundEquipment],
     displaced_count: int,
@@ -342,24 +372,24 @@ def _apply_weapon_install(
 
 
 def store_weapon(
-    equipped_weapons: list[GroundWeaponInstance],
+    set_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
     slot_index: int,
     *,
     container: str = ARMORY_STORAGE,
     strength: int = 10,
 ) -> StoredGroundEquipment:
-    """Move one active weapon into a storage container atomically."""
+    """Move one set member (either set's list) into storage atomically."""
     _require_container(container)
-    if not 0 <= slot_index < len(equipped_weapons):
+    if not 0 <= slot_index < len(set_weapons):
         raise IndexError("Invalid ground weapon slot")
-    instance = equipped_weapons[slot_index]
+    instance = set_weapons[slot_index]
     entry = weapon_entry(instance)
-    _validate_entry(entry)
+    validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
-        _require_expedition_capacity(proposed_storage, strength)
-    del equipped_weapons[slot_index]
+        require_expedition_capacity(proposed_storage, strength)
+    del set_weapons[slot_index]
     storage.append(entry)
     return entry
 
@@ -381,10 +411,10 @@ def store_armor(
     if slot not in equipped_armor:
         raise KeyError(f"No equipped armor in slot: {slot}")
     entry = equipped_armor[slot]
-    _validate_entry(entry)
+    validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
-        _require_expedition_capacity(proposed_storage, strength)
+        require_expedition_capacity(proposed_storage, strength)
     del equipped_armor[slot]
     storage.append(entry)
     return entry
@@ -399,25 +429,25 @@ def add_stored(
 ) -> StoredGroundEquipment:
     """Add one owned entry to a container after validating capacity."""
     _require_container(container)
-    _validate_entry(entry)
+    validate_entry(entry)
     proposed_storage = [*storage, entry]
     if container == EXPEDITION_INVENTORY:
-        _require_expedition_capacity(proposed_storage, strength)
+        require_expedition_capacity(proposed_storage, strength)
     storage.append(entry)
     return entry
 
 
 def remove_weapon(
-    equipped_weapons: list[GroundWeaponInstance],
+    set_weapons: list[GroundWeaponInstance],
     slot_index: int,
 ) -> StoredGroundEquipment:
-    """Remove one active weapon and return its owned-equipment entry."""
-    if not 0 <= slot_index < len(equipped_weapons):
+    """Remove one set member and return its owned-equipment entry."""
+    if not 0 <= slot_index < len(set_weapons):
         raise IndexError("Invalid ground weapon slot")
-    instance = equipped_weapons[slot_index]
+    instance = set_weapons[slot_index]
     entry = weapon_entry(instance)
-    _validate_entry(entry)
-    del equipped_weapons[slot_index]
+    validate_entry(entry)
+    del set_weapons[slot_index]
     return entry
 
 
@@ -429,7 +459,7 @@ def remove_armor(
     if slot not in equipped_armor:
         raise KeyError(f"No equipped armor in slot: {slot}")
     entry = equipped_armor[slot]
-    _validate_entry(entry)
+    validate_entry(entry)
     del equipped_armor[slot]
     return entry
 
@@ -467,7 +497,7 @@ def swap_weapon_from_expedition(
     proposed_pack = [
         entry for index, entry in enumerate(pack) if index != pack_index
     ] + displaced
-    _require_expedition_capacity(proposed_pack, strength)
+    require_expedition_capacity(proposed_pack, strength)
     validate_storage(proposed_pack)
     pack[:] = proposed_pack
     _set_swapped_weapon(equipped_weapons, slot_index, selected)
@@ -486,7 +516,7 @@ def _validated_swap_weapon(
     if not 0 <= pack_index < len(pack):
         raise IndexError("Invalid stored ground equipment index")
     selected = pack[pack_index]
-    _validate_entry(selected)
+    validate_entry(selected)
     if selected.item_type != "weapon":
         raise ValueError("Stored item is not a weapon")
     if slot_index == 1 and weapon_hands(selected.item_id) == 2:
@@ -526,7 +556,7 @@ def swap_armor_from_expedition(
     if not 0 <= pack_index < len(pack):
         raise IndexError("Invalid stored ground equipment index")
     selected = pack[pack_index]
-    _validate_entry(selected)
+    validate_entry(selected)
     if selected.item_type != "armor":
         raise ValueError("Stored item is not armor")
     selected_slot = find_ground_armor(selected.item_id).slot
@@ -539,7 +569,7 @@ def swap_armor_from_expedition(
     proposed_pack = [
         entry for index, entry in enumerate(pack) if index != pack_index
     ] + displaced
-    _require_expedition_capacity(proposed_pack, strength)
+    require_expedition_capacity(proposed_pack, strength)
     validate_storage(proposed_pack)
     pack[:] = proposed_pack
     equipped_armor[slot] = selected
@@ -561,7 +591,7 @@ def install_weapon(
     if not 0 <= storage_index < len(storage):
         raise IndexError("Invalid stored ground equipment index")
     selected = storage[storage_index]
-    _validate_entry(selected)
+    validate_entry(selected)
     if selected.item_type != "weapon":
         raise ValueError("Stored item is not a weapon")
     displaced, fits_without_replacement = _plan_weapon_install(
@@ -596,7 +626,7 @@ def _plan_weapon_install(
     if displaced and displaced_container is None:
         raise ValueError("A destination container is required for displaced weapons")
     target_storage = displaced_storage if displaced_storage is not None else []
-    _validate_transfer_capacity(
+    validate_transfer_capacity(
         storage, target_storage, len(displaced),
         destination_container=displaced_container or container,
         strength=strength,
@@ -620,7 +650,7 @@ def install_armor(
     if not 0 <= storage_index < len(storage):
         raise IndexError("Invalid stored ground equipment index")
     selected = storage[storage_index]
-    _validate_entry(selected)
+    validate_entry(selected)
     if selected.item_type != "armor":
         raise ValueError("Stored item is not armor")
     displaced, slot = _plan_armor_install(
@@ -652,7 +682,7 @@ def _plan_armor_install(
     if displaced and displaced_container is None:
         raise ValueError("A destination container is required for displaced armor")
     target_storage = displaced_storage if displaced_storage is not None else []
-    _validate_transfer_capacity(
+    validate_transfer_capacity(
         storage, target_storage, len(displaced),
         destination_container=displaced_container or container,
         strength=strength,
@@ -675,11 +705,11 @@ def transfer_item(
     if not 0 <= index < len(source):
         raise IndexError("Invalid stored ground equipment index")
     entry = source[index]
-    _validate_entry(entry)
+    validate_entry(entry)
     proposed = [*destination, entry]
     if destination_container == EXPEDITION_INVENTORY:
         if destination_items is None:
-            _require_expedition_capacity(proposed, strength)
+            require_expedition_capacity(proposed, strength)
         elif len(proposed) + len(destination_items) > expedition_capacity(strength):
             raise ValueError("Expedition inventory is full")
     source.pop(index)
@@ -695,7 +725,7 @@ def sell_stored(
     if not 0 <= index < len(storage):
         raise IndexError("Invalid stored ground equipment index")
     entry = storage[index]
-    _validate_entry(entry)
+    validate_entry(entry)
     return storage.pop(index)
 
 
@@ -892,96 +922,14 @@ def transfer_item_stack(
 
 # ---------------------------------------------------------------------------
 # Weapon ammo and reload — design doc 19, Phase 3
+# The engine moved to :mod:`spacehack.ground_weapon_ammo` (doc 51
+# phase 3 ratchet split); re-exported so callers keep these paths.
 # ---------------------------------------------------------------------------
-
-
-def consume_weapon_round(instance: GroundWeaponInstance) -> GroundWeaponInstance:
-    """Return the instance after one shot, decrementing its loaded ammo."""
-    if instance.loaded_ammo is None:
-        return instance
-    spec = find_ground_weapon(instance.weapon_id)
-    return GroundWeaponInstance(
-        instance.weapon_id, max(0, instance.loaded_ammo - spec.ammo_per_shot),
-        instance.quality,
-    )
-
-
-def reload_amount(loaded: int, capacity: int, reserve: int) -> int:
-    """Rounds that move from reserve into the magazine (0 if none needed)."""
-    return min(max(0, capacity - loaded), reserve)
-
-
-def matching_ammo_stack_index(items, ammo_type: str) -> int | None:
-    """Return the index of the first ammo stack feeding ``ammo_type``."""
-    for index, stack in enumerate(items):
-        if stack.item_type == "ammo" and find_ground_ammo(stack.item_id).ammo_type == ammo_type:
-            return index
-    return None
-
-
-def reserve_ammo_count(items, ammo_type: str) -> int:
-    """Total reserve rounds carried for ``ammo_type`` across all stacks."""
-    total = 0
-    for stack in items:
-        if stack.item_type == "ammo" and find_ground_ammo(stack.item_id).ammo_type == ammo_type:
-            total += stack.quantity
-    return total
-
-
-def _apply_reload_at(
-    equipped_weapons: list[GroundWeaponInstance],
-    slot_index: int,
-    items,
-) -> GroundWeaponInstance:
-    """Reload the weapon at ``slot_index`` from the pack; transactional."""
-    instance = equipped_weapons[slot_index]
-    spec = find_ground_weapon(instance.weapon_id)
-    if spec.ammo_capacity <= 0 or spec.ammo_type is None:
-        raise ValueError("That weapon cannot be reloaded")
-    loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
-    if loaded >= spec.ammo_capacity:
-        raise ValueError("Magazine is already full")
-    stack_index = matching_ammo_stack_index(items, spec.ammo_type)
-    if stack_index is None:
-        raise ValueError(f"No {spec.ammo_type} ammo in the Expedition Pack")
-    stack = items[stack_index]
-    amount = reload_amount(loaded, spec.ammo_capacity, stack.quantity)
-    if amount <= 0:
-        raise ValueError("No ammo to load")
-    remaining = stack.quantity - amount
-    if remaining > 0:
-        items[stack_index] = GroundItemStack("ammo", stack.item_id, remaining)
-    else:
-        del items[stack_index]
-    new_instance = GroundWeaponInstance(
-        instance.weapon_id, loaded + amount, instance.quality,
-    )
-    equipped_weapons[slot_index] = new_instance
-    return new_instance
-
-
-def apply_reload(
-    equipped_weapons: list[GroundWeaponInstance],
-    slot_index: int,
-    items,
-) -> GroundWeaponInstance:
-    """Reload one active weapon from the Expedition Pack transactionally."""
-    if not 0 <= slot_index < len(equipped_weapons):
-        raise IndexError("Invalid ground weapon slot")
-    return _apply_reload_at(equipped_weapons, slot_index, items)
-
-
-def reload_slot_for_ammo(
-    equipped_weapons: list[GroundWeaponInstance],
-    ammo_type: str,
-) -> int | None:
-    """Return the first equipped weapon slot that can take ``ammo_type``."""
-    for slot_index, instance in enumerate(equipped_weapons):
-        spec = find_ground_weapon(instance.weapon_id)
-        if spec.ammo_capacity <= 0 or spec.ammo_type != ammo_type:
-            continue
-        loaded = instance.loaded_ammo if instance.loaded_ammo is not None else 0
-        if loaded >= spec.ammo_capacity:
-            continue
-        return slot_index
-    return None
+from .ground_weapon_ammo import (  # noqa: F401 — re-export surface
+    apply_reload,
+    consume_weapon_round,
+    matching_ammo_stack_index,
+    reload_amount,
+    reload_slot_for_ammo,
+    reserve_ammo_count,
+)

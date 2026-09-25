@@ -38,6 +38,7 @@ from src.spacehack.ground_equipment import (
     reload_slot_for_ammo,
     reserve_ammo_count,
     weapon_ids,
+    weapon_entry,
     weapon_instance,
 )
 
@@ -180,8 +181,8 @@ def test_install_two_handed_weapon_atomically_displaces_both_weapons():
     assert equipped == [weapon_instance("laser_rifle")]
     assert storage == []
     assert displaced == [
-        StoredGroundEquipment("weapon", "laser_pistol"),
-        StoredGroundEquipment("weapon", "kinetic_pistol"),
+        weapon_entry(weapon_instance("laser_pistol")),
+        weapon_entry(weapon_instance("kinetic_pistol")),
     ]
 
 
@@ -263,8 +264,8 @@ def test_expedition_to_expedition_replacement_keeps_pack_capacity():
     assert pack == [
         StoredGroundEquipment("armor", "light_helmet"),
         StoredGroundEquipment("armor", "light_vest"),
-        StoredGroundEquipment("weapon", "laser_pistol"),
-        StoredGroundEquipment("weapon", "kinetic_pistol"),
+        weapon_entry(weapon_instance("laser_pistol")),
+        weapon_entry(weapon_instance("kinetic_pistol")),
     ]
 
 
@@ -320,7 +321,7 @@ def test_remove_active_ground_equipment_returns_owned_entry():
     weapons = [weapon_instance("laser_pistol"), weapon_instance("combat_knife")]
     armor = {"body": _armor("light_vest")}
 
-    assert remove_weapon(weapons, 0) == StoredGroundEquipment("weapon", "laser_pistol")
+    assert remove_weapon(weapons, 0) == weapon_entry(weapon_instance("laser_pistol"))
     assert remove_armor(armor, "body") == StoredGroundEquipment("armor", "light_vest")
     assert weapons == [weapon_instance("combat_knife")]
     assert armor == {}
@@ -834,12 +835,12 @@ def test_weapon_instance_carries_quality():
 def test_store_and_remove_weapon_preserve_quality():
     equipped = [weapon_instance("smg", 3)]
     storage: list = []
-    assert store_weapon(equipped, storage, 0) == StoredGroundEquipment(
-        "weapon", "smg", 3,
+    assert store_weapon(equipped, storage, 0) == weapon_entry(
+        weapon_instance("smg", 3),
     )
     equipped = [weapon_instance("railgun", 2)]
-    assert remove_weapon(equipped, 0) == StoredGroundEquipment(
-        "weapon", "railgun", 2,
+    assert remove_weapon(equipped, 0) == weapon_entry(
+        weapon_instance("railgun", 2),
     )
 
 
@@ -855,7 +856,7 @@ def test_swap_displaces_2h_weapon_with_its_quality():
     pack = [StoredGroundEquipment("weapon", "smg", 2)]
     swap_weapon_from_expedition(equipped, pack, 0, 0, strength=10)
     assert equipped == [weapon_instance("smg", 2)]
-    assert pack == [StoredGroundEquipment("weapon", "railgun", 3)]
+    assert pack == [weapon_entry(weapon_instance("railgun", 3))]
 
 
 def test_install_displacement_keeps_displaced_quality():
@@ -869,7 +870,7 @@ def test_install_displacement_keeps_displaced_quality():
         displaced_container=ARMORY_STORAGE, strength=10,
     )
     assert equipped == [weapon_instance("railgun", 1)]
-    assert StoredGroundEquipment("weapon", "kinetic_pistol", 3) in storage
+    assert weapon_entry(weapon_instance("kinetic_pistol", 3)) in storage
 
 
 def test_shot_and_reload_preserve_quality():

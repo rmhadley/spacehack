@@ -2566,9 +2566,10 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
 
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_armory_storage == []
+    _we = _armory.ground_equipment.weapon_entry
     assert ctx.ground_expedition_inventory == [
-        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
-        _armory.ground_equipment.StoredGroundEquipment("weapon", "kinetic_pistol"),
+        _we(weapon_instance("laser_pistol")),
+        _we(weapon_instance("kinetic_pistol")),
     ]
 
 
@@ -2598,9 +2599,10 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
 
     assert ctx.equipped_ground_weapons == [weapon_instance("laser_rifle")]
     assert ctx.ground_expedition_inventory[-1].item_id == "combat_boots"
+    _we = _armory.ground_equipment.weapon_entry
     assert ctx.ground_armory_storage == [
-        _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
-        _armory.ground_equipment.StoredGroundEquipment("weapon", "kinetic_pistol"),
+        _we(weapon_instance("laser_pistol")),
+        _we(weapon_instance("kinetic_pistol")),
     ]
 
 

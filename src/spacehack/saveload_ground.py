@@ -11,6 +11,27 @@ from __future__ import annotations
 from .game_context import GameContext
 
 
+def _stored_weapon_loaded_ammo(raw: object, item_id: str) -> int | None:
+    """Parse a stored weapon's preserved magazine (doc 51 phase 3).
+
+    Absent/legacy or malformed values return ``None`` (re-equipping
+    seeds full); a carried count clamps to the weapon's capacity.
+    Non-reloadable weapons never carry a magazine.
+    """
+    if raw is None:
+        return None
+    try:
+        loaded = int(raw)
+    except (TypeError, ValueError):
+        return None
+    from .data.ground_weapons import find_ground_weapon
+
+    capacity = find_ground_weapon(item_id).ammo_capacity
+    if capacity <= 0:
+        return None
+    return max(0, min(loaded, capacity))
+
+
 def _ground_equipment_from_dict(raw: object):
     """Parse one stored ground-equipment entry, ignoring malformed records."""
     if not isinstance(raw, dict):
@@ -29,7 +50,11 @@ def _ground_equipment_from_dict(raw: object):
     except (ImportError, KeyError):
         return None
     from .ground_equipment import StoredGroundEquipment, parse_quality
-    return StoredGroundEquipment(item_type, item_id, parse_quality(raw.get("quality")))
+    loaded = (
+        _stored_weapon_loaded_ammo(raw.get("loaded_ammo"), item_id)
+        if item_type == "weapon" else None
+    )
+    return StoredGroundEquipment(item_type, item_id, parse_quality(raw.get("quality")), loaded)
 
 
 def _ground_fields(ctx: GameContext) -> dict:

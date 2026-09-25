@@ -450,3 +450,260 @@ def test_hud_actions_legend_carries_swap_entry():
     assert any(
         "[x]" in s and "Swap" in s for s, _ in _console.prints
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 3 — class-keyed homes (SETTLED 3), install primitive, magazine
+# preservation through storage entries
+# ---------------------------------------------------------------------------
+
+from src.spacehack.ground_equipment import StoredGroundEquipment  # noqa: E402
+from src.spacehack import saveload_ground  # noqa: E402
+
+
+def _pistol(loaded=12, quality=0):
+    return GroundWeaponInstance("kinetic_pistol", loaded, quality)
+
+
+def test_home_resolution_founded_goes_to_the_holding_set():
+    knife = GroundWeaponInstance("combat_knife", None)
+    assert ground_weapon_sets.resolve_weapon_home([_pistol()], [knife], "smg") == (
+        [_pistol()], "ACTIVE",
+    )
+    assert ground_weapon_sets.resolve_weapon_home([_pistol()], [knife], "vibroblade") == (
+        [knife], "HOLSTER",
+    )
+
+
+def test_home_resolution_unfounded_goes_to_the_empty_set():
+    """The empty set that is not the other class's home founds it."""
+    assert ground_weapon_sets.resolve_weapon_home([], [_pistol()], "combat_knife") == (
+        [], "ACTIVE",
+    )
+    assert ground_weapon_sets.resolve_weapon_home([_pistol()], [], "combat_knife") == (
+        [], "HOLSTER",
+    )
+
+
+def test_home_resolution_both_empty_equips_to_wield():
+    home = ground_weapon_sets.resolve_weapon_home([], [], "combat_knife")
+    assert home == ([], "ACTIVE")
+
+
+def test_home_resolution_same_class_both_active_wins():
+    knife = GroundWeaponInstance("combat_knife", None)
+    other = GroundWeaponInstance("vibroblade", None)
+    assert ground_weapon_sets.resolve_weapon_home([knife], [other], "mono_blade") == (
+        [knife], "ACTIVE",
+    )
+
+
+def test_home_resolution_mixed_no_empty_refuses():
+    """Neither set holds the class and neither is empty (hand-edited
+    both-same-class saves) — deterministic refusal (ADVISE fold 7)."""
+    assert ground_weapon_sets.resolve_weapon_home(
+        [_pistol()], [_pistol(6)], "combat_knife",
+    ) is None
+
+
+def test_founded_set_role_markers_and_flip():
+    """Markers read the live homes; X (exchange) flips them."""
+    knife = GroundWeaponInstance("mono_blade", None)
+    equipped, holstered = [_pistol()], [knife]
+    assert ground_weapon_sets.founded_set_role(equipped, holstered, "ranged") == "ACTIVE"
+    assert ground_weapon_sets.founded_set_role(equipped, holstered, "melee") == "HOLSTER"
+    ground_weapon_sets.exchange_weapon_sets(equipped, holstered)
+    assert ground_weapon_sets.founded_set_role(equipped, holstered, "ranged") == "HOLSTER"
+    assert ground_weapon_sets.founded_set_role(equipped, holstered, "melee") == "ACTIVE"
+
+
+def test_founded_set_role_none_when_unfounded():
+    assert ground_weapon_sets.founded_set_role([], [], "ranged") is None
+    knife = GroundWeaponInstance("combat_knife", None)
+    assert ground_weapon_sets.founded_set_role([knife], [], "ranged") is None
+
+
+def test_weapon_entry_and_instance_round_trip_preserve_magazine():
+    entry = ground_weapon_sets.weapon_entry(_pistol(5, 2))
+    assert entry == StoredGroundEquipment("weapon", "kinetic_pistol", 2, 5)
+    restored = ground_weapon_sets.weapon_instance_from_entry(entry)
+    assert restored == GroundWeaponInstance("kinetic_pistol", 5, 2)
+
+
+def test_unspecified_entry_magazine_seeds_full_and_melee_stays_none():
+    legacy = StoredGroundEquipment("weapon", "kinetic_pistol", 1)
+    assert ground_weapon_sets.weapon_instance_from_entry(legacy) == _pistol(12, 1)
+    knife_entry = ground_weapon_sets.weapon_entry(
+        GroundWeaponInstance("combat_knife", None, 3),
+    )
+    assert knife_entry.loaded_ammo is None
+    assert ground_weapon_sets.weapon_instance_from_entry(knife_entry) == (
+        GroundWeaponInstance("combat_knife", None, 3)
+    )
+
+
+def test_entry_magazine_clamps_to_capacity():
+    hot = StoredGroundEquipment("weapon", "kinetic_pistol", 0, 99)
+    assert ground_weapon_sets.weapon_instance_from_entry(hot) == _pistol(12)
+
+
+def test_stored_entry_parse_preserves_magazine_and_legacy_defaults_full():
+    carried = saveload_ground._ground_equipment_from_dict({
+        "item_type": "weapon", "item_id": "kinetic_pistol",
+        "quality": 2, "loaded_ammo": 5,
+    })
+    assert carried == StoredGroundEquipment("weapon", "kinetic_pistol", 2, 5)
+    legacy = saveload_ground._ground_equipment_from_dict({
+        "item_type": "weapon", "item_id": "kinetic_pistol", "quality": 1,
+    })
+    assert legacy.loaded_ammo is None
+    clamped = saveload_ground._ground_equipment_from_dict({
+        "item_type": "weapon", "item_id": "kinetic_pistol", "loaded_ammo": 99,
+    })
+    assert clamped.loaded_ammo == 12
+    armor = saveload_ground._ground_equipment_from_dict({
+        "item_type": "armor", "item_id": "light_vest", "loaded_ammo": 7,
+    })
+    assert armor.loaded_ammo is None
+
+
+def test_install_appends_into_founded_home_with_carried_magazine():
+    """Unfounded class + empty active set founds it (equip-to-wield);
+    the entry's magazine rides the installed instance."""
+    equipped, holstered = [], [GroundWeaponInstance("combat_knife", None)]
+    pack = [StoredGroundEquipment("weapon", "smg", 1, 7)]
+    entry, role = ground_weapon_sets.install_set_weapon(
+        equipped, holstered, pack, 0,
+    )
+    assert (entry.item_id, role) == ("smg", "ACTIVE")
+    assert equipped == [GroundWeaponInstance("smg", 7, 1)]
+    assert pack == []
+
+
+def test_install_routes_to_holstered_home_and_reports_role():
+    equipped, holstered = [_pistol()], []
+    warehouse = [StoredGroundEquipment("weapon", "mono_blade", 2)]
+    _entry, role = ground_weapon_sets.install_set_weapon(
+        equipped, holstered, warehouse, 0,
+    )
+    assert role == "HOLSTER"
+    assert holstered == [GroundWeaponInstance("mono_blade", None, 2)]
+
+
+def test_install_two_handed_displaces_whole_set_to_destination():
+    smg = GroundWeaponInstance("smg", 9, 1)
+    equipped, holstered = [smg, _pistol(4)], []
+    warehouse = [StoredGroundEquipment("weapon", "railgun")]
+    ground_weapon_sets.install_set_weapon(
+        equipped, holstered, warehouse, 0, displaced_storage=warehouse,
+    )
+    assert equipped == [GroundWeaponInstance("railgun", 12)]
+    # The popped railgun entry leaves the source list first; displaced
+    # members rejoin it after.
+    assert {e.item_id for e in warehouse} == {"smg", "kinetic_pistol"}
+    assert next(e for e in warehouse if e.item_id == "kinetic_pistol").loaded_ammo == 4
+
+
+def test_install_one_handed_pick_displaces_only_the_chosen_member():
+    pistol, smg = _pistol(5), GroundWeaponInstance("smg", 9)
+    equipped, holstered = [pistol, smg], []
+    pack = [StoredGroundEquipment("weapon", "laser_pistol", 0, 3)]
+    ground_weapon_sets.install_set_weapon(
+        equipped, holstered, pack, 0,
+        displace_index=0, displaced_storage=pack,
+        displaced_container="expedition", strength=10,
+    )
+    # The picked member leaves; the install appends at the end.
+    assert equipped == [smg, GroundWeaponInstance("laser_pistol", 3)]
+    assert pack == [StoredGroundEquipment("weapon", "kinetic_pistol", 0, 5)]
+
+
+def test_install_auto_displacement_matches_legacy_whole_set_behaviour():
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    pack = [StoredGroundEquipment("weapon", "laser_pistol")]
+    ground_weapon_sets.install_set_weapon(
+        equipped, holstered, pack, 0, displaced_storage=pack,
+        displaced_container="expedition", strength=10,
+    )
+    assert equipped == [GroundWeaponInstance("laser_pistol", 100)]
+    assert len(pack) == 2
+
+
+def test_install_purity_stranding_pick_is_refused():
+    """A pick that would strand a mixed home (degenerate save) is
+    refused — purity guards mutations."""
+    knife = GroundWeaponInstance("combat_knife", None)
+    equipped, holstered = [knife, _pistol(5)], []
+    pack = [StoredGroundEquipment("weapon", "smg")]
+    with pytest.raises(ValueError, match="cannot be displaced"):
+        ground_weapon_sets.install_set_weapon(
+            equipped, holstered, pack, 0,
+            displace_index=1, displaced_storage=pack,
+            displaced_container="expedition", strength=10,
+        )
+    assert pack == [StoredGroundEquipment("weapon", "smg")]
+    assert len(equipped) == 2
+
+
+def test_install_no_home_raises_the_deterministic_refusal():
+    equipped, holstered = [_pistol()], [_pistol(6)]
+    pack = [StoredGroundEquipment("weapon", "combat_knife")]
+    with pytest.raises(ValueError, match=ground_weapon_sets.NO_WEAPON_HOME_LINE):
+        ground_weapon_sets.install_set_weapon(equipped, holstered, pack, 0)
+    assert pack == [StoredGroundEquipment("weapon", "combat_knife")]
+
+
+def test_install_two_handed_pack_overflow_aborts_atomically():
+    """ADVISE fold 10: the +1 displaced member overflows a full pack —
+    zero partial mutation."""
+    from src.spacehack.ground_equipment import expedition_capacity
+
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    strength = 10
+    junk = [
+        StoredGroundEquipment("armor", "light_vest")
+        for _ in range(expedition_capacity(strength))
+    ]
+    pack = [*junk, StoredGroundEquipment("weapon", "railgun")]
+    with pytest.raises(ValueError, match="Expedition inventory is full"):
+        ground_weapon_sets.install_set_weapon(
+            equipped, holstered, pack, len(pack) - 1,
+            displaced_storage=pack, displaced_container="expedition",
+            strength=strength,
+        )
+    assert len(pack) == expedition_capacity(strength) + 1
+    assert len(equipped) == 2
+
+
+def test_install_one_handed_pick_from_full_pack_still_fits():
+    """Source removal frees the pack slot first — the 1H member
+    chooser never overflows from a full pack (net zero)."""
+    from src.spacehack.ground_equipment import expedition_capacity
+
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    strength = 10
+    junk = [
+        StoredGroundEquipment("armor", "light_vest")
+        for _ in range(expedition_capacity(strength) - 1)
+    ]
+    pack = [*junk, StoredGroundEquipment("weapon", "laser_pistol")]
+    ground_weapon_sets.install_set_weapon(
+        equipped, holstered, pack, len(pack) - 1,
+        displace_index=0, displaced_storage=pack,
+        displaced_container="expedition", strength=strength,
+    )
+    assert len(pack) == expedition_capacity(strength)
+    assert equipped == [
+        GroundWeaponInstance("smg", 9),
+        GroundWeaponInstance("laser_pistol", 100),
+    ]
+
+
+def test_install_bad_displace_index_raises():
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    pack = [StoredGroundEquipment("weapon", "laser_pistol")]
+    with pytest.raises(IndexError):
+        ground_weapon_sets.install_set_weapon(
+            equipped, holstered, pack, 0, displace_index=9,
+            displaced_storage=pack, displaced_container="expedition",
+        )
