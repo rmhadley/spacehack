@@ -53,14 +53,16 @@ The design is driven by measured failures of the 2-slot world:
 |---|---|
 | No special cases / uniform mechanisms | One swap verb for every composition; set membership is a table (`damage_type` → set), not per-weapon flags |
 | Data-first | Set membership derives from the catalog (`damage_type`); no new content fields |
-| Save/load sacred | New ctx fields serialize; existing saves migrate (equipped weapons classify into their set, other set starts empty) |
+| Save/load sacred | New ctx fields serialize; existing saves migrate (equipped weapons classify into their set — same-class loadouts unchanged, mixed pairs split per the phase 1 brief) |
 | ctx-first | The holstered set is a declared `GameContext` field — no runtime attachment |
 | Guide contract | Controls + Ground Gear sections reviewed; the toggle gets its entry |
 | Doc 50 SETTLED 6 | The standard's board is the drift alarm for this landing — bars re-ruled in the same commit that lands the mechanic (benchmark-revision clause) |
 
 ## Data model
 
-- **Set classification table** (pure, in `ground_equipment`):
+- **Set classification table** (pure, in NEW sibling module
+  `ground_weapon_sets.py` — `ground_equipment.py` sits at 987/1000
+  lines against the ratchet, so the new code gets its own home):
   `damage_type == "melee"` → melee set; `kinetic | energy | plasma |
   explosive` → ranged set. Every current and future weapon resolves
   through the table — no per-spec flag.
@@ -75,10 +77,12 @@ The design is driven by measured failures of the 2-slot world:
   Σ hands ≤ 2 per set (one 2H or up to two 1H). A set may be EMPTY
   (toggling to an empty set = fists; player's choice, uniform
   mechanism — SETTLED 1).
-- **The swap** (`ground_equipment.exchange_weapon_sets(ctx)` or a
-  combat-action helper): exchange the two lists, refresh equipment
-  state, **cost 1 AP** in combat, free out of combat. One action,
-  whole set ↔ whole set.
+- **The swap** (`ground_weapon_sets.exchange_weapon_sets(equipped,
+  holstered)` — in-place list swap, lists not ctx, per
+  ground_equipment's take-the-collections convention): one action,
+  whole set ↔ whole set, **cost 1 AP** in combat, free out of
+  combat. The equipment-state refresh (active-weapon flags) is the
+  PHASE-2 verb's job, not the data-layer exchange's.
 - **Pack law**: holstered set members are equipment — never stored,
   never counted against `expedition_capacity`.
 
@@ -93,10 +97,13 @@ The design is driven by measured failures of the 2-slot world:
   other X is modal-scoped inside the faction viewer).
 - `game_context.py`: the holstered field.
 - `saveload_ground.py`: serialize both lists; **migration** for
-  existing saves (classify equipped 2-slot contents into their set;
-  holstered starts empty).
-- `ground_equipment.py`: classification table, set-occupancy
-  validation on equip, `exchange_weapon_sets`.
+  existing saves (classify equipped contents into their set;
+  same-class loadouts unchanged, mixed pairs split — active = slot
+  0's class; ruled with the phase 1 brief).
+- `ground_weapon_sets.py` (NEW sibling — `ground_equipment.py` is
+  987/1000 against the ratchet): classification table, set
+  validation, `exchange_weapon_sets`, and the migration partition
+  (pure split-by-class helper with direct tests).
 - Character screen + armory terminal: set-aware equipment UI (equip
   into ranged/melee sets; the C-screen mid-combat per-weapon swap
   REMAINS at 1 AP per change for set *editing* — SETTLED 1).
@@ -134,7 +141,10 @@ Each phase gets its Implementation brief at its own refine time.
   free in `MOVE_KEYS` (VIM diagonals `b/n/y/u`, `hjkl`, arrows,
   numpad), unused in the main loop. The only other X in the codebase
   is modal-scoped (faction viewer transponder-log delete) — no
-  collision.
+  collision. Shift+X is the dev XP grant (`game_loop.py:401`) —
+  also no collision (dev grants never run in combat), but phase
+  2's input-path tests pin plain-x vs shift-x so it stays
+  deliberate.
 - **Toggling to an EMPTY holstered set is allowed** — the player
   fights with fists until toggling back. Uniform mechanism: the toggle
   always fires; no refusal special case.
@@ -151,7 +161,9 @@ Each phase gets its Implementation brief at its own refine time.
 2. **Migration — mixed pair**: a save with one 1H ranged + one 1H
    melee equipped → continue → the C screen's equipped list shows
    only slot 0's class; the other weapon is holstered (verify via
-   the dev inspector, item 4); F-volley fires exactly the active set.
+   the dev inspector, item 4); F-volley fires exactly the active
+   set. The displaced weapon shows in NO UI until phase 2's HUD
+   indicator — expected, not lost.
 3. **Migration — same-class pair**: two 1H ranged equipped → both
    stay active, melee set empty; nothing observable changes.
 4. **Dev inspector**: with SPACEHACK_DEV on, the dev dump prints both
@@ -167,17 +179,20 @@ Each phase gets its Implementation brief at its own refine time.
 
 **Scope (files / hook points):**
 
-- **Classification table** (`ground_equipment.py`): pure
+- **Classification table** (`ground_weapon_sets.py` — NEW sibling
+  module; `ground_equipment.py` is 987/1000 against the
+  architecture ratchet and cannot absorb the ~50 new lines): pure
   `weapon_set(weapon_id) -> "ranged" | "melee"` — resolves
   `find_ground_weapon(...).damage_type`; `"melee"` → melee,
   `"kinetic" | "energy" | "plasma" | "explosive"` → ranged. The
   table is a module-level dict of the five damage types — every
   current and future catalog entry (including `monsters.py`)
   resolves; an unknown type raises (exhaustiveness is load-bearing).
-- **Set validation** (`ground_equipment.py`): pure
+- **Set validation** (`ground_weapon_sets.py`): pure
   `can_fit_weapon_set(instances, new_weapon_id) -> bool` — Σ hands ≤ 2
   within the set AND class purity (the set's class is the class of
-  its first member; a different-class weapon never fits). Mirrors
+  its first member; an EMPTY set is class-agnostic — any class
+  fits, occupancy counts from zero). Mirrors
   the existing `can_fit_weapons` occupancy arithmetic
   (`weapon_slot_occupancy` + `weapon_hands`); the OLD function stays
   untouched — it keeps serving the unchanged equip paths until
@@ -186,33 +201,47 @@ Each phase gets its Implementation brief at its own refine time.
   at :337): NEW `holstered_ground_weapons:
   list[ground_equipment_module.GroundWeaponInstance]`, default
   `[]`. Declared field, no runtime attachment (ratchet law).
-- **The swap** (`ground_equipment.py`):
-  `exchange_weapon_sets(ctx) -> None` — swaps the two lists
-  wholesale (magazines and quality ride the instances untouched —
-  no reseed, no copy). Works for empty on either side (SETTLED 1
-  fists floor). Double-toggle is the identity. AP cost and
-  active-weapon-flag reset are combat-layer concerns — they land
-  with phase 2's dispatch action, NOT here.
+- **The swap** (`ground_weapon_sets.py`):
+  `exchange_weapon_sets(equipped, holstered)` — swaps the two
+  lists in place (magazines and quality ride the instances
+  untouched — no reseed, no copy; lists not ctx, matching
+  ground_equipment's convention so the module stays
+  ctx-free and directly testable). Works for empty on either side
+  (SETTLED 1 fists floor). Double-toggle is the identity. AP cost
+  and active-weapon-flag reset are combat-layer concerns — they
+  land with phase 2's dispatch action, NOT here.
 - **Serialization + migration** (`saveload_ground.py`):
   `"holstered_ground_weapons": _d(ctx.holstered_ground_weapons)`
   beside the existing equipped entry (:42); parse via the existing
   `parse_weapon_instance`. **Missing key = pre-doc-51 save →
-  migration**: classify each equipped instance by its set; the
-  active set after migration is the set of the ORIGINAL slot 0
-  (preserves today's volley order — the first weapon stays
-  fire-able); all other-class members move to the holstered set.
-  Same-class loadouts therefore migrate with zero behavior change;
-  mixed pairs split. Present key → load verbatim, no migration.
-- **Dev inspector** (`dev_mode.py`): SPACEHACK_DEV-gated log dump of
-  both sets (weapon id, loaded_ammo, quality per instance) on the
-  existing dev-grant surface — the playtest's only visibility into
-  the holstered field before phase 2's HUD. Read the existing
-  ground-loadout grant's shape at audit time; extend, don't fork.
+  migration** (via the pure partition helper in
+  `ground_weapon_sets.py`, not inline in the restore): classify
+  each equipped instance by its set; the active set after
+  migration is the set of the ORIGINAL slot 0 (slot 0 stays
+  fire-able; where slot 1 was the other class its volley
+  contribution moves to the holstered set — the accepted cost of
+  the split). Same-class loadouts migrate with zero behavior
+  change; mixed pairs split; real pre-51 saves are mostly empty or
+  single-class (no starter loadout exists — new games begin with
+  `equipped_ground_weapons=[]`), so no-ops dominate. Present key →
+  load verbatim, no migration.
+- **Dev inspector** (handler body in `dev_mode.py`, 695 lines —
+  room to spare): SPACEHACK_DEV-gated log dump of both sets
+  (weapon id, loaded_ammo, quality per instance), wired as an entry
+  in `_DEV_SHIFT_KEYS` (`game_loop.py:400-417` — the ON-DEMAND dev
+  surface; the existing `apply_dev_ground_loadout` grant at
+  `dev_mode.py:269` is a New-Game-only hook and never runs on a
+  continued save). Pick the free Shift-key at audit time from the
+  live table. `game_loop.py` is 996/1000 — it gains ONLY the table
+  entry, the body lives in `dev_mode.py`. This dump is the
+  playtest's only visibility into the holstered field before
+  phase 2's HUD.
 
-**Build order:** classification table (+ exhaustiveness test) → ctx
-field → set validation (+ tests) → `exchange_weapon_sets` (+ tests)
-→ serialization + migration (+ round-trip and migration tests) → dev
-inspector → full `make check`.
+**Build order:** new module `ground_weapon_sets.py` with the
+classification table (+ exhaustiveness test) → ctx field → set
+validation (+ tests) → `exchange_weapon_sets` (+ tests) →
+serialization + migration via the partition helper (+ round-trip
+and migration tests) → dev inspector → full `make check`.
 
 **Binding rulings:** SETTLED 1 (empty-set toggle allowed — fists
 floor; the swap always fires). The pack law is STRUCTURAL here:
@@ -221,7 +250,10 @@ list, so `expedition_capacity` never sees them by construction — no
 capacity-code change in this phase; the behavioral pin (holstered
 weapons surviving pack-full states) lands with phase 3's flows.
 Migration's active-set rule (slot 0's class) is proposed in this
-brief — rule it with the brief's approval. Existing combat rules
+brief — rule it with the brief's approval. (Mid-combat saves are
+structurally impossible — `save_game` is reachable only from the
+main-loop ESC path, and combat's only exit is window-close QUIT —
+so migration can never touch a live fight.) Existing combat rules
 read `equipped_ground_weapons` exactly as today — ZERO rules-module
 edits in this phase; if the build reaches for one, stop: design
 question, not a fix.
@@ -229,13 +261,17 @@ question, not a fix.
 **Required tests:** classification exhaustiveness over the whole
 catalog (all five damage types, monsters included; unknown type
 raises); set validation — 2×1H fits, 1×2H fits, 2H+anything
-refused, 3×1H refused, class-mix refused; exchange — wholesale
+refused, 3×1H refused, class-mix refused, EMPTY set accepts any
+class (occupancy counts from zero); exchange — wholesale
 swap, magazine + quality persistence through the swap, empty↔full
 both directions, double-toggle identity; save round-trip — fresh
 holstered contents round-trip exactly; migration — same-class pair
 stays active with other set empty, mixed pair splits with active =
 slot 0's class, empty equipped → both empty, no-key save never
-crashes. Every new pure function carries its test in the same
+crashes, and migration payloads explicitly STRIP
+`holstered_ground_weapons` so they stay true pre-51 shapes (a
+current-`save_game` payload would carry the key and silently skip
+the legacy path). Every new pure function carries its test in the same
 commit (pure-function contract). Existing suites stay green.
 
 **Stop point:** no combat verb, key binding, HUD indicator, or
