@@ -829,3 +829,26 @@ def test_glyph_atlas_bold_surface_widens_sample_glyphs():
             assert pixels_differ, f"bold {character!r} is identical to base"
     finally:
         pygame.quit()
+
+
+def test_open_claims_front_position_on_the_fresh_window(monkeypatch):
+    """The macOS under-everything regression (2026-09-25): opening the
+    engine explicitly raises/focuses the freshly created window instead
+    of trusting launch-time activation. Pin the wiring — the darwin
+    branch (osascript activation) never runs on this test platform, so
+    the observable is the focus call on the grabbed SDL window."""
+    from types import SimpleNamespace
+
+    engine = pygame_engine.PygameEngine(
+        pygame=SimpleNamespace(), config=pygame_engine.PygameEngineConfig(),
+    )
+    calls = []
+    engine._sdl_window = SimpleNamespace(focus=lambda: calls.append("focus"))
+    engine._claim_front_position()
+    assert calls == ["focus"]
+
+    def _raise():
+        raise RuntimeError("advisory call refused by the platform")
+
+    engine._sdl_window = SimpleNamespace(focus=_raise)
+    engine._claim_front_position()  # never propagates — game must still run

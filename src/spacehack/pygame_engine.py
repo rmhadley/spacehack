@@ -7,6 +7,9 @@ coordinates. The presentation engine owns the input event shape and pump.
 """
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import warnings
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -425,6 +428,31 @@ class PygameEngine:
             warnings.simplefilter("ignore", DeprecationWarning)
             return self.pygame.Window.from_display_module()
 
+    def _claim_front_position(self) -> None:
+        """Bring the freshly created window to the front and activate it.
+
+        A terminal-launched process is regularly backgrounded by the
+        time its window appears (seconds of imports and atlas work),
+        and the macOS window server places a background process's new
+        windows beneath every other app's. Claim activation and
+        key-window status explicitly instead of trusting launch-time
+        focus (regression report 2026-09-25: window opens beneath
+        everything, every launch)."""
+        if sys.platform == "darwin":
+            subprocess.run(
+                [
+                    "osascript", "-e",
+                    "tell application \"System Events\" to set frontmost "
+                    f"of first application process whose unix id is "
+                    f"{os.getpid()} to true",
+                ],
+                check=False, capture_output=True,
+            )
+        try:
+            self._sdl_window.focus()
+        except Exception:
+            pass  # advisory on some platforms; never block the game on it
+
     def open(self) -> "PygameEngine":
         """Create the Pygame window and fixed logical canvas."""
         self.pygame.init()
@@ -438,6 +466,7 @@ class PygameEngine:
         if self.config.fullscreen:
             # Enter fullscreen through the window API, never at set_mode time.
             self._sdl_window.set_fullscreen(desktop=True)
+        self._claim_front_position()
         self.logical_surface = self.pygame.Surface(
             logical_size(self.config), self.pygame.SRCALPHA,
         )
