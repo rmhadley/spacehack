@@ -608,6 +608,20 @@ tests present.
 
 ### Phase 2 PLAYTEST (the verb)
 
+**Mid-playtest ruling (2026-09-25, user): "X needs to go on the huds
+too"** — the explore HUDs' help block gains `[X] Swap Sets`
+(`hud._render_city_help_lines` shared list: city AND dungeon; the
+space list stays clean — X is gated off there, and the space list is
+pinned never to advertise it). Landed as its own commit after a
+focused REVIEW (APPROVE, 4 minors applied: the negative space-list
+pin via the extracted `_SPACE_HELP_LINES` constant; ruling recorded
+here; explicit-path staging past the tmp_png intent-to-adds). Guide
+diff UNCHANGED by the ruling — the Controls entry already covers X.
+hud.py 997/1000 after it (headroom warning: the next addition there
+forces the split; natural seam = the combat-HUD half, and the
+`_render_help_lines`/`_render_action_pairs` twin pair is the backlog
+extraction when it comes).
+
 1. **Dev seed**: fresh game with SPACEHACK_DEV → dev log names both
    sets (strongest ranged active + strongest melee holstered).
 2. **In combat**: X swaps the WHOLE set — HUD weapon list flips,
@@ -620,7 +634,9 @@ tests present.
 4. **0-AP refusal**: spend to 0 AP → X → refusal line, sets
    unchanged.
 5. **Out of combat**: X in the dungeon (and in a city) swaps free
-   with the same log line; X in space does nothing.
+   with the same log line, and the explore HUD's help block shows
+   `[X] Swap Sets` in both modes; X in space does nothing (the space
+   HUD carries no X hint).
 6. **Save/load sniff**: swap out of combat → ESC save → continue →
    Shift+W shows the swapped arrangement with magazines intact.
 7. **Guide diff**: Controls & Keybindings, Combat list — ADD after
