@@ -782,3 +782,34 @@ def test_spawn_dev_pirate_cycles_by_press_count():
         assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 0
     finally:
         _drop_dev_pirate_registry_row()
+
+
+def test_log_ground_weapon_sets_dumps_both_sets():
+    """Shift+W dump (doc 51 phase 1): both sets with magazine + quality
+    per instance; the empty set reads as the fists floor."""
+    from types import SimpleNamespace
+
+    from src.spacehack import dev_mode
+    from src.spacehack.ground_equipment import GroundWeaponInstance
+
+    logged = []
+    ctx = SimpleNamespace(
+        log=SimpleNamespace(add=lambda m: logged.append(m)),
+        equipped_ground_weapons=[
+            GroundWeaponInstance("kinetic_pistol", 3, 1),
+        ],
+        holstered_ground_weapons=[
+            GroundWeaponInstance("railgun", 2, 2),
+            GroundWeaponInstance("mono_blade", None),
+        ],
+    )
+    dev_mode.log_ground_weapon_sets(ctx)
+    assert any("active" in line and "Kinetic Pistol[3/12,q1]" in line
+               for line in logged)
+    assert any("holstered" in line and "Railgun[2/12,q2]" in line
+               and "Mono Blade[-/-,q0]" in line for line in logged)
+
+    logged.clear()
+    ctx.holstered_ground_weapons = []
+    dev_mode.log_ground_weapon_sets(ctx)
+    assert any("holstered: empty (fists)" in line for line in logged)

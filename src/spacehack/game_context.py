@@ -337,6 +337,12 @@ class GameContext:
     equipped_ground_weapons: list[ground_equipment_module.GroundWeaponInstance] = dataclasses.field(
         default_factory=list,
     )
+    # Holstered ground weapon set (doc 51): the inactive set, swapped
+    # wholesale with the active set. Equipment, never cargo — its own
+    # field, so expedition capacity never sees it.
+    holstered_ground_weapons: list[ground_equipment_module.GroundWeaponInstance] = dataclasses.field(
+        default_factory=list,
+    )
     # Equipped ground armor by slot. Slots: head, body, hands, legs,
     # feet. Values are stored entries (not bare ids) so each piece
     # carries its rolled quality tier (doc 47 phase 2).

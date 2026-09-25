@@ -40,6 +40,7 @@ def _ground_fields(ctx: GameContext) -> dict:
     return {
         "ground_stats": _d(ctx.ground_stats),
         "equipped_ground_weapons": _d(ctx.equipped_ground_weapons),
+        "holstered_ground_weapons": _d(ctx.holstered_ground_weapons),
         "equipped_ground_armor": _d(ctx.equipped_ground_armor),
         "ground_armory_storage": _d(ctx.ground_armory_storage),
         "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
@@ -124,12 +125,34 @@ def _restore_ground_hp(data: dict) -> tuple[int, int]:
     return current, maximum
 
 
-def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
-    """Restore ground combat and equipment fields."""
-    ctx.ground_stats = _restore_ground_stats(data.get("ground_stats"))
+def _restore_weapon_sets(ctx: GameContext, data: dict) -> None:
+    """Restore both weapon set fields, migrating pre-doc-51 saves.
+
+    A present holstered key loads verbatim — the restore path never
+    enforces class purity (validation guards mutations, not
+    restoration). A missing key is a pre-doc-51 save: the loadout
+    partitions into sets with the original slot 0's class active
+    (doc 51 phase 1).
+    """
     ctx.equipped_ground_weapons = _parse_equipped_ground_weapons(
         data.get("equipped_ground_weapons"),
     )
+    if "holstered_ground_weapons" in data:
+        ctx.holstered_ground_weapons = _parse_equipped_ground_weapons(
+            data["holstered_ground_weapons"],
+        )
+    else:
+        from .ground_weapon_sets import partition_weapon_sets
+
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons = (
+            partition_weapon_sets(ctx.equipped_ground_weapons)
+        )
+
+
+def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
+    """Restore ground combat and equipment fields."""
+    ctx.ground_stats = _restore_ground_stats(data.get("ground_stats"))
+    _restore_weapon_sets(ctx, data)
     ctx.equipped_ground_armor = _parse_equipped_ground_armor(
         data.get("equipped_ground_armor"),
     )

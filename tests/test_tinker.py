@@ -40,6 +40,7 @@ def _context(items=None, **overrides):
     messages, log = _messages()
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
         ground_expedition_inventory=[StoredGroundEquipment("weapon", "combat_knife")],
         ground_armory_storage=[StoredGroundEquipment("armor", "heavy_vest")],

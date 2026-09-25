@@ -530,6 +530,37 @@ def log_rumor_routing(ctx) -> None:
     )
 
 
+def _describe_weapon_set(instances) -> str:
+    """One dev-dump row: ``name[loaded/capacity,quality]`` per instance."""
+    if not instances:
+        return "empty (fists)"
+    parts = []
+    for instance in instances:
+        spec = find_ground_weapon(instance.weapon_id)
+        total = str(spec.ammo_capacity) if spec.ammo_capacity > 0 else "-"
+        loaded = "-" if instance.loaded_ammo is None else str(instance.loaded_ammo)
+        parts.append(f"{spec.name}[{loaded}/{total},q{instance.quality}]")
+    return ", ".join(parts)
+
+
+def log_ground_weapon_sets(ctx) -> None:
+    """Shift+W: dump both ground weapon sets (doc 51 phase 1) —
+    magazine + quality per instance, the playtest's only pre-HUD
+    visibility into the holstered set."""
+    ctx.log.add("[DEV] Ground weapon sets:")
+    ctx.log.add(f"  active: {_describe_weapon_set(ctx.equipped_ground_weapons)}")
+    ctx.log.add(f"  holstered: {_describe_weapon_set(ctx.holstered_ground_weapons)}")
+
+
+async def dump_ground_weapon_sets(state) -> None:
+    """The game_loop dev-table dispatch body for Shift+W.
+
+    game_loop sits two lines under the architecture limit, so the
+    adapter lives here and the table entry points directly at it.
+    """
+    log_ground_weapon_sets(state.ctx)
+
+
 def _adjacent_cells(game_map, player_pos, count: int) -> list:
     """The first ``count`` walkable cells beside the player (dev grants)."""
     return [

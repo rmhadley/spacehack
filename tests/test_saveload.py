@@ -1114,7 +1114,11 @@ class TestSaveLoadRoundTrip:
     def test_legacy_string_weapons_migrate_to_full_magazines(
         self, monkeypatch, tmp_path,
     ):
-        """Pre-instance saves load as instances seeded at full magazines."""
+        """Pre-instance saves load as instances seeded at full magazines.
+
+        Doc 51: the payload is stripped to a true pre-51 shape (no
+        holstered key), so the load also partitions the mixed pair —
+        pistol active, knife holstered."""
         monkeypatch.setattr(
             "src.spacehack.saveload._autosave_path",
             lambda: tmp_path / "autosave.json",
@@ -1127,6 +1131,7 @@ class TestSaveLoadRoundTrip:
         path = tmp_path / "autosave.json"
         payload = json.loads(path.read_text())
         payload["equipped_ground_weapons"] = ["kinetic_pistol", "combat_knife"]
+        payload.pop("holstered_ground_weapons", None)
         path.write_text(json.dumps(payload))
 
         loaded = load_game(ctx.context)
@@ -1134,7 +1139,158 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None
         assert loaded.equipped_ground_weapons == [
             GroundWeaponInstance("kinetic_pistol", 12),
+        ]
+        assert loaded.holstered_ground_weapons == [
             GroundWeaponInstance("combat_knife", None),
+        ]
+        delete_save()
+
+    def test_round_trip_holstered_weapon_set(self, monkeypatch, tmp_path):
+        """Holstered set members round-trip with magazines + quality."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(64)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [GroundWeaponInstance("kinetic_pistol", 5)]
+        ctx.holstered_ground_weapons = [
+            GroundWeaponInstance("railgun", 2, 1),
+            GroundWeaponInstance("mono_blade", None, 2),
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.holstered_ground_weapons == [
+            GroundWeaponInstance("railgun", 2, 1),
+            GroundWeaponInstance("mono_blade", None, 2),
+        ]
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 5),
+        ]
+        delete_save()
+
+    def test_pre_doc51_mixed_pair_migrates_on_slot_zero_class(
+        self, monkeypatch, tmp_path,
+    ):
+        """A pre-51 save with a mixed pair splits: slot 0's class stays
+        active, the other class holsters (doc 51 phase 1)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(65)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("combat_knife", None, 1),
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("holstered_ground_weapons", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 3),
+        ]
+        assert loaded.holstered_ground_weapons == [
+            GroundWeaponInstance("combat_knife", None, 1),
+        ]
+        delete_save()
+
+    def test_pre_doc51_same_class_pair_stays_active(
+        self, monkeypatch, tmp_path,
+    ):
+        """Same-class loadouts migrate with zero behavior change."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(66)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("smg", 7, 2),
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("holstered_ground_weapons", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("smg", 7, 2),
+        ]
+        assert loaded.holstered_ground_weapons == []
+        delete_save()
+
+    def test_pre_doc51_empty_equipped_loads_clean(
+        self, monkeypatch, tmp_path,
+    ):
+        """No starter loadout exists — pre-51 saves are mostly empty
+        here; the migration is a no-op that never crashes."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(67)
+        ctx = _build_test_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        import json
+        path = tmp_path / "autosave.json"
+        payload = json.loads(path.read_text())
+        payload.pop("holstered_ground_weapons", None)
+        path.write_text(json.dumps(payload))
+
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == []
+        assert loaded.holstered_ground_weapons == []
+        delete_save()
+
+    def test_present_holstered_key_loads_verbatim(
+        self, monkeypatch, tmp_path,
+    ):
+        """A present key suppresses migration — the restore path never
+        enforces class purity (the brief's current-save trap, pinned)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(68)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("combat_knife", None),
+        ]
+        ctx.holstered_ground_weapons = [GroundWeaponInstance("smg", 9, 1)]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.equipped_ground_weapons == [
+            GroundWeaponInstance("kinetic_pistol", 3),
+            GroundWeaponInstance("combat_knife", None),
+        ]
+        assert loaded.holstered_ground_weapons == [
+            GroundWeaponInstance("smg", 9, 1),
         ]
         delete_save()
 

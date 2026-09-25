@@ -459,6 +459,17 @@ def _is_shift_c_press(event: pygame_engine.PygameInputEvent) -> bool:
     return _is_shift_press(event, 'C')
 
 
+def _is_shift_w_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+W.
+
+    Dev-mode only (``SPACEHACK_DEV``): dumps both ground weapon sets
+    with magazine + quality per instance (doc 51 phase 1) — the
+    playtest's only pre-HUD visibility into the holstered set. The
+    plain ``W`` key is unbound (movement is hjkl/arrows/numpad).
+    """
+    return _is_shift_press(event, 'W')
+
+
 def _is_shift_y_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+Y.
 
