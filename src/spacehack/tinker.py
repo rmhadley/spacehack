@@ -138,15 +138,24 @@ def _installed_apply(owned, index: int, label_of):
 
 
 def _weapon_targets(ctx) -> list[_Target]:
-    instances = getattr(ctx, "equipped_ground_weapons", ())
-    return [
-        _target(
-            f"KIT:WEAPON:{index}", instance, _weapon_label,
-            _indexed_apply(ctx.equipped_ground_weapons, index, _weapon_label),
+    """Both weapon sets (doc 51.3): class-keyed so a target's address
+    survives X flipping the roles."""
+    from .ground_weapon_sets import SET_CLASSES, class_home
+
+    targets = []
+    for set_class, _label in SET_CLASSES:
+        home = class_home(
+            getattr(ctx, "equipped_ground_weapons", []),
+            getattr(ctx, "holstered_ground_weapons", []),
+            set_class,
         )
-        for index, instance in enumerate(instances)
-        if _eligible(instance.quality, None)
-    ]
+        for index, instance in enumerate(home or ()):
+            if _eligible(instance.quality, None):
+                targets.append(_target(
+                    f"KIT:WEAPON:{set_class}:{index}", instance, _weapon_label,
+                    _indexed_apply(home, index, _weapon_label),
+                ))
+    return targets
 
 
 def _armor_targets(ctx) -> list[_Target]:

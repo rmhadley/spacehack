@@ -75,7 +75,7 @@ class TestEligibility:
         keys = [key for _label, key, *_extra in chooser_rows(eligible_targets(ctx))]
 
         assert keys == [
-            "KIT:WEAPON:0", "KIT:ARMOR:body", "KIT:PACK:0",
+            "KIT:WEAPON:ranged:0", "KIT:ARMOR:body", "KIT:PACK:0",
             "KIT:ARMORY_STORAGE:0", "KIT:STORED:0", "KIT:INSTALLED:0",
         ]
 
@@ -104,11 +104,25 @@ class TestEligibility:
 
         ctx, _ = _context()
         rows = {key: label for label, key, *_extra in chooser_rows(eligible_targets(ctx))}
-        assert rows["KIT:WEAPON:0"] == "Kinetic Pistol -> Modded Kinetic Pistol"
+        assert rows["KIT:WEAPON:ranged:0"] == "Kinetic Pistol -> Modded Kinetic Pistol"
         assert rows["KIT:STORED:0"] == "Shield Mk. 1 -> Modded Shield Mk. 1"
         assert rows["KIT:ARMORY_STORAGE:0"] == (
             "Heavy Armor Vest -> Modded Heavy Armor Vest"
         )
+
+    def test_holstered_members_are_eligible_targets(self):
+        """Doc 51.3: kit reach covers the holstered set — class-keyed,
+        and the bump writes through the holstered list."""
+        from src.spacehack.tinker import eligible_targets
+
+        ctx, _ = _context(
+            holstered_ground_weapons=[weapon_instance("mono_blade", quality=1)],
+        )
+        target = next(
+            t for t in eligible_targets(ctx) if t.key == "KIT:WEAPON:melee:0"
+        )
+        assert target.apply() is not None
+        assert ctx.holstered_ground_weapons[0].quality == 2
 
     def test_pack_rows_cover_weapons_and_armor_only(self):
         from src.spacehack.tinker import eligible_targets
@@ -141,7 +155,7 @@ class TestApply:
 
         ctx, messages = _context(items=[_kit_stack(6)])
         targets = [
-            "KIT:WEAPON:0", "KIT:ARMOR:body", "KIT:PACK:0",
+            "KIT:WEAPON:ranged:0", "KIT:ARMOR:body", "KIT:PACK:0",
             "KIT:ARMORY_STORAGE:0", "KIT:STORED:0", "KIT:INSTALLED:0",
         ]
         for key in targets:
@@ -186,7 +200,7 @@ class TestApply:
             player_owned_ship=OwnedShip(ship_id="starter"),
             items=[_kit_stack()],
         )
-        pygame_story, fake = self._choose_returning("KIT:WEAPON:0")
+        pygame_story, fake = self._choose_returning("KIT:WEAPON:ranged:0")
         monkeypatch.setattr(pygame_story, "choose", fake)
 
         assert run(try_manage_kit(ctx, 0)) is True
@@ -291,7 +305,7 @@ class TestManageDispatch:
         def _fake_choose(*args, **kwargs):
             if kwargs.get("title") == "CONSUMABLE":
                 return "STACK_USE:0"
-            return "KIT:WEAPON:0"
+            return "KIT:WEAPON:ranged:0"
 
         def _explode(*args, **kwargs):
             raise AssertionError("use_consumable must never run for a kit")
