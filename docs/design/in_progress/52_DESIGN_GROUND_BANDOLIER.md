@@ -1,12 +1,10 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 2 COMPLETE 2026-09-25 (playtest passed) — SETTLED
-1-5; phase 3 (HUD + guide) briefed APPROVED and next. Phase 4 (cap
-gear) DEFERRED to the future
-armor/cybernetics polish pass — doc 52 ships the `effective_cap` seam
-only. Phases 5 (standard rows — needs the landed world's
-measurements) and 6 (tutorial prose — the prose gate) take their
-briefs at their own refine time.**
+**Status: PHASE 3 LANDED 2026-09-25 (build complete, reviewer APPROVE
+after three rounds) — PLAYTEST PENDING. Phase 4 (cap gear) DEFERRED
+to the future armor/cybernetics polish pass — doc 52 ships the
+`effective_cap` seam only. Phases 5 (standard rows) and 6 (tutorial
+prose) take their briefs at their own refine time.**
 
 ## Overview
 
@@ -222,7 +220,7 @@ rows (doc 50 SETTLED 6).
 - [x] 2. **Economy surfaces** — armory restock-to-cap, pack
   ammo-class retirement, market/sell handling for legacy stacks.
   Tests: restock pricing.
-- [ ] 3. **HUD + guide** — bandolier line(s), Ground Gear paragraph,
+- [x] 3. **HUD + guide** — bandolier line(s), Ground Gear paragraph,
   plasma/melee identity wording check. Guide diff rides the phase
   checklist.
 - [ ] 4. **Cap gear — DEFERRED (SETTLED 4)** to the future armor/
@@ -961,11 +959,13 @@ calibers (current/max each, carried or not, read-only).
   sits at 997/1000 — the dungeon weapons block trips the ratchet →
   the SPACE-COMBAT HUD family (`render_combat_hud` + its private
   helpers + combat palette, ~330 lines, untouched by this phase)
-  extracts to `hud_combat.py` in-commit, hud.py re-exporting the
-  externally-read names (verified callers: `combat/_animations.py:587`
-  + `combat/_rules_space.py:639` via `_hud.render_combat_hud`;
-  test_readability reads `COLOR_COMBAT_WEAPON_DIM`/`COLOR_COMBAT_
-  ACTION` off `hud.`).
+  extracts to `hud_combat.py` in-commit, with the three external
+  consumers repointed to the new module (combat/_animations.py,
+  combat/_rules_space.py, test_readability) — NO re-export, keeping
+  the navigation.py sibling-never-imports-hub DAG (a hud→hud_combat
+  re-export would partial-init-crash whenever hud_combat imported
+  first; corrected post-review — the original audit draft said
+  "re-exporting", the landed shape is repointing).
 - `pygame_split.py` — the split UX family the amendment names. Its
   armory runner consumes TAB for panel focus; the C screen needs
   TAB = tab cycle with a read-only right panel → a SECOND entry
@@ -1035,7 +1035,10 @@ dim, aligned with the weapon-detail indent); the per-weapon AMMO
 line drops its `RES` suffix (the caliber lines supersede it — the
 phase-1 "transient until phase 3" read retires, `_reserve_count`
 goes with it). The dungeon block sits between the stat rows and the
-help lines (the dungeon's terminal section is empty), ≤8 rows.
+help lines (the dungeon's terminal section is empty); worst case is
+≤10 rows (1 header + 4 weapon rows + 1 holster + 4 caliber lines —
+corrected post-review from the draft's ≤8; the layout still fits
+with the help lines and footer anchored below).
 
 **Guide BEFORE-correction (verified against the live file):** the
 brief's BEFORE for edit 1 quotes a "select an ammo stack in the
@@ -1050,6 +1053,104 @@ today); flagged at the checkpoint.
 ~50 (split frame builder + converter) stays under; pygame_split.py
 583 + ~90 (runner + fields + override) stays under; every touched
 function stays ≤40 lines.
+
+### Phase 3 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+
+**Commits:** 552fe130 (pre-implementation audit) → 60ab1952
+(`bandolier.HUD_CODES` + `carried_ammo_types`;
+`magazine_indicator` moves to `ground_weapon_ammo`) → 7b6e331e
+(hud.py ratchet paid: the space-combat HUD family extracts verbatim
+to `hud_combat.py`; the three external consumers repointed, NO
+re-export — sibling-never-imports-hub DAG) → 0ca508ae (combat
+weapons panel gains the per-caliber current/max lines after the
+holster row; the per-weapon `RES` suffix retires with
+`_reserve_count`; shared builders `bandolier_hud_lines` +
+`ground_holster_names` land in hud) → ef877927 (dungeon weapons
+block: active rows name+magazine, dim holster names, shared caliber
+lines; fists floor silent; city mode unchanged) → 36535c24 (the
+Equipment tab becomes the split UX: `pygame_split.run_for_screen`
+with pygame_screen outcomes + flag-based left selection,
+screen-tabs chrome with an honest 46px font reserve, right column =
+all six calibers read-only with feeder names) → be84ec9e (guide ×3)
+→ ec77e516 + eb09fac1 + bd8eecf2 (reviewer fixes, atomically split).
+
+**Reviewer (REVIEW) — three rounds:**
+- **Round 1** (full range): REQUEST_CHANGES — one blocking
+  (flag-selectable action-less rows never painted a cursor: the
+  screen contract's rows are exactly the action-less ones, so the
+  unmanaged Equipment tab's cursor was invisible) + five minor (lost
+  body sentences; dead `floor_available` param; two stale doc lines;
+  enemies panel missing the space family's bottom cap).
+- **Round 2** (fix commit): REQUEST_CHANGES — issues 1/3 confirmed
+  resolved, but the cap fix itself was WRONG: anchored to
+  SCREEN_HEIGHT (the ground HUD owns only rows 0-53; the message
+  band owns 54-59) and under-counted the ACTIONS tail (5 rows +
+  spacer, not 3) — the legend landed in the message band exactly
+  when the cap engaged, and the pin locked a vacuous bound.
+- **Round 3** (corrected cap, commits split atomically per the
+  hygiene minor): **APPROVE** — "the cap is correct and tight (43 =
+  the tightest safe value; the worst stack ends flush at row 53;
+  loosening to 44 would push into the message band)". Remaining
+  minors recorded, none blocking: (a) the paint pin locks the gate
+  and the `_draw_frame`→left-panel hop but no test drives
+  `run_for_screen` itself (hop 1 is unlocked — stated residual, not
+  claimed away); (b) the true worst case (3-detail armed target at
+  the boundary row) is covered by derivation + the
+  `_ENEMY_BLOCK_ROWS` constant, not an executed assertion (the
+  `== 45` drift guard fires on any loosening); (c) reviewer numeric
+  corrections adopted: the max real caliber union is THREE lines
+  (only two 1H calibers exist — PST, CEL), so the audit's ≤4 is a
+  safe over-estimate.
+
+**Rulings made at build time (surfaced for the playtest):**
+- The per-weapon AMMO line dropped its `RES` suffix — the caliber
+  lines own the reserve read (the phase-1 "transient RES" rework).
+- The dungeon block renders only when some weapon is carried (the
+  fists floor stays silent, doc 51 SETTLED 2).
+- The Equipment split's chrome: left label "Equipment", right label
+  "Bandolier", footer_left `Expedition Pack: {used}/{capacity}`,
+  footer_right `Ammo is read-only`; the hint keeps the C screen's
+  existing NAV/ENTER swap/TAB stats/ESC/? family (management-gated
+  "ENTER swap").
+- The old Equipment body sentences are GONE pending checkpoint
+  ruling: "Select a row and press ENTER to equip, use, or discard."
+  and "Equipment is read-only outside management mode." (the split
+  has no body; the hint and the per-row choosers teach the actions).
+  Restore as footer/hint wording at the checkpoint if missed
+  (reviewer minor, round 1).
+- Equipment section rows now carry `header=True` (the converter
+  renders them as split dividers); "(occupied by 2H)" and "[empty]"
+  stay informational rows.
+- The enemies listing cap is NEW behavior: huge fights stop listing
+  so the ACTIONS legend stays on the HUD (derivation in
+  `_ground_render._ENEMY_LIST_BOTTOM`'s comment).
+
+**Prose gate — new/changed player-facing strings, landing at this
+checkpoint for sign-off (verbatims):**
+1. Guide ×3 passages — exact BEFORE/AFTER below at the checkpoint.
+2. HUD caliber lines (combat + dungeon):
+   `{PST|RFL|CEL|SHL|GRN|RKT} {current}/{cap}` (user-confirmed codes).
+3. Dungeon block: `WEAPONS` header; `{Weapon Name} [{loaded}/{cap}]`
+   rows; `HOLSTER  {names}` (existing vocabulary, new surface).
+4. Equipment split: labels `Equipment` / `Bandolier`; footer
+   `Expedition Pack: {used}/{capacity}` / `Ammo is read-only`.
+5. Wording note: the approved AFTER's em-dash ("bandolier — the
+   rounds") renders as `bandolier - the rounds` — the guide's
+   CP437-safe convention (no em-dash anywhere in the guide today).
+
+**Guide BEFORE-correction (found at build):** the brief's edit-1
+BEFORE quoted a "select an ammo stack in the Equipment tab and
+choose Reload" sentence phase 2 had already removed — the AFTER
+lands verbatim on the live text.
+
+**Tests added:** carried-union/catalog-order/dedupe + HUD-code
+completeness pins (test_bandolier); combat caliber-line pins ×4 +
+AMMO-suffix retirement + enemies-cap pins (test_ground_weapon_sets);
+dungeon-block pins ×3 (test_hud); split screen keymap, paint
+contract (sabotage-proven), flag threading, screen-tabs font
+reserve, and the Equipment split-frame pins (test_pygame_ui);
+guide-content pins ×3 (test_help_guide). Cohorts + full gate green
+throughout (3026 passed at close).
 
 ## Open questions
 
