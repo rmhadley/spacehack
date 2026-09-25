@@ -384,16 +384,20 @@ def _swap_pack_entry(
     slot: str,
     pack_index: int,
 ) -> bool:
-    """Swap one selected pack entry into an active slot."""
-    from . import ground_equipment
+    """Swap one selected pack entry into its home (slot for armor only)."""
+    from . import ground_equipment, ground_weapon_sets
 
     strength = int(getattr(getattr(ctx, "ground_stats", None), "strength", 10))
     try:
         if item_type == "weapon":
-            ground_equipment.swap_weapon_from_expedition(
+            ground_weapon_sets.install_set_weapon(
                 ctx.equipped_ground_weapons,
+                ctx.holstered_ground_weapons,
                 ctx.ground_expedition_inventory,
-                pack_index, int(slot), strength=strength,
+                pack_index,
+                displaced_storage=ctx.ground_expedition_inventory,
+                displaced_container=ground_equipment.EXPEDITION_INVENTORY,
+                strength=strength,
             )
         else:
             ground_equipment.swap_armor_from_expedition(

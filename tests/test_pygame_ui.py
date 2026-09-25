@@ -215,6 +215,7 @@ def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
     choices = []
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -2553,6 +2554,7 @@ def test_armory_replacement_automatically_prefers_expedition_pack(monkeypatch):
     )
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
@@ -2581,6 +2583,7 @@ def test_armory_replacement_falls_back_to_armory_when_pack_is_full(monkeypatch):
     )
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_rifle"),
@@ -2610,6 +2613,7 @@ def test_armory_purchase_equip_uses_armory_fallback_when_pack_is_full(monkeypatc
     messages = []
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[
@@ -2665,6 +2669,7 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
     messages = []
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[],

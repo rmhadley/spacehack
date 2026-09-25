@@ -490,10 +490,12 @@ def _install_from_container(
             ground_equipment.EXPEDITION_INVENTORY: _expedition_storage(ctx),
         }.get(displaced_container or container)
         if entry.item_type == "weapon":
-            ground_equipment.install_weapon(
-                ctx.equipped_ground_weapons, entries, index,
+            from .. import ground_weapon_sets
+
+            ground_weapon_sets.install_set_weapon(
+                ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
+                entries, index,
                 displaced_storage=displaced_storage,
-                container=container,
                 displaced_container=displaced_container or container,
                 strength=_strength(ctx),
             )
@@ -703,10 +705,12 @@ def _install_purchase(ctx, entry, item_type: str) -> None:
         else _armory_storage(ctx)
     )
     if item_type == "weapon":
-        ground_equipment.install_weapon(
-            ctx.equipped_ground_weapons, source, 0,
+        from .. import ground_weapon_sets
+
+        ground_weapon_sets.install_set_weapon(
+            ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
+            source, 0,
             displaced_storage=displaced_storage,
-            container=ground_equipment.ARMORY_STORAGE,
             displaced_container=displaced_container,
             strength=_strength(ctx),
         )

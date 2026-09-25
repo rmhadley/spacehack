@@ -350,27 +350,6 @@ def validate_transfer_capacity(
         raise ValueError("Expedition inventory is full")
 
 
-def _apply_weapon_install(
-    equipped_weapons: list[GroundWeaponInstance],
-    storage: list[StoredGroundEquipment],
-    storage_index: int,
-    weapon_id: str,
-    displaced_storage: list[StoredGroundEquipment] | None,
-    displaced: list[StoredGroundEquipment],
-    fits_without_replacement: bool,
-    quality: int = 0,
-) -> None:
-    """Apply a previously validated weapon installation."""
-    storage.pop(storage_index)
-    if displaced_storage is not None:
-        displaced_storage.extend(displaced)
-    instance = weapon_instance(weapon_id, quality)
-    if fits_without_replacement:
-        equipped_weapons.append(instance)
-    else:
-        equipped_weapons[:] = [instance]
-
-
 def store_weapon(
     set_weapons: list[GroundWeaponInstance],
     storage: list[StoredGroundEquipment],
@@ -464,86 +443,6 @@ def remove_armor(
     return entry
 
 
-def _replace_weapon_slot(
-    equipped_weapons: list[GroundWeaponInstance],
-    slot_index: int,
-    weapon_id: str,
-) -> list[StoredGroundEquipment]:
-    """Return the active weapons displaced by a slot-targeted swap."""
-    current = list(equipped_weapons)
-    selected_hands = weapon_hands(weapon_id)
-    if selected_hands == 2:
-        return [weapon_entry(instance) for instance in current]
-    if len(current) == 1 and weapon_hands(current[0].weapon_id) == 2:
-        return [weapon_entry(current[0])]
-    if slot_index < len(current):
-        return [weapon_entry(current[slot_index])]
-    return []
-
-
-def swap_weapon_from_expedition(
-    equipped_weapons: list[GroundWeaponInstance],
-    pack: list[StoredGroundEquipment],
-    pack_index: int,
-    slot_index: int,
-    *,
-    strength: int = 10,
-) -> StoredGroundEquipment:
-    """Swap one pack weapon into a requested active weapon slot atomically."""
-    selected = _validated_swap_weapon(
-        equipped_weapons, pack, pack_index, slot_index,
-    )
-    displaced = _replace_weapon_slot(equipped_weapons, slot_index, selected.item_id)
-    proposed_pack = [
-        entry for index, entry in enumerate(pack) if index != pack_index
-    ] + displaced
-    require_expedition_capacity(proposed_pack, strength)
-    validate_storage(proposed_pack)
-    pack[:] = proposed_pack
-    _set_swapped_weapon(equipped_weapons, slot_index, selected)
-    return selected
-
-
-def _validated_swap_weapon(
-    equipped_weapons: list[GroundWeaponInstance],
-    pack: list[StoredGroundEquipment],
-    pack_index: int,
-    slot_index: int,
-) -> StoredGroundEquipment:
-    """Validate a pack→loadout weapon swap and return the selected entry."""
-    if slot_index not in range(WEAPON_SLOT_COUNT):
-        raise IndexError("Invalid ground weapon slot")
-    if not 0 <= pack_index < len(pack):
-        raise IndexError("Invalid stored ground equipment index")
-    selected = pack[pack_index]
-    validate_entry(selected)
-    if selected.item_type != "weapon":
-        raise ValueError("Stored item is not a weapon")
-    if slot_index == 1 and weapon_hands(selected.item_id) == 2:
-        raise ValueError("A two-handed weapon must use Weapon 1")
-    if slot_index == 1 and equipped_weapons and weapon_hands(equipped_weapons[0].weapon_id) == 2:
-        raise ValueError("Weapon 2 is occupied by a two-handed weapon")
-    return selected
-
-
-def _set_swapped_weapon(
-    equipped_weapons: list[GroundWeaponInstance],
-    slot_index: int,
-    selected: StoredGroundEquipment,
-) -> None:
-    """Install a swapped-in weapon into the requested active slot."""
-    selected_hands = weapon_hands(selected.item_id)
-    instance = weapon_instance(selected.item_id, selected.quality)
-    if selected_hands == 2:
-        equipped_weapons[:] = [instance]
-    elif len(equipped_weapons) == 1 and weapon_hands(equipped_weapons[0].weapon_id) == 2:
-        equipped_weapons[:] = [instance]
-    elif slot_index < len(equipped_weapons):
-        equipped_weapons[slot_index] = instance
-    else:
-        equipped_weapons.append(instance)
-
-
 def swap_armor_from_expedition(
     equipped_armor: dict[str, StoredGroundEquipment],
     pack: list[StoredGroundEquipment],
@@ -574,65 +473,6 @@ def swap_armor_from_expedition(
     pack[:] = proposed_pack
     equipped_armor[slot] = selected
     return selected
-
-
-def install_weapon(
-    equipped_weapons: list[GroundWeaponInstance],
-    storage: list[StoredGroundEquipment],
-    storage_index: int,
-    *,
-    displaced_storage: list[StoredGroundEquipment] | None = None,
-    container: str = ARMORY_STORAGE,
-    displaced_container: str | None = None,
-    strength: int = 10,
-) -> StoredGroundEquipment:
-    """Install a stored weapon, atomically preserving displaced weapons."""
-    _require_container(container)
-    if not 0 <= storage_index < len(storage):
-        raise IndexError("Invalid stored ground equipment index")
-    selected = storage[storage_index]
-    validate_entry(selected)
-    if selected.item_type != "weapon":
-        raise ValueError("Stored item is not a weapon")
-    displaced, fits_without_replacement = _plan_weapon_install(
-        equipped_weapons, storage, selected.item_id, displaced_storage,
-        container, displaced_container, strength,
-    )
-    _apply_weapon_install(
-        equipped_weapons, storage, storage_index, selected.item_id,
-        displaced_storage, displaced, fits_without_replacement,
-        quality=selected.quality,
-    )
-    return selected
-
-
-def _plan_weapon_install(
-    equipped_weapons: list[GroundWeaponInstance],
-    storage: list[StoredGroundEquipment],
-    weapon_id: str,
-    displaced_storage: list[StoredGroundEquipment] | None,
-    container: str,
-    displaced_container: str | None,
-    strength: int,
-) -> tuple[list[StoredGroundEquipment], bool]:
-    """Compute weapon displacement and validate the destination."""
-    current = list(equipped_weapons)
-    fits_without_replacement = can_fit_weapons(current, weapon_id)
-    displaced = [] if fits_without_replacement else [
-        weapon_entry(instance) for instance in current
-    ]
-    if displaced_storage is None and displaced:
-        raise ValueError("A destination is required for displaced weapons")
-    if displaced and displaced_container is None:
-        raise ValueError("A destination container is required for displaced weapons")
-    target_storage = displaced_storage if displaced_storage is not None else []
-    validate_transfer_capacity(
-        storage, target_storage, len(displaced),
-        destination_container=displaced_container or container,
-        strength=strength,
-    )
-    validate_storage([*target_storage, *displaced])
-    return displaced, fits_without_replacement
 
 
 def install_armor(

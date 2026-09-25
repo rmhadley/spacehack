@@ -53,9 +53,9 @@ from src.spacehack.ground_equipment import (
     StoredGroundEquipment,
     add_item_stack,
     install_armor,
-    install_weapon,
     sum_armor_bonus,
 )
+from src.spacehack.ground_weapon_sets import install_set_weapon
 from src.spacehack.message_log import MessageLog
 from src.spacehack.ship import (
     OwnedShip,
@@ -399,17 +399,18 @@ def _seed_enemy_entities(game_map, enemies) -> None:
 
 
 def build_ground_loadout(sheet) -> tuple:
-    """The declared ground kit through the equipment module's own
-    install path: weapons occupy their hands slots (magazines seed
-    FULL via ``weapon_instance``), armor fills its catalog slot, pack
-    stacks land through ``add_item_stack``'s capacity rules."""
+    """The declared ground kit through the set-aware install path:
+    weapons found their class homes (magazines seed FULL via the
+    entry default), armor fills its catalog slot, pack stacks land
+    through ``add_item_stack``'s capacity rules."""
     weapons: list = []
+    holstered: list = []
     storage = [
         StoredGroundEquipment("weapon", weapon_id)
         for weapon_id in sheet.ground_weapon_ids
     ]
     while storage:
-        install_weapon(weapons, storage, 0)
+        install_set_weapon(weapons, holstered, storage, 0)
     armor: dict = {}
     for armor_id in sheet.ground_armor_ids:
         install_armor(
@@ -425,7 +426,7 @@ def build_ground_loadout(sheet) -> tuple:
             f"ground_ammo {item_id}x{quantity} does not fit the pack "
             "(expedition capacity is strength-derived)"
         )
-    return weapons, armor, items
+    return weapons, holstered, armor, items
 
 
 def sheet_strength(sheet) -> int:
@@ -443,10 +444,11 @@ def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
         "@", (255, 255, 255), world.Position(*player_start), "Player",
     )
     fields = _ctx_core(sheet, game_map, player)
-    weapons, armor, items = build_ground_loadout(sheet)
+    weapons, holstered, armor, items = build_ground_loadout(sheet)
     stats = starting_ground_stats(sheet.species_id, sheet.class_id)
     fields["ground_stats"] = stats
     fields["equipped_ground_weapons"] = weapons
+    fields["holstered_ground_weapons"] = holstered
     fields["equipped_ground_armor"] = armor
     fields["ground_expedition_items"] = items
     ctx = SimpleNamespace(**fields)

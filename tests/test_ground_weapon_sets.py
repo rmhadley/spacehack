@@ -707,3 +707,30 @@ def test_install_bad_displace_index_raises():
             equipped, holstered, pack, 0, displace_index=9,
             displaced_storage=pack, displaced_container="expedition",
         )
+
+
+def test_install_displacement_requires_a_destination():
+    """Whole-set displacement with nowhere to route refuses atomically
+    (``displaced_container`` alone defaults to armory; the storage
+    list is the required part)."""
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    pack = [StoredGroundEquipment("weapon", "laser_pistol")]
+    with pytest.raises(ValueError, match="destination"):
+        ground_weapon_sets.install_set_weapon(
+            equipped, holstered, pack, 0,
+            displaced_container="expedition",
+        )
+    assert len(equipped) == 2
+    assert pack == [StoredGroundEquipment("weapon", "laser_pistol")]
+
+
+def test_install_carries_quality_both_ways():
+    """The installed weapon fights at its rolled tier; a displaced
+    member keeps its tier (and magazine) in storage."""
+    equipped, holstered = [_pistol(4, 3)], []
+    warehouse = [StoredGroundEquipment("weapon", "railgun", 1)]
+    ground_weapon_sets.install_set_weapon(
+        equipped, holstered, warehouse, 0, displaced_storage=warehouse,
+    )
+    assert equipped == [GroundWeaponInstance("railgun", 12, 1)]
+    assert warehouse == [StoredGroundEquipment("weapon", "kinetic_pistol", 3, 4)]

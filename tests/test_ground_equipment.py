@@ -18,14 +18,12 @@ from src.spacehack.ground_equipment import (
     expedition_capacity,
     preferred_displacement_container,
     install_armor,
-    install_weapon,
     sell_stored,
     sum_armor_bonus,
     sum_armor_defense,
     store_armor,
     store_weapon,
     swap_armor_from_expedition,
-    swap_weapon_from_expedition,
     tier_filtered_equipment,
     transfer_item,
     GroundItemStack,
@@ -158,43 +156,6 @@ def test_store_armor_moves_one_item_and_preserves_duplicates():
     ]
 
 
-def test_install_one_handed_weapon_into_free_slot():
-    equipped = [weapon_instance("laser_pistol")]
-    storage = [StoredGroundEquipment("weapon", "combat_knife")]
-    selected = install_weapon(equipped, storage, 0)
-    assert selected.item_id == "combat_knife"
-    assert equipped == [weapon_instance("laser_pistol"), weapon_instance("combat_knife")]
-    assert storage == []
-
-
-def test_install_two_handed_weapon_atomically_displaces_both_weapons():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    storage = [StoredGroundEquipment("weapon", "laser_rifle")]
-    displaced = []
-    selected = install_weapon(
-        equipped, storage, 0,
-        displaced_storage=displaced,
-        container=ARMORY_STORAGE,
-        displaced_container=ARMORY_STORAGE,
-    )
-    assert selected.item_id == "laser_rifle"
-    assert equipped == [weapon_instance("laser_rifle")]
-    assert storage == []
-    assert displaced == [
-        weapon_entry(weapon_instance("laser_pistol")),
-        weapon_entry(weapon_instance("kinetic_pistol")),
-    ]
-
-
-def test_two_handed_install_without_destination_leaves_state_unchanged():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    storage = [StoredGroundEquipment("weapon", "laser_rifle")]
-    with pytest.raises(ValueError, match="destination"):
-        install_weapon(equipped, storage, 0)
-    assert equipped == [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    assert storage == [StoredGroundEquipment("weapon", "laser_rifle")]
-
-
 def test_install_armor_replaces_same_slot_into_destination():
     equipped = {"body": _armor("light_vest")}
     storage = [StoredGroundEquipment("armor", "heavy_vest")]
@@ -207,66 +168,6 @@ def test_install_armor_replaces_same_slot_into_destination():
     assert equipped == {"body": StoredGroundEquipment("armor", "heavy_vest")}
     assert storage == []
     assert displaced == [StoredGroundEquipment("armor", "light_vest")]
-
-
-def test_displacement_requires_explicit_destination_container():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    storage = [StoredGroundEquipment("weapon", "laser_rifle")]
-    displaced = []
-    with pytest.raises(ValueError, match="destination container"):
-        install_weapon(
-            equipped, storage, 0,
-            displaced_storage=displaced,
-            container=ARMORY_STORAGE,
-        )
-    assert equipped == [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    assert storage == [StoredGroundEquipment("weapon", "laser_rifle")]
-    assert displaced == []
-
-
-def test_armory_to_expedition_displacement_rejects_full_pack_atomically():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    storage = [StoredGroundEquipment("weapon", "laser_rifle")]
-    pack = [
-        StoredGroundEquipment("armor", "light_helmet"),
-        StoredGroundEquipment("armor", "light_vest"),
-        StoredGroundEquipment("armor", "combat_boots"),
-    ]
-    original_pack = list(pack)
-    with pytest.raises(ValueError, match="full"):
-        install_weapon(
-            equipped, storage, 0,
-            displaced_storage=pack,
-            container=ARMORY_STORAGE,
-            displaced_container=EXPEDITION_INVENTORY,
-            strength=10,
-        )
-    assert equipped == [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    assert storage == [StoredGroundEquipment("weapon", "laser_rifle")]
-    assert pack == original_pack
-
-
-def test_expedition_to_expedition_replacement_keeps_pack_capacity():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("kinetic_pistol")]
-    pack = [
-        StoredGroundEquipment("weapon", "laser_rifle"),
-        StoredGroundEquipment("armor", "light_helmet"),
-        StoredGroundEquipment("armor", "light_vest"),
-    ]
-    install_weapon(
-        equipped, pack, 0,
-        displaced_storage=pack,
-        container=EXPEDITION_INVENTORY,
-        displaced_container=EXPEDITION_INVENTORY,
-        strength=10,
-    )
-    assert equipped == [weapon_instance("laser_rifle")]
-    assert pack == [
-        StoredGroundEquipment("armor", "light_helmet"),
-        StoredGroundEquipment("armor", "light_vest"),
-        weapon_entry(weapon_instance("laser_pistol")),
-        weapon_entry(weapon_instance("kinetic_pistol")),
-    ]
 
 
 def test_transfer_item_respects_expedition_capacity_without_partial_mutation():
@@ -325,30 +226,6 @@ def test_remove_active_ground_equipment_returns_owned_entry():
     assert remove_armor(armor, "body") == StoredGroundEquipment("armor", "light_vest")
     assert weapons == [weapon_instance("combat_knife")]
     assert armor == {}
-
-
-def test_swap_two_handed_weapon_cannot_target_weapon_two():
-    equipped = [weapon_instance("laser_pistol")]
-    pack = [StoredGroundEquipment("weapon", "laser_rifle")]
-
-    with pytest.raises(ValueError, match="Weapon 1"):
-        swap_weapon_from_expedition(equipped, pack, 0, 1)
-
-    assert equipped == [weapon_instance("laser_pistol")]
-    assert pack == [StoredGroundEquipment("weapon", "laser_rifle")]
-
-
-def test_swap_weapon_from_expedition_replaces_requested_slot():
-    equipped = [weapon_instance("laser_pistol"), weapon_instance("combat_knife")]
-    pack = [StoredGroundEquipment("weapon", "stun_baton")]
-
-    trade_result = swap_weapon_from_expedition(
-        equipped, pack, 0, 1, strength=10,
-    )
-
-    assert trade_result.item_id == "stun_baton"
-    assert equipped == [weapon_instance("laser_pistol"), weapon_instance("stun_baton")]
-    assert pack == [StoredGroundEquipment("weapon", "combat_knife")]
 
 
 def test_equipment_loot_pickup_adds_to_pack_and_removes_entity():
@@ -842,35 +719,6 @@ def test_store_and_remove_weapon_preserve_quality():
     assert remove_weapon(equipped, 0) == weapon_entry(
         weapon_instance("railgun", 2),
     )
-
-
-def test_install_weapon_equips_the_rolled_quality():
-    storage = [StoredGroundEquipment("weapon", "kinetic_pistol", 2)]
-    equipped: list = []
-    install_weapon(equipped, storage, 0, container=ARMORY_STORAGE)
-    assert equipped == [weapon_instance("kinetic_pistol", 2)]
-
-
-def test_swap_displaces_2h_weapon_with_its_quality():
-    equipped = [weapon_instance("railgun", 3)]  # two-handed
-    pack = [StoredGroundEquipment("weapon", "smg", 2)]
-    swap_weapon_from_expedition(equipped, pack, 0, 0, strength=10)
-    assert equipped == [weapon_instance("smg", 2)]
-    assert pack == [weapon_entry(weapon_instance("railgun", 3))]
-
-
-def test_install_displacement_keeps_displaced_quality():
-    # Installing a 2H weapon over an equipped variant stores the
-    # displaced weapon at its rolled tier.
-    equipped = [weapon_instance("kinetic_pistol", 3)]
-    storage = [StoredGroundEquipment("weapon", "railgun", 1)]
-    install_weapon(
-        equipped, storage, 0,
-        displaced_storage=storage, container=ARMORY_STORAGE,
-        displaced_container=ARMORY_STORAGE, strength=10,
-    )
-    assert equipped == [weapon_instance("railgun", 1)]
-    assert weapon_entry(weapon_instance("kinetic_pistol", 3)) in storage
 
 
 def test_shot_and_reload_preserve_quality():
