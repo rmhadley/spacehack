@@ -27,7 +27,8 @@ TUTORIAL_MISSION_IDS = frozenset({"bhguild_sol_scout"})
 # Extra credits granted at tutorial start. Merchant starts with 75$.
 # The scripted ship loadout (2nd light laser 30$ + Shield Mk.1 60$ =
 # 90$) leaves ~235$ for the armory beat: two kinetic pistols (70$) +
-# a 40-round Pistol Rounds stack (40$) with margin for armor/med packs.
+# a Combat Knife (20$) + a 40-round Pistol Rounds stack (40$) = 130$
+# with margin for armor/med packs.
 TUTORIAL_CREDIT_BONUS = 250
 
 
@@ -157,12 +158,13 @@ _STEP_BODIES: dict[str, str] = {
     "earth_armory": (
         "Mars has hostile wildlife and raiders - bring a weapon. Visit "
         "the Armory terminal (the 'A' icon, left of the mechanic "
-        "terminal outside the space port) and buy two Kinetic Pistols.\n\n"
-        "They're one-handed, so you can equip both and fire them "
-        "together: a 12-damage volley for just 1 AP. Kinetic guns need "
-        "ammo - buy a stack of Pistol Rounds too, and press 'R' to "
-        "reload when a magazine runs dry. Equip both from your ground "
-        "loadout."
+        "terminal outside the space port) and buy two Kinetic Pistols, "
+        "a Combat Knife, and a stack of Pistol Rounds.\n\n"
+        "The pistols are one-handed, so you can equip both and fire "
+        "them together: a 12-damage volley for just 1 AP. Kinetic guns "
+        "need ammo - press 'R' to reload when a magazine runs dry. "
+        "Equip the knife as well: you carry two weapon sets, one "
+        "ranged and one melee, and 'X' swaps between them."
     ),
     "armed_ground": (
         "Armed and ready. Launch your ship and press 'G' to "
@@ -174,9 +176,10 @@ _STEP_BODIES: dict[str, str] = {
         "Ground combat is turn-based like space combat. You have AP to "
         "spend on moving, aiming, and firing.\n\n"
         "Range and line of sight matter: weapons have min/max ranges "
-        "and you can only hit what you can see. Your weapon slots are "
-        "shown in the HUD - swap between them with the indicated "
-        "keys.\n\n"
+        "and you can only hit what you can see. Your active set and "
+        "your holstered set are shown in the HUD - press 'X' to swap "
+        "them, 1 AP in combat. Melee weapons never need ammunition. "
+        "The number keys toggle which active weapons join a volley.\n\n"
         "Win this fight and the tutorial's core is done - the galaxy "
         "is yours."
     ),

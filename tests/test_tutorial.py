@@ -77,6 +77,35 @@ class TestTutorialRoute:
         assert "Walk up to the ship icon" in tutorial._STEP_BODIES["equipped_loadout"]
 
 
+class TestDoc51WeaponSetCopy:
+    """Doc 51 phase 4 — the armory beat buys the knife, combat teaches X.
+
+    Content pins on the settled wording (SETTLED 5): the armory body
+    plants the two-sets idea at purchase time; the Mars combat intro
+    teaches 'X' live. The pre-sets "indicated keys" slot sentence is
+    gone for good.
+    """
+
+    def test_earth_armory_buys_knife_and_plants_sets(self):
+        body = tutorial._STEP_BODIES["earth_armory"]
+        assert "two Kinetic Pistols, a Combat Knife, and a stack of Pistol Rounds" in body
+        assert "you carry two weapon sets, one ranged and one melee" in body
+        assert "'X' swaps between them" in body
+
+    def test_mars_intro_teaches_swap_and_volley(self):
+        body = tutorial._STEP_BODIES["mars_ground_combat_intro"]
+        assert "press 'X' to swap them, 1 AP in combat" in body
+        assert "The number keys toggle which active weapons join a volley" in body
+        # First and last paragraphs are untouched (SETTLED 5).
+        assert body.startswith("Ground combat is turn-based like space combat.")
+        assert body.endswith("the galaxy is yours.")
+
+    def test_stale_slot_sentence_gone(self):
+        for step_id, body in tutorial._STEP_BODIES.items():
+            assert "indicated keys" not in body, step_id
+            assert "weapon slots are shown" not in body, step_id
+
+
 class TestSetupTutorial:
     def test_grants_credit_bonus_and_seeds_bounty_board(self):
         ctx = _StubCtx()
