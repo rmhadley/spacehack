@@ -285,6 +285,76 @@ diff recorded as NONE above).
 center is item 2 (the mixed-pair migration); the phase ticks only
 with all six items passing.
 
+### Phase 1 pre-implementation audit (2026-09-25, build session)
+
+**1. Existing modules to reuse** (all anchors verified on the tree):
+
+- `ground_equipment.GroundWeaponInstance` (frozen; weapon_id /
+  loaded_ammo / quality) — the holstered set holds exactly these;
+  magazines + quality ride instances with zero new per-instance code.
+- `ground_equipment.can_fit_weapons` / `weapon_hands` /
+  `weapon_slot_occupancy` / `WEAPON_SLOT_COUNT` — the occupancy
+  arithmetic `can_fit_weapon_set` reuses (calls `can_fit_weapons`
+  rather than re-deriving Σ hands).
+- `saveload_ground._parse_equipped_ground_weapons` +
+  `ground_equipment.parse_weapon_instance` — the holstered key parses
+  through the same helper (legacy strings, clamping, unknown-id drops
+  all inherited).
+- `data.ground_weapons`: `find_ground_weapon` resolves membership
+  input; `list_ground_weapons()` (auto-discovery incl. `monsters.py`)
+  enumerates the exhaustiveness test. All five damage types are live
+  in the catalog (melee/kinetic/energy/plasma/explosive; 1H and 2H
+  exist in both classes — e.g. kinetic_pistol/railgun ranged,
+  combat_knife/mono_blade melee).
+- `dev_mode.log_rumor_routing` (:505) — the log-dump model for the
+  Shift+W sets dump; `dev_mode` at 695 lines has room for the body +
+  a tiny formatter.
+- `_DEV_SHIFT_KEYS` (game_loop.py:400) + the `_is_shift_press`
+  matcher factory (input_helpers.py:291) — the on-demand dev surface.
+
+**2. Duplication hotspots:** (a) migration logic inline in
+`_restore_ground_fields` — must be the pure `partition_weapon_sets`
+helper in the new module (brief mandates); (b) `can_fit_weapon_set`
+re-deriving hand occupancy — reuse `can_fit_weapons`; (c) a second
+instance-list parse loop in saveload_ground — reuse
+`_parse_equipped_ground_weapons`; (d) bespoke per-instance dump
+formatting — one tiny `_describe` helper in dev_mode (name + ammo +
+quality; nothing shared does all three).
+
+**3. DRY strategy:** every new pure function lives in
+`ground_weapon_sets.py`; `game_context.py` gains only the declared
+field; `saveload_ground.py` gains only the key + the migration
+branch; `ground_equipment.py` is NOT touched (987/1000 preserved);
+`game_loop.py` gains only a module-level import + the table entry
+(996 → 998/1000 — see rulings below).
+
+**Audit rulings (build-shape discoveries):**
+
+- **The dev dispatch body lives in dev_mode as an async
+  state-taking adapter.** game_loop is 996/1000: a conventional
+  7-line handler (+ table entry) = 1003 — over. Instead dev_mode
+  exports `dump_ground_weapon_sets(state)` (async, thin wrapper over
+  the sync, testable `log_ground_weapon_sets(ctx)`), and game_loop
+  adds `from .dev_mode import dump_ground_weapon_sets` + one table
+  entry = 998. Cycle-safe: dev_mode's module-level imports never
+  reach game_loop (verified). The sync ctx dump follows the
+  `log_rumor_routing` shape so tests call it directly.
+- **The Shift key is W** (Shift+W). Live table: X/T/S/R/D/L/G/K/J/
+  B/N/M/Y/V/P/C + Shift+O (menu-scoped). No `'W'`/`K_w` binding
+  exists anywhere in src (verified by grep) and W is not in
+  MOVE_KEYS — mnemonic: weapon sets.
+- **Loader tolerance:** a PRESENT holstered key loads verbatim — the
+  restore path never enforces class purity (validation guards
+  mutations, not restoration). Keeps mixed-pair round-trips
+  (test seeds 53/62) green and avoids destructive save "repairs".
+- **Existing test seed 61** (`legacy_string_weapons_migrate_to_full_
+  magazines`) saves via current `save_game`, so its payload will
+  carry the holstered key and skip the legacy path — the brief's
+  flagged trap, live. Updated in-commit: payload explicitly pops
+  `holstered_ground_weapons`; assertions extended to the post-51
+  partition (pistol active at full magazine, knife holstered). The
+  strings→full-magazines intent is preserved.
+
 ## Open questions
 
 1. **Tutorial teaching**: does the tutorial's armory beat teach the
