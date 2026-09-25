@@ -36,6 +36,19 @@ def test_ammo_catalog_resolves_ammo_type_and_stack_size():
     assert spec.rounds_per_stack == 40
 
 
+def test_ammo_catalog_carries_settled_bandolier_caps():
+    """Doc 52 SETTLED 1: every caliber authors a carry cap, values as ruled."""
+    caps = {spec.id: spec.carry_cap for spec in list_ground_ammo()}
+    assert caps == {
+        "pistol_rounds": 160,
+        "rifle_rounds": 240,
+        "shotgun_shells": 130,
+        "energy_cells": 250,
+        "grenades": 18,
+        "rockets": 10,
+    }
+
+
 def test_consumable_catalog_resolves_effect_and_stack_size():
     spec = find_ground_consumable("med_pack")
     assert spec.effect_id == "restore_hp"

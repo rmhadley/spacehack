@@ -27,8 +27,11 @@ class GroundAmmoSpec:
         name: display name, e.g. ``Rifle Rounds``.
         ammo_type: the weapon ``ammo_type`` this stack feeds (wired in
             Phase 2/3 when weapons gain the field).
-        rounds_per_stack: max rounds carried in one Expedition Pack slot.
+        rounds_per_stack: max rounds carried in one Expedition Pack slot
+            (legacy stack records; the bandolier is the live store).
         price_per_round: credits per round when purchased (Phase 4).
+        carry_cap: bandolier maximum for this caliber (doc 52 SETTLED 1);
+            reload reserve, pickups, and restock all clamp here.
     """
 
     id: str
@@ -36,6 +39,7 @@ class GroundAmmoSpec:
     ammo_type: str
     rounds_per_stack: int
     price_per_round: int
+    carry_cap: int
 
 
 @dataclass(frozen=True)
