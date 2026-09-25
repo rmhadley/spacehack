@@ -714,6 +714,27 @@ nobody designs against a ghost.
   `install_set_weapon` (`ground_weapon_sets.py`; screens:
   `character_screen_weapons.py`, `menus/_armory.py`;
   `tinker._weapon_targets`).
+- **Ground bandolier (doc 52, in progress)** — ground ammo is a
+  per-caliber tracked reserve (`ctx.bandolier`: ammo_type → rounds;
+  caps from `GroundAmmoSpec.carry_cap` 160/240/250/130/18/10 through
+  `bandolier.effective_cap` — the future armor `ammo_bonus` seam,
+  phase 4 deferred), NEVER pack/armory cargo: reload draws it
+  (`ground_weapon_ammo.reserve_ammo_count`/`apply_reload`), pickups
+  (P + chooser) and armory RESTOCK refill it (`bandolier.refill`;
+  over-cap ignored, at-cap logs the shared full line; restock priced
+  per-round), and legacy pack/armory stack records migrate into it
+  on load (overflow refunded as credits). Player-facing vocabulary
+  is "Ammo"/"ammo storage" — never "bandolier" (52.3 playtest
+  ruling). Surfaces (52.3): the combat weapons panel and the
+  dungeon HUD's weapons block each end with one
+  `PST/RFL/CEL/SHL/GRN/RKT cur/max` line per carried caliber
+  (active+holstered union in catalog order; `bandolier.HUD_CODES`,
+  `carried_ammo_types`, `hud.bandolier_hud_lines`; the dungeon
+  block also shows active-set name+magazine rows and the dim
+  HOLSTER names); the C screen's Equipment tab is a split frame —
+  left equipment management, right a read-only six-caliber aligned
+  readout (`pygame_split.run_for_screen`: TAB keeps cycling C tabs,
+  flag-based selection; `character_screen._equipment_frame`).
 - **Consumables** — med_pack heal+regen, stim +1 AP, tinker kit
   quality-raise (loot-only, never sold — doc 47.5); AP-costed in
   combat, stack decrements only after the effect validates

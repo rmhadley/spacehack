@@ -1,8 +1,9 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 3 LANDED 2026-09-25 (build complete, reviewer APPROVE
-after three rounds) — PLAYTEST PENDING. Phase 4 (cap gear) DEFERRED
-to the future armor/cybernetics polish pass — doc 52 ships the
+**Status: PHASE 3 COMPLETE 2026-09-25 (playtest passed, incl. two
+mid-playtest rulings — feeder-free aligned Ammo column; "bandolier"
+retired from player-facing text). Phase 4 (cap gear) DEFERRED to the
+future armor/cybernetics polish pass — doc 52 ships the
 `effective_cap` seam only. Phases 5 (standard rows) and 6 (tutorial
 prose) take their briefs at their own refine time.**
 
@@ -1054,7 +1055,20 @@ today); flagged at the checkpoint.
 583 + ~90 (runner + fields + override) stays under; every touched
 function stays ≤40 lines.
 
-### Phase 3 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+### Phase 3 build record (LANDED 2026-09-25 — PLAYTEST PASSED)
+
+**Playtest: PASSED 2026-09-25 (user).** All checkpoint items — the
+combat caliber lines (visible decrement on R), plasma/melee silence,
+the dungeon weapons block with live X/R, the split Equipment tab
+(read-only Ammo column, cursor visible unmanaged, TAB cycling), the
+guide's three rewrites, and the huge-fight ACTIONS cap. The UNION
+default was NOT vetoed (active+holstered calibers both show). The
+retired body sentences stay retired (no restore requested — the
+hint + row choosers teach the actions). Two mid-playtest rulings
+landed and are recorded below (feeder-free aligned column;
+"bandolier" leaves player-facing text); every standing verbatim —
+the `PST …` line family, `Ammo is read-only`, the `ammo storage`
+wording — was exercised in play and stands as shipped.
 
 **Commits:** 552fe130 (pre-implementation audit) → 60ab1952
 (`bandolier.HUD_CODES` + `carried_ammo_types`;
