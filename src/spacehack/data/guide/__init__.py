@@ -160,6 +160,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "\n"
             "- R: reload your active weapon (ground combat)"
             "\n"
+            "- X: swap weapon sets (free while exploring, 1 AP in combat)"
+            "\n"
             "- 1-9: toggle individual weapons"
             "\n"
             "- S: adjust shield regeneration in space combat"

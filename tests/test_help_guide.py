@@ -68,3 +68,12 @@ def test_guide_rejects_malformed_section_actions(monkeypatch):
     result = run(game_help._run_pygame_help(SimpleNamespace(context=None)))
 
     assert result is None
+
+
+def test_guide_controls_lists_weapon_set_swap():
+    """Doc 51 phase 2: the X weapon-set swap carries a Controls entry."""
+    controls = next(
+        section for section in GUIDE_SECTIONS
+        if section.title == "Controls & Keybindings"
+    )
+    assert "- X: swap weapon sets (free while exploring, 1 AP in combat)" in controls.body
