@@ -76,9 +76,11 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
   a worn-gear fold. The `GroundArmorSpec.ammo_bonus` field, the
   first items, and the flat-vs-per-type ruling all move to that
   pass. Phase 4 below is DEFERRED (kept numbered for reference).
-- **HUD/character-screen visibility: CARRIED CALIBERS ONLY** —
-  current/max lines for the calibers your equipped weapons actually
-  use.
+- **Visibility (refined same day by user amendment):** the combat
+  HUD shows the RELEVANT bandolier ammo — current/max for the
+  calibers your equipped weapons use; the character screen's
+  equipment tab shows ALL ammo types (the full bandolier, six
+  current/max entries — the inventory view).
 
 ## Measured evidence (doc 50 session, 2026-09-25)
 
@@ -360,7 +362,9 @@ without pack stacks. 2) An old save's armory-stored stacks convert
 4) Restock price reads exactly rounds-added × per-round. 5) `make
 check` green.
 
-### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 4)
+### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 4
+### + the user's HUD-scope amendment: HUD relevant-calibers,
+### character screen full bandolier)
 
 **Scope (files / hook points):**
 
@@ -368,8 +372,11 @@ check` green.
   (re-pointed in phase 1) renders as current/max for CARRIED
   calibers only (SETTLED 4) — one line per caliber the equipped
   weapons use.
-- **Character screen** (`character_screen.py`): the same
-  carried-caliber current/max readout in the equipment tab.
+- **Character screen** (`character_screen.py`): the equipment tab
+  shows the FULL bandolier — all six ammo types with current/max
+  (user amendment: "character screen equipment tab needs to show all
+  ammo types somewhere") — the inventory view the HUD deliberately
+  omits.
 - **Guide** (`data/guide/__init__.py`, Ground Gear): rewrite the
   ammunition paragraph — the "matching ammunition in your
   Expedition Pack" line flagged stale since phase 1, and "Buy
@@ -392,17 +399,18 @@ contract (diff rides this checkpoint verbatim); the prose gate
 (wording approved before the data string lands).
 
 **Required tests:** HUD renders current/max for carried calibers
-only (a pistol pair shows one line; plasma/melee show none),
-character-screen readout pins, guide-content pins for the rewritten
-paragraph.
+only (a pistol pair shows one line; plasma/melee show none);
+character screen renders ALL six calibers' current/max;
+guide-content pins for the rewritten paragraph.
 
 **Stop point:** no gear seam work (4 is deferred), no rows (5), no
 tutorial prose beyond the guide (6).
 
 **Playtest checkpoint:** 1) In a ground fight with pistols: the HUD
 shows e.g. 132/160; a reload visibly decrements it. 2) Plasma or
-melee equipped: no ammo line. 3) Character screen shows
-carried-caliber readouts only. 4) GUIDE DIFF (before/after, exact):
+melee equipped: no ammo line. 3) Character screen equipment tab
+shows all six calibers (current/max each), carried or not.
+4) GUIDE DIFF (before/after, exact):
 the Ground Gear ammunition paragraph as above. 5) `make check`
 green.
 
@@ -416,7 +424,8 @@ green.
 4. ~~**Restock pricing**~~ ANSWERED — SETTLED 2: per-round.
 5. ~~**Sequencing with doc 51**~~ ANSWERED — SETTLED 1: after doc
    51's core lands.
-6. ~~**Bandolier visibility off-load**~~ ANSWERED — SETTLED 4:
-   carried calibers only.
+6. ~~**Bandolier visibility off-load**~~ ANSWERED — SETTLED 4 +
+   same-day amendment: HUD = relevant (carried) calibers;
+   character screen = all six.
 7. ~~**The armory gap (ADVISE issue 5)**~~ ANSWERED — SETTLED 3:
    the one-session gap is accepted (phases build back-to-back).
