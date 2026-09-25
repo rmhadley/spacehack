@@ -54,6 +54,7 @@ def _context(items=None, **overrides):
             modules=(StoredEquipment("module", "compact_reactor"),),
         ),
         ground_expedition_items=list(items or []),
+        bandolier={},
         log=log,
     )
     for key, value in overrides.items():
