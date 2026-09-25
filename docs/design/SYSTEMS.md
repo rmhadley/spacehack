@@ -669,14 +669,27 @@ nobody designs against a ghost.
   ammo types (6), reload picks among weapons sharing the ammo
   (`ground_equipment.py`: `expedition_capacity`; `data/ground_items/
   ammo.py`: `AMMO`).
-- **Ground weapon sets (doc 51 phase 1 — data layer)** — loadout is
+- **Ground weapon sets (doc 51 phases 1-2)** — loadout is
   two class-pure sets (membership table on `damage_type`: melee vs
   kinetic/energy/plasma/explosive); the ACTIVE set is still
   `ctx.equipped_ground_weapons` (combat reads it unchanged) and the
   other set lives on `ctx.holstered_ground_weapons` — equipment,
   never pack-counted. Pre-doc-51 saves partition on load (active =
-  original slot 0's class); `exchange_weapon_sets` is the whole-set
-  swap verb (combat wiring = phase 2); Shift+W dev dump prints both
+  original slot 0's class). **X swaps the whole sets, any
+  composition, magazines riding the instances**: in combat 1 AP
+  mid-turn via the action table + `_run_rules_hook` →
+  `_rules_ground.swap_weapon_sets` (flags reset all-True over the
+  fists fallback — empty-active swaps to fists and still fires;
+  0-AP refuses; silent, never turn-ending; space combat logs
+  "unavailable"), FREE out of combat in every non-space mode
+  (shift-excluded `_is_x_press`; 2-line branch in
+  `game_loop._handle_menu_event`). The outcome line is
+  single-sourced in `ground_weapon_sets.swap_sets_logged`. HUD:
+  dim HOLSTER names row under the weapons panel (hidden when
+  empty) + `[x] Swap` in the combat legend + `[X] Swap Sets` on
+  the explore help block (the space list is pinned X-free). Dev:
+  New-Game grant seats strongest-ranged active + strongest-melee
+  holstered (`dev_mode._best_set_weapon`); Shift+W dumps both
   sets (`ground_weapon_sets.py`; `saveload_ground.py`:
   `_restore_weapon_sets`).
 - **Consumables** — med_pack heal+regen, stim +1 AP, tinker kit

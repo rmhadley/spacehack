@@ -1,10 +1,10 @@
 # DESIGN: Ground Weapon Sets — 4 slots, one-toggle swap
 
-**Status: BUILDING (2026-09-25) — phase 1 LANDED (af2c9388) +
-PLAYTEST PASSED (six/six); phase 2 BUILT (488f5cb9 refactor +
-271375f8..1b999796, REVIEW APPROVE zero blocking) — AWAITING
-PLAYTEST (list below). Core rulings SETTLED 1–2; open questions
-1–2 (tutorial wording, board immunity) parked at their phases.**
+**Status: BUILDING (2026-09-25) — phases 1-2 LANDED + PLAYTEST
+PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
+ruling); phase 3 (equipment UI) unbriefed — next refine. Core
+rulings SETTLED 1–2; open questions 1–2 (tutorial wording, board
+immunity) parked at their phases.**
 
 ## Overview
 
@@ -123,7 +123,10 @@ The design is driven by measured failures of the 2-slot world:
   validation. Tests: round-trip incl. migrated saves, classification
   exhaustiveness over the catalog, magazine persistence, empty-set
   toggle, occupancy law.
-- [ ] 2. **The combat verb** — dispatch action + key (6a law:
+- [x] 2. **The combat verb** — LANDED 488f5cb9..1b999796 (refactor
+  + verb + free X + HUD + dev grant + guide), PLAYTEST PASSED
+  2026-09-25 (seven/seven) incl. ONE mid-playtest ruling (X on the
+  explore HUDs, a8fdd94b). Dispatch action + key (6a law:
   table + VIM + main-loop helpers), 1-AP cost, refresh, HUD
   indicator, input-path tests, guide Controls entry.
 - [ ] 3. **Equipment UI** — armory/character screen set-aware equip;
