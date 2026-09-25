@@ -77,3 +77,43 @@ def test_guide_controls_lists_weapon_set_swap():
         if section.title == "Controls & Keybindings"
     )
     assert "- X: swap weapon sets (free while exploring, 1 AP in combat)" in controls.body
+
+
+def test_guide_ground_gear_describes_the_bandolier():
+    """Doc 52.3: the ammunition paragraph teaches the bandolier (per-
+    caliber reserves, armory/pickup top-ups, carry limits) — the pack-
+    stack interaction is gone."""
+    gear = next(
+        section for section in GUIDE_SECTIONS if section.title == "Ground Gear"
+    )
+    assert (
+        "Reloadable weapons draw from your bandolier - the rounds you "
+        "carry for each caliber, topped up at any armory or from "
+        "battlefield pickups, up to a per-caliber carry limit." in gear.body
+    )
+    assert "Expedition Pack" not in gear.body.split("Consumables:")[0]
+    assert "Buy ground ammo" not in gear.body
+    assert "Melee and plasma weapons never need ammunition." in gear.body
+
+
+def test_guide_ground_combat_reload_reads_bandolier():
+    """Doc 52.3 audit catch: the Ground Combat R line stays store-agnostic
+    to the bandolier, never the retired pack stack."""
+    combat = next(
+        section for section in GUIDE_SECTIONS if section.title == "Combat"
+    )
+    assert "press R to reload from your bandolier." in combat.body
+    assert "ammunition in your pack" not in combat.body
+
+
+def test_guide_armory_intro_names_reserve_top_up():
+    """Doc 52.3 audit catch: the armory intro no longer sells ground
+    ammunition as stock — it tops up reserves."""
+    gear = next(
+        section for section in GUIDE_SECTIONS if section.title == "Ground Gear"
+    )
+    assert (
+        "The armory terminal sells personal weapons and armour for when "
+        "you leave your ship, and tops up your ammunition reserves." in gear.body
+    )
+    assert "ground \nammunition" not in gear.body
