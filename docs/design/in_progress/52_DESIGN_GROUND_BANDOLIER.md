@@ -828,8 +828,12 @@ checkpoint for sign-off (verbatims):**
   SHIFT-TAB keep cycling the C tabs on every tab; the right column
   is a READ-ONLY panel (nothing to select — no panel-focus key
   needed, no keymap changes to the C screen).
-- **Defaults folded from the design pass (veto at the checkpoint):**
-  HUD caliber labels are 3-letter codes PST/RFL/CEL/SHL/GRN/RKT
+- **Defaults folded from the design pass — READ-ONLY right column
+  and the 3-letter codes USER-CONFIRMED 2026-09-25 ("right col read
+  only. we'll go with the 3 letter codes for now. I'll adjust if I
+  get confused."); the active+holstered union stands as the folded
+  default, veto at the checkpoint:** HUD caliber labels are
+  PST/RFL/CEL/SHL/GRN/RKT
   (matching the AP/EVA/HIT abbreviation voice; the C screen carries
   full names); the combat block shows the UNION of active + holstered
   calibers (SETTLED 4's "equipped weapons" reads as both carried
