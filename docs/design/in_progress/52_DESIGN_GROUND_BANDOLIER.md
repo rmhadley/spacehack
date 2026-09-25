@@ -1,12 +1,12 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 1 LANDED 2026-09-25 (playtest pending) — SETTLED 1-5;
-phase 1 built (build record under its brief); phase 2 brief APPROVED
-and builds immediately after phase 1's playtest; phase 3 briefed.
-Phase 4 (cap gear) DEFERRED to the future armor/cybernetics polish
-pass — doc 52 ships the `effective_cap` seam only. Phases 5 (standard
-rows — needs the landed world's measurements) and 6 (tutorial prose —
-the prose gate) take their briefs at their own refine time.**
+**Status: PHASE 1 COMPLETE 2026-09-25 (playtest passed) — SETTLED 1-5;
+phase 2 brief APPROVED and builds next, immediately per SETTLED 3;
+phase 3 briefed. Phase 4 (cap gear) DEFERRED to the future
+armor/cybernetics polish pass — doc 52 ships the `effective_cap` seam
+only. Phases 5 (standard rows — needs the landed world's
+measurements) and 6 (tutorial prose — the prose gate) take their
+briefs at their own refine time.**
 
 ## Overview
 
@@ -337,7 +337,17 @@ kit-drop path) — legacy on-map entities convert on pickup.
   the pack path is consumables-only now, and those pins keep
   guarding it verbatim; ammo gets its own three bandolier pins.
 
-### Phase 1 build record (LANDED 2026-09-25 — playtest pending)
+### Phase 1 build record (LANDED 2026-09-25 — PLAYTEST PASSED)
+
+**Playtest: PASSED 2026-09-25 (user).** All checkpoint items; the
+migration/reload/pickup/endurance behaviors confirmed in play, and
+the `RES` HUD read confirmed understood (transient until phase 3's
+current/max rework). The log-line verbatims were exercised in play
+unamended and stand as shipped. The brief's "walk over the drop"
+wording was corrected mid-playtest (see findings below). STILL OPEN
+(non-blocking): the at-cap-silence wording question — settle at
+phase 3's checkpoint, where the HUD "topped up" reading makes the
+state visible in combat.
 
 **Commits:** 6ca1bb17 (pre-implementation audit) → cc6fe159 (catalog
 `carry_cap`, SETTLED 1 values pinned) → 27f793f4 (`bandolier.py`
