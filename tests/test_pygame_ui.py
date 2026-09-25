@@ -2082,6 +2082,89 @@ def test_screen_runner_keymap_cycles_tabs_and_keeps_focus_left():
     assert pygame_split._clamp_screen_selected(dataclasses.replace(frame, selected=0)) == 1
 
 
+def test_screen_contract_paints_flag_selectable_actionless_rows(monkeypatch):
+    """Reviewer issue 1 (doc 52.3): under the screen runner's paint
+    contract a flag-selectable action-less row draws as a MENU row
+    (cursor + highlight) — the armory's default contract keeps it
+    informational."""
+    menu_calls, info_calls = [], []
+    monkeypatch.setattr(
+        pygame_ui, "draw_menu_row",
+        lambda _pg, _s, _f, label, *_a, **_k: menu_calls.append(
+            (label, _k.get("selected")),
+        ) or 0,
+    )
+    monkeypatch.setattr(
+        pygame_ui, "draw_informational_row",
+        lambda _pg, _s, _f, label, *_a, **_k: info_calls.append(label) or 0,
+    )
+
+    class Panel:
+        x = y = 0
+        width = 100
+        height = 100
+
+    class Font:
+        def get_linesize(self):
+            return 12
+
+    row = pygame_split.SplitRow("Body: None", "", "", "", selectable=True)
+
+    def draw(index, selected, flag_selected=False):
+        pygame_split._draw_panel_row(
+            object(), object(), Font(), Panel(), row, index, selected, True,
+            0, 0, 80, 0, lambda text: len(text), pygame_ui.DEFAULT_PALETTE,
+            flag_selected=flag_selected,
+        )
+
+    draw(0, 1, flag_selected=True)  # menu row, not the selected one
+    assert menu_calls == [("Body: None", False)]
+    menu_calls.clear()
+    draw(0, 0, flag_selected=True)  # the selected row → highlighted
+    assert menu_calls == [("Body: None", True)]
+    menu_calls.clear()
+    draw(0, 0)  # armory default: informational paint
+    assert info_calls == ["Body: None"] and not menu_calls
+
+
+def test_screen_runner_threads_flag_selected_to_the_left_panel(monkeypatch):
+    """Reviewer re-review minor (doc 52.3): the paint contract's
+    flag_selected threads run_for_screen -> _draw_frame -> the LEFT
+    panel draw — locking the plumbing, not just the row-level gate."""
+    calls = []
+    monkeypatch.setattr(
+        pygame_split, "_draw_panel",
+        lambda *a, **k: calls.append(k),
+    )
+    monkeypatch.setattr(pygame_split, "_draw_frame_header", lambda *a: None)
+    monkeypatch.setattr(
+        pygame_split, "_layout_panels",
+        lambda *a, **k: (0, 1, 2, 3),
+    )
+    monkeypatch.setattr(pygame_split, "_draw_frame_footer", lambda *a: None)
+
+    class Screen:
+        def get_size(self):
+            return (1600, 960)
+
+        def fill(self, _color):
+            pass
+
+    frame = pygame_split.SplitFrame(
+        "T", "L", "R",
+        (pygame_split.SplitRow("Body: None", "", "", "", selectable=True),),
+        (pygame_split.SplitRow("Pistol Rounds 0/160", "", "", "", False, False),),
+        "", "", "",
+    )
+
+    pygame_split._draw_frame(
+        object(), Screen(), object(), frame, flag_selected=True,
+    )
+
+    assert calls[0]["flag_selected"] is True   # left panel
+    assert "flag_selected" not in calls[1]     # right panel stays default
+
+
 def test_screen_tabs_reserve_font_budget_and_shift_panels():
     """The tab bar is paid for in _frame_height (font-ladder honesty) and
     the panels start below it."""

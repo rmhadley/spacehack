@@ -199,8 +199,14 @@ def _draw_panel(
     focused: bool,
     tabs: tuple[str, ...] = (),
     active_tab: int = 0,
+    flag_selected: bool = False,
 ) -> None:
-    """Draw one panel and its currently selected detail."""
+    """Draw one panel and its currently selected detail.
+
+    ``flag_selected`` activates the screen runner's paint contract:
+    flag-selectable rows paint as menu rows (cursor + highlight) even
+    before they carry actions (doc 52.3).
+    """
     palette = pygame_ui.DEFAULT_PALETTE
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
     _draw_panel_header(pygame, screen, font, panel, label, focused, tabs, active_tab, palette)
@@ -211,7 +217,10 @@ def _draw_panel(
         )
     )
     try:
-        _draw_panel_rows(pygame, screen, font, panel, rows, selected, focused, palette)
+        _draw_panel_rows(
+            pygame, screen, font, panel, rows, selected, focused, palette,
+            flag_selected=flag_selected,
+        )
     finally:
         screen.set_clip(None)
     _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette)
@@ -257,8 +266,14 @@ def _draw_panel_row(
     pygame: Any, screen: Any, font: Any, panel: pygame_ui.Rect, row: SplitRow,
     index: int, selected: int, focused: bool, x: int, content_x: int,
     content_width: int, y: int, measure: Any, palette: Any,
+    flag_selected: bool = False,
 ) -> int:
-    """Draw one divider, informational, or selectable row; return new y."""
+    """Draw one divider, informational, or selectable row; return new y.
+
+    Under the default (armory) contract a row needs an ACTION to paint
+    as a menu row; ``flag_selected`` (the screen runner) paints
+    flag-selectable action-less rows as menu rows too.
+    """
     if row.divider:
         pygame_ui.draw_text(
             pygame, screen, font,
@@ -266,30 +281,37 @@ def _draw_panel_row(
             x, y, color=palette.description,
         )
         return y + font.get_linesize() + 5
-    if not row.selectable or not row.action:
+    if not row.selectable or not (row.action or flag_selected):
         return pygame_ui.draw_informational_row(
             pygame, screen, font, row.label,
             content_x, y, content_width,
             color=row.fg or palette.description, runs=row.runs,
         )
-    selected_row = focused and index == selected
+    return _draw_menu_style_row(
+        pygame, screen, font, row, content_x, y, content_width,
+        selected_row=focused and index == selected, palette=palette,
+    )
+
+
+def _draw_menu_style_row(
+    pygame: Any, screen: Any, font: Any, row: SplitRow,
+    content_x: int, y: int, content_width: int,
+    *, selected_row: bool, palette: Any,
+) -> int:
+    """One selectable row's menu paint: runs paint the label with the
+    value cell riding as a plain trailing run; plain rows join them."""
     if row.runs is not None:
-        # Runs paint the label; the value cell rides as a plain
-        # trailing run so both stay inside one fitted row.
         runs = row.runs + (((f"  {row.value}", None),) if row.value else ())
         return pygame_ui.draw_menu_row(
             pygame, screen, font, row.label,
             content_x, y, content_width,
-            selected=selected_row, palette=palette,
-            color=row.fg, runs=runs,
+            selected=selected_row, palette=palette, color=row.fg, runs=runs,
         )
     return pygame_ui.draw_menu_row(
         pygame, screen, font,
         f"{row.label}  {row.value}".rstrip(),
         content_x, y, content_width,
-        selected=selected_row,
-        palette=palette,
-        color=row.fg,
+        selected=selected_row, palette=palette, color=row.fg,
     )
 
 
@@ -322,6 +344,7 @@ def _draw_panel_scrollbar(
 def _draw_panel_rows(
     pygame: Any, screen: Any, font: Any, panel: pygame_ui.Rect,
     rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
+    flag_selected: bool = False,
 ) -> None:
     """Draw the panel's rows and its pinned detail description."""
     x = panel.x + 20
@@ -347,6 +370,7 @@ def _draw_panel_rows(
         y = _draw_panel_row(
             pygame, screen, font, panel, rows[index],
             index, selected, focused, x, content_x, content_width, y, measure, palette,
+            flag_selected=flag_selected,
         )
     pygame_ui.draw_wrapped_text(
         pygame, screen, font, detail,
@@ -359,12 +383,14 @@ def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: SplitFrame,
     *, context: PygameContext | None = None,
     selected: int | None = None,
+    flag_selected: bool = False,
 ) -> None:
     """Paint the split-screen frame.
 
     ``selected`` overrides the action-based clamp for hosts whose
     selection contract is flag-based (the C screen's Equipment rows
-    are cursor-reachable before management mode gives them actions).
+    are cursor-reachable before management mode gives them actions);
+    ``flag_selected`` paints those rows as menu rows (same contract).
     """
     width, height = screen.get_size()
     screen.fill(pygame_ui.DEFAULT_PALETTE.background)
@@ -380,6 +406,7 @@ def _draw_frame(
         focused=frame.focus == 0,
         tabs=frame.left_tabs,
         active_tab=frame.active_left_tab,
+        flag_selected=flag_selected,
     )
     _draw_panel(
         pygame, screen, font, frame, frame.right_rows,
@@ -632,7 +659,7 @@ async def run_for_screen(
         selected = _clamp_screen_selected(frame)
         _draw_frame(
             pygame, screen, font, replace(frame, selected=selected),
-            context=context, selected=selected,
+            context=context, selected=selected, flag_selected=True,
         )
         engine.present()
         outcome, action, selected = await _pump_screen_events(
