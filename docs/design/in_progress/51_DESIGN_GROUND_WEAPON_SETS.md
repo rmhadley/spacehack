@@ -4,10 +4,11 @@
 PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
 ruling); phase 3 LANDED + PLAYTEST PASSED 2026-09-25 (two review
 rounds APPROVE; one mid-playtest round: both-slot-rows + ARMOR
-header, 2a97a7d1). Next: phase 4 (standard re-rule) — unbuilt,
-needs its brief at refine time.
-Core rulings SETTLED 1–3; open questions 1–2 (tutorial wording,
-board immunity) parked at their phases.**
+header, 2a97a7d1). Next: phase 4 (teaching, prose-gated — needs its
+brief at refine time). The standard re-rule was REMOVED to future
+doc-50 work (SETTLED 4).
+Core rulings SETTLED 1–4; one open question (tutorial wording)
+parked at phase 4.**
 
 ## Overview
 
@@ -61,7 +62,7 @@ The design is driven by measured failures of the 2-slot world:
 | Save/load sacred | New ctx fields serialize; existing saves migrate (equipped weapons classify into their set — same-class loadouts unchanged, mixed pairs split per the phase 1 brief) |
 | ctx-first | The holstered set is a declared `GameContext` field — no runtime attachment |
 | Guide contract | Controls + Ground Gear sections reviewed; the toggle gets its entry |
-| Doc 50 SETTLED 6 | The standard's board is the drift alarm for this landing — bars re-ruled in the same commit that lands the mechanic (benchmark-revision clause) |
+| Doc 50 SETTLED 6 | The standard's board is the drift alarm for this landing — re-measured and re-ruled at the doc-50 work resuming after docs 51-52 close (SETTLED 4; the in-doc benchmark revision was removed) |
 
 ## Data model
 
@@ -139,14 +140,24 @@ The design is driven by measured failures of the 2-slot world:
   never counted); tinker-kit reach covers holstered members
   (`tinker.py` `_weapon_targets`, phase-1 reviewer catch); UI tests.
   Build record below the brief.
-- [ ] 4. **Standard re-rule** — the doc-50 board re-measured under
-  the new world (SETTLED 6 benchmark revision, bars re-ruled in the
-  same commit), `toggle_sets` stance, candidate protected row: the
-  railgun+blade full-clear matchup.
-- [ ] 5. **Teaching** — tutorial beat + guide Ground Gear wording
+- [ ] 4. **Teaching** — tutorial beat + guide Ground Gear wording
   (prose-gated: user wording before data strings land).
 
 Each phase gets its Implementation brief at its own refine time.
+
+## SETTLED 4 (2026-09-25, user) — the standard re-rule leaves this doc
+
+**Phase 4 (standard re-rule) REMOVED** (user, verbatim): "Let's
+remove phase 4 then. I'm going to focus on the re-measure and fresh
+balance passes once I resume doc 50 work after doc 51 and 52 are
+closed." The doc-50 board re-measure, the `toggle_sets` stance, the
+railgun+blade protected-row candidacy, and the immune-bars question
+all move to that future doc-50 work — SETTLED 6's benchmark-revision
+clause is honoured there, not here. Consequence: the old phase 5
+(teaching) renumbers to 4; the historical briefs' "no balance/board
+work (phase 4)" stop points refer to the removed phase, and stand as
+written. Open question 2 (balance blast radius / immune bars) closes
+with this ruling.
 
 ## SETTLED 1 (2026-09-25, user) — the core rulings (open questions 1/2/3)
 
@@ -1064,7 +1075,4 @@ the walls breach — the pre-committed seam), tinker ≈300.
 ## Open questions
 
 1. **Tutorial teaching**: does the tutorial's armory beat teach the
-   toggle (buy 2 + 2?), and with what wording? (Prose-gated; phase 5.)
-2. **Balance blast radius**: landing this re-rules the doc-50 board
-   (phase 4). Any bar the user wants held IMMUNE to re-rule (e.g.,
-   the space rows)?
+   toggle (buy 2 + 2?), and with what wording? (Prose-gated; phase 4.)
