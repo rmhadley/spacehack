@@ -2,7 +2,8 @@
 
 When the ``SPACEHACK_DEV`` environment variable is set, the player
 starts with a super-powered frigate, maxed modules, 999,999 credits,
-the strongest ground weapon equipped, a pack of T4 weapons in the
+a two-set ground loadout (strongest ranged weapon active, strongest
+melee holstered — doc 51), a pack of T4 weapons in the
 expedition backpack, and the best available armor in every slot. Call
 :func:`apply_dev_overrides` and :func:`apply_dev_ground_loadout` during
 new-game setup so the overrides are in place before the game loop starts.
@@ -25,6 +26,7 @@ from .input_helpers import Outcome
 from .pygame_runtime import PygameContext
 from .data.ground_armor import list_ground_armor
 from .data.ground_weapons import find_ground_weapon, list_ground_weapons
+from .ground_weapon_sets import weapon_set
 
 
 _DEV_FACTION_OPTIONS = (
@@ -244,26 +246,38 @@ def _best_ground_armor() -> dict[str, ground_equipment.StoredGroundEquipment]:
     }
 
 
-def _best_ground_weapon() -> str:
-    """Return the strongest registered ground weapon id (highest damage)."""
+def _best_set_weapon(set_class: str) -> str:
+    """Return the strongest registered weapon of one set class (doc 51)."""
     return max(
-        list_ground_weapons(),
+        (
+            _w for _w in list_ground_weapons()
+            if weapon_set(_w.id) == set_class
+        ),
         key=lambda _w: (_w.damage, _w.tech_level, _w.price),
     ).id
 
 
 # T4 weapons seeded into the expedition backpack so the whole tier can
-# be playtested without hunting armories. The rocket launcher (the
-# strongest weapon) is equipped directly; the rest ride in the pack.
+# be playtested without hunting armories. The active/holstered picks
+# land in their own sets; the rest ride in the pack.
 _DEV_PACK_WEAPONS: tuple[str, ...] = (
     "plasma_caster", "railgun", "power_fist", "power_fist",
     "ion_blaster", "mono_blade",
 )
 
 
-def _dev_ground_loadout() -> tuple[list[ground_equipment.GroundWeaponInstance], dict[str, ground_equipment.StoredGroundEquipment]]:
-    """Return the standard developer starting ground loadout."""
-    return [ground_equipment.weapon_instance(_best_ground_weapon())], _best_ground_armor()
+def _dev_ground_loadout() -> tuple[list[ground_equipment.GroundWeaponInstance], list[ground_equipment.GroundWeaponInstance], dict[str, ground_equipment.StoredGroundEquipment]]:
+    """Return the developer two-set ground loadout (doc 51 SETTLED 2).
+
+    Strongest ranged active, strongest melee holstered — every fresh
+    dev game starts with a real two-set loadout. The strongest melee
+    also riding the pack is harmless dev duplication.
+    """
+    return (
+        [ground_equipment.weapon_instance(_best_set_weapon("ranged"))],
+        [ground_equipment.weapon_instance(_best_set_weapon("melee"))],
+        _best_ground_armor(),
+    )
 
 
 def apply_dev_ground_loadout(ctx) -> None:
@@ -272,7 +286,11 @@ def apply_dev_ground_loadout(ctx) -> None:
 
     if not _os.environ.get("SPACEHACK_DEV"):
         return
-    ctx.equipped_ground_weapons, ctx.equipped_ground_armor = _dev_ground_loadout()
+    (
+        ctx.equipped_ground_weapons,
+        ctx.holstered_ground_weapons,
+        ctx.equipped_ground_armor,
+    ) = _dev_ground_loadout()
     ctx.ground_expedition_inventory = [
         ground_equipment.StoredGroundEquipment("weapon", _wid)
         for _wid in _DEV_PACK_WEAPONS
@@ -281,8 +299,12 @@ def apply_dev_ground_loadout(ctx) -> None:
     # so raise strength to 30 so all 6 fit without breaking swaps.
     if ctx.ground_stats.strength < 30:
         ctx.ground_stats.strength = 30
-    _best_name = find_ground_weapon(_best_ground_weapon()).name
-    ctx.log.add(f"[DEV MODE] {_best_name} equipped + T4 pack + best armor.")
+    _ranged_name = find_ground_weapon(ctx.equipped_ground_weapons[0].weapon_id).name
+    _melee_name = find_ground_weapon(ctx.holstered_ground_weapons[0].weapon_id).name
+    ctx.log.add(
+        f"[DEV MODE] {_ranged_name} active + {_melee_name} holstered "
+        "+ T4 pack + best armor."
+    )
 
 
 def advance_main_quest(ctx, faction_id: str) -> None:

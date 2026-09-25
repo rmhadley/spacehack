@@ -20,7 +20,7 @@ from src.spacehack.dev_mode import (
     apply_dev_ground_loadout,
     main_quest_faction_menu,
     _best_ground_armor,
-    _best_ground_weapon,
+    _best_set_weapon,
     _dev_faction_label,
 )
 from src.spacehack.input_helpers import _is_shift_o_press
@@ -257,9 +257,11 @@ def test_best_ground_armor_selects_highest_defense_per_slot():
     }
 
 
-def test_best_ground_weapon_selects_highest_damage():
-    """Developer weapon selection returns the single strongest weapon."""
-    assert _best_ground_weapon() == "rocket_launcher"
+def test_best_set_weapon_selects_strongest_per_class():
+    """Developer set picks: strongest ranged active, strongest melee
+    holstered (doc 51 SETTLED 2)."""
+    assert _best_set_weapon("ranged") == "rocket_launcher"
+    assert _best_set_weapon("melee") == "mono_blade"
 
 
 def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypatch):
@@ -267,6 +269,7 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
     monkeypatch.setenv("SPACEHACK_DEV", "1")
     _ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
         ground_stats=SimpleNamespace(strength=10),
@@ -277,6 +280,9 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
 
     assert _ctx.equipped_ground_weapons == [
         GroundWeaponInstance("rocket_launcher", 4),
+    ]
+    assert _ctx.holstered_ground_weapons == [
+        GroundWeaponInstance("mono_blade", None),
     ]
     assert _ctx.equipped_ground_armor == {
         "head": StoredGroundEquipment("armor", "assault_helmet"),
@@ -291,7 +297,8 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
     ]
     assert _ctx.ground_stats.strength == 30
     _ctx.log.add.assert_called_once_with(
-        "[DEV MODE] Rocket Launcher equipped + T4 pack + best armor."
+        "[DEV MODE] Rocket Launcher active + Mono Blade holstered "
+        "+ T4 pack + best armor."
     )
 
 
