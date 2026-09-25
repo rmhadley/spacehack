@@ -381,19 +381,50 @@ check` green.
   (user amendment: "character screen equipment tab needs to show all
   ammo types somewhere") — the inventory view the HUD deliberately
   omits.
-- **Guide** (`data/guide/__init__.py`, Ground Gear): rewrite the
-  ammunition paragraph — the "matching ammunition in your
-  Expedition Pack" line flagged stale since phase 1, and "Buy
-  ground ammo at the Armory" becomes restock phrasing. PROPOSED
-  WORDING (prose-gated — settles at this phase's checkpoint):
-  "Reloadable weapons draw from your bandolier — the rounds you
-  carry for each caliber, topped up at any armory or from
-  battlefield pickups, up to a per-caliber carry limit. In combat,
-  R reloads the first active weapon with room in its magazine.
-  Outside combat, reloading is free. If multiple carried weapons
-  can use the reserve outside combat, R opens a chooser. Melee and
-  plasma weapons never need ammunition." (Plasma/melee identity
-  sentences unchanged.)
+- **Guide** (`data/guide/__init__.py`) — THREE edits, exact
+  before/after (prose-gated — settles at this phase's checkpoint):
+  1. GROUND GEAR, the ammunition paragraph (the "matching
+     ammunition in your Expedition Pack" line flagged stale since
+     phase 1; "Buy ground ammo at the Armory" becomes restock
+     phrasing; the pack-stack preparation sentence goes — the
+     interaction no longer exists):
+     BEFORE: "Reloadable weapons need matching ammunition in your
+     Expedition Pack. Buy ground ammo at the Armory, then press R
+     in ground exploration or combat to reload. In combat, R
+     reloads the first active weapon with room in its magazine and
+     a matching reserve. Outside combat, reloading is free; select
+     an ammo stack in the Equipment tab and choose Reload when you
+     want to prepare a weapon. If multiple carried weapons can use
+     the reserve outside combat, R opens a chooser. Melee and
+     plasma weapons never need ammunition."
+     AFTER: "Reloadable weapons draw from your bandolier — the
+     rounds you carry for each caliber, topped up at any armory or
+     from battlefield pickups, up to a per-caliber carry limit. In
+     combat, R reloads the first active weapon with room in its
+     magazine. Outside combat, reloading is free. If multiple
+     carried weapons can use the reserve outside combat, R opens a
+     chooser. Melee and plasma weapons never need ammunition."
+  2. GROUND COMBAT section (audit catch, 2026-09-25 — missed by the
+     first brief): "press R to reload from the ammunition in your
+     pack" is equally stale.
+     BEFORE: "Weapons with a magazine consume rounds as you fire;
+     press R to reload from the ammunition in your pack."
+     AFTER: "Weapons with a magazine consume rounds as you fire;
+     press R to reload from your bandolier."
+  3. GROUND GEAR intro (audit catch): "sells ... ground
+     ammunition" describes the retired stack purchase.
+     BEFORE: "The armory terminal sells personal weapons, armour,
+     and ground ammunition for when you leave your ship."
+     AFTER: "The armory terminal sells personal weapons and armour
+     for when you leave your ship, and tops up your ammunition
+     reserves."
+  Verified-unchanged lines (the audit's other finds): Controls
+  "R: reload your active weapon" (store-agnostic), the
+  kinetic/energy/explosive/melee bullets ("limited ammunition",
+  "never run dry", "Rockets are scarce" — all still true, some
+  MORE true under caps), the exploration tip "Press R to reload a
+  carried ground weapon", and every space-ammo line (missiles —
+  doc 52 is ground-only).
 
 **Build order:** HUD line → character-screen readout → guide
 paragraph (user-approved wording) → tests → full gate → PLAYTEST.
@@ -405,7 +436,7 @@ contract (diff rides this checkpoint verbatim); the prose gate
 **Required tests:** HUD renders current/max for carried calibers
 only (a pistol pair shows one line; plasma/melee show none);
 character screen renders ALL six calibers' current/max;
-guide-content pins for the rewritten paragraph.
+guide-content pins for all three rewritten passages.
 
 **Stop point:** no gear seam work (4 is deferred), no rows (5), no
 tutorial prose beyond the guide (6).
@@ -414,9 +445,8 @@ tutorial prose beyond the guide (6).
 shows e.g. 132/160; a reload visibly decrements it. 2) Plasma or
 melee equipped: no ammo line. 3) Character screen equipment tab
 shows all six calibers (current/max each), carried or not.
-4) GUIDE DIFF (before/after, exact):
-the Ground Gear ammunition paragraph as above. 5) `make check`
-green.
+4) GUIDE DIFF (before/after, exact —
+   all three edits above). 5) `make check` green.
 
 ## Open questions
 
