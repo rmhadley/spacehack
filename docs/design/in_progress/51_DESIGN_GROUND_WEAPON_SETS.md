@@ -2,9 +2,9 @@
 
 **Status: BUILDING (2026-09-25) — phases 1-2 LANDED + PLAYTEST
 PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
-ruling); phase 3 (equipment UI) unbriefed — next refine. Core
-rulings SETTLED 1–2; open questions 1–2 (tutorial wording, board
-immunity) parked at their phases.**
+ruling); phase 3 SETTLED 3 + brief PROPOSED — awaiting approval.
+Core rulings SETTLED 1–3; open questions 1–2 (tutorial wording,
+board immunity) parked at their phases.**
 
 ## Overview
 
@@ -645,6 +645,140 @@ extraction when it comes).
 7. **Guide diff**: Controls & Keybindings, Combat list — ADD after
    the R line: "X: swap weapon sets (free while exploring, 1 AP in
    combat)". Before: no such line.
+
+## SETTLED 3 (2026-09-25, user) — phase 3 rulings (equipment UI)
+
+- **Sets are CLASS-KEYED**: there is exactly one ranged home and one
+  melee home. A weapon always equips into its class's set;
+  active/holstered are ROLES that X flips, not identities. Dual
+  same-class loadouts are impossible by construction. UI labels:
+  the ranged/melee set with its current role marker.
+- **C-screen equipment pane = two class groups + role markers**
+  (e.g. `WEAPONS - RANGED [ACTIVE]` / `WEAPONS - MELEE [HOLSTER]`);
+  empty sets still render (the fists floor stays visible).
+- **Mid-combat, ANY equipment change through C costs 1 AP —
+  uniform**: active set, holstered set, armor, all of it (extends
+  SETTLED 1's per-change economy; X's 1-AP whole-set swap is never
+  undercut by free restructuring).
+- **Equipping into a full set opens a MEMBER chooser**: the picked
+  member is displaced (to the pack on the C-screen path, to the
+  warehouse on the armory path — today's displacement containers);
+  a 2H pick displaces the whole set as today.
+
+### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 3;
+### ready for /implement-phase 51.3 on approval)
+
+**Scope (files / hook points; sizes verified on the tree):**
+
+- **Set-targeting primitives** (`ground_weapon_sets.py`, 113
+  lines — owns the set law; `ground_equipment.py` at 987/1000
+  cannot absorb anything): NEW pure planners — resolve a weapon's
+  class home (the set currently holding that class; if unfounded,
+  the empty set that is not the other class's home; if both empty,
+  the ACTIVE set — the equip-to-wield intuition), and an equip
+  plan (target list + displacement set when the home is full).
+  Capacity validation imports ground_equipment's existing helpers
+  (one-way import; no cycle).
+- **The slot-model weapon functions RETIRE** (the ratchet payment
+  IS the retirement): `swap_weapon_from_expedition`,
+  `install_weapon`, `_plan_weapon_install`, `_apply_weapon_install`,
+  `_replace_weapon_slot`, `_validated_swap_weapon` and their
+  weapon-only helpers leave `ground_equipment.py` (→ ~840/1000),
+  replaced by the set-aware equip/store/install primitives above.
+  Armor twins and shared capacity validators STAY. Dead-code
+  checklist in-commit (rg zero references for every retired name).
+- **C-screen reshape** (`character_screen_weapons.py` 140 +
+  `character_screen.py` 921): `_weapon_rows` renders TWO class
+  groups with role markers (empty sets shown); manage actions
+  (equip/store/reload) offered per member of BOTH sets;
+  `_swap_options`/`_pack_weapon_slots` (the `range(2)` slot
+  vocabulary) → class-set targeting; the pack-equip slot chooser
+  → the member chooser when the class home is full (2H pick
+  displaces the whole set); store flow works from either set
+  (storing every active member must leave it EMPTY — the fists
+  floor is reachable through the UI, phase-2 playtest item 3's
+  deferred half); reload options extend to holstered members at
+  the weapon's reload AP (the existing per-weapon cost — separate
+  from the 1-AP edit economy).
+- **Armory install** (`menus/_armory.py` 921,
+  `_install_from_container` :476): the weapon branch routes
+  through the set-aware install — auto-target the class home,
+  displaced members to the existing displacement containers
+  (warehouse/pack logic unchanged). The BUY flow is untouched
+  (buy → storage as today; equipping stays an explicit step).
+- **Tinker reach** (`tinker.py` 289, `_weapon_targets` :139):
+  enumerate BOTH sets (target keys gain the set, e.g.
+  `KIT:WEAPON:{set}:{index}`); the phase-1 reviewer catch lands.
+- **Guide** (`data/guide/`): Ground Gear section's two-slot wording
+  → set wording. Proposed text (red-line at approval): replace the
+  slot sentence with "Weapons are carried as two sets — one ranged,
+  one melee. Each set holds one two-handed weapon or up to two
+  one-handed weapons; X swaps the whole active set for the holstered
+  set." Own commit per the prose gate.
+
+**Build order:** set-targeting primitives + tests → retire/replace
+the slot-model weapon functions (callers move in the same commit —
+character_screen pack-equip + armory install) → C-screen two-group
+reshape + member chooser + store flows → armory install routing →
+tinker reach → guide entry (own commit) → full `make check`.
+
+**Binding rulings:** SETTLED 3 (all four) + SETTLED 1 extension
+(uniform 1 AP per change — `_handle_character_action`'s swap
+counter counts every successful equipment change, either set).
+Derived mechanics (red-line at approval): the class-home founding
+rule above (deterministic, equip-to-wield when both sets empty);
+loader tolerance UNCHANGED (a hand-edited mixed-class set loads
+verbatim; the UI labels it by its first member's class, phase-1
+convention); X, the HOLSTER row, and the dev grant are untouched;
+displaced/stored weapons keep magazines (the existing stored-entry
+round-trip). Mid-combat saves remain structurally impossible, so
+the AP economy never meets the save layer.
+
+**Required tests:** set targeting — class-home resolution table
+(founded homes, unfounded-with-other-founded, both empty → active,
+full home → displacement plan); member chooser — 1H pick displaces
+the picked member, 2H pick displaces the whole set, displaced
+entries land pack-side/armory-side per path with magazines;
+store — capacity-checked, store-all leaves the active set empty
+(fists floor via UI); equip into a full set never silently refuses
+(the chooser is always offered); uniform AP — a mid-combat
+holstered-set equip charges exactly 1; C-screen rows — both class
+groups render with role markers, empty sets visible, X flips the
+markers; armory install routes to the class home; tinker targets
+enumerate holstered members; pack relief behavioral pin (holstered
+members survive a pack-full state — the phase-1 structural
+promise); save/load round-trip through every new flow; guide entry
+present. Every retired function name rg-verified gone. Every new
+pure/mutation-wrapper function carries its test in the same commit.
+
+**Stop point:** no balance/board work (phase 4), no tutorial or
+further guide edits (phase 5), no HUD changes (the HOLSTER row and
+explore hint shipped in phase 2), no new keys, no dev-grant
+changes, no space-side anything.
+
+**Playtest checkpoint:**
+
+1. **Two-group C screen**: open C → weapons render as RANGED and
+   MELEE groups with `[ACTIVE]`/`[HOLSTER]` markers matching the
+   dev seed (Rocket Launcher ranged-active, Mono Blade
+   melee-holster); X in the dungeon flips the markers.
+2. **Founding**: on a fresh non-dev game, equip a melee weapon from
+   the pack → it founds/joins the melee home; the other group shows
+   empty.
+3. **Member chooser**: with the ranged set full (2×1H), equip
+   another 1H ranged from the pack → chooser lists the set's
+   members; the pick is displaced to the pack.
+4. **Uniform AP**: in combat, C-equip into the HOLSTERED set →
+   exactly 1 AP charged (same as an active-set edit).
+5. **Store-to-empty**: store every active-set member → the group
+   shows empty, X swaps to it, F fights with fists.
+6. **Armory**: install a weapon from the warehouse → it lands in
+   its class set; displaced members go to the warehouse.
+7. **Tinker**: the kit's chooser lists holstered members.
+8. **Save/load sniff**: build both sets via the new flows → ESC
+   save → continue → sets, markers, and magazines identical.
+9. **Guide diff**: Ground Gear — the two-slot sentence replaced by
+   the set wording above (exact before/after quoted at handoff).
 
 ## Open questions
 
