@@ -338,14 +338,18 @@ pre-code, as contracted).
 - **The ctx field** (`game_context.py`): declared
   `bandolier: dict[str, int]` (ammo_type → rounds), default empty;
   serialized in `saveload_ground.py`.
-- **Bandolier module** (NEW `src/spacehack/bandolier.py` — the
-  doc-51 `ground_weapon_sets.py` sibling precedent; ADVISE issue 3:
-  `ground_equipment.py` sits at 987/1000 lines and the ratchet makes
-  its debt blocking the moment it is touched): a PURE core —
+- **Bandolier module** (NEW `src/spacehack/bandolier.py`): its own
+  cohesive responsibility with a PURE core —
   `add_rounds(bandolier, ammo_type, n, cap) -> dict` (clamped),
   `space_remaining`, `effective_cap` (base cap in phase 1; the gear
-  fold's seam ready for phase 4) — plus thin ctx wrappers. Pure
-  core ships with pytest in the same commit.
+  fold's seam ready for phase 4) — plus thin ctx wrappers; the pure
+  core ships with pytest in the same commit. (Design note per the
+  2026-09-25 ratchet ruling: the module earns its place on cohesion
+  — an isolated reserve-store responsibility with a testable pure
+  core — NOT on line-count arithmetic. BUDGET NOTE ONLY: if any
+  part of this phase instead lands in `ground_equipment.py` and the
+  ratchet fires, the build pays that debt in-commit, with the real
+  code open.)
 - **Reload re-point** (complete call-site list, ADVISE issue 2):
   `combat/_rules_ground._reloadable_slots` + `apply_reload`
   (`_rules_ground.py:641` caller) AND `ground_reload_ui.
