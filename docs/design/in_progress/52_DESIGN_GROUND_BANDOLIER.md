@@ -747,6 +747,18 @@ entry routing. Fix: the dispatcher's buy branch takes
 `("BUY_", "RESTOCK:")`; new dispatcher-level pin fails pre-fix and
 passes post-fix. Playtest resumes from checkpoint item 1.
 
+**Playtest finding + ruling (fixed 0a624777, mid-playtest):** the
+armory footer read `Pack: 4/8` against a full 8/8 backpack — the
+footer counted EQUIPMENT ONLY while the `[E]xpedition` tab beside it
+counted equipment + field-item stacks (pre-existing disagreement,
+surfaced now that stacks are consumables-only). USER RULING: the
+footer's `Armory: unlimited` tail is DROPPED from the UI entirely.
+Footer now `Pack: {equipment+stacks}/{capacity}`; both surfaces
+pinned at the same count. KEPT (flagged for the checkpoint): the
+ARMORY view's empty-row explanation "Armory Storage is unlimited and
+shared between terminals." — different string, explains storage
+scope; extend the ruling there if wanted.
+
 **Prose gate — new/changed player-facing strings, landing at this
 checkpoint for sign-off (verbatims):**
 1. Quantity modal hint (pygame_quantity.py): `LEFT/RIGHT +/-1,
