@@ -1172,6 +1172,37 @@ class TestSaveLoadRoundTrip:
         ]
         delete_save()
 
+    def test_stored_weapon_magazines_round_trip_through_containers(
+            self, tmp_path, monkeypatch):
+        """Doc 51.3: a half-spent magazine survives a save/load cycle
+        in every storage container (pack, warehouse, both sets)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(64)
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_weapons = [GroundWeaponInstance("kinetic_pistol", 5)]
+        ctx.holstered_ground_weapons = [GroundWeaponInstance("smg", 9, 1)]
+        ctx.ground_expedition_inventory = [
+            StoredGroundEquipment("weapon", "laser_pistol", 2, 3),
+        ]
+        ctx.ground_armory_storage = [
+            StoredGroundEquipment("weapon", "railgun", 1, 4),
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+
+        assert loaded is not None
+        assert loaded.ground_expedition_inventory == [
+            StoredGroundEquipment("weapon", "laser_pistol", 2, 3),
+        ]
+        assert loaded.ground_armory_storage == [
+            StoredGroundEquipment("weapon", "railgun", 1, 4),
+        ]
+        delete_save()
+
     def test_pre_doc51_mixed_pair_migrates_on_slot_zero_class(
         self, monkeypatch, tmp_path,
     ):
