@@ -1,13 +1,13 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 6 = THE LAST PHASE, BRIEF PROPOSED (2026-09-25
-refine). Phases 1-3 COMPLETE (playtest passed, incl. the
+**Status: PHASE 6 LANDED 2026-09-25 — PLAYTEST PENDING (the LAST
+phase). Phases 1-3 COMPLETE (playtest passed, incl. the
 mid-playtest rulings — feeder-free aligned Ammo column; "bandolier"
 retired from player-facing text). Phase 4 (cap gear) DEFERRED to the
 future armor/cybernetics polish pass (the `effective_cap` seam
 shipped). Phase 5 (endurance rows) MOVED to doc 50's resumption
-(SETTLED 6). Phase 6's wording is RULED (SETTLED 6) and its brief is
-proposed — doc 52 closes after 52.6 passes its playtest.**
+(SETTLED 6). Doc 52 closes once 52.6 passes its playtest; doc 50's
+resumption then unblocks.**
 
 ## Overview
 
@@ -273,7 +273,7 @@ rows (doc 50 SETTLED 6).
   with phase 4's deferral. (The original clause — "coordinated with
   doc 51's re-rule phase" — went stale when doc 51 SETTLED 4 removed
   that phase; rewritten by SETTLED 6.)
-- [ ] 6. **Teaching** — tutorial armory beat rewording (prose-gated:
+- [x] 6. **Teaching** — tutorial armory beat rewording (prose-gated:
   user wording before data strings).
 
 Each phase gets its Implementation brief at its own refine time.
@@ -1372,6 +1372,44 @@ work), land on Mars with rounds in reserve and credits to spare.
 loadout unchanged, stack phrasing gone). 6) Save → quit → Continue
 mid-tutorial: the beat's state is unchanged (nothing stateful moved).
 7) `make check` green.
+
+### Phase 6 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+
+**Commits:** 39f735d1 (pre-implementation audit) → 91a99083 (the
+prose commit: the earth_armory clause lands SETTLED 6's wording
+verbatim; the :91 content pin rides, terminator pinned) → 264404af
+(credit-bonus comment rewritten to the restock arithmetic; the
+dedicated 52.6 corpus test — "a stack of" banned from every
+`_STEP_BODIES` entry, the doc-51 loop untouched; doc 50's SETTLED 4
+parenthetical annotated).
+
+**Reviewer (REVIEW): APPROVE** — all five dispatched questions
+verified against the working tree, not the pack alone: the clause is
+character-for-character SETTLED 6's AFTER including the trailing
+period + `\n\n`, with no other player-facing byte changed; the 52.6
+corpus concern is genuinely separate from the doc-51 loop; the
+repo-wide stack-buy sweep is CLEAN (tutorial bodies, guide, runtime
+text overlays, armory strings — the sole player-facing "Stack" is a
+consumables buy-row detail; ammo rows are RESTOCK rows reading
+`Reserve {cur}/{cap}`); the doc-50 annotation keeps the ruling
+verbatim and stays a note; no gate-red intermediate is possible in
+the two-commit split. One [minor], applied mechanically without
+re-spawn (loop rule): the :91 pin now pins the sentence terminator,
+so a future append to that sentence fails the pin.
+
+**Gate:** `make check` green, 3027 passed (the corpus test is +1).
+
+**Guide diff: NONE** — grep-verified at build against
+`src/spacehack/data/guide/__init__.py`: no stack-buy vocabulary; the
+only "stack" hits are the loot-chooser flow (:514, live field-item
+vocabulary) and the space Cargo line (:137 — doc 52 is ground-only,
+classified in phase 3's audit). Stated on the checklist per the
+guide contract.
+
+**Prose gate:** satisfied pre-build — SETTLED 6 is the user's
+in-session wording, landed verbatim; the 52.3 ruling ("bandolier"
+never player-facing) holds — the new clause doesn't contain the
+word.
 
 ## Open questions
 
