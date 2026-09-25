@@ -176,6 +176,26 @@ def test_armory_and_expedition_rows_show_field_item_stack_quantities():
     assert tuple(row.label for row in expedition_rows[1:]) == expected
 
 
+def test_armory_action_dispatcher_routes_restock_rows(monkeypatch):
+    """RESTOCK rows ride the dispatcher (the split runner's entry), not
+    just the inner handler — the playtest crash: an unrouted prefix
+    raised ValueError -> 'frame could not be rebuilt'."""
+    from src.spacehack import pygame_quantity
+
+    ctx = _field_purchase_context(credits=100)
+    monkeypatch.setattr(
+        pygame_quantity, "run_for_context",
+        as_async(lambda *_args, **_kwargs: 40),
+    )
+
+    assert run(
+        _armory._apply_pygame_armory_action(ctx, "RESTOCK:pistol_rounds", 0, 0),
+    ) is True
+
+    assert ctx.bandolier == {"kinetic_pistol": 40}
+    assert ctx.stats.credits == 60
+
+
 def test_restock_charges_rounds_added_times_price_per_round(monkeypatch):
     """SETTLED 2: rounds-actually-added x price_per_round; the tutorial
     arithmetic survives (40 pistol rounds for exactly 40 credits)."""

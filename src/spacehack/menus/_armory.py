@@ -815,7 +815,7 @@ async def _apply_pygame_armory_action(ctx: GameContext, action: str, focus: int,
     del focus, selected
     if not action:
         return True
-    if action.startswith("BUY_"):
+    if action.startswith(("BUY_", "RESTOCK:")):
         await _apply_buy_action(ctx, action)
         return True
     if action.startswith((
