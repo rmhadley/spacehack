@@ -368,6 +368,11 @@ class GameContext:
     ground_expedition_items: list[ground_equipment_module.GroundItemStack] = dataclasses.field(
         default_factory=list,
     )
+    # The bandolier (doc 52): per-caliber reserve rounds, ammo_type →
+    # count, each clamped at its catalog carry_cap. The reload reserve
+    # store — pickups and restock refill it; it never occupies a pack
+    # slot (legacy pack stacks migrate into it on load).
+    bandolier: dict[str, int] = dataclasses.field(default_factory=dict)
     # Ground combat HP — set on dungeon entry, persisted across
     # combat encounters in the same dungeon visit. Default matches
     # the new-game formula 20 + stamina//3 at the base-10 start.

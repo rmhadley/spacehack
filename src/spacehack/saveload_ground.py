@@ -71,6 +71,7 @@ def _ground_fields(ctx: GameContext) -> dict:
         "ground_expedition_inventory": _d(ctx.ground_expedition_inventory),
         "ground_armory_items": _d(ctx.ground_armory_items),
         "ground_expedition_items": _d(ctx.ground_expedition_items),
+        "bandolier": dict(ctx.bandolier),
         "ground_hp": ctx.ground_hp,
         "ground_max_hp": ctx.ground_max_hp,
     }
@@ -199,6 +200,7 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
     ctx.ground_expedition_items = _parse_ground_item_stacks(
         data.get("ground_expedition_items"),
     )
+    ctx.bandolier = _parse_bandolier(data.get("bandolier"))
     ctx.ground_hp, ctx.ground_max_hp = _restore_ground_hp(data)
 
 
@@ -211,6 +213,30 @@ def _parse_ground_item_stacks(raw) -> list:
         for entry in (raw or [])
         if (stack := parse_item_stack(entry)) is not None
     ]
+
+
+def _parse_bandolier(raw) -> dict[str, int]:
+    """Rebuild the bandolier: unknown calibers skipped, counts clamped
+    at each caliber's carry cap (doc 52 phase 1)."""
+    from .bandolier import effective_cap
+
+    if not isinstance(raw, dict):
+        return {}
+    parsed: dict[str, int] = {}
+    for ammo_type, count in raw.items():
+        if not isinstance(ammo_type, str):
+            continue
+        try:
+            cap = effective_cap(ammo_type)
+        except KeyError:
+            continue
+        try:
+            rounds = int(count)
+        except (TypeError, ValueError):
+            continue
+        if rounds > 0:
+            parsed[ammo_type] = min(rounds, cap)
+    return parsed
 
 
 def _parse_equipped_ground_weapons(raw) -> list:
