@@ -86,6 +86,37 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
   equipment tab shows ALL ammo types (the full bandolier, six
   current/max entries — the inventory view).
 
+## SETTLED 5 (2026-09-25, user — the phase-2 ADVISE blockers)
+
+- **ALL calibers restockable, unconditionally** (user: "You should
+  be able to pickup and buy any kind of ammo no matter what.") —
+  the armory's restock section offers every caliber regardless of
+  what is equipped/holstered/owned; pickups of any type refill the
+  bandolier up to cap (SETTLED 2's over-cap-ignore unchanged).
+  SUPERSEDES the earlier "carried-calibers-only shop" inference for
+  RESTOCK; the HUD's relevant-caliber line (SETTLED 4) and the
+  character screen's all-six view stand. The buy-then-restock
+  prompt is dropped — moot when every caliber is always a row.
+- **Quantity chooser stays, and the modal gets fast keys** (user:
+  "the current quantity modal is a bad UX. Pressing right 60 times
+  sucks. I vote we keep the current quantity modal + improve it to
+  be able to buy faster. maybe up/down moves the quantity by 10s?
+  page up/page down go min/max? something like that, I'm open to
+  thoughts"). Build shape: left/right stay ±1; up/down become ±10;
+  PageUp/PageDown jump min/max; and (agent proposal, in the same
+  pass) the modal OPENS pre-filled at min(affordable, space-to-cap)
+  so the common case is confirm, not crawl. Key names verified
+  against the runtime at build. The tutorial's arithmetic survives
+  unchanged — 40 rounds for 40 credits, exactly the old economy.
+- **Tutorial rewording stays in phase 6, with an explicit accepted
+  gap**: between phase 2 and phase 6, new players are instructed to
+  "buy a stack of Pistol Rounds" the armory no longer sells —
+  accepted interim damage (the restock rows sit on the same screen;
+  the wording lands in phase 6's prose-gated pass).
+- **Landing order pinned: doc 52's tutorial/guide rewrites (52.3,
+  52.6) land AFTER doc 51 phase 5's teaching pass** — 52 rewrites
+  51's fresh prose once, not the other way around.
+
 ## Measured evidence (doc 50 session, 2026-09-25)
 
 A 4-floor delve (Mars reference: real generator, 16 mobs/floor, 64
@@ -327,13 +358,19 @@ board re-rule (5), no tutorial prose (6).
 
 **Scope (files / hook points):**
 
-- **Armory restock-to-cap** (`menus/_armory_buy.py` + `_armory.py`):
-  RETIRE the ammunition buy section (`_buy_ammo_rows`); add
-  RESTOCK rows for CARRIED calibers only (the HUD ruling's logic
-  applied to the shop — you restock what you're armed with), priced
-  rounds-actually-added × `price_per_round` (SETTLED 2). Buying a
-  weapon you lack ammo for is followed by an immediate restock
-  prompt in the same terminal visit (flow detail at build).
+- **Armory restock** (`menus/_armory_buy.py` + `_armory.py`):
+  RETIRE the ammunition buy section (`_buy_ammo_rows`); add RESTOCK
+  rows for ALL calibers, unconditionally (SETTLED 5 — pickups and
+  purchases are never gated on what you carry), quantity chosen via
+  the modal, priced rounds-chosen × `price_per_round` (SETTLED 2).
+  Restock row labels are player-facing strings — prose gate applies
+  (settled at this phase's checkpoint).
+- **Quantity modal fast keys** (the shared `pygame_quantity` modal,
+  `menus/_armory.py`'s existing instrument): left/right stay ±1;
+  up/down ±10; PageUp/PageDown min/max; the modal OPENS pre-filled
+  at min(affordable, space-to-cap) (SETTLED 5; benefits every
+  quantity consumer — armory, trade). Input-path tests for the new
+  keys; existing modal callers stay green.
 - **Armory-storage migration** (`saveload_ground.py` load path,
   extending phase 1's): `ground_armory_items` ammo stacks convert
   into bandolier counts at cap + credit refund — the "legacy
@@ -360,21 +397,25 @@ board re-rule (5), no tutorial prose (6).
 retirement + dead-sell removal → tests → full gate → PLAYTEST.
 
 **Binding rulings:** SETTLED 2 (per-round pricing, overflow
-ignored), SETTLED 3 (back-to-back with phase 1), SETTLED 4
-(carried-caliber display logic extends to the shop).
+ignored), SETTLED 3 (back-to-back with phase 1), SETTLED 5 (all
+calibers restockable; modal fast keys; tutorial gap accepted to
+phase 6; 52.3/52.6 land after doc 51.5).
 
-**Required tests:** restock pricing (a near-full caliber costs
-pennies; an empty one costs cap × per-round), restock rows appear
-for carried calibers only, armory-storage migration round-trip, the
-state-level retirement pin (no ammo stack persists in either
-container after load/pickup/armory actions complete).
+**Required tests:** restock pricing (chosen rounds × per-round;
+the tutorial flow buys 40 rounds for 40 credits exactly as today),
+restock rows for ALL calibers regardless of loadout, the modal's
+fast-key handling (±1/±10/min-max, open-at-max prefill),
+armory-storage migration round-trip, the state-level retirement pin
+(no ammo stack persists in either container after load/pickup/
+armory actions complete).
 
 **Stop point:** no HUD/character-screen readout (3), no guide edits
 (3), no endurance rows or board re-rule (5), no tutorial prose (6).
 
-**Playtest checkpoint:** 1) A new character: buy two pistols, top
-the bandolier at the armory, fight — full tutorial flow works
-without pack stacks. 2) An old save's armory-stored stacks convert
+**Playtest checkpoint:** 1) A new character: buy two pistols,
+restock 40 pistol rounds at the armory (fast keys + prefill make it
+two presses), fight — the tutorial's credit arithmetic works
+unchanged, no pack stacks anywhere. 2) An old save's armory-stored stacks convert
 + refund on load. 3) No path anywhere produces a pack ammo stack.
 4) Restock price reads exactly rounds-added × per-round. 5) `make
 check` green.
