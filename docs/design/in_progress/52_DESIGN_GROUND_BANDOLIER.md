@@ -1,8 +1,8 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 2 LANDED 2026-09-25 (build record below — REVIEW
-APPROVE, gate green, playtest PENDING). SETTLED 1-5; phase 3 briefed
-and next. Phase 4 (cap gear) DEFERRED to the future
+**Status: PHASE 2 COMPLETE 2026-09-25 (playtest passed) — SETTLED
+1-5; phase 3 (HUD + guide) briefed APPROVED and next. Phase 4 (cap
+gear) DEFERRED to the future
 armor/cybernetics polish pass — doc 52 ships the `effective_cap` seam
 only. Phases 5 (standard rows — needs the landed world's
 measurements) and 6 (tutorial prose — the prose gate) take their
@@ -692,7 +692,19 @@ in the guide (the modal's own hint line is the only teacher) — so
 the hint rewrite is the modal's business, quoted at this phase's
 checkpoint as a player-facing string. No phase-2 guide edits.
 
-### Phase 2 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+### Phase 2 build record (LANDED 2026-09-25 — PLAYTEST PASSED)
+
+**Playtest: PASSED 2026-09-25 (user).** All checkpoint items — the
+tutorial arithmetic (40 pistol rounds for exactly 40 credits), fast
+keys + prefill ("two presses" confirmed in play), the old-save
+armory migration, at-cap/unaffordable guards, and the
+no-pack-stacks-anywhere state. The seven prose verbatims were
+exercised in play unamended and stand as shipped. Mid-playtest
+events, all recorded below: the RESTOCK dispatcher crash (7decd373),
+the Pack-footer miscount + "Armory: unlimited" tail ruling
+(0a624777), and the at-cap pickup line ruling (f73783aa). KEPT (no
+ruling after two flags): the ARMORY view's empty-row "Armory Storage
+is unlimited and shared between terminals." — revisit on request.
 
 **Commits:** 4a9b7304 (pre-implementation audit) → fd81d32e
 (quantity modal fast keys + buy-side prefill; trade BUY sites wired)
