@@ -63,6 +63,11 @@ class SplitFrame:
     # Optional explicit mode outcomes for each left tab. Empty preserves
     # legacy label-based mappings used by existing terminals.
     left_tab_modes: tuple[str, ...] = ()
+    # Optional SCREEN-level tab bar (the pygame_screen tab treatment) for
+    # split frames embedded in a tabbed screen such as the C screen's
+    # Equipment tab (doc 52.3). TAB/SHIFT_TAB stay the HOST's outcomes.
+    screen_tabs: tuple[str, ...] = ()
+    active_screen_tab: int = 0
 
 
 def _rows(frame: SplitFrame) -> tuple[SplitRow, ...]:
@@ -97,6 +102,12 @@ ROWS_DETAIL_GAP = 6
 # Indent applied to selectable/informational rows when a panel has section
 # headers, so content reads as one level below the divider headings.
 CONTENT_INDENT = 24
+
+# Screen-level tab bar geometry (doc 52.3): drawn below the title rule
+# via the shared pygame_screen.draw_tab_bar; panels start below it and
+# _frame_height reserves the same block so the font ladder stays honest.
+SCREEN_TAB_BAR_TOP = 74
+SCREEN_TAB_BAR_BOTTOM_PAD = 12
 
 # Canonical hint for every split buy/sell terminal (single source of
 # truth — see 15_DESIGN_UNIFIED_TERMINAL_UX.md). Advertises "? guide":
@@ -157,7 +168,8 @@ def _frame_height(font: Any, frame: SplitFrame) -> int:
     row_height = MAX_VISIBLE_ROWS * (line + 14)
     divider_height = 2 * (line + 5)
     detail_height = MAX_DETAIL_LINES * (line + 2)
-    return 150 + row_height + divider_height + detail_height
+    tab_height = 46 if frame.screen_tabs else 0
+    return 150 + tab_height + row_height + divider_height + detail_height
 
 
 def _fit_font(pygame: Any, frame: SplitFrame, width: int, height: int) -> Any:
@@ -346,13 +358,22 @@ def _draw_panel_rows(
 def _draw_frame(
     pygame: Any, screen: Any, font: Any, frame: SplitFrame,
     *, context: PygameContext | None = None,
+    selected: int | None = None,
 ) -> None:
-    """Paint the split-screen frame."""
+    """Paint the split-screen frame.
+
+    ``selected`` overrides the action-based clamp for hosts whose
+    selection contract is flag-based (the C screen's Equipment rows
+    are cursor-reachable before management mode gives them actions).
+    """
     width, height = screen.get_size()
     screen.fill(pygame_ui.DEFAULT_PALETTE.background)
     _draw_frame_header(pygame, screen, font, frame, width)
-    left, right, footer_y, hint_y = _layout_panels(font, width, height, context)
-    selected = _clamp_selected(frame)
+    panel_top = _panel_top(frame)
+    left, right, footer_y, hint_y = _layout_panels(
+        font, width, height, context, top=panel_top,
+    )
+    selected = _clamp_selected(frame) if selected is None else selected
     _draw_panel(
         pygame, screen, font, frame, frame.left_rows,
         panel=left, label=frame.left_label, selected=selected,
@@ -370,8 +391,17 @@ def _draw_frame(
         pygame_ui.draw_context_log(pygame, screen, context)
 
 
+def _panel_top(frame: SplitFrame) -> int:
+    """First panel row: below the screen tab bar when one is drawn."""
+    if not frame.screen_tabs:
+        return 78
+    return SCREEN_TAB_BAR_TOP + 36 + SCREEN_TAB_BAR_BOTTOM_PAD
+
+
 def _draw_frame_header(pygame: Any, screen: Any, font: Any, frame: SplitFrame, width: int) -> None:
-    """Paint the centered title and its divider rule."""
+    """Paint the centered title, its divider rule, and the screen tab bar."""
+    from . import pygame_screen
+
     title_rect = pygame_ui.Rect(32, 20, width - 64, 44)
     pygame_ui.draw_centered_text(
         pygame, screen, font, frame.title, title_rect, 24,
@@ -381,10 +411,17 @@ def _draw_frame_header(pygame: Any, screen: Any, font: Any, frame: SplitFrame, w
         pygame, screen, 56, 62, width - 112,
         color=pygame_ui.DEFAULT_PALETTE.border,
     )
+    if frame.screen_tabs:
+        pygame_screen.draw_tab_bar(
+            pygame, screen, font, pygame_ui.DEFAULT_PALETTE,
+            frame.screen_tabs, frame.active_screen_tab, width,
+            SCREEN_TAB_BAR_TOP,
+        )
 
 
 def _layout_panels(
     font: Any, width: int, height: int, context: PygameContext | None,
+    top: int = 78,
 ) -> tuple[pygame_ui.Rect, pygame_ui.Rect, int, int]:
     """Return panel rects and footer/hint baselines for a split frame."""
     gap = 20
@@ -401,9 +438,9 @@ def _layout_panels(
         panel_bottom = height - 34
         footer_y = height - 58
         hint_y = height - 34
-    panel_height = max(1, panel_bottom - 78)
-    left = pygame_ui.Rect(32, 78, panel_width, panel_height)
-    right = pygame_ui.Rect(32 + panel_width + gap, 78, panel_width, panel_height)
+    panel_height = max(1, panel_bottom - top)
+    left = pygame_ui.Rect(32, top, panel_width, panel_height)
+    right = pygame_ui.Rect(32 + panel_width + gap, top, panel_width, panel_height)
     return left, right, footer_y, hint_y
 
 
@@ -481,6 +518,15 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
     return "IGNORE", frame.focus, selected
 
 
+def _shared_engine(context: PygameContext) -> tuple[Any, Any, Any]:
+    """Resolve ``(engine, pygame, screen)`` from the open shared runtime."""
+    runtime = getattr(context, "_runtime", None)
+    engine = getattr(runtime, "engine", None)
+    if engine is None or engine.logical_surface is None:
+        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
+    return engine, engine.pygame, engine.logical_surface
+
+
 async def run_shared(
     context: PygameContext,
     frame: SplitFrame,
@@ -488,12 +534,7 @@ async def run_shared(
     caption: str = "spacehack - terminal",
 ) -> tuple[str, str, int, int]:
     """Run one split frame inside the already-open shared Pygame window."""
-    runtime = getattr(context, "_runtime", None)
-    engine = getattr(runtime, "engine", None)
-    if engine is None or engine.logical_surface is None:
-        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
-    pygame = engine.pygame
-    screen = engine.logical_surface
+    engine, pygame, screen = _shared_engine(context)
     width, height = screen.get_size()
     font = _fit_font(pygame, frame, width, height)
     while True:
@@ -511,6 +552,111 @@ async def run_shared(
         else:
             await context.pump(0.016)
             continue
+
+
+def _screen_selectable_indices(rows: tuple[SplitRow, ...]) -> tuple[int, ...]:
+    """Left-row indices selectable by FLAG (the C-screen contract).
+
+    Rows stay cursor-reachable before management mode gives them
+    actions — the armory's action-based contract cannot express that.
+    """
+    return tuple(
+        index for index, row in enumerate(rows)
+        if not row.divider and row.selectable
+    )
+
+
+def _clamp_screen_selected(frame: SplitFrame) -> int:
+    """Clamp selection to a flag-selectable left row (0 when none)."""
+    indices = _screen_selectable_indices(frame.left_rows)
+    if not indices:
+        return 0
+    if frame.selected in indices:
+        return frame.selected
+    return min(indices, key=lambda index: abs(index - frame.selected))
+
+
+def _handle_screen_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int]:
+    """Map one key to a pygame_screen-family ``(outcome, selected)``.
+
+    TAB/SHIFT_TAB surface to the host to cycle its tab sheet (the tab
+    treatment); the right panel is read-only, so focus never leaves
+    the left rows and ENTER returns the row's action verbatim.
+    """
+    selected = _clamp_screen_selected(frame)
+    indices = _screen_selectable_indices(frame.left_rows)
+    if event.type == pygame.QUIT:
+        return "QUIT", selected
+    if event.type != pygame.KEYDOWN:
+        return "IGNORE", selected
+    if event.key == pygame.K_ESCAPE:
+        return "BACK", selected
+    if event.key == getattr(pygame, "K_TAB", None):
+        if getattr(event, "mod", 0) & getattr(pygame, "KMOD_SHIFT", 0):
+            return "SHIFT_TAB", selected
+        return "TAB", selected
+    if pygame_ui.is_guide_key(pygame, event):
+        return "GUIDE", selected
+    if event.key in (pygame.K_UP, pygame.K_k) and indices:
+        position = indices.index(selected)
+        return "IGNORE", indices[(position - 1) % len(indices)]
+    if event.key in (pygame.K_DOWN, pygame.K_j) and indices:
+        position = indices.index(selected)
+        return "IGNORE", indices[(position + 1) % len(indices)]
+    if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+        return ("SELECT", selected) if indices else ("BACK", selected)
+    return "IGNORE", selected
+
+
+async def run_for_screen(
+    context: PygameContext,
+    frame: SplitFrame,
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Run one read-only-right split screen inside the shared window.
+
+    Returns the pygame_screen 3-tuple ``(outcome, action, selected)``
+    so a tabbed screen mixes split and text frames against one host
+    loop (doc 52.3's Equipment tab). ``caption`` mirrors the screen
+    family's signature; the shared window keeps its caption.
+    """
+    from . import pygame_runtime
+
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
+    engine, pygame, screen = _shared_engine(context)
+    width, height = screen.get_size()
+    font = _fit_font(pygame, frame, width, height)
+    while True:
+        selected = _clamp_screen_selected(frame)
+        _draw_frame(
+            pygame, screen, font, replace(frame, selected=selected),
+            context=context, selected=selected,
+        )
+        engine.present()
+        outcome, action, selected = await _pump_screen_events(
+            pygame, frame, selected,
+        )
+        if outcome != "IGNORE":
+            return outcome, action, selected
+        frame = replace(frame, selected=selected)
+        await context.pump(0.016)
+
+
+async def _pump_screen_events(pygame: Any, frame: SplitFrame, selected: int):
+    """Drain one event batch for the screen runner.
+
+    Returns the terminal ``(outcome, action, selected)`` — or ``IGNORE``
+    with the moved selection for the loop to re-render with.
+    """
+    for event in pygame.event.get():
+        outcome, new_selected = _handle_screen_key(pygame, event, frame)
+        if outcome == "IGNORE":
+            return outcome, "", new_selected
+        row = frame.left_rows[new_selected] if outcome == "SELECT" else None
+        return outcome, row.action if row else "", new_selected
+    return "IGNORE", "", selected
 
 
 def _build_frame(build_frame: Callable[[], SplitFrame], *, rebuilt: bool = False) -> SplitFrame:

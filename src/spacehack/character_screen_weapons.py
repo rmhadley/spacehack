@@ -45,7 +45,9 @@ def _set_group_header(ctx: GameContext, set_class: str, label: str):
         ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
     )
     marker = f" [{role}]" if role is not None else ""
-    return _lazy()._equipment_row(f"--- WEAPONS - {label}{marker} ---")
+    return _lazy()._equipment_row(
+        f"--- WEAPONS - {label}{marker} ---", header=True,
+    )
 
 
 def _set_member_rows(

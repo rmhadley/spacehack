@@ -54,8 +54,9 @@ def _equipment_frame(
     swap_allowed: bool,
     floor_available: bool = True,
 ):
-    """Build the Equipment-tab frame (loadout + backpack)."""
-    from . import pygame_screen, pygame_ui
+    """Build the Equipment-tab split frame (doc 52.3 amendment): equipment
+    management on the left, the read-only bandolier on the right."""
+    from . import pygame_split, pygame_ui
 
     rows = _equipment_rows(
         ctx,
@@ -63,26 +64,76 @@ def _equipment_frame(
         swap_allowed=swap_allowed,
     )
     capacity = _expedition_capacity(ctx)
-    _verbs = "equip, use, or discard" if floor_available else "equip, use"
-    body = (
-        f"Equipped ground gear    Expedition Pack: "
-        f"{_expedition_used_slots(ctx)}/{capacity}",
-        f"Select a row and press ENTER to {_verbs}."
-        if equipment_management
-        else "Equipment is read-only outside management mode.",
-    )
     hint_parts = (
         (pygame_ui.NAV_HINT, "ENTER swap", "TAB stats", "ESC close", pygame_ui.GUIDE_HINT)
         if equipment_management else
         (pygame_ui.NAV_HINT, "TAB stats", "ESC close", pygame_ui.GUIDE_HINT)
     )
-    footer = (pygame_ui.modal_hint(*hint_parts),)
-    return pygame_screen.ScreenFrame(
-        title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=1,
-        scrollable=True,
-        page_offset=max(0, selected - 5),
+    return pygame_split.SplitFrame(
+        title, "Equipment", "Bandolier",
+        _split_equipment_rows(rows), _bandolier_rows(ctx),
+        f"Expedition Pack: {_expedition_used_slots(ctx)}/{capacity}",
+        "Ammo is read-only",
+        pygame_ui.modal_hint(*hint_parts),
+        selected=selected,
+        screen_tabs=("STATS", "EQUIPMENT", "CARGO"), active_screen_tab=1,
     )
+
+
+def _split_equipment_rows(rows) -> tuple:
+    """Convert the Equipment tab's screen rows to split rows (doc 52.3):
+    section headers become dividers; the row builders stay single-sourced."""
+    from . import pygame_split
+
+    return tuple(
+        pygame_split.SplitRow(
+            row.text, "", row.detail, row.action,
+            divider=row.header, selectable=row.selectable, runs=row.runs,
+        )
+        for row in rows
+    )
+
+
+def _bandolier_feeder_names(weapons, ammo_type: str) -> list[str]:
+    """Display names of the equipped weapons feeding one caliber."""
+    from .data.ground_weapons import find_ground_weapon
+    from .ground_equipment import display_name
+
+    feeders = []
+    for _inst in weapons:
+        try:
+            if find_ground_weapon(_inst.weapon_id).ammo_type == ammo_type:
+                feeders.append(
+                    display_name("weapon", _inst.weapon_id, _inst.quality),
+                )
+        except KeyError:
+            continue
+    return feeders
+
+
+def _bandolier_rows(ctx: GameContext) -> tuple:
+    """The read-only bandolier panel: every caliber's current/max plus
+    the equipped weapons that feed it (doc 52.3 — the inventory view
+    the HUD's carried-caliber lines deliberately omit)."""
+    from . import bandolier as _bandolier, pygame_split
+    from .data.ground_items import list_ground_ammo
+
+    weapons = (
+        list(getattr(ctx, "equipped_ground_weapons", None) or [])
+        + list(getattr(ctx, "holstered_ground_weapons", None) or [])
+    )
+    pool = getattr(ctx, "bandolier", None) or {}
+    rows = []
+    for spec in list_ground_ammo():
+        current = pool.get(spec.ammo_type, 0)
+        label = (
+            f"{spec.name} {current}/{_bandolier.effective_cap(spec.ammo_type)}"
+        )
+        feeders = _bandolier_feeder_names(weapons, spec.ammo_type)
+        if feeders:
+            label = f"{label}  ({', '.join(feeders)})"
+        rows.append(pygame_split.SplitRow(label, "", "", "", selectable=False))
+    return tuple(rows)
 
 def _armor_effects(spec) -> str:
     """Format one armor piece's cybernetic bonuses, or an empty string."""
@@ -160,13 +211,18 @@ def _equipment_row(
     *,
     action: str = "",
     selectable: bool = False,
+    header: bool = False,
     runs=None,
 ):
-    """Build one consistently spaced Equipment-tab row."""
+    """Build one consistently spaced Equipment-tab row.
+
+    ``header`` marks the ``--- SECTION ---`` rows; the split converter
+    renders them as dividers (doc 52.3).
+    """
     from . import pygame_screen
 
     return pygame_screen.ScreenRow(
-        text, detail, action, selectable=selectable, runs=runs,
+        text, detail, action, selectable=selectable, header=header, runs=runs,
     )
 
 
@@ -188,7 +244,7 @@ def _equipment_rows(
     the screen renderer supplies identical spacing for empty and equipped rows.
     """
     rows = _weapon_rows(ctx, equipment_management, swap_allowed)
-    rows.append(_equipment_row("--- ARMOR ---"))
+    rows.append(_equipment_row("--- ARMOR ---", header=True))
     rows += _armor_rows(ctx, equipment_management, swap_allowed)
     if equipment_management:
         rows += _backpack_rows(ctx)
@@ -255,7 +311,9 @@ def _backpack_rows(ctx: GameContext) -> list:
     """Build the backpack header plus equipment and field-item rows."""
     capacity = _expedition_capacity(ctx)
     used = _expedition_used_slots(ctx)
-    rows = [_equipment_row(f"--- BACKPACK ITEMS ({used}/{capacity}) ---")]
+    rows = [_equipment_row(
+        f"--- BACKPACK ITEMS ({used}/{capacity}) ---", header=True,
+    )]
     if not used:
         rows.append(_equipment_row("[empty]"))
         return rows
@@ -722,25 +780,29 @@ async def _run_pygame_character_screen(
     floor_available: bool = True,
 ) -> int | None:
     """Run Character through the shared Pygame screen."""
-    from . import pygame_screen
+    from . import pygame_screen, pygame_split
 
     tab = 0
     selected = 0
     swap_count = 0
     while True:
-        outcome, action, selected = await pygame_screen.run_for_context(
-            ctx.context,
-            _character_frame(
-                ctx, tab, selected,
-                equipment_management=equipment_management,
-                in_ground_combat=in_ground_combat,
-                floor_available=floor_available,
-                swap_allowed=(
-                    not in_ground_combat
-                    or _combat_ap_available(ctx, reserved=swap_count)
-                ),
+        frame = _character_frame(
+            ctx, tab, selected,
+            equipment_management=equipment_management,
+            in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
+            swap_allowed=(
+                not in_ground_combat
+                or _combat_ap_available(ctx, reserved=swap_count)
             ),
-            caption="spacehack - character",
+        )
+        runner = (
+            pygame_split.run_for_screen
+            if isinstance(frame, pygame_split.SplitFrame)
+            else pygame_screen.run_for_context
+        )
+        outcome, action, selected = await runner(
+            ctx.context, frame, caption="spacehack - character",
         )
         tab, selected, swap_count, done = await _advance_character_screen(
             ctx, outcome, action, tab, selected, swap_count,

@@ -7,6 +7,7 @@ import pytest
 from tests.support.asyncutil import run, as_async
 from tests.support.module_entries import module_entry
 
+import dataclasses
 from types import SimpleNamespace
 
 from src.spacehack import (
@@ -2030,6 +2031,108 @@ def test_split_key_mapping_switches_panels_and_returns_opaque_action():
     assert pygame_split._handle_key(fake, SimpleNamespace(type=fake.QUIT), frame) == ("QUIT", 0, 0)
 
 
+def test_screen_runner_keymap_cycles_tabs_and_keeps_focus_left():
+    """Doc 52.3: the C-screen split emits pygame_screen outcomes — TAB
+    belongs to the HOST's tab sheet (never panel focus), and selection
+    is flag-based so action-less rows stay cursor-reachable."""
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_TAB = 11
+        KMOD_SHIFT = 3
+        K_UP = 12
+        K_DOWN = 13
+        K_k = 14
+        K_j = 15
+        K_RETURN = 16
+        K_KP_ENTER = 17
+
+    fake = FakePygame()
+    key = lambda value, **kw: SimpleNamespace(
+        type=fake.KEYDOWN, key=value, unicode="", **kw,
+    )
+    frame = pygame_split.SplitFrame(
+        "CHARACTER", "Equipment", "Bandolier",
+        (
+            pygame_split.SplitRow("--- WEAPONS ---", "", "", "", divider=True),
+            pygame_split.SplitRow("Pistol", "", "detail", "SWAP:weapon:ranged:0"),
+            # Non-management armor row: selectable by flag, no action yet.
+            pygame_split.SplitRow("Body: None", "", "", "", selectable=True),
+        ),
+        (pygame_split.SplitRow("Pistol Rounds 0/160", "", "", "", False, False),),
+        "", "", "", screen_tabs=("STATS", "EQUIPMENT", "CARGO"),
+        active_screen_tab=1,
+    )
+
+    assert pygame_split._handle_screen_key(
+        fake, key(fake.K_TAB), frame,
+    ) == ("TAB", 1)
+    assert pygame_split._handle_screen_key(
+        fake, key(fake.K_TAB, mod=fake.KMOD_SHIFT), frame,
+    ) == ("SHIFT_TAB", 1)
+    down = pygame_split._handle_screen_key(fake, key(fake.K_DOWN), frame)
+    assert down == ("IGNORE", 2)
+    # Flag-selectable but action-less: ENTER selects, the host no-ops.
+    selected2 = dataclasses.replace(frame, selected=2)
+    assert pygame_split._handle_screen_key(fake, key(fake.K_RETURN), selected2) == (
+        "SELECT", 2,
+    )
+    assert pygame_split._screen_selectable_indices(frame.left_rows) == (1, 2)
+    assert pygame_split._clamp_screen_selected(dataclasses.replace(frame, selected=0)) == 1
+
+
+def test_screen_tabs_reserve_font_budget_and_shift_panels():
+    """The tab bar is paid for in _frame_height (font-ladder honesty) and
+    the panels start below it."""
+    class Font:
+        def get_linesize(self):
+            return 24
+
+    bare = pygame_split.SplitFrame("T", "L", "R", (), (), "", "", "")
+    tabbed = dataclasses.replace(bare, screen_tabs=("A", "B"))
+    assert pygame_split._frame_height(Font(), tabbed) == (
+        pygame_split._frame_height(Font(), bare) + 46
+    )
+    assert pygame_split._panel_top(tabbed) > pygame_split._panel_top(bare)
+
+
+def test_equipment_tab_split_frame_pairs_management_with_bandolier():
+    """Doc 52.3 amendment: the Equipment tab renders as the split UX —
+    left = the equipment rows verbatim (headers as dividers), right =
+    ALL six calibers current/max, read-only, with feeding weapons."""
+    ctx = SimpleNamespace(
+        player_level=1,
+        player_xp=0,
+        player_skill_points=0,
+        player_traits=[],
+        character_info={"class_name": "merchant"},
+        stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        holstered_ground_weapons=[GroundWeaponInstance("laser_pistol", None)],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        bandolier={"kinetic_pistol": 132},
+    )
+
+    frame = character_screen._character_frame(ctx, 1, 0)
+
+    assert isinstance(frame, pygame_split.SplitFrame)
+    assert frame.left_rows[0].divider is True
+    assert frame.left_rows[0].label.startswith("--- WEAPONS - RANGED")
+    assert frame.right_label == "Bandolier"
+    right = list(frame.right_rows)
+    assert len(right) == 6
+    assert all(not row.selectable and not row.action for row in right)
+    labels = {row.label.split(" ")[0]: row.label for row in right}
+    assert "Pistol" in labels and labels["Pistol"].startswith("Pistol Rounds 132/160")
+    assert labels["Pistol"].endswith("(Kinetic Pistol)")
+    assert labels["Energy"].startswith("Energy Cells 0/250")
+    assert labels["Energy"].endswith("(Laser Pistol)")
+    assert labels["Rockets"].startswith("Rockets 0/10")
+
+
 def test_split_frame_explicit_tab_modes_override_label_defaults():
     class FakePygame:
         QUIT = 1
@@ -2422,18 +2525,21 @@ def test_character_equipment_management_explains_backpack_actions():
         ctx, 1, 0, equipment_management=True,
     )
 
-    assert frame.body[1] == "Select a row and press ENTER to equip, use, or discard."
-    assert frame.scrollable is True
-    assert "[R] reload" not in frame.footer[0]
-    assert "TAB stats" in frame.footer[0]
-    assert frame.footer[0].endswith("ESC close   ? guide")
+    assert frame.hint.startswith("UP/DOWN navigate")
+    assert "ENTER swap" in frame.hint
+    assert "TAB stats" in frame.hint
+    assert frame.hint.endswith("ESC close   ? guide")
+    assert "[R]" not in frame.hint
+    assert frame.screen_tabs == ("STATS", "EQUIPMENT", "CARGO")
+    assert frame.active_screen_tab == 1
+    assert frame.footer_left.startswith("Expedition Pack: 0/")
+    assert frame.footer_right == "Ammo is read-only"
 
-    space_frame = character_screen._character_frame(
-        ctx, 1, 0, equipment_management=True, floor_available=False,
+    readonly = character_screen._character_frame(
+        ctx, 1, 0, equipment_management=False,
     )
-    assert space_frame.body[1] == (
-        "Select a row and press ENTER to equip, use."
-    )
+    assert "ENTER swap" not in readonly.hint
+    assert "TAB stats" in readonly.hint
 
 
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():
@@ -2494,10 +2600,11 @@ def test_character_equipment_down_reaches_second_active_weapon():
     event = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_DOWN, unicode="")
 
     # Selection starts on the first selectable row (member 1); DOWN
-    # reaches the second set member beneath the group header.
-    assert frame.rows[1].selectable is True
-    assert frame.rows[2].selectable is True
-    assert pygame_screen._handle_key(FakePygame, event, frame) == ("IGNORE", 2)
+    # reaches the second set member beneath the group header — through
+    # the split's flag-based screen keymap (doc 52.3).
+    assert frame.left_rows[1].selectable is True
+    assert frame.left_rows[2].selectable is True
+    assert pygame_split._handle_screen_key(FakePygame, event, frame) == ("IGNORE", 2)
 
 
 def test_character_equipment_management_reports_empty_compatible_choices():
