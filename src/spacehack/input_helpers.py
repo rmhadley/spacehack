@@ -288,6 +288,20 @@ def _is_f_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f'
 
+def _is_x_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for plain ``X`` (Shift excluded).
+
+    Routes X (weapon-set swap, doc 51 phase 2) through a module-level
+    helper. Shift is excluded so the dev XP grant keeps Shift+X in the
+    main loop; the combat action table is separately shift-blind
+    (Shift+X also swaps there, uniform with Shift+R = RELOAD).
+    """
+    return (
+        pygame_engine.is_keydown(event)
+        and event.key_name == 'x'
+        and not pygame_engine.has_shift(event)
+    )
+
 def _is_shift_press(event: pygame_engine.PygameInputEvent, key_name: str) -> bool:
     """Return whether a key event has the requested key plus Shift."""
     return (

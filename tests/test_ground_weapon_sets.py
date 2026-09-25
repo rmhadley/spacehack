@@ -343,3 +343,78 @@ def test_double_swap_mid_fight_is_identity_with_magazines_intact(monkeypatch):
     assert _ctx.holstered_ground_weapons == [_knife]
     assert _ctx.equipped_ground_weapons[0].loaded_ammo == 6 - _fired_rounds
     assert _rules_ground.player_ap(_ctx) == _ap_after_fire - 2
+
+
+from src.spacehack.input_helpers import _is_x_press  # noqa: E402
+
+
+def test_is_x_press_matrix():
+    """Main-loop matcher: plain x only — shift excluded (dev XP owns
+    Shift+X there), keyup never fires."""
+    assert _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=False))
+    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="x", shift=True))
+    assert not _is_x_press(SimpleNamespace(kind="keyup", key_name="x", shift=False))
+    assert not _is_x_press(SimpleNamespace(kind="keydown", key_name="c", shift=False))
+
+
+def _menu_state(mode, equipped, holstered):
+    from src.spacehack import game_loop
+
+    _log = _LogCapture()
+    _ctx = SimpleNamespace(
+        equipped_ground_weapons=equipped,
+        holstered_ground_weapons=holstered,
+        log=_log,
+    )
+    _state = SimpleNamespace(ctx=_ctx, log=_log, current_mode=mode)
+    return game_loop, _state
+
+
+def test_menu_x_swaps_free_in_dungeon_mode():
+    game_loop, _state = _menu_state(
+        "dungeon",
+        [GroundWeaponInstance("kinetic_pistol", 5)],
+        [GroundWeaponInstance("mono_blade", None)],
+    )
+    _event = SimpleNamespace(kind="keydown", key_name="x", shift=False)
+
+    assert run(game_loop._handle_menu_event(_state, _event)) == "HANDLED"
+    assert _state.ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("mono_blade", None),
+    ]
+    assert _state.ctx.holstered_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 5),
+    ]
+    assert "Weapon sets swapped." in _state.log.lines
+
+
+def test_menu_x_does_nothing_in_space_mode():
+    game_loop, _state = _menu_state(
+        "space",
+        [GroundWeaponInstance("kinetic_pistol", 5)],
+        [GroundWeaponInstance("mono_blade", None)],
+    )
+    _event = SimpleNamespace(kind="keydown", key_name="x", shift=False)
+
+    assert run(game_loop._handle_menu_event(_state, _event)) is None
+    assert _state.ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 5),
+    ]
+    assert not _state.log.lines
+
+
+def test_menu_shift_x_never_swaps():
+    """Shift+X belongs to the dev XP grant in the main loop — the
+    explore matcher must not fire under shift (SETTLED 1 pin)."""
+    game_loop, _state = _menu_state(
+        "dungeon",
+        [GroundWeaponInstance("kinetic_pistol", 5)],
+        [GroundWeaponInstance("mono_blade", None)],
+    )
+    _event = SimpleNamespace(kind="keydown", key_name="x", shift=True)
+
+    assert run(game_loop._handle_menu_event(_state, _event)) is None
+    assert _state.ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("kinetic_pistol", 5),
+    ]
+    assert not _state.log.lines

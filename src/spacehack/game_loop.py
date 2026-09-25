@@ -19,7 +19,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_x_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -264,8 +264,21 @@ async def _handle_dev_event(state, event):
     return await _handle_dev_quest_event(state, event)
 
 
+async def _swap_weapon_sets_explore(state):
+    """X outside space combat: swap weapon sets free (doc 51 phase 2)."""
+    from .ground_weapon_sets import swap_sets_logged
+    swap_sets_logged(
+        state.ctx.equipped_ground_weapons,
+        state.ctx.holstered_ground_weapons,
+        state.log,
+    )
+    return 'HANDLED'
+
+
 async def _handle_menu_event(state, event):
     """Handle character, faction, and quest-log input."""
+    if _is_x_press(event) and state.current_mode != 'space':
+        return await _swap_weapon_sets_explore(state)
     ctx = state.ctx
     log = state.log
     if _is_f_press(event):
