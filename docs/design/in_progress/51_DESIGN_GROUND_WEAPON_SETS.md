@@ -938,6 +938,27 @@ it 987→781). Final tree: ground_equipment 781, ground_weapon_sets
 menus/_armory 991, tinker ~300 — all under the wall; `make check`
 green at 2983 tests.
 
+### Phase 3 PLAYTEST (equipment UI)
+
+**Mid-playtest round 1 (2026-09-25, user): two rulings.**
+
+- **Set groups show BOTH slot rows** (user: "I only see 1 slot in
+  both range and melee"): a group renders
+  ``WEAPON_SLOT_COUNT`` rows — members first, then ``[empty]`` pad
+  rows; a founding 2H marks the second row ``--- (occupied by 2H)``
+  instead. Capacity must stay as visible as the old two-slot screen
+  made it. The armory's loadout panel mirrors (same pad + marker,
+  one shared ``_set_is_two_handed`` predicate in ground_weapon_sets).
+- **ARMOR gets its section header** (user): ``--- ARMOR ---`` over
+  the five armor rows on the C screen's Equipment tab, matching the
+  weapon group headers (the armory's existing ``ARMOUR SLOTS``
+  header is untouched).
+
+Items 1 (group rendering half: both groups [empty] with no marker on
+a weaponless save — correct per the unfounded-no-marker build-shape
+ruling) and the ARMOR layout seen in round 1; the rest of the 11-item
+checklist still open.
+
 ### Phase 3 pre-implementation audit (2026-09-25, build session)
 
 **1. Existing modules to reuse** (anchors verified on the tree at
