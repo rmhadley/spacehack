@@ -367,3 +367,17 @@ def test_board_hint_only_when_boardable():
         for y in range(6) for x in range(40)
     )
     assert "[d]" in _flat and "Board" in _flat
+
+
+def test_help_lines_show_weapon_set_swap_in_city_and_dungeon():
+    """Doc 51: the X swap hint sits on the explore HUDs (city + dungeon);
+    the space list (the twin surface) must not advertise the dead key."""
+    for mode in ("city", "dungeon"):
+        console = FrameBuffer(40, 7)
+        hud._render_city_help_lines(console, 0, 0, mode)
+        text = "\n".join(
+            "".join(console.cell(x, y).char for x in range(40)).rstrip()
+            for y in range(7)
+        )
+        assert "[X] Swap Sets" in text
+    assert all(key != "X" for key, _label in hud._SPACE_HELP_LINES)

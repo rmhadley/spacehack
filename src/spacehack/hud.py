@@ -356,6 +356,13 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull,
     return y
 
 
+_SPACE_HELP_LINES = [
+    ("G", "Go To"), ("P", "Pickup"), ("M", "Map"),
+    ("T", "Comms"), ("C", "Character"), ("F", "Factions"),
+    (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL), ("?", "Guide"), ("numpad", "Move"),
+]
+
+
 def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, hud_view_height, xp_line, xp_fg) -> None:
     """Paint the space-mode HUD body below the title."""
     from . import ship as _ship_mod
@@ -382,11 +389,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     y += 1
     _render_divider(console, hud_x, y)
     y += 3
-    _render_help_lines(console, hud_x, y, [
-        ("G", "Go To"), ("P", "Pickup"), ("M", "Map"),
-        ("T", "Comms"), ("C", "Character"), ("F", "Factions"),
-        (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL), ("?", "Guide"), ("numpad", "Move"),
-    ])
+    _render_help_lines(console, hud_x, y, _SPACE_HELP_LINES)
     _render_hud_footer(console, hud_x, hud_view_height, xp_line=xp_line, xp_fg=xp_fg)
 
 
@@ -472,7 +475,7 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
     """Paint the movement key hints; return the next row."""
     _help_lines = [
         ("Q", "Quest Log"), ("C", "Character"), ("F", "Factions"), (CONSOLE_LOG_KEY, CONSOLE_LOG_LABEL),
-        ("?", "Guide"), ("numpad", "Move"),
+        ("X", "Swap Sets"), ("?", "Guide"), ("numpad", "Move"),
     ]
     if mode == "dungeon":
         _help_lines[0:0] = [
