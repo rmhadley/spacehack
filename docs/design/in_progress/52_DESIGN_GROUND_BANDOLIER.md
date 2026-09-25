@@ -338,11 +338,23 @@ board re-rule (5), no tutorial prose (6).
   extending phase 1's): `ground_armory_items` ammo stacks convert
   into bandolier counts at cap + credit refund — the "legacy
   stacks" scope the ADVISE pass deferred here.
-- **Pack ammo-class retirement**: with purchase retired, spawners
-  spawning entities, and pickups refilling the bandolier, no
-  creation path for pack ammo stacks remains — pin it (a test that
-  no code path constructs `GroundItemStack("ammo", ...)` into the
-  pack) and remove any dead sell/market handling for the class.
+- **Pack ammo-class retirement + dead-code sweep** (ADVISE issues
+  5+6): pin the STATE — after load_game / pickup / any armory
+  action completes, no ammo stack persists in
+  ground_expedition_items or ground_armory_items (NOT a
+  construction-site pin: the load parser must keep constructing
+  ammo stacks forever to migrate legacy saves, and
+  item_stack_capacity's ammo branch STAYS for those records). No
+  sell/market path exists for ground ammo (verified — the migration
+  refund is pure gain); retire the dead ammo branches:
+  `_field_item_name`/`_field_item_detail`,
+  `_choose_field_item_destination`'s ammo title/pricing,
+  `_purchase_field_item`'s ammo paths (`menus/_armory.py`),
+  `ground_reload_ui.reload_pack_ammo` + `manage_pack_ammo` (the
+  guide's "select an ammo stack... choose Reload" interaction —
+  dead once phases 1+2 land), and `character_screen`'s
+  `_item_stack_name`/`_item_stack_detail`/`_discard_pack_stack`
+  ammo branches.
 
 **Build order:** restock UI → armory-storage migration → class
 retirement + dead-sell removal → tests → full gate → PLAYTEST.
@@ -354,7 +366,8 @@ ignored), SETTLED 3 (back-to-back with phase 1), SETTLED 4
 **Required tests:** restock pricing (a near-full caliber costs
 pennies; an empty one costs cap × per-round), restock rows appear
 for carried calibers only, armory-storage migration round-trip, the
-no-pack-ammo-creation pin.
+state-level retirement pin (no ammo stack persists in either
+container after load/pickup/armory actions complete).
 
 **Stop point:** no HUD/character-screen readout (3), no guide edits
 (3), no endurance rows or board re-rule (5), no tutorial prose (6).
@@ -373,14 +386,23 @@ check` green.
 **Scope (files / hook points):**
 
 - **Combat HUD** (`combat/_ground_render.py`): the reserve read
-  (re-pointed in phase 1) renders as current/max for CARRIED
-  calibers only (SETTLED 4) — one line per caliber the equipped
-  weapons use.
+  (re-pointed in phase 1) renders as current/max for the RELEVANT
+  (carried) calibers — one line per caliber the equipped weapons
+  use (SETTLED 4). MAX SOURCE: this and the character screen read
+  max from `bandolier.effective_cap(...)` (the phase-1 seam), never
+  `spec.carry_cap` directly — the deferred gear pass then lights up
+  with zero HUD rework (ADVISE issue 10). COORDINATION (issue 9):
+  doc 51 phase 2 adds a compact holstered-set indicator to the same
+  weapons panel — the caliber lines' placement relative to it and
+  the panel's line budget is settled against the LANDED doc-51 HUD,
+  named in this phase's build.
 - **Character screen** (`character_screen.py`): the equipment tab
   shows the FULL bandolier — all six ammo types with current/max
   (user amendment: "character screen equipment tab needs to show all
   ammo types somewhere") — the inventory view the HUD deliberately
-  omits.
+  omits. Placement relative to doc 51's set-aware weapon sections
+  per the landed layout (the paged row list has room; ADVISE
+  issue 9).
 - **Guide** (`data/guide/__init__.py`) — THREE edits, exact
   before/after (prose-gated — settles at this phase's checkpoint):
   1. GROUND GEAR, the ammunition paragraph (the "matching
@@ -418,6 +440,12 @@ check` green.
      AFTER: "The armory terminal sells personal weapons and armour
      for when you leave your ship, and tops up your ammunition
      reserves."
+  Checkpoint wording notes (ADVISE issue 8): the AFTER consciously
+  drops "and a matching reserve" from the combat-R sentence (an
+  empty bandolier still fails R — deliberate simplification,
+  surfaced for review); "multiple carried weapons" aligns with doc
+  51's ACTIVE-set terminology at the wording checkpoint (the
+  chooser enumerates active-set weapons only).
   Verified-unchanged lines (the audit's other finds): Controls
   "R: reload your active weapon" (store-agnostic), the
   kinetic/energy/explosive/melee bullets ("limited ammunition",
