@@ -201,7 +201,7 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
         data.get("ground_expedition_items"),
     )
     ctx.bandolier = _parse_bandolier(data.get("bandolier"))
-    _migrate_pack_ammo_to_bandolier(ctx)
+    _migrate_stored_ammo_to_bandolier(ctx)
     ctx.ground_hp, ctx.ground_max_hp = _restore_ground_hp(data)
 
 
@@ -240,35 +240,53 @@ def _parse_bandolier(raw) -> dict[str, int]:
     return parsed
 
 
-def _migrate_pack_ammo_to_bandolier(ctx: GameContext) -> None:
-    """Convert legacy pack ammo stacks into bandolier counts (doc 52).
+def _convert_ammo_stacks(ctx: GameContext, stacks) -> tuple[int, int, int]:
+    """One container's ammo stacks -> bandolier counts; return tallies.
 
-    Each caliber fills to its carry cap; rounds past the cap refund
-    credits at ``price_per_round``; converted stacks free their pack
-    slots. Armory-stored stacks are phase 2's scope (SETTLED 3).
+    Returns ``(rounds_added, refund_rounds, refund_credits)``;
+    ``refill`` is the only clamp. The caller logs once for both
+    containers.
     """
     from .bandolier import refill
     from .data.ground_items import find_ground_ammo
 
-    ammo_stacks = [
+    added = refund_rounds = refund_credits = 0
+    for stack in stacks:
+        spec = find_ground_ammo(stack.item_id)
+        stack_added = refill(ctx, spec.ammo_type, stack.quantity)
+        added += stack_added
+        refund_rounds += stack.quantity - stack_added
+        refund_credits += (stack.quantity - stack_added) * spec.price_per_round
+    return added, refund_rounds, refund_credits
+
+
+def _migrate_stored_ammo_to_bandolier(ctx: GameContext) -> None:
+    """Convert legacy ammo stacks - Expedition Pack AND Armory
+    Storage - into bandolier counts (doc 52 phases 1-2).
+
+    Each caliber fills toward its carry cap; rounds past the cap
+    refund credits at ``price_per_round``; converted stacks free
+    their pack slots. One log pair covers both containers.
+    """
+    pack = _convert_ammo_stacks(ctx, [
         stack for stack in ctx.ground_expedition_items
         if stack.item_type == "ammo"
-    ]
-    if not ammo_stacks:
-        return
+    ])
+    armory = _convert_ammo_stacks(ctx, [
+        stack for stack in ctx.ground_armory_items
+        if stack.item_type == "ammo"
+    ])
     ctx.ground_expedition_items = [
         stack for stack in ctx.ground_expedition_items
         if stack.item_type != "ammo"
     ]
-    total_added = 0
-    refund_rounds = 0
-    refund_credits = 0
-    for stack in ammo_stacks:
-        spec = find_ground_ammo(stack.item_id)
-        added = refill(ctx, spec.ammo_type, stack.quantity)
-        total_added += added
-        refund_rounds += stack.quantity - added
-        refund_credits += (stack.quantity - added) * spec.price_per_round
+    ctx.ground_armory_items = [
+        stack for stack in ctx.ground_armory_items
+        if stack.item_type != "ammo"
+    ]
+    total_added = pack[0] + armory[0]
+    refund_rounds = pack[1] + armory[1]
+    refund_credits = pack[2] + armory[2]
     if total_added > 0:
         ctx.log.add(f"Packed {total_added} reserve rounds into the bandolier.")
     if refund_credits > 0:

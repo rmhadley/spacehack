@@ -1326,9 +1326,8 @@ class TestSaveLoadRoundTrip:
         delete_save()
 
     def test_round_trip_ground_item_stacks(self, monkeypatch, tmp_path):
-        """Field-item consumable stacks survive Continue; ammo lives in
-        the bandolier (doc 52) — armory ammo stacks are phase 2's
-        legacy scope and still round-trip verbatim."""
+        """Consumable stacks survive Continue verbatim; ammo lives in
+        the bandolier only (doc 52.2 — no stack class remains)."""
         monkeypatch.setattr(
             "src.spacehack.saveload._autosave_path",
             lambda: tmp_path / "autosave.json",
@@ -1337,13 +1336,12 @@ class TestSaveLoadRoundTrip:
         RNG.seed(58)
         ctx = _build_test_ctx()
         ctx.ground_armory_items = [
-            GroundItemStack("ammo", "rifle_rounds", 12),
             GroundItemStack("consumable", "med_pack", 3),
         ]
         ctx.ground_expedition_items = [
             GroundItemStack("consumable", "med_pack", 2),
         ]
-        ctx.bandolier = {"kinetic_pistol": 132}
+        ctx.bandolier = {"kinetic_pistol": 132, "rifle_round": 12}
 
         save_game(ctx, mode="city", city_id="earth", system_id="sol")
         loaded = load_game(ctx.context)
@@ -1351,15 +1349,15 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None
         assert loaded.ground_armory_items == ctx.ground_armory_items
         assert loaded.ground_expedition_items == ctx.ground_expedition_items
-        assert loaded.bandolier == {"kinetic_pistol": 132}
+        assert loaded.bandolier == {"kinetic_pistol": 132, "rifle_round": 12}
         delete_save()
 
-    def test_pre52_pack_ammo_migrates_to_bandolier_with_refund(
+    def test_pre52_stored_ammo_migrates_to_bandolier_with_refund(
         self, monkeypatch, tmp_path,
     ):
-        """A pre-52 save's pack stacks convert into bandolier counts at
-        cap, overflow refunds credits, slots free, armory stacks stay
-        (doc 52 phase 1 migration)."""
+        """A pre-52 save's stacks — pack AND Armory Storage — convert
+        into bandolier counts at cap, overflow refunds credits, pack
+        slots free, and no ammo stack persists anywhere (doc 52.2)."""
         monkeypatch.setattr(
             "src.spacehack.saveload._autosave_path",
             lambda: tmp_path / "autosave.json",
@@ -1391,28 +1389,41 @@ class TestSaveLoadRoundTrip:
         loaded = load_game(ctx.context)
 
         assert loaded is not None
-        # 200 pistol rounds → 160 cap (40 over × 1 cr); 12 rockets →
-        # 10 cap (2 over × 20 cr); refund 40 + 40 = 80 cr.
-        assert loaded.bandolier == {"kinetic_pistol": 160, "rocket": 10}
+        # Pack: 200 pistol rounds -> 160 cap (40 over x 1 cr); 12
+        # rockets -> 10 cap (2 over x 20 cr). Armory: 12 rifle rounds
+        # convert under cap. Refund 40 + 40 = 80 cr.
+        assert loaded.bandolier == {
+            "kinetic_pistol": 160, "rocket": 10, "rifle_round": 12,
+        }
         assert loaded.ground_expedition_items == [
             GroundItemStack("consumable", "med_pack", 3),
         ]
-        assert loaded.ground_armory_items == [
-            GroundItemStack("ammo", "rifle_rounds", 12),
-        ]
+        assert loaded.ground_armory_items == []
+        # The retirement pin (doc 52.2): no ammo stack persists in
+        # either container after load.
+        assert not any(
+            stack.item_type == "ammo"
+            for stack in (
+                loaded.ground_expedition_items
+                + loaded.ground_armory_items
+            )
+        )
         assert loaded.stats.credits == ctx.stats.credits + 80
         history = " ".join(entry.text for entry in loaded.log.history())
-        assert "Packed 170 reserve rounds into the bandolier." in history
+        assert "Packed 182 reserve rounds into the bandolier." in history
         assert "Refunded 42 rounds past carry caps: 80$." in history
 
         # Migrated save re-saves and re-loads cleanly (sniff test).
         save_game(loaded, mode="city", city_id="earth", system_id="sol")
         reloaded = load_game(ctx.context)
         assert reloaded is not None
-        assert reloaded.bandolier == {"kinetic_pistol": 160, "rocket": 10}
+        assert reloaded.bandolier == {
+            "kinetic_pistol": 160, "rocket": 10, "rifle_round": 12,
+        }
         assert reloaded.ground_expedition_items == [
             GroundItemStack("consumable", "med_pack", 3),
         ]
+        assert reloaded.ground_armory_items == []
         delete_save()
 
     def test_round_trip_bandolier(self, monkeypatch, tmp_path):
@@ -1492,10 +1503,10 @@ class TestSaveLoadRoundTrip:
         loaded = load_game(ctx.context)
 
         assert loaded is not None
-        assert loaded.ground_armory_items == [
-            GroundItemStack("ammo", "rifle_rounds", 12),
-            GroundItemStack("ammo", "rifle_rounds", 40),
-        ]
+        # Parsed armory ammo stacks (12 + clamped 40) migrate into the
+        # bandolier (doc 52.2); malformed records never arrive.
+        assert loaded.ground_armory_items == []
+        assert loaded.bandolier.get("rifle_round") == 52
         assert loaded.ground_expedition_items == [
             GroundItemStack("consumable", "med_pack", 2),
         ]
