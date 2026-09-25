@@ -465,6 +465,16 @@ def _pistol(loaded=12, quality=0):
     return GroundWeaponInstance("kinetic_pistol", loaded, quality)
 
 
+def test_class_home_returns_the_holding_list_or_none():
+    knife = GroundWeaponInstance("combat_knife", None)
+    pistol = _pistol()
+    assert ground_weapon_sets.class_home([pistol], [knife], "ranged") == [pistol]
+    assert ground_weapon_sets.class_home([pistol], [knife], "melee") == [knife]
+    assert ground_weapon_sets.class_home([], [], "ranged") is None
+    both = ground_weapon_sets.class_home([pistol], [_pistol(6)], "ranged")
+    assert both == [pistol]  # degenerate both-hold: ACTIVE wins
+
+
 def test_home_resolution_founded_goes_to_the_holding_set():
     knife = GroundWeaponInstance("combat_knife", None)
     assert ground_weapon_sets.resolve_weapon_home([_pistol()], [knife], "smg") == (
@@ -596,6 +606,7 @@ def test_install_two_handed_displaces_whole_set_to_destination():
     warehouse = [StoredGroundEquipment("weapon", "railgun")]
     ground_weapon_sets.install_set_weapon(
         equipped, holstered, warehouse, 0, displaced_storage=warehouse,
+        displaced_container="armory",
     )
     assert equipped == [GroundWeaponInstance("railgun", 12)]
     # The popped railgun entry leaves the source list first; displaced
@@ -724,6 +735,19 @@ def test_install_displacement_requires_a_destination():
     assert pack == [StoredGroundEquipment("weapon", "laser_pistol")]
 
 
+def test_install_displacement_requires_a_named_container():
+    """Storage without a container never validates as the unlimited
+    armory default — a pack destination must be checked as a pack."""
+    equipped, holstered = [_pistol(5), GroundWeaponInstance("smg", 9)], []
+    pack = [StoredGroundEquipment("weapon", "laser_pistol")]
+    with pytest.raises(ValueError, match="destination container"):
+        ground_weapon_sets.install_set_weapon(
+            equipped, holstered, pack, 0, displaced_storage=pack,
+        )
+    assert len(equipped) == 2
+    assert len(pack) == 1
+
+
 def test_install_carries_quality_both_ways():
     """The installed weapon fights at its rolled tier; a displaced
     member keeps its tier (and magazine) in storage."""
@@ -731,6 +755,7 @@ def test_install_carries_quality_both_ways():
     warehouse = [StoredGroundEquipment("weapon", "railgun", 1)]
     ground_weapon_sets.install_set_weapon(
         equipped, holstered, warehouse, 0, displaced_storage=warehouse,
+        displaced_container="armory",
     )
     assert equipped == [GroundWeaponInstance("railgun", 12, 1)]
     assert warehouse == [StoredGroundEquipment("weapon", "kinetic_pistol", 3, 4)]

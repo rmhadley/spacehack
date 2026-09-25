@@ -20,7 +20,6 @@ from typing import Iterable
 
 from .data.ground_weapons import find_ground_weapon
 from .ground_equipment import (
-    ARMORY_STORAGE,
     GroundWeaponInstance,
     StoredGroundEquipment,
     can_fit_weapons,
@@ -250,16 +249,25 @@ def _plan_set_install(
     displaced_container: str | None,
     strength: int,
 ) -> tuple[tuple[int, ...], list[StoredGroundEquipment]]:
-    """Validate a set install: displacement plan + destination capacity."""
+    """Validate a set install: displacement plan + destination capacity.
+
+    A displaced destination must be named in full — storage list AND
+    container — so a pack destination can never silently validate as
+    the unlimited armory default.
+    """
     indexes = _displaced_indexes(home, weapon_id, displace_index, fits)
     displaced = [weapon_entry(home[index]) for index in indexes]
     if not displaced:
         return indexes, displaced
     if displaced_storage is None:
         raise ValueError("A destination is required for displaced weapons")
+    if displaced_container is None:
+        raise ValueError(
+            "A destination container is required for displaced weapons",
+        )
     validate_transfer_capacity(
         source, displaced_storage, len(displaced),
-        destination_container=displaced_container or ARMORY_STORAGE,
+        destination_container=displaced_container,
         strength=strength,
     )
     validate_storage([*displaced_storage, *displaced])
@@ -280,9 +288,9 @@ def install_set_weapon(
     """Install a stored weapon into its class home, atomically.
 
     All validation happens before any mutation (via
-    :func:`_plan_set_install`). Returns ``(entry, role)`` — the role
-    names where it landed, so screens log the holster honestly;
-    ``displaced_container`` defaults to unlimited armory storage.
+    :func:`_plan_set_install`); a displaced destination must be named
+    in full (storage list + container). Returns ``(entry, role)`` —
+    the role names where it landed (screens log the holster honestly).
     """
     if not 0 <= source_index < len(source):
         raise IndexError("Invalid stored ground equipment index")
