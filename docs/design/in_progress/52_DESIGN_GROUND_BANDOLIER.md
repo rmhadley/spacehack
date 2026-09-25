@@ -376,6 +376,19 @@ line, the entity stays on the floor for later; a PARTIAL fit
 consumes the entity and forfeits the remainder rounds (no floor
 remainder, no credits).
 
+**Playtest findings (user, item 3):** the brief's "walk over the
+drop" wording was WRONG about the game's pickup UX — field items are
+picked up via P + the loot chooser (`game_flow._pickup_loot_near` →
+`loot.open_loot_pickup`), never walk-over auto-pickup. The bandolier
+refill is pinned through that exact chooser flow
+(`test_trade.py::test_p_pickup_chooser_lists_all_nearby_stacks`),
+so the build behaves correctly; checkpoint item 3's wording is
+corrected above. OPEN for ruling: at-cap silence now happens after
+an EXPLICIT choose (P → pick ammo → nothing visibly happens) —
+SETTLED 2 says silent, but through a chooser that may read as
+broken; a "bandolier full" style line for the explicit path is a
+candidate wording ruling at this checkpoint.
+
 ### Phase 1 Implementation brief (APPROVED 2026-09-25, SETTLED 3 —
 ### amended per the ADVISE pass; gated on doc 51's core landing;
 ### ready for /implement-phase 52.1 on the handoff)
@@ -471,9 +484,11 @@ board re-rule (5), no tutorial prose (6).
    refund logged, slots freed (pack view).
 2. Any ground fight: dry a magazine, press R — reload draws from the
    bandolier (same behavior, new store).
-3. Kill a sentry drone / raider whose pool drops ammo — walk over
-   the drop and the bandolier tops up (no stack enters the pack;
-   an over-cap pickup is silently ignored).
+3. Kill a sentry drone / raider whose pool drops ammo — press P by
+   the drop and choose it from the loot chooser (field items are
+   NEVER walk-over auto-pickup; ammo rides the same P + chooser flow
+   as every field item): the bandolier tops up (no stack enters the
+   pack; an over-cap pickup is silently ignored and the drop stays).
 4. Sustained fight: fire past the old 40-round reserve — reloads
    keep working to the cap.
 5. `make check` green; `python3 -m tests.balance.report` — the
