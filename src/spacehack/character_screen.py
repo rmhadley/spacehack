@@ -136,20 +136,19 @@ def _pack_entry_detail(entry) -> str:
     return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"
 
 
-def _swap_options(ctx: GameContext, item_type: str, slot: str) -> tuple[tuple[int, str, str], ...]:
-    """Return compatible Expedition Pack entries for one armor slot."""
+def _swap_options(ctx: GameContext, slot: str) -> tuple[tuple[int, str, str], ...]:
+    """Return compatible Expedition Pack armor entries for one slot."""
     from .data.ground_armor import find_ground_armor
 
     options = []
     for index, entry in enumerate(ctx.ground_expedition_inventory):
-        if entry.item_type != item_type:
+        if entry.item_type != "armor":
             continue
         try:
-            if item_type == "armor":
-                if find_ground_armor(entry.item_id).slot != slot:
-                    continue
-                name = _pack_entry_name(entry)
-                options.append((index, name, _pack_entry_detail(entry)))
+            if find_ground_armor(entry.item_id).slot != slot:
+                continue
+            name = _pack_entry_name(entry)
+            options.append((index, name, _pack_entry_detail(entry)))
         except KeyError:
             continue
     return tuple(options)
@@ -729,7 +728,7 @@ async def _swap_from_pack(ctx: GameContext, action: str) -> bool:
         parts = rest.split(":")
         member_index = int(parts[1]) if len(parts) > 1 else None
         return await _manage_weapon_set_member(ctx, parts[0], member_index)
-    options = _swap_options(ctx, "armor", rest)
+    options = _swap_options(ctx, rest)
     if not options:
         ctx.log.add("No compatible items are in your Expedition Pack.")
         return False

@@ -398,6 +398,58 @@ def test_character_weapon_holstered_equip_logs_the_holster(monkeypatch):
     assert messages == ["Expedition gear swapped (holstered)."]
 
 
+def test_midcombat_set_store_charges_exactly_one_ap(monkeypatch):
+    """SETTLED 3 pin: a mid-combat store through C costs exactly 1 AP
+    and closes the screen (uniform economy)."""
+    from src.spacehack import pygame_story
+
+    monkeypatch.setattr(
+        pygame_story, "choose", as_async(lambda *_a, **_k: "SET_STORE:ranged:0"),
+    )
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[],
+        ground_expedition_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        log=SimpleNamespace(add=lambda _m, **_k: None),
+    )
+
+    assert run(character_screen._apply_equipment_select(
+        ctx, "SWAP:weapon:ranged:0", 2, in_ground_combat=True,
+    )) == (3, True)
+
+
+def test_midcombat_holstered_equip_charges_exactly_one_ap(monkeypatch):
+    """SETTLED 3 pin: equipping into the HOLSTERED set through C also
+    costs exactly 1 AP mid-combat."""
+    from src.spacehack import pygame_story
+
+    async def _choose(_ctx, **kwargs):
+        if kwargs["title"] == "WEAPON SET":
+            return "PACK_EQUIP:0"
+        return "__BACK__"
+
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+        ground_expedition_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        log=SimpleNamespace(add=lambda _m, **_k: None),
+    )
+
+    assert run(character_screen._apply_equipment_select(
+        ctx, "SWAP:weapon:melee", 0, in_ground_combat=True,
+    )) == (1, True)
+    assert ctx.holstered_ground_weapons == [weapon_instance("combat_knife")]
+
+
 def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
     ctx = SimpleNamespace(context=object())
     monkeypatch.setattr(
@@ -417,7 +469,7 @@ def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
     )
     outcomes = iter((
         ("TAB", "", 0),
-        ("SELECT", "SWAP:weapon:0", 0),
+        ("SELECT", "SWAP:weapon:ranged:0", 0),
     ))
     monkeypatch.setattr(
         pygame_screen,
@@ -5639,7 +5691,7 @@ def test_pack_manage_choices_colour_tiered_swap_options():
         ground_stats=NS(strength=10),
         ground_expedition_items=[],
     )
-    options = character_screen._swap_options(ctx, "armor", "body")
+    options = character_screen._swap_options(ctx, "body")
 
     choices = character_screen._pack_manage_choices(
         ctx, "body", options,

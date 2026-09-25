@@ -2,16 +2,16 @@
 
 Two class groups — RANGED and MELEE — each with its role marker
 (``[ACTIVE]``/``[HOLSTER]``, flipped by X) and its members; empty
-groups still render (the fists floor stays visible). Split from
-``character_screen`` (ratchet); helpers of the parent screen are
-imported lazily at call time.
+groups still render (the fists floor stays visible). The group
+vocabulary (class pairs, role markers, home resolution) is
+:mod:`spacehack.ground_weapon_sets`' — this module only renders it.
+Split from ``character_screen`` (ratchet); helpers of the parent
+screen are imported lazily at call time.
 """
 
 from __future__ import annotations
 
 from .game_context import GameContext
-
-_SET_GROUPS: tuple[tuple[str, str], ...] = (("ranged", "RANGED"), ("melee", "MELEE"))
 
 
 def _lazy():
@@ -24,8 +24,10 @@ def _weapon_rows(
     ctx: GameContext, equipment_management: bool, swap_allowed: bool,
 ) -> list:
     """Build the two class-group weapon rows for the ground loadout."""
+    from .ground_weapon_sets import SET_CLASSES
+
     rows: list = []
-    for set_class, label in _SET_GROUPS:
+    for set_class, label in SET_CLASSES:
         rows.append(_set_group_header(ctx, set_class, label))
         rows += _set_member_rows(ctx, set_class, equipment_management, swap_allowed)
     return rows
@@ -67,17 +69,13 @@ def _set_member_rows(
 
 
 def _class_home(ctx: GameContext, set_class: str) -> list:
-    """The list currently holding a class (empty list when unfounded)."""
-    from .ground_weapon_sets import founded_set_role
+    """The list currently holding a class (empty when unfounded)."""
+    from .ground_weapon_sets import class_home
 
-    role = founded_set_role(
+    home = class_home(
         ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, set_class,
     )
-    if role == "ACTIVE":
-        return ctx.equipped_ground_weapons
-    if role == "HOLSTER":
-        return ctx.holstered_ground_weapons
-    return []
+    return home if home is not None else []
 
 
 def _member_row(
