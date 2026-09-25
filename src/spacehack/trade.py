@@ -312,6 +312,7 @@ async def _run_quantity_prompt(
     label: str,
     max_qty: int,
     price_per: int,
+    prefill: int | None = None,
 ) -> int | None:
     """Show the quantity selector in the shared Pygame window."""
     from . import pygame_quantity
@@ -319,6 +320,7 @@ async def _run_quantity_prompt(
     try:
         return await pygame_quantity.run_for_context(
             getattr(ctx, "context", ctx), ctx, label, max_qty, price_per,
+            prefill=prefill,
         )
     except pygame_quantity.PygameQuantityQuit:
         raise SystemExit
@@ -395,6 +397,7 @@ async def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
     )
     quantity = await _run_quantity_prompt(
         ctx, f"Buy {good.name} from {npc_spec.name}", maximum, price,
+        prefill=maximum,
     ) if maximum else None
     if quantity:
         cost = price * quantity
@@ -733,7 +736,9 @@ async def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: s
         stock = ctx.economy_state.get(planet_id, {}).get(good_id, 0)
         free = _free_cargo(owned) if owned is not None else 0
         max_qty = min(stock, free // max(1, good.volume), ctx.stats.credits // max(1, price))
-        quantity = await _run_quantity_prompt(ctx, f"Buy {good.name}", max_qty, price) if max_qty else None
+        quantity = await _run_quantity_prompt(
+            ctx, f"Buy {good.name}", max_qty, price, prefill=max_qty,
+        ) if max_qty else None
         if quantity:
             _buy_good(ctx, planet_id, good_id, quantity)
         return True

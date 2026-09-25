@@ -192,12 +192,12 @@ def test_character_equipment_backpack_options_hide_discard_without_a_floor(monke
     assert captured["options"] == (("Equip", "PACK_EQUIP:0"),)
 
 
-def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
+def test_character_consumable_options_hide_discard_without_a_floor(monkeypatch):
     from src.spacehack import pygame_story
 
     captured = {}
     ctx = SimpleNamespace(
-        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 12)],
+        ground_expedition_items=[GroundItemStack("consumable", "med_pack", 3)],
         equipped_ground_weapons=[],
         player=SimpleNamespace(pos=None),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
@@ -208,13 +208,21 @@ def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
         as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
     )
 
-    # Menu reload is gone (doc 51.3): no floor means nothing to offer.
+    # No floor means no Discard — Use stays; ammo stacks no longer
+    # reach the pack manage path at all (doc 52.2 retirement).
     assert run(
-        character_screen._manage_pack_ammo(ctx, 0, False, floor_available=False),
+        character_screen._manage_pack_stack(
+            ctx, "PACK_STACK:0", in_ground_combat=False,
+            floor_available=False,
+        ),
     ) is None
-    assert captured == {}
-    assert run(character_screen._manage_pack_ammo(ctx, 0, False)) is None
-    assert captured["options"] == (("Discard", "STACK_DISCARD:0"),)
+    assert captured["options"] == (("Use", "STACK_USE:0"),)
+    assert run(character_screen._manage_pack_stack(
+        ctx, "PACK_STACK:0", in_ground_combat=False,
+    )) is None
+    assert captured["options"] == (
+        ("Use", "STACK_USE:0"), ("Discard", "STACK_DISCARD:0"),
+    )
 
 
 def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
@@ -1078,7 +1086,7 @@ def test_guide_key_accepts_unicode_question_mark_without_k_question():
     ) is True
 
 
-def test_quantity_key_mapping_clamps_and_confirms():
+def test_quantity_key_mapping_fast_keys_clamp_and_confirm():
     class FakePygame:
         QUIT = 1
         KEYDOWN = 2
@@ -1093,16 +1101,94 @@ def test_quantity_key_mapping_clamps_and_confirms():
         K_PLUS = 18
         K_EQUALS = 19
         K_MINUS = 20
+        K_LEFT = 21
+        K_RIGHT = 22
+        K_h = 23
+        K_l = 24
+        K_PAGEUP = 25
+        K_PAGEDOWN = 26
 
     fake = FakePygame()
     key = lambda value: SimpleNamespace(type=fake.KEYDOWN, key=value)
 
-    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 1, 2) == ("IGNORE", 2)
-    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 2, 2) == ("IGNORE", 2)
-    assert pygame_quantity._handle_key(fake, key(fake.K_DOWN), 1, 2) == ("IGNORE", 1)
+    # Fine keys step 1 (doc 52.2); coarse keys step 10, clamped to bounds.
+    assert pygame_quantity._handle_key(fake, key(fake.K_RIGHT), 1, 160) == ("IGNORE", 2)
+    assert pygame_quantity._handle_key(fake, key(fake.K_LEFT), 2, 160) == ("IGNORE", 1)
+    assert pygame_quantity._handle_key(fake, key(fake.K_LEFT), 1, 160) == ("IGNORE", 1)
+    assert pygame_quantity._handle_key(fake, key(fake.K_h), 5, 160) == ("IGNORE", 4)
+    assert pygame_quantity._handle_key(fake, key(fake.K_l), 5, 160) == ("IGNORE", 6)
+    assert pygame_quantity._handle_key(fake, key(fake.K_PLUS), 7, 160) == ("IGNORE", 8)
+    assert pygame_quantity._handle_key(fake, key(fake.K_MINUS), 7, 160) == ("IGNORE", 6)
+    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 1, 160) == ("IGNORE", 11)
+    assert pygame_quantity._handle_key(fake, key(fake.K_UP), 155, 160) == ("IGNORE", 160)
+    assert pygame_quantity._handle_key(fake, key(fake.K_DOWN), 50, 160) == ("IGNORE", 40)
+    assert pygame_quantity._handle_key(fake, key(fake.K_DOWN), 5, 160) == ("IGNORE", 1)
+    assert pygame_quantity._handle_key(fake, key(fake.K_k), 20, 160) == ("IGNORE", 30)
+    assert pygame_quantity._handle_key(fake, key(fake.K_j), 20, 160) == ("IGNORE", 10)
+    # Page jumps go straight to the bounds.
+    assert pygame_quantity._handle_key(fake, key(fake.K_PAGEUP), 40, 160) == ("IGNORE", 160)
+    assert pygame_quantity._handle_key(fake, key(fake.K_PAGEDOWN), 40, 160) == ("IGNORE", 1)
     assert pygame_quantity._handle_key(fake, key(fake.K_RETURN), 2, 2) == ("CONFIRM", 2)
     assert pygame_quantity._handle_key(fake, key(fake.K_ESCAPE), 1, 2) == ("BACK", 1)
     assert pygame_quantity._handle_key(fake, SimpleNamespace(type=fake.QUIT), 1, 2) == ("QUIT", 1)
+
+
+def test_quantity_run_shared_opens_at_clamped_prefill(monkeypatch):
+    """The selector opens at the caller's prefill (doc 52.2), clamped
+    into [1, maximum]; a first-frame confirm reports it unchanged."""
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_RETURN = 16
+        K_KP_ENTER = 17
+        K_ESCAPE = 10
+
+        class font:
+            @staticmethod
+            def Font(_path, _size):
+                return None
+
+        class event:
+            @staticmethod
+            def get():
+                return [SimpleNamespace(type=2, key=16)]
+
+    class StubEngine:
+        pygame = FakePygame
+        logical_surface = object()
+
+        def present(self):
+            return None
+
+    context = SimpleNamespace(
+        _runtime=SimpleNamespace(engine=StubEngine()),
+        pump=as_async(lambda _dt: None),
+    )
+    opened = []
+    monkeypatch.setattr(
+        pygame_quantity, "_draw_quantity",
+        lambda *_args, **_kwargs: opened.append(_args[4]),
+    )
+    monkeypatch.setattr(
+        pygame_quantity.pygame_ui, "draw_context_log",
+        lambda *_args, **_kwargs: None,
+    )
+
+    assert run(pygame_quantity.run_shared(
+        context, None, "RESTOCK Pistol Rounds", 160, 1, prefill=200,
+    )) == 160
+    assert run(pygame_quantity.run_shared(
+        context, None, "RESTOCK Pistol Rounds", 160, 1, prefill=40,
+    )) == 40
+    # Sells/jettison wiring: no prefill opens at 1; a non-positive
+    # prefill clamps up to 1 (never a zero/negative purchase).
+    assert run(pygame_quantity.run_shared(
+        context, None, "Sell Iron", 60, 3,
+    )) == 1
+    assert run(pygame_quantity.run_shared(
+        context, None, "Sell Iron", 60, 3, prefill=0,
+    )) == 1
+    assert opened == [160, 40, 1, 1]
 
 
 def test_goto_menu_pygame_maps_destination_index(monkeypatch):
@@ -2081,6 +2167,7 @@ def test_armory_pygame_frame_builds_ground_weapon_details():
         equipped_ground_weapons=[],
         holstered_ground_weapons=[],
         equipped_ground_armor={},
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
 
@@ -2120,6 +2207,7 @@ def test_armory_frame_uses_shared_content_policy():
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
         holstered_ground_weapons=[],
         equipped_ground_armor={},
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
 
@@ -2143,6 +2231,7 @@ def test_armory_frame_uses_shared_content_policy():
         equipped_ground_weapons=[weapon_instance("laser_rifle")],
         holstered_ground_weapons=[weapon_instance("combat_knife")],
         equipped_ground_armor={},
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     ), "earth")
     labels = [row.label for row in grouped.right_rows if row.divider]
@@ -2481,6 +2570,7 @@ def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
         equipped_ground_weapons=[],
         holstered_ground_weapons=[],
         equipped_ground_armor={},
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
     captured = {}
@@ -2505,6 +2595,7 @@ def test_armory_frame_exposes_all_storage_modes_and_active_tab():
         ground_expedition_inventory=[
             _armory.ground_equipment.StoredGroundEquipment("armor", "light_helmet"),
         ],
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
 
@@ -2542,6 +2633,7 @@ def test_armory_frame_without_planet_id_uses_bare_title():
         equipped_ground_weapons=[],
         holstered_ground_weapons=[],
         equipped_ground_armor={},
+        bandolier={},
         stats=SimpleNamespace(credits=1000),
     )
 
@@ -3175,7 +3267,7 @@ def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
     monkeypatch.setattr(
         pygame_screen, "run_for_context", as_async(lambda *args, **kwargs: next(outcomes)),
     )
-    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 2))
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args, **_kwargs: 2))
 
     assert run(
                _ship_menu._run_pygame_ship_hangar(
@@ -3957,7 +4049,7 @@ def test_apply_jettison_removes_selected_quantity(monkeypatch):
     owned.inventory = {"food_rations": 5}
     messages = []
     ctx = SimpleNamespace(log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)))
-    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 3))
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args, **_kwargs: 3))
 
     assert run(trade._apply_jettison(ctx, owned, "JETTISON:food_rations")) is True
     assert owned.inventory == {"food_rations": 2}
@@ -3971,7 +4063,7 @@ def test_apply_jettison_full_quantity_removes_the_good(monkeypatch):
     owned = OwnedShip(ship_id="starter")
     owned.inventory = {"food_rations": 4}
     ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
-    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 4))
+    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args, **_kwargs: 4))
 
     assert run(trade._apply_jettison(ctx, owned, "JETTISON:food_rations")) is True
     assert owned.inventory == {}
@@ -4734,11 +4826,17 @@ def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
         volume = 1
 
     calls = []
+    prompted = []
     monkeypatch.setattr(trade, "find_trade_good", lambda _good_id: Good())
     monkeypatch.setattr(trade, "_unit_price", lambda *_args: 10)
     monkeypatch.setattr(trade, "_sell_price", lambda *_args: 7)
     monkeypatch.setattr(trade, "_free_cargo", lambda _owned: 5)
-    monkeypatch.setattr(trade, "_run_quantity_prompt", as_async(lambda *_args: 1))
+    monkeypatch.setattr(
+        trade, "_run_quantity_prompt",
+        as_async(
+            lambda *_args, **_kwargs: prompted.append((_args, _kwargs)) or 1,
+        ),
+    )
     monkeypatch.setattr(trade, "_buy_good", lambda *args: calls.append(("BUY", args)) or True)
     monkeypatch.setattr(trade, "_sell_good", lambda *args: calls.append(("SELL", args)) or True)
 
@@ -4751,6 +4849,11 @@ def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
     assert run(trade._apply_pygame_trade_action(ctx, "earth", "BUY:food")) is True
     assert run(trade._apply_pygame_trade_action(ctx, "earth", "SELL:food")) is True
     assert [kind for kind, _args in calls] == ["BUY", "SELL"]
+    # Doc 52.2 prefill wiring: BUY opens at its bound (stock 3 caps
+    # min(free 5, affordable 10)); SELL opens at 1 — no prefill.
+    assert prompted[0][0][2:] == (3, 10)
+    assert prompted[0][1] == {"prefill": 3}
+    assert prompted[1][1] == {}
 
 
 def test_screen_body_budget_reserves_rows_and_footer():
