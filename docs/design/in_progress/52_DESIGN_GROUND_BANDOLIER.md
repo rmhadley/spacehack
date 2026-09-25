@@ -1,11 +1,13 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 3 COMPLETE 2026-09-25 (playtest passed, incl. two
+**Status: PHASE 6 = THE LAST PHASE, BRIEF PROPOSED (2026-09-25
+refine). Phases 1-3 COMPLETE (playtest passed, incl. the
 mid-playtest rulings — feeder-free aligned Ammo column; "bandolier"
 retired from player-facing text). Phase 4 (cap gear) DEFERRED to the
-future armor/cybernetics polish pass — doc 52 ships the
-`effective_cap` seam only. Phases 5 (standard rows) and 6 (tutorial
-prose) take their briefs at their own refine time.**
+future armor/cybernetics polish pass (the `effective_cap` seam
+shipped). Phase 5 (endurance rows) MOVED to doc 50's resumption
+(SETTLED 6). Phase 6's wording is RULED (SETTLED 6) and its brief is
+proposed — doc 52 closes after 52.6 passes its playtest.**
 
 ## Overview
 
@@ -114,7 +116,40 @@ identity) and stacks-in-pack (measured non-viable at depth — below).
   the wording lands in phase 6's prose-gated pass).
 - **Landing order pinned: doc 52's tutorial/guide rewrites (52.3,
   52.6) land AFTER doc 51 phase 5's teaching pass** — 52 rewrites
-  51's fresh prose once, not the other way around.
+  51's fresh prose once, not the other way around. (SATISFIED by the
+  time SETTLED 6 ruled: doc 51's teaching pass — renumbered phase 4 —
+  landed and RETAINED the stack clause for 52.6 to rewrite.)
+
+## SETTLED 6 (2026-09-25, user — phase 5 moves to doc 50; phase 6
+## wording ruled)
+
+- **Phase 5 (endurance rows) MOVES to doc 50's resumption** (user:
+  "yes, phase 5 will be revisited when I pick back up doc 50."). The
+  phase-5 bullet's coordination partner was doc 51's re-rule phase —
+  removed by doc 51 SETTLED 4, whose re-measure + fresh sweeps +
+  proposed ×2-2H doctrine now live in doc 50's resumption queue, and
+  that queue waits on doc 52's close. Landing the kills-of-endurance
+  rows there pins them ONCE under the final world (the ×2-2H retune,
+  if ruled, is the only known mover of those numbers — pinning now
+  would buy a tripwire for a planned change and pay a
+  benchmark-revision commit on retune). The "with and without cap
+  gear" half is dead anyway (phase 4's deferral). The battle-×2
+  measurement travels with the rows. Doc 52's remaining scope is
+  phase 6 only; after 52.6 lands and passes, doc 52 closes and doc
+  50's resumption unblocks with the endurance rows in its first
+  passes. The phase-1 store swap's byte-identical board diff stands
+  as doc 52's balance obligation, already discharged.
+- **Phase 6 wording: AGNOSTIC — no round count in the popup** (user:
+  "yes, keep it agnostic. yes Pistol Rounds works."). The earth_armory
+  beat's stale clause becomes, verbatim: "...and buy two Kinetic
+  Pistols and a Combat Knife, then restock your Pistol Rounds." The
+  restock modal's prefill (min(affordable, space-to-cap) ≈ 145
+  rounds for the tutorial character) and fast keys are the teacher;
+  naming no count means nothing in the teaching contradicts the
+  modal's prefill, and the credit-margin choice (rounds vs armor/med
+  packs) stays the player's. "Pistol Rounds" = the RESTOCK row's own
+  item name. The 52.3 playtest ruling binds: the tutorial never says
+  "bandolier" — the approved wording already complies.
 
 ## Measured evidence (doc 50 session, 2026-09-25)
 
@@ -209,7 +244,9 @@ rows (doc 50 SETTLED 6).
   AP tempo are untouched).
 - Doc 50's standard: `ammo_spent` bars unchanged (rounds fired still
   measures shot efficiency); NEW pin family — kills-of-endurance per
-  caliber, with and without the cap gear.
+  caliber. (The "with and without the cap gear" half retired with
+  phase 4's deferral; the rows themselves MOVED to doc 50's
+  resumption — SETTLED 6.)
 
 ## Phases
 
@@ -228,9 +265,14 @@ rows (doc 50 SETTLED 6).
   cybernetics polish pass: `ammo_bonus` field + first items +
   quality scaling + the flat-vs-per-type ruling. Doc 52 ships only
   the `effective_cap` bonus seam (phase 1).
-- [ ] 5. **Standard rows + re-rule** — kills-of-endurance pins per
-  caliber, board re-measure coordinated with doc 51's re-rule phase
-  (one benchmark-revision commit if the waves land together).
+- [ ] 5. **Endurance rows — MOVED to doc 50's resumption (SETTLED 6,
+  2026-09-25)**: kills-of-endurance pins per caliber + the battle-×2
+  measurement land with doc 50's first re-measure passes (the re-rule's
+  new home after doc 51 SETTLED 4 removed it), pinned once under the
+  final post-retune world. The "with and without cap gear" half retired
+  with phase 4's deferral. (The original clause — "coordinated with
+  doc 51's re-rule phase" — went stale when doc 51 SETTLED 4 removed
+  that phase; rewritten by SETTLED 6.)
 - [ ] 6. **Teaching** — tutorial armory beat rewording (prose-gated:
   user wording before data strings).
 
@@ -244,7 +286,9 @@ Each phase gets its Implementation brief at its own refine time.
    drop refills energy cells; over-cap pickups ignored.
 3. HUD reads 132/160 under fire; guide paragraph accurate.
 4. Equip the rig → caps rise; Modded quality scales the bonus.
-5. Endurance rows green in `make check`.
+   (Deferred with phase 4 — the future armor/cybernetics pass.)
+5. Endurance rows green in `make check`. (Moved with phase 5 to doc
+   50's resumption — SETTLED 6.)
 
 ### Phase 1 Pre-implementation audit (2026-09-25 build session)
 
@@ -1183,6 +1227,99 @@ reserve, and the Equipment split-frame pins (test_pygame_ui);
 guide-content pins ×3 (test_help_guide). Cohorts + full gate green
 throughout (3026 passed at close).
 
+### Phase 6 Implementation brief (PROPOSED 2026-09-25 — SETTLED 6;
+### amended per the ADVISE pass (all five issues folded); wording
+### ruled in-session, prose gate satisfied; doc 52's last phase)
+
+**Scope (files / hook points):**
+
+- **`src/spacehack/tutorial.py` ONLY** — the same file-only shape as
+  doc 51.4's teaching brief. Two edits:
+  1. `_STEP_BODIES["earth_armory"]` (:158-168), the stale clause —
+     prose gate: user-approved wording, verbatim (SETTLED 6):
+     BEFORE: `"...and buy two Kinetic Pistols, a Combat Knife, and a
+     stack of Pistol Rounds.\n\n"`
+     AFTER: `"...and buy two Kinetic Pistols and a Combat Knife, then
+     restock your Pistol Rounds.\n\n"`
+     Everything else in the beat is live-accurate and UNTOUCHED — the
+     12-damage volley sentence, the R-reload sentence ("Kinetic guns
+     need ammo - press 'R' to reload when a magazine runs dry."), and
+     doc 51's sets/X teaching. Full-corpus verification (done at this
+     refine): this is the ONLY stale player-facing clause in
+     tutorial.py; no body contains "bandolier" or "reserve"; "Melee
+     weapons never need ammunition." stays true.
+  2. The `TUTORIAL_CREDIT_BONUS` comment block (:27-31; ADVISE issue 5
+     — :26 is blank): the "40-round Pistol Rounds stack (40$) = 130$"
+     arithmetic is stale — rewrite to the restock world (gear 90$
+     leaves ~145$; the restock prefill offers min(affordable,
+     space-to-cap) ≈ 145 rounds at 1$/round; the popup deliberately
+     names no count — rounds-vs-armor margin is the player's choice).
+     Dev-facing, rides the same phase.
+- **`tests/test_tutorial.py`** — the content pin at :91 updates to
+  the new clause verbatim (it rides the PROSE commit — see build
+  order). `"a stack of"` gets its OWN small 52.6 corpus test: the
+  existing banned-phrase loop is `test_stale_slot_sentence_gone`
+  inside `TestDoc51WeaponSetCopy` (:103-106), named and docstringed
+  for doc 51's slot sentence — a 52.6 concern doesn't smuggle into it
+  (ADVISE issue 4).
+- **Guide: NONE.** 52.3 landed the guide's three rewrites; the
+  tutorial popup is not the guide. The build greps
+  `src/spacehack/data/guide/__init__.py` for stack-buy vocabulary as
+  verification and reports the none-found result on the checklist
+  (guide diffs never ride silently — here the diff IS none, verified
+  and stated; ADVISE note: the guide corpus lives at that path, not
+  repo-root data/).
+- **Cross-doc annotation** (`docs/design/in_progress/
+  50_DESIGN_COMBAT_BALANCE_SIMULATOR.md`, SETTLED 4's parenthetical
+  at :169-170; ADVISE issue 3): doc 50 defines its first ground
+  scenario as "the loadout the tutorial itself teaches (two Kinetic
+  Pistols + a stack of Pistol Rounds)" — the parenthetical goes stale
+  when this phase lands (the taught LOADOUT is unchanged; the
+  stack-buy phrasing is gone). One-line annotation rides this phase
+  so the stale clause doesn't travel into doc 50's re-measure passes
+  — doc 50's resumption is the very next event after doc 52 closes.
+
+**Build order:** body clause + its :91 pin update (ONE commit — the
+prose commit; committing the clause without its pin leaves
+`make check` red, and a pin on the prose is not a "mechanical rider"
+in the gate's sense — ADVISE issue 1) → comment rewrite + the 52.6
+corpus test + the doc-50 annotation → full gate → PLAYTEST.
+
+**Binding rulings:** SETTLED 6 (the verbatim wording; phase 5's move
+puts all balance work out of scope); the 52.3 playtest ruling
+("bandolier" never player-facing — binds the tutorial; the approved
+wording complies); SETTLED 5's landing-order pin (satisfied — doc
+51.4's teaching landed and retained the stack clause for this phase
+to rewrite once).
+
+**Required tests:** the updated earth_armory content pin (new clause
+verbatim); a DEDICATED 52.6 corpus test asserting no `_STEP_BODIES`
+entry contains `"a stack of"` (the doc-51-named loop at :103-106 left
+alone); the doc-51 wording pins at :92-93 stay green UNTOUCHED —
+proof the phase changes one clause and nothing else; no new
+machinery.
+
+**Stop point:** no other tutorial step copy (doc-51-fresh prose
+stands), no guide edits, no armory/HUD/code behavior changes, no
+save-format changes (step KEYS unchanged — bodies are static copy),
+no balance/rows work (phase 5 lives in doc 50 — this phase's ONE
+doc-50 touch is the annotation above, nothing else), no dev-mode
+changes. `tutorial.py` + its pins (and the one-line doc-50
+annotation) ONLY.
+
+**Playtest checkpoint:** 1) Fresh tutorial game (new Human Merchant
+run) → reach Earth's armory beat: the popup reads the new wording.
+2) Follow it: buy two Kinetic Pistols + Combat Knife (~90$), open the
+AMMUNITION section, RESTOCK Pistol Rounds (modal prefills; fast keys
+work), land on Mars with rounds in reserve and credits to spare.
+3) The beat's remaining sentences (volley/R/X) read unchanged.
+4) GUIDE DIFF: none (grep-verified at build against
+`src/spacehack/data/guide/__init__.py` — stated on this checklist).
+5) Doc 50's SETTLED 4 parenthetical annotated (one line: taught
+loadout unchanged, stack phrasing gone). 6) Save → quit → Continue
+mid-tutorial: the beat's state is unchanged (nothing stateful moved).
+7) `make check` green.
+
 ## Open questions
 
 1. ~~**`ammo_bonus` shape**~~ ANSWERED — SETTLED 4: deferred to the
@@ -1198,3 +1335,11 @@ throughout (3026 passed at close).
    character screen = all six.
 7. ~~**The armory gap (ADVISE issue 5)**~~ ANSWERED — SETTLED 3:
    the one-session gap is accepted (phases build back-to-back).
+8. ~~**Phase 5 sequencing** (posed 2026-09-25: pin endurance rows
+   now, or fold into doc 50's resumption? — doc 51 SETTLED 4's
+   removal of the re-rule phase made the original "coordinated with
+   doc 51's re-rule" clause stale, and doc 50's queue waits on doc
+   52's close)~~ ANSWERED — SETTLED 6: moved to doc 50's resumption.
+9. ~~**Phase 6 wording: teach a round count or stay agnostic?**~~
+   ANSWERED — SETTLED 6: agnostic, verbatim "then restock your
+   Pistol Rounds." (the modal's prefill + fast keys are the teacher).
