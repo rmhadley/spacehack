@@ -316,6 +316,96 @@ board re-rule (5), no tutorial prose (6).
 7. Save/load: migrated save re-saves and re-loads cleanly (sniff
    test).
 
+### Phase 2 Implementation brief (PROPOSED 2026-09-25 — SETTLED
+### 2/3; builds IMMEDIATELY after phase 1 per the accepted gap)
+
+**Scope (files / hook points):**
+
+- **Armory restock-to-cap** (`menus/_armory_buy.py` + `_armory.py`):
+  RETIRE the ammunition buy section (`_buy_ammo_rows`); add
+  RESTOCK rows for CARRIED calibers only (the HUD ruling's logic
+  applied to the shop — you restock what you're armed with), priced
+  rounds-actually-added × `price_per_round` (SETTLED 2). Buying a
+  weapon you lack ammo for is followed by an immediate restock
+  prompt in the same terminal visit (flow detail at build).
+- **Armory-storage migration** (`saveload_ground.py` load path,
+  extending phase 1's): `ground_armory_items` ammo stacks convert
+  into bandolier counts at cap + credit refund — the "legacy
+  stacks" scope the ADVISE pass deferred here.
+- **Pack ammo-class retirement**: with purchase retired, spawners
+  spawning entities, and pickups refilling the bandolier, no
+  creation path for pack ammo stacks remains — pin it (a test that
+  no code path constructs `GroundItemStack("ammo", ...)` into the
+  pack) and remove any dead sell/market handling for the class.
+
+**Build order:** restock UI → armory-storage migration → class
+retirement + dead-sell removal → tests → full gate → PLAYTEST.
+
+**Binding rulings:** SETTLED 2 (per-round pricing, overflow
+ignored), SETTLED 3 (back-to-back with phase 1), SETTLED 4
+(carried-caliber display logic extends to the shop).
+
+**Required tests:** restock pricing (a near-full caliber costs
+pennies; an empty one costs cap × per-round), restock rows appear
+for carried calibers only, armory-storage migration round-trip, the
+no-pack-ammo-creation pin.
+
+**Stop point:** no HUD/character-screen readout (3), no guide edits
+(3), no endurance rows or board re-rule (5), no tutorial prose (6).
+
+**Playtest checkpoint:** 1) A new character: buy two pistols, top
+the bandolier at the armory, fight — full tutorial flow works
+without pack stacks. 2) An old save's armory-stored stacks convert
++ refund on load. 3) No path anywhere produces a pack ammo stack.
+4) Restock price reads exactly rounds-added × per-round. 5) `make
+check` green.
+
+### Phase 3 Implementation brief (PROPOSED 2026-09-25 — SETTLED 4)
+
+**Scope (files / hook points):**
+
+- **Combat HUD** (`combat/_ground_render.py`): the reserve read
+  (re-pointed in phase 1) renders as current/max for CARRIED
+  calibers only (SETTLED 4) — one line per caliber the equipped
+  weapons use.
+- **Character screen** (`character_screen.py`): the same
+  carried-caliber current/max readout in the equipment tab.
+- **Guide** (`data/guide/__init__.py`, Ground Gear): rewrite the
+  ammunition paragraph — the "matching ammunition in your
+  Expedition Pack" line flagged stale since phase 1, and "Buy
+  ground ammo at the Armory" becomes restock phrasing. PROPOSED
+  WORDING (prose-gated — settles at this phase's checkpoint):
+  "Reloadable weapons draw from your bandolier — the rounds you
+  carry for each caliber, topped up at any armory or from
+  battlefield pickups, up to a per-caliber carry limit. In combat,
+  R reloads the first active weapon with room in its magazine.
+  Outside combat, reloading is free. If multiple carried weapons
+  can use the reserve outside combat, R opens a chooser. Melee and
+  plasma weapons never need ammunition." (Plasma/melee identity
+  sentences unchanged.)
+
+**Build order:** HUD line → character-screen readout → guide
+paragraph (user-approved wording) → tests → full gate → PLAYTEST.
+
+**Binding rulings:** SETTLED 4 (carried calibers only); the guide
+contract (diff rides this checkpoint verbatim); the prose gate
+(wording approved before the data string lands).
+
+**Required tests:** HUD renders current/max for carried calibers
+only (a pistol pair shows one line; plasma/melee show none),
+character-screen readout pins, guide-content pins for the rewritten
+paragraph.
+
+**Stop point:** no gear seam work (4 is deferred), no rows (5), no
+tutorial prose beyond the guide (6).
+
+**Playtest checkpoint:** 1) In a ground fight with pistols: the HUD
+shows e.g. 132/160; a reload visibly decrements it. 2) Plasma or
+melee equipped: no ammo line. 3) Character screen shows
+carried-caliber readouts only. 4) GUIDE DIFF (before/after, exact):
+the Ground Gear ammunition paragraph as above. 5) `make check`
+green.
+
 ## Open questions
 
 1. ~~**`ammo_bonus` shape**~~ ANSWERED — SETTLED 4: deferred to the
