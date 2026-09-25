@@ -517,6 +517,55 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
     return _render_help_lines(console, hud_x, y, _help_lines)
 
 
+def _print_ground_weapon_rows(console, hud_x: int, y: int, equipped) -> int:
+    """One row per active-set weapon: name + magazine cur/cap (doc 52.3)."""
+    from .data.quality import effective_weapon_spec, quality_color
+    from .ground_equipment import display_name
+    from .ground_weapon_ammo import magazine_indicator
+
+    for _inst in equipped:
+        try:
+            ws = effective_weapon_spec(_inst.weapon_id, _inst.quality)
+        except KeyError:
+            continue
+        console.print(
+            x=hud_x, y=y,
+            string=(
+                f"{display_name('weapon', _inst.weapon_id, _inst.quality)}"
+                f"{magazine_indicator(ws, _inst)}"
+            )[:HUD_TEXT_MAX],
+            fg=quality_color(_inst.quality) or COLOR_VALUE_WHITE,
+        )
+        y += 1
+    return y
+
+
+def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
+    """Paint the dungeon weapons block (doc 52.3): active-set rows with
+    magazine state, the dim holster names, and the shared caliber lines.
+
+    No volley checkboxes, DMG/HIT, or RNG rows — there is no target
+    outside combat. The fists floor stays silent (doc 51 SETTLED 2):
+    the block renders only when some weapon is actually carried.
+    """
+    _equipped = list(getattr(ctx, "equipped_ground_weapons", None) or [])
+    if not _equipped and not (getattr(ctx, "holstered_ground_weapons", None) or []):
+        return y
+    console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_HUD_TITLE)
+    y = _print_ground_weapon_rows(console, hud_x, y + 1, _equipped)
+    _holster = ground_holster_names(ctx)
+    if _holster:
+        console.print(
+            x=hud_x, y=y, string=f"HOLSTER  {_holster}"[:HUD_TEXT_MAX],
+            fg=COLOR_VALUE_DIM,
+        )
+        y += 1
+    for line in bandolier_hud_lines(ctx):
+        console.print(x=hud_x, y=y, string=line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
+        y += 1
+    return y
+
+
 def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal) -> None:
     """Paint the city/dungeon-mode HUD body below the title."""
     character = ctx.character_info
@@ -547,6 +596,8 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
         has_mech_terminal=has_mech_terminal,
         has_trade_terminal=has_trade_terminal,
     )
+    if mode == "dungeon":
+        y = _render_ground_weapons_block(console, hud_x, y, ctx)
     y += 1
     _render_divider(console, hud_x, y)
     y += 2

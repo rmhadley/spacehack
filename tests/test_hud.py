@@ -5,7 +5,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from src.spacehack import hud, hud_combat
-from src.spacehack.ground_equipment import StoredGroundEquipment
+from src.spacehack.ground_equipment import (
+    GroundWeaponInstance,
+    StoredGroundEquipment,
+)
 from src.spacehack.framebuffer import FrameBuffer
 
 _WHITE = (255, 255, 255)
@@ -135,6 +138,94 @@ def test_city_hp_row_uses_the_bar_layout():
     )
     row = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     assert row == "HP      ########## 10/10"
+
+
+def _ground_weapons_ctx(**extra):
+    """Dungeon-HUD ctx carrying the ground loadout fields (doc 52.3)."""
+    ctx = SimpleNamespace(
+        character_info={"species_name": "Human", "class_name": "Merchant"},
+        stats=hud.HudStats(10, 10, 100),
+        player_owned_ship=None,
+        player_xp=0,
+        player_level=1,
+        player_skill_points=0,
+        ground_stats=None,
+        ground_hp=10,
+        ground_max_hp=10,
+        equipped_ground_armor={},
+        time_day=1,
+        time_month=1,
+        time_year=2200,
+    )
+    for key, value in extra.items():
+        setattr(ctx, key, value)
+    return ctx
+
+
+def test_dungeon_hud_renders_the_weapons_block():
+    """Doc 52.3: the dungeon HUD shows the same weapons/ammo family as
+    combat — active rows with magazine state, dim holster names, and
+    the shared caliber lines."""
+    ctx = _ground_weapons_ctx(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        holstered_ground_weapons=[GroundWeaponInstance("laser_pistol", None)],
+        bandolier={"kinetic_pistol": 132, "energy_cell": 61},
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="dungeon",
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "WEAPONS" in rows
+    assert "Kinetic Pistol [5/12]" in rows
+    assert any(row.startswith("HOLSTER  Laser Pistol") for row in rows)
+    assert "PST 132/160" in rows
+    assert "CEL 61/250" in rows
+
+
+def test_city_hud_renders_no_weapons_block():
+    """The block is dungeon-only (doc 52.3 folded default) — city mode
+    keeps the armory/C-screen loadout view."""
+    ctx = _ground_weapons_ctx(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        bandolier={"kinetic_pistol": 132},
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="city",
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "WEAPONS" not in rows
+    assert "PST 132/160" not in rows
+
+
+def test_dungeon_weapons_block_silent_on_bare_fists():
+    """Both sets empty = the fists floor: no WEAPONS header, no ammo
+    lines (doc 51 SETTLED 2's silence, held by the 52.3 block)."""
+    ctx = _ground_weapons_ctx(
+        equipped_ground_weapons=[], holstered_ground_weapons=[],
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="dungeon",
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "WEAPONS" not in rows
 
 
 def test_dungeon_stat_rows_show_current_ground_armor():
