@@ -2,8 +2,10 @@
 
 **Status: BUILDING (2026-09-25) — phases 1-2 LANDED + PLAYTEST
 PASSED (phase 2 seven/seven incl. the X-on-explore-HUDs mid-playtest
-ruling); phase 3 LANDED (ten commits, two review rounds APPROVE)
-— AWAITING PLAYTEST (the 11-item checklist in the phase-3 brief).
+ruling); phase 3 LANDED + PLAYTEST PASSED 2026-09-25 (two review
+rounds APPROVE; one mid-playtest round: both-slot-rows + ARMOR
+header, 2a97a7d1). Next: phase 4 (standard re-rule) — unbuilt,
+needs its brief at refine time.
 Core rulings SETTLED 1–3; open questions 1–2 (tutorial wording,
 board immunity) parked at their phases.**
 
@@ -130,8 +132,9 @@ The design is driven by measured failures of the 2-slot world:
   explore HUDs, a8fdd94b). Dispatch action + key (6a law:
   table + VIM + main-loop helpers), 1-AP cost, refresh, HUD
   indicator, input-path tests, guide Controls entry.
-- [x] 3. **Equipment UI** — LANDED 2026-09-25 (ea5bf16d…e2b92e4b +
-  guide deaf038f; two review rounds APPROVE), awaiting playtest.
+- [x] 3. **Equipment UI** — LANDED + PLAYTEST PASSED 2026-09-25
+  (ea5bf16d…e2b92e4b + guide deaf038f; two review rounds APPROVE;
+  one mid-playtest round — both-slot-rows + ARMOR header — 2a97a7d1).
   Armory/character screen set-aware equip; pack relief (holstered
   never counted); tinker-kit reach covers holstered members
   (`tinker.py` `_weapon_targets`, phase-1 reviewer catch); UI tests.
@@ -954,10 +957,9 @@ green at 2983 tests.
   weapon group headers (the armory's existing ``ARMOUR SLOTS``
   header is untouched).
 
-Items 1 (group rendering half: both groups [empty] with no marker on
-a weaponless save — correct per the unfounded-no-marker build-shape
-ruling) and the ARMOR layout seen in round 1; the rest of the 11-item
-checklist still open.
+**PASSED 2026-09-25** — round 1 returned the two rulings above
+(landed 2a97a7d1) and the re-run cleared the full 11-item checklist;
+guide edits reviewed as part of the pass.
 
 ### Phase 3 pre-implementation audit (2026-09-25, build session)
 

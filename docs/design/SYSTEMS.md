@@ -564,9 +564,12 @@ nobody designs against a ghost.
   silent 30-entity cap (`combat/_actions.spawn_kill_drops` /
   `_spawn_kit_drop`; pools authored in `data/npc_chars/`).
 - **Player kit** — HP 20 + stamina/3 + armor + traits; AP 4 +
-  bonuses; reload costs AP in combat (free at dungeon screen);
-  consumables with timed effects; equipment swaps cost 1 AP
-  (`combat/_rules_ground.py`; `ground_reload_ui.py`,
+  bonuses; R is the only reload verb — the weapon's reload AP in
+  combat, free at the dungeon screen (doc 51.3 removed the menu
+  reloads); consumables with timed effects; EVERY equipment change
+  through C costs 1 AP mid-combat, uniform across weapons, armor,
+  and either set (doc 51.3) (`combat/_rules_ground.py`;
+  `ground_reload_ui.py`; `character_screen._apply_equipment_select`;
   `ground_consumables.py`).
 
 ## Cities & ground life
@@ -662,14 +665,18 @@ nobody designs against a ghost.
   animates offscreen and returns, keeping identity; launch spawns
   space with a spawn-exclusion ring (`city.py`: `_launch_to_space`).
 - **Ground gear** — strength-capped expedition pack (4 + 1/5 STR
-  over 10), 2 weapon slots, five armor slots (incl. the cybernetics
-  subfamily — eyes/torso/arms/legs pieces whose
+  over 10), two class-keyed weapon sets (see Ground weapon sets),
+  five armor slots under an `--- ARMOR ---` group (incl. the
+  cybernetics subfamily — eyes/torso/arms/legs pieces whose
   `ap/hit/melee/hp_bonus` fields are the cyber identity,
   `data/ground_armor/vests.py`); per-weapon magazines +
-  ammo types (6), reload picks among weapons sharing the ammo
-  (`ground_equipment.py`: `expedition_capacity`; `data/ground_items/
+  ammo types (6), reload picks among weapons sharing the ammo, and
+  magazines ride stored entries through every store/displacement/
+  install round-trip (legacy/absent = full seed; `StoredGroundEquipment.
+  loaded_ammo`, doc 51.3) (`ground_equipment.py`:
+  `expedition_capacity`, `stored_mag_suffix`; `data/ground_items/
   ammo.py`: `AMMO`).
-- **Ground weapon sets (doc 51 phases 1-2)** — loadout is
+- **Ground weapon sets (doc 51 phases 1-3)** — loadout is
   two class-pure sets (membership table on `damage_type`: melee vs
   kinetic/energy/plasma/explosive); the ACTIVE set is still
   `ctx.equipped_ground_weapons` (combat reads it unchanged) and the
@@ -692,6 +699,21 @@ nobody designs against a ghost.
   holstered (`dev_mode._best_set_weapon`); Shift+W dumps both
   sets (`ground_weapon_sets.py`; `saveload_ground.py`:
   `_restore_weapon_sets`).
+  **Phase 3 — sets are CLASS-KEYED homes (SETTLED 3)**: a weapon
+  always equips into its class's set via the total founding rule
+  (`resolve_weapon_home`: holding set wins, both → ACTIVE, unfounded
+  → the empty set, both-empty → ACTIVE, degenerate no-home →
+  refusal line); active/holstered are roles X flips. Both equipment
+  screens render the two groups with role markers and BOTH slot
+  rows (2H-founded sets mark slot 2 occupied); equipping into a
+  full set opens the member chooser (1H pick displaces one, 2H the
+  whole set — to the pack on the C path, pack-then-warehouse on the
+  armory path; a 2H overflow aborts atomically); Store/Sell work on
+  either set's members; tinker kits reach both sets
+  (`KIT:WEAPON:{class}:{idx}`). All installs go through the atomic
+  `install_set_weapon` (`ground_weapon_sets.py`; screens:
+  `character_screen_weapons.py`, `menus/_armory.py`;
+  `tinker._weapon_targets`).
 - **Consumables** — med_pack heal+regen, stim +1 AP, tinker kit
   quality-raise (loot-only, never sold — doc 47.5); AP-costed in
   combat, stack decrements only after the effect validates
@@ -1112,7 +1134,9 @@ nobody designs against a ghost.
   `KIT_*_RATE` constants in `data/quality.py`, pinned by test);
   never shops (`GroundConsumableSpec.shop_available=False` gates
   the armory buy rows — the load-bearing default-True field),
-  never exterior space kills, no delve-bottom guarantee. Use
+  never exterior space kills, no delve-bottom guarantee. Targets
+  cover BOTH weapon sets — class-keyed addresses that survive X
+  flipping the roles (doc 51.3). Use
   from the pack's consumable manage modal intercepts at
   `character_screen._manage_consumable_stack` →
   `tinker.try_manage_kit` (returns None for non-kits, falling
