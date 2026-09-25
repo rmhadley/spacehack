@@ -1,8 +1,8 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 1 COMPLETE 2026-09-25 (playtest passed) — SETTLED 1-5;
-phase 2 brief APPROVED and builds next, immediately per SETTLED 3;
-phase 3 briefed. Phase 4 (cap gear) DEFERRED to the future
+**Status: PHASE 2 LANDED 2026-09-25 (build record below — REVIEW
+APPROVE, gate green, playtest PENDING). SETTLED 1-5; phase 3 briefed
+and next. Phase 4 (cap gear) DEFERRED to the future
 armor/cybernetics polish pass — doc 52 ships the `effective_cap` seam
 only. Phases 5 (standard rows — needs the landed world's
 measurements) and 6 (tutorial prose — the prose gate) take their
@@ -219,7 +219,7 @@ rows (doc 50 SETTLED 6).
   re-point (SETTLED 1 scope amendment). Tests: round-trip incl.
   migrated saves, cap clamps, multi-caliber independence, reload
   integration, plasma/melee untouched.
-- [ ] 2. **Economy surfaces** — armory restock-to-cap, pack
+- [x] 2. **Economy surfaces** — armory restock-to-cap, pack
   ammo-class retirement, market/sell handling for legacy stacks.
   Tests: restock pricing.
 - [ ] 3. **HUD + guide** — bandolier line(s), Ground Gear paragraph,
@@ -690,6 +690,67 @@ brief's three-edit audit; the quantity modal's keys appear NOWHERE
 in the guide (the modal's own hint line is the only teacher) — so
 the hint rewrite is the modal's business, quoted at this phase's
 checkpoint as a player-facing string. No phase-2 guide edits.
+
+### Phase 2 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+
+**Commits:** 4a9b7304 (pre-implementation audit) → fd81d32e
+(quantity modal fast keys + buy-side prefill; trade BUY sites wired)
+→ 7f82736f (armory RESTOCK replaces the ammunition buy section; pack
+ammo class retires across armory + character screen; field-item
+family splits to `menus/_armory_field_items.py`, paying `_armory.py`'s
+ratchet 998 → 861 in-commit as the audit budget-noted) → 9504bf9a
+(armory-storage migration joins the pack's on load: both containers
+convert at cap via shared `_convert_ammo_stacks`, overflow refunds,
+one log pair; state-level retirement pin).
+
+**Reviewer (REVIEW): APPROVE** — six [minor], all applied
+mechanically + test-pinned in the same session, no re-spawn (loop
+rule): (1) `PygameQuantityQuit` now converts to `SystemExit` at both
+armory modal sites (trade's existing convention — closing the window
+mid-restock quits, never bubbles a RuntimeError); (2)
+`_transfer_field_item` reuses `_destination_storages` (the extraction
+had stopped one call site short); (3) prefill pins extended — no-
+prefill opens at 1, non-positive clamps to 1, and the trade wiring is
+pinned (BUY prefills at its bound, SELL passes none); (4) the
+consumable-buy guard splits its conflated message (cannot-afford vs
+destination-full, reusing restock's afford line verbatim); (5) the
+new module renamed `_armory_items` → `_armory_field_items` (name
+collision with `_armory._armory_items(ctx)` was a patch-time trap);
+(6) prose verbatims quoted below. The reviewer independently re-ran
+the test cohorts, re-derived the refund arithmetic (200 pistol → 160
+cap + 40cr; 12 rockets → 10 cap + 40cr; 12 rifle under cap →
+"Packed 182"/"Refunded 42 ... 80$."), verified zero surviving dead
+references by rg, and confirmed no ammo-stack creation path survives
+(loot → refill, armory → literal "consumable", dev grants →
+consumables, migration strips both containers).
+
+**Rulings made at build time (from SETTLED 5's wording, surfaced for
+the playtest):** prefill is an opt-in parameter wired at BUY sites
+only — the modal cannot distinguish buy from sell (jettison passes
+price=0; a modal-computed credits//price prefill would misfire sells
+and dump-everything jettisons). PLUS/EQUALS/MINUS and vim H/L join
+LEFT/RIGHT as the +/-1 fine keys (the old +/-1 arrows UP/DOWN/K/J
+become the +/-10 coarse keys).
+
+**Doc-50 board: no report diff run this phase** — phase 2 changes no
+reload or combat path (stances never shop); the phase-1
+byte-identical board stands.
+
+**Prose gate — new/changed player-facing strings, landing at this
+checkpoint for sign-off (verbatims):**
+1. Quantity modal hint (pygame_quantity.py): `LEFT/RIGHT +/-1,
+   UP/DOWN +/-10, PGUP/PGDN min-max` (was `UP/DOWN adjust`).
+2. Restock row detail (_armory_buy.py): `Reserve {current}/{cap}
+   {price}$/round` (e.g. "Reserve 132/160  1$/round"); section
+   header stays `AMMUNITION`; row label = the caliber name.
+3. Restock modal label (_armory_field_items.py): `RESTOCK {name}`.
+4. Restock at cap: `Your {name} reserve is already full.`
+5. Restock unaffordable: `You cannot afford {name}.` (also now the
+   consumable-buy guard's afford branch).
+6. Restock purchase: `Restocked {added} {name} for {cost}$.`
+7. Consumable re-check tail (_armory_field_items.py): was `You can
+   no longer afford that ammunition.`, now `You can no longer afford
+   that consumable.`
 
 ### Phase 3 Implementation brief (APPROVED 2026-09-25 — SETTLED 4
 ### + the user's HUD-scope amendment: HUD relevant-calibers,
