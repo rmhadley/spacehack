@@ -1,4 +1,11 @@
-"""Shared reload actions for ground weapons."""
+"""Shared reload actions for ground weapons.
+
+Doc 51 phase 3 removed the menu-facing reload offerings (R is the
+only reload verb — in combat at the weapon's reload AP, free in
+dungeon exploration). What remains is R's engine: slot resolution,
+the AP gate, and the transactional apply that
+:func:`reload_exploration` drives.
+"""
 
 from __future__ import annotations
 
@@ -25,18 +32,6 @@ def reloadable_pack_slots(ctx, ammo_type: str | None = None) -> tuple[int, ...]:
         ) > 0:
             slots.append(slot)
     return tuple(slots)
-
-
-def weapon_reload_option(ctx, slot: str) -> tuple[str, str] | None:
-    """Return the explicit Reload button for one equipped weapon, if valid."""
-    try:
-        _slot = int(slot)
-        ctx.equipped_ground_weapons[_slot]
-    except (IndexError, TypeError, ValueError):
-        return None
-    if _slot not in reloadable_pack_slots(ctx):
-        return None
-    return "Reload", f"RELOAD_SLOT:{_slot}"
 
 
 def _resolve_reload_target(ctx, slot):
@@ -170,30 +165,6 @@ async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
     return slot if slot in slots else None
 
 
-async def reload_pack_ammo(ctx, index: int, in_ground_combat: bool) -> bool:
-    """Reload from one ammo stack, choosing among matching weapons."""
-    from .data.ground_items import find_ground_ammo
-
-    items = getattr(ctx, "ground_expedition_items", [])
-    if not 0 <= index < len(items):
-        ctx.log.add("That ammo is no longer available.")
-        return False
-    if items[index].item_type != "ammo":
-        ctx.log.add("That item is not ammunition.")
-        return False
-    ammo_type = find_ground_ammo(items[index].item_id).ammo_type
-    slots = reloadable_pack_slots(ctx, ammo_type)
-    if not slots:
-        ctx.log.add("No equipped weapon needs that ammo.")
-        return False
-    slot = await _choose_reload_slot(ctx, slots) if len(slots) > 1 else slots[0]
-    return slot is not None and reload_weapon_slot(
-        ctx, slot,
-        in_ground_combat=in_ground_combat,
-        charge_ap=in_ground_combat,
-    )
-
-
 async def reload_exploration(ctx) -> bool:
     """Reload from the dungeon screen without spending a turn."""
     slots = reloadable_pack_slots(ctx)
@@ -204,33 +175,3 @@ async def reload_exploration(ctx) -> bool:
     return slot is not None and reload_weapon_slot(
         ctx, slot, in_ground_combat=False, charge_ap=False,
     )
-
-
-async def manage_pack_ammo(
-    ctx, index: int, in_ground_combat: bool, *,
-    floor_available: bool = True,
-) -> str | None:
-    """Offer Reload (and Discard, with a floor) for one ammo stack."""
-    from . import pygame_story
-    from .character_screen import _discard_pack_stack, _item_stack_name
-
-    name = _item_stack_name(ctx.ground_expedition_items[index])
-    options = (("Reload", f"STACK_RELOAD:{index}"),)
-    if floor_available:
-        options += (("Discard", f"STACK_DISCARD:{index}"),)
-    chosen = await pygame_story.choose(
-        ctx, title="AMMO", body=name,
-        options=options,
-        caption="spacehack - ammo", compact=True,
-    )
-    if chosen in {None, "__BACK__", "__DISMISS__", "__GUIDE__"}:
-        return None
-    if chosen == "__QUIT__":
-        raise SystemExit
-    if chosen.startswith("STACK_RELOAD:"):
-        return "RELOAD" if await reload_pack_ammo(
-            ctx, index, in_ground_combat,
-        ) else None
-    if chosen.startswith("STACK_DISCARD:"):
-        return "DISCARD" if _discard_pack_stack(ctx, index) else None
-    return None

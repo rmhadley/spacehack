@@ -706,6 +706,7 @@ def test_equipment_rows_colour_weapon_armor_and_pack_names():
         equipped_ground_weapons=[
             GroundWeaponInstance("mono_blade", None, 1),
         ],
+        holstered_ground_weapons=[],
         equipped_ground_armor={
             "body": StoredGroundEquipment("armor", "light_vest", 3),
         },
@@ -718,9 +719,8 @@ def test_equipment_rows_colour_weapon_armor_and_pack_names():
 
     rows = character_screen._equipment_rows(ctx)
 
-    assert rows[0].runs == (
-        ("Weapon slot 1: ", None), ("Modded Mono Blade", (100, 235, 115)),
-    )
+    member = next(r for r in rows if "Modded Mono Blade" in r.text)
+    assert member.runs == (("Modded Mono Blade", (100, 235, 115)),)
     armor = next(r for r in rows if "Body armor" in r.text)
     assert armor.runs == (
         ("Body armor: ", None),

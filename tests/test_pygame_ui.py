@@ -115,6 +115,7 @@ def test_character_equipment_backpack_rows_are_selectable():
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -123,9 +124,8 @@ def test_character_equipment_backpack_rows_are_selectable():
 
     rows = character_screen._equipment_rows(ctx, equipment_management=True)
 
-    backpack_row = rows[8]
+    backpack_row = next(row for row in rows if row.action == "PACK_ITEM:0")
     assert backpack_row.text == "Laser Rifle"
-    assert backpack_row.action == "PACK_ITEM:0"
     assert backpack_row.selectable is True
 
 
@@ -143,6 +143,7 @@ def test_character_equipment_backpack_discard_drops_item_at_the_player(monkeypat
         player=player,
         game_map=game_map,
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -170,6 +171,7 @@ def test_character_equipment_backpack_options_hide_discard_without_a_floor(monke
     captured = {}
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -192,11 +194,12 @@ def test_character_equipment_backpack_options_hide_discard_without_a_floor(monke
 
 def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
     from src.spacehack import pygame_story
-    from src.spacehack.ground_reload_ui import manage_pack_ammo
 
     captured = {}
     ctx = SimpleNamespace(
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 12)],
+        equipped_ground_weapons=[],
+        player=SimpleNamespace(pos=None),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     monkeypatch.setattr(
@@ -205,8 +208,13 @@ def test_character_ammo_options_hide_discard_without_a_floor(monkeypatch):
         as_async(lambda _ctx, **kwargs: captured.update(kwargs) or "__BACK__"),
     )
 
-    assert run(manage_pack_ammo(ctx, 0, False, floor_available=False)) is None
-    assert captured["options"] == (("Reload", "STACK_RELOAD:0"),)
+    # Menu reload is gone (doc 51.3): no floor means nothing to offer.
+    assert run(
+        character_screen._manage_pack_ammo(ctx, 0, False, floor_available=False),
+    ) is None
+    assert captured == {}
+    assert run(character_screen._manage_pack_ammo(ctx, 0, False)) is None
+    assert captured["options"] == (("Discard", "STACK_DISCARD:0"),)
 
 
 def test_character_equipment_backpack_equip_uses_compact_choice(monkeypatch):
@@ -244,6 +252,7 @@ def test_character_equipment_backpack_equip_requires_ap_but_discard_remains_avai
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("weapon", "laser_rifle"),
@@ -278,6 +287,7 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
             GroundWeaponInstance("kinetic_pistol", 2),
             GroundWeaponInstance("kinetic_pistol", 11),
         ],
+        holstered_ground_weapons=[],
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
@@ -293,89 +303,99 @@ def test_dungeon_reload_key_chooses_between_dual_wielded_weapons(monkeypatch):
     assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
 
 
-def test_character_equipment_ammo_stack_reloads_matching_weapon():
+def test_character_weapon_row_chooser_offers_store_and_pack_entries(monkeypatch):
+    """The member chooser (doc 51.3): Store first, then the class's
+    pack entries — and NO reload option anywhere."""
     ctx = SimpleNamespace(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
-        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
-    )
-
-    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False))
-
-    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
-
-
-def test_character_weapon_row_offers_reload_before_pack_swap(monkeypatch):
-    ctx = SimpleNamespace(
-        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 2)],
-        equipped_ground_armor={},
-        ground_expedition_inventory=[],
-        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
-    )
-    captured = {}
-
-    def _choose(_ctx, **kwargs):
-        captured.update(kwargs)
-        return "RELOAD_SLOT:0"
-
-    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
-
-    assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:0")) is True
-    assert captured["options"][0] == ("Reload", "RELOAD_SLOT:0")
-    assert ctx.equipped_ground_weapons == [GroundWeaponInstance("kinetic_pistol", 12)]
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 30)]
-
-
-def test_character_ammo_reload_chooses_between_dual_wielded_weapons(monkeypatch):
-    ctx = SimpleNamespace(
-        equipped_ground_weapons=[
-            GroundWeaponInstance("kinetic_pistol", 2),
-            GroundWeaponInstance("kinetic_pistol", 11),
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "smg"),
         ],
-        equipped_ground_armor={},
         ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        ground_stats=SimpleNamespace(strength=10),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     captured = {}
 
     def _choose(_ctx, **kwargs):
         captured.update(kwargs)
-        return "RELOAD_SLOT:1"
+        return "SET_STORE:ranged:0"
 
     monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
 
-    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)) is True
-    assert captured["title"] == "RELOAD WEAPON"
-    assert ctx.equipped_ground_weapons == [
-        GroundWeaponInstance("kinetic_pistol", 2),
-        GroundWeaponInstance("kinetic_pistol", 12),
+    assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:ranged:0")) is True
+    assert captured["options"][0] == ("Store in Pack", "SET_STORE:ranged:0")
+    assert ("SMG", "PACK_EQUIP:0") == captured["options"][1][:2]
+    assert not any("Reload" in option[0] for option in captured["options"])
+    assert ctx.equipped_ground_weapons == []
+    assert ctx.ground_expedition_inventory == [
+        StoredGroundEquipment("weapon", "smg"),
+        StoredGroundEquipment("weapon", "kinetic_pistol", 0, 2),
     ]
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 39)]
 
 
-def test_character_ammo_reload_cancel_preserves_dual_wielded_weapons(monkeypatch):
+def test_character_weapon_equip_full_set_opens_member_chooser(monkeypatch):
+    """A 1H pick into a full set chooses who leaves (SETTLED 3); the
+    displaced member lands in the pack with its magazine."""
     ctx = SimpleNamespace(
         equipped_ground_weapons=[
-            GroundWeaponInstance("kinetic_pistol", 2),
-            GroundWeaponInstance("kinetic_pistol", 11),
+            GroundWeaponInstance("kinetic_pistol", 5),
+            GroundWeaponInstance("smg", 9),
         ],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
-        ground_expedition_items=[GroundItemStack("ammo", "pistol_rounds", 40)],
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "laser_pistol", 0, 3),
+        ],
+        ground_expedition_items=[],
+        ground_stats=SimpleNamespace(strength=10),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+    )
+    captured = {}
+
+    def _choose(_ctx, **kwargs):
+        captured.update(kwargs)
+        return "SET_MEMBER:0"
+
+    monkeypatch.setattr(pygame_story, "choose", as_async(_choose))
+
+    assert run(
+        character_screen._equip_pack_item(ctx, 0, swap_allowed=True),
+    ) is True
+    assert captured["title"] == "WEAPON SET IS FULL"
+    assert ctx.equipped_ground_weapons == [
+        GroundWeaponInstance("smg", 9),
+        GroundWeaponInstance("laser_pistol", 3),
+    ]
+    assert ctx.ground_expedition_inventory == [
+        StoredGroundEquipment("weapon", "kinetic_pistol", 0, 5),
+    ]
+
+
+def test_character_weapon_holstered_equip_logs_the_holster(monkeypatch):
+    """Installing into the holstered home says so — states, never a
+    surprise (class-keyed homes, SETTLED 3)."""
+    messages = []
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("kinetic_pistol")],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        ground_expedition_inventory=[
+            StoredGroundEquipment("weapon", "combat_knife"),
+        ],
+        ground_expedition_items=[],
+        ground_stats=SimpleNamespace(strength=10),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
     monkeypatch.setattr(
-        pygame_story, "choose", as_async(lambda *_args, **_kwargs: "__BACK__"),
+        pygame_story, "choose", as_async(lambda *_a, **_k: "__BACK__"),
     )
 
-    assert run(character_screen._reload_pack_ammo(ctx, 0, in_ground_combat=False)) is False
-    assert ctx.equipped_ground_weapons == [
-        GroundWeaponInstance("kinetic_pistol", 2),
-        GroundWeaponInstance("kinetic_pistol", 11),
-    ]
-    assert ctx.ground_expedition_items == [GroundItemStack("ammo", "pistol_rounds", 40)]
+    assert run(character_screen._equip_pack_item(ctx, 0, swap_allowed=True)) is True
+    assert ctx.holstered_ground_weapons == [weapon_instance("combat_knife")]
+    assert messages == ["Expedition gear swapped (holstered)."]
 
 
 def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
@@ -2006,6 +2026,7 @@ def test_split_interactive_preserves_focus_and_selection_after_action(monkeypatc
 def test_armory_pygame_frame_builds_ground_weapon_details():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -2023,6 +2044,7 @@ def test_armory_pygame_frame_builds_ground_weapon_details():
 def test_armory_empty_views_explain_storage_scope():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[],
@@ -2043,6 +2065,7 @@ def test_armory_empty_views_explain_storage_scope():
 def test_armory_frame_uses_shared_content_policy():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -2064,6 +2087,7 @@ def test_armory_frame_uses_shared_content_policy():
 
     two_handed = _armory._pygame_armory_frame(SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_rifle")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     ), "earth")
@@ -2073,62 +2097,74 @@ def test_armory_frame_uses_shared_content_policy():
     assert disabled[0].selectable is False
 
 
-def test_character_equipment_rows_offer_only_weapon_one_for_two_handed_pack_items():
+def test_character_equipment_member_rows_carry_class_actions():
+    """Managed member rows address the class home; the empty-group
+    row is actionable too (equip founds it)."""
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
-        ground_expedition_inventory=(
-            __import__(
-                "src.spacehack.ground_equipment",
-                fromlist=["StoredGroundEquipment"],
-            ).StoredGroundEquipment(
-                "weapon", "laser_rifle",
-            ),
-        ),
+        ground_expedition_inventory=[],
     )
 
     rows = character_screen._equipment_rows(ctx, equipment_management=True)
 
-    assert rows[0].action == "SWAP:weapon:0"
-    assert rows[1].action == ""
-    assert rows[1].selectable is False
+    assert rows[1].action == "SWAP:weapon:ranged:0"
+    assert rows[3].action == "SWAP:weapon:melee"
+    assert rows[3].selectable is True
 
 
-def test_character_equipment_rows_mirror_loadout_slots():
+def test_character_equipment_rows_mirror_class_groups():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[weapon_instance("combat_knife")],
         equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
     )
 
     rows = character_screen._equipment_rows(ctx)
 
-    # Filled weapon slot: selectable, stats in the detail pane.
-    assert rows[0].selectable
-    assert "Laser Pistol" in rows[0].text
-    assert "Damage 4" in rows[0].detail
-    assert "Accuracy 78%" in rows[0].detail
-    assert "Energy" in rows[0].detail
-    # Empty weapon slot: non-selectable Fists placeholder.
-    assert not rows[1].selectable
-    assert rows[1].text == "Weapon slot 2: Fists"
+    # Two class groups with role markers (SETTLED 3); members beneath.
+    assert rows[0].text == "--- WEAPONS - RANGED [ACTIVE] ---"
+    assert rows[1].selectable
+    assert "Laser Pistol" in rows[1].text
+    assert "Damage 4" in rows[1].detail
+    assert "Accuracy 78%" in rows[1].detail
+    assert "Energy" in rows[1].detail
+    assert rows[2].text == "--- WEAPONS - MELEE [HOLSTER] ---"
+    assert "Combat Knife" in rows[3].text
+    assert not rows[3].action  # read-only outside management mode
+    # Empty armor slots first, then the filled body slot.
+    assert not rows[4].selectable
+    assert rows[4].text == "Head armor: None"
+    assert rows[5].selectable
+    assert "Light Armor Vest" in rows[5].text
+    assert "Defense 2" in rows[5].detail
 
-    two_handed = character_screen._equipment_rows(SimpleNamespace(
-        equipped_ground_weapons=[weapon_instance("laser_rifle")],
+
+def test_character_equipment_group_markers_flip_with_the_sets():
+    """X flips the roles; the markers read the live homes."""
+    from src.spacehack.ground_weapon_sets import exchange_weapon_sets
+
+    ctx = SimpleNamespace(
+        equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[weapon_instance("combat_knife")],
         equipped_ground_armor={},
-    ))
-    assert not two_handed[1].selectable
-    assert two_handed[1].text == "Weapon slot 2: --- (occupied by 2H)"
-    # Empty head slot first, then the filled body slot.
-    assert not rows[2].selectable
-    assert rows[2].text == "Head armor: None"
-    assert rows[3].selectable
-    assert "Light Armor Vest" in rows[3].text
-    assert "Defense 2" in rows[3].detail
+    )
+    rows = character_screen._equipment_rows(ctx)
+    assert rows[0].text == "--- WEAPONS - RANGED [ACTIVE] ---"
+    assert rows[2].text == "--- WEAPONS - MELEE [HOLSTER] ---"
+    exchange_weapon_sets(
+        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons,
+    )
+    rows = character_screen._equipment_rows(ctx)
+    assert rows[0].text == "--- WEAPONS - RANGED [HOLSTER] ---"
+    assert rows[2].text == "--- WEAPONS - MELEE [ACTIVE] ---"
 
 
 def test_character_equipment_rows_show_cybernetic_effects():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={"legs": StoredGroundEquipment("armor", "cybernetic_legs")},
     )
 
@@ -2141,15 +2177,20 @@ def test_character_equipment_rows_show_cybernetic_effects():
 def test_character_equipment_rows_empty_gear_is_informational():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
     )
 
     rows = character_screen._equipment_rows(ctx)
 
-    assert len(rows) == 7
+    # Both groups render (unfounded classes carry no role marker).
+    assert len(rows) == 9
     assert all(not row.selectable for row in rows)
-    assert rows[0].text == "Weapon slot 1: Fists"
-    assert rows[6].text == "Feet armor: None"
+    assert rows[0].text == "--- WEAPONS - RANGED ---"
+    assert rows[1].text == "[empty]"
+    assert rows[2].text == "--- WEAPONS - MELEE ---"
+    assert rows[3].text == "[empty]"
+    assert rows[8].text == "Feet armor: None"
 
 
 def test_character_equipment_weapon_rows_show_magazine_state():
@@ -2158,25 +2199,27 @@ def test_character_equipment_weapon_rows_show_magazine_state():
             GroundWeaponInstance("kinetic_pistol", 5),
             GroundWeaponInstance("kinetic_pistol", 0),
         ],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
     )
 
     rows = character_screen._equipment_rows(ctx)
 
-    assert rows[0].text == "Weapon slot 1: Kinetic Pistol [5/12]"
-    assert rows[1].text == "Weapon slot 2: Kinetic Pistol [0/12]"
+    assert rows[1].text == "Kinetic Pistol [5/12]"
+    assert rows[2].text == "Kinetic Pistol [0/12]"
 
 
 def test_character_equipment_weapon_rows_omit_indicator_for_non_ammo_weapons():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[GroundWeaponInstance("combat_knife", None)],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
     )
 
     rows = character_screen._equipment_rows(ctx)
 
-    assert rows[0].text == "Weapon slot 1: Combat Knife"
-    assert "[" not in rows[0].text
+    assert rows[3].text == "Combat Knife"
+    assert "[" not in rows[3].text
 
 
 def test_character_equipment_management_explains_backpack_actions():
@@ -2189,6 +2232,7 @@ def test_character_equipment_management_explains_backpack_actions():
         stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
     )
@@ -2197,7 +2241,7 @@ def test_character_equipment_management_explains_backpack_actions():
         ctx, 1, 0, equipment_management=True,
     )
 
-    assert frame.body[1] == "Select a row and press ENTER to equip, use, reload, or discard."
+    assert frame.body[1] == "Select a row and press ENTER to equip, use, or discard."
     assert frame.scrollable is True
     assert "[R] reload" not in frame.footer[0]
     assert "TAB stats" in frame.footer[0]
@@ -2207,28 +2251,29 @@ def test_character_equipment_management_explains_backpack_actions():
         ctx, 1, 0, equipment_management=True, floor_available=False,
     )
     assert space_frame.body[1] == (
-        "Select a row and press ENTER to equip, use, or reload."
+        "Select a row and press ENTER to equip, use."
     )
 
 
 def test_character_equipment_management_keeps_slots_selectable_without_pack_items():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
         ground_expedition_inventory=[],
     )
 
     rows = character_screen._equipment_rows(ctx, equipment_management=True)
 
-    # Managed slots remain actionable even when there is no compatible
+    # Managed rows remain actionable even when there is no compatible
     # backpack item; Enter can then explain that the pack has no match.
-    assert rows[0].selectable is True
-    assert rows[0].action == "SWAP:weapon:0"
-    assert rows[2].selectable is True
-    assert rows[2].action == "SWAP:armor:head"
-    assert rows[3].selectable is True
-    assert rows[3].action == "SWAP:armor:body"
-    assert rows[7].text == "--- BACKPACK ITEMS (0/4) ---"
+    assert rows[1].selectable is True
+    assert rows[1].action == "SWAP:weapon:ranged:0"
+    assert rows[4].selectable is True
+    assert rows[4].action == "SWAP:armor:head"
+    assert rows[5].selectable is True
+    assert rows[5].action == "SWAP:armor:body"
+    assert rows[9].text == "--- BACKPACK ITEMS (0/4) ---"
 
 
 def test_character_equipment_down_reaches_second_active_weapon():
@@ -2238,6 +2283,7 @@ def test_character_equipment_down_reaches_second_active_weapon():
             GroundWeaponInstance("kinetic_pistol", 12),
             GroundWeaponInstance("kinetic_pistol", 12),
         ],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[
             StoredGroundEquipment("armor", "light_vest"),
@@ -2265,20 +2311,29 @@ def test_character_equipment_down_reaches_second_active_weapon():
 
     event = SimpleNamespace(type=FakePygame.KEYDOWN, key=FakePygame.K_DOWN, unicode="")
 
+    # Selection starts on the first selectable row (member 1); DOWN
+    # reaches the second set member beneath the group header.
     assert frame.rows[1].selectable is True
-    assert pygame_screen._handle_key(FakePygame, event, frame) == ("IGNORE", 1)
+    assert frame.rows[2].selectable is True
+    assert pygame_screen._handle_key(FakePygame, event, frame) == ("IGNORE", 2)
 
 
 def test_character_equipment_management_reports_empty_compatible_choices():
     messages = []
     ctx = SimpleNamespace(
         equipped_ground_weapons=[weapon_instance("laser_pistol")],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
+        ground_stats=SimpleNamespace(strength=10),
         log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
 
-    assert run(character_screen._swap_from_pack(ctx, "SWAP:weapon:0")) is False
+    # The member row always offers Store; the EMPTY group row with no
+    # matching pack entries explains itself instead of opening a chooser.
+    assert run(
+        character_screen._swap_from_pack(ctx, "SWAP:weapon:melee"),
+    ) is False
     assert messages == ["No compatible items are in your Expedition Pack."]
 
 
@@ -2339,6 +2394,7 @@ def test_screen_rows_height_reserves_informational_rows():
 def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -2356,6 +2412,7 @@ def test_armory_menu_forwards_planet_id_to_frame(monkeypatch):
 def test_armory_frame_exposes_all_storage_modes_and_active_tab():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2382,6 +2439,7 @@ def test_armory_frame_exposes_all_storage_modes_and_active_tab():
     empty_pack = _armory._pygame_armory_frame(
         SimpleNamespace(
             equipped_ground_weapons=[],
+            holstered_ground_weapons=[],
             equipped_ground_armor={},
             ground_expedition_inventory=[],
             stats=SimpleNamespace(credits=1000),
@@ -2397,6 +2455,7 @@ def test_armory_frame_exposes_all_storage_modes_and_active_tab():
 def test_armory_frame_without_planet_id_uses_bare_title():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
     )
@@ -2407,6 +2466,7 @@ def test_armory_frame_without_planet_id_uses_bare_title():
 def test_armory_pygame_empty_slot_action_is_noop():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
@@ -2419,6 +2479,7 @@ def test_armory_pygame_empty_slot_action_is_noop():
 def test_armory_pygame_rejects_unknown_action():
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
@@ -2437,6 +2498,7 @@ def test_armory_buy_action_opens_destination_chooser(monkeypatch):
     captured = {}
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[],
@@ -2486,6 +2548,7 @@ def test_armory_container_transfer_uses_domain_helper(monkeypatch):
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2518,6 +2581,7 @@ def test_armory_equipment_transfer_counts_field_item_slots(monkeypatch):
     ]
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[
             _armory.ground_equipment.StoredGroundEquipment("weapon", "laser_pistol"),
@@ -2645,6 +2709,7 @@ def test_armory_purchase_dismissal_preserves_credits_and_ownership(monkeypatch):
 
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_armory_storage=[],
         ground_expedition_inventory=[],
@@ -5434,6 +5499,7 @@ def test_pack_manage_choices_colour_tiered_swap_options():
 
     ctx = NS(
         equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
         equipped_ground_armor={"body": StoredGroundEquipment("armor", "light_vest")},
         ground_expedition_inventory=[
             StoredGroundEquipment("armor", "light_vest", 2),
@@ -5444,7 +5510,7 @@ def test_pack_manage_choices_colour_tiered_swap_options():
     options = character_screen._swap_options(ctx, "armor", "body")
 
     choices = character_screen._pack_manage_choices(
-        ctx, "armor", "body", options, None,
+        ctx, "body", options,
     )
 
     assert choices == (
