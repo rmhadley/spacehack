@@ -40,7 +40,6 @@ def _character_frame(
             ctx, title, selected,
             equipment_management=equipment_management,
             swap_allowed=swap_allowed,
-            floor_available=floor_available,
         )
     return _cargo_character_frame(ctx, title, selected)
 
@@ -52,7 +51,6 @@ def _equipment_frame(
     *,
     equipment_management: bool,
     swap_allowed: bool,
-    floor_available: bool = True,
 ):
     """Build the Equipment-tab split frame (doc 52.3 amendment): equipment
     management on the left, the read-only bandolier on the right."""
