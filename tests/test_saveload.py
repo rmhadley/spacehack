@@ -225,6 +225,36 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_ground_damage_taken_survives_round_trip(self, monkeypatch, tmp_path):
+        """The doc 53 ground tally counter persists (career total)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(21)
+
+        ctx = _build_test_ctx()
+        ctx.player_counters.ground_damage_taken = 31
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.player_counters.ground_damage_taken == 31
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
+    def test_parse_counters_defaults_ground_damage_taken_to_zero(self):
+        """A pre-doc-53 save (no ground tally key) loads as 0."""
+        from src.spacehack import saveload as _saveload_module
+
+        counters = _saveload_module._parse_counters(
+            {"player_counters": {"total_damage_taken": 4}},
+        )
+        assert counters.ground_damage_taken == 0
+        assert counters.total_damage_taken == 4
+
     # ---- field-level assertions ----
 
     def _assert_fields_match(self, original: GameContext, loaded: GameContext) -> None:

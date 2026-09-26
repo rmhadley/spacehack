@@ -285,13 +285,43 @@ def build_pilot_skills(sheet) -> PilotSkills:
 def _ctx_core(sheet, game_map, player) -> dict:
     """Fields every theater's ctx carries, pinned with real values (no
     MagicMock defaults to misread) — the shared spine of the space and
-    ground ctx builders."""
+    ground ctx builders. Carries the full GameContext-read shape the
+    shared finish touches: a DEFEAT runs the real tombstone write (doc
+    53), so identity, clock, stats, and the ground containers exist on
+    BOTH theaters' ctxs (empty defaults; the ground builder fills
+    theirs)."""
+    from src.spacehack.character import (
+        starting_ground_stats,
+        starting_pilot_skills,
+    )
+
+    _pilot = starting_pilot_skills(sheet.species_id, sheet.class_id)
     return dict(
         player=player,
         game_map=game_map,
         context=_fake_pygame_context(),
         log=MessageLog(capacity=200),
-        stats=SimpleNamespace(credits=100),
+        stats=SimpleNamespace(
+            credits=100,
+            gunnery=_pilot.gunnery,
+            piloting=_pilot.piloting,
+            engineering=_pilot.engineering,
+        ),
+        ground_stats=starting_ground_stats(sheet.species_id, sheet.class_id),
+        character_info={
+            "species_id": sheet.species_id,
+            "species_name": sheet.species_id.replace("_", " ").title(),
+            "class_id": sheet.class_id,
+            "class_name": sheet.class_id.replace("_", " ").title(),
+        },
+        current_city_id="earth",
+        time_day=1,
+        time_month=1,
+        time_year=2200,
+        equipped_ground_weapons=[],
+        holstered_ground_weapons=[],
+        equipped_ground_armor={},
+        bandolier={},
         player_counters=PlayerCounters(),
         player_traits=list(sheet.trait_ids),
         player_xp=0,

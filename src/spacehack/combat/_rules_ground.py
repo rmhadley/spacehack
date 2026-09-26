@@ -156,6 +156,10 @@ class GroundCombatState:
     active_consumable_effects: dict[str, ActiveConsumableEffect] = field(
         default_factory=dict,
     )
+    # Doc 53 killer tracking: the last hostile damage source's label
+    # (enemy + wielded variant), or the settled self-splash line.
+    # Per-fight session state, never serialized.
+    last_attacker: str | None = None
 
 _state: GroundCombatState | None = None
 
@@ -319,6 +323,12 @@ def _announce_joins(ctx, joined: list[GroundEnemyInstance]) -> None:
 
 def player_hp(ctx) -> int:
     return _state.player_hp
+
+
+def last_attacker(ctx) -> str | None:
+    """The tracked killer label for the tombstone (doc 53); None until
+    hostile damage lands — the header renders the fallback line."""
+    return _state.last_attacker
 
 
 def combat_active(ctx) -> bool:
@@ -774,6 +784,17 @@ def _spent_as_movement(_gei, _fired: bool, _ap_spent: int) -> int:
     return max(0, _ap_spent - _weapon_ap)
 
 
+def _killer_label(_gei: GroundEnemyInstance) -> str:
+    """The tombstone's attacker label: enemy + wielded variant, built
+    the same way the enemy-shot log line builds it (quality included)."""
+    from ..ground_equipment import display_name
+
+    return (
+        f"{_gei.name}'s "
+        f"{display_name('weapon', _gei.weapon_id, _gei.weapon_quality)}"
+    )
+
+
 async def _spend_one_enemy_turn(
     ctx, game_map: world.GameMap, _enemy_ai, _gei, _player_dodge: int,
 ) -> int:
@@ -803,7 +824,10 @@ async def _spend_one_enemy_turn(
 
     if _dmg > 0:
         _dmg = ground_damage_taken(ctx, _dmg)
+        if hasattr(ctx, "player_counters"):
+            ctx.player_counters.ground_damage_taken += _dmg
         _state.player_hp -= _dmg
+        _state.last_attacker = _killer_label(_gei)
         if _state.player_hp <= 0:
             return 999
     return _dmg

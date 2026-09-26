@@ -484,29 +484,8 @@ def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
     return _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing, _e_dmg_popup
 
 
-async def _apply_enemy_hit(
-    state, _ei, _wid, _e_ws, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
-    _is_glancing, *, hit_chances, evade_bonus, calc_cam, ctx,
-) -> str | None:
-    """Apply a landed enemy hit; ``"DEFEAT"`` when hull reaches zero."""
-    state.player_state["shields"] = max(
-        0, state.player_state["shields"] - _e_sdmg,
-    )
-    state.player_state["hull"] = _e_fh
-    if ctx is not None:
-        ctx.player_counters.total_damage_taken += _e_dmg
-    _e_log(
-        _enemy_attack_line(
-            _ei.name, _wid, _e_ws.name,
-            hit=True, hull_dmg=_e_dmg,
-            shield_dmg=_e_sdmg,
-            is_strip=_e_is_strip,
-            is_glancing=_is_glancing and not _e_is_strip,
-        ),
-        state.log,
-    )
-    if _e_fh > 0:
-        return None
+async def _present_ship_destruction(state, *, evade_bonus, hit_chances, calc_cam):
+    """Log the destruction line and play the player-ship explosion."""
     _e_log("Your ship has been destroyed!", state.log)
     _ecx, _ecy = calc_cam()
     await _animate_explosion(
@@ -522,5 +501,34 @@ async def _apply_enemy_hit(
         active_weapons=state.active_weapons,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
+    )
+
+
+async def _apply_enemy_hit(
+    state, _ei, _wid, _e_ws, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
+    _is_glancing, *, hit_chances, evade_bonus, calc_cam, ctx,
+) -> str | None:
+    """Apply a landed enemy hit; ``"DEFEAT"`` when hull reaches zero."""
+    state.player_state["shields"] = max(
+        0, state.player_state["shields"] - _e_sdmg,
+    )
+    state.player_state["hull"] = _e_fh
+    state.last_attacker = f"{_ei.name}'s {_e_ws.name}"
+    if ctx is not None:
+        ctx.player_counters.total_damage_taken += _e_dmg
+    _e_log(
+        _enemy_attack_line(
+            _ei.name, _wid, _e_ws.name,
+            hit=True, hull_dmg=_e_dmg,
+            shield_dmg=_e_sdmg,
+            is_strip=_e_is_strip,
+            is_glancing=_is_glancing and not _e_is_strip,
+        ),
+        state.log,
+    )
+    if _e_fh > 0:
+        return None
+    await _present_ship_destruction(
+        state, evade_bonus=evade_bonus, hit_chances=hit_chances, calc_cam=calc_cam,
     )
     return "DEFEAT"

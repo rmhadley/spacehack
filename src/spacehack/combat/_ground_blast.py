@@ -16,6 +16,10 @@ from ..xp import (
 from ._ground_math import _PLAYER_STRENGTH_STEP
 from ._ground_math import ground_damage_raw as _ground_damage_raw
 
+# Doc 53 SETTLED 2: the self-splash tombstone killer line, pinned
+# verbatim — a splash suicide never names a stale enemy.
+SELF_SPLASH_KILLER = "your own explosives"
+
 
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""
@@ -56,14 +60,19 @@ def apply_explosive_enemy_hit(
 
 
 def _apply_self_splash(state, weapon_id, primary, ctx, quality) -> int:
-    """The player's own splash share when caught in the blast."""
+    """The player's own splash share when caught in the blast: the
+    doc 53 ground damage tally increments on the applied (post-DR)
+    amount and the tracked killer becomes the settled self line."""
     _full_damage = _ground_damage_raw(
         weapon_id, 0, state.armor_defense, quality=quality,
     )
     _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
     _splash_damage = max(1, _full_damage * _splash_pct // 100)
     _player_damage = ground_damage_taken(ctx, _splash_damage)
+    if hasattr(ctx, "player_counters"):
+        ctx.player_counters.ground_damage_taken += _player_damage
     state.player_hp -= _player_damage
+    state.last_attacker = SELF_SPLASH_KILLER
     return _player_damage
 
 

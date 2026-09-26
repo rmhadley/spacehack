@@ -622,19 +622,51 @@ async def _end_player_turn(ctx, game_map, rules, turn: int):
     return turn + 1, None
 
 
+def _final_state_line(ctx, rules) -> str:
+    """The tombstone's one-line final-state readout at death (doc 53):
+    ground HP/AP or space hull/shields, read through the rules
+    accessors post-sync so the finish stays rules-agnostic."""
+    if rules is _rules_ground:
+        return (
+            f"HP {rules.player_hp(ctx)}/{rules.player_max_hp(ctx)}"
+            f"  AP {rules.player_ap(ctx)}"
+        )
+    return f"hull {rules.player_hp(ctx)}  shields {rules.player_shields(ctx)}"
+
+
+def _write_defeat_tombstone(ctx, rules) -> str | None:
+    """Write the morgue file for a DEFEAT (doc 53): killer from the
+    tracked last attacker, final state from the combat state."""
+    from ..tombstone import TombstoneFacts, write_tombstone
+
+    return write_tombstone(
+        ctx,
+        TombstoneFacts(
+            killer=rules.last_attacker(ctx),
+            final_state=_final_state_line(ctx, rules),
+        ),
+    )
+
+
 def _finish_combat(ctx, rules, result: str | None) -> CombatResult:
-    """Sync state, invalidate death saves, and build the result."""
+    """Sync state, write the tombstone + invalidate death saves, build
+    the result."""
     rules.sync_state(ctx)
+    _tombstone_path = None
     if result == "DEFEAT":
-        # Continue deletes after a successful load; this handles death
-        # after a prior save during the same run. The shared loop owns
-        # both ground and space defeat transitions.
+        # The morgue file lands BEFORE the autosave is deleted (doc 53);
+        # a write failure never blocks the death path. Continue deletes
+        # after a successful load; this handles death after a prior
+        # save during the same run. The shared loop owns both ground
+        # and space defeat transitions.
+        _tombstone_path = _write_defeat_tombstone(ctx, rules)
         _delete_save()
     if hasattr(rules, 'get_combat_result'):
         _cr = rules.get_combat_result()
     else:
         _cr = CombatResult()
     _cr.outcome = result or "VICTORY"
+    _cr.tombstone_path = _tombstone_path
     return _cr
 
 

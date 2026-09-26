@@ -105,6 +105,10 @@ class PlayerCounters:
     bar_missions_completed: int = 0
     bounty_missions_completed: int = 0
     total_damage_taken: int = 0
+    # Ground-theater career damage (doc 53 SETTLED 2): a first-class
+    # counter separate from the space-only ``total_damage_taken``
+    # (doc 2's XP/trait feature) — a future trait can require it.
+    ground_damage_taken: int = 0
     melee_kills: int = 0
     explosive_hits: int = 0
     railgun_kills: int = 0

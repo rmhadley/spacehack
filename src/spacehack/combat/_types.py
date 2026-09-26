@@ -98,6 +98,10 @@ class CombatResult:
     # The flown weapon instances beside them (doc 48.7): weapons are
     # quality-bearing now — what FLEW is what drops.
     boarded_weapons: tuple = ()
+    # Doc 53: the written tombstone's full path on a DEFEAT (None when
+    # no file landed — a failed write, or a non-death outcome).
+    # Session-scoped presentation state, never serialized.
+    tombstone_path: str | None = None
 
 
 @dataclass
@@ -126,5 +130,9 @@ class SpaceCombatState:
     view_h: int = 54
     cr: CombatResult | None = None
     active: bool = True
+    # Doc 53 killer tracking: the last hostile damage source's label
+    # ("Pirate Scout's Light Laser"); None until a hit lands. Per-fight
+    # session state, never serialized.
+    last_attacker: str | None = None
     # Presentation-only: target card shown by default, toggled with ``v``.
     show_target_card: bool = True

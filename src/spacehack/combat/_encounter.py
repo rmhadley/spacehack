@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from .. import pygame_engine
 from .. import message_log as _ml
+from ..tombstone import result_notice_lines
 from ._loop import run_combat
 from . import _rules_space
 
@@ -204,6 +205,15 @@ async def _handle_victory(ctx, _cr, _specs) -> None:
     # sweep needed.
 
 
+def _space_death_lines(cr) -> tuple[str, ...]:
+    """The space defeat frame: the classic destruction lines with the
+    tombstone notice APPENDED after them (doc 53 SETTLED 1 — both
+    theaters append; the notice is body text, never the title)."""
+    from .. import pygame_combat
+
+    return (*pygame_combat._DEATH_LINES, *result_notice_lines(cr))
+
+
 async def _handle_combat_encounter(ctx, console, encounter) -> str:
     """Resolve a combat encounter triggered by the dispatcher.
 
@@ -232,7 +242,7 @@ async def _handle_combat_encounter(ctx, console, encounter) -> str:
         await _handle_victory(ctx, _cr, _specs)
     elif _cr.outcome == "DEFEAT":
         ctx.player_dead = True
-        await _render_death_screen(ctx)
+        await _render_death_screen(ctx, lines=_space_death_lines(_cr))
     elif _cr.outcome == "BOARDED":
         # Doc 40 phase 6a: consume the boarded hull and enter its
         # crewed interior (the state-bearing seam lives in

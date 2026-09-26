@@ -233,6 +233,14 @@ def player_hp(ctx) -> int:
 def player_max_hp(ctx) -> int:
     return _state.player_state.get("max_hull", 100)
 
+def player_shields(ctx) -> int:
+    return _state.player_state.get("shields", 0)
+
+def last_attacker(ctx) -> str | None:
+    """The tracked killer label for the tombstone (doc 53); None until
+    hostile damage lands — the header renders the fallback line."""
+    return _state.last_attacker
+
 def player_ap(ctx) -> int:
     return _state.player_state.get("ap_remaining", 0)
 

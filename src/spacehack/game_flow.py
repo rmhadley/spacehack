@@ -227,13 +227,17 @@ async def _show_ground_defeat(ctx, ground_result) -> None:
         return
     # Ground death shows the same full-screen death frame as space
     # defeat: no HUD, no console log, any key returns to the main
-    # menu immediately, and no save is written.
+    # menu immediately, and no save is written. A written tombstone
+    # names its full filename (doc 53 SETTLED 1 — the line holds in
+    # every theater).
     from .combat._encounter import _render_death_screen as _show_death
+    from .tombstone import result_notice_lines
     await _show_death(
         ctx,
         lines=(
             "YOU DIED",
             "You collapse from your wounds.",
+            *result_notice_lines(ground_result),
         ),
     )
 

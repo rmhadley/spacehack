@@ -387,6 +387,11 @@ async def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> Non
     _apply_rep(ctx, _result)
     await _tutorial.notify_ground_combat_ended(ctx)
     if _result is not None and _result.outcome == 'DEFEAT':
+        # Doc 53 SETTLED 2: a city death joins the shared death screen
+        # (tombstone line included) before the exit — closing the gap
+        # where city fights ended with no screen at all.
+        from .game_flow import _show_ground_defeat as _show_defeat
+        await _show_defeat(ctx, _result)
         raise SystemExit()
 
 

@@ -996,8 +996,15 @@ class TestTargetCardToggle:
 
 
 def test_finish_combat_deletes_autosave_on_defeat(monkeypatch):
-    """The shared combat seam invalidates saves for ground and space death."""
+    """The shared combat seam writes the tombstone, then invalidates
+    saves for ground and space death (doc 53: the write lands before
+    the autosave is deleted)."""
     deleted = []
+    tombstoned = []
+    monkeypatch.setattr(
+        _loop, "_write_defeat_tombstone",
+        lambda _ctx, _rules: tombstoned.append(True),
+    )
     monkeypatch.setattr(_loop, "_delete_save", lambda: deleted.append(True))
     _rules = SimpleNamespace(
         sync_state=lambda _ctx: None,
@@ -1008,6 +1015,7 @@ def test_finish_combat_deletes_autosave_on_defeat(monkeypatch):
     _result = _loop._finish_combat(_ctx, _rules, "DEFEAT")
 
     assert _result.outcome == "DEFEAT"
+    assert tombstoned == [True]
     assert deleted == [True]
 
 
