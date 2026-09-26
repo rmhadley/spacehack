@@ -860,7 +860,7 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None
         assert loaded.ship_storage == ctx.ship_storage
         assert loaded.player_owned_ship is not None
-        assert loaded.player_owned_ship.weapons == ("light_laser",)
+        assert tuple(e.item_id for e in loaded.player_owned_ship.weapons) == ("light_laser",)
         delete_save()
 
     def test_ship_upgrade_transfer_round_trips_exactly(self, monkeypatch, tmp_path):
@@ -889,7 +889,7 @@ class TestSaveLoadRoundTrip:
 
         assert loaded is not None
         assert loaded.player_owned_ship is not None
-        assert loaded.player_owned_ship.weapons == ()
+        assert tuple(e.item_id for e in loaded.player_owned_ship.weapons) == ()
         assert loaded.player_owned_ship.modules == ()
         assert loaded.ship_storage == [
             StoredEquipment("weapon", "light_missile", 1),
@@ -1729,7 +1729,7 @@ class TestSaveLoadRoundTrip:
         assert ship.ship_id == "scout"
         assert ship.display_name == "Test Runner"
         assert ship.hull_damage_pct == 15
-        assert ship.weapons == ("light_laser",)
+        assert tuple(e.item_id for e in ship.weapons) == ("light_laser",)
         assert ship.fuel == 25
         assert ship.inventory == {"food": 3}
 

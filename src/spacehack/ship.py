@@ -34,6 +34,40 @@ class StoredEquipment:
     randart_seed: int | None = None
 
 
+def parse_weapon_entry(raw) -> StoredEquipment | None:
+    """Parse one installed-weapon save entry, migrating legacy shapes.
+
+    The weapon twin of :func:`parse_module_entry`: legacy
+    ``OwnedShip.weapons`` entries were bare id strings; the instance
+    shape is ``StoredEquipment``. A missing or malformed quality tier
+    migrates to base (0). Weapons never randart — no seed to parse.
+    Unknown ids return None.
+    """
+    from .ground_equipment import parse_quality
+
+    if isinstance(raw, str):
+        weapon_id, quality = raw, 0
+    elif isinstance(raw, dict):
+        weapon_id = raw.get("item_id")
+        quality = parse_quality(raw.get("quality"))
+    else:
+        return None
+    if not isinstance(weapon_id, str) or not weapon_id:
+        return None
+    from .data.weapons import find_weapon as _fw
+    try:
+        _fw(weapon_id)
+    except KeyError:
+        return None
+    return StoredEquipment("weapon", weapon_id, quality=quality)
+
+
+def base_weapon_entries(weapon_ids) -> tuple[StoredEquipment, ...]:
+    """Base-quality entries for a bare-id weapon list (ship catalog
+    starts and shop purchases — shops never variant, doc 47.3)."""
+    return tuple(StoredEquipment("weapon", weapon_id) for weapon_id in weapon_ids)
+
+
 def parse_module_entry(raw) -> StoredEquipment | None:
     """Parse one installed-module save entry, migrating legacy shapes.
 
@@ -148,9 +182,10 @@ def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
     """
     from .data.weapons import find_weapon as _fw
     total = 0
-    for wid in weapons:
+    for entry in weapons:
+        _wid = entry.item_id if hasattr(entry, "item_id") else entry
         try:
-            ws = _fw(wid)
+            ws = _fw(_wid)
         except KeyError:
             continue
         if ws.slot_type == "missile":
@@ -167,9 +202,9 @@ def _seed_missile_ammo(owned: OwnedShip) -> None:
     are never added (-1 capacity means infinite).
     """
     from .data.weapons import find_weapon as _fw
-    for i, wid in enumerate(owned.weapons):
+    for i, entry in enumerate(owned.weapons):
         try:
-            ws = _fw(wid)
+            ws = _fw(entry.item_id)
         except KeyError:
             continue
         if ws.slot_type == "missile" and i not in owned.weapon_ammo:
@@ -192,7 +227,7 @@ def buy_ammo(
     from .data.weapons import find_weapon as _fw
     if not (0 <= slot_index < len(owned.weapons)):
         return False, 0, "Unknown weapon slot."
-    weapon_id = owned.weapons[slot_index]
+    weapon_id = owned.weapons[slot_index].item_id
     try:
         ws = _fw(weapon_id)
     except KeyError:
@@ -245,7 +280,10 @@ class OwnedShip:
     # the name survives save/load (see saveload.OwnedShip round-trip).
     display_name: str | None = None
     hull_damage_pct: int = 0
-    weapons: tuple[str, ...] = field(default_factory=tuple)
+    # Installed weapons as quality-bearing instances (the module twin,
+    # doc 48.7: flown weapons are quality-bearing) — StoredEquipment
+    # items everywhere; readers take ``.item_id``.
+    weapons: tuple[StoredEquipment, ...] = field(default_factory=tuple)
     # Installed modules as quality-bearing instances (doc 47.3) —
     # StoredEquipment items everywhere; readers take ``.item_id``.
     modules: tuple[StoredEquipment, ...] = field(default_factory=tuple)
@@ -272,6 +310,15 @@ class OwnedShip:
         return self.cargo_ammo + self.mission_reserved + trade
 
     def __post_init__(self) -> None:
+        # A bare id IS a base-quality weapon (catalog starts, shop buys,
+        # legacy fixtures): normalize at the single construction point so
+        # every reader can trust ``.item_id``/``.quality``. Save-side
+        # dicts carry real tiers and migrate through parse_weapon_entry.
+        self.weapons = tuple(
+            entry if isinstance(entry, StoredEquipment)
+            else StoredEquipment("weapon", str(entry))
+            for entry in self.weapons
+        )
         self.cargo_ammo = total_ammo_cargo(self.weapons)
         _seed_missile_ammo(self)
 
@@ -385,7 +432,9 @@ def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
 # ---------------------------------------------------------------------------
 
 
-def _install_weapon(owned: OwnedShip, weapon_id: str, ship_spec: Ship) -> bool:
+def _install_weapon(
+    owned: OwnedShip, entry: StoredEquipment | str, ship_spec: Ship,
+) -> bool:
     """Install ``weapon_id`` into the first empty weapon slot.
 
     Returns True on success. Recalculates ``cargo_ammo`` if the
@@ -397,11 +446,13 @@ def _install_weapon(owned: OwnedShip, weapon_id: str, ship_spec: Ship) -> bool:
     """
     if len(owned.weapons) >= ship_spec.weapon_slots:
         return False
-    owned.weapons = owned.weapons + (weapon_id,)
+    if isinstance(entry, str):
+        entry = StoredEquipment("weapon", entry)
+    owned.weapons = owned.weapons + (entry,)
     owned.cargo_ammo = total_ammo_cargo(owned.weapons)
     from .data.weapons import find_weapon as _fw
     try:
-        _ws = _fw(weapon_id)
+        _ws = _fw(entry.item_id)
     except KeyError:
         _ws = None
     if _ws is not None and _ws.slot_type == "missile":
@@ -464,17 +515,20 @@ def _remove_module(owned: OwnedShip, index: int) -> tuple[str, ...]:
 def _sell_price(item_type: str, item_id: str, quality: int = 0) -> int:
     """Sell-back value for a part: 50% of buy price scaled by tier.
 
-    ``item_type`` is ``"weapon"`` or ``"module"``; a module's quality
-    tier multiplies the price (doc 47.3 SETTLED 4 — the armory
-    formula, half-up). Returns at least 1 credit.
+    ``item_type`` is ``"weapon"`` or ``"module"``; the instance's
+    quality tier multiplies the price (doc 47.3 SETTLED 4 — the
+    armory formula, half-up). Returns at least 1 credit.
     """
     if item_type == "weapon":
         from .data.weapons import find_weapon as _fw
+        from .data.quality import quality_multiplier_pct
         try:
             spec = _fw(item_id)
         except KeyError:
             return 0
-        return max(1, spec.price // 2)
+        if quality <= 0:
+            return max(1, spec.price // 2)
+        return max(1, (spec.price * quality_multiplier_pct("weapon", quality) + 100) // 200)
     elif item_type == "module":
         from .data.modules import find_module as _fm
         from .data.quality import quality_multiplier_pct
@@ -524,16 +578,18 @@ def store_weapon(
     """Move one installed weapon into storage, preserving missile ammo."""
     if not (0 <= slot_index < len(owned.weapons)):
         return False
-    weapon_id = owned.weapons[slot_index]
+    entry = owned.weapons[slot_index]
     ammo: int | None = None
     try:
         from .data.weapons import find_weapon as _fw
-        weapon = _fw(weapon_id)
+        weapon = _fw(entry.item_id)
     except KeyError:
         return False
     if weapon.slot_type == "missile":
         ammo = owned.weapon_ammo.get(slot_index, weapon.ammo_capacity)
-    storage.append(StoredEquipment("weapon", weapon_id, ammo))
+    storage.append(StoredEquipment(
+        "weapon", entry.item_id, ammo, quality=entry.quality,
+    ))
     _remove_weapon(owned, slot_index)
     return True
 
@@ -574,7 +630,7 @@ def install_stored_equipment(
     if not can_install_stored_equipment(owned, stored, ship_spec):
         return False
     if stored.item_type == "weapon":
-        if not _install_weapon(owned, stored.item_id, ship_spec):
+        if not _install_weapon(owned, stored, ship_spec):
             return False
         slot_index = len(owned.weapons) - 1
         if stored.ammo is not None:
@@ -603,8 +659,8 @@ def move_installed_equipment_to_storage(
     from .data.modules import find_module as _fm
     from .data.weapons import find_weapon as _fw
     try:
-        for weapon_id in owned.weapons:
-            _fw(weapon_id)
+        for entry in owned.weapons:
+            _fw(entry.item_id)
         for entry in owned.modules:
             _fm(entry.item_id)
     except KeyError as exc:
@@ -617,13 +673,14 @@ def move_installed_equipment_to_storage(
             raise ValueError("Cannot store an installed module")
 
 
-def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[str | None, int]]:
+def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[StoredEquipment | None, int]]:
     """Build a list of all weapon slots with their installed state.
 
-    Returns ``[(weapon_id or None, slot_index), ...]`` so the UI
-    can render each slot row. Empty slots show as ``(None, index)``.
+    The module twin: returns ``[(weapon entry or None, slot_index), ...]``
+    so the UI can render each slot row (read ``.item_id``/``.quality``
+    for the installed instance). Empty slots show as ``(None, index)``.
     """
-    result: list[tuple[str | None, int]] = []
+    result: list[tuple[StoredEquipment | None, int]] = []
     for i in range(ship_spec.weapon_slots):
         if i < len(owned.weapons):
             result.append((owned.weapons[i], i))

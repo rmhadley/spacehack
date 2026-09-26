@@ -261,7 +261,8 @@ def _has_loadout(owned_ship) -> bool:
         return False
     from .data.weapons import find_weapon
     _energy_weapons = 0
-    for _wid in owned_ship.weapons or ():
+    for _entry in owned_ship.weapons or ():
+        _wid = getattr(_entry, "item_id", _entry)
         try:
             if find_weapon(_wid).slot_type == "energy":
                 _energy_weapons += 1

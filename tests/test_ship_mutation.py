@@ -37,7 +37,7 @@ class TestInstallWeapon:
         spec = _scout_spec()
         ok = _install_weapon(owned, "light_laser", spec)
         assert ok is True
-        assert owned.weapons == ("light_laser",)
+        assert tuple(e.item_id for e in owned.weapons) == ("light_laser",)
 
     def test_install_full_slots(self):
         owned = OwnedShip(ship_id="scout", weapons=("light_laser", "medium_laser"), modules=())
@@ -73,7 +73,7 @@ class TestRemoveWeapon:
         )
         owned.weapon_ammo = {0: -1, 1: 12}  # slot 1 has ammo
         new = _remove_weapon(owned, 0)
-        assert new == ("medium_laser",)
+        assert tuple(e.item_id for e in new) == ("medium_laser",)
         # Ammo shifted: old slot 1 → new slot 0
         assert owned.weapon_ammo == {0: 12}
 
@@ -81,7 +81,7 @@ class TestRemoveWeapon:
         owned = OwnedShip(ship_id="scout", weapons=("light_laser",))
         owned.weapon_ammo = {0: -1}
         new = _remove_weapon(owned, 0)
-        assert new == ()
+        assert tuple(e.item_id for e in new) == ()
         assert owned.weapon_ammo == {}
 
     def test_remove_middle_slot(self):
@@ -92,13 +92,13 @@ class TestRemoveWeapon:
         )
         owned.weapon_ammo = {0: -1, 1: 8, 2: -1}
         new = _remove_weapon(owned, 1)
-        assert new == ("light_laser", "heavy_laser")
+        assert tuple(e.item_id for e in new) == ("light_laser", "heavy_laser")
         assert owned.weapon_ammo == {0: -1, 1: -1}
 
     def test_remove_out_of_range_noop(self):
         owned = OwnedShip(ship_id="scout", weapons=("light_laser",))
         new = _remove_weapon(owned, 5)
-        assert new == ("light_laser",)  # unchanged
+        assert tuple(e.item_id for e in new) == ("light_laser",)  # unchanged
 
     def test_sold_ammo_vanishes(self):
         """The removed weapon's ammo entry is discarded."""
@@ -120,7 +120,7 @@ class TestEquipmentStorage:
         storage = []
 
         assert store_weapon(owned, storage, 0) is True
-        assert owned.weapons == ()
+        assert tuple(e.item_id for e in owned.weapons) == ()
         assert storage == [StoredEquipment("weapon", "light_missile", 2)]
 
     def test_store_module_preserves_duplicate_parts(self):
@@ -144,7 +144,7 @@ class TestEquipmentStorage:
         assert install_stored_equipment(
             owned, storage, 0, _scout_spec(),
         ) is True
-        assert owned.weapons == ("light_missile",)
+        assert tuple(e.item_id for e in owned.weapons) == ("light_missile",)
         assert owned.weapon_ammo == {0: 1}
         assert storage == []
 
@@ -172,7 +172,7 @@ class TestEquipmentStorage:
         assert install_stored_equipment(
             owned, storage, 0, _scout_spec(),
         ) is False
-        assert owned.weapons == ("light_laser",)
+        assert tuple(e.item_id for e in owned.weapons) == ("light_laser",)
         assert storage == []
 
     def test_bulk_transfer_validates_before_mutating(self):
@@ -185,7 +185,7 @@ class TestEquipmentStorage:
         import pytest
         with pytest.raises(ValueError):
             move_installed_equipment_to_storage(owned, storage)
-        assert owned.weapons == ("missing_weapon", "light_laser")
+        assert tuple(e.item_id for e in owned.weapons) == ("missing_weapon", "light_laser")
         assert storage == []
 
     def test_move_all_installed_equipment_to_storage(self):
@@ -199,7 +199,7 @@ class TestEquipmentStorage:
 
         move_installed_equipment_to_storage(owned, storage)
 
-        assert owned.weapons == ()
+        assert tuple(e.item_id for e in owned.weapons) == ()
         assert owned.modules == ()
         assert storage == [
             StoredEquipment("weapon", "light_laser"),

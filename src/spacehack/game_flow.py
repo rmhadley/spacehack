@@ -631,7 +631,7 @@ def _new_owned_ship(ship, old_reserved: int) -> "ship_module.OwnedShip":
     """The purchased hull: starting loadout, full tank, carried reserve."""
     return ship_module.OwnedShip(
         ship_id=ship.id,
-        weapons=ship.start_weapons,
+        weapons=ship_module.base_weapon_entries(ship.start_weapons),
         modules=ship_module.base_module_entries(ship.start_modules),
         fuel=ship.max_fuel,
         mission_reserved=old_reserved,

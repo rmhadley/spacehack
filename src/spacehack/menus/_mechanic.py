@@ -90,7 +90,8 @@ def _ammo_row(owned, slot: int):
     """Build one missile-slot ammo row (buy one round)."""
     from .. import pygame_screen
 
-    weapon = find_weapon(owned.weapons[slot])
+    _entry = owned.weapons[slot]
+    weapon = find_weapon(getattr(_entry, "item_id", _entry))
     current = owned.weapon_ammo.get(slot, weapon.ammo_capacity)
     return pygame_screen.ScreenRow(
         f"Slot {slot + 1}: {weapon.name} ({current}/{weapon.ammo_capacity})",
@@ -208,7 +209,7 @@ async def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, a
             ctx.log.add(reason)
         else:
             ctx.stats.credits -= cost
-            weapon = find_weapon(owned.weapons[slot])
+            weapon = find_weapon(owned.weapons[slot].item_id)
             ctx.log.add(f"Bought 1x {weapon.name} ammo for {cost}$.")
         return
     if tab_name == "LOADOUT" and action == "LOADOUT":
@@ -226,8 +227,8 @@ async def _run_pygame_mechanic(ctx, planet_id: str, ship_rec) -> bool | None:
     while True:
         owned = ctx.player_owned_ship
         missile_slots = [
-            i for i, wid in enumerate(owned.weapons)
-            if find_weapon(wid).slot_type == "missile"
+            i for i, entry in enumerate(owned.weapons)
+            if find_weapon(entry.item_id).slot_type == "missile"
         ]
         tabs = _mechanic_tabs(missile_slots)
         if tab >= len(tabs):

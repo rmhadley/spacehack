@@ -225,9 +225,10 @@ def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
     _owned = tuple(getattr(owned_ship, 'weapons', ()) or ())
     _ammo = getattr(owned_ship, 'weapon_ammo', None) or {}
     w_ammo: dict[int, int] = {}
-    for i, wid in enumerate(_owned):
+    for i, entry in enumerate(_owned):
+        _wid = entry.item_id if hasattr(entry, "item_id") else entry
         try:
-            ws = find_weapon(wid)
+            ws = find_weapon(_wid)
             if ws.ammo_capacity > 0:
                 w_ammo[i] = _ammo.get(i, ws.ammo_capacity)
             else:
@@ -369,7 +370,13 @@ def _player_state_dict(
         "shield_recharge_bonus": _free_shield_regen(
             ship_catalog, getattr(owned_ship, 'modules', ()) or (),
         ),
-        "weapons": tuple(getattr(owned_ship, 'weapons', ()) or ()),
+        # Ids only — the combat state's weapons contract (can_afford,
+        # volley costs) keys specs by bare weapon id; the flown tiers
+        # live on SpaceCombatState.weapon_qualities.
+        "weapons": tuple(
+            entry.item_id if hasattr(entry, "item_id") else entry
+            for entry in (getattr(owned_ship, 'weapons', ()) or ())
+        ),
         "weapon_ammo": _player_weapon_ammo(owned_ship),
     }
 

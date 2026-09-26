@@ -149,7 +149,9 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
     # tabs, on a FULL loadout (all slots installed — the marker-heavy
     # worst case), plus the split manage screen. All at the 24-step
     # glyph height, none droppable.
-    ctx.player_owned_ship.weapons = ("light_laser",) * 8  # the full rack:
+    ctx.player_owned_ship.weapons = tuple(
+            StoredEquipment("weapon", "light_laser") for _ in range(8)
+        )  # the full rack:
     # 15/18 selectable rows is the true worst case (markers measure
     # cheaper than installed rows)
     ctx.player_owned_ship.modules = tuple(

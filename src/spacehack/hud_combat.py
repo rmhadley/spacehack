@@ -231,16 +231,19 @@ def _effective_weapon_ap_cost(ws, player_state=None) -> int:
 
 def _render_weapon_row(
     console, hud_x, y, slot, wid, ws, wammo, is_active, hit_chances,
-    player_state=None, focus_active=False,
+    player_state=None, focus_active=False, weapon_quality: int = 0,
 ) -> int:
     """Paint one weapon's name / hit / cost rows; return the next row.
 
     When ``focus_active`` (the Focus trait is live), the doubled AP /
     power / range the shot will actually cost are shown instead of the
     catalog values, so the weapon readout always matches the gate.
+    ``weapon_quality`` is the flown instance's tier (doc 48.7) — the
+    name row reads the token-prefixed label.
     """
+    from .ship import weapon_display_name
     sel_mark = "[x]" if is_active else "[ ]"
-    name_str = f"{sel_mark}[{slot+1}] {ws.name}"
+    name_str = f"{sel_mark}[{slot+1}] {weapon_display_name(wid, weapon_quality)}"
     fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
     console.print(x=hud_x, y=y, string=name_str[:HUD_TEXT_MAX], fg=fg_wpn)
     y += 1
@@ -267,33 +270,44 @@ def _render_weapon_row(
     return y + 1
 
 
-def _render_weapons_block(
-    console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances,
-    focus_active=False,
-) -> int:
-    """Paint the WEAPONS list + armed-volley cost; return the next row.
+def _render_volley_header(
+    console, hud_x, y, weapon_list, active_weapons, player_state, focus_active,
+) -> None:
+    """Paint the WEAPONS title row with the armed-volley cost readout.
 
-    ``focus_active`` doubles the armed-volley readout to match the charge."""
+    ``focus_active`` doubles the armed readout to match the charge."""
     from .data.weapons import find_weapon as _fw
     _mult = 2 if focus_active else 1
     _count, _max_ap, _sum_pow = volley_costs(weapon_list, active_weapons, _fw)
     console.print(x=hud_x, y=y, string="WEAPONS", fg=COLOR_DIVIDER)
-    if _count:
-        console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
-        _active_specs = (
-            _fw(_wid) for _i, _wid in enumerate(weapon_list)
-            if not active_weapons or active_weapons[_i]
-        )
-        _max_ap = max(
-            (_effective_weapon_ap_cost(_spec, player_state) for _spec in _active_specs),
-            default=0,
-        ) * _mult
-        _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
-        console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
-        if _sum_pow:
-            _pow_ok = _sum_pow * _mult <= player_state.get("power_pool", 0)
-            _pow_fg = COLOR_HP_GOOD if _pow_ok else COLOR_HP_LOW
-            console.print(x=hud_x + 16, y=y, string=f"{_sum_pow * _mult}POW", fg=_pow_fg)
+    if not _count:
+        return
+    console.print(x=hud_x + 8, y=y, string=f"[{_count}]", fg=COLOR_VALUE_DIM)
+    _active_specs = (
+        _fw(_wid) for _i, _wid in enumerate(weapon_list)
+        if not active_weapons or active_weapons[_i]
+    )
+    _max_ap = max(
+        (_effective_weapon_ap_cost(_spec, player_state) for _spec in _active_specs),
+        default=0,
+    ) * _mult
+    _ap_fg = COLOR_HP_GOOD if _max_ap <= player_state.get("ap_remaining", 0) else COLOR_HP_LOW
+    console.print(x=hud_x + 12, y=y, string=f"{_max_ap}AP", fg=_ap_fg)
+    if _sum_pow:
+        _pow_ok = _sum_pow * _mult <= player_state.get("power_pool", 0)
+        _pow_fg = COLOR_HP_GOOD if _pow_ok else COLOR_HP_LOW
+        console.print(x=hud_x + 16, y=y, string=f"{_sum_pow * _mult}POW", fg=_pow_fg)
+
+
+def _render_weapons_block(
+    console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances,
+    focus_active=False, weapon_qualities=(),
+) -> int:
+    """Paint the WEAPONS list + armed-volley cost; return the next row."""
+    from .data.weapons import find_weapon as _fw
+    _render_volley_header(
+        console, hud_x, y, weapon_list, active_weapons, player_state, focus_active,
+    )
     y += 1
     for i, wid in enumerate(weapon_list):
         try:
@@ -305,6 +319,7 @@ def _render_weapons_block(
         y = _render_weapon_row(
             console, hud_x, y, i, wid, ws, wammo, is_active, hit_chances,
             player_state, focus_active=focus_active,
+            weapon_quality=weapon_qualities[i] if i < len(weapon_qualities) else 0,
         )
     return y + 1
 
@@ -348,6 +363,7 @@ def render_combat_hud(
     range_weapon_id: str | None = None,  # weapon id for coloring distance by range
     focus_active: bool = False,          # Focus trait live (single weapon enabled)
     can_board: bool = False,             # space: current target is boardable ([d] hint)
+    weapon_qualities: tuple = (),        # per-slot flown tiers (doc 48.7)
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
@@ -360,6 +376,6 @@ def render_combat_hud(
     y = _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id)
     y = _render_weapons_block(
         console, hud_x, y, weapon_list, active_weapons, player_state,
-        hit_chances, focus_active=focus_active,
+        hit_chances, focus_active=focus_active, weapon_qualities=weapon_qualities,
     )
     _render_combat_actions(console, hud_x, y, weapon_list, can_board)

@@ -414,3 +414,63 @@ def test_base_kit_log_line_stays_plain():
         ("Modded", (100, 235, 115)),
         (".", None),
     )
+
+
+class TestShipWeaponFamilies:
+    """Doc 48.7 player side: stored and flown ship weapons are kit
+    targets — the containers SETTLED 33 listed before flown weapons
+    gained tiers."""
+
+    def test_stored_and_flown_ship_weapons_are_eligible(self):
+        from src.spacehack.tinker import eligible_targets
+
+        ctx, _ = _context(
+            equipped_ground_weapons=[],
+            equipped_ground_armor={},
+            ground_expedition_inventory=[],
+            ground_armory_storage=[],
+            ship_storage=[StoredEquipment("weapon", "heavy_laser", quality=1)],
+            player_owned_ship=OwnedShip(
+                ship_id="starter",
+                weapons=(StoredEquipment("weapon", "medium_laser", quality=1),),
+            ),
+        )
+        assert [t.key for t in eligible_targets(ctx)] == [
+            "KIT:STORED:0", "KIT:SHIP_WEAPON:0",
+        ]
+
+    def test_t3_flown_weapons_are_filtered(self):
+        from src.spacehack.tinker import eligible_targets
+
+        ctx, _ = _context(
+            equipped_ground_weapons=[],
+            equipped_ground_armor={},
+            ground_expedition_inventory=[],
+            ground_armory_storage=[],
+            ship_storage=[],
+            player_owned_ship=OwnedShip(
+                ship_id="starter",
+                weapons=(StoredEquipment("weapon", "medium_laser", quality=3),),
+            ),
+        )
+        assert [t.key for t in eligible_targets(ctx)] == []
+
+    def test_bump_flown_weapon_through_the_full_flow(self, monkeypatch):
+        from src.spacehack import pygame_story as _ps
+
+        ctx, messages = _context(
+            items=[_kit_stack(1)],
+            player_owned_ship=OwnedShip(
+                ship_id="starter",
+                weapons=(StoredEquipment("weapon", "medium_laser", quality=1),),
+            ),
+        )
+        _ps_choose = as_async(lambda *args, **kwargs: "KIT:SHIP_WEAPON:0")
+        monkeypatch.setattr(_ps, "choose", _ps_choose)
+
+        assert run(try_manage_kit(ctx, 0)) is True
+        assert ctx.player_owned_ship.weapons[0].quality == 2
+        assert ctx.ground_expedition_items == []
+        assert messages == [
+            "Tinker kit: Modded Medium Laser is now Overclocked.",
+        ]

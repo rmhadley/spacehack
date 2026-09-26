@@ -165,9 +165,12 @@ class TestSellPrice:
         assert _sell_price("module", "shield_mk2", 3) == 109  # 109.25
         assert _sell_price("module", "shield_mk2", 4) == 165  # 165.5 -> 165
 
-    def test_weapons_never_variant(self):
-        """Space weapons stay base regardless of a stray tier."""
-        assert _sell_price("weapon", "light_laser", 3) == 15
+    def test_weapon_quality_scales_like_modules(self):
+        """Flown weapons scale with their tier (doc 48.7 player side) —
+        the module formula, half-up. light_laser (30): 15 base, 22 at
+        tier 3."""
+        assert _sell_price("weapon", "light_laser") == 15
+        assert _sell_price("weapon", "light_laser", 3) == 22
 
     def test_min_1(self):
         """Item with price=1 → 0 after floor division, clamped to 1."""
@@ -283,3 +286,62 @@ class TestShipDisplayName:
         owned = SimpleNamespace(display_name="", ship_id="scout_a")
         with mock.patch(_SHIP_PATCH, return_value=SimpleNamespace(name="Scout A")):
             assert ship_display_name(owned) == "Scout A"
+
+
+class TestWeaponQualityPass:
+    """Flown weapons are quality-bearing instances (doc 48.7 player
+    side): bare ids normalize to base entries, tiers survive
+    save/load, install, and store-back."""
+
+    def test_bare_ids_normalize_to_base_entries(self):
+        from src.spacehack.ship import OwnedShip
+
+        owned = OwnedShip(ship_id="starter", weapons=("light_laser",))
+        assert len(owned.weapons) == 1
+        assert owned.weapons[0].item_id == "light_laser"
+        assert owned.weapons[0].quality == 0
+
+    def test_parse_weapon_entry_shapes(self):
+        from src.spacehack.ship import parse_weapon_entry
+
+        assert parse_weapon_entry("light_laser").item_id == "light_laser"
+        raised = parse_weapon_entry({"item_id": "heavy_laser", "quality": 2})
+        assert (raised.item_id, raised.quality) == ("heavy_laser", 2)
+        assert parse_weapon_entry({"item_id": "not_a_weapon"}) is None
+
+    def test_save_round_trip_preserves_weapon_quality(self):
+        from src.spacehack import saveload
+        from src.spacehack.ship import OwnedShip, StoredEquipment
+
+        owned = OwnedShip(
+            ship_id="starter",
+            weapons=(StoredEquipment("weapon", "medium_laser", quality=2),),
+        )
+        rebuilt = saveload._parse_owned_ship({
+            "player_owned_ship": saveload._d(owned),
+        })
+        assert rebuilt.weapons[0].item_id == "medium_laser"
+        assert rebuilt.weapons[0].quality == 2
+
+    def test_legacy_save_with_bare_weapon_ids_migrates_to_base(self):
+        from src.spacehack import saveload
+
+        rebuilt = saveload._parse_owned_ship({
+            "player_owned_ship": {"ship_id": "starter", "weapons": ["light_laser"]},
+        })
+        assert rebuilt.weapons[0].item_id == "light_laser"
+        assert rebuilt.weapons[0].quality == 0
+
+    def test_install_and_store_preserve_quality(self):
+        from src.spacehack.ship import (
+            OwnedShip, StoredEquipment, install_stored_equipment, store_weapon,
+        )
+
+        owned = OwnedShip(ship_id="starter", weapons=(), modules=())
+        spec = SimpleNamespace(weapon_slots=2, module_slots=2)
+        storage = [StoredEquipment("weapon", "heavy_laser", quality=2)]
+        assert install_stored_equipment(owned, storage, 0, spec)
+        assert owned.weapons[0].quality == 2
+        assert store_weapon(owned, storage, 0)
+        assert storage[0].item_id == "heavy_laser"
+        assert storage[0].quality == 2

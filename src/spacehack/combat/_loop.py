@@ -186,10 +186,11 @@ def _fire_slot_indexes(weapons: list, active: list) -> list[int]:
 
 
 def _slot_quality(rules, ctx, slot: int) -> int:
-    """The firing slot's rolled weapon quality (0 in space combat).
+    """The firing slot's rolled weapon quality.
 
-    Ground rules expose ``player_weapon_quality``; the space rules
-    have no such hook and ship weapons never variant.
+    Both rules modules expose ``player_weapon_quality`` — ground reads
+    the equipped instance, space reads the flown StoredEquipment
+    (doc 48.7 player side).
     """
     _hook = getattr(rules, "player_weapon_quality", None)
     return _hook(ctx, slot) if _hook is not None else 0

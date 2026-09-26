@@ -81,13 +81,30 @@ def _module_runs(module_id: str, quality: int, randart_seed) -> tuple | None:
     return ((module_display_name(module_id, quality, randart_seed), _color),)
 
 
+def _weapon_runs(weapon_id: str, quality: int) -> tuple | None:
+    """Runs colouring one weapon row's label at its tier (the module
+    twin — base reads plain, tokens carry their tier colour)."""
+    from ..data.quality import quality_color
+    from ..ship import weapon_display_name
+
+    _color = quality_color(quality)
+    if _color is None:
+        return None
+    return ((weapon_display_name(weapon_id, quality), _color),)
+
+
 def _stored_label(stored) -> str:
-    """Display label for one stored part (token seam for modules)."""
+    """Display label for one stored part (token seam for modules and
+    ship weapons — doc 48.7: flown-and-stored weapons are
+    quality-bearing)."""
     if stored.item_type == "module":
         from ..ship import module_display_name
         return module_display_name(
             stored.item_id, stored.quality, stored.randart_seed,
         )
+    if stored.item_type == "weapon":
+        from ..ship import weapon_display_name
+        return weapon_display_name(stored.item_id, stored.quality)
     return stored.item_id.replace('_', ' ').title()
 
 
@@ -95,11 +112,14 @@ def _stored_row(stored, index: int):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
     from ..data.weapons import find_weapon
-    from ..ship import module_detail, module_display_name
+    from ..ship import module_detail, module_display_name, weapon_display_name
 
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
-        name, detail, runs = spec.name, _weapon_detail(spec, ammo=stored.ammo), None
+        name = weapon_display_name(stored.item_id, stored.quality)
+        detail, runs = _weapon_detail(spec, ammo=stored.ammo), _weapon_runs(
+            stored.item_id, stored.quality,
+        )
     elif stored.item_type == "module":
         name = module_display_name(
             stored.item_id, stored.quality, stored.randart_seed,
@@ -183,19 +203,20 @@ def _ship_rows(ctx, ship_spec, mode: str):
     """Build active-ship rows whose Enter action opens Store/Sell choices."""
     from .. import pygame_split
     from ..data.weapons import find_weapon
-    from ..ship import module_detail, module_display_name
+    from ..ship import module_detail, module_display_name, weapon_display_name
 
     rows = [pygame_split.section_header("WEAPON SLOTS")]
-    for item_id, slot_index in ship_module._find_weapon_slots(ctx.player_owned_ship, ship_spec):
-        if item_id is None:
+    for entry, slot_index in ship_module._find_weapon_slots(ctx.player_owned_ship, ship_spec):
+        if entry is None:
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
-        spec = find_weapon(item_id)
+        spec = find_weapon(entry.item_id)
         rows.append(
             pygame_split.SplitRow(
-                spec.name, "",
+                weapon_display_name(entry.item_id, entry.quality), "",
                 _weapon_detail(spec, ammo=ctx.player_owned_ship.weapon_ammo.get(slot_index)),
                 f"MANAGE_WEAPON_SLOT:{slot_index}",
+                runs=_weapon_runs(entry.item_id, entry.quality),
             )
         )
     rows.append(pygame_split.section_header("MODULE SLOTS"))
@@ -395,8 +416,11 @@ def _apply_sell_stored(ctx, action: str) -> None:
 def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
     """Return (chooser body, sell id, quality) for one slot item."""
     if kind == "weapon":
-        from ..data.weapons import find_weapon
-        return find_weapon(item).name, item, 0
+        from ..ship import weapon_display_name
+        return (
+            weapon_display_name(item.item_id, item.quality),
+            item.item_id, item.quality,
+        )
     from ..ship import module_display_name
     return (
         module_display_name(
@@ -477,7 +501,7 @@ async def _apply_sell_installed(ctx, action: str) -> None:
     remove = ship_module._remove_weapon if item_type == "SELL_WEAPON_SLOT" else ship_module._remove_module
     remove(owned, slot)
     ctx.stats.credits += (
-        ship_module._sell_price("weapon", item)
+        ship_module._sell_price("weapon", item.item_id, item.quality)
         if item_type == "SELL_WEAPON_SLOT"
         else ship_module._sell_price("module", item.item_id, item.quality)
     )
@@ -523,7 +547,9 @@ def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None
         return
     if destination == "INSTALL":
         if item_type == "WEAPON":
-            installed = ship_module._install_weapon(owned, item_id, ship_spec)
+            installed = ship_module._install_weapon(
+                owned, ship_module.StoredEquipment("weapon", item_id), ship_spec,
+            )
         else:
             installed = ship_module._install_module(
                 owned, ship_module.StoredEquipment("module", item_id), ship_spec,

@@ -67,7 +67,7 @@ def test_ship_upgrade_moves_old_loadout_to_storage_and_keeps_new_starting_loadou
 
     assert purchased is ctx.player_owned_ship
     assert purchased.ship_id == "scout"
-    assert purchased.weapons == new_ship.start_weapons
+    assert tuple(e.item_id for e in purchased.weapons) == new_ship.start_weapons
     assert purchased.modules == ship_module.base_module_entries(new_ship.start_modules)
     assert purchased.mission_reserved == 7
     assert ctx.stats.credits == 5_250
@@ -104,7 +104,7 @@ def test_unaffordable_ship_upgrade_leaves_old_ship_and_storage_unchanged():
     assert purchased is None
     assert ctx.stats.credits == 100
     assert ctx.player_owned_ship is old_ship
-    assert old_ship.weapons == ("light_laser",)
+    assert tuple(e.item_id for e in old_ship.weapons) == ("light_laser",)
     assert old_ship.modules == (ship_module.StoredEquipment("module", "shield_mk1"),)
     assert ctx.ship_storage == []
     assert old_entity in game_map.entities
@@ -135,7 +135,7 @@ def test_ship_buy_result_buy_routes_through_upgrade_transfer():
 
     assert purchased is ctx.player_owned_ship
     assert purchased.ship_id == "scout"
-    assert purchased.weapons == new_ship.start_weapons
+    assert tuple(e.item_id for e in purchased.weapons) == new_ship.start_weapons
     assert ctx.stats.credits == 0
     assert old_entity not in game_map.entities
     assert ctx.ship_storage == [
@@ -261,7 +261,7 @@ def test_indoor_buy_parks_on_parent_pad_and_empties_showroom():
     assert not [e for e in interior.entities if e.ship_id and not e.owned]
     assert purchased is ctx.player_owned_ship
     assert purchased.mission_reserved == 3
-    assert purchased.weapons == new_ship.start_weapons
+    assert tuple(e.item_id for e in purchased.weapons) == new_ship.start_weapons
     assert ctx.stats.credits == 10_000 - 4_750
     assert ctx.ship_storage == [
         ship_module.StoredEquipment("weapon", "light_laser"),

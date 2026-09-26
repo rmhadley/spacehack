@@ -578,6 +578,7 @@ def _paint_combat_hud(
     *,
     active_weapons: list[bool] | None = None,
     weapon_list: tuple = (),
+    weapon_qualities: tuple = (),
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
 ) -> None:
@@ -596,6 +597,25 @@ def _paint_combat_hud(
         weapon_list=weapon_list,
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
+        weapon_qualities=weapon_qualities,
+    )
+
+
+def _paint_frame_overlays(
+    console, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx,
+    player_mode, weapon_list, weapon_qualities, active_weapons, evade_bonus,
+    hit_chances,
+) -> None:
+    """Reticle + combat HUD atop the rendered world (the reticle sits
+    above the enemy char; the panel reads the flown tiers)."""
+    _tgt = _resolve_target(enemies, target_idx)
+    if _tgt is not None:
+        _paint_target_highlight(console, cam_x, cam_y, view_w, view_h, 0, 0, _tgt)
+    _paint_combat_hud(
+        console, player_state, enemies, target_idx, player_mode,
+        active_weapons=active_weapons, weapon_list=weapon_list,
+        weapon_qualities=weapon_qualities, evade_bonus=evade_bonus,
+        hit_chances=hit_chances,
     )
 
 
@@ -613,6 +633,7 @@ def _render_anim_frame(
     log,
     *,
     weapon_list: tuple = (),
+    weapon_qualities: tuple = (),
     active_weapons: list[bool] | None = None,
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
@@ -625,14 +646,10 @@ def _render_anim_frame(
     world.render_world_view(
         console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y,
     )
-    # Targeted-enemy reticle — painted AFTER the world view so the
-    # gold recolor sits on top of the enemy char.
-    _tgt = _resolve_target(enemies, target_idx)
-    if _tgt is not None:
-        _paint_target_highlight(console, cam_x, cam_y, view_w, view_h, 0, 0, _tgt)
-    _paint_combat_hud(
-        console, player_state, enemies, target_idx, player_mode,
-        active_weapons=active_weapons, weapon_list=weapon_list, evade_bonus=evade_bonus, hit_chances=hit_chances,
+    _paint_frame_overlays(
+        console, cam_x, cam_y, view_w, view_h, player_state, enemies,
+        target_idx, player_mode, weapon_list, weapon_qualities,
+        active_weapons, evade_bonus, hit_chances,
     )
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.

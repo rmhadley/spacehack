@@ -2292,7 +2292,7 @@ def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
     run(_loadout._apply_manage_ship_item(ctx, "MANAGE_WEAPON_SLOT:0"))
 
     assert ctx.stats.credits == 1000
-    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
     assert ctx.ship_storage == [_loadout.ship_module.StoredEquipment("module", "shield_mk1")]
     assert messages == []
     assert messages == []
@@ -3532,7 +3532,7 @@ def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
     )
     assert choices[0]["compact"] is True
     assert ctx.stats.credits == 1000
-    assert ctx.player_owned_ship.weapons == ()
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage == []
 
 
@@ -3554,7 +3554,7 @@ def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
     ))
 
     assert ctx.stats.credits == 970
-    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
     assert ctx.ship_storage == []
 
 
@@ -3578,7 +3578,7 @@ def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
     ))
 
     assert ctx.stats.credits == 910
-    assert ctx.player_owned_ship.weapons == ("light_laser", "light_laser")
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser", "light_laser")
     assert len(ctx.ship_storage) == 1
     assert ctx.ship_storage[0].item_id == "heavy_laser"
     assert ctx.ship_storage[0].ammo is None
@@ -3879,7 +3879,7 @@ def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
         ("Store", "STORE_WEAPON_SLOT:0"),
         ("Sell for 15$", "SELL_WEAPON_SLOT:0"),
     )]
-    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
 
 
 def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatch):
@@ -3895,14 +3895,14 @@ def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatc
     )
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "STORE_WEAPON_SLOT:0"))
     run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
-    assert ctx.player_owned_ship.weapons == ()
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage[0].item_id == "light_laser"
 
     ctx.player_owned_ship = OwnedShip(ship_id="scout", weapons=("light_laser",))
     ctx.ship_storage.clear()
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "SELL_WEAPON_SLOT:0"))
     run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
-    assert ctx.player_owned_ship.weapons == ()
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage == []
     assert ctx.stats.credits > 0
 
@@ -3948,7 +3948,7 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
     run(_loadout._apply_pygame_loadout_action(
         ctx, "MANAGE_STORED:0", 0, 0, "earth",
     ))
-    assert ctx.player_owned_ship.weapons == ("light_missile",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
 
@@ -3990,13 +3990,13 @@ def test_loadout_store_and_install_actions_preserve_partial_ammo():
     assert run(_loadout._apply_pygame_loadout_action(
         ctx, "STORE_WEAPON_SLOT:0", 1, 0, "earth",
     ))
-    assert ctx.player_owned_ship.weapons == ()
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage[0].ammo == 1
 
     assert run(_loadout._apply_pygame_loadout_action(
         ctx, "INSTALL_STORED:0", 0, 0, "earth",
     ))
-    assert ctx.player_owned_ship.weapons == ("light_missile",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
 
@@ -4049,8 +4049,8 @@ def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
     assert run(_loadout._apply_pygame_loadout_action(
         ctx, "SELL_WEAPON_SLOT:1", 1, 2, "earth",
     ))
-    assert original == ("light_laser", "light_laser")
-    assert ctx.player_owned_ship.weapons == ("light_laser",)
+    assert tuple(e.item_id for e in original) == ("light_laser", "light_laser")
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
 
 
 def test_split_interactive_frame_build_failure_is_explicit(monkeypatch):

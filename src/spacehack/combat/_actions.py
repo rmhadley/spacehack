@@ -449,9 +449,8 @@ def resolve_damage(
     """Apply weapon damage and return hull, shield, final-hull, glancing state.
 
     ``weapon_quality`` is the SHOOTER's flown weapon tier (doc 48.7):
-    quality multiplies damage — enemy fire passes the rolled instance
-    tier, the player path passes 0 (player ship weapons are never
-    variant; bit-identical to the pre-parameter math)."""
+    quality multiplies damage — both sides pass their rolled instance
+    tier (enemy fire and the player's flown weapons alike)."""
     weapon = find_weapon(weapon_id)
     if weapon.shield_strip > 0:
         strip = min(weapon.shield_strip, target_shields)

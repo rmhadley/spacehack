@@ -467,6 +467,15 @@ def _parse_stats(data: dict):
     )
 
 
+def _parse_loadout_entries(raws, parse_one) -> tuple:
+    """Installed equipment through one migration parser: legacy bare-id
+    strings seed as base entries, unknown records drop (the shared
+    weapons/modules seam — doc 47.3 modules, doc 48.7 player weapons)."""
+    return tuple(
+        entry for raw in (raws or ()) if (entry := parse_one(raw)) is not None
+    )
+
+
 def _parse_owned_ship(data: dict):
     """Rebuild the player's :class:`ship.OwnedShip`, or None."""
     from . import ship as ship_module
@@ -489,14 +498,11 @@ def _parse_owned_ship(data: dict):
         display_name=osh.get("display_name"),
         fuel=osh.get("fuel", 0),
         hull_damage_pct=osh.get("hull_damage_pct", 0),
-        weapons=tuple(osh.get("weapons", ()) or ()),
-        # Instance migration (doc 47.3): legacy saves carry bare module
-        # ids — parse_module_entry seeds those as base entries and
-        # drops unknown records.
-        modules=tuple(
-            entry
-            for raw in (osh.get("modules", ()) or ())
-            if (entry := ship_module.parse_module_entry(raw)) is not None
+        weapons=_parse_loadout_entries(
+            osh.get("weapons", ()), ship_module.parse_weapon_entry,
+        ),
+        modules=_parse_loadout_entries(
+            osh.get("modules", ()), ship_module.parse_module_entry,
         ),
         inventory=osh.get("inventory", {}) or {},
         mission_reserved=osh.get("mission_reserved", 0),

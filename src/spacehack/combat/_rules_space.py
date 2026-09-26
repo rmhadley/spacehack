@@ -171,7 +171,7 @@ def _sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[E
 def _activate_combat_state(
     ctx, console, game_map, log,
     player_state, enemy_insts, enemy_specs, enemy_ents, player_ent,
-    weapons_list, active_weapons,
+    weapons_list, active_weapons, weapon_qualities=(),
 ) -> None:
     """Commit the assembled state and freeze the engaged set."""
     global _state
@@ -186,6 +186,7 @@ def _activate_combat_state(
         enemy_insts=enemy_insts, enemy_specs=enemy_specs,
         enemy_ents=enemy_ents, player_ent=player_ent,
         weapons_list=weapons_list, active_weapons=active_weapons,
+        weapon_qualities=list(weapon_qualities),
         cr=_cr,
     )
     # Freeze the engaged set immediately.
@@ -211,7 +212,13 @@ def init(
         ctx, player_ship_catalog, player_owned_ship,
         player_pos, player_pilot_skills, enemy_specs, enemy_positions,
     )
-    _weapons_list = list(getattr(player_owned_ship, 'weapons', ()) or ())
+    _flown = getattr(player_owned_ship, 'weapons', ()) or ()
+    _weapons_list = [
+        entry.item_id if hasattr(entry, "item_id") else entry for entry in _flown
+    ]
+    _weapon_qualities = [
+        getattr(entry, "quality", 0) for entry in _flown
+    ]
     _active_weapons = [True] * max(1, len(_weapons_list))
     _player_ent = _find_player_entity(game_map)
     _enemy_ents = _match_enemy_entities(game_map, _player_ent, _enemy_insts)
@@ -221,11 +228,25 @@ def init(
         ctx, console, game_map, log,
         _player_state, _enemy_insts, list(enemy_specs),
         _enemy_ents, _player_ent, _weapons_list, _active_weapons,
+        weapon_qualities=_weapon_qualities,
     )
 
 # ---------------------------------------------------------------------------
 # State accessors
 # ---------------------------------------------------------------------------
+
+def player_weapon_quality(ctx, slot: int) -> int:
+    """The flown weapon's rolled tier (doc 48.7 player side) by slot.
+
+    The unified loop's volley seam: quality multiplies each shot's
+    damage exactly as it multiplies enemy weapon damage. Bounds-guarded
+    so a mid-combat loadout change cannot raise IndexError.
+    """
+    _quals = _state.weapon_qualities if _state is not None else []
+    if 0 <= slot < len(_quals):
+        return int(_quals[slot])
+    return 0
+
 
 def player_hp(ctx) -> int:
     return _state.player_state.get("hull", 100)
@@ -300,8 +321,9 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # ---------------------------------------------------------------------------
 
 def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> int:
-    # ``quality`` is the ground-instance tier seam the unified loop
-    # threads; ship weapons never variant and ignore it.
+    # ``quality`` is the rolled instance tier seam the unified loop
+    # threads; quality multiplies damage only — hit chance reads the
+    # gunner, not the hardware (same as the enemy shot path).
     _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dodge = _calc_dodge_bonus(
         enemy.cells_moved_this_turn,
@@ -333,12 +355,15 @@ def damage(
     floating damage number (``GLANCE -X``) the same way the log line
     does. Hull damage is the number the popup reports. A focused shot
     doubles damage beyond half its (doubled) range via the Focus trait.
+    ``quality`` is the flown instance's tier (doc 48.7) — it multiplies
+    damage inside resolve_damage, mirroring the enemy shot path.
     """
     _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
         target_pilot_piloting=enemy.pilot_piloting,
         damage_taken_mult=_space_focus.damage_mult(weapon_id, ctx, _dist),
+        weapon_quality=quality,
     )
     enemy.shields = max(0, enemy.shields - _sdmg)
     _prev_hull = enemy.hull
@@ -537,8 +562,32 @@ def toggle_target_card(ctx) -> None:
     """Show/hide the floating target card (``v`` key)."""
     _state.show_target_card = not _state.show_target_card
 
+def _quick_resource_row(ctx):
+    """The compact resource strip above the target card (the ground
+    module's twin): labeled stats in PLAYER-block order, the armed
+    volley's costs as a FIRE verb phrase."""
+    _active_ids = [
+        _state.weapons_list[i] for i in range(len(_state.weapons_list))
+        if i < len(_state.active_weapons) and _state.active_weapons[i]
+    ]
+    _ap_needed = max(
+        (_space_focus.ap_cost(weapon_id, ctx) for weapon_id in _active_ids),
+        default=0,
+    )
+    _power_available = _state.player_state.get("power_pool", 0)
+    _power_cost = sum(
+        _space_focus.power_cost(weapon_id, ctx) for weapon_id in _active_ids
+    )
+    return quick_row(
+        f"HP {player_hp(ctx)}/{player_max_hp(ctx)}   "
+        f"AP {player_ap(ctx)}/{player_ap_total(ctx)}   "
+        f"POW {_power_available}/{_state.player_state.get('max_power', 10)}   "
+        f"FIRE {_ap_needed} AP {_power_cost} POW"
+    )
+
+
 def presentation_target_card(*, ctx: GameContext | None = None):
-    """Return the native info card for the targeted enemy ship, or None."""
+    """Return the native info card for the currently targeted enemy ship, or None."""
     if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
         return None
     if not _state.show_target_card:
@@ -552,20 +601,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     ]
     _active_wid = _active_ids[0] if _active_ids else None
     _hit = hit_chance(_active_wid, _target, ctx) if _active_wid else None
-    _ap_needed = max(
-        (_space_focus.ap_cost(weapon_id, ctx) for weapon_id in _active_ids),
-        default=0,
-    )
-    _power_available = _state.player_state.get("power_pool", 0)
-    _power_cost = sum(
-        _space_focus.power_cost(weapon_id, ctx) for weapon_id in _active_ids
-    )
-    _quick = quick_row(
-        f"HP {player_hp(ctx)}/{player_max_hp(ctx)}   "
-        f"AP {player_ap(ctx)}/{player_ap_total(ctx)}   "
-        f"POW {_power_available}/{_state.player_state.get('max_power', 10)}   "
-        f"FIRE {_ap_needed} AP {_power_cost} POW"
-    )
+    _quick = _quick_resource_row(ctx)
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))
     return _build_target_card(
@@ -661,6 +697,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         and board_denial(_state, _board_enemy, _board_ent) is None,
         range_weapon_id=_range_wid,
         focus_active=_space_focus.is_focus_active(_state.ctx),
+        weapon_qualities=tuple(_state.weapon_qualities),
     )
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.

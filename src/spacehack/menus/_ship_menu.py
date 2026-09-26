@@ -47,11 +47,14 @@ def _effective_power_gen(ship_spec, owned) -> int:
         ship_spec, getattr(owned, 'modules', ()) or (),
     )
 
-def _weapon_row(weapon_id: str):
-    """Build one filled weapon-slot row (name + stats detail)."""
+def _weapon_row(entry):
+    """Build one filled weapon-slot row (label + stats at its quality)."""
     from .. import pygame_screen
     from ..data.weapons import find_weapon
+    from ..ship import weapon_display_name
 
+    weapon_id = getattr(entry, "item_id", entry)
+    quality = getattr(entry, "quality", 0)
     try:
         weapon = find_weapon(weapon_id)
         detail = (
@@ -61,7 +64,9 @@ def _weapon_row(weapon_id: str):
         )
         if weapon.slot_type == "missile":
             detail += f"   Ammo {weapon.ammo_capacity}"
-        return pygame_screen.ScreenRow(weapon.name, detail, selectable=True)
+        return pygame_screen.ScreenRow(
+            weapon_display_name(weapon_id, quality), detail, selectable=True,
+        )
     except KeyError:
         return pygame_screen.ScreenRow(
             weapon_id, "Unknown weapon specification", selectable=True,

@@ -124,6 +124,10 @@ class SpaceCombatState:
     enemy_ents: dict = field(default_factory=dict)
     player_ent: Any = None
     weapons_list: list = field(default_factory=list)
+    # Per-slot flown-weapon tiers (doc 48.7 player side), parallel to
+    # weapons_list — quality multiplies player weapon damage exactly
+    # as it multiplies enemy weapon damage.
+    weapon_qualities: list = field(default_factory=list)
     active_weapons: list = field(default_factory=list)
     target_idx: int = 0
     view_w: int = 80

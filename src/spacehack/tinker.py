@@ -3,7 +3,8 @@
 A kit is a stackable consumable used from the character screen's pack
 manage modal: one CHOOSE TARGET list over EVERY eligible owned entry
 (SETTLED 33) — equipped weapons and armor, pack gear, armory-warehouse
-gear, ship-storage modules, installed modules. Eligibility is quality
+gear, ship-storage modules, installed modules, and (doc 48.7 player
+side) ship-storage and flown ship weapons. Eligibility is quality
 alone (SETTLED 31): tiers 0-2, never a randart seed; prototype is the
 ceiling, so t3 rows are filtered. One kit = +1 tier (SETTLED 32).
 Quality is identity and stats are always derived, so a bump is a field
@@ -66,6 +67,12 @@ def _weapon_label(instance) -> str:
     return display_name("weapon", instance.weapon_id, instance.quality)
 
 
+def _ship_weapon_label(entry) -> str:
+    from .ship import weapon_display_name
+
+    return weapon_display_name(entry.item_id, entry.quality)
+
+
 def _module_label(entry) -> str:
     from .ship import module_display_name
 
@@ -120,19 +127,21 @@ def _slotted_apply(mapping: dict, slot: str, label_of):
     return apply
 
 
-def _installed_apply(owned, index: int, label_of):
-    """Zero-arg apply: raise ``owned.modules[index]`` (a tuple field)."""
+def _tuple_field_apply(owned, field_name: str, index: int, label_of):
+    """Zero-arg apply: raise ``getattr(owned, field_name)[index]`` —
+    the shared mutation for tuple-field containers (installed modules,
+    flown weapons)."""
     def apply() -> str | None:
-        modules = owned.modules
-        if not 0 <= index < len(modules):
+        entries = getattr(owned, field_name)
+        if not 0 <= index < len(entries):
             return None
-        entry = modules[index]
+        entry = entries[index]
         if not _eligible(entry.quality, entry.randart_seed):
             return None
         line = _kit_log_line(label_of(entry), entry.quality + 1)
-        raised = list(modules)
+        raised = list(entries)
         raised[index] = _raised(entry)
-        owned.modules = tuple(raised)
+        setattr(owned, field_name, tuple(raised))
         return line
     return apply
 
@@ -206,13 +215,32 @@ def _stored_targets(ctx) -> list[_Target]:
     entries = getattr(ctx, "ship_storage", [])
     return [
         _target(
-            f"KIT:STORED:{index}", entry, _module_label,
-            _indexed_apply(entries, index, _module_label),
+            f"KIT:STORED:{index}", entry,
+            _module_label if entry.item_type == "module" else _ship_weapon_label,
+            _indexed_apply(
+                entries, index,
+                _module_label if entry.item_type == "module" else _ship_weapon_label,
+            ),
         )
         for index, entry in enumerate(entries)
-        if entry.item_type == "module" and _eligible(
+        if entry.item_type in ("module", "weapon") and _eligible(
             entry.quality, entry.randart_seed,
         )
+    ]
+
+
+def _flown_weapon_targets(ctx) -> list[_Target]:
+    """Flown ship weapons (doc 48.7 player side) — the installed-module
+    family's twin over ``owned.weapons``."""
+    owned = getattr(ctx, "player_owned_ship", None)
+    weapons = owned.weapons if owned is not None else ()
+    return [
+        _target(
+            f"KIT:SHIP_WEAPON:{index}", entry, _ship_weapon_label,
+            _tuple_field_apply(owned, "weapons", index, _ship_weapon_label),
+        )
+        for index, entry in enumerate(weapons)
+        if _eligible(entry.quality, entry.randart_seed)
     ]
 
 
@@ -222,7 +250,7 @@ def _installed_targets(ctx) -> list[_Target]:
     return [
         _target(
             f"KIT:INSTALLED:{index}", entry, _module_label,
-            _installed_apply(owned, index, _module_label),
+            _tuple_field_apply(owned, "modules", index, _module_label),
         )
         for index, entry in enumerate(modules)
         if _eligible(entry.quality, entry.randart_seed)
@@ -230,7 +258,7 @@ def _installed_targets(ctx) -> list[_Target]:
 
 
 def eligible_targets(ctx) -> tuple[_Target, ...]:
-    """Every eligible owned entry across all six containers."""
+    """Every eligible owned entry across all containers."""
     return (
         *_weapon_targets(ctx),
         *_armor_targets(ctx),
@@ -238,6 +266,7 @@ def eligible_targets(ctx) -> tuple[_Target, ...]:
         *_armory_targets(ctx),
         *_stored_targets(ctx),
         *_installed_targets(ctx),
+        *_flown_weapon_targets(ctx),
     )
 
 

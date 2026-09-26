@@ -271,12 +271,12 @@ def _ship_lines(owned) -> list[str]:
 
     name = owned.display_name or ship_module.find_ship(owned.ship_id).name
     weapons = ", ".join(
-        ship_module.weapon_display_name(weapon_id)
+        ship_module.weapon_display_name(entry.item_id, entry.quality)
         + _loaded_suffix(
-            find_weapon(weapon_id).ammo_capacity,
+            find_weapon(entry.item_id).ammo_capacity,
             owned.weapon_ammo.get(index),
         )
-        for index, weapon_id in enumerate(owned.weapons)
+        for index, entry in enumerate(owned.weapons)
     ) or "none"
     modules = ", ".join(
         ship_module.module_display_name(

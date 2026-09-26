@@ -332,8 +332,9 @@ nobody designs against a ghost.
   penalties − dodge, clamp 5–95; dodge +5%/cell moved (cap 30) —
   kiting is the core defense; damage × quality × 0.8–1.2 variance,
   hull-then-shields (`combat/_stats.py`, `_actions.resolve_damage` —
-  the roll now carries the SHOOTER's weapon quality: enemy fire at
-  its flown tier, the player path bit-identical at 0, doc 48.7).
+  the roll carries the SHOOTER's weapon quality: both sides at
+  their flown tier, doc 48.7 — the player's `OwnedShip.weapons`
+  instances thread through `SpaceCombatState.weapon_qualities`).
 - **Volley + Focus** — F fires all active weapons (max single AP
   cost); Focus trait (one weapon): 2× AP/power cost, doubled
   ranges, 2× damage beyond normal max — the kiting payoff
@@ -1166,12 +1167,13 @@ nobody designs against a ghost.
   `character_screen._manage_consumable_stack` →
   `tinker.try_manage_kit` (returns None for non-kits, falling
   through to `use_consumable`); one CHOOSE TARGET chooser over
-  every eligible owned entry across SIX containers — equipped
+  every eligible owned entry across SEVEN containers — equipped
   weapons (both weapon sets, doc 51.3), equipped armor, expedition
   pack, armory warehouse
-  (`ground_armory_storage`), mechanic ship-storage modules
-  (item_type "module" only — space weapons never variant),
-  installed modules — rows preview `current -> next` token,
+  (`ground_armory_storage`), mechanic ship-storage modules and
+  ship weapons, installed modules, flown ship weapons (doc 48.7
+  player side — `OwnedShip.weapons` holds quality-bearing
+  `StoredEquipment`, legacy bare ids migrate on load) — rows preview `current -> next` token,
   title TINKER KIT, body the self-explaining effect_label (no
   guide entry, SETTLED 36). Eligibility is quality 0-2 with no
   randart seed (SETTLED 31 — prototype items and randarts never
