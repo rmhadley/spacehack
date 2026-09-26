@@ -1,8 +1,8 @@
 # DESIGN: Flee — the world's exits work during combat
 
-**Status: BOTH phases BUILT 2026-09-26 (awaiting playtest —
-checklists in the briefs); all open questions ruled (SETTLED 1-3);
-both Implementation briefs APPROVED.**
+**Status: CLOSED 2026-09-26 — both phases BUILT and PLAYTEST
+PASSED (user, 2026-09-26); all open questions ruled (SETTLED 1-3);
+SYSTEMS.md amended at close.**
 
 ## Overview
 
@@ -104,6 +104,8 @@ User rulings (2026-09-26, conversation):
   Reviewer pass 2026-09-26: one blocking twin-pair miss fixed
   (the auto-warning pass in `_run_combat_loop` now returns FLED
   before the detection loop) + the outcome chain dict-ified.
+  **PLAYTEST PASSED 2026-09-26** (user; all nine checklist items
+  incl. the guide diff).
 - [x] 2. **Ground stair dancing** — the stairs tile fires its
   transition from inside the ground combat loop; combat cleanup on
   exit (locks released, survivors revert to patrol); the reaction
@@ -119,6 +121,8 @@ User rulings (2026-09-26, conversation):
   2026-09-26: one blocking dropped-commit on wait-started fights
   fixed (the distinct signal + `_dispatch_dungeon_tile`); probe
   exception coverage + volley line-suppression folded.
+  **PLAYTEST PASSED 2026-09-26** (user; all nine checklist items
+  incl. the guide diff).
 
 Each phase gets its Implementation brief at its own refine time —
 both briefed 2026-09-26 (below). Close-out reminder: SYSTEMS.md's

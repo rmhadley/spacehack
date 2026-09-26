@@ -313,10 +313,27 @@ nobody designs against a ghost.
 - **Militia scans** — chance by resolved militia attitude (allied
   0/liked 20/neutral 40/disliked+enemy 80%; bar-heat floor 60%);
   one roll per patrol per visit (`_militia_scan_chance`).
-- **Flee (pre-combat only)** — 0.40 +2%/speed >10 +0.5%/piloting
+- **Flee (comms, pre-combat)** — 0.40 +2%/speed >10 +0.5%/piloting
   >30, clamp 0.15–0.90; failure forces combat + unprovoked rep
-  (`_calc_flee_chance`; `comms._attempt_flee`). **Absent: no
-  disengaging once a space fight starts** — fights run to VICTORY.
+  (`_calc_flee_chance`; `comms._attempt_flee`).
+- **Flee through the world's exits (doc 54.1)** — mid-fight, a move
+  onto a planet/station/jump gate runs the SAME exit prompt from the
+  combat loop (the meta seam: `_handle_meta_action` probes
+  `_rules_space.attempt_flee`); cancels/refusals are full no-ops, a
+  committing choice eats the REACTION VOLLEY — every hostile with
+  LOS + a weapon in range fires once, no movement, CAN KILL
+  (DEFEAT at the threshold: doc-53 tombstone, no transition) —
+  (`_rules_space.reaction_volley`; the explicit reach filter
+  `_ai._reaction_pick` — the hit formula's 5% floor scores
+  out-of-range guns, so `_volley_picks` alone is not the gate).
+  Survivors end FLED carrying the `CombatResult.flee_exit` FleeExit
+  payload — the CALLER executes the transition
+  (`space_flee.begin_flee_transition` + the four game_loop
+  adoptions; the drift/detection guards exclude FLED like BOARDED).
+  The wall resolvers split probe/commit/apply in
+  `game_interactions` (`_space_exit_target` / `_space_exit_commit`
+  / `_apply_exit_commit`) with every refusal probed BEFORE the
+  volley fires.
 - **Space combat init** — encounter wrapper builds player state +
   one EnemyInstance per spec, dedupes overlapping spawns
   (`combat/_encounter._handle_combat_encounter`). The enemy build is
@@ -520,7 +537,28 @@ nobody designs against a ghost.
   hulls pinned `base_speed=0` (derelicts) show no bubble.
 - **End states** — all dead = VICTORY; survivors out of sight =
   DISENGAGED (they keep wounds — HP syncs to `entity.hp`, so
-  re-engaging never heals them) (`combat/_rules_ground.py`).
+  re-engaging never heals them) (`combat/_rules_ground.py`). The
+  doc-54 stair-dance synthesizes DISENGAGED directly (see Stair
+  dancing below) — `_combat_end_check` is not the only producer.
+- **Stair dancing / ground flee (doc 54.2)** — a MOVE that lands on
+  a transition tile IS the flee commit (AP spent, no prompt): the
+  refusal conditions are probed first over the handlers' own
+  validators (dig bounds via seeded `site_depth`, sealed-elevator
+  gates via `_transition_target_floor`, leave/attach preconditions
+  — `combat/_ground_flee._stair_transition_refuses`, read-only) and
+  a refusing stair REFUNDS the step (position + AP back, same
+  turn). Otherwise every enemy in weapon band + LOS attacks once
+  via the ground shot machinery (no movement, CAN KILL — death on
+  the stairs = DEFEAT + tombstone, no transition) and the fight
+  ends DISENGAGED carrying the tile-kind `flee_exit`
+  (`GroundCombatState.flee_exit`), with `on_disengage` called
+  directly so survivors hunt the stairs' last-seen. The CALLER runs
+  the ordinary tile dispatch via the tick's distinct "COMBAT_EXIT"
+  signal — move and wait paths share `_dispatch_dungeon_tile`;
+  automation halts on the signal (commit dropped there: step
+  off/back on, no second volley); interior fights exit through
+  `exit_city_interior` with the real flow state
+  (`city_npcs.run_city_fight` returns its result).
 - **Guard leash** — guard NPCs abandon chase beyond their rolled
   weapon's `max_range + 2` and return to post; investigation is
   goal-based (see Ground movement modes) — no tick memory
