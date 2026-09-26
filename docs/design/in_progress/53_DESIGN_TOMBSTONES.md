@@ -1,8 +1,8 @@
 # DESIGN: Tombstones — death review files
 
-**Status: REFINED 2026-09-26 — SETTLED 1 recorded; phase 1 brief
-drafted and ADVISE-reviewed (corrections folded); three rulings
-REOPENED by the review (see Open questions). Nothing implemented.**
+**Status: REFINED 2026-09-26 — SETTLED 1 + SETTLED 2 recorded, no
+open questions; phase 1 Implementation brief complete below,
+awaiting approval. Nothing implemented.**
 
 ## Overview
 
@@ -29,7 +29,8 @@ roguelike it saves a tombstone to disk with your message log in full."
   Slain by: <killer line — the last hostile damage
             source, e.g. "a Pirate Rifleman's laser
             rifle">
-  Damage taken (career): <total_damage_taken>
+  Damage taken (career): space <total_damage_taken>,
+                        ground <ground_damage_taken>
   Run seed: <INIT_SEED>
   Final state: HP <n>/<max>  AP <n>     (ground)
                hull <n>  shields <n>    (space)
@@ -84,11 +85,10 @@ roguelike it saves a tombstone to disk with your message log in full."
   share-rendered-autopsies workflow emerges in the tuning loop.
 - **Open question 3 RULED — all three extras land in v1**, plus the
   write-in extending the dump:
-  - **Damage tally** — `ctx.player_counters.total_damage_taken`
-    (as tracked today: SPACE damage only — `_ai.py:497` is the sole
-    increment site, ADVISE correction; nothing reads the counter for
-    progression) — one header line; extend-vs-relabel REOPENED as
-    question 2 below.
+  - **Damage tally** — reads BOTH counters, one line: space
+    `ctx.player_counters.total_damage_taken` (as tracked today:
+    SPACE damage only — `_ai.py:497` is the sole increment site,
+    ADVISE correction) + the NEW ground metric settled in SETTLED 2.
   - **Run seed** — `engine.INIT_SEED` (persisted in saves) — one
     header line; enables re-simming the run in the doc-50 balance
     harness.
@@ -100,6 +100,40 @@ roguelike it saves a tombstone to disk with your message log in full."
     installed weapons (id + quality + loaded ammo) and modules join
     the dump (`ctx.player_owned_ship`).
 
+## SETTLED 2 (2026-09-26, user — the ADVISE-review rulings: splash killer, tally metric, city screen)
+
+> Splash: "Self-inflicted line". Tally: "that damage tally counter
+> is for another feature in the game. I'm ok with tallying ground
+> damage too, for a different trait it could even be useful, but
+> it'd have to be a new separate metric." City: "Shared screen".
+
+- **Splash killer RULED — self-inflicted line**: the self-splash
+  site (`combat/_rules_ground.py:510-511`) sets the tracked attacker
+  to a self-inflicted line; approved wording
+  `Slain by: your own explosives` (seen and chosen in the ruling
+  option). Pinned by test; a splash suicide never names a stale
+  enemy nor "unknown causes".
+- **Damage tally RULED — a NEW, SEPARATE ground metric**:
+  `total_damage_taken` belongs to the doc-2 XP/trait feature and
+  stays SPACE-only — never piggyback it. (Correction of the
+  session's earlier "nothing reads it, extend is neutral" claim:
+  trait requirements read counters BY FIELD NAME from data —
+  invisible to an identifier grep — and the user knows the
+  feature's intent.) The tombstone's ground tally comes from a NEW
+  `PlayerCounters.ground_damage_taken: int = 0`, incremented at the
+  two ground damage sites (`_rules_ground.py:511` splash, `:861`
+  enemy fire) — a first-class counter a future trait can require.
+  Header reads both: `Damage taken (career): space <n>, ground <m>`.
+- **City deaths RULED — shared death screen**: city hostile-bump
+  DEFEAT routes through the same full-screen death frame as both
+  other theaters (the full-filename line holds everywhere), then
+  exits — closing the pre-existing gap where city deaths showed no
+  death screen at all.
+- **Strings approved this session** (prose gate satisfied):
+  `Slain by: unknown causes` (no-attacker fallback),
+  `Slain by: your own explosives` (self-splash), section labels per
+  the SETTLED 1 mock.
+
 ## Phases
 
 - [ ] 1. **The tombstone writer** — the module (format + sections +
@@ -107,7 +141,7 @@ roguelike it saves a tombstone to disk with your message log in full."
   tests (format pins, both death paths write, log stripping, killer
   line, failure-is-nonfatal). Brief at refine time.
 
-### Phase 1 Implementation brief (proposed 2026-09-26 — awaiting approval)
+### Phase 1 Implementation brief (proposed 2026-09-26, SETTLED 2 folded — awaiting approval)
 
 **Scope — exact files and hook points**
 
@@ -134,10 +168,11 @@ roguelike it saves a tombstone to disk with your message log in full."
     'Derelict Ship' default: use `solar_system_module.current_system().name`
     + `game_map.location_name` when present (dungeon maps carry it)
     + a city-name fallback via the city catalog),
-    `ctx.player_counters.total_damage_taken` (space-only today —
-    reopened Q2), `engine.INIT_SEED`, `facts`; sheet from pilot
-    skills + ground
-    stats + traits (same accessors the character screen uses);
+    `ctx.player_counters.total_damage_taken` +
+    `ctx.player_counters.ground_damage_taken` (SETTLED 2's new
+    metric; the header line shows both), `engine.INIT_SEED`,
+    `facts`; sheet from pilot skills + ground stats + traits (same
+    accessors the character screen uses);
     kit from `ground_weapon_sets.partition_weapon_sets` (id +
     quality + loaded ammo via the ground-ammo store), the five
     equipped-armor slots, `ctx.bandolier`,
@@ -150,6 +185,17 @@ roguelike it saves a tombstone to disk with your message log in full."
 - `combat/_types.py` — `CombatResult` gains
   `tombstone_path: str | None = None` (session-scoped, never
   serialized → no save/load impact).
+- NEW ground tally metric (SETTLED 2): `game_context.py`
+  `PlayerCounters` gains `ground_damage_taken: int = 0`, declared
+  in the owning module; incremented at the two ground player-damage
+  sites (`_rules_ground.py:511` self-splash, `:861` enemy fire —
+  after the `ground_damage_taken(ctx, …)` DR call, on the applied
+  amount). SAVE/LOAD CONTRACT: the write side serializes the
+  dataclass wholesale, but `saveload.load_game`'s rebuild names
+  counter fields EXPLICITLY — add
+  `ground_damage_taken=pc.get("ground_damage_taken", 0)` there
+  (old saves default 0). `total_damage_taken` is NOT touched
+  (doc-2 trait feature, space-only by ruling).
 - Killer tracking at the TWO theater death sites (ADVISE correction:
   `_apply_enemy_hit` is SPACE-only — it logs "Your ship has been
   destroyed!"; ground fire is APPLIED by the caller):
@@ -182,10 +228,10 @@ roguelike it saves a tombstone to disk with your message log in full."
     passes `lines` to `_render_death_screen`).
   - ground: `game_flow.py::_show_ground_defeat` (`ground_result`
     in scope; extend the existing `lines` tuple).
-  - city (pending reopened Q3): city hostile-bump fights route
-    through `_finish_combat` (the tombstone WRITES) but their DEFEAT
-    `raise SystemExit()` with no screen at all (`city_npcs.py`) —
-    pre-existing UX gap; ruling pending.
+  - city (SETTLED 2): `city_npcs.py`'s DEFEAT branch awaits the
+    shared death screen (`_show_ground_defeat`) BEFORE its exit —
+    the full-filename line holds in all three theaters, and the
+    pre-existing no-screen gap closes.
   - Long-path note (ADVISE): a HOME-heavy full path can exceed the
     100-col grid — clip or wrap at the screen seam (build-session
     call).
@@ -195,10 +241,12 @@ roguelike it saves a tombstone to disk with your message log in full."
 1. `tombstone.py` pure builders + `build_tombstone_text` + format
    pin tests (no combat needed).
 2. Log export test (runs-bearing entry → text-only in output).
-3. `last_attacker` tracking + `CombatResult.tombstone_path`.
+3. `last_attacker` tracking (both sites) + `CombatResult.tombstone_path`
+   + the `ground_damage_taken` counter (owning-module field, both
+   increments, load-side rebuild) + its round-trip test.
 4. `_finish_combat` hook + `write_tombstone` I/O + filename
    collision suffix test.
-5. Death-screen lines at both sites.
+5. Death-screen lines at all three sites (incl. city routing).
 6. Both-theater integration tests.
 
 **Binding rulings (SETTLED 1)** — location
@@ -211,7 +259,12 @@ is settled (sheet incl. traits/stats, kit incl. SHIP weapons +
 modules, career damage tally, run seed, final HP/AP, full log); no
 in-game browser; ONE `.txt` artifact per death — no sibling
 markdown format (SETTLED 1; the pure section builders keep a
-`.md` renderer a cheap later add, not built now).
+`.md` renderer a cheap later add, not built now). SETTLED 2 adds:
+self-splash killer line `Slain by: your own explosives` (tracked
+at the splash site, never a stale enemy); the ground tally is a
+NEW `ground_damage_taken` counter — `total_damage_taken` stays
+space-only (doc-2 trait feature, untouched); city DEFEAT joins the
+shared death screen before exit.
 
 **Required tests** (`tests/test_tombstone.py` + additions under
 `tests/combat/`)
@@ -234,8 +287,11 @@ markdown format (SETTLED 1; the pure section builders keep a
   just playtested (ADVISE).
 - Killer-`None` fallback pin: header reads `Slain by: unknown
   causes` (exact string per the sign-off list below).
-- Self-splash death killer per reopened Q1's ruling (pin whatever
-  line it settles on).
+- Self-splash death killer: header reads `Slain by: your own
+  explosives` (SETTLED 2 wording; pin it).
+- Ground counter: increments at both ground damage sites (enemy
+  fire, self-splash); save/load round-trip carries
+  `ground_damage_taken` (old save without the key → 0).
 - Sabotage-prove the DEFEAT-pin (disable the hook → test fails).
 
 **Stop point — do NOT start**
@@ -254,41 +310,24 @@ markdown format (SETTLED 1; the pure section builders keep a
    EXPECT: death screen shows the tombstone line with the FULL
    filename; the file exists under `~/.spacehack/saves/tombstones/`;
    header = species/class, level, real time, game clock, location,
-   Slain-by with enemy + weapon, damage tally, run seed, ground
-   final state; kit lists both weapon sets + armor + bandolier +
-   pack + SHIP weapons/modules; full log, oldest first.
+   Slain-by with enemy + weapon, damage tally (space + ground
+   lines), run seed, ground final state; kit lists both weapon
+   sets + armor + bandolier + pack + SHIP weapons/modules; full
+   log, oldest first.
 2. Die in space combat. Same expectations, space final state
    (hull/shields).
 3. Win a fight. EXPECT: no tombstone written (DEFEAT only).
 4. Save → quit → continue around a won fight. EXPECT: autosave
    intact, no tombstone side effects.
-5. Guide diff: NONE proposed — the death-screen line is the teacher
+5. Die to a city hostile-bump fight (pick a fight with an armed
+   city NPC). EXPECT: the SAME full death screen + tombstone line
+   as the other theaters (SETTLED 2's closed gap), then exit.
+6. Guide diff: NONE proposed — the death-screen line is the teacher
    (guide = controls/core mechanics; the existing destruction
    mention is untouched). Ruling recorded here for review.
 
-## Open questions (reopened 2026-09-26 by the ADVISE review — brief
-on hold until ruled)
+## Open questions
 
-1. **Self-splash killer line** — `explosive_blast` player damage
-   (`combat/_rules_ground.py:510-511`) sets no attacker, so a splash
-   suicide names a STALE enemy (if one hit you earlier in the fight)
-   or reads "unknown causes". Splash suicide is a first-class doc-50
-   death class (the overview cites it). Options: track a
-   self-inflicted line at the splash site vs clear-to-fallback on
-   self-damage.
-2. **Damage-tally honesty** — `total_damage_taken` increments only
-   on space hull damage (`combat/_ai.py:497`, sole site; no
-   progression reader exists, so extending is gameplay-neutral).
-   Extend to the two ground sites (`_rules_ground.py:511` splash,
-   `:861` enemy fire) for a true career total, or relabel the header
-   line "Hull damage taken (career)".
-3. **City death screen** — city hostile-bump fights write the
-   tombstone (they route through `_finish_combat`) but on DEFEAT
-   `raise SystemExit()` with NO death screen (`city_npcs.py`) — a
-   pre-existing UX gap the "full filename on the death screen"
-   ruling silently fails into. Route city defeat through the shared
-   death screen, or record the exception as a ruling.
-4. **Exact new strings for sign-off** (prose gate): fallback
-   `Slain by: unknown causes`; the self-splash line per Q1
-   (proposed `Slain by: your own explosives`); section labels per
-   the SETTLED 1 mock (THE SHEET / THE KIT / MESSAGE LOG).
+None open — all four reopened by the ADVISE review and ruled in
+SETTLED 2. v2 candidates parked in the stop point (in-game browser,
+per-source damage breakdown, sibling `.md` renderer).
