@@ -48,6 +48,14 @@ SPEC = PlanetSpec(
             label="bar", x_lo=66, x_hi=84, y_lo=52, y_hi=60,
             door_x=75, npc_id="barkeep", door_north=True,
         ),
+        world.CityBuilding(
+            label="merchants", x_lo=38, x_hi=60, y_lo=26, y_hi=33,
+            door_x=49, npc_id="guild_master",
+        ),
+        world.CityBuilding(
+            label="bounties", x_lo=38, x_hi=56, y_lo=42, y_hi=49,
+            door_x=47, npc_id="bounty_master",
+        ),
     ),
     city_layout_id="ac3_ring_refinery",
     city_npc_population=AC3_POPULATION,
@@ -60,12 +68,24 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="bar", name="The Ring Band", district="east end",
             pos=world.Position(73, 50), serves="ac3_bar",
-            destinations=("spaceport",),
+            destinations=("spaceport", "merchants", "bounties"),
+        ),
+        world.TransitStation(
+            id="merchants", name="Refinery Trade", district="mid ring",
+            pos=world.Position(47, 35), serves="ac3_merchants",
+            destinations=("bar", "bounties", "spaceport"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Security Office", district="lower ring",
+            pos=world.Position(45, 51), serves="ac3_bounties",
+            destinations=("bar", "merchants", "spaceport"),
         ),
     ),
     interior_layouts=(
         ("spaceport", "ac3_spaceport_interior"),
         ("bar", "ac3_bar_interior"),
+        ("merchants", "ac3_merchants_interior"),
+        ("bounties", "ac3_bounties_interior"),
     ),
     showroom_ships=("hauler", "cruiser",),
     npc_overrides=(

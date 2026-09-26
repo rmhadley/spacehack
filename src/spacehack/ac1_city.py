@@ -69,6 +69,7 @@ AC1_SALT = override_theme(
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "ac1_spaceport": world.Position(6, 4),
     "ac1_bar":       world.Position(66, 52),
+    "ac1_militia":   world.Position(28, 16),
 }
 
 # ---------------------------------------------------------------------

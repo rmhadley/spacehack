@@ -1,0 +1,19 @@
+# ac2_bounties.layout - AC-II bounty guild exterior
+# Research outpost bounty board - solid block, entrance south.
+MAP
+###################
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#########d#########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (90, 160, 150) / (24, 48, 44)
+COLOUR: = = (130, 200, 185) / (36, 68, 62)
+COLOUR: d = (140, 215, 200) / (44, 84, 78)

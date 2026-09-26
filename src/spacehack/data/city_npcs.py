@@ -448,7 +448,7 @@ AC3_POPULATION: tuple[CityNpc, ...] = (
     # A regular loitering outside The Ring Band.
     CityNpc("ac3_bar_regular", "civilian_bystander", (65, 50), wander_radius=4, move_chance=0.8),
     # One refinery marshal patrolling the concourse.
-    CityNpc("ac3_refinery_marshal", "militia_trooper", (50, 30), wander_radius=12, move_chance=0.85),
+    CityNpc("ac3_refinery_marshal", "militia_trooper", (51, 35), wander_radius=12, move_chance=0.85),
 )
 
 SIRIUS_POPULATION: tuple[CityNpc, ...] = (

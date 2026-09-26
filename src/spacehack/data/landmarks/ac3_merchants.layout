@@ -1,0 +1,19 @@
+# ac3_merchants.layout - AC-III refinery trade post exterior
+# Ring refinery's commercial block - solid block, entrance south.
+MAP
+#######################
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+###########d###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (160, 110, 70) / (48, 32, 22)
+COLOUR: = = (200, 145, 95) / (64, 46, 30)
+COLOUR: d = (220, 165, 110) / (80, 58, 36)

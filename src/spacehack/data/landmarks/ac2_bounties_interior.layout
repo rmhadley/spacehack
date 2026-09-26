@@ -1,0 +1,27 @@
+# ac2_bounties_interior.layout - AC-II bounty guild interior
+MAP
+##################
+#................#
+#..tttt....tttt..#
+#..t..........t..#
+#..t..........t..#
+#..tttt....tttt..#
+#................#
+#................#
+#................#
+#......*.P.*.....#
+#########>########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = TABLE
+TILE: * = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (90, 160, 150) / (24, 48, 44)
+COLOUR: . = (160, 210, 200) / (44, 72, 66)
+COLOUR: t = (130, 180, 170) / (36, 60, 54)
+COLOUR: * = (100, 230, 200) / (24, 60, 52)
+COLOUR: P = (100, 230, 200) / (44, 72, 66)
+COLOUR: > = (100, 230, 200) / (44, 72, 66)

@@ -1,0 +1,27 @@
+# ac3_merchants_interior.layout - AC-III refinery trade post interior
+MAP
+##################
+#................#
+#..tttt....tttt..#
+#..t..........t..#
+#..t..........t..#
+#..tttt....tttt..#
+#................#
+#................#
+#................#
+#......*.P.*.....#
+#########>########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = TABLE
+TILE: * = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (160, 110, 70) / (48, 32, 22)
+COLOUR: . = (220, 190, 150) / (70, 54, 36)
+COLOUR: t = (185, 140, 90) / (56, 40, 26)
+COLOUR: * = (255, 180, 90) / (90, 60, 30)
+COLOUR: P = (255, 180, 90) / (70, 54, 36)
+COLOUR: > = (255, 180, 90) / (70, 54, 36)

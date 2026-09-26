@@ -1,0 +1,27 @@
+# ac3_bounties_interior.layout - AC-III bounty guild interior
+MAP
+##################
+#................#
+#..tttt....tttt..#
+#..t..........t..#
+#..t..........t..#
+#..tttt....tttt..#
+#................#
+#................#
+#................#
+#......*.P.*.....#
+#########>########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = TABLE
+TILE: * = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (150, 120, 80) / (44, 34, 24)
+COLOUR: . = (210, 175, 130) / (64, 50, 34)
+COLOUR: t = (175, 140, 95) / (52, 40, 26)
+COLOUR: * = (255, 170, 100) / (86, 58, 32)
+COLOUR: P = (255, 170, 100) / (64, 50, 34)
+COLOUR: > = (255, 170, 100) / (64, 50, 34)

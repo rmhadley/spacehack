@@ -48,6 +48,14 @@ SPEC = PlanetSpec(
             label="lab", x_lo=60, x_hi=82, y_lo=28, y_hi=40,
             door_x=71, npc_id="research_officer", door_north=True,
         ),
+        world.CityBuilding(
+            label="merchants", x_lo=12, x_hi=34, y_lo=46, y_hi=53,
+            door_x=23, npc_id="guild_master",
+        ),
+        world.CityBuilding(
+            label="bounties", x_lo=52, x_hi=70, y_lo=46, y_hi=53,
+            door_x=61, npc_id="bounty_master",
+        ),
     ),
     city_layout_id="ac2_frostlab",
     city_npc_population=AC2_POPULATION,
@@ -60,12 +68,24 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="lab", name="Research Lab", district="lab terrace",
             pos=world.Position(65, 22), serves="ac2_lab",
-            destinations=("spaceport",),
+            destinations=("spaceport", "merchants", "bounties"),
+        ),
+        world.TransitStation(
+            id="merchants", name="Trade Annex", district="south terrace",
+            pos=world.Position(21, 55), serves="ac2_merchants",
+            destinations=("lab", "bounties", "spaceport"),
+        ),
+        world.TransitStation(
+            id="bounties", name="Contract Board", district="south terrace",
+            pos=world.Position(61, 61), serves="ac2_bounties",
+            destinations=("lab", "merchants", "spaceport"),
         ),
     ),
     interior_layouts=(
         ("spaceport", "ac2_spaceport_interior"),
         ("lab", "ac2_lab_interior"),
+        ("merchants", "ac2_merchants_interior"),
+        ("bounties", "ac2_bounties_interior"),
     ),
     showroom_ships=("hauler", "cruiser",),
     npc_overrides=(

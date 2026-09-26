@@ -49,6 +49,10 @@ SPEC = PlanetSpec(
             label="bar", x_lo=68, x_hi=85, y_lo=52, y_hi=57,
             door_x=75, npc_id="barkeep", door_north=False,
         ),
+        world.CityBuilding(
+            label="militia", x_lo=28, x_hi=46, y_lo=16, y_hi=23,
+            door_x=37, npc_id="militia_captain",
+        ),
     ),
     city_layout_id="ac1_the_claim",
     city_npc_population=AC1_POPULATION,
@@ -61,12 +65,18 @@ SPEC = PlanetSpec(
         world.TransitStation(
             id="bar", name="The Claim", district="east end",
             pos=world.Position(75, 60), serves="ac1_bar",
-            destinations=("spaceport",),
+            destinations=("spaceport", "militia"),
+        ),
+        world.TransitStation(
+            id="militia", name="Claim Watch", district="north grid",
+            pos=world.Position(31, 28), serves="ac1_militia",
+            destinations=("bar", "spaceport"),
         ),
     ),
     interior_layouts=(
         ("spaceport", "ac1_spaceport_interior"),
         ("bar", "ac1_bar_interior"),
+        ("militia", "ac1_militia_interior"),
     ),
     showroom_ships=("scout", "hauler",),
     npc_overrides=(

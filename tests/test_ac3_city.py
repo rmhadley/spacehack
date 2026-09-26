@@ -27,7 +27,7 @@ def test_ac3_is_the_authored_ring_refinery():
     game_map = load_planet("ac_planet_3")
     assert game_map.city_layout_id == "ac3_ring_refinery"
     assert (game_map.width, game_map.height) == (100, 70)
-    assert len(game_map.landmark_stamps) == 2
+    assert len(game_map.landmark_stamps) == 4  # + merchants + bounties
     # Ring particle bands fill the map outside the platform.
     assert any(tile.kind == "ring_dust" for row in game_map.tiles for tile in row)
     # The platform has an edge silhouette, not a wall.
@@ -58,7 +58,7 @@ def test_ac3_buildings_transit_and_npcs_are_reachable():
     game_map = load_planet("ac_planet_3")
     spec = find_planet_spec("ac_planet_3")
     reachable = _reachable(game_map, spec.hangar_anchor)
-    assert set(game_map.city_transit) == {"spaceport", "bar"}
+    assert set(game_map.city_transit) == {"spaceport", "bar", "merchants", "bounties"}
     assert len(spec.city_npc_population) == 8
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
@@ -86,7 +86,7 @@ def test_ac3_landing_apron_is_smooth_and_showroom_is_clear():
 
 def test_ac3_interiors_follow_authored_conventions():
     game_map = load_planet("ac_planet_3")
-    assert set(game_map.city_buildings) == {"spaceport", "bar"}
+    assert set(game_map.city_buildings) == {"spaceport", "bar", "merchants", "bounties"}
     furniture_kinds = {"table", "bar_body", "drink", "city_ornament"}
     for label, record in game_map.city_buildings.items():
         asset = city_landmarks.load_city_interior(record["interior_layout_id"])

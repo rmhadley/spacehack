@@ -1,0 +1,19 @@
+# ac3_bounties.layout - AC-III bounty guild exterior
+# Refinery security contracts - solid block, entrance south.
+MAP
+###################
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#########d#########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (150, 120, 80) / (44, 34, 24)
+COLOUR: = = (185, 150, 100) / (56, 44, 30)
+COLOUR: d = (200, 165, 115) / (72, 56, 38)

@@ -1,0 +1,27 @@
+# ac1_militia_interior.layout - AC-I militia post interior
+MAP
+##################
+#................#
+#..tttt....tttt..#
+#..t..........t..#
+#..t..........t..#
+#..tttt....tttt..#
+#................#
+#................#
+#................#
+#......*.P.*.....#
+#########>########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: . = CITY_BUILDING_FLOOR
+TILE: t = TABLE
+TILE: * = CITY_ORNAMENT
+TILE: P = LANDMARK_ENTRANCE
+TILE: > = EXIT
+COLOUR: # = (140, 120, 90) / (40, 32, 22)
+COLOUR: . = (200, 185, 160) / (58, 48, 34)
+COLOUR: t = (160, 130, 90) / (48, 38, 26)
+COLOUR: * = (255, 200, 100) / (92, 78, 34)
+COLOUR: P = (255, 200, 100) / (58, 48, 34)
+COLOUR: > = (255, 200, 100) / (58, 48, 34)

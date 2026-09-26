@@ -27,7 +27,7 @@ def test_ac2_is_the_authored_glacial_campus():
     game_map = load_planet("ac_planet_2")
     assert game_map.city_layout_id == "ac2_frostlab"
     assert (game_map.width, game_map.height) == (100, 70)
-    assert len(game_map.landmark_stamps) == 2
+    assert len(game_map.landmark_stamps) == 4  # + merchants + bounties
     # Frozen meltwater channel bisects the campus.
     assert any(tile.kind == "ice_channel" for row in game_map.tiles for tile in row)
     # A bridge crosses the channel.
@@ -53,7 +53,7 @@ def test_ac2_buildings_transit_and_npcs_are_reachable():
     game_map = load_planet("ac_planet_2")
     spec = find_planet_spec("ac_planet_2")
     reachable = _reachable(game_map, spec.hangar_anchor)
-    assert set(game_map.city_transit) == {"spaceport", "lab"}
+    assert set(game_map.city_transit) == {"spaceport", "lab", "merchants", "bounties"}
     assert len(spec.city_npc_population) == 7
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
@@ -81,7 +81,7 @@ def test_ac2_landing_apron_is_smooth_and_showroom_is_clear():
 
 def test_ac2_interiors_follow_authored_conventions():
     game_map = load_planet("ac_planet_2")
-    assert set(game_map.city_buildings) == {"spaceport", "lab"}
+    assert set(game_map.city_buildings) == {"spaceport", "lab", "merchants", "bounties"}
     furniture_kinds = {"table", "bar_body", "drink", "city_ornament"}
     for label, record in game_map.city_buildings.items():
         asset = city_landmarks.load_city_interior(record["interior_layout_id"])

@@ -1,0 +1,19 @@
+# ac2_merchants.layout - AC-II contract trade office exterior
+# Frostlab's trade annex: insulated panels - solid block, entrance south.
+MAP
+#######################
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+#=====================#
+###########d###########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (110, 150, 170) / (28, 40, 50)
+COLOUR: = = (150, 190, 210) / (40, 60, 72)
+COLOUR: d = (160, 210, 230) / (48, 80, 96)

@@ -71,6 +71,8 @@ AC3_REFINERY = override_theme(
 LANDMARK_ORIGINS: dict[str, world.Position] = {
     "ac3_spaceport": world.Position(10, 6),
     "ac3_bar":       world.Position(66, 52),
+    "ac3_merchants": world.Position(38, 26),
+    "ac3_bounties":  world.Position(38, 42),
 }
 
 # ---------------------------------------------------------------------

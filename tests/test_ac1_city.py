@@ -27,7 +27,7 @@ def test_ac1_is_the_authored_salt_flat_boomtown():
     game_map = load_planet("ac_planet_1")
     assert game_map.city_layout_id == "ac1_the_claim"
     assert (game_map.width, game_map.height) == (100, 70)
-    assert len(game_map.landmark_stamps) == 2
+    assert len(game_map.landmark_stamps) == 3  # + militia (doc 50 guild ruling)
     # The grid has two EW streets + one NS avenue.
     strip = sum(
         tile.kind == "road" for row in game_map.tiles for tile in row
@@ -55,7 +55,7 @@ def test_ac1_buildings_transit_and_npcs_are_reachable():
     game_map = load_planet("ac_planet_1")
     spec = find_planet_spec("ac_planet_1")
     reachable = _reachable(game_map, spec.hangar_anchor)
-    assert set(game_map.city_transit) == {"spaceport", "bar"}
+    assert set(game_map.city_transit) == {"spaceport", "bar", "militia"}
     assert len(spec.city_npc_population) == 8
     for label, record in game_map.city_buildings.items():
         assert record["entrance"] in reachable, label
@@ -83,7 +83,7 @@ def test_ac1_landing_apron_is_smooth_and_showroom_is_clear():
 
 def test_ac1_interiors_follow_authored_conventions():
     game_map = load_planet("ac_planet_1")
-    assert set(game_map.city_buildings) == {"spaceport", "bar"}
+    assert set(game_map.city_buildings) == {"spaceport", "bar", "militia"}
     furniture_kinds = {"table", "bar_body", "drink", "city_ornament"}
     for label, record in game_map.city_buildings.items():
         asset = city_landmarks.load_city_interior(record["interior_layout_id"])

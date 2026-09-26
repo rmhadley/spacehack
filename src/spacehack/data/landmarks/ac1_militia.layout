@@ -1,0 +1,19 @@
+# ac1_militia.layout - AC-I militia post exterior
+# The claim-watch keeps a squat fortified post - solid block, entrance south.
+MAP
+###################
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#=================#
+#########d#########
+ENDMAP
+
+TILE: # = CITY_BUILDING_WALL
+TILE: = = CITY_BUILDING_ROOF
+TILE: d = CITY_BUILDING_DOOR
+COLOUR: # = (140, 120, 90) / (40, 32, 22)
+COLOUR: = = (170, 145, 100) / (58, 46, 28)
+COLOUR: d = (200, 170, 110) / (75, 58, 34)

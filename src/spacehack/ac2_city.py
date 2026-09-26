@@ -66,8 +66,10 @@ AC2_GLACIAL = override_theme(
 )
 
 LANDMARK_ORIGINS: dict[str, world.Position] = {
-    "ac2_spaceport": world.Position(6, 4),
-    "ac2_lab":       world.Position(60, 28),
+    "ac2_spaceport":  world.Position(6, 4),
+    "ac2_lab":        world.Position(60, 28),
+    "ac2_merchants":  world.Position(12, 46),
+    "ac2_bounties":   world.Position(52, 46),
 }
 
 # ---------------------------------------------------------------------
