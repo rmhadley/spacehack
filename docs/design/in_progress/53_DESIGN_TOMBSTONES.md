@@ -306,6 +306,45 @@ tests → gate → reviewer → checkpoint handout.
 **Stop point**: no in-game dump VIEWER (files are the surface, same
 as v1); no auto-dump on events; no share-button integration.
 
+**Playtest checkpoint (phase 2 — build done, gate green, reviewer
+verdict resolved except the prose-gate hold below)**
+
+PENDING STRING SIGN-OFF (reviewer blocking: the complete
+unapproved-strings list — the commit waits on the user's word):
+
+1. Pause-menu title `PAUSE`
+2. Pause-menu body `Save and return to the main menu, or dump your
+   current state?`
+3. Dump Char row description `Write your current state to disk to
+   share.`
+4. CHAR DUMP hint `ENTER continue`
+5. Write-failure modal body `Char dump failed to write.`
+6. Guide city row: `- ESC: save and exit to the main menu (asks
+   first)` → `- ESC: pause menu (save & exit, dump char)`
+7. Guide space row (stale BEFORE this phase — ESC opens the pause
+   menu in space too; the ship menu is bumping the parked ship):
+   `- ESC: ship menu` → `- ESC: pause menu`
+8. Guide Start Here alignment: `Save often. ESC asks before saving
+   and returning to the main menu.` → `Save often. ESC opens the
+   pause menu (save & exit, dump char).`
+
+In-game checklist (numbered):
+
+1. ESC in a city: EXPECT the pause menu (Save & Exit / Dump Char /
+   Keep Playing); Keep Playing and ESC-dismiss both return to the
+   game with nothing saved.
+2. Dump Char: EXPECT the CHAR DUMP modal naming the full path under
+   `~/.spacehack/saves/chardumps/chardump-<timestamp>.txt`; the file
+   exists; header has NO Slain-by/Final-state lines; CHAR + GEAR +
+   full log as in a tombstone; the run continues untouched.
+3. Dump twice within a second: EXPECT the `-2` suffix on the second
+   file.
+4. Save & Exit via the menu: EXPECT the pre-existing save/exit flow.
+5. Window-close (not ESC): EXPECT the unchanged immediate save+exit.
+6. Space mode ESC: EXPECT the same pause menu (the stale guide's
+   "ship menu" line is fixed by edit 7 above).
+7. Guide: read the three edited lines (6/7/8) — diffs above.
+
 ### Phase 1 Implementation brief (APPROVED 2026-09-26, user)
 
 **Scope — exact files and hook points**
