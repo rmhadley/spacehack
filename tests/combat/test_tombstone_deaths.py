@@ -135,7 +135,7 @@ def test_finish_combat_defeat_writes_and_stashes_the_path(monkeypatch, tmp_path)
         assert cr.tombstone_path is not None
         text = Path(cr.tombstone_path).read_text(encoding="utf-8")
         assert "  Slain by: unknown causes" in text
-        assert "  Final state: HP -2/24  AP 4" in text
+        assert "  Final state: HP -2/26  AP 4" in text
     finally:
         _release_ground_state()
 

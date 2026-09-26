@@ -391,7 +391,7 @@ class TestGroundCanFire:
         _ctx = SimpleNamespace(
             player=_player,
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-            ground_hp=23,
+            ground_hp=25,
             ground_max_hp=23,
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
@@ -430,7 +430,7 @@ class TestGroundPointBlankFire:
         _ctx = SimpleNamespace(
             player=_player,
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-            ground_hp=23,
+            ground_hp=25,
             ground_max_hp=23,
             equipped_ground_weapons=[_weapon("kinetic_rifle"), _weapon("kinetic_rifle")],
             equipped_ground_armor={},
@@ -466,7 +466,7 @@ class TestGroundPointBlankFire:
         _ctx = SimpleNamespace(
             player=_player,
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-            ground_hp=23,
+            ground_hp=25,
             ground_max_hp=23,
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
@@ -503,7 +503,7 @@ class TestGroundPointBlankFire:
         _ctx = SimpleNamespace(
             player=_player,
             ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-            ground_hp=23,
+            ground_hp=25,
             ground_max_hp=23,
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
@@ -580,7 +580,7 @@ def _ground_fixture():
     _ctx = SimpleNamespace(
         player=_player,
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-        ground_hp=23,
+        ground_hp=25,
         ground_max_hp=23,
         equipped_ground_weapons=[_weapon("fists")],
         equipped_ground_armor={},
@@ -635,7 +635,7 @@ def test_ground_player_hp_row_shows_current_max_and_active_regen():
         for x in range(_hud_x, SCREEN_WIDTH)
     ).rstrip()
     assert _row
-    assert "HP  ####... 15/23 +2" in _row
+    assert "HP  ####... 17/25 +2" in _row
 
 
 def test_ground_ap_row_shows_blue_temporary_stim_bonus():
@@ -794,7 +794,7 @@ def test_init_applies_cybernetic_ap_and_hp_bonuses():
     _rules_ground.init(_ctx, [_enemy], _game_map)
 
     assert _rules_ground.player_ap_total(_ctx) == 5  # 4 + 1
-    assert _rules_ground.player_max_hp(_ctx) == 26  # 20 + 10//3 + 3
+    assert _rules_ground.player_max_hp(_ctx) == 28  # 20 + 10//2 + 3
 
 
 def test_check_reinforcements_locks_joins_before_patrol_tick(monkeypatch):
@@ -967,7 +967,7 @@ class TestTargetCardToggle:
 
         assert card is not None
         assert card.quick_rows == (
-            (("4 AP -1 AP -8 HP", pygame_target_card.TARGET_CARD_TEXT),),
+            (("HP 8/26   AP 4/4   FIRE 1 AP", pygame_target_card.TARGET_CARD_TEXT),),
         )
 
     def test_card_shown_by_default_and_toggle_hides(self):
@@ -1043,7 +1043,7 @@ def _explosive_fixture(*, player_pos=world.Position(3, 3)):
     _ctx = SimpleNamespace(
         player=_player,
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-        ground_hp=23,
+        ground_hp=25,
         ground_max_hp=23,
         equipped_ground_weapons=[_weapon("rocket_launcher")],
         equipped_ground_armor={},
@@ -1091,7 +1091,7 @@ def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
     )
 
     assert _player_damage == 29
-    assert _rules_ground.player_hp(_ctx) == -6
+    assert _rules_ground.player_hp(_ctx) == -4
 
 
 def test_demolitionist_increases_explosive_splash_without_increasing_primary():
@@ -1130,7 +1130,7 @@ def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
     )
 
     assert _player_damage == 30  # half of the 60-damage unarmored blast
-    assert _rules_ground.player_hp(_ctx) == -7
+    assert _rules_ground.player_hp(_ctx) == -5
 
 
 def test_explosive_miss_splashes_primary_and_neighbors_for_half_damage():
@@ -1165,7 +1165,7 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
         (_rules_ground._state.enemies[1], 28, False),
     )
     assert _player_damage == 30
-    assert _rules_ground.player_hp(_ctx) == -7
+    assert _rules_ground.player_hp(_ctx) == -5
     assert _primary.hp == 10
 
 
@@ -1198,7 +1198,7 @@ def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
     _damage = run(_rules_ground.run_enemy_turns(_ctx, _game_map))
 
     assert _damage == 3
-    assert _rules_ground.player_hp(_ctx) == 20
+    assert _rules_ground.player_hp(_ctx) == 22
 
 
 def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatch):
