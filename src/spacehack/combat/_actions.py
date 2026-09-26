@@ -227,7 +227,9 @@ def _spawn_kit_drop(
     )
     if _ammo_id is None:
         return
-    _qty = RNG.randint(1, min(5, item_stack_capacity("ammo", _ammo_id)))
+    _qty = RNG.randint(
+        1, _drop_ceiling("ammo", _ammo_id, item_stack_capacity("ammo", _ammo_id)),
+    )
     _append_loot_entity(
         game_map, pos,
         {"item_type": "ammo", "item_id": _ammo_id, "quantity": _qty},

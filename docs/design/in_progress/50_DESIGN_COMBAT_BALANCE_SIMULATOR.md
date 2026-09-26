@@ -400,12 +400,25 @@ this the standard. Just so we have a starting point.**"
   ranged AND melee (the hands-parity logic applies identically: 1H
   pairs get the volley economy, 2H pays double for single-slot).
   Ruled doctrine, probed end-to-end (both matchup tables).
-- **Rocket cap STAYS 10** — the ~10-boom target restores under ×2
-  (measured at landing). ENEMY SCARCITY: explosive-ammo DROPS roll
-  small (1-2, never near-cap — new data-authored `max_drop` on the
-  ammo spec), and the ×2 enemy-wielder danger (rocket brute = 60 vs
-  28 HP) is MEASURED and reported at landing for the follow-up
-  ruling (enemy fire budgets) if wanted.
+- **Rocket cap STAYS 10.** Measured post-×2 via the two-set
+  consumer (rocket + blade): 1.33 rds/kill → the cap delivers ~7.5
+  kills (pin floor 7); the ruled ~10-boom target's remainder rides
+  on cluster splash (one rocket into a bunched pack kills 2-3).
+- **ENEMY SCARCITY (measured, reported):** explosive-ammo DROPS
+  ceiling at 2 (authored `max_drop` — kit drops included, all three
+  roll sites). AND the ×2 enemy-wielder danger is REAL: vs the
+  standard 28-HP tutorial sheet, a band-3 grenade brute measures
+  **25/25 DEFEATS (32.8 mean damage)** and a band-4 rocket brute
+  **25/25 DEFEATS (51.6 mean, 69 max)** — every run fatal. Enemy
+  fire budgets / enemy-side explosive taper = flagged follow-up
+  ruling. (Also measured: single-set PLAYER explosives die to their
+  own doubled splash when the pack closes — the launcher + blade
+  toggle is the post-×2 play pattern, 25/25 at 7.4 damage.)
+- **Guide outcome (the contract's checklist):** reviewed with the
+  retune — no existing guide statement is false (the guide is
+  qualitative on weapon stats). FOLLOW-UP: the SMG's double-fire is
+  invisible at purchase (the armory detail has no fire-rate column)
+  — a UI polish item, not a guide edit.
 - **SMG double-fire**: a `shots_per_action` weapon property (default
   1; smg = 2) — one FIRE action rolls twice: 2x damage, 2x ammo
   drain, 2x hit chances, ONE AP cost. Player AND enemy fire paths
@@ -540,16 +553,17 @@ numbers.
   bandolier) with numbers VERIFIED BYTE-IDENTICAL (4.68/12.56 — the
   knife doesn't bind vs the pack: the sheet became honest, the bars
   stood); goal_2_mars_railgun_blade pins the doc-51 motivating
-  matchup (1.000 / 7.84 / 12.0, bars 0.94/8.5/13.0 — the 7.84
-  includes a bounded dead-zone swap-churn turn, disclosed in the row
-  comment); endurance pins per caliber at each MEASURED consumer
-  (guns >= 35; explosives measured at landing: grenade 2.00
-  rds/kill -> 9 kills, rocket 1.33 -> 7 — ROCKET FINDING: the cap
-  delivers 7 kills, not the ruled ~10; the ~10-boom target assumes
-  the PROPOSED x2 two-hander doctrine, still unruled in the tuning
-  arc; doc 52's deferred battle-x2 consumer measurement remains
-  deferred — battle rifle as the rifle caliber's better consumer).
-  One pin caught the synthetic fixture inheriting
+  matchup (1.000 / 7.84 / 12.0 pre-SETTLED-8; re-ruled same-commit
+  under the retune to 7.12 with bar 8.0 — the benchmark-revision
+  clause; the 7.84 included a bounded dead-zone swap-churn turn,
+  disclosed in the row comment); endurance pins per caliber at each
+  MEASURED consumer (guns >= 35; explosives via two-set consumers:
+  grenade 2.00 rds/kill, rocket 1.33 -> ~7.5 kills at cap 10). The
+  x2 doctrine was subsequently RULED AND LANDED as SETTLED 8 (the
+  tuning arc's proposal, executed); doc 52's deferred battle-x2
+  consumer measurement remains deferred — battle rifle as the rifle
+  caliber's better consumer. One pin caught the synthetic fixture
+  inheriting
   the re-grounded stance — fixtures pin their instrument explicitly
   now.
 

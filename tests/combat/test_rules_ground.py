@@ -1579,3 +1579,54 @@ def test_smg_burst_stops_quietly_when_dry_mid_action(monkeypatch):
 
     assert len(_rolls) == 1          # the dry second roll never happens
     assert _ctx.equipped_ground_weapons[0].loaded_ammo == 0
+
+
+def test_drop_ceiling_caps_explosives_and_passes_others():
+    """The scarcity dial (doc 50 SETTLED 8): explosive ammo drops
+    ceiling at the authored max_drop (2); everything else keeps the
+    min(5, stack) roll; non-ammo untouched."""
+    from src.spacehack.combat._actions import _drop_ceiling
+    from src.spacehack.ground_equipment import item_stack_capacity
+
+    assert _drop_ceiling("ammo", "rockets", item_stack_capacity("ammo", "rockets")) == 2
+    assert _drop_ceiling("ammo", "grenades", item_stack_capacity("ammo", "grenades")) == 2
+    assert _drop_ceiling("ammo", "pistol_rounds", item_stack_capacity("ammo", "pistol_rounds")) == 5
+    assert _drop_ceiling("ammo", "shotgun_shells", item_stack_capacity("ammo", "shotgun_shells")) == 5
+    assert _drop_ceiling("consumable", "med_pack", 3) == 3
+
+
+def test_enemy_smg_burst_rolls_twice_per_action(monkeypatch):
+    """The enemy twin of the player burst (doc 50 SETTLED 8): an smg
+    enemy fires two rolls for one AP — the fire paths cannot desync."""
+    from src.spacehack.combat import _ai_ground
+
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _enemy.npc_char_id = "pirate_raider"
+    # Force the rolled weapon to the smg via the persisted stamp.
+    _enemy.rolled_weapon = ("smg", 0)
+    _ctx.equipped_ground_armor = {}
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda _lo, _hi: 1,  # always hit
+        choice=lambda seq: seq[0],
+    ))
+    _rolls = []
+    _orig = _ai_ground._roll_ground_shot
+
+    def _counting(*args, **kwargs):
+        _rolls.append(1)
+        return _orig(*args, **kwargs)
+
+    monkeypatch.setattr(_ai_ground, "_roll_ground_shot", _counting)
+
+    _ap_left, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
+        _ctx,
+        enemy_weapon_id="smg", enemy_weapon_quality=0,
+        enemy_spec=_rules_ground._state.enemies[0].spec,
+        enemy_stats=_rules_ground._state.enemies[0].stats,
+        enemy_ap=4, player_pos=_ctx.player.pos, enemy_entity=_enemy,
+        game_map=_game_map, armor_defense=0, console=None,
+        render_callback=None, player_dodge=0,
+    ))
+
+    assert len(_rolls) == 2  # two rolls for the one action
