@@ -714,7 +714,7 @@ nobody designs against a ghost.
   `install_set_weapon` (`ground_weapon_sets.py`; screens:
   `character_screen_weapons.py`, `menus/_armory.py`;
   `tinker._weapon_targets`).
-- **Ground bandolier (doc 52, in progress)** — ground ammo is a
+- **Ground bandolier (doc 52, complete)** — ground ammo is a
   per-caliber tracked reserve (`ctx.bandolier`: ammo_type → rounds;
   caps from `GroundAmmoSpec.carry_cap` 160/240/250/130/18/10 through
   `bandolier.effective_cap` — the future armor `ammo_bonus` seam,
@@ -970,7 +970,8 @@ nobody designs against a ghost.
   bounty board (Crimson Jack), ordered popups, guaranteed level-up
   before the finale lifts board suppression; the armory beat buys
   two Kinetic Pistols + a Combat Knife (founding both weapon sets)
-  and the ground-combat intro teaches the X set swap (doc 51.4)
+  and teaches restocking Pistol Rounds at the armory (52.6), and
+  the ground-combat intro teaches the X set swap (doc 51.4)
   (`tutorial.py`).
 - **Runtime text** — all quest prose in `data/text/*.json` keyed
   `step.*`/`npc.*`/`runtime.*`; code passes literal defaults; dev F5
