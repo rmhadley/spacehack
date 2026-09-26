@@ -2,7 +2,9 @@
 
 The station uses the normal PlanetSpec city loader. It has a landing bay, an
 archive lab for the post-prison Research Officer, and a lab building whose
-regular research officer resolves through the global catalog. The Act 0
+regular research officer resolves through the global catalog. The commons is
+the crew bar (catalog barkeep) and the observation deck seats a depot
+attendant — the station's delivery-recipient pool is all three. The Act 0
 Xenolinguist stands in the lab ADDITIVELY (``quest_npc_spots``) while the lab
 chain needs her (the dataset delivery), then leaves.
 """
@@ -59,12 +61,12 @@ SPEC = PlanetSpec(
         world.CityBuilding(
             label="commons",
             x_lo=92, x_hi=103, y_lo=35, y_hi=41,
-            door_x=95, npc_id="",
+            door_x=95, npc_id="barkeep",
         ),
         world.CityBuilding(
             label="observation",
             x_lo=16, x_hi=27, y_lo=35, y_hi=41,
-            door_x=19, npc_id="",
+            door_x=19, npc_id="depot_attendant",
         ),
     ),
     city_layout_id="ac_ring_station",

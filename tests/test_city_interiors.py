@@ -149,13 +149,18 @@ def test_no_city_interior_has_void_perimeter_walls():
 
 
 def test_ac_ring_archive_and_lab_preserve_research_officers():
-    """The ring's archive override and lab catalog NPC remain interactable."""
+    """Every ring service building seats its NPC: the archive override
+    and lab catalog officers, the commons barkeep, the observation
+    depot attendant (the station's whole delivery-recipient pool)."""
     game_map = load_planet("ac_station")
     ctx = SimpleNamespace(
         interiors={}, game_map=game_map, player=None,
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
-    for label, expected_npc in (("archive", "research_officer"), ("lab", "research_officer")):
+    for label, expected_npc in (
+        ("archive", "research_officer"), ("lab", "research_officer"),
+        ("commons", "barkeep"), ("observation", "depot_attendant"),
+    ):
         record = game_map.city_buildings[label]
         player = world.Entity(
             "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",
