@@ -1,8 +1,10 @@
 # DESIGN: Tombstones — death review files
 
-**Status: REFINED 2026-09-26 — SETTLED 1 + SETTLED 2 recorded, no
-open questions; phase 1 Implementation brief APPROVED (below).
-Ready for `/implement-phase 53.1`. Nothing implemented.**
+**Status: PHASE 1 IMPLEMENTED 2026-09-26 (commits e89aa124 + 500e6435
++ the audit-found counters fix 82eda76f) — playtest pending. Writer,
+killer tracking, ground tally, and death-screen lines in all three
+theaters are in; reviewer verdict REQUEST_CHANGES resolved (space
+site now APPENDS the notice after the destruction lines).**
 
 ## Overview
 
@@ -216,10 +218,12 @@ code this session):
 
 **Audit surprises (recorded, not silently fixed):**
 
-- `saveload._parse_counters` (`:627`) does not rebuild `railgun_kills`
+- `saveload._parse_counters` (`:627`) did not rebuild `railgun_kills`
   or `focused_shots` — pre-existing silent reset on load, OUT of this
   phase's scope (`total_damage_taken` stays untouched by ruling);
-  flagged to the user at the checkpoint as a found bug.
+  flagged to the user at the checkpoint as a found bug. [RESOLVED as
+  its own commit 82eda76f the same session — both counters now
+  rebuild, pinned in the old-save-default test.]
 - `game_map.location_name` is a runtime-attached attribute
   (grandfathered pattern; `saveload_maps` serializes it) — read via
   `getattr`, never assumed.
@@ -228,10 +232,30 @@ code this session):
   (`ctx.equipped_ground_weapons` / `ctx.holstered_ground_weapons`);
   the builders read the two fields directly and label them with
   `ground_weapon_sets.SET_CLASSES`/role vocabulary.
+- IN-COMMIT RATCHET PAYMENT (implementation surprise): the phase's
+  ground additions pushed `_rules_ground` from 979 to 1010 lines —
+  the blast cluster (`is_explosive` + per-enemy shares + the
+  friendly-fire self splash) extracted to `combat/_ground_blast.py`
+  with the combat state passed explicitly and the rules module's
+  public signatures kept as thin wrappers (e89aa124, behavior-
+  preserving per the reviewer's verification). `_ai._apply_enemy_hit`
+  (41 lines) split its destruction-presentation tail; the space
+  death-line append lives in `_encounter._space_death_lines` so
+  `_handle_combat_encounter` stays within the function limit.
+- REVIEWER (5.3, REVIEW) verdict on the working tree:
+  REQUEST_CHANGES, one blocking — the space DEFEAT call passed the
+  notice ALONE as `lines`, so a successful write dropped the classic
+  destruction lines and rendered the path at title size (the ground
+  sibling appended correctly). Fixed to `_DEATH_LINES + notice`
+  (both theaters append, notice is body text); the test pin now
+  asserts the full four-line tuple. Minors: doc-header staleness
+  (this update), a five-site KeyError-degrade folded to a `_lookup`
+  seam + one `.get` (4 of 5), record correction on the module size
+  (979 pre-phase, not "over 1000").
 
 ## Phases
 
-- [ ] 1. **The tombstone writer** — the module (format + sections +
+- [x] 1. **The tombstone writer** — the module (format + sections +
   log export), the death-path hook (both theaters), file placement,
   tests (format pins, both death paths write, log stripping, killer
   line, failure-is-nonfatal). Brief at refine time.
