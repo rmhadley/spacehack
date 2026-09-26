@@ -20,6 +20,7 @@ the planet's LIVE delve pipeline under the row's fixed grid seed
 
 from __future__ import annotations
 
+import copy
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -477,6 +478,9 @@ def _quest_shell_ctx() -> SimpleNamespace:
     )
 
 
+_PLANET_GRID_CACHE: dict = {}
+
+
 async def build_planet_grid(grid) -> tuple:
     """Planet mode: the LIVE delve pipeline under the row's fixed grid
     seed — generate (tiles only) → the planet's prepare step (the tile
@@ -496,23 +500,40 @@ async def build_planet_grid(grid) -> tuple:
         f"{grid.planet_id} grid must match the planet's "
         f"{params.width}x{params.height} DungeonParams"
     )
-    _snapshot_rng_world()
-    try:
-        engine.seed_rng(grid.grid_seed)
-        game_map, spawn = generate_dungeon(params)
-        if grid.planet_id == "mars":
-            await main_quest.prepare_mars_surface(
-                _quest_shell_ctx(), game_map, spawn,
-            )
-        else:
-            main_quest.prepare_delve_site(
-                _quest_shell_ctx(), game_map, spawn, grid.planet_id,
-            )
-    finally:
-        _restore_rng_world()
-    # Only the declared combatants fight: discard everything the
-    # prepare step stamped (the cache guardian included).
-    game_map.entities = []
+    cached = _PLANET_GRID_CACHE.get((grid.planet_id, grid.grid_seed))
+    if cached is None:
+        _snapshot_rng_world()
+        try:
+            engine.seed_rng(grid.grid_seed)
+            game_map, spawn = generate_dungeon(params)
+            if grid.planet_id == "mars":
+                await main_quest.prepare_mars_surface(
+                    _quest_shell_ctx(), game_map, spawn,
+                )
+            else:
+                main_quest.prepare_delve_site(
+                    _quest_shell_ctx(), game_map, spawn, grid.planet_id,
+                )
+        finally:
+            _restore_rng_world()
+        # Only the declared combatants fight: discard everything the
+        # prepare step stamped (the cache guardian included).
+        game_map.entities = []
+        # Cache a PRISTINE SNAPSHOT — begin_run and the fight itself
+        # mutate the map they receive (fog, entities, kill drops), so
+        # storing the live object would leak run 0's ghosts into every
+        # later copy (caught by the board-diff verification: goal_2
+        # damage halved under the leak).
+        _PLANET_GRID_CACHE[(grid.planet_id, grid.grid_seed)] = (
+            copy.deepcopy(game_map), copy.deepcopy(spawn),
+        )
+        return game_map, spawn
+    # Same planet + fixed grid seed = byte-identical tiles every run;
+    # hand each run its own copy so entity mutations and fog never
+    # bleed (the build's RNG consumption is irrelevant to run seeds —
+    # fights rebind to base+i AFTER the grid exists).
+    game_map = copy.deepcopy(cached[0])
+    spawn = copy.deepcopy(cached[1])
     return game_map, spawn
 
 
@@ -723,14 +744,25 @@ async def _begin_ground_run(row, run_index: int):
 
 @contextmanager
 def _inert_presentation() -> Iterator[None]:
-    """Headless pygame + INSTANT timing, restored on exit."""
+    """Headless pygame + the SIM tier (above instant), restored on exit.
+
+    Sim = zero delays AND no intermediate animation frames (the
+    render-skip dial, doc 50 perf ruling 2026-09-26: INSTANT itself is
+    a player setting and stays exactly as it plays — every frame, no
+    delay; the harness-only tier skips frame builds nobody sees).
+    Fights are pure logic under this context; the board's numbers are
+    byte-identical with and without it (verified at landing).
+    """
     _ensure_headless_pygame()
     previous = animation_timing.speed_scale()
+    previous_frames = animation_timing.render_frames_enabled()
     animation_timing.set_speed_scale(0.0)
+    animation_timing.set_render_frames(False)
     try:
         yield
     finally:
         animation_timing.set_speed_scale(previous)
+        animation_timing.set_render_frames(previous_frames)
 
 
 def run_once(row, run_index: int) -> RunResult:
