@@ -1043,9 +1043,11 @@ def test_floor_transitions_do_not_heal(monkeypatch):
     assert ctx.ground_hp == 10  # climbing neither
 
 
-def test_dig_entry_from_orbit_heals(monkeypatch):
-    """The landing contract's other half: entering a dig from the
-    planet menu (orbit -> surface) IS landing — full heal."""
+def test_dig_entry_from_orbit_does_not_heal(monkeypatch):
+    """User ruling 2026-09-26: ONLY landing at a city heals. Entering
+    a dig site — even straight from orbit — is wilderness: wounds
+    ride along (the heal is rest at civilization, `land_at_city`
+    owns it)."""
     ctx, site = _dig_world(monkeypatch, depth=1)
     ctx.ground_hp, ctx.ground_max_hp = 10, 30
     f1, _ = digs.get_or_generate_floor(ctx, site, 1)
@@ -1056,7 +1058,26 @@ def test_dig_entry_from_orbit_heals(monkeypatch):
         log=SimpleNamespace(add=lambda _m, **_k: None),
     )
     digs.enter_dig_site(state, SimpleNamespace(id="mars"), site["id"])
-    assert ctx.ground_hp == 30  # landing healed
+    assert ctx.ground_hp == 10  # wilderness landing healed nothing
+
+
+def test_dungeon_entry_adoption_does_not_heal():
+    """The entry-side twin of the stair pin: surface, boarding, and
+    dig entries all funnel through _adopt_dungeon_entry — it installs
+    the transition and heals NOTHING (only city land heals)."""
+    from types import SimpleNamespace as NS
+    from src.spacehack.game_interactions import _adopt_dungeon_entry
+    from src.spacehack import world
+
+    ctx = NS(ground_hp=10, ground_max_hp=30, game_map=None, player=None)
+    state = NS(ctx=ctx, space_game_map=object(), space_player=object(),
+               game_map=object(), player=object(), current_mode="space")
+    _map = world.GameMap(2, 2, [[world.DUNGEON_FLOOR] * 2] * 2, [])
+    _player = world.Entity("@", (255, 255, 255), world.Position(0, 0), "P")
+    _adopt_dungeon_entry(state, _map, _player)
+    assert state.current_mode == "dungeon"
+    assert ctx.game_map is _map and ctx.player is _player
+    assert ctx.ground_hp == 10
 
 
 def test_stair_adoption_does_not_heal():

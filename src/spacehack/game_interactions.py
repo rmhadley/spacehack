@@ -169,8 +169,8 @@ def _adopt_dungeon_entry(state, dungeon_map, player) -> None:
     """Install a dungeon entry on the game-loop state: the space
     return pair, the map/player swap, dungeon mode. The ONE entry
     shuffle — surface, boarding, and dig entries share it. NO heal:
-    only LANDING on a planet heals (city land, surface explore, dig
-    entry), and those callers do it explicitly (bug fix 2026-09-26)."""
+    only landing AT A CITY heals (user ruling 2026-09-26 — the heal
+    is rest at civilization, and `land_at_city` owns it)."""
     state.space_game_map = state.game_map
     state.space_player = state.player
     state.game_map = dungeon_map
@@ -187,7 +187,6 @@ def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
     dungeon_map.location_name = f'{planet_obj.name} Surface'
     _adopt_dungeon_entry(state, dungeon_map, _dungeon_player)
-    state.ctx.ground_hp = state.ctx.ground_max_hp  # landing heals
     log.add(f'You descend to the surface of {planet_obj.name}.')
     return 'CONTINUE'
 
