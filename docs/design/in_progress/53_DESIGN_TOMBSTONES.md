@@ -134,6 +134,101 @@ roguelike it saves a tombstone to disk with your message log in full."
   `Slain by: your own explosives` (self-splash), section labels per
   the SETTLED 1 mock.
 
+## Pre-implementation audit (2026-09-26, before phase 1 code)
+
+**1. Existing classes / modules to extend or reuse** (all verified in
+code this session):
+
+- `saveload._saves_dir()` (`saveload.py:26`) — resolves
+  `~/.spacehack/saves/`; tombstones are its `tombstones/` subdir.
+  `delete_save()` is already sequenced by the shared finish.
+- `combat/_loop.py::_finish_combat` (`:625`) — the ONE finish for both
+  theaters; already does sync_state → DEFEAT-gated `_delete_save()` →
+  `CombatResult` build. The write inserts before `_delete_save()`,
+  path stashes on the result — exactly the brief's sequencing.
+- `CombatResult` (`combat/_types.py:82`) gains `tombstone_path`;
+  `SpaceCombatState` (`_types.py:104`) and `GroundCombatState`
+  (`_rules_ground.py:124`) each gain `last_attacker` in their owning
+  module (dataclass-field cohesion rule).
+- Killer sites (ADVISE-corrected): space `_ai.py::_apply_enemy_hit`
+  (`:487` — `_ei.name` + `_e_ws.name` in scope, counters site `:497`);
+  ground `_rules_ground.py::_spend_one_enemy_turn` (`:832`, damage +
+  death-detect at `:859-863`); self-splash `explosive_blast`
+  (`:502-511`).
+- Death screens: `_encounter.py::_handle_combat_encounter` DEFEAT
+  (`:233-235`; `_render_death_screen(ctx, *, lines)` already takes
+  lines); `game_flow.py::_show_ground_defeat` (`:224-238`, lines
+  tuple in scope); `city_npcs.py::run_city_fight` (`:389-390` —
+  confirmed: `raise SystemExit()` with NO screen today; SETTLED 2's
+  gap is real).
+- Label seams to reuse verbatim (no new formatter):
+  `ground_equipment.display_name("weapon", id, quality)` (the exact
+  call `_ai_ground._present_enemy_shot` uses — killer-line parity),
+  `ship.weapon_display_name`, `ship.module_display_name`
+  (randart-aware). Magazine readout from
+  `GroundWeaponInstance.loaded_ammo` + `find_ground_weapon().ammo_capacity`;
+  ship slot ammo from `OwnedShip.weapon_ammo` (slot-keyed).
+- Sheet accessors: pilot skills `ctx.stats.{gunnery,piloting,engineering}`,
+  ground stats `ctx.ground_stats.{reflexes,strength,stamina}`,
+  traits via `data.traits.core.trait_name` (resolves both registries —
+  the `character_screen_stats._trait_names` pattern); XP curve
+  `xp.xp_for_level`.
+- Location: `game_loop._present_frame:127-132` is the HUD ladder —
+  deliberately NOT reused (wrong 'Derelict Ship' default per ADVISE).
+  Tombstone precedence: `getattr(game_map, "location_name", "")` →
+  city fallback gated on `game_map.city_transit is not None` (the
+  city-only field, `world.py:408` — a space map never carries it, so
+  a space death can never print a stale city) → system-only.
+- `MessageLog.history()` (`message_log.py:175`) — complete log,
+  oldest-first; `entry.text` drops `runs`/`fg` for free.
+- `engine.INIT_SEED` (`engine.py:42`) — save-persisted run seed.
+- Test harness: `tests/balance/harness.py` — `begin_run` +
+  `_mirror_loop` (calls the real `_finish_combat`) +
+  `_inert_presentation` + `_sandboxed_home`; reuse for both-theater
+  integration tests, reading the tombstone back out of the sandboxed
+  HOME.
+
+**2. Three potential duplication hotspots:**
+
+1. Weapon labels — three label seams already exist (ground display
+   name, ship weapon name, ship module name); tombstone must not grow
+   a fourth bespoke `name + quality` formatter.
+2. Location line — the HUD ladder in `game_loop` looks copy-pasteable
+   but carries the wrong default; blind reuse imports the bug.
+3. Final-state readout — space state lives in a dict
+   (`_state.player_state["shields"]`); reaching into it from the
+   finish would fork the accessor convention (`player_hp(ctx)` etc.).
+
+**3. DRY strategy per hotspot:**
+
+1. Reuse the seams verbatim; the ground killer line repeats the
+   `display_name("weapon", id, quality)` call shape (a one-liner, not
+   a wrapped helper).
+2. Tombstone resolves location through its own precedence chain,
+   documented with the ADVISE citation; shares nothing with the HUD
+   ladder by design.
+3. Extend the accessor family: `player_shields(ctx)` beside
+   `player_hp` in `_rules_space`; `last_attacker(ctx)` on BOTH rules
+   modules (mirroring `player_hp(ctx)`) so `_finish_combat` stays
+   rules-agnostic. Counters increments stay one-liners at each site —
+   the `_ai.py:497` `total_damage_taken` shape (a helper for `+=`
+   would be ceremony).
+
+**Audit surprises (recorded, not silently fixed):**
+
+- `saveload._parse_counters` (`:627`) does not rebuild `railgun_kills`
+  or `focused_shots` — pre-existing silent reset on load, OUT of this
+  phase's scope (`total_damage_taken` stays untouched by ruling);
+  flagged to the user at the checkpoint as a found bug.
+- `game_map.location_name` is a runtime-attached attribute
+  (grandfathered pattern; `saveload_maps` serializes it) — read via
+  `getattr`, never assumed.
+- The kit's "both weapon sets" need NO `partition_weapon_sets` call —
+  doc 51 made the partition REAL state
+  (`ctx.equipped_ground_weapons` / `ctx.holstered_ground_weapons`);
+  the builders read the two fields directly and label them with
+  `ground_weapon_sets.SET_CLASSES`/role vocabulary.
+
 ## Phases
 
 - [ ] 1. **The tombstone writer** — the module (format + sections +
