@@ -34,12 +34,12 @@ from ..xp import (
     apply_ground_damage_reduction as ground_damage_taken,
     ground_evade_bonus as _ground_evade_bonus,
     ground_max_hp_bonus as _ground_max_hp_bonus,
-    demolitionist_splash_bonus as _demolitionist_splash_bonus,
     plasma_savant_ap_discount as _plasma_ap_discount,
 )
 
 from ._types import CombatResult
 from ._stats import _distance, _roll_ap
+from . import _ground_blast
 from ._ground_math import (
     calc_ground_move_dodge as _calc_ground_move_dodge,
     ground_damage_raw as _ground_damage_raw,
@@ -445,39 +445,8 @@ def damage(
 
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""
-    return _find_gw(weapon_id).damage_type == "explosive"
+    return _ground_blast.is_explosive(weapon_id)
 
-def _apply_explosive_enemy_hit(
-    weapon_id: str,
-    enemy: GroundEnemyInstance,
-    primary: GroundEnemyInstance,
-    ctx,
-    *,
-    primary_hit: bool = True,
-    quality: int = 0,
-) -> tuple[GroundEnemyInstance, int, bool] | None:
-    """Apply one enemy's primary-or-splash share of an explosion."""
-    if not enemy.alive:
-        return None
-    _dx = abs(enemy.pos.x - primary.pos.x)
-    _dy = abs(enemy.pos.y - primary.pos.y)
-    if _dx > 1 or _dy > 1:
-        return None
-    _armor = enemy.spec.armor if enemy.spec else 0
-    _full_damage = _ground_damage_raw(
-        weapon_id, ctx.ground_stats.strength, _armor,
-        strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
-    )
-    _is_primary = enemy is primary and primary_hit
-    if _is_primary:
-        _damage = _full_damage
-    else:
-        _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
-        _damage = max(1, _full_damage * _splash_pct // 100)
-    enemy.hp -= _damage
-    if enemy.entity is not None:
-        enemy.entity.hp = max(0, enemy.hp)
-    return enemy, _damage, _is_primary
 
 def explosive_blast(
     weapon_id: str,
@@ -487,37 +456,13 @@ def explosive_blast(
     primary_hit: bool = True,
     quality: int = 0,
 ) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
-    """Resolve an explosive impact around ``primary`` with friendly fire.
-
-    A direct hit damages primary fully; a miss catches it for half damage
-    alongside neighboring cells. The player also takes half damage nearby.
-    """
-    _enemy_hits = tuple(
-        _hit for _enemy in _state.enemies
-        if (_hit := _apply_explosive_enemy_hit(
-            weapon_id, _enemy, primary, ctx, primary_hit=primary_hit,
-            quality=quality,
-        )) is not None
+    """Resolve an explosive impact around ``primary`` with friendly
+    fire — the blast math + doc 53 tally/killer tracking live in
+    :mod:`._ground_blast` (the architecture-ratchet split)."""
+    return _ground_blast.explosive_blast(
+        _state, weapon_id, primary, ctx, primary_hit=primary_hit,
+        quality=quality,
     )
-    _player_dx = abs(ctx.player.pos.x - primary.pos.x)
-    _player_dy = abs(ctx.player.pos.y - primary.pos.y)
-    if _player_dx <= 1 and _player_dy <= 1:
-        _full_damage = _ground_damage_raw(
-            weapon_id, 0, _state.armor_defense, quality=quality,
-        )
-        _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
-        _splash_damage = max(1, _full_damage * _splash_pct // 100)
-        _player_damage = ground_damage_taken(ctx, _splash_damage)
-        _state.player_hp -= _player_damage
-    else:
-        _player_damage = 0
-    # Blast event at the impact cell (SETTLED 17/22): the explosion
-    # draws entities from where it landed, not where it was fired —
-    # the firing report already emitted at the shooter.
-    noise.emit(
-        ctx, _state.game_map, primary.pos, weapon_id, by_player=True,
-    )
-    return _enemy_hits, _player_damage
 
 # ---------------------------------------------------------------------------
 # Weapon actions
