@@ -80,9 +80,9 @@ def _header_lines(ctx, facts: TombstoneFacts, now: datetime) -> list[str]:
     counters = ctx.player_counters
     return [
         _RULE,
-        f"  REST IN PEACE — {ctx.character_info['species_name']}"
+        f"  {ctx.character_info['species_name']}"
         f" {ctx.character_info['class_name']}",
-        f"  Level {ctx.player_level} — died {now:%Y-%m-%d %H:%M} (real time)",
+        f"  Level {ctx.player_level} — died {now:%Y-%m-%d %H:%M}",
         f"  {ctx.time_day}/{ctx.time_month}/{ctx.time_year} — {where}",
         f"  Slain by: {facts.killer or _UNKNOWN_KILLER}",
         f"  Damage taken (career): space {counters.total_damage_taken},"
@@ -118,13 +118,13 @@ def _trait_names(ctx) -> str:
     return ", ".join(names) or "None"
 
 
-def _sheet_lines(ctx) -> list[str]:
+def _char_lines(ctx) -> list[str]:
     from . import xp
 
     level = ctx.player_level
     current = max(0, ctx.player_xp - xp.xp_for_level(level))
     return [
-        "  THE SHEET",
+        "  CHAR",
         f"  Level {level}   XP {current}/{xp._xp_to_next(level)}",
         f"  Pilot skills: gunnery {ctx.stats.gunnery},"
         f" piloting {ctx.stats.piloting},"
@@ -189,14 +189,14 @@ def _caliber_name(ammo_type: str) -> str:
     return spec.name if spec is not None else ammo_type
 
 
-def _bandolier_line(ctx) -> str:
+def _ammo_line(ctx) -> str:
     carried = getattr(ctx, "bandolier", None) or {}
     rounds = ", ".join(
         f"{_caliber_name(ammo_type)} {count}"
         for ammo_type, count in sorted(carried.items())
         if count > 0
     )
-    return f"  Bandolier: {rounds or 'empty'}"
+    return f"  Ammo: {rounds or 'empty'}"
 
 
 def _stack_label(stack) -> str:
@@ -251,8 +251,8 @@ def _ship_lines(owned) -> list[str]:
     ]
 
 
-def _kit_lines(ctx) -> list[str]:
-    lines = ["  THE KIT"]
+def _gear_lines(ctx) -> list[str]:
+    lines = ["  GEAR"]
     for label, instances in (
         ("ACTIVE SET", getattr(ctx, "equipped_ground_weapons", ()) or ()),
         ("HOLSTERED SET", getattr(ctx, "holstered_ground_weapons", ()) or ()),
@@ -260,7 +260,7 @@ def _kit_lines(ctx) -> list[str]:
         names = ", ".join(_ground_weapon_line(i) for i in instances) or "none"
         lines.append(f"  {label}: {names}")
     lines.append(_armor_line(ctx))
-    lines.append(_bandolier_line(ctx))
+    lines.append(_ammo_line(ctx))
     lines.append(_pack_line(ctx))
     owned = getattr(ctx, "player_owned_ship", None)
     if owned is not None:
@@ -286,8 +286,8 @@ def build_tombstone_text(ctx, facts: TombstoneFacts) -> str:
     """Compose the morgue file: header, sheet, kit, full log."""
     sections = (
         _header_lines(ctx, facts, datetime.now()),
-        _sheet_lines(ctx),
-        _kit_lines(ctx),
+        _char_lines(ctx),
+        _gear_lines(ctx),
         _log_lines(ctx.log),
     )
     return "\n\n".join("\n".join(lines) for lines in sections) + "\n"

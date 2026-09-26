@@ -345,7 +345,7 @@ def test_ground_defeat_fight_writes_a_tombstone_naming_the_killer(
     (path,) = _tombstone_files(tmp_path)
     text = path.read_text(encoding="utf-8")
     assert f"  Slain by: {find_npc_char('assault_drone').name}'s " in text
-    assert "  THE KIT" in text
+    assert "  GEAR" in text
     assert "  --- MESSAGE LOG (full, oldest first) ---" in text
 
 

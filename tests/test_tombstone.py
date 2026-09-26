@@ -85,8 +85,8 @@ def test_header_pins_every_settled_field():
     lines = tombstone._header_lines(ctx, _facts(), _NOW)
     assert lines == [
         "=" * 48,
-        "  REST IN PEACE — Human Pilot",
-        "  Level 3 — died 2026-09-26 14:05 (real time)",
+        "  Human Pilot",
+        "  Level 3 — died 2026-09-26 14:05",
         "  4/2/2201 — Sol",
         "  Slain by: Pirate Scout's Light Laser",
         "  Damage taken (career): space 11, ground 7",
@@ -133,8 +133,8 @@ def test_location_falls_back_to_the_city_on_city_maps():
 
 def test_sections_appear_in_the_settled_order():
     text = tombstone.build_tombstone_text(_ctx(), _facts())
-    assert text.index("THE SHEET") < text.index("THE KIT")
-    assert text.index("THE KIT") < text.index("MESSAGE LOG")
+    assert text.index("CHAR") < text.index("GEAR")
+    assert text.index("GEAR") < text.index("MESSAGE LOG")
 
 
 def test_kit_lists_sets_armor_bandolier_pack_and_ship():
@@ -143,7 +143,7 @@ def test_kit_lists_sets_armor_bandolier_pack_and_ship():
     assert "  HOLSTERED SET: Mono Blade" in text
     assert "Head Light Helmet" in text
     assert "Hands none" in text
-    assert "  Bandolier: Pistol Rounds 24" in text
+    assert "  Ammo: Pistol Rounds 24" in text
     assert "  Expedition pack: Vibroblade, Pistol Rounds x10" in text
     assert "  SHIP: Nice Ship" in text
     assert "    Weapons: Light Laser, Heavy Missile [6/3]" in text
@@ -182,7 +182,7 @@ def test_writer_creates_file_with_name_pattern(monkeypatch, tmp_path):
     assert path is not None
     assert Path(path).parent == tmp_path / ".spacehack" / "saves" / "tombstones"
     assert re.fullmatch(r"tombstone-\d{8}-\d{6}\.txt", Path(path).name)
-    assert "REST IN PEACE — Human Pilot" in Path(path).read_text(encoding="utf-8")
+    assert "Human Pilot" in Path(path).read_text(encoding="utf-8")
 
 
 def test_same_second_second_write_gets_the_suffix(monkeypatch, tmp_path):
