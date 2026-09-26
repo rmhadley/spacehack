@@ -1,8 +1,8 @@
 # DESIGN: Tombstones — death review files
 
 **Status: REFINED 2026-09-26 — SETTLED 1 + SETTLED 2 recorded, no
-open questions; phase 1 Implementation brief complete below,
-awaiting approval. Nothing implemented.**
+open questions; phase 1 Implementation brief APPROVED (below).
+Ready for `/implement-phase 53.1`. Nothing implemented.**
 
 ## Overview
 
@@ -141,7 +141,7 @@ roguelike it saves a tombstone to disk with your message log in full."
   tests (format pins, both death paths write, log stripping, killer
   line, failure-is-nonfatal). Brief at refine time.
 
-### Phase 1 Implementation brief (proposed 2026-09-26, SETTLED 2 folded — awaiting approval)
+### Phase 1 Implementation brief (APPROVED 2026-09-26, user)
 
 **Scope — exact files and hook points**
 
