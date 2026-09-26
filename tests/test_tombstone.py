@@ -218,3 +218,53 @@ def test_notice_lines_wrap_a_home_heavy_path():
     assert lines[0] == "Tombstone saved:"
     assert "".join(lines[1:]) == path
     assert all(len(line) <= tombstone._NOTICE_WIDTH for line in lines)
+
+
+# --- the char dump (doc 53 phase 2) -----------------------------------------
+
+
+def test_dump_header_pins_the_living_shape():
+    lines = tombstone._dump_header_lines(_ctx(), _NOW)
+    assert lines == [
+        "=" * 48,
+        "  Human Pilot",
+        "  Level 3 — dumped 2026-09-26 14:05",
+        "  4/2/2201 — Sol",
+        "  Damage taken (career): space 11, ground 7",
+        f"  Run seed: {engine.INIT_SEED}",
+        "=" * 48,
+    ]
+
+
+def test_dump_carries_char_gear_log_but_no_death_facts():
+    text = tombstone.build_char_dump_text(_ctx())
+    assert text.index("CHAR") < text.index("GEAR")
+    assert text.index("GEAR") < text.index("MESSAGE LOG")
+    assert "Slain by:" not in text
+    assert "Final state:" not in text
+
+
+def test_char_dump_writer_uses_its_own_directory(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(solar_system, "current_solar_system_id", "sol")
+    frozen = SimpleNamespace(now=lambda: _NOW)
+    monkeypatch.setattr(tombstone, "datetime", frozen)
+    first = tombstone.write_char_dump(_ctx())
+    second = tombstone.write_char_dump(_ctx())
+    dumps = tmp_path / ".spacehack" / "saves" / "chardumps"
+    assert Path(first).parent == dumps
+    assert Path(first).name == "chardump-20260926-140503.txt"
+    assert Path(second).name == "chardump-20260926-140503-2.txt"
+    # The two artifact families never share a directory.
+    tombstone.write_tombstone(_ctx(), _facts())
+    tombstones = tmp_path / ".spacehack" / "saves" / "tombstones"
+    assert list(dumps.glob("tombstone-*.txt")) == []
+    assert list(tombstones.glob("chardump-*.txt")) == []
+
+
+def test_char_dump_write_failure_is_nonfatal(monkeypatch, tmp_path):
+    monkeypatch.setenv("HOME", str(tmp_path))
+    dumps = tmp_path / ".spacehack" / "saves" / "chardumps"
+    dumps.parent.mkdir(parents=True)
+    dumps.write_text("a file where the directory belongs")
+    assert tombstone.write_char_dump(_ctx()) is None

@@ -116,10 +116,10 @@ async def _run_pygame_dungeon_confirm(ctx, **kwargs):
     return await _flow_confirm(ctx, **kwargs)
 
 
-async def _run_pygame_exit_confirm(ctx):
-    from .game_flow import _run_pygame_exit_confirm as _flow_confirm
+async def _run_pygame_pause_menu(ctx):
+    from .game_flow import _run_pygame_pause_menu as _flow_menu
 
-    return await _flow_confirm(ctx)
+    return await _flow_menu(ctx)
 
 
 async def _maybe_show_post_prison_orbit(ctx, current_city_id, *, from_mars_prison=False):

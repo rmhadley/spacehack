@@ -2,9 +2,11 @@
 
 One plain-text artifact per DEFEAT, written beside the autosave:
 character, kit, circumstances, and the complete message log (the
-roguelike morgue standard). The section builders are pure — no I/O,
-no mutation; :func:`write_tombstone` is the thin filesystem shell
-whose failure never blocks the death path (best-effort, SETTLED 1).
+roguelike morgue standard) — plus the char dump (phase 2), the living
+sibling written from the ESC pause menu. The section builders are
+pure — no I/O, no mutation; :func:`_write_artifact` is the thin
+shared filesystem shell whose failure never blocks its caller
+(best-effort, SETTLED 1).
 """
 
 from __future__ import annotations
@@ -70,25 +72,63 @@ def _location_name(ctx) -> str:
     return location
 
 
-def _header_lines(ctx, facts: TombstoneFacts, now: datetime) -> list[str]:
+def _identity_line(ctx) -> str:
+    info = ctx.character_info
+    return f"  {info['species_name']} {info['class_name']}"
+
+
+def _where_line(ctx) -> str:
+    """The clock + location line shared by both report headers."""
     from . import solar_system
-    from .engine import INIT_SEED
 
     system = solar_system.current_system().name
     location = _location_name(ctx)
     where = f"{system} / {location}" if location else system
+    return f"  {ctx.time_day}/{ctx.time_month}/{ctx.time_year} — {where}"
+
+
+def _career_damage_line(ctx) -> str:
     counters = ctx.player_counters
+    return (
+        f"  Damage taken (career): space {counters.total_damage_taken},"
+        f" ground {counters.ground_damage_taken}"
+    )
+
+
+def _seed_line() -> str:
+    from .engine import INIT_SEED
+
+    return f"  Run seed: {INIT_SEED}"
+
+
+def _level_line(ctx, verb: str, now: datetime) -> str:
+    return f"  Level {ctx.player_level} — {verb} {now:%Y-%m-%d %H:%M}"
+
+
+def _header_lines(ctx, facts: TombstoneFacts, now: datetime) -> list[str]:
     return [
         _RULE,
-        f"  {ctx.character_info['species_name']}"
-        f" {ctx.character_info['class_name']}",
-        f"  Level {ctx.player_level} — died {now:%Y-%m-%d %H:%M}",
-        f"  {ctx.time_day}/{ctx.time_month}/{ctx.time_year} — {where}",
+        _identity_line(ctx),
+        _level_line(ctx, "died", now),
+        _where_line(ctx),
         f"  Slain by: {facts.killer or _UNKNOWN_KILLER}",
-        f"  Damage taken (career): space {counters.total_damage_taken},"
-        f" ground {counters.ground_damage_taken}",
-        f"  Run seed: {INIT_SEED}",
+        _career_damage_line(ctx),
+        _seed_line(),
         f"  Final state: {facts.final_state}",
+        _RULE,
+    ]
+
+
+def _dump_header_lines(ctx, now: datetime) -> list[str]:
+    """The living sibling's header: the tombstone header minus the
+    death facts (no killer line, no final state)."""
+    return [
+        _RULE,
+        _identity_line(ctx),
+        _level_line(ctx, "dumped", now),
+        _where_line(ctx),
+        _career_damage_line(ctx),
+        _seed_line(),
         _RULE,
     ]
 
@@ -282,15 +322,30 @@ def _log_lines(log) -> list[str]:
     ]
 
 
+def _compose(sections) -> str:
+    """Join report sections with blank separators and a final newline."""
+    return "\n\n".join("\n".join(lines) for lines in sections) + "\n"
+
+
 def build_tombstone_text(ctx, facts: TombstoneFacts) -> str:
-    """Compose the morgue file: header, sheet, kit, full log."""
-    sections = (
+    """Compose the morgue file: header, char, gear, full log."""
+    return _compose((
         _header_lines(ctx, facts, datetime.now()),
         _char_lines(ctx),
         _gear_lines(ctx),
         _log_lines(ctx.log),
-    )
-    return "\n\n".join("\n".join(lines) for lines in sections) + "\n"
+    ))
+
+
+def build_char_dump_text(ctx) -> str:
+    """Compose the char dump (doc 53 phase 2): the living sibling of
+    the morgue file — same sections, header minus the death facts."""
+    return _compose((
+        _dump_header_lines(ctx, datetime.now()),
+        _char_lines(ctx),
+        _gear_lines(ctx),
+        _log_lines(ctx.log),
+    ))
 
 
 # ---------------------------------------------------------------------------
@@ -298,30 +353,46 @@ def build_tombstone_text(ctx, facts: TombstoneFacts) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _unique_path(directory: Path, stamp: str) -> Path:
-    """First free filename: the plain stamp, then -2, -3, ... — two
-    deaths inside one second never overwrite each other."""
-    candidate = directory / f"tombstone-{stamp}.txt"
+def _unique_path(directory: Path, stem: str) -> Path:
+    """First free filename: the plain stem, then -2, -3, ... — two
+    reports inside one second never overwrite each other."""
+    candidate = directory / f"{stem}.txt"
     suffix = 2
     while candidate.exists():
-        candidate = directory / f"tombstone-{stamp}-{suffix}.txt"
+        candidate = directory / f"{stem}-{suffix}.txt"
         suffix += 1
     return candidate
 
 
-def write_tombstone(ctx, facts: TombstoneFacts) -> str | None:
-    """Write the morgue file under the real saves dir's ``tombstones/``.
-
-    Returns the full path on success; any :class:`OSError` prints to
-    the real console and returns ``None`` — best-effort by ruling, the
-    death path is never blocked.
-    """
+def _write_artifact(subdir: str, prefix: str, text: str) -> str | None:
+    """Write one report file under the saves dir: the full path on
+    success; any :class:`OSError` prints to the real console and
+    returns ``None`` — best-effort by ruling, never blocks the
+    caller (the death path, or the pause menu)."""
     try:
-        directory = _saves_dir() / "tombstones"
+        directory = _saves_dir() / subdir
         directory.mkdir(parents=True, exist_ok=True)
-        path = _unique_path(directory, datetime.now().strftime("%Y%m%d-%H%M%S"))
-        path.write_text(build_tombstone_text(ctx, facts), encoding="utf-8")
+        path = _unique_path(
+            directory,
+            datetime.now().strftime(f"{prefix}-%Y%m%d-%H%M%S"),
+        )
+        path.write_text(text, encoding="utf-8")
         return str(path)
     except OSError as exc:
-        print(f"Tombstone write failed: {exc}")
+        print(f"{prefix} write failed: {exc}")
         return None
+
+
+def write_tombstone(ctx, facts: TombstoneFacts) -> str | None:
+    """Write the morgue file under the real saves dir's ``tombstones/``."""
+    return _write_artifact(
+        "tombstones", "tombstone", build_tombstone_text(ctx, facts),
+    )
+
+
+def write_char_dump(ctx) -> str | None:
+    """Write the char dump under the saves dir's ``chardumps/`` —
+    share-the-run-state sibling of the morgue file (doc 53 phase 2)."""
+    return _write_artifact(
+        "chardumps", "chardump", build_char_dump_text(ctx),
+    )

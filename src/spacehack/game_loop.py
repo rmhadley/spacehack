@@ -26,7 +26,7 @@ from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
 from .game_interactions import GameLoopState, resolve_blocker
-from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_exit_confirm, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space, _is_salvage_secured
+from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_pause_menu, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space, _is_salvage_secured
 from .game_loop_dev import _handle_dev_shift_keys, _is_dev
 
 def _present_overlay(state, ctx, console, map_h, location, space_view=None):
@@ -478,7 +478,7 @@ async def _handle_non_movement_event(state, event):
     ctx = state.ctx
     if pygame_engine.quit_or_escape(event):
         if pygame_engine.is_escape(event):
-            if not await _run_pygame_exit_confirm(ctx):
+            if await _run_pygame_pause_menu(ctx) != "EXIT":
                 return 'HANDLED'
         _save_and_exit(ctx, state.current_mode, state.current_city_id, state.space_player)
         return 'QUIT'

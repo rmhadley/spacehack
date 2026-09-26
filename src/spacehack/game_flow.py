@@ -192,23 +192,82 @@ async def _run_pygame_dungeon_confirm(
     )
 
 
-async def _run_pygame_exit_confirm(ctx) -> bool:
-    """Ask before saving and returning to the main menu (ESC).
+def _pause_menu_frames() -> tuple:
+    """The ESC pause menu's frames — one per cursor row (the shared
+    menu runner's selection contract, the transit-menu pattern)."""
+    from . import pygame_menu, pygame_ui
 
-    Returns True when the player confirms; the caller then saves and
-    leaves. Any dismissal (ESC, window close) keeps the run going.
-    """
-    from . import pygame_story
-
-    result = await pygame_story.confirm(
-        ctx,
-        title="EXIT TO MAIN MENU",
-        body="Save your progress and return to the main menu?",
-        accept_label="Save & Exit",
-        cancel_label="Keep Playing",
-        caption="spacehack",
+    items = (
+        pygame_menu.MenuItem("Save & Exit", "", "EXIT"),
+        pygame_menu.MenuItem(
+            "Dump Char", "Write your current state to disk to share.", "DUMP",
+        ),
+        pygame_menu.MenuItem("Keep Playing", "", "KEEP"),
     )
-    return result == "CONFIRM"
+    return tuple(
+        pygame_menu.MenuFrame(
+            title="PAUSE",
+            body="Save and return to the main menu, or dump your "
+                 "current state?",
+            items=items,
+            hints=(pygame_ui.modal_hint(
+                pygame_ui.NAV_HINT, "ENTER select", "ESC keep playing",
+                pygame_ui.GUIDE_HINT,
+            ),),
+            selected=selected,
+        )
+        for selected in range(len(items))
+    )
+
+
+async def _run_pygame_pause_menu(ctx) -> str:
+    """The ESC pause menu (doc 53 phase 2): Save & Exit, Dump Char,
+    or Keep Playing.
+
+    Returns ``"EXIT"`` when the player chose to save and leave;
+    anything else (a dump, a dismissal, the guide) keeps the run
+    going. The dump row writes the char dump, shows the CHAR DUMP
+    modal naming the file, and returns to the game.
+    """
+    from . import pygame_menu
+
+    while True:
+        outcome, action, _selected = await pygame_menu.run_for_context(
+            ctx.context, _pause_menu_frames(), caption="spacehack",
+        )
+        if outcome == "SELECT" and action == "EXIT":
+            return "EXIT"
+        if outcome == "SELECT" and action == "DUMP":
+            await _show_char_dump_modal(ctx)
+            return "KEEP"
+        if outcome == "GUIDE":
+            from .help import _run_help_guide
+            await _run_help_guide(ctx)
+            continue
+        return "KEEP"
+
+
+async def _show_char_dump_modal(ctx) -> None:
+    """Write the char dump and confirm with a one-row modal naming
+    the full path (doc 53 phase 2's approved acknowledgment)."""
+    from . import pygame_menu, pygame_ui
+    from .tombstone import write_char_dump
+
+    path = write_char_dump(ctx)
+    body = (
+        f"Char dump saved: {path}" if path is not None
+        else "Char dump failed to write."
+    )
+    frame = pygame_menu.MenuFrame(
+        title="CHAR DUMP",
+        body=body,
+        items=(pygame_menu.MenuItem("Continue", "", "CONTINUE"),),
+        hints=(pygame_ui.modal_hint("ENTER continue"),),
+        selected=0,
+    )
+    await pygame_menu.run_for_context(
+        ctx.context, (frame,), caption="spacehack",
+    )
 
 
 def _ground_combat_hostiles(ctx, game_map) -> list:

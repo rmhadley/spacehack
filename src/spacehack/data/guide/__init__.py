@@ -124,7 +124,7 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "\n"
             "- Q: quest log"
             "\n"
-            "- ESC: save and exit to the main menu (asks first)"
+            "- ESC: pause menu (save & exit, dump char)"
             "\n\n"
             "Space:"
             "\n"

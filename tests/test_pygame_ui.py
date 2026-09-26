@@ -5673,45 +5673,113 @@ def test_menu_draw_frame_skips_log_when_flag_is_off(monkeypatch):
     assert len(log_calls) == 1
 
 
-def test_exit_to_menu_confirm_returns_true_only_on_confirm(monkeypatch):
-    from src.spacehack import __main__ as game_main
-    from src.spacehack import pygame_story
-
-    captured = {}
-    monkeypatch.setattr(
-        pygame_story,
-        "confirm",
-        as_async(
-            lambda ctx, **kwargs: captured.update(
-            ctx=ctx, kwargs=kwargs,
-        ) or "CONFIRM"
-        ),
-    )
-    ctx = SimpleNamespace()
-
-    assert run(game_main._run_pygame_exit_confirm(ctx)) is True
-    assert captured["ctx"] is ctx
-    assert captured["kwargs"]["title"] == "EXIT TO MAIN MENU"
-    assert captured["kwargs"]["accept_label"] == "Save & Exit"
-    assert captured["kwargs"]["cancel_label"] == "Keep Playing"
-
-    for dismissal in ("BACK", "QUIT", None):
-        monkeypatch.setattr(
-            pygame_story,
-            "confirm",
-            as_async(lambda *args, _result=dismissal, **kwargs: _result),
-        )
-        assert run(game_main._run_pygame_exit_confirm(ctx)) is False
-
-
-def test_guide_says_esc_saves_and_confirms_before_exit():
+def test_guide_says_esc_opens_the_pause_menu():
     from src.spacehack.help import GUIDE_SECTIONS
 
     controls = next(
         section for section in GUIDE_SECTIONS
         if section.title == "Controls & Keybindings"
     )
-    assert "save and exit to the main menu (asks first)" in controls.body
+    assert "pause menu (save & exit, dump char)" in controls.body
+
+
+def test_pause_menu_exit_saves_and_leaves(monkeypatch):
+    """The ESC pause menu (doc 53 phase 2): the Save & Exit row keeps
+    the confirm-era contract — only an explicit EXIT leaves the run."""
+    from src.spacehack import __main__ as game_main
+    from src.spacehack import pygame_menu
+
+    captured = {}
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        as_async(lambda ctx, frames, **kwargs: captured.update(
+            frames=frames, kwargs=kwargs,
+        ) or ("SELECT", "EXIT", 0)),
+    )
+    ctx = SimpleNamespace(context=object())
+
+    assert run(game_main._run_pygame_pause_menu(ctx)) == "EXIT"
+    # One frame per cursor row — the shared runner's selection contract.
+    assert len(captured["frames"]) == 3
+    frame = captured["frames"][0]
+    assert frame.title == "PAUSE"
+    assert [item.label for item in frame.items] == [
+        "Save & Exit", "Dump Char", "Keep Playing",
+    ]
+
+
+def test_pause_menu_dump_writes_file_and_returns_to_game(
+    monkeypatch, tmp_path,
+):
+    from pathlib import Path
+
+    from src.spacehack import __main__ as game_main
+    from src.spacehack import pygame_menu
+    from tests.test_tombstone import _ctx as _reader_ctx
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    outcomes = iter((("SELECT", "DUMP", 1), ("SELECT", "CONTINUE", 0)))
+    frames_seen = []
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        as_async(lambda ctx, frames, **kwargs: frames_seen.append(frames)
+                 or next(outcomes)),
+    )
+    ctx = _reader_ctx(context=object())
+
+    assert run(game_main._run_pygame_pause_menu(ctx)) == "KEEP"
+
+    (dump_frame,) = frames_seen[1]
+    assert dump_frame.title == "CHAR DUMP"
+    assert dump_frame.body.startswith("Char dump saved: ")
+    path = Path(dump_frame.body.partition(": ")[2])
+    assert path.exists()
+    assert "CHAR" in path.read_text(encoding="utf-8")
+
+
+def test_pause_menu_dump_failure_names_it(monkeypatch):
+    from src.spacehack import __main__ as game_main
+    from src.spacehack import pygame_menu
+
+    monkeypatch.setattr(
+        "src.spacehack.tombstone.write_char_dump", lambda ctx: None,
+    )
+    outcomes = iter((("SELECT", "DUMP", 1), ("SELECT", "CONTINUE", 0)))
+    frames_seen = []
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        as_async(lambda ctx, frames, **kwargs: frames_seen.append(frames)
+                 or next(outcomes)),
+    )
+
+    assert run(game_main._run_pygame_pause_menu(
+        SimpleNamespace(context=object()),
+    )) == "KEEP"
+    assert frames_seen[1][0].body == "Char dump failed to write."
+
+
+def test_pause_menu_dismissal_and_guide_keep_the_run(monkeypatch):
+    from src.spacehack import __main__ as game_main
+    from src.spacehack import help as help_module, pygame_menu
+
+    guide_seen = []
+    monkeypatch.setattr(
+        help_module, "_run_help_guide", as_async(lambda ctx: guide_seen.append(1)),
+    )
+    outcomes = iter((("GUIDE", "", 0), ("BACK", "", 0)))
+    monkeypatch.setattr(
+        pygame_menu,
+        "run_for_context",
+        as_async(lambda ctx, frames, **kwargs: next(outcomes)),
+    )
+
+    assert run(game_main._run_pygame_pause_menu(
+        SimpleNamespace(context=object()),
+    )) == "KEEP"
+    assert guide_seen == [1]  # the guide round-trips, then dismissal keeps playing
 
 
 def test_font_path_prefers_bundled_font_over_system_match(monkeypatch):
