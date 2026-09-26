@@ -122,7 +122,7 @@ def test_stand_and_trade_fires_while_affordable_then_waits() -> None:
             ap_before = rules.player_ap(ctx)
             _async_run(_loop._dispatch_combat_action(
                 console, ctx, game_map, rules, "FIRE", 0,
-            ))
+            ))  # returns (target_idx, None) — FIRE never ends the fight
             assert rules._state.player_state["power_pool"] == power_before - 2
             assert rules.player_ap(ctx) == ap_before - 1
             # Power dry -> nothing affordable -> the stance ends the turn.
@@ -268,7 +268,7 @@ def test_hold_range_selects_closest_alive_enemy_via_target_cycling() -> None:
                 if action != "TARGET":
                     break
                 cycles.append(action)
-                _async_run(_loop._dispatch_combat_action(
+                _target, _ = _async_run(_loop._dispatch_combat_action(
                     console, ctx, game_map, rules, "TARGET",
                     rules._state.target_idx,
                 ))
@@ -307,7 +307,7 @@ def test_hold_range_approaches_then_fires_in_band() -> None:
                 assert not action.startswith("FIRE")
                 if action.startswith("MOVE:"):
                     moves += 1
-                target_idx = _async_run(_loop._dispatch_combat_action(
+                target_idx, _exit = _async_run(_loop._dispatch_combat_action(
                     console, ctx, game_map, rules, action, target_idx,
                 ))
                 if rules.player_ap(ctx) == 0:
@@ -337,7 +337,7 @@ def test_hold_range_reloads_first_dry_slot_through_real_reload() -> None:
             assert _async_run(stance(ctx, rules)) == "RELOAD"
             _async_run(_loop._dispatch_combat_action(
                 console, ctx, game_map, rules, "RELOAD", 0,
-            ))
+            ))  # returns (target_idx, None)
             assert ctx.equipped_ground_weapons == [
                 GroundWeaponInstance("kinetic_pistol", 12),
                 GroundWeaponInstance("kinetic_pistol", 0),

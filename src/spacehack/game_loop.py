@@ -426,6 +426,13 @@ async def _handle_wait_event(state, event):
             return 'QUIT'
         if _dctrl == 'COMBAT':
             return 'HANDLED'
+        if _dctrl == 'COMBAT_EXIT':
+            # Doc 54 phase 2: the wait-started fight ended as a
+            # stair-dance — the step was the commit, so the SAME tile
+            # dispatch a move would run takes the transition (a plain
+            # wait on stairs transitions nothing: no fight, no payload).
+            await _dispatch_dungeon_tile(state)
+            return 'HANDLED'
     elif state.current_mode == 'city':
         _advance_city_npcs(state)
     state.ctx.log.add('You wait.')
@@ -599,13 +606,11 @@ def _remove_secured_salvage_entities(space_game_map, wreck_spawn_id):
     ]
 
 
-async def _handle_dungeon_move(state, console, code):
-    """Handle dungeon post-move transitions."""
-    if code != 'moved' or state.current_mode != 'dungeon':
-        return None
-    _dctrl = await _dungeon_post_move_tick(state.ctx, console, state.game_map)
-    if _dctrl in {'DEFEAT', 'COMBAT'}:
-        return 'QUIT' if _dctrl == 'DEFEAT' else 'HANDLED'
+async def _dispatch_dungeon_tile(state):
+    """Run the ordinary tile dispatch for the player's current tile:
+    interior exit, stairs, or the dungeon exit (doc 54 phase 2: this
+    is the executor a stair-dance's caller runs — a move lands here
+    naturally, a wait-started fight lands here via COMBAT_EXIT)."""
     _tile = state.game_map.tiles[state.player.pos.y][state.player.pos.x]
     if getattr(state.game_map, "city_interior_id", "") and _tile.kind == "exit":
         return exit_city_interior(state)
@@ -635,6 +640,21 @@ async def _handle_dungeon_move(state, console, code):
             state.game_map, _wreck_spawn_id,
         )
     return 'HANDLED'
+
+
+async def _handle_dungeon_move(state, console, code):
+    """Handle dungeon post-move transitions."""
+    if code != 'moved' or state.current_mode != 'dungeon':
+        return None
+    _dctrl = await _dungeon_post_move_tick(state.ctx, console, state.game_map)
+    if _dctrl == 'DEFEAT':
+        return 'QUIT'
+    if _dctrl == 'COMBAT':
+        return 'HANDLED'
+    # None (no fight) and 'COMBAT_EXIT' (a fight ended as a doc-54
+    # stair-dance — the step was the commit) both land in the tile
+    # dispatch, which runs the transition.
+    return await _dispatch_dungeon_tile(state)
 
 async def _apply_movement_interaction(state, code, blocker, dx, dy):
     """Apply blocker interactions and copy state transitions back."""

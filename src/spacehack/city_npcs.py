@@ -369,13 +369,15 @@ def _take_one_step(entity: world.Entity, game_map: world.GameMap) -> None:
         if rng is not None:
             entity.city_pause_ticks = rng.randint(3, 8)
 
-async def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> None:
+async def run_city_fight(ctx, console, game_map: world.GameMap, hostiles):
     """Run a direct-contact ground fight vs the engaged hostile citizens.
 
     Wired from the occupied (bump) dispatch when the player walks into a
     faction-enemy citizen. Reuses the shared ground-combat runtime so the
     encounter plays out with the exact same combat AI as a dungeon fight.
-    Hands defeat over to the shared defeat-presentation flow.
+    Hands defeat over to the shared defeat-presentation flow; every other
+    outcome returns the CombatResult (doc 54 phase 2: the caller reads
+    the stair-dance payload off it).
     """
     from . import tutorial as _tutorial
     from .combat import _rules_ground as _rg
@@ -393,6 +395,7 @@ async def run_city_fight(ctx, console, game_map: world.GameMap, hostiles) -> Non
         from .game_flow import _show_ground_defeat as _show_defeat
         await _show_defeat(ctx, _result)
         raise SystemExit()
+    return _result
 
 
 def save_city_npc_positions(ctx) -> dict:

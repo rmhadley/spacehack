@@ -549,10 +549,12 @@ async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
     dispatching. Closing the game window quits the run — combat state
     is never saved mid-fight. BOARD ends the fight into the target's
     capture interior (doc 40 6a). A move onto a world exit FLEES
-    (doc 54): the space rules probe ``attempt_flee`` (ground has no
-    hook — phase 2) — FLED/DEFEAT end the fight, and a canceled or
-    refused exit is a full no-op (redo: no dispatch, no AP, same
-    turn)."""
+    (doc 54): the SPACE rules probe ``attempt_flee`` here (ground's
+    flee is a different hook — ``attempt_exit``, fired at the
+    dispatch MOVE seam after the step lands, because a ground step
+    must land before it can commit) — FLED/DEFEAT end the fight, and
+    a canceled or refused exit is a full no-op (redo: no dispatch, no
+    AP, same turn)."""
     if action == "BOARD":
         _try_board = getattr(rules, "try_board", None) if rules else None
         if _try_board is not None and _try_board(ctx, game_map, target_idx):
@@ -586,8 +588,31 @@ async def _run_rules_hook(ctx, rules, hook_name: str, unavailable_line: str) -> 
         ctx.log.add(unavailable_line)
 
 
+async def _handle_move_action(ctx, game_map, rules, action: str) -> str | None:
+    """One MOVE action: the step, then — on the ground — the exit
+    check (doc 54 phase 2): a step that LANDS on a transition tile is
+    the flee commit. Returns ``"DISENGAGED"`` or ``"DEFEAT"`` when
+    the step ended the fight, else ``None`` — a refused exit refunds
+    the step's AP inside the hook, so the turn cannot end on it
+    (SETTLED 3)."""
+    _dx, _dy = _MOVE_KEYS.get(action.partition(":")[2], (0, 0))
+    if rules.player_ap(ctx) <= 0 or (_dx, _dy) == (0, 0):
+        return None
+    if not rules.try_move(ctx, game_map, _dx, _dy):
+        ctx.log.add("Blocked.")
+        return None
+    _attempt_exit = getattr(rules, "attempt_exit", None)
+    if _attempt_exit is None:
+        return None
+    _exit = await _attempt_exit(ctx, game_map, _dx, _dy)
+    return _exit if _exit in ("DISENGAGED", "DEFEAT") else None
+
+
 async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, target_idx: int):
-    """Handle one in-combat action. Returns the new ``target_idx``."""
+    """Handle one in-combat action. Returns ``(new_target_idx,
+    end_result)`` — ``end_result`` is "DISENGAGED" or "DEFEAT" when a
+    ground step onto a transition tile ended the fight (doc 54
+    phase 2), else ``None``."""
     if action == "TARGET":
         _enemies = rules.get_enemies(ctx)
         target_idx = _cycle_target(target_idx, len(_enemies), 1)
@@ -597,11 +622,9 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
         if _toggle_card is not None:
             _toggle_card(ctx)
     elif action.startswith("MOVE:"):
-        sym_name = action.partition(":")[2]
-        if rules.player_ap(ctx) > 0:
-            _dx, _dy = _MOVE_KEYS.get(sym_name, (0, 0))
-            if (_dx, _dy) != (0, 0) and not rules.try_move(ctx, game_map, _dx, _dy):
-                ctx.log.add("Blocked.")
+        _exit = await _handle_move_action(ctx, game_map, rules, action)
+        if _exit is not None:
+            return target_idx, _exit
     elif action == "DEFENSE":
         rules.handle_defense(ctx)
     elif action == "CHARACTER":
@@ -618,7 +641,7 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
     elif action == "WAIT":
         # Waiting ends the player's turn and forfeits remaining AP.
         rules.set_player_ap(ctx, 0)
-    return target_idx
+    return target_idx, None
 
 
 async def _end_player_turn(ctx, game_map, rules, turn: int):
@@ -712,9 +735,12 @@ async def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> Comb
             break
         if _redo:
             continue
-        _target_idx = await _dispatch_combat_action(
+        _target_idx, _exit = await _dispatch_combat_action(
             console, ctx, game_map, rules, _action, _target_idx,
         )
+        if _exit is not None:
+            _result = _exit
+            break
         _turn, _defeat = await _end_player_turn(ctx, game_map, rules, _turn)
         if _defeat == "DEFEAT":
             _result = "DEFEAT"

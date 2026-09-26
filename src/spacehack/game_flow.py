@@ -314,6 +314,15 @@ async def _show_ground_defeat(ctx, ground_result) -> None:
     )
 
 
+def _combat_seams(ground_init, apply_rep, run_combat):
+    """Fill the injectable combat seams with the production ones."""
+    return (
+        _ground_init if ground_init is None else ground_init,
+        _apply_ground_combat_rep if apply_rep is None else apply_rep,
+        _run_combat_unified if run_combat is None else run_combat,
+    )
+
+
 async def _run_ground_combat_tick(
     ctx,
     console,
@@ -334,15 +343,15 @@ async def _run_ground_combat_tick(
     triggers on sight, not just on movement).
 
     Returns the :class:`CombatResult` when combat ran, else ``None``.
-    Callers check ``outcome == "DEFEAT"`` to exit the game loop.
+    The production caller consumes it through
+    :func:`_combat_tick_result` (``"DEFEAT"`` / ``"COMBAT"`` /
+    ``"COMBAT_EXIT"``); a result of ``None`` from this function means
+    no fight ran.
     """
     _hostiles = _ground_combat_hostiles(ctx, game_map)
-    if ground_init is None:
-        ground_init = _ground_init
-    if apply_rep is None:
-        apply_rep = _apply_ground_combat_rep
-    if run_combat is None:
-        run_combat = _run_combat_unified
+    ground_init, apply_rep, run_combat = _combat_seams(
+        ground_init, apply_rep, run_combat,
+    )
     if not _hostiles:
         return None
     # Tutorial: explain ground combat before the combat UI takes over,
@@ -354,6 +363,21 @@ async def _run_ground_combat_tick(
     await tutorial_module.notify_ground_combat_ended(ctx)
     await _show_ground_defeat(ctx, _ground_result)
     return _ground_result
+
+
+def _combat_tick_result(_ground_result) -> str | None:
+    """Map one finished ground fight to the tick's signal: DEFEAT
+    exits; a plain fight is COMBAT; a stair-dance payload is
+    COMBAT_EXIT — the caller runs the ordinary tile dispatch (doc 54
+    phase 2: the step was the commit, so the transition must run
+    wherever the fight ended; a distinct signal lets the wait path
+    join the move path without making a plain wait-on-stairs
+    transition)."""
+    if _ground_result.outcome == "DEFEAT":
+        return "DEFEAT"
+    if getattr(_ground_result, "flee_exit", None) is not None:
+        return "COMBAT_EXIT"
+    return "COMBAT"
 
 
 async def _dungeon_post_move_tick(
@@ -375,7 +399,9 @@ async def _dungeon_post_move_tick(
 
     Returns ``"DEFEAT"`` (death screen shown — exit the game loop),
     ``"COMBAT"`` (a fight ran and was resolved — re-render and
-    continue), or ``None`` (no combat — caller continues normal
+    continue), ``"COMBAT_EXIT"`` (a fight ended as a doc-54
+    stair-dance: the caller runs the ordinary tile dispatch for the
+    transition), or ``None`` (no combat — caller continues normal
     post-step handling like stairs checks).
     """
     _ground_result = await _run_ground_combat_tick(
@@ -387,9 +413,7 @@ async def _dungeon_post_move_tick(
         run_combat=run_combat,
     )
     if _ground_result is not None:
-        if _ground_result.outcome == "DEFEAT":
-            return "DEFEAT"
-        return "COMBAT"
+        return _combat_tick_result(_ground_result)
     from .dungeon_extensions import tick_activation
     await tick_activation(ctx)
     return None

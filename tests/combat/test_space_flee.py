@@ -432,10 +432,11 @@ def test_non_exit_blocked_bump_still_logs_blocked():
             assert run(_rules_space.attempt_flee(
                 ctx, game_map, "MOVE:l",
             )) is None
-            target_idx = run(_loop._dispatch_combat_action(
+            target_idx, _exit = run(_loop._dispatch_combat_action(
                 None, ctx, game_map, _rules_space, "MOVE:l", 0,
             ))
             assert target_idx == 0
+            assert _exit is None
             assert "Blocked." in _texts(ctx.log)
         finally:
             _release_space_state()

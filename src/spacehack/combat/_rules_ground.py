@@ -37,7 +37,7 @@ from ..xp import (
     plasma_savant_ap_discount as _plasma_ap_discount,
 )
 
-from ._types import CombatResult
+from ._types import CombatResult, FleeExit
 from ._stats import _distance, _roll_ap
 from . import _ground_blast
 from ._ground_math import (
@@ -160,6 +160,11 @@ class GroundCombatState:
     # (enemy + wielded variant), or the settled self-splash line.
     # Per-fight session state, never serialized.
     last_attacker: str | None = None
+    # Doc 54 phase 2: the committed stair-dance exit (verb = the
+    # transition tile kind) — set when the fight ends DISENGAGED at a
+    # world exit; get_combat_result copies it onto the CombatResult.
+    # Session-scoped, never serialized.
+    flee_exit: "FleeExit | None" = None
 
 _state: GroundCombatState | None = None
 
@@ -795,6 +800,18 @@ def _killer_label(_gei: GroundEnemyInstance) -> str:
     )
 
 
+def _apply_enemy_hit(ctx, _gei: GroundEnemyInstance, _dmg: int) -> int:
+    """The enemy-damage tail every attack path shares (doc 54 phase 2
+    extraction): trait reduction, the doc-53 damage counter, HP, the
+    killer label. Returns the reduced damage."""
+    _dmg = ground_damage_taken(ctx, _dmg)
+    if hasattr(ctx, "player_counters"):
+        ctx.player_counters.ground_damage_taken += _dmg
+    _state.player_hp -= _dmg
+    _state.last_attacker = _killer_label(_gei)
+    return _dmg
+
+
 async def _spend_one_enemy_turn(
     ctx, game_map: world.GameMap, _enemy_ai, _gei, _player_dodge: int,
 ) -> int:
@@ -823,11 +840,7 @@ async def _spend_one_enemy_turn(
     _gei.ap = _new_ap
 
     if _dmg > 0:
-        _dmg = ground_damage_taken(ctx, _dmg)
-        if hasattr(ctx, "player_counters"):
-            ctx.player_counters.ground_damage_taken += _dmg
-        _state.player_hp -= _dmg
-        _state.last_attacker = _killer_label(_gei)
+        _dmg = _apply_enemy_hit(ctx, _gei, _dmg)
         if _state.player_hp <= 0:
             return 999
     return _dmg
@@ -945,4 +958,28 @@ def get_combat_result() -> CombatResult:
         if not _gei.alive and _gei.spec:
             _cr.defeated_names.append(_gei.spec.name)
             _cr.defeated_spec_ids.append(_gei.spec.id)
+    _cr.flee_exit = _state.flee_exit
     return _cr
+
+
+# ---------------------------------------------------------------------------
+# Flee (doc 54 phase 2) — one-line hooks over the _ground_flee sibling
+# ---------------------------------------------------------------------------
+
+async def reaction_volley(ctx, game_map: world.GameMap) -> bool:
+    """The flee reaction volley (doc 54) — every enemy in band + LOS
+    attacks once. The implementation lives in :mod:`._ground_flee`
+    (the size-ratchet sibling; the space hook's mirror, same name)."""
+    from . import _ground_flee
+    return await _ground_flee.reaction_volley(_state, ctx, game_map)
+
+
+async def attempt_exit(ctx, game_map: world.GameMap, dx: int, dy: int) -> str | None:
+    """The in-combat stair-step exit (doc 54 phase 2), ground's hook —
+    called by the loop right after a successful MOVE. The
+    implementation lives in :mod:`._ground_flee`. (Named apart from
+    space's ``attempt_flee`` deliberately: that hook takes the action
+    string at the meta seam; this one takes the step delta it may
+    have to refund.)"""
+    from . import _ground_flee
+    return await _ground_flee.attempt_exit(_state, ctx, game_map, dx, dy)

@@ -652,11 +652,13 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
     """``_run_combat_impl`` minus presentation: same helper bodies,
     the stance in the input seat, a turn cap instead of a human.
 
-    Meta-action outcomes (BOARD, and the doc-54 flee — a MOVE onto a
-    world exit) are deliberately NOT mirrored: stances move in open
-    space and never bump an exit, so the flee path has no seat here
-    (the doc 40 BOARD precedent). The impl's dispatch loop is
-    unchanged by the flee; it rides ``_handle_meta_action``."""
+    Meta-action outcomes (BOARD, and the doc-54 SPACE flee — a MOVE
+    onto a world exit) are deliberately NOT mirrored: stances move in
+    open space and never bump an exit, so that path has no seat here
+    (the doc 40 BOARD precedent). The GROUND flee (doc 54 phase 2)
+    rides the dispatch return — ``(target_idx, exit_result)`` — and
+    IS mirrored below, though synthetic grids carry no transition
+    tiles so no stance can trigger it."""
     target_idx = 0
     turn = 1
     start_hull = rules.player_hp(ctx)
@@ -670,9 +672,14 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
         enemies = rules.get_enemies(ctx)
         target_idx = _loop._retarget_if_dead(ctx, rules, target_idx, enemies)
         action = await stance(ctx, rules)
-        target_idx = await _loop._dispatch_combat_action(
+        target_idx, exit_result = await _loop._dispatch_combat_action(
             console, ctx, game_map, rules, action, target_idx,
         )
+        if exit_result is not None:
+            # Doc 54 phase 2: a stance step onto a transition tile
+            # ended the fight (the impl's post-dispatch break).
+            result = exit_result
+            break
         turn, defeat = await _loop._end_player_turn(ctx, game_map, rules, turn)
         if defeat == "DEFEAT":
             result = "DEFEAT"

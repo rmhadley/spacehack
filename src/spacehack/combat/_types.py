@@ -85,10 +85,13 @@ class FleeExit:
     Built by the exit menus' refusal-probed commit path
     (game_interactions); rides ``CombatResult.flee_exit`` so the
     CALLER runs the transition — the combat loop never does (the
-    ``boarded_spec_id`` payload pattern). ``verb`` is one of
-    ``"land"`` / ``"explore"`` / ``"dig"`` / ``"jump"``; a station
-    dock is a ``"land"`` on the station's city planet. Session-scoped
-    presentation state, never serialized.
+    ``boarded_spec_id`` payload pattern). Space verbs: ``"land"`` /
+    ``"explore"`` / ``"dig"`` / ``"jump"`` (a station dock is a
+    ``"land"`` on the station's city planet). Ground (doc 54 phase
+    2): the verb is the transition TILE KIND (``"stairs_up"`` /
+    ``"stairs_down"`` / ``"exit"``) — the caller's ordinary tile
+    dispatch derives everything else. Session-scoped presentation
+    state, never serialized.
     """
     verb: str
     planet_id: str = ""

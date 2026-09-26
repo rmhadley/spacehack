@@ -628,8 +628,10 @@ async def _step_present_poll_move(
     post-step tick. A planned-through non-hostile body swaps places
     instead of being stacked onto (doc 42 SETTLED 39).
 
-    Returns ``"CANCELLED"`` / ``"DEFEAT"`` / ``"COMBAT"`` or ``None``
-    (no stop). ``post_step_tick`` MUST refresh the LOS/visible frame;
+    Returns ``"CANCELLED"`` / ``"DEFEAT"`` / ``"COMBAT"`` /
+    ``"COMBAT_EXIT"`` (a doc-54 stair-dance ended the fight — the
+    walk stops; the game-loop caller owns the transition) or
+    ``None`` (no stop). ``post_step_tick`` MUST refresh the LOS/visible frame;
     it is an async seam — the production tick is a coroutine function
     (awaited here; phase-1's uniform-Awaitable contract, no hedge).
     """
