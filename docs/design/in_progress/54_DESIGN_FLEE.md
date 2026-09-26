@@ -1,8 +1,8 @@
 # DESIGN: Flee — the world's exits work during combat
 
-**Status: all open questions ruled 2026-09-26 (SETTLED 1-3); both
-Implementation briefs APPROVED. Nothing implemented — ready for
-`/implement-phase 54.1`.**
+**Status: phase 1 BUILT 2026-09-26 (awaiting playtest — checklist in
+the brief); phase 2 not started. All open questions ruled (SETTLED
+1-3); both Implementation briefs APPROVED.**
 
 ## Overview
 
@@ -93,9 +93,17 @@ User rulings (2026-09-26, conversation):
 
 ## Phases
 
-- [ ] 1. **Space flee** — unlock landing + jump interactions from
+- [x] 1. **Space flee** — unlock landing + jump interactions from
   inside the space combat loop; the reaction volley (every hostile
   in range fires once before the transition); the volley CAN kill.
+  Built 2026-09-26: the volley + attempt hook live on
+  `_rules_space`/`_ai._reaction_pick`, the flee rides the combat
+  loop's meta seam (`HELD` = the SETTLED-3 no-op), the wall
+  resolvers split probe/commit/apply in `game_interactions`, and the
+  caller-side transition/adoption live in the new `space_flee.py`.
+  Reviewer pass 2026-09-26: one blocking twin-pair miss fixed
+  (the auto-warning pass in `_run_combat_loop` now returns FLED
+  before the detection loop) + the outcome chain dict-ified.
 - [ ] 2. **Ground stair dancing** — the stairs tile fires its
   transition from inside the ground combat loop; combat cleanup on
   exit (locks released, survivors revert to patrol); the reaction
@@ -174,6 +182,119 @@ VICTORY" entry is amended when phase 1 closes.
 ## Open questions
 
 None open — all four ruled in SETTLED 1-2 (2026-09-26).
+
+## Pre-implementation audit (phase 1 — 2026-09-26)
+
+**Existing machinery to reuse**
+
+- Exit resolution trio in `game_interactions.py`:
+  `_resolve_space_wall` (:59, the three-way station→planet→jump
+  order), `_resolve_jump_at_wall` (:83), `_resolve_planet_wall`
+  (:105). Split at the outcome branch per the brief; refusal
+  probes already exist as callable units — `_dark_dock_refusal`
+  (:219), `has_landable_port` (data.planets), the
+  `JUMP_FUEL_COST` check (ship.py:714),
+  `find_planet_spec(pid).dungeon_params` (explore),
+  `digs.find_site` (dig — unprobed: today's `enter_dig_site`
+  raises on an unknown site, unreachable via the menu's own
+  listing; behavior kept identical).
+- Menus: `_run_planet_menu` + `PlanetMenuOutcome` (menus/_planet.py),
+  `_run_jump_menu` + `JumpMenuOutcome` (navigation_travel.py:529) —
+  both modal-in-combat-safe (modals from inside combat are
+  established: capture console, character screen).
+- Enemy shot machinery in `combat/_ai.py`: `_enemy_attack` (:426,
+  one shot at real costs, returns "DEFEAT"), `_resolve_enemy_shot`,
+  `_animate_enemy_shot`, `_ranked_weapons` (:274, score-ordered
+  affordable picks), `_volley_picks` (:299). LOS `_has_los`
+  (_animations), range `_distance` (_stats).
+- BOARD seam (the result-flow precedent): `_handle_meta_action`
+  returns `(action, result, redo)` and `_run_combat_impl` already
+  breaks on any non-None result — **the FLED flow needs ZERO
+  changes to `_run_combat_impl` or `_dispatch_combat_action`**;
+  `_finish_combat` (loop.py:652) is outcome-agnostic (sync +
+  DEFEAT-gated tombstone/delete). `CombatResult.boarded_spec_id`
+  (_types.py:93) is the payload pattern for `flee_exit`.
+- Caller side: `_handle_combat_encounter`'s BOARDED branch
+  (_encounter.py:246), `begin_capture_boarding` +
+  `_boarding_shim` (game_interactions.py:590-695 — the shim
+  generalizes to the flee flow: ctx-level writes persist, shim
+  writes are reconstructed by the site adoption),
+  `_adopt_capture_boarding` (game_loop.py:348), the four
+  `== "BOARDED"` sites (game_loop.py:367/384/396/681), the
+  `also_move_npcs` guard (game_flow.py:97).
+- Tests: `tests/combat/test_tombstone_deaths.py` (fake-run_combat
+  outcome flow + harness real-fight contracts),
+  `tests/test_game_interactions.py` (monkeypatched
+  `_run_planet_menu` — pins the landing split's behavior),
+  `tests/balance/harness.py` (`build_game_map` with a
+  `system_id` grid stamps that system's REAL body blocks — a sol
+  grid puts Earth at its catalog coords for flee fights).
+
+**Duplication hotspots + DRY strategy**
+
+1. *The three-way exit probe copy-pasted into the combat loop* —
+   extract `_space_exit_target(state, dx, dy)` in
+   game_interactions; `_resolve_space_wall` and the combat hook
+   both call it. One probe, two callers.
+2. *Refusal logic re-implemented pre-volley* — the probes move
+   VERBATIM into the split commit functions
+   (`_planet_exit_commit` / `_jump_exit_commit`); the out-of-
+   combat path runs the same probe before the same transition.
+   Out-of-combat behavior is pinned unchanged (stop point) by
+   test_game_interactions + a new cancel/refusal matrix test.
+3. *Four FLED adoptions at the game_loop sites* — one
+   `_adopt_flee_transition(state)` helper (the
+   `_adopt_capture_boarding` twin) called at each site; the
+   transition itself runs ONLY in `_apply_exit_commit` (one
+   executor, handler-dict dispatched by verb), reached from both
+   `_resolve_space_wall` (immediate) and `begin_flee_transition`
+   (post-volley, caller-side).
+4. *Harness drift* — `_mirror_loop` calls
+   `_dispatch_combat_action` (signature unchanged by this
+   design); meta-action outcomes were never mirrored (BOARD
+   precedent), so the docstring cross-ref lands as a comment, not
+   a structural change.
+
+**Design rulings from the audit (implementation choices within
+the brief)**
+
+- The flee rides the META seam (`_handle_meta_action`), not the
+  dispatch MOVE branch: the exit probe replaces the failed-move
+  test (an exit tile IS a wall — `try_move` must fail), the
+  existing `(action, result, redo)` plumbing carries FLED/DEFEAT
+  with zero signature churn, and the redo path IS the SETTLED-3
+  no-op (no dispatch, no AP, same turn). The brief's own marker —
+  `_handle_meta_action`'s stale "fleeing is not a mechanic"
+  docstring — anticipated this home.
+- `_rules_space.attempt_flee(ctx, game_map, action)` is the
+  space-only rules hook (getattr-probed like `try_board`): probe
+  → menus → refusals → `reaction_volley` → stash
+  `cr.flee_exit` → "FLED"/"DEFEAT"/"HELD"/None.
+- `reaction_volley(ctx, game_map)` (no console param — the state
+  carries it; noted deviation from the brief's signature sketch).
+  In-range = `_distance <= ws.max_range` explicit filter —
+  `calc_hit_chance` clamps to a 5% floor beyond max range, so
+  `_volley_picks` alone scores "hits" from out-of-range guns.
+  Min-range penalty applies naturally (adjacent escape allowed).
+  New `_ai._reaction_pick` = top-ranked affordable weapon that
+  reaches.
+- The FLED adoption needs the commit's kind (dungeon vs city vs
+  space) and the sites only hold the outcome STRING. Channel:
+  `adopt` reads `cr.flee_exit` off `_rules_space`'s combat state
+  (the cr the brief already mandates; single-threaded immediate
+  post-fight read, no new module global, no new GameContext
+  field — avoids save/load contract surface).
+- Explore's ValueError-from-generation refusal can't be probed
+  pre-volley without burning RNG on a real generation; the probe
+  covers the authored refusals (params missing / unknown spec),
+  and a hypothetical generation failure post-volley lands as
+  today's "too hazardous" line with the player still in space
+  (outcome downgrades to ABORTED, the begin_capture_boarding
+  break-away twin). All 27 specs generate cleanly — authoring-
+  error class, not a player-reachable path.
+- Jump-cancel keeps today's "Blocked." log out of combat;
+  planet/dock cancel and every refusal are quiet (matching
+  today's CONTINUE paths).
 
 ## Implementation brief — Phase 1: space flee (APPROVED 2026-09-26)
 
