@@ -1,10 +1,9 @@
 # DESIGN: Tombstones — death review files
 
-**Status: PHASES 1 + 2 LANDED AND PLAYTEST-PASSED 2026-09-26.
-Phase 1: commits e89aa124 + 500e6435 + counters fix 82eda76f +
-wording pass 35607bcb. Phase 2 (char dump): 8d4cee75 — the pending
-string list was approved in play ("playtest good"). No open
-questions; both phases' checklists passed. Close candidate.**
+**Status: CLOSED 2026-09-26 — both phases landed and playtest-passed;
+moved to complete/; SYSTEMS.md inventory amended in the same commit
+(Death & share artifacts, theater-split damage tallies, ESC pause
+menu action-surface row).**
 
 ## Overview
 

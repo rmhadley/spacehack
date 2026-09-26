@@ -1221,7 +1221,11 @@ nobody designs against a ghost.
   pilot/ground bonuses; class sets starting credits (25/50/75) and
   cosmetic ship `hp_base` (`character.py`).
 - **Playstyle counters** — extendable `PlayerCounters` on ctx; all
-  reset on death (`game_context.py`).
+  reset on death; career damage tallies are THEATER-SPLIT —
+  `total_damage_taken` space-only (doc 2), `ground_damage_taken`
+  ground-only (doc 53, incremented post-DR at both ground damage
+  sites), both rebuilt on load (`game_context.py`;
+  `saveload._parse_counters`).
 
 ## Ships & equipment
 
@@ -1242,6 +1246,20 @@ nobody designs against a ghost.
   written only by ESC Save & Exit (no per-move/per-landing save;
   death writes nothing); deleted on successful Continue
   (`saveload.py`; `title_flow.py`).
+- **Death & share artifacts (doc 53)** — every DEFEAT writes a
+  tombstone morgue file (header + CHAR + GEAR + the complete log;
+  killer from per-fight `last_attacker` tracking on both combat
+  states, self-splash pins "your own explosives"); the ESC pause
+  menu's Dump Char row writes the living sibling (same sections,
+  header minus death facts) to `chardumps/`; both live under
+  `~/.spacehack/saves/` with timestamped names + -2/-3 collision
+  suffixes, best-effort (a write failure never blocks its caller);
+  the death screens APPEND the full-filename notice in all three
+  theaters, city included (`tombstone.py`;
+  `combat/_loop._finish_combat` — the write precedes autosave
+  deletion; `game_flow._run_pygame_pause_menu`,
+  `_show_char_dump_modal`; blast killer line in
+  `combat/_ground_blast.py`).
 - **Persisted payload** — full state incl. identity fields,
   collected-ID sheets, economy, boards, bounty/quest spawns, city
   NPC positions, interiors cache, RNG state; boarded wreck/planet
@@ -1334,8 +1352,8 @@ nobody designs against a ghost.
 - **Action surface** — arrows/hjkl/numpad + yubn; `.` wait; space:
   G goto, M map, T comms, P pickup; dungeon: O explore, G goto, R
   reload, P pickup; everywhere: C character, F factions, Q quest
-  log, `\` console, `?` guide, ESC save-and-exit
-  (`input_helpers.py`; `game_loop.py`).
+  log, `\` console, `?` guide, ESC pause menu (Save & Exit /
+  Dump Char) (`input_helpers.py`; `game_loop.py`).
 - **Engine essentials** — 100×60 grid, 16px CP437 bitmap (sole
   rendering asset) + procedural patches/widened text; shared `RNG`
   for game logic while map generation uses global random
