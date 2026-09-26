@@ -21,12 +21,16 @@ User framing (2026-09-26): "now that the game is getting difficult as
 we balance things, it needs a way to review how you died. usually in a
 roguelike it saves a tombstone to disk with your message log in full."
 
-## Contents (v1 — SETTLED 1)
+## Contents (v1 — SETTLED 1, wording pass 2026-09-26)
+
+*Wording pass (user, post-phase-1 playtest, verbatim): drop the
+"REST IN PEACE —" header prefix and " (real time)"; section labels
+"THE SHEET" → "CHAR", "THE KIT" → "GEAR"; "Bandolier" line → "Ammo".*
 
 ```
 ================================================
-  REST IN PEACE — <species> <class>
-  Level <L> — died <YYYY-MM-DD HH:MM> (real time)
+  <species> <class>
+  Level <L> — died <YYYY-MM-DD HH:MM>
   <day/month/year clock> — <system / system+planet>
   Slain by: <killer line — the last hostile damage
             source, e.g. "a Pirate Rifleman's laser
@@ -38,13 +42,13 @@ roguelike it saves a tombstone to disk with your message log in full."
                hull <n>  shields <n>    (space)
 ================================================
 
-  THE SHEET: level + XP, pilot skills, ground stats,
-             traits
-  THE KIT: both weapon sets (id + quality + loaded
-           ammo), armor slots, bandolier state,
-           expedition pack,
-           SHIP: installed weapons (id + quality +
-                 loaded ammo) + modules
+  CHAR: level + XP, pilot skills, ground stats,
+        traits
+  GEAR: both weapon sets (id + quality + loaded
+        ammo), armor slots, ammo reserves,
+        expedition pack,
+        SHIP: installed weapons (id + quality +
+              loaded ammo) + modules
 
   --- MESSAGE LOG (full, oldest first) ---
   ... every entry, colours stripped ...
