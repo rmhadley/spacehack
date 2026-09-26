@@ -140,8 +140,10 @@ def _member_label(instance) -> tuple:
 
 def _weapon_detail_text(spec) -> str:
     """Format one weapon's stats and armor-bypass detail line."""
+    from .menus._armory_buy import _damage_token
+
     detail = (
-        f"{spec.damage_type.title()}   Damage {spec.damage}   "
+        f"{spec.damage_type.title()}   Damage {_damage_token(spec)}   "
         f"Accuracy {spec.accuracy}%   Range {spec.min_range}-"
         f"{spec.max_range}   AP {spec.ap_cost}"
     )

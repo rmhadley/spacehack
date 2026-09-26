@@ -7,12 +7,21 @@ consumables), split from menus/_armory to pay the 1000-line ratchet
 from __future__ import annotations
 
 
+def _damage_token(spec) -> str:
+    """The damage stat with its fire rate when it differs: ``5x2`` for
+    burst weapons (doc 50 SETTLED 8), plain damage otherwise."""
+    damage = f"{spec.damage}"
+    if getattr(spec, "shots_per_action", 1) > 1:
+        damage += f"x{spec.shots_per_action}"
+    return damage
+
+
 def _weapon_detail(spec) -> str:
     """Format a ground weapon's useful armory details."""
     hands = "2H" if spec.hands == 2 else "1H"
     bypass = "  Armor bypass" if spec.armor_bypass else ""
     return (
-        f"{hands}  {spec.damage_type.title()}  Damage: {spec.damage}  "
+        f"{hands}  {spec.damage_type.title()}  Damage: {_damage_token(spec)}  "
         f"Accuracy: {spec.accuracy}%  Range: {spec.min_range}-{spec.max_range}"
         f"{bypass}"
     )

@@ -349,3 +349,25 @@ def test_log_equipped_colours_the_tiered_name():
         ("Prototype Mono Blade", (190, 140, 255)),
         (".", None),
     )
+
+
+def test_burst_weapons_show_fire_rate_in_the_damage_token():
+    """Doc 50 SETTLED 8: the SMG's identity is visible at purchase —
+    Damage: 5x2 (per-shot damage x shots per trigger pull); every
+    non-burst weapon renders plain damage."""
+    from src.spacehack.menus._armory_buy import _damage_token, _weapon_detail
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    assert _damage_token(find_ground_weapon("smg")) == "5x2"
+    assert _damage_token(find_ground_weapon("kinetic_pistol")) == "6"
+    assert _damage_token(find_ground_weapon("railgun")) == "44"
+    assert "Damage: 5x2" in _weapon_detail(find_ground_weapon("smg"))
+
+
+def test_guide_teaches_the_smg_double_fire():
+    from src.spacehack.data.guide import GUIDE_SECTIONS
+
+    combat = next(s for s in GUIDE_SECTIONS if s.title == "Combat")
+    assert "fires two rounds per trigger pull" in combat.body
+    # No em-dashes in game text (the doc-45 bitmap gate rule).
+    assert "\u2014" not in combat.body.split("trigger pull")[1].split("rounds spent")[0]
