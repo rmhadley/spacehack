@@ -190,8 +190,9 @@ def _quick_resource_row(ctx, active_weapons: list[str]):
         default=0,
     )
     return quick_row(
-        f"{_rules_mod.player_ap(ctx)} AP -{_ap_needed} AP "
-        f"-{_rules_mod.player_hp(ctx)} HP"
+        f"HP {_rules_mod.player_hp(ctx)}/{_rules_mod.player_max_hp(ctx)}   "
+        f"AP {_rules_mod.player_ap(ctx)}/{_rules_mod.player_ap_total(ctx)}   "
+        f"FIRE {_ap_needed} AP"
     )
 
 

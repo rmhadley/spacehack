@@ -561,8 +561,10 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         _space_focus.power_cost(weapon_id, ctx) for weapon_id in _active_ids
     )
     _quick = quick_row(
-        f"{player_ap(ctx)} AP -{_ap_needed}/{_power_available} POW "
-        f"-{_power_cost}/{player_hp(ctx)} HP"
+        f"HP {player_hp(ctx)}/{player_max_hp(ctx)}   "
+        f"AP {player_ap(ctx)}/{player_ap_total(ctx)}   "
+        f"POW {_power_available}/{_state.player_state.get('max_power', 10)}   "
+        f"FIRE {_ap_needed} AP {_power_cost} POW"
     )
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))

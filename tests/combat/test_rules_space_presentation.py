@@ -183,6 +183,7 @@ def test_space_target_card_quick_row_shows_selected_resource_costs():
             "ap_remaining": 4,
             "ap_total": 4,
             "power_pool": 26,
+            "max_power": 26,
             "gunnery": 20,
             "hull": 25,
             "max_hull": 25,
@@ -201,7 +202,7 @@ def test_space_target_card_quick_row_shows_selected_resource_costs():
 
     assert card is not None
     assert card.quick_rows == (
-        (("4 AP -1/26 POW -4/25 HP", pygame_target_card.TARGET_CARD_TEXT),),
+        (("HP 25/25   AP 4/4   POW 26/26   FIRE 1 AP 4 POW", pygame_target_card.TARGET_CARD_TEXT),),
     )
 
 
