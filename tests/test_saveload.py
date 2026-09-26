@@ -246,14 +246,22 @@ class TestSaveLoadRoundTrip:
         _ss.current_solar_system_id = "sol"
 
     def test_parse_counters_defaults_ground_damage_taken_to_zero(self):
-        """A pre-doc-53 save (no ground tally key) loads as 0."""
+        """A pre-doc-53 save (no ground tally key) loads as 0; the
+        railgun/focused counters (a pre-existing silent reset, found
+        in the doc 53 audit) rebuild from their keys."""
         from src.spacehack import saveload as _saveload_module
 
-        counters = _saveload_module._parse_counters(
-            {"player_counters": {"total_damage_taken": 4}},
-        )
+        counters = _saveload_module._parse_counters({
+            "player_counters": {
+                "total_damage_taken": 4,
+                "railgun_kills": 2,
+                "focused_shots": 9,
+            },
+        })
         assert counters.ground_damage_taken == 0
         assert counters.total_damage_taken == 4
+        assert counters.railgun_kills == 2
+        assert counters.focused_shots == 9
 
     # ---- field-level assertions ----
 

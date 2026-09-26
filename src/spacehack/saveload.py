@@ -643,6 +643,8 @@ def _parse_counters(data: dict):
         ground_damage_taken=pc.get("ground_damage_taken", 0),
         melee_kills=pc.get("melee_kills", 0),
         explosive_hits=pc.get("explosive_hits", 0),
+        railgun_kills=pc.get("railgun_kills", 0),
+        focused_shots=pc.get("focused_shots", 0),
     )
 
 
