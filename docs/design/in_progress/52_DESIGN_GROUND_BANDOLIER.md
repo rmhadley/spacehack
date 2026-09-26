@@ -1,13 +1,13 @@
 # DESIGN: The Bandolier — tracked ammo reserves, never in the pack
 
-**Status: PHASE 6 LANDED 2026-09-25 — PLAYTEST PENDING (the LAST
-phase). Phases 1-3 COMPLETE (playtest passed, incl. the
+**Status: ARC CLOSED 2026-09-26 — 52.6 (the last phase) passed its
+playtest 2026-09-26. Phases 1-3 COMPLETE (playtest passed, incl. the
 mid-playtest rulings — feeder-free aligned Ammo column; "bandolier"
 retired from player-facing text). Phase 4 (cap gear) DEFERRED to the
 future armor/cybernetics polish pass (the `effective_cap` seam
 shipped). Phase 5 (endurance rows) MOVED to doc 50's resumption
-(SETTLED 6). Doc 52 closes once 52.6 passes its playtest; doc 50's
-resumption then unblocks.**
+(SETTLED 6). Doc 50's resumption is UNBLOCKED; the endurance rows
+land in its first passes.**
 
 ## Overview
 
@@ -1373,7 +1373,12 @@ loadout unchanged, stack phrasing gone). 6) Save → quit → Continue
 mid-tutorial: the beat's state is unchanged (nothing stateful moved).
 7) `make check` green.
 
-### Phase 6 build record (LANDED 2026-09-25 — PLAYTEST PENDING)
+### Phase 6 build record (LANDED 2026-09-25 — PLAYTEST PASSED
+### 2026-09-26)
+
+**Playtest: PASSED 2026-09-26 (user: "play test is good").** All
+checkpoint items — the settled wording stands as shipped; the guide
+diff is none (stated on the checklist, grep-verified at build).
 
 **Commits:** 39f735d1 (pre-implementation audit) → 91a99083 (the
 prose commit: the earth_armory clause lands SETTLED 6's wording
