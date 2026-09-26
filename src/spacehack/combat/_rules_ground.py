@@ -233,7 +233,7 @@ def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
     armor_entries = ctx.equipped_ground_armor.values()
     max_hp = (
-        20 + ctx.ground_stats.stamina // 3
+        20 + ctx.ground_stats.stamina // 2
         + _sum_armor_bonus(armor_entries, "hp_bonus")
         + _ground_max_hp_bonus(ctx)
     )

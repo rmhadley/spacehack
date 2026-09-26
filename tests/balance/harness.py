@@ -471,7 +471,8 @@ def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
     """The ground-side ctx: the core spine plus the ground fields the
     rules touch. HP seeds at the sheet's true ground max — the
     GameContext default 23 must never leak into a ground ctx
-    (SETTLED 5: the tutorial sheet's max is 28 = 20 + stamina 24//3,
+    (the tutorial sheet's max is 32 = 20 + stamina 24//2 — the //2
+    stamina ruling, 2026-09-26; was 28 under //3,
     and the fight's own ``_player_hp_state`` growth lands there)."""
     player = world.Entity(
         "@", (255, 255, 255), world.Position(*player_start), "Player",
@@ -489,7 +490,7 @@ def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
     # The trait-aware max (the same fold ``_player_hp_state`` performs);
     # seeded full — the default 23 never leaks into a ground ctx.
     ctx.ground_max_hp = ctx.ground_hp = (
-        20 + stats.stamina // 3
+        20 + stats.stamina // 2
         + sum_armor_bonus(armor.values(), "hp_bonus")
         + ground_max_hp_bonus(ctx)
     )

@@ -21,7 +21,7 @@ def _apply_ironclad_hp(ctx: GameContext, trait_id: str) -> None:
         return
     from .ground_equipment import sum_armor_bonus
     _new_max_hp = (
-        20 + ctx.ground_stats.stamina // 3
+        20 + ctx.ground_stats.stamina // 2
         + sum_armor_bonus(ctx.equipped_ground_armor.values(), "hp_bonus")
         + ground_max_hp_bonus(ctx)
     )

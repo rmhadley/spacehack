@@ -379,7 +379,7 @@ class GameContext:
     bandolier: dict[str, int] = dataclasses.field(default_factory=dict)
     # Ground combat HP — set on dungeon entry, persisted across
     # combat encounters in the same dungeon visit. Default matches
-    # the new-game formula 20 + stamina//3 at the base-10 start.
+    # the new-game formula 20 + stamina//2 at the base-10 start.
     ground_hp: int = 23
     ground_max_hp: int = 23
     # Current city the player is on (for save/load).  Updated on
