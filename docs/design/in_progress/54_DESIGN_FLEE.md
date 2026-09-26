@@ -1,8 +1,8 @@
 # DESIGN: Flee — the world's exits work during combat
 
-**Status: phase 1 BUILT 2026-09-26 (awaiting playtest — checklist in
-the brief); phase 2 not started. All open questions ruled (SETTLED
-1-3); both Implementation briefs APPROVED.**
+**Status: BOTH phases BUILT 2026-09-26 (awaiting playtest —
+checklists in the briefs); all open questions ruled (SETTLED 1-3);
+both Implementation briefs APPROVED.**
 
 ## Overview
 
@@ -104,11 +104,21 @@ User rulings (2026-09-26, conversation):
   Reviewer pass 2026-09-26: one blocking twin-pair miss fixed
   (the auto-warning pass in `_run_combat_loop` now returns FLED
   before the detection loop) + the outcome chain dict-ified.
-- [ ] 2. **Ground stair dancing** — the stairs tile fires its
+- [x] 2. **Ground stair dancing** — the stairs tile fires its
   transition from inside the ground combat loop; combat cleanup on
   exit (locks released, survivors revert to patrol); the reaction
   volley (every enemy in range + LOS attacks once); death on the
-  stairs.
+  stairs. Built 2026-09-26: the volley + exit attempt + refusal
+  probe live in `combat/_ground_flee.py` (one-line hooks on
+  `_rules_ground`), the trigger rides the dispatch MOVE branch via
+  the widened `(target_idx, end_result)` return, and the CALLER runs
+  the transition through the existing tile dispatch (the tick's
+  distinct "COMBAT_EXIT" signal covers move-, wait-, and
+  automation-started fights; `run_city_fight` returns its result so
+  interior fights exit through `exit_city_interior`). Reviewer pass
+  2026-09-26: one blocking dropped-commit on wait-started fights
+  fixed (the distinct signal + `_dispatch_dungeon_tile`); probe
+  exception coverage + volley line-suppression folded.
 
 Each phase gets its Implementation brief at its own refine time —
 both briefed 2026-09-26 (below). Close-out reminder: SYSTEMS.md's
@@ -295,6 +305,116 @@ the brief)**
 - Jump-cancel keeps today's "Blocked." log out of combat;
   planet/dock cancel and every refusal are quiet (matching
   today's CONTINUE paths).
+
+## Pre-implementation audit (phase 2 — 2026-09-26)
+
+**Existing machinery to reuse**
+
+- The per-enemy attack: `_ai_ground._try_ground_fire` (:257) —
+  band + LOS gated, animates, emits noise per shot, returns
+  ``(damage, ap_cost)``. The band gate IS the range filter (no
+  5%-floor problem on the ground). The damage tail (trait
+  reduction, counter, HP, killer label) mirrors
+  `_spend_one_enemy_turn`'s inline tail — extracted as one shared
+  helper both paths call.
+- `on_disengage` (`_rules_ground.py:882`) — called directly so
+  survivors investigate the stairs (last-seen at the exit);
+  `sync_state` releases locks and already runs for every outcome
+  via `_finish_combat`.
+- `world.TRANSITION_KINDS` (world.py:165) — the post-move tile
+  gate; ground `try_move` spends the AP and reveals (the reveal
+  may persist through a refund — the build note in SETTLED 3).
+- The caller's existing dispatch IS the transition executor —
+  `_handle_dungeon_move` (game_loop.py:602-637) already routes
+  interior-exit → `exit_city_interior`, stairs →
+  `_handle_stairs_down/up` (dig/extension/enter_extension with
+  their own try/except refusals), exit →
+  `_handle_dungeon_exit_tile` (boarded interior). NO new
+  transition code is written in this phase.
+- Refusal-probe sources (all probe-safe: pure reads or isolated
+  seeded RNG — `digs.site_depth` draws nothing from the shared
+  RNG): `digs.parse_cache_key` + `site_depth` (dig bounds),
+  `dungeon_extensions._transition_target_floor` (:700 — pure
+  validation including the sealed-elevator gates, the brief's
+  "sealed stairs"), `extension_id_at`, `leave_extension`'s two
+  preconditions (state active + parent map present).
+- Phase-1 seams reused: `CombatResult.flee_exit` (ground verb =
+  the tile kind: "stairs_up"/"stairs_down"/"exit"), `FleeExit`,
+  the outcome-agnostic `_finish_combat`.
+- City interiors are DUNGEON-mode maps (`_install_interior_state`)
+  whose indoor fights run through the bump → `run_city_fight`
+  path — the fifth entry point.
+
+**Duplication hotspots + DRY strategy**
+
+1. *The probe re-deriving the stair branch tree* — it mirrors
+   `_handle_stairs_down/up`'s branch ORDER but calls the SAME
+   validators; the handlers' try/except stays the runtime net.
+   Probe-passing transitions that still refuse at run time (a
+   floor-load failure) are the phase-1 ABORT residual class:
+   post-volley refusal, logged by the caller, player stays.
+2. *The volley's damage tail copy-pasted from
+   `_spend_one_enemy_turn`* — extracted as the shared tail helper
+   both callers use.
+3. *Two flee hooks with different shapes* — space's
+   `attempt_flee(ctx, game_map, action)` (meta seam, pre-move
+   probe) vs ground's `attempt_exit(ctx, game_map, dx, dy)`
+   (post-move, needs the step delta for the refund). Deliberately
+   different names: the phase-1 meta intercept probes
+   `getattr(rules, "attempt_flee")` — a ground same-name hook
+   would be called with the space signature.
+4. *Harness/test drift* — `_dispatch_combat_action`'s return
+   widens to ``(target_idx, end_result)`` (the brief-anticipated
+   `_run_combat_impl` change); the harness mirror + ~8 test call
+   sites sync mechanically.
+
+**Design rulings from the audit (implementation choices within
+the brief)**
+
+- The trigger lives in the dispatch MOVE branch right after a
+  successful `try_move` — only there is "the step landed" known
+  (a blocked bump must not fire on a fight that STARTED on the
+  stairs; MOVE is the only trigger, WAIT/FIRE fire nothing —
+  pinned by test). The impl breaks on the widened return BEFORE
+  `_end_player_turn` — the volley IS the enemy action, and a
+  refunded step restores the AP so the turn cannot end on it.
+- The tick signal: `_dungeon_post_move_tick` returns
+  ``"COMBAT_EXIT"`` when the result carries `flee_exit` — a DISTINCT
+  signal, not a None fall-through (the reviewer's blocking catch: a
+  WAIT can START a fight by LOS aggro, and a mid-fight stair-dance
+  from such a fight would have dropped the commit — the audit's
+  first "wait path is unreachable" claim confused the in-combat
+  MOVE-only trigger with which caller's tick started the fight).
+  The move path treats it as fall-through to the tile dispatch;
+  the wait path runs the SAME dispatch (extracted as
+  `_dispatch_dungeon_tile`) — a plain wait on stairs still
+  transitions nothing (no fight, no payload; the out-of-combat stop
+  point holds). Automation: any non-None result halts the walk, so
+  the signal leaves the player in control ON the stairs — with the
+  commit still dropped there (the walk's own caller maps
+  COMBAT_EXIT to a plain HANDLED; stepping off/back on transitions
+  freely with no second volley — the stop point's no-autoexplore
+  rule holds; reviewer-noted residual, no autoexplore code changed).
+- City path: `run_city_fight` returns its result, and
+  `_resolve_city_npc_blocker` runs `exit_city_interior(state)`
+  with the REAL `_apply_movement_interaction`-built state when
+  the result carries a payload and the player stands on the
+  interior's exit tile — the copy-back carries those writes (the
+  brief's "shim writes must survive the copy-back": the real
+  state, not a shim).
+- The boarded interior's abandon-derelict confirm is a POST-volley
+  player choice (the caller owns that modal; SETTLED 1's
+  step-as-commit stands) — declining keeps the player inside with
+  the volley paid.
+- `_rules_ground` (948 lines): the flee block lands in the new
+  sibling `combat/_ground_flee.py` (the established
+  `_ground_blast`/`_ground_charger` pattern) with one-line hooks
+  on the rules module keeping the loop's call shape.
+- `GroundCombatState` gains a `flee_exit` field (declared on the
+  dataclass in its own module — the cohesion rule);
+  `get_combat_result()` copies it onto the fresh result.
+- Ground verbs on `FleeExit.verb` are the TILE KINDS; the FleeExit
+  docstring gains the ground note.
 
 ## Implementation brief — Phase 1: space flee (APPROVED 2026-09-26)
 
