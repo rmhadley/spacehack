@@ -337,10 +337,13 @@ def _first_walkable(game_map) -> world.Position | None:
 
 
 def _adopt_dungeon_transition(ctx, game_map, player) -> None:
-    """Install a dungeon transition result on the shared game context."""
+    """Install a dungeon transition result on the shared game context.
+
+    NO heal: level changes within a delve are attrition (bug fix
+    2026-09-26 — stairs/elevators/facility descents had inherited a
+    full heal from the landing path; only LANDING on a planet heals)."""
     ctx.game_map = game_map
     ctx.player = player
-    ctx.ground_hp = ctx.ground_max_hp
 
 
 async def _maybe_show_post_prison_orbit(

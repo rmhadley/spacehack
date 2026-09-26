@@ -1021,3 +1021,56 @@ def test_weighted_axis_count_partitions_the_weights():
 def test_default_axes_weights_sum_positive_per_band():
     for row in DIG_LOOT_SPEC.legendary_axes_weights:
         assert len(row) == 3 and sum(row) > 0
+
+
+def test_floor_transitions_do_not_heal(monkeypatch):
+    """Bug fix 2026-09-26: changing levels in a delve (up or down)
+    never heals — only landing on a planet does."""
+    ctx, site = _dig_world(monkeypatch, depth=3)
+    ctx.ground_hp, ctx.ground_max_hp = 10, 30
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    down_pos = world.Position(*_tile_of(f1, "stairs_down"))
+    state = SimpleNamespace(
+        ctx=ctx, game_map=f1,
+        player=world.Entity(char="@", fg=(255, 255, 255), pos=down_pos, name="Player"),
+    )
+    ctx.game_map, ctx.player = f1, state.player
+    _m1, _p1 = digs.transition(state, 1)
+    state.game_map, state.player = _m1, _p1
+    assert ctx.ground_hp == 10  # the descent healed nothing
+    _m2, _p2 = digs.transition(state, -1)
+    state.game_map, state.player = _m2, _p2
+    assert ctx.ground_hp == 10  # climbing neither
+
+
+def test_dig_entry_from_orbit_heals(monkeypatch):
+    """The landing contract's other half: entering a dig from the
+    planet menu (orbit -> surface) IS landing — full heal."""
+    ctx, site = _dig_world(monkeypatch, depth=1)
+    ctx.ground_hp, ctx.ground_max_hp = 10, 30
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    state = SimpleNamespace(
+        ctx=ctx, game_map=None, player=None,
+        space_game_map=None, space_player=None,
+        current_mode="space",
+        log=SimpleNamespace(add=lambda _m, **_k: None),
+    )
+    digs.enter_dig_site(state, SimpleNamespace(id="mars"), site["id"])
+    assert ctx.ground_hp == 30  # landing healed
+
+
+def test_stair_adoption_does_not_heal():
+    """The load-bearing pin (sabotage-proven): the game-flow adoption
+    that EVERY stair/elevator/facility transition funnels through
+    installs the new map and player and heals NOTHING. Only landing
+    on a planet heals (bug fix 2026-09-26)."""
+    from types import SimpleNamespace as NS
+    from src.spacehack.game_flow import _adopt_dungeon_transition
+    from src.spacehack import world
+
+    ctx = NS(ground_hp=10, ground_max_hp=30, game_map=None, player=None)
+    _map = world.GameMap(2, 2, [[world.DUNGEON_FLOOR] * 2] * 2, [])
+    _player = world.Entity("@", (255, 255, 255), world.Position(0, 0), "P")
+    _adopt_dungeon_transition(ctx, _map, _player)
+    assert ctx.game_map is _map and ctx.player is _player
+    assert ctx.ground_hp == 10  # sabotage-proven: re-adding the heal fails this

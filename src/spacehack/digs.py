@@ -525,6 +525,7 @@ def enter_dig_site(state, planet_obj, site_id: str) -> str:
 
     player = _install_dungeon_player(game_map, spawn)
     _adopt_dungeon_entry(state, game_map, player)
+    state.ctx.ground_hp = state.ctx.ground_max_hp  # landing heals
     state.log.add(_text_get("dig.enter_log", "").format(name=site["name"]))
     return "CONTINUE"
 
