@@ -237,6 +237,10 @@ def _synthetic_ground_row(
     return dataclasses.replace(
         row,
         id="synthetic_pin_fixture",
+        # These pins test hold_range's own branches — pin the stance
+        # explicitly so re-grounding the base row never re-instruments
+        # the fixture (caught when goal_2 moved to toggle_sets).
+        stance="hold_range",
         grid=GridSpec(width=15, height=15),
         player_start=player_pos,
         enemies=(EnemySide(spec_id="rock_scavenger", pos=enemy_pos, band=1),),
@@ -465,3 +469,33 @@ def test_goal_2_batch_aggregate_determinism() -> None:
         find_scenario("goal_2_starter_mars_delve"), runs=3,
     )
     assert aggregate(run_batch(row)) == aggregate(run_batch(row))
+
+
+def test_bandolier_caps_hold_the_ruled_endurance_floors() -> None:
+    """Doc 52 SETTLED 1/6 + doc 50 SETTLED 7: kills-of-endurance per
+    caliber (cap ÷ the WORST measured consumer's rounds-per-kill)
+    never drops below the ruled floors — the bandolier's caps are the
+    delve-endurance dial and drift here is a balance swing. Consumers
+    are the doc-50 session's measured constants."""
+    # (ammo_type, worst measured consumer's rounds/kill, ruled floor)
+    ENDURANCE = (
+        ("kinetic_pistol", 4.1, 35),   # pistol pair, scavenger pack
+        ("rifle_round", 5.8, 35),       # kinetic rifle, scavenger pack
+        ("energy_cell", 6.5, 35),      # laser pistol pair (hungriest)
+        ("shotgun_shell", 3.2, 35),    # shotgun, scavenger pack
+        ("grenade", 1.8, 8),          # grenade launcher, pack fights
+        ("rocket", 1.0, 8),           # rocket launcher, pack fights
+    )
+    for ammo_type, rds_per_kill, floor in ENDURANCE:
+        cap = _carry_cap(ammo_type)
+        endurance = int(cap // rds_per_kill)
+        assert endurance >= floor, (
+            f"{ammo_type} cap {cap} gives {endurance} kills at "
+            f"{rds_per_kill} rds/kill — below the ruled floor {floor}"
+        )
+
+
+def _carry_cap(ammo_type: str) -> int:
+    from src.spacehack.bandolier import effective_cap
+
+    return effective_cap(ammo_type, 0)

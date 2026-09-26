@@ -351,6 +351,41 @@ this the standard. Just so we have a starting point.**"
   the deferred map-scale row class; a separate question from fight
   balance.
 
+## SETTLED 7 (2026-09-26, user — the resumption: full-loadout sheets + re-ground)
+
+> "Yes, let's wrap up these and re-ground. I want the sim harness to
+> be able to fully simulate the players loadout."
+
+- **The harness simulates the COMPLETE kit** — both weapon sets (doc
+  51's install path already partitions `ground_weapon_ids` by class;
+  no new sheet field needed), the bandolier (doc 52's store), armor,
+  traits, space side. What was missing: a stance that EMITS the set
+  swap and rows that exercise it.
+- **goal_2 RE-GROUNDED to the taught kit** (doc 51.4 + 52.6 changed
+  what the tutorial teaches): two Kinetic Pistols + Combat Knife
+  (auto-partitioned sets), bandolier-restocked rounds, and the
+  tutorial-honest stance is now toggle-capable. Expected and to be
+  VERIFIED: the numbers do not move (the pistols' min range 1 means
+  the knife never binds vs the scavenger pack — the sheet becomes
+  honest, the bars stay).
+- **New row: the doc-51 motivating matchup** — railgun + mono blade
+  vs the Mars pack, the two-set loadout whose probe (100%/25%, full
+  clear at every stat rung) motivated the whole weapon-sets build.
+  Pins the toggle mechanic permanently.
+- **The `toggle_sets` stance**: hold_range's ladder + the SWAP_SETS
+  rung (real dispatch, 1 AP, band maintenance). Absorbs doc 51
+  SETTLED 4's deferred re-rule scope.
+- **Endurance pins land** (doc 52 SETTLED 6's deferred phase 5):
+  kills-of-endurance per caliber (cap ÷ measured rounds-per-kill)
+  as a caps-catalog regression test with the measured constants
+  recorded.
+- **Perf preamble (same resumption, 2026-09-26)**: the board runs the
+  SIM TIER — `animation_timing.set_render_frames(False)`, a
+  programmatic-only dial above INSTANT (INSTANT itself untouched BY
+  USER RULING: "I like the speed of instant today. I don't want it
+  to change") + a pristine-snapshot planet-grid cache. Board 232s →
+  11s, byte-identical numbers (da92217e/afbfac40/ea5a3caf).
+
 ## The scenario data model (the row — SETTLED 2-5 shape)
 
 Authoring a protected situation = adding one frozen row. Composition
@@ -471,6 +506,18 @@ numbers.
   closed form per doc 48's INTERIM note. Needs its own brief-time
   refinement: the closed form's die/clear fit margins must translate
   to averaged-outcome thresholds honestly.
+
+- [x] 5. **Full-loadout resumption (SETTLED 7)** — LANDED 2026-09-26:
+  the toggle_sets stance through the real SWAP_SETS dispatch; goal_2
+  re-grounded to the taught kit (pistols + knife + restocked
+  bandolier) with numbers VERIFIED BYTE-IDENTICAL (4.68/12.56 — the
+  knife doesn't bind vs the pack: the sheet became honest, the bars
+  stood); goal_2_mars_railgun_blade pins the doc-51 motivating
+  matchup (1.000 / 7.84 / 12.0, bars 0.94/8.5/13.0); endurance pins
+  per caliber at each worst measured consumer (guns >= 35 kills,
+  explosives >= 8). One pin caught the synthetic fixture inheriting
+  the re-grounded stance — fixtures pin their instrument explicitly
+  now.
 
 Adding a protected situation after Phase 1 is a ROW, not a phase —
 the point of the doctrine. Phases 2-4 exist only for remaining
@@ -826,6 +873,28 @@ checklist.
 **Playtest checkpoint:** the Phase 2 PLAYTEST list above — its
 center is item 3, the threshold ruling; the phase ticks only with
 the ruled numbers asserted green.
+
+### Phase 5 Implementation brief (APPROVED 2026-09-26 — SETTLED 7,
+### conversational ruling; executed in the resumption session)
+
+**Scope:** `toggle_sets` stance (stances.py — hold_range's ladder
+with the SWAP_SETS rung after FIRE; swap when the ACTIVE set's class
+is wrong for the distance: ranged and inside its min, melee and
+nothing in reach; 1-AP guard by the rules hook itself); goal_2's
+sheet gains combat_knife (auto-partitioned) + stance toggle_sets,
+comment re-pinned to the taught-kit verbatims; NEW row
+goal_2_mars_railgun_blade (railgun + mono_blade sets, rifle_rounds
+40, toggle_sets, thresholds from measurement + the standard's slack
+idiom); endurance pins in test_balance.py (caps catalog vs ruled
+floors at each caliber's WORST measured consumer: guns >= 35 kills,
+explosives >= 8).
+
+**Binding rulings:** SETTLED 7; goal_2's re-ground MUST verify
+numbers-unchanged (the knife doesn't bind — that is the finding);
+bars re-ruled only where they move (the benchmark-revision clause).
+
+**Stop point:** no CLI front (3), no Line migration (4), no new
+doctrines — rows and stances only.
 
 ## Pre-implementation audit (Phase 2 — 2026-09-25, code-verified)
 

@@ -188,17 +188,23 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             "tutorial's Mars ground fight pretty easily."
         ),
         player=PlayerSheet(
-            # The tutorial moment's full sheet: the space side as
-            # goal_1 pins it (the player flew the starter + laser pair
-            # + shield to Mars) and the taught ground side — two
-            # Kinetic Pistols, exactly one 40-round Pistol Rounds
-            # stack (the tutorial's own armory beat), no armor.
+            # The tutorial moment's full sheet, RE-GROUNDED to the
+            # taught kit (doc 51.4 + 52.6): "buy two Kinetic Pistols
+            # and a Combat Knife, then restock your Pistol Rounds...
+            # you carry two weapon sets, one ranged and one melee,
+            # and 'X' swaps between them." The pistols+knife
+            # auto-partition into the two sets; the stance is the
+            # tutorial-honest toggle-capable policy (SETTLED 7 — the
+            # knife is not expected to bind vs the pack; numbers
+            # verified unchanged by the re-ground).
             species_id="human",
             class_id="merchant",
             hull_id="starter",
             weapon_ids=("light_laser", "light_laser"),
             module_ids=("shield_mk1",),
-            ground_weapon_ids=("kinetic_pistol", "kinetic_pistol"),
+            ground_weapon_ids=(
+                "kinetic_pistol", "kinetic_pistol", "combat_knife",
+            ),
             ground_ammo=(("pistol_rounds", 40),),
         ),
         # Audit-pinned (doc 50 phase-2 audit §3): grid_seed 115's
@@ -212,7 +218,7 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
         ),
         grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
-        stance="hold_range",
+        stance="toggle_sets",
         runs=100,
         seed=20260925,
         # THE STANDARD (ruled 2026-09-25, doc 50 SETTLED 6): bars from
@@ -335,6 +341,45 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             win_rate_floor=0.94,
             damage_taken_ceiling=13.5,
             ammo_spent_ceiling=21.0,
+        ),
+    ),
+    BalanceScenario(
+        id="goal_2_mars_railgun_blade",
+        theater="ground",
+        goal=(
+            "The two-set loadout the weapon-sets build was made for: "
+            "a railgun's clean window plus a mono blade's cleanup "
+            "beats the pack that blinded the railgun alone."
+        ),
+        player=PlayerSheet(
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            # Auto-partitioned: railgun -> ranged set, mono blade ->
+            # melee set (doc 51's install path). This matchup's probe
+            # (100%/25%; full clear at every str/reflex rung) is the
+            # measured case that motivated doc 51 — now pinned.
+            ground_weapon_ids=("railgun", "mono_blade"),
+            ground_ammo=(("rifle_rounds", 40),),
+        ),
+        player_start=(100, 47),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+        ),
+        grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
+        stance="toggle_sets",
+        runs=50,
+        seed=20260929,
+        # Ruled at landing (2026-09-26, measured 1.000 / 7.84 HP
+        # (28%) / 12.00 rds): the two-set loadout's protected floor.
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=8.5,
+            ammo_spent_ceiling=13.0,
         ),
     ),
 )

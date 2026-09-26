@@ -19,6 +19,7 @@ from src.spacehack.combat._animations import _has_los
 from src.spacehack.combat._stats import _distance
 from src.spacehack.data.ground_weapons import find_ground_weapon
 from src.spacehack.ground_equipment import reserve_ammo_count
+from src.spacehack.ground_weapon_sets import weapon_set
 
 
 async def stand_and_trade(ctx, rules) -> str:
@@ -197,6 +198,44 @@ async def posted_hold(ctx, rules) -> str:
     return "WAIT"
 
 
+async def toggle_sets(ctx, rules):
+    """Rung 1.5 of the ground ladder (doc 50 SETTLED 7): the doc-51
+    pilot — two weapon sets, swapped through the REAL SWAP_SETS
+    dispatch (1 AP mid-turn, magazines ride the instances). Hold
+    range's ladder with the swap rung after FIRE: draw the melee set
+    when the active ranged set is inside its min range, draw the
+    ranged set when nothing is in melee reach."""
+    enemies = rules.get_enemies(ctx)
+    if not enemies:
+        return "WAIT"
+    distances = [_distance(ctx.player.pos, e.pos) for e in enemies]
+    closest = distances.index(min(distances))
+    if closest != rules._state.target_idx:
+        return "TARGET"
+    target = enemies[closest]
+    dist = int(_distance(ctx.player.pos, target.pos))
+    slots = _fire_slots(ctx, rules)
+    reference = rules.player_weapons(ctx)[slots[0]]
+    min_r, max_r = _ground_charger.weapon_range(
+        reference, ctx, rules.player_ap(ctx),
+    )
+    if any(rules.can_fire(slot, ctx)[0] for slot in slots) and dist >= min_r:
+        return "FIRE"
+    if rules.player_ap(ctx) >= 1:
+        active_class = weapon_set(reference)
+        if (active_class == "ranged" and dist < min_r) or (
+            active_class == "melee" and dist > min_r
+        ):
+            return "SWAP_SETS"
+    if _dry_reloadable_slot(ctx, rules, slots) is not None:
+        return "RELOAD"
+    if rules.player_ap(ctx) > 0 and dist > max_r:
+        step = _approach_step(ctx, ctx.game_map, target)
+        if step is not None:
+            return f"MOVE:{_MOVE_KEY_BY_DELTA[step]}"
+    return "WAIT"
+
+
 # Stance vocabulary: name -> async (ctx, rules) -> one action string.
 # One action per await — the same call shape as the loop's own
 # ``_combat_action`` input seam. New stances join when a scenario
@@ -208,4 +247,5 @@ STANCES = {
     "stand_and_trade": stand_and_trade,
     "hold_range": hold_range,
     "posted_hold": posted_hold,
+    "toggle_sets": toggle_sets,
 }
