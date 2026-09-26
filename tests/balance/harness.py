@@ -750,8 +750,10 @@ def _inert_presentation() -> Iterator[None]:
     render-skip dial, doc 50 perf ruling 2026-09-26: INSTANT itself is
     a player setting and stays exactly as it plays — every frame, no
     delay; the harness-only tier skips frame builds nobody sees).
-    Fights are pure logic under this context; the board's numbers are
-    byte-identical with and without it (verified at landing).
+    The gates cover the base frame builds (the measured cost); the
+    per-frame present overlays remain, presentation-only and absorbed.
+    The board's numbers are byte-identical with and without it
+    (verified at landing).
     """
     _ensure_headless_pygame()
     previous = animation_timing.speed_scale()

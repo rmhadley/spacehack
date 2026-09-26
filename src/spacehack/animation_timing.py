@@ -82,9 +82,11 @@ _SPEED_SCALE: float = 1.0
 # Sim-only tier ABOVE instant (user ruling 2026-09-26: INSTANT stays
 # exactly as it plays today — fast enough to follow, deliberately not
 # faster). The balance-sim harness sets this dial alongside scale 0.0:
-# zero delays AND no intermediate animation frames. Never user-facing —
-# the Options cycler cannot reach it, and every other level (1x..INSTANT)
-# keeps every frame.
+# zero delays and no intermediate BASE-frame builds (the per-frame
+# present overlays remain — presentation-only, absorbed by the
+# harness's fake context). Never user-facing — the Options cycler
+# cannot reach it, and every other level (1x..INSTANT) keeps every
+# frame.
 _RENDER_FRAMES: bool = True
 
 

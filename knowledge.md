@@ -817,6 +817,7 @@ New Game and Continue. Currently three such globals exist:
 | ``current_solar_system_id`` | ``solar_system.py`` | ``set_current_solar_system("sol")`` | auto via system_id param | ``solar_system_module.current_solar_system_id = _system_id`` |
 | ``RNG`` | ``engine.py`` | ``seed_rng(os.urandom())`` | ``RNG.getstate()`` | ``RNG.setstate(...)`` |
 | ``_SPEED_SCALE`` | ``animation_timing.py`` | n/a — user preference, set from ``DisplayConfig`` at every runtime open and on Apply (``pygame_runtime``) | no — lives in ``~/.spacehack/config.toml``, never the save | same as reset: re-derived at runtime open |
+| ``_RENDER_FRAMES`` | ``animation_timing.py`` | n/a — programmatic sim-tier dial (2026-09-26), zero ``src/`` callers; only the balance harness sets it, restoring in a ``finally`` | no — never the save, never the config | same as reset: defaults True; the harness context restores |
 
 #### Principle
 
