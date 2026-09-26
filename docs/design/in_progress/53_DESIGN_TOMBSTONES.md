@@ -264,6 +264,52 @@ code this session):
   tests (format pins, both death paths write, log stripping, killer
   line, failure-is-nonfatal). Brief at refine time.
 
+- [ ] 2. **Char dump — the living sibling** (PROPOSED 2026-09-26 from
+  the phase-1 playtest: "would be nice if there were a char dump
+  option. Maybe in the esc menu? esc -> save/exit, dump char log? So
+  that a player could share their current game state with a friend
+  for advice"). Brief below — awaiting approval + the three open
+  rulings.
+
+### Phase 2 Implementation brief (DRAFT — not yet approved)
+
+**Scope**
+
+- `tombstone.py` gains the dump twins beside the death path:
+  `build_char_dump_text(ctx)` (dump header + the SAME
+  `_char_lines`/`_gear_lines`/`_log_lines` — no new section builders)
+  and `write_char_dump(ctx) -> str | None` (same best-effort I/O,
+  same collision-suffix pattern). The dump header is the tombstone
+  header minus the death facts: no killer line, no final state.
+  Exact header wording settled with the user BEFORE the build (prose
+  gate).
+- ESC menu: `_run_pygame_exit_confirm`'s two-row confirm becomes a
+  three-row pause menu (the shared `pygame_menu.MenuFrame`):
+  Save & Exit / Dump Char / Keep Playing. ENTER on the dump row
+  writes the file, tells the player where it landed, and returns to
+  the game (never exits, never saves). Wiring in `game_flow` +
+  `game_loop`'s ESC handler.
+- File placement + acknowledgment UX + row wording: OPEN (the three
+  rulings below).
+
+**Build order** (post-approval): dump writers + content pins → menu
+row + wiring → integration test (ESC → dump → file on disk, run
+continues) → guide review (a new controls-adjacent feature: the guide
+ESC section likely gains one line — diff called out at the checkpoint).
+
+**Open rulings (user)**
+
+1. Dump contents: everything the tombstone carries except the death
+   facts (header + CHAR + GEAR + full log) — or a slimmer shape?
+2. How the game tells the player where the file landed: a small
+   confirmation modal naming the full path (the death-screen line's
+   sibling), or a log line only?
+3. Menu row wording: "Dump Char"? (and the file's name:
+   `chardump-<stamp>.txt` under `~/.spacehack/saves/chardumps/`?)
+
+**Stop point**: no in-game dump VIEWER (files are the surface, same
+as v1); no auto-dump on events; no share-button integration.
+
 ### Phase 1 Implementation brief (APPROVED 2026-09-26, user)
 
 **Scope — exact files and hook points**
