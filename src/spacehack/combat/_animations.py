@@ -619,6 +619,8 @@ def _render_anim_frame(
     player_mode: str = "FIRING",
 ) -> None:
     """Render the base world view + HUD + message log during an animation."""
+    if not animation_timing.render_frames_enabled():
+        return  # sim tier: skip invisible frame builds entirely
     console.clear()
     world.render_world_view(
         console, game_map, region_x=0, region_y=0, region_w=view_w, region_h=view_h, camera_x=cam_x, camera_y=cam_y,

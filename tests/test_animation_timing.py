@@ -185,3 +185,45 @@ def test_instant_speed_still_yields_per_frame(monkeypatch):
     _before = len(yields)
     assert run(nt._goto_poll_cancel(context, animation_timing.AUTO_NAV)) is False
     assert len(yields) > _before, "zero-length cancel window must yield"
+
+
+def test_instant_keeps_every_frame():
+    """User ruling (2026-09-26): INSTANT stays exactly as it plays —
+    every frame, no delay. The render-skip dial is a SEPARATE sim tier
+    the Options cycler can never reach; speed 0.0 alone must not skip
+    frames."""
+    animation_timing.set_render_frames(True)
+    try:
+        animation_timing.set_speed_scale(0.0)
+        assert animation_timing.speed_scale() == 0.0
+        assert animation_timing.render_frames_enabled() is True
+    finally:
+        animation_timing.set_speed_scale(1.0)
+
+
+def test_sim_tier_skips_frame_builds_and_restores():
+    """The harness-only tier: render builds stop, the dial restores."""
+    animation_timing.set_render_frames(False)
+    try:
+        assert animation_timing.render_frames_enabled() is False
+    finally:
+        animation_timing.set_render_frames(True)
+    assert animation_timing.render_frames_enabled() is True
+
+
+def test_sim_tier_render_anim_frame_is_a_no_op():
+    """Under the sim tier the space frame builder paints nothing —
+    the per-frame render cost the balance board was paying (~93% of
+    goal_1's runtime) disappears at the lowest-level gate."""
+    from types import SimpleNamespace
+
+    from src.spacehack.combat import _animations
+
+    console = SimpleNamespace(clear=lambda **kw: None, print=lambda **kw: None)
+    animation_timing.set_render_frames(False)
+    try:
+        _animations._render_anim_frame(
+            console, None, None, 0, 0, 10, 10, {}, [], 0, None,
+        )  # returns before touching the world/HUD painters
+    finally:
+        animation_timing.set_render_frames(True)

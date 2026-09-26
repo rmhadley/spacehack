@@ -79,6 +79,29 @@ DESCENT: float = 0.075
 # delay). Set from DisplayConfig.animation_speed at startup and on Apply.
 _SPEED_SCALE: float = 1.0
 
+# Sim-only tier ABOVE instant (user ruling 2026-09-26: INSTANT stays
+# exactly as it plays today — fast enough to follow, deliberately not
+# faster). The balance-sim harness sets this dial alongside scale 0.0:
+# zero delays AND no intermediate animation frames. Never user-facing —
+# the Options cycler cannot reach it, and every other level (1x..INSTANT)
+# keeps every frame.
+_RENDER_FRAMES: bool = True
+
+
+def set_render_frames(enabled: bool) -> None:
+    """Programmatic frame-skip dial for the sim tier (see above)."""
+    global _RENDER_FRAMES
+    _RENDER_FRAMES = bool(enabled)
+
+
+def render_frames_enabled() -> bool:
+    """Whether animation loops should build/paint their frames.
+
+    False only under the harness's sim tier; True at every user-facing
+    speed INCLUDING instant (INSTANT plays every frame with no delay).
+    """
+    return _RENDER_FRAMES
+
 
 def set_speed_scale(scale: float) -> None:
     """Set the global animation speed multiplier; negative values clamp to 0."""

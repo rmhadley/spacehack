@@ -171,8 +171,9 @@ async def _step_to(
     """Move one cell and present the step (combat animates every move)."""
     enemy_entity.pos = world.Position(x, y)
     if render_callback is not None and console is not None:
-        render_callback(console, ctx, game_map)
-        _present(ctx, console)
+        if animation_timing.render_frames_enabled():
+            render_callback(console, ctx, game_map)
+            _present(ctx, console)
         await _responsive_sleep(animation_timing.GROUND_STEP, ctx.context)
     return True
 

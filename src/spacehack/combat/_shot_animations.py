@@ -801,7 +801,8 @@ def _ground_frame_driver(ctx, console, game_map, render_callback):
     )
 
     def _base() -> None:
-        render_callback(console, ctx, game_map)
+        if animation_timing.render_frames_enabled():
+            render_callback(console, ctx, game_map)
 
     driver = _FrameDriver(
         base_frame=_base,
