@@ -1,10 +1,10 @@
 # DESIGN: Tombstones — death review files
 
-**Status: PHASE 1 IMPLEMENTED 2026-09-26 (commits e89aa124 + 500e6435
-+ the audit-found counters fix 82eda76f) — playtest pending. Writer,
-killer tracking, ground tally, and death-screen lines in all three
-theaters are in; reviewer verdict REQUEST_CHANGES resolved (space
-site now APPENDS the notice after the destruction lines).**
+**Status: PHASES 1 + 2 LANDED AND PLAYTEST-PASSED 2026-09-26.
+Phase 1: commits e89aa124 + 500e6435 + counters fix 82eda76f +
+wording pass 35607bcb. Phase 2 (char dump): 8d4cee75 — the pending
+string list was approved in play ("playtest good"). No open
+questions; both phases' checklists passed. Close candidate.**
 
 ## Overview
 
@@ -262,13 +262,18 @@ code this session):
 - [x] 1. **The tombstone writer** — the module (format + sections +
   log export), the death-path hook (both theaters), file placement,
   tests (format pins, both death paths write, log stripping, killer
-  line, failure-is-nonfatal). Brief at refine time.
+  line, failure-is-nonfatal). Brief at refine time. PLAYTEST PASSED
+  2026-09-26 (checklist walked during the session; the user's wording
+  pass landed 35607bcb + 25d2089a: no "REST IN PEACE —", no
+  " (real time)", CHAR, GEAR, Ammo).
 
-- [ ] 2. **Char dump — the living sibling** (PROPOSED 2026-09-26 from
+- [x] 2. **Char dump — the living sibling** (PROPOSED 2026-09-26 from
   the phase-1 playtest: "would be nice if there were a char dump
   option. Maybe in the esc menu? esc -> save/exit, dump char log? So
   that a player could share their current game state with a friend
-  for advice"). Brief APPROVED same day — rulings below.
+  for advice"). Brief APPROVED same day — rulings below. LANDED
+  8d4cee75 + PLAYTEST PASSED 2026-09-26 ("playtest good" — the
+  pending-strings list 1-8 approved as built in the same play).
 
 ### Phase 2 Implementation brief (APPROVED 2026-09-26, user)
 
