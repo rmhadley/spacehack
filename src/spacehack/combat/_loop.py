@@ -542,13 +542,17 @@ def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
 
 async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
                         target_idx: int = 0):
-    """Handle non-combat actions. Returns ``(action, result, redo)``.
+    """Handle out-of-band actions. Returns ``(action, result, redo)``.
 
     ``result`` is the outcome when the fight must end, else ``None``;
     ``redo`` is ``True`` when the loop should re-iterate without
     dispatching. Closing the game window quits the run — combat state
-    is never saved mid-fight, and fleeing is not a mechanic.
-    """
+    is never saved mid-fight. BOARD ends the fight into the target's
+    capture interior (doc 40 6a). A move onto a world exit FLEES
+    (doc 54): the space rules probe ``attempt_flee`` (ground has no
+    hook — phase 2) — FLED/DEFEAT end the fight, and a canceled or
+    refused exit is a full no-op (redo: no dispatch, no AP, same
+    turn)."""
     if action == "BOARD":
         _try_board = getattr(rules, "try_board", None) if rules else None
         if _try_board is not None and _try_board(ctx, game_map, target_idx):
@@ -562,6 +566,14 @@ async def _handle_meta_action(action: str, ctx, rules=None, game_map=None,
         if _quit:
             raise SystemExit
         return action, None, True
+    if action.startswith("MOVE:"):
+        _attempt_flee = getattr(rules, "attempt_flee", None)
+        if _attempt_flee is not None:
+            _flee = await _attempt_flee(ctx, game_map, action)
+            if _flee in ("FLED", "DEFEAT"):
+                return action, _flee, False
+            if _flee == "HELD":
+                return action, None, True
     return action, None, False
 
 

@@ -11,6 +11,7 @@ from . import ui
 from . import world
 from .data import solar_systems as solar_systems_module
 from .game_context import BountySpawn
+from .combat._types import FleeExit
 from .menus import ShipBuyOutcome, ShipMenuAction, PlanetMenuOutcome, MissionOutcome, _run_mission_offerings, _run_planet_menu, _run_ship_buy, _run_ship_menu, _run_mech_menu
 from .navigation import JumpMenuOutcome, _pick_bounty_spawn_pos, _run_cargo_scan, _run_jump_menu, _animate_jump, _jump_to_system
 from .city import _animate_ship_to_y
@@ -57,66 +58,170 @@ async def _resolve_wall(state, dx, dy, blocker):
     return None
 
 async def _resolve_space_wall(state, dx, dy, blocker):
-    """Resolve space jump-point and planet wall interactions."""
+    """Resolve space jump-point, station, and planet wall bumps."""
     log = state.log
+    _target = _space_exit_target(state, dx, dy)
+    if _target is None:
+        log.add(world.blocked_message_for(blocker))
+        return None
+    _commit, _refused = await _space_exit_commit(state, _target)
+    if _commit is not None:
+        return await _apply_exit_commit(state, _commit)
+    if _refused:
+        return 'CONTINUE'
+    if _target[0] == 'jump':
+        # A declined jump prompt still reads as the blocked bump it
+        # always was; a planet menu Leave flies past quietly.
+        log.add(world.blocked_message_for(blocker))
+        return None
+    return 'CONTINUE'
+
+
+def _space_exit_target(state, dx, dy):
+    """The world exit at a bump target (doc 54): ``("planet", pid)``
+    for a planet or station (a station docks through its city
+    planet), ``("jump", jp, target_system_id, target_jp_id)`` for a
+    connecting gate, ``None`` for walls and asteroids — the three-way
+    resolution order the main loop and the in-combat flee share."""
     target_x = state.player.pos.x + dx
     target_y = state.player.pos.y + dy
-    if state.game_map.in_bounds(target_x, target_y):
-        station_id = solar_system_module.station_id_at(target_x, target_y)
-        if station_id is None:
-            jp = solar_system_module.jump_point_at(target_x, target_y)
-            pid = solar_system_module.planet_id_at(target_x, target_y)
-        else:
-            station_for_bump = solar_system_module.find_station(station_id)
-            jp = None
-            pid = station_for_bump.city_planet_id
-        if jp is not None and jp.connects_to:
-            target_system_id, target_jp_id = jp.connects_to[0]
-            _jump_result = await _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id)
-            if _jump_result is not None:
-                return _jump_result
-        elif pid is not None:
-            return await _resolve_planet_wall(state, pid)
-    log.add(world.blocked_message_for(blocker))
-    return None
+    if not state.game_map.in_bounds(target_x, target_y):
+        return None
+    station_id = solar_system_module.station_id_at(target_x, target_y)
+    if station_id is not None:
+        pid = solar_system_module.find_station(station_id).city_planet_id
+        return ("planet", pid) if pid else None
+    jp = solar_system_module.jump_point_at(target_x, target_y)
+    if jp is not None and jp.connects_to:
+        target_system_id, target_jp_id = jp.connects_to[0]
+        return ("jump", jp, target_system_id, target_jp_id)
+    pid = solar_system_module.planet_id_at(target_x, target_y)
+    return ("planet", pid) if pid is not None else None
 
-async def _resolve_jump_at_wall(state, jp, target_system_id, target_jp_id):
-    """Handle a selected jump-point interaction."""
-    ctx = state.ctx
-    console = state.console
+
+async def _space_exit_commit(state, target):
+    """Run one exit target's prompt + refusal probes (doc 54): the
+    committing choice as a :class:`FleeExit`, or ``(None, refused)``
+    — cancel and refusal stay distinguished because a refused exit
+    still resolves 'CONTINUE' out of combat (SETTLED 1/3: refusals
+    fire nothing; cancel is free)."""
+    if target[0] == "jump":
+        return await _jump_exit_commit(state, target)
+    return await _planet_exit_commit(state, target[1])
+
+
+async def _jump_exit_commit(state, target):
+    """The jump prompt + the fuel refusal (doc 54's split of the old
+    ``_resolve_jump_at_wall``): ENTER commits only with fuel in the
+    tank — an empty tank refuses before anything fires."""
+    _kind, jp, target_system_id, target_jp_id = target
     log = state.log
     log.add(f'You approach {jp.name}.')
-    outcome = await _run_jump_menu(ctx, jp, target_system_id)
-    if outcome is JumpMenuOutcome.JUMP:
-        ship_record_for_fuel = ship_module.find_ship(state.player_owned_ship.ship_id)
-        if state.player_owned_ship.fuel < ship_module.JUMP_FUEL_COST:
-            log.add(f'Not enough fuel! The jump requires {ship_module.JUMP_FUEL_COST} units; you have {state.player_owned_ship.fuel}.')
-            return 'CONTINUE'
-        state.player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
-        log.add(f'Jump drive engaged. Fuel: {state.player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
-        await _animate_jump(ctx, console, ctx.player)
-        new_game_map, state.player = await _jump_to_system(ctx=ctx, jp=jp, target_system_id=target_system_id, target_jp_id=target_jp_id)
-        state.game_map = new_game_map
-        ctx.game_map = state.game_map
-        ctx.player = state.player
-        return 'CONTINUE'
-    return None
+    outcome = await _run_jump_menu(state.ctx, jp, target_system_id)
+    if outcome is not JumpMenuOutcome.JUMP:
+        return None, False
+    if state.player_owned_ship.fuel < ship_module.JUMP_FUEL_COST:
+        log.add(f'Not enough fuel! The jump requires {ship_module.JUMP_FUEL_COST} units; you have {state.player_owned_ship.fuel}.')
+        return None, True
+    return FleeExit(
+        verb='jump', jp=jp,
+        target_system_id=target_system_id, target_jp_id=target_jp_id,
+    ), False
+
+
+async def _apply_jump_commit(state, commit):
+    """The committed jump: burn fuel, animate, adopt the new system."""
+    ship_record_for_fuel = ship_module.find_ship(state.player_owned_ship.ship_id)
+    state.player_owned_ship.fuel -= ship_module.JUMP_FUEL_COST
+    state.log.add(f'Jump drive engaged. Fuel: {state.player_owned_ship.fuel} / {ship_record_for_fuel.max_fuel}.')
+    await _animate_jump(state.ctx, state.console, state.ctx.player)
+    new_game_map, state.player = await _jump_to_system(ctx=state.ctx, jp=commit.jp, target_system_id=commit.target_system_id, target_jp_id=commit.target_jp_id)
+    state.game_map = new_game_map
+    state.ctx.game_map = state.game_map
+    state.ctx.player = state.player
+    return 'CONTINUE'
 
 async def _resolve_planet_wall(state, pid):
-    """Resolve a planet approach, exploration, or landing."""
+    """Resolve a planet approach: the menu + refusal probes, then the
+    transition (doc 54's split — the in-combat flee runs the same
+    halves around the reaction volley)."""
+    _commit, _refused = await _planet_exit_commit(state, pid)
+    if _commit is not None:
+        return await _apply_exit_commit(state, _commit)
+    return 'CONTINUE'
+
+
+async def _planet_exit_commit(state, pid):
+    """The planet menu + every refusal probe (doc 54's split of
+    ``_resolve_planet_wall``): Land, Explore, and Dig commit only
+    when the exit will really happen — a dark-dock denial, a portless
+    rock, or a world with nothing to explore refuses BEFORE anything
+    fires. ``(commit, refused)``; a canceled menu is ``(None,
+    False)``."""
     ctx = state.ctx
     log = state.log
     planet_obj = solar_system_module.find_planet(pid)
     log.add(f'You approach {planet_obj.name}.')
     outcome, site_id = await _run_planet_menu(ctx, planet_obj)
-    if outcome is PlanetMenuOutcome.EXPLORE:
-        return await _resolve_planet_explore(state, pid, planet_obj)
-    if outcome is PlanetMenuOutcome.DIG:
-        from .digs import enter_dig_site
-        return enter_dig_site(state, planet_obj, site_id)
-    if outcome is PlanetMenuOutcome.LAND:
-        return await _resolve_planet_land(state, pid, planet_obj)
-    return 'CONTINUE'
+    if outcome == PlanetMenuOutcome.EXPLORE:
+        return _explore_exit_commit(log, pid, planet_obj)
+    if outcome == PlanetMenuOutcome.DIG:
+        return FleeExit(verb='dig', planet_id=pid, site_id=site_id), False
+    if outcome == PlanetMenuOutcome.LAND:
+        _refusal = _dark_dock_refusal(ctx, pid)
+        if _refusal is not None:
+            log.add(_refusal)
+            return None, True
+        from .data.planets import has_landable_port as _phlp
+        if not _phlp(pid):
+            log.add(f'You see no port on {planet_obj.name}.')
+            return None, True
+        return FleeExit(verb='land', planet_id=pid), False
+    return None, False
+
+
+def _explore_exit_commit(log, pid, planet_obj):
+    """Explore's refusal probe (doc 54): an unknown world or one with
+    no authored dungeon params never leaves orbit — the same lines
+    the surface build logs, refused before anything fires."""
+    from .data.planets import find_planet_spec as _fps
+    try:
+        _spec = _fps(pid)
+    except KeyError:
+        log.add(f'The surface of {planet_obj.name} is too hazardous to explore.')
+        return None, True
+    if _spec.dungeon_params is None:
+        log.add(f'Nothing to explore on {planet_obj.name}.')
+        return None, True
+    return FleeExit(verb='explore', planet_id=pid), False
+
+
+async def _apply_land_commit(state, commit):
+    return await _resolve_planet_land(state, commit.planet_id, solar_system_module.find_planet(commit.planet_id))
+
+
+async def _apply_explore_commit(state, commit):
+    return await _resolve_planet_explore(state, commit.planet_id, solar_system_module.find_planet(commit.planet_id))
+
+
+async def _apply_dig_commit(state, commit):
+    from .digs import enter_dig_site
+    return enter_dig_site(state, solar_system_module.find_planet(commit.planet_id), commit.site_id)
+
+
+_EXIT_APPLIERS = {
+    'land': _apply_land_commit,
+    'explore': _apply_explore_commit,
+    'dig': _apply_dig_commit,
+    'jump': _apply_jump_commit,
+}
+
+
+async def _apply_exit_commit(state, commit):
+    """Execute one committed exit transition — the ONE executor the
+    main loop (immediately) and the flee caller (post-volley, doc 54)
+    both run; the combat loop never does."""
+    return await _EXIT_APPLIERS[commit.verb](state, commit)
 
 async def _resolve_planet_explore(state, pid, planet_obj):
     """Handle the planet-menu Explore option."""
@@ -587,18 +692,24 @@ async def _resolve_npc_ship_blocker(state, blocker):
     log.add(world.blocked_message_for(blocker))
     return None
 
-def _boarding_shim(ctx, console):
-    """A state-shaped view over ctx for the wreck-boarding seam.
+def _ctx_state_shim(ctx, console):
+    """A state-shaped view over ctx for the ctx-only flow seams (the
+    boarding and flee paths).
 
-    ``_enter_boarding_dungeon`` reads the flow-state's mirrors; in the
-    combat path (``_handle_combat_encounter``) only ctx/console exist,
-    and during space mode those mirrors ARE the ctx fields.
+    ``_enter_boarding_dungeon`` and the exit appliers read the
+    flow-state's mirrors; in the combat path
+    (``_handle_combat_encounter``) only ctx/console exist, and the
+    ctx-level writes (game_map/player/current_city_id) are what
+    persist — the GameLoopState adoption at the call site
+    reconstructs the rest.
     """
     from types import SimpleNamespace
     return SimpleNamespace(
         ctx=ctx, console=console, log=ctx.log,
         game_map=ctx.game_map, player=ctx.player,
         map_w=ctx.game_map.width, map_h=ctx.game_map.height,
+        player_owned_ship=getattr(ctx, 'player_owned_ship', None),
+        current_mode='space',
     )
 
 
@@ -689,7 +800,7 @@ async def begin_capture_boarding(ctx, console, cr):
     _dungeon_map.hostile_interior = True
     ctx.log.add(f"The {_spec.name} is yours - there is no flying it away now.")
     await _enter_boarding_dungeon(
-        _boarding_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
+        _ctx_state_shim(ctx, console), _spec, _dungeon_map, _spawn, False,
     )
     _power_interior(_dungeon_map, _spawn)
     return True

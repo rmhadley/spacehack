@@ -310,6 +310,18 @@ def _volley_picks(_ei, distance: float, player_state: dict):
     return None, (_wish[0][2] if _wish else None)
 
 
+def _reaction_pick(_ei, distance: float, player_state: dict):
+    """The flee volley's weapon (doc 54): the top-scoring affordable
+    weapon that REACHES the player — the ranked scores stay positive
+    at the 5% hit floor beyond max range, so the reaction filter is
+    an explicit ``max_range >= distance`` over the ranked order.
+    ``(slot, weapon_spec)`` or ``None`` when nothing reaches."""
+    for _score, _slot, _ws in _ranked_weapons(_ei, distance, player_state):
+        if _ws.max_range >= distance:
+            return (_slot, _ws)
+    return None
+
+
 def _player_dodge(player_state: dict) -> int:
     """The player's current dodge read — the same value the shot and
     the scorer resolve with."""

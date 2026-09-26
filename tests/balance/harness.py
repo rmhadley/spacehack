@@ -650,7 +650,13 @@ def _ground_ammo_total(ctx) -> int | None:
 
 async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
     """``_run_combat_impl`` minus presentation: same helper bodies,
-    the stance in the input seat, a turn cap instead of a human."""
+    the stance in the input seat, a turn cap instead of a human.
+
+    Meta-action outcomes (BOARD, and the doc-54 flee — a MOVE onto a
+    world exit) are deliberately NOT mirrored: stances move in open
+    space and never bump an exit, so the flee path has no seat here
+    (the doc 40 BOARD precedent). The impl's dispatch loop is
+    unchanged by the flee; it rides ``_handle_meta_action``."""
     target_idx = 0
     turn = 1
     start_hull = rules.player_hp(ctx)

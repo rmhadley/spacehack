@@ -26,6 +26,7 @@ from .menus import QuestLogOutcome, _run_quest_log
 from .navigation import GotoOutcome, NavigationOutcome, _run_navigation, _run_goto, _remove_bounty_spawn
 from .pygame_runtime import PygameContext
 from .game_interactions import GameLoopState, resolve_blocker
+from .space_flee import adopt_flee_transition
 from .game_flow import _run_combat_loop, _save_and_exit, _open_character_for_mode, _pickup_loot_near, _run_pygame_pause_menu, _dungeon_post_move_tick, _adopt_dungeon_transition, _handle_dungeon_exit_tile, _maybe_show_post_prison_orbit_in_space, _is_salvage_secured
 from .game_loop_dev import _handle_dev_shift_keys, _is_dev
 
@@ -364,10 +365,15 @@ async def _handle_goto_event(state, event):
     _goto_outcome, _goto_combat = await _run_goto(state.ctx, state.console, state.player)
     if _goto_outcome is GotoOutcome.COMBAT and _goto_combat is not None:
         _outcome = await combat._handle_combat_encounter(state.ctx, state.console, _goto_combat)
-        if _outcome != "BOARDED":
+        # A FLED fight already changed the map — no second detection
+        # pass against the stale pre-flee position.
+        if _outcome not in ("BOARDED", "FLED"):
             _outcome = await _run_combat_loop(state.ctx, state.console, state.player)
         if _outcome == "BOARDED":
             _adopt_capture_boarding(state)
+            return 'HANDLED'
+        if _outcome == "FLED":
+            adopt_flee_transition(state)
             return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
     return 'HANDLED'
@@ -384,6 +390,9 @@ async def _handle_comms_event(state, event):
         if _outcome == "BOARDED":
             _adopt_capture_boarding(state)
             return 'HANDLED'
+        if _outcome == "FLED":
+            adopt_flee_transition(state)
+            return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
     return 'HANDLED'
 
@@ -393,11 +402,15 @@ async def _handle_wait_event(state, event):
     if not _is_period_press(event):
         return None
     if state.current_mode == 'space' and state.player_owned_ship is not None:
-        if await _run_combat_loop(
+        _wait_outcome = await _run_combat_loop(
             state.ctx, state.console, state.player,
             also_move_npcs=True, day_pass=True,
-        ) == "BOARDED":
+        )
+        if _wait_outcome == "BOARDED":
             _adopt_capture_boarding(state)
+            return 'HANDLED'
+        if _wait_outcome == "FLED":
+            adopt_flee_transition(state)
             return 'HANDLED'
         state.player_active_missions = state.ctx.player_active_missions
         # The world moved (NPCs, the watch) — the clock moves with it:
@@ -678,8 +691,12 @@ async def _handle_movement_event(state, event):
             return 'HANDLED'
         _advance_city_npcs(state)
     if code == 'moved' and state.current_mode == 'space' and (state.player_owned_ship is not None):
-        if await _run_combat_loop(ctx, console, state.player, also_move_npcs=True) == "BOARDED":
+        _move_outcome = await _run_combat_loop(ctx, console, state.player, also_move_npcs=True)
+        if _move_outcome == "BOARDED":
             _adopt_capture_boarding(state)
+            return 'HANDLED'
+        if _move_outcome == "FLED":
+            adopt_flee_transition(state)
             return 'HANDLED'
         state.player_active_missions = ctx.player_active_missions
         tick_move(ctx)

@@ -78,6 +78,26 @@ class EnemyInstance:
     alive: bool = True
 
 
+@dataclass(frozen=True)
+class FleeExit:
+    """One committed map-leaving exit chosen at an exit prompt (doc 54).
+
+    Built by the exit menus' refusal-probed commit path
+    (game_interactions); rides ``CombatResult.flee_exit`` so the
+    CALLER runs the transition — the combat loop never does (the
+    ``boarded_spec_id`` payload pattern). ``verb`` is one of
+    ``"land"`` / ``"explore"`` / ``"dig"`` / ``"jump"``; a station
+    dock is a ``"land"`` on the station's city planet. Session-scoped
+    presentation state, never serialized.
+    """
+    verb: str
+    planet_id: str = ""
+    site_id: str = ""
+    jp: Any = None
+    target_system_id: str = ""
+    target_jp_id: str = ""
+
+
 @dataclass
 class CombatResult:
     """Bundles the outcome and defeated-entity tracking from a combat
@@ -102,6 +122,10 @@ class CombatResult:
     # no file landed — a failed write, or a non-death outcome).
     # Session-scoped presentation state, never serialized.
     tombstone_path: str | None = None
+    # FLED (space, doc 54): the committed exit the player survived
+    # the reaction volley for — begin_flee_transition executes it
+    # caller-side, never inside the combat loop.
+    flee_exit: FleeExit | None = None
 
 
 @dataclass

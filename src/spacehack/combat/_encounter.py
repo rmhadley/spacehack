@@ -214,14 +214,63 @@ def _space_death_lines(cr) -> tuple[str, ...]:
     return (*pygame_combat._DEATH_LINES, *result_notice_lines(cr))
 
 
+async def _outcome_victory(ctx, _console, _cr, _specs) -> None:
+    await _handle_victory(ctx, _cr, _specs)
+
+
+async def _outcome_defeat(ctx, _console, _cr, _specs) -> None:
+    ctx.player_dead = True
+    await _render_death_screen(ctx, lines=_space_death_lines(_cr))
+
+
+async def _outcome_boarded(ctx, console, _cr, _specs) -> None:
+    # Doc 40 phase 6a: consume the boarded hull and enter its crewed
+    # interior (the state-bearing seam lives in game_interactions with
+    # the rest of the boarding pipeline). A break-away (interior load
+    # failed) downgrades the outcome to ABORTED inside
+    # begin_capture_boarding — nothing was consumed and there is no
+    # interior to adopt.
+    from ..game_interactions import begin_capture_boarding
+    await begin_capture_boarding(ctx, console, _cr)
+
+
+async def _outcome_fled(ctx, console, _cr, _specs) -> None:
+    # Doc 54 phase 1: the reaction volley was survived — run the
+    # committed transition caller-side (never inside the combat loop);
+    # the state layer adopts it. An execute-time refusal downgrades to
+    # ABORTED inside begin_flee_transition: the volley was paid but no
+    # map changed, and the fight stays over.
+    from ..space_flee import begin_flee_transition
+    await begin_flee_transition(ctx, console, _cr)
+
+
+_OUTCOME_HANDLERS = {
+    "VICTORY": _outcome_victory,
+    "DEFEAT": _outcome_defeat,
+    "BOARDED": _outcome_boarded,
+    "FLED": _outcome_fled,
+}
+
+
+async def _apply_encounter_outcome(ctx, console, _cr, _specs) -> None:
+    """Resolve one finished fight's outcome through the handler table:
+    victory bookkeeping, the death screen, the capture interior, or
+    the flee transition (BOARDED/FLED are caller-side seams — ctx
+    carries the destination; the state layer adopts)."""
+    _handler = _OUTCOME_HANDLERS.get(_cr.outcome)
+    if _handler is not None:
+        await _handler(ctx, console, _cr, _specs)
+
+
 async def _handle_combat_encounter(ctx, console, encounter) -> str:
     """Resolve a combat encounter triggered by the dispatcher.
 
     The encounter param is normally ``(specs, positions)`` from
     ``navigation._detect_combat_encounter``. Returns ``"VICTORY"``,
     ``"DEFEAT"``, ``"BOARDED"`` (doc 40 6a — ctx then carries the
-    capture interior; the state layer must adopt it), or
-    ``"ABORTED"`` when no combat occurred.
+    capture interior; the state layer must adopt it), ``"FLED"``
+    (doc 54 — likewise for the flee destination), or ``"ABORTED"``
+    when no combat occurred.
     """
     _blocked, _inputs = _resolve_combat_inputs(ctx, encounter)
     if _blocked is not None:
@@ -237,22 +286,7 @@ async def _handle_combat_encounter(ctx, console, encounter) -> str:
              ctx.game_map, ctx.log)
     _cr = await run_combat(console, ctx, ctx.game_map, _rules_space)
     _dismount_breach_charge(ctx, _breach_mounted, _breach_wid)
-
-    if _cr.outcome == "VICTORY":
-        await _handle_victory(ctx, _cr, _specs)
-    elif _cr.outcome == "DEFEAT":
-        ctx.player_dead = True
-        await _render_death_screen(ctx, lines=_space_death_lines(_cr))
-    elif _cr.outcome == "BOARDED":
-        # Doc 40 phase 6a: consume the boarded hull and enter its
-        # crewed interior (the state-bearing seam lives in
-        # game_interactions with the rest of the boarding pipeline).
-        # A break-away (interior load failed) downgrades the outcome
-        # to ABORTED inside begin_capture_boarding — nothing was
-        # consumed and there is no interior to adopt.
-        from ..game_interactions import begin_capture_boarding
-        await begin_capture_boarding(ctx, console, _cr)
-
+    await _apply_encounter_outcome(ctx, console, _cr, _specs)
     return _cr.outcome
 
 

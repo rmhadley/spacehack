@@ -61,6 +61,22 @@ async def _auto_warning_outcome(ctx, console, player):
     return await combat._handle_combat_encounter(ctx, console, _auto_result[1])
 
 
+async def _run_detection_loop(ctx, console, player):
+    """Fight every encounter currently detected at ``player``'s
+    position until none remain or a fight ends non-VICTORY."""
+    _last = None
+    while True:
+        _encounter = _detect_combat_encounter(
+            ctx, player.pos, solar_system_module.current_system(),
+        )
+        if _encounter is None:
+            break
+        _last = await combat._handle_combat_encounter(ctx, console, _encounter)
+        if _last != "VICTORY":
+            break
+    return _last
+
+
 async def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False,
                      day_pass: bool = False):
     """Run combat encounters in a loop until no more are detected.
@@ -70,31 +86,28 @@ async def _run_combat_loop(ctx, console, player, *, also_move_npcs: bool = False
     Combat handlers mutate ``ctx.player_active_missions`` in place —
     callers sync their local copy after this returns. Returns the
     last outcome (None when no fight ran) — "BOARDED" means ctx now
-    carries a capture interior the state layer must adopt, and the
-    NPC-drift tail is SKIPPED (the interior is not a space map). Do
-    not "simplify" that guard away.
+    carries a capture interior the state layer must adopt, "FLED"
+    (doc 54) means ctx carries the flee destination likewise, and
+    the NPC-drift tail is SKIPPED for both (neither is a space map
+    to drift against). Do not "simplify" that guard away.
     """
     _hailed, _last = await _run_line_crossing(ctx, console, player)
     if _hailed:
         return _last
     _last = await _auto_warning_outcome(ctx, console, player)
-    if _last == "BOARDED":
+    # BOARDED/FLED carry a ctx-level destination the caller must adopt
+    # — no second detection pass against the stale pre-flee position.
+    if _last in ("BOARDED", "FLED"):
         return _last
 
-    while True:
-        _encounter = _detect_combat_encounter(
-            ctx, player.pos, solar_system_module.current_system(),
-        )
-        if _encounter is None:
-            break
-        _result = await combat._handle_combat_encounter(ctx, console, _encounter)
-        _last = _result
-        if _result != "VICTORY":
-            break
+    _detected = await _run_detection_loop(ctx, console, player)
+    if _detected is not None:
+        _last = _detected
 
-    # BOARDED: ctx.game_map is already the capture interior — the
-    # space-NPC drift must never run against it (doc 40 6a).
-    if also_move_npcs and _last != "BOARDED":
+    # BOARDED/FLED: ctx.game_map is already the capture interior /
+    # the flee destination (doc 40 6a, doc 54) — the space-NPC drift
+    # must never run against it.
+    if also_move_npcs and _last not in ("BOARDED", "FLED"):
         _line_mod.step_watch(ctx, day_pass=day_pass)
         _move_npcs(ctx, ctx.game_map, day_pass=day_pass)
     return _last
