@@ -268,10 +268,18 @@ code this session):
   the phase-1 playtest: "would be nice if there were a char dump
   option. Maybe in the esc menu? esc -> save/exit, dump char log? So
   that a player could share their current game state with a friend
-  for advice"). Brief below — awaiting approval + the three open
-  rulings.
+  for advice"). Brief APPROVED same day — rulings below.
 
-### Phase 2 Implementation brief (DRAFT — not yet approved)
+### Phase 2 Implementation brief (APPROVED 2026-09-26, user)
+
+**Rulings (user, same day): contents = full state minus death facts;
+acknowledgment = small modal naming the full path; rows "Save & Exit
+/ Dump Char / Keep Playing"; file
+`~/.spacehack/saves/chardumps/chardump-<stamp>.txt`. Strings approved
+verbatim (preview sign-off): header identity line `<species>
+<class>`; `Level <L> — dumped <YYYY-MM-DD HH:MM>`; clock+location,
+career tally, and seed lines as in the tombstone; modal title
+`CHAR DUMP`, body `Char dump saved: <full path>`, item `Continue`.**
 
 **Scope**
 
@@ -279,33 +287,21 @@ code this session):
   `build_char_dump_text(ctx)` (dump header + the SAME
   `_char_lines`/`_gear_lines`/`_log_lines` — no new section builders)
   and `write_char_dump(ctx) -> str | None` (same best-effort I/O,
-  same collision-suffix pattern). The dump header is the tombstone
-  header minus the death facts: no killer line, no final state.
-  Exact header wording settled with the user BEFORE the build (prose
-  gate).
+  same collision-suffix pattern; the two writers share one artifact
+  shell). The dump header is the tombstone header minus the death
+  facts: no killer line, no final state.
 - ESC menu: `_run_pygame_exit_confirm`'s two-row confirm becomes a
   three-row pause menu (the shared `pygame_menu.MenuFrame`):
   Save & Exit / Dump Char / Keep Playing. ENTER on the dump row
-  writes the file, tells the player where it landed, and returns to
-  the game (never exits, never saves). Wiring in `game_flow` +
+  writes the file, shows the CHAR DUMP modal, and returns to the
+  game (never exits, never saves). Wiring in `game_flow` +
   `game_loop`'s ESC handler.
-- File placement + acknowledgment UX + row wording: OPEN (the three
-  rulings below).
+- Guide: the ESC row is a controls-adjacent change — review the
+  guide's ESC/menu section and edit if it names the old two-row
+  confirm; the diff rides the checkpoint handout.
 
-**Build order** (post-approval): dump writers + content pins → menu
-row + wiring → integration test (ESC → dump → file on disk, run
-continues) → guide review (a new controls-adjacent feature: the guide
-ESC section likely gains one line — diff called out at the checkpoint).
-
-**Open rulings (user)**
-
-1. Dump contents: everything the tombstone carries except the death
-   facts (header + CHAR + GEAR + full log) — or a slimmer shape?
-2. How the game tells the player where the file landed: a small
-   confirmation modal naming the full path (the death-screen line's
-   sibling), or a log line only?
-3. Menu row wording: "Dump Char"? (and the file's name:
-   `chardump-<stamp>.txt` under `~/.spacehack/saves/chardumps/`?)
+**Build order**: dump writers + content pins → menu + wiring +
+tests → gate → reviewer → checkpoint handout.
 
 **Stop point**: no in-game dump VIEWER (files are the surface, same
 as v1); no auto-dump on events; no share-button integration.
