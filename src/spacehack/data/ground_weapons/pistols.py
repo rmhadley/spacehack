@@ -46,6 +46,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
         damage=5,
         accuracy=70,
         ap_cost=1,
+        shots_per_action=2,  # the reliability hose (SETTLED 8)
         hands=1,
         min_range=1,
         max_range=4,

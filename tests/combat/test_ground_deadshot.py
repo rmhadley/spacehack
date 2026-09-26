@@ -129,10 +129,11 @@ class TestChain:
     def test_chain_stops_when_a_target_survives(self, monkeypatch):
         _ctx, _game_map, _enemies = _deadshot_fixture()
         _rules_ground._state.enemies[0].hp = 5
-        # e2/e3 are tankier than the base 22-damage chain shot — it
+        # e2/e3 are tankier than the base 44-damage chain shot (the
+        # SETTLED 8 doubled railgun) — it
         # hits but fails to kill, so the chain stops there.
-        _rules_ground._state.enemies[1].hp = 30
-        _rules_ground._state.enemies[2].hp = 30
+        _rules_ground._state.enemies[1].hp = 50
+        _rules_ground._state.enemies[2].hp = 50
         _force_hits(monkeypatch, chain_rolls=[1])
 
         run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))

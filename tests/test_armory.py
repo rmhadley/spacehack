@@ -58,7 +58,7 @@ def test_weapon_detail_shows_damage_type():
     detail = _armory._weapon_detail(find_ground_weapon("plasma_caster"))
 
     assert "Plasma" in detail
-    assert "Damage: 21" in detail
+    assert "Damage: 42" in detail
 
 
 def test_weapon_detail_shows_armor_bypass():

@@ -49,6 +49,7 @@ AMMO: tuple[GroundAmmoSpec, ...] = (
         rounds_per_stack=6,
         price_per_round=8,
         carry_cap=18,
+        max_drop=2,
     ),
     GroundAmmoSpec(
         id="rockets",
@@ -57,5 +58,6 @@ AMMO: tuple[GroundAmmoSpec, ...] = (
         rounds_per_stack=4,
         price_per_round=20,
         carry_cap=10,
+        max_drop=2,
     ),
 )

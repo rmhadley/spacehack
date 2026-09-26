@@ -168,6 +168,18 @@ async def _handle_character_action(ctx, rules) -> int:
     return swaps
 
 
+def _shots_per_action(weapon_id: str) -> int:
+    """Burst count for one weapon id: ground-catalog
+    ``shots_per_action`` (doc 50 SETTLED 8), 1 for space weapons
+    (no burst economy there) and unknown ids."""
+    from ..data.ground_weapons import find_ground_weapon
+
+    try:
+        return max(1, find_ground_weapon(weapon_id).shots_per_action)
+    except KeyError:
+        return 1
+
+
 def _fire_slot_indexes(weapons: list, active: list) -> list[int]:
     """Return slot indexes the player has left active, by slot not weapon id."""
     return [i for i in range(len(weapons)) if i < len(active) and active[i]]
@@ -276,6 +288,25 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
         return False, 0
     if _reason:
         ctx.log.add(_reason)
+    _any_hit = False
+    _ap_cost = 0
+    for _ in range(_shots_per_action(_wid)):
+        if _ and not rules.can_fire(slot, ctx)[0]:
+            break  # burst ran dry mid-action — stop quietly
+        _hit, _ap_cost = await _roll_player_shot(
+            console, ctx, game_map, rules, slot, target, _wid, _wname, _quality,
+        )
+        _any_hit = _any_hit or _hit
+        if not rules.enemy_alive(target):
+            break  # burst ends with its kill
+    return _any_hit, _ap_cost
+
+
+async def _roll_player_shot(
+    console, ctx, game_map, rules, slot, target, _wid, _wname, _quality,
+) -> bool:
+    """One shot's full resolution: roll, damage, animation, log,
+    ammo consume, kill record (the burst loop's body)."""
     _prepare_player_attack(rules, ctx, game_map, target, _wid)
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(

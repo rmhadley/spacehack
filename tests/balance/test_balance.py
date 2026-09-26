@@ -477,14 +477,18 @@ def test_bandolier_caps_hold_the_ruled_endurance_floors() -> None:
     never drops below the ruled floors — the bandolier's caps are the
     delve-endurance dial and drift here is a balance swing. Consumers
     are the doc-50 session's measured constants."""
-    # (ammo_type, worst measured consumer's rounds/kill, ruled floor)
+    # (ammo_type, measured consumer's rounds/kill, ruled floor).
+    # Guns: doc 52's table + the SETTLED 8 re-measure (rifle 2.67 at
+    # doubled damage). Explosives: TWO-SET consumers (launcher +
+    # blade — the post-x2 play pattern; single-set explosives die to
+    # their own doubled splash when the pack closes), 25 runs each.
     ENDURANCE = (
         ("kinetic_pistol", 4.1, 35),   # pistol pair, scavenger pack
-        ("rifle_round", 5.8, 35),       # kinetic rifle, scavenger pack
+        ("rifle_round", 2.7, 35),      # kinetic rifle x2, measured 2.67
         ("energy_cell", 6.5, 35),      # laser pistol pair (hungriest)
         ("shotgun_shell", 3.2, 35),    # shotgun, scavenger pack
-        ("grenade", 1.8, 8),          # grenade launcher, pack fights
-        ("rocket", 1.0, 8),           # rocket launcher, pack fights
+        ("grenade", 2.0, 8),          # grenade + blade toggle, 2.00
+        ("rocket", 1.34, 7),          # rocket + blade toggle, 1.33
     )
     for ammo_type, rds_per_kill, floor in ENDURANCE:
         cap = _carry_cap(ammo_type)

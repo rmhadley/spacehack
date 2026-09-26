@@ -378,11 +378,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="toggle_sets",
         runs=50,
         seed=20260929,
-        # Ruled at landing (2026-09-26, measured 1.000 / 7.84 HP
-        # (28%) / 12.00 rds): the two-set loadout's protected floor.
+        # Ruled at landing (2026-09-26, measured 1.000 / 7.84 HP /
+        # 12.00 rds pre-SETTLED-8; post-x2 re-ruled same-commit per
+        # the benchmark-revision clause: 1.000 / 7.12 / 12.00).
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=8.5,
+            damage_taken_ceiling=8.0,
             ammo_spent_ceiling=13.0,
         ),
     ),

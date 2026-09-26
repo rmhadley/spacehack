@@ -386,6 +386,33 @@ this the standard. Just so we have a starting point.**"
   to change") + a pristine-snapshot planet-grid cache. Board 232s →
   11s, byte-identical numbers (da92217e/afbfac40/ea5a3caf).
 
+## SETTLED 8 (2026-09-26, user — the weapon-identity rulings)
+
+> "let's do it. commit to: double 2h damage; rocket cap leave at
+> 10! and I think enemies with rocket launchers should not roll with
+> max ammo. keep it scarce. and also 2x rocket launcher firing at
+> the player with max ammo would be a lot; SMG -- hmm. I like we're
+> you're going with burst fire. But what if it fires twice per
+> round. 2x damage, 2x ammo drain? 2x chances to land damage per AP
+> cost."
+
+- **DOUBLE EVERY TWO-HANDED WEAPON'S DAMAGE** — uniform across
+  ranged AND melee (the hands-parity logic applies identically: 1H
+  pairs get the volley economy, 2H pays double for single-slot).
+  Ruled doctrine, probed end-to-end (both matchup tables).
+- **Rocket cap STAYS 10** — the ~10-boom target restores under ×2
+  (measured at landing). ENEMY SCARCITY: explosive-ammo DROPS roll
+  small (1-2, never near-cap — new data-authored `max_drop` on the
+  ammo spec), and the ×2 enemy-wielder danger (rocket brute = 60 vs
+  28 HP) is MEASURED and reported at landing for the follow-up
+  ruling (enemy fire budgets) if wanted.
+- **SMG double-fire**: a `shots_per_action` weapon property (default
+  1; smg = 2) — one FIRE action rolls twice: 2x damage, 2x ammo
+  drain, 2x hit chances, ONE AP cost. Player AND enemy fire paths
+  (the family ladder lets enemies roll smgs). The reliability hose
+  identity: anti-dodge, sustained pressure, deep mag — at double the
+  ammo burn.
+
 ## The scenario data model (the row — SETTLED 2-5 shape)
 
 Authoring a protected situation = adding one frozen row. Composition

@@ -58,6 +58,10 @@ class GroundWeaponSpec:
     damage: int
     accuracy: int                  # 0-100
     ap_cost: int = 1
+    # Shots per FIRE action (doc 50 SETTLED 8): burst weapons roll
+    # this many times per action — one AP cost, per-shot ammo drain
+    # and hit rolls. Default 1 (every weapon but the smg today).
+    shots_per_action: int = 1
     hands: int = 1                 # 1 or 2
     min_range: int = 1
     max_range: int = 1

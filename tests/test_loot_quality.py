@@ -98,10 +98,11 @@ def test_effective_weapon_spec_scales_damage_and_accuracy_only():
 
 
 def test_effective_specs_round_fractions_up():
-    # 10 * 1.15 = 11.5 and 70 * 1.15 = 80.5 must round UP — float
+    # 20 * 1.15 = 23 and 70 * 1.15 = 80.5 must round UP — float
     # arithmetic rounds 80.4999... down, so scaling is integer-exact.
-    rifle_t1 = quality.effective_weapon_spec("kinetic_rifle", 1)  # damage 10
-    assert rifle_t1.damage == 12
+    # (Kinetic rifle damage 10 -> 20 under doc 50 SETTLED 8's x2.)
+    rifle_t1 = quality.effective_weapon_spec("kinetic_rifle", 1)  # damage 20
+    assert rifle_t1.damage == 23
     smg_t1 = quality.effective_weapon_spec("smg", 1)           # accuracy 70
     assert smg_t1.accuracy == 81
 

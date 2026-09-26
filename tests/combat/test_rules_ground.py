@@ -130,11 +130,11 @@ class TestGroundDamageRaw:
 
     def test_armor_bypass_ignores_armor_entirely(self):
         """mono_blade dmg 13, str 20 → +2, armor 3 ignored → 15."""
-        assert _ground_damage_raw("mono_blade", 20, 3) == 15
+        assert _ground_damage_raw("mono_blade", 20, 3) == 28
 
     def test_armor_bypass_still_gets_strength_bonus(self):
         """Bypass removes armor but keeps the melee strength bonus."""
-        assert _ground_damage_raw("mono_blade", 40, 100) == 17  # 13 + 4 - 0
+        assert _ground_damage_raw("mono_blade", 40, 100) == 30  # 26 + 4 - 0
 
 
 class TestEnemyDetailLines:
@@ -1063,12 +1063,12 @@ def test_explosive_blast_hits_primary_full_and_neighbors_half():
     )
 
     assert [(enemy.name, damage, primary) for enemy, damage, primary in _hits] == [
-        ("Assault Drone", 27, True),
-        ("Assault Drone", 13, False),
+        ("Assault Drone", 57, True),
+        ("Assault Drone", 28, False),
     ]
     assert _player_damage == 0
-    assert _primary.hp == 11
-    assert _neighbor.hp == 25
+    assert _primary.hp == 0  # entity HP clamps; 38 max - 57 net kills
+    assert _neighbor.hp == 10
 
 
 def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
@@ -1082,8 +1082,8 @@ def test_explosive_blast_juggernaut_reduces_friendly_fire_after_splash():
         "rocket_launcher", _primary_instance, _ctx,
     )
 
-    assert _player_damage == 14
-    assert _rules_ground.player_hp(_ctx) == 9
+    assert _player_damage == 29
+    assert _rules_ground.player_hp(_ctx) == -6
 
 
 def test_demolitionist_increases_explosive_splash_without_increasing_primary():
@@ -1096,13 +1096,13 @@ def test_demolitionist_increases_explosive_splash_without_increasing_primary():
     )
 
     assert [(damage, primary) for _enemy, damage, primary in _hits] == [
-        (27, True), (20, False),
+        (57, True), (42, False),
     ]
 
 
 def test_explosive_fire_counts_successful_primary_hits(monkeypatch):
     _ctx, _game_map, _primary, _neighbor = _explosive_fixture()
-    _ctx.player_counters = SimpleNamespace(explosive_hits=0)
+    _ctx.player_counters = SimpleNamespace(explosive_hits=0, total_kills=0)
     monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *args, **kwargs: None))
     monkeypatch.setattr(_loop, "RNG", SimpleNamespace(randint=lambda *_args: 1))
 
@@ -1121,8 +1121,8 @@ def test_explosive_blast_has_friendly_fire_and_armor_mitigation():
         "rocket_launcher", _primary_instance, _ctx,
     )
 
-    assert _player_damage == 15  # half of the 30-damage unarmored blast
-    assert _rules_ground.player_hp(_ctx) == 8
+    assert _player_damage == 30  # half of the 60-damage unarmored blast
+    assert _rules_ground.player_hp(_ctx) == -7
 
 
 def test_explosive_miss_splashes_primary_and_neighbors_for_half_damage():
@@ -1134,12 +1134,12 @@ def test_explosive_miss_splashes_primary_and_neighbors_for_half_damage():
     )
 
     assert [(enemy.name, damage, primary) for enemy, damage, primary in _hits] == [
-        ("Assault Drone", 13, False),
-        ("Assault Drone", 13, False),
+        ("Assault Drone", 28, False),
+        ("Assault Drone", 28, False),
     ]
     assert _player_damage == 0
-    assert _primary.hp == 25
-    assert _neighbor.hp == 25
+    assert _primary.hp == 10
+    assert _neighbor.hp == 10
 
 
 def test_explosive_miss_can_still_damage_player_with_friendly_fire():
@@ -1153,12 +1153,12 @@ def test_explosive_miss_can_still_damage_player_with_friendly_fire():
     )
 
     assert _hits == (
-        (_rules_ground._state.enemies[0], 13, False),
-        (_rules_ground._state.enemies[1], 13, False),
+        (_rules_ground._state.enemies[0], 28, False),
+        (_rules_ground._state.enemies[1], 28, False),
     )
-    assert _player_damage == 15
-    assert _rules_ground.player_hp(_ctx) == 8
-    assert _primary.hp == 25
+    assert _player_damage == 30
+    assert _rules_ground.player_hp(_ctx) == -7
+    assert _primary.hp == 10
 
 
 def test_plasma_savant_reduces_ground_plasma_ap_cost():
@@ -1205,7 +1205,9 @@ def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatc
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _ctx.bandolier == {"rocket": 4}
     assert _neighbor not in _game_map.entities
-    assert _primary in _game_map.entities
+    # The doubled rocket's primary hit now kills the full-HP primary
+    # too (38 max - 57 net) — the blast clears both drones.
+    assert _primary not in _game_map.entities
     assert _rules_ground.player_ap(_ctx) == 1
 
 
@@ -1219,8 +1221,8 @@ def test_explosive_miss_consumes_round_and_resolves_neighbor_splash(monkeypatch)
     assert _ctx.equipped_ground_weapons[0] == GroundWeaponInstance("rocket_launcher", 3)
     assert _primary in _game_map.entities
     assert _neighbor in _game_map.entities
-    assert _primary.hp == 25
-    assert _neighbor.hp == 25
+    assert _primary.hp == 10
+    assert _neighbor.hp == 10
     assert _rules_ground.player_ap(_ctx) == 1
 
 
@@ -1256,8 +1258,8 @@ def test_ground_balance_roles_keep_explosives_burstier_than_infinite_plasma():
     _carbine = find_ground_weapon("laser_carbine")
     _vibroblade = find_ground_weapon("vibroblade")
 
-    assert (_rocket.damage, _rocket.accuracy, _rocket.reload_ap_cost) == (30, 55, 2)
-    assert (_grenade.damage, _grenade.accuracy) == (16, 60)
+    assert (_rocket.damage, _rocket.accuracy, _rocket.reload_ap_cost) == (60, 55, 2)
+    assert (_grenade.damage, _grenade.accuracy) == (32, 60)
     assert _railgun.ap_cost == 2
     assert _rocket.damage > _caster.damage
     assert _rocket.ammo_capacity == 4
@@ -1536,3 +1538,44 @@ class _AlwaysHitRng:
 
     def randint(self, low: int, high: int) -> int:
         return low
+
+
+def test_smg_double_fire_rolls_twice_for_one_ap(monkeypatch):
+    """Doc 50 SETTLED 8: the smg fires twice per FIRE action — 2x
+    damage rolls, 2x ammo drain, ONE AP cost."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.equipped_ground_weapons = [GroundWeaponInstance("smg", 10)]
+    _ctx.bandolier = {"kinetic_pistol": 40}
+    _enemy.npc_char_id = "rock_scavenger"
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *a, **k: None))
+    _rolls = []
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(
+        randint=lambda _lo, _hi: (_rolls.append(1) or 1),  # always hit
+    ))
+
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
+
+    assert len(_rolls) == 2          # two hit rolls
+    assert _ctx.equipped_ground_weapons[0].loaded_ammo == 8  # two rounds drained
+    assert _rules_ground.player_ap(_ctx) == 3  # ONE ap for the pair of shots
+
+
+def test_smg_burst_stops_quietly_when_dry_mid_action(monkeypatch):
+    """A burst that runs dry mid-action stops without spamming the
+    failure log — the opening gate already validated the shot."""
+    _ctx, _game_map, _console, _enemy = _ground_fixture()
+    _ctx.equipped_ground_weapons = [GroundWeaponInstance("smg", 1)]
+    _ctx.bandolier = {"kinetic_pistol": 0}
+    _enemy.npc_char_id = "rock_scavenger"
+    _rules_ground.init(_ctx, [_enemy], _game_map)
+    monkeypatch.setattr(_rules_ground, "animate_fire", as_async(lambda *a, **k: None))
+    _rolls = []
+    monkeypatch.setattr(_loop, "RNG", SimpleNamespace(
+        randint=lambda _lo, _hi: (_rolls.append(1) or 1),
+    ))
+
+    run(_loop._handle_fire(None, _ctx, _game_map, _rules_ground, target_idx=0))
+
+    assert len(_rolls) == 1          # the dry second roll never happens
+    assert _ctx.equipped_ground_weapons[0].loaded_ammo == 0

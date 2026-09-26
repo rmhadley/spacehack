@@ -109,7 +109,7 @@ def roll_carried_consumables(spec) -> list[list]:
         except (KeyError, ValueError):
             continue
         _carried.append([
-            item_type, item_id, RNG.randint(1, min(5, _max_quantity)),
+            item_type, item_id, RNG.randint(1, _drop_ceiling(item_type, item_id, _max_quantity)),
         ])
     return _carried
 
@@ -135,6 +135,21 @@ def _drop_stamped_carried(
     return tuple(
         _entry for _entry in item_pool if _entry[0] != "consumable"
     )
+
+
+def _drop_ceiling(item_type: str, item_id: str, stack_cap: int) -> int:
+    """A drop's quantity ceiling: min(5, stack), tightened by the
+    ammo spec's authored max_drop (explosives stay scarce — doc 50
+    SETTLED 8)."""
+    if item_type != "ammo":
+        return min(5, stack_cap)
+    from ..data.ground_items import find_ground_ammo
+
+    try:
+        max_drop = find_ground_ammo(item_id).max_drop
+    except KeyError:
+        return min(5, stack_cap)
+    return min(5, stack_cap, max_drop) if max_drop else min(5, stack_cap)
 
 
 def _spawn_field_item_loot_at_position(
@@ -168,7 +183,7 @@ def _spawn_field_item_loot_at_position(
             _max_quantity = item_stack_capacity(item_type, item_id)
         except (KeyError, ValueError):
             continue
-        _quantity = RNG.randint(1, min(5, _max_quantity))
+        _quantity = RNG.randint(1, _drop_ceiling(item_type, item_id, _max_quantity))
         _append_loot_entity(
             game_map, pos,
             {

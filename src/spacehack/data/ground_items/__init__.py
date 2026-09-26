@@ -40,6 +40,10 @@ class GroundAmmoSpec:
     rounds_per_stack: int
     price_per_round: int
     carry_cap: int
+    # Cap on a single DROP's quantity (doc 50 SETTLED 8): None = up
+    # to the full stack; explosives cap small — enemy rocketeers
+    # never roll with max ammo, drops stay scarce.
+    max_drop: int | None = None
 
 
 @dataclass(frozen=True)

@@ -283,16 +283,35 @@ async def _try_ground_fire(
     noise.emit(
         ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
     )
-    _hit, _damage, _popup = _roll_ground_shot(
-        ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-        enemy_weapon_quality,
+    _shots = max(1, _ews.shots_per_action) if _ews else 1
+    _total = await _fire_enemy_burst(
+        ctx, console, render_callback, game_map, enemy_entity, player_pos,
+        enemy_weapon_id, enemy_spec, enemy_stats, armor_defense,
+        player_dodge, enemy_weapon_quality, _shots,
     )
-    await _present_enemy_shot(
-        ctx, console, render_callback, game_map,
-        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
-        enemy_spec, _hit, _damage, _popup,
-    )
-    return _damage, (_ews.ap_cost if _ews else 1)
+    return _total, (_ews.ap_cost if _ews else 1)
+
+
+async def _fire_enemy_burst(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_weapon_id, enemy_spec, enemy_stats, armor_defense,
+    player_dodge, enemy_weapon_quality, shots: int,
+) -> int:
+    """Roll and present ``shots`` enemy shots (doc 50 SETTLED 8's
+    burst mirror — the smg family rolls per action); total damage."""
+    _total = 0
+    for _ in range(shots):
+        _hit, _damage, _popup = _roll_ground_shot(
+            ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
+            enemy_weapon_quality,
+        )
+        _total += _damage
+        await _present_enemy_shot(
+            ctx, console, render_callback, game_map,
+            enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
+            enemy_spec, _hit, _damage, _popup,
+        )
+    return _total
 
 
 async def _present_enemy_shot(
