@@ -513,9 +513,16 @@ numbers.
   bandolier) with numbers VERIFIED BYTE-IDENTICAL (4.68/12.56 — the
   knife doesn't bind vs the pack: the sheet became honest, the bars
   stood); goal_2_mars_railgun_blade pins the doc-51 motivating
-  matchup (1.000 / 7.84 / 12.0, bars 0.94/8.5/13.0); endurance pins
-  per caliber at each worst measured consumer (guns >= 35 kills,
-  explosives >= 8). One pin caught the synthetic fixture inheriting
+  matchup (1.000 / 7.84 / 12.0, bars 0.94/8.5/13.0 — the 7.84
+  includes a bounded dead-zone swap-churn turn, disclosed in the row
+  comment); endurance pins per caliber at each MEASURED consumer
+  (guns >= 35; explosives measured at landing: grenade 2.00
+  rds/kill -> 9 kills, rocket 1.33 -> 7 — ROCKET FINDING: the cap
+  delivers 7 kills, not the ruled ~10; the ~10-boom target assumes
+  the PROPOSED x2 two-hander doctrine, still unruled in the tuning
+  arc; doc 52's deferred battle-x2 consumer measurement remains
+  deferred — battle rifle as the rifle caliber's better consumer).
+  One pin caught the synthetic fixture inheriting
   the re-grounded stance — fixtures pin their instrument explicitly
   now.
 

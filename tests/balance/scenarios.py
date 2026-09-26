@@ -195,8 +195,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             # and 'X' swaps between them." The pistols+knife
             # auto-partition into the two sets; the stance is the
             # tutorial-honest toggle-capable policy (SETTLED 7 — the
-            # knife is not expected to bind vs the pack; numbers
-            # verified unchanged by the re-ground).
+            # knife is not expected to bind vs the pack; measured
+            # byte-identical: 4.68/12.56. Contingency noted:
+            # toggle_sets's MOVE rung differs from hold_range's (no
+            # LOS-regain approach); the equality holds because that
+            # channel never occurred in the batch, not by
+            # construction).
             species_id="human",
             class_id="merchant",
             hull_id="starter",

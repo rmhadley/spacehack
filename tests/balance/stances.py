@@ -198,22 +198,35 @@ async def posted_hold(ctx, rules) -> str:
     return "WAIT"
 
 
-async def toggle_sets(ctx, rules):
-    """Rung 1.5 of the ground ladder (doc 50 SETTLED 7): the doc-51
-    pilot — two weapon sets, swapped through the REAL SWAP_SETS
-    dispatch (1 AP mid-turn, magazines ride the instances). Hold
-    range's ladder with the swap rung after FIRE: draw the melee set
-    when the active ranged set is inside its min range, draw the
-    ranged set when nothing is in melee reach."""
+def _aim_closest(ctx, rules) -> tuple | None:
+    """The shared aim preamble: (target, dist) with the closest alive
+    enemy selected via TARGET dispatch, ("TARGET", None) while still
+    cycling, or None with no enemies."""
     enemies = rules.get_enemies(ctx)
     if not enemies:
-        return "WAIT"
+        return None
     distances = [_distance(ctx.player.pos, e.pos) for e in enemies]
     closest = distances.index(min(distances))
     if closest != rules._state.target_idx:
-        return "TARGET"
-    target = enemies[closest]
-    dist = int(_distance(ctx.player.pos, target.pos))
+        return ("TARGET", None)
+    return enemies[closest], int(distances[closest])
+
+
+async def toggle_sets(ctx, rules):
+    """Rung 1.5 of the ground ladder (doc 50 SETTLED 7): the doc-51
+    pilot — two weapon sets, swapped through the REAL SWAP_SETS
+    dispatch (1 AP mid-turn, magazines ride the instances). NOT
+    hold_range-plus-a-rung: the MOVE rung only approaches beyond the
+    active max (no LOS-regain, no retreat-inside-min) — the swap is
+    the set-policy's answer to bad distance. Dead zone (melee reach
+    < d < ranged min) swap-churns at 1 AP per flip, bounded by the
+    AP guard — priced into the railgun row's bars."""
+    aimed = _aim_closest(ctx, rules)
+    if aimed is None:
+        return "WAIT"
+    if aimed[1] is None:
+        return aimed[0]
+    target, dist = aimed
     slots = _fire_slots(ctx, rules)
     reference = rules.player_weapons(ctx)[slots[0]]
     min_r, max_r = _ground_charger.weapon_range(
