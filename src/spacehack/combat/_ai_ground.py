@@ -290,9 +290,15 @@ async def _fire_enemy_burst(
     player_dodge, enemy_weapon_quality, shots: int,
 ) -> int:
     """Roll and present ``shots`` enemy shots (doc 50 SETTLED 8's
-    burst mirror — the smg family rolls per action); total damage."""
+    burst mirror — the smg family rolls per action); total damage.
+    Every burst stamps the ground fight's ``enemy_fired`` (doc 49
+    SETTLED 5): an enemy shot closes the Pirate opener window, hit
+    or miss."""
     from .. import noise
+    from . import _rules_ground
 
+    if _rules_ground._state is not None:
+        _rules_ground._state.enemy_fired = True
     _total = 0
     for _ in range(shots):
         # Firing report at the shooter, per shot (SETTLED 22,

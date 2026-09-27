@@ -411,19 +411,21 @@ def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
 def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
     """Concealable volume: module bonuses plus the Smuggler's Instinct
     quest perk (10% of the hull's natural cargo, minimum 1, on every
-    ship the perk holder flies). 0 without either.
+    ship the perk holder flies) plus the Pirate class trait's flat +10
+    (doc 49 SETTLED 5). 0 without any of the three.
     """
     total = 0
     for ms in _effective_installed(owned):
         total += ms.smuggler_cargo
     if ctx is not None:
-        from .xp import has_trait
+        from .xp import pirate_smuggler_hold_bonus, has_trait
         if has_trait(ctx, 'smugglers_instinct'):
             try:
                 from .data.ships import find_ship as _find_ship
                 total += max(1, _find_ship(owned.ship_id).max_cargo // 10)
             except KeyError:
                 pass
+        total += pirate_smuggler_hold_bonus(ctx)
     return total
 
 

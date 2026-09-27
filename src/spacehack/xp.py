@@ -261,6 +261,55 @@ def fast_learner_skill_points(ctx: GameContext) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Class traits (doc 49 phase 2) — granted by class at creation; mechanics
+# read at the usage sites, same bonus-helper pattern as the origin traits.
+# ---------------------------------------------------------------------------
+
+# Pirate opener tuning knobs (SETTLED 5, playtest-tunable): the bonus on
+# the player's first attack of an encounter while no enemy has fired.
+PIRATE_OPENER_HIT_BONUS = 10    # percentage points of hit chance
+PIRATE_OPENER_DAMAGE_PCT = 125  # damage multiplier, in percent
+
+
+def pirate_smuggler_hold_bonus(ctx: GameContext) -> int:
+    """Pirate class trait: +10 concealable volume on every ship (a
+    flat term beside module bonuses and the epilogue perk's 10%)."""
+    return 10 if has_trait(ctx, "pirate") else 0
+
+
+def pirate_opener_armed(
+    ctx: GameContext, *, enemy_fired: bool, opener_spent: bool,
+) -> bool:
+    """The Pirate opener window is open: the player holds the trait,
+    no enemy has fired yet, and the first attack hasn't been spent
+    (doc 49 SETTLED 5, ruling b — once per encounter, both theaters)."""
+    return (
+        has_trait(ctx, "pirate")
+        and not enemy_fired
+        and not opener_spent
+    )
+
+
+def pirate_opener_hit_bonus(
+    ctx: GameContext, *, enemy_fired: bool, opener_spent: bool,
+) -> int:
+    """Pirate opener: the opening attack's hit bonus, else 0."""
+    if pirate_opener_armed(ctx, enemy_fired=enemy_fired, opener_spent=opener_spent):
+        return PIRATE_OPENER_HIT_BONUS
+    return 0
+
+
+def pirate_opener_damage_pct(
+    ctx: GameContext, *, enemy_fired: bool, opener_spent: bool,
+) -> int:
+    """Pirate opener: the opening attack's damage multiplier in
+    percent (100 = no bonus)."""
+    if pirate_opener_armed(ctx, enemy_fired=enemy_fired, opener_spent=opener_spent):
+        return PIRATE_OPENER_DAMAGE_PCT
+    return 100
+
+
+# ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------
 

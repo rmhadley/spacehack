@@ -24,10 +24,16 @@ if TYPE_CHECKING:
     from ..pygame_overlay import ShieldBubble
 from ..game_context import GameContext
 
+from ._space_init import (
+    build_initial_enemies as _build_initial_enemies,
+    dedupe_enemy_positions as _dedupe_enemy_positions,
+    find_player_entity as _find_player_entity,
+    flown_weapons as _flown_weapons,
+    match_enemy_entities as _match_enemy_entities,
+)
 from ._types import EnemyInstance, CombatResult, SpaceCombatState
 from ._space_kills import on_kill as _kill_chain
 from ._stats import (
-    init_combat_state,
     calc_hit_chance as _space_hit_chance,
     _calc_dodge_bonus,
     _distance,
@@ -56,6 +62,8 @@ from ..xp import (
     laser_specialist_hit_bonus as _laser_specialist_bonus,
     missileer_hit_bonus as _missileer_bonus,
     momentum_hit_bonus as _momentum_hit_bonus,
+    pirate_opener_damage_pct as _opener_damage_pct,
+    pirate_opener_hit_bonus as _opener_hit_bonus,
     plasma_savant_ap_discount as _plasma_ap_discount,
     systems_expert_power_bonus as _systems_expert_bonus,
 )
@@ -81,87 +89,6 @@ def _set_combat_locks(locked: bool, entities=None) -> None:
 # Init
 # ---------------------------------------------------------------------------
 
-def _build_initial_enemies(
-    ctx,
-    player_ship_catalog,
-    player_owned_ship,
-    player_pos: world.Position,
-    player_pilot_skills,
-    enemy_specs: list,
-    enemy_positions: list[world.Position],
-) -> tuple[dict, list[EnemyInstance]]:
-    """Build the player state dict + one EnemyInstance per enemy spec."""
-    _enemy_insts: list[EnemyInstance] = []
-    _player_state: dict = {}
-    _ap_bonus = _ace_pilot_bonus(ctx)
-    for _i in range(len(enemy_specs)):
-        _ps, _ei = init_combat_state(
-            player_ship_catalog, player_owned_ship,
-            player_pos, player_pilot_skills,
-            enemy_specs[_i], enemy_positions[_i],
-            ap_bonus=_ap_bonus,
-            plasma_ap_discount=_plasma_ap_discount(ctx),
-            max_power_bonus=_systems_expert_bonus(ctx),
-        )
-        if _i == 0:
-            _player_state = _ps
-        _enemy_insts.append(_ei)
-    return _player_state, _enemy_insts
-
-def _find_player_entity(game_map: world.GameMap) -> Any:
-    """Return the owned (player) entity on the map, or None."""
-    for _e in game_map.entities:
-        if getattr(_e, 'owned', False):
-            return _e
-    return None
-
-def _match_enemy_entities(
-    game_map: world.GameMap, player_ent: Any, enemy_insts: list[EnemyInstance],
-) -> dict[int, Any]:
-    """Map each enemy instance to its entity, stamping display names."""
-    _enemy_ents: dict[int, Any] = {}
-    _matched: set[int] = set()
-    for _i, _inst in enumerate(enemy_insts):
-        for _e in game_map.entities:
-            if _e is player_ent or getattr(_e, 'owned', False):
-                continue
-            if id(_e) in _matched:
-                continue
-            if _e.pos.x == _inst.pos.x and _e.pos.y == _inst.pos.y:
-                _enemy_ents[_i] = _e
-                _matched.add(id(_e))
-                break
-        _ent = _enemy_ents.get(_i)
-        if _ent is not None and getattr(_ent, 'name', ''):
-            _inst.name = _ent.name
-    return _enemy_ents
-
-def _dedupe_enemy_positions(game_map: world.GameMap, enemy_insts: list[EnemyInstance]) -> None:
-    """Shift overlapping enemy instances onto distinct walkable cells."""
-    _occupied: set[tuple[int, int]] = set()
-    for _inst in enemy_insts:
-        _key = (_inst.pos.x, _inst.pos.y)
-        if _key not in _occupied:
-            _occupied.add(_key)
-            continue
-        _placed = False
-        for _odx, _ody in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]:
-            _nk = (_inst.pos.x + _odx, _inst.pos.y + _ody)
-            if _nk not in _occupied and game_map.in_bounds(*_nk) and game_map.is_walkable(*_nk):
-                _inst.pos = world.Position(*_nk)
-                _occupied.add(_nk)
-                _placed = True
-                break
-        if not _placed:
-            _inst.pos = world.Position(_inst.pos.x + 2, _inst.pos.y)
-            _attempts = 0
-            while (_inst.pos.x, _inst.pos.y) in _occupied and _attempts < 20:
-                _nx = _inst.pos.x + 1
-                if not game_map.in_bounds(_nx, _inst.pos.y):
-                    break
-                _inst.pos = world.Position(_nx, _inst.pos.y)
-                _attempts += 1
-            _occupied.add((_inst.pos.x, _inst.pos.y))
 
 def _sync_enemy_entity_positions(enemy_ents: dict[int, Any], enemy_insts: list[EnemyInstance]) -> None:
     """Copy deduped instance positions back onto their map entities."""
@@ -212,14 +139,11 @@ def init(
     _player_state, _enemy_insts = _build_initial_enemies(
         ctx, player_ship_catalog, player_owned_ship,
         player_pos, player_pilot_skills, enemy_specs, enemy_positions,
+        ap_bonus=_ace_pilot_bonus(ctx),
+        plasma_ap_discount=_plasma_ap_discount(ctx),
+        max_power_bonus=_systems_expert_bonus(ctx),
     )
-    _flown = getattr(player_owned_ship, 'weapons', ()) or ()
-    _weapons_list = [
-        entry.item_id if hasattr(entry, "item_id") else entry for entry in _flown
-    ]
-    _weapon_qualities = [
-        getattr(entry, "quality", 0) for entry in _flown
-    ]
+    _weapons_list, _weapon_qualities = _flown_weapons(player_owned_ship)
     _active_weapons = [True] * max(1, len(_weapons_list))
     _player_ent = _find_player_entity(game_map)
     _enemy_ents = _match_enemy_entities(game_map, _player_ent, _enemy_insts)
@@ -321,11 +245,26 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
+def _opener_flags() -> tuple[bool, bool]:
+    """``(enemy_fired, opener_spent)`` on the installed session; both
+    False when no session is live, so formula-only callers read the
+    flags of whatever fight is (or was last) installed — None reads
+    as a fresh fight."""
+    if _state is None:
+        return False, False
+    return _state.enemy_fired, _state.opener_spent
+
+
 def _player_hit_bonus(ctx, weapon_id: str) -> int:
     """The player's per-weapon permanent hit bonus: Sharpshooter plus
-    weapon specialists plus Momentum's always-on +5 (doc 49) — the ONE
+    weapon specialists plus Momentum's always-on +5 (doc 49) plus the
+    Pirate opener while the window is open (doc 49 phase 2) — the ONE
     assembly both hit-chance sites read."""
-    _hit_bonus = _sharpshooter_bonus(ctx) + _momentum_hit_bonus(ctx)
+    _ef, _os = _opener_flags()
+    _hit_bonus = (
+        _sharpshooter_bonus(ctx) + _momentum_hit_bonus(ctx)
+        + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
+    )
     try:
         _slot_type = _find_weapon(weapon_id).slot_type
     except KeyError:
@@ -353,6 +292,17 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> i
         min_range=_space_focus.min_range(weapon_id, ctx),
     )
 
+def _player_damage_mult(weapon_id: str, ctx, dist) -> float:
+    """The player's damage multiplier for one volley: the Focus trait's
+    range scaling times the Pirate opener while its window is open
+    (doc 49 phase 2) — the ONE read both the damage site and tests
+    share."""
+    _ef, _os = _opener_flags()
+    return _space_focus.damage_mult(weapon_id, ctx, dist) * (
+        _opener_damage_pct(ctx, enemy_fired=_ef, opener_spent=_os) / 100
+    )
+
+
 def damage(
     weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0,
 ) -> tuple[int, bool]:
@@ -369,7 +319,7 @@ def damage(
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
         target_pilot_piloting=enemy.pilot_piloting,
-        damage_taken_mult=_space_focus.damage_mult(weapon_id, ctx, _dist),
+        damage_taken_mult=_player_damage_mult(weapon_id, ctx, _dist),
         weapon_quality=quality,
     )
     enemy.shields = max(0, enemy.shields - _sdmg)
@@ -403,6 +353,13 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
     """AP cost to fire ``weapon_id``: doubled for the focused weapon."""
     return _space_focus.ap_cost(weapon_id, ctx)
+
+
+def mark_opener_spent() -> None:
+    """Spend the Pirate opener (doc 49 SETTLED 5): the shared fire
+    loop calls this once the player's first attack action resolved,
+    hit or miss — the bonus never returns this fight."""
+    _state.opener_spent = True
 
 def weapon_name(weapon_id: str, ctx, quality: int = 0) -> str:
     # ``quality``: the ground-instance tier seam (ignored in space).

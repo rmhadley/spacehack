@@ -465,6 +465,15 @@ def _maybe_refund_volley_ap(ctx, rules, enemies, alive_before: int, max_ap_cost:
             _refund(ctx, max_ap_cost)
 
 
+def _spend_opener(rules) -> None:
+    """The first attack action spends the Pirate opener (doc 49
+    SETTLED 5), hit or miss — a volley that couldn't fire (no ammo,
+    no AP) never burns it."""
+    _mark = _rules_hook(rules, "mark_opener_spent")
+    if _mark is not None:
+        _mark()
+
+
 async def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     """Fire all active weapons; return True if the primary target died."""
     _fire_slots = _fire_slot_indexes(rules.player_weapons(ctx), rules.active_weapons(ctx))
@@ -494,6 +503,7 @@ async def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         _any_hit = _any_hit or _hit
     if _max_ap_cost > 0:
         rules.set_player_ap(ctx, rules.player_ap(ctx) - _max_ap_cost)
+        _spend_opener(rules)
     _maybe_refund_volley_ap(ctx, rules, _enemies, _alive_before, _max_ap_cost)
     if _any_hit and not rules.enemy_alive(_target) and not _explosive_target_handled:
         from .. import message_log as _ml

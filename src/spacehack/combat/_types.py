@@ -167,3 +167,9 @@ class SpaceCombatState:
     last_attacker: str | None = None
     # Presentation-only: target card shown by default, toggled with ``v``.
     show_target_card: bool = True
+    # Pirate opener (doc 49 SETTLED 5): ``enemy_fired`` stamps True at
+    # every enemy shot (hit or miss) and closes the window; the shared
+    # fire loop spends ``opener_spent`` on the player's first attack.
+    # Per-fight session state, never serialized.
+    enemy_fired: bool = False
+    opener_spent: bool = False

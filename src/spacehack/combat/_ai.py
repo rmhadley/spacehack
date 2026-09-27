@@ -441,7 +441,11 @@ async def _enemy_attack(
     """Fire the enemy's weapon in ``_slot`` at the player (one attack),
     paying its real costs. Returns ``"DEFEAT"`` when the hit destroys
     the player.
+
+    Every attack stamps ``enemy_fired`` (doc 49 SETTLED 5): the shot
+    closes the Pirate opener window hit or miss, before resolution.
     """
+    state.enemy_fired = True
     _entry = _ei.weapons[_slot]
     _wid = _entry.item_id
     (

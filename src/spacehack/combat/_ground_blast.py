@@ -12,6 +12,7 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..xp import (
     apply_ground_damage_reduction as ground_damage_taken,
     demolitionist_splash_bonus as _demolitionist_splash_bonus,
+    pirate_opener_damage_pct as _opener_damage_pct,
 )
 from ._ground_math import _PLAYER_STRENGTH_STEP
 from ._ground_math import ground_damage_raw as _ground_damage_raw
@@ -34,8 +35,14 @@ def apply_explosive_enemy_hit(
     *,
     primary_hit: bool = True,
     quality: int = 0,
+    opener_pct: int = 100,
 ) -> tuple | None:
-    """Apply one enemy's primary-or-splash share of an explosion."""
+    """Apply one enemy's primary-or-splash share of an explosion.
+
+    ``opener_pct`` is the Pirate opener's damage multiplier (doc 49
+    SETTLED 5): it scales the enemy shares only — the player's own
+    splash share never benefits from the opener.
+    """
     if not enemy.alive:
         return None
     _dx = abs(enemy.pos.x - primary.pos.x)
@@ -46,7 +53,7 @@ def apply_explosive_enemy_hit(
     _full_damage = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
         strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
-    )
+    ) * opener_pct // 100
     _is_primary = enemy is primary and primary_hit
     if _is_primary:
         _damage = _full_damage
@@ -94,7 +101,10 @@ def explosive_blast(
         _hit for _enemy in state.enemies
         if (_hit := apply_explosive_enemy_hit(
             weapon_id, _enemy, primary, ctx, primary_hit=primary_hit,
-            quality=quality,
+            quality=quality, opener_pct=_opener_damage_pct(
+                ctx, enemy_fired=state.enemy_fired,
+                opener_spent=state.opener_spent,
+            ),
         )) is not None
     )
     _player_dx = abs(ctx.player.pos.x - primary.pos.x)

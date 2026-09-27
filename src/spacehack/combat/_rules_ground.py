@@ -27,7 +27,6 @@ from ..ground_equipment import (
     sum_armor_defense as _sum_armor_defense,
 )
 from ..ground_consumables import ActiveConsumableEffect
-from ..ground_weapon_sets import swap_sets_logged
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -35,6 +34,8 @@ from ..xp import (
     ground_evade_bonus as _ground_evade_bonus,
     ground_max_hp_total as _ground_max_hp_total,
     nimble_ap_bonus as _nimble_ap_bonus,
+    pirate_opener_damage_pct as _opener_damage_pct,
+    pirate_opener_hit_bonus as _opener_hit_bonus,
     plasma_savant_ap_discount as _plasma_ap_discount,
     sturdy_armor_bonus as _sturdy_armor_bonus,
     sturdy_melee_bonus as _sturdy_melee_bonus,
@@ -42,7 +43,7 @@ from ..xp import (
 
 from ._types import CombatResult, FleeExit
 from ._stats import _distance, _roll_ap
-from . import _ground_blast
+from . import _ground_actions, _ground_blast
 from ._ground_math import (
     calc_ground_move_dodge as _calc_ground_move_dodge,
     ground_damage_raw as _ground_damage_raw,
@@ -168,6 +169,12 @@ class GroundCombatState:
     # world exit; get_combat_result copies it onto the CombatResult.
     # Session-scoped, never serialized.
     flee_exit: "FleeExit | None" = None
+    # Pirate opener (doc 49 SETTLED 5): ``enemy_fired`` stamps True at
+    # every enemy shot (hit or miss) and closes the window; the shared
+    # fire loop spends ``opener_spent`` on the player's first attack.
+    # Per-fight session state, never serialized.
+    enemy_fired: bool = False
+    opener_spent: bool = False
 
 _state: GroundCombatState | None = None
 
@@ -343,6 +350,17 @@ def combat_active(ctx) -> bool:
     tiles while True, everyone folds back to the 1-tick stroll after."""
     return _state is not None and _state.active
 
+
+def _opener_flags() -> tuple[bool, bool]:
+    """``(enemy_fired, opener_spent)`` on the installed session; both
+    False when no session is live, so formula-only callers read the
+    flags of whatever fight is (or was last) installed — None reads
+    as a fresh fight."""
+    if _state is None:
+        return False, False
+    return _state.enemy_fired, _state.opener_spent
+
+
 def player_max_hp(ctx) -> int:
     return _state.player_max_hp
 
@@ -416,10 +434,12 @@ def hit_chance(
     _range_penalty = _ground_point_blank_penalty(
         weapon_id, _distance_cells,
     )
-    # Sharpshooter trait: +10% hit chance; cybernetic eyes add more.
+    # Sharpshooter trait: +10% hit chance; cybernetic eyes add more;
+    # the Pirate opener rides the same sum while its window is open.
+    _ef, _os = _opener_flags()
     _hit_bonus = _sharpshooter_bonus(ctx) + _sum_armor_bonus(
         ctx.equipped_ground_armor.values(), "hit_bonus",
-    )
+    ) + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
     if _is_charger_melee(ctx, weapon_id):
         _hit_bonus += _charge_bonuses(_charge_tiles(ctx))[0]
     if _ground_deadshot.is_deadshot(ctx, weapon_id):
@@ -454,6 +474,10 @@ def damage(
     )
     if _ground_deadshot.is_deadshot(ctx, weapon_id):
         _dmg += _ground_deadshot.ap_power_damage_bonus(ctx, weapon_id)
+    # Pirate opener (doc 49 SETTLED 5): the opening attack's damage
+    # rides the same window as the hit bonus.
+    _ef, _os = _opener_flags()
+    _dmg = _dmg * _opener_damage_pct(ctx, enemy_fired=_ef, opener_spent=_os) // 100
     enemy.hp -= _dmg
     enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends
@@ -465,6 +489,13 @@ def damage(
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""
     return _ground_blast.is_explosive(weapon_id)
+
+
+def mark_opener_spent() -> None:
+    """Spend the Pirate opener (doc 49 SETTLED 5): the shared fire
+    loop calls this once the player's first attack action resolved,
+    hit or miss — the bonus never returns this fight."""
+    _state.opener_spent = True
 
 
 def explosive_blast(
@@ -570,84 +601,16 @@ def consume_shot(slot_idx: int, ctx) -> None:
     if _state is not None:  # no live session = no map to hear the shot
         noise.emit(ctx, _state.game_map, ctx.player.pos, _wid, by_player=True)
 
-def _reloadable_slots(ctx) -> tuple[tuple[int, object, object, int], ...]:
-    """Return active weapons with a matching reserve and room to reload."""
-    from ..ground_equipment import reserve_ammo_count
-
-    candidates = []
-    for _slot, _instance in enumerate(ctx.equipped_ground_weapons):
-        if _slot >= len(_state.active_weapon_list) or not _state.active_weapon_list[_slot]:
-            continue
-        _spec = _find_gw(_instance.weapon_id)
-        if _instance.loaded_ammo is None or _instance.loaded_ammo >= _spec.ammo_capacity:
-            continue
-        _reserve = reserve_ammo_count(ctx.bandolier, _spec.ammo_type)
-        if _reserve > 0:
-            candidates.append((_slot, _instance, _spec, _reserve))
-    return tuple(candidates)
-
-def _reload_slot(ctx, slot: int) -> bool:
-    """Reload one validated slot transactionally and charge its AP cost."""
-    from ..ground_equipment import apply_reload
-
-    from ..ground_equipment import display_name
-    from ..ground_reload_ui import _log_name_line
-
-    _instance = ctx.equipped_ground_weapons[slot]
-    _spec = _find_gw(_instance.weapon_id)
-    _wname = display_name("weapon", _instance.weapon_id, _instance.quality)
-    if _state.player_ap < _spec.reload_ap_cost:
-        ctx.log.add(
-            f"Need {_spec.reload_ap_cost} AP to reload "
-            f"(have {_state.player_ap}).",
-        )
-        return False
-    try:
-        _new = apply_reload(
-            ctx.equipped_ground_weapons, slot, ctx.bandolier,
-        )
-    except (IndexError, KeyError, ValueError) as exc:
-        _log_name_line(ctx, "", _wname, _instance.quality, f": {exc}")
-        return False
-    _state.player_ap -= _spec.reload_ap_cost
-    _log_name_line(
-        ctx, "Reloaded ", _wname, _instance.quality,
-        f" ({_new.loaded_ammo}/{_spec.ammo_capacity}).",
-    )
-    return True
-
 async def reload_weapon(ctx) -> bool:
     """Reload the first dry active slot with reserve (doc 50 SETTLED 5).
-
-    Deterministic — no chooser: the multi-slot chooser shipped dead (the
-    dispatch called this coroutine without await, so the live R key
-    never ran), and a tutorial-honest reload is one keypress anyway.
-    """
-    _candidates = _reloadable_slots(ctx)
-    if not _candidates:
-        ctx.log.add("No active weapon can be reloaded.")
-        return False
-    return _reload_slot(ctx, _candidates[0][0])
+    Mechanics live in :mod:`combat._ground_actions`."""
+    return await _ground_actions.reload_weapon(_state, ctx)
 
 
 async def swap_weapon_sets(ctx) -> bool:
     """Swap the whole active set for the holstered set (doc 51 phase 2).
-
-    One mid-turn action: 1 AP, never turn-ending. Magazines and quality
-    ride the instances; the fresh set arrives all-armed (combat-start
-    flags over the fists-fallback weapon list — an empty active set
-    swaps to fists, the SETTLED 1 floor). Out of 1 AP: refuse, no
-    mutation.
-    """
-    if _state.player_ap < 1:
-        ctx.log.add("Not enough AP to swap weapon sets.")
-        return False
-    swap_sets_logged(
-        ctx.equipped_ground_weapons, ctx.holstered_ground_weapons, ctx.log,
-    )
-    _state.active_weapon_list = [True] * len(player_weapons(ctx))
-    _state.player_ap -= 1
-    return True
+    Mechanics live in :mod:`combat._ground_actions`."""
+    return await _ground_actions.swap_weapon_sets(_state, ctx)
 
 # ---------------------------------------------------------------------------
 # Player movement
