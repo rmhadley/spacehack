@@ -39,7 +39,7 @@ def _accept_mission(state, npc_obj, picked, board, log):
         _del_npc = npc_obj.id
         _del_planet = state.current_city_id
     _new_active = mission_module.ActiveMission(mission_id=picked.id, is_procedural=_is_proc, title=picked.title, required_cargo_size=picked.required_cargo_size, delivery_target_npc_id=_del_npc, delivery_target_planet_id=_del_planet, deadline_days=_dl_days, accept_day=ctx.time_day + (ctx.time_month - 1) * 30, time_deadline=_deadline, reward_credits=picked.reward_credits, reward_xp=picked.reward_xp, early_bonus_pct=picked.early_bonus_pct, bounty_spawn_id=_bounty_spawn_id, target_enemy_id=picked.target_enemy_id, target_system_id=picked.target_system_id, bounty_target_name=getattr(picked, 'bounty_target_name', None), bounty_target_squad_size=getattr(picked, 'bounty_target_squad_size', 1), bounty_target_loadout_pct=getattr(picked, 'bounty_target_loadout_pct', 0), bounty_wingmate_enemy_id=getattr(picked, 'bounty_wingmate_enemy_id', None), tier=picked.tier, heist_target_good_id=_heist_good, salvage_wreck_enemy_id=getattr(picked, 'salvage_wreck_enemy_id', None), salvage_layout_id=getattr(picked, 'salvage_layout_id', None), salvage_wreck_spawn_id=_wreck_spawn_id, is_smuggle=getattr(picked, 'is_smuggle', False), smuggle_good_id=getattr(picked, 'smuggle_good_id', None))
-    mission_module.commit_accept_mission(picked, state.player_owned_ship, log)
+    mission_module.commit_accept_mission(picked, state.player_owned_ship, log, ctx)
     state.player_active_missions.append(_new_active)
     ctx.player_active_missions = state.player_active_missions
 

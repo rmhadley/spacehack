@@ -708,7 +708,7 @@ def _log_ship_purchase(
     storage_before: int,
 ) -> None:
     """Log the purchase outcome (reserved warning, storage, trade-in)."""
-    _new_cap = ship_module.effective_max_cargo(ship, ctx.player_owned_ship)
+    _new_cap = ship_module.effective_max_cargo(ship, ctx.player_owned_ship, ctx)
     if old_reserved > _new_cap:
         ctx.log.add(
             f"WARNING: {ship.name} cannot hold your mission cargo "

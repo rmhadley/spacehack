@@ -400,11 +400,17 @@ def effective_speed(ship_spec: Ship, owned: OwnedShip) -> int:
     return max(1, total)
 
 
-def effective_max_cargo(ship_spec: Ship, owned: OwnedShip) -> int:
-    """Sum base max cargo + effective module cargo_bonuses."""
+def effective_max_cargo(ship_spec: Ship, owned: OwnedShip, ctx=None) -> int:
+    """Sum base max cargo + effective module cargo_bonuses + the
+    Merchant class trait's flat +10 (doc 49 SETTLED 6). Pass ``ctx``
+    wherever the read decides or displays cargo room — a merchant must
+    never be refused cargo their own trade screen says fits."""
     total = ship_spec.max_cargo
     for ms in _effective_installed(owned):
         total += ms.cargo_bonus
+    if ctx is not None:
+        from .xp import merchant_cargo_bonus
+        total += merchant_cargo_bonus(ctx)
     return max(0, total)
 
 

@@ -6,15 +6,22 @@ from ..data.missions import MissionSpec, find_mission
 from ._models import ActiveMission, MAX_ACTIVE_MISSIONS
 
 
-def _cargo_accept_error(mission: MissionSpec, owned_ship: object, log: object) -> bool:
-    """Return whether cargo prevents accepting ``mission``."""
+def _cargo_accept_error(
+    mission: MissionSpec, owned_ship: object, log: object, ctx=None,
+) -> bool:
+    """Return whether cargo prevents accepting ``mission``.
+
+    ``ctx`` threads the Merchant trait's +10 into the gate (doc 49
+    phase 2): a merchant must never be refused cargo their own trade
+    screen says fits.
+    """
     if mission.required_cargo_size <= 0:
         return False
     if owned_ship is None:
         log.add("You don't have a ship to carry cargo yet.")
         return True
     ship_obj = ship.find_ship(owned_ship.ship_id)
-    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
+    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship, ctx)
     new_used = owned_ship.cargo_used + mission.required_cargo_size
     if new_used <= _eff_cap:
         return False
@@ -31,6 +38,7 @@ def try_accept_mission(
     owned_ship: object,
     log: object,
     active_count: int = 0,
+    ctx=None,
 ) -> bool:
     """Accept ``mission`` if the player has room and cargo capacity."""
     if active_count >= MAX_ACTIVE_MISSIONS:
@@ -39,13 +47,14 @@ def try_accept_mission(
             "Abandon one first (Q)."
         )
         return False
-    return not _cargo_accept_error(mission, owned_ship, log)
+    return not _cargo_accept_error(mission, owned_ship, log, ctx)
 
 
 def commit_accept_mission(
     mission: MissionSpec,
     owned_ship: object | None,
     log: object,
+    ctx=None,
 ) -> None:
     """Apply the side-effects of accepting ``mission``.
 
@@ -56,7 +65,7 @@ def commit_accept_mission(
     if mission.required_cargo_size > 0 and owned_ship is not None:
         owned_ship.mission_reserved += mission.required_cargo_size
         ship_obj = ship.find_ship(owned_ship.ship_id)
-        _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
+        _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship, ctx)
         log.add(
             f"You accept: {mission.title}. "
             f"Cargo now {owned_ship.cargo_used}/{_eff_cap}."
@@ -109,6 +118,7 @@ def abort_mission(
     active: ActiveMission,
     owned_ship: object,
     log: object,
+    ctx=None,
 ) -> None:
     """Drop the mission's cargo from ``owned_ship`` and log the release.
 
@@ -120,7 +130,7 @@ def abort_mission(
     if release_mission_cargo(active, owned_ship) <= 0:
         return
     ship_obj = ship.find_ship(owned_ship.ship_id)
-    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship)
+    _eff_cap = ship.effective_max_cargo(ship_obj, owned_ship, ctx)
     log.add(
         f"Cargo released from abandoned '{active.title}' "
         f"({owned_ship.cargo_used}/{_eff_cap})."
@@ -174,13 +184,15 @@ def _payout(active: ActiveMission, current_day: int) -> tuple[int, int, str]:
     return credits, xp, ""
 
 
-def _log_payout(active, owned_ship, stats, log, credits, xp, bonus_msg) -> None:
+def _log_payout(
+    active, owned_ship, stats, log, credits, xp, bonus_msg, ctx=None,
+) -> None:
     """Apply credits and log the completion summary."""
     if hasattr(stats, "credits"):
         stats.credits += credits
     ship_obj = ship.find_ship(owned_ship.ship_id) if owned_ship is not None else None
     cargo_after = (
-        f"{owned_ship.cargo_used}/{ship.effective_max_cargo(ship_obj, owned_ship)}"
+        f"{owned_ship.cargo_used}/{ship.effective_max_cargo(ship_obj, owned_ship, ctx)}"
         if ship_obj is not None else "no ship"
     )
     log.add(
@@ -208,7 +220,7 @@ async def complete_mission(
     """Complete ``active`` and apply its reward, progress, and reputation."""
     release_mission_cargo(active, owned_ship)
     credits, xp, bonus_msg = _payout(active, current_day)
-    _log_payout(active, owned_ship, stats, log, credits, xp, bonus_msg)
+    _log_payout(active, owned_ship, stats, log, credits, xp, bonus_msg, ctx)
     if ctx is not None:
         _record_faction_mission(ctx, active)
         if xp > 0:

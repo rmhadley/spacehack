@@ -924,6 +924,6 @@ async def _resolve_npc_work(state, npc_obj, planet_tier):
     outcome, picked = await _run_mission_offerings(ctx, npc_obj, offerings)
     if outcome is MissionOutcome.QUIT:
         return 'QUIT'
-    if outcome is MissionOutcome.ACCEPT and picked is not None and mission_module.try_accept_mission(picked, state.player_owned_ship, log, active_count=len(state.player_active_missions)):
+    if outcome is MissionOutcome.ACCEPT and picked is not None and mission_module.try_accept_mission(picked, state.player_owned_ship, log, active_count=len(state.player_active_missions), ctx=ctx):
         _accept_mission(state, npc_obj, picked, _board, log)
     return None

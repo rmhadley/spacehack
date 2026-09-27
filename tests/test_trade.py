@@ -287,3 +287,50 @@ def test_cargo_body_states_hold_capacity_and_free():
     )
     body = _cargo_body(ctx([_SmuggleMission(8)]), holding, 60)
     assert body[-1] == "Smuggler hold: 8 / 10    Free: 2"
+
+
+# ---------------------------------------------------------------------------
+# Merchant class trait (doc 49 phase 2) — terminal + NPC price edges
+# ---------------------------------------------------------------------------
+
+def _trade_ctx(traits, merchant_rep=0):
+    """A formula-only trade ctx at a known food_rations stock level."""
+    return SimpleNamespace(
+        player_traits=list(traits),
+        faction_reputation={"merchant": merchant_rep},
+        economy_state={"earth": {"food_rations": 4}},
+    )
+
+
+class TestMerchantPriceEdges:
+    """±5% at the terminal and the NPC surface; sell derives from the
+    class-free buy core so the mods never compound (a merchant's sell
+    always beats a neutral trader's)."""
+
+    def test_terminal_buy_five_percent_off(self):
+        from src.spacehack.trade import _unit_price
+        assert _unit_price(_trade_ctx([]), "earth", "food_rations") == 34
+        assert _unit_price(_trade_ctx(["merchant"]), "earth", "food_rations") == 32
+
+    def test_terminal_sell_five_percent_up_above_neutral(self):
+        from src.spacehack.trade import _sell_price
+        assert _sell_price(_trade_ctx([]), "earth", "food_rations") == 25
+        _merch = _sell_price(_trade_ctx(["merchant"]), "earth", "food_rations")
+        assert _merch == 26
+        assert _merch > 25  # never below the neutral trader (no compounding)
+
+    def test_class_mods_stack_with_liked_attitude(self):
+        """Liked buy 0.95 x class 0.95 = 0.9025; liked sell 1.05 x class
+        1.05 = 1.1025 on the 75% core (doc 49 SETTLED 6)."""
+        from src.spacehack.trade import _sell_price, _unit_price
+        assert _unit_price(_trade_ctx([], 50), "earth", "food_rations") == 32
+        assert _unit_price(_trade_ctx(["merchant"], 50), "earth", "food_rations") == 30
+        assert _sell_price(_trade_ctx([], 50), "earth", "food_rations") == 25
+        assert _sell_price(_trade_ctx(["merchant"], 50), "earth", "food_rations") == 26
+
+    def test_npc_multipliers_fold_the_class_mods(self):
+        from src.spacehack.trade import _npc_price_multipliers
+        assert _npc_price_multipliers(_trade_ctx([]), "neutral") == (1.2, 0.5)
+        assert _npc_price_multipliers(
+            _trade_ctx(["merchant"]), "neutral",
+        ) == (1.2 * 0.95, 0.5 * 1.05)

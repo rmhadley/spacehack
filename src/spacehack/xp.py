@@ -309,6 +309,24 @@ def pirate_opener_damage_pct(
     return 100
 
 
+def merchant_cargo_bonus(ctx: GameContext) -> int:
+    """Merchant class trait: +10 cargo on every ship (doc 49 SETTLED 6)."""
+    return 10 if has_trait(ctx, "merchant") else 0
+
+
+def merchant_buy_price_mod(ctx: GameContext) -> float:
+    """Merchant class trait: -5% goods buy price (multiplies the
+    attitude chain — a separate source from earned reputation)."""
+    return 0.95 if has_trait(ctx, "merchant") else 1.0
+
+
+def merchant_sell_price_mod(ctx: GameContext) -> float:
+    """Merchant class trait: +5% goods sell price (multiplies the
+    attitude chain; never compounds with the buy side — sell derives
+    from the class-free buy core)."""
+    return 1.05 if has_trait(ctx, "merchant") else 1.0
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------

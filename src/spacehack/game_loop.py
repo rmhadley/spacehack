@@ -302,7 +302,7 @@ async def _handle_menu_event(state, event):
             if 0 <= abandoned_idx < len(state.player_active_missions):
                 abandoned = state.player_active_missions[abandoned_idx]
                 log.add(f'You abandoned: {abandoned.title}.')
-                mission_module.abort_mission(abandoned, state.player_owned_ship, log)
+                mission_module.abort_mission(abandoned, state.player_owned_ship, log, ctx)
                 if getattr(abandoned, 'main_quest_step_id', ''):
                     await main_quest_module.fail_smuggle_step(ctx, abandoned)
                 if not abandoned.is_procedural:

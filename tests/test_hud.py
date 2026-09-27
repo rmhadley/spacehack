@@ -549,3 +549,21 @@ def test_help_lines_show_weapon_set_swap_in_city_and_dungeon():
         )
         assert "[X] Swap Sets" in text
     assert all(key != "X" for key, _label in hud._SPACE_HELP_LINES)
+
+
+def test_cargo_used_max_threads_the_merchant_hold():
+    """Both HUD branches share this read (doc 49 phase 2): a merchant
+    sees the +10, a plain pilot the class-free capacity, and a missing
+    ctx degrades to the catalog read."""
+    from types import SimpleNamespace
+
+    from src.spacehack import ship as ship_module
+    from src.spacehack.hud import _cargo_used_max
+
+    spec = ship_module.find_ship("starter")
+    owned = ship_module.OwnedShip(ship_id="starter")
+    merchant = SimpleNamespace(player_traits=["merchant"])
+    plain = SimpleNamespace(player_traits=[])
+    assert _cargo_used_max(owned, spec, plain) == (0, 50)
+    assert _cargo_used_max(owned, spec, merchant) == (0, 60)
+    assert _cargo_used_max(owned, spec) == (0, 50)

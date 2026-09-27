@@ -669,7 +669,7 @@ def _cargo_room(ctx: GameContext, good, quantity: int, goods, is_quest: bool, ow
     """True when the hold has room; otherwise log the shortfall and return False."""
     from .trade import _free_cargo
     volume = _pickup_volume(good, quantity, goods, is_quest)
-    free = _free_cargo(owned)
+    free = _free_cargo(owned, ctx)
     if free >= volume:
         return True
     ctx.log.add(

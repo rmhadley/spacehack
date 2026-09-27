@@ -1321,8 +1321,8 @@ def test_hold_cargo_label_formats_used_and_capacity():
 
     owned = SimpleNamespace(ship_id="starter", cargo_used=2)
     # Skiff hold tuned to 50 (5 × T1 delivery max) — see ships/core.py.
-    assert trade._hold_cargo_label(owned) == "Cargo: 2/50"
-    assert trade._hold_cargo_label(None) == "Cargo: 0/0"
+    assert trade._hold_cargo_label(owned, None) == "Cargo: 2/50"
+    assert trade._hold_cargo_label(None, None) == "Cargo: 0/0"
 
 
 def test_station_trade_frame_uses_shared_content_policy(monkeypatch):
@@ -5031,7 +5031,7 @@ def test_pygame_trade_valid_actions_keep_terminal_open(monkeypatch):
     monkeypatch.setattr(trade, "find_trade_good", lambda _good_id: Good())
     monkeypatch.setattr(trade, "_unit_price", lambda *_args: 10)
     monkeypatch.setattr(trade, "_sell_price", lambda *_args: 7)
-    monkeypatch.setattr(trade, "_free_cargo", lambda _owned: 5)
+    monkeypatch.setattr(trade, "_free_cargo", lambda _owned, _ctx=None: 5)
     monkeypatch.setattr(
         trade, "_run_quantity_prompt",
         as_async(

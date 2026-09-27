@@ -149,7 +149,7 @@ def _buy_problem(ctx, owned, good, quantity, volume, cost, current_stock) -> str
     """First reason the buy can't complete, or None when it can."""
     if ctx.stats.credits < cost:
         return f"Not enough credits to buy {quantity}x {good.name} ({cost}$ needed)."
-    free_cargo = _free_cargo(owned)
+    free_cargo = _free_cargo(owned, ctx)
     if free_cargo < volume:
         return f"Not enough cargo space ({free_cargo} free, need {volume})."
     if current_stock < quantity:
@@ -248,55 +248,66 @@ def _sell_good(
     ctx.log.add(f"Sold {quantity}x {good.name} for {revenue}$.")
     return True
 
-def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
-    """Current buy price for one unit of ``good_id`` on ``planet_id``.
-
-    For goods the planet produces, the target stock comes from the
-    ``produces`` tuple.  For goods the planet demands, the target
-    is from ``demands``.  Neutral goods use :data:`NEUTRAL_TARGET`.
-
-    Applies faction reputation buy discount (Liked=5%, Allied=10%)
-    based on the player's merchant faction standing (trade terminals
-    are merchant infrastructure).
+def _terminal_buy_base(ctx: GameContext, planet_id: str, good_id: str) -> int:
+    """The class-free terminal buy price: stock price times the
+    merchant-faction attitude buy modifier (the worn ID's sheet — a
+    mask trades your earned discount for the face's). Both priced
+    sides derive from this core so the Merchant trait's buy/sell
+    mods can never compound (doc 49 phase 2).
     """
     good = find_trade_good(good_id)
     stocks = ctx.economy_state.get(planet_id, {})
     current = stocks.get(good_id, 0)
     target = _target_stock_for(planet_id, good_id)
     price = trade_price(good.base_price, current, target)
-    # Apply the merchant faction reputation discount (the worn ID's
-    # sheet — a mask trades your earned discount for the face's).
     from . import identity
     from .faction import get_attitude, buy_price_modifier
     _merchant_rep = identity.effective_reputation(ctx).get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
-    _mod = buy_price_modifier(_attitude)
-    return max(1, int(price * _mod))
+    return max(1, int(price * buy_price_modifier(_attitude)))
+
+def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
+    """Current buy price for one unit of ``good_id`` on ``planet_id``:
+    the class-free core times the Merchant trait's -5% buy (a separate
+    source from earned reputation; goods only — equipment, ammo, and
+    ship prices never read this).
+    """
+    from .xp import merchant_buy_price_mod
+    return max(1, int(
+        _terminal_buy_base(ctx, planet_id, good_id)
+        * merchant_buy_price_mod(ctx)
+    ))
 
 def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     """Terminal sell price for one unit of ``good_id`` on ``planet_id``.
 
-    75% of the buy price, adjusted by merchant faction reputation and
-    the merchant faction's reputation bonus. Shared by the actual sale
-    and the trade-modal display so the price shown always equals the
+    75% of the CLASS-FREE buy base, times the attitude sell modifier,
+    times the Merchant trait's +5% — deriving from the class-free core
+    keeps a merchant's sell above a neutral trader's (the anti-
+    compounding pin, doc 49 phase 2). Shared by the actual sale and
+    the trade-modal display so the price shown always equals the
     credits received.
     """
-    buy_price = _unit_price(ctx, planet_id, good_id)
     from . import identity
     from .faction import get_attitude, sell_price_modifier
+    from .xp import merchant_sell_price_mod
     _merchant_rep = identity.effective_reputation(ctx).get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     _sell_mod = sell_price_modifier(_attitude)
-    return max(1, int(buy_price * 3 // 4 * _sell_mod))
+    return max(1, int(
+        _terminal_buy_base(ctx, planet_id, good_id) * 3 // 4
+        * _sell_mod * merchant_sell_price_mod(ctx)
+    ))
 
-def _free_cargo(owned) -> int:
+def _free_cargo(owned, ctx=None) -> int:
     """Remaining cargo capacity on ``owned`` (effective max - used).
 
-    Effective max includes module cargo bonuses.
+    Effective max includes module cargo bonuses and the Merchant
+    trait's +10 (pass ``ctx`` at every decide/display site).
     """
     from . import ship as ship_module
     ship_spec = ship_module.find_ship(owned.ship_id)
-    return ship_module.effective_max_cargo(ship_spec, owned) - owned.cargo_used
+    return ship_module.effective_max_cargo(ship_spec, owned, ctx) - owned.cargo_used
 
 # ---------------------------------------------------------------------------
 # Quantity prompt (arrow-key adjustment)
@@ -334,7 +345,7 @@ class _NpcTradeOutcome(Enum):
     BACK = auto()
     QUIT = auto()
 
-def _hold_cargo_label(owned) -> str:
+def _hold_cargo_label(owned, ctx) -> str:
     """Footer cargo label for a trade split screen (``Cargo: N/M``)."""
     from . import pygame_ui
     from . import ship as ship_module
@@ -343,7 +354,7 @@ def _hold_cargo_label(owned) -> str:
     ship_spec = ship_module.find_ship(owned.ship_id)
     return pygame_ui.cargo_label(
         owned.cargo_used,
-        ship_module.effective_max_cargo(ship_spec, owned),
+        ship_module.effective_max_cargo(ship_spec, owned, ctx),
     )
 
 def _pygame_npc_trade_frame(
@@ -380,7 +391,7 @@ def _pygame_npc_trade_frame(
     return pygame_split.SplitFrame(
         pygame_ui.terminal_title("TRADE", npc_spec.name), npc_spec.name, "Your Hold",
         tuple(npc_rows), tuple(hold_rows),
-        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned),
+        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned, ctx),
         pygame_split.SPLIT_SHOP_HINT,
         focus, selected,
     )
@@ -392,7 +403,7 @@ async def _npc_buy(ctx, npc_spec, npc_stock, good, good_id, buy_mult) -> None:
     price = int(good.base_price * buy_mult)
     maximum = min(
         stock,
-        _free_cargo(owned) // max(1, good.volume),
+        _free_cargo(owned, ctx) // max(1, good.volume),
         ctx.stats.credits // max(1, price),
     )
     quantity = await _run_quantity_prompt(
@@ -521,10 +532,13 @@ def _npc_stock_pool(npc_spec, count: int) -> dict[str, int]:
 
 
 def _npc_price_multipliers(ctx: GameContext, attitude: str) -> tuple[float, float]:
-    """Buy/sell price multipliers for an NPC trade session (reputation)."""
+    """Buy/sell price multipliers for an NPC trade session: reputation
+    times the Merchant class mods (doc 49 phase 2 — the NPC surface's
+    one fold; buy and sell derive from base_price independently)."""
     from .faction import buy_price_modifier, sell_price_modifier
-    _buy = 1.2 * buy_price_modifier(attitude)
-    _sell = 0.5 * sell_price_modifier(attitude)
+    from .xp import merchant_buy_price_mod, merchant_sell_price_mod
+    _buy = 1.2 * buy_price_modifier(attitude) * merchant_buy_price_mod(ctx)
+    _sell = 0.5 * sell_price_modifier(attitude) * merchant_sell_price_mod(ctx)
     return _buy, _sell
 
 
@@ -712,7 +726,7 @@ def _pygame_trade_frame(
     return pygame_split.SplitFrame(
         pygame_ui.terminal_title("TRADE", spec.name), left_label, "Your Hold",
         tuple(left), tuple(right),
-        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned),
+        pygame_ui.credits_label(ctx.stats.credits), _hold_cargo_label(owned, ctx),
         _trade_hint(mode),
         left_tabs=("[T]rade", "[M]arket"),
         active_left_tab=0 if mode == "TRADE" else 1,
@@ -734,7 +748,7 @@ async def _apply_pygame_trade_action(ctx: GameContext, planet_id: str, action: s
         price = _unit_price(ctx, planet_id, good_id)
         owned = ctx.player_owned_ship
         stock = ctx.economy_state.get(planet_id, {}).get(good_id, 0)
-        free = _free_cargo(owned) if owned is not None else 0
+        free = _free_cargo(owned, ctx) if owned is not None else 0
         max_qty = min(stock, free // max(1, good.volume), ctx.stats.credits // max(1, price))
         quantity = await _run_quantity_prompt(
             ctx, f"Buy {good.name}", max_qty, price, prefill=max_qty,
@@ -924,7 +938,7 @@ async def open_cargo(ctx: GameContext) -> None:
     # Cache static ship stats.
     from . import ship as _ship_mod
     ship_name = ship_module.ship_display_name(owned)
-    max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned)
+    max_cargo = _ship_mod.effective_max_cargo(ship_spec, owned, ctx)
     result = await _run_pygame_cargo(ctx, owned, ship_name, max_cargo)
     if result is None:
         raise RuntimeError("Cargo screen returned no outcome")

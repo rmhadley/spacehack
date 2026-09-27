@@ -193,3 +193,39 @@ def test_two_trait_creation_grant_per_class_and_species_sample():
             assert ctx.player_traits == [
                 find_species(species_id).trait_id, class_id,
             ], f"{species_id} x {class_id}"
+
+
+# ---------------------------------------------------------------------------
+# Merchant hooks (doc 49 phase 2, step 4) — cargo +10 at every reader
+# ---------------------------------------------------------------------------
+
+def test_merchant_cargo_bonus_on_every_ship():
+    """+10 flat on the effective capacity (SETTLED 6); no ctx = the
+    class-free catalog read (the ship-buy comparison surface)."""
+    from types import SimpleNamespace
+
+    from src.spacehack import ship as ship_module
+    spec = ship_module.find_ship("starter")
+    owned = ship_module.OwnedShip(ship_id="starter")
+    merchant = SimpleNamespace(player_traits=["merchant"])
+    plain = SimpleNamespace(player_traits=[])
+    base = ship_module.effective_max_cargo(spec, owned)
+    assert ship_module.effective_max_cargo(spec, owned, plain) == base
+    assert ship_module.effective_max_cargo(spec, owned, merchant) == base + 10
+
+
+def test_mission_gate_never_refuses_cargo_that_fits_the_merchant_hold():
+    """The acceptance gate threads the +10: a 56-crate mission on a
+    bare 50-cap starter is refused for a plain pilot, accepted for a
+    merchant (the brief's never-refused pin)."""
+    from types import SimpleNamespace
+
+    from src.spacehack.mission._lifecycle import _cargo_accept_error
+
+    log = SimpleNamespace(add=lambda *_a, **_k: None)
+    mission = SimpleNamespace(required_cargo_size=56, title="Big Haul")
+    owned = SimpleNamespace(ship_id="starter", cargo_used=0)
+    assert _cargo_accept_error(mission, owned, log) is True
+    assert _cargo_accept_error(
+        mission, owned, log, SimpleNamespace(player_traits=["merchant"]),
+    ) is False

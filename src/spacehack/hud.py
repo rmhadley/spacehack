@@ -228,13 +228,14 @@ def _render_skill_line(
     )
 
 
-def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
+def _cargo_used_max(owned_ship, ship_catalog, ctx=None) -> tuple[int, int]:
     """Return ``(cargo_used, max_cargo)`` for the player's ship.
 
     ``cargo_used`` comes from the owned-ship state (includes mission
-    cargo); ``max_cargo`` is the hull's base capacity plus any module
-    bonuses via :func:`ship.effective_max_cargo`. Safe when either
-    argument is ``None`` (returns zeroed values).
+    cargo); ``max_cargo`` is the hull's base capacity plus module
+    bonuses and the Merchant trait's +10 via
+    :func:`ship.effective_max_cargo`. Safe when either argument is
+    ``None`` (returns zeroed values).
 
     Shared by the space and city HUD branches so the capacity math
     can never drift between them.
@@ -243,7 +244,9 @@ def _cargo_used_max(owned_ship, ship_catalog) -> tuple[int, int]:
     max_cargo = getattr(ship_catalog, 'max_cargo', 0)
     if owned_ship is not None and ship_catalog is not None:
         from . import ship as _ship_mod
-        max_cargo = _ship_mod.effective_max_cargo(ship_catalog, owned_ship)
+        max_cargo = _ship_mod.effective_max_cargo(
+            ship_catalog, owned_ship, ctx,
+        )
     return cargo_used, max_cargo
 
 
@@ -414,7 +417,7 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     ground_stats = ctx.ground_stats
     ship_name = _ship_mod.ship_display_name(owned_ship)
     hull_cur, hull_max = _ship_mod.hull_cur_max(owned_ship, ship_catalog)
-    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
+    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
     eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
     weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
     modules_n = len(getattr(owned_ship, 'modules', ()) or ())
@@ -484,7 +487,7 @@ def _render_city_stat_rows(
     )
     y += 1
     y = _render_ground_armor_row(console, hud_x, y, ground_armor)
-    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog)
+    cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
     console.print(
         x=hud_x, y=y,
         string=f"{'Cargo':<8}{_bar_str(cargo_used, max_cargo):<11}{cargo_used}/{max_cargo}"[:HUD_TEXT_MAX],

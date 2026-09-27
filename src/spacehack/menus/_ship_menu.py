@@ -157,7 +157,7 @@ def _ship_section(ctx, owned, ship):
     """Build the SHIP tab's body, rows, and footer."""
     from .. import pygame_ui
 
-    max_cargo = ship_module.effective_max_cargo(ship, owned)
+    max_cargo = ship_module.effective_max_cargo(ship, owned, ctx)
     _hull_cur, _hull_max = ship_module.hull_cur_max(owned, ship)
     body = (
         ship.description,
@@ -184,7 +184,7 @@ def _cargo_section(ctx, owned, ship):
     from .. import pygame_ui
     from ..trade import _cargo_body, _cargo_rows
 
-    max_cargo = ship_module.effective_max_cargo(ship, owned)
+    max_cargo = ship_module.effective_max_cargo(ship, owned, ctx)
     rows = _cargo_rows(owned)
     body = _cargo_body(ctx, owned, max_cargo)
     footer = (pygame_ui.modal_hint(

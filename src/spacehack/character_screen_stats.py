@@ -117,7 +117,7 @@ def _cargo_character_frame(ctx: GameContext, title: str, selected: int):
             tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=2,
         )
     ship_spec = ship_module.find_ship(owned.ship_id)
-    max_cargo = ship_module.effective_max_cargo(ship_spec, owned)
+    max_cargo = ship_module.effective_max_cargo(ship_spec, owned, ctx)
     body = _cargo_body(ctx, owned, max_cargo)
     return pygame_screen.ScreenFrame(
         title, body, _cargo_rows(owned),
