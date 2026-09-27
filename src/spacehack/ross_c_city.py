@@ -470,7 +470,7 @@ def build_ross_c_layout(spec) -> world.GameMap:
         prefix="ross_c_", default_layout_id="ross_c_scrap_ring",
     )
     add_service_terminals(
-        game_map, spec, dy=3, dxs=(-5, -2, 1),
+        game_map, spec, dy=3, dxs=(-4, -2, 1),
         palette=TERMINAL_PALETTE_CLASSIC,
     )
     return game_map
