@@ -55,6 +55,7 @@ from ..xp import (
     ace_pilot_ap_bonus as _ace_pilot_bonus,
     laser_specialist_hit_bonus as _laser_specialist_bonus,
     missileer_hit_bonus as _missileer_bonus,
+    momentum_hit_bonus as _momentum_hit_bonus,
     plasma_savant_ap_discount as _plasma_ap_discount,
     systems_expert_power_bonus as _systems_expert_bonus,
 )
@@ -320,6 +321,22 @@ def enemy_alive(enemy: EnemyInstance) -> bool:
 # Combat math
 # ---------------------------------------------------------------------------
 
+def _player_hit_bonus(ctx, weapon_id: str) -> int:
+    """The player's per-weapon permanent hit bonus: Sharpshooter plus
+    weapon specialists plus Momentum's always-on +5 (doc 49) — the ONE
+    assembly both hit-chance sites read."""
+    _hit_bonus = _sharpshooter_bonus(ctx) + _momentum_hit_bonus(ctx)
+    try:
+        _slot_type = _find_weapon(weapon_id).slot_type
+    except KeyError:
+        _slot_type = ""
+    if _slot_type == "energy":
+        _hit_bonus += _laser_specialist_bonus(ctx)
+    elif _slot_type == "missile":
+        _hit_bonus += _missileer_bonus(ctx)
+    return _hit_bonus
+
+
 def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> int:
     # ``quality`` is the rolled instance tier seam the unified loop
     # threads; quality multiplies damage only — hit chance reads the
@@ -329,19 +346,9 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> i
         enemy.cells_moved_this_turn,
         int(enemy.pilot_piloting * 0.5),
     )
-    # Sharpshooter plus weapon-specialist traits add permanent hit chance.
-    _hit_bonus = _sharpshooter_bonus(ctx)
-    try:
-        _slot_type = _find_weapon(weapon_id).slot_type
-    except KeyError:
-        _slot_type = ""
-    if _slot_type == "energy":
-        _hit_bonus += _laser_specialist_bonus(ctx)
-    elif _slot_type == "missile":
-        _hit_bonus += _missileer_bonus(ctx)
     return _space_hit_chance(
         weapon_id, _state.player_state["gunnery"], _dist, _dodge,
-        hit_bonus=_hit_bonus,
+        hit_bonus=_player_hit_bonus(ctx, weapon_id),
         max_range=_space_focus.max_range(weapon_id, ctx),
         min_range=_space_focus.min_range(weapon_id, ctx),
     )
@@ -456,19 +463,11 @@ def _build_hit_chances(target) -> dict[str, int]:
         target.cells_moved_this_turn,
         int(target.pilot_piloting * 0.5),
     )
-    # Sharpshooter plus weapon-specialist traits add permanent hit chance.
-    _hit_bonus = _sharpshooter_bonus(_state.ctx)
     for _wid in _state.weapons_list:
         try:
-            _weapon_bonus = _hit_bonus
-            _slot_type = _find_weapon(_wid).slot_type
-            if _slot_type == "energy":
-                _weapon_bonus += _laser_specialist_bonus(_state.ctx)
-            elif _slot_type == "missile":
-                _weapon_bonus += _missileer_bonus(_state.ctx)
             _result[_wid] = _space_hit_chance(
                 _wid, _state.player_state["gunnery"], _dist, _target_dodge,
-                hit_bonus=_weapon_bonus,
+                hit_bonus=_player_hit_bonus(_state.ctx, _wid),
                 max_range=_space_focus.max_range(_wid, _state.ctx),
                 min_range=_space_focus.min_range(_wid, _state.ctx),
             )
@@ -875,6 +874,13 @@ def check_reinforcements(ctx, game_map: world.GameMap) -> None:
 
 def set_player_ap(ctx, ap: int) -> None:
     _state.player_state["ap_remaining"] = ap
+
+def refund_volley_ap(ctx, amount: int) -> None:
+    """Momentum origin trait (doc 49): a space kill refunds the killing
+    volley's AP cost. Called by the shared fire loop's post-volley hook
+    (ground rules implement no such hook)."""
+    from ._space_kills import refund_volley_ap as _refund
+    _refund(_state, ctx, amount)
 
 def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)

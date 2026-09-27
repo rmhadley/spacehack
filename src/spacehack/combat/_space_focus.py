@@ -17,6 +17,7 @@ module load) to avoid a circular import.
 from __future__ import annotations
 
 from ..data.weapons import find_weapon as _find_weapon
+from ..xp import longshot_range_bonus as _longshot_range_bonus
 from ..xp import plasma_savant_ap_discount as _plasma_ap_discount
 
 
@@ -76,11 +77,13 @@ def power_cost(weapon_id: str, ctx) -> int:
 
 
 def max_range(weapon_id: str, ctx) -> int:
-    """Effective max range: doubled for the focused weapon."""
+    """Effective max range: doubled for the focused weapon, plus
+    Longshot's +1 rider (doc 49 — every player space weapon)."""
     _spec = _find_weapon(weapon_id)
-    if _focused_weapon_id(ctx) != weapon_id:
-        return _spec.max_range
-    return _spec.max_range * 2
+    _range = _spec.max_range
+    if _focused_weapon_id(ctx) == weapon_id:
+        _range *= 2
+    return _range + _longshot_range_bonus(ctx)
 
 
 def min_range(weapon_id: str, ctx) -> int:

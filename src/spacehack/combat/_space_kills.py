@@ -14,6 +14,18 @@ from .. import world
 from ._types import EnemyInstance, SpaceCombatState
 
 
+def refund_volley_ap(state: SpaceCombatState, ctx, amount: int) -> None:
+    """Momentum origin trait (doc 49): refund the killing volley's AP.
+
+    Called through :func:`_rules_space.refund_volley_ap` by the shared
+    fire loop when a volley produced a kill; the refund restores exactly
+    what the volley paid, so a killing shot nets zero AP."""
+    from ..xp import momentum_kill_refund as _momentum_refund
+    if amount <= 0 or not _momentum_refund(ctx):
+        return
+    state.player_state["ap_remaining"] += amount
+
+
 def pop_dead_entity(
     state: SpaceCombatState, game_map: world.GameMap, enemy: EnemyInstance,
 ) -> Any:

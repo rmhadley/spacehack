@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from .. import world
 from ..data.ground_weapons import find_ground_weapon as _find_gw
+from ..xp import longshot_range_bonus as _longshot_range_bonus
 from ._stats import _distance
 
 
@@ -26,12 +27,20 @@ def is_charger_melee(ctx, weapon_id: str) -> bool:
 
 
 def weapon_range(weapon_id: str, ctx, current_ap: int) -> tuple[int, int]:
-    """Return the player's effective ``(min, max)`` weapon range."""
+    """Return the player's effective ``(min, max)`` weapon range.
+
+    The ONE player range helper — firing checks and HUD readouts both
+    read it. Longshot (doc 49) adds +1 max range to ranged weapons
+    only; melee reach and min ranges never move.
+    """
     setattr(ctx, "_ground_ap", current_ap)
     _spec = _find_gw(weapon_id)
     if is_charger_melee(ctx, weapon_id):
         return _spec.min_range, max(1, current_ap)
-    return _spec.min_range, _spec.max_range
+    _max = _spec.max_range
+    if _spec.damage_type != "melee":
+        _max += _longshot_range_bonus(ctx)
+    return _spec.min_range, _max
 
 
 def charge_path(ctx, target, game_map: world.GameMap, max_steps: int):

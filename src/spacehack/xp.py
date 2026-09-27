@@ -233,6 +233,22 @@ def nimble_ap_bonus(ctx: GameContext) -> int:
     return 1 if has_trait(ctx, "nimble") else 0
 
 
+def momentum_hit_bonus(ctx: GameContext) -> int:
+    """Momentum origin trait: +5% space hit chance, always on."""
+    return 5 if has_trait(ctx, "momentum") else 0
+
+
+def momentum_kill_refund(ctx: GameContext) -> bool:
+    """Momentum origin trait: a space kill refunds the volley's AP cost."""
+    return has_trait(ctx, "momentum")
+
+
+def longshot_range_bonus(ctx: GameContext) -> int:
+    """Longshot origin trait: +1 max range on ranged weapons (ground
+    and space). Melee reach and min ranges never move."""
+    return 1 if has_trait(ctx, "longshot") else 0
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------
