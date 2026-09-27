@@ -138,7 +138,125 @@ beyond mechanical trait descriptions.
       kinship / trade lens / rap-sheet sketches), stat/credit refresh,
       class-screen card parity. Not started in phase 1.
 
-## Phase 1 — Implementation brief (APPROVED 2026-09-27)
+## Pre-implementation audit (2026-09-27, code-anchored — phase 1)
+
+**1. Existing classes / modules to extend or reuse.**
+
+- `Species` (`data/species/__init__.py`) gains `glyph: str = "@"`, `color`,
+  `home: str = ""`, `trait_id: str = ""` as declared fields
+  (dataclass-field cohesion); `data/species/core.py::SPECIES` rewritten to
+  the five-species roster. `skill_bonus`/`ground_bonus`/`hp_bonus` keep
+  their semantics (starting stat spreads), so `character.starting_pilot_skills`
+  / `starting_ground_stats` need NO changes — the new start values flow
+  from data alone.
+- `faction._SPECIES_REP` empties (SETTLED 3-B). `starting_reputation`
+  already falls through to zero adjustments for missing keys — behavior
+  complete with the table edit; no signature change.
+- Trait layer (`data/traits/core.py`): `ORIGIN_TRAITS` dict sibling of
+  `QUEST_PERKS`; `trait_name` resolves all three registries (the C screen
+  via `character_screen_stats._trait_names` and `tombstone._trait_names`
+  then render "Sturdy" with zero further edits). `_qualifying_traits`
+  scans `ALL_TRAITS` only — origin traits can never be offered at
+  milestones by construction.
+- Creation grant: `game_loop._configure_new_context` (species_id in hand,
+  `ctx.player_traits` exists) appends `find_species(id).trait_id` —
+  the same append `trait_screen` uses. `player_traits` already
+  round-trips save/load (`saveload.py:140/835`).
+- Trait hooks follow the `xp.py` bonus-helper pattern
+  (`sharpshooter_hit_bonus` et al.): seven new ctx-aware getters
+  (`fast_learner_skill_points`, `sturdy_armor_bonus`, `sturdy_melee_bonus`,
+  `momentum_hit_bonus`, `momentum_kill_refund`, `longshot_range_bonus`,
+  `nimble_ap_bonus`) read at the usage sites:
+  - Fast Learner — `xp.add_xp` level-up grant + message.
+  - Sturdy armor — `_rules_ground._armor_defense_total`; melee — the
+    `_melee_bonus` assembly in `_rules_ground.damage` (line 444;
+    `ground_damage_raw` itself untouched), melee detected by
+    `damage_type == "melee"` (spec field, same test `is_charger_melee` uses).
+  - Nimble — `_rules_ground._starting_ap_gain_twentieths`'s existing
+    `80 + 20 * (bonuses)` sum.
+  - Momentum hit — the `_hit_bonus` assembly in `_rules_space.hit_chance`
+    (333) AND `_build_hit_chances` (460) — see hotspot 2.
+  - Momentum refund — `_loop._handle_fire` deducts the volley's max AP at
+    line 480 AFTER slot firing (explosive kills resolve even earlier,
+    inside `_fire_active_slot`); a pre/post enemy-liveness snapshot around
+    the volley plus a `_rules_hook(rules, "refund_volley_ap")` hook
+    (only `_rules_space` implements it; body in `_space_kills.py` per the
+    brief, mirroring the existing ground-only `record_player_kill` hook)
+    refunds once per killing volley, both kill paths covered.
+  - Longshot ground — `combat/_ground_charger.py::weapon_range` is THE
+    one player range helper: `can_fire` and both HUD range readouts
+    (`_ground_render.py:91/372`) route through it. Longshot space —
+    `_space_focus.max_range/min_range` is the one space range seam
+    (hit calc, range line, HUD all call it). Enemy AI reads raw spec
+    ranges (`_ews.max_range`, `_ai.py:225/320`, `_ai_ground.py`) —
+    untouched by construction.
+- hp fold (SETTLED 3-A): the max-HP formula lives TWICE today
+  (`_rules_ground._player_hp_state` and `game_loop.py:847`) — both gain
+  the species term via one shared helper in `character.py`;
+  `character.starting_stats` drops the species hp term (HudStats.hp =
+  class `hp_base` only).
+- Char/color: one `character.species_appearance(species_id) ->
+  (glyph, color)` helper (safe `'@'`/white fallback for stale ids, the
+  `_safe_lookup_*` pattern) read by every player-entity construction
+  site: `game_interactions.py` 265/380, `city_interiors.py` 162/207
+  (162 already copies `parent_player.fg` — only its char hardcode
+  changes), `dungeon_extensions._make_player`, `saveload_maps
+  ._make_walker_entity` (the ONE walker builder for all three load
+  rebuild paths — `species_id` threaded from `rebuild_game_map`, which
+  holds `data["character_info"]`), `game_loop._new_character_context`,
+  `game_flow` player-copy sites. `hud.ground_player_fg` signature gains
+  the healthy color (default `COLOR_PLAYER_HEALTHY`); the two callers
+  (`game_loop._tint_player_glyph`, `_ground_render.render_frame`) pass
+  the species color. Amber/critical constants unchanged.
+- Player-id refactor: the four `char == '@'` filters
+  (`saveload_maps:187`, `city_interiors:125`, `dungeon_extensions:806`,
+  `game_flow:971`) become `name == "Player"` predicates. Space-mode
+  ship `@` is a different entity (`_make_ship_entity`) — untouched.
+- Species screen: `pygame_split.SplitFrame` + `run_for_screen` (the
+  doc-52.3 Equipment-tab pattern: read-only right panel, ENTER returns
+  the left row's action verbatim) — left = the five species options,
+  right = the card (informational `SplitRow`s, ≤11 rows so the viewport
+  never clips: name+glyph, home, stats block, Armor+HP row, trait name,
+  wrapped description). Hosted by a species pick runner in
+  `input_helpers`/`title_flow`; `ui.species_menu` remains the options
+  source; `class_menu` + `_run_confirm` unchanged.
+
+**2. Three potential duplication hotspots.**
+
+1. Ground max-HP formula copy-pasted between `_player_hp_state` and
+   `_configure_new_context` (pre-existing) — the hp fold edits BOTH.
+2. Space hit-bonus assembly duplicated between `hit_chance` and
+   `_build_hit_chances` (pre-existing sharpshooter/specialist duplication)
+   — Momentum would become a third copy-paste.
+3. Player `world.Entity(...)` construction blocks at ~8 sites — the
+   glyph/color lookup copy-pasted per site instead of one helper (plus
+   the armor_defense sum duplicated between `_armor_defense_total` and
+   `refresh_equipment_state`, which the Sturdy edit would double).
+
+**3. DRY strategy per hotspot.**
+
+1. Extract `character.ground_max_hp_total(ctx)`-style shared formula
+   (pure computation over ground_stats + equipped armor + traits +
+   species hp_bonus); both call sites shrink to calls.
+2. Extract a `_player_hit_bonus(ctx, weapon_id)` helper in
+   `_rules_space` assembling sharpshooter + specialists + momentum;
+   both assemblers call it — pays the pre-existing debt where the trait
+   lands (ratchet-friendly: `_rules_space` is at 966/1000 lines, and the
+   extraction nets lines).
+3. One `character.species_appearance(species_id)` helper + the walker
+   rebuild threading; `refresh_equipment_state` re-calls
+   `_armor_defense_total` instead of re-summing. Guardrails: SRP/one-verb
+   helpers, pure-computation-vs-mutation split, state tables over
+   conditional logic (species catalog stays a frozen data tuple; trait
+   effects stay table-driven getters, no call-site conditionals beyond
+   the bonus reads).
+
+**Budget note (forecast, not a placement driver):** `_rules_ground` is
+985/1000 and `game_flow` 978/1000 — the ground hook edits are +5-8 net
+lines (inside budget); the `game_flow` edit is a like-for-like predicate
+swap (net 0). If any hook push crosses the limit, the in-commit refactor
+is the helper extractions above, which already pull lines OUT of the
+touched modules.
 
 **Scope (files + hook points):**
 
