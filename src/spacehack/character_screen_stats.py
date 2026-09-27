@@ -27,7 +27,7 @@ _SKILL_DESCRIPTIONS: dict[str, str] = {
     "engineering": "+1 max power per 5 pts; paid shield regen -1 power per 20 pts",
     "reflexes": "+0.5% accuracy and +0.5% dodge per point on foot",
     "strength": "+1 melee damage per 5 pts; +1 pack slot per 5 pts above 10",
-    "stamina": "max ground HP 20 + Stamina//3 (+1 HP per 3 pts)",
+    "stamina": "max ground HP 20 + Stamina//2 (+1 HP per 2 pts)",
 }
 
 
