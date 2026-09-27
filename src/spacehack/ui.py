@@ -108,6 +108,12 @@ _SPECIES_STAT_ORDER: tuple[tuple[str, str, int], ...] = (
 # never wrap, so long text is pre-wrapped to fit the narrowest panel.
 _SPECIES_CARD_WRAP: int = 36
 
+# Card stat column: names left-aligned to the longest stat name, values
+# starting in one shared column two spaces past it.
+_SPECIES_STAT_NAME_W: int = max(
+    len(_label) for _field, _label, _container in _SPECIES_STAT_ORDER
+)
+
 
 def _species_start_stats(spec) -> dict[str, int]:
     """The species' six start values (base + species spread, class-free)."""
@@ -123,14 +129,22 @@ def _species_start_stats(spec) -> dict[str, int]:
     return values
 
 
+def _stat_cell(label: str, value: int) -> str:
+    """One aligned `name  value` cell — the value column is shared by
+    every stat row and the Armor/HP row under them; single-digit
+    values right-align against two-digit ones."""
+    return f"{label:<{_SPECIES_STAT_NAME_W}}  {value:>2}"
+
+
 def species_stat_rows(spec) -> tuple:
     """The card's six stat rows: absolute values, no +/- (SETTLED 2,
-    user layout revision 2026-09-27 — every stat listed, one per row)."""
+    user layout revision 2026-09-27 — every stat listed, one per row,
+    values aligned in one column)."""
     from . import pygame_split
     values = _species_start_stats(spec)
     return tuple(
         pygame_split.SplitRow(
-            f"{label} {values[field]}", "", "", "", selectable=False,
+            _stat_cell(label, values[field]), "", "", "", selectable=False,
         )
         for field, label, _container in _SPECIES_STAT_ORDER
     )
@@ -138,7 +152,8 @@ def species_stat_rows(spec) -> tuple:
 
 def _species_start_row(spec):
     """The card's Armor/HP row, read through the live naked-start
-    formulas so the card never disagrees with a fresh game."""
+    formulas so the card never disagrees with a fresh game. Armor's
+    value sits in the stats' shared value column; HP rides after it."""
     from types import SimpleNamespace
 
     from . import pygame_split
@@ -151,8 +166,8 @@ def _species_start_row(spec):
         character_info={"species_id": spec.id},
     )
     return pygame_split.SplitRow(
-        f"Armor {xp.sturdy_armor_bonus(_naked)}   "
-        f"HP {xp.ground_max_hp_total(_naked)}",
+        _stat_cell("Armor", xp.sturdy_armor_bonus(_naked))
+        + f"   HP {xp.ground_max_hp_total(_naked)}",
         "", "", "", selectable=False,
     )
 

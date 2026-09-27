@@ -223,30 +223,35 @@ class TestSpeciesSplitPicker:
 
     def test_card_lists_all_six_stats_then_armor_hp(self):
         """The layout revision: every stat gets its own row, absolute
-        values; Armor/HP sits directly under the six."""
+        values in one aligned column; Armor/HP sits directly under the
+        six with Armor's value in the same column."""
         labels = [row.label for row in ui.species_split_frame(1).right_rows]
         assert labels[:7] == [
-            "Gunnery 10", "Piloting 10", "Engineering 10",
-            "Reflexes 10", "Strength 12", "Stamina 14",
-            "Armor 2   HP 29",
+            "Gunnery      10", "Piloting     10", "Engineering  10",
+            "Reflexes     10", "Strength     12", "Stamina      14",
+            "Armor         2   HP 29",
         ]
+        lalandan = [row.label for row in ui.species_split_frame(4).right_rows]
+        # Single-digit values right-align against two-digit ones.
+        assert lalandan[4] == "Strength      5"
+        assert lalandan[6] == "Armor         0   HP 22"
         human = [row.label for row in ui.species_split_frame(0).right_rows]
-        assert human[:6] == [f"{name} 11" for name in (
-            "Gunnery", "Piloting", "Engineering",
-            "Reflexes", "Strength", "Stamina",
-        )]
+        assert human[:6] == [
+            "Gunnery      11", "Piloting     11", "Engineering  11",
+            "Reflexes     11", "Strength     11", "Stamina      11",
+        ]
 
     def test_card_pins_settled_numbers(self):
         def _labels(index):
             return [row.label for row in ui.species_split_frame(index).right_rows]
-        assert "Reflexes 16" in _labels(4)
-        assert "Strength 5" in _labels(4)
-        assert "Stamina 5" in _labels(4)
-        assert "Armor 0   HP 22" in _labels(4)
-        assert "Gunnery 14" in _labels(3)
-        assert "Reflexes 12" in _labels(3)
-        assert "Piloting 14" in _labels(2)
-        assert "Gunnery 12" in _labels(2)
+        assert "Reflexes     16" in _labels(4)
+        assert "Strength      5" in _labels(4)
+        assert "Stamina       5" in _labels(4)
+        assert "Armor         0   HP 22" in _labels(4)
+        assert "Gunnery      14" in _labels(3)
+        assert "Reflexes     12" in _labels(3)
+        assert "Piloting     14" in _labels(2)
+        assert "Gunnery      12" in _labels(2)
 
     def test_card_bottom_shows_trait_name_and_description(self):
         labels = [row.label for row in ui.species_split_frame(1).right_rows]

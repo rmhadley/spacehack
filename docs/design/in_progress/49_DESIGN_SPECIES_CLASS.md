@@ -128,7 +128,10 @@ drops the separate name/home rows. Second revision, same session: the
 exotic home lines lose their flavor clauses (Cygni b (Cygni) /
 Binary Station (Sirius) / Whisper (Lalande) — "the orbital yards" /
 "the Binary Eye" / "the Vault" removed), and the stat block lists
-ALL SIX stats as rows with the Armor/HP row directly under them.
+ALL SIX stats as rows with the Armor/HP row directly under them;
+third pass: stat names/points aligned — names padded to the longest
+stat name, values in one shared right-aligned column (Armor's value
+sits in it too, HP rides after).
 
 ## SETTLED 3 — 2026-09-27: phase-1 rulings A/B/C (user, verbatim keys)
 
