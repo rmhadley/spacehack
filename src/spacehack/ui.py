@@ -214,7 +214,7 @@ def species_split_frame(selected: int = 0):
         right_rows=_species_card_rows(spec),
         footer_left="",
         footer_right="",
-        hint=_modal_hint("UP/DOWN browse", "ENTER select", "ESC start over"),
+        hint=_modal_hint("ENTER select", "ESC start over"),
         selected=max(0, min(selected, len(options) - 1)),
     )
 
