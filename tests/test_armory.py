@@ -371,3 +371,45 @@ def test_guide_teaches_the_smg_double_fire():
     assert "fires two rounds per trigger pull" in combat.body
     # No em-dashes in game text (the doc-45 bitmap gate rule).
     assert "\u2014" not in combat.body.split("trigger pull")[1].split("rounds spent")[0]
+
+
+def test_field_item_transfer_to_a_full_armory_lands(monkeypatch):
+    """The doc-52 armory regression, end to end through the modal
+    flow: choosing "Armory" on a Med Pack x3 in a FULL armory (stack
+    count at the player's pack cap) must move it — the silent no-op
+    the user hit mid-run."""
+    from src.spacehack import pygame_menu
+    from src.spacehack.ground_equipment import GroundItemStack
+    from src.spacehack.message_log import MessageLog
+
+    ctx = SimpleNamespace(
+        ground_armory_storage=[],
+        ground_armory_items=[
+            GroundItemStack("ammo", iid, 10) for iid in (
+                "pistol_rounds", "rifle_rounds", "shotgun_shells",
+                "energy_cells", "grenades", "rockets",
+            )
+        ] + [
+            GroundItemStack("consumable", "stim", 2),
+            GroundItemStack("consumable", "tinker_kit", 1),
+        ],
+        ground_expedition_inventory=[],
+        ground_expedition_items=[GroundItemStack("consumable", "med_pack", 3)],
+        ground_stats=SimpleNamespace(strength=30),  # pack capacity 8
+        log=MessageLog(),
+        context=object(),
+    )
+
+    async def fake_run_for_context(_ctx, _frames, *, caption=""):
+        # The user pressed ENTER on "Armory".
+        return ("SELECT", "MOVE_ITEM_TO_ARMORY:0", 0)
+
+    monkeypatch.setattr(pygame_menu, "run_for_context", fake_run_for_context)
+
+    run(_armory._apply_storage_action(
+        ctx, "MANAGE_EXPEDITION_ITEM:0",
+    ))
+    texts = [m.text for m in ctx.log.history()]
+    assert "Moved field item stack to Armory Storage." in texts
+    assert len(_armory._armory_items(ctx)) == 9
+    assert _armory._expedition_items(ctx) == []

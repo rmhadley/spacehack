@@ -17,6 +17,8 @@ from src.spacehack.data.ground_items import (
     list_ground_consumables,
 )
 from src.spacehack.ground_equipment import (
+    ARMORY_STORAGE,
+    EXPEDITION_INVENTORY,
     GroundItemStack,
     add_item_quantity,
     add_item_stack,
@@ -177,7 +179,7 @@ def test_add_item_stack_merges_into_partial_stack_without_new_slot():
     equipment = []
     items = [GroundItemStack("ammo", "pistol_rounds", 10)]
     remainder = add_item_stack(
-        equipment, items, GroundItemStack("ammo", "pistol_rounds", 5), strength=10,
+        equipment, items, GroundItemStack("ammo", "pistol_rounds", 5), strength=10, container=EXPEDITION_INVENTORY,
     )
     assert remainder is None
     assert items == [GroundItemStack("ammo", "pistol_rounds", 15)]
@@ -187,7 +189,7 @@ def test_add_item_stack_preserves_overflow_in_a_new_stack():
     equipment = []
     items = [GroundItemStack("ammo", "shotgun_shells", 18)]
     remainder = add_item_stack(
-        equipment, items, GroundItemStack("ammo", "shotgun_shells", 5), strength=10,
+        equipment, items, GroundItemStack("ammo", "shotgun_shells", 5), strength=10, container=EXPEDITION_INVENTORY,
     )
     assert remainder is None
     assert items == [
@@ -200,7 +202,7 @@ def test_add_item_stack_appends_new_stack_and_uses_a_slot():
     equipment = []
     items = []
     remainder = add_item_stack(
-        equipment, items, GroundItemStack("consumable", "med_pack", 2), strength=10,
+        equipment, items, GroundItemStack("consumable", "med_pack", 2), strength=10, container=EXPEDITION_INVENTORY,
     )
     assert remainder is None
     assert items == [GroundItemStack("consumable", "med_pack", 2)]
@@ -210,7 +212,7 @@ def test_add_item_stack_returns_remainder_when_pack_is_full():
     equipment = ["w1", "w2", "w3", "w4"]  # capacity 4 already used
     items = []
     remainder = add_item_stack(
-        equipment, items, GroundItemStack("ammo", "rifle_rounds", 5), strength=10,
+        equipment, items, GroundItemStack("ammo", "rifle_rounds", 5), strength=10, container=EXPEDITION_INVENTORY,
     )
     assert remainder == GroundItemStack("ammo", "rifle_rounds", 5)
     assert items == []
@@ -220,7 +222,7 @@ def test_add_item_stack_preserves_remainder_when_no_new_slot_exists():
     equipment = ["w1", "w2", "w3"]
     items = [GroundItemStack("ammo", "rifle_rounds", 5)]
     remainder = add_item_stack(
-        equipment, items, GroundItemStack("consumable", "med_pack", 1), strength=10,
+        equipment, items, GroundItemStack("consumable", "med_pack", 1), strength=10, container=EXPEDITION_INVENTORY,
     )
     assert remainder == GroundItemStack("consumable", "med_pack", 1)
     assert items == [GroundItemStack("ammo", "rifle_rounds", 5)]
@@ -292,3 +294,42 @@ def test_transfer_item_stack_rejects_full_pack_without_removing_source():
 
     assert source == [GroundItemStack("ammo", "pistol_rounds", 5)]
     assert destination == []
+
+
+def test_add_item_stack_armory_skips_the_pack_slot_gate():
+    """Armory Storage is unlimited: a new stack lands even when the
+    combined stack count already sits at the pack's capacity (the
+    doc-52 armory regression — new-stack transfers silently no-opped
+    once the armory held as many stacks as the player's pack cap)."""
+    equipment = ["w1", "w2", "w3", "w4"]  # pack capacity 4 at strength 10
+    items = []
+    remainder = add_item_stack(
+        equipment, items, GroundItemStack("consumable", "med_pack", 3),
+        strength=10, container=ARMORY_STORAGE,
+    )
+    assert remainder is None
+    assert items == [GroundItemStack("consumable", "med_pack", 3)]
+
+
+def test_transfer_to_armory_lands_a_new_stack_at_the_pack_cap():
+    """The user's exact case: eight armory stacks at strength 30
+    (pack capacity 8) and a full Med Pack x3 moving in from the
+    Expedition Pack — the new armory stack must land."""
+    equipment = []
+    items = [
+        GroundItemStack("ammo", iid, 10) for iid in (
+            "pistol_rounds", "rifle_rounds", "shotgun_shells",
+            "energy_cells", "grenades", "rockets",
+        )
+    ] + [
+        GroundItemStack("consumable", "stim", 2),
+        GroundItemStack("consumable", "tinker_kit", 1),
+    ]
+    source_items = [GroundItemStack("consumable", "med_pack", 3)]
+    moved = transfer_item_stack(
+        source_items, equipment, items, 0,
+        destination_container=ARMORY_STORAGE, strength=30,
+    )
+    assert moved == GroundItemStack("consumable", "med_pack", 3)
+    assert source_items == []
+    assert items[-1] == GroundItemStack("consumable", "med_pack", 3)

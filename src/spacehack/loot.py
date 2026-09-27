@@ -454,6 +454,7 @@ def _pack_field_item(ctx: GameContext, stack) -> object | None:
         ctx.ground_expedition_items,
         stack,
         strength=strength,
+        container=ground_equipment.EXPEDITION_INVENTORY,
     )
 
 

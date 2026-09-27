@@ -641,38 +641,54 @@ def item_stack_merge_index(items, stack: GroundItemStack) -> int | None:
     return None
 
 
+def _fill_partial_stack(
+    items, item_type: str, item_id: str, remaining: int, capacity: int,
+) -> int:
+    """Fill one matching partial stack; the amount absorbed (0 when
+    no partial stack matches — merge targets always have room)."""
+    partial = item_stack_merge_index(
+        items, GroundItemStack(item_type, item_id, remaining),
+    )
+    if partial is None:
+        return 0
+    existing = items[partial]
+    amount = min(capacity - existing.quantity, remaining)
+    items[partial] = GroundItemStack(item_type, item_id, existing.quantity + amount)
+    return amount
+
+
 def add_item_stack(
     equipment,
     items,
     stack: GroundItemStack,
     *,
     strength: int,
+    container: str,
 ) -> GroundItemStack | None:
-    """Add as much of one field-item stack as the Expedition Pack accepts.
+    """Add as much of one field-item stack as the container accepts.
 
-    Matching partial stacks fill first, then new slots are used. The return
-    value is an explicit remainder stack when the pack cannot accept the
-    complete input; ``None`` means every round/charge was stored. No input
-    quantity is silently discarded.
+    Matching partial stacks fill first, then new slots are used. The
+    new-slot gate is the EXPEDITION PACK's Strength capacity — Armory
+    Storage is unlimited and always takes new stacks. The return value
+    is an explicit remainder stack when the container cannot accept
+    the complete input; ``None`` means every round/charge was stored.
+    No input quantity is silently discarded.
     """
+    _require_container(container)
     validate_item_stack(stack)
     remaining = stack.quantity
     capacity = item_stack_capacity(stack.item_type, stack.item_id)
     while remaining > 0:
-        partial = item_stack_merge_index(
-            items,
-            GroundItemStack(stack.item_type, stack.item_id, remaining),
+        absorbed = _fill_partial_stack(
+            items, stack.item_type, stack.item_id, remaining, capacity,
         )
-        if partial is not None:
-            existing = items[partial]
-            room = capacity - existing.quantity
-            amount = min(room, remaining)
-            items[partial] = GroundItemStack(
-                stack.item_type, stack.item_id, existing.quantity + amount,
-            )
-            remaining -= amount
+        if absorbed:
+            remaining -= absorbed
             continue
-        if expedition_slot_count(equipment, items) >= expedition_capacity(strength):
+        if (
+            container == EXPEDITION_INVENTORY
+            and expedition_slot_count(equipment, items) >= expedition_capacity(strength)
+        ):
             break
         amount = min(capacity, remaining)
         items.append(GroundItemStack(stack.item_type, stack.item_id, amount))
@@ -737,6 +753,7 @@ def add_item_quantity(
             equipment, items,
             GroundItemStack(item_type, item_id, amount),
             strength=strength,
+            container=container,
         )
         if remainder is not None:
             raise ValueError("Field-item capacity changed during insertion")
