@@ -66,6 +66,28 @@ def test_sources_reference_real_npcs_planets_gates_and_traits() -> None:
                 )
 
 
+def _seated_npc_ids(spec) -> set[str]:
+    """Every npc id with a seat on this planet: building residents,
+    interior service seats (unconditional), and quest-conditional
+    interior seats — all three are real seats."""
+    seats = {b.npc_id for b in spec.buildings if b.npc_id}
+    seats.update(npc for npc, _ in spec.quest_npc_spots)
+    seats.update(npc for npc, _ in spec.service_npc_spots)
+    return seats
+
+
+def test_sources_seat_on_their_planet() -> None:
+    # A source row pointing at a real NPC on a planet it doesn't seat
+    # is a silently never-deliverable rumor — the structural seam a
+    # hand-authored pool invites.
+    for entry in list_rumors():
+        for npc_id, planet, *_gate in entry.sources:
+            spec = find_planet_spec(planet)
+            assert npc_id in _seated_npc_ids(spec), (
+                f"{entry.id}: {npc_id} has no seat on {planet}"
+            )
+
+
 def test_picks_respect_the_candidate_pool() -> None:
     for entry in list_rumors():
         if entry.picks is None:

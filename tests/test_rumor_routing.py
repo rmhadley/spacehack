@@ -78,7 +78,9 @@ def test_host_resolvers_compose_with_the_live_map() -> None:
     rows = rumor.askable_topics(
         ["dark_berth_1"], {}, frozenset(), npc_id, planet_id, live=routes,
     )
-    assert rows == [("dark ports", "dark_berth_2")]
+    # The dark-ports extension rides the live pair; the taking-ships
+    # opener may co-list on a shared carrier (different chains).
+    assert dict(rows).get("dark ports") == "dark_berth_2"
     # A candidate the seed did not pick stays silent even on its own
     # planet (the fixture-free integration of SETTLED 15 + 14).
     pool = {
@@ -89,7 +91,7 @@ def test_host_resolvers_compose_with_the_live_map() -> None:
     dead = sorted(pool - set(routes["dark_berth_2"]))
     if dead:
         dead_npc, dead_planet = dead[0]
-        assert rumor.askable_topics(
+        assert "dark ports" not in dict(rumor.askable_topics(
             ["dark_berth_1"], {}, frozenset(), dead_npc, dead_planet,
             live=routes,
-        ) == []
+        ))

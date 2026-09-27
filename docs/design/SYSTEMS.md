@@ -946,10 +946,14 @@ nobody designs against a ghost.
   origin y per host; TAB/SHIFT_TAB outcomes, host loop flips the
   sheet).
 - **Rumors (lore)** — knowledge as currency (doc 42): frozen
-  `RumorEntry` chains in `data/lore/` (the dark-ports chain — sources
-  are planet-scoped `(npc, planet, faction, floor, trait)` candidates
-  with authored `picks` width; trigger-delivered tiers carry
-  `triggers` and no sources), prose single-sourced in
+  `RumorEntry` chains in `data/lore/` (two chains: dark-ports —
+  sources are planet-scoped `(npc, planet, faction, floor, trait)`
+  candidates with authored `picks` width; trigger-delivered tiers
+  carry `triggers` and no sources. And the taking-ships opener
+  (RUMORS.md) — a single ask-discovered entry teaching the four
+  D-boarding conditions, value 0 (never sold), rarity by tier-weighted
+  pool composition: rows per planet ∝ `mission_tier`, uniform sample
+  = per-port odds), prose single-sourced in
   `data/text/08_rumors.json` (`rumor.<id>.*`); keyring
   `ctx.known_rumors` saved in heard order; pure resolvers in
   `rumor.py` — `askable_topics(known, rep, traits, npc, PLANET,

@@ -60,7 +60,7 @@ Prose (verbatim, `08_rumors.json`):
   containers south of the bounty office sometimes. Tell him The Hush
   sent you."
 
-### taking ships — chain `taking_ships` — QUEUED (settled 2026-09-27)
+### taking ships — chain `taking_ships` — SHIPPED (2026-09-27)
 
 One entry, one lesson: teaches the four conditions for boarding in
 space combat (D) diegetically — a lone target, hull her until she
@@ -68,7 +68,7 @@ can't run, shields down, pull alongside. The guide keeps the reference
 version; this is the discovery layer. Free to hear (no favor anywhere
 in the ask path).
 
-- id: `taking_ships_1` (proposed — save-facing)
+- id: `taking_ships_1`
 - tier 1, no requires, no triggers, no pads — Ask Around only; the
   topic row shows only for live carriers and vanishes once heard
 - topic: "Pirates have been boarding and raiding ships mid flight."
@@ -76,15 +76,21 @@ in the ask path).
   their routes. They shoot them up until they're nearly dead, shields
   down, can't run... then they fly next to them and breach their hull.
   Strip the cargo and gear, and leave no one alive."
-- source pool: TIER-WEIGHTED COMPOSITION — rows per planet ∝ mission
-  tier (T1: 1 row, the barkeep seat; T2: 2; T3+: 3), picks ≈ pool/3.
-  The routing's uniform sample turns pool share into per-planet
-  carrier odds (a ~1:2:3 gradient); exact rows and picks are pinned at
-  build time against the real seat + tier map.
-- value: 1 (open: 1 vs 0; lean 1 — it is sellable news, and tellers
-  refuse buy-back via the co-teller rule)
-- open: build home (rides the 42.5 build or stands alone); pool rows;
-  value.
+- source pool: 52 rows, picks 17. TIER-WEIGHTED COMPOSITION — rows per
+  planet scale with mission tier; the routing's uniform sample turns
+  pool share into per-port carrier odds (~33% at a one-row T1 port,
+  ~55% at a two-row port, ~70% at a three-row frontier port). As
+  shipped: T1 all five ports carry exactly 1 row (the barkeep); T2's
+  thirteen ports carry 23 rows (barnards_c, depot, and sirius_station
+  seat only one askable id each); T3 carries 8 (wolf_b seats two);
+  T4 carries 16 (both blockades seat two). Seats are door-resident
+  NPCs, service seats, and quest spots — pinned by the catalog's
+  co-location test.
+- value: 0 — never sold. The teller pool must seat the dealers
+  themselves (the barkeep is the only T1 gossip seat), and a co-teller
+  refuses the buy anyway; common gossip is not currency. This resolves
+  the earlier value-1 lean: keeping a sell side would have meant
+  purging dealer ids from the pool, gutting the gradient.
 
 ## Queue ahead
 

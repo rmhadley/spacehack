@@ -5,8 +5,9 @@ One Ask around row on the main talk menu (present whenever the NPC
 holds an unheard opener or a heard extension); everything askable
 lives in the sub-menu. Floors read the RESOLVED sheet the host passes.
 Phase 3: the host scopes delivery to the current planet
-(ctx.current_city_id); tier 1 is trigger-delivered, so no carrier
-holds anything until it has been heard.
+(ctx.current_city_id); the dark-ports tier 1 is trigger-delivered,
+while the taking-ships opener (RUMORS.md) is ask-discovered by
+design.
 """
 
 from tests.support.quest_ctx import quest_ctx
@@ -30,12 +31,22 @@ def test_non_source_npc_gets_no_ask_row(monkeypatch):
 
 
 def test_no_ask_row_before_discovery(monkeypatch):
-    # Phase 2.5: the chain is not askable at spawn — tier 1 arrives
-    # by trigger, and tier 2 requires it heard. Even a carrier holds
-    # nothing pre-discovery (a non-dealer shows no row at all).
+    # Phase 2.5: the dark-ports chain is not askable at spawn — its
+    # tier 1 arrives by trigger, and tier 2 requires it heard. Even a
+    # carrier holds nothing pre-discovery (a non-dealer shows no row
+    # at all). Seed pinned so the taking-ships opener — the one
+    # ask-discovered entry — is not live at his seat this run.
     _sheet(monkeypatch, {})
-    assert npc_mod._offers_rumors(
-        quest_ctx(city_id="lal_b"), find_npc("deadfall_scrubber")) is False
+    _seed_where(
+        lambda rr, s: ("deadfall_scrubber", "lal_b")
+        not in rr.live_routes(s)["taking_ships_1"]
+    )
+    try:
+        assert npc_mod._offers_rumors(
+            quest_ctx(city_id="lal_b"), find_npc("deadfall_scrubber")) is False
+    finally:
+        from src.spacehack import engine as engine_mod
+        engine_mod.INIT_SEED = 0
 
 
 def _seed_where(predicate):

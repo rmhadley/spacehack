@@ -25,16 +25,72 @@ def _no_traits():
 # --- the ask surface (openers + extensions in one sub-menu) ---------------
 
 
-def test_no_chain_is_askable_at_spawn():
-    # Doc 42 phase 2.5: tier 1 is trigger-delivered (no sources) —
-    # no contact anywhere opens the chain by asking.
+def test_dark_ports_are_not_askable_at_spawn():
+    # Doc 42 phase 2.5: that chain's tier 1 is trigger-delivered (no
+    # sources) — no contact anywhere opens the dark-ports chain by
+    # asking. (The taking-ships opener below is the deliberate
+    # ask-discovered exception, RUMORS.md.)
     for _npc in ("wolf_barkeep", "deadfall_scrubber", "barkeep"):
-        assert rumor.askable_topics([], {}, _no_traits(), _npc, "wolf_b") == []
+        _rows = dict(rumor.askable_topics([], {}, _no_traits(), _npc, "wolf_b"))
+        assert "dark ports" not in _rows
+
+
+def test_taking_ships_opens_by_asking():
+    # RUMORS.md (settled 2026-09-27): the boarding-craft opener is
+    # ask-discovered gossip — an unheard opener row for a live
+    # carrier, no trigger, no requires, nothing heard-first.
+    _live = {"taking_ships_1": frozenset({("barkeep", "earth")})}
+    assert rumor.askable_topics(
+        [], {}, _no_traits(), "barkeep", "earth", live=_live) == [
+            ("Pirates have been boarding and raiding ships mid flight.",
+             "taking_ships_1"),
+        ]
+    # Another port's barkeep is not a live carrier this run.
+    assert rumor.askable_topics(
+        [], {}, _no_traits(), "barkeep", "mars", live=_live) == []
+    # Once heard, the topic is gone everywhere (unheard openers only).
+    assert rumor.askable_topics(
+        ["taking_ships_1"], {}, _no_traits(), "barkeep", "earth",
+        live=_live) == []
+
+
+def test_taking_ships_is_common_gossip_never_sold():
+    # RUMORS.md: value 0 — the teller pool seats every dealer (the
+    # barkeep is the only T1 gossip seat), so the co-teller rule
+    # would refuse the buy anyway; common gossip is not currency.
+    assert rumor.find_rumor("taking_ships_1").value == 0
+    for _dealer in ("barkeep", "wolf_barkeep", "research_officer"):
+        assert rumor.offerable_rumors(
+            ["taking_ships_1"], {}, _dealer) == []
+
+
+def test_taking_ships_pool_weights_by_mission_tier():
+    # The rarity gradient is pool composition (RUMORS.md): uniform
+    # sample over rows, so per-port odds scale with rows carried.
+    # T1 ports carry exactly one row; no port carries more than
+    # three; T3/T4 ports carry at least two.
+    from spacehack.data.planets import find_planet_spec
+
+    _rows: dict[str, int] = {}
+    for _npc, _planet, *_gate in rumor.find_rumor("taking_ships_1").sources:
+        _rows[_planet] = _rows.get(_planet, 0) + 1
+    assert _rows, "the taking-ships pool is empty"
+    for _planet, _count in _rows.items():
+        _tier = find_planet_spec(_planet).mission_tier
+        if _tier == 1:
+            assert _count == 1, _planet
+        elif _tier >= 3:
+            assert 2 <= _count <= 3, _planet
+        else:
+            assert 1 <= _count <= 2, _planet
 
 
 def test_extensions_offer_the_next_tier_on_the_carrier_planet():
+    # Keyed live map keeps the assertion to the dark-ports extension
+    # (a provided map that omits an entry silences it).
     _rows = dict(rumor.askable_topics(
-        ["dark_berth_1"], {}, _no_traits(), "wolf_barkeep", "wolf_b"))
+        ["dark_berth_1"], {}, _no_traits(), "wolf_barkeep", "wolf_b",
+        live={"dark_berth_2": frozenset({("wolf_barkeep", "wolf_b")})}))
     assert _rows == {"dark ports": "dark_berth_2"}
 
 
@@ -58,14 +114,16 @@ def test_openers_and_extensions_coexist_in_one_submenu(monkeypatch):
 
 
 def test_askable_topics_only_for_contacts_who_deliver():
-    # The chain exhausted: the scrubber (a tier-2 carrier) holds
-    # nothing further once every tier is heard.
+    # The chain exhausted: a tier-2 carrier holds nothing further
+    # once every tier is heard. ember_tech is the dark-ports carrier
+    # seated outside the taking-ships pool, so the exhaustion reads
+    # clean with the default routing.
     assert rumor.askable_topics(
         ["dark_berth_1", "dark_berth_2", "dark_berth_3", "dark_berth_4"],
         {},
         _no_traits(),
-        "deadfall_scrubber",
-        "lal_b",
+        "ember_tech",
+        "ross_b",
     ) == []
 
 
@@ -79,7 +137,8 @@ def test_non_source_npc_gets_nothing():
 
 def test_live_map_filters_candidates():
     _all = dict(rumor.askable_topics(
-        ["dark_berth_1"], {}, _no_traits(), "deadfall_scrubber", "lal_b"))
+        ["dark_berth_1"], {}, _no_traits(), "deadfall_scrubber", "lal_b",
+        live={"dark_berth_2": frozenset({("deadfall_scrubber", "lal_b")})}))
     assert _all == {"dark ports": "dark_berth_2"}
     # The scrubber's pair is not live this run — no row.
     _dark = rumor.askable_topics(
@@ -189,15 +248,16 @@ def test_stale_ids_are_skipped_not_raised():
     # path on an old save — knowledge fades, the game doesn't fall
     # over. derelict_line_1 shipped in phase 1 and retired with the
     # one-chain ruling. A stale id satisfies no requires link — only
-    # the real heard opener opens the extension.
+    # the real heard opener opens the extension. ember_tech seats
+    # outside the taking-ships pool, so his rows read exactly.
     _entries = rumor.known_entries(["derelict_line_1", "dark_berth_1"])
     assert [entry.id for entry in _entries] == ["dark_berth_1"]
     assert rumor.askable_topics(
-        ["derelict_line_1"], {}, _no_traits(), "deadfall_scrubber", "lal_b",
+        ["derelict_line_1"], {}, _no_traits(), "ember_tech", "ross_b",
     ) == []
     _rows = dict(rumor.askable_topics(
         ["derelict_line_1", "dark_berth_1"], {}, _no_traits(),
-        "deadfall_scrubber", "lal_b",
+        "ember_tech", "ross_b",
     ))
     assert _rows == {"dark ports": "dark_berth_2"}
 
