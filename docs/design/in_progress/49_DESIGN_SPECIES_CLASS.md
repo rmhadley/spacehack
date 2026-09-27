@@ -1,8 +1,10 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 1 BRIEFED & APPROVED 2026-09-27 — ready for
-`/implement-phase 49.1`. Species layer locked (SETTLED 1/2/3); class
-layer (phase 2) unruled beyond sketches.**
+**Status: PHASE 1 BUILT 2026-09-27 — at the playtest checkpoint (12
+commits, gate 3196 green, reviewer round complete: part-1 blocker
+[trait_screen ironclad drift] fixed, all minors applied, re-review
+clean). Species layer locked (SETTLED 1/2/3 + the 2026-09-27 card
+title revision); class layer (phase 2) unruled beyond sketches.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -119,6 +121,15 @@ starting Armor/HP; the bottom of the card shows the trait name and
 description. No flavor-blurb field — the card carries no new prose
 beyond mechanical trait descriptions.
 
+**Card title revision (user, 2026-09-27, build session):** the right
+pane's header row is the identity line `CHAR - NAME - HOME` (e.g.
+`@ - HUMAN - Earth (Sol)`), painted in the species color; the body
+drops the separate name/home rows. Second revision, same session: the
+exotic home lines lose their flavor clauses (Cygni b (Cygni) /
+Binary Station (Sirius) / Whisper (Lalande) — "the orbital yards" /
+"the Binary Eye" / "the Vault" removed), and the stat block lists
+ALL SIX stats as rows with the Armor/HP row directly under them.
+
 ## SETTLED 3 — 2026-09-27: phase-1 rulings A/B/C (user, verbatim keys)
 
 - **A — hp_bonus is ground HP.** "yes, ground HP. it doesn't change
@@ -133,7 +144,10 @@ beyond mechanical trait descriptions.
 
 ## Phases
 
-- [ ] **1. Species identity layer** — brief below (PROPOSED).
+- [x] **1. Species identity layer** — brief below (APPROVED).
+      BUILT 2026-09-27: 12 commits (audit + 8 build + blocker fix +
+      card revision + minors), gate 3196 green, reviewer round
+      complete. Awaiting playtest.
 - [ ] **2. Class identity layer** — class trait lockdowns (pirate
       kinship / trade lens / rap-sheet sketches), stat/credit refresh,
       class-screen card parity. Not started in phase 1.
@@ -225,6 +239,10 @@ beyond mechanical trait descriptions.
 
 1. Ground max-HP formula copy-pasted between `_player_hp_state` and
    `_configure_new_context` (pre-existing) — the hp fold edits BOTH.
+   (Landed: the shared formula lives in `xp.ground_max_hp_total` —
+   cohesive beside `ground_max_hp_bonus`; the reviewer's round also
+   caught and folded a FOURTH pre-existing copy in
+   `trait_screen._apply_ironclad_hp`.)
 2. Space hit-bonus assembly duplicated between `hit_chance` and
    `_build_hit_chances` (pre-existing sharpshooter/specialist duplication)
    — Momentum would become a third copy-paste.
@@ -332,10 +350,12 @@ species; no balance retunes beyond the locked numbers; no doc-07
 endings work.
 
 **Playtest checkpoint (numbered in-game):**
-1. New game → species screen: cycle all five. Card per species:
-   Martian Armor 2 / HP 29 / STR 12 STA 14; Lalandan HP 22 / STR 5 /
-   REF 16; Cygnian PIL 14 / GUN 12; Sirian GUN 14 / REF 12; Human all
-   11s. Glyph renders in species color; home line under the header.
+1. New game → species screen: cycle all five. Card per species —
+   title `CHAR - NAME - HOME` in species color (flavor-free homes),
+   then all six stats as rows with Armor/HP under them: Martian
+   STR 12 / STA 14 / Armor 2 / HP 29; Lalandan REF 16 / STR 5 /
+   STA 5 / HP 22; Cygnian PIL 14 / GUN 12; Sirian GUN 14 / REF 12;
+   Human all 11s.
 2. Martian start: on-map `@` leaf green; C-screen traits list Sturdy.
 3. Naked ground fight: incoming damage −2 vs pre-build behavior;
    melee hits +2.
