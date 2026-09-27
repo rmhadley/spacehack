@@ -639,3 +639,158 @@ _CLASS_REP tables; no balance retunes beyond the locked numbers.
    the save (vestigial keys).
 8. Guide-diff: Character & Skills species-trait sentence now covers
    classes — record before/after.
+
+## Pre-implementation audit (2026-09-27, code-anchored — phase 2)
+
+Every brief anchor re-verified against the post-phase-1 tree (line
+numbers current at audit time).
+
+**1. Existing classes / modules to extend or reuse.**
+
+- `GameClass` (`data/classes/__init__.py`): `hp_base` field DELETED,
+  `trait_id: str = ""` declared (Species precedent); `core.py`
+  spreads/credits rewritten. `character.starting_stats` drops the hp
+  read → `HudStats(credits, skills)`; `HudStats.hp`/`max_hp` fields
+  die — readers verified VESTIGIAL-ONLY: saveload round-trip
+  (`saveload.py:192-193/463`), debug_session reporting (237/349), and
+  tests (test_hud 166/328, test_debug_session 37, test_origin_traits
+  46, test_ship_purchase 38/229, test_saveload 41/280-281,
+  test_readability 270 — all fixed in the same commit). No HUD render
+  path reads them.
+- `faction._CLASS_REP` (82): table swap only; `starting_reputation`
+  (158) unchanged. `_SPECIES_REP` stays empty.
+- `data/traits/core.py`: `CLASS_TRAITS` sibling of `ORIGIN_TRAITS`
+  (252); `trait_name` (292) resolves the 4th registry (docstring
+  "all three" updated); outside `ALL_TRAITS` so `_qualifying_traits`
+  can never offer them.
+- Grant: `game_loop._configure_new_context` (849) appends
+  `find_class(class_id).trait_id` right after the species trait
+  (858-860) — a fresh character holds exactly two.
+- Pirate smuggler: `ship.smuggler_hold_capacity(owned, ctx=None)`
+  (411) gains the +10 flat term; its three callers
+  (navigation_scan 27/73, _quest_log 579) already pass ctx.
+- Pirate opener: `enemy_fired`/`opener_spent` declared on
+  `SpaceCombatState` (`combat/_types.py:135`) and
+  `GroundCombatState` (`_rules_ground.py:127`), never serialized
+  (fights never save mid-combat — `_loop` contract comment). Funnel
+  points VERIFIED exhaustive: `_ai._enemy_attack` (438) covers the
+  normal enemy turn (:139 caller) AND the space flee reaction
+  (`_rules_space.py:932`); `_ai_ground._fire_enemy_burst` (287)
+  covers enemy actions AND the ground flee reaction (`_try_ground_fire`
+  260→279; `_ground_flee:45` routes through it). Hit leg: ground
+  `_rules_ground.hit_chance` (410) `_hit_bonus` sum; space
+  `_player_hit_bonus` (324) — the ONE assembly (live fire at 340 +
+  preview `_build_hit_chances` 456 both inherit; preview showing the
+  opener bonus is correct). Damage leg: ground volley `damage` (433),
+  explosive `_ground_blast.apply_explosive_enemy_hit` (29 — one
+  `_full_damage` fold; primary AND splash ride it), space `damage`
+  (356) via the `damage_taken_mult` param. Consumption:
+  `_loop._handle_fire` (468) is the ONE attack action in both
+  theaters — a `mark_opener_spent` rules hook (both rules modules,
+  `_rules_hook` dispatch) fires after the volley actually fired
+  (`_max_ap_cost > 0`); refused volleys (no ammo/no target) never
+  burn the opener.
+- Merchant cargo: `ship.effective_max_cargo(spec, owned)` (403)
+  gains optional ctx (the smuggler_hold_capacity precedent). Reader
+  enumeration VERIFIED, slightly WIDER than the brief's list — also
+  `menus/_ship_menu.py` 160/187 (hangar/cargo displays — same drift
+  class, threaded) and `loot.py:670` via `_free_cargo` (inherits the
+  fix); `trade.py` 152/346/395/737/927, `game_flow.py:711`,
+  `hud._cargo_used_max` (228; callers 414/484),
+  `character_screen_stats.py:120`, `mission/_lifecycle.py`
+  17/59/123/183. `_ship_buy` stays catalog-spec (deliberate,
+  base-hull comparison).
+- Merchant prices: `_sell_price` (276) derives from `_unit_price`
+  (251) — the anti-compounding fold: extract the class-free buy core
+  (`_terminal_buy_base`) so −5% buy and +5% sell multiply the
+  attitude chain independently (buy 0.95×core; sell
+  0.75×core×1.05 — above the neutral 0.75; liked stacking
+  0.9025/1.1025 exactly as ruled). NPC surface:
+  `_npc_price_multipliers` (523) — buy/sell derive from base_price
+  independently, both mods fold there (one site per surface).
+  Equipment/ammo/ship prices verified untouched (no other callers of
+  the faction modifier functions).
+- BH evade: ground ONE term in `_rules_ground._player_ground_dodge`
+  (764) — the int `_ai_ground` already receives. SURPRISE vs brief:
+  the dodge assembly exists in THREE places (also
+  `_ground_flee.reaction_volley` :34 and `_ground_render
+  ._ground_evasion` :240) — per "never a second assembly layer" the
+  two siblings REDIRECT to `_player_ground_dodge` (pre-existing debt
+  paid at the touch site; behavior identical — same inputs). Space:
+  `_ai._resolve_enemy_shot` (468) `_dodge` at resolution only;
+  `_find_reposition`/`_ranked_weapons` stay unmodified (AI
+  misjudges the hunter by design).
+- BH missiles: new `ship.effective_missile_capacity(ws, ctx=None)`
+  (×2 with the trait) at EVERY capacity site:
+  `_seed_missile_ammo` (196), `_install_weapon`'s magazine seed
+  (460), `buy_ammo` room (238) + its cargo recalc (250),
+  `install_stored_equipment`'s storage clamp (638),
+  `total_ammo_cargo` (172 — doubled racks book doubled reserve),
+  `hud_combat._render_weapon_row` ammo readout (267),
+  `menus/_loadout._weapon_detail` (66). `__post_init__` has no ctx
+  (base seed stands for legacy fixtures); fresh-ship moments top off
+  via new `ship.top_off_missile_magazines(owned, ctx)` (fill to
+  effective, only ever increases) called from
+  `game_flow._new_owned_ship` (669 — spaceport buys incl. missile
+  hulls). Starter hulls carry NO missiles (verified: `starter`
+  start_weapons = light_laser only) so new-game setup needs no
+  top-off; `dev_mode.py:340`'s frigate grant is pre-ctx harness —
+  stays base.
+- Class screen: `ui.class_split_frame(species_id, selected)`
+  mirrors `species_split_frame` (195) + `_species_card_rows` (175);
+  `_run_class_pick(context, species_id)` in input_helpers mirrors
+  `_run_species_pick` (142) via `run_dynamic_screen`;
+  `title_flow.py:55` swaps `_run_pick(context, ui.class_menu())` →
+  the new runner; generic menu fallback + confirm screen unchanged.
+  Viewport math: 6 stat rows + Armor/HP + ONE rep row + trait name +
+  2-line description = 11 = `pygame_split.MAX_VISIBLE_ROWS` ✓ (the
+  SETTLED 8 resolution). Rep row via
+  `faction.starting_reputation(species_id, class_id)` minus
+  HIDDEN_FACTIONS.
+- Guide: `data/guide/__init__.py:461-463` — the species-trait
+  sentence ("Every species grants one permanent trait at creation…")
+  becomes species AND class; :492-493 already carries Fast Learner.
+
+**2. Three potential duplication hotspots.**
+
+1. Ground dodge triple-assembly (pre-existing; `_player_ground_dodge`
+   + `_ground_flee` + `_ground_render`) — the BH term would drift
+   across three copies.
+2. Missile capacity: `ws.ammo_capacity` read at 7+ sites — the
+   ×2 would paste `* 2 if trait` per site.
+3. Price modifiers: the class mods pasted at 4+ price sites instead
+   of one helper + one fold per surface (terminal core / NPC
+   multipliers) — the exact anti-compounding trap the brief pins.
+
+**3. DRY strategy per hotspot.**
+
+1. Fold the two sibling assemblies to `_player_ground_dodge` in the
+   same commit as the BH term (like-for-like, inputs identical).
+2. One `effective_missile_capacity(ws, ctx)` helper; every site reads
+   it (the advisor enumeration is the checklist).
+3. xp.py helpers (`merchant_buy_price_mod`, `merchant_sell_price_mod`,
+   `bounty_hunter_evade_bonus`, `pirate_opener_armed` + the two
+   tunable constants) — the ace_pilot pattern; combat sites read
+   helpers, never inline `has_trait` conditionals. Guardrails:
+   CLASS_TRAITS stays a dict registry; the class catalog stays a
+   frozen tuple; state tables over conditional logic.
+
+**Budget note (forecast, not a placement driver):** `_rules_ground`
+989/1000 and `_rules_space` 972/1000 at audit — the opener + BH terms
+land in both; if either crosses, the in-commit split follows the
+phase-1 `_ground_blast` precedent. `trade.py` 931 and `ship.py` 716
+have headroom.
+2. Martian Pirate: Armor 2 / HP 33 (14+2 sta → wait: martian sta 14
+   + pirate 0 = 14 → 20+7+2 = 29; stats show combined STR 16).
+3. Start each class: C screen lists BOTH traits (species + class).
+4. Pirate: starter ship smuggler hold 10 (trade screen); first fight
+   — opening attack shows the bonus hit/damage; second fight after
+   an enemy shot lands first — no bonus.
+5. Merchant: starter ship cargo +10; terminal prices −5%/+5% vs a
+   non-merchant save; NPC trader prices likewise.
+6. BH: enemy shots miss ~5% more (both theaters); a fresh missile
+   ship's racks seed double.
+7. Save/quit → Continue: both traits intact; hull numbers gone from
+   the save (vestigial keys).
+8. Guide-diff: Character & Skills species-trait sentence now covers
+   classes — record before/after.
