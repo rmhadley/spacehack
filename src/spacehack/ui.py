@@ -123,27 +123,17 @@ def _species_start_stats(spec) -> dict[str, int]:
     return values
 
 
-def species_stats_line(spec) -> str:
-    """The card's stat line: absolute values, no +/- (SETTLED 2).
-
-    All six equal reads "All stats N"; otherwise the deviating stats
-    are named with their values and the shared base reads "rest 10"
-    (e.g. Martian: "Strength 12, Stamina 14, rest 10"). If the two
-    base constants ever diverge, the "rest" clause drops out and
-    every stat is named — never a mislabeled row.
-    """
-    from .character import GROUND_STAT_BASE, PILOT_SKILL_BASE
+def species_stat_rows(spec) -> tuple:
+    """The card's six stat rows: absolute values, no +/- (SETTLED 2,
+    user layout revision 2026-09-27 — every stat listed, one per row)."""
+    from . import pygame_split
     values = _species_start_stats(spec)
-    labeled = []
-    for field, label, container in _SPECIES_STAT_ORDER:
-        base = PILOT_SKILL_BASE if container == "skill" else GROUND_STAT_BASE
-        labeled.append((label, values[field], base))
-    if len({value for _label, value, _base in labeled}) == 1:
-        return f"All stats {labeled[0][1]}"
-    named = [f"{label} {value}" for label, value, base in labeled if value != base]
-    bases = {base for _label, _value, base in labeled}
-    rest = f", rest {next(iter(bases))}" if len(bases) == 1 else ""
-    return ", ".join(named) + rest
+    return tuple(
+        pygame_split.SplitRow(
+            f"{label} {values[field]}", "", "", "", selectable=False,
+        )
+        for field, label, _container in _SPECIES_STAT_ORDER
+    )
 
 
 def _species_start_row(spec):
@@ -169,9 +159,9 @@ def _species_start_row(spec):
 
 def _species_card_rows(spec) -> tuple:
     """The right pane's card body. The header row carries the identity
-    (``glyph - NAME - home``, in the species color); the body opens
-    straight into the numbers (doc 49 SETTLED 2, user title revision
-    2026-09-27)."""
+    (``glyph - NAME - home``, in the species color); the body lists the
+    six stats with Armor/HP under them, then the trait block at the
+    bottom (doc 49 SETTLED 2 + the 2026-09-27 layout revisions)."""
     from . import pygame_split
 
     def _info(label, *, fg=None):
@@ -179,12 +169,7 @@ def _species_card_rows(spec) -> tuple:
             label, "", "", "", selectable=False, fg=fg,
         )
 
-    rows = [
-        pygame_split.section_header("STARTING STATS"),
-        _info(species_stats_line(spec)),
-        _species_start_row(spec),
-        pygame_split.section_header("TRAIT"),
-    ]
+    rows = [*species_stat_rows(spec), _species_start_row(spec)]
     from .data.traits.core import ORIGIN_TRAITS
     trait = ORIGIN_TRAITS[spec.trait_id]
     rows.append(_info(trait.name, fg=COLOR_OPTION_HIGHLIGHT))

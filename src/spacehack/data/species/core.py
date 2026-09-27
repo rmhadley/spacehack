@@ -42,10 +42,10 @@ SPECIES: tuple[Species, ...] = (
     Species(
         id="cygnian",
         name="Cygnian",
-        description="Cygni b - the orbital yards (Cygni)",
+        description="Cygni b (Cygni)",
         glyph="&",
         color=(170, 130, 230),
-        home="Cygni b - the orbital yards (Cygni)",
+        home="Cygni b (Cygni)",
         trait_id="momentum",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=2, piloting=4, engineering=0),
@@ -54,12 +54,12 @@ SPECIES: tuple[Species, ...] = (
     Species(
         id="sirian",
         name="Sirian",
-        description="Binary Station - the Binary Eye (Sirius)",
+        description="Binary Station (Sirius)",
         # U+2666: the CP437 card-suit diamond (procedurally patched by
         # the engine) — NOT U+25C6, which is not on the bitmap tilesheet.
         glyph="\u2666",
         color=(185, 215, 245),
-        home="Binary Station - the Binary Eye (Sirius)",
+        home="Binary Station (Sirius)",
         trait_id="longshot",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=4, piloting=0, engineering=0),
@@ -68,10 +68,10 @@ SPECIES: tuple[Species, ...] = (
     Species(
         id="lalandan",
         name="Lalandan",
-        description="Whisper - the Vault (Lalande)",
+        description="Whisper (Lalande)",
         glyph="Q",
         color=(255, 130, 195),
-        home="Whisper - the Vault (Lalande)",
+        home="Whisper (Lalande)",
         trait_id="nimble",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=0, piloting=0, engineering=0),
