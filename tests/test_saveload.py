@@ -252,6 +252,27 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_both_creation_traits_survive_round_trip(self, monkeypatch, tmp_path):
+        """Doc 49 phase 2: a fresh character's exactly-two traits (species'
+        + class') persist through save/quit/Continue."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(7)
+
+        ctx = _build_test_ctx()
+        ctx.player_traits = ["fast_learner", "merchant"]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.player_traits == ["fast_learner", "merchant"]
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_parse_counters_defaults_ground_damage_taken_to_zero(self):
         """A pre-doc-53 save (no ground tally key) loads as 0; the
         railgun/focused counters (a pre-existing silent reset, found

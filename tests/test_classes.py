@@ -63,9 +63,15 @@ def test_every_class_spread_matches_settled_rulings():
 
 
 def test_every_class_spends_exactly_the_six_point_budget():
-    """SETTLED 4: the class layer mirrors the species +6 pool."""
-    for cid, spread in _EXPECTED_SPREADS.items():
-        assert sum(spread) == 6, f"{cid} stat budget: got {sum(spread)}"
+    """SETTLED 4: the class layer mirrors the species +6 pool (read
+    off the live spec, not the fixture above)."""
+    for spec in list_classes():
+        spent = (
+            spec.skill_bonus.gunnery + spec.skill_bonus.piloting
+            + spec.skill_bonus.engineering + spec.ground_bonus.reflexes
+            + spec.ground_bonus.strength + spec.ground_bonus.stamina
+        )
+        assert spent == 6, f"{spec.id} stat budget: got {spent}"
 
 
 def test_credits_match_settled_rulings():
@@ -112,3 +118,78 @@ def test_human_combined_start_values_per_class():
     assert (skills.gunnery, skills.piloting, skills.engineering) == (13, 13, 11)
     ground = starting_ground_stats("human", "bounty_hunter")
     assert (ground.reflexes, ground.strength, ground.stamina) == (13, 11, 11)
+
+
+# ---------------------------------------------------------------------------
+# Class trait layer (doc 49 phase 2, step 2) — registry + two-trait grant
+# ---------------------------------------------------------------------------
+
+from src.spacehack.data.traits.core import ALL_TRAITS, CLASS_TRAITS, trait_name
+
+
+# The user-approved card wording, verbatim (SETTLED 5/6/7 + brief).
+_EXPECTED_DESCRIPTIONS: dict[str, str] = {
+    "pirate": "+10 smuggler's hold on every ship\nFirst attack: +hit, +damage",
+    "merchant": "+10 cargo space on every ship\n+5% sell, -5% buy at stations",
+    "bounty_hunter": (
+        "+5% evade in space and ground combat\nMissile racks hold double"
+    ),
+}
+
+
+def test_class_traits_registry_names_and_descriptions_verbatim():
+    assert set(CLASS_TRAITS) == {"pirate", "merchant", "bounty_hunter"}
+    for tid, desc in _EXPECTED_DESCRIPTIONS.items():
+        trait = CLASS_TRAITS[tid]
+        assert trait.name == find_class(tid).name, tid
+        assert trait.description == desc, tid
+
+
+def test_class_trait_ids_match_their_class_spec():
+    for spec in list_classes():
+        assert spec.trait_id == spec.id
+
+
+def test_trait_name_resolves_class_traits():
+    assert trait_name("pirate") == "Pirate"
+    assert trait_name("merchant") == "Merchant"
+    assert trait_name("bounty_hunter") == "Bounty Hunter"
+
+
+def test_class_traits_never_appear_in_the_milestone_pool():
+    milestone_ids = {t.id for t in ALL_TRAITS}
+    assert not (set(CLASS_TRAITS) & milestone_ids)
+
+
+def test_two_trait_creation_grant_per_class_and_species_sample():
+    """Every fresh character holds exactly two traits: species' + class'."""
+    from types import SimpleNamespace
+
+    from src.spacehack import message_log, world
+    from src.spacehack.data.species import find_species
+    from src.spacehack.game_context import GameContext
+    from src.spacehack.game_loop import _configure_new_context
+    from src.spacehack.hud import HudStats
+
+    def _fresh_ctx(species_id, class_id):
+        _tiles = [[world.Tile("floor", ".", True, (200, 200, 200), (0, 0, 0))]
+                  for _ in range(3)]
+        return GameContext(
+            context=SimpleNamespace(),
+            character_info={"species_id": species_id, "class_id": class_id},
+            log=message_log.MessageLog(capacity=4),
+            game_map=world.GameMap(width=1, height=3, tiles=_tiles, entities=[]),
+            player=world.Entity(
+                char="@", fg=(255, 255, 255),
+                pos=world.Position(0, 1), name="Player",
+            ),
+            stats=HudStats(credits=50),
+        )
+
+    for species_id in ("human", "martian", "lalandan"):
+        for class_id in ("pirate", "merchant", "bounty_hunter"):
+            ctx = _fresh_ctx(species_id, class_id)
+            _configure_new_context(ctx, species_id, class_id, False)
+            assert ctx.player_traits == [
+                find_species(species_id).trait_id, class_id,
+            ], f"{species_id} x {class_id}"

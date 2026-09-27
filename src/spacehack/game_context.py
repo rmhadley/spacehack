@@ -224,7 +224,7 @@ class GameContext:
       they return ``(new_map, new_player)`` and the
       ``_run_game`` callers do the actual reassignment.)
 
-    * **Object mutation** (``ctx.stats.hp -= X``,
+    * **Object mutation** (``ctx.ground_hp -= X``,
       ``ctx.log.add(...)``) is the normal mutation pattern:
       any code path can call methods on the objects
       ``ctx`` points to without reassigning the field.

@@ -853,11 +853,15 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
         runtime.game_context = ctx
     ctx.faction_reputation = faction.starting_reputation(species_id, class_id)
     ctx.ground_stats = character.starting_ground_stats(species_id, class_id)
-    # Origin trait (doc 49): the species' trait is granted at creation,
-    # before any play — never offered at milestones.
+    # Creation trait grants (doc 49): the species' trait and the class'
+    # trait land together at new-game setup, before any play — never
+    # offered at milestones. A fresh character holds exactly two.
     _species_trait = find_species(species_id).trait_id
     if _species_trait:
         ctx.player_traits.append(_species_trait)
+    _class_trait = find_class(class_id).trait_id
+    if _class_trait:
+        ctx.player_traits.append(_class_trait)
     from .xp import ground_max_hp_total as _ground_max_hp_total
     ctx.ground_max_hp = _ground_max_hp_total(ctx)
     ctx.ground_hp = ctx.ground_max_hp

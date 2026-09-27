@@ -289,14 +289,60 @@ ORIGIN_TRAITS: dict[str, "Trait"] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Class traits — granted by CLASS at character creation (doc 49 phase 2,
+# SETTLED 4 item 3). Named the class name; descriptions are the
+# user-approved two-line card budget (36-char wrap). Same rules as
+# origin traits: outside ALL_TRAITS, never offered at milestones;
+# ``game_loop._configure_new_context`` grants the class' ``trait_id``
+# right after the species' — a fresh character holds exactly two.
+# ---------------------------------------------------------------------------
+
+CLASS_TRAITS: dict[str, "Trait"] = {
+    t.id: t
+    for t in (
+        Trait(
+            id="pirate",
+            name="Pirate",
+            description=(
+                "+10 smuggler's hold on every ship\n"
+                "First attack: +hit, +damage"
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="merchant",
+            name="Merchant",
+            description=(
+                "+10 cargo space on every ship\n"
+                "+5% sell, -5% buy at stations"
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="bounty_hunter",
+            name="Bounty Hunter",
+            description=(
+                "+5% evade in space and ground combat\n"
+                "Missile racks hold double"
+            ),
+            counters=(),
+        ),
+    )
+}
+
+
 def trait_name(trait_id: str) -> str:
-    """The display name for a trait id, across all three registries."""
+    """The display name for a trait id, across all four registries."""
     _perk = QUEST_PERKS.get(trait_id)
     if _perk is not None:
         return _perk.name
     _origin = ORIGIN_TRAITS.get(trait_id)
     if _origin is not None:
         return _origin.name
+    _class = CLASS_TRAITS.get(trait_id)
+    if _class is not None:
+        return _class.name
     for _trait in ALL_TRAITS:
         if _trait.id == trait_id:
             return _trait.name

@@ -94,7 +94,8 @@ def test_creation_grant_lands_the_species_trait():
     for spec in list_species():
         ctx = _fresh_ctx(spec.id)
         _configure_new_context(ctx, spec.id, "merchant", False)
-        assert ctx.player_traits == [spec.trait_id], spec.id
+        # Phase 2: the class trait lands right after the species'.
+        assert ctx.player_traits == [spec.trait_id, "merchant"], spec.id
         assert ctx.faction_reputation  # sanity: rep seeded in the same pass
 
 

@@ -22,6 +22,9 @@ class GameClass:
         id: registry key, e.g. ``\"pirate\"``.
         name: display name shown in the class-pick menu.
         description: one-line flavour line under the name.
+        trait_id: the class trait granted at creation (doc 49 SETTLED 4,
+            item 3) — a fresh character holds exactly two traits: the
+            species' and the class'. Empty string means no class trait.
         credits: starting credits this class grants on a new game.
             Kept far below the cheapest ship (Scout, 5,000$) so
             turn-1 ship purchases are impossible; differentiated
@@ -38,6 +41,7 @@ class GameClass:
     id: str
     name: str
     description: str
+    trait_id: str = ""
     credits: int = 50   # neutral default; classes set their own start cash
     skill_bonus: PilotSkills = PilotSkills()
     ground_bonus: GroundStats = GroundStats()
