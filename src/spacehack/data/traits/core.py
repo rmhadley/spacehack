@@ -255,34 +255,28 @@ ORIGIN_TRAITS: dict[str, "Trait"] = {
         Trait(
             id="fast_learner",
             name="Fast Learner",
-            description="+1 skill point per level (6 instead of 5)",
+            description="+1 skill point per level",
             counters=(),
         ),
         Trait(
             id="sturdy",
             name="Sturdy",
-            description=(
-                "+2 armor defense and +2 melee damage, even with "
-                "nothing equipped"
-            ),
+            description="+2 armor, +2 melee damage",
             counters=(),
         ),
         Trait(
             id="momentum",
             name="Momentum",
             description=(
-                "+5% hit chance in space combat; a kill refunds that "
-                "volley's AP cost"
+                "+5% chance to hit in space combat\n"
+                "Any kill refunds all AP spent"
             ),
             counters=(),
         ),
         Trait(
             id="longshot",
             name="Longshot",
-            description=(
-                "+1 max range on ranged weapons, ground and space; "
-                "melee reach unchanged"
-            ),
+            description="+1 max range on all ranged weapons",
             counters=(),
         ),
         Trait(

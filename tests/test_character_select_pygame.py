@@ -256,8 +256,10 @@ class TestSpeciesSplitPicker:
     def test_card_bottom_shows_trait_name_and_description(self):
         labels = [row.label for row in ui.species_split_frame(1).right_rows]
         assert "Sturdy" in labels
-        joined = " ".join(labels)
-        assert "+2 armor defense and +2 melee damage" in joined
+        assert "+2 armor, +2 melee damage" in labels  # user-verbatim, one line
+        momentum = [row.label for row in ui.species_split_frame(2).right_rows]
+        assert "+5% chance to hit in space combat" in momentum
+        assert "Any kill refunds all AP spent" in momentum  # line two
 
     def test_card_rows_fit_the_split_viewport(self):
         for index in range(5):
