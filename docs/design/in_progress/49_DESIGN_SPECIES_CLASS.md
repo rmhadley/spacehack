@@ -1,8 +1,8 @@
 # DESIGN: Player species & class identity
 
-**Status: IN REFINEMENT 2026-09-27 — species layer fully locked
-(SETTLED 1/2); phase 1 open on three rulings, then its brief. Class
-layer (phase 2) unruled beyond sketches.**
+**Status: IN REFINEMENT 2026-09-27 — species layer locked (SETTLED
+1/2/3); phase-1 Implementation brief PROPOSED (awaiting approval);
+class layer (phase 2) unruled beyond sketches.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -119,35 +119,129 @@ starting Armor/HP; the bottom of the card shows the trait name and
 description. No flavor-blurb field — the card carries no new prose
 beyond mechanical trait descriptions.
 
+## SETTLED 3 — 2026-09-27: phase-1 rulings A/B/C (user, verbatim keys)
+
+- **A — hp_bonus is ground HP.** "yes, ground HP. it doesn't change
+  hull hp." Species hp_bonus folds into the ground max-HP formula;
+  `HudStats`/hull HP no longer reads it (ship HP becomes class-only).
+- **B — species never changes starting rep.** "Let's set all species
+  to have the same rep start as human. species shouldn't change your
+  starting rep." `faction._SPECIES_REP` empties (Martian's
+  militia +10 / pirate −10 is removed). Class rep tables unchanged.
+- **C — zero existing saves.** "assume there are 0 existing saves." No
+  migration, no retro-grant; new games only.
+
 ## Phases
 
-- [ ] **1. Species identity layer** — five species specs (+glyph,
-      color, home, trait), third trait registry + creation grant, five
-      trait hooks, char/color system (health-tint fold + player-id
-      refactor), species-choice screen revamp. Brief pending rulings
-      A–C below.
+- [ ] **1. Species identity layer** — brief below (PROPOSED).
 - [ ] **2. Class identity layer** — class trait lockdowns (pirate
       kinship / trade lens / rap-sheet sketches), stat/credit refresh,
-      class-screen card parity, new-species rep tables. Not started in
-      phase 1.
+      class-screen card parity. Not started in phase 1.
+
+## Phase 1 — Implementation brief (PROPOSED 2026-09-27)
+
+**Scope (files + hook points):**
+
+1. *Species data model* — `data/species/` (`__init__.py` + `core.py`):
+   extend `Species` with `glyph` (default `"@"`), `color`,
+   `home: str`, `trait_id: str = ""`; rewrite stats per SETTLED 1's
+   table; add cygnian / sirian / lalandan entries. New species
+   `description` reuses the `home` string — no new prose. Neutralize
+   `faction._SPECIES_REP` per SETTLED 3-B.
+2. *Trait layer* — `data/traits/core.py`: `ORIGIN_TRAITS` registry
+   (sibling of `QUEST_PERKS`): fast_learner, sturdy, momentum,
+   longshot, nimble; `trait_name` resolves all three registries;
+   milestone screens never offer them (outside `ALL_TRAITS`).
+   Creation flow grants `find_species(id).trait_id` into
+   `ctx.player_traits`.
+3. *Trait hooks* — Fast Learner: `xp.py` level-up grant 5→6 via a
+   ctx-aware helper (ace_pilot pattern). Sturdy: +2 into
+   `combat/_rules_ground.py::_armor_defense_total`; +2 melee via the
+   existing `melee_bonus` param assembled at the player-volley caller
+   (`ground_damage_raw` itself unchanged). Momentum: +5 space hit
+   (`xp.py` bonus-helper pattern, read at the space hit calc) + kill
+   refund of the killing volley's AP (`combat/_space_kills.py`).
+   Longshot: species-aware player max_range helper (+1 ranged only)
+   used by every player range check + HUD range readout (enemy
+   weapons untouched); +1 space-weapon range. Nimble: +20 twentieths
+   in `_starting_ap_gain_twentieths`'s existing bonus sum.
+4. *hp_bonus fold (SETTLED 3-A)* — ground max-HP formula
+   (`_rules_ground.py::_player_hp_state` + `game_loop.py:847`)
+   adds species hp_bonus; `character.starting_stats` HudStats.hp
+   drops the species term; `character_screen.py` species-bonus lines
+   updated to match.
+5. *Char/color system* — one helper reads
+   `(glyph, color)` off the species spec; the hardcoded `'@'`-white
+   player-creation sites read it (`game_interactions.py` 265/380,
+   `city_interiors.py` 125/162/207, `dungeon_extensions.py` 806,
+   `saveload_maps.py` 456, `game_loop.py` 806, `game_flow.py` 971
+   area). `hud.ground_player_fg` healthy state = species color
+   (signature takes the healthy color; amber/critical unchanged).
+   Player-id refactor: the `char == '@'` filters in `saveload_maps`,
+   `city_interiors`, `dungeon_extensions`, `game_flow` identify the
+   player by `name == "Player"`. Space-mode ship `@` cyan untouched.
+6. *Species choice screen* — `ui.py::species_menu` host: left cycling
+   options (existing menu mechanics), right card per SETTLED 2 —
+   name / glyph-in-color / home line / six stats as absolutes
+   (species-only, class adds later) / Armor + ground HP row / trait
+   name + description bottom. Class screen unchanged.
+
+**Build order (atomic commits):** (1) species data + rep neutral; (2)
+trait registry + creation grant; (3) ground hooks (sturdy, nimble) +
+hp fold; (4) space hooks (momentum, longshot); (5) xp hook (fast
+learner); (6) char/color system + player-id refactor; (7) screen
+revamp; (8) guide review.
+
+**Binding rulings:** SETTLED 1's table verbatim (values tunable in
+playtest, shapes not); +6 pool; `♦` U+2666 not `◆`; melee max_range
+untouched; alarms amber/red universal; SETTLED 3 A/B/C; traits
+creation-granted, zero-save assumption.
+
+**Required tests (sabotage-proven pins):** per-species starting stats
+(all five, exact table values); creation grant lands the species
+trait; milestone screens never offer origin traits; Fast Learner 6-vs-5
+level-up; Sturdy naked-armor +2 and melee +2; Momentum hit +5 + kill
+refund; Longshot ranged +1 (melee and enemy ranges unchanged); Nimble
+100-vs-80 twentieths; `ground_player_fg` healthy=species color with
+universal alarms; save/load roundtrip for `&`/`Q`/`♦` glyphs
+(player-id refactor pin); identical `starting_reputation` across all
+five species; species menu order + card render (fake-pygame menu
+state).
+
+**Stop point:** no class anything (data, traits, screen, rep tables);
+no flavor prose beyond mechanical trait descriptions; no additional
+species; no balance retunes beyond the locked numbers; no doc-07
+endings work.
+
+**Playtest checkpoint (numbered in-game):**
+1. New game → species screen: cycle all five. Card per species:
+   Martian Armor 2 / HP 29 / STR 12 STA 14; Lalandan HP 22 / STR 5 /
+   REF 16; Cygnian PIL 14 / GUN 12; Sirian GUN 14 / REF 12; Human all
+   11s. Glyph renders in species color; home line under the header.
+2. Martian start: on-map `@` leaf green; C-screen traits list Sturdy.
+3. Naked ground fight: incoming damage −2 vs pre-build behavior;
+   melee hits +2.
+4. Wound check on two species: below half → amber, below quarter →
+   red (species color only at healthy).
+5. Lalandan: 5 AP in ground combat; 3 pack slots.
+6. Cygnian: space volley hit +5% vs same-stats other species; a kill
+   costs no AP that volley.
+7. Sirian: rifle max range +1 in the HUD readout; melee range still 1.
+8. Human: level-up grants 6 skill points.
+9. Save/quit → Continue as Cygnian (`&`) and Lalandan (`Q`): glyph,
+   position, traits intact.
+10. Space mode: ship `@` cyan on every species.
+11. Rep: identical starting standings for all five (Martian no longer
+    militia +10 / pirate −10).
+12. Guide-diff: character-creation guide section reviewed — species
+    list updated or deliberately unchanged; record before/after.
 
 ## Open questions
 
-1. **(phase 1, ruling A) Martian hp_bonus semantics** — hp_bonus
-   today feeds only the cosmetic HUD/ship HP (`character.py:112`); the
-   locked table's 29-ground-HP math requires it in the ground max-HP
-   formula (`20 + stamina//2 + …`). Lean: ground HP only (species
-   hp_bonus leaves ship HP; ship HP becomes class-only).
-2. **(phase 1, ruling B) New-species rep tables** — Cygnian/Sirian/
-   Lalandan have none designed. Lean: neutral defaults (no
-   adjustments) this phase; design rep identity with the phase-2 class
-   pass.
-3. **(phase 1, ruling C) Existing saves** — species traits granted at
-   creation only, so current characters keep what they have? Note:
-   ruling A's formula fold gives old Martians +2 ground HP on load
-   either way (fix-forward). A retro-grant migration is one line if
-   preferred.
-4. **(phase 2) Pirate-class kinship** — sketch exists (trait crosses
-   the hostility threshold); shape unruled.
-5. **(phase 2) Starting kits / class-locked gear** — in scope here or
+1. **(phase 2) Pirate-class kinship** — sketch exists (trait crosses
+   the hostility threshold — pirate ships don't engage at "disliked",
+   boarded pirate crews don't aggro until you act); shape unruled.
+2. **(phase 2) Starting kits / class-locked gear** — in scope here or
    with trade? Unruled.
+3. **(phase 2) Class stat/credit refresh + class-screen card parity**
+   — the class screen keeps the old layout until phase 2.
