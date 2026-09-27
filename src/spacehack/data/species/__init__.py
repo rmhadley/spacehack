@@ -22,8 +22,16 @@ class Species:
         id: registry key, e.g. ``\"human\"``.
         name: display name shown in the species-pick menu.
         description: one-line flavour line under the name.
-        hp_bonus: additive HP bonus granted by this species on top
-            of the class's :attr:`spacehack.data.classes.GameClass.hp_base`.
+        glyph: on-map player character (doc 49: ``@`` for the
+            human-adjacent bodies; a distinct char for the exotics).
+        color: the glyph's healthy-state color — replaces only the
+            healthy tint of the on-map health gradient; wounded amber
+            and critical red stay universal.
+        home: home planet/system line shown on the species card.
+        trait_id: the origin trait granted at character creation
+            (doc 49; resolved via :data:`spacehack.data.traits.core.ORIGIN_TRAITS`).
+        hp_bonus: additive GROUND HP bonus (doc 49 SETTLED 3-A) folded
+            into the ground max-HP formula; hull HP is class-only.
         skill_bonus: per-skill additive bonuses added at character
             creation (see :func:`spacehack.character.starting_pilot_skills`).
         ground_bonus: per-stat additive bonuses for ground combat
@@ -32,6 +40,10 @@ class Species:
     id: str
     name: str
     description: str
+    glyph: str = "@"
+    color: tuple[int, int, int] = (255, 255, 255)
+    home: str = ""
+    trait_id: str = ""
     hp_bonus: int = 0
     skill_bonus: PilotSkills = PilotSkills()
     ground_bonus: GroundStats = GroundStats()

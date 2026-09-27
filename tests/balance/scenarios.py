@@ -263,9 +263,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         seed=20260926,
         # Measured (landed row, 2026-09-25): 1.00 / 8.24 HP (29%) /
         # 0 rounds — the melee-control cost spread vs the pistol pair.
+        # Re-measured 2026-09-27 under doc 49's locked human spread
+        # (all six 11, was REF+2/STA+2): 1.00 / 8.64 / 0 — the cost
+        # spread holds; ceiling re-landed with the same slack.
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=8.5,
+            damage_taken_ceiling=8.9,
         ),
     ),
     BalanceScenario(

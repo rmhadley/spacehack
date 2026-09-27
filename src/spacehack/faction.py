@@ -71,14 +71,12 @@ _DEFAULT_REP: dict[str, int] = {
     "consortium": -100,
 }
 
-# Species adjustments (added on top of defaults + class).
-_SPECIES_REP: dict[str, dict[str, int]] = {
-    "human": {},  # humans get no faction adjustments
-    "martian": {
-        "militia": +10,   # Martians serve in system patrols
-        "pirate": -10,     # Mariner Valley raids
-    },
-}
+# Species adjustments: EMPTY by ruling (doc 49 SETTLED 3-B, 2026-09-27):
+# "species shouldn't change your starting rep" — species is biology, not
+# allegiance; every species starts at the same standings. Starting rep is
+# computed from defaults + class only. Kept as a table (not deleted) so
+# the formula and its docstring stay intact.
+_SPECIES_REP: dict[str, dict[str, int]] = {}
 
 # Class adjustments (added on top of defaults + species).
 _CLASS_REP: dict[str, dict[str, int]] = {
@@ -165,8 +163,11 @@ def starting_reputation(species_id: str, class_id: str) -> dict[str, int]:
 
         _DEFAULT_REP[faction] + species_adjustment + class_adjustment
 
-    clamped to [-100, 100].  Unrecognised species/class ids fall
-    through to zero adjustments (default starting rep).
+    clamped to [-100, 100]. The species table is empty (doc 49
+    SETTLED 3-B — species never adjusts starting rep), so the result
+    varies by class only; the species parameter stays for signature
+    stability. Unrecognised species/class ids fall through to zero
+    adjustments (default starting rep).
     """
     sp_adj: dict[str, int] = _SPECIES_REP.get(species_id, {})
     cl_adj: dict[str, int] = _CLASS_REP.get(class_id, {})

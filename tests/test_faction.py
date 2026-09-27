@@ -66,29 +66,23 @@ class TestGetAttitude:
 # Computed from: _DEFAULT_REP + _SPECIES_REP[species] + _CLASS_REP[class]
 # clamped to [-100, 100]. Doc 48 phase 2: civilian is retired;
 # consortium starts −100 for every combo (no species/class rows).
+# Doc 49 SETTLED 3-B: _SPECIES_REP is empty — martian's old militia
+# +10 / pirate −10 rows are gone, so every species shares the human
+# numbers for a given class.
+_HUMAN_CLASS_ROWS: dict[str, dict[str, int]] = {
+    "pirate": {
+        "pirate": -70, "merchant": -10, "militia": 30, "consortium": -100,
+    },
+    "merchant": {
+        "pirate": -90, "merchant": 10, "militia": 55, "consortium": -100,
+    },
+    "bounty_hunter": {
+        "pirate": -100, "merchant": 5, "militia": 65, "consortium": -100,
+    },
+}
 _EXPECTED_STARTING_REP: dict[str, dict[str, dict[str, int]]] = {
-    "human": {
-        "pirate": {
-            "pirate": -70, "merchant": -10, "militia": 30, "consortium": -100,
-        },
-        "merchant": {
-            "pirate": -90, "merchant": 10, "militia": 55, "consortium": -100,
-        },
-        "bounty_hunter": {
-            "pirate": -100, "merchant": 5, "militia": 65, "consortium": -100,
-        },
-    },
-    "martian": {
-        "pirate": {
-            "pirate": -80, "merchant": -10, "militia": 40, "consortium": -100,
-        },
-        "merchant": {
-            "pirate": -100, "merchant": 10, "militia": 65, "consortium": -100,
-        },
-        "bounty_hunter": {
-            "pirate": -100, "merchant": 5, "militia": 75, "consortium": -100,
-        },
-    },
+    "human": _HUMAN_CLASS_ROWS,
+    "martian": _HUMAN_CLASS_ROWS,
 }
 
 
