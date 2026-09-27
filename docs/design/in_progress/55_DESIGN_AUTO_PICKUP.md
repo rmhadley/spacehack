@@ -158,10 +158,14 @@ design. No GameContext / save-format changes anywhere in this arc.
 8. **(2026-09-27, user, verbatim)** "I'd prefer to keep the P teaching in the tutorial. Can we
    make the tutorial jack drop things that auto pickup and don't auto pickup? maybe we can teach
    both?" — Crimson Jack's drop is split so the tutorial teaches BOTH verbs: his cargo stays
-   walk-over salvage (auto-class), and he gains one guaranteed P-only drop (a Light Laser,
-   carried on his spec and honored by the shared kill-drop path — data-driven, no tutorial
-   special-case). The `loot_dropped` prompt teaches both; the beat still completes only when no
-   loot remains.
+   walk-over salvage (auto-class), and he gains one guaranteed P-only weapon drop carried on his
+   spec and honored by the shared kill-drop path — data-driven, no tutorial special-case.
+   Refinement, same day (verbatim): "It's the tutorial... let's make it drop a med laser. teach
+   the user about ship upgrades." — the weapon is a **Medium Laser** (`medium_laser` in
+   data/weapons/lasers.py:17), deliberately a tier above the starter Light Lasers: the drop's
+   second lesson is that loot can UPGRADE your ship, with the prompt pointing at the Loadout
+   screen to fit it. The `loot_dropped` prompt teaches both verbs; the beat still completes only
+   when no loot remains.
 
 ## Open questions
 
@@ -215,18 +219,22 @@ resolved by SETTLED 4 and 5–6 respectively on 2026-09-27.
   loot.py:545); at-cap branch untouched. Verified blast radius: one caller (the P chain,
   loot.py:534).
 - `src/spacehack/tutorial.py:138-143` + `data/enemies/pirates.py` (Crimson Jack's spec) —
-  **teach both verbs (SETTLED 8).** Jack's natural cargo drop stays walk-over salvage; his spec
-  gains a guaranteed weapon drop (a Light Laser — the spare the pre-fight coaching primes)
-  honored by `_spawn_loot_drops` (combat/_actions.py:335) using the existing ship-weapon loot
-  payload shape (`loot._ship_weapon_loot_entry`, loot.py:207): one P-only entity at the wreck,
-  data-driven, no tutorial special-case. The `loot_dropped` prompt is reworded to teach both —
-  draft: **"Crimson Jack was destroyed - and dropped loot (%).\n\nFly over the salvage and
-  it's collected automatically. His laser needs the 'P' key - fly next to it and press 'P'.
-  'P' works in space and on the ground, and it reaches loot on diagonal squares too."**
-  (draft — awaiting approval). The beat machinery needs no change: `picked_up_loot` waits for
-  `not _any_loot` (tutorial.py:322-327), so the beat completes only after BOTH the fly-over
-  salvage and the P'd laser are cleared — `notify_pickup` fires from the P path today and from
-  the space walk-over apply (this brief).
+  **teach both verbs + the upgrade lesson (SETTLED 8).** Jack's natural cargo drop stays
+  walk-over salvage; his spec gains a guaranteed weapon drop — a **Medium Laser**
+  (`medium_laser`, data/weapons/lasers.py:17) — honored by `_spawn_loot_drops`
+  (combat/_actions.py:335) using the existing ship-weapon loot payload shape
+  (`loot._ship_weapon_loot_entry`, loot.py:207): one P-only entity at the wreck, data-driven,
+  no tutorial special-case. The Medium Laser is deliberately a tier above the starter Light
+  Lasers — the drop's second lesson is that loot can upgrade your ship; the fight is already
+  over when it lands and the sell value is trivial, so the balance impact is accepted by the
+  ruling. The `loot_dropped` prompt is reworded to teach both — draft: **"Crimson Jack was
+  destroyed - and dropped loot (%).\n\nFly over the salvage and it's collected automatically.
+  His Medium Laser is an upgrade - fly next to it and press 'P' to take it, and fit it from the
+  Loadout screen next time you dock. 'P' works in space and on the ground, and it reaches loot
+  on diagonal squares too."** (draft — awaiting approval). The beat machinery needs no change:
+  `picked_up_loot` waits for `not _any_loot` (tutorial.py:322-327), so the beat completes only
+  after BOTH the fly-over salvage and the P'd laser are cleared — `notify_pickup` fires from
+  the P path today and from the space walk-over apply (this brief).
 - Tests: `tests/test_auto_pickup.py` (new) + `tests/test_ground_equipment.py` — the doc-52
   forfeit pin `test_field_ammo_pickup_partial_fit_forfeits_overflow` (:543) updates in-commit;
   its at-cap twin (:564) pins the unchanged branch.
@@ -279,8 +287,9 @@ debug_session.py — small hooks only.
    crossed on the route are scooped.
 10. Space G auto-nav onto/over debris → scooped en route (interrupt a transit over a debris field).
 11. New game through the Jack fight: fly over the salvage → collected automatically (existing
-    log lines) while his laser stays put; press P next to the laser → picked; the beat advances
-    to JUMPING only after BOTH are cleared; the reworded two-verb prompt reads correctly.
+    log lines) while his Medium Laser stays put; press P next to it → picked; the beat advances
+    to JUMPING only after BOTH are cleared; the two-verb prompt (with the fit-it-at-Loadout
+    upgrade pointer) reads correctly; docked, the Loadout screen fits the salvaged laser.
 12. Save → quit → Continue: identical bandolier / hold / credits / remaining piles.
     Guide-diff: none (guide lands with phase 3).
 
