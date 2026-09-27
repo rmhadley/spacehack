@@ -848,8 +848,8 @@ def _configure_new_context(ctx, species_id, class_id, tutorial):
     _species_trait = find_species(species_id).trait_id
     if _species_trait:
         ctx.player_traits.append(_species_trait)
-    from .xp import ground_max_hp_bonus as _ground_max_hp_bonus
-    ctx.ground_max_hp = 20 + ctx.ground_stats.stamina // 2 + _ground_max_hp_bonus(ctx)
+    from .xp import ground_max_hp_total as _ground_max_hp_total
+    ctx.ground_max_hp = _ground_max_hp_total(ctx)
     ctx.ground_hp = ctx.ground_max_hp
     from .dev_mode import apply_dev_ground_loadout as _apply_dev_ground_loadout
     _apply_dev_ground_loadout(ctx)

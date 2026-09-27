@@ -167,6 +167,26 @@ def ground_max_hp_bonus(ctx: GameContext) -> int:
     return 6 if has_trait(ctx, "ironclad") else 0
 
 
+def ground_max_hp_total(ctx: GameContext) -> int:
+    """The ONE ground max-HP formula (doc 49 SETTLED 3-A fold).
+
+    ``20 + stamina//2 + worn-armor HP bonuses + Ironclad + the
+    species hp_bonus`` — shared by combat init
+    (``_rules_ground._player_hp_state``), new-game setup
+    (``game_loop._configure_new_context``), and the balance harness so
+    the three can never drift apart.
+    """
+    from .character import species_hp_bonus
+    from .ground_equipment import sum_armor_bonus
+    _species_id = getattr(ctx, "character_info", {}).get("species_id", "")
+    return (
+        20 + ctx.ground_stats.stamina // 2
+        + sum_armor_bonus(ctx.equipped_ground_armor.values(), "hp_bonus")
+        + ground_max_hp_bonus(ctx)
+        + species_hp_bonus(_species_id)
+    )
+
+
 def systems_expert_power_bonus(ctx: GameContext) -> int:
     """Systems Expert trait: add ten maximum ship power."""
     return 10 if has_trait(ctx, "systems_expert") else 0
@@ -190,6 +210,27 @@ def missileer_hit_bonus(ctx: GameContext) -> int:
 def plasma_savant_ap_discount(ctx: GameContext) -> int:
     """Plasma Savant trait: reduce plasma weapon AP cost by one."""
     return 1 if has_trait(ctx, "plasma_savant") else 0
+
+
+# ---------------------------------------------------------------------------
+# Origin traits (doc 49) — granted by species at creation; mechanics
+# read at the usage sites, same bonus-helper pattern as above.
+# ---------------------------------------------------------------------------
+
+def sturdy_armor_bonus(ctx: GameContext) -> int:
+    """Sturdy origin trait: +2 armor defense, even with nothing worn."""
+    return 2 if has_trait(ctx, "sturdy") else 0
+
+
+def sturdy_melee_bonus(ctx: GameContext) -> int:
+    """Sturdy origin trait: +2 flat melee damage (fists included)."""
+    return 2 if has_trait(ctx, "sturdy") else 0
+
+
+def nimble_ap_bonus(ctx: GameContext) -> int:
+    """Nimble origin trait: +1 ground AP per round (stacks with Ace
+    Pilot and cybernetic legs through the same bonus sum)."""
+    return 1 if has_trait(ctx, "nimble") else 0
 
 
 # ---------------------------------------------------------------------------

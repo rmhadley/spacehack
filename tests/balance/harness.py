@@ -54,7 +54,6 @@ from src.spacehack.data.ground_items import find_ground_ammo
 from src.spacehack.ground_equipment import (
     StoredGroundEquipment,
     install_armor,
-    sum_armor_bonus,
 )
 from src.spacehack.ground_weapon_sets import install_set_weapon
 from src.spacehack.message_log import MessageLog
@@ -63,7 +62,7 @@ from src.spacehack.ship import (
     StoredEquipment,
     install_stored_equipment,
 )
-from src.spacehack.xp import ground_max_hp_bonus
+from src.spacehack.xp import ground_max_hp_total
 
 from tests.balance.stances import STANCES
 from tests.support.asyncutil import run as _async_run
@@ -487,13 +486,11 @@ def build_ground_ctx(sheet, game_map, player_start) -> SimpleNamespace:
     fields["ground_expedition_items"] = []
     fields["bandolier"] = bandolier
     ctx = SimpleNamespace(**fields)
-    # The trait-aware max (the same fold ``_player_hp_state`` performs);
-    # seeded full — the default 23 never leaks into a ground ctx.
-    ctx.ground_max_hp = ctx.ground_hp = (
-        20 + stats.stamina // 2
-        + sum_armor_bonus(armor.values(), "hp_bonus")
-        + ground_max_hp_bonus(ctx)
-    )
+    # The trait-aware max — the ONE shared fold (xp.ground_max_hp_total,
+    # doc 49 SETTLED 3-A: species hp_bonus included), so the harness and
+    # ``_player_hp_state`` can never drift; seeded full — the default 23
+    # never leaks into a ground ctx.
+    ctx.ground_max_hp = ctx.ground_hp = ground_max_hp_total(ctx)
     return ctx
 
 

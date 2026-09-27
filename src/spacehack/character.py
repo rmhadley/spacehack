@@ -106,12 +106,24 @@ def starting_ground_stats(species_id: str, class_id: str) -> GroundStats:
     )
 
 
+def species_hp_bonus(species_id: str) -> int:
+    """The species layer's ground-HP bonus (doc 49 SETTLED 3-A).
+
+    Folds into the ground max-HP formula (see
+    :func:`spacehack.xp.ground_max_hp_total`); hull HP is class-only.
+    Unknown ids (stale saves) read as 0.
+    """
+    sp = _safe_lookup_species(species_id)
+    return sp.hp_bonus if sp is not None else 0
+
+
 def starting_stats(species_id: str, class_id: str):
     """Starting :class:`spacehack.hud.HudStats` for a (species, class).
 
-    HP = ``class.hp_base + species.hp_bonus`` (cosmetic — read by
-    HUD only, doesn't gate gameplay yet). Credits come straight off
-    the class spec. Pilot skills (gunnery, piloting, engineering)
+    HP = ``class.hp_base`` — the ship-layer readout is class-only
+    (doc 49 SETTLED 3-A: the species hp_bonus is ground HP, folded
+    into the ground max-HP formula instead). Credits come straight
+    off the class spec. Pilot skills (gunnery, piloting, engineering)
     are computed from species + class bonuses applied on top of
     :data:`PILOT_SKILL_BASE`. Unknown ids fall through to safe
     defaults so a future save/load path that emits an unrecognised
@@ -120,18 +132,16 @@ def starting_stats(species_id: str, class_id: str):
     # Local import avoids any chance of a module-load circular dep if
     # hud.py ever starts importing back from character.
     from .hud import HudStats
-    sp = _safe_lookup_species(species_id)
     cl = _safe_lookup_class(class_id)
     hp_base = cl.hp_base if cl is not None else 10
     credits = cl.credits if cl is not None else 50
-    hp_bonus = sp.hp_bonus if sp is not None else 0
-    
+
     # Compute pilot skills — reuse starting_pilot_skills internally
     # so the three skill values stay in sync with the combat init.
     skills = starting_pilot_skills(species_id, class_id)
     return HudStats(
-        hp=hp_base + hp_bonus,
-        max_hp=hp_base + hp_bonus,
+        hp=hp_base,
+        max_hp=hp_base,
         credits=credits,
         gunnery=skills.gunnery,
         piloting=skills.piloting,
@@ -177,6 +187,7 @@ __all__ = [
     "GroundStats",
     "list_species",
     "list_classes",
+    "species_hp_bonus",
     "starting_pilot_skills",
     "starting_ground_stats",
     "starting_stats",

@@ -24,7 +24,7 @@ from src.spacehack.game_context import GameContext
 from src.spacehack.xp import _qualifying_traits
 
 
-def _fresh_ctx() -> GameContext:
+def _fresh_ctx(species_id: str = "human") -> GameContext:
     """A minimal new-game GameContext (no Pygame runtime attached)."""
     from src.spacehack import message_log, world
     from src.spacehack.hud import HudStats
@@ -32,7 +32,8 @@ def _fresh_ctx() -> GameContext:
                for _ in range(3)] for _ in range(3)]
     return GameContext(
         context=SimpleNamespace(),
-        character_info={"species_id": "human", "species_name": "Human",
+        character_info={"species_id": species_id,
+                        "species_name": species_id.title(),
                         "class_id": "merchant", "class_name": "Merchant"},
         log=message_log.MessageLog(capacity=4),
         game_map=world.GameMap(
@@ -91,7 +92,90 @@ def test_trait_name_resolves_origin_traits():
 def test_creation_grant_lands_the_species_trait():
     from src.spacehack.data.species import list_species
     for spec in list_species():
-        ctx = _fresh_ctx()
+        ctx = _fresh_ctx(spec.id)
         _configure_new_context(ctx, spec.id, "merchant", False)
         assert ctx.player_traits == [spec.trait_id], spec.id
         assert ctx.faction_reputation  # sanity: rep seeded in the same pass
+
+
+# ---------------------------------------------------------------------------
+# Ground hooks (doc 49 phase 1, commit 3): Sturdy, Nimble, hp fold
+# ---------------------------------------------------------------------------
+
+def _ground_ctx(traits=(), species_id="human", stamina=10):
+    return SimpleNamespace(
+        player_traits=list(traits),
+        equipped_ground_armor={},
+        ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=stamina),
+        character_info={"species_id": species_id},
+    )
+
+
+def test_sturdy_counts_two_armor_with_none_worn():
+    from src.spacehack.combat._rules_ground import _armor_defense_total
+    assert _armor_defense_total(_ground_ctx(["sturdy"])) == 2
+    assert _armor_defense_total(_ground_ctx([])) == 0
+
+
+def test_sturdy_armor_stacks_with_worn_pieces():
+    """The user's model verbatim: gloves +1 on a Martian read +3 total."""
+    from src.spacehack.ground_equipment import StoredGroundEquipment
+    from src.spacehack.combat._rules_ground import _armor_defense_total
+    ctx = _ground_ctx(["sturdy"])
+    ctx.equipped_ground_armor = {
+        "hands": StoredGroundEquipment("armor", "tactical_gloves", 0),
+    }
+    assert _armor_defense_total(ctx) == 3
+
+
+def _fists_enemy():
+    from src.spacehack import world
+    from src.spacehack.combat._rules_ground import GroundEnemyInstance
+    return GroundEnemyInstance(
+        entity=world.Entity(
+            char="r", fg=(200, 60, 60), pos=world.Position(1, 1), name="rat",
+        ),
+        spec=SimpleNamespace(armor=0),
+    )
+
+
+def test_sturdy_melee_damage_plus_two_fists_included():
+    from src.spacehack.combat import _rules_ground
+    base = _rules_ground.damage("fists", _fists_enemy(), _ground_ctx([]))[0]
+    sturdy = _rules_ground.damage("fists", _fists_enemy(), _ground_ctx(["sturdy"]))[0]
+    assert sturdy - base == 2
+
+
+def test_sturdy_leaves_ranged_damage_untouched():
+    from src.spacehack.combat import _rules_ground
+    base = _rules_ground.damage("kinetic_pistol", _fists_enemy(), _ground_ctx([]))[0]
+    sturdy = _rules_ground.damage(
+        "kinetic_pistol", _fists_enemy(), _ground_ctx(["sturdy"]),
+    )[0]
+    assert sturdy == base
+
+
+def test_nimble_ap_gain_100_vs_80_twentieths():
+    from src.spacehack.combat._rules_ground import _starting_ap_gain_twentieths
+    assert _starting_ap_gain_twentieths(_ground_ctx([])) == 80
+    assert _starting_ap_gain_twentieths(_ground_ctx(["nimble"])) == 100
+    assert _starting_ap_gain_twentieths(
+        _ground_ctx(["nimble", "ace_pilot"]),
+    ) == 120
+
+
+def test_ground_max_hp_total_folds_species_hp_bonus():
+    """SETTLED 3-A: the species hp_bonus lands in the GROUND formula —
+    species-only numbers match the card (Martian 29, Lalandan 22,
+    Human 25)."""
+    from src.spacehack.xp import ground_max_hp_total
+    assert ground_max_hp_total(_ground_ctx([], "martian", stamina=14)) == 29
+    assert ground_max_hp_total(_ground_ctx([], "lalandan", stamina=5)) == 22
+    assert ground_max_hp_total(_ground_ctx([], "human", stamina=11)) == 25
+
+
+def test_new_game_ground_max_hp_uses_the_shared_fold():
+    ctx = _fresh_ctx("martian")
+    _configure_new_context(ctx, "martian", "merchant", False)
+    # species 14 + merchant 12 stamina = 26 -> 20 + 13 + 2 = 35
+    assert (ctx.ground_max_hp, ctx.ground_hp) == (35, 35)

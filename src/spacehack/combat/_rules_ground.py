@@ -33,8 +33,11 @@ from ..xp import (
     ace_pilot_ap_bonus as _ace_pilot_bonus,
     apply_ground_damage_reduction as ground_damage_taken,
     ground_evade_bonus as _ground_evade_bonus,
-    ground_max_hp_bonus as _ground_max_hp_bonus,
+    ground_max_hp_total as _ground_max_hp_total,
+    nimble_ap_bonus as _nimble_ap_bonus,
     plasma_savant_ap_discount as _plasma_ap_discount,
+    sturdy_armor_bonus as _sturdy_armor_bonus,
+    sturdy_melee_bonus as _sturdy_melee_bonus,
 )
 
 from ._types import CombatResult, FleeExit
@@ -236,26 +239,24 @@ def _build_enemies(
 
 def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
-    armor_entries = ctx.equipped_ground_armor.values()
-    max_hp = (
-        20 + ctx.ground_stats.stamina // 2
-        + _sum_armor_bonus(armor_entries, "hp_bonus")
-        + _ground_max_hp_bonus(ctx)
-    )
+    max_hp = _ground_max_hp_total(ctx)
     delta = max_hp - ctx.ground_max_hp
     if delta > 0:
         ctx.ground_hp += delta
     return min(ctx.ground_hp, max_hp), max_hp
 
 def _armor_defense_total(ctx) -> int:
-    """Sum flat defense across equipped armor pieces."""
-    return _sum_armor_defense(ctx.equipped_ground_armor.values())
+    """Worn-armor defense plus Sturdy's always-on +2 (doc 49: a
+    Martian counts 2 armor with none worn; worn pieces stack on top)."""
+    return _sum_armor_defense(ctx.equipped_ground_armor.values()) \
+        + _sturdy_armor_bonus(ctx)
 
 def _starting_ap_gain_twentieths(ctx) -> int:
-    """Per-round AP gain in twentieths: 4 + Ace Pilot trait + cybernetic legs."""
-    return 80 + 20 * (_ace_pilot_bonus(ctx) + _sum_armor_bonus(
-        ctx.equipped_ground_armor.values(), "ap_bonus",
-    ))
+    """Per-round AP gain in twentieths: 4 + Ace Pilot + Nimble + legs."""
+    return 80 + 20 * (
+        _ace_pilot_bonus(ctx) + _nimble_ap_bonus(ctx)
+        + _sum_armor_bonus(ctx.equipped_ground_armor.values(), "ap_bonus")
+    )
 
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
@@ -375,7 +376,7 @@ def refresh_equipment_state(ctx) -> None:
         if index < len(_state.active_weapon_list) else True
         for index in range(len(_weapons))
     ]
-    _state.armor_defense = _sum_armor_defense(ctx.equipped_ground_armor.values())
+    _state.armor_defense = _armor_defense_total(ctx)
 
 # ---------------------------------------------------------------------------
 # Enemy accessors
@@ -442,6 +443,9 @@ def damage(
     """
     _armor = enemy.spec.armor if enemy.spec else 0
     _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
+    # Sturdy's +2 melee damage is melee-only, fists included (doc 49).
+    if _find_gw(weapon_id).damage_type == "melee":
+        _melee_bonus += _sturdy_melee_bonus(ctx)
     if _is_charger_melee(ctx, weapon_id):
         _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
     _dmg = _ground_damage_raw(
