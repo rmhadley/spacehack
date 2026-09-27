@@ -1,9 +1,9 @@
 # DESIGN: Auto-pickup — walk-over collection
 
-**Status:** OPEN — drafted 2026-09-27. Rulings SETTLED 1–6 recorded (open questions exhausted);
+**Status:** OPEN — drafted 2026-09-27. Rulings SETTLED 1–7 recorded (open questions exhausted);
 Implementation briefs for phases 1–3 PROPOSED with all three ADVISE reviewer passes folded
 (space-goto hook, silent probe, heist markers, tutorial beat, no-DisplayConfig pref, per-key
-config granularity, goto-halt consequence, existing-test re-pointing) — awaiting user approval.
+config granularity). Pending: brief approval + the two prose drafts.
 
 ## Overview
 
@@ -65,24 +65,25 @@ dungeon steppers.
 Today auto-explore routes only toward **unseen cells** (`next_explore_step`) and collects piles
 purely through the halt: every **newly visible** loot pile stops the run ("You notice {label} and
 stop." — `_stop_if_fresh`; `loot_data` is an `_ENTITY_INTEREST_FLAGS` entry) until the player
-presses P and resumes. After this (SETTLED 5–6):
+presses P and resumes. After this (SETTLED 5–7):
 
-- **Pickable piles become first-class targets.** The run's goal set widens from "nearest unseen
-  cell" to "nearest target, whichever is closer — a pickable pile or the fog edge" (SETTLED 5,
+- **The halt stays — for every loot class (SETTLED 7).** A fresh pile stops the run exactly as
+  today, in O and G both; the halt machinery (`interesting_at`, `_stop_if_fresh`, ignore-memory)
+  is untouched by this arc.
+- **Pickable piles become first-class targets.** The goal set widens from "nearest unseen cell"
+  to "nearest target, whichever is closer — a pickable pile or the fog edge" (SETTLED 5,
   verbatim: "autoexplore should target the nearest target, nearest target being either autopickup
-  or nearest unexplored fog"). BFS nearest-wins gives this for free once pile cells join the goal
-  set. The run ends only when no unseen cells AND no pickable piles remain reachable — a cleared
-  floor has its ammo and credits, without twenty halts.
-- **Auto-class piles never halt the run.** A pile the probe refuses on arrival (bandolier full for
-  that caliber, hold full, toggle off) is skipped without halting (SETTLED 6) — the pile visibly
-  stays, the run continues, and a full rifle reserve never blocks scooping grenade piles ahead.
-- **Never-class piles keep the existing halt** ("a cache of supplies") — weapons, armor, modules,
-  ship weapons, pads, quest caches, consumables are decisions. The per-map ignore-memory keeps
-  covering exactly these on re-runs.
-- The underfoot exemption at run start is unchanged. Goto's loot exclusion from the **picker**
-  is unchanged — but its newly-visible **halt** for auto-class piles goes away with O's: the halt
-  is the same shared `interesting_at` call, so a G walk past a fresh ammo pile no longer stops
-  either (doc amendment recorded with the phase-3 brief; never-class piles still halt both).
+  or nearest unexplored fog"). Pressing O again after a halt resumes the run, routes it over the
+  spotted pile (walk-over collects), then pushes the fog — **the halt is the news, the resume is
+  the collection** (SETTLED 7). The run ends only when no unseen cells AND no pickable piles
+  remain reachable.
+- **Arrival refusals skip silently (SETTLED 6).** A pile the probe refuses mid-run (bandolier
+  full for that caliber, hold full, toggle off) — the run visibly steps over it and continues; a
+  full rifle reserve never blocks scooping grenade piles ahead. A refused pile still halts on
+  first sighting like any loot (sight-stops are inventory-independent) but is not a target and
+  never re-halts.
+- Never-class piles are unchanged everywhere (halt + ignore-memory). The underfoot exemption at
+  run start is unchanged. Goto is untouched outright — picker exclusion, halts, all of it.
 
 ### The toggle
 
@@ -100,7 +101,8 @@ design. No GameContext / save-format changes anywhere in this arc.
   every calibre pile is friction with no decision inside it.
 - Keep every decision-laden pickup deliberate — the never-list is the point, not an omission.
 - Nothing silently lost or destroyed: refusal is a clean no-op; partial fits leave the remainder.
-- Auto-explore's promise sharpens: a cleared floor has its ammo and credits, without twenty halts.
+- Auto-explore keeps DCSS manners: halts are the news (one stop per discovery), and every resume
+  collects — by the time a floor is cleared, its ammo and credits are too.
 
 ## Phases
 
@@ -115,14 +117,13 @@ design. No GameContext / save-format changes anywhere in this arc.
   toggle-off turns trade debris back into ordinary P-only loot (refused-probe class). Guide-diff
   item: the AUTO CARGO PICKUP row line in "Options & Display" **plus that section's intro
   rewording** (its "presentation only" claim becomes false).
-- [ ] 3. **Auto-explore nearest-target + guide pass** — pickable piles join the goal set: the run
-  routes to the nearest target, pile or fog edge (SETTLED 5); refused piles skip without halting
-  (SETTLED 6); never-class piles keep the halt; ignore-memory and the underfoot exemption are
-  unchanged; goto keeps its picker exclusion but loses the auto-class newly-visible halt (shared
-  `interesting_at`). Full-corpus guide audit: grep the whole guide for the pickup/loot vocabulary
-  (P key, auto-explore/auto-walk lines, ammo & ammunition carry limits, battlefield pickups,
-  trading/cargo prose) and classify every hit in the brief; guide text drafts get user approval
-  in the brief before landing.
+- [ ] 3. **Auto-explore targeting + guide pass** — pickable piles join the goal set (SETTLED 5:
+  nearest target = pile or fog edge); **halts unchanged for every loot class, O and G alike**
+  (SETTLED 7) — a fresh pile stops the run as today, and pressing O again resumes and collects;
+  arrival refusals skip silently (SETTLED 6); ignore-memory, the underfoot exemption, and goto
+  are all untouched. Guide audit: classify every pickup/loot hit (P key, nearby-loot,
+  ammo/ammunition carry limits, auto-walk, on-foot vs ship cargo) in the brief; guide text
+  drafts get user approval in the brief before landing.
 
 ## SETTLED
 
@@ -140,9 +141,19 @@ design. No GameContext / save-format changes anywhere in this arc.
 5. **(2026-09-27, user, verbatim)** "autoexplore should target the nearest target, nearest target
    being either autopickup or nearest unexplored fog" — pickable piles are first-class
    auto-explore targets alongside the fog edge, not a post-frontier sweep stage; nearest wins.
-6. **(2026-09-27, user)** A pile the run refuses on arrival (bandolier full for that caliber,
-   hold full, toggle off) is skipped without halting — the pile visibly stays and the run
-   continues. Auto-class piles never halt auto-explore; never-class piles keep the existing halt.
+6. **(2026-09-27, user; scope narrowed by 7)** A pile the run refuses **on arrival** (bandolier
+   full for that caliber, hold full, toggle off) is skipped without halting — the pile visibly
+   stays and the run continues. (This entry originally added "auto-class piles never halt
+   auto-explore" — SETTLED 7 restores the newly-visible halt; this entry covers arrival
+   refusals only.) Never-class piles keep the existing halt.
+7. **(2026-09-27, user, verbatim)** "It should still halt. but if you press auto explore again
+   it will pick up. I'm thinking like dcss auto explore works." — the newly-visible halt stays
+   for ALL loot classes, in O and G: the halt machinery is unchanged from today (no
+   `interesting_at` reclassification, no goto changes). The halt is a notification stop —
+   pressing O again resumes the run, pickable piles are targets (SETTLED 5), and the resumed
+   run detours to collect them via walk-over before pushing the fog. A pile the probe refuses
+   still halts on first sighting like any loot (sight-stops stay inventory-independent) but is
+   not a target and never re-halts.
 
 ## Open questions
 
@@ -197,7 +208,7 @@ resolved by SETTLED 4 and 5–6 respectively on 2026-09-27.
   loot.py:534).
 - `src/spacehack/tutorial.py:140` — the scripted line "Fly onto (or next to) the loot and press
   'P' to pick it up." completes on arrival now; reword to **"Fly onto the loot to pick it up."**
-  (draft, user-approved below; P remains the pickup verb for every non-auto class — the guide
+  (draft — awaiting approval; P remains the pickup verb for every non-auto class — the guide
   keeps teaching it).
 - Tests: `tests/test_auto_pickup.py` (new) + `tests/test_ground_equipment.py` — the doc-52
   forfeit pin `test_field_ammo_pickup_partial_fit_forfeits_overflow` (:543) updates in-commit;
@@ -226,9 +237,9 @@ entities on one arrival cell both picked; O pressed standing on a pile picks not
 log "Invalid field item", loot.py:509); **sabotage-proven** regression pin on the walk-over hook
 (disable the hook → test fails → restore → passes).
 
-**Stop point:** no options/config work (phase 2); no auto-explore goal or stop changes — halts
-behave exactly as today (phase 3); no guide edits (the tutorial line above is tutorial, not
-guide); no new pickup classes.
+**Stop point:** no options/config work (phase 2); no auto-explore changes at all (phase 3 widens
+targeting only — halts never change in this arc); no guide edits (the tutorial line above is
+tutorial, not guide); no new pickup classes.
 
 **Budget note:** loot.py sits at 941/1000 — new logic lands in `auto_pickup.py`; loot.py gains
 only the remainder branch. game_loop.py 884, autoexplore.py 835, navigation_travel.py and
@@ -247,8 +258,8 @@ debug_session.py — small hooks only.
 7. P partial fit now leaves the remainder (the doc-52 forfeit is gone) — confirm on purpose.
 8. During a ground fight, moving over drops picks nothing; after DISENGAGED, walking the drops
    collects them.
-9. Auto-explore still halts at newly-visible piles (phase 3 not built), but piles crossed on the
-   route are scooped.
+9. Auto-explore still halts at newly-visible piles (halts never change in this arc), but piles
+   crossed on the route are scooped.
 10. Space G auto-nav onto/over debris → scooped en route (interrupt a transit over a debris field).
 11. New game: fly onto the tutorial debris → the reworded line plays and the beat completes on
     arrival (no P press needed); the JUMPING beat unlocks.
@@ -288,7 +299,7 @@ debug_session.py — small hooks only.
   current intro (guide/__init__.py:58-60: "These settings affect presentation only; they never
   change your pilot, world, or save data.") becomes false the moment a gameplay row exists.
   Draft intro: **"These settings change how the game looks and plays. They are saved separately
-  from game saves."** (user-approved below).
+  from game saves."** (draft — awaiting approval).
 
 **Build order:** config parse + two-mode writer round-trip (tested first) → runtime pref + setter
 → trade-class gate in the probe/apply → OPTIONS row + APPLY → runtime-open wiring → knowledge.md
@@ -323,7 +334,7 @@ rewording; no DisplayConfig/stitch changes.
    Guide-diff: "Options & Display" gains the AUTO CARGO PICKUP row line + the reworded intro
    (exact before/after in the diff).
 
-### Phase 3 — Auto-explore nearest-target + guide pass
+### Phase 3 — Auto-explore targeting + guide pass
 
 **Scope (files / hook points):**
 
@@ -332,80 +343,72 @@ rewording; no DisplayConfig/stitch changes.
   cost is noise beside the existing per-step passes (`steps_aside_ids`, `_blocker_index`,
   `_stop_if_fresh`), but the probe must stay pure AND quiet — including the ammo caliber's
   catalog resolve — because it now runs per seen pile per step.
-- `src/spacehack/autoexplore.py` — `_plan_step` (autoexplore.py:407) gains an optional
-  `goal_cells` frozenset: a cell is a goal if unseen OR a member — BFS nearest-wins then IS
-  SETTLED 5 (nearest pile or fog edge, whichever is closer); `next_explore_step` passes it
-  through; `run_auto_explore` computes it per step. Two planner invariants to state for the
-  build: **goal membership never overrides passability or transition-non-entry** (the
-  non-walkable/transition `continue` at :362 precedes any goal check — a pickable pile on a
-  stairs/exit tile is simply unreachable and the run may end with it visible; accepted, not
-  special-cased), and equal-distance ties resolve by the existing deterministic enqueue order.
-  `interesting_at` (autoexplore.py:186) — the `loot_data` entry becomes class-aware with
-  **fall-through**: an auto pile stacked with a never-class pile or console on one cell still
-  halts on the never-class entity (first-match must skip, not return, for auto-class piles).
-  Auto-class piles are never interesting (never halt); never-class piles keep "a cache of
-  supplies", and `_stop_if_fresh` + ignore-memory keep covering exactly those.
-- **Goto consequence (intended, named):** `interesting_at` is also goto's stop path — auto-class
-  piles stop halting G walks exactly as they stop halting O. What stays is the loot **exclusion
-  from the picker** (`_GOTO_TILE_TITLES` :96 / `_GOTO_ENTITY_TITLES` :101 remain loot-free) and
-  `next_goto_step` itself. The underfoot exemption at run start is unchanged (the run-end
-  wording carries its one distance-zero exception: a pickable pile can remain under the player).
+- `src/spacehack/autoexplore.py` — **goal-widening only.** `_plan_step` (autoexplore.py:407)
+  gains an optional `goal_cells` frozenset: a cell is a goal if unseen OR a member — BFS
+  nearest-wins then IS SETTLED 5 (nearest pile or fog edge, whichever is closer);
+  `next_explore_step` passes it through; `run_auto_explore` computes it per step. Planner
+  invariants for the build: **goal membership never overrides passability or
+  transition-non-entry** (the non-walkable/transition `continue` at :362 precedes any goal
+  check — a pickable pile on a stairs/exit tile is simply unreachable and the run may end with
+  it visible; accepted, not special-cased), equal-distance ties resolve by the existing
+  deterministic enqueue order, and the underfoot exemption leaves its one distance-zero
+  exception (a pickable pile can remain under the player at run end).
+- **Halts are untouched (SETTLED 7).** `interesting_at`, `_ENTITY_INTEREST_FLAGS`,
+  `_stop_if_fresh`, known-seeding, and ignore-memory behave exactly as today for every loot
+  class — no reclassification, no fall-through change. Goto is untouched outright:
+  `next_goto_step`, the picker tables (`_GOTO_TILE_TITLES` :96 / `_GOTO_ENTITY_TITLES` :101),
+  and its halts. The halt-resume flow this creates: a fresh pile stops the run as today;
+  pressing O again resumes with pickable piles as targets (SETTLED 5) — the resumed run detours
+  to collect via walk-over, then pushes the fog; a refused pile halts once on sighting
+  (sight-stops are inventory-independent) and is simply not a target.
 - `src/spacehack/debug_session.py` — `_action_explore` drives `next_explore_step` directly
   (twin-path rule): it passes `goal_cells` too, so `save_debug simulate … explore` matches the
   real O (the move twin was wired in phase 1).
-- **Same-commit test updates** (pure-function test contract): `tests/test_autoexplore.py` pins
-  trade-shaped `loot_data` halts that this phase invalidates —
-  `test_run_auto_explore_stops_at_newly_visible_loot` (:442), `…ignores_already_visible…` (:460),
-  `…remembers_left_loot_on_return_to_floor` (:482), `test_interesting_at_labels…` (:281),
-  `test_newly_interesting_positions…` (:289). Re-point them at never-class shapes (equipment
-  payloads) and add auto-class counterparts.
-- Guide: **full-corpus audit** — the corpus is the single file `data/guide/__init__.py`; grep it
-  for: P key / "pick it up" / "nearby-loot" / "P: collect nearby loot", loot, auto-explore /
-  auto-walk, ammo / ammunition / per-caliber carry limit / battlefield pickups, trading & cargo
-  prose. Two entries are already known load-bearing and must be classified in the build's audit:
-  Ground Exploration's O bullet (:527-530 — "stops when danger or something interesting appears …
-  including loot you chose to leave behind" is directly contradicted) and the on-foot/ship-cargo
-  split (:555-556 — "Loot found on foot is handled separately from ship cargo" is contradicted by
-  trade walk-over straight to the hold). Every new or changed entry's exact text is approved
-  HERE, in this brief, before the build lands it.
+- Guide: audit the single-file corpus `data/guide/__init__.py` for: P key / "pick it up" /
+  "nearby-loot" / "P: collect nearby loot", loot, auto-explore / auto-walk, ammo / ammunition /
+  per-caliber carry limit / battlefield pickups, trading & cargo prose. The O bullet
+  (:527-530 — stops + "loot you chose to leave behind") **stays true** under SETTLED 7 and
+  should need no edit; the known must-edit is the on-foot/ship-cargo split (:555-556 — "Loot
+  found on foot is handled separately from ship cargo" is contradicted by trade walk-over
+  straight to the hold). Every new or changed entry's exact text is approved HERE, in this
+  brief, before the build lands it.
 
-**Build order:** planner goal-widening (pure + tests incl. the existing-test re-pointing) →
-`interesting_at` class-awareness + fall-through → run-loop wiring → debug_session twin → guide
-pass (after prose approval).
+**Build order:** planner goal-widening (pure + tests) → run-loop wiring → debug_session twin →
+guide pass (after prose approval).
 
 **Binding rulings:** SETTLED 5 (nearest target = pickable pile or unexplored fog; not a
-post-frontier stage); SETTLED 6 (arrival refusal skips without halting; auto-class piles never
-halt O or G); never-class halts, ignore-memory, underfoot exemption, and goto's picker exclusion
-all unchanged.
+post-frontier stage); SETTLED 6 as narrowed (arrival refusals skip silently, never a halt);
+SETTLED 7 (halts unchanged for every loot class in O and G; the resume collects); underfoot
+exemption, ignore-memory, and goto all untouched.
 
 **Required tests:** nearest-wins ordering both ways (pile nearer than fog detours first; fog
 nearer wins) **plus the tie-break pin**: a goal member at BFS depth d fires from its depth d-1
 parent before a fog-adjacent goal at depth d during depth-d expansion; a refused pile is not a
-target; never-class pile still halts and ignore-memory prevents the re-halt on resume; a stacked
-cell (auto pile + never-class entity) still halts; underfoot exemption at run start; goto's
-picker excludes loot AND a G walk past a newly-visible auto pile does not halt; the run ends
-only when no unseen cells and no pickable piles are reachable; planner purity preserved
-(headless fakes); the five re-pointed existing tests above.
+target **but still halts on first sighting** (the existing fresh-loot halt tests stay green
+unchanged — no existing test is invalidated by this phase); the run ends only when no unseen
+cells and no pickable piles are reachable (underfoot exception included); resume-after-halt
+detours to the halted pile before the fog; trade toggle Off → trade piles are not targets;
+goto's picker still excludes loot; planner purity preserved (headless fakes).
 
-**Stop point:** no goto targeting of loot; no new pickup classes; no changes to stop messages
-beyond the existing lines; no doc-100 in-game menu work (the future menu can mirror the row).
+**Stop point:** no halt changes anywhere; no goto changes; no new pickup classes; no changes to
+stop messages beyond the existing lines; no doc-100 in-game menu work (the future menu can
+mirror the row).
 
 **Playtest checkpoint:**
 
-1. Seed a room with piles OFF the frontier path → O detours to the nearest pickable pile before
-   the fog when it is nearer, scoops it, resumes; the run ends only when the fog is done AND no
-   pickable piles remain (a pile can legitimately remain underfoot or on an unreachable/stairs
-   tile).
-2. A full caliber: the run crosses its piles without halting; other calibers still collected.
-3. A newly-visible weapon / quest cache → "You notice a cache of supplies and stop." unchanged;
-   resuming without picking it up does not re-halt (ignore-memory).
-4. Mid-run fill: one pile tops a caliber → later same-caliber piles are silently skipped.
-5. Trade toggle Off → trade piles are never targets (ammo/credits still are).
-6. G: loot still absent from the picker; a G walk past a newly-visible ammo pile no longer stops;
-   a never-class pile still stops it; a combat interrupt during a pile detour stops the run
-   through the existing machinery.
-7. `python3 tools/save_debug.py simulate <save> explore` over a pile-bearing floor matches the
+1. A fresh pile halts the run as today ("You notice a cache of supplies and stop.").
+2. Press O again → the run detours to the halted pile first, scoops it via walk-over, then
+   pushes the fog.
+3. A cluster revealed at once → one halt; the resume collects the whole cluster without further
+   halts.
+4. A refused pile (full caliber): halts on first sighting like any loot; the resume does not
+   target it; stepping over it mid-run never halts; other calibers still collected.
+5. Nearest-target both ways: a nearer pile beats the fog; nearer fog beats a pile; a combat
+   interrupt during a detour stops the run through the existing machinery.
+6. Trade toggle Off → trade piles are not targets (ammo/credits still are).
+7. G unchanged: loot absent from the picker, halts at fresh loot exactly as today.
+8. `python3 tools/save_debug.py simulate <save> explore` over a pile-bearing floor matches the
    real O's route (twin parity).
-8. Guide review: every new/changed entry matches the approved drafts word-for-word (the O bullet
-   and the on-foot/ship-cargo split above are the known must-edits).
-9. Save → quit → Continue: identical map state (remaining piles) and bandolier.
+9. Guide review: every changed entry matches the approved drafts word-for-word (the
+   on-foot/ship-cargo split is the known must-edit; the O bullet should be untouched).
+10. Save → quit → Continue: identical map state (remaining piles) and bandolier.
