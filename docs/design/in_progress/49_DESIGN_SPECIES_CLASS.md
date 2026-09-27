@@ -465,10 +465,38 @@ list — deferred unless re-opened.
 - The rap-sheet sketch was NOT chosen (superseded by the two legs
   above).
 
+## SETTLED 8 — 2026-09-27: class choice screen (user)
+
+Same split-card screen as species (left cycling options, right card,
+cursor-following). **Classes do NOT get colors** — the identity color
+on the class card is the ALREADY-CHOSEN species'. Card format:
+
+- **Title: `CHAR - SPECIES - CLASS`** (e.g. `@ - HUMAN - PIRATE`),
+  colored in the chosen species' color, via the same per-panel
+  label-color override.
+- **Six stat rows: BASE + SPECIES + CLASS** — the combined REAL start
+  values (live formulas: `character.starting_pilot_skills` /
+  `starting_ground_stats` with the picked species id in hand).
+- **Armor/HP row** stays (live naked-start fold incl. the species
+  trait and the combined stamina).
+- **Rep next: the EFFECTIVE starting standings** (after defaults +
+  class deltas — e.g. Human Pirate reads Pirates −70 / Merchants −10 /
+  Militia 30; consortium hidden per HIDDEN_FACTIONS). Row format is
+  the one open detail (viewport math below).
+- **Trait block at the bottom** — class trait name + description,
+  exactly like the species card.
+
+**Viewport math:** the split viewport caps at 11 rows; six stats +
+Armor/HP + three rep rows + trait name already = 11, leaving zero
+room for any description. PROPOSED: rep as ONE aligned summary row
+(`Pirates -70  Merchants -10  Militia 30`) → 11 total with a
+two-line description budget. OPEN for the user's call (one-row rep vs
+another trim).
+
 ## Open questions (phase 2 — the roll-through)
 
 1. ~~Pirate~~ — CLOSED (SETTLED 5).
 2. ~~Merchant~~ — CLOSED (SETTLED 6).
 3. ~~Bounty hunter~~ — CLOSED (SETTLED 7).
-4. **Class screen polish** — parity details (does the class card get a
-   glyph/color identity like species?).
+4. ~~Class screen polish~~ — CLOSED except the rep-row format fork
+   (SETTLED 8).
