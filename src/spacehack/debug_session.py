@@ -234,7 +234,6 @@ def _summary(
             None if ctx.player_owned_ship is None
             else ctx.player_owned_ship.hull_damage_pct
         ),
-        "hp": ctx.stats.hp,
         "credits": ctx.stats.credits,
         "date": {
             "day": ctx.time_day,
@@ -346,7 +345,6 @@ def _snapshot(
             str(mission.mission_id) for mission in ctx.player_active_missions
         ),
         "stats": {
-            "hp": ctx.stats.hp,
             "credits": ctx.stats.credits,
         },
         "date": [ctx.time_day, ctx.time_month, ctx.time_year],

@@ -267,7 +267,7 @@ def test_exploration_hud_advertises_console_log_in_space_and_ground_modes():
         "character_info": {
             "species_name": "Human", "class_name": "Merchant",
         },
-        "stats": hud.HudStats(10, 10, 100),
+        "stats": hud.HudStats(100),
         "player_owned_ship": OwnedShip(ship_id="starter"),
         "player_xp": 0,
         "player_level": 1,

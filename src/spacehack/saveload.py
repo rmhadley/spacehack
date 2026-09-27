@@ -189,8 +189,6 @@ def _core_fields(ctx: GameContext) -> dict:
             _entry_payload(entry) for entry in ctx.log.history()
         ],
         "stats": {
-            "hp": ctx.stats.hp,
-            "max_hp": ctx.stats.max_hp,
             "credits": ctx.stats.credits,
             "gunnery": ctx.stats.gunnery,
             "piloting": ctx.stats.piloting,
@@ -460,7 +458,7 @@ def _parse_stats(data: dict):
     from . import hud
     s = data["stats"]
     return hud.HudStats(
-        hp=s["hp"], max_hp=s["max_hp"], credits=s["credits"],
+        credits=s["credits"],
         gunnery=s.get("gunnery", 0),
         piloting=s.get("piloting", 0),
         engineering=s.get("engineering", 0),

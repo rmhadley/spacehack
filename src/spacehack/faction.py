@@ -78,7 +78,11 @@ _DEFAULT_REP: dict[str, int] = {
 # the formula and its docstring stay intact.
 _SPECIES_REP: dict[str, dict[str, int]] = {}
 
-# Class adjustments (added on top of defaults + species).
+# Class adjustments (added on top of defaults + species). Re-ruled per
+# class on the ±30 envelope (doc 49 SETTLED 5/6/7, 2026-09-27):
+# merchant and BH open at the full extremes; pirate's table is
+# unchanged and its −70 "disliked" start is accepted behavior (the
+# tell — pirate ships still engage a pirate — ruled tolerable).
 _CLASS_REP: dict[str, dict[str, int]] = {
     "pirate": {
         "pirate": +30,
@@ -86,14 +90,14 @@ _CLASS_REP: dict[str, dict[str, int]] = {
         "militia": -20,
     },
     "merchant": {
-        "pirate": +10,
-        "merchant": +10,
-        "militia": +5,
+        "pirate": -30,
+        "merchant": +30,
+        "militia": 0,
     },
     "bounty_hunter": {
-        "pirate": -20,
-        "merchant": +5,
-        "militia": +15,
+        "pirate": -30,
+        "merchant": +10,
+        "militia": +20,
     },
 }
 

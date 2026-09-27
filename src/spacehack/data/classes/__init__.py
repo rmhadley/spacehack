@@ -22,10 +22,6 @@ class GameClass:
         id: registry key, e.g. ``\"pirate\"``.
         name: display name shown in the class-pick menu.
         description: one-line flavour line under the name.
-        hp_base: starting hull HP that this class sets on its own —
-            class-only since doc 49 SETTLED 3-A (the species hp_bonus
-            is ground HP, folded into the ground max-HP formula
-            instead of the hull readout).
         credits: starting credits this class grants on a new game.
             Kept far below the cheapest ship (Scout, 5,000$) so
             turn-1 ship purchases are impossible; differentiated
@@ -34,11 +30,14 @@ class GameClass:
             creation (see :func:`spacehack.character.starting_pilot_skills`).
         ground_bonus: per-stat additive bonuses for ground combat
             (see :func:`spacehack.character.starting_ground_stats`).
+
+    Hull HP is NOT a class stat (doc 49 SETTLED 5, universal ruling):
+    hull is determined by ship + modules; nothing on this spec feeds
+    a hit-point readout.
     """
     id: str
     name: str
     description: str
-    hp_base: int = 10
     credits: int = 50   # neutral default; classes set their own start cash
     skill_bonus: PilotSkills = PilotSkills()
     ground_bonus: GroundStats = GroundStats()

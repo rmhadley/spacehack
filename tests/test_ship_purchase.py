@@ -35,7 +35,7 @@ def _purchase_context(old_ship: ship_module.OwnedShip, credits: int = 10_000):
         entities=[old_entity, blocker],
     )
     return SimpleNamespace(
-        stats=HudStats(hp=30, max_hp=30, credits=credits),
+        stats=HudStats(credits=credits),
         ship_storage=[],
         player_owned_ship=old_ship,
         log=message_log.MessageLog(capacity=20),
@@ -226,7 +226,7 @@ def _indoor_purchase_context(old_ship, credits=10_000):
     )
     interior.city_interior_id = "city:earth:spaceport"
     ctx = SimpleNamespace(
-        stats=HudStats(hp=30, max_hp=30, credits=credits),
+        stats=HudStats(credits=credits),
         ship_storage=[],
         player_owned_ship=old_ship,
         log=message_log.MessageLog(capacity=20),

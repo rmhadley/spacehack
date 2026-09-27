@@ -142,9 +142,12 @@ def range_band_color(
 
 @dataclass
 class HudStats:
-    """The stats shown in the HUD right now."""
-    hp: int
-    max_hp: int
+    """The stats shown in the HUD right now.
+
+    Hull HP is deliberately absent (doc 49 SETTLED 5): hull points
+    are ship + modules (:func:`ship.hull_cur_max`), never a character
+    stat.
+    """
     credits: int
     gunnery: int = 0
     piloting: int = 0

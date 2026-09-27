@@ -68,16 +68,17 @@ class TestGetAttitude:
 # consortium starts −100 for every combo (no species/class rows).
 # Doc 49 SETTLED 3-B: _SPECIES_REP is empty — martian's old militia
 # +10 / pirate −10 rows are gone, so every species shares the human
-# numbers for a given class.
+# numbers for a given class. SETTLED 5/6/7 re-ruled the class tables
+# on the ±30 envelope: merchant and BH open at the clamped extremes.
 _HUMAN_CLASS_ROWS: dict[str, dict[str, int]] = {
     "pirate": {
         "pirate": -70, "merchant": -10, "militia": 30, "consortium": -100,
     },
     "merchant": {
-        "pirate": -90, "merchant": 10, "militia": 55, "consortium": -100,
+        "pirate": -100, "merchant": 30, "militia": 50, "consortium": -100,
     },
     "bounty_hunter": {
-        "pirate": -100, "merchant": 5, "militia": 65, "consortium": -100,
+        "pirate": -100, "merchant": 10, "militia": 70, "consortium": -100,
     },
 }
 _EXPECTED_STARTING_REP: dict[str, dict[str, dict[str, int]]] = {

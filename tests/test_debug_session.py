@@ -34,7 +34,7 @@ def _build_ctx() -> GameContext:
         log=MessageLog(capacity=6),
         game_map=game_map,
         player=player,
-        stats=HudStats(hp=30, max_hp=30, credits=100),
+        stats=HudStats(credits=100),
     )
 
 

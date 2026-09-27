@@ -154,28 +154,25 @@ def is_transient_player(entity) -> bool:
 def starting_stats(species_id: str, class_id: str):
     """Starting :class:`spacehack.hud.HudStats` for a (species, class).
 
-    HP = ``class.hp_base`` — the ship-layer readout is class-only
-    (doc 49 SETTLED 3-A: the species hp_bonus is ground HP, folded
-    into the ground max-HP formula instead). Credits come straight
-    off the class spec. Pilot skills (gunnery, piloting, engineering)
-    are computed from species + class bonuses applied on top of
-    :data:`PILOT_SKILL_BASE`. Unknown ids fall through to safe
-    defaults so a future save/load path that emits an unrecognised
-    species or class id can't crash the HUD init.
+    Credits come straight off the class spec; hull HP is never on the
+    HudStats (doc 49 SETTLED 5 — hull is ship + modules; the old
+    ``hp``/``max_hp`` readouts were vestigial and are gone). Pilot
+    skills (gunnery, piloting, engineering) are computed from species
+    + class bonuses applied on top of :data:`PILOT_SKILL_BASE`.
+    Unknown ids fall through to safe defaults so a future save/load
+    path that emits an unrecognised species or class id can't crash
+    the HUD init.
     """
     # Local import avoids any chance of a module-load circular dep if
     # hud.py ever starts importing back from character.
     from .hud import HudStats
     cl = _safe_lookup_class(class_id)
-    hp_base = cl.hp_base if cl is not None else 10
     credits = cl.credits if cl is not None else 50
 
     # Compute pilot skills — reuse starting_pilot_skills internally
     # so the three skill values stay in sync with the combat init.
     skills = starting_pilot_skills(species_id, class_id)
     return HudStats(
-        hp=hp_base,
-        max_hp=hp_base,
         credits=credits,
         gunnery=skills.gunnery,
         piloting=skills.piloting,

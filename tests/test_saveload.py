@@ -38,7 +38,7 @@ def _build_test_ctx() -> GameContext:
     gm = GameMap(width=10, height=10, tiles=[], entities=[])
     player = Entity(char="@", fg=(255, 255, 255), pos=Position(5, 5), name="Player")
     gm.entities.append(player)
-    stats = HudStats(hp=30, max_hp=30, credits=100)
+    stats = HudStats(credits=100)
     log = MessageLog(capacity=6)
     log.add("Run started.")
     log.add_colored("A hostile signal appears.", (255, 70, 70))
@@ -197,6 +197,13 @@ class TestSaveLoadRoundTrip:
         assert loaded is not None, "load_game returned None"
         self._assert_fields_match(ctx, loaded)
 
+        # The vestigial hull readouts never reach the save payload
+        # (doc 49 SETTLED 5).
+        payload = json.loads((tmp_path / "autosave.json").read_text())
+        assert set(payload["stats"]) == {
+            "credits", "gunnery", "piloting", "engineering",
+        }
+
         # Clean up.
         delete_save()
         # Reset module-level global set by load_game.
@@ -276,10 +283,12 @@ class TestSaveLoadRoundTrip:
         ] + ["Game loaded."]
         assert loaded.log.history()[-2].fg == (255, 70, 70)
 
-        # Stats
-        assert loaded.stats.hp == original.stats.hp
-        assert loaded.stats.max_hp == original.stats.max_hp
+        # Stats (hull HP is gone from HudStats — doc 49 SETTLED 5:
+        # hull is ship + modules, never a character stat)
         assert loaded.stats.credits == original.stats.credits
+        assert loaded.stats.gunnery == original.stats.gunnery
+        assert loaded.stats.piloting == original.stats.piloting
+        assert loaded.stats.engineering == original.stats.engineering
 
         # Faction rep
         assert loaded.faction_reputation == original.faction_reputation

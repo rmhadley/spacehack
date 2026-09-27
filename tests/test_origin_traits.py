@@ -43,7 +43,7 @@ def _fresh_ctx(species_id: str = "human") -> GameContext:
             char="@", fg=(255, 255, 255),
             pos=world.Position(1, 1), name="Player",
         ),
-        stats=HudStats(hp=10, max_hp=10, credits=50),
+        stats=HudStats(credits=50),
     )
 
 
@@ -177,8 +177,9 @@ def test_ground_max_hp_total_folds_species_hp_bonus():
 def test_new_game_ground_max_hp_uses_the_shared_fold():
     ctx = _fresh_ctx("martian")
     _configure_new_context(ctx, "martian", "merchant", False)
-    # species 14 + merchant 12 stamina = 26 -> 20 + 13 + 2 = 35
-    assert (ctx.ground_max_hp, ctx.ground_hp) == (35, 35)
+    # species 14 + merchant 2 stamina = 16 -> 20 + 8 + 2 = 30
+    # (doc 49 phase 2: the class spreads sit on the +6 budget)
+    assert (ctx.ground_max_hp, ctx.ground_hp) == (30, 30)
 
 
 # ---------------------------------------------------------------------------

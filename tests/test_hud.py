@@ -163,7 +163,7 @@ def _ground_weapons_ctx(**extra):
     """Dungeon-HUD ctx carrying the ground loadout fields (doc 52.3)."""
     ctx = SimpleNamespace(
         character_info={"species_name": "Human", "class_name": "Merchant"},
-        stats=hud.HudStats(10, 10, 100),
+        stats=hud.HudStats(100),
         player_owned_ship=None,
         player_xp=0,
         player_level=1,
@@ -325,7 +325,7 @@ def test_city_hud_shows_current_ground_armor():
     """The Earth/city HUD exposes the equipped ground armor total."""
     ctx = SimpleNamespace(
         character_info={"species_name": "Human", "class_name": "Merchant"},
-        stats=hud.HudStats(10, 10, 100),
+        stats=hud.HudStats(100),
         player_owned_ship=None,
         player_xp=0,
         player_level=1,
