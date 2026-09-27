@@ -67,12 +67,13 @@ COLOR_HP_GOOD: tuple[int, int, int] = (110, 245, 125)               # bright gre
 COLOR_HP_LOW: tuple[int, int, int] = (255, 110, 110)                # bright red
 COLOR_EVADE: tuple[int, int, int] = (135, 235, 150)                # green, positive-buff accent
 
-# Player glyph ('@') health zones — the on-map character mirrors the
-# ground HP bar: white while healthy, amber below half, red below a
-# quarter, so a wounded run signals "heal now" without checking the
-# HUD panel. Shared by the frame presenter (game_loop) and the ground
-# combat renderer so every on-foot view stays in sync.
-COLOR_PLAYER_HEALTHY: tuple[int, int, int] = (255, 255, 255)        # full health
+# Player glyph health zones — the on-map character mirrors the ground
+# HP bar: the SPECIES color while healthy (doc 49 — passed in by the
+# caller as the healthy state), amber below half, red below a quarter,
+# so a wounded run signals "heal now" without checking the HUD panel.
+# Shared by the frame presenter (game_loop) and the ground combat
+# renderer so every on-foot view stays in sync.
+COLOR_PLAYER_HEALTHY: tuple[int, int, int] = (255, 255, 255)        # human default
 COLOR_PLAYER_WOUNDED: tuple[int, int, int] = (255, 200, 80)         # < half — amber
 COLOR_PLAYER_CRITICAL: tuple[int, int, int] = (255, 80, 80)          # < quarter — red
 
@@ -95,21 +96,28 @@ COLOR_RANGE_ORANGE: tuple[int, int, int] = (255, 160, 60)     # inside min range
 COLOR_RANGE_RED: tuple[int, int, int] = (255, 80, 80)         # beyond max range
 
 
-def ground_player_fg(hp: int, max_hp: int) -> tuple[int, int, int]:
-    """Return the fg color for the player's '@' glyph from ground HP.
+def ground_player_fg(
+    hp: int, max_hp: int,
+    healthy_color: tuple[int, int, int] = COLOR_PLAYER_HEALTHY,
+) -> tuple[int, int, int]:
+    """Return the fg color for the player's on-map glyph from ground HP.
 
-    White while at half health and above, amber while at half down to
-    a quarter, red below a quarter — the same half-health cue the HUD
-    bar uses, with one extra warning stage below it. Pure: callers
-    assign the result to the player entity's ``fg`` before rendering.
+    The species color while at half health and above (doc 49 — the
+    healthy state is the species' identity; callers pass
+    :func:`spacehack.character.species_appearance_for`), amber while
+    at half down to a quarter, red below a quarter — the same
+    half-health cue the HUD bar uses, with one extra warning stage
+    below it. Wounded/critical are universal regardless of species.
+    Pure: callers assign the result to the player entity's ``fg``
+    before rendering.
     """
     if max_hp <= 0:
-        return COLOR_PLAYER_HEALTHY
+        return healthy_color
     if hp * 4 < max_hp:
         return COLOR_PLAYER_CRITICAL
     if hp * 2 < max_hp:
         return COLOR_PLAYER_WOUNDED
-    return COLOR_PLAYER_HEALTHY
+    return healthy_color
 
 
 def range_band_color(

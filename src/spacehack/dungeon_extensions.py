@@ -442,7 +442,7 @@ def _install_entry_player(ctx, parent_map, game_map, spawn):
     """Move the player from the parent map onto an extension floor."""
     _remove_player(game_map)
     _remove_player(parent_map)
-    _player = _make_player(spawn)
+    _player = _make_player(spawn, ctx)
     game_map.entities.append(_player)
     ctx.game_map = game_map
     ctx.player = _player
@@ -741,7 +741,7 @@ async def _install_transition(ctx, state, target_map, target_position, target_fl
     """Move the player onto a target extension floor."""
     _remove_player(ctx.game_map)
     _remove_player(target_map)
-    _player = _make_player(target_position)
+    _player = _make_player(target_position, ctx)
     target_map.entities.append(_player)
     state.current_floor = target_floor
     _sync_event_positions(state, target_map)
@@ -790,7 +790,7 @@ def leave_extension(
         raise ValueError("Dungeon extension parent map has no return position")
     _remove_player(extension_map)
     _remove_player(_parent_map)
-    _player = _make_player(_parent_pos)
+    _player = _make_player(_parent_pos, ctx)
     _parent_map.entities.append(_player)
     _state.active = False
     ctx.game_map = _parent_map
@@ -800,17 +800,23 @@ def leave_extension(
     return _parent_map, _player
 
 
-def _make_player(position: world.Position) -> world.Entity:
-    """Create the transient player entity used by extension handoffs."""
+def _make_player(position: world.Position, ctx) -> world.Entity:
+    """Create the transient player entity used by extension handoffs,
+    wearing the species glyph/color (doc 49)."""
+    from .character import species_appearance_for as _species_appearance_for
+    _glyph, _color = _species_appearance_for(ctx)
     return world.Entity(
-        char="@", fg=(255, 255, 255), pos=position, name="Player",
+        char=_glyph, fg=_color, pos=position, name="Player",
     )
 
 
 def _remove_player(game_map: world.GameMap) -> None:
-    """Remove transient player entities from a cached map."""
+    """Remove transient player entities from a cached map.
+
+    Identified by name, not glyph — the player char is the species'
+    (``@``/``&``/``♦``/``Q``, doc 49)."""
     game_map.entities[:] = [
-        _entity for _entity in game_map.entities if _entity.char != "@"
+        _entity for _entity in game_map.entities if _entity.name != "Player"
     ]
 
 

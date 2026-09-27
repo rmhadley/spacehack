@@ -117,6 +117,28 @@ def species_hp_bonus(species_id: str) -> int:
     return sp.hp_bonus if sp is not None else 0
 
 
+def species_appearance(species_id: str) -> tuple[str, tuple[int, int, int]]:
+    """The species' on-map ``(glyph, color)`` (doc 49).
+
+    ``@``/white for unknown ids (stale saves) — every transient
+    player-entity construction site reads this ONE helper, so the
+    exotic glyphs (``&``, ``♦``, ``Q``) stay consistent across modes.
+    The color feeds only the HEALTHY state of the on-map tint;
+    wounded amber / critical red stay universal.
+    """
+    sp = _safe_lookup_species(species_id)
+    if sp is None:
+        return "@", (255, 255, 255)
+    return sp.glyph, sp.color
+
+
+def species_appearance_for(ctx) -> tuple[str, tuple[int, int, int]]:
+    """:func:`species_appearance` read off the live ctx's species id."""
+    return species_appearance(
+        getattr(ctx, "character_info", {}).get("species_id", ""),
+    )
+
+
 def starting_stats(species_id: str, class_id: str):
     """Starting :class:`spacehack.hud.HudStats` for a (species, class).
 
@@ -188,6 +210,8 @@ __all__ = [
     "list_species",
     "list_classes",
     "species_hp_bonus",
+    "species_appearance",
+    "species_appearance_for",
     "starting_pilot_skills",
     "starting_ground_stats",
     "starting_stats",

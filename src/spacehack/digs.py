@@ -524,7 +524,7 @@ def enter_dig_site(state, planet_obj, site_id: str) -> str:
     game_map, spawn = get_or_generate_floor(state.ctx, site, 1)
     from .game_interactions import _adopt_dungeon_entry, _install_dungeon_player
 
-    player = _install_dungeon_player(game_map, spawn)
+    player = _install_dungeon_player(game_map, spawn, state.ctx)
     _adopt_dungeon_entry(state, game_map, player)
     state.log.add(_text_get("dig.enter_log", "").format(name=site["name"]))
     return "CONTINUE"
@@ -607,6 +607,6 @@ def _install_arrival(state, game_map: world.GameMap, spawn: world.Position) -> N
 
     _remove_player(state.game_map)
     _remove_player(game_map)
-    _player = _install_dungeon_player(game_map, spawn)
+    _player = _install_dungeon_player(game_map, spawn, state.ctx)
     state.ctx.game_map = game_map
     state.ctx.player = _player

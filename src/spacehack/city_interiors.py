@@ -121,8 +121,11 @@ def _seat_showroom_displays(ctx, game_map: world.GameMap) -> None:
 
 
 def _remove_player(game_map: world.GameMap) -> None:
-    """Remove transient player entities before reusing a cached map."""
-    game_map.entities[:] = [entity for entity in game_map.entities if entity.char != "@"]
+    """Remove transient player entities before reusing a cached map.
+
+    Identified by name, not glyph — the player char is the species'
+    (``@``/``&``/``♦``/``Q``, doc 49)."""
+    game_map.entities[:] = [entity for entity in game_map.entities if entity.name != "Player"]
 
 
 def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Position]:
@@ -159,7 +162,7 @@ def _install_interior_state(state, parent_map, interior, spawn, record):
     parent_player = state.player
     if parent_player in parent_map.entities:
         parent_map.entities.remove(parent_player)
-    interior_player = world.Entity("@", parent_player.fg, spawn, name="Player")
+    interior_player = world.Entity(parent_player.char, parent_player.fg, spawn, name="Player")
     interior.entities.append(interior_player)
     interior.city_parent_map = parent_map
     interior.city_parent_player = parent_player
@@ -204,7 +207,9 @@ def restore_city_interior_parent(ctx, rebuilt) -> None:
     door = record.get("entrance") or getattr(interior, "city_parent_door", None)
     if door is None:
         return
-    parent_player = world.Entity("@", (255, 255, 255), world.Position(*door), name="Player")
+    from .character import species_appearance_for as _species_appearance_for
+    _glyph, _color = _species_appearance_for(ctx)
+    parent_player = world.Entity(_glyph, _color, world.Position(*door), name="Player")
     parent.entities.append(parent_player)
     if ctx.player_owned_ship is not None:
         ship_spec = ship_module.find_ship(ctx.player_owned_ship.ship_id)

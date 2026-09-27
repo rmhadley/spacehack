@@ -24,7 +24,7 @@ def _shield_row(player_state: dict) -> tuple[str, list[int]]:
 
 
 def test_ground_player_fg_health_zones():
-    """The '@' glyph color tracks ground HP thresholds."""
+    """The player glyph color tracks ground HP thresholds."""
     from src.spacehack.hud import (
         ground_player_fg,
         COLOR_PLAYER_HEALTHY,
@@ -38,6 +38,25 @@ def test_ground_player_fg_health_zones():
     assert ground_player_fg(4, 20) == COLOR_PLAYER_CRITICAL   # below a quarter
     assert ground_player_fg(1, 23) == COLOR_PLAYER_CRITICAL
     assert ground_player_fg(0, 0) == COLOR_PLAYER_HEALTHY     # degenerate max
+
+
+def test_ground_player_fg_species_healthy_color_alarms_universal():
+    """Doc 49: the species color owns only the HEALTHY state; wounded
+    amber / critical red read the same for every species."""
+    from src.spacehack.hud import (
+        ground_player_fg,
+        COLOR_PLAYER_WOUNDED,
+        COLOR_PLAYER_CRITICAL,
+    )
+    martian_green = (130, 225, 90)
+    diamond_blue = (185, 215, 245)
+    assert ground_player_fg(29, 29, martian_green) == martian_green
+    assert ground_player_fg(15, 29, martian_green) == martian_green  # above half
+    assert ground_player_fg(14, 29, martian_green) == COLOR_PLAYER_WOUNDED
+    assert ground_player_fg(7, 29, martian_green) == COLOR_PLAYER_CRITICAL
+    assert ground_player_fg(14, 29, diamond_blue) == COLOR_PLAYER_WOUNDED
+    assert ground_player_fg(7, 29, diamond_blue) == COLOR_PLAYER_CRITICAL
+    assert ground_player_fg(0, 0, martian_green) == martian_green
 
 
 def test_shield_bar_matches_hull_bar_width():

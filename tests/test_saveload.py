@@ -2069,3 +2069,64 @@ class TestReputationSheetMigration:
         entry = loaded.collected_ids[0]
         assert entry["rep"] == {"pirate": 40, "merchant": 0, "militia": 0}
         delete_save()
+
+
+class TestSpeciesGlyphRoundTrip:
+    """Doc 49: the exotic player glyphs (&, ♦, Q) survive save/load —
+    every load-rebuild path threads character_info's species_id into
+    the walker entity; the transient player is identified by NAME,
+    never by a hardcoded '@'."""
+
+    def _round_trip(self, monkeypatch, tmp_path, species_id):
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(42)
+        ctx = _build_test_ctx()
+        ctx.character_info = {
+            **ctx.character_info,
+            "species_id": species_id,
+            "species_name": species_id.title(),
+        }
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        loaded = load_game(ctx.context)
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+        return loaded
+
+    def test_cygnian_ampersand_survives(self, monkeypatch, tmp_path):
+        loaded = self._round_trip(monkeypatch, tmp_path, "cygnian")
+        assert loaded.player.char == "&"
+        assert loaded.player.name == "Player"
+
+    def test_lalandan_q_survives(self, monkeypatch, tmp_path):
+        loaded = self._round_trip(monkeypatch, tmp_path, "lalandan")
+        assert loaded.player.char == "Q"
+
+    def test_sirian_diamond_survives(self, monkeypatch, tmp_path):
+        loaded = self._round_trip(monkeypatch, tmp_path, "sirian")
+        assert loaded.player.char == "\u2666"
+
+    def test_unknown_species_falls_back_to_at(self, monkeypatch, tmp_path):
+        """A stale save's unknown species id renders the safe default."""
+        loaded = self._round_trip(monkeypatch, tmp_path, "removed_species")
+        assert loaded.player.char == "@"
+
+
+def test_dungeon_serialization_drops_only_the_named_player():
+    """The player-id refactor's bite: a NON-player entity wearing '@'
+    survives dungeon serialization; the transient player — whatever
+    glyph it wears — does not."""
+    from src.spacehack.saveload_maps import _dungeon_to_dict
+
+    _tiles = []
+    gm = GameMap(width=2, height=1, tiles=_tiles, entities=[
+        Entity(char="Q", fg=(255, 130, 195), pos=Position(0, 0), name="Player"),
+        Entity(char="@", fg=(255, 255, 255), pos=Position(1, 0), name="statue"),
+    ])
+    data = _dungeon_to_dict(gm, None)
+    names = {e["name"] for e in data["entities"]}
+    assert names == {"statue"}

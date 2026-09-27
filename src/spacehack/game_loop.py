@@ -59,15 +59,18 @@ def _present_overlay(state, ctx, console, map_h, location, space_view=None):
 
 
 def _tint_player_glyph(state) -> None:
-    """Tint the on-map '@' to mirror ground health each frame.
+    """Tint the on-map player glyph to mirror ground health each frame.
 
-    A wounded character signals "heal now" at a glance. Space mode
-    shows the ship hull instead; its own HUD carries the readout.
+    Healthy shows the species color (doc 49); wounds amber/red.
+    Space mode shows the ship hull instead; its own HUD carries the
+    readout.
     """
     if state.current_mode == 'space':
         return
+    from .character import species_appearance_for as _species_appearance_for
     state.player.fg = _ground_player_fg(
         state.ctx.ground_hp, state.ctx.ground_max_hp,
+        healthy_color=_species_appearance_for(state.ctx)[1],
     )
 
 
@@ -796,23 +799,8 @@ def _loaded_game_state(context, console, map_w, map_h, loaded_ctx):
         runtime.game_context = ctx
     return GameLoopState(ctx=ctx, console=console, map_w=map_w, map_h=map_h, log=log, stats=stats, game_map=game_map, player=player, current_mode=current_mode, current_city_id=current_city_id, city_game_map=locals().get('city_game_map'), city_player=locals().get('city_player'), space_game_map=space_game_map, space_player=space_player, player_owned_ship=player_owned_ship, player_active_missions=player_active_missions)
 
-def _new_character_context(context, species_id, class_id):
-    """Create the city, player, starter ship, and fresh game context."""
-    species = find_species(species_id)
-    klass = find_class(class_id)
-    game_map = world.make_city()
-    city_width, city_height = game_map.width, game_map.height
-    player = world.Entity(
-        char='@',
-        fg=(255, 255, 255),
-        pos=world.Position(x=city_width // 2, y=city_height // 2),
-        name='Player',
-    )
-    game_map.entities.append(player)
-    stats = character.starting_stats(species_id, class_id)
-    log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
-    for message in (f'You arrive in a quiet Earth city as a {species.name} {klass.name}.', "The cobblestones are damp from last night's rain.", 'Move with arrow keys, h/j/k/l, or numpad; diagonals y/u/b/n.', 'Buildings: North-West space port, South-West merchant guild,', 'Bar in the plaza, militia + bounty guild on the South-East.', 'Visit the guild halls to find work or the port to upgrade your ship.'):
-        log.add(message)
+def _build_starter_ship(game_map, log):
+    """Seat the starter ship trio: catalog spec, map entity, owned record."""
     starter_ship = ship_module.find_ship('starter')
     from .data.ships.core import STARTER_NAMES as _starter_names
     from .engine import RNG as _rng
@@ -829,6 +817,28 @@ def _new_character_context(context, species_id, class_id):
     game_map.entities.append(starter_entity)
     owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=ship_module.base_weapon_entries(starter_ship.start_weapons), modules=ship_module.base_module_entries(starter_ship.start_modules), fuel=starter_ship.max_fuel)
     log.add(f'Your {ship_name} is docked at the space port.')
+    return starter_ship, starter_entity, owned_ship
+
+def _new_character_context(context, species_id, class_id):
+    """Create the city, player, starter ship, and fresh game context."""
+    species = find_species(species_id)
+    klass = find_class(class_id)
+    game_map = world.make_city()
+    city_width, city_height = game_map.width, game_map.height
+    from .character import species_appearance as _species_appearance
+    _glyph, _color = _species_appearance(species_id)
+    player = world.Entity(
+        char=_glyph,
+        fg=_color,
+        pos=world.Position(x=city_width // 2, y=city_height // 2),
+        name='Player',
+    )
+    game_map.entities.append(player)
+    stats = character.starting_stats(species_id, class_id)
+    log = message_log.MessageLog(capacity=MSG_LOG_HEIGHT)
+    for message in (f'You arrive in a quiet Earth city as a {species.name} {klass.name}.', "The cobblestones are damp from last night's rain.", 'Move with arrow keys, h/j/k/l, or numpad; diagonals y/u/b/n.', 'Buildings: North-West space port, South-West merchant guild,', 'Bar in the plaza, militia + bounty guild on the South-East.', 'Visit the guild halls to find work or the port to upgrade your ship.'):
+        log.add(message)
+    starter_ship, starter_entity, owned_ship = _build_starter_ship(game_map, log)
     from .dev_mode import apply_dev_overrides as _apply_dev_overrides
     starter_ship, starter_entity, owned_ship = _apply_dev_overrides(starter_ship, starter_entity, owned_ship, stats, log)
     active_missions = []

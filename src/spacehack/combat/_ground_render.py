@@ -103,12 +103,15 @@ def _ground_range_line(
 
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
-    # Keep the '@' health tint current with the combat session state
-    # (HP lives in the rules session during a fight, synced back to
-    # ctx.ground_hp at combat end).
+    # Keep the player glyph's health tint current with the combat
+    # session state (HP lives in the rules session during a fight,
+    # synced back to ctx.ground_hp at combat end). Healthy tint is the
+    # species color (doc 49); wounds amber/red.
     _rules_mod = _rules()
+    from ..character import species_appearance_for as _species_appearance_for
     ctx.player.fg = ground_player_fg(
         _rules_mod.player_hp(ctx), _rules_mod.player_max_hp(ctx),
+        healthy_color=_species_appearance_for(ctx)[1],
     )
     cam = _render_ground_world(console, ctx, game_map)
     alive = _rules().get_enemies(ctx)

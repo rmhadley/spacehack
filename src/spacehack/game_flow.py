@@ -964,11 +964,12 @@ def _prep_cached_dungeon(game_map) -> world.Position | None:
 
     Shared by the salvage-wreck reboard path and the planet-surface
     re-entry path so both reuse cached maps the same way: no lingering
-    ``@`` from the previous visit, and the player spawns where they
-    entered last time.
+    transient player from the previous visit (identified by name —
+    the glyph is the species', doc 49), and the player spawns where
+    they entered last time.
     """
     for _oe in list(game_map.entities):
-        if _oe.char == '@':
+        if _oe.name == 'Player':
             game_map.entities.remove(_oe)
     _spawn = getattr(game_map, 'entry_spawn', None)
     if _spawn is None:

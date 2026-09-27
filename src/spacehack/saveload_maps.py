@@ -184,7 +184,7 @@ def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
         "height": gm.height,
         "tiles": _tiles_to_dict(gm),
         "entities": [
-            _entity_to_dict(e) for e in gm.entities if e.char != '@'
+            _entity_to_dict(e) for e in gm.entities if e.name != 'Player'
         ],
         "seen": gm.seen,
         "sight_radius": gm.sight_radius,
@@ -450,10 +450,14 @@ def _make_ship_entity(owned_ship, pos: world.Position) -> world.Entity:
     )
 
 
-def _make_walker_entity(pos: world.Position) -> world.Entity:
-    """Build the bare on-foot player entity at ``pos``."""
+def _make_walker_entity(pos: world.Position, species_id: str) -> world.Entity:
+    """Build the bare on-foot player entity at ``pos``, wearing the
+    species glyph/color (doc 49 — the save's character_info carries
+    the id; every load-rebuild path threads it here)."""
+    from .character import species_appearance as _species_appearance
+    _glyph, _color = _species_appearance(species_id)
     return world.Entity(
-        char='@', fg=(255, 255, 255),
+        char=_glyph, fg=_color,
         pos=pos, name='Player',
     )
 
@@ -526,7 +530,7 @@ def _add_procedural_npcs(game_map, spawns, system_id, mid_map, find_npc) -> None
 
 def _build_space_map(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, defeated_static_spawns=(), watch_day=None,
+    pos_x, pos_y, defeated_static_spawns=(), watch_day=None, species_id="",
 ):
     """Build the space map with NPCs and the player entity, or None."""
     from . import solar_system as solar_system_module
@@ -551,7 +555,7 @@ def _build_space_map(
     pos = world.Position(pos_x, pos_y)
     player_ent = (
         _make_ship_entity(owned_ship, pos)
-        if owned_ship is not None else _make_walker_entity(pos)
+        if owned_ship is not None else _make_walker_entity(pos, species_id)
     )
     game_map.entities.append(player_ent)
     return game_map, player_ent
@@ -559,12 +563,13 @@ def _build_space_map(
 
 def _rebuild_space(
     system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None,
+    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None, species_id="",
 ):
     """Rebuild the space map; returns None when the system id is unknown."""
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
         pos_x, pos_y, defeated_static_spawns, watch_day=watch_day,
+        species_id=species_id,
     )
     if built is None:
         return None
@@ -574,7 +579,7 @@ def _rebuild_space(
 
 def _rebuild_dungeon(
     data, system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None,
+    pos_x, pos_y, city_id, defeated_static_spawns=(), watch_day=None, species_id="",
 ):
     """Rebuild the space map + dungeon; returns None when unusable."""
     dd = data.get("dungeon", {})
@@ -584,13 +589,13 @@ def _rebuild_dungeon(
     built = _build_space_map(
         system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
         dd.get("space_player_x", pos_x), dd.get("space_player_y", pos_y),
-        defeated_static_spawns, watch_day=watch_day,
+        defeated_static_spawns, watch_day=watch_day, species_id=species_id,
     )
     if built is None:
         return None
     space_map, space_player = built
     dungeon_map, _ = _dungeon_from_dict(dd)
-    dungeon_player = _make_walker_entity(world.Position(pos_x, pos_y))
+    dungeon_player = _make_walker_entity(world.Position(pos_x, pos_y), species_id)
     dungeon_map.entities.append(dungeon_player)
     return _RebuiltMap(
         dungeon_map, dungeon_player, "dungeon", city_id, system_id,
@@ -598,7 +603,8 @@ def _rebuild_dungeon(
     )
 
 
-def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id, city_npc_positions):
+def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id,
+                   city_npc_positions, species_id=""):
     """Rebuild the planet city map for the saved city id."""
     from . import solar_system as solar_system_module
     from .data.planets import hangar_anchor as _planet_anchor
@@ -619,7 +625,7 @@ def _rebuild_city(system_id, log, owned_ship, pos_x, pos_y, city_id, city_npc_po
 
     game_map = planets_load_planet(city_id)
     _restore_city_npc_positions(game_map, city_npc_positions)
-    player_ent = _make_walker_entity(world.Position(pos_x, pos_y))
+    player_ent = _make_walker_entity(world.Position(pos_x, pos_y), species_id)
     game_map.entities.append(player_ent)
     if owned_ship is not None:
         hangar = _make_ship_entity(owned_ship, _planet_anchor(city_id))
@@ -678,27 +684,42 @@ def rebuild_game_map(
     Falls back to Earth city when the saved system id or dungeon data is
     unusable (matching the log messages the legacy inline code emitted).
     """
-    _city_npc_positions = data.get("city_npc_positions", {}) or {}
-    _statics = _static_rebuild_kwargs(data)
-    if mode == "space":
-        result = _rebuild_space(
-            system_id, log, owned_ship, bounty_spawns, proc_spawns, proc_mid_map,
-            pos_x, pos_y, city_id, **_statics,
-        )
-        if result is not None:
-            return result
-        city_id = "earth"
-    elif mode == "dungeon":
-        result = _rebuild_dungeon(
-            data, system_id, log, owned_ship, bounty_spawns, proc_spawns,
-            proc_mid_map, pos_x, pos_y, city_id, **_statics,
+    _species_id = (data.get("character_info") or {}).get("species_id", "")
+    _builder = _MODE_REBUILDERS.get(mode)
+    if _builder is not None:
+        result = _builder(
+            data, system_id=system_id, log=log, owned_ship=owned_ship,
+            bounty_spawns=bounty_spawns, proc_spawns=proc_spawns,
+            proc_mid_map=proc_mid_map, pos_x=pos_x, pos_y=pos_y,
+            city_id=city_id, species_id=_species_id,
+            **_static_rebuild_kwargs(data),
         )
         if result is not None:
             return result
         city_id = "earth"
     return _rebuild_city(
-        system_id, log, owned_ship, pos_x, pos_y, city_id, _city_npc_positions,
+        system_id, log, owned_ship, pos_x, pos_y, city_id,
+        data.get("city_npc_positions", {}) or {}, _species_id,
     )
+
+
+def _rebuild_space_mode(data, **kwargs) -> _RebuiltMap:
+    """Table adapter: the space rebuilder reads no save fields itself."""
+    del data
+    return _rebuild_space(**kwargs)
+
+
+def _rebuild_dungeon_mode(data, **kwargs) -> _RebuiltMap:
+    """Table adapter: the dungeon rebuilder reads the save's dungeon blob."""
+    return _rebuild_dungeon(data, **kwargs)
+
+
+# Mode dispatch for rebuild_game_map — a failed space/dungeon rebuild
+# falls through to the Earth-city fallback in the dispatcher.
+_MODE_REBUILDERS = {
+    "space": _rebuild_space_mode,
+    "dungeon": _rebuild_dungeon_mode,
+}
 
 
 def _static_rebuild_kwargs(data) -> dict:

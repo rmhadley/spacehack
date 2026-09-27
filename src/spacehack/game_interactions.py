@@ -256,13 +256,16 @@ async def _build_surface_dungeon(ctx, log, pid, planet_obj):
     ctx.interiors[_surface_key] = _dungeon_map
     return (_dungeon_map, _spawn)
 
-def _install_dungeon_player(dungeon_map, spawn):
+def _install_dungeon_player(dungeon_map, spawn, ctx):
     """Fog, a fresh transient player, and the arrival reveal — the
-    shared invariants of every dungeon entry."""
+    shared invariants of every dungeon entry. The player entity wears
+    the species glyph/color (doc 49)."""
+    from .character import species_appearance_for as _species_appearance_for
     from .dungeon import init_fog as _init_fog, reveal_around as _reveal_around
     if dungeon_map.seen is None:
         _init_fog(dungeon_map)
-    _dungeon_player = world.Entity(char='@', fg=(255, 255, 255), pos=spawn, name='Player')
+    _glyph, _color = _species_appearance_for(ctx)
+    _dungeon_player = world.Entity(char=_glyph, fg=_color, pos=spawn, name='Player')
     dungeon_map.entities.append(_dungeon_player)
     _reveal_around(dungeon_map, spawn)
     return _dungeon_player
@@ -286,7 +289,7 @@ def _enter_planet_surface(state, pid, planet_obj, dungeon_map, spawn):
     log = state.log
     # Quest NPCs are city-only: the experts stand in their guild
     # buildings, never inside surface dungeons (no duplicate copies).
-    _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
+    _dungeon_player = _install_dungeon_player(dungeon_map, spawn, state.ctx)
     dungeon_map.location_name = f'{planet_obj.name} Surface'
     _adopt_dungeon_entry(state, dungeon_map, _dungeon_player)
     log.add(f'You descend to the surface of {planet_obj.name}.')
@@ -377,7 +380,9 @@ async def _enter_city_landing(state, ctx, console, log, pid, planet_obj):
     from .data.planets import load_planet as _plp, hangar_anchor as _phang
     _new_city_map = _plp(pid)
     _anchor = _phang(pid)
-    _new_city_player = world.Entity(char='@', fg=(255, 255, 255), pos=world.Position(_anchor.x, _anchor.y + 1), name='Player')
+    from .character import species_appearance_for as _species_appearance_for
+    _glyph, _color = _species_appearance_for(ctx)
+    _new_city_player = world.Entity(char=_glyph, fg=_color, pos=world.Position(_anchor.x, _anchor.y + 1), name='Player')
     if state.player_owned_ship is not None:
         _ship_spec = ship_module.find_ship(state.player_owned_ship.ship_id)
         _hangar_ship = world.Entity(char=_ship_spec.char, fg=_ship_spec.fg, pos=world.Position(_anchor.x, -(solar_system_module.SOL_VIEW_H // 2) - 1), name=f'Your Ship: {ship_module.ship_display_name(state.player_owned_ship)}', ship_id=_ship_spec.id, owned=True)
@@ -818,7 +823,7 @@ async def _enter_boarding_dungeon(state, npcspec, dungeon_map, spawn, is_reboard
     console = state.console
     log = state.log
     from .dungeon import animate_breach as _animate_breach
-    _dungeon_player = _install_dungeon_player(dungeon_map, spawn)
+    _dungeon_player = _install_dungeon_player(dungeon_map, spawn, ctx)
     if not is_reboard:
         await _animate_breach(ctx, console, dungeon_map, spawn, region_w=state.map_w, region_h=state.map_h)
     dungeon_map.location_name = npcspec.name
