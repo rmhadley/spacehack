@@ -1,9 +1,8 @@
 # DESIGN: Auto-pickup — walk-over collection
 
-**Status:** OPEN — drafted 2026-09-27. Rulings SETTLED 1–8 recorded (open questions exhausted);
-Implementation briefs for phases 1–3 PROPOSED with all three ADVISE reviewer passes folded
-(space-goto hook, silent probe, heist markers, tutorial beat, no-DisplayConfig pref, per-key
-config granularity). Pending: brief approval + the prose drafts (tutorial prompt, guide intro).
+**Status:** OPEN — drafted 2026-09-27, briefs approved same day. Rulings SETTLED 1–9 recorded;
+Implementation briefs for phases 1–3 APPROVED with all three ADVISE reviewer passes folded.
+Build queue: `/implement-phase 55.1` first.
 
 ## Overview
 
@@ -166,13 +165,21 @@ design. No GameContext / save-format changes anywhere in this arc.
    second lesson is that loot can UPGRADE your ship, with the prompt pointing at the Loadout
    screen to fit it. The `loot_dropped` prompt teaches both verbs; the beat still completes only
    when no loot remains.
+9. **(2026-09-27, user: "approved")** The three Implementation briefs stand as written, and both
+   prose drafts are approved verbatim — the tutorial `loot_dropped` prompt v2 ("Crimson Jack was
+   destroyed - and dropped loot (%).\n\nFly over the salvage and it's collected automatically.
+   His Medium Laser is an upgrade - fly next to it and press 'P' to take it, and fit it from the
+   Loadout screen next time you dock. 'P' works in space and on the ground, and it reaches loot
+   on diagonal squares too.") and the guide "Options & Display" intro ("These settings change
+   how the game looks and plays. They are saved separately from game saves."). Phase 1 is
+   buildable: `/implement-phase 55.1`.
 
 ## Open questions
 
 None — questions 1–2 (P-flow overflow alignment; probe timing for auto-explore stops) were
 resolved by SETTLED 4 and 5–6 respectively on 2026-09-27.
 
-## Implementation briefs (PROPOSED — each awaiting user approval)
+## Implementation briefs (APPROVED 2026-09-27 — SETTLED 9)
 
 ### Phase 1 — Walk-over core + P remainder alignment
 
@@ -231,7 +238,7 @@ resolved by SETTLED 4 and 5–6 respectively on 2026-09-27.
   destroyed - and dropped loot (%).\n\nFly over the salvage and it's collected automatically.
   His Medium Laser is an upgrade - fly next to it and press 'P' to take it, and fit it from the
   Loadout screen next time you dock. 'P' works in space and on the ground, and it reaches loot
-  on diagonal squares too."** (draft — awaiting approval). The beat machinery needs no change:
+  on diagonal squares too."** (approved verbatim — SETTLED 9). The beat machinery needs no change:
   `picked_up_loot` waits for `not _any_loot` (tutorial.py:322-327), so the beat completes only
   after BOTH the fly-over salvage and the P'd laser are cleared — `notify_pickup` fires from
   the P path today and from the space walk-over apply (this brief).
@@ -326,7 +333,7 @@ debug_session.py — small hooks only.
   current intro (guide/__init__.py:58-60: "These settings affect presentation only; they never
   change your pilot, world, or save data.") becomes false the moment a gameplay row exists.
   Draft intro: **"These settings change how the game looks and plays. They are saved separately
-  from game saves."** (draft — awaiting approval).
+  from game saves."** (approved verbatim — SETTLED 9).
 
 **Build order:** config parse + two-mode writer round-trip (tested first) → runtime pref + setter
 → trade-class gate in the probe/apply → OPTIONS row + APPLY → runtime-open wiring → knowledge.md
