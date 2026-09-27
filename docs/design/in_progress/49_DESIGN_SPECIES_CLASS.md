@@ -424,18 +424,21 @@ list — deferred unless re-opened.
   capacity** (flat, additive into
   `ship.smuggler_hold_capacity` beside the module terms and the
   epilogue perk's 10% — opens early smuggling work on a bare hull).
-- **OPEN — trait leg 2 (whole game):** first-shot-of-the-encounter
-  bonus damage when the player fires first (user sketch, open to
-  variants — under discussion).
-- **OPEN — threshold effect:** does the "disliked pirates don't hunt
-  you" engage-threshold crossing ride on this same trait, or was it
-  replaced by the two new legs? (The −70 tell needs it, the numbers
-  ruling, or a different host.)
+- **Trait leg 2 (whole game), ruling (b) BOTH theaters:** the opening
+  attack of an encounter gains **+hit and +damage** when no enemy has
+  attacked yet — space volleys and ground attacks alike. Ground
+  consequence (accepted by design): the player usually acts before a
+  fresh fight's first enemy swing, so on ground this reads "first
+  attack of each fight"; space consumption semantics (pre-combat
+  enemy shots) get pinned in the brief. Values playtest-tunable.
+- **Threshold effect: DROPPED** (user): no engage-threshold mechanic.
+  "Pirate starting closer to neutral for pirates than the other two
+  classes is good enough" — the class table stands, the −70
+  disliked-pirates-still-engage tell is accepted behavior.
 
 ## Open questions (phase 2 — the roll-through)
 
-1. **Pirate** — trait leg 2 shape; whether the engage-threshold effect
-   is on the trait.
+1. ~~Pirate~~ — CLOSED (SETTLED 5).
 2. **Merchant** — stat spread placement; rep shape (±30 envelope);
    trait mechanics.
 3. **Bounty hunter** — stat spread placement; rep shape (±30
