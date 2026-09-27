@@ -27,7 +27,8 @@ MAX_PLAYER_LEVEL: int = 60
 # Skill points granted per level-up. Sized for six stats on the 0-100
 # scale: 5 points x 59 levels = 295 total, enough for a dedicated
 # L60 specialist to max out 3 of the 6 stats from a base-10 start
-# (3 stats x ~85 points each) with ~25 points left over.
+# (3 stats x ~85 points each) with ~25 points left over. Fast Learner
+# (doc 49's human origin trait) raises the grant to 6: 354 endgame.
 SKILL_POINTS_PER_LEVEL: int = 5
 
 
@@ -68,9 +69,10 @@ async def add_xp(ctx: GameContext, amount: int) -> None:
         if ctx.player_xp < xp_for_level(ctx.player_level) + _needed:
             break
         ctx.player_level += 1
-        ctx.player_skill_points += SKILL_POINTS_PER_LEVEL
+        _points = fast_learner_skill_points(ctx)
+        ctx.player_skill_points += _points
 
-        _msg = f"Level {ctx.player_level}! {SKILL_POINTS_PER_LEVEL} skill points earned."
+        _msg = f"Level {ctx.player_level}! {_points} skill points earned."
         if ctx.player_level in (40, 50):
             _msg += " Choose a trait (C key)."
         ctx.log.add_colored(_msg, _ml.COLOR_COMBAT_EVENT)
@@ -247,6 +249,15 @@ def longshot_range_bonus(ctx: GameContext) -> int:
     """Longshot origin trait: +1 max range on ranged weapons (ground
     and space). Melee reach and min ranges never move."""
     return 1 if has_trait(ctx, "longshot") else 0
+
+
+def fast_learner_skill_points(ctx: GameContext) -> int:
+    """Fast Learner origin trait (doc 49): 6 skill points per level
+    instead of 5 — a permanent lead, unlike an xp% bonus that
+    converges at the level cap."""
+    if has_trait(ctx, "fast_learner"):
+        return SKILL_POINTS_PER_LEVEL + 1
+    return SKILL_POINTS_PER_LEVEL
 
 
 # ---------------------------------------------------------------------------

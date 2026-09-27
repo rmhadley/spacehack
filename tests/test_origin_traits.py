@@ -179,3 +179,31 @@ def test_new_game_ground_max_hp_uses_the_shared_fold():
     _configure_new_context(ctx, "martian", "merchant", False)
     # species 14 + merchant 12 stamina = 26 -> 20 + 13 + 2 = 35
     assert (ctx.ground_max_hp, ctx.ground_hp) == (35, 35)
+
+
+# ---------------------------------------------------------------------------
+# Fast Learner — level-up grant (doc 49 phase 1, commit 5)
+# ---------------------------------------------------------------------------
+
+def test_fast_learner_grants_six_skill_points_per_level():
+    """6-vs-5 through the real add_xp level-up: a level-1 character
+    reaching level 2 (90 XP) earns 6 with the trait, 5 without."""
+    from tests.support.asyncutil import run
+    from src.spacehack.xp import add_xp
+
+    def _level_ctx(traits):
+        return SimpleNamespace(
+            player_traits=list(traits),
+            player_xp=0, player_level=1, player_skill_points=0,
+            log=SimpleNamespace(
+                add_colored=lambda *_args, **_kwargs: None,
+            ),
+        )
+
+    fast = _level_ctx(["fast_learner"])
+    run(add_xp(fast, 90))
+    assert (fast.player_level, fast.player_skill_points) == (2, 6)
+
+    plain = _level_ctx([])
+    run(add_xp(plain, 90))
+    assert (plain.player_level, plain.player_skill_points) == (2, 5)
