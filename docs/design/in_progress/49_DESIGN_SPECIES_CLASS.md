@@ -1,10 +1,12 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 1 BUILT 2026-09-27 — at the playtest checkpoint (12
-commits, gate 3196 green, reviewer round complete: part-1 blocker
-[trait_screen ironclad drift] fixed, all minors applied, re-review
-clean). Species layer locked (SETTLED 1/2/3 + the 2026-09-27 card
-title revision); class layer (phase 2) unruled beyond sketches.**
+**Status: PHASE 1 COMPLETE 2026-09-27 — built (18 commits, gate 3197
+green), reviewer round closed (both blockers + all minors fixed),
+PLAYTEST PASSED (user sign-off 2026-09-27, after three in-playtest
+card polish rounds: CHAR-NAME-HOME title, flavor-free homes + six
+aligned stat rows, verbatim trait prose, hint dedup; guide edits
+reviewed with the checklist). Next: phase 2 — class identity layer
+(discussion open; unbriefed).**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -148,12 +150,14 @@ sits in it too, HP rides after).
 ## Phases
 
 - [x] **1. Species identity layer** — brief below (APPROVED).
-      BUILT 2026-09-27: 12 commits (audit + 8 build + blocker fix +
-      card revision + minors), gate 3196 green, reviewer round
-      complete. Awaiting playtest.
+      BUILT + PLAYTEST PASSED 2026-09-27: 18 commits (audit + 8 build +
+      blocker fix + card revisions + minors + prose/hint polish), gate
+      3197 green, reviewer round closed. Playtest findings folded in
+      session: the CHAR-NAME-HOME card title, flavor-free homes,
+      six-stat aligned rows, user-verbatim trait prose, hint dedup.
 - [ ] **2. Class identity layer** — class trait lockdowns (pirate
       kinship / trade lens / rap-sheet sketches), stat/credit refresh,
-      class-screen card parity. Not started in phase 1.
+      class-screen card parity. Discussion open; unbriefed.
 
 ## Pre-implementation audit (2026-09-27, code-anchored — phase 1)
 
