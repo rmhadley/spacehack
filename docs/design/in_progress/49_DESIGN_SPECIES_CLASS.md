@@ -450,11 +450,25 @@ list — deferred unless re-opened.
      actually makes an impact with starter ship at beginning").
   2. **+5% sell / −5% buy at all stations AND the spaceport.**
 
+## SETTLED 7 — 2026-09-27: Bounty Hunter (roll-through 3 of 3, user)
+
+- **Stats: Gunnery +2 / Piloting +2 / Reflexes +2** (the +6 budget;
+  the tracker).
+- **Starting credits: 50.**
+- **Rep: militia +20 / pirate −30 / merchant +10** — opens at
+  militia 70 (liked, upper), pirate −100 (clamped, enemy), merchant
+  +10 (neutral).
+- **Trait "Bounty Hunter", two legs (user):**
+  1. **+5% evade/dodge chance in both ground and space combat.**
+  2. **x2 missile storage per missile weapon installed** (each
+     installed missile weapon's ammo rack holds double).
+- The rap-sheet sketch was NOT chosen (superseded by the two legs
+  above).
+
 ## Open questions (phase 2 — the roll-through)
 
 1. ~~Pirate~~ — CLOSED (SETTLED 5).
 2. ~~Merchant~~ — CLOSED (SETTLED 6).
-3. **Bounty hunter** — stat spread placement; rep shape (±30
-   envelope, with the band math visible); trait mechanics.
+3. ~~Bounty hunter~~ — CLOSED (SETTLED 7).
 4. **Class screen polish** — parity details (does the class card get a
    glyph/color identity like species?).
