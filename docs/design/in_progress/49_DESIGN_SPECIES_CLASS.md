@@ -486,17 +486,9 @@ on the class card is the ALREADY-CHOSEN species'. Card format:
 - **Trait block at the bottom** — class trait name + description,
   exactly like the species card.
 
-**Viewport math:** the split viewport caps at 11 rows; six stats +
-Armor/HP + three rep rows + trait name already = 11, leaving zero
-room for any description. PROPOSED: rep as ONE aligned summary row
+**Viewport math — RESOLVED (user, 2026-09-27):** the split viewport
+caps at 11 rows; rep renders as ONE aligned summary row
 (`Pirates -70  Merchants -10  Militia 30`) → 11 total with a
-two-line description budget. OPEN for the user's call (one-row rep vs
-another trim).
+two-line description budget. APPROVED as proposed.
 
-## Open questions (phase 2 — the roll-through)
-
-1. ~~Pirate~~ — CLOSED (SETTLED 5).
-2. ~~Merchant~~ — CLOSED (SETTLED 6).
-3. ~~Bounty hunter~~ — CLOSED (SETTLED 7).
-4. ~~Class screen polish~~ — CLOSED except the rep-row format fork
-   (SETTLED 8).
+Phase 2 is fully ruled. All roll-through questions CLOSED (5/6/7/8).
