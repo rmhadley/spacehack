@@ -406,13 +406,39 @@ roll-through: hull `hp_base` (class-only per SETTLED 3-A) and starting
 credits. Starting kits / class-locked gear: not in the user's phase-2
 list — deferred unless re-opened.
 
+## SETTLED 5 — 2026-09-27: Pirate (roll-through 1 of 3, user)
+
+- **Stats: Gunnery +3 / Strength +3** (the +6 budget; silhouette kept).
+- **Hull HP is not a class stat — UNIVERSAL ruling:** "HULL HP is
+  determined by ship + modules, not species/class." `GameClass.hp_base`
+  dies for ALL classes (already vestigial in code — space hull reads
+  the ship; the field only fed the serialized HudStats constants).
+  Disposition lands in the phase-2 brief.
+- **Starting credits: 25.**
+- **Rep: the trait crosses the threshold (ruling a of the fork); the
+  class rep-delta envelope for the OTHER two classes is +30/−30**
+  (pirate's table stays pirate +30 / merchant −10 / militia −20 →
+  opens at pirate −70 "disliked", merchant −10, militia 30).
+- **Trait name: "Pirate"** — the class traits are named the class name.
+- **Trait leg 1 (early game):** all ships gain **+10 smuggler's-hold
+  capacity** (flat, additive into
+  `ship.smuggler_hold_capacity` beside the module terms and the
+  epilogue perk's 10% — opens early smuggling work on a bare hull).
+- **OPEN — trait leg 2 (whole game):** first-shot-of-the-encounter
+  bonus damage when the player fires first (user sketch, open to
+  variants — under discussion).
+- **OPEN — threshold effect:** does the "disliked pirates don't hunt
+  you" engage-threshold crossing ride on this same trait, or was it
+  replaced by the two new legs? (The −70 tell needs it, the numbers
+  ruling, or a different host.)
+
 ## Open questions (phase 2 — the roll-through)
 
-1. **Pirate** — stat spread placement; rep shape (rep-numbers fix vs
-   trait-threshold fix for the −70 tell); class trait mechanics.
-2. **Merchant** — stat spread placement; rep shape; trade-lens trait
-   mechanics.
-3. **Bounty hunter** — stat spread placement; rep shape; rap-sheet
+1. **Pirate** — trait leg 2 shape; whether the engage-threshold effect
+   is on the trait.
+2. **Merchant** — stat spread placement; rep shape (±30 envelope);
    trait mechanics.
+3. **Bounty hunter** — stat spread placement; rep shape (±30
+   envelope); trait mechanics.
 4. **Class screen polish** — parity details (does the class card get a
    glyph/color identity like species?).
