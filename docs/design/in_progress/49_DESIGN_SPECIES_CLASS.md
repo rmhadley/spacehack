@@ -436,12 +436,25 @@ list — deferred unless re-opened.
   classes is good enough" — the class table stands, the −70
   disliked-pirates-still-engage tell is accepted behavior.
 
+## SETTLED 6 — 2026-09-27: Merchant (roll-through 2 of 3, user)
+
+- **Stats: Engineering +4 / Stamina +2** (the +6 budget; ruling b).
+- **Starting credits: 75.**
+- **Rep: pirate −30 / merchant +30 / militia +0** — the full ±30
+  extremes: opens at pirate −100 (clamped, ENEMY — pirates hunt
+  merchants from day one), merchant +30 (LIKED), militia 50 (liked,
+  the shared default). Market intel therefore starts at the liked
+  tier with no trait needed.
+- **Trait "Merchant", two legs (user):**
+  1. All ships get **+10 cargo storage** (flat capacity — "this
+     actually makes an impact with starter ship at beginning").
+  2. **+5% sell / −5% buy at all stations AND the spaceport.**
+
 ## Open questions (phase 2 — the roll-through)
 
 1. ~~Pirate~~ — CLOSED (SETTLED 5).
-2. **Merchant** — stat spread placement; rep shape (±30 envelope);
-   trait mechanics.
+2. ~~Merchant~~ — CLOSED (SETTLED 6).
 3. **Bounty hunter** — stat spread placement; rep shape (±30
-   envelope); trait mechanics.
+   envelope, with the band math visible); trait mechanics.
 4. **Class screen polish** — parity details (does the class card get a
    glyph/color identity like species?).
