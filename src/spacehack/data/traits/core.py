@@ -240,11 +240,69 @@ QUEST_PERKS: dict[str, "Trait"] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Origin traits — granted by SPECIES at character creation (doc 49),
+# never chosen and never offered. They live OUTSIDE ALL_TRAITS so the
+# milestone screens can never offer them; ``game_loop
+# ._configure_new_context`` appends the species' ``trait_id`` to
+# ``player_traits`` at new-game setup. Mechanics live at usage-site
+# hooks (the xp.py bonus-helper pattern), same as every other trait.
+# ---------------------------------------------------------------------------
+
+ORIGIN_TRAITS: dict[str, "Trait"] = {
+    t.id: t
+    for t in (
+        Trait(
+            id="fast_learner",
+            name="Fast Learner",
+            description="+1 skill point per level (6 instead of 5)",
+            counters=(),
+        ),
+        Trait(
+            id="sturdy",
+            name="Sturdy",
+            description=(
+                "+2 armor defense and +2 melee damage, even with "
+                "nothing equipped"
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="momentum",
+            name="Momentum",
+            description=(
+                "+5% hit chance in space combat; a kill refunds that "
+                "volley's AP cost"
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="longshot",
+            name="Longshot",
+            description=(
+                "+1 max range on ranged weapons, ground and space; "
+                "melee reach unchanged"
+            ),
+            counters=(),
+        ),
+        Trait(
+            id="nimble",
+            name="Nimble",
+            description="+1 AP per round in ground combat",
+            counters=(),
+        ),
+    )
+}
+
+
 def trait_name(trait_id: str) -> str:
-    """The display name for a trait id, across both registries."""
+    """The display name for a trait id, across all three registries."""
     _perk = QUEST_PERKS.get(trait_id)
     if _perk is not None:
         return _perk.name
+    _origin = ORIGIN_TRAITS.get(trait_id)
+    if _origin is not None:
+        return _origin.name
     for _trait in ALL_TRAITS:
         if _trait.id == trait_id:
             return _trait.name
