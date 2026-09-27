@@ -138,6 +138,38 @@ async def _run_pick(context: PygameContext, menu: ui.MenuScreen) -> tuple[Outcom
         raise RuntimeError("Character picker returned no outcome")
     return result
 
+
+async def _run_species_pick(context: PygameContext) -> tuple[Outcome, str | None] | None:
+    """Run the species picker (doc 49): left cycling options, right the
+    hovered species' card. Falls back to the generic menu when split
+    presentation is unavailable (headless/dummy drivers); ``None``
+    mirrors the generic pickers' no-outcome failure."""
+    from . import pygame_split, pygame_runtime
+
+    if not pygame_split.enabled() or not pygame_runtime.is_shared_context(context):
+        return await _run_pygame_pick(context, ui.species_menu())
+
+    def _build(selected: int):
+        return ui.species_split_frame(selected)
+
+    while True:
+        outcome, action, _selected = await pygame_split.run_dynamic_screen(
+            context, _build, caption="spacehack - choose your species",
+        )
+        if outcome == "GUIDE":
+            continue
+        if outcome in ("TAB", "SHIFT_TAB"):
+            continue  # one pane pair — tabs have nothing to switch
+        if outcome == "QUIT":
+            return Outcome.QUIT, None
+        if outcome == "BACK":
+            return Outcome.BACK, None
+        if outcome == "SELECT":
+            valid_ids = {option_id for option_id, _label in ui.species_menu().options}
+            if action in valid_ids:
+                return Outcome.CONFIRM, action
+        return None
+
 async def _run_confirm(context: PygameContext, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""
     result = await _run_pygame_confirm(context, species_id, class_id)

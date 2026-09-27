@@ -112,11 +112,13 @@ def test_corrupt_continue_shows_error_without_starting_game(monkeypatch):
 
 def test_character_creation_retries_back_and_seeds_before_start(monkeypatch):
     context = object()
-    picks = iter(((Outcome.CONFIRM, "human"), (Outcome.BACK, None), (Outcome.CONFIRM, "human"), (Outcome.CONFIRM, "merchant")))
+    species_picks = iter(((Outcome.CONFIRM, "human"), (Outcome.CONFIRM, "human")))
+    class_picks = iter(((Outcome.BACK, None), (Outcome.CONFIRM, "merchant")))
     confirms = iter((Outcome.CONFIRM,))
     seeds = []
     runs = []
-    monkeypatch.setattr(title_flow, "_run_pick", as_async(lambda *_args: next(picks)))
+    monkeypatch.setattr(title_flow, "_run_species_pick", as_async(lambda *_args: next(species_picks)))
+    monkeypatch.setattr(title_flow, "_run_pick", as_async(lambda *_args: next(class_picks)))
     monkeypatch.setattr(title_flow, "_run_confirm", as_async(lambda *_args: next(confirms)))
     monkeypatch.setattr(title_flow, "_fresh_seed", lambda seed: seeds.append(seed))
 

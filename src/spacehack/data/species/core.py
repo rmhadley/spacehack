@@ -71,6 +71,7 @@ SPECIES: tuple[Species, ...] = (
         description="Whisper - the Vault (Lalande)",
         glyph="Q",
         color=(255, 130, 195),
+        home="Whisper - the Vault (Lalande)",
         trait_id="nimble",
         hp_bonus=0,
         skill_bonus=PilotSkills(gunnery=0, piloting=0, engineering=0),

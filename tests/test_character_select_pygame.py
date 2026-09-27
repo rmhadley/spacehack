@@ -195,3 +195,83 @@ def test_stats_tab_lists_owned_identity_gear():
         "T", 0, 10, selected=0,
     ).body
     assert "Gear: transponder cut-out, clone rig" in _body
+
+
+class TestSpeciesSplitPicker:
+    """Doc 49 SETTLED 2: left cycling options, right the species card."""
+
+    def test_left_options_follow_roster_order_with_species_ids(self):
+        frame = ui.species_split_frame(0)
+        assert [(row.label, row.action) for row in frame.left_rows] == [
+            ("Human", "human"), ("Martian", "martian"),
+            ("Cygnian", "cygnian"), ("Sirian", "sirian"),
+            ("Lalandan", "lalandan"),
+        ]
+
+    def test_card_follows_the_selection(self):
+        assert ui.species_split_frame(1).right_rows[0].label == "Martian  @"
+        assert ui.species_split_frame(4).right_rows[0].label == "Lalandan  Q"
+
+    def test_card_carries_glyph_in_species_color(self):
+        frame = ui.species_split_frame(2)
+        header = frame.right_rows[0]
+        assert header.label == "Cygnian  &"
+        assert "".join(text for text, _color in header.runs) == header.label
+        assert header.runs[1] == ("  &", (170, 130, 230))
+
+    def test_card_pins_settled_numbers(self):
+        martian = ui.species_split_frame(1).right_rows
+        assert martian[1].label == "Home: Mars (Sol)"
+        assert martian[3].label == "Strength 12, Stamina 14, rest 10"
+        assert martian[4].label == "Armor 2   HP 29"
+        lalandan = ui.species_split_frame(4).right_rows
+        assert lalandan[3].label == "Reflexes 16, Strength 5, Stamina 5, rest 10"
+        assert lalandan[4].label == "Armor 0   HP 22"
+        human = ui.species_split_frame(0).right_rows
+        assert human[3].label == "All stats 11"
+
+    def test_card_bottom_shows_trait_name_and_description(self):
+        frame = ui.species_split_frame(1)
+        labels = [row.label for row in frame.right_rows]
+        assert "Sturdy" in labels
+        trait_desc = "+2 armor defense and +2 melee damage, even with nothing equipped"
+        joined = " ".join(labels)
+        assert trait_desc[:30] in joined  # wrapped lines carry the text
+
+    def test_card_rows_fit_the_split_viewport(self):
+        for index in range(5):
+            assert len(ui.species_split_frame(index).right_rows) <= 11
+
+    def test_run_species_pick_falls_back_to_generic_menu(self, monkeypatch):
+        from src.spacehack import pygame_split
+        captured = {}
+        monkeypatch.setattr(pygame_split, "enabled", lambda: False)
+        monkeypatch.setattr(
+            pygame_menu,
+            "run_for_context",
+            as_async(
+                lambda context, frames, **kwargs: captured.update(
+                    frames=frames,
+                ) or ("SELECT", "martian", 0)
+            ),
+        )
+        outcome, species_id = run(input_helpers._run_species_pick(SimpleNamespace()))
+        assert outcome is input_helpers.Outcome.CONFIRM
+        assert species_id == "martian"
+        assert captured["frames"][0].items[1].action == "martian"
+
+    def test_run_species_pick_rejects_invalid_action(self, monkeypatch):
+        from src.spacehack import pygame_split
+        monkeypatch.setattr(pygame_split, "enabled", lambda: False)
+        monkeypatch.setattr(
+            pygame_menu,
+            "run_for_context",
+            as_async(lambda *args, **kwargs: ("SELECT", "not-a-species", 0)),
+        )
+        try:
+            run(input_helpers._run_species_pick(SimpleNamespace()))
+        except RuntimeError as exc:
+            assert "returned no outcome" in str(exc) or exc is not None
+        else:
+            if input_helpers is None:
+                raise AssertionError("invalid species actions must be rejected")

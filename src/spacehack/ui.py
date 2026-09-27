@@ -68,7 +68,8 @@ def _modal_hint(*parts: str) -> str:
 
 
 def species_menu() -> MenuScreen:
-    """Build the species-choices menu screen."""
+    """Build the species-choices menu screen (the generic-menu
+    fallback when split presentation is unavailable)."""
     return MenuScreen(
         title="Choose Your Species",
         instruction=_modal_hint("ENTER select", "ESC start over"),
@@ -85,6 +86,135 @@ def class_menu() -> MenuScreen:
         options=tuple((c.id, c.name) for c in list_classes()),
         descriptions={c.id: c.description for c in list_classes()},
         selected=0,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Species card (doc 49 SETTLED 2): the split-screen picker's right pane
+# ---------------------------------------------------------------------------
+
+# The six stats in card order — ship row first, ground row second.
+_SPECIES_STAT_ORDER: tuple[tuple[str, str, int], ...] = (
+    # (spec field, display name, which bonus container)
+    ("gunnery", "Gunnery", "skill"),
+    ("piloting", "Piloting", "skill"),
+    ("engineering", "Engineering", "skill"),
+    ("reflexes", "Reflexes", "ground"),
+    ("strength", "Strength", "ground"),
+    ("stamina", "Stamina", "ground"),
+)
+
+# Wrap budget for card description lines — informational rows truncate,
+# never wrap, so long text is pre-wrapped to fit the narrowest panel.
+_SPECIES_CARD_WRAP: int = 36
+
+
+def _species_start_stats(spec) -> dict[str, int]:
+    """The species' six start values (base + species spread, class-free)."""
+    from .character import GROUND_STAT_BASE, PILOT_SKILL_BASE
+    values: dict[str, int] = {}
+    for field, _label, container in _SPECIES_STAT_ORDER:
+        base = PILOT_SKILL_BASE if container == "skill" else GROUND_STAT_BASE
+        bonus = getattr(
+            spec.skill_bonus if container == "skill" else spec.ground_bonus,
+            field,
+        )
+        values[field] = base + bonus
+    return values
+
+
+def species_stats_line(spec) -> str:
+    """The card's stat line: absolute values, no +/- (SETTLED 2).
+
+    All six equal reads "All stats N"; otherwise the deviating stats
+    are named with their values and the base reads "rest 10" (e.g.
+    Martian: "Strength 12, Stamina 14, rest 10").
+    """
+    from .character import GROUND_STAT_BASE
+    values = _species_start_stats(spec)
+    labeled = [
+        (label, values[field]) for field, label, _c in _SPECIES_STAT_ORDER
+    ]
+    if len({value for _label, value in labeled}) == 1:
+        return f"All stats {labeled[0][1]}"
+    named = [f"{label} {value}" for label, value in labeled if value != GROUND_STAT_BASE]
+    return ", ".join(named) + f", rest {GROUND_STAT_BASE}"
+
+
+def _species_start_row(spec):
+    """The card's Armor/HP row, read through the live naked-start
+    formulas so the card never disagrees with a fresh game."""
+    from types import SimpleNamespace
+
+    from . import pygame_split
+    from . import xp
+
+    _naked = SimpleNamespace(
+        ground_stats=SimpleNamespace(stamina=_species_start_stats(spec)["stamina"]),
+        equipped_ground_armor={},
+        player_traits=[spec.trait_id],
+        character_info={"species_id": spec.id},
+    )
+    return pygame_split.SplitRow(
+        f"Armor {xp.sturdy_armor_bonus(_naked)}   "
+        f"HP {xp.ground_max_hp_total(_naked)}",
+        "", "", "", selectable=False,
+    )
+
+
+def _species_card_rows(spec) -> tuple:
+    """The right pane: one easy-to-read card for the hovered species."""
+    from . import pygame_split
+
+    def _info(label, *, fg=None, runs=None):
+        return pygame_split.SplitRow(
+            label, "", "", "", selectable=False, fg=fg, runs=runs,
+        )
+
+    rows = [
+        _info(
+            f"{spec.name}  {spec.glyph}",
+            runs=(
+                (spec.name, None),
+                (f"  {spec.glyph}", spec.color),
+            ),
+        ),
+        _info(f"Home: {spec.home}"),
+        pygame_split.section_header("STARTING STATS"),
+        _info(species_stats_line(spec)),
+        _species_start_row(spec),
+        pygame_split.section_header("TRAIT"),
+    ]
+    from .data.traits.core import ORIGIN_TRAITS
+    trait = ORIGIN_TRAITS[spec.trait_id]
+    rows.append(_info(trait.name, fg=COLOR_OPTION_HIGHLIGHT))
+    rows.extend(_info(line) for line in wrap_text(trait.description, _SPECIES_CARD_WRAP))
+    return tuple(rows)
+
+
+def species_split_frame(selected: int = 0):
+    """The species picker's split frame: left cycling options, right
+    the hovered species' card (doc 49 SETTLED 2)."""
+    from . import pygame_split
+
+    options = tuple(
+        pygame_split.SplitRow(label=s.name, value="", detail="", action=s.id)
+        for s in list_species()
+    )
+    roster = list_species()
+    card = _species_card_rows(
+        roster[max(0, min(selected, len(roster) - 1))],
+    )
+    return pygame_split.SplitFrame(
+        title="CHOOSE YOUR SPECIES",
+        left_label="SPECIES",
+        right_label="SPECIES CARD",
+        left_rows=options,
+        right_rows=card,
+        footer_left="",
+        footer_right="",
+        hint=_modal_hint("UP/DOWN browse", "ENTER select", "ESC start over"),
+        selected=max(0, min(selected, len(options) - 1)),
     )
 
 # ---------------------------------------------------------------------------

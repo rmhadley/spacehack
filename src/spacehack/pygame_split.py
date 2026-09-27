@@ -686,6 +686,40 @@ async def _pump_screen_events(pygame: Any, frame: SplitFrame, selected: int):
     return "IGNORE", "", selected
 
 
+async def run_dynamic_screen(
+    context: PygameContext,
+    build_frame: Callable[[int], SplitFrame],
+    *,
+    caption: str = "spacehack",
+) -> tuple[str, str, int]:
+    """Run a read-only-right split screen whose frame REBUILDS from the
+    live selection — doc 49's species picker, whose right card follows
+    the left cursor. Same contract as :func:`run_for_screen`; the frame
+    is a function of the selected index instead of a fixed object."""
+    from . import pygame_runtime
+
+    if not pygame_runtime.is_shared_context(context):
+        raise PygameSplitUnavailable("Shared Pygame runtime is not open")
+    engine, pygame, screen = _shared_engine(context)
+    width, height = screen.get_size()
+    frame = _build_frame(lambda: build_frame(0))
+    font = _fit_font(pygame, frame, width, height)
+    while True:
+        selected = _clamp_screen_selected(frame)
+        _draw_frame(
+            pygame, screen, font, replace(frame, selected=selected),
+            context=context, selected=selected, flag_selected=True,
+        )
+        engine.present()
+        outcome, action, selected = await _pump_screen_events(
+            pygame, frame, selected,
+        )
+        if outcome != "IGNORE":
+            return outcome, action, selected
+        frame = _build_frame(lambda: build_frame(selected))
+        await context.pump(0.016)
+
+
 def _build_frame(build_frame: Callable[[], SplitFrame], *, rebuilt: bool = False) -> SplitFrame:
     """Call the frame builder, translating build errors into a fallback."""
     label = "rebuilt" if rebuilt else "built"

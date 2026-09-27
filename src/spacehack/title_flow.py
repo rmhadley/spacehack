@@ -7,7 +7,12 @@ import os
 from collections.abc import Awaitable, Callable
 
 from . import pygame_story, pygame_title, ui
-from .input_helpers import Outcome, _run_confirm, _run_pick
+from .input_helpers import (
+    Outcome,
+    _run_confirm,
+    _run_pick,
+    _run_species_pick,
+)
 from .pygame_runtime import PygameContext
 from .saveload import delete_save as _delete_save
 from .saveload import load_game as _load_game
@@ -41,7 +46,10 @@ async def _run_character_creation(
 ) -> None:
     """Run character creation, returning to the title menu on cancel."""
     while True:
-        outcome, species_id = await _run_pick(context, ui.species_menu())
+        species_result = await _run_species_pick(context)
+        if species_result is None:
+            raise RuntimeError("Species picker returned no outcome")
+        outcome, species_id = species_result
         if outcome in (Outcome.QUIT, Outcome.BACK):
             return
         outcome, class_id = await _run_pick(context, ui.class_menu())
