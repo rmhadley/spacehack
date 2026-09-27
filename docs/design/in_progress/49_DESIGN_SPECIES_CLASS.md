@@ -509,39 +509,72 @@ Phase 2 is fully ruled. All roll-through questions CLOSED (5/6/7/8).
    `faction._CLASS_REP` → pirate {pirate +30, merchant −10,
    militia −20} (unchanged), merchant {pirate −30, merchant +30,
    militia 0}, bounty_hunter {pirate −30, merchant +10, militia +20}.
-2. *Class trait layer* — `data/traits/core.py`: `CLASS_TRAITS`
+2. *Class trait layer* — `data/classes/__init__.py` gains
+   `GameClass.trait_id: str = ""` (declared field, the Species
+   precedent — no id convention buried in the grant). 
+   `data/traits/core.py`: `CLASS_TRAITS`
    registry (sibling of `ORIGIN_TRAITS`, outside `ALL_TRAITS`):
    ids `pirate`/`merchant`/`bounty_hunter`, names
    "Pirate"/"Merchant"/"Bounty Hunter". `trait_name` resolves all
    four registries. `_configure_new_context` grants the class trait
    after the species trait (a fresh character holds exactly two).
-   Descriptions DRAFT for user approval (two-line card budget,
-   catalog register):
-   - Pirate: `+10 smuggler's hold on every ship` / `First attack of a
-     fight: bonus hit and damage`
-   - Merchant: `+10 cargo space on every ship` / `+5% sell, -5% buy
-     at stations and the spaceport`
+   Descriptions DRAFT for user approval (two-LINE card budget at
+   the 36-char wrap — advisor verified the earlier drafts wrapped to
+   three; user wording wins):
+   - Pirate: `+10 smuggler's hold on every ship` /
+     `First attack: +hit, +damage`
+   - Merchant: `+10 cargo space on every ship` /
+     `+5% sell, -5% buy at stations`
    - Bounty Hunter: `+5% evade in space and ground combat` /
      `Missile racks hold double`
 3. *Pirate hooks* — smuggler hold: +10 flat term in
    `ship.smuggler_hold_capacity`. Opener: fight-scoped
    `enemy_fired: bool` field on BOTH combat states (declared fields,
-   never serialized, set at every enemy shot — hit or miss; both
-   `_ai.py` and `_ai_ground.py` shot paths); while False, the
-   player's first attack/volley gains **+10% hit and +25% damage**
-   (values playtest-tunable). Ground: read in `hit_chance` +
-   `damage`; space: read in `_player_hit_bonus` + the volley damage
+   never serialized, set at every enemy shot — hit or miss; the
+   funnel points are `_ai._enemy_attack` for space and
+   `_ai_ground._fire_enemy_burst` for ground — each covers every
+   enemy path incl. flee reactions; self-splash never sets it), PLUS
+   an `opener_spent: bool` sibling: the bonus applies to the player's
+   FIRST attack of the encounter only, requires `enemy_fired` False
+   at that moment, and is consumed by the attack (once per fight,
+   never on later volleys even vs a weaponless enemy). Values
+   **+10% hit and +25% damage**, playtest-tunable. Hit leg: ground
+   `hit_chance`, space `_player_hit_bonus`. Damage leg covers BOTH
+   ground paths — the volley path (`_rules_ground.damage`) AND the
+   explosive path (`_ground_blast.apply_explosive_enemy_hit`, which
+   never routes through `damage`) — plus the space volley damage
    mult.
-4. *Merchant hooks* — cargo: +10 flat in the `ship.py` capacity
-   total (ctx threaded). Prices: −5% buy / +5% sell in
-   `trade._unit_price` + `trade._sell_price` (station/spaceport
-   terminal) AND `trade._npc_price_multipliers` (NPC traders).
-5. *Bounty hunter hooks* — evade: +5 ground at the enemy-shot
-   `player_dodge` assembly (`_ai_ground.py`, the
-   `ground_evade_bonus` pattern) and +5 space at `_player_dodge`'s
-   two read sites (ctx/bonus threaded). Missile racks: an
+4. *Merchant hooks* — cargo: +10 flat in `ship.effective_max_cargo`
+   via the optional-ctx precedent (`smuggler_hold_capacity` shape).
+   Advisor-pass enumeration — EVERY decide-relevant reader threads
+   ctx: trade.py `_free_cargo`/buy/sell quantity checks, game_flow
+   landing checks, hud cargo row, character_screen_stats, all four
+   mission/_lifecycle cargo gates (a merchant must never be refused
+   cargo their own trade screen says fits); `menus/_ship_buy` stays
+   on the catalog spec deliberately (base-hull comparison).
+   Prices: BOTH class modifiers fold into the attitude `_mod` chain
+   at ONE site each side — never `-_5%` inside `_unit_price` AND
+   `+5%` inside `_sell_price` (sell derives from buy; compounding
+   would drop a merchant's sell price BELOW a neutral trader's).
+   Stacks with rep attitude mods (liked buy 0.95 / sell 1.05) — the
+   class trait and earned reputation are separate sources by design
+   (~0.9025 / ~1.1025 at liked). Goods only: equipment, ammo, and
+   ship prices are untouched.
+5. *Bounty hunter hooks* — evade: ground lands as ONE term in
+   `_rules_ground._player_ground_dodge` (the assembly that already
+   folds `ground_evade_bonus`, threaded into `_ai_ground` as an int —
+   never a second assembly layer); space lands at the RESOLUTION site
+   `_ai._resolve_enemy_shot` only — the AI-belief reads
+   (`_find_reposition`, `_ranked_weapons`) deliberately stay
+   unmodified so enemies underestimate the hunter. Missile racks: an
    `effective_missile_capacity(ws, ctx)` helper (×2 with the trait)
-   used by `ship._seed_missile_ammo` so installed racks seed double.
+   used at EVERY capacity site, per the advisor enumeration:
+   `_seed_missile_ammo`, `_install_weapon`'s direct magazine seed
+   (ship.py:460), `buy_ammo`'s refill room (:238),
+   `install_stored_equipment`'s storage clamp (:638 — a doubled rack
+   must not halve on a storage round-trip), `total_ammo_cargo`
+   (doubled racks book doubled reserve cargo), and the HUD/loadout
+   capacity displays (hud_combat, menus/_loadout).
 6. *Class choice screen* — `ui.class_split_frame(species_id,
    selected)` mirroring the species screen: title
    `CHAR - SPECIES - CLASS` colored with the chosen species' color;
@@ -577,6 +610,11 @@ seed double; opener +hit/+damage on the first attack and NOT after an
 enemy shot, both theaters; class card combined stats + effective rep
 + Armor/HP exact values; screen order + card-follows-selection +
 title color; save/load roundtrip carrying both traits.
+
+**Budget note (advisor forecast, not a placement driver):**
+   `_rules_ground` sits at 989/1000 — the pirate and BH ground terms
+   will likely trip the ratchet mid-build; the in-commit split is
+   the expected response (phase-1 precedent: `_ground_blast`).
 
 **Stop point:** no class-locked gear or kits (deferred); no
 kinship/trade-lens/rap-sheet mechanics (explicitly not chosen); no
