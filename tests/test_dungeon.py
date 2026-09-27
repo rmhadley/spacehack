@@ -90,7 +90,32 @@ class TestSoftLoot:
         assert result == "HANDLED"
         assert calls == [ctx]
 
-    def test_r_does_not_dispatch_reload_outside_dungeon(self, monkeypatch):
+    def test_city_r_dispatches_reload_too(self, monkeypatch):
+        """City streets are hostile-capable (doc 53) — R reloads there
+        like in a dungeon."""
+        from src.spacehack import game_loop
+
+        calls = []
+        monkeypatch.setattr(
+            "src.spacehack.ground_reload_ui.reload_exploration",
+            as_async(lambda ctx: calls.append(ctx) or True),
+        )
+        ctx = SimpleNamespace()
+        state = SimpleNamespace(
+            ctx=ctx,
+            console=SimpleNamespace(),
+            current_mode="city",
+        )
+
+        result = run(game_loop._handle_space_modal_event(
+            state,
+            PygameInputEvent(kind="keydown", key_name="r"),
+        ))
+
+        assert result == "HANDLED"
+        assert calls == [ctx]
+
+    def test_r_does_not_dispatch_reload_in_space(self, monkeypatch):
         from src.spacehack import game_loop
 
         calls = []
@@ -101,7 +126,7 @@ class TestSoftLoot:
         state = SimpleNamespace(
             ctx=SimpleNamespace(),
             console=SimpleNamespace(),
-            current_mode="city",
+            current_mode="space",
         )
 
         assert run(game_loop._handle_space_modal_event(

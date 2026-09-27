@@ -500,6 +500,7 @@ def _render_city_terminals(console, hud_x, y, *, has_armory_terminal, has_mech_t
         y += 1
     if has_trade_terminal:
         console.print(x=hud_x, y=y, string="=  Trade", fg=COLOR_LABEL)
+        y += 1
     return y
 
 
@@ -514,6 +515,9 @@ def _render_city_help_lines(console, hud_x, y, mode) -> int:
             ("P", "Pickup"), ("O", "Explore"),
             ("G", "Go To"), ("R", "Reload"),
         ]
+    elif mode == "city":
+        # Streets are hostile-capable since doc 53 — reload is live here too.
+        _help_lines[0:0] = [("R", "Reload")]
     return _render_help_lines(console, hud_x, y, _help_lines)
 
 
@@ -541,8 +545,11 @@ def _print_ground_weapon_rows(console, hud_x: int, y: int, equipped) -> int:
 
 
 def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
-    """Paint the dungeon weapons block (doc 52.3): active-set rows with
+    """Paint the ground weapons block (doc 52.3): active-set rows with
     magazine state, the dim holster names, and the shared caliber lines.
+
+    Rendered on every ground screen — dungeon and city both (cities
+    joined when doc 53 made streets hostile-capable).
 
     No volley checkboxes, DMG/HIT, or RNG rows — there is no target
     outside combat. The fists floor stays silent (doc 51 SETTLED 2):
@@ -563,6 +570,29 @@ def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
     for line in bandolier_hud_lines(ctx):
         console.print(x=hud_x, y=y, string=line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
         y += 1
+    return y
+
+
+def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_terminal, has_mech_terminal, has_armory_terminal) -> int:
+    """Paint the terminal hints and the ground weapons block — the two
+    sections between the stats divider and the help divider.
+
+    When terminal hints render, the weapons block is its own section and
+    gets the panel's blank-row + divider rhythm; without hints it attaches
+    directly under the stats divider like dungeon mode.
+    """
+    y = _render_city_terminals(
+        console, hud_x, y,
+        has_armory_terminal=has_armory_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_trade_terminal=has_trade_terminal,
+    )
+    if mode in ("city", "dungeon"):
+        if has_armory_terminal or has_mech_terminal or has_trade_terminal:
+            y += 1
+            _render_divider(console, hud_x, y)
+            y += 1
+        y = _render_ground_weapons_block(console, hud_x, y, ctx)
     return y
 
 
@@ -590,14 +620,12 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
     y += 1
     _render_divider(console, hud_x, y)
     y += 1
-    y = _render_city_terminals(
-        console, hud_x, y,
-        has_armory_terminal=has_armory_terminal,
-        has_mech_terminal=has_mech_terminal,
+    y = _render_city_ground_sections(
+        console, hud_x, y, ctx, mode,
         has_trade_terminal=has_trade_terminal,
+        has_mech_terminal=has_mech_terminal,
+        has_armory_terminal=has_armory_terminal,
     )
-    if mode == "dungeon":
-        y = _render_ground_weapons_block(console, hud_x, y, ctx)
     y += 1
     _render_divider(console, hud_x, y)
     y += 2

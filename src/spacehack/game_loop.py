@@ -329,7 +329,7 @@ async def _handle_map_navigation_event(state, event):
 async def _handle_common_modal_event(state, event):
     """Handle dungeon/space pickup, reload, cargo, and log modals."""
     ctx = state.ctx
-    if state.current_mode == 'dungeon' and _is_r_press(event):
+    if state.current_mode in ('city', 'dungeon') and _is_r_press(event):
         from .ground_reload_ui import reload_exploration
         await reload_exploration(ctx)
         return 'HANDLED'

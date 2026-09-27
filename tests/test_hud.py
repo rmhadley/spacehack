@@ -188,12 +188,71 @@ def test_dungeon_hud_renders_the_weapons_block():
     assert "CEL 61/250" in rows
 
 
-def test_city_hud_renders_no_weapons_block():
-    """The block is dungeon-only (doc 52.3 folded default) — city mode
-    keeps the armory/C-screen loadout view."""
+def test_city_hud_renders_the_weapons_block():
+    """City mode renders the same weapons block as dungeons — streets
+    became hostile-capable in doc 53, so magazine state and the caliber
+    reserve must be visible there (supersedes the doc 52.3 city fold).
+
+    With all three terminal hints on, the block must land BELOW the
+    terminal rows, not on top of them (the = Trade row used to be
+    overwritten — _render_city_terminals returned the row it printed)."""
     ctx = _ground_weapons_ctx(
         equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+        holstered_ground_weapons=[GroundWeaponInstance("laser_pistol", None)],
         bandolier={"kinetic_pistol": 132},
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="city",
+        has_trade_terminal=True, has_mech_terminal=True,
+        has_armory_terminal=True,
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "WEAPONS" in rows
+    assert "Kinetic Pistol [5/12]" in rows
+    assert any(row.startswith("HOLSTER  Laser Pistol") for row in rows)
+    assert "PST 132/160" in rows
+    assert any(row.startswith("[R] Reload") for row in rows)
+    assert any(row.startswith("A  Armory") for row in rows)
+    assert any(row.startswith("%  Mechanic") for row in rows)
+    trade_y = rows.index("=  Trade")
+    # Section rhythm matches the rest of the panel: blank row, divider,
+    # then the next section.
+    assert rows[trade_y + 1].strip() == ""
+    assert set(rows[trade_y + 2]) == {"-"}
+    assert rows.index("WEAPONS") == trade_y + 3
+
+
+def test_city_weapons_block_follows_stats_without_terminals():
+    """No terminal hints on screen = the weapons block attaches right
+    under the stats divider, same layout as dungeon mode (no orphan
+    divider between two absent sections)."""
+    ctx = _ground_weapons_ctx(
+        equipped_ground_weapons=[GroundWeaponInstance("kinetic_pistol", 5)],
+    )
+    console = FrameBuffer(120, 54)
+
+    hud.render_hud(
+        console, ctx, screen_width=100, hud_view_height=54, mode="city",
+    )
+
+    rows = [
+        "".join(console.cell(x, y).char for x in range(80, 120)).rstrip()
+        for y in range(54)
+    ]
+    assert "WEAPONS" in rows
+    assert set(rows[rows.index("WEAPONS") - 1]) == {"-"}
+
+
+def test_city_weapons_block_silent_on_bare_fists():
+    """Bare fists stay silent on the city screen too (doc 51 SETTLED 2)."""
+    ctx = _ground_weapons_ctx(
+        equipped_ground_weapons=[], holstered_ground_weapons=[],
     )
     console = FrameBuffer(120, 54)
 
@@ -206,7 +265,6 @@ def test_city_hud_renders_no_weapons_block():
         for y in range(54)
     ]
     assert "WEAPONS" not in rows
-    assert "PST 132/160" not in rows
 
 
 def test_dungeon_weapons_block_silent_on_bare_fists():

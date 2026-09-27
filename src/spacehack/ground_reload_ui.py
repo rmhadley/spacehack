@@ -145,7 +145,7 @@ async def _choose_reload_slot(ctx, slots: tuple[int, ...]) -> int | None:
 
 
 async def reload_exploration(ctx) -> bool:
-    """Reload from the dungeon screen without spending a turn."""
+    """Reload from the ground screen (city or dungeon) without spending a turn."""
     slots = reloadable_slots(ctx)
     if not slots:
         ctx.log.add("No equipped weapon can be reloaded.")
