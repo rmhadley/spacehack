@@ -63,6 +63,11 @@ class SplitFrame:
     # Optional explicit mode outcomes for each left tab. Empty preserves
     # legacy label-based mappings used by existing terminals.
     left_tab_modes: tuple[str, ...] = ()
+    # Optional per-panel header color override (doc 49's species card
+    # titles the right pane with the species' glyph-color identity).
+    # None preserves the palette's focus-aware default.
+    left_label_color: tuple[int, int, int] | None = None
+    right_label_color: tuple[int, int, int] | None = None
     # Optional SCREEN-level tab bar (the pygame_screen tab treatment) for
     # split frames embedded in a tabbed screen such as the C screen's
     # Equipment tab (doc 52.3). TAB/SHIFT_TAB stay the HOST's outcomes.
@@ -200,6 +205,7 @@ def _draw_panel(
     tabs: tuple[str, ...] = (),
     active_tab: int = 0,
     flag_selected: bool = False,
+    label_color: tuple[int, int, int] | None = None,
 ) -> None:
     """Draw one panel and its currently selected detail.
 
@@ -209,7 +215,23 @@ def _draw_panel(
     """
     palette = pygame_ui.DEFAULT_PALETTE
     pygame_ui.draw_panel(pygame, screen, panel, palette=palette)
-    _draw_panel_header(pygame, screen, font, panel, label, focused, tabs, active_tab, palette)
+    _draw_panel_header(
+        pygame, screen, font, panel, label, focused, tabs, active_tab,
+        palette, color_override=label_color,
+    )
+    _draw_clipped_panel_rows(
+        pygame, screen, font, panel, rows, selected, focused, palette,
+        flag_selected=flag_selected,
+    )
+    _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette)
+
+
+def _draw_clipped_panel_rows(
+    pygame: Any, screen: Any, font: Any, panel: pygame_ui.Rect,
+    rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
+    *, flag_selected: bool,
+) -> None:
+    """Draw the panel's rows clipped to its interior border."""
     screen.set_clip(
         pygame.Rect(
             panel.x + 1, panel.y + 1,
@@ -223,19 +245,26 @@ def _draw_panel(
         )
     finally:
         screen.set_clip(None)
-    _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette)
 
 
 def _draw_panel_header(
     pygame: Any, screen: Any, font: Any, panel: pygame_ui.Rect,
     label: str, focused: bool, tabs: tuple[str, ...], active_tab: int, palette: Any,
+    color_override: tuple[int, int, int] | None = None,
 ) -> None:
-    """Paint a panel's tab header and its divider rule."""
+    """Paint a panel's tab header and its divider rule.
+
+    ``color_override`` (doc 49) replaces the palette's focus-aware
+    header color — the species card's right pane titles itself in the
+    species' color. Labels are fitted to the panel width so a long
+    composed title (glyph - name - home) never spills past the rule.
+    """
     header_labels = tabs or (label,)
     header_x = panel.x + 20
     measure = lambda text: pygame_ui.measure_font(font, text)
     for tab_index, tab_label in enumerate(header_labels):
-        tab_width = measure(tab_label) + 24
+        fitted = pygame_ui.fit_text(tab_label, panel.width - 40, measure)
+        tab_width = measure(fitted) + 24
         tab_active = tab_index == active_tab
         if tabs and tab_active:
             highlight = pygame.Rect(
@@ -243,13 +272,16 @@ def _draw_panel_header(
             )
             pygame.draw.rect(screen, palette.selected_background, highlight, border_radius=3)
             pygame.draw.rect(screen, palette.selected_border, highlight, width=1, border_radius=3)
+        _color = color_override or (
+            palette.title if tab_active and focused else palette.description
+        )
         pygame_ui.draw_text(
-            pygame, screen, font, tab_label, header_x, panel.y + 18,
-            color=palette.title if tab_active and focused else palette.description,
+            pygame, screen, font, fitted, header_x, panel.y + 18,
+            color=_color,
         )
         header_x += tab_width + 10
     pygame_ui.draw_rule(
-        pygame, screen, panel.x + 18, panel.y + 48,
+        pygame, screen, font, panel.x + 18, panel.y + 48,
         panel.width - 36, color=palette.border,
     )
 
@@ -407,11 +439,13 @@ def _draw_frame(
         tabs=frame.left_tabs,
         active_tab=frame.active_left_tab,
         flag_selected=flag_selected,
+        label_color=frame.left_label_color,
     )
     _draw_panel(
         pygame, screen, font, frame, frame.right_rows,
         panel=right, label=frame.right_label, selected=selected,
         focused=frame.focus == 1,
+        label_color=frame.right_label_color,
     )
     _draw_frame_footer(pygame, screen, font, frame, width, footer_y, hint_y)
     if context is not None:
@@ -691,18 +725,21 @@ async def run_dynamic_screen(
     build_frame: Callable[[int], SplitFrame],
     *,
     caption: str = "spacehack",
+    initial_selected: int = 0,
 ) -> tuple[str, str, int]:
     """Run a read-only-right split screen whose frame REBUILDS from the
     live selection — doc 49's species picker, whose right card follows
     the left cursor. Same contract as :func:`run_for_screen`; the frame
-    is a function of the selected index instead of a fixed object."""
+    is a function of the selected index instead of a fixed object.
+    ``initial_selected`` seeds the cursor for hosts that re-enter the
+    runner (TAB surfacing) without losing the player's place."""
     from . import pygame_runtime
 
     if not pygame_runtime.is_shared_context(context):
         raise PygameSplitUnavailable("Shared Pygame runtime is not open")
     engine, pygame, screen = _shared_engine(context)
     width, height = screen.get_size()
-    frame = _build_frame(lambda: build_frame(0))
+    frame = _build_frame(lambda: build_frame(initial_selected))
     font = _fit_font(pygame, frame, width, height)
     while True:
         selected = _clamp_screen_selected(frame)

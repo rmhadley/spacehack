@@ -152,9 +152,11 @@ async def _run_species_pick(context: PygameContext) -> tuple[Outcome, str | None
     def _build(selected: int):
         return ui.species_split_frame(selected)
 
+    _selected = 0
     while True:
         outcome, action, _selected = await pygame_split.run_dynamic_screen(
             context, _build, caption="spacehack - choose your species",
+            initial_selected=_selected,
         )
         if outcome == "GUIDE":
             continue

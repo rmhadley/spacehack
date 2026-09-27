@@ -127,18 +127,23 @@ def species_stats_line(spec) -> str:
     """The card's stat line: absolute values, no +/- (SETTLED 2).
 
     All six equal reads "All stats N"; otherwise the deviating stats
-    are named with their values and the base reads "rest 10" (e.g.
-    Martian: "Strength 12, Stamina 14, rest 10").
+    are named with their values and the shared base reads "rest 10"
+    (e.g. Martian: "Strength 12, Stamina 14, rest 10"). If the two
+    base constants ever diverge, the "rest" clause drops out and
+    every stat is named — never a mislabeled row.
     """
-    from .character import GROUND_STAT_BASE
+    from .character import GROUND_STAT_BASE, PILOT_SKILL_BASE
     values = _species_start_stats(spec)
-    labeled = [
-        (label, values[field]) for field, label, _c in _SPECIES_STAT_ORDER
-    ]
-    if len({value for _label, value in labeled}) == 1:
+    labeled = []
+    for field, label, container in _SPECIES_STAT_ORDER:
+        base = PILOT_SKILL_BASE if container == "skill" else GROUND_STAT_BASE
+        labeled.append((label, values[field], base))
+    if len({value for _label, value, _base in labeled}) == 1:
         return f"All stats {labeled[0][1]}"
-    named = [f"{label} {value}" for label, value in labeled if value != GROUND_STAT_BASE]
-    return ", ".join(named) + f", rest {GROUND_STAT_BASE}"
+    named = [f"{label} {value}" for label, value, base in labeled if value != base]
+    bases = {base for _label, _value, base in labeled}
+    rest = f", rest {next(iter(bases))}" if len(bases) == 1 else ""
+    return ", ".join(named) + rest
 
 
 def _species_start_row(spec):
@@ -163,23 +168,18 @@ def _species_start_row(spec):
 
 
 def _species_card_rows(spec) -> tuple:
-    """The right pane: one easy-to-read card for the hovered species."""
+    """The right pane's card body. The header row carries the identity
+    (``glyph - NAME - home``, in the species color); the body opens
+    straight into the numbers (doc 49 SETTLED 2, user title revision
+    2026-09-27)."""
     from . import pygame_split
 
-    def _info(label, *, fg=None, runs=None):
+    def _info(label, *, fg=None):
         return pygame_split.SplitRow(
-            label, "", "", "", selectable=False, fg=fg, runs=runs,
+            label, "", "", "", selectable=False, fg=fg,
         )
 
     rows = [
-        _info(
-            f"{spec.name}  {spec.glyph}",
-            runs=(
-                (spec.name, None),
-                (f"  {spec.glyph}", spec.color),
-            ),
-        ),
-        _info(f"Home: {spec.home}"),
         pygame_split.section_header("STARTING STATS"),
         _info(species_stats_line(spec)),
         _species_start_row(spec),
@@ -194,7 +194,9 @@ def _species_card_rows(spec) -> tuple:
 
 def species_split_frame(selected: int = 0):
     """The species picker's split frame: left cycling options, right
-    the hovered species' card (doc 49 SETTLED 2)."""
+    the hovered species' card (doc 49 SETTLED 2). The card pane's
+    title is the species' identity line — ``@ - HUMAN - Earth (Sol)``
+    — painted in the species color."""
     from . import pygame_split
 
     options = tuple(
@@ -202,15 +204,14 @@ def species_split_frame(selected: int = 0):
         for s in list_species()
     )
     roster = list_species()
-    card = _species_card_rows(
-        roster[max(0, min(selected, len(roster) - 1))],
-    )
+    spec = roster[max(0, min(selected, len(roster) - 1))]
     return pygame_split.SplitFrame(
         title="CHOOSE YOUR SPECIES",
         left_label="SPECIES",
-        right_label="SPECIES CARD",
+        right_label=f"{spec.glyph} - {spec.name.upper()} - {spec.home}",
+        right_label_color=spec.color,
         left_rows=options,
-        right_rows=card,
+        right_rows=_species_card_rows(spec),
         footer_left="",
         footer_right="",
         hint=_modal_hint("UP/DOWN browse", "ENTER select", "ESC start over"),

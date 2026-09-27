@@ -209,34 +209,38 @@ class TestSpeciesSplitPicker:
         ]
 
     def test_card_follows_the_selection(self):
-        assert ui.species_split_frame(1).right_rows[0].label == "Martian  @"
-        assert ui.species_split_frame(4).right_rows[0].label == "Lalandan  Q"
+        assert ui.species_split_frame(1).right_label == "@ - MARTIAN - Mars (Sol)"
+        assert ui.species_split_frame(4).right_label == (
+            "Q - LALANDAN - Whisper - the Vault (Lalande)"
+        )
 
-    def test_card_carries_glyph_in_species_color(self):
+    def test_card_title_carries_identity_in_species_color(self):
         frame = ui.species_split_frame(2)
-        header = frame.right_rows[0]
-        assert header.label == "Cygnian  &"
-        assert "".join(text for text, _color in header.runs) == header.label
-        assert header.runs[1] == ("  &", (170, 130, 230))
+        assert frame.right_label == "& - CYGNIAN - Cygni b - the orbital yards (Cygni)"
+        assert frame.right_label_color == (170, 130, 230)
+        assert ui.species_split_frame(0).right_label == "@ - HUMAN - Earth (Sol)"
+
+    def test_card_body_opens_straight_into_the_numbers(self):
+        """The title carries identity; the body has no name/home rows."""
+        labels = [row.label for row in ui.species_split_frame(1).right_rows]
+        assert labels[0] == "--- STARTING STATS ---"
+        assert not any("Home:" in label for label in labels)
+        assert not any(label.startswith("Martian") for label in labels)
 
     def test_card_pins_settled_numbers(self):
-        martian = ui.species_split_frame(1).right_rows
-        assert martian[1].label == "Home: Mars (Sol)"
-        assert martian[3].label == "Strength 12, Stamina 14, rest 10"
-        assert martian[4].label == "Armor 2   HP 29"
-        lalandan = ui.species_split_frame(4).right_rows
-        assert lalandan[3].label == "Reflexes 16, Strength 5, Stamina 5, rest 10"
-        assert lalandan[4].label == "Armor 0   HP 22"
-        human = ui.species_split_frame(0).right_rows
-        assert human[3].label == "All stats 11"
+        def _labels(index):
+            return [row.label for row in ui.species_split_frame(index).right_rows]
+        assert "Strength 12, Stamina 14, rest 10" in _labels(1)
+        assert "Armor 2   HP 29" in _labels(1)
+        assert "Reflexes 16, Strength 5, Stamina 5, rest 10" in _labels(4)
+        assert "Armor 0   HP 22" in _labels(4)
+        assert "All stats 11" in _labels(0)
 
     def test_card_bottom_shows_trait_name_and_description(self):
-        frame = ui.species_split_frame(1)
-        labels = [row.label for row in frame.right_rows]
+        labels = [row.label for row in ui.species_split_frame(1).right_rows]
         assert "Sturdy" in labels
-        trait_desc = "+2 armor defense and +2 melee damage, even with nothing equipped"
         joined = " ".join(labels)
-        assert trait_desc[:30] in joined  # wrapped lines carry the text
+        assert "+2 armor defense and +2 melee damage" in joined
 
     def test_card_rows_fit_the_split_viewport(self):
         for index in range(5):
@@ -261,6 +265,8 @@ class TestSpeciesSplitPicker:
         assert captured["frames"][0].items[1].action == "martian"
 
     def test_run_species_pick_rejects_invalid_action(self, monkeypatch):
+        """An invalid SELECT action maps to the None no-outcome result,
+        which title_flow turns into a hard error."""
         from src.spacehack import pygame_split
         monkeypatch.setattr(pygame_split, "enabled", lambda: False)
         monkeypatch.setattr(
@@ -268,10 +274,4 @@ class TestSpeciesSplitPicker:
             "run_for_context",
             as_async(lambda *args, **kwargs: ("SELECT", "not-a-species", 0)),
         )
-        try:
-            run(input_helpers._run_species_pick(SimpleNamespace()))
-        except RuntimeError as exc:
-            assert "returned no outcome" in str(exc) or exc is not None
-        else:
-            if input_helpers is None:
-                raise AssertionError("invalid species actions must be rejected")
+        assert run(input_helpers._run_species_pick(SimpleNamespace())) is None
