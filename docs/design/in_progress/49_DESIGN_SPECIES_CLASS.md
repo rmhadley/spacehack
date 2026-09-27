@@ -492,3 +492,117 @@ caps at 11 rows; rep renders as ONE aligned summary row
 two-line description budget. APPROVED as proposed.
 
 Phase 2 is fully ruled. All roll-through questions CLOSED (5/6/7/8).
+
+## Phase 2 — Implementation brief (PROPOSED 2026-09-27)
+
+**Scope (files + hook points):**
+
+1. *Class data rewrite* — `data/classes/core.py`: spreads
+   pirate Gunnery+3/Strength+3, merchant Engineering+4/Stamina+2,
+   bounty_hunter Gunnery+2/Piloting+2/Reflexes+2; credits 25/50/75
+   unchanged; **`GameClass.hp_base` DELETED** (SETTLED 5's universal
+   ship+modules rule). Fallout: `character.starting_stats` stops
+   reading hp_base; `HudStats.hp`/`max_hp` are vestigial (read only
+   by saveload round-trip + debug_session reporting) — DELETED under
+   the zero-save assumption, with `_ctx_to_dict`/`load_game`/
+   debug_session readers updated in the same commit.
+   `faction._CLASS_REP` → pirate {pirate +30, merchant −10,
+   militia −20} (unchanged), merchant {pirate −30, merchant +30,
+   militia 0}, bounty_hunter {pirate −30, merchant +10, militia +20}.
+2. *Class trait layer* — `data/traits/core.py`: `CLASS_TRAITS`
+   registry (sibling of `ORIGIN_TRAITS`, outside `ALL_TRAITS`):
+   ids `pirate`/`merchant`/`bounty_hunter`, names
+   "Pirate"/"Merchant"/"Bounty Hunter". `trait_name` resolves all
+   four registries. `_configure_new_context` grants the class trait
+   after the species trait (a fresh character holds exactly two).
+   Descriptions DRAFT for user approval (two-line card budget,
+   catalog register):
+   - Pirate: `+10 smuggler's hold on every ship` / `First attack of a
+     fight: bonus hit and damage`
+   - Merchant: `+10 cargo space on every ship` / `+5% sell, -5% buy
+     at stations and the spaceport`
+   - Bounty Hunter: `+5% evade in space and ground combat` /
+     `Missile racks hold double`
+3. *Pirate hooks* — smuggler hold: +10 flat term in
+   `ship.smuggler_hold_capacity`. Opener: fight-scoped
+   `enemy_fired: bool` field on BOTH combat states (declared fields,
+   never serialized, set at every enemy shot — hit or miss; both
+   `_ai.py` and `_ai_ground.py` shot paths); while False, the
+   player's first attack/volley gains **+10% hit and +25% damage**
+   (values playtest-tunable). Ground: read in `hit_chance` +
+   `damage`; space: read in `_player_hit_bonus` + the volley damage
+   mult.
+4. *Merchant hooks* — cargo: +10 flat in the `ship.py` capacity
+   total (ctx threaded). Prices: −5% buy / +5% sell in
+   `trade._unit_price` + `trade._sell_price` (station/spaceport
+   terminal) AND `trade._npc_price_multipliers` (NPC traders).
+5. *Bounty hunter hooks* — evade: +5 ground at the enemy-shot
+   `player_dodge` assembly (`_ai_ground.py`, the
+   `ground_evade_bonus` pattern) and +5 space at `_player_dodge`'s
+   two read sites (ctx/bonus threaded). Missile racks: an
+   `effective_missile_capacity(ws, ctx)` helper (×2 with the trait)
+   used by `ship._seed_missile_ammo` so installed racks seed double.
+6. *Class choice screen* — `ui.class_split_frame(species_id,
+   selected)` mirroring the species screen: title
+   `CHAR - SPECIES - CLASS` colored with the chosen species' color;
+   six COMBINED stat rows (base+species+class via
+   `starting_pilot_skills`/`starting_ground_stats`); Armor/HP row via
+   the live naked-start fold (combined stamina + species trait); ONE
+   aligned effective-rep row (`starting_reputation` values,
+   consortium hidden); trait name + description bottom. Hosted by
+   `_run_class_pick(context, species_id)` in `input_helpers` via
+   `run_dynamic_screen`; generic menu fallback; class_menu data
+   source unchanged; confirm screen unchanged.
+7. *Guide review* — Character & Skills: species-trait sentence
+   becomes species AND class; skill-point line already carries Fast
+   Learner. Guide-diff item on the playtest checklist.
+
+**Build order (atomic commits):** (1) class data + hp_base/HudStats
+cleanup + rep tables + pins; (2) CLASS_TRAITS + two-trait grant +
+pins; (3) pirate hooks + pins; (4) merchant hooks + pins; (5) bounty
+hunter hooks + pins; (6) class screen + pins; (7) guide review.
+
+**Binding rulings:** SETTLED 4-8 verbatim; class traits named the
+class name; ±30 rep envelope; hull HP ship+modules-only; no class
+colors; opener window closes on any enemy shot (hit or miss);
+descriptions user-worded before `/implement-phase`.
+
+**Required tests (sabotage-proven pins):** per-class spread/credits/
+rep table pins (exact effective standings); hp_base field gone +
+HudStats keys out of the save; two-trait creation grant per class ×
+species sample; milestones never offer class traits; smuggler +10
+(stacks with module + perk terms); cargo +10; ±5% price edge on
+terminal AND NPC surfaces; evade +5 in both theaters; missile racks
+seed double; opener +hit/+damage on the first attack and NOT after an
+enemy shot, both theaters; class card combined stats + effective rep
++ Armor/HP exact values; screen order + card-follows-selection +
+title color; save/load roundtrip carrying both traits.
+
+**Stop point:** no class-locked gear or kits (deferred); no
+kinship/trade-lens/rap-sheet mechanics (explicitly not chosen); no
+new classes; no species changes; no rep-system changes beyond the
+_CLASS_REP tables; no balance retunes beyond the locked numbers.
+
+**Playtest checkpoint (numbered in-game):**
+1. Species pick → class pick as Human×each class: card title
+   `@ - HUMAN - PIRATE` (human white) etc.; combined stats (Human
+   Pirate Gunnery 14/Strength 14; Human Merchant Engineering 15/
+   Stamina 13; Human BH Gunnery 13/Piloting 13/Reflexes 13); Armor/HP
+   0/25; effective rep row (Pirate: Pirates -70/Merchants -10/
+   Militia 30; Merchant: Pirates -100/Merchants 30/Militia 50; BH:
+   Pirates -100/Merchants 10/Militia 70); trait block reads the
+   approved wording.
+2. Martian Pirate: Armor 2 / HP 33 (14+2 sta → wait: martian sta 14
+   + pirate 0 = 14 → 20+7+2 = 29; stats show combined STR 16).
+3. Start each class: C screen lists BOTH traits (species + class).
+4. Pirate: starter ship smuggler hold 10 (trade screen); first fight
+   — opening attack shows the bonus hit/damage; second fight after
+   an enemy shot lands first — no bonus.
+5. Merchant: starter ship cargo +10; terminal prices −5%/+5% vs a
+   non-merchant save; NPC trader prices likewise.
+6. BH: enemy shots miss ~5% more (both theaters); a fresh missile
+   ship's racks seed double.
+7. Save/quit → Continue: both traits intact; hull numbers gone from
+   the save (vestigial keys).
+8. Guide-diff: Character & Skills species-trait sentence now covers
+   classes — record before/after.
