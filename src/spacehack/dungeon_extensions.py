@@ -813,10 +813,12 @@ def _make_player(position: world.Position, ctx) -> world.Entity:
 def _remove_player(game_map: world.GameMap) -> None:
     """Remove transient player entities from a cached map.
 
-    Identified by name, not glyph — the player char is the species'
-    (``@``/``&``/``♦``/``Q``, doc 49)."""
+    Identified by the shared name predicate (doc 49 — the player's
+    glyph is the species', never a filter key)."""
+    from .character import is_transient_player as _is_transient_player
     game_map.entities[:] = [
-        _entity for _entity in game_map.entities if _entity.name != "Player"
+        _entity for _entity in game_map.entities
+        if not _is_transient_player(_entity)
     ]
 
 

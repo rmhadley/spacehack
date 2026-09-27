@@ -2130,3 +2130,48 @@ def test_dungeon_serialization_drops_only_the_named_player():
     data = _dungeon_to_dict(gm, None)
     names = {e["name"] for e in data["entities"]}
     assert names == {"statue"}
+
+
+def test_cygnian_glyph_survives_dungeon_round_trip(monkeypatch, tmp_path):
+    """Dungeon-mode Continue rebuilds the walker with the saved species'
+    glyph (the _rebuild_dungeon threading, distinct from the city path)."""
+    monkeypatch.setattr(
+        "src.spacehack.saveload._autosave_path",
+        lambda: tmp_path / "autosave.json",
+    )
+    from src.spacehack.engine import RNG
+    RNG.seed(7)
+    ctx = _build_test_ctx()
+    ctx.character_info = {
+        **ctx.character_info, "species_id": "cygnian",
+        "species_name": "Cygnian",
+    }
+    tiles = [[world.DUNGEON_FLOOR for _ in range(8)] for _ in range(8)]
+    dungeon_map = GameMap(8, 8, tiles, [])
+    ctx.player = Entity("&", (170, 130, 230), Position(3, 3), name="Player")
+    dungeon_map.entities.append(ctx.player)
+    ctx.game_map = dungeon_map
+
+    save_game(ctx, mode="dungeon", city_id="earth", system_id="sol",
+              space_player_pos=(2, 2))
+    loaded = load_game(ctx.context)
+    delete_save()
+    import src.spacehack.solar_system as _ss
+    _ss.current_solar_system_id = "sol"
+
+    assert loaded is not None
+    assert loaded.player.char == "&"
+
+
+def test_shipless_space_walker_wears_the_species_glyph():
+    """The no-ship space branch of _build_space_map threads species_id
+    into the walker (the pinned city/dungeon paths' sibling)."""
+    from src.spacehack.saveload_maps import _build_space_map
+
+    built = _build_space_map(
+        "sol", SimpleNamespace(add=lambda _m: None), None, {}, {}, {},
+        10, 10, species_id="sirian",
+    )
+    assert built is not None
+    assert built[1].name == "Player"
+    assert built[1].char == "\u2666"

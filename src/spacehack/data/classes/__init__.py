@@ -22,8 +22,10 @@ class GameClass:
         id: registry key, e.g. ``\"pirate\"``.
         name: display name shown in the class-pick menu.
         description: one-line flavour line under the name.
-        hp_base: starting HP that this class sets before the picked
-            species adds its :attr:`spacehack.data.species.Species.hp_bonus`.
+        hp_base: starting hull HP that this class sets on its own —
+            class-only since doc 49 SETTLED 3-A (the species hp_bonus
+            is ground HP, folded into the ground max-HP formula
+            instead of the hull readout).
         credits: starting credits this class grants on a new game.
             Kept far below the cheapest ship (Scout, 5,000$) so
             turn-1 ship purchases are impossible; differentiated

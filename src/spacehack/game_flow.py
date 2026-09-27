@@ -964,12 +964,13 @@ def _prep_cached_dungeon(game_map) -> world.Position | None:
 
     Shared by the salvage-wreck reboard path and the planet-surface
     re-entry path so both reuse cached maps the same way: no lingering
-    transient player from the previous visit (identified by name —
-    the glyph is the species', doc 49), and the player spawns where
-    they entered last time.
+    transient player from the previous visit (the shared name
+    predicate — the glyph is the species', doc 49), and the player
+    spawns where they entered last time.
     """
+    from .character import is_transient_player as _is_transient_player
     for _oe in list(game_map.entities):
-        if _oe.name == 'Player':
+        if _is_transient_player(_oe):
             game_map.entities.remove(_oe)
     _spawn = getattr(game_map, 'entry_spawn', None)
     if _spawn is None:

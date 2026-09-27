@@ -17,8 +17,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 from src.spacehack import world
 from src.spacehack.combat import _rules_space, _space_focus
 from src.spacehack.combat._space_kills import refund_volley_ap
+from src.spacehack.combat._types import CombatResult, EnemyInstance
 from src.spacehack.data.ground_weapons import find_ground_weapon
 from src.spacehack.combat import _ground_charger
+from tests.support.asyncutil import as_async
 
 
 def _ctx(traits=()):
@@ -117,3 +119,114 @@ def test_longshot_ground_ranged_plus_one_melee_and_spec_untouched():
     # Melee: untouched at max_range 1, trait or not.
     assert _ground_charger.weapon_range("stun_baton", _ctx_l, 4) == (1, 1)
     assert _ground_charger.weapon_range("fists", _ctx_l, 4) == (1, 1)
+
+
+# ---------------------------------------------------------------------------
+# Momentum — the fire-loop dispatch (kill detection + refund call)
+# ---------------------------------------------------------------------------
+
+class _FakeRules:
+    """A rules double exposing only what _maybe_refund_volley_ap reads."""
+
+    def __init__(self, alive):
+        self._alive = alive
+        self.refunded = 0
+
+    def enemy_alive(self, enemy):
+        return self._alive[enemy]
+
+    def refund_volley_ap(self, ctx, amount):
+        self.refunded = amount
+
+
+def test_maybe_refund_dispatches_only_on_a_killing_volley():
+    from src.spacehack.combat import _loop
+    enemies = {0: True, 1: True}
+    rules = _FakeRules(enemies)
+    _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=2, max_ap_cost=3)
+    assert rules.refunded == 0  # nothing died — no refund
+    enemies[1] = False
+    _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=2, max_ap_cost=3)
+    assert rules.refunded == 3  # the volley killed — full cost back
+    _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=1, max_ap_cost=0)
+    assert rules.refunded == 3  # a free volley refunds nothing
+
+
+def _fire_fixture(traits, hull):
+    """A minimal live space session that can run the REAL _handle_fire."""
+    _ctx = SimpleNamespace(
+        player_traits=list(traits),
+        player_counters=SimpleNamespace(
+            laser_shots=0, missile_shots=0, plasma_shots=0, focused_shots=0,
+            total_kills=0,
+        ),
+        player=world.Entity("@", (255, 255, 255), world.Position(0, 0), "Player"),
+        log=SimpleNamespace(
+            add=lambda *_a, **_k: None,
+            add_colored=lambda *_a, **_k: None,
+        ),
+    )
+    _tiles = [[world.DUNGEON_FLOOR for _ in range(11)] for _ in range(11)]
+    _state = _rules_space.SpaceCombatState(
+        ctx=_ctx, console=None,
+        game_map=world.GameMap(11, 11, _tiles, []),
+        log=None,
+        player_state={
+            "pos": world.Position(0, 0), "gunnery": 10,
+            "ap_remaining": 8, "ap_total": 8,
+            "power_pool": 20, "max_power": 20, "plasma_ap_discount": 0,
+            "weapons": ("light_laser",), "weapon_ammo": {0: 4},
+        },
+        enemy_insts=[EnemyInstance(
+            spec_id="pirate_scout", name="Pirate Scout", char="P",
+            fg=(255, 100, 100), pos=world.Position(6, 0),
+            hull=hull, max_hull=hull, shields=0, max_shields=0,
+            pilot_piloting=0, cells_moved_this_turn=0,
+        )],
+        enemy_ents={},
+        weapons_list=["light_laser"], active_weapons=[True],
+        cr=CombatResult(),
+    )
+    _old = _rules_space._state
+    _rules_space._state = _state
+    return _ctx, _state, _old
+
+
+def _drive_fire(monkeypatch, traits, hull):
+    from src.spacehack.combat import _actions, _animations, _loop
+    from tests.support.asyncutil import run
+    _ctx, _state, _old = _fire_fixture(traits, hull)
+    monkeypatch.setattr(
+        _actions, "RNG",
+        SimpleNamespace(randint=lambda *_a: 1, uniform=lambda *_a: 1.0),
+    )
+    monkeypatch.setattr(_loop, "RNG", _actions.RNG)
+    monkeypatch.setattr(_rules_space, "animate_fire", as_async(lambda *a, **k: None))
+    monkeypatch.setattr(
+        _animations, "_animate_explosion", as_async(lambda *a, **k: None),
+    )
+    try:
+        run(_loop._handle_fire(None, _ctx, _state.game_map, _rules_space, 0))
+        return _ctx, _state
+    finally:
+        _rules_space._state = _old
+
+
+def test_killing_volley_costs_no_ap_with_momentum(monkeypatch):
+    # Assertions read the returned session state directly (the fixture's
+    # finally restores the module global before these run).
+    _ctx, _state = _drive_fire(monkeypatch, ["momentum"], hull=1)
+    assert _state.enemy_insts[0].alive is False  # the target died
+    assert _state.player_state["ap_remaining"] == 8  # 8 - 1 + 1 refunded
+
+
+def test_surviving_volley_pays_full_ap_with_momentum(monkeypatch):
+    _ctx, _state = _drive_fire(monkeypatch, ["momentum"], hull=100)
+    assert _state.enemy_insts[0].alive is True
+    assert _state.player_state["ap_remaining"] == 7  # 8 - 1, nothing died
+
+
+def test_killing_volley_costs_ap_without_momentum(monkeypatch):
+    _ctx, _state = _drive_fire(monkeypatch, [], hull=1)
+    assert _state.enemy_insts[0].alive is False
+    assert _state.player_state["ap_remaining"] == 7  # 8 - 1, no refund trait

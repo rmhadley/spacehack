@@ -453,9 +453,9 @@ async def _fire_active_slot(
 def _maybe_refund_volley_ap(ctx, rules, enemies, alive_before: int, max_ap_cost: int) -> None:
     """Momentum (doc 49): a space kill refunds the killing volley's AP.
 
-    The refund hook is space-only (ground rules implement none);
-    liveness before/after the volley covers both kill paths — direct
-    target kills and explosive splash kills alike."""
+    The refund hook is space-only (ground rules implement none); the
+    liveness delta before/after the volley fires the refund exactly
+    when the volley killed any engaged enemy."""
     if max_ap_cost <= 0:
         return
     alive_after = sum(1 for _e in enemies if rules.enemy_alive(_e))

@@ -123,9 +123,13 @@ def _seat_showroom_displays(ctx, game_map: world.GameMap) -> None:
 def _remove_player(game_map: world.GameMap) -> None:
     """Remove transient player entities before reusing a cached map.
 
-    Identified by name, not glyph — the player char is the species'
-    (``@``/``&``/``♦``/``Q``, doc 49)."""
-    game_map.entities[:] = [entity for entity in game_map.entities if entity.name != "Player"]
+    Identified by the shared name predicate (doc 49 — the player's
+    glyph is the species', never a filter key)."""
+    from .character import is_transient_player as _is_transient_player
+    game_map.entities[:] = [
+        entity for entity in game_map.entities
+        if not _is_transient_player(entity)
+    ]
 
 
 def _interior_for_record(ctx, record: dict) -> tuple[world.GameMap, world.Position]:

@@ -179,12 +179,14 @@ def _optional_map_fields(gm) -> dict:
 
 def _dungeon_to_dict(gm, space_player_pos: tuple[int, int] | None) -> dict:
     """Serialize a dungeon :class:`world.GameMap` to a JSON-safe dict."""
+    from .character import is_transient_player
     return {
         "width": gm.width,
         "height": gm.height,
         "tiles": _tiles_to_dict(gm),
         "entities": [
-            _entity_to_dict(e) for e in gm.entities if e.name != 'Player'
+            _entity_to_dict(e) for e in gm.entities
+            if not is_transient_player(e)
         ],
         "seen": gm.seen,
         "sight_radius": gm.sight_radius,

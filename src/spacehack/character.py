@@ -135,8 +135,20 @@ def species_appearance(species_id: str) -> tuple[str, tuple[int, int, int]]:
 def species_appearance_for(ctx) -> tuple[str, tuple[int, int, int]]:
     """:func:`species_appearance` read off the live ctx's species id."""
     return species_appearance(
-        getattr(ctx, "character_info", {}).get("species_id", ""),
+        (getattr(ctx, "character_info", None) or {}).get("species_id", ""),
     )
+
+
+def is_transient_player(entity) -> bool:
+    """Whether ``entity`` is the transient on-foot player avatar.
+
+    Identified by NAME, never by glyph — the player's char is the
+    species' (``@``/``&``/``♦``/``Q``; doc 49). The cached-map
+    scrubbers (city interiors, dungeon extensions, game flow) and the
+    dungeon serializer all read this ONE predicate so their filters
+    can never drift apart.
+    """
+    return getattr(entity, "name", "") == "Player"
 
 
 def starting_stats(species_id: str, class_id: str):
@@ -212,6 +224,7 @@ __all__ = [
     "species_hp_bonus",
     "species_appearance",
     "species_appearance_for",
+    "is_transient_player",
     "starting_pilot_skills",
     "starting_ground_stats",
     "starting_stats",
