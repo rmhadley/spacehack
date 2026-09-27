@@ -1,12 +1,9 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 1 COMPLETE 2026-09-27 — built (18 commits, gate 3197
-green), reviewer round closed (both blockers + all minors fixed),
-PLAYTEST PASSED (user sign-off 2026-09-27, after three in-playtest
-card polish rounds: CHAR-NAME-HOME title, flavor-free homes + six
-aligned stat rows, verbatim trait prose, hint dedup; guide edits
-reviewed with the checklist). Next: phase 2 — class identity layer
-(discussion open; unbriefed).**
+**Status: PHASE 2 BRIEFED & APPROVED 2026-09-27 — ready for
+`/implement-phase 49.2`. Phase 1 COMPLETE (built + playtest passed);
+phase 2 fully ruled (SETTLED 4-8), brief ADVISE-pass amended and
+user-approved incl. trait descriptions verbatim.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -155,9 +152,7 @@ sits in it too, HP rides after).
       3197 green, reviewer round closed. Playtest findings folded in
       session: the CHAR-NAME-HOME card title, flavor-free homes,
       six-stat aligned rows, user-verbatim trait prose, hint dedup.
-- [ ] **2. Class identity layer** — class trait lockdowns (pirate
-      kinship / trade lens / rap-sheet sketches), stat/credit refresh,
-      class-screen card parity. Discussion open; unbriefed.
+- [ ] **2. Class identity layer** — brief below (APPROVED).
 
 ## Pre-implementation audit (2026-09-27, code-anchored — phase 1)
 
@@ -493,7 +488,7 @@ two-line description budget. APPROVED as proposed.
 
 Phase 2 is fully ruled. All roll-through questions CLOSED (5/6/7/8).
 
-## Phase 2 — Implementation brief (PROPOSED 2026-09-27)
+## Phase 2 — Implementation brief (APPROVED 2026-09-27 — ADVISE-pass amended; trait descriptions approved verbatim)
 
 **Scope (files + hook points):**
 
