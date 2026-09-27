@@ -207,3 +207,17 @@ def test_fast_learner_grants_six_skill_points_per_level():
     plain = _level_ctx([])
     run(add_xp(plain, 90))
     assert (plain.player_level, plain.player_skill_points) == (2, 5)
+
+
+def test_ironclad_apply_uses_the_shared_fold():
+    """The reviewer's drift catch: a Martian picking Ironclad must land
+    on the shared max-HP fold (species term included), never the old
+    species-free copy."""
+    from src.spacehack.trait_screen import _apply_ironclad_hp
+    from src.spacehack.xp import ground_max_hp_total
+    ctx = _ground_ctx(["ironclad"], "martian", stamina=14)
+    ctx.ground_hp = ctx.ground_max_hp = 27  # the pre-Ironclad max
+    _apply_ironclad_hp(ctx, "ironclad")
+    assert ctx.ground_max_hp == ground_max_hp_total(ctx)  # 20+7+2+6 = 35
+    assert ctx.ground_max_hp == 35
+    assert ctx.ground_hp == 35  # the Ironclad delta heals into the new max

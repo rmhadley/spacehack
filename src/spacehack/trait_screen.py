@@ -12,19 +12,14 @@ from __future__ import annotations
 
 from . import message_log
 from .game_context import GameContext
-from .xp import _qualifying_traits, ground_max_hp_bonus
+from .xp import _qualifying_traits, ground_max_hp_total
 
 
 def _apply_ironclad_hp(ctx: GameContext, trait_id: str) -> None:
     """Apply Ironclad's max-HP increase immediately after selection."""
     if trait_id != "ironclad":
         return
-    from .ground_equipment import sum_armor_bonus
-    _new_max_hp = (
-        20 + ctx.ground_stats.stamina // 2
-        + sum_armor_bonus(ctx.equipped_ground_armor.values(), "hp_bonus")
-        + ground_max_hp_bonus(ctx)
-    )
+    _new_max_hp = ground_max_hp_total(ctx)
     _delta = _new_max_hp - ctx.ground_max_hp
     if _delta > 0:
         ctx.ground_hp += _delta
