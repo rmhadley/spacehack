@@ -381,12 +381,38 @@ endings work.
 12. Guide-diff: character-creation guide section reviewed — species
     list updated or deliberately unchanged; record before/after.
 
-## Open questions
+## SETTLED 4 — 2026-09-27: the phase-2 frame (user)
 
-1. **(phase 2) Pirate-class kinship** — sketch exists (trait crosses
-   the hostility threshold — pirate ships don't engage at "disliked",
-   boarded pirate crews don't aggro until you act); shape unruled.
-2. **(phase 2) Starting kits / class-locked gear** — in scope here or
-   with trade? Unruled.
-3. **(phase 2) Class stat/credit refresh + class-screen card parity**
-   — the class screen keeps the old layout until phase 2.
+Keep the three classes (pirate / merchant / bounty_hunter). EACH class
+gets, rolled class-by-class in that order:
+
+1. **Stat spread re-ruled to a +6 budget** — the class layer's
+   contribution to starting stats, mirroring the species +6 pool
+   (replaces the legacy +12/+12 and +4-everywhere spreads; where the
+   six points land is a per-class ruling).
+2. **Starting rep shape** — the `_CLASS_REP` table re-ruled per class
+   (species stays rep-neutral per SETTLED 3-B).
+3. **One class trait** — a second creation-granted trait matching the
+   class theme (species trait + class trait = the fresh character's
+   two), granted into a class-trait registry sibling of
+   `ORIGIN_TRAITS`; never offered at milestones.
+
+Then, after all three classes are rolled: **class choice screen
+polish** — same look/feel as the species screen (split card: title
+`CHAR - NAME - ...`, aligned stat rows, trait block).
+
+Per-class knobs that STAY class-owned unless re-ruled during the
+roll-through: hull `hp_base` (class-only per SETTLED 3-A) and starting
+credits. Starting kits / class-locked gear: not in the user's phase-2
+list — deferred unless re-opened.
+
+## Open questions (phase 2 — the roll-through)
+
+1. **Pirate** — stat spread placement; rep shape (rep-numbers fix vs
+   trait-threshold fix for the −70 tell); class trait mechanics.
+2. **Merchant** — stat spread placement; rep shape; trade-lens trait
+   mechanics.
+3. **Bounty hunter** — stat spread placement; rep shape; rap-sheet
+   trait mechanics.
+4. **Class screen polish** — parity details (does the class card get a
+   glyph/color identity like species?).
