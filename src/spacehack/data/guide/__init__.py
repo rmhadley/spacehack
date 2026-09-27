@@ -458,7 +458,10 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
     GuideSection(
         title="Character & Skills",
         body=(
-            "Your species and class shape your starting strengths. You can still "
+            "Your species and class shape your starting strengths. Every "
+            "species grants one permanent trait at creation, and the "
+            "character-creation card shows each species' trait before you "
+            "choose. You can still "
             "grow in any direction, so choose the style that sounds fun rather "
             "than trying to make a perfect build."
             "\n\n"
@@ -486,7 +489,8 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "not need to spend every point immediately. A focused build is strong "
             "at its specialty; a balanced build gives you more answers."
             "\n\n"
-            "Every level grants 5 skill points. At levels 40 and 50 you choose "
+            "Every level grants 5 skill points (6 with the Fast Learner "
+            "species trait). At levels 40 and 50 you choose "
             "one qualifying trait from the shared pool. Traits reward focus: "
             "Evasive follows high Reflexes, Pack Mule follows Strength, Ironclad "
             "follows Stamina, and Systems Expert follows Engineering. Charger "
