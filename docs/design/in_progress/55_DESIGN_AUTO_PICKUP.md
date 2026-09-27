@@ -1,9 +1,9 @@
 # DESIGN: Auto-pickup — walk-over collection
 
-**Status:** OPEN — drafted 2026-09-27. Rulings SETTLED 1–7 recorded (open questions exhausted);
+**Status:** OPEN — drafted 2026-09-27. Rulings SETTLED 1–8 recorded (open questions exhausted);
 Implementation briefs for phases 1–3 PROPOSED with all three ADVISE reviewer passes folded
 (space-goto hook, silent probe, heist markers, tutorial beat, no-DisplayConfig pref, per-key
-config granularity). Pending: brief approval + the two prose drafts.
+config granularity). Pending: brief approval + the prose drafts (tutorial prompt, guide intro).
 
 ## Overview
 
@@ -109,8 +109,9 @@ design. No GameContext / save-format changes anywhere in this arc.
 - [ ] 1. **Walk-over core + P remainder alignment** — probe + apply for the three classes at
   movement arrival (both theaters, manual + all three stepper/auto-nav paths); ammo
   remainder-splitting; silent refusal (the probe never logs); existing log lines; the P flow's
-  partial fit aligns with leave-remainder (SETTLED 4, amending doc 52); the tutorial's pickup
-  beat completes on arrival (line reworded). Tests: per-class pick / refuse / partial-split,
+  partial fit aligns with leave-remainder (SETTLED 4, amending doc 52); the tutorial teaches
+  both verbs — walk-over for Jack's salvage, P for his guaranteed laser (SETTLED 8). Tests:
+  per-class pick / refuse / partial-split,
   every movement path, a sabotage-proven regression pin on the walk-over hook. Guide-diff item:
   none (guide lands with phase 3, when the behavior finalizes).
 - [ ] 2. **The toggle** — `[gameplay] auto_cargo_pickup` in config.toml + the title OPTIONS row;
@@ -154,6 +155,13 @@ design. No GameContext / save-format changes anywhere in this arc.
    run detours to collect them via walk-over before pushing the fog. A pile the probe refuses
    still halts on first sighting like any loot (sight-stops stay inventory-independent) but is
    not a target and never re-halts.
+8. **(2026-09-27, user, verbatim)** "I'd prefer to keep the P teaching in the tutorial. Can we
+   make the tutorial jack drop things that auto pickup and don't auto pickup? maybe we can teach
+   both?" — Crimson Jack's drop is split so the tutorial teaches BOTH verbs: his cargo stays
+   walk-over salvage (auto-class), and he gains one guaranteed P-only drop (a Light Laser,
+   carried on his spec and honored by the shared kill-drop path — data-driven, no tutorial
+   special-case). The `loot_dropped` prompt teaches both; the beat still completes only when no
+   loot remains.
 
 ## Open questions
 
@@ -206,10 +214,19 @@ resolved by SETTLED 4 and 5–6 respectively on 2026-09-27.
   "Picked up {name} x{added}; left {n} on the floor." (mirrors the field-item wording,
   loot.py:545); at-cap branch untouched. Verified blast radius: one caller (the P chain,
   loot.py:534).
-- `src/spacehack/tutorial.py:140` — the scripted line "Fly onto (or next to) the loot and press
-  'P' to pick it up." completes on arrival now; reword to **"Fly onto the loot to pick it up."**
-  (draft — awaiting approval; P remains the pickup verb for every non-auto class — the guide
-  keeps teaching it).
+- `src/spacehack/tutorial.py:138-143` + `data/enemies/pirates.py` (Crimson Jack's spec) —
+  **teach both verbs (SETTLED 8).** Jack's natural cargo drop stays walk-over salvage; his spec
+  gains a guaranteed weapon drop (a Light Laser — the spare the pre-fight coaching primes)
+  honored by `_spawn_loot_drops` (combat/_actions.py:335) using the existing ship-weapon loot
+  payload shape (`loot._ship_weapon_loot_entry`, loot.py:207): one P-only entity at the wreck,
+  data-driven, no tutorial special-case. The `loot_dropped` prompt is reworded to teach both —
+  draft: **"Crimson Jack was destroyed - and dropped loot (%).\n\nFly over the salvage and
+  it's collected automatically. His laser needs the 'P' key - fly next to it and press 'P'.
+  'P' works in space and on the ground, and it reaches loot on diagonal squares too."**
+  (draft — awaiting approval). The beat machinery needs no change: `picked_up_loot` waits for
+  `not _any_loot` (tutorial.py:322-327), so the beat completes only after BOTH the fly-over
+  salvage and the P'd laser are cleared — `notify_pickup` fires from the P path today and from
+  the space walk-over apply (this brief).
 - Tests: `tests/test_auto_pickup.py` (new) + `tests/test_ground_equipment.py` — the doc-52
   forfeit pin `test_field_ammo_pickup_partial_fit_forfeits_overflow` (:543) updates in-commit;
   its at-cap twin (:564) pins the unchanged branch.
@@ -261,8 +278,9 @@ debug_session.py — small hooks only.
 9. Auto-explore still halts at newly-visible piles (halts never change in this arc), but piles
    crossed on the route are scooped.
 10. Space G auto-nav onto/over debris → scooped en route (interrupt a transit over a debris field).
-11. New game: fly onto the tutorial debris → the reworded line plays and the beat completes on
-    arrival (no P press needed); the JUMPING beat unlocks.
+11. New game through the Jack fight: fly over the salvage → collected automatically (existing
+    log lines) while his laser stays put; press P next to the laser → picked; the beat advances
+    to JUMPING only after BOTH are cleared; the reworded two-verb prompt reads correctly.
 12. Save → quit → Continue: identical bandolier / hold / credits / remaining piles.
     Guide-diff: none (guide lands with phase 3).
 
