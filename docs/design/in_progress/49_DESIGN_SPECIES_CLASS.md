@@ -1,8 +1,8 @@
 # DESIGN: Player species & class identity
 
-**Status: IN REFINEMENT 2026-09-27 — species layer locked (SETTLED
-1/2/3); phase-1 Implementation brief PROPOSED (awaiting approval);
-class layer (phase 2) unruled beyond sketches.**
+**Status: PHASE 1 BRIEFED & APPROVED 2026-09-27 — ready for
+`/implement-phase 49.1`. Species layer locked (SETTLED 1/2/3); class
+layer (phase 2) unruled beyond sketches.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -138,7 +138,7 @@ beyond mechanical trait descriptions.
       kinship / trade lens / rap-sheet sketches), stat/credit refresh,
       class-screen card parity. Not started in phase 1.
 
-## Phase 1 — Implementation brief (PROPOSED 2026-09-27)
+## Phase 1 — Implementation brief (APPROVED 2026-09-27)
 
 **Scope (files + hook points):**
 
