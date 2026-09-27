@@ -148,8 +148,8 @@ def test_maybe_refund_dispatches_only_on_a_killing_volley():
     enemies[1] = False
     _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=2, max_ap_cost=3)
     assert rules.refunded == 3  # the volley killed — full cost back
-    _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=1, max_ap_cost=0)
-    assert rules.refunded == 3  # a free volley refunds nothing
+    _loop._maybe_refund_volley_ap(None, rules, enemies, alive_before=2, max_ap_cost=0)
+    assert rules.refunded == 3  # a kill from a free volley refunds nothing
 
 
 def _fire_fixture(traits, hull):

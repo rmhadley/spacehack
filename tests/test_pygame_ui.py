@@ -6136,3 +6136,53 @@ def test_log_installed_colours_the_tiered_name():
         ("Overclocked Shield Mk. 2", (130, 210, 240)),
         (" from storage.", None),
     )
+
+
+def test_panel_header_paint_calls_match_the_real_signatures(monkeypatch):
+    """Doc 49 re-review blocker: the header's ui calls must match the
+    REAL signatures — a stray argument (font passed to draw_rule)
+    crashed every split screen on first paint while the gate stayed
+    green, because every other test stubs these calls with *args.
+    This pin binds each call against the live signature, so an arity
+    drift fails here instead of in the player's window."""
+    import inspect
+
+    def _checked(real):
+        signature = inspect.signature(real)
+
+        def _call(*args, **kwargs):
+            signature.bind(*args, **kwargs)  # raises on arity mismatch
+            return 10  # a plausible int for width arithmetic
+        return _call
+
+    monkeypatch.setattr(pygame_ui, "draw_text", _checked(pygame_ui.draw_text))
+    monkeypatch.setattr(pygame_ui, "draw_rule", _checked(pygame_ui.draw_rule))
+    monkeypatch.setattr(pygame_ui, "fit_text", _checked(pygame_ui.fit_text))
+    monkeypatch.setattr(
+        pygame_ui, "measure_font", _checked(pygame_ui.measure_font),
+    )
+
+    class _Font:
+        def get_linesize(self):
+            return 24
+
+    class _Panel:
+        x, y, width, height = 0, 0, 400, 300
+
+    class _Draw:
+        rect = staticmethod(lambda *a, **k: None)
+
+    class _Pygame:
+        Rect = staticmethod(lambda *a: None)
+        draw = _Draw
+
+    for kwargs in (
+        dict(tabs=(), active_tab=0),  # plain label (the species card)
+        dict(tabs=("[T]rade", "[S]torage"), active_tab=0),  # tab pair
+    ):
+        pygame_split._draw_panel_header(
+            _Pygame, object(), _Font(), _Panel(),
+            "& - CYGNIAN - Cygni b - the orbital yards (Cygni)",
+            focused=False, palette=pygame_ui.DEFAULT_PALETTE,
+            color_override=(170, 130, 230), **kwargs,
+        )

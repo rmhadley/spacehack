@@ -281,7 +281,7 @@ def _draw_panel_header(
         )
         header_x += tab_width + 10
     pygame_ui.draw_rule(
-        pygame, screen, font, panel.x + 18, panel.y + 48,
+        pygame, screen, panel.x + 18, panel.y + 48,
         panel.width - 36, color=palette.border,
     )
 

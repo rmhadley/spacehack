@@ -180,7 +180,7 @@ def ground_max_hp_total(ctx: GameContext) -> int:
     """
     from .character import species_hp_bonus
     from .ground_equipment import sum_armor_bonus
-    _species_id = getattr(ctx, "character_info", {}).get("species_id", "")
+    _species_id = (getattr(ctx, "character_info", None) or {}).get("species_id", "")
     return (
         20 + ctx.ground_stats.stamina // 2
         + sum_armor_bonus(ctx.equipped_ground_armor.values(), "hp_bonus")
