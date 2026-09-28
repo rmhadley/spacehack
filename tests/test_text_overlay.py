@@ -201,3 +201,16 @@ def test_shipped_overlay_keys_resolve():
         _known.add(f"good.{_g.id}.description")
     _unknown = sorted(set(text_module.overlay()) - _known)
     assert _unknown == []
+
+
+def test_every_runtime_registry_key_resolves_nonempty():
+    """The overlay migration must carry a VALUE for every key the
+    text.RUNTIME registry names — a key with no overlay entry resolves
+    '' and its screen paints blank (user report 2026-09-28: prison
+    descent floors 2-4 entry screens, plus the elevator descent_log
+    line, lost in the JSON migration; prose restored verbatim from
+    ab529c0a)."""
+    from src.spacehack import text
+
+    _blank = [key for key in sorted(text.RUNTIME) if not text.get(key)]
+    assert not _blank, f"registry keys with no overlay value: {_blank}"
