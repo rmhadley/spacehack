@@ -19,6 +19,7 @@
   "runtime.door_open_title": "THE SEAL GIVES WAY",
   "runtime.epilogue_delivered_log": "You send word: the archive is coming home to the people who opened the door.",
   "runtime.epilogue_delivered_log_merchants": "You send word back to the Merchant Guild on Earth: you've got the data and are returning to them.",
+  "runtime.epilogue_delivered_log_militia": "You send word back to the Militia Captain on Earth: you've got the data and are returning to them.",
   "runtime.epilogue_kept_body": "No faction hand, no reward, no clearance. When you are ready, the road past the Luyten Line is yours to find.",
   "runtime.epilogue_kept_log": "You tell no one. The archive - all of it - stays with you.",
   "runtime.epilogue_kept_title": "The archive is yours alone",
