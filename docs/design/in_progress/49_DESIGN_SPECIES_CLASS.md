@@ -1,9 +1,9 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 2 BRIEFED & APPROVED 2026-09-27 — ready for
-`/implement-phase 49.2`. Phase 1 COMPLETE (built + playtest passed);
-phase 2 fully ruled (SETTLED 4-8), brief ADVISE-pass amended and
-user-approved incl. trait descriptions verbatim.**
+**Status: PHASE 2 BUILT 2026-09-27 — awaiting playtest. Phase 1
+COMPLETE (built + playtest passed); phase 2 built in 7 commits (all
+reviewer-passed, gate 3247), playtest checklist at the brief's
+bottom.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -152,7 +152,16 @@ sits in it too, HP rides after).
       3197 green, reviewer round closed. Playtest findings folded in
       session: the CHAR-NAME-HOME card title, flavor-free homes,
       six-stat aligned rows, user-verbatim trait prose, hint dedup.
-- [ ] **2. Class identity layer** — brief below (APPROVED).
+- [x] **2. Class identity layer** — brief below (APPROVED).
+      BUILT 2026-09-27: 7 commits (5a488c10..56f1b6e8) — data
+      rewrite + hp_base/HudStats cleanup, CLASS_TRAITS + two-trait
+      grant, pirate/merchant/BH hooks, class screen, guide review.
+      Reviewer: APPROVE x5 (one RC round on BH fully closed + delta
+      pass); ratchet debts paid in-commit (_space_init, _ground_actions,
+      saveload_ship extractions; _player_damage_mult + cost-line seams).
+      Build amendments: rep row single-space (36-char budget), doc
+      STR-16/HP-33 slip corrected to live STR 15/HP 29. PLAYTEST
+      PENDING — checklist below.
 
 ## Pre-implementation audit (2026-09-27, code-anchored — phase 1)
 
