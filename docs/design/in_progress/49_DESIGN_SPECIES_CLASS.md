@@ -482,9 +482,12 @@ on the class card is the ALREADY-CHOSEN species'. Card format:
   exactly like the species card.
 
 **Viewport math — RESOLVED (user, 2026-09-27):** the split viewport
-caps at 11 rows; rep renders as ONE aligned summary row
-(`Pirates -70  Merchants -10  Militia 30`) → 11 total with a
-two-line description budget. APPROVED as proposed.
+caps at 11 rows; rep renders as ONE aligned summary row → 11 total
+with a two-line description budget. APPROVED as proposed. Build
+amendment (2026-09-27, step 6): single-space separators
+(`Pirates -70 Merchants -10 Militia 30` = 36 chars) — the two-space
+example renders 38 and the panel budget is 36; full faction labels
+kept, spacing conceded.
 
 Phase 2 is fully ruled. All roll-through questions CLOSED (5/6/7/8).
 
@@ -625,8 +628,9 @@ _CLASS_REP tables; no balance retunes beyond the locked numbers.
    Militia 30; Merchant: Pirates -100/Merchants 30/Militia 50; BH:
    Pirates -100/Merchants 10/Militia 70); trait block reads the
    approved wording.
-2. Martian Pirate: Armor 2 / HP 33 (14+2 sta → wait: martian sta 14
-   + pirate 0 = 14 → 20+7+2 = 29; stats show combined STR 16).
+2. Martian Pirate: Armor 2 / HP 29 (martian sta 14 + pirate 0 = 14
+   → 20+7+2 = 29; combined STR 15 = martian 12 + pirate 3 — the
+   earlier "STR 16/HP 33" lead was a slip, amended at build).
 3. Start each class: C screen lists BOTH traits (species + class).
 4. Pirate: starter ship smuggler hold 10 (trade screen); first fight
    — opening attack shows the bonus hit/damage; second fight after
@@ -780,8 +784,9 @@ numbers current at audit time).
 land in both; if either crosses, the in-commit split follows the
 phase-1 `_ground_blast` precedent. `trade.py` 931 and `ship.py` 716
 have headroom.
-2. Martian Pirate: Armor 2 / HP 33 (14+2 sta → wait: martian sta 14
-   + pirate 0 = 14 → 20+7+2 = 29; stats show combined STR 16).
+2. Martian Pirate: Armor 2 / HP 29 (martian sta 14 + pirate 0 = 14
+   → 20+7+2 = 29; combined STR 15 = martian 12 + pirate 3 — the
+   earlier "STR 16/HP 33" lead was a slip, amended at build).
 3. Start each class: C screen lists BOTH traits (species + class).
 4. Pirate: starter ship smuggler hold 10 (trade screen); first fight
    — opening attack shows the bonus hit/damage; second fight after

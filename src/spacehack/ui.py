@@ -172,24 +172,160 @@ def _species_start_row(spec):
     )
 
 
+def _info_row(label, *, fg=None):
+    """One informational (non-selectable) card row."""
+    from . import pygame_split
+
+    return pygame_split.SplitRow(
+        label, "", "", "", selectable=False, fg=fg,
+    )
+
+
 def _species_card_rows(spec) -> tuple:
     """The right pane's card body. The header row carries the identity
     (``glyph - NAME - home``, in the species color); the body lists the
     six stats with Armor/HP under them, then the trait block at the
     bottom (doc 49 SETTLED 2 + the 2026-09-27 layout revisions)."""
-    from . import pygame_split
-
-    def _info(label, *, fg=None):
-        return pygame_split.SplitRow(
-            label, "", "", "", selectable=False, fg=fg,
-        )
-
     rows = [*species_stat_rows(spec), _species_start_row(spec)]
     from .data.traits.core import ORIGIN_TRAITS
     trait = ORIGIN_TRAITS[spec.trait_id]
-    rows.append(_info(trait.name, fg=COLOR_OPTION_HIGHLIGHT))
-    rows.extend(_info(line) for line in wrap_text(trait.description, _SPECIES_CARD_WRAP))
+    rows.append(_info_row(trait.name, fg=COLOR_OPTION_HIGHLIGHT))
+    rows.extend(
+        _info_row(line)
+        for line in wrap_text(trait.description, _SPECIES_CARD_WRAP)
+    )
     return tuple(rows)
+
+
+# ---------------------------------------------------------------------------
+# Class card (doc 49 SETTLED 8): the split-screen picker's right pane
+# ---------------------------------------------------------------------------
+
+# Visible-faction display order for the one-row rep summary.
+_CLASS_REP_LABELS: tuple[tuple[str, str], ...] = (
+    ("pirate", "Pirates"), ("merchant", "Merchants"), ("militia", "Militia"),
+)
+
+
+def _class_combined_stats(species_id: str, class_id: str) -> dict[str, int]:
+    """The six REAL start values: base + species + class (the combined
+    rows the card shows — live formulas, never re-derived tables)."""
+    from .character import starting_ground_stats, starting_pilot_skills
+    skills = starting_pilot_skills(species_id, class_id)
+    ground = starting_ground_stats(species_id, class_id)
+    return {
+        "gunnery": skills.gunnery,
+        "piloting": skills.piloting,
+        "engineering": skills.engineering,
+        "reflexes": ground.reflexes,
+        "strength": ground.strength,
+        "stamina": ground.stamina,
+    }
+
+
+def class_stat_rows(species_id: str, class_id: str) -> tuple:
+    """The card's six combined stat rows (base+species+class)."""
+    from . import pygame_split
+    values = _class_combined_stats(species_id, class_id)
+    return tuple(
+        pygame_split.SplitRow(
+            _stat_cell(label, values[field]), "", "", "", selectable=False,
+        )
+        for field, label, _container in _SPECIES_STAT_ORDER
+    )
+
+
+def _class_start_row(species_id: str, class_id: str):
+    """The card's Armor/HP row, read through the live naked-start fold
+    (combined stamina + the species trait; the class trait adds no
+    armor or HP)."""
+    from types import SimpleNamespace
+
+    from . import pygame_split
+    from . import xp
+    from .data.species import find_species
+
+    _trait = find_species(species_id).trait_id
+    _naked = SimpleNamespace(
+        ground_stats=SimpleNamespace(
+            stamina=_class_combined_stats(species_id, class_id)["stamina"],
+        ),
+        equipped_ground_armor={},
+        player_traits=[_trait] if _trait else [],
+        character_info={"species_id": species_id},
+    )
+    return pygame_split.SplitRow(
+        _stat_cell("Armor", xp.sturdy_armor_bonus(_naked))
+        + f"   HP {xp.ground_max_hp_total(_naked)}",
+        "", "", "", selectable=False,
+    )
+
+
+def _class_rep_row(species_id: str, class_id: str):
+    """The ONE-row effective-rep summary (defaults + class deltas,
+    hidden factions excluded — SETTLED 8). Single-space separators
+    keep the row inside the 36-char panel budget."""
+    from . import pygame_split
+    from .faction import starting_reputation
+    _rep = starting_reputation(species_id, class_id)
+    _summary = " ".join(
+        f"{label} {_rep[fid]}" for fid, label in _CLASS_REP_LABELS
+    )
+    return pygame_split.SplitRow(_summary, "", "", "", selectable=False)
+
+
+def _class_card_rows(species_id: str, class_id: str) -> tuple:
+    """The right pane's class card body: the combined stat rows with
+    Armor/HP under them, the effective-rep row, then the class trait
+    block at the bottom (exactly like the species card)."""
+    from .data.classes import find_class
+    from .data.traits.core import CLASS_TRAITS
+    rows = [
+        *class_stat_rows(species_id, class_id),
+        _class_start_row(species_id, class_id),
+        _class_rep_row(species_id, class_id),
+    ]
+    trait = CLASS_TRAITS[find_class(class_id).trait_id]
+    rows.append(_info_row(trait.name, fg=COLOR_OPTION_HIGHLIGHT))
+    rows.extend(
+        _info_row(line)
+        for line in wrap_text(trait.description, _SPECIES_CARD_WRAP)
+    )
+    return tuple(rows)
+
+
+def class_split_frame(species_id: str, selected: int = 0):
+    """The class picker's split frame: left cycling options, right the
+    hovered class' card (doc 49 SETTLED 8). The card pane's title is
+    the identity line — ``@ - HUMAN - PIRATE`` — painted in the
+    ALREADY-CHOSEN species' color (classes carry no colors of their
+    own)."""
+    from . import pygame_split
+    from .character import species_appearance
+    from .data.classes import list_classes
+
+    roster = list_classes()
+    klass = roster[max(0, min(selected, len(roster) - 1))]
+    options = tuple(
+        pygame_split.SplitRow(label=c.name, value="", detail="", action=c.id)
+        for c in roster
+    )
+    _glyph, _color = species_appearance(species_id)
+    from .data.species import find_species
+    return pygame_split.SplitFrame(
+        title="CHOOSE YOUR CLASS",
+        left_label="CLASS",
+        right_label=(
+            f"{_glyph} - {find_species(species_id).name.upper()} - {klass.name.upper()}"
+        ),
+        right_label_color=_color,
+        left_rows=options,
+        right_rows=_class_card_rows(species_id, klass.id),
+        footer_left="",
+        footer_right="",
+        hint=_modal_hint("ENTER select", "ESC go back"),
+        selected=max(0, min(selected, len(options) - 1)),
+    )
 
 
 def species_split_frame(selected: int = 0):

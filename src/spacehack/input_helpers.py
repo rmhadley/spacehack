@@ -139,24 +139,20 @@ async def _run_pick(context: PygameContext, menu: ui.MenuScreen) -> tuple[Outcom
     return result
 
 
-async def _run_species_pick(context: PygameContext) -> tuple[Outcome, str | None] | None:
-    """Run the species picker (doc 49): left cycling options, right the
-    hovered species' card. Falls back to the generic menu when split
-    presentation is unavailable (headless/dummy drivers); ``None``
+async def _run_split_picker(context, build, caption, menu):
+    """The shared split-screen picker loop (doc 49): left cycling
+    options, right a card; falls back to the generic menu when split
+    presentation is unavailable (headless/dummy drivers). ``None``
     mirrors the generic pickers' no-outcome failure."""
     from . import pygame_split, pygame_runtime
 
     if not pygame_split.enabled() or not pygame_runtime.is_shared_context(context):
-        return await _run_pygame_pick(context, ui.species_menu())
-
-    def _build(selected: int):
-        return ui.species_split_frame(selected)
+        return await _run_pygame_pick(context, menu)
 
     _selected = 0
     while True:
         outcome, action, _selected = await pygame_split.run_dynamic_screen(
-            context, _build, caption="spacehack - choose your species",
-            initial_selected=_selected,
+            context, build, caption=caption, initial_selected=_selected,
         )
         if outcome == "GUIDE":
             continue
@@ -167,10 +163,36 @@ async def _run_species_pick(context: PygameContext) -> tuple[Outcome, str | None
         if outcome == "BACK":
             return Outcome.BACK, None
         if outcome == "SELECT":
-            valid_ids = {option_id for option_id, _label in ui.species_menu().options}
+            valid_ids = {option_id for option_id, _label in menu.options}
             if action in valid_ids:
                 return Outcome.CONFIRM, action
         return None
+
+
+async def _run_species_pick(context: PygameContext) -> tuple[Outcome, str | None] | None:
+    """Run the species picker (doc 49 SETTLED 2): the hovered species'
+    card on the right."""
+    return await _run_split_picker(
+        context,
+        ui.species_split_frame,
+        "spacehack - choose your species",
+        ui.species_menu(),
+    )
+
+
+async def _run_class_pick(
+    context: PygameContext, species_id: str,
+) -> tuple[Outcome, str | None] | None:
+    """Run the class picker (doc 49 SETTLED 8): the split card keyed
+    to the already-chosen species (its color titles the card; classes
+    carry no colors)."""
+    return await _run_split_picker(
+        context,
+        lambda selected: ui.class_split_frame(species_id, selected),
+        "spacehack - choose your class",
+        ui.class_menu(),
+    )
+
 
 async def _run_confirm(context: PygameContext, species_id: str, class_id: str) -> Outcome:
     """Run character confirmation in the shared Pygame window."""

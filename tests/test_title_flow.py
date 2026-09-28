@@ -118,7 +118,7 @@ def test_character_creation_retries_back_and_seeds_before_start(monkeypatch):
     seeds = []
     runs = []
     monkeypatch.setattr(title_flow, "_run_species_pick", as_async(lambda *_args: next(species_picks)))
-    monkeypatch.setattr(title_flow, "_run_pick", as_async(lambda *_args: next(class_picks)))
+    monkeypatch.setattr(title_flow, "_run_class_pick", as_async(lambda *_args: next(class_picks)))
     monkeypatch.setattr(title_flow, "_run_confirm", as_async(lambda *_args: next(confirms)))
     monkeypatch.setattr(title_flow, "_fresh_seed", lambda seed: seeds.append(seed))
 

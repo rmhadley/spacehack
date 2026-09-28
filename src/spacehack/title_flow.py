@@ -9,8 +9,8 @@ from collections.abc import Awaitable, Callable
 from . import pygame_story, pygame_title, ui
 from .input_helpers import (
     Outcome,
+    _run_class_pick,
     _run_confirm,
-    _run_pick,
     _run_species_pick,
 )
 from .pygame_runtime import PygameContext
@@ -52,7 +52,10 @@ async def _run_character_creation(
         outcome, species_id = species_result
         if outcome in (Outcome.QUIT, Outcome.BACK):
             return
-        outcome, class_id = await _run_pick(context, ui.class_menu())
+        class_result = await _run_class_pick(context, species_id)
+        if class_result is None:
+            raise RuntimeError("Class picker returned no outcome")
+        outcome, class_id = class_result
         if outcome is Outcome.QUIT:
             return
         if outcome is Outcome.BACK:

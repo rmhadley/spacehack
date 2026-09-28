@@ -294,3 +294,110 @@ class TestSpeciesSplitPicker:
             as_async(lambda *args, **kwargs: ("SELECT", "not-a-species", 0)),
         )
         assert run(input_helpers._run_species_pick(SimpleNamespace())) is None
+
+
+class TestClassSplitPicker:
+    """Doc 49 SETTLED 8: left cycling options, right the class card
+    titled CHAR-SPECIES-CLASS in the chosen species' color (classes
+    carry no colors)."""
+
+    def test_left_options_follow_class_order_with_ids(self):
+        frame = ui.class_split_frame("human", 0)
+        assert [(row.label, row.action) for row in frame.left_rows] == [
+            ("Pirate", "pirate"),
+            ("Merchant", "merchant"),
+            ("Bounty Hunter", "bounty_hunter"),
+        ]
+
+    def test_card_title_carries_identity_in_species_color(self):
+        frame = ui.class_split_frame("human", 0)
+        assert frame.right_label == "@ - HUMAN - PIRATE"
+        assert frame.right_label_color == (255, 255, 255)  # human white
+        martian = ui.class_split_frame("martian", 2)
+        assert martian.right_label == "@ - MARTIAN - BOUNTY HUNTER"
+        assert martian.right_label_color == (130, 225, 90)  # martian green
+        assert ui.class_split_frame("cygnian", 1).right_label == (
+            "& - CYGNIAN - MERCHANT"
+        )
+
+    def test_card_combined_stats_then_armor_hp_then_rep_then_trait(self):
+        labels = [row.label for row in ui.class_split_frame("human", 0).right_rows]
+        assert labels[:7] == [
+            "Gunnery      14", "Piloting     11", "Engineering  11",
+            "Reflexes     11", "Strength     14", "Stamina      11",
+            "Armor         0   HP 25",
+        ]
+        assert labels[7] == "Pirates -70 Merchants -10 Militia 30"
+        assert labels[8] == "Pirate"
+        assert labels[9:] == [
+            "+10 smuggler's hold on every ship",
+            "First attack: +hit, +damage",
+        ]
+
+    def test_card_pins_settled_numbers_across_classes(self):
+        def _labels(class_id):
+            frame = ui.class_split_frame(
+                "human", {"pirate": 0, "merchant": 1, "bounty_hunter": 2}[class_id],
+            )
+            return [row.label for row in frame.right_rows]
+
+        merchant = _labels("merchant")
+        assert "Engineering  15" in merchant
+        assert "Stamina      13" in merchant
+        assert merchant[7] == "Pirates -100 Merchants 30 Militia 50"
+        hunter = _labels("bounty_hunter")
+        assert "Gunnery      13" in hunter
+        assert "Piloting     13" in hunter
+        assert "Reflexes     13" in hunter
+        assert hunter[7] == "Pirates -100 Merchants 10 Militia 70"
+
+    def test_martian_pirate_folds_species_trait_into_armor_hp(self):
+        labels = [row.label for row in ui.class_split_frame("martian", 0).right_rows]
+        assert "Strength     15" in labels  # martian 12 + pirate 3
+        assert "Armor         2   HP 29" in labels
+
+    def test_card_rows_fit_the_split_viewport(self):
+        for species in ("human", "martian", "cygnian", "sirian", "lalandan"):
+            for index in range(3):
+                assert len(
+                    ui.class_split_frame(species, index).right_rows,
+                ) <= 11, (species, index)
+
+    def test_run_class_pick_falls_back_to_generic_menu(self, monkeypatch):
+        from src.spacehack import pygame_split
+        captured = {}
+        monkeypatch.setattr(pygame_split, "enabled", lambda: False)
+        monkeypatch.setattr(
+            pygame_menu,
+            "run_for_context",
+            as_async(
+                lambda context, frames, **kwargs: captured.update(
+                    frames=frames,
+                ) or ("SELECT", "merchant", 0)
+            ),
+        )
+        outcome, class_id = run(
+            input_helpers._run_class_pick(SimpleNamespace(), "human"),
+        )
+        assert outcome is input_helpers.Outcome.CONFIRM
+        assert class_id == "merchant"
+        assert captured["frames"][0].items[1].action == "merchant"
+
+    def test_run_class_pick_rejects_invalid_action(self, monkeypatch):
+        """An invalid SELECT action maps to the None no-outcome result,
+        which title_flow turns into a hard error (the species-picker
+        contract, mirrored)."""
+        from src.spacehack import pygame_split, pygame_runtime
+        monkeypatch.setattr(pygame_split, "enabled", lambda: True)
+        monkeypatch.setattr(
+            pygame_runtime,
+            "is_shared_context",
+            lambda _context: True,
+        )
+        monkeypatch.setattr(
+            pygame_split,
+            "run_dynamic_screen",
+            as_async(lambda *_a, **_k: ("SELECT", "not_a_class", 0)),
+        )
+        result = run(input_helpers._run_class_pick(SimpleNamespace(), "human"))
+        assert result is None
