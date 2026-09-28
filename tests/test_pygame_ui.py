@@ -6286,3 +6286,36 @@ def test_split_rows_never_paint_into_the_pinned_detail(monkeypatch):
     # the break drops only the overflowing tail — the window still
     # draws nearly all of its rows
     assert len(row_tops) >= 10
+
+
+def test_animation_hud_keeps_quality_tokens(monkeypatch):
+    """Animation frames re-render the combat HUD through
+    _paint_combat_hud; the shot/explosion/step call sites thread
+    weapon_list but dropped the tiers, so quality tokens vanished from
+    the HUD exactly while animations played (user report 2026-09-28).
+    An empty tuple now resolves from the live space session; an
+    explicit tuple still wins."""
+    from types import SimpleNamespace
+
+    from src.spacehack import hud_combat
+    from src.spacehack.combat import _animations, _rules_space
+
+    _captured: dict = {}
+    monkeypatch.setattr(
+        hud_combat, "render_combat_hud",
+        lambda *_a, **_k: _captured.update(_k),
+    )
+    monkeypatch.setattr(_rules_space, "_state", SimpleNamespace(
+        weapon_qualities=[2],
+    ))
+    _animations._paint_combat_hud(
+        SimpleNamespace(clear=lambda: None), {"pos": None}, [], 0,
+        weapon_list=("medium_laser",),
+    )
+    assert _captured["weapon_qualities"] == (2,)
+
+    _animations._paint_combat_hud(
+        SimpleNamespace(clear=lambda: None), {"pos": None}, [], 0,
+        weapon_list=("medium_laser",), weapon_qualities=(1,),
+    )
+    assert _captured["weapon_qualities"] == (1,)

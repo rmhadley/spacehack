@@ -580,6 +580,24 @@ def _paint_range_cell(
 # ---------------------------------------------------------------------------
 
 
+def _session_weapon_qualities(weapon_qualities: tuple) -> tuple:
+    """The live space session's flown tiers when a caller passes none.
+
+    Animation frames historically dropped ``weapon_qualities`` (three
+    call sites threaded ``weapon_list`` but not the tiers — the HUD's
+    quality tokens vanished during shot/explosion/step animations,
+    user report 2026-09-28), so empty resolves from the session — the
+    ``_ground_render._rules()`` lazy-reader idiom. Explicit wins.
+    """
+    if weapon_qualities:
+        return weapon_qualities
+    from . import _rules_space as _rules
+    _state = getattr(_rules, "_state", None)
+    if _state is None:
+        return ()
+    return tuple(_state.weapon_qualities)
+
+
 def _paint_combat_hud(
     console,
     player_state: dict,
@@ -597,6 +615,7 @@ def _paint_combat_hud(
     """Paint the combat HUD panel via the shared renderer."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
     from .. import hud_combat as _hud
+    weapon_qualities = _session_weapon_qualities(weapon_qualities)
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH,
