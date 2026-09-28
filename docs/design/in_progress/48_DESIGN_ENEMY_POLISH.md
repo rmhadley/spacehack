@@ -11,7 +11,8 @@ difficulty-doctrine topic (C).
 
 Companions: `47_DESIGN_LOOT.md` (complete/ — kit drops + quality make
 scaled loadouts scale loot automatically); `49_DESIGN_SPECIES_CLASS.md`
-(player identity — interlocks via the faction rep tables);
+(complete/ — player identity, interlocks via the faction rep
+tables);
 `SYSTEMS.md` "Ground combat" / "Kill drops" / "RNG delve sites" /
 "Space spawns" entries. Doc 34 (space combat behaviors, seeded
 2026-09-03) is FOLDED into this campaign — SETTLED 21; file removed

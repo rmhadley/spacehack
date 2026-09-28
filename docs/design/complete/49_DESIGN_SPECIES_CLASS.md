@@ -1,8 +1,7 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 2 COMPLETE 2026-09-28 — built + PLAYTEST PASSED
-(incl. the 2026-09-28 credits-on-card revision). Phase 1 COMPLETE.
-Both phases done; ready to close to complete/ on confirmation.**
+**Status: CLOSED 2026-09-28 — both phases built, playtest-passed,
+reviewer-passed, and inventoried (SYSTEMS.md). Moved to complete/.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
