@@ -208,9 +208,8 @@ def test_every_runtime_registry_key_resolves_nonempty():
     text.RUNTIME registry names — a key with no overlay entry resolves
     '' and its screen paints blank (user report 2026-09-28: prison
     descent floors 2-4 entry screens, plus the elevator descent_log
-    line, lost in the JSON migration; prose restored verbatim from
-    ab529c0a)."""
-    from src.spacehack import text
-
-    _blank = [key for key in sorted(text.RUNTIME) if not text.get(key)]
+    line, lost in the JSON migration; prose restored verbatim from the
+    authored commits — entry pairs from ab529c0a, descent_log from
+    8d22017f)."""
+    _blank = [key for key in sorted(text_module.RUNTIME) if not text_module.get(key)]
     assert not _blank, f"registry keys with no overlay value: {_blank}"

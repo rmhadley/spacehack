@@ -207,9 +207,10 @@ def overlay() -> dict[str, str]:
 def get(key: str, default: str = "") -> str:
     """Return the overlay value for ``key``, falling back to ``default``.
 
-    Runtime call sites pass their authored literal as ``default``; when
-    a key also exists in :data:`RUNTIME`, that shipped default is used
-    when the JSON overlay has no override.
+    ``RUNTIME`` is a KEY REGISTRY, not a value store — registry keys
+    have no shipped fallback (their call sites pass no default), so an
+    overlay miss resolves ``""`` and paints blank; the census pin
+    enforces every registry key resolves non-empty.
     """
     if key in overlay():
         return overlay()[key]

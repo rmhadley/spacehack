@@ -12,8 +12,9 @@ There are two tiers:
   `description`, unless the step is marked descriptionless) fails the
   build loudly instead of rendering blank text.
 - **`npc.*` / `good.*` / `runtime.*` / `disclosure.*` — JSON overrides
-  the Python default.** Delete one of these keys to fall back to the
-  shipped default.
+  the Python default.** Registry keys (`text.RUNTIME`) have NO shipped
+  fallback — their call sites pass no default, so a missing overlay key
+  paints blank; the census pin enforces every registry key resolves.
 
 ## Keys
 
@@ -54,7 +55,8 @@ There are two tiers:
   orphan-key test unions that set, so an unclaimed or missing key
   fails loudly.
 - For `npc.*` / `good.*` / `runtime.*` / `disclosure.*`, **delete a key**
-  to fall back to the shipped default text.
+  to fall back to a call-site default text (registry keys have none —
+  see the census pin).
 - `{placeholders}` like `{good}`, `{faction}`, `{max}` are filled in by
   the game — keep them verbatim.
 - In `00_runtime.json`, `\n` inside a string becomes a line break
