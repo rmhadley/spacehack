@@ -50,13 +50,14 @@ def _effective_power_gen(ship_spec, owned) -> int:
 def _weapon_row(entry, ctx=None):
     """Build one filled weapon-slot row (label + stats at its quality)."""
     from .. import pygame_screen
-    from ..data.weapons import find_weapon
+    from ..data.quality import effective_ship_weapon_spec
     from ..ship import weapon_display_name
+    from ._loadout import _weapon_runs
 
     weapon_id = getattr(entry, "item_id", entry)
     quality = getattr(entry, "quality", 0)
     try:
-        weapon = find_weapon(weapon_id)
+        weapon = effective_ship_weapon_spec(weapon_id, quality)
         detail = (
             f"Damage {weapon.damage}   Accuracy {weapon.accuracy}%   "
             f"Range {weapon.min_range}-{weapon.max_range}   "
@@ -67,6 +68,7 @@ def _weapon_row(entry, ctx=None):
             detail += f"   Ammo {effective_missile_capacity(weapon, ctx)}"
         return pygame_screen.ScreenRow(
             weapon_display_name(weapon_id, quality), detail, selectable=True,
+            runs=_weapon_runs(weapon_id, quality),
         )
     except KeyError:
         return pygame_screen.ScreenRow(

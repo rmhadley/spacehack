@@ -567,3 +567,17 @@ def test_cargo_used_max_threads_the_merchant_hold():
     assert _cargo_used_max(owned, spec, plain) == (0, 50)
     assert _cargo_used_max(owned, spec, merchant) == (0, 60)
     assert _cargo_used_max(owned, spec) == (0, 50)
+
+
+def test_space_weapon_row_dmg_reads_flown_tier():
+    """The combat HUD's DMG matches what the volley rolls — an
+    overclocked weapon shows its scaled damage, not the catalog row."""
+    from src.spacehack.data.weapons import find_weapon
+    ws = find_weapon("medium_laser")
+    console = FrameBuffer(40, 3)
+    hud_combat._render_weapon_row(
+        console, 0, 0, 0, "medium_laser", ws, 0, True,
+        {"medium_laser": 62}, weapon_quality=2,
+    )
+    stats_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    assert stats_row == "     DMG 8 HIT 62% RNG 1-5"

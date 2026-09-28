@@ -1813,3 +1813,31 @@ class TestRangeDisplaysMatchFireGate:
             FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx, _alive, 0,
         )
         assert _captured["dist"] == pytest.approx(2.2360, abs=1e-3)
+
+
+class TestEnemyQualityStatDisplay:
+    """Enemy card/detail stats read the wielded variant's tier — what
+    fires at you is what the readout claims (SETTLED 13)."""
+
+    def _enemy(self, weapon_id, quality):
+        return _rules_ground.GroundEnemyInstance(
+            entity=SimpleNamespace(),
+            spec=SimpleNamespace(armor=0, name="Sentry Drone"),
+            weapon_id=weapon_id, weapon_quality=quality,
+        )
+
+    def test_detail_lines_scale_damage_at_tier(self):
+        # drone_laser damage 4 -> ceil(4 x 1.30) = 6 at overclocked
+        _armor, _name, _stats = _ground_presentation.enemy_detail_lines(
+            self._enemy("drone_laser", 2),
+        )
+        assert _stats == "DMG 6  RNG 1-6"
+
+    def test_card_rows_scale_damage_at_tier(self):
+        rows = _ground_presentation._ground_card_rows(
+            self._enemy("drone_laser", 2), _ground_presentation.enemy_weapon(
+                self._enemy("drone_laser", 2),
+            ), 70,
+        )
+        _texts = [t for row in rows for t, _c in row]
+        assert any("DMG 6" in t for t in _texts)

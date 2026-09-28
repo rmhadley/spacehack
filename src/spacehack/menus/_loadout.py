@@ -56,13 +56,19 @@ def _loadout_hint(mode: str) -> str:
     )
 
 
-def _weapon_detail(spec, *, ammo: int | None = None, ctx=None) -> str:
+def _weapon_detail(
+    spec, *, ammo: int | None = None, ctx=None, quality: int = 0,
+) -> str:
     """Format weapon details for a market, storage, or ship row.
 
     ``ctx`` switches the missile capacity shown to the effective rack
     (the Bounty Hunter's double, doc 49 SETTLED 7); market rows pass
-    no ctx and read the catalog spec (the base-hull comparison)."""
+    no ctx and read the catalog spec (the base-hull comparison).
+    ``quality`` scales the damage to the flown instance's tier — ship
+    rows pass their rolled tier; shop stock is always base."""
+    from ..data.quality import effective_ship_weapon_spec
     from ..ship import effective_missile_capacity
+    spec = effective_ship_weapon_spec(spec.id, quality)
     detail = (
         f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  "
         f"Range: {spec.min_range}-{spec.max_range}"
@@ -123,8 +129,11 @@ def _stored_row(stored, index: int, ctx=None):
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
         name = weapon_display_name(stored.item_id, stored.quality)
-        detail, runs = _weapon_detail(spec, ammo=stored.ammo, ctx=ctx), _weapon_runs(
-            stored.item_id, stored.quality,
+        detail, runs = (
+            _weapon_detail(
+                spec, ammo=stored.ammo, ctx=ctx, quality=stored.quality,
+            ),
+            _weapon_runs(stored.item_id, stored.quality),
         )
     elif stored.item_type == "module":
         name = module_display_name(
@@ -221,7 +230,7 @@ def _ship_rows(ctx, ship_spec, mode: str):
         rows.append(
             pygame_split.SplitRow(
                 weapon_display_name(entry.item_id, entry.quality), "",
-                _weapon_detail(spec, ammo=_ammo, ctx=ctx),
+                _weapon_detail(spec, ammo=_ammo, ctx=ctx, quality=entry.quality),
                 f"MANAGE_WEAPON_SLOT:{slot_index}",
                 runs=_weapon_runs(entry.item_id, entry.quality),
             )

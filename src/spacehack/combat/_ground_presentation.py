@@ -45,6 +45,21 @@ def enemy_weapon(enemy: Any):
         return None
 
 
+def enemy_effective_weapon(enemy: Any, weapon: Any = None):
+    """The enemy's weapon at its rolled tier — card/detail stats must
+    read what the enemy actually fires (ground quality scales damage
+    AND accuracy, doc 47.2 / SETTLED 13). ``weapon`` accepts an
+    already-resolved BASE catalog spec (an effective spec would
+    double-scale); None resolves via ``enemy_weapon``."""
+    spec = weapon if weapon is not None else enemy_weapon(enemy)
+    if spec is None:
+        return None
+    from ..data.quality import effective_weapon_spec
+    return effective_weapon_spec(
+        spec.id, getattr(enemy, "weapon_quality", 0),
+    )
+
+
 def _ground_card_rows(
     enemy: Any, weapon: Any, hit_chance: int | None,
     hit_color: tuple[int, int, int] | None = None,
@@ -66,7 +81,10 @@ def _ground_card_rows(
     ]
     if weapon:
         rows.append(_weapon_name_row(enemy, weapon))
-        rows.append(text_row(f"DMG {weapon.damage}  RNG {weapon.min_range}-{weapon.max_range}"))
+        _eff = enemy_effective_weapon(enemy, weapon)
+        rows.append(text_row(
+            f"DMG {_eff.damage}  RNG {weapon.min_range}-{weapon.max_range}"
+        ))
     else:
         rows.append(dim_row("Unarmed"))
     rows.append(hint_row())
@@ -106,10 +124,11 @@ def enemy_detail_lines(enemy: Any) -> tuple[str, str, str]:
     weapon = enemy_weapon(enemy)
     if weapon is None:
         return f"Armor {armor}", "Unarmed", ""
+    _eff = enemy_effective_weapon(enemy, weapon)
     return (
         f"Armor {armor}",
         weapon.name,
-        f"DMG {weapon.damage}  RNG {weapon.min_range}-{weapon.max_range}",
+        f"DMG {_eff.damage}  RNG {weapon.min_range}-{weapon.max_range}",
     )
 
 

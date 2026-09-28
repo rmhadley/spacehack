@@ -95,3 +95,48 @@ class TestMechanicFrameTabs:
             i for i, row in enumerate(frame.rows) if "WEAPON SLOTS" in row.text
         )
         assert any("WEAPON SLOTS" in row.text for row in frame.rows)
+
+
+class TestLoadoutWeaponQualityDisplay:
+    """The LOADOUT tab's weapon rows read the flown instance's tier:
+    tier-scaled damage AND the tier's name colour (user report
+    2026-09-28 — an Overclocked Medium Laser showed base stats,
+    uncoloured)."""
+
+    def test_weapon_row_scales_damage_and_colours_at_tier(self):
+        from src.spacehack.data.quality import QUALITY_COLORS
+        from src.spacehack.menus._ship_menu import _weapon_row
+
+        row = _weapon_row(SimpleNamespace(item_id="medium_laser", quality=2))
+        assert row.text == "Overclocked Medium Laser"
+        assert "Damage 8" in row.detail        # ceil(6 x 1.30), not 6
+        assert "Accuracy 72%" in row.detail    # space scales damage only
+        assert row.runs == (
+            ("Overclocked Medium Laser", QUALITY_COLORS[2]),
+        )
+
+    def test_weapon_row_base_reads_plain(self):
+        from src.spacehack.menus._ship_menu import _weapon_row
+
+        row = _weapon_row(SimpleNamespace(item_id="medium_laser", quality=0))
+        assert row.runs is None
+        assert "Damage 6" in row.detail
+
+    def test_market_weapon_detail_scales_at_tier(self):
+        from src.spacehack.data.weapons import find_weapon
+        from src.spacehack.menus._loadout import _weapon_detail
+
+        spec = find_weapon("medium_laser")
+        assert "Damage: 8" in _weapon_detail(spec, quality=2)
+        assert "Damage: 6" in _weapon_detail(spec)
+
+    def test_stored_row_scales_damage_at_tier(self):
+        """The parts market's STORAGE panel row scales its stat line to
+        the stored instance's tier (reviewer catch 2026-09-28 — the
+        tier-coloured name rode base stats one panel left of the
+        mechanic tab)."""
+        from src.spacehack.menus._loadout import _stored_row
+        from src.spacehack.ship import StoredEquipment
+
+        row = _stored_row(StoredEquipment("weapon", "medium_laser", quality=2), 0)
+        assert "Damage: 8" in row.detail

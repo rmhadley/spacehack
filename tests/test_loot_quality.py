@@ -733,3 +733,18 @@ def test_equipment_rows_colour_weapon_armor_and_pack_names():
     pack_rows = character_screen._backpack_equipment_rows(ctx)
     assert [r.text for r in pack_rows] == ["Modded Mono Blade"]
     assert pack_rows[0].runs == (("Modded Mono Blade", (100, 235, 115)),)
+
+
+def test_effective_ship_weapon_spec_scales_damage_only():
+    """Space quality multiplies damage only (resolve_damage threads the
+    flown tier; hit chance reads the gunner) — the display twin of the
+    ground effective spec, ceiling rounding per SETTLED 18."""
+    from src.spacehack.data.quality import effective_ship_weapon_spec
+    from src.spacehack.data.weapons import find_weapon
+
+    base = find_weapon("medium_laser")
+    assert effective_ship_weapon_spec("medium_laser", 0) is base
+    eff = effective_ship_weapon_spec("medium_laser", 2)
+    assert eff.damage == 8        # ceil(6 x 1.30)
+    assert eff.accuracy == base.accuracy
+    assert eff.max_range == base.max_range

@@ -282,8 +282,10 @@ def _render_weapon_row(
     power / range the shot will actually cost are shown instead of the
     catalog values, so the weapon readout always matches the gate.
     ``weapon_quality`` is the flown instance's tier (doc 48.7) — the
-    name row reads the token-prefixed label.
+    name row reads the token-prefixed label and DMG reads the tier-
+    scaled damage the volley actually rolls.
     """
+    from .data.quality import effective_ship_weapon_spec
     from .ship import weapon_display_name
     sel_mark = "[x]" if is_active else "[ ]"
     name_str = f"{sel_mark}[{slot+1}] {weapon_display_name(wid, weapon_quality)}"
@@ -292,15 +294,16 @@ def _render_weapon_row(
     y += 1
     _w_hc = hit_chances.get(wid) if hit_chances else None
     _mult = 2 if focus_active else 1
+    _dmg = effective_ship_weapon_spec(wid, weapon_quality).damage
     _max_range = getattr(ws, "max_range", 0) * _mult
     _rng = (
         f" RNG {getattr(ws, 'min_range', 1) * _mult}-{_max_range}"
         if _max_range > 0 else ""
     )
     if _w_hc is not None:
-        stats_line = f"     DMG {ws.damage} HIT {_w_hc}%{_rng}"
+        stats_line = f"     DMG {_dmg} HIT {_w_hc}%{_rng}"
     else:
-        stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%{_rng}"
+        stats_line = f"     DMG {_dmg} ACC {ws.accuracy}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     cost_line = _weapon_cost_line(ws, wammo, player_state, _mult, ctx)

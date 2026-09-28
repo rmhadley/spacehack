@@ -504,3 +504,13 @@ def test_space_enemy_row_passes_raw_float_and_ctx(monkeypatch):
     assert isinstance(_captured["args"][0], float)
     assert _captured["args"][0] == pytest.approx(6.7, abs=0.05)
     assert _captured["args"][2] is not None  # ctx forwarded
+
+
+def test_space_card_weapon_dmg_reads_flown_tier():
+    """The enemy card's DMG matches what the enemy's volley rolls — an
+    overclocked light laser reads ceil(4 x 1.30) = 6, not 4."""
+    _enemy = _card_enemy()
+    _enemy.weapons = (StoredEquipment("weapon", "light_laser", quality=2),)
+    rows = _space_presentation._space_card_rows(_enemy, hit_chance=62)
+    _texts = [t for row in rows for t, _c in row]
+    assert "DMG 6  RNG 1-5" in _texts

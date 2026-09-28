@@ -46,17 +46,22 @@ def _space_card_rows(
     if enemy.max_shields > 0:
         rows.append(text_row(f"SHD {enemy.shields}/{enemy.max_shields}"))
     rows.append(text_row(f"AP {ap_pool_str(enemy.ap_total, enemy.ap_carry_twentieths)}"))
+    from ..data.quality import effective_ship_weapon_spec
     for _entry in enemy.weapons:
         try:
             _ws = _find_w(_entry.item_id)
         except KeyError:
             continue
-        # Flown weapons are quality-bearing (doc 48.7): the label
-        # seam reads the rolled tier — "Overclocked Heavy Laser".
+        # Flown weapons are quality-bearing (doc 48.7): the label seam
+        # reads the rolled tier — "Overclocked Heavy Laser" — and DMG
+        # reads the tier-scaled damage the enemy's volley rolls.
+        _eff = effective_ship_weapon_spec(
+            _entry.item_id, getattr(_entry, "quality", 0),
+        )
         rows.append(dim_row(
             weapon_display_name(_entry.item_id, _entry.quality),
         ))
-        rows.append(text_row(f"DMG {_ws.damage}  RNG {_ws.min_range}-{_ws.max_range}"))
+        rows.append(text_row(f"DMG {_eff.damage}  RNG {_ws.min_range}-{_ws.max_range}"))
     if not enemy.weapons:
         rows.append(dim_row("Unarmed"))
     rows.append(hint_row())
