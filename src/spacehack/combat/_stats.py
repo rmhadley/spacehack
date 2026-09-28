@@ -157,10 +157,22 @@ def _distance(a: world.Position, b: world.Position) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def _weapon_at_quality(weapon_id: str, weapon_quality: int):
+    """The weapon's spec at its flown tier — accuracy scales (doc 47
+    SETTLED 2; the space side landed 2026-09-28); base quality returns
+    the catalog row itself."""
+    ws = find_weapon(weapon_id)
+    if weapon_quality <= 0:
+        return ws
+    from ..data.quality import effective_ship_weapon_spec
+    return effective_ship_weapon_spec(weapon_id, weapon_quality)
+
+
 def calc_hit_chance(
     weapon_id: str, gunnery: int, distance: float,
     target_dodge_bonus: int, hit_bonus: int = 0, *,
     max_range: int | None = None, min_range: int | None = None,
+    weapon_quality: int = 0,
 ) -> int:
     """Return 0-100 hit probability.
 
@@ -176,14 +188,16 @@ def calc_hit_chance(
     ``dist_penalty`` and ``min_penalty`` use ``math.ceil`` so
     fractional distances (Euclidean) don't silently round down
     and bypass the penalty band; standing inside a weapon's
-    minimum range (e.g. point-blank with rocket pods) now
+    minimum range (e.g., point-blank with rocket pods) now
     loses accuracy as expected.    The result is clamped to 5-95
     so combat still feels lethal but never deterministic.
 
     ``max_range``/``min_range`` override the catalog range profile
-    (the Focus trait doubles it).
+    (the Focus trait doubles it). ``weapon_quality`` reads the flown
+    instance's tier-scaled accuracy (doc 47 SETTLED 2 — damage AND
+    accuracy scale; the space side landed accuracy 2026-09-28).
     """
-    ws = find_weapon(weapon_id)
+    ws = _weapon_at_quality(weapon_id, weapon_quality)
     _max = max_range if max_range is not None else ws.max_range
     _min = min_range if min_range is not None else ws.min_range
     dist_penalty = max(0, math.ceil(distance) - _max) * 10

@@ -427,6 +427,9 @@ async def _install_from_container(
                 displaced_container=displaced_container or container,
                 strength=_strength(ctx),
             )
+            # Worn armor is a live max-HP input (hp_bonus cybernetics).
+            from ..xp import refresh_ground_max_hp
+            refresh_ground_max_hp(ctx)
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return
@@ -627,6 +630,8 @@ async def _install_purchase(ctx, entry, item_type: str) -> str | None:
         displaced_container=displaced_container or ground_equipment.ARMORY_STORAGE,
         strength=_strength(ctx),
     )
+    from ..xp import refresh_ground_max_hp
+    refresh_ground_max_hp(ctx)
     return "ARMOR"
 
 
@@ -738,6 +743,11 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
             ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
+        return
+    if chosen.startswith(("STORE_ARMOR:", "SELL_ARMOR:")):
+        # The worn set changed — a live max-HP input (hp_bonus cybernetics).
+        from ..xp import refresh_ground_max_hp
+        refresh_ground_max_hp(ctx)
 
 def _managed_slot_quality(ctx, kind: str, slot) -> int:
     """The equipped tier of one managed loadout slot."""

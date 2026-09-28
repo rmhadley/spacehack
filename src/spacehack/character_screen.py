@@ -381,6 +381,8 @@ def _swap_pack_entry(
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return False
+    from .xp import refresh_ground_max_hp
+    refresh_ground_max_hp(ctx)
     ctx.log.add("Expedition gear swapped.")
     return True
 

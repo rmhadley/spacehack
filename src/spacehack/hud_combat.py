@@ -303,7 +303,8 @@ def _render_weapon_row(
     if _w_hc is not None:
         stats_line = f"     DMG {_dmg} HIT {_w_hc}%{_rng}"
     else:
-        stats_line = f"     DMG {_dmg} ACC {ws.accuracy}%{_rng}"
+        _acc = effective_ship_weapon_spec(wid, weapon_quality).accuracy
+        stats_line = f"     DMG {_dmg} ACC {_acc}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
     cost_line = _weapon_cost_line(ws, wammo, player_state, _mult, ctx)

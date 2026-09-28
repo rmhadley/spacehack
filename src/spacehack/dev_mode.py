@@ -299,6 +299,8 @@ def apply_dev_ground_loadout(ctx) -> None:
     # so raise strength to 30 so all 6 fit without breaking swaps.
     if ctx.ground_stats.strength < 30:
         ctx.ground_stats.strength = 30
+    from .xp import refresh_ground_max_hp
+    refresh_ground_max_hp(ctx)
     _ranged_name = find_ground_weapon(ctx.equipped_ground_weapons[0].weapon_id).name
     _melee_name = find_ground_weapon(ctx.holstered_ground_weapons[0].weapon_id).name
     ctx.log.add(

@@ -134,19 +134,25 @@ def effective_weapon_spec(weapon_id: str, quality: int = 0):
 
 
 def effective_ship_weapon_spec(weapon_id: str, quality: int = 0):
-    """Return the catalog SPACE weapon with damage scaled by quality.
+    """Return the catalog SPACE weapon with damage/accuracy scaled by
+    quality.
 
-    Space combat multiplies damage only (``resolve_damage`` threads the
-    flown tier; hit chance reads the gunner, not the hardware) —
-    accuracy, range, power, and price stay catalog-fixed. Same ceiling
-    rounding as the ground twin (SETTLED 18: a tier never rounds a bump
-    away).
+    Doc 47 SETTLED 2's ladder applies to "weapon damage/accuracy" with
+    no ground/space carve-out (user ruling 2026-09-28 confirming the
+    scope after the space side had shipped damage-only): space combat
+    scales both — ``resolve_damage`` multiplies damage and
+    ``calc_hit_chance`` reads the scaled accuracy. Range, power, and
+    price stay catalog-fixed. Same ceiling rounding as the ground twin
+    (SETTLED 18: a tier never rounds a bump away).
     """
     spec = _find_ship_weapon(weapon_id)
     if quality <= 0:
         return spec
+    pct = _FAMILY_ROWS["weapon"][quality]
     return dataclasses.replace(
-        spec, damage=_scaled(spec.damage, _FAMILY_ROWS["weapon"][quality]),
+        spec,
+        damage=_scaled(spec.damage, pct),
+        accuracy=_scaled(spec.accuracy, pct),
     )
 
 

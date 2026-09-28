@@ -285,8 +285,9 @@ def _player_hit_bonus(ctx, weapon_id: str) -> int:
 
 def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> int:
     # ``quality`` is the rolled instance tier seam the unified loop
-    # threads; quality multiplies damage only — hit chance reads the
-    # gunner, not the hardware (same as the enemy shot path).
+    # threads; quality scales accuracy (doc 47 SETTLED 2, space side
+    # landed 2026-09-28) and damage — the gunnery/dodge terms stay
+    # pilot-side (same as the enemy shot path).
     _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dodge = _calc_dodge_bonus(
         enemy.cells_moved_this_turn,
@@ -297,6 +298,7 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> i
         hit_bonus=_player_hit_bonus(ctx, weapon_id),
         max_range=_space_focus.max_range(weapon_id, ctx),
         min_range=_space_focus.min_range(weapon_id, ctx),
+        weapon_quality=quality,
     )
 
 def _player_damage_mult(weapon_id: str, ctx, dist) -> float:
@@ -427,13 +429,14 @@ def _build_hit_chances(target) -> dict[str, int]:
         target.cells_moved_this_turn,
         int(target.pilot_piloting * 0.5),
     )
-    for _wid in _state.weapons_list:
+    for _index, _wid in enumerate(_state.weapons_list):
         try:
             _result[_wid] = _space_hit_chance(
                 _wid, _state.player_state["gunnery"], _dist, _target_dodge,
                 hit_bonus=_player_hit_bonus(_state.ctx, _wid),
                 max_range=_space_focus.max_range(_wid, _state.ctx),
                 min_range=_space_focus.min_range(_wid, _state.ctx),
+                weapon_quality=player_weapon_quality(_state.ctx, _index),
             )
         except KeyError:
             pass

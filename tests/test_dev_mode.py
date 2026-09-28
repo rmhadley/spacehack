@@ -272,7 +272,11 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
         holstered_ground_weapons=[],
         equipped_ground_armor={},
         ground_expedition_inventory=[],
-        ground_stats=SimpleNamespace(strength=10),
+        ground_stats=SimpleNamespace(strength=10, stamina=10),
+        player_traits=[],
+        character_info={"species_id": "human"},
+        ground_hp=23,
+        ground_max_hp=23,
         log=MagicMock(),
     )
 
@@ -296,6 +300,9 @@ def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypat
         "ion_blaster", "mono_blade",
     ]
     assert _ctx.ground_stats.strength == 30
+    # The wholesale armor swap resyncs the stored ground HP pair
+    # (20 + 10//2 — the dev armor carries no hp_bonus).
+    assert (_ctx.ground_hp, _ctx.ground_max_hp) == (25, 25)
     _ctx.log.add.assert_called_once_with(
         "[DEV MODE] Rocket Launcher active + Mono Blade holstered "
         "+ T4 pack + best armor."

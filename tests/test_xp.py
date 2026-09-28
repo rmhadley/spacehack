@@ -28,6 +28,7 @@ from src.spacehack.xp import (
     missileer_hit_bonus,
     pack_mule_capacity_bonus,
     plasma_savant_ap_discount,
+    refresh_ground_max_hp,
     systems_expert_power_bonus,
     xp_for_level,
 )
@@ -351,3 +352,107 @@ class TestAddXp:
         run(add_xp(ctx, xp_for_level(39)))
         assert ctx.player_level == 39
         assert calls == []
+
+
+class TestGroundMaxHpRefresh:
+    """Out-of-combat changes to the live max-HP inputs must resync the
+    stored ``ground_hp``/``ground_max_hp`` pair (user report 2026-09-28:
+    stamina 34 promises 20 + 34//2 = 37; the HUD kept the stale 35
+    synced at stamina 30)."""
+
+    def _ctx(self, stamina=30, hp=35, max_hp=35, traits=()):
+        return SimpleNamespace(
+            ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=stamina),
+            stats=SimpleNamespace(gunnery=10, piloting=10, engineering=10),
+            equipped_ground_armor={},
+            player_traits=list(traits),
+            character_info={"species_id": "human"},
+            ground_hp=hp,
+            ground_max_hp=max_hp,
+            player_skill_points=0,
+        )
+
+    def test_user_repro_four_stamina_spends_land_the_promised_max(self):
+        from src.spacehack.xp import _apply_skill_point
+
+        ctx = self._ctx()
+        ctx.player_skill_points = 4
+        # 30->31 is an odd step: no max growth (15 == 30//2 == 31//2).
+        assert _apply_skill_point(ctx, "stamina") is True
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (35, 35)
+        assert _apply_skill_point(ctx, "stamina") is True  # 32 -> 36
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (36, 36)
+        assert _apply_skill_point(ctx, "stamina") is True  # 33: odd step
+        assert _apply_skill_point(ctx, "stamina") is True  # 34 -> 37
+        assert ctx.ground_stats.stamina == 34
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (37, 37)
+
+    def test_non_stamina_spends_do_not_touch_stored_hp(self):
+        from src.spacehack.xp import _apply_skill_point
+
+        ctx = self._ctx()
+        ctx.player_skill_points = 1
+        assert _apply_skill_point(ctx, "gunnery") is True
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (35, 35)
+
+    def test_wounded_hp_keeps_its_deficit_when_the_max_grows(self):
+        ctx = self._ctx(stamina=34, hp=30, max_hp=35)
+        refresh_ground_max_hp(ctx)
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (32, 37)
+
+    def test_lower_max_clamps_current_hp(self):
+        """Unequipping hp-bonus armor must not leave hp above max."""
+        ctx = self._ctx(stamina=34, hp=38, max_hp=40)
+        refresh_ground_max_hp(ctx)
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (37, 37)
+
+    def test_active_combat_state_follows_a_growing_max(self, monkeypatch):
+        from src.spacehack.combat import _rules_ground
+
+        ctx = self._ctx(stamina=34, hp=30, max_hp=35)
+        state = SimpleNamespace(ctx=ctx, player_hp=30, player_max_hp=35)
+        monkeypatch.setattr(_rules_ground, "_state", state)
+        refresh_ground_max_hp(ctx)
+        assert (state.player_hp, state.player_max_hp) == (32, 37)
+
+    def test_active_combat_state_clamps_to_a_shrinking_max(self, monkeypatch):
+        from src.spacehack.combat import _rules_ground
+        from src.spacehack.ground_equipment import StoredGroundEquipment
+
+        # 20 + 17 + Ironclad 6 + vest 3 = 46 synced; the vest is lost.
+        ctx = self._ctx(stamina=34, hp=46, max_hp=46, traits=["ironclad"])
+        ctx.equipped_ground_armor["body"] = StoredGroundEquipment(
+            "armor", "cybernetic_torso",
+        )
+        state = SimpleNamespace(ctx=ctx, player_hp=46, player_max_hp=46)
+        monkeypatch.setattr(_rules_ground, "_state", state)
+        ctx.equipped_ground_armor.pop("body")
+        refresh_ground_max_hp(ctx)
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (43, 43)
+        assert (state.player_hp, state.player_max_hp) == (43, 43)
+
+    def test_ironclad_pick_grows_the_stored_max_immediately(self):
+        from src.spacehack.trait_screen import _apply_ironclad_hp
+
+        ctx = self._ctx(stamina=34, hp=37, max_hp=37, traits=["ironclad"])
+        _apply_ironclad_hp(ctx, "ironclad")
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (43, 43)
+
+    def test_selling_hp_bonus_armor_resyncs_the_stored_max(self):
+        """The armory manage path (SELL_ARMOR) is a live input change —
+        the worn Cybernetic Torso's +3 must leave the stored max."""
+        from src.spacehack.ground_equipment import StoredGroundEquipment
+        from src.spacehack.menus._armory import _apply_manage_choice
+
+        ctx = self._ctx(stamina=34, hp=40, max_hp=40)
+        ctx.equipped_ground_armor["body"] = StoredGroundEquipment(
+            "armor", "cybernetic_torso",
+        )
+        ctx.ground_armory_storage = []
+        ctx.stats = SimpleNamespace(credits=0)
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (40, 40)
+
+        _apply_manage_choice(ctx, "SELL_ARMOR:body")
+
+        assert ctx.equipped_ground_armor == {}
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (37, 37)

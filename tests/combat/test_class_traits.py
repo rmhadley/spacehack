@@ -333,7 +333,7 @@ def test_space_enemy_shot_resolution_folds_the_hunter_evade(monkeypatch):
     captured = []
     monkeypatch.setattr(
         _ai, "calc_hit_chance",
-        lambda _wid, _gun, _dist, dodge: captured.append(dodge) or 50,
+        lambda _wid, _gun, _dist, dodge, **_kw: captured.append(dodge) or 50,
     )
     _state = _rules_space.SpaceCombatState(
         ctx=_ctx([]), console=None,

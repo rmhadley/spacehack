@@ -237,18 +237,28 @@ def _find_reposition(state, _ei, _e_idx, _band_ws):
 
 def score_weapon(
     ws, distance: float, target_shields: int,
-    gunnery: int, target_dodge: int,
+    gunnery: int, target_dodge: int, weapon_quality: int = 0,
 ) -> float:
     """Expected value per AP (doc 48 SETTLED 40): damage x
     hit-chance-at-distance / ap_cost — the SAME ``calc_hit_chance``
     the shot resolves with, so range-band penalties fold into the
-    choice. Shield-strip weapons score their expected STRIP instead:
-    an EMP on bare shields scores 0 and is never picked."""
-    _chance = calc_hit_chance(ws.id, gunnery, distance, target_dodge)
+    choice. ``weapon_quality`` scales both terms (doc 47 SETTLED 2 —
+    the ranking sees the tier the volley rolls, so a base heavy laser
+    no longer outscores the overclocked light it actually loses to).
+    Shield-strip weapons score their expected STRIP instead: an EMP on
+    bare shields scores 0 and is never picked."""
+    _chance = calc_hit_chance(
+        ws.id, gunnery, distance, target_dodge,
+        weapon_quality=weapon_quality,
+    )
     _ap = weapon_costs(ws)[0]
     if ws.shield_strip > 0:
         return min(ws.shield_strip, target_shields) * (_chance / 100.0) / _ap
-    return ws.damage * (_chance / 100.0) / _ap
+    _damage = ws.damage
+    if weapon_quality > 0:
+        from ..data.quality import effective_ship_weapon_spec
+        _damage = effective_ship_weapon_spec(ws.id, weapon_quality).damage
+    return _damage * (_chance / 100.0) / _ap
 
 
 def _weapon_affordable(_ei, slot: int, ws) -> bool:
@@ -288,7 +298,7 @@ def _ranked_weapons(
             continue
         _score = score_weapon(
             _ws, distance, player_state.get("shields", 0),
-            _ei.pilot_gunnery, _dodge,
+            _ei.pilot_gunnery, _dodge, weapon_quality=_entry.quality,
         )
         if _score > 0:
             _ranked.append((_score, _slot, _ws))
@@ -475,7 +485,8 @@ def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
     Damage resolves BEFORE animating so the floating damage number
     rides the shot's impact frames. Misses return zeroed damage with
     the current hull. ``_weapon_quality`` is the flown instance's
-    rolled tier (doc 48.7) — quality multiplies damage.
+    rolled tier (doc 48.7) — quality scales damage AND accuracy
+    (doc 47 SETTLED 2, space side landed 2026-09-28).
     """
     _dist = _distance(state.player_state["pos"], _ei.pos)
     # Resolution-only reads the Bounty Hunter's +5 evade (doc 49
@@ -486,7 +497,10 @@ def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
         _player_dodge(state.player_state)
         + bounty_hunter_evade_bonus(state.ctx)
     )
-    _chance = calc_hit_chance(_wid, _ei.pilot_gunnery, _dist, _dodge)
+    _chance = calc_hit_chance(
+        _wid, _ei.pilot_gunnery, _dist, _dodge,
+        weapon_quality=_weapon_quality,
+    )
     _e_hit = RNG.randint(1, 100) <= _chance
     _e_dmg, _e_sdmg, _e_fh, _is_glancing = 0, 0, state.player_state["hull"], False
     _e_is_strip = False

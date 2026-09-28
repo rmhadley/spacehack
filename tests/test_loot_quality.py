@@ -746,5 +746,124 @@ def test_effective_ship_weapon_spec_scales_damage_only():
     assert effective_ship_weapon_spec("medium_laser", 0) is base
     eff = effective_ship_weapon_spec("medium_laser", 2)
     assert eff.damage == 8        # ceil(6 x 1.30)
-    assert eff.accuracy == base.accuracy
+    assert eff.accuracy == 94     # ceil(72 x 1.30) — SETTLED 2 accuracy
     assert eff.max_range == base.max_range
+
+
+def test_calc_hit_chance_reads_tier_accuracy():
+    """Doc 47 SETTLED 2 (space side landed 2026-09-28): the flown tier
+    scales the hit roll's accuracy base — an overclocked medium laser
+    rolls +22 (ceil(72x1.30) - 72) over base at every distance."""
+    from src.spacehack.combat._stats import calc_hit_chance
+
+    # dodge 30 keeps both sides clear of the 95 clamp so the raw
+    # accuracy delta (+22) is visible
+    _base = calc_hit_chance("medium_laser", 10, 3.0, 30)
+    _tier = calc_hit_chance("medium_laser", 10, 3.0, 30, weapon_quality=2)
+    assert _tier - _base == 22
+
+
+def test_score_weapon_ranks_at_flown_tier():
+    """The enemy ranker scores the tier the volley rolls (doc 48
+    SETTLED 40 invariant): an overclocked medium laser's expected
+    value nearly doubles over its base row (accuracy clamp and all)."""
+    from src.spacehack.combat._ai import score_weapon
+    from src.spacehack.data.weapons import find_weapon
+
+    _base = score_weapon(find_weapon("medium_laser"), 3.0, 0, 10, 0)
+    _oc = score_weapon(
+        find_weapon("medium_laser"), 3.0, 0, 10, 0, weapon_quality=2,
+    )
+    assert _oc > _base * 1.5
+
+
+def test_player_hit_chance_threads_flown_tier(monkeypatch):
+    """The player's volley hit roll reads the flown tier's accuracy."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.combat import _rules_space
+
+    _ctx = SimpleNamespace(player_traits=[])
+    _enemy = SimpleNamespace(
+        # piloting 60 stacks 30 dodge: both sides clear of the 95 clamp
+        pos=world.Position(3, 0), cells_moved_this_turn=0, pilot_piloting=60,
+    )
+    monkeypatch.setattr(_rules_space, "_state", SimpleNamespace(
+        player_state={"pos": world.Position(0, 0), "gunnery": 10},
+        ctx=_ctx, enemy_fired=False, opener_spent=False,
+    ))
+    _base = _rules_space.hit_chance("medium_laser", _enemy, _ctx)
+    _tier = _rules_space.hit_chance("medium_laser", _enemy, _ctx, quality=2)
+    assert _tier - _base == 22
+
+
+def test_enemy_shot_hit_roll_threads_flown_tier(monkeypatch):
+    """The enemy's shot resolves its hit roll at the flown tier."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.combat import _ai
+
+    _captured: dict = {}
+    _real = _ai.calc_hit_chance
+
+    def _record(*_args, **_kwargs):
+        _captured.update(_kwargs)
+        return _real(*_args, **_kwargs)
+
+    monkeypatch.setattr(_ai, "calc_hit_chance", _record)
+    monkeypatch.setattr(_ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 100))
+    _state = SimpleNamespace(
+        player_state={
+            "pos": world.Position(0, 0), "piloting": 0,
+            "hull": 30, "shields": 0,
+        },
+        ctx=SimpleNamespace(player_traits=[]),
+    )
+    _ei = SimpleNamespace(
+        pos=world.Position(3, 0), pilot_gunnery=10, cells_moved_this_turn=0,
+    )
+    _ai._resolve_enemy_shot(_state, _ei, "medium_laser", 2)
+    assert _captured["weapon_quality"] == 2
+
+
+def test_build_hit_chances_threads_flown_tier(monkeypatch):
+    """The combat HUD's per-weapon HIT% builds at each slot's tier."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.combat import _rules_space
+
+    _captured: dict = {}
+    monkeypatch.setattr(
+        _rules_space, "_space_hit_chance",
+        lambda *_a, **_k: _captured.update(_k) or 50,
+    )
+    monkeypatch.setattr(_rules_space, "_state", SimpleNamespace(
+        player_state={"pos": world.Position(0, 0), "gunnery": 10},
+        ctx=SimpleNamespace(player_traits=[]),
+        weapons_list=["medium_laser"], weapon_qualities=[2],
+        enemy_fired=False, opener_spent=False,
+    ))
+    _result = _rules_space._build_hit_chances(SimpleNamespace(
+        pos=world.Position(3, 0), cells_moved_this_turn=0, pilot_piloting=0,
+    ))
+    assert _result["medium_laser"] == 50
+    assert _captured["weapon_quality"] == 2
+
+
+def test_hud_acc_column_reads_flown_tier():
+    """The combat HUD's ACC (no-target) column reads the tier-scaled
+    accuracy, matching the roll."""
+    from src.spacehack import hud_combat
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.framebuffer import FrameBuffer
+
+    _console = FrameBuffer(40, 3)
+    hud_combat._render_weapon_row(
+        _console, 0, 0, 0, "medium_laser", find_weapon("medium_laser"),
+        0, True, None, weapon_quality=2,
+    )
+    _row = "".join(_console.cell(x, 1).char for x in range(40)).rstrip()
+    assert _row == "     DMG 8 ACC 94% RNG 1-5"

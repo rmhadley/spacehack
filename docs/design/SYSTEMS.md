@@ -355,6 +355,11 @@ nobody designs against a ghost.
   the roll carries the SHOOTER's weapon quality: both sides at
   their flown tier, doc 48.7 — the player's `OwnedShip.weapons`
   instances thread through `SpaceCombatState.weapon_qualities`).
+  Weapon quality scales BOTH terms (doc 47 SETTLED 2; the space
+  accuracy half landed 2026-09-28 after shipping damage-only —
+  `calc_hit_chance(weapon_quality=…)` and
+  `quality.effective_ship_weapon_spec`, and the enemy ranker scores
+  at the flown tier so tiered weapons rank as they fight).
   Doc 49 riders in the same math: Momentum +5 hit (the ONE
   `_player_hit_bonus` assembly), Longshot +1 range
   (`_space_focus.max_range`), the Pirate opener (+hit via the

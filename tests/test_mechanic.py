@@ -110,7 +110,7 @@ class TestLoadoutWeaponQualityDisplay:
         row = _weapon_row(SimpleNamespace(item_id="medium_laser", quality=2))
         assert row.text == "Overclocked Medium Laser"
         assert "Damage 8" in row.detail        # ceil(6 x 1.30), not 6
-        assert "Accuracy 72%" in row.detail    # space scales damage only
+        assert "Accuracy 94%" in row.detail    # SETTLED 2: accuracy scales too
         assert row.runs == (
             ("Overclocked Medium Laser", QUALITY_COLORS[2]),
         )
