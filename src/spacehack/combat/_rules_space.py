@@ -216,6 +216,15 @@ def _active_weapon_ids() -> list[str]:
         if i < len(_state.active_weapons) and _state.active_weapons[i]
     ]
 
+
+def _first_active_slot() -> int:
+    """Slot index of the first enabled weapon (0 fallback) — the
+    ground twin's mirror for per-slot quality lookups."""
+    for i, _on in enumerate(_state.active_weapons):
+        if _on:
+            return i
+    return 0
+
 def _alive_target():
     _alive = [e for e in _state.enemy_insts if e.alive]
     if 0 <= _state.target_idx < len(_alive):
@@ -560,7 +569,12 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         return None
     _active_ids = _active_weapon_ids()
     _active_wid = _active_ids[0] if _active_ids else None
-    _hit = hit_chance(_active_wid, _target, ctx) if _active_wid else None
+    _hit = (
+        hit_chance(
+            _active_wid, _target, ctx,
+            quality=player_weapon_quality(ctx, _first_active_slot()),
+        ) if _active_wid else None
+    )
     _hit_range = (
         (
             _space_focus.min_range(_active_wid, ctx),

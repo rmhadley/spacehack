@@ -14,6 +14,7 @@ from __future__ import annotations
 from .. import world
 from ..engine import RNG
 from ..message_log import COLOR_ENEMY_ACTION
+from ..data.quality import effective_ship_weapon_spec
 from ..data.weapons import find_weapon
 
 from ._messages import enemy_attack_line as _enemy_attack_line
@@ -254,10 +255,7 @@ def score_weapon(
     _ap = weapon_costs(ws)[0]
     if ws.shield_strip > 0:
         return min(ws.shield_strip, target_shields) * (_chance / 100.0) / _ap
-    _damage = ws.damage
-    if weapon_quality > 0:
-        from ..data.quality import effective_ship_weapon_spec
-        _damage = effective_ship_weapon_spec(ws.id, weapon_quality).damage
+    _damage = effective_ship_weapon_spec(ws.id, weapon_quality).damage
     return _damage * (_chance / 100.0) / _ap
 
 

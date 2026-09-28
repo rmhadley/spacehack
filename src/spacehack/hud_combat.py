@@ -294,7 +294,8 @@ def _render_weapon_row(
     y += 1
     _w_hc = hit_chances.get(wid) if hit_chances else None
     _mult = 2 if focus_active else 1
-    _dmg = effective_ship_weapon_spec(wid, weapon_quality).damage
+    _eff = effective_ship_weapon_spec(wid, weapon_quality)
+    _dmg, _acc = _eff.damage, _eff.accuracy
     _max_range = getattr(ws, "max_range", 0) * _mult
     _rng = (
         f" RNG {getattr(ws, 'min_range', 1) * _mult}-{_max_range}"
@@ -303,7 +304,6 @@ def _render_weapon_row(
     if _w_hc is not None:
         stats_line = f"     DMG {_dmg} HIT {_w_hc}%{_rng}"
     else:
-        _acc = effective_ship_weapon_spec(wid, weapon_quality).accuracy
         stats_line = f"     DMG {_dmg} ACC {_acc}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1

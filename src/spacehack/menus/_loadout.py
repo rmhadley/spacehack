@@ -64,8 +64,9 @@ def _weapon_detail(
     ``ctx`` switches the missile capacity shown to the effective rack
     (the Bounty Hunter's double, doc 49 SETTLED 7); market rows pass
     no ctx and read the catalog spec (the base-hull comparison).
-    ``quality`` scales the damage to the flown instance's tier — ship
-    rows pass their rolled tier; shop stock is always base."""
+    ``quality`` scales damage AND accuracy to the flown instance's
+    tier (doc 47 SETTLED 2) — ship rows pass their rolled tier; shop
+    stock is always base."""
     from ..data.quality import effective_ship_weapon_spec
     from ..ship import effective_missile_capacity
     spec = effective_ship_weapon_spec(spec.id, quality)

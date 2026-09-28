@@ -14,7 +14,7 @@ from .. import world
 from ._types import EnemyInstance
 from ..data.pilot_skills import PilotSkills
 from ..data.weapons import find_weapon
-from ..data.quality import effective_module_spec
+from ..data.quality import effective_module_spec, effective_ship_weapon_spec
 from .. import ship as _ship_mod
 from ..space_scale import derive_skills, roll_flown_equipment
 
@@ -157,17 +157,6 @@ def _distance(a: world.Position, b: world.Position) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
-def _weapon_at_quality(weapon_id: str, weapon_quality: int):
-    """The weapon's spec at its flown tier — accuracy scales (doc 47
-    SETTLED 2; the space side landed 2026-09-28); base quality returns
-    the catalog row itself."""
-    ws = find_weapon(weapon_id)
-    if weapon_quality <= 0:
-        return ws
-    from ..data.quality import effective_ship_weapon_spec
-    return effective_ship_weapon_spec(weapon_id, weapon_quality)
-
-
 def calc_hit_chance(
     weapon_id: str, gunnery: int, distance: float,
     target_dodge_bonus: int, hit_bonus: int = 0, *,
@@ -197,7 +186,7 @@ def calc_hit_chance(
     instance's tier-scaled accuracy (doc 47 SETTLED 2 — damage AND
     accuracy scale; the space side landed accuracy 2026-09-28).
     """
-    ws = _weapon_at_quality(weapon_id, weapon_quality)
+    ws = effective_ship_weapon_spec(weapon_id, weapon_quality)
     _max = max_range if max_range is not None else ws.max_range
     _min = min_range if min_range is not None else ws.min_range
     dist_penalty = max(0, math.ceil(distance) - _max) * 10

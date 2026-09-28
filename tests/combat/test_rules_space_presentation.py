@@ -514,3 +514,33 @@ def test_space_card_weapon_dmg_reads_flown_tier():
     rows = _space_presentation._space_card_rows(_enemy, hit_chance=62)
     _texts = [t for row in rows for t, _c in row]
     assert "DMG 6  RNG 1-5" in _texts
+
+
+def test_space_card_hit_chance_threads_flown_tier(monkeypatch):
+    """The v-card's HIT% rolls at the first active slot's tier (the
+    ground twin's _first_active_hit_chance mirror) — reviewer blocking
+    catch 2026-09-28: the card read base accuracy while the HUD row
+    and the volley roll read the tier."""
+    ctx, state = _state()
+    state.weapons_list = ["medium_laser"]
+    state.active_weapons = [True]
+    state.weapon_qualities = [2]
+    state.target_idx = 0
+    state.view_w, state.view_h = 60, 30
+    state.show_target_card = True
+    _captured: dict = {}
+    monkeypatch.setattr(
+        _rules_space, "hit_chance",
+        lambda *_a, **_k: _captured.update(_k) or 50,
+    )
+    monkeypatch.setattr(
+        _rules_space, "_build_target_card",
+        lambda *_a, **_k: None,
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        _rules_space.presentation_target_card(ctx=ctx)
+    finally:
+        _rules_space._state = old_state
+    assert _captured["quality"] == 2
