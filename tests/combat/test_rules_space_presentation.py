@@ -544,3 +544,32 @@ def test_space_card_hit_chance_threads_flown_tier(monkeypatch):
     finally:
         _rules_space._state = old_state
     assert _captured["quality"] == 2
+
+
+def test_space_card_hit_chance_reads_the_nonzero_first_active_slot(monkeypatch):
+    """Companion to the threading pin: with slot 0 OFF, the card's HIT%
+    must roll at slot 1's tier — distinguishing _first_active_slot's
+    scan from a constant-0 (reviewer minor, 2026-09-28)."""
+    ctx, state = _state()
+    state.weapons_list = ["medium_laser", "heavy_laser"]
+    state.active_weapons = [False, True]
+    state.weapon_qualities = [0, 2]
+    state.target_idx = 0
+    state.view_w, state.view_h = 60, 30
+    state.show_target_card = True
+    _captured: dict = {}
+    monkeypatch.setattr(
+        _rules_space, "hit_chance",
+        lambda *_a, **_k: _captured.update(_k) or 50,
+    )
+    monkeypatch.setattr(
+        _rules_space, "_build_target_card",
+        lambda *_a, **_k: None,
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        _rules_space.presentation_target_card(ctx=ctx)
+    finally:
+        _rules_space._state = old_state
+    assert _captured["quality"] == 2
