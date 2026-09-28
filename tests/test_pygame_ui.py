@@ -6186,3 +6186,43 @@ def test_panel_header_paint_calls_match_the_real_signatures(monkeypatch):
             focused=False, palette=pygame_ui.DEFAULT_PALETTE,
             color_override=(170, 130, 230), **kwargs,
         )
+
+
+def test_loadout_store_branches_dispatch_each_item_type_at_its_real_arity():
+    """STORE on the loadout screen exercises the REAL ship_module store
+    functions for both item types (the module branch crashed at 4-arg
+    arity after doc 49.2's ctx threading; the weapon branch carries
+    ctx for the hunter's doubled-rack booking)."""
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    # Module store: no ctx in store_module's signature — must not raise.
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(StoredEquipment("module", "shield_mk2"),),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda *_a, **_k: None),
+    )
+    run(_loadout._apply_store(ctx, "STORE_MODULE_SLOT:0"))
+    assert ctx.player_owned_ship.modules == ()
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk2"]
+
+    # Weapon store: store_weapon takes ctx (missile ammo preservation).
+    hunter = SimpleNamespace(player_traits=["bounty_hunter"])
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_missile"),),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda *_a, **_k: None),
+        player_traits=["bounty_hunter"],
+    )
+    run(_loadout._apply_store(ctx, "STORE_WEAPON_SLOT:0"))
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage[0].ammo is not None
+    assert hunter.player_traits == ["bounty_hunter"]  # ctx reached the path

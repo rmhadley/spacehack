@@ -485,8 +485,11 @@ async def _apply_store(ctx, action: str) -> None:
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
     owned = ctx.player_owned_ship
-    store = ship_module.store_weapon if item_type == "STORE_WEAPON_SLOT" else ship_module.store_module
-    if store(owned, _storage_list(ctx), slot, ctx):
+    if item_type == "STORE_WEAPON_SLOT":
+        stored = ship_module.store_weapon(owned, _storage_list(ctx), slot, ctx)
+    else:
+        stored = ship_module.store_module(owned, _storage_list(ctx), slot)
+    if stored:
         ctx.log.add("Moved equipment to storage.")
     else:
         ctx.log.add("That equipment could not be moved to storage.")
