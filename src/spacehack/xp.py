@@ -191,10 +191,22 @@ def ground_max_hp_total(ctx: GameContext) -> int:
     )
 
 
+def _grown_hp(current: int, old_max: int, new_max: int) -> int:
+    """Ground-HP grow kernel shared by combat init
+    (``_rules_ground._player_hp_state``) and the out-of-combat
+    :func:`refresh_ground_max_hp`: a raised max grows current HP by
+    the delta. A lowered max does NOT shrink current HP — each caller
+    clamps per its own contract, so that deliberate difference stays
+    visible at the call site."""
+    if new_max > old_max:
+        current += new_max - old_max
+    return current
+
+
 def refresh_ground_max_hp(ctx: GameContext) -> None:
     """Sync stored ground HP to :func:`ground_max_hp_total` after a live
     input changes out of combat (stamina spends, worn-armor ``hp_bonus``
-    swaps, the Ironclad pick).
+    swaps and tier bumps, the Ironclad pick).
 
     Mirrors combat's ``_player_hp_state`` semantics: a higher max grows
     current HP by the delta, a lower max clamps it; an active ground
@@ -203,15 +215,17 @@ def refresh_ground_max_hp(ctx: GameContext) -> None:
     2026-09-28: stamina 34 promised 37 HP, HUD still showed 35).
     """
     _new_max = ground_max_hp_total(ctx)
-    _delta = _new_max - ctx.ground_max_hp
-    if _delta > 0:
-        ctx.ground_hp += _delta
-    ctx.ground_hp = min(ctx.ground_hp, _new_max)
+    ctx.ground_hp = min(
+        _grown_hp(ctx.ground_hp, ctx.ground_max_hp, _new_max), _new_max,
+    )
     ctx.ground_max_hp = _new_max
     from .combat import _rules_ground
     _state = _rules_ground._state
     if _state is not None and _state.ctx is ctx:
-        _state.player_hp = min(_state.player_hp + max(0, _delta), _new_max)
+        _state.player_hp = min(
+            _grown_hp(_state.player_hp, _state.player_max_hp, _new_max),
+            _new_max,
+        )
         _state.player_max_hp = _new_max
 
 

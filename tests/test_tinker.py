@@ -55,6 +55,8 @@ def _context(items=None, **overrides):
         ),
         ground_expedition_items=list(items or []),
         bandolier={},
+        player_traits=[],
+        character_info={"species_id": "human"},
         log=log,
     )
     for key, value in overrides.items():
@@ -187,6 +189,39 @@ class TestApply:
         assert effective_module_spec("shield_mk1", 1).max_shield_bonus > (
             effective_module_spec("shield_mk1").max_shield_bonus
         )
+
+    def test_worn_armor_bump_resyncs_stored_ground_hp(self, monkeypatch):
+        """A kit on WORN armor scales its hp_bonus (quality tiers) — the
+        stored ground-HP pair must follow (same class as the stamina
+        user report 2026-09-28)."""
+        from src.spacehack.xp import ground_max_hp_total
+
+        ctx, _ = _context(
+            equipped_ground_armor={
+                "body": StoredGroundEquipment("armor", "cybernetic_torso"),
+            },
+            ground_expedition_inventory=[],
+            ground_armory_storage=[],
+            ship_storage=[],
+            player_owned_ship=OwnedShip(ship_id="starter"),
+            items=[_kit_stack(2)],
+        )
+        # 20 + 10//2 + torso T0 hp_bonus 3 = 28, synced.
+        ctx.ground_hp = ctx.ground_max_hp = ground_max_hp_total(ctx)
+        assert ctx.ground_max_hp == 28
+
+        pygame_story, fake = self._choose_returning("KIT:ARMOR:body")
+        monkeypatch.setattr(pygame_story, "choose", fake)
+        assert run(try_manage_kit(ctx, 0)) is True
+        assert ctx.equipped_ground_armor["body"].quality == 1
+        # T1 scales the torso's hp_bonus 3 -> 4.
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (29, 29)
+
+        # The torso's hp_bonus is flat from T1 up: a second bump raises
+        # the tier but is a no-op on the stored pair.
+        assert run(try_manage_kit(ctx, 0)) is True
+        assert ctx.equipped_ground_armor["body"].quality == 2
+        assert (ctx.ground_hp, ctx.ground_max_hp) == (29, 29)
 
     def test_bump_preserves_loaded_ammo_and_instance_fields(self, monkeypatch):
 

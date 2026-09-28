@@ -415,6 +415,18 @@ class TestGroundMaxHpRefresh:
         refresh_ground_max_hp(ctx)
         assert (state.player_hp, state.player_max_hp) == (32, 37)
 
+    def test_combat_propagation_grows_on_the_states_own_max(self, monkeypatch):
+        """Divergent pair at call time (stale ctx max 35, combat entry's
+        fresh state max 40, formula now 43): the combat state grows
+        relative to ITS max (40 + 3 = 39), not the ctx pair's."""
+        from src.spacehack.combat import _rules_ground
+
+        ctx = self._ctx(stamina=34, hp=35, max_hp=35, traits=["ironclad"])
+        state = SimpleNamespace(ctx=ctx, player_hp=36, player_max_hp=40)
+        monkeypatch.setattr(_rules_ground, "_state", state)
+        refresh_ground_max_hp(ctx)
+        assert (state.player_hp, state.player_max_hp) == (39, 43)
+
     def test_active_combat_state_clamps_to_a_shrinking_max(self, monkeypatch):
         from src.spacehack.combat import _rules_ground
         from src.spacehack.ground_equipment import StoredGroundEquipment

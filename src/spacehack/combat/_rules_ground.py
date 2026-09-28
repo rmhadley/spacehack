@@ -34,6 +34,7 @@ from ..xp import (
     bounty_hunter_evade_bonus as _bounty_evade_bonus,
     ground_evade_bonus as _ground_evade_bonus,
     ground_max_hp_total as _ground_max_hp_total,
+    _grown_hp,
     nimble_ap_bonus as _nimble_ap_bonus,
     pirate_opener_damage_pct as _opener_damage_pct,
     pirate_opener_hit_bonus as _opener_hit_bonus,
@@ -248,9 +249,7 @@ def _build_enemies(
 def _player_hp_state(ctx) -> tuple[int, int]:
     """Return ``(current_hp, max_hp)``, growing ground HP to a new max."""
     max_hp = _ground_max_hp_total(ctx)
-    delta = max_hp - ctx.ground_max_hp
-    if delta > 0:
-        ctx.ground_hp += delta
+    ctx.ground_hp = _grown_hp(ctx.ground_hp, ctx.ground_max_hp, max_hp)
     return min(ctx.ground_hp, max_hp), max_hp
 
 def _armor_defense_total(ctx) -> int:
