@@ -72,7 +72,10 @@ def _apply_disposition(ctx, disposition: str) -> None:
             f"epilogue_reward_{ctx.main_quest_chain}"
         ] = STATUS_AVAILABLE
         ctx.log.add_colored(
-            t_get("runtime.epilogue_delivered_log"),
+            t_get(
+                f"runtime.epilogue_delivered_log_{ctx.main_quest_chain}",
+                default=t_get("runtime.epilogue_delivered_log"),
+            ),
             message_log.COLOR_IMPORTANT_EVENT,
         )
     else:
