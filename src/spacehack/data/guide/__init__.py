@@ -459,9 +459,9 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
         title="Character & Skills",
         body=(
             "Your species and class shape your starting strengths. Every "
-            "species grants one permanent trait at creation, and the "
-            "character-creation card shows each species' trait before you "
-            "choose. You can still "
+            "species and every class grants one permanent trait at "
+            "creation - you start with both - and the character-creation "
+            "cards show each trait before you choose. You can still "
             "grow in any direction, so choose the style that sounds fun rather "
             "than trying to make a perfect build."
             "\n\n"

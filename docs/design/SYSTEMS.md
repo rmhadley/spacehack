@@ -1261,9 +1261,13 @@ nobody designs against a ghost.
   broadcast (`data/traits/core.py`; `xp.py:239`).
 - **Career board refresh** — Hauler/Fixer/Hunter grants force-
   refresh all boards (`trait_screen._refresh_faction_boards`).
-- **Character creation** — base 10 all stats; species/class add
-  pilot/ground bonuses; class sets starting credits (25/50/75) and
-  cosmetic ship `hp_base` (`character.py`).
+- **Character creation** — base 10 all stats; species and class each
+  add a +6-budget stat spread; class sets starting credits (25/50/75);
+  hull HP is never a character stat (ship + modules own it, doc 49
+  SETTLED 5 — `hp_base`/`HudStats.hp` deleted); each layer grants one
+  creation trait (species' + class', never offered at milestones)
+  (`character.py`; `data/classes/core.py`; `data/traits/core.py`
+  `ORIGIN_TRAITS`/`CLASS_TRAITS`; `game_loop._configure_new_context`).
 - **Playstyle counters** — extendable `PlayerCounters` on ctx; all
   reset on death; career damage tallies are THEATER-SPLIT —
   `total_damage_taken` space-only (doc 2), `ground_damage_taken`
