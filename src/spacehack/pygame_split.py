@@ -397,7 +397,12 @@ def _draw_panel_rows(
     viewport_selected = selected if focused else 0
     top, count = _visible_window(rows, viewport_selected, MAX_VISIBLE_ROWS)
     for index in range(top, top + count):
-        if y >= rows_bottom:
+        # Break on the row's FULL band (_row_height: text + shared
+        # padding, which a selected row's highlight also spans), not on
+        # its top — or the last row's glyphs cross the 6px gap and the
+        # detail (painted after) lands on top of it (user report
+        # 2026-09-28, C screen Equipment tab).
+        if y + pygame_ui._row_height(font) > rows_bottom:
             break
         y = _draw_panel_row(
             pygame, screen, font, panel, rows[index],

@@ -6226,3 +6226,63 @@ def test_loadout_store_branches_dispatch_each_item_type_at_its_real_arity():
     assert ctx.player_owned_ship.weapons == ()
     assert ctx.ship_storage[0].ammo is not None
     assert hunter.player_traits == ["bounty_hunter"]  # ctx reached the path
+
+
+def test_split_rows_never_paint_into_the_pinned_detail(monkeypatch):
+    """The row loop must break on a row's text BOTTOM, not its top: a
+    row starting above ``rows_bottom`` still paints ``linesize`` of
+    glyphs below it, crossing the 6px gap into the pinned detail (user
+    report 2026-09-28 — C screen Equipment tab, detail over the lowest
+    item). Geometry: panel h=528, linesize 24, a 2-line detail pins
+    rows_bottom at 462; the 11th row's glyphs end at 470 — past
+    detail_y (468) under the old top-only break."""
+    line = 24
+    rows = tuple(
+        [pygame_split.SplitRow("--- GROUP ---", "", "", "", divider=True)]
+        + [
+            pygame_split.SplitRow(f"Item {i}", "", "d" * 60, "ITEM")
+            for i in range(12)
+        ]
+    )
+
+    class FakeFont:
+        @staticmethod
+        def get_linesize():
+            return line
+
+        @staticmethod
+        def size(text):
+            return (len(text) * 8, line)
+
+    row_tops = []
+    detail_y = {}
+
+    def _menu_row(_pygame, _screen, _font, _label, _x, y, *_a, **_k):
+        row_tops.append(y)
+        return y + line + 14  # pygame_ui._row_height
+
+    monkeypatch.setattr(pygame_ui, "draw_menu_row", _menu_row)
+    monkeypatch.setattr(
+        pygame_ui, "draw_informational_row",
+        # y arrives positionally (arg 6); return the real advance so a
+        # future row change can't turn the stub into a TypeError trap
+        lambda *_a, **_k: _a[5] + line + 14,
+    )
+    monkeypatch.setattr(pygame_ui, "draw_text", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        pygame_ui, "draw_wrapped_text",
+        lambda _pygame, _screen, _font, _text, _x, y, *_a, **_k: detail_y.update(y=y),
+    )
+    panel = SimpleNamespace(x=0, y=0, width=400, height=528)
+    pygame_split._draw_panel_rows(
+        SimpleNamespace(), SimpleNamespace(), FakeFont, panel,
+        rows, 12, True, SimpleNamespace(description=(1, 2, 3)),
+    )
+    assert detail_y["y"] == 528 - 2 * (line + 2) - pygame_split.DETAIL_BOTTOM_PAD
+    assert row_tops, "rows must draw"
+    assert max(row_tops) + line <= detail_y["y"], (
+        "a row's glyphs crossed into the pinned detail"
+    )
+    # the break drops only the overflowing tail — the window still
+    # draws nearly all of its rows
+    assert len(row_tops) >= 10
