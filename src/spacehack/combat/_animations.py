@@ -17,6 +17,7 @@ import asyncio
 
 import math
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .. import world
@@ -466,8 +467,10 @@ def _paint_range_line(
     min_range: int | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by the
-    weapon's range bands (green/yellow/orange/red by distance). Shared
-    by ship and ground combat; ``color_override`` forces one color.
+    weapon's range bands (green/yellow/orange/red by distance) — the
+    ship-combat wrapper (ground renders through
+    :func:`_draw_range_colored_line` with its own int-truncated
+    rounding); ``color_override`` forces one color.
     ``max_range``/``min_range`` override the catalog values so the
     Focus trait's doubled range bands paint correctly."""
     try:
@@ -507,10 +510,14 @@ def _draw_range_colored_line(
     *,
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
+    distance_round: Callable[[float], float] | None = None,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
     distance and the weapon's range profile; ``color_override`` forces
-    one color for every cell."""
+    one color for every cell. ``distance_round`` normalizes each cell's
+    raw Euclidean distance to the domain's resolution math (ground
+    passes ``int`` — its fire gate truncates; space keeps the raw
+    float — its penalty band starts strictly beyond ``max_range``)."""
     for bx, by in _bresenham_line(
         player_pos.x, player_pos.y,
         target_pos.x, target_pos.y,
@@ -522,6 +529,7 @@ def _draw_range_colored_line(
             cam_x, cam_y, view_w, view_h, region_x, region_y,
             color_override=color_override,
             game_map=game_map,
+            distance_round=distance_round,
         )
 
 
@@ -542,6 +550,7 @@ def _paint_range_cell(
     *,
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
+    distance_round: Callable[[float], float] | None = None,
 ) -> None:
     """Paint one range-line cell, skipping off-view or occluded cells."""
     if bx == target_pos.x and by == target_pos.y:
@@ -556,6 +565,8 @@ def _paint_range_cell(
         color = color_override
     else:
         dist = math.hypot(bx - player_pos.x, by - player_pos.y)
+        if distance_round is not None:
+            dist = distance_round(dist)
         color = range_band_color(dist, weapon_max_range, weapon_min_range)
     console.print(
         x=region_x + sx, y=region_y + sy,

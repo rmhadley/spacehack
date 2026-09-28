@@ -20,13 +20,20 @@ def hit_color_for_weapon(
     target_pos: world.Position,
     player_pos: world.Position,
     find_weapon: Callable[[str], Any],
+    *,
+    distance_round: Callable[[float], float] | None = None,
+    weapon_range: tuple[int, int] | None = None,
 ) -> tuple[int, int, int] | None:
     """Range-band color for a weapon's HIT % on the target card, or None.
 
     Resolves ``weapon_id`` through ``find_weapon`` and colors by the
     targeting-line range bands between ``player_pos`` and ``target_pos``.
-    ``None`` for unarmed/unknown weapons so the card falls back to its
-    default text color.
+    ``distance_round`` normalizes the raw Euclidean distance to the
+    domain's fire-gate math (ground passes ``int``); ``weapon_range``
+    overrides the catalog profile with the wielder's effective
+    ``(min, max)`` — trait riders like Longshot/Focus move the real
+    envelope. ``None`` for unarmed/unknown weapons so the card falls
+    back to its default text color.
     """
     if weapon_id is None:
         return None
@@ -34,10 +41,14 @@ def hit_color_for_weapon(
         _ws = find_weapon(weapon_id)
     except KeyError:
         return None
-    return range_band_color(
-        math.hypot(player_pos.x - target_pos.x, player_pos.y - target_pos.y),
-        _ws.max_range, _ws.min_range,
+    dist = math.hypot(player_pos.x - target_pos.x, player_pos.y - target_pos.y)
+    if distance_round is not None:
+        dist = distance_round(dist)
+    _min, _max = (
+        weapon_range if weapon_range is not None
+        else (_ws.min_range, _ws.max_range)
     )
+    return range_band_color(dist, _max, _min)
 
 
 def viewport_cells(

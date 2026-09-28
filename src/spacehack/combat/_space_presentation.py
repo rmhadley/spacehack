@@ -72,13 +72,22 @@ def build_target_card(
     region_h: int,
     hit_chance: int | None = None,
     hit_weapon_id: str | None = None,
+    hit_weapon_range: tuple[int, int] | None = None,
     avoid_positions: tuple[world.Position, ...] = (),
     quick_rows=(),
 ) -> TargetCard | None:
-    """Build the floating info card for ``enemy``, or None when off-view."""
+    """Build the floating info card for ``enemy``, or None when off-view.
+
+    ``hit_weapon_range`` is the Focus/Longshot-adjusted ``(min, max)``
+    matching the card's own HIT % math (``_space_focus``); ``None``
+    falls back to the catalog profile.
+    """
     rows = _space_card_rows(
         enemy, hit_chance,
-        hit_color_for_weapon(hit_weapon_id, enemy.pos, player_pos, _find_w),
+        hit_color_for_weapon(
+            hit_weapon_id, enemy.pos, player_pos, _find_w,
+            weapon_range=hit_weapon_range,
+        ),
     )
     return _build_card(
         enemy.pos,

@@ -114,13 +114,15 @@ def enemy_detail_lines(enemy: Any) -> tuple[str, str, str]:
 
 
 def enemy_threat_color(
-    enemy: Any, dist: int,
+    enemy: Any, dist: float,
 ) -> tuple[int, int, int]:
     """Return the color for the enemy's distance readout.
 
     Red when the enemy's weapon can fire at this distance, orange when
     the player is inside the enemy's minimum range (too close to fire),
-    green when safely out of range.
+    green when safely out of range. ``dist`` is the raw Euclidean
+    distance — the enemy fire gate (``_ai_ground``) compares raw
+    floats, so the readout must not pre-truncate.
     """
     weapon = enemy_weapon(enemy)
     if weapon is None:
@@ -141,13 +143,22 @@ def build_target_card(
     region_h: int,
     hit_chance: int | None = None,
     hit_weapon_id: str | None = None,
+    hit_weapon_range: tuple[int, int] | None = None,
     avoid_positions: tuple[world.Position, ...] = (),
     quick_rows=(),
 ) -> TargetCard | None:
-    """Build the floating info card for ``enemy``, or None when off-view."""
+    """Build the floating info card for ``enemy``, or None when off-view.
+
+    ``hit_weapon_range`` is the wielder's effective ``(min, max)`` from
+    ``weapon_range`` so the HIT % color matches the fire gate (trait
+    riders included); ``None`` falls back to the catalog profile.
+    """
     rows = _ground_card_rows(
         enemy, enemy_weapon(enemy), hit_chance,
-        hit_color_for_weapon(hit_weapon_id, enemy.pos, player_pos, _find_gw),
+        hit_color_for_weapon(
+            hit_weapon_id, enemy.pos, player_pos, _find_gw,
+            distance_round=int, weapon_range=hit_weapon_range,
+        ),
     )
     return _build_card(
         enemy.pos,

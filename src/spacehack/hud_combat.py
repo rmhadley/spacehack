@@ -172,17 +172,33 @@ def _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx=None)
     )
 
 
-def _enemy_distance_color(dist: int, range_weapon_id: str):
-    """Range-band color for an enemy's distance, or None when unknown."""
+def _enemy_distance_color(dist: float, range_weapon_id: str, ctx=None):
+    """Range-band color for an enemy's distance, or None when unknown.
+
+    Bands on the raw Euclidean distance — exactly where the gate's
+    ceil-based penalty band starts (``_stats.calc_hit_chance``:
+    ``ceil(d) > max ⟺ d > max`` and ``ceil(d) < min ⟺ d < min`` for
+    integer envelopes, so raw-float banding sits on the penalty
+    boundaries) — and the Focus/Longshot-adjusted envelope when ``ctx``
+    is supplied, so the row matches the targeting line for the same
+    enemy.
+    """
     from .data.weapons import find_weapon as _fw
     try:
         _ws = _fw(range_weapon_id)
     except KeyError:
         return None
-    return range_band_color(dist, _ws.max_range, _ws.min_range)
+    _min, _max = (_ws.min_range, _ws.max_range)
+    if ctx is not None:
+        from .combat import _space_focus
+        _min = _space_focus.min_range(range_weapon_id, ctx)
+        _max = _space_focus.max_range(range_weapon_id, ctx)
+    return range_band_color(dist, _max, _min)
 
 
-def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id) -> int:
+def _render_enemy_row(
+    console, hud_x, y, enemy, is_target, ppos, range_weapon_id, ctx=None,
+) -> int:
     """Paint one enemy's name + distance + bars; return the next row."""
     marker = ">" if is_target else " "
     _name = enemy.name[:_ENEMY_NAME_MAX] if len(enemy.name) > _ENEMY_NAME_MAX else enemy.name
@@ -191,13 +207,13 @@ def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id
     console.print(x=hud_x, y=y, string=_name_str, fg=_name_fg)
     if ppos is not None and hasattr(enemy, 'pos'):
         import math as _m
-        _dist = int(_m.hypot(ppos.x - enemy.pos.x, ppos.y - enemy.pos.y))
+        _dist = _m.hypot(ppos.x - enemy.pos.x, ppos.y - enemy.pos.y)
         if range_weapon_id is not None:
-            _dc = _enemy_distance_color(_dist, range_weapon_id)
+            _dc = _enemy_distance_color(_dist, range_weapon_id, ctx)
             if _dc is not None:
-                console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(_dist), fg=_dc)
+                console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(int(_dist)), fg=_dc)
         else:
-            console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(_dist), fg=COLOR_VALUE_DIM)
+            console.print(x=hud_x + len(_name_str) + 2, y=y, string=str(int(_dist)), fg=COLOR_VALUE_DIM)
     y += 1
     if enemy.max_shields > 0:
         _shd_bar = _bar_str(enemy.shields, enemy.max_shields, width=5)
@@ -211,7 +227,10 @@ def _render_enemy_row(console, hud_x, y, enemy, is_target, ppos, range_weapon_id
     return y + 1
 
 
-def _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id) -> int:
+def _render_enemies_block(
+    console, hud_x, y, enemies, target_idx, screen_height, player_state,
+    range_weapon_id, ctx=None,
+) -> int:
     """Paint the ENEMIES list with name + distance + bars; return next row."""
     console.print(x=hud_x, y=y, string="ENEMIES", fg=COLOR_DIVIDER)
     y += 1
@@ -224,7 +243,9 @@ def _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height,
             continue
         is_target = _alive_count == target_idx
         _alive_count += 1
-        y = _render_enemy_row(console, hud_x, y, _e, is_target, ppos, range_weapon_id)
+        y = _render_enemy_row(
+            console, hud_x, y, _e, is_target, ppos, range_weapon_id, ctx,
+        )
     return y + 1
 
 
@@ -392,7 +413,10 @@ def render_combat_hud(
     hud_x = screen_width - HUD_WIDTH
     y = _render_combat_header(console, hud_x, 0, player_mode)
     y = _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx)
-    y = _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id)
+    y = _render_enemies_block(
+        console, hud_x, y, enemies, target_idx, screen_height, player_state,
+        range_weapon_id, ctx,
+    )
     y = _render_weapons_block(
         console, hud_x, y, weapon_list, active_weapons, player_state,
         hit_chances, focus_active=focus_active,

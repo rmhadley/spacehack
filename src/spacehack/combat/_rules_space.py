@@ -209,6 +209,13 @@ def set_active_weapons(ctx, active: list[bool]) -> None:
 def set_target_idx(ctx, idx: int) -> None:
     _state.target_idx = idx
 
+def _active_weapon_ids() -> list[str]:
+    """Ids of the enabled weapon slots — the volley about to fire."""
+    return [
+        _state.weapons_list[i] for i in range(len(_state.weapons_list))
+        if i < len(_state.active_weapons) and _state.active_weapons[i]
+    ]
+
 def _alive_target():
     _alive = [e for e in _state.enemy_insts if e.alive]
     if 0 <= _state.target_idx < len(_alive):
@@ -522,10 +529,7 @@ def _quick_resource_row(ctx):
     """The compact resource strip above the target card (the ground
     module's twin): labeled stats in PLAYER-block order, the armed
     volley's costs as a FIRE verb phrase."""
-    _active_ids = [
-        _state.weapons_list[i] for i in range(len(_state.weapons_list))
-        if i < len(_state.active_weapons) and _state.active_weapons[i]
-    ]
+    _active_ids = _active_weapon_ids()
     _ap_needed = max(
         (_space_focus.ap_cost(weapon_id, ctx) for weapon_id in _active_ids),
         default=0,
@@ -551,12 +555,15 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     _target = _alive_target()
     if _target is None:
         return None
-    _active_ids = [
-        _state.weapons_list[i] for i in range(len(_state.weapons_list))
-        if i < len(_state.active_weapons) and _state.active_weapons[i]
-    ]
+    _active_ids = _active_weapon_ids()
     _active_wid = _active_ids[0] if _active_ids else None
     _hit = hit_chance(_active_wid, _target, ctx) if _active_wid else None
+    _hit_range = (
+        (
+            _space_focus.min_range(_active_wid, ctx),
+            _space_focus.max_range(_active_wid, ctx),
+        ) if _active_wid else None
+    )
     _quick = _quick_resource_row(ctx)
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))
@@ -568,6 +575,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         region_h=_state.view_h,
         hit_chance=_hit,
         hit_weapon_id=_active_wid,
+        hit_weapon_range=_hit_range,
         avoid_positions=_avoid,
         quick_rows=(_quick,),
     )
@@ -579,10 +587,7 @@ def _render_combat_range_line(
     _range_wid = None
     if _state.weapons_list and any(_state.active_weapons):
         from ..data.weapons import find_weapon as _fw
-        _active_ids = [
-            _state.weapons_list[i] for i in range(len(_state.weapons_list))
-            if i < len(_state.active_weapons) and _state.active_weapons[i]
-        ]
+        _active_ids = _active_weapon_ids()
         if _active_ids:
             _range_wid = min(_active_ids, key=lambda wid: _fw(wid).max_range)
     if _range_wid is None:

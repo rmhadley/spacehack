@@ -98,6 +98,7 @@ def _ground_range_line(
         region_x=region_x, region_y=region_y,
         color_override=color_override,
         game_map=game_map,
+        distance_round=int,
     )
 
 
@@ -410,6 +411,10 @@ def presentation_target_card(*, ctx: GameContext | None = None):
     _active = _active_weapon_ids(ctx, _rules_mod.player_weapons(ctx))
     _active_wid = _active[0] if _active else None
     _hit = _first_active_hit_chance(ctx, _rules_mod, _target, _active_wid)
+    _hit_range = (
+        _rules_mod.weapon_range(_active_wid, ctx, _state.player_ap)
+        if _active_wid else None
+    )
     _avoid = [ctx.player.pos]
     _avoid.extend(_e.pos for _e in alive)
     return _build_target_card(
@@ -420,6 +425,7 @@ def presentation_target_card(*, ctx: GameContext | None = None):
         region_h=_rules_mod._RENDER_HEIGHT,
         hit_chance=_hit,
         hit_weapon_id=_active_wid,
+        hit_weapon_range=_hit_range,
         avoid_positions=_avoid,
         quick_rows=(_quick_resource_row(ctx, _active),),
     )
@@ -442,11 +448,11 @@ def _render_enemies_panel(console, ctx, alive, y: int) -> int:
             y += 1
             e_bar = _bar_str(gei.hp, gei.max_hp, width=8)
             e_pct = gei.hp * 100 // max(gei.max_hp, 1)
-            dist = int(_distance(ctx.player.pos, gei.pos))
+            dist = _distance(ctx.player.pos, gei.pos)
             _hp_prefix = f"  HP {e_bar} {e_pct}%  "
             console.print(x=hud_x, y=y, string=_hp_prefix, fg=name_fg)
             console.print(
-                x=hud_x + len(_hp_prefix), y=y, string=f"{dist}u",
+                x=hud_x + len(_hp_prefix), y=y, string=f"{int(dist)}u",
                 fg=enemy_threat_color(gei, dist),
             )
             y += 1

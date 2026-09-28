@@ -127,16 +127,17 @@ def range_band_color(
 ) -> tuple[int, int, int]:
     """Color for a combat distance, matching the targeting-line bands.
 
-    Green within the close-bonus zone (``max_range // 2``), yellow
-    within ``max_range``, orange inside ``min_range`` when one exists,
-    red beyond ``max_range``.
+    Orange strictly inside ``min_range`` when one exists (the
+    point-blank penalty zone — checked first so a min band inside the
+    close zone stays visible), green within the close-bonus zone
+    (``max_range // 2``), yellow within ``max_range``, red beyond.
     """
+    if weapon_min_range > 0 and dist < weapon_min_range:
+        return COLOR_RANGE_ORANGE
     if dist <= weapon_max_range // 2:
         return COLOR_RANGE_GREEN
     if dist <= weapon_max_range:
         return COLOR_RANGE_YELLOW
-    if weapon_min_range > 0 and dist <= weapon_min_range:
-        return COLOR_RANGE_ORANGE
     return COLOR_RANGE_RED
 
 

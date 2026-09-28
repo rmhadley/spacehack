@@ -1638,3 +1638,178 @@ def test_enemy_smg_burst_rolls_twice_per_action(monkeypatch):
     ))
 
     assert len(_rolls) == 2  # two rolls for the one action
+
+
+# ---------------------------------------------------------------------------
+# Range displays vs the fire gate
+# ---------------------------------------------------------------------------
+
+def _record_prints():
+    """A console double that records every keyword print call."""
+    _prints: list[dict] = []
+    return SimpleNamespace(print=lambda **_k: _prints.append(_k)), _prints
+
+
+class TestRangeDisplaysMatchFireGate:
+    """Ground range displays must band on the fire gate's own distance
+    math — int-truncated Euclidean (:func:`can_fire`) — and the wielder's
+    effective range (:func:`weapon_range`), so no display claims
+    out-of-range where F is legal."""
+
+    def test_range_line_bands_match_can_fire_at_fractional_cells(self):
+        """(0,0)->(8,4): the target's raw 8.94 truncates to 8 — a legal
+        shot at max 8 — but the painted cell (7,4) sits at raw 8.06, so
+        raw-float banding paints red on a fireable line."""
+        from src.spacehack.combat._animations import _draw_range_colored_line
+        from src.spacehack.hud import COLOR_RANGE_RED
+        _console, _prints = _record_prints()
+        _draw_range_colored_line(
+            _console, world.Position(0, 0), world.Position(8, 4),
+            8, 2, 0, 0, 24, 24, distance_round=int,
+        )
+        assert _prints, "the painter must paint"
+        assert all(_p["fg"] != COLOR_RANGE_RED for _p in _prints)
+
+        _console2, _prints2 = _record_prints()
+        _draw_range_colored_line(
+            _console2, world.Position(0, 0), world.Position(8, 4),
+            8, 2, 0, 0, 24, 24,
+        )
+        assert any(_p["fg"] == COLOR_RANGE_RED for _p in _prints2)
+
+    def test_can_fire_legal_at_the_same_geometry(self):
+        """The fixture geometry above is genuinely fireable: a Longshot
+        rifle (effective 2-8) at (8,4) fires on the truncated 8."""
+        _tiles = [
+            [world.DUNGEON_FLOOR for _ in range(24)] for _ in range(24)
+        ]
+        _game_map = world.GameMap(24, 24, _tiles, [])
+        _player = world.Entity(
+            "@", (255, 255, 255), world.Position(0, 0), "Player",
+        )
+        _enemy = world.Entity(
+            "d", (255, 100, 100), world.Position(8, 4), "Sentry Drone",
+            npc_char_id="sentry_drone",
+        )
+        _game_map.entities.extend((_player, _enemy))
+        _ctx = SimpleNamespace(
+            player=_player,
+            ground_stats=SimpleNamespace(reflexes=12, strength=10, stamina=10),
+            ground_hp=25,
+            ground_max_hp=25,
+            equipped_ground_weapons=[_weapon("kinetic_rifle")],
+            equipped_ground_armor={},
+            player_traits=["longshot"],
+            log=SimpleNamespace(
+                add=lambda _m, **_k: None,
+                add_colored=lambda _m, _c, **_k: None,
+            ),
+        )
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _rules_ground._state.player_ap = 4
+        _ok, _reason = _rules_ground.can_fire(0, _ctx)
+        assert _ok, _reason
+
+    def test_ground_range_line_passes_int_rounding(self, monkeypatch):
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _ctx.equipped_ground_weapons = [_weapon("kinetic_rifle")]
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _captured: dict = {}
+        monkeypatch.setattr(
+            _ground_render, "_draw_range_colored_line",
+            lambda *_a, **_k: _captured.update(_k),
+        )
+        _ground_render._ground_range_line(
+            _console, _ctx.player.pos, _enemy.pos, "kinetic_rifle",
+            0, 0, 0, 0, _game_map,
+        )
+        assert _captured["distance_round"] is int
+
+    def test_card_hit_color_uses_effective_range_and_truncation(self):
+        """The card's HIT % color reads the wielder's effective range
+        (Longshot moves the rifle to 2-8) and truncates like the gate —
+        at int-distance 8 it must not paint red."""
+        from src.spacehack.combat._card_presentation import hit_color_for_weapon
+        from src.spacehack.data.ground_weapons import find_ground_weapon as _fgw
+        from src.spacehack.hud import COLOR_RANGE_RED, COLOR_RANGE_YELLOW
+        _target, _player = world.Position(8, 4), world.Position(0, 0)
+        assert hit_color_for_weapon(
+            "kinetic_rifle", _target, _player, _fgw,
+            distance_round=int, weapon_range=(2, 8),
+        ) == COLOR_RANGE_YELLOW
+        # Without the effective-range override the catalog 2-7 paints
+        # red at 8 — the trait-blind card the fix replaces.
+        assert hit_color_for_weapon(
+            "kinetic_rifle", _target, _player, _fgw, distance_round=int,
+        ) == COLOR_RANGE_RED
+
+    def test_presentation_card_carries_effective_range(self, monkeypatch):
+        """presentation_target_card feeds weapon_range's (min, max) into
+        the card — Longshot widens the rifle envelope to (2, 8)."""
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _ctx.player_traits = ["longshot"]
+        _ctx.equipped_ground_weapons = [_weapon("kinetic_rifle")]
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _captured: dict = {}
+        monkeypatch.setattr(
+            _ground_render, "_build_target_card",
+            lambda *_a, **_k: _captured.update(_k),
+        )
+        _card = _ground_render.presentation_target_card(ctx=_ctx)
+        assert _card is None  # the recorder stands in for the real card
+        assert _captured["hit_weapon_range"] == (2, 8)
+
+    def test_enemy_threat_readout_matches_enemy_gate_float(self):
+        """The enemy fire gate compares raw floats: at 6.4u a drone
+        laser (max 6) cannot fire — the readout must not say danger."""
+        _gei = _rules_ground.GroundEnemyInstance(
+            entity=SimpleNamespace(), spec=SimpleNamespace(armor=0),
+            weapon_id="drone_laser",
+        )
+        assert _ground_presentation.enemy_threat_color(
+            _gei, 6.4,
+        ) == _ground_presentation.COLOR_DIST_SAFE
+        assert _ground_presentation.enemy_threat_color(
+            _gei, 6.0,
+        ) == _ground_presentation.COLOR_DIST_DANGER
+
+    def test_build_target_card_passes_effective_range_to_hit_color(self, monkeypatch):
+        """build_target_card forwards the effective (min, max) into the
+        shared HIT % color helper alongside the ground rounding."""
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _captured: dict = {}
+        monkeypatch.setattr(
+            _ground_presentation, "hit_color_for_weapon",
+            lambda *_a, **_k: _captured.update(_k),
+        )
+        _gei = _rules_ground.GroundEnemyInstance(
+            entity=_enemy,
+            spec=SimpleNamespace(armor=0, name="Sentry Drone"),
+            weapon_id="drone_laser",
+        )
+        _ground_presentation.build_target_card(
+            _gei,
+            game_map=_game_map, player_pos=_ctx.player.pos,
+            region_w=60, region_h=30,
+            hit_weapon_id="kinetic_rifle", hit_weapon_range=(2, 8),
+        )
+        assert _captured["distance_round"] is int
+        assert _captured["weapon_range"] == (2, 8)
+
+    def test_enemies_panel_feeds_raw_float_to_threat_color(self, monkeypatch):
+        """The enemies-panel readout colors on the raw Euclidean distance
+        like the enemy fire gate — a diagonal placement (int 2, raw
+        ~2.24) must reach enemy_threat_color untruncated."""
+        _ctx, _game_map, _console, _enemy = _ground_fixture()
+        _enemy.pos = world.Position(4, 5)  # diagonal of (1, 2) from (3, 3)
+        _rules_ground.init(_ctx, [_enemy], _game_map)
+        _captured: dict = {}
+        monkeypatch.setattr(
+            _ground_render, "enemy_threat_color",
+            lambda *_a, **_k: _captured.update(dict(dist=_a[1])) or (1, 2, 3),
+        )
+        _alive = _rules_ground.get_enemies(_ctx)
+        _ground_render._render_enemies_panel(
+            FrameBuffer(SCREEN_WIDTH, SCREEN_HEIGHT), _ctx, _alive, 0,
+        )
+        assert _captured["dist"] == pytest.approx(2.2360, abs=1e-3)

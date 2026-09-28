@@ -5,6 +5,8 @@ from tests.support.asyncutil import run
 
 from types import SimpleNamespace
 
+import pytest
+
 from src.spacehack import world, pygame_overlay, pygame_target_card
 from src.spacehack.combat import _rules_space, _space_presentation
 from src.spacehack.combat._types import EnemyInstance
@@ -262,6 +264,10 @@ def test_range_band_color_matches_targeting_line():
     assert range_band_color(7, 5, 1) == COLOR_RANGE_RED
     # Orange reserved for inside-min-range bands the line itself uses.
     assert range_band_color(3, 2, 4) == COLOR_RANGE_ORANGE
+    # Orange is reachable for real weapons strictly inside min range
+    # (the point-blank penalty zone) — and firing is clean AT min.
+    assert range_band_color(1, 7, 2) == COLOR_RANGE_ORANGE
+    assert range_band_color(2, 7, 2) == COLOR_RANGE_GREEN
 
 
 def test_hit_color_for_weapon_none_when_unarmed_or_unknown():
@@ -399,3 +405,102 @@ def test_space_card_title_states_the_band_level():
     enemy.band = 4
     rows = _space_presentation._space_card_rows(enemy, hit_chance=None)
     assert rows[0][0][0] == "LVL 30 Pirate Scout"
+
+
+def test_space_card_hit_color_uses_effective_range_override(monkeypatch):
+    """The space card's HIT % color reads the Focus/Longshot-adjusted
+    envelope: light_laser at raw ~5.83u is red against the catalog max
+    5 but yellow inside an effective (1, 10) profile."""
+    from src.spacehack.combat._card_presentation import hit_color_for_weapon
+    from src.spacehack.hud import COLOR_RANGE_RED, COLOR_RANGE_YELLOW
+    _pos, _ppos = world.Position(5, 3), world.Position(0, 0)
+    assert hit_color_for_weapon(
+        "light_laser", _pos, _ppos, _space_presentation._find_w,
+    ) == COLOR_RANGE_RED
+    assert hit_color_for_weapon(
+        "light_laser", _pos, _ppos, _space_presentation._find_w,
+        weapon_range=(1, 10),
+    ) == COLOR_RANGE_YELLOW
+    # Space bands on the raw float — no truncation normalization.
+    _captured: dict = {}
+
+    import src.spacehack.combat._space_presentation as _sp
+
+    def _record(*_a, **_k):
+        _captured.update(_k)
+        return (0, 0, 0)
+
+    monkeypatch.setattr(_sp, "hit_color_for_weapon", _record)
+    _sp.build_target_card(
+        _card_enemy(),
+        game_map=_card_map(),
+        player_pos=_ppos,
+        region_w=60, region_h=30,
+        hit_weapon_id="light_laser", hit_weapon_range=(1, 10),
+    )
+    assert _captured["weapon_range"] == (1, 10)
+    assert "distance_round" not in _captured
+
+
+def test_space_enemy_distance_color_bands_on_float_and_riders():
+    """The space enemy-row color bands where the gate's ceil-based
+    penalty band starts (5.4 > 5 is red where the old int compare said
+    yellow) and widens for Longshot."""
+    from src.spacehack.hud_combat import _enemy_distance_color
+    from src.spacehack.hud import COLOR_RANGE_GREEN, COLOR_RANGE_RED, COLOR_RANGE_YELLOW
+    assert _enemy_distance_color(5.4, "light_laser") == COLOR_RANGE_RED
+    assert _enemy_distance_color(5.0, "light_laser") == COLOR_RANGE_YELLOW
+    # Longshot +1 (doc 49) moves the envelope to 6 — 5.4 is in band.
+    _ctx = SimpleNamespace(player_traits=["longshot"])
+    assert _enemy_distance_color(5.4, "light_laser", _ctx) == COLOR_RANGE_YELLOW
+    assert _enemy_distance_color(6.4, "light_laser", _ctx) == COLOR_RANGE_RED
+    # close-bonus zone still green inside max//2
+    assert _enemy_distance_color(2.0, "light_laser", _ctx) == COLOR_RANGE_GREEN
+
+
+def test_space_presentation_card_carries_focus_range(monkeypatch):
+    """presentation_target_card feeds _space_focus's (min, max) into the
+    card — Longshot widens light_laser's (1, 5) to (1, 6)."""
+    ctx, state = _state()
+    ctx.player_traits = ["longshot"]
+    state.weapons_list = ["light_laser"]
+    state.active_weapons = [True]
+    state.target_idx = 0
+    state.view_w, state.view_h = 60, 30
+    state.show_target_card = True
+    monkeypatch.setattr(_rules_space, "hit_chance", lambda *_a, **_k: 50)
+    _captured: dict = {}
+    monkeypatch.setattr(
+        _rules_space, "_build_target_card",
+        lambda *_a, **_k: _captured.update(_k),
+    )
+    old_state = _rules_space._state
+    _rules_space._state = state
+    try:
+        _card = _rules_space.presentation_target_card(ctx=ctx)
+    finally:
+        _rules_space._state = old_state
+    assert _card is None  # the recorder stands in for the real card
+    assert _captured["hit_weapon_range"] == (1, 6)
+
+
+def test_space_enemy_row_passes_raw_float_and_ctx(monkeypatch):
+    """The enemy row colors on the raw Euclidean distance with the ctx
+    riding along for the rider-aware envelope."""
+    from src.spacehack.hud_combat import _render_enemy_row
+    _captured: dict = {}
+    monkeypatch.setattr(
+        "src.spacehack.hud_combat._enemy_distance_color",
+        lambda *_a, **_k: _captured.update(dict(args=_a)),
+    )
+    _enemy = SimpleNamespace(
+        name="Pirate Scout", pos=world.Position(3, 6),
+        max_shields=0, shields=0, hull=10, max_hull=10, alive=True,
+    )
+    _row = _render_enemy_row(
+        SimpleNamespace(print=lambda **_k: None), 90, 0, _enemy,
+        True, world.Position(0, 0), "light_laser", SimpleNamespace(),
+    )
+    assert isinstance(_captured["args"][0], float)
+    assert _captured["args"][0] == pytest.approx(6.7, abs=0.05)
+    assert _captured["args"][2] is not None  # ctx forwarded
