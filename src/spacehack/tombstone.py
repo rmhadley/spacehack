@@ -265,7 +265,7 @@ def _pack_line(ctx) -> str:
     return f"  Expedition pack: {carried or 'empty'}"
 
 
-def _ship_lines(owned) -> list[str]:
+def _ship_lines(owned, ctx=None) -> list[str]:
     from . import ship as ship_module
     from .data.weapons import find_weapon
 
@@ -273,7 +273,9 @@ def _ship_lines(owned) -> list[str]:
     weapons = ", ".join(
         ship_module.weapon_display_name(entry.item_id, entry.quality)
         + _loaded_suffix(
-            find_weapon(entry.item_id).ammo_capacity,
+            ship_module.effective_missile_capacity(
+                find_weapon(entry.item_id), ctx,
+            ),
             owned.weapon_ammo.get(index),
         )
         for index, entry in enumerate(owned.weapons)
@@ -304,7 +306,7 @@ def _gear_lines(ctx) -> list[str]:
     lines.append(_pack_line(ctx))
     owned = getattr(ctx, "player_owned_ship", None)
     if owned is not None:
-        lines.extend(_ship_lines(owned))
+        lines.extend(_ship_lines(owned, ctx))
     return lines
 
 

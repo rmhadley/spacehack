@@ -581,6 +581,7 @@ def _paint_combat_hud(
     weapon_qualities: tuple = (),
     evade_bonus: int | None = None,
     hit_chances: dict[str, int] | None = None,
+    ctx=None,
 ) -> None:
     """Paint the combat HUD panel via the shared renderer."""
     from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
@@ -598,13 +599,14 @@ def _paint_combat_hud(
         evade_bonus=evade_bonus,
         hit_chances=hit_chances,
         weapon_qualities=weapon_qualities,
+        ctx=ctx,
     )
 
 
 def _paint_frame_overlays(
     console, cam_x, cam_y, view_w, view_h, player_state, enemies, target_idx,
     player_mode, weapon_list, weapon_qualities, active_weapons, evade_bonus,
-    hit_chances,
+    hit_chances, ctx=None,
 ) -> None:
     """Reticle + combat HUD atop the rendered world (the reticle sits
     above the enemy char; the panel reads the flown tiers)."""
@@ -615,7 +617,7 @@ def _paint_frame_overlays(
         console, player_state, enemies, target_idx, player_mode,
         active_weapons=active_weapons, weapon_list=weapon_list,
         weapon_qualities=weapon_qualities, evade_bonus=evade_bonus,
-        hit_chances=hit_chances,
+        hit_chances=hit_chances, ctx=ctx,
     )
 
 
@@ -649,7 +651,7 @@ def _render_anim_frame(
     _paint_frame_overlays(
         console, cam_x, cam_y, view_w, view_h, player_state, enemies,
         target_idx, player_mode, weapon_list, weapon_qualities,
-        active_weapons, evade_bonus, hit_chances,
+        active_weapons, evade_bonus, hit_chances, ctx=context,
     )
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.

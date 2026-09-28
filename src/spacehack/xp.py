@@ -327,6 +327,12 @@ def merchant_sell_price_mod(ctx: GameContext) -> float:
     return 1.05 if has_trait(ctx, "merchant") else 1.0
 
 
+def bounty_hunter_evade_bonus(ctx: GameContext) -> int:
+    """Bounty Hunter class trait: +5% evade/dodge chance in both
+    theaters (doc 49 SETTLED 7)."""
+    return 5 if has_trait(ctx, "bounty_hunter") else 0
+
+
 # ---------------------------------------------------------------------------
 # Trait qualification
 # ---------------------------------------------------------------------------

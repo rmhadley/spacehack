@@ -56,15 +56,21 @@ def _loadout_hint(mode: str) -> str:
     )
 
 
-def _weapon_detail(spec, *, ammo: int | None = None) -> str:
-    """Format weapon details for a market, storage, or ship row."""
+def _weapon_detail(spec, *, ammo: int | None = None, ctx=None) -> str:
+    """Format weapon details for a market, storage, or ship row.
+
+    ``ctx`` switches the missile capacity shown to the effective rack
+    (the Bounty Hunter's double, doc 49 SETTLED 7); market rows pass
+    no ctx and read the catalog spec (the base-hull comparison)."""
+    from ..ship import effective_missile_capacity
     detail = (
         f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  "
         f"Range: {spec.min_range}-{spec.max_range}"
     )
     if spec.slot_type == "missile":
-        current = spec.ammo_capacity if ammo is None else max(0, min(ammo, spec.ammo_capacity))
-        detail += f"  Ammo: {current}/{spec.ammo_capacity}"
+        capacity = effective_missile_capacity(spec, ctx)
+        current = capacity if ammo is None else max(0, min(ammo, capacity))
+        detail += f"  Ammo: {current}/{capacity}"
     return detail
 
 
@@ -108,7 +114,7 @@ def _stored_label(stored) -> str:
     return stored.item_id.replace('_', ' ').title()
 
 
-def _stored_row(stored, index: int):
+def _stored_row(stored, index: int, ctx=None):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
     from ..data.weapons import find_weapon
@@ -117,7 +123,7 @@ def _stored_row(stored, index: int):
     if stored.item_type == "weapon":
         spec = find_weapon(stored.item_id)
         name = weapon_display_name(stored.item_id, stored.quality)
-        detail, runs = _weapon_detail(spec, ammo=stored.ammo), _weapon_runs(
+        detail, runs = _weapon_detail(spec, ammo=stored.ammo, ctx=ctx), _weapon_runs(
             stored.item_id, stored.quality,
         )
     elif stored.item_type == "module":
@@ -155,7 +161,7 @@ def _storage_rows(ctx):
     valid_rows = []
     for index, stored in enumerate(_storage_list(ctx)):
         try:
-            valid_rows.append(_stored_row(stored, index))
+            valid_rows.append(_stored_row(stored, index, ctx))
         except (AttributeError, KeyError, TypeError, ValueError):
             continue
     if valid_rows:
@@ -211,10 +217,11 @@ def _ship_rows(ctx, ship_spec, mode: str):
             rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
             continue
         spec = find_weapon(entry.item_id)
+        _ammo = ctx.player_owned_ship.weapon_ammo.get(slot_index)
         rows.append(
             pygame_split.SplitRow(
                 weapon_display_name(entry.item_id, entry.quality), "",
-                _weapon_detail(spec, ammo=ctx.player_owned_ship.weapon_ammo.get(slot_index)),
+                _weapon_detail(spec, ammo=_ammo, ctx=ctx),
                 f"MANAGE_WEAPON_SLOT:{slot_index}",
                 runs=_weapon_runs(entry.item_id, entry.quality),
             )
@@ -324,7 +331,7 @@ async def _apply_stored_install(ctx, action: str) -> None:
     except (AttributeError, KeyError, TypeError, ValueError):
         ctx.log.add("That stored equipment is no longer available.")
         return
-    if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec):
+    if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec, ctx):
         _log_installed(ctx, stored)
         return
     _log_storage_failure(ctx, stored, ship_spec)
@@ -479,7 +486,7 @@ async def _apply_store(ctx, action: str) -> None:
     slot = int(slot_text)
     owned = ctx.player_owned_ship
     store = ship_module.store_weapon if item_type == "STORE_WEAPON_SLOT" else ship_module.store_module
-    if store(owned, _storage_list(ctx), slot):
+    if store(owned, _storage_list(ctx), slot, ctx):
         ctx.log.add("Moved equipment to storage.")
     else:
         ctx.log.add("That equipment could not be moved to storage.")
@@ -498,8 +505,10 @@ async def _apply_sell_installed(ctx, action: str) -> None:
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return
     item = slots[slot][0]
-    remove = ship_module._remove_weapon if item_type == "SELL_WEAPON_SLOT" else ship_module._remove_module
-    remove(owned, slot)
+    if item_type == "SELL_WEAPON_SLOT":
+        ship_module._remove_weapon(owned, slot, ctx)
+    else:
+        ship_module._remove_module(owned, slot)
     ctx.stats.credits += (
         ship_module._sell_price("weapon", item.item_id, item.quality)
         if item_type == "SELL_WEAPON_SLOT"
@@ -549,6 +558,7 @@ def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None
         if item_type == "WEAPON":
             installed = ship_module._install_weapon(
                 owned, ship_module.StoredEquipment("weapon", item_id), ship_spec,
+                ctx,
             )
         else:
             installed = ship_module._install_module(

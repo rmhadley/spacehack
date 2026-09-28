@@ -617,6 +617,7 @@ def _relocate_old_ship(ctx, city_game_map, player_owned_ship) -> bool:
         ship_module.move_installed_equipment_to_storage(
             player_owned_ship,
             ctx.ship_storage,
+            ctx,
         )
     except ValueError:
         ctx.log.add("The trade-in could not safely transfer its equipment.")
@@ -664,15 +665,20 @@ def _nearest_free_cell(game_map, anchor: world.Position) -> world.Position:
     return anchor
 
 
-def _new_owned_ship(ship, old_reserved: int) -> "ship_module.OwnedShip":
-    """The purchased hull: starting loadout, full tank, carried reserve."""
-    return ship_module.OwnedShip(
+def _new_owned_ship(ship, old_reserved: int, ctx=None) -> "ship_module.OwnedShip":
+    """The purchased hull: starting loadout, full tank, carried reserve.
+
+    The ctx top-off doubles a Bounty Hunter's fresh missile racks
+    (doc 49 SETTLED 7) — the one genuinely-fresh-ship moment."""
+    owned = ship_module.OwnedShip(
         ship_id=ship.id,
         weapons=ship_module.base_weapon_entries(ship.start_weapons),
         modules=ship_module.base_module_entries(ship.start_modules),
         fuel=ship.max_fuel,
         mission_reserved=old_reserved,
     )
+    ship_module.top_off_missile_magazines(owned, ctx)
+    return owned
 
 
 def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
@@ -680,7 +686,7 @@ def _build_owned_ship(ctx, blocker, ship, old_reserved: int):
     blocker.pos = _city_anchor(ctx)
     blocker.owned = True
     blocker.name = f"Your Ship: {ship.name}"
-    return _new_owned_ship(ship, old_reserved)
+    return _new_owned_ship(ship, old_reserved, ctx)
 
 
 def _park_indoor_purchase(ctx, city_game_map, interior_map, ship, old_reserved):
@@ -692,7 +698,7 @@ def _park_indoor_purchase(ctx, city_game_map, interior_map, ship, old_reserved):
     from .saveload_maps import _make_ship_entity
 
     strip_showroom_ships(interior_map)
-    owned = _new_owned_ship(ship, old_reserved)
+    owned = _new_owned_ship(ship, old_reserved, ctx)
     city_game_map.entities.append(_make_ship_entity(
         owned, _nearest_free_cell(city_game_map, _city_anchor(ctx)),
     ))

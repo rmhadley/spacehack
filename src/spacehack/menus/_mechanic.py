@@ -86,15 +86,19 @@ def _mechanic_tabs(missile_slots) -> tuple[str, ...]:
     return ("REPAIRS", "LOADOUT")
 
 
-def _ammo_row(owned, slot: int):
-    """Build one missile-slot ammo row (buy one round)."""
+def _ammo_row(owned, slot: int, ctx=None):
+    """Build one missile-slot ammo row (buy one round). The capacity
+    shown is the effective rack (the Bounty Hunter's double, doc 49
+    SETTLED 7) — the display must match what the buy actually fills."""
     from .. import pygame_screen
+    from ..ship import effective_missile_capacity
 
     _entry = owned.weapons[slot]
     weapon = find_weapon(getattr(_entry, "item_id", _entry))
-    current = owned.weapon_ammo.get(slot, weapon.ammo_capacity)
+    capacity = effective_missile_capacity(weapon, ctx)
+    current = owned.weapon_ammo.get(slot, capacity)
     return pygame_screen.ScreenRow(
-        f"Slot {slot + 1}: {weapon.name} ({current}/{weapon.ammo_capacity})",
+        f"Slot {slot + 1}: {weapon.name} ({current}/{capacity})",
         f"{weapon.ammo_price}$/round",
         f"AMMO:{slot}:1",
     )
@@ -136,7 +140,7 @@ def _ammo_section(ctx, owned, ship_rec, next_hint, missile_slots):
     """Build the AMMO tab's rows, body, and footer."""
     from .. import pygame_ui
 
-    rows = tuple(_ammo_row(owned, slot) for slot in missile_slots)
+    rows = tuple(_ammo_row(owned, slot, ctx) for slot in missile_slots)
     body = (
         pygame_ui.credits_label(ctx.stats.credits),
         "Buy one round per missile launcher.",
@@ -159,7 +163,7 @@ def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
             "Opens the parts market for this planet (weapons + modules).",
             "LOADOUT",
         ),
-    ) + _loadout_rows(owned, ship_rec)
+    ) + _loadout_rows(owned, ship_rec, ctx)
     # No body line: it tipped the fitted font below every other tab
     # (playtest 2026-09-21) and restated the Manage row's detail.
     body = ()
@@ -204,7 +208,7 @@ async def _apply_mechanic_selection(ctx, owned, ship_rec, planet_id, tab_name, a
         except (IndexError, ValueError) as exc:
             ctx.log.add(f"Invalid ammo selection: {exc}")
             return
-        ok, cost, reason = ship_module.buy_ammo(owned, slot, 1, ctx.stats.credits)
+        ok, cost, reason = ship_module.buy_ammo(owned, slot, 1, ctx.stats.credits, ctx)
         if not ok:
             ctx.log.add(reason)
         else:

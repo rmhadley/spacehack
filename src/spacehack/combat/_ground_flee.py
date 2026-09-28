@@ -14,10 +14,8 @@ from __future__ import annotations
 from .. import world
 from ._types import FleeExit
 from ._ai_ground import _try_ground_fire
-from ._ground_math import calc_ground_move_dodge as _calc_ground_move_dodge
 from ._ground_render import render_frame
 from ..data.ground_weapons import find_ground_weapon as _find_gw
-from ..xp import ground_evade_bonus as _ground_evade_bonus
 
 
 async def reaction_volley(state, ctx, game_map: world.GameMap) -> bool:
@@ -29,10 +27,7 @@ async def reaction_volley(state, ctx, game_map: world.GameMap) -> bool:
     never runs)."""
     from . import _rules_ground
 
-    _dodge = (
-        _calc_ground_move_dodge(state.cells_moved_this_turn)
-        + _ground_evade_bonus(ctx)
-    )
+    _dodge = _rules_ground._player_ground_dodge(ctx)
     # The volley is enemy-shot presentation, not the player's aiming
     # phase: hide the range line for its frames like the enemy turn
     # does (the _rules_ground context manager restores it after).

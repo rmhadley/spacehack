@@ -237,11 +237,9 @@ def _active_ap_bonus() -> int:
 
 
 def _ground_evasion(ctx) -> int:
-    """Return current movement evade plus the Evasive trait bonus."""
-    from ..xp import ground_evade_bonus
-    return _rules()._calc_ground_move_dodge(
-        _rules()._state.cells_moved_this_turn,
-    ) + ground_evade_bonus(ctx)
+    """The HUD evasion line reads the ONE dodge assembly (doc 49
+    phase 2): movement + Evasive + the Bounty Hunter trait."""
+    return _rules()._player_ground_dodge(ctx)
 
 
 def _render_player_panel(console, ctx) -> int:

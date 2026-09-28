@@ -478,7 +478,14 @@ def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
     rolled tier (doc 48.7) — quality multiplies damage.
     """
     _dist = _distance(state.player_state["pos"], _ei.pos)
-    _dodge = _player_dodge(state.player_state)
+    # Resolution-only reads the Bounty Hunter's +5 evade (doc 49
+    # SETTLED 7): the AI-belief sites (repositioning, weapon ranking)
+    # stay unmodified, so enemies misjudge the hunter by design.
+    from ..xp import bounty_hunter_evade_bonus
+    _dodge = (
+        _player_dodge(state.player_state)
+        + bounty_hunter_evade_bonus(state.ctx)
+    )
     _chance = calc_hit_chance(_wid, _ei.pilot_gunnery, _dist, _dodge)
     _e_hit = RNG.randint(1, 100) <= _chance
     _e_dmg, _e_sdmg, _e_fh, _is_glancing = 0, 0, state.player_state["hull"], False

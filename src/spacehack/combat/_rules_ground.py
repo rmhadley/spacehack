@@ -31,6 +31,7 @@ from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
     apply_ground_damage_reduction as ground_damage_taken,
+    bounty_hunter_evade_bonus as _bounty_evade_bonus,
     ground_evade_bonus as _ground_evade_bonus,
     ground_max_hp_total as _ground_max_hp_total,
     nimble_ap_bonus as _nimble_ap_bonus,
@@ -725,8 +726,15 @@ async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
         return await _run_enemy_turns_impl(ctx, game_map, _enemy_ai)
 
 def _player_ground_dodge(ctx) -> int:
-    """Return current ground dodge including the Evasive trait."""
-    return _calc_ground_move_dodge(_state.cells_moved_this_turn) + _ground_evade_bonus(ctx)
+    """The player's ground dodge: movement dodge + Evasive + the
+    Bounty Hunter class trait (doc 49 SETTLED 7) — the ONE assembly
+    every ground dodge read (enemy aiming, the HUD evasion line, the
+    flee reaction volley) resolves through."""
+    return (
+        _calc_ground_move_dodge(_state.cells_moved_this_turn)
+        + _ground_evade_bonus(ctx)
+        + _bounty_evade_bonus(ctx)
+    )
 
 
 async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:

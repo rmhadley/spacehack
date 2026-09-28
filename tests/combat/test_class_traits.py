@@ -296,3 +296,163 @@ def test_the_first_volley_spends_the_opener(monkeypatch):
     _ctx_fired, _state = _drive_fire(monkeypatch, ["pirate"], hull=100)
     assert _state.opener_spent is True
     assert _state.enemy_fired is False  # the enemy never fired — spent anyway
+
+
+# ---------------------------------------------------------------------------
+# Bounty Hunter — evade in both theaters (doc 49 SETTLED 7)
+# ---------------------------------------------------------------------------
+
+def test_ground_dodge_folds_the_bounty_hunter_term():
+    """The ONE dodge assembly carries the +5; the HUD evasion line and
+    the flee reaction read the same number (no second assembly)."""
+    from src.spacehack.combat import _ground_render
+    from src.spacehack.xp import bounty_hunter_evade_bonus
+
+    assert bounty_hunter_evade_bonus(_ctx(["bounty_hunter"])) == 5
+    assert bounty_hunter_evade_bonus(_ctx([])) == 0
+    _old = _install_ground_state(cells_moved_this_turn=0)
+    try:
+        plain = _rules_ground._player_ground_dodge(_ground_ctx([]))
+        hunter = _rules_ground._player_ground_dodge(
+            _ground_ctx(["bounty_hunter"]),
+        )
+        assert hunter == plain + 5
+        # The HUD line reads the same assembly (the redirect pin).
+        assert _ground_render._ground_evasion(
+            _ground_ctx(["bounty_hunter"]),
+        ) == hunter
+    finally:
+        _rules_ground._state = _old
+
+
+def test_space_enemy_shot_resolution_folds_the_hunter_evade(monkeypatch):
+    """The +5 lands at the resolution site only — the dodge the enemy
+    shot actually rolls against (AI-belief reads stay unmodified)."""
+    from src.spacehack.combat._types import EnemyInstance
+
+    captured = []
+    monkeypatch.setattr(
+        _ai, "calc_hit_chance",
+        lambda _wid, _gun, _dist, dodge: captured.append(dodge) or 50,
+    )
+    _state = _rules_space.SpaceCombatState(
+        ctx=_ctx([]), console=None,
+        game_map=world.GameMap(3, 3, [[world.DUNGEON_FLOOR] * 3] * 3, []),
+        log=None,
+        player_state={"pos": world.Position(0, 0), "hull": 10, "shields": 0},
+    )
+    _ei = EnemyInstance(
+        spec_id="x", name="X", char="X", fg=(1, 2, 3),
+        pos=world.Position(2, 0), pilot_gunnery=10, pilot_piloting=0,
+    )
+    _ai._resolve_enemy_shot(_state, _ei, "light_laser")
+    _ai._resolve_enemy_shot(
+        _rules_space.SpaceCombatState(
+            ctx=_ctx(["bounty_hunter"]), console=None, game_map=_state.game_map,
+            log=None, player_state=dict(_state.player_state),
+        ),
+        _ei, "light_laser",
+    )
+    assert captured[1] == captured[0] + 5
+
+
+# ---------------------------------------------------------------------------
+# Bounty Hunter — missile racks hold double (doc 49 SETTLED 7)
+# ---------------------------------------------------------------------------
+
+def _bh_ship_ctx(traits):
+    return SimpleNamespace(player_traits=list(traits))
+
+
+def test_missile_capacity_doubles_for_the_hunter():
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.ship import effective_missile_capacity
+
+    ws = find_weapon("light_missile")
+    base = ws.ammo_capacity
+    assert base > 0
+    assert effective_missile_capacity(ws) == base
+    assert effective_missile_capacity(ws, _bh_ship_ctx([])) == base
+    assert effective_missile_capacity(
+        ws, _bh_ship_ctx(["bounty_hunter"]),
+    ) == base * 2
+
+
+def test_fresh_racks_seed_double_and_book_double_reserve():
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.ship import (
+        OwnedShip, _seed_missile_ammo, total_ammo_cargo,
+    )
+
+    for traits, factor in (([], 1), (["bounty_hunter"], 2)):
+        owned = OwnedShip(ship_id="starter", weapons=())
+        owned.weapons = (StoredEquipment("weapon", "light_missile"),)
+        owned.weapon_ammo = {}
+        _seed_missile_ammo(owned, _bh_ship_ctx(traits))
+        ws = find_weapon("light_missile")
+        assert owned.weapon_ammo == {0: ws.ammo_capacity * factor}
+        assert total_ammo_cargo(
+            owned.weapons, _bh_ship_ctx(traits),
+        ) == ws.cargo_per_round * ws.ammo_capacity * factor
+
+
+def test_buy_ammo_refills_to_the_doubled_rack():
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.ship import OwnedShip, buy_ammo
+
+    ws = find_weapon("light_missile")
+    owned = OwnedShip(
+        ship_id="starter",
+        weapons=(StoredEquipment("weapon", "light_missile"),),
+    )
+    owned.weapon_ammo = {0: ws.ammo_capacity}  # base-full, not doubled
+    # A hunter tops off to double; a plain pilot is already full.
+    ok, _cost, _reason = buy_ammo(
+        owned, 0, 99, credits=10_000, ctx=_bh_ship_ctx([]),
+    )
+    assert ok is False  # plain: magazine full at base
+    ok, _cost, _reason = buy_ammo(
+        owned, 0, 99, credits=10_000, ctx=_bh_ship_ctx(["bounty_hunter"]),
+    )
+    assert ok is True
+    assert owned.weapon_ammo[0] == ws.ammo_capacity * 2
+
+
+def test_storage_round_trip_never_halves_a_doubled_rack():
+    from src.spacehack.ship import (
+        OwnedShip, install_stored_equipment, store_weapon,
+    )
+
+    hunter = _bh_ship_ctx(["bounty_hunter"])
+    owned = OwnedShip(
+        ship_id="starter",
+        weapons=(StoredEquipment("weapon", "light_missile"),),
+    )
+    owned.weapon_ammo = {}  # re-seed at hunter capacity
+    from src.spacehack.ship import _seed_missile_ammo
+    _seed_missile_ammo(owned, hunter)
+    _cap = owned.weapon_ammo[0]
+
+    storage = []
+    assert store_weapon(owned, storage, 0, hunter)
+    assert storage[0].ammo == _cap
+    spec = type("Spec", (), {"weapon_slots": 2, "module_slots": 0})()
+    assert install_stored_equipment(owned, storage, 0, spec, hunter)
+    assert owned.weapon_ammo == {0: _cap}  # doubled in, doubled back
+
+
+def test_fresh_ship_purchase_tops_off_the_hunter_racks():
+    from src.spacehack.game_flow import _new_owned_ship
+    from src.spacehack.data.ships import find_ship
+
+    hull = find_ship("frigate")  # a missile-bearing catalog hull
+    plain = _new_owned_ship(hull, 0)
+    hunter = _new_owned_ship(hull, 0, _bh_ship_ctx(["bounty_hunter"]))
+    _missile_slots = [
+        i for i, entry in enumerate(plain.weapons)
+        if "missile" in entry.item_id
+    ]
+    assert _missile_slots, "fixture hull must carry a missile weapon"
+    for i in _missile_slots:
+        assert hunter.weapon_ammo[i] == plain.weapon_ammo[i] * 2
+    assert hunter.cargo_ammo > plain.cargo_ammo  # doubled reserve booked

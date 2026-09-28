@@ -22,7 +22,7 @@ from src.spacehack.hud import HudStats
 from src.spacehack.message_log import MessageLog
 from src.spacehack.world import GameMap, Entity, Position
 from src.spacehack import world
-from src.spacehack.saveload import save_game, load_game, delete_save
+from src.spacehack.saveload import save_game, load_game, delete_save, _d
 from src.spacehack import dungeon_extensions
 from src.spacehack.ship import OwnedShip, StoredEquipment
 from src.spacehack.ground_equipment import (
@@ -2205,3 +2205,25 @@ def test_shipless_space_walker_wears_the_species_glyph():
     assert built is not None
     assert built[1].name == "Player"
     assert built[1].char == "\u2666"
+
+
+def test_doubled_missile_reserve_booking_survives_the_load_path():
+    """Doc 49 phase 2 (BH racks x2): the saved ammo booking is
+    authoritative on load — the ctx-free __post_init__ recompute
+    cannot know the doubled reserve."""
+    from src.spacehack.saveload import _parse_owned_ship
+
+    from src.spacehack.ship import StoredEquipment
+    _src = OwnedShip(
+        ship_id="starter",
+        weapons=(StoredEquipment("weapon", "light_missile"),),
+        weapon_ammo={3: 8},
+    )
+    # Post-construction, like every hunter path (the ctx-free
+    # __post_init__ recompute would overwrite a constructor value).
+    _src.cargo_ammo = 16
+    _saved = _d({"player_owned_ship": _src})
+    assert _saved["player_owned_ship"]["cargo_ammo"] == 16  # save side
+    owned = _parse_owned_ship(_saved)
+    assert owned.weapon_ammo[3] == 8  # the saved rack, not re-seeded
+    assert owned.cargo_ammo == 16

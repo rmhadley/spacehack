@@ -47,7 +47,7 @@ def _effective_power_gen(ship_spec, owned) -> int:
         ship_spec, getattr(owned, 'modules', ()) or (),
     )
 
-def _weapon_row(entry):
+def _weapon_row(entry, ctx=None):
     """Build one filled weapon-slot row (label + stats at its quality)."""
     from .. import pygame_screen
     from ..data.weapons import find_weapon
@@ -63,7 +63,8 @@ def _weapon_row(entry):
             f"AP {weapon.ap_cost}   Power {weapon.power_cost}"
         )
         if weapon.slot_type == "missile":
-            detail += f"   Ammo {weapon.ammo_capacity}"
+            from ..ship import effective_missile_capacity
+            detail += f"   Ammo {effective_missile_capacity(weapon, ctx)}"
         return pygame_screen.ScreenRow(
             weapon_display_name(weapon_id, quality), detail, selectable=True,
         )
@@ -107,7 +108,7 @@ def _slot_rows(slot_count: int, installed, make_row) -> tuple:
     )
     return tuple(rows)
 
-def _loadout_rows(owned, ship_spec):
+def _loadout_rows(owned, ship_spec, ctx=None):
     """Build the read-only slot rows for the LOADOUT tab.
 
     Mirrors the mechanic's My Ship panel: ``WEAPON SLOTS`` and
@@ -117,7 +118,10 @@ def _loadout_rows(owned, ship_spec):
     from .. import pygame_screen
 
     rows: list = [pygame_screen.ScreenRow("WEAPON SLOTS", selectable=False, header=True)]
-    rows.extend(_slot_rows(ship_spec.weapon_slots, owned.weapons, _weapon_row))
+    rows.extend(_slot_rows(
+        ship_spec.weapon_slots, owned.weapons,
+        lambda entry: _weapon_row(entry, ctx),
+    ))
     rows.append(pygame_screen.ScreenRow("MODULE SLOTS", selectable=False, header=True))
     rows.extend(_slot_rows(ship_spec.module_slots, owned.modules, _module_row))
     return tuple(rows)
@@ -194,11 +198,11 @@ def _cargo_section(ctx, owned, ship):
     return body, rows, footer
 
 
-def _loadout_section(_ctx, owned, ship):
+def _loadout_section(ctx, owned, ship):
     """Build the LOADOUT tab's body, rows, and footer."""
     from .. import pygame_ui
 
-    rows = _loadout_rows(owned, ship)
+    rows = _loadout_rows(owned, ship, ctx)
     body = ()  # ship stats live on the SHIP tab
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,

@@ -131,8 +131,13 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
     return y + 1
 
 
-def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> int:
-    """Paint the player's AP / evade / power rows; return the next row."""
+def _render_ap_evade_pow_rows(
+    console, hud_x, y, player_state, evade_bonus, ctx=None,
+) -> int:
+    """Paint the player's AP / evade / power rows; return the next row.
+    The evade row carries the Bounty Hunter's +5 (doc 49 SETTLED 7) —
+    presentation-only: it shows the resolution truth, the AI reads
+    stay unmodified by design."""
     pap = player_state.get("ap_remaining", 0)
     pap_total = player_state.get("ap_total", 3)
     pap_carry = player_state.get("ap_carry_twentieths", 0)
@@ -145,8 +150,10 @@ def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> i
     if evade_bonus is not None:
         # No colon so the row aligns with the bar-style Hull/Shd rows;
         # green when movement has stacked any dodge bonus.
-        evade_color = COLOR_EVADE if evade_bonus > 0 else COLOR_VALUE_DIM
-        console.print(x=hud_x, y=y, string=f"Evade +{evade_bonus}%", fg=evade_color)
+        from .xp import bounty_hunter_evade_bonus
+        _evade = evade_bonus + bounty_hunter_evade_bonus(ctx)
+        evade_color = COLOR_EVADE if _evade > 0 else COLOR_VALUE_DIM
+        console.print(x=hud_x, y=y, string=f"Evade +{_evade}%", fg=evade_color)
         y += 1
     ppow = player_state.get("power_pool", 0)
     ppow_max = player_state.get("max_power", 10)
@@ -155,12 +162,14 @@ def _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus) -> i
     return y + 2
 
 
-def _render_player_block(console, hud_x, y, player_state, evade_bonus) -> int:
+def _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx=None) -> int:
     """Paint the PLAYER block (hull/shield/AP/evade/power); return next row."""
     console.print(x=hud_x, y=y, string="PLAYER", fg=COLOR_LABEL)
     y += 1
     y = _render_hull_shield_rows(console, hud_x, y, player_state)
-    return _render_ap_evade_pow_rows(console, hud_x, y, player_state, evade_bonus)
+    return _render_ap_evade_pow_rows(
+        console, hud_x, y, player_state, evade_bonus, ctx,
+    )
 
 
 def _enemy_distance_color(dist: int, range_weapon_id: str):
@@ -229,9 +238,22 @@ def _effective_weapon_ap_cost(ws, player_state=None) -> int:
     return max(1, ws.ap_cost - discount)
 
 
+def _weapon_cost_line(ws, wammo, player_state, ap_mult: int, ctx=None) -> str:
+    """One weapon's POW/AMMO cost line (the ammo capacity shown is the
+    effective rack — the Bounty Hunter's double, doc 49 SETTLED 7)."""
+    from .ship import effective_missile_capacity
+    _ap = _effective_weapon_ap_cost(ws, player_state) * ap_mult
+    if ws.slot_type in ("energy", "plasma"):
+        return f"     POW {ws.power_cost * ap_mult} AP {_ap}"
+    _cap = effective_missile_capacity(ws, ctx)
+    _ammo = f"{wammo}/{_cap}" if _cap > 0 else _UNLIMITED_AMMO_LABEL
+    return f"     AMMO {_ammo} AP {_ap}"
+
+
 def _render_weapon_row(
     console, hud_x, y, slot, wid, ws, wammo, is_active, hit_chances,
     player_state=None, focus_active=False, weapon_quality: int = 0,
+    ctx=None,
 ) -> int:
     """Paint one weapon's name / hit / cost rows; return the next row.
 
@@ -260,12 +282,7 @@ def _render_weapon_row(
         stats_line = f"     DMG {ws.damage} ACC {ws.accuracy}%{_rng}"
     console.print(x=hud_x, y=y, string=stats_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     y += 1
-    _ap_cost = _effective_weapon_ap_cost(ws, player_state) * _mult
-    if ws.slot_type in ("energy", "plasma"):
-        cost_line = f"     POW {ws.power_cost * _mult} AP {_ap_cost}"
-    else:
-        ammo_str = f"{wammo}/{ws.ammo_capacity}" if ws.ammo_capacity > 0 else _UNLIMITED_AMMO_LABEL
-        cost_line = f"     AMMO {ammo_str} AP {_ap_cost}"
+    cost_line = _weapon_cost_line(ws, wammo, player_state, _mult, ctx)
     console.print(x=hud_x, y=y, string=cost_line[:HUD_TEXT_MAX], fg=COLOR_VALUE_DIM)
     return y + 1
 
@@ -301,7 +318,7 @@ def _render_volley_header(
 
 def _render_weapons_block(
     console, hud_x, y, weapon_list, active_weapons, player_state, hit_chances,
-    focus_active=False, weapon_qualities=(),
+    focus_active=False, weapon_qualities=(), ctx=None,
 ) -> int:
     """Paint the WEAPONS list + armed-volley cost; return the next row."""
     from .data.weapons import find_weapon as _fw
@@ -320,6 +337,7 @@ def _render_weapons_block(
             console, hud_x, y, i, wid, ws, wammo, is_active, hit_chances,
             player_state, focus_active=focus_active,
             weapon_quality=weapon_qualities[i] if i < len(weapon_qualities) else 0,
+            ctx=ctx,
         )
     return y + 1
 
@@ -364,6 +382,7 @@ def render_combat_hud(
     focus_active: bool = False,          # Focus trait live (single weapon enabled)
     can_board: bool = False,             # space: current target is boardable ([d] hint)
     weapon_qualities: tuple = (),        # per-slot flown tiers (doc 48.7)
+    ctx=None,                            # for the BH's doubled rack display
 ) -> None:
     """Paint the combat HUD replacing the normal space HUD.
 
@@ -372,10 +391,11 @@ def render_combat_hud(
     """
     hud_x = screen_width - HUD_WIDTH
     y = _render_combat_header(console, hud_x, 0, player_mode)
-    y = _render_player_block(console, hud_x, y, player_state, evade_bonus)
+    y = _render_player_block(console, hud_x, y, player_state, evade_bonus, ctx)
     y = _render_enemies_block(console, hud_x, y, enemies, target_idx, screen_height, player_state, range_weapon_id)
     y = _render_weapons_block(
         console, hud_x, y, weapon_list, active_weapons, player_state,
-        hit_chances, focus_active=focus_active, weapon_qualities=weapon_qualities,
+        hit_chances, focus_active=focus_active,
+        weapon_qualities=weapon_qualities, ctx=ctx,
     )
     _render_combat_actions(console, hud_x, y, weapon_list, can_board)

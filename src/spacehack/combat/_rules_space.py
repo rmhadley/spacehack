@@ -615,6 +615,30 @@ def _paint_combat_target(console, cam_x: int, cam_y: int) -> None:
             console, cam_x, cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
         )
 
+def _paint_status_hud(console, hit_chances, evade, range_weapon_id) -> None:
+    """The right-panel combat HUD (the boarding hint rides along)."""
+    from ._space_boarding import board_denial, board_target
+    _board_enemy, _board_ent = board_target(_state, _state.target_idx)
+    _hud.render_combat_hud(
+        console,
+        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
+        player_state=_state.player_state,
+        enemies=_state.enemy_insts,
+        target_idx=_state.target_idx,
+        player_mode="DEFAULT",
+        active_weapons=_state.active_weapons,
+        weapon_list=tuple(_state.weapons_list),
+        hit_chances=hit_chances,
+        evade_bonus=evade,
+        can_board=_board_enemy is not None
+        and board_denial(_state, _board_enemy, _board_ent) is None,
+        range_weapon_id=range_weapon_id,
+        focus_active=_space_focus.is_focus_active(_state.ctx),
+        weapon_qualities=tuple(_state.weapon_qualities),
+        ctx=_state.ctx,
+    )
+
+
 def render_frame(console, ctx, game_map: world.GameMap) -> None:
     console.clear()
     _cam_x, _cam_y = _calc_camera()
@@ -634,27 +658,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
         _state.player_state.get("cells_moved_this_turn", 0),
         int(_state.player_state.get("piloting", 0) * 0.5),
     )
-
-    from ._space_boarding import board_denial, board_target
-    _board_enemy, _board_ent = board_target(_state, _state.target_idx)
-
-    _hud.render_combat_hud(
-        console,
-        screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
-        player_state=_state.player_state,
-        enemies=_state.enemy_insts,
-        target_idx=_state.target_idx,
-        player_mode="DEFAULT",
-        active_weapons=_state.active_weapons,
-        weapon_list=tuple(_state.weapons_list),
-        hit_chances=_hit_chances,
-        evade_bonus=_evade,
-        can_board=_board_enemy is not None
-        and board_denial(_state, _board_enemy, _board_ent) is None,
-        range_weapon_id=_range_wid,
-        focus_active=_space_focus.is_focus_active(_state.ctx),
-        weapon_qualities=tuple(_state.weapon_qualities),
-    )
+    _paint_status_hud(console, _hit_chances, _evade, _range_wid)
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.
 

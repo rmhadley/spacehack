@@ -169,10 +169,40 @@ def module_detail(module_id: str, quality: int = 0, randart_seed: int | None = N
     ) or _fm(module_id).description
 
 
-def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
+def effective_missile_capacity(ws, ctx=None) -> int:
+    """One missile weapon's effective rack capacity: the spec value,
+    doubled with the Bounty Hunter class trait (doc 49 SETTLED 7 —
+    each installed missile weapon's rack holds double). Every
+    capacity site (seeding, refills, storage clamps, cargo booking,
+    displays) reads this ONE helper so a doubled rack can never halve
+    on a round-trip."""
+    from .xp import has_trait
+    if ws.ammo_capacity > 0 and ctx is not None and has_trait(ctx, "bounty_hunter"):
+        return ws.ammo_capacity * 2
+    return ws.ammo_capacity
+
+
+def top_off_missile_magazines(owned: OwnedShip, ctx=None) -> None:
+    """Fill every installed missile magazine to its effective
+    capacity (only ever increases). Call ONLY at genuinely fresh-ship
+    moments (new game, spaceport buy): it refills spent rounds too —
+    that is exactly the doubling a Bounty Hunter's fresh racks seed."""
+    from .data.weapons import find_weapon as _fw
+    for i, entry in enumerate(owned.weapons):
+        try:
+            ws = _fw(entry.item_id)
+        except KeyError:
+            continue
+        if ws.slot_type == "missile":
+            _cap = effective_missile_capacity(ws, ctx)
+            owned.weapon_ammo[i] = max(owned.weapon_ammo.get(i, 0), _cap)
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons, ctx)
+
+
+def total_ammo_cargo(weapons: tuple[str, ...], ctx=None) -> int:
     """Cargo cells consumed by ammo for the supplied weapon list.
 
-    Sums ``weapon.cargo_per_round * weapon.ammo_capacity`` across
+    Sums ``weapon.cargo_per_round * effective_missile_capacity`` across
     missile weapons; energy weapons consume 0 cargo. Used to seed
     :attr:`OwnedShip.cargo_used` so the cargo HUD reflects the
     starting missile loadout. Imported function-level so this
@@ -189,11 +219,11 @@ def total_ammo_cargo(weapons: tuple[str, ...]) -> int:
         except KeyError:
             continue
         if ws.slot_type == "missile":
-            total += ws.cargo_per_round * ws.ammo_capacity
+            total += ws.cargo_per_round * effective_missile_capacity(ws, ctx)
     return total
 
 
-def _seed_missile_ammo(owned: OwnedShip) -> None:
+def _seed_missile_ammo(owned: OwnedShip, ctx=None) -> None:
     """Top off :attr:`OwnedShip.weapon_ammo` for installed missiles.
 
     Every installed missile weapon with no recorded ammo gets a full
@@ -208,7 +238,7 @@ def _seed_missile_ammo(owned: OwnedShip) -> None:
         except KeyError:
             continue
         if ws.slot_type == "missile" and i not in owned.weapon_ammo:
-            owned.weapon_ammo[i] = ws.ammo_capacity
+            owned.weapon_ammo[i] = effective_missile_capacity(ws, ctx)
 
 
 def buy_ammo(
@@ -216,6 +246,7 @@ def buy_ammo(
     slot_index: int,
     rounds: int,
     credits: int,
+    ctx=None,
 ) -> tuple[bool, int, str]:
     """Buy ``rounds`` for a missile slot; returns ``(ok, cost, reason)``.
 
@@ -235,7 +266,7 @@ def buy_ammo(
     if ws.slot_type != "missile":
         return False, 0, f"{ws.name} doesn't use ammo."
     current = owned.weapon_ammo.get(slot_index, 0)
-    room = ws.ammo_capacity - current
+    room = effective_missile_capacity(ws, ctx) - current
     if room <= 0:
         return False, 0, f"{ws.name} magazine is already full."
     if ws.ammo_price <= 0:
@@ -247,7 +278,7 @@ def buy_ammo(
         return False, 0, f"Need {ws.ammo_price}$ for 1 round."
     cost = buy * ws.ammo_price
     owned.weapon_ammo[slot_index] = current + buy
-    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons, ctx)
     return True, cost, ""
 
 
@@ -442,6 +473,7 @@ def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
 
 def _install_weapon(
     owned: OwnedShip, entry: StoredEquipment | str, ship_spec: Ship,
+    ctx=None,
 ) -> bool:
     """Install ``weapon_id`` into the first empty weapon slot.
 
@@ -457,7 +489,7 @@ def _install_weapon(
     if isinstance(entry, str):
         entry = StoredEquipment("weapon", entry)
     owned.weapons = owned.weapons + (entry,)
-    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons, ctx)
     from .data.weapons import find_weapon as _fw
     try:
         _ws = _fw(entry.item_id)
@@ -465,11 +497,13 @@ def _install_weapon(
         _ws = None
     if _ws is not None and _ws.slot_type == "missile":
         # New launcher lives in the last slot; give it a fresh magazine.
-        owned.weapon_ammo[len(owned.weapons) - 1] = _ws.ammo_capacity
+        owned.weapon_ammo[len(owned.weapons) - 1] = effective_missile_capacity(
+            _ws, ctx,
+        )
     return True
 
 
-def _remove_weapon(owned: OwnedShip, index: int) -> tuple[str, ...]:
+def _remove_weapon(owned: OwnedShip, index: int, ctx=None) -> tuple[str, ...]:
     """Remove the weapon at ``index`` from the owned ship.
 
     Returns the new weapons tuple (caller must assign back).
@@ -480,7 +514,7 @@ def _remove_weapon(owned: OwnedShip, index: int) -> tuple[str, ...]:
         return owned.weapons
     new = owned.weapons[:index] + owned.weapons[index + 1:]
     owned.weapons = new
-    owned.cargo_ammo = total_ammo_cargo(owned.weapons)
+    owned.cargo_ammo = total_ammo_cargo(owned.weapons, ctx)
     # Re-index ammo: slots above the removed one shift down by one so
     # each launcher's magazine stays attached to the right slot.
     _ammo: dict[int, int] = {}
@@ -582,6 +616,7 @@ def store_weapon(
     owned: OwnedShip,
     storage: list[StoredEquipment],
     slot_index: int,
+    ctx=None,
 ) -> bool:
     """Move one installed weapon into storage, preserving missile ammo."""
     if not (0 <= slot_index < len(owned.weapons)):
@@ -594,11 +629,13 @@ def store_weapon(
     except KeyError:
         return False
     if weapon.slot_type == "missile":
-        ammo = owned.weapon_ammo.get(slot_index, weapon.ammo_capacity)
+        ammo = owned.weapon_ammo.get(
+            slot_index, effective_missile_capacity(weapon, ctx),
+        )
     storage.append(StoredEquipment(
         "weapon", entry.item_id, ammo, quality=entry.quality,
     ))
-    _remove_weapon(owned, slot_index)
+    _remove_weapon(owned, slot_index, ctx)
     return True
 
 
@@ -630,6 +667,7 @@ def install_stored_equipment(
     storage: list[StoredEquipment],
     storage_index: int,
     ship_spec: Ship,
+    ctx=None,
 ) -> bool:
     """Install one stored part and remove it from storage on success."""
     if not (0 <= storage_index < len(storage)):
@@ -638,12 +676,12 @@ def install_stored_equipment(
     if not can_install_stored_equipment(owned, stored, ship_spec):
         return False
     if stored.item_type == "weapon":
-        if not _install_weapon(owned, stored, ship_spec):
+        if not _install_weapon(owned, stored, ship_spec, ctx):
             return False
         slot_index = len(owned.weapons) - 1
         if stored.ammo is not None:
             from .data.weapons import find_weapon as _fw
-            capacity = _fw(stored.item_id).ammo_capacity
+            capacity = effective_missile_capacity(_fw(stored.item_id), ctx)
             owned.weapon_ammo[slot_index] = max(0, min(stored.ammo, capacity))
     else:
         if not _install_module(owned, stored, ship_spec):
@@ -655,6 +693,7 @@ def install_stored_equipment(
 def move_installed_equipment_to_storage(
     owned: OwnedShip,
     storage: list[StoredEquipment],
+    ctx=None,
 ) -> None:
     """Move every installed weapon and module into storage.
 
@@ -674,7 +713,7 @@ def move_installed_equipment_to_storage(
     except KeyError as exc:
         raise ValueError("Cannot store an unknown installed item") from exc
     while owned.weapons:
-        if not store_weapon(owned, storage, 0):
+        if not store_weapon(owned, storage, 0, ctx):
             raise ValueError("Cannot store an installed weapon")
     while owned.modules:
         if not store_module(owned, storage, 0):
