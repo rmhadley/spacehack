@@ -1,9 +1,8 @@
 # DESIGN: Player species & class identity
 
-**Status: PHASE 2 BUILT 2026-09-27 — awaiting playtest. Phase 1
-COMPLETE (built + playtest passed); phase 2 built in 7 commits (all
-reviewer-passed, gate 3247), playtest checklist at the brief's
-bottom.**
+**Status: PHASE 2 COMPLETE 2026-09-28 — built + PLAYTEST PASSED
+(incl. the 2026-09-28 credits-on-card revision). Phase 1 COMPLETE.
+Both phases done; ready to close to complete/ on confirmation.**
 
 Companion: `48_DESIGN_ENEMY_POLISH.md` (the roster revamp — this doc's
 origin; the two interlock through the faction rep tables).
@@ -160,8 +159,11 @@ sits in it too, HP rides after).
       pass); ratchet debts paid in-commit (_space_init, _ground_actions,
       saveload_ship extractions; _player_damage_mult + cost-line seams).
       Build amendments: rep row single-space (36-char budget), doc
-      STR-16/HP-33 slip corrected to live STR 15/HP 29. PLAYTEST
-      PENDING — checklist below.
+      STR-16/HP-33 slip corrected to live STR 15/HP 29, credits ride
+      the vitals row (user revision 2026-09-28, 0ae4abdd).
+      PLAYTEST PASSED 2026-09-28. SYSTEMS.md inventory amended
+      (both phases' entries — creation traits, class hooks, math
+      riders, cargo/prices/hold/racks, pickers).
 
 ## Pre-implementation audit (2026-09-27, code-anchored — phase 1)
 

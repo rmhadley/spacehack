@@ -53,8 +53,10 @@ nobody designs against a ghost.
   liked ≤ +75, allied ≥ +76 (`faction.get_attitude`).
 - **Starting rep** — four axes (doc 48 phase 2): `_DEFAULT_REP`
   pirate −100 (enemy — why early pirates attack), militia +50,
-  merchant 0, consortium −100 (hidden); species adj (martian:
-  militia +10, pirate −10) + class tables; clamped [−100, 100]
+  merchant 0, consortium −100 (hidden); species NEVER adjusts (doc 49
+  SETTLED 3-B — `_SPECIES_REP` empty); class tables on the ±30
+  envelope (doc 49 SETTLED 5/6/7: pirate −70/−10/30 effective,
+  merchant −100/30/50, BH −100/10/70); clamped [−100, 100]
   (`faction.py`: `starting_reputation`, `_SPECIES_REP`,
   `_CLASS_REP`). Civilian is RETIRED as an axis (doc 48 SETTLED 8 —
   rep requires an organization); the bystander's `civilian` tag
@@ -147,8 +149,9 @@ nobody designs against a ghost.
   wolf_b Wolf 359 b), checked before the system switch commits
   (`game_interactions._dark_dock_refusal`).
 - **Absent:** fabricated IDs (act-1 quest content owns the grant);
-  level-60 capstone; species beyond human/martian,
-  classes beyond pirate/merchant/bounty_hunter; level-up HP gains.
+  level-60 capstone; species beyond the five-roster
+  (human/martian/cygnian/sirian/lalandan), classes beyond
+  pirate/merchant/bounty_hunter; level-up HP gains.
 
 ## Space flight, spawns & combat
 
@@ -352,6 +355,11 @@ nobody designs against a ghost.
   the roll carries the SHOOTER's weapon quality: both sides at
   their flown tier, doc 48.7 — the player's `OwnedShip.weapons`
   instances thread through `SpaceCombatState.weapon_qualities`).
+  Doc 49 riders in the same math: Momentum +5 hit (the ONE
+  `_player_hit_bonus` assembly), Longshot +1 range
+  (`_space_focus.max_range`), the Pirate opener (+hit via the
+  assembly, ×1.25 via `_player_damage_mult`), BH +5 evade at
+  `_resolve_enemy_shot` only (AI-belief reads stay bare).
 - **Volley + Focus** — F fires all active weapons (max single AP
   cost); Focus trait (one weapon): 2× AP/power cost, doubled
   ranges, 2× damage beyond normal max — the kiting payoff
@@ -578,7 +586,13 @@ nobody designs against a ghost.
 - **Math** — hit = accuracy + reflexes/2 − target reflexes/2 − move
   dodge − point-blank 35/cell inside min range; damage = base +
   str/5 melee − armor (plasma halves armor, `armor_bypass` ignores),
-  min 1 (`combat/_rules_ground.py`, `_ground_math.py`).
+  min 1 (`combat/_rules_ground.py`, `_ground_math.py`). Doc 49
+  riders in the same sums: Sturdy +2 armor/+2 melee, Nimble +1 AP,
+  Longshot +1 ranged range (`weapon_range`), the Pirate opener
+  (+hit in `hit_chance`, ×125% in `damage` and the blast's enemy
+  shares); the player's dodge is ONE assembly
+  (`_player_ground_dodge`: move + Evasive + BH) read by enemy
+  aiming, the HUD line, and the flee reaction.
 - **Explosives with friendly fire** — miss splashes half damage on
   neighbors including the player (Demolitionist boosts)
   (`explosive_blast`).
@@ -1027,10 +1041,14 @@ nobody designs against a ghost.
 - **Price curve (pure)** — stock/target ratio: shortage 2.0×→1.0×,
   surplus 1.0×→0.6×, floor 1cr (`trade.trade_price`).
 - **Buy/sell** — buy = price × merchant-attitude modifier (the worn
-  ID's sheet); sell = 75% of buy × modifier; shared by transaction
-  and display (`trade.py`: `_unit_price`, `_sell_price`).
+  ID's sheet); sell = 75% of the CLASS-FREE buy core × modifier —
+  the Merchant trait's −5%/+5% multiply the attitude chain at one
+  site per surface and never compound (doc 49); shared by
+  transaction and display (`trade.py`: `_terminal_buy_base`,
+  `_unit_price`, `_sell_price`).
 - **NPC ship trade** — ephemeral stock (3–8/good from the spec's
-  `cargo_goods`), buy base×1.2 / sell base×0.5 × faction attitude;
+  `cargo_goods`), buy base×1.2 / sell base×0.5 × faction attitude ×
+  the Merchant class mods (the NPC surface's one fold, doc 49);
   enemy/disliked refuse (`trade.py`: `open_npc_trade`).
 - **Market intel** — merchant enemy/disliked: flat catalog; neutral:
   WANTS/SELLS CHEAP grouping + colours; liked: per-good headroom;
@@ -1041,8 +1059,11 @@ nobody designs against a ghost.
   `time.advance_time` — not on jump/launch) (`trade.py`:
   `_seed_economy`, `tick_economy`).
 - **Cargo model** — `cargo_used` = ammo + `mission_reserved` +
-  inventory; capacity = hull + module bonus; full-screen hold modal
-  with jettison (`ship.py`: `cargo_used`; `trade.open_cargo`).
+  inventory; capacity = hull + module bonus + the Merchant trait's
+  +10 (ctx-threaded at every decide/display reader — a merchant is
+  never refused cargo their trade screen says fits, doc 49);
+  full-screen hold modal with jettison (`ship.py`:
+  `effective_max_cargo`; `trade.open_cargo`).
   Every weapon-ammo mutator (install/remove/`buy_ammo`) recalcs
   `cargo_ammo` = the full-magazine reserve (`total_ammo_cargo`).
 - **Mission-reserved space** — deliveries reserve on accept,
@@ -1054,7 +1075,8 @@ nobody designs against a ghost.
   listed in produces/demands (`trade._can_sell_here`).
 - **Smuggler's hold** — hidden volume from smuggler modules
   (Mk1 10 / Mk2 25 / Mk3 50) + Smuggler's Instinct perk (+10% hull,
-  min 1) (`ship.smuggler_hold_capacity`). The shared cargo body
+  min 1) + the Pirate class trait's flat +10 (doc 49)
+  (`ship.smuggler_hold_capacity`). The shared cargo body
   states hold capacity/free on all three cargo surfaces (modal,
   character CARGO tab, hangar CARGO tab; zero capacity stays
   silent) derived from the scan's own consumption so the display
@@ -1252,6 +1274,27 @@ nobody designs against a ghost.
 - **Milestone traits** — levels 40 and 50: mandatory modal from the
   shared pool filtered by counters/stats; defers if none qualify
   (`xp.py`: `_qualifying_traits`; `trait_screen.py`).
+- **Creation traits (doc 49)** — one per species
+  (`ORIGIN_TRAITS`: Fast Learner 6pts/level, Sturdy +2 armor/+2
+  melee, Momentum +5% space hit + kill-refund, Longshot +1 ranged
+  range, Nimble +1 ground AP) and one per class (`CLASS_TRAITS`,
+  named the class) granted at creation — a fresh character holds
+  exactly two; both registries sit outside `ALL_TRAITS` so
+  milestones can never offer them; `trait_name` resolves all four
+  registries (`data/traits/core.py`; `xp.py` bonus helpers;
+  `game_loop._configure_new_context`).
+- **Class-trait hooks (doc 49 phase 2)** — Pirate: +10 smuggler
+  hold on every ship; the opener (+10 hit/+25% damage on the first
+  attack while no enemy has fired, both theaters — `enemy_fired`
+  stamps at the enemy-shot funnels, `opener_spent` at the fire
+  loop). Merchant: +10 cargo at every decide/display reader;
+  −5% buy/+5% sell goods prices folded at the class-free terminal
+  core (no compounding; stacks with attitude; NPC surface folds
+  both). Bounty Hunter: +5% evade both theaters (ground ONE
+  assembly `_player_ground_dodge`; space resolution-only so AI
+  beliefs misjudge); missile racks ×2 via
+  `ship.effective_missile_capacity` at every capacity site incl
+  the save/load `cargo_ammo` restore and the fresh-buy top-off.
 - **Trait catalog** — 17 traits (skill-followers, playstyle
   counters, career 20-mission traits); flat effect accessors on
   xp.py; Ironclad retro-applies max-HP including into live combat
@@ -1268,6 +1311,13 @@ nobody designs against a ghost.
   creation trait (species' + class', never offered at milestones)
   (`character.py`; `data/classes/core.py`; `data/traits/core.py`
   `ORIGIN_TRAITS`/`CLASS_TRAITS`; `game_loop._configure_new_context`).
+- **Creation pickers (doc 49)** — two split screens (`pygame_split`):
+  species card (CHAR-NAME-HOME in the species color, six stat rows,
+  Armor/HP, trait block) then class card (CHAR-SPECIES-CLASS in the
+  species' color — classes carry none; six combined live-formula
+  rows; Armor/HP/Cr vitals row; ONE effective-rep row; trait block;
+  11-row viewport) via the shared `_run_split_picker` loop with a
+  generic-menu fallback (`ui.py`; `input_helpers`).
 - **Playstyle counters** — extendable `PlayerCounters` on ctx; all
   reset on death; career damage tallies are THEATER-SPLIT —
   `total_damage_taken` space-only (doc 2), `ground_damage_taken`
@@ -1278,7 +1328,12 @@ nobody designs against a ghost.
 ## Ships & equipment
 
 - **Ship ops** — weapon/module install/remove with slot re-indexing
-  and ammo seeding; effective speed/cargo math (`ship.py`).
+  and ammo seeding; effective speed/cargo math; missile rack
+  capacity resolves through ONE helper (`effective_missile_capacity`
+  — ×2 for the Bounty Hunter) at every capacity site: seeding,
+  refill room, storage clamps, `cargo_ammo` booking + its save/load
+  restore, HUD/loadout/mechanic displays, and the fresh-buy
+  top-off (`ship.py`; `saveload_ship.py`).
 - **Ship layouts** — authored grammar: silhouette-first `{###}`
   hull (LOS-transparent), void tiles, BFS-validated; exactly three
   ship interiors ship (`data/layouts/`: `freightliner_a`,
