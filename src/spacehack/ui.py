@@ -236,13 +236,16 @@ def class_stat_rows(species_id: str, class_id: str) -> tuple:
 
 
 def _class_start_row(species_id: str, class_id: str):
-    """The card's Armor/HP row, read through the live naked-start fold
-    (combined stamina + the species trait; the class trait adds no
-    armor or HP)."""
+    """The card's starting-vitals row: Armor/HP read through the live
+    naked-start fold (combined stamina + the species trait; the class
+    trait adds no armor or HP), with the class' starting credits
+    riding after — the viewport is at its 11-row cap, so Credits joins
+    the row instead of adding one (user revision, 2026-09-28)."""
     from types import SimpleNamespace
 
     from . import pygame_split
     from . import xp
+    from .data.classes import find_class
     from .data.species import find_species
 
     _trait = find_species(species_id).trait_id
@@ -256,7 +259,8 @@ def _class_start_row(species_id: str, class_id: str):
     )
     return pygame_split.SplitRow(
         _stat_cell("Armor", xp.sturdy_armor_bonus(_naked))
-        + f"   HP {xp.ground_max_hp_total(_naked)}",
+        + f"   HP {xp.ground_max_hp_total(_naked)}"
+        + f"   Cr {find_class(class_id).credits}",
         "", "", "", selectable=False,
     )
 

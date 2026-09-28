@@ -325,7 +325,7 @@ class TestClassSplitPicker:
         assert labels[:7] == [
             "Gunnery      14", "Piloting     11", "Engineering  11",
             "Reflexes     11", "Strength     14", "Stamina      11",
-            "Armor         0   HP 25",
+            "Armor         0   HP 25   Cr 25",
         ]
         assert labels[7] == "Pirates -70 Merchants -10 Militia 30"
         assert labels[8] == "Pirate"
@@ -350,11 +350,15 @@ class TestClassSplitPicker:
         assert "Piloting     13" in hunter
         assert "Reflexes     13" in hunter
         assert hunter[7] == "Pirates -100 Merchants 10 Militia 70"
+        # The vitals row carries the class' starting credits (the
+        # 2026-09-28 revision) — one row, three riding values.
+        assert merchant[6] == "Armor         0   HP 26   Cr 75"
+        assert hunter[6] == "Armor         0   HP 25   Cr 50"
 
     def test_martian_pirate_folds_species_trait_into_armor_hp(self):
         labels = [row.label for row in ui.class_split_frame("martian", 0).right_rows]
         assert "Strength     15" in labels  # martian 12 + pirate 3
-        assert "Armor         2   HP 29" in labels
+        assert "Armor         2   HP 29   Cr 25" in labels
 
     def test_card_rows_fit_the_split_viewport(self):
         for species in ("human", "martian", "cygnian", "sirian", "lalandan"):

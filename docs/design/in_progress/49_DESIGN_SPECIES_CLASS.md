@@ -482,7 +482,10 @@ on the class card is the ALREADY-CHOSEN species'. Card format:
   values (live formulas: `character.starting_pilot_skills` /
   `starting_ground_stats` with the picked species id in hand).
 - **Armor/HP row** stays (live naked-start fold incl. the species
-  trait and the combined stamina).
+  trait and the combined stamina) — and, per the 2026-09-28 playtest
+  revision, the class' starting CREDITS ride the same row
+  (`Armor 0   HP 25   Cr 25`; the viewport is at its 11-row cap, so
+  Credits joins the row rather than adding one).
 - **Rep next: the EFFECTIVE starting standings** (after defaults +
   class deltas — e.g. Human Pirate reads Pirates −70 / Merchants −10 /
   Militia 30; consortium hidden per HIDDEN_FACTIONS). Row format is
@@ -633,10 +636,11 @@ _CLASS_REP tables; no balance retunes beyond the locked numbers.
    `@ - HUMAN - PIRATE` (human white) etc.; combined stats (Human
    Pirate Gunnery 14/Strength 14; Human Merchant Engineering 15/
    Stamina 13; Human BH Gunnery 13/Piloting 13/Reflexes 13); Armor/HP
-   0/25; effective rep row (Pirate: Pirates -70/Merchants -10/
-   Militia 30; Merchant: Pirates -100/Merchants 30/Militia 50; BH:
-   Pirates -100/Merchants 10/Militia 70); trait block reads the
-   approved wording.
+   0/25 with Cr 25/75/50 riding the same row; effective rep row
+   (Pirate: Pirates -70 Merchants -10 Militia 30; Merchant: Pirates
+   -100 Merchants 30 Militia 50; BH: Pirates -100 Merchants 10
+   Militia 70 — single-space separators, the built format); trait
+   block reads the approved wording.
 2. Martian Pirate: Armor 2 / HP 29 (martian sta 14 + pirate 0 = 14
    → 20+7+2 = 29; combined STR 15 = martian 12 + pirate 3 — the
    earlier "STR 16/HP 33" lead was a slip, amended at build).
