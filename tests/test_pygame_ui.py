@@ -6369,3 +6369,58 @@ def test_split_selected_row_always_paints_above_the_detail(monkeypatch):
     # rows = [divider, Item 0..Item 11]: selected index 12 is Item 11
     assert "Item 11" in row_tops, "the selected row vanished under the detail"
     assert row_tops["Item 11"] + line <= detail_y["y"]
+
+
+def test_split_scrollbar_thumbs_the_clamped_window(monkeypatch):
+    """The scrollbar's thumb must mirror the row painter's CLAMPED
+    window — same _pinned_detail geometry, same _pane_window result —
+    so it never advertises rows the draw loop dropped beneath the
+    description (reviewer minor: the twin's scrollbar half was
+    untested)."""
+    line = 24
+    rows = tuple(
+        [pygame_split.SplitRow("--- GROUP ---", "", "", "", divider=True)]
+        + [
+            pygame_split.SplitRow(f"Item {i}", "", "d" * 60, "ITEM")
+            for i in range(12)
+        ]
+    )
+
+    class FakeFont:
+        @staticmethod
+        def get_linesize():
+            return line
+
+        @staticmethod
+        def size(text):
+            return (len(text) * 8, line)
+
+    rects = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(_screen, _color, rect, **_k):
+            rects.append(rect)
+
+    class FakePygame:
+        draw = FakeDraw
+
+        @staticmethod
+        def Rect(x, y, width, height):
+            return SimpleNamespace(x=x, y=y, width=width, height=height)
+
+    panel = SimpleNamespace(x=0, y=0, width=400, height=528)
+    pygame_split._draw_panel_scrollbar(
+        FakePygame, SimpleNamespace(), panel, rows, 12, True,
+        SimpleNamespace(border=1, selected_border=2), FakeFont,
+    )
+    # the painter's clamped window on this fixture is (3, 10)
+    _detail, _dy, rows_bottom, y, _w = pygame_split._pinned_detail(
+        panel, rows, 12, True, FakeFont,
+    )
+    top, count = pygame_split._pane_window(rows, 12, rows_bottom, y, FakeFont)
+    assert (top, count) == (3, 10)
+    track_y, track_h = 66, max(20, 528 - 86)
+    thumb_h = max(14, track_h * count // len(rows))
+    thumb_y = track_y + (track_h - thumb_h) * top // max(1, len(rows) - count)
+    assert rects[1] == SimpleNamespace(x=400 - 14, y=thumb_y, width=6, height=thumb_h)

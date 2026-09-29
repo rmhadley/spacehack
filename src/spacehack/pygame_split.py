@@ -350,7 +350,7 @@ def _draw_menu_style_row(
 def _draw_panel_scrollbar(
     pygame: Any, screen: Any, panel: pygame_ui.Rect,
     rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
-    font: Any = None,
+    font: Any,
 ) -> None:
     """Draw a visible scrollbar when a split-terminal panel overflows.
 
@@ -360,15 +360,10 @@ def _draw_panel_scrollbar(
     """
     if len(rows) <= MAX_VISIBLE_ROWS:
         return
-    if font is None:
-        top, count = _visible_window(rows, selected if focused else 0, MAX_VISIBLE_ROWS)
-    else:
-        _detail, _detail_y, rows_bottom = _pinned_detail(
-            panel, rows, selected, focused, font,
-        )
-        top, count = _pane_window(
-            rows, selected if focused else 0, rows_bottom, panel.y + 66, font,
-        )
+    _detail, _detail_y, rows_bottom, y, _width = _pinned_detail(
+        panel, rows, selected, focused, font,
+    )
+    top, count = _pane_window(rows, selected if focused else 0, rows_bottom, y, font)
     if count <= 0 or len(rows) <= count:
         return
     track_x = panel.x + panel.width - 14
@@ -390,21 +385,24 @@ def _draw_panel_scrollbar(
 def _pinned_detail(panel: pygame_ui.Rect, rows, selected: int, focused: bool, font):
     """The focused pane's pinned description and its geometry.
 
-    Returns ``(detail, detail_y, rows_bottom)`` — shared by the row
-    painter and the scrollbar so both agree on the drawable region.
+    Returns ``(detail, detail_y, rows_bottom, y, detail_width)`` — the
+    one source for the row painter AND the scrollbar, so their
+    agreement is structural (the y and wrap width live here, never as
+    call-site literals that could drift).
     """
     y = panel.y + 66
+    detail_width = panel.width - 68
     detail = ""
     if focused and 0 <= selected < len(rows) and not rows[selected].divider:
         detail = rows[selected].detail
     detail_height = max(
         1, len(pygame_ui.wrap_text(
-            detail, panel.width - 68,
+            detail, detail_width,
             lambda text: pygame_ui.measure_font(font, text),
         )),
     ) * (font.get_linesize() + 2)
     detail_y, rows_bottom = _detail_geometry(panel, y, detail_height, detail)
-    return detail, detail_y, rows_bottom
+    return detail, detail_y, rows_bottom, y, detail_width
 
 
 def _pane_window(rows, viewport_selected: int, rows_bottom: int, y: int, font):
@@ -442,10 +440,10 @@ def _draw_panel_rows(
 ) -> None:
     """Draw the panel's rows and its pinned detail description."""
     x = panel.x + 20
-    y = panel.y + 66
     measure = lambda text: pygame_ui.measure_font(font, text)
-    detail, detail_y, rows_bottom = _pinned_detail(panel, rows, selected, focused, font)
-    detail_width = panel.width - 68
+    detail, detail_y, rows_bottom, y, detail_width = _pinned_detail(
+        panel, rows, selected, focused, font,
+    )
     indent = CONTENT_INDENT if any(row.divider for row in rows) else 0
     content_x = x + indent
     content_width = panel.width - 40 - indent
