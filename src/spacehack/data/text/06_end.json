@@ -18,7 +18,7 @@
   "step.epilogue_reward_merchants.dialogue.guild_master.intro": "You brought back something older than every ledger we keep. The Guild will remember you held up your end of the deal. The 8,000 credits you spent will be returned, with interest.",
   "step.epilogue_reward_merchants.dialogue.guild_master.option_label": "Share the archive, collect your credits.",
   "step.epilogue_reward_merchants.title": "The Guild's Due",
-  "step.epilogue_reward_militia.completion_flavor": "Your name goes on the warrant list. The board at the Captain's office posts work to you from here on - frontier rates, no frontier trip required.",
+  "step.epilogue_reward_militia.completion_flavor": "Your name goes on the roster. The board at the Militia offices will have work posted for you from here on.",
   "step.epilogue_reward_militia.description": "Return to the Militia Captain on Earth and share the data archive.",
   "step.epilogue_reward_militia.dialogue.militia_captain.intro": "You went through that door and came back alive? You're turning into someone I can trust. I am putting you on the warrant list. Return to any Militia post starting today for good paying work. Real targets, frontier rates, and a huge pool of jobs. Leave the data archive with me and we are square.",
   "step.epilogue_reward_militia.dialogue.militia_captain.option_label": "Share the archive and shake their hand. Make the deal.",
