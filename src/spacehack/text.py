@@ -162,6 +162,7 @@ RUNTIME: frozenset[str] = frozenset({
     # per-chain delivered-log variants register as their prose lands
     "runtime.epilogue_delivered_log_merchants",
     "runtime.epilogue_delivered_log_militia",
+    "runtime.epilogue_delivered_log_bar",
     "runtime.epilogue_kept_log",
     "runtime.epilogue_kept_title",
     "runtime.epilogue_kept_body",
