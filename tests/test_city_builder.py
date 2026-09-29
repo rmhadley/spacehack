@@ -1811,3 +1811,20 @@ def test_no_city_lands_the_player_on_a_light():
                         f"{spec.id}: {kind} emitter at "
                         f"({x},{y}), {max(abs(dx), abs(dy))} from the berth"
                     )
+
+
+def test_planet_npc_override_ids_round_trip():
+    """Every planet NPC override's inner id must resolve back to itself
+    (find_planet_npc matches override KEYS, but entities are stamped
+    with the override's INNER id — key != inner id makes the talk-time
+    lookup fall through to the catalog, so the override's flavor is
+    unreachable: user report 2026-09-29, Science Port's archive
+    officer said the lab officer's line in every building)."""
+    from src.spacehack.data.planets import find_planet_npc, list_planet_specs
+
+    _bad = []
+    for spec in list_planet_specs():
+        for oid, npc in (getattr(spec, "npc_overrides", ()) or ()):
+            if find_planet_npc(npc.id, spec.id) is not npc:
+                _bad.append(f"{spec.id}: override '{oid}' inner id '{npc.id}' does not round-trip")
+    assert not _bad, "\n".join(_bad)

@@ -420,7 +420,11 @@ def test_proc_delivery_target_npcs_resolve_through_planet_overrides():
     from src.spacehack.mission import _planet_npc_ids
 
     ids = _planet_npc_ids("ac_station")
-    assert "archive_research_officer" not in ids
+    # 2026-09-29: the archive slot became its OWN catalog NPC
+    # (archive_research_officer) so its talk flavor is reachable —
+    # the id is now a real entity id on the station, and the lab
+    # keeps the shared catalog officer.
+    assert "archive_research_officer" in ids
     assert "research_officer" in ids
     # The xenolinguist is a quest-conditional NPC (Phase 3) — she is
     # not a static delivery target for procedural missions.
@@ -455,12 +459,18 @@ def test_stale_slot_id_delivery_target_still_completes():
         delivery_target_npc_id="archive_research_officer",
         delivery_target_planet_id="ac_station",
     )
+    # 2026-09-29: completes at the officer it NAMES (the archive
+    # officer's own id) — before the catalog split, the shared id
+    # matched at either officer.
     assert mission.active_is_deliverable_at(
+        stale, "archive_research_officer", "ac_station",
+    )
+    assert not mission.active_is_deliverable_at(
         stale, "research_officer", "ac_station",
     )
     # Still requires the right planet + the resolved NPC.
     assert not mission.active_is_deliverable_at(
-        stale, "research_officer", "earth",
+        stale, "archive_research_officer", "earth",
     )
     assert not mission.active_is_deliverable_at(
         stale, "xenolinguist", "ac_station",
@@ -473,4 +483,4 @@ def test_stale_slot_id_delivery_target_still_completes():
         delivery_target_planet_id="ac_station",
         required_cargo_size=5,
     )
-    assert mission.is_deliverable_at(spec, "research_officer", "ac_station")
+    assert mission.is_deliverable_at(spec, "archive_research_officer", "ac_station")

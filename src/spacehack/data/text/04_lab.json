@@ -31,5 +31,6 @@
   "step.lab_q7_key.description": "Return to the Research Officer on Mercury. Pick up the tuned alien device. Take it to Mars and plug it into the console in front of the alien door.",
   "step.lab_q7_key.dialogue.research_officer.intro": "The device is tuned and ready. It should now be the key that opens the door. Take it to Mars. What comes after is of great interest to us. We kept our end of the bargain. You must keep yours.",
   "step.lab_q7_key.dialogue.research_officer.option_label": "Collect the device",
-  "step.lab_q7_key.title": "The Key"
+  "step.lab_q7_key.title": "The Key",
+  "npc.archive_research_officer.flavor_text": "Long-baseline stellar studies, mostly. Every so often the data asks us a question - that is when the pay gets interesting."
 }

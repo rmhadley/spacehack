@@ -158,7 +158,7 @@ def test_ac_ring_archive_and_lab_preserve_research_officers():
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
     for label, expected_npc in (
-        ("archive", "research_officer"), ("lab", "research_officer"),
+        ("archive", "archive_research_officer"), ("lab", "research_officer"),
         ("commons", "barkeep"), ("observation", "depot_attendant"),
     ):
         record = game_map.city_buildings[label]

@@ -139,6 +139,22 @@ NPCS: tuple[NPC, ...] = (
             "the pay gets interesting."
         ),
     ),
+    # The archive twin (Science Port's archive building): a distinct
+    # id so its talk flavor resolves to ITSELF — entities stamped with
+    # a shared id can never reach a second flavor (user report
+    # 2026-09-29). Delivery pools pick it up as a normal catalog NPC.
+    NPC(
+        id="archive_research_officer",
+        name="Research Officer",
+        guild="lab",
+        char="S",
+        fg=(150, 220, 200),
+        flavor_text=(
+            "Long-baseline stellar studies, mostly. Every so "
+            "often the data asks us a question - that is when "
+            "the pay gets interesting."
+        ),
+    ),
     # Depot attendant — generic refueling-station NPC found at deep-space
     # depots (Epsilon Eridani, Tau Ceti). Warm grey palette so the depot
     # reads as 'maintenance / utility' rather than a guild hall.

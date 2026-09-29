@@ -11,23 +11,11 @@ chain needs her (the dataset delivery), then leaves.
 from __future__ import annotations
 
 from ... import world
-from ...data import npcs as npc_module
 from . import PlanetSpec
 from .themes import RING_STATION
 from ..city_npcs import AC_RING_POPULATION
 
 
-_RESEARCH_OFFICER = npc_module.NPC(
-    id="research_officer",
-    name="Research Officer",
-    guild="lab",
-    char="S",
-    fg=(150, 220, 200),
-    flavor_text=(
-        "Long-baseline stellar studies, mostly. Every so often the data "
-        "asks us a question - that is when the pay gets interesting."
-    ),
-)
 
 SPEC = PlanetSpec(
     theme=RING_STATION,
@@ -110,7 +98,6 @@ SPEC = PlanetSpec(
     # step; the lab building's research_officer slot resolves through
     # the global catalog.
     npc_overrides=(
-        ("archive_research_officer", _RESEARCH_OFFICER),
     ),
     # The Act 0 xenolinguist stands in the lab (additively) only while
     # lab_q4_xenolinguist is live — seated in the archive interior on entry.
