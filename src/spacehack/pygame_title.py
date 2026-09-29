@@ -67,7 +67,7 @@ def _items(save_available: bool) -> tuple[pygame_menu.MenuItem, ...]:
     if save_available:
         items.append(
             pygame_menu.MenuItem(
-                "CONTINUE", "Resume the autosaved run from its exact last state.", "CONTINUE",
+                "CONTINUE", "Load your last run.", "CONTINUE",
             )
         )
     items.append(
