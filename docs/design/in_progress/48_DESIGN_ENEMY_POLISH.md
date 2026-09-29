@@ -2102,7 +2102,9 @@ with doctrinal 10-13):
 - [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
   weapon family, the Custodian's multi-weapon loadout, prison
   re-pin (+ the rock_scavenger prison-floor pin), dormant override
-  for alien sites (SETTLED 29).
+  for alien sites (SETTLED 29). Design input attached: the
+  2026-09-29 prison-build power audit section (measured bars for
+  all three machines + the open reference-sheet ruling).
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2122,6 +2124,79 @@ Reviewer ADVISE 2026-09-22 folded in: phase split (old 2 → 2+3),
 blocking fixes in the v2 brief, punch-list owners assigned,
 merchant-crew row moved to its consumer, ship-band rolling homed at
 Tier 0, placements homed at crews, ledger 6-7 struck.
+
+## Phase 9 design input — the prison-build power audit (2026-09-29)
+
+Measured with doc 50's exploration front (`tools/balance_probe.py`,
+landed 11169f33): the user's real prison-descent save loaded through
+the production deserializer and fought by the harness — 50 seeded
+runs/row, open-floor arena (toggle_sets stance) + the pinned Mars
+row + the space ladder (stand_and_trade). INPUT data for phase 9's
+tuning conversation, not rulings.
+
+The build under test (the sheet that found the prison trivial):
+level-36 Sirian Bounty Hunter, REF 75 / STR 20 / STA 65 (52 HP),
+railgun q3 (~62 dmg/hit logged) + mono blade, heavy set with q3
+vest + q3 cybernetic eyes, longshot; cruiser with 3x plasma (2 at
+q3). Lifetime counters corroborate: 500 kills, 9 hull damage taken
+all game.
+
+| Matchup (ground, open floor) | Win | Mean dmg (worst) | Turns |
+|---|---|---|---|
+| 3x rock_scavenger b1 (pinned goal_2 fight) | 1.000 | 0.80 (2) | 4.0 |
+| 5x pirate_rifleman b2 | 1.000 | 12.26 (44) | 3.6 |
+| 5x pirate_brute b3 (grenade-armed) | **0.920** | 19.20 (48) | 3.2 |
+| 5x assault_drone b4 | 1.000 | 0.00 (0) | 3.3 |
+| 5x consortium_gunner b4 | 1.000 | 3.36 (6) | 3.2 |
+| 10x assault_drone b4 | 1.000 | 0.06 (1) | 6.2 |
+| Space: scout / raider / marauder / warlord / 2x marauder | 1.000 | 0.00 (0) | 1.0-2.4 |
+
+Measured laws (why the prison read as the tutorial — its roster is
+sentry/assault drones, band = floor, counts 1-3):
+
+1. **Melee is zero threat at any band** vs a ranged build:
+   arrival-AP denial + the railgun one-shotting 49-HP band-4 drones
+   (49 = hp 34 + STA 46//3) means melee never swings. 10x band-4
+   drones cost 0.06 HP.
+2. **All remaining threat is ranged, and per-hit damage is the
+   bar**: gunner rifles ~3/hit are invisible through the heavy set;
+   the ONLY measured deaths were 5x band-3 grenade launchers
+   focusing 16-26/hit = 58 ≥ 52 HP in two turns (4 deaths/50).
+3. **The hit contest is reflexes**: band-4 melee archetypes resolve
+   REF 25 vs the build's 75 (half-rate convention → always-hit /
+   never-be-hit); the b4 gunner's REF 76 is the catalog's only real
+   dodge check. Weapon accuracy must contest REF//2 dodge or be
+   uncontestable (splash).
+
+Per-machine input bars (against the god build; the reference-sheet
+ruling below decides what actually gets pinned):
+
+- **Watcher** — the threat carrier (ranged). Laser wants accuracy
+  that contests REF 75 and per-hit damage over the heavy-armor
+  soak; the grenade-brute's 16-26/hit is the only measured lethal
+  bar.
+- **Custodian** — pure melee stays worthless regardless of limb
+  count (law 1). Its lever is the AP economy: per-spec AP high
+  enough to close a corridor AND swing breaks the baiting play —
+  measurable in lane geometry.
+- **Warden** — needs to eat one 62-dmg railgun shot and stand (TTK
+  step to 2+ shots) or the deep cell is a corridor of one-shots;
+  the countered-lane row prices a held-ground ranged anchor at 45%
+  of a starter's health.
+
+OPEN RULING for the phase conversation: the reference sheet the
+prison is balanced FOR — on-pace late-game build (~lvl 28-30,
+band-4 budget, mid gear) as the pinned contract with the god build
+as recorded ceiling (agent lean), vs tuning the deep cells to the
+god build outright.
+
+Instrument notes for authoring: probe rows for the three specs as
+data lands (include corridor geometry — the arena is open floor);
+pinning the tuned matchups on the doc-50 board needs the harness
+gap closed (PlayerSheet can't express ground stat spends or gear
+qualities — build_ground_ctx ignores skill_spends for ground stats)
+and a probe/board grid path for the mars_alien_prison extension
+floors (build_planet_grid is planet-specs-only today).
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
