@@ -116,9 +116,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(210, 130, 80),
                 flavor_text=(
-                    "Out past the gate there's nothing - that's the "
-                    "point. In here, a pilot can get rich or get dead. "
-                    "Sometimes both."
+                    "Welcome in. Don't see many new faces out this far."
                 ),
             ),
         ),
@@ -131,9 +129,7 @@ SPEC = PlanetSpec(
                 char="B",
                 fg=(255, 190, 110),
                 flavor_text=(
-                    "The guild's posters reach farther than any patrol. "
-                    "Bring me proof out here and credits change hands - "
-                    "no questions worth asking."
+                    "Got some real hot bounties posted up. For experienced hunters."
                 ),
             ),
         ),

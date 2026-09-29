@@ -114,8 +114,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(220, 80, 70),
                 flavor_text=(
-                    "The dust here dries a throat to dust. Sit, drink, "
-                    "tell me what you flew in for."
+                    "Welcome. Sit, drink, share some news."
                 ),
             ),
         ),
@@ -128,9 +127,7 @@ SPEC = PlanetSpec(
                 char="G",
                 fg=(220, 190, 90),
                 flavor_text=(
-                    "The colony ships ore out and imports everything "
-                    "else. A pilot who hauls steady keeps both ends "
-                    "of that deal honest."
+                    "Simple easy hauls up for anyone who's looking for work. Might as well take on a job if you're headed out."
                 ),
             ),
         ),
@@ -143,8 +140,7 @@ SPEC = PlanetSpec(
                 char="P",
                 fg=(180, 100, 110),
                 flavor_text=(
-                    "Keep your head down out there. The colony is "
-                    "small, and the perimeter is wide."
+                    "You keeping your cargo clean? I see a recent scan of your ID in the books... hmm."
                 ),
             ),
         ),

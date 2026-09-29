@@ -100,8 +100,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(190, 180, 255),
                 flavor_text=(
-                    "Ask for nothing by name, and nothing leaves a "
-                    "paper trail. That's the whole law here."
+                    "The Hush bartender silently looks at you waiting as you enter."
                 ),
             ),
         ),
@@ -114,8 +113,7 @@ SPEC = PlanetSpec(
                 char="g",
                 fg=(170, 160, 230),
                 flavor_text=(
-                    "The Vault keeps two books: what you bring, and "
-                    "what you never mention. Both are profitable."
+                    "We've got some large hauls if you've got the cargo space."
                 ),
             ),
         ),
@@ -128,8 +126,7 @@ SPEC = PlanetSpec(
                 char="B",
                 fg=(220, 200, 255),
                 flavor_text=(
-                    "Some warrants die out here, ignored. Others just "
-                    "get... reposted. Credit's real either way."
+                    "Some of the worst criminals out this way. Very dangerous. Very profitable to take out."
                 ),
             ),
         ),

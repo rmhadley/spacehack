@@ -116,8 +116,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(200, 170, 90),
                 flavor_text=(
-                    "The grain goes out to Cygni b; the credits come "
-                    "back. The rest is weather and patience."
+                    "Welcome, traveller. What news you bring?"
                 ),
             ),
         ),
@@ -130,9 +129,7 @@ SPEC = PlanetSpec(
                 char="m",
                 fg=(255, 210, 120),
                 flavor_text=(
-                    "Half the arm eats because our combines run on "
-                    "time. Freight contracts, futures, or honest "
-                    "bulk trade - the hall handles all three."
+                    "We've got goods that need shipped if you've got the cargo space!"
                 ),
             ),
         ),

@@ -99,9 +99,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(170, 200, 230),
                 flavor_text=(
-                    "The Requiem's crew never woke up. We buried them "
-                    "under the docking ring and raised this bar on the "
-                    "spot. They'd have wanted it that way - it's warm."
+                    "The ship 'The Requiem' crashed here decades ago. Now we use the remains to survive. You want a drink or have some intel to share?"
                 ),
             ),
         ),
