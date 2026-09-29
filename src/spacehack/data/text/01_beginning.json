@@ -1,7 +1,7 @@
 {
-  "npc.barkeep.flavor_text": "I hear things. Rumors, contracts, the names of folk in trouble. Ask around.",
-  "npc.guild_master.flavor_text": "Trade routes open, trade routes close. Coin flows. Mind the tariffs.",
-  "npc.militia_captain.flavor_text": "Order above all. Walk the beat, report what you see, and keep your weapon sheathed until it isn't.",
+  "npc.barkeep.flavor_text": "What you want, a drink? Or you have some intel to share?",
+  "npc.guild_master.flavor_text": "Good paying jobs for hauling through the jump gates!",
+  "npc.militia_captain.flavor_text": "Keep your cargo clean. We've got eyes everywhere.",
   "npc.research_officer.flavor_text": "We got some new tech coming soon. Just need a bit more time in quality assurance. It's going to change the universe.",
   "step.prologue_mars_entrance.description": "The martian rock merges with high tech metal machinery. You see a wall that undulates before you as you examine it. An alien console stands before it, still with power. But a mystery you can't solve alone.",
   "step.prologue_mars_entrance.title": "The Door",

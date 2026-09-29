@@ -1,6 +1,6 @@
 {
-  "npc.salvage_specialist.flavor_text": "I've stripped more claims than the Guild keeps records of. If the escrow ore is real, I want first look at it.",
-  "npc.depot_attendant.flavor_text": "Everything that lands here is somebody's problem eventually. The bonded rows are my problem today.",
+  "npc.salvage_specialist.flavor_text": "Hear you got a real rare find? Let me take a look at that ore.",
+  "npc.depot_attendant.flavor_text": "Temporary storage for all kinds of needs. How can I help?",
   "step.mer_q1_contract.title": "The Contract",
   "step.mer_q1_contract.description": "Sign the Guild's contract on Earth. The Guild gets first claim on anything recovered from the Mars site; you get the cutter that opens it. The first clause points at an old Wolf 359 claim.",
   "step.mer_q1_contract.dialogue.guild_master.intro": "The contract is short because long ones make people read them. The Guild gets first claim on the Mars site; you get the cutter that opens it. First clause: the Wolf 359 escrow ore that pays for the work. Sign, and I file the deed today.",

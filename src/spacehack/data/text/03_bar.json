@@ -1,6 +1,6 @@
 {
-  "npc.old_smuggler.flavor_text": "Tried a door like that once. It cost me a hand and a good ship. Bring something worth the risk and we'll talk.",
-  "npc.wolf_barkeep.flavor_text": "The lights are low and the patrons don't ask questions. A scratched sign above the bar reads NO MILITIA. The operator sizes you up.",
+  "npc.old_smuggler.flavor_text": "What you want from me? I'm out of the business.",
+  "npc.wolf_barkeep.flavor_text": "Dim lighting and shadows to disappear into. You feel eyes on you from every angle.",
   "step.bar_q1_oldhand.completion_flavor": "Word has gone to Barnard's Star. The old man wants to see what you pulled out of that intercept before he decides anything. Give him time.",
   "step.bar_q1_oldhand.description": "The Barkeep names an old smuggler who worked a door made of the same material, thirty years ago. The discharge took his hand and the Militia buried the job. He is retired on Barnard's Star b with a story no one believes, and the Militia has watched the old routes since the Incident.",
   "step.bar_q1_oldhand.dialogue.barkeep.intro": "The old hand knows that door. Thirty years back he was crew on a job at the site - they matched voltage to cycle it, slow work, and the discharge took his hand at the clamp. The Militia buried the whole job; their file says the hardware never existed. He owes me, so I'll send word. He'll want to hear about this signal you intercepted.",
@@ -45,5 +45,7 @@
   "step.bar_q6_rig.description": "Return to the Barkeep on Earth. The frame is rebuilt: the old crew's clamps and leads, rewired to empty the whole cell into the door's feed in one shot. Thirty years ago the discharge took a hand at the clamp. Nobody holds the clamp this time.",
   "step.bar_q6_rig.dialogue.barkeep.intro": "The old frame, rebuilt. Thirty years ago they matched voltage and cycled it slow, and the discharge took his hand at the clamp. This one doesn't cycle. It dead-shorts the feed and empties the whole cell in one shot - the lock trips open or the seal burns, and either way that door is finished holding shut. Welcome to the family, friend.",
   "step.bar_q6_rig.dialogue.barkeep.option_label": "Collect the rig",
-  "step.bar_q6_rig.title": "The Rig"
+  "step.bar_q6_rig.title": "The Rig",
+  "npc.deadfall_scrubber.flavor_text": "Every pilot flies broadcasting an ID and a history. Everyone deserves a chance to start over if they need to. A clean fresh ID, no history. All it takes is credits.",
+  "npc.ember_tech.flavor_text": "What's better than a clean transponder ID? Not broadcasting an ID at all. I got the tech to short the system. Let you fly dark when you want to, or broadcast if you need to."
 }

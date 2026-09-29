@@ -1,6 +1,6 @@
 {
-  "npc.blockade_officer.flavor_text": "This is the line. Past Luyten's Star is uncharted space - no patrols, no beacons, no backup. Turn back while you still can.",
-  "npc.demolitions_expert.flavor_text": "Breach charges, cutting torches, doors that don't want to open. If the patrol captain vouched for you, then the work is off the books - understand?",
+  "npc.blockade_officer.flavor_text": "This is the end of the line. No one without clearance gets through the blockade here. I haven't even seen the other side of this system.",
+  "npc.demolitions_expert.flavor_text": "Heard word you were looking for me? From the Captain no less.",
   "step.mil_q1_report.completion_flavor": "The requisition disappears into a file that officially does not exist. When the clearance comes through, search the Mercury caves beneath the old mining station. If the cache is still there, someone has been protecting it since the Incident.",
   "step.mil_q1_report.description": "Report to the Militia Captain on Earth. He has an unofficial explanation for the material on Mars, and an official reason to deny he ever saw it. A requisition cache on Mercury holds the parts for a breach package. Prove the cache survived, and he will decide whether you are useful enough to trust.",
   "step.mil_q1_report.dialogue.militia_captain.intro": "Good. You are on the books now - my private books, which means they can be burned. A patrol found this material during the Incident. We called it a wreck, then a weapons test, then nothing at all. The requisition cache on Mercury is what remains of the response. Bring me proof it survived, and I will show you how we planned to open the door.",
@@ -35,5 +35,6 @@
   "step.mil_q6_charge.description": "Return to the Militia Captain on Earth. The breach package is tuned, tested, and ready to open the alien seal on Mars. The Captain wants the operation contained from the first jump to the last.",
   "step.mil_q6_charge.dialogue.militia_captain.intro": "There it is. Tuned to the same material that ended the Incident. Take it to Mars, open the door, and report back. The rest is our problem.",
   "step.mil_q6_charge.dialogue.militia_captain.option_label": "Collect the charge",
-  "step.mil_q6_charge.title": "The Charge"
+  "step.mil_q6_charge.title": "The Charge",
+  "npc.bounty_master.flavor_text": "Check out our latest wanted list. Pay is instant once comms confirm a kill."
 }
