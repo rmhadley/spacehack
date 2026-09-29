@@ -103,9 +103,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(200, 140, 255),
                 flavor_text=(
-                    "Welcome to Tau Cet b - mind the flowerbeds, they "
-                    "mind you back. Half our exports are seeds and the "
-                    "other half are stories about what grew from them."
+                    "Welcome to our colorful planet. Grab a drink, share some gossip."
                 ),
             ),
         ),
@@ -118,9 +116,7 @@ SPEC = PlanetSpec(
                 char="m",
                 fg=(255, 210, 120),
                 flavor_text=(
-                    "The jungle gives three harvests a season whether we "
-                    "ask or not - so we sell what it sends. You want ore, "
-                    "produce, or something the survey teams can't name?"
+                    "We got a full board ready, pretty decent hauls but nothing too big."
                 ),
             ),
         ),

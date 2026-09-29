@@ -93,10 +93,7 @@ SPEC = PlanetSpec(
                 char="B",
                 fg=(200, 160, 80),
                 flavor_text=(
-                    "The lights are low and the patrons don't ask questions. "
-                    "A scratched sign above the bar reads NO MILITIA. The "
-                    "operator sizes you up - 'You got something for me, or "
-                    "are you just thirsty?'"
+                    "You check out the market outside? Some interesting folks out there if you've got the connections."
                 ),
             ),
         ),
@@ -109,9 +106,7 @@ SPEC = PlanetSpec(
                 char="A",
                 fg=(180, 180, 160),
                 flavor_text=(
-                    "Pirates run this rock, but they pay in credits like "
-                    "anyone else. Fuel's short, smuggler's holds aren't. "
-                    "Make it count."
+                    "Pirates run this rock, but they need supplies just as anyone else."
                 ),
             ),
         ),

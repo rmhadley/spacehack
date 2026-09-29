@@ -101,9 +101,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 180, 200),
                 flavor_text=(
-                    "Forty levels of city hang over the cloud bands, and "
-                    "every window in it is somebody's sky. Stay for one "
-                    "more, pilot - the view doesn't repeat."
+                    "Welcome to the Cloud City! Lots of corpos about here, watch your back."
                 ),
             ),
         ),
@@ -116,9 +114,7 @@ SPEC = PlanetSpec(
                 char="d",
                 fg=(210, 190, 150),
                 flavor_text=(
-                    "Rations, reactor cells, de-icer for the deck vents - "
-                    "if it lands on Venus it comes through this cage. "
-                    "Sign for it before it drifts off the edge."
+                    "We keep this place running. Lots of tech to maintain to keep a city in the clouds operating."
                 ),
             ),
         ),

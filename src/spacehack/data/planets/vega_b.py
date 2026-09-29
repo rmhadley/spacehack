@@ -99,8 +99,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(180, 220, 240),
                 flavor_text=(
-                    "Welcome to the Veil. Drink in the view - "
-                    "the clouds below shift faster than the politics above."
+                    "Welcome to The Veil. Try our signature drink and enjoy the views."
                 ),
             ),
         ),
@@ -113,9 +112,7 @@ SPEC = PlanetSpec(
                 char="G",
                 fg=(200, 210, 220),
                 flavor_text=(
-                    "Every route in the sector threads through Vega. "
-                    "You haul cargo between the lanes, I find you "
-                    "a buyer at the other end."
+                    "We get a lot of pilots passing through here. Keeps us pretty busy. Grab a couple hauls, they won't need much cargo space."
                 ),
             ),
         ),
@@ -128,9 +125,7 @@ SPEC = PlanetSpec(
                 char="d",
                 fg=(230, 200, 140),
                 flavor_text=(
-                    "Every crate that crosses the sector stops here once. "
-                    "If it's freight, I know where it's going - "
-                    "and what it's worth."
+                    "Lots of goods flowing in and out of Vega. Good place for business."
                 ),
             ),
         ),
