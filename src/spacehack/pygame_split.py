@@ -223,7 +223,7 @@ def _draw_panel(
         pygame, screen, font, panel, rows, selected, focused, palette,
         flag_selected=flag_selected,
     )
-    _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette)
+    _draw_panel_scrollbar(pygame, screen, panel, rows, selected, focused, palette, font)
 
 
 def _draw_clipped_panel_rows(
@@ -350,11 +350,25 @@ def _draw_menu_style_row(
 def _draw_panel_scrollbar(
     pygame: Any, screen: Any, panel: pygame_ui.Rect,
     rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
+    font: Any = None,
 ) -> None:
-    """Draw a visible scrollbar when a split-terminal panel overflows."""
+    """Draw a visible scrollbar when a split-terminal panel overflows.
+
+    The thumb mirrors the row painter's clamped window (``_pane_window``
+    over the same pinned-detail geometry) so it never advertises rows
+    that were dropped beneath the description.
+    """
     if len(rows) <= MAX_VISIBLE_ROWS:
         return
-    top, count = _visible_window(rows, selected if focused else 0, MAX_VISIBLE_ROWS)
+    if font is None:
+        top, count = _visible_window(rows, selected if focused else 0, MAX_VISIBLE_ROWS)
+    else:
+        _detail, _detail_y, rows_bottom = _pinned_detail(
+            panel, rows, selected, focused, font,
+        )
+        top, count = _pane_window(
+            rows, selected if focused else 0, rows_bottom, panel.y + 66, font,
+        )
     if count <= 0 or len(rows) <= count:
         return
     track_x = panel.x + panel.width - 14
@@ -373,6 +387,54 @@ def _draw_panel_scrollbar(
     )
 
 
+def _pinned_detail(panel: pygame_ui.Rect, rows, selected: int, focused: bool, font):
+    """The focused pane's pinned description and its geometry.
+
+    Returns ``(detail, detail_y, rows_bottom)`` — shared by the row
+    painter and the scrollbar so both agree on the drawable region.
+    """
+    y = panel.y + 66
+    detail = ""
+    if focused and 0 <= selected < len(rows) and not rows[selected].divider:
+        detail = rows[selected].detail
+    detail_height = max(
+        1, len(pygame_ui.wrap_text(
+            detail, panel.width - 68,
+            lambda text: pygame_ui.measure_font(font, text),
+        )),
+    ) * (font.get_linesize() + 2)
+    detail_y, rows_bottom = _detail_geometry(panel, y, detail_height, detail)
+    return detail, detail_y, rows_bottom
+
+
+def _pane_window(rows, viewport_selected: int, rows_bottom: int, y: int, font):
+    """The visible window clamped so every row in it — the selected
+    one included — fits above the pinned detail.
+
+    The draw loop's band-reserve break DROPS rows that would cross
+    ``rows_bottom``; without this clamp a selection on the window's
+    tail in tight geometry is dropped beneath the description (user
+    report 2026-09-29, C screen Equipment tab). Shrinking the cap
+    re-centers the window so the selection moves up into drawable
+    space instead of vanishing.
+    """
+    cap = MAX_VISIBLE_ROWS
+    while cap > 0:
+        top, count = _visible_window(rows, viewport_selected, cap)
+        walk = y
+        for index in range(top, top + count):
+            if walk + pygame_ui._row_height(font) > rows_bottom:
+                break
+            walk += (
+                font.get_linesize() + 5 if rows[index].divider
+                else pygame_ui._row_height(font)
+            )
+        else:
+            return top, count
+        cap -= 1
+    return _visible_window(rows, viewport_selected, 1)
+
+
 def _draw_panel_rows(
     pygame: Any, screen: Any, font: Any, panel: pygame_ui.Rect,
     rows: tuple[SplitRow, ...], selected: int, focused: bool, palette: Any,
@@ -382,26 +444,17 @@ def _draw_panel_rows(
     x = panel.x + 20
     y = panel.y + 66
     measure = lambda text: pygame_ui.measure_font(font, text)
-    detail = ""
-    if focused and 0 <= selected < len(rows) and not rows[selected].divider:
-        detail = rows[selected].detail
+    detail, detail_y, rows_bottom = _pinned_detail(panel, rows, selected, focused, font)
     detail_width = panel.width - 68
     indent = CONTENT_INDENT if any(row.divider for row in rows) else 0
     content_x = x + indent
     content_width = panel.width - 40 - indent
-    step = font.get_linesize() + 2
-    detail_height = max(
-        1, len(pygame_ui.wrap_text(detail, detail_width, measure)),
-    ) * step
-    detail_y, rows_bottom = _detail_geometry(panel, y, detail_height, detail)
     viewport_selected = selected if focused else 0
-    top, count = _visible_window(rows, viewport_selected, MAX_VISIBLE_ROWS)
+    top, count = _pane_window(rows, viewport_selected, rows_bottom, y, font)
     for index in range(top, top + count):
-        # Break on the row's FULL band (_row_height: text + shared
-        # padding, which a selected row's highlight also spans), not on
-        # its top — or the last row's glyphs cross the 6px gap and the
-        # detail (painted after) lands on top of it (user report
-        # 2026-09-28, C screen Equipment tab).
+        # Belt-and-suspenders band reserve (_row_height spans a selected
+        # row's highlight): no row's glyphs may cross into the detail
+        # zone (user report 2026-09-28, C screen Equipment tab).
         if y + pygame_ui._row_height(font) > rows_bottom:
             break
         y = _draw_panel_row(

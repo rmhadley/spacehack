@@ -6319,3 +6319,53 @@ def test_animation_hud_keeps_quality_tokens(monkeypatch):
         weapon_list=("medium_laser",), weapon_qualities=(1,),
     )
     assert _captured["weapon_qualities"] == (1,)
+
+
+def test_split_selected_row_always_paints_above_the_detail(monkeypatch):
+    """Tight-geometry regression (user report 2026-09-29, C Equipment
+    tab): the band-reserve break silently DROPPED the selected row
+    beneath the pinned description — the window must clamp to the
+    drawable rows so the selection can never fall off the tail."""
+    line = 24
+    rows = tuple(
+        [pygame_split.SplitRow("--- GROUP ---", "", "", "", divider=True)]
+        + [
+            pygame_split.SplitRow(f"Item {i}", "", "d" * 60, "ITEM")
+            for i in range(12)
+        ]
+    )
+
+    class FakeFont:
+        @staticmethod
+        def get_linesize():
+            return line
+
+        @staticmethod
+        def size(text):
+            return (len(text) * 8, line)
+
+    row_tops = {}
+    detail_y = {}
+
+    def _menu_row(_pygame, _screen, _font, _label, _x, y, *_a, **_k):
+        row_tops[_label] = y
+        return y + line + 14
+
+    monkeypatch.setattr(pygame_ui, "draw_menu_row", _menu_row)
+    monkeypatch.setattr(
+        pygame_ui, "draw_informational_row",
+        lambda *_a, **_k: _a[5] + line + 14,
+    )
+    monkeypatch.setattr(pygame_ui, "draw_text", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        pygame_ui, "draw_wrapped_text",
+        lambda _pygame, _screen, _font, _text, _x, y, *_a, **_k: detail_y.update(y=y),
+    )
+    panel = SimpleNamespace(x=0, y=0, width=400, height=528)
+    pygame_split._draw_panel_rows(
+        SimpleNamespace(), SimpleNamespace(), FakeFont, panel,
+        rows, 12, True, SimpleNamespace(description=(1, 2, 3)),
+    )
+    # rows = [divider, Item 0..Item 11]: selected index 12 is Item 11
+    assert "Item 11" in row_tops, "the selected row vanished under the detail"
+    assert row_tops["Item 11"] + line <= detail_y["y"]
