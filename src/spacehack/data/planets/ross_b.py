@@ -114,9 +114,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(240, 130, 60),
                 flavor_text=(
-                    "Flares cook half the sensors past Sirius, and we're "
-                    "the first warm plate they land on. Drink up while "
-                    "the star behaves - it ain't known for manners."
+                    "Flaming hot is our speciality here, kind of a theme this place has going."
                 ),
             ),
         ),
@@ -129,8 +127,7 @@ SPEC = PlanetSpec(
                 char="B",
                 fg=(255, 190, 110),
                 flavor_text=(
-                    "Papers from back home don't mean much past Sirius. "
-                    "But credits? Credits always cash out."
+                    "Real danger on our warrant board. Make sure you're prepared."
                 ),
             ),
         ),

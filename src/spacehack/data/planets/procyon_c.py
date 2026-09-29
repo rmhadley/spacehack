@@ -98,9 +98,7 @@ SPEC = PlanetSpec(
                 char="c",
                 fg=(240, 200, 150),
                 flavor_text=(
-                    "Hot chowder at every shift change. On this rock "
-                    "the kitchen is the warmest place for fifty "
-                    "kilometres - eat while it's hot."
+                    "Need a hot meal to warm up?"
                 ),
             ),
         ),
@@ -113,9 +111,7 @@ SPEC = PlanetSpec(
                 char="d",
                 fg=(200, 220, 240),
                 flavor_text=(
-                    "Thermal blankets, core drill bits, de-icer - "
-                    "whatever the campus needs, it comes through "
-                    "this cage first. Sign for it."
+                    "We keep this ice rock well stocked."
                 ),
             ),
         ),

@@ -78,9 +78,7 @@ SPEC = PlanetSpec(
                 char="S",
                 fg=(150, 220, 240),
                 flavor_text=(
-                    "Two stars, one orbit, a thousand questions. "
-                    "Every day the data tells us something new about "
-                    "how binaries live - and how they die."
+                    "This binary system is full of new data. We'll be studying this for decades still."
                 ),
             ),
         ),

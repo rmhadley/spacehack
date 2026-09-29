@@ -102,8 +102,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(150, 230, 220),
                 flavor_text=(
-                    "Every hull out there is a story someone left "
-                    "half-finished. We finish them - for a finder's fee."
+                    "Welcome. Grab a drink and share what you know."
                 ),
             ),
         ),
@@ -116,8 +115,7 @@ SPEC = PlanetSpec(
                 char="g",
                 fg=(200, 225, 255),
                 flavor_text=(
-                    "The Ring trades in whatever the flares forgot to "
-                    "destroy. If it still hums, it has a price."
+                    "We got a few big hauls if you've got the space. Might as well make some credits if you're heading out."
                 ),
             ),
         ),
@@ -130,8 +128,7 @@ SPEC = PlanetSpec(
                 char="d",
                 fg=(230, 190, 120),
                 flavor_text=(
-                    "Fuel, patch plate, air bottles. Whatever gets your "
-                    "hull back through the flares - the Yard stocks it."
+                    "It's a small settlement here, but keeping it stocked keeps us busy."
                 ),
             ),
         ),

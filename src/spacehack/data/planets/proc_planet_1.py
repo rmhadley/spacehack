@@ -87,9 +87,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(200, 150, 90),
                 flavor_text=(
-                    "Three gates in reach of this rock, and every "
-                    "pilot between them stops here for a drink. "
-                    "If it happened in the lanes, I heard it."
+                    "Just passing through? Stop for a drink and a chat."
                 ),
             ),
         ),
@@ -102,9 +100,7 @@ SPEC = PlanetSpec(
                 char="d",
                 fg=(230, 190, 120),
                 flavor_text=(
-                    "Tanks topped, filters clean, and the ledger's "
-                    "straight. The lanes run on fuel - and fuel runs "
-                    "through this yard."
+                    "Fill up your tanks before you head out. Full service at the mechanics station."
                 ),
             ),
         ),
