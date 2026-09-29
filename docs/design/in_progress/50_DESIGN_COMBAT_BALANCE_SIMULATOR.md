@@ -6,6 +6,19 @@ SETTLED 6) assert green in `make check`; goal_2's measured 1.00 win
 rate is parked as the standard's first tuning target. Remaining
 phases are cut-when-needed (3 = optional CLI front, 4 = Line
 migration); adding a protected matchup is a ROW, not a phase.**
+
+2026-09-29: the exploration front exists as ``tools/balance_probe.py``
+— phase 3's cut-when-needed answered in a different shape than the
+imagined scenario-CLI: it loads a REAL SAVE through the production
+deserializer (``debug_session.HeadlessSaveSession``) and fights with
+the live ``GameContext`` (band-scaled stats, rolled gear qualities,
+real bandolier/ship beyond ``PlayerSheet``'s level-1 vocabulary),
+reusing the harness loop/stances/report. First use: the level-36
+cruiser+railgun power probe — space theater untouchable at every
+band incl. 2x marauder and the warlord (0 damage across 250 runs);
+ground melee worthless vs the build at any band while ranged
+explosives carry the remaining threat (5x grenade-armed band-3
+brutes = the one nonzero death rate).
 Moved from `future/` 2026-09-24; settled + built in three sessions
 (SETTLED 1-3 space harness + Goal 1; SETTLED 4-5 ground theater + the
 R-key fix; SETTLED 6 the standard).
