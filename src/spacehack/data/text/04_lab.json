@@ -32,5 +32,5 @@
   "step.lab_q7_key.dialogue.research_officer.intro": "The device is tuned and ready. It should now be the key that opens the door. Take it to Mars. What comes after is of great interest to us. We kept our end of the bargain. You must keep yours.",
   "step.lab_q7_key.dialogue.research_officer.option_label": "Collect the device",
   "step.lab_q7_key.title": "The Key",
-  "npc.archive_research_officer.flavor_text": "The physics in this system are astonishing. I could study this system up close for my entire career."
+  "npc.archive_research_officer.flavor_text": "The physics in this system are astonishing. I could study it up close for my entire career."
 }

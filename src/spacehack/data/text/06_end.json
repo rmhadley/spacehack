@@ -3,7 +3,7 @@
   "step.act1_prison.description": "The door has opened onto a facility built beneath Mars. Descend through the silent prison, restore the systems that still answer, and reach the deep cell at the bottom. The cell is empty, but one terminal is alive. Extract its data; it may tell you whether the prisoner left by choice, by force, or long before anyone on Mars knew this place existed.",
   "step.act1_prison.ready_message": "The archive handoff is ready. Take the recovered archive to the Research Officer at Alpha Centauri's Science Port for an independent reading. The work will wait for you; the signal will not become clearer on its own.",
   "step.act1_prison.title": "The Prison Below",
-  "step.epilogue_reward_bar.completion_flavor": "The old man spends an evening in your hold with a cargo strap and a marker. A tenth of every hull you ever fly is now space no scanner reads.",
+  "step.epilogue_reward_bar.completion_flavor": "The old man spends the evening teaching you some new tricks to hide things from the militia's scans.",
   "step.epilogue_reward_bar.description": "Return to the Barkeep on Earth and share the data archive.",
   "step.epilogue_reward_bar.dialogue.barkeep.intro": "Can't believe you survived all that. You had the whole militia's full force hunting you down. We've got a use for people like you... But you need to level up your game. There are ways to conceal your cargo from all eyes. We'll teach you what we know. From today, expect about a tenth of whatever you can carry? Completely concealed. The data archive stays between us, once we know what we got... we may contact you again.",
   "step.epilogue_reward_bar.dialogue.barkeep.option_label": "Share the data archive, learn the tricks.",

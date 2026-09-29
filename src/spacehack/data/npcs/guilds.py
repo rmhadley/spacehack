@@ -144,7 +144,7 @@ NPCS: tuple[NPC, ...] = (
     # 2026-09-29). Delivery pools pick it up as a normal catalog NPC.
     NPC(
         id="archive_research_officer",
-        name="Research Officer",
+        name="Archivist",
         guild="lab",
         char="S",
         fg=(150, 220, 200),
