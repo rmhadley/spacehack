@@ -77,7 +77,7 @@ def _items(save_available: bool) -> tuple[pygame_menu.MenuItem, ...]:
     )
     items.extend((
         pygame_menu.MenuItem(
-            "TUTORIAL", "Learn the frontier systems in a guided run.", "TUTORIAL",
+            "TUTORIAL", "Guided start to teach the basics.", "TUTORIAL",
         ),
         pygame_menu.MenuItem(
             "EXIT", "Close spacehack.", "EXIT",
