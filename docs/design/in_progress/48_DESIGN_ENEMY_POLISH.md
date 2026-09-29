@@ -2203,6 +2203,34 @@ ruling below decides what actually gets pinned):
   the countered-lane row prices a held-ground ranged anchor at 45%
   of a starter's health.
 
+**Chain arrival-spread data (2026-09-29, user question "how quickly
+do I get to the door on the other factions" — code-verified
+structures):** the time game IS balanced; the activity is not.
+
+| Chain | Gate-days | Step XP | Systems on route | Forced activity beyond waits |
+|---|---|---|---|---|
+| merchants | 220 | 610 | 5 (sol/wolf/tc/eri/vega) | delve + smuggle + salvage/captain + **8,000-credit BALANCE gate** |
+| militia | 220 | 520 | 4 (sol/luyten/eri/cygni) | delve + smuggle + visit + bounty/captain |
+| bar | 200 | 480 | 3 (sol/barnards/wolf) | delve + 3 smuggles |
+| labs | 225 | ~590 | 4 (sol/proc/ac/sirius) | delve + 3 smuggles + salvage/captain |
+
+The clock (~200-225d + act1_prison's own 60d) and the scripted
+fights (1 delve + 1 captain ± a smuggle) are equivalent across
+chains — a minimal-activity run of any chain converges on roughly
+the same weak arrival (~1,000-1,500 XP ≈ level 8-12, analytically).
+The merchant differential is exactly two authored things: the only
+economy gate in the four chains (hold 8,000 at once) and the
+longest route — both convert calendar time into the XP engines
+(mission payouts + route pirates at 2x base_hull XP/space kill).
+Balance surfaces for the ruling, as INPUT: (a) equalize forced
+floors — bound the bribe to chain-earned income, or give the other
+three chains their own engagement gates; (b) authored-by-chain
+prison banding — stamp the prison's band from the arrival chain
+(no runtime player-scaling, keeps bands site-authored); (c) embrace
+chain-as-difficulty (spread currently ~12-15x XP — likely too wide
+to embrace knowingly); (d) the global lever — the 2x-hull space
+kill XP rate that makes routine route defense hyper-profitable.
+
 OPEN RULING for the phase conversation: the reference sheet the
 prison is balanced FOR. The original framing (on-pace ~lvl 28-30
 pin, god build as recorded ceiling — agent lean) predates the
