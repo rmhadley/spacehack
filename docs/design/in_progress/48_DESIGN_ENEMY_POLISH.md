@@ -2141,6 +2141,25 @@ vest + q3 cybernetic eyes, longshot; cruiser with 3x plasma (2 at
 q3). Lifetime counters corroborate: 500 kills, 9 hull damage taken
 all game.
 
+**Arrival-state provenance (user, 2026-09-29 — load-bearing for
+the reference-sheet ruling): the sheet was not power-ground.** The
+user played the merchant chain straight through and descended the
+prison the moment the door opened. The forcing function is
+mer_q4_bribe (`data/main_quest/act0_merchants.py:89`):
+objective_type "payment", a BALANCE gate — hold 8,000 credits at
+once (`_payment_option_gating` reads `ctx.stats.credits`, then
+consumes it; "any income counts" = any source, not cumulative
+income). Reaching an 8,000 balance forces heavy trade volume, and
+the power arrives as side effects of that volume: delivery/mission
+payouts (rewards_xp + `_lifecycle` add_xp), space kills at 2x
+base_hull XP each (`_space_kills.py:171`) off the pirates the
+routes spawn, and band-scaled kill/wreck drops along the way. No
+credits->xp trickle exists in code — the correlation is the loop's
+shape, and 500 lifetime kills is what "just playing the merchant
+path to the prison" costs. CONSEQUENCE: the measured sheet is the
+merchant route's DEFAULT prison-arrival state, not an outlier
+ceiling.
+
 | Matchup (ground, open floor) | Win | Mean dmg (worst) | Turns |
 |---|---|---|---|
 | 3x rock_scavenger b1 (pinned goal_2 fight) | 1.000 | 0.80 (2) | 4.0 |
@@ -2185,10 +2204,13 @@ ruling below decides what actually gets pinned):
   of a starter's health.
 
 OPEN RULING for the phase conversation: the reference sheet the
-prison is balanced FOR — on-pace late-game build (~lvl 28-30,
-band-4 budget, mid gear) as the pinned contract with the god build
-as recorded ceiling (agent lean), vs tuning the deep cells to the
-god build outright.
+prison is balanced FOR. The original framing (on-pace ~lvl 28-30
+pin, god build as recorded ceiling — agent lean) predates the
+arrival-state provenance above: if the merchant route's no-grind
+arrival IS a level-36 q3 sheet, "on-pace" needs a chain-aware
+definition — measure the other three chains' arrival states and pin
+against the spread, or rule the merchant arrival the tuning target
+outright (the deep cells then push back against THIS sheet).
 
 Instrument notes for authoring: probe rows for the three specs as
 data lands (include corridor geometry — the arena is open floor);
