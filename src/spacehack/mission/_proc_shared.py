@@ -47,11 +47,11 @@ def _planet_npc_ids(planet_id: str) -> list[str]:
     Building ``npc_id`` slots are resolved through the planet's
     ``npc_overrides`` and the global catalog (mirroring
     ``_resolve_npc_entity``), so the returned ids are always ids a
-    live NPC entity carries — a slot key like
-    ``"archive_research_officer"`` maps to the actual spec id
-    ``"research_officer"``. Used to pick delivery/smuggle target
-    NPCs for procedural missions; unresolvable slots are skipped.
-    Returns empty list if the planet is unknown or has no NPC buildings.
+    live NPC entity carries. (The 2026-09-29 catalog split retired
+    the one historical key!=id slot; the resolution step stays as
+    defensive depth.) Used to pick delivery/smuggle target NPCs for
+    procedural missions; unresolvable slots are skipped. Returns
+    empty list if the planet is unknown or has no NPC buildings.
     """
     try:
         from ..data.planets import (

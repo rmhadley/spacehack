@@ -121,12 +121,11 @@ NPCS: tuple[NPC, ...] = (
             "them in alive if you can, dead if you must."
         ),
     ),
-    # Science officer stationed at Alpha Centauri's Science
-    # Port (see data/planets/ac_station.py). Future missions
-    # with giver_npc_id='research_officer' route through this
-    # NPC. Char 'S' + faint teal contrast with the other guild
-    # NPCs so the lab reads as separate from the bar / guild
-    # hall / militia / bounty rooms.
+    # The lab-officer seat (Science Port's lab and other labs;
+    # Science Port's ARCHIVE hosts his own catalog twin below).
+    # Char 'S' + faint teal contrast with the other guild NPCs
+    # so the lab reads as separate from the bar / guild hall /
+    # militia / bounty rooms.
     NPC(
         id="research_officer",
         name="Research Officer",

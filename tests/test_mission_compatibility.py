@@ -409,12 +409,11 @@ def test_mission_models_round_trip_through_save_load(monkeypatch, tmp_path):
 def test_proc_delivery_target_npcs_resolve_through_planet_overrides():
     """Building slot keys must never leak into delivery targets.
 
-    Regression: ``ac_station``'s archive building carries the slot id
-    ``archive_research_officer``, which resolves through
-    ``npc_overrides`` to the real spec id ``research_officer``. The
-    old ``_planet_npc_ids`` returned the raw slot id, so a procedural
-    delivery could target an NPC that never exists on the map — cargo
-    reserved forever, mission uncompletable.
+    Regression history: ``ac_station``'s archive slot id once leaked
+    raw into delivery targets (cargo reserved forever). 2026-09-29:
+    the archive slot is its own catalog NPC, so the id IS a live
+    entity id — the catalog-membership loop below is the standing
+    guard that every returned id resolves to a real NPC.
     """
     from src.spacehack.data.npcs import find_npc
     from src.spacehack.mission import _planet_npc_ids
@@ -448,8 +447,9 @@ def test_stale_slot_id_delivery_target_still_completes():
 
     The live save regression: ``proc_delivery_earth_ac_station_1_1``
     stores ``delivery_target_npc_id="archive_research_officer"`` on
-    planet ``ac_station``. It must complete at the Research Officer
-    (spec id ``research_officer``), and only there.
+    planet ``ac_station``. 2026-09-29: that id is now the archive
+    officer's own catalog id — the mission completes at the officer
+    it NAMES, and not at the lab officer sharing the display name.
     """
     stale = mission.ActiveMission(
         mission_id="proc_delivery_earth_ac_station_1_1",
