@@ -100,8 +100,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(220, 140, 70),
                 flavor_text=(
-                    "Every hull off the line here takes its first jump "
-                    "loaded with somebody's gamble. What's yours?"
+                    "Welcome in to The Rigger, pilot. What do you got?"
                 ),
             ),
         ),

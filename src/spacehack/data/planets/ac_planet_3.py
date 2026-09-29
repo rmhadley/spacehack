@@ -98,9 +98,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(200, 190, 160),
                 flavor_text=(
-                    "The rings glitter out the window and the fuel "
-                    "pumps hum all night. Long-haulers are the only "
-                    "ones who appreciate either."
+                    "Welcome to The Ring, traveller. Got any gossip to share?"
                 ),
             ),
         ),

@@ -85,9 +85,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(170, 200, 230),
                 flavor_text=(
-                    "The pumps never stop and the cold gets in "
-                    "your bones. A hot drink and a contract are "
-                    "the only two things that help out here."
+                    "Hot drinks around here help fight that chill out there. What you want?"
                 ),
             ),
         ),

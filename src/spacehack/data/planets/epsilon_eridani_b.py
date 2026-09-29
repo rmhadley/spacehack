@@ -99,7 +99,7 @@ SPEC = PlanetSpec(
                 flavor_text=(
                     "Dust gets in everything out here. Sit, "
                     "wet your throat, and tell me what brought "
-                    "you past the beacon."
+                    "you out this way."
                 ),
             ),
         ),
@@ -112,9 +112,7 @@ SPEC = PlanetSpec(
                 char="G",
                 fg=(210, 170, 100),
                 flavor_text=(
-                    "First settlement past Sol runs on what gets "
-                    "hauled in. Electronics, meds, machine parts - "
-                    "bring them and I'll make it worth your fuel."
+                    "Further you get from Sol, the more thick the pirates get. Watch your back, keep your shields up."
                 ),
             ),
         ),

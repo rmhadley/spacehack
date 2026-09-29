@@ -89,9 +89,7 @@ SPEC = PlanetSpec(
                 char="b",
                 fg=(210, 150, 80),
                 flavor_text=(
-                    "Two suns, one hot rock, and a hundred ways "
-                    "to go broke. Sit down, pilot - everyone here "
-                    "has a story, and most of them end in ore."
+                    "Welcome, pilot. Got any news? Need a gig?"
                 ),
             ),
         ),

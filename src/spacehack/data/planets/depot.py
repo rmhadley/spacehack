@@ -77,10 +77,7 @@ SPEC = PlanetSpec(
                 char="A",
                 fg=(210, 190, 150),
                 flavor_text=(
-                    "Fuel pumps are online. The deep-space run is long - "
-                    "make sure your tanks are topped before you push "
-                    "further out. Every hauler between Eri and Tau Ceti "
-                    "stops here, and every one of them owes me a tab."
+                    "Top up your ship before you head out. Lots more to explore out there."
                 ),
             ),
         ),
