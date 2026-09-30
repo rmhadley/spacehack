@@ -3410,10 +3410,11 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
     assert messages
 
 
-def test_hangar_loadout_tab_renders_the_read_only_letter_grid():
-    """Doc 56 SETTLED 19: the hangar LOADOUT tab is the read-only
-    letter grid — tier-coloured letters at their anchors, no rows, no
-    interaction."""
+def test_hangar_loadout_tab_lists_gear_with_stats():
+    """Doc 56 SETTLED 20 (amends 19 for the hangar): the LOADOUT tab
+    lists the active weapons and modules with their stats attached —
+    the same readout parts the editor's tooltip shows, tier-coloured."""
+    from src.spacehack.data.quality import quality_color
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip, StoredEquipment
 
@@ -3423,7 +3424,7 @@ def test_hangar_loadout_tab_renders_the_read_only_letter_grid():
             ship_id="starter",
             weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
             modules=(
-                StoredEquipment("module", "shield_mk1", grid_x=1, grid_y=0),
+                StoredEquipment("module", "shield_mk2", quality=2, grid_x=1, grid_y=0),
             ),
             fuel=12,
         ),
@@ -3436,14 +3437,21 @@ def test_hangar_loadout_tab_renders_the_read_only_letter_grid():
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
     assert frame.rows == ()  # read-only: nothing to select
-    # Laser 1x1 at (0,0), shield_mk1 2x2 at (1,0).
-    assert frame.body == ("L S S", ". S S", ". . .")
-    # Tier colour rides the runs (base letters paint plain).
-    assert frame.body_runs[1][0] == (". ", None)
+    assert frame.body == (
+        "WEAPONS",
+        "Light Laser - Dmg 4  Acc 80%  Rng 1-5  AP 1  Pow 1",
+        "MODULES",
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52",
+    )
+    # The tier colour paints the name; the stats stay plain.
+    assert frame.body_runs[3] == (
+        ("Overclocked Shield Mk. 2", quality_color(2)),
+        (" - Power: -3  Shields: +52", None),
+    )
     assert any("TAB ship" in hint for hint in frame.footer)
 
 
-def test_hangar_loadout_tab_empty_grid_is_all_dots():
+def test_hangar_loadout_tab_empty_ship():
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
@@ -3455,7 +3463,7 @@ def test_hangar_loadout_tab_empty_grid_is_all_dots():
 
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
 
-    assert frame.body == (". . .",) * 3
+    assert frame.body == ("Nothing installed.",)
 
 
 def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):

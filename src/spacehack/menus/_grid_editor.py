@@ -225,24 +225,34 @@ def _tier_color(quality: int, randart_seed) -> tuple[int, int, int] | None:
     )
 
 
+def entry_view(entry) -> tuple[str, str, tuple[int, int, int] | None]:
+    """One installed entry's list readout: ``(tiered name, stat line,
+    tier colour)`` — the editor's tooltip and the hangar's loadout
+    list compose from the same parts. Unknown ids raise (callers that
+    tolerate them skip, as ``pieces_for`` does)."""
+    if entry.item_type == "weapon":
+        from ..data.weapons import find_weapon
+        from ..ship import weapon_display_name
+
+        return (
+            weapon_display_name(entry.item_id, entry.quality),
+            _weapon_detail(find_weapon(entry.item_id), quality=entry.quality),
+            _tier_color(entry.quality, entry.randart_seed),
+        )
+    from ..ship import module_display_name
+
+    return (
+        module_display_name(entry.item_id, entry.quality, entry.randart_seed),
+        _entry_module_detail(entry),
+        _tier_color(entry.quality, entry.randart_seed),
+    )
+
+
 def _entry_detail(entry) -> str:
     """The hovered-entry readout: the tiered name plus the part's
     important stats (playtest 2026-09-30 — stats, not prose)."""
-    from ..ship import module_display_name, weapon_display_name
-
-    if entry.item_type == "weapon":
-        from ..data.weapons import find_weapon
-
-        parts = (
-            weapon_display_name(entry.item_id, entry.quality),
-            _weapon_detail(find_weapon(entry.item_id), quality=entry.quality),
-        )
-    else:
-        parts = (
-            module_display_name(entry.item_id, entry.quality, entry.randart_seed),
-            _entry_module_detail(entry),
-        )
-    return " - ".join(part for part in parts if part)
+    name, stats, _color = entry_view(entry)
+    return " - ".join(part for part in (name, stats) if part)
 
 
 def _entry_module_detail(entry) -> str:

@@ -51,20 +51,42 @@ def _effective_power_gen(ship_spec, owned) -> int:
 def _loadout_section(ctx, owned, ship):
     """Build the LOADOUT tab's body, rows, and footer.
 
-    Doc 56 SETTLED 19: the tab renders the same read-only letter grid
-    as the mechanic's editor, no interaction — the layout is visible
-    away from the mechanic."""
+    Doc 56 SETTLED 20 (playtest 2026-09-30, amends 19 for the hangar):
+    a list of the active weapons and modules with their stats
+    attached — tier-coloured names, the same stat lines the editor's
+    tooltip shows. The letter grid stays on the mechanic's tab and
+    editor."""
     from .. import pygame_ui
-    from ..menus._grid_editor import read_only_rows
+    from ..menus._grid_editor import entry_view
 
-    pairs = read_only_rows(ship, owned)
-    body = tuple(text for text, _runs in pairs)
-    body_runs = tuple(runs for _text, runs in pairs)
+    muted_color = pygame_ui.DEFAULT_PALETTE.muted
+    body: list[str] = []
+    body_runs: list[tuple | None] = []
+    for label, entries in (
+        ("WEAPONS", getattr(owned, "weapons", ()) or ()),
+        ("MODULES", getattr(owned, "modules", ()) or ()),
+    ):
+        if not entries:
+            continue
+        body.append(label)
+        body_runs.append(((label, muted_color),))
+        for entry in entries:
+            try:
+                name, stats, color = entry_view(entry)
+            except KeyError:
+                continue
+            body.append(f"{name} - {stats}")
+            body_runs.append((
+                (name, color), (f" - {stats}", None),
+            ))
+    if not body:
+        body.append("Nothing installed.")
+        body_runs.append(None)
     rows = ()
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
     ),)
-    return body, rows, footer, body_runs
+    return tuple(body), rows, footer, tuple(body_runs)
 
 def _faction_progress_bar(rep: int, width: int = 31) -> str:
     """Return the CP437-safe centered faction reputation bar."""
