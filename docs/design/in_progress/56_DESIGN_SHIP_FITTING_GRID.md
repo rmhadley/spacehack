@@ -86,7 +86,13 @@ stat lines are terse and carry the firing costs (66de9c17):
 'Dmg 6  Acc 72%  Rng 1-5  AP 1  Pow 1' for energy/plasma, missiles
 'Dmg 14  Acc 72%  Rng 2-9  AP 2  Ammo 4/4' (no Pow — racks pay ammo,
 not watts); one formatter serves tooltip + market + storage rows.; (5) SETTLED 20 — the hangar LOADOUT
-tab becomes the list view (52d4e022).
+tab becomes the list view (52d4e022); (6) the hangar tab gains an
+OVERVIEW block — Hull cur/max, Shields + free shield regen, AP
+per-turn (incl. the fraction, e.g. 3.5), Max power (pool cap incl.
+trait bonuses), Power regen (clamped per-turn generation) — read
+through ``_player_combat_values`` so it can never drift from combat
+(181175db; the tab pages when a full rack outgrows one screen, keeping
+the shared font rung).
 
 ## Overview
 
