@@ -193,7 +193,12 @@ def test_module_bonus_fields_pin_the_module_spec_axes():
 
     from spacehack.data.modules import ModuleSpec
 
-    non_bonus = {"id", "name", "slot_type", "description", "price", "tech_level"}
+    non_bonus = {
+        "id", "name", "slot_type", "description", "price", "tech_level",
+        # Fitting-grid footprints are catalog-fixed like price (doc 56
+        # SETTLED 5: quality never scales size).
+        "grid_w", "grid_h",
+    }
     assert set(quality._MODULE_BONUS_FIELDS) == {
         f.name for f in dataclasses.fields(ModuleSpec)
         if f.name not in non_bonus

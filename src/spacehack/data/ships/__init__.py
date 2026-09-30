@@ -42,6 +42,11 @@ class Ship:
     # Starting loadout when purchased — empty tuples = no free equipment.
     start_weapons: tuple[str, ...] = ()
     start_modules: tuple[str, ...] = ()
+    # Fitting-grid dimensions (doc 56): one shared grid for weapons and
+    # modules. 0 = unsized sentinel — the every-item-sized lint fails on
+    # it, so forgotten authoring cannot silently pass as 1x1.
+    grid_w: int = 0
+    grid_h: int = 0
 
 
 from .core import SHIPS  # noqa: E402

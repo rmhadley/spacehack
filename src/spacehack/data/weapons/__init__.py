@@ -34,6 +34,8 @@ class WeaponSpec:
         max_range: maximum cell distance to target.
         shield_strip: shields stripped on hit instead of hull damage
             (EMP); 0 = normal damage weapon.
+        grid_w/grid_h: fitting-grid footprint in cells (doc 56);
+            catalog-fixed like price — never quality-scaled.
     """
     id: str
     name: str
@@ -51,6 +53,10 @@ class WeaponSpec:
     max_range: int = 5
     tech_level: int = 1               # minimum planet tech level to stock this
     shield_strip: int = 0             # shields stripped on hit (EMP); 0 = normal
+    # Fitting-grid footprint in cells (doc 56); mk scales it, quality
+    # never. 0 = unsized sentinel — the every-item-sized lint fails on it.
+    grid_w: int = 0
+    grid_h: int = 0
 
 
 # Lazy-built registry

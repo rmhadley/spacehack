@@ -32,6 +32,8 @@ class ModuleSpec:
             (smuggler's holds). Does NOT affect storage capacity —
             only scan outcome.
         price: credits cost to buy.
+        grid_w/grid_h: fitting-grid footprint in cells (doc 56);
+            catalog-fixed like price — never quality-scaled.
     """
     id: str
     name: str
@@ -49,6 +51,10 @@ class ModuleSpec:
     smuggler_cargo: int = 0
     price: int = 0
     tech_level: int = 1               # minimum planet tech level to stock this
+    # Fitting-grid footprint in cells (doc 56); mk scales it, quality
+    # never. 0 = unsized sentinel — the every-item-sized lint fails on it.
+    grid_w: int = 0
+    grid_h: int = 0
 
 
 _BY_ID: dict[str, ModuleSpec] | None = None
