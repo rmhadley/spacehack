@@ -15,6 +15,7 @@ Layout (120×100, authored mine colony):
 from __future__ import annotations
 
 from ... import world
+from ...data import npcs as npc_module
 from ...dungeon import DungeonParams
 from . import PlanetSpec
 from .themes import DESERT
@@ -73,7 +74,20 @@ SPEC = PlanetSpec(
         ("depot", "barnards_depot_interior"),
     ),
     showroom_ships=("cruiser", "frigate",),
-    npc_overrides=(),
+    npc_overrides=(
+        ("barkeep",
+         npc_module.NPC(
+             id="barkeep",
+             name="The Ember Bartender",
+             guild="bar",
+             char="b",
+             fg=(255, 210, 110),
+             flavor_text=(
+                 "What you want, a drink? Or you have some intel to share?"
+             ),
+         ),
+        ),
+    ),
     quest_npc_spots=(
         ("old_smuggler", "bar"),
     ),

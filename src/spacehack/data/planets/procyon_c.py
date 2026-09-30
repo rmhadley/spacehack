@@ -93,7 +93,7 @@ SPEC = PlanetSpec(
             "cook",
             npc_module.NPC(
                 id="cook",
-                name="Campus Cook",
+                name="Mess Hall Cook",
                 guild="mess",
                 char="c",
                 fg=(240, 200, 150),
@@ -106,7 +106,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Stores Keeper",
+                name="Depot Attendant",
                 guild="depot",
                 char="d",
                 fg=(200, 220, 240),

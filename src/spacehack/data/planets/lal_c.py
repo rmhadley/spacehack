@@ -69,7 +69,7 @@ SPEC = PlanetSpec(
             destinations=("spaceport", "ledger", "bounties"),
         ),
         world.TransitStation(
-            id="ledger", name="The Ledger", district="lower west loop",
+            id="ledger", name="Merchant Post", district="lower west loop",
             pos=world.Position(13, 62), serves="lalc_merchants",
             destinations=("spaceport", "hush", "bounties"),
         ),
@@ -95,7 +95,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Veiled Registrar",
+                name="The Hush Steward",
                 guild="bar",
                 char="b",
                 fg=(190, 180, 255),
@@ -108,7 +108,7 @@ SPEC = PlanetSpec(
             "guild_master",
             npc_module.NPC(
                 id="guild_master",
-                name="The Ledger",
+                name="Merchant Broker",
                 guild="merchants",
                 char="g",
                 fg=(170, 160, 230),

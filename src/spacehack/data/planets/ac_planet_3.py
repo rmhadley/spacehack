@@ -66,7 +66,7 @@ SPEC = PlanetSpec(
             destinations=("bar", "merchants", "bounties"),
         ),
         world.TransitStation(
-            id="bar", name="The Ring Band", district="east end",
+            id="bar", name="The Ring", district="east end",
             pos=world.Position(73, 50), serves="ac3_bar",
             destinations=("spaceport", "merchants", "bounties"),
         ),
@@ -76,7 +76,7 @@ SPEC = PlanetSpec(
             destinations=("bar", "bounties", "spaceport"),
         ),
         world.TransitStation(
-            id="bounties", name="Security Office", district="south ring",
+            id="bounties", name="Warrant Office", district="south ring",
             pos=world.Position(21, 60), serves="ac3_bounties",
             destinations=("bar", "merchants", "spaceport"),
         ),
@@ -93,7 +93,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Ring Hand",
+                name="Ring Barkeep",
                 guild="bar",
                 char="b",
                 fg=(200, 190, 160),

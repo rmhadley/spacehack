@@ -97,7 +97,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Salvage Host",
+                name="The Long Burn Barkeep",
                 guild="bar",
                 char="b",
                 fg=(150, 230, 220),
@@ -110,7 +110,7 @@ SPEC = PlanetSpec(
             "guild_master",
             npc_module.NPC(
                 id="guild_master",
-                name="Ring Broker",
+                name="Merchant Broker",
                 guild="merchants",
                 char="g",
                 fg=(200, 225, 255),
@@ -123,7 +123,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Yard Factor",
+                name="Depot Attendant",
                 guild="depot",
                 char="d",
                 fg=(230, 190, 120),

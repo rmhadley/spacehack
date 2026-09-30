@@ -90,7 +90,7 @@ NPCS: tuple[NPC, ...] = (
     ),
     NPC(
         id="guild_master",
-        name="Guild Master",
+        name="Merchant Broker",
         guild="merchants",
         char="G",
         fg=(255, 230, 110),                            # bright gold
@@ -159,7 +159,7 @@ NPCS: tuple[NPC, ...] = (
     # reads as 'maintenance / utility' rather than a guild hall.
     NPC(
         id="depot_attendant",
-        name="Attendant",
+        name="Depot Attendant",
         guild="depot",
         char="A",
         fg=(200, 200, 180),                         # warm grey

@@ -90,11 +90,23 @@ SPEC = PlanetSpec(
     ),
     showroom_ships=("hauler", "cruiser", "frigate",),
     npc_overrides=(
+        ("depot_attendant",
+         npc_module.NPC(
+             id="depot_attendant",
+             name="Reclaim Attendant",
+             guild="depot",
+             char="A",
+             fg=(200, 200, 180),
+             flavor_text=(
+                 "Temporary storage for all kinds of needs. How can I help?"
+             ),
+         ),
+        ),
         (
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Caretaker",
+                name="Deep Freeze Barkeep",
                 guild="bar",
                 char="b",
                 fg=(170, 200, 230),

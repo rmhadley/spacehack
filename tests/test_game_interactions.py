@@ -65,7 +65,7 @@ def test_bump_talk_resolves_planet_override_npcs(monkeypatch):
     result = run(game_interactions._resolve_npc_blocker(state, blocker))
 
     assert result == "QUIT"
-    assert seen["npc"].name == "Campus Cook"
+    assert seen["npc"].name == "Mess Hall Cook"
 
 
 def test_bump_talk_unknown_npc_still_raises_keyerror():

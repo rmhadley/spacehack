@@ -95,7 +95,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Rigger",
+                name="The Anvil Rigger",
                 guild="bar",
                 char="b",
                 fg=(220, 140, 70),

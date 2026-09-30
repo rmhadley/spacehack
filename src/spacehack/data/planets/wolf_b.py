@@ -88,7 +88,7 @@ SPEC = PlanetSpec(
             "wolf_barkeep",
             npc_module.NPC(
                 id="wolf_barkeep",
-                name="Black-Market Operator",
+                name="Salty Barkeep",
                 guild="bar",
                 char="B",
                 fg=(200, 160, 80),
@@ -101,7 +101,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Frontier Operator",
+                name="The Stack Attendant",
                 guild="depot",
                 char="A",
                 fg=(180, 180, 160),

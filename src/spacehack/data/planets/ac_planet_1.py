@@ -68,7 +68,7 @@ SPEC = PlanetSpec(
             destinations=("spaceport", "militia"),
         ),
         world.TransitStation(
-            id="militia", name="Claim Watch", district="north grid",
+            id="militia", name="Watch Station", district="north grid",
             pos=world.Position(31, 28), serves="ac1_militia",
             destinations=("bar", "spaceport"),
         ),
@@ -84,7 +84,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Claim Staker",
+                name="Claim Barkeep",
                 guild="bar",
                 char="b",
                 fg=(210, 150, 80),

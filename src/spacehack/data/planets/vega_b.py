@@ -94,7 +94,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Cloud Host",
+                name="The Veil Barkeep",
                 guild="bar",
                 char="b",
                 fg=(180, 220, 240),
@@ -120,7 +120,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Loadmaster",
+                name="Depot Attendant",
                 guild="depot",
                 char="d",
                 fg=(230, 200, 140),

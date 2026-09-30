@@ -73,7 +73,7 @@ SPEC = PlanetSpec(
             "research_officer",
             npc_module.NPC(
                 id="research_officer",
-                name="Binary Observer",
+                name="Binary Tech",
                 guild="lab",
                 char="S",
                 fg=(150, 220, 240),

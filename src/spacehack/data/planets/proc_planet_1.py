@@ -60,7 +60,7 @@ SPEC = PlanetSpec(
             destinations=("crossroads", "depot"),
         ),
         world.TransitStation(
-            id="crossroads", name="Crossroads Plaza", district="plaza",
+            id="crossroads", name="The Crossroads", district="plaza",
             pos=world.Position(82, 43), serves="proc_b_bar",
             destinations=("spaceport", "depot"),
         ),
@@ -82,7 +82,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Waypoint Host",
+                name="Crossroads Barkeep",
                 guild="bar",
                 char="b",
                 fg=(200, 150, 90),
@@ -95,7 +95,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Fuel Factor",
+                name="Fuel Attendant",
                 guild="depot",
                 char="d",
                 fg=(230, 190, 120),

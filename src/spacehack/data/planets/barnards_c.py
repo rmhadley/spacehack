@@ -80,7 +80,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Ice Skimmer",
+                name="Deep Freeze Barkeep",
                 guild="bar",
                 char="b",
                 fg=(170, 200, 230),

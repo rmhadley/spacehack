@@ -88,11 +88,35 @@ SPEC = PlanetSpec(
     ),
     showroom_ships=("hauler", "freighter",),
     npc_overrides=(
+        ("militia_captain",
+         npc_module.NPC(
+             id="militia_captain",
+             name="Gate Captain",
+             guild="militia",
+             char="K",
+             fg=(130, 230, 220),
+             flavor_text=(
+                 "Keep your cargo clean. We've got eyes everywhere."
+             ),
+         ),
+        ),
+        ("depot_attendant",
+         npc_module.NPC(
+             id="depot_attendant",
+             name="Fuel Attendant",
+             guild="depot",
+             char="A",
+             fg=(200, 200, 180),
+             flavor_text=(
+                 "Temporary storage for all kinds of needs. How can I help?"
+             ),
+         ),
+        ),
         (
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Settler",
+                name="Dusty Glass Barkeep",
                 guild="bar",
                 char="b",
                 fg=(200, 160, 100),
@@ -107,7 +131,7 @@ SPEC = PlanetSpec(
             "guild_master",
             npc_module.NPC(
                 id="guild_master",
-                name="Settlement Trader",
+                name="Freight Trader",
                 guild="merchants",
                 char="G",
                 fg=(210, 170, 100),

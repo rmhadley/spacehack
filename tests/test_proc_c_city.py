@@ -11,7 +11,7 @@ from src.spacehack.data.planets import find_planet_npc, find_planet_spec, load_p
 
 
 def test_find_planet_npc_prefers_spec_overrides():
-    assert find_planet_npc("cook", "proc_planet_2").name == "Campus Cook"
+    assert find_planet_npc("cook", "proc_planet_2").name == "Mess Hall Cook"
 
 
 def test_find_planet_npc_falls_through_to_catalog():

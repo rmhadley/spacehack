@@ -79,7 +79,7 @@ SPEC = PlanetSpec(
             destinations=("bar", "bounties", "depot"),
         ),
         world.TransitStation(
-            id="bar", name="The Flare Line", district="NE vent",
+            id="bar", name="The Flare", district="NE vent",
             # Below the south-facing door.
             pos=world.Position(101, 11), serves="ross_bar",
             destinations=("spaceport", "bounties", "depot"),
@@ -109,7 +109,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Emberglass",
+                name="The Flare Host",
                 guild="bar",
                 char="b",
                 fg=(240, 130, 60),

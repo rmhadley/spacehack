@@ -180,7 +180,7 @@ def test_eri_b_service_npcs_survive_authored_interior_entry():
         interiors={}, game_map=game_map, player=None,
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
-    for label, expected_name in (("bar", "Settler"), ("merchants", "Settlement Trader")):
+    for label, expected_name in (("bar", "Dusty Glass Barkeep"), ("merchants", "Freight Trader")):
         record = game_map.city_buildings[label]
         player = world.Entity(
             "@", (255, 255, 255), world.Position(*record["entrance"]), name="Player",

@@ -87,7 +87,7 @@ SPEC = PlanetSpec(
             destinations=("spaceport", "merchants", "militia"),
         ),
         world.TransitStation(
-            id="merchants", name="Guild Hall", district="south fields",
+            id="merchants", name="Merchant Guild", district="south fields",
             # Beside the guild lane, just north-east of the door forecourt.
             pos=world.Position(75, 63), serves="indi_merchants",
             destinations=("spaceport", "bar", "militia"),
@@ -111,7 +111,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Farmer",
+                name="The Harvest Barkeep",
                 guild="bar",
                 char="b",
                 fg=(200, 170, 90),
@@ -124,7 +124,7 @@ SPEC = PlanetSpec(
             "guild_master",
             npc_module.NPC(
                 id="guild_master",
-                name="Grain Factor",
+                name="Merchant Broker",
                 guild="merchants",
                 char="m",
                 fg=(255, 210, 120),

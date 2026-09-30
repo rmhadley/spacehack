@@ -72,7 +72,7 @@ SPEC = PlanetSpec(
             "depot_attendant",
             npc_module.NPC(
                 id="depot_attendant",
-                name="Yard Boss",
+                name="Fuel Attendant",
                 guild="depot",
                 char="A",
                 fg=(210, 190, 150),

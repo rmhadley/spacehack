@@ -85,7 +85,7 @@ SPEC = PlanetSpec(
             destinations=("port", "bar", "militia", "bounties"),
         ),
         world.TransitStation(
-            id="militia", name="Security District", district="security",
+            id="militia", name="Military District", district="security",
             pos=world.Position(138, 72), serves="militia",
             destinations=("port", "bar", "merchants", "bounties"),
         ),
@@ -122,7 +122,7 @@ SPEC = PlanetSpec(
             "guild_master",
             npc_module.NPC(
                 id="guild_master",
-                name="Trade Marshal",
+                name="Merchant Broker",
                 guild="merchants",
                 char="G",
                 fg=(220, 190, 90),
@@ -135,7 +135,7 @@ SPEC = PlanetSpec(
             "militia_captain",
             npc_module.NPC(
                 id="militia_captain",
-                name="Mars Patrol",
+                name="Militia Captain",
                 guild="militia",
                 char="P",
                 fg=(180, 100, 110),

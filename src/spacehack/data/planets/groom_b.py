@@ -111,7 +111,7 @@ SPEC = PlanetSpec(
             "barkeep",
             npc_module.NPC(
                 id="barkeep",
-                name="Prospector",
+                name="The Last Gate Prospector",
                 guild="bar",
                 char="b",
                 fg=(210, 130, 80),
@@ -124,7 +124,7 @@ SPEC = PlanetSpec(
             "bounty_master",
             npc_module.NPC(
                 id="bounty_master",
-                name="Claim Clerk",
+                name="Warrant Clerk",
                 guild="bhguild",
                 char="B",
                 fg=(255, 190, 110),

@@ -11,6 +11,7 @@ chain needs her (the dataset delivery), then leaves.
 from __future__ import annotations
 
 from ... import world
+from ...data import npcs as npc_module
 from . import PlanetSpec
 from .themes import RING_STATION
 from ..city_npcs import AC_RING_POPULATION
@@ -98,6 +99,42 @@ SPEC = PlanetSpec(
     # step; the lab building's research_officer slot resolves through
     # the global catalog.
     npc_overrides=(
+        ("research_officer",
+         npc_module.NPC(
+             id="research_officer",
+             name="Lab Tech",
+             guild="lab",
+             char="S",
+             fg=(150, 220, 200),
+             flavor_text=(
+                 "We got some new tech coming soon. Just need a bit more time in quality assurance. It's going to change the universe."
+             ),
+         ),
+        ),
+        ("barkeep",
+         npc_module.NPC(
+             id="barkeep",
+             name="Commons Host",
+             guild="bar",
+             char="b",
+             fg=(255, 210, 110),
+             flavor_text=(
+                 "What you want, a drink? Or you have some intel to share?"
+             ),
+         ),
+        ),
+        ("depot_attendant",
+         npc_module.NPC(
+             id="depot_attendant",
+             name="Observation Host",
+             guild="depot",
+             char="A",
+             fg=(200, 200, 180),
+             flavor_text=(
+                 "Temporary storage for all kinds of needs. How can I help?"
+             ),
+         ),
+        ),
     ),
     # The Act 0 xenolinguist stands in the lab (additively) only while
     # lab_q4_xenolinguist is live — seated in the archive interior on entry.
