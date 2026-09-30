@@ -23,8 +23,11 @@ session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
   unpackable dev grant were the blockers). Brief APPROVED the same
   exchange ("approved. we can always adjust later after
   playtesting" — the refusal strings, guide sentence, and dev-grant
-  mix are expected to move at the playtest). Next:
-  `/implement-phase 56.2`.
+  mix are expected to move at the playtest). Phase 2 BUILT same day
+  (`/implement-phase 56.2`, gate 3335, nine commits; the goal-1
+  collision and its measured re-fund recorded inside the phase-2
+  entry — the AC1-mechanism ruling and the re-fit power feel are the
+  playtest's first items). Next: the phase-2 playtest.
 
 ## Overview
 
@@ -375,7 +378,7 @@ Worked check (the motivating cases):
   SYSTEMS.md: deferred to the phase-2/3 closes by design — phase 1
   adds no player-facing mechanic (`fitting.py` has no live callers);
   the slot-system entries stay authoritative until placements land.
-- [ ] **2. Fitting model + gate + upkeep data** — upkeep authors WITH
+- [x] **2. Fitting model + gate + upkeep data** — upkeep authors WITH
   the gate, so the first power change is already guarded (companion to
   advisor catch 1); `OwnedShip` placements (per-entry `grid_x`/
   `grid_y`, resolved above); the resting gate
@@ -398,6 +401,65 @@ Worked check (the motivating cases):
   PLAYTEST: dev-mode build ledger — fit/stress the gate rules on a
   live ship (including the tinker refusal, SETTLED 11); save/quit/
   continue round-trip of a fitted grid.
+  BUILT 2026-09-30 (`/implement-phase 56.2`), PLAYTEST PENDING: gate
+  green **3335**, commits a2f3b876 (fitting net-power/power_legal) /
+  2593bd14 (upkeep + starter re-fund) / ad16dbf0 (ship_fitting model)
+  / 8466f410 (stamping sites + dev grant) / 80082d98 (tinker gate) /
+  90944e2c (modal routing + refusal strings) / 22a5232b (save twins +
+  load normalize) / de891347 (tool+lints adopt the resolver) /
+  77c64544 (guide sentence). BUILD SURPRISES (all measured, ruling
+  expected at the playtest):
+  - **Goal-1 collision → starter base gen 3 → 4.** The ruled draft
+    curve's shield_mk1 −1 took back the watt doc 50 tuned the starter
+    for: goal-1 (suite-pinned floor 0.94) measured **0.71** with the
+    curve authored. The hull now funds the ruled equilibrium AFTER
+    upkeep (4 − 1 = 3 effective; goal-1 measured back at exactly the
+    pre-phase-2 0.94; pre-change state also measured 0.94). Fallout:
+    AC1's *mechanism* moved — an EMPTY skiff fields a bare shield_mk4
+    at net 0 (the brief's "3 − 4 < 0" refusal and the
+    standing-pin-as-written were authored against gen 3); the FRESH
+    skiff (start laser aboard) still cannot field it — the 3×3 needs
+    all nine cells and the laser holds one, so the refusal is
+    geometric. Pins landed as the true relations (fresh-skiff room
+    refusal + empty-skiff zero-headroom power refusal). **Open ruling
+    for the playtest:** keep gen 4 + amended pins (current), or gen 3
+    + shield_mk1 upkeep 0 (curve amended; both original pins hold;
+    goal-1 also measures 0.94 under that shape).
+  - **The played save is unfieldable — by design.** The probe
+    character's cruiser flies 41 cells (3 plasma + medium + 2 shields
+    + 2 reactors) on the 20-cell grid: as-saved it loads post-strip
+    (SETTLED 14; probe rows 0.000 — naked, must re-fit), and a
+    deterministic same-order re-fit (medium + 2 plasma + compact
+    reactor, 16/20, net +8, no shield modules) still sweeps bands
+    1-3 at zero damage but drops to **0.200 vs the warlord (23.5 mean
+    hull dmg)** vs the baseline's 1.000/0.00 — the shield loss, not
+    upkeep (that re-fit flies nothing upkept). Band-1/2/3 turns
+    drifted 1.0→1.0 / 1.4→1.9 / 1.8→2.1. Magnitude calibration is
+    phase 4; the loadout CHOICE is the playtest's step-2 subject.
+  - **ship.py ratchet fired** → the gated model lives in new sibling
+    `ship_fitting.py` (ship.py re-exports the seam; imports of ship
+    stay function-level — no cycle). The `or []` empty-list sink in
+    load normalization (stripped entries appended into a list nobody
+    held) was caught by the overlap round-trip test pre-commit.
+  REVIEW pass (same session): **APPROVE, 6 minors, zero blockings**
+  (save-twin ordering, gated seams, deviation pins, the split, and
+  every cross-check independently verified; the goal-1 floor pin and
+  the post-strip probe rows reproduce at HEAD). Minors folded in
+  fa35e00e: the unreachable unplaced-install fallback now fails
+  loudly (was a silent strip-at-next-load class), the tinker refusal
+  test pins the kit charge is retained, the modal's triplicated
+  kind/slot resolution extracts to `_slot_action_kind` +
+  `_installed_slots`, and two import placements lift to module level.
+  Deferred with the reviewer's sanction: the `_install_refusal_text`
+  reason→string table (guardrail 3-branch; phase 3 retires the slot
+  wording there anyway — convert then at the latest), and one
+  recorded edge — a HAND-EDITED partial-strip save (weapon strips
+  while another missile stays installed) recomputes `cargo_ammo`
+  ctx-free in `_remove_weapon`, dropping the Bounty Hunter rack
+  doubling (doc 49 SETTLED 7 class); unreachable for real saves
+  (old-shape strips everything; power/overlap strips touch modules
+  only), and a full fix needs `player_traits` restored before
+  normalization — phase-3/5 seam if it ever matters.
 - [ ] **3. Fitting UI** — the grid editor pane at the mechanic terminal,
   letter blocks + tier colors + red/green legality, hand model, pane
   switching; HUD/ship-buy/hangar surfaces to cells + net power; guide
