@@ -875,7 +875,7 @@ class TestSaveLoadRoundTrip:
         ctx = _build_test_ctx()
         ctx.player_owned_ship = OwnedShip(
             ship_id="scout",
-            weapons=("light_laser",),
+            weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
             modules=(),
         )
         ctx.ship_storage = [
@@ -1741,11 +1741,14 @@ class TestSaveLoadRoundTrip:
         from src.spacehack.ship import OwnedShip
 
         ctx = _build_test_ctx()
+        from src.spacehack.ship import StoredEquipment
         ctx.player_owned_ship = OwnedShip(
             ship_id="scout",
             display_name="Test Runner",
             hull_damage_pct=15,
-            weapons=("light_laser",),
+            # Placed (doc 56 phase 2): unplaced installed entries strip
+            # to storage at load, by design.
+            weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
             modules=(),
             fuel=25,
             inventory={"food": 3},
@@ -1782,8 +1785,8 @@ class TestSaveLoadRoundTrip:
         ctx.player_owned_ship = OwnedShip(
             ship_id="scout",
             modules=(
-                StoredEquipment("module", "shield_mk2", quality=2),
-                StoredEquipment("module", "compact_reactor"),
+                StoredEquipment("module", "shield_mk2", quality=2, grid_x=0, grid_y=0),
+                StoredEquipment("module", "compact_reactor", grid_x=2, grid_y=0),
             ),
         )
         ctx.ship_storage = [StoredEquipment("module", "armor_plating", quality=3)]
@@ -1795,8 +1798,8 @@ class TestSaveLoadRoundTrip:
         ship = loaded.player_owned_ship
         assert ship is not None
         assert ship.modules == (
-            StoredEquipment("module", "shield_mk2", quality=2),
-            StoredEquipment("module", "compact_reactor"),
+            StoredEquipment("module", "shield_mk2", quality=2, grid_x=0, grid_y=0),
+            StoredEquipment("module", "compact_reactor", grid_x=2, grid_y=0),
         )
         assert loaded.ship_storage == [
             StoredEquipment("module", "armor_plating", quality=3),
@@ -2227,3 +2230,131 @@ def test_doubled_missile_reserve_booking_survives_the_load_path():
     owned = _parse_owned_ship(_saved)
     assert owned.weapon_ammo[3] == 8  # the saved rack, not re-seeded
     assert owned.cargo_ammo == 16
+
+
+class TestFittingGridRoundTrip:
+    """Doc 56 phase 2: placements ride the installed entries; storage
+    payloads never carry placement keys; loads normalize illegal
+    grids deterministically (SETTLED 11/14)."""
+
+    def _save_and_load(self, monkeypatch, tmp_path, ctx):
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        return load_game(ctx.context)
+
+    def _fitted_scout_ctx(self):
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_missile", grid_x=0, grid_y=0),),
+            modules=(
+                StoredEquipment("module", "compact_reactor", grid_x=1, grid_y=0),
+                StoredEquipment("module", "shield_mk1", grid_x=2, grid_y=0),
+            ),
+        )
+        ctx.ship_storage = [StoredEquipment("module", "armor_plating", quality=3)]
+        return ctx
+
+    def test_placed_grid_survives_exactly(self, monkeypatch, tmp_path):
+        loaded = self._save_and_load(monkeypatch, tmp_path, self._fitted_scout_ctx())
+        ship = loaded.player_owned_ship
+        assert [(e.item_id, e.grid_x, e.grid_y) for e in ship.weapons] == [
+            ("light_missile", 0, 0),
+        ]
+        assert [(e.item_id, e.grid_x, e.grid_y) for e in ship.modules] == [
+            ("compact_reactor", 1, 0), ("shield_mk1", 2, 0),
+        ]
+        # Ammo booking rides the same indices.
+        assert 0 in ship.weapon_ammo
+
+    def test_storage_payloads_carry_no_placement_keys(self, monkeypatch, tmp_path):
+        import json as _json
+        path = tmp_path / "autosave.json"
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path", lambda: path,
+        )
+        ctx = self._fitted_scout_ctx()
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        raw = _json.loads(path.read_text())
+        # Stored items have no position: their payloads carry NO
+        # placement keys, whatever else rides the entry shape.
+        assert len(raw["ship_storage"]) == 1
+        assert raw["ship_storage"][0]["item_id"] == "armor_plating"
+        assert "grid_x" not in raw["ship_storage"][0]
+        assert "grid_y" not in raw["ship_storage"][0]
+        # Installed entries DO carry their anchors.
+        assert raw["player_owned_ship"]["weapons"][0]["grid_x"] == 0
+        assert raw["player_owned_ship"]["weapons"][0]["grid_y"] == 0
+
+    def test_old_shape_save_strips_with_notice(self, monkeypatch, tmp_path):
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_laser"),),
+            modules=(StoredEquipment("module", "shield_mk1"),),
+        )
+        ctx.ship_storage = []
+        loaded = self._save_and_load(monkeypatch, tmp_path, ctx)
+        ship = loaded.player_owned_ship
+        assert ship.weapons == () and ship.modules == ()
+        assert loaded.ship_storage == [
+            StoredEquipment("weapon", "light_laser"),
+            StoredEquipment("module", "shield_mk1"),
+        ]
+        assert "Fitted gear moved to storage: Light Laser, Shield Mk. 1." in [
+            entry.text for entry in loaded.log.history()
+        ]
+
+    def _rewrite_ship(self, monkeypatch, tmp_path, ctx, weapons, modules):
+        import json as _json
+        path = tmp_path / "autosave.json"
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path", lambda: path,
+        )
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+        raw = _json.loads(path.read_text())
+        raw["player_owned_ship"]["weapons"] = weapons
+        raw["player_owned_ship"]["modules"] = modules
+        path.write_text(_json.dumps(raw))
+        return load_game(ctx.context)
+
+    def test_power_invalid_save_normalizes_highest_upkeep_first(
+        self, monkeypatch, tmp_path,
+    ):
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(ship_id="scout")
+        ctx.ship_storage = []
+        # Scout 3 - 3 (shield_mk3) - 1 (targeting) = -1: the shield is
+        # the highest-upkeep offender and strips, leaving net +2.
+        loaded = self._rewrite_ship(
+            monkeypatch, tmp_path, ctx,
+            weapons=[],
+            modules=[
+                {"item_id": "shield_mk3", "grid_x": 0, "grid_y": 0},
+                {"item_id": "targeting_computer", "grid_x": 2, "grid_y": 0},
+            ],
+        )
+        assert [e.item_id for e in loaded.player_owned_ship.modules] == [
+            "targeting_computer",
+        ]
+        assert loaded.ship_storage == [
+            StoredEquipment("module", "shield_mk3"),
+        ]
+
+    def test_overlapping_save_strips_module_in_cross_tuple_overlap(
+        self, monkeypatch, tmp_path,
+    ):
+        ctx = _build_test_ctx()
+        ctx.player_owned_ship = OwnedShip(ship_id="scout")
+        ctx.ship_storage = []
+        loaded = self._rewrite_ship(
+            monkeypatch, tmp_path, ctx,
+            weapons=[{"item_id": "heavy_laser", "grid_x": 0, "grid_y": 0}],
+            modules=[{"item_id": "shield_mk1", "grid_x": 0, "grid_y": 0}],
+        )
+        assert [e.item_id for e in loaded.player_owned_ship.weapons] == ["heavy_laser"]
+        assert loaded.player_owned_ship.modules == ()
+        assert loaded.ship_storage == [StoredEquipment("module", "shield_mk1")]

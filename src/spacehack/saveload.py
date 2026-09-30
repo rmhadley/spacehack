@@ -20,6 +20,7 @@ from .saveload_ground import (  # noqa: F401  # ground family split; re-exported
     _ground_fields,
     _restore_ground_fields,
 )
+from .ship import StoredEquipment as _StoredEquipment
 from .user_data import spacehack_root, sync_persistence
 
 
@@ -69,6 +70,21 @@ def _d(obj) -> object:
         return sorted(_d(v) for v in obj)
     if isinstance(obj, dict):
         return {str(k): _d(v) for k, v in obj.items()}
+    if isinstance(obj, _StoredEquipment):
+        # Doc 56 phase 2: installed entries serialize their grid
+        # anchor; storage payloads never carry placement keys (stored
+        # items have no position). The branch sits AHEAD of the
+        # Position check by construction — grid_x/grid_y cannot form
+        # an (x, y) pair — and ahead of it by decree (ADVISE blocking
+        # 1): defense in depth on the serializer order.
+        _equip: dict[str, object] = {
+            _f.name: _d(getattr(obj, _f.name))
+            for _f in dataclasses.fields(obj)
+        }
+        for _anchor in ("grid_x", "grid_y"):
+            if _equip[_anchor] is None:
+                del _equip[_anchor]
+        return _equip
     if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
         # Position-like dataclasses: serialize as [x, y] for compactness.
         if hasattr(obj, "x") and hasattr(obj, "y"):
@@ -764,6 +780,10 @@ def _restore_loot_entities(data: dict, game_map) -> None:
 def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebuilt) -> None:
     """Restore the mission/economy/clock scalar fields onto ``ctx``."""
     ctx.ship_storage = _parse_ship_storage(data)
+    # Doc 56 phase 2: both containers exist now — normalize the grid
+    # (SETTLED 11/14) before anything downstream reads the loadout.
+    from .saveload_ship import normalize_loaded_grid
+    normalize_loaded_grid(ctx)
     ctx.completed_mission_ids = set(data.get("completed_mission_ids", []) or [])
     ctx.mission_boards = parsed.mission_boards
     ctx.bounty_spawns = parsed.bounty_spawns

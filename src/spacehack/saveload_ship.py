@@ -57,3 +57,26 @@ def _parse_owned_ship(data: dict):
     if _saved_cargo_ammo is not None:
         owned.cargo_ammo = int(_saved_cargo_ammo)
     return owned
+
+
+def normalize_loaded_grid(ctx) -> None:
+    """Run the doc-56 grid normalization once the owned ship AND its
+    storage both exist (SETTLED 11/14): placement-less entries strip
+    (old-shape saves), illegal geometry repairs, power-invalid grids
+    shed their highest-upkeep offenders. The notice line lands here —
+    post-ctx, so it reaches the message log the player actually sees."""
+    from .data.ships import find_ship
+    from . import ship_fitting
+
+    owned = getattr(ctx, "player_owned_ship", None)
+    if owned is None:
+        return
+    try:
+        spec = find_ship(owned.ship_id)
+    except KeyError:
+        return
+    stripped = ship_fitting.normalize_fitted_grid(
+        owned, ctx.ship_storage, spec,
+    )
+    if stripped:
+        ctx.log.add(f"Fitted gear moved to storage: {', '.join(stripped)}.")

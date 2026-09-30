@@ -63,6 +63,17 @@ class StoredEquipment:
     grid_y: int | None = None
 
 
+def _parse_placement(raw: dict) -> tuple[int | None, int | None]:
+    """Read one installed entry's grid anchor from its save dict.
+
+    Both coords or neither — a half-anchored entry is placement-less
+    and strips at load (SETTLED 14)."""
+    gx, gy = raw.get("grid_x"), raw.get("grid_y")
+    if isinstance(gx, int) and isinstance(gy, int):
+        return gx, gy
+    return None, None
+
+
 def parse_weapon_entry(raw) -> StoredEquipment | None:
     """Parse one installed-weapon save entry, migrating legacy shapes.
 
@@ -70,15 +81,19 @@ def parse_weapon_entry(raw) -> StoredEquipment | None:
     ``OwnedShip.weapons`` entries were bare id strings; the instance
     shape is ``StoredEquipment``. A missing or malformed quality tier
     migrates to base (0). Weapons never randart — no seed to parse.
-    Unknown ids return None.
+    Bare-id legacy entries stay placement-less (they predate the grid
+    and strip to storage at load, doc 56 SETTLED 14). Unknown ids
+    return None.
     """
     from .ground_equipment import parse_quality
 
     if isinstance(raw, str):
         weapon_id, quality = raw, 0
+        gx = gy = None
     elif isinstance(raw, dict):
         weapon_id = raw.get("item_id")
         quality = parse_quality(raw.get("quality"))
+        gx, gy = _parse_placement(raw)
     else:
         return None
     if not isinstance(weapon_id, str) or not weapon_id:
@@ -88,7 +103,7 @@ def parse_weapon_entry(raw) -> StoredEquipment | None:
         _fw(weapon_id)
     except KeyError:
         return None
-    return StoredEquipment("weapon", weapon_id, quality=quality)
+    return StoredEquipment("weapon", weapon_id, quality=quality, grid_x=gx, grid_y=gy)
 
 
 def base_weapon_entries(weapon_ids) -> tuple[StoredEquipment, ...]:
@@ -110,10 +125,12 @@ def parse_module_entry(raw) -> StoredEquipment | None:
 
     if isinstance(raw, str):
         module_id, quality, seed = raw, 0, None
+        gx = gy = None
     elif isinstance(raw, dict):
         module_id = raw.get("item_id")
         quality = parse_quality(raw.get("quality"))
         seed = parse_randart_seed(raw.get("randart_seed"))
+        gx, gy = _parse_placement(raw)
     else:
         return None
     if not isinstance(module_id, str) or not module_id:
@@ -123,7 +140,9 @@ def parse_module_entry(raw) -> StoredEquipment | None:
         _fm(module_id)
     except KeyError:
         return None
-    return StoredEquipment("module", module_id, quality=quality, randart_seed=seed)
+    return StoredEquipment(
+        "module", module_id, quality=quality, randart_seed=seed, grid_x=gx, grid_y=gy,
+    )
 
 
 def base_module_entries(module_ids) -> tuple[StoredEquipment, ...]:
