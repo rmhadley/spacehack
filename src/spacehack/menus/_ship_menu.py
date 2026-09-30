@@ -48,38 +48,80 @@ def _effective_power_gen(ship_spec, owned) -> int:
     )
 
 
-def _loadout_section(ctx, owned, ship):
-    """Build the LOADOUT tab's body, rows, and footer.
+def _overview_lines(ctx, owned, ship) -> tuple[str, str]:
+    """The overview's important numbers (in-play 2026-09-30), read
+    through combat's own derivation — ``_player_combat_values`` — so
+    the hangar can never drift from the fight: hull, shields + free
+    regen, AP, and the power pool with its per-turn regen."""
+    from ..combat._stats import _free_shield_regen, _player_combat_values
+    from ..data.pilot_skills import PilotSkills
+    from ..hud import ap_pool_str
+    from ..xp import ace_pilot_ap_bonus, systems_expert_power_bonus
 
-    Doc 56 SETTLED 20 (playtest 2026-09-30, amends 19 for the hangar):
-    a list of the active weapons and modules with their stats
-    attached — tier-coloured names, the same stat lines the editor's
-    tooltip shows. The letter grid stays on the mechanic's tab and
-    editor."""
+    (_gun, _pil, _eng, ap, ap_gain, power_regen, max_shields,
+     hull, max_hull, max_power) = _player_combat_values(
+        ship, owned,
+        PilotSkills(
+            gunnery=ctx.stats.gunnery,
+            piloting=ctx.stats.piloting,
+            engineering=ctx.stats.engineering,
+        ),
+        ace_pilot_ap_bonus(ctx),
+        systems_expert_power_bonus(ctx),
+    )
+    return (
+        f"Hull {hull}/{max_hull}   Shields {max_shields}   "
+        f"Shield regen {_free_shield_regen(ship, owned.modules)}/turn",
+        f"AP {ap_pool_str(ap, ap_gain % 20)}   Max power {max_power}   "
+        f"Power regen {power_regen}/turn",
+    )
+
+
+def _gear_list_lines(owned) -> tuple[list[str], list[tuple | None]]:
+    """The WEAPONS/MODULES sections: tier-coloured names with their
+    stat lines attached (doc 56 SETTLED 20)."""
     from .. import pygame_ui
     from ..menus._grid_editor import entry_view
 
-    muted_color = pygame_ui.DEFAULT_PALETTE.muted
-    body: list[str] = []
-    body_runs: list[tuple | None] = []
+    muted = pygame_ui.DEFAULT_PALETTE.muted
+    lines: list[str] = []
+    runs: list[tuple | None] = []
     for label, entries in (
         ("WEAPONS", getattr(owned, "weapons", ()) or ()),
         ("MODULES", getattr(owned, "modules", ()) or ()),
     ):
         if not entries:
             continue
-        body.append(label)
-        body_runs.append(((label, muted_color),))
+        lines.append(label)
+        runs.append(((label, muted),))
         for entry in entries:
             try:
                 name, stats, color = entry_view(entry)
             except KeyError:
                 continue
-            body.append(f"{name} - {stats}")
-            body_runs.append((
-                (name, color), (f" - {stats}", None),
-            ))
-    if not body:
+            lines.append(f"{name} - {stats}")
+            runs.append(((name, color), (f" - {stats}", None)))
+    return lines, runs
+
+
+def _loadout_section(ctx, owned, ship):
+    """Build the LOADOUT tab's body, rows, and footer.
+
+    Doc 56 SETTLED 20 (playtest 2026-09-30, amends 19 for the hangar):
+    the overview's important numbers, then a list of the active
+    weapons and modules with their stats attached — tier-coloured
+    names, the same stat lines the editor's tooltip shows. The letter
+    grid stays on the mechanic's tab and editor."""
+    from .. import pygame_ui
+
+    body = ["OVERVIEW", *_overview_lines(ctx, owned, ship)]
+    body_runs: list[tuple | None] = [
+        (("OVERVIEW", pygame_ui.DEFAULT_PALETTE.muted),), None, None,
+    ]
+    gear_lines, gear_runs = _gear_list_lines(owned)
+    body.extend(gear_lines)
+    body_runs.extend(gear_runs)
+    if not gear_lines:
         body.append("Nothing installed.")
         body_runs.append(None)
     rows = ()
@@ -181,6 +223,10 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
         tabs=_HANGAR_TABS, active_tab=tab, body_runs=body_runs,
+        # The LOADOUT tab's overview + gear list can outgrow one
+        # screen on a full rack — it pages (UP/DOWN at the ends)
+        # instead of dropping the font off the shared ladder top.
+        scrollable=tab == 2,
     )
 
 async def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:

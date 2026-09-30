@@ -140,7 +140,10 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
         player_owned_ship=OwnedShip(ship_id="frigate", modules=(
             StoredEquipment("module", "shield_mk1"),
         )),
-        ship_storage=[], stats=SimpleNamespace(credits=5000),
+        ship_storage=[], stats=SimpleNamespace(
+            credits=5000, gunnery=10, piloting=10, engineering=10,
+        ),
+        player_traits=[],
         log=SimpleNamespace(add=lambda *_, **_kw: None),
     )
     spec = find_ship("frigate")

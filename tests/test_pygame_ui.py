@@ -3428,7 +3428,10 @@ def test_hangar_loadout_tab_lists_gear_with_stats():
             ),
             fuel=12,
         ),
-        stats=SimpleNamespace(credits=321),
+        stats=SimpleNamespace(
+            credits=321, gunnery=10, piloting=10, engineering=10,
+        ),
+        player_traits=[],
     )
 
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
@@ -3437,14 +3440,22 @@ def test_hangar_loadout_tab_lists_gear_with_stats():
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
     assert frame.rows == ()  # read-only: nothing to select
-    assert frame.body == (
+    # The overview leads, through combat's own derivation (10/10/10
+    # skills, no traits: AP gain 3.5/turn; the q2 shield's -3 upkeep
+    # takes the skiff's power regen 4 -> 1).
+    assert frame.body[:3] == (
+        "OVERVIEW",
+        "Hull 15/15   Shields 52   Shield regen 0/turn",
+        "AP 3.5   Max power 12   Power regen 1/turn",
+    )
+    assert frame.body[3:] == (
         "WEAPONS",
         "Light Laser - Dmg 4  Acc 80%  Rng 1-5  AP 1  Pow 1",
         "MODULES",
         "Overclocked Shield Mk. 2 - Power: -3  Shields: +52",
     )
     # The tier colour paints the name; the stats stay plain.
-    assert frame.body_runs[3] == (
+    assert frame.body_runs[6] == (
         ("Overclocked Shield Mk. 2", quality_color(2)),
         (" - Power: -3  Shields: +52", None),
     )
@@ -3458,12 +3469,20 @@ def test_hangar_loadout_tab_empty_ship():
     ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
-        stats=SimpleNamespace(credits=321),
+        stats=SimpleNamespace(credits=321, gunnery=10, piloting=10, engineering=10),
+        player_traits=[],
     )
 
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
 
-    assert frame.body == ("Nothing installed.",)
+    # The overview still shows the bare hull (power regen 4 = the
+    # skiff's full base generation, nothing installed).
+    assert frame.body == (
+        "OVERVIEW",
+        "Hull 15/15   Shields 0   Shield regen 0/turn",
+        "AP 3.5   Max power 12   Power regen 4/turn",
+        "Nothing installed.",
+    )
 
 
 def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):
@@ -3523,7 +3542,8 @@ def test_ship_hangar_pygame_tab_cycles_all_tabs_and_wraps(monkeypatch):
     ctx = SimpleNamespace(
         context=object(),
         player_owned_ship=OwnedShip(ship_id="starter", fuel=12),
-        stats=SimpleNamespace(credits=321),
+        stats=SimpleNamespace(credits=321, gunnery=10, piloting=10, engineering=10),
+        player_traits=[],
     )
     seen = []
     outcomes = iter((("TAB", "", 3), ("TAB", "", 0), ("TAB", "", 0), ("BACK", "", 0)))
