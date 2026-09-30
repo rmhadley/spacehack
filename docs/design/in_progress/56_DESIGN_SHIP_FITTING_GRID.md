@@ -427,6 +427,24 @@ probe-driven — phase 4).
     credits-scarce pass ever wants a genuinely different budget
     block.
 
+29. **Targeting family calibration** (2026-09-30, parts walk
+    family 3). The mk1 (1×1, +10, 7cr/gunnery) stack-dominated the
+    whole ladder — 3× mk1 equaled the old mk4 at 3 cells for 210cr
+    vs 450. Ruled: `targeting_mk2` +15 → **+25** / upkeep −2,
+    `targeting_mk3` +20 → **+45** / upkeep −3, `targeting_mk4` +30
+    → **+60** / upkeep −4 / shape 2×2 → **2×3** (the user's shape
+    question; ruled 2×3 over 3×3 — every step grows, the anti-stack
+    rule survives at 6 cells [+60 at −4w vs six mk1s' +60 at −6w,
+    one part vs six], and the 3×3 tier stays exclusive to the
+    PHYSICAL families so the flagship blocks remain a
+    shield-vs-reactor fight; electronics top out one size smaller).
+    mk1/−1 untouched — six NPC specs + the frigate start fly it, so
+    the enemy side and the power lints are unmoved. The flat −1
+    "targeting" curve (phase-2 draft) amends to −1/−2/−3/−4. Family
+    identity going forward: the answer to dodge (gunnery buys room
+    under the 95 clamp against dodge-tanks). The clamp VALUE itself
+    stays a separate phase-4 ruling with the probe as referee.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:

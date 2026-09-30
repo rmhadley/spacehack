@@ -43,7 +43,7 @@ RULED_ITEM_SIZES = {
     "plasma_cannon": (2, 3), "breach_charge_test": (1, 1),
     "shield_mk1": (1, 2), "shield_mk2": (2, 2), "shield_mk3": (2, 3), "shield_mk4": (3, 3),
     "shield_capacitor": (1, 1), "shield_recharger": (1, 2),
-    "targeting_computer": (1, 1), "targeting_mk2": (1, 2), "targeting_mk3": (2, 2), "targeting_mk4": (2, 2),
+    "targeting_computer": (1, 1), "targeting_mk2": (1, 2), "targeting_mk3": (2, 2), "targeting_mk4": (2, 3),
     "gyro_stabilizer": (1, 1), "gyro_mk2": (1, 2), "gyro_mk3": (2, 2), "gyro_mk4": (2, 2),
     "expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (3, 3), "cargo_mk4": (3, 3),
     "armor_plating": (1, 1), "armor_mk2": (2, 2), "armor_mk3": (2, 2), "armor_mk4": (2, 2),
@@ -74,8 +74,8 @@ SINGLES = ("shield_capacitor", "shield_recharger")
 RULED_UPKEEP = {
     "shield_mk1": -1, "shield_mk2": -2, "shield_mk3": -3, "shield_mk4": -4,
     "shield_capacitor": -1, "shield_recharger": -1,
-    "targeting_computer": -1, "targeting_mk2": -1,
-    "targeting_mk3": -1, "targeting_mk4": -1,
+    "targeting_computer": -1, "targeting_mk2": -2,
+    "targeting_mk3": -3, "targeting_mk4": -4,
     "gyro_stabilizer": -1, "gyro_mk2": -1, "gyro_mk3": -1, "gyro_mk4": -1,
     # pre-existing curve, unchanged by phase 2
     "armor_plating": -1, "armor_mk2": -2, "armor_mk3": -3, "armor_mk4": -4,

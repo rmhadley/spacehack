@@ -407,7 +407,7 @@ def test_randart_frame_shows_base_fields_no_axis_touched():
         }
     )
     frame = _randart_frame("targeting_mk3", 4, seed)
-    assert "+44 gunnery" in frame.body
+    assert "+99 gunnery" in frame.body
 
 
 def test_unseeded_module_pickups_never_fire_the_modal(monkeypatch):
