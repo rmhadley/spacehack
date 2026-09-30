@@ -154,9 +154,20 @@ class TestPaneRows:
     def test_letters_at_anchors_with_cursor_bracket(self):
         pieces = (_piece("module:0", 0, 0, 2, 2),)
         rows = ge.pane_rows(_state(cursor=(2, 0)), pieces, set(), 10, [])
-        assert rows[0][0] == "S  S  [.]."
-        assert rows[1][0] == "S  S  .  ."
-        assert rows[2][0] == ".  .  .  ."
+        assert rows[0][0] == " S  S [.] ."
+        assert rows[1][0] == " S  S  .  ."
+        assert rows[2][0] == " .  .  .  ."
+
+    def test_cursor_bracket_never_shifts_the_glyph_column(self):
+        # Playtest 2026-09-30: brackets must WRAP the glyph — every
+        # glyph centers in its 3-char cell, cursor or not, so columns
+        # stay put as the cursor moves.
+        pieces = (_piece("module:0", 0, 0, 4, 1),)  # a full row of S
+        rows = ge.pane_rows(_state(cursor=(2, 0)), pieces, set(), 10, [])
+        assert rows[0][0] == " S  S [S] S"
+        assert [
+            index for index, char in enumerate(rows[0][0]) if char == "S"
+        ] == [1, 4, 7, 10]
 
     def test_runs_text_equals_row_text(self):
         pieces = (_piece("module:0", 0, 0, 2, 2, color=(1, 2, 3)),)
@@ -194,7 +205,7 @@ class TestPaneRows:
         part = ge.HeldPart(1, 1, origin=(0, 0))
         state = ge.EditorState(4, 3, (1, 0), part)
         rows = ge.pane_rows(state, pieces, set(), 10, [], held_letter="L")
-        assert rows[0][0] == ".  [L].  ."
+        assert rows[0][0] == " . [L] .  ."
 
 
 class TestReadOnlyGrid:

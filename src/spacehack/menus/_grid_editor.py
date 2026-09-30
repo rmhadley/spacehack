@@ -380,9 +380,12 @@ def pane_rows(
                 )
             else:
                 glyph, color = cells.get((x, y), (".", None))
+            # Every glyph centers in its 3-char cell: " S " / "[S]" —
+            # the cursor brackets wrap the glyph without shifting its
+            # column (playtest 2026-09-30).
             if (x, y) == state.cursor:
                 segments.append((f"[{glyph}]", color or palette.accent))
             else:
-                segments.append((f"{glyph}  ", color))
+                segments.append((f" {glyph} ", color))
         rows.append(_trim_row(segments))
     return tuple(rows)
