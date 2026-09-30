@@ -19,8 +19,12 @@ every hook point re-verified live, the dev-mode grant exposed as a
 fifth stamping site that cannot pack (audit addendum), phase-2
 Implementation brief proposed below, ADVISE-folded in the same
 session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
-inside the brief; the `_d` Position-branch collision and the
-unpackable dev grant were the blockers).
+  inside the brief; the `_d` Position-branch collision and the
+  unpackable dev grant were the blockers). Brief APPROVED the same
+  exchange ("approved. we can always adjust later after
+  playtesting" — the refusal strings, guide sentence, and dev-grant
+  mix are expected to move at the playtest). Next:
+  `/implement-phase 56.2`.
 
 ## Overview
 
@@ -510,7 +514,9 @@ edits. That is phases 2-3.
 4. Guide diff: NONE this phase (no player-facing change) — recorded
    per the every-checklist-carries-a-guide-item rule.
 
-## Implementation brief — Phase 2 (PROPOSED 2026-09-30; ADVISE-folded same day, dispositions below)
+## Implementation brief — Phase 2 (APPROVED 2026-09-30 — "approved.
+we can always adjust later after playtesting"; PROPOSED +
+ADVISE-folded same day, dispositions below)
 
 Fitting model + resting power gate + upkeep data. Player-facing
 effect: every install path becomes grid-and-power gated (auto-placed);
