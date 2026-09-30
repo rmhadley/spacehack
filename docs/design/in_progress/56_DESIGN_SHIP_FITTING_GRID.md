@@ -83,7 +83,18 @@ same commit ("Ship ops", "Space combat init — parity mirror",
 then calibration (ruled: "Yes, NPC parity first. Then I can get in to
 some fights and we can start talking balance. And we can use the
 balance combat sim tool to also measure."); brief via
-/refine-design 56.
+/refine-design 56. Phase-5 refine pass same day (third command
+session): the NPC census measured live (15 specs; 12/13 loaded
+loadouts pack — `pirate_warlord` FAILS at 32/30 and NO composition
+keeping its 3×3 hold packs the 6×5 except by dropping the plasma or
+heavy_laser+shield_mk1; all 13 base-power-valid, five negative at
+t3 — marauder among them), SETTLED 22 (warlord drops the hold) / 23
+(lint at base quality) / 24 (**volley parity folds INTO phase 5** —
+open question 2 closed), phase-5 Implementation brief proposed +
+ADVISE-folded below (verdict ADVICE, 2 blocking + 6 minor — the
+un-transcribed marauder t3 row and the flagship-holds pin the
+re-author breaks were the blockers; all folded, dispositions inside
+the brief).
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -159,9 +170,10 @@ Source: the user's played character `saves/merchant_sirian_bountyhunter.json`
   stabalizer, modules. so many fun things we have in the game were just
   straight up pointless."
 
-This doc covers the fitting system. Related queued work it does NOT cover:
-enemy volley parity, the missile/EMP retune, and the shield/enemy-damage
-magnitude retune (that lands with the grid, probe-driven — phase 4).
+This doc covers the fitting system and NPC parity (grid + volley —
+SETTLED 24). Related queued work it does NOT cover: the missile/EMP
+retune and the shield/enemy-damage magnitude retune (that lands
+probe-driven — phase 4).
 
 ## Goals / non-goals
 
@@ -178,10 +190,13 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
 - Rotation. Fixed orientations; revisit if fitting feels starved.
 - Runtime brown-outs (modules going dark mid-combat from pool drain).
   Held as a possible later phase only if the static gate lacks teeth.
-- Missile/EMP rework, magnitude retunes, enemy volley parity — separate,
-  after the grid exists ("we can deal with those numbers later though.
+- Missile/EMP rework and magnitude retunes — separate, after NPCs
+  fly the grid ("we can deal with those numbers later though.
   Once we have a working grid system to test with." — user).
-- NPC parity — player-only first, then a dedicated phase.
+  Enemy volley parity ORIGINALLY sat here; SETTLED 24 moved it into
+  phase 5. NPC parity ORIGINALLY sat here too ("player-only first")
+  — the build-order ruling + SETTLED 24 moved BOTH halves into
+  phase 5; this bullet records the original v1 scoping only.
 
 ## Philosophy alignment
 
@@ -306,6 +321,46 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     then the active weapons/modules with stats — with the mechanic's
     Manage row kept on top as the editor entry. The letter grid
     renders ONLY in the editor; read_only_rows retired.
+22. **Warlord re-authored: the smuggler hold goes** (2026-09-30,
+    phase-5 refine). User picked the recommended cut: `pirate_warlord`
+    drops `smuggler_hold_mk4` — 23/30 cells, zero combat-math change
+    (`smuggler_cargo` is unread by `_build_enemy`), full top-shelf
+    arsenal (heavy_laser, heavy_missile, plasma_cannon, light_laser)
+    stays. Accepted consequence: the 3×3 hold no longer appears in
+    the warlord's capture-interior loot. Census fact behind the
+    choice (measured by exhaustive 1-2-item cut search over
+    `auto_fit`): no composition keeping the 3×3 hold packs the 6×5
+    frigate except by dropping the plasma cannon or the
+    heavy_laser+shield_mk1 pair.
+23. **NPC power lint = base quality** (2026-09-30, phase-5 refine).
+    User picked the recommended level: the phase-5 lint enforces
+    packability + net ≥ 0 at BASE quality — exactly mirroring the
+    player's start-loadout lint from phase 2. Quality-rolled
+    instances may go net-negative (measured at t3, FIVE specs:
+    militia_blockade −3, pirate_marauder −3, pirate_captain −2,
+    militia_patrol_heavy −2, pirate_warlord −4); those fly a
+    clamped-0 pool — live since phase 2, probe-refereed,
+    player-favor — and are phase-4 balance input, not structural
+    failures.
+24. **Enemy-volley parity lands INSIDE phase 5** (2026-09-30, ruling
+    open question 2). User picked "Inside phase 5 now": phase 5 is
+    the full NPC mirror — grid legality AND the fire action, one
+    build. The enemy fire action becomes the player's burst-fire
+    mirror: one aggressiveness-gated decision fires the whole volley
+    — every affordable weapon in slot order, per-weapon power/ammo
+    costs, AP = max(ap_cost) paid once; the volley stops on player
+    death. Binding mirror consequences: the band/back-off weapon
+    stays the top scorer (it governs the dance, not volley
+    inclusion); out-of-range members fire at the hit floor, exactly
+    as the player's own volley does; reaction fire (doc 54's flee
+    volley) stays SINGLE-shot — no player counterpart exists to
+    mirror; the Momentum AP refund stays player-only (a doc-49
+    trait, not a fire-model rule); `enemy_fired` stamps once per
+    volley (the opener window closes on the volley, hit or miss —
+    mirror of `_spend_opener`). Magnitudes are NOT touched — the
+    output jump on multi-weapon ships is the point ("Then I can get
+    in to some fights"); the probe and the re-derived Line harness
+    REPORT the shift, phase 4 calibrates.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -625,16 +680,22 @@ then one balance pass over both sides with the probe as referee.
   magnitude change (advisor catch 8); the deferred magnitude questions
   (shield bonus vs enemy damage) land here or get their own doc with
   the probe as referee. FOLLOWS PHASE 5 (ruled 2026-09-30): the user
-  fights the grid-flying NPCs first, then one balance pass over both
-  sides — balance_probe is the agreed referee — with the phase-2
-  gen-4 question and the volley-parity fix in the same conversation.
+  fights the grid-flying, volley-firing NPCs first, then one balance
+  pass over both sides — balance_probe is the agreed referee — with
+  the phase-2 gen-4 question in the same conversation (the
+  volley-parity fix moved INTO phase 5, SETTLED 24).
   PLAYTEST: the user's next space fight feels dangerous in the intended
   bands; probe rows show real mean hull damage.
-- [ ] **5. NPC parity** — NPC loadouts adopt sizes: the flat-tuple lint
-  becomes packability + power validity; `weapon_slots`/`module_slots`
-  retire. BUILDS BEFORE PHASE 4 (ruled 2026-09-30, above); the
-  enemy-volley parity fix joins the balance conversation that follows
-  (open question 2's leaning, same ruling).
+- [ ] **5. NPC parity — grid + volley** — the full NPC mirror, one
+  build. Grid side: NPC loadouts adopt sizes — the flat-tuple slot
+  lint becomes packability + power validity (base quality, SETTLED
+  23); `pirate_warlord` re-authored to drop the smuggler hold
+  (SETTLED 22, 32→23 cells); `weapon_slots`/`module_slots` retire.
+  Volley side (SETTLED 24): the enemy fire action becomes the
+  player's burst-fire mirror — all affordable weapons per action,
+  per-weapon power/ammo, max-AP-once. BUILDS BEFORE PHASE 4 (ruled
+  2026-09-30); the probe and the re-derived Line harness report the
+  difficulty shift, phase 4 calibrates.
 
 Each phase gets an Implementation brief at `/refine-design` time before
 any build. Every phase close amends the SYSTEMS.md entries it touched
@@ -1229,6 +1290,213 @@ items ride here)
   ~940) + `_render_ship_stat_rows` signature cleanup.
 - Minor 12: POWER footer sign-conditional, zero bare, pinned.
 
+## Implementation brief — Phase 5 (PROPOSED 2026-09-30, `/refine-design`; ADVISE-folded same session)
+
+NPC parity — grid + volley, one build (SETTLED 24). Zero magnitude
+changes: every number shift this phase produces is REPORTED as
+phase-4 input, never tuned here.
+
+**Scope (files/hook points)**
+
+1. `src/spacehack/data/npc_ships/deep.py` — SETTLED 22:
+   `pirate_warlord.modules` drops `smuggler_hold_mk4` (the six-module
+   kit becomes five; 23/30 cells). The ONLY spec re-author in the
+   phase; every other loadout already packs and is base-power-valid
+   (census, this session).
+2. `tests/test_space_scale.py` —
+   `test_every_loadout_fits_its_hull_slots` is REPLACED by two
+   permanent lints over `list_npc_ships()`: packability
+   (`auto_fit(hull.grid_w, hull.grid_h, weapon+module sizes in spec
+   order)` is not None for every loaded spec — derelicts vacuous)
+   and power validity (`modules_resting_power(hull, base-quality
+   StoredEquipment modules) >= 0`, SETTLED 23 — mirrors the player's
+   start-loadout lint). The merchant wealth-containment test is
+   untouched. ADVISE blocking 1: the warlord re-author also breaks
+   `test_pirate_flagships_fly_the_existing_smuggler_holds` — the
+   pin re-shapes in the SAME commit: the captain keeps its mk3
+   assert, the warlord line inverts (hold ABSENT), and the
+   2026-09-24 theme ruling ("pirates run the concealment holds, mk
+   tier matching the band") is dispositioned as partially
+   superseded by SETTLED 22 — the theme survives on the
+   still-fitting hulls; the grid outranks it where geometry refuses.
+3. Slot retirement — the reader census, grep-verified complete this
+   session, is exactly: the field defs
+   (`src/spacehack/data/ships/__init__.py`), the six hulls' kwargs
+   (`data/ships/core.py`), one docstring line (`ship.py:340`), and
+   the fit-worst-case rack builder
+   (`tests/test_pygame_integration.py:162`, sizing modules by
+   `spec.module_slots` — re-derived from the grid, e.g. enough 2×2
+   modules to fill the frigate's 30 cells; the 28-rung assertions
+   are unchanged). The fields die TypeError-pinned like the retired
+   `pilot_*` precedent — a pin test asserts `Ship` no longer carries
+   them so they cannot silently return.
+4. Volley parity — `src/spacehack/combat/_ai.py` (SETTLED 24):
+   - `_engagement_decision`'s fire branch fires the VOLLEY: a new
+     `_enemy_volley` replaces the single `_enemy_attack` call —
+     iterate `_ei.weapons` in slot order; every AFFORDABLE member
+     (the same per-weapon AP/power/ammo check
+     `_ranked_weapons(affordable_only=True)` applies today, off the
+     shared `weapon_costs` table) resolves one shot via the existing
+     `_resolve_enemy_shot` and pays its per-weapon power/ammo; AP =
+     max(ap_cost) over fired members, paid ONCE at the end; the
+     volley stops on player death (DEFEAT return) — mirror of
+     `_handle_fire`'s early break. No second economy is derived.
+     ADVISE minor 8: the volley cannot route through `_enemy_attack`
+     (it stamps and pays AP per call) — extract the shared per-shot
+     tail (animate → log/apply hit) both call, so the volley is not
+     a near-copy of the single-shot primitive.
+   - Inclusion iterates weapon SLOTS by affordability, NOT
+     `_ranked_weapons` wholesale (ADVISE minor 6): the score filter
+     ("an EMP on bare shields scores 0 and is never picked") keeps
+     governing the band pick and the reaction pick — volley
+     inclusion is the player mirror, where a score-zero strip
+     weapon still fires its wasted paid shot. Latent today (no NPC
+     spec flies a strip weapon); the pinned behavior stays true for
+     the pickers.
+   - `enemy_fired` stamps once per volley (the opener window closes
+     on the volley, hit or miss — mirror of `_spend_opener`).
+   - `_volley_picks` reshapes: the fire pick's ROLE becomes the
+     band/dance governor only (top scorer among affordable members);
+     volley INCLUSION is affordability alone — out-of-range members
+     fire at the hit floor, exactly as the player's own volley does.
+     The power-dry wish-weapon fallback (dance where you'll fight)
+     is unchanged.
+   - `_enemy_attack` survives BYTE-INTACT as the single-shot
+     primitive — `reaction_volley`
+     (`combat/_rules_space.py:895-921`, doc 54's flee reaction) is
+     its consumer and is an INVARIANT of this phase's stop point:
+     the reaction keeps firing one top-scoring reach weapon AND
+     keeps stamping `enemy_fired` itself (`_ai.py:456`) — nothing
+     today pins that stamp, so the brief adds the pin (required
+     tests). ADVISE minor 4.
+5. `tests/test_line_tuning.py` — the closed form re-derives under
+   volley fire: `_picket_volley` models both light_lasers per action
+   at max-AP-once (a 2-laser picket roughly doubles output per AP);
+   re-pin `test_picket_parity_numbers_pinned`'s volley factor;
+   re-derive the three watch verdicts. If
+   `test_thin_watch_is_the_timing_play` FLIPS under the new math
+   (FIT_25 no longer clears four pickets), pin the new numbers and
+   SURFACE the flip at the playtest — the doc-41 difficulty envelope
+   moving is exactly the shift phase 4 calibrates.
+6. `tests/combat/` — audit every space-side pin that assumes
+   single-fire (attack log-line counts, AP/power accounting, opener
+   timing, presentation volley logs); re-shape to per-weapon volley
+   lines. Ground combat is untouched — ground enemies never had the
+   volley question. ADVISE minor 5: also watch
+   `tests/balance/test_balance.py::test_scenario_thresholds` — the
+   doc-50 goal-1 row (`goal_1_starter_vs_jack`) fights
+   `pirate_scout`, a SINGLE-light_laser ship, so it is expected
+   UNCHANGED under volley parity (single-affordable-weapon behavior
+   is itself a required pin); if that floor trips, it is an
+   RNG-draw-order regression from the restructure, not a balance
+   shift — diagnose as such.
+7. Probe — re-run `tools/balance_probe.py` against the recorded
+   baseline; multi-weapon enemy rows shift up in threat (intended —
+   the player already volleys, now enemies do); the report lands in
+   the phase-5 playtest record as phase-4's starting table.
+8. SYSTEMS.md at close: "Ship ops" (the slot-field sentence retires
+   with the fields) and "Space combat init — parity mirror" (gains
+   the volley mirror + the two NPC lints; "NPC grid parity …
+   pending" resolves).
+9. Guide — no edit expected: enemy fire shape is encounter behavior
+   that shows itself in play; the guide's space-combat section
+   teaches the player's own controls. Verify no stale slot
+   vocabulary resurfaced anywhere; the no-change decision is
+   recorded on the checklist.
+
+**Build order**: warlord re-author + the two NPC lints replace the
+slot lint → slot fields retire (defs + six hulls + docstring + pin
++ integration rack) → `_enemy_volley` + band/reaction split in
+`_ai` → Line harness re-derivation → combat pin re-shapes → probe
+run + report → SYSTEMS.md + guide verify → `make check`.
+
+**Binding rulings**: SETTLED 22 (warlord drops the hold — the only
+spec re-author), 23 (lint at base quality; rolled negatives are the
+clamped pool, phase-4 input), 24 (the volley mirror: affordability
+inclusion, per-weapon power/ammo, max-AP-once, stop on death,
+band = top scorer, reaction single-shot, Momentum player-only,
+`enemy_fired` once), the build-order ruling (phase 5 before phase
+4; the probe REPORTS the shift, never tunes here), SETTLED 39's
+economy (`weapon_costs` is the one table both sides read).
+
+**Required tests (permanent — same-commit per the pure-function
+contract)**
+- The two NPC lints green over all 15 specs; warlord pins: kit
+  packs at 23/30, `boarded_modules` carries no hold.
+- Volley units: AP = max-not-sum (two-weapon pin); per-weapon
+  power/ammo drains; a power-dry member skips while the rest fire;
+  stop-on-player-death; `enemy_fired` once per volley; a
+  single-affordable-weapon ship behaves exactly as today; an
+  out-of-range member fires at the floor.
+- Reaction fire single-shot pin (doc 54 shape preserved) — AND the
+  reaction still stamps `enemy_fired` itself (ADVISE minor 4: no
+  test pins the stamp today; the opener window must keep closing on
+  a flee reaction).
+- Flagship-holds pin re-shaped (ADVISE blocking 1): captain flies
+  mk3, warlord flies none.
+- Line harness re-derived + re-pinned; flips surfaced, not buried.
+- Slot retirement: fields TypeError-pinned gone; no reader remains.
+- Integration fit: grid-derived rack, same 28-rung assertions.
+- Save/load: an in-flight volley economy round-trips
+  (`power_pool`/`ap_remaining`/`weapon_ammo` already serialize —
+  no new shapes).
+
+**Stop point (do NOT start)**: no magnitude retunes of ANY kind
+(upkeep, weapon stats, shield values, enemy skills — phase 4), no
+missile/EMP work, no new NPC specs or band changes, no enemy-grid
+rendering or scan-screen changes (no UI reads enemy placements —
+lint-level parity only), no reaction-volley change, no ground
+combat fire changes, no hull grid resizes.
+
+**Close obligations + budget**: SYSTEMS.md per item 8 in the
+phase-close commit. Budget: `_ai.py` 569 / `_loop.py` 786 /
+`_actions.py` 618 lines today — the volley lands well inside the
+ratchet; no split forecast needed.
+
+**Playtest checkpoint**
+1. Fight a multi-weapon ship (pirate_raider: light_laser +
+   light_missile): the enemy volley lands both weapons in one
+   action — per-weapon log lines, per-weapon power/ammo drain, AP
+   spent once per volley.
+2. Warlord (deep system or T4 bounty): the re-authored kit minus
+   the hold, four-weapon volleys — dangerous by design; note the
+   feel as phase-4 input.
+3. Board the warlord's capture interior: the flown arsenal at
+   rolled quality, no 3×3 hold.
+4. Militia blockade / The Line spot-check: picket fights feel
+   hotter (each picket volleys both lasers); report any Line gate
+   that now reads differently — the harness re-pins landed here.
+5. Probe: `python3 tools/balance_probe.py` — compare against the
+   doc's evidence table; big enemy-side shifts expected and
+   REPORTED. Calibration is phase 4.
+6. Save/quit/continue around a fight: identical state (no new
+   serialized fields).
+7. Reader surfaces: nothing visibly changed — the retired fields
+   were unread since phase 3 (ship-buy, HUD, loadout, hangar,
+   mechanic all render as at the phase-3 checkpoint).
+8. Guide diff: NONE expected — confirmed and recorded (item 9).
+
+**ADVISE dispositions (folded 2026-09-30, same session as proposal)
+** — verdict ADVICE, 2 blocking + 6 minor, all folded:
+- Blocking 1 (the flagship-holds pin breaks): named in item 2 +
+  required tests; the 2026-09-24 theme ruling dispositioned there.
+- Blocking 2 (the t3 census missed pirate_marauder −3): the
+  measured fact corrected to FIVE specs in the Status header and
+  SETTLED 23; every other census claim independently re-verified by
+  the reviewer at HEAD.
+- Minor 3: the non-goals grid-parity bullet now records its own
+  supersession alongside the volley bullet's.
+- Minor 4 (`reaction_volley` consumer outside the named files):
+  `_enemy_attack` byte-intact is an invariant (item 4); the
+  reaction-stamps-opener pin added (required tests).
+- Minor 5 (goal-1 floor as RNG-order tripwire): item 6.
+- Minor 6 (score-zero EMP vs inclusion): inclusion iterates slots
+  by affordability; the score filter governs the pickers only
+  (item 4, latent).
+- Minor 7 (this block): added.
+- Minor 8 (shared per-shot tail): pre-noted in item 4 so the
+  build's DRY pass extracts it, not copies it.
+
 ## Acceptance criteria
 
 1. A fresh Skiff cannot field a Shield Mk. 4 by any path (buy, loot,
@@ -1241,9 +1509,11 @@ items ride here)
 5. Phase-1 lints permanent in the suite; probe rows tracked from phase 2
    onward with the pre-change baseline recorded above.
 6. Guide entries for the changed mechanic reviewed at every phase close.
-7. NPC specs are untouched through phase 4 (parity is phase 5). The one
-   NPC-side effect before then: upkeep authoring (phase 2) lowers enemy
-   power generation for specs flying upkept modules — accepted,
+7. NPC parity lands as ONE phase-5 build (grid legality + volley
+   fire, ahead of phase 4 per the build-order ruling); magnitude
+   changes stay phase 4. The one NPC-side effect that preceded
+   phase 5: upkeep authoring (phase 2) lowered enemy power
+   generation for specs flying upkept modules — accepted,
    probe-refereed, and strictly in the player's favor direction
    (advisor catch 1's resolution).
 8. A tinker kit that would push the resting grid power-negative is
@@ -1254,8 +1524,12 @@ items ride here)
 ## Open questions (for /refine-design)
 
 1. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
-2. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
-   its own fix doc whenever (it is independent of the grid).
+
+(Enemy-volley parity slotting — formerly open question 2 — SETTLED
+2026-09-30 in the phase-5 refine pass as SETTLED 24: the fix lands
+INSIDE phase 5, making it the full NPC mirror; phase 4 calibrates
+afterward. Renumbered; older prose citing two open questions
+predates this.)
 
 (HUD readout shape — formerly open question 2 — SETTLED 2026-09-30 at
 phase-3 brief time as SETTLED 18/19: the summaries retire rather than
