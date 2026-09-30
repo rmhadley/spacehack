@@ -9,7 +9,8 @@ questions 1 and 3 settled (SETTLED 13/14), the pre-implementation
 audit live-verified, phase-1 Implementation brief proposed.
 Phase 1 BUILT same day (`/implement-phase 56.1`): brief ADVISE-folded
 (2 blocking + 7 minor, all dispositioned below), gate green 3308,
-commits de06db72/dd33ce26/a96b88cc/1c3b7c18. PLAYTEST PENDING.
+commits de06db72/dd33ce26/a96b88cc/1c3b7c18. PLAYTEST PASSED
+2026-09-30 ("playtest is good").
 
 ## Overview
 
@@ -322,7 +323,10 @@ Worked check (the motivating cases):
   (minor 3); start-loadout resolver duplication test-vs-tool ACCEPTED
   for phase 1 — phase 2 gets four more stamping sites and must extract
   ONE shared resolver at the first third caller (minor 2, recorded).
-  PLAYTEST PENDING (checklist = the brief's checkpoint).
+  PLAYTEST PASSED 2026-09-30 (user: "playtest is good"). OQ1 glyph
+  letters: the fixtures passed the eyeball but no explicit letter
+  ruling was captured — the S/R/T/G/C/A/H + L/M/P/E proposal stays
+  open, to rule any time or at the phase-3 brief at the latest.
   SYSTEMS.md: deferred to the phase-2/3 closes by design — phase 1
   adds no player-facing mechanic (`fitting.py` has no live callers);
   the slot-system entries stay authoritative until placements land.
