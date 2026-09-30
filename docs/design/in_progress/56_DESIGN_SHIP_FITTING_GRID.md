@@ -36,9 +36,13 @@ session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
   SYSTEMS.md close obligations (Ship ops + parity mirror) ride the
   same combined checkpoint. Phase-3 refine pass same day (second
   command session): SETTLED 16-19 (cursor + pick/place editor,
-  hand-off installs, slot-summary retirement, hangar read-only
+  hand-off installs, slot-summary retirement verbatim, hangar read-only
   grid — open question 2 retired by the user's ruling), phase-3
-  Implementation brief proposed below. Next: brief approval →
+  Implementation brief proposed + ADVISE-folded in the same session
+  (verdict ADVICE, 5 blocking + 7 minor — the slot-guard
+  part-destruction path, the under-counted split key surface, and the
+  hand-off pre-check contradiction were the blockers; all folded,
+  dispositions inside the brief). Next: brief approval →
   `/implement-phase 56.3`.
 
 ## Overview
@@ -884,7 +888,7 @@ verdict ADVICE, 3 blocking + 5 minor, all folded:
 - Q2 correction adopted: the strip-loop failure mode is a ValueError
   crash, not a deadlock (item 3).
 
-## Implementation brief — Phase 3 (PROPOSED 2026-09-30, `/refine-design`)
+## Implementation brief — Phase 3 (PROPOSED 2026-09-30, `/refine-design`; ADVISE-folded same session — dispositions below)
 
 Fitting UI: the grid editor pane at the mechanic terminal, installs by
 hand, the slot-count retirement everywhere, and the guide rewrite.
@@ -893,71 +897,113 @@ Zero combat-math change — no probe run this phase.
 **Scope (files/hook points)**
 
 1. NEW `src/spacehack/menus/_grid_editor.py` — the editor in two
-   layers: a PURE state machine (cursor position, held entry +
-   origin anchor, ghost legality over the live grid; plain ints and
-   catalog-free like `fitting.py`) and the presentation layer (grid
-   rows as runs-coloured letter lines, cursor + ghost painted in,
-   the POWER footer). Also exports the read-only letter-grid
-   renderer the hangar and the mechanic tab reuse (SETTLED 19).
-2. `src/spacehack/pygame_split.py` — ONE contained extension: a
-   `grid_pane: bool = False` frame flag; when the right pane hosts
-   the grid, `_handle_key` maps arrows to `GRID:UP/DOWN/LEFT/RIGHT`
-   outcomes instead of row navigation (883 lines today — the
-   extension stays under the ratchet; no other split behavior moves).
-   TAB remains the pane switch.
+   layers: a PURE state machine (cursor position, held entry + its
+   origin anchor or None for a handed-over part, ghost legality
+   computed by REUSING `fitting.in_bounds`/`footprint`/`net_power` —
+   never re-derived; plain ints and catalog-free like `fitting.py`)
+   and the presentation layer (grid rows as runs-coloured letter
+   lines, cursor + ghost painted in, the POWER footer). Also exports
+   the read-only letter-grid renderer the hangar and the mechanic
+   tab reuse (SETTLED 19).
+2. `src/spacehack/pygame_split.py` — the grid key surface, fully
+   counted (ADVISE blocking 2): a `grid_pane: bool = False` frame
+   flag; when the right pane hosts the grid, a KEY TABLE maps
+   arrows, ENTER, D, X, and TAB to `GRID:*` outcomes — arrows for
+   the cursor, `GRID:ENTER` pick/drop (ENTER is otherwise dead:
+   letter rows carry no actions), `GRID:STORE`/`GRID:SELL`, and TAB
+   SURFACED to the host (today it is swallowed inside the worker
+   with a focus flip, so the SETTLED-12 auto-return could never
+   fire). `GRID:*` outcomes route through the keep-open
+   `apply_action` path (a bare outcome would exit the modal on the
+   first arrow). `_handle_key` restructures behind a key table to
+   stay within the 40-line cap. Nothing else in split behavior
+   moves; B/S left-tab MODE outcomes are unchanged.
 3. `src/spacehack/menus/_loadout.py` — right pane becomes the grid
-   (SETTLED 16/6); left pane STORE/STORAGE keeps its shape. Install
-   actions (buy + storage) HAND OFF (SETTLED 17): gate pre-check
-   with the existing refusal strings, then charge, then the part
-   enters the editor's hand on the grid pane — validate-before-charge
-   preserved. D-store/X-sell of the held item route through
-   `removal_trips_power` (SETTLED 3) with the approved removal
-   string; X sells through the existing price-confirm chooser. Pane
-   switch / terminal exit while holding auto-returns (SETTLED 12):
-   snap back to the origin anchor if legal, else storage; if storage
-   would trip the gate, the switch itself is refused. The footer
-   becomes the POWER line. The interim slot legality retires —
-   `install_refusal` drops its slots check (grid + power only), the
-   slots refusal string and `_install_*`'s slot guards' modal
-   relevance end, and `_install_refusal_text` converts to the
-   reason→string dispatch table (phase-2 REVIEW minor 1, due here).
-   `_find_weapon_slots`/`_find_module_slots` retire if caller-less
-   after the tab conversions.
+   (SETTLED 16/6); left pane STORE/STORAGE keeps its shape. The
+   MANAGE chooser family (`_ship_rows`, `_choose_ship_action`,
+   `_apply_manage_ship_item`) dies; `_apply_store`/`_apply_sell_installed`
+   fold into the D/X handlers (the removal gate + price confirm are
+   reused, not rebuilt). Hand-off installs (SETTLED 17): the chooser
+   checks AFFORDABILITY ONLY, charges, and the part enters the
+   editor's hand on the grid pane — no room/power pre-check (the red
+   ghost is the refusal, per SETTLED 16/17; a bought part that
+   cannot place auto-returns to storage at session end and is never
+   destroyed — the part, not the placement, is what was charged
+   for). While holding: D stores, X sells (both through
+   `removal_trips_power`, SETTLED 3; X carries the price confirm).
+   Install actions refuse while the hand is full (single-hold
+   invariant). The footer becomes the POWER line. THE SLOT GUARDS
+   RETIRE HERE (ADVISE blocking 1): `install_refusal` drops its
+   slots check AND `_install_weapon`/`_install_module` lose their
+   slot guards in the same commit — as-is, a grid-legal
+   beyond-slots install would pop the part from storage, charge the
+   player, and silently destroy the part (`gated_install_entry`
+   discards the primitives' False). A beyond-slots install must land
+   on the grid, pinned. `INSTALL_REFUSAL_SLOTS` and its pins retire;
+   `_install_refusal_text` converts to the reason→string dispatch
+   table (phase-2 REVIEW minor 1, due here). ESC is two-stage while
+   holding (ADVISE minor 8): holding → return to origin and stay;
+   empty-handed → exit the terminal.
 4. `src/spacehack/hud.py` — the ship-block line drops `Wpn x/y Mod
-   a/b` (SETTLED 18), keeps `Spd n`.
+   a/b` (SETTLED 18), keeps `Spd n`; `_render_ship_stat_rows`'s
+   dead weapons_n/weapon_slots/modules_n/module_slots parameters go
+   in the same edit; the layout comment's slot sketch updates.
 5. `src/spacehack/menus/_ship_buy.py` — the ledger drops its
    `Weapon slots` / `Module slots` rows (Hull/Shields/Power-per-turn/
    Cargo stay; SETTLED 18).
 6. `src/spacehack/menus/_ship_menu.py` — the hangar LOADOUT tab
-   renders the read-only letter grid (SETTLED 19).
+   renders the read-only letter grid (SETTLED 19);
+   `_slot_rows`/`_weapon_row`/`_module_row` retire with it.
 7. `src/spacehack/menus/_mechanic.py` — the mechanic LOADOUT tab's
    slot lists become the same read-only grid under the Manage row
-   (the last slot-shaped surface dies with SETTLED 18).
+   (the last slot-shaped surface dies with SETTLED 18); the AMMO
+   tab's `Slot {n}:` row labels reword to the weapon name (stale
+   vocabulary once slots retire).
 8. `src/spacehack/data/guide/__init__.py` — the fitting-screen
-   rewrite (draft below) PLUS the full-corpus slot-vocabulary audit:
-   grep the whole guide (and the tutorial text) for "slot" wording
-   and classify every hit in the build; nothing rides silently.
-9. NEW `tests/test_grid_editor.py` + updated pins (hud, ledger,
-   loadout, pygame_ui).
+   rewrite (draft below) PLUS the slot-vocabulary audit across the
+   WHOLE corpus and live UI strings (ADVISE minor 9): guide +
+   tutorial text + the AMMO row labels + the WEAPON SLOTS/MODULE
+   SLOTS headers + the HUD layout comment. The guide's ground-gear
+   "Armour covers five slots" line is classified untouched.
+9. NEW `tests/test_grid_editor.py` + updated pins across
+   test_pygame_ui, test_mechanic, test_ship_mutation (the
+   INSTALL_REFUSAL_SLOTS and buy-refusal pins retire or re-shape),
+   test_ship_buy_ledger, test_hud.
+
+**The hand model (ADVISE minor 7, pinned)**: the hand is modal-runner
+LOCAL session state — never module-level (the module-level state
+contract), never serialized, never stored in the frame (GUIDE
+rebuilds re-derive presentation from the session). A PICKED-UP entry
+stays in the owned tuple at its origin anchor — the tuple is always
+the whole truth, so any snapshot is exact, held-as-fitted power is
+free, and D/X keep valid slot indices; a HANDED-OVER part is not in
+the tuple until dropped. Every session exit resolves the hand:
+pane TAB (auto-return), ESC (return-to-origin), terminal exit
+(auto-return; `_run_loadout_menu` hooks `run_interactive`'s return,
+currently discarded), and QUIT/SystemExit — which write no save, so
+disk state simply predates the session (safe; say so in tests).
 
 **Binding rulings**: SETTLED 2 (no rotation), 6 (free rearrangement —
 held-in-hand never trips the gate; only commits do), 12 (auto-return;
-the gate outranks the auto-return), 15 (letters), 16 (cursor +
-pick/place; ESC returns held to origin), 17 (hand-off installs; new
-ships still arrive auto-fitted outside the modal), 18 (summaries
-retire), 19 (hangar read-only grid); the power-gate section's
-fitting-screen readout format (`POWER: +9 gen / -2 upkeep / +7 net`,
-ASCII hyphen); tier colours reuse `quality_color` (base reads plain,
-randart reads legendary; the ghost's legality colour overrides the
-tier colour) — the visual taste itself rules at the playtest.
+the gate-refused leg is a DEFENSIVE invariant — unreachable by design
+with single-hold + vacated origins + never-fitted storage neutrality,
+unit-tested against fabricated state only, and it speaks the approved
+removal string if it ever fires; ADVISE minors 4+6), 15 (letters),
+16 (cursor + pick/place; two-stage ESC), 17 (hand-off, affordability
+pre-check only; new ships still arrive auto-fitted outside the
+modal), 18 (summaries retire), 19 (hangar read-only grid); the
+power-gate section's fitting-screen readout format; tier colours
+reuse `quality_color` (base reads plain, randart reads legendary;
+the ghost's legality colour overrides the tier colour) — the visual
+taste itself rules at the playtest.
 
 **Strings (prose gate — land only as approved here)**
 - Editor hint line: `ENTER pick up/drop`, `D store held`,
   `X sell held`, `TAB parts`, `ESC back` (composed with the existing
   `modal_hint`).
-- POWER footer: `POWER: +{gen} gen / -{upkeep} upkeep / -{net} net`
-  (upkeep and net rendered with the ASCII hyphen when negative, per
-  advisor catch 9's precedent).
+- POWER footer, sign-conditional per component exactly as the
+  power-gate section's example (`POWER: +9 gen / -2 upkeep / +7 net`;
+  a zero component renders bare `0` — never `-0`; ASCII hyphen).
 - Guide, Mechanic section — replacing "The mechanic handles repairs,
   refueling, ammunition, and ship equipment. STORE keeps equipment
   for later; installing a part needs free grid space and spare
@@ -968,30 +1014,39 @@ tier colour) — the visual taste itself rules at the playtest.
   it fits, red means it does not. STORE keeps equipment for later."
   (final wording the user's).
 
-**Build order**: editor state machine + tests → split `grid_pane`
-pass-through → grid render + cursor → pick/place/drop → D/X gates →
-hand-off installs + SETTLED-12 auto-return → footer POWER line →
-reader-surface retirement (hud/ledger) → hangar + mechanic grids →
+**Build order**: editor state machine + tests → split grid key
+surface → grid render + cursor → pick/place/drop + two-stage ESC →
+D/X gates → hand-off installs + SETTLED-12 auto-return + hand-model
+exits → slot-guard retirement → footer POWER line → reader-surface
+retirement (hud/ledger) → hangar + mechanic grids + AMMO reword →
 guide rewrite + corpus audit → `make check`.
 
 **Required tests (permanent — same-commit per the pure-function
 contract)**
 - State-machine units: cursor bounds, pick-up/drop, ghost legality
-  (bounds + overlap + POWER, each red), determinism.
-- Hand-off flow: gate pre-check refuses with no charge; a part that
-  can never fit never enters the hand.
-- Auto-return (SETTLED 12, first live test): TAB/exit with held →
-  snap-back; origin blocked → storage; storage trips the gate → the
-  switch refuses.
+  (bounds + overlap + POWER, each red), determinism; reuse-pinned
+  (no re-derived geometry/power).
+- Hand-off flow: affordability refused before charge; a part that
+  cannot fit anywhere still enters the hand, ghosts red everywhere,
+  and auto-returns to storage at exit — bought once, never
+  destroyed (this re-shapes phase-2's buy-refusal pin).
+- Slot-guard retirement pin: a beyond-slots install LANDS on the
+  grid (Skiff + three 1×1 lasers).
+- Auto-return (SETTLED 12, first live test): TAB/exit with a picked
+  item → snap-back; with a handed-over part → storage. The
+  gate-refused leg: pure-resolver unit test on fabricated state
+  only (unreachable by design through the UI).
 - D/X from the hand: the funding reactor refuses (removal string);
-  a shield stores/sells freely; X carries the price confirm.
-- Rearrangement never trips the gate mid-edit; only commit does
-  (held-as-fitted pin, now at the UI seam).
-- Save/load round-trip of HAND-placed anchors (not auto-fit's).
-- Reader pins: HUD line (`Spd n` only), ledger row set, footer
-  format, hangar/mechanic grid renders (letters at anchors).
-- Retirement pins: no slots refusal string reachable; guide corpus
-  carries no stale slot vocabulary after the audit.
+  a shield stores/sells freely; X carries the price confirm;
+  install actions refuse while the hand is full.
+- Rearrangement never trips the gate mid-edit; only commits do.
+- Save/load round-trip of HAND-placed anchors (not auto-fit's);
+  QUIT-with-held writes no save (disk predates the session).
+- Reader pins: HUD line (`Spd n` only, dead params gone), ledger row
+  set, footer format (sign-conditional, zero bare), hangar/mechanic
+  grid renders (letters at anchors).
+- Retirement pins: no slots refusal string reachable; guide corpus +
+  live UI carry no stale slot vocabulary after the audit.
 - CP437 check on every new glyph string.
 
 **Stop point (do NOT start)**: no rotation, no tier-colour palette
@@ -1001,6 +1056,15 @@ retunes (phase 4), no NPC/enemy work (phase 5; `weapon_slots`/
 `module_slots` FIELDS and the NPC slot lint stay untouched), no
 runtime brownouts, no grid resizing.
 
+**Close obligations + budget**: SYSTEMS.md amends at the phase-3
+close (the merged checkpoint) — "Ship ops", "Space combat init —
+parity mirror" (phase 2's parked obligations), AND "Spec-sheet buy
+modal" (the ledger row retirement touches it). Split forecast
+(ADVISE minor 11): `_loadout.py` (731) NETS DOWN — the MANAGE family
+dies; `pygame_split.py` (883) takes the grid key surface to ~940;
+`_grid_editor.py` lands ~300. Placement stays cohesion-driven — a
+forecast, not a driver.
+
 **Playtest checkpoint** (merged phase-2 + phase-3 — the deferred
 items ride here)
 1. Load the long-run save: strip notice, empty grid (SETTLED 14).
@@ -1008,12 +1072,13 @@ items ride here)
    part over; green/red ghosts; drop; rearrange freely; fight
    something — the re-fit power feel is phase-4 input.
 3. Gate stress: no-room ghost stays red everywhere; power-illegal
-   drop red; store/sell the funding reactor from the hand refused;
-   tinker refusal (phase 2's SETTLED 11).
+   drop red; D-store/X-sell of the funding reactor refused; tinker
+   refusal (phase 2's SETTLED 11).
 4. Auto-return: TAB away while holding (snap-back), leave the
-   terminal while holding, and the gate-refused switch case.
+   terminal while holding (handed-over parts land in storage).
 5. Dev mode (`SPACEHACK_DEV=1`): frigate 24/30 as granted; a fourth
-   plasma hands over but has no legal cell.
+   plasma hands over, ghosts red everywhere, auto-returns to
+   storage — bought, never lost.
 6. Save/quit/continue: hand-placed anchors, ammo, storage identical.
 7. Reader surfaces: HUD line shows Spd only; the ledger has no slot
    rows; the hangar LOADOUT tab shows the letter grid.
@@ -1023,6 +1088,45 @@ items ride here)
    shield_mk1 upkeep 0; refusal-string wording tweaks expected here.
 10. Probe: NOT re-run (zero combat-math change this phase; the
    phase-2 report stands).
+
+**ADVISE dispositions (folded 2026-09-30, same session as proposal)**
+— verdict ADVICE, 5 blocking + 7 minor, all folded:
+- Blocking 1 (slot guards destroy parts): the guards retire with the
+  slots check in the same commit + beyond-slots landing pin + the
+  missed test files join the pin list (item 3, tests).
+- Blocking 2 (split extension under-counted): full grid key surface
+  named — GRID:ENTER (ENTER otherwise dead on action-less rows),
+  D/X mappings, TAB surfaced (auto-return needs the host to see the
+  switch), keep-open routing for GRID:*, key table for the 40-line
+  cap (item 2).
+- Blocking 3 (hand-off pre-check contradiction): resolved toward the
+  rulings — affordability only at hand-off; the red ghost is the
+  placement refusal; unplaceable bought parts auto-return to storage
+  (never destroyed). The "never enters the hand" test re-shaped;
+  playtest step 5 rewritten (item 3, tests, step 5).
+- Blocking 4 (no approved refused-switch string): routes to the
+  approved removal string; the leg itself is defensive-only per
+  minor 6.
+- Blocking 5 (SYSTEMS.md absent): close obligations added — all
+  three entries, at the merged checkpoint.
+- Minor 6: the gate-refused switch is unreachable by design
+  (single-hold, vacated origins, never-fitted storage neutrality);
+  unit-test on fabricated state, no playtest step, install-refused-
+  while-holding invariant added.
+- Minor 7: the hand model subsection (local session state; picked
+  items stay in the tuple at origin; every exit resolves; QUIT
+  writes no save).
+- Minor 8: two-stage ESC pinned.
+- Minor 9: the audit covers live UI strings too (AMMO row labels,
+  slot headers, HUD comment); ground-gear "five slots" classified
+  untouched.
+- Minor 10: the MANAGE family's death and D/X reuse named;
+  `_slot_rows`/`_weapon_row`/`_module_row` retire; ghost legality
+  reuses `fitting` (never re-derives); test_mechanic/test_ship_mutation
+  join the pin list; phase-2's buy-refusal pin re-shapes.
+- Minor 11: split forecast added (_loadout nets down; pygame_split
+  ~940) + `_render_ship_stat_rows` signature cleanup.
+- Minor 12: POWER footer sign-conditional, zero bare, pinned.
 
 ## Acceptance criteria
 
