@@ -440,18 +440,20 @@ class TestFittingGate:
         assert labels == ["Light Laser", "Shield Mk. 1"]
 
     def test_normalize_strips_highest_upkeep_first_with_later_position_ties(self):
-        # 4 - 2 - 2 < 0: the two q1 shields tie at -2; the LATER entry
-        # strips, leaving a legal grid.
+        # 4 - 2 - 2 - 2 < 0: three q1 shields tie at -2 (the 1x2 reshape
+        # fits all three on the skiff legally, SETTLED 26); the LATER
+        # entry strips first, leaving a legal grid at exactly net 0.
         owned = OwnedShip(ship_id="starter", modules=(
             StoredEquipment("module", "shield_mk1", quality=1, grid_x=0, grid_y=0),
+            StoredEquipment("module", "shield_mk1", quality=1, grid_x=1, grid_y=0),
             StoredEquipment("module", "shield_mk1", quality=1, grid_x=2, grid_y=0),
         ))
         storage = []
 
         labels = normalize_fitted_grid(owned, storage, find_ship("starter"))
 
-        assert tuple(e.grid_x for e in owned.modules) == (0,)
-        assert resting_power(owned, find_ship("starter")) == 2
+        assert tuple(e.grid_x for e in owned.modules) == (0, 1)
+        assert resting_power(owned, find_ship("starter")) == 0
         assert labels == ["Modded Shield Mk. 1"]
 
     def test_normalize_strips_later_entry_on_within_tuple_overlap(self):

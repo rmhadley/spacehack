@@ -318,8 +318,8 @@ def test_hover_readout_is_name_plus_stats():
     from src.spacehack.ship import StoredEquipment
 
     base = ge._entry_detail(StoredEquipment("module", "shield_mk2"))
-    assert base == "Shield Mk. 2 - Power: -2  Shields: +40"
+    assert base == "Shield Mk. 2 - Power: -2  Shields: +45"
     raised = ge._entry_detail(
         StoredEquipment("module", "shield_mk2", quality=2),
     )
-    assert raised == "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"
+    assert raised == "Overclocked Shield Mk. 2 - Power: -3  Shields: +59"

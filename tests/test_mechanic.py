@@ -169,7 +169,7 @@ class TestShoppingFootprintPreview:
         buy = next(r for r in rows if r.action == "BUY_MODULE:shield_mk1")
         lines = buy.detail.split("\n")
         assert lines[0] == find_module("shield_mk1").description
-        assert lines[-2:] == ["[S][S]", "[S][S]"]
+        assert lines[-2:] == ["[S]", "[S]"]   # 1x2 since SETTLED 26
 
     def test_stored_row_carries_its_footprint(self):
         from src.spacehack.menus._loadout import _stored_row

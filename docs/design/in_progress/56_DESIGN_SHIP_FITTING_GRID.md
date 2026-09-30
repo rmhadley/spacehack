@@ -384,6 +384,23 @@ probe-driven — phase 4).
     panes; the fit reserve is untouched — the 28-rung pins hold, big
     footprints dynamically show fewer rows).
 
+26. **Shield family calibration** (2026-09-30, the phase-4 parts
+    walk, family 1 of the catalog). User: "what is missing here for
+    shields is shape." Ruled: `shield_mk1` 2×2 → **1×2** (the ladder
+    runs clean 1×2 / 2×2 / 2×3 / 3×3, and a q3 mk1 at +29/−2w in 2
+    cells becomes a real cell-efficiency play vs a q0 mk2's +40 bulk
+    — the tinker path the flat ladder killed); `shield_capacitor`
+    1×2 → **1×1** (the one-cell gap-filler; was strictly dominated
+    by the new mk1 shape); `shield_mk2` +40 → **+45** and
+    `shield_mk3` +65 → **+70** — uniform +25 steps (20/45/70/95)
+    that break the mk2+mk1 exact tie with mk3. Upkeep curve (−1..−4)
+    and mk4 untouched; the −1→−2 quality rounding stays (it now buys
+    cell efficiency). Cascade measured: warlord pack 23/30 → 20/30
+    (SETTLED 22 addendum, pin renamed); dev grant 24 → 22 cells; the
+    starter normalize tie-break test re-authored (three 1×2 mk1s fit
+    the skiff legally now — two rest at net 0). Parts walk continues
+    family by family; probe re-runs as magnitudes move.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
@@ -698,7 +715,8 @@ then one balance pass over both sides with the probe as referee.
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.
 - [ ] **4. Calibration** — probe-driven tuning of upkeep magnitudes and
-  power pressure; re-runs the phase-2 power lints after every
+  power pressure; BEGUN 2026-09-30 (the parts walk, SETTLED 26 = the
+  shield family; reactors next); re-runs the phase-2 power lints after every
   magnitude change (advisor catch 8); the deferred magnitude questions
   (shield bonus vs enemy damage) land here or get their own doc with
   the probe as referee. FOLLOWS PHASE 5 (ruled 2026-09-30): the user

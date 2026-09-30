@@ -207,7 +207,7 @@ def test_module_bonus_fields_pin_the_module_spec_axes():
 
 def test_effective_module_spec_real_rows_scale():
     # Concrete catalog anchors alongside the synthetic-axis sweep.
-    assert quality.effective_module_spec("shield_mk2", 2).max_shield_bonus == 52
+    assert quality.effective_module_spec("shield_mk2", 2).max_shield_bonus == 59
     reactor = quality.effective_module_spec("heavy_reactor", 3)
     assert reactor.power_gen_bonus == 9   # 6 * 1.45 = 8.7
     assert reactor.speed_bonus == 2       # 1 * 1.45 = 1.45 -> 2 (ceiling)
@@ -246,7 +246,7 @@ def test_effective_module_spec_leaves_price_slot_and_tech_alone():
 
 def test_effective_module_spec_legendary_row_resolves():
     t4 = quality.effective_module_spec("shield_mk2", quality.LEGENDARY_QUALITY)
-    assert t4.max_shield_bonus == 88     # 40 * 2.20
+    assert t4.max_shield_bonus == 99     # 45 * 2.20
 
 
 @pytest.mark.parametrize(

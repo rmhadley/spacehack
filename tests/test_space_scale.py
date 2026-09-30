@@ -258,9 +258,11 @@ def test_every_npc_loadout_is_power_valid_at_base_quality():
         assert modules_resting_power(hull, modules) >= 0, spec.id
 
 
-def test_pirate_warlord_kit_packs_at_23_of_30():
-    """SETTLED 22's exact numbers: the re-authored warlord kit minus
-    the 3x3 hold covers 23 of the frigate's 30 cells."""
+def test_pirate_warlord_kit_packs_at_20_of_30():
+    """SETTLED 22's numbers, amended by the phase-4 shield pass
+    (SETTLED 26: shield_mk1 2x2->1x2, capacitor 1x2->1x1): the
+    re-authored warlord kit minus the 3x3 hold covers 20 of the
+    frigate's 30 cells (was 23 before the shield reshape)."""
     from src.spacehack.data.ships import find_ship
     from src.spacehack.fitting import auto_fit
 
@@ -268,7 +270,7 @@ def test_pirate_warlord_kit_packs_at_23_of_30():
     hull = find_ship(spec.ship_id)
     placed = auto_fit(hull.grid_w, hull.grid_h, _spec_items(spec))
     assert placed is not None
-    assert sum(p.w * p.h for p in placed) == 23
+    assert sum(p.w * p.h for p in placed) == 20
 
 
 def test_pirate_warlord_rolls_no_hold_into_its_capture_interior():

@@ -842,7 +842,9 @@ def test_dev_grant_packs_and_is_power_valid():
     frigate = find_ship("frigate")
     for entry in (*owned.weapons, *owned.modules):
         assert entry.grid_x is not None and entry.grid_y is not None
-    assert len(occupied_cells(owned, frigate.grid_w, frigate.grid_h)) == 24
+    # 24 cells before the phase-4 shield reshape (SETTLED 26: the
+    # grant's shield_mk1 is 1x2 now, not 2x2)
+    assert len(occupied_cells(owned, frigate.grid_w, frigate.grid_h)) == 22
     assert resting_power(owned, frigate) == 8  # 6 + 3 - 1
     # A fourth 2x3 plasma can never fit; a small part still installs.
     assert install_refusal(

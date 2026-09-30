@@ -3445,19 +3445,19 @@ def test_hangar_loadout_tab_lists_gear_with_stats():
     # takes the skiff's power regen 4 -> 1).
     assert frame.body[:3] == (
         "OVERVIEW",
-        "Hull 15/15   Shields 52   Shield regen 0/turn",
+        "Hull 15/15   Shields 59   Shield regen 0/turn",
         "AP 3.5   Max power 12   Power regen 1/turn",
     )
     assert frame.body[3:] == (
         "WEAPONS",
         "Light Laser - Dmg 4  Acc 80%  Rng 1-5  AP 1  Pow 1",
         "MODULES",
-        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52",
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +59",
     )
     # The tier colour paints the name; the stats stay plain.
     assert frame.body_runs[6] == (
         ("Overclocked Shield Mk. 2", quality_color(2)),
-        (" - Power: -3  Shields: +52", None),
+        (" - Power: -3  Shields: +59", None),
     )
     assert any("TAB ship" in hint for hint in frame.footer)
 
@@ -6655,14 +6655,14 @@ def test_loadout_grid_tooltip_rides_the_pinned_detail(monkeypatch):
 
     frame = _loadout._pygame_loadout_frame(ctx, session)
     assert frame.right_rows[0].detail == (
-        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +59"
     )
 
     # Pick it up: the tooltip follows the HAND (the same readout).
     run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
     frame = _loadout._pygame_loadout_frame(ctx, session)
     assert frame.right_rows[0].detail == (
-        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +59"
     )
 
     # Return it, cursor off the 2x2 piece: no tooltip.
