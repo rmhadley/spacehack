@@ -12,6 +12,15 @@ Phase 1 BUILT same day (`/implement-phase 56.1`): brief ADVISE-folded
 commits de06db72/dd33ce26/a96b88cc/1c3b7c18. PLAYTEST PASSED
 2026-09-30 ("playtest is good"; glyph letters ruled in the same
 exchange — SETTLED 15; open questions renumbered, 4 remain).
+Phase-2 refine pass same day (second `/refine-design` session):
+placement shape RESOLVED at brief time per the pre-committed census
+procedure (open question 3 — see Data model), the reader census and
+every hook point re-verified live, the dev-mode grant exposed as a
+fifth stamping site that cannot pack (audit addendum), phase-2
+Implementation brief proposed below, ADVISE-folded in the same
+session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
+inside the brief; the `_d` Position-branch collision and the
+unpackable dev grant were the blockers).
 
 ## Overview
 
@@ -233,7 +242,31 @@ The gate is a check on the **resting state** of the grid:
   free, while a parallel index-keyed placement field breaks it on every
   reorder. Settled at brief time against the reader census, with that
   coupling as the tiebreaker.
-- Save: placements serialize (x, y beside the StoredEquipment payload).
+  **RESOLVED 2026-09-30 (phase-2 brief time, per the pre-committed
+  procedure)**: per-entry placement, concretely as optional fields
+  `grid_x: int | None = None` / `grid_y: int | None = None` on
+  `StoredEquipment` itself (stored entries leave them None). Census
+  re-verified live this session:
+  removal re-indexing at `ship.py:520-527` touches only `weapon_ammo`
+  (a parallel placement map would need the same pass duplicated);
+  tinker `_tuple_field_apply` (`tinker.py:130-146`) rebuilds the tuple
+  replacing one entry, preserving siblings — placement survives
+  quality raises by construction; the tombstone GEAR dump iterates
+  entries generically; the save twins ride the entry shape once. A
+  parallel index-keyed map loses on every axis (second re-index pass,
+  two sources of truth per entry); a `FittedEquipment` subtype would
+  touch every constructor site including NPC specs (phase-5 scope).
+  **Field names are `grid_x`/`grid_y`, NOT `x`/`y`** (ADVISE blocking
+  1): `_d`'s Position branch (`saveload.py:72-82`) checks
+  `hasattr(obj, "x") and hasattr(obj, "y")` BEFORE the dataclass
+  field pass — plain `x`/`y` names would serialize EVERY entry
+  (installed and stored) as the 2-list `[x, y]`, and the entry
+  parsers would silently drop the whole loadout and storage on the
+  next load. The `ammo` precedent does not extend to an `(x, y)`
+  attribute pair; names that cannot form the pair kill the
+  collision class at the source.
+- Save: placements serialize (`grid_x`, `grid_y` beside the
+  StoredEquipment payload).
   Storage (`ctx.ship_storage`) is unchanged — stored items have no
   position.
 
@@ -340,12 +373,15 @@ Worked check (the motivating cases):
   the slot-system entries stay authoritative until placements land.
 - [ ] **2. Fitting model + gate + upkeep data** — upkeep authors WITH
   the gate, so the first power change is already guarded (companion to
-  advisor catch 1); `OwnedShip` placements; the resting gate
+  advisor catch 1); `OwnedShip` placements (per-entry `grid_x`/
+  `grid_y`, resolved above); the resting gate
   (install/store/sell symmetric, held-in-hand semantics); auto-fit for
   EVERY install path — new-game starts (`game_loop.py:818`), purchases
-  (`game_flow.py:675-676`), and BOTH modal install paths (`_loadout.py`
+  (`game_flow.py:675-676`), BOTH modal install paths (`_loadout.py`
   buy-install and storage-install; the modal stays slot-shaped until
-  phase 3, so interim installs auto-place — advisor catch 3, blocking);
+  phase 3, so interim installs auto-place — advisor catch 3, blocking),
+  AND the dev-mode grant (`dev_mode.py:342`, audit addendum — its
+  loadout is re-authored to pack);
   save shape. Lints and tests added here (advisor catches 4/6/8/10):
   start-loadout power validity (net ≥ 0 per hull at base quality —
   RE-RUN after every phase-4 retune), the pinned numbers behind AC1
@@ -474,6 +510,263 @@ edits. That is phases 2-3.
 4. Guide diff: NONE this phase (no player-facing change) — recorded
    per the every-checklist-carries-a-guide-item rule.
 
+## Implementation brief — Phase 2 (PROPOSED 2026-09-30; ADVISE-folded same day, dispositions below)
+
+Fitting model + resting power gate + upkeep data. Player-facing
+effect: every install path becomes grid-and-power gated (auto-placed);
+the modal itself stays slot-shaped until phase 3.
+
+**Scope (files/hook points)**
+
+1. `src/spacehack/data/modules/systems.py` — upkeep authors WITH the
+   gate (advisor catch 1's companion rule): `shield_mk1..mk4`
+   −1/−2/−3/−4; `shield_capacitor` −1; `shield_recharger` −1;
+   `targeting_computer/mk2/mk3/mk4` −1 flat;
+   `gyro_stabilizer/mk2/mk3/mk4` −1 flat — 14 authored values, the
+   doc's draft curve verbatim. Armor (−1..−4) exists; reactors stay
+   positive; cargo/smuggler structural 0. Enemy side effect (AC7,
+   accepted): `_calc_power_gen` (`combat/_stats.py:87`) already sums
+   the field, so NPC specs flying these families lose pool — strictly
+   player-favor direction, probe-refereed, no enemy code changes.
+2. `src/spacehack/fitting.py` — pure power-gate helpers, plain ints,
+   no catalog imports (the module's standing contract): net =
+   base + Σ bonuses and a `power_legal` predicate. The signature
+   takes an explicit bonus list so phase 3's held-items-count-as-
+   fitted (SETTLED 12) passes the hand's items with no redesign.
+3. `src/spacehack/ship.py` — the placement model (resolved open
+   question 3):
+   - `StoredEquipment` gains `grid_x: int | None = None` and
+     `grid_y: int | None = None`; stored entries are always None.
+     Names deliberately avoid the `(x, y)` pair — see item 4 (ADVISE
+     blocking 1). `__post_init__`'s bare-id normalization passes
+     placed entries through unchanged (verified: entries already
+     `StoredEquipment` are kept as-is).
+   - `resting_power(owned, ship_spec, ctx=None) -> int` — the
+     SIGNED net: base gen + Σ effective `power_gen_bonus`, computed
+     by the SAME quality/randart-scaled sum combat uses
+     (`_module_bonus_sum`, function-level import — ADVISE minor 5:
+     no second implementation to drift). Distinction stated once,
+     pinned by test: `_calc_power_gen` (`combat/_stats.py:87`)
+     CLAMPS at 0 for the combat pool; the gate reads the unclamped
+     signed net. Weapons contribute nothing (no upkeep — doctrine:
+     guns cost power when fired, modules cost power to exist).
+   - Gated commit wrappers for the player's single-item actions
+     (the modal's four paths route here): install/place stamps via
+     `fitting.first_fit` over live occupancy + power check;
+     store/sell refuses when the post-removal resting grid would go
+     negative (SETTLED 3). The mechanical primitives
+     (`_install_*`, `_remove_*`, `store_*`,
+     `move_installed_equipment_to_storage`) stay ungated BY DESIGN —
+     the strip-all primitive and load-time normalization must bypass
+     (they end valid by construction; a gate inside `store_*` would
+     make the strip loop RAISE the moment a reactor precedes
+     shields — `ship.py:716-720` turns a refused store into a
+     ValueError).
+   - `start_fitted_entries(ship_spec, ctx=None)` — THE shared
+     start-loadout resolver: base entries + `auto_fit` stamps, tuple
+     order preserved (weapon_ammo coupling free). This is the
+     phase-1 REVIEW minor-2 extraction firing at its trigger: the
+     test, the render tool, and three live sites resolve start
+     loadouts today; phase 2 makes five — one resolver in `ship.py`
+     (it owns entry construction and may import catalogs;
+     `fitting.py` stays catalog-free).
+   - `normalize_fitted_grid(owned, storage, ship_spec) -> list[str]`
+     — SETTLED 11/14 made deterministic (ADVISE minor 4: the
+     storage sink is a parameter — the `store_*` primitives need
+     it): entries without placements strip (14); power-invalid
+     grids strip highest-upkeep-first, ties by later tuple
+     position, until net ≥ 0 (11); geometrically illegal placements
+     (overlap/out-of-bounds — hand-edited saves) strip the later
+     entry, and in a cross-tuple overlap the MODULE strips —
+     weapons win (one grid, two tuples, one rule). Returns stripped
+     labels for the caller to log.
+4. `src/spacehack/saveload.py` + `saveload_ship.py` — installed-entry
+   parsers read grid_x/grid_y (dict entries only; bare-id legacy stays
+   placement-less and strips). The writer gets a
+   `StoredEquipment`-aware branch in `_d` that emits the field dict
+   MINUS placement keys whenever they are None (ADVISE blocking 1 +
+   the standing decision): installed entries serialize
+   `grid_x`/`grid_y` ints, storage payloads never carry placement
+   keys. The branch must sit AHEAD of the Position check regardless
+   of the renamed fields — defense in depth on the serializer order.
+   `load_game` runs `normalize_fitted_grid` once owned ship AND
+   storage both exist (after `saveload.py:766`); the notice line is
+   logged post-ctx.
+5. Stamping sites — the `OwnedShip(` construction census, grep-verified
+   complete this session: `game_loop.py:818` (new game) and
+   `game_flow.py:_new_owned_ship` (purchase) switch to
+   `start_fitted_entries`; `saveload_ship.py:38` is the load path
+   (item 4); `dev_mode.py:342` **re-authored** — the current grant is
+   64 cells of hardware on a 30-cell frigate and cannot pack. New
+   dev grant (ADVISE blocking 2 — at most THREE 2×3 plasmas fit a
+   6×5 grid, rotation excluded; the row-2 residue class caps it):
+   3× `plasma_cannon` (18 cells, rows 0-2) + `compact_reactor`
+   (1×2) + `shield_mk1` (2×2) = 24/30, net 6+3−1 = +8 — still the
+   volley monster, with a 2×3-free remainder (rows 3-4) so the
+   playtest's geometry-refusal step has a live subject (another
+   plasma can NEVER fit; a small part still can). Lint: dev grant
+   packs and is power-valid.
+6. `src/spacehack/tinker.py` — SETTLED 11 refusal: an installed-module
+   raise (`_installed_targets` → `_tuple_field_apply`) whose
+   quality-scaled upkeep would send the resting grid negative is
+   refused (weapons and STORED modules untouched — nothing draws
+   power while stored). `_tuple_field_apply` preserves sibling fields,
+   so successful raises keep x/y by construction.
+7. `src/spacehack/menus/_loadout.py` — the four commit paths
+   (`_apply_purchase` INSTALL branch, `_apply_stored_install`,
+   `_apply_store`, `_apply_sell_installed` — sell removes via
+   `_remove_*` directly, so it gets its own gated wrapper) route
+   through the gated wrappers; every bespoke slot-arithmetic site
+   routes through the same predicates (ADVISE minor 6: these are
+   `_log_storage_failure`'s counts at :312-326 AND
+   `_apply_purchase`'s in-branch refusal at :580-583 — audit
+   hotspot 1: no bespoke arithmetic anywhere). Interim legality is
+   DUAL while the modal stays slot-shaped: slot free AND grid fits
+   AND power ok — a slots-full-but-grid-free install is refused on
+   slots with the EXISTING string ("No compatible … slot is
+   available"), keeping the displayed counts honest until phase 3
+   drops the slot term. Validate-before-charge ordering preserved
+   (install decides, then `_apply_purchase` charges). The
+   "Wpn x/y Mod a/b" footer is UNTOUCHED — reader surfaces are
+   phase 3.
+8. `tools/fitting_render.py` + `tests/test_fitting_geometry.py` —
+   both adopt `start_fitted_entries`; the resolver duplication dies
+   at its trigger.
+9. Guide — ONE sentence, `data/guide/__init__.py:403`: "installing a
+   part is useful only when the ship has a compatible free slot." →
+   "installing a part needs free grid space and spare power." (final
+   wording the user's; the full fitting-screen rewrite rides phase 3).
+
+**Refusal strings (prose gate — land only as approved here)**
+- No room: `No room on the grid for {name}.`
+- Power, install: `{name} needs more power than the ship generates.`
+- Power, removal: `Removing {name} would leave the ship short on power.`
+- Tinker: `That upgrade would draw more power than the ship generates.`
+- Load normalization (only when non-empty):
+  `Fitted gear moved to storage: {names}.`
+- Slots-full (interim, unchanged existing string): `No compatible
+  {kind} slot is available on this ship.`
+
+**Build order**: upkeep data → `fitting.py` gate helpers → `ship.py`
+model + resolver + wrappers + normalization → stamping sites + dev
+re-author → tinker gate → modal routing + refusal strings → save
+twins → tests → tool/test adopt the resolver → guide sentence →
+probe re-run → `make check`.
+
+**Binding rulings**: SETTLED 3 (gate symmetric on removal), 4 (upkeep
+= negative `power_gen_bonus`), 5 (quality never scales GEOMETRY;
+upkeep magnitude does scale — geometry fixed, watts tiered), 11 (no
+dark state: boundary normalization + tinker refusal), 14
+(strip-on-load), resolved open question 3 (per-entry placement as
+`grid_x`/`grid_y` on `StoredEquipment`), the phase-1 REVIEW minor-2
+extraction (fires as `start_fitted_entries`), draft upkeep curve
+authored verbatim (phase 4 retunes against the probe),
+validate-before-charge preserved.
+
+**Close obligations + budget note**: SYSTEMS.md amends at the
+phase-2 close — "Ship ops" and "Space combat init — parity mirror"
+(ADVISE minor 7; phase 1's deferral lands here; "Spec-sheet buy
+modal" can wait for phase 3). Budget (ADVISE minor 8):
+`saveload.py` (958 lines) and `ship.py` (762) both take real
+additions this phase — expect the in-commit extraction of cohesive
+siblings when the 1000-line ratchet fires; placement stays
+cohesion-driven (a forecast, not a driver).
+
+**Required tests (permanent — same-commit per the pure-function
+contract)**
+- AC1 pin: `install_stored_equipment` of `shield_mk4` on the starter
+  Skiff is refused (power side: 3 − 4 < 0) AND the standing pin —
+  the cheapest 3×3 shield's upkeep exceeds the starter hull's base
+  generation — fails loudly through any phase-4 retune (advisor
+  catch 6).
+- Start-loadout power validity, every hull, base quality (nets +3/
+  +6/+3/+7/+6/+7 under the draft curve; re-run after every phase-4
+  magnitude change — advisor catch 8).
+- Dev grant packs + power-valid.
+- Gate symmetry: storing/selling the reactor funding shields is
+  refused; storing a shield never is (net only improves).
+- Tinker: refusal when the bump trips net; a successful raise
+  preserves grid_x/grid_y.
+- Ammo coupling with placements stamped (advisor catch 4): store the
+  middle missile → `weapon_ammo` re-keyed, survivors keep their
+  placement.
+- Save round-trip: a placed grid survives exactly; storage payload
+  dicts carry NO placement keys; a placement-less (old-shape) save
+  strips to storage with the notice; a hand-crafted power-invalid
+  save AND an overlapping-placement save (including a cross-tuple
+  weapon-module overlap — module strips) each normalize
+  deterministically.
+- Clamp pin (ADVISE minor 5): gate net vs combat pool stay related
+  by exactly the clamp — `_calc_power_gen(spec, modules) ==
+  max(0, signed_net)` — so a phase-4 drift that makes the gate
+  disagree with the pool fails loudly.
+- Purity units for the net-power helper (negative bonuses, quality
+  scaling, randart axis).
+- Probe (ADVISE blocking 3 rewording): re-run `tools/balance_probe.py`
+  against the recorded baseline and REPORT the deltas — the player's
+  own pool drops alongside the enemy's (the save's cruiser flies the
+  upkept families), so row direction is indeterminate, not
+  monotone; regressions are investigated, magnitude changes are
+  phase 4.
+
+**Stop point (do NOT start)**: no grid editor pane, hand model, or
+pane-switch auto-return (SETTLED 12 lands phase 3 — the pure gate's
+signature is the only preparation), no HUD/hangar/ship-buy readout
+changes (the footer stays slot-shaped), no tier colours or glyph UI,
+no magnitude retuning (phase 4 — the probe is the referee), no NPC
+spec or slot-field changes (phase 5), no missile/EMP work.
+
+**Playtest checkpoint**
+1. Load the existing long-run save: all installed gear arrives in
+   storage with the notice line (SETTLED 14 strip-on-load); the grid
+   starts empty.
+2. Re-fit through the mechanic: installs auto-place; fight something
+   — playable, and note the power-pressure feel as phase-4 input.
+3. Gate stress on a live ship: (a) install a part larger than the
+   remaining space → "No room on the grid"; (b) spend the power
+   headroom, then install one more upkept module → power refusal;
+   (c) store the reactor funding the shields → removal refusal;
+   (d) tinker an installed shield until the bump would trip →
+   tinker refusal.
+4. Dev mode (`SPACEHACK_DEV=1`): the frigate arrives 24/30 packed
+   (3 plasma + compact reactor + shield_mk1), power-valid; a fourth
+   plasma is refused (no 2×3 space remains); a small part still
+   installs.
+5. Save/quit/continue with a fitted grid: identical placements,
+   ammo, and storage after the round-trip.
+6. Probe: `python3 tools/balance_probe.py` — deltas vs the doc's
+   evidence table reported; regressions investigated (your own
+   cruiser's pool drops too — direction is indeterminate; magnitude
+   is phase 4).
+7. Guide diff: the one mechanic sentence — before "…useful only when
+   the ship has a compatible free slot." / after "…needs free grid
+   space and spare power." (or the user's edit; note the sentence
+   says "grid" a phase before any grid is visible — defensible
+   because the refusals already say it, phase 3 shows it).
+
+**ADVISE dispositions (folded 2026-09-30, same day as proposal)** —
+verdict ADVICE, 3 blocking + 5 minor, all folded:
+- Blocking 1 (`_d` Position-branch collision): field names ruled
+  `grid_x`/`grid_y` (Data model + items 3-4); serializer branch
+  ordered ahead of the Position check as defense in depth.
+- Blocking 2 (dev grant unpackable — max three 2×3 on 6×5):
+  re-author is 3× plasma, 24/30 (item 5, playtest 4).
+- Blocking 3 (probe "may only improve" unsound — the player pool
+  drops too): reworded to report-deltas/investigate-regressions
+  (tests + playtest 6).
+- Minor 4: `normalize_fitted_grid` signature takes the storage sink;
+  cross-tuple overlap rule = module strips (item 3).
+- Minor 5: `resting_power` reuses `_module_bonus_sum`; clamp
+  distinction stated + pinned by test (item 3, tests).
+- Minor 6: slot-arithmetic anchors corrected (`_log_storage_failure`
+  + `_apply_purchase`); interim legality is DUAL (slots AND grid AND
+  power), slots-full keeps the existing string (item 7, strings).
+- Minor 7: SYSTEMS.md close obligations added ("Ship ops",
+  "Space combat init — parity mirror").
+- Minor 8: budget note added (saveload.py 958 / ship.py 762).
+- Q2 correction adopted: the strip-loop failure mode is a ValueError
+  crash, not a deadlock (item 3).
+
 ## Acceptance criteria
 
 1. A fresh Skiff cannot field a Shield Mk. 4 by any path (buy, loot,
@@ -499,18 +792,17 @@ edits. That is phases 2-3.
 ## Open questions (for /refine-design)
 
 1. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
-2. **HUD readout shape** (cells + net power wording).
-3. **Placement data shape** (phase-2 brief time; per-entry x/y is the
-   lean — the verified census: `weapon_ammo` keys magazines by
-   weapons-tuple index with removal re-indexing at `ship.py:521-527`,
-   and tinker's `_tuple_field_apply` plus the tombstone dump both
-   preserve entry shape).
-4. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
+2. **HUD readout shape** (cells + net power wording) — phase-3 brief
+   time.
+3. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
    its own fix doc whenever (it is independent of the grid).
 
-(Renumbered 2026-09-30 when the glyph letters settled as SETTLED 15;
-older prose saying "open question 1" for letters / "open question 4"
-for placement predates the renumbering.)
+(Placement data shape — formerly open question 3 — RESOLVED
+2026-09-30 at phase-2 brief time per the pre-committed census
+procedure: per-entry x/y on `StoredEquipment`; see Data model.
+Renumbered twice: first when the glyph letters settled as SETTLED 15,
+again at this resolution; older prose citing "open question 4" for
+placement predates both.)
 
 ## Pre-implementation audit
 
@@ -544,6 +836,14 @@ brief). Every advisor-catch anchor confirmed:
 - **The auto-fit stamping sites**: new game `game_loop.py:818`;
   purchase `_new_owned_ship` (`game_flow.py:673-681`, including
   `top_off_missile_magazines`).
+  **Phase-2 brief addendum (2026-09-30, full `OwnedShip(` grep)**: a
+  FIFTH construction site the original audit missed — the dev-mode
+  grant `_dev_owned_ship` (`dev_mode.py:340-353`), whose loadout
+  (4 plasma + 4 heavy missiles + reactor_mk4 + shield_mk4 +
+  recharger + targeting/gyro/armor mk4 ≈ 64 cells) cannot pack on
+  the frigate's 30 cells and is re-authored by the phase-2 brief.
+  The load-side twin `saveload_ship.py:38` is covered by the save
+  twin pair above (verified live this session).
 - **`breach_charge_test`** (`data/weapons/breach.py:13`): a real
   auto-registered catalog weapon (the militia quest prototype), NOT a
   test-side fixture — the every-item-sized lint covers it (1×1); no
