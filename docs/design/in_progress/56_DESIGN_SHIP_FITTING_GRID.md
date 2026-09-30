@@ -27,7 +27,16 @@ session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
   (`/implement-phase 56.2`, gate 3335, nine commits; the goal-1
   collision and its measured re-fund recorded inside the phase-2
   entry — the AC1-mechanism ruling and the re-fit power feel are the
-  playtest's first items). Next: the phase-2 playtest.
+  playtest's first items). **Phase-2 playtest DEFERRED to the
+  phase-3 checkpoint by user ruling 2026-09-30**: "got it. I'll wait
+  for the UI so I don't have to do this invisibly. no reason to
+  check it before the ui is there" — auto-placement is invisible in
+  the slot-shaped interim modal, so both phases playtest together
+  once the grid editor exists; the open power rulings and the
+  SYSTEMS.md close obligations (Ship ops + parity mirror) ride the
+  same combined checkpoint. Next: `/refine-design 56` for the
+  phase-3 brief (open question 2 — HUD readout shape — settles
+  there; the brief carries the split forecast).
 
 ## Overview
 
@@ -401,7 +410,8 @@ Worked check (the motivating cases):
   PLAYTEST: dev-mode build ledger — fit/stress the gate rules on a
   live ship (including the tinker refusal, SETTLED 11); save/quit/
   continue round-trip of a fitted grid.
-  BUILT 2026-09-30 (`/implement-phase 56.2`), PLAYTEST PENDING: gate
+  BUILT 2026-09-30 (`/implement-phase 56.2`), PLAYTEST DEFERRED to the
+  phase-3 checkpoint (user ruling above): gate
   green **3335**, commits a2f3b876 (fitting net-power/power_legal) /
   2593bd14 (upkeep + starter re-fund) / ad16dbf0 (ship_fitting model)
   / 8466f410 (stamping sites + dev grant) / 80082d98 (tinker gate) /
