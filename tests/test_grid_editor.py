@@ -88,7 +88,6 @@ class TestGhostLegality:
         # tuple's own list, so a LEGAL resting grid stays drop-legal at
         # every cursor; only geometry can refuse a rearrangement.
         part = ge.HeldPart(2, 2, upkeep=-4, origin=(0, 0))
-        state = ge.hold_part(_state(cursor=(2, 1)), part)
         for cursor in ((0, 0), (2, 1), (2, 0)):
             probe = ge.EditorState(4, 3, cursor, part)
             assert ge.drop_refusal(probe, set(), 7, [-4, 3]) is None
