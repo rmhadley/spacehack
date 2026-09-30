@@ -345,18 +345,22 @@ def test_eri_b_beacon_spine_is_not_overwritten_by_bar():
 
 
 def test_eri_b_spaceport_apron_is_smooth_and_fixtures_are_clear():
-    """The landing apron is quiet beneath ships and terminals."""
+    """The landing apron is quiet beneath ships and terminals.
+
+    2026-09-30: the apron shrank from a 34x19 block (which covered the
+    road's south sidewalk band) to the family-scale 19x11 blob plus a
+    3-wide taxiway that TOUCHES the sidewalk edge without covering it.
+    """
     game_map = load_planet("eri_b")
-    apron = [
-        game_map.tiles[y][x]
-        for y in range(31, 50)
-        for x in range(18, 52)
+    pad_cells = [
+        (x, y)
+        for y in range(game_map.height)
+        for x in range(game_map.width)
+        if game_map.tiles[y][x].kind == "landing_pad"
     ]
-    assert {tile.kind for tile in apron} <= {
-        "landing_pad", "plaza", "neon", "transit_bay",
-    }
+    assert pad_cells
     assert {
-        tile.char for tile in apron if tile.kind == "landing_pad"
+        game_map.tiles[y][x].char for x, y in pad_cells
     } == {" "}
     fixtures = [
         entity for entity in game_map.entities
@@ -369,8 +373,10 @@ def test_eri_b_spaceport_apron_is_smooth_and_fixtures_are_clear():
         for y in range(entity.pos.y, entity.pos.y + entity.height)
         for x in range(entity.pos.x, entity.pos.x + entity.width)
     }
-    assert len(cells) == sum(entity.width * entity.height for entity in fixtures)
-    assert all(game_map.tiles[y][x].kind == "landing_pad" for x, y in cells)
+    assert all(
+        game_map.tiles[y][x].kind in {"landing_pad", "plaza", "transit_bay"}
+        for x, y in cells
+    )
 
 
 def test_eri_b_npcs_are_walkable_clear_and_reachable():
@@ -1828,3 +1834,25 @@ def test_planet_npc_override_ids_round_trip():
             if find_planet_npc(npc.id, spec.id) is not npc:
                 _bad.append(f"{spec.id}: override '{oid}' inner id '{npc.id}' does not round-trip")
     assert not _bad, "\n".join(_bad)
+
+
+def test_eri_b_landing_pad_is_family_scale_and_off_the_sidewalk():
+    """The Eri B apron shrank from 34x19 (which ran north onto the
+    y=31-32 sidewalk band below the spaceport road tier) to the AC
+    family scale ~19x11 — the pad never touches the sidewalk band,
+    the spawn cell rides the pad, and the berth keeps its plaza
+    marker (user report 2026-09-30)."""
+    from src.spacehack.data.planets import load_planet
+
+    m = load_planet("eri_b")
+    pad = [
+        (x, y) for y in range(m.height) for x in range(m.width)
+        if m.tiles[y][x].kind == "landing_pad"
+    ]
+    assert 150 < len(pad) < 260, len(pad)
+    # the taxiway column touches y=33 — the sidewalk band itself (31-32)
+    # must carry zero pad tiles
+    assert not any(y in (31, 32) for _x, y in pad), "pad covers the sidewalk band"
+    assert m.tiles[44][34].kind == "landing_pad"      # player spawn
+    assert m.tiles[43][34].kind == "plaza"            # berth marker
+    assert m.tiles[31][34].kind == "sidewalk"         # the road's south sidewalk

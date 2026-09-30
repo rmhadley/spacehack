@@ -170,8 +170,17 @@ def _paint_plaza(tiles, theme):
 def _paint_apron(tiles, theme, spec):
     """Reserve a smooth landing plateau west of the spaceport."""
     pad_tile = replace(theme.landing_pad, char=" ")
-    for y in range(31, 50):
-        for x in range(18, 52):
+    # Family-scale apron (AC-3 is 19x9, AC-1 19x11) plus a short
+    # taxiway column: the old 34x19 block ran north onto the y=31-32
+    # sidewalk band below the spaceport road tier (rows 28-30) — its
+    # ONLY connection to the civic network. The taxiway touches the
+    # sidewalk's south edge (y=32) without covering it (user report
+    # 2026-09-30).
+    for y in range(37, 48):
+        for x in range(25, 44):
+            tiles[y][x] = pad_tile
+    for y in range(33, 37):
+        for x in range(33, 36):
             tiles[y][x] = pad_tile
     # Plaza alone marks the berth — no neon corners (the focal-point
     # brightness removed fleet-wide, user 2026-09-23).
@@ -295,7 +304,6 @@ def _paint_homesteads(tiles, theme):
             tiles[y][x] = _ORE_HEAP
 
 
-_SHIPS_ORIGIN = world.Position(24, 32)  # landing plateau dock
 
 
 def build_epsilon_eridani_layout(spec):
