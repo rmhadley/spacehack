@@ -70,6 +70,18 @@ phase-3 PLAYTEST is now due** (checklist in the phase-3 brief); the
 SYSTEMS.md close obligations ("Ship ops", "Space combat init —
 parity mirror", "Spec-sheet buy modal") ride its pass. Next: playtest
 → phase 4 (calibration) or doc close.
+PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
+brackets now WRAP the glyph — every glyph centers in its 3-char cell
+(` S `/`[S]`), so the bracket no longer shifts the letter one column
+(856e98a8, alignment pinned); (2) empty-handed hover highlights the
+WHOLE piece in accent, mirroring the ghost's whole-footprint
+green/red — hover reads the piece, not the cell (c015de1a); (3) the
+pane-bottom tooltip: the pinned-detail zone only reads row 0, so the
+FITTING GRID divider gave way to the letter grid and the
+hovered/held readout rides row 0 — tiered name + the effective stat
+line at the instance's tier, stats not prose (c8fe3425; this also
+fixed the tooltip never showing — the row-0 detail had been sitting
+on the first LETTER row where the pane never reads it).
 
 ## Overview
 
