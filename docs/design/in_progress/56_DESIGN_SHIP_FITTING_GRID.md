@@ -92,7 +92,11 @@ per-turn (incl. the fraction, e.g. 3.5), Max power (pool cap incl.
 trait bonuses), Power regen (clamped per-turn generation) — read
 through ``_player_combat_values`` so it can never drift from combat
 (181175db; the tab pages when a full rack outgrows one screen, keeping
-the shared font rung).
+the shared font rung).; (7) SETTLED 21 — the mechanic
+LOADOUT tab matches the hangar via the shared ``loadout_readout``
+builder; the static letter grid retired from every read surface (it
+renders only in the editor; ``read_only_rows`` dead and gone)
+(b726d33e).
 
 ## Overview
 
@@ -281,6 +285,13 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     The hangar tab lists active weapons and modules — tier-coloured
     names, the same stat lines the editor's tooltip shows. 19's
     letter grid lives on at the mechanic's tab and editor.
+21. **Mechanic LOADOUT tab matches the hangar** (2026-09-30, in-play
+    — completes 20's amendment of 19). User, asked whether the
+    mechanic tab should match or keep its static grid: "yeah, match
+    it!" Both LOADOUT tabs share one readout — the OVERVIEW numbers,
+    then the active weapons/modules with stats — with the mechanic's
+    Manage row kept on top as the editor entry. The letter grid
+    renders ONLY in the editor; read_only_rows retired.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
