@@ -347,6 +347,40 @@ def _trim_row(segments):
     return "".join(part for part, _color in trimmed), trimmed
 
 
+def _cell_paint(state, cells, ghost, hover_cells, cell, palette):
+    """One cell's ``(glyph, colour)``: the held ghost's legality colour
+    first, then the hovered piece's accent highlight, else the placed
+    letter at its tier colour."""
+    x, y = cell
+    if ghost is not None and (
+        state.cursor[0] <= x < state.cursor[0] + state.held.w
+        and state.cursor[1] <= y < state.cursor[1] + state.held.h
+    ):
+        return ghost[0], (
+            palette.positive if ghost[1] else palette.negative
+        )
+    if cell in hover_cells:
+        return cells[cell][0], palette.accent
+    return cells.get(cell, (".", None))
+
+
+def _overlays(state, pieces, occupied, base_gen, bonuses, held_letter):
+    """The two whole-piece overlays: the held ghost as
+    ``(letter, legality)``, and — empty-handed — the hovered piece's
+    cells (hover reads the piece, not the cell)."""
+    ghost = (
+        (held_letter, drop_legal(state, occupied, base_gen, bonuses))
+        if state.held is not None and held_letter
+        else None
+    )
+    hovered = piece_at(pieces, state.cursor) if state.held is None else None
+    hover_cells = (
+        footprint(hovered.x, hovered.y, hovered.w, hovered.h)
+        if hovered is not None else set()
+    )
+    return ghost, hover_cells
+
+
 def pane_rows(
     state: EditorState,
     pieces: tuple[GridPiece, ...],
@@ -357,33 +391,27 @@ def pane_rows(
 ) -> tuple[tuple[str, tuple | None], ...]:
     """The editor's letter rows: cursor bracketed, held ghost painted at
     the cursor in its legality colour (green legal / red not — the
-    legality colour overrides the tier colour)."""
+    legality colour overrides the tier colour), and the whole hovered
+    piece highlighted in the accent colour (playtest 2026-09-30)."""
     from .. import pygame_ui
 
     palette = pygame_ui.DEFAULT_PALETTE
-    ghost = (
-        (held_letter, drop_legal(state, occupied, base_gen, bonuses))
-        if state.held is not None and held_letter
-        else None
+    ghost, hover_cells = _overlays(
+        state, pieces, occupied, base_gen, bonuses, held_letter,
     )
     cells = _piece_cells(pieces)
     rows = []
     for y in range(state.grid_h):
         segments = []
         for x in range(state.grid_w):
-            if ghost is not None and (
-                state.cursor[0] <= x < state.cursor[0] + state.held.w
-                and state.cursor[1] <= y < state.cursor[1] + state.held.h
-            ):
-                glyph, color = ghost[0], (
-                    palette.positive if ghost[1] else palette.negative
-                )
-            else:
-                glyph, color = cells.get((x, y), (".", None))
+            cell = (x, y)
+            glyph, color = _cell_paint(
+                state, cells, ghost, hover_cells, cell, palette,
+            )
             # Every glyph centers in its 3-char cell: " S " / "[S]" —
             # the cursor brackets wrap the glyph without shifting its
             # column (playtest 2026-09-30).
-            if (x, y) == state.cursor:
+            if cell == state.cursor:
                 segments.append((f"[{glyph}]", color or palette.accent))
             else:
                 segments.append((f" {glyph} ", color))

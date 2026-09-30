@@ -174,6 +174,35 @@ class TestPaneRows:
         for text, runs in ge.pane_rows(_state(), pieces, set(), 10, []):
             assert "".join(part for part, _c in runs) == text
 
+    def test_hovered_piece_highlights_whole_footprint_in_accent(self):
+        # Playtest 2026-09-30: hover reads the PIECE, not the cell —
+        # every letter of the piece under the cursor goes accent
+        # (overriding the tier colour, like the ghost's legality
+        # colour does); empty cells stay plain.
+        from src.spacehack import pygame_ui
+
+        palette = pygame_ui.DEFAULT_PALETTE
+        pieces = (_piece("module:0", 0, 0, 2, 2, color=(9, 9, 9)),)
+        rows = ge.pane_rows(_state(cursor=(1, 1)), pieces, set(), 10, [])
+        assert [color for _t, color in rows[0][1]] == [
+            palette.accent, palette.accent, None, None,
+        ]
+        assert rows[1][1] == (
+            (" S ", palette.accent), ("[S]", palette.accent),
+            (" . ", None), (" .", None),
+        )
+        # Hovering only applies empty-handed: while holding, the ghost
+        # colour governs and untouched piece letters keep their tier.
+        part = ge.HeldPart(1, 1)
+        rows = ge.pane_rows(
+            _state(cursor=(3, 2), held=part), pieces, set(), 10, [],
+            held_letter="L",
+        )
+        assert all(
+            color == (9, 9, 9)
+            for text, color in rows[0][1] if text.strip() == "S"
+        )
+
     def test_ghost_legality_colour_overrides_tier(self):
         from src.spacehack import pygame_ui
 
