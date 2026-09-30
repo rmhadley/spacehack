@@ -15,6 +15,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Conceals up to 10 cargo units from militia scans.",
         smuggler_cargo=10, price=200,
         tech_level=1,
+        grid_w=1, grid_h=2,
     ),
     ModuleSpec(
         id="smuggler_hold_mk2", name="Smuggler's Hold Mk. 2",
@@ -22,6 +23,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Conceals up to 25 cargo units from militia scans.",
         smuggler_cargo=25, price=500,
         tech_level=2,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="smuggler_hold_mk3", name="Smuggler's Hold Mk. 3",
@@ -29,6 +31,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Conceals up to 50 cargo units from militia scans.",
         smuggler_cargo=50, price=1200,
         tech_level=3,
+        grid_w=2, grid_h=3,
     ),
     ModuleSpec(
         id="smuggler_hold_mk4", name="Smuggler's Hold Mk. 4",
@@ -36,5 +39,6 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Conceals up to 75 cargo units from militia scans.",
         smuggler_cargo=75, price=2500,
         tech_level=4,
+        grid_w=3, grid_h=3,
     ),
 )

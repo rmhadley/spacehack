@@ -17,6 +17,7 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         ammo_capacity=4, ammo_per_shot=1, cargo_per_round=2,
         ammo_price=8, price=40, min_range=2, max_range=9,
         tech_level=1,
+        grid_w=1, grid_h=2,
     ),
     WeaponSpec(
         id="heavy_missile", name="Heavy Missile", slot_type="missile",
@@ -24,6 +25,7 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         ammo_capacity=3, ammo_per_shot=1, cargo_per_round=1,
         ammo_price=20, price=90, min_range=3, max_range=13,
         tech_level=3,
+        grid_w=1, grid_h=2,
     ),
     WeaponSpec(
         id="emp_missile", name="EMP Missile", slot_type="missile",
@@ -31,5 +33,6 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         ammo_capacity=2, ammo_per_shot=1, cargo_per_round=2,
         ammo_price=25, price=120, min_range=2, max_range=10,
         tech_level=4, shield_strip=20,
+        grid_w=1, grid_h=2,
     ),
 )

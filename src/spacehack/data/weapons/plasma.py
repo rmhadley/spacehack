@@ -12,5 +12,6 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         damage=24, accuracy=70, ap_cost=2, power_cost=4,
         price=150, min_range=1, max_range=8,
         tech_level=3,
+        grid_w=2, grid_h=3,
     ),
 )

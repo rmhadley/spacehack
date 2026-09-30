@@ -47,6 +47,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=10,
         weapon_slots=2,
         module_slots=1,
+        grid_w=3, grid_h=3,
         max_cargo=50,   # 5 × T1 delivery max (10)
         max_fuel=80,
         # Power gen 3 (doc 50 goal-1 ruling, 2026-09-24): bursts of two
@@ -76,6 +77,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=14,
         weapon_slots=4,
         module_slots=2,
+        grid_w=4, grid_h=3,
         max_cargo=100,  # 5 × T2 delivery max (20)
         max_fuel=100,
         base_power_gen=3,
@@ -101,6 +103,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=7,
         weapon_slots=2,
         module_slots=2,
+        grid_w=4, grid_h=4,
         max_cargo=400,  # merchant workhorse — massive hold
         max_fuel=80,
         base_power_gen=4,
@@ -126,6 +129,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=9,
         weapon_slots=6,
         module_slots=4,
+        grid_w=5, grid_h=4,
         max_cargo=200,  # 5 × T3 delivery max (40)
         max_fuel=80,
         base_power_gen=5,
@@ -151,6 +155,12 @@ SHIPS: tuple[Ship, ...] = (
         speed=8,
         weapon_slots=8,
         module_slots=6,
+        # 6x5 ruled (doc 56 SETTLED 13): "overwhelming firepower" on 30
+        # cells means many-medium volleys or few-big-plus-support — eight
+        # 2x2+ heavies never all fit, which is the defense-vs-offense
+        # fight working as designed. Do not resize to match the old 8/6
+        # slot counts.
+        grid_w=6, grid_h=5,
         max_cargo=300,  # 5 × T4 delivery max (60)
         max_fuel=100,
         base_power_gen=6,
@@ -176,6 +186,7 @@ SHIPS: tuple[Ship, ...] = (
         speed=6,
         weapon_slots=3,
         module_slots=4,
+        grid_w=6, grid_h=5,
         max_cargo=700,  # endgame merchant — massive hold
         max_fuel=70,
         base_power_gen=4,

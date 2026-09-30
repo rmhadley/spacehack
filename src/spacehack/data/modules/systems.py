@@ -12,6 +12,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Basic deflector. +20 max shields.",
         max_shield_bonus=20, price=60,
         tech_level=1,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="shield_mk2", name="Shield Mk. 2",
@@ -19,6 +20,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Reinforced deflector. +40 max shields.",
         max_shield_bonus=40, price=150,
         tech_level=2,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="shield_mk3", name="Shield Mk. 3",
@@ -26,6 +28,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Military-grade deflector. +65 max shields.",
         max_shield_bonus=65, price=300,
         tech_level=3,
+        grid_w=2, grid_h=3,
     ),
     ModuleSpec(
         id="shield_mk4", name="Shield Mk. 4",
@@ -33,6 +36,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Capital-ship deflector. +95 max shields.",
         max_shield_bonus=95, price=500,
         tech_level=4,
+        grid_w=3, grid_h=3,
     ),
     ModuleSpec(
         id="shield_capacitor", name="Shield Capacitor",
@@ -40,6 +44,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+15 max shields.",
         max_shield_bonus=15, price=80,
         tech_level=2,
+        grid_w=1, grid_h=2,
     ),
     ModuleSpec(
         id="shield_recharger", name="Shield Recharger",
@@ -47,6 +52,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+3 shield regen per turn.",
         shield_recharge_bonus=3, price=100,
         tech_level=3,
+        grid_w=1, grid_h=2,
     ),
     ModuleSpec(
         id="targeting_computer", name="Targeting Computer",
@@ -54,6 +60,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+10 gunnery.",
         gunnery_bonus=10, price=70,
         tech_level=2,
+        grid_w=1, grid_h=1,
     ),
     ModuleSpec(
         id="targeting_mk2", name="Targeting Array Mk. 2",
@@ -61,6 +68,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Advanced fire control. +15 gunnery.",
         gunnery_bonus=15, price=150,
         tech_level=3,
+        grid_w=1, grid_h=2,
     ),
     ModuleSpec(
         id="targeting_mk3", name="Targeting Array Mk. 3",
@@ -68,6 +76,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Precision tracking suite. +20 gunnery.",
         gunnery_bonus=20, price=280,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="targeting_mk4", name="Targeting Array Mk. 4",
@@ -75,6 +84,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Quantum targeting computer. +30 gunnery.",
         gunnery_bonus=30, price=450,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="gyro_stabilizer", name="Gyro Stabilizer",
@@ -82,6 +92,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+10 piloting.",
         piloting_bonus=10, price=70,
         tech_level=2,
+        grid_w=1, grid_h=1,
     ),
     ModuleSpec(
         id="gyro_mk2", name="Gyro Array Mk. 2",
@@ -89,6 +100,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Reinforced inertial dampeners. +15 piloting.",
         piloting_bonus=15, price=150,
         tech_level=3,
+        grid_w=1, grid_h=2,
     ),
     ModuleSpec(
         id="gyro_mk3", name="Gyro Array Mk. 3",
@@ -96,6 +108,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Active stabilisation matrix. +20 piloting.",
         piloting_bonus=20, price=280,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="gyro_mk4", name="Gyro Array Mk. 4",
@@ -103,6 +116,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Gravimetric compensation field. +30 piloting.",
         piloting_bonus=30, price=450,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="expanded_cargo", name="Expanded Cargo Bays Mk. 1",
@@ -110,6 +124,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+30 cargo capacity.",
         cargo_bonus=30, price=40,
         tech_level=1,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="cargo_mk2", name="Expanded Cargo Bays Mk. 2",
@@ -117,6 +132,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+60 cargo capacity.",
         cargo_bonus=60, price=100,
         tech_level=2,
+        grid_w=2, grid_h=3,
     ),
     ModuleSpec(
         id="cargo_mk3", name="Expanded Cargo Bays Mk. 3",
@@ -124,6 +140,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+100 cargo capacity.",
         cargo_bonus=100, price=200,
         tech_level=3,
+        grid_w=3, grid_h=3,
     ),
     ModuleSpec(
         id="cargo_mk4", name="Expanded Cargo Bays Mk. 4",
@@ -131,6 +148,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+160 cargo capacity.",
         cargo_bonus=160, price=350,
         tech_level=4,
+        grid_w=3, grid_h=3,
     ),
     ModuleSpec(
         id="armor_plating", name="Armor Plating Mk. 1",
@@ -138,6 +156,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+5 max hull. -1 power gen.",
         max_hull_bonus=5, power_gen_bonus=-1, price=90,
         tech_level=2,
+        grid_w=1, grid_h=1,
     ),
     ModuleSpec(
         id="armor_mk2", name="Armor Plating Mk. 2",
@@ -145,6 +164,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+10 max hull. -2 power gen.",
         max_hull_bonus=10, power_gen_bonus=-2, price=200,
         tech_level=3,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="armor_mk3", name="Armor Plating Mk. 3",
@@ -152,6 +172,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+15 max hull. -3 power gen.",
         max_hull_bonus=15, power_gen_bonus=-3, price=360,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
     ModuleSpec(
         id="armor_mk4", name="Armor Plating Mk. 4",
@@ -159,5 +180,6 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+25 max hull. -4 power gen.",
         max_hull_bonus=25, power_gen_bonus=-4, price=600,
         tech_level=4,
+        grid_w=2, grid_h=2,
     ),
 )

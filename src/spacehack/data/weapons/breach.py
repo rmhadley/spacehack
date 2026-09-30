@@ -24,5 +24,6 @@ WEAPONS: tuple[WeaponSpec, ...] = (
         shield_strip=0,
         price=0,
         tech_level=99,
+        grid_w=1, grid_h=1,
     ),
 )
