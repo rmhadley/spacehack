@@ -436,8 +436,8 @@ def test_storage_round_trip_never_halves_a_doubled_rack():
     storage = []
     assert store_weapon(owned, storage, 0, hunter)
     assert storage[0].ammo == _cap
-    spec = type("Spec", (), {"weapon_slots": 2, "module_slots": 0})()
-    assert install_stored_equipment(owned, storage, 0, spec, hunter)
+    from src.spacehack.data.ships import find_ship
+    assert install_stored_equipment(owned, storage, 0, find_ship("starter"), hunter)
     assert owned.weapon_ammo == {0: _cap}  # doubled in, doubled back
 
 

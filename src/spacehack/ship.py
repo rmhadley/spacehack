@@ -15,6 +15,28 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from .data.ships import Ship, find_ship
 
+# The gated fitting model (doc 56 phase 2) lives in its cohesive
+# sibling ``ship_fitting`` (the 1000-line ratchet fired when the
+# placement model landed). Re-exported here so every existing
+# ``ship.install_stored_equipment`` import site is unchanged; live
+# callers may import from the owning module directly.
+from .ship_fitting import (  # noqa: F401  # re-exported seam
+    INSTALL_REFUSAL_INVALID,
+    INSTALL_REFUSAL_POWER,
+    INSTALL_REFUSAL_ROOM,
+    INSTALL_REFUSAL_SLOTS,
+    fitted_entries,
+    gated_install_entry,
+    install_refusal,
+    install_stored_equipment,
+    modules_resting_power,
+    normalize_fitted_grid,
+    occupied_cells,
+    removal_trips_power,
+    resting_power,
+    start_fitted_entries,
+)
+
 
 @dataclass(frozen=True)
 class StoredEquipment:
@@ -25,6 +47,11 @@ class StoredEquipment:
     ``randart_seed`` is the legendary identity (doc 47.4): None for
     everything except a rolled randart — the seed recomposes the name
     and bonus spread wherever the entry travels.
+    ``grid_x``/``grid_y`` are the entry's anchor when INSTALLED (doc
+    56 phase 2); stored entries always leave them None. The names
+    deliberately avoid a plain ``(x, y)`` pair — ``saveload._d``
+    serializes any x/y-attributed object as a 2-list, which would
+    destroy the whole loadout on the next load.
     """
 
     item_type: str
@@ -32,6 +59,8 @@ class StoredEquipment:
     ammo: int | None = None
     quality: int = 0
     randart_seed: int | None = None
+    grid_x: int | None = None
+    grid_y: int | None = None
 
 
 def parse_weapon_entry(raw) -> StoredEquipment | None:
@@ -584,34 +613,6 @@ def _sell_price(item_type: str, item_id: str, quality: int = 0) -> int:
     return 0
 
 
-def can_install_stored_equipment(
-    owned: OwnedShip,
-    stored: StoredEquipment,
-    ship_spec: Ship,
-) -> bool:
-    """Return whether ``stored`` fits an available slot on ``owned``.
-
-    Invalid catalog ids and unknown storage item types are rejected without
-    mutating either the ship or storage. Module slot type is represented by
-    the stored item type; the catalog lookup verifies the module itself.
-    """
-    if stored.item_type == "weapon":
-        try:
-            from .data.weapons import find_weapon as _fw
-            _fw(stored.item_id)
-        except KeyError:
-            return False
-        return len(owned.weapons) < ship_spec.weapon_slots
-    if stored.item_type == "module":
-        try:
-            from .data.modules import find_module as _fm
-            _fm(stored.item_id)
-        except KeyError:
-            return False
-        return len(owned.modules) < ship_spec.module_slots
-    return False
-
-
 def store_weapon(
     owned: OwnedShip,
     storage: list[StoredEquipment],
@@ -659,34 +660,6 @@ def store_module(
         quality=entry.quality, randart_seed=entry.randart_seed,
     ))
     _remove_module(owned, slot_index)
-    return True
-
-
-def install_stored_equipment(
-    owned: OwnedShip,
-    storage: list[StoredEquipment],
-    storage_index: int,
-    ship_spec: Ship,
-    ctx=None,
-) -> bool:
-    """Install one stored part and remove it from storage on success."""
-    if not (0 <= storage_index < len(storage)):
-        return False
-    stored = storage[storage_index]
-    if not can_install_stored_equipment(owned, stored, ship_spec):
-        return False
-    if stored.item_type == "weapon":
-        if not _install_weapon(owned, stored, ship_spec, ctx):
-            return False
-        slot_index = len(owned.weapons) - 1
-        if stored.ammo is not None:
-            from .data.weapons import find_weapon as _fw
-            capacity = effective_missile_capacity(_fw(stored.item_id), ctx)
-            owned.weapon_ammo[slot_index] = max(0, min(stored.ammo, capacity))
-    else:
-        if not _install_module(owned, stored, ship_spec):
-            return False
-    storage.pop(storage_index)
     return True
 
 

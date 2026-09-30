@@ -13,21 +13,30 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.spacehack.data.ships import find_ship
 from src.spacehack.ship import (
     OwnedShip,
     StoredEquipment,
+    INSTALL_REFUSAL_POWER,
+    INSTALL_REFUSAL_ROOM,
+    INSTALL_REFUSAL_SLOTS,
     _install_weapon,
     _remove_weapon,
-    can_install_stored_equipment,
+    install_refusal,
     install_stored_equipment,
     move_installed_equipment_to_storage,
+    normalize_fitted_grid,
+    removal_trips_power,
+    resting_power,
+    start_fitted_entries,
     store_module,
     store_weapon,
 )
 
 
 def _scout_spec() -> SimpleNamespace:
-    """A ship spec with 2 weapon slots."""
+    """A ship spec with 2 weapon slots (the ungated primitives read
+    slot counts only; the gated seams use the real catalog spec)."""
     return SimpleNamespace(weapon_slots=2, module_slots=2)
 
 
@@ -142,7 +151,7 @@ class TestEquipmentStorage:
         storage = [StoredEquipment("weapon", "light_missile", 1)]
 
         assert install_stored_equipment(
-            owned, storage, 0, _scout_spec(),
+            owned, storage, 0, find_ship("scout"),
         ) is True
         assert tuple(e.item_id for e in owned.weapons) == ("light_missile",)
         assert owned.weapon_ammo == {0: 1}
@@ -155,11 +164,11 @@ class TestEquipmentStorage:
         )
         storage = [StoredEquipment("weapon", "heavy_laser")]
 
-        assert can_install_stored_equipment(
-            owned, storage[0], SimpleNamespace(weapon_slots=2, module_slots=1),
-        ) is False
+        assert install_refusal(
+            owned, storage[0], find_ship("starter"),
+        ) == INSTALL_REFUSAL_SLOTS
         assert install_stored_equipment(
-            owned, storage, 0, SimpleNamespace(weapon_slots=2, module_slots=1),
+            owned, storage, 0, find_ship("starter"),
         ) is False
         assert storage == [StoredEquipment("weapon", "heavy_laser")]
 
@@ -170,7 +179,7 @@ class TestEquipmentStorage:
         assert store_weapon(owned, storage, 4) is False
         assert store_module(owned, storage, -1) is False
         assert install_stored_equipment(
-            owned, storage, 0, _scout_spec(),
+            owned, storage, 0, find_ship("scout"),
         ) is False
         assert tuple(e.item_id for e in owned.weapons) == ("light_laser",)
         assert storage == []
@@ -215,8 +224,14 @@ class TestModuleQualityInstances:
         owned = OwnedShip(ship_id="scout")
         storage = [StoredEquipment("module", "shield_mk2", quality=2)]
 
-        assert install_stored_equipment(owned, storage, 0, _scout_spec())
-        assert owned.modules == (StoredEquipment("module", "shield_mk2", quality=2),)
+        assert install_stored_equipment(owned, storage, 0, find_ship("scout"))
+        # Installed = placed (doc 56 phase 2): the stamp rides the
+        # quality; storing strips it back to a position-less payload.
+        assert owned.modules == (
+            StoredEquipment(
+                "module", "shield_mk2", quality=2, grid_x=0, grid_y=0,
+            ),
+        )
         assert store_module(owned, storage, 0)
         assert storage == [StoredEquipment("module", "shield_mk2", quality=2)]
 
@@ -279,3 +294,201 @@ class TestBuyAmmoCargoSync:
         ok, _cost, _reason = buy_ammo(owned, 0, 1, credits=10_000)
         assert ok is True
         assert owned.cargo_ammo == total_ammo_cargo(owned.weapons)
+
+
+class TestFittingGate:
+    """Doc 56 phase 2: the resting power gate — install refusals,
+    symmetric removal, placements on the ammo coupling, and the
+    load-time normalization."""
+
+    def test_ac1_fresh_skiff_cannot_field_shield_mk4(self):
+        # AC1: the FRESH skiff (its start laser aboard) cannot field a
+        # Shield Mk. 4 by any path — the 3x3 shield needs all nine
+        # cells and the laser holds one. CHECKPOINT-RULED MECHANISM:
+        # the brief's power-side refusal (3 - 4 < 0) was authored
+        # against base gen 3; the goal-1 re-fund (base 4, doc 50's
+        # ruled equilibrium restored after upkeep) moves the refusal
+        # to geometry for the fresh ship. See the phase-2 checkpoint.
+        owned, _modules = start_fitted_entries(find_ship("starter"))
+        fresh = OwnedShip(ship_id="starter", weapons=owned)
+        storage = [StoredEquipment("module", "shield_mk4")]
+
+        assert install_refusal(fresh, storage[0], find_ship("starter")) == (
+            INSTALL_REFUSAL_ROOM
+        )
+        assert install_stored_equipment(fresh, storage, 0, find_ship("starter")) is False
+
+    def test_empty_skiff_shield_mk4_leaves_zero_headroom(self):
+        # On an EMPTY skiff the bare shield_mk4 fields at net 0 (4-4);
+        # the pin that survives any retune: zero headroom — the next
+        # upkept part refuses on POWER. Scout for the free module slot.
+        owned = OwnedShip(ship_id="scout")
+        storage = [StoredEquipment("module", "shield_mk3")]
+        assert install_stored_equipment(owned, storage, 0, find_ship("scout"))
+        assert resting_power(owned, find_ship("scout")) == 0  # 3 - 3
+
+        storage = [StoredEquipment("module", "targeting_computer")]
+        assert install_refusal(owned, storage[0], find_ship("scout")) == (
+            INSTALL_REFUSAL_POWER
+        )
+
+    def test_reactor_mk4_installs_when_power_funds_it(self):
+        owned = OwnedShip(ship_id="starter")
+        storage = [StoredEquipment("module", "reactor_mk4")]
+
+        assert install_stored_equipment(owned, storage, 0, find_ship("starter"))
+        entry = owned.modules[0]
+        assert (entry.grid_x, entry.grid_y) == (0, 0)  # 3x3 fills the grid
+
+    def test_room_refusal_when_no_cell_fits(self):
+        # Scout 4x3 with shield_mk4 on columns 0-2 and a missile rack
+        # on column 3 rows 0-1: one free cell (3,2), no 1x2 anchor —
+        # a second rack has weapon slots and power to spare, but no
+        # room.
+        owned = OwnedShip(
+            ship_id="scout",
+            weapons=(
+                StoredEquipment("weapon", "light_missile", grid_x=3, grid_y=0),
+            ),
+            modules=(
+                StoredEquipment("module", "shield_mk4", grid_x=0, grid_y=0),
+            ),
+        )
+        storage = [StoredEquipment("weapon", "light_missile")]
+
+        assert install_refusal(owned, storage[0], find_ship("scout")) == (
+            INSTALL_REFUSAL_ROOM
+        )
+
+    def test_removal_gate_symmetric_on_funding_reactor(self):
+        # SETTLED 3: scout 3 + reactor 3 - shield_mk4 4 = +2 resting;
+        # removing the reactor would leave -1, so the removal refuses.
+        owned = OwnedShip(ship_id="scout", modules=(
+            StoredEquipment("module", "compact_reactor", grid_x=0, grid_y=0),
+            StoredEquipment("module", "shield_mk4", grid_x=1, grid_y=0),
+        ))
+        spec = find_ship("scout")
+        assert resting_power(owned, spec) == 2
+        assert removal_trips_power(owned, spec, "module", 0) is True
+        assert removal_trips_power(owned, spec, "module", 1) is False  # shield: net improves
+        assert removal_trips_power(owned, spec, "weapon", 0) is False  # weapons never upkeep
+
+    def test_ammo_coupling_survives_a_placement_stamped_removal(self):
+        # Store the MIDDLE missile of three placed launchers: the
+        # magazines re-key and the survivors keep their anchors.
+        placed = (
+            StoredEquipment("weapon", "light_missile", grid_x=0, grid_y=0),
+            StoredEquipment("weapon", "heavy_missile", grid_x=1, grid_y=0),
+            StoredEquipment("weapon", "light_missile", grid_x=2, grid_y=0),
+        )
+        owned = OwnedShip(ship_id="frigate", weapons=placed)
+        owned.weapon_ammo = {0: 1, 1: 2, 2: 3}
+        storage = []
+
+        assert store_weapon(owned, storage, 1)
+        assert tuple((e.item_id, e.grid_x, e.grid_y) for e in owned.weapons) == (
+            ("light_missile", 0, 0), ("light_missile", 2, 0),
+        )
+        assert owned.weapon_ammo == {0: 1, 1: 3}
+        assert storage == [StoredEquipment("weapon", "heavy_missile", 2)]
+
+    def test_resting_power_scales_with_quality_and_clamps_distinction(self):
+        from src.spacehack.combat._stats import _calc_power_gen
+
+        spec = find_ship("starter")
+        base = StoredEquipment("module", "shield_mk1")
+        raised = StoredEquipment("module", "shield_mk1", quality=1)
+        assert resting_power(OwnedShip(ship_id="starter", modules=(base,)), spec) == 3
+        # -1 scaled 1.15 -> -2 (ceiling in magnitude): 4 - 2 = 2.
+        assert resting_power(OwnedShip(ship_id="starter", modules=(raised,)), spec) == 2
+        # Clamp pin: the combat pool is exactly the gate's clamp.
+        for modules in ((base,), (raised,), (base, raised)):
+            owned = OwnedShip(ship_id="starter", modules=modules)
+            signed = resting_power(owned, spec)
+            assert _calc_power_gen(spec, modules) == max(0, signed)
+
+    def test_resting_power_applies_randart_axis(self):
+        from src.spacehack.data.randarts import roll_randart
+
+        spec = find_ship("starter")
+        seed = next(
+            s for s in range(200)
+            if dict(roll_randart("compact_reactor", s).axes).get("power_gen_bonus")
+        )
+        axis = dict(roll_randart("compact_reactor", seed).axes)["power_gen_bonus"]
+        owned = OwnedShip(
+            ship_id="starter",
+            modules=(StoredEquipment("module", "compact_reactor", randart_seed=seed),),
+        )
+        assert resting_power(owned, spec) == 4 + 3 + axis
+
+    def test_normalize_strips_placementless_entries(self):
+        owned = OwnedShip(
+            ship_id="starter",
+            weapons=(StoredEquipment("weapon", "light_laser"),),
+            modules=(StoredEquipment("module", "shield_mk1"),),
+        )
+        storage = []
+
+        labels = normalize_fitted_grid(owned, storage, find_ship("starter"))
+
+        assert owned.weapons == () and owned.modules == ()
+        # Weapons scan (and store) before modules — deterministic.
+        assert storage == [
+            StoredEquipment("weapon", "light_laser"),
+            StoredEquipment("module", "shield_mk1"),
+        ]
+        assert labels == ["Light Laser", "Shield Mk. 1"]
+
+    def test_normalize_strips_highest_upkeep_first_with_later_position_ties(self):
+        # 4 - 2 - 2 < 0: the two q1 shields tie at -2; the LATER entry
+        # strips, leaving a legal grid.
+        owned = OwnedShip(ship_id="starter", modules=(
+            StoredEquipment("module", "shield_mk1", quality=1, grid_x=0, grid_y=0),
+            StoredEquipment("module", "shield_mk1", quality=1, grid_x=2, grid_y=0),
+        ))
+        storage = []
+
+        labels = normalize_fitted_grid(owned, storage, find_ship("starter"))
+
+        assert tuple(e.grid_x for e in owned.modules) == (0,)
+        assert resting_power(owned, find_ship("starter")) == 2
+        assert labels == ["Modded Shield Mk. 1"]
+
+    def test_normalize_strips_later_entry_on_within_tuple_overlap(self):
+        owned = OwnedShip(ship_id="scout", modules=(
+            StoredEquipment("module", "shield_mk1", grid_x=0, grid_y=0),
+            StoredEquipment("module", "shield_mk2", grid_x=0, grid_y=0),
+        ))
+        storage = []
+
+        labels = normalize_fitted_grid(owned, storage, find_ship("scout"))
+
+        assert tuple(e.item_id for e in owned.modules) == ("shield_mk1",)
+        assert labels == ["Shield Mk. 2"]
+
+    def test_normalize_strips_module_on_cross_tuple_overlap(self):
+        # One grid, two tuples, one rule: weapons win the cells.
+        owned = OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "heavy_laser", grid_x=0, grid_y=0),),
+            modules=(StoredEquipment("module", "shield_mk1", grid_x=0, grid_y=0),),
+        )
+        storage = []
+
+        labels = normalize_fitted_grid(owned, storage, find_ship("scout"))
+
+        assert owned.weapons[0].item_id == "heavy_laser"
+        assert owned.modules == ()
+        assert labels == ["Shield Mk. 1"]
+
+    def test_normalize_strips_out_of_bounds_placement(self):
+        owned = OwnedShip(ship_id="starter", modules=(
+            StoredEquipment("module", "shield_mk1", grid_x=2, grid_y=2),
+        ))
+        storage = []
+
+        labels = normalize_fitted_grid(owned, storage, find_ship("starter"))
+
+        assert owned.modules == ()
+        assert labels == ["Shield Mk. 1"]

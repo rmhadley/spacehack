@@ -333,12 +333,13 @@ class TestWeaponQualityPass:
         assert rebuilt.weapons[0].quality == 0
 
     def test_install_and_store_preserve_quality(self):
+        from src.spacehack.data.ships import find_ship
         from src.spacehack.ship import (
             OwnedShip, StoredEquipment, install_stored_equipment, store_weapon,
         )
 
         owned = OwnedShip(ship_id="starter", weapons=(), modules=())
-        spec = SimpleNamespace(weapon_slots=2, module_slots=2)
+        spec = find_ship("starter")
         storage = [StoredEquipment("weapon", "heavy_laser", quality=2)]
         assert install_stored_equipment(owned, storage, 0, spec)
         assert owned.weapons[0].quality == 2
