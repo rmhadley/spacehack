@@ -338,17 +338,25 @@ def advance_main_quest(ctx, faction_id: str) -> None:
 
 
 def _dev_owned_ship() -> Any:
-    """Build the super-powered frigate loadout granted in dev mode."""
+    """Build the dev-mode frigate grant (doc 56 phase 2 re-author).
+
+    The old 64-cell loadout cannot pack a 30-cell grid. Three plasmas
+    fill rows 0-2 wall to wall (18 cells); compact reactor + shield
+    mk1 sit in the remainder at 24/30 with net +8 (6 + 3 - 1). A
+    fourth 2x3 plasma can never fit (only two rows remain) while a
+    small part still installs — the playtest's geometry-refusal step
+    has a live subject either way.
+    """
+    frigate = ship_module.find_ship("frigate")
+    weapons, modules = ship_module.fitted_entries(
+        frigate,
+        ("plasma_cannon", "plasma_cannon", "plasma_cannon"),
+        ("compact_reactor", "shield_mk1"),
+    )
     return ship_module.OwnedShip(
         ship_id="frigate",
-        weapons=(
-            "plasma_cannon", "plasma_cannon", "plasma_cannon", "plasma_cannon",
-            "heavy_missile", "heavy_missile", "heavy_missile", "heavy_missile",
-        ),
-        modules=ship_module.base_module_entries((
-            "reactor_mk4", "shield_mk4", "shield_recharger",
-            "targeting_mk4", "gyro_mk4", "armor_mk4",
-        )),
+        weapons=weapons,
+        modules=modules,
         fuel=999,
     )
 

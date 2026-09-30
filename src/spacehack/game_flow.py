@@ -666,14 +666,16 @@ def _nearest_free_cell(game_map, anchor: world.Position) -> world.Position:
 
 
 def _new_owned_ship(ship, old_reserved: int, ctx=None) -> "ship_module.OwnedShip":
-    """The purchased hull: starting loadout, full tank, carried reserve.
+    """The purchased hull: fitted start loadout, full tank, carried
+    reserve.
 
     The ctx top-off doubles a Bounty Hunter's fresh missile racks
     (doc 49 SETTLED 7) — the one genuinely-fresh-ship moment."""
+    fitted_weapons, fitted_modules = ship_module.start_fitted_entries(ship)
     owned = ship_module.OwnedShip(
         ship_id=ship.id,
-        weapons=ship_module.base_weapon_entries(ship.start_weapons),
-        modules=ship_module.base_module_entries(ship.start_modules),
+        weapons=fitted_weapons,
+        modules=fitted_modules,
         fuel=ship.max_fuel,
         mission_reserved=old_reserved,
     )

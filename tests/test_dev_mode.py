@@ -827,3 +827,27 @@ def test_log_ground_weapon_sets_dumps_both_sets():
     ctx.holstered_ground_weapons = []
     dev_mode.log_ground_weapon_sets(ctx)
     assert any("holstered: empty (fists)" in line for line in logged)
+
+
+def test_dev_grant_packs_and_is_power_valid():
+    """Doc 56 phase 2: the re-authored grant lands 24/30 on the
+    frigate, placed and power-valid — a loadout that stops packing is
+    a grant edit that broke the grid, not a runtime surprise."""
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.ship import (
+        install_refusal, occupied_cells, resting_power, StoredEquipment,
+    )
+
+    owned = dev_mode._dev_owned_ship()
+    frigate = find_ship("frigate")
+    for entry in (*owned.weapons, *owned.modules):
+        assert entry.grid_x is not None and entry.grid_y is not None
+    assert len(occupied_cells(owned, frigate.grid_w, frigate.grid_h)) == 24
+    assert resting_power(owned, frigate) == 8  # 6 + 3 - 1
+    # A fourth 2x3 plasma can never fit; a small part still installs.
+    assert install_refusal(
+        owned, StoredEquipment("weapon", "plasma_cannon"), frigate,
+    ) == "room"
+    assert install_refusal(
+        owned, StoredEquipment("module", "targeting_computer"), frigate,
+    ) is None

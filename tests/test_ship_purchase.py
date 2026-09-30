@@ -68,7 +68,8 @@ def test_ship_upgrade_moves_old_loadout_to_storage_and_keeps_new_starting_loadou
     assert purchased is ctx.player_owned_ship
     assert purchased.ship_id == "scout"
     assert tuple(e.item_id for e in purchased.weapons) == new_ship.start_weapons
-    assert purchased.modules == ship_module.base_module_entries(new_ship.start_modules)
+    # Doc 56 phase 2: purchases arrive FITTED (auto-placed).
+    assert purchased.modules == ship_module.start_fitted_entries(new_ship)[1]
     assert purchased.mission_reserved == 7
     assert ctx.stats.credits == 5_250
     assert old_entity not in game_map.entities

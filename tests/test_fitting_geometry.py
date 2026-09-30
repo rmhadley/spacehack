@@ -125,6 +125,25 @@ def test_upkeep_authored_to_ruled_curve():
         assert live[mid] == upkeep, mid
 
 
+def test_every_hull_start_loadout_is_power_valid():
+    """Doc 56 phase 2 (advisor catch 8): every catalog start loadout
+    rests at net >= 0 at base quality. Re-run after EVERY phase-4
+    magnitude change — a retuned curve that starves a stock hull is a
+    regression, not a tuning knob. Nets pinned per hull (the starter
+    reads +4: base gen 4, no start modules — the goal-1 re-fund).
+    """
+    from src.spacehack.ship import OwnedShip, resting_power, start_fitted_entries
+
+    expected_nets = {
+        "starter": 4, "scout": 6, "hauler": 3,
+        "cruiser": 7, "frigate": 6, "freighter": 7,
+    }
+    for ship in list_ships():
+        weapons, modules = start_fitted_entries(ship)
+        owned = OwnedShip(ship_id=ship.id, weapons=weapons, modules=modules)
+        assert resting_power(owned, ship) == expected_nets[ship.id], ship.id
+
+
 def test_mk_sizes_monotonic_within_each_family():
     for family, chain in MK_CHAINS.items():
         specs = [find_module(mid) for mid in chain]

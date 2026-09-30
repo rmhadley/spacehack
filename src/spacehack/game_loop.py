@@ -815,7 +815,8 @@ def _build_starter_ship(game_map, log):
         owned=True,
     )
     game_map.entities.append(starter_entity)
-    owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=ship_module.base_weapon_entries(starter_ship.start_weapons), modules=ship_module.base_module_entries(starter_ship.start_modules), fuel=starter_ship.max_fuel)
+    fitted_weapons, fitted_modules = ship_module.start_fitted_entries(starter_ship)
+    owned_ship = ship_module.OwnedShip(ship_id=starter_ship.id, display_name=ship_name, weapons=fitted_weapons, modules=fitted_modules, fuel=starter_ship.max_fuel)
     log.add(f'Your {ship_name} is docked at the space port.')
     return starter_ship, starter_entity, owned_ship
 
