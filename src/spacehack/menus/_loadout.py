@@ -310,20 +310,41 @@ def _pygame_loadout_frame(
 
 
 def _log_storage_failure(ctx, stored, ship_spec) -> None:
-    """Explain why a stored item could not be installed."""
-    if stored.item_type == "weapon":
-        available = len(ctx.player_owned_ship.weapons) < ship_spec.weapon_slots
-        target = "weapon"
-    elif stored.item_type == "module":
-        available = len(ctx.player_owned_ship.modules) < ship_spec.module_slots
-        target = "module"
-    else:
-        ctx.log.add("That stored item is not valid equipment.")
-        return
-    if not available:
-        ctx.log.add(f"No compatible {target} slot is available on this ship.")
-    else:
+    """Explain why a stored item could not be installed.
+
+    Doc 56 phase 2: the counts route through ``ship.install_refusal``
+    — no bespoke slot arithmetic at any refusal site."""
+    reason = ship_module.install_refusal(
+        ctx.player_owned_ship, stored, ship_spec, ctx,
+    )
+    if reason is None:
         ctx.log.add("That stored equipment is no longer available.")
+        return
+    kind = "weapon" if stored.item_type == "weapon" else "module"
+    ctx.log.add(_install_refusal_text(reason, stored, kind))
+
+
+def _install_refusal_text(reason: str, stored, kind: str) -> str:
+    """Map one ``ship.install_refusal`` reason to its player-facing
+    line (doc 56 phase-2 approved strings; expected to move at the
+    playtest). The slots line keeps the pre-grid wording until the
+    modal loses its slot shape in phase 3."""
+    if reason == ship_module.INSTALL_REFUSAL_SLOTS:
+        return f"No compatible {kind} slot is available on this ship."
+    if reason == ship_module.INSTALL_REFUSAL_ROOM:
+        return f"No room on the grid for {_stored_label(stored)}."
+    if reason == ship_module.INSTALL_REFUSAL_POWER:
+        return f"{_stored_label(stored)} needs more power than the ship generates."
+    return "That stored item is not valid equipment."
+
+
+def _log_removal_refusal(ctx, owned, kind: str, slot: int) -> None:
+    """SETTLED 3: removal through the power gate, refused aloud."""
+    entry = (owned.weapons if kind == "weapon" else owned.modules)[slot]
+    ctx.log.add(
+        f"Removing {_installed_item_label(kind, entry)[0]} would leave "
+        "the ship short on power."
+    )
 
 
 async def _apply_stored_install(ctx, action: str) -> None:
@@ -491,11 +512,17 @@ async def _apply_manage_ship_item(ctx, action: str) -> None:
 
 
 async def _apply_store(ctx, action: str) -> None:
-    """Store one installed weapon or module."""
+    """Store one installed weapon or module (SETTLED 3: removal
+    through the power gate — removing the funding reactor refuses)."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
+    kind = "weapon" if item_type == "STORE_WEAPON_SLOT" else "module"
     owned = ctx.player_owned_ship
-    if item_type == "STORE_WEAPON_SLOT":
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):
+        _log_removal_refusal(ctx, owned, kind, slot)
+        return
+    if kind == "weapon":
         stored = ship_module.store_weapon(owned, _storage_list(ctx), slot, ctx)
     else:
         stored = ship_module.store_module(owned, _storage_list(ctx), slot)
@@ -506,27 +533,29 @@ async def _apply_store(ctx, action: str) -> None:
 
 
 async def _apply_sell_installed(ctx, action: str) -> None:
-    """Sell one installed weapon or module."""
+    """Sell one installed weapon or module (SETTLED 3: removal through
+    the power gate; sell removes via the primitives, so it checks the
+    same predicate before touching the tuple)."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
+    kind = "weapon" if item_type == "SELL_WEAPON_SLOT" else "module"
     owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
     slots = (
-        ship_module._find_weapon_slots(owned, ship_module.find_ship(owned.ship_id))
-        if item_type == "SELL_WEAPON_SLOT"
-        else ship_module._find_module_slots(owned, ship_module.find_ship(owned.ship_id))
+        ship_module._find_weapon_slots(owned, ship_spec) if kind == "weapon"
+        else ship_module._find_module_slots(owned, ship_spec)
     )
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return
+    if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):
+        _log_removal_refusal(ctx, owned, kind, slot)
+        return
     item = slots[slot][0]
-    if item_type == "SELL_WEAPON_SLOT":
+    if kind == "weapon":
         ship_module._remove_weapon(owned, slot, ctx)
     else:
         ship_module._remove_module(owned, slot)
-    ctx.stats.credits += (
-        ship_module._sell_price("weapon", item.item_id, item.quality)
-        if item_type == "SELL_WEAPON_SLOT"
-        else ship_module._sell_price("module", item.item_id, item.quality)
-    )
+    ctx.stats.credits += ship_module._sell_price(kind, item.item_id, item.quality)
 
 
 def _purchase_spec(item_type: str, item_id: str):
@@ -560,7 +589,11 @@ async def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
 
 
 def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None:
-    """Complete a purchase after the player chooses its destination."""
+    """Complete a purchase after the player chooses its destination.
+
+    Validate-before-charge preserved: the gated install decides (and
+    mutates) first, then the credits move — a part that found no cell
+    or no watts is never paid for."""
     owned = ctx.player_owned_ship
     ship_spec = ship_module.find_ship(owned.ship_id)
     spec = _purchase_spec(item_type, item_id)
@@ -568,18 +601,13 @@ def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None
         ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
     if destination == "INSTALL":
-        if item_type == "WEAPON":
-            installed = ship_module._install_weapon(
-                owned, ship_module.StoredEquipment("weapon", item_id), ship_spec,
-                ctx,
-            )
-        else:
-            installed = ship_module._install_module(
-                owned, ship_module.StoredEquipment("module", item_id), ship_spec,
-            )
-        if not installed:
-            slot_type = "weapon" if item_type == "WEAPON" else "module"
-            ctx.log.add(f"No compatible {slot_type} slot is available on this ship.")
+        entry = ship_module.StoredEquipment(
+            "weapon" if item_type == "WEAPON" else "module", item_id,
+        )
+        reason = ship_module.gated_install_entry(owned, entry, ship_spec, ctx)
+        if reason is not None:
+            kind = "weapon" if item_type == "WEAPON" else "module"
+            ctx.log.add(_install_refusal_text(reason, entry, kind))
             return
     else:
         _storage_list(ctx).append(

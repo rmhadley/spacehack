@@ -5910,10 +5910,73 @@ def test_loadout_buy_install_module_lands_as_base_entry(monkeypatch):
         ctx, "BUY_MODULE:shield_mk1", 0, 0, "earth",
     ))
 
+    # Doc 56 phase 2: a buy-install lands PLACED (first_fit anchor).
     assert ctx.player_owned_ship.modules == (
-        StoredEquipment("module", "shield_mk1"),
+        StoredEquipment("module", "shield_mk1", grid_x=0, grid_y=0),
     )
     assert ctx.stats.credits == 1000 - 60
+
+
+def test_loadout_buy_install_power_refusal_string(monkeypatch):
+    """Doc 56 phase 2: the approved power refusal, and
+    validate-before-charge — a part the grid cannot feed is never
+    paid for."""
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    logged = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", modules=(
+            StoredEquipment("module", "shield_mk3", grid_x=0, grid_y=0),
+        )),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda message, **_kwargs: logged.append(message)),
+    )
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "BUY_INSTALL_MODULE:targeting_computer"),
+    )
+
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, "BUY_MODULE:targeting_computer", 0, 0, "earth",
+    ))
+
+    assert logged == [
+        "Targeting Computer needs more power than the ship generates.",
+    ]
+    assert ctx.stats.credits == 1000  # refused before the charge
+    assert ctx.player_owned_ship.modules == (
+        StoredEquipment("module", "shield_mk3", grid_x=0, grid_y=0),
+    )
+
+
+def test_loadout_store_removal_power_refusal_string(monkeypatch):
+    """Doc 56 SETTLED 3: storing the reactor funding a shield is
+    refused with the approved removal line."""
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    logged = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout", modules=(
+            StoredEquipment("module", "compact_reactor", grid_x=0, grid_y=0),
+            StoredEquipment("module", "shield_mk4", grid_x=1, grid_y=0),
+        )),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda message, **_kwargs: logged.append(message)),
+    )
+
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, "STORE_MODULE_SLOT:0", 0, 0, "earth",
+    ))
+
+    assert logged == [
+        "Removing Compact Reactor Mk. 1 would leave the ship short on power.",
+    ]
+    assert len(ctx.player_owned_ship.modules) == 2  # nothing moved
     assert ctx.ship_storage == []
 
 
