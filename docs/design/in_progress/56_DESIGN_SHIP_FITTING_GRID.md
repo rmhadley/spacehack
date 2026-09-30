@@ -372,6 +372,18 @@ probe-driven — phase 4).
     in to some fights"); the probe and the re-derived Line harness
     REPORT the shift, phase 4 calibrates.
 
+25. **Shopping footprint preview** (2026-09-30, at the phase-5
+    playtest). User: "Just realizing we need a preview of the module
+    size when we're shopping." Picked the letter-block footprint from
+    four presented shapes: a store/storage row's pinned detail carries
+    the part's shape as bracketed SETTLED-15 letter rows under the
+    stat/description line — same visual language as the grid. Guide
+    reviewed, NO edit (the preview explains itself in play; the
+    mechanic section already teaches green/red fitting). Built same
+    day (feat commit; one `_with_footprint` composer serves both
+    panes; the fit reserve is untouched — the 28-rung pins hold, big
+    footprints dynamically show fewer rows).
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
@@ -773,6 +785,27 @@ then one balance pass over both sides with the probe as referee.
     fights." Magnitudes untouched (phase 4 calibrates with this
     table as the starting point). The naked-save probe (no re-fit)
     still reads 0.000 across rows (SETTLED 14 strip) — unchanged.
+  - **The player's own grid build probed** (2026-09-30, save
+    `saves/grid_merchant_sirian_bountyhunter.json` — hand-fitted on
+    the live grid, 20/20 cruiser cells, net +7: 2× plasma +
+    medium_laser + shield_mk1 + 3× compact_reactor + 2× gyro; user:
+    "Really felt the impact here. Harder to build something very
+    powerful but I still think I did a decent job. Using tinker kits
+    on power modules is definitely a build path now. Building this
+    build out felt way more interesting than the previous system.").
+    50 runs/row — THE phase-4 starting table (a real build, not the
+    synthetic re-fit):
+    | Row | Player grid build | Synthetic re-fit | Pre-volley original |
+    |---|---|---|---|
+    | s_scout_b1 | 1.000 / 0.00 / 1.0t | 1.000 / 0.00 | 1.000 / 0.00 |
+    | s_raider_b2 | 1.000 / 0.00 / 2.0t | 1.000 / 5.82 | 1.000 / 0.00 |
+    | s_marauder_b3 | **0.960** / 4.50 (2 def) | 0.140 / 10.14 | 1.000 / 0.00 |
+    | s_warlord_b4 | **0.440** / 21.32 / 6.7t (28 def) | 0.120 / 31.17 / 77.8t | 1.000 / 0.00 / 2.0t |
+    | s_2x_marauder | **0.900** / 4.20 (5 def) | 0.160 / 18.38 | 1.000 / 0.00 |
+    The hull gate is REACHABLE for a well-built ship (worst rolls
+    49-70 damage; the warlord takes 28 of 50) while strong play
+    still wins the intended bands — the first probe table since the
+    doc's evidence baseline where damage lands at all.
   - **Guide**: NO edit — verified no stale slot vocabulary anywhere
     (the guide's only "slot" is ground-gear armour, phase-3
     classification); enemy fire shape is encounter behavior that
