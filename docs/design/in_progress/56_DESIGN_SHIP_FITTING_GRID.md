@@ -3,9 +3,8 @@
 Status: DRAFT for review (2026-09-30). Nothing implemented. Successor to
 `complete/DESIGN_SHIP_CUSTOMIZATION.md` (the slot system this replaces for
 the player). Advisor ADVISE pass folded same day (12 issues: catches
-1/3/4/5 + minors 6-11 amended in place; catch 2 staged as open
-question 8, catch 12 as open question 9 — both await the user's
-ruling at `/refine-design`).
+1/3/4/5 + minors 6-11 amended in place; catch 2 and catch 12 ruled by
+the user the same day — SETTLED 11/12).
 
 ## Overview
 
@@ -127,6 +126,20 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
    missiles are worth using vs plasma. Parked.
 10. **Magnitude retune acknowledged** — "we may need to go through and
     rebalance numbers too" — owned by phase 4, probe-driven.
+11. **Boundary normalization confirmed** (2026-09-30, ruling open
+    question 8). User: "yes. I like that. bump things that can't be
+    powered. and tinker used on an installed module refused if it
+    bumps the gate." Power-invalid resting grids normalize by
+    stripping the offenders to storage at load; a tinker kit applied
+    to an installed module is refused when its quality bump would
+    trip the gate. No dark state exists anywhere.
+12. **Held item on pane switch** (2026-09-30, ruling open question 9).
+    User: "if you have an item held when you tab to store pane, it
+    should snap back to where it was or go to storage if it can't."
+    The same auto-return applies at any commit boundary (leaving the
+    terminal included); if snap-back is impossible and storage would
+    trip the gate, the switch is refused — the gate outranks the
+    auto-return (composition of SETTLED 3 + 12).
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -144,29 +157,31 @@ The gate is a check on the **resting state** of the grid:
   case SETTLED 3 names: removing a generator whose removal would send the
   resting grid negative). Illegal placements render red like geometric
   collisions.
-- **You cannot leave the terminal (or switch panes) while holding an
-  item** — put it down or return it.
+- **Switching panes or leaving the terminal while holding an item
+  auto-returns it** (SETTLED 12): snap back to where it was, or into
+  storage if it can't; if storage would trip the gate, the switch
+  itself is refused.
 - **Weapons draw no upkeep.** Guns cost power per shot (existing economy);
   defenses and systems cost watts to run. Doctrine sentence: *guns cost
   power when fired, modules cost power to exist.*
-- **"Don't function if negative" is proposed as: it never happens.**
-  ADVISOR CATCH 2 (blocking): the dark state IS reachable in normal
-  play — tinker kits bump installed-module quality (`tinker.py:234-249`),
-  and quality scales `power_gen_bonus` in magnitude, so a legal resting
-  grid can go negative with no commit ever firing; a phase-4 upkeep
-  retune would likewise make well-formed saves power-invalid on load.
-  A live "contributes nothing" rule would also be a new mechanic
-  across ~8 bonus-sum sites (`_module_bonus_sum`, `_effective_installed`,
-  `hull_cur_max`, `effective_speed`, `effective_max_cargo`,
-  `smuggler_hold_capacity`, `_skill_bonuses`), contradicting the
-  philosophy table's no-new-mechanics claim. Proposed redefinition
-  (open question 8, pending the user's ruling): invalid resting states
-  are NORMALIZED at the boundaries — power-invalid grids strip their
-  offending items to storage at load (reusing the open-question-1
-  machinery), and the tinker apply refuses a quality bump that would
-  trip the gate — so every fitted module always contributes, and no
-  dark state exists anywhere. (Cargo-hold brownouts with cargo aboard
-  are the other reason the gate is commit-time rather than live.)
+- **"Don't function if negative" is RULED as: it never happens
+  (SETTLED 11).** ADVISOR CATCH 2 (blocking): the dark state IS
+  reachable in normal play — tinker kits bump installed-module quality
+  (`tinker.py:234-249`), and quality scales `power_gen_bonus` in
+  magnitude, so a legal resting grid can go negative with no commit
+  ever firing; a phase-4 upkeep retune would likewise make well-formed
+  saves power-invalid on load. A live "contributes nothing" rule would
+  also be a new mechanic across ~8 bonus-sum sites
+  (`_module_bonus_sum`, `_effective_installed`, `hull_cur_max`,
+  `effective_speed`, `effective_max_cargo`, `smuggler_hold_capacity`,
+  `_skill_bonuses`), contradicting the philosophy table's
+  no-new-mechanics claim. RULED: invalid resting states are NORMALIZED
+  at the boundaries — power-invalid grids strip their offending items
+  to storage at load (reusing the open-question-1 machinery), and the
+  tinker apply refuses a quality bump that would trip the gate — so
+  every fitted module always contributes, and no dark state exists
+  anywhere. (Cargo-hold brownouts with cargo aboard are the other
+  reason the gate is commit-time rather than live.)
 - Quality/randarts scale upkeep in magnitude (existing negative-field
   scaling): legendaries are bigger AND hungrier. The user's "Late
   Meridian" randart (power_gen −2 axis) is the pattern.
@@ -244,7 +259,11 @@ Worked check (the motivating cases):
 - **Reader surfaces**: HUD ship block, ship-buy ledger, hangar menu —
   "Wpn 4/6 Mod 3/4" becomes cells used/total + net power.
 - **Purchase flow**: buy-then-install needs a placement (auto-place
-  prompt or hand-off to the grid pane).
+  prompt or hand-off to the grid pane). Auto-place failures keep the
+  existing validate-before-charge ordering (`_loadout.py:567-591`) —
+  the player is never charged for a part that found no cell (advisor
+  catch 12's second half, folded as a requirement rather than a
+  question).
 - **start_weapons/start_modules**: deterministic auto-fit at new-game
   setup and ship purchase.
 - **Combat math**: unchanged seams (`_calc_power_gen` already sums the
@@ -290,9 +309,8 @@ Worked check (the motivating cases):
   placement changes). Probe regression green — the recorded baseline
   is the referee.
   PLAYTEST: dev-mode build ledger — fit/stress the gate rules on a
-  live ship (including the tinker refusal if open question 8's
-  normalization ruling lands); save/quit/continue round-trip of a
-  fitted grid.
+  live ship (including the tinker refusal, SETTLED 11); save/quit/
+  continue round-trip of a fitted grid.
 - [ ] **3. Fitting UI** — the grid editor pane at the mechanic terminal,
   letter blocks + tier colors + red/green legality, hand model, pane
   switching; HUD/ship-buy/hangar surfaces to cells + net power; guide
@@ -338,6 +356,10 @@ catch 11).
    power generation for specs flying upkept modules — accepted,
    probe-refereed, and strictly in the player's favor direction
    (advisor catch 1's resolution).
+8. A tinker kit that would push the resting grid power-negative is
+   refused; a power-invalid grid arriving through load normalizes by
+   stripping offenders to storage; a held item auto-returns on pane
+   switch or terminal exit (SETTLED 11/12).
 
 ## Open questions (for /refine-design)
 
@@ -354,17 +376,6 @@ catch 11).
 6. **Placement data shape** (brief-time, after the reader census).
 7. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
    its own fix doc whenever (it is independent of the grid).
-8. **The "doesn't function" semantics** (advisor catch 2, blocking):
-   confirm the boundary-normalization redefinition written into the
-   gate section — power-invalid grids strip their offending items to
-   storage at load, and the tinker apply refuses a bump that would
-   trip the gate — so no dark state ever exists. The alternative (a
-   live dark state across the ~8 bonus-sum sites) is recorded there
-   and rejected as a new mechanic.
-9. **Store-pane purchases while holding** (advisor catch 12): blocked,
-   queued, or forced return? And when auto-place finds no legal cell,
-   keep the existing validate-before-charge ordering
-   (`_loadout.py:567-591`).
 
 ## Pre-implementation audit
 
@@ -379,8 +390,8 @@ cover beyond the obvious:
   placement rides `StoredEquipment` (storage payloads would gain x/y
   keys the parser silently drops; benign, but decide it).
 - The tinker kit seam (`tinker.py:234-249`): kit target selection and
-  `dataclasses.replace` must preserve placement (and refuses tripping
-  the gate if open question 8 lands as proposed).
+  `dataclasses.replace` must preserve placement (and refuses
+  gate-tripping quality bumps, SETTLED 11).
 - The tombstone GEAR dump (`tombstone.py:281-287`) — iterates
   `owned.weapons/.modules`; must survive placement-carrying entries.
 - The enemy parity seam (`space_scale.roll_flown_equipment`,
