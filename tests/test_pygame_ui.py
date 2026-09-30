@@ -3812,7 +3812,7 @@ def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     assert frame.active_left_tab == 1
     assert all(row.value == "" for row in frame.left_rows if row.action.startswith("MANAGE_STORED:"))
     missile = next(row for row in frame.left_rows if row.action == "MANAGE_STORED:0")
-    assert "Ammo: 1/4" in missile.detail
+    assert "Ammo 1/4" in missile.detail
     # The right pane is the letter grid: action-less letter rows, the
     # cursor bracketing the laser at (0, 0).
     assert all(not row.action for row in frame.right_rows)

@@ -260,27 +260,28 @@ def _entry_module_detail(entry) -> str:
 
 
 def _weapon_detail(spec, *, ammo: int | None = None, ctx=None, quality: int = 0) -> str:
-    """Format weapon details for a market, storage, or ship row.
-
-    (Lives here — the editor's hover readout and the loadout market
-    rows share one formatter.) ``ctx`` switches the missile capacity
-    shown to the effective rack (the Bounty Hunter's double, doc 49
-    SETTLED 7); rows without ctx read the catalog spec. ``quality``
-    scales damage AND accuracy to the flown instance's tier (doc 47
-    SETTLED 2).
+    """Format one weapon's terse stat line (playtest 2026-09-30):
+    damage, accuracy, range, and the firing costs — AP plus power for
+    energy/plasma weapons, the rack for missiles (which pay ammo, not
+    watts). ``ctx`` switches the missile capacity shown to the
+    effective rack (the Bounty Hunter's double, doc 49 SETTLED 7);
+    ``quality`` scales damage AND accuracy to the flown instance's
+    tier (doc 47 SETTLED 2).
     """
     from ..data.quality import effective_ship_weapon_spec
     from ..ship import effective_missile_capacity
 
     spec = effective_ship_weapon_spec(spec.id, quality)
     detail = (
-        f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  "
-        f"Range: {spec.min_range}-{spec.max_range}"
+        f"Dmg {spec.damage}  Acc {spec.accuracy}%  "
+        f"Rng {spec.min_range}-{spec.max_range}  AP {spec.ap_cost}"
     )
     if spec.slot_type == "missile":
         capacity = effective_missile_capacity(spec, ctx)
         current = capacity if ammo is None else max(0, min(ammo, capacity))
-        detail += f"  Ammo: {current}/{capacity}"
+        detail += f"  Ammo {current}/{capacity}"
+    elif spec.power_cost:
+        detail += f"  Pow {spec.power_cost}"
     return detail
 
 

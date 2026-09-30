@@ -295,10 +295,20 @@ class TestPieceAt:
 
 
 def test_weapon_detail_hover_line():
+    """Playtest 2026-09-30: terse, with the firing costs — AP plus
+    power for energy/plasma, the rack for missiles (no Pow segment:
+    missiles pay ammo, not watts)."""
     from src.spacehack.data.weapons import find_weapon
 
+    assert ge._weapon_detail(find_weapon("medium_laser")) == (
+        "Dmg 6  Acc 72%  Rng 1-5  AP 1  Pow 1"
+    )
+    assert ge._weapon_detail(find_weapon("plasma_cannon")) == (
+        "Dmg 24  Acc 70%  Rng 1-8  AP 2  Pow 4"
+    )
     detail = ge._weapon_detail(find_weapon("light_missile"))
-    assert "Ammo: 4/4" in detail and "Damage:" in detail
+    assert detail == "Dmg 14  Acc 72%  Rng 2-9  AP 2  Ammo 4/4"
+    assert "Pow" not in detail
 
 
 def test_hover_readout_is_name_plus_stats():

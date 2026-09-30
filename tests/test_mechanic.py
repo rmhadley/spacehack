@@ -121,8 +121,8 @@ class TestLoadoutWeaponQualityDisplay:
         from src.spacehack.menus._grid_editor import _weapon_detail
 
         spec = find_weapon("medium_laser")
-        assert "Damage: 8" in _weapon_detail(spec, quality=2)
-        assert "Damage: 6" in _weapon_detail(spec)
+        assert "Dmg 8" in _weapon_detail(spec, quality=2)
+        assert "Dmg 6" in _weapon_detail(spec)
 
     def test_stored_row_scales_damage_at_tier(self):
         """The parts market's STORAGE panel row scales its stat line to
@@ -133,4 +133,4 @@ class TestLoadoutWeaponQualityDisplay:
         from src.spacehack.ship import StoredEquipment
 
         row = _stored_row(StoredEquipment("weapon", "medium_laser", quality=2), 0)
-        assert "Damage: 8" in row.detail
+        assert "Dmg 8" in row.detail
