@@ -299,3 +299,17 @@ def test_weapon_detail_hover_line():
 
     detail = ge._weapon_detail(find_weapon("light_missile"))
     assert "Ammo: 4/4" in detail and "Damage:" in detail
+
+
+def test_hover_readout_is_name_plus_stats():
+    """Playtest 2026-09-30: the tooltip shows the tiered name and the
+    IMPORTANT stats — the effective stat line at the instance's tier,
+    not the authored prose."""
+    from src.spacehack.ship import StoredEquipment
+
+    base = ge._entry_detail(StoredEquipment("module", "shield_mk2"))
+    assert base == "Shield Mk. 2 - Power: -2  Shields: +40"
+    raised = ge._entry_detail(
+        StoredEquipment("module", "shield_mk2", quality=2),
+    )
+    assert raised == "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"

@@ -2394,8 +2394,11 @@ def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
     # letter rows action-less, POWER footer.
     assert buy.grid_pane and storage.grid_pane
     assert buy.grid_holding is False
-    assert buy.right_rows[0].divider and "FITTING GRID" in buy.right_rows[0].label
-    assert all(not row.selectable and not row.action for row in buy.right_rows[1:])
+    # The pane is the letter grid itself (no divider header — the
+    # tooltip needs row 0): one row per grid line, nothing selectable.
+    assert len(buy.right_rows) == 3  # starter 3x3
+    assert not buy.right_rows[0].divider
+    assert all(not row.selectable and not row.action for row in buy.right_rows)
     assert buy.footer_right.startswith("POWER: ")
 
 
@@ -3810,10 +3813,10 @@ def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     assert all(row.value == "" for row in frame.left_rows if row.action.startswith("MANAGE_STORED:"))
     missile = next(row for row in frame.left_rows if row.action == "MANAGE_STORED:0")
     assert "Ammo: 1/4" in missile.detail
-    # The right pane is the letter grid: header divider, action-less rows.
-    assert frame.right_rows[0].divider is True
+    # The right pane is the letter grid: action-less letter rows, the
+    # cursor bracketing the laser at (0, 0).
     assert all(not row.action for row in frame.right_rows)
-    assert any(row.label.startswith("[L]") for row in frame.right_rows[1:])
+    assert frame.right_rows[0].label.startswith("[L]")
 
 
 def test_loadout_storage_view_handles_missing_and_malformed_storage():
@@ -6598,6 +6601,49 @@ def test_panel_header_paint_calls_match_the_real_signatures(monkeypatch):
             focused=False, palette=pygame_ui.DEFAULT_PALETTE,
             color_override=(170, 130, 230), **kwargs,
         )
+
+
+def test_loadout_grid_tooltip_rides_the_pinned_detail(monkeypatch):
+    """Playtest 2026-09-30: the pane's bottom tooltip follows the cursor
+    (or the held part) — the readout lives on row 0, the only row the
+    split's pinned-detail zone reads."""
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "shield_mk2", quality=2, grid_x=0, grid_y=0),
+            ),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+
+    frame = _loadout._pygame_loadout_frame(ctx, session)
+    assert frame.right_rows[0].detail == (
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"
+    )
+
+    # Pick it up: the tooltip follows the HAND (the same readout).
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    frame = _loadout._pygame_loadout_frame(ctx, session)
+    assert frame.right_rows[0].detail == (
+        "Overclocked Shield Mk. 2 - Power: -3  Shields: +52"
+    )
+
+    # Return it, cursor off the 2x2 piece: no tooltip.
+    run(apply(ctx, session, "GRID:ESC", 1, 0, "earth"))
+    for _ in range(3):
+        run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:MOVE:0:1", 1, 0, "earth"))
+    frame = _loadout._pygame_loadout_frame(ctx, session)
+    assert frame.right_rows[0].detail == ""
 
 
 def test_loadout_terminal_exit_resolves_the_hand(monkeypatch):

@@ -226,28 +226,35 @@ def _tier_color(quality: int, randart_seed) -> tuple[int, int, int] | None:
 
 
 def _entry_detail(entry) -> str:
-    """The hovered-entry readout: the shipped detail lines."""
+    """The hovered-entry readout: the tiered name plus the part's
+    important stats (playtest 2026-09-30 — stats, not prose)."""
+    from ..ship import module_display_name, weapon_display_name
+
     if entry.item_type == "weapon":
         from ..data.weapons import find_weapon
-        from ..ship import weapon_display_name
 
-        return " - ".join(
-            (weapon_display_name(entry.item_id, entry.quality),
-             _weapon_detail(find_weapon(entry.item_id), quality=entry.quality)),
+        parts = (
+            weapon_display_name(entry.item_id, entry.quality),
+            _weapon_detail(find_weapon(entry.item_id), quality=entry.quality),
         )
-    from ..ship import module_display_name
-
-    return " - ".join((
-        module_display_name(entry.item_id, entry.quality, entry.randart_seed),
-        _entry_module_detail(entry),
-    ))
+    else:
+        parts = (
+            module_display_name(entry.item_id, entry.quality, entry.randart_seed),
+            _entry_module_detail(entry),
+        )
+    return " - ".join(part for part in parts if part)
 
 
 def _entry_module_detail(entry) -> str:
-    from ..ship import module_detail
+    """The hovered module's stat line at its effective tier (every
+    catalog module carries at least one stat)."""
+    from ..data.quality import effective_module_spec
+    from ..ship import module_stat_line
 
     try:
-        return module_detail(entry.item_id, entry.quality, entry.randart_seed)
+        return module_stat_line(
+            effective_module_spec(entry.item_id, entry.quality, entry.randart_seed),
+        )
     except KeyError:
         return ""
 

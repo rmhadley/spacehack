@@ -281,8 +281,11 @@ def _hover_detail(session, pieces) -> str:
 
 
 def _grid_pane_rows(ctx, session) -> tuple:
-    """The right pane: FITTING GRID header + letter rows with the
-    cursor and held ghost painted in (SETTLED 16)."""
+    """The right pane: the letter grid with the cursor and held ghost
+    painted in (SETTLED 16). The hovered/held part's readout rides the
+    FIRST row's detail — the split's pinned-detail zone reads row 0, so
+    the tooltip shows at the pane's bottom while the grid is focused
+    (playtest 2026-09-30)."""
     from .. import pygame_split
 
     owned = ctx.player_owned_ship
@@ -299,15 +302,13 @@ def _grid_pane_rows(ctx, session) -> tuple:
         held_letter=held_letter,
     )
     hover = _hover_detail(session, pieces)
-    rows = [pygame_split.section_header("FITTING GRID")]
-    rows.extend(
+    return tuple(
         pygame_split.SplitRow(
             text, "", hover if index == 0 else "", "",
             selectable=False, runs=runs,
         )
         for index, (text, runs) in enumerate(lines)
     )
-    return tuple(rows)
 
 
 def _pygame_loadout_frame(
