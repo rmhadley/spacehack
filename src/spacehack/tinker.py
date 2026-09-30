@@ -26,6 +26,12 @@ MAX_RAISED_QUALITY: int = len(QUALITY_TOKENS) - 1
 # empty case, it never enumerates target types.
 NO_TARGETS_LINE = "Nothing you own can be modified."
 
+# Doc 56 SETTLED 11: an installed-module raise whose quality-scaled
+# upkeep would send the resting grid negative is refused — no dark
+# state exists anywhere. Weapons and stored modules draw nothing, so
+# only the installed-module family hits this line.
+POWER_REFUSAL_LINE = "That upgrade would draw more power than the ship generates."
+
 
 def _eligible(quality: int, randart_seed) -> bool:
     """True for one raisable entry: a non-randart tier below prototype."""
@@ -127,10 +133,12 @@ def _slotted_apply(mapping: dict, slot: str, label_of):
     return apply
 
 
-def _tuple_field_apply(owned, field_name: str, index: int, label_of):
+def _tuple_field_apply(owned, field_name: str, index: int, label_of, power_gate=None):
     """Zero-arg apply: raise ``getattr(owned, field_name)[index]`` —
     the shared mutation for tuple-field containers (installed modules,
-    flown weapons)."""
+    flown weapons). ``power_gate(raised_entry)`` may veto the bump
+    after the raise is computed (doc 56 SETTLED 11) — it logs its own
+    refusal line."""
     def apply() -> str | None:
         entries = getattr(owned, field_name)
         if not 0 <= index < len(entries):
@@ -138,12 +146,38 @@ def _tuple_field_apply(owned, field_name: str, index: int, label_of):
         entry = entries[index]
         if not _eligible(entry.quality, entry.randart_seed):
             return None
+        raised_entry = _raised(entry)
+        if power_gate is not None and not power_gate(raised_entry):
+            return None
         line = _kit_log_line(label_of(entry), entry.quality + 1)
         raised = list(entries)
-        raised[index] = _raised(entry)
+        raised[index] = raised_entry
         setattr(owned, field_name, tuple(raised))
         return line
     return apply
+
+
+def _module_power_gate(ctx, owned, index):
+    """The SETTLED 11 gate for one installed-module target: simulate
+    the raised grid, refuse (with the line) when the resting net would
+    go negative. ``_raised`` preserves sibling fields, so a successful
+    bump keeps the entry's grid anchor by construction."""
+    def gate(raised_entry) -> bool:
+        from .ship import find_ship, modules_resting_power
+
+        try:
+            spec = find_ship(owned.ship_id)
+        except KeyError:
+            return True
+        hypothetical = tuple(
+            raised_entry if i == index else entry
+            for i, entry in enumerate(owned.modules)
+        )
+        if modules_resting_power(spec, hypothetical) < 0:
+            ctx.log.add(POWER_REFUSAL_LINE)
+            return False
+        return True
+    return gate
 
 
 def _weapon_targets(ctx) -> list[_Target]:
@@ -250,7 +284,10 @@ def _installed_targets(ctx) -> list[_Target]:
     return [
         _target(
             f"KIT:INSTALLED:{index}", entry, _module_label,
-            _tuple_field_apply(owned, "modules", index, _module_label),
+            _tuple_field_apply(
+                owned, "modules", index, _module_label,
+                _module_power_gate(ctx, owned, index),
+            ),
         )
         for index, entry in enumerate(modules)
         if _eligible(entry.quality, entry.randart_seed)

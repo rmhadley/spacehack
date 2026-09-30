@@ -509,3 +509,54 @@ class TestShipWeaponFamilies:
         assert messages == [
             "Tinker kit: Modded Medium Laser is now Overclocked.",
         ]
+
+
+class TestInstalledModulePowerGate:
+    """Doc 56 SETTLED 11: an installed-module raise that would send
+    the resting grid negative is refused; a successful raise keeps
+    the entry's grid anchor (no charge consumed on refusal)."""
+
+    def _ship_ctx(self, modules):
+        return _context(
+            items=[_kit_stack(1)],
+            equipped_ground_weapons=[],
+            equipped_ground_armor={},
+            ground_expedition_inventory=[],
+            ground_armory_storage=[],
+            ship_storage=[],
+            player_owned_ship=OwnedShip(
+                ship_id="starter", modules=modules,
+            ),
+        )
+
+    def test_refused_when_the_raise_would_trip_the_gate(self, monkeypatch):
+        from src.spacehack import pygame_story as _ps
+        from src.spacehack import tinker
+
+        # Valid resting state: starter 4 - shield_mk4(-4 at q0) = 0.
+        # The raise scales upkeep to -ceil(4 * 1.15) = -5: net -1,
+        # refused before any mutation or charge.
+        ctx, messages = self._ship_ctx((
+            StoredEquipment("module", "shield_mk4", quality=0, grid_x=0, grid_y=0),
+        ))
+        _ps_choose = as_async(lambda *a, **k: "KIT:INSTALLED:0")
+        monkeypatch.setattr(_ps, "choose", _ps_choose)
+
+        assert run(tinker.try_manage_kit(ctx, 0)) is False
+        assert ctx.player_owned_ship.modules[0].quality == 0
+        assert messages == [tinker.POWER_REFUSAL_LINE]
+
+    def test_successful_raise_preserves_the_grid_anchor(self, monkeypatch):
+        from src.spacehack import pygame_story as _ps
+        from src.spacehack import tinker
+
+        ctx, _messages = self._ship_ctx((
+            StoredEquipment("module", "shield_mk1", quality=0, grid_x=1, grid_y=2),
+        ))
+        _ps_choose = as_async(lambda *a, **k: "KIT:INSTALLED:0")
+        monkeypatch.setattr(_ps, "choose", _ps_choose)
+
+        assert run(tinker.try_manage_kit(ctx, 0)) is True
+        raised = ctx.player_owned_ship.modules[0]
+        assert raised.quality == 1
+        assert (raised.grid_x, raised.grid_y) == (1, 2)
