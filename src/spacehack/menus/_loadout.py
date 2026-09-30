@@ -468,17 +468,28 @@ def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
     )
 
 
+def _slot_action_kind(item_type: str) -> str:
+    """'weapon' or 'module' from a MANAGE/STORE/SELL slot action."""
+    return "weapon" if "_WEAPON_" in item_type else "module"
+
+
+def _installed_slots(owned, ship_spec, kind: str):
+    """The installed-slot rows for one kind — the shared resolver
+    behind the manage/store/sell paths (doc 56 phase-2 review minor 5:
+    the kind derivation + slot lookup were triplicated)."""
+    if kind == "weapon":
+        return ship_module._find_weapon_slots(owned, ship_spec)
+    return ship_module._find_module_slots(owned, ship_spec)
+
+
 async def _choose_ship_action(ctx, action: str) -> str:
     """Ask whether an installed part should be stored or sold."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
-    kind = "weapon" if item_type == "MANAGE_WEAPON_SLOT" else "module"
+    kind = _slot_action_kind(item_type)
     owned = ctx.player_owned_ship
     ship_spec = ship_module.find_ship(owned.ship_id)
-    slots = (
-        ship_module._find_weapon_slots(owned, ship_spec) if kind == "weapon"
-        else ship_module._find_module_slots(owned, ship_spec)
-    )
+    slots = _installed_slots(owned, ship_spec, kind)
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return "__BACK__"
     body, sell_id, quality = _installed_item_label(kind, slots[slot][0])
@@ -516,7 +527,7 @@ async def _apply_store(ctx, action: str) -> None:
     through the power gate — removing the funding reactor refuses)."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
-    kind = "weapon" if item_type == "STORE_WEAPON_SLOT" else "module"
+    kind = _slot_action_kind(item_type)
     owned = ctx.player_owned_ship
     ship_spec = ship_module.find_ship(owned.ship_id)
     if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):
@@ -538,13 +549,10 @@ async def _apply_sell_installed(ctx, action: str) -> None:
     same predicate before touching the tuple)."""
     item_type, slot_text = action.split(":", 1)
     slot = int(slot_text)
-    kind = "weapon" if item_type == "SELL_WEAPON_SLOT" else "module"
+    kind = _slot_action_kind(item_type)
     owned = ctx.player_owned_ship
     ship_spec = ship_module.find_ship(owned.ship_id)
-    slots = (
-        ship_module._find_weapon_slots(owned, ship_spec) if kind == "weapon"
-        else ship_module._find_module_slots(owned, ship_spec)
-    )
+    slots = _installed_slots(owned, ship_spec, kind)
     if not 0 <= slot < len(slots) or slots[slot][0] is None:
         return
     if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):

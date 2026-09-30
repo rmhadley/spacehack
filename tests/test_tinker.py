@@ -545,6 +545,7 @@ class TestInstalledModulePowerGate:
         assert run(tinker.try_manage_kit(ctx, 0)) is False
         assert ctx.player_owned_ship.modules[0].quality == 0
         assert messages == [tinker.POWER_REFUSAL_LINE]
+        assert ctx.ground_expedition_items == [_kit_stack(1)]  # charge kept
 
     def test_successful_raise_preserves_the_grid_anchor(self, monkeypatch):
         from src.spacehack import pygame_story as _ps

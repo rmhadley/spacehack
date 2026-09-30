@@ -20,9 +20,10 @@ package's standing pattern) — no import cycle.
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING
 
-from .fitting import first_fit, footprint, in_bounds, net_power
+from .fitting import auto_fit, first_fit, footprint, in_bounds, net_power
 
 if TYPE_CHECKING:
     from .data.ships import Ship
@@ -150,8 +151,6 @@ def gated_install_entry(owned: "OwnedShip", entry, ship_spec: "Ship", ctx=None) 
     stamps the entry's grid anchor via ``first_fit`` over live
     occupancy, so every installed entry is placed.
     """
-    import dataclasses
-
     reason = install_refusal(owned, entry, ship_spec, ctx)
     if reason is not None:
         return reason
@@ -161,9 +160,12 @@ def gated_install_entry(owned: "OwnedShip", entry, ship_spec: "Ship", ctx=None) 
         occupied_cells(owned, ship_spec.grid_w, ship_spec.grid_h),
         spec.grid_w, spec.grid_h,
     )
-    placed = entry
-    if anchor is not None:
-        placed = dataclasses.replace(entry, grid_x=anchor[0], grid_y=anchor[1])
+    if anchor is None:
+        # Unreachable — install_refusal just passed the same pure
+        # state — but fail loudly rather than install an unplaced
+        # entry: it would silently strip to storage at the next load.
+        raise RuntimeError("fitting gate desynchronized during install")
+    placed = dataclasses.replace(entry, grid_x=anchor[0], grid_y=anchor[1])
     if entry.item_type == "weapon":
         from .ship import _install_weapon
         _install_weapon(owned, placed, ship_spec, ctx)
@@ -232,8 +234,6 @@ def fitted_entries(ship_spec: "Ship", weapon_ids, module_ids):
     callers never see that path (and the load-time normalization
     would strip such entries anyway).
     """
-    import dataclasses
-
     from .ship import base_module_entries, base_weapon_entries
 
     weapons = base_weapon_entries(weapon_ids)
@@ -244,8 +244,6 @@ def fitted_entries(ship_spec: "Ship", weapon_ids, module_ids):
             (entry, _entry_spec(entry)) for entry in (*weapons, *modules)
         )
     ]
-    from .fitting import auto_fit
-
     stamps = auto_fit(ship_spec.grid_w, ship_spec.grid_h, sizes)
     if stamps is None:
         return weapons, modules
