@@ -81,7 +81,11 @@ FITTING GRID divider gave way to the letter grid and the
 hovered/held readout rides row 0 — tiered name + the effective stat
 line at the instance's tier, stats not prose (c8fe3425; this also
 fixed the tooltip never showing — the row-0 detail had been sitting
-on the first LETTER row where the pane never reads it).
+on the first LETTER row where the pane never reads it); (4) WEAPON
+stat lines are terse and carry the firing costs (66de9c17):
+'Dmg 6  Acc 72%  Rng 1-5  AP 1  Pow 1' for energy/plasma, missiles
+'Dmg 14  Acc 72%  Rng 2-9  AP 2  Ammo 4/4' (no Pow — racks pay ammo,
+not watts); one formatter serves tooltip + market + storage rows.
 
 ## Overview
 
