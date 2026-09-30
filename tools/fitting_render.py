@@ -28,31 +28,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.spacehack.data.ships import find_ship, list_ships  # noqa: E402
+from src.spacehack.menus._grid_editor import LETTERS  # noqa: E402
 from src.spacehack.ship import resting_power, start_fitted_entries  # noqa: E402
 
-# SETTLED 15's ruling. Shield capacitor/recharger fold into the
-# shield family letter; EMP gets its own E beside the missile M. A new
-# catalog id without a letter fails loudly here so the decision is
-# made, not defaulted.
-LETTERS = {
-    # weapons
-    "light_laser": "L", "medium_laser": "L", "heavy_laser": "L",
-    "light_missile": "M", "heavy_missile": "M",
-    "emp_missile": "E",
-    "plasma_cannon": "P",
-    "breach_charge_test": "B",
-    # modules
-    "shield_mk1": "S", "shield_mk2": "S", "shield_mk3": "S", "shield_mk4": "S",
-    "shield_capacitor": "S", "shield_recharger": "S",
-    "targeting_computer": "T", "targeting_mk2": "T", "targeting_mk3": "T", "targeting_mk4": "T",
-    "gyro_stabilizer": "G", "gyro_mk2": "G", "gyro_mk3": "G", "gyro_mk4": "G",
-    "expanded_cargo": "C", "cargo_mk2": "C", "cargo_mk3": "C", "cargo_mk4": "C",
-    "armor_plating": "A", "armor_mk2": "A", "armor_mk3": "A", "armor_mk4": "A",
-    "compact_reactor": "R", "reactor_mk2": "R", "reactor_mk3": "R", "reactor_mk4": "R",
-    "heavy_reactor": "R",
-    "smuggler_hold_mk1": "H", "smuggler_hold_mk2": "H",
-    "smuggler_hold_mk3": "H", "smuggler_hold_mk4": "H",
-}
+# SETTLED 15's ruling lives in the game-side editor (doc 56 phase 3);
+# this fixture renderer imports the same table — one source.
 
 
 def _spec_of(entry):
