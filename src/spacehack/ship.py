@@ -24,7 +24,8 @@ from .ship_fitting import (  # noqa: F401  # re-exported seam
     INSTALL_REFUSAL_INVALID,
     INSTALL_REFUSAL_POWER,
     INSTALL_REFUSAL_ROOM,
-    INSTALL_REFUSAL_SLOTS,
+    clamp_installed_magazine,
+    effective_upkeep,
     fitted_entries,
     gated_install_entry,
     install_refusal,
@@ -520,20 +521,16 @@ def smuggler_hold_capacity(owned: OwnedShip, ctx=None) -> int:
 
 
 def _install_weapon(
-    owned: OwnedShip, entry: StoredEquipment | str, ship_spec: Ship,
-    ctx=None,
+    owned: OwnedShip, entry: StoredEquipment | str, ctx=None,
 ) -> bool:
-    """Install ``weapon_id`` into the first empty weapon slot.
+    """Install ``weapon_id`` (the UNGATED primitive — doc 56 phase 3
+    retired the slot guard with the slot summaries; the fitting gate
+    at the commit seams is the only legality check).
 
-    Returns True on success. Recalculates ``cargo_ammo`` if the
-    weapon is a missile type (the caller must also sync) and seeds
-    a FRESH full magazine — a newly installed missile launcher
-    never inherits stale ammo left behind by a previously sold
-    launcher of the same type. Returns False if all weapon slots
-    are full.
+    Recalculates ``cargo_ammo`` and seeds a FRESH full magazine — a
+    newly installed missile launcher never inherits stale ammo left
+    behind by a previously sold launcher of the same type.
     """
-    if len(owned.weapons) >= ship_spec.weapon_slots:
-        return False
     if isinstance(entry, str):
         entry = StoredEquipment("weapon", entry)
     owned.weapons = owned.weapons + (entry,)
@@ -576,15 +573,13 @@ def _remove_weapon(owned: OwnedShip, index: int, ctx=None) -> tuple[str, ...]:
     return new
 
 
-def _install_module(owned: OwnedShip, entry: StoredEquipment, ship_spec: Ship) -> bool:
-    """Install one module instance into the first empty module slot.
+def _install_module(owned: OwnedShip, entry: StoredEquipment) -> bool:
+    """Install one module instance (the UNGATED primitive — doc 56
+    phase 3 retired the slot guard with the slot summaries).
 
-    Returns True on success. Returns False if all module slots are
-    full. The entry carries its quality — the buy path constructs a
-    base entry, looted parts install at their rolled tier.
+    The entry carries its quality — the buy path constructs a base
+    entry, looted parts install at their rolled tier.
     """
-    if len(owned.modules) >= ship_spec.module_slots:
-        return False
     owned.modules = owned.modules + (entry,)
     return True
 
@@ -710,40 +705,6 @@ def move_installed_equipment_to_storage(
     while owned.modules:
         if not store_module(owned, storage, 0):
             raise ValueError("Cannot store an installed module")
-
-
-def _find_weapon_slots(owned: OwnedShip, ship_spec: Ship) -> list[tuple[StoredEquipment | None, int]]:
-    """Build a list of all weapon slots with their installed state.
-
-    The module twin: returns ``[(weapon entry or None, slot_index), ...]``
-    so the UI can render each slot row (read ``.item_id``/``.quality``
-    for the installed instance). Empty slots show as ``(None, index)``.
-    """
-    result: list[tuple[StoredEquipment | None, int]] = []
-    for i in range(ship_spec.weapon_slots):
-        if i < len(owned.weapons):
-            result.append((owned.weapons[i], i))
-        else:
-            result.append((None, i))
-    return result
-
-
-def _find_module_slots(
-    owned: OwnedShip, ship_spec: Ship,
-) -> list[tuple[StoredEquipment | None, int]]:
-    """Build a list of all module slots with their installed state.
-
-    Returns ``[(module entry or None, slot_index), ...]`` so the UI
-    can render each slot row (read ``.item_id``/``.quality`` for the
-    installed instance). Empty slots show as ``(None, index)``.
-    """
-    result: list[tuple[str | None, int]] = []
-    for i in range(ship_spec.module_slots):
-        if i < len(owned.modules):
-            result.append((owned.modules[i], i))
-        else:
-            result.append((None, i))
-    return result
 
 
 # Fuel economics constants. JUMP_FUEL_COST is consumed by the

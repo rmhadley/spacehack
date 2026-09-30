@@ -1,29 +1,23 @@
-"""Loadout management split-screen modal for the mechanic terminal.
+"""Loadout split-screen modal for the mechanic terminal (doc 56
+phase 3): the left pane keeps the STORE/STORAGE parts lists; the
+right pane is the fitting-grid editor — cursor + pick/place
+(SETTLED 16), installs hand off into the editor's hand (SETTLED 17),
+D stores and X sells the held part, and every exit resolves the hand
+(SETTLED 12).
 
-The modal has two small, deliberately explicit views:
-
-* ``STORE`` — buy catalog equipment and choose what to do with installed gear.
-* ``STORAGE`` — choose whether to install or sell stored equipment.
-
-The mode switch is intentionally local to this modal. The storage model and
-slot mutation remain in :mod:`spacehack.ship`, so this presentation can evolve
-without creating a second equipment system.
+The hand is modal-runner LOCAL session state (never module-level,
+never serialized): a picked-up entry stays in the owned tuple at its
+origin anchor — the tuple is always the whole truth — while a
+handed-over part is not in the tuple until dropped. QUIT paths write
+no save, so disk state simply predates the session.
 """
 
 from __future__ import annotations
 
-
-from enum import Enum, auto
+from dataclasses import dataclass, replace
 
 from .. import ship as ship_module
-
-
-class _LoadoutOutcome(Enum):
-    """Result of the mechanic loadout menu."""
-
-    IGNORE = auto()
-    BACK = auto()
-    QUIT = auto()
+from ..menus import _grid_editor
 
 
 _LOADOUT_MODES: tuple[str, ...] = ("STORE", "STORAGE")
@@ -31,6 +25,40 @@ _MODE_LABELS = {
     "STORE": "STORE",
     "STORAGE": "STORAGE",
 }
+
+
+@dataclass
+class _Hand:
+    """The editor's hand: the rich half beside the pure mirror.
+
+    ``source`` is "installed" (picked up from the grid; the entry
+    stays in its tuple at ``index``), "storage" (popped from storage),
+    or "buy" (charged, not yet placed). ``part`` is the pure layer's
+    mirror (size, upkeep, origin anchor or None).
+    """
+
+    entry: ship_module.StoredEquipment
+    kind: str
+    source: str
+    part: _grid_editor.HeldPart
+    index: int = -1
+
+
+@dataclass
+class _Session:
+    """Modal-runner session state (doc 56 phase 3's hand model)."""
+
+    state: _grid_editor.EditorState
+    mode: str = "STORE"
+    focus: int = 0
+    hand: _Hand | None = None
+
+
+def open_session(ship_spec) -> _Session:
+    """A fresh loadout session over the hull's grid."""
+    return _Session(
+        state=_grid_editor.initial_state(ship_spec.grid_w, ship_spec.grid_h),
+    )
 
 
 def _storage_list(ctx):
@@ -42,12 +70,18 @@ def _storage_list(ctx):
     return storage
 
 
-def _loadout_hint(mode: str) -> str:
-    """Return mode-specific controls for the loadout modal."""
+def _loadout_hint(mode: str, on_grid: bool) -> str:
+    """Return the modal's controls; the grid pane carries the editor's
+    key surface (SETTLED 16)."""
     from .. import pygame_ui
 
+    if on_grid:
+        return pygame_ui.modal_hint(
+            "B buy", "S storage", "ENTER pick up/drop", "D store held",
+            "X sell held", "TAB parts", "ESC back", pygame_ui.GUIDE_HINT,
+        )
     action_hint = {
-        "STORE": "ENTER buy/choose",
+        "STORE": "ENTER buy",
         "STORAGE": "ENTER choose",
     }[mode]
     return pygame_ui.modal_hint(
@@ -56,29 +90,50 @@ def _loadout_hint(mode: str) -> str:
     )
 
 
-def _weapon_detail(
-    spec, *, ammo: int | None = None, ctx=None, quality: int = 0,
-) -> str:
-    """Format weapon details for a market, storage, or ship row.
+def _stored_label(stored) -> str:
+    """Display label for one stored part (token seam for modules and
+    ship weapons — doc 48.7: flown-and-stored weapons are
+    quality-bearing)."""
+    if stored.item_type == "module":
+        from ..ship import module_display_name
+        return module_display_name(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
+    if stored.item_type == "weapon":
+        from ..ship import weapon_display_name
+        return weapon_display_name(stored.item_id, stored.quality)
+    return stored.item_id.replace('_', ' ').title()
 
-    ``ctx`` switches the missile capacity shown to the effective rack
-    (the Bounty Hunter's double, doc 49 SETTLED 7); market rows pass
-    no ctx and read the catalog spec (the base-hull comparison).
-    ``quality`` scales damage AND accuracy to the flown instance's
-    tier (doc 47 SETTLED 2) — ship rows pass their rolled tier; shop
-    stock is always base."""
-    from ..data.quality import effective_ship_weapon_spec
-    from ..ship import effective_missile_capacity
-    spec = effective_ship_weapon_spec(spec.id, quality)
-    detail = (
-        f"Damage: {spec.damage}  Accuracy: {spec.accuracy}%  "
-        f"Range: {spec.min_range}-{spec.max_range}"
-    )
-    if spec.slot_type == "missile":
-        capacity = effective_missile_capacity(spec, ctx)
-        current = capacity if ammo is None else max(0, min(ammo, capacity))
-        detail += f"  Ammo: {current}/{capacity}"
-    return detail
+
+def _stored_row(stored, index: int, ctx=None):
+    """Build one stored-equipment row, preserving its actual list index."""
+    from .. import pygame_split
+    from ..data.weapons import find_weapon
+    from ..menus._grid_editor import _weapon_detail
+    from ..ship import module_detail, module_display_name, weapon_display_name
+
+    if stored.item_type == "weapon":
+        spec = find_weapon(stored.item_id)
+        name = weapon_display_name(stored.item_id, stored.quality)
+        detail, runs = (
+            _weapon_detail(
+                spec, ammo=stored.ammo, ctx=ctx, quality=stored.quality,
+            ),
+            _weapon_runs(stored.item_id, stored.quality),
+        )
+    elif stored.item_type == "module":
+        name = module_display_name(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
+        detail = module_detail(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
+        runs = _module_runs(
+            stored.item_id, stored.quality, stored.randart_seed,
+        )
+    else:
+        raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
+    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}", runs=runs)
 
 
 def _module_runs(module_id: str, quality: int, randart_seed) -> tuple | None:
@@ -106,51 +161,6 @@ def _weapon_runs(weapon_id: str, quality: int) -> tuple | None:
     return ((weapon_display_name(weapon_id, quality), _color),)
 
 
-def _stored_label(stored) -> str:
-    """Display label for one stored part (token seam for modules and
-    ship weapons — doc 48.7: flown-and-stored weapons are
-    quality-bearing)."""
-    if stored.item_type == "module":
-        from ..ship import module_display_name
-        return module_display_name(
-            stored.item_id, stored.quality, stored.randart_seed,
-        )
-    if stored.item_type == "weapon":
-        from ..ship import weapon_display_name
-        return weapon_display_name(stored.item_id, stored.quality)
-    return stored.item_id.replace('_', ' ').title()
-
-
-def _stored_row(stored, index: int, ctx=None):
-    """Build one stored-equipment row, preserving its actual list index."""
-    from .. import pygame_split
-    from ..data.weapons import find_weapon
-    from ..ship import module_detail, module_display_name, weapon_display_name
-
-    if stored.item_type == "weapon":
-        spec = find_weapon(stored.item_id)
-        name = weapon_display_name(stored.item_id, stored.quality)
-        detail, runs = (
-            _weapon_detail(
-                spec, ammo=stored.ammo, ctx=ctx, quality=stored.quality,
-            ),
-            _weapon_runs(stored.item_id, stored.quality),
-        )
-    elif stored.item_type == "module":
-        name = module_display_name(
-            stored.item_id, stored.quality, stored.randart_seed,
-        )
-        detail = module_detail(
-            stored.item_id, stored.quality, stored.randart_seed,
-        )
-        runs = _module_runs(
-            stored.item_id, stored.quality, stored.randart_seed,
-        )
-    else:
-        raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}", runs=runs)
-
-
 def _stored_spec(stored):
     """Return the catalog specification for one stored equipment entry."""
     from ..data.modules import find_module
@@ -164,7 +174,7 @@ def _stored_spec(stored):
 
 
 def _storage_rows(ctx):
-    """Build storage rows for installation or sale."""
+    """Build storage rows for hand-off installation or sale."""
     from .. import pygame_split
 
     rows = [pygame_split.section_header("OWNED EQUIPMENT")]
@@ -191,6 +201,7 @@ def _market_rows(weapon_ids, module_ids):
     from .. import pygame_ui
     from ..data.modules import find_module
     from ..data.weapons import find_weapon
+    from ..menus._grid_editor import _weapon_detail
 
     rows = [pygame_split.section_header("WEAPONS")]
     rows.extend(
@@ -215,48 +226,6 @@ def _market_rows(weapon_ids, module_ids):
     return tuple(rows)
 
 
-def _ship_rows(ctx, ship_spec, mode: str):
-    """Build active-ship rows whose Enter action opens Store/Sell choices."""
-    from .. import pygame_split
-    from ..data.weapons import find_weapon
-    from ..ship import module_detail, module_display_name, weapon_display_name
-
-    rows = [pygame_split.section_header("WEAPON SLOTS")]
-    for entry, slot_index in ship_module._find_weapon_slots(ctx.player_owned_ship, ship_spec):
-        if entry is None:
-            rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
-            continue
-        spec = find_weapon(entry.item_id)
-        _ammo = ctx.player_owned_ship.weapon_ammo.get(slot_index)
-        rows.append(
-            pygame_split.SplitRow(
-                weapon_display_name(entry.item_id, entry.quality), "",
-                _weapon_detail(spec, ammo=_ammo, ctx=ctx, quality=entry.quality),
-                f"MANAGE_WEAPON_SLOT:{slot_index}",
-                runs=_weapon_runs(entry.item_id, entry.quality),
-            )
-        )
-    rows.append(pygame_split.section_header("MODULE SLOTS"))
-    for entry, slot_index in ship_module._find_module_slots(ctx.player_owned_ship, ship_spec):
-        if entry is None:
-            rows.append(pygame_split.SplitRow("[empty]", "", "", "", False))
-            continue
-        rows.append(
-            pygame_split.SplitRow(
-                module_display_name(
-                    entry.item_id, entry.quality, entry.randart_seed,
-                ), "",
-                module_detail(
-                    entry.item_id, entry.quality, entry.randart_seed,
-                ), f"MANAGE_MODULE_SLOT:{slot_index}",
-                runs=_module_runs(
-                    entry.item_id, entry.quality, entry.randart_seed,
-                ),
-            )
-        )
-    return tuple(rows)
-
-
 def _store_rows_for_mode(weapon_ids, module_ids):
     """Resolve STORE-mode rows, defaulting to the full catalog."""
     if weapon_ids is None or module_ids is None:
@@ -267,14 +236,88 @@ def _store_rows_for_mode(weapon_ids, module_ids):
     return _market_rows(weapon_ids, module_ids)
 
 
+# ---------------------------------------------------------------------------
+# The grid pane + the POWER footer
+# ---------------------------------------------------------------------------
+
+
+def _as_if_bonuses(ctx, session) -> list[int]:
+    """The as-if-fitted effective power list: every installed module
+    plus the hand's exactly once (picked-up parts are already in the
+    tuple; handed-over parts join until dropped or returned)."""
+    owned = ctx.player_owned_ship
+    bonuses = [
+        ship_module.effective_upkeep(entry)
+        for entry in (getattr(owned, "modules", ()) or ())
+    ]
+    hand = session.hand
+    if hand is not None and hand.source != "installed":
+        bonuses.append(hand.part.upkeep)
+    return bonuses
+
+
+def _power_inputs(ctx, session) -> tuple[int, list[int]]:
+    """``(base_gen, as-if bonuses)`` — the footer's and ghost's input."""
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    return getattr(ship_spec, "base_power_gen", 3), _as_if_bonuses(ctx, session)
+
+
+def _installed_key(hand: _Hand | None) -> str | None:
+    """The held picked-up entry's tuple key (its cells vacate)."""
+    if hand is not None and hand.source == "installed":
+        return f"{hand.kind}:{hand.index}"
+    return None
+
+
+def _hover_detail(session, pieces) -> str:
+    """The readout on the pane's first row: the held part while
+    holding, else whatever sits under the cursor."""
+    hand = session.hand
+    if hand is not None:
+        return _grid_editor._entry_detail(hand.entry)
+    hovered = _grid_editor.piece_at(pieces, session.state.cursor)
+    return hovered.detail if hovered is not None else ""
+
+
+def _grid_pane_rows(ctx, session) -> tuple:
+    """The right pane: FITTING GRID header + letter rows with the
+    cursor and held ghost painted in (SETTLED 16)."""
+    from .. import pygame_split
+
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    pieces = _grid_editor.pieces_for(owned, omit_key=_installed_key(session.hand))
+    occupied = ship_module.occupied_cells(
+        owned, ship_spec.grid_w, ship_spec.grid_h,
+    )
+    base_gen, bonuses = _power_inputs(ctx, session)
+    hand = session.hand
+    held_letter = _grid_editor.letter(hand.entry.item_id) if hand else ""
+    lines = _grid_editor.pane_rows(
+        session.state, pieces, occupied, base_gen, bonuses,
+        held_letter=held_letter,
+    )
+    hover = _hover_detail(session, pieces)
+    rows = [pygame_split.section_header("FITTING GRID")]
+    rows.extend(
+        pygame_split.SplitRow(
+            text, "", hover if index == 0 else "", "",
+            selectable=False, runs=runs,
+        )
+        for index, (text, runs) in enumerate(lines)
+    )
+    return tuple(rows)
+
+
 def _pygame_loadout_frame(
     ctx,
+    session: _Session,
     planet_id: str = "",
     weapon_ids: tuple[str, ...] | None = None,
     module_ids: tuple[str, ...] | None = None,
-    mode: str = "STORE",
 ):
-    """Build one presentation-only loadout frame for ``mode``."""
+    """Build one presentation-only loadout frame (grid right pane)."""
     from .. import pygame_split
     from .. import pygame_ui
 
@@ -284,58 +327,64 @@ def _pygame_loadout_frame(
             pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
             "Store", "My Ship", (), (), "", "", pygame_split.SPLIT_SHOP_HINT,
         )
-    if mode not in _LOADOUT_MODES:
-        raise ValueError(f"Unknown loadout mode: {mode!r}")
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    if mode == "STORE":
+    if session.mode not in _LOADOUT_MODES:
+        raise ValueError(f"Unknown loadout mode: {session.mode!r}")
+    if session.mode == "STORE":
         left = _store_rows_for_mode(weapon_ids, module_ids)
     else:
         left = _storage_rows(ctx)
-    right = _ship_rows(ctx, ship_spec, mode)
+    base_gen, bonuses = _power_inputs(ctx, session)
     return pygame_split.SplitFrame(
         title=pygame_ui.terminal_title("MECHANIC", "SHIP LOADOUT"),
-        left_label=_MODE_LABELS[mode].title(),
+        left_label=_MODE_LABELS[session.mode].title(),
         right_label="My Ship",
         left_rows=left,
-        right_rows=right,
+        right_rows=_grid_pane_rows(ctx, session),
         footer_left=pygame_ui.credits_label(ctx.stats.credits),
-        footer_right=(
-            f"Wpn: {len(owned.weapons)}/{ship_spec.weapon_slots}  "
-            f"Mod: {len(owned.modules)}/{ship_spec.module_slots}"
-        ),
-        hint=_loadout_hint(mode),
+        footer_right=_grid_editor.power_footer(base_gen, bonuses),
+        hint=_loadout_hint(session.mode, session.focus == 1),
         left_tabs=("[B]uy", "[S]torage"),
-        active_left_tab=0 if mode == "STORE" else 1,
+        active_left_tab=0 if session.mode == "STORE" else 1,
+        focus=session.focus,
+        grid_pane=True,
+        grid_holding=session.hand is not None,
     )
 
 
-def _log_storage_failure(ctx, stored, ship_spec) -> None:
-    """Explain why a stored item could not be installed.
+# ---------------------------------------------------------------------------
+# Refusals and logs (approved strings, doc 56)
+# ---------------------------------------------------------------------------
 
-    Doc 56 phase 2: the counts route through ``ship.install_refusal``
-    — no bespoke slot arithmetic at any refusal site."""
-    reason = ship_module.install_refusal(
-        ctx.player_owned_ship, stored, ship_spec, ctx,
+
+def _install_refusal_text(reason: str, stored) -> str:
+    """One ``install_refusal``/drop reason to its player-facing line
+    (doc 56 phase-2 approved strings; the reason->string dispatch is
+    the phase-2 REVIEW minor-1 conversion)."""
+    label = _stored_label(stored)
+    table = {
+        ship_module.INSTALL_REFUSAL_ROOM: f"No room on the grid for {label}.",
+        ship_module.INSTALL_REFUSAL_POWER: (
+            f"{label} needs more power than the ship generates."
+        ),
+    }
+    return table.get(reason, "That stored item is not valid equipment.")
+
+
+def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
+    """Return (chooser body, sell id, quality) for one installed item."""
+    if kind == "weapon":
+        from ..ship import weapon_display_name
+        return (
+            weapon_display_name(item.item_id, item.quality),
+            item.item_id, item.quality,
+        )
+    from ..ship import module_display_name
+    return (
+        module_display_name(
+            item.item_id, item.quality, item.randart_seed,
+        ),
+        item.item_id, item.quality,
     )
-    if reason is None:
-        ctx.log.add("That stored equipment is no longer available.")
-        return
-    kind = "weapon" if stored.item_type == "weapon" else "module"
-    ctx.log.add(_install_refusal_text(reason, stored, kind))
-
-
-def _install_refusal_text(reason: str, stored, kind: str) -> str:
-    """Map one ``ship.install_refusal`` reason to its player-facing
-    line (doc 56 phase-2 approved strings; expected to move at the
-    playtest). The slots line keeps the pre-grid wording until the
-    modal loses its slot shape in phase 3."""
-    if reason == ship_module.INSTALL_REFUSAL_SLOTS:
-        return f"No compatible {kind} slot is available on this ship."
-    if reason == ship_module.INSTALL_REFUSAL_ROOM:
-        return f"No room on the grid for {_stored_label(stored)}."
-    if reason == ship_module.INSTALL_REFUSAL_POWER:
-        return f"{_stored_label(stored)} needs more power than the ship generates."
-    return "That stored item is not valid equipment."
 
 
 def _log_removal_refusal(ctx, owned, kind: str, slot: int) -> None:
@@ -345,27 +394,6 @@ def _log_removal_refusal(ctx, owned, kind: str, slot: int) -> None:
         f"Removing {_installed_item_label(kind, entry)[0]} would leave "
         "the ship short on power."
     )
-
-
-async def _apply_stored_install(ctx, action: str) -> None:
-    """Install a selected stored entry or explain why it remains stored."""
-    storage_index = int(action.split(":", 1)[1])
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    storage = _storage_list(ctx)
-    if not 0 <= storage_index < len(storage):
-        ctx.log.add("That storage entry is no longer available.")
-        return
-    stored = storage[storage_index]
-    try:
-        _stored_spec(stored)
-    except (AttributeError, KeyError, TypeError, ValueError):
-        ctx.log.add("That stored equipment is no longer available.")
-        return
-    if ship_module.install_stored_equipment(owned, storage, storage_index, ship_spec, ctx):
-        _log_installed(ctx, stored)
-        return
-    _log_storage_failure(ctx, stored, ship_spec)
 
 
 def _log_installed(ctx, stored) -> None:
@@ -381,7 +409,223 @@ def _log_installed(ctx, stored) -> None:
     ctx.log.add(_msg, runs=_runs)
 
 
-async def _choose_stored_action(ctx, action: str) -> str:
+def _log_sold(ctx, stored, price: int) -> None:
+    """``"Sold Medium Laser for 60$."`` with the tiered name coloured."""
+    from .. import message_log
+    from ..data.quality import quality_mark
+
+    _msg, _runs = message_log.with_runs(
+        "Sold ", quality_mark(_stored_label(stored), stored.quality),
+        f" for {price}$.",
+    )
+    ctx.log.add(_msg, runs=_runs)
+
+
+# ---------------------------------------------------------------------------
+# The editor's hand — pick/place, D/X, hand-off, and every exit
+# ---------------------------------------------------------------------------
+
+
+def _hand_upkeep(entry, kind: str) -> int:
+    """Weapons draw no upkeep (doctrine: guns cost power when fired)."""
+    return 0 if kind == "weapon" else ship_module.effective_upkeep(entry)
+
+
+def _release_hand(session) -> None:
+    session.hand = None
+    session.state = _grid_editor.release(session.state)
+
+
+def _take_hand(ctx, session, entry, kind: str, source: str, index: int = -1) -> None:
+    """Put a part in the hand (shared by pickup and both hand-offs);
+    the editor pane takes focus (SETTLED 17 — the part is placed on
+    the grid)."""
+    spec = _stored_spec(entry)
+    part = _grid_editor.HeldPart(
+        w=spec.grid_w, h=spec.grid_h,
+        upkeep=_hand_upkeep(entry, kind),
+        origin=(entry.grid_x, entry.grid_y) if source == "installed" else None,
+    )
+    session.hand = _Hand(
+        entry=entry, kind=kind, source=source, part=part, index=index,
+    )
+    session.state = _grid_editor.hold_part(session.state, part)
+    session.focus = 1
+
+
+def _resolve_hand(ctx, session) -> None:
+    """SETTLED 12: the hand resolves at every pane switch and exit —
+    snap-back for a picked-up part (still installed at its origin:
+    nothing to move), storage for a handed-over part (never-fitted
+    storage neutrality: storing it cannot trip the gate)."""
+    hand = session.hand
+    if hand is None:
+        return
+    if hand.source != "installed":
+        _storage_list(ctx).append(hand.entry)
+        ctx.log.add("Moved equipment to storage.")
+    _release_hand(session)
+
+
+def _drop_held(ctx, session) -> None:
+    """ENTER while holding: place the part at the cursor — the red
+    ghost is the refusal (SETTLED 16/17); a refused drop speaks the
+    approved refusal string."""
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    hand = session.hand
+    occupied = ship_module.occupied_cells(
+        owned, ship_spec.grid_w, ship_spec.grid_h,
+    )
+    base_gen, bonuses = _power_inputs(ctx, session)
+    reason = _grid_editor.drop_refusal(
+        session.state, occupied, base_gen, bonuses,
+    )
+    if reason is not None:
+        ctx.log.add(_install_refusal_text(reason, hand.entry))
+        return
+    x, y = session.state.cursor
+    placed = replace(hand.entry, grid_x=x, grid_y=y)
+    if hand.source == "installed":
+        _replace_installed(owned, hand, placed)
+    else:
+        if hand.kind == "weapon":
+            ship_module._install_weapon(owned, placed, ctx)
+            ship_module.clamp_installed_magazine(owned, hand.entry, ctx)
+        else:
+            ship_module._install_module(owned, placed)
+        if hand.source == "storage":
+            _log_installed(ctx, hand.entry)
+    _release_hand(session)
+
+
+def _replace_installed(owned, hand: _Hand, placed) -> None:
+    """Rearranging a picked-up part re-anchors it in place — no tuple
+    insertion, no re-index (rearrangement never trips the gate)."""
+    entries = owned.weapons if hand.kind == "weapon" else owned.modules
+    updated = tuple(
+        placed if index == hand.index else entry
+        for index, entry in enumerate(entries)
+    )
+    if hand.kind == "weapon":
+        owned.weapons = updated
+    else:
+        owned.modules = updated
+
+
+def _pick_up(ctx, session) -> None:
+    """ENTER empty-handed: take the piece under the cursor; the cursor
+    snaps to its anchor so the ghost starts where it was."""
+    owned = ctx.player_owned_ship
+    piece = _grid_editor.piece_at(
+        _grid_editor.pieces_for(owned), session.state.cursor,
+    )
+    if piece is None:
+        return
+    kind, index = piece.key.split(":")
+    entries = owned.weapons if kind == "weapon" else owned.modules
+    _take_hand(
+        ctx, session, entries[int(index)], kind, "installed", int(index),
+    )
+
+
+def _store_held(ctx, session) -> None:
+    """D while holding: store the part (SETTLED 3 — removing the
+    funding generator refuses)."""
+    hand = session.hand
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    if hand.source == "installed":
+        if ship_module.removal_trips_power(
+            owned, ship_spec, hand.kind, hand.index, ctx,
+        ):
+            _log_removal_refusal(ctx, owned, hand.kind, hand.index)
+            return
+        if hand.kind == "weapon":
+            ship_module.store_weapon(owned, _storage_list(ctx), hand.index, ctx)
+        else:
+            ship_module.store_module(owned, _storage_list(ctx), hand.index)
+    else:
+        _storage_list(ctx).append(hand.entry)
+    ctx.log.add("Moved equipment to storage.")
+    _release_hand(session)
+
+
+async def _sell_held(ctx, session) -> None:
+    """X while holding: sell the part through the removal gate, with
+    the price confirm (SETTLED 16)."""
+    hand = session.hand
+    owned = ctx.player_owned_ship
+    ship_spec = ship_module.find_ship(owned.ship_id)
+    price = ship_module._sell_price(
+        hand.kind, hand.entry.item_id, hand.entry.quality,
+    )
+    if hand.source == "installed" and ship_module.removal_trips_power(
+        owned, ship_spec, hand.kind, hand.index, ctx,
+    ):
+        _log_removal_refusal(ctx, owned, hand.kind, hand.index)
+        return
+    from .. import pygame_story
+    confirmed = await pygame_story.confirm(
+        ctx,
+        title="SELL EQUIPMENT",
+        body=_stored_label(hand.entry),
+        accept_label=f"Sell for {price}$",
+        cancel_label="Keep",
+        caption="spacehack - sell equipment",
+    )
+    if confirmed == "QUIT":
+        raise SystemExit
+    if confirmed != "CONFIRM":
+        return
+    if hand.source == "installed":
+        if hand.kind == "weapon":
+            ship_module._remove_weapon(owned, hand.index, ctx)
+        else:
+            ship_module._remove_module(owned, hand.index)
+    ctx.stats.credits += price
+    _log_sold(ctx, hand.entry, price)
+    _release_hand(session)
+
+
+# ---------------------------------------------------------------------------
+# Left-pane actions — buys and stored parts hand off into the editor
+# ---------------------------------------------------------------------------
+
+
+def _purchase_spec(item_type: str, item_id: str):
+    """Return the catalog specification for a purchasable ship part."""
+    from ..data.modules import find_module
+    from ..data.weapons import find_weapon
+
+    if item_type == "WEAPON":
+        return find_weapon(item_id)
+    if item_type == "MODULE":
+        return find_module(item_id)
+    raise ValueError(f"Unknown purchase type: {item_type!r}")
+
+
+def _apply_stored_handoff(ctx, session, storage_index: int) -> None:
+    """SETTLED 17: a stored part pops into the editor's hand — no
+    room/power pre-check (the red ghost is the refusal)."""
+    storage = _storage_list(ctx)
+    if not 0 <= storage_index < len(storage):
+        ctx.log.add("That storage entry is no longer available.")
+        return
+    if session.hand is not None:
+        ctx.log.add("You are already holding a part.")
+        return
+    stored = storage[storage_index]
+    try:
+        _stored_spec(stored)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        ctx.log.add("That storage entry is no longer available.")
+        return
+    storage.pop(storage_index)
+    _take_hand(ctx, session, stored, stored.item_type, "storage")
+
+
+async def _choose_stored_action(ctx, session, action: str) -> str:
     """Ask whether a stored part should be installed or sold."""
     storage_index = int(action.split(":", 1)[1])
     storage = _storage_list(ctx)
@@ -408,20 +652,20 @@ async def _choose_stored_action(ctx, action: str) -> str:
     )
 
 
-async def _apply_manage_stored_item(ctx, action: str) -> None:
+async def _apply_manage_stored_item(ctx, session, action: str) -> None:
     """Open the Install/Sell chooser and apply its selected action."""
-    chosen = await _choose_stored_action(ctx, action)
+    chosen = await _choose_stored_action(ctx, session, action)
     if chosen in {None, "__BACK__", "__GUIDE__"}:
         return
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith("INSTALL_STORED:"):
-        await _apply_stored_install(ctx, chosen)
+        _apply_stored_handoff(ctx, session, int(chosen.split(":", 1)[1]))
     elif chosen.startswith("SELL_STORED:"):
-        _apply_sell_stored(ctx, chosen)
+        _apply_sell_stored(ctx, session, chosen)
 
 
-def _apply_sell_stored(ctx, action: str) -> None:
+def _apply_sell_stored(ctx, _session, action: str) -> None:
     """Sell one stored weapon or module and return its purchase value share."""
     storage_index = int(action.split(":", 1)[1])
     storage = _storage_list(ctx)
@@ -441,141 +685,34 @@ def _apply_sell_stored(ctx, action: str) -> None:
         return
     storage.pop(storage_index)
     ctx.stats.credits += sell_price
-    from .. import message_log
-    from ..data.quality import quality_mark
-
-    _msg, _runs = message_log.with_runs(
-        "Sold ", quality_mark(_stored_label(stored), stored.quality),
-        f" for {sell_price}$.",
-    )
-    ctx.log.add(_msg, runs=_runs)
+    _log_sold(ctx, stored, sell_price)
 
 
-def _installed_item_label(kind: str, item) -> tuple[str, str, int]:
-    """Return (chooser body, sell id, quality) for one slot item."""
-    if kind == "weapon":
-        from ..ship import weapon_display_name
-        return (
-            weapon_display_name(item.item_id, item.quality),
-            item.item_id, item.quality,
-        )
-    from ..ship import module_display_name
-    return (
-        module_display_name(
-            item.item_id, item.quality, item.randart_seed,
-        ),
-        item.item_id, item.quality,
-    )
+def _apply_purchase(ctx, session, item_type: str, item_id: str, destination: str) -> None:
+    """Complete a purchase after the player chooses its destination.
 
-
-def _slot_action_kind(item_type: str) -> str:
-    """'weapon' or 'module' from a MANAGE/STORE/SELL slot action."""
-    return "weapon" if "_WEAPON_" in item_type else "module"
-
-
-def _installed_slots(owned, ship_spec, kind: str):
-    """The installed-slot rows for one kind — the shared resolver
-    behind the manage/store/sell paths (doc 56 phase-2 review minor 5:
-    the kind derivation + slot lookup were triplicated)."""
-    if kind == "weapon":
-        return ship_module._find_weapon_slots(owned, ship_spec)
-    return ship_module._find_module_slots(owned, ship_spec)
-
-
-async def _choose_ship_action(ctx, action: str) -> str:
-    """Ask whether an installed part should be stored or sold."""
-    item_type, slot_text = action.split(":", 1)
-    slot = int(slot_text)
-    kind = _slot_action_kind(item_type)
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    slots = _installed_slots(owned, ship_spec, kind)
-    if not 0 <= slot < len(slots) or slots[slot][0] is None:
-        return "__BACK__"
-    body, sell_id, quality = _installed_item_label(kind, slots[slot][0])
-    from .. import pygame_story
-    sell_price = ship_module._sell_price(kind, sell_id, quality)
-    noun = kind.upper()
-    return await pygame_story.choose(
-        ctx,
-        title="MANAGE EQUIPMENT",
-        body=body,
-        options=(
-            ("Store", f"STORE_{noun}_SLOT:{slot}"),
-            (f"Sell for {sell_price}$", f"SELL_{noun}_SLOT:{slot}"),
-        ),
-        caption="spacehack - manage equipment",
-        compact=True,
-    )
-
-
-async def _apply_manage_ship_item(ctx, action: str) -> None:
-    """Open the Store/Sell chooser and apply its selected action."""
-    chosen = await _choose_ship_action(ctx, action)
-    if chosen in {None, "__BACK__", "__GUIDE__"}:
+    Install hands the part into the editor (SETTLED 17): AFFORDABILITY
+    ONLY is checked before the charge — no room/power pre-check, the
+    red ghost is the placement refusal, and a bought part that cannot
+    place auto-returns to storage at session end (never destroyed).
+    """
+    spec = _purchase_spec(item_type, item_id)
+    if ctx.stats.credits < spec.price:
+        ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
         return
-    if chosen == "__QUIT__":
-        raise SystemExit
-    if chosen.startswith("STORE_"):
-        await _apply_store(ctx, chosen)
-    elif chosen.startswith("SELL_"):
-        await _apply_sell_installed(ctx, chosen)
-
-
-async def _apply_store(ctx, action: str) -> None:
-    """Store one installed weapon or module (SETTLED 3: removal
-    through the power gate — removing the funding reactor refuses)."""
-    item_type, slot_text = action.split(":", 1)
-    slot = int(slot_text)
-    kind = _slot_action_kind(item_type)
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):
-        _log_removal_refusal(ctx, owned, kind, slot)
-        return
-    if kind == "weapon":
-        stored = ship_module.store_weapon(owned, _storage_list(ctx), slot, ctx)
+    kind = "weapon" if item_type == "WEAPON" else "module"
+    entry = ship_module.StoredEquipment(kind, item_id)
+    if destination == "INSTALL":
+        if session.hand is not None:
+            ctx.log.add("You are already holding a part.")
+            return
+        ctx.stats.credits -= spec.price
+        _take_hand(ctx, session, entry, kind, "buy")
+        ctx.log.add(f"Bought {spec.name} for {spec.price}$.")
     else:
-        stored = ship_module.store_module(owned, _storage_list(ctx), slot)
-    if stored:
-        ctx.log.add("Moved equipment to storage.")
-    else:
-        ctx.log.add("That equipment could not be moved to storage.")
-
-
-async def _apply_sell_installed(ctx, action: str) -> None:
-    """Sell one installed weapon or module (SETTLED 3: removal through
-    the power gate; sell removes via the primitives, so it checks the
-    same predicate before touching the tuple)."""
-    item_type, slot_text = action.split(":", 1)
-    slot = int(slot_text)
-    kind = _slot_action_kind(item_type)
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    slots = _installed_slots(owned, ship_spec, kind)
-    if not 0 <= slot < len(slots) or slots[slot][0] is None:
-        return
-    if ship_module.removal_trips_power(owned, ship_spec, kind, slot, ctx):
-        _log_removal_refusal(ctx, owned, kind, slot)
-        return
-    item = slots[slot][0]
-    if kind == "weapon":
-        ship_module._remove_weapon(owned, slot, ctx)
-    else:
-        ship_module._remove_module(owned, slot)
-    ctx.stats.credits += ship_module._sell_price(kind, item.item_id, item.quality)
-
-
-def _purchase_spec(item_type: str, item_id: str):
-    """Return the catalog specification for a purchasable ship part."""
-    from ..data.modules import find_module
-    from ..data.weapons import find_weapon
-
-    if item_type == "WEAPON":
-        return find_weapon(item_id)
-    if item_type == "MODULE":
-        return find_module(item_id)
-    raise ValueError(f"Unknown purchase type: {item_type!r}")
+        ctx.stats.credits -= spec.price
+        _storage_list(ctx).append(entry)
+        ctx.log.add(f"Stored {spec.name} for {spec.price}$.")
 
 
 async def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
@@ -596,40 +733,7 @@ async def _choose_purchase_action(ctx, item_type: str, item_id: str) -> str:
     )
 
 
-def _apply_purchase(ctx, item_type: str, item_id: str, destination: str) -> None:
-    """Complete a purchase after the player chooses its destination.
-
-    Validate-before-charge preserved: the gated install decides (and
-    mutates) first, then the credits move — a part that found no cell
-    or no watts is never paid for."""
-    owned = ctx.player_owned_ship
-    ship_spec = ship_module.find_ship(owned.ship_id)
-    spec = _purchase_spec(item_type, item_id)
-    if ctx.stats.credits < spec.price:
-        ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
-        return
-    if destination == "INSTALL":
-        entry = ship_module.StoredEquipment(
-            "weapon" if item_type == "WEAPON" else "module", item_id,
-        )
-        reason = ship_module.gated_install_entry(owned, entry, ship_spec, ctx)
-        if reason is not None:
-            kind = "weapon" if item_type == "WEAPON" else "module"
-            ctx.log.add(_install_refusal_text(reason, entry, kind))
-            return
-    else:
-        _storage_list(ctx).append(
-            ship_module.StoredEquipment(
-                "weapon" if item_type == "WEAPON" else "module",
-                item_id,
-            )
-        )
-    ctx.stats.credits -= spec.price
-    result = "Installed" if destination == "INSTALL" else "Stored"
-    ctx.log.add(f"{result} {spec.name} for {spec.price}$.")
-
-
-async def _apply_buy(ctx, action: str) -> None:
+async def _apply_buy(ctx, session, action: str) -> None:
     """Validate funds, open the destination chooser, and complete a buy."""
     action_type, item_id = action.split(":", 1)
     item_type = action_type.removeprefix("BUY_")
@@ -643,28 +747,80 @@ async def _apply_buy(ctx, action: str) -> None:
     if chosen == "__QUIT__":
         raise SystemExit
     if chosen.startswith(f"BUY_INSTALL_{item_type}:"):
-        _apply_purchase(ctx, item_type, item_id, "INSTALL")
+        _apply_purchase(ctx, session, item_type, item_id, "INSTALL")
     elif chosen.startswith(f"BUY_STORE_{item_type}:"):
-        _apply_purchase(ctx, item_type, item_id, "STORE")
+        _apply_purchase(ctx, session, item_type, item_id, "STORE")
 
+
+# ---------------------------------------------------------------------------
+# Action routing (the GRID: key surface rides the same keep-open path)
+# ---------------------------------------------------------------------------
+
+
+async def _apply_grid_move(ctx, session, action: str) -> None:
+    _dx, _dy = action.rsplit(":", 2)[1:]
+    session.state = _grid_editor.move_cursor(
+        session.state, int(_dx), int(_dy),
+    )
+
+
+async def _apply_grid_enter(ctx, session, _action: str) -> None:
+    if session.hand is not None:
+        _drop_held(ctx, session)
+    else:
+        _pick_up(ctx, session)
+
+
+async def _apply_grid_store(ctx, session, _action: str) -> None:
+    if session.hand is not None:
+        _store_held(ctx, session)
+
+
+async def _apply_grid_sell(ctx, session, _action: str) -> None:
+    if session.hand is not None:
+        await _sell_held(ctx, session)
+
+
+async def _apply_grid_esc(ctx, session, _action: str) -> None:
+    """Two-stage ESC, first stage: the hand returns to where it was."""
+    _resolve_hand(ctx, session)
+
+
+async def _apply_grid_tab(ctx, session, _action: str) -> None:
+    """TAB off the grid pane: resolve the hand, then the pane flips."""
+    _resolve_hand(ctx, session)
+    session.focus = 0
+
+
+_GRID_ACTION_HANDLERS = {
+    "GRID:MOVE": _apply_grid_move,
+    "GRID:ENTER": _apply_grid_enter,
+    "GRID:STORE": _apply_grid_store,
+    "GRID:SELL": _apply_grid_sell,
+    "GRID:ESC": _apply_grid_esc,
+    "GRID:TAB": _apply_grid_tab,
+}
 
 _LOADOUT_ACTION_HANDLERS = (
     ("BUY_WEAPON:", _apply_buy),
     ("BUY_MODULE:", _apply_buy),
     ("MANAGE_STORED:", _apply_manage_stored_item),
-    ("INSTALL_STORED:", _apply_stored_install),
-    ("MANAGE_WEAPON_SLOT:", _apply_manage_ship_item),
-    ("MANAGE_MODULE_SLOT:", _apply_manage_ship_item),
-    ("STORE_WEAPON_SLOT:", _apply_store),
-    ("STORE_MODULE_SLOT:", _apply_store),
-    ("SELL_WEAPON_SLOT:", _apply_sell_installed),
-    ("SELL_MODULE_SLOT:", _apply_sell_installed),
+    ("SELL_STORED:", _apply_sell_stored),
 )
 
 
-async def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: int, planet_id: str) -> bool:
-    """Apply one Pygame loadout action using table-driven routing."""
+async def _apply_pygame_loadout_action(
+    ctx, session: _Session, action: str, focus: int, selected: int, planet_id: str,
+) -> bool:
+    """Apply one loadout action using table-driven routing."""
     if not action:
+        return True
+    if action.startswith("GRID:"):
+        verb = ":".join(action.split(":", 2)[:2])
+        handler = _GRID_ACTION_HANDLERS.get(verb)
+        if handler is None:
+            raise ValueError(f"Unknown grid action: {action!r}")
+        await handler(ctx, session, action)
         return True
     handler = next(
         (handler for prefix, handler in _LOADOUT_ACTION_HANDLERS if action.startswith(prefix)),
@@ -672,7 +828,7 @@ async def _apply_pygame_loadout_action(ctx, action: str, focus: int, selected: i
     )
     if handler is None:
         raise ValueError(f"Unknown loadout action: {action!r}")
-    await handler(ctx, action)
+    await handler(ctx, session, action)
     return True
 
 
@@ -694,38 +850,42 @@ def _resolve_loadout_catalog(ctx, planet_id: str):
 
 
 async def _run_loadout_menu(ctx, planet_id: str = "") -> None:
-    """Show the loadout management terminal in the shared Pygame window."""
+    """Show the loadout terminal in the shared Pygame window."""
     owned = ctx.player_owned_ship
     if owned is None:
         ctx.log.add("You need a ship to manage its loadout.")
         return
 
     weapons, modules = _resolve_loadout_catalog(ctx, planet_id)
-
-    from .. import pygame_split
-    mode = "STORE"
+    session = open_session(ship_module.find_ship(owned.ship_id))
 
     def build_frame():
         return _pygame_loadout_frame(
-            ctx,
-            planet_id,
+            ctx, session, planet_id,
             tuple(item.id for item in weapons),
             tuple(item.id for item in modules),
-            mode,
         )
 
     async def apply_action(action, focus, selected):
-        nonlocal mode
+        session.focus = focus
         if action.startswith("MODE:"):
             requested = action.split(":", 1)[1]
             if requested in _LOADOUT_MODES:
-                mode = requested
+                session.mode = requested
             return True
-        return await _apply_pygame_loadout_action(ctx, action, focus, selected, planet_id)
+        return await _apply_pygame_loadout_action(
+            ctx, session, action, focus, selected, planet_id,
+        )
 
-    await pygame_split.run_interactive(
+    from .. import pygame_split
+    outcome = await pygame_split.run_interactive(
         ctx,
         build_frame,
         apply_action,
         caption="spacehack - ship loadout",
     )
+    if outcome == "BACK":
+        # Every exit resolves the hand (SETTLED 12). Two-stage ESC
+        # empties it first, so this is the defensive leg; QUIT writes
+        # no save — disk state simply predates the session.
+        _resolve_hand(ctx, session)

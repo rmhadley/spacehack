@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -19,7 +18,6 @@ from src.spacehack.ship import (
     StoredEquipment,
     INSTALL_REFUSAL_POWER,
     INSTALL_REFUSAL_ROOM,
-    INSTALL_REFUSAL_SLOTS,
     _install_weapon,
     _remove_weapon,
     install_refusal,
@@ -34,32 +32,27 @@ from src.spacehack.ship import (
 )
 
 
-def _scout_spec() -> SimpleNamespace:
-    """A ship spec with 2 weapon slots (the ungated primitives read
-    slot counts only; the gated seams use the real catalog spec)."""
-    return SimpleNamespace(weapon_slots=2, module_slots=2)
-
-
 class TestInstallWeapon:
-    def test_install_fills_slot(self):
+    def test_install_appends_entry(self):
         owned = OwnedShip(ship_id="scout", weapons=(), modules=())
-        spec = _scout_spec()
-        ok = _install_weapon(owned, "light_laser", spec)
+        ok = _install_weapon(owned, "light_laser")
         assert ok is True
         assert tuple(e.item_id for e in owned.weapons) == ("light_laser",)
 
-    def test_install_full_slots(self):
-        owned = OwnedShip(ship_id="scout", weapons=("light_laser", "medium_laser"), modules=())
-        spec = _scout_spec()
-        ok = _install_weapon(owned, "heavy_laser", spec)
-        assert ok is False
-        assert len(owned.weapons) == 2  # unchanged
+    def test_beyond_slots_installs_on_the_grid(self):
+        # Doc 56 phase 3: the slot guard retired with the slot
+        # summaries — the Skiff has 2 weapon slots and a 3x3 grid, so
+        # a third 1x1 laser LANDS (grid legality, never slot counts).
+        owned = OwnedShip(
+            ship_id="starter", weapons=("light_laser", "light_laser"),
+        )
+        assert _install_weapon(owned, "light_laser")
+        assert len(owned.weapons) == 3
 
     def test_install_missile_seeds_ammo(self):
         """Installing a missile weapon seeds a full magazine at the new slot."""
         owned = OwnedShip(ship_id="scout", weapons=(), modules=())
-        spec = _scout_spec()
-        ok = _install_weapon(owned, "light_missile", spec)
+        ok = _install_weapon(owned, "light_missile")
         assert ok is True
         # light_missile has ammo_capacity=4, lives in slot 0.
         assert owned.weapon_ammo[0] == 4
@@ -67,8 +60,7 @@ class TestInstallWeapon:
     def test_install_energy_no_ammo(self):
         """Installing an energy weapon does not add an ammo entry."""
         owned = OwnedShip(ship_id="scout", weapons=(), modules=())
-        spec = _scout_spec()
-        _install_weapon(owned, "light_laser", spec)
+        _install_weapon(owned, "light_laser")
         # Energy weapons don't get ammo entries.
         assert 0 not in owned.weapon_ammo
 
@@ -157,20 +149,27 @@ class TestEquipmentStorage:
         assert owned.weapon_ammo == {0: 1}
         assert storage == []
 
-    def test_incompatible_storage_entry_stays_in_storage(self):
+    def test_beyond_slots_stored_install_lands_on_the_grid(self):
+        # Doc 56 phase 3: slot counts no longer refuse an install —
+        # the starter's 2 weapon slots hold a third laser because the
+        # 3x3 grid has the room (phase-3 brief blocking 1's pin).
         owned = OwnedShip(
             ship_id="starter",
-            weapons=("light_laser", "light_laser"),
+            weapons=(
+                StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),
+                StoredEquipment("weapon", "light_laser", grid_x=1, grid_y=0),
+            ),
         )
-        storage = [StoredEquipment("weapon", "heavy_laser")]
+        storage = [StoredEquipment("weapon", "light_laser")]
 
         assert install_refusal(
             owned, storage[0], find_ship("starter"),
-        ) == INSTALL_REFUSAL_SLOTS
+        ) is None
         assert install_stored_equipment(
             owned, storage, 0, find_ship("starter"),
-        ) is False
-        assert storage == [StoredEquipment("weapon", "heavy_laser")]
+        )
+        assert tuple(e.grid_x for e in owned.weapons) == (0, 1, 2)
+        assert storage == []
 
     def test_invalid_indexes_are_noops(self):
         owned = OwnedShip(ship_id="scout", weapons=("light_laser",))

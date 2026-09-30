@@ -2361,6 +2361,7 @@ def test_split_interactive_routes_grid_outcomes_and_steers_focus(monkeypatch):
 
 
 def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
+    from src.spacehack.data.ships import find_ship
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
 
@@ -2369,12 +2370,15 @@ def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
         ship_storage=[],
         stats=SimpleNamespace(credits=321),
     )
+    buy_session = _loadout.open_session(find_ship("starter"))
+    storage_session = _loadout.open_session(find_ship("starter"))
+    storage_session.mode = "STORAGE"
 
     buy = _loadout._pygame_loadout_frame(
-        ctx, weapon_ids=("light_laser",), module_ids=(), mode="STORE",
+        ctx, buy_session, weapon_ids=("light_laser",), module_ids=(),
     )
     storage = _loadout._pygame_loadout_frame(
-        ctx, weapon_ids=("light_laser",), module_ids=(), mode="STORAGE",
+        ctx, storage_session, weapon_ids=("light_laser",), module_ids=(),
     )
 
     assert buy.left_tabs == ("[B]uy", "[S]torage")
@@ -2385,10 +2389,31 @@ def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
     assert storage.left_label == "Storage"
     assert "B buy" in buy.hint
     assert "S storage" in storage.hint
+    assert "ENTER buy" in buy.hint
+    assert "ENTER choose" in storage.hint
+    # The right pane is the grid editor (doc 56 phase 3): grid flag on,
+    # letter rows action-less, POWER footer.
+    assert buy.grid_pane and storage.grid_pane
+    assert buy.grid_holding is False
+    assert buy.right_rows[0].divider and "FITTING GRID" in buy.right_rows[0].label
+    assert all(not row.selectable and not row.action for row in buy.right_rows[1:])
+    assert buy.footer_right.startswith("POWER: ")
+
+
+def test_loadout_grid_hint_carries_the_editor_key_surface():
+    from src.spacehack.menus import _loadout
+
+    hint = _loadout._loadout_hint("STORE", on_grid=True)
+    for part in (
+        "ENTER pick up/drop", "D store held", "X sell held",
+        "TAB parts", "ESC back",
+    ):
+        assert part in hint
 
 
 def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
     from src.spacehack import pygame_story
+    from src.spacehack.data.ships import find_ship
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
 
@@ -2401,15 +2426,16 @@ def test_loadout_chooser_dismissal_is_a_safe_noop(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
+    session = _loadout.open_session(find_ship("starter"))
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: None))
 
-    run(_loadout._apply_manage_stored_item(ctx, "MANAGE_STORED:0"))
-    run(_loadout._apply_manage_ship_item(ctx, "MANAGE_WEAPON_SLOT:0"))
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, session, "MANAGE_STORED:0", 0, 0, "earth",
+    ))
 
     assert ctx.stats.credits == 1000
     assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
     assert ctx.ship_storage == [_loadout.ship_module.StoredEquipment("module", "shield_mk1")]
-    assert messages == []
     assert messages == []
 
 
@@ -3594,17 +3620,22 @@ def test_ship_hangar_pygame_jettisons_on_cargo_tab(monkeypatch):
 
 
 def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
+    from src.spacehack.data.ships import find_ship
     from src.spacehack.ship import OwnedShip
 
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(ship_id="starter"),
         stats=SimpleNamespace(credits=1000),
     )
+    session = __import__(
+        "src.spacehack.menus._loadout", fromlist=["open_session"]
+    ).open_session(find_ship("starter"))
 
     frame = __import__(
         "src.spacehack.menus._loadout", fromlist=["_pygame_loadout_frame"]
     )._pygame_loadout_frame(
         ctx,
+        session,
         "earth",
         ("light_missile",),
         ("armor_plating",),
@@ -3618,6 +3649,13 @@ def test_loadout_pygame_frame_uses_parent_inventory_snapshot():
     assert frame.left_label == "Store"
     assert frame.left_tabs == ("[B]uy", "[S]torage")
     assert frame.active_left_tab == 0
+
+
+def _loadout_session(ship_id):
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.menus import _loadout
+
+    return _loadout.open_session(find_ship(ship_id))
 
 
 def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
@@ -3639,7 +3677,7 @@ def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
     )
 
     assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
+        ctx, _loadout_session("scout"), "BUY_WEAPON:light_laser", 0, 0, "earth",
     ))
     assert choices[0]["options"] == (
         ("Install", "BUY_INSTALL_WEAPON:light_laser"),
@@ -3651,10 +3689,13 @@ def test_loadout_buy_chooser_offers_install_or_store(monkeypatch):
     assert ctx.ship_storage == []
 
 
-def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
+def test_loadout_buy_install_hands_off_into_the_editor(monkeypatch):
+    """SETTLED 17: buy-Install charges (affordability only) and drops
+    the part into the editor's hand — it is NOT installed until
+    placed; the editor pane takes focus."""
     from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(ship_id="scout"),
@@ -3662,18 +3703,36 @@ def test_loadout_buy_install_charges_only_after_successful_install(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
+    session = _loadout_session("scout")
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:light_laser"))
 
     run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_WEAPON:light_laser", 0, 0, "earth",
+        ctx, session, "BUY_WEAPON:light_laser", 0, 0, "earth",
     ))
 
     assert ctx.stats.credits == 970
-    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage == []
+    assert session.hand is not None
+    assert session.hand.entry == StoredEquipment("weapon", "light_laser")
+    assert session.hand.source == "buy"
+    assert session.focus == 1
+    # The frame shows the hand: grid_holding flagged, ghost letter live.
+    frame = _loadout._pygame_loadout_frame(ctx, session)
+    assert frame.grid_holding is True
+    assert frame.focus == 1
+
+    # ENTER drops it at the cursor: the part lands placed.
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, session, "GRID:ENTER", 1, 0, "earth",
+    ))
+    assert session.hand is None
+    assert tuple(
+        (e.item_id, e.grid_x, e.grid_y) for e in ctx.player_owned_ship.weapons
+    ) == (("light_laser", 0, 0),)
 
 
-def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
+def test_loadout_buy_store_appends_to_storage(monkeypatch):
     from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
@@ -3689,7 +3748,7 @@ def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_STORE_WEAPON:heavy_laser"))
 
     run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
+        ctx, _loadout_session("starter"), "BUY_WEAPON:heavy_laser", 0, 0, "earth",
     ))
 
     assert ctx.stats.credits == 910
@@ -3699,29 +3758,52 @@ def test_loadout_buy_store_works_when_ship_slots_are_full(monkeypatch):
     assert ctx.ship_storage[0].ammo is None
 
 
-def test_loadout_buy_install_full_slot_does_not_charge(monkeypatch):
+def test_loadout_buy_install_unplaceable_part_is_bought_never_lost(monkeypatch):
+    """Doc 56 phase-3 brief blocking 3: a bought part that cannot fit
+    still enters the hand (affordability only), ghosts red everywhere,
+    ENTER refuses with the room string, and the exit auto-return lands
+    it in storage — bought once, never destroyed."""
     from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
     messages = []
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(
-            ship_id="starter", weapons=("light_laser", "light_laser"),
+    # The starter's 3x3 grid, full: laser 1x1 + heavy 2x2 + rack 1x2.
+    owned = OwnedShip(
+        ship_id="starter",
+        weapons=(
+            StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),
+            StoredEquipment("weapon", "heavy_laser", grid_x=1, grid_y=0),
+            StoredEquipment("weapon", "light_missile", grid_x=0, grid_y=1),
         ),
+    )
+    ctx = SimpleNamespace(
+        player_owned_ship=owned,
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
-    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_laser"))
+    session = _loadout_session("starter")
+    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "BUY_INSTALL_WEAPON:heavy_missile"))
 
     run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_WEAPON:heavy_laser", 0, 0, "earth",
+        ctx, session, "BUY_WEAPON:heavy_missile", 0, 0, "earth",
     ))
+    assert ctx.stats.credits < 1000  # charged — the part is the purchase
+    assert session.hand is not None
 
-    assert ctx.stats.credits == 1000
-    assert ctx.ship_storage == []
-    assert any("No compatible weapon slot" in message for message in messages)
+    # Every anchor is illegal: ENTER refuses with the approved string.
+    run(_loadout._apply_pygame_loadout_action(
+        ctx, session, "GRID:ENTER", 1, 0, "earth",
+    ))
+    assert session.hand is not None
+    assert "No room on the grid for Heavy Missile." in messages
+
+    # The exit auto-return lands the bought part in storage (SETTLED 12).
+    _loadout._resolve_hand(ctx, session)
+    assert session.hand is None
+    assert [e.item_id for e in ctx.ship_storage] == ["heavy_missile"]
+    assert "Moved equipment to storage." in messages
 
 
 def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
@@ -3729,15 +3811,20 @@ def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     from src.spacehack.ship import OwnedShip, StoredEquipment
 
     ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
+        ),
         ship_storage=[
             StoredEquipment("weapon", "light_missile", 1),
             StoredEquipment("module", "shield_mk1"),
         ],
         stats=SimpleNamespace(credits=1000),
     )
+    session = _loadout_session("scout")
+    session.mode = "STORAGE"
 
-    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+    frame = _loadout._pygame_loadout_frame(ctx, session)
 
     assert frame.left_label == "Storage"
     assert "B buy" in frame.hint
@@ -3752,8 +3839,10 @@ def test_loadout_storage_frame_shows_manage_actions_and_spent_ammo():
     assert all(row.value == "" for row in frame.left_rows if row.action.startswith("MANAGE_STORED:"))
     missile = next(row for row in frame.left_rows if row.action == "MANAGE_STORED:0")
     assert "Ammo: 1/4" in missile.detail
+    # The right pane is the letter grid: header divider, action-less rows.
     assert frame.right_rows[0].divider is True
-    assert any(row.action.startswith("MANAGE_") for row in frame.right_rows)
+    assert all(not row.action for row in frame.right_rows)
+    assert any(row.label.startswith("[L]") for row in frame.right_rows[1:])
 
 
 def test_loadout_storage_view_handles_missing_and_malformed_storage():
@@ -3764,12 +3853,14 @@ def test_loadout_storage_view_handles_missing_and_malformed_storage():
         player_owned_ship=OwnedShip(ship_id="scout"),
         stats=SimpleNamespace(credits=1000),
     )
-    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+    session = _loadout_session("scout")
+    session.mode = "STORAGE"
+    frame = _loadout._pygame_loadout_frame(ctx, session)
     assert any(row.label == "[empty]" for row in frame.left_rows)
     assert ctx.ship_storage == []
 
     ctx.ship_storage = [None, {"item_id": "shield_mk1"}, "bad"]
-    frame = _loadout._pygame_loadout_frame(ctx, mode="STORAGE")
+    frame = _loadout._pygame_loadout_frame(ctx, session)
     assert any(row.label == "[empty]" for row in frame.left_rows)
 
 
@@ -3968,58 +4059,244 @@ def test_compact_shared_menu_preserves_underlying_surface(monkeypatch):
     assert surface.fills == 0
 
 
-def test_loadout_my_ship_enter_opens_store_sell_chooser(monkeypatch):
+def test_loadout_grid_pick_up_move_and_drop_rearranges_in_place(monkeypatch):
+    """SETTLED 16: ENTER picks the piece under the cursor up (cursor
+    snaps to its anchor), arrows move the ghost, ENTER drops — the
+    entry re-anchors in place, never leaving the tuple (rearrangement
+    never trips the gate)."""
     from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
-    chosen = []
-    monkeypatch.setattr(
-        _loadout.pygame_story if hasattr(_loadout, "pygame_story") else __import__(
-            "src.spacehack.pygame_story", fromlist=["choose"]
-        ),
-        "choose",
-        as_async(lambda *args, **kwargs: chosen.append(kwargs["options"]) or "__BACK__"),
-    )
+    messages = []
     ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "shield_mk1", grid_x=0, grid_y=0),
+                StoredEquipment("module", "compact_reactor", grid_x=2, grid_y=0),
+            ),
+        ),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
 
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth",
-    ))
-    assert chosen == [(
-        ("Store", "STORE_WEAPON_SLOT:0"),
-        ("Sell for 15$", "SELL_WEAPON_SLOT:0"),
-    )]
-    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
+    # Cursor to the reactor's anchor (2, 0), pick it up.
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand is not None
+    assert session.hand.source == "installed"
+    assert session.hand.index == 1
+    assert session.state.cursor == (2, 0)  # snapped to the anchor
+    assert len(ctx.player_owned_ship.modules) == 2  # still fitted
+
+    # Move the ghost down one row (a 1x2 part; (2,1) is its lowest
+    # legal anchor) and drop: the anchor re-points in place.
+    run(apply(ctx, session, "GRID:MOVE:0:1", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand is None
+    assert tuple(
+        (e.item_id, e.grid_x, e.grid_y) for e in ctx.player_owned_ship.modules
+    ) == (("shield_mk1", 0, 0), ("compact_reactor", 2, 1))
+    assert messages == []  # rearrangement is silent — no commit fired
 
 
-def test_loadout_my_ship_chooser_store_and_sell_apply_selected_action(monkeypatch):
-    from src.spacehack import pygame_story
+def test_loadout_grid_two_stage_esc_returns_the_hand(monkeypatch):
     from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "shield_mk1", grid_x=1, grid_y=0),
+            ),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))  # pick up the shield
+    run(apply(ctx, session, "GRID:ESC", 1, 0, "earth"))
+
+    # Snap-back: the picked-up part never moved, the hand is empty.
+    assert session.hand is None
+    assert tuple(
+        (e.item_id, e.grid_x, e.grid_y) for e in ctx.player_owned_ship.modules
+    ) == (("shield_mk1", 1, 0),)
+    assert messages == []
+
+    # A handed-over part ESCs back to storage (its only "was").
+    from src.spacehack import pygame_story
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "INSTALL_STORED:0"),
+    )
+    ctx.ship_storage.append(StoredEquipment("module", "shield_mk2"))
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
+    assert session.hand is not None and session.hand.source == "storage"
+    run(apply(ctx, session, "GRID:ESC", 1, 0, "earth"))
+    assert session.hand is None
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk2"]
+    assert "Moved equipment to storage." in messages
+
+
+def test_loadout_grid_tab_resolves_the_hand_and_flips_focus(monkeypatch):
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
     ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
-        ship_storage=[],
-        stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[StoredEquipment("module", "shield_mk1")],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda _m, **_kw: None),
     )
-    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "STORE_WEAPON_SLOT:0"))
-    run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
-    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
-    assert ctx.ship_storage[0].item_id == "light_laser"
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+    session.focus = 1  # hand-off steered here
 
-    ctx.player_owned_ship = OwnedShip(ship_id="scout", weapons=("light_laser",))
-    ctx.ship_storage.clear()
-    monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "SELL_WEAPON_SLOT:0"))
-    run(_loadout._apply_pygame_loadout_action(ctx, "MANAGE_WEAPON_SLOT:0", 1, 0, "earth"))
-    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
+    from src.spacehack import pygame_story
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "INSTALL_STORED:0"),
+    )
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
+    assert session.hand is not None and session.focus == 1
+
+    run(apply(ctx, session, "GRID:TAB", 1, 0, "earth"))
+    assert session.hand is None
+    assert session.focus == 0
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk1"]
+
+
+def test_loadout_grid_d_stores_through_the_removal_gate(monkeypatch):
+    """SETTLED 3 via D: storing the funding reactor refuses; storing a
+    shield never does (the net only improves)."""
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "compact_reactor", grid_x=0, grid_y=0),
+                StoredEquipment("module", "shield_mk4", grid_x=1, grid_y=0),
+            ),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+
+    # Hand the funding reactor (cursor at its anchor), D: refused.
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand.index == 0
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
+    assert session.hand is not None
+    assert messages == [
+        "Removing Compact Reactor Mk. 1 would leave the ship short on power.",
+    ]
     assert ctx.ship_storage == []
-    assert ctx.stats.credits > 0
+
+    # ESC returns it; the shield (index 1) stores freely.
+    run(apply(ctx, session, "GRID:ESC", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand.index == 1
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
+    assert session.hand is None
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk4"]
+    assert tuple(e.item_id for e in ctx.player_owned_ship.modules) == (
+        "compact_reactor",
+    )
+
+
+def test_loadout_grid_x_sells_with_price_confirm_and_quality(monkeypatch):
+    """X sells the held part: price confirm carries the tier price, the
+    removal gate refuses the funding reactor, CONFIRM credits it."""
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    confirms = []
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            modules=(
+                StoredEquipment("module", "shield_mk2", quality=2, grid_x=0, grid_y=0),
+            ),
+        ),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))  # pick up q2 shield
+    monkeypatch.setattr(
+        pygame_story, "confirm",
+        as_async(lambda *a, **k: confirms.append(k) or "BACK"),
+    )
+    run(apply(ctx, session, "GRID:SELL", 1, 0, "earth"))
+    assert confirms[0]["accept_label"] == "Sell for 98$"
+    assert session.hand is not None  # cancelled: nothing sold
+    assert ctx.stats.credits == 100
+
+    monkeypatch.setattr(
+        pygame_story, "confirm",
+        as_async(lambda *a, **k: "CONFIRM"),
+    )
+    run(apply(ctx, session, "GRID:SELL", 1, 0, "earth"))
+    assert session.hand is None
+    assert ctx.stats.credits == 100 + 98
+    assert ctx.player_owned_ship.modules == ()
+    assert any("Sold" in message for message in messages)
+
+
+def test_loadout_install_actions_refuse_while_the_hand_is_full(monkeypatch):
+    from src.spacehack import pygame_story
+    from src.spacehack.menus import _loadout
+    from src.spacehack.ship import OwnedShip, StoredEquipment
+
+    messages = []
+    ctx = SimpleNamespace(
+        player_owned_ship=OwnedShip(ship_id="scout"),
+        ship_storage=[StoredEquipment("module", "shield_mk1")],
+        stats=SimpleNamespace(credits=1000),
+        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+    )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "INSTALL_STORED:0"),
+    )
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
+    assert session.hand is not None
+    assert ctx.ship_storage == []
+
+    # The buy path refuses the Install destination on a full hand.
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "BUY_INSTALL_MODULE:targeting_computer"),
+    )
+    run(apply(ctx, session, "BUY_MODULE:targeting_computer", 0, 0, "earth"))
+    assert ctx.stats.credits == 1000  # never charged
+    assert session.hand.entry.item_id == "shield_mk1"
+    assert messages == ["You are already holding a part."]
 
 
 def test_loadout_storage_chooser_install_and_sell(monkeypatch):
@@ -4033,6 +4310,8 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
         stats=SimpleNamespace(credits=0),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
     captured = []
     monkeypatch.setattr(
         pygame_story,
@@ -4040,9 +4319,7 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
         as_async(lambda *args, **kwargs: captured.append(kwargs["options"]) or "__BACK__"),
     )
 
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    ))
+    assert run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
     assert captured == [
         (
             ("Install", "INSTALL_STORED:0"),
@@ -4052,17 +4329,21 @@ def test_loadout_storage_chooser_install_and_sell(monkeypatch):
     assert ctx.ship_storage == [StoredEquipment("weapon", "light_missile", 1)]
 
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "SELL_STORED:0"))
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    ))
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
     assert ctx.ship_storage == []
     assert ctx.stats.credits == 20
 
+    # Install now HANDS OFF (SETTLED 17): the part pops into the hand;
+    # the drop places it and restores its partial magazine.
     ctx.ship_storage = [StoredEquipment("weapon", "light_missile", 1)]
     monkeypatch.setattr(pygame_story, "choose", as_async(lambda *args, **kwargs: "INSTALL_STORED:0"))
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_STORED:0", 0, 0, "earth",
-    ))
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
+    assert session.hand is not None
+    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
+    assert ctx.ship_storage == []
+
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand is None
     assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
@@ -4084,88 +4365,91 @@ def test_loadout_storage_chooser_invalid_index_is_safe(monkeypatch):
     )
 
     assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_STORED:9", 0, 0, "earth",
+        ctx, _loadout_session("scout"), "MANAGE_STORED:9", 0, 0, "earth",
     ))
     assert ctx.stats.credits == 0
 
 
-def test_loadout_store_and_install_actions_preserve_partial_ammo():
+def test_loadout_store_and_install_actions_preserve_partial_ammo(monkeypatch):
+    """D-store from the hand preserves the magazine; the storage
+    hand-off + drop restores it (the doc 48 round-trip, grid edition)."""
+    from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
     messages = []
     ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_missile",)),
+        player_owned_ship=OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_missile", grid_x=0, grid_y=0),),
+        ),
         ship_storage=[],
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
     ctx.player_owned_ship.weapon_ammo[0] = 1
 
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "STORE_WEAPON_SLOT:0", 1, 0, "earth",
-    ))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))  # pick up the rack
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
     assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ()
     assert ctx.ship_storage[0].ammo == 1
 
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "INSTALL_STORED:0", 0, 0, "earth",
-    ))
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "INSTALL_STORED:0"),
+    )
+    run(apply(ctx, session, "MANAGE_STORED:0", 0, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
     assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_missile",)
     assert ctx.player_owned_ship.weapon_ammo == {0: 1}
     assert ctx.ship_storage == []
 
 
-def test_loadout_install_full_slot_keeps_storage_and_logs_reason():
+def test_loadout_store_branches_dispatch_each_item_type_at_its_real_arity():
+    """D-store from the hand exercises the REAL ship_module store
+    functions for both item types (the module branch crashed at 4-arg
+    arity after doc 49.2's ctx threading; the weapon branch carries
+    ctx for the hunter's doubled-rack booking)."""
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
 
-    messages = []
+    apply = _loadout._apply_pygame_loadout_action
+    # Module store: no ctx in store_module's signature — must not raise.
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(
-            ship_id="starter", weapons=("light_laser", "light_laser"),
+            ship_id="scout",
+            modules=(StoredEquipment("module", "shield_mk2", grid_x=0, grid_y=0),),
         ),
-        ship_storage=[StoredEquipment("weapon", "heavy_laser")],
-        stats=SimpleNamespace(credits=1000),
-        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda *_a, **_k: None),
     )
+    session = _loadout_session("scout")
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
+    assert ctx.player_owned_ship.modules == ()
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk2"]
 
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "INSTALL_STORED:0", 0, 0, "earth",
-    ))
-    assert ctx.ship_storage == [StoredEquipment("weapon", "heavy_laser")]
-    assert any("No compatible weapon slot" in message for message in messages)
-
-
-def test_loadout_stored_sell_is_explicit_and_preserves_installed_gear():
-    from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip, StoredEquipment
-
-    messages = []
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(ship_id="scout", weapons=("light_laser",)),
-        ship_storage=[StoredEquipment("module", "shield_mk1")],
-        stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda text, **_kw: messages.append(text)),
-    )
-
-    from src.spacehack.ship import OwnedShip
-
+    # Weapon store: store_weapon takes ctx (missile ammo preservation).
+    hunter = SimpleNamespace(player_traits=["bounty_hunter"])
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(
-            ship_id="starter",
-            weapons=("light_laser", "light_laser"),
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_missile", grid_x=0, grid_y=0),),
         ),
-        stats=SimpleNamespace(credits=0),
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
+        ship_storage=[],
+        stats=SimpleNamespace(credits=100),
+        log=SimpleNamespace(add=lambda *_a, **_k: None),
+        player_traits=["bounty_hunter"],
     )
-    original = ctx.player_owned_ship.weapons
-
-    assert run(_loadout._apply_pygame_loadout_action(
-        ctx, "SELL_WEAPON_SLOT:1", 1, 2, "earth",
-    ))
-    assert tuple(e.item_id for e in original) == ("light_laser", "light_laser")
-    assert tuple(e.item_id for e in ctx.player_owned_ship.weapons) == ("light_laser",)
+    session = _loadout_session("scout")
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
+    assert ctx.player_owned_ship.weapons == ()
+    assert ctx.ship_storage[0].ammo is not None
+    assert hunter.player_traits == ["bounty_hunter"]  # ctx reached the path
 
 
 def test_split_interactive_frame_build_failure_is_explicit(monkeypatch):
@@ -6005,7 +6289,8 @@ def test_bundled_dejavu_mono_font_ships_with_the_package():
 
 def test_loadout_buy_install_module_lands_as_base_entry(monkeypatch):
     """The buy path constructs a base module entry — doc 47.3's
-    instance threading through the purchase flow."""
+    instance threading through the hand-off (SETTLED 17: the hand
+    carries the base entry; the drop places it)."""
     from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
@@ -6016,26 +6301,27 @@ def test_loadout_buy_install_module_lands_as_base_entry(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
     monkeypatch.setattr(
         pygame_story, "choose",
         as_async(lambda *a, **k: "BUY_INSTALL_MODULE:shield_mk1"),
     )
 
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_MODULE:shield_mk1", 0, 0, "earth",
-    ))
+    run(apply(ctx, session, "BUY_MODULE:shield_mk1", 0, 0, "earth"))
+    assert session.hand.entry == StoredEquipment("module", "shield_mk1")
+    assert ctx.stats.credits == 1000 - 60
 
-    # Doc 56 phase 2: a buy-install lands PLACED (first_fit anchor).
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
     assert ctx.player_owned_ship.modules == (
         StoredEquipment("module", "shield_mk1", grid_x=0, grid_y=0),
     )
-    assert ctx.stats.credits == 1000 - 60
 
 
-def test_loadout_buy_install_power_refusal_string(monkeypatch):
-    """Doc 56 phase 2: the approved power refusal, and
-    validate-before-charge — a part the grid cannot feed is never
-    paid for."""
+def test_loadout_drop_power_refusal_string(monkeypatch):
+    """Doc 56 phase 3: a handed-over module the grid cannot feed is
+    bought into the hand (affordability only), then its drop refuses
+    with the approved power string — the red ghost made audible."""
     from src.spacehack import pygame_story
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
@@ -6049,26 +6335,33 @@ def test_loadout_buy_install_power_refusal_string(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda message, **_kwargs: logged.append(message)),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
     monkeypatch.setattr(
         pygame_story, "choose",
         as_async(lambda *a, **k: "BUY_INSTALL_MODULE:targeting_computer"),
     )
 
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "BUY_MODULE:targeting_computer", 0, 0, "earth",
-    ))
+    run(apply(ctx, session, "BUY_MODULE:targeting_computer", 0, 0, "earth"))
+    assert ctx.stats.credits == 1000 - 70  # charged: the part is the purchase
 
+    # Park the ghost on a free cell ((2,0) — the shield holds columns
+    # 0-1): the geometry passes, the power gate refuses.
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:MOVE:1:0", 1, 0, "earth"))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))
+    assert session.hand is not None  # refused drop keeps the part in hand
     assert logged == [
+        "Bought Targeting Computer for 70$.",
         "Targeting Computer needs more power than the ship generates.",
     ]
-    assert ctx.stats.credits == 1000  # refused before the charge
     assert ctx.player_owned_ship.modules == (
         StoredEquipment("module", "shield_mk3", grid_x=0, grid_y=0),
     )
 
 
-def test_loadout_store_removal_power_refusal_string(monkeypatch):
-    """Doc 56 SETTLED 3: storing the reactor funding a shield is
+def test_loadout_grid_d_removal_power_refusal_string(monkeypatch):
+    """Doc 56 SETTLED 3 via D: storing the reactor funding a shield is
     refused with the approved removal line."""
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
@@ -6083,49 +6376,17 @@ def test_loadout_store_removal_power_refusal_string(monkeypatch):
         stats=SimpleNamespace(credits=1000),
         log=SimpleNamespace(add=lambda message, **_kwargs: logged.append(message)),
     )
+    session = _loadout_session("scout")
+    apply = _loadout._apply_pygame_loadout_action
 
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "STORE_MODULE_SLOT:0", 0, 0, "earth",
-    ))
+    run(apply(ctx, session, "GRID:ENTER", 1, 0, "earth"))  # pick the reactor
+    run(apply(ctx, session, "GRID:STORE", 1, 0, "earth"))
 
     assert logged == [
         "Removing Compact Reactor Mk. 1 would leave the ship short on power.",
     ]
     assert len(ctx.player_owned_ship.modules) == 2  # nothing moved
     assert ctx.ship_storage == []
-
-
-def test_loadout_manage_module_slot_threads_quality(monkeypatch):
-    """MANAGE_MODULE_SLOT on a variant: the chooser body carries the
-    token, the sell option prices the tier, and SELL credits it
-    (shield_mk2 150: half 75 * 1.30 = 98)."""
-    from src.spacehack import pygame_story
-    from src.spacehack.menus import _loadout
-    from src.spacehack.ship import OwnedShip, StoredEquipment
-
-    seen = []
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(
-            ship_id="scout",
-            modules=(StoredEquipment("module", "shield_mk2", quality=2),),
-        ),
-        ship_storage=[],
-        stats=SimpleNamespace(credits=100),
-        log=SimpleNamespace(add=lambda _message, **_kwargs: None),
-    )
-    monkeypatch.setattr(
-        pygame_story, "choose",
-        as_async(lambda *a, **kwargs: seen.append(kwargs) or "SELL_MODULE_SLOT:0"),
-    )
-
-    run(_loadout._apply_pygame_loadout_action(
-        ctx, "MANAGE_MODULE_SLOT:0", 1, 0, "earth",
-    ))
-
-    assert seen[0]["body"] == "Overclocked Shield Mk. 2"
-    assert ("Sell for 98$", "SELL_MODULE_SLOT:0") in seen[0]["options"]
-    assert ctx.stats.credits == 100 + 98
-    assert ctx.player_owned_ship.modules == ()
 
 
 def test_loadout_sell_stored_module_scales_with_quality():
@@ -6139,7 +6400,9 @@ def test_loadout_sell_stored_module_scales_with_quality():
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),
     )
 
-    _loadout._apply_sell_stored(ctx, "SELL_STORED:0")
+    _loadout._apply_sell_stored(
+        ctx, _loadout_session("scout"), "SELL_STORED:0",
+    )
 
     assert ctx.stats.credits == 98
     assert ctx.ship_storage == []
@@ -6366,44 +6629,72 @@ def test_panel_header_paint_calls_match_the_real_signatures(monkeypatch):
         )
 
 
-def test_loadout_store_branches_dispatch_each_item_type_at_its_real_arity():
-    """STORE on the loadout screen exercises the REAL ship_module store
-    functions for both item types (the module branch crashed at 4-arg
-    arity after doc 49.2's ctx threading; the weapon branch carries
-    ctx for the hunter's doubled-rack booking)."""
+def test_loadout_terminal_exit_resolves_the_hand(monkeypatch):
+    """Every session exit resolves the hand (SETTLED 12): the BACK
+    return auto-returns a handed-over part to storage; QUIT writes no
+    save, so the hand is left alone — disk state predates the session
+    (the charge and the storage append simply never landed)."""
+    from src.spacehack import pygame_split, pygame_story
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip, StoredEquipment
 
-    # Module store: no ctx in store_module's signature — must not raise.
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(
-            ship_id="scout",
-            modules=(StoredEquipment("module", "shield_mk2"),),
-        ),
-        ship_storage=[],
-        stats=SimpleNamespace(credits=100),
-        log=SimpleNamespace(add=lambda *_a, **_k: None),
-    )
-    run(_loadout._apply_store(ctx, "STORE_MODULE_SLOT:0"))
-    assert ctx.player_owned_ship.modules == ()
-    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk2"]
+    def _ctx():
+        return SimpleNamespace(
+            player_owned_ship=OwnedShip(ship_id="scout"),
+            ship_storage=[StoredEquipment("module", "shield_mk1")],
+            stats=SimpleNamespace(credits=1000),
+            log=SimpleNamespace(add=lambda _m, **_kw: None),
+        )
 
-    # Weapon store: store_weapon takes ctx (missile ammo preservation).
-    hunter = SimpleNamespace(player_traits=["bounty_hunter"])
-    ctx = SimpleNamespace(
-        player_owned_ship=OwnedShip(
-            ship_id="scout",
-            weapons=(StoredEquipment("weapon", "light_missile"),),
-        ),
-        ship_storage=[],
-        stats=SimpleNamespace(credits=100),
-        log=SimpleNamespace(add=lambda *_a, **_k: None),
-        player_traits=["bounty_hunter"],
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
+    monkeypatch.setattr(
+        pygame_story, "choose",
+        as_async(lambda *a, **k: "INSTALL_STORED:0"),
     )
-    run(_loadout._apply_store(ctx, "STORE_WEAPON_SLOT:0"))
-    assert ctx.player_owned_ship.weapons == ()
-    assert ctx.ship_storage[0].ammo is not None
-    assert hunter.player_traits == ["bounty_hunter"]  # ctx reached the path
+
+    # BACK: the exit hook auto-returns the held part to storage.
+    ctx = _ctx()
+    seen = {}
+
+    async def fake_run_back(_ctx, build, apply, **_kw):
+        await apply("MANAGE_STORED:0", 0, 0)
+        seen["holding"] = build().grid_holding
+        return "BACK"
+
+    monkeypatch.setattr(pygame_split, "run_interactive", fake_run_back)
+    run(_loadout._run_loadout_menu(ctx))
+    assert seen["holding"] is True  # the part was in hand at exit
+    assert [e.item_id for e in ctx.ship_storage] == ["shield_mk1"]
+
+    # QUIT: the hook never fires — the hand and the charge stay
+    # in-memory only (no save is written on the QUIT path).
+    ctx = _ctx()
+
+    async def fake_run_quit(_ctx, build, apply, **_kw):
+        await apply("MANAGE_STORED:0", 0, 0)
+        return "QUIT"
+
+    monkeypatch.setattr(pygame_split, "run_interactive", fake_run_quit)
+    run(_loadout._run_loadout_menu(ctx))
+    assert ctx.ship_storage == []  # not resolved: the pop stands, no append
+
+
+def test_never_fitted_storage_neutrality():
+    """The gate-refused switch leg is unreachable BY DESIGN (brief
+    minor 6): storing a never-fitted part cannot change the resting
+    grid, so no pane switch can ever be refused."""
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.ship import OwnedShip, StoredEquipment, resting_power
+
+    spec = find_ship("scout")
+    owned = OwnedShip(
+        ship_id="scout",
+        modules=(StoredEquipment("module", "compact_reactor", grid_x=0, grid_y=0),),
+    )
+    before = resting_power(owned, spec)
+    storage = []
+    storage.append(StoredEquipment("module", "shield_mk4"))  # handed over, returned
+    assert resting_power(owned, spec) == before  # storage is power-neutral
 
 
 def test_split_rows_never_paint_into_the_pinned_detail(monkeypatch):

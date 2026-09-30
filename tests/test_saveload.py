@@ -2270,6 +2270,29 @@ class TestFittingGridRoundTrip:
         # Ammo booking rides the same indices.
         assert 0 in ship.weapon_ammo
 
+    def test_hand_placed_anchors_survive_exactly(self, monkeypatch, tmp_path):
+        """Doc 56 phase 3: anchors the EDITOR placed (never first_fit's
+        row-major choices) are what serialize — the save never
+        re-derives placement."""
+        ctx = self._fitted_scout_ctx()
+        # Re-anchor everything OFF the first_fit row-major spots.
+        ctx.player_owned_ship = OwnedShip(
+            ship_id="scout",
+            weapons=(StoredEquipment("weapon", "light_missile", grid_x=3, grid_y=0),),
+            modules=(
+                StoredEquipment("module", "compact_reactor", grid_x=0, grid_y=0),
+                StoredEquipment("module", "shield_mk1", grid_x=1, grid_y=1),
+            ),
+        )
+        loaded = self._save_and_load(monkeypatch, tmp_path, ctx)
+        ship = loaded.player_owned_ship
+        assert [(e.item_id, e.grid_x, e.grid_y) for e in ship.weapons] == [
+            ("light_missile", 3, 0),
+        ]
+        assert [(e.item_id, e.grid_x, e.grid_y) for e in ship.modules] == [
+            ("compact_reactor", 0, 0), ("shield_mk1", 1, 1),
+        ]
+
     def test_storage_payloads_carry_no_placement_keys(self, monkeypatch, tmp_path):
         import json as _json
         path = tmp_path / "autosave.json"

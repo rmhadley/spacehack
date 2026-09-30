@@ -124,7 +124,7 @@ class TestLoadoutWeaponQualityDisplay:
 
     def test_market_weapon_detail_scales_at_tier(self):
         from src.spacehack.data.weapons import find_weapon
-        from src.spacehack.menus._loadout import _weapon_detail
+        from src.spacehack.menus._grid_editor import _weapon_detail
 
         spec = find_weapon("medium_laser")
         assert "Damage: 8" in _weapon_detail(spec, quality=2)

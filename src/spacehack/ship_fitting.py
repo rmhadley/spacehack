@@ -30,10 +30,10 @@ if TYPE_CHECKING:
     from .ship import OwnedShip
 
 # Refusal reasons for the gated install seam. The modal maps them to
-# its player-facing strings; 'slots' is interim — the modal stays
-# slot-shaped until phase 3 drops the term.
+# its player-facing strings. Doc 56 phase 3 retired 'slots' with the
+# slot summaries: a grid-legal install lands on the grid regardless
+# of the legacy slot counts.
 INSTALL_REFUSAL_INVALID = "invalid"
-INSTALL_REFUSAL_SLOTS = "slots"
 INSTALL_REFUSAL_ROOM = "room"
 INSTALL_REFUSAL_POWER = "power"
 
@@ -104,31 +104,16 @@ def resting_power(owned: "OwnedShip", ship_spec: "Ship", ctx=None) -> int:
 
 
 def install_refusal(owned: "OwnedShip", stored, ship_spec: "Ship", ctx=None) -> str | None:
-    """Dual interim legality for installing one entry: None when the
-    install is legal, else why it is refused.
-
-    Order is part of the contract: slots first (the modal's displayed
-    counts stay honest while it is slot-shaped — phase 3 drops the
-    term), then grid room, then the resting power gate. Weapons draw
-    no upkeep, so a weapon install can refuse on room but never on
-    power.
+    """Legality for installing one entry: None when the install is
+    legal, else why it is refused — grid room first, then the resting
+    power gate. Weapons draw no upkeep, so a weapon install can refuse
+    on room but never on power. (Doc 56 phase 3: the slot-count check
+    retired with the slot summaries — beyond-slots installs land on
+    the grid.)
     """
     spec = _entry_spec(stored)
     if spec is None:
         return INSTALL_REFUSAL_INVALID
-    counts = {
-        "weapon": (
-            len(getattr(owned, "weapons", ())),
-            getattr(ship_spec, "weapon_slots", 0),
-        ),
-        "module": (
-            len(getattr(owned, "modules", ())),
-            getattr(ship_spec, "module_slots", 0),
-        ),
-    }
-    installed, slots = counts[stored.item_type]
-    if installed >= slots:
-        return INSTALL_REFUSAL_SLOTS
     anchor = first_fit(
         ship_spec.grid_w, ship_spec.grid_h,
         occupied_cells(owned, ship_spec.grid_w, ship_spec.grid_h),
@@ -168,11 +153,30 @@ def gated_install_entry(owned: "OwnedShip", entry, ship_spec: "Ship", ctx=None) 
     placed = dataclasses.replace(entry, grid_x=anchor[0], grid_y=anchor[1])
     if entry.item_type == "weapon":
         from .ship import _install_weapon
-        _install_weapon(owned, placed, ship_spec, ctx)
+        _install_weapon(owned, placed, ctx)
     else:
         from .ship import _install_module
-        _install_module(owned, placed, ship_spec)
+        _install_module(owned, placed)
     return None
+
+
+def clamp_installed_magazine(owned: "OwnedShip", stored, ctx=None) -> None:
+    """Clamp a just-installed missile's STORED ammo onto its new slot.
+
+    ``_install_weapon`` seeds a fresh full magazine; a part installed
+    from storage restores the rounds it left with (capped at the
+    effective rack). One helper for the storage-install seam and the
+    editor's hand-off drop.
+    """
+    from .data.weapons import find_weapon as _fw
+    from .ship import effective_missile_capacity
+
+    if stored.item_type != "weapon" or stored.ammo is None:
+        return
+    capacity = effective_missile_capacity(_fw(stored.item_id), ctx)
+    owned.weapon_ammo[len(owned.weapons) - 1] = max(
+        0, min(stored.ammo, capacity),
+    )
 
 
 def install_stored_equipment(
@@ -185,19 +189,12 @@ def install_stored_equipment(
     """Install one stored part through the fitting gate and remove it
     from storage on success (geometry + power gated — AC1's
     fresh-Skiff shield_mk4 refusal lands here)."""
-    from .ship import effective_missile_capacity
-
     if not 0 <= storage_index < len(storage):
         return False
     stored = storage[storage_index]
     if gated_install_entry(owned, stored, ship_spec, ctx) is not None:
         return False
-    if stored.item_type == "weapon" and stored.ammo is not None:
-        from .data.weapons import find_weapon as _fw
-
-        slot_index = len(owned.weapons) - 1
-        capacity = effective_missile_capacity(_fw(stored.item_id), ctx)
-        owned.weapon_ammo[slot_index] = max(0, min(stored.ammo, capacity))
+    clamp_installed_magazine(owned, stored, ctx)
     storage.pop(storage_index)
     return True
 
@@ -267,8 +264,11 @@ def start_fitted_entries(ship_spec: "Ship", ctx=None):
     return fitted_entries(ship_spec, ship_spec.start_weapons, ship_spec.start_modules)
 
 
-def _effective_upkeep(entry) -> int:
-    """The entry's quality/randart-scaled power contribution."""
+def effective_upkeep(entry) -> int:
+    """The entry's quality/randart-scaled power contribution (weapons
+    read 0 through the callers that build hands — only modules draw
+    upkeep). Public since doc 56 phase 3: the loadout editor's as-if
+    bonus list is built from per-entry upkeeps."""
     from .data.quality import effective_module_spec
 
     try:
@@ -343,7 +343,7 @@ def normalize_fitted_grid(
     while resting_power(owned, ship_spec, ctx) < 0 and owned.modules:
         worst = min(
             enumerate(owned.modules),
-            key=lambda pair: (_effective_upkeep(pair[1]), -pair[0]),
+            key=lambda pair: (effective_upkeep(pair[1]), -pair[0]),
         )[0]
         labels.extend(_strip_entries(owned, storage, [("module", worst)], ctx))
     return labels

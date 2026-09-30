@@ -165,6 +165,8 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
     for tab in range(3):
         frame = _ship_menu._ship_hangar_frame(ctx, spec, tab, 0)
         assert screen_fit(pygame, frame, 1600, 960, reserve_log=True).get_height() == 28
-    loadout_frame = _loadout._pygame_loadout_frame(ctx, mode="STORE")
+    loadout_frame = _loadout._pygame_loadout_frame(
+        ctx, _loadout.open_session(spec),
+    )
     split_font = split_fit(pygame, loadout_frame, 1600, 960)
     assert split_font.get_height() == 28
