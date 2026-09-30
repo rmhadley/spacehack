@@ -66,10 +66,22 @@ is pre-existing phase-2 shape, unreachable from real saves). The two
 NEW refusal strings ("You are already holding a part.", "Bought
 {name} for {price}$.") land unapproved-prose-for-review at the
 checkpoint per the phase-2 strings precedent. **The merged phase-2 +
-phase-3 PLAYTEST is now due** (checklist in the phase-3 brief); the
-SYSTEMS.md close obligations ("Ship ops", "Space combat init —
-parity mirror", "Spec-sheet buy modal") ride its pass. Next: playtest
-→ phase 4 (calibration) or doc close.
+phase-3 PLAYTEST PASSED 2026-09-30** — user: "we'll go through a
+balance pass once we finish this whole migration. right now the
+system is looking very good and will give us so many new 'builds' to
+try. playtest passes". Checkpoint rulings folded: the phase-2
+gen-4-vs-gen-3+upkeep-0 question DEFERS to the balance pass (phase 4,
+now explicitly ordered AFTER the whole migration per the quote — it
+also weighs on open question 2's ordering); the new strings ("You are
+already holding a part.", "Bought ...", "Nothing installed.",
+Dmg/Acc/Rng/AP/Pow labels) passed with no wording objections; the
+gate-refused-switch disposition stands by-construction (raised, no
+objection). Seven in-play fixes landed during the playtest (see the
+fixes list above; SETTLED 20/21 among them). SYSTEMS.md closed in the
+same commit ("Ship ops", "Space combat init — parity mirror",
+"Spec-sheet buy modal"). Next: phase 5 (NPC parity) or phase 4
+(calibration) — ordering is open question 2, and the user's quote
+leans parity-first; brief via /refine-design 56.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -516,8 +528,9 @@ Worked check (the motivating cases):
   PLAYTEST: dev-mode build ledger — fit/stress the gate rules on a
   live ship (including the tinker refusal, SETTLED 11); save/quit/
   continue round-trip of a fitted grid.
-  BUILT 2026-09-30 (`/implement-phase 56.2`), PLAYTEST DEFERRED to the
-  phase-3 checkpoint (user ruling above): gate
+  BUILT 2026-09-30 (`/implement-phase 56.2`), PLAYTEST PASSED
+  2026-09-30 at the merged phase-3 checkpoint (ruling above; the
+  goal-1/open-power questions ride phase 4's balance pass): gate
   green **3335**, commits a2f3b876 (fitting net-power/power_legal) /
   2593bd14 (upkeep + starter re-fund) / ad16dbf0 (ship_fitting model)
   / 8466f410 (stamping sites + dev grant) / 80082d98 (tinker gate) /
@@ -590,7 +603,11 @@ Worked check (the motivating cases):
   not a placement driver).
   BUILT 2026-09-30 (`/implement-phase 56.3`): gate green **3368**,
   seven commits + the review-minor fold (see the Status header for
-  the full record and the review dispositions).
+  the full record and the review dispositions). PLAYTEST PASSED
+  2026-09-30 at the merged checkpoint, after seven in-play fixes
+  (SETTLED 20/21 among them) and the ruling that both LOADOUT tabs
+  carry the overview + list — the letter grid renders only in the
+  editor. SYSTEMS.md closed with the pass.
   PLAYTEST: fit the motivating cases by hand (Skiff + mk4 shield
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.

@@ -346,7 +346,11 @@ nobody designs against a ghost.
   (`_enemy_skills` — targeting/gyro count), flown weapons AND
   modules as quality-rolled `StoredEquipment`, ammo keyed by weapon
   slot; `pilot_*`/`min_power_gen` retired from the spec
-  (TypeError-pinned).
+  (TypeError-pinned). Doc 56: the NPC side is untouched through
+  phase 4 — enemy loadouts fly no placements; the ONE NPC-side
+  effect is upkeep authoring lowering power pools for specs flying
+  upkept modules (probe-refereed, player-favor). NPC grid parity
+  (sizes + power on specs) is doc 56 phase 5, pending.
 - **Combat math** — fractional AP in twentieths with banked carry
   (both sides); hit = accuracy + gunnery/2 + close bonus − range
   penalties − dodge, clamp 5–95; dodge +5%/cell moved (cap 30) —
@@ -1338,7 +1342,15 @@ nobody designs against a ghost.
   — ×2 for the Bounty Hunter) at every capacity site: seeding,
   refill room, storage clamps, `cargo_ammo` booking + its save/load
   restore, HUD/loadout/mechanic displays, and the fresh-buy
-  top-off (`ship.py`; `saveload_ship.py`).
+  top-off (`ship.py`; `saveload_ship.py`). Doc 56 (player-side
+  grid): every installed entry carries a `grid_x`/`grid_y` anchor,
+  installs go through the fitting gate (geometry + resting power,
+  symmetric on removal — D-store/X-sell/hand-drops at the mechanic
+  editor; buys and storage installs HAND OFF into the editor's
+  cursor), and loads normalize illegal grids by stripping offenders
+  to storage (`ship_fitting.py`); the player-side slot guards and
+  slot-count summaries are RETIRED — `weapon_slots`/`module_slots`
+  remain catalog fields only for the NPC lint until phase 5.
 - **Ship layouts** — authored grammar: silhouette-first `{###}`
   hull (LOS-transparent), void tiles, BFS-validated; exactly three
   ship interiors ship (`data/layouts/`: `freightliner_a`,
@@ -1443,7 +1455,10 @@ nobody designs against a ghost.
   CP437-safe bar gauges scaled against the catalog's best per stat
   with the player's ship marked, and a base-vs-base `yours:` column
   coloured by trade verdict; exactly one selectable BUY row; flow,
-  price block, and outcomes untouched (`menus/_ship_buy.py`).
+  price block, and outcomes untouched (`menus/_ship_buy.py`). Doc 56 SETTLED 18: the Weapon/Module slot
+  rows retired — the sheet reads Speed/Fuel tank, Hull/Shields/
+  Power-per-turn, Cargo (grid fitness is the mechanic editor's
+  question, not the sheet's).
 - **Body colour runs** — `ScreenFrame.body_runs`: per-source-line
   `(text, colour)` segments, the paint-only sibling of
   `body_colors`; plain body text stays authoritative for
