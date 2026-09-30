@@ -85,7 +85,8 @@ on the first LETTER row where the pane never reads it); (4) WEAPON
 stat lines are terse and carry the firing costs (66de9c17):
 'Dmg 6  Acc 72%  Rng 1-5  AP 1  Pow 1' for energy/plasma, missiles
 'Dmg 14  Acc 72%  Rng 2-9  AP 2  Ammo 4/4' (no Pow — racks pay ammo,
-not watts); one formatter serves tooltip + market + storage rows.
+not watts); one formatter serves tooltip + market + storage rows.; (5) SETTLED 20 — the hangar LOADOUT
+tab becomes the list view (52d4e022).
 
 ## Overview
 
@@ -267,6 +268,13 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     phase-3 refine). The hangar's LOADOUT tab renders the same
     letter grid as the mechanic's editor, no interaction — the
     layout is visible away from the mechanic.
+20. **Hangar LOADOUT tab = the list view** (2026-09-30, in-play —
+    AMENDS 19). User: "Now, when I view my loadout from my hangar
+    menu, instead of showing the grid with all the letters, how about
+    a list of active weapons and modules with their stats attached?"
+    The hangar tab lists active weapons and modules — tier-coloured
+    names, the same stat lines the editor's tooltip shows. 19's
+    letter grid lives on at the mechanic's tab and editor.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
