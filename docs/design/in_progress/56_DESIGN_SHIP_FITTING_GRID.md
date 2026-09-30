@@ -4,7 +4,9 @@ Status: DRAFT for review (2026-09-30). Nothing implemented. Successor to
 `complete/DESIGN_SHIP_CUSTOMIZATION.md` (the slot system this replaces for
 the player). Advisor ADVISE pass folded same day (12 issues: catches
 1/3/4/5 + minors 6-11 amended in place; catch 2 and catch 12 ruled by
-the user the same day — SETTLED 11/12).
+the user the same day — SETTLED 11/12). Refine pass same day: open
+questions 1 and 3 settled (SETTLED 13/14), the pre-implementation
+audit live-verified, phase-1 Implementation brief proposed.
 
 ## Overview
 
@@ -85,7 +87,7 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
 | Existing fields over new systems | Upkeep IS `power_gen_bonus` negative (Armor Plating precedent, already summed by `_calc_power_gen`); no new mechanic, a data pass + one gate rule |
 | Table-driven | Fitting legality (geometry + power) is pure computation over catalog tables; UI never branches on item id |
 | CP437/ASCII aesthetic | Grid renders as letter blocks (`S` 3×3 for a shield) — user's explicit picture |
-| Save/load sacred | Placement is serialized; old saves get the cheap fallback (open question 1) |
+| Save/load sacred | Placement is serialized; old saves strip fitted gear to storage on load (SETTLED 14) |
 | Gates beat playtests | Phase 1 ships a lint (sizes valid, mk-monotonic, start loadouts pack); the probe rides every later phase |
 | Player-facing feature → guide review | The loadout/mechanic guide section is on every phase's playtest checklist |
 
@@ -140,6 +142,16 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     terminal included); if snap-back is impossible and storage would
     trip the gate, the switch is refused — the gate outranks the
     auto-return (composition of SETTLED 3 + 12).
+13. **Frigate stays 6×5** (2026-09-30, ruling open question 3). User
+    picked the recommended shape: "overwhelming firepower" on 30 cells
+    means many-medium volleys or few-big-plus-support — eight 2×2+
+    heavies never all fit, which is the defense-vs-offense fight
+    working as designed.
+14. **Strip-on-load for old saves** (2026-09-30, ruling open question
+    1). A save whose installed gear carries no placements loads with
+    that gear moved to storage (reusing
+    `move_installed_equipment_to_storage`), ready to re-fit. This is
+    also the machinery SETTLED 11's power-invalid normalization uses.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -177,7 +189,7 @@ The gate is a check on the **resting state** of the grid:
   `_skill_bonuses`), contradicting the philosophy table's
   no-new-mechanics claim. RULED: invalid resting states are NORMALIZED
   at the boundaries — power-invalid grids strip their offending items
-  to storage at load (reusing the open-question-1 machinery), and the
+  to storage at load (the SETTLED 14 strip-on-load path), and the
   tinker apply refuses a quality bump that would trip the gate — so
   every fitted module always contributes, and no dark state exists
   anywhere. (Cargo-hold brownouts with cargo aboard are the other
@@ -223,6 +235,8 @@ Hull grids:
 | Cruiser | 5×4 | 20 | 6/4 |
 | Frigate | 6×5 | 30 | 8/6 |
 | Freighter | 6×5 | 30 | 3/4 |
+
+Frigate confirmed at 6×5 (SETTLED 13) — no resize.
 
 Item sizes (mk scales; anchors from the user-approved sketch):
 
@@ -331,13 +345,81 @@ Worked check (the motivating cases):
   bands; probe rows show real mean hull damage.
 - [ ] **5. NPC parity** — NPC loadouts adopt sizes: the flat-tuple lint
   becomes packability + power validity; `weapon_slots`/`module_slots`
-  retire. (Ordering vs the enemy-volley parity fix: open question 7.)
+  retire. (Ordering vs the enemy-volley parity fix: open question 5.)
 
 Each phase gets an Implementation brief at `/refine-design` time before
 any build. Every phase close amends the SYSTEMS.md entries it touched
 in the same commit ("Ship ops", "Space combat init — parity mirror",
 and "Spec-sheet buy modal" are all in scope by phase 3 — advisor
 catch 11).
+
+## Implementation brief — Phase 1 (PROPOSED 2026-09-30)
+
+Geometry-only catalog pass. Zero behavior change: no live seam reads
+the new fields, and upkeep data does NOT land (phase 2, advisor
+catch 1).
+
+**Scope (files/hook points)**
+1. `src/spacehack/data/ships/__init__.py` — `Ship` gains `grid_w`/
+   `grid_h` (int, sentinel default 0 = unsized; the lint fails on 0,
+   so forgotten authoring cannot silently pass as 1×1).
+2. `src/spacehack/data/ships/core.py` — dims per the ruled table:
+   starter 3×3, scout 4×3, hauler 4×4, cruiser 5×4, frigate 6×5
+   (SETTLED 13), freighter 6×5.
+3. `src/spacehack/data/weapons/__init__.py` and
+   `data/modules/__init__.py` — `WeaponSpec`/`ModuleSpec` gain the
+   same sentinel-defaulted `grid_w`/`grid_h`.
+4. Size authoring across the catalogs — `lasers.py` (3), `missiles.py`
+   (3), `plasma.py` (1), `breach.py` (breach_charge_test 1×1),
+   `systems.py` (26), `engines.py` (5), `smuggler.py` (4) — the draft
+   tables verbatim.
+5. NEW `src/spacehack/fitting.py` — pure geometry only: an occupancy
+   grid, placement legality (bounds + overlap), and one deterministic
+   first-fit packer `auto_fit`. No ctx, no `OwnedShip` mutation, no
+   gameplay callers this phase (lints + render tool only).
+6. NEW `tests/test_fitting_geometry.py` — the lints + packer units.
+7. NEW `tools/fitting_render.py` — prints each hull's grid with its
+   start loadout placed as letter blocks (S/R/T/G/C/A/H families,
+   L/M/P/E weapons, `.` empty — open question 1's proposal gets its
+   first eyeball here).
+
+**Build order**: spec fields → hull dims → item sizes → `fitting.py`
+→ tests → render tool → `make check`.
+
+**Binding rulings**: mk scales size, quality never (SETTLED 5); no
+rotation (SETTLED 2); frigate 6×5 (SETTLED 13); geometry ONLY — no
+upkeep authoring, because `_calc_power_gen` (`combat/_stats.py:87`)
+feeds `_build_enemy` (`:291`) and NPC specs fly exactly the families
+the upkeep table prices; the draft tables are the user-approved
+starting point; `breach_charge_test` sized 1×1 with no exemption
+mechanism (it is a registered catalog member — advisor catch 5f
+resolved).
+
+**Required tests (permanent — AC5)**: every registered item sized
+(ints ≥ 1, catching sentinels); mk-monotonic sizes per family (shield,
+targeting, gyro, cargo, armor, smuggler, reactor — w and h each
+weakly non-decreasing by mk); every hull's start loadout packs via
+`auto_fit`; hull dims within the render-budget ceiling (grid_w ≤ 8,
+grid_h ≤ 6 — every ruled dim fits with margin; phase 3 may raise it
+deliberately); packer units (exact fit, no-fit, overlap rejection,
+determinism). Pure-function contract: `fitting.py` tests land
+same-commit.
+
+**Stop point (do NOT start)**: no `OwnedShip` changes, no placement
+fields, no save/parser changes, no power gate, no upkeep data, no UI
+of any kind (grid pane, HUD/hangar/ship-buy readouts), no guide
+edits. That is phases 2-3.
+
+**Playtest checkpoint**
+1. `python3 tools/fitting_render.py` — eyeball all six hull grids
+   with start loadouts placed (Skiff 3×3 nearly empty; Cruiser
+   13/20 cells used; Frigate 17/30); shapes match the ruled table and
+   the glyph letters read clean.
+2. `make check` green with the new lints in the suite.
+3. New game + Continue an existing dev save — identical behavior
+   (nothing reads the new fields; save shape untouched).
+4. Guide diff: NONE this phase (no player-facing change) — recorded
+   per the every-checklist-carries-a-guide-item rule.
 
 ## Acceptance criteria
 
@@ -363,51 +445,74 @@ catch 11).
 
 ## Open questions (for /refine-design)
 
-1. **Old-save fallback**: hard break vs strip-on-load. Lean: a
-   ~10-line strip-on-load reusing `move_installed_equipment_to_storage`
-   so dev saves stay loadable during the build; zero further machinery.
-2. **Glyph letters + empty cell**: proposal S/R/T/G/C/A/H families,
-   L/M/P/E weapons, `.` empty. Needs the user's eye on a render.
-3. **Frigate identity**: 30 cells cannot hold eight 2×2+ guns — is
-   "overwhelming firepower" many-small or few-big? May resize the grid
-   (6×6/7×5) or accept the new shape.
-4. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
-5. **HUD readout shape** (cells + net power wording).
-6. **Placement data shape** (brief-time, after the reader census).
-7. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
+1. **Glyph letters + empty cell**: proposal S/R/T/G/C/A/H families,
+   L/M/P/E weapons, `.` empty. Needs the user's eye on a render — the
+   phase-1 fixture renderer is the first look.
+2. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
+3. **HUD readout shape** (cells + net power wording).
+4. **Placement data shape** (phase-2 brief time; per-entry x/y is the
+   lean — the verified census: `weapon_ammo` keys magazines by
+   weapons-tuple index with removal re-indexing at `ship.py:521-527`,
+   and tinker's `_tuple_field_apply` plus the tombstone dump both
+   preserve entry shape).
+5. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
    its own fix doc whenever (it is independent of the grid).
 
 ## Pre-implementation audit
 
-REQUIRED before phase 1 builds (per knowledge.md). The census, with
-anchors — the advisor pass (catch 5, blocking) names what it MUST
-cover beyond the obvious:
+REQUIRED before phase 1 builds (per knowledge.md) — **VERIFIED
+against live code 2026-09-30** (refine session, before the phase-1
+brief). Every advisor-catch anchor confirmed:
 
-- The save twin pair: writer `_d(ctx.player_owned_ship)`
-  (`saveload.py:197`) AND parsers `_parse_owned_ship`
-  (`saveload_ship.py:21-59`) and `_stored_equipment_from_dict`
-  (`saveload.py:86+`) — including the recorded decision on whether
-  placement rides `StoredEquipment` (storage payloads would gain x/y
-  keys the parser silently drops; benign, but decide it).
-- The tinker kit seam (`tinker.py:234-249`): kit target selection and
-  `dataclasses.replace` must preserve placement (and refuses
-  gate-tripping quality bumps, SETTLED 11).
-- The tombstone GEAR dump (`tombstone.py:281-287`) — iterates
-  `owned.weapons/.modules`; must survive placement-carrying entries.
-- The enemy parity seam (`space_scale.roll_flown_equipment`,
-  `combat/_stats._build_enemy`) — where upkeep's power impact lands
-  and how the phase-5 lint replaces the slot lint.
-- The auto-fit stamping sites: new game (`game_loop.py:818`) and
-  purchase (`game_flow.py:675-676`).
-- The `breach_charge_test` fixture weapon (`data/weapons/breach.py`,
-  auto-registered) — size-lint coverage or explicit exemption.
-- `debug_session.py` / `tools/save_debug.py` behavior under
-  strip-on-load.
-- Three duplication hotspots (the audit template's requirement):
-  gate-legality logic vs `_loadout.py`'s slot arithmetic and
-  `_log_storage_failure` vocabulary; geometry packing vs any
-  auto-fit reimplementation; the grid pane vs the existing
-  `pygame_split` row model.
-
-Filled with live-code verification at refine time, before the phase-1
-brief is approved.
+- **The save twin pair**: writer `_d(ctx.player_owned_ship)`
+  (`saveload.py:197`) and parsers `_parse_owned_ship`
+  (`saveload_ship.py:21-59`, rebuilding through
+  `_parse_loadout_entries` → `parse_weapon_entry`/`parse_module_entry`)
+  and `_stored_equipment_from_dict` (`saveload.py:86+`). Standing
+  decision: placement rides the INSTALLED entry (x/y read by the entry
+  parsers in phase 2); storage payloads never carry placement keys —
+  stored items have no position, so nothing is dropped. Binding shape
+  settles with the phase-2 brief (open question 4; per-entry x/y is
+  the lean).
+- **The tinker kit seam**: `_installed_targets`/`_flown_weapon_targets`
+  (`tinker.py:232-257`) apply through `_tuple_field_apply`
+  (`tinker.py:130-142`), which rebuilds the tuple in order replacing
+  one entry — per-entry placement survives by construction; the
+  SETTLED 11 refusal hooks the apply.
+- **The tombstone GEAR dump** (`tombstone.py:272-293`): iterates
+  `owned.weapons`/`.modules` generically — placement-carrying entries
+  survive.
+- **The enemy parity seam**: `space_scale.roll_flown_equipment`
+  (`space_scale.py:45`) and `combat/_stats._build_enemy`
+  (`_stats.py:280`, calling `_calc_power_gen` at `:291`) — where
+  phase-2 upkeep lands (AC7) and where the phase-5 lint replaces the
+  slot lint.
+- **The auto-fit stamping sites**: new game `game_loop.py:818`;
+  purchase `_new_owned_ship` (`game_flow.py:673-681`, including
+  `top_off_missile_magazines`).
+- **`breach_charge_test`** (`data/weapons/breach.py:13`): a real
+  auto-registered catalog weapon (the militia quest prototype), NOT a
+  test-side fixture — the every-item-sized lint covers it (1×1); no
+  exemption mechanism needed.
+- **Census**: 6 hulls (`data/ships/core.py`), 8 weapons (lasers 3,
+  missiles 3, plasma 1, breach 1), 32 modules (systems 26, engines 5,
+  smuggler 4); every id maps to a draft size-table row. No
+  `WeaponSpec`/`ModuleSpec`/`Ship` construction sites outside `data/`
+  (rg over src/tests/tools — all hits are `OwnedShip`). The NPC slot
+  lint `test_every_loadout_fits_its_hull_slots`
+  (`tests/test_space_scale.py:208`) reads slot counts via `find_ship`
+  — green while the fields are retained.
+- **`debug_session.py` / `tools/save_debug.py`**: load through the
+  production deserializer, so SETTLED 14's strip-on-load happens
+  before they see state — phase-2 tests pin the post-strip shape.
+- **Three duplication hotspots (the audit template's requirement)**:
+  1. Gate legality vs `_loadout.py`'s slot arithmetic and
+     `_log_storage_failure` vocabulary — phase 2 routes every refusal
+     through `fitting.py`'s pure checks, no bespoke arithmetic.
+  2. Geometry packing vs any auto-fit reimplementation — ONE
+     deterministic packer in `fitting.py` serves the phase-1 lints,
+     the render tool, and the phase-2 install paths.
+  3. The grid pane vs the existing `pygame_split` row model — phase
+     3's new UI archetype is a sibling module beside
+     `menus/_loadout.py` (695 lines, verified), not a SplitRow
+     extension.
