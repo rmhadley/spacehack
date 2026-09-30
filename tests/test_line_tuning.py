@@ -12,18 +12,24 @@ a — INTERIM by design; ``future/50_DESIGN_COMBAT_BALANCE_SIMULATOR.md``
 supersedes closed-form pinning when it lands): the volley carries the
 aggressiveness factor (agg 70 -> ~30% of decision points reposition
 instead of firing) and regen gains the threshold-gated paid divert
-(authored rate 2 below half shields, power-sustained). Honest net: the
-thinning softens the picket volley MORE than the divert hardens its
-regen — the super sheet's costly win widened from the knife edge
-(die 12.6 vs clear 12.25) to a comfortable margin. The shape stands
-(full watch unwinnable below 30 / costly win for the super-powered /
-thin watch the mid-20s timing play); if the watch reads SOFT in play,
-say so — the frigate-hull re-author is the user's named escalation
-lever (harder only). Calibration caveat for that read: the flat
-x0.70 is the open-floor expectation — a DENSE watch crowds the
-player's ring until pickets have no legal reposition cell, and the
-loop then fires unthinned, so the model reads softer than reality
-exactly when the full watch is dense.
+(authored rate 2 below half shields, power-sustained).
+
+RE-DERIVED 2026-09-30 for doc 56 phase 5 (SETTLED 24, enemy volley
+parity): one fire action now fires every affordable weapon at
+max-AP-once — the picket's two light lasers both ride each 1-AP
+action, exactly DOUBLING its output per AP. Both live verdicts
+FLIPPED: the super sheet's brute-force skip is gone (dies ~7.8
+rounds into the ~15.2 it needs) and the thin watch no longer loses
+to the mid-20s timing fit (~5.3 vs ~7.7). The envelope moves are the
+phase-4 calibration headline, surfaced at the phase-5 playtest —
+this harness pins the moved numbers, never tunes them. Calibration
+caveats: the flat x0.70 is the open-floor expectation — a DENSE
+watch crowds the player's ring until pickets have no legal
+reposition cell, and the loop then fires unthinned; power drawdown
+is unmodeled (the picket's pool 14 at gen 1/turn since phase-2
+upkeep funds only a few rounds of full volley before thinning) — so
+the model reads softer than reality when the watch is dense, and
+hotter than reality the longer the race runs.
 
 THE MOVED BRACKET (build-discovered, called out for the playtest):
 the parity numbers made the picket ~70% hotter than the doc-41 tuning
@@ -76,23 +82,23 @@ def _picket_build():
 
 def _picket_volley(dodge: int) -> float:
     """One picket's damage per round against a player at ``dodge``
-    (best-case-for-player rolls), from the REAL spec + formulas. The
-    Tier-1 aggro factor (doc 48 SETTLED 40): the dial (70) converts
-    ~30% of decision points to reposition steps, thinning the
-    full-AP volley by the fire fraction."""
+    (best-case-for-player rolls), from the REAL spec + formulas.
+    VOLLEY PARITY (doc 56 SETTLED 24): one fire action fires every
+    affordable weapon with AP = max(ap_cost) paid once — both light
+    lasers ride each 1-AP action, exactly doubling the single-fire
+    shots-per-AP. The Tier-1 aggro factor (doc 48 SETTLED 40): the
+    dial (70) converts ~30% of decision points to reposition steps,
+    thinning the full-AP volley by the fire fraction."""
     _spec, _modules, (_g, _p, _e) = _picket_build()
-    _ap = _calc_ap(_p)
-    _total, _shots = 0.0, []
+    _actions = _calc_ap(_p) // max(
+        find_weapon(_w).ap_cost for _w in _spec.weapons
+    )
+    _per_action = 0.0
     for _w in _spec.weapons:
         _ws = find_weapon(_w)
-        _n = _ap // _ws.ap_cost
-        _ap -= _n * _ws.ap_cost
-        _shots += [_w] * _n
-    for _w in _shots:
-        _ws = find_weapon(_w)
         _hit = calc_hit_chance(_w, _g, 3.0, dodge)
-        _total += (_hit / 100.0) * _ws.damage * BEST_ROLL
-    return _total * (_spec.ai_aggressiveness / 100.0)
+        _per_action += (_hit / 100.0) * _ws.damage * BEST_ROLL
+    return _per_action * _actions * (_spec.ai_aggressiveness / 100.0)
 
 
 def _picket_ehp() -> int:
@@ -106,9 +112,10 @@ def _picket_regen() -> int:
     """Sustained regen per picket per round: the free tier (hull base
     + modules) plus the threshold-gated paid divert (doc 48 SETTLED
     40) — the race's decisive stretch runs below half shields, where
-    the blockade's authored rate 2 diverts (power-sustained: ~2.8
-    laser power + 1 divert = 3.8 vs the flown build's net gen 4 —
-    cruiser 5 base minus armor plating 1)."""
+    the blockade's authored rate 2 diverts (power: the flown build's
+    net gen sits at 1 since doc-56 phase-2 upkeep — pool 14 funds the
+    divert + volley for a few rounds before drying; drawdown stays
+    unmodeled here, see the module docstring)."""
     _spec, _modules, _skills = _picket_build()
     _free = _free_shield_regen(_enemy_hull(_spec), _modules)
     return _free + _spec.shield_regen_rate
@@ -140,27 +147,36 @@ def _player_wins(fit: dict, n_pickets: int) -> bool:
 
 def test_full_watch_unwinnable_below_30():
     """Even under best-case play, the 29 ceiling cannot clear ten
-    pickets before the sustained convergence melts it."""
+    pickets — under volley fire it melts in ~3.0 rounds against the
+    ~25.0 it needs (doc 56 SETTLED 24 doubled the picket's output
+    per AP)."""
     assert not _player_wins(FIT_29, FULL_WATCH), (
         "doc 39's floor: below 30 the full watch is a death"
     )
 
 
-def test_full_watch_a_costly_win_for_the_super_powered():
-    """The super-powered endgame sheet (the ruling's brute-force
-    skip) clears the full watch — barely, which is what 'costly'
-    means in closed form."""
-    assert _player_wins(FIT_SUPER, FULL_WATCH), (
-        "the brute-force skip must exist for the super-powered player"
+def test_full_watch_now_unwinnable_even_for_the_super_sheet():
+    """FLIPPED under volley parity (doc 56 SETTLED 24; surfaced at
+    the phase-5 playtest as phase-4's headline input): the doubled
+    picket volley kills the brute-force skip — the super sheet dies
+    in ~7.8 rounds against the ~15.2 it needs. Restoring the skip is
+    phase-4 calibration's call (divert/magnitude dials), never this
+    harness's."""
+    assert not _player_wins(FIT_SUPER, FULL_WATCH), (
+        "volley parity moved the envelope: the skip is gone at "
+        "current magnitudes — phase 4 calibrates"
     )
 
 
-def test_thin_watch_is_the_timing_play():
-    """The maintenance month's four pickets lose to a mid-20s fit
-    under the all-simultaneous bound — the same schedule hole the
-    dark run uses."""
-    assert _player_wins(FIT_25, THIN_WATCH), (
-        "the thin watch is deliberately beatable earlier"
+def test_thin_watch_no_longer_loses_to_the_mid_20s_fit():
+    """FLIPPED under volley parity (surfaced at the phase-5
+    playtest): the maintenance month's four pickets now out-race the
+    mid-20s fit (~5.3 rounds to die vs ~7.7 to clear) — the timing
+    play the dark run used is gone at current magnitudes. The pin
+    records the moved envelope; phase 4 calibrates."""
+    assert not _player_wins(FIT_25, THIN_WATCH), (
+        "volley parity moved the envelope: the thin watch is no "
+        "longer the early timing play — phase 4 calibrates"
     )
 
 
@@ -178,7 +194,15 @@ def test_picket_parity_numbers_pinned():
     _spec_agg = _spec.ai_aggressiveness
     assert _spec_agg == 70
     assert _spec.shield_regen_threshold == 0.5   # the "below half" gate
-    # The factor: the volley is the full-AP walk scaled by agg/100.
+    # The factor: the volley is the full-AP action walk scaled by
+    # agg/100 — and doc 56 SETTLED 24 puts BOTH lasers on every
+    # action (4 actions x 2 lasers; AP = max paid once), exactly
+    # double the single-fire walk's 4 shots.
     _full = _picket_volley(40) / (_spec_agg / 100.0)
     assert _full > _picket_volley(40)          # the thinning is live
     assert abs(_picket_volley(40) - _full * 0.70) < 1e-9
+    _laser_ev = (
+        calc_hit_chance("light_laser", _g, 3.0, 40) / 100.0
+        * find_weapon("light_laser").damage * BEST_ROLL
+    )
+    assert abs(_full - 8 * _laser_ev) < 1e-9   # 4 actions x both lasers

@@ -1,9 +1,12 @@
-"""Enemy fire (doc 48 phases 7-8, SETTLED 39/40).
+"""Enemy fire (doc 48 phases 7-8, SETTLED 39/40; doc 56 phase 5,
+SETTLED 24).
 
-The volley scores every weapon (EV per AP through the same
-``calc_hit_chance`` the shot resolves with), pays real AP/power/ammo
-per shot, and ends the turn when nothing fires; weapon quality
-multiplies enemy damage (the player path stays bit-identical at 0).
+The engagement decision fires the VOLLEY — the player's burst-fire
+mirror: every affordable weapon once per action in slot order, each
+paying its own power/ammo, AP = max(ap_cost) paid once. The scorer
+keeps governing the band pick and the reaction pick; the volley's
+inclusion is affordability alone. Weapon quality multiplies enemy
+damage (the player path stays bit-identical at 0).
 """
 
 from __future__ import annotations
@@ -214,17 +217,18 @@ def test_blocked_enemy_without_los_never_fires():
 
 
 def _record_shots(monkeypatch):
-    """Stub the attack resolution, keep the real cost payment — the
-    loop's selection walk is what's under test."""
+    """Stub the shot RESOLUTION, keep the real cost models — the
+    volley's inclusion walk and payments (and the single shot's) are
+    what's under test (doc 56 phase 5: both fire paths share the
+    tail, so one stub covers them)."""
     from src.spacehack.combat import _ai
     shots: list[str] = []
 
-    async def _fake_attack(state, _ei, slot, **_kw):
+    async def _fake_tail(state, _ei, slot, **_kw):
         shots.append(_ei.weapons[slot].item_id)
-        _pay_fire_costs(_ei, slot, find_weapon(_ei.weapons[slot].item_id))
         return None
 
-    monkeypatch.setattr(_ai, "_enemy_attack", _fake_attack)
+    monkeypatch.setattr(_ai, "_enemy_shot_tail", _fake_tail)
     return shots
 
 
@@ -262,33 +266,182 @@ def _dist_to_player(state, enemy) -> float:
 
 def test_volley_opens_with_missiles_then_settles_into_beams(monkeypatch):
     """Conservation is emergent (SETTLED 40): the finite magazine wins
-    the scoring while tubes last, then the beam duel takes over."""
+    the scoring while tubes last, then the beam duel takes over. Doc
+    56 SETTLED 24 re-pin: the opening action fires the whole
+    affordable volley at max-AP-once (missile+laser for 2 AP), so the
+    4-AP turn lands FOUR shots where single-fire landed three."""
     shots = _record_shots(monkeypatch)
     enemy = _enemy(
         ("heavy_missile", "heavy_laser"), ap=4, power=6,
         ammo={0: 1, 1: -1},
     )
     _run_turn(enemy, rng_pin=1, monkeypatch=monkeypatch)
-    assert shots == ["heavy_missile", "heavy_laser", "heavy_laser"]
+    assert shots == ["heavy_missile", "heavy_laser", "heavy_laser", "heavy_laser"]
     assert enemy.ap_remaining == 0
     assert enemy.weapon_ammo[0] == 0
 
 
 def test_thin_power_pool_reads_as_the_low_draw_volley(monkeypatch):
     """The volley composes under the shared budget: with power for one
-    heavy shot the ship dumps it, then steps down to the light set —
-    a fat pool dumps the rack, a thin one reads low-draw."""
+    heavy shot plus one light, the opening action dumps BOTH (each
+    pays its own power), then the dry ship spends its longer AP
+    remainder dodging — a fat pool dumps the rack every action, a
+    thin one reads one volley then dances (doc 56 SETTLED 24: the
+    action costs max-AP once, so 3 AP survive to reposition)."""
     shots = _record_shots(monkeypatch)
     enemy = _enemy(("heavy_laser", "light_laser"), ap=4, power=3)
     _run_turn(enemy, rng_pin=1, monkeypatch=monkeypatch)
     assert shots == ["heavy_laser", "light_laser"]
     assert enemy.power_pool == 0
     assert enemy.ap_remaining == 0      # power dry: leftover AP went to dodging
-    assert enemy.cells_moved_this_turn == 2
+    assert enemy.cells_moved_this_turn == 3
+
+
+
+# --- volley parity (doc 56 SETTLED 24) -----------------------------------------
+
+def _run_volley(state, enemy):
+    """Call the volley primitive directly on the fake state."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    return run(_ai._enemy_volley(
+        state, enemy,
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+
+
+def test_volley_ap_is_max_not_sum(monkeypatch):
+    """The burst-fire mirror's economy: one action over a 2-AP missile
+    and a 1-AP laser costs the MAX (2), never the sum (3) - and each
+    member pays its own power/ammo."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(
+        ("heavy_missile", "heavy_laser"), ap=4, power=6,
+        ammo={0: 1, 1: -1},
+    )
+    assert _run_volley(_turn_state(enemy, los=True), enemy) is None
+    assert shots == ["heavy_missile", "heavy_laser"]
+    assert enemy.ap_remaining == 2          # max(2, 1), not 3
+    assert enemy.power_pool == 4            # the laser's 2 drawn once
+    assert enemy.weapon_ammo[0] == 0        # the missile's round spent
+
+
+def test_volley_power_dry_member_skips_while_the_rest_fire(monkeypatch):
+    """Affordability gates per member: a heavy the thin pool cannot
+    fund skips while the light laser still rides the volley."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("heavy_laser", "light_laser"), ap=4, power=1)
+    _run_volley(_turn_state(enemy, los=True), enemy)
+    assert shots == ["light_laser"]
+    assert enemy.power_pool == 0
+
+
+def test_volley_re_gates_mid_volley_pool_decay(monkeypatch):
+    """The player mirror's per-slot re-gate (review blocking 1, doc
+    56 phase 5): pool 2 funds the heavy (2) and the light (1) at
+    volley START, but the heavy's own drain empties the pool before
+    the light's turn — the re-check skips it, so the pool floors at 0
+    exactly as the player's can_fire-gated volley does, never -1."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("heavy_laser", "light_laser"), ap=4, power=2)
+    _run_volley(_turn_state(enemy, los=True), enemy)
+    assert shots == ["heavy_laser"]         # the light never fired
+    assert enemy.power_pool == 0            # floors at 0, never -1
+    assert enemy.ap_remaining == 3          # max over FIRED members only
+
+
+def test_volley_max_ap_counts_fired_members_only(monkeypatch):
+    """Pin precision (re-review minor 1): a mid-volley SKIPPED member
+    contributes no AP — the max is over FIRED members, mirroring the
+    player's skip (a failed can_fire slot adds 0 to _max_ap_cost).
+    Light (1 AP, 1 power) + plasma (2 AP, 4 power) at pool 4: the
+    light's own drain re-gate-skips the plasma, so the action costs
+    1 AP, never the all-members max 2."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(
+        ("light_laser", "plasma_cannon"), ap=4, power=4,
+        ammo={0: -1, 1: -1},
+    )
+    _run_volley(_turn_state(enemy, los=True), enemy)
+    assert shots == ["light_laser"]
+    assert enemy.power_pool == 3
+    assert enemy.ap_remaining == 3          # fired max (1), not 2
+
+
+def test_volley_stops_on_player_death_and_still_pays_full_ap(monkeypatch):
+    """The mirror of the player's early break: a mid-volley kill stops
+    the remaining members - and the killing volley still costs its
+    full max-AP (kill handling sits after the deduction)."""
+    from src.spacehack.combat import _ai
+
+    enemy = _enemy(("light_laser", "light_laser"), ap=4, power=10)
+    state = _turn_state(enemy, los=True)
+    shots: list[str] = []
+
+    async def _killing_tail(_state, _ei, slot, **_kw):
+        shots.append(_ei.weapons[slot].item_id)
+        _state.player_state["hull"] = 0
+        return "DEFEAT"
+
+    monkeypatch.setattr(_ai, "_enemy_shot_tail", _killing_tail)
+    assert _run_volley(state, enemy) == "DEFEAT"
+    assert shots == ["light_laser"]         # the second member never fired
+    assert enemy.ap_remaining == 3          # max-AP (1) still paid
+
+
+def test_volley_stamps_enemy_fired_once_never_on_an_empty_one(monkeypatch):
+    """``enemy_fired`` closes the Pirate opener window on the VOLLEY,
+    hit or miss - stamped once however many members fired (mirror of
+    ``_spend_opener``); a volley with no affordable member never burns
+    it."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser", "light_laser", "light_laser"), ap=4, power=10)
+    state = _turn_state(enemy, los=True)
+    state.enemy_fired = False
+    _run_volley(state, enemy)
+    assert shots == ["light_laser"] * 3
+    assert state.enemy_fired is True
+
+    dry = _enemy(("heavy_laser",), ap=4, power=0)
+    dry_state = _turn_state(dry, los=True)
+    dry_state.enemy_fired = False
+    assert _run_volley(dry_state, dry) is None
+    assert dry_state.enemy_fired is False
+
+
+def test_single_affordable_weapon_ship_volleys_exactly_as_single_fire(monkeypatch):
+    """The goal-1 tripwire's premise (ADVISE minor 5): a
+    single-affordable-weapon ship behaves exactly as the single-fire
+    model did - one member, max-AP == its AP, power drawn once."""
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser",), ap=4, power=10)
+    _run_volley(_turn_state(enemy, los=True), enemy)
+    assert shots == ["light_laser"]
+    assert enemy.ap_remaining == 3
+    assert enemy.power_pool == 9
+
+
+def test_out_of_range_member_still_rides_the_volley(monkeypatch):
+    """Inclusion is affordability alone (SETTLED 24): no range filter
+    on members - the out-of-range weapon fires its paid shot at a
+    penalized-but-live chance, exactly as the player's own volley
+    does. The state's distance is 6: the light laser's max is 5."""
+    from src.spacehack.combat._stats import calc_hit_chance
+
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(
+        ("heavy_missile", "light_laser"), ap=4, power=10,
+        ammo={0: 1, 1: -1},
+    )
+    _run_volley(_turn_state(enemy, los=True), enemy)
+    assert shots == ["heavy_missile", "light_laser"]
+    beyond = calc_hit_chance("light_laser", 20, 6.0, 0)
+    assert beyond < calc_hit_chance("light_laser", 20, 5.0, 0)  # penalized
+    assert beyond >= 5            # live at the floor, never an auto-miss
 
 
 # --- the aggressiveness dial (SETTLED 23/40) -----------------------------------
-
 
 def test_aggressive_spec_fires_every_affordable_ap(monkeypatch):
     """The fire extreme: agg 100 fires ~every decision point — a

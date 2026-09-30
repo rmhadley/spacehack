@@ -122,7 +122,8 @@ async def _engagement_decision(
 ) -> str:
     """The in-position decision point (doc 48 SETTLED 40): back off
     when hugged inside the band floor, else the aggressiveness roll —
-    fire the volley's top scorer, or one reposition step in band (the
+    fire the VOLLEY (doc 56 SETTLED 24: every affordable weapon, the
+    player's burst-fire mirror), or one reposition step in band (the
     dodge-tank). With nothing affordable, leftover AP goes to
     repositioning while a legal step exists — a power-dry ship dodges
     while it recharges. Returns ``"SPENT"``, ``"BREAK"`` (no verb
@@ -137,8 +138,8 @@ async def _engagement_decision(
     if _fire is not None and (
         _rep is None or RNG.randint(1, 100) < _esp.ai_aggressiveness
     ):
-        if await _enemy_attack(
-            state, _ei, _fire[0], **_steer, ctx=ctx,
+        if await _enemy_volley(
+            state, _ei, **_steer, ctx=ctx,
         ) == "DEFEAT":
             return "DEFEAT"
         return "SPENT"
@@ -287,16 +288,13 @@ def _ranked_weapons(
     wish list a power-dry ship dances to the top of (SETTLED 40)."""
     _dodge = _player_dodge(player_state)
     _ranked = []
-    for _slot, _entry in enumerate(_ei.weapons):
-        try:
-            _ws = find_weapon(_entry.item_id)
-        except KeyError:
-            continue
+    for _slot, _ws in _slot_weapons(_ei):
         if affordable_only and not _weapon_affordable(_ei, _slot, _ws):
             continue
         _score = score_weapon(
             _ws, distance, player_state.get("shields", 0),
-            _ei.pilot_gunnery, _dodge, weapon_quality=_entry.quality,
+            _ei.pilot_gunnery, _dodge,
+            weapon_quality=_ei.weapons[_slot].quality,
         )
         if _score > 0:
             _ranked.append((_score, _slot, _ws))
@@ -305,12 +303,16 @@ def _ranked_weapons(
 
 
 def _volley_picks(_ei, distance: float, player_state: dict):
-    """``(fire, band)``: the affordable top scorer to FIRE, and the
-    band weapon governing the dance (back-off floor + reposition
-    window). With nothing affordable the band falls back to the top
-    scorer IGNORING the budget — a power-dry ship dodges where it
-    will fight from when power returns. Both ``None`` = weaponless:
-    no decision point, breaks at once (SETTLED 40)."""
+    """``(fire, band)``: the affordable top scorer, and the band
+    weapon governing the dance (back-off floor + reposition window).
+    Doc 56 SETTLED 24: the fire pick's ROLE is the band/dance
+    governor and the fire-vs-dodge gate only — the engagement
+    decision fires the whole affordable VOLLEY (inclusion is
+    affordability alone, never the score filter). With nothing
+    affordable the band falls back to the top scorer IGNORING the
+    budget — a power-dry ship dodges where it will fight from when
+    power returns. Both ``None`` = weaponless: no decision point,
+    breaks at once (SETTLED 40)."""
     _fire = _select_fire_weapon(_ei, distance, player_state)
     if _fire is not None:
         return _fire, _fire[1]
@@ -339,16 +341,26 @@ def _player_dodge(player_state: dict) -> int:
     )
 
 
-def _pay_fire_costs(_ei, slot: int, ws) -> None:
-    """Every shot pays its real costs (SETTLED 39): AP, power for
-    energy/plasma, rounds for missiles — the player's own economy."""
-    _ap, _power, _ammo = weapon_costs(ws)
-    _ei.ap_remaining -= _ap
+def _pay_shot_consumables(_ei, slot: int, ws) -> None:
+    """The per-weapon power/ammo draw — what every fired member of a
+    volley pays itself (doc 56 SETTLED 24); the volley's AP is
+    max-once, so members never pay AP here."""
+    _power, _ammo = weapon_costs(ws)[1:]
     if _power:
         _ei.power_pool -= _power
     if _ammo:
         _left = _ei.weapon_ammo.get(slot, 0)
         _ei.weapon_ammo[slot] = max(0, _left - _ammo)
+
+
+def _pay_fire_costs(_ei, slot: int, ws) -> None:
+    """Every shot pays its real costs (SETTLED 39): AP, power for
+    energy/plasma, rounds for missiles — the player's own economy.
+    The SINGLE-SHOT model (doc 56 phase 5): the engagement fire path
+    volleys now; doc 54's flee reaction keeps this per-attack
+    primitive."""
+    _ei.ap_remaining -= weapon_costs(ws)[0]
+    _pay_shot_consumables(_ei, slot, ws)
 
 
 async def _advance_one_step(
@@ -443,17 +455,72 @@ async def _animate_enemy_shot(
     )
 
 
-async def _enemy_attack(
+def _slot_weapons(_ei):
+    """Every flown weapon slot as ``(slot, weapon_spec)`` — unknown
+    ids skip, the shared walk both candidate lists build on."""
+    for _slot, _entry in enumerate(_ei.weapons):
+        try:
+            yield _slot, find_weapon(_entry.item_id)
+        except KeyError:
+            continue
+
+
+def _affordable_members(_ei) -> list:
+    """The volley's inclusion walk (doc 56 SETTLED 24, ADVISE minor
+    6): weapon SLOTS by the per-weapon affordability check — never
+    ``_ranked_weapons`` wholesale, whose score filter would drop a
+    score-zero strip weapon the player mirror still fires (the score
+    filter governs the band/reaction pickers only)."""
+    return [
+        (_slot, _ws) for _slot, _ws in _slot_weapons(_ei)
+        if _weapon_affordable(_ei, _slot, _ws)
+    ]
+
+
+async def _enemy_volley(
+    state, _ei, *, hit_chances, evade_bonus, calc_cam, ctx,
+) -> str | None:
+    """Fire the affordable VOLLEY (doc 56 SETTLED 24): the player's
+    burst-fire mirror. Every affordable weapon fires once in slot
+    order — out-of-range members at the hit floor, exactly as the
+    player's own volley does — each paying its own power/ammo; AP =
+    max(ap_cost) over fired members, paid once at the end (a killing
+    volley still costs its full AP). Affordability RE-GATES per
+    member, mirroring the player's per-slot ``can_fire`` read of the
+    pool the earlier members drained — the pool never overdrafts. The
+    volley stops on player death. ``enemy_fired`` stamps once per
+    volley — the opener window closes on the volley, hit or miss
+    (mirror of ``_spend_opener``; a volley with no affordable member
+    never burns it)."""
+    _members = _affordable_members(_ei)
+    if not _members:
+        return None
+    state.enemy_fired = True
+    _max_ap = 0
+    _outcome = None
+    for _slot, _ws in _members:
+        if not _weapon_affordable(_ei, _slot, _ws):
+            continue  # mid-volley decay: an earlier member drained the pool
+        _outcome = await _enemy_shot_tail(
+            state, _ei, _slot,
+            hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam, ctx=ctx,
+        )
+        _pay_shot_consumables(_ei, _slot, _ws)
+        _max_ap = max(_max_ap, weapon_costs(_ws)[0])
+        if _outcome == "DEFEAT":
+            break
+    _ei.ap_remaining -= _max_ap
+    return _outcome
+
+
+async def _enemy_shot_tail(
     state, _ei, _slot: int, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
-    """Fire the enemy's weapon in ``_slot`` at the player (one attack),
-    paying its real costs. Returns ``"DEFEAT"`` when the hit destroys
-    the player.
-
-    Every attack stamps ``enemy_fired`` (doc 49 SETTLED 5): the shot
-    closes the Pirate opener window hit or miss, before resolution.
-    """
-    state.enemy_fired = True
+    """The per-shot tail both fire paths share (doc 56 phase 5,
+    ADVISE minor 8): resolve → animate → log/apply the hit. Stamps and
+    cost models belong to the callers — the single shot stamps per
+    attack and pays per shot; the volley stamps once and pays
+    power/ammo per member plus max-AP once."""
     _entry = _ei.weapons[_slot]
     _wid = _entry.item_id
     (
@@ -464,16 +531,36 @@ async def _enemy_attack(
     await _animate_enemy_shot(
         state, _ei, _wid, _e_hit, _e_dmg_popup, evade_bonus, calc_cam,
     )
-    _pay_fire_costs(_ei, _slot, _e_ws)
     if not _e_hit:
-        _line = _enemy_attack_line(_ei.name, _wid, _e_ws.name, hit=False)
-        _e_log(_line, state.log)
+        _e_log(_enemy_attack_line(_ei.name, _wid, _e_ws.name, hit=False), state.log)
         return None
     return await _apply_enemy_hit(
         state, _ei, _wid, _e_ws,
         _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing,
         hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam,
         ctx=ctx,
+    )
+
+
+async def _enemy_attack(
+    state, _ei, _slot: int, *, hit_chances, evade_bonus, calc_cam, ctx,
+) -> str | None:
+    """Fire the enemy's weapon in ``_slot`` at the player (one attack),
+    paying its real costs. Returns ``"DEFEAT"`` when the hit destroys
+    the player.
+
+    Every attack stamps ``enemy_fired`` (doc 49 SETTLED 5): the shot
+    closes the Pirate opener window hit or miss, before resolution.
+    The SINGLE-SHOT primitive (doc 56 phase 5): the engagement
+    decision fires the volley mirror instead; doc 54's flee reaction
+    is this consumer and keeps its shape — one top-scoring reach
+    weapon, stamped and paid per attack."""
+    state.enemy_fired = True
+    _e_ws = find_weapon(_ei.weapons[_slot].item_id)
+    _pay_fire_costs(_ei, _slot, _e_ws)
+    return await _enemy_shot_tail(
+        state, _ei, _slot,
+        hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam, ctx=ctx,
     )
 
 

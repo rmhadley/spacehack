@@ -185,6 +185,24 @@ def test_volley_every_in_range_hostile_fires_once(monkeypatch):
         _release_space_state()
 
 
+def test_reaction_still_stamps_the_opener_window(monkeypatch):
+    """Doc 54 shape preserved under volley parity (doc 56 phase 5,
+    ADVISE minor 4): the flee reaction keeps its single-shot consumer
+    ``_enemy_attack`` and stamps ``enemy_fired`` itself — the Pirate
+    opener window closes on a flee reaction, hit or miss."""
+    shots = _record_shots(monkeypatch)
+    game_map = _open_map()
+    reactor = _enemy("Reactor", world.Position(3, 4))
+    state, ctx = _space_state(game_map, world.Position(2, 4), [reactor])
+    try:
+        assert state.enemy_fired is False
+        assert run(_rules_space.reaction_volley(ctx, game_map)) is False
+        assert shots == ["Reactor"]
+        assert state.enemy_fired is True
+    finally:
+        _release_space_state()
+
+
 def test_volley_requires_los(monkeypatch):
     shots = _record_shots(monkeypatch)
     game_map = _open_map()
