@@ -346,11 +346,15 @@ nobody designs against a ghost.
   (`_enemy_skills` — targeting/gyro count), flown weapons AND
   modules as quality-rolled `StoredEquipment`, ammo keyed by weapon
   slot; `pilot_*`/`min_power_gen` retired from the spec
-  (TypeError-pinned). Doc 56: the NPC side is untouched through
-  phase 4 — enemy loadouts fly no placements; the ONE NPC-side
-  effect is upkeep authoring lowering power pools for specs flying
-  upkept modules (probe-refereed, player-favor). NPC grid parity
-  (sizes + power on specs) is doc 56 phase 5, pending.
+  (TypeError-pinned). Doc 56 phase 2: upkeep authoring lowered power
+  pools for specs flying upkept modules (probe-refereed,
+  player-favor). Doc 56 phase 5 (NPC grid parity, LANDED): every
+  spec's kit must PACK its hull grid and rest at net >= 0 at base
+  quality (two permanent lints, `tests/test_space_scale.py`);
+  `pirate_warlord` re-authored without the smuggler hold to fit
+  (23/30, SETTLED 22). Enemies still fly no placements in combat —
+  parity is lint-level; magnitudes were deliberately untouched
+  (phase 4 calibrates against the probe).
 - **Combat math** — fractional AP in twentieths with banked carry
   (both sides); hit = accuracy + gunnery/2 + close bonus − range
   penalties − dodge, clamp 5–95; dodge +5%/cell moved (cap 30) —
@@ -381,18 +385,28 @@ nobody designs against a ghost.
   `start_enemy_turn`; the paid divert stays unset — Tier 1, doc
   48.7).
 - **Combat AI** — per-ENEMY AP loop: advance when beyond own
-  `ai_preferred_range` or no LOS, else fire; fights to the death
-  (`combat/_ai.py`). HONEST FIRE (doc 48.7): every shot pays real
-  AP/power/ammo through the shared `weapon_costs` table (misses
+  `ai_preferred_range` or no LOS, else the aggressiveness-gated
+  engagement decision (fire vs reposition; fights to the death)
+  (`combat/_ai.py`). VOLLEY FIRE (doc 56 SETTLED 24, the player's
+  burst-fire mirror): the fire action fires EVERY affordable weapon
+  once in slot order — per-weapon power/ammo paid by each member, AP
+  = max(ap_cost) paid once; a volley with nothing affordable never
+  stamps the Pirate opener. HONEST FIRE (doc 48.7): every shot pays
+  real costs through the shared `weapon_costs` table (misses
   included; the player's `can_afford_action` reads the same table);
-  weapons[0] unaffordable walks the list to the FIRST affordable —
-  unaffordable entries skipped, never waited on; LOS stays a firing
-  precondition (a blocked no-LOS step breaks the turn — never fires
-  through cover); nothing affordable ends the turn. **Dead data:**
-  `ai_aggressiveness` unread (doc 48 rules it the future
-  fire-vs-reposition dial); `ai_flee_threshold` RETIRED in doc 48
-  phase 3 (field deleted, TypeError-pinned; fleeing ruled out of
-  space combat, SETTLED 20 — doc 34 folded there).
+  the score-ranked pickers govern the band/dance and the flee
+  reaction only — volley INCLUSION is affordability alone (a
+  score-zero strip weapon rides the volley when another affordable
+  weapon passes the engagement gate; an ALL-zero affordable set never
+  volleys — it repositions per SETTLED 40);
+  out-of-range members fire at the penalized floor, exactly as the
+  player's own volley does; LOS stays a firing precondition (a
+  blocked no-LOS step breaks the turn — never fires through cover).
+  Doc 54's flee reaction keeps its single-shot consumer
+  (`_enemy_attack`, one top-scoring reach weapon, opener stamped per
+  attack). `ai_flee_threshold` RETIRED in doc 48 phase 3 (field
+  deleted, TypeError-pinned; fleeing ruled out of space combat,
+  SETTLED 20 — doc 34 folded there).
 - **Reinforcements** — per-round re-detection joins newly triggered
   squads mid-fight (`combat/_rules_space.check_reinforcements`);
   joiners build from their OWN spec through the one enemy
@@ -1349,8 +1363,11 @@ nobody designs against a ghost.
   editor; buys and storage installs HAND OFF into the editor's
   cursor), and loads normalize illegal grids by stripping offenders
   to storage (`ship_fitting.py`); the player-side slot guards and
-  slot-count summaries are RETIRED — `weapon_slots`/`module_slots`
-  remain catalog fields only for the NPC lint until phase 5.
+  slot-count summaries are RETIRED, and doc 56 phase 5 deleted the
+  `weapon_slots`/`module_slots` catalog fields outright
+  (TypeError-pinned) — the fitting grid is the ONE capacity, and the
+  NPC side reads it through the same packer/power lints the player's
+  start loadouts do (`tests/test_space_scale.py`).
 - **Ship layouts** — authored grammar: silhouette-first `{###}`
   hull (LOS-transparent), void tiles, BFS-validated; exactly three
   ship interiors ship (`data/layouts/`: `freightliner_a`,
