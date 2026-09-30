@@ -7,6 +7,9 @@ the player). Advisor ADVISE pass folded same day (12 issues: catches
 the user the same day — SETTLED 11/12). Refine pass same day: open
 questions 1 and 3 settled (SETTLED 13/14), the pre-implementation
 audit live-verified, phase-1 Implementation brief proposed.
+Phase 1 BUILT same day (`/implement-phase 56.1`): brief ADVISE-folded
+(2 blocking + 7 minor, all dispositioned below), gate green 3308,
+commits de06db72/dd33ce26/a96b88cc/1c3b7c18. PLAYTEST PENDING.
 
 ## Overview
 
@@ -288,7 +291,7 @@ Worked check (the motivating cases):
 
 ## Phases
 
-- [ ] **1. Catalog data pass (geometry only)** — grid dims on the 6
+- [x] **1. Catalog data pass (geometry only)** — grid dims on the 6
   hulls, sizes on all weapons + modules; the size table above as the
   starting point; lints: every item sized (covering — or explicitly
   exempting — the auto-registered `breach_charge_test` fixture weapon,
@@ -305,6 +308,24 @@ Worked check (the motivating cases):
   PLAYTEST: a rendered fixture of each hull grid with its start loadout
   placed — open each fixture and eyeball the shapes (the concrete user
   step, per the advisor's conformance note).
+  BUILT 2026-09-30 (`/implement-phase 56.1`): gate green **3308**
+  (14 new tests), commits `de06db72` (spec fields + loot-quality
+  allowlist) / `dd33ce26` (dims + 39 sizes) / `a96b88cc`
+  (`fitting.py` + lints) / `1c3b7c18` (render tool). Brief ADVISE-folded
+  pre-build (2 blocking — the loot-quality pin test + the census —
+  both independently hit and fixed; 7 minors folded: first_fit
+  primitive + auto_fit fold, dims/sizes pinned verbatim, family
+  coverage assert, mk-chain-only monotonicity, dead-content guard,
+  render tool via auto_fit only, family table stays test-side).
+  REVIEW pass: REQUEST_CHANGES → em-dashes in the tool's printed
+  headers fixed (CP437, doc-56 catch-9 class); item-size pin adopted
+  (minor 3); start-loadout resolver duplication test-vs-tool ACCEPTED
+  for phase 1 — phase 2 gets four more stamping sites and must extract
+  ONE shared resolver at the first third caller (minor 2, recorded).
+  PLAYTEST PENDING (checklist = the brief's checkpoint).
+  SYSTEMS.md: deferred to the phase-2/3 closes by design — phase 1
+  adds no player-facing mechanic (`fitting.py` has no live callers);
+  the slot-system entries stay authoritative until placements land.
 - [ ] **2. Fitting model + gate + upkeep data** — upkeep authors WITH
   the gate, so the first power change is already guarded (companion to
   advisor catch 1); `OwnedShip` placements; the resting gate
@@ -353,7 +374,7 @@ in the same commit ("Ship ops", "Space combat init — parity mirror",
 and "Spec-sheet buy modal" are all in scope by phase 3 — advisor
 catch 11).
 
-## Implementation brief — Phase 1 (PROPOSED 2026-09-30)
+## Implementation brief — Phase 1 (PROPOSED 2026-09-30; ADVISE-folded + BUILT same day, `/implement-phase 56.1`)
 
 Geometry-only catalog pass. Zero behavior change: no live seam reads
 the new fields, and upkeep data does NOT land (phase 2, advisor
@@ -362,7 +383,13 @@ catch 1).
 **Scope (files/hook points)**
 1. `src/spacehack/data/ships/__init__.py` — `Ship` gains `grid_w`/
    `grid_h` (int, sentinel default 0 = unsized; the lint fails on 0,
-   so forgotten authoring cannot silently pass as 1×1).
+   so forgotten authoring cannot silently pass as 1×1). **ADVISE
+   blocking 1 (folded)**: `tests/test_loot_quality.py`'s
+   `test_module_bonus_fields_pin_the_module_spec_axes` reads the
+   ModuleSpec field set implicitly — the new fields join the test's
+   `non_bonus` allowlist (catalog-fixed like price), NEVER
+   `_MODULE_BONUS_FIELDS` (quality must never scale geometry,
+   SETTLED 5). Landed in de06db72.
 2. `src/spacehack/data/ships/core.py` — dims per the ruled table:
    starter 3×3, scout 4×3, hauler 4×4, cruiser 5×4, frigate 6×5
    (SETTLED 13), freighter 6×5.
@@ -371,17 +398,24 @@ catch 1).
    same sentinel-defaulted `grid_w`/`grid_h`.
 4. Size authoring across the catalogs — `lasers.py` (3), `missiles.py`
    (3), `plasma.py` (1), `breach.py` (breach_charge_test 1×1),
-   `systems.py` (26), `engines.py` (5), `smuggler.py` (4) — the draft
-   tables verbatim.
-5. NEW `src/spacehack/fitting.py` — pure geometry only: an occupancy
-   grid, placement legality (bounds + overlap), and one deterministic
-   first-fit packer `auto_fit`. No ctx, no `OwnedShip` mutation, no
-   gameplay callers this phase (lints + render tool only).
+   `systems.py` (22), `engines.py` (5), `smuggler.py` (4) — the draft
+   tables verbatim. (ADVISE blocking 2: census corrected — 31 modules,
+   not 32/26.)
+5. NEW `src/spacehack/fitting.py` — pure geometry only: a `Placement`
+   record + occupancy sets, placement legality (bounds + overlap +
+   non-positive-size rejection), and ONE deterministic single-item
+   first-fit primitive `first_fit` with `auto_fit` as a fold over it
+   (ADVISE minor 3: phase-2 installs place one item into a partially
+   occupied grid — primitive + fold, one seam, two consumers). Plain
+   int/tuple inputs, no catalog imports, no ctx, no `OwnedShip`
+   mutation, no gameplay callers this phase (lints + render tool only).
 6. NEW `tests/test_fitting_geometry.py` — the lints + packer units.
 7. NEW `tools/fitting_render.py` — prints each hull's grid with its
    start loadout placed as letter blocks (S/R/T/G/C/A/H families,
    L/M/P/E weapons, `.` empty — open question 1's proposal gets its
-   first eyeball here).
+   first eyeball here). Builds grids ONLY via `fitting.auto_fit` +
+   occupancy helpers, never its own placement loop (ADVISE minor 5);
+   output CP437-safe ASCII (REVIEW blocking 1: em-dashes → hyphens).
 
 **Build order**: spec fields → hull dims → item sizes → `fitting.py`
 → tests → render tool → `make check`.
@@ -398,12 +432,19 @@ resolved).
 **Required tests (permanent — AC5)**: every registered item sized
 (ints ≥ 1, catching sentinels); mk-monotonic sizes per family (shield,
 targeting, gyro, cargo, armor, smuggler, reactor — w and h each
-weakly non-decreasing by mk); every hull's start loadout packs via
-`auto_fit`; hull dims within the render-budget ceiling (grid_w ≤ 8,
-grid_h ≤ 6 — every ruled dim fits with margin; phase 3 may raise it
-deliberately); packer units (exact fit, no-fit, overlap rejection,
-determinism). Pure-function contract: `fitting.py` tests land
-same-commit.
+weakly non-decreasing by mk; chains are the mk ladders ONLY —
+capacitor/recharger/heavy_reactor sit outside as singles, ADVISE
+minor 4c); family-table coverage asserted against the registry
+(ADVISE 4b — a future `shield_mk5` cannot dodge the lint silently);
+hull dims pinned verbatim to the ruled table (ADVISE 4a) and item
+sizes pinned verbatim likewise (REVIEW minor 3 — a monotone-preserving
+mid-chain drift must be a deliberate edit); every hull's start loadout
+packs via `auto_fit`; hull dims within the render-budget ceiling
+(grid_w ≤ 8, grid_h ≤ 6 — every ruled dim fits with margin; phase 3
+may raise it deliberately); dead-content guard — every item fits at
+least one hull (ADVISE 4d); packer units (exact fit, no-fit, overlap
+rejection, determinism). Pure-function contract: `fitting.py` tests
+land same-commit.
 
 **Stop point (do NOT start)**: no `OwnedShip` changes, no placement
 fields, no save/parser changes, no power gate, no upkeep data, no UI
@@ -495,11 +536,16 @@ brief). Every advisor-catch anchor confirmed:
   test-side fixture — the every-item-sized lint covers it (1×1); no
   exemption mechanism needed.
 - **Census**: 6 hulls (`data/ships/core.py`), 8 weapons (lasers 3,
-  missiles 3, plasma 1, breach 1), 32 modules (systems 26, engines 5,
-  smuggler 4); every id maps to a draft size-table row. No
-  `WeaponSpec`/`ModuleSpec`/`Ship` construction sites outside `data/`
-  (rg over src/tests/tools — all hits are `OwnedShip`). The NPC slot
-  lint `test_every_loadout_fits_its_hull_slots`
+  missiles 3, plasma 1, breach 1), **31 modules (systems 22, engines
+  5, smuggler 4)**; every id maps to a draft size-table row.
+  (Corrected at build time + ADVISE blocking 2: this audit originally
+  said "32 modules (systems 26...)" — internally inconsistent and
+  wrong; the registry is ground truth.) Construction sites: the only
+  spec construction outside `data/` is the keyword-based synthetic
+  `ModuleSpec` in `tests/test_loot_quality.py:176` (harmless — and its
+  field-set pin test now allowlists the grid fields; ADVISE blocking
+  1). The NPC slot lint
+  `test_every_loadout_fits_its_hull_slots`
   (`tests/test_space_scale.py:208`) reads slot counts via `find_ship`
   — green while the fields are retained.
 - **`debug_session.py` / `tools/save_debug.py`**: load through the
