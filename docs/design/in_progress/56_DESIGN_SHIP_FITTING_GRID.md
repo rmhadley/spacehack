@@ -79,9 +79,11 @@ gate-refused-switch disposition stands by-construction (raised, no
 objection). Seven in-play fixes landed during the playtest (see the
 fixes list above; SETTLED 20/21 among them). SYSTEMS.md closed in the
 same commit ("Ship ops", "Space combat init — parity mirror",
-"Spec-sheet buy modal"). Next: phase 5 (NPC parity) or phase 4
-(calibration) — ordering is open question 2, and the user's quote
-leans parity-first; brief via /refine-design 56.
+"Spec-sheet buy modal"). Next: phase 5 (NPC parity) FIRST,
+then calibration (ruled: "Yes, NPC parity first. Then I can get in to
+some fights and we can start talking balance. And we can use the
+balance combat sim tool to also measure."); brief via
+/refine-design 56.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -469,6 +471,13 @@ Worked check (the motivating cases):
 
 ## Phases
 
+BUILD ORDER RULED 2026-09-30 (user, at the merged playtest pass):
+"Yes, NPC parity first. Then I can get in to some fights and we can
+start talking balance. And we can use the balance combat sim tool to
+also measure." — phase 5 (NPC parity) builds BEFORE phase 4
+(calibration); the numbers stay untouched until NPCs fly the grid,
+then one balance pass over both sides with the probe as referee.
+
 - [x] **1. Catalog data pass (geometry only)** — grid dims on the 6
   hulls, sizes on all weapons + modules; the size table above as the
   starting point; lints: every item sized (covering — or explicitly
@@ -615,12 +624,17 @@ Worked check (the motivating cases):
   power pressure; re-runs the phase-2 power lints after every
   magnitude change (advisor catch 8); the deferred magnitude questions
   (shield bonus vs enemy damage) land here or get their own doc with
-  the probe as referee.
+  the probe as referee. FOLLOWS PHASE 5 (ruled 2026-09-30): the user
+  fights the grid-flying NPCs first, then one balance pass over both
+  sides — balance_probe is the agreed referee — with the phase-2
+  gen-4 question and the volley-parity fix in the same conversation.
   PLAYTEST: the user's next space fight feels dangerous in the intended
   bands; probe rows show real mean hull damage.
 - [ ] **5. NPC parity** — NPC loadouts adopt sizes: the flat-tuple lint
   becomes packability + power validity; `weapon_slots`/`module_slots`
-  retire. (Ordering vs the enemy-volley parity fix: open question 4.)
+  retire. BUILDS BEFORE PHASE 4 (ruled 2026-09-30, above); the
+  enemy-volley parity fix joins the balance conversation that follows
+  (open question 2's leaning, same ruling).
 
 Each phase gets an Implementation brief at `/refine-design` time before
 any build. Every phase close amends the SYSTEMS.md entries it touched
