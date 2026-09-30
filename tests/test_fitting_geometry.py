@@ -107,6 +107,29 @@ def test_hull_dims_pinned_to_ruled_table():
     assert live == RULED_HULL_DIMS
 
 
+def test_hull_slot_fields_are_retired():
+    """Doc 56 phase 5: `weapon_slots`/`module_slots` are gone from the
+    Ship spec (TypeError-pinned like the retired `pilot_*` fields) —
+    the fitting grid is the one capacity. Unread since phase 3; the
+    NPC slot lint died with them."""
+    import pytest
+
+    from src.spacehack.data.ships import Ship
+
+    with pytest.raises(TypeError):
+        Ship(
+            id="x", name="X", char="s", fg=(1, 2, 3), price=1,
+            width=1, height=1, description="x", max_cargo=1,
+            weapon_slots=1,
+        )
+    with pytest.raises(TypeError):
+        Ship(
+            id="x", name="X", char="s", fg=(1, 2, 3), price=1,
+            width=1, height=1, description="x", max_cargo=1,
+            module_slots=1,
+        )
+
+
 def test_hull_grids_within_render_budget():
     # 8x6 ceiling from the phase-1 brief; phase 3 may raise it deliberately.
     for ship in list_ships():

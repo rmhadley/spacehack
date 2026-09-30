@@ -149,7 +149,7 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
     spec = find_ship("frigate")
     tabs = ("REPAIRS", "AMMO", "LOADOUT")
     # The reported surface: every mechanic tab AND the hangar's tabbed
-    # tabs, on a FULL loadout (all slots installed — the marker-heavy
+    # tabs, on a FULL loadout (the grid filled — the marker-heavy
     # worst case), plus the split manage screen. All at the 24-step
     # glyph height, none droppable.
     ctx.player_owned_ship.weapons = tuple(
@@ -159,7 +159,9 @@ def test_split_font_matches_the_text_screen_family(_pygame_headless):
     # cheaper than installed rows)
     ctx.player_owned_ship.modules = tuple(
         StoredEquipment("module", "targeting_mk3", quality=4, randart_seed=99)
-        for _ in range(spec.module_slots)
+        # grid-derived (doc 56 phase 5): enough 2x2 modules to fill
+        # the frigate's 30 cells (7 modules = 28 of 30)
+        for _ in range((spec.grid_w * spec.grid_h) // 4)
     )
     from src.spacehack.menus import _ship_menu
     for tab in range(3):

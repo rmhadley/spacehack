@@ -337,8 +337,9 @@ class OwnedShip:
 
     Lives next to the :class:`Ship` catalog because the player
     references a catalog entry by ``ship_id`` and reads the cap fields
-    (weapon_slots / module_slots / max_cargo / max_fuel) directly from
-    it — :class:`OwnedShip` only stores the per-ship mutable variables:
+    (max_cargo / max_fuel, and the fitting-grid dims for placement
+    legality) directly from it — :class:`OwnedShip` only stores the
+    per-ship mutable variables:
     cargo in use, current hull damage, current fuel, and the named
     weapons / modules attached. Empty-tuple defaults mean newly-bought
     ships start with no equipment attached but a full tank (set by the

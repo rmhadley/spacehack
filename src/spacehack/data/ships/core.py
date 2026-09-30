@@ -45,8 +45,6 @@ SHIPS: tuple[Ship, ...] = (
             "A modest starter vessel. Gets you where you need to go."
         ),
         speed=10,
-        weapon_slots=2,
-        module_slots=1,
         grid_w=3, grid_h=3,
         max_cargo=50,   # 5 × T1 delivery max (10)
         max_fuel=80,
@@ -80,8 +78,6 @@ SHIPS: tuple[Ship, ...] = (
             "A small, fast scoutship - quick on cargo runs, lightly armed."
         ),
         speed=14,
-        weapon_slots=4,
-        module_slots=2,
         grid_w=4, grid_h=3,
         max_cargo=100,  # 5 × T2 delivery max (20)
         max_fuel=100,
@@ -106,8 +102,6 @@ SHIPS: tuple[Ship, ...] = (
             "A long-range cargo hauler with roomy cargo bays."
         ),
         speed=7,
-        weapon_slots=2,
-        module_slots=2,
         grid_w=4, grid_h=4,
         max_cargo=400,  # merchant workhorse — massive hold
         max_fuel=80,
@@ -132,8 +126,6 @@ SHIPS: tuple[Ship, ...] = (
             "A well-armed cruiser - capable in a fight, well-shielded."
         ),
         speed=9,
-        weapon_slots=6,
-        module_slots=4,
         grid_w=5, grid_h=4,
         max_cargo=200,  # 5 × T3 delivery max (40)
         max_fuel=80,
@@ -158,8 +150,6 @@ SHIPS: tuple[Ship, ...] = (
             "Heavy warship with overwhelming firepower and thick armour."
         ),
         speed=8,
-        weapon_slots=8,
-        module_slots=6,
         # 6x5 ruled (doc 56 SETTLED 13): "overwhelming firepower" on 30
         # cells means many-medium volleys or few-big-plus-support — eight
         # 2x2+ heavies never all fit, which is the defense-vs-offense
@@ -189,8 +179,6 @@ SHIPS: tuple[Ship, ...] = (
             "Massive cargo hauler for the serious trader."
         ),
         speed=6,
-        weapon_slots=3,
-        module_slots=4,
         grid_w=6, grid_h=5,
         max_cargo=700,  # endgame merchant — massive hold
         max_fuel=70,

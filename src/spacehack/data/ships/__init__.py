@@ -25,8 +25,6 @@ class Ship:
     width: int       # footprint width in tiles; >= 1; collision only
     height: int      # footprint height in tiles; >= 1; collision only
     description: str
-    weapon_slots: int   # how many weapons this hull can mount
-    module_slots: int   # how many ship modules this hull can install
     max_cargo: int      # cargo capacity of the hull
     max_fuel: int = 100  # tank capacity; consumed by jump gates
     # Travel speed — moves per day in overworld space travel.
