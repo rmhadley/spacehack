@@ -21,8 +21,7 @@ from src.spacehack.menus import _ship_buy
 
 _SECTIONS = ("PERFORMANCE", "COMBAT", "CAPACITY")
 _STAT_LABELS = (
-    "Speed", "Fuel tank", "Hull", "Shields", "Power/turn",
-    "Weapon slots", "Module slots", "Cargo",
+    "Speed", "Fuel tank", "Hull", "Shields", "Power/turn", "Cargo",
 )
 
 
@@ -84,9 +83,15 @@ def test_compare_column_matches_owned_base_spec():
     assert _yours("Hull") == str(scout.base_hull)
     assert _yours("Shields") == f"{scout.base_shield_max} + {scout.base_shield_recharge}/turn"
     assert _yours("Power/turn") == str(scout.base_power_gen)
-    assert _yours("Weapon slots") == str(scout.weapon_slots)
-    assert _yours("Module slots") == str(scout.module_slots)
     assert _yours("Cargo") == str(scout.max_cargo)
+
+
+def test_slot_rows_retired():
+    """Doc 56 SETTLED 18: the slot-count summaries are gone — the
+    fitting grid replaced them, and nothing in the ledger speaks
+    slots."""
+    frame = _frame("cruiser")
+    assert not any("slot" in line.lower() for line in frame.body)
 
 
 def test_shipless_buy_has_no_compare_column_and_no_marker():

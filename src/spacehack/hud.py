@@ -24,8 +24,7 @@ Space mode (when ``owned_ship`` is provided):
     |     REGION     | Fuel 90/100|
     |                 | Hull 100/100|
     |                 | Cargo 0/10 |
-    |                 | Wpn 0/2  |
-    |                 | Mod 0/1  |
+    |                 | Spd 5      |
     |                 | -------- |
     |                 | G - Go To|
     |                 | P - Pickup|
@@ -362,12 +361,13 @@ def _render_ship_identity(console, hud_x, y, *, ship_name, location, date_str) -
     return y + 1
 
 
-def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, weapons_n, weapon_slots, modules_n, module_slots, eff_spd, stats, ground_stats) -> int:
+def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull, cargo_used, max_cargo, eff_spd, stats, ground_stats) -> int:
     """Paint the space-mode stat rows (fuel…speed + cargo); return next row.
 
     Fuel / Hull / Cargo share one label column and one value column
-    (10-cell bars) and all read cur/max; the equipment counts collapse
-    onto a single row.
+    (10-cell bars) and all read cur/max. The slot-count summaries
+    retired with doc 56 SETTLED 18 — the line keeps Spd only; power
+    detail lives on the fitting screen.
     """
     _fuel_fg = COLOR_FUEL_OK if fuel >= 10 else COLOR_FUEL_LOW
     console.print(
@@ -391,11 +391,7 @@ def _render_ship_stat_rows(console, hud_x, y, *, fuel, max_fuel, hull, max_hull,
     y += 1
     console.print(
         x=hud_x, y=y,
-        string=(
-            f"Wpn {weapons_n}/{weapon_slots}  "
-            f"Mod {modules_n}/{module_slots}  "
-            f"Spd {eff_spd}"
-        )[:HUD_TEXT_MAX],
+        string=f"Spd {eff_spd}"[:HUD_TEXT_MAX],
         fg=COLOR_SHIP_VALUE,
     )
     y += 3
@@ -420,8 +416,6 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
     hull_cur, hull_max = _ship_mod.hull_cur_max(owned_ship, ship_catalog)
     cargo_used, max_cargo = _cargo_used_max(owned_ship, ship_catalog, ctx)
     eff_spd = _ship_mod.effective_speed(ship_catalog, owned_ship)
-    weapons_n = len(getattr(owned_ship, 'weapons', ()) or ())
-    modules_n = len(getattr(owned_ship, 'modules', ()) or ())
     y = _render_ship_identity(console, hud_x, 2, ship_name=ship_name, location=location, date_str=date_str)
     y = _render_ship_stat_rows(
         console, hud_x, y,
@@ -429,8 +423,6 @@ def _render_space_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, 
         max_fuel=getattr(ship_catalog, 'max_fuel', 1),
         hull=hull_cur, max_hull=hull_max,
         cargo_used=cargo_used, max_cargo=max_cargo,
-        weapons_n=weapons_n, weapon_slots=getattr(ship_catalog, 'weapon_slots', 0),
-        modules_n=modules_n, module_slots=getattr(ship_catalog, 'module_slots', 0),
         eff_spd=eff_spd, stats=stats, ground_stats=ground_stats,
     )
     y += 1

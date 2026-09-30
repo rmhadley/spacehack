@@ -20,6 +20,8 @@ def _shield_stat(spec) -> str:
 
 # The sheet: label, value renderer, and the number the bar/verdict read
 # (shields compare by max). Numbers are BASE spec, never installed mods.
+# The slot-count rows retired with doc 56 SETTLED 18 — hull dims and
+# power are the sheet's combat facts now.
 _SECTIONS = (
     ("PERFORMANCE", (
         ("Speed", lambda s: f"{s.speed} moves/day", lambda s: s.speed,
@@ -33,10 +35,6 @@ _SECTIONS = (
         ("Shields", _shield_stat, lambda s: s.base_shield_max, _shield_stat),
         ("Power/turn", lambda s: str(s.base_power_gen), lambda s: s.base_power_gen,
          lambda s: str(s.base_power_gen)),
-        ("Weapon slots", lambda s: str(s.weapon_slots), lambda s: s.weapon_slots,
-         lambda s: str(s.weapon_slots)),
-        ("Module slots", lambda s: str(s.module_slots), lambda s: s.module_slots,
-         lambda s: str(s.module_slots)),
     )),
     ("CAPACITY", (
         ("Cargo", lambda s: str(s.max_cargo), lambda s: s.max_cargo,
