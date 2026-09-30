@@ -78,8 +78,12 @@ class TestMechanicFrameTabs:
         assert frame.rows
         assert all(row.action.startswith("AMMO:") for row in frame.rows)
 
-    def test_loadout_tab_shows_parts_and_manage_row(self):
-        ctx = self._ctx(("light_laser", "light_missile"))
+    def test_loadout_tab_shows_manage_row_and_read_only_grid(self):
+        from src.spacehack.ship import StoredEquipment
+        ctx = self._ctx((
+            StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),
+            StoredEquipment("weapon", "light_missile", grid_x=1, grid_y=0),
+        ))
         tabs = _mechanic._mechanic_tabs([1])
         loadout_index = tabs.index("LOADOUT")
         frame = _mechanic._mechanic_frame(
@@ -87,40 +91,30 @@ class TestMechanicFrameTabs:
         )
 
         assert frame.active_tab == loadout_index
-        actions = [row.action for row in frame.rows]
-        # The manage row leads the tab under its own header, so it reads
-        # as an action rather than an extra module slot.
+        # The manage row leads the tab under its own header; doc 56
+        # SETTLED 19's read-only letter grid follows (the slot lists
+        # died with SETTLED 18).
         assert frame.rows[0].text == "PARTS MARKET"
-        assert actions.index("LOADOUT") < next(
-            i for i, row in enumerate(frame.rows) if "WEAPON SLOTS" in row.text
-        )
-        assert any("WEAPON SLOTS" in row.text for row in frame.rows)
+        assert frame.rows[1].action == "LOADOUT"
+        grid = frame.rows[2:]
+        assert all(not row.selectable for row in grid)
+        assert any("L" in row.text for row in grid)
+        assert not any("SLOTS" in row.text.upper() for row in frame.rows)
+
+    def test_ammo_rows_label_the_weapon_not_the_slot(self):
+        # Doc 56 phase 3: "Slot n:" vocabulary retires with the slots.
+        ctx = self._ctx(("light_laser", "light_missile"))
+        row = _mechanic._ammo_row(ctx.player_owned_ship, 1, ctx)
+        assert row.text.startswith("Light Missile")
+        assert "Slot" not in row.text
+        assert row.text.endswith("(4/4)")
 
 
 class TestLoadoutWeaponQualityDisplay:
-    """The LOADOUT tab's weapon rows read the flown instance's tier:
-    tier-scaled damage AND the tier's name colour (user report
-    2026-09-28 — an Overclocked Medium Laser showed base stats,
-    uncoloured)."""
-
-    def test_weapon_row_scales_damage_and_colours_at_tier(self):
-        from src.spacehack.data.quality import QUALITY_COLORS
-        from src.spacehack.menus._ship_menu import _weapon_row
-
-        row = _weapon_row(SimpleNamespace(item_id="medium_laser", quality=2))
-        assert row.text == "Overclocked Medium Laser"
-        assert "Damage 8" in row.detail        # ceil(6 x 1.30), not 6
-        assert "Accuracy 94%" in row.detail    # SETTLED 2: accuracy scales too
-        assert row.runs == (
-            ("Overclocked Medium Laser", QUALITY_COLORS[2]),
-        )
-
-    def test_weapon_row_base_reads_plain(self):
-        from src.spacehack.menus._ship_menu import _weapon_row
-
-        row = _weapon_row(SimpleNamespace(item_id="medium_laser", quality=0))
-        assert row.runs is None
-        assert "Damage 6" in row.detail
+    """The flown instance's tier still reads on the loadout surfaces
+    (user report 2026-09-28): the grid editor's hover readout and the
+    parts market's rows scale to the instance (the letter itself
+    colours by tier — pinned in test_grid_editor)."""
 
     def test_market_weapon_detail_scales_at_tier(self):
         from src.spacehack.data.weapons import find_weapon

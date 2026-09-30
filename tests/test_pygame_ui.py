@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from tests.support.asyncutil import run, as_async
-from tests.support.module_entries import module_entry
 
 import dataclasses
 from types import SimpleNamespace
@@ -3408,16 +3407,21 @@ def test_armory_pygame_action_returns_keep_open_after_buy(monkeypatch):
     assert messages
 
 
-def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
+def test_hangar_loadout_tab_renders_the_read_only_letter_grid():
+    """Doc 56 SETTLED 19: the hangar LOADOUT tab is the read-only
+    letter grid — tier-coloured letters at their anchors, no rows, no
+    interaction."""
     from src.spacehack.menus import _ship_menu
-    from src.spacehack.ship import OwnedShip
+    from src.spacehack.ship import OwnedShip, StoredEquipment
 
     ship = _ship_menu.ship_module.find_ship("starter")
     ctx = SimpleNamespace(
         player_owned_ship=OwnedShip(
             ship_id="starter",
-            weapons=("light_laser",),
-            modules=(module_entry("shield_mk1"),),
+            weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
+            modules=(
+                StoredEquipment("module", "shield_mk1", grid_x=1, grid_y=0),
+            ),
             fuel=12,
         ),
         stats=SimpleNamespace(credits=321),
@@ -3428,20 +3432,15 @@ def test_hangar_loadout_tab_shows_installed_gear_and_empty_slots():
     assert frame.title.startswith("YOUR ")
     assert frame.tabs == ("SHIP", "CARGO", "LOADOUT")
     assert frame.active_tab == 2
-    assert frame.body == ()  # ship stats live on the SHIP tab
-    assert "WEAPON SLOTS" in [row.text for row in frame.rows]
-    assert "MODULE SLOTS" in [row.text for row in frame.rows]
-    laser_row = next(row for row in frame.rows if row.text == "Light Laser")
-    assert "Damage" in laser_row.detail
-    assert any(row.text == "[empty]" for row in frame.rows)
-    assert any(row.text == "Shield Mk. 1" for row in frame.rows)
-    assert all(row.action != "LAUNCH" for row in frame.rows)
+    assert frame.rows == ()  # read-only: nothing to select
+    # Laser 1x1 at (0,0), shield_mk1 2x2 at (1,0).
+    assert frame.body == ("L S S", ". S S", ". . .")
+    # Tier colour rides the runs (base letters paint plain).
+    assert frame.body_runs[1][0] == (". ", None)
     assert any("TAB ship" in hint for hint in frame.footer)
-    selectable = [row.text for row in frame.rows if row.selectable]
-    assert selectable == ["Light Laser", "Shield Mk. 1"]
 
 
-def test_hangar_loadout_tab_marks_empty_slots():
+def test_hangar_loadout_tab_empty_grid_is_all_dots():
     from src.spacehack.menus import _ship_menu
     from src.spacehack.ship import OwnedShip
 
@@ -3453,35 +3452,7 @@ def test_hangar_loadout_tab_marks_empty_slots():
 
     frame = _ship_menu._ship_hangar_frame(ctx, ship, tab=2, selected=0)
 
-    texts = [row.text for row in frame.rows]
-    assert "WEAPON SLOTS" in texts
-    assert "MODULE SLOTS" in texts
-    assert texts.count("[empty]") == 3  # 2 weapon slots + 1 module slot
-    assert all(not row.selectable for row in frame.rows)
-
-
-def test_slot_rows_render_installed_gear_beyond_slot_count():
-    from src.spacehack.menus import _ship_menu
-
-    rows = _ship_menu._slot_rows(1, ("light_laser", "light_laser"), _ship_menu._weapon_row)
-
-    assert [row.text for row in rows] == ["Light Laser", "Light Laser"]
-    assert all(row.selectable for row in rows)
-
-
-def test_slot_rows_mark_unknown_ids_and_empty_slots():
-    from src.spacehack.menus import _ship_menu
-
-    rows = _ship_menu._slot_rows(
-        2, (module_entry("not_a_real_module"),), _ship_menu._module_row,
-    )
-
-    assert rows[0].text == "not_a_real_module"
-    assert rows[0].detail == "Unknown module specification"
-    assert rows[1].text == "[empty]"
-    assert rows[1].detail == ""
-    assert rows[0].selectable is True
-    assert rows[1].selectable is False
+    assert frame.body == (". . .",) * 3
 
 
 def test_ship_hangar_pygame_maps_back_and_quit(monkeypatch):

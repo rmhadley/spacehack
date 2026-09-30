@@ -47,86 +47,24 @@ def _effective_power_gen(ship_spec, owned) -> int:
         ship_spec, getattr(owned, 'modules', ()) or (),
     )
 
-def _weapon_row(entry, ctx=None):
-    """Build one filled weapon-slot row (label + stats at its quality)."""
-    from .. import pygame_screen
-    from ..data.quality import effective_ship_weapon_spec
-    from ..ship import weapon_display_name
-    from ._loadout import _weapon_runs
 
-    weapon_id = getattr(entry, "item_id", entry)
-    quality = getattr(entry, "quality", 0)
-    try:
-        weapon = effective_ship_weapon_spec(weapon_id, quality)
-        detail = (
-            f"Damage {weapon.damage}   Accuracy {weapon.accuracy}%   "
-            f"Range {weapon.min_range}-{weapon.max_range}   "
-            f"AP {weapon.ap_cost}   Power {weapon.power_cost}"
-        )
-        if weapon.slot_type == "missile":
-            from ..ship import effective_missile_capacity
-            detail += f"   Ammo {effective_missile_capacity(weapon, ctx)}"
-        return pygame_screen.ScreenRow(
-            weapon_display_name(weapon_id, quality), detail, selectable=True,
-            runs=_weapon_runs(weapon_id, quality),
-        )
-    except KeyError:
-        return pygame_screen.ScreenRow(
-            weapon_id, "Unknown weapon specification", selectable=True,
-        )
+def _loadout_section(ctx, owned, ship):
+    """Build the LOADOUT tab's body, rows, and footer.
 
-def _module_row(entry):
-    """Build one filled module-slot row (name + detail at its quality)."""
-    from .. import pygame_screen
-    from ..ship import module_detail, module_display_name
+    Doc 56 SETTLED 19: the tab renders the same read-only letter grid
+    as the mechanic's editor, no interaction — the layout is visible
+    away from the mechanic."""
+    from .. import pygame_ui
+    from ..menus._grid_editor import read_only_rows
 
-    quality = getattr(entry, "quality", 0)
-    seed = getattr(entry, "randart_seed", None)
-    from ..menus._loadout import _module_runs
-
-    try:
-        return pygame_screen.ScreenRow(
-            module_display_name(entry.item_id, quality, seed),
-            module_detail(entry.item_id, quality, seed),
-            selectable=True,
-            runs=_module_runs(entry.item_id, quality, seed),
-        )
-    except KeyError:
-        return pygame_screen.ScreenRow(
-            str(getattr(entry, "item_id", entry)),
-            "Unknown module specification", selectable=True,
-        )
-
-def _slot_rows(slot_count: int, installed, make_row) -> tuple:
-    """Render every slot in one section: filled slots via ``make_row``,
-    empty ones as bare ``[empty]`` markers (the mechanic's My Ship
-    panel style)."""
-    from .. import pygame_screen
-
-    rows = [make_row(item) for item in installed]
-    rows.extend(
-        [pygame_screen.ScreenRow("[empty]", "", selectable=False)]
-        * max(0, slot_count - len(installed))
-    )
-    return tuple(rows)
-
-def _loadout_rows(owned, ship_spec, ctx=None):
-    """Build the read-only slot rows for the LOADOUT tab.
-
-    Mirrors the mechanic's My Ship panel: ``WEAPON SLOTS`` and
-    ``MODULE SLOTS`` headers, installed gear by name (selectable),
-    empty slots as bare ``[empty]`` (non-selectable).
-    """
-    from .. import pygame_screen
-
-    rows: list = [pygame_screen.ScreenRow("WEAPON SLOTS", selectable=False, header=True)]
-    rows.extend(_slot_rows(
-        ship_spec.weapon_slots, owned.weapons,
-        lambda entry: _weapon_row(entry, ctx),
-    ))
-    rows.append(pygame_screen.ScreenRow("MODULE SLOTS", selectable=False, header=True))
-    rows.extend(_slot_rows(ship_spec.module_slots, owned.modules, _module_row))
-    return tuple(rows)
+    pairs = read_only_rows(ship, owned)
+    body = tuple(text for text, _runs in pairs)
+    body_runs = tuple(runs for _text, runs in pairs)
+    rows = ()
+    footer = (pygame_ui.modal_hint(
+        pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
+    ),)
+    return body, rows, footer, body_runs
 
 def _faction_progress_bar(rep: int, width: int = 31) -> str:
     """Return the CP437-safe centered faction reputation bar."""
@@ -200,18 +138,6 @@ def _cargo_section(ctx, owned, ship):
     return body, rows, footer
 
 
-def _loadout_section(ctx, owned, ship):
-    """Build the LOADOUT tab's body, rows, and footer."""
-    from .. import pygame_ui
-
-    rows = _loadout_rows(owned, ship, ctx)
-    body = ()  # ship stats live on the SHIP tab
-    footer = (pygame_ui.modal_hint(
-        pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
-    ),)
-    return body, rows, footer
-
-
 def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
     """Build one tabbed hangar snapshot (SHIP / CARGO / LOADOUT tabs)."""
     from .. import pygame_screen, pygame_ui
@@ -228,10 +154,11 @@ def _ship_hangar_frame(ctx, ship: ship_module.Ship, tab: int, selected: int):
         1: _cargo_section,
         2: _loadout_section,
     }
-    body, rows, footer = sections.get(tab, _loadout_section)(ctx, owned, ship)
+    body, rows, footer, *extra = sections.get(tab, _loadout_section)(ctx, owned, ship)
+    body_runs = extra[0] if extra else ()
     return pygame_screen.ScreenFrame(
         title, body, rows, footer, selected,
-        tabs=_HANGAR_TABS, active_tab=tab,
+        tabs=_HANGAR_TABS, active_tab=tab, body_runs=body_runs,
     )
 
 async def _run_pygame_ship_hangar(ctx, ship: ship_module.Ship) -> ShipMenuAction | None:

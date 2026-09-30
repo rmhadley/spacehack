@@ -87,9 +87,10 @@ def _mechanic_tabs(missile_slots) -> tuple[str, ...]:
 
 
 def _ammo_row(owned, slot: int, ctx=None):
-    """Build one missile-slot ammo row (buy one round). The capacity
-    shown is the effective rack (the Bounty Hunter's double, doc 49
-    SETTLED 7) — the display must match what the buy actually fills."""
+    """Build one missile launcher's ammo row (buy one round). The
+    capacity shown is the effective rack (the Bounty Hunter's double,
+    doc 49 SETTLED 7) — the display must match what the buy actually
+    fills."""
     from .. import pygame_screen
     from ..ship import effective_missile_capacity
 
@@ -98,7 +99,7 @@ def _ammo_row(owned, slot: int, ctx=None):
     capacity = effective_missile_capacity(weapon, ctx)
     current = owned.weapon_ammo.get(slot, capacity)
     return pygame_screen.ScreenRow(
-        f"Slot {slot + 1}: {weapon.name} ({current}/{capacity})",
+        f"{weapon.name} ({current}/{capacity})",
         f"{weapon.ammo_price}$/round",
         f"AMMO:{slot}:1",
     )
@@ -152,9 +153,12 @@ def _ammo_section(ctx, owned, ship_rec, next_hint, missile_slots):
 
 
 def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
-    """Build the LOADOUT tab's rows, body, and footer."""
+    """Build the LOADOUT tab's rows, body, and footer.
+
+    Doc 56 SETTLED 19: the read-only letter grid under the Manage row
+    (the last slot-shaped surface died with SETTLED 18)."""
     from .. import pygame_screen, pygame_ui
-    from ._ship_menu import _loadout_rows
+    from ..menus._grid_editor import read_only_rows
 
     rows = (
         pygame_screen.ScreenRow("PARTS MARKET", selectable=False, header=True),
@@ -163,7 +167,10 @@ def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
             "Opens the parts market for this planet (weapons + modules).",
             "LOADOUT",
         ),
-    ) + _loadout_rows(owned, ship_rec, ctx)
+    ) + tuple(
+        pygame_screen.ScreenRow(text, selectable=False, runs=runs)
+        for text, runs in read_only_rows(ship_rec, owned)
+    )
     # No body line: it tipped the fitted font below every other tab
     # (playtest 2026-09-21) and restated the Manage row's detail.
     body = ()
