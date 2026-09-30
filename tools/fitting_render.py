@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Doc 56 phase-1 fixture: render each hull's fitting grid with its
-start loadout placed as letter blocks.
+"""Doc 56 fixture renderer: each hull's fitting grid with its start
+loadout placed as letter blocks.
 
 The glyph letters (doc 56 SETTLED 15): S/R/T/G/C/A/H module
 families, L/M/P/E weapons, '.' empty. Still deliberately NOT pinned
 by any test — phase 3's editor owns the in-game letter+colour
 treatment; this tool just renders fixtures.
 
-Placement always comes from ``fitting.auto_fit`` / ``fitting.footprint``
-— this tool never runs its own placement loop (doc 56 audit hotspot 2).
+Placement comes from ``ship.start_fitted_entries`` — the ONE shared
+start-loadout resolver (doc 56 phase 2); this tool never runs its
+own placement loop (doc 56 audit hotspot 2).
 
 Usage:
     python3 tools/fitting_render.py [hull_id ...]   # default: every hull
@@ -21,10 +22,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from src.spacehack.data.modules import find_module  # noqa: E402
 from src.spacehack.data.ships import find_ship, list_ships  # noqa: E402
-from src.spacehack.data.weapons import find_weapon  # noqa: E402
-from src.spacehack.fitting import auto_fit  # noqa: E402
+from src.spacehack.ship import start_fitted_entries  # noqa: E402
 
 # SETTLED 15's ruling. Shield capacitor/recharger fold into the
 # shield family letter; EMP gets its own E beside the missile M. A new
@@ -51,29 +50,26 @@ LETTERS = {
 }
 
 
-def _start_items(ship):
-    weapons = [(wid, find_weapon(wid)) for wid in ship.start_weapons]
-    modules = [(mid, find_module(mid)) for mid in ship.start_modules]
-    return [
-        (item_id, spec.grid_w, spec.grid_h, spec.name)
-        for item_id, spec in (*weapons, *modules)
-    ]
+def _spec_of(entry):
+    from src.spacehack.data.modules import find_module
+    from src.spacehack.data.weapons import find_weapon
+
+    finder = find_weapon if entry.item_type == "weapon" else find_module
+    return finder(entry.item_id)
 
 
 def render_ship(ship) -> str:
     """One hull's fixture: header, grid rows, legend."""
-    items = _start_items(ship)
-    placements = auto_fit(
-        ship.grid_w, ship.grid_h, [(i, w, h) for i, w, h, _ in items]
-    )
-    if placements is None:
+    weapons, modules = start_fitted_entries(ship)
+    entries = (*weapons, *modules)
+    if any(e.grid_x is None or e.grid_y is None for e in entries):
         return f"=== {ship.name} ({ship.id}) - START LOADOUT DOES NOT PACK ==="
-    names = {item_id: name for item_id, _, _, name in items}
-    paint = {
-        cell: LETTERS[placed.item_id]
-        for placed in placements
-        for cell in placed.cells()
-    }
+    paint = {}
+    for entry in entries:
+        spec = _spec_of(entry)
+        for cx in range(entry.grid_x, entry.grid_x + spec.grid_w):
+            for cy in range(entry.grid_y, entry.grid_y + spec.grid_h):
+                paint[(cx, cy)] = LETTERS[entry.item_id]
     used = len(paint)
     total = ship.grid_w * ship.grid_h
     lines = [
@@ -82,10 +78,11 @@ def render_ship(ship) -> str:
     ]
     for y in range(ship.grid_h):
         lines.append(" ".join(paint.get((x, y), ".") for x in range(ship.grid_w)))
-    for placed in placements:
+    for entry in entries:
+        spec = _spec_of(entry)
         lines.append(
-            f"  {LETTERS[placed.item_id]}  {names[placed.item_id]:26s} "
-            f"({placed.x},{placed.y}) {placed.w}x{placed.h}"
+            f"  {LETTERS[entry.item_id]}  {spec.name:26s} "
+            f"({entry.grid_x},{entry.grid_y}) {spec.grid_w}x{spec.grid_h}"
         )
     return "\n".join(lines)
 

@@ -162,22 +162,28 @@ def test_every_item_fits_at_least_one_hull():
         assert spec.grid_h <= tallest, spec.id
 
 
-def _start_loadout_items(ship):
-    weapons = [(wid, find_weapon(wid)) for wid in ship.start_weapons]
-    modules = [(mid, find_module(mid)) for mid in ship.start_modules]
-    return [
-        (item_id, spec.grid_w, spec.grid_h)
-        for item_id, spec in (*weapons, *modules)
-    ]
-
-
 def test_every_hull_start_loadout_packs():
+    from src.spacehack.ship import start_fitted_entries
+
     for ship in list_ships():
-        items = _start_loadout_items(ship)
-        placements = auto_fit(ship.grid_w, ship.grid_h, items)
-        assert placements is not None, ship.id
-        covered = occupancy(placements)
-        assert len(covered) == sum(w * h for _, w, h in items), ship.id
+        weapons, modules = start_fitted_entries(ship)
+        entries = (*weapons, *modules)
+        # Placed (stamped anchors), conflict-free, and inside the grid.
+        assert all(
+            e.grid_x is not None and e.grid_y is not None for e in entries
+        ), ship.id
+        covered: set = set()
+        for entry in entries:
+            spec = (
+                find_weapon(entry.item_id) if entry.item_type == "weapon"
+                else find_module(entry.item_id)
+            )
+            cells = footprint(entry.grid_x, entry.grid_y, spec.grid_w, spec.grid_h)
+            assert not (cells & covered), ship.id
+            assert all(
+                0 <= x < ship.grid_w and 0 <= y < ship.grid_h for x, y in cells
+            ), ship.id
+            covered |= cells
 
 
 def test_first_fit_scans_row_major_past_blocked_anchors():
