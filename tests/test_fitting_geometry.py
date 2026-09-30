@@ -15,8 +15,10 @@ from src.spacehack.fitting import (
     auto_fit,
     first_fit,
     footprint,
+    net_power,
     occupancy,
     placement_legal,
+    power_legal,
 )
 
 # The ruled dim table (doc 56 draft tables + SETTLED 13). Pinned
@@ -173,3 +175,15 @@ def test_auto_fit_reports_none_when_any_item_fails():
 def test_occupancy_unions_placement_cells():
     placements = [Placement("a", 0, 0, 2, 2), Placement("b", 2, 0, 1, 2)]
     assert occupancy(placements) == footprint(0, 0, 3, 2)
+
+
+def test_net_power_sums_signed_contributions():
+    assert net_power(3, []) == 3
+    assert net_power(3, [-1, 3, -2]) == 3
+    assert net_power(0, [-4]) == -4
+
+
+def test_power_legal_requires_nonnegative_net():
+    assert power_legal(3, [-3])
+    assert not power_legal(3, [-4])
+    assert not power_legal(2, [-1, -1, -1])

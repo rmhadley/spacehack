@@ -1,14 +1,17 @@
-"""Pure fitting-grid geometry for the ship fitting system (doc 56).
+"""Pure fitting-grid geometry and power arithmetic (doc 56).
 
-Geometry only: occupancy, placement legality, and deterministic
-first-fit packing. No ctx, no ``OwnedShip`` mutation, no catalog
-imports — callers pass plain ints and item ids, so the same primitives
-serve the phase-1 lints and fixture renderer, the phase-2 install
-paths and power gate, and the phase-5 NPC-spec packing.
+Geometry and watts only: occupancy, placement legality, deterministic
+first-fit packing, and the resting net-power sum. No ctx, no
+``OwnedShip`` mutation, no catalog imports — callers pass plain ints
+and item ids, so the same primitives serve the phase-1 lints and
+fixture renderer, the phase-2 install paths and power gate, and the
+phase-5 NPC-spec packing.
 
 ``first_fit`` is the single placement primitive; ``auto_fit`` is a fold
 over it. Placements are ``(item_id, x, y, w, h)`` records; sizes are
 never quality-scaled (doc 56 SETTLED 5) and never rotated (SETTLED 2).
+Power takes an explicit bonus list so phase 3's held-items-count-as-
+fitted (SETTLED 12) passes the hand's items with no redesign.
 """
 
 from __future__ import annotations
@@ -102,3 +105,19 @@ def occupancy(placements: list[Placement]) -> set[Cell]:
     for placed in placements:
         covered |= placed.cells()
     return covered
+
+
+def net_power(base_gen: int, bonuses) -> int:
+    """The signed resting net: hull base plus every watt contribution.
+
+    ``bonuses`` is the per-item list of effective ``power_gen_bonus``
+    values (upkeep negative). The gate reads THIS signed number — the
+    combat pool (``combat._stats._calc_power_gen``) clamps at zero,
+    and the resting gate must see the debt to refuse it (doc 56).
+    """
+    return base_gen + sum(bonuses)
+
+
+def power_legal(base_gen: int, bonuses) -> bool:
+    """The resting power gate: the signed net must be non-negative."""
+    return net_power(base_gen, bonuses) >= 0
