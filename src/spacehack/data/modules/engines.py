@@ -38,12 +38,4 @@ MODULES: tuple[ModuleSpec, ...] = (
         tech_level=4,
         grid_w=3, grid_h=3,
     ),
-    ModuleSpec(
-        id="heavy_reactor", name="Heavy Reactor",
-        slot_type="engine",
-        description="A massive plant. +6 power, -1 cargo, +1 speed.",
-        power_gen_bonus=6, cargo_bonus=-1, speed_bonus=1, price=120,
-        tech_level=3,
-        grid_w=3, grid_h=3,
-    ),
 )

@@ -208,8 +208,8 @@ def test_module_bonus_fields_pin_the_module_spec_axes():
 def test_effective_module_spec_real_rows_scale():
     # Concrete catalog anchors alongside the synthetic-axis sweep.
     assert quality.effective_module_spec("shield_mk2", 2).max_shield_bonus == 59
-    reactor = quality.effective_module_spec("heavy_reactor", 3)
-    assert reactor.power_gen_bonus == 9   # 6 * 1.45 = 8.7
+    reactor = quality.effective_module_spec("compact_reactor", 3)
+    assert reactor.power_gen_bonus == 5   # 3 * 1.45 = 4.35 -> 5 (ceiling)
     assert reactor.speed_bonus == 2       # 1 * 1.45 = 1.45 -> 2 (ceiling)
 
 

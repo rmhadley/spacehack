@@ -189,7 +189,6 @@ LETTERS: dict[str, str] = {
     "expanded_cargo": "C", "cargo_mk2": "C", "cargo_mk3": "C", "cargo_mk4": "C",
     "armor_plating": "A", "armor_mk2": "A", "armor_mk3": "A", "armor_mk4": "A",
     "compact_reactor": "R", "reactor_mk2": "R", "reactor_mk3": "R", "reactor_mk4": "R",
-    "heavy_reactor": "R",
     "smuggler_hold_mk1": "H", "smuggler_hold_mk2": "H",
     "smuggler_hold_mk3": "H", "smuggler_hold_mk4": "H",
 }

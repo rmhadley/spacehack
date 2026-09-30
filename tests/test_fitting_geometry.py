@@ -48,13 +48,12 @@ RULED_ITEM_SIZES = {
     "expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (3, 3), "cargo_mk4": (3, 3),
     "armor_plating": (1, 1), "armor_mk2": (2, 2), "armor_mk3": (2, 2), "armor_mk4": (2, 2),
     "compact_reactor": (1, 2), "reactor_mk2": (2, 2), "reactor_mk3": (2, 3), "reactor_mk4": (3, 3),
-    "heavy_reactor": (3, 3),
     "smuggler_hold_mk1": (1, 2), "smuggler_hold_mk2": (2, 2),
     "smuggler_hold_mk3": (2, 3), "smuggler_hold_mk4": (3, 3),
 }
 
 # Monotonicity is a property of the mk ladders only. The three
-# non-chained modules (capacitor, recharger, heavy reactor) sit in
+# non-chained modules (capacitor, recharger) sit in
 # SINGLES; coverage below forces every future id into a chain or an
 # explicit singles row — nothing dodges the lint silently.
 MK_CHAINS = {
@@ -66,7 +65,7 @@ MK_CHAINS = {
     "reactor": ("compact_reactor", "reactor_mk2", "reactor_mk3", "reactor_mk4"),
     "smuggler": ("smuggler_hold_mk1", "smuggler_hold_mk2", "smuggler_hold_mk3", "smuggler_hold_mk4"),
 }
-SINGLES = ("shield_capacitor", "shield_recharger", "heavy_reactor")
+SINGLES = ("shield_capacitor", "shield_recharger")
 
 # The doc-56 phase-2 upkeep curve, pinned verbatim (same rationale as
 # the size pins): a phase-4 retune is a deliberate, diff-visible edit.
@@ -81,7 +80,6 @@ RULED_UPKEEP = {
     # pre-existing curve, unchanged by phase 2
     "armor_plating": -1, "armor_mk2": -2, "armor_mk3": -3, "armor_mk4": -4,
     "compact_reactor": 3, "reactor_mk2": 7, "reactor_mk3": 11, "reactor_mk4": 15,
-    "heavy_reactor": 6,
     "expanded_cargo": 0, "cargo_mk2": 0, "cargo_mk3": 0, "cargo_mk4": 0,
     "smuggler_hold_mk1": 0, "smuggler_hold_mk2": 0,
     "smuggler_hold_mk3": 0, "smuggler_hold_mk4": 0,

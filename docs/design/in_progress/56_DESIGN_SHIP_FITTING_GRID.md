@@ -412,11 +412,20 @@ probe-driven — phase 4).
     density, 1.67 vs 1.5 w/cell); compact/speed/prices/shapes
     untouched (the compact stays the cheap flexible tinker strip —
     a q3 compact at +5-in-2-cells remains the densest watts in the
-    game, the user's discovered path). **heavy_reactor's fate OPEN**
-    — kill proposed (dominated by 2× compact even after any sane
-    bump; nothing references it: no loot pool, no NPC, no start, no
-    save carries one; blast radius = 1 catalog row + 1 letter entry
-    + 4 test lines); ruling pending.
+    game, the user's discovered path). heavy_reactor's fate resolved
+    same day as SETTLED 28 (the kill).
+
+28. **heavy_reactor is killed** (2026-09-30, parts walk family 2
+    conclusion). User: "kill it." Dominated by 2× compact in every
+    dimension even after any sane bump, and its budget-bulk niche
+    never overlaps real play (credit-tight = small hull = no 9 spare
+    cells). Nothing referenced it — no loot pool, no mission, no
+    NPC, no start loadout, no save carried one — so the retirement
+    is clean: catalog row, SETTLED-15 letters entry, and four test
+    lines (size pin, SINGLES family-table row, upkeep echo, the q3
+    scaling anchor moved to compact_reactor). Git-reversible if a
+    credits-scarce pass ever wants a genuinely different budget
+    block.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
