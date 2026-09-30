@@ -34,9 +34,12 @@ session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
   the slot-shaped interim modal, so both phases playtest together
   once the grid editor exists; the open power rulings and the
   SYSTEMS.md close obligations (Ship ops + parity mirror) ride the
-  same combined checkpoint. Next: `/refine-design 56` for the
-  phase-3 brief (open question 2 — HUD readout shape — settles
-  there; the brief carries the split forecast).
+  same combined checkpoint. Phase-3 refine pass same day (second
+  command session): SETTLED 16-19 (cursor + pick/place editor,
+  hand-off installs, slot-summary retirement, hangar read-only
+  grid — open question 2 retired by the user's ruling), phase-3
+  Implementation brief proposed below. Next: brief approval →
+  `/implement-phase 56.3`.
 
 ## Overview
 
@@ -191,6 +194,33 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     phase-3 UI scope; the breach prototype's `B` is a render-tool-only
     assignment (no fixture carries it — its game glyph, if it ever
     needs one, is phase 3's).
+16. **Cursor + pick/place editor** (2026-09-30, phase-3 refine —
+    SETTLED 6 made concrete). User picked the recommended shape:
+    arrows move a cursor over the grid; ENTER picks up the item under
+    it and it follows the cursor as a ghost (green where legal, red
+    where not); ENTER again drops it; while holding, D stores the
+    held item and X sells it; ESC returns it to where it was.
+17. **Installs hand off into the editor** (2026-09-30, phase-3
+    refine — the doc's "auto-place prompt or hand-off" resolved).
+    User picked hand-off: Install (buy or storage) drops the part
+    straight into the editor's hand on the grid pane — you place it
+    yourself; no auto-place anywhere in the modal; the gate refuses
+    bad drops in place (the red ghost is the refusal). New ships
+    still arrive auto-fitted outside the modal (unchanged).
+18. **Slot-count summaries retire** (2026-09-30, phase-3 refine —
+    open question 2 settled by user, verbatim): "This UI element
+    added nothing useful to the user. I think we can drop these
+    little summaries. the Weapons 2/2 and Modules 4/4 especially
+    were pretty useless to the player." The Wpn/Mod slot-count
+    readouts RETIRE from every reader surface rather than converting
+    to cells: the HUD ship-block line keeps only Spd; the loadout
+    footer becomes the ruled POWER line; the ship-buy ledger drops
+    its Weapon slots / Module slots rows. Power detail lives on the
+    fitting screen.
+19. **Hangar LOADOUT tab = read-only letter grid** (2026-09-30,
+    phase-3 refine). The hangar's LOADOUT tab renders the same
+    letter grid as the mechanic's editor, no interaction — the
+    layout is visible away from the mechanic.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -329,18 +359,23 @@ Worked check (the motivating cases):
 ## Domain changes
 
 - **Mechanic loadout modal** (`menus/_loadout.py`): right pane becomes
-  the grid editor (SETTLED 6); left pane (STORE/STORAGE) keeps its shape.
-  A new UI archetype — place/pick-up/collide, keyboard-driven, letter
-  blocks colored by tier, red/green legality including power-illegal
-  placements, net-power readout in the footer.
-- **Reader surfaces**: HUD ship block, ship-buy ledger, hangar menu —
-  "Wpn 4/6 Mod 3/4" becomes cells used/total + net power.
-- **Purchase flow**: buy-then-install needs a placement (auto-place
-  prompt or hand-off to the grid pane). Auto-place failures keep the
-  existing validate-before-charge ordering (`_loadout.py:567-591`) —
-  the player is never charged for a part that found no cell (advisor
-  catch 12's second half, folded as a requirement rather than a
-  question).
+  the grid editor (SETTLED 6, concretized by SETTLED 16); left pane
+  (STORE/STORAGE) keeps its shape. A new UI archetype — cursor +
+  pick-up/collide ghost, keyboard-driven, letter blocks colored by
+  tier, red/green legality including power-illegal placements,
+  net-power readout in the footer. Installs hand off into the editor
+  (SETTLED 17); slot-shaped legality and its wording retire at the
+  same time (SETTLED 18's consequence — phase 3 drops the slot term,
+  as the phase-2 interim rule always intended).
+- **Reader surfaces** (SETTLED 18/19): the HUD ship block and the
+  ship-buy ledger's slot rows retire their counts (the ledger keeps
+  Hull/Shields/Power/Cargo; the HUD line keeps Spd); the hangar's
+  LOADOUT tab becomes the read-only letter grid. Power detail lives
+  on the fitting screen's POWER line.
+- **Purchase flow**: buy-then-install hands the part into the editor
+  (SETTLED 17) with the existing validate-before-charge ordering —
+  the gate pre-checks and refuses (existing strings) before credits
+  move, then the part enters the hand.
 - **start_weapons/start_modules**: deterministic auto-fit at new-game
   setup and ship purchase.
 - **Combat math**: unchanged seams (`_calc_power_gen` already sums the
@@ -470,14 +505,18 @@ Worked check (the motivating cases):
   (old-shape strips everything; power/overlap strips touch modules
   only), and a full fix needs `player_traits` restored before
   normalization — phase-3/5 seam if it ever matters.
-- [ ] **3. Fitting UI** — the grid editor pane at the mechanic terminal,
-  letter blocks + tier colors + red/green legality, hand model, pane
-  switching; HUD/ship-buy/hangar surfaces to cells + net power; guide
-  review of the mechanic/loadout sections. Budget note (advisor catch
-  11): the grid editor is a new UI archetype — by cohesion it likely
-  lives in a sibling module beside `menus/_loadout.py` (695 lines
-  today); the phase-3 brief carries the split forecast (placement
-  stays cohesion-driven — a forecast, not a placement driver).
+- [ ] **3. Fitting UI** — the grid editor pane at the mechanic terminal
+  (cursor + pick/place, SETTLED 16), letter blocks + tier colors +
+  red/green legality, hand model with pane-switch auto-return
+  (SETTLED 12 lands here), installs hand off into the editor
+  (SETTLED 17); the slot-count summaries retire everywhere
+  (SETTLED 18) and the hangar tab becomes the read-only grid
+  (SETTLED 19); guide rewrite of the mechanic/loadout sections.
+  Budget note (advisor catch 11): the grid editor is a new UI
+  archetype — by cohesion it lives in a sibling module beside
+  `menus/_loadout.py` (731 lines today); the phase-3 brief carries
+  the split forecast (placement stays cohesion-driven — a forecast,
+  not a placement driver).
   PLAYTEST: fit the motivating cases by hand (Skiff + mk4 shield
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.
@@ -845,6 +884,146 @@ verdict ADVICE, 3 blocking + 5 minor, all folded:
 - Q2 correction adopted: the strip-loop failure mode is a ValueError
   crash, not a deadlock (item 3).
 
+## Implementation brief — Phase 3 (PROPOSED 2026-09-30, `/refine-design`)
+
+Fitting UI: the grid editor pane at the mechanic terminal, installs by
+hand, the slot-count retirement everywhere, and the guide rewrite.
+Zero combat-math change — no probe run this phase.
+
+**Scope (files/hook points)**
+
+1. NEW `src/spacehack/menus/_grid_editor.py` — the editor in two
+   layers: a PURE state machine (cursor position, held entry +
+   origin anchor, ghost legality over the live grid; plain ints and
+   catalog-free like `fitting.py`) and the presentation layer (grid
+   rows as runs-coloured letter lines, cursor + ghost painted in,
+   the POWER footer). Also exports the read-only letter-grid
+   renderer the hangar and the mechanic tab reuse (SETTLED 19).
+2. `src/spacehack/pygame_split.py` — ONE contained extension: a
+   `grid_pane: bool = False` frame flag; when the right pane hosts
+   the grid, `_handle_key` maps arrows to `GRID:UP/DOWN/LEFT/RIGHT`
+   outcomes instead of row navigation (883 lines today — the
+   extension stays under the ratchet; no other split behavior moves).
+   TAB remains the pane switch.
+3. `src/spacehack/menus/_loadout.py` — right pane becomes the grid
+   (SETTLED 16/6); left pane STORE/STORAGE keeps its shape. Install
+   actions (buy + storage) HAND OFF (SETTLED 17): gate pre-check
+   with the existing refusal strings, then charge, then the part
+   enters the editor's hand on the grid pane — validate-before-charge
+   preserved. D-store/X-sell of the held item route through
+   `removal_trips_power` (SETTLED 3) with the approved removal
+   string; X sells through the existing price-confirm chooser. Pane
+   switch / terminal exit while holding auto-returns (SETTLED 12):
+   snap back to the origin anchor if legal, else storage; if storage
+   would trip the gate, the switch itself is refused. The footer
+   becomes the POWER line. The interim slot legality retires —
+   `install_refusal` drops its slots check (grid + power only), the
+   slots refusal string and `_install_*`'s slot guards' modal
+   relevance end, and `_install_refusal_text` converts to the
+   reason→string dispatch table (phase-2 REVIEW minor 1, due here).
+   `_find_weapon_slots`/`_find_module_slots` retire if caller-less
+   after the tab conversions.
+4. `src/spacehack/hud.py` — the ship-block line drops `Wpn x/y Mod
+   a/b` (SETTLED 18), keeps `Spd n`.
+5. `src/spacehack/menus/_ship_buy.py` — the ledger drops its
+   `Weapon slots` / `Module slots` rows (Hull/Shields/Power-per-turn/
+   Cargo stay; SETTLED 18).
+6. `src/spacehack/menus/_ship_menu.py` — the hangar LOADOUT tab
+   renders the read-only letter grid (SETTLED 19).
+7. `src/spacehack/menus/_mechanic.py` — the mechanic LOADOUT tab's
+   slot lists become the same read-only grid under the Manage row
+   (the last slot-shaped surface dies with SETTLED 18).
+8. `src/spacehack/data/guide/__init__.py` — the fitting-screen
+   rewrite (draft below) PLUS the full-corpus slot-vocabulary audit:
+   grep the whole guide (and the tutorial text) for "slot" wording
+   and classify every hit in the build; nothing rides silently.
+9. NEW `tests/test_grid_editor.py` + updated pins (hud, ledger,
+   loadout, pygame_ui).
+
+**Binding rulings**: SETTLED 2 (no rotation), 6 (free rearrangement —
+held-in-hand never trips the gate; only commits do), 12 (auto-return;
+the gate outranks the auto-return), 15 (letters), 16 (cursor +
+pick/place; ESC returns held to origin), 17 (hand-off installs; new
+ships still arrive auto-fitted outside the modal), 18 (summaries
+retire), 19 (hangar read-only grid); the power-gate section's
+fitting-screen readout format (`POWER: +9 gen / -2 upkeep / +7 net`,
+ASCII hyphen); tier colours reuse `quality_color` (base reads plain,
+randart reads legendary; the ghost's legality colour overrides the
+tier colour) — the visual taste itself rules at the playtest.
+
+**Strings (prose gate — land only as approved here)**
+- Editor hint line: `ENTER pick up/drop`, `D store held`,
+  `X sell held`, `TAB parts`, `ESC back` (composed with the existing
+  `modal_hint`).
+- POWER footer: `POWER: +{gen} gen / -{upkeep} upkeep / -{net} net`
+  (upkeep and net rendered with the ASCII hyphen when negative, per
+  advisor catch 9's precedent).
+- Guide, Mechanic section — replacing "The mechanic handles repairs,
+  refueling, ammunition, and ship equipment. STORE keeps equipment
+  for later; installing a part needs free grid space and spare
+  power." with: "The mechanic handles repairs, refueling, ammunition,
+  and ship equipment. Your hull's fitting grid holds every weapon
+  and module - each takes grid space, and working modules draw power
+  every turn. Install a part by placing it on the grid: green means
+  it fits, red means it does not. STORE keeps equipment for later."
+  (final wording the user's).
+
+**Build order**: editor state machine + tests → split `grid_pane`
+pass-through → grid render + cursor → pick/place/drop → D/X gates →
+hand-off installs + SETTLED-12 auto-return → footer POWER line →
+reader-surface retirement (hud/ledger) → hangar + mechanic grids →
+guide rewrite + corpus audit → `make check`.
+
+**Required tests (permanent — same-commit per the pure-function
+contract)**
+- State-machine units: cursor bounds, pick-up/drop, ghost legality
+  (bounds + overlap + POWER, each red), determinism.
+- Hand-off flow: gate pre-check refuses with no charge; a part that
+  can never fit never enters the hand.
+- Auto-return (SETTLED 12, first live test): TAB/exit with held →
+  snap-back; origin blocked → storage; storage trips the gate → the
+  switch refuses.
+- D/X from the hand: the funding reactor refuses (removal string);
+  a shield stores/sells freely; X carries the price confirm.
+- Rearrangement never trips the gate mid-edit; only commit does
+  (held-as-fitted pin, now at the UI seam).
+- Save/load round-trip of HAND-placed anchors (not auto-fit's).
+- Reader pins: HUD line (`Spd n` only), ledger row set, footer
+  format, hangar/mechanic grid renders (letters at anchors).
+- Retirement pins: no slots refusal string reachable; guide corpus
+  carries no stale slot vocabulary after the audit.
+- CP437 check on every new glyph string.
+
+**Stop point (do NOT start)**: no rotation, no tier-colour palette
+beyond reusing `quality_color`, no HUD cells/net-power counters
+(SETTLED 18 retired them — do not reintroduce), no magnitude
+retunes (phase 4), no NPC/enemy work (phase 5; `weapon_slots`/
+`module_slots` FIELDS and the NPC slot lint stay untouched), no
+runtime brownouts, no grid resizing.
+
+**Playtest checkpoint** (merged phase-2 + phase-3 — the deferred
+items ride here)
+1. Load the long-run save: strip notice, empty grid (SETTLED 14).
+2. Re-fit BY HAND on the visible grid: storage install hands the
+   part over; green/red ghosts; drop; rearrange freely; fight
+   something — the re-fit power feel is phase-4 input.
+3. Gate stress: no-room ghost stays red everywhere; power-illegal
+   drop red; store/sell the funding reactor from the hand refused;
+   tinker refusal (phase 2's SETTLED 11).
+4. Auto-return: TAB away while holding (snap-back), leave the
+   terminal while holding, and the gate-refused switch case.
+5. Dev mode (`SPACEHACK_DEV=1`): frigate 24/30 as granted; a fourth
+   plasma hands over but has no legal cell.
+6. Save/quit/continue: hand-placed anchors, ammo, storage identical.
+7. Reader surfaces: HUD line shows Spd only; the ledger has no slot
+   rows; the hangar LOADOUT tab shows the letter grid.
+8. Guide diff review: the Mechanic-section rewrite (before/after in
+   this brief) + every corpus-audit hit dispositioned.
+9. The phase-2 deferred rulings: starter gen 4 (as built) vs gen 3 +
+   shield_mk1 upkeep 0; refusal-string wording tweaks expected here.
+10. Probe: NOT re-run (zero combat-math change this phase; the
+   phase-2 report stands).
+
 ## Acceptance criteria
 
 1. A fresh Skiff cannot field a Shield Mk. 4 by any path (buy, loot,
@@ -870,10 +1049,13 @@ verdict ADVICE, 3 blocking + 5 minor, all folded:
 ## Open questions (for /refine-design)
 
 1. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
-2. **HUD readout shape** (cells + net power wording) — phase-3 brief
-   time.
-3. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
+2. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
    its own fix doc whenever (it is independent of the grid).
+
+(HUD readout shape — formerly open question 2 — SETTLED 2026-09-30 at
+phase-3 brief time as SETTLED 18/19: the summaries retire rather than
+convert. Renumbered; older prose citing three open questions predates
+this.)
 
 (Placement data shape — formerly open question 3 — RESOLVED
 2026-09-30 at phase-2 brief time per the pre-committed census
