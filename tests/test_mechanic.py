@@ -143,3 +143,41 @@ class TestLoadoutWeaponQualityDisplay:
 
         row = _stored_row(StoredEquipment("weapon", "medium_laser", quality=2), 0)
         assert "Dmg 8" in row.detail
+
+
+class TestShoppingFootprintPreview:
+    """The store/storage detail carries the part's letter-block
+    footprint under its stat/description line (ruling 2026-09-30) —
+    the size previews while scrolling, before the part enters the
+    editor's hand."""
+
+    def test_market_weapon_row_carries_its_footprint(self):
+        from src.spacehack.menus._loadout import _market_rows
+
+        rows = _market_rows(("plasma_cannon",), ())
+        buy = next(r for r in rows if r.action == "BUY_WEAPON:plasma_cannon")
+        lines = buy.detail.split("\n")
+        assert lines[0].startswith("Dmg ")          # the stat line stays first
+        assert lines[1:] == ["[P][P]"] * 3
+
+    def test_market_module_row_carries_its_footprint(self):
+        from src.spacehack.menus._loadout import _market_rows
+
+        from src.spacehack.data.modules import find_module
+
+        rows = _market_rows((), ("shield_mk1",))
+        buy = next(r for r in rows if r.action == "BUY_MODULE:shield_mk1")
+        lines = buy.detail.split("\n")
+        assert lines[0] == find_module("shield_mk1").description
+        assert lines[-2:] == ["[S][S]", "[S][S]"]
+
+    def test_stored_row_carries_its_footprint(self):
+        from src.spacehack.menus._loadout import _stored_row
+        from src.spacehack.ship import StoredEquipment, module_detail
+
+        row = _stored_row(StoredEquipment("module", "reactor_mk4"), 0)
+        lines = row.detail.split("\n")
+        # the module's own detail line stays first (module_detail reads
+        # the catalog description + effective stats)
+        assert lines[0] == module_detail("reactor_mk4", 0, None)
+        assert lines[-3:] == ["[R][R][R]"] * 3

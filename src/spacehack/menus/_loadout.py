@@ -108,32 +108,51 @@ def _stored_label(stored) -> str:
 def _stored_row(stored, index: int, ctx=None):
     """Build one stored-equipment row, preserving its actual list index."""
     from .. import pygame_split
-    from ..data.weapons import find_weapon
-    from ..menus._grid_editor import _weapon_detail
-    from ..ship import module_detail, module_display_name, weapon_display_name
+    from ..ship import module_display_name, weapon_display_name
 
+    detail = _stored_detail(stored, ctx)
     if stored.item_type == "weapon":
-        spec = find_weapon(stored.item_id)
         name = weapon_display_name(stored.item_id, stored.quality)
-        detail, runs = (
-            _weapon_detail(
-                spec, ammo=stored.ammo, ctx=ctx, quality=stored.quality,
-            ),
-            _weapon_runs(stored.item_id, stored.quality),
-        )
-    elif stored.item_type == "module":
+        runs = _weapon_runs(stored.item_id, stored.quality)
+    else:
         name = module_display_name(
             stored.item_id, stored.quality, stored.randart_seed,
         )
+        runs = _module_runs(stored.item_id, stored.quality, stored.randart_seed)
+    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}", runs=runs)
+
+
+def _with_footprint(spec, detail: str) -> str:
+    """One shopping row's detail: the stat/description line, then the
+    part's letter-block footprint (ruling 2026-09-30 — the size
+    previews while scrolling, before the part enters the editor's
+    hand). The ONE composer; both store and storage rows call it."""
+    from ..menus._grid_editor import footprint_lines
+
+    return "\n".join((
+        detail, *footprint_lines(spec.id, spec.grid_w, spec.grid_h),
+    ))
+
+
+def _stored_detail(stored, ctx=None) -> str:
+    """A stored row's detail: the stat line plus the part's footprint
+    (ruling 2026-09-30 — the size previews while scrolling, before the
+    part ever enters the editor's hand)."""
+    from ..data.weapons import find_weapon
+    from ..menus._grid_editor import _weapon_detail
+    from ..ship import module_detail
+
+    spec = _stored_spec(stored)
+    if stored.item_type == "weapon":
+        detail = _weapon_detail(
+            find_weapon(stored.item_id), ammo=stored.ammo, ctx=ctx,
+            quality=stored.quality,
+        )
+    else:
         detail = module_detail(
             stored.item_id, stored.quality, stored.randart_seed,
         )
-        runs = _module_runs(
-            stored.item_id, stored.quality, stored.randart_seed,
-        )
-    else:
-        raise ValueError(f"Unknown stored equipment type: {stored.item_type!r}")
-    return pygame_split.SplitRow(name, "", detail, f"MANAGE_STORED:{index}", runs=runs)
+    return _with_footprint(spec, detail)
 
 
 def _module_runs(module_id: str, quality: int, randart_seed) -> tuple | None:
@@ -208,7 +227,7 @@ def _market_rows(weapon_ids, module_ids):
         pygame_split.SplitRow(
             spec.name,
             pygame_ui.price_cell(spec.price),
-            _weapon_detail(spec),
+            _with_footprint(spec, _weapon_detail(spec)),
             f"BUY_WEAPON:{spec.id}",
         )
         for spec in sorted((find_weapon(item_id) for item_id in weapon_ids), key=lambda item: item.price)
@@ -218,7 +237,7 @@ def _market_rows(weapon_ids, module_ids):
         pygame_split.SplitRow(
             spec.name,
             pygame_ui.price_cell(spec.price),
-            spec.description,
+            _with_footprint(spec, spec.description),
             f"BUY_MODULE:{spec.id}",
         )
         for spec in sorted((find_module(item_id) for item_id in module_ids), key=lambda item: item.price)

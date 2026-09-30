@@ -275,6 +275,25 @@ class TestPieceAt:
         assert ge.piece_at((), (0, 0)) is None
 
 
+def test_footprint_lines_draw_the_shape_in_family_letters():
+    """The shopping footprint (ruling 2026-09-30): the part's grid
+    shape as bracketed letter-block rows — one row per grid H, one
+    [X] per grid W, in the SETTLED-15 family letter."""
+    from src.spacehack.menus._grid_editor import footprint_lines
+
+    assert footprint_lines("light_laser", 1, 1) == ("[L]",)
+    assert footprint_lines("plasma_cannon", 2, 3) == ("[P][P]",) * 3
+    assert footprint_lines("reactor_mk4", 3, 3) == ("[R][R][R]",) * 3
+    assert footprint_lines("smuggler_hold_mk1", 2, 1) == ("[H][H]",)
+
+
+def test_footprint_lines_are_cp437_safe():
+    from src.spacehack.menus._grid_editor import footprint_lines
+
+    for line in footprint_lines("shield_mk4", 3, 3):
+        assert all(ch in "[]SRTGCARHL MPEB" for ch in line)
+
+
 def test_weapon_detail_hover_line():
     """Playtest 2026-09-30: terse, with the firing costs — AP plus
     power for energy/plasma, the rack for missiles (no Pow segment:

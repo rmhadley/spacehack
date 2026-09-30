@@ -200,6 +200,18 @@ def letter(item_id: str) -> str:
     return LETTERS[item_id]
 
 
+def footprint_lines(item_id: str, grid_w: int, grid_h: int) -> tuple[str, ...]:
+    """The item's shape as bracketed letter-block rows — the same
+    visual language as the grid pane, shown while shopping (ruling
+    2026-09-30: a store/storage row's detail carries the footprint so
+    the size reads before the part enters the hand). CP437-safe
+    (brackets + the SETTLED-15 letters)."""
+    return tuple(
+        "[" + "][".join([letter(item_id)] * grid_w) + "]"
+        for _ in range(grid_h)
+    )
+
+
 @dataclass(frozen=True)
 class GridPiece:
     """One placed entry's presentation view (host builds these from the
