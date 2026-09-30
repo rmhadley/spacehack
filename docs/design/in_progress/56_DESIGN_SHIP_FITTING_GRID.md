@@ -401,6 +401,23 @@ probe-driven — phase 4).
     the skiff legally now — two rest at net 0). Parts walk continues
     family by family; probe re-runs as magnitudes move.
 
+27. **Reactor family calibration** (2026-09-30, parts walk family
+    2). User confirmed the diagnosis from play: "two mk1's were
+    better than 1 mk2" — the compact stack dominated the whole
+    ladder at base quality (2×/3×/4× compact beat mk2/mk3/mk4 on
+    watts AND price at equal-or-fewer cells, speed ties). Ruled:
+    uniform +4 steps that clear every same-cell compact stack —
+    `reactor_mk2` +5 → **+7**, `reactor_mk3` +8 → **+11**,
+    `reactor_mk4` +12 → **+15** (beats 4× compact's +12 and wins
+    density, 1.67 vs 1.5 w/cell); compact/speed/prices/shapes
+    untouched (the compact stays the cheap flexible tinker strip —
+    a q3 compact at +5-in-2-cells remains the densest watts in the
+    game, the user's discovered path). **heavy_reactor's fate OPEN**
+    — kill proposed (dominated by 2× compact even after any sane
+    bump; nothing references it: no loot pool, no NPC, no start, no
+    save carries one; blast radius = 1 catalog row + 1 letter entry
+    + 4 test lines); ruling pending.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:

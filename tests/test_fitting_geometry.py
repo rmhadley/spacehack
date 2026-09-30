@@ -80,7 +80,7 @@ RULED_UPKEEP = {
     "gyro_stabilizer": -1, "gyro_mk2": -1, "gyro_mk3": -1, "gyro_mk4": -1,
     # pre-existing curve, unchanged by phase 2
     "armor_plating": -1, "armor_mk2": -2, "armor_mk3": -3, "armor_mk4": -4,
-    "compact_reactor": 3, "reactor_mk2": 5, "reactor_mk3": 8, "reactor_mk4": 12,
+    "compact_reactor": 3, "reactor_mk2": 7, "reactor_mk3": 11, "reactor_mk4": 15,
     "heavy_reactor": 6,
     "expanded_cargo": 0, "cargo_mk2": 0, "cargo_mk3": 0, "cargo_mk4": 0,
     "smuggler_hold_mk1": 0, "smuggler_hold_mk2": 0,
