@@ -1,29 +1,34 @@
 #!/usr/bin/env python3
 """Doc 56 fixture renderer: each hull's fitting grid with its start
-loadout placed as letter blocks.
+loadout placed as letter blocks — or, with ``--save PATH``, the LIVE
+grid of a saved ship (the phase-2 stand-in for the phase-3 editor
+pane: the modal auto-places invisibly, this shows where everything
+landed, plus the resting net power).
 
 The glyph letters (doc 56 SETTLED 15): S/R/T/G/C/A/H module
 families, L/M/P/E weapons, '.' empty. Still deliberately NOT pinned
 by any test — phase 3's editor owns the in-game letter+colour
 treatment; this tool just renders fixtures.
 
-Placement comes from ``ship.start_fitted_entries`` — the ONE shared
-start-loadout resolver (doc 56 phase 2); this tool never runs its
-own placement loop (doc 56 audit hotspot 2).
+Placement comes from ``ship.start_fitted_entries`` (start fixtures)
+or the save's serialized ``grid_x``/``grid_y`` (live ships) — never
+this tool's own placement loop (doc 56 audit hotspot 2).
 
 Usage:
-    python3 tools/fitting_render.py [hull_id ...]   # default: every hull
+    python3 tools/fitting_render.py [hull_id ...]     # default: every hull
+    python3 tools/fitting_render.py --save PATH       # a saved ship's grid
 """
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.spacehack.data.ships import find_ship, list_ships  # noqa: E402
-from src.spacehack.ship import start_fitted_entries  # noqa: E402
+from src.spacehack.ship import resting_power, start_fitted_entries  # noqa: E402
 
 # SETTLED 15's ruling. Shield capacitor/recharger fold into the
 # shield family letter; EMP gets its own E beside the missile M. A new
@@ -58,37 +63,69 @@ def _spec_of(entry):
     return finder(entry.item_id)
 
 
-def render_ship(ship) -> str:
-    """One hull's fixture: header, grid rows, legend."""
-    weapons, modules = start_fitted_entries(ship)
-    entries = (*weapons, *modules)
-    if any(e.grid_x is None or e.grid_y is None for e in entries):
-        return f"=== {ship.name} ({ship.id}) - START LOADOUT DOES NOT PACK ==="
+def _render_grid(ship, entries, extra_header: str = "") -> str:
+    """One grid fixture: header, rows, legend — over placed entries."""
     paint = {}
+    unplaced = []
     for entry in entries:
         spec = _spec_of(entry)
+        if entry.grid_x is None or entry.grid_y is None:
+            unplaced.append(entry)
+            continue
         for cx in range(entry.grid_x, entry.grid_x + spec.grid_w):
             for cy in range(entry.grid_y, entry.grid_y + spec.grid_h):
                 paint[(cx, cy)] = LETTERS[entry.item_id]
-    used = len(paint)
     total = ship.grid_w * ship.grid_h
     lines = [
         f"=== {ship.name} ({ship.id}) - grid {ship.grid_w}x{ship.grid_h}, "
-        f"{used}/{total} cells used ==="
+        f"{len(paint)}/{total} cells used ==={extra_header}"
     ]
     for y in range(ship.grid_h):
         lines.append(" ".join(paint.get((x, y), ".") for x in range(ship.grid_w)))
     for entry in entries:
         spec = _spec_of(entry)
+        anchor = (
+            f"({entry.grid_x},{entry.grid_y})"
+            if entry.grid_x is not None else "UNPLACED"
+        )
         lines.append(
             f"  {LETTERS[entry.item_id]}  {spec.name:26s} "
-            f"({entry.grid_x},{entry.grid_y}) {spec.grid_w}x{spec.grid_h}"
+            f"{anchor} {spec.grid_w}x{spec.grid_h}"
         )
+    if unplaced:
+        lines.append("  (!) unplaced entries strip to storage at next load")
     return "\n".join(lines)
+
+
+def render_ship(ship) -> str:
+    """One hull's fixture: its start loadout through the resolver."""
+    weapons, modules = start_fitted_entries(ship)
+    entries = (*weapons, *modules)
+    if any(e.grid_x is None or e.grid_y is None for e in entries):
+        return f"=== {ship.name} ({ship.id}) - START LOADOUT DOES NOT PACK ==="
+    return _render_grid(ship, entries)
+
+
+def render_saved_ship(path: str) -> str:
+    """A saved ship's live grid: the serialized anchors, verbatim."""
+    from src.spacehack.saveload_ship import _parse_owned_ship
+
+    owned = _parse_owned_ship(json.loads(Path(path).read_text()))
+    if owned is None:
+        return f"=== {path}: no owned ship in save ==="
+    ship = find_ship(owned.ship_id)
+    net = resting_power(owned, ship)
+    return _render_grid(
+        ship, (*owned.weapons, *owned.modules),
+        extra_header=f"  net power {net:+d}",
+    )
 
 
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "--save":
+        print(render_saved_ship(argv[1]))
+        return 0
     hulls = [find_ship(hull_id) for hull_id in argv] or list_ships()
     blocks = [render_ship(ship) for ship in hulls]
     print("\n\n".join(blocks))
