@@ -41,9 +41,35 @@ session (verdict ADVICE, 3 blocking + 5 minors — all dispositioned
   Implementation brief proposed + ADVISE-folded in the same session
   (verdict ADVICE, 5 blocking + 7 minor — the slot-guard
   part-destruction path, the under-counted split key surface, and the
-  hand-off pre-check contradiction were the blockers; all folded,
-  dispositions inside the brief). Next: brief approval →
-  `/implement-phase 56.3`.
+hand-off pre-check contradiction were the blockers; all folded,
+dispositions inside the brief). Brief APPROVED by the build
+invocation (`/implement-phase 56.3`, 2026-09-30). Phase 3 BUILT same
+day: gate green **3368** (+1 ruff fix), commits 8fe159df (editor
+state machine + letters) / 578fdb48 (split GRID: key surface) /
+c47e206d (loadout modal rewrite + slot-guard retirement, ONE commit
+per brief blocking 1) / 8d3f00d0 (HUD + ledger retirement) /
+6f1aa181 (hangar + mechanic grids, AMMO reword) / 0108a95b (guide) /
+1ad2c81a (review minors). REVIEW pass: REQUEST_CHANGES → 1 blocking
+(the doc's own landing record, deliberately queued behind the review)
++ 5 minors — 3/5/6 folded in 1ad2c81a; minor 2 (the brief's
+gate-refused-switch "leg") RESOLVED BY CONSTRUCTION: with single-hold
++ vacated origins + never-fitted storage neutrality there is no
+branch a gate check could even occupy — the by-construction
+neutrality is pinned (`test_never_fitted_storage_neutrality`) instead
+of a fabricated-state test against a predicate that cannot fire
+(RULING PENDING at the playtest: add a dead defensive leg anyway, or
+keep the by-construction record); minor 4 (unknown installed ids
+render nothing on the grids) is fabricated-state-only — the save
+parsers reject unknown ids before load normalization ever runs (and
+`normalize_fitted_grid`'s label pass raising on fabricated unknowns
+is pre-existing phase-2 shape, unreachable from real saves). The two
+NEW refusal strings ("You are already holding a part.", "Bought
+{name} for {price}$.") land unapproved-prose-for-review at the
+checkpoint per the phase-2 strings precedent. **The merged phase-2 +
+phase-3 PLAYTEST is now due** (checklist in the phase-3 brief); the
+SYSTEMS.md close obligations ("Ship ops", "Space combat init —
+parity mirror", "Spec-sheet buy modal") ride its pass. Next: playtest
+→ phase 4 (calibration) or doc close.
 
 ## Overview
 
@@ -509,7 +535,7 @@ Worked check (the motivating cases):
   (old-shape strips everything; power/overlap strips touch modules
   only), and a full fix needs `player_traits` restored before
   normalization — phase-3/5 seam if it ever matters.
-- [ ] **3. Fitting UI** — the grid editor pane at the mechanic terminal
+- [x] **3. Fitting UI** — the grid editor pane at the mechanic terminal
   (cursor + pick/place, SETTLED 16), letter blocks + tier colors +
   red/green legality, hand model with pane-switch auto-return
   (SETTLED 12 lands here), installs hand off into the editor
@@ -521,6 +547,9 @@ Worked check (the motivating cases):
   `menus/_loadout.py` (731 lines today); the phase-3 brief carries
   the split forecast (placement stays cohesion-driven — a forecast,
   not a placement driver).
+  BUILT 2026-09-30 (`/implement-phase 56.3`): gate green **3368**,
+  seven commits + the review-minor fold (see the Status header for
+  the full record and the review dispositions).
   PLAYTEST: fit the motivating cases by hand (Skiff + mk4 shield
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.
