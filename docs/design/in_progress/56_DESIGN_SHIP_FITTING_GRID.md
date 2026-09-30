@@ -445,6 +445,23 @@ probe-driven — phase 4).
     under the 95 clamp against dodge-tanks). The clamp VALUE itself
     stays a separate phase-4 ruling with the probe as referee.
 
+30. **Gyro family calibration** (2026-09-30, parts walk family 4).
+    The exact pre-fix targeting twin (10/15/20/30, −1 flat,
+    1×1/1×2/2×2/2×2, same prices) with the same mk1-stack domination.
+    Ruled: MIRROR SETTLED 29 — `gyro_mk2` +15 → **+25** / −2,
+    `gyro_mk3` +20 → **+45** / −3, `gyro_mk4` +30 → **+60** / −4 /
+    2×2 → **2×3**; mk1/−1 untouched (the hound — the only flyer —
+    is unmoved). The stat read that made this the deliberate call:
+    piloting is gunnery's mirror PLUS +0.05 AP/round per point PLUS
+    the glancing threshold — the tempo stat — so a +60 mk4 hands
+    +3 AP/round, deliberately power-gated (the volley's per-member
+    costs bound unfunded actions into dance steps). Gyro = tempo
+    (AP/dodge), targeting = accuracy, both capped by watts.
+    **OPEN calibration dial (user, ruled to sims/playtest):**
+    whether upkept-module power drain should scale EVEN FASTER up
+    the mk ladders than −1/−2/−3/−4 — probe-refereed, never tuned
+    by feel alone.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
