@@ -68,6 +68,25 @@ MK_CHAINS = {
 }
 SINGLES = ("shield_capacitor", "shield_recharger", "heavy_reactor")
 
+# The doc-56 phase-2 upkeep curve, pinned verbatim (same rationale as
+# the size pins): a phase-4 retune is a deliberate, diff-visible edit.
+# Armor (already authored) and the structural zeros are pinned too, so
+# the whole power column of the catalog is contract-covered.
+RULED_UPKEEP = {
+    "shield_mk1": -1, "shield_mk2": -2, "shield_mk3": -3, "shield_mk4": -4,
+    "shield_capacitor": -1, "shield_recharger": -1,
+    "targeting_computer": -1, "targeting_mk2": -1,
+    "targeting_mk3": -1, "targeting_mk4": -1,
+    "gyro_stabilizer": -1, "gyro_mk2": -1, "gyro_mk3": -1, "gyro_mk4": -1,
+    # pre-existing curve, unchanged by phase 2
+    "armor_plating": -1, "armor_mk2": -2, "armor_mk3": -3, "armor_mk4": -4,
+    "compact_reactor": 3, "reactor_mk2": 5, "reactor_mk3": 8, "reactor_mk4": 12,
+    "heavy_reactor": 6,
+    "expanded_cargo": 0, "cargo_mk2": 0, "cargo_mk3": 0, "cargo_mk4": 0,
+    "smuggler_hold_mk1": 0, "smuggler_hold_mk2": 0,
+    "smuggler_hold_mk3": 0, "smuggler_hold_mk4": 0,
+}
+
 
 def test_every_registered_item_sized():
     for spec in (*list_weapons(), *list_modules()):
@@ -98,6 +117,12 @@ def test_hull_grids_within_render_budget():
 def test_family_table_covers_every_module():
     tabled = {mid for chain in MK_CHAINS.values() for mid in chain} | set(SINGLES)
     assert tabled == {m.id for m in list_modules()}
+
+
+def test_upkeep_authored_to_ruled_curve():
+    live = {m.id: m.power_gen_bonus for m in list_modules()}
+    for mid, upkeep in RULED_UPKEEP.items():
+        assert live[mid] == upkeep, mid
 
 
 def test_mk_sizes_monotonic_within_each_family():

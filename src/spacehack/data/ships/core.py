@@ -50,12 +50,17 @@ SHIPS: tuple[Ship, ...] = (
         grid_w=3, grid_h=3,
         max_cargo=50,   # 5 × T1 delivery max (10)
         max_fuel=80,
-        # Power gen 3 (doc 50 goal-1 ruling, 2026-09-24): bursts of two
-        # 1-power weapons outpace gen 2 mid-fight and the tutorial pilot
-        # goes dry standing in Jack's sights — 3 keeps both the light and
-        # the medium laser pairs firing (measured: goal-1 win rate 0.86
-        # -> 0.96).
-        base_power_gen=3,
+        # Power gen 4 (doc 50 goal-1 ruling 2026-09-24, re-funded for
+        # doc 56 phase 2): bursts of two 1-power weapons outpace gen 2
+        # mid-fight and the tutorial pilot goes dry standing in Jack's
+        # sights — gen 3 kept both the light and the medium laser pairs
+        # firing (measured: goal-1 win rate 0.86 -> 0.96). Phase 2's
+        # Shield Mk. 1 upkeep (-1) took that watt back (goal-1 measured
+        # 0.71, under the ruled 0.94 floor), so the hull now funds the
+        # ruled equilibrium AFTER upkeep: 4 - 1 = 3 effective watts,
+        # goal-1 measured back at 0.94 — the pre-phase-2 equilibrium
+        # exactly.
+        base_power_gen=4,
         base_shield_max=0,
         base_hull=15,
         start_weapons=('light_laser',),

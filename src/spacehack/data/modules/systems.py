@@ -12,6 +12,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Basic deflector. +20 max shields.",
         max_shield_bonus=20, price=60,
         tech_level=1,
+        power_gen_bonus=-1,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(
@@ -20,6 +21,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Reinforced deflector. +40 max shields.",
         max_shield_bonus=40, price=150,
         tech_level=2,
+        power_gen_bonus=-2,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(
@@ -28,6 +30,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Military-grade deflector. +65 max shields.",
         max_shield_bonus=65, price=300,
         tech_level=3,
+        power_gen_bonus=-3,
         grid_w=2, grid_h=3,
     ),
     ModuleSpec(
@@ -36,6 +39,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Capital-ship deflector. +95 max shields.",
         max_shield_bonus=95, price=500,
         tech_level=4,
+        power_gen_bonus=-4,
         grid_w=3, grid_h=3,
     ),
     ModuleSpec(
@@ -44,6 +48,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+15 max shields.",
         max_shield_bonus=15, price=80,
         tech_level=2,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=2,
     ),
     ModuleSpec(
@@ -52,6 +57,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+3 shield regen per turn.",
         shield_recharge_bonus=3, price=100,
         tech_level=3,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=2,
     ),
     ModuleSpec(
@@ -60,6 +66,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+10 gunnery.",
         gunnery_bonus=10, price=70,
         tech_level=2,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=1,
     ),
     ModuleSpec(
@@ -68,6 +75,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Advanced fire control. +15 gunnery.",
         gunnery_bonus=15, price=150,
         tech_level=3,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=2,
     ),
     ModuleSpec(
@@ -76,6 +84,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Precision tracking suite. +20 gunnery.",
         gunnery_bonus=20, price=280,
         tech_level=4,
+        power_gen_bonus=-1,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(
@@ -84,6 +93,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Quantum targeting computer. +30 gunnery.",
         gunnery_bonus=30, price=450,
         tech_level=4,
+        power_gen_bonus=-1,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(
@@ -92,6 +102,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+10 piloting.",
         piloting_bonus=10, price=70,
         tech_level=2,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=1,
     ),
     ModuleSpec(
@@ -100,6 +111,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Reinforced inertial dampeners. +15 piloting.",
         piloting_bonus=15, price=150,
         tech_level=3,
+        power_gen_bonus=-1,
         grid_w=1, grid_h=2,
     ),
     ModuleSpec(
@@ -108,6 +120,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Active stabilisation matrix. +20 piloting.",
         piloting_bonus=20, price=280,
         tech_level=4,
+        power_gen_bonus=-1,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(
@@ -116,6 +129,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="Gravimetric compensation field. +30 piloting.",
         piloting_bonus=30, price=450,
         tech_level=4,
+        power_gen_bonus=-1,
         grid_w=2, grid_h=2,
     ),
     ModuleSpec(

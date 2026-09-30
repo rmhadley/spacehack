@@ -462,7 +462,9 @@ def test_module_detail_swaps_to_effective_stats_for_variants():
     # Base keeps the authored description (its numbers are correct).
     assert module_detail("shield_mk1") == find_module("shield_mk1").description
     # Variants render the effective stats — authored prose would lie.
-    assert module_detail("shield_mk1", 2) == "Shields: +26"  # 20 * 1.30 exact
+    # Doc 56 phase 2: upkeep rides the Power axis (shield_mk1 -1
+    # scaled 1.30 -> -2, ceiling in magnitude).
+    assert module_detail("shield_mk1", 2) == "Power: -2  Shields: +26"
     # Label order follows the stat-line table; negatives keep their sign.
     assert module_detail("armor_plating", 3) == "Power: -2  Hull: +8"
 
