@@ -185,9 +185,13 @@ def test_allocate_budget_zero_weight_slots_never_receive_points():
 def test_pirate_flagships_fly_the_existing_smuggler_holds():
     """The theme ruling resolves to the CATALOG's own family (playtest
     ruling 2026-09-24: no new id) — pirates run the concealment holds
-    that already exist, mk tier matching the ship's band."""
+    that already exist, mk tier matching the ship's band. PARTIALLY
+    SUPERSEDED by doc 56 SETTLED 22: the fitting grid outranks the
+    theme where geometry refuses — the warlord's kit WITH the hold is
+    32 cells on the frigate's 30, so it flies none; the captain's
+    frigate keeps its mk3 (the theme survives on still-fitting hulls)."""
     assert "smuggler_hold_mk3" in find_npc_ship("pirate_captain").modules
-    assert "smuggler_hold_mk4" in find_npc_ship("pirate_warlord").modules
+    assert "smuggler_hold_mk4" not in find_npc_ship("pirate_warlord").modules
     from src.spacehack.data.modules import find_module
 
     assert find_module("smuggler_hold_mk3").smuggler_cargo > 0
@@ -205,11 +209,73 @@ def test_merchant_wealth_scales_the_module_suite():
     assert "expanded_cargo" in hauler
 
 
-def test_every_loadout_fits_its_hull_slots():
+def _spec_items(spec):
+    """The spec's full kit as packer input — weapons then modules, in
+    spec (tuple) order, exactly what `start_fitted_entries` stamps for
+    the player side."""
+    from src.spacehack.data.modules import find_module
+
+    items = [
+        (wid, find_weapon(wid).grid_w, find_weapon(wid).grid_h)
+        for wid in spec.weapons
+    ]
+    items += [
+        (mid, find_module(mid).grid_w, find_module(mid).grid_h)
+        for mid in spec.modules
+    ]
+    return items
+
+
+def test_every_npc_loadout_packs_its_hull_grid():
+    """Doc 56 phase 5 (replaces the slot-count lint — the fields are
+    retired): every loaded spec's full kit packs the hull's fitting
+    grid through the ONE deterministic packer. Derelicts fly nothing
+    and pass vacuously."""
     from src.spacehack.data.ships import find_ship
+    from src.spacehack.fitting import auto_fit
 
     for spec in list_npc_ships():
-        slots = find_ship(spec.ship_id).module_slots
-        assert len(spec.modules) <= slots, spec.id
-        weapons = find_ship(spec.ship_id).weapon_slots
-        assert len(spec.weapons) <= weapons, spec.id
+        hull = find_ship(spec.ship_id)
+        placed = auto_fit(hull.grid_w, hull.grid_h, _spec_items(spec))
+        assert placed is not None, spec.id
+
+
+def test_every_npc_loadout_is_power_valid_at_base_quality():
+    """Doc 56 SETTLED 23: the NPC lint mirrors the player's
+    start-loadout lint — net >= 0 resting at BASE quality. Rolled
+    instances may go net-negative (the clamped-0 pool, live since
+    phase 2, probe-refereed); those are phase-4 balance input, not
+    structural failures."""
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.ship import StoredEquipment
+    from src.spacehack.ship_fitting import modules_resting_power
+
+    for spec in list_npc_ships():
+        hull = find_ship(spec.ship_id)
+        modules = tuple(
+            StoredEquipment("module", mid) for mid in spec.modules
+        )
+        assert modules_resting_power(hull, modules) >= 0, spec.id
+
+
+def test_pirate_warlord_kit_packs_at_23_of_30():
+    """SETTLED 22's exact numbers: the re-authored warlord kit minus
+    the 3x3 hold covers 23 of the frigate's 30 cells."""
+    from src.spacehack.data.ships import find_ship
+    from src.spacehack.fitting import auto_fit
+
+    spec = find_npc_ship("pirate_warlord")
+    hull = find_ship(spec.ship_id)
+    placed = auto_fit(hull.grid_w, hull.grid_h, _spec_items(spec))
+    assert placed is not None
+    assert sum(p.w * p.h for p in placed) == 23
+
+
+def test_pirate_warlord_rolls_no_hold_into_its_capture_interior():
+    """The boarded-modules consequence (SETTLED 22): the capture
+    interior's module loot rolls from the spec's flown kit, so no 3x3
+    hold rides the warlord's wreck."""
+    from src.spacehack.combat._stats import _enemy_flown_loadout
+
+    _weapons, flown = _enemy_flown_loadout(find_npc_ship("pirate_warlord"))
+    assert not any("smuggler_hold" in m.item_id for m in flown)

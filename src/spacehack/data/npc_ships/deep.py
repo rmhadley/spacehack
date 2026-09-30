@@ -88,7 +88,10 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         faction="pirate",
         elite=True,
         weapons=("heavy_laser", "heavy_missile", "plasma_cannon", "light_laser"),
-        modules=("shield_mk1", "shield_capacitor", "shield_recharger", "targeting_computer", "armor_plating", "smuggler_hold_mk4"),
+        # SETTLED 22 (doc 56): the smuggler hold is the cut that makes
+        # the kit fit — with it the loadout is 32 cells on the frigate's
+        # 30; without it 23/30 and zero combat-math change.
+        modules=("shield_mk1", "shield_capacitor", "shield_recharger", "targeting_computer", "armor_plating"),
         cargo_goods=("weapons_blackmarket", "luxury_goods", "rare_earth_metals", "research_data"),
         cargo_count=4,
         band=4,
