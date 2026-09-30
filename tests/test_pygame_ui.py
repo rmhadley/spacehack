@@ -6431,7 +6431,7 @@ def test_split_row_runs_paint_label_segments_with_value_trailing(monkeypatch):
     monkeypatch.setattr(pygame_split.pygame_ui, "draw_menu_row", fake_draw_menu_row)
     row = pygame_split.SplitRow(
         "Overclocked Shield Mk. 2", "45$", "Shields: +9",
-        "MANAGE_MODULE_SLOT:0",
+        "MANAGE_STORED:0",
         runs=(("Overclocked Shield Mk. 2", (130, 210, 240)),),
     )
 

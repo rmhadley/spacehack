@@ -188,7 +188,12 @@ def install_stored_equipment(
 ) -> bool:
     """Install one stored part through the fitting gate and remove it
     from storage on success (geometry + power gated — AC1's
-    fresh-Skiff shield_mk4 refusal lands here)."""
+    fresh-Skiff shield_mk4 refusal lands here).
+
+    Doc 56 phase 3: the modal's live install path is the editor's
+    hand-off; THIS seam remains the programmatic install (the balance
+    harness refits ships through it, and the phase-2 lint pins ride
+    it)."""
     if not 0 <= storage_index < len(storage):
         return False
     stored = storage[storage_index]

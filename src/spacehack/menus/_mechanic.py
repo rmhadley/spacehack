@@ -3,9 +3,9 @@
 TAB cycles the tabs; the AMMO tab only appears while a missile
 launcher is installed (it is added/removed live as the loadout
 changes). REPAIRS holds Refuel + Repair; AMMO buys one round per
-launcher; LOADOUT shows the installed parts and opens the buy/sell
-market. Extracted from the old ``menus.py`` during the package
-refactor.
+launcher; LOADOUT shows the read-only fitting grid under the Manage
+row, which opens the parts market (the grid editor itself). Extracted
+from the old ``menus.py`` during the package refactor.
 """
 
 from __future__ import annotations
