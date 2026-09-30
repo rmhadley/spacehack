@@ -104,31 +104,41 @@ def _gear_list_lines(owned) -> tuple[list[str], list[tuple | None]]:
     return lines, runs
 
 
+def loadout_readout(ctx, owned, ship) -> tuple[tuple[str, ...], tuple]:
+    """The shared LOADOUT readout (doc 56 SETTLED 20/21): the OVERVIEW
+    block, then the active weapons and modules with their stats — the
+    hangar tab's whole body, and the mechanic tab's body under its
+    Manage row."""
+    from .. import pygame_ui
+
+    body = ["OVERVIEW", *_overview_lines(ctx, owned, ship)]
+    runs: list[tuple | None] = [
+        (("OVERVIEW", pygame_ui.DEFAULT_PALETTE.muted),), None, None,
+    ]
+    gear_lines, gear_runs = _gear_list_lines(owned)
+    body.extend(gear_lines)
+    runs.extend(gear_runs)
+    if not gear_lines:
+        body.append("Nothing installed.")
+        runs.append(None)
+    return tuple(body), tuple(runs)
+
+
 def _loadout_section(ctx, owned, ship):
     """Build the LOADOUT tab's body, rows, and footer.
 
     Doc 56 SETTLED 20 (playtest 2026-09-30, amends 19 for the hangar):
     the overview's important numbers, then a list of the active
-    weapons and modules with their stats attached — tier-coloured
-    names, the same stat lines the editor's tooltip shows. The letter
-    grid stays on the mechanic's tab and editor."""
+    weapons and modules with their stats attached. The letter grid
+    lives in the mechanic's editor (SETTLED 21)."""
     from .. import pygame_ui
 
-    body = ["OVERVIEW", *_overview_lines(ctx, owned, ship)]
-    body_runs: list[tuple | None] = [
-        (("OVERVIEW", pygame_ui.DEFAULT_PALETTE.muted),), None, None,
-    ]
-    gear_lines, gear_runs = _gear_list_lines(owned)
-    body.extend(gear_lines)
-    body_runs.extend(gear_runs)
-    if not gear_lines:
-        body.append("Nothing installed.")
-        body_runs.append(None)
+    body, body_runs = loadout_readout(ctx, owned, ship)
     rows = ()
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "TAB ship", "ESC back", pygame_ui.GUIDE_HINT,
     ),)
-    return tuple(body), rows, footer, tuple(body_runs)
+    return body, rows, footer, body_runs
 
 def _faction_progress_bar(rep: int, width: int = 31) -> str:
     """Return the CP437-safe centered faction reputation bar."""

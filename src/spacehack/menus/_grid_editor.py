@@ -1,6 +1,8 @@
 """The fitting-grid editor (doc 56 phase 3): cursor + pick/place state
-machine, letter-block presentation, and the read-only letter grid the
-hangar and mechanic tabs reuse (SETTLED 19).
+machine, letter-block presentation, and the shared part readouts
+(``entry_view`` name+stats) the hangar and mechanic LOADOUT tabs
+compose their lists from (SETTLED 20/21 — the letter grid itself
+renders only here, in the editor).
 
 Two deliberate layers:
 
@@ -13,9 +15,8 @@ Two deliberate layers:
 * The PRESENTATION layer composes letter rows (SETTLED 15's letters)
   as ``(text, runs)`` pairs — tier colours via ``quality_color``,
   red/green legality for the held ghost (the legality colour overrides
-  the tier colour), a bracketed cursor cell. Hosts wrap the pairs:
-  the mechanic editor paints them as split rows, the hangar and
-  mechanic tabs as screen body/rows.
+  the tier colour), a bracketed cursor cell, the accent hover
+  highlight. The loadout modal paints them as split rows.
 
 The hand itself lives with the host (modal-runner session state, per
 the phase-3 hand model); this module only ever sees the pure
@@ -335,21 +336,6 @@ def _piece_cells(pieces) -> dict[Cell, tuple[str, tuple[int, int, int] | None]]:
         for x in range(piece.x, piece.x + piece.w)
         for y in range(piece.y, piece.y + piece.h)
     }
-
-
-def read_only_rows(ship_spec, owned) -> tuple[tuple[str, tuple | None], ...]:
-    """The read-only letter grid (SETTLED 19): one ``(text, runs)`` pair
-    per grid row, tier-coloured letters, ``.`` empties, no cursor —
-    the hangar LOADOUT tab and the mechanic tab render this."""
-    cells = _piece_cells(pieces_for(owned))
-    rows = []
-    for y in range(ship_spec.grid_h):
-        segments = []
-        for x in range(ship_spec.grid_w):
-            glyph, color = cells.get((x, y), (".", None))
-            segments.append((f"{glyph} ", color))
-        rows.append(_trim_row(segments))
-    return tuple(rows)
 
 
 def _trim_row(segments):

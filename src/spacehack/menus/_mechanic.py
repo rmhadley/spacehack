@@ -155,10 +155,14 @@ def _ammo_section(ctx, owned, ship_rec, next_hint, missile_slots):
 def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
     """Build the LOADOUT tab's rows, body, and footer.
 
-    Doc 56 SETTLED 19: the read-only letter grid under the Manage row
-    (the last slot-shaped surface died with SETTLED 18)."""
+    Doc 56 SETTLED 21 (2026-09-30, in-play): the tab matches the
+    hangar's LOADOUT — the overview's important numbers, then the
+    active weapons and modules with their stats — with the Manage row
+    kept on top (the editor entry; the letter grid lives only there).
+    The long body pages instead of tipping the fitted font below the
+    other tabs (the 2026-09-21 lesson, via the frame's scrollable)."""
     from .. import pygame_screen, pygame_ui
-    from ..menus._grid_editor import read_only_rows
+    from ._ship_menu import loadout_readout
 
     rows = (
         pygame_screen.ScreenRow("PARTS MARKET", selectable=False, header=True),
@@ -167,18 +171,13 @@ def _loadout_section(ctx, owned, ship_rec, next_hint, _missile_slots):
             "Opens the parts market for this planet (weapons + modules).",
             "LOADOUT",
         ),
-    ) + tuple(
-        pygame_screen.ScreenRow(text, selectable=False, runs=runs)
-        for text, runs in read_only_rows(ship_rec, owned)
     )
-    # No body line: it tipped the fitted font below every other tab
-    # (playtest 2026-09-21) and restated the Manage row's detail.
-    body = ()
+    body, body_runs = loadout_readout(ctx, owned, ship_rec)
     footer = (pygame_ui.modal_hint(
         pygame_ui.NAV_HINT, "ENTER manage loadout", next_hint,
         "ESC back", pygame_ui.GUIDE_HINT,
     ),)
-    return rows, body, footer
+    return rows, body, footer, body_runs
 
 
 def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots):
@@ -193,12 +192,17 @@ def _mechanic_frame(ctx, ship_rec, tab: int, selected: int, tabs, missile_slots)
         "AMMO": _ammo_section,
         "LOADOUT": _loadout_section,
     }
-    rows, body, footer = sections[tab_name](
+    rows, body, footer, *extra = sections[tab_name](
         ctx, owned, ship_rec, next_hint, missile_slots,
     )
+    body_runs = extra[0] if extra else ()
     return pygame_screen.ScreenFrame(
         title="MECHANIC TERMINAL", body=body, rows=rows, footer=footer,
-        selected=selected, tabs=tabs, active_tab=tab,
+        selected=selected, tabs=tabs, active_tab=tab, body_runs=body_runs,
+        # The LOADOUT tab's shared readout can outgrow one screen on a
+        # full rack — it pages instead of dropping the fitted font off
+        # the ladder every other tab shares.
+        scrollable=tab_name == "LOADOUT",
     )
 
 

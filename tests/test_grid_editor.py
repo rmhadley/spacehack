@@ -237,25 +237,6 @@ class TestPaneRows:
         assert rows[0][0] == " . [L] .  ."
 
 
-class TestReadOnlyGrid:
-    def test_letters_and_empties(self):
-        from src.spacehack.data.ships import find_ship
-        from src.spacehack.ship import OwnedShip, StoredEquipment
-
-        owned = OwnedShip(
-            ship_id="scout",
-            weapons=(StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),),
-            modules=(StoredEquipment("module", "shield_mk1", grid_x=1, grid_y=0),),
-        )
-        rows = ge.read_only_rows(find_ship("scout"), owned)
-        assert rows[0][0] == "L S S ."
-        assert rows[1][0] == ". S S ."
-        assert rows[2][0] == ". . . ."
-        assert all(
-            "".join(part for part, _c in runs) == text for text, runs in rows
-        )
-
-
 class TestLetters:
     def test_every_registered_item_has_a_letter(self):
         from src.spacehack.data.modules import list_modules

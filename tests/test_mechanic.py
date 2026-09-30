@@ -78,12 +78,19 @@ class TestMechanicFrameTabs:
         assert frame.rows
         assert all(row.action.startswith("AMMO:") for row in frame.rows)
 
-    def test_loadout_tab_shows_manage_row_and_read_only_grid(self):
+    def test_loadout_tab_matches_the_hangar_readout(self):
+        """Doc 56 SETTLED 21: the mechanic tab carries the same overview
+        + gear list as the hangar, with the Manage row kept on top —
+        the letter grid lives only in the editor."""
         from src.spacehack.ship import StoredEquipment
         ctx = self._ctx((
             StoredEquipment("weapon", "light_laser", grid_x=0, grid_y=0),
             StoredEquipment("weapon", "light_missile", grid_x=1, grid_y=0),
         ))
+        ctx.stats = SimpleNamespace(
+            credits=1000, gunnery=10, piloting=10, engineering=10,
+        )
+        ctx.player_traits = []
         tabs = _mechanic._mechanic_tabs([1])
         loadout_index = tabs.index("LOADOUT")
         frame = _mechanic._mechanic_frame(
@@ -91,15 +98,17 @@ class TestMechanicFrameTabs:
         )
 
         assert frame.active_tab == loadout_index
-        # The manage row leads the tab under its own header; doc 56
-        # SETTLED 19's read-only letter grid follows (the slot lists
-        # died with SETTLED 18).
+        assert frame.scrollable is True  # full racks page, not shrink
+        # The manage row leads under its own header...
         assert frame.rows[0].text == "PARTS MARKET"
         assert frame.rows[1].action == "LOADOUT"
-        grid = frame.rows[2:]
-        assert all(not row.selectable for row in grid)
-        assert any("L" in row.text for row in grid)
-        assert not any("SLOTS" in row.text.upper() for row in frame.rows)
+        assert len(frame.rows) == 2
+        # ...then the shared readout: overview numbers + the gear list.
+        assert frame.body[0] == "OVERVIEW"
+        assert frame.body[1].startswith("Hull ")
+        assert "Light Laser - Dmg 4" in frame.body[4]
+        assert "Light Missile - Dmg 14" in frame.body[5]
+        assert not any("SLOTS" in line.upper() for line in frame.body)
 
     def test_ammo_rows_label_the_weapon_not_the_slot(self):
         # Doc 56 phase 3: "Slot n:" vocabulary retires with the slots.
