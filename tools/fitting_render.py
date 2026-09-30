@@ -2,9 +2,10 @@
 """Doc 56 phase-1 fixture: render each hull's fitting grid with its
 start loadout placed as letter blocks.
 
-The glyph proposal (doc 56 open question 1): S/R/T/G/C/A/H module
-families, L/M/P/E weapons, '.' empty. Deliberately NOT pinned by any
-test — the user's eyeball on this output is the ruling session.
+The glyph letters (doc 56 SETTLED 15): S/R/T/G/C/A/H module
+families, L/M/P/E weapons, '.' empty. Still deliberately NOT pinned
+by any test — phase 3's editor owns the in-game letter+colour
+treatment; this tool just renders fixtures.
 
 Placement always comes from ``fitting.auto_fit`` / ``fitting.footprint``
 — this tool never runs its own placement loop (doc 56 audit hotspot 2).
@@ -25,7 +26,7 @@ from src.spacehack.data.ships import find_ship, list_ships  # noqa: E402
 from src.spacehack.data.weapons import find_weapon  # noqa: E402
 from src.spacehack.fitting import auto_fit  # noqa: E402
 
-# Open question 1's proposal. Shield capacitor/recharger fold into the
+# SETTLED 15's ruling. Shield capacitor/recharger fold into the
 # shield family letter; EMP gets its own E beside the missile M. A new
 # catalog id without a letter fails loudly here so the decision is
 # made, not defaulted.

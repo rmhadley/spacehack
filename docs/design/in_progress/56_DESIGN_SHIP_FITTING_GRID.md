@@ -10,7 +10,8 @@ audit live-verified, phase-1 Implementation brief proposed.
 Phase 1 BUILT same day (`/implement-phase 56.1`): brief ADVISE-folded
 (2 blocking + 7 minor, all dispositioned below), gate green 3308,
 commits de06db72/dd33ce26/a96b88cc/1c3b7c18. PLAYTEST PASSED
-2026-09-30 ("playtest is good").
+2026-09-30 ("playtest is good"; glyph letters ruled in the same
+exchange — SETTLED 15; open questions renumbered, 4 remain).
 
 ## Overview
 
@@ -156,6 +157,15 @@ magnitude retune (that lands with the grid, probe-driven — phase 4).
     that gear moved to storage (reusing
     `move_installed_equipment_to_storage`), ready to re-fit. This is
     also the machinery SETTLED 11's power-invalid normalization uses.
+15. **Glyph letters ruled** (2026-09-30, at the phase-1 playtest). User:
+    "yes the letters are good too" — the fixture render's proposal
+    stands: module families S (shields incl. capacitor/recharger) /
+    R (reactors) / T (targeting) / G (gyro) / C (cargo) / A (armor) /
+    H (smuggler holds), weapons L (lasers) / M (missiles) / E (EMP) /
+    P (plasma), `.` empty. Tier colours and red/green legality remain
+    phase-3 UI scope; the breach prototype's `B` is a render-tool-only
+    assignment (no fixture carries it — its game glyph, if it ever
+    needs one, is phase 3's).
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -323,10 +333,8 @@ Worked check (the motivating cases):
   (minor 3); start-loadout resolver duplication test-vs-tool ACCEPTED
   for phase 1 — phase 2 gets four more stamping sites and must extract
   ONE shared resolver at the first third caller (minor 2, recorded).
-  PLAYTEST PASSED 2026-09-30 (user: "playtest is good"). OQ1 glyph
-  letters: the fixtures passed the eyeball but no explicit letter
-  ruling was captured — the S/R/T/G/C/A/H + L/M/P/E proposal stays
-  open, to rule any time or at the phase-3 brief at the latest.
+  PLAYTEST PASSED 2026-09-30 (user: "playtest is good"; glyph letters
+  ruled same follow-up — "yes the letters are good too" — SETTLED 15).
   SYSTEMS.md: deferred to the phase-2/3 closes by design — phase 1
   adds no player-facing mechanic (`fitting.py` has no live callers);
   the slot-system entries stay authoritative until placements land.
@@ -370,7 +378,7 @@ Worked check (the motivating cases):
   bands; probe rows show real mean hull damage.
 - [ ] **5. NPC parity** — NPC loadouts adopt sizes: the flat-tuple lint
   becomes packability + power validity; `weapon_slots`/`module_slots`
-  retire. (Ordering vs the enemy-volley parity fix: open question 5.)
+  retire. (Ordering vs the enemy-volley parity fix: open question 4.)
 
 Each phase gets an Implementation brief at `/refine-design` time before
 any build. Every phase close amends the SYSTEMS.md entries it touched
@@ -416,8 +424,8 @@ catch 1).
 6. NEW `tests/test_fitting_geometry.py` — the lints + packer units.
 7. NEW `tools/fitting_render.py` — prints each hull's grid with its
    start loadout placed as letter blocks (S/R/T/G/C/A/H families,
-   L/M/P/E weapons, `.` empty — open question 1's proposal gets its
-   first eyeball here). Builds grids ONLY via `fitting.auto_fit` +
+   L/M/P/E weapons, `.` empty — the glyph proposal (ruled at the
+   playtest, SETTLED 15) got its first eyeball here). Builds grids ONLY via `fitting.auto_fit` +
    occupancy helpers, never its own placement loop (ADVISE minor 5);
    output CP437-safe ASCII (REVIEW blocking 1: em-dashes → hyphens).
 
@@ -490,18 +498,19 @@ edits. That is phases 2-3.
 
 ## Open questions (for /refine-design)
 
-1. **Glyph letters + empty cell**: proposal S/R/T/G/C/A/H families,
-   L/M/P/E weapons, `.` empty. Needs the user's eye on a render — the
-   phase-1 fixture renderer is the first look.
-2. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
-3. **HUD readout shape** (cells + net power wording).
-4. **Placement data shape** (phase-2 brief time; per-entry x/y is the
+1. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
+2. **HUD readout shape** (cells + net power wording).
+3. **Placement data shape** (phase-2 brief time; per-entry x/y is the
    lean — the verified census: `weapon_ammo` keys magazines by
    weapons-tuple index with removal re-indexing at `ship.py:521-527`,
    and tinker's `_tuple_field_apply` plus the tombstone dump both
    preserve entry shape).
-5. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
+4. **Enemy-volley parity slotting** — before phase 5, after phase 4, or
    its own fix doc whenever (it is independent of the grid).
+
+(Renumbered 2026-09-30 when the glyph letters settled as SETTLED 15;
+older prose saying "open question 1" for letters / "open question 4"
+for placement predates the renumbering.)
 
 ## Pre-implementation audit
 
@@ -517,7 +526,7 @@ brief). Every advisor-catch anchor confirmed:
   decision: placement rides the INSTALLED entry (x/y read by the entry
   parsers in phase 2); storage payloads never carry placement keys —
   stored items have no position, so nothing is dropped. Binding shape
-  settles with the phase-2 brief (open question 4; per-entry x/y is
+  settles with the phase-2 brief (open question 3; per-entry x/y is
   the lean).
 - **The tinker kit seam**: `_installed_targets`/`_flown_weapon_targets`
   (`tinker.py:232-257`) apply through `_tuple_field_apply`
