@@ -73,6 +73,13 @@ class SplitFrame:
     # Equipment tab (doc 52.3). TAB/SHIFT_TAB stay the HOST's outcomes.
     screen_tabs: tuple[str, ...] = ()
     active_screen_tab: int = 0
+    # The right pane hosts the fitting-grid editor (doc 56 phase 3):
+    # arrows/ENTER/D/X/TAB map to GRID:* outcomes routed through the
+    # host's keep-open apply path, and ESC becomes GRID:ESC while the
+    # editor holds a part (two-stage ESC). Letter rows carry no
+    # actions, so ENTER is otherwise dead on that pane.
+    grid_pane: bool = False
+    grid_holding: bool = False
 
 
 def _rows(frame: SplitFrame) -> tuple[SplitRow, ...]:
@@ -605,6 +612,52 @@ def _tab_modes(pygame: Any, frame: SplitFrame) -> dict[Any, str]:
     }
 
 
+def _grid_moves(pygame: Any) -> dict[Any, tuple[int, int]]:
+    """The grid cursor's key table: arrows plus the vim cross."""
+    return {
+        getattr(pygame, name): delta
+        for name, delta in (
+            ("K_UP", (0, -1)), ("K_DOWN", (0, 1)),
+            ("K_LEFT", (-1, 0)), ("K_RIGHT", (1, 0)),
+            ("K_k", (0, -1)), ("K_j", (0, 1)),
+            ("K_h", (-1, 0)), ("K_l", (1, 0)),
+        )
+        if getattr(pygame, name, None) is not None
+    }
+
+
+def _handle_grid_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, int] | None:
+    """One key on the focused grid pane (doc 56 phase 3) — a key-table
+    GRID:* outcome routed through the host's keep-open apply path, or
+    None to fall through to the shared split handling.
+
+    TAB surfaces to the host (today it is swallowed here with a focus
+    flip) so the SETTLED-12 auto-return can fire; ESC only becomes
+    GRID:ESC while the editor holds a part (two-stage ESC — empty-hand
+    ESC still exits through the shared BACK).
+    """
+    keys = {
+        name: getattr(pygame, name, None)
+        for name in ("K_RETURN", "K_KP_ENTER", "K_d", "K_x", "K_TAB")
+    }
+    delta = _grid_moves(pygame).get(event.key)
+    if delta is not None:
+        return f"GRID:MOVE:{delta[0]}:{delta[1]}", frame.focus, frame.selected
+    if event.key in (keys["K_RETURN"], keys["K_KP_ENTER"]):
+        return "GRID:ENTER", frame.focus, frame.selected
+    if event.key == keys["K_d"]:
+        return "GRID:STORE", frame.focus, frame.selected
+    if event.key == keys["K_x"]:
+        return "GRID:SELL", frame.focus, frame.selected
+    if event.key == keys["K_TAB"]:
+        # The host resolves any held part, then the pane flips.
+        other = replace(frame, focus=0, selected=0)
+        return "GRID:TAB", 0, _clamp_selected(other)
+    if event.key == pygame.K_ESCAPE and frame.grid_holding:
+        return "GRID:ESC", frame.focus, frame.selected
+    return None
+
+
 def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, int]:
     """Map a worker key to ``(outcome, focus, selected)``."""
     selected = _clamp_selected(frame)
@@ -613,6 +666,10 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
         return "QUIT", frame.focus, selected
     if event.type != pygame.KEYDOWN:
         return "IGNORE", frame.focus, selected
+    if frame.grid_pane and frame.focus == 1:
+        grid_outcome = _handle_grid_key(pygame, event, frame)
+        if grid_outcome is not None:
+            return grid_outcome
     if event.key == pygame.K_ESCAPE:
         return "BACK", frame.focus, selected
     if pygame_ui.is_guide_key(pygame, event):
@@ -865,13 +922,33 @@ async def run_interactive(
             await _run_help_guide(ctx)
             frame = _build_frame(build_frame, rebuilt=True)
             continue
-        if outcome == "SELECT" or outcome.startswith("MODE:"):
+        if _keep_open_outcome(outcome):
             keep_open = await _apply_keep_open(apply_action, outcome, action, focus, selected)
             if keep_open:
                 frame = _build_frame(build_frame, rebuilt=True)
+                focus, selected = _steered_focus(frame, focus, selected)
                 continue
             return "BACK"
         return outcome
+
+
+def _keep_open_outcome(outcome: str) -> bool:
+    """Outcomes the host applies without closing the terminal."""
+    return (
+        outcome == "SELECT"
+        or outcome.startswith("MODE:")
+        or outcome.startswith("GRID:")
+    )
+
+
+def _steered_focus(frame: SplitFrame, focus: int, selected: int) -> tuple[int, int]:
+    """A rebuilt GRID frame may steer focus (doc 56 phase 3): the
+    loadout's hand-off installs land the part in the editor's hand ON
+    the grid pane, so its rebuild carries focus 1 over the worker's 0.
+    Every other frame keeps the worker's focus."""
+    if frame.grid_pane and frame.focus != focus:
+        return frame.focus, frame.selected
+    return focus, selected
 
 
 def _shared_runtime_enabled(ctx: GameContext) -> bool:

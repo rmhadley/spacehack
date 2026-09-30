@@ -2245,6 +2245,121 @@ def test_split_frame_explicit_tab_modes_override_label_defaults():
     ) == ("MODE:EXPEDITION", 0, 0)
 
 
+def test_grid_pane_key_surface_maps_to_grid_outcomes():
+    """Doc 56 phase 3: on a focused grid pane, arrows/ENTER/D/X/TAB map
+    to GRID:* outcomes routed through the host's keep-open apply path;
+    TAB surfaces (with the pane flip) so the SETTLED-12 auto-return can
+    fire; ESC is two-stage (GRID:ESC only while holding)."""
+    class FakePygame:
+        QUIT = 1
+        KEYDOWN = 2
+        K_ESCAPE = 10
+        K_UP, K_DOWN, K_LEFT, K_RIGHT = 11, 12, 13, 14
+        K_k, K_j, K_h, K_l = 15, 16, 17, 18
+        K_RETURN, K_KP_ENTER = 19, 20
+        K_d, K_x, K_TAB = 21, 22, 23
+        K_b = 24
+
+    def key(code):
+        return SimpleNamespace(type=FakePygame.KEYDOWN, key=code)
+
+    grid = pygame_split.SplitFrame(
+        "MECHANIC", "Store", "My Ship", (), (), "", "", "",
+        focus=1, grid_pane=True, grid_holding=True,
+        left_tabs=("[B]uy", "[S]torage"),
+    )
+    left = pygame_split.SplitFrame(
+        "MECHANIC", "Store", "My Ship", (), (), "", "", "",
+        focus=0, grid_pane=True, grid_holding=True,
+        left_tabs=("[B]uy", "[S]torage"),
+    )
+
+    for code, expected in (
+        (FakePygame.K_UP, "GRID:MOVE:0:-1"), (FakePygame.K_DOWN, "GRID:MOVE:0:1"),
+        (FakePygame.K_LEFT, "GRID:MOVE:-1:0"), (FakePygame.K_RIGHT, "GRID:MOVE:1:0"),
+        (FakePygame.K_k, "GRID:MOVE:0:-1"), (FakePygame.K_j, "GRID:MOVE:0:1"),
+        (FakePygame.K_h, "GRID:MOVE:-1:0"), (FakePygame.K_l, "GRID:MOVE:1:0"),
+        (FakePygame.K_RETURN, "GRID:ENTER"), (FakePygame.K_KP_ENTER, "GRID:ENTER"),
+        (FakePygame.K_d, "GRID:STORE"), (FakePygame.K_x, "GRID:SELL"),
+    ):
+        assert pygame_split._handle_key(FakePygame, key(code), grid) == (
+            expected, 1, 0,
+        )
+    # TAB surfaces with the pane already flipped to the left.
+    assert pygame_split._handle_key(FakePygame, key(FakePygame.K_TAB), grid) == (
+        "GRID:TAB", 0, 0,
+    )
+    # Two-stage ESC: holding returns the part (GRID:ESC, keep open);
+    # empty-handed ESC falls through to the shared BACK.
+    assert pygame_split._handle_key(
+        FakePygame, key(FakePygame.K_ESCAPE), grid,
+    ) == ("GRID:ESC", 1, 0)
+    empty = pygame_split.replace(grid, grid_holding=False)
+    assert pygame_split._handle_key(
+        FakePygame, key(FakePygame.K_ESCAPE), empty,
+    ) == ("BACK", 1, 0)
+    # Left-tab MODE keys (B/S) stay live on the grid pane.
+    assert pygame_split._handle_key(FakePygame, key(FakePygame.K_b), grid) == (
+        "MODE:STORE", 1, 0,
+    )
+    # The grid surface only exists on the focused pane: left-pane keys
+    # keep the shared behavior (d/x fall through to IGNORE).
+    assert pygame_split._handle_key(FakePygame, key(FakePygame.K_d), left) == (
+        "IGNORE", 0, 0,
+    )
+    assert pygame_split._handle_key(FakePygame, key(FakePygame.K_TAB), left) == (
+        "IGNORE", 1, 0,
+    )
+
+
+def test_split_interactive_routes_grid_outcomes_and_steers_focus(monkeypatch):
+    """GRID:* outcomes apply keep-open like SELECT/MODE, and a grid
+    frame's rebuild may steer focus — the loadout's hand-off installs
+    land the part in the editor's hand ON the grid pane."""
+    steering = {"focus": 0}
+    frames = [
+        pygame_split.SplitFrame(
+            "MECHANIC", "Store", "Grid", (), (), "", "", "", grid_pane=True,
+        ),
+    ]
+    outcomes = iter((
+        ("GRID:MOVE:1:0", "", 0, 0),
+        ("SELECT", "BUY_WEAPON:x", 0, 0),
+        ("BACK", "", 0, 0),
+    ))
+    applied = []
+
+    def fake_run(_context, current, **_kwargs):
+        assert current.grid_pane
+        return next(outcomes)
+
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
+    monkeypatch.setattr(pygame_split, "run_shared", as_async(fake_run))
+
+    def build():
+        # The rebuild lands focus on the grid pane after a hand-off
+        # install (the host session steers; the worker's focus was 0).
+        frame = frames[0]
+        return pygame_split.replace(frame, focus=steering["focus"])
+
+    async def apply(action, focus, selected):
+        applied.append((action, focus, selected))
+        if action == "BUY_WEAPON:x":
+            steering["focus"] = 1  # hand-off: part enters the hand on the grid
+        return True
+
+    assert run(pygame_split.run_interactive(
+        SimpleNamespace(context=object()), build, apply, caption="test",
+    )) == "BACK"
+    # Both GRID: and SELECT outcomes reached the host and kept it open.
+    assert [action for action, _f, _s in applied] == [
+        "GRID:MOVE:1:0", "BUY_WEAPON:x",
+    ]
+    # The steered rebuild carried focus 1 into the next run_shared
+    # frame (fake_run asserted grid_pane on every re-entry).
+    assert steering["focus"] == 1
+
+
 def test_loadout_frame_exposes_buy_storage_tabs_and_active_state():
     from src.spacehack.menus import _loadout
     from src.spacehack.ship import OwnedShip
