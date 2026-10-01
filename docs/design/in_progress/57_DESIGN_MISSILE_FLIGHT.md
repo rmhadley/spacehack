@@ -532,6 +532,30 @@ Post-fix simulation (real spec dials): the raider launches every
 round under a closing player (holds 4.0–5.0); the warlord holds 5–6
 with steady heavies; magazines run down honestly.
 
+### 57.2.5 build notes (2026-10-01)
+
+- The ratchet fired as budgeted: the conservation reads split to
+  `combat/_ai_conservation.py` (`_regen_reserve`,
+  `_funds_within_reserve`, `_effective_aggressiveness`,
+  `_magazine_dry` — reads together, gates at `_member_included`);
+  `_ai.py` lands at 946.
+- THE PROBE EARNED ITS KEEP mid-build: the first bend (flat +50
+  additive desperation, everyone) broke goal_1's ruled 0.94 win
+  floor (0.94 → 0.90; starter damage 0.96 → 1.82); ×1.4
+  multiplicative still 0.89; isolation proved the desperation term
+  was the entire delta (Crimson Jack = pirate_scout, shields but
+  NO divert). Scope: the bend governs divert carriers only — with
+  that, every ruled bar holds and the full balance report is
+  BIT-IDENTICAL to the pre-build baseline. Recorded as a
+  probe-refereed amendment of the flagged desperation pick; the
+  tutorial bar is the user's to re-rule if they want dying scouts
+  desperate too.
+- The flak spin closure (ADVISE 1) has a behavioral read the pin
+  captures: an active reserve benches the at-player guns, the
+  0-power rack survives as the pick, one flak volley funds
+  (reserve-exempt), then the pool sits below the reserve and the
+  rest of the turn dances — funded flak once, pure defense after.
+
 PLAYTEST WATCH (reviewer round 2, minor 3): the wish list scores
 without reading ammo, so a rack-carrier whose magazine runs DRY
 keeps the rack band for the rest of the fight — its lasers then
@@ -641,13 +665,12 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       folded — the raider-never-fires report, see the audit's
       "Playtest round 1". Guide diffs + the fratricide DRAFT line
       rode the pass as called out on the checkpoint)
-- [ ] **2.5. Enemy AI conservation layer — the five-step logic check**
-      — riff + brief below (rulings SETTLED 2026-10-01: formula +
-      override seam, score-zero sits out, the bend through the
-      existing dial, three-axis state read; brief written with the
-      ADVISE pass folded — 2 blocking: the flak reserve exemption's
-      plumbing + the zero-rate formula guard; APPROVED pending the
-      user's go)
+- [x] **2.5. Enemy AI conservation layer — the five-step logic check**
+      — riff + brief below (BUILT 2026-10-01 via `/implement-phase
+      57.2.5`; the probe refereed the desperation term into its
+      divert-carrier scope mid-build — goal_1's ruled bar is the
+      evidence; gate 3479 green; playtest pending at the checkpoint
+      below)
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception
@@ -973,13 +996,26 @@ decision lands HERE).
      linear, the probe owns it). No new dial —
      ``ai_aggressiveness`` stays the spec's personality; the wound
      bends it.
-   - **Hull bends UP — desperation** (agent's flavor pick, flagged
-     for veto: opposite sign to the shield bend): as hull fails
-     below half, the temperament RISES — the cornered last stand.
-     The composition arc reads: healthy aggressor → tanking
+   - **Hull bends UP — desperation, PROBE-REFERED into scope**
+     (build-day amendment of the agent's flagged pick): as hull
+     fails below half, the temperament rises MULTIPLICATIVELY (the
+     ship's own dial × up to 1.5 — the last stand preserves the
+     authored personality: a cornered merchant stays sheepish, a
+     cornered warlord hits the cap), and ONLY for the ships the
+     conservation layer governs (divert carriers,
+     ``shield_regen_rate > 0`` — four specs today). Everyone else
+     fights to their authored dial at any hull. The probe's
+     evidence: a flat +50 additive cut broke the tutorial's ruled
+     0.94 win floor (goal_1 0.94 → 0.90); ×1.4 multiplicative still
+     0.89 (Crimson Jack carries no divert — the layer must not
+     touch him); scoped to divert carriers, every ruled bar holds
+     and the full report is bit-identical to baseline. The
+     composition arc for a warlord: healthy aggressor → tanking
      (shields low, hull fine) → desperate trader (shields gone,
      hull failing). A turtle at low hull would instead stretch
-     every kill into a chase; desperation resolves fights.
+     every kill into a chase; desperation resolves fights. If the
+     user wants NON-divert ships desperate too, the tutorial bar is
+     theirs to re-rule.
    - **Ammo = the DRY filter, never hoarding**: a weapon whose
      magazine is EMPTY drops from the wish list (the band follows
      what the ship can still feed — closes the reviewer's
@@ -992,6 +1028,62 @@ decision lands HERE).
 Nothing here restructures the decision loop; it is predicates at the
 existing seam plus one new read. No brief written yet — the rulings
 come first.
+
+## Pre-implementation audit (2026-10-01, phase 57.2.5)
+
+### 1. Existing classes / modules to extend or reuse
+
+- **`_member_included`** (`combat/_ai.py`) — THE choke point: the
+  floor gate already lives here and the ranked affordable walk
+  shares it; the reserve gate (with the threaded `flak` flag) joins
+  the same predicate, keeping pick ∈ members (never-a-spin).
+- **`start_enemy_turn`'s paid divert** (`combat/_actions.py:539-556`)
+  — the cost expression extracts to `divert_full_cost(enemy)`,
+  called by the payer AND `_regen_reserve` (the twin pair).
+- **`score_weapon`** (`combat/_ai.py`) — the score-zero read vs the
+  player state; the ranked walk already filters `_score > 0` for
+  the PICK, so the gate's only new surface is the volley membership
+  (`_affordable_members` gains `player_state`).
+- **`_engagement_decision`'s roll site** — one swap to
+  `_effective_aggressiveness`; the verbs and their AP economy are
+  untouched.
+- **`_ranked_weapons(affordable_only=False)`** — the wish list the
+  band reads (post-round-1); the dry filter drops can't-pay-a-shot
+  magazines there, and only there.
+- **`_flak_pick`** — re-point its scan at the same gated membership
+  the flak volley builds, so a non-None pick always funds a member
+  (the ADVISE-1 spin closure).
+- **`_run_volley_members`' re-gate** — the shared funds-check makes
+  sequential fire enforce the reserve cumulatively.
+- **`_turn_state` / `_record_shots` fixtures**
+  (`tests/combat/test_enemy_fire.py`) — every new pin rides them;
+  `EnemyInstance` already carries `shield_regen_rate`,
+  `shield_regen_threshold`, `pilot_engineering`, `hull/max_hull`.
+- **`tests/balance/report.py`** — the before/after delta surface
+  (baseline captured pre-build: goal_1 space row win 0.940, 3.66
+  mean turns, 0.96 mean damage; ground rows are the unaffected
+  control group).
+
+### 2. Three potential duplication hotspots
+
+1. The funds check written twice (plan-time gate vs the mid-volley
+   re-gate) drifting apart — the exact bug class the re-gate exists
+   to prevent.
+2. The divert cost re-derived beside the payer's expression (the
+   reserve and `start_enemy_turn` computing "full cost" differently
+   after a future edit).
+3. The per-member score computed twice (the ranked walk scores for
+   the pick; the members walk scoring again for the zero check).
+
+### 3. DRY strategy per hotspot
+
+1. ONE `_funds_within_reserve(_ei, ws)` helper read by both gates
+   (and only those two sites).
+2. ONE `divert_full_cost(enemy)` in `_actions.py`, both callers.
+3. The members walk's score-zero check is a single `score_weapon`
+   call on an already-filtered short list — not a second ranked
+   walk; if it ever grows past one line, it becomes a parameter of
+   the shared walk instead.
 
 ## Implementation brief 57.2.5 — the enemy AI conservation layer
 
@@ -1031,17 +1123,19 @@ come first.
     an active reserve (the spin the unflagged shape would have
     created).
   - `_effective_aggressiveness(_ei, spec)` — the bend, the single
-    read `_engagement_decision`'s fire-vs-dodge roll uses: while the
-    reserve is active, `ai_aggressiveness * shields / max_shields`
-    (linear to start; the probe owns the curve; guarded — reserve
-    inactive means no fraction at all, no-shield ships never
-    divide), then the hull desperation term raises the ROLL only:
-    `+ max(0, (0.5 - hull/max_hull) * 100)`, capped 100. Desperation
-    never overrides the reserve bench (a cornered ship still will
-    not fire the plasma it cannot fund). Note: because flak sits
-    inside the fire branch behind this roll (57.2's ADVISE 9c), a
-    deep-tanking ship flaks RARELY — only cornered or on lucky
-    rolls; that tension is accepted and the checkpoint says so.
+    read `_engagement_decision`'s fire-vs-dodge roll uses, SCOPED to
+    the governed ships (divert carriers — probe-refereed, see the
+    ruling above): while the reserve is active,
+    `ai_aggressiveness * shields / max_shields` (linear to start;
+    the probe owns the curve), then the hull desperation term
+    scales the dial up: `* (1 + max(0, 0.5 - hull/max_hull))`,
+    capped 100 — it raises the ROLL only and never overrides the
+    reserve bench (a cornered ship still will not fire the plasma it
+    cannot fund). Ungoverned ships read their raw dial at any hull.
+    Note: because flak sits inside the fire branch behind this roll
+    (57.2's ADVISE 9c), a deep-tanking ship flaks RARELY — only
+    cornered or on lucky rolls; that tension is accepted and the
+    checkpoint says so.
   - `_ranked_weapons(affordable_only=False)` gains the DRY filter:
     a weapon whose magazine is empty (`weapon_ammo <= 0` for
     ammo weapons) drops from the WISH list — the band follows what

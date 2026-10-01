@@ -365,7 +365,12 @@ probe-driven — phase 4).
     band now reads the WISH-list top over all weapons, budget and
     floor ignored, so a floor-benched rack still governs the dance
     ("dances where its best weapon fights from"); see doc 57's
-    "Playtest round 1" section]; out-of-range members fire at the hit floor, exactly
+    "Playtest round 1" section]; volley INCLUSION is affordability
+    alone — [SUPERSEDED 2026-10-01, doc 57.2.5: inclusion also
+    carries the missile floor, the conservation reserve, and the
+    score-zero gates (a strip weapon into bare shields sits out —
+    the enemy's toggles-off expression); see doc 57's phase 2.5
+    riff]; out-of-range members fire at the hit floor, exactly
     as the player's own volley does; reaction fire (doc 54's flee
     volley) stays SINGLE-shot — no player counterpart exists to
     mirror; the Momentum AP refund stays player-only (a doc-49
