@@ -307,7 +307,7 @@ def test_weapon_detail_hover_line():
         "Dmg 24  Acc 70%  Rng 1-8  AP 2  Pow 4"
     )
     detail = ge._weapon_detail(find_weapon("light_missile"))
-    assert detail == "Dmg 14  Acc 72%  Rng 2-9  AP 2  Ammo 4/4"
+    assert detail == "Dmg 28  Acc 72%  Rng 4-9  AP 2  Ammo 4/4"
     assert "Pow" not in detail
 
 

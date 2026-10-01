@@ -188,7 +188,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(800, 2400),
         # Boss-level threat: high accuracy, moderate dodge
         ai_aggressiveness=85,
-        ai_preferred_range=3,
+        ai_preferred_range=5,
         ai_accuracy_bonus=25,
         ai_dodge_bonus=10,
         shield_regen_rate=3,    # paid divert below half shields (doc 48 SETTLED 40)
@@ -275,7 +275,7 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         capture_layout_id="frigate_crew",
         loot_budget=(600, 1800),
         ai_aggressiveness=80,
-        ai_preferred_range=3,
+        ai_preferred_range=5,
         ai_accuracy_bonus=30,
         ai_dodge_bonus=15,
         shield_regen_rate=2,    # paid divert below half shields (doc 48 SETTLED 40)

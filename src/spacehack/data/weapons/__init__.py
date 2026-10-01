@@ -37,6 +37,12 @@ class WeaponSpec:
         shield_strip_pct: strip ALL current shields on hit (the EMP
             boss-key, doc 56 SETTLED 34 — the magazine is the balance
             lever); 0 = use shield_strip.
+        flight_speed: cells a missile advances per combat round
+            (doc 57 SETTLED 1); 0 = resolves at launch (the EMP
+            pulse — never interceptible).
+        missile_hp: intercept difficulty — hull a flak volley must
+            chip to destroy it in flight (doc 57 SETTLED 7); 0 =
+            not interceptible.
         grid_w/grid_h: fitting-grid footprint in cells (doc 56);
             catalog-fixed like price — never quality-scaled.
     """
@@ -57,6 +63,8 @@ class WeaponSpec:
     tech_level: int = 1               # minimum planet tech level to stock this
     shield_strip: int = 0
     shield_strip_pct: int = 0             # shields stripped on hit (EMP); 0 = normal
+    flight_speed: int = 0              # cells/combat-round in flight; 0 = instant
+    missile_hp: int = 0                # intercept difficulty; 0 = not interceptible
     # Fitting-grid footprint in cells (doc 56); mk scales it, quality
     # never. 0 = unsized sentinel — the every-item-sized lint fails on it.
     grid_w: int = 0

@@ -107,7 +107,7 @@ class TestMechanicFrameTabs:
         assert frame.body[0] == "OVERVIEW"
         assert frame.body[1].startswith("Hull ")
         assert "Light Laser - Dmg 4" in frame.body[4]
-        assert "Light Missile - Dmg 14" in frame.body[5]
+        assert "Light Missile - Dmg 28" in frame.body[5]
         assert not any("SLOTS" in line.upper() for line in frame.body)
 
     def test_ammo_rows_label_the_weapon_not_the_slot(self):

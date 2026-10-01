@@ -473,17 +473,17 @@ def test_passive_spec_dodge_stacks_instead_of_shooting(monkeypatch):
 
 
 def test_back_off_restores_min_range_then_resumes_fire(monkeypatch):
-    """Hugged inside a min-3 missile's floor at dist 1, the ship
+    """Hugged inside a min-5 missile's floor at dist 1, the ship
     backs off greedily until restoration (never past the band), then
     resumes fire."""
     shots = _record_shots(monkeypatch)
-    enemy = _enemy(("heavy_missile",), ap=4, power=10, ammo={0: 3})
+    enemy = _enemy(("heavy_missile",), ap=5, power=10, ammo={0: 3})
     state = _run_turn(
-        enemy, pref=4, rng_pin=1, enemy_at=(3, 4), monkeypatch=monkeypatch,
+        enemy, pref=6, rng_pin=1, enemy_at=(3, 4), monkeypatch=monkeypatch,
     )
-    assert _dist_to_player(state, enemy) >= 3.0   # restored to the floor
+    assert _dist_to_player(state, enemy) >= 5.0   # restored to the floor
     assert shots == ["heavy_missile"]
-    assert enemy.cells_moved_this_turn == 2
+    assert enemy.cells_moved_this_turn == 3  # greedy diagonals reach 5.0 fastest
 
 
 def test_cornered_missile_ship_fires_through_the_min_penalty(monkeypatch):
