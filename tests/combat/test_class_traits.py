@@ -378,6 +378,48 @@ def test_missile_capacity_doubles_for_the_hunter():
     ) == base * 2
 
 
+def test_missile_magazines_expand_racks_emp_hard_capped():
+    """Doc 56 SETTLED 35: a Missile Magazine adds its effective bonus
+    to every damage rack (stacking, quality-scaled), the Bounty
+    Hunter doubles AFTER the bonus — and an EMP launcher stays at its
+    authored 2: never expanded, never doubled (the boss-key's
+    magazine is the balance lever)."""
+    from src.spacehack.data.weapons import find_weapon
+    from src.spacehack.ship import (
+        OwnedShip, StoredEquipment, effective_missile_capacity,
+    )
+
+    light, heavy, emp = (
+        find_weapon(w) for w in ("light_missile", "heavy_missile", "emp_missile")
+    )
+    owned = OwnedShip(ship_id="cruiser", modules=(
+        StoredEquipment("module", "missile_magazine"),
+    ))
+    ctx = SimpleNamespace(
+        player_traits=[], player_owned_ship=owned,
+    )
+    assert effective_missile_capacity(light, ctx) == 4 + 3
+    assert effective_missile_capacity(heavy, ctx) == 3 + 3
+    assert effective_missile_capacity(emp, ctx) == 2          # hard cap
+
+    # stacking + quality (q2 scales +3 by 1.30 -> 4)
+    owned.modules = (
+        StoredEquipment("module", "missile_magazine"),
+        StoredEquipment("module", "missile_magazine", quality=2),
+    )
+    assert effective_missile_capacity(heavy, ctx) == 3 + 3 + 4
+
+    # the Bounty Hunter doubles AFTER the bonus; EMP stays capped
+    bh = SimpleNamespace(
+        player_traits=["bounty_hunter"], player_owned_ship=owned,
+    )
+    assert effective_missile_capacity(heavy, bh) == (3 + 3 + 4) * 2
+    assert effective_missile_capacity(emp, bh) == 2
+
+    # a trait-only ctx (no ship aboard) keeps the legacy base reads
+    assert effective_missile_capacity(heavy, _bh_ship_ctx([])) == 3
+
+
 def test_fresh_racks_seed_double_and_book_double_reserve():
     from src.spacehack.data.weapons import find_weapon
     from src.spacehack.ship import (

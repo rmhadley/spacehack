@@ -188,6 +188,7 @@ _MODULE_STAT_LABELS: tuple[tuple[str, str], ...] = (
     ("gunnery_bonus", "Gunnery"), ("piloting_bonus", "Piloting"),
     ("engineering_bonus", "Engineering"), ("max_hull_bonus", "Hull"),
     ("speed_bonus", "Speed"), ("smuggler_cargo", "Smuggler"),
+    ("missile_ammo_bonus", "Missiles"),
 )
 
 
@@ -220,15 +221,26 @@ def module_detail(module_id: str, quality: int = 0, randart_seed: int | None = N
 
 def effective_missile_capacity(ws, ctx=None) -> int:
     """One missile weapon's effective rack capacity: the spec value,
-    doubled with the Bounty Hunter class trait (doc 49 SETTLED 7 —
-    each installed missile weapon's rack holds double). Every
-    capacity site (seeding, refills, storage clamps, cargo booking,
-    displays) reads this ONE helper so a doubled rack can never halve
-    on a round-trip."""
+    plus every installed Missile Magazine's effective bonus (doc 56
+    SETTLED 35 — +3 per rack, quality-scaled, stacking), doubled with
+    the Bounty Hunter class trait (doc 49 SETTLED 7) AFTER the module
+    bonus. EMP launchers return their authored capacity unchanged —
+    2 max, never expanded, never doubled (the boss-key's magazine is
+    the balance lever, SETTLED 34/35). Every capacity site (seeding,
+    refills, storage clamps, cargo booking, displays) reads this ONE
+    helper so a doubled rack can never halve on a round-trip."""
     from .xp import has_trait
-    if ws.ammo_capacity > 0 and ctx is not None and has_trait(ctx, "bounty_hunter"):
-        return ws.ammo_capacity * 2
-    return ws.ammo_capacity
+    if ws.shield_strip_pct > 0:
+        return ws.ammo_capacity
+    _cap = ws.ammo_capacity
+    _owned = getattr(ctx, "player_owned_ship", None)
+    if _owned is not None:
+        _cap += sum(
+            ms.missile_ammo_bonus for ms in _effective_installed(_owned)
+        )
+    if _cap > 0 and ctx is not None and has_trait(ctx, "bounty_hunter"):
+        return _cap * 2
+    return _cap
 
 
 def top_off_missile_magazines(owned: OwnedShip, ctx=None) -> None:

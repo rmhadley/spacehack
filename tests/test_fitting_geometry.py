@@ -42,7 +42,8 @@ RULED_ITEM_SIZES = {
     "light_missile": (1, 2), "heavy_missile": (1, 2), "emp_missile": (1, 2),
     "plasma_cannon": (2, 3), "breach_charge_test": (1, 1),
     "shield_mk1": (1, 2), "shield_mk2": (2, 2), "shield_mk3": (2, 3), "shield_mk4": (3, 3),
-    "shield_capacitor": (1, 1), "shield_recharger": (1, 2),
+    "shield_capacitor": (1, 1),
+    "missile_magazine": (1, 1), "shield_recharger": (1, 2),
     "targeting_computer": (1, 1), "targeting_mk2": (1, 2), "targeting_mk3": (2, 2), "targeting_mk4": (2, 3),
     "gyro_stabilizer": (1, 1), "gyro_mk2": (1, 2), "gyro_mk3": (2, 2), "gyro_mk4": (2, 3),
 "expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (2, 4), "cargo_mk4": (3, 3),
@@ -65,7 +66,7 @@ MK_CHAINS = {
     "reactor": ("compact_reactor", "reactor_mk2", "reactor_mk3", "reactor_mk4"),
     "smuggler": ("smuggler_hold_mk1", "smuggler_hold_mk2", "smuggler_hold_mk3", "smuggler_hold_mk4"),
 }
-SINGLES = ("shield_capacitor", "shield_recharger")
+SINGLES = ("shield_capacitor", "shield_recharger", "missile_magazine")
 
 # The doc-56 phase-2 upkeep curve, pinned verbatim (same rationale as
 # the size pins): a phase-4 retune is a deliberate, diff-visible edit.

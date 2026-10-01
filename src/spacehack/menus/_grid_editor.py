@@ -191,6 +191,7 @@ LETTERS: dict[str, str] = {
     "compact_reactor": "R", "reactor_mk2": "R", "reactor_mk3": "R", "reactor_mk4": "R",
     "smuggler_hold_mk1": "H", "smuggler_hold_mk2": "H",
     "smuggler_hold_mk3": "H", "smuggler_hold_mk4": "H",
+    "missile_magazine": "M",   # SETTLED 35 — missile hardware rides M
 }
 
 

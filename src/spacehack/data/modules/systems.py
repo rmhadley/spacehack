@@ -165,6 +165,16 @@ MODULES: tuple[ModuleSpec, ...] = (
         grid_w=3, grid_h=3,
     ),
     ModuleSpec(
+        id="missile_magazine", name="Missile Magazine",
+        slot_type="system",
+        # SETTLED 35: what a rack holds, in one cell — damage racks
+        # only; EMP stays hard-capped at its authored 2.
+        description="+3 missile ammo per rack.",
+        missile_ammo_bonus=3, price=80,
+        tech_level=2,
+        grid_w=1, grid_h=1,
+    ),
+    ModuleSpec(
         id="armor_plating", name="Armor Plating Mk. 1",
         slot_type="system",
         description="+5 max hull, -1 speed.",

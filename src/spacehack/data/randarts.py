@@ -42,6 +42,7 @@ RANDART_AXES: tuple[tuple[str, int, int], ...] = (
     ("max_hull_bonus", 5, 20),
     ("speed_bonus", -1, 2),
     ("smuggler_cargo", 5, 20),
+    ("missile_ammo_bonus", 1, 2),
 )
 
 # Long-form axis labels for the pickup modal's spread list — phrased
@@ -58,6 +59,7 @@ AXIS_LABELS: dict[str, str] = {
     "max_hull_bonus": "max hull",
     "speed_bonus": "speed",
     "smuggler_cargo": "smuggler hold",
+    "missile_ammo_bonus": "missile ammo per rack",
 }
 
 

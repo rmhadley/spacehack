@@ -49,6 +49,7 @@ class ModuleSpec:
     max_hull_bonus: int = 0
     speed_bonus: int = 0
     smuggler_cargo: int = 0
+    missile_ammo_bonus: int = 0
     price: int = 0
     tech_level: int = 1               # minimum planet tech level to stock this
     # Fitting-grid footprint in cells (doc 56); mk scales it, quality

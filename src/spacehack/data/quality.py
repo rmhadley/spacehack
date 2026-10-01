@@ -41,7 +41,7 @@ _MODULE_BONUS_FIELDS: tuple[str, ...] = (
     "power_gen_bonus", "max_shield_bonus", "shield_recharge_bonus",
     "cargo_bonus", "gunnery_bonus", "piloting_bonus",
     "engineering_bonus", "max_hull_bonus", "speed_bonus",
-    "smuggler_cargo",
+    "smuggler_cargo", "missile_ammo_bonus",
 )
 
 # Per-source 1-in-N rate ladders (t1, t2, t3) — the DOOR_RATES shape.

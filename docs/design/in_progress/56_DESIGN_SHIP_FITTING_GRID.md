@@ -545,6 +545,24 @@ specs fly heavy_laser — enemy-side strengthening to measure).
     faster-upkeep-scaling (SETTLED 30), the 95 clamp, missile feel,
     EMP's warlord impact.
 
+35. **The Missile Magazine — SETTLED 9's parked shape, unblocked**
+    (2026-10-01, parts walk family 7 coda). User: "+3 per rack. if a
+    missile launcher itself holds 3, a 1x1 rack dedicated to missiles
+    should also hold 3." NEW `missile_magazine`: 1×1, 80cr,
+    watt-free (a box, not a plant — the armor/cargo doctrine),
+    `missile_ammo_bonus=3`, quality-scaled (q2 reads +4), stacking,
+    letter **M** (ruled with the package — missile hardware rides
+    M). Folds through `effective_missile_capacity` — the ONE
+    capacity helper — with the Bounty Hunter ×2 applied AFTER the
+    bonus; NPC specs fly no magazines so enemy racks are unmoved.
+    **EMP hard cap: "2 max EMP per EMP launcher," absolute** —
+    `shield_strip_pct` racks return authored capacity before the
+    magazine AND before the BH ×2 (a live nerf to the BH's EMP
+    ceiling, 4 → 2 — the boss-key's magazine is the balance lever).
+    Randarts gain the ammo axis (+1..+2, "missile ammo per rack").
+    Launcher accuracy/range recorded at the ruling: both 72%; light
+    2-9, heavy 3-13 (the longest reach in the game).
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
