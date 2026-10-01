@@ -18,6 +18,7 @@ from ..input_helpers import _try_open_guide
 from ..saveload import delete_save as _delete_save
 
 from . import _rules_ground
+from ._missile_flight import InFlightMissile as _InFlightMissile
 from ._types import CombatResult
 from ._messages import player_attack_line as _player_attack_line
 from ._animations import (
@@ -121,6 +122,16 @@ def _cycle_target(target_idx: int, n_enemies: int, direction: int = 1) -> int:
     if n_enemies <= 1:
         return target_idx
     return (target_idx + direction) % n_enemies
+
+
+def _targetables(rules, ctx) -> list:
+    """The loop's targeting index space: the rules' merged list when
+    the mode has one (space: enemies + live flight missiles, doc 57),
+    else the plain alive-enemy list (ground)."""
+    _merged = getattr(rules, "targetables", None)
+    if _merged is not None:
+        return _merged(ctx)
+    return rules.get_enemies(ctx)
 
 
 def _toggle_weapon(
@@ -289,6 +300,12 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
         return False, 0
     if _reason:
         ctx.log.add(_reason)
+    _is_flight = getattr(rules, "is_flight_weapon", None)
+    if _is_flight is not None and _is_flight(_wid):
+        _launch = rules.launch_flight_missile
+        _launch(ctx, slot, target)
+        rules.consume_shot(slot, ctx)
+        return False, rules.weapon_ap_cost(_wid, ctx)
     _any_hit = False
     _ap_cost = 0
     for _ in range(_shots_per_action(_wid)):
@@ -474,17 +491,34 @@ def _spend_opener(rules) -> None:
         _mark()
 
 
+async def _finish_volley_kill(ctx, game_map, rules, target) -> None:
+    """The volley kill tail: a flight missile intercepts (entity popped,
+    explosion beat, one line — NEVER the kill chain, doc 57), a ship
+    dies loud through ``rules.on_kill``."""
+    from .. import message_log as _ml
+    if isinstance(target, _InFlightMissile):
+        _intercept = getattr(rules, "on_intercept_kill", None)
+        if _intercept is not None:
+            await _intercept(ctx, game_map, target)
+        return
+    ctx.log.add_colored(
+        f"{rules.enemy_name(target)} destroyed!", _ml.COLOR_COMBAT_EVENT,
+    )
+    await rules.on_kill(game_map, target, ctx)
+
+
 async def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
     """Fire all active weapons; return True if the primary target died."""
     _fire_slots = _fire_slot_indexes(rules.player_weapons(ctx), rules.active_weapons(ctx))
     if not _fire_slots:
         ctx.log.add("No active weapons to fire.")
         return False
-    _enemies = rules.get_enemies(ctx)
-    if target_idx >= len(_enemies) or not rules.enemy_alive(_enemies[target_idx]):
+    _targets = _targetables(rules, ctx)
+    if target_idx >= len(_targets) or not rules.enemy_alive(_targets[target_idx]):
         ctx.log.add("No valid target.")
         return False
-    _target = _enemies[target_idx]
+    _target = _targets[target_idx]
+    _enemies = rules.get_enemies(ctx)  # ships-only: the refund's liveness count
     _player_pos = ctx.player.pos
     # Burst-fire: pay max(ap_cost) once, consume ammo per weapon; a killing
     # burst still costs its full AP (kill handling sits after the deduction).
@@ -506,12 +540,7 @@ async def _handle_fire(console, ctx, game_map, rules, target_idx: int) -> bool:
         _spend_opener(rules)
     _maybe_refund_volley_ap(ctx, rules, _enemies, _alive_before, _max_ap_cost)
     if _any_hit and not rules.enemy_alive(_target) and not _explosive_target_handled:
-        from .. import message_log as _ml
-        ctx.log.add_colored(
-            f"{rules.enemy_name(_target)} destroyed!",
-            _ml.COLOR_COMBAT_EVENT,
-        )
-        await rules.on_kill(game_map, _target, ctx)
+        await _finish_volley_kill(ctx, game_map, rules, _target)
         return True
     return _any_hit and not rules.enemy_alive(_target)
 
@@ -559,9 +588,10 @@ def _combat_end_check(ctx, game_map, rules) -> str | None:
     return "VICTORY"
 
 
-def _retarget_if_dead(ctx, rules, target_idx: int, enemies: list) -> int:
-    """Reset the target to the first enemy when the current one died."""
-    if target_idx >= len(enemies) or not rules.enemy_alive(enemies[target_idx]):
+def _retarget_if_dead(ctx, rules, target_idx: int, targets: list) -> int:
+    """Reset the target to the first entry when the current one died
+    (targets is the merged targeting space, doc 57)."""
+    if target_idx >= len(targets) or not rules.enemy_alive(targets[target_idx]):
         rules.set_target_idx(ctx, 0)
         return 0
     return target_idx
@@ -641,8 +671,8 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
     ground step onto a transition tile ended the fight (doc 54
     phase 2), else ``None``."""
     if action == "TARGET":
-        _enemies = rules.get_enemies(ctx)
-        target_idx = _cycle_target(target_idx, len(_enemies), 1)
+        _targets = _targetables(rules, ctx)
+        target_idx = _cycle_target(target_idx, len(_targets), 1)
         rules.set_target_idx(ctx, target_idx)
     elif action == "TOGGLE_CARD":
         _toggle_card = getattr(rules, "toggle_target_card", None)
@@ -681,6 +711,12 @@ async def _end_player_turn(ctx, game_map, rules, turn: int):
     _end_result = await _end_turn(ctx, game_map, rules)
     if _end_result == "DEFEAT":
         return turn, "DEFEAT"
+    # Round boundary (doc 57 SETTLED 1): after enemy turns and
+    # reinforcements, before the player's next action, every live
+    # missile makes its crossing hop.
+    _advance = getattr(rules, "advance_flights", None)
+    if _advance is not None:
+        await _advance(ctx, game_map)
     rules.reset_turn(ctx)
     return turn + 1, None
 
@@ -748,8 +784,7 @@ async def _run_combat_impl(console, ctx, game_map: world.GameMap, rules) -> Comb
         _result = _combat_end_check(ctx, game_map, rules)
         if _result is not None:
             break
-        _enemies = rules.get_enemies(ctx)
-        _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _enemies)
+        _target_idx = _retarget_if_dead(ctx, rules, _target_idx, _targetables(rules, ctx))
         rules.render_frame(console, ctx, game_map)
         _present(ctx, console)
         _action = await _combat_action(ctx, console, rules)

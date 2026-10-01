@@ -149,6 +149,11 @@ class SpaceCombatState:
     enemy_insts: list = field(default_factory=list)
     enemy_specs: list = field(default_factory=list)
     enemy_ents: dict = field(default_factory=dict)
+    # Live crossing missiles (doc 57): EnemyInstance-compatible
+    # InFlightMissile instances plus their render twins in
+    # game_map.entities. Combat-transient — swept on every combat end
+    # path; never serialized.
+    in_flight: list = field(default_factory=list)
     player_ent: Any = None
     weapons_list: list = field(default_factory=list)
     # Per-slot flown-weapon tiers (doc 48.7 player side), parallel to

@@ -93,6 +93,7 @@ COLOR_RANGE_GREEN: tuple[int, int, int] = (100, 235, 115)     # close-bonus zone
 COLOR_RANGE_YELLOW: tuple[int, int, int] = (255, 220, 80)     # within max range
 COLOR_RANGE_ORANGE: tuple[int, int, int] = (255, 160, 60)     # inside min range (too close)
 COLOR_RANGE_RED: tuple[int, int, int] = (255, 80, 80)         # beyond max range
+COLOR_RANGE_FLOOR: tuple[int, int, int] = (255, 100, 255)     # inside a missile's hard floor (doc 57) — will not fire
 
 
 def ground_player_fg(
@@ -123,6 +124,8 @@ def range_band_color(
     dist: float,
     weapon_max_range: int,
     weapon_min_range: int = 0,
+    *,
+    hard_floor: bool = False,
 ) -> tuple[int, int, int]:
     """Color for a combat distance, matching the targeting-line bands.
 
@@ -130,9 +133,12 @@ def range_band_color(
     point-blank penalty zone — checked first so a min band inside the
     close zone stays visible), green within the close-bonus zone
     (``max_range // 2``), yellow within ``max_range``, red beyond.
+    ``hard_floor`` (doc 57 SETTLED 2) swaps the orange for the
+    distinct magenta refusal read — a flight missile inside its floor
+    will not fire at all, a different state than a penalty.
     """
     if weapon_min_range > 0 and dist < weapon_min_range:
-        return COLOR_RANGE_ORANGE
+        return COLOR_RANGE_FLOOR if hard_floor else COLOR_RANGE_ORANGE
     if dist <= weapon_max_range // 2:
         return COLOR_RANGE_GREEN
     if dist <= weapon_max_range:

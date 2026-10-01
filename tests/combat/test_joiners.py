@@ -13,13 +13,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack import world
-from src.spacehack.combat import _rules_space
+from src.spacehack.combat import _space_reinforce
 from src.spacehack.data.npc_ships import find_npc_ship
 
 
 def test_joiner_builds_from_its_own_spec_never_none():
     spec = find_npc_ship("pirate_hound")
-    enemy = _rules_space._build_reinforcement_enemy(
+    enemy = _space_reinforce._build_reinforcement_enemy(
         spec, world.Position(2, 2),
     )
     assert enemy is not None

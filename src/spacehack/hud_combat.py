@@ -181,19 +181,25 @@ def _enemy_distance_color(dist: float, range_weapon_id: str, ctx=None):
     integer envelopes, so raw-float banding sits on the penalty
     boundaries) — and the Focus/Longshot-adjusted envelope when ``ctx``
     is supplied, so the row matches the targeting line for the same
-    enemy.
+    enemy. A flight missile's min band reads the CATALOG floor in the
+    distinct refusal color (doc 57 SETTLED 2) — the rack will not fire
+    there, a different state than a penalty.
     """
     from .data.weapons import find_weapon as _fw
     try:
         _ws = _fw(range_weapon_id)
     except KeyError:
         return None
+    from .combat._missile_flight import catalog_floor
+    _floor = catalog_floor(_ws)
     _min, _max = (_ws.min_range, _ws.max_range)
     if ctx is not None:
         from .combat import _space_focus
         _min = _space_focus.min_range(range_weapon_id, ctx)
         _max = _space_focus.max_range(range_weapon_id, ctx)
-    return range_band_color(dist, _max, _min)
+        if _floor > 0:
+            _min = _floor  # Focus never widens the refusal band
+    return range_band_color(dist, _max, _min, hard_floor=_floor > 0)
 
 
 def _render_enemy_row(
@@ -287,6 +293,7 @@ def _render_weapon_row(
     """
     from .data.quality import effective_ship_weapon_spec
     from .ship import weapon_display_name
+    from .combat._missile_flight import catalog_floor
     sel_mark = "[x]" if is_active else "[ ]"
     name_str = f"{sel_mark}[{slot+1}] {weapon_display_name(wid, weapon_quality)}"
     fg_wpn = COLOR_COMBAT_WEAPON if is_active else COLOR_COMBAT_WEAPON_DIM
@@ -297,10 +304,10 @@ def _render_weapon_row(
     _eff = effective_ship_weapon_spec(wid, weapon_quality)
     _dmg, _acc = _eff.damage, _eff.accuracy
     _max_range = getattr(ws, "max_range", 0) * _mult
-    _rng = (
-        f" RNG {getattr(ws, 'min_range', 1) * _mult}-{_max_range}"
-        if _max_range > 0 else ""
-    )
+    # A rack's floor never doubles (doc 57 SETTLED 2); other weapons keep the Focus min.
+    _floor = catalog_floor(ws)
+    _min_range = _floor if _floor > 0 else getattr(ws, "min_range", 1) * _mult
+    _rng = f" RNG {_min_range}-{_max_range}" if _max_range > 0 else ""
     if _w_hc is not None:
         stats_line = f"     DMG {_dmg} HIT {_w_hc}%{_rng}"
     else:

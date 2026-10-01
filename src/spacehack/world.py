@@ -338,6 +338,7 @@ class Entity:
     computer_terminal: bool = False  # dungeon ship computer — interactable
     main_quest_console: bool = False  # Act 0 alien-door console — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities
+    non_blocking: bool = False  # zero footprint (doc 57 flight missiles): blocking/A*/stepping treat it as empty space
     npc_char_id: str = ""  # references NpcCharSpec.id for ground-combat NPCs
     squad_id: str = ""  # groups spawned enemies into packs (movement/spawns only — combat uses LOS aggro, not squads)
     hp: int = 0  # ground-combat wound persistence: 0 = unengaged (full HP at first fight)
@@ -483,12 +484,17 @@ class GameMap:
     ) -> Entity | None:
         """Return the first solid entity at ``(x, y)``.
 
-        Loot is an interactable floor object, not a physical obstacle.
-        Movement and pathfinding use this lookup so cargo drops never
-        seal a corridor or trap a combatant.
+        Loot is an interactable floor object, not a physical obstacle,
+        and non-blocking entities (flight missiles) are empty space by
+        declaration. Movement and pathfinding use this lookup so cargo
+        drops never seal a corridor or trap a combatant.
         """
         for _entity in self.entities:
-            if _entity is exclude or _entity.loot_data is not None:
+            if (
+                _entity is exclude
+                or _entity.loot_data is not None
+                or _entity.non_blocking
+            ):
                 continue
             if (
                 _entity.pos.x <= x < _entity.pos.x + _entity.width

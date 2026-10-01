@@ -465,14 +465,14 @@ def _paint_range_line(
     game_map: world.GameMap | None = None,
     max_range: int | None = None,
     min_range: int | None = None,
+    hard_floor: bool = False,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by the
-    weapon's range bands (green/yellow/orange/red by distance) — the
-    ship-combat wrapper (ground renders through
-    :func:`_draw_range_colored_line` with its own int-truncated
-    rounding); ``color_override`` forces one color.
-    ``max_range``/``min_range`` override the catalog values so the
-    Focus trait's doubled range bands paint correctly."""
+    weapon's range bands — the ship-combat wrapper (ground renders
+    through :func:`_draw_range_colored_line` with its own int-truncated
+    rounding); ``color_override`` forces one color. ``max_range`` /
+    ``min_range`` override the catalog values (Focus); ``hard_floor``
+    (doc 57) paints the min band in the missile refusal color."""
     try:
         ws = find_weapon(weapon_id)
     except KeyError:
@@ -487,6 +487,7 @@ def _paint_range_line(
         region_x, region_y,
         color_override=color_override,
         game_map=game_map,
+        hard_floor=hard_floor,
     )
 
 
@@ -511,13 +512,16 @@ def _draw_range_colored_line(
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
     distance_round: Callable[[float], float] | None = None,
+    hard_floor: bool = False,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
-    distance and the weapon's range profile; ``color_override`` forces
-    one color for every cell. ``distance_round`` normalizes each cell's
+    distance and the weapon's range profile; ``color_override`` forces one
+    color for every cell. ``distance_round`` normalizes each cell's
     raw Euclidean distance to the domain's resolution math (ground
     passes ``int`` — its fire gate truncates; space keeps the raw
-    float — its penalty band starts strictly beyond ``max_range``)."""
+    float — its penalty band starts strictly beyond ``max_range``).
+    ``hard_floor`` (doc 57) paints the min band in the missile
+    refusal color."""
     for bx, by in _bresenham_line(
         player_pos.x, player_pos.y,
         target_pos.x, target_pos.y,
@@ -530,6 +534,7 @@ def _draw_range_colored_line(
             color_override=color_override,
             game_map=game_map,
             distance_round=distance_round,
+            hard_floor=hard_floor,
         )
 
 
@@ -551,14 +556,14 @@ def _paint_range_cell(
     color_override: tuple[int, int, int] | None = None,
     game_map: world.GameMap | None = None,
     distance_round: Callable[[float], float] | None = None,
+    hard_floor: bool = False,
 ) -> None:
     """Paint one range-line cell, skipping off-view or occluded cells."""
     if bx == target_pos.x and by == target_pos.y:
         return
     if game_map is not None and game_map.entity_at(bx, by) is not None:
         return
-    sx = bx - cam_x
-    sy = by - cam_y
+    sx, sy = bx - cam_x, by - cam_y
     if not (0 <= sx < view_w and 0 <= sy < view_h):
         return
     if color_override is not None:
@@ -567,7 +572,7 @@ def _paint_range_cell(
         dist = math.hypot(bx - player_pos.x, by - player_pos.y)
         if distance_round is not None:
             dist = distance_round(dist)
-        color = range_band_color(dist, weapon_max_range, weapon_min_range)
+        color = range_band_color(dist, weapon_max_range, weapon_min_range, hard_floor=hard_floor)
     console.print(
         x=region_x + sx, y=region_y + sy,
         string="~",

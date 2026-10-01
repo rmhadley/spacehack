@@ -12,6 +12,7 @@ from typing import Any
 
 from .. import world
 from ._types import EnemyInstance, SpaceCombatState
+from . import _missile_flight as _mf
 
 
 def refund_volley_ap(state: SpaceCombatState, ctx, amount: int) -> None:
@@ -61,7 +62,7 @@ async def _animate_kill_explosion(
         cam_x=_cam_x, cam_y=_cam_y,
         view_w=state.view_w, view_h=state.view_h,
         player_state=state.player_state,
-        enemies=state.enemy_insts,
+        enemies=_mf.merged_targets(state),
         target_idx=state.target_idx,
         log=state.log,
         weapon_list=tuple(state.weapons_list),

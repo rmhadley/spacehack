@@ -37,6 +37,7 @@ from ._animations import (
     _damage_popup_for,
 )
 from ._shot_animations import _animate_weapon_shot
+from . import _missile_flight as _mf
 
 
 def _e_log(msg: str, log) -> None:
@@ -427,7 +428,7 @@ async def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
     _render_anim_frame(
         state.console, state.ctx, state.game_map,
         cam[0], cam[1], state.view_w, state.view_h,
-        state.player_state, state.enemy_insts, state.target_idx, state.log,
+        state.player_state, _mf.merged_targets(state), state.target_idx, state.log,
         weapon_list=tuple(state.weapons_list),
         active_weapons=state.active_weapons,
         evade_bonus=evade_bonus,
@@ -450,7 +451,7 @@ async def _animate_enemy_shot(
         cam_x=_ecx, cam_y=_ecy,
         view_w=state.view_w, view_h=state.view_h,
         player_state=state.player_state,
-        enemies=state.enemy_insts,
+        enemies=_mf.merged_targets(state),
         target_idx=state.target_idx,
         log=state.log,
         weapon_list=tuple(state.weapons_list),
@@ -620,7 +621,7 @@ async def _present_ship_destruction(state, *, evade_bonus, hit_chances, calc_cam
         cam_x=_ecx, cam_y=_ecy,
         view_w=state.view_w, view_h=state.view_h,
         player_state=state.player_state,
-        enemies=state.enemy_insts,
+        enemies=_mf.merged_targets(state),
         target_idx=state.target_idx,
         log=state.log,
         weapon_list=tuple(state.weapons_list),

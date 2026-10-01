@@ -32,7 +32,9 @@ from ._space_init import (
     match_enemy_entities as _match_enemy_entities,
 )
 from ._types import EnemyInstance, CombatResult, SpaceCombatState
+from . import _missile_flight
 from ._space_kills import on_kill as _kill_chain
+from ._space_reinforce import check_reinforcements as _reinforce_check
 from ._stats import (
     calc_hit_chance as _space_hit_chance,
     _calc_dodge_bonus,
@@ -54,7 +56,10 @@ from ._animations import (
     DamagePopup,
 )
 from ._shot_animations import _animate_weapon_shot
-from ._space_presentation import build_target_card as _build_target_card
+from ._space_presentation import (
+    build_missile_card as _build_missile_card,
+    build_target_card as _build_target_card,
+)
 from . import _space_focus
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
@@ -105,9 +110,12 @@ def _activate_combat_state(
     global _state
     _cr = CombatResult()
     start_player_turn(player_state)
-    # Clear locks from an abnormally-ended previous fight.
+    # Clear locks from an abnormally-ended previous fight — and its
+    # in-flight missiles (entities serialize with the map; a leftover
+    # glyph corrupts the next save, doc 57's belt-and-braces).
     if _state is not None:
         _set_combat_locks(False)
+        _missile_flight.sweep_flights(_state, _state.game_map)
     _state = SpaceCombatState(
         ctx=ctx, console=console, game_map=game_map, log=log,
         player_state=player_state,
@@ -225,10 +233,19 @@ def _first_active_slot() -> int:
             return i
     return 0
 
-def _alive_target():
-    _alive = [e for e in _state.enemy_insts if e.alive]
-    if 0 <= _state.target_idx < len(_alive):
-        return _alive[_state.target_idx]
+def targetables(ctx) -> list:
+    """The merged targeting space (doc 57): alive enemies, then every
+    live in-flight missile. Feeds exactly the TAB cycle, the target
+    card, the hit-chance/range-line reads, and the fire path. Every
+    other index-space reader stays SHIPS-ONLY (end check, reaction
+    volley, board)."""
+    return _missile_flight.merged_targets(_state)
+
+def _current_target():
+    """The merged selection at ``target_idx`` (see :func:`targetables`)."""
+    _merged = targetables(None)
+    if 0 <= _state.target_idx < len(_merged):
+        return _merged[_state.target_idx]
     return None
 
 def get_enemies(ctx) -> list[EnemyInstance]:
@@ -358,8 +375,13 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
     )
     if not _ok:
         return _ok, _reason
-    _target = _alive_target()
+    _target = _current_target()
     if _target is not None:
+        _floor = _missile_floor(slot_idx)
+        if _floor > 0 and _distance(
+            _state.player_state["pos"], _target.pos,
+        ) < _floor:
+            return False, "Target inside minimum range."
         if not _has_los(
             _state.game_map,
             _state.player_state["pos"].x, _state.player_state["pos"].y,
@@ -367,6 +389,49 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
         ):
             return False, "Blocked by obstacle"
     return True, ""
+
+def _missile_floor(slot_idx: int) -> int:
+    """The hard floor of the slot's rack — the shared ``catalog_floor``
+    read (doc 57 SETTLED 2); 0 for everything but flight missiles."""
+    if not 0 <= slot_idx < len(_state.weapons_list):
+        return 0
+    try:
+        return _missile_flight.catalog_floor(_find_weapon(_state.weapons_list[slot_idx]))
+    except KeyError:
+        return 0
+
+def is_flight_weapon(weapon_id: str) -> bool:
+    """Whether the rack resolves as a crossing flight missile (doc 57);
+    the shared fire loop branches on this alone (EMP rides the
+    instant path)."""
+    return _missile_flight.is_flight_weapon(weapon_id)
+
+def launch_flight_missile(ctx, slot_idx: int, target) -> None:
+    """Spawn the flight entity for one volley member (doc 57 SETTLED 1):
+    ammo/power/AP pay at launch exactly as today — the crossing entity
+    resolves at the round boundary."""
+    _missile_flight.spawn_flight_missile(
+        _state, _state.weapons_list[slot_idx], target,
+        side="player", quality=player_weapon_quality(ctx, slot_idx),
+        launch_pos=_state.player_state["pos"],
+    )
+
+async def advance_flights(ctx, game_map: world.GameMap) -> None:
+    """Round-boundary flight advance (doc 57 SETTLED 1) — after enemy
+    turns and reinforcements, before the player's next action."""
+    await _missile_flight.advance_flights(_state, ctx, game_map)
+
+async def on_intercept_kill(ctx, game_map: world.GameMap, missile) -> None:
+    """The intercept finish (doc 57): entity popped, explosion beat,
+    one line — never the kill chain."""
+    await _missile_flight.finish_intercept(_state, ctx, game_map, missile)
+
+def _missile_floor_of(weapon_id: str) -> int:
+    """The rack floor by weapon id — ``catalog_floor`` for presenters."""
+    try:
+        return _missile_flight.catalog_floor(_find_weapon(weapon_id))
+    except KeyError:
+        return 0
 
 def weapon_ap_cost(weapon_id: str, ctx) -> int:
     """AP cost to fire ``weapon_id``: doubled for the focused weapon."""
@@ -558,20 +623,13 @@ def _quick_resource_row(ctx):
     )
 
 
-def presentation_target_card(*, ctx: GameContext | None = None):
-    """Return the native info card for the currently targeted enemy ship, or None."""
-    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
-        return None
-    if not _state.show_target_card:
-        return None
-    _target = _alive_target()
-    if _target is None:
-        return None
+def _card_hit_reads(ctx, target):
+    """The card's armed-volley reads: ``(weapon_id, hit %, (min, max))``."""
     _active_ids = _active_weapon_ids()
     _active_wid = _active_ids[0] if _active_ids else None
     _hit = (
         hit_chance(
-            _active_wid, _target, ctx,
+            _active_wid, target, ctx,
             quality=player_weapon_quality(ctx, _first_active_slot()),
         ) if _active_wid else None
     )
@@ -581,10 +639,29 @@ def presentation_target_card(*, ctx: GameContext | None = None):
             _space_focus.max_range(_active_wid, ctx),
         ) if _active_wid else None
     )
+    return _active_wid, _hit, _hit_range
+
+
+def presentation_target_card(*, ctx: GameContext | None = None):
+    """Return the native info card for the current merged target (a
+    ship or an in-flight missile, doc 57), or None."""
+    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
+        return None
+    if not _state.show_target_card:
+        return None
+    _target = _current_target()
+    if _target is None:
+        return None
+    _active_wid, _hit, _hit_range = _card_hit_reads(ctx, _target)
     _quick = _quick_resource_row(ctx)
     _avoid = [_state.player_state["pos"]]
     _avoid.extend(_e.pos for _e in get_enemies(ctx))
-    return _build_target_card(
+    _card_builder = (
+        _build_missile_card
+        if isinstance(_target, _missile_flight.InFlightMissile)
+        else _build_target_card
+    )
+    return _card_builder(
         _target,
         game_map=_state.game_map,
         player_pos=_state.player_state["pos"],
@@ -609,7 +686,7 @@ def _render_combat_range_line(
             _range_wid = min(_active_ids, key=lambda wid: _fw(wid).max_range)
     if _range_wid is None:
         return None
-    _tgt = _alive_target()
+    _tgt = _current_target()
     if _tgt is None:
         return _range_wid
     _los_ok = _has_los(
@@ -617,6 +694,10 @@ def _render_combat_range_line(
         _state.player_state["pos"].x, _state.player_state["pos"].y,
         _tgt.pos.x, _tgt.pos.y,
     )
+    _floor = _missile_floor_of(_range_wid)
+    _min = _space_focus.min_range(_range_wid, _state.ctx)
+    if _floor > 0:
+        _min = _floor  # catalog floor — Focus never widens it
     _paint_range_line(
         console,
         _state.player_state["pos"], _tgt.pos,
@@ -625,27 +706,44 @@ def _render_combat_range_line(
         color_override=None if _los_ok else (255, 60, 60),
         game_map=game_map,
         max_range=_space_focus.max_range(_range_wid, _state.ctx),
-        min_range=_space_focus.min_range(_range_wid, _state.ctx),
+        min_range=_min,
+        hard_floor=_floor > 0,
     )
     return _range_wid
 
 def _paint_combat_target(console, cam_x: int, cam_y: int) -> None:
     """Highlight the currently-targeted enemy, if any."""
-    _tgt = _alive_target()
+    _tgt = _current_target()
     if _tgt is not None:
         _paint_target_highlight(
             console, cam_x, cam_y, _state.view_w, _state.view_h, 0, 0, _tgt,
         )
 
+def _ship_target_index(target) -> int | None:
+    """The alive-SHIPS index of the merged ``target``, or None when it
+    is a flight missile (the board path's index space stays
+    ships-only, doc 57)."""
+    for _i, _e in enumerate(e for e in _state.enemy_insts if e.alive):
+        if _e is target:
+            return _i
+    return None
+
 def _paint_status_hud(console, hit_chances, evade, range_weapon_id) -> None:
-    """The right-panel combat HUD (the boarding hint rides along)."""
+    """The right-panel combat HUD (the boarding hint rides along). The
+    enemy block renders the MERGED targeting space — missiles wear
+    rows too (doc 57)."""
     from ._space_boarding import board_denial, board_target
-    _board_enemy, _board_ent = board_target(_state, _state.target_idx)
+    _board_enemy, _board_ent = None, None
+    _tgt = _current_target()
+    if not isinstance(_tgt, _missile_flight.InFlightMissile):
+        _ship_idx = _ship_target_index(_tgt) if _tgt is not None else None
+        if _ship_idx is not None:
+            _board_enemy, _board_ent = board_target(_state, _ship_idx)
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         player_state=_state.player_state,
-        enemies=_state.enemy_insts,
+        enemies=targetables(None),
         target_idx=_state.target_idx,
         player_mode="DEFAULT",
         active_weapons=_state.active_weapons,
@@ -675,7 +773,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     _range_wid = _render_combat_range_line(console, game_map, _cam_x, _cam_y)
     _paint_combat_target(console, _cam_x, _cam_y)
 
-    _hit_chances = _build_hit_chances(_alive_target())
+    _hit_chances = _build_hit_chances(_current_target())
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
         int(_state.player_state.get("piloting", 0) * 0.5),
@@ -693,7 +791,7 @@ async def animate_fire(
     """Animate one ship-combat shot with a weapon-appropriate effect."""
     _cam_x, _cam_y = _calc_camera()
 
-    _hit_chances = _build_hit_chances(_alive_target())
+    _hit_chances = _build_hit_chances(_current_target())
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
@@ -709,7 +807,7 @@ async def animate_fire(
         cam_x=_cam_x, cam_y=_cam_y,
         view_w=_state.view_w, view_h=_state.view_h,
         player_state=_state.player_state,
-        enemies=_state.enemy_insts,
+        enemies=targetables(None),
         target_idx=_state.target_idx,
         log=_state.log,
         weapon_list=tuple(_state.weapons_list),
@@ -757,7 +855,7 @@ def handle_defense(ctx) -> None:
 async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
     from ._ai import _run_enemy_turn as _enemy_ai
 
-    _hit_chances = _build_hit_chances(_alive_target())
+    _hit_chances = _build_hit_chances(_current_target())
 
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
@@ -780,76 +878,11 @@ async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 # Reinforcements
 # ---------------------------------------------------------------------------
 
-def _find_reinforcement_entity(game_map: world.GameMap, pos: world.Position) -> Any:
-    """Return the unowned, non-loot entity at ``pos``, or None."""
-    for _ge in game_map.entities:
-        if getattr(_ge, 'owned', False):
-            continue
-        if getattr(_ge, 'loot_data', None) is not None:
-            continue
-        if _ge.pos.x == pos.x and _ge.pos.y == pos.y:
-            return _ge
-    return None
-
-def _build_reinforcement_enemy(spec, pos: world.Position) -> EnemyInstance:
-    """Build one joiner from the JOINER's own spec — the one enemy
-    construction path (doc 48 SETTLED 21: joiner stats must match
-    their spec). The old player-hull reads fed a discarded player
-    state and a spurious None dropped legitimate joiners whenever the
-    PLAYER's catalog lookup failed."""
-    from ._stats import _build_enemy
-    return _build_enemy(spec, pos)
-
-def _join_reinforcements(
-    ctx,
-    game_map: world.GameMap,
-    new_specs: list,
-    new_positions: list[world.Position],
-    existing_entity_ids: set[int],
-) -> None:
-    """Build and attach newly-detected reinforcement enemy instances."""
-    for _ns, _np in zip(new_specs, new_positions):
-        _found_entity = _find_reinforcement_entity(game_map, _np)
-        if _found_entity is not None and id(_found_entity) in existing_entity_ids:
-            continue
-        if any(
-            _ei.pos.x == _np.x and _ei.pos.y == _np.y
-            for _ei in _state.enemy_insts
-        ):
-            continue
-        _new_ei = _build_reinforcement_enemy(_ns, _np)
-        _state.enemy_insts.append(_new_ei)
-        _state.enemy_specs.append(_ns)
-        if _found_entity is not None:
-            _state.enemy_ents[len(_state.enemy_insts) - 1] = _found_entity
-            if getattr(_found_entity, 'name', ''):
-                _new_ei.name = _found_entity.name
-        _state.log.add_colored(
-            f"{getattr(_found_entity, 'name', '') or _ns.name} joins the fight!",
-            _ml.COLOR_COMBAT_EVENT,
-        )
-
 def check_reinforcements(ctx, game_map: world.GameMap) -> None:
-    from ..npc_ships import move_npcs as _tick_npcs
-    from ..navigation import _detect_combat_encounter as _re_detect
-    from .. import solar_system as _ss_module
+    """Mid-fight joins — the reinforcement block lives in
+    ``_space_reinforce`` (the doc-57 ratchet split)."""
+    _reinforce_check(_state, ctx, game_map)
 
-    # Freeze combatants before the patrol tick so they can't drift/despawn.
-    _set_combat_locks(True)
-
-    _tick_npcs(ctx, game_map)
-
-    for _i, _ent in _state.enemy_ents.items():
-        if _i < len(_state.enemy_insts) and _state.enemy_insts[_i].alive:
-            _state.enemy_insts[_i].pos = _ent.pos
-
-    _new_encounter = _re_detect(ctx, _state.player_state["pos"], _ss_module.current_system())
-    if _new_encounter is None:
-        return
-
-    _new_specs, _new_positions = _new_encounter
-    _existing_entity_ids = {id(_e) for _e in _state.enemy_ents.values()}
-    _join_reinforcements(ctx, game_map, _new_specs, _new_positions, _existing_entity_ids)
 
 # ---------------------------------------------------------------------------
 # State sync
@@ -869,6 +902,9 @@ def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
 
 def sync_state(ctx) -> None:
+    # Flight state dies with the fight on EVERY end path (doc 57):
+    # missiles never gate the end and never serialize — sweep first.
+    _missile_flight.sweep_flights(_state, _state.game_map)
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
     _set_combat_locks(False)
@@ -883,9 +919,16 @@ def get_combat_result() -> CombatResult:
 def try_board(ctx, game_map: world.GameMap, target_idx: int) -> bool:
     """BOARD: end the fight into the target's crewed interior (6a).
 
-    Ground rules have no hook — the loop probes with getattr."""
+    A flight-missile target DENIES — nothing to board (doc 57). Ground
+    rules have no hook — the loop probes with getattr."""
     from ._space_boarding import attempt_board
-    return attempt_board(_state, target_idx)
+    if isinstance(_current_target(), _missile_flight.InFlightMissile):
+        ctx.log.add("Nothing to board.")
+        return False
+    _ship_idx = _ship_target_index(_current_target())
+    if _ship_idx is None:
+        return False
+    return attempt_board(_state, _ship_idx)
 
 
 # ---------------------------------------------------------------------------
@@ -901,7 +944,7 @@ async def reaction_volley(ctx, game_map: world.GameMap) -> bool:
     from ._ai import _enemy_attack, _reaction_pick
 
     _p_pos = _state.player_state["pos"]
-    _hit_chances = _build_hit_chances(_alive_target())
+    _hit_chances = _build_hit_chances(_current_target())
     _evade = _calc_dodge_bonus(
         _state.player_state.get("cells_moved_this_turn", 0),
         int(_state.player_state.get("piloting", 0) * 0.5),

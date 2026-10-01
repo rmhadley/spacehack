@@ -157,6 +157,14 @@ def _distance(a: world.Position, b: world.Position) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def clamp_hit_chance(chance: int) -> int:
+    """Combat hit chances clamp 5-95 — lethal but never deterministic.
+
+    The one clamp every hit-roll assembly shares (``calc_hit_chance``
+    and the doc-57 guidance roll)."""
+    return max(5, min(95, chance))
+
+
 def calc_hit_chance(
     weapon_id: str, gunnery: int, distance: float,
     target_dodge_bonus: int, hit_bonus: int = 0, *,
@@ -196,7 +204,7 @@ def calc_hit_chance(
         ws.accuracy + int(gunnery * 0.5) + close_bonus - dist_penalty
         - min_penalty - target_dodge_bonus + hit_bonus
     )
-    return max(5, min(95, chance))
+    return clamp_hit_chance(chance)
 
 
 def _skill_bonuses(skills: PilotSkills, modules) -> tuple[int, int, int]:

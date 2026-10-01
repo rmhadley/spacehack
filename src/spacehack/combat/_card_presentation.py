@@ -48,7 +48,11 @@ def hit_color_for_weapon(
         weapon_range if weapon_range is not None
         else (_ws.min_range, _ws.max_range)
     )
-    return range_band_color(dist, _max, _min)
+    from ._missile_flight import catalog_floor
+    _floor = catalog_floor(_ws)
+    if _floor > 0:
+        _min = _floor  # the refusal band reads the catalog floor (doc 57)
+    return range_band_color(dist, _max, _min, hard_floor=_floor > 0)
 
 
 def viewport_cells(

@@ -68,6 +68,48 @@ def _space_card_rows(
     return tuple(rows)
 
 
+def build_missile_card(
+    missile: Any,
+    *,
+    game_map: world.GameMap,
+    player_pos: world.Position,
+    region_w: int,
+    region_h: int,
+    hit_chance: int | None = None,
+    hit_weapon_id: str | None = None,
+    hit_weapon_range: tuple[int, int] | None = None,
+    avoid_positions: tuple[world.Position, ...] = (),
+    quick_rows=(),
+) -> TargetCard | None:
+    """Build the floating card for an in-flight missile (doc 57):
+    name / hull / speed only — no band, AP, weapons, or shield rows
+    (it has none of them)."""
+    hit_text = f"HIT {hit_chance}%" if hit_chance is not None else "HIT --"
+    _hit_fg = hit_color_for_weapon(
+        hit_weapon_id, missile.pos, player_pos, _find_w,
+        weapon_range=hit_weapon_range,
+    ) if hit_weapon_id is not None else TARGET_CARD_TEXT
+    rows = (
+        title_row(missile.name),
+        (
+            (f"HULL {missile.hull}/{missile.max_hull}", TARGET_CARD_TEXT),
+            (f"  {hit_text}", _hit_fg or TARGET_CARD_TEXT),
+        ),
+        text_row(f"SPD {missile.flight_speed}"),
+        hint_row(),
+    )
+    return _build_card(
+        missile.pos,
+        rows,
+        game_map=game_map,
+        player_pos=player_pos,
+        region_w=region_w,
+        region_h=region_h,
+        avoid_positions=avoid_positions,
+        quick_rows=quick_rows,
+    )
+
+
 def build_target_card(
     enemy: Any,
     *,
