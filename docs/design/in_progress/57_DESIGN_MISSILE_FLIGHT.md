@@ -302,11 +302,35 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   the reviewer flagged four scattered copies (gate, range line, HUD
   distance, card HIT color, then the WEAPONS stat row as a fifth):
   Focus never widens a rack's refusal band, everywhere.
-- OPEN (user ruling at the 57.1 checkpoint): beyond-`max_range`
-  launch is now a fuel dud (fuel = max_range < distance ⇒ exhaust)
-  where the old instant shot could still hit at the 5% floor. The
-  fuel cap IS the flight weapon's ceiling — refuse beyond max like
-  the floor, or keep the dud as the outrun counter's teeth?
+- RULING (user, same checkpoint, with SETTLED 11): the beyond-max
+  fuel dud STANDS (ammo + AP spent; kiting past a rack's max is the
+  outrun counter with legible feedback). SETTLED 2 stays floor-only.
+- The doc-53 tombstone harness's space-victory fixture was re-authored
+  for v2 physics (heavy lasers, not twin missile racks): under the
+  mini-turn model a standoff double-heavy volley no longer guarantees
+  a turn-1 kill — the seeded scout rushed inside the floor after two
+  guidance misses and won. The fixture's purpose is the tombstone
+  surface, not missile balance; 57.3 owns the balance questions.
+- Contact-damage prose is DRAFT pending checkpoint approval:
+  non-target ship hits reuse the approved `player_attack_line`
+  vocabulary ("You fire your Heavy Missile at <escort>. It hits…"),
+  self-splash drafts a new line ("Your Heavy Missile detonates on
+  your own hull for N damage.").
+- Reviewer round (v2, APPROVE): rulings recorded — (a) contact reads
+  ANCHOR CELLS: a crossing missile can pass a capital ship's
+  non-anchor footprint without contact, and a ship parking on a
+  resting missile detonates it at the next mini-turn (both implemented
+  or ruled; revisit if 57.2 makes cross-shooter overlap common).
+  The parked-detonation reads only while the missile's OWN target is
+  alive — a missile whose target died that round dissipates first
+  (dud warhead either way);
+  (b) a launch-half-move self-splash kill is backstopped by the
+  loop's post-action hp gate (the volley's remaining slots still
+  fire — contrived geometry only); (c) GUIDE DECISION: the v2
+  contact rules are player-facing and the missile guide paragraph
+  gains ONE sentence at the checkpoint prose approval ("any ship its
+  flight path crosses takes the hit — including yours"), nothing
+  else; current guide text stays true under v2.
 
 ## The shape
 
