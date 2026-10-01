@@ -320,23 +320,21 @@ async def _detonate_on_ship(
     """Contact with ANY ship (SETTLED 11.7 — ruling: FULL DAMAGE ON
     CONTACT, target or not): the same guidance roll against the struck
     ship's dodge; a hit rides the normal damage path and any kill runs
-    the FULL kill chain; a miss is the harmless detonation."""
+    the FULL kill chain; a miss is the harmless detonation. Prose
+    ruling 2026-10-01: contact hits speak the detonates form (the
+    fire-form line stays the target arrival's)."""
     from .. import message_log as _ml
-    from ..ship import weapon_display_name
-    from ._messages import player_attack_line
     from ._space_kills import on_kill as _kill_chain
 
     if not _arrival_hits(state, ctx, missile, ship):
         _log_detonates_short(state)
         return
     _dmg, _sdmg, _fh, _glancing = _apply_contact_damage(missile, ship)
-    _line = player_attack_line(
-        missile.weapon_id,
-        weapon_display_name(missile.weapon_id, missile.quality),
-        ship.name, hit=True, hull_dmg=_dmg, shield_dmg=_sdmg,
-        is_glancing=_glancing, quality=missile.quality,
+    state.log.add_colored(
+        f"Your {_find_weapon(missile.weapon_id).name} detonates on "
+        f"{ship.name} for {_dmg} damage.",
+        _ml.COLOR_PLAYER_ACTION,
     )
-    state.log.add_colored(_line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs)
     if _fh > 0:
         return
     ship.alive = False

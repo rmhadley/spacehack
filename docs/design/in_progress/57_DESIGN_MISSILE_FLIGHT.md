@@ -311,11 +311,16 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   a turn-1 kill — the seeded scout rushed inside the floor after two
   guidance misses and won. The fixture's purpose is the tombstone
   surface, not missile balance; 57.3 owns the balance questions.
-- Contact-damage prose is DRAFT pending checkpoint approval:
-  non-target ship hits reuse the approved `player_attack_line`
-  vocabulary ("You fire your Heavy Missile at <escort>. It hits…"),
-  self-splash drafts a new line ("Your Heavy Missile detonates on
-  your own hull for N damage.").
+- Contact-damage prose SETTLED 2026-10-01 (user, checkpoint):
+  non-target ship hits speak the detonates form — "Your Heavy
+  Missile detonates on Escort for 64 damage." (the fire-form line
+  stays the target arrival's, so the log distinguishes intended hits
+  from clips); self-splash as drafted — "Your Heavy Missile detonates
+  on your own hull for N damage."; guide sentence with the comma —
+  "Any ship its flight path crosses takes the hit, including yours."
+  Same exchange, style ruling: the spaced hyphen " - " is an AI tell
+  (now prose tell 17 in knowledge.md); the guide paragraph's own
+  instance rewritten with a comma/colon.
 - Reviewer round (v2, APPROVE): rulings recorded — (a) contact reads
   ANCHOR CELLS: a crossing missile can pass a capital ship's
   non-anchor footprint without contact, and a ship parking on a
