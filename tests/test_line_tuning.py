@@ -26,8 +26,8 @@ this harness pins the moved numbers, never tunes them. Calibration
 caveats: the flat x0.70 is the open-floor expectation — a DENSE
 watch crowds the player's ring until pickets have no legal
 reposition cell, and the loop then fires unthinned; power drawdown
-is unmodeled (the picket's pool 14 at gen 1/turn since phase-2
-upkeep funds only a few rounds of full volley before thinning) — so
+is unmodeled (the picket's pool 14 at gen 2/turn (armor watt-free
+since SETTLED 31) funds only a few rounds of full volley before thinning) — so
 the model reads softer than reality when the watch is dense, and
 hotter than reality the longer the race runs.
 
@@ -113,7 +113,7 @@ def _picket_regen() -> int:
     + modules) plus the threshold-gated paid divert (doc 48 SETTLED
     40) — the race's decisive stretch runs below half shields, where
     the blockade's authored rate 2 diverts (power: the flown build's
-    net gen sits at 1 since doc-56 phase-2 upkeep — pool 14 funds the
+    net gen sits at 2 (armor watt-free, SETTLED 31; it was 1 through phase-2 upkeep) — pool 14 funds the
     divert + volley for a few rounds before drying; drawdown stays
     unmodeled here, see the module docstring)."""
     _spec, _modules, _skills = _picket_build()

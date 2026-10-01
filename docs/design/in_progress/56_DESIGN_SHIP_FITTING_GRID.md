@@ -462,6 +462,29 @@ probe-driven — phase 4).
     the mk ladders than −1/−2/−3/−4 — probe-refereed, never tuned
     by feel alone.
 
+31. **Armor family: watt-free, speed-taxed** (2026-10-01, parts
+    walk family 5). User: "before you got to armor I already knew it
+    needed 0 power impact" + "right now basically I'm seeing armor
+    plating as filler when you run out of power" — the identity
+    RULED as the watt-free defense, formalized. Upkeep −1..−4 →
+    **0 across the family** (structural, like cargo — the
+    negative-power precedent moves on); compensating cost is a NEW
+    speed malus −1/−2/−3/−4 per mark through the existing
+    ``speed_bonus`` sum (no new mechanic; heavy_reactor's −cargo
+    malus precedent) — out-of-combat currency, so combat builds eat
+    it and traders skip armor. Bonus bumps +25/+45/+65 (mk2/mk3/mk4,
+    uniform +20 steps) and shapes 2×2 / **2×3** / **3×3** (the
+    physical-family grammar — armor mk4 joins shield mk4 + reactor
+    mk4 as the third flagship-block contender: unstripable 65 hull
+    vs regenerating 95 shields at −4w). mk1 +5/1×1/−1 speed
+    untouched in bonus/shape. Defense axis now three-way: shields
+    (EHP per watt), armor (EHP per cell, speed), reactors (fund
+    either). CASCADE (the walk's first NPC-side move): 5 specs + the
+    hauler start fly mk1 — resting nets +1 each (captain parity pin
+    3; hauler start net +4; Line picket gen 1 → 2; pool unchanged —
+    max(10, gen×2) floors). Quality scaling keeps its "more of what
+    it is" shape on the new axes (hull up, speed malus bigger).
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
