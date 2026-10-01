@@ -642,8 +642,12 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       "Playtest round 1". Guide diffs + the fratricide DRAFT line
       rode the pass as called out on the checkpoint)
 - [ ] **2.5. Enemy AI conservation layer — the five-step logic check**
-      — riff below (user, 2026-10-01, post-pass: the hard missile
-      floor is specifically what needs it); awaiting `/refine-design`
+      — riff + brief below (rulings SETTLED 2026-10-01: formula +
+      override seam, score-zero sits out, the bend through the
+      existing dial, three-axis state read; brief written with the
+      ADVISE pass folded — 2 blocking: the flak reserve exemption's
+      plumbing + the zero-rate formula guard; APPROVED pending the
+      user's go)
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception
@@ -959,20 +963,28 @@ decision lands HERE).
    current target is zero (a strip weapon into bare shields) holds
    fire — the same capability-gate pattern as the floor and flak
    gates, the enemy's expression of the player's toggles.
-3. **PROPOSED (agent, awaiting the user) — spec-driven through the
-   dial that already exists.** The user's instinct ("this one feels
-   like it'd have to be spec driven, no? You have AP as a resource.
-   Using AP for dodge should be a thing the spec decides on") is
-   already the shipped shape: ``ai_aggressiveness`` IS the per-spec
-   fire-vs-dodge temperament — using AP for dodge is the reposition
-   verb, and each spec already decides its frequency. The missing
-   link is STATE, not a new dial: while the reserve is active, the
-   same shield read scales the roll — a tanking warlord at 20%
-   shields fires like an agg-20 ship (mostly dances, plinks with
-   what the reserve allows) and reads as "it stopped the heavy stuff
-   and started tanking." One shield read, two effects (membership +
-   temperament bend); the spec's dial stays its personality; the
-   scaling curve is probe business.
+3. **SETTLED — the bend, confirmed verbatim ("the bend proposal
+   works"), then EXTENDED by the user same message: "I like the idea
+   of the enemy's behavior changing based on low ammo/low shields/
+   low hull."** The three-axis state read:
+   - **Shields bend DOWN**: while the reserve is active, effective
+     aggressiveness scales with the shield fraction (an agg-100
+     warlord at 20% shields fights like agg-20; curve starts
+     linear, the probe owns it). No new dial —
+     ``ai_aggressiveness`` stays the spec's personality; the wound
+     bends it.
+   - **Hull bends UP — desperation** (agent's flavor pick, flagged
+     for veto: opposite sign to the shield bend): as hull fails
+     below half, the temperament RISES — the cornered last stand.
+     The composition arc reads: healthy aggressor → tanking
+     (shields low, hull fine) → desperate trader (shields gone,
+     hull failing). A turtle at low hull would instead stretch
+     every kill into a chase; desperation resolves fights.
+   - **Ammo = the DRY filter, never hoarding**: a weapon whose
+     magazine is EMPTY drops from the wish list (the band follows
+     what the ship can still feed — closes the reviewer's
+     dry-magazine watch item). A LOADED magazine behaves as today,
+     down to the last round: the saturation doctrine spends them.
 4. **SETTLED by doctrine — the probe referees.** Doc 50's surface:
    enemy survival curves, fight length, and volley composition
    before/after the reserve; row specifics belong to the brief.
@@ -980,6 +992,148 @@ decision lands HERE).
 Nothing here restructures the decision loop; it is predicates at the
 existing seam plus one new read. No brief written yet — the rulings
 come first.
+
+## Implementation brief 57.2.5 — the enemy AI conservation layer
+
+**Scope**:
+
+- `combat/_ai.py` + one helper in `combat/_actions.py` — one pure
+  read + three gates, all at the existing choke points (the whole
+  phase is the riff's mapping made live; ADVISE-folded 2026-10-01):
+  - `_actions.divert_full_cost(enemy)` — the ONE shared full-rate
+    divert cost expression, extracted from `start_enemy_turn` and
+    called by both the payer and the reserve (twin pair: the payer
+    and the reserver must never drift).
+  - `_regen_reserve(_ei) -> int` — THE formula, and the ONE
+    future-override seam: `divert_full_cost(_ei)` while
+    `max_shields > 0 and shield_regen_rate > 0 and shields <
+    shield_regen_threshold * max_shields`, else 0 (ADVISE blocking 2:
+    the rate/no-shield guards are IN the formula — only four specs
+    carry a paid divert today; a literal unguarded expression would
+    phantom-reserve 1 power fleet-wide). A future unique/boss spec
+    swaps this single read for its own decision loop — never scatter
+    the reserve logic.
+  - `_member_included` gains two gates, with a `flak` flag threaded
+    `_affordable_members` → `_member_included` (ADVISE blocking 1):
+    the RESERVE check (a member sits out when paying it would take
+    the LIVE pool below the active reserve — one shared funds-check
+    helper used by BOTH the plan-time gate and the
+    `_run_volley_members` re-gate, so sequential fire enforces the
+    floor cumulatively; the first slot-order member sees an
+    unchanged pool, so never-a-spin holds) and the SCORE-ZERO check
+    (expected value vs the CURRENT target is 0 — a strip weapon into
+    bare shields sits out; the only catalog case, and no npc flies
+    the EMP today, so this gate's live reach is future-proofing with
+    test coverage until an EMP carrier exists). FLAK membership
+    skips the reserve gate through the same flag — point defense IS
+    conservation — and `_flak_pick`'s scan uses the SAME gated
+    membership, so a non-None flak pick always funds a member under
+    an active reserve (the spin the unflagged shape would have
+    created).
+  - `_effective_aggressiveness(_ei, spec)` — the bend, the single
+    read `_engagement_decision`'s fire-vs-dodge roll uses: while the
+    reserve is active, `ai_aggressiveness * shields / max_shields`
+    (linear to start; the probe owns the curve; guarded — reserve
+    inactive means no fraction at all, no-shield ships never
+    divide), then the hull desperation term raises the ROLL only:
+    `+ max(0, (0.5 - hull/max_hull) * 100)`, capped 100. Desperation
+    never overrides the reserve bench (a cornered ship still will
+    not fire the plasma it cannot fund). Note: because flak sits
+    inside the fire branch behind this roll (57.2's ADVISE 9c), a
+    deep-tanking ship flaks RARELY — only cornered or on lucky
+    rolls; that tension is accepted and the checkpoint says so.
+  - `_ranked_weapons(affordable_only=False)` gains the DRY filter:
+    a weapon whose magazine is empty (`weapon_ammo <= 0` for
+    ammo weapons) drops from the WISH list — the band follows what
+    the ship can still feed. Power-dry STAYS in the wish list
+    (power recovers next turn; empty rounds do not). A loaded
+    magazine behaves as today down to the last round (no hoarding).
+    Doc 54 note (ADVISE 4): the flee reaction walks the affordable
+    branch, so reserve-active ships reaction-fire with what the
+    reserve allows — recorded amendment, pinned.
+  - Docstring updates in scope (ADVISE 9): `_volley_picks`'
+    "inclusion is affordability alone" and `_affordable_members`'
+    "never the score filter" both become historical this phase.
+- Budget note: `_ai.py` sits at ~891/1000 lines; ~+50 lands ~941 —
+  the split likely does not fire; if it does, the conservation
+  READS (`_regen_reserve`, `_effective_aggressiveness`, their state
+  helpers) split to a small `_ai_conservation.py` and the GATES stay
+  at `_member_included` (cohesion: reads together, gates at the
+  choke point).
+- Probe check: run doc 50's existing spec probes (`tools/
+  balance_probe.py`) before/after; report enemy survival + fight
+  length deltas in the playtest handoff. No new probe tooling —
+  57.3 owns the deep numbers. Expectation note (ADVISE 8): catalog
+  `power_gen` (3-6) funds the next divert by itself, so the
+  reserve's real protected quantity is next turn's POST-DIVERT
+  weapon power — 57.3's probe should read it that way.
+- Companion doc pointer: doc 56's SETTLED 24 gains the score-zero
+  supersession pointer beside the band one (same commit).
+
+**Build order**: the reserve read + membership gate → score-zero
+gate → the bend (both terms, one read) → the dry filter → sims +
+pins → the probe delta run.
+
+**Binding rulings**: the riff's rulings above (formula + override
+seam; score-zero sits out; the bend through the existing dial, never
+a new one; the three-axis state read: shields bend down, hull
+desperation bends up — the composition arc —, ammo = dry filter,
+never hoarding); the volley mirror stays (membership predicates
+only, doc 56 SETTLED 24); flak ignores the reserve (point defense
+is survival); the probe referees the curves.
+
+**Required tests** (same commit): reserve math pins (0 above the
+threshold / above full shields / rate 0 / no shields; the full
+divert cost below; the shared `divert_full_cost` equals the payer's
+expression); membership (a low-shield warlord's plasma sits out
+while lasers + racks fire; the EMP sits out vs bare shields and
+FIRES vs shielded; the CUMULATIVE case — pool 2, reserve 2, two
+1-power members: the first fires, the second benches at the re-gate;
+flak under an active reserve: a non-None `_flak_pick` always funds a
+flak member, never the zero-AP spin; everything-gated ⇒ fire pick
+None ⇒ dance); the bend (pinned RNG: a tanking warlord repositions
+more; low hull raises the roll; the terms compose — low shields +
+low hull reads desperate-but-cheap; the no-shield guard); the dry
+filter (an empty rack leaves the wish list so the band falls to the
+lasers — the watch-item pin; a loaded magazine with ONE round left
+dances to the rack exactly as today; an ALL-dry wish list → band
+None → in-position BREAK-at-once, never a spin); the reaction
+amendment (reserve-active ships reaction-fire within the reserve);
+regressions (power-dry dance keeps its band; the cornered dead
+stick; full-health fights bit-identical).
+
+**Stop point**: no new probe infrastructure, no new spec dials, no
+boss custom decision loop (the seam only — nothing implements it),
+no 57.3 calibration, no guide edits (all of this is enemy interior
+that explains itself in play; the guide deliberately stays silent
+and the checklist says so).
+
+**Playtest checkpoint**:
+
+1. Full-health patrol/warlord: behavior bit-identical to 57.2.
+2. Drop a warlord's shields: watch the plasma go quiet + the dance
+   widen — "it stopped the heavy stuff and started tanking."
+3. Score-zero gate: NOT live-playtestable today (no npc flies the
+   EMP — ADVISE 5); covered by the membership pins; revisit at the
+   first EMP-carrying enemy.
+4. Ride a rack-carrier's magazine dry: it stops standing off and
+   closes to gun range (the band follows the lasers — mixed
+   loadouts; a rack-ONLY dry ship goes inert in position, pinned).
+5. Take a pirate to low hull: the cornered last stand (trades
+   harder, even shieldless). FEEL CHECK: a merchant hauler (authored
+   agg 10) at 5% hull trades at ~52 — if that reads wrong, the
+   desperation term gets a merchant exemption or gentler curve
+   (ADVISE 7; the user's veto example).
+6. Tanking ships still flak on lucky rolls and when cornered —
+   rarely at deep tank (the bend throttles the fire branch; accepted
+   tension with 57.2's ADVISE 9c, ADVISE 6).
+7. Regression: full-health fights unchanged; save/quit/continue
+   clean.
+8. Probe deltas reviewed (enemy survival + fight length before/
+   after) — no dial moves without them (57.3 owns the numbers).
+9. Guide diff review: NONE this phase (deliberate — enemy interior
+   explains itself in play).
+
 
 ## Implementation brief 57.3 — calibration
 
