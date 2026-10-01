@@ -1310,6 +1310,28 @@ and the checklist says so).
 | sat_deep | 2 racks + magazine | 300 | 128 (43%) | 118 (39%) | 48 | 44% | 2.70 | 38/50 |
 | warlord_stock | cruiser vs warlord | 115 | 4 | 0 | 0 | 100% | 3.00 | 0/50 (≤4 turns) |
 
+**The dial rulings (2026-10-01, user, verbatim on the load-bearing
+parts):**
+
+1. Heavy speed 2 STANDS — "we can keep it at 2 and I'll see how it
+   all feels during a real playthrough."
+2. Focused flak's total suppression is ENDORSED as designed — "I
+   like that if you focus on flak you can shoot them down. It lets
+   you distract an enemy so you can go on the offensive. and new
+   small threats while you're on your own turn makes things
+   dynamic." (Taste ruling for all future tuning: the 0%-under-focus
+   read is the point, not a bug; flak's cost is not shooting the
+   shooter.)
+3. "we can call this good and I'll return any additional feedback
+   after a playthrough. we'll use these base measurements + my
+   feedback to better tune later." — the measured base lines ARE the
+   calibration standard: the four acceptance-carrying rows landed as
+   ruled thresholds from the measurements + slack (escort intercept
+   floors 0.85/0.78; saturation resolved-arrival bands 0.20–0.36
+   thin / 0.36–0.52 deep); the crossing and warlord rows stay
+   report-only pending the playthrough's feel. Tuning later = bars
+   move with playthrough feedback, never ahead of it.
+
 Caveats the numbers carry (reviewer round, folded): the crossing
 means are CENSORED — only missiles that resolved before the fight
 ended book a duration (82% of the standing rows' launches were still
