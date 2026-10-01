@@ -1,8 +1,9 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: BRIEF 57.1 APPROVED 2026-10-01 (user invoked
-`/implement-phase 57.1`; briefs 57.2–57.3 remain PROPOSED until
-their checkpoints). Refined 2026-10-01 (`/refine-design`): rulings
+Status: PHASE 1 BUILT 2026-10-01 (brief approved via
+`/implement-phase 57.1`; gate 3437 green; reviewer APPROVE after one
+blocking fix — see audit updates; playtest PENDING). Briefs 57.2–57.3
+remain PROPOSED until their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
 SETTLED 1–9, every open question closed; Implementation briefs 1–3
 written with the ADVISE reviewer pass folded (14 catches, 6
 blocking — kill-path bookkeeping, merged-index readers, entity
@@ -224,7 +225,33 @@ walls. Damage racks receive the magazine bonus; EMP never does.
 
 ### Audit updates as the build reveals surprises
 
-- (none yet)
+- The forecast ratchet refactor fired as budgeted: the reinforcement
+  block moved to `combat/_space_reinforce.py` (state-explicit, the
+  `_space_kills` pattern), keeping `_rules_space` at 995 lines.
+- Authoring-invariant coupling (doc 48 SETTLED 40): the heavy floor
+  3→5 outgrew four carriers' `ai_preferred_range` — pirate_captain,
+  militia_patrol_heavy, pirate_marauder, pirate_warlord bumped to 5
+  (standoff heavies, thematically the doc's own "strictly long
+  distance" read; light carriers already sat at 4). Committed with
+  the ruled rows, not the mechanics.
+- Reviewer round 1 (REQUEST_CHANGES → APPROVE on re-review): the
+  blocking catch was a real hole — a flight rack fired at a crossing
+  MISSILE (the merged fire path allows it; the default volley arms
+  every slot) would arrive into the SHIP kill chain and crash on
+  ordnance's missing `spec_id`. Ruling: an arrival at ordnance takes
+  the INTERCEPT bookkeeping (guidance roll → damage onto missile_hp →
+  `Missile destroyed.`, never `on_kill`) — the intercept ruling
+  extended to the arrival seam, pinned by
+  `test_arrival_at_a_missile_takes_the_intercept_branch`.
+- The floor read consolidated into ONE helper (`catalog_floor`) after
+  the reviewer flagged four scattered copies (gate, range line, HUD
+  distance, card HIT color, then the WEAPONS stat row as a fifth):
+  Focus never widens a rack's refusal band, everywhere.
+- OPEN (user ruling at the 57.1 checkpoint): beyond-`max_range`
+  launch is now a fuel dud (fuel = max_range < distance ⇒ exhaust)
+  where the old instant shot could still hit at the 5% floor. The
+  fuel cap IS the flight weapon's ceiling — refuse beyond max like
+  the floor, or keep the dud as the outrun counter's teeth?
 
 ## The shape
 
@@ -315,8 +342,8 @@ outcome-shaped hit/miss forms and cannot carry a launch):
 
 ## Phases
 
-- [ ] **1. Flight + player-side interception** — brief below
-      (PROPOSED)
+- [x] **1. Flight + player-side interception** — brief below
+      (BUILT 2026-10-01; playtest pending)
 - [ ] **2. Enemy missiles + the flak AI layer** — brief below
       (PROPOSED)
 - [ ] **3. Calibration** — brief below (PROPOSED)
