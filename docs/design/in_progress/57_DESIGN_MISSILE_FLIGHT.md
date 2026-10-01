@@ -341,6 +341,135 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   flight path crosses takes the hit — including yours"), nothing
   else; current guide text stays true under v2.
 
+## Pre-implementation audit (2026-10-01, phase 57.2)
+
+### 1. Existing classes / modules to extend or reuse
+
+- **`advance_flights`** (`combat/_missile_flight.py:553`) — already
+  side-parameterized; gains a `shooter` filter (per-shooter
+  mini-turns, SETTLED 11.9's enemy mirror) and a sibling
+  `advance_orphan_flights` for dead-shooter missiles, both sharing an
+  extracted `_mini_turn` body.
+- **`_enemy_volley` / `_enemy_shot_tail` / `_apply_enemy_hit`**
+  (`combat/_ai.py:485/521/634`) — the volley mirror: one `target`
+  parameter (None = the player, an `InFlightMissile` = flak), a
+  flight-member spawn branch, and the arrival tail called VERBATIM
+  (attack line, damage counters, `last_attacker`, DEFEAT
+  presentation) — zero bookkeeping copies.
+- **`enemy_attack_line`** (`combat/_messages.py:168`) — the `" you. "`
+  object gains a `target_name` parameter for flak lines; every form
+  stays existing vocabulary (the player's own flak already logs
+  "at Heavy Missile. It misses!" through the mirror builder).
+- **`score_weapon` pattern** (`combat/_ai.py:241`) → new `score_flak`:
+  the same `calc_hit_chance` + per-AP shape at dodge 0, × hull
+  coverage × the inbound's threat.
+- **Phase-1 player-side interception** — `merged_targets` is
+  side-agnostic, so enemy missiles already ride the TAB cycle, the
+  card, `hit_chance`/`damage` (EnemyInstance-compatible reads), and
+  the intercept branch. The player's TAB+F defense is live unchanged.
+- **`_reaction_pick`** (`combat/_ai.py:328`) — the single choke point
+  every reaction caller reads; the flight exclusion lands here (NOT
+  in `_rules_space.reaction_volley` — that module sits at 999/1000
+  lines and the ruling is unchanged; scope-line deviation recorded
+  below).
+
+### 2. Three potential duplication hotspots
+
+1. **Target plumbing fork**: volley target, shot-tail target, and the
+   flak roll could grow three near-duplicate resolve → animate → log
+   stacks inside `_ai.py`.
+2. **Enemy-arrival bookkeeping**: the arrival-on-player path could
+   copy `_apply_enemy_hit`'s writes (shields/hull, counters,
+   `last_attacker`, death presentation) instead of calling it.
+3. **Mini-turn filters**: per-shooter and orphan sweeps could
+   duplicate the whole `advance_flights` loop body.
+
+### 3. DRY strategy per hotspot
+
+1. `_enemy_volley(target=...)` computes member inclusion in ONE walk
+   (affordability ∧ floor ∧ flak-capability) and dispatches each
+   member to exactly one of three tails (spawn / flak shot / shot
+   tail); the flak roll is its own small helper with only the
+   dodge-0 + target-name reads it needs.
+2. The arrival calls `_ai._apply_enemy_hit` directly; the side-aware
+   guidance roll lives in `_guided` (player side keeps LIVE reads —
+   the opener window can close mid-flight; enemy side reads the
+   launch-time `pilot_gunnery` snapshot, static per instance).
+3. `_mini_turn(state, ctx, game_map, missile)` is the one body;
+   `advance_flights` and `advance_orphan_flights` are one-line
+   filters over it.
+
+### Audit findings before code (scan results)
+
+- **Spin hole in the brief's floor-gate scope**: gating
+  `_affordable_members` alone is NOT enough. `_volley_picks` →
+  `_ranked_weapons(affordable_only=True)` can still hand
+  `_engagement_decision` a fire pick that is an in-floor rack; the
+  volley then fires zero members, returns `None` having spent no AP,
+  the decision reports `"SPENT"`, and `_take_enemy_turn`'s
+  `while _ei.ap_remaining > 0` loops forever — the "never a spin"
+  contract (doc 48 SETTLED 40). Today the empty-volley spin is
+  unreachable (non-None fire pick ⇒ an affordable member). The gate
+  therefore lands in the ranked walk too — the honest mirror of the
+  player's `can_fire`, which gates the player's volley the same way.
+- **Phase-1 latent bug gone live**: `_same_shooter_missile_at`
+  (`_missile_flight.py:200`) compares SIDE. True only while each
+  side has one shooter. With multiple enemy shooters it must compare
+  shooter identity (SETTLED 11.6: avoid same-SHOOTER missiles;
+  cross-shooter missiles ignore each other). Player missiles all
+  carry `shooter=None` — semantics unchanged.
+- **SETTLED 10 supersedes the brief's render line**: "enemy missile
+  glyph distinct from the player's" predates the same-day glyph
+  ruling; family-by-shape, SIDE-BY-COLOR is binding, and
+  `_build_missile` already paints side fg (hostile hot red / player
+  cyan). No glyph change; color is the distinction.
+- **Enemy launch is wordless** (SETTLED 1: the glyph crossing IS the
+  dread beat; travel is motion, not prose). The arrival speaks the
+  EXISTING `enemy_attack_line` forms verbatim — hit with damage, or
+  the hit=False miss form — so the phase lands ZERO new prose (the
+  six player-side lines stay the complete set; "Missile destroyed."
+  covers both sides' intercepts through the shared finisher).
+- **Orphan cadence**: dead-shooter missiles move at the START of the
+  enemy phase, ahead of live shooters' turns — AT MOST one move per
+  round (occasionally zero: a shooter killed after the sweep but
+  before its own turn leaves its missiles unmoved that round; they
+  resume next round, ADVISE 6), with no moved-flag: a shooter dying
+  mid-phase AFTER its turn has already moved its missiles; a missile
+  launched mid-phase whose shooter then dies waits for the next
+  phase's sweep. The sweep's DEFEAT propagates (`_run_enemy_turn` →
+  the 999 signal → `_end_turn`, ADVISE 3).
+- **Enemy-launch player-kill IS reachable** (ADVISE blocking 1,
+  2026-10-01): the floor gate reads Euclidean distance while flight
+  is per-cell Bresenham — a light rack at the (3,3) diagonal sits at
+  Euclidean 4.24 (passes floor 4), its spawn lands 2 out and the
+  half-move is 2, so the launch can walk onto the player. The enemy
+  spawn seam therefore propagates DEFEAT through the volley's
+  existing `_outcome == "DEFEAT": break` shape (heavies ARE
+  geometrically safe: min Chebyshev standoff past a Euclidean-5 gate
+  is 4, spawn 3 + half-move 1 never closes below 2). The player
+  side's discard stays — its post-action hp gate is the ruled
+  backstop ("remaining slots still fire"). The ORPHAN sweep's DEFEAT
+  propagates the same way (`_run_enemy_turn` → the 999 signal →
+  `_end_turn`).
+- **Fratricide contact (ADVISE blocking 2)**: an enemy missile
+  contacting a NON-target enemy ship deals identical physics (rule 7
+  verbatim: ANY ship) but must NOT speak the player-possessive
+  detonates form NOR run the player-crediting kill chain (no XP,
+  loot, bounty, rep, or `defeated_*` for a pirate's own crossfire —
+  the intercept-kill precedent: ordnance deaths the player did not
+  cause record nothing). DRAFT forms (checkpoint approval, the
+  settled player forms parameterized by speaker): hit — `Pirate
+  Scout's Heavy Missile detonates on Pirate Escort for 64 damage.`
+  kill — the existing `{name} destroyed!`; miss stays `Missile
+  detonates short.` The victim's entity still leaves the map (no
+  ghost hull).
+- **Pinned-test re-pins required**: the cornered rack-only ship now
+  fires NOTHING (dead stick, SETTLED 2) instead of firing through
+  the penalty; `test_pick_takes_the_top_scorer...` moves to a legal
+  distance (rack floor 5 > its 4.0); `_reaction_pick`'s reach test
+  loses the rack (was the reachable pick at 6.0) and re-pins on
+  guns; `_turn_state` fixtures gain `in_flight=[]`.
+
 ## The shape
 
 ### Flight entity
@@ -577,25 +706,52 @@ missile + light lasers + rounds at the mechanic):
   verb), one at a time — the mirror of the player's hook.
 - `combat/_ai.py` — enemy volley missile members spawn flight
   entities (the mirror of the player seam); the ENEMY FLOOR GATE:
-  `_affordable_members` gains the missile floor refusal (a member
-  inside its floor sits out, exactly like the player's per-member
+  `_affordable_members` AND the affordable branch of
+  `_ranked_weapons` gain the missile floor refusal (a member inside
+  its floor sits out, exactly like the player's per-member
   `can_fire` refusal — composes with doc 56 SETTLED 24's
-  affordability inclusion), and the cornered fallback no longer
-  fires missile members inside the floor (updating the pinned
-  `tests/combat/test_enemy_fire.py` behavior); the doc records:
-  this supersedes SETTLED 24's fire-at-penalized-floor rule for
-  MISSILE members only. The flak decision layer: per action,
-  score(inbound missile) vs score(shooter) through the existing
-  scorer pattern (expected intercept value = p(hit) × missile_hp
-  coverage vs expected volley EV), enemies with fast cheap weapons
-  prefer flak — a scorer, not branches.
+  affordability inclusion; the dual gate is load-bearing: a gated
+  pick with an ungated ranked walk spins `_take_enemy_turn` forever
+  on a zero-member "SPENT", ADVISE confirm 5; the wish list
+  `affordable_only=False` stays ungated — it keeps a hugged
+  rack-carrier backing off to its floor instead of going inert),
+  and the cornered fallback no longer fires missile members inside
+  the floor (updating the pinned `tests/combat/test_enemy_fire.py`
+  behavior); the doc records: this supersedes SETTLED 24's
+  fire-at-penalized-floor rule for MISSILE members only. The flak
+  decision layer: per action, score(inbound missile) vs
+  score(shooter) through the existing scorer pattern (expected
+  intercept value = p(hit) × hull coverage × threat / AP vs
+  expected volley EV), enemies with fast cheap weapons prefer flak
+  — a scorer, not branches. Flak sits INSIDE the fire branch
+  (passive agg-0 ships never point-defend: flak is an attack verb,
+  the roll is the temperament, ADVISE 9c).
 - `combat/_rules_space.py` — the flee reaction volley (doc 54)
   excludes FLIGHT racks only, gated on `flight_speed > 0`: reaction
   fire is guns-only because missiles cannot chase a fleeing ship
   (the fight ends before arrival — wasted rounds); the EMP pulse
-  is instant and STAYS a reaction weapon.
-- Rendering — enemy missile glyph distinct from the player's.
-- Guide — enemy-missile / point-defense note.
+  is instant and STAYS a reaction weapon. [ADVISE 8 amendment] the
+  exclusion lands in `_ai._reaction_pick` — the single production
+  choke point (only caller: `reaction_volley`), beside its other
+  selection-time filters; `reaction_volley` itself is untouched.
+- Rendering — [SETTLED 10 supersedes this line's original "glyph
+  distinct" wording] enemy missiles read by COLOR: `_build_missile`
+  already paints side fg (hostile hot red, player cyan) over the
+  shared family glyphs; no glyph change.
+- Guide — enemy-missile / point-defense note (the paragraph covers
+  only the player's own racks today) plus the reaction-fire wording
+  fix ("everything in range fires" stops being true when racks
+  hold); exact before/after on the checklist.
+- Prose (DRAFT, checkpoint approval — ADVISE blocking 2): the
+  fratricide hit line `"{shooter}'s {Missile} detonates on {victim}
+  for N damage."` (the settled player form parameterized by
+  speaker); enemy launches are WORDLESS (SETTLED 1's glyph doctrine:
+  the crossing IS the notice); arrivals speak the existing
+  `enemy_attack_line` forms verbatim; enemy flak at the player's
+  missiles parameterizes the attack line's object (`at {Missile}.
+  It misses!` / `It hits for N damage!` — the exact mirror of the
+  player's own flak lines) and the kill rides `finish_intercept`'s
+  existing `Missile destroyed.`
 
 **Build order**: enemy spawn mirror → player-side interception of
 enemy missiles (mostly free from 57.1) → flak scorer → reaction
@@ -611,12 +767,18 @@ dissipates it next step.
 
 **Required tests**: enemy missile spawn on volley; the enemy floor
 gate (member sits out inside the floor; cornered missile-ships no
-longer fire through it — pinned tests updated); flak scorer
-table (flak preferred when intercept EV beats shooting EV; the
-score-zero never-picked rule preserved); player interception of
-enemy missiles; DEFEAT via arrival; reaction volley fires no
-flight racks but MAY fire the EMP pulse; reinforcement joiners with
-racks fly them.
+longer fire through it — pinned tests updated, incl. the ranked-walk
+gate); flak scorer table (flak preferred when intercept EV beats
+shooting EV; the score-zero never-picked rule preserved); player
+interception of enemy missiles; DEFEAT via arrival; DEFEAT via the
+launch half-move at the (3,3) diagonal (the light-rack geometry,
+ADVISE 1); reaction volley fires no flight racks but MAY fire the
+EMP pulse; reinforcement joiners with racks fly them; shooter-
+identity avoidance (same-shooter sidestep, cross-shooter ignore);
+orphan cadence (dead shooter: exactly-once-per-round, never both
+paths); the enemy guidance roll derives from the shooter's snapshot
+gunnery, never the player's perks (ADVISE 11); the fratricide kill
+records NOTHING for the player.
 
 **Stop point**: no calibration (57.3), no probe rows, no magazine
 changes.
