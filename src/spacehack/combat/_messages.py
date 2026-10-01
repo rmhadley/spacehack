@@ -176,11 +176,15 @@ def enemy_attack_line(
     is_strip: bool = False,
     is_glancing: bool = False,
     quality: int = 0,
+    target_name: str | None = None,
 ) -> AttackLine:
-    """Full enemy-attack message: ``"{enemy} {opening} you. {result}"``."""
+    """Full enemy-attack message: ``"{enemy} {opening} you. {result}"``
+    (or ``"{opening} {target_name}."`` for fire at in-flight ordnance,
+    doc 57.2 — the player mirror's exact forms)."""
+    _object = target_name if target_name else "you"
     return _assemble_line(
         _enemy_opening_parts(enemy_name, weapon_id, weapon_name, quality),
-        " you. "
+        f" {_object}. "
         + _result_clause(
             hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg,
             is_strip=is_strip, is_glancing=is_glancing,

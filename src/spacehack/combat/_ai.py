@@ -57,6 +57,11 @@ async def _run_enemy_turn(
     Returns ``"DEFEAT"`` if the player is destroyed, ``None``
     otherwise. Mutates ``state`` in place.
     """
+    # The orphan sweep (doc 57.2): a dead shooter's missiles fly at
+    # the START of the enemy phase, ahead of the live shooters' turns
+    # — at most one move per missile per round.
+    if await _mf.advance_orphan_flights(state, ctx, state.game_map) == "DEFEAT":
+        return "DEFEAT"
     for _e_idx, _ei in enumerate(state.enemy_insts):
         if not _ei.alive:
             continue
@@ -76,6 +81,31 @@ async def _run_enemy_turn(
     return None
 
 
+async def _advance_toward_standoff(
+    state, _ei, _e_idx, _esp, _cached_path, *, hit_chances, evade_bonus, calc_cam,
+) -> tuple[str, list | None]:
+    """The out-of-position verb (doc 48 SETTLED 40): beyond the
+    preferred range or without LOS, ONE step toward the player.
+    Returns ``(outcome, cached_path)`` — ``"MOVED"``, ``"BREAK"``
+    (blocked with no LOS: never fire through cover), or ``"ENGAGE"``
+    (in position, or blocked with LOS: today's fall-through — the
+    weapon may still reach from here)."""
+    _p_pos = state.player_state["pos"]
+    _can_shoot = _has_los(
+        state.game_map, _ei.pos.x, _ei.pos.y,
+        _p_pos.x, _p_pos.y,
+    )
+    if _distance(_p_pos, _ei.pos) <= _esp.ai_preferred_range and _can_shoot:
+        return "ENGAGE", _cached_path
+    _moved, _cached_path = await _advance_one_step(
+        state, _ei, _e_idx, _cached_path,
+        hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam,
+    )
+    if _moved:
+        return "MOVED", _cached_path
+    return ("BREAK" if not _can_shoot else "ENGAGE"), _cached_path
+
+
 async def _take_enemy_turn(
     state, _ei, _e_idx, _esp, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
@@ -83,31 +113,24 @@ async def _take_enemy_turn(
     each AP spends on a verb — advance to stand-off, or the in-position
     engagement decision. The turn breaks when no verb is legal —
     never a spin. Honest costs stand (SETTLED 39)."""
+    # This shooter's mini-turn first (doc 57 SETTLED 11.9, the enemy
+    # mirror): its missiles move before its first verb.
+    if await _mf.advance_flights(
+        state, ctx, state.game_map, side="enemy", shooter=_ei,
+    ) == "DEFEAT":
+        return "DEFEAT"
     _cached_path: list[tuple[int, int]] | None = None
     while _ei.ap_remaining > 0:
-        _p_pos = state.player_state["pos"]
-        _can_shoot = _has_los(
-            state.game_map, _ei.pos.x, _ei.pos.y,
-            _p_pos.x, _p_pos.y,
+        _verb, _cached_path = await _advance_toward_standoff(
+            state, _ei, _e_idx, _esp, _cached_path,
+            hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam,
         )
-        _edist = _distance(_p_pos, _ei.pos)
-
-        if _edist > _esp.ai_preferred_range or not _can_shoot:
-            _moved, _cached_path = await _advance_one_step(
-                state, _ei, _e_idx, _cached_path,
-                hit_chances=hit_chances, evade_bonus=evade_bonus,
-                calc_cam=calc_cam,
-            )
-            if _moved:
-                continue
-            if not _can_shoot:
-                # A blocked step with no LOS breaks the turn rather
-                # than firing through cover.
-                break
-            # Blocked with LOS: fall through — the weapon may still
-            # reach from here (today's blocked-advance behavior).
+        if _verb == "MOVED":
+            continue
+        if _verb == "BREAK":
+            break
         _outcome = await _engagement_decision(
-            state, _ei, _e_idx, _esp, _edist,
+            state, _ei, _e_idx, _esp, _distance(state.player_state["pos"], _ei.pos),
             hit_chances=hit_chances, evade_bonus=evade_bonus,
             calc_cam=calc_cam, ctx=ctx,
         )
@@ -134,13 +157,16 @@ async def _engagement_decision(
     if _band is not None and _edist < _band.min_range:
         if await _back_off_step(state, _ei, _e_idx, **_steer):
             return "SPENT"
-        # Cornered: fall through and fire through the min-penalty.
+        # Cornered: fall through to the volley — whose members carry
+        # the missile floor gate (doc 57.2), so a cornered rack-only
+        # ship fires nothing and breaks; lasers still fire at the
+        # min-penalty (doc 56 SETTLED 24, guns unchanged).
     _rep = _find_reposition(state, _ei, _e_idx, _band) if _band is not None else None
     if _fire is not None and (
         _rep is None or RNG.randint(1, 100) < _esp.ai_aggressiveness
     ):
         if await _enemy_volley(
-            state, _ei, **_steer, ctx=ctx,
+            state, _ei, target=_flak_pick(state, _ei, _fire), **_steer, ctx=ctx,
         ) == "DEFEAT":
             return "DEFEAT"
         return "SPENT"
@@ -285,16 +311,102 @@ def _select_fire_weapon(_ei, distance: float, player_state: dict):
     return None if not _ranked else (_ranked[0][1], _ranked[0][2])
 
 
+def _member_included(_ei, slot: int, ws, distance: float) -> bool:
+    """The volley's per-member legality (doc 56 SETTLED 24 + doc 57.2):
+    real affordability, plus the missile floor — a flight rack inside
+    its catalog floor is a dead stick this action, the player
+    ``can_fire`` mirror. This supersedes doc 56 SETTLED 24's
+    fire-at-penalized-floor rule for MISSILE members only; lasers and
+    plasma keep the penalty semantics everywhere."""
+    return _weapon_affordable(_ei, slot, ws) and not _mf.catalog_floor(ws) > distance
+
+
+def _flak_capable(ws) -> bool:
+    """Whether ``ws`` can affect an in-flight missile (doc 57.2): a
+    damage gun — a flight rack can never connect with ordnance
+    (SETTLED 11.6: missiles never collide with missiles) and strip
+    weapons no-op on a shields-0 target by construction (SETTLED 7).
+    The AI's toggles-off expression of the player's own flak escort
+    (SETTLED 8). Reads the direct flight detector, not the floor
+    (57.3 owns the floor dials)."""
+    return (
+        not _mf.is_flight_weapon(ws.id)
+        and ws.shield_strip == 0 and ws.shield_strip_pct == 0
+    )
+
+
+def score_flak(
+    ws, distance: float, missile, gunnery: int, weapon_quality: int = 0,
+) -> float:
+    """Expected intercept value per AP (doc 57.2): the SAME
+    ``calc_hit_chance`` the shot resolves with (missiles dodge 0) ×
+    the share of the inbound's hull one shot covers, scaled by the
+    threat it neutralizes (the rack damage it would arrive with) —
+    the ``score_weapon`` shape, so flak competes with volley EV in the
+    same per-AP currency."""
+    _chance = calc_hit_chance(
+        ws.id, gunnery, distance, 0, weapon_quality=weapon_quality,
+    )
+    _dmg = effective_ship_weapon_spec(ws.id, weapon_quality).damage
+    _threat = effective_ship_weapon_spec(
+        missile.weapon_id, missile.quality,
+    ).damage
+    _coverage = min(_dmg, missile.hull) / max(1, missile.hull)
+    return _coverage * _threat * (_chance / 100.0) / weapon_costs(ws)[0]
+
+
+def _flak_pick(state, _ei, _fire):
+    """The flak decision (doc 57.2): the best ``(score, inbound)`` over
+    affordable flak guns × the player's live missiles, fired at ONLY
+    when its intercept EV beats the fire pick's volley EV —
+    score(inbound) vs score(shooter), the scorer pattern, never
+    branches. ``_fire`` is the ``(slot, spec)`` pick (the ranked walk
+    strips its score), so the volley EV is recomputed from the pick's
+    own weapon at the live player distance. ``None`` = shoot the
+    shooter. Strip weapons never score here by construction (the
+    score-zero never-picked rule); the pick's membership is the
+    volley's, so a non-None pick always funds at least one firing
+    member (never a zero-AP "SPENT" spin)."""
+    _pd = state.player_state
+    _shoot_ev = score_weapon(
+        _fire[1], _distance(_pd["pos"], _ei.pos),
+        _pd.get("shields", 0),
+        _ei.pilot_gunnery, _player_dodge(_pd),
+        weapon_quality=_ei.weapons[_fire[0]].quality,
+    )
+    _best = None
+    for _slot, _ws in _slot_weapons(_ei):
+        if not _weapon_affordable(_ei, _slot, _ws) or not _flak_capable(_ws):
+            continue
+        for _missile in state.in_flight:
+            if _missile.side != "player" or not _missile.alive:
+                continue
+            _score = score_flak(
+                _ws, _distance(_ei.pos, _missile.pos), _missile,
+                _ei.pilot_gunnery, _ei.weapons[_slot].quality,
+            )
+            if _score > 0 and (_best is None or _score > _best[0]):
+                _best = (_score, _missile)
+    if _best is None or _best[0] <= _shoot_ev:
+        return None
+    return _best[1]
+
+
 def _ranked_weapons(
     _ei, distance: float, player_state: dict, *, affordable_only: bool = True,
 ) -> list:
     """The volley's candidates in score order (EV per AP, tie first
     slot). ``affordable_only=False`` ignores the budget — the ranked
-    wish list a power-dry ship dances to the top of (SETTLED 40)."""
+    wish list a power-dry ship dances to the top of (SETTLED 40);
+    that wish list also ignores the missile floor, keeping a hugged
+    rack-carrier's band governor intact. The affordable walk carries
+    the floor gate (doc 57.2): a grounded rack is not a fire
+    candidate — the fire pick and the volley's members share one
+    legality read, so a non-None pick always fires something."""
     _dodge = _player_dodge(player_state)
     _ranked = []
     for _slot, _ws in _slot_weapons(_ei):
-        if affordable_only and not _weapon_affordable(_ei, _slot, _ws):
+        if affordable_only and not _member_included(_ei, _slot, _ws, distance):
             continue
         _score = score_weapon(
             _ws, distance, player_state.get("shields", 0),
@@ -326,13 +438,16 @@ def _volley_picks(_ei, distance: float, player_state: dict):
 
 
 def _reaction_pick(_ei, distance: float, player_state: dict):
-    """The flee volley's weapon (doc 54): the top-scoring affordable
-    weapon that REACHES the player — the ranked scores stay positive
-    at the 5% hit floor beyond max range, so the reaction filter is
-    an explicit ``max_range >= distance`` over the ranked order.
+    """The flee volley's weapon (doc 54; doc 57.2): the top-scoring
+    affordable weapon that REACHES the player — the ranked scores stay
+    positive at the 5% hit floor beyond max range, so the reaction
+    filter is an explicit ``max_range >= distance`` over the ranked
+    order — and is not a FLIGHT rack: a crossing missile cannot catch
+    a fleeing ship (the fight ends before arrival — wasted rounds);
+    the instant EMP pulse stays a reaction weapon.
     ``(slot, weapon_spec)`` or ``None`` when nothing reaches."""
     for _score, _slot, _ws in _ranked_weapons(_ei, distance, player_state):
-        if _ws.max_range >= distance:
+        if _ws.max_range >= distance and not _mf.is_flight_weapon(_ws.id):
             return (_slot, _ws)
     return None
 
@@ -440,12 +555,15 @@ async def _render_step_frame(state, cam, hit_chances, evade_bonus) -> None:
 
 async def _animate_enemy_shot(
     state, _ei, _wid, _e_hit, _e_dmg_popup, evade_bonus, calc_cam,
+    to_pos=None,
 ) -> None:
-    """Present the enemy's shot through the shared animator."""
+    """Present the enemy's shot through the shared animator (at the
+    player, or at an intercept's ordnance position — doc 57.2)."""
     _ecx, _ecy = calc_cam()
+    _to = state.player_state["pos"] if to_pos is None else to_pos
     await _animate_weapon_shot(
         state.console, state.ctx, state.game_map,
-        _ei.pos, state.player_state["pos"],
+        _ei.pos, _to,
         _wid, is_hit=_e_hit,
         damage=_e_dmg_popup,
         cam_x=_ecx, cam_y=_ecy,
@@ -470,50 +588,161 @@ def _slot_weapons(_ei):
             continue
 
 
-def _affordable_members(_ei) -> list:
+def _affordable_members(_ei, distance: float, *, flak: bool = False) -> list:
     """The volley's inclusion walk (doc 56 SETTLED 24, ADVISE minor
-    6): weapon SLOTS by the per-weapon affordability check — never
-    ``_ranked_weapons`` wholesale, whose score filter would drop a
-    score-zero strip weapon the player mirror still fires (the score
-    filter governs the band/reaction pickers only)."""
+    6; doc 57.2): weapon SLOTS by the per-member legality check —
+    never ``_ranked_weapons`` wholesale, whose score filter would
+    drop a score-zero strip weapon the player mirror still fires (the
+    score filter governs the band/reaction pickers only). A FLAK
+    volley at ordnance additionally requires capability (doc 57.2):
+    racks can never connect with a missile and strip weapons no-op on
+    it."""
     return [
         (_slot, _ws) for _slot, _ws in _slot_weapons(_ei)
-        if _weapon_affordable(_ei, _slot, _ws)
+        if _member_included(_ei, _slot, _ws, distance)
+        and (not flak or _flak_capable(_ws))
     ]
 
 
-async def _enemy_volley(
-    state, _ei, *, hit_chances, evade_bonus, calc_cam, ctx,
+async def _launch_enemy_missile(state, _ei, _slot: int, ws) -> str | None:
+    """The flight mirror of the player's spawn seam (doc 57.2): the
+    volley member deploys as a crossing missile homing on the player —
+    WORDLESS launch (the glyph crossing is the notice; the attack line
+    lands with the warhead at arrival). Returns ``"DEFEAT"`` when the
+    launch half-move connects on the player: Euclidean floors pass at
+    diagonal standoffs a light's half-move can cross (the hp seam —
+    ``spawn_flight_missile`` returns the missile, ADVISE 1)."""
+    await _mf.spawn_flight_missile(
+        state, ws.id, _mf.PlayerHomingTarget(state),
+        side="enemy", quality=_ei.weapons[_slot].quality,
+        launch_pos=_ei.pos, shooter=_ei, gunnery=_ei.pilot_gunnery,
+    )
+    if state.player_state["hull"] <= 0:
+        return "DEFEAT"
+    return None
+
+
+def _apply_flak_damage(missile, _wid: str, quality: int) -> int:
+    """Resolve one flak hit onto ``missile_hp`` through the shared
+    damage path (missiles have no shields; piloting 0: no glances).
+    Returns the damage dealt."""
+    _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
+        _wid, missile.hull, missile.shields,
+        target_pilot_piloting=0, weapon_quality=quality,
+    )
+    missile.hull = _fh
+    return _dmg
+
+
+async def _enemy_flak_shot(
+    state, _ei, _slot: int, missile, *, evade_bonus, calc_cam, ctx,
 ) -> str | None:
-    """Fire the affordable VOLLEY (doc 56 SETTLED 24): the player's
-    burst-fire mirror. Every affordable weapon fires once in slot
-    order — out-of-range members at the hit floor, exactly as the
-    player's own volley does — each paying its own power/ammo; AP =
-    max(ap_cost) over fired members, paid once at the end (a killing
-    volley still costs its full AP). Affordability RE-GATES per
-    member, mirroring the player's per-slot ``can_fire`` read of the
-    pool the earlier members drained — the pool never overdrafts. The
-    volley stops on player death. ``enemy_fired`` stamps once per
-    volley — the opener window closes on the volley, hit or miss
-    (mirror of ``_spend_opener``; a volley with no affordable member
-    never burns it)."""
-    _members = _affordable_members(_ei)
-    if not _members:
-        return None
-    state.enemy_fired = True
+    """One flak member at an in-flight missile (doc 57.2): the roll at
+    dodge 0 (deterministic traveler), damage onto ``missile_hp``, the
+    enemy attack line with the target's name, and the INTERCEPT finish
+    on the kill — never ``on_kill`` (no credit for ordnance)."""
+    _entry = _ei.weapons[_slot]
+    _wid = _entry.item_id
+    _ws = find_weapon(_wid)
+    _chance = calc_hit_chance(
+        _wid, _ei.pilot_gunnery, _distance(_ei.pos, missile.pos), 0,
+        weapon_quality=_entry.quality,
+    )
+    _hit = RNG.randint(1, 100) <= _chance
+    _dmg = _apply_flak_damage(missile, _wid, _entry.quality) if _hit else 0
+    await _animate_enemy_shot(
+        state, _ei, _wid, _hit,
+        _damage_popup_for(_dmg, 0, False) if _hit else None,
+        evade_bonus, calc_cam, to_pos=missile.pos,
+    )
+    _e_log(
+        _enemy_attack_line(
+            _ei.name, _wid, _ws.name, hit=_hit, hull_dmg=_dmg,
+            quality=_entry.quality, target_name=missile.name,
+        ),
+        state.log,
+    )
+    if _hit and missile.hull <= 0:
+        await _mf.finish_intercept(state, ctx, state.game_map, missile)
+    return None
+
+
+async def _volley_member(
+    state, _ei, _slot: int, _ws, target, *,
+    hit_chances, evade_bonus, calc_cam, ctx,
+) -> str | None:
+    """One volley member's tail by kind (doc 57.2): a flight rack
+    deploys a crossing missile, a gun at ordnance takes the flak
+    shot, everything else the shared shot tail at the player. Stamps
+    and cost models belong to the caller."""
+    if _mf.is_flight_weapon(_ws.id):
+        return await _launch_enemy_missile(state, _ei, _slot, _ws)
+    if target is not None:
+        return await _enemy_flak_shot(
+            state, _ei, _slot, target,
+            evade_bonus=evade_bonus, calc_cam=calc_cam, ctx=ctx,
+        )
+    return await _enemy_shot_tail(
+        state, _ei, _slot,
+        hit_chances=hit_chances, evade_bonus=evade_bonus,
+        calc_cam=calc_cam, ctx=ctx,
+    )
+
+
+async def _run_volley_members(
+    state, _ei, _members, target, *,
+    hit_chances, evade_bonus, calc_cam, ctx,
+) -> tuple[str | None, int]:
+    """The member loop (doc 56 SETTLED 24; doc 57.2): fire in slot
+    order with the per-member affordability RE-GATE (the pool never
+    overdrafts), break on player death or the flak target's death
+    (the player mirror's mid-volley break), pay power/ammo per member.
+    Returns ``(outcome, max_ap)`` — the AP payment is the caller's."""
     _max_ap = 0
     _outcome = None
     for _slot, _ws in _members:
         if not _weapon_affordable(_ei, _slot, _ws):
             continue  # mid-volley decay: an earlier member drained the pool
-        _outcome = await _enemy_shot_tail(
-            state, _ei, _slot,
-            hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam, ctx=ctx,
+        if target is not None and not target.alive:
+            break  # the inbound died mid-volley — stop wasting rounds
+        _outcome = await _volley_member(
+            state, _ei, _slot, _ws, target,
+            hit_chances=hit_chances, evade_bonus=evade_bonus,
+            calc_cam=calc_cam, ctx=ctx,
         )
         _pay_shot_consumables(_ei, _slot, _ws)
         _max_ap = max(_max_ap, weapon_costs(_ws)[0])
         if _outcome == "DEFEAT":
             break
+    return _outcome, _max_ap
+
+
+async def _enemy_volley(
+    state, _ei, *, hit_chances, evade_bonus, calc_cam, ctx, target=None,
+) -> str | None:
+    """Fire the affordable VOLLEY (doc 56 SETTLED 24; doc 57.2's
+    ``target`` parameter) — the player's burst-fire mirror at the
+    player (``None``) or at one in-flight missile (flak). Every
+    affordable (and, for flak, capable) weapon fires once in slot
+    order — out-of-range members at the hit floor, exactly as the
+    player's own volley does; AP = max(ap_cost) over FIRED members,
+    paid once at the end (a killing volley still costs its full AP).
+    ``enemy_fired`` stamps once per volley — the opener window closes
+    on the volley, hit or miss (mirror of ``_spend_opener``; a volley
+    with no affordable member never burns it)."""
+    _dist = _distance(
+        target.pos if target is not None else state.player_state["pos"],
+        _ei.pos,
+    )
+    _members = _affordable_members(_ei, _dist, flak=target is not None)
+    if not _members:
+        return None
+    state.enemy_fired = True
+    _outcome, _max_ap = await _run_volley_members(
+        state, _ei, _members, target,
+        hit_chances=hit_chances, evade_bonus=evade_bonus,
+        calc_cam=calc_cam, ctx=ctx,
+    )
     _ei.ap_remaining -= _max_ap
     return _outcome
 

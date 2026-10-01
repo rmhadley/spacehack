@@ -137,14 +137,30 @@ def _empty_sol_cell():
 def test_reaction_pick_skips_weapons_that_cannot_reach():
     """A light laser (max range 5) never answers at distance 6 — the
     ranked scores stay positive at the 5% hit floor, so the reach
-    filter is explicit, not scoring-emergent."""
+    filter is explicit, not scoring-emergent. Doc 57.2 re-pin: the
+    reach pick is GUNS now — a flight rack never reaction-fires (it
+    cannot catch a fleeing ship), so the beam takes the slot."""
     from src.spacehack.data.weapons import find_weapon
 
-    enemy = _enemy("E", world.Position(0, 0), ("light_laser", "heavy_missile"))
+    enemy = _enemy(
+        "E", world.Position(0, 0), ("light_laser", "plasma_cannon"), power_pool=10,
+    )
     pick = _ai._reaction_pick(enemy, 6.0, {"shields": 0})
     assert pick is not None
-    assert pick[1].id == "heavy_missile"
+    assert pick[1].id == "plasma_cannon"
     assert find_weapon(pick[1].id).max_range >= 6
+
+
+def test_reaction_pick_never_takes_a_flight_rack():
+    """Doc 57.2: reaction fire is guns-only — a crossing missile
+    cannot chase a fleeing ship (the fight ends before arrival), so a
+    rack-only ship stands down even dead in range; the instant EMP
+    pulse STAYS a reaction weapon."""
+    rack_only = _enemy("E", world.Position(0, 0), ("heavy_missile",))
+    assert _ai._reaction_pick(rack_only, 6.0, {"shields": 0}) is None
+    emp = _enemy("E", world.Position(0, 0), ("emp_missile",), ammo={0: 2})
+    pick = _ai._reaction_pick(emp, 4.0, {"shields": 40})
+    assert pick is not None and pick[1].id == "emp_missile"
 
 
 def test_reaction_pick_returns_none_when_nothing_reaches():
@@ -155,9 +171,10 @@ def test_reaction_pick_returns_none_when_nothing_reaches():
 
 
 def test_reaction_pick_keeps_the_affordability_gate():
-    """A dry magazine is not 'in range' — the reaction uses the same
-    affordability gate as the enemy turn."""
-    dry = _enemy("E", world.Position(0, 0), ("heavy_missile",), ammo={0: 0})
+    """A dead power pool is not 'in range' — the reaction uses the
+    same affordability gate as the enemy turn (doc 57.2 re-pin on a
+    gun: a rack would now pass for the wrong reason — excluded)."""
+    dry = _enemy("E", world.Position(0, 0), ("heavy_laser",), power_pool=0)
     assert _ai._reaction_pick(dry, 4.0, {"shields": 0}) is None
 
 

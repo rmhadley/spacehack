@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from src.spacehack.combat._actions import resolve_damage
 from src.spacehack.combat._ai import (
-    _pay_fire_costs, _select_fire_weapon, score_weapon,
+    _pay_fire_costs, _select_fire_weapon, _volley_picks, score_weapon,
 )
 from src.spacehack.combat._types import EnemyInstance
 from src.spacehack.data.weapons import find_weapon
@@ -68,10 +68,26 @@ def test_score_emp_zero_on_bare_shields_top_on_fat():
 
 
 def test_pick_takes_the_top_scorer_not_the_first_affordable():
-    """A missile outranks the beam while tubes last (32 dmg / 2 AP vs
-    4 / 1) — the volley opens with the salvo, list order is dead."""
+    """A missile outranks the beam while tubes last (64 dmg / 2 AP vs
+    ~4 / 1) — the volley opens with the salvo, list order is dead.
+    Distance 6: past the heavy's floor 5 (doc 57.2 — the rack is a
+    legal candidate there)."""
     enemy = _enemy(("light_laser", "heavy_missile"))
-    assert _select_fire_weapon(enemy, 4.0, {"shields": 0})[0] == 1
+    assert _select_fire_weapon(enemy, 6.0, {"shields": 0})[0] == 1
+
+
+def test_pick_grounded_rack_inside_its_floor_is_no_fire_candidate():
+    """The enemy floor gate (doc 57.2, the player ``can_fire`` mirror):
+    inside the catalog floor a rack sits out of the ranked walk — the
+    laser is the only fire candidate at 4.0, and a rack-only ship has
+    NONE (supersedes doc 56 SETTLED 24's fire-at-penalized-floor for
+    missile members; the wish list still dances to it, see back-off)."""
+    enemy = _enemy(("light_laser", "heavy_missile"))
+    assert _select_fire_weapon(enemy, 4.0, {"shields": 0})[0] == 0
+    rack_only = _enemy(("heavy_missile",), ammo={0: 3})
+    assert _select_fire_weapon(rack_only, 4.0, {"shields": 0}) is None
+    # The wish list ignores the floor: the band governor survives.
+    assert _volley_picks(rack_only, 4.0, {"shields": 0})[1] is not None
 
 
 def test_pick_steps_past_a_dry_missile_to_the_beam():
@@ -165,7 +181,7 @@ def _turn_state(enemy, *, los: bool, enemy_at=(8, 4)):
         player_state={"pos": player_pos, "hull": 50, "shields": 0},
         enemy_insts=[enemy], enemy_ents={}, player_ent=None,
         weapons_list=[], active_weapons=[], target_idx=0,
-        view_w=80, view_h=54,
+        view_w=80, view_h=54, in_flight=[],
     )
 
 
@@ -217,10 +233,12 @@ def test_blocked_enemy_without_los_never_fires():
 
 
 def _record_shots(monkeypatch):
-    """Stub the shot RESOLUTION, keep the real cost models — the
-    volley's inclusion walk and payments (and the single shot's) are
-    what's under test (doc 56 phase 5: both fire paths share the
-    tail, so one stub covers them)."""
+    """Stub the shot RESOLUTION and the flight LAUNCH, keep the real
+    cost models — the volley's inclusion walk, the launch seam, and
+    the payments (and the single shot's) are what's under test (doc
+    56 phase 5: both fire paths share the tail; doc 57.2: a rack
+    member DEPLOYS a crossing missile instead of resolving, so one
+    recorder covers both kinds of "fired")."""
     from src.spacehack.combat import _ai
     shots: list[str] = []
 
@@ -228,7 +246,12 @@ def _record_shots(monkeypatch):
         shots.append(_ei.weapons[slot].item_id)
         return None
 
+    async def _fake_launch(state, _ei, slot, _ws):
+        shots.append(_ei.weapons[slot].item_id)
+        return None
+
     monkeypatch.setattr(_ai, "_enemy_shot_tail", _fake_tail)
+    monkeypatch.setattr(_ai, "_launch_enemy_missile", _fake_launch)
     return shots
 
 
@@ -486,9 +509,13 @@ def test_back_off_restores_min_range_then_resumes_fire(monkeypatch):
     assert enemy.cells_moved_this_turn == 3  # greedy diagonals reach 5.0 fastest
 
 
-def test_cornered_missile_ship_fires_through_the_min_penalty(monkeypatch):
-    """Walled in with no distance-gaining step: fall through and shoot
-    through the min-range penalty — today's blocked-advance read."""
+def test_cornered_rack_inside_its_floor_is_a_dead_stick(monkeypatch):
+    """Doc 57.2 re-pin (was: fires through the min-penalty, doc 56
+    SETTLED 24): walled in at dist 1 inside the heavy's floor 5, the
+    rack will not fire at all — SETTLED 2's dead stick — and with no
+    back-off and no reposition the turn BREAKS at once: no shot, no
+    AP spent, and no spin (the dual floor gate keeps the fire pick
+    and the volley's members on one legality read)."""
     from tests.support.asyncutil import run
     from src.spacehack.combat import _ai
     from src.spacehack import world as _world
@@ -502,14 +529,16 @@ def test_cornered_missile_ship_fires_through_the_min_penalty(monkeypatch):
         _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 1),
     )
     spec = SimpleNamespace(ai_preferred_range=4, ai_aggressiveness=100)
-    run(_ai._take_enemy_turn(
+    result = run(_ai._take_enemy_turn(
         state, enemy, 0, spec,
         hit_chances={}, evade_bonus=0,
         calc_cam=lambda: (0, 0), ctx=None,
     ))
-    assert shots == ["heavy_missile", "heavy_missile"]  # 2 AP each
-    assert enemy.cells_moved_this_turn == 0
-    assert _dist_to_player(state, enemy) == 1.0         # never escaped the hug
+    assert result is None
+    assert shots == []                        # the rack never fired
+    assert enemy.ap_remaining == 4            # and never spun spending it
+    assert enemy.weapon_ammo[0] == 3
+    assert _dist_to_player(state, enemy) == 1.0   # never escaped the hug
 
 
 def test_min_1_loadouts_never_back_off(monkeypatch):
@@ -555,7 +584,7 @@ def test_mixed_turn_never_teleports_off_a_stale_path(monkeypatch):
         player_state={"pos": _world.Position(2, 2), "hull": 50, "shields": 0},
         enemy_insts=[enemy], enemy_ents={}, player_ent=None,
         weapons_list=[], active_weapons=[], target_idx=0,
-        view_w=80, view_h=54,
+        view_w=80, view_h=54, in_flight=[],
     )
     hops: list[tuple[tuple[int, int], tuple[int, int]]] = []
     real_apply = _ai._apply_step
@@ -579,3 +608,158 @@ def test_mixed_turn_never_teleports_off_a_stale_path(monkeypatch):
     assert len(hops) == 7                     # every AP spent on a step
     for (fx, fy), (tx, ty) in hops:
         assert max(abs(tx - fx), abs(ty - fy)) == 1   # 8-adjacent, no teleports
+
+
+# --- the flak decision layer (doc 57.2) -----------------------------------------
+
+
+def _inbound(at=(4, 4), *, weapon_id="heavy_missile", hull=None, side="player"):
+    """A hand-mounted hostile-to-the-enemy crossing missile (the flak
+    scan's subject): hull defaults to the rack's ruled missile_hp."""
+    from src.spacehack import world as _world
+    from src.spacehack.combat._missile_flight import InFlightMissile
+    from src.spacehack.data.weapons import find_weapon as _fw
+
+    _ws = _fw(weapon_id)
+    return InFlightMissile(
+        weapon_id=weapon_id, pos=_world.Position(*at), side=side,
+        hull=hull if hull is not None else _ws.missile_hp,
+        max_hull=_ws.missile_hp, name=_ws.name, quality=0,
+    )
+
+
+def test_flak_capability_is_damage_guns_only():
+    """Racks can never connect with ordnance (SETTLED 11.6) and strip
+    weapons no-op on a shields-0 target (SETTLED 7) — both sit out of
+    a flak volley by construction."""
+    from src.spacehack.combat._ai import _flak_capable
+
+    assert _flak_capable(find_weapon("light_laser")) is True
+    assert _flak_capable(find_weapon("heavy_laser")) is True
+    assert _flak_capable(find_weapon("plasma_cannon")) is True
+    assert _flak_capable(find_weapon("light_missile")) is False
+    assert _flak_capable(find_weapon("heavy_missile")) is False
+    assert _flak_capable(find_weapon("emp_missile")) is False
+
+
+def test_score_flak_weighs_coverage_and_threat():
+    """The intercept EV per AP: a fat slow heavy (threat 64) outscores
+    a thin light (threat 28) at the same distance, and everything
+    falls as the chance does (the same calc_hit_chance the shot
+    resolves with)."""
+    from src.spacehack.combat._ai import score_flak
+
+    _gun = find_weapon("light_laser")
+    _heavy_in = _inbound(weapon_id="heavy_missile")   # hp 6, threat 64
+    _light_in = _inbound(weapon_id="light_missile")   # hp 2, threat 28
+    assert score_flak(_gun, 4.0, _heavy_in, 20) > score_flak(_gun, 4.0, _light_in, 20)
+    assert score_flak(_gun, 4.0, _heavy_in, 20) > score_flak(_gun, 8.0, _heavy_in, 20)
+    # One heavy-laser shot covers a whole light missile (hp 2): full
+    # coverage beats the light laser's partial 4-of-6 on the heavy.
+    _heavy_gun = find_weapon("heavy_laser")
+    assert score_flak(_heavy_gun, 4.0, _light_in, 20) > 0
+
+
+def test_flak_pick_fires_only_when_intercept_ev_beats_shooting():
+    """score(inbound) vs score(shooter): a heavy inbound close in
+    wins the action for flak; a 5%-floor thin far inbound does not
+    (the volley EV is recomputed from the pick's own weapon); nothing
+    inbound or nothing capable means shoot the shooter."""
+    from src.spacehack import world as _world
+    from src.spacehack.combat import _ai
+
+    enemy = _enemy(("light_laser",), ap=4)
+    enemy.pos = _world.Position(6, 4)   # player at (2,4): volley EV ~3.6/AP
+    _pd = {"pos": _world.Position(2, 4), "shields": 0}
+    state = SimpleNamespace(
+        in_flight=[_inbound(at=(5, 4))], player_state=_pd,
+    )
+    _fire = _ai._select_fire_weapon(enemy, 4.0, _pd)
+    assert _fire is not None
+    assert _ai._flak_pick(state, enemy, _fire) is state.in_flight[0]
+
+    far = SimpleNamespace(
+        in_flight=[_inbound(at=(40, 40), weapon_id="light_missile")],
+        player_state=_pd,
+    )
+    assert _ai._flak_pick(far, enemy, _fire) is None  # ~1.4/AP loses
+
+    none_inbound = SimpleNamespace(in_flight=[], player_state=_pd)
+    assert _ai._flak_pick(none_inbound, enemy, _fire) is None
+
+    rack_only = _enemy(("heavy_missile",), ap=4)
+    rack_only.pos = _world.Position(6, 4)
+    _rack_fire = _ai._select_fire_weapon(rack_only, 6.0, _pd)
+    assert _ai._flak_pick(state, rack_only, _rack_fire) is None  # guns only
+
+
+def test_engagement_fires_the_flak_volley_at_the_inbound(monkeypatch):
+    """Turn level: with an inbound riding the state and the
+    aggressiveness roll won, the volley targets the MISSILE — every
+    action goes to flak, no shot lands on the player (choosing flak
+    IS choosing not to shoot the shooter, SETTLED 6). The stubbed
+    flak shot never kills it, so all 4 AP spend there."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    flak: list = []
+
+    async def _fake_flak(state, _ei, slot, missile, **_kw):
+        flak.append(missile)
+        return None
+
+    monkeypatch.setattr(_ai, "_enemy_flak_shot", _fake_flak)
+    enemy = _enemy(("light_laser",), ap=4, power=10)
+    state = _turn_state(enemy, los=True)
+    _missile = _inbound(at=(5, 4))
+    state.in_flight = [_missile]
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, SimpleNamespace(ai_preferred_range=6, ai_aggressiveness=100),
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert flak == [_missile] * 4           # every action flakked
+    assert shots == []                      # nothing fired at the player
+    assert state.player_state["hull"] == 50
+
+
+def test_affordable_members_floor_gates_racks_by_distance():
+    """The volley inclusion walk carries the floor (doc 57.2): at
+    distance 4 the heavy rack (floor 5) sits out while the plasma
+    rides; at 6 both ride; a flak volley takes guns only."""
+    from src.spacehack.combat._ai import _affordable_members
+
+    enemy = _enemy(("heavy_missile", "plasma_cannon"), power=10)
+    assert _affordable_members(enemy, 4.0) == [(1, find_weapon("plasma_cannon"))]
+    assert [w.id for _s, w in _affordable_members(enemy, 6.0)] == [
+        "heavy_missile", "plasma_cannon",
+    ]
+    assert [w.id for _s, w in _affordable_members(enemy, 6.0, flak=True)] == [
+        "plasma_cannon",
+    ]
+
+
+def test_joiner_racks_fly_through_the_turn_seam(monkeypatch):
+    """Reinforcement joiners (doc 57.2 required pin): an instance
+    APPENDED to the engaged set mid-fight (the reinforcement shape)
+    runs the same turn seam, so its racks DEPLOY crossing missiles —
+    the launch recorder hears it."""
+    from tests.support.asyncutil import run
+    from src.spacehack import world
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    native = _enemy(("light_laser",), ap=4, power=10)   # the engaged set
+    state = _turn_state(native, los=True)               # player (2,4)
+    joiner = _enemy(("heavy_missile",), ap=4, power=10, ammo={0: 3})
+    joiner.pos = world.Position(8, 4)                   # dist 6: past floor 5
+    state.enemy_insts.append(joiner)                    # the mid-fight join
+    monkeypatch.setattr(                                # always fire
+        _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 1),
+    )
+    run(_ai._take_enemy_turn(
+        state, joiner, 1, SimpleNamespace(ai_preferred_range=6, ai_aggressiveness=100),
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["heavy_missile"] * 2      # 2 AP each, one launch per action
+    assert joiner.weapon_ammo[0] == 1

@@ -12,7 +12,12 @@ terrain detonates harmlessly, and missiles never detonate on missiles.
 
 Pure advance math, the guidance roll, and the flight finishers live
 here; the state-holder seams (spawn on fire, the round-boundary hook,
-the intercept kill) hang off ``SpaceCombatState.in_flight``.
+the intercept kill) hang off ``SpaceCombatState.in_flight``. Doc
+57.2: BOTH sides fly — enemy missiles spawn wordless, home on the
+player through :class:`PlayerHomingTarget`, resolve their mini-turns
+per shooter (plus the dead-shooter orphan sweep), arrive through the
+shared enemy-hit tail, and clip fellow hostiles as uncredited
+fratricide.
 
 In-flight state is combat-transient: combat never saves mid-fight,
 and :func:`sweep_flights` clears it on every combat end path —
@@ -88,6 +93,8 @@ class InFlightMissile:
     target: Any = None
     quality: int = 0
     side: str = "player"
+    shooter: Any = None               # the launching ship (None = the player)
+    gunnery: int = 0                  # enemy launch snapshot: shooter pilot_gunnery
     hull: int = 0                     # remaining missile_hp
     max_hull: int = 0
     fuel: int = 0                     # cells of travel left
@@ -102,6 +109,25 @@ class InFlightMissile:
     cells_moved_this_turn: int = 0
     pilot_piloting: int = 0
     weapons: tuple = ()
+
+
+@dataclass
+class PlayerHomingTarget:
+    """The player as a flight target (doc 57.2): live ``pos``/``alive``
+    reads over the combat player_state — the dict's Position entry is
+    REPLACED on every move, so enemy missiles home through this
+    adapter, never a snapshot. Contact detection stays on
+    :func:`_ship_at` (the dict read)."""
+
+    state: Any
+
+    @property
+    def pos(self) -> world.Position:
+        return self.state.player_state["pos"]
+
+    @property
+    def alive(self) -> bool:
+        return self.state.player_state.get("hull", 1) > 0
 
 
 @dataclass(frozen=True)
@@ -200,11 +226,13 @@ def _spawn_cell(state, launch_pos: world.Position, target) -> world.Position:
 def _same_shooter_missile_at(state, cell: world.Position, missile: InFlightMissile):
     """Another live missile OF THE SAME SHOOTER on ``cell`` (SETTLED
     11.6's avoidance trigger); cross-shooter missiles ignore each
-    other."""
+    other — shooter IDENTITY is the key (doc 57.2: several enemy
+    launchers share a side), and the player's single shooter reads
+    ``shooter=None`` uniformly."""
     for _m in state.in_flight:
         if _m is missile or not _m.alive:
             continue
-        if _m.side == missile.side and _m.pos.x == cell.x and _m.pos.y == cell.y:
+        if _m.shooter is missile.shooter and _m.pos.x == cell.x and _m.pos.y == cell.y:
             return _m
     return None
 
@@ -238,8 +266,18 @@ def _arrival_dodge(target) -> int:
 
 def _guided(state, ctx, missile: InFlightMissile, target_dodge: int) -> bool:
     """The guidance roll against a precomputed dodge (the ONE roll
-    every contact site shares)."""
+    every contact site shares). Player-owned racks roll the player's
+    LIVE reads (the Pirate opener window can close mid-flight); enemy
+    ordnance rolls its launch-time gunnery snapshot and none of the
+    player's perks (doc 57.2)."""
     from ..engine import RNG
+
+    if missile.side == "enemy":
+        _chance = guidance_hit_chance(
+            missile.weapon_id, missile.gunnery, target_dodge,
+            weapon_quality=missile.quality,
+        )
+        return RNG.randint(1, 100) <= _chance
     from ._rules_space import _player_hit_bonus
 
     _chance = guidance_hit_chance(
@@ -321,8 +359,12 @@ async def _detonate_on_ship(
     CONTACT, target or not): the same guidance roll against the struck
     ship's dodge; a hit rides the normal damage path and any kill runs
     the FULL kill chain; a miss is the harmless detonation. Prose
-    ruling 2026-10-01: contact hits speak the detonates form (the
-    fire-form line stays the target arrival's)."""
+    ruling 2026-10-01: PLAYER-owned contact hits speak the detonates
+    form. ENEMY ordnance clipping a fellow hostile is fratricide (doc
+    57.2): identical physics, no player credit."""
+    if missile.side == "enemy":
+        await _fratricide_contact(state, ctx, game_map, missile, ship)
+        return
     from .. import message_log as _ml
     from ._space_kills import on_kill as _kill_chain
 
@@ -342,10 +384,50 @@ async def _detonate_on_ship(
     await _kill_chain(state, game_map, ship, ctx)
 
 
+def _shooter_name(missile: InFlightMissile) -> str:
+    """The launching ship's name for enemy-owned lines (``Hostile``
+    fallback for a hand-mounted round)."""
+    _shooter = missile.shooter
+    return _shooter.name if _shooter is not None else "Hostile"
+
+
+async def _fratricide_contact(
+    state, ctx, game_map: world.GameMap, missile: InFlightMissile, ship,
+) -> None:
+    """An enemy missile detonating on a fellow hostile (doc 57.2,
+    DRAFT line — checkpoint approval): the same guidance roll and
+    damage path (rule 7 verbatim: ANY ship), but the kill records
+    NOTHING for the player — no ``on_kill``, no XP, loot, bounty, rep,
+    or defeat records (ordnance deaths the player did not cause book
+    like intercepts, not kills); the victim's entity still leaves the
+    map, no ghost hull."""
+    from .. import message_log as _ml
+    from ._space_kills import _animate_kill_explosion, pop_dead_entity
+
+    if not _arrival_hits(state, ctx, missile, ship):
+        _log_detonates_short(state)
+        return
+    _dmg, _sdmg, _fh, _glancing = _apply_contact_damage(missile, ship)
+    state.log.add_colored(
+        f"{_shooter_name(missile)}'s {_find_weapon(missile.weapon_id).name} "
+        f"detonates on {ship.name} for {_dmg} damage.",
+        _ml.COLOR_ENEMY_ACTION,
+    )
+    if _fh > 0:
+        return
+    ship.alive = False
+    state.log.add_colored(f"{ship.name} destroyed!", _ml.COLOR_COMBAT_EVENT)
+    pop_dead_entity(state, game_map, ship)
+    await _animate_kill_explosion(state, ctx, game_map, ship)
+
+
 async def _detonate_on_player(state, ctx, missile: InFlightMissile) -> str | None:
-    """Contact with the player's own hull (SETTLED 11.7 — self-splash
-    is live): the same guidance roll; ``"DEFEAT"`` when the hull goes.
-    DRAFT prose (checkpoint approval): the contact line."""
+    """Contact with the player's hull: an ENEMY missile's arrival (doc
+    57.2 — the attack line lands with the warhead; ``"DEFEAT"`` rides
+    the return) or the player's own self-splash (SETTLED 11.7 — live
+    by ruling, DRAFT prose as pinned)."""
+    if missile.side == "enemy":
+        return await _enemy_arrival_on_player(state, ctx, missile)
     _ps = state.player_state
     _dodge = _calc_dodge_bonus(
         _ps.get("cells_moved_this_turn", 0),
@@ -357,6 +439,63 @@ async def _detonate_on_player(state, ctx, missile: InFlightMissile) -> str | Non
     # A guided non-lethal hit already logged its contact line; only a
     # DEFEAT rides the return.
     return await _apply_player_contact(state, ctx, missile)
+
+
+async def _apply_guided_arrival(
+    state, ctx, missile: InFlightMissile, _dodge: int,
+) -> str | None:
+    """Resolve a GUIDED enemy arrival onto the player through the
+    shared enemy-hit tail verbatim — attack line, damage counters,
+    ``last_attacker``, DEFEAT presentation. ``"DEFEAT"`` rides the
+    return."""
+    from ._actions import resolve_damage
+    from ._ai import _apply_enemy_hit
+    from ._rules_space import _build_hit_chances, _calc_camera
+
+    _ps = state.player_state
+    _ws = _find_weapon(missile.weapon_id)
+    _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
+        missile.weapon_id, _ps["hull"], _ps["shields"],
+        target_pilot_piloting=_ps.get("piloting", 0),
+        weapon_quality=missile.quality,
+    )
+    return await _apply_enemy_hit(
+        state, missile.shooter, missile.weapon_id, _ws,
+        _dmg, _sdmg, _fh, False, _is_glancing,
+        hit_chances=_build_hit_chances(None), evade_bonus=_dodge,
+        calc_cam=_calc_camera, ctx=ctx,
+    )
+
+
+async def _enemy_arrival_on_player(
+    state, ctx, missile: InFlightMissile,
+) -> str | None:
+    """An enemy missile arriving on the player (doc 57.2): the enemy
+    guidance roll — the shooter's snapshot gunnery against the
+    player's dodge-at-contact, with the Bounty Hunter's +5 evade as a
+    resolution-only read (the ``_resolve_enemy_shot`` mirror) — then
+    the shared guided-arrival tail. The launch was wordless; the line
+    lands with the warhead."""
+    from .. import message_log as _ml
+    from ..xp import bounty_hunter_evade_bonus
+    from ._messages import enemy_attack_line
+
+    _ps = state.player_state
+    _ws = _find_weapon(missile.weapon_id)
+    _dodge = _calc_dodge_bonus(
+        _ps.get("cells_moved_this_turn", 0),
+        int(_ps.get("piloting", 0) * 0.5),
+    ) + bounty_hunter_evade_bonus(ctx if ctx is not None else state.ctx)
+    if not _guided(state, ctx, missile, _dodge):
+        state.log.add_colored(
+            enemy_attack_line(
+                _shooter_name(missile), missile.weapon_id, _ws.name,
+                hit=False, quality=missile.quality,
+            ),
+            _ml.COLOR_ENEMY_ACTION,
+        )
+        return None
+    return await _apply_guided_arrival(state, ctx, missile, _dodge)
 
 
 async def _apply_player_contact(state, ctx, missile: InFlightMissile) -> str | None:
@@ -474,7 +613,7 @@ async def _advance_one_cell(
 
 def _build_missile(
     state, weapon_id: str, target, side: str, quality: int,
-    launch_pos: world.Position,
+    launch_pos: world.Position, shooter, gunnery: int,
 ) -> InFlightMissile:
     """Construct the crossing missile + its non-blocking render twin
     at the deploy cell (no mounting — the caller appends)."""
@@ -482,7 +621,7 @@ def _build_missile(
     _spawn = _spawn_cell(state, launch_pos, target)
     _missile = InFlightMissile(
         weapon_id=weapon_id, pos=_spawn, target=target,
-        quality=quality, side=side,
+        quality=quality, side=side, shooter=shooter, gunnery=gunnery,
         hull=_ws.missile_hp, max_hull=_ws.missile_hp,
         fuel=_ws.max_range, flight_speed=_ws.flight_speed,
         name=_ws.name,
@@ -498,27 +637,35 @@ def _build_missile(
 
 async def spawn_flight_missile(
     state, weapon_id: str, target, *, side: str, quality: int,
-    launch_pos: world.Position,
+    launch_pos: world.Position, shooter=None, gunnery: int = 0,
 ) -> InFlightMissile:
     """Deploy one crossing missile (doc 57 SETTLED 11.2-5): it appears
-    in a cell NEAR the shooter (never the shooter's own), reads the
-    launch line, then makes its launch half-move — half the normal
-    move range under the full collision rules. The volley's next
-    member deploys after, seeing the previous missile's rest position
-    (the stagger is the anti-stack)."""
+    in a cell NEAR the shooter (never the shooter's own), then makes
+    its launch half-move — half the normal move range under the full
+    collision rules. The volley's next member deploys after, seeing
+    the previous missile's rest position (the stagger is the
+    anti-stack). The PLAYER's launch reads the away line; an enemy
+    launch is WORDLESS (doc 57.2: the glyph crossing is the notice —
+    the attack line lands with the warhead at arrival)."""
     from .. import message_log as _ml
 
     _ws = _find_weapon(weapon_id)
-    _missile = _build_missile(state, weapon_id, target, side, quality, launch_pos)
+    _missile = _build_missile(
+        state, weapon_id, target, side, quality, launch_pos, shooter, gunnery,
+    )
     state.game_map.entities.append(_missile.ent)
     state.in_flight.append(_missile)
-    state.log.add_colored(
-        f"{_ws.name[0]}{_ws.name[1:].lower()} away.",
-        _ml.COLOR_PLAYER_ACTION,
-    )
+    if side == "player":
+        state.log.add_colored(
+            f"{_ws.name[0]}{_ws.name[1:].lower()} away.",
+            _ml.COLOR_PLAYER_ACTION,
+        )
     # A launch-half-move self-splash kill is backstopped by the loop's
     # post-action hp gate (the volley's remaining slots still fire) —
-    # reachable only when every progress-side neighbor is blocked.
+    # reachable only when every progress-side neighbor is blocked. The
+    # ENEMY mirror is different geometry: Euclidean floors pass at
+    # diagonal standoffs a light's half-move can cross, so the enemy
+    # seam reads the hp seam as its DEFEAT (doc 57.2, ADVISE 1).
     await _travel(
         state, state.ctx, state.game_map, _missile,
         _half_speed(_ws.flight_speed),
@@ -550,39 +697,74 @@ async def _render_hop_frame(state, cam: tuple[int, int]) -> None:
     await _responsive_sleep(animation_timing.GROUND_STEP, state.ctx.context)
 
 
+def _owns_flight(missile: InFlightMissile, side: str, shooter) -> bool:
+    """Whether ``missile`` resolves its mini-turn at ``shooter``'s turn
+    (doc 57.2): side plus shooter identity — the per-shooter timing
+    several enemy launchers need. The player hook passes
+    ``shooter=None`` and owns every player missile (one shooter by
+    construction)."""
+    if missile.side != side:
+        return False
+    return shooter is None or missile.shooter is shooter
+
+
+async def _mini_turn(
+    state, ctx, game_map: world.GameMap, missile: InFlightMissile,
+) -> str | None:
+    """One missile's mini-turn body (doc 57 SETTLED 11.9): a dead
+    target at re-vector time dissipates it (fuel spent); a ship
+    parked on a resting missile (they are non-blocking) is contact;
+    else the full-``flight_speed`` travel through the collision
+    rules. Returns ``"DEFEAT"`` when it kills the player."""
+    _target = missile.target
+    if _target is None or not getattr(_target, "alive", False):
+        _remove_missile(state, game_map, missile)
+        return None
+    _parked = _ship_at(state, missile.pos)
+    if _parked is not None:
+        _remove_missile(state, game_map, missile)
+        if _parked == "player":
+            return await _detonate_on_player(state, ctx, missile)
+        await _detonate_on_ship(state, ctx, game_map, missile, _parked)
+        return None
+    return await _travel(state, ctx, game_map, missile, missile.flight_speed)
+
+
 async def advance_flights(
     state, ctx, game_map: world.GameMap, side: str = "player",
+    shooter=None,
 ) -> str | None:
     """The shooter's mini-turn (doc 57 SETTLED 11.9): at the start of
-    the shooter's turn, ITS missiles (``side``) move ONE AT A TIME in
+    the shooter's turn, ITS missiles (``side``; ``shooter`` narrows to
+    one launcher — the enemy mirror, doc 57.2) move ONE AT A TIME in
     launch order, full ``flight_speed``, through the collision rules.
     The player hook fires after enemy turns and reinforcements, before
-    the player's AP; 57.2 mirrors it inside the enemy's own turn. A
-    dead target at re-vector time dissipates its missile (fuel spent).
+    the player's AP; the enemy hook at the top of ``_take_enemy_turn``.
     Returns ``"DEFEAT"`` when a missile kills the player."""
     for _missile in list(state.in_flight):
-        if _missile.side != side:
+        if not _missile.alive or not _owns_flight(_missile, side, shooter):
             continue
-        if not _missile.alive:
+        if await _mini_turn(state, ctx, game_map, _missile) == "DEFEAT":
+            return "DEFEAT"
+    return None
+
+
+async def advance_orphan_flights(
+    state, ctx, game_map: world.GameMap, side: str = "enemy",
+) -> str | None:
+    """The orphan sweep (doc 57.2): a dead shooter never recalls its
+    launch, so its missiles fly their mini-turn at the START of the
+    enemy phase, ahead of the live shooters' turns — at most one move
+    per missile per round, never both paths (a shooter dying mid-phase
+    after its own turn has already moved them; one killed between the
+    sweep and its turn leaves its missiles stationary that round and
+    they resume here next round). Returns ``"DEFEAT"`` when a missile
+    kills the player."""
+    for _missile in list(state.in_flight):
+        if not _missile.alive or _missile.side != side:
             continue
-        _target = _missile.target
-        if _target is None or not getattr(_target, "alive", False):
-            _remove_missile(state, game_map, _missile)
-            continue
-        # Contact reads on ENTRY only — except a ship that parked ON a
-        # resting missile (they are non-blocking): that is contact.
-        _parked = _ship_at(state, _missile.pos)
-        if _parked is not None:
-            _remove_missile(state, game_map, _missile)
-            if _parked == "player":
-                if await _detonate_on_player(state, ctx, _missile) == "DEFEAT":
-                    return "DEFEAT"
-            else:
-                await _detonate_on_ship(state, ctx, game_map, _missile, _parked)
-            continue
-        _outcome = await _travel(
-            state, ctx, game_map, _missile, _missile.flight_speed,
-        )
-        if _outcome == "DEFEAT":
+        if getattr(_missile.shooter, "alive", False):
+            continue  # a live shooter's own turn moves it
+        if await _mini_turn(state, ctx, game_map, _missile) == "DEFEAT":
             return "DEFEAT"
     return None
