@@ -1,10 +1,12 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: REFINED 2026-10-01 (`/refine-design`): rulings SETTLED 1–9,
-every open question closed; Implementation briefs 1–3 PROPOSED below
-with the ADVISE reviewer pass folded (14 catches, 6 blocking —
-kill-path bookkeeping, merged-index readers, entity solidity, sync
-sweep, enemy-side floor gate), awaiting approval. Nothing
+Status: BRIEF 57.1 APPROVED 2026-10-01 (user invoked
+`/implement-phase 57.1`; briefs 57.2–57.3 remain PROPOSED until
+their checkpoints). Refined 2026-10-01 (`/refine-design`): rulings
+SETTLED 1–9, every open question closed; Implementation briefs 1–3
+written with the ADVISE reviewer pass folded (14 catches, 6
+blocking — kill-path bookkeeping, merged-index readers, entity
+solidity, sync sweep, enemy-side floor gate). Nothing
 implemented. Born in the doc-56 phase-4
 parts walk (SETTLED 35's coda): the walk held missile magnitudes for
 the probe, and this rework — proposed by the user the same day —
@@ -133,6 +135,96 @@ walls. Damage racks receive the magazine bonus; EMP never does.
     target priority: a `♦` crossing the map is the one worth a flak
     volley; a `*` is thin enough to maybe eat. One-glyph fallback
     stays a phase-1 playtest call if two glyphs read as noise.
+
+## Pre-implementation audit (2026-10-01, phase 57.1)
+
+### 1. Existing classes / modules to extend or reuse
+
+- **`EnemyInstance`-compatible targeting** (`combat/_types.py`): the
+  flight missile needs no adapter into `hit_chance` / `damage` /
+  `can_fire` if its dataclass carries the reads those paths use —
+  `name`, `pos`, `hull = max_hull = missile_hp`, `shields =
+  max_shields = 0`, `alive`, `cells_moved_this_turn = 0`,
+  `pilot_piloting = 0`, `weapons = ()` (the ADVISE pin, verbatim).
+- **`resolve_damage`** (`combat/_actions.py:440`): arrival damage
+  and intercept damage both ride it unchanged (doubled rack damage
+  is spec data; quality rides the launcher's stored tier). The
+  strip path no-ops on `shields=0` by construction — SETTLED 7.
+- **`calc_hit_chance`** (`combat/_stats.py:160`): the guidance roll
+  is this formula minus its range terms; extract the shared
+  assembly so both stay one formula family.
+- **`_space_kills.on_kill`** (`combat/_space_kills.py:220`): the
+  arrival kill chain, called exactly as `_handle_fire`'s tail calls
+  it. The intercept kill NEVER calls it (dedicated branch).
+- **`SpaceCombatState`** (`combat/_types.py:135`): gains
+  `in_flight: list` — combat-transient, never serialized (combat
+  never saves mid-fight; only loot entities serialize off the map
+  anyway, verified in `saveload.py`).
+- **`world.Entity` + `blocking_entity_at`** (`world.py:321/477`):
+  missiles render as entities via the standard world draw path
+  (fg/char picked at spawn — hostile hot red, player-owned cyan);
+  a new declared `non_blocking: bool = False` field makes
+  `blocking_entity_at` skip them (the zero-footprint pin). Entity
+  save path is loot-only, so the field is save-neutral.
+- **`_render_anim_frame` + `_animate_explosion`**
+  (`combat/_animations.py`): the per-step advance frame (the
+  wordless dread beat, same as the enemy step renders) and the
+  intercept-kill explosion beat.
+- **`render_combat_hud` / `_render_enemy_row`**
+  (`hud_combat.py`): missile rows ride the ENEMIES block — the
+  row already skips the Shd line at `max_shields == 0` and bars
+  hull from `hull/max_hull`, so a merged list renders missiles
+  with zero row changes; only the target marker's index space and
+  the floor-band color differ.
+- **`range_band_color`** (`hud.py:122`): the distinct missile-floor
+  refusal read lands here (+ `_paint_range_cell` consumers) as a
+  flag, so lasers keep penalty-orange untouched.
+- **`_build_target_card` seam** (`_space_presentation.py`): a
+  missile variant (name / HP / speed; no band, AP, weapons,
+  shield rows) beside the ship card, same geometry helpers.
+- **`pygame_target_card` / `_card_presentation`**: shared card
+  geometry and row builders reused as-is.
+
+### 2. Three potential duplication hotspots
+
+1. **Target-index plumbing in `_loop.py`**: TAB cycle, fire path,
+   retarget, HUD marker, and board resolution each currently index
+   `rules.get_enemies(ctx)` — five sites that could each grow a
+   subtly different "missiles too?" patch. Ground rules have no
+   missiles, so naive edits would also leak into ground combat.
+2. **Arrival resolution vs the volley kill tail**: the arrival
+   kill's destroyed-line + `on_kill` + result bookkeeping would be
+   easy to copy-paste out of `_handle_fire`'s tail (and the
+   intercept kill's entity-pop + explosion out of
+   `_space_kills.on_kill`) instead of sharing one finisher.
+3. **Advance/arrival math inside `_rules_space`** (955/1000
+   lines): step math, fuel, guidance roll, and entity sync written
+   inline there would both duplicate the pure-stat family in
+   `_stats.py` and trip the module ratchet.
+
+### 3. DRY strategy per hotspot
+
+1. One loop-side helper `_targetables(rules, ctx)` (prefers
+   `rules.targetables`, falls back to `rules.get_enemies`) feeding
+   every index-space site in `_loop.py`; ground rules implement
+   nothing new. Ships-only readers (`combat_should_end`,
+   `reaction_volley`, `board_target`, `get_enemies`) are untouched
+   by construction.
+2. The flight finishers live in `_missile_flight.py`:
+   `_finish_arrival` (guidance roll → damage → destroyed line →
+   `on_kill`) and `_finish_intercept` (entity pop → explosion →
+   `Missile destroyed.`), each called from exactly one seam
+   (round boundary / `_handle_fire`'s intercept branch).
+3. All pure flight math (advance step, fuel, arrival detection,
+   guidance roll) is born in `_missile_flight.py` as pure
+   functions with same-commit tests; `_rules_space` keeps only
+   thin seams (spawn-on-fire branch, floor gate in `can_fire`,
+   merged accessor, round-boundary hook) — the budget-note
+   refactor pays the ratchet by construction.
+
+### Audit updates as the build reveals surprises
+
+- (none yet)
 
 ## The shape
 
