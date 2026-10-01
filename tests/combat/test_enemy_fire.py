@@ -763,3 +763,81 @@ def test_joiner_racks_fly_through_the_turn_seam(monkeypatch):
     ))
     assert shots == ["heavy_missile"] * 2      # 2 AP each, one launch per action
     assert joiner.weapon_ammo[0] == 1
+
+
+# --- the rack bench trap (doc 57.2 playtest fix) --------------------------------
+#
+# The reported fight: a pirate raider (light_laser + light_missile,
+# floor 4) NEVER launched. Two stacked causes, both fixed:
+#   1. the dance band followed the AFFORDABLE fire pick, so a benched
+#      rack handed the band to the laser ([1..5]) — the ship collapsed
+#      into gun range forever; the band now reads the WISH-list top
+#      (dances where its best weapon fights from);
+#   2. every rack carrier's ai_preferred_range sat AT its floor, so any
+#      diagonal approach overshot inside and benched the rack — the
+#      dials now clear the floor by more than one diagonal step.
+
+
+def test_hugged_mixed_loadout_backs_off_and_returns_its_rack(monkeypatch):
+    """The raider scenario: hugged at dist 1 inside the light floor 4,
+    the ship backs off to restoration (the rack still governs the
+    dance through the wish list) and the rack RETURNS to the volley —
+    turn 1 restores + fires guns on the leftover AP, turn 2 launches.
+    Pins the MECHANICS half only; the DATA half (every carrier's
+    preferred clears its floor) is owned by
+    test_rack_carrier_standoffs_clear_their_floors."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(("light_laser", "light_missile"), ap=4, power=10)
+    state = _turn_state(enemy, los=True, enemy_at=(3, 4))   # dist 1: hugged
+
+    async def _no_render(*_a, **_kw):
+        pass
+
+    monkeypatch.setattr(_ai, "_render_step_frame", _no_render)
+    monkeypatch.setattr(
+        _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 1),
+    )
+    spec = SimpleNamespace(ai_preferred_range=6, ai_aggressiveness=100)
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert _dist_to_player(state, enemy) >= 4.0   # restored past the floor
+    assert shots == ["light_laser"]               # leftover AP: guns only
+    from src.spacehack.combat._actions import start_enemy_turn
+    start_enemy_turn(enemy)
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert "light_missile" in shots               # the rack returned
+    assert _dist_to_player(state, enemy) >= 4.0
+
+
+def test_rack_carrier_standoffs_clear_their_floors():
+    """The authored invariant the fix enforces (doc 57.2): every npc
+    flying a flight rack holds a preferred range no approach step can
+    overshoot into the floor — a step shrinks Euclidean distance by at
+    most sqrt(2), so preferred must exceed the floor by >= 2; the
+    advance verb then stops inside [preferred-1.41, preferred], never
+    benched (57.3 owns the floors: this pin fires if a dial move
+    reopens the trap)."""
+    from math import sqrt
+    from src.spacehack.combat._missile_flight import catalog_floor
+    from src.spacehack.data.npc_ships import list_npc_ships
+    from src.spacehack.data.weapons import find_weapon
+
+    carriers = [
+        spec for spec in list_npc_ships()
+        if any(catalog_floor(find_weapon(w)) > 0 for w in spec.weapons)
+    ]
+    assert len(carriers) >= 6   # raider/patrol (light), captain/patrol_heavy/
+    for spec in carriers:       # marauder/warlord (heavy)
+        floors = max(catalog_floor(find_weapon(w)) for w in spec.weapons)
+        assert spec.ai_preferred_range > floors + sqrt(2), (
+            f"{spec.id}: preferred {spec.ai_preferred_range} "
+            f"overshoots its rack floor {floors} (the bench trap)"
+        )

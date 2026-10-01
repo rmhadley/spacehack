@@ -67,7 +67,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         capture_layout_id="cruiser_crew",
         loot_budget=(700, 2100),
         ai_aggressiveness=80,
-        ai_preferred_range=5,
+        # Doc 57.2 playtest fix: clears the heavy floor 5 by >1.41.
+        ai_preferred_range=7,
         ai_accuracy_bonus=25,
         ai_dodge_bonus=5,
         detect_radius=12,
@@ -99,7 +100,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         capture_layout_id="frigate_crew",
         loot_budget=(1400, 4200),
         ai_aggressiveness=90,
-        ai_preferred_range=5,
+        # Doc 57.2 playtest fix: clears the heavy floor 5 by >1.41.
+        ai_preferred_range=7,
         ai_accuracy_bonus=35,
         ai_dodge_bonus=10,
         shield_regen_rate=3,    # paid divert below half shields (doc 48 SETTLED 40)

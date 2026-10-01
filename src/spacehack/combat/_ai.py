@@ -420,21 +420,22 @@ def _ranked_weapons(
 
 
 def _volley_picks(_ei, distance: float, player_state: dict):
-    """``(fire, band)``: the affordable top scorer, and the band
-    weapon governing the dance (back-off floor + reposition window).
-    Doc 56 SETTLED 24: the fire pick's ROLE is the band/dance
-    governor and the fire-vs-dodge gate only — the engagement
-    decision fires the whole affordable VOLLEY (inclusion is
-    affordability alone, never the score filter). With nothing
-    affordable the band falls back to the top scorer IGNORING the
-    budget — a power-dry ship dodges where it will fight from when
-    power returns. Both ``None`` = weaponless: no decision point,
-    breaks at once (SETTLED 40)."""
+    """``(fire, band)``: the affordable top scorer to FIRE, and the
+    band weapon governing the dance (back-off floor + reposition
+    window) — the WISH-LIST top over all weapons, budget and floor
+    ignored. Doc 56 SETTLED 24: the fire pick's ROLE is the
+    fire-vs-dodge gate only — the engagement decision fires the whole
+    affordable VOLLEY (inclusion is affordability alone, never the
+    score filter). The band reads the wish list so a rack benched by
+    its floor still governs the dance: a hugged mixed loadout backs
+    off to restoration instead of collapsing into gun range with the
+    rack silent forever (doc 57.2 playtest fix — the rack-only
+    power-dry read generalized: the ship dances where its best
+    weapon fights from). Both ``None`` = weaponless: no decision
+    point, breaks at once (SETTLED 40)."""
     _fire = _select_fire_weapon(_ei, distance, player_state)
-    if _fire is not None:
-        return _fire, _fire[1]
     _wish = _ranked_weapons(_ei, distance, player_state, affordable_only=False)
-    return None, (_wish[0][2] if _wish else None)
+    return _fire, (_wish[0][2] if _wish else None)
 
 
 def _reaction_pick(_ei, distance: float, player_state: dict):

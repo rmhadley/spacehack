@@ -119,7 +119,11 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         band=2,
         skill_weights=(0.50, 0.25, 0.25),
         ai_aggressiveness=75,
-        ai_preferred_range=4,
+        # Doc 57.2 playtest fix: preferred must clear the rack floor
+        # (light 4) by >1.41 — a step can shrink Euclidean distance by
+        # at most √2, so 6 stops every approach in [4.59, 6.0], never
+        # inside the floor where the rack would sit out.
+        ai_preferred_range=6,
         ai_accuracy_bonus=15,
         ai_dodge_bonus=0,
         detect_radius=10,
@@ -188,7 +192,9 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         loot_budget=(800, 2400),
         # Boss-level threat: high accuracy, moderate dodge
         ai_aggressiveness=85,
-        ai_preferred_range=5,
+        # Doc 57.2 playtest fix: clears the heavy floor 5 by >1.41 (doc 57
+        # SETTLED 2 — every approach stops in [5.59, 7.0], never benched).
+        ai_preferred_range=7,
         ai_accuracy_bonus=25,
         ai_dodge_bonus=10,
         shield_regen_rate=3,    # paid divert below half shields (doc 48 SETTLED 40)
@@ -246,7 +252,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         skill_weights=(0.50, 0.25, 0.25),
         capture_layout_id="cruiser_crew",
         ai_aggressiveness=70,
-        ai_preferred_range=4,
+        # Doc 57.2 playtest fix: clears the light floor 4 by >1.41.
+        ai_preferred_range=6,
         ai_accuracy_bonus=20,
         ai_dodge_bonus=10,
         detect_radius=7,
@@ -275,7 +282,8 @@ NPC_SHIPS: tuple[NpcShipSpec, ...] = (
         capture_layout_id="frigate_crew",
         loot_budget=(600, 1800),
         ai_aggressiveness=80,
-        ai_preferred_range=5,
+        # Doc 57.2 playtest fix: clears the heavy floor 5 by >1.41.
+        ai_preferred_range=7,
         ai_accuracy_bonus=30,
         ai_dodge_bonus=15,
         shield_regen_rate=2,    # paid divert below half shields (doc 48 SETTLED 40)
