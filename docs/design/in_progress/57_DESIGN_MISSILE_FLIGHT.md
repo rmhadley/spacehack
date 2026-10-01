@@ -1,11 +1,10 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: PHASE 1 BUILT 2026-10-01 (brief approved via
-`/implement-phase 57.1`; gate 3437 green; reviewer APPROVE after one
-blocking fix — see audit updates). First playtest returned the v2
-flight rework (SETTLED 11) + two rulings (full damage on contact,
-fuel dud beyond max); REWORK IN PROGRESS. Briefs 57.2–57.3 remain
-PROPOSED until their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
+Status: PHASE 1 PLAYTEST PASSED 2026-10-01 (v2 flight model;
+built via `/implement-phase 57.1`, reworked by the first playtest
+into SETTLED 11, prose settled at the second checkpoint; gate 3445
+green; reviewer APPROVE ×2). Briefs 57.2–57.3 remain PROPOSED until
+their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
 SETTLED 1–9, every open question closed; Implementation briefs 1–3
 written with the ADVISE reviewer pass folded (14 catches, 6
 blocking — kill-path bookkeeping, merged-index readers, entity
@@ -321,6 +320,11 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   Same exchange, style ruling: the spaced hyphen " - " is an AI tell
   (now prose tell 17 in knowledge.md); the guide paragraph's own
   instance rewritten with a comma/colon.
+- PLAYTEST PASSED 2026-10-01, no failures reported. Fuel legibility
+  was surfaced at the checkpoint (per-missile remaining fuel is
+  invisible; the RNG band readout carries the reach story) and the
+  user took no readout option — the range readout stays the story;
+  revisit only if a playtest ever misses it.
 - Reviewer round (v2, APPROVE): rulings recorded — (a) contact reads
   ANCHOR CELLS: a crossing missile can pass a capital ship's
   non-anchor footprint without contact, and a ship parking on a
@@ -427,7 +431,8 @@ outcome-shaped hit/miss forms and cannot carry a launch):
 ## Phases
 
 - [x] **1. Flight + player-side interception** — brief below
-      (BUILT 2026-10-01; playtest pending)
+      (BUILT + PLAYTEST PASSED 2026-10-01, v2 flight model per
+      SETTLED 11; prose settled same day)
 - [ ] **2. Enemy missiles + the flak AI layer** — brief below
       (PROPOSED)
 - [ ] **3. Calibration** — brief below (PROPOSED)
