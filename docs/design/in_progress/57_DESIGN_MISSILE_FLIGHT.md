@@ -1256,8 +1256,25 @@ dispatch loop, so the round-boundary hook is picked up for free);
 confirm the advance's render beats tolerate the absorbing console /
 inert presentation.
 
+**Hypotheses queued from playtests** (measure first, then move):
+
+- **Heavy flight_speed 2 may read too slow** (user, 2026-10-01,
+  post-2.5 pass: "I suspect heavy missiles might move too slow.
+  we'll see."). The intended read is dread, not tedium — SETTLED 1
+  wants max-range heavies telegraphing ~3-4 rounds; the row that
+  referees it: heavy time-to-arrival and arrival RATE by opening
+  band, with and without a moving (kiting) player, against the
+  fuel cap (13). If arrival collapses under incidental movement or
+  the crossing outlives the fight's fun, speed 2 is the dial (2→3
+  halves the max-range crossing); if it is merely dread, the number
+  stands.
+- The 2.5 curves (shield-bend linear, desperation floor
+  `0.5 + deficit`) are probe-owned per their docstrings — a
+  divert-carrier survival row referees them.
+
 **Build order**: probe rows (arrival-rate by band vs flak loadout;
-saturation curves vs magazine depth) → dial passes → spec pins
+saturation curves vs magazine depth; heavy crossing-time under
+movement — the queued hypothesis above) → dial passes → spec pins
 updated in the same commits.
 
 **Binding rulings**: the probe is the referee (doc 56's calibration
