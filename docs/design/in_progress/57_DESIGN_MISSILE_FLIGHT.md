@@ -1,19 +1,22 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: PHASE 1 PLAYTEST PASSED 2026-10-01 (v2 flight model;
-built via `/implement-phase 57.1`, reworked by the first playtest
-into SETTLED 11, prose settled at the second checkpoint; gate 3445
-green; reviewer APPROVE ×2). Briefs 57.2–57.3 remain PROPOSED until
-their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
+Status: PHASE 2 BUILT 2026-10-01 via `/implement-phase 57.2`
+(enemy missiles + flak AI; the PROPOSED brief got its ADVISE pass at
+the top of the build session — 4 blocking catches folded before
+code; reviewer APPROVE, 5 minors fixed; gate 3466 green; playtest
+pending at the checkpoint below). PHASE 1 PLAYTEST PASSED 2026-10-01
+(v2 flight model; built via `/implement-phase 57.1`, reworked by the
+first playtest into SETTLED 11, prose settled at the second
+checkpoint; reviewer APPROVE ×2). Brief 57.3 remains PROPOSED until
+its checkpoint. Refined 2026-10-01 (`/refine-design`): rulings
 SETTLED 1–9, every open question closed; Implementation briefs 1–3
 written with the ADVISE reviewer pass folded (14 catches, 6
 blocking — kill-path bookkeeping, merged-index readers, entity
-solidity, sync sweep, enemy-side floor gate). Nothing
-implemented. Born in the doc-56 phase-4
-parts walk (SETTLED 35's coda): the walk held missile magnitudes for
-the probe, and this rework — proposed by the user the same day —
-supersedes those magnitudes when it lands. Doc 56's calibration pass
-proceeds meanwhile on the non-missile dials.
+solidity, sync sweep, enemy-side floor gate). Born in the doc-56
+phase-4 parts walk (SETTLED 35's coda): the walk held missile
+magnitudes for the probe, and this rework — proposed by the user the
+same day — supersedes those magnitudes when it lands. Doc 56's
+calibration pass proceeds meanwhile on the non-missile dials.
 
 ## Overview
 
