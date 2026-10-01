@@ -49,6 +49,26 @@ def _print_row(row) -> None:
     print(
         f"ammo spent (won runs): mean={report.mean_ammo_spent:.2f}"
     )
+    if report.missiles_launched:
+        for _side in sorted(report.missiles_launched):
+            _launch = report.missiles_launched.get(_side, 0)
+            print(
+                f"missiles ({_side}): launched={_launch}  "
+                f"arrived={report.missiles_arrived.get(_side, 0)} "
+                f"({report.missile_arrival_rate.get(_side, 0.0):.0%})  "
+                f"intercepted={report.missiles_intercepted.get(_side, 0)} "
+                f"({report.missile_intercept_rate.get(_side, 0.0):.0%})  "
+                f"fizzled={report.missiles_fizzled.get(_side, 0)}  "
+                f"resolved-arrival="
+                f"{report.missile_resolved_arrival_rate.get(_side, 0.0):.0%}  "
+                f"arrival crossing rounds "
+                f"mean={report.mean_crossing_rounds.get(_side, 0.0):.2f}"
+                + (
+                    f"  fizzle rounds mean="
+                    f"{report.mean_fizzle_rounds.get(_side, 0.0):.2f}"
+                    if report.mean_fizzle_rounds.get(_side) else ""
+                )
+            )
     if row.thresholds is None:
         print("thresholds: none yet — report-only (measure, then rule)")
     else:

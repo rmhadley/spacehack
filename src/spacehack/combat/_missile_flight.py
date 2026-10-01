@@ -319,6 +319,16 @@ def _apply_contact_damage(missile: InFlightMissile, target) -> tuple[int, int, i
     return _dmg, _sdmg, _fh, _glancing
 
 
+def _count_flight(state, kind: str, missile: InFlightMissile) -> None:
+    """Bump one flight-outcome counter (doc 57.3's probe rows): the
+    semantic finish sites alone call this — never ``_remove_missile``,
+    which every path shares. ``kind`` is the counter field's suffix
+    (launched / arrived / intercepted / fizzled)."""
+    _book = getattr(state, f"flights_{kind}", None)
+    if _book is not None:
+        _book[missile.side] = _book.get(missile.side, 0) + 1
+
+
 def _remove_missile(state, game_map: world.GameMap, missile: InFlightMissile) -> None:
     """Take one missile off the map and out of the flight list."""
     missile.alive = False
@@ -348,6 +358,7 @@ async def finish_intercept(
     from ._space_kills import _animate_kill_explosion
 
     _remove_missile(state, game_map, missile)
+    _count_flight(state, "intercepted", missile)
     await _animate_kill_explosion(state, ctx, game_map, missile)
     state.log.add_colored("Missile destroyed.", _ml.COLOR_COMBAT_EVENT)
 
@@ -589,6 +600,7 @@ async def _advance_one_cell(
 
     if not game_map.is_walkable(cell.x, cell.y):
         _remove_missile(state, game_map, missile)
+        _count_flight(state, "fizzled", missile)
         _log_detonates_short(state)
         return None
     missile.pos = cell
@@ -599,6 +611,7 @@ async def _advance_one_cell(
     _ship = _ship_at(state, cell)
     if _ship is not None:
         _remove_missile(state, game_map, missile)
+        _count_flight(state, "arrived", missile)
         if _ship == "player":
             return await _detonate_on_player(state, ctx, missile)
         await _detonate_on_ship(state, ctx, game_map, missile, _ship)
@@ -607,6 +620,7 @@ async def _advance_one_cell(
         state.log.add_colored(
             "Missile exhausts its fuel.", _ml.COLOR_PLAYER_ACTION,
         )
+        _count_flight(state, "fizzled", missile)
         _remove_missile(state, game_map, missile)
     return None
 
@@ -655,6 +669,7 @@ async def spawn_flight_missile(
     )
     state.game_map.entities.append(_missile.ent)
     state.in_flight.append(_missile)
+    _count_flight(state, "launched", _missile)
     if side == "player":
         state.log.add_colored(
             f"{_ws.name[0]}{_ws.name[1:].lower()} away.",
@@ -719,10 +734,12 @@ async def _mini_turn(
     _target = missile.target
     if _target is None or not getattr(_target, "alive", False):
         _remove_missile(state, game_map, missile)
+        _count_flight(state, "fizzled", missile)
         return None
     _parked = _ship_at(state, missile.pos)
     if _parked is not None:
         _remove_missile(state, game_map, missile)
+        _count_flight(state, "arrived", missile)
         if _parked == "player":
             return await _detonate_on_player(state, ctx, missile)
         await _detonate_on_ship(state, ctx, game_map, missile, _parked)

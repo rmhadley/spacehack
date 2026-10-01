@@ -178,3 +178,13 @@ class SpaceCombatState:
     # Per-fight session state, never serialized.
     enemy_fired: bool = False
     opener_spent: bool = False
+    # Flight outcome telemetry (doc 57.3's probe rows): per-side
+    # counts bumped at the semantic finish sites in _missile_flight —
+    # launched, arrived (a warhead detonating on ANY hull, guidance
+    # hit or miss — the flak-relevant event), intercepted (flak kill),
+    # fizzled (fuel exhaustion, terrain, dead-target dissipate).
+    # Combat-transient measurement state, never serialized.
+    flights_launched: dict = field(default_factory=dict)
+    flights_arrived: dict = field(default_factory=dict)
+    flights_intercepted: dict = field(default_factory=dict)
+    flights_fizzled: dict = field(default_factory=dict)

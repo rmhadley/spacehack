@@ -23,7 +23,7 @@ from __future__ import annotations
 import copy
 import tempfile
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Iterator
 
@@ -626,12 +626,81 @@ def _seed_ground_enemies(game_map, enemies) -> list:
 class RunResult:
     """One fight's outcome: result string, turns used, damage taken
     (hull in the space theater, HP on the ground), and ground rounds
-    spent (0 in space — no ammo economy)."""
+    spent (0 in space — no ammo economy).
+
+    Flight telemetry (doc 57.3): the combat state's outcome books
+    (per side: launched / arrived / intercepted / fizzled) plus the
+    per-arrived-missile crossing rounds the watch measured. ``None``
+    books = no missile theater in the run."""
 
     outcome: str        # "VICTORY" | "DEFEAT" | "TIMEOUT" | "DISENGAGED"
     turns: int
     hull_damage_taken: int
     ammo_spent: int = 0
+    flight_books: dict | None = None
+    crossing_rounds: dict = field(default_factory=dict)
+    fizzle_rounds: dict = field(default_factory=dict)
+
+
+class _FlightWatch:
+    """Per-action in_flight tracking for crossing-time telemetry
+    (doc 57.3): id -> (turn first seen, side). A removal books an
+    ARRIVAL crossing only when that side's arrived book bumped in the
+    same action, and a FIZZLE duration only when its fizzled book
+    bumped (the outrun signal for the kite rows) — intercepted
+    removals book neither (flak timing is the flak rows' count, not a
+    duration). PAIRING RULE: same-action mixed outcomes pair with the
+    FIRST-SEEN removals first — an imprecision bounded by one action
+    that only shifts which same-side missile's launch turn is read;
+    means are unaffected in practice. A missile that spawns and
+    resolves within one action (launch half-move clips) never appears
+    in a snapshot and books no duration — intentional; floors make
+    target-arrival at launch geometrically impossible, so only
+    non-target clips qualify. Round granularity is the loop's own
+    turn counter; launched-and-resolved in one round reads 1."""
+
+    def __init__(self) -> None:
+        self._seen: dict[int, tuple[int, str]] = {}
+        self._books: dict = {}
+
+    def _due(self, state, kind: str) -> dict:
+        _book = dict(getattr(state, f"flights_{kind}", {}))
+        _delta = {
+            _side: _n - self._books.get(kind, {}).get(_side, 0)
+            for _side, _n in _book.items()
+        }
+        self._books.setdefault(kind, _book)
+        return _delta
+
+    def sample(self, state, turn: int, crossings: dict, fizzles: dict) -> None:
+        if state is None or not hasattr(state, "flights_arrived"):
+            return
+        _arrived_due = self._due(state, "arrived")
+        _fizzled_due = self._due(state, "fizzled")
+        _live = {id(_m): _m for _m in state.in_flight}
+        for _key in list(self._seen):
+            if _key in _live:
+                continue
+            _launch_turn, _side = self._seen.pop(_key)
+            _span = max(1, turn - _launch_turn + 1)
+            if _arrived_due.get(_side, 0) > 0:
+                crossings.setdefault(_side, []).append(_span)
+                _arrived_due[_side] -= 1
+            elif _fizzled_due.get(_side, 0) > 0:
+                fizzles.setdefault(_side, []).append(_span)
+                _fizzled_due[_side] -= 1
+        for _key, _m in _live.items():
+            self._seen.setdefault(_key, (turn, _m.side))
+
+
+def _flight_books(state) -> dict | None:
+    """Snapshot the outcome books, or None off the missile theater."""
+    if state is None or not hasattr(state, "flights_launched"):
+        return None
+    return {
+        _kind: dict(getattr(state, f"flights_{_kind}"))
+        for _kind in ("launched", "arrived", "intercepted", "fizzled")
+    }
 
 
 def _ground_ammo_total(ctx) -> int | None:
@@ -660,14 +729,23 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
     turn = 1
     start_hull = rules.player_hp(ctx)
     start_ammo = _ground_ammo_total(ctx)
+    _watch = _FlightWatch()
+    _crossings: dict = {}
+    _fizzles: dict = {}
     _loop._log_combat_start(ctx, rules)
     for _iteration in range(ACTION_CAP):
         rules.refresh_engaged(ctx, game_map)
         result = _loop._combat_end_check(ctx, game_map, rules)
         if result is not None:
             break
-        enemies = rules.get_enemies(ctx)
-        target_idx = _loop._retarget_if_dead(ctx, rules, target_idx, enemies)
+        # Doc 57.3 fix: retarget validates against the MERGED targeting
+        # space exactly as ``_run_combat_impl`` does — the ships-only
+        # list reset every missile index to 0 each iteration, and the
+        # first merged-space stance (flak_escort) AP-free looped on it.
+        _loop._retarget_if_dead(
+            ctx, rules, target_idx, _loop._targetables(rules, ctx),
+        )
+        target_idx = rules._state.target_idx
         action = await stance(ctx, rules)
         target_idx, exit_result = await _loop._dispatch_combat_action(
             console, ctx, game_map, rules, action, target_idx,
@@ -678,6 +756,9 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
             result = exit_result
             break
         turn, defeat = await _loop._end_player_turn(ctx, game_map, rules, turn)
+        _watch.sample(
+            getattr(rules, "_state", None), turn, _crossings, _fizzles,
+        )
         if defeat == "DEFEAT":
             result = "DEFEAT"
             break
@@ -693,7 +774,12 @@ async def _mirror_loop(ctx, game_map, console, rules, stance) -> RunResult:
     end_ammo = _ground_ammo_total(ctx)
     ammo = max(0, start_ammo - end_ammo) if start_ammo is not None else 0
     cr = _loop._finish_combat(ctx, rules, result)
-    return RunResult(cr.outcome, turn, damage, ammo)
+    return RunResult(
+        cr.outcome, turn, damage, ammo,
+        flight_books=_flight_books(getattr(rules, "_state", None)),
+        crossing_rounds={k: tuple(v) for k, v in _crossings.items()},
+        fizzle_rounds={k: tuple(v) for k, v in _fizzles.items()},
+    )
 
 
 async def _run_once_async(row, run_index: int) -> RunResult:
@@ -858,6 +944,92 @@ class BatchReport:
     max_turns: int = 0
     mean_hull_damage_taken: float = 0.0
     mean_ammo_spent: float = 0.0
+    # Flight telemetry means (doc 57.3): per-side totals across the
+    # batch plus arrival rate (arrived/launched), intercept rate, and
+    # the mean ARRIVAL crossing rounds. Zeros when no missiles flew.
+    missiles_launched: dict = field(default_factory=dict)
+    missiles_arrived: dict = field(default_factory=dict)
+    missiles_intercepted: dict = field(default_factory=dict)
+    missiles_fizzled: dict = field(default_factory=dict)
+    missile_arrival_rate: dict = field(default_factory=dict)
+    missile_intercept_rate: dict = field(default_factory=dict)
+    missile_resolved_arrival_rate: dict = field(default_factory=dict)
+    mean_crossing_rounds: dict = field(default_factory=dict)
+    mean_fizzle_rounds: dict = field(default_factory=dict)
+
+
+def _flight_means(results: list[RunResult]) -> dict:
+    """Fold the flight telemetry across a batch (pure): per-side
+    outcome totals, arrival/intercept rates, and the mean ARRIVAL
+    crossing rounds. Empty dicts when nothing flew."""
+    _totals = {k: {} for k in (
+        "missiles_launched", "missiles_arrived",
+        "missiles_intercepted", "missiles_fizzled",
+    )}
+    _crossings: dict = {}
+    _fizzles: dict = {}
+    for _r in results:
+        if _r.flight_books is None:
+            continue
+        for _field, _key in (
+            ("missiles_launched", "launched"),
+            ("missiles_arrived", "arrived"),
+            ("missiles_intercepted", "intercepted"),
+            ("missiles_fizzled", "fizzled"),
+        ):
+            for _side, _n in _r.flight_books.get(_key, {}).items():
+                _totals[_field][_side] = (
+                    _totals[_field].get(_side, 0) + _n
+                )
+        for _side, _rounds in _r.crossing_rounds.items():
+            _crossings.setdefault(_side, []).extend(_rounds)
+        for _side, _rounds in _r.fizzle_rounds.items():
+            _fizzles.setdefault(_side, []).extend(_rounds)
+    def _ratio(num: int, den: int) -> float:
+        return num / den if den > 0 else 0.0
+
+    _out = dict(_totals)
+    _out["missile_arrival_rate"] = {
+        _side: _ratio(
+            _totals["missiles_arrived"].get(_side, 0),
+            _totals["missiles_launched"][_side],
+        )
+        for _side in _totals["missiles_launched"]
+    }
+    _out["missile_intercept_rate"] = {
+        _side: _ratio(
+            _totals["missiles_intercepted"].get(_side, 0),
+            _totals["missiles_launched"][_side],
+        )
+        for _side in _totals["missiles_launched"]
+    }
+    _out["mean_crossing_rounds"] = {
+        _side: sum(_v) / len(_v) for _side, _v in _crossings.items() if _v
+    }
+    _out["mean_fizzle_rounds"] = {
+        _side: sum(_v) / len(_v) for _side, _v in _fizzles.items() if _v
+    }
+    # The flak-comparable metric: arrival rate among missiles that
+    # RESOLVED before the fight ended (the sweep at combat end takes
+    # still-flying missiles with it, so raw arrived/launched confounds
+    # arrival with fight length — the kiting rows exposed exactly that).
+    _out["missile_resolved_arrival_rate"] = {
+        _side: (
+            _totals["missiles_arrived"].get(_side, 0)
+            / (
+                _totals["missiles_arrived"].get(_side, 0)
+                + _totals["missiles_intercepted"].get(_side, 0)
+                + _totals["missiles_fizzled"].get(_side, 0)
+            )
+        )
+        for _side in _totals["missiles_launched"]
+        if (
+            _totals["missiles_arrived"].get(_side, 0)
+            + _totals["missiles_intercepted"].get(_side, 0)
+            + _totals["missiles_fizzled"].get(_side, 0)
+        ) > 0
+    }
+    return _out
 
 
 def aggregate(results: list[RunResult]) -> BatchReport:
@@ -887,6 +1059,7 @@ def aggregate(results: list[RunResult]) -> BatchReport:
         max_turns=max((r.turns for r in results), default=0),
         mean_hull_damage_taken=mean_damage,
         mean_ammo_spent=mean_ammo,
+        **_flight_means(results),
     )
 
 

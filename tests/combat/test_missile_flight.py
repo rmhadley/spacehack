@@ -1301,3 +1301,52 @@ class TestEnemyFlight:
             assert _calls == []
         finally:
             _rules_space._state = _old
+
+
+class TestFlightCounters:
+    """Doc 57.3's telemetry: every flight resolves into exactly one
+    outcome book (launched at spawn; arrived on hull contact incl.
+    self-splash; intercepted via flak; fizzled = fuel/terrain/
+    dead-target)."""
+
+    def test_outcomes_book_per_side(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture()
+        try:
+            _ei = _state.enemy_insts[0]
+            # enemy missile walked into the player = launched+arrived
+            _manual_missile(
+                _state, (2, 0), _missile_flight.PlayerHomingTarget(_state),
+                side="enemy", shooter=_ei, gunnery=20,
+            )
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            run(_missile_flight.advance_flights(
+                _state, _ctx, _state.game_map, side="enemy", shooter=_ei,
+            ))
+            # player missile killed by flak = intercepted (mounted:
+            # no launch book — only real spawns book "launched")
+            _m = _manual_missile(_state, (4, 0), _ei)
+            run(_missile_flight.finish_intercept(
+                _state, _ctx, _state.game_map, _m,
+            ))
+            # player missile into a wall = fizzled
+            _state.game_map.tiles[0][2] = world.WALL
+            _manual_missile(_state, (1, 0), _ei)
+            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
+            # one REAL player spawn (launch book) that then arrives —
+            # clear the test wall off its track first
+            _state.game_map.tiles[0][2] = world.DUNGEON_FLOOR
+            run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _ei,
+                side="player", quality=0,
+                launch_pos=_state.player_state["pos"],
+            ))
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
+            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
+            assert _state.flights_launched == {"player": 1}
+            assert _state.flights_arrived == {"enemy": 1, "player": 1}
+            assert _state.flights_intercepted == {"player": 1}
+            assert _state.flights_fizzled == {"player": 1}
+        finally:
+            _rules_space._state = _old

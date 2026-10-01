@@ -389,6 +389,180 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             damage_taken_ceiling=8.0,
             ammo_spent_ceiling=13.0,
         ),
+    ),    # --- doc 57.3 probe rows (report-only: thresholds rule at the
+    # calibration checkpoint from these measured numbers, never before;
+    # the queued hypotheses — heavy crossing speed, flak suppression,
+    # saturation, the 2.5 curves — are the questions these answer) ---
+    BalanceScenario(
+        id="probe_heavy_arrival_stand_mid",
+        theater="space",
+        goal=(
+            "Doc 57.3: a heavy carrier's inbound arrival rate and "
+            "crossing time at mid opening range, no flak (the ship "
+            "target eats the whole volley)."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_captain", pos=(39, 20)),),  # 9
+        grid=GridSpec(width=60, height=40),
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261001,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_heavy_arrival_stand_far",
+        theater="space",
+        goal=(
+            "Doc 57.3: the far opening band (12) — SETTLED 1's "
+            "'max-range heavies telegraph 3-4 rounds of dread' made "
+            "a number."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_captain", pos=(42, 20)),),  # 12
+        grid=GridSpec(width=60, height=40),
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261002,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_heavy_arrival_kiting_far",
+        theater="space",
+        goal=(
+            "Doc 57.3, the queued hypothesis: does a MOVING player "
+            "collapse heavy arrival (the outrun counter), or merely "
+            "stretch it? Same far-band matchup, movement-first."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_captain", pos=(42, 20)),),  # 12
+        grid=GridSpec(width=60, height=40),
+        stance="kite",
+        runs=50,
+        seed=20261003,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_flak_lights_vs_captain",
+        theater="space",
+        goal=(
+            "Doc 57.3, acceptance 2: a light-laser wall under the "
+            "manual-flak rhythm measurably cuts inbound arrival rate "
+            "(vs the stand rows' no-flak baseline)."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_captain", pos=(39, 20)),),  # 9
+        grid=GridSpec(width=60, height=40),
+        stance="flak_escort",
+        runs=50,
+        seed=20261004,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_flak_heavyguns_vs_captain",
+        theater="space",
+        goal=(
+            "Doc 57.3: the escort contrast — slow expensive guns "
+            "(heavy lasers, 2 AP) under the same rhythm; fast cheap "
+            "weapons should prefer flak (SETTLED 8's doctrine)."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("heavy_laser", "heavy_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_captain", pos=(39, 20)),),  # 9
+        grid=GridSpec(width=60, height=40),
+        stance="flak_escort",
+        runs=50,
+        seed=20261005,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_saturation_thin_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 57.3, acceptance 3: a thin rack (one heavy "
+            "missile, magazine 3) against the raider's light-laser "
+            "flak — the depth-baseline end of the saturation curve."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "heavy_missile"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),  # 9
+        grid=GridSpec(width=60, height=40),
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261006,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_saturation_deep_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 57.3, acceptance 3: the deep end — two racks plus "
+            "the Missile Magazine (+3/rack, doc 56 SETTLED 35) vs "
+            "the same flak. Deep racks should saturate: arrival "
+            "rate rises with depth."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="frigate",
+            weapon_ids=(
+                "light_laser", "heavy_missile", "heavy_missile",
+            ),
+            module_ids=("shield_mk1", "missile_magazine"),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),  # 9
+        grid=GridSpec(width=60, height=40),
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261007,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_warlord_stock_cruiser",
+        theater="space",
+        goal=(
+            "Doc 57.3, the 2.5-curve referee surface: a stock cruiser "
+            "into the warlord — win rate, fight length, and damage "
+            "shape under the conservation layer (bend + reserve)."
+        ),
+        player=PlayerSheet(
+            species_id="human", class_id="merchant", hull_id="cruiser",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_warlord", pos=(40, 20)),),  # 10
+        grid=GridSpec(width=60, height=40),
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261008,
+        thresholds=None,
     ),
 )
 

@@ -503,3 +503,65 @@ def _carry_cap(ammo_type: str) -> int:
     from src.spacehack.bandolier import effective_cap
 
     return effective_cap(ammo_type, 0)
+
+
+def test_flight_watch_classifies_arrivals_and_fizzles() -> None:
+    """Doc 57.3's classifier pin: a removal books an ARRIVAL crossing
+    only when the side's arrived book bumped that action, a FIZZLE
+    duration only when the fizzled book bumped (the outrun signal),
+    and intercepted removals book neither; spans read
+    removal-turn minus first-seen-turn plus one."""
+    from types import SimpleNamespace
+    from tests.balance.harness import _FlightWatch
+
+    def _missile(side):
+        return SimpleNamespace(side=side)
+
+    m1, m2, m3 = _missile("enemy"), _missile("enemy"), _missile("player")
+    state = SimpleNamespace(
+        in_flight=[m1],
+        flights_arrived={},
+        flights_intercepted={},
+        flights_fizzled={},
+    )
+    watch = _FlightWatch()
+    crossings, fizzles = {}, {}
+    watch.sample(state, 1, crossings, fizzles)     # m1 first seen turn 1
+    state.in_flight = [m1, m2, m3]
+    watch.sample(state, 2, crossings, fizzles)     # m2/m3 seen turn 2
+    # turn 3: m1 ARRIVES, m2 is INTERCEPTED, m3 FIZZLES
+    state.in_flight = []
+    state.flights_arrived = {"enemy": 1}
+    state.flights_intercepted = {"enemy": 1}
+    state.flights_fizzled = {"player": 1}
+    watch.sample(state, 3, crossings, fizzles)
+    assert crossings == {"enemy": [3]}             # seen t1, gone t3 -> 3
+    assert fizzles == {"player": [2]}              # seen t2, gone t3 -> 2
+
+
+def test_flight_means_fold_books_and_rates() -> None:
+    """Doc 57.3's fold pin: totals, rates, resolved-arrival (the
+    sweep-aware metric), and the crossing/fizzle means."""
+    books = {
+        "launched": {"enemy": 10, "player": 4},
+        "arrived": {"enemy": 4},
+        "intercepted": {"enemy": 2, "player": 1},
+        "fizzled": {"enemy": 2},
+    }
+    results = [
+        RunResult("DEFEAT", 4, 40, 0, flight_books=books,
+                  crossing_rounds={"enemy": (2, 4)},
+                  fizzle_rounds={"enemy": (6,)}),
+        RunResult("DEFEAT", 5, 50, 0, flight_books=None),  # ground-shaped
+    ]
+    report = aggregate(results)
+    assert report.missiles_launched == {"enemy": 10, "player": 4}
+    assert report.missile_arrival_rate == {"enemy": 0.4, "player": 0.0}
+    assert report.missile_intercept_rate == {"enemy": 0.2, "player": 0.25}
+    # resolved-arrival: 4 arrived / (4+2+2) resolved = 0.5, the
+    # flak-comparable number that raw arrival rate understates.
+    assert report.missile_resolved_arrival_rate == {
+        "enemy": 0.5, "player": 0.0,
+    }
+    assert report.mean_crossing_rounds == {"enemy": 3.0}
+    assert report.mean_fizzle_rounds == {"enemy": 6.0}

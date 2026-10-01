@@ -249,6 +249,94 @@ async def toggle_sets(ctx, rules):
     return "WAIT"
 
 
+async def kite(ctx, rules) -> str:
+    """The movement-first policy (doc 57.3's crossing-under-movement
+    rows): retreat from the nearest enemy while more than 1 AP
+    remains, then FIRE what's affordable — the outrun doctrine as an
+    instrument (kiting extends flight and raises dodge at arrival,
+    doc 57 SETTLED 5). The 1-AP line covers the rows' 1-AP weapons; a
+    future 2-AP-volley row should widen it to the volley's cost.
+    Space rows' instrument; on the ground it is simply
+    hold-range-with-retreat-priority."""
+    aimed = _aim_closest(ctx, rules)
+    if aimed is None:
+        return "WAIT"
+    if aimed[1] is None:
+        return aimed[0]
+    target, _dist = aimed
+    if rules.player_ap(ctx) > 1:
+        step = _retreat_step(ctx, ctx.game_map, target)
+        if step is not None:
+            return f"MOVE:{_MOVE_KEY_BY_DELTA[step]}"
+    slots = _fire_slots(ctx, rules)
+    if any(rules.can_fire(slot, ctx)[0] for slot in slots):
+        return "FIRE"
+    return "WAIT"
+
+
+def find_ship_weapon_range(weapon_id: str) -> int:
+    """One ship weapon's catalog max range (the flak escort's reach
+    read; unknown ids read 0)."""
+    from src.spacehack.data.weapons import find_weapon
+
+    try:
+        return find_weapon(weapon_id).max_range
+    except KeyError:
+        return 0
+
+
+async def flak_escort(ctx, rules) -> str:
+    """The manual-flak rhythm (doc 57 SETTLED 6/8 as policy): cycle
+    the merged target onto a hostile inbound and FIRE at it while
+    guns are affordable; otherwise fire everything at the nearest
+    ship — "deactivate the heavies, TAB to the inbound, F". The
+    doc-57.3 suppression rows' instrument; rules without a merged
+    targeting space (ground) fall through to plain fire."""
+    _targets = rules.targetables(ctx) if hasattr(rules, "targetables") else []
+    _inbound = [m for m in _targets if getattr(m, "side", None) == "enemy"]
+    slots = _fire_slots(ctx, rules)
+    _guns_ok = any(rules.can_fire(slot, ctx)[0] for slot in slots)
+    _state = getattr(rules, "_state", None)
+    _current = (
+        _targets[_state.target_idx]
+        if _state is not None and 0 <= _state.target_idx < len(_targets)
+        else None
+    )
+    if _inbound:
+        if _current in _inbound:
+            if _guns_ok:
+                return "FIRE"      # on the inbound, guns read for it
+        elif _guns_ok:
+            # Chase the inbound ONLY when this action would fire at
+            # it: guns ready now, a gun that catalog-reaches it, LOS
+            # to it. Any weaker gate AP-free loops the cycle (TARGET
+            # spends nothing; the ship-aim branch bounces straight
+            # back — the harness's stuck-stance guard caught two such
+            # cuts before this one).
+            _nearest = min(
+                _inbound, key=lambda m: _distance(ctx.player.pos, m.pos),
+            )
+            _reach = max(
+                (find_ship_weapon_range(_wid)
+                 for _wid in rules.player_weapons(ctx)),
+                default=0,
+            )
+            _clear = _has_los(
+                ctx.game_map, ctx.player.pos.x, ctx.player.pos.y,
+                _nearest.pos.x, _nearest.pos.y,
+            )
+            if _distance(ctx.player.pos, _nearest.pos) <= _reach and _clear:
+                return "TARGET"
+    aimed = _aim_closest(ctx, rules)
+    if aimed is None:
+        return "WAIT"
+    if aimed[1] is None:
+        return aimed[0]
+    if _guns_ok:
+        return "FIRE"
+    return "WAIT"
+
+
 # Stance vocabulary: name -> async (ctx, rules) -> one action string.
 # One action per await — the same call shape as the loop's own
 # ``_combat_action`` input seam. New stances join when a scenario
@@ -261,4 +349,6 @@ STANCES = {
     "hold_range": hold_range,
     "posted_hold": posted_hold,
     "toggle_sets": toggle_sets,
+    "kite": kite,
+    "flak_escort": flak_escort,
 }
