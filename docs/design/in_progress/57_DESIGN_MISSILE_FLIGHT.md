@@ -121,6 +121,18 @@ walls. Damage racks receive the magazine bonus; EMP never does.
    magnitude ownership (the held missile feel + the new intercept
    numbers) moves from doc 56 phase 4 to this doc's phase 3; doc
    56's calibration proceeds on the non-missile dials meanwhile.
+10. **Glyphs: family by shape, side by color** (2026-10-01, user:
+    "this works"). Heavy missile `♦` — dense, fat, matches
+    hp 6 / speed 2; light missile `*` — small, quick, matches
+    hp 2 / speed 4. The card-suit glyph renders crisp (procedural
+    patch), and the `*`/`♦` collisions are city tiles (neon,
+    monuments) that never co-render with a space fight. Ownership
+    reads by COLOR — hostile inbound hot red (the dread read at a
+    glance), player-owned the cyan/friendly accent — so the family
+    shape stays legible. The EMP pulse never renders. Wordless
+    target priority: a `♦` crossing the map is the one worth a flak
+    volley; a `*` is thin enough to maybe eat. One-glyph fallback
+    stays a phase-1 playtest call if two glyphs read as noise.
 
 ## The shape
 
@@ -259,9 +271,10 @@ outcome-shaped hit/miss forms and cannot carry a launch):
   `_activate_combat_state` as the abnormal-end belt-and-braces:
   entities serialize with the map, so a leftover glyph corrupts
   the next save (save/load contract).
-- Rendering — missiles as entities via the world draw path
-  (CP437-safe glyph, visually distinct per owning side; pick at
-  build), intercept kill = small explosion beat at the cell.
+- Rendering — missiles as entities via the world draw path: heavy
+  `♦`, light `*` (SETTLED 10), hostile inbound hot red, player-owned
+  the cyan/friendly accent; intercept kill = small explosion beat
+  at the cell.
 - Guide (`data/guide/`) — the missile/weapon sections gain flight,
   interception, and the floor gate; call the diff out on the
   checklist.
