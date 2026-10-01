@@ -501,7 +501,14 @@ nobody designs against a ghost.
   flight state is combat-transient (swept on every end path + at
   `_activate_combat_state`); `world.Entity.non_blocking` makes
   crossings zero-footprint (blocking/A*/patrol/reinforcement-matcher
-  all skip them). Calibration owns the magnitudes.
+  all skip them). CALIBRATED 2026-10-01 (doc 57.3, CLOSED): the
+  measured base lines are the standard — four balance rows ruled
+  (escort intercept floors 0.85/0.78; saturation resolved-arrival
+  bands 0.20-0.36 thin / 0.36-0.52 deep; missile bar types live on
+  the doc-50 threshold table); heavy speed 2 stands; focused flak at
+  0% inbound arrival under a full-escort stance is ENDORSED design
+  (the cost is not shooting the shooter). Feel feedback from later
+  playthroughs tunes the bars, never ahead of it.
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
   mines-as-entities; no salvage drones; no player-called allies; no
   flee-from-space-combat; `NpcShipSpec.comms_range` documented

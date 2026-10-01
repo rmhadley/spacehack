@@ -553,9 +553,10 @@ specs fly heavy_laser — enemy-side strengthening to measure).
     magnitude pass over the result, with the walk's open dials:
     faster-upkeep-scaling (SETTLED 30), the 95 clamp, missile feel,
     EMP's warlord impact — and MISSILE FEEL moved to its own doc:
-    `57_DESIGN_MISSILE_FLIGHT.md` (2026-10-01, the user's
-    interceptible-artillery proposal; when it lands it supersedes
-    the missile magnitudes held here).
+    `complete/57_DESIGN_MISSILE_FLIGHT.md` (2026-10-01, the user's
+    interceptible-artillery proposal; LANDED AND CLOSED — it
+    supersedes the missile magnitudes held here, and its 57.3
+    calibration ruled the missile dials).
 
 35. **The Missile Magazine — SETTLED 9's parked shape, unblocked**
     (2026-10-01, parts walk family 7 coda). User: "+3 per rack. if a
