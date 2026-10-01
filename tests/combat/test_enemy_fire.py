@@ -5,8 +5,10 @@ The engagement decision fires the VOLLEY — the player's burst-fire
 mirror: every affordable weapon once per action in slot order, each
 paying its own power/ammo, AP = max(ap_cost) paid once. The scorer
 keeps governing the band pick and the reaction pick; the volley's
-inclusion is affordability alone. Weapon quality multiplies enemy
-damage (the player path stays bit-identical at 0).
+inclusion is affordability plus the doc-57 gates (missile floor,
+conservation reserve, score-zero — the enemy's toggles). Weapon
+quality multiplies enemy damage (the player path stays bit-identical
+at 0).
 """
 
 from __future__ import annotations
@@ -841,3 +843,277 @@ def test_rack_carrier_standoffs_clear_their_floors():
             f"{spec.id}: preferred {spec.ai_preferred_range} "
             f"overshoots its rack floor {floors} (the bench trap)"
         )
+
+
+# --- the conservation layer (doc 57.2.5: the five-step logic check) --------------
+
+
+def _reserve_ship(weapons, *, shields=10, max_shields=40, rate=3, **kw):
+    """A divert-carrying enemy: shields below the half threshold, so
+    the reserve is ACTIVE (rate 3, engineering 0 → divert cost 3)."""
+    enemy = _enemy(weapons, **kw)
+    enemy.max_shields = max_shields
+    enemy.shields = shields
+    enemy.shield_regen_rate = rate
+    return enemy
+
+
+def test_divert_full_cost_is_the_one_shared_expression():
+    """The twin pair: the payer and the reserve read the same
+    expression (doc 57.2.5 audit DRY 2)."""
+    from src.spacehack.combat._actions import divert_full_cost
+
+    enemy = _enemy(("light_laser",))
+    enemy.shield_regen_rate, enemy.pilot_engineering = 3, 20
+    assert divert_full_cost(enemy) == 2
+    enemy.pilot_engineering = 100
+    assert divert_full_cost(enemy) == 1      # the max(1, ...) floor
+
+
+def test_regen_reserve_reads_the_ships_own_threshold():
+    """The formula (doc 57.2.5): the divert's full cost while shields
+    sit below the SPEC's threshold; 0 for healthy shields, no
+    authored rate, or no shields at all (the zero-rate guard — only
+    four specs carry a paid divert)."""
+    from src.spacehack.combat._ai_conservation import _regen_reserve
+
+    enemy = _reserve_ship(("light_laser",))            # 10/40, rate 3
+    assert _regen_reserve(enemy) == 3
+    enemy.shields = 20                                  # AT half: healthy
+    assert _regen_reserve(enemy) == 0
+    enemy.shields = 10
+    enemy.shield_regen_rate = 0                         # no authored divert
+    assert _regen_reserve(enemy) == 0
+    enemy.shield_regen_rate = 3
+    enemy.max_shields = 0                               # shieldless
+    assert _regen_reserve(enemy) == 0
+
+
+def test_reserve_benches_power_members_not_guns_or_racks(monkeypatch):
+    """The warlord shape: with the reserve active and a thin pool, the
+    plasma sits out while the laser and the rack ride; a fat pool
+    funds everyone (full-health behavior bit-identical)."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    enemy = _reserve_ship(
+        ("light_laser", "plasma_cannon", "heavy_missile"),
+        ap=4, power=5, ammo={0: -1, 1: -1, 2: 3},
+    )  # reserve 3: plasma 5-4=1 < 3 benches; laser 5-1=4 rides; rack rides
+    state = _turn_state(enemy, los=True)
+    run(_ai._enemy_volley(
+        state, enemy, hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["light_laser", "heavy_missile"]
+    assert enemy.power_pool == 4          # 1 (laser) + 0 (rack) paid
+    enemy.power_pool = 10                  # fat pool: everyone funds
+    run(_ai._enemy_volley(
+        state, enemy, hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert "plasma_cannon" in shots
+
+
+def test_the_regate_enforces_the_reserve_cumulatively(monkeypatch):
+    """Sequential fire floors at the reserve (ADVISE 3): pool 3,
+    reserve 3, two 1-power lasers both pass the PLAN gate against the
+    start pool, but the re-gate benches the second — the volley ends
+    at exactly the protected divert."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    enemy = _reserve_ship(
+        ("light_laser", "light_laser"), ap=4, power=3, rate=2,
+    )  # divert 2: plan gate 3-1=2 >= 2 passes BOTH; fire one -> pool 2;
+    #    the re-gate reads 2-1=1 < 2 and benches the second
+    state = _turn_state(enemy, los=True)
+    run(_ai._enemy_volley(
+        state, enemy, hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["light_laser"]        # the second benched
+    assert enemy.power_pool == 2           # floored AT the reserve
+
+
+def test_score_zero_members_sit_out_vs_bare_shields(monkeypatch):
+    """Ruled verbatim: "no firing EMPs at something with 0 shields" —
+    a strip member sits out while the player's shields are bare and
+    rides the volley the moment they are not."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    enemy = _enemy(
+        ("light_laser", "emp_missile"), ap=4, power=10,
+        ammo={0: -1, 1: 2},
+    )
+    state = _turn_state(enemy, los=True)   # player shields 0
+    run(_ai._enemy_volley(
+        state, enemy, hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["light_laser"]        # the EMP held
+    state.player_state["shields"] = 40
+    run(_ai._enemy_volley(
+        state, enemy, hit_chances={}, evade_bonus=0,
+        calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert "emp_missile" in shots          # fires into real shields
+
+
+def test_flak_funds_under_an_active_reserve_never_spins(monkeypatch):
+    """The ADVISE-1 closure: the at-player members are ALL
+    reserve-benched except the 0-power rack (which survives as the
+    fire pick), a live inbound wins the flak score, and the flak
+    volley — reserve-exempt — still funds the gun: the pick can never
+    hand the engagement an empty volley."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+    flak = []
+
+    async def _fake_flak(state, _ei, slot, missile, **_kw):
+        flak.append(missile)
+        return None
+
+    monkeypatch.setattr(_ai, "_enemy_flak_shot", _fake_flak)
+
+    async def _no_render(*_a, **_kw):
+        pass
+
+    monkeypatch.setattr(_ai, "_render_step_frame", _no_render)
+    enemy = _reserve_ship(
+        ("heavy_missile", "light_laser"), ap=4, power=5, rate=5,
+        ammo={0: 3, 1: -1},
+    )  # divert 5: rack 5-0=5 >= 5 rides (the pick); laser 5-1=4 < 5
+    #    benched at-player; flak-exempt it rides the flak volley
+    state = _turn_state(enemy, los=True)
+    _missile = _inbound(at=(6, 4))         # close inbound: flak EV wins
+    state.in_flight = [_missile]
+    monkeypatch.setattr(
+        _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 1),
+    )
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, SimpleNamespace(ai_preferred_range=6, ai_aggressiveness=80),
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert flak == [_missile]              # the flak volley FUNDED
+    assert shots == []                     # nothing fired at the player
+    assert enemy.cells_moved_this_turn > 0  # then the pool dipped below
+    # the reserve: the at-player pick died and the rest of the turn
+    # went to the dance — funded flak once, pure defense after
+
+
+def test_the_bend_scales_down_with_shields_and_up_with_hull():
+    """The three-axis state read (doc 57.2.5), scoped to the ships the
+    conservation layer GOVERNS (divert carriers): full health reads
+    the authored dial bit-identically; tanking scales it by the
+    shield fraction while the reserve is live; failing hull scales it
+    up multiplicatively (the last stand preserves the personality).
+    Ships without divert machinery — the tutorial scout's shape —
+    read their RAW dial at any hull (the probe referee: even a ×1.4
+    dying scout broke goal_1's ruled 0.94 win floor)."""
+    from src.spacehack.combat._ai_conservation import _effective_aggressiveness as eff
+
+    spec = SimpleNamespace(ai_aggressiveness=80)
+    enemy = _enemy(("light_laser",))
+    enemy.hull, enemy.max_hull = 90, 90
+    assert eff(enemy, spec) == 80          # ungoverned: the dial, always
+    enemy.hull = 5
+    assert eff(enemy, spec) == 80          # ...even at death's door
+    enemy.hull = 90                        # restore health for the arc
+    enemy.max_shields, enemy.shields, enemy.shield_regen_rate = 40, 40, 3
+    assert eff(enemy, spec) == 80          # governed + full: reserve off
+    enemy.shields = 10                     # tanking at a quarter: 80*10//40
+    assert eff(enemy, spec) == 20
+    enemy.hull = 18                        # 20% hull: the last stand
+    assert eff(enemy, spec) == 64          # floors at dial*(0.5+0.3)
+    enemy.shields = 0                      # STRIPPED: the tank read is 0,
+    assert eff(enemy, spec) == 64          # the floor still trades (arc
+                                           # stage 3 — reviewer minor 1)
+    scout = _enemy(("light_laser",))       # shielded but NO divert (Jack's
+    scout.max_shields, scout.shields = 20, 5   # harness shape)
+    scout.hull, scout.max_hull = 5, 100
+    assert eff(scout, spec) == 80          # ungoverned: raw dial
+
+
+def test_tanking_ship_repositions_more(monkeypatch):
+    """Behavioral pin (pinned roll 50): the healthy agg-80 ship fires;
+    the same ship tanking at a quarter shield fights at eff 20 and
+    spends the action dancing instead."""
+    from tests.support.asyncutil import run
+    from src.spacehack.combat import _ai
+
+    shots = _record_shots(monkeypatch)
+
+    async def _no_render(*_a, **_kw):
+        pass
+
+    monkeypatch.setattr(_ai, "_render_step_frame", _no_render)
+    monkeypatch.setattr(
+        _ai, "RNG", SimpleNamespace(randint=lambda _a, _b: 50),
+    )
+    enemy = _reserve_ship(("light_laser",), ap=4, power=10)
+    enemy.shields = 40                     # FULL: the dial reads raw
+    state = _turn_state(enemy, los=True)
+    spec = SimpleNamespace(ai_preferred_range=4, ai_aggressiveness=80)
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == ["light_laser"] * 2    # healthy: 2 AP advance + 2 shots
+    from src.spacehack.combat._actions import start_enemy_turn
+    start_enemy_turn(enemy)
+    enemy.shields = 10                     # quarter: eff 80*10//40 = 20
+    shots.clear()
+    run(_ai._take_enemy_turn(
+        state, enemy, 0, spec,
+        hit_chances={}, evade_bonus=0, calc_cam=lambda: (0, 0), ctx=None,
+    ))
+    assert shots == []                     # roll 50 >= 20: all dodge
+    assert enemy.cells_moved_this_turn > 0
+
+
+def test_dry_magazines_leave_the_wish_list():
+    """The dry filter (doc 57.2.5): an empty rack stops governing the
+    dance — the band falls to the lasers; ONE round left dances to
+    the rack exactly as today (no hoarding); an all-dry ship reads
+    weaponless and BREAKs in position (never a spin)."""
+    from src.spacehack.combat._ai import _volley_picks
+
+    pd = {"shields": 0}
+    enemy = _enemy(("light_laser", "heavy_missile"), ammo={0: -1, 1: 0})
+    assert _volley_picks(enemy, 6.0, pd)[1].id == "light_laser"
+    enemy.weapon_ammo[1] = 1
+    assert _volley_picks(enemy, 6.0, pd)[1].id == "heavy_missile"
+    rack_only = _enemy(("heavy_missile",), ammo={0: 0})
+    assert _volley_picks(rack_only, 6.0, pd) == (None, None)
+
+
+def test_reaction_fire_respects_the_reserve():
+    """Doc 54 amendment (ADVISE 4): the flee reaction walks the gated
+    affordable branch, so a reserve-active ship answers with what the
+    reserve allows — the plasma holds, the laser fires."""
+    from src.spacehack.combat import _ai
+
+    enemy = _reserve_ship(
+        ("plasma_cannon", "light_laser"), ap=4, power=5,
+    )  # divert 3: plasma 5-4=1 < 3 benched; laser rides
+    pick = _ai._reaction_pick(enemy, 4.0, {"shields": 0})
+    assert pick is not None and pick[1].id == "light_laser"
+
+
+def test_fully_reserved_ship_dances_never_spins(monkeypatch):
+    """Everything benched ⇒ fire pick None ⇒ the power-dry dance
+    (SETTLED 40's shape): AP goes to reposition steps while a legal
+    step exists; the turn returns, never loops."""
+    shots = _record_shots(monkeypatch)
+    enemy = _reserve_ship(("plasma_cannon",), ap=4, power=4)
+    _run_turn(enemy, rng_pin=50, monkeypatch=monkeypatch, pref=6)
+    assert shots == []                     # nothing funded at the player
+    assert enemy.ap_remaining == 0         # every AP spent on the dance
+    assert enemy.cells_moved_this_turn > 0

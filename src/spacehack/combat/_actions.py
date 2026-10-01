@@ -527,6 +527,14 @@ def start_player_turn(player_state: dict) -> None:
     player_state["cells_moved_this_turn"] = 0
 
 
+def divert_full_cost(enemy: EnemyInstance) -> int:
+    """The full-rate power price of one paid shield divert (doc 48
+    SETTLED 40). ONE expression shared by the payer
+    (:func:`start_enemy_turn`) and the AI's conservation reserve (doc
+    57.2.5) — the twin must never drift."""
+    return max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
+
+
 def start_enemy_turn(enemy: EnemyInstance) -> None:
     """Reset per-turn resources for an enemy and apply shield regen.
 
@@ -546,7 +554,7 @@ def start_enemy_turn(enemy: EnemyInstance) -> None:
             enemy.shield_regen_threshold * enemy.max_shields
         )
         if enemy.shield_regen_rate > 0 and _below_threshold:
-            full_cost = max(1, enemy.shield_regen_rate - enemy.pilot_engineering // 20)
+            full_cost = divert_full_cost(enemy)
             paid_regen = min(enemy.shield_regen_rate, room, enemy.power_pool * enemy.shield_regen_rate // full_cost)
             if paid_regen > 0:
                 paid_cost = (paid_regen * full_cost + enemy.shield_regen_rate - 1) // enemy.shield_regen_rate

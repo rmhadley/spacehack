@@ -18,6 +18,7 @@ from ..data.quality import effective_ship_weapon_spec
 from ..data.weapons import find_weapon
 
 from ._messages import enemy_attack_line as _enemy_attack_line
+from . import _ai_conservation as _ac
 from ._stats import (
     calc_hit_chance,
     _calc_dodge_bonus,
@@ -150,8 +151,10 @@ async def _engagement_decision(
     player's burst-fire mirror), or one reposition step in band (the
     dodge-tank). With nothing affordable, leftover AP goes to
     repositioning while a legal step exists — a power-dry ship dodges
-    while it recharges. Returns ``"SPENT"``, ``"BREAK"`` (no verb
-    legal), or ``"DEFEAT"``."""
+    while it recharges. The roll reads the BEND (doc 57.2.5): a
+    tanking ship's temperament scales with its shields; a failing
+    hull raises it (the cornered last stand). Returns ``"SPENT"``,
+    ``"BREAK"`` (no verb legal), or ``"DEFEAT"``."""
     _steer = dict(hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam)
     _fire, _band = _volley_picks(_ei, _edist, state.player_state)
     if _band is not None and _edist < _band.min_range:
@@ -163,7 +166,8 @@ async def _engagement_decision(
         # min-penalty (doc 56 SETTLED 24, guns unchanged).
     _rep = _find_reposition(state, _ei, _e_idx, _band) if _band is not None else None
     if _fire is not None and (
-        _rep is None or RNG.randint(1, 100) < _esp.ai_aggressiveness
+        _rep is None
+        or RNG.randint(1, 100) < _ac._effective_aggressiveness(_ei, _esp)
     ):
         if await _enemy_volley(
             state, _ei, target=_flak_pick(state, _ei, _fire), **_steer, ctx=ctx,
@@ -311,14 +315,23 @@ def _select_fire_weapon(_ei, distance: float, player_state: dict):
     return None if not _ranked else (_ranked[0][1], _ranked[0][2])
 
 
-def _member_included(_ei, slot: int, ws, distance: float) -> bool:
-    """The volley's per-member legality (doc 56 SETTLED 24 + doc 57.2):
-    real affordability, plus the missile floor — a flight rack inside
-    its catalog floor is a dead stick this action, the player
-    ``can_fire`` mirror. This supersedes doc 56 SETTLED 24's
-    fire-at-penalized-floor rule for MISSILE members only; lasers and
-    plasma keep the penalty semantics everywhere."""
-    return _weapon_affordable(_ei, slot, ws) and not _mf.catalog_floor(ws) > distance
+def _member_included(
+    _ei, slot: int, ws, distance: float, *, flak: bool = False,
+) -> bool:
+    """The volley's per-member legality (doc 56 SETTLED 24 + doc 57.2
+    + doc 57.2.5): real affordability, the missile floor (a flight
+    rack inside its catalog floor is a dead stick this action, the
+    player ``can_fire`` mirror — supersedes doc 56 SETTLED 24's
+    fire-at-penalized-floor for MISSILE members only), and the
+    conservation reserve (a member sits out when firing it would dip
+    the pool below the protected divert — flak exempt). The ranked
+    affordable walk shares this predicate, so the fire pick is
+    always a member: never a zero-AP "SPENT" spin."""
+    return (
+        _weapon_affordable(_ei, slot, ws)
+        and not _mf.catalog_floor(ws) > distance
+        and _ac._funds_within_reserve(_ei, ws, flak=flak)
+    )
 
 
 def _flak_capable(ws) -> bool:
@@ -364,20 +377,16 @@ def _flak_pick(state, _ei, _fire):
     strips its score), so the volley EV is recomputed from the pick's
     own weapon at the live player distance. ``None`` = shoot the
     shooter. Strip weapons never score here by construction (the
-    score-zero never-picked rule); the pick's membership is the
-    volley's, so a non-None pick always funds at least one firing
-    member (never a zero-AP "SPENT" spin)."""
+    score-zero never-picked rule); the pick scans the SAME gated
+    membership the flak volley builds (doc 57.2.5: flak-exempt from
+    the reserve), so a non-None pick always funds at least one firing
+    member — never a zero-AP "SPENT" spin."""
     _pd = state.player_state
-    _shoot_ev = score_weapon(
-        _fire[1], _distance(_pd["pos"], _ei.pos),
-        _pd.get("shields", 0),
-        _ei.pilot_gunnery, _player_dodge(_pd),
-        weapon_quality=_ei.weapons[_fire[0]].quality,
+    _shoot_ev = _member_score_vs(
+        _ei, _fire[0], _fire[1], _distance(_pd["pos"], _ei.pos), _pd,
     )
     _best = None
-    for _slot, _ws in _slot_weapons(_ei):
-        if not _weapon_affordable(_ei, _slot, _ws) or not _flak_capable(_ws):
-            continue
+    for _slot, _ws in _affordable_members(_ei, 0.0, flak=True):
         for _missile in state.in_flight:
             if _missile.side != "player" or not _missile.alive:
                 continue
@@ -399,13 +408,20 @@ def _ranked_weapons(
     slot). ``affordable_only=False`` ignores the budget — the ranked
     wish list a power-dry ship dances to the top of (SETTLED 40);
     that wish list also ignores the missile floor, keeping a hugged
-    rack-carrier's band governor intact. The affordable walk carries
-    the floor gate (doc 57.2): a grounded rack is not a fire
-    candidate — the fire pick and the volley's members share one
-    legality read, so a non-None pick always fires something."""
+    rack-carrier's band governor intact, but NOT an empty magazine
+    (doc 57.2.5's dry filter: the band follows what the ship can
+    still feed — power recovers next turn, spent rounds do not; a
+    loaded magazine behaves as today down to the last round, no
+    hoarding). The affordable walk carries the floor and reserve
+    gates (doc 57.2 / 57.2.5): a grounded or unfundable weapon is
+    not a fire candidate — the fire pick and the volley's members
+    share one legality read, so a non-None pick always fires
+    something."""
     _dodge = _player_dodge(player_state)
     _ranked = []
     for _slot, _ws in _slot_weapons(_ei):
+        if not affordable_only and _ac._magazine_dry(_ei, _slot, _ws):
+            continue
         if affordable_only and not _member_included(_ei, _slot, _ws, distance):
             continue
         _score = score_weapon(
@@ -423,15 +439,17 @@ def _volley_picks(_ei, distance: float, player_state: dict):
     """``(fire, band)``: the affordable top scorer to FIRE, and the
     band weapon governing the dance (back-off floor + reposition
     window) — the WISH-LIST top over all weapons, budget and floor
-    ignored. Doc 56 SETTLED 24: the fire pick's ROLE is the
-    fire-vs-dodge gate only — the engagement decision fires the whole
-    affordable VOLLEY (inclusion is affordability alone, never the
-    score filter). The band reads the wish list so a rack benched by
-    its floor still governs the dance: a hugged mixed loadout backs
-    off to restoration instead of collapsing into gun range with the
-    rack silent forever (doc 57.2 playtest fix — the rack-only
-    power-dry read generalized: the ship dances where its best
-    weapon fights from). Both ``None`` = weaponless: no decision
+    ignored (empty magazines drop out, doc 57.2.5). Doc 56 SETTLED
+    24, as amended by docs 57.2/57.2.5: the fire pick's ROLE is the
+    fire-vs-dodge gate only, and volley inclusion is affordability
+    plus the floor, reserve, and score-zero gates (the enemy's
+    expression of the player's toggles — a strip weapon into bare
+    shields sits out). The band reads the wish list so a rack benched
+    by its floor still governs the dance: a hugged mixed loadout
+    backs off to restoration instead of collapsing into gun range
+    with the rack silent forever (doc 57.2 playtest fix — the
+    rack-only power-dry read generalized: the ship dances where its
+    best weapon fights from). Both ``None`` = weaponless: no decision
     point, breaks at once (SETTLED 40)."""
     _fire = _select_fire_weapon(_ei, distance, player_state)
     _wish = _ranked_weapons(_ei, distance, player_state, affordable_only=False)
@@ -589,20 +607,44 @@ def _slot_weapons(_ei):
             continue
 
 
-def _affordable_members(_ei, distance: float, *, flak: bool = False) -> list:
-    """The volley's inclusion walk (doc 56 SETTLED 24, ADVISE minor
-    6; doc 57.2): weapon SLOTS by the per-member legality check —
-    never ``_ranked_weapons`` wholesale, whose score filter would
-    drop a score-zero strip weapon the player mirror still fires (the
-    score filter governs the band/reaction pickers only). A FLAK
-    volley at ordnance additionally requires capability (doc 57.2):
-    racks can never connect with a missile and strip weapons no-op on
-    it."""
-    return [
-        (_slot, _ws) for _slot, _ws in _slot_weapons(_ei)
-        if _member_included(_ei, _slot, _ws, distance)
-        and (not flak or _flak_capable(_ws))
-    ]
+def _member_score_vs(_ei, slot: int, ws, distance: float, player_state: dict):
+    """One member's expected value against the player — the score-zero
+    read the ship volley's membership takes (doc 57.2.5)."""
+    return score_weapon(
+        ws, distance, player_state.get("shields", 0),
+        _ei.pilot_gunnery, _player_dodge(player_state),
+        weapon_quality=_ei.weapons[slot].quality,
+    )
+
+
+def _affordable_members(
+    _ei, distance: float, player_state: dict | None = None, *,
+    flak: bool = False,
+) -> list:
+    """The volley's inclusion walk (doc 56 SETTLED 24 as amended by
+    docs 57.2/57.2.5): weapon SLOTS by the per-member legality check
+    (affordability, missile floor, conservation reserve), never
+    ``_ranked_weapons`` wholesale — the walks sort differently and the
+    volley fires in slot order. A SHIP volley also drops SCORE-ZERO
+    members when the target is readable (doc 57.2.5: expected value
+    vs the player is 0 — a strip weapon into bare shields sits out;
+    the enemy's toggles-off expression). A FLAK volley at ordnance
+    requires capability instead (racks can never connect with a
+    missile, strip weapons no-op on it) and never pays the reserve
+    (point defense is survival)."""
+    _members = []
+    for _slot, _ws in _slot_weapons(_ei):
+        if not _member_included(_ei, _slot, _ws, distance, flak=flak):
+            continue
+        if flak and not _flak_capable(_ws):
+            continue
+        if (
+            not flak and player_state is not None
+            and _member_score_vs(_ei, _slot, _ws, distance, player_state) <= 0
+        ):
+            continue
+        _members.append((_slot, _ws))
+    return _members
 
 
 async def _launch_enemy_missile(state, _ei, _slot: int, ws) -> str | None:
@@ -694,16 +736,22 @@ async def _run_volley_members(
     state, _ei, _members, target, *,
     hit_chances, evade_bonus, calc_cam, ctx,
 ) -> tuple[str | None, int]:
-    """The member loop (doc 56 SETTLED 24; doc 57.2): fire in slot
-    order with the per-member affordability RE-GATE (the pool never
-    overdrafts), break on player death or the flak target's death
-    (the player mirror's mid-volley break), pay power/ammo per member.
-    Returns ``(outcome, max_ap)`` — the AP payment is the caller's."""
+    """The member loop (doc 56 SETTLED 24; docs 57.2/57.2.5): fire in
+    slot order with the per-member affordability + reserve RE-GATE
+    (the pool never overdrafts and never dips below the protected
+    divert — sequential fire enforces the floor cumulatively; flak
+    pays no reserve), break on player death or the flak target's
+    death (the player mirror's mid-volley break), pay power/ammo per
+    member. Returns ``(outcome, max_ap)`` — the AP payment is the
+    caller's."""
+    _flak = target is not None
     _max_ap = 0
     _outcome = None
     for _slot, _ws in _members:
         if not _weapon_affordable(_ei, _slot, _ws):
             continue  # mid-volley decay: an earlier member drained the pool
+        if not _ac._funds_within_reserve(_ei, _ws, flak=_flak):
+            continue  # the reserve holds — the tanking ship stops here
         if target is not None and not target.alive:
             break  # the inbound died mid-volley — stop wasting rounds
         _outcome = await _volley_member(
@@ -735,7 +783,9 @@ async def _enemy_volley(
         target.pos if target is not None else state.player_state["pos"],
         _ei.pos,
     )
-    _members = _affordable_members(_ei, _dist, flak=target is not None)
+    _members = _affordable_members(
+        _ei, _dist, state.player_state, flak=target is not None,
+    )
     if not _members:
         return None
     state.enemy_fired = True
