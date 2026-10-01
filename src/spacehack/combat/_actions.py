@@ -452,6 +452,11 @@ def resolve_damage(
     quality multiplies damage — both sides pass their rolled instance
     tier (enemy fire and the player's flown weapons alike)."""
     weapon = find_weapon(weapon_id)
+    if weapon.shield_strip_pct > 0:
+        # The boss-key (doc 56 SETTLED 34): strips ALL current shields
+        # — the magazine (2/flight, restocked at a mechanic) is the
+        # balance lever, never the strip.
+        return 0, target_shields, target_hull, False
     if weapon.shield_strip > 0:
         strip = min(weapon.shield_strip, target_shields)
         return 0, strip, target_hull, False

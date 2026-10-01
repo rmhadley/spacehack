@@ -254,8 +254,12 @@ def score_weapon(
         weapon_quality=weapon_quality,
     )
     _ap = weapon_costs(ws)[0]
-    if ws.shield_strip > 0:
-        return min(ws.shield_strip, target_shields) * (_chance / 100.0) / _ap
+    if ws.shield_strip_pct > 0 or ws.shield_strip > 0:
+        _strip = (
+            target_shields if ws.shield_strip_pct > 0
+            else min(ws.shield_strip, target_shields)
+        )
+        return _strip * (_chance / 100.0) / _ap
     _damage = effective_ship_weapon_spec(ws.id, weapon_quality).damage
     return _damage * (_chance / 100.0) / _ap
 

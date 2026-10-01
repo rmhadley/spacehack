@@ -514,6 +514,37 @@ signature 80/72/68 untouched). Feel-refereed ("we'll see how that
 feels") + probe pending after the weapons family closes (five NPC
 specs fly heavy_laser — enemy-side strengthening to measure).
 
+34. **EMP is the boss-key: 100% strip** (2026-10-01, parts walk
+    family 7 conclusion). User's frame: "I like in my roguelikes for
+    things to have a purpose. Enemies should have a counter. Some big
+    juggernaut of a ship needing an expensive EMP missile to wipe its
+    shields out fits that mindset. Like in DCSS you might save a high
+    piety god ability specifically for a hard unique encounter." The
+    flat-strip EMP was dominated by plasma (a 24-dmg burst strips
+    more than strip 20 AND carries to hull AND quality-scales — strip
+    didn't); the 50% counter-pick proposal got superseded at the
+    ruling: **shield_strip_pct = 100** — one hit removes ALL current
+    shields. The MAGAZINE is the balance lever: 2 rounds per FLIGHT,
+    restocked at a mechanic (25cr/round) — save the key for the
+    captain/warlord, waste it on a raider's 15-shield capacitor.
+    Anti-stack by construction (the bigger the pool, the more it
+    takes); bare shields = a dead shot (scorer reads zero, still
+    never AI-fired at bare targets); quality-neutral by construction.
+    Mechanically one new spec field read by the strip branch and the
+    scorer; magazine/price/cells untouched; nobody flies it (zero
+    NPC cascade). Missile-family verdict: light/heavy HOLD for the
+    probe (the volley flipped their economics — free watts, the
+    2-AP action tax, dry racks as dead cells, ported alpha restocked
+    at the AMMO tab); plasma PASSES untouched (the sustain king, the
+    center of the user's build). **The parts walk is COMPLETE** —
+    eight families: shields/reactors/targeting/gyro/armor restructured
+    (26-28, 29, 30, 31), cargo/holds passed clean (32 + the holds
+    note), weapons = lasers retuned + EMP re-invented + missiles/
+    plasma held (33-34). Phase 4 continues as the probe-driven
+    magnitude pass over the result, with the walk's open dials:
+    faster-upkeep-scaling (SETTLED 30), the 95 clamp, missile feel,
+    EMP's warlord impact.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:

@@ -68,15 +68,25 @@ class TestResolveDamage:
     # ---- EMP path ----
 
     def test_emp_strips_shields(self):
-        """emp_missile has shield_strip=20, damage=0."""
+        """The EMP boss-key (SETTLED 34): strips ALL current shields,
+        zero hull damage — however fat the pool. On bare shields it
+        connects for nothing (the scorer reads the same zero)."""
         _seed(42)
         hull_dmg, shield_dmg, final_hull, glancing = resolve_damage(
             "emp_missile", target_hull=100, target_shields=50,
         )
-        assert shield_dmg == 20
+        assert shield_dmg == 50        # the whole pool, not a flat number
         assert hull_dmg == 0
         assert final_hull == 100
         assert glancing is False
+        hull_dmg, shield_dmg, final_hull, _ = resolve_damage(
+            "emp_missile", target_hull=100, target_shields=190,
+        )
+        assert shield_dmg == 190       # anti-stack: the bigger, the more
+        hull_dmg, shield_dmg, _, _ = resolve_damage(
+            "emp_missile", target_hull=100, target_shields=0,
+        )
+        assert (hull_dmg, shield_dmg) == (0, 0)   # bare: dead shot
 
     def test_emp_partial_strip(self):
         """EMP against a target with fewer shields than strip value."""
