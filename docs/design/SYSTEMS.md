@@ -1353,7 +1353,10 @@ nobody designs against a ghost.
 - **Ship ops** — weapon/module install/remove with slot re-indexing
   and ammo seeding; effective speed/cargo math; missile rack
   capacity resolves through ONE helper (`effective_missile_capacity`
-  — ×2 for the Bounty Hunter) at every capacity site: seeding,
+  — the Missile Magazine's per-rack bonus first, then ×2 for the
+  Bounty Hunter; EMP launchers HARD-CAPPED at authored 2, never
+  expanded, never doubled, doc 56 SETTLED 34/35) at every capacity
+  site: seeding,
   refill room, storage clamps, `cargo_ammo` booking + its save/load
   restore, HUD/loadout/mechanic displays, and the fresh-buy
   top-off (`ship.py`; `saveload_ship.py`). Doc 56 (player-side
