@@ -406,20 +406,21 @@ def is_flight_weapon(weapon_id: str) -> bool:
     instant path)."""
     return _missile_flight.is_flight_weapon(weapon_id)
 
-def launch_flight_missile(ctx, slot_idx: int, target) -> None:
-    """Spawn the flight entity for one volley member (doc 57 SETTLED 1):
-    ammo/power/AP pay at launch exactly as today — the crossing entity
-    resolves at the round boundary."""
-    _missile_flight.spawn_flight_missile(
+async def launch_flight_missile(ctx, slot_idx: int, target) -> None:
+    """Deploy the flight missile for one volley member (doc 57 SETTLED
+    11): it appears near the shooter and makes its launch half-move —
+    ammo/power/AP pay at launch exactly as today."""
+    await _missile_flight.spawn_flight_missile(
         _state, _state.weapons_list[slot_idx], target,
         side="player", quality=player_weapon_quality(ctx, slot_idx),
         launch_pos=_state.player_state["pos"],
     )
 
-async def advance_flights(ctx, game_map: world.GameMap) -> None:
-    """Round-boundary flight advance (doc 57 SETTLED 1) — after enemy
-    turns and reinforcements, before the player's next action."""
-    await _missile_flight.advance_flights(_state, ctx, game_map)
+async def advance_flights(ctx, game_map: world.GameMap) -> str | None:
+    """The shooter's mini-turn (doc 57 SETTLED 11.9) — the player's
+    missiles move at the start of the player's turn; ``"DEFEAT"`` when
+    one kills the player (self-splash is live)."""
+    return await _missile_flight.advance_flights(_state, ctx, game_map)
 
 async def on_intercept_kill(ctx, game_map: world.GameMap, missile) -> None:
     """The intercept finish (doc 57): entity popped, explosion beat,

@@ -1,11 +1,15 @@
-"""Missile flight (doc 57 phase 1) — the crossing-entity domain.
+"""Missile flight (doc 57, SETTLED 11 flight model v2) — the
+crossing-entity domain.
 
-Pins the ruled rows (SETTLED 3/7), the advance math (SETTLED 1: hop,
-re-vector, fuel, arrival/overshoot), the guidance roll at arrival
-(SETTLED 5), the hard floor (SETTLED 2), interception through the
-merged targeting space (SETTLED 6), the bookkeeping split (intercept
-records NOTHING; arrival runs the full kill chain), the non-blocking
-entity pin, and the every-end-path cleanup sweep.
+Pins the ruled rows (SETTLED 3/7), the v2 deploy-stagger-mini-turn
+cycle: spawn near the shooter (never on it), the launch half-move,
+the shooter's mini-turn one missile at a time, same-shooter avoidance,
+contact detonation on any ship (full damage on contact — ruling),
+harmless terrain detonation, the guidance roll (SETTLED 5), the hard
+floor (SETTLED 2), interception through the merged targeting space
+(SETTLED 6), the bookkeeping split (flak kills ordnance never touches
+on_kill; any SHIP kill runs the full chain), the non-blocking entity
+pin, and the every-end-path cleanup sweep.
 """
 
 from __future__ import annotations
@@ -55,9 +59,9 @@ def _fake_rng(*, roll: int = 1, spread: float = 1.0) -> SimpleNamespace:
 
 
 def _pin_rng(monkeypatch, *, roll: int = 1, spread: float = 1.0) -> None:
-    """Pin every RNG read the arrival/intercept paths make — the
-    call-time ``engine.RNG`` import and the module-bound copies
-    (``_actions`` resolves damage; ``_loop`` rolls the hit)."""
+    """Pin every RNG read the contact paths make — the call-time
+    ``engine.RNG`` import and the module-bound copies (``_actions``
+    resolves damage; ``_loop`` rolls the flak hit)."""
     import src.spacehack.engine as _engine
 
     fake = _fake_rng(roll=roll, spread=spread)
@@ -119,8 +123,32 @@ def _flight_fixture(
     return _ctx, _state, _old
 
 
+def _manual_missile(
+    state, at: tuple[int, int], target, *, weapon_id: str = "heavy_missile",
+    fuel: int | None = None, speed: int | None = None, side: str = "player",
+) -> InFlightMissile:
+    """Mount a missile by hand (movement-rule tests): no launch line,
+    no spawn logic — the rules under test start at the first move."""
+    _ws = find_weapon(weapon_id)
+    _missile = InFlightMissile(
+        weapon_id=weapon_id, pos=world.Position(*at), target=target,
+        side=side, hull=_ws.missile_hp, max_hull=_ws.missile_hp,
+        fuel=_ws.max_range if fuel is None else fuel,
+        flight_speed=_ws.flight_speed if speed is None else speed,
+        name=_ws.name,
+        char=_missile_flight._GLYPH_BY_WEAPON.get(weapon_id, "*"),
+        fg=_missile_flight.PLAYER_FG if side == "player" else _missile_flight.HOSTILE_FG,
+    )
+    _missile.ent = world.Entity(
+        _missile.char, _missile.fg, _missile.pos, non_blocking=True,
+    )
+    state.game_map.entities.append(_missile.ent)
+    state.in_flight.append(_missile)
+    return _missile
+
+
 def _patch_flights(monkeypatch) -> list:
-    """No-op the render/explosion beats; record kill-chain calls."""
+    """No-op the render/explosion/death beats; record kill-chain calls."""
     calls: list = []
 
     async def _no_render(*_a, **_kw):
@@ -132,11 +160,16 @@ def _patch_flights(monkeypatch) -> list:
     async def _record_kill(state, game_map, enemy, ctx):
         calls.append((state, game_map, enemy, ctx))
 
+    async def _no_death(*_a, **_kw):
+        pass
+
+    import src.spacehack.combat._ai as _ai_mod
     import src.spacehack.combat._space_kills as _kills
 
     monkeypatch.setattr(_missile_flight, "_render_hop_frame", _no_render)
     monkeypatch.setattr(_kills, "_animate_kill_explosion", _no_explosion)
     monkeypatch.setattr(_kills, "on_kill", _record_kill)
+    monkeypatch.setattr(_ai_mod, "_present_ship_destruction", _no_death)
     return calls
 
 
@@ -239,12 +272,8 @@ class TestGuidanceRoll:
         assert guidance_hit_chance("emp_missile", 0, 100) == 5
 
     def test_no_range_terms(self):
-        # Distance never enters: the roll is identical point-blank and
-        # at max range (range was paid at launch).
-        assert (
-            guidance_hit_chance("heavy_missile", 10, 0)
-            == guidance_hit_chance("heavy_missile", 10, 0)
-        )
+        # Distance never enters: the roll is identical at any standoff
+        # (range was paid at launch).
         import inspect
         assert "dist" not in inspect.signature(guidance_hit_chance).parameters
 
@@ -256,49 +285,96 @@ class TestGuidanceRoll:
         assert _tier >= _base  # tier never degrades the launcher
 
 
-# --- spawn + merged targeting (SETTLED 6) --------------------------------------
+# --- deploy: spawn near the shooter + the launch half-move (11.2-5) --------------
 
 
-class TestSpawnAndMergedSpace:
-    def test_launch_mounts_a_non_blocking_entity_and_lines(self):
-        _ctx, _state, _old = _flight_fixture()
+class TestDeploy:
+    def test_appears_near_you_but_not_on_you_then_half_moves(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture()  # enemy at (6,0)
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
-            assert _state.in_flight == [_missile]
+            ))
             assert _missile.ent in _state.game_map.entities
             assert _missile.ent.non_blocking is True
-            assert _missile.ent.char == "♦"   # family by shape (SETTLED 10)
-            assert _missile.ent.fg == _missile_flight.PLAYER_FG
-            assert (_missile.hull, _missile.max_hull, _missile.fuel) == (6, 6, 13)
+            assert (_missile.pos.x, _missile.pos.y) == (2, 0)  # spawn (1,0) + half 1
+            assert _missile.ent.pos == _missile.pos
+            assert (_missile.hull, _missile.max_hull, _missile.fuel) == (6, 6, 12)
             assert _ctx.log.lines == ["Heavy missile away."]
         finally:
             _rules_space._state = _old
 
-    def test_light_missile_glyph_is_the_star(self):
-        _ctx, _state, _old = _flight_fixture()
+    def test_light_deploys_half_of_four(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(
+            weapons=("light_missile",),
+        )
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "light_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
-            assert _missile.ent.char == "*"
+            ))
+            assert (_missile.pos.x, _missile.pos.y) == (3, 0)  # (1,0) + half 2
+            assert _missile.ent.char == "*"  # family by shape (SETTLED 10)
+            assert _missile.fuel == 7
             assert _ctx.log.lines == ["Light missile away."]
         finally:
             _rules_space._state = _old
 
-    def test_targetables_orders_ships_then_missiles(self):
+    def test_volley_members_stagger_and_never_stack(self, monkeypatch):
+        # SETTLED 11.1-6: two heavies deploy one after the other; the
+        # second sees the first's rest position on its track and
+        # sidesteps — distinct cells, both alive.
+        _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile_flight.spawn_flight_missile(
+            _a = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
+            _b = run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _state.enemy_insts[0],
+                side="player", quality=0,
+                launch_pos=_state.player_state["pos"],
+            ))
+            assert (_a.pos.x, _a.pos.y) == (2, 0)
+            assert (_b.pos.x, _b.pos.y) == (2, 1)  # avoided A's cell
+            assert _a is not _b and _a.alive and _b.alive
+        finally:
+            _rules_space._state = _old
+
+    def test_launch_half_move_clips_an_adjacent_enemy(self, monkeypatch):
+        # Enemy within half-move reach of the shooter: the deploy
+        # stagger can't clear it — contact at launch (full damage on
+        # contact, SETTLED 11.7).
+        _calls = _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(2, 0), enemy_hull=100)
+        try:
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            _missile = run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _state.enemy_insts[0],
+                side="player", quality=0,
+                launch_pos=_state.player_state["pos"],
+            ))
+            assert _missile not in _state.in_flight   # warhead spent at launch
+            assert _state.enemy_insts[0].hull == 36   # 100 - 64 on contact
+        finally:
+            _rules_space._state = _old
+
+    def test_targetables_orders_ships_then_missiles(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture()
+        try:
+            run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _state.enemy_insts[0],
+                side="player", quality=0,
+                launch_pos=_state.player_state["pos"],
+            ))
             merged = _rules_space.targetables(None)
             assert len(merged) == 2
             assert merged[0] is _state.enemy_insts[0]
@@ -361,17 +437,6 @@ class TestFloorGate:
         finally:
             _rules_space._state = _old
 
-    def test_emp_keeps_penalty_semantics_inside_its_min(self):
-        # EMP is not a flight weapon: dist 1 sits inside its min 2 and
-        # the rack still fires (the accuracy penalty, not a refusal).
-        _ctx, _state, _old = _flight_fixture(
-            weapons=("emp_missile",), enemy_at=(1, 0),
-        )
-        try:
-            assert _rules_space.can_fire(0, _ctx) == (True, "")
-        finally:
-            _rules_space._state = _old
-
     def test_focus_never_widens_the_refusal_band(self):
         _ctx, _state, _old = _flight_fixture(
             weapons=("heavy_missile",), enemy_at=(6, 0), traits=("focus",),
@@ -419,11 +484,11 @@ class TestInterception:
         _calls = _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             run(_missile_flight.finish_intercept(
                 _state, _ctx, _state.game_map, _missile,
             ))
@@ -441,91 +506,93 @@ class TestInterception:
         _calls = _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture(weapons=("light_laser",))
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            run(_missile_flight.spawn_flight_missile(
                 _state, "light_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _pin_rng(monkeypatch, roll=50)  # 50 <= 85%: the flak shot lands
 
             async def _no_anim(*_a, **_kw):
                 pass
 
             monkeypatch.setattr(_rules_space, "animate_fire", _no_anim)
-            _state.target_idx = 1  # the missile in the merged space
             run(_loop._handle_fire(None, _ctx, _state.game_map, _rules_space, 1))
             assert "Missile destroyed." in _ctx.log.lines
-            assert _missile not in _state.in_flight
+            assert _state.in_flight == []
             assert _calls == []
             assert _state.player_state["ap_remaining"] == 7  # 1 AP flak shot
         finally:
             _rules_space._state = _old
 
 
-# --- arrival (SETTLED 1/5) -------------------------------------------------------
+# --- the shooter's mini-turn + contact rules (SETTLED 11.6-9) --------------------
 
 
-class TestArrival:
-    def test_advance_hops_renders_and_burns_fuel(self, monkeypatch):
+class TestMiniTurn:
+    def test_full_move_at_the_start_of_the_shooters_turn(self, monkeypatch):
         _patch_flights(monkeypatch)
-        _ctx, _state, _old = _flight_fixture()
+        _ctx, _state, _old = _flight_fixture()  # enemy at (6,0)
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
+            assert (_missile.pos.x, _missile.pos.y) == (2, 0)  # launch half-move
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
-            assert (_missile.pos.x, _missile.pos.y) == (2, 0)  # speed 2
-            assert _missile.fuel == 11
-            assert _missile.ent.pos == _missile.pos
+            assert (_missile.pos.x, _missile.pos.y) == (4, 0)  # full speed 2
+            assert _missile.fuel == 10
         finally:
             _rules_space._state = _old
 
-    def test_arrival_miss_is_a_harmless_detonation(self, monkeypatch):
+    def test_contact_with_the_target_arrives_through_guidance(
+        self, monkeypatch,
+    ):
         _calls = _patch_flights(monkeypatch)
-        _ctx, _state, _old = _flight_fixture(enemy_at=(1, 0))
+        _ctx, _state, _old = _flight_fixture(enemy_at=(3, 0), enemy_hull=100)
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
-            _pin_rng(monkeypatch, roll=99)  # 99 > 77%: guidance misses
-            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
-            assert "Missile detonates short." in _ctx.log.lines
-            assert _state.enemy_insts[0].hull == 40  # zero damage
-            assert _missile not in _state.in_flight
-            assert _calls == []
-        finally:
-            _rules_space._state = _old
-
-    def test_arrival_hit_ride_the_resolve_path(self, monkeypatch):
-        _calls = _patch_flights(monkeypatch)
-        _ctx, _state, _old = _flight_fixture(enemy_at=(1, 0), enemy_hull=100)
-        try:
-            _missile = _missile_flight.spawn_flight_missile(
-                _state, "heavy_missile", _state.enemy_insts[0],
-                side="player", quality=0,
-                launch_pos=_state.player_state["pos"],
-            )
+            ))
             _pin_rng(monkeypatch, roll=50, spread=1.0)  # mult 1.0: full 64
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
             _enemy = _state.enemy_insts[0]
             assert _enemy.hull == 100 - 64  # the doubled base through quality
             assert _enemy.alive is True and _calls == []
+            assert _state.in_flight == []   # the warhead is spent
         finally:
             _rules_space._state = _old
 
-    def test_arrival_kill_runs_the_full_kill_chain(self, monkeypatch):
+    def test_contact_miss_is_a_harmless_detonation(self, monkeypatch):
         _calls = _patch_flights(monkeypatch)
-        _ctx, _state, _old = _flight_fixture(enemy_at=(1, 0), enemy_hull=40)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(3, 0))
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
+            _pin_rng(monkeypatch, roll=99)  # 99 > 77%: guidance misses
+            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
+            assert "Missile detonates short." in _ctx.log.lines
+            assert _state.enemy_insts[0].hull == 40  # zero damage
+            assert _state.in_flight == []
+            assert _calls == []
+        finally:
+            _rules_space._state = _old
+
+    def test_contact_kill_runs_the_full_kill_chain(self, monkeypatch):
+        _calls = _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(3, 0), enemy_hull=40)
+        try:
+            run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _state.enemy_insts[0],
+                side="player", quality=0,
+                launch_pos=_state.player_state["pos"],
+            ))
             _pin_rng(monkeypatch, roll=50, spread=1.0)
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
             _enemy = _state.enemy_insts[0]
@@ -535,37 +602,145 @@ class TestArrival:
         finally:
             _rules_space._state = _old
 
-    def test_arrival_at_a_missile_takes_the_intercept_branch(self, monkeypatch):
-        # A flight rack fired at a crossing MISSILE (the merged fire
-        # path allows it): arrival destroys ordnance through the
-        # intercept bookkeeping — never the ship kill chain, no crash
-        # on a spec_id that ordnance does not have.
+    def test_contact_with_a_non_target_deals_full_damage(self, monkeypatch):
+        # SETTLED 11.7, ruling: full damage on contact, target or not.
+        # An escort stands on the track; the target stands beyond it.
         _calls = _patch_flights(monkeypatch)
-        _ctx, _state, _old = _flight_fixture()
+        _ctx, _state, _old = _flight_fixture(enemy_at=(8, 0), enemy_hull=90)
         try:
-            _missile = _missile_flight.spawn_flight_missile(
-                _state, "heavy_missile", None,  # target patched below
+            _escort = EnemyInstance(
+                spec_id="escort", name="Escort", char="E",
+                fg=(255, 100, 100), pos=world.Position(2, 0),
+                hull=50, max_hull=50, shields=0, max_shields=0,
+                pilot_piloting=0, cells_moved_this_turn=0,
+            )
+            _state.enemy_insts.append(_escort)
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            _missile = run(_missile_flight.spawn_flight_missile(
+                _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
-            _target_missile = InFlightMissile(
-                weapon_id="light_missile", pos=world.Position(2, 0),
-                hull=2, max_hull=2, name="Light Missile",
-            )
-            _target_missile.ent = world.Entity(
-                "*", _missile_flight.PLAYER_FG, world.Position(2, 0),
-                non_blocking=True,
-            )
-            _state.game_map.entities.append(_target_missile.ent)
-            _state.in_flight.append(_target_missile)  # after the attacker
-            _missile.target = _target_missile
-            _pin_rng(monkeypatch, roll=50, spread=1.0)  # guidance hits
+            ))
+            assert _missile not in _state.in_flight   # spent on the escort
+            assert _escort.alive is False  # the escort ate the warhead
+            assert len(_calls) == 1 and _calls[0][2] is _escort  # full chain
+            assert _state.enemy_insts[0].hull == 90  # the target untouched
+        finally:
+            _rules_space._state = _old
+
+    def test_self_splash_damages_and_can_defeat_the_player(self, monkeypatch):
+        # The player's own hull is a ship (SETTLED 11.7): a track that
+        # clips it detonates on it — DEFEAT included.
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(2, 0))
+        try:
+            _state.player_state["pos"] = world.Position(4, 0)
+            _state.player_state["hull"] = 10
+            _missile = _manual_missile(_state, (6, 0), _state.enemy_insts[0])
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            _outcome = run(_missile_flight.advance_flights(
+                _state, _ctx, _state.game_map,
+            ))
+            assert _outcome == "DEFEAT"
+            assert _state.player_state["hull"] <= 0
+            assert _state.last_attacker == "Your own Heavy Missile"
+            assert "detonates on your own hull" in " ".join(_ctx.log.lines)
+            assert _missile not in _state.in_flight
+        finally:
+            _rules_space._state = _old
+
+    def test_terrain_collision_detonates_harmlessly(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(5, 0))
+        try:
+            _state.game_map.tiles[0][2] = world.WALL  # planet hull on the track
+            _missile = _manual_missile(_state, (1, 0), _state.enemy_insts[0])
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
-            assert "Missile destroyed." in _ctx.log.lines
-            assert _target_missile not in _state.in_flight
-            assert _target_missile.ent not in _state.game_map.entities
-            assert _calls == []  # intercept bookkeeping only
-            assert _missile not in _state.in_flight  # spent on impact
+            assert "Missile detonates short." in _ctx.log.lines
+            assert _missile not in _state.in_flight
+            assert _missile.ent not in _state.game_map.entities
+            assert (_missile.pos.x, _missile.pos.y) == (1, 0)  # never entered
+            assert _state.enemy_insts[0].alive is True
+        finally:
+            _rules_space._state = _old
+
+    def test_same_shooter_missiles_are_actively_avoided(self, monkeypatch):
+        # SETTLED 11.6: A rests (dry tank) on B's track; B sidesteps to
+        # the best progress-preserving free neighbor — never A's cell.
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(6, 0))
+        try:
+            _a = _manual_missile(
+                _state, (3, 0), _state.enemy_insts[0], fuel=0,
+            )  # dry: immobile blocker
+            _b = _manual_missile(_state, (1, 0), _state.enemy_insts[0])
+            run(_missile_flight._travel(
+                _state, _ctx, _state.game_map, _b, _b.flight_speed,
+            ))
+            assert (_a.pos.x, _a.pos.y) == (3, 0)   # A never moved
+            assert (_b.pos.x, _b.pos.y) == (3, 1)   # B sidestepped around A
+            assert _a.alive and _b.alive
+        finally:
+            _rules_space._state = _old
+
+    def test_boxed_missile_holds_station_without_burning_fuel(self, monkeypatch):
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(6, 0))
+        try:
+            _a = _manual_missile(
+                _state, (2, 0), _state.enemy_insts[0], fuel=0,
+            )  # dry: immobile blocker
+            _b = _manual_missile(_state, (1, 0), _state.enemy_insts[0])
+            # Box B in: wall off every other neighbor of (1,0).
+            for _x, _y in ((0, 0), (0, 1), (1, 1), (2, 1)):
+                _state.game_map.tiles[_y][_x] = world.WALL
+            run(_missile_flight._travel(
+                _state, _ctx, _state.game_map, _b, _b.flight_speed,
+            ))
+            assert (_b.pos.x, _b.pos.y) == (1, 0)   # held
+            assert _b.fuel == 13                     # no station-keeping burn
+            assert _b.alive and _a.alive
+        finally:
+            _rules_space._state = _old
+
+    def test_missiles_never_detonate_on_missiles(self, monkeypatch):
+        # SETTLED 11.6: a rack fired at a crossing MISSILE is a legal
+        # dud — the missile avoids it, never detonates on it.
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(8, 0))
+        try:
+            _a = _manual_missile(
+                _state, (4, 0), _state.enemy_insts[0], fuel=0,
+            )  # dry: immobile blocker
+            _b = _manual_missile(_state, (1, 0), _a)  # targeting ordnance
+            run(_missile_flight._travel(
+                _state, _ctx, _state.game_map, _b, _b.flight_speed,
+            ))
+            assert _a.alive is True
+            assert _b.alive is True
+            assert (_b.pos.x, _b.pos.y) != (_a.pos.x, _a.pos.y)
+            assert "Missile destroyed." not in _ctx.log.lines
+        finally:
+            _rules_space._state = _old
+
+    def test_ship_parking_on_a_resting_missile_detonates_it(
+        self, monkeypatch,
+    ):
+        # Contact reads on entry — except a ship that parks ON a
+        # resting missile (they are non-blocking): the next mini-turn
+        # reads that as contact (SETTLED 11.7).
+        _calls = _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(5, 0))
+        try:
+            _a = _manual_missile(
+                _state, (3, 0), _state.enemy_insts[0], fuel=0,
+            )  # dry: immobile, resting in the open
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            _state.enemy_insts[0].pos = world.Position(3, 0)  # the ship parks
+            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
+            assert _a not in _state.in_flight   # detonated under the hull
+            assert _a.ent not in _state.game_map.entities
+            assert len(_calls) == 1             # full kill chain ran
         finally:
             _rules_space._state = _old
 
@@ -573,11 +748,11 @@ class TestArrival:
         _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _state.enemy_insts[0].alive = False
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
             assert _missile not in _state.in_flight
@@ -590,23 +765,14 @@ class TestArrival:
         _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture(enemy_at=(10, 0))
         try:
-            _missile = InFlightMissile(
-                weapon_id="light_missile", pos=world.Position(0, 0),
-                target=_state.enemy_insts[0],
-                hull=2, max_hull=2, fuel=5, flight_speed=4,
-                name="Light Missile",
+            _missile = _manual_missile(
+                _state, (1, 0), _state.enemy_insts[0],
+                weapon_id="light_missile", fuel=3,
             )
-            _missile.ent = world.Entity(
-                "*", _missile_flight.PLAYER_FG, world.Position(0, 0),
-                non_blocking=True,
-            )
-            _state.game_map.entities.append(_missile.ent)
-            _state.in_flight.append(_missile)
-            run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
-            assert (_missile.pos.x, _missile.pos.y) == (4, 0) and _missile.fuel == 1
             run(_missile_flight.advance_flights(_state, _ctx, _state.game_map))
             assert "Missile exhausts its fuel." in _ctx.log.lines
-            assert _missile not in _state.in_flight  # short of the target at 10
+            assert _missile not in _state.in_flight
+            assert (_missile.pos.x, _missile.pos.y) == (4, 0)  # ran dry mid-track
         finally:
             _rules_space._state = _old
 
@@ -627,6 +793,7 @@ class TestLaunchPath:
             assert _ctx.log.lines == ["Heavy missile away."]
             assert _state.enemy_insts[0].hull == 40  # nothing resolved yet
             assert len(_state.in_flight) == 1
+            assert (_state.in_flight[0].pos.x, _state.in_flight[0].pos.y) == (2, 0)
             assert _state.player_state["weapon_ammo"][0] == 3  # round spent
             assert _ctx.player_counters.missile_shots == 1
             assert _calls == []
@@ -658,28 +825,30 @@ class TestLaunchPath:
 
 
 class TestBoardAndEndCheck:
-    def test_d_on_a_missile_target_denies(self):
+    def test_d_on_a_missile_target_denies(self, monkeypatch):
+        _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile_flight.spawn_flight_missile(
+            run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _state.target_idx = 1  # the missile
             assert _rules_space.try_board(_ctx, _state.game_map, 1) is False
             assert "Nothing to board." in _ctx.log.lines
         finally:
             _rules_space._state = _old
 
-    def test_end_check_ignores_live_missiles(self):
+    def test_end_check_ignores_live_missiles(self, monkeypatch):
+        _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile_flight.spawn_flight_missile(
+            run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _state.enemy_insts[0].alive = False
             assert _rules_space.get_enemies(_ctx) == []
             assert _rules_space.combat_should_end(
@@ -722,14 +891,15 @@ class TestNonBlocking:
 
 
 class TestCleanupSweep:
-    def test_sync_state_sweeps_flights_and_entities(self):
+    def test_sync_state_sweeps_flights_and_entities(self, monkeypatch):
+        _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _rules_space.sync_state(_ctx)
             assert _state.in_flight == []
             assert _missile.ent not in _state.game_map.entities
@@ -737,14 +907,15 @@ class TestCleanupSweep:
         finally:
             _rules_space._state = _old
 
-    def test_activate_combat_state_sweeps_a_leftover_fight(self):
+    def test_activate_combat_state_sweeps_a_leftover_fight(self, monkeypatch):
+        _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
-            _missile = _missile_flight.spawn_flight_missile(
+            _missile = run(_missile_flight.spawn_flight_missile(
                 _state, "heavy_missile", _state.enemy_insts[0],
                 side="player", quality=0,
                 launch_pos=_state.player_state["pos"],
-            )
+            ))
             _map = _state.game_map
             _rules_space._activate_combat_state(
                 _ctx, None, _map, _state.log,

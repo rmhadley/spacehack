@@ -377,6 +377,10 @@ def test_space_defeat_fight_writes_a_tombstone_naming_the_killer(
 
 
 def test_space_victory_fight_writes_no_tombstone(monkeypatch, tmp_path):
+    # Lasers, not the missile racks (doc 57 SETTLED 11 rework): a
+    # standoff missile volley no longer guarantees a quick kill — the
+    # scout rushes inside the floor and the racks go dead — so the
+    # victory surface is pinned with the slugfest loadout.
     row = BalanceScenario(
         id="doc53_space_victory",
         theater="space",
@@ -384,7 +388,7 @@ def test_space_victory_fight_writes_no_tombstone(monkeypatch, tmp_path):
         player=PlayerSheet(
             species_id="human", class_id="merchant",
             hull_id="cruiser",
-            weapon_ids=("heavy_missile", "heavy_missile"),
+            weapon_ids=("heavy_laser", "heavy_laser"),
             module_ids=("shield_mk1",),
         ),
         player_start=(50, 50),

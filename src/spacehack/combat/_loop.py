@@ -302,8 +302,7 @@ async def _fire_weapon(console, ctx, game_map, rules, slot: int, target, player_
         ctx.log.add(_reason)
     _is_flight = getattr(rules, "is_flight_weapon", None)
     if _is_flight is not None and _is_flight(_wid):
-        _launch = rules.launch_flight_missile
-        _launch(ctx, slot, target)
+        await rules.launch_flight_missile(ctx, slot, target)
         rules.consume_shot(slot, ctx)
         return False, rules.weapon_ap_cost(_wid, ctx)
     _any_hit = False
@@ -703,7 +702,7 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
 
 async def _end_player_turn(ctx, game_map, rules, turn: int):
     """Run enemies when AP is spent. Returns ``(turn, defeat_or_None)``."""
-    if rules is _rules_ground and rules.player_hp(ctx) <= 0:
+    if rules.player_hp(ctx) <= 0:
         rules.on_player_death(ctx)
         return turn, "DEFEAT"
     if rules.player_ap(ctx) > 0:
@@ -711,12 +710,13 @@ async def _end_player_turn(ctx, game_map, rules, turn: int):
     _end_result = await _end_turn(ctx, game_map, rules)
     if _end_result == "DEFEAT":
         return turn, "DEFEAT"
-    # Round boundary (doc 57 SETTLED 1): after enemy turns and
-    # reinforcements, before the player's next action, every live
-    # missile makes its crossing hop.
+    # The shooter's mini-turn (doc 57 SETTLED 11.9): after enemy turns
+    # and reinforcements, before the player's AP, the player's missiles
+    # move one at a time — a self-splash kill ends the fight here.
     _advance = getattr(rules, "advance_flights", None)
-    if _advance is not None:
-        await _advance(ctx, game_map)
+    if _advance is not None and await _advance(ctx, game_map) == "DEFEAT":
+        rules.on_player_death(ctx)
+        return turn, "DEFEAT"
     rules.reset_turn(ctx)
     return turn + 1, None
 
