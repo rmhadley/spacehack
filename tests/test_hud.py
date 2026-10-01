@@ -482,7 +482,7 @@ def test_space_weapon_row_includes_range():
         console, 0, 0, 0, "heavy_laser", ws, 0, True, {"heavy_laser": 68},
     )
     stats_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
-    assert stats_row == "     DMG 12 HIT 68% RNG 1-5"
+    assert stats_row == "     DMG 16 HIT 68% RNG 1-5"
 
 
 def test_shield_row_survives_the_wider_combat_console():

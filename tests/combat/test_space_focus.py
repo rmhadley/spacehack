@@ -239,11 +239,11 @@ class TestRulesIntegration:
         try:
             _enemy_far = _enemy(x=6)
             _dmg, _ = _rules_space.damage("heavy_laser", _enemy_far, _ctx)
-            assert _dmg == 24  # 12 base, doubled at range 6
+            assert _dmg == 32  # 16 base, doubled at range 6
 
             _enemy_close = _enemy(x=4)
             _dmg, _ = _rules_space.damage("heavy_laser", _enemy_close, _ctx)
-            assert _dmg == 12  # base damage inside the band
+            assert _dmg == 16  # base damage inside the band
         finally:
             _rules_space._state = _old
 

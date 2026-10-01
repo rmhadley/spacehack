@@ -499,6 +499,21 @@ probe-driven — phase 4).
     per-cell rises while per-credit falls, small hulls stack cheap,
     traders buy blocks; bonus/prices/watt-free untouched.
 
+33. **Laser family** (2026-10-01, parts walk family 7 — weapons,
+part 1). RULED FIXED for all three lasers: 1 AP, range 1-5,
+infinite magazine. The pair-vs-medium trade walked and ruled
+HEALTHY as-authored (2× light: 2 watts, two 80% rolls, 6.4
+expected, 96% connect, gap-flexible vs medium: 1 watt, 6 dmg/watt —
+watts buy rolls, the sipper buys efficiency; the user's old-meta
+read: "2 medium until plasma" was the value king and stays
+competitive). heavy_laser 12 → **16** (user rejected 14 — "will
+that make it worth it?"; 16 makes it the damage-per-watt king of
+energy weapons at 8/watt vs medium/plasma 6, +26% expected over
+the medium pair, clean air in the ladder 4/6/16/24; accuracy
+signature 80/72/68 untouched). Feel-refereed ("we'll see how that
+feels") + probe pending after the weapons family closes (five NPC
+specs fly heavy_laser — enemy-side strengthening to measure).
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
