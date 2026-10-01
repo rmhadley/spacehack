@@ -1077,6 +1077,9 @@ def threshold_checks(report: BatchReport, thresholds) -> tuple:
         "rounds_ceiling": "<=",
         "damage_taken_ceiling": "<=",
         "ammo_spent_ceiling": "<=",
+        "enemy_intercept_rate_floor": ">=",
+        "player_resolved_arrival_floor": ">=",
+        "player_resolved_arrival_ceiling": "<=",
     }
     pairs = (
         ("win_rate_floor", report.win_rate, thresholds.win_rate_floor),
@@ -1092,15 +1095,46 @@ def threshold_checks(report: BatchReport, thresholds) -> tuple:
             report.mean_ammo_spent,
             thresholds.ammo_spent_ceiling,
         ),
+        (
+            "enemy_intercept_rate_floor",
+            report.missile_intercept_rate.get("enemy", 0.0),
+            thresholds.enemy_intercept_rate_floor,
+        ),
+        (
+            "player_resolved_arrival_floor",
+            report.missile_resolved_arrival_rate.get("player", 0.0),
+            thresholds.player_resolved_arrival_floor,
+        ),
+        (
+            "player_resolved_arrival_ceiling",
+            report.missile_resolved_arrival_rate.get("player", 0.0),
+            thresholds.player_resolved_arrival_ceiling,
+        ),
     )
-    return tuple(
+    # A stated flight bar must have flown: an empty book reads 0.0,
+    # which would vacuously pass any ceiling (and silently fail any
+    # floor without naming why) — fail loudly instead (review round,
+    # doc 57.3: a weapon-id rename must never look like a passing bar).
+    _flight_bars = (
+        "enemy_intercept_rate_floor",
+        "player_resolved_arrival_floor",
+        "player_resolved_arrival_ceiling",
+    )
+    _checks = [
         (
             name, value, bar, _DIRECTIONS[name],
             value >= bar if _DIRECTIONS[name] == ">=" else value <= bar,
         )
         for name, value, bar in pairs
         if bar is not None
-    )
+    ]
+    if any(name in _flight_bars for name, *_ in _checks) and not (
+        report.missiles_launched
+    ):
+        _checks.append((
+            "flights_flew", 0.0, 1, ">=", False,
+        ))
+    return tuple(_checks)
 
 
 def meets_thresholds(report: BatchReport, thresholds) -> bool:

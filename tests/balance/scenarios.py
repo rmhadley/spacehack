@@ -38,6 +38,15 @@ class Thresholds:
     rounds_ceiling: float | None = None      # mean turns per run
     damage_taken_ceiling: float | None = None  # mean hull/HP damage per run
     ammo_spent_ceiling: float | None = None    # mean ground rounds per run
+    # Doc 57.3 missile bars (ruled 2026-10-01 from the measured base
+    # lines + a hair of slack, the doc-50 pattern; the acceptance-2/3
+    # claims as standing gates): the escort rows' inbound intercept
+    # rate, and the saturation rows' PLAYER resolved-arrival band
+    # (the flak-comparable through-rate; a band, because a
+    # saturation curve that drifts at either end broke the trade).
+    enemy_intercept_rate_floor: float | None = None
+    player_resolved_arrival_floor: float | None = None
+    player_resolved_arrival_ceiling: float | None = None
 
 
 @dataclass(frozen=True)
@@ -475,7 +484,13 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="flak_escort",
         runs=50,
         seed=20261004,
-        thresholds=None,
+        # Ruled 2026-10-01 from the measured base line (89% intercept,
+        # 0% arrival under focus) + slack. The user's endorsement rides
+        # the row: focused flak is SUPPOSED to delete an inbound volley
+        # — the tactical cost is not shooting the shooter.
+        thresholds=Thresholds(
+            enemy_intercept_rate_floor=0.85,
+        ),
     ),
     BalanceScenario(
         id="probe_flak_heavyguns_vs_captain",
@@ -496,7 +511,11 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="flak_escort",
         runs=50,
         seed=20261005,
-        thresholds=None,
+        # Ruled from 83% intercept (slow guns flak worse than the
+        # light wall — the fast-cheap doctrine, measured).
+        thresholds=Thresholds(
+            enemy_intercept_rate_floor=0.78,
+        ),
     ),
     BalanceScenario(
         id="probe_saturation_thin_vs_raider",
@@ -517,7 +536,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261006,
-        thresholds=None,
+        # Ruled from the measured 28% resolved-arrival (thin end of
+        # the saturation curve) with a band's worth of slack.
+        thresholds=Thresholds(
+            player_resolved_arrival_floor=0.20,
+            player_resolved_arrival_ceiling=0.36,
+        ),
     ),
     BalanceScenario(
         id="probe_saturation_deep_vs_raider",
@@ -541,7 +565,13 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261007,
-        thresholds=None,
+        # Ruled from the measured 44% resolved-arrival (deep end) with
+        # slack: depth roughly doubles the through-rate — if either
+        # end of the curve drifts outside its band, the trade broke.
+        thresholds=Thresholds(
+            player_resolved_arrival_floor=0.36,
+            player_resolved_arrival_ceiling=0.52,
+        ),
     ),
     BalanceScenario(
         id="probe_warlord_stock_cruiser",

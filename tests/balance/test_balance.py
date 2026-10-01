@@ -170,6 +170,9 @@ def test_scenario_thresholds(row) -> None:
         row.thresholds.rounds_ceiling,
         row.thresholds.damage_taken_ceiling,
         row.thresholds.ammo_spent_ceiling,
+        row.thresholds.enemy_intercept_rate_floor,
+        row.thresholds.player_resolved_arrival_floor,
+        row.thresholds.player_resolved_arrival_ceiling,
     )), "a thresholds row must state at least one bar"
     report = aggregate(batch_for(row))
     assert meets_thresholds(report, row.thresholds), report
