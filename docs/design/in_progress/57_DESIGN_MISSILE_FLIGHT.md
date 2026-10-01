@@ -1,11 +1,11 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: PHASE 2 BUILT + PLAYTEST PASSED 2026-10-01 ("definitely
+Status: PHASES 2 + 2.5 BUILT + PLAYTEST PASSED 2026-10-01 (2: "definitely
 getting missiles fired at me... more dynamic and an improvement for
-sure"; one mid-playtest fix folded — the raider-never-fires report,
-reviewer APPROVE on the delta, gate 3468). PHASE 2.5 (enemy AI
-conservation layer — the five-step logic check, user riff post-pass)
-QUEUED for `/refine-design`; PHASE 3 (calibration) brief PROPOSED.
+sure" — one mid-playtest fix folded, the raider-never-fires report;
+2.5: "playtest good" — the probe refereed the desperation scope
+mid-build, reviewer APPROVE with the desperation floor folded).
+PHASE 3 (calibration) brief PROPOSED — the doc's closing phase.
 Phase 1 playtest passed same day (v2 flight model, SETTLED 11; built
 via `/implement-phase 57.1`, reworked by the first playtest, prose
 settled at its checkpoints; reviewer APPROVE ×2). Refined 2026-10-01
@@ -677,11 +677,10 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       "Playtest round 1". Guide diffs + the fratricide DRAFT line
       rode the pass as called out on the checkpoint)
 - [x] **2.5. Enemy AI conservation layer — the five-step logic check**
-      — riff + brief below (BUILT 2026-10-01 via `/implement-phase
-      57.2.5`; the probe refereed the desperation term into its
-      divert-carrier scope mid-build — goal_1's ruled bar is the
-      evidence; gate 3479 green; playtest pending at the checkpoint
-      below)
+      — riff + brief below (BUILT + PLAYTEST PASSED 2026-10-01:
+      "playtest good"; the probe refereed the desperation term into
+      its divert-carrier scope mid-build — goal_1's ruled bar is the
+      evidence; gate 3479 green; reviewer APPROVE, 5 minors folded)
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception
