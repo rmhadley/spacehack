@@ -46,7 +46,7 @@ RULED_ITEM_SIZES = {
     "targeting_computer": (1, 1), "targeting_mk2": (1, 2), "targeting_mk3": (2, 2), "targeting_mk4": (2, 3),
     "gyro_stabilizer": (1, 1), "gyro_mk2": (1, 2), "gyro_mk3": (2, 2), "gyro_mk4": (2, 3),
     "expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (3, 3), "cargo_mk4": (3, 3),
-    "armor_plating": (1, 1), "armor_mk2": (2, 2), "armor_mk3": (2, 2), "armor_mk4": (2, 2),
+    "armor_plating": (1, 1), "armor_mk2": (2, 2), "armor_mk3": (2, 3), "armor_mk4": (3, 3),
     "compact_reactor": (1, 2), "reactor_mk2": (2, 2), "reactor_mk3": (2, 3), "reactor_mk4": (3, 3),
     "smuggler_hold_mk1": (1, 2), "smuggler_hold_mk2": (2, 2),
     "smuggler_hold_mk3": (2, 3), "smuggler_hold_mk4": (3, 3),
@@ -78,7 +78,6 @@ RULED_UPKEEP = {
     "targeting_mk3": -3, "targeting_mk4": -4,
     "gyro_stabilizer": -1, "gyro_mk2": -2, "gyro_mk3": -3, "gyro_mk4": -4,
     # pre-existing curve, unchanged by phase 2
-    "armor_plating": -1, "armor_mk2": -2, "armor_mk3": -3, "armor_mk4": -4,
     "compact_reactor": 3, "reactor_mk2": 7, "reactor_mk3": 11, "reactor_mk4": 15,
     "expanded_cargo": 0, "cargo_mk2": 0, "cargo_mk3": 0, "cargo_mk4": 0,
     "smuggler_hold_mk1": 0, "smuggler_hold_mk2": 0,
@@ -156,7 +155,7 @@ def test_every_hull_start_loadout_is_power_valid():
     from src.spacehack.ship import OwnedShip, resting_power, start_fitted_entries
 
     expected_nets = {
-        "starter": 4, "scout": 6, "hauler": 3,
+        "starter": 4, "scout": 6, "hauler": 4,   # armor watt-free since SETTLED 31
         "cruiser": 7, "frigate": 6, "freighter": 7,
     }
     for ship in list_ships():

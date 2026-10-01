@@ -215,14 +215,16 @@ def test_effective_module_spec_real_rows_scale():
 
 def test_effective_module_spec_scales_negatives_in_magnitude():
     # "More of what it is": a better Armor Plating gives more hull AND
-    # a bigger power draw — ceiling on the magnitude, both signs.
-    t3 = quality.effective_module_spec("armor_mk2", 3)  # hull 10, power -2
-    assert t3.max_hull_bonus == 15      # 10 * 1.45 = 14.5 -> 15
-    assert t3.power_gen_bonus == -3     # |2| * 1.45 = 2.9 -> 3
-    t1 = quality.effective_module_spec("armor_plating", 1)  # power -1
-    assert t1.power_gen_bonus == -2     # |1| * 1.15 -> 2 (ceiling)
-    t4 = quality.effective_module_spec("armor_mk4", 4)      # power -4
-    assert t4.power_gen_bonus == -9     # |4| * 2.20 = 8.8 -> 9
+    # a bigger speed malus (watt-free since SETTLED 31 — the negative
+    # axis moved from power to speed) — ceiling on the magnitude, both
+    # signs.
+    t3 = quality.effective_module_spec("armor_mk2", 3)  # hull 25, speed -2
+    assert t3.max_hull_bonus == 37      # 25 * 1.45 = 36.25 -> 37
+    assert t3.speed_bonus == -3         # |2| * 1.45 = 2.9 -> 3
+    t1 = quality.effective_module_spec("armor_plating", 1)  # speed -1
+    assert t1.speed_bonus == -2         # |1| * 1.15 -> 2 (ceiling)
+    t4 = quality.effective_module_spec("armor_mk4", 4)      # speed -4
+    assert t4.speed_bonus == -9         # |4| * 2.20 = 8.8 -> 9
 
 
 def test_scaler_rounds_fractions_up_in_magnitude():
@@ -466,7 +468,7 @@ def test_module_detail_swaps_to_effective_stats_for_variants():
     # scaled 1.30 -> -2, ceiling in magnitude).
     assert module_detail("shield_mk1", 2) == "Power: -2  Shields: +26"
     # Label order follows the stat-line table; negatives keep their sign.
-    assert module_detail("armor_plating", 3) == "Power: -2  Hull: +8"
+    assert module_detail("armor_plating", 3) == "Hull: +8  Speed: -2"
 
 
 def test_module_pickup_lands_in_ship_storage():
@@ -690,9 +692,9 @@ def test_seeded_bonuses_flow_through_the_readers():
         ship_id="scout", modules=(entry,), hull_damage_pct=0,
     )
     _cur, hull_max = hull_cur_max(owned, SimpleNamespace(base_hull=25))
-    # 25 base + ceiling(25 * 2.2) + the rolled hull axis, if any.
+    # 25 base hull + ceiling(armor_mk4's 65 * 2.2) + the rolled axis.
     from spacehack.data.quality import _scaled, MODULE_MULTIPLIER_PCT
-    expected = 25 + _scaled(25, MODULE_MULTIPLIER_PCT[4]) + deltas.get("max_hull_bonus", 0)
+    expected = 25 + _scaled(65, MODULE_MULTIPLIER_PCT[4]) + deltas.get("max_hull_bonus", 0)
     assert hull_max == expected
     # The stored-row label reads the manifest name (seed threaded).
     assert _stored_label(entry) == roll_randart("armor_mk4", seed).name

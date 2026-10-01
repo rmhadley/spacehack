@@ -576,10 +576,11 @@ class TestBuildEnemyParity:
         enemy = self._build(monkeypatch)
         # Frigate hull: 40 base shields, 5 base recharge, 6 base power;
         # +shield_mk1 20 +capacitor 15 shields; power eats doc-56
-        # upkeep: shield_mk1 -1, capacitor -1, targeting -1, plating -1.
+        # upkeep: shield_mk1 -1, capacitor -1, targeting -1 (plating
+        # is watt-free since SETTLED 31).
         assert enemy.max_shields == 40 + 20 + 15
         assert enemy.shield_recharge_bonus == 5
-        assert enemy.power_gen == 6 - 4
+        assert enemy.power_gen == 6 - 3
         assert enemy.max_power == max(10, 5 * 2) + enemy.pilot_engineering // 5
         assert enemy.power_pool == enemy.max_power
         assert enemy.shield_regen_rate == 3  # authored paid divert (doc 48 SETTLED 40)
