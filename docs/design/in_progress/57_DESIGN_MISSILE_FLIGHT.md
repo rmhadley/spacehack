@@ -470,6 +470,34 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   loses the rack (was the reachable pick at 6.0) and re-pins on
   guns; `_turn_state` fixtures gain `in_flight=[]`.
 
+### Audit updates as the 57.2 build revealed surprises
+
+- The ratchet fired as forecast on four functions (the four new/
+  reshaped AI/flight seams); paid in-commit with cohesive
+  extractions: `_advance_toward_standoff` (the out-of-position
+  verb), `_run_volley_members` (the member loop), `_apply_flak_
+  damage` + `_apply_guided_arrival` (the resolve tails), keeping
+  every function under 40.
+- A REAL bug the flak tests caught before it shipped:
+  `_select_fire_weapon` returns ``(slot, spec)`` — the ranked walk
+  strips its score — so `_flak_pick`'s first draft compared the
+  intercept EV against the SLOT INDEX (always 0, flak always won).
+  The pick now recomputes the fire EV from the pick's own weapon at
+  the live player distance (one `score_weapon` call, shared
+  formula).
+- `_damage_quality` rolls a 0.51–1.5× multiplier, so a light laser
+  CAN one-shot a hp-6 missile — the phase-1 chip test was
+  latent-flaky on the ambient RNG sequence and the new tests'
+  consumption shifted it; pinned (`roll=50, spread=1.0`).
+- The combat guide section sits at a 3000-char conciseness cap; the
+  two new guide sentences were trimmed to fit ("Enemy racks fire the
+  same rounds at you."; the guns-only flee sentence).
+- Enemy flak lines reuse `enemy_attack_line` through a
+  `target_name` parameter (the object segment was hard-coded
+  " you. ") — the exact mirror of the player's own flak lines; the
+  kill rides `finish_intercept`'s existing line. Zero new prose
+  beyond the fratricide DRAFT above.
+
 ## The shape
 
 ### Flight entity
@@ -562,8 +590,11 @@ outcome-shaped hit/miss forms and cannot carry a launch):
 - [x] **1. Flight + player-side interception** — brief below
       (BUILT + PLAYTEST PASSED 2026-10-01, v2 flight model per
       SETTLED 11; prose settled same day)
-- [ ] **2. Enemy missiles + the flak AI layer** — brief below
-      (PROPOSED)
+- [x] **2. Enemy missiles + the flak AI layer** — brief below
+      (BUILT 2026-10-01 via `/implement-phase 57.2`; brief was
+      PROPOSED, the ADVISE pass ran at the top of the build session —
+      13 catches, 4 blocking, all folded before code; playtest
+      pending)
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception
@@ -796,7 +827,26 @@ changes.
 6. Kill a shooter with its missile inbound: the missile still
    arrives (already launched).
 7. Regression: ground combat untouched; reinforcement joins carry
-   racks cleanly; guide diff review.
+   racks cleanly.
+8. Guide diff review (exact edits, section "Combat"):
+   - Missile paragraph — before: "…shot down in flight, just like
+     an enemy ship. Any ship its flight path crosses takes the
+     hit…"; after inserts one sentence: "Enemy racks fire the same
+     rounds at you." between those two sentences.
+   - Flee paragraph — before: "Everything in range fires once as
+     you go, and those shots can kill you - or do not start the
+     fight in the first place." (note the pre-existing spaced
+     hyphen); after: "Guns in range fire once as you go and can
+     kill you; missile racks cannot chase a fleeing ship, though an
+     instant EMP strike can. Or do not start the fight in the first
+     place."
+9. Prose review (DRAFT until approved here): the fratricide line
+   "Pirate Scout's Heavy Missile detonates on Pirate Escort for 64
+   damage." (speaker-parameterized settled player form); enemy
+   launches are WORDLESS and arrivals speak the existing attack
+   lines; enemy flak speaks "…fires its Light Laser at Heavy
+   Missile. It hits for 4 damage!" / "It misses!" (the player
+   mirror's exact forms).
 
 ## Implementation brief 57.3 — calibration
 
