@@ -2,8 +2,10 @@
 
 Status: PHASE 1 BUILT 2026-10-01 (brief approved via
 `/implement-phase 57.1`; gate 3437 green; reviewer APPROVE after one
-blocking fix — see audit updates; playtest PENDING). Briefs 57.2–57.3
-remain PROPOSED until their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
+blocking fix — see audit updates). First playtest returned the v2
+flight rework (SETTLED 11) + two rulings (full damage on contact,
+fuel dud beyond max); REWORK IN PROGRESS. Briefs 57.2–57.3 remain
+PROPOSED until their checkpoints. Refined 2026-10-01 (`/refine-design`): rulings
 SETTLED 1–9, every open question closed; Implementation briefs 1–3
 written with the ADVISE reviewer pass folded (14 catches, 6
 blocking — kill-path bookkeeping, merged-index readers, entity
@@ -136,6 +138,59 @@ walls. Damage racks receive the magazine bonus; EMP never does.
     target priority: a `♦` crossing the map is the one worth a flak
     volley; a `*` is thin enough to maybe eat. One-glyph fallback
     stays a phase-1 playtest call if two glyphs read as noise.
+11. **Flight model v2 — deploy, stagger, mini-turns** (2026-10-01,
+    playtest ruling, user verbatim: "Missiles shouldn't stack on each
+    other." + the nine-rule rework, lightly condensed):
+    1. You fire a volley of 2 light missiles.
+    2. One light missile appears in a cell near you but not on you.
+    3. That light missile moves towards its target half of its normal
+       move range.
+    4. The next missile appears in a cell near you but not on you.
+    5. That next missile moves towards its target half of its normal
+       move range.
+    6. Missiles cannot collide with other missiles; they actively
+       avoid missiles from the same shooter.
+    7. Missiles that collide with a ship explode, even if it's not
+       its target.
+    8. Missiles that collide with a planet/star/station explode.
+    9. After the initial half move phase, missiles don't move again
+       until before the shooter's turn: at the start of the shooter's
+       turn missiles resolve their mini-turn first, going through each
+       missile in flight one at a time, this time moving their full
+       distance, still following rules 6-9.
+
+    Derived mechanics (agent, from the rules + rulings):
+    - Spawn cell: a walkable, ship-free, missile-free 8-neighbor of
+      the shooter, nearest to the target (fixed tie order); fallback
+      to the shooter's own cell when every neighbor is blocked.
+    - Launch half-move: `max(1, flight_speed // 2)` cells immediately
+      at launch (light 2, heavy 1), full movement rules; burns fuel.
+      Target-arrival at launch is geometrically impossible (floors).
+    - Collision with ANY ship (target or not — the player's own hull
+      included, RULING: full damage on contact): the SAME guidance
+      roll against that ship's dodge-at-contact; a hit rides the
+      normal damage path and any kill runs the full kill chain; a
+      miss is the harmless detonation. Self-splash is live.
+    - Collision with blocking terrain / world bodies: detonation at
+      the previous cell, harmless (`Missile detonates short.`).
+    - Same-shooter missiles: never share a cell — sidestep to the
+      best progress-preserving free neighbor, hold (no fuel burn)
+      when boxed. Cross-shooter missiles ignore each other.
+    - Mini-turn timing: the player shooter's missiles resolve at the
+      existing hook (after enemy turns + reinforcements, before the
+      player's AP); movement is FULL `flight_speed`, one missile at a
+      time in launch order. 57.2's enemy shooters mirror this inside
+      the enemy's own turn (amends that brief's scope).
+    - A flight rack fired at a MISSILE target is a legal dud: the
+      missile never connects (rule 6), burns fuel, exhausts — point
+      defense is guns (SETTLED 8's doctrine); no refusal prose.
+    - Launch-window collision kills happen inside the volley, so the
+      count-based Momentum refund can fire for them; mini-turn kills
+      never do (no volley is open). Ruling-consistent: refund stays
+      volley-time mechanics.
+    - Beyond-max launch (RULING, same exchange): the fuel dud stands
+      — it flies, exhausts, detonates; ammo + AP spent. SETTLED 2
+      stays a floor-only gate.
 
 ## Pre-implementation audit (2026-10-01, phase 57.1)
 
@@ -482,7 +537,10 @@ missile + light lasers + rounds at the mechanic):
 - `combat/_missile_flight.py` — owner-side arrival vs the player
   (the same pure guidance roll; DEFEAT possible at the boundary);
   enemy missiles join the merged target cycle — the player's
-  TAB+F interception becomes real defense.
+  TAB+F interception becomes real defense. SETTLED 11 timing: the
+  enemy shooter's missiles resolve their mini-turn at the START of
+  that enemy's turn (inside `_take_enemy_turn`, before its first
+  verb), one at a time — the mirror of the player's hook.
 - `combat/_ai.py` — enemy volley missile members spawn flight
   entities (the mirror of the player seam); the ENEMY FLOOR GATE:
   `_affordable_members` gains the missile floor refusal (a member
