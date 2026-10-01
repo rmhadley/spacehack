@@ -941,17 +941,41 @@ Carries the round-2 reviewer watch item (dry-magazine racks keep the
 rack band; if the playtest read it wrong, the wish-list ammo filter
 decision lands HERE).
 
-**Open questions for `/refine-design`**:
+**Rulings on the open questions (2026-10-01, user)**:
 
-1. Reserve = formula (protect exactly the next regen divert's cost —
-   agent recommendation: needs-based, legible, no new dial) or a spec
-   dial (a "defensive" temperament)?
-2. Does the score-zero exclusion ride along (mirror purity vs. no
-   wasted shots — an EMP into bare shields)?
-3. Does the reserve feed the aggressiveness/dodge read too (a
-   tanking ship dodges more), or only membership?
-4. Which probe rows referee it (doc 50 owns the warlord math — a
-   regen-reserving warlord changes space-fight survival curves).
+1. **SETTLED — the reserve is ONE default formula with an override
+   seam.** Not per-spec reserve loops ("do I want all specs to have a
+   unique reserve loop? not at first. but I could see a need for a
+   custom decision loop in the future for some unique/boss spec. So
+   default formula with keeping the future need for an override
+   needed in mind."). The needs-based formula (protect the next
+   regen divert's cost) protects every spec; the computation lives
+   as ONE overridable read at the membership choke point, never
+   scattered, so a future unique/boss spec can swap in its own
+   decision loop the way a spec dial would.
+2. **SETTLED — score-zero members sit out.** User, verbatim: "yes,
+   no firing EMPs at something with 0 shields." Inclusion finally
+   looks at the target: a member whose expected value against the
+   current target is zero (a strip weapon into bare shields) holds
+   fire — the same capability-gate pattern as the floor and flak
+   gates, the enemy's expression of the player's toggles.
+3. **PROPOSED (agent, awaiting the user) — spec-driven through the
+   dial that already exists.** The user's instinct ("this one feels
+   like it'd have to be spec driven, no? You have AP as a resource.
+   Using AP for dodge should be a thing the spec decides on") is
+   already the shipped shape: ``ai_aggressiveness`` IS the per-spec
+   fire-vs-dodge temperament — using AP for dodge is the reposition
+   verb, and each spec already decides its frequency. The missing
+   link is STATE, not a new dial: while the reserve is active, the
+   same shield read scales the roll — a tanking warlord at 20%
+   shields fires like an agg-20 ship (mostly dances, plinks with
+   what the reserve allows) and reads as "it stopped the heavy stuff
+   and started tanking." One shield read, two effects (membership +
+   temperament bend); the spec's dial stays its personality; the
+   scaling curve is probe business.
+4. **SETTLED by doctrine — the probe referees.** Doc 50's surface:
+   enemy survival curves, fight length, and volley composition
+   before/after the reserve; row specifics belong to the brief.
 
 Nothing here restructures the decision loop; it is predicates at the
 existing seam plus one new read. No brief written yet — the rulings
