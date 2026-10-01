@@ -1,16 +1,21 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: DRAFT for review (2026-10-01). Nothing implemented. Born in
-the doc-56 phase-4 parts walk (SETTLED 35's coda): the walk held
-missile magnitudes for the probe, and this rework — proposed by the
-user the same day — supersedes those magnitudes when it lands. Doc
-56's calibration pass proceeds meanwhile on the non-missile dials.
+Status: REFINED 2026-10-01 (`/refine-design`): rulings SETTLED 1–9,
+every open question closed; Implementation briefs 1–3 PROPOSED below
+with the ADVISE reviewer pass folded (14 catches, 6 blocking —
+kill-path bookkeeping, merged-index readers, entity solidity, sync
+sweep, enemy-side floor gate), awaiting approval. Nothing
+implemented. Born in the doc-56 phase-4
+parts walk (SETTLED 35's coda): the walk held missile magnitudes for
+the probe, and this rework — proposed by the user the same day —
+supersedes those magnitudes when it lands. Doc 56's calibration pass
+proceeds meanwhile on the non-missile dials.
 
 ## Overview
 
 Missiles stop being instant damage numbers and become **physical
-projectiles in flight**: strictly long-range (worse minimums than
-today), roughly doubled damage, and — the heart of it — **while a
+projectiles in flight**: strictly long-range (hard-gated floors, worse
+than today), roughly doubled damage, and — the heart of it — **while a
 missile is in flight it can be targeted as an enemy and shot down**.
 The proposal verbatim (user, 2026-10-01):
 
@@ -36,123 +41,435 @@ Missile Magazine, +3/rack) counters point defense. The chain closes.
   deep racks are volume-vs-flak. Today's ruling is load-bearing.
 - **Dread rendered as a glyph crossing the map** — flight is the
   wordless-visual-communication doctrine applied to ordnance
-  (contrails/inbound markers, motion not prose).
+  (travel is motion not prose; SETTLED 1 makes it literal).
 - **One mercy already banked**: combat never saves mid-fight (doc 56
   phase-5 record), so in-flight missiles are transient state — no
   save/load work.
 
-## Evidence baseline (current launchers, 2026-10-01)
+## Evidence baseline (launchers at refine, 2026-10-01 → ruled)
 
-| | Size | Price | Dmg | Acc | Range | AP | Pow | Mag | Restock |
-|---|---|---|---|---|---|---|---|---|---|
-| light_missile | 1×2 | 40cr | 14 | 72% | 2–9 | 2 | 0 | 4 (+mag) | 8cr/rd |
-| heavy_missile | 1×2 | 90cr | 32 | 72% | 3–13 | 2 | 0 | 3 (+mag) | 20cr/rd |
-| emp_missile | 1×2 | 120cr | 0 (100% strip) | 75% | 2–10 | 2 | 0 | **2, hard-capped** (SETTLED 35) | 25cr/rd |
+| | light_missile | heavy_missile | emp_missile |
+|---|---|---|---|
+| Price | 40cr | 90cr | 120cr |
+| Damage | 14 → **28** | 32 → **64** | 0 (100% strip) |
+| Accuracy | 72% | 72% | 75% |
+| Range | 2–9 → **4–9** | 3–13 → **5–13** | 2–10 (pulse, unchanged) |
+| Floor semantics | penalty → **hard gate** | penalty → **hard gate** | n/a (instant) |
+| missile_hp | — → **2** | — → **6** | — (never interceptible) |
+| flight_speed | — → **4** cells/round | — → **2** | — (0 = pulse) |
+| Magazine | 4 (+mag) | 3 (+mag) | **2, hard-capped** (SETTLED 35) |
 
 Post-volley doctrine (doc 56): the first 2-AP weapon sets the volley
-cadence; missiles pair with plasma (both 2 AP), never with pure
-laser walls. Damage racks receive the magazine bonus; EMP never
-does.
+cadence; missiles pair with plasma (both 2 AP), never with pure laser
+walls. Damage racks receive the magazine bonus; EMP never does.
 
-## Philosophy alignment
+## SETTLED rulings (2026-10-01, `/refine-design`)
 
-| Project convention | How this design aligns |
-|---|---|
-| Data-first | Flight stats (speed, HP, intercept difficulty) are catalog fields on WeaponSpec, not per-site constants |
-| Existing fields over new systems | In-flight missiles reuse the Entity/world model and the existing target cycle; interception reuses hit-chance math |
-| Table-driven | Flak decisions (AI target priority: inbound vs shooter) resolve through a scorer, not bespoke branches |
-| Wordless visual communication | Flight is animated travel; no popup prose |
-| Save/load sacred | In-flight state is combat-transient — nothing serializes |
-| Enemies should have a counter (user doctrine) | Missiles counter standoff; flak counters missiles; saturation counters flak |
+1. **Flight model: multi-tick crossing.** A launched missile is a
+   live combat entity advancing `flight_speed` cells per combat
+   round along its track; every round it remains on the map is an
+   intercept window. Close shots (just above the floor) arrive in
+   1–2 rounds and are barely flak-able; max-range heavies telegraph
+   3–4 rounds of dread. Chosen over the one-action delay — the
+   glyph crossing the map is the point.
+2. **Floors are a hard gate, missiles only.** light 4 / heavy 5
+   (the riff's opening numbers; phase 3 may nudge them). Inside the
+   floor the rack will not fire at all — `can_fire` refuses, the
+   card/range line shows it. Lasers/plasma keep today's 5%/cell
+   penalty semantics untouched. "Strictly long distance only" reads
+   literally; rushdown inside the floor makes racks dead sticks.
+   The gate reads the CATALOG floor — Focus's doubled min-range
+   does not widen the refusal band (a focused light refuses inside
+   4, not 8; strictly-long-distance is a property of the rack, not
+   the shot mode).
+3. **×2 damage lands with phase 1.** The gamble reads the moment
+   flight exists — the moment a heavy gets through flak, the payoff
+   lands. Phase 3 recalibrates the multiplier against measured
+   intercept rates.
+4. **EMP stays an instant pulse, never interceptible.** Its counter
+   is the hard-capped magazine (2, doc 56 SETTLED 35) and its price,
+   not flak RNG — a flak juggernaut deleting the boss key would read
+   as losing the fight to a dice roll. Authored in data as
+   `flight_speed=0` (never travels); the fire path branches on that
+   alone.
+5. **The hit roll moves to arrival.** Accuracy becomes a guidance
+   roll resolved at impact against the target's then-current dodge —
+   moving during flight is the universal anti-missile defense (the
+   kiting doctrine extends to ordnance), and every inbound on the
+   map might hit, so flak is never wasted on a known dud. Miss at
+   arrival = harmless detonation. Interception is the other miss
+   path. No range terms in the guidance roll — range was paid at
+   launch (the target sat inside [floor, max] when fired).
+6. **Interception costs the full volley action.** TAB cycles onto
+   hostile in-flight missiles; F fires the volley at one exactly as
+   at a ship — max-AP-once, per-weapon power/ammo, existing seams
+   everywhere. Choosing flak IS choosing not to shoot the shooter.
+7. **Intercept difficulty: light thin+fast, heavy fat+slow.**
+   light `missile_hp` 2 / `flight_speed` 4; heavy 6 / 2 (exact
+   numbers are phase-3 dials). Missiles carry no shields — strip
+   and pulse weapons naturally do nothing to them (damage weapons
+   only, by construction not by special case).
+8. **Auto-flak: manual only.** No hands-free layer, ever —
+   per-weapon active toggles + TAB already express the flak escort
+   (deactivate the heavies, TAB to the inbound, F). The drafted
+   phase-3 auto-flak component is dead; saturation balance folds
+   into the calibration phase (former phase 4; phases renumber to
+   three).
+9. **Doc-56 seam (derived, no ruling needed).** The magazine bonus,
+   the BH ×2, and cargo-per-round booking are CAPACITY sites —
+   untouched by doubled damage, floors, and flight. Missile
+   magnitude ownership (the held missile feel + the new intercept
+   numbers) moves from doc 56 phase 4 to this doc's phase 3; doc
+   56's calibration proceeds on the non-missile dials meanwhile.
 
-## Data model (draft)
+## The shape
 
-- `WeaponSpec` gains flight fields for `slot_type="missile"`:
-  `flight_speed` (cells per tick), `missile_hp` (intercept
-  difficulty), authored per launcher (heavies: slower, fatter —
-  easier to hit, harder to kill; lights: fast, thin).
-- In-flight missiles are **combat entities**: position, vector to
-  impact, owning side, launcher spec + quality (arrival damage rides
-  the shooter's rolled tier, doc 48.7). They join
-  `game_map.entities` for rendering and the target cycle — NOT the
-  enemy_insts roster (no AI turn of their own; movement is
-  deterministic per tick).
-- Arrival resolution at impact: the existing `resolve_damage` path,
-  unchanged.
+### Flight entity
 
-## Domain changes (draft)
+- `WeaponSpec` gains two missile-only fields (defaults 0):
+  `flight_speed` (cells per combat round; 0 = resolves at launch —
+  the EMP pulse) and `missile_hp` (intercept difficulty).
+- An in-flight missile holds: position, target reference, owning
+  side, launcher `weapon_id` + its rolled quality (arrival damage
+  rides the shooter's tier, doc 48.7), current `missile_hp`,
+  remaining fuel. It joins `game_map.entities` for rendering and the
+  target cycle — NOT the `enemy_insts` roster (no AI turn of its
+  own; movement is deterministic). Two ADVISE pins: the entity is
+  NON-BLOCKING (zero footprint — `blocking_entity_at`, enemy
+  stepping, and A* treat a crossing missile as empty space; the
+  reinforcement matcher `_find_reinforcement_entity` skips it), and
+  its field shape is EnemyInstance-COMPATIBLE (`name`, `pos`,
+  `hull = max_hull = missile_hp`, `shields=0`, `alive`,
+  `cells_moved_this_turn=0`, `pilot_piloting=0`, `weapons=()`) —
+  `hit_chance`, `damage`, `can_fire`, and the strip path
+  (shields=0 → no-op by construction) all work with no adapter
+  layer.
+- **Homing, fuel-capped**: each advance re-vectors toward the
+  target's live position; total travel is capped at the launcher's
+  `max_range` cells (fuel). Kiting a missile extends its flight
+  (more intercept windows for the defender's flak) and raises the
+  target's dodge at arrival — outrunning it is a real counter.
+  Target dead at re-vector time → the missile dissipates next step
+  (fuel spent). The shooter's death does not recall a launched
+  missile.
+- **Round-boundary cadence**: all in-flight missiles advance one
+  `flight_speed` step at one fixed phase point — after enemy turns
+  and reinforcements complete, before the player's next action —
+  each step rendering (the wordless dread beat). Arrival resolves
+  there: guidance roll, then the existing damage path on a hit. An
+  ARRIVAL kill runs the full kill chain (`on_kill` — XP, loot,
+  bounty, rep, `defeated_*` records) exactly like a volley kill;
+  bookkeeping never depends on which path dealt the blow. The
+  Momentum volley refund is volley-time mechanics and does not
+  reach delayed kills — missile-arrival kills simply don't refund.
+- **Guidance roll** (pure, shared by both sides): quality-scaled
+  launcher accuracy − the target's dodge-at-arrival (the existing
+  `_calc_dodge_bonus` assembly: cells moved + piloting/2, cap 30),
+  clamp 5–95. Hit → `resolve_damage` with the doubled rack damage
+  (quality × variance as today). Miss → harmless detonation at the
+  impact cell. EMP never reaches this path.
 
-- **Fire**: a volley member with `slot_type="missile"` spawns a
-  projectile instead of resolving instantly; ammo pays at launch
-  (unchanged).
-- **Targeting**: the TAB cycle includes hostile in-flight missiles
-  (nearest-first?). Firing at a missile uses normal hit chances and
-  weapon costs.
-- **Auto-flak (open)**: light lasers may auto-engage inbound when
-  their volley's primary target is dead/unreachable — the
-  build-expression option beside manual targeting.
-- **Enemy AI**: a flak decision layer — score(inbound missile) vs
-  score(shooter) per available action; enemies with fast cheap
-  weapons prefer flak. Enemy missiles are equally interceptible by
-  the player.
-- **Back-off dance**: worse minimums make the existing back-off AI
-  (doc 48 SETTLED 40) mandatory missile behavior; rushdown inside
-  the floor is the counter-play.
-- **Animation**: per-tick projectile travel along the vector;
-  intercept = a small explosion at the missile's cell.
+### Fire, targeting, floors
 
-## Phases (draft — refined at /refine-design)
+- **Fire**: a volley member with `slot_type="missile"` and
+  `flight_speed > 0` spawns a flight entity instead of resolving
+  instantly; ammo/power/AP pay at launch exactly as today (the
+  volley's max-AP-once and refund rules unchanged).
+- **Floors**: `can_fire` refuses missile shots inside the floor
+  (SETTLED 2); the refusal surfaces on the card/range line like
+  the existing out-of-range states.
+- **Targeting**: a NEW merged accessor (`targetables`:
+  `enemy_insts`, then hostile in-flight missiles) feeds exactly the
+  TAB cycle, the target card, the hit-chance/range-line reads, and
+  the fire path. Every other index-space reader stays SHIPS-ONLY:
+  `combat_should_end` (VICTORY ignores live missiles — they die
+  with the fight, never gate the end), `reaction_volley`, and
+  `board_target` (D on a missile target DENIES — nothing to
+  board). The HUD enemy block gains missile rows and a target
+  marker that tracks the merged selection. A volley fired at a
+  missile applies member damage to `missile_hp`; the INTERCEPT KILL
+  takes a dedicated branch — entity removed, explosion beat,
+  `Missile destroyed.` — and never reaches `rules.on_kill` (no XP,
+  loot, or reputation for shooting down ordnance). Missiles have
+  dodge 0 (they are deterministic travelers) and no shields.
+- **Enemy AI (phase 2)**: a flak decision layer — score(inbound) vs
+  score(shooter) per action through the existing scorer pattern;
+  enemies with fast cheap weapons prefer flak. Enemy missiles are
+  interceptible by the player through the identical machinery.
 
-- [ ] 1. Flight entities + arrival resolution (player-fired only;
-      interceptible via manual targeting; no AI changes)
-- [ ] 2. Enemy missiles + the flak AI layer (both sides fly them)
-- [ ] 3. Auto-flak stance + magazine saturation balance (probe
-      re-derived; doubled damage calibrated against intercept rates)
-- [ ] 4. Calibration (probe-refereed; owns the ×2 magnitudes, the
-      new minimums, missile_hp/speed tuning)
+### Player-facing lines (DRAFT — settle before `/implement-phase`)
 
-## Acceptance criteria (draft)
+Six new lines, system voice, terse (the existing fire lines are
+outcome-shaped hit/miss forms and cannot carry a launch):
+
+- launch: `Heavy missile away.`
+- intercept kill: `Missile destroyed.`
+- arrival miss: `Missile detonates short.`
+- fuel exhaustion: `Missile exhausts its fuel.`
+- floor refusal: `Target inside minimum range.`
+- board denial on a missile: `Nothing to board.`
+
+## Phases
+
+- [ ] **1. Flight + player-side interception** — brief below
+      (PROPOSED)
+- [ ] **2. Enemy missiles + the flak AI layer** — brief below
+      (PROPOSED)
+- [ ] **3. Calibration** — brief below (PROPOSED)
+
+## Implementation brief 57.1 — flight + player-side interception
+
+**Scope** (files / hook points):
+
+- `data/weapons/__init__.py` — `WeaponSpec` gains `flight_speed:
+  int = 0`, `missile_hp: int = 0` (+ docstring: 0 = resolves at
+  launch / not interceptible).
+- `data/weapons/missiles.py` — the ruled row: light dmg 28 / range
+  4–9 / hp 2 / speed 4; heavy dmg 64 / range 5–13 / hp 6 / speed 2;
+  EMP unchanged magnitudes + `flight_speed=0`.
+- New `combat/_missile_flight.py` — the flight domain: an
+  `InFlightMissile` dataclass, and pure helpers for advance-step
+  math (re-vector, fuel accounting, arrival detection), the
+  guidance roll, and intercept-damage application. State-holder
+  coordination lives in `SpaceCombatState`.
+- `combat/_types.py` — `SpaceCombatState.in_flight: list` field
+  (combat-transient; combat never saves mid-fight).
+- `combat/_rules_space.py` — spawn-on-fire for flight members
+  (branch on `flight_speed > 0`; EMP rides today's instant path);
+  `can_fire` floor gate (missiles only); missile-arrival resolution
+  at the round boundary; target-adapter reads for hit-chance /
+  card / range line.
+- `combat/_loop.py` — `_handle_fire` accepts a missile target via
+  the merged `targetables` accessor (volley rules unchanged:
+  max-AP-once, per-weapon costs, mid-volley target death breaks
+  the loop, refund rules untouched); `_cycle_target` over the
+  merged list; round-boundary advance hooked after `_end_turn`
+  (enemy turns + reinforcements) and before the player's next
+  action. `_handle_fire` sits AT the 40-line function limit — the
+  intercept branch must be an extracted helper, never inline.
+- `hud.py` / `hud_combat.py` — missile rows in the enemy block, a
+  target marker tracking the merged selection, and a DISTINCT
+  refusal read on `range_band_color` inside a missile floor (not
+  the penalty-orange the lasers keep).
+- `combat/_space_presentation.py` — a missile target-card variant
+  (name / HP / speed; no band, AP, weapons, or shield rows).
+- Cleanup — `sync_state` sweeps `state.in_flight` AND removes
+  missile entities from `game_map.entities` on every combat end
+  path (victory / disengage / flee / defeat), re-run at
+  `_activate_combat_state` as the abnormal-end belt-and-braces:
+  entities serialize with the map, so a leftover glyph corrupts
+  the next save (save/load contract).
+- Rendering — missiles as entities via the world draw path
+  (CP437-safe glyph, visually distinct per owning side; pick at
+  build), intercept kill = small explosion beat at the cell.
+- Guide (`data/guide/`) — the missile/weapon sections gain flight,
+  interception, and the floor gate; call the diff out on the
+  checklist.
+
+Budget note (forecast, not a placement driver): `_rules_space.py`
+sits at 955/1000 lines — the spawn branch, floor gate, arrival
+wrapper, and accessor reads trip the module ratchet; expect the
+in-commit refactor that moves flight mechanics into
+`_missile_flight.py` (the cohesive home — pure advance/guidance
+math + the entity type; the state field on `SpaceCombatState`).
+
+**Build order**: data fields + pins → flight module + state field +
+spawn-on-fire (+ non-blocking entity) → round-boundary advance +
+arrival resolution (full kill chain) → floor gate → merged cycle +
+dedicated intercept branch + HUD/card → cleanup sweep → render
+beats → guide.
+
+**Binding rulings**: SETTLED 1–7, 9 as written above, plus the
+ADVISE-folded pins: the intercept kill NEVER reaches `rules.on_kill`
+(dedicated branch — no XP/loot/rep for ordnance); an arrival kill
+runs the full kill chain but never the Momentum refund
+(volley-time mechanics); the floor gate reads the catalog min —
+Focus does not widen the refusal band; volley-at-a-missile follows
+normal volley inclusion — the active-weapon toggles are the
+flak-escort expression (SETTLED 8); enemy volley members still
+resolve INSTANTLY this phase (expressible without touching `_ai`),
+and the shared catalog means THEIR damage is already doubled —
+enemy heavies hit at ×2 with no intercept window until 57.2 lands
+(known interim spike; 57.2 follows promptly); in-flight state dies
+with the fight on every end path via the sync sweep — nothing
+serializes, nothing leaks.
+
+**Required tests** (same commit): spec pins for the new fields and
+magnitudes (incl. EMP `flight_speed=0`); advance-step math (re-vector
+toward live target, fuel cap at `max_range`, dissipate-on-dead-target,
+arrival detection incl. overshoot); floor gate (missile refused
+inside 4/5, laser penalty path untouched, Focus does not widen the
+gate); interception (damage applies to `missile_hp`, kill removes
+entity, strip weapons do nothing); bookkeeping split (intercept kill
+records NOTHING — no XP/loot/rep/`defeated_*`; arrival kill records
+EVERYTHING through the kill chain); end-check ignores live missiles
+(last ship killed by lasers while a friendly missile flies →
+VICTORY, missile swept); D-denial on a missile target; entity
+non-blocking (walk and A* through a missile cell); arrival (guidance
+roll formula incl. dodge-at-arrival and clamp, miss = zero damage,
+hit = doubled base × quality × variance through the resolve path);
+flight-state cleanup on every combat end (no missile entities on the
+map post-fight); merged-cycle ordering. Existing volley tests adapt:
+player missile members no longer resolve instantly.
+
+**Stop point**: no enemy AI changes, no enemy-fired flight (57.2),
+no calibration (57.3), no contrail/motion polish beyond the intercept
+beat, no magazine/BH/cargo edits.
+
+**Playtest checkpoint** (dev mode: SPACEHACK_DEV start → buy heavy
+missile + light lasers + rounds at the mechanic):
+
+1. Kite a pirate to range ≥ 5; F the heavy — the missile launches
+   (existing fire line), crosses cells over rounds, arrives with the
+   ×2 feel (≈64 base through quality/variance).
+2. While YOUR missile is mid-flight (self-intercept sandbox), TAB
+   cycles onto it; the card reads Heavy Missile / HP 6 / speed 2;
+   F a light laser at it — HP chips, the killing shot removes it
+   with the explosion beat, nothing arrives.
+3. Try the heavy inside range 5 — refused (`Target inside minimum
+   range.`); a laser inside ITS floor still fires at the penalty
+   (semantics unchanged).
+4. EMP at a shielded pirate: instant 100% strip, no entity ever on
+   the map, cap 2 enforced as before.
+5. Rushdown: sit inside the heavy's floor — dead stick; back off
+   above 5 — it fires again (the back-off dance, doc 48 SETTLED 40).
+7. Kite-test: fire at a runner, then keep moving — flight extends,
+   fuel can exhaust (`Missile exhausts its fuel.`).
+8. Expect the interim spike: ENEMY missiles fire instantly this
+   phase and already hit at ×2 (heavy ≈64, no intercept window) —
+   known and accepted until 57.2 lands.
+9. Regression: a pure-laser fight plays exactly as before — no
+   cycle noise, no pacing change; save/quit/continue outside combat
+   is clean.
+10. Guide diff review (flight/interception/floor entries).
+
+## Implementation brief 57.2 — enemy missiles + the flak AI layer
+
+**Scope**:
+
+- `combat/_missile_flight.py` — owner-side arrival vs the player
+  (the same pure guidance roll; DEFEAT possible at the boundary);
+  enemy missiles join the merged target cycle — the player's
+  TAB+F interception becomes real defense.
+- `combat/_ai.py` — enemy volley missile members spawn flight
+  entities (the mirror of the player seam); the ENEMY FLOOR GATE:
+  `_affordable_members` gains the missile floor refusal (a member
+  inside its floor sits out, exactly like the player's per-member
+  `can_fire` refusal — composes with doc 56 SETTLED 24's
+  affordability inclusion), and the cornered fallback no longer
+  fires missile members inside the floor (updating the pinned
+  `tests/combat/test_enemy_fire.py` behavior); the doc records:
+  this supersedes SETTLED 24's fire-at-penalized-floor rule for
+  MISSILE members only. The flak decision layer: per action,
+  score(inbound missile) vs score(shooter) through the existing
+  scorer pattern (expected intercept value = p(hit) × missile_hp
+  coverage vs expected volley EV), enemies with fast cheap weapons
+  prefer flak — a scorer, not branches.
+- `combat/_rules_space.py` — the flee reaction volley (doc 54)
+  excludes FLIGHT racks only, gated on `flight_speed > 0`: reaction
+  fire is guns-only because missiles cannot chase a fleeing ship
+  (the fight ends before arrival — wasted rounds); the EMP pulse
+  is instant and STAYS a reaction weapon.
+- Rendering — enemy missile glyph distinct from the player's.
+- Guide — enemy-missile / point-defense note.
+
+**Build order**: enemy spawn mirror → player-side interception of
+enemy missiles (mostly free from 57.1) → flak scorer → reaction
+exclusion → render + guide.
+
+**Binding rulings**: SETTLED 1–8 apply symmetrically; both sides'
+missiles obey identical physics INCLUDING the floor gate (the
+enemy-side gate is this phase's SETTLED-24 supersession, scoped to
+missile members). Reaction-volley exclusion gates on
+`flight_speed > 0` (EMP remains a reaction weapon). Shooter death
+mid-flight does not recall the missile; target death mid-flight
+dissipates it next step.
+
+**Required tests**: enemy missile spawn on volley; the enemy floor
+gate (member sits out inside the floor; cornered missile-ships no
+longer fire through it — pinned tests updated); flak scorer
+table (flak preferred when intercept EV beats shooting EV; the
+score-zero never-picked rule preserved); player interception of
+enemy missiles; DEFEAT via arrival; reaction volley fires no
+flight racks but MAY fire the EMP pulse; reinforcement joiners with
+racks fly them.
+
+**Stop point**: no calibration (57.3), no probe rows, no magazine
+changes.
+
+**Playtest checkpoint**:
+
+1. Fight missile-carriers (pirates → warlord): watch THEIR heavy
+   cross the map at you — the dread beat.
+2. TAB+F it down with the light-laser escort (toggles off the
+   heavies first); feel the manual-flak rhythm under saturation.
+3. Eat an unanswered heavy (≈64 into hull) — the gamble's teeth.
+4. Kite during flight: your movement extends its flight and raises
+   your dodge at arrival.
+5. Flee through an exit under racks: reaction fire is guns only.
+6. Kill a shooter with its missile inbound: the missile still
+   arrives (already launched).
+7. Regression: ground combat untouched; reinforcement joins carry
+   racks cleanly; guide diff review.
+
+## Implementation brief 57.3 — calibration
+
+**Scope**: `tools/balance_probe.py` rows + the magnitude dials this
+doc owns: the ×2 multiplier (28/64), the floors (4/5), the intercept
+families (hp 2/6, speed 4/2), and the magazine-saturation trade
+(arrival rate vs flak density vs rack depth — SETTLED 8's expression
+measured, not assumed). Numbers move only with probe rows; missile
+magnitudes are owned HERE now (doc 56's phase 4 proceeds on
+non-missile dials — its "missiles → doc 57" note stands). Runs
+naturally in the same conversation as doc 56 phase 4 if convenient.
+SYSTEMS.md entries land at the doc close. Harness note: flight
+stretches space fights — expect `TURN_CAP`/`ACTION_CAP` bumps in
+`tests/balance/harness.py` (its `_mirror_loop` drives the real
+dispatch loop, so the round-boundary hook is picked up for free);
+confirm the advance's render beats tolerate the absorbing console /
+inert presentation.
+
+**Build order**: probe rows (arrival-rate by band vs flak loadout;
+saturation curves vs magazine depth) → dial passes → spec pins
+updated in the same commits.
+
+**Binding rulings**: the probe is the referee (doc 56's calibration
+doctrine); acceptance = the criteria below measurably hold.
+
+**Required tests**: updated spec pins per dial move; probe harness
+rows land as reported outputs.
+
+**Stop point**: this is the closing phase — after its playtest, the
+doc close conversation (move to `complete/`, SYSTEMS.md inventory).
+
+**Playtest checkpoint**:
+
+1. A missile fight reads as artillery-vs-flak: standoff racks,
+   crossing heavies, intercept beats — slower-but-dreadful, not
+   fiddly (acceptance 5).
+2. Saturation is real: deep racks beat thin flak; light-laser walls
+   beat thin racks (acceptance 2–3).
+3. Floors make rushdown total: inside 4/5 the racks say nothing
+   (acceptance 5).
+4. Probe rows reviewed with the user before any dial moves.
+
+## Acceptance criteria
 
 1. A missile fired at range resolves at impact, not at launch; both
-   sides' missiles are interceptible by the same mechanics.
-2. light_laser-heavy builds demonstrably suppress missile volleys
-   (probe row: a flak escort reduces inbound arrival rate).
+   sides' missiles are interceptible by the same mechanics (the EMP
+   pulse excepted, SETTLED 4).
+2. light-laser builds demonstrably suppress missile volleys (probe
+   row: a flak loadout cuts inbound arrival rate).
 3. The magazine's depth measurably trades against flak (saturation
    is a real strategy, not a paper one).
-4. EMP behavior matches its ruling (see OQ2) — deliberately.
-5. Combat pacing preserved: fights read slower-but-dreadful, not
+4. EMP resolves instantly, never interceptible; its cap-2 magazine
+   and price are its counters, unchanged.
+5. The floors hard-gate missile fire inside light 4 / heavy 5;
+   rushdown inside the floor is total immunity (SETTLED 2).
+6. Combat pacing preserved: fights read slower-but-dreadful, not
    fiddly (playtest ruling).
 
-## Open questions (for /refine-design)
+## Open questions
 
-1. **Flight model**: one-action delay (arrives at the shooter's next
-   action start — exactly one intercept window) vs multi-tick travel
-   across the map. Simplest viable is the former; the glyph-crossing
-   fantasy wants the latter.
-2. **EMP: pulse or projectile?** Lean: instant pulse, never
-   interceptible — the key is already counter-balanced by its
-   hard-capped magazine; making it shootable makes boss fights
-   RNG-shaped. Against: a juggernaut with flak killing your key is
-   very DCSS. User ruling needed.
-3. **Interception economy**: does firing at a missile cost the full
-   volley action (max-AP once, shared with shooter-targeting) or a
-   separate reaction? Doc 54's reaction volley is the natural seam.
-4. **Auto-flak rules**: when do idle light lasers engage inbound
-   without the player asking? Never (manual only) / when no live
-   shooter target / a toggleable stance?
-5. **New minimums**: light 2→4, heavy 3→5 (riff's opening numbers)?
-   What closes inside the floor is immune to racks — the rushdown
-   counter-play — so the floors are a balance surface, not a detail.
-6. **Intercept difficulty**: missile_hp per launcher family; do
-   strip/pulse weapons affect missiles? (Lean: damage weapons only.)
-7. **Doubled damage timing**: land with phase 1 (feel the gamble
-   immediately) or hold until phase 4 (calibrate against measured
-   intercept rates)? Lean: land ×2 at phase 1, calibrate at 4.
-8. **Doc 56 seam**: which SETTLED-35 interactions move (magazine
-   bonus on doubled racks, the BH ×2, cargo-per-round booking when
-   magazines deepen) — re-derive the capacity sites at phase 1.
-
-## PLAYTEST (per phase, detailed at refine)
-
-- Phase 1: fire a heavy at a distant target; watch it travel; shoot
-  it down with light lasers; eat one unanswered and feel the ×2.
+None remain — all eight (plus the arrival-roll and floor-semantics
+questions the flight model opened) settled 2026-10-01 above.
