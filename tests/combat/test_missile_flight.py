@@ -744,6 +744,27 @@ class TestMiniTurn:
         finally:
             _rules_space._state = _old
 
+    def test_player_parked_on_a_missile_eats_the_self_splash(self, monkeypatch):
+        # The player's own hull parking on a resting missile is the
+        # same contact — the self-splash branch, DEFEAT when lethal.
+        _patch_flights(monkeypatch)
+        _ctx, _state, _old = _flight_fixture(enemy_at=(8, 0))
+        try:
+            _a = _manual_missile(
+                _state, (1, 0), _state.enemy_insts[0], fuel=0,
+            )
+            _state.player_state["pos"] = world.Position(1, 0)  # the player parks
+            _pin_rng(monkeypatch, roll=50, spread=1.0)
+            _outcome = run(_missile_flight.advance_flights(
+                _state, _ctx, _state.game_map,
+            ))
+            assert _outcome is None              # hull 100 survives a 64 hit
+            assert _state.player_state["hull"] < 100
+            assert _state.last_attacker == "Your own Heavy Missile"
+            assert _a not in _state.in_flight
+        finally:
+            _rules_space._state = _old
+
     def test_dead_target_dissipates_the_missile_silently(self, monkeypatch):
         _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
