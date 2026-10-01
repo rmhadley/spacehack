@@ -1,24 +1,22 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: PHASE 2 BUILT 2026-10-01 via `/implement-phase 57.2`
-(enemy missiles + flak AI; the PROPOSED brief got its ADVISE pass at
-the top of the build session — 4 blocking catches folded before
-code; reviewer APPROVE, 5 minors fixed; gate 3466 green). PLAYTEST
-ROUND 1 IN FLIGHT: the raider-never-fires report is FIXED (same
-day, reviewer APPROVE on the delta — see the audit's "Playtest
-round 1"; gate 3468); playtest continues at the checkpoint below. PHASE 1 PLAYTEST PASSED 2026-10-01
-(v2 flight model; built via `/implement-phase 57.1`, reworked by the
-first playtest into SETTLED 11, prose settled at the second
-checkpoint; reviewer APPROVE ×2). Brief 57.3 remains PROPOSED until
-its checkpoint. Refined 2026-10-01 (`/refine-design`): rulings
-SETTLED 1–9, every open question closed; Implementation briefs 1–3
-written with the ADVISE reviewer pass folded (14 catches, 6
-blocking — kill-path bookkeeping, merged-index readers, entity
-solidity, sync sweep, enemy-side floor gate). Born in the doc-56
-phase-4 parts walk (SETTLED 35's coda): the walk held missile
-magnitudes for the probe, and this rework — proposed by the user the
-same day — supersedes those magnitudes when it lands. Doc 56's
-calibration pass proceeds meanwhile on the non-missile dials.
+Status: PHASE 2 BUILT + PLAYTEST PASSED 2026-10-01 ("definitely
+getting missiles fired at me... more dynamic and an improvement for
+sure"; one mid-playtest fix folded — the raider-never-fires report,
+reviewer APPROVE on the delta, gate 3468). PHASE 2.5 (enemy AI
+conservation layer — the five-step logic check, user riff post-pass)
+QUEUED for `/refine-design`; PHASE 3 (calibration) brief PROPOSED.
+Phase 1 playtest passed same day (v2 flight model, SETTLED 11; built
+via `/implement-phase 57.1`, reworked by the first playtest, prose
+settled at its checkpoints; reviewer APPROVE ×2). Refined 2026-10-01
+(`/refine-design`): rulings SETTLED 1–9, every open question closed;
+Implementation briefs 1–3 written with the ADVISE reviewer pass
+folded (14 catches, 6 blocking — kill-path bookkeeping, merged-index
+readers, entity solidity, sync sweep, enemy-side floor gate). Born
+in the doc-56 phase-4 parts walk (SETTLED 35's coda): the walk held
+missile magnitudes for the probe, and this rework — proposed by the
+user the same day — supersedes those magnitudes when it lands. Doc
+56's calibration pass proceeds meanwhile on the non-missile dials.
 
 ## Overview
 
@@ -637,12 +635,15 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       (BUILT + PLAYTEST PASSED 2026-10-01, v2 flight model per
       SETTLED 11; prose settled same day)
 - [x] **2. Enemy missiles + the flak AI layer** — brief below
-      (BUILT 2026-10-01 via `/implement-phase 57.2`; brief was
-      PROPOSED, the ADVISE pass ran at the top of the build session —
-      13 catches, 4 blocking, all folded before code; reviewer
-      APPROVE, 5 minors fixed. PLAYTEST ROUND 1: the raider-never-
-      fires report fixed same day — see the audit's "Playtest round
-      1"; playtest continues)
+      (BUILT + PLAYTEST PASSED 2026-10-01: "feels better now,
+      definitely getting missiles fired at me. makes combat feel more
+      dynamic and is an improvement for sure." One mid-playtest fix
+      folded — the raider-never-fires report, see the audit's
+      "Playtest round 1". Guide diffs + the fratricide DRAFT line
+      rode the pass as called out on the checkpoint)
+- [ ] **2.5. Enemy AI conservation layer — the five-step logic check**
+      — riff below (user, 2026-10-01, post-pass: the hard missile
+      floor is specifically what needs it); awaiting `/refine-design`
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception
@@ -895,6 +896,66 @@ changes.
    lines; enemy flak speaks "…fires its Light Laser at Heavy
    Missile. It hits for 4 damage!" / "It misses!" (the player
    mirror's exact forms).
+
+## Riff: phase 2.5 — the enemy AI conservation layer (2026-10-01, user)
+
+Proposed by the user immediately after 57.2's playtest pass, with the
+scoping rationale verbatim: "it's specifically the new minimum hard
+cutoff for missiles that need this" — SETTLED 2's hard floor benches
+members outright, and bench/restore dynamics are exactly where a
+temperament roll (the aggressiveness die) handles the situation worse
+than a reasoned check. The user's loop, verbatim:
+
+1. What weapons do I have available
+2. Do I have power/ammo/AP for the weapons
+3. Do I need to conserve power/ammo/AP for something else? shield
+   regen, dodge %, etc.
+4. Now its decided the weapon or WEAPONS to fire based on 1-3
+   (clarified: reasoned MEMBERSHIP, not pick-one)
+5. now its decided the movement needed to use that weapon
+
+Mapping against the shipped pipeline (agent, same exchange):
+
+- Steps 1-2 are SHIPPED: `_slot_weapons` + the per-member
+  affordability/floor gates at one choke point (`_member_included`),
+  re-gated mid-volley as the pool drains.
+- Step 3 is the genuine gap: nothing reasons about the future. Shield
+  regen is a paid divert that auto-fires at turn start and eats
+  whatever is left; nothing reserves power for it. Ammo hoarding was
+  argued AGAINST and the user did not object: enemy magazines are the
+  fight plan (the saturation doctrine spends them), a hoarding enemy
+  reads passive.
+- Step 4 extends the existing membership-predicate pattern — the
+  sanctioned "enemy toggles" expression (the 57.2 floor and
+  flak-capability gates are the precedents): add a reserve check
+  (a wounded ship's plasma drops out while lasers and racks keep
+  firing — "it stopped the heavy stuff and started tanking"), and
+  OPTIONALLY a score-zero gate (today an enemy fires its EMP at a
+  bare-shield target for nothing; inclusion never looks at the
+  target). The VOLLEY MIRROR stays (doc 56 SETTLED 24: membership
+  reasoning, never pick-one).
+- Step 5 is unchanged: the three movement verbs keyed to the band
+  (the wish-list top after the round-1 fix).
+
+Carries the round-2 reviewer watch item (dry-magazine racks keep the
+rack band; if the playtest read it wrong, the wish-list ammo filter
+decision lands HERE).
+
+**Open questions for `/refine-design`**:
+
+1. Reserve = formula (protect exactly the next regen divert's cost —
+   agent recommendation: needs-based, legible, no new dial) or a spec
+   dial (a "defensive" temperament)?
+2. Does the score-zero exclusion ride along (mirror purity vs. no
+   wasted shots — an EMP into bare shields)?
+3. Does the reserve feed the aggressiveness/dodge read too (a
+   tanking ship dodges more), or only membership?
+4. Which probe rows referee it (doc 50 owns the warlord math — a
+   regen-reserving warlord changes space-fight survival curves).
+
+Nothing here restructures the decision loop; it is predicates at the
+existing seam plus one new read. No brief written yet — the rulings
+come first.
 
 ## Implementation brief 57.3 — calibration
 

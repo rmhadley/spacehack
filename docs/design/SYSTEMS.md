@@ -459,34 +459,49 @@ nobody designs against a ghost.
   rep (`GameMap.hostile_interior` through `spec_is_hostile`'s
   optional game_map param — the one uniform seam, serialized);
   kill deltas land by crew faction through the existing tables.
-- **Missile flight (doc 57 SETTLED 11, phase 1 playtest-passed
+- **Missile flight (doc 57 SETTLED 11, phases 1-2 playtest-passed
   2026-10-01)** — light/heavy missiles are physical crossing
-  projectiles (`combat/_missile_flight.py`): deploy into a free
-  8-neighbor of the shooter (never on it, nearest the target), launch
-  half-move (`max(1, speed//2)`), then per-SHOOTER mini-turns at the
-  start of the shooter's turn — one missile at a time, launch order,
-  full `flight_speed`. Collision: any ship contact (anchor cells, on
+  projectiles (`combat/_missile_flight.py`), BOTH sides: deploy into a
+  free 8-neighbor of the shooter (never on it, nearest the target),
+  launch half-move (`max(1, speed//2)`), then per-SHOOTER mini-turns
+  at the start of the shooter's turn — one missile at a time, launch
+  order, full `flight_speed`; dead shooters' missiles fly at the
+  start of the enemy phase (the orphan sweep — death never recalls).
+  Collision: any ship contact (anchor cells, on
   entry, plus a parking pre-check) = the same guidance roll vs that
   ship's dodge-at-contact, FULL spec damage, full kill chain on any
-  kill; self-splash live (DEFEAT propagates); terrain detonates
-  harmlessly; missiles never detonate on missiles (same-shooter
-  actively avoided via sidestep/hold-no-burn, launch stagger keeps
-  volleys unstacked; a rack fired at a missile is a legal fuel dud).
+  kill; self-splash live (DEFEAT propagates); enemy-on-enemy clips
+  are fratricide (identical physics, no player credit); terrain
+  detonates harmlessly; missiles never detonate on missiles
+  (same-shooter actively avoided via sidestep/hold-no-burn — keyed on
+  shooter IDENTITY; launch stagger keeps volleys unstacked; a rack
+  fired at a missile is a legal fuel dud).
   Fuel = `max_range` cells of entered cells; beyond-max launch is a
   fuel dud (user ruling). Hard floor = catalog `min_range`, flight
   missiles only (ONE read: `catalog_floor` — gate, range line, HUD
-  distance, card HIT color, WEAPONS row; Focus never widens it).
+  distance, card HIT color, WEAPONS row; Focus never widens it);
+  enemy racks take the same gate (supersedes doc 56 SETTLED 24's
+  fire-at-penalized-floor for missile members), and the enemy dance
+  band reads the WISH-list top so a benched rack still governs range
+  (rack carriers' `ai_preferred_range` clears floor + sqrt(2),
+  pinned catalog-wide). Enemy launches are wordless (the attack line
+  lands at arrival through `_apply_enemy_hit`); enemy guidance rolls
+  the launch-time gunnery snapshot, never player perks.
   Interception: merged `targetables` (ships then missiles) feeds
   TAB/card/range reads/fire ONLY — end-check, reaction volley, board
-  stay ships-only; flak = normal volley damage onto `missile_hp`, the
-  intercept kill never reaches `on_kill` (no XP/loot/rep for
+  stay ships-only; flak = normal volley damage onto `missile_hp`,
+  the intercept kill never reaches `on_kill` (no XP/loot/rep for
   ordnance); arrival kills run the full chain minus the Momentum
-  refund. EMP stays an instant pulse (`flight_speed=0`). Glyphs: heavy
-  `♦` / light `*`, hostile hot red / player cyan. All flight state is
-  combat-transient (swept on every end path + at `_activate_combat_state`);
-  `world.Entity.non_blocking` makes crossings zero-footprint
-  (blocking/A*/patrol/reinforcement-matcher all skip them). Enemy
-  missiles + flak AI = 57.2; calibration owns the magnitudes.
+  refund. Enemy flak: per-action score(inbound) vs score(shooter)
+  (`score_flak` = chance x hull-coverage x threat / AP), fired inside
+  the fire branch; flak volleys exclude racks and strip weapons.
+  Reaction fire is guns-only (racks cannot chase a fleeing ship; the
+  instant EMP stays). EMP stays an instant pulse (`flight_speed=0`).
+  Glyphs: heavy `♦` / light `*`, hostile hot red / player cyan. All
+  flight state is combat-transient (swept on every end path + at
+  `_activate_combat_state`); `world.Entity.non_blocking` makes
+  crossings zero-footprint (blocking/A*/patrol/reinforcement-matcher
+  all skip them). Calibration owns the magnitudes.
 - **Absent:** no ship-vs-ship real-time movement, ramming, tractor,
   mines-as-entities; no salvage drones; no player-called allies; no
   flee-from-space-combat; `NpcShipSpec.comms_range` documented
