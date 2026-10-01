@@ -3,8 +3,10 @@
 Status: PHASE 2 BUILT 2026-10-01 via `/implement-phase 57.2`
 (enemy missiles + flak AI; the PROPOSED brief got its ADVISE pass at
 the top of the build session — 4 blocking catches folded before
-code; reviewer APPROVE, 5 minors fixed; gate 3466 green; playtest
-pending at the checkpoint below). PHASE 1 PLAYTEST PASSED 2026-10-01
+code; reviewer APPROVE, 5 minors fixed; gate 3466 green). PLAYTEST
+ROUND 1 IN FLIGHT: the raider-never-fires report is FIXED (same
+day, reviewer APPROVE on the delta — see the audit's "Playtest
+round 1"; gate 3468); playtest continues at the checkpoint below. PHASE 1 PLAYTEST PASSED 2026-10-01
 (v2 flight model; built via `/implement-phase 57.1`, reworked by the
 first playtest into SETTLED 11, prose settled at the second
 checkpoint; reviewer APPROVE ×2). Brief 57.3 remains PROPOSED until
@@ -501,6 +503,47 @@ walls. Damage racks receive the magazine bonus; EMP never does.
   kill rides `finish_intercept`'s existing line. Zero new prose
   beyond the fratricide DRAFT above.
 
+### Playtest round 1 (2026-10-01): the raider that never fired
+
+User report: "a pirate raider never once decided to shoot its light
+missiles." Reproduced in simulation, two STACKED causes:
+
+1. **The band trap (mechanics)**: the dance band followed the
+   AFFORDABLE fire pick, so the moment a rack was benched by the
+   floor gate the laser took the band ([1..5]) — the ship collapsed
+   into gun range under any closing player and the SETTLED-40
+   back-off verb never triggered (rack-only ships escaped via the
+   wish-list fallback; MIXED loadouts were the hole). Fix:
+   `_volley_picks`' band now reads the WISH-list top over all
+   weapons, budget and floor ignored — "the ship dances where its
+   best weapon fights from," the ruled power-dry read generalized.
+   A benched rack still governs the dance, so a hugged mixed loadout
+   backs off to restoration and the rack returns.
+2. **Zero-margin standoffs (data)**: every rack carrier's
+   `ai_preferred_range` sat AT its floor (lights 4/4, heavies 5/5 —
+   the 57.1 audit bump moved heavies TO the floor, not past it), so
+   any diagonal approach overshot inside and benched the rack; worse,
+   the advance verb re-entered from every 4.24+ standoff. A step
+   shrinks Euclidean distance by at most sqrt(2), so preferred must
+   exceed the floor by >1.41: lights 4→6 (raider, militia_patrol),
+   heavies 5→7 (captain, patrol_heavy, marauder, warlord). Pinned
+   catalog-wide: `test_rack_carrier_standoffs_clear_their_floors`
+   fires if a 57.3 floor dial move reopens the trap.
+
+Post-fix simulation (real spec dials): the raider launches every
+round under a closing player (holds 4.0–5.0); the warlord holds 5–6
+with steady heavies; magazines run down honestly.
+
+PLAYTEST WATCH (reviewer round 2, minor 3): the wish list scores
+without reading ammo, so a rack-carrier whose magazine runs DRY
+keeps the rack band for the rest of the fight — its lasers then
+volley beyond their max range at the hit floor instead of closing
+to effective gun range. Follows the recorded ruling verbatim
+("dances where its best weapon fights from"); if the playtest
+reads wrong, the fix is a wish-list ammo filter, never a band
+revert. Doc 56's SETTLED 24 line now carries the supersession
+pointer.
+
 ## The shape
 
 ### Flight entity
@@ -596,8 +639,10 @@ outcome-shaped hit/miss forms and cannot carry a launch):
 - [x] **2. Enemy missiles + the flak AI layer** — brief below
       (BUILT 2026-10-01 via `/implement-phase 57.2`; brief was
       PROPOSED, the ADVISE pass ran at the top of the build session —
-      13 catches, 4 blocking, all folded before code; playtest
-      pending)
+      13 catches, 4 blocking, all folded before code; reviewer
+      APPROVE, 5 minors fixed. PLAYTEST ROUND 1: the raider-never-
+      fires report fixed same day — see the audit's "Playtest round
+      1"; playtest continues)
 - [ ] **3. Calibration** — brief below (PROPOSED)
 
 ## Implementation brief 57.1 — flight + player-side interception

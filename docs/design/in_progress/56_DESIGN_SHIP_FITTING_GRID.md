@@ -361,7 +361,11 @@ probe-driven — phase 4).
     costs, AP = max(ap_cost) paid once; the volley stops on player
     death. Binding mirror consequences: the band/back-off weapon
     stays the top scorer (it governs the dance, not volley
-    inclusion); out-of-range members fire at the hit floor, exactly
+    inclusion) — [SUPERSEDED 2026-10-01, doc 57.2 playtest fix: the
+    band now reads the WISH-list top over all weapons, budget and
+    floor ignored, so a floor-benched rack still governs the dance
+    ("dances where its best weapon fights from"); see doc 57's
+    "Playtest round 1" section]; out-of-range members fire at the hit floor, exactly
     as the player's own volley does; reaction fire (doc 54's flee
     volley) stays SINGLE-shot — no player counterpart exists to
     mirror; the Momentum AP refund stays player-only (a doc-49
