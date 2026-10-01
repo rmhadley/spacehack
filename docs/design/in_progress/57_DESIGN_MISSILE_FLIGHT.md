@@ -555,6 +555,17 @@ with steady heavies; magazines run down honestly.
   0-power rack survives as the pick, one flak volley funds
   (reserve-exempt), then the pool sits below the reserve and the
   rest of the turn dances — funded flak once, pure defense after.
+- Reviewer round (APPROVE, 5 minors — all folded): the caught
+  boundary was REAL — a fully-stripped divert carrier read eff 0 at
+  any hull (the shield term zeroes and ×1.5 of zero is zero), so
+  the ruled arc's stage 3 never happened and a dying warlord would
+  turtle instead of trading. The shipped desperation term FLOORS the
+  tank read with the dial scaled by `(0.5 + deficit)` as hull fails
+  below half: a stripped warlord at 20% hull fights at 80% of its
+  dial. The curve stays the probe's (57.3 may flatten it if the
+  playtest reads wrong). Also folded: a dead capability re-check in
+  `_flak_pick`, `_shoot_ev` collapsed onto `_member_score_vs`, the
+  test-module header's stale inclusion language.
 
 PLAYTEST WATCH (reviewer round 2, minor 3): the wish list scores
 without reading ammo, so a rack-carrier whose magazine runs DRY
