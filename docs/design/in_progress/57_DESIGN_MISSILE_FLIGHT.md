@@ -681,7 +681,11 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       "playtest good"; the probe refereed the desperation term into
       its divert-carrier scope mid-build — goal_1's ruled bar is the
       evidence; gate 3479 green; reviewer APPROVE, 5 minors folded)
-- [ ] **3. Calibration** — brief below (PROPOSED)
+- [ ] **3. Calibration** — brief below (measurement half BUILT
+      2026-10-01: flight telemetry + the kite/flak_escort instruments
+      + eight report-only rows; the measured table below awaits the
+      user's read — dial passes follow their ruling, per the brief's
+      rows-before-dials order)
 
 ## Implementation brief 57.1 — flight + player-side interception
 
@@ -1238,6 +1242,86 @@ and the checklist says so).
 9. Guide diff review: NONE this phase (deliberate — enemy interior
    explains itself in play).
 
+
+## Pre-implementation audit (2026-10-01, phase 57.3)
+
+### 1. Existing classes / modules to extend or reuse
+
+- **`tests/balance/scenarios.py`** — `PlayerSheet` installs weapons
+  through the REAL install path (slot caps, ammo seeding; the
+  Missile Magazine module rides `module_ids` if the saturation row
+  wants depth); `GridSpec` synthetic grids give clean opening
+  bands; report-only rows (`thresholds=None`) are the table's own
+  "measure first, rule later" pattern — exactly this phase's shape.
+- **`tests/balance/stances.py`** — the instrument seat: one action
+  per await through the real dispatch. Two new stances join because
+  rows need them (SETTLED 3's own rule): ``kite`` (the crossing-
+  under-movement row: spend AP on movement, fire when affordable)
+  and ``flak_escort`` (the manual-flak rhythm the design describes:
+  TARGET-cycle to a hostile inbound and FIRE, else fire at the
+  nearest ship).
+- **`tests/balance/harness.py`** — `_mirror_loop` already drives
+  the real dispatch (every flight hook fires for free); `RunResult`
+  and `aggregate` are the telemetry surface; TURN_CAP 200 /
+  ACTION_CAP 5000 bound the stretched fights (timeouts are
+  themselves reported findings, not failures).
+- **`SpaceCombatState`** (`combat/_types.py`) — gains the flight
+  outcome counters (launched / arrived-on-hull / intercepted /
+  fizzled, per side) the rows read; combat-transient like
+  `in_flight`, bumped at the four finish sites in
+  `_missile_flight` (spawn, the two contact paths,
+  `finish_intercept`, fuel/terrain/dissipate).
+- **`tests/balance/report.py`** — prints the new means when
+  nonzero.
+
+### 2. Three potential duplication hotspots
+
+1. Outcome classification written twice — the src counters and a
+   harness-side re-derivation (log parsing or in_flight diffing)
+   would drift; the counters are the ONE source, the harness only
+   reads them.
+2. Crossing-time math smeared across the loop — per-action
+   in_flight snapshots belong in ONE place inside the mirror loop.
+3. Stance boilerplate — `kite`/`flak_escort` re-implementing the
+   aim/fire preamble instead of reusing `_aim_closest` and
+   `_fire_slots`.
+
+### 3. DRY strategy per hotspot
+
+1. Counters bumped at the semantic finish sites only (never at
+   `_remove_missile`, which all paths share); same-commit pins.
+2. One `_flight_watch(...)` step in the mirror loop (space-only,
+   `getattr`-guarded) tracking id → first-seen turn and resolving
+   removals by that action's counter deltas.
+3. Both stances compose the existing helpers; the stance file's own
+   docstring rule (frozen instruments, changes = benchmark
+   revisions) governs.
+
+### The measured rows (2026-10-01, 50 runs each, report-only)
+
+| row | shape | launches | arrived | intercepted | fizzled | resolved-arrival | crossing mean | player win |
+|---|---|---|---|---|---|---|---|---|
+| stand_mid (band 9) | cruiser+2 lights, standing, captain | 148 | 27 (18%) | 0 | 0 | 100% | 2.63 | 0/50 |
+| stand_far (band 12) | same, standing | 149 | 20 (13%) | 0 | 0 | 100% | 2.25 | 0/50 |
+| kiting_far | same, movement-first | 150 | 37 (25%) | 0 | 11 | 77% | 4.72 (fizzle 7.00) | 0/50 (1 timeout) |
+| flak_lights | 2 lights, escort rhythm | 149 | **0** | 132 (89%) | 0 | **0%** | — | 0/50 (3 TO) |
+| flak_heavyguns | 2 heavy lasers, escort | 150 | **0** | 125 (83%) | 0 | **0%** | — | 3/50 |
+| sat_thin | 1 rack vs raider flak | 150 | 42 (28%) | 105 (70%) | 3 | 28% | 2.55 | 10/50 |
+| sat_deep | 2 racks + magazine | 300 | 128 (43%) | 118 (39%) | 48 | 44% | 2.70 | 38/50 |
+| warlord_stock | cruiser vs warlord | 115 | 4 | 0 | 0 | 100% | 3.00 | 0/50 (≤4 turns) |
+
+Caveats the numbers carry (reviewer round, folded): the crossing
+means are CENSORED — only missiles that resolved before the fight
+ended book a duration (82% of the standing rows' launches were still
+airborne when the fight ended), so standing-row crossings read the
+FAST arrivals; the kiting row's 4.72 + 7.00-fizzle is the honest
+ou-run signal. Raw arrived/launched confounds with fight length
+(the resolved-arrival column is the comparable metric). Instrument
+notes: the flak rows use a maximally-flak stance (it never fires at
+the ship while an inbound lives); a mirror-loop retarget bug (the
+harness validated target indices against the ships-only list, so
+every missile index reset each iteration) was found and fixed by the
+first merged-space stance — ground rows bit-identical.
 
 ## Implementation brief 57.3 — calibration
 
