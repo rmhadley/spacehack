@@ -1,6 +1,9 @@
 # DESIGN: Missile flight — interceptible long-range artillery
 
-Status: PHASES 2 + 2.5 BUILT + PLAYTEST PASSED 2026-10-01 (2: "definitely
+Status: CLOSED 2026-10-01 — every phase built, playtest-passed,
+and ruled; the doc moves to complete/. Feel feedback from later
+playthroughs tunes against the ruled bars in other conversations.
+Earlier arc: PHASES 2 + 2.5 BUILT + PLAYTEST PASSED 2026-10-01 (2: "definitely
 getting missiles fired at me... more dynamic and an improvement for
 sure" — one mid-playtest fix folded, the raider-never-fires report;
 2.5: "playtest good" — the probe refereed the desperation scope
@@ -681,11 +684,15 @@ outcome-shaped hit/miss forms and cannot carry a launch):
       "playtest good"; the probe refereed the desperation term into
       its divert-carrier scope mid-build — goal_1's ruled bar is the
       evidence; gate 3479 green; reviewer APPROVE, 5 minors folded)
-- [ ] **3. Calibration** — brief below (measurement half BUILT
-      2026-10-01: flight telemetry + the kite/flak_escort instruments
-      + eight report-only rows; the measured table below awaits the
-      user's read — dial passes follow their ruling, per the brief's
-      rows-before-dials order)
+- [x] **3. Calibration** — brief below (BUILT + RULED + PLAYTEST
+      PASSED 2026-10-01: telemetry + instruments + eight rows
+      measured; dial rulings same day — speed 2 stands, focused flak
+      endorsed, the measured base lines LANDED as the standard (four
+      rows ruled, gate-enforced). Playtest verdict, user, verbatim:
+      "we'll tune in other conversations. this is playable and
+      complete. the feeling of it will trickle in as I playtest
+      other things." — future feel feedback tunes against the bars,
+      never ahead of them)
 
 ## Implementation brief 57.1 — flight + player-side interception
 
