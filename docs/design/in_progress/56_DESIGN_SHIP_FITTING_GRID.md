@@ -880,8 +880,19 @@ then one balance pass over both sides with the probe as referee.
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.
 - [ ] **4. Calibration** — probe-driven tuning of upkeep magnitudes and
-  power pressure; BEGUN 2026-09-30 (the parts walk, SETTLED 26 = the
-  shield family; reactors next); re-runs the phase-2 power lints after every
+  power pressure; the PARTS WALK (its authoring edge) COMPLETE
+  2026-10-01, SETTLED 26-35: every ladder de-stacked, heavy_reactor
+  killed, armor watt-free + speed-taxed, cargo 2×4 + area-monotone
+  lint, lasers (heavy 16), EMP 100% boss-key, the Missile Magazine;
+  cargo/smuggler/plasma/light+heavy-missiles passed or deferred
+  (missiles → doc 57). REMAINDER = the magnitude pass: the
+  upgraded-loadout sims + the EMP warlord run, the gen-4 starter
+  question, the upkeep-scaling-speed dial (SETTLED 30), the 95
+  clamp, the Line envelope flips; re-runs the phase-2 power lints
+  after every magnitude change (advisor catch 8); the deferred
+  magnitude questions (shield bonus vs enemy damage) land here or
+  get their own doc with the probe as referee. FOLLOWS PHASE 5
+  (ruled 2026-09-30): the user
   magnitude change (advisor catch 8); the deferred magnitude questions
   (shield bonus vs enemy damage) land here or get their own doc with
   the probe as referee. FOLLOWS PHASE 5 (ruled 2026-09-30): the user
