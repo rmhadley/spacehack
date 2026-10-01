@@ -154,7 +154,7 @@ MODULES: tuple[ModuleSpec, ...] = (
         description="+100 cargo capacity.",
         cargo_bonus=100, price=200,
         tech_level=3,
-        grid_w=3, grid_h=3,
+        grid_w=2, grid_h=4,
     ),
     ModuleSpec(
         id="cargo_mk4", name="Expanded Cargo Bays Mk. 4",

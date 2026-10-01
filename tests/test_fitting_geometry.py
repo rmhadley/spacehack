@@ -45,7 +45,7 @@ RULED_ITEM_SIZES = {
     "shield_capacitor": (1, 1), "shield_recharger": (1, 2),
     "targeting_computer": (1, 1), "targeting_mk2": (1, 2), "targeting_mk3": (2, 2), "targeting_mk4": (2, 3),
     "gyro_stabilizer": (1, 1), "gyro_mk2": (1, 2), "gyro_mk3": (2, 2), "gyro_mk4": (2, 3),
-    "expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (3, 3), "cargo_mk4": (3, 3),
+"expanded_cargo": (2, 2), "cargo_mk2": (2, 3), "cargo_mk3": (2, 4), "cargo_mk4": (3, 3),
     "armor_plating": (1, 1), "armor_mk2": (2, 2), "armor_mk3": (2, 3), "armor_mk4": (3, 3),
     "compact_reactor": (1, 2), "reactor_mk2": (2, 2), "reactor_mk3": (2, 3), "reactor_mk4": (3, 3),
     "smuggler_hold_mk1": (1, 2), "smuggler_hold_mk2": (2, 2),
@@ -165,12 +165,14 @@ def test_every_hull_start_loadout_is_power_valid():
 
 
 def test_mk_sizes_monotonic_within_each_family():
+    """The invariant is the RESOURCE (SETTLED 32, doc 56): a higher
+    mark occupies at least as many CELLS — area-monotone, not
+    per-axis (cargo's 2x4 mk3 squares off to the 3x3 mk4: 8 -> 9
+    cells, height 4 -> 3)."""
     for family, chain in MK_CHAINS.items():
         specs = [find_module(mid) for mid in chain]
-        widths = [s.grid_w for s in specs]
-        heights = [s.grid_h for s in specs]
-        assert widths == sorted(widths), family
-        assert heights == sorted(heights), family
+        cells = [s.grid_w * s.grid_h for s in specs]
+        assert cells == sorted(cells), family
 
 
 def test_every_item_fits_at_least_one_hull():

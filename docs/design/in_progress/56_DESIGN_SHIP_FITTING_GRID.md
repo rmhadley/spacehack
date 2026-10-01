@@ -485,6 +485,20 @@ probe-driven — phase 4).
     max(10, gen×2) floors). Quality scaling keeps its "more of what
     it is" shape on the new axes (hull up, speed malus bigger).
 
+32. **Cargo mk3 goes 2×4; monotonicity reads AREA** (2026-10-01,
+    parts walk family 6). User's shape proposal, ruled "do it, 2x4
+    it is." The ladder becomes 2×2 / 2×3 / **2×4** / 3×3 — every
+    step grows, and cargo gains the tall-crate silhouette (full-
+    height columns of C) against the square shield/reactor blocks.
+    Density still rises (7.5 → 10 → 12.5 → 17.8 per cell), no
+    domination, fits cruiser/hauler/frigate/freighter while skiff
+    and scout cannot hold it. The mk-monotonicity LINT amends from
+    w-and-h-each to CELL-COUNT monotone — the grid charges cells, so
+    a chain may square off (4 → 6 → 8 → 9) without shrinking its
+    footprint. Family verdict otherwise: HEALTHY AS-AUTHORED —
+    per-cell rises while per-credit falls, small hulls stack cheap,
+    traders buy blocks; bonus/prices/watt-free untouched.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
