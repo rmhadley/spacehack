@@ -488,7 +488,10 @@ nobody designs against a ghost.
   lands at arrival through `_apply_enemy_hit`); enemy guidance rolls
   the launch-time gunnery snapshot, never player perks.
   Interception: merged `targetables` (ships then missiles) feeds
-  TAB/card/range reads/fire ONLY — end-check, reaction volley, board
+  TAB/card/range reads/fire ONLY — end-check (amended 2026-10-02:
+  live ENEMY missiles keep the fight open — the inbound can still
+  kill you; player missiles still die with the fight), reaction
+  volley, board
   stay ships-only; flak = normal volley damage onto `missile_hp`,
   the intercept kill never reaches `on_kill` (no XP/loot/rep for
   ordnance); arrival kills run the full chain minus the Momentum

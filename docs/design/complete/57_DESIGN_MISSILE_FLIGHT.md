@@ -641,7 +641,12 @@ pointer.
   TAB cycle, the target card, the hit-chance/range-line reads, and
   the fire path. Every other index-space reader stays SHIPS-ONLY:
   `combat_should_end` (VICTORY ignores live missiles — they die
-  with the fight, never gate the end), `reaction_volley`, and
+  with the fight, never gate the end — [AMENDED 2026-10-02, user
+  ruling: live ENEMY missiles DO gate the end now; killing the last
+  hull with an inbound still up was a free dodge. Player missiles
+  keep dying with the fight — their targets are gone, they only
+  dissipate. No stalemate: every open missile burns fuel and
+  resolves]), `reaction_volley`, and
   `board_target` (D on a missile target DENIES — nothing to
   board). The HUD enemy block gains missile rows and a target
   marker that tracks the merged selection. A volley fired at a
