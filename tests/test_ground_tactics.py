@@ -1421,3 +1421,94 @@ def test_total_ev_folds_overheads_and_gates_the_boundary():
     assert _ev(fed, False, 3) > 0       # swap + one action
     assert _ev(dry, True, 2) == -1.0    # the reload's 1 AP prices it out
     assert _ev(dry, True, 3) > 0        # reload + one action
+
+
+# --- the aggressiveness dial (doc 48 p9 b5, SETTLED 23/43) ---------------------
+
+def _dial_spec(dial: int):
+    """A spec double carrying only what the loop reads (the dial is
+    RAW ground-side — no space bend)."""
+    return SimpleNamespace(
+        name="Pirate Rifleman", ai_aggressiveness=dial,
+    )
+
+
+def _dial_turn(dial: int, ap: int = 4):
+    """An in-band rifleman turn at a fixed dial and RNG roll."""
+    from src.spacehack.combat import _ai_ground
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    game_map = _open_map(player, rifleman)  # dist 4, in band [2..7]
+    ctx, lines = _turn_ctx(player)
+    with pytest.MonkeyPatch.context() as _mp:
+        _mp.setattr(_ai_ground, "RNG", SimpleNamespace(
+            randint=lambda *_a: 50,  # the fixed roll both extremes key on
+            choice=lambda seq: seq[0],
+        ))
+        result = run(_ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=_dial_spec(dial),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=ap, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ))
+    return result, rifleman, lines
+
+
+def test_aggression_90_sits_and_fires():
+    """High aggression: roll 50 < 90 fires at every decision point —
+    both rifle actions, zero cells."""
+    (_ap, _dmg, fired, cells), _ent, _lines = _dial_turn(90)
+    assert fired is True and cells == 0 and _ap == 0
+
+
+def test_aggression_10_dances_stacking_real_move_dodge():
+    """Low aggression: roll 50 >= 10 repositions at every decision
+    point — no shots, four cells of REAL movement dodge."""
+    from src.spacehack.combat._ground_math import calc_ground_move_dodge
+
+    (_ap, _dmg, fired, cells), _ent, _lines = _dial_turn(10)
+    assert fired is False and cells == 4 and _ap == 0
+    assert calc_ground_move_dodge(cells) == 20  # real dodge, stacked
+
+
+def test_the_default_dial_is_fifty_on_every_row():
+    """Build-1 v1: every row reads the default until the tuning pass
+    authors per-spec values (the playtest's eyeball item)."""
+    from src.spacehack.data.npc_chars import list_npc_chars
+
+    assert all(spec.ai_aggressiveness == 50 for spec in list_npc_chars())
+
+
+def test_melee_still_never_dances_at_any_dial(monkeypatch):
+    """The dial's dance is a ranged verb: a melee-active enemy at dial
+    10 with roll 50 (dance territory) still spends its AP swinging —
+    SETTLED 26's no-knife-dancers holds under the dial."""
+    from src.spacehack.combat import _ai_ground
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    brute = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 6),
+        npc_char_id="pirate_brute",
+    )
+    brute.rolled_loadout = _pinned_loadout(("monster_claws", 0))
+    game_map = _open_map(player, brute)
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 50, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, fired, cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=_dial_spec(10),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=3, player_pos=player.pos, enemy_entity=brute,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert fired is True and cells == 0 and _remaining == 0  # 3 swings

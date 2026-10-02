@@ -232,19 +232,13 @@ async def _volley_step(
 ):
     """One decision point: ``(ap_spent, cells, fired, damage, halt)``.
 
-    Hugged: back off (SETTLED 40's mirror). With a pick: swap or FIRE.
-    Without: dry-switch, range legs, leftover dance (ranged only)."""
-    from ..data.ground_weapons import find_ground_weapon as _find_gw
-
+    Hugged: back off. With a pick: the dial's fire-vs-dance roll, then
+    swap or FIRE. Without: dry-switch, range legs, leftover dance."""
+    _aws = _active_weapon_spec(stamp)
+    if _aws is None:
+        return 0, 0, False, 0, True  # weaponless or unknown id: inert
     _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
     _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
-    _active = ground_loadout.active_pair(stamp)
-    if _active is None:
-        return 0, 0, False, 0, True
-    try:
-        _aws = _find_gw(_active[0])
-    except KeyError:
-        return 0, 0, False, 0, True  # id left the catalog: inert turn
     if _dist < _aws.min_range and await _back_off_step(
         ctx, console, render_callback, game_map, enemy_entity,
         player_pos, _aws,
@@ -256,6 +250,13 @@ async def _volley_step(
         ap, ctx,
     )
     if _pick is not None:
+        _danced = await _maybe_dance_instead(
+            ctx, console, render_callback, game_map, enemy_entity,
+            player_pos, enemy_spec, _aws,
+        )
+        if _danced:
+            nav[0] = None  # off the advance path — recompute later
+            return 1, 1, False, 0, False
         return await _fire_the_pick(
             ctx, console, render_callback, game_map, enemy_entity,
             player_pos, enemy_spec, enemy_stats, armor_defense,
@@ -264,6 +265,38 @@ async def _volley_step(
     return await _gap_step(
         ctx, console, render_callback, game_map, enemy_entity, player_pos,
         stamp, _aws, _dist, _los, nav,
+    )
+
+
+def _active_weapon_spec(stamp):
+    """The active weapon's catalog spec, or ``None`` (a weaponless
+    stamp, or an id that left the catalog — an inert turn either way)."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+
+    _pair = ground_loadout.active_pair(stamp)
+    if _pair is None:
+        return None
+    try:
+        return _find_gw(_pair[0])
+    except KeyError:
+        return None
+
+
+async def _maybe_dance_instead(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_spec, aws,
+) -> bool:
+    """The aggressiveness dial (SETTLED 23/43, RAW ground-side): roll
+    below fires; at/above buys ONE in-band reposition step instead —
+    re-rolled every decision point, ranged-only (no knife-dancers),
+    and nowhere legal to dance reads as False so the caller fires."""
+    if RNG.randint(1, 100) < enemy_spec.ai_aggressiveness:
+        return False  # fire
+    if aws.max_range <= 1:
+        return False  # melee holds
+    return await _reposition_step(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, aws,
     )
 
 

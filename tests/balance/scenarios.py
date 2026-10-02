@@ -243,15 +243,16 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # RE-RULED 2026-10-02 (the glow ruling re-pinned the spawn to
         # true sight, one step closer): 1.00 / 5.72 / 12.40 — the
         # damage ceiling re-lands at measured + slack.
-        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
-        # the one-shot cap's death raised landed damage per the
-        # on-the-record prediction; bars hold the MEASURED volley
-        # numbers, tuning re-authors them against the reference
-        # saves after the battery re-measure.
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02;
+        # re-measured after the dial build — default-50 halves the
+        # volley's fire rate but the starter rows still read the
+        # hotter economy): bars hold the MEASURED volley numbers,
+        # tuning re-authors them against the reference saves after
+        # the battery re-measure.
 
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=10.68,
+            damage_taken_ceiling=11.24,
             ammo_spent_ceiling=13.0,
         ),
     ),
@@ -381,17 +382,18 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # attrition, not execution. (The pre-reload stance measured
         # 0.86 with 7 defeats — dry-magazine suicides, an instrument
         # artifact the review pass caught; review issue 1.)
-        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
-        # the sentry's per-AP drone-laser volley executes the
-        # starter down the lane (50 defeats in 50, ~3.3 turns) —
-        # the row's ATTRITION goal is the tuning pass's to restore
-        # against the reference saves; the zero floor records the
-        # measured state, not an accepted design.
-
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41/43,
+        # 2026-10-02, re-measured after the dial build): the raw
+        # volley executed the starter down the lane (50 defeats in
+        # 50, ~3.3 turns); the default-50 dial halves the sentry's
+        # fire rate and the row reads attrition again — 0.76 wins /
+        # 16.74 HP / 19.42 rounds (12 defeats remain: posting is
+        # expensive, sometimes fatal). The tuning pass re-authors
+        # against the reference saves.
         thresholds=Thresholds(
-            win_rate_floor=0.0,
-            damage_taken_ceiling=None,
-            ammo_spent_ceiling=None,
+            win_rate_floor=0.76,
+            damage_taken_ceiling=16.8,
+            ammo_spent_ceiling=19.5,
         ),
     ),
     BalanceScenario(

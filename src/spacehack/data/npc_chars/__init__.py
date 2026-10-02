@@ -118,6 +118,12 @@ class NpcCharSpec:
             humans default 4; non-humans author the speed axis
             (predators 5-6, armored anchors 3). Also the combat-time
             movement budget for un-engaged entities (SETTLED 17).
+        ai_aggressiveness: the fire-vs-reposition dial (10-90, doc 48
+            SETTLED 23/43 — one dial, one job, both theaters). RAW on
+            the ground (the space shield/hull bend stays space); roll
+            below fires, at/above repositions in band, re-rolled every
+            decision point. Default 50 for every row until the tuning
+            pass authors per-spec values (phase 9 build 1's v1).
         loot_pool: trade good ids the NPC may drop on death.
         equipment_loot_pool: optional ``(item_type, item_id)`` ground gear
             entries dropped on death.
@@ -151,6 +157,7 @@ class NpcCharSpec:
     elite: bool = False
     pin_window_top: bool = False
     ap: int = 4
+    ai_aggressiveness: int = 50
     loot_pool: tuple[str, ...] = ()
     equipment_loot_pool: tuple[tuple[str, str], ...] = ()
     field_item_loot_pool: tuple[tuple[str, str], ...] = ()
