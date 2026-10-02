@@ -1512,3 +1512,77 @@ def test_melee_still_never_dances_at_any_dial(monkeypatch):
     )
 
     assert fired is True and cells == 0 and _remaining == 0  # 3 swings
+
+
+def test_dry_with_no_melee_set_walks_the_leftover_dance(monkeypatch):
+    """Dry-with-no-melee walk behavior (the brief's required test): a
+    rifle-only stamp bled to zero falls to SETTLED 40's termination
+    shape — leftover AP dodges in band while a legal step exists, no
+    melee swap, no statue, no spin."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    rifleman.rolled_loadout["loaded"]["kinetic_rifle"] = 0
+    rifleman.rolled_loadout["pool"] = []  # fully dry, no melee set
+    game_map = _open_map(player, rifleman)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert _remaining == 0 and _fired is False
+    assert _cells == 4  # the whole turn danced (the power-dry shape)
+    assert rifleman.rolled_loadout["active"] == "ranged"  # no swap to swap to
+
+
+def test_volley_fire_stamps_investigators(monkeypatch):
+    """Volley-fire noise/investigation (the brief's explicit pin): each
+    enemy shot emits at the shooter, and a hostile in radius gains the
+    investigate attractor — multi-fire multiplies the stamping."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    # A second hunter close enough to hear the rifle (noise 8).
+    hearer = world.Entity(
+        "p", (255, 100, 100), world.Position(12, 3),
+        npc_char_id="dust_prowler",
+    )
+    hearer.rolled_loadout = _pinned_loadout(("monster_claws", 0))
+    game_map = _open_map(player, rifleman, hearer)
+    ctx, _lines = _turn_ctx(player)
+    ctx.faction_reputation = {}
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    run(_ai_ground.run_ground_enemy_turn(
+        ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+        game_map=game_map, armor_defense=0,
+    ))
+
+    # The hearer holds an investigation goal at the shooter's cell —
+    # heard, not aggroed (SETTLED 16/22 live under the volley).
+    assert hearer.last_seen_pos == world.Position(10, 2)
