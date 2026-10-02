@@ -2099,21 +2099,23 @@ with doctrinal 10-13):
   blocked-no-LOS break both preserved; merchants' authored 10-15
   dials read as designed for the first time (rare fire,
   dodge-stack). PLAYTEST PENDING.
-- [ ] 9. **Ancient machines** — RE-CUT (SETTLED 41/42, 2026-10-02):
-  build 1 = the ground volley loop (one-shot cap dies; no number
-  changes) + re-measure against the two-save battery and the
-  starter standard; builds 2+ = the machines authored against the
-  new loop: **Watcher** (shriek/stare/graded zone/drift-dodge),
-  **Shredder** (was Custodian: in-combat mend/AP-6 flurry/armor
-  10), **Warden** (per-tile-HP force field with start-of-turn
-  regen, slam-with-pushback, anti-armor shot), their own weapon
-  family, prison re-pin (+ the rock_scavenger prison-floor pin),
-  dormant override for alien sites (SETTLED 29/41/42). Design
-  input attached: the 2026-09-29 prison-build power audit + the
-  2026-10-02 two-chain arrival sim (both real arrivals converge
-  ~lvl 36-37). Open: reference-sheet ruling; exclusivity vs
-  doc 43; enemy AP/dodge/item-use/reload management (parked
-  conversation).
+- [ ] 9. **Ancient machines** — RE-CUT (SETTLED 41/42/43,
+  2026-10-02): build 1 = the ground volley loop + economy (one-shot
+  cap dies; carried ammo + reload tells; ranged/melee sets with
+  emergent switching incl. the cornered-switch; the
+  aggressiveness-dial port — SETTLED 43) landing with no roster
+  number changes, then re-measure against the two-save battery and
+  the starter standard; builds 2+ = the machines authored against
+  the new loop: **Watcher** (shriek/stare/graded zone/
+  drift-dodge), **Shredder** (was Custodian: in-combat mend/AP-6
+  flurry/armor 10), **Warden** (per-tile-HP force field with
+  start-of-turn regen, slam-with-pushback, anti-armor shot), their
+  own weapon family, prison re-pin (+ the rock_scavenger
+  prison-floor pin), dormant override for alien sites (SETTLED
+  29/41/42/43). Design input attached: the 2026-09-29
+  prison-build power audit + the 2026-10-02 two-chain arrival sim
+  (both real arrivals converge ~lvl 36-37). Open: reference-sheet
+  ruling; exclusivity vs doc 43; band-vs-authored statblocks.
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2533,6 +2535,77 @@ see anywhere else" may retire SETTLED 29's inhabitants deal); the
 reference-sheet ruling (two-chain sim section, above); the
 deferred enemy AP/dodge/item-use/reload-management conversation
 (user: after the identities).
+
+## SETTLED 43 (2026-10-02) — the ground economy: carried ammo, weapon sets, the dial port
+
+User, verbatim:
+
+> They should carry and drop ammo (they already drop ammo for
+> their weapon the are carrying). They shouldn't have a full stack.
+> Maybe a little RNG in the ammo ammount they carry to reload from?
+
+> I think NPCs should carry a range and a melee set. Just like the
+> player. They should choose to switch to their melee set at times
+> that make sense. much like we talked about in space combat, when
+> they run out of missiles, they should stop trying to kite to
+> missile range. when they run dry on ammo, they should switch to
+> melee with 1 AP and choose melee.
+
+> cornered-switch, yes. it's still the same tactic. consider
+> centaurs in DCSS. they have devestating bow attacks, but if you
+> get them in melee they switch to melee attacks. it's the
+> strategy to beat that problem.
+
+> yes. port the dial. their behavior changes (but predictably)
+> based on combat circumstances.
+
+Rulings:
+
+- **Carried ammo — the SETTLED 36 pattern extended to ammunition.**
+  Enemies carry AND drop ammo for their carried weapons: the
+  existing death-roll becomes the magazine pool they shoot from.
+  Pre-rolled at first resolution (the idempotent stamp), partial
+  with a little RNG — NOT a full stack (lean: half to
+  three-quarters of the old death-roll range). Reload pays AP when
+  the magazine empties — the beat is the TELL (a reload log line
+  is the player's window; PROSE GATE). Fully dry = the Tier-0 walk
+  to first affordable action. Death drops the REMAINDER: the
+  death-time ammo roll RETIRES (carried replaces rolled — what
+  drops reflects the fight; shot-starving is a minor play).
+- **Weapon sets — the player model mirrored (doc-51 parity).**
+  Humanoid specs carry a RANGED set and a MELEE set. Dry → 1-AP
+  swap → melee. The band governor keys the ACTIVE weapon, so a dry
+  gunner stops kiting to gun range and closes — the
+  raider-never-fires lesson (position governors key the fireable
+  subset) applied ground-side with no special case. Switching is
+  EMERGENT from the volley scorer — both sets scored by EV-per-AP,
+  the swap cost folded in: dry (gun unaffordable), point-blank
+  (the min-range penalty craters gun EV), cornered (no in-band
+  cell exists — the knife outscores inertness).
+- **CORNERED-SWITCH — amends SETTLED 26:** "pinned against a wall,
+  a ranged enemy is inert" becomes "swaps to its melee set."
+  Cornering stays the strategy (the DCSS centaur: melee the archer
+  to beat the bow) but stops being free — a trade, not a
+  shutdown. Both carried weapons DROP ("what they carry is what
+  drops") — ECONOMY WATCH: a rifleman loots as rifle + knife +
+  ammo remainder.
+- **The aggressiveness dial PORTS ground-side — amends SETTLED
+  23's "Space-only" line.** Ground specs gain the authored
+  fire-vs-reposition dial (10-90); the behavior field keeps its
+  out-of-combat job (hunter/guard/ambusher). One dial, one job,
+  both theaters: low-aggression enemies dance and stack dodge,
+  high-aggression ones sit and fire every AP; the Watcher's drift
+  identity is the far end of the dial, not a special case.
+- **Participation is by WEAPON DATA, not faction:** anything with
+  a magazine carries ammo; claws, organic monster parts, and the
+  stare don't. The ancient family is untouched unless an
+  ammo-fed ancient weapon is authored someday.
+- **Rides SETTLED 41's build-first rule:** the machinery — loop +
+  carried ammo + sets + dial — lands as phase 9 build 1; the
+  battery measures; number tuning follows the measurement.
+  Brief-time corners: the dry guard's leash (an active-weapon
+  leash reads as "a dry guard holds its post"), ammo pool ranges,
+  default dial values before per-spec authoring.
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
