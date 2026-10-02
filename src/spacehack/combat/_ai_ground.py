@@ -1,17 +1,23 @@
 """Ground combat enemy AI — movement + fire logic for on-foot enemies.
 
 Mirrors :mod:`combat._ai` which handles ship enemy behavior. The
-universal loop manages RANGE (doc 48 SETTLED 26): fire when inside the
-rolled weapon's band with LOS (one shot per turn), close beyond max,
-back off inside min, reposition with leftover AP after the shot —
-melee never repositions (no knife-dancers). Guards leash to their post
-at the rolled weapon's ``max_range + 2`` (SETTLED 18/37).
+VOLLEY loop (doc 48 SETTLED 41 — the one-shot cap is dead): every
+decision point scores BOTH carried sets' weapons by EV-per-AP through
+the same hit math the shot resolves with, fires the top affordable
+scorer, and repeats until AP or ammo run out. When the best score
+lives in the other set: a silent 1-AP swap (doc 48 SETTLED 43 — dry,
+point-blank, and cornered switches are EMERGENT from the scorer).
+Movement legs manage RANGE (doc 48 SETTLED 26): back off inside min,
+close beyond max or without LOS, dance with leftovers — melee never
+repositions (no knife-dancers). Guards leash to their post at the
+RANGED slot weapon's ``max_range + 2`` (SETTLED 18/37/43).
 """
 
 from __future__ import annotations
 
 from .. import world
 from .. import message_log as _ml
+from .. import ground_loadout
 from ..engine import RNG
 from .. import animation_timing
 from ..dungeon_fov import cell_in_sight
@@ -31,8 +37,6 @@ _STEP_DIRS: tuple[tuple[int, int], ...] = (
 async def run_ground_enemy_turn(
     ctx,
     *,
-    enemy_weapon_id: str,
-    enemy_weapon_quality: int = 0,
     enemy_spec,
     enemy_stats,
     enemy_ap: int,
@@ -43,45 +47,26 @@ async def run_ground_enemy_turn(
     console=None,
     render_callback=None,
     player_dodge: int = 0,
-) -> tuple[int, int, bool]:
-    """One enemy ground turn: manage range and fire per AP (SETTLED 26
-    — the weapon's band decides close / hold / back off / dance).
+) -> tuple[int, int, bool, int]:
+    """One enemy ground turn: the volley loop over both carried sets
+    (SETTLED 41/43 — the weapon comes from the entity's loadout stamp,
+    never a parameter).
 
     Mutates ``enemy_entity.pos`` in place; the caller applies the
-    returned damage. Returns ``(remaining_ap, damage_dealt, fired)``.
+    returned damage. Returns ``(remaining_ap, damage_dealt, fired,
+    cells_moved)`` — cells are REAL movement only, the input the
+    movement-dodge ledger books (a reload or swap never inflates
+    dodge).
     """
-
-    if not enemy_weapon_id or enemy_ap <= 0:
-        return (enemy_ap, 0, False)
-    from ..data.ground_weapons import find_ground_weapon as _find_gw
-    try:
-        _ews = _find_gw(enemy_weapon_id)
-    except KeyError:
-        return (enemy_ap, 0, False)
-
+    if enemy_ap <= 0:
+        return (enemy_ap, 0, False, 0)
+    _stamp = ground_loadout.ensure_loadout(enemy_entity, game_map, enemy_spec)
+    if not ground_loadout.has_any_weapon(_stamp):
+        return (enemy_ap, 0, False, 0)
     return await _spend_ground_ap(
         ctx, console, render_callback, game_map,
-        enemy_entity, player_pos, enemy_weapon_id, _ews,
-        enemy_spec, enemy_stats, armor_defense, player_dodge, enemy_ap,
-        enemy_weapon_quality,
-    )
-
-
-async def _attempt_fire(
-    ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
-    player_dodge, enemy_weapon_quality, _dist, _los,
-):
-    """Fire when in band with LOS; the shot tuple, else None. The gate
-    duplicates :func:`_try_ground_fire`'s internal check deliberately —
-    pre-computing skips the await when the shot is not legal."""
-    if not (_ews.min_range <= _dist <= _ews.max_range and _los):
-        return None
-    return await _try_ground_fire(
-        ctx, console, render_callback, game_map,
-        enemy_entity, player_pos, enemy_weapon_id, _ews,
-        enemy_spec, enemy_stats, armor_defense, player_dodge,
-        enemy_weapon_quality,
+        enemy_entity, player_pos, enemy_spec, enemy_stats,
+        armor_defense, player_dodge, enemy_ap, _stamp,
     )
 
 
@@ -93,76 +78,182 @@ def _mutual_sight(game_map, cell, player_pos) -> bool:
     return cell_in_sight(game_map, cell.x, cell.y, player_pos.x, player_pos.y)
 
 
+def _score_ground_weapon(
+    ws, quality: int, dist, enemy_stats, armor_defense: int,
+    player_dodge: int, ctx,
+) -> float:
+    """EV-per-AP through the SAME math the shot resolves with (doc 48
+    SETTLED 41 — the space scorer's ground twin): damage x hit-chance
+    x shots-per-action / ap_cost, quality folded in on both terms and
+    the burst folded so burst weapons score their burst."""
+    from ._ground_math import ground_damage_raw, ground_hit_chance_raw
+
+    _chance = ground_hit_chance_raw(
+        ws.id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
+        target_dodge_bonus=player_dodge, quality=quality,
+    )
+    _damage = ground_damage_raw(
+        ws.id, enemy_stats.strength, armor_defense, quality=quality,
+    )
+    _shots = max(1, ws.shots_per_action)
+    return _damage * (_chance / 100.0) * _shots / ws.ap_cost
+
+
+def _volley_pick(
+    stamp, enemy_stats, armor_defense, player_dodge, dist, los, ap, ctx,
+):
+    """The decision point's weapon: the top total-EV candidate across
+    BOTH carried sets (doc 48 SETTLED 43 — switching is emergent).
+    A candidate must be in band with LOS, ammo-feedable, and
+    affordable including the cross-set swap's 1 AP; total EV scales
+    EV-per-AP by the actions the remaining bank buys, so the swap
+    overhead folds in honestly. Ties break to the ACTIVE set, then
+    the ranged slot. ``None`` when nothing qualifies."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+
+    _active = ground_loadout.active_set(stamp)
+    _best = None
+    for _order, _set_name in enumerate(
+        (_active, ground_loadout.other_set(_active)),
+    ):
+        _pair = ground_loadout.pair_for(stamp, _set_name)
+        if _pair is None:
+            continue
+        try:
+            _ws = _find_gw(_pair[0])
+        except KeyError:
+            continue
+        if not (_ws.min_range <= dist <= _ws.max_range and los):
+            continue
+        if not ground_loadout.magazine_pays_shot(stamp, _ws):
+            continue  # pool rounds the enemy cannot yet chamber (b4)
+        _swap_cost = 0 if _set_name == _active else 1
+        if _ws.ap_cost + _swap_cost > ap:
+            continue
+        _score = _score_ground_weapon(
+            _ws, _pair[1], dist, enemy_stats, armor_defense,
+            player_dodge, ctx,
+        )
+        _total = _score * ((ap - _swap_cost) // _ws.ap_cost)
+        _key = (_total, -_order)
+        if _best is None or _key > _best[0]:
+            _best = (_key, _set_name, _pair, _ws)
+    return None if _best is None else _best[1:]
+
+
 async def _spend_ground_ap(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
-    player_dodge, enemy_ap, enemy_weapon_quality=0,
+    enemy_spec, enemy_stats, armor_defense, player_dodge, enemy_ap, stamp,
 ):
-    """Run the enemy's AP loop (SETTLED 26) — one shot per turn in the
-    weapon's band with LOS; otherwise manage range (see module header)."""
-    _result_ap, _damage_dealt, _fired = enemy_ap, 0, False
-    _cached_path: list[tuple[int, int]] | None = None
-    _path_goal: tuple[int, int] | None = None
-
-    while _result_ap > 0:
-        _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
-        _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
-        _shot = None if _fired else await _attempt_fire(
+    """Run the volley loop (SETTLED 41): per-AP fire across both sets
+    until AP, ammo, or options run out. Returns ``(remaining_ap,
+    damage, fired, cells_moved)`` — see :func:`run_ground_enemy_turn`."""
+    _ap, _dmg, _fired, _cells = enemy_ap, 0, False, 0
+    _nav: list = [None, None]  # cached advance path, path goal
+    while _ap > 0:
+        _spent, _cell, _shot, _hit_dmg, _halt = await _volley_step(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, enemy_weapon_id, _ews, enemy_spec, enemy_stats,
-            armor_defense, player_dodge, enemy_weapon_quality, _dist, _los,
+            player_pos, enemy_spec, enemy_stats, armor_defense,
+            player_dodge, stamp, _ap, _nav,
         )
-        if _shot is not None:
-            _damage_dealt, _ap_cost = _shot
-            _result_ap -= _ap_cost
-            _fired = True
-            continue
-        _stepped, _cached_path, _path_goal, _halt = await _range_step(
-            ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, _ews, _dist, _los, _fired,
-            _cached_path, _path_goal,
-        )
-        if _halt or not _stepped:
+        _ap -= _spent
+        _cells += _cell
+        _fired = _fired or _shot
+        _dmg += _hit_dmg
+        if _halt or _spent == 0:
             break
-        _result_ap -= 1
-
     if not _fired:
         ctx.log.add_colored(
             f"{enemy_spec.name} moves into position.", _ml.COLOR_ENEMY_ACTION,
         )
-    return (_result_ap, _damage_dealt, _fired)
+    return (_ap, _dmg, _fired, _cells)
 
 
-async def _range_step(
+async def _volley_step(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    _ews, _dist, _los, _fired, _cached_path, _path_goal,
+    enemy_spec, enemy_stats, armor_defense, player_dodge, stamp, ap, nav,
 ):
-    """One movement decision by range (SETTLED 26), as the uniform
-    ``(stepped, cached_path, path_goal, halt)`` quad: back off inside
-    min, close beyond max or without LOS, else the post-shot
-    reposition dance (ranged only — melee holds, no knife-dancers).
-    The off-path arms drop the cached A* path (the entity now stands
-    beside it) so a later advance recomputes instead of teleporting."""
-    if _dist < _ews.min_range:
-        return (
-            await _back_off_step(
-                ctx, console, render_callback, game_map, enemy_entity,
-                player_pos, _ews,
-            ), None, _path_goal, False,
-        )
-    if _dist > _ews.max_range or not _los:
-        return await _ground_advance(
+    """One decision point: ``(ap_spent, cells, fired, damage, halt)``.
+
+    Hugged: back off (SETTLED 40's mirror). With a pick: swap or FIRE.
+    Without: dry-switch, range legs, leftover dance (ranged only)."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+
+    _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
+    _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
+    _active = ground_loadout.active_pair(stamp)
+    if _active is None:
+        return 0, 0, False, 0, True
+    try:
+        _aws = _find_gw(_active[0])
+    except KeyError:
+        return 0, 0, False, 0, True  # id left the catalog: inert turn
+    if _dist < _aws.min_range and await _back_off_step(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, _aws,
+    ):
+        nav[0] = None  # off the advance path — recompute later
+        return 1, 1, False, 0, False
+    _pick = _volley_pick(
+        stamp, enemy_stats, armor_defense, player_dodge, _dist, _los,
+        ap, ctx,
+    )
+    if _pick is not None:
+        return await _fire_the_pick(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, _cached_path, _path_goal,
+            player_pos, enemy_spec, enemy_stats, armor_defense,
+            player_dodge, stamp, _pick,
         )
-    if _fired and _ews.max_range > 1:
-        return (
-            await _reposition_step(
-                ctx, console, render_callback, game_map, enemy_entity,
-                player_pos, _ews,
-            ), None, _path_goal, False,
+    return await _gap_step(
+        ctx, console, render_callback, game_map, enemy_entity, player_pos,
+        stamp, _aws, _dist, _los, nav,
+    )
+
+
+async def _fire_the_pick(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_spec, enemy_stats, armor_defense, player_dodge, stamp, pick,
+):
+    """Resolve one scorer pick: a cross-set pick first pays the silent
+    1-AP swap (once per switch, never per shot — SETTLED 43); the
+    active pick fires one full burst action at its own AP cost."""
+    _set_name, _pair, _ws = pick
+    if _set_name != ground_loadout.active_set(stamp):
+        ground_loadout.swap_active(stamp)  # silent 1-AP switch
+        return 1, 0, False, 0, False
+    _dmg = await _fire_enemy_burst(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, _pair[0], _ws, enemy_spec, enemy_stats,
+        armor_defense, player_dodge, _pair[1], stamp,
+    )
+    return _ws.ap_cost, 0, True, _dmg, False
+
+
+async def _gap_step(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    stamp, aws, dist, los, nav,
+):
+    """The no-pick tail: dry-switch to the other set, advance toward
+    the chase goal, or spend a leftover AP on the dance (SETTLED 40's
+    termination shape — dodge while a legal in-band step exists)."""
+    if ground_loadout.is_dry(stamp, aws) and ground_loadout.pair_for(
+        stamp, ground_loadout.other_set(ground_loadout.active_set(stamp)),
+    ) is not None:
+        ground_loadout.swap_active(stamp)  # dry: 1-AP swap to melee
+        return 1, 0, False, 0, False
+    if dist > aws.max_range or not los:
+        _stepped, nav[0], nav[1], _halt = await _ground_advance(
+            ctx, console, render_callback, game_map, enemy_entity,
+            player_pos, nav[0], nav[1],
         )
-    return (False, _cached_path, _path_goal, False)
+        return (1 if _stepped else 0), (1 if _stepped else 0), False, 0, _halt
+    if aws.max_range > 1 and await _reposition_step(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, aws,
+    ):
+        nav[0] = None  # off the advance path — recompute later
+        return 1, 1, False, 0, False
+    return 0, 0, False, 0, True
 
 
 def _free_cell(game_map, enemy_entity, x: int, y: int) -> bool:
@@ -265,12 +356,13 @@ async def _reposition_step(
 async def _try_ground_fire(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
-    player_dodge, enemy_weapon_quality=0,
+    player_dodge, enemy_weapon_quality=0, stamp=None,
 ):
     """One shot when in range with LOS: ``(damage, ap_cost)``, else None.
 
-    Logs the attack line and animates with a weapon-family effect and
-    a floating hit/MISS number on the player.
+    The flee reaction volley's seam (doc 54): it re-checks band and
+    LOS itself, then resolves one FIRE action through the shared
+    burst — magazine drain included when the stamp is passed.
     """
     from ._stats import _distance
 
@@ -279,48 +371,74 @@ async def _try_ground_fire(
         return None
     if not _mutual_sight(game_map, enemy_entity.pos, player_pos):
         return None  # can't shoot through walls — caller moves instead
-    _shots = max(1, _ews.shots_per_action) if _ews else 1
     _total = await _fire_enemy_burst(
         ctx, console, render_callback, game_map, enemy_entity, player_pos,
-        enemy_weapon_id, enemy_spec, enemy_stats, armor_defense,
-        player_dodge, enemy_weapon_quality, _shots,
+        enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
+        player_dodge, enemy_weapon_quality, stamp,
     )
     return _total, (_ews.ap_cost if _ews else 1)
 
 
 async def _fire_enemy_burst(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
-    enemy_weapon_id, enemy_spec, enemy_stats, armor_defense,
-    player_dodge, enemy_weapon_quality, shots: int,
+    enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
+    player_dodge, enemy_weapon_quality, stamp=None,
 ) -> int:
-    """Roll and present ``shots`` enemy shots (doc 50 SETTLED 8's
-    burst mirror — the smg family rolls per action); total damage.
+    """Roll and present one FIRE action's shots (``shots_per_action``
+    rolls, doc 50 SETTLED 8); total damage. The burst stops mid-action
+    when the magazine cannot pay another shot (the player's quiet
+    dry-break mirror) and drains ``ammo_per_shot`` per shot fired.
+
     Every burst stamps the ground fight's ``enemy_fired`` (doc 49
     SETTLED 5): an enemy shot closes the Pirate opener window, hit
     or miss."""
-    from .. import noise
     from . import _rules_ground
 
     if _rules_ground._state is not None:
         _rules_ground._state.enemy_fired = True
     _total = 0
-    for _ in range(shots):
-        # Firing report at the shooter, per shot (SETTLED 22,
-        # symmetric with the player's per-round consume_shot emit).
-        noise.emit(
-            ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
+    for _ in range(max(1, _ews.shots_per_action) if _ews else 1):
+        if stamp is not None and not ground_loadout.magazine_pays_shot(
+            stamp, _ews,
+        ):
+            break  # burst ran dry mid-action — stop quietly
+        _total += await _one_enemy_shot(
+            ctx, console, render_callback, game_map, enemy_entity,
+            player_pos, enemy_weapon_id, enemy_weapon_quality, enemy_spec,
+            enemy_stats, armor_defense, player_dodge,
         )
-        _hit, _damage, _popup = _roll_ground_shot(
-            ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-            enemy_weapon_quality,
-        )
-        _total += _damage
-        await _present_enemy_shot(
-            ctx, console, render_callback, game_map,
-            enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
-            enemy_spec, _hit, _damage, _popup,
-        )
+        if stamp is not None:
+            ground_loadout.drain_action(stamp, _ews, 1)  # per shot
     return _total
+
+
+async def _one_enemy_shot(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
+    armor_defense, player_dodge,
+) -> int:
+    """One shot of a burst: the firing report (SETTLED 22, per shot),
+    the roll, the per-event player-defense reduction (doc 49 — each
+    landed shot pays it, never the summed turn; misses pay nothing),
+    presentation. Returns the shot's damage."""
+    from .. import noise
+    from ..xp import apply_ground_damage_reduction as _reduce
+
+    noise.emit(
+        ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
+    )
+    _hit, _damage, _popup = _roll_ground_shot(
+        ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
+        enemy_weapon_quality,
+    )
+    if _damage > 0:
+        _damage = _reduce(ctx, _damage)
+    await _present_enemy_shot(
+        ctx, console, render_callback, game_map,
+        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
+        enemy_spec, _hit, _damage, _popup,
+    )
+    return _damage
 
 
 async def _present_enemy_shot(

@@ -77,14 +77,14 @@ def test_enemy_fire_counts_ground_damage_and_tracks_killer():
     ctx = _ground_ctx(game_map, (5, 5))
     enemy = _seed_enemy(game_map, "pirate_raider", (6, 5))
     try:
+        from tests.support.ground_pins import pin_entity_loadout
+        pin_entity_loadout(enemy, "kinetic_pistol", 1)
         _rules_ground.init(ctx, [enemy], game_map)
         gei = _rules_ground._state.enemies[0]
-        gei.weapon_id = "kinetic_pistol"
-        gei.weapon_quality = 1
         hp_before = _rules_ground._state.player_hp
 
         async def fake_ai(ctx, **kwargs):
-            return (0, 5, True)
+            return (0, 5, True, 0)
 
         damage = _async_run(_rules_ground._spend_one_enemy_turn(
             ctx, game_map, fake_ai, gei, 0,

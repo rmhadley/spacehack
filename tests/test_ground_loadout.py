@@ -201,3 +201,26 @@ def test_resolved_stamp_never_re_arms(monkeypatch):
 
     monkeypatch.setattr(ground_loadout, "RNG", _boom)
     assert ground_loadout.ensure_loadout(hunter) is hunter.rolled_loadout
+
+
+def test_is_dry_is_the_feed_complement():
+    """Dry = no ammo anywhere (magazine AND pool) — the dry-switch
+    trigger, expressed as can_feed_shot's exact complement."""
+    from src.spacehack import ground_scale
+
+    ws = find_ground_weapon("kinetic_rifle")
+    fed = _stamp()  # magazine pays
+    assert not ground_loadout.is_dry(fed, ws)
+
+    mag_dry_pool_full = _stamp()
+    mag_dry_pool_full["loaded"]["kinetic_rifle"] = 0
+    assert not ground_loadout.is_dry(mag_dry_pool_full, ws)  # pool feeds it
+    assert not ground_loadout.magazine_pays_shot(mag_dry_pool_full, ws)
+
+    dry = _stamp(pool=[])
+    dry["loaded"]["kinetic_rifle"] = 0
+    assert ground_loadout.is_dry(dry, ws)
+    assert not ground_loadout.magazine_pays_shot(dry, ws)
+    # Melee is never dry.
+    assert not ground_loadout.is_dry(dry, find_ground_weapon("fists"))
+    assert ground_scale.ammo_fed(find_ground_weapon("kinetic_rifle"))

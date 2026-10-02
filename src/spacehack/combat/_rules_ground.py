@@ -31,7 +31,6 @@ from ..ground_consumables import ActiveConsumableEffect
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
-    apply_ground_damage_reduction as ground_damage_taken,
     bounty_hunter_evade_bonus as _bounty_evade_bonus,
     ground_evade_bonus as _ground_evade_bonus,
     ground_max_hp_total as _ground_max_hp_total,
@@ -753,18 +752,6 @@ async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     return _total_dmg
 
 
-def _spent_as_movement(_gei, _fired: bool, _ap_spent: int) -> int:
-    """AP spent this turn that reads as movement (the dodge ledger):
-    everything except the fired shot's weapon cost (1 on a miss)."""
-    if not _fired:
-        return _ap_spent
-    try:
-        _weapon_ap = _find_gw(_gei.weapon_id).ap_cost
-    except KeyError:
-        _weapon_ap = 1
-    return max(0, _ap_spent - _weapon_ap)
-
-
 def _killer_label(_gei: GroundEnemyInstance) -> str:
     """The tombstone's attacker label: enemy + wielded variant, built
     the same way the enemy-shot log line builds it (quality included)."""
@@ -778,9 +765,10 @@ def _killer_label(_gei: GroundEnemyInstance) -> str:
 
 def _apply_enemy_hit(ctx, _gei: GroundEnemyInstance, _dmg: int) -> int:
     """The enemy-damage tail every attack path shares (doc 54 phase 2
-    extraction): trait reduction, the doc-53 damage counter, HP, the
-    killer label. Returns the reduced damage."""
-    _dmg = ground_damage_taken(ctx, _dmg)
+    extraction): the doc-53 damage counter, HP, the killer label. The
+    per-hit damage reduction now lives at shot resolution (the volley
+    era's per-event shape, doc 48 SETTLED 41); callers pass already-
+    reduced totals."""
     if hasattr(ctx, "player_counters"):
         ctx.player_counters.ground_damage_taken += _dmg
     _state.player_hp -= _dmg
@@ -795,25 +783,30 @@ async def _spend_one_enemy_turn(
 
     Fights at the equip-time rolled quality (doc 47.2 SETTLED 13); may
     first spend AP on a carried consumable (doc 48 SETTLED 36) — booked
-    apart so a use never inflates the movement-dodge ledger.
+    apart so a use never inflates the movement-dodge ledger. The AI's
+    returned cell count IS the ledger (doc 48 SETTLED 41): reloads and
+    set-swaps book zero dodge. The instance's weapon re-syncs to the
+    stamp's ACTIVE pair after the turn (the killer label and the flee
+    volley read the wielded weapon).
     """
     from ._ground_effects import use_carried_consumable
 
     _gei.ap -= use_carried_consumable(ctx, _gei, game_map, ctx.player.pos)
-    _ap_before = _gei.ap
-    _new_ap, _dmg, _fired = await _enemy_ai(
+    _new_ap, _dmg, _fired, _cells = await _enemy_ai(
         ctx,
-        enemy_weapon_id=_gei.weapon_id,
-        enemy_weapon_quality=_gei.weapon_quality,
         enemy_spec=_gei.spec, enemy_stats=_gei.stats, enemy_ap=_gei.ap,
         player_pos=ctx.player.pos, enemy_entity=_gei.entity,
         game_map=game_map, armor_defense=_state.armor_defense,
         console=_state.console, render_callback=render_frame,
         player_dodge=_player_dodge,
     )
-    _gei.cells_moved_this_turn += _spent_as_movement(_gei, _fired,
-                                                     _ap_before - _new_ap)
+    _gei.cells_moved_this_turn += _cells
     _gei.ap = _new_ap
+    _pair = ground_loadout.active_pair(
+        ground_loadout.ensure_loadout(_gei.entity, game_map),
+    )
+    if _pair is not None:
+        _gei.weapon_id, _gei.weapon_quality = _pair
 
     if _dmg > 0:
         _dmg = _apply_enemy_hit(ctx, _gei, _dmg)

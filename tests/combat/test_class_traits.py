@@ -266,12 +266,21 @@ def test_space_enemy_attack_stamps_enemy_fired_before_resolution():
 
 
 def test_ground_enemy_burst_stamps_enemy_fired():
+    """The funnel stamp runs even when the burst resolves nothing: a
+    dry magazine (loaded 0, pool 0) breaks before any shot, yet the
+    opener window still closes (doc 49 SETTLED 5)."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
     _old = _install_ground_state(enemy_fired=False, opener_spent=False)
     try:
-        # shots=0: nothing resolves, only the funnel stamp runs.
+        _ws = find_ground_weapon("kinetic_pistol")
+        _stamp = {
+            "ranged": ["kinetic_pistol", 0], "melee": None,
+            "loaded": {"kinetic_pistol": 0}, "pool": [], "active": "ranged",
+        }
         _total = run(_ai_ground._fire_enemy_burst(
-            None, None, None, None, None, None, "fists", None,
-            None, 0, 0, 0, shots=0,
+            None, None, None, None, None, None, "kinetic_pistol", _ws,
+            None, 0, 0, 0, 0, _stamp,
         ))
         assert _total == 0
         assert _rules_ground._state.enemy_fired is True

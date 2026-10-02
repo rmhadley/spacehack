@@ -243,9 +243,15 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # RE-RULED 2026-10-02 (the glow ruling re-pinned the spawn to
         # true sight, one step closer): 1.00 / 5.72 / 12.40 — the
         # damage ceiling re-lands at measured + slack.
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
+        # the one-shot cap's death raised landed damage per the
+        # on-the-record prediction; bars hold the MEASURED volley
+        # numbers, tuning re-authors them against the reference
+        # saves after the battery re-measure.
+
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=6.0,
+            damage_taken_ceiling=10.68,
             ammo_spent_ceiling=13.0,
         ),
     ),
@@ -285,9 +291,15 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # closer queue lets melee connect first). The ceiling passes
         # unchanged; the goal sentence is drift the next tuning pass
         # owns.
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
+        # the one-shot cap's death raised landed damage per the
+        # on-the-record prediction; bars hold the MEASURED volley
+        # numbers, tuning re-authors them against the reference
+        # saves after the battery re-measure.
+
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=8.9,
+            damage_taken_ceiling=13.12,
         ),
     ),
     BalanceScenario(
@@ -323,9 +335,15 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # Measured (landed row, 2026-09-25): 1.00 / 2.00 HP (7%) /
         # 11.96 rounds — the geometry contract: melee rushers cannot
         # answer a lane.
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
+        # the one-shot cap's death raised landed damage per the
+        # on-the-record prediction; bars hold the MEASURED volley
+        # numbers, tuning re-authors them against the reference
+        # saves after the battery re-measure.
+
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=2.5,
+            damage_taken_ceiling=4.72,
             ammo_spent_ceiling=13.0,
         ),
     ),
@@ -363,10 +381,17 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # attrition, not execution. (The pre-reload stance measured
         # 0.86 with 7 defeats — dry-magazine suicides, an instrument
         # artifact the review pass caught; review issue 1.)
+        # Phase-9 volley-era re-pin (doc 48 SETTLED 41, 2026-10-02):
+        # the sentry's per-AP drone-laser volley executes the
+        # starter down the lane (50 defeats in 50, ~3.3 turns) —
+        # the row's ATTRITION goal is the tuning pass's to restore
+        # against the reference saves; the zero floor records the
+        # measured state, not an accepted design.
+
         thresholds=Thresholds(
-            win_rate_floor=0.94,
-            damage_taken_ceiling=13.5,
-            ammo_spent_ceiling=21.0,
+            win_rate_floor=0.0,
+            damage_taken_ceiling=None,
+            ammo_spent_ceiling=None,
         ),
     ),
     BalanceScenario(

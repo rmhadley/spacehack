@@ -205,10 +205,14 @@ class TestEnemyThreatColor:
 
 
 def test_ground_damage_taken_applies_juggernaut_after_armor():
+    """The reduction's home is xp (applied per landed shot inside the
+    volley burst since doc 48 SETTLED 41); pinned at its own door."""
+    from src.spacehack.xp import apply_ground_damage_reduction
+
     _ctx = SimpleNamespace(player_traits=["juggernaut"])
 
-    assert _rules_ground.ground_damage_taken(_ctx, 6) == 5
-    assert _rules_ground.ground_damage_taken(_ctx, 1) == 1
+    assert apply_ground_damage_reduction(_ctx, 6) == 5
+    assert apply_ground_damage_reduction(_ctx, 1) == 1
 
 
 def test_charger_extends_melee_range_and_spends_full_ap(monkeypatch):
@@ -1197,8 +1201,10 @@ def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
 
     _damage = run(_rules_ground.run_enemy_turns(_ctx, _game_map))
 
-    assert _damage == 3
-    assert _rules_ground.player_hp(_ctx) == 22
+    # The volley era: 4 AP buys two 2-AP drone-laser actions, each
+    # hit reduced per event (4 - 1 = 3 apiece) — 6 total.
+    assert _damage == 6
+    assert _rules_ground.player_hp(_ctx) == 19
 
 
 def test_explosive_fire_consumes_one_round_and_resolves_adjacent_kill(monkeypatch):
@@ -1459,7 +1465,8 @@ class TestQualityCombatScaling:
             "d", (200, 180, 110), world.Position(5, 5),
             npc_char_id="sentry_drone",
         )
-        guard.rolled_weapon = ("drone_laser", 0)  # max_range 6 -> leash 8
+        guard.rolled_loadout = {"ranged": ["drone_laser", 0], "melee": None,
+                               "loaded": {}, "pool": [], "active": "ranged"}  # max_range 6 -> leash 8
         near = _chase_goal(world.Position(4, 4), post, guard)
         assert near == (4, 4)  # inside the leash: chase the player
         far = _chase_goal(world.Position(20, 20), post, guard)
@@ -1611,7 +1618,9 @@ def test_enemy_smg_burst_rolls_twice_per_action(monkeypatch):
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _enemy.npc_char_id = "pirate_raider"
     # Force the rolled weapon to the smg via the persisted stamp.
-    _enemy.rolled_weapon = ("smg", 0)
+    _enemy.rolled_loadout = {"ranged": ["smg", 0], "melee": None,
+        "loaded": {"smg": 30}, "pool": [["ammo", "pistol_rounds", 2]],
+        "active": "ranged"}
     _ctx.equipped_ground_armor = {}
     _rules_ground.init(_ctx, [_enemy], _game_map)
     monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
@@ -1627,9 +1636,8 @@ def test_enemy_smg_burst_rolls_twice_per_action(monkeypatch):
 
     monkeypatch.setattr(_ai_ground, "_roll_ground_shot", _counting)
 
-    _ap_left, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
+    _ap_left, _damage, _fired, _cells = run(_ai_ground.run_ground_enemy_turn(
         _ctx,
-        enemy_weapon_id="smg", enemy_weapon_quality=0,
         enemy_spec=_rules_ground._state.enemies[0].spec,
         enemy_stats=_rules_ground._state.enemies[0].stats,
         enemy_ap=4, player_pos=_ctx.player.pos, enemy_entity=_enemy,
@@ -1637,7 +1645,9 @@ def test_enemy_smg_burst_rolls_twice_per_action(monkeypatch):
         render_callback=None, player_dodge=0,
     ))
 
-    assert len(_rolls) == 2  # two rolls for the one action
+    # The volley era: 4 AP buys four 1-AP smg actions, each rolling
+    # its 2-shot burst — eight rolls for the turn.
+    assert len(_rolls) == 8
 
 
 # ---------------------------------------------------------------------------

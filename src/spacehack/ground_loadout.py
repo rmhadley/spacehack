@@ -163,13 +163,34 @@ def _set_loaded(stamp: dict, weapon_id: str, rounds: int) -> None:
     stamp.setdefault("loaded", {})[weapon_id] = max(0, rounds)
 
 
-def can_feed_shot(stamp: dict, ws) -> bool:
-    """Whether one FIRE action's first shot is payable in ammo:
-    magazine carries a shot, or the pool can refill it."""
+def magazine_pays_shot(stamp: dict, ws) -> bool:
+    """Whether the MAGAZINE alone pays one shot. The volley pick's and
+    the flee volley's fire gate until the reload build relaxes it to
+    :func:`can_feed_shot` (doc 48 phase 9 build order — a pool round
+    the enemy cannot yet chamber must not buy a pick it cannot fire)."""
     if not ground_scale.ammo_fed(ws):
         return True
-    _loaded = loaded_rounds(stamp, ws.id) or 0
-    return _loaded >= ws.ammo_per_shot or pool_rounds(stamp, ws.ammo_type) > 0
+    return (loaded_rounds(stamp, ws.id) or 0) >= ws.ammo_per_shot
+
+
+def can_feed_shot(stamp: dict, ws) -> bool:
+    """Whether one FIRE action's first shot is payable in ammo:
+    magazine carries a shot, or the pool can refill it (the reload
+    era's affordability — the pick flips to this gate when reload
+    lands)."""
+    if magazine_pays_shot(stamp, ws):
+        return True
+    return pool_rounds(stamp, ws.ammo_type) > 0
+
+
+def is_dry(stamp: dict, ws) -> bool:
+    """Whether an ammo-fed weapon has NO ammo anywhere — the dry-switch
+    trigger (SETTLED 43: dry means the 1-AP swap to the melee set).
+    The exact complement of :func:`can_feed_shot` on ammo-fed weapons,
+    expressed through it so the two can never drift."""
+    if not ground_scale.ammo_fed(ws):
+        return False
+    return not can_feed_shot(stamp, ws)
 
 
 def drain_action(stamp: dict, ws, shots_fired: int) -> None:

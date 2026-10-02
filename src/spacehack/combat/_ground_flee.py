@@ -12,6 +12,7 @@ CALLER runs the transition; the loop never does).
 from __future__ import annotations
 
 from .. import world
+from .. import ground_loadout
 from ._types import FleeExit
 from ._ai_ground import _try_ground_fire
 from ._ground_render import render_frame
@@ -37,11 +38,16 @@ async def reaction_volley(state, ctx, game_map: world.GameMap) -> bool:
                 _ews = _find_gw(_gei.weapon_id)
             except KeyError:
                 continue
+            _stamp = getattr(_gei.entity, "rolled_loadout", None)
+            if _stamp is not None and not ground_loadout.magazine_pays_shot(
+                _stamp, _ews,
+            ):
+                continue  # dry chamber: no parting shot (doc 48 SETTLED 43)
             _shot = await _try_ground_fire(
                 ctx, state.console, render_frame, game_map,
                 _gei.entity, ctx.player.pos, _gei.weapon_id, _ews,
                 _gei.spec, _gei.stats, state.armor_defense, _dodge,
-                _gei.weapon_quality,
+                _gei.weapon_quality, stamp=_stamp,
             )
             if _shot is None:
                 continue  # out of band or no LOS: no parting shot

@@ -88,11 +88,14 @@ def _release_ground_state() -> None:
 
 def _start_fight(game_map, ctx, enemies=(), *, hp=28):
     """Real init + deterministic weapons (the pistol's 1-4 band)."""
+    from tests.support.ground_pins import pin_entity_loadout
+
+    for _ent in enemies:
+        pin_entity_loadout(_ent, "kinetic_pistol")
     _rules_ground.init(ctx, list(enemies), game_map, console=None)
     _rules_ground._state.player_hp = hp
     for _inst in _rules_ground._state.enemies:
-        _inst.weapon_id = "kinetic_pistol"
-        _inst.weapon_quality = 0
+        assert _inst.weapon_id == "kinetic_pistol"  # derived from the stamp
 
 
 def _record_shots(monkeypatch):

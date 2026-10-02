@@ -62,10 +62,12 @@ def _pin_rng(monkeypatch, *, roll: int = 1, spread: float = 1.0) -> None:
     """Pin every RNG read the contact paths make — the call-time
     ``engine.RNG`` import and the module-bound copies (``_actions``
     resolves damage; ``_loop`` rolls the flak hit)."""
+    import src.spacehack.combat._ai as _ai_mod
     import src.spacehack.engine as _engine
 
     fake = _fake_rng(roll=roll, spread=spread)
     monkeypatch.setattr(_engine, "RNG", fake)
+    monkeypatch.setattr(_ai_mod, "RNG", fake)  # the flak hit roll
     monkeypatch.setattr(_actions, "RNG", fake)
     monkeypatch.setattr(_loop, "RNG", fake)
 

@@ -14,6 +14,7 @@ from tests.support.asyncutil import run
 import pytest
 
 from src.spacehack import noise, world
+from tests.support.ground_pins import pinned_loadout as _pinned_loadout
 from src.spacehack.data.ground_weapons import list_ground_weapons
 from src.spacehack.data.npc_chars import NpcCharSpec, find_npc_char
 from src.spacehack.data.npc_ships import NpcShipSpec
@@ -248,18 +249,6 @@ def test_direction_word_covers_all_eight_ways():
 
 
 # --- guards hear leash-gated (SETTLED 37) -----------------------------------
-
-def _pinned_loadout(ranged=None, melee=None, **extra):
-    """A hand-pinned two-set stamp (doc 48 SETTLED 43): both set keys
-    present (an absent ``melee`` key means unresolved-and-will-fill)."""
-    stamp = {
-        "ranged": list(ranged) if ranged else None,
-        "melee": list(melee) if melee else None,
-        "loaded": {}, "pool": [], "active": "ranged",
-    }
-    stamp.update(extra)
-    return stamp
-
 
 def test_guard_hears_only_within_rolled_weapon_reach():
     """A guard is an area guardian: it gains the stamp only while the
@@ -520,30 +509,44 @@ def test_pinned_rifleman_is_inert():
         None, None, None, game_map, rifleman, player.pos, _ews,
     ))
 
+    # The PRIMITIVE stays inert when no cell restores range (its
+    # contract); at loop level cornering now yields the scorer-driven
+    # melee swap instead (SETTLED 26-as-amended, pinned after build 3
+    # lands the point-blank penalty).
     assert stepped is False
-    assert rifleman.pos == world.Position(5, 4)  # inert
+    assert rifleman.pos == world.Position(5, 4)
 
 
-def test_melee_never_backs_off_or_dances():
-    """Melee band [1..1]: adjacency is always in-band — no back-off,
-    and a fired melee face holds (no knife-dancers, SETTLED 26)."""
-    from src.spacehack.combat._ai_ground import _range_step
-    from src.spacehack.data.ground_weapons import find_ground_weapon
+def test_melee_never_backs_off_or_dances(monkeypatch):
+    """Melee band [1..1]: adjacency is always in-band — a melee face
+    unloads its AP in swings and never spends a cell (no knife-dancers,
+    SETTLED 26-as-amended by the volley, doc 48 SETTLED 41)."""
+    from src.spacehack.combat import _ai_ground
 
     player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
     brute = world.Entity(
         "R", (220, 120, 80), world.Position(5, 6),
         npc_char_id="pirate_brute",
     )
+    brute.rolled_loadout = _pinned_loadout(("monster_claws", 0))
     game_map = _open_map(player, brute)
-    _claws = find_ground_weapon("monster_claws")  # band [1..1]
-
-    # Adjacent + fired + LOS: hold — not a reposition, not a back-off.
-    _stepped, *_path_state = run(_range_step(
-        None, None, None, game_map, brute, player.pos,
-        _claws, 1.0, True, True, None, None,
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
     ))
-    assert _stepped is False
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_brute"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=3, player_pos=player.pos, enemy_entity=brute,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert _fired is True
+    assert _remaining == 0  # 3 AP, 3 swings (claws cost 1)
+    assert _cells == 0      # never moved — no dance, no back-off
     assert brute.pos == world.Position(5, 6)
 
 
@@ -639,23 +642,26 @@ def test_distant_enemy_closes_one_step_per_ap(monkeypatch):
         randint=lambda *_a: 100, choice=lambda seq: seq[0],
     ))
 
-    _remaining, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
-        ctx, enemy_weapon_id="kinetic_rifle",
-        enemy_spec=find_npc_char("pirate_rifleman"),
-        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
-        game_map=game_map, armor_defense=0,
-    ))
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
 
     assert _fired is False
     assert _remaining == 0  # every AP bought a step
+    assert _cells == 4
     assert abs(rifleman.pos.x - player.pos.x) == 14 - 4  # closed one per AP
     assert any("moves into position" in _l for _l in lines)
 
 
-def test_one_shot_per_turn_then_the_dance(monkeypatch):
-    """In band with LOS: exactly ONE shot per turn (the cap stands) —
-    leftover AP repositions within the band (SETTLED 26)."""
+def test_the_volley_fires_per_ap_until_dry_of_ap(monkeypatch):
+    """In band with LOS: the one-shot cap is DEAD (doc 48 SETTLED 41) —
+    a 4-AP rifleman fires BOTH 2-AP rifle actions in one turn."""
     from src.spacehack.combat import _ai_ground
     from src.spacehack.data.npc_chars import find_npc_char
 
@@ -664,6 +670,10 @@ def test_one_shot_per_turn_then_the_dance(monkeypatch):
         "R", (220, 120, 80), world.Position(10, 2),
         npc_char_id="pirate_rifleman",
     )
+    rifleman.rolled_loadout = _pinned_loadout(
+        ("kinetic_rifle", 0), ("combat_knife", 0),
+        loaded={"kinetic_rifle": 20},
+    )
     game_map = _open_map(player, rifleman)  # dist 4, in band [2..7]
     ctx, lines = _turn_ctx(player)
     monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
@@ -671,19 +681,21 @@ def test_one_shot_per_turn_then_the_dance(monkeypatch):
         choice=lambda seq: seq[0],
     ))
 
-    _remaining, _damage, _fired = run(_ai_ground.run_ground_enemy_turn(
-        ctx, enemy_weapon_id="kinetic_rifle",
-        enemy_spec=find_npc_char("pirate_rifleman"),
-        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
-        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
-        game_map=game_map, armor_defense=0,
-    ))
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
 
     assert _fired is True
     assert _damage > 0
-    assert sum("Kinetic Rifle" in _l for _l in lines) == 1  # ONE shot only
-    assert _remaining == 0  # 2 AP on the shot, 2 on the dance
-    assert rifleman.pos != world.Position(10, 2)  # it danced
+    assert sum("Kinetic Rifle" in _l for _l in lines) == 2  # BOTH actions
+    assert _remaining == 0  # 2 AP + 2 AP, the whole turn on shots
+    assert _cells == 0      # nothing left to dance with
+    assert rifleman.rolled_loadout["loaded"]["kinetic_rifle"] == 18  # drained
 
 
 def test_bystanders_panic_scatter_at_ap_during_a_fight(monkeypatch):
@@ -991,3 +1003,185 @@ def test_enemy_paths_through_door_tiles():
         path = world.find_path((1, 2), {(5, 2)}, game_map)
         assert path, f"no path through {_door.kind}"
         assert (3, 2) in path  # it walks the door cell itself
+
+
+# --- the volley scorer + loop (doc 48 phase 9, SETTLED 41/43) -------------------
+
+def _score_ctx(player):
+    """ctx double carrying the player's ground stats for the scorer."""
+    _ctx, _lines = _turn_ctx(player)
+    return _ctx
+
+
+def _scorer_fixture(dist: float, weapon_id: str, quality: int = 0):
+    from src.spacehack.combat._ai_ground import _score_ground_weapon
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    ctx = _score_ctx(player)
+    stats = SimpleNamespace(reflexes=50, strength=50, stamina=50)
+    return _score_ground_weapon(
+        find_ground_weapon(weapon_id), quality, dist, stats, 0, 0, ctx,
+    )
+
+
+def test_scorer_orders_by_ev_per_ap():
+    """At mid range the 2-AP rifle's EV-per-AP reads against the
+    1-AP pistol's — the scorer ranks by the ratio, not raw damage."""
+    rifle = _scorer_fixture(5.0, "kinetic_rifle")
+    pistol = _scorer_fixture(5.0, "laser_pistol")
+    # Same damage class; assert both positive and the rifle (higher
+    # per-action damage at band center) outscores the pistol's lean.
+    assert rifle > 0 and pistol > 0
+    assert rifle > pistol
+
+
+def test_scorer_folds_quality_into_the_ev():
+    """Quality scales both terms (doc 47 SETTLED 2 — the ranking sees
+    the tier the volley rolls)."""
+    assert _scorer_fixture(5.0, "kinetic_rifle", 3) > \
+        _scorer_fixture(5.0, "kinetic_rifle", 0)
+
+
+def test_scorer_folds_shots_per_action():
+    """Burst weapons score their BURST (doc 50 SETTLED 8) — else the
+    smg's cheap actions would under-rank against single-shots."""
+    smg = _scorer_fixture(3.0, "smg")
+    pistol = _scorer_fixture(3.0, "kinetic_pistol")
+    assert smg > pistol  # 2 rolls per 1-AP action beats one
+
+
+def test_volley_emits_noise_per_shot(monkeypatch):
+    """Multi-fire multiplies per-shot emissions (SETTLED 22 pinned for
+    the volley era): a two-action rifle volley reports twice."""
+    from src.spacehack import noise as _noise
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    game_map = _open_map(player, rifleman)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+    _emits = []
+    monkeypatch.setattr(
+        _noise, "emit",
+        lambda *a, **k: _emits.append(a) or [],
+    )
+
+    run(_ai_ground.run_ground_enemy_turn(
+        ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+        enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+        enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+        game_map=game_map, armor_defense=0,
+    ))
+
+    assert len(_emits) == 2  # one report per fired shot
+    assert all(e[3] == "kinetic_rifle" for e in _emits)
+
+
+def test_fire_and_move_turn_books_only_real_cells(monkeypatch):
+    """The ledger input (SETTLED 41): a mixed turn books ONLY actual
+    movement — two 2-AP shots plus one leftover dance step is 1 cell,
+    and dodge derives from exactly that."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(("kinetic_rifle", 0))
+    game_map = _open_map(player, rifleman)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=5, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert _remaining == 0  # 2 + 2 on shots, 1 on the dance
+    assert _cells == 1      # the dance step is the only booked cell
+
+
+def test_dry_gunner_swaps_to_melee_and_charges(monkeypatch):
+    """SETTLED 43's dry-switch at loop level: magazine and pool both
+    empty, the 1-AP swap lands (once, silent), the band governor keys
+    the knife, and the enemy CLOSES — never kites to gun range."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(2, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(16, 6),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(
+        ("kinetic_rifle", 0), ("combat_knife", 0),
+    )
+    rifleman.rolled_loadout["loaded"]["kinetic_rifle"] = 0  # mag dry
+    rifleman.rolled_loadout["pool"] = []                    # pool dry
+    game_map = _open_map(player, rifleman)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert rifleman.rolled_loadout["active"] == "melee"  # the swap
+    assert _remaining == 0  # 1 AP swap + 3 closing steps
+    assert _cells == 3      # charged, never kited
+    assert abs(rifleman.pos.x - player.pos.x) == 14 - 3
+
+
+def test_weaponless_and_stuck_turns_terminate_cleanly(monkeypatch):
+    """Termination: a weaponless stamp halts at once; a stuck enemy
+    with no pick and no legal step halts rather than spinning."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    worm = world.Entity(
+        "w", (185, 220, 245), world.Position(5, 6),
+        npc_char_id="ice_worm",
+    )
+    worm.rolled_loadout = {"ranged": None, "melee": None,
+                           "loaded": {}, "pool": [], "active": "ranged"}
+    game_map = _open_map(player, worm)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("ice_worm"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=6, player_pos=player.pos, enemy_entity=worm,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert (_remaining, _damage, _fired, _cells) == (6, 0, False, 0)
