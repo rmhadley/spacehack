@@ -306,12 +306,10 @@ def _entity_in_player_sight(ctx, game_map, player_pos, radius, _e) -> bool:
     from .. import faction as _faction
     if not _is_hostile_combatant(ctx, _e, _fnc, _faction, game_map):
         return False
-    _visible = getattr(game_map, "visible", None)
-    if _visible is not None:
-        return _visible[_e.pos.y][_e.pos.x]
-    from ._animations import _has_los
-    return _has_los(
-        game_map, player_pos.x, player_pos.y, _e.pos.x, _e.pos.y,
+    from ..dungeon_fov import cell_in_sight
+
+    return cell_in_sight(
+        game_map, _e.pos.x, _e.pos.y, player_pos.x, player_pos.y,
     )
 
 

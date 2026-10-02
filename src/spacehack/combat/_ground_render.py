@@ -17,6 +17,7 @@ from typing import Any
 
 from .. import ui, world
 from ..engine import MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, HUD_WIDTH
+from ..dungeon_fov import cell_in_sight
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from ..data.quality import effective_weapon_spec
@@ -33,7 +34,6 @@ from ..hud import (
     volley_costs,
 )
 from ._animations import (
-    _has_los,
     _paint_target_highlight,
     _draw_range_colored_line,
 )
@@ -209,10 +209,10 @@ def _render_range_line(
         return
     cam_x, cam_y, rx, ry = cam
     target = alive[_state.target_idx]
-    los_blocked = not _has_los(
+    los_blocked = not cell_in_sight(
         game_map,
-        ctx.player.pos.x, ctx.player.pos.y,
         target.pos.x, target.pos.y,
+        ctx.player.pos.x, ctx.player.pos.y,
     )
     _ground_range_line(
         console, ctx.player.pos, target.pos,

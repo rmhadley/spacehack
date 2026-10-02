@@ -383,3 +383,72 @@ class TestPropagateFlags:
         ]
         _propagate_flags(gm, flags)
         assert flags[1][2] is False  # not propagated
+
+
+from src.spacehack import world as _world_for_sight  # noqa: E402
+
+
+class TestSightGeometry:
+    """The 2026-10-02 unification: ground aggro (the 2026-09-02 grid
+    ruling), ground fire, and the ground AI all read ONE sight
+    predicate (``cell_in_sight`` = the fog grid), so what engages is
+    always shootable. The old Bresenham fire check disagreed with the
+    FOV at corners — the player entered fights they could not fire
+    into (user report 2026-10-02)."""
+
+    def _corner_map(self):
+        # Player (2,2) above a wall row with a gap at x=3: the FOV's
+        # rounded ray threads the gap to (5,6) where Bresenham does
+        # not — the transit-visible corner cell.
+        rows = [
+            "........",
+            "........",
+            "..P.....",
+            "........",
+            "###.####",
+            "........",
+            "........",
+        ]
+        tiles = [
+            [_world_for_sight.DUNGEON_WALL if ch == "#" else _world_for_sight.DUNGEON_FLOOR
+             for ch in row]
+            for row in rows
+        ]
+        from src.spacehack.dungeon_fov import init_fog as _init_fog
+
+        _m = _world_for_sight.GameMap(8, 7, tiles, [])
+        _init_fog(_m)
+        return _m
+
+    def test_transit_visible_corner_cell_is_fireable(self):
+        from src.spacehack.combat._animations import _has_los
+        from src.spacehack.dungeon_fov import cell_in_sight
+
+        m = self._corner_map()
+        reveal_around(m, _world_for_sight.Position(2, 2), radius=8)
+        assert m.visible[6][5], "the corner cell is FOV-visible"
+        assert not _has_los(m, 2, 2, 5, 6), "Bresenham blocks (the old refusal)"
+        assert cell_in_sight(m, 5, 6), "the fire predicate follows the grid"
+
+    def test_cell_in_sight_reads_the_grid_and_falls_back_to_the_ray(self):
+        from src.spacehack.dungeon_fov import cell_in_sight
+
+        m = self._corner_map()
+        reveal_around(m, _world_for_sight.Position(2, 2), radius=8)
+        assert cell_in_sight(m, 5, 6) is m.visible[6][5]
+        m.visible = None                    # the grid-less fallback
+        assert cell_in_sight(m, 3, 2, 2, 2)   # clear ray from the player
+        assert not cell_in_sight(m, 2, 5, 2, 2)  # straight through the wall row
+
+    def test_sight_ray_matches_the_fov_trace(self):
+        from src.spacehack.dungeon_fov import has_sight_ray
+
+        m = self._corner_map()
+        reveal_around(m, _world_for_sight.Position(2, 2), radius=8)
+        # The direct ray reaches the gap cell and the near wall face;
+        # it does not reach the transit cell (that one is visible via a
+        # ray aimed past it — exactly why fire reads the grid, and why
+        # grid-bearing callers must NOT use this predicate).
+        assert has_sight_ray(m, 2, 2, 3, 4)
+        assert not has_sight_ray(m, 2, 2, 5, 6)
+        assert m.visible[6][5], "the transit cell is grid-visible anyway"

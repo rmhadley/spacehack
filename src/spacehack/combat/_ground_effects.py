@@ -105,12 +105,12 @@ def _triggered(spec, gei, game_map, player_pos) -> bool:
     a Med Pack at half health; a Combat Stim only when the carrier can
     see the player and isn't already stimmed. Any other effect id has
     no enemy-side trigger yet."""
-    from ._animations import _has_los
+    from ..dungeon_fov import cell_in_sight
 
     if spec.effect_id == "restore_hp":
         return gei.hp * 2 <= gei.max_hp
     if spec.effect_id == "stim":
-        return gei.stim_turns <= 0 and _has_los(
+        return gei.stim_turns <= 0 and cell_in_sight(
             game_map, gei.entity.pos.x, gei.entity.pos.y,
             player_pos.x, player_pos.y,
         )

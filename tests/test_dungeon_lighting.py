@@ -517,3 +517,32 @@ def test_light_luma_cap_prevents_whiteout():
         LightSource(x=10, y=10, colour=(60, 40, 20), radius=2, intensity=0.4),
     ])
     assert _luma(dim[10][10]) < _LIGHT_LUMA_CAP, "dim light is untouched"
+
+
+def test_glow_revealed_cells_are_fireable():
+    """The 2026-10-02 invariant (user report: 'I can see enemies
+    through walls but can't fire at them — sometimes deep around a
+    corner, maybe light sources'): aggro (the 09-02 grid ruling) and
+    ground fire now read the SAME grid, so anything the fungus lights
+    — around corners included — is engaged AND shootable. (A
+    seen-only bubble was built and reverted: it contradicted the
+    09-02 ruling's 'aggro is EXACTLY what the player sees' and broke
+    its own batch.)"""
+    from src.spacehack.dungeon_fov import cell_in_sight
+
+    width, height = 9, 6
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for x in range(1, 7):
+        tiles[4][x] = world.DUNGEON_FLOOR
+    for y in range(1, 4):
+        tiles[y][4] = world.DUNGEON_FLOOR
+    tiles[4][4] = world.GLOW_FUNGUS     # the bend mouth, in direct sight
+    game_map = world.GameMap(width, height, tiles, [])
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, world.Position(1, 4), radius=8)
+    assert game_map.visible[4][4], "the fungus is in direct sight"
+    # The BUBBLE cells around the bend (control-verified: these are
+    # False without the fungus) — visible AND fireable, the fix:
+    for cell in ((4, 2), (4, 1)):
+        assert game_map.visible[cell[1]][cell[0]]
+        assert cell_in_sight(game_map, cell[0], cell[1], 1, 4)

@@ -66,8 +66,8 @@ from ._actions import (
     move_entity,
     set_combat_locks,
 )
+from ..dungeon_fov import cell_in_sight
 from ._animations import (
-    _has_los,
     DamagePopup,
 )
 from ._shot_animations import _animate_ground_shot
@@ -546,10 +546,9 @@ def can_fire(slot_idx: int, ctx) -> tuple[bool, str]:
     )
     if _state.player_ap < _ap_cost:
         return False, "Need AP to charge" if _is_charge else f"Need {_ap_cost} AP (have {_state.player_ap})"
-    if not _is_charge and not _has_los(
-        _state.game_map,
+    if not _is_charge and not cell_in_sight(
+        _state.game_map, _target.pos.x, _target.pos.y,
         ctx.player.pos.x, ctx.player.pos.y,
-        _target.pos.x, _target.pos.y,
     ):
         return False, "Blocked by wall"
     _ammo_reason = _ground_ammo_reason(ctx, slot_idx, _ws)

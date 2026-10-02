@@ -14,9 +14,9 @@ from .. import world
 from .. import message_log as _ml
 from ..engine import RNG
 from .. import animation_timing
+from ..dungeon_fov import cell_in_sight
 from ._animations import (
     _damage_popup_for,
-    _has_los,
     _responsive_sleep,
     _present,
 )
@@ -85,6 +85,14 @@ async def _attempt_fire(
     )
 
 
+def _mutual_sight(game_map, cell, player_pos) -> bool:
+    """The enemy-side sight read (the 09-02 symmetry, 2026-10-02
+    unified): the enemy sees the player iff its own cell sits in the
+    player's sight grid — the same predicate the player's fire and
+    aggro read, so an engagement can never be one-sided."""
+    return cell_in_sight(game_map, cell.x, cell.y, player_pos.x, player_pos.y)
+
+
 async def _spend_ground_ap(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
@@ -98,8 +106,7 @@ async def _spend_ground_ap(
 
     while _result_ap > 0:
         _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
-        _los = _has_los(game_map, enemy_entity.pos.x, enemy_entity.pos.y,
-                        player_pos.x, player_pos.y)
+        _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
         _shot = None if _fired else await _attempt_fire(
             ctx, console, render_callback, game_map, enemy_entity,
             player_pos, enemy_weapon_id, _ews, enemy_spec, enemy_stats,
@@ -196,7 +203,7 @@ async def _back_off_step(
         _d = _dist_to(_x, _y, player_pos)
         return (
             _d >= _ews.min_range,
-            _has_los(game_map, _x, _y, player_pos.x, player_pos.y),
+            _mutual_sight(game_map, world.Position(_x, _y), player_pos),
             _d,
         )
 
@@ -241,9 +248,10 @@ async def _reposition_step(
         and _ews.min_range <= _dist_to(
             enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy, player_pos,
         ) <= _ews.max_range
-        and _has_los(
-            game_map, enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy,
-            player_pos.x, player_pos.y,
+        and _mutual_sight(
+            game_map,
+            world.Position(enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy),
+            player_pos,
         )
     ]
     if not _pool:
@@ -269,11 +277,7 @@ async def _try_ground_fire(
     _dist = _distance(enemy_entity.pos, player_pos)
     if not (_ews and _ews.min_range <= _dist <= _ews.max_range):
         return None
-    if not _has_los(
-        game_map,
-        enemy_entity.pos.x, enemy_entity.pos.y,
-        player_pos.x, player_pos.y,
-    ):
+    if not _mutual_sight(game_map, enemy_entity.pos, player_pos):
         return None  # can't shoot through walls — caller moves instead
     _shots = max(1, _ews.shots_per_action) if _ews else 1
     _total = await _fire_enemy_burst(

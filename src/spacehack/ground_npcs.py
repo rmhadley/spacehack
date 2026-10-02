@@ -278,10 +278,13 @@ def _pursuit_path(
 
 
 def _has_los_to(game_map, x: int, y: int, gx: int, gy: int) -> bool:
-    """Bresenham LOS to a cell (lazy import — combat owns the caster)."""
-    from .combat._animations import _has_los
+    """Sight to a cell on the FOV's own geometry (the 2026-10-02
+    unification: map-side sensing reads the sight ray, not Bresenham —
+    it now passes through hull-wall groups and stops at dungeon doors,
+    exactly like the player's sight)."""
+    from .dungeon_fov import has_sight_ray
 
-    return _has_los(game_map, x, y, gx, gy)
+    return has_sight_ray(game_map, x, y, gx, gy)
 
 
 def _investigate_walk(

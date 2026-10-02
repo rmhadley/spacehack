@@ -26,15 +26,66 @@ def init_fog(game_map: world.GameMap) -> None:
     game_map.sight_radius = DUNGEON_SIGHT_RADIUS
 
 
+def cell_in_sight(game_map: world.GameMap, x: int, y: int,
+                  from_x: int | None = None, from_y: int | None = None) -> bool:
+    """The ONE ground combat sight predicate (2026-10-02 ruling —
+    the 09-02 "aggro is exactly what the player sees" finding
+    completed): a cell is in sight when the fog grid says so; maps
+    without a grid fall back to the direct sight ray from
+    (from_x, from_y). Ground fire, the ground AI (mutual sight — a
+    cell the player sees is a cell that can see them), and aggro all
+    read THIS, so what engages is always shootable and never the
+    reverse. Callers MUST pass from-coords: a missing from on a
+    grid-less map reads True (there is no honest default)."""
+    _visible = getattr(game_map, "visible", None)
+    if _visible is not None:
+        return _visible[y][x]
+    if from_x is None or from_y is None:
+        return True
+    return has_sight_ray(game_map, from_x, from_y, x, y)
+
+
+def _ray_cells(ox: int, oy: int, dx: int, dy: int):
+    """The rounded-ray sample cells from (ox, oy) toward (dx, dy)
+    (excluding the origin) — the ONE trace geometry :func:`_cast_ray`
+    reveals along and :func:`has_sight_ray` tests; the pair must never
+    drift apart."""
+    _steps = max(abs(dx), abs(dy))
+    if _steps == 0:
+        return
+    for _step in range(1, _steps + 1):
+        _f = _step / _steps
+        yield round(ox + dx * _f), round(oy + dy * _f)
+
+
+def has_sight_ray(game_map: world.GameMap, from_x: int, from_y: int,
+                  to_x: int, to_y: int) -> bool:
+    """The player-sight geometry as a queryable predicate: the SAME
+    rounded-ray trace :func:`_cast_ray` walks. The grid-less FALLBACK
+    for ground sight reads (2026-10-02 unification: aggro and fire
+    share the fog grid, which is the primary predicate — see
+    :func:`cell_in_sight`; on maps without a grid this trace stands
+    in, where Bresenham disagreed with the FOV at corners).
+    Direction-symmetric where Bresenham was not. Notably NOT the
+    transit rule: a cell the FOV marks visible via a ray aimed past
+    it may still fail this DIRECT trace — grid-bearing callers must
+    read the grid, not this."""
+    for _sx, _sy in _ray_cells(from_x, from_y, to_x - from_x, to_y - from_y):
+        if (_sx, _sy) == (to_x, to_y):
+            return True
+        if not game_map.in_bounds(_sx, _sy):
+            return False
+        _tile = game_map.tiles[_sy][_sx]
+        if not _tile.walkable and _tile.kind != "hull_wall":
+            return False
+        if _tile.kind == "dungeon_door":
+            return False
+    return True
+
+
 def _cast_ray(game_map: world.GameMap, ox: int, oy: int, dx: int, dy: int) -> None:
     """Reveal one ray, stopping at solid walls and closed doors."""
-    steps = max(abs(dx), abs(dy))
-    if steps == 0:
-        return
-    for step in range(1, steps + 1):
-        fraction = step / steps
-        sx = round(ox + dx * fraction)
-        sy = round(oy + dy * fraction)
+    for sx, sy in _ray_cells(ox, oy, dx, dy):
         if not game_map.in_bounds(sx, sy):
             return
         game_map.seen[sy][sx] = True
@@ -164,7 +215,14 @@ def _reveal_lit_sources(game_map: world.GameMap) -> None:
     Opaque emitters (e.g. the undulating alien door) only glow — they
     never extend sight through themselves, or a sealed chamber beyond
     the emitter would be revealed by its own glow.
-    """
+
+    2026-10-02: glow-revealed cells are FIREABLE — aggro and fire both
+    read the visible grid now, so a hostile the fungus lights around a
+    corner is engaged AND shootable (the shot's beam is the one
+    cosmetic casualty: it may graze the corner wall). The alternative
+    (bubbling glow cells down to seen-only) was built and reverted: it
+    broke the 09-02 ruling's own batch ("aggro is EXACTLY what the
+    player sees" — glow included) and the ruled balance rows."""
     from .data.lighting import light_spec_for_kind
 
     for sx, sy in _lit_cells_in_visible(game_map):

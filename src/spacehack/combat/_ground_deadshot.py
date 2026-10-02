@@ -75,7 +75,7 @@ async def record_player_kill(ctx, weapon_id: str) -> None:
 def _chain_target(ctx, weapon_id: str):
     """Return the nearest living enemy in range + line of sight, or None."""
     from . import _rules_ground as _rules
-    from ._animations import _has_los
+    from ..dungeon_fov import cell_in_sight
     _alive = _rules.get_enemies(ctx)
     if not _alive:
         return None
@@ -88,7 +88,7 @@ def _chain_target(ctx, weapon_id: str):
         _d = _distance(_pos, _e.pos)
         if _d > _max_range:
             continue
-        if not _has_los(_gm, _pos.x, _pos.y, _e.pos.x, _e.pos.y):
+        if not cell_in_sight(_gm, _e.pos.x, _e.pos.y, _pos.x, _pos.y):
             continue
         if _d < _best_d:
             _best, _best_d = _e, _d
