@@ -29,7 +29,10 @@ class ScriptedRng:
 
 def _spec(**overrides):
     base = dict(
+        weapons=(),
         weapon_families=("rifles",),
+        melee_weapons=(),
+        melee_families=(),
         stat_weights=(0.45, 0.15, 0.25, 0.05, 0.05, 0.05),
         pin_window_top=False,
     )
@@ -424,3 +427,116 @@ def test_target_card_colours_wielded_variant_name_without_token():
         ("Mono Blade", TARGET_CARD_DIM),
     )
     assert enemy_weapon_fg(enemy, TARGET_CARD_DIM) == TARGET_CARD_DIM
+
+
+# --- the two-set loadout roll (doc 48 phase 9, SETTLED 43) ----------------------
+
+class LoadoutRng:
+    """Behavioral rng double: first pick, top window roll, quality
+    misses (randint returns hi, never the 1-in-N hit), pool at max."""
+
+    def choice(self, seq):
+        return seq[0]
+
+    def random(self):
+        return 0.99
+
+    def randint(self, lo, hi):
+        return hi
+
+
+def test_roll_loadout_fills_both_sets_through_the_same_windows():
+    """The melee set rolls through the SAME band windows as the ranged
+    set (SETTLED 43): band 1 keeps both slots at tier 1."""
+    spec = _spec(weapon_families=("pistols",), melee_families=("melee",))
+    stamp = ground_scale.roll_loadout(spec, 1, LoadoutRng())
+    assert stamp["ranged"][0] in family_tiers("pistols")[1]
+    assert stamp["melee"][0] in family_tiers("melee")[1]
+    assert stamp["active"] == "ranged"
+    # Band 4's window is {3, 4}; pistols top out at t3, so the snap
+    # lands the ladder's ceiling.
+    stamp4 = ground_scale.roll_loadout(spec, 4, LoadoutRng())
+    assert stamp4["ranged"][0] in family_tiers("pistols")[3]
+
+
+def test_roll_loadout_stamps_full_magazines_and_the_carried_pool():
+    """Ammo-fed weapons stamp a full magazine (the player instance's
+    mirror) and the pool rolls in the half-to-three-quarters window —
+    never a full stack, one entry per distinct ammo type."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    spec = _spec(weapon_families=("rifles",), melee_families=("melee",))
+    stamp = ground_scale.roll_loadout(spec, 2, LoadoutRng())
+    # Band 2's 0.99 roll takes tier 2: laser_rifle (energy_cell fed).
+    _ranged_id = stamp["ranged"][0]
+    _ws = find_ground_weapon(_ranged_id)
+    assert _ws.ammo_capacity > 0
+    assert stamp["loaded"][_ranged_id] == _ws.ammo_capacity
+    (entry,) = stamp["pool"]
+    assert entry == ["ammo", "energy_cells", 4]  # ceiling 5 -> (2, 4)
+    # The melee knife never needs ammo.
+    assert stamp["melee"][0] not in stamp["loaded"]
+
+
+def test_roll_loadout_one_pool_entry_per_distinct_ammo_type():
+    spec = _spec(
+        weapon_families=("pistols",), melee_weapons=("stun_baton",),
+    )
+    stamp = ground_scale.roll_loadout(spec, 2, LoadoutRng())
+    ids = [e[1] for e in stamp["pool"]]
+    assert len(ids) == len(set(ids))
+
+
+def test_roll_loadout_fixed_rows_keep_their_weapons_and_fixed_melee_set():
+    spec = SimpleNamespace(
+        weapons=("kinetic_pistol",), weapon_families=(),
+        melee_weapons=("combat_knife",), melee_families=(),
+        pin_window_top=False,
+    )
+    stamp = ground_scale.roll_loadout(spec, 3, LoadoutRng())
+    assert stamp["ranged"][0] == "kinetic_pistol"
+    assert stamp["melee"][0] == "combat_knife"
+    assert stamp["loaded"] == {"kinetic_pistol": 12}
+    assert stamp["pool"] == [["ammo", "pistol_rounds", 4]]
+
+
+def test_roll_loadout_weaponless_row_stamps_empty_slots():
+    spec = _spec(weapon_families=())
+    stamp = ground_scale.roll_loadout(spec, 1, LoadoutRng())
+    assert stamp["ranged"] is None
+    assert stamp["melee"] is None
+    assert stamp["pool"] == []
+
+
+def test_carried_pool_range_is_half_to_three_quarters():
+    assert ground_scale.carried_pool_range(5) == (2, 4)
+    assert ground_scale.carried_pool_range(2) == (1, 2)
+    assert ground_scale.carried_pool_range(1) == (1, 1)
+
+
+def test_humanoid_rows_author_melee_sets():
+    """The data pass (SETTLED 43): every humanoid row carries a melee
+    set — family rows roll it, the merchant's knife is fixed; fauna
+    and machines author neither melee field."""
+    expected_melee_families = {
+        "consortium_enforcer", "consortium_gunner", "pirate_raider",
+        "pirate_rifleman", "pirate_brute", "militia_marine",
+        "militia_sniper", "militia_trooper",
+    }
+    for spec in list_npc_chars():
+        if spec.id in expected_melee_families:
+            assert spec.melee_families == ("melee",), spec.id
+        elif spec.id == "merchant":
+            assert spec.melee_weapons == ("combat_knife",), spec.id
+            assert spec.weapons == ("kinetic_pistol",), spec.id
+        else:
+            assert not spec.melee_weapons and not spec.melee_families, spec.id
+
+
+def test_never_author_both_weapons_and_families_per_set():
+    """The families-take-precedence law holds PER SET (SETTLED 43)."""
+    for spec in list_npc_chars():
+        assert not (spec.weapons and spec.weapon_families), spec.id
+        assert not (spec.melee_weapons and spec.melee_families), spec.id
+        if spec.melee_families:
+            assert set(spec.melee_families) <= set(weapon_families()), spec.id

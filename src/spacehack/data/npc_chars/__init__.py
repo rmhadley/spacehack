@@ -98,6 +98,14 @@ class NpcCharSpec:
             window rolls in (doc 48 SETTLED 35); empty = the row is
             fixed via ``weapons``. Families take precedence when both
             are set — never author both.
+        melee_weapons: the MELEE set's fixed weapon ids (doc 48
+            SETTLED 43 — the player's two-set model mirrored); empty
+            = no fixed melee weapon. The same families-take-precedence
+            law holds per set: never author both melee fields.
+        melee_families: catalog family modules the band's tier window
+            rolls the melee set in (the SAME windows as the ranged
+            set); empty = no melee set (fauna, machines with organic
+            parts).
         stat_weights: six archetype shares (reflexes, strength,
             stamina + the flat 0.05 space-skill share each, SETTLED
             19/35) splitting the band's stat budget; all-zero = the
@@ -137,6 +145,8 @@ class NpcCharSpec:
     hp: int = 20
     weapons: tuple[str, ...] = ()
     weapon_families: tuple[str, ...] = ()
+    melee_weapons: tuple[str, ...] = ()
+    melee_families: tuple[str, ...] = ()
     stat_weights: tuple[float, ...] = ()
     elite: bool = False
     pin_window_top: bool = False

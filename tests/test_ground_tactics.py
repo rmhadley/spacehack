@@ -249,6 +249,18 @@ def test_direction_word_covers_all_eight_ways():
 
 # --- guards hear leash-gated (SETTLED 37) -----------------------------------
 
+def _pinned_loadout(ranged=None, melee=None, **extra):
+    """A hand-pinned two-set stamp (doc 48 SETTLED 43): both set keys
+    present (an absent ``melee`` key means unresolved-and-will-fill)."""
+    stamp = {
+        "ranged": list(ranged) if ranged else None,
+        "melee": list(melee) if melee else None,
+        "loaded": {}, "pool": [], "active": "ranged",
+    }
+    stamp.update(extra)
+    return stamp
+
+
 def test_guard_hears_only_within_rolled_weapon_reach():
     """A guard is an area guardian: it gains the stamp only while the
     sound sits within max_range + 2 of its position."""
@@ -259,8 +271,8 @@ def test_guard_hears_only_within_rolled_weapon_reach():
     )
     game_map = _floor_map(player, guard)
     ctx, _ = _ctx(player)
-    # Pin the guard's rolled weapon: drone_laser max_range 6 -> leash 8.
-    guard.rolled_weapon = ("drone_laser", 0)
+    # Pin the guard's loadout: drone_laser max_range 6 -> leash 8.
+    guard.rolled_loadout = _pinned_loadout(("drone_laser", 0))
 
     # Rocket (noise 12) 8 cells away: radius passes, leash passes.
     noise.emit(
@@ -287,7 +299,7 @@ def test_hunter_hears_beyond_any_leash():
     )
     game_map = _floor_map(player, hunter)
     ctx, _ = _ctx(player)
-    hunter.rolled_weapon = ("monster_claws", 0)  # tiny weapon, no gate
+    hunter.rolled_loadout = _pinned_loadout(("monster_claws", 0))  # no gate
 
     noise.emit(
         ctx, game_map, world.Position(9, 0), "rocket_launcher",
@@ -296,30 +308,42 @@ def test_hunter_hears_beyond_any_leash():
     assert hunter.last_seen_pos == world.Position(9, 0)
 
 
-# --- rolled-weapon persistence (SETTLED 37) ---------------------------------
+# --- loadout persistence (SETTLED 37/43) -------------------------------------
 
-def test_ensure_rolled_weapon_is_idempotent():
+def test_ensure_loadout_is_idempotent():
     """First resolution rolls + stamps; later calls return the stamp
-    and never re-roll (re-engagement keeps the same weapon)."""
+    and never re-roll (re-engagement keeps the same loadout)."""
+    from src.spacehack import ground_loadout
+
     hunter = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2), npc_char_id="dust_prowler",
     )
-    first = noise.ensure_rolled_weapon(hunter)
-    stamped = hunter.rolled_weapon
-    assert stamped is not None and stamped[0] == first
+    first = ground_loadout.ensure_loadout(hunter)
+    stamped = hunter.rolled_loadout
+    assert stamped is first
 
-    again = noise.ensure_rolled_weapon(hunter)
-    assert again == first
-    assert hunter.rolled_weapon == stamped  # untouched second call
+    again = ground_loadout.ensure_loadout(hunter)
+    assert again is stamped  # untouched second call
 
 
 def test_fixed_rows_roll_their_authored_weapons():
     """Rows without families keep their fixed organic weapons."""
+    from src.spacehack import ground_loadout, ground_scale
+
     worm = world.Entity(
         "w", (185, 220, 245), world.Position(2, 2), npc_char_id="ice_worm",
     )
-    assert noise.ensure_rolled_weapon(worm) == "monster_claws"
-    assert noise.rolled_weapon_quality("monster_claws", 4) == 0  # never rolls
+    stamp = ground_loadout.ensure_loadout(worm)
+    assert stamp["ranged"][0] == "monster_claws"
+    assert stamp["melee"] is None  # no melee set on fixed rows
+    class _Seq:
+        def random(self):
+            raise AssertionError("organic parts never consume roll RNG")
+        def choice(self, seq):
+            raise AssertionError("organic parts never consume roll RNG")
+        def randint(self, lo, hi):
+            raise AssertionError("organic parts never consume roll RNG")
+    assert ground_scale.rolled_weapon_quality("monster_claws", 4, _Seq()) == 0
 
 
 # --- combat-time movement + stepwise LOS join (SETTLED 17/25/36) -------------
@@ -558,11 +582,27 @@ def test_guard_leash_derives_from_the_rolled_weapon():
         "d", (200, 180, 110), world.Position(2, 2),
         npc_char_id="sentry_drone",
     )
-    guard.rolled_weapon = ("drone_laser", 0)  # max_range 6
+    guard.rolled_loadout = _pinned_loadout(("drone_laser", 0))  # max_range 6
     assert noise.guard_leash(guard) == 8
 
-    guard.rolled_weapon = ("railgun", 0)  # max_range 9 — a sniper's kingdom
+    guard.rolled_loadout = _pinned_loadout(("railgun", 0))  # max_range 9
     assert noise.guard_leash(guard) == 11
+
+
+def test_guard_leash_keys_the_ranged_slot_always():
+    """SETTLED 43's dry-guard corner: a guard swapped to its melee set
+    keeps its authored kingdom — the leash reads the RANGED slot even
+    while melee is active."""
+    from src.spacehack import noise
+
+    guard = world.Entity(
+        "d", (200, 180, 110), world.Position(2, 2),
+        npc_char_id="sentry_drone",
+    )
+    guard.rolled_loadout = _pinned_loadout(
+        ("drone_laser", 0), ("combat_knife", 0), active="melee",
+    )
+    assert noise.guard_leash(guard) == 8  # drone_laser max 6 + 2, not 3
 
 
 def _turn_ctx(player):

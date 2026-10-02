@@ -93,10 +93,7 @@ def _entity_to_dict(e) -> dict:
         "dungeon_interaction": getattr(e, 'dungeon_interaction', ''),
         "interaction_flavor": getattr(e, 'interaction_flavor', ''),
         "last_seen_pos": _position_list(getattr(e, 'last_seen_pos', None)),
-        "rolled_weapon": (
-            [e.rolled_weapon[0], e.rolled_weapon[1]]
-            if getattr(e, 'rolled_weapon', None) else None
-        ),
+        "rolled_loadout": _loadout_dict(getattr(e, 'rolled_loadout', None)),
         "carried_items": (
             [list(_c) for _c in e.carried_items]
             if getattr(e, 'carried_items', None) is not None else None
@@ -253,25 +250,106 @@ def _restore_ground_elite(e: world.Entity) -> None:
         pass
 
 
+def _loadout_dict(stamp):
+    """Serialize the two-set loadout stamp (doc 48 SETTLED 43) — JSON
+    plain (lists, no tuples); ``None`` passes through for unstamped."""
+    if not stamp:
+        return None
+    out = {"active": stamp.get("active", "ranged")}
+    for key in ("ranged", "melee"):
+        pair = stamp.get(key)
+        out[key] = [str(pair[0]), int(pair[1])] if pair else None
+    out["loaded"] = {
+        str(k): int(v) for k, v in (stamp.get("loaded") or {}).items()
+    }
+    out["pool"] = [
+        [str(e[0]), str(e[1]), int(e[2])]
+        for e in (stamp.get("pool") or []) if len(e) == 3
+    ]
+    if "melee" not in stamp:
+        # key-absent = the melee set is unresolved (a migrated stamp
+        # that has not been engaged yet) — preserve the distinction.
+        del out["melee"]
+    return out
+
+
+def _loadout_from_dict(ed: dict) -> dict | None:
+    """Rebuild the two-set loadout stamp (doc 48 SETTLED 43); corrupt
+    values skip the whole stamp (combat re-resolves on entry).
+
+    A legacy ``rolled_weapon`` pair migrates to the RANGED slot with
+    ``melee`` key-absent — the melee set resolves at first engagement.
+    """
+    _saved = ed.get("rolled_loadout")
+    if not isinstance(_saved, dict):
+        _legacy = ed.get("rolled_weapon")
+        if isinstance(_legacy, (list, tuple)) and len(_legacy) == 2:
+            try:
+                return {
+                    "ranged": [str(_legacy[0]), int(_legacy[1])],
+                    "loaded": {}, "pool": [], "active": "ranged",
+                }
+            except (TypeError, ValueError):
+                return None
+        return None
+    if "ranged" not in _saved:
+        # A dict missing its ranged slot key (e.g. a hand-corrupted {})
+        # is not a stamp: skip it so combat re-resolves on entry.
+        return None
+    try:
+        stamp = {
+            "active": str(_saved.get("active", "ranged")),
+            "loaded": _loadout_ints(_saved.get("loaded")),
+            "pool": _loadout_pool(_saved.get("pool")),
+        }
+        # Key-absent melee stays absent (unresolved — fills at first
+        # engagement); a present-but-invalid pair reads as None.
+        for _key in ("ranged", "melee"):
+            if _key in _saved:
+                stamp[_key] = _stamp_pair(_saved.get(_key))
+        return stamp
+    except (TypeError, ValueError):
+        return None
+
+
+def _loadout_ints(raw) -> dict:
+    """The stamp's magazine counts: {weapon_id: rounds}."""
+    return {str(k): int(v) for k, v in (raw or {}).items()}
+
+
+def _loadout_pool(raw) -> list[list]:
+    """The stamp's carried-pool entries, malformed ones skipped."""
+    return [
+        [str(e[0]), str(e[1]), int(e[2])]
+        for e in (raw or [])
+        if isinstance(e, (list, tuple)) and len(e) == 3
+    ]
+
+
+def _stamp_pair(pair):
+    """One set slot back into ``[weapon_id, quality]`` or ``None``."""
+    if isinstance(pair, (list, tuple)) and len(pair) == 2:
+        return [str(pair[0]), int(pair[1])]
+    return None
+
+
 def _restore_ground_stamps(e: world.Entity, ed: dict) -> None:
-    """Ground tactic stamps (doc 48 SETTLED 36/37): investigation goal,
-    persisted rolled weapon, and pre-rolled carried consumables.
+    """Ground tactic stamps (doc 48 SETTLED 36/37/43): investigation
+    goal, the persisted two-set loadout, and pre-rolled carried
+    consumables.
 
     The goal is position-only (no tick countdown): a live goal survives
     the round-trip by its cell alone, and pre-phase-5 saves that carried
     ``last_seen_ticks`` load clean — the old key is simply ignored. The
-    rolled-weapon stamp means re-engagement never re-rolls; the carried
-    stamp is what they drop (used charges are gone forever).
+    loadout stamp means re-engagement never re-rolls; a legacy
+    ``rolled_weapon`` pair loads as the RANGED slot with the melee set
+    unresolved (filled at first engagement). The carried stamp is what
+    they drop (used charges are gone forever).
     """
     _pair = _coordinate_pair(ed.get("last_seen_pos"))
     if _pair is not None:
         e.last_seen_pos = world.Position(*_pair)
-    _rolled = ed.get("rolled_weapon")
-    if isinstance(_rolled, (list, tuple)) and len(_rolled) == 2:
-        try:  # corrupt saves skip the stamp; combat re-resolves on entry
-            e.rolled_weapon = (str(_rolled[0]), int(_rolled[1]))
-        except (TypeError, ValueError):
-            pass
+    e.rolled_loadout = _loadout_from_dict(ed)
     _carried = ed.get("carried_items")
     if isinstance(_carried, list):
         # Malformed entries skip individually (corrupt-save tolerance,

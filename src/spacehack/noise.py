@@ -27,11 +27,9 @@ from __future__ import annotations
 
 from . import world
 from . import message_log as _ml
-from .engine import RNG
 from .faction import spec_is_hostile as _spec_is_hostile
 from .data.ground_weapons import find_ground_weapon as _find_gw
 from .data.npc_chars import find_npc_char as _find_nc
-from . import ground_scale
 
 # Weapons at or below this hearing radius never log the reaction line
 # (SETTLED 36: "quiet weapons never trigger it"). Hearers within the
@@ -58,64 +56,26 @@ def direction_word(dx: int, dy: int) -> str:
     )[2]
 
 
-def rolled_weapon_quality(weapon_id: str, band: int) -> int:
-    """Equip-time quality roll (SETTLED 13/35): the ladder rides the
-    spawn band. Real gear only — organic parts never variant, never
-    consume roll RNG."""
-    if not weapon_id:
-        return 0
-    try:
-        if not _find_gw(weapon_id).loot_droppable:
-            return 0
-    except KeyError:
-        return 0
-    from .data.quality import roll_quality
-
-    return roll_quality(ground_scale.quality_rates(band), RNG)
-
-
-def resolve_weapon(spec, band: int, rng) -> tuple[str, int]:
-    """One (weapon_id, quality) first-resolution for a spec at a band."""
-    if spec.weapon_families:
-        _wid = ground_scale.roll_weapon(spec, band, rng)
-    else:
-        _wid = spec.weapons[0] if spec.weapons else ""
-    return _wid, rolled_weapon_quality(_wid, band)
-
-
-def ensure_rolled_weapon(
-    entity: world.Entity, game_map=None, spec=None,
-) -> str:
-    """The entity's persisted rolled weapon id (idempotent stamp).
-
-    First resolution rolls through the band resolver and stamps the
-    ``(weapon_id, quality)`` pair on the entity — serialized, so
-    re-engagement never re-rolls (doc 48 SETTLED 37: what fired at
-    you is what drops, on every later fight too).
-    """
-    _stamped = getattr(entity, "rolled_weapon", None)
-    if _stamped is not None:
-        return _stamped[0]
-    _spec = spec or _find_nc(entity.npc_char_id)
-    _band = ground_scale.entity_band(entity, game_map)
-    _pair = resolve_weapon(_spec, _band, RNG)
-    entity.rolled_weapon = _pair
-    return _pair[0]
-
-
 def guard_leash(entity: world.Entity, game_map=None) -> int:
-    """A guard's hearing/chase leash: its rolled weapon's max + 2
-    (SETTLED 18/37) — authority is reach plus reposition room.
+    """A guard's hearing/chase leash: its RANGED slot weapon's max + 2
+    (SETTLED 18/37) — authority is reach plus reposition room. The key
+    is the ranged slot, ALWAYS (doc 48 SETTLED 43): a swapped-to-melee
+    guard keeps its authored kingdom.
 
-    Deliberately mutates on first call (idempotent): the weapon MUST
-    be resolved by hearing time, so the first-resolution stamp lands
+    Deliberately resolves on first call (idempotent): the loadout MUST
+    be stamped by hearing time, so the first-resolution roll lands
     here when a guard hears before it ever fights.
     """
-    _wid = ensure_rolled_weapon(entity, game_map)
-    try:
-        return _find_gw(_wid).max_range + 2
-    except KeyError:
+    from . import ground_loadout as _gl
+
+    _stamp = _gl.ensure_loadout(entity, game_map)
+    _pair = _gl.pair_for(_stamp, _gl.SET_RANGED) if _stamp else None
+    if _pair is None:
         return 3  # weaponless guard: melee reach plus room
+    try:
+        return _find_gw(_pair[0]).max_range + 2
+    except KeyError:
+        return 3
 
 
 def _hears(

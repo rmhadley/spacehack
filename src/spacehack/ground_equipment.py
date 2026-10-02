@@ -589,6 +589,26 @@ def item_stack_capacity(item_type: str, item_id: str) -> int:
     raise ValueError(f"Unknown field item type: {item_type!r}")
 
 
+def drop_quantity_ceiling(item_type: str, item_id: str, stack_cap: int) -> int:
+    """A drop's quantity ceiling: min(5, stack), tightened by the ammo
+    spec's authored max_drop (explosives stay scarce — doc 50 SETTLED 8).
+
+    The one home of the law (moved from ``combat._actions`` when the
+    enemy carried-pool roll needed it at the data layer, doc 48
+    SETTLED 43): kill-drop rolls and carried-pool sizing read the
+    same cap.
+    """
+    if item_type != "ammo":
+        return min(5, stack_cap)
+    try:
+        max_drop = find_ground_ammo(item_id).max_drop
+    except KeyError:
+        return min(5, stack_cap)
+    if not max_drop:
+        return min(5, stack_cap)
+    return min(5, stack_cap, max_drop)
+
+
 def validate_item_stack(stack: GroundItemStack) -> None:
     """Raise :class:`ValueError` for an invalid item stack."""
     capacity = item_stack_capacity(stack.item_type, stack.item_id)

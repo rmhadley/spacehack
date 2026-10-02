@@ -353,7 +353,14 @@ class Entity:
     # walks until it holds LOS on that cell (no tick decay, latest wins).
     last_seen_pos: Position | None = None
     guard_post: Position | None = None  # guard leash anchor (doc 48); re-stamped where an investigation ends
-    rolled_weapon: tuple[str, int] | None = None  # persisted (weapon_id, quality) first-resolution stamp (doc 48 SETTLED 37)
+    # Two-set loadout stamp (doc 48 SETTLED 43): {"ranged": [id, q],
+    # "melee": [id, q] | key-absent-when-unresolved, "loaded": {id: rounds},
+    # "pool": [["ammo", item_id, qty], ...], "active": "ranged"|"melee"}.
+    # The ONE store for enemy weapons/magazines/pool — combat mutates it in
+    # place so a mid-fight save captures the exact state. Replaces the
+    # len-2 rolled_weapon stamp (doc 48 SETTLED 37); pre-43 saves migrate
+    # at load (the pair becomes the ranged slot).
+    rolled_loadout: dict | None = None
     carried_items: list | None = None  # pre-rolled consumable stamp [[type, id, qty], ...] (doc 48 SETTLED 36); None = unrolled
     city_npc_id: str = ""  # ambient city citizen — placed/moved by city_npcs
     city_spawn: Position | None = None  # ambient anchor; wander returns here

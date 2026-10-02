@@ -30,8 +30,8 @@ from typing import Iterator
 from src.spacehack import (
     animation_timing,
     engine,
+    ground_loadout,
     ground_npcs,
-    noise,
     solar_system,
     world,
 )
@@ -73,7 +73,10 @@ from tests.support.asyncutil import run as _async_run
 # across two Random objects (doc 50 audit §4). The ground theater adds
 # the ground AI, the noise/investigation rolls, and the ambient patrol
 # pass (doc 50 SETTLED 5 rebind set).
-_RNG_MODULES = (_loop, _ai, _actions, _ai_ground, noise, ground_npcs)
+# noise left the set with its rolled-weapon rolls (doc 48 p9: the
+# stamp moved to ground_loadout; noise itself draws nothing now).
+_RNG_MODULES = (_loop, _ai, _actions, _ai_ground, ground_npcs,
+                ground_loadout)
 
 # A stuck fight is itself a balance finding, never a hung test.
 TURN_CAP = 200

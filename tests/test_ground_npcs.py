@@ -347,14 +347,21 @@ def test_invalid_pursuit_memory_is_ignored_on_dungeon_load():
 
 
 def test_goal_and_rolled_weapon_survive_round_trip():
-    """The investigation goal and the persisted rolled-weapon stamp
-    survive save/load (doc 48 SETTLED 37)."""
+    """The investigation goal and the persisted two-set loadout stamp
+    survive save/load (doc 48 SETTLED 37/43) — magazines, pool, and
+    the active-set flag ride the stamp, so a mid-fight save after a
+    cornered swap loads on melee."""
     hunter = world.Entity(
         "p", (255, 100, 100), world.Position(2, 2),
         npc_char_id="dust_prowler",
     )
     hunter.last_seen_pos = world.Position(7, 2)
-    hunter.rolled_weapon = ("kinetic_rifle", 2)
+    hunter.rolled_loadout = {
+        "ranged": ["kinetic_rifle", 2], "melee": ["combat_knife", 1],
+        "loaded": {"kinetic_rifle": 14},
+        "pool": [["ammo", "rifle_rounds", 3]],
+        "active": "melee",
+    }
     game_map = _floor_map(hunter)
 
     saved = saveload._dungeon_to_dict(game_map, None)
@@ -362,7 +369,61 @@ def test_goal_and_rolled_weapon_survive_round_trip():
     loaded = restored.entities[0]
 
     assert loaded.last_seen_pos == world.Position(7, 2)
-    assert loaded.rolled_weapon == ("kinetic_rifle", 2)
+    assert loaded.rolled_loadout == hunter.rolled_loadout
+
+
+def test_legacy_rolled_weapon_pair_migrates_to_the_ranged_slot():
+    """A pre-43 save's len-2 ``rolled_weapon`` pair loads as the ranged
+    slot with the melee set UNRESOLVED (key absent) — it fills at first
+    engagement, never at load time."""
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    game_map = _floor_map(hunter)
+    saved = saveload._dungeon_to_dict(game_map, None)
+    saved["entities"][0]["rolled_weapon"] = ["kinetic_rifle", 2]
+    del saved["entities"][0]["rolled_loadout"]
+
+    restored, _ = saveload._dungeon_from_dict(saved)
+    loaded = restored.entities[0]
+
+    assert loaded.rolled_loadout == {
+        "ranged": ["kinetic_rifle", 2], "loaded": {},
+        "pool": [], "active": "ranged",
+    }
+    assert "melee" not in loaded.rolled_loadout  # unresolved, fills later
+
+
+def test_corrupt_loadout_stamps_skip_to_re_resolution():
+    """Hand-corrupted stamps load as unstamped (combat re-resolves):
+    a dict missing its ranged slot key, malformed pool entries, and a
+    non-dict body all fail safe — never a half-stamp."""
+    hunter = world.Entity(
+        "p", (255, 100, 100), world.Position(2, 2),
+        npc_char_id="dust_prowler",
+    )
+    game_map = _floor_map(hunter)
+
+    saved = saveload._dungeon_to_dict(game_map, None)
+    saved["entities"][0]["rolled_loadout"] = {"melee": ["fists", 0]}
+    restored, _ = saveload._dungeon_from_dict(saved)
+    assert restored.entities[0].rolled_loadout is None  # ranged absent
+
+    saved["entities"][0]["rolled_loadout"] = {
+        "ranged": ["kinetic_rifle", 1], "melee": None,
+        "loaded": {"kinetic_rifle": 3},
+        "pool": [["ammo", "rifle_rounds", 2], ["bad"], ["ammo"]],
+        "active": "ranged",
+    }
+    restored, _ = saveload._dungeon_from_dict(saved)
+    loaded = restored.entities[0].rolled_loadout
+    assert loaded["pool"] == [["ammo", "rifle_rounds", 2]]  # malformed skipped
+    assert loaded["loaded"] == {"kinetic_rifle": 3}
+
+    saved["entities"][0]["rolled_loadout"] = "not-a-dict"
+    restored, _ = saveload._dungeon_from_dict(saved)
+    assert restored.entities[0].rolled_loadout is None
 
 
 def test_display_name_resolves_nameless_population_monsters():

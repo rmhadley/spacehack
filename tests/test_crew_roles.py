@@ -118,7 +118,10 @@ def test_merchant_row_shape():
     assert spec.char == "h"
     assert spec.fg == (100, 220, 140)
     assert spec.faction == "merchant"
-    assert spec.weapons == ("kinetic_pistol", "combat_knife")
+    # Doc 48 SETTLED 43: the knife it always carried is now its own
+    # melee set (the same kit, re-partitioned into two sets).
+    assert spec.weapons == ("kinetic_pistol",)
+    assert spec.melee_weapons == ("combat_knife",)
     assert spec.loot_pool == ("food_rations", "textiles")
     assert spec.loot_count == (1, 1)
     assert spec.stat_weights == (0.0,) * 6  # band-exempt (SETTLED 38)

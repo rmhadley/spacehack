@@ -17,6 +17,7 @@ from typing import Any, Iterator
 from .. import world
 from .. import message_log as _ml
 from .. import noise
+from .. import ground_loadout
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
 from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
@@ -219,8 +220,10 @@ def _build_enemy_instance(
         return None
     _band = ground_scale.entity_band(_ent, game_map)
     _stats = ground_scale.derive_stats(_spec, _band)
-    _wid = noise.ensure_rolled_weapon(_ent, game_map, _spec)
-    _quality = _ent.rolled_weapon[1] if _ent.rolled_weapon else 0
+    _stamp = ground_loadout.ensure_loadout(_ent, game_map, _spec)
+    _pair = ground_loadout.active_pair(_stamp) if _stamp else None
+    _wid = _pair[0] if _pair else ""
+    _quality = _pair[1] if _pair else 0
     _ap_total = _stamp_enemy_loadout(_ent, _spec)
     _max_hp = _spec.hp + _stats.stamina // 3
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:

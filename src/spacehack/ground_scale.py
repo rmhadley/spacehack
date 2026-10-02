@@ -148,20 +148,168 @@ def roll_weapon(spec, band: int, rng) -> str:
     window. ``pin_window_top`` (the sniper) takes the window's ceiling
     tier outright — the railgun at band 4 is the precision payoff.
     Rows without families keep their fixed ``weapons`` and never call
-    this; an unpopulated family is a data error and raises.
+    this; an unpopulated family is a data error and raises. The
+    spec-shaped SETTLED-35 surface (test-pinned; the loadout roll
+    composes the family-generic primitive beneath it).
     """
-    from .data.ground_weapons import family_tiers
-
     if not spec.weapon_families:
         return ""
-    family = rng.choice(spec.weapon_families)
+    return roll_family_weapon(
+        spec.weapon_families, band, rng, pin_window_top=spec.pin_window_top,
+    )
+
+
+def roll_family_weapon(
+    families, band: int, rng, *, pin_window_top: bool = False,
+) -> str:
+    """One weapon id from ``families`` at the band's tier window —
+    the family-ladder roll both loadout sets share (doc 48 SETTLED
+    43: the melee set rolls through the SAME windows as the ranged
+    set)."""
+    from .data.ground_weapons import family_tiers
+
+    family = rng.choice(families)
     window = BAND_WINDOWS[max(1, clamp_band(band)) - 1]
-    if spec.pin_window_top:
+    if pin_window_top:
         tier = window[-1][0]
     else:
         tier = _window_tier(window, rng)
     tiers = family_tiers(family)
     return rng.choice(tiers[_snap_tier(tiers, tier)])
+
+
+def rolled_weapon_quality(weapon_id: str, band: int, rng) -> int:
+    """Equip-time quality roll (SETTLED 13/35): the ladder rides the
+    spawn band. Real gear only — organic parts never variant, never
+    consume roll RNG. (Moved from ``noise`` when the loadout roll
+    joined its family, doc 48 SETTLED 43.)"""
+    if not weapon_id:
+        return 0
+    from .data.ground_weapons import find_ground_weapon
+
+    try:
+        if not find_ground_weapon(weapon_id).loot_droppable:
+            return 0
+    except KeyError:
+        return 0
+    from .data.quality import roll_quality
+
+    return roll_quality(quality_rates(band), rng)
+
+
+def carried_pool_range(ceiling: int) -> tuple[int, int]:
+    """The carried-ammo pool's roll range (doc 48 SETTLED 43 lean):
+    half to three-quarters of the old death-roll range — NOT a full
+    stack. ``ceiling`` is the drop-quantity law's cap for the ammo."""
+    return max(1, ceiling // 2), max(1, -(-ceiling * 3 // 4))
+
+
+def pool_feed(ammo_type: str) -> tuple[str, int] | None:
+    """The ammo stack item feeding ``ammo_type``: ``(item_id, ceiling)``
+    or ``None`` when no catalog ammo matches."""
+    from .data.ground_items import list_ground_ammo
+    from .ground_equipment import drop_quantity_ceiling
+
+    for _a in list_ground_ammo():
+        if _a.ammo_type == ammo_type:
+            return _a.id, drop_quantity_ceiling(
+                "ammo", _a.id, _a.rounds_per_stack,
+            )
+    return None
+
+
+def roll_loadout(spec, band: int, rng) -> dict:
+    """The full two-set loadout stamp (doc 48 SETTLED 43): both weapon
+    pairs (each with its own equip-time quality), per-weapon magazine
+    counts (full, the player instance's mirror), and the carried ammo
+    pool in the ``carried_items`` shape — one entry per distinct ammo
+    type, rolled in the ``carried_pool_range`` window.
+
+    Fixed-weapon rows (fauna, machines) keep their ``weapons``/
+    ``melee_weapons`` verbatim; empty slots stamp ``None``. Pure: the
+    caller stamps the result on the entity.
+    """
+    _ranged = roll_slot(spec.weapon_families, spec.weapons, band, rng)
+    _melee = roll_slot(getattr(spec, "melee_families", ()),
+                        getattr(spec, "melee_weapons", ()), band, rng)
+    _loaded = _full_magazines((_ranged, _melee))
+    return {
+        "ranged": _ranged, "melee": _melee,
+        "loaded": _loaded,
+        "pool": _stamp_pool((_ranged, _melee), rng),
+        "active": "ranged",
+    }
+
+
+def ammo_fed(ws) -> bool:
+    """Whether a ground-weapon spec carries a magazine (doc 48 SETTLED
+    43's participation rule: ammo DATA, not faction — melee, plasma,
+    and organic parts are infinite and never reload)."""
+    return ws.ammo_capacity > 0 and ws.ammo_type is not None
+
+
+def roll_slot(families, fixed, band: int, rng):
+    """One set's ``(weapon_id, quality)`` pair, or ``None``: the family
+    ladder when families are authored, else the fixed weapon."""
+    if families:
+        _wid = roll_family_weapon(families, band, rng)
+    else:
+        _wid = fixed[0] if fixed else ""
+    if not _wid:
+        return None
+    return [_wid, rolled_weapon_quality(_wid, band, rng)]
+
+
+def _full_magazines(pairs) -> dict:
+    """Per-weapon magazine counts for a rolled loadout: every ammo-fed
+    weapon stamps FULL capacity (the player instance's mirror)."""
+    from .data.ground_weapons import find_ground_weapon
+
+    _loaded: dict[str, int] = {}
+    for _pair in pairs:
+        if _pair is None:
+            continue
+        try:
+            _ws = find_ground_weapon(_pair[0])
+        except KeyError:
+            continue
+        if _ws.ammo_capacity > 0 and _ws.ammo_type is not None:
+            _loaded[_pair[0]] = _ws.ammo_capacity
+    return _loaded
+
+
+def roll_pool_entry(ammo_type: str, rng) -> list | None:
+    """One pre-rolled carried-pool entry for ``ammo_type`` (the ONE
+    roll both the loadout stamp and the migration fill call, doc 48
+    SETTLED 43), or ``None`` when no catalog ammo feeds it."""
+    _feed = pool_feed(ammo_type)
+    if _feed is None:
+        return None
+    _lo, _hi = carried_pool_range(_feed[1])
+    return ["ammo", _feed[0], rng.randint(_lo, _hi)]
+
+
+def _stamp_pool(pairs, rng) -> list[list]:
+    """The carried-ammo pool for a rolled loadout: one pre-rolled entry
+    per DISTINCT ammo type among the pairs' ammo-fed weapons (SETTLED
+    43 — what they carry is what they shoot from and drop)."""
+    from .data.ground_weapons import find_ground_weapon
+
+    _pool: list[list] = []
+    _seen: set[str] = set()
+    for _pair in pairs:
+        if _pair is None:
+            continue
+        try:
+            _ws = find_ground_weapon(_pair[0])
+        except KeyError:
+            continue
+        if ammo_fed(_ws) and _ws.ammo_type not in _seen:
+            _seen.add(_ws.ammo_type)
+            _entry = roll_pool_entry(_ws.ammo_type, rng)
+            if _entry is not None:
+                _pool.append(_entry)
+    return _pool
 
 
 def context_band(game_map) -> int:

@@ -138,18 +138,12 @@ def _drop_stamped_carried(
 
 
 def _drop_ceiling(item_type: str, item_id: str, stack_cap: int) -> int:
-    """A drop's quantity ceiling: min(5, stack), tightened by the
-    ammo spec's authored max_drop (explosives stay scarce — doc 50
-    SETTLED 8)."""
-    if item_type != "ammo":
-        return min(5, stack_cap)
-    from ..data.ground_items import find_ground_ammo
+    """A drop's quantity ceiling — the shared law lives in
+    :func:`ground_equipment.drop_quantity_ceiling` (one home since the
+    carried-pool roll joined it, doc 48 SETTLED 43)."""
+    from ..ground_equipment import drop_quantity_ceiling
 
-    try:
-        max_drop = find_ground_ammo(item_id).max_drop
-    except KeyError:
-        return min(5, stack_cap)
-    return min(5, stack_cap, max_drop) if max_drop else min(5, stack_cap)
+    return drop_quantity_ceiling(item_type, item_id, stack_cap)
 
 
 def _spawn_field_item_loot_at_position(
@@ -205,7 +199,7 @@ def _spawn_kit_drop(
     """
     if not weapon_id:
         return
-    from ..data.ground_items import list_ground_ammo
+    from .. import ground_scale
     from ..data.ground_weapons import find_ground_weapon
     from ..ground_equipment import item_stack_capacity
 
@@ -221,10 +215,8 @@ def _spawn_kit_drop(
     )
     if _ws.ammo_type is None:
         return
-    _ammo_id = next(
-        (_a.id for _a in list_ground_ammo() if _a.ammo_type == _ws.ammo_type),
-        None,
-    )
+    _feed = ground_scale.pool_feed(_ws.ammo_type)
+    _ammo_id = _feed[0] if _feed is not None else None
     if _ammo_id is None:
         return
     _qty = RNG.randint(
