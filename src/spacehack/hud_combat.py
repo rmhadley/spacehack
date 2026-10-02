@@ -374,7 +374,7 @@ def _render_weapons_block(
     return y + 1
 
 
-def _render_combat_actions(console, hud_x, y, weapon_list, can_board=False) -> int:
+def _render_combat_actions(console, hud_x, y, weapon_list) -> int:
     """Paint the ACTIONS key hints; return the next row."""
     console.print(x=hud_x, y=y, string="ACTIONS", fg=COLOR_DIVIDER)
     y += 1
@@ -390,10 +390,12 @@ def _render_combat_actions(console, hud_x, y, weapon_list, can_board=False) -> i
     # player doesn't expect digit 4..9 to work with 3 weapons mounted.
     if len(weapon_list) > 1:
         actions.insert(3, (f"[1-{len(weapon_list)}]", "Toggle Wpn"))
-    # Same rule for BOARD: advertise it only while the target is
-    # actually boardable (doc 40 6a).
-    if can_board:
-        actions.insert(-1, ("[d]", "Board"))
+    # BOARD is advertised ALWAYS (user ruling 2026-10-02): the key
+    # answers at any time with the unmet condition, so hiding the
+    # hint until the conditions pass only hides the mechanic from
+    # players who never think to press it. Doc 40 6a's conditional
+    # display is superseded.
+    actions.insert(-1, ("[d]", "Board"))
     return _render_action_pairs(console, hud_x, y, actions, COLOR_COMBAT_ACTION)
 
 
@@ -412,7 +414,6 @@ def render_combat_hud(
     evade_bonus: int | None = None,      # player's current dodge % (movement + piloting)
     range_weapon_id: str | None = None,  # weapon id for coloring distance by range
     focus_active: bool = False,          # Focus trait live (single weapon enabled)
-    can_board: bool = False,             # space: current target is boardable ([d] hint)
     weapon_qualities: tuple = (),        # per-slot flown tiers (doc 48.7)
     ctx=None,                            # for the BH's doubled rack display
 ) -> None:
@@ -433,4 +434,4 @@ def render_combat_hud(
         hit_chances, focus_active=focus_active,
         weapon_qualities=weapon_qualities, ctx=ctx,
     )
-    _render_combat_actions(console, hud_x, y, weapon_list, can_board)
+    _render_combat_actions(console, hud_x, y, weapon_list)

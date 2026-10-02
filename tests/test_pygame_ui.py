@@ -6938,3 +6938,4 @@ def test_split_scrollbar_thumbs_the_clamped_window(monkeypatch):
     thumb_h = max(14, track_h * count // len(rows))
     thumb_y = track_y + (track_h - thumb_h) * top // max(1, len(rows) - count)
     assert rects[1] == SimpleNamespace(x=400 - 14, y=thumb_y, width=6, height=thumb_h)
+

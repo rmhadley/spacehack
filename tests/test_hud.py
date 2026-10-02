@@ -464,13 +464,17 @@ def test_dungeon_help_lines_show_reload_control():
 
 def test_combat_actions_pair_two_per_row():
     """Combat key hints render two per row."""
-    console = FrameBuffer(40, 4)
+    console = FrameBuffer(40, 5)
     next_y = hud_combat._render_combat_actions(console, 0, 0, ("a", "b", "c"))
     row0 = "".join(console.cell(x, 0).char for x in range(40)).rstrip()
     row1 = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
+    _flat = "".join(
+        console.cell(x, y).char for y in range(5) for x in range(40)
+    )
     assert row0 == "ACTIONS"
     assert "Target" in row1 and "Move" in row1
-    assert next_y == 4
+    assert "Board" in _flat                     # 7 pairs render 2/row
+    assert next_y == 5                          # header + 4 pair rows
 
 
 def test_space_weapon_row_includes_range():
@@ -521,19 +525,14 @@ def test_ap_row_shows_pool_with_carry():
     assert row.startswith("AP: 3/4.5")
 
 
-def test_board_hint_only_when_boardable():
-    """The [d] Board hint renders only while the target is boardable
-    (doc 40 6a) — same conditional rule as the weapon-swap hint."""
+def test_board_hint_advertised_always():
+    """The [d] Board hint renders UNCONDITIONALLY in the space combat
+    HUD (user ruling 2026-10-02, superseding doc 40 6a's conditional
+    display): the key answers at any time with the unmet condition,
+    so hiding the hint until conditions pass only hid the mechanic
+    from players who never think to press it."""
     console = FrameBuffer(40, 6)
-    hud_combat._render_combat_actions(console, 0, 0, ("a",), can_board=False)
-    _flat = "".join(
-        console.cell(x, y).char
-        for y in range(6) for x in range(40)
-    )
-    assert "Board" not in _flat
-
-    console = FrameBuffer(40, 6)
-    hud_combat._render_combat_actions(console, 0, 0, ("a",), can_board=True)
+    hud_combat._render_combat_actions(console, 0, 0, ("a",))
     _flat = "".join(
         console.cell(x, y).char
         for y in range(6) for x in range(40)
@@ -585,3 +584,22 @@ def test_space_weapon_row_dmg_reads_flown_tier():
     )
     stats_row = "".join(console.cell(x, 1).char for x in range(40)).rstrip()
     assert stats_row == "     DMG 8 HIT 62% RNG 1-5"
+
+
+def test_weapon_toggle_hint_conditional_on_mounted_count():
+    """The neighboring conditional stays conditional (unlike [d]):
+    the digit-swap hint renders only when there is something to
+    swap between (reviewer pin, 2026-10-02)."""
+    console = FrameBuffer(40, 6)
+    hud_combat._render_combat_actions(console, 0, 0, ("a", "b"))
+    _flat = "".join(
+        console.cell(x, y).char for y in range(6) for x in range(40)
+    )
+    assert "Toggle Wpn" in _flat
+
+    console = FrameBuffer(40, 6)
+    hud_combat._render_combat_actions(console, 0, 0, ("a",))
+    _flat = "".join(
+        console.cell(x, y).char for y in range(6) for x in range(40)
+    )
+    assert "Toggle Wpn" not in _flat

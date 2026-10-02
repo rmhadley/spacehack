@@ -1085,7 +1085,11 @@ challenge. Scrubbed triggers neither — blank paper complies.
       IDs (ff9a182); the dealer moved inside the market square
       (9a31fc9); flavor + rig-row wording per user (c1b480b,
       ac212a9); Gear line on the C screen (5392ecd); conditional
-      [b] Board hint (1e9e986). Re-cut 6 → 6a + 6b
+      [b] Board hint (1e9e986) — [SUPERSEDED 2026-10-02, user
+      ruling: the [d] Board hint is advertised UNCONDITIONALLY in the
+      space combat HUD (the key always answers with the unmet
+      condition; hiding the hint hid the mechanic)].
+      Re-cut 6 → 6a + 6b
       (user-approved 2026-09-07, per the ADVISE review; 6a is the
       novel-machinery vertical slice). Boarding conditions (user,
       2026-09-07): no shields up, 75% hull damage done, no other

@@ -730,16 +730,9 @@ def _ship_target_index(target) -> int | None:
     return None
 
 def _paint_status_hud(console, hit_chances, evade, range_weapon_id) -> None:
-    """The right-panel combat HUD (the boarding hint rides along). The
-    enemy block renders the MERGED targeting space — missiles wear
-    rows too (doc 57)."""
-    from ._space_boarding import board_denial, board_target
-    _board_enemy, _board_ent = None, None
-    _tgt = _current_target()
-    if not isinstance(_tgt, _missile_flight.InFlightMissile):
-        _ship_idx = _ship_target_index(_tgt) if _tgt is not None else None
-        if _ship_idx is not None:
-            _board_enemy, _board_ent = board_target(_state, _ship_idx)
+    """The right-panel combat HUD. The enemy block renders the MERGED
+    targeting space — missiles wear rows too (doc 57); the [d] hint
+    is unconditional (2026-10-02 ruling — see hud_combat)."""
     _hud.render_combat_hud(
         console,
         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
@@ -751,8 +744,6 @@ def _paint_status_hud(console, hit_chances, evade, range_weapon_id) -> None:
         weapon_list=tuple(_state.weapons_list),
         hit_chances=hit_chances,
         evade_bonus=evade,
-        can_board=_board_enemy is not None
-        and board_denial(_state, _board_enemy, _board_ent) is None,
         range_weapon_id=range_weapon_id,
         focus_active=_space_focus.is_focus_active(_state.ctx),
         weapon_qualities=tuple(_state.weapon_qualities),
