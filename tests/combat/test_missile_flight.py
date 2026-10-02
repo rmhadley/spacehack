@@ -867,7 +867,7 @@ class TestBoardAndEndCheck:
         finally:
             _rules_space._state = _old
 
-    def test_end_check_ignores_live_missiles(self, monkeypatch):
+    def test_end_check_ignores_live_player_missiles(self, monkeypatch):
         _patch_flights(monkeypatch)
         _ctx, _state, _old = _flight_fixture()
         try:
@@ -1350,3 +1350,58 @@ class TestFlightCounters:
             assert _state.flights_fizzled == {"player": 1}
         finally:
             _rules_space._state = _old
+
+
+class TestEndCheckGatesOnEnemyFlights:
+    """The 2026-10-02 amendment (user): killing the last hull with an
+    enemy inbound still up does NOT end the fight — the inbound can
+    still kill you. Player missiles keep dying with the fight."""
+
+    def test_enemy_missile_keeps_combat_open_until_it_resolves(self):
+        _ctx, _state, _old = _flight_fixture()
+        try:
+            _ei = _state.enemy_insts[0]
+            _inbound = _manual_missile(
+                _state, (4, 0), _missile_flight.PlayerHomingTarget(_state),
+                side="enemy", shooter=_ei, gunnery=20,
+            )
+            _ei.alive = False
+            assert _rules_space.get_enemies(_ctx) == []
+            assert _rules_space.combat_should_end(
+                _ctx, _state.game_map, [],
+            ) is False                      # the inbound gates VICTORY
+            _inbound.alive = False          # resolved (intercept/fuel/impact)
+            assert _rules_space.combat_should_end(
+                _ctx, _state.game_map, [],
+            ) is True
+        finally:
+            _rules_space._state = _old
+
+
+def test_an_orphaned_inbound_always_resolves_in_bounded_rounds(monkeypatch):
+    """The amendment's termination property (reviewer pin): with every
+    ship dead, a missiles-only fight drains — each orphan-sweep round
+    burns fuel until the inbound resolves, and the end check then
+    flips to VICTORY. No pinning-by-prose: drive the sweeps."""
+    _patch_flights(monkeypatch)
+    _ctx, _state, _old = _flight_fixture(enemy_at=(8, 0))
+    try:
+        _ei = _state.enemy_insts[0]
+        _inbound = _manual_missile(
+            _state, (7, 0), _missile_flight.PlayerHomingTarget(_state),
+            side="enemy", shooter=_ei, gunnery=20, fuel=4,
+        )
+        _ei.alive = False
+        assert not _rules_space.combat_should_end(_ctx, _state.game_map, [])
+        for _ in range(_inbound.fuel + 2):
+            run(_missile_flight.advance_orphan_flights(
+                _state, _ctx, _state.game_map,
+            ))
+            if not _inbound.alive:
+                break
+        assert not _inbound.alive                      # drained
+        assert _rules_space.combat_should_end(         # fight may end
+            _ctx, _state.game_map, [],
+        )
+    finally:
+        _rules_space._state = _old

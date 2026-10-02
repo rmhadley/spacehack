@@ -11,7 +11,7 @@ a single module-level dataclass replacing the old scattered globals.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .. import world
 from .. import hud_combat as _hud
@@ -20,8 +20,6 @@ from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT
 from ..data.weapons import find_weapon as _find_weapon
 from ..pygame_target_card import quick_row
 
-if TYPE_CHECKING:
-    from ..pygame_overlay import ShieldBubble
 from ..game_context import GameContext
 
 from ._space_init import (
@@ -61,6 +59,7 @@ from ._space_presentation import (
     build_target_card as _build_target_card,
 )
 from . import _space_focus
+from ._space_bubbles import presentation_shield_bubbles  # noqa: F401 (hub re-export)
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -252,8 +251,21 @@ def get_enemies(ctx) -> list[EnemyInstance]:
     return [e for e in _state.enemy_insts if e.alive]
 
 def combat_should_end(ctx, game_map: world.GameMap, enemies: list) -> bool:
-    """Space keeps the classic end: VICTORY when no enemies remain."""
-    return not enemies
+    """Space ends VICTORY when no enemies remain — AMENDED 2026-10-02
+    (user ruling, superseding 57.1's ships-only read): a live ENEMY
+    missile keeps the fight open (the inbound can still kill you —
+    ending on the last hull was a free dodge). PLAYER missiles still
+    die with the fight: their targets are gone, they only dissipate.
+    The fight cannot stall: every open missile resolves on a hull,
+    terrain, interception, or an empty tank — a boxed missile may
+    HOLD (fuel intact) a round or two behind same-shooter avoidance,
+    but its blockers burn down and the player can always flak it or
+    flee through an exit."""
+    if enemies:
+        return False
+    return not any(
+        _m.alive and _m.side == "enemy" for _m in _state.in_flight
+    )
 
 def refresh_engaged(ctx, game_map: world.GameMap) -> None:
     """Space has no mid-fight joins — the enemy set is fixed at init."""
@@ -523,81 +535,6 @@ def _calc_camera():
     _cx = max(0, min(_state.player_state["pos"].x - _state.view_w // 2, _cw))
     _cy = max(0, min(_state.player_state["pos"].y - _state.view_h // 2, _ch))
     return _cx, _cy
-
-def _player_shield_bubble(camera_x: int, camera_y: int) -> ShieldBubble | None:
-    """Return the player's shield bubble, or None when unshielded/off-view."""
-    from ..pygame_overlay import _bubble_intersects_region, _shield_bubble
-
-    player_shields = max(0, int(_state.player_state.get("shields", 0)))
-    if player_shields <= 0 or _state.player_ent is None:
-        return None
-    entity = _state.player_ent
-    bubble = _shield_bubble(
-        entity.pos.x,
-        entity.pos.y,
-        camera_x=camera_x,
-        camera_y=camera_y,
-        width=getattr(entity, "width", 1),
-        height=getattr(entity, "height", 1),
-        strength=player_shields / max(
-            1, _state.player_state.get("max_shields", player_shields),
-        ),
-    )
-    if _bubble_intersects_region(
-        bubble, region_x=0, region_y=0,
-        region_w=_state.view_w, region_h=_state.view_h,
-    ):
-        return bubble
-    return None
-
-def _enemy_shield_bubbles(camera_x: int, camera_y: int) -> list[ShieldBubble]:
-    """Return shield bubbles for every shielded enemy in the viewport."""
-    from ..pygame_overlay import _bubble_intersects_region, _shield_bubble
-
-    bubbles: list[ShieldBubble] = []
-    for index, enemy in enumerate(_state.enemy_insts):
-        if not enemy.alive or enemy.shields <= 0:
-            continue
-        entity = _state.enemy_ents.get(index)
-        x, y = enemy.pos.x, enemy.pos.y
-        width = height = 1
-        if entity is not None:
-            x, y = entity.pos.x, entity.pos.y
-            width = max(1, getattr(entity, "width", 1))
-            height = max(1, getattr(entity, "height", 1))
-        bubble = _shield_bubble(
-            x,
-            y,
-            camera_x=camera_x,
-            camera_y=camera_y,
-            width=width,
-            height=height,
-            strength=enemy.shields / max(1, enemy.max_shields),
-        )
-        if _bubble_intersects_region(
-            bubble, region_x=0, region_y=0,
-            region_w=_state.view_w, region_h=_state.view_h,
-        ):
-            bubbles.append(bubble)
-    return bubbles
-
-def presentation_shield_bubbles(
-    *,
-    ctx: GameContext | None = None,
-    camera_x: int | None = None,
-    camera_y: int | None = None,
-) -> tuple:
-    """Return live shield bubbles in the current space-combat viewport."""
-    if _state is None or not _state.active or (ctx is not None and _state.ctx is not ctx):
-        return ()
-    if camera_x is None or camera_y is None:
-        camera_x, camera_y = _calc_camera()
-    bubbles: list[ShieldBubble] = []
-    _pb = _player_shield_bubble(camera_x, camera_y)
-    if _pb is not None:
-        bubbles.append(_pb)
-    bubbles.extend(_enemy_shield_bubbles(camera_x, camera_y))
-    return tuple(bubbles)
 
 def toggle_target_card(ctx) -> None:
     """Show/hide the floating target card (``v`` key)."""
@@ -894,8 +831,9 @@ def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
 
 def sync_state(ctx) -> None:
-    # Flight state dies with the fight on EVERY end path (doc 57):
-    # missiles never gate the end and never serialize — sweep first.
+    # Flight state dies with the fight on EVERY end path (doc 57;
+    # player missiles never gate the end — enemy ones now do, the
+    # 2026-10-02 amendment) and never serializes — sweep first.
     _missile_flight.sweep_flights(_state, _state.game_map)
     # Release the combatants: with the fight over they resume normal
     # patrol movement on the next space tick.
