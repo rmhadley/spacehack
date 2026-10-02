@@ -136,6 +136,23 @@ def _paint_wrapped_block(
     return cy + 1
 
 
+def _paint_site_pointers(
+    console: FrameBuffer, col_x: int, cy: int, bottom: int, max_w: int,
+    site_lines: list[tuple[str, bool]],
+) -> int:
+    """The pane's site-pointer tail (SETTLED 37): entered sites paint
+    GREEN with their ``(visited) `` prefix — the message log's
+    player-action green, the game's one green (user ruling
+    2026-10-02); unentered pointers stay white."""
+    from ..message_log import COLOR_PLAYER_ACTION
+    for line, visited in site_lines:
+        cy = _paint_wrapped_block(
+            console, col_x, cy, bottom, max_w,
+            line, COLOR_PLAYER_ACTION if visited else ui.COLOR_VALUE_WHITE,
+        )
+    return cy
+
+
 def _render_rumors_pane(
     console: FrameBuffer, ctx: GameContext, *, col_x: int,
     screen_width: int, screen_height: int,
@@ -164,11 +181,9 @@ def _render_rumors_pane(
             console, col_x, cy, _bottom, max_w,
             rumor_module.entry_text(entry.id), ui.COLOR_VALUE_WHITE,
         )
-    for line in site_lines:
-        cy = _paint_wrapped_block(
-            console, col_x, cy, _bottom, max_w,
-            line, ui.COLOR_VALUE_WHITE,
-        )
+    cy = _paint_site_pointers(
+        console, col_x, cy, _bottom, max_w, site_lines,
+    )
     ui.paint_line(
         console, col_x, _bottom + 1,
         pygame_ui.modal_hint("UP/DOWN navigate", "TAB quests", "ESC close"),

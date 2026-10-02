@@ -225,7 +225,7 @@ def test_pointer_lines_skip_stale_planets(monkeypatch):
         {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
         {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
     ]))
-    assert lines == ["Charts a buried site: Sunken Vault, on Mars."]
+    assert lines == [("Charts a buried site: Sunken Vault, on Mars.", False)]
 
 
 def test_pointer_lines_empty_for_no_sites():
@@ -233,3 +233,50 @@ def test_pointer_lines_empty_for_no_sites():
     assert digs_module.pointer_lines(
         SimpleNamespace(discovered_sites=[]),
     ) == []
+
+
+def test_visited_sites_carry_the_prefix_and_flag():
+    """The (visited) read (user ruling 2026-10-02): an entered site's
+    pointer line gains the prefix and the pair flags green to the
+    pane; an unentered one stays bare."""
+    from src.spacehack import digs as digs_module
+
+    lines = digs_module.pointer_lines(SimpleNamespace(discovered_sites=[
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault",
+         "visited": True},
+        {"id": "s2", "planet": "mars", "name": "Rusted Warren"},
+    ]))
+    assert lines[0] == (
+        "(visited) Charts a buried site: Sunken Vault, on Mars.", True,
+    )
+    assert lines[1] == (
+        "Charts a buried site: Rusted Warren, on Mars.", False,
+    )
+
+
+def test_rumors_pane_paints_visited_sites_green():
+    """The pane half of the ruling: the visited row renders with the
+    game's player-action green while an unvisited pointer stays
+    white."""
+    from src.spacehack.message_log import COLOR_PLAYER_ACTION
+    from src.spacehack.ui import COLOR_VALUE_WHITE
+
+    console = _render_rumors(quest_ctx(discovered_sites=[
+        {"id": "s1", "planet": "mars", "name": "Sunken Vault",
+         "visited": True},
+        {"id": "s2", "planet": "mars", "name": "Rusted Warren"},
+    ]))
+    _fgs: dict[int, set] = {}
+    for command in console.commands:
+        _fgs.setdefault(command.y, set()).add(tuple(command.fg))
+    rows = _pane_rows(console)
+    visited_y = next(
+        y for y, text in enumerate(rows) if "(visited)" in text
+    )
+    plain_y = next(
+        y for y, text in enumerate(rows) if "Rusted Warren" in text
+    )
+    # rows[] index maps to sorted command ys; recover fg by row order
+    _sorted_ys = sorted(_fgs)
+    assert COLOR_PLAYER_ACTION in _fgs[_sorted_ys[visited_y]]
+    assert COLOR_VALUE_WHITE in _fgs[_sorted_ys[plain_y]]

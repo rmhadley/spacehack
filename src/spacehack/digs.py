@@ -3,8 +3,9 @@
 A reveal derives the site pure from INIT_SEED + the reveal ordinal
 (SETTLED 7/28): the planet among ALL planets, a two-part name from
 the planet's pools, depth within the planet's bounds. Site records
-are ``{id, planet, name}`` in reveal order on
-``ctx.discovered_sites``; floors cache under
+are ``{id, planet, name[, visited]}`` in reveal order on
+``ctx.discovered_sites`` (``visited`` stamps on first entry, user
+ruling 2026-10-02); floors cache under
 ``dig:<planet>:<id>:<floor>`` and that cache key is the single
 identity source for anything standing on a dig floor — no dig
 attributes are stored on maps.
@@ -121,21 +122,27 @@ async def reveal_site(ctx) -> dict:
 def pointer_line(site: dict) -> str:
     """The ledger's pointer line for one discovered site (SETTLED 37)
     — the presentation twin of the sites state; hosts never inline the
-    template."""
+    template. An entered site carries the ``(visited) `` prefix (user
+    ruling 2026-10-02: the prefix rides the line, the pane owns the
+    green)."""
     planet_name = find_planet_spec(site["planet"]).name
-    return _text_get("dig.pointer_line", "").format(
+    _line = _text_get("dig.pointer_line", "").format(
         name=site["name"], planet=planet_name,
     )
+    if site.get("visited"):
+        return f"(visited) {_line}"
+    return _line
 
 
-def pointer_lines(ctx) -> list[str]:
+def pointer_lines(ctx) -> list[tuple[str, bool]]:
     """All site pointer lines in reveal order — the RUMORS pane's
-    tail. A site whose planet spec has vanished is skipped, the
-    stale-id idiom."""
+    tail — as ``(line, visited)`` pairs so the pane can paint entered
+    sites green. A site whose planet spec has vanished is skipped,
+    the stale-id idiom."""
     lines = []
     for site in ctx.discovered_sites:
         try:
-            lines.append(pointer_line(site))
+            lines.append((pointer_line(site), bool(site.get("visited"))))
         except KeyError:
             continue
     return lines
@@ -269,6 +276,11 @@ def get_or_generate_floor(ctx, site: dict, floor: int) -> tuple[world.GameMap, w
     """Cached-or-fresh: every floor persists under its key (SETTLED
     29) — cleared stays cleared, looted stays looted. A cache hit
     scrubs the stale player entity (the shared re-entry idiom)."""
+    # "Ever entered" (user ruling 2026-10-02): every entry — planet
+    # menu, stair descent, cached re-entry — passes here, and the
+    # flag rides the site record, so it serializes with the sites and
+    # the RUMORS pane reads it for the green (visited) pointer line.
+    site["visited"] = True
     key = cache_key(site["planet"], site["id"], floor)
     cached = ctx.interiors.get(key)
     if cached is not None:

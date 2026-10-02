@@ -182,8 +182,22 @@ def _dig_fields(ctx: GameContext) -> dict:
 
 
 def _restore_dig_fields(ctx: GameContext, data: dict) -> None:
-    """Restore the discovered dig sites."""
+    """Restore the discovered dig sites — and backfill ``visited``
+    from the persisted dig-floor cache keys: a pre-2026-10-02 save
+    has already-delve sites whose records predate the flag, and the
+    ``dig:<planet>:<site>:<floor>`` interiors keys prove entry (the
+    reviewer's one-pass recovery, doc 57-era ruling 2026-10-02)."""
+    from .digs import parse_cache_key
+
     ctx.discovered_sites = list(data.get("discovered_sites", []) or [])
+    _entered = set()
+    for _key in (data.get("interiors") or {}):
+        _parsed = parse_cache_key(_key)
+        if _parsed is not None:
+            _entered.add((_parsed[0], _parsed[1]))
+    for _site in ctx.discovered_sites:
+        if (_site.get("planet"), _site.get("id")) in _entered:
+            _site["visited"] = True
 
 
 def _entry_payload(entry) -> dict:

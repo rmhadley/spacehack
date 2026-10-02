@@ -1095,3 +1095,48 @@ def test_stair_adoption_does_not_heal():
     _adopt_dungeon_transition(ctx, _map, _player)
     assert ctx.game_map is _map and ctx.player is _player
     assert ctx.ground_hp == 10  # sabotage-proven: re-adding the heal fails this
+
+
+def test_entering_a_site_stamps_it_visited():
+    """'Ever entered' (user ruling 2026-10-02): every floor entry —
+    cached or fresh — stamps the site record, which serializes with
+    the sites list; the RUMORS pane reads it for the green (visited)
+    pointer line."""
+    from types import SimpleNamespace
+
+    from src.spacehack import digs
+    from src.spacehack import world as _world
+
+    site = {"id": "s1", "planet": "mars", "name": "Sunken Vault"}
+    tiles = [[_world.DUNGEON_FLOOR] * 8 for _ in range(6)]
+    cached = _world.GameMap(8, 6, tiles, [])
+    ctx = SimpleNamespace(
+        discovered_sites=[site],
+        interiors={digs.cache_key("mars", "s1", 1): cached},
+    )
+    assert "visited" not in site
+    digs.get_or_generate_floor(ctx, site, 1)     # the CACHED path
+    assert site.get("visited") is True
+
+
+def test_save_load_backfills_visited_from_floor_cache_keys():
+    """Pre-change saves predate the ``visited`` flag; the persisted
+    ``dig:<planet>:<site>:<floor>`` interiors keys prove entry, so the
+    restore path backfills the stamp in one pass (reviewer catch,
+    2026-10-02)."""
+    from src.spacehack import saveload
+
+    ctx = SimpleNamespace(discovered_sites=[])
+    data = {
+        "discovered_sites": [
+            {"id": "s1", "planet": "mars", "name": "Sunken Vault"},
+            {"id": "s2", "planet": "venus", "name": "Rusted Warren"},
+        ],
+        "interiors": {
+            "dig:mars:s1:1": object(), "dig:mars:s1:2": object(),
+            "city:earth": object(),
+        },
+    }
+    saveload._restore_dig_fields(ctx, data)
+    assert ctx.discovered_sites[0].get("visited") is True
+    assert "visited" not in ctx.discovered_sites[1]
