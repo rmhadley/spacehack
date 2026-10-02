@@ -2626,13 +2626,19 @@ Rulings:
 
 **Reuse (verified):**
 
-- **The AP loop skeleton stands**: `_spend_ground_ap`
-  (`combat/_ai_ground.py:100`) is already while-per-AP with
-  `_range_step` (close / hold / back-off / dance, SETTLED 26) and
-  cached-path advance. The one-shot cap is ONE flag — `_shot =
-  None if _fired else _attempt_fire(...)` — the amendment
-  replaces the gate with scorer-driven fire; nothing else in the
-  skeleton changes.
+- **The AP loop skeleton stands — with FOUR `_fired` consumers, not
+  one**: `_spend_ground_ap` (`combat/_ai_ground.py:100`) is
+  while-per-AP with `_range_step` (close / hold / back-off / dance,
+  SETTLED 26) and cached-path advance. The one-shot cap gate is the
+  single check at `:110`, but the flag also feeds `_range_step`'s
+  dance branch (`:158`), the "moves into position" log gate
+  (`:129`), and — critically — the movement-dodge LEDGER:
+  `_spent_as_movement` (`_rules_ground.py:753-762`) books
+  everything except one fired weapon's AP as movement cells. A
+  volley loop that does not return ACTUAL cells moved would book
+  reloads and swaps as dodge and inflate enemy evasion (reviewer
+  issue 2, folded: the loop returns real cells; all four consumers
+  migrate together).
 - **The scorer to port exists**: space `score_weapon`
   (`combat/_ai.py:271`) — damage × hit-chance-at-distance ÷
   ap_cost, the same hit math the shot resolves with. The ground
@@ -2659,11 +2665,17 @@ Rulings:
   (`ground_scale.py:144`) rolls ONE weapon today — it gains a
   loadout sibling that fills BOTH sets through the same family
   windows.
-- **Death drops retire cleanly**: `_spawn_field_item_loot_at_position`
-  (`combat/_actions.py`) rolls ammo entries at death with
-  `max_drop` caps — the ammo entry joins the consumable
-  retirement (remainder-of-carried replaces death-roll), one
-  branch of an existing dispatcher.
+- **Death drops retire cleanly — in BOTH branches** (reviewer
+  issue 1, folded): the weapon-matched ammo stack the user's
+  ruling cites is `_spawn_kit_drop` (`combat/_actions.py:197-236`
+  — the resolved weapon + one matching ammo roll, `on_kill` passing
+  the single `weapon_id/quality` at `_rules_ground.py:686-690`),
+  SEPARATE from the authored-pool ammo entries in
+  `_spawn_field_item_loot_at_position` (`:155-194`). The kit drop
+  drops BOTH set weapons (the ranged slot's quality stamps as
+  today; the melee slot rolls its own) and its ammo stack becomes
+  remainder-of-carried; the authored ammo entry retires its
+  death-time roll (the consumable precedent branch).
 - **The dial exists to port**: `ai_aggressiveness: int = 50` on
   NpcShipSpec (`data/npc_ships/__init__.py:106`) with the
   fire-vs-reposition roll at `_ai.py:170` — the ground twin is
@@ -2703,82 +2715,135 @@ extension pays line-neutral or the reload helper extracts
 (alongside `_ground_effects`); every other touched module ≤ 835.
 
 ### Phase 9 Implementation brief — BUILD 1: the volley loop +
-### economy (PROPOSED 2026-10-02 — SETTLED 41/43 + the amended
-### 26/23; the machines are builds 2+, briefed after this
-### measures)
+### economy (PROPOSED v2 2026-10-02 — reviewer ADVISE pass folded,
+### 11 issues / 4 blocking; SETTLED 41/43 + the amended 26/23; the
+### machines are builds 2+, briefed after this measures)
 
 **Scope (files / hook points):**
 
 - **The loop** (`combat/_ai_ground.py`): kill the `_fired` gate —
   every decision point scores BOTH carried sets' weapons
-  (EV-per-AP through `ground_hit_chance_raw`, quality folded in),
-  fires the top affordable scorer, repeats until AP, ammo, or
-  positive scores run out. When the best score lives in the
-  OTHER set: 1-AP swap (the tell), then proceed. In band with
-  LOS, the aggressiveness roll (RNG vs the spec's dial, re-rolled
-  per decision point — the space semantics verbatim) picks fire
-  vs a reposition step; below the dial fires, at/above dances.
-  Leftover AP after nothing is affordable goes to repositioning
-  while a legal in-band step exists (the SETTLED 40 termination
-  shape). No LOS or out of band → advance (existing).
+  (EV-per-AP through `ground_hit_chance_raw`, quality folded in,
+  **`shots_per_action` folded in** — burst weapons score their
+  burst, else the smg halves against rifles), fires the top
+  affordable scorer, repeats until AP, ammo, or positive scores
+  run out. When the best score lives in the OTHER set: 1-AP swap
+  (once, not per shot; silent — no log line), then proceed. In
+  band with LOS, the aggressiveness roll (RNG vs the spec's RAW
+  dial — the space `_effective_aggressiveness` shield/hull bend
+  is deliberately NOT ported; re-rolled per decision point; roll
+  below fires, at/above repositions) picks fire vs a reposition
+  step. Leftover AP after nothing affordable goes to
+  repositioning while a legal in-band step exists (SETTLED 40's
+  termination shape). **The loop returns ACTUAL cells moved** —
+  the `_spent_as_movement` ledger (753-762) books real movement
+  only, never reloads/swaps; all four `_fired` consumers (the
+  gate, `_range_step`'s dance branch, the log gate, the ledger)
+  migrate together.
+- **Resolution uniformity — enemy shots GAIN the point-blank
+  penalty** (the reviewer's blocking contradiction, resolved
+  toward parity): today `_roll_ground_shot` resolves WITHOUT
+  `range_penalty` while the player's path pays it
+  (`_rules_ground.py:434-450`). Build 1 adds the penalty to enemy
+  resolution — ONE hit math, both sides — which is what makes the
+  point-blank set-switch trigger real (a hugged gun's scores
+  crater honestly, not vacuously). Called-out behavior change
+  (enemies hit less when you stand inside their min range); NOT a
+  roster number re-tune — the player's own rule mirrored.
 - **The ammo economy** (`_ai_ground` + `_rules_ground` +
   `_actions`): every ammo-fed carried weapon fires from its
-  magazine; empty magazine → reload pays the weapon's
-  `reload_ap_cost` from AP and the tell line fires (PROSE GATE,
-  house style: "{name} slams in a fresh magazine."-shape);
-  carried pool empty → the weapon scores 0 and the walk goes to
-  the first affordable action (the other set, by scorer). Death
-  drops the REMAINDER of the carried pool — the ammo entries'
-  death-time roll RETIRES (the consumable precedent branch).
+  magazine (per-weapon `loaded` state on the enemy instance — the
+  player instance's `loaded_ammo` mirror); empty magazine →
+  reload pays the weapon's `reload_ap_cost` from AP, the tell
+  line fires (PROSE GATE, "{name} slams in a fresh
+  magazine."-shape), refill drawn from the carried pool; pool
+  empty → the weapon scores 0 and the walk goes to the first
+  affordable action (the other set, by scorer). **The kit drop
+  drops BOTH set weapons + the pool REMAINDER as its ammo stack**
+  (`_spawn_kit_drop`, `on_kill` passes the loadout); the
+  authored-pool ammo entries' death-time roll RETIRES.
 - **The stamps** (`_rules_ground._build_enemy_instance` +
   `ground_scale` + `saveload_maps`): `rolled_weapon` extends to
-  the two-set loadout (migration: existing pair = ranged slot);
-  the carried-ammo pool pre-rolls at first resolution with a
-  little RNG, NOT a full stack (lean: half to three-quarters of
-  the old death-roll range, per-weapon); both serialize.
+  the two-set loadout + per-weapon magazine counts + the
+  active-set flag (a mid-fight save after a cornered swap loads
+  on melee) + the carried pool (the `carried_items` shape).
+  Migration is a load-shim (the len-2 pair → ranged slot), NOT
+  one line: readers to migrate are `noise.ensure_rolled_weapon`,
+  `noise.guard_leash`, `_build_enemy_instance`, and the
+  saveload len-2 load (`saveload_maps.py:269-274`).
+  **`guard_leash` keys the RANGED slot's weapon, always** — a
+  swapped-to-melee guard keeps its authored kingdom (SETTLED 43's
+  dry-guard corner, resolved).
 - **The dial** (`data/npc_chars/__init__.py`):
-  `ai_aggressiveness: int = 50` on NpcCharSpec — authored values
-  land per spec in the tuning pass; v1 ships the default.
-- **Data pass (authoring, not tuning)**: humanoid rows that
-  would run dry with no melee answer gain a melee-set row (the
-  combat_knife-class fallback); fauna/machines with organic/
-  fixed parts are untouched (participation is by weapon data).
+  `ai_aggressiveness: int = 50` on NpcCharSpec (no constructor or
+  lint collisions — identity keys faction/glyph; SimpleNamespace
+  test factories gain the attr).
+- **The melee-set mechanism** (the reviewer's blocking authoring
+  gap, resolved): a sibling field `melee_families:
+  tuple[str, ...] = ()` — rolled through the SAME band windows as
+  the ranged set, classified by the same table; empty = no melee
+  set (fauna, machines with organic parts). The "families take
+  precedence, never author both" law stays PER SET: ranged =
+  `weapons`/`weapon_families` as today, melee = `melee_weapons`
+  fixed or `melee_families` rolled. Data pass: humanoid rows
+  author the melee set (the knife-class default where nothing
+  better fits).
+- **Noise untouched, but pinned** (reviewer minor): reloads and
+  swaps emit NOTHING (SETTLED 22 holds); multi-fire multiplies
+  per-shot emissions — the phase-5 regression pass gains an
+  explicit volley-fire noise/investigation pin.
 
-**Build order:** stamps + loadout roll (registry/stamp tests
-first) → the scorer + loop gate-kill (volley pins) → reload +
-dry-walk + the tell → the dial field + roll → death-drop
-retirement → the battery re-measure (both reference saves + the
-starter standard, numbers recorded into this doc) → full gate.
+**Build order:** stamps + loadout roll incl. `melee_families`
+(registry/stamp tests first) → the scorer + loop gate-kill +
+ledger (volley pins) → resolution-uniformity penalty → reload +
+dry-walk + the tell → the dial field + roll → kit-drop/field-drop
+retirement → seeded-test repair → the battery re-measure (both
+reference saves + the starter standard, recorded here) → full
+gate.
 
 **Binding rulings:** SETTLED 41 (the cap dies; loop lands ALONE,
-NO roster number changes — measurement first), 43 (carried ammo,
-sets, cornered-switch, the dial), 26-as-amended (cornered swaps
-to melee; cornering stays a trade), 23-as-amended (the dial is
-ground+space), 22 (noise untouched — reload emits nothing),
-36/37 (the stamp patterns; what fired is what drops). The
-player's fire/swap/reload paths are read-only mirrors — zero
-player behavior changes.
+NO roster number changes — measurement first; the point-blank
+penalty is a math-parity change, not a number tune), 43 (carried
+ammo, sets, cornered-switch, the dial, guard-leash-on-ranged),
+26-as-amended (cornered swaps to melee), 23-as-amended (the RAW
+dial both theaters; the space bend stays space), 22 (noise
+untouched), 36/37 (the stamp patterns). The player's
+fire/swap/reload paths are read-only mirrors — zero player
+behavior changes.
 
 **Stop point:** no machine specs or machinery (the stare, the
 field, knockback, mend — builds 2+); no roster stat/damage
-retunes (the tuning pass follows the re-measure); no noise
-changes; no new player-facing UI; no guide entry (enemy behavior
-mirrors the player's own rules — confirm-grep stands).
+retunes; no noise changes; no new player-facing UI; no guide
+entry.
 
 **Required tests:** volley (per-AP multi-fire incl. same weapon;
-scorer pins: EV ordering, quality folded, min-range penalty
-craters point-blank gun scores); set-switch triggers (dry →
-melee + band governor keys the knife — STOPS kiting; point-blank
-economy; cornered — no in-band cell → knife); swap costs 1 AP
-once, not per shot; reload (pays weapon-data AP, tell fires,
-pool decrement, remainder drops on death, no death-time ammo
-roll remains); dry-with-no-melee walk behavior; aggressiveness
-extremes (10 = dancer stacking move dodge, 90 = sits and fires
-every affordable AP); stamp round-trips save/load incl. the
-migration (old-save `rolled_weapon` → ranged slot); termination
-(no affordable weapon + no legal step breaks — never spins);
-regression: phase-5 tactics suite, band scaling, crews, city
-ambient.
+scorer pins: EV ordering, quality folded, shots_per_action
+folded, min-range penalty craters point-blank scores ON BOTH
+SIDES); set-switch triggers (dry → melee + band governor keys
+the knife — STOPS kiting; point-blank economy; cornered — no
+in-band cell → knife); swap costs 1 AP once; reload (pays
+weapon-data AP, tell fires, magazine/pool decrements, remainder
+drops via the kit drop, no death-time ammo roll remains in
+either branch); dry-with-no-melee walk behavior; aggressiveness
+extremes (10 = dancer stacking REAL move dodge, 90 = sits and
+fires); **the ledger pin (a volley+reload+swap turn books only
+actual cells — dodge never inflates)**; resolution parity (the
+point-blank penalty on enemy shots, pinned both directions);
+stamp round-trips save/load incl. the migration shim (old-save
+pair → ranged slot) + magazine counts + active-set flag +
+guard-leash-keys-ranged; termination (no affordable weapon + no
+legal step breaks — never spins); volley-fire noise/investigation
+pin; **seeded-test repair** (first-resolution draws at hearing
+time shift the global stream — `test_ground_tactics` seeds and
+the `_rules_ground` seed-hunts re-pinned); regression: phase-5
+tactics suite, band scaling, crews, city ambient.
+
+**Ratchet:** BOTH limits bite `_rules_ground.py` (958/1000 lines;
+`_build_enemy_instance` at 33 of the 40-line function cap will
+not hold the three new stamps) — the stamp block extracts beside
+its subject (a `_stamp_enemy_loadout` sibling in the same
+module, cohesion-driven); the reload helper lives in
+`_ground_actions.py` beside the player twin for the same reason.
 
 **Playtest checkpoint:**
 
@@ -2789,25 +2854,26 @@ ambient.
    its knife and CHARGES — no more kiting to gun range; the
    centaur read.
 3. Hug a rifleman against a wall: he swaps to melee and swings —
-   cornering still works (his weak set) but is no longer free.
-4. Aggressiveness eyeball: dancers vs sitters both present in
-   the roster's default-50 v1; note any enemy that reads wrong
-   for the tuning pass's authored values.
-5. Loot a fought rifleman vs an ambushed one: the ammo stack
-   differs (remainder-of-carried) — what drops reflects the
-   fight.
-6. Save/quit mid-fight → Continue: loadout, pools, wounds
-   identical; an OLD save (pre-build) loads and its stamped
-   weapons read in the ranged slot.
-7. Regression: phase-5 noise/investigation behaviors, guard
-   leashes, crews, bystanders unchanged.
+   cornering still works (his weak set, AND his own point-blank
+   penalty) but is no longer free.
+4. Aggressiveness eyeball: default-50 v1; note any spec that
+   reads wrong for the tuning pass's authored values.
+5. Loot a fought rifleman vs an ambushed one: BOTH weapons drop;
+   the ammo stack differs (remainder-of-carried).
+6. Save/quit mid-fight → Continue: loadout, magazines, pools,
+   active set, wounds identical; an OLD save loads with its
+   stamped weapon in the ranged slot.
+7. Regression: phase-5 noise/investigation, guard leashes,
+   crews, bystanders unchanged.
 8. Battery re-measure recorded in the doc: both reference saves
    across the standard rows + the starter-sheet standard — the
-   before/after table IS the deliverable; roster tuning decisions
-   ride its numbers.
-9. Guide-diff item: expected NONE — enemy AP use mirrors the
-   player's own; confirm-grep, any hit becomes a called-out
-   before/after.
+   before/after table IS the deliverable; roster tuning rides
+   its numbers.
+9. Guide-diff item: **EXPECTED ONE** — the loot line "What an
+   enemy fought with is what drops" (`data/guide/__init__.py`
+   loot section) now under-states the law (both carried sets +
+   the remainder); a called-out before/after lands with the
+   build.
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
