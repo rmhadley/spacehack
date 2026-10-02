@@ -2099,14 +2099,21 @@ with doctrinal 10-13):
   blocked-no-LOS break both preserved; merchants' authored 10-15
   dials read as designed for the first time (rare fire,
   dodge-stack). PLAYTEST PENDING.
-- [ ] 9. **Ancient machines** — Watcher / Custodian / Warden, their
-  weapon family, the Custodian's multi-weapon loadout, prison
-  re-pin (+ the rock_scavenger prison-floor pin), dormant override
-  for alien sites (SETTLED 29). Design input attached: the
-  2026-09-29 prison-build power audit (measured bars for all three
-  machines) + the 2026-10-02 two-chain arrival sim (both real
-  arrivals converge ~lvl 36-37; the bars re-read across both
-  defense models). The reference-sheet ruling stays open.
+- [ ] 9. **Ancient machines** — RE-CUT (SETTLED 41/42, 2026-10-02):
+  build 1 = the ground volley loop (one-shot cap dies; no number
+  changes) + re-measure against the two-save battery and the
+  starter standard; builds 2+ = the machines authored against the
+  new loop: **Watcher** (shriek/stare/graded zone/drift-dodge),
+  **Shredder** (was Custodian: in-combat mend/AP-6 flurry/armor
+  10), **Warden** (per-tile-HP force field with start-of-turn
+  regen, slam-with-pushback, anti-armor shot), their own weapon
+  family, prison re-pin (+ the rock_scavenger prison-floor pin),
+  dormant override for alien sites (SETTLED 29/41/42). Design
+  input attached: the 2026-09-29 prison-build power audit + the
+  2026-10-02 two-chain arrival sim (both real arrivals converge
+  ~lvl 36-37). Open: reference-sheet ruling; exclusivity vs
+  doc 43; enemy AP/dodge/item-use/reload management (parked
+  conversation).
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2337,6 +2344,195 @@ carries the pre-6cbddeb2 glow-revealed cells — instant-disengage
 0.000 on both saves until re-run against scenarios.py's true-sight
 cells (the corrected numbers above). The tool's copy of the row
 needs that re-pin.
+
+## SETTLED 41 (2026-10-02) — the ground volley amendment (one-shot cap dies)
+
+User, verbatim:
+
+> no, just like in space combat, ground enemies should be using
+> their full AP potential strategically. maybe this is partly why
+> ground combat turns in to a push over in late game? I'm firing
+> multiple times per round.
+
+> yes. we have to get them fighting correctly first before we can
+> know what needs tuned.
+
+Rulings:
+
+- **The ground one-shot-per-turn cap is DEAD** — supersedes
+  SETTLED 26's "One-shot-per-turn cap unchanged" and SETTLED 27's
+  "one-shot cap intact". Ground enemies spend full AP
+  strategically: the phase-8 decision-point loop ported
+  ground-side — per-AP fire-vs-move, per-weapon `ap_cost` governs
+  the volley (railgun 2 AP: a 3-AP rocket cannot triple-fire, a
+  1-AP pistol can), scoring through the same hit math the shots
+  resolve with, reposition and back-off competing for the same
+  pool. Uniform across every spec — no per-machine carve-outs.
+- Confirms the 2026-09-25 sweep's core bug (hands/AP volley
+  economy ~4x) as designed-out: the player fires per AP; now
+  everything does. SETTLED 29's "no one-attack-cap exception"
+  clause dissolves with the cap it excepted from.
+- **Build-first sequencing: the loop lands ALONE, no number
+  changes** ("get them fighting correctly first"); the two-save
+  probe battery + the starter-sheet standard re-measure against
+  it; tuning follows the measurement; the machines' bars are
+  authored against the POST-amendment loop. Rides phase 9 as its
+  first build.
+- On-the-record predictions (falsifiable by the post-loop
+  battery): gunner/rifleman landed damage roughly triples; the
+  brute row becomes genuinely terrifying; band 1-2 and the
+  tutorial standard want a rebalance look. The parked
+  tuning-doctrine thread (the five invariants, waiting since the
+  doc-51 era) picks up here.
+
+## SETTLED 42 (2026-10-02) — the ancient identities: Watcher / Shredder / Warden
+
+User, verbatim (the reframe):
+
+> This isn't going to be about tuning the existing enemies, we need
+> fresh new enemies for this. things the player hasn't seen
+> anywhere else and won't see anywhere else.
+
+> watcher's shouldn't have lasers. this is new alien tech. we're
+> supposed to be seeing things no one in the known universe has
+> seen. we need something better and more unique to a laser.
+
+Rulings (amend SETTLED 29's catalog: **Custodian is renamed**,
+the **Watcher's "precise and powerful laser" is superseded**; the
+trio frame, "own weapon family," authored-areas-only, and
+no-usable-drops all stand):
+
+- **Naming principle: player coinage.** A machine is named what a
+  survivor would call it on first contact (user: "what would the
+  player call it having never heard of it or seen it before?") —
+  the Watcher watches, the **Shredder** shreds (user rename;
+  "Custodian" rejected), the Warden wards. PROSE GATE on every
+  player-facing string.
+- **The family is a system — each machine revokes one player
+  mercy and defeats one player defense.** The Watcher takes
+  standing still, the Shredder takes hesitation, the Warden takes
+  distance. Against the two reference sheets: labs (23 soak,
+  melee kit) thrives vs stare rings and claws and is invalidated
+  by the Warden's shot; merchant (52 HP, 16 soak) eats full-price
+  cores. No machine pierces everything.
+
+**The Watcher — shriek + stare + drift:**
+
+- **Very high dodge** (user: "look at the accuracy we're
+  bringing"): authored REF 90-100 plus a perpetual hover-drift —
+  movement dodge (+5/cell, cap 30) is the other half, and SETTLED
+  26's leftover-AP repositioning funds it: the drift IS the dodge.
+  At the q3-railgun ceiling (acc 105 + REF//2): merchant ~62-77%
+  hit, labs ~52-69% — the one-shot dream dies, the fight doesn't.
+  Weak-sheet wall (q0 rifles floor at 5%); retreat stays their out.
+- **The shriek** (user: "what if the watcher emitted a VERY loud
+  noise that threatens to bring other nearby ancient machines to
+  the fight?"): fires the round LOS opens and again as its FIRST
+  AP every round it still sees you (user ruling; a 1-AP LEAD
+  ACTION, not a weapon — the weapon volley must not pay for the
+  alarm). A very loud noise event through the EXISTING noise
+  system (family noise column ~25-40, where explosives top at
+  10-12): nearby ACTIVE ancient machines gain investigate
+  attractors — heard ≠ aggroed (SETTLED 16 intact), dormant stay
+  deaf (SETTLED 22 intact: authored activations remain the only
+  wake trigger), no spawns (SETTLED 21 intact). A charge/wind-up
+  mechanic is DEFERRED as the softening lever if playtest says
+  too aggressive (user: "playtesting is where we decide").
+- **The stare** (user-approved replacement for the laser): the
+  eye fixes on the player's cell at enemy phase; the zone is a
+  **3x3, GRADED** (user: "center is most damage. edges of the 3x3
+  are less damage?") — core full, ring half pre-soak; eruption at
+  the end of the player's following turn (exactly one full turn
+  to vacate); **no to-hit roll**; damage **respects armor** (own
+  family column, full soak). Re-fixes every round it lives — the
+  dance is perpetual; terrain is the trap. Anything IN the zone
+  at eruption takes the damage — the first enemy-vs-enemy damage
+  vector (baiting play; machines stay oblivious to marked cells).
+  The eruption is a blast-class noise event at the cell (one
+  deduped emission per cell per beat). Multiple Watchers: zones
+  COINCIDE (all fix the same cell) and damage STACKS — count is
+  the floor-authoring danger dial. Escape economy: 1 AP to the
+  ring, 2 AP clear; with the railgun at 2 AP, full safety costs
+  exactly one shot per round.
+- **Numbers (brief-time dials):** core 32-42 pre-soak (lands
+  16-26 vs merchant's 16 soak, 9-19 vs labs' 23; ring ~1-5);
+  REF 90-100; tone radius 25-40.
+- **Log lines (user drafts, PROSE GATE):** "The Watcher turns and
+  looks at you, its eye flashing red." / "The floor beneath you
+  begins to glow." / "The floor beneath you glows brighter." (each
+  additional stack; repeats safely) / "The floor erupts in a
+  violent explosion." / "The floor erupts in a violent explosion
+  causing X damage to Y." (per victim). The mechanic is never
+  named in the log; the player learns the pattern from the
+  pattern.
+
+**The Shredder (was Custodian):**
+
+- **AP 6, claws 2 AP** (max three strikes in a full unload —
+  maims, doesn't delete), **armor 10, high HP pool** (~80-100
+  lean; the rugged-mass read — everything can hurt it, it doesn't
+  care).
+- **In-combat regen at the start of its turn** (user, overruling
+  the out-of-combat lean — "I'm thinking like fighting annoying
+  trolls in DCSS. in combat regen!... like a living machine that
+  puts itself back together as it fights. Almost like
+  Terminator"). NO out-of-combat tick: wounds persist between
+  fights; it mends only while fighting. Line draft (PROSE GATE):
+  "The Shredder's wounds begin to mend." — fires on the first
+  successful mend per engagement; the target card's HP readout
+  carries it after (wordless doctrine).
+- **Power doctrine (user):** "we need these things to be powerful
+  to make my characters find a challenge. this is the finale of
+  act 0 after all." Start aggressive; dial back only if playtest
+  says.
+- Authoring lean: the cell-block ambusher (the existing
+  bursts-out verb). Open floor stays free kills (law 1 holds —
+  the prison's geometry is its ally).
+
+**The Warden — the field + the slam:**
+
+- **The field** (user: "what if the seal was around its own self.
+  your ranged shots have to break through it first. more like a
+  force field where each tile has its own hp... the alternative is
+  advancing in to the force field so you can attack it in
+  melee"): a personal force field, **one tile thick** (radius-2
+  shell, empty interior), **each field tile carrying its own HP**
+  (~30 lean = one railgun shot per tile). Projectiles crossing a
+  tile hit the TILE, not the body; bodies pass freely; it stops
+  everything both ways except the Warden's own fire. Geometry
+  bonus: railgun min_range 3 makes the field's interior
+  melee/pistol-only ground — the two attack roads (carve a lane
+  from outside / walk in) are enforced by weapon bands, not just
+  priced.
+- **Field regen: in-combat, start of the Warden's turn, +10/turn
+  minimum** (user: "just like shields in space regen at start of
+  turn... minimum +10 regen per turn") — space-shield symmetry,
+  ground-side. Destroyed tiles regrow from 0: a carved hole lives
+  exactly ONE player volley round; blocking is binary (any HP > 0
+  absorbs a full shot). The Warden's BODY does not mend — the
+  field is its sustain, and self-repair belongs to the Shredder
+  alone.
+- **The slam** (user: "what if the slam did a pushback? making
+  you have to move throught the force field again?"): heavy melee
+  at adjacent range **with pushback** — knockback ~2 along the
+  Warden→player vector (a wall stops the ride early), ejecting
+  the melee player back through the shimmer onto the ranged road;
+  closing becomes a loop (enter, swing, eat the slam, re-enter).
+  The game's first involuntary-displacement mechanic; knockback
+  authored as a WEAPON PROPERTY (data; player-side weapons may
+  carry it someday). Deep-floor feature: ejected INTO a glowing
+  stare zone — the machines combo.
+- The devastating anti-armor shot STANDS (the family's
+  armor-pierce holder — the one attack soak does nothing against;
+  telegraphed lane; fires through its own field).
+- The room-seal variant is NOT ruled out (a deep-vault Warden may
+  also seal the door behind you — authoring, not identity).
+
+Open (carried): exclusivity scope vs the doc-43 handoff ("won't
+see anywhere else" may retire SETTLED 29's inhabitants deal); the
+reference-sheet ruling (two-chain sim section, above); the
+deferred enemy AP/dodge/item-use/reload-management conversation
+(user: after the identities).
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
