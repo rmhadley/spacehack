@@ -220,15 +220,16 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
             ),
             ground_ammo=(("pistol_rounds", 40),),
         ),
-        # Audit-pinned (doc 50 phase-2 audit §3): grid_seed 115's
-        # live Mars pipeline spawns at (100, 47) with one scavenger
-        # squad's first three members visible at sight edge — the
-        # canonical first-sight fight of the tutorial descent.
+        # Audit-pinned (doc 50 phase-2 audit §3), RE-PINNED 2026-10-02
+        # (the glow ruling): grid_seed 115 spawns at (100, 47); the old
+        # enemy cells (106..108, 43..44) were GLOW-revealed, not true
+        # sight — under "light extends range, not geometry" the fight
+        # now opens on a true-sight queue at (105-106, 47-48).
         player_start=(100, 47),
         enemies=(
-            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 47), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 48), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(106, 47), band=1),
         ),
         grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
         stance="toggle_sets",
@@ -239,9 +240,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # HP (17%) / 12.56 rounds. The 1.00 win rate is a RECORDED
         # FINDING parked as the standard's first tuning target (a
         # sure-thing tutorial fight; no ceiling until tuned).
+        # RE-RULED 2026-10-02 (the glow ruling re-pinned the spawn to
+        # true sight, one step closer): 1.00 / 5.72 / 12.40 — the
+        # damage ceiling re-lands at measured + slack.
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=5.0,
+            damage_taken_ceiling=6.0,
             ammo_spent_ceiling=13.0,
         ),
     ),
@@ -262,9 +266,9 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         ),
         player_start=(100, 47),
         enemies=(
-            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 47), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 48), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(106, 47), band=1),
         ),
         grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
         stance="hold_range",
@@ -275,6 +279,12 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # Re-measured 2026-09-27 under doc 49's locked human spread
         # (all six 11, was REF+2/STA+2): 1.00 / 8.64 / 0 — the cost
         # spread holds; ceiling re-landed with the same slack.
+        # RE-MEASURED 2026-10-02 (the glow ruling moved the spawn to
+        # true sight, one step closer): 1.00 / 2.88 / 0 — the row's
+        # goal is now INVERTED (batons 2.88 vs pistols 5.72; the
+        # closer queue lets melee connect first). The ceiling passes
+        # unchanged; the goal sentence is drift the next tuning pass
+        # owns.
         thresholds=Thresholds(
             win_rate_floor=0.94,
             damage_taken_ceiling=8.9,
@@ -382,9 +392,9 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         ),
         player_start=(100, 47),
         enemies=(
-            EnemySide(spec_id="rock_scavenger", pos=(106, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(107, 44), band=1),
-            EnemySide(spec_id="rock_scavenger", pos=(108, 43), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 47), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(105, 48), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(106, 47), band=1),
         ),
         grid=GridSpec(width=120, height=90, planet_id="mars", grid_seed=115),
         stance="toggle_sets",
@@ -393,6 +403,9 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # Ruled at landing (2026-09-26, measured 1.000 / 7.84 HP /
         # 12.00 rds pre-SETTLED-8; post-x2 re-ruled same-commit per
         # the benchmark-revision clause: 1.000 / 7.12 / 12.00).
+        # RE-MEASURED 2026-10-02 (the glow ruling's true-sight spawn):
+        # 1.000 / 1.60 / 12.00 — cheaper for the same reason as the
+        # batons row; bars pass unchanged.
         thresholds=Thresholds(
             win_rate_floor=0.94,
             damage_taken_ceiling=8.0,

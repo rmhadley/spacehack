@@ -89,35 +89,6 @@ def test_light_grid_is_masked_to_visible_cells():
                 )
 
 
-def test_lit_cells_extend_sight_beyond_base_radius():
-    """A glow fungus within sight reveals cells beyond the base radius."""
-    # Build a small flat dungeon: a corridor with fungus in the middle.
-    width, height = 21, 3
-    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
-    for x in range(1, width - 1):
-        tiles[1][x] = world.DUNGEON_FLOOR
-    # Place fungus at x=5, player at x=1, sight radius 3.
-    tiles[1][5] = world.GLOW_FUNGUS
-    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
-    player_pos = world.Position(1, 1)
-    dungeon_fov.init_fog(game_map)
-    # With sight radius 3, the player sees x=1..4. The fungus at x=5 is
-    # at distance 4 — just outside the base radius. But wait: distance
-    # 3 reaches x=4, not x=5. So fungus at x=5 isn't visible yet.
-    # Let's place fungus at x=4 (distance 3, within sight).
-    tiles[1][4] = world.GLOW_FUNGUS
-    tiles[1][5] = world.DUNGEON_FLOOR
-    game_map = world.GameMap(width=width, height=height, tiles=tiles, entities=[])
-    dungeon_fov.init_fog(game_map)
-    dungeon_fov.reveal_around(game_map, player_pos, radius=3)
-    # Player sees x=1..4 (radius 3). Fungus at x=4 is visible.
-    assert game_map.visible[1][4]
-    # The fungus (radius 3) should reveal x=5..7, beyond the base radius.
-    # x=7 is at distance 6 from the player (beyond radius 3) but within
-    # the fungus's light radius.
-    assert game_map.visible[1][7], "fungus didn't extend sight to x=7"
-
-
 def test_dungeon_without_fungus_has_no_light_grid():
     """A dungeon with no light sources gets no light grid."""
     width, height = 15, 7
@@ -519,15 +490,13 @@ def test_light_luma_cap_prevents_whiteout():
     assert _luma(dim[10][10]) < _LIGHT_LUMA_CAP, "dim light is untouched"
 
 
-def test_glow_revealed_cells_are_fireable():
-    """The 2026-10-02 invariant (user report: 'I can see enemies
-    through walls but can't fire at them — sometimes deep around a
-    corner, maybe light sources'): aggro (the 09-02 grid ruling) and
-    ground fire now read the SAME grid, so anything the fungus lights
-    — around corners included — is engaged AND shootable. (A
-    seen-only bubble was built and reverted: it contradicted the
-    09-02 ruling's 'aggro is EXACTLY what the player sees' and broke
-    its own batch.)"""
+def test_glow_extends_range_not_geometry():
+    """The 2026-10-02 user ruling (overturning the same day's first
+    cut): 'a fungus glow should not let you see and shoot through
+    walls.' A visible source's bubble keeps cells LIVE only along the
+    player's own sight-lines (range extension — a lit corridor beyond
+    the base radius); cells around corners drop to remembered only —
+    no render, no aggro, no fire."""
     from src.spacehack.dungeon_fov import cell_in_sight
 
     width, height = 9, 6
@@ -541,8 +510,28 @@ def test_glow_revealed_cells_are_fireable():
     dungeon_fov.init_fog(game_map)
     dungeon_fov.reveal_around(game_map, world.Position(1, 4), radius=8)
     assert game_map.visible[4][4], "the fungus is in direct sight"
-    # The BUBBLE cells around the bend (control-verified: these are
-    # False without the fungus) — visible AND fireable, the fix:
+    assert game_map.visible[3][4], "the near corner cell (own ray)"
+    # Around the bend: remembered only — never live sight, never
+    # fireable (the control grid confirms these cells are bubble-only:
+    # False when the fungus is a plain floor).
     for cell in ((4, 2), (4, 1)):
-        assert game_map.visible[cell[1]][cell[0]]
-        assert cell_in_sight(game_map, cell[0], cell[1], 1, 4)
+        assert not game_map.visible[cell[1]][cell[0]]
+        assert not cell_in_sight(game_map, cell[0], cell[1], 1, 4)
+        assert game_map.seen[cell[1]][cell[0]], "the glow still scouts"
+
+
+def test_glow_extends_live_sight_along_the_players_own_lines():
+    """The preserved half of the feature: light extends RANGE — a lit
+    corridor the player is looking down stays live sight beyond the
+    base radius (the fungus's own reveal keeps those cells)."""
+    width, height = 16, 3
+    tiles = [[world.DUNGEON_WALL for _ in range(width)] for _ in range(height)]
+    for x in range(1, width - 1):
+        tiles[1][x] = world.DUNGEON_FLOOR
+    tiles[1][4] = world.GLOW_FUNGUS
+    game_map = world.GameMap(width, height, tiles, [])
+    dungeon_fov.init_fog(game_map)
+    dungeon_fov.reveal_around(game_map, world.Position(1, 1), radius=3)
+    assert game_map.visible[1][4], "the fungus is in direct sight"
+    for x in (5, 6, 7):        # beyond base radius, along the player's line
+        assert game_map.visible[1][x], f"lit corridor cell {x} stays live"

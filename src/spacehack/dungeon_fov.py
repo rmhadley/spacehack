@@ -204,7 +204,7 @@ def _lit_cells_in_visible(game_map: world.GameMap) -> list[tuple[int, int]]:
     ]
 
 
-def _reveal_lit_sources(game_map: world.GameMap) -> None:
+def _reveal_lit_sources(game_map: world.GameMap, px: int, py: int) -> None:
     """Extend sight near currently-visible light sources.
 
     For each lit cell in the current LOS, cast short rays (the source's
@@ -216,15 +216,21 @@ def _reveal_lit_sources(game_map: world.GameMap) -> None:
     never extend sight through themselves, or a sealed chamber beyond
     the emitter would be revealed by its own glow.
 
-    2026-10-02: glow-revealed cells are FIREABLE — aggro and fire both
-    read the visible grid now, so a hostile the fungus lights around a
-    corner is engaged AND shootable (the shot's beam is the one
-    cosmetic casualty: it may graze the corner wall). The alternative
-    (bubbling glow cells down to seen-only) was built and reverted: it
-    broke the 09-02 ruling's own batch ("aggro is EXACTLY what the
-    player sees" — glow included) and the ruled balance rows."""
+    2026-10-02 USER RULING (overturning the same day's first cut):
+    "a fungus glow should not let you see and shoot through walls" —
+    light extends RANGE along the player's own sight-lines, never
+    GEOMETRY. A bubble cell the player's own ray reaches (a lit
+    corridor beyond the base radius) stays LIVE sight; cells the
+    player's rays cannot reach (around corners) drop to remembered
+    (seen) only — no render, no aggro, no fire. The first cut kept
+    bubbles fireable for invariant symmetry; the user ruled the
+    invariant bounds sight, and glow is not sight."""
     from .data.lighting import light_spec_for_kind
 
+    _before = {
+        (x, y) for y in range(game_map.height) for x in range(game_map.width)
+        if game_map.visible[y][x]
+    }
     for sx, sy in _lit_cells_in_visible(game_map):
         tile = game_map.tiles[sy][sx]
         spec = light_spec_for_kind(tile.kind)
@@ -237,6 +243,21 @@ def _reveal_lit_sources(game_map: world.GameMap) -> None:
                 if max(abs(dx), abs(dy)) > spec.radius or (dx == 0 and dy == 0):
                     continue
                 _cast_ray(game_map, sx, sy, dx, dy)
+    _keep_only_player_reachable(game_map, px, py, _before)
+
+
+def _keep_only_player_reachable(
+    game_map: world.GameMap, px: int, py: int, was_visible: set,
+) -> None:
+    """The bubble filter: every cell the glow newly marked visible but
+    the player's own sight ray cannot reach drops to seen-only — light
+    extends RANGE, never GEOMETRY (the 2026-10-02 user ruling)."""
+    for y in range(game_map.height):
+        for x in range(game_map.width):
+            if not game_map.visible[y][x] or (x, y) in was_visible:
+                continue
+            if not has_sight_ray(game_map, px, py, x, y):
+                game_map.visible[y][x] = False
 
 
 def reveal_around(
@@ -258,7 +279,7 @@ def reveal_around(
         game_map.seen[pos.y][pos.x] = True
         game_map.visible[pos.y][pos.x] = True
     _cast_visible_rays(game_map, pos, radius)
-    _reveal_lit_sources(game_map)
+    _reveal_lit_sources(game_map, pos.x, pos.y)
     _propagate_hull_groups(game_map)
     _seed_dungeon_light_grid(game_map)
 
