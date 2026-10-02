@@ -1185,3 +1185,87 @@ def test_weaponless_and_stuck_turns_terminate_cleanly(monkeypatch):
     )
 
     assert (_remaining, _damage, _fired, _cells) == (6, 0, False, 0)
+
+
+# --- resolution parity: the point-blank penalty on enemy shots (p9 b3) --------
+
+def test_enemy_shot_pays_the_point_blank_penalty(monkeypatch):
+    """ONE hit math, both sides (doc 48 p9 b3): an enemy firing inside
+    its min range rolls at chance minus the penalty — 35/cell, exactly
+    the player's rule (kinetic_rifle accuracy 68, min_range 2; both
+    reflexes 10, so chance reads accuracy ± the penalty)."""
+    from src.spacehack.combat import _ai_ground
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    ctx, _ = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda _lo, _hi: 60,
+    ))
+
+    def _hit_at(distance):
+        hit, _dmg, _pop = _ai_ground._roll_ground_shot(
+            ctx, "kinetic_rifle",
+            SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            armor_defense=0, player_dodge=0, distance=distance,
+        )
+        return hit
+
+    assert _hit_at(4) is True    # in band: 68 >= 60
+    assert _hit_at(1) is False   # hugged: 68 - 35 = 33 < 60
+    assert _hit_at(0) is False   # deeper still: 68 - 70 clamps to the 5 floor
+
+
+def test_scorer_craters_point_blank_on_the_enemy_side():
+    """The scorer folds the same penalty (the honest trigger): a rifle
+    hugged inside its min range scores far below its in-band self.
+    REF 50 vs 10: in-band 88, hugged 53 — the damage term is flat, so
+    the ratio IS the chance ratio (53/88)."""
+    in_band = _scorer_fixture(4.0, "kinetic_rifle")
+    hugged = _scorer_fixture(1.0, "kinetic_rifle")
+    assert 0.55 < hugged / in_band < 0.65
+
+
+def test_cornered_railgunner_swaps_to_its_knife(monkeypatch):
+    """SETTLED 26-as-amended + the p9-b3 gate: pinned against a wall
+    with no restoring cell, a ranged enemy's gun is still SCORED (the
+    player's emergency-shot mirror) but the point-blank penalty craters
+    it below the knife — the silent swap lands and the cornered enemy
+    fights back with its melee set. The railgun fixture discriminates
+    the penalty: without it the hugged railgun (44 dmg, 72 acc)
+    OUTSCORES the knife and fires instead."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    gunner = world.Entity(
+        "R", (220, 120, 80), world.Position(5, 4),
+        npc_char_id="pirate_rifleman",
+    )
+    gunner.rolled_loadout = _pinned_loadout(
+        ("railgun", 0), ("combat_knife", 0),  # 44 dmg, min_range 3 vs dist 1
+    )
+    game_map = _open_map(player, gunner)
+    # Dead-end pocket: every free neighbor sits AT the player (the
+    # distance can never reach the railgun's min_range 3).
+    for _x, _y in ((4, 3), (5, 3), (6, 3), (4, 4), (6, 4)):
+        game_map.tiles[_y][_x] = world.DUNGEON_WALL
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1,  # every swing lands
+        choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=gunner,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert _fired is True
+    assert _damage > 0
+    assert gunner.rolled_loadout["active"] == "melee"  # the cornered swap
+    assert any("Combat Knife" in _l for _l in lines)   # melee set swings
+    assert not any("Railgun" in _l for _l in lines)    # gun never fired

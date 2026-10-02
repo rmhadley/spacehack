@@ -1186,8 +1186,11 @@ def test_plasma_savant_reduces_ground_plasma_ap_cost():
 
 
 def test_ground_enemy_attack_juggernaut_reduces_damage(monkeypatch):
+    from tests.support.ground_pins import pin_entity_loadout
+
     _ctx, _game_map, _console, _enemy = _ground_fixture()
     _enemy.npc_char_id = "sentry_drone"
+    pin_entity_loadout(_enemy, "drone_laser")  # quality pinned: 4 dmg/hit
     _ctx.player_traits = ["juggernaut"]
     _rules_ground.init(_ctx, [_enemy], _game_map)
 
@@ -1515,10 +1518,10 @@ class TestQualityCombatScaling:
         ctx = SimpleNamespace(ground_stats=SimpleNamespace(reflexes=10))
         stats = SimpleNamespace(reflexes=10, strength=10)
         _hit, base_damage, _ = _ai_ground._roll_ground_shot(
-            ctx, "kinetic_pistol", stats, 0, 0,
+            ctx, "kinetic_pistol", stats, 0, 0, 3,
         )
         _hit, tuned_damage, _ = _ai_ground._roll_ground_shot(
-            ctx, "kinetic_pistol", stats, 0, 0, 2,
+            ctx, "kinetic_pistol", stats, 0, 0, 3, 2,
         )
         assert _hit
         assert tuned_damage > base_damage

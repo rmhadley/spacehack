@@ -86,11 +86,17 @@ def _score_ground_weapon(
     SETTLED 41 — the space scorer's ground twin): damage x hit-chance
     x shots-per-action / ap_cost, quality folded in on both terms and
     the burst folded so burst weapons score their burst."""
-    from ._ground_math import ground_damage_raw, ground_hit_chance_raw
+    from ._ground_math import (
+        ground_damage_raw,
+        ground_hit_chance_raw,
+        ground_point_blank_penalty,
+    )
 
     _chance = ground_hit_chance_raw(
         ws.id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
-        target_dodge_bonus=player_dodge, quality=quality,
+        target_dodge_bonus=player_dodge,
+        range_penalty=ground_point_blank_penalty(ws.id, int(dist)),
+        quality=quality,
     )
     _damage = ground_damage_raw(
         ws.id, enemy_stats.strength, armor_defense, quality=quality,
@@ -104,8 +110,10 @@ def _volley_pick(
 ):
     """The decision point's weapon: the top total-EV candidate across
     BOTH carried sets (doc 48 SETTLED 43 — switching is emergent).
-    A candidate must be in band with LOS, ammo-feedable, and
-    affordable including the cross-set swap's 1 AP; total EV scales
+    A candidate must be within max range with LOS, magazine-fed, and
+    affordable including the cross-set swap's 1 AP (inside min stays
+    pickable at the point-blank penalty — see :func:`_pickable`); total
+    EV scales
     EV-per-AP by the actions the remaining bank buys, so the swap
     overhead folds in honestly. Ties break to the ACTIVE set, then
     the ranged slot. ``None`` when nothing qualifies."""
@@ -123,10 +131,8 @@ def _volley_pick(
             _ws = _find_gw(_pair[0])
         except KeyError:
             continue
-        if not (_ws.min_range <= dist <= _ws.max_range and los):
+        if not _pickable(_ws, stamp, dist, los):
             continue
-        if not ground_loadout.magazine_pays_shot(stamp, _ws):
-            continue  # pool rounds the enemy cannot yet chamber (b4)
         _swap_cost = 0 if _set_name == _active else 1
         if _ws.ap_cost + _swap_cost > ap:
             continue
@@ -139,6 +145,21 @@ def _volley_pick(
         if _best is None or _key > _best[0]:
             _best = (_key, _set_name, _pair, _ws)
     return None if _best is None else _best[1:]
+
+
+def _within_max(ws, dist, los) -> bool:
+    """The max-band law both fire gates share: within max range with
+    LOS. Inside min fires at the point-blank penalty (the player's
+    emergency-shot mirror, p9 b3); beyond max never fires."""
+    return dist <= ws.max_range and bool(los)
+
+
+def _pickable(ws, stamp, dist, los) -> bool:
+    """A volley candidate's gates: :func:`_within_max` plus the
+    magazine pays a shot (pool rounds arrive with the reload build)."""
+    return _within_max(ws, dist, los) and ground_loadout.magazine_pays_shot(
+        stamp, ws,
+    )
 
 
 async def _spend_ground_ap(
@@ -367,10 +388,11 @@ async def _try_ground_fire(
     from ._stats import _distance
 
     _dist = _distance(enemy_entity.pos, player_pos)
-    if not (_ews and _ews.min_range <= _dist <= _ews.max_range):
-        return None
-    if not _mutual_sight(game_map, enemy_entity.pos, player_pos):
-        return None  # can't shoot through walls — caller moves instead
+    _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
+    if _ews is None or not _within_max(_ews, _dist, _los):
+        return None  # beyond max or blind: no parting shot. Inside min
+        # pays the point-blank penalty — the player's emergency-shot
+        # mirror (p9 b3).
     _total = await _fire_enemy_burst(
         ctx, console, render_callback, game_map, enemy_entity, player_pos,
         enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
@@ -423,13 +445,14 @@ async def _one_enemy_shot(
     presentation. Returns the shot's damage."""
     from .. import noise
     from ..xp import apply_ground_damage_reduction as _reduce
+    from ._stats import _distance
 
     noise.emit(
         ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
     )
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-        enemy_weapon_quality,
+        int(_distance(enemy_entity.pos, player_pos)), enemy_weapon_quality,
     )
     if _damage > 0:
         _damage = _reduce(ctx, _damage)
@@ -466,19 +489,28 @@ async def _present_enemy_shot(
 
 def _roll_ground_shot(
     ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-    enemy_weapon_quality=0,
+    distance: int, enemy_weapon_quality=0,
 ):
     """(hit, damage, popup) for one ground shot — miss damage is 0.
 
     ``enemy_stats`` is the instance's band-derived block (doc 48
     SETTLED 35). The wielded weapon fights at its equip-time rolled
-    quality (SETTLED 13): what was firing at you is what drops.
+    quality (SETTLED 13): what was firing at you is what drops. The
+    point-blank penalty applies to enemy shots too (doc 48 phase 9 —
+    ONE hit math, both sides: the player's own rule mirrored, which is
+    what makes the hug-driven set-switch honest rather than vacuous).
     """
-    from ._ground_math import ground_damage_raw, ground_hit_chance_raw
+    from ._ground_math import (
+        ground_damage_raw,
+        ground_hit_chance_raw,
+        ground_point_blank_penalty,
+    )
 
+    _penalty = ground_point_blank_penalty(enemy_weapon_id, distance)
     _hit = RNG.randint(1, 100) <= ground_hit_chance_raw(
         enemy_weapon_id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
-        target_dodge_bonus=player_dodge, quality=enemy_weapon_quality,
+        target_dodge_bonus=player_dodge, range_penalty=_penalty,
+        quality=enemy_weapon_quality,
     )
     if not _hit:
         return False, 0, None
