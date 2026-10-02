@@ -346,14 +346,14 @@ GUIDE_SECTIONS: tuple[GuideSection, ...] = (
             "The effect is shown next to the defense value."
             "\n\n"
             "Enemies scale too. Armoured machines reduce your damage until a "
-            "plasma or heavy weapon punches through. Equipment found on defeated "
-            "enemies reflects how dangerous they were, so deeper sites and "
-            "tougher machines yield better gear."
+            "plasma or heavy weapon punches through. Equipment found on "
+            "defeated enemies reflects how dangerous they were."
             "\n\n"
             "Loot weapons and armor can be modded, overclocked, or prototype "
             "grade - stronger than standard gear and worth more to buyers. "
             "Shops stock standard only; the better grades come off bodies and "
-            "out of wrecks. What an enemy fought with is what drops. "
+            "out of wrecks. What an enemy fought with is what drops: both "
+            "weapons they carried and any ammo they had not spent. "
             "The rarest modules are only talked about in legends."
         ),
     ),

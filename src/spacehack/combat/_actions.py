@@ -153,23 +153,58 @@ def _spawn_field_item_loot_at_position(
     count_range: tuple[int, int] = (0, 1),
     *,
     carried: list | None = None,
+    retired_ammo_types: frozenset[str] = frozenset(),
 ) -> None:
     """Drop authored ammo/consumable stacks with valid quantities.
 
     A present ``carried`` stamp (doc 48 SETTLED 36) is the ONE
     resolution for the consumable entries — unused charges drop, used
-    ones never do — while ammo entries keep this death-time roll. No
-    stamp (never instance-built, or a legacy save): today's full-pool
-    roll.
+    ones never do. ``retired_ammo_types`` (the loadout's own ammo-fed
+    weapons' types, doc 48 SETTLED 43) hands THOSE ammo entries to the
+    kit drop's remainder-of-carried — their death-time roll retires,
+    fought-dry included; authored ammo no carried weapon feeds (the
+    machines' energy cells) keeps rolling. No stamps: today's roll.
     """
-    if not item_pool:
-        return
-    from ..ground_equipment import item_stack_capacity
-
     if carried is not None:
         item_pool = _drop_stamped_carried(game_map, pos, item_pool, carried)
-        if not item_pool:
-            return
+    if retired_ammo_types:
+        item_pool = _retire_carried_ammo(item_pool, retired_ammo_types)
+    _spawn_field_item_rolls(game_map, pos, item_pool, count_range)
+
+
+def _retire_carried_ammo(
+    item_pool: tuple[tuple[str, str], ...],
+    retired_ammo_types: frozenset[str],
+) -> tuple[tuple[str, str], ...]:
+    """Filter the authored pool's ammo entries feeding a carried ammo
+    type (unknown item ids roll on — the count loop skips them)."""
+    from ..data.ground_items import find_ground_ammo
+
+    _kept = []
+    for _entry in item_pool:
+        if _entry[0] == "ammo":
+            try:
+                _feeds = find_ground_ammo(_entry[1]).ammo_type
+            except KeyError:
+                _kept.append(_entry)
+                continue
+            if _feeds in retired_ammo_types:
+                continue
+        _kept.append(_entry)
+    return tuple(_kept)
+
+
+def _spawn_field_item_rolls(
+    game_map: world.GameMap, pos: world.Position,
+    item_pool: tuple[tuple[str, str], ...],
+    count_range: tuple[int, int],
+) -> None:
+    """The death-time roll over the surviving authored entries (empty
+    pools no-op)."""
+    from ..ground_equipment import item_stack_capacity
+
+    if not item_pool:
+        return
     _min_c, _max_c = count_range
     for _ in range(RNG.randint(_min_c, _max_c)):
         item_type, item_id = RNG.choice(item_pool)
@@ -188,44 +223,42 @@ def _spawn_field_item_loot_at_position(
         )
 
 
-def _spawn_kit_drop(
-    game_map: world.GameMap, pos, weapon_id: str, weapon_quality: int = 0,
-) -> None:
-    """Diegetic kit drop (doc 47.1): the slain fighter's resolved weapon
-    always falls, plus one matching ammo stack (field-drop sizing).
-    Organic/unwieldable weapons (``loot_droppable=False``) never drop.
-    The weapon falls AT its equip-time rolled quality — no re-roll
-    (doc 47.2 SETTLED 13).
+def _spawn_kit_drop(game_map: world.GameMap, pos, loadout=None) -> None:
+    """Diegetic kit drop (doc 47.1 + 48 SETTLED 43): BOTH carried set
+    weapons fall at their equip-time stamped qualities — no re-roll
+    (doc 47.2 SETTLED 13), what they carried is what drops — plus the
+    carried pool's REMAINDER as the ammo stacks, deterministic: the
+    death-time ammo roll is retired (what drops reflects the fight;
+    shot-starving is a minor play). Organic/unwieldable weapons
+    (``loot_droppable=False``) never drop; a slot pair sharing one id
+    drops it once (the raider's knife-in-both-slots corner).
     """
-    if not weapon_id:
+    if not loadout:
         return
-    from .. import ground_scale
+    from .. import ground_loadout
     from ..data.ground_weapons import find_ground_weapon
-    from ..ground_equipment import item_stack_capacity
 
-    try:
-        _ws = find_ground_weapon(weapon_id)
-    except KeyError:
-        return
-    if not _ws.loot_droppable:
-        return
-    _append_loot_entity(
-        game_map, pos,
-        equipment_payload("weapon", _ws.id, weapon_quality),
-    )
-    if _ws.ammo_type is None:
-        return
-    _feed = ground_scale.pool_feed(_ws.ammo_type)
-    _ammo_id = _feed[0] if _feed is not None else None
-    if _ammo_id is None:
-        return
-    _qty = RNG.randint(
-        1, _drop_ceiling("ammo", _ammo_id, item_stack_capacity("ammo", _ammo_id)),
-    )
-    _append_loot_entity(
-        game_map, pos,
-        {"item_type": "ammo", "item_id": _ammo_id, "quantity": _qty},
-    )
+    _dropped: set[str] = set()
+    for _set_name in (ground_loadout.SET_RANGED, ground_loadout.SET_MELEE):
+        _pair = ground_loadout.pair_for(loadout, _set_name)
+        if _pair is None or _pair[0] in _dropped:
+            continue
+        try:
+            _ws = find_ground_weapon(_pair[0])
+        except KeyError:
+            continue
+        if not _ws.loot_droppable:
+            continue
+        _dropped.add(_pair[0])
+        _append_loot_entity(
+            game_map, pos,
+            equipment_payload("weapon", _ws.id, _pair[1]),
+        )
+    for _item_type, _item_id, _qty in ground_loadout.pool_entries(loadout):
+        _append_loot_entity(
+            game_map, pos,
+            {"item_type": _item_type, "item_id": _item_id, "quantity": _qty},
+        )
 
 
 def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
@@ -240,22 +273,37 @@ def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
 
 
 def spawn_kill_drops(
-    game_map: world.GameMap, pos, spec, ctx, weapon_id: str = "",
-    weapon_quality: int = 0, *, band: int = 0, carried: list | None = None,
+    game_map: world.GameMap, pos, spec, ctx, loadout: dict | None = None,
+    *, band: int = 0, carried: list | None = None,
 ) -> None:
     """The full ground-kill drop sequence (doc 47.1): authored pools,
     the kit drop, the site-reveal pad, then the shared entity cap.
 
     ``spec`` is an ``NpcCharSpec``; ``ctx`` feeds the pad door only;
-    ``weapon_id`` is the combat state's resolved enemy weapon at its
-    equip-time rolled ``weapon_quality``; ``band`` sizes the drop-time
-    quality ladder (doc 48 SETTLED 35); ``carried`` is the entity's
-    pre-rolled consumable stamp (doc 48 SETTLED 36) — unused charges
-    drop, used ones never do. The kit drop lands after the pools so
-    pool extras age out of the cap first. The tinker-kit roll draws
-    last so pre-existing seeded kill sequences stay unchanged.
+    ``loadout`` is the entity's two-set stamp (doc 48 SETTLED 43) —
+    the kit drop reads BOTH weapons and the carried pool's remainder
+    off it; ``band`` sizes the drop-time quality ladder (doc 48
+    SETTLED 35); ``carried`` is the entity's pre-rolled consumable
+    stamp (doc 48 SETTLED 36) — unused charges drop, used ones never
+    do. Pools land before the kit drop so extras age out of the cap
+    first; the tinker-kit roll draws last (seeded-order).
     """
     from ..digs import maybe_spawn_ground_pad
+
+    _spawn_authored_pools(game_map, pos, spec, loadout, band, carried)
+    _spawn_kit_drop(game_map, pos, loadout)
+    maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
+    _spawn_tinker_kit_drop(game_map, pos)
+
+
+def _spawn_authored_pools(
+    game_map: world.GameMap, pos: world.Position, spec,
+    loadout: dict | None, band: int, carried: list | None,
+) -> None:
+    """The authored pool sequence (doc 47.1): trade goods, equipment,
+    then field items — ammo entries feeding a CARRIED ammo type retire
+    to the kit drop's remainder (doc 48 SETTLED 43)."""
+    from .. import ground_loadout
     from ..ground_equipment import tier_filtered_equipment
 
     if spec.loot_pool:
@@ -274,10 +322,10 @@ def spawn_kill_drops(
         _spawn_field_item_loot_at_position(
             game_map, pos, spec.field_item_loot_pool,
             count_range=spec.field_item_loot_count, carried=carried,
+            retired_ammo_types=frozenset(
+                ground_loadout.magazine_ammo_types(loadout),
+            ),
         )
-    _spawn_kit_drop(game_map, pos, weapon_id, weapon_quality)
-    maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
-    _spawn_tinker_kit_drop(game_map, pos)
 
 
 def set_combat_locks(locked: bool, entities) -> None:

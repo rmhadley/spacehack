@@ -232,6 +232,30 @@ def reload_from_pool(stamp: dict, ws) -> int:
     return _amount
 
 
+def magazine_ammo_types(stamp: dict | None) -> set:
+    """The ammo types of the stamp's own magazine-fed weapons (SETTLED
+    43's retirement key: the death-time roll retires for ammo the
+    enemy carried a magazine weapon for — organic weapons and machine
+    parts author their pool ammo as ordinary loot, untouched). NOT the
+    player-side twin ``bandolier.carried_ammo_types`` (that one sweeps
+    every typed weapon; this one excludes typed-but-infinite, which
+    would over-retire)."""
+    from .data.ground_weapons import find_ground_weapon
+
+    _types: set = set()
+    for _set_name in (SET_RANGED, SET_MELEE):
+        _pair = pair_for(stamp or {}, _set_name)
+        if _pair is None:
+            continue
+        try:
+            _ws = find_ground_weapon(_pair[0])
+        except KeyError:
+            continue
+        if ground_scale.ammo_fed(_ws):
+            _types.add(_ws.ammo_type)
+    return _types
+
+
 def pool_entries(stamp: dict | None) -> list[list]:
     """The carried pool's remainder entries (drop shape)."""
     if not stamp:

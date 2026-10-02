@@ -2869,11 +2869,15 @@ module, cohesion-driven); the reload helper lives in
    across the standard rows + the starter-sheet standard — the
    before/after table IS the deliverable; roster tuning rides
    its numbers.
-9. Guide-diff item: **EXPECTED ONE** — the loot line "What an
-   enemy fought with is what drops" (`data/guide/__init__.py`
-   loot section) now under-states the law (both carried sets +
-   the remainder); a called-out before/after lands with the
-   build.
+9. Guide-diff item: **LANDED WITH BUILD 6** — the loot line in the
+   "Ground Gear" section (`data/guide/__init__.py`), exact
+   before/after:
+   BEFORE: "What an enemy fought with is what drops."
+   AFTER: "What an enemy fought with is what drops: both weapons
+   they carried and any ammo they had not spent."
+   (The section's tail sentence "so deeper sites and tougher
+   machines yield better gear" trimmed to keep the body under the
+   3000-char conciseness cap; no other guide changes this phase.)
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 

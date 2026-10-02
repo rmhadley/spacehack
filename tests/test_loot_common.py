@@ -223,21 +223,34 @@ class TestGroundKillDrops:
             loot_pool=(), equipment_loot_pool=(), field_item_loot_pool=(),
         )
 
-    def test_kit_drop_spawns_resolved_weapon_and_matching_ammo(self):
+    def _loadout(self, ranged=None, melee=None, pool=None):
+        from tests.support.ground_pins import pinned_loadout
+
+        return pinned_loadout(ranged, melee, pool=pool or [])
+
+    def test_kit_drop_spawns_both_weapons_and_the_pool_remainder(self):
+        """SETTLED 43: BOTH carried set weapons fall at their stamped
+        qualities and the ammo stack is the carried pool's REMAINDER —
+        deterministic, the death-time roll retired."""
         from spacehack.combat._actions import spawn_kill_drops
         from types import SimpleNamespace
 
         gm = _make_map(1, 1)
         spawn_kill_drops(
             gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
-            "kinetic_pistol",
+            self._loadout(("kinetic_rifle", 2), ("combat_knife", 1),
+                          pool=[["ammo", "rifle_rounds", 3]]),
         )
         payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
-        assert {"item_type": "weapon", "item_id": "kinetic_pistol"} in payloads
+        assert {
+            "item_type": "weapon", "item_id": "kinetic_rifle", "quality": 2,
+        } in payloads
+        assert {
+            "item_type": "weapon", "item_id": "combat_knife", "quality": 1,
+        } in payloads
         ammo = [p for p in payloads if p.get("item_type") == "ammo"]
-        assert len(ammo) == 1
-        assert ammo[0]["item_id"] == "pistol_rounds"
-        assert 1 <= ammo[0]["quantity"] <= 5
+        assert ammo == [{"item_type": "ammo", "item_id": "rifle_rounds",
+                         "quantity": 3}]  # remainder, never a roll
 
     def test_kit_drop_carries_the_rolled_quality_without_reroll(self):
         from spacehack.combat._actions import spawn_kill_drops
@@ -246,7 +259,7 @@ class TestGroundKillDrops:
         gm = _make_map(1, 1)
         spawn_kill_drops(
             gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
-            "kinetic_pistol", 2,
+            self._loadout(("kinetic_pistol", 2)),
         )
         payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
         weapon = next(p for p in payloads if p.get("item_type") == "weapon")
@@ -257,7 +270,7 @@ class TestGroundKillDrops:
         gm2 = _make_map(1, 1)
         spawn_kill_drops(
             gm2, Position(0, 0), self._bare_spec(), SimpleNamespace(),
-            "kinetic_pistol", 0,
+            self._loadout(("kinetic_pistol", 0)),
         )
         base = next(
             e.loot_data for e in gm2.entities
@@ -265,29 +278,126 @@ class TestGroundKillDrops:
         )
         assert "quality" not in base
 
-    def test_kit_drop_melee_weapon_brings_no_ammo(self):
+    def test_kit_drop_dedupes_a_weapon_held_in_both_slots(self):
+        """The raider corner: the melee family can roll the SAME id
+        into both slots — one knife drops, not two."""
         from spacehack.combat._actions import spawn_kill_drops
         from types import SimpleNamespace
 
         gm = _make_map(1, 1)
         spawn_kill_drops(
             gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
-            "combat_knife",
+            self._loadout(("combat_knife", 0), ("combat_knife", 1)),
+        )
+        knives = [
+            e.loot_data for e in gm.entities
+            if e.loot_data is not None
+            and e.loot_data.get("item_id") == "combat_knife"
+        ]
+        assert len(knives) == 1
+
+    def test_kit_drop_spent_pool_drops_no_ammo(self):
+        """A bled-out fighter (pool spent to 0) drops weapons only —
+        what drops reflects the fight."""
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
+            self._loadout(("kinetic_pistol", 0),
+                          pool=[["ammo", "pistol_rounds", 0]]),
         )
         payloads = [e.loot_data for e in gm.entities if e.loot_data is not None]
-        assert payloads == [{"item_type": "weapon", "item_id": "combat_knife"}]
+        assert [p for p in payloads if p.get("item_type") == "ammo"] == []
 
     def test_kit_drop_skips_organic_and_unknown_weapons(self):
         from spacehack.combat._actions import spawn_kill_drops
         from types import SimpleNamespace
 
-        for weapon_id in ("monster_claws", "fists", "does_not_exist", ""):
+        for weapon_id in ("monster_claws", "fists", "does_not_exist"):
             gm = _make_map(1, 1)
+            # Raw stamp (the pin builder needs a catalog id): the kit
+            # drop must skip organic, unwieldable, and unknown ids.
+            stamp = {"ranged": [weapon_id, 0], "melee": None,
+                     "loaded": {}, "pool": [], "active": "ranged"}
             spawn_kill_drops(
                 gm, Position(0, 0), self._bare_spec(), SimpleNamespace(),
-                weapon_id,
+                stamp,
             )
             assert [e for e in gm.entities if e.loot_data is not None] == []
+
+    def test_the_authored_ammo_entries_death_roll_retires_with_a_loadout(self):
+        """The authored field-pool ammo entries feeding a CARRIED ammo
+        type never death-roll — the kit drop's remainder is the one
+        source (no double-ammo), fought-dry included."""
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        spec = self._spec(field_item_loot_pool=(
+            ("ammo", "rifle_rounds"), ("consumable", "med_pack"),
+        ), field_item_loot_count=(1, 1))
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), spec, SimpleNamespace(),
+            self._loadout(("kinetic_rifle", 0),
+                          pool=[["ammo", "rifle_rounds", 2]]),
+            carried=[["consumable", "med_pack", 1]],
+        )
+        ammo = [
+            e.loot_data for e in gm.entities
+            if e.loot_data is not None
+            and e.loot_data.get("item_type") == "ammo"
+        ]
+        assert ammo == [{"item_type": "ammo", "item_id": "rifle_rounds",
+                         "quantity": 2}]  # the remainder only
+
+    def test_fought_dry_still_retires_the_authored_ammo_entry(self):
+        """A bled-out fighter (pool spent to 0) drops NO rounds and the
+        authored entry does not re-roll them: carried replaces rolled,
+        even empty — what drops reflects the fight."""
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+
+        spec = self._spec(field_item_loot_pool=(
+            ("ammo", "rifle_rounds"),
+        ), field_item_loot_count=(1, 1))
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), spec, SimpleNamespace(),
+            self._loadout(("kinetic_rifle", 0),
+                          pool=[["ammo", "rifle_rounds", 0]]),
+        )
+        assert [
+            e.loot_data for e in gm.entities
+            if e.loot_data is not None
+            and e.loot_data.get("item_type") == "ammo"
+        ] == []
+
+    def test_the_machines_authored_ammo_keeps_rolling(self):
+        """Organic-weapon rows (the drones' authored energy cells) keep
+        their death-time ammo roll — no carried weapon feeds it, the
+        channel is ordinary pool loot (the review catch: a blanket
+        retirement deleted it)."""
+        from spacehack.combat._actions import spawn_kill_drops
+        from types import SimpleNamespace
+        from spacehack.data.ground_weapons import find_ground_weapon
+
+        assert find_ground_weapon("drone_laser").ammo_capacity == -1
+        spec = self._spec(field_item_loot_pool=(
+            ("ammo", "energy_cells"),
+        ), field_item_loot_count=(1, 1))
+        gm = _make_map(1, 1)
+        spawn_kill_drops(
+            gm, Position(0, 0), spec, SimpleNamespace(),
+            self._loadout(("drone_laser", 0)),  # not ammo-fed: no pool
+        )
+        ammo = [
+            e.loot_data for e in gm.entities
+            if e.loot_data is not None
+            and e.loot_data.get("item_type") == "ammo"
+        ]
+        assert ammo and ammo[0]["item_id"] == "energy_cells"
 
     def test_tinker_kit_kill_roll_spawns_one_qty1_stack(self, monkeypatch):
         from spacehack.combat._actions import spawn_kill_drops
@@ -342,7 +452,7 @@ class TestGroundKillDrops:
             }
             assert not (pooled & wielded), (spec.id, pooled & wielded)
 
-    def test_on_kill_forwards_the_resolved_weapon(self, monkeypatch):
+    def test_on_kill_forwards_the_two_set_loadout(self, monkeypatch):
         from tests.support.asyncutil import run, as_async
         from spacehack.combat import _actions, _rules_ground
         from spacehack import xp as xp_module
@@ -351,13 +461,14 @@ class TestGroundKillDrops:
         seen = []
         monkeypatch.setattr(
             _actions, "spawn_kill_drops",
-            lambda *args, **kwargs: seen.append(args),
+            lambda *args, **kwargs: seen.append(kwargs),
         )
         monkeypatch.setattr(xp_module, "add_xp", as_async(lambda *a, **k: None))
 
         ent = Entity(
             char="r", fg=(255, 255, 255), pos=Position(0, 0), name="raider",
         )
+        ent.rolled_loadout = self._loadout(("kinetic_pistol", 2))
         gm = _make_map(1, 1)
         gm.entities.append(ent)
         enemy = _rules_ground.GroundEnemyInstance(
@@ -365,9 +476,9 @@ class TestGroundKillDrops:
             weapon_quality=2,
         )
         run(_rules_ground.on_kill(gm, enemy, SimpleNamespace()))
-        # The resolved weapon AND its equip-time rolled tier forward —
-        # the corpse drops what was firing at you, no re-roll (47.2).
-        assert seen and seen[0][-2:] == ("kinetic_pistol", 2)
+        # The entity's two-set stamp forwards — the corpse drops BOTH
+        # carried weapons at their stamped tiers, no re-roll (47.2/43).
+        assert seen and seen[0]["loadout"] is ent.rolled_loadout
 
 
 def test_tinker_kit_rates_pin_the_briefs_opening_guesses():

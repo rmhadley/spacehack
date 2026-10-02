@@ -686,8 +686,9 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
     if _ent is not None and enemy.spec:
         from ._actions import spawn_kill_drops
         spawn_kill_drops(
-            game_map, _ent.pos, enemy.spec, ctx, enemy.weapon_id,
-            enemy.weapon_quality, band=enemy.band,
+            game_map, _ent.pos, enemy.spec, ctx,
+            loadout=getattr(_ent, "rolled_loadout", None),
+            band=enemy.band,
             carried=getattr(_ent, "carried_items", None),
         )
 

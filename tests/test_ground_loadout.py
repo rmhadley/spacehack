@@ -224,3 +224,26 @@ def test_is_dry_is_the_feed_complement():
     # Melee is never dry.
     assert not ground_loadout.is_dry(dry, find_ground_weapon("fists"))
     assert ground_scale.ammo_fed(find_ground_weapon("kinetic_rifle"))
+
+
+def test_magazine_ammo_types_keys_on_magazine_fed_weapons_only():
+    """The retirement key: only magazine-fed weapons' types retire the
+    authored death-roll — typed-but-infinite (drone_laser) and organic
+    weapons author their pool ammo as ordinary loot; unknown ids skip."""
+    from src.spacehack import ground_loadout
+
+    fed = _stamp()  # kinetic_rifle: magazine-fed
+    assert ground_loadout.magazine_ammo_types(fed) == {"rifle_round"}
+
+    organic = _stamp(ranged=("drone_laser", 0))
+    assert ground_loadout.magazine_ammo_types(organic) == set()
+
+    melee_only = _stamp(ranged=None)
+    assert ground_loadout.magazine_ammo_types(melee_only) == set()
+
+    unknown = {
+        "ranged": ["does_not_exist", 0], "melee": ["kinetic_rifle", 0],
+        "loaded": {}, "pool": [], "active": "ranged",
+    }
+    assert ground_loadout.magazine_ammo_types(unknown) == {"rifle_round"}
+    assert ground_loadout.magazine_ammo_types(None) == set()
