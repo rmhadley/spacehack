@@ -2715,9 +2715,9 @@ extension pays line-neutral or the reload helper extracts
 (alongside `_ground_effects`); every other touched module ≤ 835.
 
 ### Phase 9 Implementation brief — BUILD 1: the volley loop +
-### economy (PROPOSED v2 2026-10-02 — reviewer ADVISE pass folded,
-### 11 issues / 4 blocking; SETTLED 41/43 + the amended 26/23; the
-### machines are builds 2+, briefed after this measures)
+### economy (APPROVED 2026-10-02 — v2, reviewer ADVISE pass folded
+### first: 11 issues / 4 blocking; SETTLED 41/43 + the amended
+### 26/23; the machines are builds 2+, briefed after this measures)
 
 **Scope (files / hook points):**
 
