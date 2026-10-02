@@ -1269,3 +1269,155 @@ def test_cornered_railgunner_swaps_to_its_knife(monkeypatch):
     assert gunner.rolled_loadout["active"] == "melee"  # the cornered swap
     assert any("Combat Knife" in _l for _l in lines)   # melee set swings
     assert not any("Railgun" in _l for _l in lines)    # gun never fired
+
+
+# --- reload + the carried pool (doc 48 p9 b4, SETTLED 43) ----------------------
+
+def test_empty_magazine_reloads_from_the_pool_then_keeps_firing(monkeypatch):
+    """Dry magazine with a live pool: the reload pays the weapon's AP,
+    the tell line fires, the magazine fills from the carried pool, and
+    the volley continues — the fight reads, not the sim."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(
+        ("kinetic_rifle", 0), ("combat_knife", 0),
+    )
+    rifleman.rolled_loadout["loaded"]["kinetic_rifle"] = 0  # mag dry
+    rifleman.rolled_loadout["pool"] = [["ammo", "rifle_rounds", 4]]
+    game_map = _open_map(player, rifleman)  # dist 4, in band [2..7]
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=4, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    # 1 AP reload + 2 AP shot + 1 leftover dance = the whole turn.
+    assert any("slams in a fresh magazine" in _l for _l in lines)
+    assert sum("Kinetic Rifle" in _l for _l in lines) == 1
+    stamp = rifleman.rolled_loadout
+    assert stamp["loaded"]["kinetic_rifle"] == 3   # 4 chambered, 1 fired
+    assert stamp["pool"] == [["ammo", "rifle_rounds", 0]]  # pool drained
+    assert _remaining == 0 and _fired is True and _cells == 1
+
+
+def test_unaffordable_reload_walks_to_the_first_affordable_action(monkeypatch):
+    """The reload cost folds into affordability: with 1 AP in the bank
+    a dry rifle (1 reload + 2 fire) is unpickable — the scorer walks to
+    the affordable action (the adjacent knife), never a frozen statue."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 5))
+    raider = world.Entity(
+        "r", (220, 120, 80), world.Position(5, 4),
+        npc_char_id="pirate_raider",
+    )
+    raider.rolled_loadout = _pinned_loadout(
+        ("kinetic_rifle", 0), ("combat_knife", 0),
+    )
+    raider.rolled_loadout["loaded"]["kinetic_rifle"] = 0
+    raider.rolled_loadout["pool"] = [["ammo", "rifle_rounds", 4]]
+    game_map = _open_map(player, raider)  # adjacent: dist 1
+    # Corner the raider so the hugged back-off cannot restore range —
+    # the decision is the scorer's alone.
+    for _x, _y in ((4, 3), (5, 3), (6, 3), (4, 4), (6, 4)):
+        game_map.tiles[_y][_x] = world.DUNGEON_WALL
+    ctx, lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_raider"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=2, player_pos=player.pos, enemy_entity=raider,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    assert _remaining == 0 and _fired is True and _cells == 0
+    assert any("Combat Knife" in _l for _l in lines)  # the walk's landing
+    assert not any("slams in a fresh magazine" in _l for _l in lines)
+
+
+def test_the_ledger_pin_full_turn_books_only_real_cells(monkeypatch):
+    """THE ledger pin (the brief's required test): a turn mixing a
+    volley, a reload, and movement books ONLY actual cells — reloads
+    and set-swaps never inflate the movement-dodge ledger."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    rifleman = world.Entity(
+        "R", (220, 120, 80), world.Position(10, 2),
+        npc_char_id="pirate_rifleman",
+    )
+    rifleman.rolled_loadout = _pinned_loadout(
+        ("kinetic_rifle", 0), ("combat_knife", 0),
+    )
+    rifleman.rolled_loadout["loaded"]["kinetic_rifle"] = 0  # opens reload
+    rifleman.rolled_loadout["pool"] = [["ammo", "rifle_rounds", 4]]
+    game_map = _open_map(player, rifleman)
+    ctx, _lines = _turn_ctx(player)
+    monkeypatch.setattr(_ai_ground, "RNG", SimpleNamespace(
+        randint=lambda *_a: 1, choice=lambda seq: seq[0],
+    ))
+
+    _remaining, _damage, _fired, _cells = run(
+        _ai_ground.run_ground_enemy_turn(
+            ctx, enemy_spec=find_npc_char("pirate_rifleman"),
+            enemy_stats=SimpleNamespace(reflexes=10, strength=10, stamina=10),
+            enemy_ap=6, player_pos=player.pos, enemy_entity=rifleman,
+            game_map=game_map, armor_defense=0,
+        ),
+    )
+
+    # 1 reload + 2 shots = 5 AP on non-movement; the 6th buys ONE
+    # dance step — the only booked cell of the turn.
+    assert _remaining == 0
+    assert _cells == 1  # the dance step is the ONLY booked cell
+    from src.spacehack.combat._ground_math import calc_ground_move_dodge
+    assert calc_ground_move_dodge(_cells) == 5  # one cell of dodge, no more
+
+
+def test_total_ev_folds_overheads_and_gates_the_boundary():
+    """The affordability boundary, pinned where the -1-EV bug lived:
+    exactly affordable buys one action; one AP short reads the -1.0
+    sentinel (never picked); the swap and reload overheads each fold."""
+    from src.spacehack.combat import _ai_ground
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    player = world.Entity("@", (255, 255, 255), world.Position(10, 6))
+    ctx = _score_ctx(player)
+    stats = SimpleNamespace(reflexes=50, strength=50, stamina=50)
+    _ws = find_ground_weapon("kinetic_rifle")  # 2 AP, reload 1
+    fed = _pinned_loadout(("kinetic_rifle", 0))
+    dry = _pinned_loadout(("kinetic_rifle", 0))
+    dry["loaded"]["kinetic_rifle"] = 0
+
+    def _ev(stamp, is_active, ap):
+        return _ai_ground._total_ev(
+            stamp, is_active, _ws, 0, ap, 4.0, stats, 0, 0, ctx,
+        )
+
+    assert _ev(fed, True, 2) > 0        # exactly one action
+    assert _ev(fed, True, 1) == -1.0    # one short: the sentinel
+    assert _ev(fed, False, 2) == -1.0   # the swap's 1 AP prices it out
+    assert _ev(fed, False, 3) > 0       # swap + one action
+    assert _ev(dry, True, 2) == -1.0    # the reload's 1 AP prices it out
+    assert _ev(dry, True, 3) > 0        # reload + one action

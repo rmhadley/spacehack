@@ -164,10 +164,10 @@ def _set_loaded(stamp: dict, weapon_id: str, rounds: int) -> None:
 
 
 def magazine_pays_shot(stamp: dict, ws) -> bool:
-    """Whether the MAGAZINE alone pays one shot. The volley pick's and
-    the flee volley's fire gate until the reload build relaxes it to
-    :func:`can_feed_shot` (doc 48 phase 9 build order — a pool round
-    the enemy cannot yet chamber must not buy a pick it cannot fire)."""
+    """Whether the MAGAZINE alone pays one shot. The flee volley's
+    fire gate and the burst's mid-action dry break (a pool round
+    cannot be chambered mid-burst); the volley pick reads the
+    pool-aware :func:`can_feed_shot` since the reload build)."""
     if not ground_scale.ammo_fed(ws):
         return True
     return (loaded_rounds(stamp, ws.id) or 0) >= ws.ammo_per_shot

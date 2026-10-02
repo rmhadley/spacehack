@@ -110,10 +110,11 @@ def _volley_pick(
 ):
     """The decision point's weapon: the top total-EV candidate across
     BOTH carried sets (doc 48 SETTLED 43 — switching is emergent).
-    A candidate must be within max range with LOS, magazine-fed, and
-    affordable including the cross-set swap's 1 AP (inside min stays
-    pickable at the point-blank penalty — see :func:`_pickable`); total
-    EV scales
+    A candidate must be within max range with LOS (inside min stays
+    pickable at the point-blank penalty — see :func:`_pickable`),
+    ammo-feedable (magazine or pool), and affordable including the
+    cross-set swap's 1 AP and a dry magazine's reload cost; total EV
+    scales
     EV-per-AP by the actions the remaining bank buys, so the swap
     overhead folds in honestly. Ties break to the ACTIVE set, then
     the ranged slot. ``None`` when nothing qualifies."""
@@ -133,18 +134,35 @@ def _volley_pick(
             continue
         if not _pickable(_ws, stamp, dist, los):
             continue
-        _swap_cost = 0 if _set_name == _active else 1
-        if _ws.ap_cost + _swap_cost > ap:
-            continue
-        _score = _score_ground_weapon(
-            _ws, _pair[1], dist, enemy_stats, armor_defense,
-            player_dodge, ctx,
+        _ev = _total_ev(
+            stamp, _set_name == _active, _ws, _pair[1], ap,
+            dist, enemy_stats, armor_defense, player_dodge, ctx,
         )
-        _total = _score * ((ap - _swap_cost) // _ws.ap_cost)
-        _key = (_total, -_order)
+        if _ev < 0:
+            continue  # unaffordable this decision point
+        _key = (_ev, -_order)
         if _best is None or _key > _best[0]:
             _best = (_key, _set_name, _pair, _ws)
     return None if _best is None else _best[1:]
+
+
+def _total_ev(
+    stamp, is_active, ws, quality, ap, dist, enemy_stats, armor_defense,
+    player_dodge, ctx,
+) -> float:
+    """One candidate's total EV for the remaining bank: EV-per-AP
+    scaled by the actions it can still buy, net of the cross-set swap
+    and the dry-magazine reload — both overheads fold in honestly
+    (SETTLED 43: the swap cost folded in; p9 b4 adds the reload)."""
+    _overheads = (0 if is_active else 1)
+    if ground_loadout.needs_reload(stamp, ws):
+        _overheads += ws.reload_ap_cost
+    if ws.ap_cost + _overheads > ap:
+        return -1.0  # unaffordable, never picked
+    _score = _score_ground_weapon(
+        ws, quality, dist, enemy_stats, armor_defense, player_dodge, ctx,
+    )
+    return _score * ((ap - _overheads) // ws.ap_cost)
 
 
 def _within_max(ws, dist, los) -> bool:
@@ -155,11 +173,29 @@ def _within_max(ws, dist, los) -> bool:
 
 
 def _pickable(ws, stamp, dist, los) -> bool:
-    """A volley candidate's gates: :func:`_within_max` plus the
-    magazine pays a shot (pool rounds arrive with the reload build)."""
-    return _within_max(ws, dist, los) and ground_loadout.magazine_pays_shot(
+    """A volley candidate's gates: :func:`_within_max` plus ammo —
+    the magazine pays a shot, or the pool can refill it (the reload
+    era's gate: a dry-magazine gun stays pickable while its carried
+    pool lives; the fire path pays the reload first)."""
+    return _within_max(ws, dist, los) and ground_loadout.can_feed_shot(
         stamp, ws,
     )
+
+
+def _reload_active(ctx, stamp, ws, enemy_spec) -> tuple:
+    """Pay the weapon's ``reload_ap_cost``, chamber rounds from the
+    carried pool (the player's reload law), and log the tell — the
+    player's window on the enemy's ammo (doc 48 SETTLED 43; the line's
+    wording is the approved brief's). The beat books ZERO movement
+    cells: a reload never inflates the dodge ledger."""
+    _moved = ground_loadout.reload_from_pool(stamp, ws)
+    if _moved <= 0:
+        return 0, 0, False, 0, True  # defensive: cannot happen pickable
+    ctx.log.add_colored(
+        f"{enemy_spec.name} slams in a fresh magazine.",
+        _ml.COLOR_ENEMY_ACTION,
+    )
+    return max(1, ws.reload_ap_cost), 0, False, 0, False
 
 
 async def _spend_ground_ap(
@@ -242,6 +278,8 @@ async def _fire_the_pick(
     if _set_name != ground_loadout.active_set(stamp):
         ground_loadout.swap_active(stamp)  # silent 1-AP switch
         return 1, 0, False, 0, False
+    if ground_loadout.needs_reload(stamp, _ws):
+        return _reload_active(ctx, stamp, _ws, enemy_spec)
     _dmg = await _fire_enemy_burst(
         ctx, console, render_callback, game_map, enemy_entity,
         player_pos, _pair[0], _ws, enemy_spec, enemy_stats,
