@@ -2103,8 +2103,10 @@ with doctrinal 10-13):
   weapon family, the Custodian's multi-weapon loadout, prison
   re-pin (+ the rock_scavenger prison-floor pin), dormant override
   for alien sites (SETTLED 29). Design input attached: the
-  2026-09-29 prison-build power audit section (measured bars for
-  all three machines + the open reference-sheet ruling).
+  2026-09-29 prison-build power audit (measured bars for all three
+  machines) + the 2026-10-02 two-chain arrival sim (both real
+  arrivals converge ~lvl 36-37; the bars re-read across both
+  defense models). The reference-sheet ruling stays open.
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2247,6 +2249,94 @@ gap closed (PlayerSheet can't express ground stat spends or gear
 qualities — build_ground_ctx ignores skill_spends for ground stats)
 and a probe/board grid path for the mars_alien_prison extension
 floors (build_planet_grid is planet-specs-only today).
+
+## Phase 9 design input — the two-chain arrival sim (2026-10-02)
+
+The user supplied two real post-prison saves (both Sirian Bounty
+Hunter, both `act1_prison` completed):
+`grid_labs_sirian_bountyhunter.json` (labs chain) and
+`grid_merchant_sirian_bountyhunter.json` (merchants chain — the
+09-29 audit's own sheet, ship since refit to a trade fit). Loaded
+through the production deserializer via `tools/balance_probe.py`,
+same rows as the 09-29 audit, 50 seeded runs/row. INPUT data for
+the phase-9 conversation, not rulings.
+
+**The two real arrivals CONVERGE — the spread is BUILD, not chain.**
+
+| | labs | merchants |
+|---|---|---|
+| level / XP / lifetime kills | 37 / 19,529 / 565 | 36 / 18,823 / 501 |
+| ground stats | REF 58 / STR 30 / STA 40 | REF 75 / STR 20 / STA 65 |
+| HP / dodge (REF//2) / armor soak | 40 / 29 / 23 | 52 / 37 / 16 |
+| kit | railgun q3 (6+121), 2x stun_baton q3 | railgun q3 (12+240), mono_blade |
+| ship fit | war (plasma q3 + 3 lasers, mk2 suites) | trade (2 weapons, compact reactors + gyros) |
+
+The sheets defend in OPPOSITE ways — labs soaks 23 armor at 40 HP,
+merchant dodges 37 at 52 HP with 16 soak — while their offense is
+IDENTICAL: railgun q3 = 64 damage at 105 accuracy, and quality puts
+BOTH sheets at the 95% hit cap against every REF in the current
+catalog (strength never enters ranged damage). Reference-sheet
+ruling input: a full-play arrival on either chain lands ~level
+36-37 with a q3 kit — "the merchant arrival" generalizes to "the
+full-chain arrival," and the variance to tune across is the
+40-HP-armor-tank vs 52-HP-dodge-tank axis, not chain identity. The
+minimal-activity arrival (~level 8-12, analytic) is unmeasured by
+these saves; bars below would read as a slog against it.
+
+**Matchups (win / mean dmg taken, worst in parens, defeats noted):**
+
+| Row | labs | merchants |
+|---|---|---|
+| 3x rock_scavenger b1 (true-sight cells) | 1.000 / 0.02 (1) | 1.000 / 0.00 (0) |
+| 5x pirate_rifleman b2 | 1.000 / 4.66 (16) | 1.000 / 12.26 (44) |
+| 5x pirate_brute b3 | 0.940 / 16.79 (38), 3 def | 0.920 / 19.20 (48), 4 def |
+| 5x assault_drone b4 | 1.000 / 0.00 (0) | 1.000 / 0.00 (0) |
+| 5x consortium_gunner b4 | 1.000 / 3.44 (7) | 1.000 / 3.36 (6) |
+| 10x assault_drone b4 | 1.000 / 0.06 (1) | 1.000 / 0.06 (1) |
+| space scout / raider / marauder / warlord / 2x marauder | 1.000 all; 2x marauder 0.900 (5 def) | warlord **0.280** (36 def), 2x marauder **0.140** (43 def) |
+
+Ground reads the same for both sheets: brute explosives stay the
+only lethal row (worst 38 vs 40 HP, 48 vs 52 — each sheet one bad
+turn from death); band-4 melee stays zero threat (law 1 holds on
+both); kinetic rifles sting the light soak harder (12.26 vs 4.66
+into 16 vs 23). The merchant SPACE collapse vs the 09-29 audit
+(was 1.000 across) has two confounds landing together: the doc-57
+enemy-missile end gating (84bf8617, same day) and the save's refit
+from the audit's 3x-plasma war cruiser to a 2-weapon trade fit —
+unattributed, prison-irrelevant, flagged for the next space pass.
+
+**Placeholder baseline (what the machines replace):** drone_laser
+is 4 base damage — every sentry/assault drone at every band lands
+exactly 1 dmg/hit into both sheets (67-75% hit at band 4), and
+every drone dies to one railgun hit at every band (b4 assault: 49
+HP + 3 armor vs 64 damage). The tutorial read, quantified.
+
+**Per-machine bars re-read across BOTH defense models:**
+
+- **Watcher** — the soak spread (23 vs 16) collapses to 11 vs 8 if
+  the laser rides the plasma armor-halving rule (note: drone_laser's
+  `energy` damage_type gets NO special math today — halving is
+  plasma-only in `ground_damage_raw`; the family's type semantics
+  are a conversation item). Accuracy is merchant-bound: authoring
+  acc + REF//2 around 105-115 holds ~68-78% hit vs REF 75 and
+  ~76-86% vs REF 58 — the squishier sheet eats ~8 points more, the
+  correct direction. Landed per-hit wants the brute-grenade class
+  (10-18 post-soak). Fragile by intent (TTK 1, the sentinel cell).
+- **Custodian** — open floor stays free kills on both sheets (law
+  1); the reachable bars: HP + armor > 64 (eats the opening railgun
+  shot), AP ~6, and the deep cell's 1-wide bridge corridor as the
+  real weapon. Energy-typed claws would get the same soak-equalizing
+  effect as the laser.
+- **Warden** — TTK-2 keys to the 64-damage railgun ceiling both
+  saves carry: HP > 64 − effective armor, with plasma-halving the
+  player's counter (HP must also clear 64 − armor//2). Armor 12 /
+  HP 65 clears both (52-58 per hit, two to kill).
+
+**Tooling note:** `balance_probe.py`'s `g_mars_pinned` row still
+carries the pre-6cbddeb2 glow-revealed cells — instant-disengage
+0.000 on both saves until re-run against scenarios.py's true-sight
+cells (the corrected numbers above). The tool's copy of the row
+needs that re-pin.
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
