@@ -2114,8 +2114,11 @@ with doctrinal 10-13):
   prison-floor pin), dormant override for alien sites (SETTLED
   29/41/42/43). Design input attached: the 2026-09-29
   prison-build power audit + the 2026-10-02 two-chain arrival sim
-  (both real arrivals converge ~lvl 36-37). Open: reference-sheet
-  ruling; exclusivity vs doc 43; band-vs-authored statblocks.
+  (both real arrivals converge ~lvl 36-37). All opens ruled
+  2026-10-02: the two reference saves ARE the tuning target
+  (final-build retest against both); exclusive FOR NOW (doc-43
+  handoff deferred, not retired); considered T4 band, provisional
+  until built.
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2530,11 +2533,23 @@ no-usable-drops all stand):
 - The room-seal variant is NOT ruled out (a deep-vault Warden may
   also seal the door behind you — authoring, not identity).
 
-Open (carried): exclusivity scope vs the doc-43 handoff ("won't
-see anywhere else" may retire SETTLED 29's inhabitants deal); the
-reference-sheet ruling (two-chain sim section, above); the
-deferred enemy AP/dodge/item-use/reload-management conversation
-(user: after the identities).
+Open items CLOSED (user rulings, same day):
+
+- **Reference sheet: the two reference saves ARE the tuning
+  target.** User: "we'll use these reference saves to tune. but
+  first we need to build the systems. so in the final phase we'll
+  retest with these saves and tune from there." Machinery builds
+  first; the final build re-runs the battery against both saves
+  and tunes from the measurement.
+- **Exclusivity: "exclusive FOR NOW."** Prison-exclusive
+  near-term; the doc-43 inhabitants handoff is not retired,
+  merely deferred (the catalog may reach the far side someday, by
+  later ruling).
+- **Band: considered T4.** User: "they should be considered T4
+  band. but, lets just build this and see where we end up.
+  nothing is set in stone" — top-band threats, provisional until
+  built. (The AP/dodge/item/reload conversation closed as
+  SETTLED 43.)
 
 ## SETTLED 43 (2026-10-02) — the ground economy: carried ammo, weapon sets, the dial port
 
