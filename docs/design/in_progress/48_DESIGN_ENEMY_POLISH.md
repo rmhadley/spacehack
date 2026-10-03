@@ -3480,6 +3480,24 @@ MID-PLAYTEST FINDINGS (2026-10-03, the reset-save descent):
    cell background (brighter visible fg, deeper shade when
    remembered) — a translucent curtain at a glance.
 
+3. **The field lagged behind the W and stayed after its death, FIXED
+   (`b50e0adf`).** Both reproduced: the shell re-derived only at turn
+   START — before the Warden's movement — so it trailed the body a
+   full round; and the merged-survivor rule kept the DEAD warden's
+   ring while the survivor's never stood (F4/F5 author 2-4 Wardens —
+   guaranteed to read as a bug). Now: a turn-END pass recenters the
+   shell on where the W finished its move (fresh cells at 0, no
+   regen double-dip — the +10 lands only at turn start, verified);
+   a death REBUILDS the field as the survivors' current rings (kill
+   a W and its cells always visibly collapse; last W = the whole
+   field dies).
+4. **The aim line overwrote the shimmer, FIXED (`31511423`).** The
+   targeting line painted after the world view, scribbling `~` over
+   the shell's cells (the user's "that's why I'm struggling to see
+   it"). The line now STOPS at the first live field tile — the
+   shimmer eats the line like it eats the shot; the blocked lane
+   reads at a glance.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
