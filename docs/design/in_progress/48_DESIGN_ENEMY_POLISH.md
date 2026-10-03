@@ -2126,7 +2126,11 @@ with doctrinal 10-13):
   2026-10-02: the two reference saves ARE the tuning target
   (final-build retest against both); exclusive FOR NOW (doc-43
   handoff deferred, not retired); considered T4 band, provisional
-  until built.
+  until built. SETTLED 44 (2026-10-03): the Warden shot is a
+  normal volley weapon (no telegraph/lane/charge, `ap_cost` 3);
+  the machines' brief (builds 2+) sits after the BUILD 1 landing
+  record — PROPOSED v2, reviewer ADVISE pass folded (14 issues /
+  6 blocking).
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2630,6 +2634,28 @@ Rulings:
   leash reads as "a dry guard holds its post"), ammo pool ranges,
   default dial values before per-spec authoring.
 
+## SETTLED 44 (2026-10-03) — the Warden's shot is a normal volley weapon
+
+User, verbatim:
+
+> this is just a normal shot. no charge up. no telegraph. just an
+> advanced ancient alien tech that shoots with an AP cost. AP cost...
+> 3? making the warden pretty stationary but hit hard.
+
+Rulings:
+
+- **No telegraph, no lane, no charge — supersedes SETTLED 42's
+  "telegraphed lane" clause.** The anti-armor shot is an ORDINARY
+  weapon in the build-1 volley economy: scored by EV-per-AP like
+  every weapon, paid from the Warden's AP, resolved through the
+  shared hit math. Its armor-pierce is a DAMAGE behavior (soak
+  contributes zero), not a to-hit behavior.
+- **`ap_cost` 3 (user lean)** — with the Warden's low authored AP,
+  firing IS the round: "making the warden pretty stationary but hit
+  hard." The Warden's own AP budget is a brief-time lean (3: a
+  firing round leaves nothing for movement).
+- Armor-pierce and fires-through-its-own-field STAND (SETTLED 42).
+
 ## Pre-implementation audit — phase 9 (2026-10-02)
 
 **Reuse (verified):**
@@ -2944,6 +2970,332 @@ Instrument gaps (carried from the audit): PlayerSheet still cannot
 express ground stat spends or gear qualities; the probe/board grid
 path for the mars_alien_prison extension floors is still pending —
 the machines' build re-runs THIS battery plus the extension rows.
+
+### Phase 9 Implementation brief — BUILD 2+: the ancient machines
+### (PROPOSED v2 2026-10-03 — SETTLED 29-as-amended + 41/42/43/44;
+### authored against the post-loop battery; reviewer ADVISE pass
+### folded first: 14 issues / 6 blocking — the weaponless path's
+### four gate sites, dial-on-drift, the stare's combat scoping,
+### armor_bypass reuse, the eruption kill tail, the re-pin's test
+### blast radius)
+
+**Scope (files / hook points):**
+
+- **The weapon family** (new `data/ground_weapons/ancient.py` +
+  registry): the family's own module, never cross-resolved with
+  human bands (SETTLED 29); every row `loot_droppable=False` (no
+  usable drops — the sites pay in alien tech). Rows: **shredder
+  claws** (melee, 2 AP, no magazine — SETTLED 43: participation is
+  by weapon data, nothing ancient is ammo-fed); **warden slam**
+  (heavy melee, carries the NEW weapon field **`knockback: int
+  = 0`**, authored 2 — data; player-side weapons may carry it
+  someday); **warden shot** (ranged, **`ap_cost` 3**, armor-pierce
+  via the EXISTING `armor_bypass: bool` weapon field (reviewer
+  issue 4) — already read in the shared damage math beside
+  plasma's halving (`_ground_math.py:67-70`; authored precedent +
+  player UI in melee.py) — zero new math; fires through its own
+  field; authored min/max band so the point-blank penalty
+  composes honestly; damage dial lean 25-35 unsoaked; NO
+  telegraph/lane/charge — SETTLED 44). The stare is NOT a weapon
+  (a mechanic below). Soak semantics resolved per the 10-02 sim's
+  flag: the family authors EXPLICIT per-weapon behavior (stare
+  full soak, claws full soak, shot pierce) — no new energy-type
+  math. Noise columns authored (dials: claws 1-2, slam 2-3, shot
+  8; the shriek is the loud one).
+- **The specs** (new `data/npc_chars/ancients.py` + registry +
+  family): three `always_hostile` rows, mechanics data authored ON
+  the rows (value 8 — stare/shriek/mend/field parameters as
+  declared NpcCharSpec fields or one frozen profile field,
+  owner-declared): **Watcher** — hp lean 14-20 (TTK 1 by intent),
+  armor 0, ap 4, reflexes-max weights, dial lean 15 (the drift),
+  authored REF 90-100; **Shredder** — hp 80-100, armor 10, ap 6,
+  strength/stamina-heavy, mend lean 5/turn, cell-block ambusher
+  (the bursts-out verb); **Warden** — hp 65, armor 12, ap lean 3,
+  guard behavior (holds ground), field tiles lean 30 HP each.
+  Stare dials per SETTLED 42's numbers section; shriek radius
+  25-40. **Band resolution: the rows derive at band 4 FLAT** — the
+  site's floor-band stamp never dilutes them (SETTLED 42
+  T4-provisional; the difficulty axis is row-picking per floor,
+  SETTLED 29). Mechanism: `fixed_band: int = 0` on NpcCharSpec
+  (ancients author 4; 0 = the entity stamp) applied at the ONE
+  choke point (reviewer issue 12): `entity_band` gains the spec
+  param and BOTH spec-holding callers (`_build_enemy_instance`,
+  `ground_loadout.ensure_loadout`) pass it — the ancients' loadout
+  side is inert (fixed weapons, zero quality draws), but the param
+  pins the twin shut for any future fixed-band row. RNG note: the
+  ancients draw nothing at first resolution; stream shifts come
+  from turn-time draws only.
+- **The stare** (new `combat/_ancients.py` + `GameMap.stare_zones`
+  declared at world.py, the `hostile_interior` precedent): a
+  seeing Watcher fixes the player's cell at enemy phase (free
+  action — the marking, not an attack) — a 3x3 GRADED zone (core
+  full, ring half pre-soak); **eruption at the end of the player's
+  following turn** (hook beside the round-end processing; exactly
+  one full turn to vacate); **no to-hit roll; damage respects
+  armor** (full soak); re-fixes every round it lives (the perpetual
+  dance); anything in the zone at eruption takes it — the first
+  enemy-vs-enemy damage vector (machines oblivious to marked
+  cells); multiple Watchers coincide + STACK (count = the
+  floor-authoring dial); the eruption is one deduped blast-class
+  noise event per cell per beat. **The stare is COMBAT-SCOPED
+  (reviewer issue 3 — v1's "erupts regardless of combat state"
+  reading WITHDRAWN: out of combat there is no round clock, no
+  ground_hp writer, no death path, and building them is machinery
+  the doctrine never asked for):** breaking LOS ends the fight
+  (SETTLED 24/25) and pending zones FADE with it — disengage
+  defuses; a dead Watcher's zones fade too. Eruption victims
+  beyond the player (the baiting vector; reviewer issue 5):
+  victims resolve through the instance-build path (hp stamped on
+  demand); an eruption kill runs the death handling — the victim's
+  own drops land, but NO player XP/rep (no player attacker); a
+  player killed by a stare carries the marking Watcher as the
+  tombstone killer. Log lines: SETTLED 42's user drafts, verbatim.
+  Zone state serializes; old saves tolerate absence.
+- **The shriek** (volley-loop preamble + `noise.py`): fires the
+  round LOS opens and again as the Watcher's FIRST AP every round
+  it still sees you — a 1-AP LEAD ACTION before any scoring (not a
+  weapon, never scored); emits through the EXISTING noise
+  system's hearer machinery via ONE new radius-keyed entry point
+  (reviewer issue 7: `noise.emit` is weapon-id-keyed today —
+  `noise.emit_radius`; the shriek and the eruption share the one
+  variant, no ad-hoc hearer loops) at radius 25-40; heard ≠
+  aggroed (SETTLED 16), dormant stay deaf
+  (SETTLED 22), no spawns (SETTLED 21). The charge/wind-up
+  softening lever stays DEFERRED (SETTLED 42 — playtest decides).
+- **The drift needs one loop generalization, at FOUR gate sites
+  (reviewer issues 1-2):** the Watcher carries NO weapon row (the
+  stare is its attack) — a weaponless spec statues today at
+  `_rules_ground.py:745` (the `weapon_id` turn gate: no turn at
+  all), `_ai_ground.py:63` (`has_any_weapon`), and the
+  `_aws is None` inert decision point (`:237`); and the
+  `not _fired` log gate (`:222`) would print "moves into
+  position." every round. All four migrate together (the build-1
+  four-consumer lesson): with nothing affordable to fire, leftover
+  AP goes to drift steps — each a WALKABLE, LOS-KEEPING step
+  ("legal" sans a weapon band), each gated by the SAME
+  aggressiveness dial rolled per decision point (below → hold;
+  at/above → one step) so the authored dial composes instead of
+  reading dead. A weaponless turn LOGS NOTHING (wordless — no
+  per-round position spam). Uniform across every spec, no machine
+  carve-out; the Watcher's drift identity = this rule + its dial
+  + authored REF.
+- **The mend** (start-of-turn hook beside the round tick): the
+  Shredder heals its mend rate at the START of its turn, IN-COMBAT
+  ONLY (fight-live state); NO out-of-combat tick (wounds persist
+  between fights); the line fires once per engagement (user
+  draft), wordless thereafter (the target card carries it).
+- **The force field** (`combat/_ancients.py` + GameMap field-tile
+  state + the projectile seam): a radius-2 shell (one tile thick,
+  empty interior) around the Warden, EACH tile its own HP (~30
+  lean); **projectiles crossing a shell tile hit the TILE — binary
+  blocking (any HP > 0 absorbs a full shot), both directions (the
+  TWIN seams, reviewer issue 8: `_roll_player_shot`
+  `combat/_loop.py:322` AND `_one_enemy_shot`
+  `_ai_ground.py:508`; doc-57 ground flight missiles absorb too —
+  they are projectiles, no exemption), exception: the Warden's
+  own shot**; bodies pass freely (walkable); destroyed tiles
+  regrow from 0, +10/turn at the start of the Warden's turn
+  (in-combat) — a carved hole lives exactly one player volley
+  round; the body never mends (the field is its sustain;
+  self-repair belongs to the Shredder alone). State keyed by
+  position, re-derived from the Warden's position each turn,
+  serialized; render = a shimmer overlay through the world draw
+  path (CP437-safe glyph + family color; exact char a playtest
+  dial). Explosive splash is AREA, not projectile — but the
+  blast's victim enumeration (`explosive_blast`) gains field
+  tiles as a victim class: the code behind "a rocket at the shell
+  carves multiple tiles" (the called-out counter). The player
+  inside the shell shoots OUT
+  through tiles (absorbed) — the interior is melee ground by
+  geometry, enforced by economy, not exception.
+- **Knockback application** (beside the ground step helpers): the
+  slam displaces the victim ~2 along the attacker→victim vector; a
+  wall stops the ride early; an occupied cell stops it (no
+  stacking); pure displacement — NO collision damage (not ruled;
+  keep it pure). The game's first involuntary displacement.
+- **The prison re-pin** (`data/dungeon_extensions/__init__.py` +
+  `dungeon_activation.py`): every activation event + monster pool
+  swaps sentry_drone → **Watcher**, assault_drone → **Shredder**
+  (the sentinel / melee-anchor mapping); **the deep-cell Wardens
+  arrive via AUTHORED activation events** (new/edited events on
+  the extension spec — reviewer issue 9: the sentry→Watcher
+  mapping alone would deliver Watchers there too); the hardcoded
+  dormant fallback (`dungeon_activation.py:639`,
+  `["sentry_drone"]`) becomes AUTHORED DATA — the fallback
+  security id lives on `DungeonExtensionSpec` (data-first, no
+  alien-ness branch), the prison authoring its ancient row
+  (SETTLED 29's dormant override, dissolved into data); **the
+  rock_scavenger pin** (FLAGGED for user sign-off — a punch-list
+  rider, not a SETTLED ruling): prison monster pools drop the
+  desert fauna (lean → hull_parasite-only pools; station vermin).
+  ZERO changes outside the prison — contemporary drones keep every
+  non-alien job (pinned). Floor composition lean (tunable): F1
+  Watchers; F2 Watchers + Shredders; F3 Shredder packs +
+  Watchers; F4 Wardens at the deep cells + Shredders; counts stay
+  ~1-3 per activation. Old-save story: a pre-build-2 mid-descent
+  save keeps its live sentry/assault entities (the ids stay
+  registered; they load as contemporary drones) — the "no drone
+  id" pin scopes to GENERATION data, never live saves.
+- **Identity** (`CHAR_CLASS_FAMILIES` + `tests/test_enemy_identity.py`
+  + registry docstrings): the ancient family — letter **`a`**, ONE
+  cold constructed color (lean violet (170,140,250); the
+  separation lint verifies — the tuple is a playtest dial);
+  **Watcher `a`, Shredder `A`, Warden bold `A`** (SETTLED 34's
+  named next wearers). Cross-registry pin re-derived (no space-map
+  `a` today — verified; a stationary guild NPC already chars `A`
+  on station maps, `data/npcs/guilds.py:164` — not hostile-capable,
+  outside the lint's scope, noted so the build chases no false
+  positive). Fauna untouched (not families).
+- **The battery + instruments** (final build): the probe gains the
+  mars_alien_prison grid path (extension floors;
+  `build_planet_grid` is planet-specs-only today) +
+  corridor-geometry rows (the Shredder's lane and the Warden's
+  corridor are the real weapons — the arena is open floor);
+  re-run BOTH reference saves + the starter standard + the
+  extension rows; the before/after table IS the deliverable; dials
+  tune from the measurement (SETTLED 42's final-build retest).
+  PlayerSheet's synthetic-sheet gaps close only if the tune needs
+  them (the two real saves load whole).
+- **Dev grants** (SPACEHACK_DEV, `dev_mode.py` + `test_dev_mode.py`):
+  the trio spawned adjacent (disjoint per-face placement, the
+  phase-4 precedent) so every checkpoint item runs without a
+  descent.
+- **PROSE GATE strings** (land only with user wording — drafts
+  below for edit): SETTLED 42's five stare lines + the mend line
+  land VERBATIM (user-drafted). NEW drafts: shriek — "The Watcher
+  lets out a piercing shriek."; field absorb — "The shimmer
+  swallows your shot."; field tile breaks — "A section of the
+  shimmer breaks apart."; NO knockback line (the displacement is
+  visible — wordless).
+
+**Build order:** weapon family + `knockback` field (registry
+tests) → specs + `fixed_band` + identity family + lint → knockback
+application + the Shredder's mend → the Watcher (stare state +
+fade-on-disengage + eruption hook + `emit_radius` + shriek
+preamble + the four-site weaponless-dance unmute) → the Warden
+(field state + both projectile seams + flight-missile absorption +
+regen + the shot) → prison re-pin + authored fallback + Warden
+events + scavenger pin (flagged) → probe extension + battery
+re-measure + dial tune → full gate.
+
+**Binding rulings:** SETTLED 29-as-amended (catalog, own weapon
+family, authored-areas-only, no usable drops), 41 (machines run
+the standard loop — no carve-outs; no roster number changes outside
+the three rows), 42 (identities + mechanics + power doctrine:
+start aggressive, soften only on playtest; the two reference saves
+ARE the tuning target; exclusive FOR NOW; T4 provisional), **44
+(the shot is a normal volley weapon — no telegraph, no lane, no
+charge, `ap_cost` 3)**, 43 (participation by weapon data), 16/22/37
+(shriek doctrine: heard ≠ aggroed, dormant deaf, goal-based
+investigation), 34 (family letter + case + bold). The player's
+action paths stay read-only mirrors; the field prices projectiles
+uniformly, both sides' shots.
+
+**Stop point:** no roster retunes beyond the three machines'
+authored dials (roster tuning = the post-battery pass per SETTLED
+41's measurement-first law); no far-side/doc-43 inhabitants wiring
+(deferred, not retired); no room-seal Warden variant (a named
+future authoring option); no shriek charge/wind-up (the deferred
+softening lever); no biome fauna or apexes (10); no consortium
+anything (11); no player-obtainable ancient weapons; no guide
+entry (wordless doctrine — the machines teach by pattern;
+confirm-grep); no player-behavior changes beyond the involuntary
+displacement the slam authors.
+
+**Required tests:** family (rows registered; `loot_droppable=False`
+pinned; `knockback` default 0; `armor_bypass` authored True on the
+shot — soak-zero through the EXISTING field, no new math); specs
+(`fixed_band` 4 flat — a floor-1 stamp does NOT dilute; authored
+hp/armor/ap; identity lint green incl. separation + bold wearers);
+the stare (enemy-phase fix when seeing; graded core/ring; eruption
+at end of the player's following turn — the vacate economy pinned:
+1 AP to the ring, 2 AP clear; no to-hit roll; full soak; the
+re-fix chain; stacked Watchers coincide + stack; enemy-vs-enemy
+victims — hp-on-demand, the victim's drops land, NO player XP/rep,
+a stare-killed player tombstones the Watcher; deduped eruption
+noise through the `emit_radius` variant; pending zones FADE on
+disengage and on the Watcher's death; zone state save/load
+round-trip + old-save tolerance); the shriek (LOS-open round +
+first-AP-every-seeing-round; costs 1 AP before scoring; the volley
+proceeds after; radius; dormant deaf; heard ≠ aggro; no spawns);
+the weaponless dance (no affordable weapon → leftover AP to
+LOS-keeping steps while a legal step exists — never a statue; logs
+NOTHING; the dial rolls on the weaponless path, extremes pinned;
+build-1's never-spins termination re-pinned for weapon-CARRYING
+specs; the ledger books real cells only); the mend (start of the
+Shredder's turn; in-combat only; the line once per engagement;
+wounds persist out of combat); the field (shell geometry radius-2
+empty interior; per-tile HP; binary block — any HP > 0 absorbs a
+full shot; both directions; own-shot exempt; flight missiles
+absorb; walkable; +10 start-of-Warden-turn in-combat;
+regrow-from-0 — the one-volley-round hole pinned: carve +
+shoot-through in the same turn at base AP, blocked again after the
+Warden's turn; destroyed tiles clear from the render;
+serialization round-trip; field tiles as blast victims — the
+multi-tile carve); knockback (property-driven; ~2 along the
+vector; wall stop; occupant stop); the shot (3-AP cost;
+volley-scored; unsoaked on both reference armor models;
+through-field); the re-pin (every prison activation resolves
+ancients; the fallback id reads the SPEC's authored field — the
+`:639` hardcode dies; NO contemporary drone id remains in prison
+GENERATION data, live old saves keep theirs; rock_scavenger gone
+from prison pools; non-alien drone sites pinned unchanged —
+landmarks, capture decks, cities; the named pin files re-pinned:
+test_dungeon_extensions, test_main_quest_act1,
+test_prison_dormant_security); integration (machines run the
+build-1 loop; no one-shot-cap residue; seeded-test repair for
+turn-time RNG shifts — the ancients draw nothing at first
+resolution); the battery table recorded in the doc.
+
+**Ratchet:** the new machinery lives in `combat/_ancients.py` +
+fresh data modules; `_ai_ground.py` / `_rules_ground.py` touches
+(preamble, eruption hook, projectile seam, damage behaviors) pay
+line-neutral or extract beside their subject (the build-1
+`_stamp_enemy_loadout` precedent) — counts checked at build start;
+GameMap fields declare at world.py (cohesion).
+
+**Playtest checkpoint:**
+
+1. Dev grant the trio (SPACEHACK_DEV): the Watcher shrieks the
+   round it sees you (line fires), the floor glows 3x3 under you;
+   step out within the turn and the eruption hits nothing; it
+   drifts — your railgun misses it like nothing you've fought
+   (authored REF + drift dodge).
+2. Stand still: the zone re-fixes every round; eat an eruption —
+   armor soaks, still the 10-18 landed class; TWO stacked Watchers
+   = move every round or die (the stacking dial).
+3. Shriek chains: fight near dormant machines — active ones
+   investigate (aggro only on LOS); dormant never stir.
+4. Shredder: eats the opening railgun shot and stands; closes at
+   6 AP; three claw strikes in a full round; wounds mend at its
+   turn start (the line once per fight) and PERSIST between
+   fights — flee, return, still wounded.
+5. Warden (bold `A`): your shots vanish into the shimmer; carve a
+   tile and shoot the body through the hole the SAME turn; next
+   round the hole is closed.
+6. Enter the field and swing: the slam throws you back out through
+   the shimmer (~2, a wall stops you early); the loop reads
+   (enter, swing, eat the slam, re-enter).
+7. The shot: no warning — a hit that ignores armor entirely (the
+   23-soak tank feels it full price); it barely moves the round it
+   fires.
+8. Rocket the shell: splash carves multiple tiles at once (the
+   counter).
+9. Prison descent: F1 Watchers → F4 Wardens at the deep cells;
+   zero sentry/assault drones in the prison; zero rock scavengers;
+   dormant security wakes ancient.
+10. Save/quit mid-stare, mid-field → Continue: zones, tile HP,
+    wounds identical; a pre-machines save loads clean.
+11. Loot: the machines drop nothing usable — the site pays in
+    alien tech.
+12. The battery: both reference saves + the starter standard + the
+    extension rows recorded in the doc; flag anything that reads
+    wrong for the tune.
+13. Guide-diff item: expected NONE (wordless doctrine, the SETTLED
+    36 noise precedent — the mechanic is never named); confirm-grep
+    `data/guide/`, any hit becomes a called-out before/after.
+14. PROSE review: the user-drafted lines verbatim; the three new
+    drafts (shriek / absorb / break) approved or reworded.
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
