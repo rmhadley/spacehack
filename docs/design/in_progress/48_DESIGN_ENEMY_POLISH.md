@@ -2131,7 +2131,21 @@ with doctrinal 10-13):
   the machines' brief (builds 2+) sits after the BUILD 1 landing
   record — APPROVED 2026-10-03 (glyphs O/S/bold-W, SETTLED 45;
   the flagged leans ruled with the approval; reviewer ADVISE pass
-  folded 14/6).
+  folded 14/6). BUILDS 2-7 LANDED 2026-10-03 in six commits
+  (b2a family `98a85066`; b2b specs `ff8bc62e` + the dev-pick guard
+  `a8a8b436`; b2c knockback+mend `7d877992`; b2d Watcher `2c2937a0`;
+  b2e field `1dbd2914`; b2f prison re-pin `94ccbc26`; b2g instruments
+  `8ef927df`) — reviewer dispatched per build and per fold round
+  (three REQUEST_CHANGES rounds, each reproduced + folded +
+  re-approved: the eruption rep back-door, the sibling-shell
+  destruction, the falsified popup prose-exclusivity, the
+  off-map dev grant). The machines' battery recorded in the builds
+  2-6 landing section: standard rows bit-identical to build 1; the
+  F4 authored trio alone = the tune's headline wall (labs 0.020 /
+  merchants 0.200). PLAYTEST PENDING (the checkpoint list sits in
+  the brief; guide-diff NONE confirmed; PROSE review pending — the
+  three new drafts + the six stale drone-named event messages +
+  the silent Warden events' popup question).
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -3331,6 +3345,122 @@ GameMap fields declare at world.py (cohesion).
     `data/guide/`, any hit becomes a called-out before/after.
 14. PROSE review: the user-drafted lines verbatim; the three new
     drafts (shriek / absorb / break) approved or reworded.
+
+## Phase 9 BUILDS 2-6 — LANDED + the machines' battery (2026-10-03)
+
+The ancient machines landed in five builds after the instruments
+build: **b2a** the weapon family (`98a85066` — shredder claws /
+warden slam / warden shot + the `knockback` weapon field; the
+`armor_bypass` pierce through the EXISTING field, zero new math);
+**b2b** the three specs (`ff8bc62e` — MachineMechanics dials +
+`fixed_band` 4 flat + the violet distinct-glyph family O/S/bold-W;
++ `a8a8b436` the dev-pick shop-leak guard the review armed);
+**b2c** knockback + the mend (`7d877992` — the slam's wordless
+pushback through `_apply_hit_knockback` at the shot seam, live
+ctx.player reads after displacement; the Shredder's in-combat mend,
+once-per-engagement line verbatim); **b2d** the Watcher
+(`2c2937a0` — `noise.emit_radius` sharing the one hearer walk; the
+3x3 GRADED stare zones on GameMap with dead-Watcher pruning and
+fade-on-every-end; the combat-scoped eruption hooked BEFORE enemy
+turns in `_end_player_turn` so exactly one full turn to vacate
+holds; eruption kills carry NO rep — the `stare_killed` flag shuts
+the `get_combat_result` back-door the review caught; the four
+weaponless-gate sites migrated together into the dial-gated
+LOS-keeping drift — logs nothing, real ledger cells); **b2e** the
+Warden's force field (`1dbd2914` — radius-2 Chebyshev shell of
+walkable cells at full HP from combat entry; the ONE
+`absorb_shot` read (Bresenham, endpoints excluded, field-carrier
+exempt) shared by both projectile seams; binary blocking with the
+overflow lost; +10/turn in-combat regen with destroyed tiles
+regrowing from 0 — the one-volley-round hole; sibling shells
+preserved through each other's re-derives (the review's empirical
+catches: the wholesale replace destroyed them; a stare-killed
+Warden left an ownerless shimmer); field tiles as blast victims —
+the absorbed rocket detonates ON the shell and carves it without
+ever touching the body); **b2f** the prison re-pin (`94ccbc26` —
+every activation event + pool swaps to the machines, the deep-cell
+Wardens arrive via AUTHORED SILENT events (the review falsified the
+prose-reuse state-exclusivity: the wake is wordless, a dedicated
+popup is the prose-pass question), the `:639` sentry fallback is
+dead — `security_fallback_id` on the spec, the scavenger pin
+FLAGGED below); **b2g** the instruments (`8ef927df` — Shift+A
+trio grant + the probe's corridor/LIVE-floor rows; the review
+EXECUTED the grant and caught `_adjacent_cells` returning offsets to
+an absolutes consumer — both grant families (phase 4's included)
+spawned off-map since their landings; fixed + placement-pinned, and
+the lane's true 1-wide + the F4 row's populate purge re-measured
+below).
+
+Reviewer: dispatched per build (A: APPROVE, 3 minors folded incl.
+the claws rename + the dev-pick guard; B+C one combined pass:
+REQUEST_CHANGES (a stale dispatch — the tree moved mid-review, the
+lesson: freeze during reviews; the mend wiring demanded in-commit)
+then APPROVE after folds; D: REQUEST_CHANGES (the rep back-door +
+the ordering pin that didn't discriminate hook position — the
+reviewer proved it empirically) then APPROVE after the spy-pinned
+fold; E: REQUEST_CHANGES (the sibling-shell destruction + the
+orphan field, both reproduced by the reviewer in-memory) then
+APPROVE; F: REQUEST_CHANGES (the falsified popup-exclusivity) then
+APPROVE; G: APPROVE). Zero roster number changes outside the three
+rows; the player's action paths are read-only mirrors beyond the
+slam's authored displacement.
+
+**The battery (50 seeded runs/row, both reference saves; the
+standard rows re-measured for continuity, the machine rows are the
+deliverable).**
+
+| Row | labs (23 soak, 40 HP) | merchants (16 soak, 52 HP) |
+|---|---|---|
+| g_mars_pinned (continuity) | 1.000 / 0.02 | 1.000 / 0.02 |
+| 5x rifleman b2 (continuity) | 0.940 / 4.04 (3 def) | 0.840 / 9.83 (8 def) |
+| 5x brute b3 (continuity) | 0.960 / 11.62 (2 def) | 0.920 / 12.67 (4 def) |
+| 5x / 10x b4 drones+gunners (continuity) | 1.000 all | 1.000 all |
+| **2x watcher, open arena** | 1.000 / 0.00, 2.0 turns | 1.000 / 0.00, 2.0 turns |
+| **2x shredder, the 1-wide lane** | 1.000 / 0.40, **15.5 turns** | 1.000 / 26.52 (worst 51) |
+| **1x warden, the 5-wide hall** | 0.940 / 20.43 (3 def) | 0.960 / 20.00 (2 def) |
+| **the F4 authored mix (live floor, ISOLATED trio)** | **0.020** (28 def / 21 dis) | **0.200** (16 def / 24 dis) |
+
+Readings (input to the tune, not rulings):
+
+1. **Continuity is bit-identical to build 1's post table** — the
+   no-roster-changes law held through every build.
+2. **The sentinel cell reads as designed**: lone Watchers are
+   trivial at the 95%-hit railgun ceiling (TTK 1, 2 turns) — the
+   threat is STACKING and what they herd you into, authored per
+   floor.
+3. **The lane differentiates the sheets exactly as SETTLED 42
+   ruled**: labs (23 soak) grinds 15.5 turns for 0.8 damage — it
+   thrives on claws; the merchant sheet (16 soak) eats 25.16 of 52
+   in 3 turns — maims, doesn't delete.
+4. **The Warden hall contests BOTH sheets** (~0.94-0.96, ~20 mean
+   damage, worst 30 = the armor-bypassed shot landing full price on
+   either soak model).
+5. **THE TUNE'S HEADLINE — the F4 authored trio alone is a wall**:
+   labs 0.020, merchants 0.200 — with the floor's own populate
+   scatter PURGED (the isolated-fight doctrine; the review caught
+   the row measuring trio+mob), the authored 2-shredder + 1-warden
+   mix kills 80-98% of the engagements it starts. Caveat: the row
+   compresses the floor into ONE simultaneous close-quarters
+   encounter (the real descent wakes events sequentially along the
+   route), so it reads as the breaking-point stress, not the
+   descent simulation. Per SETTLED 42's own words the tune happens
+   FROM this handoff ("in the final phase we'll retest with these
+   saves and tune from there"): dials on the table = the F4/F5 mix
+   + counts, the warden-heavy F5 extraction gauntlet (4 dormant
+   wardens wake at the terminal — emergent from the extras
+   round-robin, not authored), the shredder claws/slam/shot
+   numbers.
+
+Instrument gaps (carried): PlayerSheet still cannot express ground
+stat spends or gear qualities (both real saves load whole, so the
+machines' rows didn't need it).
+
+FLAGGED for the user at the checkpoint (leans awaiting sign-off):
+the rock_scavenger → hull_parasite-only prison pools (F2 now
+single-species at 1.8 density); the warden-heavy F5 gauntlet; the
+machines' own popup prose (the six older event messages still name
+sentry/assault drones — stale against the machines that now spawn;
+the Warden events are SILENT pending a prose ruling).
 
 ## Pre-implementation audit — phase 9 BUILD 2 (2026-10-03)
 
