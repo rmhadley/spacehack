@@ -3451,6 +3451,35 @@ Readings (input to the tune, not rulings):
    round-robin, not authored), the shredder claws/slam/shot
    numbers.
 
+MID-PLAYTEST FINDINGS (2026-10-03, the reset-save descent):
+
+1. **"Enemy shredders never attack" — the diagonal-adjacency melee
+   deadlock, FIXED (`712f795d`).** The user's report + the tombstone
+   log ("Shredder moves into position. x30") reproduced instantly:
+   every melee enemy deadlocked at DIAGONAL adjacency — the enemy
+   band gates compared RAW Euclidean distance (1.414 > max_range 1)
+   while the player's own fire gate int-truncates. Pre-existing
+   (doc-51 era), first EXPOSED by the Shredder (the first melee
+   enemy that reliably survives its approach). The fix int-truncates
+   `_within_max` (the shared max-band law) + the gap-step close leg +
+   the dance pool; the enemies-panel threat readout migrated with the
+   gate (the reviewer's twin catch — it called swinging enemies
+   safe). Consequence: the doc-50 `goal_2_mars_batons` ruled bars
+   were calibrated against the broken scavengers (only the FIRST of
+   a swarm could ever swing; post-fix all three do: win 0.000 / 50
+   def in <=2 turns; was win 1.00 / 12.4 dmg / 4.04 turns) — the row
+   is REPORT-ONLY pending the user's re-ruling, joining the p9 tune
+   list (SETTLED 41's own prediction: "band 1-2 and the tutorial
+   standard want a rebalance look"). Re-measured melee rows: the
+   reference sheets' rows effectively unchanged (ranged builds kill
+   melee before adjacency); the shredder lane gets realer (labs
+   0.920, 4 def; merchants 0.980 / 28.1 dmg).
+2. **The Warden's shimmer "hard to see" — the render dial ruled by
+   playtest (`128edbc8`).** The thin `~` on the tile's own
+   background became a medium-shade `▒` with its OWN violet-dark
+   cell background (brighter visible fg, deeper shade when
+   remembered) — a translucent curtain at a glance.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
