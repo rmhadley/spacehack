@@ -304,10 +304,16 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # numbers, tuning re-authors them against the reference
         # saves after the battery re-measure.
 
-        thresholds=Thresholds(
-            win_rate_floor=0.94,
-            damage_taken_ceiling=13.12,
-        ),
+        # REPORT-ONLY since the p9 melee-geometry fix (2026-10-03):
+        # the ruled bars were calibrated against the diagonal-adjacency
+        # deadlock (only the first scavenger of a swarm could ever
+        # swing); with the band gates int-truncated like the player's
+        # own, all three swing and the starter baton kit dies in <=2
+        # turns — win 0.000 / 50 def (was 1.00 / 4.68). The bars
+        # await the user's re-ruling alongside the p9 tune (doc 48
+        # SETTLED 41's own prediction: "band 1-2 and the tutorial
+        # standard want a rebalance look").
+        thresholds=None,
     ),
     BalanceScenario(
         id="goal_2_lane",

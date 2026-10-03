@@ -139,16 +139,18 @@ def enemy_threat_color(
 
     Red when the enemy's weapon can fire at this distance, orange when
     the player is inside the enemy's minimum range (too close to fire),
-    green when safely out of range. ``dist`` is the raw Euclidean
-    distance — the enemy fire gate (``_ai_ground``) compares raw
-    floats, so the readout must not pre-truncate.
+    green when safely out of range. ``dist`` INT-TRUNCATES like the
+    enemy fire gate (``_ai_ground._within_max``, the p9 melee-geometry
+    fix): diagonal adjacency (raw 1.414) IS melee range, and the
+    readout must never call a swinging enemy safe.
     """
     weapon = enemy_weapon(enemy)
     if weapon is None:
         return ui.COLOR_VALUE_DIM
-    if dist < weapon.min_range:
+    _dist = int(dist)
+    if _dist < weapon.min_range:
         return COLOR_DIST_TOO_CLOSE
-    if dist <= weapon.max_range:
+    if _dist <= weapon.max_range:
         return COLOR_DIST_DANGER
     return COLOR_DIST_SAFE
 

@@ -201,9 +201,14 @@ def _total_ev(
 
 def _within_max(ws, dist, los) -> bool:
     """The max-band law both fire gates share: within max range with
-    LOS. Inside min fires at the point-blank penalty (the player's
-    emergency-shot mirror, p9 b3); beyond max never fires."""
-    return dist <= ws.max_range and bool(los)
+    LOS. The distance INT-TRUNCATES like the player's own fire gate
+    (``can_fire``) — Euclidean-diagonal adjacency (1.414) IS melee
+    range under 8-dir movement; the raw float compare deadlocked
+    every melee enemy that closed on a diagonal (the p9 playtest's
+    "shredders never attack"). Inside min fires at the point-blank
+    penalty (the player's emergency-shot mirror, p9 b3); beyond max
+    never fires."""
+    return int(dist) <= ws.max_range and bool(los)
 
 
 def _pickable(ws, stamp, dist, los) -> bool:
@@ -380,13 +385,15 @@ async def _gap_step(
 ):
     """The no-pick tail: dry-switch to the other set, advance toward
     the chase goal, or spend a leftover AP on the dance (SETTLED 40's
-    termination shape — dodge while a legal in-band step exists)."""
+    termination shape — dodge while a legal in-band step exists). The
+    close-leg reads the SAME int-truncated distance as the fire gates
+    (a diagonally-adjacent melee enemy has nothing left to close)."""
     if ground_loadout.is_dry(stamp, aws) and ground_loadout.pair_for(
         stamp, ground_loadout.other_set(ground_loadout.active_set(stamp)),
     ) is not None:
         ground_loadout.swap_active(stamp)  # dry: 1-AP swap to melee
         return 1, 0, False, 0, False
-    if dist > aws.max_range or not los:
+    if int(dist) > aws.max_range or not los:
         _stepped, nav[0], nav[1], _halt = await _ground_advance(
             ctx, console, render_callback, game_map, enemy_entity,
             player_pos, nav[0], nav[1],
@@ -474,7 +481,9 @@ async def _reposition_step(
     """One random in-band LOS-keeping step — the skirmisher dance that
     leftover AP buys after the one-shot cap (SETTLED 26). No such cell:
     hold position. ``_ews=None`` is the WEAPONLESS drift (doc 48 p9):
-    any walkable LOS-keeping cell, no weapon band."""
+    any walkable LOS-keeping cell, no weapon band. The band int-
+    truncates like the fire gates — an enemy that fires from a cell
+    must be able to dance back into it."""
     _pool = [
         (enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy)
         for _dx, _dy in _STEP_DIRS
@@ -484,9 +493,9 @@ async def _reposition_step(
         )
         and (
             _ews is None
-            or _ews.min_range <= _dist_to(
+            or _ews.min_range <= int(_dist_to(
                 enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy, player_pos,
-            ) <= _ews.max_range
+            )) <= _ews.max_range
         )
         and _mutual_sight(
             game_map,

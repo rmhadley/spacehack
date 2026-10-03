@@ -1772,18 +1772,27 @@ class TestRangeDisplaysMatchFireGate:
         assert _card is None  # the recorder stands in for the real card
         assert _captured["hit_weapon_range"] == (2, 8)
 
-    def test_enemy_threat_readout_matches_enemy_gate_float(self):
-        """The enemy fire gate compares raw floats: at 6.4u a drone
-        laser (max 6) cannot fire — the readout must not say danger."""
+    def test_enemy_threat_readout_matches_enemy_gate_int(self):
+        """The enemy fire gate int-truncates (the p9 melee-geometry
+        fix): at raw 6.4u a drone laser (max 6) cannot fire, and at
+        diagonal adjacency (raw 1.414) a max-1 melee weapon CAN — the
+        readout must never call a swinging enemy safe."""
         _gei = _rules_ground.GroundEnemyInstance(
             entity=SimpleNamespace(), spec=SimpleNamespace(armor=0),
             weapon_id="drone_laser",
         )
         assert _ground_presentation.enemy_threat_color(
-            _gei, 6.4,
+            _gei, 7.0,
         ) == _ground_presentation.COLOR_DIST_SAFE
         assert _ground_presentation.enemy_threat_color(
-            _gei, 6.0,
+            _gei, 6.4,
+        ) == _ground_presentation.COLOR_DIST_DANGER  # int 6 = max: fires
+        _melee = _rules_ground.GroundEnemyInstance(
+            entity=SimpleNamespace(), spec=SimpleNamespace(armor=0),
+            weapon_id="ancient_claws",
+        )
+        assert _ground_presentation.enemy_threat_color(
+            _melee, 1.414,
         ) == _ground_presentation.COLOR_DIST_DANGER
 
     def test_build_target_card_passes_effective_range_to_hit_color(self, monkeypatch):

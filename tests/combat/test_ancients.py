@@ -1056,3 +1056,80 @@ def test_mend_wires_into_the_real_enemy_turn(monkeypatch):
     assert gei.hp == gei.max_hp - 20 + 5  # mended before the AI ran
     assert lines == ["The Shredder's wounds begin to mend."]
     assert _ai_calls  # the AI still took its turn
+
+
+def test_diagonal_adjacency_is_melee_range_for_enemies():
+    """The p9 playtest catch ("shredders never attack"): an enemy
+    closing on a DIAGONAL deadlocked — the band gates compared raw
+    Euclidean distance (1.414 > max_range 1) while the player's own
+    fire gate int-truncates. Both sides now read the same metric."""
+    from src.spacehack.combat._ai_ground import _within_max
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    claws = find_ground_weapon("ancient_claws")
+    assert _within_max(claws, 1.414, True)   # diagonal adjacency
+    assert _within_max(claws, 1.0, True)
+    assert not _within_max(claws, 1.5 + 1, True)  # beyond max stays out
+    shot = find_ground_weapon("ancient_warden_shot")
+    assert _within_max(shot, 2.828, True)    # diagonal 2 inside min 2
+
+
+def test_diagonal_shredder_swings_not_stalls():
+    """The end-to-end deadlock pin: a shredder diagonally adjacent to
+    the player spends its turn ATTACKING (the volley picks the claws),
+    not stalled in "moves into position" forever."""
+    from src.spacehack.combat import _rules_ground
+    from tests.support.asyncutil import run as _run
+
+    game_map = _floor_map(12, 12)
+    shredder_ent = world.Entity(
+        "S", (170, 140, 250), world.Position(5, 5), npc_char_id="shredder",
+    )
+    game_map.entities.append(shredder_ent)
+    ctx = _combat_ctx(game_map, player_pos=(6, 4))  # diagonal to (5,5)
+    ctx.ground_stats = SimpleNamespace(reflexes=58, strength=30)
+    old = _rules_ground._state
+    _rules_ground._state = _rules_ground.GroundCombatState(
+        ctx=ctx, game_map=game_map,
+        enemies=[_rules_ground._build_enemy_instance(shredder_ent, game_map)],
+        player_hp=40, player_max_hp=40, armor_defense=23,
+    )
+    try:
+        for _ in range(3):
+            _rules_ground._state.player_ap = 0
+            dmg = _run(_rules_ground.run_enemy_turns(ctx, game_map))
+            if dmg:
+                break
+        assert dmg and dmg > 0, (
+            "the diagonal-adjacent shredder never attacked"
+        )
+        assert any("Shredder Claws" in line for line in ctx.lines)
+    finally:
+        _rules_ground._state = old
+
+
+def test_field_renders_as_the_violet_curtain():
+    """The playtest readability dial (2026-10-03, "hard to see"): the
+    shimmer paints a medium-shade glyph over its OWN violet-dark cell
+    background — a translucent curtain at a glance — and destroyed
+    tiles clear from the render."""
+    from src.spacehack.world_render import world_draw_commands
+
+    game_map = _floor_map(12, 12)
+    game_map.field_tiles = {(6, 6): 30}
+    commands = world_draw_commands(
+        game_map, region_x=0, region_y=0, region_w=12, region_h=12,
+    )
+    field_cmds = [c for c in commands if (c.x, c.y) == (6, 6)]
+    assert any(
+        c.char == "\u2592" and c.bg is not None and c.fg[2] > c.fg[0]
+        for c in field_cmds
+    ), "the shell must paint its own violet-dark cell background"
+
+    game_map.field_tiles = {(6, 6): 0}  # destroyed: open ground again
+    commands = world_draw_commands(
+        game_map, region_x=0, region_y=0, region_w=12, region_h=12,
+    )
+    assert not any(
+        c.char == "\u2592" for c in commands
+    )
