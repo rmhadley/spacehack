@@ -3332,6 +3332,113 @@ GameMap fields declare at world.py (cohesion).
 14. PROSE review: the user-drafted lines verbatim; the three new
     drafts (shriek / absorb / break) approved or reworded.
 
+## Pre-implementation audit — phase 9 BUILD 2 (2026-10-03)
+
+Codebase scan before the machines' code (anchors re-verified against
+the post-build-1 tree; line numbers current).
+
+**Reuse (verified):**
+
+- **The build-1 volley loop + economy stand as the machines' engine**:
+  `_volley_pick` / `_total_ev` / `_score_ground_weapon`
+  (`combat/_ai_ground.py:81-165`), the ledger through returned cells,
+  and `ground_loadout.roll_loadout` — which ALREADY stamps a
+  weaponless row (both slots `None`): the Watcher's stamp side needs
+  zero new code ("drops read the emptiness" is landed behavior).
+- **The weaponless path's four gate sites, all live** (the brief's
+  reviewer issues 1-2): the `has_any_weapon` early return
+  (`_ai_ground.py:64-65`), the `not _gei.weapon_id` NO-TURN gate
+  (`_rules_ground.py:745`), the `_aws is None` inert decision point
+  (`_ai_ground.py:237-239`), and the `not _fired` "moves into
+  position." log (`_spend_ground_ap:222-225`). All four migrate
+  together (the build-1 four-consumer lesson).
+- **`armor_bypass` already read in the shared damage math beside
+  plasma's halving** (`_ground_math.py:67-70`) — the Warden shot
+  authors the EXISTING field; zero new math (reviewer issue 4
+  resolved by verification).
+- **Projectile seams**: `_roll_player_shot` (`combat/_loop.py:322`)
+  and `_one_enemy_shot` (`_ai_ground.py:508`); the shared
+  `_bresenham_line` (the beam animation's own walk — what the player
+  SEES cross the shell is what blocks). Ground flight missiles do
+  not exist today (doc-57 flight is space-only; `is_flight_weapon`
+  reads the ship registry) — the absorption check is written ONCE in
+  `_ancients` and called at both seams, so any future ground
+  projectile path inherits it without a third copy.
+- **Round-end hook precedent**: the optional `advance_flights` rules
+  hook (`_loop.py:716-719` inside `_end_player_turn`) — the eruption
+  rides the same getattr pattern, resolving BEFORE enemy turns so the
+  erupt-then-remark ordering keeps "exactly one full turn to vacate"
+  exact.
+- **Noise**: `emit` is weapon-id-keyed (`noise.py:119-154`); `_hears`
+  already guards powered_down (dormant deaf — SETTLED 22 intact by
+  construction), combat_locked (engaged ignore), hostile-only, and
+  the guard leash. `emit_radius` = the same hearer walk with the
+  radius as a parameter — one variant shared by shriek + eruption,
+  no ad-hoc hearer loops (reviewer issue 7).
+- **Enemy-victim path for the eruption**: `_build_enemy_instance`
+  (hp stamped on demand) + `spawn_kill_drops` (the victim's own
+  drops land) — but NOT `on_kill`'s `add_xp`/kill-counter tail (no
+  player attacker).
+- **Knockback**: application beside the ground step helpers
+  (`move_entity` in `combat/_actions.py`; `world.try_move`'s
+  walkable+unoccupied legality; the player displacement re-reveals
+  through `reveal_around`, mirroring `try_move`).
+- **Blast seam**: `_ground_blast.explosive_blast`'s victim
+  enumeration gains field tiles as a victim class; the self-splash
+  path is untouched.
+- **Prison re-pin**: `data/dungeon_extensions/__init__.py` (all 10
+  activation events + 3 monster pools inventoried); the hardcoded
+  dormant fallback at `dungeon_activation.py:639` (`["sentry_drone"]`)
+  becomes a `DungeonExtensionSpec` field; `_place_dormant_units`
+  already stamps `bold=spec.elite` — the Warden's bold `W` rides the
+  existing dormant path.
+- **Identity**: `CHAR_CLASS_FAMILIES` + `tests/test_enemy_identity.py`.
+  Separation pre-verified: violet (170,140,250) sits >= 60 max-channel
+  from all six existing family colors (closest: militia, 70). The
+  cross-registry pin stays `{"s","h"}` — no npc SHIP flies O/S/W, and
+  the sun-`O` / Saturn-`S` shares are space-map TILES (never
+  co-rendered with ground faces, the dust_prowler-`p` class).
+  `test_ground_elite_specs_carry_elite` is a pin to re-author (the
+  Warden joins the brute + sniper). The family lint gains the
+  distinct-letters form for the ancients (SETTLED 45).
+- **Serialization**: the `hostile_interior` precedent
+  (`saveload_maps.py:151-174` save / `:477-497` load) — new GameMap
+  fields (`stare_zones`, `field_tiles`) declare at `world.py`,
+  serialize through `_optional_map_fields`, restore with
+  dict-defaults so old saves tolerate absence.
+- **Band pin**: `entity_band` (`ground_scale.py:340`) gains the spec
+  param; both spec-holding callers (`_build_enemy_instance`,
+  `ground_loadout.ensure_loadout`) pass it (reviewer issue 12's twin
+  shut at the one choke point).
+
+**Duplication hotspots:**
+
+1. **The two projectile seams drifting** — two line-walk
+   implementations would price the two sides' shots differently; ONE
+   absorption helper in `_ancients`, both seams call it.
+2. **Stare zone damage vs `_ground_blast` splash shares** — different
+   laws (no to-hit roll, graded core/ring, full soak vs the blast's
+   50% shares); they share the `_ground_damage_raw` call, never the
+   enumeration.
+3. **The drift step vs `_reposition_step`** — parameterize the band
+   filter (min/max optional) rather than a second pool builder.
+4. **The eruption kill tail vs `on_kill`** — shares `spawn_kill_drops`
+   only; the XP/counter tail is the player-kill path and must not be
+   called for stare victims.
+
+**DRY strategy:** all new machinery (stare state + eruption, field
+state + absorption + regen, shriek preamble helpers, mend) lives in
+ONE new `combat/_ancients.py`; mechanics dials are DATA (one frozen
+profile field + `fixed_band` on NpcCharSpec, owner-declared at
+`data/npc_chars/__init__.py`); both overlays paint through one
+world_render pass reading GameMap state.
+
+**Ratchet (counts at build start):** `_ai_ground.py` 647,
+`_rules_ground.py` 955, `_loop.py` 821, `world.py` 787 — every touch
+pays line-neutral or extracts beside its subject (the build-1
+`_stamp_enemy_loadout` precedent); the machinery lives in
+`_ancients.py` + fresh data modules.
+
 ## Pre-implementation audit — phase 2 (2026-09-22)
 
 **Structural reading (resolves the brief's "five factions" phrasing):**
