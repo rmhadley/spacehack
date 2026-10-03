@@ -701,12 +701,50 @@ def test_spawn_dev_enemy_faces_places_all_three():
     )
     assert placed == 3
     assert faces == ["militia_marine", "militia_sniper", "pirate_brute"]
+    # placement: the phase-4 grant rode the same offset bug — pinned
+    for e in game_map.entities:
+        if e.npc_char_id:
+            assert game_map.in_bounds(e.pos.x, e.pos.y)
+            assert max(abs(e.pos.x - 6), abs(e.pos.y - 6)) <= 2
     bands = {e.npc_char_id: e.spawn_band for e in game_map.entities if e.npc_char_id}
     assert bands["militia_sniper"] == 4
     assert bands["pirate_brute"] == 3
     bold = {e.npc_char_id: e.bold for e in game_map.entities if e.npc_char_id}
     assert bold["militia_sniper"] and bold["pirate_brute"]
     assert not bold["militia_marine"]
+
+
+def test_spawn_dev_ancient_trio_places_all_three():
+    """Shift+A places the whole trio — disjoint cells per machine, all
+    at the authored band 4 (fixed_band would pin it anyway), the
+    Warden bold (doc 48.9: every checkpoint item without a descent)."""
+    from types import SimpleNamespace
+
+    from src.spacehack import dev_mode, world
+
+    tiles = [[world.DUNGEON_FLOOR for _ in range(16)] for _ in range(16)]
+    game_map = world.GameMap(16, 16, tiles, [])
+    player = world.Entity("@", (255, 255, 255), world.Position(8, 8), "P")
+    game_map.entities.append(player)
+    ctx = SimpleNamespace(log=SimpleNamespace(add=lambda _m: None))
+
+    placed = dev_mode.spawn_dev_ancient_trio(ctx, game_map, player.pos)
+
+    machines = sorted(
+        e.npc_char_id for e in game_map.entities if e.npc_char_id
+    )
+    assert placed == 3
+    assert machines == ["shredder", "warden", "watcher"]
+    assert all(e.spawn_band == 4 for e in game_map.entities if e.npc_char_id)
+    bold = {e.npc_char_id: e.bold for e in game_map.entities if e.npc_char_id}
+    assert bold["warden"] and not bold["watcher"] and not bold["shredder"]
+    # PLACEMENT (the p9 review's execution catch): every machine lands
+    # in bounds beside the player — the offset/absolute mismatch once
+    # spawned the grants off-map while this suite stayed green.
+    for e in game_map.entities:
+        if e.npc_char_id:
+            assert game_map.in_bounds(e.pos.x, e.pos.y)
+            assert max(abs(e.pos.x - 8), abs(e.pos.y - 8)) <= 2
 
 
 def test_spawn_dev_consumable_carriers_pre_stamps():

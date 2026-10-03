@@ -308,3 +308,49 @@ def test_warden_events_wake_silent():
             if e.enemy_id == "warden"
         ]
         assert warden_events and all(e.silent for e in warden_events)
+
+
+def test_probe_extension_cells_pinned():
+    """The probe's generated-floor placement (doc 48 p9): the
+    walkable-graph band pick — path-distance band from the spawn,
+    spread >= 3 apart, never on an occupant, capped at the sight
+    radius (the harness disengages what it cannot see)."""
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "balance_probe",
+        Path(__file__).resolve().parents[1] / "tools" / "balance_probe.py",
+    )
+    import sys as _sys
+
+    probe = importlib.util.module_from_spec(spec)
+    _sys.modules["balance_probe"] = probe  # dataclass resolution needs it
+    spec.loader.exec_module(probe)
+
+    tile = world.Tile("floor", ".", True, (200, 210, 220), (10, 20, 30))
+    wall = world.Tile("wall", "#", False, (1, 1, 1), (0, 0, 0))
+    game_map = world.GameMap(
+        width=20, height=20,
+        tiles=[[tile for _ in range(20)] for _ in range(20)],
+        entities=[], sight_radius=8,
+    )
+    # a wall ring at Chebyshev 5-6 around the spawn: picks must route
+    # through the one gap at (10, 5) — path distance, not Chebyshev
+    for y in range(4, 13):
+        for x in range(4, 17):
+            if max(abs(x - 10), abs(y - 10)) in (5, 6) and (x, y) != (10, 5):
+                if game_map.in_bounds(x, y):
+                    game_map.tiles[y][x] = wall
+    game_map.entities.append(world.Entity(
+        "X", (1, 1, 1), world.Position(14, 14),
+    ))
+    cells = probe._extension_cells(
+        game_map, world.Position(10, 10), 3,
+    )
+    assert len(cells) == 3
+    assert all(game_map.tiles[y][x].walkable for x, y in cells)
+    assert all((x, y) != (14, 14) for x, y in cells)
+    for i, a in enumerate(cells):
+        for b in cells[i + 1:]:
+            assert max(abs(a[0] - b[0]), abs(a[1] - b[1])) >= 3

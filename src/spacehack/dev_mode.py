@@ -598,9 +598,13 @@ async def dump_ground_weapon_sets(state) -> None:
 
 
 def _adjacent_cells(game_map, player_pos, count: int) -> list:
-    """The first ``count`` walkable cells beside the player (dev grants)."""
+    """The first ``count`` walkable cells beside the player, as
+    ABSOLUTE coordinates (``_scatter_squad`` places on absolutes —
+    the offset/absolute mismatch spawned both grant families out of
+    bounds until the p9 review executed it; the phase-4 grant rode
+    the same bug)."""
     return [
-        (dx, dy)
+        (player_pos.x + dx, player_pos.y + dy)
         for dy in range(-2, 3)
         for dx in range(-2, 3)
         if (dx or dy)
@@ -638,6 +642,34 @@ def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
             band=band, bold=spec.elite,
         )
     ctx.log.add(f"[DEV] Spawned {placed} phase-4 faces.")
+    return placed
+
+
+def spawn_dev_ancient_trio(ctx, game_map, player_pos) -> int:
+    """Shift+A: spawn the ancient trio beside the player (doc 48 p9).
+
+    Every machines checkpoint item (shriek, stare, drift, mend,
+    field, slam, shot) runs without a descent — the Watcher needs
+    breathing room for its drift, so the cells span a wider ring
+    than the phase-4 grant; disjoint per-face slices as ever.
+    """
+    from .dungeon_population import _scatter_squad
+    from .data.npc_chars import find_npc_char
+
+    cells = _adjacent_cells(game_map, player_pos, 24)
+    faces = ("watcher", "shredder", "warden")
+    placed = 0
+    for index, spec_id in enumerate(faces):
+        spec = find_npc_char(spec_id)
+        placed += _scatter_squad(
+            game_map.entities,
+            {(e.pos.x, e.pos.y) for e in game_map.entities},
+            enemy_id=spec_id, cells=cells[index * 4:index * 4 + 4],
+            count=1,
+            squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
+            band=4, bold=spec.elite,
+        )
+    ctx.log.add(f"[DEV] Spawned {placed} ancient machines.")
     return placed
 
 

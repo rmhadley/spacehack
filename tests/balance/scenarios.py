@@ -117,6 +117,12 @@ class GridSpec:
     system_id: str = ""
     planet_id: str = ""
     grid_seed: int = 0
+    # The extension path (doc 48 p9): generate a themed extension
+    # floor through the LIVE pipeline (``_generate_floor``) — the
+    # dims/seed are the floor spec's own, not asserted here; the
+    # generated map's entry spawn replaces the declared start.
+    extension_id: str = ""
+    extension_floor: int = 0
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,7 @@ Shift-key dev table and its handlers live here; game_loop re-imports
 module; nothing here may import game_loop.
 """
 from __future__ import annotations
-from .input_helpers import _is_shift_x_press, _is_shift_t_press, _is_shift_s_press, _is_shift_r_press, _is_shift_d_press, _is_shift_l_press, _is_shift_g_press, _is_shift_k_press, _is_shift_j_press, _is_shift_b_press, _is_shift_n_press, _is_shift_m_press, _is_shift_y_press, _is_shift_v_press, _is_shift_p_press, _is_shift_c_press, _is_shift_w_press
+from .input_helpers import _is_shift_x_press, _is_shift_t_press, _is_shift_s_press, _is_shift_r_press, _is_shift_d_press, _is_shift_l_press, _is_shift_g_press, _is_shift_k_press, _is_shift_j_press, _is_shift_b_press, _is_shift_n_press, _is_shift_m_press, _is_shift_y_press, _is_shift_v_press, _is_shift_p_press, _is_shift_c_press, _is_shift_w_press, _is_shift_a_press
 from .dev_mode import dump_ground_weapon_sets
 from .xp import add_xp as _add_xp
 
@@ -143,6 +143,15 @@ async def _dev_spawn_consumable_carriers(state):
         )
 
 
+async def _dev_spawn_ancient_trio(state):
+    """Shift+A: spawn the ancient trio beside the player (doc 48.9)."""
+    from .dev_mode import spawn_dev_ancient_trio
+    if state.current_mode == 'dungeon':
+        spawn_dev_ancient_trio(
+            state.ctx, state.game_map, state.player.pos,
+        )
+
+
 # Table-driven dispatch (knowledge.md guardrail): matcher -> action.
 # Every action runs SPACEHACK_DEV-gated; mode guards live in the action.
 _DEV_SHIFT_KEYS = (
@@ -162,6 +171,7 @@ _DEV_SHIFT_KEYS = (
     (_is_shift_v_press, _dev_spawn_enemy_faces),
     (_is_shift_p_press, _dev_spawn_pirate_ship),
     (_is_shift_c_press, _dev_spawn_consumable_carriers),
+    (_is_shift_a_press, _dev_spawn_ancient_trio),
     (_is_shift_w_press, dump_ground_weapon_sets),
 )
 

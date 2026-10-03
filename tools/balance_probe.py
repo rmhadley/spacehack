@@ -95,6 +95,29 @@ _RING_10 = (
     (16, 16), (20, 18), (24, 16), (23, 12), (17, 12),
 )
 
+# The machines' geometry (doc 48 p9): the brief's "corridor-geometry
+# rows — the Shredder's lane and the Warden's corridor are the real
+# weapons — the arena is open floor". A 1-wide lane (rows 4-12) for
+# the Shredder's approach; a 5-wide hall the Warden's radius-2 shell
+# spans exactly. Enemies sit INSIDE the reveal radius — the harness
+# disengages a fight it cannot see.
+_LANE = GridSpec(
+    width=41, height=25,
+    blocks=((0, 4, 20, 9), (21, 4, 20, 9)),
+)
+_HALL = GridSpec(
+    width=41, height=25,
+    blocks=((0, 0, 18, 25), (23, 0, 18, 25)),
+)
+
+# The real F4 descent floor (doc 48 p9): the LIVE extension pipeline
+# under the row's per-run seed — geometry, panels, and the deep-cell
+# block the fight happens among.
+_PRISON_F4 = GridSpec(
+    width=52, height=42, extension_id="mars_alien_prison",
+    extension_floor=4,
+)
+
 GROUND_ROWS: tuple[ProbeRow, ...] = (
     ProbeRow(
         id="g_mars_pinned",
@@ -168,6 +191,52 @@ GROUND_ROWS: tuple[ProbeRow, ...] = (
         band=4,
         grid=_ARENA,
         start=(20, 12),
+        stance="toggle_sets",
+    ),
+    # --- the ancient machines (doc 48 phase 9): the authored bars
+    # measured against the two reference sheets ---
+    ProbeRow(
+        id="g_m_watchers",
+        theater="ground",
+        label="2x watcher band 4 (open arena — drift + stare)",
+        enemy_ids=("watcher", "watcher"),
+        enemy_cells=((20, 6), (26, 12)),
+        band=4,
+        grid=_ARENA,
+        start=(20, 12),
+        stance="toggle_sets",
+    ),
+    ProbeRow(
+        id="g_m_shredder_lane",
+        theater="ground",
+        label="2x shredder band 4 (the 1-wide lane — its real weapon)",
+        enemy_ids=("shredder", "shredder"),
+        enemy_cells=((20, 13), (20, 11)),
+        band=4,
+        grid=_LANE,
+        start=(20, 18),
+        stance="toggle_sets",
+    ),
+    ProbeRow(
+        id="g_m_warden_hall",
+        theater="ground",
+        label="1x warden band 4 (the 5-wide hall — field + shot)",
+        enemy_ids=("warden",),
+        enemy_cells=((20, 12),),
+        band=4,
+        grid=_HALL,
+        start=(20, 18),
+        stance="toggle_sets",
+    ),
+    ProbeRow(
+        id="g_m_prison_f4",
+        theater="ground",
+        label="2x shredder + 1x warden on the LIVE F4 floor (the authored mix)",
+        enemy_ids=("shredder", "shredder", "warden"),
+        enemy_cells=((20, 8), (24, 8), (20, 4)),
+        band=4,
+        grid=_PRISON_F4,
+        start=(20, 20),
         stance="toggle_sets",
     ),
 )
@@ -273,20 +342,112 @@ def _sheet_summary(ctx) -> str:
     )
 
 
+def _build_extension_grid(grid, seed: int) -> tuple:
+    """The LIVE extension pipeline under the run's seed (doc 48 p9):
+    a fresh floor per run — the corridor/room mix the fight happens
+    among averages over the generator, which is the point of the
+    extension rows. Returns (map, entry_spawn). The caller's snapshot
+    (``_probe_run_once``) owns the RNG teardown."""
+    from src.spacehack import engine
+    from src.spacehack.dungeon_extensions import _generate_floor
+
+    engine.seed_rng(grid.grid_seed ^ seed)
+    game_map, spawn = _generate_floor(grid.extension_id, grid.extension_floor)
+    # The isolated-fight doctrine (build_planet_grid's own: "SKIP
+    # populate... SETTLED 4's isolated fight" — the p9 review catch):
+    # the live pipeline scatters the floor's pool alongside the
+    # seeded trio; purge the awake scatter so the row measures the
+    # authored mix, not a per-seed mob.
+    game_map.entities = [
+        e for e in game_map.entities
+        if not (
+            getattr(e, "npc_char_id", "")
+            and not getattr(e, "powered_down", False)
+        )
+    ]
+    return game_map, spawn
+
+
+def _extension_cells(game_map, spawn, count: int, min_d=6, max_d=None):
+    """Free walkable cells for ``count`` machines, spread through a
+    distance band from the entry spawn — the generated geometry picks
+    the fight's shape, not fixed coordinates. The BFS walks the
+    WALKABLE graph (path distance, always reachable) and the band
+    caps at the map's sight radius — the harness disengages a fight
+    it cannot see. A strict pass (spread >= 3) runs first; a cramped
+    floor relaxes the spread rather than starving the row."""
+    from collections import deque
+
+    _cap = max_d if max_d is not None else game_map.sight_radius
+    walkable_order = _bfs_walkable(game_map, spawn)
+    occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    for spread in (3, 1):
+        picked: list[tuple[int, int]] = []
+        for cell, d in walkable_order:
+            if len(picked) == count:
+                break
+            if (
+                min_d < d <= _cap
+                and cell not in occupied
+                and all(
+                    max(abs(cell[0] - px), abs(cell[1] - py)) >= spread
+                    for px, py in picked
+                )
+            ):
+                picked.append(cell)
+        if len(picked) == count:
+            return picked
+    return picked
+
+
+def _bfs_walkable(game_map, spawn) -> list:
+    """Every walkable cell in BFS order from ``spawn`` as
+    ``((x, y), path_distance)`` — reachable by construction."""
+    from collections import deque
+
+    seen = {(spawn.x, spawn.y)}
+    order = []
+    queue = deque([(spawn.x, spawn.y, 0)])
+    while queue:
+        x, y, d = queue.popleft()
+        for dx, dy in (
+            (0, -1), (1, -1), (1, 0), (1, 1),
+            (0, 1), (-1, 1), (-1, 0), (-1, -1),
+        ):
+            nx, ny = x + dx, y + dy
+            if (nx, ny) in seen or not game_map.in_bounds(nx, ny):
+                continue
+            seen.add((nx, ny))
+            if not game_map.tiles[ny][nx].walkable:
+                continue  # walls are never path or pick
+            queue.append((nx, ny, d + 1))
+            order.append(((nx, ny), d + 1))
+    return order
+
+
 async def _begin_ground(pristine, row: ProbeRow, seed: int):
     """One ground fight on a save-sourced ctx (harness mirror)."""
+    start = row.start
+    enemy_cells = row.enemy_cells
     if row.grid.planet_id:
         game_map, _spawn = await build_planet_grid(row.grid)
+    elif row.grid.extension_id:
+        game_map, spawn = _build_extension_grid(row.grid, seed)
+        start = (spawn.x, spawn.y)
+        enemy_cells = _extension_cells(game_map, spawn, len(row.enemy_ids))
+        assert len(enemy_cells) == len(row.enemy_ids), (
+            f"{row.id}: the generated floor yielded too few cells"
+        )
     else:
         game_map = build_ground_grid(row.grid)
     ctx = copy.deepcopy(pristine)
     ctx.context = _fake_pygame_context()  # combat presents absorb
     ctx.game_map = game_map
-    ctx.player.pos = world.Position(*row.start)
+    ctx.player.pos = world.Position(*start)
     game_map.entities.append(ctx.player)
     enemies = tuple(
         EnemySide(spec_id=sid, pos=pos, band=row.band)
-        for sid, pos in zip(row.enemy_ids, row.enemy_cells)
+        for sid, pos in zip(row.enemy_ids, enemy_cells)
     )
     entities = _seed_ground_enemies(game_map, enemies)
     init_fog(game_map)

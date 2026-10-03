@@ -529,6 +529,16 @@ def _is_shift_c_press(event: pygame_engine.PygameInputEvent) -> bool:
     return _is_shift_press(event, 'C')
 
 
+def _is_shift_a_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+A.
+
+    Dev-mode only (``SPACEHACK_DEV``): spawns the ancient trio
+    beside the player (doc 48 phase 9) — every machines checkpoint
+    item runs without a descent.
+    """
+    return _is_shift_press(event, 'A')
+
+
 def _is_shift_w_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+W.
 
