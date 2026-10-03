@@ -2129,8 +2129,9 @@ with doctrinal 10-13):
   until built. SETTLED 44 (2026-10-03): the Warden shot is a
   normal volley weapon (no telegraph/lane/charge, `ap_cost` 3);
   the machines' brief (builds 2+) sits after the BUILD 1 landing
-  record — PROPOSED v2, reviewer ADVISE pass folded (14 issues /
-  6 blocking).
+  record — APPROVED 2026-10-03 (glyphs O/S/bold-W, SETTLED 45;
+  the flagged leans ruled with the approval; reviewer ADVISE pass
+  folded 14/6).
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its
@@ -2656,6 +2657,37 @@ Rulings:
   firing round leaves nothing for movement).
 - Armor-pierce and fires-through-its-own-field STAND (SETTLED 42).
 
+## SETTLED 45 (2026-10-03) — the ancient glyphs: O / S / W; brief approved
+
+User, verbatim (on the proposal Watcher `o` / Shredder `S` / Warden
+`W`):
+
+> uppercase O works. approved brief
+
+Rulings:
+
+- **The ancient glyphs are Watcher `O`, Shredder `S`, Warden bold
+  `W`** — three DISTINCT letters, each machine its own silhouette.
+  Lowercase `o` was rejected mid-ruling for colliding with
+  `prison_panel_normal`'s cyan `o` tile (`world.py:137`) on the
+  machines' own panel-heavy floors. Cross-context shares (the sun
+  `O`, Saturn `S`) are the tolerated space-map class (the
+  dust_prowler-`p` precedent) — a ground face never co-renders
+  with the space map. All three free in both live registries;
+  `W` was the retired warlord boss glyph, unclaimed since phase 3.
+- **The ancient family unifies by COLOR, not letter — amends
+  SETTLED 34's one-letter+case convention for this family:** three
+  utterly different machines read as three shapes in one cold
+  violet (170,140,250, approved with the brief); the
+  family-conformance lint expects the distinct-letter form for the
+  ancients. Bold stays the Warden's unique callout — emphasis now,
+  not disambiguation.
+- **The brief's approval carries its three flagged leans as
+  ruled:** the combat-scoped stare (pending zones fade on
+  disengage and on the Watcher's death), the rock_scavenger →
+  hull_parasite-only prison pools, and the three drafted lines
+  (shriek / shimmer-absorb / shimmer-break) as written.
+
 ## Pre-implementation audit — phase 9 (2026-10-02)
 
 **Reuse (verified):**
@@ -2972,12 +3004,13 @@ path for the mars_alien_prison extension floors is still pending —
 the machines' build re-runs THIS battery plus the extension rows.
 
 ### Phase 9 Implementation brief — BUILD 2+: the ancient machines
-### (PROPOSED v2 2026-10-03 — SETTLED 29-as-amended + 41/42/43/44;
+### (APPROVED 2026-10-03 — SETTLED 29-as-amended + 41/42/43/44/45;
 ### authored against the post-loop battery; reviewer ADVISE pass
 ### folded first: 14 issues / 6 blocking — the weaponless path's
 ### four gate sites, dial-on-drift, the stare's combat scoping,
 ### armor_bypass reuse, the eruption kill tail, the re-pin's test
-### blast radius)
+### blast radius; glyphs O/S/bold-W + the flagged leans ruled with
+### the approval)
 
 **Scope (files / hook points):**
 
@@ -3137,15 +3170,17 @@ the machines' build re-runs THIS battery plus the extension rows.
   registered; they load as contemporary drones) — the "no drone
   id" pin scopes to GENERATION data, never live saves.
 - **Identity** (`CHAR_CLASS_FAMILIES` + `tests/test_enemy_identity.py`
-  + registry docstrings): the ancient family — letter **`a`**, ONE
-  cold constructed color (lean violet (170,140,250); the
-  separation lint verifies — the tuple is a playtest dial);
-  **Watcher `a`, Shredder `A`, Warden bold `A`** (SETTLED 34's
-  named next wearers). Cross-registry pin re-derived (no space-map
-  `a` today — verified; a stationary guild NPC already chars `A`
-  on station maps, `data/npcs/guilds.py:164` — not hostile-capable,
-  outside the lint's scope, noted so the build chases no false
-  positive). Fauna untouched (not families).
+  + registry docstrings): the ancient family — **three DISTINCT
+  letters, ONE cold constructed color, violet (170,140,250)
+  (SETTLED 45)**: **Watcher `O`, Shredder `S`, Warden bold `W`**.
+  The family unifies by COLOR, not letter — each machine is its
+  own silhouette; the family-conformance lint expects the
+  ancients' distinct-letter form (SETTLED 34's one-letter+case
+  convention amended for this family). All three free in both live
+  registries; the cross-context shares (sun `O`, Saturn `S`) are
+  the tolerated space-map class, never co-rendered; lowercase `o`
+  is REJECTED — `prison_panel_normal`'s cyan `o` tile collides on
+  the machines' own floors. Fauna untouched (not families).
 - **The battery + instruments** (final build): the probe gains the
   mars_alien_prison grid path (extension floors;
   `build_planet_grid` is planet-specs-only today) +
@@ -3270,7 +3305,7 @@ GameMap fields declare at world.py (cohesion).
    6 AP; three claw strikes in a full round; wounds mend at its
    turn start (the line once per fight) and PERSIST between
    fights — flee, return, still wounded.
-5. Warden (bold `A`): your shots vanish into the shimmer; carve a
+5. Warden (bold `W`): your shots vanish into the shimmer; carve a
    tile and shoot the body through the hole the SAME turn; next
    round the hole is closed.
 6. Enter the field and swing: the slam throws you back out through
