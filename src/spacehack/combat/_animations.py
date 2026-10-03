@@ -515,27 +515,38 @@ def _draw_range_colored_line(
     hard_floor: bool = False,
 ) -> None:
     """Draw a range-accuracy line from player to target, colored by
-    distance and the weapon's range profile; ``color_override`` forces one
-    color for every cell. ``distance_round`` normalizes each cell's
-    raw Euclidean distance to the domain's resolution math (ground
-    passes ``int`` — its fire gate truncates; space keeps the raw
-    float — its penalty band starts strictly beyond ``max_range``).
-    ``hard_floor`` (doc 57) paints the min band in the missile
-    refusal color."""
+    distance and the weapon's range profile; ``color_override`` forces
+    one color per cell. ``distance_round`` normalizes each cell's raw
+    Euclidean distance to the domain's resolution math (ground passes
+    ``int`` — its fire gate truncates; space keeps the raw float).
+    ``hard_floor`` (doc 57) paints the min band in the refusal color."""
+    _shared = dict(
+        color_override=color_override, game_map=game_map,
+        distance_round=distance_round, hard_floor=hard_floor,
+    )
     for bx, by in _bresenham_line(
         player_pos.x, player_pos.y,
         target_pos.x, target_pos.y,
     ):
+        if _shimmer_blocks_line(game_map, bx, by, player_pos):
+            break
         _paint_range_cell(
-            console, bx, by,
-            player_pos, target_pos,
+            console, bx, by, player_pos, target_pos,
             weapon_max_range, weapon_min_range,
             cam_x, cam_y, view_w, view_h, region_x, region_y,
-            color_override=color_override,
-            game_map=game_map,
-            distance_round=distance_round,
-            hard_floor=hard_floor,
+            **_shared,
         )
+
+
+def _shimmer_blocks_line(game_map, bx: int, by: int, player_pos) -> bool:
+    """Whether the aim line stops here: a LIVE field tile eats the
+    line like it eats the shot (the p9 playtest catch: the line
+    overwrote the field's cells, hiding the barrier it explains).
+    The shooter's own cell is exempt — ``absorb_shot`` never absorbs
+    at the endpoints."""
+    if game_map is None or (bx, by) == (player_pos.x, player_pos.y):
+        return False
+    return (game_map.field_tiles or {}).get((bx, by), 0) > 0
 
 
 def _paint_range_cell(
