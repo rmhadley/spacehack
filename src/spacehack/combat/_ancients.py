@@ -28,6 +28,12 @@ from ..dungeon_fov import cell_in_sight
 # the explosive column's neighborhood, at the fixed cell.
 ERUPTION_NOISE_RADIUS: int = 10
 
+# The player-facing absorb line (SETTLED 45's approved draft, pinned
+# verbatim in ONE place — the reword pass at the PROSE checkpoint
+# must never miss a copy; the break line lives once in
+# :func:`damage_field_tile`).
+ABSORB_LINE: str = "The shimmer swallows your shot."
+
 
 def _mechanics(spec):
     """The row's mechanic dials, or ``None`` for ordinary rows."""
@@ -37,9 +43,11 @@ def _mechanics(spec):
 def enemy_turn_start(state, ctx, gei, game_map) -> None:
     """The ancients' per-enemy turn preamble, called at the start of
     each engaged enemy's turn from ``_spend_one_enemy_turn``. The
-    Shredder mends; the Watcher shrieks and fixes its stare."""
+    Shredder mends; the Watcher shrieks and fixes its stare; the
+    Warden re-derives its shell and regenerates it."""
     mend_turn_start(state, ctx, gei)
     gei.ap -= watcher_turn_start(state, ctx, gei, game_map)
+    warden_turn_start(gei, game_map)
 
 
 def mend_turn_start(state, ctx, gei) -> None:
@@ -269,13 +277,17 @@ def _stare_victim_damage(ctx, game_map, gei, pre: int) -> int:
 
 def _eruption_kill(game_map, gei, ctx) -> None:
     """The eruption's death tail: remove the body, land its OWN
-    drops; the player did not attack it — no XP, no rep, no counter."""
+    drops, and drop its field if it was the last Warden (the
+    player-kill path's twin — a Warden killed by a stare must not
+    leave an ownerless shimmer); the player did not attack it — no
+    XP, no rep, no counter."""
     from ._actions import spawn_kill_drops
 
     _ent = gei.entity
     if _ent is not None and _ent in game_map.entities:
         game_map.entities.remove(_ent)
     if _ent is not None and gei.spec:
+        maybe_drop_field(game_map, gei.spec)
         spawn_kill_drops(
             game_map, _ent.pos, gei.spec, ctx,
             loadout=getattr(_ent, "rolled_loadout", None),
@@ -308,3 +320,154 @@ def _cell_victims(state, ctx, game_map, cell) -> list:
             if _inst is not None:
                 _victims.append((_inst, False))
     return _victims
+
+
+# ---------------------------------------------------------------------------
+# The Warden — the force field (doc 48 SETTLED 42)
+# ---------------------------------------------------------------------------
+
+# The shell's geometry: a radius-2 Chebyshev ring, one tile thick,
+# empty interior (movement is 8-dir; Chebyshev fits the grid).
+_FIELD_RADIUS: int = 2
+
+
+def carries_field(spec) -> bool:
+    """Whether the spec projects a force field (the Warden)."""
+    _m = _mechanics(spec)
+    return _m is not None and _m.field_tile_hp > 0
+
+
+def shell_cells(game_map, pos) -> tuple[tuple[int, int], ...]:
+    """The field's shell cells around ``pos``: in-bounds WALKABLE cells
+    at exactly Chebyshev radius 2 — a wall needs no field."""
+    _cells = []
+    for _dy in range(-_FIELD_RADIUS, _FIELD_RADIUS + 1):
+        for _dx in range(-_FIELD_RADIUS, _FIELD_RADIUS + 1):
+            if max(abs(_dx), abs(_dy)) != _FIELD_RADIUS:
+                continue
+            _x, _y = pos.x + _dx, pos.y + _dy
+            if game_map.in_bounds(_x, _y) and game_map.is_walkable(_x, _y):
+                _cells.append((_x, _y))
+    return tuple(_cells)
+
+
+def ensure_field(game_map, spec, pos) -> None:
+    """Stand the shell up at FULL tile HP (the combat-entry read: the
+    Warden wakes with its shield up; first build only — the
+    turn-start re-derive owns movement and regrowth)."""
+    _m = _mechanics(spec)
+    if _m is None or _m.field_tile_hp <= 0:
+        return
+    if game_map.field_tiles is None:
+        game_map.field_tiles = {}
+    for _cell in shell_cells(game_map, pos):
+        if _cell not in game_map.field_tiles:
+            game_map.field_tiles[_cell] = _m.field_tile_hp
+
+
+def warden_turn_start(gei, game_map) -> None:
+    """The Warden's turn preamble (doc 48 SETTLED 42): the shell
+    re-derives from its CURRENT position (in combat — this call site
+    is the combat turn path), regenerating ``field_regen`` per tile
+    up to full. A fresh tile (the Warden moved, or a destroyed one)
+    regrows from 0 — a carved hole lives exactly one player volley
+    round. Cells only the acting Warden's OLD shell covered drop
+    out; a stationary SIBLING Warden's shell is preserved untouched.
+    A sibling that has MOVED since its own turn start loses its
+    stale-ring cells here — position-keyed state (SETTLED 42),
+    self-healing at its next turn start (fresh cells regrow). The
+    body never mends — the field is its sustain; self-repair belongs
+    to the Shredder alone."""
+    _m = _mechanics(gei.spec)
+    if _m is None or _m.field_tile_hp <= 0 or not gei.alive:
+        return
+    _current = game_map.field_tiles or {}
+    _new = _preserve_sibling_shells(game_map, gei, _current)
+    for _cell in shell_cells(game_map, gei.entity.pos):
+        _new[_cell] = min(
+            _m.field_tile_hp,
+            _current.get(_cell, 0) + _m.field_regen,
+        )
+    game_map.field_tiles = _new
+
+
+def _preserve_sibling_shells(game_map, gei, current) -> dict:
+    """Copy every cell a sibling Warden's shell still covers — the
+    acting Warden's re-derive owns only its own cells."""
+    _sibling_cells: set = set()
+    for _ent in game_map.entities:
+        if _ent is gei.entity or getattr(_ent, "powered_down", False):
+            continue
+        if getattr(_ent, "npc_char_id", "") == gei.spec.id:
+            _sibling_cells.update(shell_cells(game_map, _ent.pos))
+    return {
+        _cell: _hp for _cell, _hp in current.items()
+        if _cell in _sibling_cells
+    }
+
+
+def maybe_drop_field(game_map, spec) -> None:
+    """A Warden's death drops its field — unless another Warden still
+    stands on the map (a merged shell belongs to the survivor). Dead
+    bodies are already removed by the caller's scan order; a dormant
+    Warden projects nothing."""
+    if not carries_field(spec):
+        return
+    for _ent in game_map.entities:
+        if getattr(_ent, "powered_down", False):
+            continue
+        if getattr(_ent, "npc_char_id", "") == spec.id:
+            return  # a sibling Warden keeps the shimmer up
+    game_map.field_tiles = None
+
+
+def absorb_shot(
+    game_map, from_pos, to_pos, *,
+    shooter_carries_field: bool,
+) -> tuple[int, int] | None:
+    """The ONE projectile-absorption read both seams call (doc 48
+    SETTLED 42): the first shell tile with HP > 0 on the
+    shooter→target line — the SAME Bresenham walk the beam animation
+    paints, so what the player SEES cross the shimmer is what blocks.
+    Endpoints excluded (a body ON a shell tile is ON the barrier; the
+    Warden's own interior cell is never a tile). A field-carrying
+    shooter passes its own fire. Returns the absorbing cell or None."""
+    if shooter_carries_field or not game_map.field_tiles:
+        return None
+    from ._animations import _bresenham_line
+
+    _sx, _sy = from_pos.x, from_pos.y
+    for _x, _y in _bresenham_line(_sx, _sy, to_pos.x, to_pos.y):
+        if (_x, _y) == (_sx, _sy) or (_x, _y) == (to_pos.x, to_pos.y):
+            continue  # endpoints never absorb
+        if (game_map.field_tiles.get((_x, _y), 0) or 0) > 0:
+            return (_x, _y)
+    return None
+
+
+def projectile_damage(weapon_id: str, quality: int = 0) -> int:
+    """The pure hit damage a projectile carries into whatever stops
+    it (quality-scaled — the same scaling ``ground_damage_raw``
+    applies; no armor: a field tile has none, and the strength melee
+    bonus never rides a projectile)."""
+    from ..data.quality import effective_weapon_spec
+
+    return max(1, effective_weapon_spec(weapon_id, quality).damage)
+
+
+def damage_field_tile(ctx, game_map, cell, damage: int) -> bool:
+    """One tile pays the shot: BINARY blocking means any HP > 0
+    absorbs the FULL shot (overflow lost); the tile breaks at 0 and
+    the approved break line fires. Returns whether the tile broke."""
+    _tiles = game_map.field_tiles
+    if not _tiles or cell not in _tiles:
+        return False
+    _hp = _tiles[cell] - max(1, damage)
+    if _hp > 0:
+        _tiles[cell] = _hp
+        return False
+    del _tiles[cell]  # destroyed — open ground until it regrows
+    ctx.log.add_colored(
+        "A section of the shimmer breaks apart.", _ml.COLOR_ENEMY_ACTION,
+    )
+    return True

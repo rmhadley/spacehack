@@ -176,6 +176,7 @@ def _watcher_gei(game_map, pos=(3, 3)):
     entity = world.Entity(
         "O", (170, 140, 250), world.Position(*pos), npc_char_id="watcher",
     )
+    game_map.entities.append(entity)  # on the map: victim scans see it
     return _rules_ground._build_enemy_instance(entity, game_map)
 
 
@@ -621,6 +622,341 @@ def test_eruption_noise_is_deduped_per_zone_cell(monkeypatch):
     calls.clear()  # the shrieks already emitted; watch the eruption beat
     _ancients.resolve_stare_eruptions(state, ctx, game_map)
     assert calls == [(4, 4, _ancients.ERUPTION_NOISE_RADIUS)]
+
+
+# --- the Warden: the force field (SETTLED 42) --------------------------------
+
+
+def _warden_gei(game_map, pos=(4, 4)):
+    from src.spacehack.combat import _rules_ground
+
+    entity = world.Entity(
+        "W", (170, 140, 250), world.Position(*pos), npc_char_id="warden",
+        bold=True,
+    )
+    game_map.entities.append(entity)  # on the map: sibling/victim scans see it
+    return _rules_ground._build_enemy_instance(entity, game_map)
+
+
+class TestFieldShell:
+    def test_shell_is_a_radius2_ring_walkable_only(self):
+        game_map = _floor_map(12, 12)
+        # a wall inside the ring's band: no field tile there
+        game_map.tiles[4][6] = world.Tile(
+            "wall", "#", False, (1, 1, 1), (0, 0, 0),
+        )
+        cells = _ancients.shell_cells(game_map, world.Position(6, 6))
+        assert (4, 4) in cells and (8, 8) in cells   # radius-2 ring
+        assert (6, 6) not in cells                   # empty interior
+        assert (5, 5) not in cells and (7, 7) not in cells  # radius 1 open
+        assert (6, 4) not in cells                   # the wall hosts no tile
+        assert all(max(abs(x - 6), abs(y - 6)) == 2 for x, y in cells)
+
+    def test_combat_entry_stands_the_field_up_full(self):
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        assert gei is not None
+        tiles = game_map.field_tiles
+        assert tiles and set(tiles) == set(
+            _ancients.shell_cells(game_map, world.Position(6, 6))
+        )
+        assert all(hp == 30 for hp in tiles.values())
+
+    def test_turn_start_regens_capped_and_regrows_carved_holes(self):
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        # carve a hole: destroy one tile outright
+        carved = (6, 4)
+        del game_map.field_tiles[carved]
+        # a damaged tile regens +10 to the cap
+        game_map.field_tiles[(4, 4)] = 25
+        _ancients.warden_turn_start(gei, game_map)
+        assert game_map.field_tiles[carved] == 10  # regrown from 0
+        assert game_map.field_tiles[(4, 4)] == 30  # capped at full
+
+    def test_moved_warden_drops_old_cells(self):
+        game_map = _floor_map(14, 14)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        gei.entity.pos = world.Position(9, 9)
+        _ancients.warden_turn_start(gei, game_map)
+        cells = set(game_map.field_tiles)
+        assert (6, 4) not in cells        # the old shell is gone
+        assert (9, 9 + 2) in cells        # the new shell stands (post-regen)
+        assert all(max(abs(x - 9), abs(y - 9)) == 2 for x, y in cells)
+
+    def test_sibling_wardens_shells_survive_each_others_turns(self):
+        """Plural Wardens are authored (the review catch): one
+        Warden's re-derive must never drop a sibling's shell."""
+        game_map = _floor_map(20, 20)
+        first = _warden_gei(game_map, pos=(6, 6))
+        _warden_gei(game_map, pos=(14, 14))  # the sibling (on the map)
+        second_cells = set(game_map.field_tiles)
+        # both shells stood at combat entry
+        assert (6, 4) in second_cells and (14, 12) in second_cells
+        _ancients.warden_turn_start(first, game_map)
+        cells = set(game_map.field_tiles)
+        assert (14, 12) in cells  # the sibling's shell survives
+        assert (14, 14 + 2) in cells
+        assert (6, 4) in cells     # my own shell regen'd in place
+        # and a line into the sibling still absorbs
+        assert _ancients.absorb_shot(
+            game_map, world.Position(14, 10), world.Position(14, 14),
+            shooter_carries_field=False,
+        ) == (14, 12)
+
+
+class TestAbsorption:
+    def _fielded_map(self):
+        game_map = _floor_map(12, 12)
+        _warden_gei(game_map, pos=(6, 6))
+        return game_map
+
+    def test_crossing_shot_absorbs_at_the_first_live_tile(self):
+        game_map = self._fielded_map()
+        cell = _ancients.absorb_shot(
+            game_map, world.Position(6, 1), world.Position(6, 6),
+            shooter_carries_field=False,
+        )
+        assert cell == (6, 4)  # the first shell cell on the line
+
+    def test_field_carrier_shoots_through(self):
+        game_map = self._fielded_map()
+        assert _ancients.absorb_shot(
+            game_map, world.Position(6, 6), world.Position(6, 1),
+            shooter_carries_field=True,
+        ) is None
+
+    def test_no_field_never_absorbs(self):
+        game_map = _floor_map(12, 12)
+        assert _ancients.absorb_shot(
+            game_map, world.Position(6, 1), world.Position(6, 6),
+            shooter_carries_field=False,
+        ) is None
+
+    def test_destroyed_tile_is_open_ground(self):
+        game_map = self._fielded_map()
+        del game_map.field_tiles[(6, 4)]
+        assert _ancients.absorb_shot(
+            game_map, world.Position(6, 1), world.Position(6, 6),
+            shooter_carries_field=False,
+        ) is None  # the hole is open — carve + shoot through same turn
+
+    def test_binary_blocking_overflow_is_lost(self):
+        game_map = self._fielded_map()
+        ctx = _combat_ctx(game_map)
+        broke = _ancients.damage_field_tile(ctx, game_map, (6, 4), 8)
+        assert not broke and game_map.field_tiles[(6, 4)] == 22
+        assert _ancients.absorb_shot(  # still blocking at 22 HP
+            game_map, world.Position(6, 1), world.Position(6, 6),
+            shooter_carries_field=False,
+        ) == (6, 4)
+
+    def test_tile_break_logs_the_approved_line(self):
+        game_map = self._fielded_map()
+        ctx = _combat_ctx(game_map)
+        broke = _ancients.damage_field_tile(ctx, game_map, (6, 4), 64)
+        assert broke and (6, 4) not in game_map.field_tiles
+        assert ctx.lines == ["A section of the shimmer breaks apart."]
+
+
+class TestPlayerSeamAbsorption:
+    def _rules_stub(self, game_map, target):
+        from tests.support.asyncutil import as_async
+
+        class _Rules:
+            def enemy_pos(self, t):
+                return t.pos
+
+            def enemy_alive(self, t):
+                return t is target and target.hp > 0
+
+            def weapon_ap_cost(self, _wid, _ctx):
+                return 2
+
+            def consume_shot(self, slot, _ctx):
+                self.consumed = slot
+
+            def damage(self, *_a):
+                raise AssertionError(
+                    "the body must never pay an absorbed shot",
+                )
+
+            animate_fire = staticmethod(as_async(lambda *a, **k: None))
+
+        return _Rules()
+
+    def test_absorbed_shot_pays_the_tile_and_consumes(self):
+        from src.spacehack.combat import _loop
+        from tests.support.asyncutil import run as _run
+
+        game_map = _floor_map(12, 12)
+        _warden_gei(game_map, pos=(6, 6))
+        target = SimpleNamespace(
+            pos=world.Position(6, 6), hp=85, name="Warden",
+        )
+        ctx = _combat_ctx(game_map, player_pos=(6, 1))
+        rules = self._rules_stub(game_map, target)
+        hit, ap = _run(_loop._roll_player_shot(
+            None, ctx, game_map, rules, 0, target,
+            "railgun", "Railgun", 0,
+        ))
+        assert hit is False
+        assert "The shimmer swallows your shot." in ctx.lines
+        assert "A section of the shimmer breaks apart." in ctx.lines  # 64 > 30
+        assert game_map.field_tiles.get((6, 4)) is None
+        assert target.hp == 85  # the body never paid
+        assert rules.consumed == 0
+        assert ap == 2
+
+
+class TestEnemySeamAbsorption:
+    def test_non_field_shooter_absorbs_wordless(self):
+        from src.spacehack.combat import _ai_ground
+        from tests.support.asyncutil import run as _run
+
+        game_map = _floor_map(12, 12)
+        _warden_gei(game_map, pos=(6, 6))  # the field stands
+        # the player INSIDE the shell: an outside shooter's line
+        # crosses the (6, 4) tile to reach them
+        ctx = _combat_ctx(game_map, player_pos=(6, 5))
+        ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10)
+        shooter = world.Entity(
+            "e", (90, 120, 200), world.Position(6, 0), npc_char_id="consortium_gunner",
+        )
+        from src.spacehack.data.npc_chars import find_npc_char as _find
+
+        dmg = _run(_ai_ground._one_enemy_shot(
+            ctx, None, None, game_map, shooter,
+            "kinetic_rifle", 0, _find("consortium_gunner"),
+            SimpleNamespace(reflexes=50, strength=20), 0, 0,
+        ))
+        assert dmg == 0  # the player never paid — the tile did
+        assert game_map.field_tiles[(6, 4)] == 30 - 20  # the rifle's full 20
+        assert state_line_absent(ctx)  # wordless: no absorb line
+
+    def test_warden_shot_fires_through_its_own_field(self):
+        from src.spacehack.combat import _ai_ground
+        from tests.support.asyncutil import run as _run
+
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        ctx = _combat_ctx(game_map, player_pos=(6, 1))
+        ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10)
+
+        class _AlwaysHit:
+            @staticmethod
+            def randint(*_args):
+                return 1
+
+        original = _ai_ground.RNG
+        _ai_ground.RNG = _AlwaysHit
+        try:
+            dmg = _run(_ai_ground._one_enemy_shot(
+                ctx, None, None, game_map, gei.entity,
+                "ancient_warden_shot", 0, gei.spec,
+                gei.stats, 0, 0,
+            ))
+        finally:
+            _ai_ground.RNG = original
+        assert dmg == 30  # armor-bypassed full price reached the player
+        assert game_map.field_tiles[(6, 4)] == 30  # its own field untouched
+
+
+def state_line_absent(ctx) -> bool:
+    return not any("shimmer" in line for line in ctx.lines)
+
+
+class TestBlastCarvesTiles:
+    def test_rocket_at_the_shell_carves_multiple_tiles(self):
+        from src.spacehack.combat import _ground_blast
+
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        ctx = _combat_ctx(game_map, player_pos=(6, 1))
+        ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10)
+        state = _ground_state(ctx, game_map, [gei])
+        # the detonation centered on the shell tile at (6, 4)
+        enemy_hits, player_damage = _ground_blast.explosive_blast(
+            state, "rocket_launcher", gei, ctx, primary_hit=False,
+            quality=0, center=world.Position(6, 4),
+        )
+        # the Warden at radius 2 is OUTSIDE the 3x3: untouched — and
+        # the player at distance 3 takes no self-splash either
+        assert enemy_hits == () and gei.hp == gei.max_hp
+        assert player_damage == 0
+        # the center tile and its two side neighbours on the shell
+        # broke (full 60 at the center, 30 splash vs 30 HP beside it)
+        assert (6, 4) not in game_map.field_tiles
+        assert (5, 4) not in game_map.field_tiles
+        assert (7, 4) not in game_map.field_tiles
+
+    def test_blast_near_a_shell_carves_without_absorption(self):
+        from src.spacehack.combat import _ground_blast
+
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        ctx = _combat_ctx(game_map, player_pos=(2, 2))
+        ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10)
+        state = _ground_state(ctx, game_map, [gei])
+        # a grenade-equivalent blast one cell north of the shell: the
+        # 3x3 catches the shell's top row; 50% splash of 60 breaks
+        # 30-HP tiles outright
+        _ground_blast.explosive_blast(
+            state, "rocket_launcher", gei, ctx, primary_hit=False,
+            quality=0, center=world.Position(6, 3),
+        )
+        for _broken in ((6, 4), (5, 4), (7, 4)):
+            assert _broken not in game_map.field_tiles
+        assert (4, 6) in game_map.field_tiles  # the far side stands
+
+
+class TestFieldDeathAndPersistence:
+    def test_last_warden_death_drops_the_field(self):
+        game_map = _floor_map(12, 12)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        # on_kill removes the body BEFORE the drop call
+        game_map.entities.remove(gei.entity)
+        _ancients.maybe_drop_field(game_map, gei.spec)
+        assert game_map.field_tiles is None
+
+    def test_sibling_warden_keeps_the_merged_shell(self):
+        game_map = _floor_map(14, 14)
+        gei = _warden_gei(game_map, pos=(6, 6))
+        sibling = world.Entity(
+            "W", (170, 140, 250), world.Position(10, 10),
+            npc_char_id="warden",
+        )
+        game_map.entities.append(sibling)
+        _ancients.maybe_drop_field(game_map, gei.spec)
+        assert game_map.field_tiles is not None
+
+    def test_eruption_killed_warden_drops_its_field(self):
+        """The player-kill path's twin (the review catch): a Warden
+        killed by a stare eruption must not leave an ownerless
+        shimmer blocking the floor forever."""
+        game_map = _floor_map(12, 12)
+        watcher = _watcher_gei(game_map, pos=(2, 2))
+        warden = _warden_gei(game_map, pos=(6, 6))
+        assert game_map.field_tiles  # the shell stood
+        ctx = _combat_ctx(game_map, player_pos=(4, 4))
+        state = _ground_state(ctx, game_map, [watcher, warden])
+        # the warden stands in the watcher's zone, hp 1
+        warden.entity.pos = world.Position(5, 4)
+        warden.hp = 1
+        warden.entity.hp = 1
+        _ancients.watcher_turn_start(state, ctx, watcher, game_map)
+        ctx.player.pos = world.Position(11, 11)
+        _ancients.resolve_stare_eruptions(state, ctx, game_map)
+        assert not warden.alive
+        assert game_map.field_tiles is None  # no orphan shimmer
+
+    def test_field_tiles_serialize_by_position(self):
+        from src.spacehack.saveload_maps import _dungeon_to_dict
+
+        game_map = _floor_map(12, 12)
+        game_map.field_tiles = {(4, 4): 30, (4, 5): 0}
+        payload = _dungeon_to_dict(game_map, None)
+        assert payload["field_tiles"] == [[4, 4, 30]]  # dead tiles don't ride
 
 
 # --- the Shredder's mend (SETTLED 42) ----------------------------------------

@@ -181,6 +181,7 @@ def _optional_map_fields(gm) -> dict:
         "field_tiles": [
             [int(x), int(y), int(hp)]
             for (x, y), hp in (getattr(gm, "field_tiles", None) or {}).items()
+            if hp > 0
         ],
     }
 

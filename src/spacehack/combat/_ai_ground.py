@@ -567,36 +567,85 @@ async def _one_enemy_shot(
     enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
     armor_defense, player_dodge,
 ) -> int:
-    """One shot of a burst: the firing report (SETTLED 22, per shot),
-    the roll, the per-event player-defense reduction (doc 49 — each
-    landed shot pays it, never the summed turn; misses pay nothing),
-    presentation. Returns the shot's damage. The player's position
-    reads LIVE from ``ctx`` — a knockback mid-burst (doc 48 SETTLED
-    42) must not leave later shots aiming at the vacated cell."""
+    """One shot of a burst: the firing report (SETTLED 22), then
+    either the field's absorption (doc 48 SETTLED 42) or the roll.
+    Returns the shot's damage; the player's position reads LIVE from
+    ``ctx`` (a knockback mid-burst must not leave later shots aiming
+    at the vacated cell)."""
     from .. import noise
-    from ..xp import apply_ground_damage_reduction as _reduce
-    from ._stats import _distance
+    from ._ancients import absorb_shot, carries_field
 
     _player_pos = ctx.player.pos
     noise.emit(
         ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
     )
+    _absorbed = absorb_shot(
+        game_map, enemy_entity.pos, _player_pos,
+        shooter_carries_field=carries_field(enemy_spec),
+    )
+    if _absorbed is not None:
+        return await _absorbed_enemy_shot(
+            ctx, console, render_callback, game_map, enemy_entity,
+            _player_pos, enemy_weapon_id, enemy_weapon_quality,
+            enemy_spec, _absorbed,
+        )
+    return await _resolve_enemy_shot(
+        ctx, console, render_callback, game_map, enemy_entity,
+        _player_pos, enemy_weapon_id, enemy_weapon_quality, enemy_spec,
+        enemy_stats, armor_defense, player_dodge,
+    )
+
+
+async def _resolve_enemy_shot(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
+    armor_defense, player_dodge,
+) -> int:
+    """The unobstructed shot's tail: the roll, the per-event
+    player-defense reduction (doc 49 — each landed shot pays it,
+    never the summed turn), presentation, and the knockback tail."""
+    from ..xp import apply_ground_damage_reduction as _reduce
+    from ._stats import _distance
+
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-        int(_distance(enemy_entity.pos, _player_pos)), enemy_weapon_quality,
+        int(_distance(enemy_entity.pos, player_pos)), enemy_weapon_quality,
     )
     if _damage > 0:
         _damage = _reduce(ctx, _damage)
     await _present_enemy_shot(
         ctx, console, render_callback, game_map,
-        enemy_entity, _player_pos, enemy_weapon_id, enemy_weapon_quality,
+        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
         enemy_spec, _hit, _damage, _popup,
     )
     if _hit:
         _apply_hit_knockback(
-            ctx, game_map, enemy_entity, _player_pos, enemy_weapon_id,
+            ctx, game_map, enemy_entity, player_pos, enemy_weapon_id,
         )
     return _damage
+
+
+async def _absorbed_enemy_shot(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_weapon_id, enemy_weapon_quality, enemy_spec, absorbed,
+) -> int:
+    """The field prices projectiles uniformly (doc 48 SETTLED 42): a
+    shot crossing a shell tile pays the TILE — the report reads as a
+    miss (wordless: the player-facing absorb prose is the player
+    seam's own), and nothing reaches the player. The miss presents
+    BEFORE the tile pays, so a breaking tile's line reads after it."""
+    from ._ancients import damage_field_tile, projectile_damage
+
+    await _present_enemy_shot(
+        ctx, console, render_callback, game_map,
+        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
+        enemy_spec, False, 0, None,
+    )
+    damage_field_tile(
+        ctx, game_map, absorbed,
+        projectile_damage(enemy_weapon_id, enemy_weapon_quality),
+    )
+    return 0
 
 
 def _apply_hit_knockback(ctx, game_map, enemy_entity, player_pos, weapon_id):

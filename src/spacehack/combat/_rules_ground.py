@@ -207,6 +207,15 @@ def _stamp_enemy_loadout(_ent: world.Entity, _spec) -> int:
     return enemy_ap_total(_spec)
 
 
+def _stamp_ancient_field(_ent: world.Entity, game_map, _spec) -> None:
+    """The Warden's shell stands at combat entry (doc 48 p9) — full
+    tile HP, only once woken: a dormant Warden projects nothing."""
+    from . import _ancients
+
+    if not getattr(_ent, "powered_down", False):
+        _ancients.ensure_field(game_map, _spec, _ent.pos)
+
+
 def _build_enemy_instance(
     _ent: world.Entity, game_map=None,
 ) -> GroundEnemyInstance | None:
@@ -231,6 +240,7 @@ def _build_enemy_instance(
     _wid = _pair[0] if _pair else ""
     _quality = _pair[1] if _pair else 0
     _ap_total = _stamp_enemy_loadout(_ent, _spec)
+    _stamp_ancient_field(_ent, game_map, _spec)
     _max_hp = _spec.hp + _stats.stamina // 3
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
@@ -514,13 +524,16 @@ def explosive_blast(
     *,
     primary_hit: bool = True,
     quality: int = 0,
+    center: world.Position | None = None,
 ) -> tuple[tuple[tuple[GroundEnemyInstance, int, bool], ...], int]:
-    """Resolve an explosive impact around ``primary`` with friendly
-    fire — the blast math + doc 53 tally/killer tracking live in
-    :mod:`._ground_blast` (the architecture-ratchet split)."""
+    """Resolve an explosive impact around ``primary`` — or ``center``
+    (the absorbed-rocket detonation on a field tile, doc 48 p9) —
+    with friendly fire. The blast math + doc 53 tally/killer tracking
+    + field-tile carving live in :mod:`._ground_blast` (the
+    architecture-ratchet split)."""
     return _ground_blast.explosive_blast(
         _state, weapon_id, primary, ctx, primary_hit=primary_hit,
-        quality=quality,
+        quality=quality, center=center,
     )
 
 # ---------------------------------------------------------------------------
@@ -691,6 +704,9 @@ async def on_kill(game_map: world.GameMap, enemy: GroundEnemyInstance, ctx) -> N
         game_map.entities.remove(_ent)
 
     if _ent is not None and enemy.spec:
+        from . import _ancients
+
+        _ancients.maybe_drop_field(game_map, enemy.spec)
         from ._actions import spawn_kill_drops
         spawn_kill_drops(
             game_map, _ent.pos, enemy.spec, ctx,

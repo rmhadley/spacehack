@@ -323,14 +323,28 @@ async def _roll_player_shot(
     console, ctx, game_map, rules, slot, target, _wid, _wname, _quality,
 ) -> bool:
     """One shot's full resolution: roll, damage, animation, log,
-    ammo consume, kill record (the burst loop's body)."""
+    ammo consume, kill record (the burst loop's body). A Warden's
+    force field absorbs the projectile first (doc 48 SETTLED 42): the
+    tile pays the shot, the approved absorb line replaces the outcome
+    line, and the burst ends as a miss for the body."""
+    from . import _ancients
+
     _prepare_player_attack(rules, ctx, game_map, target, _wid)
+    _target_pos = rules.enemy_pos(target)
+    _absorbed = _ancients.absorb_shot(
+        game_map, ctx.player.pos, _target_pos, shooter_carries_field=False,
+    )
+    if _absorbed is not None:
+        return await _absorbed_player_shot(
+            console, ctx, game_map, rules, slot, target, _wid, _quality,
+            _target_pos, _absorbed,
+        )
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
         rules, ctx, _wid, target, _hit, _quality,
     )
     await rules.animate_fire(
-        console, ctx, game_map, ctx.player.pos, rules.enemy_pos(target),
+        console, ctx, game_map, ctx.player.pos, _target_pos,
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
     _shot_outcome_log(
@@ -342,12 +356,42 @@ async def _roll_player_shot(
     )
 
 
+async def _absorbed_player_shot(
+    console, ctx, game_map, rules, slot, target, _wid, _quality,
+    _target_pos, absorbed,
+) -> bool:
+    """The absorbed player shot (doc 48 SETTLED 42): the shell tile
+    pays the projectile (the pure quality-scaled damage — the body is
+    never touched), the approved absorb/break lines replace the
+    outcome line, and the action still costs its ammo and AP."""
+    from .. import message_log as _ml
+    from . import _ancients
+
+    ctx.log.add_colored(
+        _ancients.ABSORB_LINE, _ml.COLOR_ENEMY_ACTION,
+    )
+    await rules.animate_fire(
+        console, ctx, game_map, ctx.player.pos, _target_pos,
+        is_hit=False, damage=None, weapon_id=_wid,
+    )
+    _ancients.damage_field_tile(  # after the absorb line: a breaking
+        ctx, game_map, absorbed,  # tile reads cause -> effect
+        _ancients.projectile_damage(_wid, _quality),
+    )
+    return await _finish_player_weapon(
+        rules, ctx, _wid, slot, target, False,
+    )
+
+
 async def _log_explosive_result(
     ctx, rules, weapon_id: str, weapon_name: str, target,
     enemy_hits: tuple, player_damage: int, *, primary_hit: bool = True,
-    quality: int = 0,
+    quality: int = 0, include_primary_line: bool = True,
 ) -> None:
-    """Log primary, splash, and friendly-fire results for one blast."""
+    """Log primary, splash, and friendly-fire results for one blast.
+    ``include_primary_line=False`` is the absorbed-rocket read: the
+    detonation landed on a field tile (doc 48 p9), so there is no
+    primary outcome to report — the absorb line already spoke."""
     from .. import message_log as _ml
     from ..data.quality import quality_mark
 
@@ -355,14 +399,15 @@ async def _log_explosive_result(
         (_dmg for _enemy, _dmg, _primary in enemy_hits if _primary),
         0,
     )
-    _line = _player_attack_line(
-        weapon_id, weapon_name, rules.enemy_name(target),
-        hit=primary_hit, hull_dmg=_primary_damage if primary_hit else 0,
-        quality=quality,
-    )
-    ctx.log.add_colored(
-        _line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs,
-    )
+    if include_primary_line:
+        _line = _player_attack_line(
+            weapon_id, weapon_name, rules.enemy_name(target),
+            hit=primary_hit, hull_dmg=_primary_damage if primary_hit else 0,
+            quality=quality,
+        )
+        ctx.log.add_colored(
+            _line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs,
+        )
     for _enemy, _dmg, _primary in enemy_hits:
         if not _primary:
             _msg, _runs = _ml.with_runs(
@@ -408,7 +453,13 @@ def _record_explosive_hit(ctx, hit: bool) -> None:
 async def _fire_explosive_weapon(
     console, ctx, game_map, rules, slot: int, target, player_pos,
 ) -> tuple[bool, int]:
-    """Fire one explosive weapon and resolve its full friendly-fire blast."""
+    """Fire one explosive weapon and resolve its full friendly-fire
+    blast. A Warden's shell absorbs the rocket like any projectile
+    (doc 48 SETTLED 42) — but the explosion is AREA, not projectile:
+    it detonates ON the tile and the 3x3 carves multiple shell tiles
+    (the called-out counter) without ever touching the body inside."""
+    from . import _ancients
+
     _wid = rules.player_weapons(ctx)[slot]
     _quality = _slot_quality(rules, ctx, slot)
     _ok, _reason = rules.can_fire(slot, ctx)
@@ -418,6 +469,26 @@ async def _fire_explosive_weapon(
         return False, 0
     if _reason:
         ctx.log.add(_reason)
+    _target_pos = rules.enemy_pos(target)
+    _absorbed = _ancients.absorb_shot(
+        game_map, player_pos, _target_pos, shooter_carries_field=False,
+    )
+    if _absorbed is not None:
+        return await _explode_on_field_tile(
+            console, ctx, game_map, rules, slot, target, player_pos,
+            _wid, _wname, _quality, _absorbed,
+        )
+    return await _resolve_explosive_shot(
+        console, ctx, game_map, rules, slot, target, player_pos,
+        _wid, _wname, _quality, _target_pos,
+    )
+
+
+async def _resolve_explosive_shot(
+    console, ctx, game_map, rules, slot, target, player_pos,
+    _wid, _wname, _quality, _target_pos,
+) -> tuple[bool, int]:
+    """The unobstructed explosive resolution: roll, blast, log, consume."""
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
     _record_explosive_hit(ctx, _hit)
     _enemy_hits, _player_damage = rules.explosive_blast(
@@ -429,7 +500,7 @@ async def _fire_explosive_weapon(
     )
     _popup = _damage_popup_for(_primary_damage, 0, False)
     await rules.animate_fire(
-        console, ctx, game_map, player_pos, rules.enemy_pos(target),
+        console, ctx, game_map, player_pos, _target_pos,
         is_hit=_hit, damage=_popup, weapon_id=_wid,
     )
     if _hit or _enemy_hits or _player_damage:
@@ -445,6 +516,42 @@ async def _fire_explosive_weapon(
         )
     rules.consume_shot(slot, ctx)
     return _hit, rules.weapon_ap_cost(_wid, ctx)
+
+
+async def _explode_on_field_tile(
+    console, ctx, game_map, rules, slot, target, player_pos,
+    _wid, _wname, _quality, absorbed,
+) -> tuple[bool, int]:
+    """The absorbed-rocket resolution: the tile pays the projectile,
+    the blast centers on the detonation cell (every body share is
+    splash; the Warden at shell-radius 2 sits outside the 3x3)."""
+    from .. import message_log as _ml
+    from .. import world as _world
+    from . import _ancients
+
+    _center = _world.Position(absorbed[0], absorbed[1])
+    ctx.log.add_colored(
+        _ancients.ABSORB_LINE, _ml.COLOR_ENEMY_ACTION,
+    )
+    _ancients.damage_field_tile(
+        ctx, game_map, absorbed,
+        _ancients.projectile_damage(_wid, _quality),
+    )
+    _enemy_hits, _player_damage = rules.explosive_blast(
+        _wid, target, ctx, primary_hit=False, quality=_quality,
+        center=_center,
+    )
+    await rules.animate_fire(
+        console, ctx, game_map, player_pos, _center,
+        is_hit=True, damage=None, weapon_id=_wid,
+    )
+    await _log_explosive_result(
+        ctx, rules, _wid, _wname, target, _enemy_hits, _player_damage,
+        primary_hit=False, quality=_quality, include_primary_line=False,
+    )
+    await _process_explosive_kills(ctx, game_map, rules, _wid, _enemy_hits)
+    rules.consume_shot(slot, ctx)
+    return False, rules.weapon_ap_cost(_wid, ctx)
 
 
 async def _fire_active_slot(
