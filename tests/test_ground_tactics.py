@@ -75,6 +75,9 @@ EXPECTED_NOISE: dict[str, int] = {
     # organic monster parts 4-5
     "monster_claws": 4, "drone_laser": 4, "frost_bolt": 5,
     "parasite_mandibles": 4,
+    # ancient family (doc 48 SETTLED 42 dials): claws 1-2, slam 2-3,
+    # shot 8 — the shriek is the loud one, not the weapons
+    "ancient_claws": 2, "ancient_slam": 3, "ancient_warden_shot": 8,
 }
 
 
@@ -1478,10 +1481,14 @@ def test_aggression_10_dances_stacking_real_move_dodge():
 
 def test_the_default_dial_is_fifty_on_every_row():
     """Build-1 v1: every row reads the default until the tuning pass
-    authors per-spec values (the playtest's eyeball item)."""
+    authors per-spec values (the playtest's eyeball item). Build 2
+    authors the three ancients (doc 48 SETTLED 42): the Watcher's
+    drift identity is the dial's far end."""
     from src.spacehack.data.npc_chars import list_npc_chars
 
-    assert all(spec.ai_aggressiveness == 50 for spec in list_npc_chars())
+    authored = {"watcher": 15, "shredder": 70, "warden": 80}
+    for spec in list_npc_chars():
+        assert spec.ai_aggressiveness == authored.get(spec.id, 50), spec.id
 
 
 def test_melee_still_never_dances_at_any_dial(monkeypatch):

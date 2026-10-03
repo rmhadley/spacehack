@@ -51,6 +51,11 @@ class GroundWeaponSpec:
             energy/plasma 4 (the energy lever — quieter than
             kinetic), melee 1-2 (knife kills stay quiet), organic
             monster parts 4-5.
+        knockback: cells the victim is displaced along the
+            attacker→victim vector on a hit (doc 48 SETTLED 42 —
+            authored as weapon DATA; the Warden's slam carries 2, the
+            game's first involuntary displacement). 0 = no pushback
+            (every human weapon today).
     """
     id: str
     name: str
@@ -75,6 +80,7 @@ class GroundWeaponSpec:
     armor_bypass: bool = False    # True ignores target armor DR entirely
     loot_droppable: bool = True   # False = organic/unwieldable, never drops
     noise: int = 8                # hearing radius when fired (doc 48 SETTLED 17)
+    knockback: int = 0            # hit pushback in cells (doc 48 SETTLED 42)
 
 
 # ---------------------------------------------------------------------------
