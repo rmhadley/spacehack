@@ -177,6 +177,9 @@ class GroundCombatState:
     # Per-fight session state, never serialized.
     enemy_fired: bool = False
     opener_spent: bool = False
+    # The Shredder's mend line fires once per engagement (doc 48
+    # SETTLED 42) — fight-scoped entity ids, never serialized.
+    mend_told: set = field(default_factory=set)
 
 _state: GroundCombatState | None = None
 
@@ -217,7 +220,7 @@ def _build_enemy_instance(
         _spec = _find_nc(_ent.npc_char_id)
     except KeyError:
         return None
-    _band = ground_scale.entity_band(_ent, game_map)
+    _band = ground_scale.entity_band(_ent, game_map, spec=_spec)
     _stats = ground_scale.derive_stats(_spec, _band)
     _stamp = ground_loadout.ensure_loadout(_ent, game_map, _spec)
     _pair = ground_loadout.active_pair(_stamp) if _stamp else None
@@ -791,7 +794,9 @@ async def _spend_one_enemy_turn(
     volley read the wielded weapon).
     """
     from ._ground_effects import use_carried_consumable
+    from . import _ancients
 
+    _ancients.enemy_turn_start(_state, ctx, _gei, game_map)
     _gei.ap -= use_carried_consumable(ctx, _gei, game_map, ctx.player.pos)
     _new_ap, _dmg, _fired, _cells = await _enemy_ai(
         ctx,

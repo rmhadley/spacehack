@@ -669,3 +669,32 @@ def move_entity(
     if game_map.blocking_entity_at(nx, ny, exclude=exclude) is not None:
         return pos, False
     return world.Position(nx, ny), True
+
+
+def apply_knockback(
+    game_map: world.GameMap,
+    entity: world.Entity,
+    dx: int,
+    dy: int,
+    distance: int,
+) -> int:
+    """Displace ``entity`` one cell at a time along ``(dx, dy)`` for up
+    to ``distance`` cells — the game's first involuntary displacement
+    (doc 48 SETTLED 42, the Warden's slam; the property is weapon
+    data, so player-side weapons may carry it someday).
+
+    A wall or an occupied cell stops the ride early (no stacking);
+    pure displacement — NO collision damage (not ruled; keep it
+    pure). Returns the cells actually moved; ``0`` when even the
+    first step is blocked.
+    """
+    moved = 0
+    for _ in range(max(0, distance)):
+        _new, _ok = move_entity(
+            entity.pos, dx, dy, game_map, exclude=entity,
+        )
+        if not _ok:
+            break
+        entity.pos = _new
+        moved += 1
+    return moved

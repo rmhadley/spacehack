@@ -279,7 +279,7 @@ def test_ground_enemy_burst_stamps_enemy_fired():
             "loaded": {"kinetic_pistol": 0}, "pool": [], "active": "ranged",
         }
         _total = run(_ai_ground._fire_enemy_burst(
-            None, None, None, None, None, None, "kinetic_pistol", _ws,
+            None, None, None, None, None, "kinetic_pistol", _ws,
             None, 0, 0, 0, 0, _stamp,
         ))
         assert _total == 0

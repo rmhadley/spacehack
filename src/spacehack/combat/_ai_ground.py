@@ -65,7 +65,7 @@ async def run_ground_enemy_turn(
         return (enemy_ap, 0, False, 0)
     return await _spend_ground_ap(
         ctx, console, render_callback, game_map,
-        enemy_entity, player_pos, enemy_spec, enemy_stats,
+        enemy_entity, enemy_spec, enemy_stats,
         armor_defense, player_dodge, enemy_ap, _stamp,
     )
 
@@ -199,18 +199,21 @@ def _reload_active(ctx, stamp, ws, enemy_spec) -> tuple:
 
 
 async def _spend_ground_ap(
-    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    ctx, console, render_callback, game_map, enemy_entity,
     enemy_spec, enemy_stats, armor_defense, player_dodge, enemy_ap, stamp,
 ):
     """Run the volley loop (SETTLED 41): per-AP fire across both sets
     until AP, ammo, or options run out. Returns ``(remaining_ap,
-    damage, fired, cells_moved)`` — see :func:`run_ground_enemy_turn`."""
+    damage, fired, cells_moved)`` — see :func:`run_ground_enemy_turn`.
+    The player's position re-reads from ``ctx`` every decision point
+    (a knockback displacement mid-turn must not leave later points
+    aiming at the vacated cell)."""
     _ap, _dmg, _fired, _cells = enemy_ap, 0, False, 0
     _nav: list = [None, None]  # cached advance path, path goal
     while _ap > 0:
         _spent, _cell, _shot, _hit_dmg, _halt = await _volley_step(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, enemy_spec, enemy_stats, armor_defense,
+            ctx.player.pos, enemy_spec, enemy_stats, armor_defense,
             player_dodge, stamp, _ap, _nav,
         )
         _ap -= _spent
@@ -259,7 +262,7 @@ async def _volley_step(
             return 1, 1, False, 0, False
         return await _fire_the_pick(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, enemy_spec, enemy_stats, armor_defense,
+            enemy_spec, enemy_stats, armor_defense,
             player_dodge, stamp, _pick,
         )
     return await _gap_step(
@@ -301,7 +304,7 @@ async def _maybe_dance_instead(
 
 
 async def _fire_the_pick(
-    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    ctx, console, render_callback, game_map, enemy_entity,
     enemy_spec, enemy_stats, armor_defense, player_dodge, stamp, pick,
 ):
     """Resolve one scorer pick: a cross-set pick first pays the silent
@@ -315,7 +318,7 @@ async def _fire_the_pick(
         return _reload_active(ctx, stamp, _ws, enemy_spec)
     _dmg = await _fire_enemy_burst(
         ctx, console, render_callback, game_map, enemy_entity,
-        player_pos, _pair[0], _ws, enemy_spec, enemy_stats,
+        _pair[0], _ws, enemy_spec, enemy_stats,
         armor_defense, player_dodge, _pair[1], stamp,
     )
     return _ws.ap_cost, 0, True, _dmg, False
@@ -465,7 +468,7 @@ async def _try_ground_fire(
         # pays the point-blank penalty — the player's emergency-shot
         # mirror (p9 b3).
     _total = await _fire_enemy_burst(
-        ctx, console, render_callback, game_map, enemy_entity, player_pos,
+        ctx, console, render_callback, game_map, enemy_entity,
         enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
         player_dodge, enemy_weapon_quality, stamp,
     )
@@ -473,7 +476,7 @@ async def _try_ground_fire(
 
 
 async def _fire_enemy_burst(
-    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    ctx, console, render_callback, game_map, enemy_entity,
     enemy_weapon_id, _ews, enemy_spec, enemy_stats, armor_defense,
     player_dodge, enemy_weapon_quality, stamp=None,
 ) -> int:
@@ -497,7 +500,7 @@ async def _fire_enemy_burst(
             break  # burst ran dry mid-action — stop quietly
         _total += await _one_enemy_shot(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, enemy_weapon_id, enemy_weapon_quality, enemy_spec,
+            enemy_weapon_id, enemy_weapon_quality, enemy_spec,
             enemy_stats, armor_defense, player_dodge,
         )
         if stamp is not None:
@@ -506,33 +509,71 @@ async def _fire_enemy_burst(
 
 
 async def _one_enemy_shot(
-    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    ctx, console, render_callback, game_map, enemy_entity,
     enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
     armor_defense, player_dodge,
 ) -> int:
     """One shot of a burst: the firing report (SETTLED 22, per shot),
     the roll, the per-event player-defense reduction (doc 49 — each
     landed shot pays it, never the summed turn; misses pay nothing),
-    presentation. Returns the shot's damage."""
+    presentation. Returns the shot's damage. The player's position
+    reads LIVE from ``ctx`` — a knockback mid-burst (doc 48 SETTLED
+    42) must not leave later shots aiming at the vacated cell."""
     from .. import noise
     from ..xp import apply_ground_damage_reduction as _reduce
     from ._stats import _distance
 
+    _player_pos = ctx.player.pos
     noise.emit(
         ctx, game_map, enemy_entity.pos, enemy_weapon_id, by_player=False,
     )
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-        int(_distance(enemy_entity.pos, player_pos)), enemy_weapon_quality,
+        int(_distance(enemy_entity.pos, _player_pos)), enemy_weapon_quality,
     )
     if _damage > 0:
         _damage = _reduce(ctx, _damage)
     await _present_enemy_shot(
         ctx, console, render_callback, game_map,
-        enemy_entity, player_pos, enemy_weapon_id, enemy_weapon_quality,
+        enemy_entity, _player_pos, enemy_weapon_id, enemy_weapon_quality,
         enemy_spec, _hit, _damage, _popup,
     )
+    if _hit:
+        _apply_hit_knockback(
+            ctx, game_map, enemy_entity, _player_pos, enemy_weapon_id,
+        )
     return _damage
+
+
+def _apply_hit_knockback(ctx, game_map, enemy_entity, player_pos, weapon_id):
+    """A knockback-carrying hit displaces the victim along the
+    attacker→victim vector (doc 48 SETTLED 42 — the Warden's slam;
+    the property is weapon data). Wordless by design: the
+    displacement IS the tell. Pure displacement — no collision
+    damage. The player's new cell re-reveals, mirroring the
+    in-combat player step and the charge displacement."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+    from ..dungeon import reveal_around as _reveal_around
+    from ._actions import apply_knockback
+
+    try:
+        _kb = _find_gw(weapon_id).knockback
+    except KeyError:
+        return
+    if _kb <= 0:
+        return
+    _dx = (
+        (player_pos.x > enemy_entity.pos.x)
+        - (player_pos.x < enemy_entity.pos.x)
+    )
+    _dy = (
+        (player_pos.y > enemy_entity.pos.y)
+        - (player_pos.y < enemy_entity.pos.y)
+    )
+    if apply_knockback(game_map, ctx.player, _dx, _dy, _kb):
+        _reveal_around(
+            game_map, ctx.player.pos, radius=game_map.sight_radius,
+        )
 
 
 async def _present_enemy_shot(
