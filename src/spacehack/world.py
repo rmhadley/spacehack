@@ -457,6 +457,20 @@ class GameMap:
     # Derived from tiles; invalidated beside light_sources by
     # replace_tile; never serialised.
     hull_wall_cells: list[tuple[int, int]] | None = None
+    # The Watcher's pending stare zones (doc 48 SETTLED 42): fixed
+    # cell -> the marker ids (one per staring Watcher — stacked
+    # Watchers coincide and their damage STACKS). Combat-scoped: the
+    # zones fade on disengage and on their Watcher's death, and
+    # combat never saves mid-fight, so the serialized payload is the
+    # stack COUNT per cell (marker ids are runtime handles). Old
+    # saves tolerate absence.
+    stare_zones: dict[tuple[int, int], list[int]] | None = None
+    # The Warden's force-field shell (doc 48 SETTLED 42): cell ->
+    # tile HP. Keyed by position, re-derived from the Warden's
+    # position at its turn start; serialized (the shell outlives the
+    # fight — the field is the Warden's standing sustain). Old saves
+    # tolerate absence. (doc 48 phase 9 build 2)
+    field_tiles: dict[tuple[int, int], int] | None = None
 
 
     def in_bounds(self, x: int, y: int) -> bool:

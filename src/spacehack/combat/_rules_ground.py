@@ -105,6 +105,10 @@ class GroundEnemyInstance:
     regen_turns: int = 0
     regen_amount: int = 0
     cells_moved_this_turn: int = 0
+    # Doc 48 p9: stare-eruption victims are NOT player kills — the
+    # flag excludes them from the CombatResult's defeated lists so no
+    # faction rep flows (drops landed; XP/counter already withheld).
+    stare_killed: bool = False
 
     @property
     def alive(self) -> bool:
@@ -745,7 +749,9 @@ async def _run_enemy_turns_impl(ctx, game_map: world.GameMap, _enemy_ai) -> int:
     _player_dodge = _player_ground_dodge(ctx)
     _total_dmg = 0
     for _gei in _state.enemies:
-        if not _gei.alive or _gei.ap <= 0 or not _gei.weapon_id:
+        # No weapon gate (doc 48 p9): a weaponless spec (the Watcher —
+        # the stare is its attack) still takes its turn — the drift.
+        if not _gei.alive or _gei.ap <= 0:
             continue
         _dmg = await _spend_one_enemy_turn(
             ctx, game_map, _enemy_ai, _gei, _player_dodge,
@@ -926,11 +932,26 @@ def sync_state(ctx) -> None:
     _state.active = False
     ctx.ground_hp = max(0, _state.player_hp)
     ctx.ground_max_hp = _state.player_max_hp
+    # Combat-scoped stare (doc 48 p9): every end path defuses pending
+    # zones — disengage never leaves a live trap on the floor.
+    from . import _ancients
+
+    _ancients.fade_stare_zones(_state.game_map)
+
+
+async def resolve_stare_eruptions(ctx, game_map: world.GameMap) -> str | None:
+    """The end-of-player-turn stare eruption (doc 48 SETTLED 42) —
+    the shared loop's optional hook (the ``advance_flights`` pattern).
+    Mechanics live in :mod:`._ancients`; returns ``"DEFEAT"`` when a
+    zone kills the player."""
+    from . import _ancients
+
+    return _ancients.resolve_stare_eruptions(_state, ctx, game_map)
 
 def get_combat_result() -> CombatResult:
     _cr = CombatResult()
     for _gei in _state.enemies:
-        if not _gei.alive and _gei.spec:
+        if not _gei.alive and _gei.spec and not _gei.stare_killed:
             _cr.defeated_names.append(_gei.spec.name)
             _cr.defeated_spec_ids.append(_gei.spec.id)
     _cr.flee_exit = _state.flee_exit

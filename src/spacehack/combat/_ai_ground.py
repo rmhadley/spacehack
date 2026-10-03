@@ -11,6 +11,10 @@ Movement legs manage RANGE (doc 48 SETTLED 26): back off inside min,
 close beyond max or without LOS, dance with leftovers — melee never
 repositions (no knife-dancers). Guards leash to their post at the
 RANGED slot weapon's ``max_range + 2`` (SETTLED 18/37/43).
+
+A WEAPONLESS spec (doc 48 phase 9 — the Watcher, whose stare is its
+attack) runs the drift instead: dial-gated LOS-keeping steps, real
+ledger cells, logs nothing.
 """
 
 from __future__ import annotations
@@ -62,12 +66,42 @@ async def run_ground_enemy_turn(
         return (enemy_ap, 0, False, 0)
     _stamp = ground_loadout.ensure_loadout(enemy_entity, game_map, enemy_spec)
     if not ground_loadout.has_any_weapon(_stamp):
-        return (enemy_ap, 0, False, 0)
+        return await _weaponless_drift(
+            ctx, console, render_callback, game_map, enemy_entity,
+            player_pos, enemy_spec, enemy_ap,
+        )
     return await _spend_ground_ap(
         ctx, console, render_callback, game_map,
         enemy_entity, enemy_spec, enemy_stats,
         armor_defense, player_dodge, enemy_ap, _stamp,
     )
+
+
+async def _weaponless_drift(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_spec, enemy_ap,
+):
+    """The weaponless turn (doc 48 p9: the Watcher carries no weapon
+    row — the stare is its attack): leftover AP goes to drift steps —
+    each a WALKABLE, LOS-KEEPING step (legal sans a weapon band),
+    each gated by the SAME aggressiveness dial rolled per decision
+    point (below holds; at/above steps one) so the authored dial
+    composes: the low-dial machine drifts, the high-dial one sits.
+    A weaponless turn LOGS NOTHING (wordless — no position spam);
+    never a statue while a legal step exists. The returned cells ARE
+    the ledger: the drift is movement dodge."""
+    _ap, _cells = enemy_ap, 0
+    while _ap > 0:
+        if RNG.randint(1, 100) < enemy_spec.ai_aggressiveness:
+            break  # hold
+        if not await _reposition_step(
+            ctx, console, render_callback, game_map, enemy_entity,
+            player_pos, None,
+        ):
+            break  # no legal drift step — hold
+        _ap -= 1
+        _cells += 1
+    return (_ap, 0, False, _cells)
 
 
 def _mutual_sight(game_map, cell, player_pos) -> bool:
@@ -239,7 +273,9 @@ async def _volley_step(
     swap or FIRE. Without: dry-switch, range legs, leftover dance."""
     _aws = _active_weapon_spec(stamp)
     if _aws is None:
-        return 0, 0, False, 0, True  # weaponless or unknown id: inert
+        return 0, 0, False, 0, True  # unknown id that left the catalog:
+        # inert. (Weaponless stamps never reach here — they route to
+        # the drift at :func:`run_ground_enemy_turn`.)
     _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
     _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
     if _dist < _aws.min_range and await _back_off_step(
@@ -253,21 +289,35 @@ async def _volley_step(
         ap, ctx,
     )
     if _pick is not None:
-        _danced = await _maybe_dance_instead(
+        return await _pick_or_dance(
             ctx, console, render_callback, game_map, enemy_entity,
-            player_pos, enemy_spec, _aws,
-        )
-        if _danced:
-            nav[0] = None  # off the advance path — recompute later
-            return 1, 1, False, 0, False
-        return await _fire_the_pick(
-            ctx, console, render_callback, game_map, enemy_entity,
-            enemy_spec, enemy_stats, armor_defense,
-            player_dodge, stamp, _pick,
+            player_pos, enemy_spec, enemy_stats, armor_defense,
+            player_dodge, stamp, nav, _aws, _pick,
         )
     return await _gap_step(
         ctx, console, render_callback, game_map, enemy_entity, player_pos,
         stamp, _aws, _dist, _los, nav,
+    )
+
+
+async def _pick_or_dance(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    enemy_spec, enemy_stats, armor_defense, player_dodge, stamp, nav,
+    aws, pick,
+):
+    """The with-a-pick decision tail: the dial's fire-vs-dance roll,
+    then the pick resolves (a cross-set pick pays the swap first)."""
+    _danced = await _maybe_dance_instead(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, enemy_spec, aws,
+    )
+    if _danced:
+        nav[0] = None  # off the advance path — recompute later
+        return 1, 1, False, 0, False
+    return await _fire_the_pick(
+        ctx, console, render_callback, game_map, enemy_entity,
+        enemy_spec, enemy_stats, armor_defense,
+        player_dodge, stamp, pick,
     )
 
 
@@ -423,7 +473,8 @@ async def _reposition_step(
 ):
     """One random in-band LOS-keeping step — the skirmisher dance that
     leftover AP buys after the one-shot cap (SETTLED 26). No such cell:
-    hold position."""
+    hold position. ``_ews=None`` is the WEAPONLESS drift (doc 48 p9):
+    any walkable LOS-keeping cell, no weapon band."""
     _pool = [
         (enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy)
         for _dx, _dy in _STEP_DIRS
@@ -431,9 +482,12 @@ async def _reposition_step(
             game_map, enemy_entity,
             enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy,
         )
-        and _ews.min_range <= _dist_to(
-            enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy, player_pos,
-        ) <= _ews.max_range
+        and (
+            _ews is None
+            or _ews.min_range <= _dist_to(
+                enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy, player_pos,
+            ) <= _ews.max_range
+        )
         and _mutual_sight(
             game_map,
             world.Position(enemy_entity.pos.x + _dx, enemy_entity.pos.y + _dy),

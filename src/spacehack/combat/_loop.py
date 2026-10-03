@@ -707,6 +707,14 @@ async def _end_player_turn(ctx, game_map, rules, turn: int):
         return turn, "DEFEAT"
     if rules.player_ap(ctx) > 0:
         return turn, None
+    # The stare eruption (doc 48 SETTLED 42) fires at the END of the
+    # player's turn — exactly one full turn to vacate — BEFORE enemy
+    # turns, so the surviving Watcher re-fixes after the blast (the
+    # ``advance_flights`` optional-hook pattern, ground-only).
+    _erupt = getattr(rules, "resolve_stare_eruptions", None)
+    if _erupt is not None and await _erupt(ctx, game_map) == "DEFEAT":
+        rules.on_player_death(ctx)
+        return turn, "DEFEAT"
     _end_result = await _end_turn(ctx, game_map, rules)
     if _end_result == "DEFEAT":
         return turn, "DEFEAT"

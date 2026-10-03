@@ -131,7 +131,28 @@ def emit(
         _radius = _find_gw(weapon_id).noise
     except KeyError:
         return []
-    if _radius <= 0:
+    return _emit_event(ctx, game_map, origin, _radius, by_player)
+
+
+def emit_radius(
+    ctx, game_map, origin, radius: int,
+) -> list:
+    """Emit one NON-WEAPON noise event at ``origin`` with an explicit
+    radius (doc 48 SETTLED 42 — the Watcher's shriek and the stare
+    eruption share this ONE variant; no ad-hoc hearer loops). The
+    hearing laws are exactly weapon fire's: hostile-only, dormant
+    deaf, engaged ignore, guards leash-gated. Machine-sourced, so
+    the player-facing reaction line never fires."""
+    return _emit_event(ctx, game_map, origin, radius, by_player=False)
+
+
+def _emit_event(
+    ctx, game_map, origin, radius: int, by_player: bool,
+) -> list:
+    """The one hearer walk every noise event runs (SETTLED 22): stamp
+    ``last_seen_pos`` on every hearing hostile — heard is never
+    combatant (SETTLED 16 — LOS is the only aggro)."""
+    if radius <= 0:
         return []
     _stamped: list[world.Entity] = []
     _fresh: list[world.Entity] = []
@@ -143,12 +164,12 @@ def emit(
             _spec = _find_nc(_eid)
         except KeyError:
             continue
-        if not _hears(ctx, _e, _spec, game_map, origin, _radius):
+        if not _hears(ctx, _e, _spec, game_map, origin, radius):
             continue
         if getattr(_e, "last_seen_pos", None) is None:
             _fresh.append(_e)
         _e.last_seen_pos = world.Position(origin.x, origin.y)
         _stamped.append(_e)
-    if by_player and _fresh and _radius > QUIET_NOISE_MAX:
+    if by_player and _fresh and radius > QUIET_NOISE_MAX:
         _log_reaction_line(ctx, _fresh, ctx.player.pos)
     return _stamped

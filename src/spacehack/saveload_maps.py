@@ -171,6 +171,17 @@ def _optional_map_fields(gm) -> dict:
         ],
         "landmark_interaction_cells": _landmark_interaction_cells(gm),
         "landmark_variant_id": getattr(gm, 'landmark_variant_id', ''),
+        # Ancient machines (doc 48 p9): stare zones are combat-scoped
+        # (marker ids are runtime handles — serialize the stack count);
+        # the Warden's field tiles persist keyed by position.
+        "stare_zones": [
+            [int(x), int(y), len(markers or ())]
+            for (x, y), markers in (getattr(gm, "stare_zones", None) or {}).items()
+        ],
+        "field_tiles": [
+            [int(x), int(y), int(hp)]
+            for (x, y), hp in (getattr(gm, "field_tiles", None) or {}).items()
+        ],
     }
 
 
@@ -495,6 +506,30 @@ def _apply_dungeon_attributes(dungeon_map: world.GameMap, dd: dict) -> None:
     _set_position_attr(dungeon_map, dd, "down_stair_pos", "down_stair_pos")
     _set_position_attr(dungeon_map, dd, "mars_stairs_pos", "mars_stairs_pos")
     _apply_extension_attributes(dungeon_map, dd)
+    _restore_ancient_map_state(dungeon_map, dd)
+
+
+def _restore_ancient_map_state(dungeon_map: world.GameMap, dd: dict) -> None:
+    """Restore the ancient machines' map state (doc 48 p9): the
+    Warden's field tiles (position -> HP) and the stare zones. Stare
+    zones are COMBAT-SCOPED — combat never saves mid-fight and every
+    end path fades them, so a save never carries a live zone; the
+    payload's counts round-trip for the contract, but no zone ever
+    restores armed (fake marker ids would render-then-defuse — a
+    half-state). Old saves carry neither key."""
+    dungeon_map.stare_zones = {}
+
+    _fields: dict[tuple[int, int], int] = {}
+    for _entry in dd.get("field_tiles", []) or []:
+        if not isinstance(_entry, (list, tuple)) or len(_entry) < 3:
+            continue
+        try:
+            _x, _y, _hp = int(_entry[0]), int(_entry[1]), int(_entry[2])
+        except (TypeError, ValueError):
+            continue
+        if dungeon_map.in_bounds(_x, _y) and _hp > 0:
+            _fields[(_x, _y)] = _hp
+    dungeon_map.field_tiles = _fields
 
 
 def _dungeon_from_dict(dd: dict) -> tuple:

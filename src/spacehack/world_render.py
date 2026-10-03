@@ -107,6 +107,91 @@ def _append_tile_commands(
             ))
 
 
+# Ancient-machine overlays (doc 48 p9, SETTLED 42/45): the stare
+# zone reads as a glowing floor — core brighter than its ring, the
+# family's violet carrying the field shimmer. Both CP437-safe.
+_STARE_CORE_FG: tuple[int, int, int] = (255, 130, 80)
+_STARE_RING_FG: tuple[int, int, int] = (190, 95, 65)
+_FIELD_FG: tuple[int, int, int] = (170, 140, 250)
+
+
+def _append_ancient_overlay_commands(
+    commands: list[WorldDrawCommand],
+    game_map: world.GameMap,
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int,
+    camera_y: int,
+) -> None:
+    """Paint the stare zones and field shimmer OVER their tiles, UNDER
+    the entities. The stare is a live threat: visible cells only. The
+    field outlives the fight: revealed cells, dimmed when remembered."""
+    for _cell in (game_map.stare_zones or {}):
+        _cx, _cy = _cell
+        for _dy in (-1, 0, 1):
+            for _dx in (-1, 0, 1):
+                _append_overlay_cell(
+                    commands, game_map, _cx + _dx, _cy + _dy,
+                    "*", _STARE_CORE_FG if (_dx, _dy) == (0, 0)
+                    else _STARE_RING_FG,
+                    region_x=region_x, region_y=region_y,
+                    region_w=region_w, region_h=region_h,
+                    camera_x=camera_x, camera_y=camera_y,
+                    visible_only=True,
+                )
+    for _cell, _hp in (game_map.field_tiles or {}).items():
+        if _hp <= 0:
+            continue  # destroyed tiles clear from the render
+        _append_overlay_cell(
+            commands, game_map, _cell[0], _cell[1], "~", _FIELD_FG,
+            region_x=region_x, region_y=region_y,
+            region_w=region_w, region_h=region_h,
+            camera_x=camera_x, camera_y=camera_y,
+            visible_only=False,
+        )
+
+
+def _append_overlay_cell(
+    commands: list[WorldDrawCommand],
+    game_map: world.GameMap,
+    map_x: int,
+    map_y: int,
+    char: str,
+    fg: tuple[int, int, int],
+    *,
+    region_x: int,
+    region_y: int,
+    region_w: int,
+    region_h: int,
+    camera_x: int,
+    camera_y: int,
+    visible_only: bool,
+) -> None:
+    """One overlay glyph clipped to the viewport (tiles → overlays →
+    entities is the paint order; an entity standing on a marked cell
+    still paints over the glow)."""
+    if not (
+        camera_x <= map_x < camera_x + region_w
+        and camera_y <= map_y < camera_y + region_h
+    ):
+        return
+    if not game_map.is_revealed(map_x, map_y):
+        return
+    if visible_only and not game_map.is_visible(map_x, map_y):
+        return
+    _fg = fg if visible_only else (
+        fg if game_map.is_visible(map_x, map_y) else _dim_color(fg)
+    )
+    commands.append(WorldDrawCommand(
+        region_x + map_x - camera_x,
+        region_y + map_y - camera_y,
+        char, _fg,
+    ))
+
+
 def _entity_draw_order(entities, sort_entities: bool):
     """Return visible entities in the requested renderer draw order."""
     if not sort_entities:
@@ -234,6 +319,12 @@ def world_draw_commands(
     )
     commands: list[WorldDrawCommand] = []
     _append_tile_commands(
+        commands, game_map,
+        region_x=region_x, region_y=region_y,
+        region_w=region_w, region_h=region_h,
+        camera_x=camera_x, camera_y=camera_y,
+    )
+    _append_ancient_overlay_commands(
         commands, game_map,
         region_x=region_x, region_y=region_y,
         region_w=region_w, region_h=region_h,
