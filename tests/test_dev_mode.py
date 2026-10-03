@@ -264,6 +264,18 @@ def test_best_set_weapon_selects_strongest_per_class():
     assert _best_set_weapon("melee") == "mono_blade"
 
 
+def test_best_set_weapon_skips_enemy_only_rows():
+    """The shop-leak guard arms the dev pick too (doc 48 p9 review):
+    an enemy-only row (the ancients) must never seed a dev grant,
+    however strong its numbers."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    for set_class in ("ranged", "melee"):
+        pick = find_ground_weapon(_best_set_weapon(set_class))
+        assert pick.shop_available is True
+        assert pick.loot_droppable is True
+
+
 def test_dev_ground_loadout_equips_rocket_launcher_pack_and_best_armor(monkeypatch):
     """Dev mode grants the complete ground loadout and logs it."""
     monkeypatch.setenv("SPACEHACK_DEV", "1")

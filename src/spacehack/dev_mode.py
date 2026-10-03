@@ -247,11 +247,15 @@ def _best_ground_armor() -> dict[str, ground_equipment.StoredGroundEquipment]:
 
 
 def _best_set_weapon(set_class: str) -> str:
-    """Return the strongest registered weapon of one set class (doc 51)."""
+    """Return the strongest registered weapon of one set class (doc 51).
+
+    Shop-stockable only: the enemy-only rows (``shop_available=False``,
+    the monsters + the ancients) must never leak into a dev grant —
+    the same flag that keeps them out of armories."""
     return max(
         (
             _w for _w in list_ground_weapons()
-            if weapon_set(_w.id) == set_class
+            if weapon_set(_w.id) == set_class and _w.shop_available
         ),
         key=lambda _w: (_w.damage, _w.tech_level, _w.price),
     ).id
