@@ -50,6 +50,14 @@ def enemy_turn_start(state, ctx, gei, game_map) -> None:
     warden_turn_start(gei, game_map)
 
 
+def enemy_turn_end(gei, game_map) -> None:
+    """The per-enemy turn POSTAMBLE: the Warden's shell tracks where
+    the body ENDED its turn (the p9 playtest catch — the start-side
+    re-derive ran before the movement, so the shimmer trailed the
+    body for a full round)."""
+    warden_track_position(gei, game_map)
+
+
 def mend_turn_start(state, ctx, gei) -> None:
     """The Shredder's in-combat mend (doc 48 SETTLED 42): heals its
     ``mend_rate`` at the START of its turn, IN COMBAT ONLY — the
@@ -367,28 +375,49 @@ def ensure_field(game_map, spec, pos) -> None:
 
 def warden_turn_start(gei, game_map) -> None:
     """The Warden's turn preamble (doc 48 SETTLED 42): the shell
-    re-derives from its CURRENT position (in combat — this call site
-    is the combat turn path), regenerating ``field_regen`` per tile
-    up to full. A fresh tile (the Warden moved, or a destroyed one)
-    regrows from 0 — a carved hole lives exactly one player volley
-    round. Cells only the acting Warden's OLD shell covered drop
-    out; a stationary SIBLING Warden's shell is preserved untouched.
-    A sibling that has MOVED since its own turn start loses its
-    stale-ring cells here — position-keyed state (SETTLED 42),
-    self-healing at its next turn start (fresh cells regrow). The
-    body never mends — the field is its sustain; self-repair belongs
-    to the Shredder alone."""
+    re-derives from its CURRENT position and regenerates
+    ``field_regen`` per tile up to full — IN COMBAT (this call site
+    is the combat turn path). A fresh tile (the Warden moved, or a
+    destroyed one) regrows from 0 — a carved hole lives exactly one
+    player volley round. Cells only the acting Warden's OLD shell
+    covered drop out; a stationary SIBLING Warden's shell is
+    preserved untouched. The body never mends — the field is its
+    sustain; self-repair belongs to the Shredder alone."""
     _m = _mechanics(gei.spec)
     if _m is None or _m.field_tile_hp <= 0 or not gei.alive:
         return
+    game_map.field_tiles = _rederive_shell(
+        game_map, gei, _m.field_regen,
+    )
+
+
+def warden_track_position(gei, game_map) -> None:
+    """The turn-END position pass (the p9 playtest catch: "as it
+    moves the force field doesn't move with it" — the turn-start
+    re-derive ran BEFORE the movement, so the shell trailed the body
+    for a full round). Re-derives the shell around where the Warden
+    ENDS its turn with NO regen: cells the new ring still covers
+    keep their HP, fresh cells enter at 0 (they regrow at the next
+    turn start)."""
+    _m = _mechanics(gei.spec)
+    if _m is None or _m.field_tile_hp <= 0 or not gei.alive:
+        return
+    game_map.field_tiles = _rederive_shell(game_map, gei, 0)
+
+
+def _rederive_shell(game_map, gei, regen: int) -> dict:
+    """The one shell rebuild: preserve sibling coverage, then lay this
+    Warden's ring at ``min(full, current + regen)`` over the merged
+    state (regen 0 = the position-tracking pass)."""
+    _m = _mechanics(gei.spec)
     _current = game_map.field_tiles or {}
     _new = _preserve_sibling_shells(game_map, gei, _current)
     for _cell in shell_cells(game_map, gei.entity.pos):
         _new[_cell] = min(
             _m.field_tile_hp,
-            _current.get(_cell, 0) + _m.field_regen,
+            _current.get(_cell, 0) + regen,
         )
-    game_map.field_tiles = _new
+    return _new
 
 
 def _preserve_sibling_shells(game_map, gei, current) -> dict:
@@ -407,18 +436,29 @@ def _preserve_sibling_shells(game_map, gei, current) -> dict:
 
 
 def maybe_drop_field(game_map, spec) -> None:
-    """A Warden's death drops its field — unless another Warden still
-    stands on the map (a merged shell belongs to the survivor). Dead
-    bodies are already removed by the caller's scan order; a dormant
-    Warden projects nothing."""
+    """A Warden's death collapses its share of the field: with no
+    survivor the whole shimmer dies; with siblings the field
+    REBUILDS as the survivors' current rings — the dead one's cells
+    clear (the p9 playtest catch: "when I kill the W the force field
+    stays" — the merged-survivor rule kept the DEAD ring and the
+    survivor's never stood). Dead bodies are already removed by the
+    caller's scan order; a dormant Warden projects nothing."""
     if not carries_field(spec):
         return
+    _survivor_cells: set = set()
     for _ent in game_map.entities:
         if getattr(_ent, "powered_down", False):
             continue
         if getattr(_ent, "npc_char_id", "") == spec.id:
-            return  # a sibling Warden keeps the shimmer up
-    game_map.field_tiles = None
+            _survivor_cells.update(shell_cells(game_map, _ent.pos))
+    if not _survivor_cells:
+        game_map.field_tiles = None
+        return
+    _current = game_map.field_tiles or {}
+    game_map.field_tiles = {
+        _cell: _hp for _cell, _hp in _current.items()
+        if _cell in _survivor_cells
+    }
 
 
 def absorb_shot(

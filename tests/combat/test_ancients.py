@@ -919,7 +919,7 @@ class TestFieldDeathAndPersistence:
         _ancients.maybe_drop_field(game_map, gei.spec)
         assert game_map.field_tiles is None
 
-    def test_sibling_warden_keeps_the_merged_shell(self):
+    def test_sibling_death_collapses_to_the_survivors_shell(self):
         game_map = _floor_map(14, 14)
         gei = _warden_gei(game_map, pos=(6, 6))
         sibling = world.Entity(
@@ -927,8 +927,17 @@ class TestFieldDeathAndPersistence:
             npc_char_id="warden",
         )
         game_map.entities.append(sibling)
+        # the sibling's own shell stands (its turn derived it)
+        from src.spacehack.combat import _rules_ground
+
+        sibling_gei = _rules_ground._build_enemy_instance(sibling, game_map)
+        _ancients.warden_turn_start(sibling_gei, game_map)
+        game_map.entities.remove(gei.entity)  # on_kill removes first
         _ancients.maybe_drop_field(game_map, gei.spec)
         assert game_map.field_tiles is not None
+        # the DEAD one's ring collapsed; only the survivor's stands
+        assert (6, 4) not in game_map.field_tiles
+        assert (10, 8) in game_map.field_tiles
 
     def test_eruption_killed_warden_drops_its_field(self):
         """The player-kill path's twin (the review catch): a Warden
@@ -1133,3 +1142,84 @@ def test_field_renders_as_the_violet_curtain():
     assert not any(
         c.char == "\u2592" for c in commands
     )
+
+
+def test_shell_tracks_the_wardens_turn_end_position():
+    """The lag catch ("as it moves the force field doesn't move with
+    it"): the start-side re-derive ran BEFORE the movement — the
+    shimmer trailed the body for a full round. The turn-end pass
+    recenters the shell on where the Warden ENDS its turn (fresh
+    cells enter at 0, no regen double-dip)."""
+    game_map = _floor_map(20, 20)
+    gei = _warden_gei(game_map, pos=(6, 6))
+    _ancients.warden_turn_start(gei, game_map)   # start: ring at (6,6)
+    # the W moves during its turn (AI steps), then the turn ends
+    gei.entity.pos = world.Position(9, 9)
+    _ancients.enemy_turn_end(gei, game_map)
+    cells = set(game_map.field_tiles)
+    assert (9, 7) in cells                        # the new ring stands
+    assert all(max(abs(x - 9), abs(y - 9)) == 2 for x, y in cells)
+    assert game_map.field_tiles[(9, 7)] == 0      # fresh cells regrow
+    assert (6, 4) not in cells                    # the old ring dropped
+
+
+def test_killing_a_warden_collapses_only_its_share():
+    """The death catch ("when I kill the W the force field stays"):
+    the merged-survivor rule kept the DEAD ring while the survivor's
+    never stood. A death now rebuilds the field as the survivors'
+    current rings — killing a W always visibly collapses something."""
+    game_map = _floor_map(20, 20)
+    first = _warden_gei(game_map, pos=(6, 6))
+    second = _warden_gei(game_map, pos=(14, 14))
+    _ancients.warden_turn_start(second, game_map)  # both rings stand
+    game_map.entities.remove(first.entity)
+    _ancients.maybe_drop_field(game_map, first.spec)
+    cells = set(game_map.field_tiles)
+    assert (6, 4) not in cells       # the dead W's ring is gone
+    assert (14, 12) in cells         # the survivor keeps its own
+
+
+def test_end_pass_preserves_a_stationary_sibling_shell():
+    """The tracking pass shares the sibling preserve: a MOVING Warden
+    A's end pass must never drop stationary sibling B's ring."""
+    game_map = _floor_map(20, 20)
+    first = _warden_gei(game_map, pos=(6, 6))
+    second = _warden_gei(game_map, pos=(14, 14))
+    _ancients.warden_turn_start(second, game_map)
+    # A moves (its own turn) and its turn ends
+    first.entity.pos = world.Position(9, 9)
+    _ancients.enemy_turn_end(first, game_map)
+    cells = set(game_map.field_tiles)
+    assert (14, 12) in cells and (14, 16) in cells  # B untouched
+    assert all(
+        max(abs(x - 9), abs(y - 9)) == 2
+        or max(abs(x - 14), abs(y - 14)) == 2
+        for x, y in cells
+    )
+
+
+def test_aim_line_stops_at_the_shimmer():
+    """The p9 playtest catch ("the targeting line is writing overtop
+    of the force field"): the aim line ends at the first LIVE shell
+    tile — the shimmer eats the line like it eats the shot, and the
+    barrier stays visible along the blocked lane."""
+    from src.spacehack.combat._animations import _draw_range_colored_line
+    from src.spacehack.framebuffer import FrameBuffer
+
+    game_map = _floor_map(16, 16)
+    _warden_gei(game_map, pos=(8, 8))  # the shell stands around (8,8)
+    console = FrameBuffer(16, 16)
+    player = world.Position(8, 2)
+    target = world.Position(8, 8)      # the line crosses (8,6)
+    _draw_range_colored_line(
+        console, player, target, 8, 3,
+        cam_x=0, cam_y=0, view_w=16, view_h=16,
+        game_map=game_map, distance_round=int,
+    )
+    commands = {
+        (c.x, c.y): c for c in console.to_commands()
+    }
+    # in-bounds lane cells before the shimmer carry the line mark
+    assert (8, 3) in commands
+    # the first shell tile keeps its curtain, not the line's squiggle
+    assert (8, 6) not in commands or commands[(8, 6)].char != "~"

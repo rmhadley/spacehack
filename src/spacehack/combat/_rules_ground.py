@@ -828,6 +828,7 @@ async def _spend_one_enemy_turn(
         console=_state.console, render_callback=render_frame,
         player_dodge=_player_dodge,
     )
+    _ancients.enemy_turn_end(_gei, game_map)
     _gei.cells_moved_this_turn += _cells
     _gei.ap = _new_ap
     _pair = ground_loadout.active_pair(

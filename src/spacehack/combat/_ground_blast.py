@@ -112,7 +112,7 @@ def _damage_field_victims(state, weapon_id, ctx, center, quality) -> None:
     for _dy in (-1, 0, 1):
         for _dx in (-1, 0, 1):
             _cell = (center.x + _dx, center.y + _dy)
-            if _cell in _tiles:
+            if _tiles.get(_cell, 0) > 0:  # 0-HP fresh tiles are open
                 damage_field_tile(
                     ctx, state.game_map, _cell,
                     _full if (_dx, _dy) == (0, 0) else _splash,
