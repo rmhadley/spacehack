@@ -239,8 +239,11 @@ def test_every_humanoid_row_names_ladder_families():
     ladder = set(weapon_families())
     for spec in list_npc_chars():
         assert set(spec.weapon_families) <= ladder, spec.id
-        # A row must be able to fight: families roll, or weapons fix.
-        assert spec.weapon_families or spec.weapons, spec.id
+        # A row must be able to fight: families roll, weapons fix — or
+        # it is a mechanics-carrying ancient whose stare IS the attack
+        # (doc 48 SETTLED 42/45: the weaponless Watcher).
+        if spec.mechanics is None:
+            assert spec.weapon_families or spec.weapons, spec.id
         # The window pin only means something on a rolling row.
         if spec.pin_window_top:
             assert spec.weapon_families, spec.id
@@ -517,18 +520,26 @@ def test_carried_pool_range_is_half_to_three_quarters():
 def test_humanoid_rows_author_melee_sets():
     """The data pass (SETTLED 43): every humanoid row carries a melee
     set — family rows roll it, the merchant's knife is fixed; fauna
-    and machines author neither melee field."""
-    expected_melee_families = {
-        "consortium_enforcer", "consortium_gunner", "pirate_raider",
-        "pirate_rifleman", "pirate_brute", "militia_marine",
-        "militia_sniper", "militia_trooper",
+    and machines author neither melee field. The Warden amends the
+    machine side (doc 48 SETTLED 42): the slam IS its melee set."""
+    expected = {
+        "consortium_enforcer": ("melee_families", ("melee",)),
+        "consortium_gunner": ("melee_families", ("melee",)),
+        "pirate_raider": ("melee_families", ("melee",)),
+        "pirate_rifleman": ("melee_families", ("melee",)),
+        "pirate_brute": ("melee_families", ("melee",)),
+        "militia_marine": ("melee_families", ("melee",)),
+        "militia_sniper": ("melee_families", ("melee",)),
+        "militia_trooper": ("melee_families", ("melee",)),
+        "merchant": ("melee_weapons", ("combat_knife",)),
+        "warden": ("melee_weapons", ("ancient_slam",)),
     }
     for spec in list_npc_chars():
-        if spec.id in expected_melee_families:
-            assert spec.melee_families == ("melee",), spec.id
-        elif spec.id == "merchant":
-            assert spec.melee_weapons == ("combat_knife",), spec.id
-            assert spec.weapons == ("kinetic_pistol",), spec.id
+        if spec.id in expected:
+            _field, _value = expected[spec.id]
+            assert getattr(spec, _field) == _value, spec.id
+            if spec.id == "merchant":
+                assert spec.weapons == ("kinetic_pistol",), spec.id
         else:
             assert not spec.melee_weapons and not spec.melee_families, spec.id
 

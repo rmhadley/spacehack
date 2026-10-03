@@ -8,7 +8,9 @@ Rules against the spec data, run by the standard gate:
 * FAMILY — every faction-tagged ground spec and every listed machine
   belongs to a :data:`CHAR_CLASS_FAMILIES` family: its char is a case
   variant of the family letter and its fg is the family color
-  exactly. Fauna (factionless monsters) are not families.
+  exactly. The ancient family (SETTLED 45) uses the distinct-letter
+  form — members' chars must be IN the family's ``glyphs`` tuple.
+  Fauna (factionless monsters) are not families.
 * SEPARATION — family colors of different identity groups in the same
   theater stay max-channel distance >=
   :data:`SEPARATION_MIN` apart. This is what legalizes reusing a char
@@ -57,6 +59,12 @@ def _family_for(spec) -> CharClassFamily | None:
     return None
 
 
+def _family_glyphs(family: CharClassFamily) -> tuple[str, ...]:
+    """The family's legal member chars: the SETTLED 45 distinct-letter
+    form when ``glyphs`` is authored, else the case-variant pair."""
+    return family.glyphs or (family.letter.lower(), family.letter.upper())
+
+
 def test_ground_family_membership_and_shape():
     faction_families = {
         family.faction for family in CHAR_CLASS_FAMILIES.values()
@@ -78,11 +86,9 @@ def test_ground_family_membership_and_shape():
                 "author its CHAR_CLASS_FAMILIES entry"
             )
         if spec.faction in faction_families or spec.id in listed_members:
-            assert spec.char in (
-                family.letter.lower(), family.letter.upper(),
-            ), (
-                f"{spec.id} char {spec.char!r} is not a case variant of "
-                f"family letter {family.letter!r}"
+            assert spec.char in _family_glyphs(family), (
+                f"{spec.id} char {spec.char!r} is not a legal glyph of "
+                f"family {family.letter!r}{family.glyphs}"
             )
             assert spec.fg == family.color, (
                 f"{spec.id} fg {spec.fg} != family color {family.color}"
@@ -216,11 +222,13 @@ def test_flagship_specs_carry_elite():
 
 
 def test_ground_elite_specs_carry_elite():
-    # SETTLED 34/35: the brute and the sniper are the named wearers.
+    # SETTLED 34/35: the brute and the sniper are the named wearers;
+    # doc 48 SETTLED 45 adds the Warden (bold W — the ancient
+    # family's unique callout: emphasis, not disambiguation).
     elite = {
         spec.id for spec in list_npc_chars() if spec.elite
     }
-    assert elite == {"pirate_brute", "militia_sniper"}
+    assert elite == {"pirate_brute", "militia_sniper", "warden"}
 
 
 def _ground_entity(spec_id: str) -> world.Entity:
@@ -243,7 +251,7 @@ def _ground_entity(spec_id: str) -> world.Entity:
 def test_elite_ground_entity_renders_bold_command():
     from src.spacehack.data.npc_chars import find_npc_char
 
-    for spec_id in ("pirate_brute", "militia_sniper"):
+    for spec_id in ("pirate_brute", "militia_sniper", "warden"):
         commands = _entity_commands(_ground_entity(spec_id))
         glyph = find_npc_char(spec_id).char
         entity_commands = [c for c in commands if c.char == glyph]

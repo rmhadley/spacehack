@@ -47,7 +47,7 @@ def ensure_loadout(
         from .data.npc_chars import find_npc_char
 
         _spec = spec or find_npc_char(entity.npc_char_id)
-        _band = ground_scale.entity_band(entity, game_map)
+        _band = ground_scale.entity_band(entity, game_map, spec=_spec)
         entity.rolled_loadout = ground_scale.roll_loadout(
             _spec, _band, RNG,
         )
@@ -66,7 +66,7 @@ def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:
     from .data.npc_chars import find_npc_char
 
     _spec = spec or find_npc_char(entity.npc_char_id)
-    _band = ground_scale.entity_band(entity, game_map)
+    _band = ground_scale.entity_band(entity, game_map, spec=_spec)
     stamp[SET_MELEE] = ground_scale.roll_slot(
         getattr(_spec, "melee_families", ()),
         getattr(_spec, "melee_weapons", ()), _band, RNG,

@@ -10,10 +10,12 @@ Ground identity families (doc 48 SETTLED 34, the
 are case variants of it (lowercase common / uppercase serious), ONE
 consistent color per family — pirate `r`/`R` rust, militia `m` blue,
 merchant `h` green, consortium `e`/`E` corporate navy, civilian `c`,
-machines `d`/`D` bronze. The (glyph, color) PAIR is the identity — a
-char may repeat across families when the colors separate. Fauna are
-not families: species glyphs in biome palettes, bold apexes later
-(phase 10).
+machines `d`/`D` bronze. The ancient family amends the convention
+(SETTLED 45): three DISTINCT glyphs — Watcher `O`, Shredder `S`,
+Warden bold `W` — in one cold violet. The (glyph, color) PAIR is the
+identity — a char may repeat across families when the colors
+separate. Fauna are not families: species glyphs in biome palettes,
+bold apexes later (phase 10).
 
 Adding a new NPC character is one entry in an ``NPC_CHARS`` tuple
 in any submodule — no if/else chains, no registry edits.
@@ -30,18 +32,50 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
+class MachineMechanics:
+    """Per-machine mechanic dials (doc 48 SETTLED 42) — authored data
+    on the ancient rows, ``None`` on every ordinary row. A dial at 0
+    means the machine lacks that mechanic entirely.
+
+    Attributes:
+        stare_core: the Watcher's pre-soak core damage; the 3x3 ring
+            reads half. 0 = no stare.
+        shriek_radius: the Watcher's alarm hearing radius (the family
+            noise column's loud one, 25-40 dial band).
+        mend_rate: the Shredder's in-combat start-of-turn heal; NO
+            out-of-combat tick (wounds persist between fights).
+        field_tile_hp: the Warden's per-shell-tile HP (radius-2 shell,
+            one tile thick, empty interior).
+        field_regen: the Warden's start-of-turn tile regen, in combat
+            (+10/turn minimum — space-shield symmetry, ground-side).
+    """
+
+    stare_core: int = 0
+    shriek_radius: int = 0
+    mend_rate: int = 0
+    field_tile_hp: int = 0
+    field_regen: int = 0
+
+
+@dataclass(frozen=True)
 class CharClassFamily:
     """One ground identity family (SETTLED 34).
 
     ``faction`` families recruit every spec carrying that faction;
     explicit ``members`` list ids for factionless families (the
     contemporary machines — fauna share ``faction=""`` but stay out).
+
+    ``glyphs`` is the SETTLED 45 distinct-letter form (the ancient
+    family: three utterly different machines, one color): when set,
+    members' chars must be IN it. Empty (every other family) means
+    the one-letter case-variant convention.
     """
 
     letter: str
     color: tuple[int, int, int]
     faction: str = ""
     members: tuple[str, ...] = ()
+    glyphs: tuple[str, ...] = ()
 
 
 CHAR_CLASS_FAMILIES: dict[str, CharClassFamily] = {
@@ -63,6 +97,14 @@ CHAR_CLASS_FAMILIES: dict[str, CharClassFamily] = {
     "machine": CharClassFamily(
         letter="d", color=(200, 180, 110),
         members=("sentry_drone", "assault_drone"),
+    ),
+    # The ancient family (SETTLED 45): three DISTINCT letters, ONE cold
+    # violet — each machine is its own silhouette; bold stays the
+    # Warden's unique callout (emphasis now, not disambiguation).
+    "ancient": CharClassFamily(
+        letter="", color=(170, 140, 250),
+        members=("watcher", "shredder", "warden"),
+        glyphs=("O", "S", "W"),
     ),
 }
 
@@ -142,6 +184,12 @@ class NpcCharSpec:
         tier: drop tier — equipment drops filter to ``tech_level <= tier``.
         armor: flat damage reduction subtracted from player hits
             (plasma halves it).
+        fixed_band: pins the spec's band FLAT (doc 48 SETTLED 42) —
+            the site's floor-band stamp never dilutes the row.
+            0 (every ordinary row) = the entity's stamped band.
+        mechanics: the ancient machines' per-row mechanic dials (doc
+            48 SETTLED 42) — stare/shriek/mend/field parameters as
+            authored data; ``None`` on every ordinary row.
     """
     id: str
     name: str
@@ -169,6 +217,8 @@ class NpcCharSpec:
     squad_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
+    fixed_band: int = 0
+    mechanics: MachineMechanics | None = None
 
 
 # The flat minor share every archetype gives its space skills

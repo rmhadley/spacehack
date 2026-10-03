@@ -337,8 +337,13 @@ def context_band(game_map) -> int:
         return 1
 
 
-def entity_band(entity, game_map=None) -> int:
-    """The entity's stamped band; a 0 stamp derives from the site."""
+def entity_band(entity, game_map=None, spec=None) -> int:
+    """The entity's band: a spec-authored FIXED band wins outright
+    (doc 48 SETTLED 42 — the ancient rows derive at band 4 flat; the
+    site's floor stamp never dilutes them); else the stamped band, a
+    0 stamp deriving from the site."""
+    if spec is not None and getattr(spec, "fixed_band", 0) > 0:
+        return clamp_band(spec.fixed_band)
     return clamp_band(getattr(entity, "spawn_band", 0)) or context_band(
         game_map,
     )
