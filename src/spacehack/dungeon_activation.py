@@ -499,20 +499,42 @@ def _carve_dock(game_map: world.GameMap, cell: tuple[int, int]) -> None:
     game_map.replace_tile(x, y, world.DUNGEON_FLOOR)
 
 
-def _stock_dormant_security(game_map, spec, spawn) -> None:
+def _stock_dormant_security(game_map, spec, spawn, fallback_id: str = "") -> None:
     """Pre-place every floor's security as dormant units (doc 30).
 
     Each activation event's ``count`` units dock in wall alcoves near
     its route anchor (they activate when the event fires, instead of
     the event spawning fresh bodies), plus ``lockdown_extras`` reserve
-    units docked along the route for the post-download gauntlet. A
-    drone in a wall dock can never block a passage — and enemies on
-    the far side can always be reached (aggro reachability, v10).
+    units docked along the route for the post-download gauntlet —
+    drawn from the floor's event ids, or the EXTENSION'S authored
+    ``fallback_id`` on event-less floors (doc 48 p9: data, no
+    alien-ness branch). A drone in a wall dock can never block a
+    passage — and enemies on the far side can always be reached
+    (aggro reachability, v10).
     """
     occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
     dormant_placed: set[tuple[int, int]] = set()
     landmark_cells = set(getattr(game_map, "landmark_footprint", ()) or ())
     transit_cells = _transit_neighborhood(game_map)
+    _stock_event_units(
+        game_map, spec, occupied, dormant_placed,
+        landmark_cells=landmark_cells, transit_cells=transit_cells,
+    )
+    if spec.lockdown_extras <= 0:
+        return
+    _stock_lockdown_extras(
+        game_map, spec, spawn, occupied, dormant_placed,
+        landmark_cells=landmark_cells, transit_cells=transit_cells,
+        fallback_id=fallback_id,
+    )
+    _reconcile_dormant_placement(game_map, spawn, dormant_placed)
+
+
+def _stock_event_units(
+    game_map, spec, occupied, dormant_placed,
+    *, landmark_cells, transit_cells,
+) -> None:
+    """Dock every activation event's dormant squad near its anchor."""
     for event in spec.activation_events:
         anchor = (game_map.activation_positions or {}).get(event.id)
         if anchor is None:
@@ -531,13 +553,6 @@ def _stock_dormant_security(game_map, spec, spawn) -> None:
             game_map, event.enemy_id, cells, f"{event.id}_security",
             band=_floor_band(spec),
         )
-    if spec.lockdown_extras <= 0:
-        return
-    _stock_lockdown_extras(
-        game_map, spec, spawn, occupied, dormant_placed,
-        landmark_cells=landmark_cells, transit_cells=transit_cells,
-    )
-    _reconcile_dormant_placement(game_map, spawn, dormant_placed)
 
 
 def _activation_cells(
@@ -632,11 +647,22 @@ def _reconcile_dormant_placement(
 
 def _stock_lockdown_extras(
     game_map, spec, spawn, occupied, dormant_placed,
-    *, landmark_cells, transit_cells,
+    *, landmark_cells, transit_cells, fallback_id="",
 ) -> None:
     """Spread the floor's reserve garrison through wall docks: two hold
-    the entry room, the rest dock at even fractions along the route."""
-    enemy_ids = [e.enemy_id for e in spec.activation_events] or ["sentry_drone"]
+    the entry room, the rest dock at even fractions along the route.
+    The pool is the floor's event ids round-robin, with the
+    extension's authored ``fallback_id`` joining the tail (doc 48 p9:
+    the sentry_drone hardcode is dead — data owns it); an empty pool
+    means no extras — the map is not carved for garrisons that
+    cannot exist."""
+    enemy_ids = [
+        _id for _id in (
+            *(e.enemy_id for e in spec.activation_events), fallback_id,
+        ) if _id
+    ]
+    if not enemy_ids:
+        return
     per = [enemy_ids[i % len(enemy_ids)] for i in range(spec.lockdown_extras)]
     anchors = _spread_extra_anchors(game_map, spawn, len(per))
     for i, (enemy_id, anchor_pos) in enumerate(zip(per, anchors)):

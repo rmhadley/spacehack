@@ -136,6 +136,47 @@ def test_activation_threshold_resolves_when_no_deployment_cell_exists(monkeypatc
     assert squad and all(not e.powered_down for e in squad)
 
 
+def test_silent_warden_event_wakes_without_a_popup(monkeypatch):
+    """The wordless wake at RUNTIME (doc 48 p9): a silent event never
+    fires the modal — the encounter itself (wake + persist + the
+    shared log line) all still run. Deleting the gate would resurrect
+    the double-show the fold retired and fail this pin."""
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    seed_rng(23)
+    parent_map, parent_player = _parent_map()
+    ctx = _ctx(parent_map, parent_player)
+    shown: list = []
+    monkeypatch.setattr(
+        "src.spacehack.main_quest.show_gate_popup",
+        as_async(lambda *_a, **_k: shown.append("popup")),
+    )
+    event = next(
+        e for e in find_extension("mars_alien_prison").floor(4).activation_events
+        if e.id == "prison_floor4_deep_wardens"
+    )
+    ctx.dungeon_extension = DungeonExtensionState(
+        extension_id="mars_alien_prison", current_floor=4,
+    )
+    warden = world.Entity(
+        char="W", fg=(170, 140, 250), pos=world.Position(4, 4),
+        npc_char_id="warden", bold=True,
+        squad_id="prison_floor4_deep_wardens_security", powered_down=True,
+    )
+    parent_map.entities.append(warden)
+
+    run(dungeon_extensions._fire_activation_event(
+        ctx, ctx.dungeon_extension, event,
+    ))
+
+    assert shown == []  # no modal — the wordless wake
+    assert "prison_floor4_deep_wardens" in ctx.dungeon_extension.activated_events
+    assert not warden.powered_down  # the dormant squad woke
+    assert any(  # the shared security log line still reads
+        "security" in entry.text.lower() for entry in ctx.log.history()
+    )
+
+
 def test_floor_generation_has_up_stairs_and_stable_activation_anchors():
     seed_rng(7)
     game_map, spawn = dungeon_extensions._generate_floor("mars_alien_prison", 1)
@@ -328,7 +369,7 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
     assert event_id in ctx.dungeon_extension.activated_events
     assert "prison_floor1_security_beta" not in ctx.dungeon_extension.activated_events
     assert any(
-        entity.npc_char_id == "sentry_drone"
+        entity.npc_char_id == "watcher"
         and entity.squad_id == f"{event_id}_security"
         and not entity.powered_down
         for entity in extension_map.entities
@@ -340,7 +381,7 @@ def test_activation_fires_once_and_persists_event_id(monkeypatch):
     assert len(extension_map.entities) == entity_count
 
 
-def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
+def test_second_activation_spawns_shredder_near_deeper_anchor(monkeypatch):
     seed_rng(12)
     parent_map, parent_player = _parent_map()
     ctx = _ctx(parent_map, parent_player)
@@ -366,7 +407,7 @@ def test_second_activation_spawns_assault_drone_near_deeper_anchor(monkeypatch):
     assert run(dungeon_extensions.tick_activation(ctx))
     assert event_id in ctx.dungeon_extension.activated_events
     assert any(
-        entity.npc_char_id == "assault_drone"
+        entity.npc_char_id == "shredder"
         and entity.squad_id == f"{event_id}_security"
         and not entity.powered_down
         for entity in extension_map.entities
@@ -398,7 +439,7 @@ def test_progress_trigger_fires_when_anchor_is_skipped(monkeypatch):
         "prison_floor1_security_beta",
     } <= ctx.dungeon_extension.activated_events
     assert sum(
-        entity.npc_char_id in {"sentry_drone", "assault_drone"}
+        entity.npc_char_id in {"watcher", "shredder"}
         and not entity.powered_down
         for entity in extension_map.entities
     ) == 2
@@ -903,7 +944,7 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
         "prison_ascent_f2_assault",
     }
     assert sum(
-        entity.npc_char_id == "assault_drone"
+        entity.npc_char_id == "shredder"
         and not entity.powered_down
         for entity in floor_two.entities
     ) == 2
@@ -917,7 +958,7 @@ def test_ascent_progress_targets_upper_stairs_and_escalates(monkeypatch):
     # when placement filters (Phase B footprints, chokepoint/stranding
     # rules) claim a cell — at least one per squad always wakes.
     assert sum(
-        entity.npc_char_id == "sentry_drone"
+        entity.npc_char_id == "watcher"
         and not entity.powered_down
         for entity in floor_two.entities
     ) >= 1

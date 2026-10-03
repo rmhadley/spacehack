@@ -369,19 +369,28 @@ def _generate_floor_once(extension_id: str, floor: int, phase: str = "dormant"):
     _game_map.activation_positions = _activation_positions(
         _game_map, _spawn, _spec.activation_events,
     )
-    _stock_dormant_security(_game_map, _spec, _spawn)
-    # Phase-gated generation: a floor reached after the facility woke
-    # generates in its lit state; post-lockdown floors spawn security
-    # already active (doc 29/30 phase 3).
-    _effective = dungeon_activation._effective_phase(phase, floor)
-    if _effective != "dormant":
-        dungeon_activation.refresh_prison_panels(_game_map, _effective, floor)
-    if _effective == "lockdown":
-        dungeon_activation.activate_dormant(_game_map)
+    _finish_floor_security(extension_id, _game_map, _spec, _spawn, phase, floor)
     # The elevator anchor is stamped after the down stair is created so the
     # interaction entity occupies the connection and gates it cleanly.
     _stamp_interactions(_game_map, _spec, _spawn)
     return _game_map, _spawn
+
+
+def _finish_floor_security(extension_id, game_map, spec, spawn, phase, floor):
+    """Stock the floor's dormant garrison, then apply the phase the
+    floor was REACHED in (doc 29/30 phase 3: a post-wake generation
+    arrives lit; a post-extraction one arrives already locked)."""
+    from .data.dungeon_extensions import find_extension
+
+    dungeon_activation._stock_dormant_security(
+        game_map, spec, spawn,
+        fallback_id=find_extension(extension_id).security_fallback_id,
+    )
+    _effective = dungeon_activation._effective_phase(phase, floor)
+    if _effective != "dormant":
+        dungeon_activation.refresh_prison_panels(game_map, _effective, floor)
+    if _effective == "lockdown":
+        dungeon_activation.activate_dormant(game_map)
 
 
 def _sync_event_positions(
@@ -918,14 +927,15 @@ async def _fire_activation_event(ctx, state, event) -> None:
     dungeon_activation.refresh_prison_panels(
         ctx.game_map, dungeon_activation._facility_phase(state), state.current_floor,
     )
-    from .main_quest import show_gate_popup
+    if not event.silent:
+        from .main_quest import show_gate_popup
 
-    await show_gate_popup(
-        ctx,
-        event.faction_label,
-        event.message,
-        title=event.title,
-    )
+        await show_gate_popup(
+            ctx,
+            event.faction_label,
+            event.message,
+            title=event.title,
+        )
     if _spawned:
         ctx.log.add(event.spawned_log.format(count=_spawned))
     else:

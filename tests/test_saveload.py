@@ -739,7 +739,7 @@ class TestSaveLoadRoundTrip:
             "prison_ascent_f2_assault",
         }
         _assault_count = sum(
-            entity.npc_char_id == "assault_drone"
+            entity.npc_char_id == "shredder"
             for entity in floor_two.entities
         )
 
@@ -757,7 +757,7 @@ class TestSaveLoadRoundTrip:
             "prison_ascent_f2_assault",
         }
         assert sum(
-            entity.npc_char_id == "assault_drone"
+            entity.npc_char_id == "shredder"
             for entity in loaded.game_map.entities
         ) == _assault_count
         loaded.player.pos = loaded.game_map.up_stair_pos
@@ -770,7 +770,7 @@ class TestSaveLoadRoundTrip:
         # filters claim a cell (Phase B footprints) — at least one per
         # squad always wakes.
         assert sum(
-            entity.npc_char_id == "sentry_drone"
+            entity.npc_char_id == "watcher"
             and not entity.powered_down
             for entity in loaded.game_map.entities
         ) >= 1

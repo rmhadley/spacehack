@@ -55,6 +55,10 @@ class ActivationEvent:
     route_direction: str = "down"
     # Optional state that suppresses an event after a phase change.
     blocked_state: str = ""
+    # No popup: the event's encounter presents wordless (doc 48 p9 —
+    # the Warden events wake dormant machines; the bold body behind
+    # its shimmer IS the tell, and no reused prose can double-show).
+    silent: bool = False
 
     @property
     def faction_label(self) -> str:
@@ -153,10 +157,16 @@ class ExtensionFloorSpec:
 
 @dataclass(frozen=True)
 class DungeonExtensionSpec:
-    """A reusable themed multi-floor dungeon definition."""
+    """A reusable themed multi-floor dungeon definition.
+
+    ``security_fallback_id`` joins each floor's lockdown-extras pool
+    after its own event ids (doc 48 phase 9: authored data, no
+    alien-ness branch — the prison authors its ancient row; an empty
+    pool means no extras)."""
 
     id: str
     floors: tuple[ExtensionFloorSpec, ...]
+    security_fallback_id: str = ""
 
     def floor(self, floor_number: int) -> ExtensionFloorSpec:
         """Return a floor by number, raising ``KeyError`` when absent."""
@@ -168,6 +178,7 @@ class DungeonExtensionSpec:
 
 _ALIEN_PRISON = DungeonExtensionSpec(
     id="mars_alien_prison",
+    security_fallback_id="watcher",
     floors=(
         ExtensionFloorSpec(
             floor=1,
@@ -199,7 +210,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f1_sentries",
                     distance_fraction=0.20,
                     trigger_radius=2,
-                    enemy_id="sentry_drone",
+                    enemy_id="watcher",
                     count=2,
                     max_count=2,
                     faction_label_key="runtime.prison.security_faction",
@@ -212,7 +223,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f1_final_lockdown",
                     distance_fraction=0.68,
                     trigger_radius=2,
-                    enemy_id="assault_drone",
+                    enemy_id="shredder",
                     count=3,
                     max_count=3,
                     faction_label_key="runtime.prison.security_faction",
@@ -225,7 +236,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_floor1_security_alpha",
                     distance_fraction=0.42,
                     trigger_radius=2,
-                    enemy_id="sentry_drone",
+                    enemy_id="watcher",
                     count=1,
                     max_count=1,
                     faction_label_key="runtime.prison.security_faction",
@@ -237,7 +248,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_floor1_security_beta",
                     distance_fraction=0.76,
                     trigger_radius=2,
-                    enemy_id="assault_drone",
+                    enemy_id="shredder",
                     count=1,
                     max_count=1,
                     faction_label_key="runtime.prison.security_faction",
@@ -267,7 +278,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f2_assault",
                     distance_fraction=0.24,
                     trigger_radius=2,
-                    enemy_id="assault_drone",
+                    enemy_id="shredder",
                     count=2,
                     max_count=2,
                     faction_label_key="runtime.prison.security_faction",
@@ -280,7 +291,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f2_sentries",
                     distance_fraction=0.72,
                     trigger_radius=2,
-                    enemy_id="sentry_drone",
+                    enemy_id="watcher",
                     count=2,
                     max_count=2,
                     faction_label_key="runtime.prison.security_faction",
@@ -297,7 +308,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 max_room_size=10,
                 room_fill_pct=0.58,
                 sight_radius=8,
-                monster_pool=("hull_parasite", "rock_scavenger"),
+                monster_pool=("hull_parasite",),
                 monster_density=1.8,
                 panel_tile=world.PRISON_PANEL_OFF,
                 panel_density=0.02,
@@ -323,7 +334,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f3_sentries",
                     distance_fraction=0.28,
                     trigger_radius=2,
-                    enemy_id="sentry_drone",
+                    enemy_id="watcher",
                     count=2,
                     max_count=2,
                     faction_label_key="runtime.prison.security_faction",
@@ -336,7 +347,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f3_heavy",
                     distance_fraction=0.78,
                     trigger_radius=2,
-                    enemy_id="assault_drone",
+                    enemy_id="shredder",
                     count=1,
                     max_count=1,
                     faction_label_key="runtime.prison.security_faction",
@@ -353,7 +364,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 max_room_size=11,
                 room_fill_pct=0.62,
                 sight_radius=8,
-                monster_pool=("sentry_drone", "hull_parasite", "assault_drone"),
+                monster_pool=("watcher", "hull_parasite", "shredder"),
                 monster_density=2.0,
                 panel_tile=world.PRISON_PANEL_OFF,
                 panel_density=0.02,
@@ -379,7 +390,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     id="prison_ascent_f4_lockdown",
                     distance_fraction=0.25,
                     trigger_radius=2,
-                    enemy_id="assault_drone",
+                    enemy_id="shredder",
                     count=1,
                     max_count=1,
                     faction_label_key="runtime.prison.security_faction",
@@ -387,6 +398,24 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                     message_key="runtime.prison.event.prison_ascent_f4_lockdown.message",
                     required_state="prison_data_extracted",
                     route_direction="up",
+                ),
+                # The deep-cell Wardens arrive via AUTHORED events (doc
+                # 48 p9: the machine mapping alone never delivers them).
+                # SILENT: the wordless wake (a dedicated popup is a
+                # prose-pass question — the reuse-dedupe catch, p9
+                # review).
+                ActivationEvent(
+                    id="prison_floor4_deep_wardens",
+                    silent=True,
+                    distance_fraction=0.70,
+                    trigger_radius=2,
+                    enemy_id="warden",
+                    count=2,
+                    max_count=2,
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f4_lockdown.title",
+                    message_key="runtime.prison.event.prison_ascent_f4_lockdown.message",
+                    blocked_state="prison_data_extracted",
                 ),
             ),
             interactions=(
@@ -417,7 +446,7 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 max_room_size=14,
                 room_fill_pct=0.64,
                 sight_radius=9,
-                monster_pool=("sentry_drone", "assault_drone", "hull_parasite"),
+                monster_pool=("shredder", "hull_parasite"),
                 monster_density=2.4,
                 panel_tile=world.PRISON_PANEL_OFF,
                 panel_density=0.02,
@@ -436,6 +465,24 @@ _ALIEN_PRISON = DungeonExtensionSpec(
                 faction_label_key="runtime.prison.facility_faction",
                 title_key="runtime.prison.entry_f5_title",
                 message_key="runtime.prison.entry_f5_message",
+            ),
+            # The deep cell's own guardian (doc 48 p9: authored, not
+            # mapped): dormant on the terminal's approach, waking with
+            # its shell — SILENT, like F4's.
+            activation_events=(
+                ActivationEvent(
+                    id="prison_floor5_cell_warden",
+                    silent=True,
+                    distance_fraction=0.50,
+                    trigger_radius=2,
+                    enemy_id="warden",
+                    count=1,
+                    max_count=2,
+                    faction_label_key="runtime.prison.security_faction",
+                    title_key="runtime.prison.event.prison_ascent_f4_lockdown.title",
+                    message_key="runtime.prison.event.prison_ascent_f4_lockdown.message",
+                    blocked_state="prison_data_extracted",
+                ),
             ),
             interactions=(
                 DungeonInteractionSpec(

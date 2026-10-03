@@ -171,3 +171,140 @@ def test_warden_carries_both_weapon_sets():
     assert warden.melee_weapons == ("ancient_slam",)
     assert find_npc_char("shredder").weapons == ("ancient_claws",)
     assert find_npc_char("watcher").weapons == ()
+
+
+# --- the prison re-pin (SETTLED 29-as-amended + 42) ---------------------------
+
+
+def test_prison_generation_data_is_all_ancient():
+    """Every activation event resolves an ancient machine; no
+    contemporary drone id remains in prison GENERATION data (live
+    old saves keep theirs — the ids stay registered)."""
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    prison = find_extension("mars_alien_prison")
+    assert prison.security_fallback_id == "watcher"
+    for floor in prison.floors:
+        for event in floor.activation_events:
+            assert event.enemy_id in {"watcher", "shredder", "warden"}, (
+                floor.floor, event.id,
+            )
+        for monster in floor.params.monster_pool:
+            assert monster not in {
+                "sentry_drone", "assault_drone", "rock_scavenger",
+            }, floor.floor
+
+
+def test_rock_scavenger_is_gone_from_prison_pools():
+    """The flagged punch-list rider: prison pools drop the desert
+    fauna (station vermin only — hull_parasite)."""
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    prison = find_extension("mars_alien_prison")
+    for floor in prison.floors:
+        if floor.params.monster_pool:
+            assert "rock_scavenger" not in floor.params.monster_pool
+
+
+def test_warden_events_authored_on_the_deep_floors():
+    """The deep-cell Wardens arrive via AUTHORED events (the brief's
+    reviewer issue 9: the machine mapping alone never delivers
+    them)."""
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    prison = find_extension("mars_alien_prison")
+    for floor_number in (4, 5):
+        events = [
+            e for e in prison.floor(floor_number).activation_events
+            if e.enemy_id == "warden"
+        ]
+        assert events and all(
+            e.count <= e.max_count <= 3 for e in events
+        ), floor_number
+
+
+def test_contemporary_drones_keep_every_non_alien_job():
+    """The re-pin's other edge: dig sites, derelict decks, Mars's own
+    surface sites, and the registry itself keep the contemporary
+    drone rows (source-scan pin — the swap is the prison's alone)."""
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[1]
+    holders = {
+        str(p.relative_to(repo))
+        for p in (repo / "src/spacehack/data").rglob("*.py")
+        if "sentry_drone" in p.read_text()
+        or "assault_drone" in p.read_text()
+    }
+    assert {
+        "src/spacehack/data/digs/__init__.py",
+        "src/spacehack/data/npc_chars/__init__.py",
+        "src/spacehack/data/npc_chars/crew_roles.py",
+        "src/spacehack/data/npc_chars/monsters.py",
+        "src/spacehack/data/planets/mars.py",
+    } <= holders
+    assert not any(
+        "dungeon_extensions" in holder for holder in holders
+    ), "the prison's generation data must carry no drone id"
+
+
+def test_the_dormant_fallback_reads_the_authored_field():
+    """The :639 sentry_drone hardcode is dead — an event-less floor's
+    lockdown extras draw the extension's authored fallback id."""
+    from types import SimpleNamespace
+
+    from src.spacehack import world
+    from src.spacehack.dungeon_activation import _stock_lockdown_extras
+
+    tile = world.Tile("floor", ".", True, (200, 210, 220), (10, 20, 30))
+    wall = world.Tile("wall", "#", False, (1, 1, 1), (0, 0, 0))
+    game_map = world.GameMap(
+        width=11, height=11,
+        tiles=[[tile for _ in range(11)] for _ in range(11)],
+        entities=[],
+    )
+    # one true alcove beside the spawn: a wall pocket with exactly a
+    # single walkable opening
+    for cell in ((4, 4), (6, 4), (5, 3), (5, 4)):
+        game_map.tiles[cell[1]][cell[0]] = wall
+    floor = SimpleNamespace(
+        activation_events=(), lockdown_extras=1,
+        floor=1,
+    )
+    spawn = world.Position(5, 5)
+    _stock_lockdown_extras(
+        game_map, floor, spawn, set(), set(),
+        landmark_cells=set(), transit_cells=set(),
+        fallback_id="watcher",
+    )
+    assert [
+        e.npc_char_id for e in game_map.entities
+    ] == ["watcher"]
+
+    # neither events nor fallback: no extras, and no alcoves carved
+    empty_map = world.GameMap(
+        width=11, height=11,
+        tiles=[[tile for _ in range(11)] for _ in range(11)],
+        entities=[],
+    )
+    _stock_lockdown_extras(
+        empty_map, floor, spawn, set(), set(),
+        landmark_cells=set(), transit_cells=set(),
+        fallback_id="",
+    )
+    assert empty_map.entities == []
+
+
+def test_warden_events_wake_silent():
+    """The wordless wake (the reuse-dedupe catch): the Warden events
+    never fire a popup — no reused prose can double-show in a run;
+    the log's shared spawn line still reads."""
+    from src.spacehack.data.dungeon_extensions import find_extension
+
+    prison = find_extension("mars_alien_prison")
+    for floor_number in (4, 5):
+        warden_events = [
+            e for e in prison.floor(floor_number).activation_events
+            if e.enemy_id == "warden"
+        ]
+        assert warden_events and all(e.silent for e in warden_events)
