@@ -2100,13 +2100,19 @@ with doctrinal 10-13):
   dials read as designed for the first time (rare fire,
   dodge-stack). PLAYTEST PENDING.
 - [ ] 9. **Ancient machines** — RE-CUT (SETTLED 41/42/43,
-  2026-10-02): build 1 = the ground volley loop + economy (one-shot
-  cap dies; carried ammo + reload tells; ranged/melee sets with
+  2026-10-02). BUILD 1 (the volley loop + economy: one-shot cap
+  dies; carried ammo + reload tells; ranged/melee sets with
   emergent switching incl. the cornered-switch; the
-  aggressiveness-dial port — SETTLED 43) landing with no roster
-  number changes, then re-measure against the two-save battery and
-  the starter standard; builds 2+ = the machines authored against
-  the new loop: **Watcher** (shriek/stare/graded zone/
+  aggressiveness-dial port) LANDED 2026-10-02 in seven builds
+  (c63f3dcf stamps/loadout, 0c98f0b9 volley+scorer+ledger, 26d22366
+  point-blank parity, 29e640ca reload+tell, 2686c69d the dial,
+  4a615d09 the kit-drop law, 780e29d8 the last pins) with ZERO
+  roster number changes; reviewer dispatched per build (three
+  REQUEST_CHANGES, all reproduced + folded + re-approved); the
+  two-save battery + starter standard re-measured and recorded above
+  (the variance-not-mean read; the countered lane re-armed at 0.76).
+  PLAYTEST PENDING (checklist = the brief's checkpoint items).
+  Builds 2+ = the machines authored against the new loop: **Watcher** (shriek/stare/graded zone/
   drift-dodge), **Shredder** (was Custodian: in-combat mend/AP-6
   flurry/armor 10), **Warden** (per-tile-HP force field with
   start-of-turn regen, slam-with-pushback, anti-armor shot), their
@@ -2878,6 +2884,64 @@ module, cohesion-driven); the reload helper lives in
    (The section's tail sentence "so deeper sites and tougher
    machines yield better gear" trimmed to keep the body under the
    3000-char conciseness cap; no other guide changes this phase.)
+
+## Phase 9 BUILD 1 — LANDED + the battery re-measure (2026-10-02)
+
+The volley loop + economy landed ALONE in seven builds (c63f3dcf
+stamps + two-set loadout; 0c98f0b9 the volley loop + scorer + real
+cells ledger; 26d22366 point-blank parity (ONE hit math, both sides,
+the cornered-switch honest); 29e640ca reload-from-pool + the tell;
+2686c69d the RAW dial at default-50; 4a615d09 the kit-drop law (both
+weapons + remainder, the machines' authored ammo channel preserved);
+780e29d8 the last required pins). Reviewer: every build dispatched —
+three REQUEST_CHANGES (untested wrappers; the dry-mag statue + stale
+magazine; the unreachable penalty; the zeroed machine channel) all
+reproduced, folded, and re-approved. Zero roster number changes; the
+player's fire/swap/reload paths are untouched mirrors.
+
+**The battery (the deliverable): both reference saves, 50 seeded
+runs/row, the same rows as the 2026-10-02 arrival sim.**
+
+| Row | labs pre -> post | merchants pre -> post |
+|---|---|---|
+| 3x rock_scavenger b1 | 1.000 / 0.02 -> 1.000 / 0.02 | 1.000 / 0.00 -> 1.000 / 0.02 |
+| 5x pirate_rifleman b2 | 1.000 / 4.66 -> **0.940 / 4.04** (3 def; worst 16 -> 26) | 1.000 / 12.26 -> **0.840 / 9.83** (8 def; worst 44 -> 46) |
+| 5x pirate_brute b3 | 0.940 / 16.79 -> 0.960 / 11.62 (2 def; worst 38) | 0.920 / 19.20 -> 0.920 / 12.67 (4 def; worst 48 -> 42) |
+| 5x assault_drone b4 | 1.000 / 0.00 -> 1.000 / 0.00 | 1.000 / 0.00 -> 1.000 / 0.00 |
+| 5x consortium_gunner b4 | 1.000 / 3.44 -> 1.000 / 3.36 | 1.000 / 3.36 -> 1.000 / 3.14 |
+| 10x assault_drone b4 | 1.000 / 0.06 -> 1.000 / 0.06 | 1.000 / 0.06 -> 1.000 / 0.06 |
+| space warlord / 2x marauder | 1.000 / 0.900 -> bit-identical | 0.280 / 0.140 -> bit-identical |
+
+Readings (input to the machines' authoring, not rulings):
+
+1. **The dial trades sustained pressure for burst variance.** The
+   prediction ("gunner/rifleman damage roughly triples") measured as
+   a mean that FELL at default-50 (the dance halves fire rate:
+   riflemen 12.26 -> 9.83 into the merchant sheet) while the WORST
+   case rose and a death tail appeared (0 -> 8 defeats vs band-2
+   riflemen): the volley's multi-shot turns spike where the one-shot
+   era averaged. The terror is variance, not mean.
+2. **Band-1 and the tutorial standard are UNCHANGED** (scavenger
+   melee: dial-exempt, 2-turn fights) — law 1 stands; the reference
+   saves still trivialize band 1 (0.02 dmg).
+3. **The dry-switch caps the gunners**: ~3.2 dmg/hit sustained (vs
+   the brute's spikes) — magazine + 2-4 pool rounds then the knife.
+4. **Band-4 melee drones stay zero threat** (law 1 holds on both
+   sheets) — the machines' bars (Watcher/Shredder/Warden) fill this
+   hole, authored against THIS loop.
+5. **Space is untouched** (bit-identical, including the merchant
+   trade-fit collapse — still unattributed, still prison-irrelevant).
+6. The doc-50 starter-standard rows re-measured + re-pinned at every
+   build that moved them (the countered lane RE-ARMED at 0.76 after
+   the dial halved the sentry's fire rate; the tuning pass re-authors
+   against these reference saves). The probe's g_mars_pinned row
+   re-pinned to the glow ruling's true-sight cells (the doc's
+   tooling note, closed).
+
+Instrument gaps (carried from the audit): PlayerSheet still cannot
+express ground stat spends or gear qualities; the probe/board grid
+path for the mars_alien_prison extension floors is still pending —
+the machines' build re-runs THIS battery plus the extension rows.
 
 ## Pre-implementation audit — phase 2 (2026-09-22)
 

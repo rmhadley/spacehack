@@ -101,7 +101,11 @@ GROUND_ROWS: tuple[ProbeRow, ...] = (
         theater="ground",
         label="3x rock_scavenger band 1 — the pinned goal_2 fight",
         enemy_ids=("rock_scavenger",) * 3,
-        enemy_cells=((106, 44), (107, 44), (108, 43)),
+        # Re-pinned to the glow ruling's true-sight queue (2026-10-02,
+        # matches scenarios.py): the old (106..108, 43..44) cells were
+        # glow-revealed, not true sight — instant-disengage under
+        # "light extends range, never geometry".
+        enemy_cells=((105, 47), (105, 48), (106, 47)),
         band=1,
         grid=_MARS_GRID,
         start=(100, 47),
