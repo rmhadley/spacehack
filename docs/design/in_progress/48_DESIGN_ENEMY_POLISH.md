@@ -2111,8 +2111,10 @@ with doctrinal 10-13):
   REQUEST_CHANGES, all reproduced + folded + re-approved); the
   two-save battery + starter standard re-measured and recorded above
   (the variance-not-mean read; the countered lane re-armed at 0.76).
-  PLAYTEST PENDING (checklist = the brief's checkpoint items).
-  Builds 2+ = the machines authored against the new loop: **Watcher** (shriek/stare/graded zone/
+  PLAYTEST PASSED 2026-10-03 (user: C ship boards + delves, "seems
+  to be playing well"; the set-switch read in live play — "forced a
+  laser pistol pirate to switch to melee"). Builds 2+ = the machines
+  authored against the new loop: **Watcher** (shriek/stare/graded zone/
   drift-dodge), **Shredder** (was Custodian: in-combat mend/AP-6
   flurry/armor 10), **Warden** (per-tile-HP force field with
   start-of-turn regen, slam-with-pushback, anti-armor shot), their
