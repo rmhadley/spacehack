@@ -309,10 +309,22 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # deadlock (only the first scavenger of a swarm could ever
         # swing); with the band gates int-truncated like the player's
         # own, all three swing and the starter baton kit dies in <=2
-        # turns — win 0.000 / 50 def (was 1.00 / 4.68). The bars
-        # await the user's re-ruling alongside the p9 tune (doc 48
-        # SETTLED 41's own prediction: "band 1-2 and the tutorial
-        # standard want a rebalance look").
+        # turns — win 0.000 / 50 def (was 1.00 / 12.4 dmg / 4.04
+        # turns). The 2026-10-04 RE-RULING SWEEP closed it (50 runs
+        # each, nothing restored the bars): enemy dials (ap 4 + acc
+        # 75, + claws dmg 2, + ap 3, + hp 10, combos) all 0.000 AND
+        # broke two green bars (lane_countered ammo 20.43 vs 19.5;
+        # railgun_blade dmg 9.12 vs 8.0) — reverted; the
+        # baton_lockdown stance (the user's discipline: break the
+        # surround, lock the one in reach, hold) 0.000 on open floor,
+        # 0.000 from a 5-wall corner, 0.000 vs a pack of two; the
+        # taught kit passes the same fight 1.000 / 4.52. Mechanism:
+        # 4 baton swings drain ~3 AP from ONE target while the rest
+        # swing unrestricted — the lock game needs a developed
+        # sheet's damage (the user's own q3 Prototype batons), not
+        # starter stats. The bar's premise ("a pure-melee starter
+        # wins at ~2x the pistols' cost") was only ever measurable
+        # against broken melee: PERMANENTLY report-only.
         thresholds=None,
     ),
     BalanceScenario(
