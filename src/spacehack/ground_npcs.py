@@ -281,7 +281,13 @@ def _has_los_to(game_map, x: int, y: int, gx: int, gy: int) -> bool:
     """Sight to a cell on the FOV's own geometry (the 2026-10-02
     unification: map-side sensing reads the sight ray, not Bresenham —
     it now passes through hull-wall groups and stops at dungeon doors,
-    exactly like the player's sight)."""
+    exactly like the player's sight) — AND the SIGHT RADIUS: an area
+    beyond the map's radius is not "held LOS" however open the line.
+    The radius-less ray ended disengage investigations with ZERO
+    steps (the walker 'saw' its goal 15+ cells away across open
+    ground — the p9 playtest's unbaitable Wardens)."""
+    if max(abs(x - gx), abs(y - gy)) > game_map.sight_radius:
+        return False
     from .dungeon_fov import has_sight_ray
 
     return has_sight_ray(game_map, x, y, gx, gy)
@@ -581,3 +587,9 @@ def move_ground_npcs(ctx, game_map: world.GameMap) -> None:
             )
     for _e in _solos:
         _move_solo(_e, ctx, game_map, combat=_combat)
+    # Position-keyed ancillary state follows its body: a Warden's
+    # shell re-centers after every tick (doc 48 p9 — idempotent when
+    # stationary; a baited walk never litters old rings).
+    from .combat import _ancients
+
+    _ancients.track_field_shells(game_map)

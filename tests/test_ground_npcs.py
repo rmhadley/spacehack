@@ -484,3 +484,78 @@ def test_steps_aside_follows_the_face(monkeypatch):
     assert ground_npcs.steps_aside(ctx, monster) is True
     assert ground_npcs.steps_aside(ctx, dormant) is False   # never dormant
     assert ground_npcs.steps_aside(ctx, fixture) is False   # population only
+
+
+def test_goal_beyond_sight_radius_is_walked_not_seen():
+    """The p9 playtest catch (unbaitable Wardens): the investigation's
+    LOS-complete check read a RADIUS-LESS ray — on open ground the
+    walker 'saw' its goal 15+ cells away and ended the investigation
+    with ZERO steps, so a disengaged Warden never came to the door.
+    An area beyond the map's sight radius is not held LOS: the walker
+    closes until it is."""
+    player = world.Entity("@", (255, 255, 255), world.Position(2, 2))
+    warden = world.Entity(
+        "W", (170, 140, 250), world.Position(17, 2),
+        npc_char_id="warden", bold=True,
+    )
+    game_map = _squad_map(player, warden)  # open 20x20, sight_radius 8
+    ctx = SimpleNamespace(player=player, faction_reputation={})
+
+    ground_npcs.remember_last_seen(
+        [warden], player.pos, include_stationary=True,
+    )
+    for _ in range(20):
+        ground_npcs.move_ground_npcs(ctx, game_map)
+
+    _dist = abs(warden.pos.x - player.pos.x) + abs(warden.pos.y - player.pos.y)
+    assert _dist < 15, "the Warden must close on the last-seen cell"
+    # completed once inside the radius with a clear line, then settled
+    assert warden.last_seen_pos is None
+    assert warden.guard_post is not None
+    # the radius bound is CHEBYSHEV (the FOV cast's own metric): a
+    # DIAGONAL approach completes at Chebyshev exactly sight_radius —
+    # a Euclidean bound would walk further and overshoot the band
+    player2 = world.Entity("@", (255, 255, 255), world.Position(2, 2))
+    warden2 = world.Entity(
+        "W", (170, 140, 250), world.Position(17, 17),
+        npc_char_id="warden", bold=True,
+    )
+    diag_map = _squad_map(player2, warden2)
+    ground_npcs.remember_last_seen(
+        [warden2], player2.pos, include_stationary=True,
+    )
+    for _ in range(24):
+        ground_npcs.move_ground_npcs(
+            SimpleNamespace(player=player2, faction_reputation={}), diag_map,
+        )
+        if warden2.last_seen_pos is None:
+            break
+    _cheb = max(
+        abs(warden2.pos.x - player2.pos.x), abs(warden2.pos.y - player2.pos.y),
+    )
+    assert _cheb == diag_map.sight_radius, _cheb
+
+
+def test_short_corner_break_still_completes_on_los():
+    """SETTLED 37's read holds: a goal INSIDE the sight radius behind
+    a corner is looked at, not walked to — the walker rounds the
+    corner, gains LOS, completes, settles (never overshoots)."""
+    player = world.Entity("@", (255, 255, 255), world.Position(5, 2))
+    warden = world.Entity(
+        "W", (170, 140, 250), world.Position(5, 5),
+        npc_char_id="warden", bold=True,
+    )
+    game_map = _squad_map(player, warden)
+    game_map.tiles[4][5] = world.DUNGEON_WALL  # a corner between them
+    game_map.tiles[4][4] = world.DUNGEON_WALL
+    ctx = SimpleNamespace(player=player, faction_reputation={})
+
+    ground_npcs.remember_last_seen(
+        [warden], player.pos, include_stationary=True,
+    )
+    for _ in range(8):
+        ground_npcs.move_ground_npcs(ctx, game_map)
+
+    assert warden.last_seen_pos is None  # completed on LOS
+    # and it stopped within sight of the goal — never overshot past
+    assert abs(warden.pos.x - player.pos.x) + abs(warden.pos.y - player.pos.y) <= 4
