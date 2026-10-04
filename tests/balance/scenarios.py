@@ -373,6 +373,44 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         ),
     ),
     BalanceScenario(
+        id="goal_2_lane_batons",
+        theater="ground",
+        goal=(
+            "The control-melee kit wins the SAME lane by lockdown: "
+            "queue the pack, lock the one in reach (each landed stun "
+            "drains its AP), kill it, repeat — at a heavier health "
+            "cost than the pistols' posted hold."
+        ),
+        player=PlayerSheet(
+            species_id="human",
+            class_id="merchant",
+            hull_id="starter",
+            weapon_ids=("light_laser", "light_laser"),
+            module_ids=("shield_mk1",),
+            ground_weapon_ids=("stun_baton", "stun_baton"),
+        ),
+        player_start=(7, 3),
+        enemies=(
+            EnemySide(spec_id="rock_scavenger", pos=(7, 5), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 7), band=1),
+            EnemySide(spec_id="rock_scavenger", pos=(7, 9), band=1),
+        ),
+        grid=LANE_GRID,
+        stance="baton_lockdown",
+        runs=50,
+        seed=20260927,
+        # Ruled 2026-10-04 (the user's kit, the user's discipline): the
+        # open-floor baton bar (goal_2_mars_batons) was retired — its
+        # premise was calibrated against broken melee; the kit's real
+        # promise is THIS row: geometry + lockdown, one enemy in reach
+        # at a time. Measured: 0.980 / 19.27 HP / 4.37 turns (the
+        # pistols' lane costs ~4.7 — the melee kit pays ~4x and wins).
+        thresholds=Thresholds(
+            win_rate_floor=0.94,
+            damage_taken_ceiling=24.0,
+        ),
+    ),
+    BalanceScenario(
         id="goal_2_lane_countered",
         theater="ground",
         goal=(
