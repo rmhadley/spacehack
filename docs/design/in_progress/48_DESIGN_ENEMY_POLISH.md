@@ -3498,6 +3498,62 @@ MID-PLAYTEST FINDINGS (2026-10-03, the reset-save descent):
    shimmer eats the line like it eats the shot; the blocked lane
    reads at a glance.
 
+5. **Unbaitable Wardens, FIXED (`e1433047`).** The investigation's
+   LOS-complete check read a RADIUS-LESS ray — on open ground a
+   disengaged walker "held LOS" on goals far beyond the sight
+   radius and ended the investigation with ZERO steps (the user's
+   autosave: every Warden carried last_seen=None). The check now
+   honors the map's sight radius (Chebyshev, the FOV cast's own
+   metric): break LOS and the Warden walks to where it can see your
+   last position — the door bait works (verified on the live save:
+   the F5 Warden walked 16 cells through the entrance and settled a
+   cell away). SETTLED 37's short-corner read (looked-at, not
+   walked-to) preserved.
+6. **The shell is a WALKING WALL (`cf055f84`) — three live catches
+   folded:** (a) the field only re-derived on combat turns, so each
+   re-engagement's add-only entry LITTERED rings along a bait path —
+   a per-tick ambient tracker recenters every awake Warden's shell
+   (idempotent stationary; old saves self-heal on the first tick);
+   (b) entry once armed nothing (the tracker's 0-HP rings read as
+   standing) — entry arms 0-HP full ("wakes with its shield up"),
+   wounds persist; (c) THE RULING (user: "the SW hole makes no
+   sense" + confirmed moving through does nothing): fresh-by-
+   movement cells ARM FULL — the field never weakens by moving —
+   while destroyed tiles TOMBSTONE at 0 (deletion is now
+   indistinguishable from never-existed) and regrow +10 at combat
+   turn starts. Known edge recorded: a hole the Warden paces fully
+   off and back over returns at full, not +10.
+7. **Melee reach resolves the melee set (`45ca4ea7`).** The hug
+   gate read the ACTIVE shot's min-range (2), so an adjacent player
+   made the Warden RUN instead of slamming. Now adjacency = the
+   melee set's answer (affordable incl. the swap; the dance roll
+   reads the PICKED weapon — melee holds); the hug back-off
+   survives for no-pick pure-ranged rows. Verified: the adjacent
+   Warden fires the Slam with zero movement and the knockback
+   ejects the player back through the ring — the authored
+   enter-swing-eat-re-enter loop, live.
+8. **OPEN DESIGN QUESTION (user, 2026-10-03 — for the phase close /
+   the doc-43 far-side handoff): FIELD TILES AS ENTITIES.** The
+   user's instinct: each cell an entity like doc-57's space
+   missiles — targetable, panel HP, hit%, +10/turn regen even from
+   0, always moving with its W — and the system generic enough that
+   a PLAYER personal force field (alien tech, Act 2) reuses it.
+   Agent read (chat, not ruled): the entity model is the right
+   long-term shape — it is the engine's existing pattern for
+   combat-relevant non-characters (the merged-targets missile
+   precedent), it solves the field's whole playtest pain class
+   structurally (invisible state, unexplained holes — HP on the
+   panel makes the shell legible), and it generalizes to the
+   player-owned field. Costs to weigh at the ruling: ~16 extra
+   entities per Warden in every entity scan (non_blocking keeps
+   movement/pathing clean), the ground targeting space needs the
+   missile-style merge + ordering so tab-cycling reaches the body
+   first, and the eruption/victim/refresh-engaged scans must
+   exclude the class. Timing recommendation: not mid-playtest — the
+   dict-on-GameMap model just went stable through six live-fix
+   rounds with all seams in ONE module (`combat/_ancients.py`); the
+   entity migration re-homes state but keeps those seams.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
