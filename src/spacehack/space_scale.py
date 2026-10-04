@@ -42,16 +42,25 @@ def derive_skills(spec) -> tuple[int, int, int]:
     )
 
 
-def roll_flown_equipment(item_type: str, ids, band: int, rng):
+def roll_flown_equipment(item_type: str, ids, band: int, rng,
+                         quality_floor: int = 0):
     """Fly-time quality roll for weapons AND modules (doc 47.3 +
     48 SETTLED 39): every id rolls the band's ladder at combat entry
     — the ship tanks, shoots, and is captured with these exact
-    instances. Band 1 equals the flat KILL ladder."""
+    instances. Band 1 equals the flat KILL ladder.
+
+    ``quality_floor`` (doc 48 SETTLED 52, consortium hunters) clamps
+    UP to the floor rung — ``max(floor, rolled)`` — so no stripped
+    piece is ever base quality; the top tier's odds never move. No
+    player path calls with a floor, so floor 0 draws identically."""
     from .data.quality import roll_quality
     from .ship import StoredEquipment
 
     rates = quality_rates(band)
     return tuple(
-        StoredEquipment(item_type, item_id, quality=roll_quality(rates, rng))
+        StoredEquipment(
+            item_type, item_id,
+            quality=max(quality_floor, roll_quality(rates, rng)),
+        )
         for item_id in ids
     )

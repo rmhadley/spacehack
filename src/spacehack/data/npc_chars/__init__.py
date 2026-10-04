@@ -191,6 +191,11 @@ class NpcCharSpec:
         tier: drop tier — equipment drops filter to ``tech_level <= tier``.
         armor: flat damage reduction subtracted from player hits
             (plasma halves it).
+        quality_floor: the minimum quality tier the row's wielded gear
+            rolls (doc 48 SETTLED 51 — consortium rungs never roll
+            base; the top rung floors at overclocked). 0 = no floor.
+            CLAMP semantics at the one equip-time draw:
+            ``max(floor, rolled)``.
         fixed_band: pins the spec's band FLAT (doc 48 SETTLED 42) —
             the site's floor-band stamp never dilutes the row.
             0 (every ordinary row) = the entity's stamped band.
@@ -226,6 +231,7 @@ class NpcCharSpec:
     pack_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
+    quality_floor: int = 0
     fixed_band: int = 0
     mechanics: MachineMechanics | None = None
 

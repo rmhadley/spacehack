@@ -467,7 +467,7 @@ def _fake_enemy_spec(modules=()):
         id="e1", name="Pirate", char="P", fg=(255, 0, 0),
         ship_id="scout_a", faction="pirate", weapons=(),
         modules=modules, band=1,
-        skill_weights=(1 / 3, 1 / 3, 1 / 3),
+        skill_weights=(1 / 3, 1 / 3, 1 / 3), quality_floor=0,
         ai_accuracy_bonus=0, ai_dodge_bonus=0,
         shield_regen_rate=0, shield_regen_threshold=0.5,
     )

@@ -251,12 +251,19 @@ def _player_weapon_ammo(owned_ship: OwnedShip) -> dict[int, int]:
 
 def _enemy_flown_loadout(enemy_spec):
     """Roll the spec's flown weapons + modules at its band's fly-time
-    quality (weapons first — one deterministic draw order)."""
+    quality (weapons first — one deterministic draw order), floored at
+    the spec's ``quality_floor`` (doc 48 SETTLED 52)."""
     from ..engine import RNG
 
     return (
-        roll_flown_equipment("weapon", enemy_spec.weapons, enemy_spec.band, RNG),
-        roll_flown_equipment("module", enemy_spec.modules, enemy_spec.band, RNG),
+        roll_flown_equipment(
+            "weapon", enemy_spec.weapons, enemy_spec.band, RNG,
+            quality_floor=enemy_spec.quality_floor,
+        ),
+        roll_flown_equipment(
+            "module", enemy_spec.modules, enemy_spec.band, RNG,
+            quality_floor=enemy_spec.quality_floor,
+        ),
     )
 
 

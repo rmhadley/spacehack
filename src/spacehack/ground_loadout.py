@@ -70,6 +70,7 @@ def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:
     stamp[SET_MELEE] = ground_scale.roll_slot(
         getattr(_spec, "melee_families", ()),
         getattr(_spec, "melee_weapons", ()), _band, RNG,
+        quality_floor=getattr(_spec, "quality_floor", 0),
     )
     for _pair in (pair_for(stamp, SET_RANGED), pair_for(stamp, SET_MELEE)):
         _arm_migrated_pair(stamp, _pair)

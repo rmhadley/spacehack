@@ -178,11 +178,14 @@ def roll_family_weapon(
     return rng.choice(tiers[_snap_tier(tiers, tier)])
 
 
-def rolled_weapon_quality(weapon_id: str, band: int, rng) -> int:
+def rolled_weapon_quality(weapon_id: str, band: int, rng,
+                          quality_floor: int = 0) -> int:
     """Equip-time quality roll (SETTLED 13/35): the ladder rides the
-    spawn band. Real gear only — organic parts never variant, never
-    consume roll RNG. (Moved from ``noise`` when the loadout roll
-    joined its family, doc 48 SETTLED 43.)"""
+    spawn band, clamped up to the spec's ``quality_floor`` (doc 48
+    SETTLED 51 — consortium rungs never roll base). Real gear only —
+    organic parts never variant, never consume roll RNG. (Moved from
+    ``noise`` when the loadout roll joined its family, doc 48
+    SETTLED 43.)"""
     if not weapon_id:
         return 0
     from .data.ground_weapons import find_ground_weapon
@@ -194,7 +197,7 @@ def rolled_weapon_quality(weapon_id: str, band: int, rng) -> int:
         return 0
     from .data.quality import roll_quality
 
-    return roll_quality(quality_rates(band), rng)
+    return max(quality_floor, roll_quality(quality_rates(band), rng))
 
 
 def carried_pool_range(ceiling: int) -> tuple[int, int]:
@@ -229,9 +232,12 @@ def roll_loadout(spec, band: int, rng) -> dict:
     ``melee_weapons`` verbatim; empty slots stamp ``None``. Pure: the
     caller stamps the result on the entity.
     """
-    _ranged = roll_slot(spec.weapon_families, spec.weapons, band, rng)
+    _floor = getattr(spec, "quality_floor", 0)
+    _ranged = roll_slot(spec.weapon_families, spec.weapons, band, rng,
+                        quality_floor=_floor)
     _melee = roll_slot(getattr(spec, "melee_families", ()),
-                        getattr(spec, "melee_weapons", ()), band, rng)
+                       getattr(spec, "melee_weapons", ()), band, rng,
+                       quality_floor=_floor)
     _loaded = _full_magazines((_ranged, _melee))
     return {
         "ranged": _ranged, "melee": _melee,
@@ -248,16 +254,17 @@ def ammo_fed(ws) -> bool:
     return ws.ammo_capacity > 0 and ws.ammo_type is not None
 
 
-def roll_slot(families, fixed, band: int, rng):
+def roll_slot(families, fixed, band: int, rng, quality_floor: int = 0):
     """One set's ``(weapon_id, quality)`` pair, or ``None``: the family
-    ladder when families are authored, else the fixed weapon."""
+    ladder when families are authored, else the fixed weapon. The
+    quality draw clamps to the spec's floor (SETTLED 51)."""
     if families:
         _wid = roll_family_weapon(families, band, rng)
     else:
         _wid = fixed[0] if fixed else ""
     if not _wid:
         return None
-    return [_wid, rolled_weapon_quality(_wid, band, rng)]
+    return [_wid, rolled_weapon_quality(_wid, band, rng, quality_floor)]
 
 
 def _full_magazines(pairs) -> dict:

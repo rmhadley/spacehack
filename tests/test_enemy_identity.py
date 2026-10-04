@@ -319,7 +319,8 @@ def _entity_commands(entity: world.Entity):
 
 def test_flagship_specs_carry_elite():
     elite = {spec.id for spec in list_npc_ships() if spec.elite}
-    assert elite == {"pirate_captain", "pirate_warlord"}
+    assert elite == {"pirate_captain", "pirate_warlord",
+                     "consortium_dreadnought"}
 
 
 def test_ground_elite_specs_carry_elite():

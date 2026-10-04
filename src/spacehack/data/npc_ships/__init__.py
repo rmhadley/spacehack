@@ -57,6 +57,13 @@ class NpcShipSpec:
             piloting-biased, line gunnery-biased, flagships balanced,
             merchants piloting-light so cornered merchants stay
             non-threats).
+        quality_floor: the minimum quality tier anything the ship
+            flies may roll (doc 48 SETTLED 52 — consortium hunters
+            fly nothing at base: every stripped piece from a captured
+            hunter is premium loot). 0 = no floor (every other spec).
+            Consumed at the ONE fly-time roll site as a CLAMP —
+            ``max(floor, rolled)`` — so the below-floor mass lumps
+            onto the floor rung and the top tier's odds never move.
         ai_aggressiveness: 0-100 chance to attack vs reposition.
         ai_preferred_range: AI tries to maintain this distance.
         shield_regen_rate: paid shield-divert rate per turn (0 = the
@@ -101,6 +108,7 @@ class NpcShipSpec:
     # three-skill budget split the band distributes over.
     band: int = 0
     skill_weights: tuple[float, float, float] = (1.0 / 3, 1.0 / 3, 1.0 / 3)
+    quality_floor: int = 0
 
     # Combat
     ai_aggressiveness: int = 50
