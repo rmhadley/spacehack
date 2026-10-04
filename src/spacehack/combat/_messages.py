@@ -169,11 +169,11 @@ def player_attack_line(
 # verbatim wording): ``{enemy}`` renders the attacker's name. A
 # weapon listed here never uses the generic swing/fire template.
 _CUSTOM_ATTACK_LINES: dict[str, tuple[str, str]] = {
-    # The slam (hit / miss): the displacement IS the tell — the hit
-    # line carries no damage clause by the user's wording.
+    # The slam (hit / miss): the displacement IS the tell; the hit
+    # clause is the user's wording ("You take X damage!", SETTLED 46).
     "ancient_slam": (
-        "{enemy} slams hard in to you!",
-        "{enemy} attempts to slam in to you but misses.",
+        "{enemy} slams hard into you! You take {damage} damage!",
+        "{enemy} attempts to slam into you but misses.",
     ),
 }
 
@@ -198,7 +198,7 @@ def enemy_attack_line(
     _custom = _CUSTOM_ATTACK_LINES.get(weapon_id)
     if _custom is not None:
         return AttackLine(_custom[0 if hit else 1].format(
-            enemy=enemy_name,
+            enemy=enemy_name, damage=hull_dmg + shield_dmg,
         ))
     _object = target_name if target_name else "you"
     return _assemble_line(

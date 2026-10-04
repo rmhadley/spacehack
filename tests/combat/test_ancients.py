@@ -1112,7 +1112,7 @@ def test_diagonal_shredder_swings_not_stalls():
         assert dmg and dmg > 0, (
             "the diagonal-adjacent shredder never attacked"
         )
-        assert any("Serated Blades" in line for line in ctx.lines)
+        assert any("Serrated Blades" in line for line in ctx.lines)
     finally:
         _rules_ground._state = old
 
@@ -1345,7 +1345,7 @@ class TestMeleeReachPick:
         finally:
             _ai_ground.RNG = _orig
         assert _fired and _cells == 0  # the TRADE, not the run
-        assert any("slams hard in to you" in line for line in ctx.lines)
+        assert any("slams hard into you" in line for line in ctx.lines)
         assert (ctx.player.pos.x, ctx.player.pos.y) != (11, 11)  # ejected
 
     def test_melee_reach_pick_gates(self):
@@ -1403,23 +1403,23 @@ def test_field_renders_only_in_line_of_sight():
 
 
 def test_the_slams_custom_attack_lines():
-    """SETTLED 46: the slam carries its own feed lines — the hit
-    names the act (no damage clause, by the user's wording), the
-    miss reads the attempt."""
+    """SETTLED 46 (as amended): the slam's own feed lines — the hit
+    names the act and carries the damage clause; the miss reads the
+    attempt. Spellings corrected per the user's follow-up ruling."""
     from src.spacehack.combat._messages import enemy_attack_line
 
     assert str(enemy_attack_line(
         "Warden", "ancient_slam", "Warden Slam", hit=True, hull_dmg=16,
-    )) == "Warden slams hard in to you!"
+    )) == "Warden slams hard into you! You take 16 damage!"
     assert str(enemy_attack_line(
         "Warden", "ancient_slam", "Warden Slam", hit=False,
-    )) == "Warden attempts to slam in to you but misses."
+    )) == "Warden attempts to slam into you but misses."
     # the renamed weapons read through the generic template
     assert str(enemy_attack_line(
         "Warden", "ancient_warden_shot", "Energy Cannon",
         hit=True, hull_dmg=30,
     )).startswith("Warden fires its Energy Cannon at you.")
     assert str(enemy_attack_line(
-        "Shredder", "ancient_claws", "Serated Blades",
+        "Shredder", "ancient_claws", "Serrated Blades",
         hit=True, hull_dmg=13,
-    )).startswith("Shredder swings its Serated Blades at you.")
+    )).startswith("Shredder swings its Serrated Blades at you.")
