@@ -2194,9 +2194,10 @@ with doctrinal 10-13):
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
   hunt reskinned as a new enemy class (with the `_heat.py`
-  hired-pirate docstring cleanup), strictly-gated exposure; ADDS
-  the up-movers + site/loot/hunt movers over v1's landed down-
-  movers (SETTLED 6/9/12/19). Depends on 2, 7-8.
+  hired-pirate docstring cleanup), strictly-gated exposure
+  (SETTLED 6/9/12/19 + 50/51/52; rep machinery NONE — SETTLED 53
+  defers the up-movers + site/loot movers to future content; gates
+  stay none). Depends on 2, 7-8.
 - [ ] 12. **Loot-drop polish** — a full pass over the COMPLETE
   roster's drops (user ruling 2026-10-04, seeded by SETTLED 49's
   discovery — the assault drone's entire equipment pool was
@@ -3787,6 +3788,465 @@ Rulings:
   fauna-forward with no drone seats); bands 3-4 are FAUNA-PURE —
   the strong face weighted up. Deeper delves read WILDER, not more
   mechanized.
+
+## SETTLED 50 (2026-10-04) — the hunt reskinned: hunters only, the anchor is the q6 set-piece
+
+User, verbatim (option-pick 2026-10-04, all four on the recommended line):
+
+> "Pursuit hunters only (Recommended)"
+> "Bold frigate anchor + pursuit escorts (Recommended)"
+> "Retire it — hunters only (Recommended)"
+> "q3 + q6 only, as today (Recommended)"
+
+Rulings (the hunt's shape; grounded against the live code — the hunt
+today spawns pirate_scout "leaders" + a merchant_hauler front + 1-4
+pirate escorts at ~2%/tick with the log line "Sensor ping: consortium
+operation detected - merchant hauler with N pirate escorts", and q6's
+`mer_consortium_leader` is a pirate_captain + 2 pirate_raider escorts):
+
+- **q3 roaming squads = PURSUIT HUNTERS ONLY** — 2-3 of the pursuit
+  cruiser spec, one unmistakable corporate silhouette in navy. The
+  merchant-hauler front and the pirate escorts RETIRE with the
+  disguised-merchant fiction (SETTLED 5). A clean kill-squad read:
+  they found you, they came for you.
+- **q6's guarded wreck = the BOLD FRIGATE ANCHOR + 1-2 pursuit
+  escorts** — the hunt's set-piece escalation (SETTLED 33's named next
+  bold wearer). q3 you ran from hunters; q6 the heavy arrives.
+- **Ambient-pirate auto-aggro during heat RETIRES.** "The consortium
+  hires pirates" dies with the reskin; ambient pirates stay ambient.
+  The hunt reads as a new enemy class exactly because nobody else
+  behaves differently.
+- **Hunt scope stays q3 + q6** — heat is step-scoped as today (expiry
+  implicit); the reskin changes WHO hunts, not when. The q4 grind
+  stays a breather between hunts.
+
+## SETTLED 51 (2026-10-04) — the augmentation ladder: three rungs, fixed bands, quality floors
+
+User, verbatim (option-pick 2026-10-04, all four on the recommended line):
+
+> "3 rungs: e / E / bold E (Recommended)"
+> "Fixed band per rung (Recommended)"
+> "Quality floors per rung (Recommended)"
+> "Wreck + boarded hunters (Recommended)"
+
+Rulings:
+
+- **The ladder is THREE rungs, realized as SETTLED 34's case/bold
+  variants of family letter `e`:** Gunner `e` re-authors as the LIGHT
+  rung (eyes/arms-class augments), Enforcer `E` as the MID rung
+  (arms/legs), and ONE NEW bold-`E` row is the HIGH rung (the full
+  set: eyes/torso/arms/legs — the heaviest augmentation). Exact piece
+  assignments per rung are brief-time leans; the pieces are the
+  EXISTING armor cybernetics (SETTLED 11) and their bonus fields go
+  live on their wearers through the standard modifier math (SETTLED
+  27 — cyber-legs make faster consortium).
+- **Fixed band per rung** — the ancients' `fixed_band` precedent:
+  each rung row authors its band (opening leans 2 / 3 / 4), and
+  authored encounter difficulty decides which rung you meet (SETTLED
+  12 verbatim). A rung reads identical wherever it appears.
+- **Quality floors per rung** — consortium equipment NEVER rolls base
+  quality: every rung floors at modded (q1); the top rung floors at
+  overclocked (q2), rolling prototype in its distribution. "Decked
+  out in HIGH QUALITY cyber gear" (SETTLED 6 correction) reads in
+  every drop, and kit drops make their pieces premium loot.
+- **Exposure = the two authored surfaces:** survey_a's wreck interior
+  re-authors to the rungs (q6's corporate site, guarded outside by
+  the anchor), and boarding a hunter ships a consortium-crewed deck
+  through the existing crew_faction machinery (CREW_ROLES' consortium
+  row re-points at the rungs: line/marksman resolve to the re-authored
+  enforcer/gunner). Nothing procedural spawns consortium (SETTLED 12
+  stands).
+
+## SETTLED 52 (2026-10-04) — the hunters: navy cruiser pursuers + the bold band-3 frigate anchor
+
+User, verbatim (option-pick 2026-10-04, all three on the recommended line):
+
+> "Cruiser (Recommended)"
+> "Pursuit b2, anchor b3 (Recommended)"
+> "Module quality floor q1+ (Recommended)"
+
+Rulings:
+
+- **The pursuit hunter is a CRUISER** (`C` in consortium navy) —
+  SETTLED 31's own lean confirmed; distinct from the pirate line pair
+  and from every faction's `s` scouts. The anchor is the FRIGATE
+  (bold `F`, SETTLED 33/50).
+- **Bands: pursuit band 2 (eff. L10), anchor band 3 (eff. L18).**
+  q3's packs scare a mid-chain player without walling them; q6's
+  set-piece (b3 anchor + b2 escorts) is the finale without Line-tier
+  difficulty. Skill weights and loadouts are brief-time leans
+  (SETTLED 39 machinery).
+- **Flown gear floors at modded (q1)** — modules AND weapons, the
+  ground rungs' rule extended ship-side: every stripped piece from a
+  captured hunter is premium loot (SETTLED 31's "even their ships are
+  loot"). Band rates above the floor as usual.
+- Hunters spawn ONLY in the two hunt beats (q3 squads, q6 guard) —
+  no `npc_spawn_table` seats anywhere, nothing procedural (SETTLED 12
+  stands).
+
+## SETTLED 53 (2026-10-04) — hidden-rep v1 stands as landed; up-movers + site/loot movers are FUTURE content
+
+User, verbatim (2026-10-04):
+
+> earning consortium rep will be dealth with further down the road.
+> (on site/loot movers) again, this is future content.
+> (on hunt movers) Kills only, no special event
+> (on gates) Gates stay none (Recommended)
+
+Rulings:
+
+- **NO up-movers, NO site/loot movers in phase 11** — both are future
+  content ("dealt with further down the road"). The hidden axis stays
+  exactly as v1 landed: direct kill movers (−3 per consortium-tagged
+  kill) + the merchant-kill ripple (−1), hidden presentation, decay
+  as landed. **Amends the phase-11 bullet** ("ADDS the up-movers +
+  site/loot/hunt movers") — phase 11 ships NO rep machinery.
+- **Hunt movers: kills only** — hunter kills ride the plain −3 direct
+  mover; no anchor-kill event, no special hunt rep beats.
+- **Gates stay none** (SETTLED 9's reservation stands; the hunt is
+  authored beats, not a thermostat — SETTLED 50).
+
+## SETTLED 54 (2026-10-04) — names + the ping line (PROSE GATE satisfied)
+
+User, verbatim (option-pick 2026-10-04):
+
+> "Consortium Executor" / "Consortium Hunter" / "Consortium Dreadnought"
+> "Sensor ping: consortium hunters detected - N ships closing."
+
+Rulings (names APPROVED verbatim):
+
+- The bold-`E` high rung is the **Consortium Executor**; Enforcer and
+  Gunner keep their names as the re-authored mid/light rungs.
+- The pursuit hunter (navy `C` cruiser, band 2) is the **Consortium
+  Hunter**; the anchor (bold navy `F` frigate, band 3) is the
+  **Consortium Dreadnought**.
+- The hunt's sensor-ping line lands VERBATIM: **"Sensor ping:
+  consortium hunters detected - N ships closing."** (replaces the
+  "consortium operation detected - merchant hauler with N pirate
+  escorts" line).
+
+## Pre-implementation audit — phase 11 (2026-10-04)
+
+1. **Existing modules to extend or reuse:**
+
+   - **The hunt's spawn machinery is ONE function + one data row.**
+     `_spawn_consortium_squad` (`npc_ships.py:82`) composes via
+     `_SquadPlacement` (place leader → escorts) and logs the ping line;
+     `_tick_consortium_squads` (`:676`) fires it ~2%/tick, capped at
+     density × 2 — cadence and cap stand, only the roster changes.
+     `_squad_aggro` (`:729`) carries the retiring clause verbatim:
+     `consortium_heat_active(ctx) and _faction == 'pirate'`.
+   - **q6's guard is pure data**: `MainQuestStep.bounty_enemy_id` +
+     `bounty_escort_ids` (`act0_merchants.py:120-122` — pirate_captain
+     + 2 raiders today), consumed by `main_quest/_spawns.py:35-61`
+     (leader + escort spawns under one squad_group). Re-author the
+     ids; zero spawn-code changes.
+   - **`fixed_band` already exists on NpcCharSpec** (phase 9,
+     `data/npc_chars/__init__.py:229`) — the rungs author it; the
+     `entity_band` choke point honors it today.
+   - **The worn-armor bonus math exists as a shared helper**:
+     `_sum_armor_bonus(pieces, field)` (imported at
+     `_rules_ground.py:27`) already folds `ap_bonus`/`hit_bonus`/
+     `melee_bonus` for the player (`:284,459,484`) — the enemy mirror
+     calls the same helper over the rung's stamped pieces. `hp_bonus`
+     folds at the instance HP build.
+   - **The quality seams take `band`, not rates** (ADVISE-corrected):
+     `roll_flown_equipment(item_type, ids, band, rng)`
+     (`space_scale.py:45`) and the ground equip draw
+     (`rolled_weapon_quality` via `roll_slot` in `ground_scale.py`)
+     both derive rates internally — a per-spec floor threads as a new
+     parameter at exactly these two sites (both signatures change;
+     callers: `_stats.py:_enemy_flown_loadout` + tests, `roll_slot`
+     has the spec in scope). NO player path calls either site
+     (reviewer-verified) — floor 0 is bit-identical by construction,
+     single RNG draw either way. The capture strip copies the flown
+     `StoredEquipment` verbatim and the kit drop reads stamped
+     qualities (no re-roll), so the floor flows into captured and
+     dropped gear with no third site.
+   - **The worn-stamp rides `rolled_loadout`** (ADVISE-verified
+     cheapest route): a `worn` key inside the existing loadout stamp
+     keeps `_spawn_kit_drop`/`spawn_kill_drops` signatures unchanged;
+     serialization extends the `_loadout_dict`/`_loadout_from_dict`
+     KEY WHITELIST (`saveload_maps.py:265-324` — a new key silently
+     drops otherwise). The enemy AP seam is pre-built:
+     `enemy_ap_total(spec, armor_entries=())`
+     (`_ground_effects.py:75-82`) already accepts entries —
+     `_stamp_enemy_loadout`'s call gains the one arg.
+   - **`enemy.spec.armor` has SIX live readers** (ADVISE catch — the
+     fold must land as INSTANCE state, every reader migrates):
+     `_rules_ground.py:483` (damage soak), `_ground_deadshot.py:124`
+     (preview), `_ground_blast.py:66` (blast), and the target card
+     twice (`_ground_presentation.py:74,123`). The hit/melee bonus
+     fold touches `_ai_ground.py` at BOTH the scorer
+     (`_score_ground_weapon:117-141`) and the shot resolution
+     (`_roll_ground_shot:761-792`) — SETTLED 41's same-math rule.
+   - **Boarded hunter decks need zero new plumbing**:
+     `capture_layout_id` on NpcShipSpec (hunters author cruiser_crew
+     / frigate_crew) + `begin_capture_boarding` passing
+     `crew_faction=spec.faction` (phase 6) → `CREW_ROLES["consortium"]`
+     resolves; the row currently omits `heavy`. But cruiser_crew
+     carries a shared chance-slot heavy (`ENEMY: z = heavy@0.4#1-1`,
+     `cruiser_crew.layout:110`) — a consortium `heavy` role leaks a
+     40% Executor onto every boarded Hunter. One geometry serves
+     every faction (SETTLED 28); the EXPECTATION bends, not the
+     layout (frigate_crew's guaranteed heavy marker delivers one on
+     every boarded Dreadnought).
+   - **survey_a re-points raw ids** (the authored-specials lane,
+     SETTLED 28): its four ENEMY markers (`survey_a.layout:64-67`)
+     name enforcer/gunner directly.
+   - **Cyber pieces live data-side** (`ground_armor/vests.py`):
+     cybernetic_eyes (head, t2, hit_bonus 8), cybernetic_arms (hands,
+     t2, melee_bonus 2), cybernetic_torso (body, t3), cybernetic_legs
+     (legs, t3) — tier-gate law: rung `tier` ≥ every worn piece's
+     tech_level forces tier ≥ 2/3/3 for Gunner/Enforcer/Executor
+     (the Executor's tier 4 is a difficulty choice, not a gate
+     consequence).
+
+2. **Duplication hotspots:**
+
+   - Worn-piece bonus folding hand-rolled per stat site instead of
+     one pass over the stamped pieces at instance build.
+   - The quality floor applied at more than the two roll sites (a
+     third ad-hoc clamp would drift).
+   - The ping line's count grammar re-derived at the log call
+     (singular/plural) instead of one f-string beside the spawn.
+
+3. **DRY strategy:**
+
+   - ONE `worn_armor: tuple[str, ...] = ()` field on NpcCharSpec +
+     ONE stamp extension in the loadout path (the SETTLED 36/43
+     pattern: idempotent first-resolution stamp, serialized); the
+     instance build folds all four bonus fields + defense through
+     `_sum_armor_bonus` in one place.
+   - ONE `quality_floor: int = 0` field on BOTH NpcCharSpec and
+     NpcShipSpec, consumed at exactly the two roll sites.
+   - The kit drop (`_spawn_kit_drop`) gains the stamped worn pieces —
+     what they wear is what drops, no second drop path.
+
+### Phase 11 Implementation brief (PROPOSED v2 2026-10-04 — SETTLED
+### 50/51/52/53/54 over 5/6/9/11/12/27/28/31/33/34/39; reviewer
+### ADVISE pass folded first: 13 issues / 3 blocking — the
+### cruiser_crew heavy-leak expectation (the layout stands, the
+### test bends), the six `spec.armor` readers + the scorer/resolution
+### same-math seam for the bonus fold, and the two-roll-site
+### signature reality; awaiting user approval)
+
+**Scope (files / hook points):**
+
+- **The two hunter specs** (new `data/npc_ships/consortium.py` +
+  registry): **Consortium Hunter** (`consortium_hunter`) — cruiser
+  hull, consortium navy (90,120,200), faction consortium, band 2,
+  piloting-biased skill weights (the pursuit read), elite False,
+  `capture_layout_id="cruiser_crew"`, military-suite modules
+  (targeting/gyro/shield — the existing military family, no new
+  ids); **Consortium Dreadnought** (`consortium_dreadnought`) —
+  frigate hull, navy, band 3, balanced flagship weights, elite True
+  (bold `F`, SETTLED 33's named wearer), `capture_layout_id=
+  "frigate_crew"`, warship module suite, `shield_regen_rate` lean 2
+  (the captain/patrol_heavy class). Both: `quality_floor=1` (SETTLED
+  52), ai dials authored (pursuit closes: preferred_range lean 2-3;
+  aggression lean 60-70). NO `npc_spawn_table` seats anywhere — the
+  two hunt beats are their only spawn surfaces (SETTLED 12).
+- **The `quality_floor` field** (`data/npc_ships/__init__.py` +
+  `data/npc_chars/__init__.py`): `quality_floor: int = 0` on both
+  spec types; consumed at exactly the two roll sites —
+  `space_scale.roll_flown_equipment` (ship modules AND weapons; the
+  caller `_stats._enemy_flown_loadout` has the spec in scope) and
+  the ground `roll_slot` equip draw — applied as **CLAMP semantics**:
+  `max(floor, rolled)`, the below-floor mass lumping onto the floor
+  rung, top-tier probability UNCHANGED (state, don't imply
+  renormalization). No player path calls either site (verified) —
+  floor 0 is bit-identical by construction. The floor flows into
+  captured gear (the strip copies flown instances) and kit drops
+  (stamped qualities, no re-roll) with no third site.
+- **The three rungs** (new `data/npc_chars/consortium.py`; the two
+  rows MOVE from core.py — ids unchanged, so old saves and survey_a
+  load clean): **Consortium Gunner** `e` re-authors LIGHT —
+  `fixed_band=2`, `worn_armor=("cybernetic_eyes", "cybernetic_arms")`
+  (lean), `quality_floor=1`, guard behavior, pistols family;
+  **Consortium Enforcer** `E` re-authors MID — `fixed_band=3`,
+  `worn_armor=("cybernetic_arms", "cybernetic_legs")` (lean),
+  `quality_floor=1`, hunter, melee/pistols; **Consortium Executor**
+  `E` bold NEW — `fixed_band=4`, elite True, the FULL set
+  `("cybernetic_eyes", "cybernetic_torso", "cybernetic_arms",
+  "cybernetic_legs")`, `quality_floor=2` (overclocked floor,
+  prototype in the rolls — SETTLED 51), hunter, rifles family lean,
+  strength/stamina-heavy weights (the deck-clearing heavy). Rung
+  `tier` ≥ every worn piece's tech_level (the tier-gate law —
+  Executor tier 4, Enforcer tier 3, Gunner tier 2, pinned by test).
+  Names VERBATIM (SETTLED 54).
+- **The `worn_armor` mechanism** (`data/npc_chars/__init__.py` +
+  the loadout stamp + the instance build): a `worn` key inside the
+  `rolled_loadout` stamp resolves the pieces idempotently at first
+  resolution (the SETTLED 36/43 pattern; serialization EXTENDS the
+  `_loadout_dict`/`_loadout_from_dict` KEY WHITELIST in
+  `saveload_maps.py:265-324` — a new key silently drops otherwise).
+  The fold lands as INSTANCE state, and every consumer migrates:
+  - the FOUR bonus fields via the shared `_sum_armor_bonus` —
+    `ap_bonus` through `enemy_ap_total(spec, armor_entries=())`
+    (already parameterized; `_stamp_enemy_loadout`'s call gains the
+    arg), `hit_bonus`/`melee_bonus` into BOTH the volley scorer
+    (`_score_ground_weapon`) AND the shot resolution
+    (`_roll_ground_shot`) — SETTLED 41's same-math rule, the eyes'
+    +8 hit moves pick and shot identically — and `hp_bonus` into
+    the HP build;
+  - each piece's DEFENSE adds to the armor read, and the SIX
+    `spec.armor` readers migrate to the folded instance value
+    (`_rules_ground.py:483` soak, `_ground_deadshot.py:124` preview,
+    `_ground_blast.py:66` blast, `_ground_presentation.py:74,123`
+    target card ×2) — what they wear is what they are (SETTLED 27),
+    on the card and in every math.
+  The kit drop (`_spawn_kit_drop`) drops the stamped pieces at
+  their stamped qualities — what they wear is what drops; the
+  rungs' `equipment_loot_pool` entries RETIRE **TOTAL on all three
+  rungs** (a partial retirement would roll UNFLOORED gear at the
+  drop-time site; goods/field-item pools stay).
+- **CREW_ROLES re-point** (`data/npc_chars/crew_roles.py`): the
+  consortium row gains `heavy: consortium_executor`; line/marksman
+  stay enforcer/gunner. Boarded hunters resolve through it
+  automatically — the shared one-geometry law (SETTLED 28) means
+  cruiser_crew's CHANCE-slot heavy (`heavy@0.4`) puts an Executor on
+  ~40% of boarded Hunters, and frigate_crew's GUARANTEED heavy
+  marker puts one on EVERY boarded Dreadnought;
+  security_drone/stowaway seats stand.
+- **The hunt reskin** (`npc_ships.py` + `act0_merchants.py` +
+  `main_quest/_heat.py`):
+  - `_spawn_consortium_squad` places 2-3 `consortium_hunter` (RNG
+    2-3) — the hauler front and pirate escorts die; the ping line
+    lands VERBATIM: "Sensor ping: consortium hunters detected - N
+    ships closing." (SETTLED 54).
+  - `_squad_aggro`'s retiring clause re-keys `pirate` →
+    `consortium` — ambient pirates go back to ambient; the hunters
+    chase while heat is live (same expiry semantics as today).
+  - q6 data: `bounty_enemy_id="consortium_dreadnought"`,
+    `bounty_escort_ids=("consortium_hunter", "consortium_hunter")`
+    (SETTLED 50's 1-2 escorts lands as the tuple's 2 — the existing
+    shape).
+  - The hired-pirate docstrings/comments retire across `_heat.py`,
+    `act0_merchants.py` (q3/q6 comments), `npc_ships.py`, and the
+    two ground rows' core.py comments (internal text, not
+    prose-gated).
+- **survey_a re-point** (`data/layouts/survey_a.layout`, directive
+  blocks only — zero grid edits): `S` (the serious 2-slot marker)
+  re-points to `consortium_executor`; `c`/`g`/`m` stay
+  enforcer/gunner/parasite (the mid/light mix + vermin). Playtest
+  dial.
+- **Identity lint** (`tests/test_enemy_identity.py`): hull pin +
+  one-fg-per-faction cover the hunters automatically; the elite
+  census gains the Executor + Dreadnought; family conformance gains
+  the bold case variant (the brute/sniper precedent).
+- **Dev grants** (`dev_mode.py` + `test_dev_mode.py`): Shift+grant
+  spawning the three rungs adjacent (disjoint per-face placement,
+  the phase-4 precedent) + the Shift+P ship cycle extended with the
+  two hunters — every checkpoint item without playing to q3.
+
+**Build order:** ship specs + `quality_floor` (both registries) +
+roll-site floors (registry/roll tests first) → rungs module +
+`worn_armor` field + stamp extension + instance folding + kit-drop
+pieces → CREW_ROLES `heavy` + survey_a re-point → the hunt reskin
+(squad roster + ping line + aggro re-key + q6 data + docstring
+sweep) → identity lint + dev grants → full gate.
+
+**Binding rulings:** SETTLED 50 (hunters only; bold anchor at q6;
+ambient-pirate aggro RETIRES; scope q3+q6), 51 (three rungs e/E/
+bold-E, fixed bands 2/3/4, quality floors, wreck + boarded-hunter
+exposure), 52 (cruiser pursuit b2 / frigate anchor b3; flown gear
+floor q1+), 53 (NO rep machinery — the hidden axis stays v1-landed;
+gates none), 54 (names + ping line VERBATIM), over 5/6/9/11/12/27
+(worn cyber modifies its wearer), 28 (raw ids stay legal on
+authored decks; one geometry per faction), 31 (two ships, themed
+modules from existing families), 33/34 (hull glyphs + family navy +
+bold elite), 39 (bands spec-authored, skills band-derived), 12
+(authored-only exposure — nothing procedural spawns consortium).
+
+**Required tests:** registry pins (hunter/dreadnought bands 2/3,
+elite True on the Dreadnought, navy fg, hull chars C/F,
+capture_layout_ids; rung fixed_bands 2/3/4 flat — a floor-1 stamp
+does not dilute; Executor elite; tier-gate law per rung — 2/3/3
+minimums, Executor 4 pinned);
+`quality_floor` (both roll sites: floor 0 = bit-identical today —
+single RNG draw; floor 1 never rolls base with the below-floor mass
+on q1 and PROTOTYPE UNCHANGED — the clamp distribution pinned; floor
+2 never rolls below overclocked — ship weapons/modules AND ground
+equip draws); worn_armor (stamp idempotent + serialized THROUGH the
+extended whitelist; bonus fields folded into AP/hit/melee/HP; the
+scorer AND resolution move together — a cyber-eyes rung's +8 hit
+changes pick and shot IDENTICALLY, the SETTLED 41 parity pin; the
+six `spec.armor` readers all read the folded value — soak, deadshot
+preview, blast, target card ×2; kit drop carries the pieces at
+stamped qualities; equipment_loot_pool retirement TOTAL on all three
+rungs; save/load round-trip incl. mid-fight quality state; old-save
+tolerance); CREW_ROLES (heavy cell resolves; a boarded Dreadnought
+GUARANTEES its Executor; a boarded Hunter carries the 40% chance-slot
+Executor — the shared cruiser geometry, pinned as intended, never
+edited); the reskin (squads compose 2-3 hunters, no hauler/pirate
+ids; ping line VERBATIM; ambient pirates NOT aggro'd during heat —
+the re-keyed clause; hunters chase while heat live and stop at
+expiry; q6 spawns the anchor + 2 hunters under one squad group);
+survey_a (markers resolve the rungs; the executor slot reads);
+identity (elite census + family conformance + hull pin green);
+regression (merchant chain end-to-end, bar-chain militia heat
+untouched, ambient pirate behavior outside heat identical,
+phase 9/10 suites).
+
+**Stop point (do NOT start):** no rep machinery of any kind (up-
+movers, site/loot movers, gates, expose-the-bar — SETTLED 53);
+no new consortium exposure beyond the two hunt beats + survey_a +
+boarded hunters (corporate digs, Act 2 beats, future content);
+no new module or weapon ids (military suite + cyber pieces are
+existing data); no rung MECHANICS beyond the standard build-1 loop
+(the Executor is an ordinary humanoid row — no stare/field-class
+dials); no hunt escalation/thermostat; phase 12 untouched.
+
+**Ratchet note (counts at brief time, reviewer-verified):**
+`combat/_rules_ground.py` sits at **998/1000** — the bonus/defense
+fold CANNOT land line-neutral; the in-commit extraction beside
+`_stamp_enemy_loadout` is certain, not contingent.
+`npc_ships.py` sits at **997/1000** — the reskin likely nets
+NEGATIVE (the hauler-front branch and escort loop die).
+`_ai_ground.py` (847) joins the touched set with headroom; the
+worn-stamp machinery prefers `ground_loadout.py`/`saveload_maps.py`
+over `_rules_ground` where cohesion allows.
+
+**PLAYTEST checkpoint (numbered, in-game):**
+
+1. Merchants chain to q3 (dev: force the step live): the ping reads
+   "Sensor ping: consortium hunters detected - N ships closing." —
+   navy `C` cruisers in 2s and 3s, closing; no hauler fronts, no
+   pirate tag-alongs.
+2. During q3 heat: ambient pirates in the system stay ambient —
+   fly past one and it does NOT aggro (the retired clause); the
+   hunters themselves chase.
+3. Fight a hunter pack: band-2 skills read (LVL 10 card line),
+   piloting-biased pursuit; kill one — the −3 hidden rep moves
+   (save-file check, no log line).
+4. q6 at vega: the wreck guard is a BOLD navy `F` (LVL 18) + two
+   hunters — the set-piece reads; killing the dreadnought is the
+   finale.
+5. Board the dead dreadnought: the deck crews consortium through
+   CREW_ROLES — enforcers `E`, gunners `e`, sentries, and ONE
+   guaranteed bold-`E` Executor (frigate_crew's heavy marker); a
+   boarded HUNTER runs the cruiser mix with the ~40% chance-slot
+   Executor. The executor's cyber bonuses read in its speed, AP,
+   and hit chance — and on the TARGET CARD (armor/HP honest).
+6. Kill the Executor: its kit drop = the full cyber set at
+   overclocked-or-prototype quality (never base); the enforcer's =
+   arms+legs at modded+. The pieces are premium loot.
+7. survey_a (the calibration wreck): the `S` slots field Executors;
+   the deck reads mid+high corporate, not t1 filler.
+8. Faction standings: still three bars — the hidden axis moved
+   (save check) but renders nowhere; killing merchant crews still
+   ripples (v1 unchanged).
+9. Save/quit mid-hunt and mid-deck → Continue: squad, deck crews,
+   worn-piece state, qualities identical; a pre-phase-11 save loads
+   clean (ids unchanged).
+10. Regression: bar chain's militia heat untouched; ambient pirate
+    behavior outside the hunt identical; phase 9/10 content
+    (machines, biomes) unchanged.
+11. Guide-diff item: expected NONE — the hunt explains itself in
+    play (SETTLED 36 noise precedent); confirm-grep `data/guide/`
+    for consortium/heat mentions, any hit becomes a called-out
+    before/after.
 
 ## Pre-implementation audit — phase 10 (2026-10-04)
 
