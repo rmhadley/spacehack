@@ -7,9 +7,11 @@ the same hit math the shot resolves with, fires the top affordable
 scorer, and repeats until AP or ammo run out. When the best score
 lives in the other set: a silent 1-AP swap (doc 48 SETTLED 43 — dry,
 point-blank, and cornered switches are EMERGENT from the scorer).
-Movement legs manage RANGE (doc 48 SETTLED 26): back off inside min,
-close beyond max or without LOS, dance with leftovers — melee never
-repositions (no knife-dancers). Guards leash to their post at the
+Movement legs manage RANGE (doc 48 SETTLED 26): close beyond max
+or without LOS, dance with leftovers — melee never repositions (no
+knife-dancers; melee reach resolves the melee set first, the p9
+Warden ruling). With NO pick at all, a pure-ranged row inside its
+min band backs off — with a pick the scorer always decides. Guards leash to their post at the
 RANGED slot weapon's ``max_range + 2`` (SETTLED 18/37/43).
 
 A WEAPONLESS spec (doc 48 phase 9 — the Watcher, whose stare is its
@@ -152,7 +154,6 @@ def _volley_pick(
     EV-per-AP by the actions the remaining bank buys, so the swap
     overhead folds in honestly. Ties break to the ACTIVE set, then
     the ranged slot. ``None`` when nothing qualifies."""
-    from ..data.ground_weapons import find_ground_weapon as _find_gw
 
     _active = ground_loadout.active_set(stamp)
     _best = None
@@ -160,11 +161,8 @@ def _volley_pick(
         (_active, ground_loadout.other_set(_active)),
     ):
         _pair = ground_loadout.pair_for(stamp, _set_name)
-        if _pair is None:
-            continue
-        try:
-            _ws = _find_gw(_pair[0])
-        except KeyError:
+        _ws = _pair_spec(_pair)
+        if _ws is None:
             continue
         if not _pickable(_ws, stamp, dist, los):
             continue
@@ -274,8 +272,10 @@ async def _volley_step(
 ):
     """One decision point: ``(ap_spent, cells, fired, damage, halt)``.
 
-    Hugged: back off. With a pick: the dial's fire-vs-dance roll, then
-    swap or FIRE. Without: dry-switch, range legs, leftover dance."""
+    Melee reach resolves the melee set (the p9 Warden ruling — the
+    slam/knife at adjacency, never a gun-dance away). Otherwise a
+    pick fires through the dial; no pick falls to hug back-off or
+    the range legs."""
     _aws = _active_weapon_spec(stamp)
     if _aws is None:
         return 0, 0, False, 0, True  # unknown id that left the catalog:
@@ -283,13 +283,7 @@ async def _volley_step(
         # the drift at :func:`run_ground_enemy_turn`.)
     _dist = _dist_to(enemy_entity.pos.x, enemy_entity.pos.y, player_pos)
     _los = _mutual_sight(game_map, enemy_entity.pos, player_pos)
-    if _dist < _aws.min_range and await _back_off_step(
-        ctx, console, render_callback, game_map, enemy_entity,
-        player_pos, _aws,
-    ):
-        nav[0] = None  # off the advance path — recompute later
-        return 1, 1, False, 0, False
-    _pick = _volley_pick(
+    _pick = _melee_reach_pick(stamp, _dist, ap) or _volley_pick(
         stamp, enemy_stats, armor_defense, player_dodge, _dist, _los,
         ap, ctx,
     )
@@ -297,24 +291,76 @@ async def _volley_step(
         return await _pick_or_dance(
             ctx, console, render_callback, game_map, enemy_entity,
             player_pos, enemy_spec, enemy_stats, armor_defense,
-            player_dodge, stamp, nav, _aws, _pick,
+            player_dodge, stamp, nav, _pick,
         )
-    return await _gap_step(
+    return await _hugged_or_gap_step(
         ctx, console, render_callback, game_map, enemy_entity, player_pos,
         stamp, _aws, _dist, _los, nav,
     )
 
 
+async def _hugged_or_gap_step(
+    ctx, console, render_callback, game_map, enemy_entity, player_pos,
+    stamp, aws, dist, los, nav,
+):
+    """The no-pick tail: hug back-off (a pure-ranged row inside its
+    min band) or the range legs."""
+    if dist < aws.min_range and await _back_off_step(
+        ctx, console, render_callback, game_map, enemy_entity,
+        player_pos, aws,
+    ):
+        nav[0] = None  # off the advance path — recompute later
+        return 1, 1, False, 0, False
+    return await _gap_step(
+        ctx, console, render_callback, game_map, enemy_entity, player_pos,
+        stamp, aws, dist, los, nav,
+    )
+
+
+def _pair_spec(pair):
+    """One loadout pair's catalog weapon spec, or ``None`` on a miss
+    (the shared idiom for pair_for + find_ground_weapon)."""
+    from ..data.ground_weapons import find_ground_weapon as _find_gw
+
+    if pair is None:
+        return None
+    try:
+        return _find_gw(pair[0])
+    except KeyError:
+        return None
+
+
+def _melee_reach_pick(stamp, dist, ap):
+    """The melee-set pick at melee reach (adjacency): ``(SET_MELEE,
+    pair, weapon_spec)`` when a melee weapon is carried, covers the
+    distance, and is affordable (with the 1-AP swap when the ranged
+    set is active) — else ``None`` and the normal volley/hug ordering
+    decides."""
+    _pair = ground_loadout.pair_for(stamp, ground_loadout.SET_MELEE)
+    _ws = _pair_spec(_pair)
+    if _ws is None or int(dist) > 1:
+        return None
+    _swap = 0 if ground_loadout.active_set(
+        stamp,
+    ) == ground_loadout.SET_MELEE else 1
+    if ap < _ws.ap_cost + _swap:
+        return None
+    return (ground_loadout.SET_MELEE, _pair, _ws)
+
+
+
 async def _pick_or_dance(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_spec, enemy_stats, armor_defense, player_dodge, stamp, nav,
-    aws, pick,
+    pick,
 ):
     """The with-a-pick decision tail: the dial's fire-vs-dance roll,
-    then the pick resolves (a cross-set pick pays the swap first)."""
+    then the pick resolves (a cross-set pick pays the swap first).
+    The roll reads the PICKED weapon — a melee pick holds (no
+    knife-dancers), a ranged pick dances per the dial."""
     _danced = await _maybe_dance_instead(
         ctx, console, render_callback, game_map, enemy_entity,
-        player_pos, enemy_spec, aws,
+        player_pos, enemy_spec, pick[2],
     )
     if _danced:
         nav[0] = None  # off the advance path — recompute later
@@ -346,7 +392,8 @@ async def _maybe_dance_instead(
 ) -> bool:
     """The aggressiveness dial (SETTLED 23/43, RAW ground-side): roll
     below fires; at/above buys ONE in-band reposition step instead —
-    re-rolled every decision point, ranged-only (no knife-dancers),
+    re-rolled every decision point, ranged-only (no knife-dancers;
+    callers pass the PICKED weapon, so a melee pick always holds),
     and nowhere legal to dance reads as False so the caller fires."""
     if RNG.randint(1, 100) < enemy_spec.ai_aggressiveness:
         return False  # fire
