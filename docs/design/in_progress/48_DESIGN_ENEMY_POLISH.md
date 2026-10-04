@@ -2167,9 +2167,13 @@ with doctrinal 10-13):
   far-side handoff), doc-50's PlayerSheet quality/stat-spend gaps.
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
-  delve-bottom legendaries (SETTLED 30). Names in the brief. At its
-  close: the extensibility audit (acceptance criterion — adding an
-  enemy is a data edit) against the whole campaign.
+  delve-bottom legendaries (SETTLED 30 + 47: per-biome fully
+  authored pools with TIER_POOLS as the default, earth=lush,
+  every bottom guarded — default biomes borrow the nearest apex,
+  2 faces + 1 apex per biome). Brief below (PROPOSED v2 —
+  reviewer-folded, awaiting approval). At its close: the
+  extensibility audit (acceptance criterion — adding an enemy is a
+  data edit) against the whole campaign.
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
   hunt reskinned as a new enemy class (with the `_heat.py`
@@ -3635,6 +3639,313 @@ single-species at 1.8 density); the warden-heavy F5 gauntlet; the
 machines' own popup prose (the six older event messages still name
 sentry/assault drones — stale against the machines that now spawn;
 the Warden events are SILENT pending a prose ruling).
+
+## SETTLED 47 (2026-10-04) — phase-10 brief-time rulings: per-biome pools, earth=LUSH, the apex gate, the row census
+
+User, verbatim (option-pick 2026-10-04, on the four phase-10 opens):
+
+> "Per-biome pools, fully authored"
+> "Earth = LUSH; rest default (Recommended)"
+> "Every bottom, band-stamped (Recommended)"
+> "2 faces + 1 apex per biome (Recommended)"
+
+Rulings:
+
+- **Dig pools become PER-BIOME and FULLY AUTHORED.** Each biome
+  theme carries its own band-1-4 pool table (composition AND
+  density authored per biome per band); `TIER_POOLS` demotes to the
+  DEFAULT pool for undescribed themes. Digs are no longer
+  pirate-flavored everywhere by construction — a LUSH delve reads
+  lush, a VOLCANIC delve reads volcanic. `derive_dig_params`
+  resolves pool by (theme, band); the floor band stays the clamped
+  1-4 `_dig_tier` stamp.
+- **Earth IS LUSH's planet** — its EARTH theme (warm green temperate)
+  is the lush biome; no re-theming, no new planet. Unlisted themes
+  that host digs (MARS_CITY = mars, CLOUD_CITY = venus / vega_b /
+  ac_planet_3, PIRATE_OUTPOST = wolf_b) read the DEFAULT pool
+  (today's TIER_POOLS shape) until their planets earn faces — six
+  authored biomes, honest scope.
+- **The apex guards EVERY delve bottom, band-stamped.** Every dig's
+  deepest floor spawns its biome's apex beside the legendary cache,
+  stamped at that floor's band (a T1 dig meets a band-scaled apex,
+  a T4 dig meets the wall) — no special cases; the guardian scales
+  with its delve like everything else. Same-day amendment (the
+  brief's reviewer ADVISE pass caught the gap; user ruling
+  2026-10-04): EVERY means every — default-biome digs BORROW the
+  nearest biome's apex (wolf_b/lal_c→ice; mars→desert; venus /
+  vega_b / ac_planet_3 / indi_b→lush; everything unlisted falls
+  back to desert, tunable). No unguarded legendaries anywhere.
+- **The census: 2 faces + 1 apex per biome** — 8 new fauna rows (2
+  each for LUSH, VOLCANIC, SCRAP_RING, CANYON) + 6 apex rows (one
+  per biome incl. DESERT and ICE). Matches existing biome density;
+  each face a distinct behavior×attack cell (the doctrine: matrix
+  cells, never stat walls).
+
+Row-shape rulings (drafted from the doctrine, folded with the
+batch): apexes are DATA-ONLY rows — bold glyph (`elite`), unique
+(`squad_size` (1,1)), guard behavior at the cache, organic fixed
+weapons, band-stamped stats. NO new mechanic machinery this phase
+(the ancient dials stay ancient); if playtest shows an apex needs a
+mechanic, it comes back as a proposal. Authored per-planet surface
+`monster_pool` / `cache_guardian_pool` rows stay as authored
+(SETTLED 14 law). Names + weapons + per-band compositions land in
+the brief under the prose gate.
+
+## Pre-implementation audit — phase 10 (2026-10-04)
+
+1. **Existing modules to extend or reuse:**
+   - `derive_dig_params` (`digs.py:155-173`) — the ONE pool choke
+     point; every RNG dig resolves its `monster_pool`/density here.
+     The biome axis lands here, nowhere else.
+   - `_place_population_anchor` + `_scatter_squad`
+     (`dungeon_population.py:138-175`) — spawn machinery already
+     carries `bold=spec.elite`; the apex needs zero new spawn code.
+   - `_place_legendary_cache` (`digs.py:499-522`) — the cache picks
+     its own free cell (returns None today; it exposes the chosen
+     cell for the apex guard). The NEAR-cache spawn is
+     `_spawn_squad_near` (`main_quest/_delve.py`), not
+     `_free_floor_cell` — that walk is map-wide-uniform.
+   - `data/npc_chars/monsters.py` + `data/ground_weapons/monsters.py`
+     — the catalogs; registry auto-discovery means new rows are pure
+     data edits (the extensibility criterion, already true today).
+   - The phase-3 identity lint (family conformance, glyph collision)
+     extends with a TILE-char overlap check (pin-list idiom) — the
+     fauna glyph standard is (glyph, color) pair-uniqueness, not
+     blanket freeness.
+   - `_dig_tier` (`digs.py:227-230`) — the clamped floor band; the
+     apex stamps through it.
+2. **Duplication hotspots:**
+   - BIOME_POOLS vs TIER_POOLS growing two parallel lookup paths in
+     `derive_dig_params`.
+   - The apex spawn forking its own entity-construction block
+     instead of reusing the scatter machinery. The prior art that
+     fits: `_spawn_squad_near` (`main_quest/_delve.py:75-112`) —
+     nearest-first BFS, delegates to `_scatter_squad`, carries band
+     + `bold`, KeyError-safe. HOIST it (with `_door_room_cells`) to
+     `dungeon_population.py`; `_place_bottom_apex` becomes a thin
+     call. `_free_floor_cell` is map-wide-uniform — it CANNOT pick
+     a cell near the cache (reviewer issue 2), and
+     `_place_legendary_cache` returns None today (it must expose
+     its chosen cell).
+   - Per-biome pool tables re-listing the density ladder four times
+     each (authoring noise, drift risk).
+3. **DRY strategy:**
+   - ONE `_biome_pool(spec, band)` resolver: `BIOME_POOLS.get(
+     spec.biome, TIER_POOLS)[band]` — TIER_POOLS stays the default
+     table verbatim, the biome table is one new structure beside it.
+   - Apex spawn = one `_place_bottom_apex` helper in `digs.py`,
+     a thin call over the hoisted `_spawn_squad_near`; no second
+     entity-construction site.
+   - The row census is DATA — copy-shaped rows are the catalog's own
+     idiom (frozen dataclass tuples); no factory extraction.
+
+### Phase 10 Implementation brief (PROPOSED v2 2026-10-04 — SETTLED
+### 30/47-as-amended; reviewer ADVISE pass folded first: 8 issues /
+### 2 blocking — the apex-scope contradiction ruled by the user
+### (BORROW the nearest biome's apex), the adjacency mechanism
+### re-based on the hoisted `_spawn_squad_near`; names + pools below
+### are prose-gated drafts landing only as approved)
+
+**Scope (files / hook points):**
+
+- **The biome axis** (`data/planets/__init__.py` + 12 planet files):
+  new `PlanetSpec.biome: str = ""` — the fauna-pool key, decoupled
+  from `theme` (earth keeps its EARTH palette and declares
+  `biome="lush"`; derived themes like lal_c's VAULT read the default
+  untouched). Declarations: lush=earth; desert=mercury, barnards_b,
+  cygni_b, ac_planet_1; ice=procyon_c, lal_b, ac_planet_2,
+  barnards_c; volcanic=ross_b; scrap_ring=ross_c;
+  canyon=epsilon_eridani_b. Every other planet leaves it empty.
+  Why a declared field over a theme→biome table (reviewer issue 3,
+  ruled with the fold): `PlanetTheme` instances are unnamed values —
+  identity keying breaks under `override_theme`/`derive_theme`
+  copies, and a theme-keyed table would need a new name field on
+  `PlanetTheme` (more machinery than one str field). The explicit
+  declaration survives palette overrides; earth/lush is the live
+  case that forces the decoupling.
+- **The pool table** (`data/digs/__init__.py` + `digs.py`):
+  `BIOME_POOLS: dict[str, dict[int, tuple[tuple[str, ...], float]]]`
+  — six biomes × bands 1-4, composition AND density authored (drafts
+  below); `TIER_POOLS` verbatim becomes the undescribed-theme
+  default (docstring amended, semantics unchanged). Resolution: one
+  `_biome_pool(spec, band)` helper inside `derive_dig_params` —
+  pool still keyed by SITE band (`_site_tier`), floors still climb
+  the stat band via `_dig_tier`.
+- **The organic weapons** (`data/ground_weapons/monsters.py`): new
+  enemy-only rows (all `shop_available=False`,
+  `loot_droppable=False`): **spore_burst**, **magma_bolt**,
+  **rust_spines** (frost_bolt-shaped ranged), **venom_fangs**
+  (fast weak melee), **behemoth_maul** (the shared apex heavy
+  melee — big dice, 2 AP, loud). Names are drafts under the prose
+  gate.
+- **The fauna rows** (`data/npc_chars/monsters.py`): 8 new rows, 2
+  per new biome, each a distinct behavior×attack cell —
+  **Vine Hound** (hunter, fast melee, pairs) / **Spore Spitter**
+  (hunter, ranged harasser, 2-3) for LUSH; **Ember Crawler**
+  (hunter swarm 3-5, melee) / **Magma Spitter** (ranged, 2-3) for
+  VOLCANIC; **Scrap Hound** (hunter, fast melee, armor-1 metal
+  hide) / **Rust Wasp** (swarm 3-5 RANGED — the new cell, ap 6) for
+  SCRAP_RING; **Crag Lurker** (ambusher, armor-2 rock hide) /
+  **Canyon Viper** (hunter, ap-6 reflexes melee) for CANYON. All
+  `always_hostile`, `faction=""`, fixed organic `weapons=` (never
+  `weapon_families` — SETTLED 35 law), species glyphs in biome
+  palettes, NOT identity families (no `CHAR_CLASS_FAMILIES`
+  entries). Numbers lean on the existing rows (hp 12-26, tier 1-3,
+  existing goods ids only in loot pools).
+- **The apexes** (`data/npc_chars/monsters.py`, 6 rows): one per
+  biome incl. DESERT/ICE — **Dune Behemoth**, **Glacier Wyrm**,
+  **Caldera Tyrant**, **Canopy Maw**, **Scrap Colossus**, **Mesa
+  Mauler** (drafts, prose gate). DATA-ONLY rows (SETTLED 47): FLAT
+  bases — hp lean 55-75, armor 3-4, ap 3-4 — the band stamp does
+  the scaling (reviewer issue 8: base + `stamina//3` at band is
+  effective HP; heavy bases would wall T1 bottoms against
+  playtest item 5); `elite=True` (bold), `squad_size (1,1)`,
+  `behavior="guard"`, heavy organic weapons (behemoth_maul + the
+  biome bolt where it reads), band-stamped (`fixed_band=0`) — NO
+  new mechanic machinery (the ancient dials stay ancient).
+  Authoring law: apex `tier` must be >= the tech_level of every
+  entry in its `equipment_loot_pool` (drops filter by tier) or the
+  kill pays nothing. Big `xp_reward` + authored
+  equipment_loot_pool/field_item_loot_pool so the kill reads.
+- **The bottom-floor guard** (`digs.py` + `dungeon_population.py`):
+  `_place_legendary_cache` exposes its chosen cell (returns the
+  pos); `_spawn_squad_near` (+ `_door_room_cells`) HOISTS from
+  `main_quest/_delve.py` to `dungeon_population.py` (its act-0
+  call site imports the new home; reviewer issue 2 — the
+  nearest-first BFS is the existing adjacency machinery, a new
+  `_free_floor_cell` walk CANNOT pick near-cache cells); new thin
+  `_place_bottom_apex(game_map, spec, pos, band)` spawns the
+  resolved apex at the cell beside the cache on the bottom floor
+  only, stamped at `_dig_tier(spec, floor)`. Apex resolution
+  honors the amended SETTLED 47: `spec.biome` when set, else
+  `APEX_BORROW[spec.id]`, else `DEFAULT_APEX_BIOME` — both new
+  rows in `data/digs/__init__.py`: borrow map
+  {wolf_b, lal_c: ice; mars: desert; venus, vega_b, ac_planet_3,
+  indi_b: lush}, fallback desert (tunable opening guesses — the
+  themeless groom_b / proc_planet_1 / tau_ceti_b and the stations
+  ride the fallback). NO dig anywhere has an unguarded legendary.
+  Edge law: no cache cell (`pos is None`) or
+  `legendary_bottom=False` → no apex, no crash, zero RNG draws.
+- **System surfaces**: SYSTEMS.md entries (dig pools, fauna/apex
+  rows) at phase close; guide reviewed with an expected NO-change
+  ruling (fauna explain themselves in play; the dig sections
+  already teach delve risk).
+
+**Draft pool tables** (opening guesses, tunable — SETTLED 35
+precedent; drone seats keep the ruin-machinery undercurrent —
+desert/ice/scrap band 1 keep one sentry seat, lush/volcanic/canyon
+band 1 are pure fauna):
+
+| biome | band 1 | band 2 | band 3 | band 4 |
+|-------|--------|--------|--------|--------|
+| desert | scav×2, prowler, sentry | prowler×2, scav, sentry | prowler×2, scav, assault | prowler×3, assault |
+| ice | worm×2, spitter, sentry | spitter×2, worm, sentry | spitter×2, worm, assault | spitter×3, worm |
+| lush | hound×3, spore | spore×2, hound×2 | spore×2, hound, assault | spore×3, assault |
+| volcanic | crawler×3, magma | magma×2, crawler×2 | magma×2, crawler, assault | magma×3, assault |
+| scrap | hound×2, wasp, sentry | wasp×2, hound, sentry | wasp×2, hound, assault | hound, wasp, assault×2 |
+| canyon | viper×2, lurker | lurker×2, viper, sentry | viper×2, lurker, assault | lurker×2, viper, assault |
+
+Densities: the SETTLED 35 ladder (1.0/1.4/1.8/2.2) authored per
+biome per band (uniform opening guess; per-biome tuning rides
+playtest). hull_parasite stays OUT of biome pools (its seats are
+the authored derelict/ancient content + the default TIER_POOLS
+band 3).
+
+**Glyph drafts** (species chars; apex = own char, bold). The
+freeness standard is the SETTLED 32/34 identity law, not blanket
+glyph-uniqueness (reviewer issue 4): the (glyph, color) PAIR is
+unique in the ground context — automatic via the existing
+`test_ground_context_glyph_color_pairs_unique` — plus one new
+TILE-char overlap check with an explicit pin list (the
+`CROSS_REGISTRY_PIN` precedent). Char drafts: hound `v`, spore
+`i` (not `o` — the prison-panel tile owns it), crawler `x`, magma
+`g`, scrap hound `k`, wasp `y`, lurker `l`, viper `n`; behemoth
+`B`, wyrm `G`, tyrant `T`, maw `A`, colossus `Z`, mauler `U`.
+The elite census lint extends the same commit
+(`test_ground_elite_specs_carry_elite` pins its set — reviewer
+issue 5).
+
+**Build order:**
+
+1. The seam: `biome` field + 12 declarations + `BIOME_POOLS`
+   (DESERT/ICE authored from existing faces) + `_biome_pool`
+   resolver + wiring tests (biome planet resolves its pool; `""`
+   resolves TIER_POOLS byte-identical — regression pin; every id in
+   every band of every biome resolves via `find_npc_char` and
+   densities sit on the 1.0/1.4/1.8/2.2 ladder — the spawn path
+   silently swallows unknown ids, so the table needs its own
+   integrity row).
+2. The weapons: the 5 organic rows + catalog law tests.
+3. The fauna: 8 rows + the pair-uniqueness/tile-overlap lint +
+   fauna-law census test (always_hostile, faction="", fixed
+   weapons) + the elite-census extension.
+4. The apexes: 6 rows + `APEX_BORROW`/`DEFAULT_APEX_BIOME` + the
+   `_spawn_squad_near` hoist (act-0 call site re-imported) +
+   `_place_bottom_apex` + spawn tests: bottom-only; band stamp =
+   `_dig_tier`; apex resolves by biome → borrow → fallback (a mars
+   bottom meets the Dune Behemoth, a wolf_b bottom the Glacier
+   Wyrm); adjacency pins the near-cache cell; edges (no cache
+   cell, `legendary_bottom=False`, empty room) spawn nothing and
+   crash nowhere; non-bottom floors of every planet byte-identical
+   pre/post (the hook consumes zero RNG draws when skipped — a
+   generation-level pin, not just pool resolution).
+5. The four new biome pool tables (LUSH/VOLCANIC/SCRAP_RING/CANYON)
+   + the two-save battery re-run (standard rows bit-identical —
+   zero drift on existing geometry) + a save/load round-trip row
+   in `tests/test_saveload.py` (an apex + fauna floor save/continue
+   with entities identical — the zero-new-save-state pin).
+6. Prose lands ONLY here, after approval, in its own commit (names
+   verbatim as ruled).
+
+**Required tests:** the wiring/regression/lint/census/spawn tests
+above (steps 1-5 each carry theirs); save/load sniff via the
+headless session (enter a lush dig floor, save/continue, entities
+identical — biome is static spec data, zero new save state); the
+doc-50 battery rows re-measured once at step 5.
+
+**Stop point (do NOT start):** phase 11 (consortium content, the
+hunt); any apex MECHANIC (stare/shriek/field-style dials — data-only
+rows, proposals return via refine); re-theming planets or assigning
+biomes to unlisted themes; re-authoring surface `monster_pool` /
+`cache_guardian_pool` rows (SETTLED 14 law — authored stays); dig
+loot/economy changes (legendary axes, cache counts untouched); and
+the extensibility audit RECORDS findings without fixing them
+(fixes are follow-up proposals).
+
+**Phase-close extras:** the extensibility audit (open question 8 /
+acceptance criterion): walk "add one new enemy end-to-end" across
+the whole campaign — every code-edit touchpoint found is recorded
+in the doc as a punch-list row or a follow-up proposal. SYSTEMS.md
+audited same commit (dig-pool entry amended, fauna/apex entry
+added).
+
+**PLAYTEST checkpoint (numbered, in-game):**
+
+1. Earth dig (Shift+M force-reveals a site): the delve reads LUSH —
+   Vine Hounds/Spore Spitters, no pirates; log lines carry the new
+   names.
+2. Delve to the bottom: a BOLD apex holds ground beside the
+   legendary cache; it engages on LOS, hits hard, dies to a
+   prepared player; the legendary is guarded — the risk beat reads.
+3. One dig each on ross_b (volcanic), ross_c (scrap), epsilon
+   (canyon): each biome's faces + apex read native; scrap feels
+   machine-heavy (wasp swarms sting from range).
+4. A mars or venus dig (default biome): the OLD pirate/drone mix on
+   the way down — regression — and its bottom carries the BORROWED
+   apex (mars: Dune Behemoth; venus: Canopy Maw). wolf_b's dig
+   bottom meets the Glacier Wyrm (its authored surface ice fauna
+   made the borrow natural).
+5. Band read: a T1 dig's apex is beatable at starter level; a T4
+   dig bottom (lal_b ice / ross_b volcanic) apex is a wall.
+6. Behavior cells: Crag Lurker ambushes (holds, bursts), Rust Wasp
+   swarms at range, Canyon Viper/Vine Hound close fast — each cell
+   reads distinct in play.
+7. Save/continue mid-delve: identical state (entities, positions,
+   HP, the apex's aggression).
+8. Guide diff: expected NONE (deliberate ruling — fauna and apexes
+   explain themselves in play; review and confirm).
+9. Loot read: fauna delves still pay (goods + occasional gear);
+   the apex's own drop is memorable.
 
 ## Pre-implementation audit — phase 9 BUILD 2 (2026-10-03)
 
