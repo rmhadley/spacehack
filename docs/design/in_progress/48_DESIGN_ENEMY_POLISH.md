@@ -3726,6 +3726,37 @@ Rulings:
   EXISTING weapon fields (the Warden slam's precedent) — the
   data-only ruling stands.
 
+## SETTLED 49 (2026-10-04) — the assault drone is T2
+
+User, verbatim:
+
+> at this point assault drones should probably be considered T2
+
+Rulings:
+
+- **assault_drone re-tiers 3 → 2** — the machine family reads as
+  ruin-security T2 uniformly (sentry already 2; d/D are ONE family,
+  SETTLED 34). A classification + seat ruling: NO stat numbers
+  move (hp/armor/ap are its authored identity; the band stamp does
+  the scaling, SETTLED 15).
+- **Loot consequence (the tier-gate law):** its four
+  equipment_loot_pool entries are ALL tech_level 3 (verified
+  2026-10-04) — at tier 2 every one would SILENTLY stop dropping.
+  The pool re-authors to t2 entries (the sentry's neighborhood:
+  heavy_helmet / reinforced_gauntlets / smg class); the
+  energy_cells/stim field items stay (field items are not
+  tier-gated).
+- **Seats:** TIER_POOLS keeps its band-2 assault seat; bands 3-4
+  re-author WITHOUT it — supersedes SETTLED 35's listed b3/b4
+  compositions and amends SETTLED 47's "TIER_POOLS verbatim"
+  line. Opening drafts (tunable): b3 (rifleman, rifleman, brute,
+  hull_parasite); b4 (rifleman, brute, brute, hull_parasite).
+- **Biome tables:** machine seats live at bands 1-2 ONLY (sentry
+  b1 / assault b2, in desert/ice/scrap; lush/volcanic/canyon stay
+  fauna-forward with no drone seats); bands 3-4 are FAUNA-PURE —
+  the strong face weighted up. Deeper delves read WILDER, not more
+  mechanized.
+
 ## Pre-implementation audit — phase 10 (2026-10-04)
 
 1. **Existing modules to extend or reuse:**
@@ -3774,14 +3805,14 @@ Rulings:
    - The row census is DATA — copy-shaped rows are the catalog's own
      idiom (frozen dataclass tuples); no factory extraction.
 
-### Phase 10 Implementation brief (PROPOSED v3 2026-10-04 — SETTLED
-### 30/47-as-amended + 48; reviewer ADVISE pass folded at v2: 8
+### Phase 10 Implementation brief (PROPOSED v4 2026-10-04 — SETTLED
+### 30/47-as-amended + 48/49; reviewer ADVISE pass folded at v2: 8
 ### issues / 2 blocking — the apex-scope contradiction ruled by the
 ### user (BORROW the nearest biome's apex), the adjacency mechanism
-### re-based on the hoisted `_spawn_squad_near`; v3 folds the
-### SETTLED 48 census (every row a distinct cell — the pack apex)
-### + names + pools below are prose-gated drafts landing only as
-### approved)
+### re-based on the hoisted `_spawn_squad_near`; v3 folded the
+### SETTLED 48 census (every row a distinct cell — the pack apex);
+### v4 folds SETTLED 49 (the assault drone is T2); names + pools
+### below are prose-gated drafts landing only as approved)
 
 **Scope (files / hook points):**
 
@@ -3803,8 +3834,13 @@ Rulings:
 - **The pool table** (`data/digs/__init__.py` + `digs.py`):
   `BIOME_POOLS: dict[str, dict[int, tuple[tuple[str, ...], float]]]`
   — six biomes × bands 1-4, composition AND density authored (drafts
-  below); `TIER_POOLS` verbatim becomes the undescribed-theme
-  default (docstring amended, semantics unchanged). Resolution: one
+  below); `TIER_POOLS` stays the undescribed-theme default with ONE
+  amendment (SETTLED 49: the assault seat leaves bands 3-4 — b3
+  (rifleman, rifleman, brute, hull_parasite), b4 (rifleman, brute,
+  brute, hull_parasite), tunable) and the assault_drone row itself
+  re-tiers 3 → 2 with its equipment pool re-authored to t2 entries
+  (all four current entries are tech_level 3 and would silently
+  stop dropping). Resolution: one
   `_biome_pool(spec, band)` helper inside `derive_dig_params` —
   pool still keyed by SITE band (`_site_tier`), floors still climb
   the stat band via `_dig_tier`.
@@ -3901,18 +3937,19 @@ Rulings:
   already teach delve risk).
 
 **Draft pool tables** (opening guesses, tunable — SETTLED 35
-precedent; drone seats keep the ruin-machinery undercurrent —
-desert/ice/scrap band 1 keep one sentry seat, lush/volcanic/canyon
-band 1 are pure fauna):
+precedent; SETTLED 49: machine seats live at bands 1-2 only —
+sentry b1 / assault b2 in desert/ice/scrap, lush/volcanic/canyon
+fauna-forward with none — and bands 3-4 are FAUNA-PURE, the strong
+face weighted up; deeper delves read wilder, not more mechanized):
 
 | biome | band 1 | band 2 | band 3 | band 4 |
 |-------|--------|--------|--------|--------|
-| desert | scav×2, prowler, sentry | prowler×2, scav, sentry | prowler×2, scav, assault | prowler×3, assault |
-| ice | worm×2, spitter, sentry | spitter×2, worm, sentry | spitter×2, worm, assault | spitter×3, worm |
-| lush | hound×3, spore | spore×2, hound×2 | spore×2, hound, assault | spore×3, assault |
-| volcanic | crawler×3, magma | magma×2, crawler×2 | magma×2, crawler, assault | magma×3, assault |
-| scrap | hound×2, wasp, sentry | wasp×2, hound, sentry | wasp×2, hound, assault | hound, wasp, assault×2 |
-| canyon | viper×2, lurker | lurker×2, viper, sentry | viper×2, lurker, assault | lurker×2, viper, assault |
+| desert | scav×2, prowler, sentry | prowler×2, scav, assault | prowler×2, scav×2 | prowler×3, scav |
+| ice | worm×2, spitter, sentry | spitter×2, worm, assault | spitter×2, worm×2 | spitter×3, worm |
+| lush | hound×3, spore | spore×2, hound×2 | spore×3, hound | spore×3, hound×2 |
+| volcanic | crawler×3, magma | magma×2, crawler×2 | magma×3, crawler | magma×4 |
+| scrap | hound×2, wasp, sentry | wasp×2, hound, assault | wasp×2, hound×2 | wasp×3, hound |
+| canyon | viper×2, lurker | lurker×2, viper×2 | viper×2, lurker×2 | lurker×2, viper |
 
 Densities: the SETTLED 35 ladder (1.0/1.4/1.8/2.2) authored per
 biome per band (uniform opening guess; per-biome tuning rides
@@ -3938,12 +3975,17 @@ issue 5).
 
 1. The seam: `biome` field + 12 declarations + `BIOME_POOLS`
    (DESERT/ICE authored from existing faces) + `_biome_pool`
-   resolver + wiring tests (biome planet resolves its pool; `""`
-   resolves TIER_POOLS byte-identical — regression pin; every id in
+   resolver + the SETTLED 49 re-tier in the same commit
+   (assault_drone tier 3→2 + its equipment pool re-authored to t2
+   entries + TIER_POOLS b3/b4 amended) + wiring tests (biome
+   planet resolves its pool; `""` resolves the AMENDED default —
+   bands 1-2 unchanged from today, b3/b4 the new composition;
+   every id in
    every band of every biome resolves via `find_npc_char` and
    densities sit on the 1.0/1.4/1.8/2.2 ladder — the spawn path
    silently swallows unknown ids, so the table needs its own
-   integrity row).
+   integrity row; plus the tier-gate law pin: every row's `tier`
+   >= its equipment_loot_pool entries' tech_levels, catalog-wide).
 2. The weapons: the 5 organic rows + catalog law tests.
 3. The fauna: 8 rows + the pair-uniqueness/tile-overlap lint +
    fauna-law census test (always_hostile, faction="", fixed
@@ -4006,10 +4048,11 @@ added).
    is the PACK read — the Mesa Mauler roams with its viper hunting
    pack as one unit (thin the pack, then duel the mauler; baiting
    one body no longer empties the cache).
-4. A mars or venus dig (default biome): the OLD pirate/drone mix on
-   the way down — regression — and its bottom carries the BORROWED
-   apex (mars: Dune Behemoth; venus: Canopy Maw). wolf_b's dig
-   bottom meets the Glacier Wyrm (its authored surface ice fauna
+4. A mars or venus dig (default biome): the pirate mix — drones at
+   the SHALLOW bands only (SETTLED 49: assault sits band 2; bands
+   3-4 read rifleman/brute/parasite) — and its bottom carries the
+   BORROWED apex (mars: Dune Behemoth; venus: Canopy Maw). wolf_b's
+   dig bottom meets the Glacier Wyrm (its authored surface ice fauna
    made the borrow natural).
 5. Band read: a T1 dig's apex is beatable at starter level; a T4
    dig bottom (lal_b ice / ross_b volcanic) apex is a wall.
