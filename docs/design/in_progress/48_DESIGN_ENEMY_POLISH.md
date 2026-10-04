@@ -2171,8 +2171,8 @@ with doctrinal 10-13):
   authored pools with TIER_POOLS as the default, earth=lush,
   every bottom guarded — default biomes borrow the nearest apex,
   2 faces + 1 apex per biome, every row a distinct cell incl. the
-  pack apex). Brief below (PROPOSED v3 — reviewer-folded +
-  SETTLED 48 census folded, awaiting approval). At its close: the
+  pack apex). Brief below (FINAL v4 — APPROVED 2026-10-04; names,
+  pools, glyphs approved verbatim). At its close: the
   extensibility audit (acceptance criterion — adding an enemy is a
   data edit) against the whole campaign.
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
@@ -2181,10 +2181,25 @@ with doctrinal 10-13):
   hired-pirate docstring cleanup), strictly-gated exposure; ADDS
   the up-movers + site/loot/hunt movers over v1's landed down-
   movers (SETTLED 6/9/12/19). Depends on 2, 7-8.
+- [ ] 12. **Loot-drop polish** — a full pass over the COMPLETE
+  roster's drops (user ruling 2026-10-04, seeded by SETTLED 49's
+  discovery — the assault drone's entire equipment pool was
+  one re-tier away from silently dropping nothing): every row's
+  `equipment_loot_pool` vs its `tier` (the tech_level filter),
+  `loot_pool` goods + `loot_count` coherence, field-item pools,
+  `xp_reward` sanity, quality-rides-band vs authored quality, and
+  the every-kill-pays doctrine — VALUES only, no new payload
+  shapes (the 47.x systems absorb, per the acceptance criteria).
+  Placed after 11 so it polishes the finished roster; pullable
+  forward by ruling if playtest pressure demands. Unbriefed —
+  needs a /refine-design pass (survey the live drop tables first,
+  then the brief).
 
 Order rationale: mechanics before identity (lint needs final
 factions); scaling before tactics; crews carry their own rows;
-parity before brains; the hunt last (needs its body and its foes).
+parity before brains; the hunt last (needs its body and its foes);
+the loot polish after the roster completes (it audits every row's
+drops).
 Reviewer ADVISE 2026-09-22 folded in: phase split (old 2 → 2+3),
 blocking fixes in the v2 brief, punch-list owners assigned,
 merchant-crew row moved to its consumer, ship-band rolling homed at
@@ -3805,14 +3820,15 @@ Rulings:
    - The row census is DATA — copy-shaped rows are the catalog's own
      idiom (frozen dataclass tuples); no factory extraction.
 
-### Phase 10 Implementation brief (PROPOSED v4 2026-10-04 — SETTLED
-### 30/47-as-amended + 48/49; reviewer ADVISE pass folded at v2: 8
-### issues / 2 blocking — the apex-scope contradiction ruled by the
-### user (BORROW the nearest biome's apex), the adjacency mechanism
-### re-based on the hoisted `_spawn_squad_near`; v3 folded the
-### SETTLED 48 census (every row a distinct cell — the pack apex);
-### v4 folds SETTLED 49 (the assault drone is T2); names + pools
-### below are prose-gated drafts landing only as approved)
+### Phase 10 Implementation brief (FINAL v4 — APPROVED 2026-10-04;
+### SETTLED 30/47-as-amended + 48/49; reviewer ADVISE pass folded at
+### v2: 8 issues / 2 blocking — the apex-scope contradiction ruled by
+### the user (BORROW the nearest biome's apex), the adjacency
+### mechanism re-based on the hoisted `_spawn_squad_near`; v3 folded
+### the SETTLED 48 census (every row a distinct cell — the pack
+### apex); v4 folded SETTLED 49 (the assault drone is T2); names,
+### pools, and glyphs approved VERBATIM with the brief — the prose
+### gate is satisfied; ready for /implement-phase 48.10)
 
 **Scope (files / hook points):**
 
