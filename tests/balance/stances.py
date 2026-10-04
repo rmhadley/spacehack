@@ -344,7 +344,65 @@ async def flak_escort(ctx, rules) -> str:
 # measurement INSTRUMENT — frozen once landed; a policy change is a
 # benchmark revision that re-measures and re-rules its rows in the
 # same commit (SETTLED 6).
+async def baton_lockdown(ctx, rules) -> str:
+    """The control-melee policy (the user's baton game, doc 50
+    re-ruling 2026-10-04): the kit wins by LOCKDOWN — each landed
+    stun-baton hit drains the target's AP — so play the discipline,
+    not the slugfest: never stand with two enemies adjacent (step
+    out of the surround), swing only at the one in reach, kite
+    otherwise so the pack queues. One enemy in reach at a time, or
+    the strategy isn't happening."""
+    enemies = rules.get_enemies(ctx)
+    if not enemies:
+        return "WAIT"
+    adjacent = [
+        e for e in enemies
+        if max(abs(e.pos.x - ctx.player.pos.x), abs(e.pos.y - ctx.player.pos.y)) <= 1
+    ]
+    if len(adjacent) >= 2:
+        # break the surround: step to a free cell minimizing adjacency
+        game_map = ctx.game_map
+        best, best_score = None, None
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if not (dx or dy):
+                    continue
+                nx, ny = ctx.player.pos.x + dx, ctx.player.pos.y + dy
+                if not game_map.in_bounds(nx, ny):
+                    continue
+                if not game_map.tiles[ny][nx].walkable:
+                    continue
+                if game_map.blocking_entity_at(nx, ny, exclude=ctx.player):
+                    continue
+                score = sum(
+                    1 for e in enemies
+                    if max(abs(e.pos.x - nx), abs(e.pos.y - ny)) <= 1
+                )
+                if best_score is None or score < best_score:
+                    best, best_score = (dx, dy), score
+        if best is not None and best_score < len(adjacent):
+            return f"MOVE:{_MOVE_KEY_BY_DELTA[best]}"
+        return "WAIT"  # pinned: eat the surround, keep swinging below
+    if len(adjacent) == 1:
+        # lock the one in reach: aim + swing every AP
+        target = adjacent[0]
+        idx = next(
+            (i for i, e in enumerate(enemies) if e is target), None,
+        )
+        if idx is not None and rules._state.target_idx != idx:
+            return "TARGET"
+        slots = _fire_slots(ctx, rules)
+        if any(rules.can_fire(slot, ctx)[0] for slot in slots):
+            return "FIRE"
+    # nobody in reach: HOLD — the pack queues on its own collision
+    # (bodies can't stack), arrivals land adjacent one at a time.
+    # Kiting on this geometry retreats out of the sight grid and
+    # disengages the fight before the lockdown ever happens.
+    return "WAIT"
+
+
 STANCES = {
+    "baton_lockdown": baton_lockdown,
     "stand_and_trade": stand_and_trade,
     "hold_range": hold_range,
     "posted_hold": posted_hold,
