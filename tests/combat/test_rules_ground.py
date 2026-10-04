@@ -143,6 +143,7 @@ class TestEnemyDetailLines:
             entity=SimpleNamespace(),
             spec=SimpleNamespace(armor=armor),
             weapon_id=weapon_id,
+            armor=armor,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
         )
 
     def test_unarmored_enemy_reports_arm_0(self):
@@ -180,6 +181,7 @@ class TestEnemyThreatColor:
             entity=SimpleNamespace(),
             spec=SimpleNamespace(armor=0),
             weapon_id=weapon_id,
+            armor=0,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
         )
 
     def test_in_range_is_danger(self):
@@ -355,6 +357,7 @@ def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
         entity=SimpleNamespace(),
         spec=SimpleNamespace(armor=3),
         hp=30,
+        armor=3,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
     )
     _ctx = SimpleNamespace(
         ground_stats=SimpleNamespace(strength=20),
@@ -847,6 +850,7 @@ def _target_card_enemy(weapon_id="drone_laser", x=5, y=3, armor=3, name="Assault
         weapon_id=weapon_id,
         hp=12,
         max_hp=30,
+        armor=armor,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
     )
 
 
@@ -1421,20 +1425,26 @@ class TestQualityCombatScaling:
         )
 
     def test_equip_time_roll_matches_the_ladder(self):
-        """A rolling NPC's quality tier is exactly the seeded band-1
-        ladder roll, after the family-ladder weapon draws."""
+        """A rolling NPC's quality tier is exactly the seeded ladder
+        roll at its FIXED band after the family-ladder weapon draws,
+        clamped to the rung's quality floor (doc 48 SETTLED 51 — the
+        gunner is a rung now: fixed band 2, floor 1)."""
         from src.spacehack import engine, ground_scale
         from src.spacehack.data.npc_chars import find_npc_char
-        from src.spacehack.data.quality import KILL_QUALITY_RATES, roll_quality
+        from src.spacehack.data.quality import roll_quality
 
         gunner = find_npc_char("consortium_gunner")
-        # First seed whose post-weapon-draw quality roll lands tier 1+
-        # (pins a nonzero alignment deterministically).
+        assert gunner.fixed_band == 2 and gunner.quality_floor == 1
+        _rates = ground_scale.quality_rates(gunner.fixed_band)
+        # First seed whose post-weapon-draw quality roll lands a tier
+        # ABOVE the floor (pins a visible clamp-free alignment).
         for seed in range(9090, 9110):
             engine.RNG.seed(seed)
-            weapon = ground_scale.roll_weapon(gunner, 1, engine.RNG)
-            expected = roll_quality(KILL_QUALITY_RATES, engine.RNG)
-            if expected > 0:
+            weapon = ground_scale.roll_weapon(
+                gunner, gunner.fixed_band, engine.RNG,
+            )
+            expected = roll_quality(_rates, engine.RNG)
+            if expected > gunner.quality_floor:
                 break
         engine.RNG.seed(seed)
         instance = _rules_ground._build_enemy_instance(

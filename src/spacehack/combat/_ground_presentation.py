@@ -71,7 +71,7 @@ def _ground_card_rows(
         (f"HP {enemy.hp}/{enemy.max_hp}", TARGET_CARD_TEXT),
         (f"  {hit_text}", _hit_fg),
     )
-    _armor = enemy.spec.armor if enemy.spec else 0
+    _armor = getattr(enemy, "armor", 0)  # the FOLDED read (doc 48 SETTLED 51)
     rows = [
         title_row(
             f"LVL {band_level(getattr(enemy, 'band', 0))} {enemy.name}",
@@ -120,7 +120,7 @@ def enemy_detail_lines(enemy: Any) -> tuple[str, str, str]:
     shows ``DMG``/``RNG`` so a heavy ranged threat is spotted before
     it fires (and melee is unmistakably ``RNG 1-1``).
     """
-    armor = enemy.spec.armor if enemy.spec else 0
+    armor = getattr(enemy, "armor", 0)  # the FOLDED read (doc 48 SETTLED 51)
     weapon = enemy_weapon(enemy)
     if weapon is None:
         return f"Armor {armor}", "Unarmed", ""

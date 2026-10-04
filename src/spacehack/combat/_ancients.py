@@ -269,11 +269,12 @@ def _erupt_zone(
 
 
 def _stare_victim_damage(ctx, game_map, gei, pre: int) -> int:
-    """One enemy victim's share: armor soaks (full), hp stamped on
-    demand through the instance-build path; an eruption kill runs the
-    death handling — drops land, NO player XP/rep, no kill counter."""
-    _armor = gei.spec.armor if gei.spec else 0
-    _dmg = max(1, pre - _armor)
+    """One enemy victim's share: armor soaks (full — the FOLDED
+    instance read, worn pieces included, doc 48 SETTLED 51), hp
+    stamped on demand through the instance-build path; an eruption
+    kill runs the death handling — drops land, NO player XP/rep, no
+    kill counter."""
+    _dmg = max(1, pre - getattr(gei, "armor", 0))
     gei.hp -= _dmg
     if gei.entity is not None:
         gei.entity.hp = max(0, gei.hp)
@@ -343,6 +344,15 @@ def carries_field(spec) -> bool:
     """Whether the spec projects a force field (the Warden)."""
     _m = _mechanics(spec)
     return _m is not None and _m.field_tile_hp > 0
+
+
+def stamp_entry_field(ent, game_map, spec) -> None:
+    """The Warden's shell stands at combat entry (doc 48 p9) — full
+    tile HP, only once woken: a dormant Warden projects nothing.
+    (Lives here with the rest of the field machinery; the instance
+    build in :mod:`_rules_ground` calls it at its stamp pass.)"""
+    if not getattr(ent, "powered_down", False):
+        ensure_field(game_map, spec, ent.pos)
 
 
 def shell_cells(game_map, pos) -> tuple[tuple[int, int], ...]:

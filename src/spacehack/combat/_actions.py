@@ -224,10 +224,11 @@ def _spawn_field_item_rolls(
 
 
 def _spawn_kit_drop(game_map: world.GameMap, pos, loadout=None) -> None:
-    """Diegetic kit drop (doc 47.1 + 48 SETTLED 43): BOTH carried set
+    """Diegetic kit drop (doc 47.1 + 48 SETTLED 43/51): BOTH carried set
     weapons fall at their equip-time stamped qualities — no re-roll
-    (doc 47.2 SETTLED 13), what they carried is what drops — plus the
-    carried pool's REMAINDER as the ammo stacks, deterministic: the
+    (doc 47.2 SETTLED 13), what they carried is what drops — the WORN
+    cyber pieces beside them at their stamped qualities (what they wear
+    is what drops), plus the carried pool's REMAINDER as the ammo stacks, deterministic: the
     death-time ammo roll is retired (what drops reflects the fight;
     shot-starving is a minor play). Organic/unwieldable weapons
     (``loot_droppable=False``) never drop; a slot pair sharing one id
@@ -236,29 +237,41 @@ def _spawn_kit_drop(game_map: world.GameMap, pos, loadout=None) -> None:
     if not loadout:
         return
     from .. import ground_loadout
-    from ..data.ground_weapons import find_ground_weapon
 
     _dropped: set[str] = set()
     for _set_name in (ground_loadout.SET_RANGED, ground_loadout.SET_MELEE):
-        _pair = ground_loadout.pair_for(loadout, _set_name)
-        if _pair is None or _pair[0] in _dropped:
-            continue
-        try:
-            _ws = find_ground_weapon(_pair[0])
-        except KeyError:
-            continue
-        if not _ws.loot_droppable:
-            continue
-        _dropped.add(_pair[0])
+        _drop_set_weapon(game_map, pos, loadout, _set_name, _dropped)
+    for _entry in ground_loadout.worn_entries(loadout):
         _append_loot_entity(
             game_map, pos,
-            equipment_payload("weapon", _ws.id, _pair[1]),
+            equipment_payload("armor", _entry.item_id, _entry.quality),
         )
     for _item_type, _item_id, _qty in ground_loadout.pool_entries(loadout):
         _append_loot_entity(
             game_map, pos,
             {"item_type": _item_type, "item_id": _item_id, "quantity": _qty},
         )
+
+
+def _drop_set_weapon(game_map, pos, loadout, set_name, dropped) -> None:
+    """One carried set's weapon falls at its stamped quality — no
+    re-roll, wieldable catalog pieces only, one copy per shared id."""
+    from .. import ground_loadout
+    from ..data.ground_weapons import find_ground_weapon
+
+    _pair = ground_loadout.pair_for(loadout, set_name)
+    if _pair is None or _pair[0] in dropped:
+        return
+    try:
+        _ws = find_ground_weapon(_pair[0])
+    except KeyError:
+        return
+    if not _ws.loot_droppable:
+        return
+    dropped.add(_pair[0])
+    _append_loot_entity(
+        game_map, pos, equipment_payload("weapon", _ws.id, _pair[1]),
+    )
 
 
 def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:

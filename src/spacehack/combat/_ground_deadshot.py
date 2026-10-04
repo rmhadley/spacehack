@@ -121,7 +121,7 @@ def _chain_hit_chance(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
 def _chain_damage(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
     """Damage for a chain shot: railgun stats, no Deadshot bonus."""
     from . import _rules_ground as _rules
-    _armor = enemy.spec.armor if enemy.spec else 0
+    _armor = getattr(enemy, "armor", 0)
     return _rules._ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
         strength_step=_rules._PLAYER_STRENGTH_STEP, quality=quality,

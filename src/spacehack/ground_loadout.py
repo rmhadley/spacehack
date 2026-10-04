@@ -38,10 +38,12 @@ def ensure_loadout(
     is a migrated pre-43 save: the ENTIRE remainder — melee set, the
     ranged slot's magazine, and any missing pool entries — resolves
     NOW, at first engagement (a migrated gunner must not load
-    permanently dry). The spec is derived from ``npc_char_id`` when
-    not passed; a weaponless row (both slots ``None``) still stamps —
-    drops read the emptiness.
+    permanently dry). The spec's WORN cyber pieces resolve through the
+    same idempotent law (doc 48 SETTLED 51). The spec is derived from
+    ``npc_char_id`` when not passed; a weaponless row (both slots
+    ``None``) still stamps — drops read the emptiness.
     """
+    _spec = _band = None  # resolved on the fresh path, reused for worn
     _stamp = getattr(entity, "rolled_loadout", None)
     if _stamp is None:
         from .data.npc_chars import find_npc_char
@@ -51,10 +53,82 @@ def ensure_loadout(
         entity.rolled_loadout = ground_scale.roll_loadout(
             _spec, _band, RNG,
         )
-        return entity.rolled_loadout
+        _stamp = entity.rolled_loadout
     if SET_MELEE not in _stamp:
         _complete_migrated_stamp(_stamp, entity, game_map, spec)
+    ensure_worn(_stamp, entity, game_map, _spec, _band)
     return _stamp
+
+
+def ensure_worn(
+    stamp: dict, entity, game_map=None, spec=None, band=None,
+) -> list:
+    """Resolve the spec's worn cyber pieces ONCE into the stamp's
+    ``worn`` key (doc 48 SETTLED 51 — the idempotent first-resolution
+    law): quality-stamped beside the loadout, so what they wear is
+    what they are (every fold reads the stamp) and what drops (the
+    kit path, at stamped qualities). Key-absent = unresolved (a
+    pre-phase-11 save fills at first engagement, the melee-set
+    precedent). ``spec``/``band`` may arrive pre-resolved from the
+    caller's own fresh roll — one derivation per resolution."""
+    if "worn" in stamp:
+        return stamp["worn"]
+    from .data.npc_chars import find_npc_char
+
+    _spec = spec or find_npc_char(entity.npc_char_id)
+    _band = band if band is not None else ground_scale.entity_band(
+        entity, game_map, spec=_spec,
+    )
+    stamp["worn"] = _roll_worn(_spec, _band)
+    return stamp["worn"]
+
+
+def _roll_worn(spec, band: int) -> list:
+    """Roll the worn pieces' qualities at the band's ladder, clamped
+    to the spec's ``quality_floor`` (SETTLED 51 — worn cyber gear
+    never reads base on a rung)."""
+    _floor = getattr(spec, "quality_floor", 0)
+    return [
+        ["armor", piece_id, ground_scale.rolled_quality(band, RNG, _floor)]
+        for piece_id in getattr(spec, "worn_armor", ())
+    ]
+
+
+def worn_entries(stamp: dict | None) -> tuple:
+    """The worn pieces as :class:`StoredGroundEquipment` entries — the
+    input shape the armor bonus/defense sum helpers read (the player's
+    own modifier math, one pass over the stamped pieces)."""
+    from .ground_equipment import StoredGroundEquipment
+
+    entries = []
+    for _piece in (stamp or {}).get("worn") or ():
+        # Armor-tagged triples only — a hand-corrupted tag never
+        # type-confuses the kit-drop payload (the shape filter in the
+        # loader can't see the tag).
+        if not isinstance(_piece, (list, tuple)) or len(_piece) < 3:
+            continue
+        if str(_piece[0]) != "armor":
+            continue
+        try:
+            entries.append(
+                StoredGroundEquipment("armor", str(_piece[1]), int(_piece[2])),
+            )
+        except (TypeError, ValueError):
+            continue
+    return tuple(entries)
+
+
+def worn_bonuses(stamp: dict | None) -> tuple:
+    """The worn pieces' ``(hit_bonus, melee_bonus)`` (SETTLED 27/41 —
+    the eyes' +8 hit moves volley pick AND shot resolution
+    identically; the arms' melee bonus rides the same damage math)."""
+    from .ground_equipment import sum_armor_bonus
+
+    _entries = worn_entries(stamp)
+    return (
+        sum_armor_bonus(_entries, "hit_bonus"),
+        sum_armor_bonus(_entries, "melee_bonus"),
+    )
 
 
 def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:

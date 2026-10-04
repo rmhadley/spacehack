@@ -116,12 +116,15 @@ def _mutual_sight(game_map, cell, player_pos) -> bool:
 
 def _score_ground_weapon(
     ws, quality: int, dist, enemy_stats, armor_defense: int,
-    player_dodge: int, ctx,
+    player_dodge: int, ctx, enemy_worn: tuple = (0, 0),
 ) -> float:
     """EV-per-AP through the SAME math the shot resolves with (doc 48
     SETTLED 41 — the space scorer's ground twin): damage x hit-chance
     x shots-per-action / ap_cost, quality folded in on both terms and
-    the burst folded so burst weapons score their burst."""
+    the burst folded so burst weapons score their burst. ``enemy_worn``
+    carries the wearer's (hit_bonus, melee_bonus) from the cyber
+    pieces (SETTLED 51/27) — the same two terms the resolution folds,
+    so the eyes' +8 hit moves pick and shot IDENTICALLY."""
     from ._ground_math import (
         ground_damage_raw,
         ground_hit_chance_raw,
@@ -130,12 +133,13 @@ def _score_ground_weapon(
 
     _chance = ground_hit_chance_raw(
         ws.id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
-        target_dodge_bonus=player_dodge,
+        target_dodge_bonus=player_dodge, hit_bonus=enemy_worn[0],
         range_penalty=ground_point_blank_penalty(ws.id, int(dist)),
         quality=quality,
     )
     _damage = ground_damage_raw(
-        ws.id, enemy_stats.strength, armor_defense, quality=quality,
+        ws.id, enemy_stats.strength, armor_defense,
+        melee_bonus=enemy_worn[1], quality=quality,
     )
     _shots = max(1, ws.shots_per_action)
     return _damage * (_chance / 100.0) * _shots / ws.ap_cost
@@ -193,6 +197,7 @@ def _total_ev(
         return -1.0  # unaffordable, never picked
     _score = _score_ground_weapon(
         ws, quality, dist, enemy_stats, armor_defense, player_dodge, ctx,
+        enemy_worn=ground_loadout.worn_bonuses(stamp),
     )
     return _score * ((ap - _overheads) // ws.ap_cost)
 
@@ -594,6 +599,8 @@ async def _fire_enemy_burst(
     rolls, doc 50 SETTLED 8); total damage. The burst stops mid-action
     when the magazine cannot pay another shot (the player's quiet
     dry-break mirror) and drains ``ammo_per_shot`` per shot fired.
+    The wearer's worn-cyber bonuses ride every shot (SETTLED 51/27) —
+    read ONCE here from the stamp, threaded to the resolution.
 
     Every burst stamps the ground fight's ``enemy_fired`` (doc 49
     SETTLED 5): an enemy shot closes the Pirate opener window, hit
@@ -602,6 +609,7 @@ async def _fire_enemy_burst(
 
     if _rules_ground._state is not None:
         _rules_ground._state.enemy_fired = True
+    _worn = ground_loadout.worn_bonuses(stamp) if stamp is not None else (0, 0)
     _total = 0
     for _ in range(max(1, _ews.shots_per_action) if _ews else 1):
         if stamp is not None and not ground_loadout.magazine_pays_shot(
@@ -611,7 +619,7 @@ async def _fire_enemy_burst(
         _total += await _one_enemy_shot(
             ctx, console, render_callback, game_map, enemy_entity,
             enemy_weapon_id, enemy_weapon_quality, enemy_spec,
-            enemy_stats, armor_defense, player_dodge,
+            enemy_stats, armor_defense, player_dodge, enemy_worn=_worn,
         )
         if stamp is not None:
             ground_loadout.drain_action(stamp, _ews, 1)  # per shot
@@ -621,7 +629,7 @@ async def _fire_enemy_burst(
 async def _one_enemy_shot(
     ctx, console, render_callback, game_map, enemy_entity,
     enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
-    armor_defense, player_dodge,
+    armor_defense, player_dodge, enemy_worn=(0, 0),
 ) -> int:
     """One shot of a burst: the firing report (SETTLED 22), then
     either the field's absorption (doc 48 SETTLED 42) or the roll.
@@ -648,14 +656,14 @@ async def _one_enemy_shot(
     return await _resolve_enemy_shot(
         ctx, console, render_callback, game_map, enemy_entity,
         _player_pos, enemy_weapon_id, enemy_weapon_quality, enemy_spec,
-        enemy_stats, armor_defense, player_dodge,
+        enemy_stats, armor_defense, player_dodge, enemy_worn=enemy_worn,
     )
 
 
 async def _resolve_enemy_shot(
     ctx, console, render_callback, game_map, enemy_entity, player_pos,
     enemy_weapon_id, enemy_weapon_quality, enemy_spec, enemy_stats,
-    armor_defense, player_dodge,
+    armor_defense, player_dodge, enemy_worn=(0, 0),
 ) -> int:
     """The unobstructed shot's tail: the roll, the per-event
     player-defense reduction (doc 49 — each landed shot pays it,
@@ -666,6 +674,7 @@ async def _resolve_enemy_shot(
     _hit, _damage, _popup = _roll_ground_shot(
         ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
         int(_distance(enemy_entity.pos, player_pos)), enemy_weapon_quality,
+        enemy_worn=enemy_worn,
     )
     if _damage > 0:
         _damage = _reduce(ctx, _damage)
@@ -760,7 +769,7 @@ async def _present_enemy_shot(
 
 def _roll_ground_shot(
     ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
-    distance: int, enemy_weapon_quality=0,
+    distance: int, enemy_weapon_quality=0, enemy_worn=(0, 0),
 ):
     """(hit, damage, popup) for one ground shot — miss damage is 0.
 
@@ -770,6 +779,8 @@ def _roll_ground_shot(
     point-blank penalty applies to enemy shots too (doc 48 phase 9 —
     ONE hit math, both sides: the player's own rule mirrored, which is
     what makes the hug-driven set-switch honest rather than vacuous).
+    ``enemy_worn`` folds the cyber pieces' hit/melee bonuses through
+    the same terms the scorer reads (SETTLED 51/27 — same math).
     """
     from ._ground_math import (
         ground_damage_raw,
@@ -780,14 +791,15 @@ def _roll_ground_shot(
     _penalty = ground_point_blank_penalty(enemy_weapon_id, distance)
     _hit = RNG.randint(1, 100) <= ground_hit_chance_raw(
         enemy_weapon_id, enemy_stats.reflexes, ctx.ground_stats.reflexes,
-        target_dodge_bonus=player_dodge, range_penalty=_penalty,
+        target_dodge_bonus=player_dodge, hit_bonus=enemy_worn[0],
+        range_penalty=_penalty,
         quality=enemy_weapon_quality,
     )
     if not _hit:
         return False, 0, None
     _damage = ground_damage_raw(
         enemy_weapon_id, enemy_stats.strength, armor_defense,
-        quality=enemy_weapon_quality,
+        melee_bonus=enemy_worn[1], quality=enemy_weapon_quality,
     )
     return True, _damage, _damage_popup_for(_damage, 0, False)
 

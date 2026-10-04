@@ -278,6 +278,14 @@ def _loadout_dict(stamp):
         [str(e[0]), str(e[1]), int(e[2])]
         for e in (stamp.get("pool") or []) if len(e) == 3
     ]
+    if "worn" in stamp:
+        # The worn cyber pieces (doc 48 SETTLED 51) — the pool's own
+        # triple shape; key-absent = unresolved (fills at first
+        # engagement, the melee-set precedent).
+        out["worn"] = [
+            [str(e[0]), str(e[1]), int(e[2])]
+            for e in (stamp.get("worn") or []) if len(e) == 3
+        ]
     if "melee" not in stamp:
         # key-absent = the melee set is unresolved (a migrated stamp
         # that has not been engaged yet) — preserve the distinction.
@@ -315,10 +323,13 @@ def _loadout_from_dict(ed: dict) -> dict | None:
             "pool": _loadout_pool(_saved.get("pool")),
         }
         # Key-absent melee stays absent (unresolved — fills at first
-        # engagement); a present-but-invalid pair reads as None.
+        # engagement); a present-but-invalid pair reads as None. The
+        # worn pieces (doc 48 SETTLED 51) follow the same absence law.
         for _key in ("ranged", "melee"):
             if _key in _saved:
                 stamp[_key] = _stamp_pair(_saved.get(_key))
+        if "worn" in _saved:
+            stamp["worn"] = _loadout_pool(_saved.get("worn"))
         return stamp
     except (TypeError, ValueError):
         return None

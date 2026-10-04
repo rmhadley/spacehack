@@ -63,7 +63,7 @@ def apply_explosive_enemy_hit(
     _dy = abs(enemy.pos.y - _center.y)
     if _dx > 1 or _dy > 1:
         return None
-    _armor = enemy.spec.armor if enemy.spec else 0
+    _armor = getattr(enemy, "armor", 0)
     _full_damage = _ground_damage_raw(
         weapon_id, ctx.ground_stats.strength, _armor,
         strength_step=_PLAYER_STRENGTH_STEP, quality=quality,

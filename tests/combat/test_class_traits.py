@@ -95,6 +95,7 @@ def _ground_enemy(armor=0, reflexes=30):
         spec=SimpleNamespace(armor=armor),
         stats=SimpleNamespace(reflexes=reflexes),
         hp=100,
+        armor=armor,  # the FOLDED read (doc 48 SETTLED 51) — spec + worn
     )
 
 

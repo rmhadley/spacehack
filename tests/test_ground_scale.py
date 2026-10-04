@@ -527,6 +527,7 @@ def test_humanoid_rows_author_melee_sets():
     expected = {
         "consortium_enforcer": ("melee_families", ("melee",)),
         "consortium_gunner": ("melee_families", ("melee",)),
+        "consortium_executor": ("melee_families", ("melee",)),
         "pirate_raider": ("melee_families", ("melee",)),
         "pirate_rifleman": ("melee_families", ("melee",)),
         "pirate_brute": ("melee_families", ("melee",)),

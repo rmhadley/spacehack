@@ -327,12 +327,13 @@ def test_ground_elite_specs_carry_elite():
     # SETTLED 34/35: the brute and the sniper are the named wearers;
     # doc 48 SETTLED 45 adds the Warden (bold W — the ancient
     # family's unique callout: emphasis, not disambiguation); doc 48
-    # phase 10 adds the six biome apexes (bold = the apex callout).
+    # phase 10 adds the six biome apexes (bold = the apex callout);
+    # doc 48 SETTLED 51 adds the Executor (the bold-E high rung).
     elite = {
         spec.id for spec in list_npc_chars() if spec.elite
     }
     assert elite == {
-        "pirate_brute", "militia_sniper", "warden",
+        "pirate_brute", "militia_sniper", "warden", "consortium_executor",
         "dune_behemoth", "glacier_wyrm", "caldera_tyrant",
         "canopy_maw", "scrap_colossus", "mesa_mauler",
     }

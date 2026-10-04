@@ -15,62 +15,6 @@ from . import NpcCharSpec, six_weights
 
 NPC_CHARS: tuple[NpcCharSpec, ...] = (
     NpcCharSpec(
-        # The merchants chain's antagonist: the consortium's claims
-        # enforcement crews (ground side of the heat system's squads).
-        # faction="consortium" since doc 48 phase 2 — the hidden axis
-        # (start −100) keeps them hostile on sight exactly as the old
-        # pirate tag read; the hired-pirate fiction retires in phase 11.
-        id="consortium_enforcer",
-        name="Consortium Enforcer",
-        char="E",
-        fg=(90, 120, 200),       # consortium family navy (serious case)
-        faction="consortium",
-        hp=22,
-        weapon_families=("melee", "pistols"),
-        melee_families=("melee",),
-        stat_weights=six_weights(0.25, 0.40, 0.20),
-        behavior="hunter",
-        tier=1,
-        loot_pool=("electronics", "machine_parts", "scrap_metal"),
-        equipment_loot_pool=(
-            ("armor", "light_helmet"),
-        ),
-        field_item_loot_pool=(
-            ("ammo", "pistol_rounds"),
-            ("consumable", "med_pack"),
-        ),
-        loot_count=(1, 2),
-        xp_reward=22,
-    ),
-    NpcCharSpec(
-        # Ranged guard: HOLDS the room it spawns in and fires at range
-        # — the artillery cell of the behavior matrix (doc 34), arrived
-        # via content. Counter-play: break LOS or fight inside its blind
-        # arc; it will not chase.
-        id="consortium_gunner",
-        name="Consortium Gunner",
-        char="e",
-        fg=(90, 120, 200),       # consortium family navy (common case)
-        faction="consortium",
-        hp=28,
-        weapon_families=("pistols",),
-        melee_families=("melee",),
-        stat_weights=six_weights(0.45, 0.15, 0.25),
-        behavior="guard",
-        tier=2,
-        loot_pool=("electronics", "machine_parts", "fuel_cells"),
-        equipment_loot_pool=(
-            ("weapon", "kinetic_rifle"),
-            ("armor", "reinforced_gauntlets"),
-        ),
-        field_item_loot_pool=(
-            ("ammo", "rifle_rounds"),
-            ("consumable", "stim"),
-        ),
-        loot_count=(1, 2),
-        xp_reward=38,
-    ),
-    NpcCharSpec(
         id="pirate_raider",
         name="Pirate Raider",
         char="r",

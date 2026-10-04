@@ -189,8 +189,17 @@ class NpcCharSpec:
         pack_size: (min, max) hunting-pack members rolled at spawn
             when ``pack_pool`` is authored.
         tier: drop tier — equipment drops filter to ``tech_level <= tier``.
+            A row wearing cyber pieces must author tier >= every worn
+            piece's tech_level (the tier-gate law) or its pool empties.
         armor: flat damage reduction subtracted from player hits
             (plasma halves it).
+        worn_armor: armor ids the row WEARS (doc 48 SETTLED 51/27 —
+            the consortium rungs' cybernetic augmentation): resolved
+            once into the loadout stamp's ``worn`` key at stamped
+            qualities, all four bonus fields + defense folding onto
+            the wearer through the player's own modifier math, and
+            the pieces dropping via the kit path at their stamped
+            qualities. Empty = nothing worn (every ordinary row).
         quality_floor: the minimum quality tier the row's wielded gear
             rolls (doc 48 SETTLED 51 — consortium rungs never roll
             base; the top rung floors at overclocked). 0 = no floor.
@@ -231,6 +240,7 @@ class NpcCharSpec:
     pack_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
+    worn_armor: tuple[str, ...] = ()
     quality_floor: int = 0
     fixed_band: int = 0
     mechanics: MachineMechanics | None = None

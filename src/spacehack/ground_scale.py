@@ -178,6 +178,16 @@ def roll_family_weapon(
     return rng.choice(tiers[_snap_tier(tiers, tier)])
 
 
+def rolled_quality(band: int, rng, quality_floor: int = 0) -> int:
+    """One ladder draw at the band's rates, CLAMPED to the floor (doc
+    48 SETTLED 51 — the one clamp idiom every ground quality roll
+    reads: ``max(floor, rolled)``, the below-floor mass lumping onto
+    the floor rung, the top tier's odds never moving)."""
+    from .data.quality import roll_quality
+
+    return max(quality_floor, roll_quality(quality_rates(band), rng))
+
+
 def rolled_weapon_quality(weapon_id: str, band: int, rng,
                           quality_floor: int = 0) -> int:
     """Equip-time quality roll (SETTLED 13/35): the ladder rides the
@@ -195,9 +205,7 @@ def rolled_weapon_quality(weapon_id: str, band: int, rng,
             return 0
     except KeyError:
         return 0
-    from .data.quality import roll_quality
-
-    return max(quality_floor, roll_quality(quality_rates(band), rng))
+    return rolled_quality(band, rng, quality_floor)
 
 
 def carried_pool_range(ceiling: int) -> tuple[int, int]:

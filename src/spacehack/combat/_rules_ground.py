@@ -11,15 +11,13 @@ a single module-level dataclass replacing the old scattered globals.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import Any, Iterator
+from typing import Iterator
 
 from .. import world
 from .. import message_log as _ml
 from .. import noise
 from .. import ground_loadout
 from ..engine import SCREEN_WIDTH, SCREEN_HEIGHT, HUD_WIDTH
-from ..game_context import GameContext
 from ..data.ground_weapons import find_ground_weapon as _find_gw
 from .. import ground_scale
 from ..data.npc_chars import find_npc_char as _find_nc
@@ -27,7 +25,6 @@ from ..ground_equipment import (
     sum_armor_bonus as _sum_armor_bonus,
     sum_armor_defense as _sum_armor_defense,
 )
-from ..ground_consumables import ActiveConsumableEffect
 from ..xp import (
     sharpshooter_hit_bonus as _sharpshooter_bonus,
     ace_pilot_ap_bonus as _ace_pilot_bonus,
@@ -43,7 +40,11 @@ from ..xp import (
     sturdy_melee_bonus as _sturdy_melee_bonus,
 )
 
-from ._types import CombatResult, FleeExit
+from ._types import CombatResult
+from ._ground_types import (  # noqa: F401  # re-exported seam
+    GroundCombatState,
+    GroundEnemyInstance,
+)
 from ._stats import _distance, _roll_ap
 from . import _ground_actions, _ground_blast
 from ._ground_math import (
@@ -77,114 +78,6 @@ from ._ground_render import (
     toggle_target_card as toggle_target_card,
 )
 
-# ---------------------------------------------------------------------------
-# GroundEnemyInstance — per-enemy state during combat
-# ---------------------------------------------------------------------------
-
-@dataclass
-class GroundEnemyInstance:
-    """Per-enemy combat state."""
-
-    entity: world.Entity
-    spec: Any
-    weapon_id: str = ""
-    weapon_quality: int = 0
-    # The band this enemy spawned at (doc 48 SETTLED 35) and its
-    # derived six-block — combat math reads these, never spec fields.
-    band: int = 0
-    stats: Any = None
-    hp: int = 30
-    max_hp: int = 30
-    ap: int = 4
-    ap_total: int = 4
-    # Enemy-side consumable effect state (doc 48 SETTLED 36) —
-    # fight-scoped, never serialized: a new fight re-derives from the
-    # entity's pre-rolled carried stamp.
-    stim_turns: int = 0
-    stim_ap_bonus: int = 0
-    regen_turns: int = 0
-    regen_amount: int = 0
-    cells_moved_this_turn: int = 0
-    # Doc 48 p9: stare-eruption victims are NOT player kills — the
-    # flag excludes them from the CombatResult's defeated lists so no
-    # faction rep flows (drops landed; XP/counter already withheld).
-    stare_killed: bool = False
-
-    @property
-    def alive(self) -> bool:
-        return self.hp > 0
-
-    @property
-    def pos(self) -> world.Position:
-        return self.entity.pos
-
-    @pos.setter
-    def pos(self, value: world.Position) -> None:
-        self.entity.pos = value
-
-    @property
-    def name(self) -> str:
-        return self.spec.name if self.spec else "Unknown"
-
-# ---------------------------------------------------------------------------
-# GroundCombatState — all session state in one place
-# ---------------------------------------------------------------------------
-
-@dataclass
-class GroundCombatState:
-    """Encapsulates all mutable state for one ground combat encounter."""
-
-    ctx: GameContext
-    game_map: world.GameMap
-    enemies: list[GroundEnemyInstance] = field(default_factory=list)
-    player_hp: int = 30
-    player_max_hp: int = 30
-    player_ap: int = 4
-    player_ap_total: int = 4
-    # Fractional AP (TE4-style): per-round gain in twentieths and the
-    # banked fraction that rolls into the next round's pool. Ground
-    # gains are integer today (4 + trait/armor bonuses), so the carry
-    # stays 0 — the mechanism is uniform with ship combat for future
-    # fractional bonuses.
-    player_ap_gain_twentieths: int = 80
-    player_ap_carry_twentieths: int = 0
-    armor_defense: int = 0
-    cells_moved_this_turn: int = 0
-    active_weapon_list: list[bool] = field(default_factory=list)
-    target_idx: int = 0
-    console: Any = None
-    # Presentation-only: the floating target card shows by default and
-    # can be toggled off with ``v``.
-    show_target_card: bool = True
-    # Session-liveness flag, mirroring SpaceCombatState: cleared by
-    # ``sync_state`` so presentation functions stop returning stale cards.
-    active: bool = True
-    # Presentation-only: while True, ``render_frame`` skips the player's
-    # range/accuracy line. Set during shot animations and the whole enemy
-    # turn so the line never clutters frames the player isn't acting on.
-    range_line_hidden: bool = False
-    active_consumable_effects: dict[str, ActiveConsumableEffect] = field(
-        default_factory=dict,
-    )
-    # Doc 53 killer tracking: the last hostile damage source's label
-    # (enemy + wielded variant), or the settled self-splash line.
-    # Per-fight session state, never serialized.
-    last_attacker: str | None = None
-    # Doc 54 phase 2: the committed stair-dance exit (verb = the
-    # transition tile kind) — set when the fight ends DISENGAGED at a
-    # world exit; get_combat_result copies it onto the CombatResult.
-    # Session-scoped, never serialized.
-    flee_exit: "FleeExit | None" = None
-    # Pirate opener (doc 49 SETTLED 5): ``enemy_fired`` stamps True at
-    # every enemy shot (hit or miss) and closes the window; the shared
-    # fire loop spends ``opener_spent`` on the player's first attack.
-    # Per-fight session state, never serialized.
-    enemy_fired: bool = False
-    opener_spent: bool = False
-    # The Shredder's mend line fires once per engagement (doc 48
-    # SETTLED 42) — fight-scoped entity ids, never serialized.
-    mend_told: set = field(default_factory=set)
-
 _state: GroundCombatState | None = None
 
 # Rendering constants
@@ -195,25 +88,18 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 # Init
 # ---------------------------------------------------------------------------
 
-def _stamp_enemy_loadout(_ent: world.Entity, _spec) -> int:
+def _stamp_enemy_loadout(_ent: world.Entity, _spec, _worn=()) -> int:
     """First-resolution stamps at combat entry (doc 48 SETTLED 36/37):
     the pre-rolled carried consumables land once (what they drop is
-    what they carry); returns the spec-derived AP total."""
+    what they carry); returns the spec-derived AP total — worn
+    cybernetics' ``ap_bonus`` folded through the shared modifier math
+    (SETTLED 51/27)."""
     from ._actions import roll_carried_consumables
     from ._ground_effects import enemy_ap_total
 
     if getattr(_ent, "carried_items", None) is None:
         _ent.carried_items = roll_carried_consumables(_spec)
-    return enemy_ap_total(_spec)
-
-
-def _stamp_ancient_field(_ent: world.Entity, game_map, _spec) -> None:
-    """The Warden's shell stands at combat entry (doc 48 p9) — full
-    tile HP, only once woken: a dormant Warden projects nothing."""
-    from . import _ancients
-
-    if not getattr(_ent, "powered_down", False):
-        _ancients.ensure_field(game_map, _spec, _ent.pos)
+    return enemy_ap_total(_spec, armor_entries=_worn)
 
 
 def _build_enemy_instance(
@@ -221,13 +107,12 @@ def _build_enemy_instance(
 ) -> GroundEnemyInstance | None:
     """Build one enemy instance from a map entity (init + mid-fight joins).
 
-    Reads/stamps ``entity.hp`` so wounds persist across combat sessions:
-    LOS aggro ends fights with survivors, and re-engaging must continue
-    at the same HP — never a heal-on-retrigger. Guards also get their
-    ``guard_post`` stamped here (the leash anchor — once, never dragged
-    by peek-a-boo re-engagement; SETTLED 37's investigation perch is the
-    only re-stamp). Stats resolve through the band resolver (SETTLED 35);
-    the weapon resolves ONCE and persists on the entity (SETTLED 37).
+    Reads/stamps ``entity.hp`` so wounds persist across combat sessions
+    (LOS-aggro survivors keep wounds; never a heal-on-retrigger); guards
+    get their ``guard_post`` stamped here (SETTLED 37). Stats resolve
+    through the band resolver (SETTLED 35); the weapon resolves ONCE and
+    persists on the entity (SETTLED 37). The WORN cyber pieces fold
+    here (doc 48 SETTLED 51/27) through the player's own modifier math.
     """
     try:
         _spec = _find_nc(_ent.npc_char_id)
@@ -237,20 +122,35 @@ def _build_enemy_instance(
     _stats = ground_scale.derive_stats(_spec, _band)
     _stamp = ground_loadout.ensure_loadout(_ent, game_map, _spec)
     _pair = ground_loadout.active_pair(_stamp) if _stamp else None
-    _wid = _pair[0] if _pair else ""
-    _quality = _pair[1] if _pair else 0
-    _ap_total = _stamp_enemy_loadout(_ent, _spec)
-    _stamp_ancient_field(_ent, game_map, _spec)
-    _max_hp = _spec.hp + _stats.stamina // 3
+    _worn = ground_loadout.worn_entries(_stamp)
+    _ap_total = _stamp_enemy_loadout(_ent, _spec, _worn)
+    from . import _ancients
+
+    _ancients.stamp_entry_field(_ent, game_map, _spec)
+    _max_hp, _armor = _worn_fold(_spec, _stats, _worn)
     if _spec.behavior == "guard" and getattr(_ent, "guard_post", None) is None:
         _ent.guard_post = world.Position(_ent.pos.x, _ent.pos.y)
     _cur_hp = min(getattr(_ent, "hp", 0) or _max_hp, _max_hp)
     _ent.hp = _cur_hp
     return GroundEnemyInstance(
-        entity=_ent, spec=_spec, weapon_id=_wid,
-        weapon_quality=_quality,
+        entity=_ent, spec=_spec,
+        weapon_id=_pair[0] if _pair else "",
+        weapon_quality=_pair[1] if _pair else 0,
         band=_band, stats=_stats,
         hp=_cur_hp, max_hp=_max_hp, ap=_ap_total, ap_total=_ap_total,
+        armor=_armor,
+    )
+
+
+def _worn_fold(spec, stats, worn) -> tuple[int, int]:
+    """The worn pieces' instance-build fold (doc 48 SETTLED 51/27):
+    ``hp_bonus`` into max HP, each piece's defense into the armor
+    read — the player's own modifier math, one pass over the stamped
+    pieces. What they wear is what they are, on the card and in
+    every soak."""
+    return (
+        spec.hp + stats.stamina // 3 + _sum_armor_bonus(worn, "hp_bonus"),
+        spec.armor + _sum_armor_defense(worn),
     )
 
 
@@ -474,13 +374,14 @@ def damage(
 ) -> tuple[int, bool]:
     """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
 
-    Enemy armor (``enemy.spec.armor``) is subtracted here, with plasma
-    halving it via :func:`_ground_damage_raw`; cybernetic arms add a melee
-    bonus. Ground combat has no glancing mechanic, but the unified loop
+    Enemy armor — the FOLDED instance read (spec + worn pieces, doc 48
+    SETTLED 51) — is subtracted here, with plasma halving it via
+    :func:`_ground_damage_raw`; cybernetic arms add a melee bonus.
+    Ground combat has no glancing mechanic, but the unified loop
     unpacks ``(dmg, is_glancing)`` for both rule sets — ground always
     reports ``False``.
     """
-    _armor = enemy.spec.armor if enemy.spec else 0
+    _armor = enemy.armor
     _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
     # Sturdy's +2 melee damage is melee-only, fists included (doc 49).
     if _find_gw(weapon_id).damage_type == "melee":
