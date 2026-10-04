@@ -40,6 +40,43 @@ SEPARATION_MIN = 60
 # co-rendered — a boarded deck replaces the space map).
 CROSS_REGISTRY_PIN = {"s", "h"}
 
+# The tolerated hostile-ground/TILE glyph overlap (doc 48 phase 10,
+# SETTLED 32/34): the identity law is (glyph, color) pair-uniqueness in
+# the spawn context, not blanket glyph freeness — but a char a TILE
+# also paints needs eyes on it. The enforcer's `E` shares the
+# engine/alien-elevator tiles (capture-deck machinery the enforcer
+# never spawns beside on dig floors); colors separate.
+TILE_CHAR_PIN = {"E"}
+
+
+def _authored_tile_chars() -> set[str]:
+    """Chars painted by authored tiles: the world module's Tile
+    constants (the ground-floor catalog — the prison-panel `o`
+    precedent lives here) plus every planet's authored
+    ``DungeonParams`` wall/floor pair (the dig palette)."""
+    chars = {
+        value.char
+        for value in vars(world).values()
+        if isinstance(value, world.Tile)
+    }
+    from src.spacehack.data.planets import list_planet_specs
+
+    for spec in list_planet_specs():
+        params = getattr(spec, "dungeon_params", None)
+        if params is not None:
+            chars.add(params.tile_wall.char)
+            chars.add(params.tile_floor.char)
+    return chars
+
+
+def test_hostile_ground_glyphs_vs_tile_chars_pinned():
+    ground = {spec.char for spec in list_npc_chars() if _hostile_capable(spec)}
+    overlap = ground & _authored_tile_chars()
+    assert overlap == TILE_CHAR_PIN, (
+        f"hostile-ground/tile glyph overlap {sorted(overlap)} != pinned "
+        f"{sorted(TILE_CHAR_PIN)}"
+    )
+
 
 def _hostile_capable(spec) -> bool:
     """Ground spec that can fight the player (fauna + faction rows)."""
@@ -188,6 +225,70 @@ def test_cross_registry_glyph_overlap_is_pinned():
         f"ground/space glyph overlap {sorted(overlap)} != pinned "
         f"{sorted(CROSS_REGISTRY_PIN)}"
     )
+
+
+# --- biome fauna census (doc 48 phase 10, SETTLED 47/48) ---------------------
+
+# The eight new-biome faces, one distinct behavior-attack cell each
+# (the anti-copy-paste doctrine: matrix cells, never stat walls).
+BIOME_FAUNA_CENSUS: dict[str, tuple[str, tuple[int, int], int, int]] = {
+    #              behavior    squad    ap  armor
+    "vine_hound": ("hunter", (2, 2), 6, 0),
+    "spore_spitter": ("guard", (1, 2), 4, 0),
+    "ember_crawler": ("hunter", (4, 6), 4, 2),
+    "magma_spitter": ("hunter", (1, 2), 4, 1),
+    "scrap_hound": ("hunter", (2, 2), 6, 2),
+    "rust_wasp": ("hunter", (3, 5), 6, 0),
+    "crag_lurker": ("ambusher", (1, 2), 4, 3),
+    "canyon_viper": ("hunter", (1, 2), 6, 0),
+}
+
+
+def test_biome_fauna_census_cells():
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    for spec_id, (behavior, squad, ap, armor) in BIOME_FAUNA_CENSUS.items():
+        spec = find_npc_char(spec_id)
+        assert spec.behavior == behavior, spec_id
+        assert spec.squad_size == squad, spec_id
+        assert spec.ap == ap, spec_id
+        assert spec.armor == armor, spec_id
+        assert spec.elite is False, spec_id
+
+
+def test_biome_fauna_follow_the_fauna_laws():
+    """SETTLED 30/34/35: the new faces are ordinary fauna — always
+    hostile, factionless (kill moves no rep), FIXED organic weapons
+    (never weapon_families), species glyphs outside the identity
+    families."""
+    from src.spacehack.data.npc_chars import find_npc_char
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    for spec_id in BIOME_FAUNA_CENSUS:
+        spec = find_npc_char(spec_id)
+        assert spec.always_hostile is True, spec_id
+        assert spec.faction == "", spec_id
+        assert spec.weapon_families == (), spec_id
+        assert spec.weapons, f"{spec_id} carries no organic weapon"
+        for weapon_id in spec.weapons:
+            weapon = find_ground_weapon(weapon_id)
+            assert weapon.loot_droppable is False, (spec_id, weapon_id)
+        assert _family_for(spec) is None, (
+            f"{spec_id} must stay out of CHAR_CLASS_FAMILIES — fauna "
+            "are not identity families"
+        )
+
+
+def test_spore_spitter_is_the_first_two_set_fauna():
+    """The nest's authored sting set (doc 48 brief): rushing a spore
+    spitter triggers the cornered-switch — its melee set is fixed
+    organic, its ranged set the long organ."""
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    spec = find_npc_char("spore_spitter")
+    assert spec.weapons == ("spore_burst",)
+    assert spec.melee_weapons == ("monster_claws",)
+    assert spec.melee_families == ()
 
 
 def _map_with(entity: world.Entity) -> world.GameMap:

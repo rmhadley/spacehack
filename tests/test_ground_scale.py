@@ -521,7 +521,9 @@ def test_humanoid_rows_author_melee_sets():
     """The data pass (SETTLED 43): every humanoid row carries a melee
     set — family rows roll it, the merchant's knife is fixed; fauna
     and machines author neither melee field. The Warden amends the
-    machine side (doc 48 SETTLED 42): the slam IS its melee set."""
+    machine side (doc 48 SETTLED 42): the slam IS its melee set. Doc
+    48 phase 10 adds the FIRST two-set FAUNA — the spore spitter's
+    authored sting set (the cornered-switch cell)."""
     expected = {
         "consortium_enforcer": ("melee_families", ("melee",)),
         "consortium_gunner": ("melee_families", ("melee",)),
@@ -533,6 +535,7 @@ def test_humanoid_rows_author_melee_sets():
         "militia_trooper": ("melee_families", ("melee",)),
         "merchant": ("melee_weapons", ("combat_knife",)),
         "warden": ("melee_weapons", ("ancient_slam",)),
+        "spore_spitter": ("melee_weapons", ("monster_claws",)),
     }
     for spec in list_npc_chars():
         if spec.id in expected:
