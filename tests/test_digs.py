@@ -720,10 +720,86 @@ def test_unauthored_biome_reads_the_default_pool():
     mars = digs.derive_dig_params(find_planet_spec("mars"))
     assert "pirate_raider" in mars.monster_pool
     unauthored = dataclasses.replace(
-        find_planet_spec("mars"), biome="volcanic",
+        find_planet_spec("mars"), biome="some_future_biome",
     )
-    volcanic = digs.derive_dig_params(unauthored)
-    assert volcanic.monster_pool == mars.monster_pool
+    fallback = digs.derive_dig_params(unauthored)
+    assert fallback.monster_pool == mars.monster_pool
+
+
+def test_every_authored_biome_resolves_its_own_table():
+    """All six declared biomes now read their own tables (build 5):
+    a lush delve meets vine hounds, never pirates — and every declared
+    biome HAS a table (a forgotten table would silently read pirates:
+    the fallthrough is honest scope for undeclared biomes only)."""
+    from src.spacehack.data.digs import BIOME_POOLS
+
+    declared = {spec.biome for spec in list_planet_specs() if spec.biome}
+    assert declared == set(BIOME_POOLS)
+    earth = digs.derive_dig_params(find_planet_spec("earth"))
+    assert "vine_hound" in earth.monster_pool
+    assert "pirate_raider" not in earth.monster_pool
+    eri = digs.derive_dig_params(dataclasses.replace(
+        find_planet_spec("mars"), mission_tier=2, biome="canyon",
+    ))
+    assert set(eri.monster_pool) <= {"canyon_viper", "crag_lurker"}
+    assert "ember_crawler" in digs.derive_dig_params(dataclasses.replace(
+        find_planet_spec("ross_b"), mission_tier=1,
+    )).monster_pool
+    assert "rust_wasp" in digs.derive_dig_params(
+        find_planet_spec("ross_c"),
+    ).monster_pool
+
+
+def test_new_biome_pools_pinned():
+    """The SETTLED 47 draft compositions, verbatim (approved with the
+    brief; tuning edits update this pin consciously)."""
+    from src.spacehack.data.digs import BIOME_POOLS
+
+    assert BIOME_POOLS["lush"] == {
+        1: (("vine_hound", "vine_hound", "vine_hound",
+             "spore_spitter"), 1.0),
+        2: (("spore_spitter", "spore_spitter", "vine_hound",
+             "vine_hound"), 1.4),
+        3: (("spore_spitter", "spore_spitter", "spore_spitter",
+             "vine_hound"), 1.8),
+        4: (("spore_spitter", "spore_spitter", "spore_spitter",
+             "vine_hound", "vine_hound"), 2.2),
+    }
+    assert BIOME_POOLS["volcanic"] == {
+        1: (("ember_crawler", "ember_crawler", "ember_crawler",
+             "magma_spitter"), 1.0),
+        2: (("magma_spitter", "magma_spitter", "ember_crawler",
+             "ember_crawler"), 1.4),
+        3: (("magma_spitter", "magma_spitter", "magma_spitter",
+             "ember_crawler"), 1.8),
+        4: (("magma_spitter", "magma_spitter", "magma_spitter",
+             "magma_spitter"), 2.2),
+    }
+    assert BIOME_POOLS["scrap_ring"] == {
+        1: (("scrap_hound", "scrap_hound", "rust_wasp",
+             "sentry_drone"), 1.0),
+        2: (("rust_wasp", "rust_wasp", "scrap_hound",
+             "assault_drone"), 1.4),
+        3: (("rust_wasp", "rust_wasp", "scrap_hound",
+             "scrap_hound"), 1.8),
+        4: (("rust_wasp", "rust_wasp", "rust_wasp",
+             "scrap_hound"), 2.2),
+    }
+    assert BIOME_POOLS["canyon"] == {
+        1: (("canyon_viper", "canyon_viper", "crag_lurker"), 1.0),
+        2: (("crag_lurker", "crag_lurker", "canyon_viper",
+             "canyon_viper"), 1.4),
+        3: (("canyon_viper", "canyon_viper", "crag_lurker",
+             "crag_lurker"), 1.8),
+        4: (("crag_lurker", "crag_lurker", "canyon_viper"), 2.2),
+    }
+    # Machine seats: bands 1-2 only, and only in desert/ice/scrap.
+    for biome, bands in BIOME_POOLS.items():
+        machines = {"sentry_drone", "assault_drone"}
+        if biome in ("lush", "volcanic", "canyon"):
+            assert not machines & set().union(*(
+                set(pool) for pool, _d in bands.values()
+            )), biome
 
 
 def test_biome_pools_resolve_ids_and_sit_on_the_density_ladder():
@@ -1344,16 +1420,19 @@ def test_default_biome_bottom_borrows_its_apex(monkeypatch):
 def test_pack_apex_spawns_its_hunting_pack_as_one_squad(monkeypatch):
     """SETTLED 48: the canyon bottom is the PACK read — the Mesa Mauler
     roams with 2-4 Canyon Vipers under ONE squad_id (the unit
-    mechanics), the mauler the ONLY bold glyph."""
+    mechanics), the mauler the ONLY bold glyph. The biome table also
+    fields vipers as ordinary population — the PACK is the squad."""
     ctx, site = _dig_world_on(monkeypatch, "eri_b", depth=1)
     f1, _ = digs.get_or_generate_floor(ctx, site, 1)
     mauler = [e for e in f1.entities if e.npc_char_id == "mesa_mauler"]
-    vipers = [e for e in f1.entities if e.npc_char_id == "canyon_viper"]
     assert len(mauler) == 1 and mauler[0].bold is True
-    assert 2 <= len(vipers) <= 4
-    assert not any(e.bold for e in vipers)
-    squad_ids = {e.squad_id for e in mauler + vipers}
-    assert len(squad_ids) == 1
+    pack = [
+        e for e in f1.entities if e.squad_id == mauler[0].squad_id
+    ]
+    pack_vipers = [e for e in pack if e.npc_char_id == "canyon_viper"]
+    assert 2 <= len(pack_vipers) <= 4
+    assert len(pack) == 1 + len(pack_vipers)   # the mauler + its pack
+    assert not any(e.bold for e in pack_vipers)
 
 
 def test_the_five_solo_apexes_spawn_alone(monkeypatch):

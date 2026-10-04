@@ -126,10 +126,9 @@ TIER_POOLS: dict[int, tuple[tuple[str, ...], float]] = {
 # fauna, not pirates-by-default. Composition AND density are authored
 # per biome per band (opening guesses, tuned at playtest); the density
 # ladder is the SETTLED 35 rung set (1.0/1.4/1.8/2.2). Machine seats
-# live at bands 1-2 only (sentry b1 / assault b2, desert/ice/scrap —
-# scrap's table lands with the four new biome pools); bands 3-4 are
-# fauna-pure, the strong face weighted up — deeper delves read WILDER,
-# not more mechanized (SETTLED 49).
+# live at bands 1-2 only (sentry b1 / assault b2, desert/ice/scrap);
+# bands 3-4 are fauna-pure, the strong face weighted up — deeper
+# delves read WILDER, not more mechanized (SETTLED 49).
 BIOME_POOLS: dict[str, dict[int, tuple[tuple[str, ...], float]]] = {
     "desert": {
         1: (("rock_scavenger", "rock_scavenger", "dust_prowler",
@@ -150,6 +149,49 @@ BIOME_POOLS: dict[str, dict[int, tuple[tuple[str, ...], float]]] = {
              "ice_worm"), 1.8),
         4: (("frost_spitter", "frost_spitter", "frost_spitter",
              "ice_worm"), 2.2),
+    },
+    # The four new-biome tables (doc 48 phase 10, the SETTLED 47 draft
+    # approved verbatim with the brief): fauna-forward, no machine
+    # seats (lush/volcanic/canyon read wild; scrap keeps the ruin-
+    # security pair at bands 1-2), bands 3-4 fauna-pure with the
+    # strong face weighted up.
+    "lush": {
+        1: (("vine_hound", "vine_hound", "vine_hound",
+             "spore_spitter"), 1.0),
+        2: (("spore_spitter", "spore_spitter", "vine_hound",
+             "vine_hound"), 1.4),
+        3: (("spore_spitter", "spore_spitter", "spore_spitter",
+             "vine_hound"), 1.8),
+        4: (("spore_spitter", "spore_spitter", "spore_spitter",
+             "vine_hound", "vine_hound"), 2.2),
+    },
+    "volcanic": {
+        1: (("ember_crawler", "ember_crawler", "ember_crawler",
+             "magma_spitter"), 1.0),
+        2: (("magma_spitter", "magma_spitter", "ember_crawler",
+             "ember_crawler"), 1.4),
+        3: (("magma_spitter", "magma_spitter", "magma_spitter",
+             "ember_crawler"), 1.8),
+        4: (("magma_spitter", "magma_spitter", "magma_spitter",
+             "magma_spitter"), 2.2),
+    },
+    "scrap_ring": {
+        1: (("scrap_hound", "scrap_hound", "rust_wasp",
+             "sentry_drone"), 1.0),
+        2: (("rust_wasp", "rust_wasp", "scrap_hound",
+             "assault_drone"), 1.4),
+        3: (("rust_wasp", "rust_wasp", "scrap_hound",
+             "scrap_hound"), 1.8),
+        4: (("rust_wasp", "rust_wasp", "rust_wasp",
+             "scrap_hound"), 2.2),
+    },
+    "canyon": {
+        1: (("canyon_viper", "canyon_viper", "crag_lurker"), 1.0),
+        2: (("crag_lurker", "crag_lurker", "canyon_viper",
+             "canyon_viper"), 1.4),
+        3: (("canyon_viper", "canyon_viper", "crag_lurker",
+             "crag_lurker"), 1.8),
+        4: (("crag_lurker", "crag_lurker", "canyon_viper"), 2.2),
     },
 }
 

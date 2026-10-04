@@ -2381,3 +2381,63 @@ class TestFittingGridRoundTrip:
         assert [e.item_id for e in loaded.player_owned_ship.weapons] == ["heavy_laser"]
         assert loaded.player_owned_ship.modules == ()
         assert loaded.ship_storage == [StoredEquipment("module", "shield_mk1")]
+
+
+def test_biome_dig_bottom_round_trips_entities(
+    monkeypatch, tmp_path,
+):
+    """Doc 48 phase 10's zero-new-save-state pin: a lush dig bottom's
+    NPC entities (fauna population + the Canopy Maw apex, with
+    squad/bold/band stamps) survive save/continue identical — biome is
+    static spec data; the legendary's own loot_data round-trip is the
+    pre-existing machinery, pinned here by its seed."""
+    from src.spacehack import digs
+    from src.spacehack.engine import RNG
+
+    monkeypatch.setattr(
+        "src.spacehack.saveload._autosave_path",
+        lambda: tmp_path / "autosave.json",
+    )
+    RNG.seed(20261004)
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
+    ctx = _build_test_ctx()
+    site = {"id": "s1", "planet": "earth", "name": "Quiet Hollow"}
+    ctx.discovered_sites = [site]
+    game_map, _spawn = digs.get_or_generate_floor(ctx, site, 1)
+    ctx.interiors = {digs.cache_key("earth", "s1", 1): game_map}
+    ctx.game_map = game_map
+
+    def _snapshot(floor_map):
+        return sorted(
+            (
+                e.npc_char_id, e.pos.x, e.pos.y, e.squad_id,
+                e.spawn_band, e.bold, e.hp,
+            )
+            for e in floor_map.entities
+            if getattr(e, "npc_char_id", "")
+        )
+
+    before = _snapshot(game_map)
+    char_ids = {row[0] for row in before}
+    assert "canopy_maw" in char_ids          # the apex guards the bottom
+    assert char_ids & {"vine_hound", "spore_spitter"}  # lush fauna reads
+    legendary = [
+        e for e in game_map.entities
+        if (e.loot_data or {}).get("quality") == 4
+    ]
+    assert len(legendary) == 1               # the bottom guarantee stands
+
+    save_game(
+        ctx, mode="dungeon", city_id="earth", system_id="sol",
+        space_player_pos=(3, 4),
+    )
+    loaded = load_game(ctx.context)
+    floor_key = digs.cache_key("earth", "s1", 1)
+    assert _snapshot(loaded.interiors[floor_key]) == before
+    loaded_legendary = [
+        e for e in loaded.interiors[floor_key].entities
+        if (e.loot_data or {}).get("quality") == 4
+    ]
+    assert [e.loot_data for e in loaded_legendary] == [
+        e.loot_data for e in legendary
+    ]
