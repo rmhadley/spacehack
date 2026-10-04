@@ -439,7 +439,11 @@ def _scatter_dig_loot(
             _append_cache_entity(game_map, pos, _dig_cache_payload(spec, next(rows)))
     _scatter_dig_chips(game_map)
     if bottom and DIG_LOOT_SPEC.legendary_bottom:
-        _place_legendary_cache(game_map, _site_tier(spec))
+        cache_pos = _place_legendary_cache(game_map, _site_tier(spec))
+        if cache_pos is not None:
+            _place_bottom_apex(
+                game_map, spec, cache_pos, _dig_tier(spec, floor),
+            )
     _scatter_dig_kits(game_map)
 
 
@@ -504,7 +508,7 @@ def _seed_for_axis_count(module_id: str, axes: int) -> int:
             return seed
 
 
-def _place_legendary_cache(game_map: world.GameMap, band: int) -> None:
+def _place_legendary_cache(game_map: world.GameMap, band: int) -> world.Position | None:
     """The delve-bottom guarantee (doc 47.4 SETTLED 11/35): one module
     randart waits at the site's deepest floor — the game's only
     legendary source. The base rolls uniformly from the full catalog
@@ -512,7 +516,8 @@ def _place_legendary_cache(game_map: world.GameMap, band: int) -> None:
     count (SETTLED 26); identity rolls at generation and the payload
     carries it wholesale (floors cache; save/load rides loot_data).
     The seed draws strictly >= 1: parse_randart_seed migrates 0 to
-    not-a-randart."""
+    not-a-randart. Returns the chosen cell — the bottom-floor apex
+    guards beside it (doc 48 SETTLED 47); None when the map is full."""
     from .data.digs import DIG_LOOT_SPEC
     from .data.modules import list_modules
     from .data.quality import LEGENDARY_QUALITY
@@ -522,7 +527,7 @@ def _place_legendary_cache(game_map: world.GameMap, band: int) -> None:
         game_map, avoid_kinds=("exit", "stairs_up", "stairs_down"),
     )
     if pos is None:
-        return
+        return None
     module_id = engine.RNG.choice(list_modules()).id
     axes = _weighted_axis_count(
         DIG_LOOT_SPEC.legendary_axes_weights[band - 1], engine.RNG,
@@ -532,6 +537,42 @@ def _place_legendary_cache(game_map: world.GameMap, band: int) -> None:
         _seed_for_axis_count(module_id, axes),
     )
     _append_cache_entity(game_map, pos, payload)
+    return pos
+
+
+def _place_bottom_apex(
+    game_map: world.GameMap,
+    spec: PlanetSpec,
+    pos: world.Position,
+    band: int,
+) -> int:
+    """The delve-bottom guardian (doc 48 SETTLED 47/48): the resolved
+    biome's apex beside the legendary cache — ``spec.biome`` when set,
+    else ``APEX_BORROW``, else the default biome; NO dig anywhere has
+    an unguarded legendary. Band-stamped at the floor's dig tier (a
+    T1 dig meets a band-scaled apex, a T4 dig the wall). The PACK
+    apex composes its hunting pack under ONE squad id (SETTLED 48 —
+    the existing unit mechanics, zero new AI). Returns entities
+    placed; 0 when the room had no cell (KeyError-safe, no crash)."""
+    from .data.digs import APEX_BORROW, BIOME_APEX, DEFAULT_APEX_BIOME
+    from .data.npc_chars import find_npc_char
+    from .dungeon_population import _spawn_squad_near
+
+    biome = spec.biome or APEX_BORROW.get(spec.id, DEFAULT_APEX_BIOME)
+    apex_id = BIOME_APEX[biome]
+    squad_id = f"apex_{apex_id}_{engine.RNG.randint(10000, 99999)}"
+    placed = _spawn_squad_near(
+        game_map, pos, enemy_id=apex_id, count=1,
+        squad_id=squad_id, room_cap=10, band=band,
+    )
+    apex = find_npc_char(apex_id)
+    if placed and apex.pack_pool:
+        placed += _spawn_squad_near(
+            game_map, pos, enemy_id=engine.RNG.choice(apex.pack_pool),
+            count=engine.RNG.randint(*apex.pack_size),
+            squad_id=squad_id, room_cap=10, band=band,
+        )
+    return placed
 
 
 def enter_dig_site(state, planet_obj, site_id: str) -> str:

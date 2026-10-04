@@ -323,4 +323,175 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         xp_reward=15,
         ap=6,
     ),
+    # --- the biome apexes (doc 48 phase 10, SETTLED 47/48): one per
+    # biome incl. DESERT/ICE, each guarding DIFFERENTLY — data-only
+    # rows (no mechanic machinery): FLAT bases, the band stamp does
+    # the scaling; bold glyphs (elite), solo (squad 1,1) unless the
+    # row authors a pack; knockback/armor_bypass ride the WEAPON
+    # fields. The kill pays: big XP + authored pools.
+    NpcCharSpec(
+        id="dune_behemoth",
+        name="Dune Behemoth",
+        char="B",
+        fg=(230, 190, 120),       # dune sand-gold
+        faction="",
+        hp=65,
+        weapons=("behemoth_maul",),   # knockback 2 — the anchor
+        stat_weights=six_weights(0.10, 0.40, 0.35),  # ejects its
+        behavior="guard",         # victim along the attack vector
+        squad_size=(1, 1),
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=5,
+        loot_pool=("scrap_metal", "rare_earth_metals"),
+        equipment_loot_pool=(
+            ("armor", "heavy_vest"),
+            ("weapon", "vibroblade"),
+        ),
+        field_item_loot_pool=(
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=120,
+        ap=3,
+    ),
+    NpcCharSpec(
+        id="glacier_wyrm",
+        name="Glacier Wyrm",
+        char="G",
+        fg=(200, 235, 255),       # glacier white-blue
+        faction="",
+        hp=60,
+        weapons=("wyrm_breath",),     # armor_bypass — the
+        melee_weapons=("monster_claws",),  # soak-breaker: dodge
+        stat_weights=six_weights(0.40, 0.10, 0.35),  # answers what
+        behavior="hunter",            # soak can't
+        squad_size=(1, 1),
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=4,
+        loot_pool=("research_data", "rare_earth_metals"),
+        equipment_loot_pool=(
+            ("armor", "visor_helmet"),
+            ("weapon", "plasma_pistol"),
+        ),
+        field_item_loot_pool=(
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=120,
+    ),
+    NpcCharSpec(
+        id="caldera_tyrant",
+        name="Caldera Tyrant",
+        char="T",
+        fg=(255, 120, 60),        # caldera fire-orange
+        faction="",
+        hp=55,
+        weapons=("siege_bolt",),      # long heavy — the bombardier
+        melee_weapons=("monster_claws",),  # holds at range, weak
+        stat_weights=six_weights(0.45, 0.05, 0.35),  # melee; close
+        behavior="guard",             # inside its band
+        squad_size=(1, 1),
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=3,
+        loot_pool=("rare_earth_metals", "machine_parts"),
+        equipment_loot_pool=(
+            ("weapon", "battle_rifle"),
+            ("armor", "heavy_vest"),
+        ),
+        field_item_loot_pool=(
+            ("consumable", "stim"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=110,
+    ),
+    NpcCharSpec(
+        id="canopy_maw",
+        name="Canopy Maw",
+        char="A",
+        fg=(90, 180, 80),         # canopy deep green
+        faction="",
+        hp=70,
+        weapons=("behemoth_maul",),   # knockback 2 — the ambush
+        stat_weights=six_weights(0.15, 0.40, 0.30),  # apex: waits
+        behavior="ambusher",      # beside the cache, bursts out —
+        squad_size=(1, 1),        # approach the legendary from range
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=3,
+        loot_pool=("food_rations", "medical_supplies"),
+        equipment_loot_pool=(
+            ("weapon", "vibroblade"),
+            ("armor", "cybernetic_eyes"),
+        ),
+        field_item_loot_pool=(
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=120,
+    ),
+    NpcCharSpec(
+        id="scrap_colossus",
+        name="Scrap Colossus",
+        char="Z",
+        fg=(210, 190, 150),       # weathered steel
+        faction="",
+        hp=75,                        # the highest HP — the
+        weapons=("rust_spines",),     # immovable object: both
+        melee_weapons=("behemoth_maul",),  # weapon sets, no weak
+        stat_weights=six_weights(0.10, 0.35, 0.40),  # band; you pay
+        behavior="guard",             # at the range you choose
+        squad_size=(1, 1),
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=4,
+        loot_pool=("machine_parts", "ship_components"),
+        equipment_loot_pool=(
+            ("armor", "heavy_vest"),
+            ("weapon", "battle_rifle"),
+        ),
+        field_item_loot_pool=(
+            ("ammo", "energy_cells"),
+            ("consumable", "med_pack"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=130,
+        ap=2,
+    ),
+    NpcCharSpec(
+        id="mesa_mauler",
+        name="Mesa Mauler",
+        char="U",
+        fg=(225, 150, 90),        # mesa ochre
+        faction="",
+        hp=60,
+        weapons=("monster_claws",),
+        stat_weights=six_weights(0.40, 0.20, 0.25),
+        behavior="hunter",        # THE PACK APEX (SETTLED 48): roams
+        squad_size=(1, 1),        # the bottom with its viper pack —
+        pack_pool=("canyon_viper",),   # thin the pack, then duel
+        pack_size=(2, 4),              # the mauler
+        always_hostile=True,
+        elite=True,
+        tier=3,
+        armor=3,
+        loot_pool=("scrap_metal", "food_rations"),
+        equipment_loot_pool=(
+            ("weapon", "plasma_pistol"),
+            ("armor", "visor_helmet"),
+        ),
+        field_item_loot_pool=(
+            ("consumable", "stim"),
+        ),
+        loot_count=(2, 3),
+        xp_reward=120,
+        ap=5,
+    ),
 )

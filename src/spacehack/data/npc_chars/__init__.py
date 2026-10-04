@@ -181,6 +181,13 @@ class NpcCharSpec:
             close, ``"guard"`` holds a position without roaming.
         squad_size: (min, max) squad members when procedurally
             spawned (dungeon population / layout ENEMY scatter).
+        pack_pool: the PACK APEX's hunting-pack member ids (doc 48
+            SETTLED 48) — one species picked per spawn, the pack
+            spawned as ONE squad with its apex under a shared
+            squad_id (the existing unit mechanics; zero new AI).
+            Empty = solo (every other row unchanged).
+        pack_size: (min, max) hunting-pack members rolled at spawn
+            when ``pack_pool`` is authored.
         tier: drop tier — equipment drops filter to ``tech_level <= tier``.
         armor: flat damage reduction subtracted from player hits
             (plasma halves it).
@@ -215,6 +222,8 @@ class NpcCharSpec:
     always_hostile: bool = False
     behavior: str = "hunter"
     squad_size: tuple[int, int] = (1, 1)
+    pack_pool: tuple[str, ...] = ()
+    pack_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
     fixed_band: int = 0

@@ -325,11 +325,16 @@ def test_flagship_specs_carry_elite():
 def test_ground_elite_specs_carry_elite():
     # SETTLED 34/35: the brute and the sniper are the named wearers;
     # doc 48 SETTLED 45 adds the Warden (bold W — the ancient
-    # family's unique callout: emphasis, not disambiguation).
+    # family's unique callout: emphasis, not disambiguation); doc 48
+    # phase 10 adds the six biome apexes (bold = the apex callout).
     elite = {
         spec.id for spec in list_npc_chars() if spec.elite
     }
-    assert elite == {"pirate_brute", "militia_sniper", "warden"}
+    assert elite == {
+        "pirate_brute", "militia_sniper", "warden",
+        "dune_behemoth", "glacier_wyrm", "caldera_tyrant",
+        "canopy_maw", "scrap_colossus", "mesa_mauler",
+    }
 
 
 def _ground_entity(spec_id: str) -> world.Entity:
@@ -352,7 +357,9 @@ def _ground_entity(spec_id: str) -> world.Entity:
 def test_elite_ground_entity_renders_bold_command():
     from src.spacehack.data.npc_chars import find_npc_char
 
-    for spec_id in ("pirate_brute", "militia_sniper", "warden"):
+    for spec_id in (
+        "pirate_brute", "militia_sniper", "warden", "mesa_mauler",
+    ):
         commands = _entity_commands(_ground_entity(spec_id))
         glyph = find_npc_char(spec_id).char
         entity_commands = [c for c in commands if c.char == glyph]

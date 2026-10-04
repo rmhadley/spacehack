@@ -135,6 +135,78 @@ def _squad_cells(
     return cells
 
 
+def _door_room_cells(
+    game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40,
+) -> list[world.Position]:
+    """BFS through walkable cells from the door — the door's room.
+
+    Walls and doors stop expansion; cells are returned nearest-first,
+    so the first entries surround the door itself. Hoisted from
+    main_quest/_delve (doc 48 phase 10) — the digs' bottom-floor apex
+    shares the adjacency machinery.
+    """
+    queue: deque[tuple[int, int]] = deque([(door_pos.x, door_pos.y)])
+    seen: set[tuple[int, int]] = {(door_pos.x, door_pos.y)}
+    cells: list[world.Position] = []
+    while queue and len(cells) < cap:
+        x, y = queue.popleft()
+        cells.append(world.Position(x, y))
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if not (0 <= nx < game_map.width and 0 <= ny < game_map.height):
+                continue
+            if (nx, ny) in seen:
+                continue
+            tile = game_map.tiles[ny][nx]
+            if not tile.walkable or tile.kind in ("dungeon_door", "breach"):
+                continue
+            seen.add((nx, ny))
+            queue.append((nx, ny))
+    return cells
+
+
+def _spawn_squad_near(
+    game_map: world.GameMap,
+    near_pos: world.Position,
+    *,
+    enemy_id: str,
+    count: int,
+    label: str = "",
+    room_cap: int = 40,
+    band: int = 0,
+    squad_id: str = "",
+) -> int:
+    """Scatter ``count`` copies of ``enemy_id`` nearest-first around
+    ``near_pos`` — a BFS room (``room_cap`` cells, occupied excluded,
+    walls/doors stop expansion), all members sharing one ``squad_id``
+    so the group joins a single ground-combat encounter. Pass the same
+    ``squad_id`` to two calls to compose an apex with its hunting pack
+    as ONE squad (doc 48 SETTLED 48); empty generates one from
+    ``label``. Spawns on the given map — cached interiors keep the
+    squad. Returns placed.
+    """
+    from .data.npc_chars import find_npc_char
+    from .engine import RNG
+
+    try:
+        spec = find_npc_char(enemy_id)
+    except KeyError:
+        return 0
+    room = _door_room_cells(game_map, near_pos, cap=room_cap)
+    if not room:
+        return 0
+    occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
+    if not squad_id:
+        squad_id = f"{label}_{RNG.randint(10000, 99999)}"
+    return _scatter_squad(
+        game_map.entities,
+        occupied,
+        enemy_id=enemy_id,
+        cells=[(cell.x, cell.y) for cell in room],
+        count=count, squad_id=squad_id,
+        char=spec.char, fg=spec.fg, band=band, bold=spec.elite,
+    )
+
+
 def _place_population_anchor(
     game_map: world.GameMap,
     params: DungeonParams,

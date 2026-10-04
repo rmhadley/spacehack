@@ -536,6 +536,11 @@ def test_humanoid_rows_author_melee_sets():
         "merchant": ("melee_weapons", ("combat_knife",)),
         "warden": ("melee_weapons", ("ancient_slam",)),
         "spore_spitter": ("melee_weapons", ("monster_claws",)),
+        # doc 48 phase 10 apexes: the wyrm/tyrant melee sets (weak
+        # claws), the colossus's both-sets identity (spines + maul)
+        "glacier_wyrm": ("melee_weapons", ("monster_claws",)),
+        "caldera_tyrant": ("melee_weapons", ("monster_claws",)),
+        "scrap_colossus": ("melee_weapons", ("behemoth_maul",)),
     }
     for spec in list_npc_chars():
         if spec.id in expected:

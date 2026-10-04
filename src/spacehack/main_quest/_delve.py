@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from collections import Counter, deque
 
-from .. import dungeon
 from .. import landmark
 from .. import world
+from ..dungeon_population import _spawn_squad_near
 from ..loot_common import loot_fg
 from ..data.main_quest import find_main_quest_step
 from ._core import _active_objective_step
@@ -45,71 +45,6 @@ def _farthest_walkable(game_map: world.GameMap, spawn: world.Position) -> world.
                 _queue.append((_nx, _ny))
     return world.Position(_far[0], _far[1])
 
-def _door_room_cells(game_map: world.GameMap, door_pos: world.Position, *, cap: int = 40) -> list[world.Position]:
-    """BFS through walkable cells from the door — the door's room.
-
-    Walls and doors stop expansion; cells are returned nearest-first,
-    so the first entries surround the door itself.
-    """
-    _queue: deque[tuple[int, int]] = deque([(door_pos.x, door_pos.y)])
-    _seen: set[tuple[int, int]] = {(door_pos.x, door_pos.y)}
-    _cells: list[world.Position] = []
-    while _queue and len(_cells) < cap:
-        _x, _y = _queue.popleft()
-        _cells.append(world.Position(_x, _y))
-        for _nx, _ny in ((_x + 1, _y), (_x - 1, _y), (_x, _y + 1), (_x, _y - 1)):
-            if not (0 <= _nx < game_map.width and 0 <= _ny < game_map.height):
-                continue
-            if (_nx, _ny) in _seen:
-                continue
-            _tile = game_map.tiles[_ny][_nx]
-            if not _tile.walkable or _tile.kind in ("dungeon_door", "breach"):
-                continue
-            _seen.add((_nx, _ny))
-            _queue.append((_nx, _ny))
-    return _cells
-
-
-
-
-def _spawn_squad_near(
-    game_map: world.GameMap,
-    near_pos: world.Position,
-    *,
-    enemy_id: str,
-    count: int,
-    label: str,
-    room_cap: int = 40,
-    band: int = 0,
-) -> int:
-    """Scatter ``count`` copies of ``enemy_id`` in the room around ``near_pos``.
-
-    Shared by the Mars door ambush and the quest-cache guardians: a
-    nearest-first BFS from ``near_pos`` (``room_cap`` cells), occupied
-    cells excluded, all members sharing one ``squad_id`` so the group
-    joins a single ground-combat encounter. Spawns on the given map —
-    cached interiors keep the squad across save/load and re-entry.
-    Returns how many were placed.
-    """
-    from ..data.npc_chars import find_npc_char as _fnc
-    try:
-        _spec = _fnc(enemy_id)
-    except KeyError:
-        return 0
-    _room = _door_room_cells(game_map, near_pos, cap=room_cap)
-    if not _room:
-        return 0
-    from ..engine import RNG as _RNG
-    _occupied = {(e.pos.x, e.pos.y) for e in game_map.entities}
-    _squad_id = f"{label}_{_RNG.randint(10000, 99999)}"
-    return dungeon._scatter_squad(
-        game_map.entities,
-        _occupied,
-        enemy_id=enemy_id,
-        cells=[(_cell.x, _cell.y) for _cell in _room],
-        count=count, squad_id=_squad_id,
-        char=_spec.char, fg=_spec.fg, band=band, bold=_spec.elite,
-    )
 
 def _spawn_cache_guardian(
     game_map: world.GameMap,

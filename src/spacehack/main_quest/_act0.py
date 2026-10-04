@@ -18,7 +18,8 @@ from ..engine import (
 )
 from ..text import get as t_get
 from ..data.main_quest import find_main_quest_step, main_quest_step_after
-from ._delve import _spawn_cache_guardian, _spawn_squad_near
+from ..dungeon_population import _spawn_squad_near
+from ._delve import _spawn_cache_guardian
 from ._scenes import play_scene
 from ._core import (
     STATUS_ACTIVE,

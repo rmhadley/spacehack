@@ -1228,3 +1228,218 @@ def test_save_load_backfills_visited_from_floor_cache_keys():
     saveload._restore_dig_fields(ctx, data)
     assert ctx.discovered_sites[0].get("visited") is True
     assert "visited" not in ctx.discovered_sites[1]
+
+
+# --- the delve-bottom apex (doc 48 phase 10, SETTLED 47/48) -------------------
+
+
+def _dig_world_on(monkeypatch, planet_id, depth):
+    """The _dig_world pattern, parameterized by planet (the apex reads
+    the real spec's biome/borrow row)."""
+    spec = find_planet_spec(planet_id)
+    monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: depth)
+    monkeypatch.setattr(digs, "find_planet_spec", lambda pid: spec)
+    ctx, _ = _ctx(monkeypatch)
+    ctx.interiors = {}
+    ctx.dungeon_extension = None
+    site = run(digs.reveal_site(ctx))
+    return ctx, site
+
+
+def _apex_entities(game_map):
+    """The floor's bottom-guard apexes — bold alone is NOT the test (a
+    band-4 default pool legitimately spawns bold brutes); key on the
+    BIOME_APEX ids."""
+    from src.spacehack.data.digs import BIOME_APEX
+
+    apex_ids = set(BIOME_APEX.values())
+    return [
+        e for e in game_map.entities
+        if getattr(e, "npc_char_id", "") in apex_ids
+    ]
+
+
+def _legendary_pos(game_map):
+    for entity in game_map.entities:
+        payload = entity.loot_data or {}
+        if payload.get("item_type") == "module" and payload.get("quality") == 4:
+            return entity.pos
+    return None
+
+
+def test_apex_tables_resolve():
+    """BIOME_APEX names a live apex per biome; every borrow key is a
+    real planet and every borrow/default value is a biome that HAS an
+    apex (the resolution chain can never KeyError on real data)."""
+    from src.spacehack.data import npc_chars
+    from src.spacehack.data.digs import (
+        APEX_BORROW, BIOME_APEX, DEFAULT_APEX_BIOME,
+    )
+    registry = npc_chars._registry()
+    planets = {spec.id for spec in list_planet_specs()}
+    for biome, apex_id in BIOME_APEX.items():
+        assert apex_id in registry, f"{biome} names unknown apex {apex_id}"
+    for planet_id, biome in APEX_BORROW.items():
+        assert planet_id in planets, f"borrow names unknown planet {planet_id}"
+        assert biome in BIOME_APEX, (planet_id, biome)
+    assert DEFAULT_APEX_BIOME in BIOME_APEX
+    declared = {spec.biome for spec in list_planet_specs() if spec.biome}
+    assert declared <= set(BIOME_APEX), (
+        f"declared biomes without an apex row: {declared - set(BIOME_APEX)}"
+    )
+    assert set(BIOME_APEX) == {"desert", "ice", "lush", "volcanic",
+                               "scrap_ring", "canyon"}
+
+
+def test_bottom_floor_spawns_its_biome_apex(monkeypatch):
+    """Earth (lush) bottoms meet the Canopy Maw: one bold apex, the
+    only elite entity on the floor (SETTLED 47)."""
+    ctx, site = _dig_world_on(monkeypatch, "earth", depth=2)
+    _f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    assert _apex_entities(_f1) == []
+    f2, _ = digs.get_or_generate_floor(ctx, site, 2)
+    apex = _apex_entities(f2)
+    assert len(apex) == 1
+    assert apex[0].npc_char_id == "canopy_maw"
+    assert apex[0].bold is True
+
+
+def test_apex_band_stamp_is_the_floor_dig_tier(monkeypatch):
+    """The guardian scales with its delve (SETTLED 47): the apex stamps
+    at _dig_tier of ITS floor (the bottom) — a T1 earth bottom (floor
+    3 of 3) reads band 3; a T2 site's bottom climbs to band 4."""
+    for tier, expected_band in ((1, 3), (2, 4)):
+        spec = dataclasses.replace(
+            find_planet_spec("earth"), mission_tier=tier,
+        )
+        monkeypatch.setattr(digs, "list_planet_specs", lambda: [spec])
+        monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 3)
+        monkeypatch.setattr(digs, "find_planet_spec", lambda pid: spec)
+        ctx, _ = _ctx(monkeypatch)
+        ctx.interiors = {}
+        ctx.dungeon_extension = None
+        site = run(digs.reveal_site(ctx))
+        f3, _ = digs.get_or_generate_floor(ctx, site, 3)
+        assert _apex_entities(f3)[0].spawn_band == expected_band, tier
+
+
+def test_default_biome_bottom_borrows_its_apex(monkeypatch):
+    """Unlisted biomes BORROW the nearest biome's apex (SETTLED 47
+    amendment): mars -> Dune Behemoth (desert), wolf_b -> Glacier Wyrm
+    (ice), venus -> Canopy Maw (lush); an unlisted-everything planet
+    (groom_b) rides the desert fallback. No unguarded legendaries."""
+    for planet_id, apex_id in (
+        ("mars", "dune_behemoth"),
+        ("wolf_b", "glacier_wyrm"),
+        ("venus", "canopy_maw"),
+        ("groom_b", "dune_behemoth"),
+    ):
+        ctx, site = _dig_world_on(monkeypatch, planet_id, depth=1)
+        f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+        apex = _apex_entities(f1)
+        assert len(apex) == 1 and apex[0].npc_char_id == apex_id, planet_id
+
+
+def test_pack_apex_spawns_its_hunting_pack_as_one_squad(monkeypatch):
+    """SETTLED 48: the canyon bottom is the PACK read — the Mesa Mauler
+    roams with 2-4 Canyon Vipers under ONE squad_id (the unit
+    mechanics), the mauler the ONLY bold glyph."""
+    ctx, site = _dig_world_on(monkeypatch, "eri_b", depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    mauler = [e for e in f1.entities if e.npc_char_id == "mesa_mauler"]
+    vipers = [e for e in f1.entities if e.npc_char_id == "canyon_viper"]
+    assert len(mauler) == 1 and mauler[0].bold is True
+    assert 2 <= len(vipers) <= 4
+    assert not any(e.bold for e in vipers)
+    squad_ids = {e.squad_id for e in mauler + vipers}
+    assert len(squad_ids) == 1
+
+
+def test_the_five_solo_apexes_spawn_alone(monkeypatch):
+    """Every apex but the mauler is a DATA-ONLY solo row: exactly one
+    elite entity, no pack, its squad holds one member."""
+    for planet_id, apex_id in (
+        ("earth", "canopy_maw"),
+        ("mercury", "dune_behemoth"),
+        ("proc_planet_2", "glacier_wyrm"),
+        ("ross_b", "caldera_tyrant"),
+        ("ross_c", "scrap_colossus"),
+    ):
+        ctx, site = _dig_world_on(monkeypatch, planet_id, depth=1)
+        f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+        apex = _apex_entities(f1)
+        assert len(apex) == 1 and apex[0].npc_char_id == apex_id, planet_id
+        squad = [
+            e for e in f1.entities if e.squad_id == apex[0].squad_id
+        ]
+        assert len(squad) == 1, planet_id
+
+
+def test_apex_spawns_beside_the_legendary_cache(monkeypatch):
+    """The adjacency pin: the apex holds the room around the cache
+    (the BFS room_cap 10 nearest-first), never ON it."""
+    ctx, site = _dig_world_on(monkeypatch, "earth", depth=1)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)
+    cache_pos = _legendary_pos(f1)
+    apex = _apex_entities(f1)[0]
+    distance = max(
+        abs(apex.pos.x - cache_pos.x), abs(apex.pos.y - cache_pos.y),
+    )
+    assert 1 <= distance <= 9
+
+
+def test_no_apex_off_the_bottom_or_without_a_legendary(monkeypatch):
+    """The edge law: no cache cell or legendary_bottom=False -> no
+    apex, no crash, and the hook is never even called (zero draws)."""
+    from src.spacehack.data import digs as digs_data
+
+    def _boom(*_args, **_kwargs):
+        raise AssertionError("the apex hook must not run")
+
+    monkeypatch.setattr(digs, "_place_bottom_apex", _boom)
+    ctx, site = _dig_world_on(monkeypatch, "earth", depth=2)
+    f1, _ = digs.get_or_generate_floor(ctx, site, 1)   # not the bottom
+    assert _legendary_pos(f1) is None
+    custom = dataclasses.replace(DIG_LOOT_SPEC, legendary_bottom=False)
+    monkeypatch.setattr(digs_data, "DIG_LOOT_SPEC", custom)
+    ctx2, site2 = _dig_world_on(monkeypatch, "earth", depth=1)
+    f2, _ = digs.get_or_generate_floor(ctx2, site2, 1)
+    assert _legendary_pos(f2) is None and _apex_entities(f2) == []
+    # A full map at legendary time (pos None) spawns nothing, no crash.
+    monkeypatch.undo()
+    monkeypatch.setattr(digs, "list_planet_specs", lambda: [find_planet_spec("earth")])
+    monkeypatch.setattr(digs, "site_depth", lambda spec, sid: 1)
+    monkeypatch.setattr(digs, "find_planet_spec", lambda pid: find_planet_spec("earth"))
+    monkeypatch.setattr(digs, "_place_legendary_cache", lambda gm, band: None)
+    ctx3, site3 = _ctx(monkeypatch)
+    ctx3.interiors = {}
+    ctx3.dungeon_extension = None
+    site3 = run(digs.reveal_site(ctx3))
+    f3, _ = digs.get_or_generate_floor(ctx3, site3, 1)
+    assert _apex_entities(f3) == []
+
+
+def test_spawn_squad_near_composes_one_squad_id():
+    """The hoisted helper's pack seam (SETTLED 48): two calls sharing
+    a squad_id compose ONE squad; an auto id fires when empty; an
+    unknown id places nothing, no crash."""
+    from src.spacehack.dungeon_population import _spawn_squad_near
+
+    gm = _floor_map()
+    gm.entities.append(world.Entity(
+        char="@", fg=(255, 255, 255), pos=world.Position(0, 0), name="P",
+    ))
+    shared = "apex_pack_1"
+    assert _spawn_squad_near(
+        gm, world.Position(4, 4), enemy_id="mesa_mauler", count=1,
+        squad_id=shared, room_cap=6,
+    ) == 1
+    assert _spawn_squad_near(
+        gm, world.Position(4, 4), enemy_id="canyon_viper", count=3,
+        squad_id=shared, room_cap=6,
+    ) == 3
+    assert {e.squad_id for e in gm.entities if e.squad_id} == {shared}
+    assert _spawn_squad_near(
+        gm, world.Position(4, 4), enemy_id="no_such_id", count=1,
+    ) == 0

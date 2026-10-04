@@ -171,6 +171,28 @@ DOOR_RATES: dict[str, int] = {
     "terminal": 6,
 }
 
+# The delve-bottom apex (doc 48 SETTLED 47-as-amended/48): every dig's
+# deepest floor spawns its biome's apex beside the legendary cache,
+# band-stamped at that floor's dig tier — EVERY means every: default
+# biomes BORROW the nearest biome's apex through APEX_BORROW (opening
+# guesses, tunable), everything unlisted falls back to the default
+# biome. No unguarded legendaries anywhere.
+BIOME_APEX: dict[str, str] = {
+    "desert": "dune_behemoth",
+    "ice": "glacier_wyrm",
+    "lush": "canopy_maw",
+    "volcanic": "caldera_tyrant",
+    "scrap_ring": "scrap_colossus",
+    "canyon": "mesa_mauler",
+}
+APEX_BORROW: dict[str, str] = {
+    "wolf_b": "ice", "lal_c": "ice",
+    "mars": "desert",
+    "venus": "lush", "vega_b": "lush", "ac_planet_3": "lush",
+    "indi_b": "lush",
+}
+DEFAULT_APEX_BIOME: str = "desert"
+
 # Door 1's droppers (SETTLED 27): humanoid combatant NpcCharSpec ids.
 # civilian_bystander is deliberately absent — bystanders are not a
 # loot source.
