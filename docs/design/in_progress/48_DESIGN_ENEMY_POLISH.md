@@ -2170,8 +2170,9 @@ with doctrinal 10-13):
   delve-bottom legendaries (SETTLED 30 + 47: per-biome fully
   authored pools with TIER_POOLS as the default, earth=lush,
   every bottom guarded — default biomes borrow the nearest apex,
-  2 faces + 1 apex per biome). Brief below (PROPOSED v2 —
-  reviewer-folded, awaiting approval). At its close: the
+  2 faces + 1 apex per biome, every row a distinct cell incl. the
+  pack apex). Brief below (PROPOSED v3 — reviewer-folded +
+  SETTLED 48 census folded, awaiting approval). At its close: the
   extensibility audit (acceptance criterion — adding an enemy is a
   data edit) against the whole campaign.
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
@@ -3691,6 +3692,40 @@ mechanic, it comes back as a proposal. Authored per-planet surface
 (SETTLED 14 law). Names + weapons + per-band compositions land in
 the brief under the prose gate.
 
+## SETTLED 48 (2026-10-04) — the pack apex: the Mesa Mauler hunts with a viper pack
+
+User, verbatim:
+
+> I woant one of the apexes to have a swarm. a hunting pack.
+> apex + fauna.
+
+Rulings:
+
+- **ONE apex is a PACK apex** — the apex spawns WITH its biome's
+  fauna as a hunting pack, ONE squad (SETTLED 37's
+  squads-move-and-follow-noise-as-a-unit IS the pack behavior; zero
+  new AI). Assigned: the **Mesa Mauler** (canyon — the roaming
+  hunter apex) + 2-4 **Canyon Vipers**.
+- **Authoring shape**: two new `NpcCharSpec` fields —
+  `pack_pool: tuple[str, ...] = ()` + `pack_size: tuple[int, int]`
+  — empty = solo (every other row unchanged); consumed at the ONE
+  spawn site (the hoisted `_spawn_squad_near` composes apex + pack
+  under one squad_id). Data-only: the pack is part of the ROW, so a
+  future pack apex is a data edit (extensibility criterion holds).
+- **Identity law intact**: the apex stays the ONE bold glyph; the
+  pack renders as ordinary fauna. Counter shape: thin the pack,
+  then duel the mauler.
+- **The per-row census folds with this ruling** (the doctrine
+  answer to "14 copy-paste rows" — every row a distinct
+  behavior×attack cell, all existing fields): fauna cells = AP-6
+  closer pack / guard-artillery nest / armored swarm / close-range
+  brawler-caster / fast armored skirmisher / RANGED swarm / armored
+  ambusher / dodge skirmisher; apex identities = anchor+knockback /
+  soak-breaker / bombardier / ambush-at-the-cache / immovable
+  switcher / roaming PACK. knockback and armor_bypass ride the
+  EXISTING weapon fields (the Warden slam's precedent) — the
+  data-only ruling stands.
+
 ## Pre-implementation audit — phase 10 (2026-10-04)
 
 1. **Existing modules to extend or reuse:**
@@ -3739,12 +3774,14 @@ the brief under the prose gate.
    - The row census is DATA — copy-shaped rows are the catalog's own
      idiom (frozen dataclass tuples); no factory extraction.
 
-### Phase 10 Implementation brief (PROPOSED v2 2026-10-04 — SETTLED
-### 30/47-as-amended; reviewer ADVISE pass folded first: 8 issues /
-### 2 blocking — the apex-scope contradiction ruled by the user
-### (BORROW the nearest biome's apex), the adjacency mechanism
-### re-based on the hoisted `_spawn_squad_near`; names + pools below
-### are prose-gated drafts landing only as approved)
+### Phase 10 Implementation brief (PROPOSED v3 2026-10-04 — SETTLED
+### 30/47-as-amended + 48; reviewer ADVISE pass folded at v2: 8
+### issues / 2 blocking — the apex-scope contradiction ruled by the
+### user (BORROW the nearest biome's apex), the adjacency mechanism
+### re-based on the hoisted `_spawn_squad_near`; v3 folds the
+### SETTLED 48 census (every row a distinct cell — the pack apex)
+### + names + pools below are prose-gated drafts landing only as
+### approved)
 
 **Scope (files / hook points):**
 
@@ -3773,39 +3810,71 @@ the brief under the prose gate.
   the stat band via `_dig_tier`.
 - **The organic weapons** (`data/ground_weapons/monsters.py`): new
   enemy-only rows (all `shop_available=False`,
-  `loot_droppable=False`): **spore_burst**, **magma_bolt**,
-  **rust_spines** (frost_bolt-shaped ranged), **venom_fangs**
-  (fast weak melee), **behemoth_maul** (the shared apex heavy
-  melee — big dice, 2 AP, loud). Names are drafts under the prose
-  gate.
+  `loot_droppable=False`), shaped per the census cells — fauna:
+  **spore_burst** (long light ranged — the artillery nest),
+  **magma_bolt** (short heavy, 2 AP — the brawler-caster),
+  **rust_spines** (short swarm sting), **venom_fangs** (fast weak
+  multi-bite — the viper's dodge weapon; hounds keep claws); apex:
+  **behemoth_maul** (heavy melee carrying the EXISTING `knockback`
+  field, authored 2 — Dune Behemoth, Canopy Maw, Scrap Colossus),
+  **wyrm_breath** (ranged carrying the EXISTING `armor_bypass`
+  field — the soak-breaker), **siege_bolt** (long heavy ranged —
+  the bombardier; the Colossus reuses spines + maul). Names are
+  drafts under the prose gate.
 - **The fauna rows** (`data/npc_chars/monsters.py`): 8 new rows, 2
-  per new biome, each a distinct behavior×attack cell —
-  **Vine Hound** (hunter, fast melee, pairs) / **Spore Spitter**
-  (hunter, ranged harasser, 2-3) for LUSH; **Ember Crawler**
-  (hunter swarm 3-5, melee) / **Magma Spitter** (ranged, 2-3) for
-  VOLCANIC; **Scrap Hound** (hunter, fast melee, armor-1 metal
-  hide) / **Rust Wasp** (swarm 3-5 RANGED — the new cell, ap 6) for
-  SCRAP_RING; **Crag Lurker** (ambusher, armor-2 rock hide) /
-  **Canyon Viper** (hunter, ap-6 reflexes melee) for CANYON. All
-  `always_hostile`, `faction=""`, fixed organic `weapons=` (never
-  `weapon_families` — SETTLED 35 law), species glyphs in biome
-  palettes, NOT identity families (no `CHAR_CLASS_FAMILIES`
-  entries). Numbers lean on the existing rows (hp 12-26, tier 1-3,
-  existing goods ids only in loot pools).
+  per new biome — every row a DISTINCT behavior×attack cell
+  (SETTLED 48 census; the anti-copy-paste doctrine: matrix cells,
+  never stat walls), all via existing fields:
+  **Vine Hound** (LUSH — AP-6 closer pack: weak fast multi-bite
+  volley, pairs; pressure you can't out-walk) / **Spore Spitter**
+  (LUSH — guard-artillery NEST: holds its patch, longest organic
+  range, min_range 2, authored sting melee set so rushing it
+  triggers the cornered-switch — the first two-set FAUNA, riding
+  the SETTLED 43 loadout path); **Ember Crawler** (VOLCANIC —
+  ARMORED swarm: armor 2 on volume 4-6, plasma/AoE bait, kinetic
+  starves) / **Magma Spitter** (VOLCANIC — close-range
+  brawler-caster: max range 4, heavy hits, 2 AP — the inverse of
+  frost's long kite); **Scrap Hound** (SCRAP — fast ARMORED
+  skirmisher, armor 1-2, ap 6, pairs; out-races you, pin and
+  trade) / **Rust Wasp** (SCRAP — RANGED swarm: 3-5 stingers at
+  short range, ap 6 — the new cell, volume of incoming fire);
+  **Crag Lurker** (CANYON — ARMORED ambusher: armor 3 burst-out,
+  the surprise wall) / **Canyon Viper** (CANYON — DODGE skirmisher:
+  max-reflex weights, ap 6, low HP, solo/pair; the can't-hit-it
+  problem with melee/accurate/AoE answers). All `always_hostile`,
+  `faction=""`, fixed organic `weapons=` (never `weapon_families` —
+  SETTLED 35 law; the spitter's sting set via `melee_weapons`),
+  species glyphs in biome palettes, NOT identity families. Numbers
+  lean on the existing rows (hp 12-26, tier 1-3, existing goods ids
+  only in loot pools).
 - **The apexes** (`data/npc_chars/monsters.py`, 6 rows): one per
-  biome incl. DESERT/ICE — **Dune Behemoth**, **Glacier Wyrm**,
-  **Caldera Tyrant**, **Canopy Maw**, **Scrap Colossus**, **Mesa
-  Mauler** (drafts, prose gate). DATA-ONLY rows (SETTLED 47): FLAT
-  bases — hp lean 55-75, armor 3-4, ap 3-4 — the band stamp does
-  the scaling (reviewer issue 8: base + `stamina//3` at band is
-  effective HP; heavy bases would wall T1 bottoms against
+  biome incl. DESERT/ICE — each guards DIFFERENTLY (SETTLED 48
+  census; drafts, prose gate): **Dune Behemoth** (DESERT — the
+  ANCHOR: guard, armor 5, knockback maul — the Warden slam's field
+  reused on an organic weapon); **Glacier Wyrm** (ICE — the
+  SOAK-BREAKER: armor_bypass breath + maul set; dodge answers what
+  soak can't); **Caldera Tyrant** (VOLCANIC — the BOMBARDIER: long
+  heavy siege bolts, holds at range, weak melee; close inside its
+  band); **Canopy Maw** (LUSH — the AMBUSH apex: waits beside the
+  cache, bursts out on approach; approach the legendary from
+  range); **Scrap Colossus** (SCRAP — the IMMOVABLE OBJECT: highest
+  HP, ap 2, both weapon sets — armor-piercing spines + knockback
+  maul; no weak band, you pay at the range you choose); **Mesa
+  Mauler** (CANYON — THE PACK APEX, SETTLED 48: hunter, roams the
+  bottom with a hunting pack of 2-4 Canyon Vipers spawned as ONE
+  squad; thin the pack, then duel the mauler — the heist math
+  changes: bait the pack, not one body). DATA-ONLY rows (SETTLED
+  47/48): FLAT bases — hp lean 55-75, armor 3-4, ap 2-5 — the band
+  stamp does the scaling (reviewer issue 8: base + `stamina//3` at
+  band is effective HP; heavy bases would wall T1 bottoms against
   playtest item 5); `elite=True` (bold), `squad_size (1,1)`,
-  `behavior="guard"`, heavy organic weapons (behemoth_maul + the
-  biome bolt where it reads), band-stamped (`fixed_band=0`) — NO
-  new mechanic machinery (the ancient dials stay ancient).
-  Authoring law: apex `tier` must be >= the tech_level of every
-  entry in its `equipment_loot_pool` (drops filter by tier) or the
-  kill pays nothing. Big `xp_reward` + authored
+  pack via the new `pack_pool`/`pack_size` fields (Mesa Mauler
+  authors vipers; empty = solo on every other row), band-stamped
+  (`fixed_band=0`) — NO new mechanic machinery; knockback and
+  armor_bypass ride the EXISTING weapon fields. Authoring law: apex
+  `tier` must be >= the tech_level of every entry in its
+  `equipment_loot_pool` (drops filter by tier) or the kill pays
+  nothing. Big `xp_reward` + authored
   equipment_loot_pool/field_item_loot_pool so the kill reads.
 - **The bottom-floor guard** (`digs.py` + `dungeon_population.py`):
   `_place_legendary_cache` exposes its chosen cell (returns the
@@ -3879,16 +3948,20 @@ issue 5).
 3. The fauna: 8 rows + the pair-uniqueness/tile-overlap lint +
    fauna-law census test (always_hostile, faction="", fixed
    weapons) + the elite-census extension.
-4. The apexes: 6 rows + `APEX_BORROW`/`DEFAULT_APEX_BIOME` + the
-   `_spawn_squad_near` hoist (act-0 call site re-imported) +
-   `_place_bottom_apex` + spawn tests: bottom-only; band stamp =
-   `_dig_tier`; apex resolves by biome → borrow → fallback (a mars
-   bottom meets the Dune Behemoth, a wolf_b bottom the Glacier
-   Wyrm); adjacency pins the near-cache cell; edges (no cache
-   cell, `legendary_bottom=False`, empty room) spawn nothing and
-   crash nowhere; non-bottom floors of every planet byte-identical
-   pre/post (the hook consumes zero RNG draws when skipped — a
-   generation-level pin, not just pool resolution).
+4. The apexes: 6 rows + the `pack_pool`/`pack_size` fields +
+   `APEX_BORROW`/`DEFAULT_APEX_BIOME` + the `_spawn_squad_near`
+   hoist (act-0 call site re-imported) + `_place_bottom_apex` +
+   spawn tests: bottom-only; band stamp = `_dig_tier`; apex
+   resolves by biome → borrow → fallback (a mars bottom meets the
+   Dune Behemoth, a wolf_b bottom the Glacier Wyrm); adjacency
+   pins the near-cache cell; PACK composition (SETTLED 48 — a
+   canyon bottom = mauler + 2-4 vipers under ONE squad_id, the
+   mauler the only bold glyph; the other five apexes spawn solo);
+   edges (no cache cell, `legendary_bottom=False`, empty room)
+   spawn nothing and crash nowhere; non-bottom floors of every
+   planet byte-identical pre/post (the hook consumes zero RNG
+   draws when skipped — a generation-level pin, not just pool
+   resolution).
 5. The four new biome pool tables (LUSH/VOLCANIC/SCRAP_RING/CANYON)
    + the two-save battery re-run (standard rows bit-identical —
    zero drift on existing geometry) + a save/load round-trip row
@@ -3929,7 +4002,10 @@ added).
    prepared player; the legendary is guarded — the risk beat reads.
 3. One dig each on ross_b (volcanic), ross_c (scrap), epsilon
    (canyon): each biome's faces + apex read native; scrap feels
-   machine-heavy (wasp swarms sting from range).
+   machine-heavy (wasp swarms sting from range); the canyon bottom
+   is the PACK read — the Mesa Mauler roams with its viper hunting
+   pack as one unit (thin the pack, then duel the mauler; baiting
+   one body no longer empties the cache).
 4. A mars or venus dig (default biome): the OLD pirate/drone mix on
    the way down — regression — and its bottom carries the BORROWED
    apex (mars: Dune Behemoth; venus: Canopy Maw). wolf_b's dig
