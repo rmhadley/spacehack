@@ -118,7 +118,6 @@ _STARE_CORE_FG: tuple[int, int, int] = (255, 130, 80)
 _STARE_RING_FG: tuple[int, int, int] = (190, 95, 65)
 _FIELD_FG: tuple[int, int, int] = (205, 175, 255)
 _FIELD_BG: tuple[int, int, int] = (48, 38, 78)
-_FIELD_DIM_BG: tuple[int, int, int] = (22, 18, 36)
 
 
 def _append_ancient_overlay_commands(
@@ -133,8 +132,10 @@ def _append_ancient_overlay_commands(
     camera_y: int,
 ) -> None:
     """Paint the stare zones and field shimmer OVER their tiles, UNDER
-    the entities. The stare is a live threat: visible cells only. The
-    field outlives the fight: revealed cells, dimmed when remembered."""
+    the entities. Both are live threats: VISIBLE cells only (the p9
+    ruling — the shimmer is as visible as the machine that makes it,
+    never through walls; the remembered-dim render read as full
+    field)."""
     _kwargs = dict(
         region_x=region_x, region_y=region_y,
         region_w=region_w, region_h=region_h,
@@ -151,21 +152,11 @@ def _append_ancient_overlay_commands(
                     visible_only=True, **_kwargs,
                 )
     for _cell, _hp in (game_map.field_tiles or {}).items():
-        if _hp <= 0:
-            continue  # destroyed tiles clear from the render
-        _append_overlay_cell(
-            commands, game_map, _cell[0], _cell[1], "▒", _FIELD_FG,
-            visible_only=False, **_kwargs,
-            bg=_field_bg(game_map, _cell[0], _cell[1]),
-        )
-
-
-def _field_bg(game_map, x: int, y: int) -> tuple[int, int, int]:
-    """The curtain's cell background: full violet-dark in sight, a
-    deeper shade when only remembered."""
-    if game_map.is_visible(x, y):
-        return _FIELD_BG
-    return _FIELD_DIM_BG
+        if _hp > 0:  # destroyed tiles clear from the render
+            _append_overlay_cell(
+                commands, game_map, _cell[0], _cell[1], "▒", _FIELD_FG,
+                visible_only=True, **_kwargs, bg=_FIELD_BG,
+            )
 
 
 def _append_overlay_cell(

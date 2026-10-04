@@ -1375,3 +1375,28 @@ class TestMeleeReachPick:
             watcher.entity, game_map, watcher.spec,
         )
         assert _melee_reach_pick(stamp, 1.0, 4) is None
+
+
+def test_field_renders_only_in_line_of_sight():
+    """The p9 ruling ("I can see the full force field 100% of the
+    time, even through walls"): the shimmer renders VISIBLE-only —
+    like the Warden itself, never on merely-remembered cells."""
+    from src.spacehack.world_render import world_draw_commands
+
+    game_map = _floor_map(12, 12)
+    game_map.field_tiles = {(6, 6): 30, (4, 4): 30}
+    # fog: everything remembered, nothing currently visible
+    game_map.seen = [[True] * 12 for _ in range(12)]
+    game_map.visible = [[False] * 12 for _ in range(12)]
+    commands = world_draw_commands(
+        game_map, region_x=0, region_y=0, region_w=12, region_h=12,
+    )
+    assert not any(c.char == "\u2592" for c in commands)  # unseen: none
+
+    game_map.visible[6][6] = True  # one tile in sight
+    commands = world_draw_commands(
+        game_map, region_x=0, region_y=0, region_w=12, region_h=12,
+    )
+    curtained = [c for c in commands if c.char == "\u2592"]
+    assert [(c.x, c.y) for c in curtained] == [(6, 6)]
+    assert curtained[0].fg == (205, 175, 255)  # full bright, not dim
