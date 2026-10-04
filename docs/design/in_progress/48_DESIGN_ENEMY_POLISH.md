@@ -2099,7 +2099,7 @@ with doctrinal 10-13):
   blocked-no-LOS break both preserved; merchants' authored 10-15
   dials read as designed for the first time (rare fire,
   dodge-stack). PLAYTEST PENDING.
-- [ ] 9. **Ancient machines** — RE-CUT (SETTLED 41/42/43,
+- [x] 9. **Ancient machines** — RE-CUT (SETTLED 41/42/43,
   2026-10-02). BUILD 1 (the volley loop + economy: one-shot cap
   dies; carried ammo + reload tells; ranged/melee sets with
   emergent switching incl. the cornered-switch; the
@@ -2142,10 +2142,29 @@ with doctrinal 10-13):
   off-map dev grant). The machines' battery recorded in the builds
   2-6 landing section: standard rows bit-identical to build 1; the
   F4 authored trio alone = the tune's headline wall (labs 0.020 /
-  merchants 0.200). PLAYTEST PENDING (the checkpoint list sits in
-  the brief; guide-diff NONE confirmed; PROSE review pending — the
-  three new drafts + the six stale drone-named event messages +
-  the silent Warden events' popup question).
+  merchants 0.200). PLAYTEST PASSED + PHASE CLOSED 2026-10-04
+  (user: "this feels good. now I can pretty consistently survive
+  as long as I play careful and exploit their behavior"; "rest is
+  good. close out this phase"). The mid-playtest fix arc (findings
+  1-9 in the landing section): the diagonal-adjacency melee
+  deadlock (pre-existing since doc 51, every melee enemy — band
+  gates int-truncate like the player's fire gate; the doc-50
+  starter-batons bar retired permanently, the goal_2_lane_batons
+  row ruled in the kit's true geometry), the radius-less
+  investigation LOS (unbaitable Wardens), the walking-wall field
+  (per-tick tracking, fresh-cells-full, tombstone regrow, death
+  collapse to survivors), melee-reach-resolves-the-melee-set (the
+  slam trade), the aim line stops at the shimmer, the shimmer
+  renders in sight only, and SETTLED 46's prose (Serrated Blades
+  / Energy Cannon / the slam's own hit+damage and miss lines /
+  the shimmer-field lines). SYSTEMS.md audited same commit (the
+  volley-loop entry rewritten; the ancient-machines entry added;
+  noise/movement/families/band-scaling/kill-drops/extensions
+  amended). DEFERRED, recorded not blocking: the six stale
+  drone-named event popups (the user's own later pass), the
+  F5-extraction warden gauntlet + parasite-only pool leans (tune
+  dials), the field-as-entities design question (finding 8, the
+  far-side handoff), doc-50's PlayerSheet quality/stat-spend gaps.
 - [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30). Names in the brief. At its

@@ -540,6 +540,13 @@ nobody designs against a ghost.
   line per fresh-hearer event — "Something to the {direction} heard
   that." — 8-way player-relative, never for quiet weapons (noise ≤2)
   or enemy fire; no guide entry (communicated in play, user ruling).
+  `emit_radius` (doc 48 phase 9) is the ONE radius-keyed variant
+  for non-weapon events — the Watcher's shriek (25-40) and the
+  stare eruption (blast-class) share it; machine-sourced, so no
+  reaction line. Investigation completion honors the map's SIGHT
+  RADIUS (the p9 fix: the radius-less ray completed goals at zero
+  steps — disengaged enemies never walked to the last-seen cell;
+  baiting works).
 - **Ground movement modes (doc 48 phase 5)** —
   `ground_npcs.move_ground_npcs`: peace = the 1-tile stroll; while a
   ground fight is live (`_rules_ground.combat_active`), every
@@ -556,16 +563,24 @@ nobody designs against a ghost.
   member's goal draws them; LOS aggro stays individual), patrol
   marches at the leader's AP. The goal + rolled weapon + carried
   stamp all round-trip save/load (`saveload_maps`).
-- **Ground range management (doc 48 phase 5)** — the universal
-  enemy loop (`combat/_ai_ground`): fire ONE shot per turn inside
-  the rolled weapon's [min..max] with LOS; beyond max or without
-  LOS, close one A* step per AP; inside min, back off
-  (restoring-steps first, LOS preferred, progress allowed, PINNED =
-  inert — cornering is the counter-play, SETTLED 26); leftover AP
-  after the shot repositions inside the band for ranged only
-  (melee holds — no knife-dancers). Guard leash = the entity's
-  rolled weapon `max_range + 2` (`noise.guard_leash`), per instance
-  — the hardcoded 8 retired (SETTLED 18/37).
+- **Ground range management (doc 48 phases 5+9)** — the VOLLEY
+  loop (`combat/_ai_ground`, SETTLED 41/43 — the one-shot cap is
+  dead): every decision point scores BOTH carried sets' weapons by
+  EV-per-AP through the same hit math the shot resolves with,
+  fires the top affordable scorer, repeats until AP/ammo/scores
+  run out; cross-set picks pay a silent 1-AP swap (dry,
+  point-blank, and cornered switches are EMERGENT from the scorer).
+  MELEE REACH resolves the melee set (phase 9's ruling: adjacency
+  = the slam/knife, never a gun-dance away); the hug back-off
+  survives only for no-pick pure-ranged rows. Band gates
+  INT-TRUNCATE like the player's own fire gate (the p9 fix: raw
+  Euclidean deadlocked every melee enemy at diagonal adjacency);
+  the point-blank penalty applies to enemy shots too — ONE hit
+  math, both sides. Weaponless specs (the Watcher) run the
+  dial-gated LOS-keeping DRIFT (real ledger cells, logs nothing).
+  Guard leash = the entity's rolled RANGED weapon `max_range + 2`
+  (`noise.guard_leash`) — the hardcoded 8 retired (SETTLED
+  18/37/43).
 - **Ground identity families (doc 48 phase 3)** —
   `CHAR_CLASS_FAMILIES` (`data/npc_chars/__init__.py`): one LETTER
   per family, members are case variants of it, ONE family color —
@@ -580,7 +595,10 @@ nobody designs against a ghost.
   save-compat alias in `find_npc_char`; the uniqueness key is
   (char, fg, elite) — phase 4's faces: trooper `m`, marine `M`,
   sniper bold `M`, pirate brute bold `R` (elite flags exactly
-  {brute, sniper}).
+  {brute, sniper, warden}). The ANCIENT family (phase 9, SETTLED
+  45) amends the one-letter convention: three DISTINCT glyphs —
+  Watcher `O`, Shredder `S`, Warden bold `W` — unified by ONE cold
+  violet (170,140,250).
 - **Ground band scaling (doc 48 phase 4)** — `ground_scale.py`
   owns every band question. `Entity.spawn_band` stamps the site's
   band at EVERY spawn (dig populate via its floor-climbed tier,
@@ -598,7 +616,9 @@ nobody designs against a ghost.
   B3 {2,3} 30/70; B4 {3,4} 30/70; `pin_window_top` = the sniper's
   top tier; empty tiers snap up — explosives sit t3-t4). Equip- and
   drop-time quality ride the band ladder (B1 == KILL ladder). The
-  target card title states `LVL <level> <name>`.
+  target card title states `LVL <level> <name>`. `fixed_band`
+  (phase 9) pins a spec's band FLAT — the ancient rows derive at
+  band 4 regardless of the site's floor stamp.
 - **Ship band scaling (doc 48 phase 7)** — `space_scale.py`, the
   ground resolver's space twin (imports `ground_scale`'s band
   machinery; the largest-remainder allocator is ONE shared helper).
@@ -676,12 +696,51 @@ nobody designs against a ghost.
   dmg per tile); Deadshot railgun (+5 hit/+4 dmg per AP >2, kills
   chain auto-shots ≤12 links) (`combat/_ground_charger.py`,
   `_ground_deadshot.py`).
+- **Ancient machines (doc 48 phase 9)** — `combat/_ancients.py` +
+  `data/npc_chars/ancients.py` + `data/ground_weapons/ancient.py`:
+  the prison's alien trio (prison-exclusive FOR NOW; the doc-43
+  far-side handoff deferred). Mechanics ride the rows as
+  `MachineMechanics` data (stare/shriek/mend/field dials) +
+  `fixed_band=4`. **Watcher** (O, weaponless — the stare is its
+  attack): shriek = a 1-AP lead action every seeing round through
+  `noise.emit_radius` (heard ≠ aggroed, dormant deaf); stare = a
+  3x3 GRADED zone fixed on the player's cell at enemy phase (core
+  full, ring half pre-soak; no to-hit roll; full soak; stacks by
+  Watcher count) erupting at the END of the player's following
+  turn — combat-scoped (disengage defuses; dead Watchers fade);
+  eruption victims beyond the player resolve through the
+  instance-build path (drops land, NO player XP/rep — the
+  `stare_killed` flag shuts the defeated-list back-door); a
+  stare-killed player tombstones the Watcher. **Shredder** (S,
+  ambusher): in-combat mend at its turn start (line once per
+  engagement; NO out-of-combat tick — wounds persist). **Warden**
+  (bold W, guard): the SHOT is a normal volley weapon (`ap_cost`
+  3, `armor_bypass` through the existing field, fires through its
+  own field); the SLAM is heavy melee with `knockback=2` — pure
+  displacement along the attacker→victim vector (wall/occupant
+  stop; wordless; the game's first involuntary displacement, authored
+  as weapon data). The FORCE FIELD: a radius-2 Chebyshev shell of
+  WALKABLE cells around the body, each its own HP — a WALKING WALL
+  (tracks the body every ambient tick + turn end; fresh movement
+  cells arm FULL; combat entry arms 0-HP full, wounds persist);
+  projectiles crossing a live tile hit the TILE (binary blocking,
+  overflow lost, both seams — player and enemy — read ONE
+  `absorb_shot`; absorbed rockets detonate ON the shell and blast
+  carves tiles); destroyed tiles tombstone at 0 and regrow +10 at
+  combat turn starts only (a carved hole lives one volley round);
+  a death rebuilds the field to the survivors' rings (no sibling
+  = the whole field dies). Renders as a violet `▒` curtain,
+  visible-only — as visible as the machine that makes it; the aim
+  line STOPS at the first live tile. No usable drops (the sites
+  pay in alien tech); the Warden's wake events are SILENT (a
+  popup is a later prose-pass question).
 - **Kill drops** — authored pools (trade goods, tier-filtered
-  equipment, field stacks) plus the diegetic kit: the enemy's
-  resolved weapon always falls with one matching ammo stack
-  (field sizing 1–5) AT its equip-time rolled quality — no
-  re-roll (the weapon+quality stamp persists on the entity across
-  engagements, doc 48 phase 5); extras roll quality at drop time —
+  equipment, field stacks) plus the diegetic kit (doc 48 phase 9
+  build 1: the two-set law): BOTH carried set weapons fall — the
+  active slot at its equip-time rolled quality, the melee slot its
+  own — with the carried-ammo REMAINDER as the stack (enemies
+  fire from pre-rolled magazines + pools; reload pays AP with the
+  tell line; the death-time ammo roll retired); extras roll quality at drop time —
   both ladders ride the spawn's band (band 1 == KILL ladder, doc 48
   phase 4); `GroundWeaponSpec.loot_droppable=False`
   keeps organic monster parts and fists off the floor; pools are
@@ -915,10 +974,16 @@ nobody designs against a ghost.
   titles (`autoexplore.py`: `run_dungeon_goto`).
 - **Dungeon extensions** — reusable themed multi-floor dungeons off
   a parent map; shipped: `mars_alien_prison` (5 floors, all content
-  in code). Floor = BSP with EXIT→STAIRS_UP, themed features,
+  in data). Floor = BSP with EXIT→STAIRS_UP, themed features,
   farthest STAIRS_DOWN, event anchors, dormant stocking; cached
   under `extension:<id>:floor:<n>` (`dungeon_extensions.py`;
-  `data/dungeon_extensions/__init__.py`).
+  `data/dungeon_extensions/__init__.py`). Phase 9 re-pinned the
+  prison to the ancient machines: every activation event + pool
+  resolves the trio (sentry→Watcher, assault→Shredder; the
+  deep-cell Wardens arrive via AUTHORED SILENT events); the
+  dormant-extras fallback is extension-authored
+  (`DungeonExtensionSpec.security_fallback_id` — no hardcoded id);
+  events may be `silent=True` (the wordless wake).
 - **Extension interactions** — data glyphs: state flags (engineering
   console, data terminal) + floor transitions gated on state; an
   interaction's `objective_type` completes the live quest step
