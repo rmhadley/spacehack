@@ -3562,6 +3562,17 @@ MID-PLAYTEST FINDINGS (2026-10-03, the reset-save descent):
    VISIBLE AS THE MACHINE THAT MAKES IT — visible-only, full
    bright; no remembered trail.
 
+**PLAYTEST READ (2026-10-04, user, after the bait-arc fixes): "this
+feels good. now I can pretty consistently survive as long as I play
+careful and exploit their behavior."** The machines' combat loop is
+validated in live play — hard but fair, winnable through exactly the
+behavioral counters the family was authored around. RECALIBRATION
+FOR THE TUNE: the battery's F4-wall number (labs 0.020 / merchants
+0.200) is the STANCE floor — the harness's toggle_sets bot can't
+bait to a door, hold a choke, or trade inside the ring. The player
+who does beats the row the bot loses. Tune flags should be read
+against player-skill play, not the stance alone.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
