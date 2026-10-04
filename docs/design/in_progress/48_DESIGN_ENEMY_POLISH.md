@@ -2175,6 +2175,13 @@ with doctrinal 10-13):
   pools, glyphs approved verbatim). At its close: the
   extensibility audit (acceptance criterion — adding an enemy is a
   data edit) against the whole campaign.
+  LANDED 2026-10-04 in five builds (adc06b8e the seam + SETTLED 49
+  re-tier; 6308cc76 the organic weapons; 8474c6f8 the fauna + tile
+  lint; 792718ff the apexes + bottom guard + the hoist; 7d82963a
+  the four new tables + battery + save/load row) — reviewer
+  dispatched per build, five APPROVEs, every minor folded; the
+  battery re-run is BIT-IDENTICAL pre/post (the landing record
+  below). PLAYTEST PENDING.
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
   hunt reskinned as a new enemy class (with the `_heat.py`
@@ -4087,6 +4094,57 @@ added).
    explain themselves in play; review and confirm).
 9. Loot read: fauna delves still pay (goods + occasional gear);
    the apex's own drop is memorable.
+
+## Phase 10 — LANDED (2026-10-04) + the battery re-run
+
+Five builds, reviewer dispatched per build — five APPROVEs, every
+minor folded in-commit (the pad-door consequence recorded in the
+brief's pool-table section; spore_burst min_range aligned to the
+brief's 2; the build-order line's stale "5 organic rows" count
+amended to 7; the wasp's hp into the brief's 12-26 envelope; the
+tile lint extended to sweep per-planet DungeonParams dig palettes;
+canopy_maw joined the solo-apex test; declared-biomes == the table
+set pinned; the round-trip docstring made truthful + the legendary
+seed pinned).
+
+Build-discovered notes:
+
+- **The names landed WITH their rows** (frozen dataclasses require
+  `name` at construction; every name was approved verbatim with the
+  brief, so the prose gate was satisfied BEFORE the build — the
+  phase-9 ff8bc62e precedent). The brief's step-6 "own commit" line
+  resolves as approval-before-build; the display names ride the
+  checkpoint's PROSE review regardless.
+- Two planets' registry ids differ from their module filenames
+  (procyon_c.py → `proc_planet_2`; epsilon_eridani_b.py → `eri_b`)
+  — the biome declarations landed in the right files; tests key on
+  registry ids.
+- The architecture ratchet fired once (build 4: the hoisted
+  `_spawn_squad_near` at 44 lines) — paid in-commit by condensing
+  the docstring, no dodge.
+- The APEX tables live beside the pools (`BIOME_APEX` +
+  `APEX_BORROW` + `DEFAULT_APEX_BIOME` in data/digs), resolution
+  `spec.biome or APEX_BORROW.get(spec.id, DEFAULT_APEX_BIOME)` at
+  the one choke point (`_place_bottom_apex`); the pack composes
+  through the hoisted `_spawn_squad_near`'s explicit `squad_id`
+  (act-0's door ambush + cache guardians re-import the new home,
+  draw order unchanged).
+
+**The battery (the deliverable): both reference saves, 50 seeded
+runs/row, re-run from a git worktree at the pre-phase-10 commit
+(b9cd1660) vs the landed tree — ALL rows on BOTH saves
+BIT-IDENTICAL (diff empty): zero drift on existing geometry.**
+Current reads for the record (labs / merchants): mars pinned 1.000/
+0.02 both; 5x rifleman b2 1.000/3.00 (0 def) / 0.980/7.10 (1 def);
+5x brute b3 0.940/10.09 / 0.940/11.40; b4 drones/gunners/swarm 1.000
+all; watchers 1.000 both; shredder lane 0.940/0.43 / 1.000/26.52;
+warden hall 0.940/19.79 / 0.960/19.38; F4 authored mix 0.000 (31
+def/19 dis) / 0.040 (29 def/19 dis); space warlord 1.000 / 0.400,
+2x marauder 1.000 / 0.180. These differ from the phase-9 recorded
+table where the phase-9 MID-PLAYTEST fixes landed after that table
+was recorded (712f795d's int-truncated band gates move ranged rows;
+45ca4ea7's melee-reach slam makes the F4 mix hotter) — pre-existing
+drift, not phase-10's (the worktree diff proves it).
 
 ## Pre-implementation audit — phase 9 BUILD 2 (2026-10-03)
 
