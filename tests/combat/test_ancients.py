@@ -667,7 +667,7 @@ class TestFieldShell:
         gei = _warden_gei(game_map, pos=(6, 6))
         # carve a hole: destroy one tile outright
         carved = (6, 4)
-        del game_map.field_tiles[carved]
+        game_map.field_tiles[carved] = 0  # destroyed: the tombstone
         # a damaged tile regens +10 to the cap
         game_map.field_tiles[(4, 4)] = 25
         _ancients.warden_turn_start(gei, game_map)
@@ -755,7 +755,7 @@ class TestAbsorption:
         game_map = self._fielded_map()
         ctx = _combat_ctx(game_map)
         broke = _ancients.damage_field_tile(ctx, game_map, (6, 4), 64)
-        assert broke and (6, 4) not in game_map.field_tiles
+        assert broke and game_map.field_tiles[(6, 4)] == 0  # tombstone
         assert ctx.lines == ["A section of the shimmer breaks apart."]
 
 
@@ -803,7 +803,7 @@ class TestPlayerSeamAbsorption:
         assert hit is False
         assert "The shimmer swallows your shot." in ctx.lines
         assert "A section of the shimmer breaks apart." in ctx.lines  # 64 > 30
-        assert game_map.field_tiles.get((6, 4)) is None
+        assert game_map.field_tiles[(6, 4)] == 0  # the tombstone
         assert target.hp == 85  # the body never paid
         assert rules.consumed == 0
         assert ap == 2
@@ -886,9 +886,9 @@ class TestBlastCarvesTiles:
         assert player_damage == 0
         # the center tile and its two side neighbours on the shell
         # broke (full 60 at the center, 30 splash vs 30 HP beside it)
-        assert (6, 4) not in game_map.field_tiles
-        assert (5, 4) not in game_map.field_tiles
-        assert (7, 4) not in game_map.field_tiles
+        assert game_map.field_tiles[(6, 4)] == 0  # tombstoned open
+        assert game_map.field_tiles[(5, 4)] == 0
+        assert game_map.field_tiles[(7, 4)] == 0
 
     def test_blast_near_a_shell_carves_without_absorption(self):
         from src.spacehack.combat import _ground_blast
@@ -906,8 +906,8 @@ class TestBlastCarvesTiles:
             quality=0, center=world.Position(6, 3),
         )
         for _broken in ((6, 4), (5, 4), (7, 4)):
-            assert _broken not in game_map.field_tiles
-        assert (4, 6) in game_map.field_tiles  # the far side stands
+            assert game_map.field_tiles[_broken] == 0  # tombstoned
+        assert game_map.field_tiles[(4, 6)] == 30  # the far side stands
 
 
 class TestFieldDeathAndPersistence:
@@ -1148,8 +1148,8 @@ def test_shell_tracks_the_wardens_turn_end_position():
     """The lag catch ("as it moves the force field doesn't move with
     it"): the start-side re-derive ran BEFORE the movement — the
     shimmer trailed the body for a full round. The turn-end pass
-    recenters the shell on where the Warden ENDS its turn (fresh
-    cells enter at 0, no regen double-dip)."""
+    recenters the shell on where the Warden ENDS its turn; fresh
+    cells ARM FULL (the walking-wall ruling) with no regen dip."""
     game_map = _floor_map(20, 20)
     gei = _warden_gei(game_map, pos=(6, 6))
     _ancients.warden_turn_start(gei, game_map)   # start: ring at (6,6)
@@ -1159,7 +1159,7 @@ def test_shell_tracks_the_wardens_turn_end_position():
     cells = set(game_map.field_tiles)
     assert (9, 7) in cells                        # the new ring stands
     assert all(max(abs(x - 9), abs(y - 9)) == 2 for x, y in cells)
-    assert game_map.field_tiles[(9, 7)] == 0      # fresh cells regrow
+    assert game_map.field_tiles[(9, 7)] == 30     # fresh cells ARM FULL
     assert (6, 4) not in cells                    # the old ring dropped
 
 
@@ -1223,3 +1223,155 @@ def test_aim_line_stops_at_the_shimmer():
     assert (8, 3) in commands
     # the first shell tile keeps its curtain, not the line's squiggle
     assert (8, 6) not in commands or commands[(8, 6)].char != "~"
+
+
+def test_baited_wardens_shell_follows_the_walk():
+    """The p9 baiting catch: only COMBAT turns re-derived the shell —
+    a baited Warden walked while each re-engagement ADDED a ring at
+    the new position ("force field all over the map"). The ambient
+    tracker recenters every tick: no ring left behind, no regen."""
+
+    game_map = _floor_map(20, 20)
+    gei = _warden_gei(game_map, pos=(6, 6))
+    _ancients.warden_turn_start(gei, game_map)  # shell at full
+    game_map.field_tiles[(6, 4)] = 12           # a whittled tile
+
+    # one walk step: the ring still covers the whittled tile — NO
+    # REGEN out of combat, the wound keeps through a regen-0 pass
+    gei.entity.pos = world.Position(7, 6)
+    _ancients.track_field_shells(game_map)
+    assert game_map.field_tiles[(6, 4)] == 12
+
+    for _ in range(5):                          # the rest of the walk
+        gei.entity.pos = world.Position(
+            gei.entity.pos.x + 1, gei.entity.pos.y,
+        )
+        _ancients.track_field_shells(game_map)
+
+    cells = set(game_map.field_tiles)
+    cx, cy = gei.entity.pos.x, gei.entity.pos.y
+    assert all(max(abs(x - cx), abs(y - cy)) == 2 for x, y in cells)
+    assert (6, 4) not in cells                  # the old ring is GONE
+    assert (cx, cy - 2) in cells                # the new ring stands
+    assert game_map.field_tiles[(cx, cy - 2)] == 30  # armed full
+
+
+def test_reengagement_does_not_accumulate_rings():
+    """Combat entry RECENTERs (wounds kept, fresh cells full) — the
+    add-only ensure_field littered one ring per re-engagement."""
+    game_map = _floor_map(20, 20)
+    gei = _warden_gei(game_map, pos=(6, 6))
+    _ancients.warden_turn_start(gei, game_map)
+    game_map.field_tiles[(6, 4)] = 12           # whittled
+
+    gei.entity.pos = world.Position(11, 11)     # the bait advanced it
+    _ancients.ensure_field(game_map, gei.spec, gei.entity.pos)
+
+    cells = set(game_map.field_tiles)
+    assert all(max(abs(x - 11), abs(y - 11)) == 2 for x, y in cells)
+    assert (6, 4) not in cells                  # no litter
+    assert game_map.field_tiles[(11, 9)] == 30  # fresh cells stand full
+
+
+def test_combat_entry_arms_the_trackers_zero_hp_ring_full():
+    """The live-playtest catch ("the force field isn't spawning at
+    the start of combat"): entry once armed nothing because the
+    ring's cells read as already-standing at 0 HP. Now: the tracker
+    arms never-engaged rings FULL outright, entry keeps 0-HP
+    tombstones arming full ("wakes with its shield up"), and wounds
+    (>0) persist."""
+    game_map = _floor_map(20, 20)
+    from src.spacehack.data.npc_chars import find_npc_char as _find
+
+    spec = _find("warden")
+    ent = world.Entity(
+        "W", (170, 140, 250), world.Position(6, 6),
+        npc_char_id="warden", bold=True,
+    )
+    game_map.entities.append(ent)
+    _ancients.track_field_shells(game_map)  # the ambient tick
+    # the walking-wall ruling: fresh cells arm FULL, not 0
+    assert all(hp == 30 for hp in game_map.field_tiles.values())
+
+    _ancients.ensure_field(game_map, spec, ent.pos)  # combat entry
+    assert all(hp == 30 for hp in game_map.field_tiles.values())
+
+    # a whittled tile keeps its wound across a re-engagement
+    game_map.field_tiles[(6, 4)] = 12
+    _ancients.ensure_field(game_map, spec, ent.pos)
+    assert game_map.field_tiles[(6, 4)] == 12
+    assert game_map.field_tiles[(6, 8)] == 30
+
+
+class TestMeleeReachPick:
+    """MELEE REACH IS THE MELEE SET'S ANSWER (the p9 Warden ruling):
+    the hug gate read the active SHOT's min-range and an adjacent
+    carrier fled the trade it was authored to make."""
+
+    def _warden_stamp(self, game_map, gei):
+        from src.spacehack import ground_loadout
+
+        return ground_loadout.ensure_loadout(
+            gei.entity, game_map, gei.spec,
+        )
+
+    def test_adjacent_warden_slams_instead_of_running(self):
+        from src.spacehack.combat import _ai_ground
+        from tests.support.asyncutil import run as _run
+        from types import SimpleNamespace as _NS
+
+        game_map = _floor_map(20, 20)
+        gei = _warden_gei(game_map, pos=(10, 10))
+        ctx = _combat_ctx(game_map, player_pos=(11, 11))  # diagonal
+        ctx.ground_stats = _NS(reflexes=58, strength=30)
+
+        class _Fire:
+            @staticmethod
+            def randint(*a): return 50   # < dial 80: fire
+            @staticmethod
+            def choice(pool): return pool[0]
+
+        _orig = _ai_ground.RNG
+        _ai_ground.RNG = _Fire
+        try:
+            _ap, _dmg, _fired, _cells = _run(
+                _ai_ground.run_ground_enemy_turn(
+                    ctx, enemy_spec=gei.spec, enemy_stats=gei.stats,
+                    enemy_ap=3, player_pos=ctx.player.pos,
+                    enemy_entity=gei.entity, game_map=game_map,
+                    armor_defense=23, player_dodge=0,
+                ),
+            )
+        finally:
+            _ai_ground.RNG = _orig
+        assert _fired and _cells == 0  # the TRADE, not the run
+        assert any("Warden Slam" in line for line in ctx.lines)
+        assert (ctx.player.pos.x, ctx.player.pos.y) != (11, 11)  # ejected
+
+    def test_melee_reach_pick_gates(self):
+        from src.spacehack.combat._ai_ground import _melee_reach_pick
+
+        game_map = _floor_map(20, 20)
+        gei = _warden_gei(game_map, pos=(10, 10))
+        stamp = self._warden_stamp(game_map, gei)
+
+        pick = _melee_reach_pick(stamp, 1.414, 3)   # diagonal adjacency
+        assert pick is not None and pick[0] == "melee"
+        assert _melee_reach_pick(stamp, 2.0, 3) is None   # beyond reach
+        # unaffordable including the swap: ap 2 < slam 2 + swap 1
+        assert _melee_reach_pick(stamp, 1.0, 2) is None
+        # melee already active: no swap cost — ap 2 affords the slam
+        from src.spacehack import ground_loadout
+        ground_loadout.swap_active(stamp)
+        assert _melee_reach_pick(stamp, 1.0, 2) is not None
+
+    def test_weaponless_and_melee_less_rows_never_pick(self):
+        from src.spacehack.combat._ai_ground import _melee_reach_pick
+        from src.spacehack import ground_loadout
+
+        game_map = _floor_map(20, 20)
+        watcher = _watcher_gei(game_map, pos=(10, 10))  # weaponless
+        stamp = ground_loadout.ensure_loadout(
+            watcher.entity, game_map, watcher.spec,
+        )
+        assert _melee_reach_pick(stamp, 1.0, 4) is None

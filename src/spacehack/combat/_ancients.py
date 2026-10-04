@@ -360,26 +360,34 @@ def shell_cells(game_map, pos) -> tuple[tuple[int, int], ...]:
 
 
 def ensure_field(game_map, spec, pos) -> None:
-    """Stand the shell up at FULL tile HP (the combat-entry read: the
-    Warden wakes with its shield up; first build only — the
-    turn-start re-derive owns movement and regrowth)."""
+    """Stand the shell up at combat entry: a RECENTER around the
+    current position — never an add (the p9 baiting catch had each
+    re-engagement ADD a ring at the new position while the old cells
+    stayed, littering fields across the map). Cells already standing
+    keep their wounds (a whittled shell stays whittled through a
+    bait cycle); never-seen cells stand at full — it wakes with its
+    shield up."""
     _m = _mechanics(spec)
     if _m is None or _m.field_tile_hp <= 0:
         return
-    if game_map.field_tiles is None:
-        game_map.field_tiles = {}
+    _current = game_map.field_tiles or {}
+    _new = _preserve_sibling_shells(game_map, spec, pos, _current)
     for _cell in shell_cells(game_map, pos):
-        if _cell not in game_map.field_tiles:
-            game_map.field_tiles[_cell] = _m.field_tile_hp
+        # 0-HP tombstones (destroyed tiles, pre-ruling saves) are
+        # OPEN GROUND, not standing shell — the wake arms them full
+        # ("wakes with its shield up"; the live-playtest catch: entry
+        # once kept a 0-HP ring and no field spawned at all)
+        _new[_cell] = _current.get(_cell, 0) or _m.field_tile_hp
+    game_map.field_tiles = _new
 
 
 def warden_turn_start(gei, game_map) -> None:
     """The Warden's turn preamble (doc 48 SETTLED 42): the shell
     re-derives from its CURRENT position and regenerates
     ``field_regen`` per tile up to full — IN COMBAT (this call site
-    is the combat turn path). A fresh tile (the Warden moved, or a
-    destroyed one) regrows from 0 — a carved hole lives exactly one
-    player volley round. Cells only the acting Warden's OLD shell
+    is the combat turn path). A destroyed tombstone regrows from 0 —
+    a carved hole lives exactly one player volley round; cells newly
+    covered by movement stand ARMED FULL (the walking wall). Cells only the acting Warden's OLD shell
     covered drop out; a stationary SIBLING Warden's shell is
     preserved untouched. The body never mends — the field is its
     sustain; self-repair belongs to the Shredder alone."""
@@ -387,7 +395,7 @@ def warden_turn_start(gei, game_map) -> None:
     if _m is None or _m.field_tile_hp <= 0 or not gei.alive:
         return
     game_map.field_tiles = _rederive_shell(
-        game_map, gei, _m.field_regen,
+        game_map, gei.spec, gei.entity.pos, _m.field_regen,
     )
 
 
@@ -397,37 +405,77 @@ def warden_track_position(gei, game_map) -> None:
     re-derive ran BEFORE the movement, so the shell trailed the body
     for a full round). Re-derives the shell around where the Warden
     ENDS its turn with NO regen: cells the new ring still covers
-    keep their HP, fresh cells enter at 0 (they regrow at the next
-    turn start)."""
+    keep their HP, fresh cells ARM FULL (the walking-wall ruling —
+    the field never weakens by moving), destroyed tombstones alone
+    regrow at turn starts."""
     _m = _mechanics(gei.spec)
     if _m is None or _m.field_tile_hp <= 0 or not gei.alive:
         return
-    game_map.field_tiles = _rederive_shell(game_map, gei, 0)
+    game_map.field_tiles = _rederive_shell(
+        game_map, gei.spec, gei.entity.pos, 0,
+    )
 
 
-def _rederive_shell(game_map, gei, regen: int) -> dict:
-    """The one shell rebuild: preserve sibling coverage, then lay this
-    Warden's ring at ``min(full, current + regen)`` over the merged
-    state (regen 0 = the position-tracking pass)."""
-    _m = _mechanics(gei.spec)
+def track_field_shells(game_map) -> None:
+    """The ambient pass's shell tracker (the p9 baiting catch: a
+    baited Warden walked while only its COMBAT turns re-derived —
+    each re-engagement's ``ensure_field`` ADDED a ring at the new
+    position, so the bait path littered fields across the map).
+    Re-centers every awake Warden's shell on its current position
+    each tick, regen 0: idempotent when stationary, follows the walk
+    when baited (fresh cells armed full — the walking wall), and
+    clears stale rings from older saves on the first tick. Only
+    destroyed tombstones wait for combat regrowth."""
+    from ..data.npc_chars import find_npc_char
+
+    _specs: dict = {}
+    for _ent in game_map.entities:
+        _eid = getattr(_ent, "npc_char_id", "")
+        if not _eid or getattr(_ent, "powered_down", False):
+            continue
+        if _eid not in _specs:
+            try:
+                _specs[_eid] = find_npc_char(_eid)
+            except KeyError:
+                _specs[_eid] = None
+        _spec = _specs[_eid]
+        if _spec is not None and carries_field(_spec):
+            game_map.field_tiles = _rederive_shell(
+                game_map, _spec, _ent.pos, 0,
+            )
+
+
+def _rederive_shell(game_map, spec, pos, regen: int) -> dict:
+    """The one shell rebuild: preserve sibling coverage, then lay
+    this Warden's ring — cells it already covers heal by ``regen``
+    (capped; a destroyed 0-HP tombstone regrows only at turn start),
+    and cells it newly covers stand ARMED FULL (the p9 ruling: the
+    field is a walking wall — movement never weakens it, and the
+    trailing-edge 0-HP holes read as uncaused damage in play)."""
+    _m = _mechanics(spec)
     _current = game_map.field_tiles or {}
-    _new = _preserve_sibling_shells(game_map, gei, _current)
-    for _cell in shell_cells(game_map, gei.entity.pos):
-        _new[_cell] = min(
-            _m.field_tile_hp,
-            _current.get(_cell, 0) + regen,
-        )
+    _new = _preserve_sibling_shells(game_map, spec, pos, _current)
+    for _cell in shell_cells(game_map, pos):
+        if _cell in _current:
+            _new[_cell] = min(
+                _m.field_tile_hp, _current[_cell] + regen,
+            )
+        else:
+            _new[_cell] = _m.field_tile_hp
     return _new
 
 
-def _preserve_sibling_shells(game_map, gei, current) -> dict:
+def _preserve_sibling_shells(game_map, spec, pos, current) -> dict:
     """Copy every cell a sibling Warden's shell still covers — the
-    acting Warden's re-derive owns only its own cells."""
+    acting Warden's re-derive owns only its own cells (matched by
+    position: the actor itself is excluded by its own ``pos``)."""
     _sibling_cells: set = set()
     for _ent in game_map.entities:
-        if _ent is gei.entity or getattr(_ent, "powered_down", False):
+        if getattr(_ent, "powered_down", False):
             continue
-        if getattr(_ent, "npc_char_id", "") == gei.spec.id:
+        if getattr(_ent, "npc_char_id", "") == spec.id and (
+            _ent.pos.x, _ent.pos.y,
+        ) != (pos.x, pos.y):
             _sibling_cells.update(shell_cells(game_map, _ent.pos))
     return {
         _cell: _hp for _cell, _hp in current.items()
@@ -506,7 +554,9 @@ def damage_field_tile(ctx, game_map, cell, damage: int) -> bool:
     if _hp > 0:
         _tiles[cell] = _hp
         return False
-    del _tiles[cell]  # destroyed — open ground until it regrows
+    _tiles[cell] = 0  # destroyed: a 0-HP tombstone — open ground,
+    # regrowing +10 at the Warden's turn starts (deleted cells would
+    # be indistinguishable from never-existed, which now arms full)
     ctx.log.add_colored(
         "A section of the shimmer breaks apart.", _ml.COLOR_ENEMY_ACTION,
     )
