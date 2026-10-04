@@ -75,6 +75,13 @@ EXPECTED_NOISE: dict[str, int] = {
     # organic monster parts 4-5
     "monster_claws": 4, "drone_laser": 4, "frost_bolt": 5,
     "parasite_mandibles": 4,
+    # biome fauna (doc 48 phase 10): organic parts, the census cells'
+    # shapes — venom stays quiet (a bite), the ranged organs 4-5
+    "spore_burst": 5, "magma_bolt": 5, "rust_spines": 4,
+    "venom_fangs": 3,
+    # apex weapons (doc 48 phase 10): the maul rides the slam class,
+    # the ranged heavies carry their report
+    "behemoth_maul": 3, "wyrm_breath": 6, "siege_bolt": 8,
     # ancient family (doc 48 SETTLED 42 dials): claws 1-2, slam 2-3,
     # shot 8 — the shriek is the loud one, not the weapons
     "ancient_claws": 2, "ancient_slam": 3, "ancient_warden_shot": 8,
@@ -89,6 +96,36 @@ def test_every_ground_weapon_carries_authored_noise():
 @pytest.mark.parametrize("wid,noise", sorted(EXPECTED_NOISE.items()))
 def test_noise_values_stay_in_playable_band(wid, noise):
     assert 1 <= noise <= 12, f"{wid} noise {noise} outside [1, 12]"
+
+
+def test_organic_weapons_stay_enemy_only_and_unfed():
+    """The doc 48 phase-10 organic catalog law: every monster-module
+    weapon (the original four + the biome/apex rows) is never sold,
+    never drops, and nothing is ammo-fed (SETTLED 43: participation is
+    by weapon data — organic parts carry no magazines)."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+    from src.spacehack.data.ground_weapons.monsters import WARES
+
+    for weapon in WARES:
+        spec = find_ground_weapon(weapon.id)
+        assert spec.shop_available is False, weapon.id
+        assert spec.loot_droppable is False, weapon.id
+        assert spec.ammo_capacity == -1, weapon.id
+        assert spec.ammo_type is None, weapon.id
+
+
+def test_apex_organic_weapons_carry_their_identity_fields():
+    """The apex identities ride the EXISTING weapon fields (SETTLED
+    47/48, the Warden slam's precedent): the maul's knockback pushback
+    and the breath's armor-pierce — data-only apexes."""
+    from src.spacehack.data.ground_weapons import find_ground_weapon
+
+    assert find_ground_weapon("behemoth_maul").knockback == 2
+    assert find_ground_weapon("behemoth_maul").armor_bypass is False
+    assert find_ground_weapon("wyrm_breath").armor_bypass is True
+    assert find_ground_weapon("wyrm_breath").knockback == 0
+    assert find_ground_weapon("siege_bolt").knockback == 0
+    assert find_ground_weapon("siege_bolt").armor_bypass is False
 
 
 # --- per-spec AP (SETTLED 27) ----------------------------------------------

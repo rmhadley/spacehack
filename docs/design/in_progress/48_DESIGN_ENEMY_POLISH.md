@@ -4007,7 +4007,8 @@ issue 5).
    silently swallows unknown ids, so the table needs its own
    integrity row; plus the tier-gate law pin: every row's `tier`
    >= its equipment_loot_pool entries' tech_levels, catalog-wide).
-2. The weapons: the 5 organic rows + catalog law tests.
+2. The weapons: the 7 organic rows (4 fauna + 3 apex) + catalog law
+   tests.
 3. The fauna: 8 rows + the pair-uniqueness/tile-overlap lint +
    fauna-law census test (always_hostile, faction="", fixed
    weapons) + the elite-census extension.

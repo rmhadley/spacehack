@@ -50,7 +50,8 @@ class GroundWeaponSpec:
             leans: explosives 12, kinetic rifles 8, pistols/SMG 5-6,
             energy/plasma 4 (the energy lever — quieter than
             kinetic), melee 1-2 (knife kills stay quiet), organic
-            monster parts 4-5.
+            monster parts 3-5 (bites/melee organs quiet, ranged
+            organs mid).
         knockback: cells the victim is displaced along the
             attacker→victim vector on a hit (doc 48 SETTLED 42 —
             authored as weapon DATA; the Warden's slam carries 2, the

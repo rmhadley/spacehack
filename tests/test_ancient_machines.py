@@ -46,13 +46,15 @@ def test_ancient_weapons_are_not_ammo_fed():
 
 
 def test_knockback_field_defaults_to_zero_everywhere_else():
-    # The slam is the ONLY authored wearer (doc 48 SETTLED 42); the
-    # field's default keeps every human weapon pushback-free.
+    # The authored wearers (doc 48 SETTLED 42 + phase 10's organic
+    # twin): the Warden slam and the apex behemoth_maul; the field's
+    # default keeps every human weapon pushback-free.
     wearers = {
         ws.id for ws in list_ground_weapons() if ws.knockback > 0
     }
-    assert wearers == {"ancient_slam"}
+    assert wearers == {"ancient_slam", "behemoth_maul"}
     assert find_ground_weapon("ancient_slam").knockback == 2
+    assert find_ground_weapon("behemoth_maul").knockback == 2
 
 
 def test_warden_shot_is_a_normal_volley_weapon():
