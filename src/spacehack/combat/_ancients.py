@@ -32,7 +32,7 @@ ERUPTION_NOISE_RADIUS: int = 10
 # verbatim in ONE place — the reword pass at the PROSE checkpoint
 # must never miss a copy; the break line lives once in
 # :func:`damage_field_tile`).
-ABSORB_LINE: str = "The shimmer swallows your shot."
+ABSORB_LINE: str = "The shimmer field absorbs your shot."
 
 
 def _mechanics(spec):
@@ -558,6 +558,6 @@ def damage_field_tile(ctx, game_map, cell, damage: int) -> bool:
     # regrowing +10 at the Warden's turn starts (deleted cells would
     # be indistinguishable from never-existed, which now arms full)
     ctx.log.add_colored(
-        "A section of the shimmer breaks apart.", _ml.COLOR_ENEMY_ACTION,
+        "The shimmer field collapses!", _ml.COLOR_ENEMY_ACTION,
     )
     return True

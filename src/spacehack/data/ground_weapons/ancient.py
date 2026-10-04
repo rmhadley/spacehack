@@ -15,7 +15,7 @@ from . import GroundWeaponSpec
 WARES: tuple[GroundWeaponSpec, ...] = (
     GroundWeaponSpec(
         id="ancient_claws",
-        name="Shredder Claws",
+        name="Serated Blades",
         damage_type="melee",
         damage=26,
         accuracy=85,
@@ -53,7 +53,7 @@ WARES: tuple[GroundWeaponSpec, ...] = (
     ),
     GroundWeaponSpec(
         id="ancient_warden_shot",
-        name="Warden Shot",
+        name="Energy Cannon",
         damage_type="energy",
         damage=30,
         accuracy=95,

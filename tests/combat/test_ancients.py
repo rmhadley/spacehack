@@ -756,7 +756,7 @@ class TestAbsorption:
         ctx = _combat_ctx(game_map)
         broke = _ancients.damage_field_tile(ctx, game_map, (6, 4), 64)
         assert broke and game_map.field_tiles[(6, 4)] == 0  # tombstone
-        assert ctx.lines == ["A section of the shimmer breaks apart."]
+        assert ctx.lines == ["The shimmer field collapses!"]
 
 
 class TestPlayerSeamAbsorption:
@@ -801,8 +801,8 @@ class TestPlayerSeamAbsorption:
             "railgun", "Railgun", 0,
         ))
         assert hit is False
-        assert "The shimmer swallows your shot." in ctx.lines
-        assert "A section of the shimmer breaks apart." in ctx.lines  # 64 > 30
+        assert "The shimmer field absorbs your shot." in ctx.lines
+        assert "The shimmer field collapses!" in ctx.lines  # 64 > 30
         assert game_map.field_tiles[(6, 4)] == 0  # the tombstone
         assert target.hp == 85  # the body never paid
         assert rules.consumed == 0
@@ -1112,7 +1112,7 @@ def test_diagonal_shredder_swings_not_stalls():
         assert dmg and dmg > 0, (
             "the diagonal-adjacent shredder never attacked"
         )
-        assert any("Shredder Claws" in line for line in ctx.lines)
+        assert any("Serated Blades" in line for line in ctx.lines)
     finally:
         _rules_ground._state = old
 
@@ -1345,7 +1345,7 @@ class TestMeleeReachPick:
         finally:
             _ai_ground.RNG = _orig
         assert _fired and _cells == 0  # the TRADE, not the run
-        assert any("Warden Slam" in line for line in ctx.lines)
+        assert any("slams hard in to you" in line for line in ctx.lines)
         assert (ctx.player.pos.x, ctx.player.pos.y) != (11, 11)  # ejected
 
     def test_melee_reach_pick_gates(self):
@@ -1400,3 +1400,26 @@ def test_field_renders_only_in_line_of_sight():
     curtained = [c for c in commands if c.char == "\u2592"]
     assert [(c.x, c.y) for c in curtained] == [(6, 6)]
     assert curtained[0].fg == (205, 175, 255)  # full bright, not dim
+
+
+def test_the_slams_custom_attack_lines():
+    """SETTLED 46: the slam carries its own feed lines — the hit
+    names the act (no damage clause, by the user's wording), the
+    miss reads the attempt."""
+    from src.spacehack.combat._messages import enemy_attack_line
+
+    assert str(enemy_attack_line(
+        "Warden", "ancient_slam", "Warden Slam", hit=True, hull_dmg=16,
+    )) == "Warden slams hard in to you!"
+    assert str(enemy_attack_line(
+        "Warden", "ancient_slam", "Warden Slam", hit=False,
+    )) == "Warden attempts to slam in to you but misses."
+    # the renamed weapons read through the generic template
+    assert str(enemy_attack_line(
+        "Warden", "ancient_warden_shot", "Energy Cannon",
+        hit=True, hull_dmg=30,
+    )).startswith("Warden fires its Energy Cannon at you.")
+    assert str(enemy_attack_line(
+        "Shredder", "ancient_claws", "Serated Blades",
+        hit=True, hull_dmg=13,
+    )).startswith("Shredder swings its Serated Blades at you.")
