@@ -3554,6 +3554,14 @@ MID-PLAYTEST FINDINGS (2026-10-03, the reset-save descent):
    rounds with all seams in ONE module (`combat/_ancients.py`); the
    entity migration re-homes state but keeps those seams.
 
+9. **The field rendered through walls, FIXED (2026-10-04).** The
+   shimmer's remembered-dim render (build E's "outlives the fight"
+   choice) read as the full field 100% of the time — nothing else
+   in the game shows through walls like that (the Warden itself
+   never renders unseen). Ruled by playtest: the shimmer is AS
+   VISIBLE AS THE MACHINE THAT MAKES IT — visible-only, full
+   bright; no remembered trail.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
