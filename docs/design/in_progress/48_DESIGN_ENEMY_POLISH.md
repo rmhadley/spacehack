@@ -2165,7 +2165,7 @@ with doctrinal 10-13):
   F5-extraction warden gauntlet + parasite-only pool leans (tune
   dials), the field-as-entities design question (finding 8, the
   far-side handoff), doc-50's PlayerSheet quality/stat-spend gaps.
-- [ ] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
+- [x] 10. **Biome expansion + apexes** — LUSH/VOLCANIC/SCRAP_RING/
   CANYON fauna + band-aware pools; one apex per biome guarding
   delve-bottom legendaries (SETTLED 30 + 47: per-biome fully
   authored pools with TIER_POOLS as the default, earth=lush,
@@ -2181,7 +2181,16 @@ with doctrinal 10-13):
   the four new tables + battery + save/load row) — reviewer
   dispatched per build, five APPROVEs, every minor folded; the
   battery re-run is BIT-IDENTICAL pre/post (the landing record
-  below). PLAYTEST PENDING.
+  below). PLAYTEST PASSED 2026-10-04 (user: "Yes, I like that this
+  limits the humanoids. the data pads were dropping TOO much
+  before. This works for now. Playtest passes.") — the pad-door
+  consequence ENDORSED as a balance improvement, not just a ruled
+  consequence. SYSTEMS.md audited same commit (the dig entry
+  amended for the biome axis + door-1 scope + the bottom apex; a
+  new "Biome fauna + delve-bottom apexes" entry; the elite set and
+  the tier-gate law folded into their entries). The extensibility
+  audit (Q8, the acceptance criterion) is recorded below the
+  landing record. PHASE CLOSED.
 - [ ] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
   hunt reskinned as a new enemy class (with the `_heat.py`
@@ -4145,6 +4154,50 @@ table where the phase-9 MID-PLAYTEST fixes landed after that table
 was recorded (712f795d's int-truncated band gates move ranged rows;
 45ca4ea7's melee-reach slam makes the F4 mix hotter) — pre-existing
 drift, not phase-10's (the worktree diff proves it).
+
+## Phase 10 extensibility audit (2026-10-04 — Q8 answered at close)
+
+The acceptance criterion — **adding an enemy is a data edit: spec
+row (+ optional pool/crew wiring), never a code change** — HOLDS,
+walked end-to-end per scenario against the landed tree:
+
+- **Ground fauna row**: one `NpcCharSpec` in a `data/npc_chars`
+  module (registry auto-discovers) + optional organic weapon row
+  (`data/ground_weapons/monsters.py`) + a `BIOME_POOLS`/`TIER_POOLS`
+  seat. Data only.
+- **Humanoid face**: spec row + family conformance (faction
+  families recruit by `faction` automatically; a NEW family is one
+  `CHAR_CLASS_FAMILIES` row) + pool seat + `HUMANOID_PAD_DROPPERS`
+  if it should feed door 1. Data only.
+- **Ship spec**: `data/npc_ships` row + the system's
+  `npc_spawn_table`. Data only.
+- **A full biome** (the widest case — phase 10 itself is the
+  proof): `biome=` declarations + `BIOME_POOLS` + `BIOME_APEX` (+
+  optional `APEX_BORROW` row) + the 2-faces-1-apex rows. Data only.
+
+The recurring companion edits are TEST PINS, not game code —
+deliberate (pins force conscious changes): `EXPECTED_NOISE` (exact
+dict), the elite census (exact set), the verbatim pool pins, the
+biome-declaration dict, `CROSS_REGISTRY_PIN`/`TILE_CHAR_PIN`
+overlap sets, the melee-set census dict.
+
+Punch list (recorded, NOT fixed — each is a follow-up proposal):
+
+1. The procedural MISSION target ladders are tier dicts in src
+   (`mission/_proc_bar.py`, `mission/_proc_bounty.py`) — changing
+   WHO missions field means editing code; candidate data
+   extraction.
+2. `_CUSTOM_ATTACK_LINES` lives in src (`combat/_messages.py`) — a
+   new weapon wanting custom attack lines edits code; candidate
+   data extraction (the SETTLED 46 seam).
+3. The ancient machines' mechanics are code BY DESIGN
+   (`combat/_ancients.py` + `MachineMechanics`) — a new MACHINE
+   MECHANIC needs code; scoped out by SETTLED 47/48's data-only
+   apex ruling (mechanic proposals return via refine).
+
+Authored quest content pinning raw ids (the act-0 door ambush's
+`pirate_raider`; survey_a's consortium crew) is SETTLED 28's
+authored-specials lane, not a gap.
 
 ## Pre-implementation audit — phase 9 BUILD 2 (2026-10-03)
 

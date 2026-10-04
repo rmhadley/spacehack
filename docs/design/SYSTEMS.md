@@ -594,8 +594,9 @@ nobody designs against a ghost.
   gunner `e`; `civillian_bystander` renamed with the `_ID_ALIASES`
   save-compat alias in `find_npc_char`; the uniqueness key is
   (char, fg, elite) — phase 4's faces: trooper `m`, marine `M`,
-  sniper bold `M`, pirate brute bold `R` (elite flags exactly
-  {brute, sniper, warden}). The ANCIENT family (phase 9, SETTLED
+  sniper bold `M`, pirate brute bold `R`; phase 10's six biome
+  apexes join the elite set (exactly {brute, sniper, warden} + the
+  six apexes). The ANCIENT family (phase 9, SETTLED
   45) amends the one-letter convention: three DISTINCT glyphs —
   Watcher `O`, Shredder `S`, Warden bold `W` — unified by ONE cold
   violet (170,140,250).
@@ -619,6 +620,31 @@ nobody designs against a ghost.
   target card title states `LVL <level> <name>`. `fixed_band`
   (phase 9) pins a spec's band FLAT — the ancient rows derive at
   band 4 regardless of the site's floor stamp.
+- **Biome fauna + delve-bottom apexes (doc 48 phase 10)** — the dig
+  roster is per-biome: `PlanetSpec.biome` (12 declared — earth=lush,
+  4 desert, 4 ice, volcanic/scrap_ring/canyon) resolves
+  `data/digs.BIOME_POOLS` (six biomes × bands 1-4, composition AND
+  density authored; machine seats bands 1-2 only in desert/ice/
+  scrap — the assault drone is T2, bands 3-4 fauna-pure); undeclared
+  biomes read `TIER_POOLS` (the amended default). Fauna are DATA
+  rows, every one a distinct behavior×attack cell — the cells'
+  levers: behavior verbs (incl. guard-as-nest), organic-weapon bands
+  (min/max/ap/noise), armor ladders, AP 2-6, squad sizes, stat
+  weights, and TWO-SET loadouts on beasts (the spore spitter's sting
+  set rides the cornered-switch). The APEXES: one per biome
+  (`BIOME_APEX`), bold glyphs (`elite`), FLAT bases (band stamp
+  scales), solo `squad_size (1,1)`, each guarding differently;
+  knockback and armor_bypass ride the EXISTING weapon fields
+  (behemoth_maul 2 / wyrm_breath pierce). EVERY delve bottom spawns
+  its apex beside the legendary cache (`digs._place_bottom_apex`,
+  band-stamped at `_dig_tier`; `spec.biome` → `APEX_BORROW` →
+  `DEFAULT_APEX_BIOME` desert — no unguarded legendaries), through
+  the hoisted `dungeon_population._spawn_squad_near` (its explicit
+  `squad_id` composes the PACK apex: `pack_pool`/`pack_size` on the
+  spec — the Mesa Mauler + 2-4 vipers as ONE squad, zero new AI).
+  Glyph freeness is the (char, fg) pair law + the tile-char overlap
+  pin `{E}` (world Tile constants + per-planet DungeonParams
+  palettes).
 - **Ship band scaling (doc 48 phase 7)** — `space_scale.py`, the
   ground resolver's space twin (imports `ground_scale`'s band
   machinery; the largest-remainder allocator is ONE shared helper).
@@ -750,7 +776,12 @@ nobody designs against a ghost.
   roll (doc 48 phase 5); a very rare tinker-kit roll
   draws after the pad roll (doc 47.5); everything shares the
   silent 30-entity cap (`combat/_actions.spawn_kill_drops` /
-  `_spawn_kit_drop`; pools authored in `data/npc_chars/`).
+  `_spawn_kit_drop`; pools authored in `data/npc_chars/`). The
+  TIER-GATE LAW (doc 48 phase 10, test-pinned catalog-wide): a
+  row's `tier` must be >= every `equipment_loot_pool` entry's
+  `tech_level` — the drop filter is `tech_level <= tier`, so an
+  over-tier pool silently drops nothing (the assault drone's
+  all-t3 pool at tier 2 seeded the law).
 - **Player kit** — HP 20 + stamina/3 + armor + traits; AP 4 +
   bonuses; R is the only reload verb — the weapon's reload AP in
   combat, free at the dungeon screen (doc 51.3 removed the menu
@@ -1020,10 +1051,15 @@ nobody designs against a ghost.
   `rumor.present_hearing`, pointer lines in the RUMORS tab. The
   planet menu gains one "Explore <name>" row per discovered site
   (no quest gate). Floors are BSP-generated from
-  `digs.derive_dig_params` (planet theme tiles + `data/digs`
-  TIER_POOLS at `mission_tier`, four bands, densities
+  `digs.derive_dig_params` (planet theme tiles + the per-biome
+  `data/digs` BIOME_POOLS at `mission_tier` — TIER_POOLS is the
+  undeclared-biome default; four bands, densities
   1.0/1.4/1.8/2.2; the floor band climbs tier + floor − 1 capped 4;
-  `spec.dig_params` overrides),
+  `spec.dig_params` overrides); biome dig kills feed NO humanoid
+  pad droppers — door 1 is default-table-only (ruled consequence,
+  endorsed at the phase-10 playtest: the pads were dropping too
+  much); every delve bottom spawns its biome's apex beside the
+  legendary (the biome fauna entry),
   persist per floor under `dig:<planet>:<id>:<floor>` — the cache
   key is the identity source, no dig attributes on maps; floor 1
   keeps the EXIT, deeper floors swap it for STAIRS_UP, non-bottom
