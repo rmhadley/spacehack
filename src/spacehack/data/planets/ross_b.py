@@ -151,6 +151,7 @@ SPEC = PlanetSpec(
     ),
     explorable_site_name="caves",
     dark_berth=True,
+    biome="volcanic",
     dig_min_floors=3,
     dig_max_floors=7,
     dig_prefixes=('Ember', 'Burnt', 'Char', 'Smolder', 'Ash', 'Hot', 'Slag', 'Kiln'),

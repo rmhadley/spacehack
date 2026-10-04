@@ -157,6 +157,7 @@ SPEC = PlanetSpec(
     ),
     tech_level=3,
     mission_tier=2,
+    biome="canyon",
     dig_min_floors=2,
     dig_max_floors=4,
     dig_prefixes=('River', 'Reed', 'Slow', 'Brown', 'Wide', 'Ferry', 'Mud', 'Old'),

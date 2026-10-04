@@ -105,15 +105,52 @@ DEFAULT_SUFFIXES: tuple[str, ...] = (
 # no procedurally-spawned consortium; authored content still pins raw
 # ids). Their seats carry pirate weight so no band reads peaceful
 # (SETTLED 16) — repetition IS weight under the uniform draws.
+# Doc 48 SETTLED 49 amendment: the assault drone is T2 — its seat
+# leaves bands 3-4 (hull_parasite takes it; bands 3-4 keep their
+# humanoid droppers). Machine seats live at bands 1-2 only.
 TIER_POOLS: dict[int, tuple[tuple[str, ...], float]] = {
     1: (("pirate_raider", "pirate_raider", "militia_trooper",
          "sentry_drone"), 1.0),
     2: (("pirate_raider", "pirate_rifleman", "pirate_rifleman",
          "assault_drone"), 1.4),
-    3: (("pirate_rifleman", "pirate_brute", "assault_drone",
+    3: (("pirate_rifleman", "pirate_rifleman", "pirate_brute",
          "hull_parasite"), 1.8),
     4: (("pirate_rifleman", "pirate_brute", "pirate_brute",
-         "assault_drone"), 2.2),
+         "hull_parasite"), 2.2),
+}
+
+# Per-biome dig pools (doc 48 SETTLED 47/49): a planet declaring
+# ``biome`` resolves its pool+density here, keyed by SITE band; floors
+# still climb the stat band via the dig tier. ``TIER_POOLS`` stays the
+# default read for every undescribed biome — a delve reads its planet's
+# fauna, not pirates-by-default. Composition AND density are authored
+# per biome per band (opening guesses, tuned at playtest); the density
+# ladder is the SETTLED 35 rung set (1.0/1.4/1.8/2.2). Machine seats
+# live at bands 1-2 only (sentry b1 / assault b2, desert/ice/scrap —
+# scrap's table lands with the four new biome pools); bands 3-4 are
+# fauna-pure, the strong face weighted up — deeper delves read WILDER,
+# not more mechanized (SETTLED 49).
+BIOME_POOLS: dict[str, dict[int, tuple[tuple[str, ...], float]]] = {
+    "desert": {
+        1: (("rock_scavenger", "rock_scavenger", "dust_prowler",
+             "sentry_drone"), 1.0),
+        2: (("dust_prowler", "dust_prowler", "rock_scavenger",
+             "assault_drone"), 1.4),
+        3: (("dust_prowler", "dust_prowler", "rock_scavenger",
+             "rock_scavenger"), 1.8),
+        4: (("dust_prowler", "dust_prowler", "dust_prowler",
+             "rock_scavenger"), 2.2),
+    },
+    "ice": {
+        1: (("ice_worm", "ice_worm", "frost_spitter",
+             "sentry_drone"), 1.0),
+        2: (("frost_spitter", "frost_spitter", "ice_worm",
+             "assault_drone"), 1.4),
+        3: (("frost_spitter", "frost_spitter", "ice_worm",
+             "ice_worm"), 1.8),
+        4: (("frost_spitter", "frost_spitter", "frost_spitter",
+             "ice_worm"), 2.2),
+    },
 }
 
 # The authored-room sprinkle (SETTLED 25/32): a seeded minority of

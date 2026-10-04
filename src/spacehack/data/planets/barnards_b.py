@@ -123,6 +123,7 @@ SPEC = PlanetSpec(
         # the pool serves only layout-less delves.
         cache_guardian_pool=(),
     ),
+    biome="desert",
     dig_min_floors=2,
     dig_max_floors=5,
     dig_prefixes=('Old', 'Crooked', 'Rust', 'Buried', 'Hollow', 'Faded', 'Bitter', 'Last'),

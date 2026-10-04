@@ -112,14 +112,19 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # armored bruiser — holds its post
         squad_size=(1, 1),
         always_hostile=True,
-        tier=3,
+        # SETTLED 49 (doc 48): re-tiered 3 -> 2 — the machine family
+        # reads as ruin-security T2 uniformly, the sentry's class. The
+        # equipment pool re-authors to t2 entries: the old all-t3 set
+        # would silently stop dropping at tier 2 (the tier-gate law —
+        # drops filter by tech_level <= tier).
+        tier=2,
         armor=3,
         loot_pool=("electronics", "machine_parts", "ship_components"),
         equipment_loot_pool=(
-            ("armor", "heavy_vest"),
-            ("armor", "visor_helmet"),
-            ("armor", "powered_gloves"),
-            ("weapon", "vibroblade"),
+            ("armor", "heavy_helmet"),
+            ("armor", "medium_vest"),
+            ("armor", "reinforced_gauntlets"),
+            ("weapon", "smg"),
         ),
         field_item_loot_pool=(
             ("ammo", "energy_cells"),

@@ -3971,7 +3971,12 @@ Densities: the SETTLED 35 ladder (1.0/1.4/1.8/2.2) authored per
 biome per band (uniform opening guess; per-biome tuning rides
 playtest). hull_parasite stays OUT of biome pools (its seats are
 the authored derelict/ancient content + the default TIER_POOLS
-band 3).
+band 3). RULED CONSEQUENCE of the fauna pools (reviewer-noted at
+build 1, recorded so playtest reads it as designed): biome dig
+kills feed NO humanoid pad droppers — discovery door 1 (dig-reveal
+pads from humanoid combat kills) is default-table-only; the 12
+biome planets' digs reveal sites through doors 2-3 (derelict pads,
+terminals).
 
 **Glyph drafts** (species chars; apex = own char, bold). The
 freeness standard is the SETTLED 32/34 identity law, not blanket

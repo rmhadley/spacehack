@@ -99,6 +99,7 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=2,
+    biome="ice",
     dig_min_floors=2,
     dig_max_floors=4,
     dig_prefixes=('Frost', 'White', 'Thin', 'Cold', 'Bare', 'Dim', 'Pale', 'Still'),

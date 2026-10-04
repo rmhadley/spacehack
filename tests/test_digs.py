@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.spacehack import digs, engine, world, landmark
 from src.spacehack.data.digs import DEFAULT_PREFIXES, DEFAULT_SUFFIXES
+from src.spacehack.data.npc_chars import find_npc_char
 from src.spacehack.data.planets import list_planet_specs, find_planet_spec
 
 
@@ -657,8 +658,10 @@ def test_dig_pools_resolve_and_feed_the_pad_door():
 
 
 def test_dig_pools_cover_all_bands():
-    """SETTLED 35 verbatim: four bands, the brute seats at 3-4, no
-    consortium id, densities 1.0/1.4/1.8/2.2."""
+    """SETTLED 35 verbatim as amended by SETTLED 49: four bands, the
+    brute seats at 3-4, no consortium id, densities 1.0/1.4/1.8/2.2;
+    the assault seat leaves bands 3-4 (the drone is T2 — bands 1-2
+    only, hull_parasite takes the vacated seat)."""
     from src.spacehack.data.digs import TIER_POOLS
     assert set(TIER_POOLS) == {1, 2, 3, 4}
     assert TIER_POOLS == {
@@ -666,13 +669,98 @@ def test_dig_pools_cover_all_bands():
              "sentry_drone"), 1.0),
         2: (("pirate_raider", "pirate_rifleman", "pirate_rifleman",
              "assault_drone"), 1.4),
-        3: (("pirate_rifleman", "pirate_brute", "assault_drone",
+        3: (("pirate_rifleman", "pirate_rifleman", "pirate_brute",
              "hull_parasite"), 1.8),
         4: (("pirate_rifleman", "pirate_brute", "pirate_brute",
-             "assault_drone"), 2.2),
+             "hull_parasite"), 2.2),
     }
     for pool, _density in TIER_POOLS.values():
         assert not any("consortium" in eid for eid in pool)
+
+
+# --- the biome axis (doc 48 phase 10, SETTLED 47/49) --------------------------
+
+
+def test_planet_biome_declarations():
+    """The twelve authored biomes, verbatim (SETTLED 47); every other
+    planet leaves the field empty and reads the default pool."""
+    declared = {
+        spec.id: spec.biome for spec in list_planet_specs() if spec.biome
+    }
+    assert declared == {
+        "earth": "lush",
+        "mercury": "desert", "barnards_b": "desert",
+        "cygni_b": "desert", "ac_planet_1": "desert",
+        "proc_planet_2": "ice", "lal_b": "ice",
+        "ac_planet_2": "ice", "barnards_c": "ice",
+        "ross_b": "volcanic", "ross_c": "scrap_ring",
+        "eri_b": "canyon",
+    }
+
+
+def test_biome_planet_resolves_its_biome_pool():
+    """A declared biome reads its own table: a mercury dig meets desert
+    fauna, never the pirate default, and the band picks the row."""
+    from src.spacehack.data.digs import BIOME_POOLS
+    spec = find_planet_spec("mercury")
+    for band in (1, 2, 3, 4):
+        pool, density = digs._biome_pool(spec, band)
+        assert pool == BIOME_POOLS["desert"][band][0]
+        assert density == BIOME_POOLS["desert"][band][1]
+    low = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=1))
+    high = digs.derive_dig_params(dataclasses.replace(spec, mission_tier=4))
+    assert low.monster_pool == BIOME_POOLS["desert"][1][0]
+    assert high.monster_pool == BIOME_POOLS["desert"][4][0]
+    assert high.monster_density > low.monster_density
+
+
+def test_unauthored_biome_reads_the_default_pool():
+    """``""`` (mars, venus) and a declared-but-tableless biome both
+    read TIER_POOLS — honest scope, never an error (SETTLED 47)."""
+    mars = digs.derive_dig_params(find_planet_spec("mars"))
+    assert "pirate_raider" in mars.monster_pool
+    unauthored = dataclasses.replace(
+        find_planet_spec("mars"), biome="volcanic",
+    )
+    volcanic = digs.derive_dig_params(unauthored)
+    assert volcanic.monster_pool == mars.monster_pool
+
+
+def test_biome_pools_resolve_ids_and_sit_on_the_density_ladder():
+    """Table integrity: every biome covers bands 1-4, every id is a
+    live spec (the spawn path silently swallows unknown ids), every
+    density sits on the SETTLED 35 ladder, and no band carries machine
+    seats past band 2 (SETTLED 49: bands 3-4 are fauna-pure)."""
+    from src.spacehack.data import npc_chars
+    from src.spacehack.data.digs import BIOME_POOLS
+
+    ladder = {1.0, 1.4, 1.8, 2.2}
+    registry = npc_chars._registry()
+    for biome, bands in BIOME_POOLS.items():
+        assert set(bands) == {1, 2, 3, 4}, biome
+        for band, (pool, density) in bands.items():
+            for enemy_id in pool:
+                assert enemy_id in registry, f"unknown {biome} id {enemy_id}"
+                assert not enemy_id.startswith("consortium"), enemy_id
+            assert density in ladder, (biome, band, density)
+            if band >= 3:
+                assert "sentry_drone" not in pool
+                assert "assault_drone" not in pool, (biome, band)
+
+
+def test_assault_drone_is_tier_two_with_a_t2_pool():
+    """SETTLED 49: the re-tier is a classification ruling — no stat
+    numbers move; the equipment pool re-authors so every entry still
+    drops at tier 2 (the tier-gate law that seeded the change)."""
+    spec = find_npc_char("assault_drone")
+    assert spec.tier == 2
+    assert spec.armor == 3 and spec.hp == 34 and spec.ap == 3
+    assert spec.equipment_loot_pool == (
+        ("armor", "heavy_helmet"),
+        ("armor", "medium_vest"),
+        ("armor", "reinforced_gauntlets"),
+        ("weapon", "smg"),
+    )
 
 
 def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):

@@ -145,6 +145,7 @@ SPEC = PlanetSpec(
     ),
     tech_level=4,
     mission_tier=4,
+    biome="scrap_ring",
     dig_min_floors=3,
     dig_max_floors=8,
     dig_prefixes=('Cinder', 'Char', 'Black', 'Slag', 'Cooled', 'Dead', 'Deep', 'Final'),

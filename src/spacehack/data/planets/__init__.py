@@ -118,6 +118,13 @@ class PlanetSpec:
     dig_params: object = None
     dig_min_floors: int = 1
     dig_max_floors: int = 2
+    # Doc 48 SETTLED 47: the planet's dig FAUNA biome — the BIOME_POOLS
+    # key, decoupled from ``theme`` (earth keeps its EARTH palette and
+    # declares biome="lush"; derived theme copies never re-key). Empty
+    # = the default TIER_POOLS read (pirate mix) until a biome earns
+    # faces; the bottom-floor apex borrows through APEX_BORROW (lands
+    # with the bottom-guard build).
+    biome: str = ""
 
 
 # ---------------------------------------------------------------------------

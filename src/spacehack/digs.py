@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from . import engine, rumor, world
 from .data.digs import (
+    BIOME_POOLS,
     DEFAULT_PREFIXES,
     DEFAULT_SUFFIXES,
     LANDMARK_CHANCE,
@@ -151,6 +152,13 @@ def pointer_lines(ctx) -> list[tuple[str, bool]]:
 # --- generation (SETTLED 26/38): the spec feeds the generator -------------
 
 
+def _biome_pool(spec: PlanetSpec, band: int) -> tuple[tuple[str, ...], float]:
+    """The dig pool+density for one band: the planet's declared biome
+    table (doc 48 SETTLED 47), else the default TIER_POOLS read — a
+    biome without a table is honest scope, not an error."""
+    return BIOME_POOLS.get(spec.biome, TIER_POOLS)[band]
+
+
 def derive_dig_params(spec: PlanetSpec) -> DungeonParams:
     """One config per planet, derived from theme + mission tier
     (SETTLED 26); ``spec.dig_params`` overrides wholesale. Future
@@ -158,7 +166,7 @@ def derive_dig_params(spec: PlanetSpec) -> DungeonParams:
     hardcoded."""
     if spec.dig_params is not None:
         return spec.dig_params
-    pool, density = TIER_POOLS[_site_tier(spec)]
+    pool, density = _biome_pool(spec, _site_tier(spec))
     tile_wall, tile_floor = _dig_tiles(spec.theme)
     return DungeonParams(
         width=64,

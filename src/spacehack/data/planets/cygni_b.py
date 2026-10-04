@@ -116,6 +116,7 @@ SPEC = PlanetSpec(
     ),
     tech_level=2,
     mission_tier=2,
+    biome="desert",
     dig_min_floors=1,
     dig_max_floors=3,
     dig_prefixes=('Willow', 'Ferry', 'Mill', 'Quiet', 'Old', 'Green', 'Broad', 'Low'),
