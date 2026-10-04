@@ -3573,6 +3573,36 @@ bait to a door, hold a choke, or trade inside the ring. The player
 who does beats the row the bot loses. Tune flags should be read
 against player-skill play, not the stance alone.
 
+## SETTLED 46 (2026-10-04) — ancient prose renames + the slam's own lines
+
+User, verbatim:
+
+> Shredder Claws should be renamed. How about: Serated Blades? I'm
+> imagining an alien machinery that is alive with shredding limbs
+> whirring and slicing.
+> The shimmer field absorbs your shot.
+> The shimmer field collapses!
+> Warden Shot rename: Energy Cannon
+> Warden Slam rename: instead of "Warden swings its Warden Slam at
+> you." Could we do "Warden slams hard in to you!" when it hits and
+> "Warden attempts to slam in to you but misses." When it doesn't?
+
+Rulings (landed verbatim, spelling flagged for the user in chat):
+
+- **Renames**: Shredder Claws -> **Serated Blades** (the user's
+  spelling, as written); Warden Shot -> **Energy Cannon**. Ids
+  unchanged; display names only.
+- **The shimmer pair SUPERSEDES the SETTLED 45 drafts**: absorb is
+  "The shimmer field absorbs your shot." and a destroyed tile is
+  "The shimmer field collapses!" (was "swallows your shot" /
+  "breaks apart").
+- **The slam carries CUSTOM attack lines** (the first per-weapon
+  feed override — a `_CUSTOM_ATTACK_LINES` table in
+  `_messages.py`): hit "Warden slams hard in to you!" / miss
+  "Warden attempts to slam in to you but misses." The hit line
+  carries NO damage clause by the user's wording — the floating
+  damage number and the HP bar still show it.
+
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
 machines' rows didn't need it).
