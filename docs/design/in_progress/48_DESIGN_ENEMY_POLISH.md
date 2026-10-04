@@ -3589,19 +3589,22 @@ User, verbatim:
 
 Rulings (landed verbatim, spelling flagged for the user in chat):
 
-- **Renames**: Shredder Claws -> **Serated Blades** (the user's
-  spelling, as written); Warden Shot -> **Energy Cannon**. Ids
-  unchanged; display names only.
+- **Renames**: Shredder Claws -> **Serrated Blades**; Warden Shot
+  -> **Energy Cannon**. Ids unchanged; display names only. (Spellings
+  corrected by the user's same-day follow-up: "yes you can fix my
+  typos.")
 - **The shimmer pair SUPERSEDES the SETTLED 45 drafts**: absorb is
   "The shimmer field absorbs your shot." and a destroyed tile is
   "The shimmer field collapses!" (was "swallows your shot" /
   "breaks apart").
 - **The slam carries CUSTOM attack lines** (the first per-weapon
   feed override — a `_CUSTOM_ATTACK_LINES` table in
-  `_messages.py`): hit "Warden slams hard in to you!" / miss
-  "Warden attempts to slam in to you but misses." The hit line
-  carries NO damage clause by the user's wording — the floating
-  damage number and the HP bar still show it.
+  `_messages.py`), amended the same day (typos fixed + the damage
+  clause added): hit "Warden slams hard into you! You take X
+  damage!" / miss "Warden attempts to slam into you but misses."
+  The event popups (the six stale drone-named messages + the
+  silent Warden wakes) are DEFERRED to a later user pass ("I'll
+  probably do another pass some other night").
 
 Instrument gaps (carried): PlayerSheet still cannot express ground
 stat spends or gear qualities (both real saves load whole, so the
