@@ -123,9 +123,11 @@ light-missile wall wins the duels (raider 0.835 THROUGH 27%
 interception; the wall cannot geometrically carry any shield), the
 shield is a wash-to-crater at fixed weapons, and no skiff build
 beats the marauder (0/50 all finalists). The rows join the brief as
-`probe_cal4_skiff_*` and SETTLED 39 carries the user's caveat
+ `probe_cal4_skiff_*` and SETTLED 39 carries the user's caveat
 verbatim: the shield's real value is the divert-and-flee escape
 option the duel stance cannot see.
+Brief APPROVED 2026-10-05 (user: "brief approved") — phase 4 is
+buildable; the handoff is `/implement-phase 56.4`.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -1891,7 +1893,7 @@ ratchet; no split forecast needed.
 - Minor 8 (shared per-shot tail): pre-noted in item 4 so the
   build's DRY pass extracts it, not copies it.
 
-## Implementation brief — Phase 4 (PROPOSED 2026-10-05, `/refine-design`; ADVISE-folded same session — dispositions below)
+## Implementation brief — Phase 4 (PROPOSED 2026-10-05, `/refine-design`; ADVISE-folded same session — dispositions below; amended same day with the `probe_cal4_skiff_*` duel set per SETTLED 39; APPROVED 2026-10-05 — user: "brief approved")
 
 The magnitude pass. Instruments first (scenario rows + the sweep
 tool), tables second, rulings third: the two dials rule at the
