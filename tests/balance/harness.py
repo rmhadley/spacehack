@@ -30,7 +30,6 @@ from typing import Iterator
 from src.spacehack import (
     animation_timing,
     engine,
-    ground_loadout,
     ground_npcs,
     solar_system,
     world,
@@ -74,9 +73,11 @@ from tests.support.asyncutil import run as _async_run
 # the ground AI, the noise/investigation rolls, and the ambient patrol
 # pass (doc 50 SETTLED 5 rebind set).
 # noise left the set with its rolled-weapon rolls (doc 48 p9: the
-# stamp moved to ground_loadout; noise itself draws nothing now).
-_RNG_MODULES = (_loop, _ai, _actions, _ai_ground, ground_npcs,
-                ground_loadout)
+# stamp moved to ground_loadout; noise itself draws nothing now);
+# ground_loadout left it with the live-binding idiom (doc 48 p12:
+# its draws import engine.RNG at CALL time, so the engine rebind
+# above already reaches them — no module binding to swap).
+_RNG_MODULES = (_loop, _ai, _actions, _ai_ground, ground_npcs)
 
 # A stuck fight is itself a balance finding, never a hung test.
 TURN_CAP = 200

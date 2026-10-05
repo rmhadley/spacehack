@@ -16,7 +16,9 @@ class GroundArmorSpec:
     Attributes:
         id: registry key, e.g. ``light_vest``.
         name: display name, e.g. ``Light Armor Vest``.
-        slot: ``"helmet"``, ``"vest"``, ``"gloves"``, or ``"boots"``.
+        slot: ``"head"``, ``"body"``, ``"hands"``, ``"legs"``, or
+            ``"feet"`` — the vocabulary :func:`slot_tiers` ladders
+            and ``worn_armor_slots`` authors.
         defense: flat damage reduction applied per hit.
         description: one-line flavour text.
         price: credits cost to buy from an armory.
@@ -28,7 +30,7 @@ class GroundArmorSpec:
     """
     id: str
     name: str
-    slot: str                     # "helmet", "vest", "gloves", "boots"
+    slot: str                     # "head", "body", "hands", "legs", "feet"
     defense: int                  # flat damage reduction
     description: str
     price: int = 0
@@ -78,3 +80,32 @@ def find_ground_armor(armor_id: str) -> GroundArmorSpec:
 def list_ground_armor() -> tuple[GroundArmorSpec, ...]:
     """All registered ground armor, in undefined order."""
     return tuple(_registry().values())
+
+def _is_cybernetic(spec) -> bool:
+    """A cyber piece carries at least one of the four bonus fields —
+    band rolls never hand them out (cyber stays row-authored, doc 48
+    SETTLED 55)."""
+    return bool(
+        spec.ap_bonus or spec.hit_bonus
+        or spec.melee_bonus or spec.hp_bonus
+    )
+
+
+def slot_tiers() -> dict[str, dict[int, tuple[str, ...]]]:
+    """Per-slot ladders of band-rollable armor ids by tech level —
+    the weapon ``family_tiers`` twin (doc 48 SETTLED 55): specs name
+    eligible SLOTS, bands roll the tier, and the ladder derives from
+    the catalog at call time so new armor content joins the bands
+    with no list edits. Cybernetic pieces are excluded (row-authored
+    only); unknown slots simply carry no ladder (the roll skips)."""
+    ladders: dict[str, dict[int, list[str]]] = {}
+    for spec in list_ground_armor():
+        if _is_cybernetic(spec):
+            continue
+        ladders.setdefault(spec.slot, {}).setdefault(
+            spec.tech_level, [],
+        ).append(spec.id)
+    return {
+        slot: {tier: tuple(ids) for tier, ids in sorted(tiers.items())}
+        for slot, tiers in ladders.items()
+    }

@@ -188,6 +188,38 @@ def rolled_quality(band: int, rng, quality_floor: int = 0) -> int:
     return max(quality_floor, roll_quality(quality_rates(band), rng))
 
 
+# Per-band per-slot worn-armor fill chance (doc 48 SETTLED 55): each
+# eligible slot rolls independently; the row's ``worn_fill_mod``
+# shapes it (merchants ~0.15, soldiers 1.0). Tunable — the
+# expectations table pins band 1 often-zero and band 4 usually-armored.
+WORN_FILL_CHANCE: tuple[float, ...] = (0.25, 0.50, 0.70, 0.90)
+
+
+def worn_fill_chance(band: int) -> float:
+    """The band's per-slot fill probability (band 0 reads band 1)."""
+    return WORN_FILL_CHANCE[max(1, clamp_band(band)) - 1]
+
+
+def roll_worn_slot(slot: str, band: int, rng, fill_mod: float = 1.0) -> str:
+    """One eligible slot's armor id at the band (doc 48 SETTLED 55):
+    the fill roll (the band's chance x the row's ``fill_mod``), then
+    the tier through the weapon-style window on the slot's catalog
+    ladder (derived at call time — new armor joins the bands),
+    snapped toward the top on gaps (hands has no t4). ``""`` when
+    the fill misses or the slot carries no ladder — a future
+    cyber-only slot skips, never raises."""
+    from .data.ground_armor import slot_tiers
+
+    if rng.random() >= worn_fill_chance(band) * fill_mod:
+        return ""
+    tiers = slot_tiers().get(slot)
+    if not tiers:
+        return ""
+    window = BAND_WINDOWS[max(1, clamp_band(band)) - 1]
+    tier = _snap_tier(tiers, _window_tier(window, rng))
+    return rng.choice(tiers[tier])
+
+
 def rolled_weapon_quality(weapon_id: str, band: int, rng,
                           quality_floor: int = 0) -> int:
     """Equip-time quality roll (SETTLED 13/35): the ladder rides the

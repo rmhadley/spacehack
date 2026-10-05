@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from . import world
 from . import ground_scale
-from .engine import RNG
 
 SET_RANGED = "ranged"
 SET_MELEE = "melee"
@@ -50,6 +49,8 @@ def ensure_loadout(
 
         _spec = spec or find_npc_char(entity.npc_char_id)
         _band = ground_scale.entity_band(entity, game_map, spec=_spec)
+        from .engine import RNG  # the LIVE binding (seed_rng rebinds)
+
         entity.rolled_loadout = ground_scale.roll_loadout(
             _spec, _band, RNG,
         )
@@ -84,14 +85,34 @@ def ensure_worn(
 
 
 def _roll_worn(spec, band: int) -> list:
-    """Roll the worn pieces' qualities at the band's ladder, clamped
-    to the spec's ``quality_floor`` (SETTLED 51 — worn cyber gear
-    never reads base on a rung)."""
+    """The worn set's first resolution (doc 48 SETTLED 55): a FIXED
+    ``worn_armor`` set wins outright (the rungs' cybernetics); else
+    each eligible slot resolves through :func:`ground_scale.
+    roll_worn_slot` (fill chance x the row's mod, then the tier
+    window on the catalog ladder) with the quality drawn INLINE per
+    piece at the band's ladder, clamped to the spec's floor (SETTLED
+    51 — worn gear never reads base on a rung). RNG order pinned:
+    per slot in authored order, fill-then-tier-then-pick, then that
+    piece's quality."""
+    from .engine import RNG  # the LIVE binding (seed_rng rebinds)
+
     _floor = getattr(spec, "quality_floor", 0)
-    return [
-        ["armor", piece_id, ground_scale.rolled_quality(band, RNG, _floor)]
-        for piece_id in getattr(spec, "worn_armor", ())
-    ]
+    _fixed = getattr(spec, "worn_armor", ())
+    if _fixed:
+        return [
+            ["armor", pid, ground_scale.rolled_quality(band, RNG, _floor)]
+            for pid in _fixed
+        ]
+    _mod = getattr(spec, "worn_fill_mod", 1.0)
+    _worn = []
+    for _slot in getattr(spec, "worn_armor_slots", ()):
+        _pid = ground_scale.roll_worn_slot(_slot, band, RNG, _mod)
+        if not _pid:
+            continue
+        _worn.append([
+            "armor", _pid, ground_scale.rolled_quality(band, RNG, _floor),
+        ])
+    return _worn
 
 
 def worn_entries(stamp: dict | None) -> tuple:
@@ -141,6 +162,8 @@ def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:
 
     _spec = spec or find_npc_char(entity.npc_char_id)
     _band = ground_scale.entity_band(entity, game_map, spec=_spec)
+    from .engine import RNG  # the LIVE binding (seed_rng rebinds)
+
     stamp[SET_MELEE] = ground_scale.roll_slot(
         getattr(_spec, "melee_families", ()),
         getattr(_spec, "melee_weapons", ()), _band, RNG,
@@ -153,6 +176,7 @@ def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:
 def _arm_migrated_pair(stamp: dict, pair) -> None:
     """Give one migrated pair its magazine (full) and pool entry when
     the stamp lacks them — never touches live mid-fight counts."""
+    from .engine import RNG  # the LIVE binding (seed_rng rebinds)
     from .data.ground_weapons import find_ground_weapon
 
     if pair is None:

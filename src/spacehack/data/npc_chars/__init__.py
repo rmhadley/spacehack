@@ -192,7 +192,21 @@ class NpcCharSpec:
             A row wearing cyber pieces must author tier >= every worn
             piece's tech_level (the tier-gate law) or its pool empties.
         armor: flat damage reduction subtracted from player hits
-            (plasma halves it).
+            (plasma halves it). Humanoid rows author 0 — their soak
+            is entirely their GEAR (doc 48 SETTLED 55); chassis and
+            hide rows (machines, fauna, ancients) keep their authored
+            value and wear nothing.
+        worn_armor_slots: eligible armor SLOTS the band may fill
+            (doc 48 SETTLED 55) — the general worn-armor mechanism:
+            each eligible slot rolls a per-band fill chance (times
+            ``worn_fill_mod``), then the tier through the weapon-style
+            window on the slot's catalog ladder, derived at roll time
+            so new armor content joins the bands automatically. Empty
+            = wears nothing (machines, fauna, ancients, and rows with
+            a fixed ``worn_armor`` set).
+        worn_fill_mod: the row's fill-chance scalar (doc 48 SETTLED
+            55) — merchants author ~0.15 so traders read as traders,
+            soldiers leave the default 1.0.
         worn_armor: armor ids the row WEARS (doc 48 SETTLED 51/27 —
             the consortium rungs' cybernetic augmentation): resolved
             once into the loadout stamp's ``worn`` key at stamped
@@ -240,6 +254,8 @@ class NpcCharSpec:
     pack_size: tuple[int, int] = (1, 1)
     tier: int = 1
     armor: int = 0
+    worn_armor_slots: tuple[str, ...] = ()
+    worn_fill_mod: float = 1.0
     worn_armor: tuple[str, ...] = ()
     quality_floor: int = 0
     fixed_band: int = 0
@@ -296,6 +312,38 @@ def _registry() -> dict[str, NpcCharSpec]:
 # Save-compat alias (doc 48 phase 3): pre-rename saves carry the
 # misspelled bystander id in ``npc_char_id`` — resolve to the fixed id.
 _ID_ALIASES = {"civillian_bystander": "civilian_bystander"}
+
+
+# The carried-loot classes (doc 48 SETTLED 55-58): which fiction a
+# corpse's drops obey. Keyed on identity data, never a hand list.
+LOOT_CLASS_HUMANOID_FACTIONS: frozenset[str] = frozenset({
+    "pirate", "militia", "merchant", "consortium",
+})
+
+
+def loot_class(spec) -> str:
+    """The row's carried-loot class (doc 48 SETTLED 55-58):
+    ``"ancient"`` (nothing usable — the sites pay in alien tech),
+    ``"apex"`` (the one trophy good), ``"machine"`` (its own
+    substance: energy cells + scrap), ``"humanoid"`` (the kit +
+    pockets), ``"fauna"`` (the body is the body — nothing but XP).
+    Precedence in that order — a mechanics-carrying row is ancient
+    however elite, an elite factionless row is an apex, and the
+    machine family membership precedes the humanoid faction read.
+    The civilian bystander (faction "civilian", outside the four)
+    falls through to ``"fauna"`` — never a loot source, and its
+    fauna semantics (no kit, no pools) are exactly right for it;
+    the census test excludes it by name so the fall-through stays
+    deliberate and visible."""
+    if getattr(spec, "mechanics", None) is not None:
+        return "ancient"
+    if spec.faction == "" and spec.elite:
+        return "apex"
+    if spec.id in CHAR_CLASS_FAMILIES["machine"].members:
+        return "machine"
+    if spec.faction in LOOT_CLASS_HUMANOID_FACTIONS:
+        return "humanoid"
+    return "fauna"
 
 
 def find_npc_char(char_id: str) -> NpcCharSpec:

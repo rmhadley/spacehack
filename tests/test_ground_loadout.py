@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.spacehack import ground_loadout
+from src.spacehack import engine, ground_loadout
 from src.spacehack.data.ground_weapons import find_ground_weapon
 
 
@@ -167,7 +167,7 @@ def test_migrated_stamp_completes_armed_at_first_engagement(monkeypatch):
         def randint(self, lo, hi):
             return lo
 
-    monkeypatch.setattr(ground_loadout, "RNG", _Seq())
+    monkeypatch.setattr(engine, "RNG", _Seq())
     stamp = ground_loadout.ensure_loadout(gunner)
 
     assert "melee" in stamp
@@ -199,7 +199,7 @@ def test_resolved_stamp_never_re_arms(monkeypatch):
     def _boom(*_a, **_k):
         raise AssertionError("resolved stamps never roll")
 
-    monkeypatch.setattr(ground_loadout, "RNG", _boom)
+    monkeypatch.setattr(engine, "RNG", _boom)
     assert ground_loadout.ensure_loadout(hunter) is hunter.rolled_loadout
 
 
