@@ -4310,6 +4310,16 @@ reads them as designed):
   roll shifts only their seeds).
 - **Guide diff: NONE, confirmed** — the confirm-grep's only "hunt"
   hit is the guild-mission Hunter tier, unrelated.
+
+MID-PLAYTEST INSTRUMENT RULING (2026-10-05, `2014f944`): **Shift+P is
+a PICKER, not a cycle** (user: "there's no way to get to the end of
+shift+P. it spawns too much. maybe shift+P should give me a menu") —
+the city-teleport picker pattern over the option list, descriptions
+"Cruiser hull, band 2" / "..., BOLD", any spec granted in one press
+(the hunt ships no longer six spawns deep). Reviewer REQUEST_CHANGES
+on the first pass (the third frames builder) — folded as the shared
+`_menu_frames` (the faction/teleport twins ride it, verified
+behavior-identical), re-review APPROVE.
 ## Pre-implementation audit — phase 10 (2026-10-04)
 
 1. **Existing modules to extend or reuse:**
