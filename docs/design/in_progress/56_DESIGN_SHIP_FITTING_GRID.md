@@ -116,6 +116,16 @@ phase-4 Implementation brief proposed + ADVISE-folded below
 (verdict ADVICE, 2 blocking + 4 minor — the missile-flight clamp
 binding and the tripped-bar/consequence sweep were the blockers;
 all folded, dispositions inside the brief).
+Same day, off-brief at the user's curiosity and then ruled in: an
+exhaustive skiff-loadout search (every buyable 9-cell fill — 14,753
+feasible; real packer + power gate; three sim passes) — the
+light-missile wall wins the duels (raider 0.835 THROUGH 27%
+interception; the wall cannot geometrically carry any shield), the
+shield is a wash-to-crater at fixed weapons, and no skiff build
+beats the marauder (0/50 all finalists). The rows join the brief as
+`probe_cal4_skiff_*` and SETTLED 39 carries the user's caveat
+verbatim: the shield's real value is the divert-and-flee escape
+option the duel stance cannot see.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -617,6 +627,18 @@ specs fly heavy_laser — enemy-side strengthening to measure).
     finally, nothing sweep-shaped ever landing in src/ or data/.
     The user's next real build gets probed at the checkpoint as the
     reality check.
+
+39. **The skiff duel rows measure lethality, not survival** (2026-10-05,
+    at the phase-4 brief's proposal, after the off-brief exhaustive
+    starter-hull search). User, verbatim: "I know realistically a
+    sheild mk1 is still the correct choice in a skiff. If anything
+    because it gives you the option to throw 100% of your power to
+    shield regen and flee to a port/jump." The stand-and-trade sims
+    fight to VICTORY/DEFEAT and cannot see the paid-divert escape
+    play, so the missile wall's no-shield optimality is a DUEL
+    finding only; the shield's career value — regen-while-fleeing to
+    a port or jump — is real and unmeasured by these rows. The
+    `probe_cal4_skiff_*` rows carry this caveat by reference.
 
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
@@ -1913,6 +1935,43 @@ table.
      (stripped-shield timing, win/damage delta vs the no-EMP
      twin; the traded reactor is part of the measured shape —
      the boss-key costs grid and watts, which is the point).
+   - `probe_cal4_skiff_*_vs_raider` — the starter-hull duel set
+     (ADDED 2026-10-05 at the user's word, from the off-brief
+     exhaustive search: every buyable combat-relevant 9-cell fill
+     enumerated — 14,753 feasible under the real packer + power gate —
+     then three escalating sim passes; ~12 min). Five report-only
+     rows, all vs pirate_raider (the separating band; goal_1 already
+     owns the scout matchup), same geometry as the rest:
+     - `probe_cal4_skiff_wall_vs_raider` — 2× light_laser + 3×
+       light_missile + gyro_stabilizer (250cr). THE winner: measured
+       scout 1.000/0.0 dmg/2.0t, raider 0.835/0.3 — THROUGH live
+       enemy flak (62% resolved-arrival; 27% of 666 rounds inter-
+       cepted by the raider). Max-rack geometry: a 3×3 holds at most
+       three 1×2 pieces, so the wall cannot carry ANY 1×2 module —
+       racks XOR shield is a geometric fact, not a margin.
+     - `probe_cal4_skiff_wall_stock_vs_raider` — 3× light_laser +
+       3× light_missile, no modules (210cr, all tier-1): measured
+       0.76/0.2 — the buyable-in-first-systems variant.
+     - `probe_cal4_skiff_shield_vs_raider` — 2× light_laser + 2×
+       light_missile + gyro + shield_mk1 (270cr): measured 0.31/0.5
+       — the shield is a wash on wins at fixed weapons (vs 0.36 with
+       the cells EMPTY) and halves damage taken; SETTLED 39's
+       divert-and-flee career value rides this row.
+     - `probe_cal4_skiff_maxshield_vs_raider` — 2× light_laser + 2×
+       light_missile + shield_mk1 + shield_capacitor (280cr):
+       measured 0.11/0.0 — the all-defense floor (slower tempo, no
+       electronics, longer fights).
+     - `probe_cal4_skiff_heavy_vs_raider` — 2× heavy_missile + 2×
+       light_laser + 2× missile_magazine (400cr): measured 0.82/0.2 —
+       ties the wall's win rate, kills slower (3.7 vs 2.9t), costs
+       60% more; magazine stacking measured WORSE, not better.
+     Marauder finding recorded in prose, no row: 0/50 for EVERY
+     finalist — no skiff build beats band 3; that is the hull-change
+     signal. Row-authoring note: the harness installs
+     weapons-then-modules in first-fit order — declare ids in an
+     order that installs (the shield-twin shape only installs
+     racks-first; build_owned_ship asserts loudly on the wrong
+     order).
 2. NEW `tools/balance_sweep.py` — the two dial sweeps (ad-hoc
    instrument, tools/ scope, outside lint by design): import the
    harness batch runner + the cal4 rows; patch at the seam inside
@@ -2015,7 +2074,10 @@ doc-55 auto-pickup scope, no save-shape changes of any kind.
    (`python3 tools/balance_probe.py`) against the phase-5 tables —
    the reality check; report whether shields vs enemy damage feel
    right post-walk (the SETTLED-36 measurement — an own doc opens
-   only if the numbers demand one).
+   only if the numbers demand one). Includes the starter-hull
+   question: does the wall feel as dominant in live play as in the
+   duels, and does the shield's flee option feel necessary in
+   practice (SETTLED 39)?
 4. Guide diff: NONE expected — confirm and record.
 5. Save/load: no new state — confirm.
 
