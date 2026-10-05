@@ -61,27 +61,37 @@ def _dev_faction_label(faction_id: str) -> str:
     return _DEV_FACTION_LABELS[faction_id]
 
 
-def _pygame_faction_frames(menu: ui.MenuScreen):
-    """Build the shared fixed-layout frames for the dev faction picker."""
+def _menu_frames(menu: ui.MenuScreen, body: str):
+    """Build the shared fixed-layout frames for a dev picker menu —
+    one frame per selection, items wired to the menu's own
+    descriptions and option ids (the faction/teleport/ship pickers'
+    one builder)."""
     from . import pygame_menu
 
     items = tuple(
         pygame_menu.MenuItem(
             label=label,
-            description=menu.descriptions.get(faction_id, ""),
-            action=faction_id,
+            description=menu.descriptions.get(option_id, ""),
+            action=option_id,
         )
-        for faction_id, label in menu.options
+        for option_id, label in menu.options
     )
     return tuple(
         pygame_menu.MenuFrame(
             title=menu.title.upper(),
-            body="Choose the faction whose Act 0 path you want to test.",
+            body=body,
             items=items,
             hints=(menu.instruction,),
             selected=selected,
         )
         for selected in range(len(items))
+    )
+
+
+def _pygame_faction_frames(menu: ui.MenuScreen):
+    """Build the fixed-layout frames for the dev faction picker."""
+    return _menu_frames(
+        menu, "Choose the faction whose Act 0 path you want to test.",
     )
 
 
@@ -156,23 +166,8 @@ def city_teleport_menu() -> ui.MenuScreen:
 
 
 def _pygame_teleport_frames(menu: ui.MenuScreen):
-    """Build the shared fixed-layout frames for the city teleport picker."""
-    from . import pygame_menu
-
-    items = tuple(
-        pygame_menu.MenuItem(label=label, description="", action=planet_id)
-        for planet_id, label in menu.options
-    )
-    return tuple(
-        pygame_menu.MenuFrame(
-            title=menu.title.upper(),
-            body="Land on any port city for playtesting.",
-            items=items,
-            hints=(menu.instruction,),
-            selected=selected,
-        )
-        for selected in range(len(items))
-    )
+    """Build the fixed-layout frames for the city teleport picker."""
+    return _menu_frames(menu, "Land on any port city for playtesting.")
 
 
 async def choose_city_teleport(context) -> tuple[Outcome, str | None]:
@@ -755,8 +750,10 @@ def spawn_dev_consumable_carriers(ctx, game_map, player_pos) -> int:
 
 
 def _dev_pirate_cycle() -> tuple:
-    """Shift+P's cycle (doc 48.7): the six pirate classes in ladder
-    order, then the missile-led captain the checklist's item 3 needs
+    """Shift+P's option list (doc 48.7's cycle; the 48.11 playtest
+    ruling made the key a picker — this is its source): the six
+    pirate classes in ladder order, then the missile-led captain the
+    checklist's item 3 needs
     (its weapons[0] is a missile — the dry-then-step read), then the
     doc-48-phase-11 hunt ships (the pursuit hunter + the bold-F
     anchor). The variant registers as a dev-authored spec row at
@@ -779,20 +776,63 @@ def _dev_pirate_cycle() -> tuple:
     )) + (_missile_led,)
 
 
-def spawn_dev_pirate(ctx, game_map, player_pos) -> int:
-    """Shift+P: spawn the next pirate spec beside the player (space
-    mode). The cycle is stateless — its index is how many dev pirates
-    the map already carries — and the spawn rides the ambient entity
-    factory so detect-radius aggro pulls it into a real fight."""
+def _describe_ship_spec(spec) -> str:
+    """One ship option's menu description: hull, band, elite flag."""
+    from .data.ships import find_ship
+
+    _desc = f"{find_ship(spec.ship_id).name} hull, band {spec.band}"
+    return f"{_desc}, BOLD" if spec.elite else _desc
+
+
+def dev_ship_menu() -> ui.MenuScreen:
+    """The Shift+P spec picker (doc 48.11 playtest ruling): cycling
+    buried the hunt ships behind six spawns — the menu grants ANY
+    cycle spec in one press. Options are the cycle itself (the
+    missile-led captain included)."""
+    specs = _dev_pirate_cycle()
+    return ui.MenuScreen(
+        title="Spawn NPC Ship",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER select", "ESC cancel",
+        ),
+        options=tuple((spec.id, spec.name) for spec in specs),
+        descriptions={spec.id: _describe_ship_spec(spec) for spec in specs},
+    )
+
+
+def _pygame_ship_frames(menu: ui.MenuScreen):
+    """Build the fixed-layout frames for the ship spec picker."""
+    return _menu_frames(menu, "Spawn the picked spec beside you (space mode).")
+
+
+async def choose_dev_ship(context) -> tuple[Outcome, str | None]:
+    """Run the ship spec picker in the shared Pygame window."""
+    menu = dev_ship_menu()
+    result = await _run_pygame_menu_pick(
+        context, _pygame_ship_frames(menu),
+        caption="spacehack - spawn npc ship",
+        valid_ids={spec_id for spec_id, _label in menu.options},
+    )
+    if result is None:
+        return Outcome.BACK, None
+    return result
+
+
+def spawn_dev_ship(ctx, game_map, player_pos, spec_id: str) -> int:
+    """Spawn one picked spec beside the player (space mode). The
+    spawn rides the ambient entity factory so detect-radius aggro
+    pulls it into a real fight. The squad id keys off the spec —
+    same-spec picks share one movement group, different specs stay
+    distinct."""
+    from .data.npc_ships import find_npc_ship
     from .npc_ships import _make_npc_entity
     from . import world as _world
 
-    cycle = _dev_pirate_cycle()
-    index = sum(
-        1 for _e in game_map.entities
-        if str(getattr(_e, "procedural_squad_id", "")).startswith("dev_pirate_")
-    ) % len(cycle)
-    spec = cycle[index]
+    try:
+        spec = find_npc_ship(spec_id)
+    except KeyError:
+        ctx.log.add(f"[DEV] Unknown ship id: {spec_id}.")
+        return 0
     occupied = {(_e.pos.x, _e.pos.y) for _e in game_map.entities}
     cell = next(
         ((player_pos.x + dx, player_pos.y + dy)
@@ -803,10 +843,10 @@ def spawn_dev_pirate(ctx, game_map, player_pos) -> int:
         None,
     )
     if cell is None:
-        ctx.log.add("[DEV] No room beside you for the pirate grant.")
+        ctx.log.add("[DEV] No room beside you for the ship grant.")
         return 0
     game_map.entities.append(_make_npc_entity(
-        spec, _world.Position(*cell), f"dev_pirate_{index}",
+        spec, _world.Position(*cell), f"dev_pirate_{spec.id}",
     ))
     ctx.log.add(f"[DEV] Spawned {spec.name} (band {spec.band}) beside you.")
     return 1

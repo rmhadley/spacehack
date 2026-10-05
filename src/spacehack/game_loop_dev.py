@@ -126,12 +126,17 @@ async def _dev_spawn_enemy_faces(state):
 
 
 async def _dev_spawn_pirate_ship(state):
-    """Shift+P: spawn the next pirate spec beside the player (doc 48.7)."""
-    from .dev_mode import spawn_dev_pirate
-    if state.current_mode == 'space':
-        spawn_dev_pirate(
-            state.ctx, state.game_map, state.player.pos,
-        )
+    """Shift+P: pick a ship spec from the menu, spawn it beside the
+    player (doc 48.7; the menu landed with 48.11's hunt ships — the
+    cycle buried them behind six spawns)."""
+    from .dev_mode import choose_dev_ship, spawn_dev_ship
+    if state.current_mode != 'space':
+        return
+    _outcome, spec_id = await choose_dev_ship(state.ctx.context)
+    if spec_id is None:  # ESC/window-close reads as a cancel here
+        state.log.add('Dev: ship spawn cancelled.')
+        return
+    spawn_dev_ship(state.ctx, state.game_map, state.player.pos, spec_id)
 
 
 async def _dev_spawn_consumable_carriers(state):

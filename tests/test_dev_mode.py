@@ -840,9 +840,53 @@ def _drop_dev_pirate_registry_row():
     _npc_ships._BY_ID.pop("dev_missile_captain", None)
 
 
-def test_spawn_dev_pirate_cycles_by_press_count():
-    """Stateless cycling: the index derives from the dev pirates
-    already on the map; each press spawns adjacent with its spec id."""
+def test_dev_ship_menu_lists_the_whole_cycle():
+    """Doc 48.11's playtest ruling: Shift+P is a PICKER now — cycling
+    buried the hunt ships behind six spawns. The menu's options are
+    the cycle itself, ids as actions."""
+    menu = dev_mode.dev_ship_menu()
+    try:
+        assert [option_id for option_id, _label in menu.options] == [
+            "pirate_scout", "pirate_hound", "pirate_raider",
+            "pirate_marauder", "pirate_captain", "pirate_warlord",
+            "consortium_hunter", "consortium_dreadnought",
+            "dev_missile_captain",
+        ]
+        assert menu.descriptions["consortium_hunter"] == (
+            "Cruiser hull, band 2"
+        )
+        assert menu.descriptions["consortium_dreadnought"] == (
+            "Frigate hull, band 3, BOLD"
+        )
+    finally:
+        _drop_dev_pirate_registry_row()
+
+
+def test_pygame_ship_frames_keep_fixed_descriptions_and_ids():
+    """Dev ship items use the shared menu's stable descriptions (the
+    faction picker twin's pin); one frame per selection, ids as
+    actions."""
+    try:
+        frames = dev_mode._pygame_ship_frames(dev_mode.dev_ship_menu())
+    finally:
+        _drop_dev_pirate_registry_row()
+    assert len(frames) == 9
+    _hunter = next(
+        item for frame in frames for item in frame.items
+        if item.action == "consortium_hunter"
+    )
+    assert _hunter.label == "Consortium Hunter"
+    assert _hunter.description == "Cruiser hull, band 2"
+    _anchor = next(
+        item for frame in frames for item in frame.items
+        if item.action == "consortium_dreadnought"
+    )
+    assert _anchor.description == "Frigate hull, band 3, BOLD"
+
+
+def test_spawn_dev_ship_places_the_picked_spec():
+    """One press, any spec: the pick spawns adjacent with its spec id
+    (the hunt ships reachable directly, no six-spawn runway)."""
     from src.spacehack import world as _world
 
     from src.spacehack.message_log import MessageLog
@@ -854,25 +898,24 @@ def test_spawn_dev_pirate_cycles_by_press_count():
         entities=[],
     )
     player = _world.Entity("t", (1, 1, 1), _world.Position(5, 5))
-    spawned = []
-    try:
-        for _ in range(3):
-            assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 1
-            spawned.append(game_map.entities[-1])
-        assert [e.npc_ship_id for e in spawned] == [
-            "pirate_scout", "pirate_hound", "pirate_raider",
-        ]
-        assert all(
-            max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 1 for e in spawned
-        )
-        # The block message when no cell is free.
-        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
-            game_map.entities.append(_world.Entity(
-                "x", (1, 1, 1), _world.Position(5 + dx, 5 + dy),
-            ))
-        assert dev_mode.spawn_dev_pirate(ctx, game_map, player.pos) == 0
-    finally:
-        _drop_dev_pirate_registry_row()
+    for spec_id in ("consortium_hunter", "consortium_dreadnought"):
+        assert dev_mode.spawn_dev_ship(ctx, game_map, player.pos, spec_id) == 1
+    assert [e.npc_ship_id for e in game_map.entities] == [
+        "consortium_hunter", "consortium_dreadnought",
+    ]
+    assert all(
+        max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 1
+        for e in game_map.entities
+    )
+    # Unknown ids and a fully-blocked ring both no-op with a log line.
+    assert dev_mode.spawn_dev_ship(ctx, game_map, player.pos, "nope") == 0
+    for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
+        game_map.entities.append(_world.Entity(
+            "x", (1, 1, 1), _world.Position(5 + dx, 5 + dy),
+        ))
+    assert dev_mode.spawn_dev_ship(
+        ctx, game_map, player.pos, "consortium_hunter",
+    ) == 0
 
 
 def test_log_ground_weapon_sets_dumps_both_sets():
