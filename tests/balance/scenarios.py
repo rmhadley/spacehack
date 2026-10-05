@@ -793,7 +793,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261010,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 1.000 / 0.00 / 1.4t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.94),
     ),
     BalanceScenario(
         id="probe_cal4_base_vs_raider",
@@ -808,7 +811,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261011,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 1.000 / 1.02 / 4.0t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.94, damage_taken_ceiling=2.0),
     ),
     BalanceScenario(
         id="probe_cal4_base_vs_marauder",
@@ -823,7 +829,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261012,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.520 / 44.73 / 5.2t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.40, win_rate_ceiling=0.66, damage_taken_ceiling=55.0),
     ),
     BalanceScenario(
         id="probe_cal4_base_vs_warlord",
@@ -839,7 +848,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261013,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.000 (50 def) + slack, the doc-50 standard.
+        Thresholds(win_rate_ceiling=0.10),
     ),
     BalanceScenario(
         id="probe_cal4_base_vs_2x_marauder",
@@ -858,7 +870,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261014,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.000 (50 def) + slack, the doc-50 standard.
+        Thresholds(win_rate_ceiling=0.10),
     ),
     BalanceScenario(
         id="probe_cal4_upgraded_vs_scout",
@@ -875,7 +890,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261010,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 1.000 / 0.00 / 1.6t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.94),
     ),
     BalanceScenario(
         id="probe_cal4_upgraded_vs_raider",
@@ -890,7 +908,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261011,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 1.000 / 0.00 / 2.8t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.94),
     ),
     BalanceScenario(
         id="probe_cal4_upgraded_vs_marauder",
@@ -905,7 +926,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261012,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.980 / 23.02 / 4.0t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.90, damage_taken_ceiling=30.0),
     ),
     BalanceScenario(
         id="probe_cal4_upgraded_vs_warlord",
@@ -921,7 +945,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261013,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.080 / 59.25 / 6.0t + slack, the doc-50 standard.
+        Thresholds(win_rate_ceiling=0.20),
     ),
     BalanceScenario(
         id="probe_cal4_upgraded_vs_2x_marauder",
@@ -940,7 +967,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261014,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.020 / 68.00 / 5.0t + slack, the doc-50 standard.
+        Thresholds(win_rate_ceiling=0.12),
     ),
     BalanceScenario(
         id="probe_cal4_emp_vs_warlord",
@@ -959,7 +989,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261013,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.120 / 58.83 / 6.2t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.04, win_rate_ceiling=0.24),
     ),
     BalanceScenario(
         id="probe_cal4_skiff_wall_vs_raider",
@@ -984,7 +1017,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261020,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.900 / 0.00 / 2.8t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.80),
     ),
     BalanceScenario(
         id="probe_cal4_skiff_wall_stock_vs_raider",
@@ -1008,7 +1044,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261020,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.720 / 0.31 / 3.3t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.60),
     ),
     BalanceScenario(
         id="probe_cal4_skiff_shield_vs_raider",
@@ -1033,7 +1072,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261020,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.340 / 0.00 / 3.1t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.20, win_rate_ceiling=0.46),
     ),
     BalanceScenario(
         id="probe_cal4_skiff_maxshield_vs_raider",
@@ -1058,7 +1100,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261020,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.180 / 0.00 / 3.9t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.08, win_rate_ceiling=0.30),
     ),
     BalanceScenario(
         id="probe_cal4_skiff_heavy_vs_raider",
@@ -1083,7 +1128,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261020,
-        thresholds=None,
+        thresholds=        # Ruled 2026-10-05 at the phase-4 checkpoint (user: "call
+        # this good" - the calibration stands as authored): measured
+        # 0.780 / 0.10 / 3.6t + slack, the doc-50 standard.
+        Thresholds(win_rate_floor=0.66),
     ),
 )
 
