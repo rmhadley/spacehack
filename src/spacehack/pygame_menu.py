@@ -109,7 +109,11 @@ def _frame_height(font: Any, frame: MenuFrame, content_width: int) -> int:
     return height
 
 
-COMPACT_MAX_VISIBLE_ROWS = 4
+# The compact popup's row cap. 8 since the doc-48-p12 playtest
+# ("the loot pickup modal could be bigger — try doubling its size"):
+# the cap only bites option lists longer than it, so story choices
+# read unchanged while the loot list shows twice the floor.
+COMPACT_MAX_VISIBLE_ROWS = 8
 
 
 def _compact_frame_height(font: Any, frame: MenuFrame, width: int) -> int:
