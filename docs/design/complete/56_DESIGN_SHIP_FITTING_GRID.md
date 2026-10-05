@@ -137,6 +137,12 @@ checkpoint awaiting the user's dial rulings (SETTLED 30/29) and
 bars; a pre-existing tombstone CP437 gate failure (red on
 Python ≤3.11 since doc 53, invisible on 3.12+) was diagnosed and
 fixed in its own commit en route.
+CHECKPOINT RULED + PLAYTEST PASSED + **DOC CLOSED** 2026-10-05
+(SETTLED 40): both dials stand as authored, no magnitude edit lands,
+bars landed on all 16 cal4 rows (gate **3768**), every checkbox
+ticked, no open questions — the doc moves to `complete/`. The
+parts walk + the grid migration it calibrated are the shipped game;
+tweaks ride live building/testing.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -651,6 +657,32 @@ specs fly heavy_laser — enemy-side strengthening to measure).
     a port or jump — is real and unmeasured by these rows. The
     `probe_cal4_skiff_*` rows carry this caveat by reference.
 
+40. **Both phase-4 dials stand as authored — the phase closes on the
+    walk's numbers** (2026-10-05, the phase-4 checkpoint ruling; closes
+    SETTLED 30's open dial, SETTLED 29's clamp question, and open
+    question 1). User, verbatim: "I feel like all the work we did
+    balancing the modules in previous phases leveled a lot of the
+    initial concerns and this balance sim pass proves it." and
+    "Let's call this good. I've even done a few good play throughs
+    and didn't run in to anything I want to adjust yet. So we'll
+    close this out and deal with any tweaks needed as I continue
+    building and testing." RULED: the upkeep curve −1/−2/−3/−4 stays
+    (the sweep tables showed steeper/×k inverting at the low end —
+    enemy mk1 flyers lose pool, hard bands get EASIER — while
+    cratering the walk's fresh mk4 toys and re-opening the mk1-stack
+    domination SETTLED 29/30 de-stacked); the 5-95 clamp stays
+    (cap 90's measured gain was +0.02-0.10 in rows meant to be
+    walls; 98 strengthens the warlord; mid-band play never touches
+    the ceiling); NO magnitude edit lands; tweaks ride live
+    building/testing as they surface. Bars landed on all 16 cal4
+    rows (measured + slack, the doc-50 standard) so the calibration
+    table is drift-protected for whatever phase touches the numbers
+    next. SYSTEMS.md untouched per brief item 8 (the clamp did not
+    move; the balance-sim inventory is doc 50's own close
+    obligation). The checkpoint's two authoring surfaces — the
+    level-10 sheet spread (20/15/10 → 36/27/20) and the tombstone
+    ` - ` separator — passed with no adjustments.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
@@ -965,7 +997,7 @@ then one balance pass over both sides with the probe as referee.
   PLAYTEST: fit the motivating cases by hand (Skiff + mk4 shield
   refused; cruiser two-mk3+reactor refused; rearrange freely; remove
   funding reactor refused), plus the full save/load sniff test.
-- [ ] **4. Calibration** — probe-driven tuning of upkeep magnitudes and
+- [x] **4. Calibration** — probe-driven tuning of upkeep magnitudes and
   power pressure; the PARTS WALK (its authoring edge) COMPLETE
   2026-10-01, SETTLED 26-35: every ladder de-stacked, heavy_reactor
   killed, armor watt-free + speed-taxed, cargo 2×4 + area-monotone
@@ -1058,6 +1090,15 @@ then one balance pass over both sides with the probe as referee.
     container/host hazard worth knowing.
   PLAYTEST: the user's next space fight feels dangerous in the intended
   bands; probe rows show real mean hull damage.
+  CHECKPOINT RULED + PLAYTEST PASSED + PHASE CLOSED 2026-10-05
+  (SETTLED 40 — both dials stand as authored, no magnitude edit
+  lands, bars on all 16 rows; user: "I've even done a few good play
+  throughs and didn't run in to anything I want to adjust yet").
+  Guide: NO edit (a numbers phase; verified, recorded per the
+  every-checklist rule). Save/load: no new state (rows are test
+  fixtures; the sweep tool writes nothing). The one player-visible
+  string change en route — the tombstone CP437 separator fix —
+  passed with no adjustment.
 - [x] **5. NPC parity — grid + volley** — the full NPC mirror, one
   build. Grid side: NPC loadouts adopt sizes — the flat-tuple slot
   lint becomes packability + power validity (base quality, SETTLED
@@ -2223,6 +2264,11 @@ proposal)** — verdict ADVICE, 2 blocking + 4 minor, all folded:
    switch or terminal exit (SETTLED 11/12).
 
 ## Open questions (for /refine-design)
+
+(Upkeep magnitudes beyond the draft curve — the last open question —
+SETTLED 2026-10-05 at the phase-4 checkpoint as SETTLED 40: the
+authored curve stands; tweaks ride live building/testing. No open
+questions remain.)
 
 1. **Upkeep magnitudes** beyond the draft curve (tied to phase 4).
 
