@@ -31,15 +31,27 @@ def _quest_spawn_pos(ctx, step, system_id: str, spawns):
 
 
 def _quest_leader_spawn(step, pos):
-    """The leader BountySpawn for step's group, or None if it has no leader."""
+    """The leader BountySpawn for step's group, or None if it has no leader.
+
+    A leader that authors no comms lines never auto-hails (doc 48
+    SETTLED 50's hunt ships hail silent by design — the q6 anchor
+    guards in silence, never a contentless ``...`` hail); every
+    talkative leader keeps the range-12 hail."""
     if not step.bounty_enemy_id:
         return None
+    from ..data.npc_ships import find_npc_ship
     from ..game_context import BountySpawn
+
+    try:
+        _spec = find_npc_ship(step.bounty_enemy_id)
+    except KeyError:
+        _spec = None
+    _hails = 12 if _spec is None or _spec.comms_lines else 0
     return BountySpawn(
         spawn_id=step.requires_spawn_id,
         enemy_id=step.bounty_enemy_id,
         pos=pos,
-        comms_warning_range=12,
+        comms_warning_range=_hails,
     )
 
 

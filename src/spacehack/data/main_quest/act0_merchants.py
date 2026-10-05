@@ -65,8 +65,8 @@ STEPS: tuple[MainQuestStep, ...] = (
         requires_npc_id="salvage_specialist",
         smuggle_good_id="escrow_ore",
         smuggle_cargo_size=3,
-        smuggle_hot=False,  # ore — never confiscatable (consortium heat is pirates, not scans)
-        heat=("consortium",),  # consortium pirates hunt the ore en route
+        smuggle_hot=False,  # ore — never confiscatable (consortium heat is hunters, not scans)
+        heat=("consortium",),  # consortium hunters chase the ore en route (SETTLED 50)
         npc_presence=("salvage_specialist",),  # the receiver of the ore
         wait_days=60,
         dialogues={
@@ -122,12 +122,15 @@ STEPS: tuple[MainQuestStep, ...] = (
         chain="merchants",
         objective_type="salvage",
         requires_spawn_id="mer_consortium_leader",
-        bounty_enemy_id="pirate_captain",
-        bounty_escort_ids=("pirate_raider", "pirate_raider"),
+        # The hunt's set-piece escalation (SETTLED 50): the bold-F
+        # anchor guarded by pursuit hunters — killing the dreadnought
+        # is the finale.
+        bounty_enemy_id="consortium_dreadnought",
+        bounty_escort_ids=("consortium_hunter", "consortium_hunter"),
         salvage_wreck_enemy_id="derelict_scout",
         salvage_layout_id="survey_a",
         delve_good_ids=(("calibration_data", 1),),
-        heat=("consortium",),  # consortium blockade guards the wreck
+        heat=("consortium",),  # the consortium hunt guard holds the wreck (SETTLED 50)
         npc_presence=("salvage_specialist",),  # portrait for the survey readout
         wait_days=70,  # smiths set the teeth to the survey's weak lines
         # Portrait-only entry (see lab_q5_frequency): the alloy handover

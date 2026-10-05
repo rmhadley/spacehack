@@ -116,7 +116,7 @@ def test_charged_cell_aggro_ignored_for_other_chains():
 
 
 # ---------------------------------------------------------------------------
-# Merchant chain: consortium pirate heat (consortium)
+# Merchant chain: consortium hunter heat (consortium)
 # ---------------------------------------------------------------------------
 
 

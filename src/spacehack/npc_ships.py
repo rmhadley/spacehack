@@ -86,13 +86,14 @@ def _spawn_consortium_squad(
     system,
     body_goals: list,
 ) -> bool:
-    """Consortium squad near one body goal: pirate leader (aggro) +
-    merchant front + escorts. True when anything spawned."""
+    """One consortium hunt squad near a body goal: 2-3 pursuit
+    hunters, a single unmistakable corporate silhouette (doc 48
+    SETTLED 50 — the merchant-hauler front and pirate escorts retired
+    with the disguised-merchant fiction). True when anything spawned."""
     if not body_goals:
         return False
     try:
-        _specs = dict(pirate=_find_npc_ship("pirate_scout"),
-                      merchant=_find_npc_ship("merchant_hauler"))
+        _hunter = _find_npc_ship("consortium_hunter")
     except KeyError:
         return False
 
@@ -101,22 +102,21 @@ def _spawn_consortium_squad(
     _squad = _SquadPlacement(
         game_map, system, *_origin, _occupied_cells(game_map), _mid,
     )
-    # Leader first; escorts only join when the merchant front placed.
-    if not _squad.place(_specs["pirate"]):
-        return False
-    if _squad.place(_specs["merchant"]):
-        for _ in range(_engine.RNG.randint(1, 4)):
-            _squad.place(_specs["pirate"])
+    # Roster floor is two (SETTLED 50): a body that cannot seat the
+    # pair spawns nothing — never a lone "1 ships closing." break.
+    for _ in range(2):
+        if not _squad.place(_hunter):
+            return False
+    if _engine.RNG.random() < 0.5:
+        _squad.place(_hunter)
     ctx.procedural_spawns.setdefault(system_id, []).extend(
         ProceduralSpawn(npc_id=_nid, pos=_ppos, squad_id=_mid)
         for _ppos, _nid in zip(_squad.positions, _squad.npc_ids)
     )
-    _total = len(_squad.positions) - 1  # minus the merchant
-    _escorts = "escort" if _total == 1 else "escorts"
-
     ctx.log.add_colored(
-        f"Sensor ping: consortium operation detected - merchant hauler "
-        f"with {_total} pirate {_escorts}.", _ml.COLOR_IMPORTANT_EVENT,
+        f"Sensor ping: consortium hunters detected - "
+        f"{len(_squad.positions)} ships closing.",
+        _ml.COLOR_IMPORTANT_EVENT,
     )
     return True
 
@@ -728,8 +728,10 @@ def _move_one_squad(ctx, game_map, system, goals, sid, members, pirates,
 
 def _squad_aggro(ctx, system, leader) -> bool:
     """Charged-cell militia, Line-defied militia (doc 41 phase 3 —
-    the patrols converge spatially under a defiance), or
-    consortium-heat pirates chase the player."""
+    the patrols converge spatially under a defiance), or consortium
+    HUNTERS under heat (doc 48 SETTLED 50 — the ambient-pirate
+    auto-aggro retired with the hired-pirate fiction: ambient pirates
+    stay ambient) chase the player."""
     _faction = _faction_of_entity(leader)
     if _faction == 'militia':
         from . import navigation_line as _line_mod
@@ -740,7 +742,7 @@ def _squad_aggro(ctx, system, leader) -> bool:
         and _faction == 'militia'
     ) or (
         main_quest_module.consortium_heat_active(ctx)
-        and _faction == 'pirate'
+        and _faction == 'consortium'
     )
 
 

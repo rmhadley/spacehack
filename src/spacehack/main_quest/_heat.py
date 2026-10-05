@@ -7,8 +7,8 @@ these functions turn live steps into world behaviour. Tag semantics:
                         (bar chain: the proof run + power-cell legs)
     ``militia_aggro`` — militia auto-aggro in Sol while the step's crate is
                         held (bar chain: the charged power cell)
-    ``consortium``    — consortium pirate heat while the step is live
-                        (merchant chain: the ore transport + calibration)
+    ``consortium``    — consortium hunter heat while the step is live
+                        (merchant chain: the ore transport + guarded wreck)
 
 Expiry is implicit: the final chain step carries no heat tag, so once it is
 the only live step the filters naturally return False.
@@ -73,14 +73,12 @@ def charged_cell_in_sol(ctx, system_id: str) -> bool:
 def consortium_heat_active(ctx) -> bool:
     """True while the merchant chain's contested cargo is in play.
 
-    During q3 (smuggle — raw ore) and q4 (bounty — smelted alloy),
-    the consortium hires pirates to hunt the player.  All existing
-    pirate ships auto-aggro, and new consortium squads (pirate
-    leader + merchant escorts) spawn on system entry and randomly
-    per tick.
-
-    Mirrors the bar chain's militia heat but with organised-crime
-    flavour: economic warfare, not criminal heat.
+    During the hunt steps (q3's ore transport, q6's guarded wreck)
+    the consortium's own HUNTERS chase the player: roaming pursuit
+    squads spawn on system entry and randomly per tick (doc 48
+    SETTLED 50 — the hired-pirate fiction retired; ambient pirates
+    stay ambient, the hunt reads as a new enemy class exactly because
+    nobody else behaves differently).
     """
     if ctx.main_quest_chain != "merchants":
         return False

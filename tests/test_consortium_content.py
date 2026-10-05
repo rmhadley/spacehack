@@ -453,3 +453,125 @@ def test_survey_a_fields_the_high_rung():
     enemies = [e.npc_char_id for e in game_map.entities if e.npc_char_id]
     assert "consortium_executor" in enemies  # the @1.0 S slots
     assert {"consortium_enforcer", "consortium_gunner"} <= set(enemies)
+
+
+# --- the hunt reskin (SETTLED 50/54) ----------------------------------------
+
+class _HuntLog:
+    def __init__(self):
+        self.lines: list[str] = []
+
+    def add(self, line):
+        self.lines.append(line)
+
+    def add_colored(self, line, _color, **_kw):
+        self.lines.append(line)
+
+
+def _hunt_ctx():
+    return SimpleNamespace(log=_HuntLog(), procedural_spawns={})
+
+
+def _hunt_map():
+    return world.GameMap(
+        width=40, height=20,
+        tiles=[[world.DUNGEON_FLOOR for _ in range(40)] for _ in range(20)],
+        entities=[],
+    )
+
+
+def _hunt_call(seed):
+    from src.spacehack import engine, npc_ships
+
+    engine.RNG.seed(seed)
+    ctx = _hunt_ctx()
+    game_map = _hunt_map()
+    system = SimpleNamespace(
+        width=40, height=20,
+        planets=[], jump_points=[], stations=[], npc_density=3,
+    )
+    spawned = npc_ships._spawn_consortium_squad(
+        ctx, game_map, "tau_ceti", system, [(10, 10, "planet", "X")],
+    )
+    return ctx, game_map, spawned
+
+
+def test_hunt_squads_are_hunters_only():
+    """SETTLED 50: 2-3 pursuit cruisers — the hauler front and pirate
+    tag-alongs are gone; nothing else spawns."""
+    for seed in range(30):
+        ctx, game_map, spawned = _hunt_call(seed)
+        assert spawned is True, seed
+        rows = ctx.procedural_spawns["tau_ceti"]
+        assert 2 <= len(rows) <= 3, seed
+        assert all(r.npc_id == "consortium_hunter" for r in rows), seed
+        ship_ids = {e.npc_ship_id for e in game_map.entities}
+        assert ship_ids == {"consortium_hunter"}, seed
+        assert not any(
+            "hauler" in line or "pirate" in line for line in ctx.log.lines
+        ), seed
+
+
+def test_hunt_ping_line_is_verbatim():
+    """SETTLED 54: the sensor-ping line lands VERBATIM, N = ships."""
+    for seed in range(12):
+        ctx, _map, _spawned = _hunt_call(seed)
+        _n = len(ctx.procedural_spawns["tau_ceti"])
+        assert ctx.log.lines == [
+            f"Sensor ping: consortium hunters detected - {_n} ships closing.",
+        ], seed
+
+
+def test_heat_aggro_keys_on_consortium_not_pirate(monkeypatch):
+    """SETTLED 50: ambient pirates go back to ambient during heat;
+    the HUNTERS chase while heat is live and stop at expiry."""
+    from src.spacehack import main_quest, npc_ships
+
+    system = SimpleNamespace(id="tau_ceti")
+    pirate = SimpleNamespace(npc_ship_id="pirate_scout")
+    hunter = SimpleNamespace(npc_ship_id="consortium_hunter")
+
+    monkeypatch.setattr(main_quest, "consortium_heat_active", lambda _c: True)
+    monkeypatch.setattr(main_quest, "charged_cell_in_sol", lambda *_a: False)
+    assert npc_ships._squad_aggro(None, system, hunter) is True
+    assert npc_ships._squad_aggro(None, system, pirate) is False  # retired
+
+    monkeypatch.setattr(main_quest, "consortium_heat_active", lambda _c: False)
+    assert npc_ships._squad_aggro(None, system, hunter) is False  # expiry
+
+
+def test_q6_guard_is_the_anchor_plus_two_hunters():
+    """SETTLED 50: the guarded wreck's set-piece — bold-F anchor +
+    1-2 pursuit escorts (landed as the tuple's 2, the existing
+    shape), one squad group."""
+    from src.spacehack.data.main_quest import find_main_quest_step
+    from src.spacehack.main_quest import _spawns
+
+    step = find_main_quest_step("mer_q6_survey")
+    assert step.bounty_enemy_id == "consortium_dreadnought"
+    assert step.bounty_escort_ids == ("consortium_hunter", "consortium_hunter")
+    system = SimpleNamespace(width=40, height=20)
+    leader = _spawns._quest_leader_spawn(step, world.Position(10, 10))
+    escorts = _spawns._quest_escort_spawns(step, system, world.Position(10, 10))
+    assert leader.enemy_id == "consortium_dreadnought"
+    assert [e.enemy_id for e in escorts] == ["consortium_hunter"] * 2
+    assert all(e.squad_group_id == leader.spawn_id for e in escorts)
+
+
+def test_silent_leader_spec_never_auto_hails():
+    """The hunt ships author silence (comms_lines=()): the q6 anchor
+    never opens a contentless ``...`` hail — talkative leaders (the
+    chains' pirate-captain bounties) keep the range-12 hail (doc 48
+    SETTLED 50 review fold)."""
+    from src.spacehack.data.main_quest import find_main_quest_step
+    from src.spacehack.main_quest import _spawns
+
+    silent = _spawns._quest_leader_spawn(
+        find_main_quest_step("mer_q6_survey"), world.Position(1, 1),
+    )
+    assert silent.comms_warning_range == 0
+
+    talkative = _spawns._quest_leader_spawn(
+        find_main_quest_step("lab_q5_frequency"), world.Position(1, 1),
+    )
+    assert talkative.comms_warning_range == 12
