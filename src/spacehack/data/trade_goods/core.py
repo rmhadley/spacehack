@@ -33,6 +33,63 @@ TRADE_GOODS: tuple[TradeGood, ...] = (
         category="biological",
         volume=1,
     ),
+    # --- Apex trophies (doc 48 phase 12, SETTLED 57) ---
+    # The corpse pays in hide: one guaranteed per apex kill, sellable
+    # everywhere, stocked nowhere (kill-only goods).
+    TradeGood(
+        id="behemoth_hide",
+        name="Behemoth Hide",
+        description="Slab hide off a Dune Behemoth. Heavy, scarred, and worth real credits.",
+        base_price=240,
+        category="biological",
+        volume=1,
+        stocked=False,
+    ),
+    TradeGood(
+        id="glacier_fang",
+        name="Glacier Fang",
+        description="A fist-sized tooth pulled from a Glacier Wyrm's jaw.",
+        base_price=280,
+        category="biological",
+        volume=1,
+        stocked=False,
+    ),
+    TradeGood(
+        id="tyrant_scale",
+        name="Tyrant Scale",
+        description="A dinner-plate scale shed by a Caldera Tyrant. Still warm.",
+        base_price=300,
+        category="biological",
+        volume=1,
+        stocked=False,
+    ),
+    TradeGood(
+        id="maw_sinew",
+        name="Maw Sinew",
+        description="Cable-thick tendon cut from a Canopy Maw.",
+        base_price=220,
+        category="biological",
+        volume=1,
+        stocked=False,
+    ),
+    TradeGood(
+        id="colossus_core",
+        name="Colossus Core",
+        description="The humming power unit at a Scrap Colossus's center.",
+        base_price=400,
+        category="raw_material",
+        volume=1,
+        stocked=False,
+    ),
+    TradeGood(
+        id="mauler_pelt",
+        name="Mauler Pelt",
+        description="A Mesa Mauler's striped hide, cured by desert sun.",
+        base_price=260,
+        category="biological",
+        volume=1,
+        stocked=False,
+    ),
     # --- Industrial ---
     TradeGood(
         id="electronics",

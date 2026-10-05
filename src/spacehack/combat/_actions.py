@@ -291,9 +291,14 @@ def _spawn_authored_pools(
 
     if spec.loot_pool:
         _min, _max = spec.loot_count
+        # A guaranteed single-entry pool is THE one thing the corpse
+        # pays (an apex trophy, SETTLED 57): exactly one unit. Pocket
+        # change keeps the 1-2 unit roll.
+        _one_thing = (_min, _max) == (1, 1) and len(spec.loot_pool) == 1
         _spawn_loot_at_position(
             game_map, pos, spec.loot_pool,
-            count_range=(_min, _max), qty_range=(1, 2),
+            count_range=(_min, _max),
+            qty_range=(1, 1) if _one_thing else (1, 2),
         )
     if spec.field_item_loot_pool:
         _spawn_field_item_loot_at_position(

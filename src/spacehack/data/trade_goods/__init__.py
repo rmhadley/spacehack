@@ -26,6 +26,9 @@ class TradeGood:
         category:    ``"industrial"`` | ``"biological"`` | ``"luxury"``
                      | ``"raw_material"`` | ``"tech"`` | ``"contraband"``.
         volume:      cargo units consumed per crate (1 typical, 2 for bulk).
+        stocked:     whether station inventories carry the good. Kill-only
+                     goods (doc 48 SETTLED 57 apex trophies) author False —
+                     sellable everywhere, stocked nowhere.
     """
     id: str
     name: str
@@ -33,6 +36,7 @@ class TradeGood:
     base_price: int
     category: str
     volume: int = 1
+    stocked: bool = True
 
 
 # Lazy-built registry
@@ -95,7 +99,14 @@ def neutral_goods(spec) -> list[str]:
     in this planet's produces or demands."""
     from . import core as _core
     _seen = set(gid for gid, _ in spec.produces) | set(gid for gid, _ in spec.demands)
-    return [_g.id for _g in _core.TRADE_GOODS if _g.id not in _seen and _g.category != "contraband"]
+    # Unstocked goods (kill-only — doc 48 SETTLED 57 trophies) never
+    # seed station inventories: sellable everywhere, stocked nowhere.
+    return [
+        _g.id for _g in _core.TRADE_GOODS
+        if _g.id not in _seen
+        and _g.category != "contraband"
+        and _g.stocked
+    ]
 
 
 __all__ = ["TradeGood", "find_trade_good", "display_name", "neutral_goods", "reload_text_overlay"]

@@ -304,16 +304,31 @@ def test_the_gunners_orphan_ammo_retired():
             )
 
 
+TROPHY_PINS = {
+    "dune_behemoth": ("behemoth_hide", 240),
+    "glacier_wyrm": ("glacier_fang", 280),
+    "caldera_tyrant": ("tyrant_scale", 300),
+    "canopy_maw": ("maw_sinew", 220),
+    "scrap_colossus": ("colossus_core", 400),
+    "mesa_mauler": ("mauler_pelt", 260),
+}
+
+
 # --- the fiction cleanup (SETTLED 56/58) --------------------------------------
 
-def test_fauna_and_apex_corpses_carry_no_pools():
-    """The body is the body: every fauna and apex row authors NO
-    goods, NO gear, NO field items — the apex pays its trophy (build
-    5) and nothing else; the bystander rides the same law (never a
-    loot source)."""
+def test_fauna_corpses_carry_nothing_apexes_only_the_trophy():
+    """The body is the body: every fauna row authors NO pools at all;
+    an apex row's ONE channel is its trophy good (SETTLED 57 — the
+    cache pays in gear, the corpse pays in hide). The bystander rides
+    the fauna law (never a loot source)."""
+    _trophies = {good for good, _ in TROPHY_PINS.values()}
     for spec in list_npc_chars():
-        if loot_class(spec) in ("fauna", "apex"):
+        if loot_class(spec) == "fauna":
             assert spec.loot_pool == (), spec.id
+            assert spec.field_item_loot_pool == (), spec.id
+        elif loot_class(spec) == "apex":
+            assert len(spec.loot_pool) == 1, spec.id
+            assert spec.loot_pool[0] in _trophies, spec.id
             assert spec.field_item_loot_pool == (), spec.id
 
 
@@ -328,3 +343,79 @@ def test_machines_drop_their_own_substance():
         assert spec.field_item_loot_pool == (
             ("ammo", "energy_cells"),
         ), spec_id
+
+
+# --- the apex trophies (SETTLED 57) -------------------------------------------
+
+
+
+def test_every_apex_pays_exactly_its_trophy():
+    from src.spacehack.data.trade_goods import find_trade_good
+
+    for spec_id, (good, price) in TROPHY_PINS.items():
+        spec = find_npc_char(spec_id)
+        assert spec.loot_pool == (good,), spec_id
+        assert spec.loot_count == (1, 1), spec_id  # guaranteed
+        trade = find_trade_good(good)
+        assert trade.base_price == price, good
+        assert trade.stocked is False, good
+
+
+def test_trophies_never_stock_but_sell_clean():
+    """Kill-only goods: excluded from every station's neutral stock
+    (the stocked flag), still resolvable for sale at their price."""
+    from types import SimpleNamespace
+
+    from src.spacehack.data.trade_goods import (
+        find_trade_good, neutral_goods,
+    )
+
+    stocked = set(neutral_goods(SimpleNamespace(produces=(), demands=())))
+    for good, _price in TROPHY_PINS.values():
+        assert good not in stocked, good
+        assert find_trade_good(good).category in (
+            "biological", "raw_material",
+        ), good
+
+
+def test_no_planet_authoring_references_an_unstocked_good():
+    """The stocked flag guards the neutral channel; produces/demands
+    seed unconditionally — no planet spec may name a kill-only good
+    (a trophy in a trade pool would restock it forever)."""
+    from src.spacehack.data.planets import list_planet_specs
+
+    _unstocked = {
+        good.id for good in _all_goods() if not good.stocked
+    }
+    for planet in list_planet_specs():
+        for good, _qty in (planet.produces or ()) + (planet.demands or ()):
+            assert good not in _unstocked, (planet.id, good)
+
+
+def _all_goods():
+    from src.spacehack.data.trade_goods import core
+
+    return core.TRADE_GOODS
+
+
+def test_the_one_thing_drops_exactly_one_unit():
+    """SETTLED 57: 'one organic trophy good per apex' — the guaranteed
+    single-entry pool (the one thing the corpse pays) lands ONE unit,
+    never a 1-2 roll."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from src.spacehack.combat import _actions
+
+    with patch.object(_actions, "RNG") as rng:
+        rng.randint.side_effect = lambda lo, hi: hi  # max every roll
+        rng.choice.side_effect = lambda seq: seq[0]
+        gm = SimpleNamespace(entities=[], )
+        _actions._spawn_authored_pools(
+            gm, None, find_npc_char("dune_behemoth"), None, 1, None,
+        )
+    drops = [e for e in gm.entities if getattr(e, "loot_data", None)]
+    assert len(drops) == 1
+    assert drops[0].loot_data == {
+        "good_id": "behemoth_hide", "quantity": 1,
+    }

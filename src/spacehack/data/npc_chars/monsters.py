@@ -282,7 +282,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=5,
-        loot_count=(2, 3),
+        loot_pool=("behemoth_hide",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=120,
         ap=3,
     ),
@@ -301,7 +302,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=4,
-        loot_count=(2, 3),
+        loot_pool=("glacier_fang",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=120,
     ),
     NpcCharSpec(
@@ -319,7 +321,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=3,
-        loot_count=(2, 3),
+        loot_pool=("tyrant_scale",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=110,
     ),
     NpcCharSpec(
@@ -336,7 +339,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=3,
-        loot_count=(2, 3),
+        loot_pool=("maw_sinew",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=120,
     ),
     NpcCharSpec(
@@ -354,7 +358,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=4,
-        loot_count=(2, 3),
+        loot_pool=("colossus_core",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=130,
         ap=2,
     ),
@@ -374,7 +379,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         always_hostile=True,
         elite=True,
         armor=3,
-        loot_count=(2, 3),
+        loot_pool=("mauler_pelt",),
+        loot_count=(1, 1),  # the GUARANTEED trophy (SETTLED 57)
         xp_reward=120,
         ap=5,
     ),
