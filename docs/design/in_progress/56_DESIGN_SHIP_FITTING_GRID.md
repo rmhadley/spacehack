@@ -1878,24 +1878,33 @@ table.
    numbers, the doc-57.3 pattern). A developed sheet (level ~10,
    `skill_spends` declared across gunnery/piloting/engineering —
    the exact spread is build-time authoring surfaced at the
-   checkpoint) on the cruiser, self-paired so the toys' delta reads
-   same-instrument; synthetic 60×40 grids, `stand_and_trade`,
-   runs=50, fresh seeds (the doc-57.3 geometry):
-   - `probe_cal4_base_vs_<band>` — the phase-5 grid-build shape
-     (2× plasma_cannon + medium_laser + shield_mk1 + 3×
-     compact_reactor + 2× gyro) against the five probe bands:
-     pirate_scout / pirate_raider / pirate_marauder /
-     pirate_warlord / 2× pirate_marauder (the balance_probe
-     SPACE_ROWS ladder, synthetic twins).
+   checkpoint) on the FRIGATE (the full toy set needs the 6×5;
+   the cruiser cannot hold it), self-paired so the toys' delta
+   reads same-instrument; synthetic 60×40 grids, `stand_and_trade`,
+   runs=50, fresh seeds (the doc-57.3 geometry). Compositions
+   LIVE-VERIFIED to pack under `auto_fit` in spec order — the
+   packer's tiling decides, not cell counts (a 30/30-exact mix and
+   two other candidates FAIL; re-verify at build, the harness
+   asserts anyway):
+   - `probe_cal4_base_vs_<band>` — the grid-build save's shape
+     today (plasma_cannon + medium_laser + shield_mk1 + 3×
+     compact_reactor + 2× gyro; 18 cells, net +12 at base
+     quality) against the five probe bands: pirate_scout /
+     pirate_raider / pirate_marauder / pirate_warlord / 2×
+     pirate_marauder (the balance_probe SPACE_ROWS ladder,
+     synthetic twins).
    - `probe_cal4_upgraded_vs_<band>` — the same sheet flying the
-     walk's toys: heavy_laser (16) for the medium_laser,
-     targeting_mk4 (+60) for the two gyros, + missile_magazine
-     where cells remain. The row-to-row delta is the parts walk's
-     payoff table.
+     walk's toys: heavy_laser (16) for the medium_laser and
+     targeting_mk4 (+60) for the two gyros (24 cells, net +10).
+     The row-to-row delta is the parts walk's payoff table. The
+     missile_magazine is NOT in this family — doc 57.3's
+     saturation rows already measure it.
    - `probe_cal4_emp_vs_warlord` — the upgraded sheet + one
-     emp_missile rack (2 rounds, the boss-key magazine) vs the
-     warlord: the SETTLED-34 impact run (stripped-shield timing,
-     win/damage delta vs the no-EMP twin).
+     emp_missile rack, one compact_reactor traded for it (24
+     cells, net +7) vs the warlord: the SETTLED-34 impact run
+     (stripped-shield timing, win/damage delta vs the no-EMP
+     twin; the traded reactor is part of the measured shape —
+     the boss-key costs grid and watts, which is the point).
 2. NEW `tools/balance_sweep.py` — the two dial sweeps (ad-hoc
    instrument, tools/ scope, outside lint by design): import the
    harness batch runner + the cal4 rows; patch at the seam inside
