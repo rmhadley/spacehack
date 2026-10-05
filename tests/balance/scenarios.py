@@ -158,6 +158,78 @@ LANE_GRID = GridSpec(
 )
 
 
+# --- doc 56.4 calibration rows (SETTLED 38: report-only, thresholds
+# rule at the checkpoint from the measured tables — the doc-57.3
+# pattern) ---
+# Geometry: the doc-57.3 synthetic shape (open 60x40, player (30, 20),
+# single enemy 9 east; the swarm twin stacks the second marauder 8
+# north of the first — the balance_probe s_2x_marauder cells,
+# transposed). Seeds: each base/upgraded band pair shares a seed so
+# the toys' delta reads same-instrument; the skiff set shares one.
+_CAL4_GRID = GridSpec(width=60, height=40)
+
+# The cal4 family's developed sheet: level-10 sirian bounty hunter
+# (the grid-build reference save's identity), 45 points spread
+# 20/15/10 across gunnery/piloting/engineering (-> 36/27/20) — the
+# spread is build-time authoring surfaced at the phase-4 checkpoint.
+# Compositions LIVE-VERIFIED through build_owned_ship (the packer's
+# tiling decides, not cell counts): base = the save's shape today
+# (18 cells, net +12), upgraded = heavy_laser(16) for the medium and
+# targeting_mk4(+60) for the two gyros (24 cells, net +10), EMP trades
+# one compact reactor for the rack (24 cells, net +7).
+_CAL4_BASE = PlayerSheet(
+    species_id="sirian", class_id="bounty_hunter", hull_id="frigate",
+    weapon_ids=("plasma_cannon", "medium_laser"),
+    module_ids=(
+        "shield_mk1",
+        "compact_reactor", "compact_reactor", "compact_reactor",
+        "gyro_stabilizer", "gyro_stabilizer",
+    ),
+    level=10,
+    skill_spends=(("gunnery", 20), ("piloting", 15), ("engineering", 10)),
+)
+_CAL4_UPGRADED = PlayerSheet(
+    species_id="sirian", class_id="bounty_hunter", hull_id="frigate",
+    weapon_ids=("plasma_cannon", "heavy_laser"),
+    module_ids=(
+        "shield_mk1",
+        "compact_reactor", "compact_reactor", "compact_reactor",
+        "targeting_mk4",
+    ),
+    level=10,
+    skill_spends=(("gunnery", 20), ("piloting", 15), ("engineering", 10)),
+)
+_CAL4_EMP = PlayerSheet(
+    species_id="sirian", class_id="bounty_hunter", hull_id="frigate",
+    weapon_ids=("plasma_cannon", "heavy_laser", "emp_missile"),
+    module_ids=(
+        "shield_mk1",
+        "compact_reactor", "compact_reactor",
+        "targeting_mk4",
+    ),
+    level=10,
+    skill_spends=(("gunnery", 20), ("piloting", 15), ("engineering", 10)),
+)
+
+# The starter-hull duel set (the off-brief exhaustive search's
+# finalists, sheet twinned: fresh level-1 human merchant on the
+# skiff). Install-order note: the harness installs weapons-then-
+# modules in first-fit order — the shield twin installs ONLY with
+# lasers before racks in the weapons tuple AND the 1x2 shield before
+# any 1x1 module (every alternative order refuses; the heavy twin
+# packs either way), and build_owned_ship asserts loudly otherwise.
+# Findings recorded in prose, no rows: 0/50 vs the marauder for EVERY
+# finalist (no skiff build beats band 3 — the hull-change signal),
+# and max-rack geometry: a 3x3 holds at most three 1x2 pieces, so
+# the wall cannot carry ANY 1x2 module — racks XOR shield is a
+# geometric fact. SETTLED 39 rides all five rows: these duels
+# measure lethality, not survival — the shield's divert-and-flee
+# career value is invisible to stand_and_trade.
+_CAL4_SKIFF_SHEET = dict(
+    species_id="human", class_id="merchant", hull_id="starter",
+)
+
+
 SCENARIOS: tuple["BalanceScenario", ...] = (
     BalanceScenario(
         id="goal_1_starter_vs_jack",
@@ -702,6 +774,315 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         stance="stand_and_trade",
         runs=50,
         seed=20261008,
+        thresholds=None,
+    ),
+    # --- doc 56.4 cal4 rows (SETTLED 38: report-only; bars rule at the
+    # checkpoint from these measured tables) ---
+    BalanceScenario(
+        id="probe_cal4_base_vs_scout",
+        theater="space",
+        goal=(
+            "Doc 56.4 baseline: the grid-build save's shape today "
+            "(18 cells, net +12) vs the pirate_scout rung of the "
+            "balance_probe ladder."
+        ),
+        player=_CAL4_BASE,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_scout", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261010,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_base_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 baseline vs the pirate_raider rung (band 2)."
+        ),
+        player=_CAL4_BASE,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261011,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_base_vs_marauder",
+        theater="space",
+        goal=(
+            "Doc 56.4 baseline vs the pirate_marauder rung (band 3)."
+        ),
+        player=_CAL4_BASE,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_marauder", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261012,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_base_vs_warlord",
+        theater="space",
+        goal=(
+            "Doc 56.4 baseline vs the pirate_warlord rung (band 4, "
+            "the catalog ceiling)."
+        ),
+        player=_CAL4_BASE,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_warlord", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261013,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_base_vs_2x_marauder",
+        theater="space",
+        goal=(
+            "Doc 56.4 baseline vs the 2x pirate_marauder swarm stress "
+            "rung."
+        ),
+        player=_CAL4_BASE,
+        player_start=(30, 20),
+        enemies=(
+            EnemySide(spec_id="pirate_marauder", pos=(39, 20)),
+            EnemySide(spec_id="pirate_marauder", pos=(39, 12)),
+        ),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261014,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_upgraded_vs_scout",
+        theater="space",
+        goal=(
+            "Doc 56.4 payoff row: the walk's toys (heavy_laser 16 + "
+            "targeting_mk4 +60; 24 cells, net +10) vs pirate_scout — "
+            "the delta vs the base twin is the parts walk's payoff."
+        ),
+        player=_CAL4_UPGRADED,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_scout", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261010,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_upgraded_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 payoff row vs the pirate_raider rung (band 2)."
+        ),
+        player=_CAL4_UPGRADED,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261011,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_upgraded_vs_marauder",
+        theater="space",
+        goal=(
+            "Doc 56.4 payoff row vs the pirate_marauder rung (band 3)."
+        ),
+        player=_CAL4_UPGRADED,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_marauder", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261012,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_upgraded_vs_warlord",
+        theater="space",
+        goal=(
+            "Doc 56.4 payoff row vs the pirate_warlord rung (band 4, "
+            "the catalog ceiling)."
+        ),
+        player=_CAL4_UPGRADED,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_warlord", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261013,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_upgraded_vs_2x_marauder",
+        theater="space",
+        goal=(
+            "Doc 56.4 payoff row vs the 2x pirate_marauder swarm "
+            "stress rung."
+        ),
+        player=_CAL4_UPGRADED,
+        player_start=(30, 20),
+        enemies=(
+            EnemySide(spec_id="pirate_marauder", pos=(39, 20)),
+            EnemySide(spec_id="pirate_marauder", pos=(39, 12)),
+        ),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261014,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_emp_vs_warlord",
+        theater="space",
+        goal=(
+            "Doc 56.4, the SETTLED-34 impact run: the upgraded sheet "
+            "plus one emp_missile rack, one compact reactor traded for "
+            "it (24 cells, net +7 — the boss-key costs grid and watts, "
+            "which is the point), vs the warlord: stripped-shield "
+            "timing and the win/damage delta vs the no-EMP twin."
+        ),
+        player=_CAL4_EMP,
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_warlord", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261013,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_skiff_wall_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 starter-hull duel (SETTLED 39: lethality, not "
+            "survival): 2x light_laser + 3x light_missile + gyro, "
+            "250cr — the exhaustive search's winner, through live "
+            "enemy flak."
+        ),
+        player=PlayerSheet(
+            **_CAL4_SKIFF_SHEET,
+            weapon_ids=(
+                "light_laser", "light_laser",
+                "light_missile", "light_missile", "light_missile",
+            ),
+            module_ids=("gyro_stabilizer",),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261020,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_skiff_wall_stock_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 starter-hull duel: 3x light_laser + 3x "
+            "light_missile, 210cr, all tier-1 — the "
+            "buyable-in-first-systems variant of the wall."
+        ),
+        player=PlayerSheet(
+            **_CAL4_SKIFF_SHEET,
+            weapon_ids=(
+                "light_laser", "light_laser", "light_laser",
+                "light_missile", "light_missile", "light_missile",
+            ),
+            module_ids=(),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261020,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_skiff_shield_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 starter-hull duel: 2x light_laser + 2x "
+            "light_missile + gyro + shield_mk1, 270cr — the shield is "
+            "a wash on wins at fixed weapons and halves damage taken; "
+            "SETTLED 39's divert-and-flee career value rides this row."
+        ),
+        player=PlayerSheet(
+            **_CAL4_SKIFF_SHEET,
+            weapon_ids=(
+                "light_laser", "light_laser",
+                "light_missile", "light_missile",
+            ),
+            module_ids=("shield_mk1", "gyro_stabilizer"),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261020,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_skiff_maxshield_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 starter-hull duel: 2x light_laser + 2x "
+            "light_missile + shield_mk1 + shield_capacitor, 280cr — "
+            "the all-defense floor (slower tempo, no electronics, "
+            "longer fights)."
+        ),
+        player=PlayerSheet(
+            **_CAL4_SKIFF_SHEET,
+            weapon_ids=(
+                "light_laser", "light_laser",
+                "light_missile", "light_missile",
+            ),
+            module_ids=("shield_mk1", "shield_capacitor"),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261020,
+        thresholds=None,
+    ),
+    BalanceScenario(
+        id="probe_cal4_skiff_heavy_vs_raider",
+        theater="space",
+        goal=(
+            "Doc 56.4 starter-hull duel: 2x heavy_missile + 2x "
+            "light_laser + 2x missile_magazine, 400cr — ties the "
+            "wall's win rate, kills slower, costs 60% more; magazine "
+            "stacking measured worse, not better."
+        ),
+        player=PlayerSheet(
+            **_CAL4_SKIFF_SHEET,
+            weapon_ids=(
+                "heavy_missile", "heavy_missile",
+                "light_laser", "light_laser",
+            ),
+            module_ids=("missile_magazine", "missile_magazine"),
+        ),
+        player_start=(30, 20),
+        enemies=(EnemySide(spec_id="pirate_raider", pos=(39, 20)),),
+        grid=_CAL4_GRID,
+        stance="stand_and_trade",
+        runs=50,
+        seed=20261020,
         thresholds=None,
     ),
 )
