@@ -86,8 +86,8 @@ def test_header_pins_every_settled_field():
     assert lines == [
         "=" * 48,
         "  Human Pilot",
-        "  Level 3 — died 2026-09-26 14:05",
-        "  4/2/2201 — Sol",
+        "  Level 3 - died 2026-09-26 14:05",
+        "  4/2/2201 - Sol",
         "  Slain by: Pirate Scout's Light Laser",
         "  Damage taken (career): space 11, ground 7",
         f"  Run seed: {engine.INIT_SEED}",
@@ -114,19 +114,19 @@ def test_self_splash_killer_renders_the_settled_line():
 
 def test_location_is_system_only_on_a_space_map():
     lines = tombstone._header_lines(_ctx(), _facts(), _NOW)
-    assert "  4/2/2201 — Sol" in lines
+    assert "  4/2/2201 - Sol" in lines
 
 
 def test_location_appends_the_map_name_when_present():
     ctx = _ctx(game_map=SimpleNamespace(location_name="Mars Surface"))
-    assert "  4/2/2201 — Sol / Mars Surface" in tombstone._header_lines(
+    assert "  4/2/2201 - Sol / Mars Surface" in tombstone._header_lines(
         ctx, _facts(), _NOW,
     )
 
 
 def test_location_falls_back_to_the_city_on_city_maps():
     ctx = _ctx(game_map=SimpleNamespace(city_transit={}))
-    assert "  4/2/2201 — Sol / Earth" in tombstone._header_lines(
+    assert "  4/2/2201 - Sol / Earth" in tombstone._header_lines(
         ctx, _facts(), _NOW,
     )
 
@@ -228,8 +228,8 @@ def test_dump_header_pins_the_living_shape():
     assert lines == [
         "=" * 48,
         "  Human Pilot",
-        "  Level 3 — dumped 2026-09-26 14:05",
-        "  4/2/2201 — Sol",
+        "  Level 3 - dumped 2026-09-26 14:05",
+        "  4/2/2201 - Sol",
         "  Damage taken (career): space 11, ground 7",
         f"  Run seed: {engine.INIT_SEED}",
         "=" * 48,

@@ -84,7 +84,7 @@ def _where_line(ctx) -> str:
     system = solar_system.current_system().name
     location = _location_name(ctx)
     where = f"{system} / {location}" if location else system
-    return f"  {ctx.time_day}/{ctx.time_month}/{ctx.time_year} — {where}"
+    return f"  {ctx.time_day}/{ctx.time_month}/{ctx.time_year} - {where}"
 
 
 def _career_damage_line(ctx) -> str:
@@ -102,7 +102,7 @@ def _seed_line() -> str:
 
 
 def _level_line(ctx, verb: str, now: datetime) -> str:
-    return f"  Level {ctx.player_level} — {verb} {now:%Y-%m-%d %H:%M}"
+    return f"  Level {ctx.player_level} - {verb} {now:%Y-%m-%d %H:%M}"
 
 
 def _header_lines(ctx, facts: TombstoneFacts, now: datetime) -> list[str]:
