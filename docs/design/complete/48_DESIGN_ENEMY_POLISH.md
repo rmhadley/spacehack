@@ -2233,8 +2233,16 @@ with doctrinal 10-13):
   REQUEST_CHANGES with real catches (the snap pin that never fired
   + the orphaned RNG binding; the 19 misindented deletion-residue
   lines the gate cannot see; the unseeded pad-door flake) all
-  folded. PLAYTEST PENDING; the
-  landing record sits below the brief.
+  folded. PLAYTEST PASSED 2026-10-05 (user: "this is passing.
+  It'll take a couple play throughs to know if anything needs
+  tweaked here but so far so good") — SYSTEMS.md audited same
+  commit (Kill drops rewritten to the doctrine at build 7; at
+  close: the apex trophy line + the slot-armor resolver folded
+  into their entries). MID-PLAYTEST RULING (4a7f2ab1): the loot
+  pickup modal DOUBLED (`COMPACT_MAX_VISIBLE_ROWS` 4 → 8 — "let's
+  try doubling its size and see how that feels"). PHASE CLOSED —
+  and with it the CAMPAIGN: all twelve phases, doc moved to
+  complete/. The landing record sits below the brief.
 
 Order rationale: mechanics before identity (lint needs final
 factions); scaling before tactics; crews carry their own rows;

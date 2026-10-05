@@ -631,7 +631,12 @@ nobody designs against a ghost.
   folding onto the wearer through the player's own modifier math —
   every soak reader (damage, blast, deadshot chain, stare victim,
   the card ×2) reads the FOLDED `GroundEnemyInstance.armor`, never
-  `spec.armor`. The
+  `spec.armor`. Phase 12 generalizes wearing to EVERY humanoid:
+  `worn_armor_slots` author eligible slots and the band resolves
+  each (fill chance 0.25/0.50/0.70/0.90 × `worn_fill_mod`, tier
+  through the same windows on catalog-derived per-slot ladders —
+  `ground_scale.roll_worn_slot`, cyber pieces excluded; humanoid
+  authored `armor` is 0, soak is the gear). The
   target card title states `LVL <level> <name>`. `fixed_band`
   (phase 9) pins a spec's band FLAT — the ancient rows derive at
   band 4 regardless of the site's floor stamp.
@@ -657,7 +662,10 @@ nobody designs against a ghost.
   the hoisted `dungeon_population._spawn_squad_near` (its explicit
   `squad_id` composes the PACK apex: `pack_pool`/`pack_size` on the
   spec — the Mesa Mauler + 2-4 vipers as ONE squad, zero new AI).
-  Glyph freeness is the (char, fg) pair law + the tile-char overlap
+  The corpse pays ONE guaranteed trophy good (doc 48 SETTLED 57 —
+  the cache pays in gear, the corpse in hide; `stocked=False`,
+  stations never sell them). Glyph freeness is the (char, fg) pair
+  law + the tile-char overlap
   pin `{E}` (world Tile constants + per-planet DungeonParams
   palettes).
 - **Ship band scaling (doc 48 phase 7)** — `space_scale.py`, the
