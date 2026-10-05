@@ -60,10 +60,12 @@ TILE: } = HULL_WALL
 TILE: % = DEBRIS
 
 # Enemy spawn markers — the consortium boarding crew, not generic
-# pirates (the chain's antagonist, working the wreck they attacked for).
+# pirates (the chain's antagonist, working the wreck they attacked
+# for). The S slots field the HIGH rung (doc 48 SETTLED 51): the deck
+# reads mid+high corporate, never t1 filler.
 ENEMY: c = consortium_enforcer@0.7#1-2
 ENEMY: g = consortium_gunner@1.0#2-3
-ENEMY: S = consortium_enforcer@1.0#2-2
+ENEMY: S = consortium_executor@1.0#2-2
 ENEMY: m = hull_parasite@0.35#2-5
 
 # Loot mappings

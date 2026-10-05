@@ -389,3 +389,67 @@ def test_kit_drop_carries_the_worn_pieces_at_stamped_qualities():
         assert {
             "item_type": "armor", "item_id": entry[1], "quality": entry[2],
         } in payloads, entry
+
+
+# --- boarded-hunter decks + survey_a (SETTLED 51 exposure surfaces) ----------
+
+def _load_crew_deck(layout_id, faction, seed):
+    from src.spacehack import engine
+    from src.spacehack.dungeon import load_layout
+
+    engine.RNG.seed(seed)
+    game_map, _spawn = load_layout(
+        layout_id, crew_faction=faction, loot_budget=None,
+    )
+    return [e.npc_char_id for e in game_map.entities if e.npc_char_id]
+
+
+def test_crew_roles_heavy_is_the_executor():
+    from src.spacehack.data.npc_chars.crew_roles import CREW_ROLES
+
+    assert CREW_ROLES["consortium"]["heavy"] == "consortium_executor"
+    assert CREW_ROLES["consortium"]["line"] == "consortium_enforcer"
+    assert CREW_ROLES["consortium"]["marksman"] == "consortium_gunner"
+
+
+def _consortium_table_ids() -> set:
+    """The consortium crew table's own id set — the legal crew set a
+    boarded hunter deck may field, derived (never hand-copied)."""
+    from src.spacehack.data.npc_chars.crew_roles import CREW_ROLES
+
+    return set(CREW_ROLES["consortium"].values())
+
+
+def test_boarded_dreadnought_guarantees_its_executor():
+    """frigate_crew's heavy marker is certain (@1.0) — every boarded
+    Dreadnought fields its bold-E rung (SETTLED 51)."""
+    _legal = _consortium_table_ids()
+    for seed in (1, 7, 42, 909, 31337):
+        crew = _load_crew_deck("frigate_crew", "consortium", seed)
+        assert "consortium_executor" in crew, seed
+        assert set(crew) <= _legal, seed
+
+
+def test_boarded_hunter_carries_the_chance_slot_executor():
+    """cruiser_crew's heavy marker is the shared CHANCE slot (@0.4) —
+    the geometry stands, the EXPECTATION bends (the brief's
+    ADVISE-folded ruling): some boarded Hunters carry an Executor,
+    none carries anything outside the consortium table."""
+    _legal = _consortium_table_ids()
+    _seen_executor = False
+    for seed in range(40):
+        crew = _load_crew_deck("cruiser_crew", "consortium", seed)
+        assert set(crew) <= _legal, seed
+        _seen_executor = _seen_executor or "consortium_executor" in crew
+    assert _seen_executor, "the 0.4 chance slot must fire sometimes"
+
+
+def test_survey_a_fields_the_high_rung():
+    from src.spacehack import engine
+    from src.spacehack.dungeon import load_layout
+
+    engine.RNG.seed(5)
+    game_map, _spawn = load_layout("survey_a", loot_budget=None)
+    enemies = [e.npc_char_id for e in game_map.entities if e.npc_char_id]
+    assert "consortium_executor" in enemies  # the @1.0 S slots
+    assert {"consortium_enforcer", "consortium_gunner"} <= set(enemies)

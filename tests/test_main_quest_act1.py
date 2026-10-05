@@ -512,8 +512,10 @@ def test_survey_a_layout_contract():
     """The generated survey ship parses through the real loader with
     every marker reachable, consortium crew (not pirates) inside, void
     outside the hull, and loot on the map (doc 32 iteration)."""
+    from src.spacehack import engine
     from src.spacehack.dungeon import load_layout
 
+    engine.RNG.seed(5)  # the c marker is a @0.7 chance roll — pin it
     game_map, spawn = load_layout("survey_a", loot_budget=None)
     assert game_map.width == 92 and game_map.height == 34
     assert any(
@@ -521,6 +523,9 @@ def test_survey_a_layout_contract():
     ), "void outside the hull keeps the silhouette readable"
     enemies = [e.npc_char_id for e in game_map.entities if e.npc_char_id]
     assert {"consortium_enforcer", "consortium_gunner"} <= set(enemies)
+    # The S slots field the HIGH rung (doc 48 SETTLED 51) — the deck
+    # reads mid+high corporate, never t1 filler.
+    assert "consortium_executor" in enemies
     assert not any(eid.startswith("pirate") for eid in enemies)
     assert any(
         getattr(e, "loot_data", None) for e in game_map.entities

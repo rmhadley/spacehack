@@ -5,7 +5,7 @@ faction-neutral ROLE tokens, and these tables resolve role -> spec id
 at layout load (``dungeon_layout._resolve_crew_marker``). Raw spec ids
 stay legal for authored specials (the survey wreck's pinned consortium
 crew). An omitted role means the faction fields no such face — its
-markers skip at load (militia stowaways, the consortium heavy).
+markers skip at load (militia stowaways).
 """
 
 from __future__ import annotations
@@ -47,9 +47,12 @@ CREW_ROLES: dict[str, dict[str, str]] = {
     },
     "consortium": {
         # Authored decks only (SETTLED 12): nothing procedural resolves
-        # through this table; the heavy is omitted until an authored
-        # deck wants one.
+        # through this table. The heavy IS the Executor (SETTLED 51):
+        # cruiser_crew's CHANCE slot (~40% of boarded Hunters) and
+        # frigate_crew's GUARANTEED marker (every boarded Dreadnought)
+        # both resolve here — one geometry serves every faction.
         "line": "consortium_enforcer",
+        "heavy": "consortium_executor",
         "marksman": "consortium_gunner",
         "security_drone": "sentry_drone",
         "stowaway": "hull_parasite",

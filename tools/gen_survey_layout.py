@@ -239,10 +239,12 @@ TILE: } = HULL_WALL
 TILE: % = DEBRIS
 
 # Enemy spawn markers — the consortium boarding crew, not generic
-# pirates (the chain's antagonist, working the wreck they attacked for).
+# pirates (the chain's antagonist, working the wreck they attacked
+# for). The S slots field the HIGH rung (doc 48 SETTLED 51) — kept in
+# sync with the hand-tuned survey_a.layout.
 ENEMY: c = consortium_enforcer@0.7#1-2
 ENEMY: g = consortium_gunner@1.0#2-3
-ENEMY: S = consortium_enforcer@1.0#2-2
+ENEMY: S = consortium_executor@1.0#2-2
 ENEMY: m = hull_parasite@0.35#2-5
 
 # Loot mappings
@@ -262,9 +264,6 @@ COLOUR: d = (100, 220, 255)     # door — cyan glow
 COLOUR: C = (255, 200, 80)      # cockpit computer — warm gold
 COLOUR: E = (180, 200, 220)     # engine — muted blue-white
 COLOUR: > = (100, 255, 120)     # exit — bright green arrow
-COLOUR: c = (120, 160, 220)     # consortium enforcer — corporate blue
-COLOUR: g = (150, 190, 255)     # consortium gunner — pale corporate
-COLOUR: m = (175, 140, 190)     # hull parasite — sickly mauve
 '''
     body = "\n".join("".join(row) for row in g)
     out.write_text(head + body + tail, encoding="utf-8")

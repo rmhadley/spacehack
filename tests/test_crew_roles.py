@@ -64,7 +64,8 @@ def test_crew_roles_table_shape():
     assert set(CREW_ROLES["pirate"]) == CREW_ROLE_TOKENS
     assert set(CREW_ROLES["militia"]) == CREW_ROLE_TOKENS - {"stowaway"}
     assert set(CREW_ROLES["merchant"]) == CREW_ROLE_TOKENS
-    assert set(CREW_ROLES["consortium"]) == CREW_ROLE_TOKENS - {"heavy"}
+    # doc 48 SETTLED 51: the consortium heavy IS the Executor now.
+    assert set(CREW_ROLES["consortium"]) == CREW_ROLE_TOKENS
 
 
 def test_crew_roles_cells_are_live_specs():
