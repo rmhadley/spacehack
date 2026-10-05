@@ -128,6 +128,15 @@ verbatim: the shield's real value is the divert-and-flee escape
 option the duel stance cannot see.
 Brief APPROVED 2026-10-05 (user: "brief approved") — phase 4 is
 buildable; the handoff is `/implement-phase 56.4`.
+Phase 4 BUILT to its checkpoint same day (`/implement-phase 56.4`):
+instruments stage only, per the brief's build order — 16 report-only
+cal4 rows + `tools/balance_sweep.py`, gate green **3752**, reviewer
+APPROVE (4 minors folded), the calibration + sweep tables recorded
+in the phase bullet, and the session STOPPED at the playtest
+checkpoint awaiting the user's dial rulings (SETTLED 30/29) and
+bars; a pre-existing tombstone CP437 gate failure (red on
+Python ≤3.11 since doc 53, invisible on 3.12+) was diagnosed and
+fixed in its own commit en route.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -975,6 +984,78 @@ then one balance pass over both sides with the probe as referee.
   stands (SETTLED 37). FOLLOWS PHASE 5 (ruled 2026-09-30) — phase 5
   is built and its playtest complete (2026-10-05), so phase 4 is
   unblocked.
+  BUILT (instruments stage) 2026-10-05 (`/implement-phase 56.4`):
+  gate green **3752**; commits = the tombstone CP437 gate repair (a
+  PRE-EXISTING failure, its own fix commit — see below) + the cal4
+  rows + the sweep tool + this record. REVIEW pass: **APPROVE, 4
+  minors, zero blockings**, all folded (steepness honors mk1
+  explicitly now; the install-order comment corrected to the
+  measured facts; commit hygiene; the tell-17 caveat surfaced for
+  the checkpoint). STOPPED at the brief's checkpoint with the
+  tables — rulings (SETTLED 30/29 dials + bars) belong to the user
+  reading them. The instruments:
+  - **16 report-only rows** (`probe_cal4_*`, thresholds=None): the
+    five-band ladder × base/upgraded on a level-10 sirian
+    bounty_hunter sheet (the grid-build save's identity; 45 points
+    spread 20/15/10 gunnery/piloting/engineering → 36/27/20 — the
+    build-time authoring the brief promised to surface), the EMP
+    warlord twin, and the five skiff duel rows (level-1 human
+    merchant, compositions/prices verbatim from the exhaustive
+    search). Seeds self-paired per band (base/upgraded/emp share
+    the band seed; the skiff set shares 20261020); geometry = the
+    doc-57.3 shape (60×40, player (30,20), enemy 9 east).
+  - **THE CALIBRATION TABLE** (50 runs/row, `python3 -m
+    tests.balance.report` over the cal4 rows):
+    | Row | base (18c net+12) | upgraded (24c net+10) |
+    |---|---|---|
+    | vs scout | 1.000 / 0.00 / 1.4t | 1.000 / 0.00 / 1.6t |
+    | vs raider | 1.000 / 1.02 / 4.0t | 1.000 / 0.00 / 2.8t |
+    | vs marauder | 0.520 / 44.73 / 5.2t | **0.980** / 23.02 / 4.0t |
+    | vs warlord | 0.000 (50 def) | 0.080 / 59.25 / 6.0t |
+    | vs 2x marauder | 0.000 (50 def) | 0.020 / 68.00 / 5.0t |
+    | EMP vs warlord | — | 0.120 / 58.83 / 6.2t |
+    The parts walk's payoff reads in the marauder row (+0.46 wins);
+    the warlord stays a stand-and-trade wall even upgraded (EMP
+    twin +0.04 — the boss-key's marginal duel value at 2 rounds/
+    flight is itself a dial reading). Skiff duels vs raider: wall
+    0.900/0.00/2.8t (61% resolved-arrival through 27% interception —
+    the search's shape reproduced), stock 0.720/0.31, shield twin
+    0.340/0.00, maxshield 0.180/0.00, heavy 0.780/0.10/3.6t.
+  - **THE SWEEP TABLES** (`python3 tools/balance_sweep.py`): upkeep
+    x2 buys the base sheet marauder +0.10 wins (0.520→0.620 — the
+    ENEMY side loses pool too, the asymmetric direction) while the
+    upgraded rows crater (marauder 0.980→0.340; EMP warlord
+    0.120→0.000) and warlord fights stretch to ~16-30 turns; x3
+    REFUSES the EMP sheet and both skiff shield twins outright (the
+    gate bounds that ladder); steepness 1/3/6/10 leaves every mk1-
+    only row byte-identical (base rows, all five skiff rows —
+    exactly the mk1-pinned design) and punishes precisely the mk4
+    toys (upgraded vs marauder 0.980→0.040: targeting_mk4 −4→−10
+    drops the sheet net +10→+4 and the pool with it). Clamp: cap 90
+    lifts the underdogs (heavy 0.780→0.880, EMP warlord 0.120→0.180,
+    base warlord 0.000→0.020); cap 98 helps the warlord (upgraded
+    0.080→0.040, EMP 0.120→0.080); the wall rows are clamp-
+    insensitive (mid-band accuracies never touch the ceiling).
+  - **Build surprises**: (1) the brief's install-order parenthetical
+    was backwards — the shield twin installs only LASERS-first in
+    the weapons tuple AND the 1×2 shield before any 1×1 module (the
+    reviewer measured every alternative order refusing; the heavy
+    twin packs either way) — comment + this record carry the
+    corrected fact. (2) The sweep's authored-curve read was
+    originally live-registry-read: the x3 setting computed 3× the
+    x2-PATCHED values (x6 in disguise, surfaced as a bogus REFUSED)
+    — fixed by snapshotting the authored curve pre-patch; the
+    reviewer verified every ordering flow airtight. (3) The
+    pre-existing gate failure: `tombstone.py`'s two header
+    em-dashes (doc 53, user-ruled wording) render BLANK on the
+    CP437 bitmap and fail the readability lint on Python ≤3.11
+    while being INVISIBLE to it on 3.12+ (f-strings stop
+    tokenizing as STRING) — why the host gate read green since
+    2026-09-26 while the container gate is red. Fixed to the corpus
+    ` - ` separator in its own commit (pins with it); the wording is
+    otherwise byte-identical and the tell-17 question rides the
+    checkpoint. The version-sensitivity itself is a standing
+    container/host hazard worth knowing.
   PLAYTEST: the user's next space fight feels dangerous in the intended
   bands; probe rows show real mean hull damage.
 - [x] **5. NPC parity — grid + volley** — the full NPC mirror, one
