@@ -103,8 +103,11 @@ minors: SYSTEMS gate caveat, pin precision, doc obligations — all
 folded). BOTH Line verdicts FLIPPED under the volley (super-sheet
 skip gone; thin watch unbeatable by FIT_25) and the probe's re-fit
 rows cratered (swarm 1.000 → 0.160) — the phase-4 starting table is
-in the phase-5 build record. PLAYTEST PENDING — checklist at the
-phase-5 brief's checkpoint; phase 4 (calibration) follows.
+in the phase-5 build record. PLAYTEST COMPLETE 2026-10-05 (user: "phase 5 playtest is
+complete") — the window that also produced SETTLED 25 and the
+phase-4 parts walk (SETTLED 26-35); nothing further to fold.
+Phase 4 (calibration) is the one remaining phase; brief via
+/refine-design 56.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -929,7 +932,9 @@ then one balance pass over both sides with the probe as referee.
   combat pin re-shapes + Line re-derivation) / docs commit (this
   record + SYSTEMS.md). REVIEW pass: REQUEST_CHANGES → 1 blocking +
   3 minors, all folded; re-review APPROVE + 1 pin-precision minor,
-  folded same session. PLAYTEST PENDING (checklist below).
+  folded same session. PLAYTEST COMPLETE 2026-10-05 (user: "phase 5
+playtest is complete") — its in-play ruling (SETTLED 25) is folded
+above; phase 4 (calibration) follows.
   Build record:
   - **Warlord**: `smuggler_hold_mk4` is the only change — 23/30,
     zero combat-math change (upkeep 0; `smuggler_cargo` unread by
