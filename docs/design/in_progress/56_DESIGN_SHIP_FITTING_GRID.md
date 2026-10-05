@@ -112,7 +112,10 @@ Phase-4 refine pass same day (fourth command session): SETTLED
 36-38 (shield/enemy-damage measured here, retuned only in its own
 doc; gen 4 stands, retiring the phase-2 deferred ruling; the sim
 rig = doc-50 harness scenarios + a tools/ sweep instrument), the
-phase-4 Implementation brief proposed below.
+phase-4 Implementation brief proposed + ADVISE-folded below
+(verdict ADVICE, 2 blocking + 4 minor — the missile-flight clamp
+binding and the tripped-bar/consequence sweep were the blockers;
+all folded, dispositions inside the brief).
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -461,6 +464,8 @@ probe-driven — phase 4).
     identity going forward: the answer to dodge (gunnery buys room
     under the 95 clamp against dodge-tanks). The clamp VALUE itself
     stays a separate phase-4 ruling with the probe as referee.
+    [The referee is now the SETTLED-38 rig — the balance harness
+    + the sweep instrument — same ruling, sharper instrument.]
 
 30. **Gyro family calibration** (2026-09-30, parts walk family 4).
     The exact pre-fix targeting twin (10/15/20/30, −1 flat,
@@ -1030,7 +1035,10 @@ above; phase 4 (calibration) follows.
   - **The player's own grid build probed** (2026-09-30, save
     `saves/grid_merchant_sirian_bountyhunter.json` — hand-fitted on
     the live grid, 20/20 cruiser cells, net +7: 2× plasma +
-    medium_laser + shield_mk1 + 3× compact_reactor + 2× gyro; user:
+    medium_laser + shield_mk1 + 3× compact_reactor + 2× gyro
+    [measurement-day snapshot — the live save reads ONE plasma
+    plus these parts at 18/20 today; the cal4 base row twins
+    today's shape]; user:
     "Really felt the impact here. Harder to build something very
     powerful but I still think I did a decent job. Using tinker kits
     on power modules is definitely a build path now. Building this
@@ -1909,28 +1917,54 @@ table.
    instrument, tools/ scope, outside lint by design): import the
    harness batch runner + the cal4 rows; patch at the seam inside
    try/finally — the upkeep sweep swaps `dataclasses.replace`
-   copies into `data/modules/__init__.py`'s `_BY_ID` (multiplied
-   negative `power_gen_bonus` — clean-int ladders, e.g. ×2 =
-   −2/−4/−6/−8); the clamp sweep swaps a parametric twin of
-   `combat/_stats.py`'s `n_hit_chance` into the module (ceilings
-   e.g. 90/95/98) — and prints each row's table per setting. Sweep
-   values NEVER land in catalog data or src/: a dial becomes a real
-   authored edit at the checkpoint ruling or not at all. The clamp
-   sweep is space-side only; ground's literal
-   (`_ground_math.py:39`) is a separate twin the ruling may move
-   deliberately — the checkpoint decides space-only vs both.
+   copies into `data/modules/__init__.py`'s `_BY_ID` (force the
+   registry build first — it starts None — then assign/mutate the
+   COMPLETE dict so unswept ids never KeyError), sweeping BOTH a
+   magnitude family (uniform ×k, e.g. ×2 = −2/−4/−6/−8) AND a
+   steepness family (e.g. −1/−3/−6/−10) — SETTLED 30 asks whether
+   drain scales FASTER up the ladders, which uniform ×k alone
+   never measures; the clamp sweep swaps a parametric twin of
+   `clamp_hit_chance` into BOTH live bindings —
+   `combat._stats.clamp_hit_chance` (seen by `calc_hit_chance`,
+   dynamic global lookup at `_stats.py:207`) AND
+   `combat._missile_flight.clamp_hit_chance` (a from-import at
+   `_missile_flight.py:35`; miss it and every missile guidance
+   roll keeps the old 5-95 while direct fire reads the swept
+   ceiling — marauder and warlord fly missiles, so the tables
+   would silently misattribute) — ceilings e.g. 90/95/98; and
+   prints each row's table per setting. A row whose swept sheet
+   becomes power-refused at an extreme (build_owned_ship's assert)
+   is REPORTED as refused, never crashes the table — bound the
+   ladders where the gate binds. Sweep values NEVER land in
+   catalog data or src/: a dial becomes a real authored edit at
+   the checkpoint ruling or not at all. The clamp sweep is
+   space-side only; ground's literal (`_ground_math.py:39`) is a
+   separate twin the ruling may move deliberately — the checkpoint
+   decides space-only vs both. (A landed clamp edit changes the
+   one function body in `_stats.py` and propagates to both
+   bindings naturally.)
 3. `tests/balance/test_balance.py` — bars for the new rows land
    here AT THE CHECKPOINT (measured + a hair of slack, the doc-50
    standard); nothing pre-ruled.
 4. Magnitude edits the checkpoint may rule — the only candidates:
-   the upkept families' curve (if the SETTLED-30 dial rules faster
-   than −1/−2/−3/−4) in `data/modules/systems.py`, and the clamp
-   value (if it moves) at `combat/_stats.py:165` (+ ground's
-   `_ground_math.py:39` only if the ruling says both). Each landed
-   edit carries its stat-echo re-pins (the SETTLED-26 cascade
-   pattern) + the phase-2 lint re-run
-   (`test_fitting_geometry.py:149` power-validity + `:188` packs)
-   the same commit.
+   the upkept families' curve (if the SETTLED-30 dial rules
+   steeper) in `data/modules/systems.py` + the RULED_UPKEEP table
+   re-author (`test_fitting_geometry.py:75-90`, asserted `:143`),
+   and the clamp value (if it moves) at `combat/_stats.py:165` (+
+   ground's `_ground_math.py:39` only if the ruling says both).
+   Every landed edit carries: its stat-echo re-pins (the
+   SETTLED-26 cascade pattern); the phase-2 lint re-run
+   (`test_fitting_geometry.py:149` power-validity + `:188` packs);
+   the clamp cap pins (`tests/combat/test_stats.py:98`,
+   `tests/combat/test_missile_flight.py:275` — the ==95 guidance
+   pin, `tests/combat/test_rules_ground.py:60/66/78` if ground
+   moves); AND the tripped-bar sweep — every thresholds-bearing
+   row in `test_balance.py::test_scenario_thresholds` the edit
+   moves (goal_1 flies shield_mk1: the phase-2 record measured the
+   draft curve alone moving it 0.94 → 0.71; doc-57 missile bars
+   shift under a clamp move) is SURFACED at the checkpoint and
+   re-ruled there (measured + slack), never silently re-authored —
+   the Line-flip precedent.
 5. `tests/test_line_tuning.py` — re-read after any landed
    magnitude; re-pin only what moved (the module docstring's
    caveats stand: the x0.70 open-floor read, the unmodeled power
@@ -1963,7 +1997,7 @@ checkpoint), and the build-order ruling (phase 5 complete
 - Bars land the same commit they are ruled.
 - Every landed magnitude edit: stat-echo re-pins + phase-2 lint
   re-run + probe battery re-run, same commit.
-- If the clamp moves: `n_hit_chance`'s unit pins the new value
+- If the clamp moves: `clamp_hit_chance`'s unit pins the new value
   (and ground's, if the ruling moves both).
 
 **Stop point (do NOT start)**: no shield/enemy-damage magnitude
@@ -1984,6 +2018,40 @@ doc-55 auto-pickup scope, no save-shape changes of any kind.
    only if the numbers demand one).
 4. Guide diff: NONE expected — confirm and record.
 5. Save/load: no new state — confirm.
+
+**ADVISE dispositions (folded 2026-10-05, same session as
+proposal)** — verdict ADVICE, 2 blocking + 4 minor, all folded:
+- Blocking 1 (the clamp sweep's single-seam claim was unsound):
+  `combat/_missile_flight.py:35` from-imports `clamp_hit_chance`,
+  so an `_stats`-only twin patches direct fire but NOT missile
+  guidance (`guidance_hit_chance` :179, rolled at :276/:283) —
+  and marauder/warlord fly missiles. The brief now patches BOTH
+  bindings (item 2); a landed edit needs no such care (one
+  function body propagates everywhere).
+- Blocking 2 (the landed-edit consequence list stopped short of
+  what `make check` asserts): tripped-bar surfacing + re-ruling at
+  the checkpoint, the RULED_UPKEEP table re-author
+  (`test_fitting_geometry.py:75-90`/`:143`), and the clamp cap
+  pins (`test_stats.py:98`, `test_missile_flight.py:275`,
+  `test_rules_ground.py:60/66/78`) are all in scope now (item 4).
+- Minor 3: the nonexistent `n_hit_chance` name corrected to
+  `clamp_hit_chance` (`combat/_stats.py:160`, literal `:165`)
+  everywhere; the addendum now counts the space side's two live
+  binding sites.
+- Minor 4: the phase-5 grid-build record carries its snapshot
+  caveat in place (the save is live state; the cal4 base row
+  twins today's shape).
+- Minor 5: the upkeep sweep gained the STEEPNESS family — uniform
+  ×k measures magnitude only; SETTLED 30 asks faster scaling
+  (item 2).
+- Minor 6: sweep failure modes handled — registry force-build +
+  complete-dict assignment; power-refused rows reported, ladders
+  bounded where the gate binds (item 2).
+- For the record (folded as annotations): SETTLED 29's referee
+  note now points at the SETTLED-38 rig; "doc-50 standard"
+  citations resolve to the harness/Thresholds docstrings (there
+  is no doc-50 file in complete/ — the numbering jumps), which
+  carry the standard verbatim.
 
 ## Acceptance criteria
 
@@ -2114,10 +2182,13 @@ brief). Every advisor-catch anchor confirmed:
   with report-only rows already precedented (doc 57.3's probe_*
   set); the report CLI is runnable (`tests/balance/report.py`
   main :86); the upkeep sum seam is `_module_bonus_sum`
-  (`combat/_stats.py:27`); the 5-95 clamp is TWO independent
-  literals — `combat/_stats.py:165` (space, `n_hit_chance`) and
-  `combat/_ground_math.py:39` (ground) — so a clamp ruling may be
-  space-only or move both deliberately; the module registry is the
+  (`combat/_stats.py:27`); the 5-95 clamp: the function is
+  `clamp_hit_chance` (`combat/_stats.py:160`, literal `:165`)
+  with a SECOND live binding via from-import in
+  `combat/_missile_flight.py:35` (the missile guidance rolls),
+  plus ground's own literal (`combat/_ground_math.py:39`) — three
+  sites a sweep or ruling must see, so a clamp ruling may be
+  space-only or move both theaters deliberately; the module registry is the
   lazily-built `_BY_ID` dict (`data/modules/__init__.py:61`)
   feeding `find_module` (:90), the seam a sweep swaps
   `dataclasses.replace` copies into and restores in finally;
