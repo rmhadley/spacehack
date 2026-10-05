@@ -779,31 +779,36 @@ nobody designs against a ghost.
   line STOPS at the first live tile. No usable drops (the sites
   pay in alien tech); the Warden's wake events are SILENT (a
   popup is a later prose-pass question).
-- **Kill drops** — authored pools (trade goods, tier-filtered
-  equipment, field stacks) plus the diegetic kit (doc 48 phase 9
-  build 1: the two-set law): BOTH carried set weapons fall — the
-  active slot at its equip-time rolled quality, the melee slot its
-  own — the WORN cyber pieces beside them at their stamped
-  qualities (doc 48 phase 11: what they wear is what drops; the
-  rungs' `equipment_loot_pool` retired so nothing rolls unfloored)
-  — with the carried-ammo REMAINDER as the stack (enemies
-  fire from pre-rolled magazines + pools; reload pays AP with the
-  tell line; the death-time ammo roll retired); extras roll quality at drop time —
-  both ladders ride the spawn's band (band 1 == KILL ladder, doc 48
-  phase 4); `GroundWeaponSpec.loot_droppable=False`
-  keeps organic monster parts and fists off the floor; pools are
-  beyond-the-weapon extras only; the pre-rolled carried stamp is
-  the ONE resolution for consumable entries — unused charges drop
-  at their remainder, used ones never do, ammo keeps the death
-  roll (doc 48 phase 5); a very rare tinker-kit roll
-  draws after the pad roll (doc 47.5); everything shares the
-  silent 30-entity cap (`combat/_actions.spawn_kill_drops` /
-  `_spawn_kit_drop`; pools authored in `data/npc_chars/`). The
-  TIER-GATE LAW (doc 48 phase 10, test-pinned catalog-wide): a
-  row's `tier` must be >= every `equipment_loot_pool` entry's
-  `tech_level` — the drop filter is `tech_level <= tier`, so an
-  over-tier pool silently drops nothing (the assault drone's
-  all-t3 pool at tier 2 seeded the law).
+- **Kill drops (the carried-loot doctrine, doc 48 phase 12)** — the
+  corpse pays what it CARRIED, nothing else: the diegetic kit (doc
+  48 phase 9 build 1: BOTH carried set weapons at their equip-time
+  rolled qualities + the carried-ammo REMAINDER — enemies fire from
+  pre-rolled magazines + pools; reload pays AP with the tell line)
+  plus the WORN set (doc 48 SETTLED 51/55: fixed cyber pieces on
+  the consortium rungs, band-rolled slot armor on every other
+  humanoid — slots authored, the band resolves tier through the
+  weapon-style windows on catalog-derived per-slot ladders, fill
+  chances 0.25/0.50/0.70/0.90 x the row's `worn_fill_mod`) plus
+  POCKET CHANGE (goods 0-1 CHANCE-rolled per humanoid kill, the
+  merchant crew's guaranteed 1 the ruled outlaw-route incentive; a
+  guaranteed single-entry pool lands exactly ONE unit — the apex
+  TROPHY goods, `stocked=False` so stations never carry kill-only
+  goods). `loot_class` (`data/npc_chars`) classifies every row:
+  fauna corpses pay NOTHING but XP, machines their own substance
+  (energy cells + 0-1 scrap), apexes the trophy, the bystander
+  never a loot source. The equipment-extras channel RETIRED with
+  the doctrine — `equipment_loot_pool` and `tier` are gone from
+  NpcCharSpec (TypeError-pinned) and the TIER-GATE LAW died with
+  them; `GroundWeaponSpec.loot_droppable=False` keeps organic
+  monster parts and fists off the floor; the pre-rolled carried
+  stamp is the ONE resolution for consumable entries (unused
+  charges drop at their remainder, used ones never do); the
+  tinker-kit kill roll gates to humanoid+machine kills (doc 48
+  SETTLED 58 amending 47.5's "every ground kill"; the wreck and
+  dig-scatter rates are untouched site channels); ground loot is
+  NEVER capped or evicted (the doc-47 30-entity cap was REMOVED
+  2026-09-23 — debris keeps piling up; pools authored in
+  `data/npc_chars/`).
 - **Player kit** — HP 20 + stamina/3 + armor + traits; AP 4 +
   bonuses; R is the only reload verb — the weapon's reload AP in
   combat, free at the dungeon screen (doc 51.3 removed the menu

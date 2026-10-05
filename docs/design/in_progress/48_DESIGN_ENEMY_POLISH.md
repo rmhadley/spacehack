@@ -2210,7 +2210,7 @@ with doctrinal 10-13):
   Kill drops amended for the rungs, the worn fold, the floors, and
   the bold wearers); the landing record + build-discovered readings
   sit below the brief.
-- [ ] 12. **Loot-drop polish — the carried-loot doctrine** — the
+- [x] 12. **Loot-drop polish — the carried-loot doctrine** — the
   2026-10-05 conversation (survey first, then rulings): enemies wear
   BAND-SCALED armor in probabilistic slots (the kit drop's second
   half — "we have weapon kits and cybernetics on enemies, why not
@@ -2222,8 +2222,19 @@ with doctrinal 10-13):
   humanoids+machines; the Executor joins the pad droppers; the
   every-kill-pays-LOOT doctrine is RETIRED (every kill pays XP;
   loot pays by fiction). SETTLED 55-58 below + the pre-implementation
-  audit + Implementation brief (PROPOSED — reviewer ADVISE pass
-  folded; awaiting user approval).
+  audit + Implementation brief v2 (ADVISE-folded; user-approved
+  2026-10-05, trophy names included, "we can tweak prose later").
+  LANDED 2026-10-05 in six builds + the battery (21fdd1ef the
+  classifier + the resolver; 6a1ffbcc the humanoid authoring pass;
+  67e7bad8 the fiction cleanup + the channel retirement; 6be061e3
+  the trophies + the stocked flag; b26b36d7 the pads + the tinker
+  gate; this commit the expectations table + the battery + the
+  record) — reviewer dispatched per build: two APPROVEs, three
+  REQUEST_CHANGES with real catches (the snap pin that never fired
+  + the orphaned RNG binding; the 19 misindented deletion-residue
+  lines the gate cannot see; the unseeded pad-door flake) all
+  folded. PLAYTEST PENDING; the
+  landing record sits below the brief.
 
 Order rationale: mechanics before identity (lint needs final
 factions); scaling before tactics; crews carry their own rows;
@@ -4348,6 +4359,67 @@ at build start.
 12. The battery before/after table recorded in the doc; flag any
     row that moved the wrong way (beyond the intended T4 softening
     and brute watch).
+
+## Phase 12 — LANDED (2026-10-05)
+
+Six builds + the battery; reviewer dispatched per build — b1+2
+REQUEST_CHANGES (the snap-gap pin never actually fired — the fake's
+window semantics were misread; the module-level RNG binding rolled
+an orphaned stream — ground_loadout adopted the live-engine-RNG
+idiom, the balance harness module set updated), b3 APPROVE (the
+family-level audit contract documented), b4 REQUEST_CHANGES (19
+misindented deletion-residue lines the gate cannot see; stale
+comments; factory residue), b5 APPROVE (the one-thing qty law + the
+planet-census pin folded; the trophy price band and the six
+first-draft descriptions flagged to ride the checkpoint verbatim),
+b6 REQUEST_CHANGES (the bare-spec re-id armed the pad door on the
+UNSEEDED module RNG — an order-dependent flake, now the autouse
+pad-off fixture + the SYMMETRIC pad census), b7 (this commit)
+reviewed with the battery.
+
+Build-discovered readings (audit-amending):
+
+- **The bystander falls through loot_class to "fauna"** — deliberate
+  and documented in the classifier; its pools emptied with the
+  fauna (never a loot source; harming it is crime, not farming).
+- **NpcCharSpec.tier retired WITH the channel** — its sole consumer
+  was the dying tier filter (verified); the tier-gate law pins
+  transformed to field-absence, and SYSTEMS.md's law line amended
+  at this close.
+- **Three goal_2 balance bars re-pinned twice** — the loot-draw
+  retirement then the fauna kit-roll gate each shifted the
+  mid-fight RNG stream (kill drops draw inside the fight loop):
+  starter_mars_delve dmg 11.24→11.8, lane dmg 4.72→5.3 +
+  ammo 13.0→13.3, lane_countered floor 0.76→0.70 (measured at
+  every step, notes in scenarios.py).
+- **The one-thing qty law**: a guaranteed single-entry pool lands
+  exactly ONE unit (the reviewer caught trophies rolling 1-2 — a
+  100% payout variance on the flagship reward).
+- **TradeGood.stocked is the kill-only goods guard** — neutral
+  station stock filters it; the produces/demands census pins that
+  no planet authors a trophy into a trade pool.
+
+**THE BATTERY (50 runs/row, both reference saves; "pre" files date
+from the phase-10 era, so the deltas below fold phase 11's cyber
+fold with phase 12's armor — both intended):**
+
+| Row | labs post-p12 | merchants post-p12 | read |
+|---|---|---|---|
+| mars pinned | 1.000 / 0.04 | 1.000 / 0.04 | unchanged within noise (dmg 0.02 → 0.04) |
+| 5x rifleman b2 | 0.980 / 3.53 | 0.920 / 6.91 | band-2 hands armor: the intended slight stiffening |
+| 5x brute b3 | 0.980 / 10.18 | 0.980 / 13.06 | the armor buff's watch row: hotter, still winnable |
+| 5x b4 drones | 1.000 / 0.00 | 1.000 / 0.00 | melee machines unchanged (no slots) |
+| 5x b4 gunners | 1.000 / 7.62 | 1.000 / 7.44 | the cyber-fold signal (phase 11's +8 hit, first battery since) |
+| machine/ancient rows | unchanged within noise | unchanged within noise | the doctrine touches their LOOT, not their combat |
+| space ladder (labs) | 1.000 across, warlord 0.62 dmg | warlord 0.400 / 2x 0.180 | bit-identical to the recorded merchant trade-fit reads |
+
+**Playtest watch items (beyond the brief's 12):** the trophy PRICE
+BAND — a fresh station's first sale pays ~2x base (unseeded stock
+reads as permanent shortage) and decays sale-by-sale as phantom
+stock drifts up; pin the feel, then either seed trophies at
+NEUTRAL_TARGET or leave the frontier-station premium as flavor.
+The six trophy DESCRIPTIONS land as first drafts under the user's
+"we can tweak prose later" — they ride checkpoint item 6 verbatim.
 
 ## Pre-implementation audit — phase 11 (2026-10-04)
 

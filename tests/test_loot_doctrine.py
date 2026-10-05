@@ -463,3 +463,82 @@ def test_tinker_kit_rolls_only_on_loot_paying_kills():
                 for e in gm.entities
             )
             assert landed is expect, spec_id
+
+
+# --- the volume law + kit-out pins (the expectations table) -------------------
+
+def _mean(count: tuple[int, int]) -> float:
+    return (count[0] + count[1]) / 2
+
+
+def test_the_volume_law_pocket_entities_only():
+    """POCKET entities (goods + field stacks — the changed channels)
+    per humanoid kill, band-independent by construction: goods mean
+    + field mean <= 1.0 — HALF the surveyed before-picture (goods
+    1.5-2.5 guaranteed + ~0.5 field = 2.0-3.0 per kill). The weapon
+    kit/worn/tinker/pad channels are the diegetic core, reported not
+    lawed; the merchant's guaranteed 1 is the ruled outlaw incentive."""
+    for spec in list_npc_chars():
+        if loot_class(spec) != "humanoid":
+            continue
+        if spec.id == "merchant":
+            assert _mean(spec.loot_count) == 1.0  # the ruled exception
+            continue
+        _pocket = _mean(spec.loot_count) + _mean(spec.field_item_loot_count)
+        assert _pocket <= 1.0, (spec.id, _pocket)
+
+
+def test_the_merchants_pocket_is_exactly_its_goods():
+    """The ruled exception's seam: the merchant's guaranteed 1 is its
+    WHOLE pocket — the field pool must stay empty or the outlaw
+    incentive quietly becomes 1.5 (the fauna/machine volume reads
+    live in their own census pins: fauna pools empty, machines
+    0-1 scrap)."""
+    merchant = find_npc_char("merchant")
+    assert merchant.field_item_loot_pool == ()
+    assert _mean(merchant.loot_count) + _mean(
+        merchant.field_item_loot_count,
+    ) * bool(merchant.field_item_loot_pool) == 1.0
+
+
+def test_band_one_often_zero_armor_per_row():
+    """Each slot-authored row's P(no pieces) at band 1 — computed from
+    the row's OWN slot count and mod — sits at or above 1/3 (the
+    user's 'often run into p's with 0 worn armor' at T1)."""
+    from src.spacehack import ground_scale as gs
+
+    for spec in list_npc_chars():
+        if not getattr(spec, "worn_armor_slots", ()):
+            continue
+        _miss = 1.0 - gs.worn_fill_chance(1) * spec.worn_fill_mod
+        assert _miss ** len(spec.worn_armor_slots) >= 1 / 3, spec.id
+
+
+def test_band_four_usually_armored_kitted_on_multi_slot():
+    """At band 4: P(>=1 piece) > 2/3 for every authored row, and
+    P(>=2 pieces) > 1/2 on multi-slot rows (the ruled T4 buff)."""
+
+    from src.spacehack import ground_scale as gs
+
+    for spec in list_npc_chars():
+        if not getattr(spec, "worn_armor_slots", ()):
+            continue
+        if spec.id == "merchant":
+            continue  # the shaping row: low fill BY DESIGN (SETTLED 55)
+        _p = gs.worn_fill_chance(4) * spec.worn_fill_mod
+        _n = len(spec.worn_armor_slots)
+        _none = (1.0 - _p) ** _n
+        assert 1.0 - _none > 2 / 3, spec.id
+        if _n >= 2:
+            _two_plus = 1.0 - _none - _n * _p * (1.0 - _p) ** (_n - 1)
+            assert _two_plus > 1 / 2, spec.id
+
+
+def test_every_kill_pays_xp():
+    """The retired every-kill-pays-LOOT doctrine's replacement: EVERY
+    kill pays XP (the body is the body, but the fight always
+    progresses the sheet); apexes pay triple digits."""
+    for spec in list_npc_chars():
+        assert spec.xp_reward >= 1, spec.id
+        if loot_class(spec) == "apex":
+            assert spec.xp_reward >= 100, spec.id
