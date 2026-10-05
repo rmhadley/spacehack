@@ -167,8 +167,6 @@ class NpcCharSpec:
             decision point. Default 50 for every row until the tuning
             pass authors per-spec values (phase 9 build 1's v1).
         loot_pool: trade good ids the NPC may drop on death.
-        equipment_loot_pool: optional ``(item_type, item_id)`` ground gear
-            entries dropped on death.
         field_item_loot_pool: optional typed ammo/consumable entries dropped
             on death and packed into the Expedition Pack.
         loot_count: (min, max) number of trade-good loot items per kill.
@@ -188,9 +186,6 @@ class NpcCharSpec:
             Empty = solo (every other row unchanged).
         pack_size: (min, max) hunting-pack members rolled at spawn
             when ``pack_pool`` is authored.
-        tier: drop tier — equipment drops filter to ``tech_level <= tier``.
-            A row wearing cyber pieces must author tier >= every worn
-            piece's tech_level (the tier-gate law) or its pool empties.
         armor: flat damage reduction subtracted from player hits
             (plasma halves it). Humanoid rows author 0 — their soak
             is entirely their GEAR (doc 48 SETTLED 55); chassis and
@@ -242,7 +237,6 @@ class NpcCharSpec:
     ap: int = 4
     ai_aggressiveness: int = 50
     loot_pool: tuple[str, ...] = ()
-    equipment_loot_pool: tuple[tuple[str, str], ...] = ()
     field_item_loot_pool: tuple[tuple[str, str], ...] = ()
     field_item_loot_count: tuple[int, int] = (0, 1)
     loot_count: tuple[int, int] = (1, 2)
@@ -252,7 +246,6 @@ class NpcCharSpec:
     squad_size: tuple[int, int] = (1, 1)
     pack_pool: tuple[str, ...] = ()
     pack_size: tuple[int, int] = (1, 1)
-    tier: int = 1
     armor: int = 0
     worn_armor_slots: tuple[str, ...] = ()
     worn_fill_mod: float = 1.0

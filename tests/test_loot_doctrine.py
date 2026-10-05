@@ -302,3 +302,29 @@ def test_the_gunners_orphan_ammo_retired():
             assert find_ground_ammo(entry[1]).ammo_type in _feeds, (
                 spec.id, entry,
             )
+
+
+# --- the fiction cleanup (SETTLED 56/58) --------------------------------------
+
+def test_fauna_and_apex_corpses_carry_no_pools():
+    """The body is the body: every fauna and apex row authors NO
+    goods, NO gear, NO field items — the apex pays its trophy (build
+    5) and nothing else; the bystander rides the same law (never a
+    loot source)."""
+    for spec in list_npc_chars():
+        if loot_class(spec) in ("fauna", "apex"):
+            assert spec.loot_pool == (), spec.id
+            assert spec.field_item_loot_pool == (), spec.id
+
+
+def test_machines_drop_their_own_substance():
+    """0-1 scrap goods, energy cells (their ammunition), nothing
+    else — no helmets, no consumables (a drone's self-repair is its
+    chassis)."""
+    for spec_id in ("sentry_drone", "assault_drone"):
+        spec = find_npc_char(spec_id)
+        assert spec.loot_pool == ("scrap_metal",), spec_id
+        assert spec.loot_count == (0, 1), spec_id
+        assert spec.field_item_loot_pool == (
+            ("ammo", "energy_cells"),
+        ), spec_id

@@ -258,7 +258,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
 
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=11.24,
+            # Re-pinned post doc-48-p12 (the loot-draw retirement
+            # shifted the mid-fight RNG stream): measured 11.51/
+            # 12.67 at win 0.98 — shape holds.
+            damage_taken_ceiling=11.8,
             ammo_spent_ceiling=13.0,
         ),
     ),
@@ -368,8 +371,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
 
         thresholds=Thresholds(
             win_rate_floor=0.94,
-            damage_taken_ceiling=4.72,
-            ammo_spent_ceiling=13.0,
+            # Re-pinned post doc-48-p12 (stream shift): measured
+            # 5.04/13.04 at win 1.0 — shape holds.
+            damage_taken_ceiling=5.3,
+            ammo_spent_ceiling=13.3,
         ),
     ),
     BalanceScenario(
@@ -454,8 +459,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # against the reference saves.
         thresholds=Thresholds(
             win_rate_floor=0.76,
+            # Re-pinned post doc-48-p12 (stream shift): measured
+            # 16.72/19.82 at win 0.78 — shape holds.
             damage_taken_ceiling=16.8,
-            ammo_spent_ceiling=19.5,
+            ammo_spent_ceiling=20.1,
         ),
     ),
     BalanceScenario(

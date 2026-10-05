@@ -86,7 +86,9 @@ def test_ancient_rows_register_with_authored_stat_block():
         assert spec.fixed_band == 4
         assert spec.loot_count == (0, 0)  # no usable drops (SETTLED 29)
         assert spec.loot_pool == ()
-        assert spec.equipment_loot_pool == ()
+        # equipment_loot_pool RETIRED with the channel (doc 48
+        # SETTLED 56) — the field itself is gone.
+        assert not hasattr(spec, "equipment_loot_pool")
         assert spec.field_item_loot_pool == ()
 
 

@@ -4,8 +4,10 @@ Every monster sets ``always_hostile=True`` and ``faction=""`` so it
 fights on sight regardless of faction reputation and killing one
 changes no reputation score (``_COMBAT_KILL_DELTAS.get("", {})`` is
 a no-op). Behavior + squad size drive out-of-combat movement and
-procedural dungeon population. ``tier`` gates equipment drops and
-``armor`` is flat DR the player must punch through (plasma halves it).
+procedural dungeon population. ``armor`` is flat DR the player must
+punch through (plasma halves it). Corpses pay by the carried-loot
+doctrine (doc 48 SETTLED 56/58): fauna nothing, machines their own
+substance, apexes the trophy good.
 
 Design doc: ``docs/design/in_progress/11_DESIGN_DUNGEON_MONSTERS.md``
 """
@@ -25,14 +27,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",
         squad_size=(3, 5),        # swarmer — always hunts in packs
         always_hostile=True,
-        tier=1,
-        loot_pool=("scrap_metal",),
-        equipment_loot_pool=(
-            ("weapon", "survival_axe"),
-            ("weapon", "combat_knife"),
-            ("armor", "tactical_gloves"),
-        ),
-        loot_count=(1, 2),
         xp_reward=10,
         ap=5,
     ),
@@ -48,20 +42,15 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # holds position, fires at range
         squad_size=(1, 1),
         always_hostile=True,
-        tier=2,
         armor=1,
-        loot_pool=("electronics", "machine_parts"),
-        equipment_loot_pool=(
-            ("armor", "light_helmet"),
-            ("armor", "heavy_helmet"),
-            ("armor", "reinforced_gauntlets"),
-            ("weapon", "smg"),
-        ),
+        loot_pool=("scrap_metal",),
+        loot_count=(0, 1),
+        # Doc 48 SETTLED 56/58: the machine's own substance — 0-1
+        # scrap, energy cells (its ammunition); no consumables (a
+        # drone's self-repair is its chassis).
         field_item_loot_pool=(
             ("ammo", "energy_cells"),
-            ("consumable", "med_pack"),
         ),
-        loot_count=(1, 2),
         xp_reward=25,
     ),
     NpcCharSpec(
@@ -76,9 +65,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="ambusher",      # holds still, bursts out on approach
         squad_size=(1, 2),
         always_hostile=True,
-        tier=1,
-        loot_pool=("scrap_metal", "research_data"),
-        loot_count=(1, 1),
         xp_reward=20,
         ap=5,
     ),
@@ -94,9 +80,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # fast, aggressive single/duo hunter
         squad_size=(1, 2),
         always_hostile=True,
-        tier=1,
-        loot_pool=("scrap_metal", "food_rations"),
-        loot_count=(1, 2),
         xp_reward=18,
         ap=6,
     ),
@@ -112,25 +95,15 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # armored bruiser — holds its post
         squad_size=(1, 1),
         always_hostile=True,
-        # SETTLED 49 (doc 48): re-tiered 3 -> 2 — the machine family
-        # reads as ruin-security T2 uniformly, the sentry's class. The
-        # equipment pool re-authors to t2 entries: the old all-t3 set
-        # would silently stop dropping at tier 2 (the tier-gate law —
-        # drops filter by tech_level <= tier).
-        tier=2,
+        # SETTLED 49 (doc 48): classified T2 — the machine family
+        # reads as ruin-security T2 uniformly, the sentry's class
+        # (drops since re-authored by SETTLED 56/58: substance only).
         armor=3,
-        loot_pool=("electronics", "machine_parts", "ship_components"),
-        equipment_loot_pool=(
-            ("armor", "heavy_helmet"),
-            ("armor", "medium_vest"),
-            ("armor", "reinforced_gauntlets"),
-            ("weapon", "smg"),
-        ),
+        loot_pool=("scrap_metal",),
+        loot_count=(0, 1),
         field_item_loot_pool=(
             ("ammo", "energy_cells"),
-            ("consumable", "stim"),
         ),
-        loot_count=(1, 2),
         xp_reward=30,
         ap=3,
     ),
@@ -143,16 +116,9 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=20,
         weapons=("frost_bolt",),
         stat_weights=six_weights(0.45, 0.10, 0.30),
-        field_item_loot_pool=(
-            ("ammo", "energy_cells"),
-            ("consumable", "med_pack"),
-        ),
         behavior="hunter",        # ranged harasser, hunts in pairs/trios
         squad_size=(2, 3),
         always_hostile=True,
-        tier=2,
-        loot_pool=("research_data", "electronics"),
-        loot_count=(1, 2),
         xp_reward=25,
     ),
     NpcCharSpec(
@@ -167,9 +133,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="ambusher",      # lurks in derelicts, bursts out on approach
         squad_size=(2, 4),
         always_hostile=True,
-        tier=1,
-        loot_pool=("scrap_metal", "research_data"),
-        loot_count=(1, 1),
         xp_reward=15,
         ap=5,
     ),
@@ -190,9 +153,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # AP-6 closer pack: pressure you
         squad_size=(2, 2),        # can't out-walk — pairs
         always_hostile=True,
-        tier=1,
-        loot_pool=("food_rations",),
-        loot_count=(1, 2),
         xp_reward=15,
         ap=6,
     ),
@@ -209,9 +169,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",         # rushing the nest triggers the
         squad_size=(1, 2),        # cornered-switch (SETTLED 43)
         always_hostile=True,
-        tier=1,
-        loot_pool=("food_rations",),
-        loot_count=(1, 2),
         xp_reward=15,
     ),
     NpcCharSpec(
@@ -226,10 +183,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # ARMORED swarm: armor on volume —
         squad_size=(4, 6),        # plasma/AoE bait, kinetic starves
         always_hostile=True,
-        tier=2,
         armor=2,
-        loot_pool=("scrap_metal",),
-        loot_count=(1, 2),
         xp_reward=10,
     ),
     NpcCharSpec(
@@ -244,10 +198,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",
         squad_size=(1, 2),
         always_hostile=True,
-        tier=2,
         armor=1,
-        loot_pool=("rare_earth_metals",),
-        loot_count=(1, 1),
         xp_reward=25,
     ),
     NpcCharSpec(
@@ -262,10 +213,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # fast ARMORED skirmisher — out-races
         squad_size=(2, 2),        # you; pin and trade
         always_hostile=True,
-        tier=2,
         armor=2,
-        loot_pool=("scrap_metal", "machine_parts"),
-        loot_count=(1, 2),
         xp_reward=20,
         ap=6,
     ),
@@ -281,9 +229,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # the RANGED swarm: volume of
         squad_size=(3, 5),        # incoming fire at short range
         always_hostile=True,
-        tier=1,
-        loot_pool=("scrap_metal",),
-        loot_count=(1, 1),
         xp_reward=12,
         ap=6,
     ),
@@ -299,10 +244,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="ambusher",      # the ARMORED burst-out — the
         squad_size=(1, 2),        # surprise wall
         always_hostile=True,
-        tier=2,
         armor=3,
-        loot_pool=("scrap_metal", "rare_earth_metals"),
-        loot_count=(1, 2),
         xp_reward=25,
     ),
     NpcCharSpec(
@@ -317,9 +259,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",        # the can't-hit-it problem; melee/
         squad_size=(1, 2),        # accurate/AoE are the answers
         always_hostile=True,
-        tier=1,
-        loot_pool=("food_rations",),
-        loot_count=(1, 1),
         xp_reward=15,
         ap=6,
     ),
@@ -328,7 +267,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
     # rows (no mechanic machinery): FLAT bases, the band stamp does
     # the scaling; bold glyphs (elite), solo (squad 1,1) unless the
     # row authors a pack; knockback/armor_bypass ride the WEAPON
-    # fields. The kill pays: big XP + authored pools.
+    # fields. The kill pays: big XP + the trophy good (SETTLED 57).
     NpcCharSpec(
         id="dune_behemoth",
         name="Dune Behemoth",
@@ -342,16 +281,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=5,
-        loot_pool=("scrap_metal", "rare_earth_metals"),
-        equipment_loot_pool=(
-            ("armor", "heavy_vest"),
-            ("weapon", "vibroblade"),
-        ),
-        field_item_loot_pool=(
-            ("consumable", "med_pack"),
-        ),
         loot_count=(2, 3),
         xp_reward=120,
         ap=3,
@@ -370,16 +300,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=4,
-        loot_pool=("research_data", "rare_earth_metals"),
-        equipment_loot_pool=(
-            ("armor", "visor_helmet"),
-            ("weapon", "plasma_pistol"),
-        ),
-        field_item_loot_pool=(
-            ("consumable", "med_pack"),
-        ),
         loot_count=(2, 3),
         xp_reward=120,
     ),
@@ -397,16 +318,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=3,
-        loot_pool=("rare_earth_metals", "machine_parts"),
-        equipment_loot_pool=(
-            ("weapon", "battle_rifle"),
-            ("armor", "heavy_vest"),
-        ),
-        field_item_loot_pool=(
-            ("consumable", "stim"),
-        ),
         loot_count=(2, 3),
         xp_reward=110,
     ),
@@ -423,16 +335,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),        # approach the legendary from range
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=3,
-        loot_pool=("food_rations", "medical_supplies"),
-        equipment_loot_pool=(
-            ("weapon", "vibroblade"),
-            ("armor", "cybernetic_eyes"),
-        ),
-        field_item_loot_pool=(
-            ("consumable", "med_pack"),
-        ),
         loot_count=(2, 3),
         xp_reward=120,
     ),
@@ -450,17 +353,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=4,
-        loot_pool=("machine_parts", "ship_components"),
-        equipment_loot_pool=(
-            ("armor", "heavy_vest"),
-            ("weapon", "battle_rifle"),
-        ),
-        field_item_loot_pool=(
-            ("ammo", "energy_cells"),
-            ("consumable", "med_pack"),
-        ),
         loot_count=(2, 3),
         xp_reward=130,
         ap=2,
@@ -480,16 +373,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         pack_size=(2, 4),              # the mauler
         always_hostile=True,
         elite=True,
-        tier=3,
         armor=3,
-        loot_pool=("scrap_metal", "food_rations"),
-        equipment_loot_pool=(
-            ("weapon", "plasma_pistol"),
-            ("armor", "visor_helmet"),
-        ),
-        field_item_loot_pool=(
-            ("consumable", "stim"),
-        ),
         loot_count=(2, 3),
         xp_reward=120,
         ap=5,

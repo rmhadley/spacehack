@@ -23,7 +23,6 @@ from src.spacehack.ground_equipment import (
     store_armor,
     store_weapon,
     swap_armor_from_expedition,
-    tier_filtered_equipment,
     transfer_item,
     GroundItemStack,
     GroundWeaponInstance,
@@ -84,44 +83,6 @@ def test_armor_sums_scale_with_each_entrys_quality():
 def test_sum_armor_bonus_rejects_unknown_field():
     with pytest.raises(ValueError):
         sum_armor_bonus(["cybernetic_legs"], "defense")
-
-
-def test_tier_filtered_equipment_drops_items_above_tier():
-    pool = (("weapon", "survival_axe"), ("weapon", "railgun"), ("armor", "mag_boots"))
-    assert tier_filtered_equipment(pool, 1) == (("weapon", "survival_axe"),)
-
-
-def test_tier_filtered_equipment_keeps_at_or_below_tier():
-    pool = (("armor", "heavy_vest"), ("weapon", "plasma_pistol"))
-    assert tier_filtered_equipment(pool, 3) == (
-        ("armor", "heavy_vest"),
-        ("weapon", "plasma_pistol"),
-    )
-
-
-def test_tier_filtered_equipment_skips_unknown_ids():
-    pool = (("weapon", "missing_id"), ("weapon", "combat_knife"))
-    assert tier_filtered_equipment(pool, 1) == (("weapon", "combat_knife"),)
-
-
-def test_every_npc_pool_entry_is_within_its_spec_tier():
-    """The tier-gate law, catalog-wide (doc 48 SETTLED 49): drops
-    filter by ``tech_level <= tier``, so a row whose pool exceeds its
-    tier SILENTLY drops nothing. Every npc char row must pin
-    ``tier >= `` every entry's tech level — the assault-drone class of
-    bug fails here, not in play."""
-    from src.spacehack.data.ground_armor import find_ground_armor
-    from src.spacehack.data.ground_weapons import find_ground_weapon
-    from src.spacehack.data.npc_chars import list_npc_chars
-
-    finders = {"weapon": find_ground_weapon, "armor": find_ground_armor}
-    for spec in list_npc_chars():
-        for item_type, item_id in spec.equipment_loot_pool:
-            finder = finders[item_type]
-            assert finder(item_id).tech_level <= spec.tier, (
-                f"{spec.id} (tier {spec.tier}) pools {item_type} "
-                f"{item_id} above its tier — it would never drop"
-            )
 
 
 def test_displacement_prefers_pack_then_falls_back_to_armory():

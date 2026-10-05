@@ -13,7 +13,7 @@ from .. import world
 from ._types import EnemyInstance
 from ._stats import _roll_ap
 from ..data.weapons import find_weapon
-from ..data.quality import quality_multiplier, roll_quality
+from ..data.quality import quality_multiplier
 from ..engine import RNG
 from ..loot_common import equipment_payload, loot_fg
 
@@ -52,37 +52,6 @@ def _spawn_loot_at_position(
         _append_loot_entity(
             game_map, pos,
             {"good_id": _good_id, "quantity": _qty},
-        )
-
-
-def _spawn_equipment_loot_at_position(
-    game_map: world.GameMap,
-    pos: world.Position,
-    equipment_pool: tuple[tuple[str, str], ...],
-    count_range: tuple[int, int] = (0, 1),
-    *,
-    band: int = 0,
-) -> None:
-    """Drop ground-equipment loot using ``(item_type, item_id)`` entries.
-
-    Beyond-the-weapon extras (armor, sidearms) roll their quality at
-    DROP time with the kill-source rates (doc 47.2 SETTLED 13) — the
-    ladder rides the spawn's band (doc 48 SETTLED 35).
-    """
-    if not equipment_pool:
-        return
-    from .. import ground_scale
-
-    _min_c, _max_c = count_range
-    _count = RNG.randint(_min_c, _max_c)
-    for _ in range(_count):
-        item_type, item_id = RNG.choice(equipment_pool)
-        _append_loot_entity(
-            game_map, pos,
-            equipment_payload(
-                item_type, item_id,
-                roll_quality(ground_scale.quality_rates(band), RNG),
-            ),
         )
 
 
@@ -313,23 +282,18 @@ def _spawn_authored_pools(
     game_map: world.GameMap, pos: world.Position, spec,
     loadout: dict | None, band: int, carried: list | None,
 ) -> None:
-    """The authored pool sequence (doc 47.1): trade goods, equipment,
-    then field items — ammo entries feeding a CARRIED ammo type retire
-    to the kit drop's remainder (doc 48 SETTLED 43)."""
+    """The authored pool sequence (doc 47.1 as amended by 48 SETTLED
+    56): trade goods, then field items — the equipment-extras channel
+    retired with the carried-loot doctrine (what they drop is what
+    they carried). Ammo entries feeding a CARRIED ammo type retire to
+    the kit drop's remainder (doc 48 SETTLED 43)."""
     from .. import ground_loadout
-    from ..ground_equipment import tier_filtered_equipment
 
     if spec.loot_pool:
         _min, _max = spec.loot_count
         _spawn_loot_at_position(
             game_map, pos, spec.loot_pool,
             count_range=(_min, _max), qty_range=(1, 2),
-        )
-    if spec.equipment_loot_pool:
-        _spawn_equipment_loot_at_position(
-            game_map, pos,
-            tier_filtered_equipment(spec.equipment_loot_pool, spec.tier),
-            band=band,
         )
     if spec.field_item_loot_pool:
         _spawn_field_item_loot_at_position(

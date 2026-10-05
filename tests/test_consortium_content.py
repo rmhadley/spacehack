@@ -154,14 +154,13 @@ from types import SimpleNamespace  # noqa: E402
 
 from src.spacehack import ground_loadout  # noqa: E402
 from src.spacehack import world  # noqa: E402
-from src.spacehack.data.ground_armor import find_ground_armor  # noqa: E402
 
 RUNG_PINS = {
-    #          fixed_band  tier  elite  floor  worn pieces
-    "consortium_gunner": (2, 2, False, 1, ("cybernetic_eyes", "cybernetic_arms")),
-    "consortium_enforcer": (3, 3, False, 1, ("cybernetic_arms", "cybernetic_legs")),
+    #          fixed_band  elite  floor  worn pieces
+    "consortium_gunner": (2, False, 1, ("cybernetic_eyes", "cybernetic_arms")),
+    "consortium_enforcer": (3, False, 1, ("cybernetic_arms", "cybernetic_legs")),
     "consortium_executor": (
-        4, 4, True, 2,
+        4, True, 2,
         ("cybernetic_eyes", "cybernetic_torso",
          "cybernetic_arms", "cybernetic_legs"),
     ),
@@ -179,14 +178,13 @@ def test_rung_registry_pins():
         "consortium_enforcer": "E",     # the serious case
         "consortium_executor": "E",     # the bold high rung
     }
-    for spec_id, (band, tier, elite, floor, worn) in RUNG_PINS.items():
+    for spec_id, (band, elite, floor, worn) in RUNG_PINS.items():
         spec = find_npc_char(spec_id)
         assert spec.name == names[spec_id]
         assert spec.char == chars[spec_id]
         assert spec.fg == (90, 120, 200)
         assert spec.faction == "consortium"
         assert spec.fixed_band == band, spec_id
-        assert spec.tier == tier, spec_id
         assert spec.elite is elite, spec_id
         assert spec.quality_floor == floor, spec_id
         assert spec.worn_armor == worn, spec_id
@@ -202,21 +200,35 @@ def test_rung_fixed_band_never_diluted_by_the_site_stamp():
     assert gs.entity_band(entity, None, spec=spec) == 4
 
 
-def test_rung_tier_gates_every_worn_piece():
-    """The tier-gate law (doc 48 memory + brief): rung tier >= every
-    worn piece's tech_level, or the drop filter silently empties."""
-    for spec_id, (_band, tier, _elite, _floor, worn) in RUNG_PINS.items():
-        for piece_id in worn:
-            assert tier >= find_ground_armor(piece_id).tech_level, (
-                spec_id, piece_id,
-            )
+def test_rung_worn_pieces_survive_the_channel_retirement():
+    """The tier-gate law retired with the equipment-extras channel
+    (doc 48 SETTLED 56 — both fields gone); the worn pieces
+    themselves ride the kit drop at stamped qualities, so the rungs'
+    cyber sets are the whole armor story."""
 
-
-def test_rung_equipment_loot_pools_retire_total():
-    """The brief: worn pieces drop via the kit path — a residual
-    equipment_loot_pool would roll UNFLOORED gear at the drop site."""
     for spec_id in RUNG_PINS:
-        assert find_npc_char(spec_id).equipment_loot_pool == (), spec_id
+        spec = find_npc_char(spec_id)
+        assert not hasattr(spec, "equipment_loot_pool"), spec_id
+        assert not hasattr(spec, "tier"), spec_id
+
+
+def test_equipment_extras_fields_raise_on_authoring():
+    """The channel is DEAD: authoring either retired field is a
+    TypeError at construction (the detect_radius precedent)."""
+    import pytest
+
+    from src.spacehack.data.npc_chars import NpcCharSpec
+
+    with pytest.raises(TypeError):
+        NpcCharSpec(
+            id="x", name="X", char="x", fg=(1, 2, 3), faction="pirate",
+            equipment_loot_pool=(("armor", "light_helmet"),),
+        )
+    with pytest.raises(TypeError):
+        NpcCharSpec(
+            id="x", name="X", char="x", fg=(1, 2, 3), faction="pirate",
+            tier=2,
+        )
 
 
 def test_rung_quality_floors_pin():

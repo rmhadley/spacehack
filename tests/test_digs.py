@@ -824,19 +824,17 @@ def test_biome_pools_resolve_ids_and_sit_on_the_density_ladder():
                 assert "assault_drone" not in pool, (biome, band)
 
 
-def test_assault_drone_is_tier_two_with_a_t2_pool():
-    """SETTLED 49: the re-tier is a classification ruling — no stat
-    numbers move; the equipment pool re-authors so every entry still
-    drops at tier 2 (the tier-gate law that seeded the change)."""
+def test_assault_drone_machine_substance_drops():
+    """SETTLED 49's re-tier ruling, superseded by the carried-loot
+    doctrine (doc 48 SETTLED 56/58): the drone's identity numbers
+    stand; its drops are its own substance — 0-1 scrap goods, energy
+    cells, no gear, no consumables."""
     spec = find_npc_char("assault_drone")
-    assert spec.tier == 2
     assert spec.armor == 3 and spec.hp == 34 and spec.ap == 3
-    assert spec.equipment_loot_pool == (
-        ("armor", "heavy_helmet"),
-        ("armor", "medium_vest"),
-        ("armor", "reinforced_gauntlets"),
-        ("weapon", "smg"),
-    )
+    assert spec.loot_pool == ("scrap_metal",)
+    assert spec.loot_count == (0, 1)
+    assert spec.field_item_loot_pool == (("ammo", "energy_cells"),)
+    assert not hasattr(spec, "equipment_loot_pool")
 
 
 def test_bumping_a_nameless_monster_logs_its_spec_name(monkeypatch):

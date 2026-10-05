@@ -107,11 +107,14 @@ class TestConstructorRouting:
         gm = _make_map(3, 3)
         pos = Position(1, 1)
         _actions._spawn_loot_at_position(gm, pos, ("scrap_metal",), count_range=(2, 2))
-        _actions._spawn_equipment_loot_at_position(
-            gm, pos, (("weapon", "kinetic_pistol"),), count_range=(1, 1),
-        )
         _actions._spawn_field_item_loot_at_position(
             gm, pos, (("ammo", "pistol_rounds"),), count_range=(1, 1),
+        )
+        # The equipment-extras channel retired (doc 48 SETTLED 56);
+        # equipment payloads still route through loot_fg via the kit
+        # drop's worn/weapon pieces.
+        _actions._spawn_kit_drop(
+            gm, pos, {"worn": [["armor", "light_helmet", 0]]},
         )
 
         by_payload = {
@@ -122,7 +125,7 @@ class TestConstructorRouting:
         assert by_payload["ammo"][0] == FIELD_ITEM_FG
         # Equipment colour routes through loot_fg at whatever tier the
         # drop rolled (the equipment hue or its brightened steps).
-        _weapon_fg, _weapon_payload = by_payload["weapon"]
+        _weapon_fg, _weapon_payload = by_payload["armor"]
         assert _weapon_fg == loot_fg(_weapon_payload)
         assert _weapon_fg == EQUIPMENT_FG or _weapon_payload.get("quality", 0) > 0
 
@@ -170,9 +173,7 @@ class TestGroundKillDrops:
         from types import SimpleNamespace
 
         spec = SimpleNamespace(
-            loot_pool=("scrap_metal",), loot_count=(1, 1),
-            equipment_loot_pool=(("weapon", "kinetic_pistol"),),
-            field_item_loot_pool=(("ammo", "pistol_rounds"),),
+            loot_pool=("scrap_metal",), loot_count=(1, 1),            field_item_loot_pool=(("ammo", "pistol_rounds"),),
             field_item_loot_count=(1, 1), tier=1, id="rock_scavenger",
             xp_reward=10,
         )
@@ -185,21 +186,17 @@ class TestGroundKillDrops:
         from spacehack.engine import RNG
         from types import SimpleNamespace
 
-        # The equipment count rolls (0, 1) on the global RNG — seed it
-        # and retry within a bound so the assertion is deterministic,
-        # never a coin flip (reviewer-caught flake).
+        # Both counts are (1, 1): deterministic on the first kill —
+        # goods + field items (the equipment-extras channel retired,
+        # doc 48 SETTLED 56).
         RNG.seed(4747)
         gm = _make_map(1, 1)
-        kinds = set()
-        for _ in range(20):
-            spawn_kill_drops(gm, Position(0, 0), self._spec(), SimpleNamespace())
-            kinds = {
-                e.loot_data.get("item_type", "cargo")
-                for e in gm.entities if e.loot_data is not None
-            }
-            if kinds == {"cargo", "weapon", "ammo"}:
-                break
-        assert kinds == {"cargo", "weapon", "ammo"}
+        spawn_kill_drops(gm, Position(0, 0), self._spec(), SimpleNamespace())
+        kinds = {
+            e.loot_data.get("item_type", "cargo")
+            for e in gm.entities if e.loot_data is not None
+        }
+        assert kinds == {"cargo", "ammo"}
 
     def test_pad_door_receives_the_spec_id(self, monkeypatch):
         import spacehack.digs as digs
@@ -436,22 +433,6 @@ class TestGroundKillDrops:
             assert find_ground_weapon(weapon_id).loot_droppable is False
         assert find_ground_weapon("kinetic_pistol").loot_droppable is True
 
-    def test_equipment_pools_stay_beyond_the_wielded_weapons(self):
-        from spacehack.data.ground_weapons import family_tiers
-        from spacehack.data.npc_chars import _registry
-
-        for spec in _registry().values():
-            wielded = set(spec.weapons or ())
-            for family in spec.weapon_families:
-                for members in family_tiers(family).values():
-                    wielded |= set(members)
-            pooled = {
-                item_id
-                for kind, item_id in (spec.equipment_loot_pool or ())
-                if kind == "weapon"
-            }
-            assert not (pooled & wielded), (spec.id, pooled & wielded)
-
     def test_on_kill_forwards_the_two_set_loadout(self, monkeypatch):
         from tests.support.asyncutil import run, as_async
         from spacehack.combat import _actions, _rules_ground
@@ -603,8 +584,9 @@ class TestDerelictSaySo:
 
 
 class TestDropTimeQualityRolls:
-    """Kill extras, wreck rooms, and dig caches roll tiers at drop
-    time; pickup and pack-drops keep the rolled tier (doc 47.2)."""
+    """Wreck rooms and dig caches roll tiers at drop time; pickup and
+    pack-drops keep the rolled tier (doc 47.2 — the kill-extras half
+    retired with the channel, doc 48 SETTLED 56)."""
 
     class _ScriptRng:
         """Serves scripted rolls; choice picks by list order."""
@@ -620,34 +602,6 @@ class TestDropTimeQualityRolls:
         def choice(self, seq):
             self._values.pop(0)
             return seq[0]
-
-    def test_kill_extras_roll_quality_at_drop_time(self, monkeypatch):
-        from spacehack.combat import _actions
-
-        # count roll 1; pool choice; then the KILL ladder (t3 1-in-25
-        # hit -> tier 3).
-        rng = self._ScriptRng([1, 0, 1, 1, 1])
-        monkeypatch.setattr(_actions, "RNG", rng)
-        gm = _make_map(1, 1)
-        _actions._spawn_equipment_loot_at_position(
-            gm, Position(0, 0), (("armor", "light_vest"),), (1, 1),
-        )
-        (payload,) = [e.loot_data for e in gm.entities]
-        assert payload == {
-            "item_type": "armor", "item_id": "light_vest", "quality": 3,
-        }
-
-    def test_kill_extras_base_roll_omits_the_quality_key(self, monkeypatch):
-        from spacehack.combat import _actions
-
-        rng = self._ScriptRng([1, 0, 2, 2, 2])
-        monkeypatch.setattr(_actions, "RNG", rng)
-        gm = _make_map(1, 1)
-        _actions._spawn_equipment_loot_at_position(
-            gm, Position(0, 0), (("armor", "light_vest"),), (1, 1),
-        )
-        (payload,) = [e.loot_data for e in gm.entities]
-        assert payload == {"item_type": "armor", "item_id": "light_vest"}
 
     def test_wreck_room_equipment_rolls_presence_then_quality(self, monkeypatch):
         from spacehack import dungeon_layout, engine

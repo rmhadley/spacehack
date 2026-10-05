@@ -33,7 +33,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.45, 0.15, 0.25),
         behavior="guard",
         fixed_band=2,
-        tier=2,  # >= cybernetic_eyes/arms tech_level 2 (the tier-gate law)
         worn_armor=("cybernetic_eyes", "cybernetic_arms"),
         quality_floor=1,
         loot_pool=("electronics", "machine_parts", "fuel_cells"),
@@ -59,7 +58,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.25, 0.40, 0.20),
         behavior="hunter",
         fixed_band=3,
-        tier=3,  # >= cybernetic_legs tech_level 3 (the tier-gate law)
         worn_armor=("cybernetic_arms", "cybernetic_legs"),
         quality_floor=1,
         loot_pool=("electronics", "machine_parts", "scrap_metal"),
@@ -88,7 +86,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.20, 0.35, 0.30),
         behavior="hunter",
         fixed_band=4,
-        tier=4,  # a difficulty choice — the gate only forces 3 (torso/legs)
         worn_armor=(
             "cybernetic_eyes", "cybernetic_torso",
             "cybernetic_arms", "cybernetic_legs",

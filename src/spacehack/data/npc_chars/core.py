@@ -24,14 +24,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         weapon_families=("melee", "pistols"),
         melee_families=("melee",),
         stat_weights=six_weights(0.2834, 0.2833, 0.2833),  # even (SETTLED 35)
-        tier=1,
-        # Doc 48 SETTLED 55/56: light gear — head+hands at the band's
-        # fill chance; goods are chance-rolled pocket change.
+        # Doc 48 SETTLED 55/56: light gear — head+hands at the
+        # band's fill chance; goods are chance-rolled pocket change.
         worn_armor_slots=("head", "hands"),
         loot_pool=("food_rations", "fuel_cells", "scrap_metal"),
-        equipment_loot_pool=(
-            ("armor", "light_helmet"),
-        ),
         field_item_loot_pool=(
             ("ammo", "pistol_rounds"),
             ("consumable", "med_pack"),
@@ -49,15 +45,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         weapon_families=("rifles",),   # a real rifleman under the ladder (SETTLED 13)
         melee_families=("melee",),
         stat_weights=six_weights(0.45, 0.15, 0.25),
-        tier=2,
         worn_armor_slots=("hands",),  # the shooter's grip (doc 48 SETTLED 55)
         loot_pool=("fuel_cells", "machine_parts", "electronics"),
         # No rifle entries: the family ladder already wields them
         # (wielded weapons drop via the kit path — doc 47.1).
-        equipment_loot_pool=(
-            ("weapon", "stun_baton"),
-            ("armor", "reinforced_gauntlets"),
-        ),
         field_item_loot_pool=(
             ("ammo", "rifle_rounds"),
             ("consumable", "stim"),
@@ -82,15 +73,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",       # it comes to you, ponderously
         squad_size=(1, 2),
         elite=True,
-        tier=3,
         # Doc 48 SETTLED 55: authored armor 0 — the slab IS the worn
         # body+head set the band rolls for it.
         worn_armor_slots=("body", "head"),
         loot_pool=("machine_parts", "fuel_cells", "scrap_metal"),
-        equipment_loot_pool=(
-            ("armor", "heavy_vest"),
-            ("armor", "visor_helmet"),
-        ),
         field_item_loot_pool=(
             ("ammo", "rockets"),
             ("consumable", "stim"),
@@ -114,13 +100,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.35, 0.30, 0.20),
         behavior="hunter",
         squad_size=(2, 3),
-        tier=2,
         worn_armor_slots=("body", "hands"),  # the strike kit (doc 48 SETTLED 55)
         loot_pool=("machine_parts",),
-        equipment_loot_pool=(
-            ("armor", "reinforced_gauntlets"),
-            ("weapon", "stun_baton"),
-        ),
         field_item_loot_pool=(
             ("ammo", "rifle_rounds"),
             ("consumable", "med_pack"),
@@ -147,7 +128,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="guard",        # perched — holds the sightline, no chase
         squad_size=(1, 1),
         elite=True,
-        tier=4,
         worn_armor_slots=("head",),  # the scope, nothing else (doc 48 SETTLED 55)
         loot_pool=("machine_parts", "electronics"),
         field_item_loot_pool=(
@@ -170,7 +150,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         weapons=("kinetic_pistol",),  # fixed light gear — no ladder
         melee_weapons=("combat_knife",),  # the knife it always carried, now its own set
         stat_weights=six_weights(0.0, 0.0, 0.0),  # band-exempt
-        tier=1,
         # Doc 48 SETTLED 55/56: honest workers — maybe a vest, almost
         # never (the row's low fill mod); their GUARANTEED one good is
         # the outlaw-route incentive.
@@ -189,9 +168,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         hp=15,
         weapon_families=("melee",),
         stat_weights=six_weights(0.0, 0.0, 0.0),  # band-exempt (SETTLED 14)
-        tier=1,
-        loot_pool=("food_rations",),
-        loot_count=(1, 1),
+        # Doc 48 SETTLED 56: never a loot source — the bystander is
+        # ambient dressing; harming it is crime, not farming.
         xp_reward=8,
     ),
     NpcCharSpec(
@@ -204,7 +182,6 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         weapon_families=("pistols", "melee"),
         melee_families=("melee",),
         stat_weights=six_weights(0.30, 0.25, 0.30),
-        tier=1,
         worn_armor_slots=("body",),  # the vest, maybe (doc 48 SETTLED 55)
         loot_pool=("machine_parts",),
         loot_count=(0, 1),
