@@ -2191,13 +2191,20 @@ with doctrinal 10-13):
   the tier-gate law folded into their entries). The extensibility
   audit (Q8, the acceptance criterion) is recorded below the
   landing record. PHASE CLOSED.
-- [ ] 11. **Consortium content + the hunt** — cybernetic ground
+- [x] 11. **Consortium content + the hunt** — cybernetic ground
   rungs, the two hunter ships (one frigate hull), the main-quest
   hunt reskinned as a new enemy class (with the `_heat.py`
   hired-pirate docstring cleanup), strictly-gated exposure
   (SETTLED 6/9/12/19 + 50/51/52; rep machinery NONE — SETTLED 53
   defers the up-movers + site/loot movers to future content; gates
   stay none). Depends on 2, 7-8.
+  LANDED 2026-10-04 in five builds (67902b72 the two hunt ships +
+  the quality_floor clamp at both roll sites; 96e685d8 the three
+  rungs + the worn-armor fold; 52fc7777 the CREW_ROLES heavy +
+  survey_a's high rung; dc9c6ef8 the hunt reskin; b46a55ed the dev
+  instruments) — reviewer dispatched per build, five APPROVEs,
+  every minor folded in-commit. PLAYTEST PENDING; the landing
+  record + build-discovered readings sit below the brief.
 - [ ] 12. **Loot-drop polish** — a full pass over the COMPLETE
   roster's drops (user ruling 2026-10-04, seeded by SETTLED 49's
   discovery — the assault drone's entire equipment pool was
@@ -3975,11 +3982,15 @@ Rulings (names APPROVED verbatim):
    - **`enemy.spec.armor` has SIX live readers** (ADVISE catch — the
      fold must land as INSTANCE state, every reader migrates):
      `_rules_ground.py:483` (damage soak), `_ground_deadshot.py:124`
-     (preview), `_ground_blast.py:66` (blast), and the target card
-     twice (`_ground_presentation.py:74,123`). The hit/melee bonus
+     (preview), `_ground_blast.py:66` (blast), the target card twice
+     (`_ground_presentation.py:74,123`), and the stare-eruption
+     victim soak (`_ancients.py:275` — the BUILD's tree grep found
+     the sixth; the ADVISE prose named five). The hit/melee bonus
      fold touches `_ai_ground.py` at BOTH the scorer
      (`_score_ground_weapon:117-141`) and the shot resolution
      (`_roll_ground_shot:761-792`) — SETTLED 41's same-math rule.
+     LANDED: all six now read the folded `GroundEnemyInstance.armor`
+     (`_worn_fold`), zero `spec.armor` readers remain (grep-pinned).
    - **Boarded hunter decks need zero new plumbing**:
      `capture_layout_id` on NpcShipSpec (hunters author cruiser_crew
      / frigate_crew) + `begin_capture_boarding` passing
@@ -4248,6 +4259,57 @@ over `_rules_ground` where cohesion allows.
     for consortium/heat mentions, any hit becomes a called-out
     before/after.
 
+## Phase 11 — LANDED (2026-10-04)
+
+Five builds, reviewer dispatched per build — five APPROVEs, every
+minor folded in-commit (build 1: the migrated-stamp floor threading,
+a tautology assert, a getattr hoist; build 2: the shared
+`rolled_quality` clamp closing the third-site drift, one derivation
+per resolution, an armor-tag filter on corrupt worn entries; build 3:
+the RETIRED generator's tail synced (its stale COLOUR rows dropped),
+the survey contract test seeded against the @0.7 c-marker flake, the
+legal-set derived from the crew table; build 4: silent-authored
+leaders never auto-hail, the roster floor guarantees 2-3 or nothing;
+build 5: the third grant loop extracted into the shared
+`_spawn_dev_ground_faces`).
+
+Build-discovered readings (audit-amending, recorded so the playtest
+reads them as designed):
+
+- **The sixth `spec.armor` reader was `_ancients.py:275`** — the
+  audit's prose list named five line numbers; the tree grep found
+  the stare-eruption victim soak as the true sixth. All six migrated
+  to the folded instance field; a tree-wide grep pins zero
+  `spec.armor` readers remain.
+- **The hunter's `ai_preferred_range` is 6, not the brief's 2-3
+  lean.** The brief's lean collides with the doc-57 standoff law
+  (preferred > rack floor + √2; the hunter's light_missile floor is
+  4) and its live pin (`test_rack_carrier_standoffs_clear_their_
+  floors`) — the LAW wins (the raider-never-fires lesson; the b2
+  raider/patrol precedent). The anchor keeps 7 (the captain class).
+- **The ratchet paid in-commit at build 2** exactly as the brief
+  forecast: `_rules_ground` 998→1007 forced the extraction — the
+  state dataclasses moved to `combat/_ground_types.py` (re-exported
+  seam, every test import intact), `_worn_fold` beside the instance
+  build, `_stamp_ancient_field` re-homed as `_ancients.stamp_entry_
+  field`, `_drop_set_weapon` split out of the kit drop.
+- **Silent-authored leaders never auto-hail** (reviewer catch): the
+  quest-leader BountySpawn hardcodes `comms_warning_range=12`, which
+  made the silent hunt ships open a contentless "..." hail. A leader
+  that authors no `comms_lines` now hails never; talkative leaders
+  (the chains' pirate captains) keep the range-12 hail.
+- **DESIGNED CONSEQUENCE for the playtest eye**: merchants no longer
+  FLEE from the hunt — `_pirate_positions` (the flee input) keys on
+  faction pirate, and the reskinned squads are consortium. The
+  hunters hunt the player; haulers hold their lanes. Arguably
+  intended (the docstring always said "fleeing nearby pirates");
+  flag at the checkpoint if it reads wrong.
+- **Ordinary rows draw identically**: an empty `worn_armor` tuple
+  stamps `"worn": []` with ZERO extra RNG draws — no stream shift
+  outside the consortium rows (the rungs' own first-resolution worn
+  roll shifts only their seeds).
+- **Guide diff: NONE, confirmed** — the confirm-grep's only "hunt"
+  hit is the guild-mission Hunter tier, unrelated.
 ## Pre-implementation audit — phase 10 (2026-10-04)
 
 1. **Existing modules to extend or reuse:**
