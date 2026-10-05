@@ -419,3 +419,47 @@ def test_the_one_thing_drops_exactly_one_unit():
     assert drops[0].loot_data == {
         "good_id": "behemoth_hide", "quantity": 1,
     }
+
+
+# --- the pads + the tinker gate (SETTLED 58) ----------------------------------
+
+def test_pad_droppers_are_exactly_the_humanoid_combatants():
+    """The symmetric census (the b6 review fold): every humanoid
+    combatant is IN, the merchant crew alone is OUT — a row silently
+    dropped from the list (or a future one never added) fails here,
+    not just the membership direction."""
+    from src.spacehack.data.digs import HUMANOID_PAD_DROPPERS
+
+    expected = {
+        spec.id for spec in list_npc_chars()
+        if loot_class(spec) == "humanoid" and spec.id != "merchant"
+    }
+    assert set(HUMANOID_PAD_DROPPERS) == expected
+    assert "consortium_executor" in expected  # the b6 ruling seat
+
+
+def test_tinker_kit_rolls_only_on_loot_paying_kills():
+    """The seeded gate: humanoid AND machine kills roll the 1-in-40;
+    fauna and apex kills never do (SETTLED 58)."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from src.spacehack.combat import _actions
+
+    with patch.object(_actions, "RNG") as rng:
+        rng.randint.return_value = 1  # the 1-in-40 always hits
+        for spec_id, expect in (
+            ("pirate_raider", True),        # humanoid
+            ("sentry_drone", True),         # machine
+            ("rock_scavenger", False),      # fauna
+            ("dune_behemoth", False),       # apex
+        ):
+            gm = SimpleNamespace(entities=[])
+            _actions._spawn_tinker_kit_drop(
+                gm, None, find_npc_char(spec_id),
+            )
+            landed = any(
+                getattr(e, "loot_data", {}).get("item_id") == "tinker_kit"
+                for e in gm.entities
+            )
+            assert landed is expect, spec_id

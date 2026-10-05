@@ -458,9 +458,10 @@ SCENARIOS: tuple["BalanceScenario", ...] = (
         # expensive, sometimes fatal). The tuning pass re-authors
         # against the reference saves.
         thresholds=Thresholds(
-            win_rate_floor=0.76,
-            # Re-pinned post doc-48-p12 (stream shift): measured
-            # 16.72/19.82 at win 0.78 — shape holds.
+            win_rate_floor=0.70,
+            # Re-pinned post doc-48-p12 (stream shift, twice: the
+            # loot-draw retirement then the fauna kit-roll gate):
+            # b6 measures 15.33/19.31 at win 0.72 — shape holds.
             damage_taken_ceiling=16.8,
             ammo_spent_ceiling=20.1,
         ),

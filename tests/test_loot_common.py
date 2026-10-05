@@ -88,7 +88,8 @@ class TestNoSilentEviction:
         spec = SimpleNamespace(
             loot_pool=("scrap_metal",), loot_count=(1, 1),
             equipment_loot_pool=(), field_item_loot_pool=(),
-            field_item_loot_count=(0, 0), tier=1, id="rock_scavenger",
+            field_item_loot_count=(0, 0), id="rock_scavenger",
+            faction="", elite=False,
             xp_reward=10,
         )
         for _ in range(40):
@@ -163,6 +164,16 @@ class TestGroundKillDrops:
     (doc 47.1 step 2)."""
 
     @pytest.fixture(autouse=True)
+    def _no_pad_door(self, monkeypatch):
+        """The bare spec's HUMANOID id arms the pad door (a 1-in-12 on
+        the unseeded module RNG — an order-dependent flake the b6
+        review caught); these tests isolate the drop sequence, and
+        test_pad_door_receives_the_spec_id installs its own recorder
+        which applies after and wins."""
+        import spacehack.digs as _digs
+        monkeypatch.setattr(_digs, "maybe_spawn_ground_pad", lambda *a: False)
+
+    @pytest.fixture(autouse=True)
     def _no_tinker_kit(self, monkeypatch):
         """Kill-drop tests isolate the kit roll (kit tests force it)."""
         from spacehack.data import quality
@@ -174,7 +185,9 @@ class TestGroundKillDrops:
 
         spec = SimpleNamespace(
             loot_pool=("scrap_metal",), loot_count=(1, 1),            field_item_loot_pool=(("ammo", "pistol_rounds"),),
-            field_item_loot_count=(1, 1), tier=1, id="rock_scavenger",
+            field_item_loot_count=(1, 1), id="rock_scavenger",
+            # identity for the loot-class gate (doc 48 SETTLED 58)
+            faction="", elite=False,
             xp_reward=10,
         )
         for key, value in overrides.items():
@@ -215,9 +228,12 @@ class TestGroundKillDrops:
         assert seen == ["pirate_raider"]
 
     def _bare_spec(self):
-        """A spec whose every pool is empty — only the kit drop fires."""
+        """A spec whose every pool is empty — only the kit drop fires
+        (a HUMANOID id: the kit roll gates on the loot class, doc 48
+        SETTLED 58)."""
         return self._spec(
             loot_pool=(), equipment_loot_pool=(), field_item_loot_pool=(),
+            id="pirate_raider", faction="pirate",
         )
 
     def _loadout(self, ranged=None, melee=None, pool=None):

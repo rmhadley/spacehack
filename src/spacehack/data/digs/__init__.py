@@ -244,6 +244,7 @@ HUMANOID_PAD_DROPPERS: tuple[str, ...] = (
     "pirate_brute",
     "consortium_enforcer",
     "consortium_gunner",
+    "consortium_executor",
     "militia_trooper",
     "militia_marine",
     "militia_sniper",

@@ -243,12 +243,18 @@ def _drop_set_weapon(game_map, pos, loadout, set_name, dropped) -> None:
     )
 
 
-def _spawn_tinker_kit_drop(game_map: world.GameMap, pos) -> None:
-    """The tinker-kit kill roll (doc 47.5 SETTLED 34): a global 1-in-N
-    presence on every ground kill — monsters and weaponed NPCs alike."""
+def _spawn_tinker_kit_drop(game_map: world.GameMap, pos, spec) -> None:
+    """The tinker-kit kill roll (doc 47.5 SETTLED 34 as amended by
+    doc 48 SETTLED 58): a 1-in-N drip on LOOT-PAYING kills — humanoid
+    and machine corpses; fauna never (a viper dropping a toolkit is
+    the same nonsense as rations). Wreck and dig-scatter rates are
+    untouched site channels."""
+    from ..data.npc_chars import loot_class
     from ..data.quality import KIT_KILL_RATE
     from ..ground_consumables import kit_drop_payload
 
+    if loot_class(spec) not in ("humanoid", "machine"):
+        return
     if RNG.randint(1, KIT_KILL_RATE) != 1:
         return
     _append_loot_entity(game_map, pos, kit_drop_payload())
@@ -275,7 +281,7 @@ def spawn_kill_drops(
     _spawn_authored_pools(game_map, pos, spec, loadout, band, carried)
     _spawn_kit_drop(game_map, pos, loadout)
     maybe_spawn_ground_pad(ctx, game_map, pos, spec.id)
-    _spawn_tinker_kit_drop(game_map, pos)
+    _spawn_tinker_kit_drop(game_map, pos, spec)
 
 
 def _spawn_authored_pools(
