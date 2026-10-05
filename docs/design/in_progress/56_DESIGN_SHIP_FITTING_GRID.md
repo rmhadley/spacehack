@@ -108,6 +108,11 @@ complete") — the window that also produced SETTLED 25 and the
 phase-4 parts walk (SETTLED 26-35); nothing further to fold.
 Phase 4 (calibration) is the one remaining phase; brief via
 /refine-design 56.
+Phase-4 refine pass same day (fourth command session): SETTLED
+36-38 (shield/enemy-damage measured here, retuned only in its own
+doc; gen 4 stands, retiring the phase-2 deferred ruling; the sim
+rig = doc-50 harness scenarios + a tools/ sweep instrument), the
+phase-4 Implementation brief proposed below.
 PLAYTEST FIXES (in-play, user-reported, 2026-09-30): (1) cursor
 brackets now WRAP the glyph — every glyph centers in its 3-char cell
 (` S `/`[S]`), so the bracket no longer shifts the letter one column
@@ -579,6 +584,35 @@ specs fly heavy_laser — enemy-side strengthening to measure).
     Launcher accuracy/range recorded at the ruling: both 72%; light
     2-9, heavy 3-13 (the longest reach in the game).
 
+36. **Shield-vs-enemy-damage: measured in phase 4, retuned only in
+    its own doc** (2026-10-05, phase-4 refine). User picked the
+    recommended scoping: phase 4's sims measure and report whether
+    shield bonuses vs enemy damage magnitudes sit right post-walk;
+    if the data demands a retune, it opens a focused doc of its own
+    (the doc-57 missile precedent) rather than widening phase 4.
+
+37. **The gen-4 starter question resolves: gen 4 stands** (2026-10-05,
+    phase-4 refine — the phase-2 build record's deferred ruling, due
+    at this balance pass). User picked "keep gen 4": the uniform
+    −1..−4 shield upkeep curve and the every-working-module-costs-
+    watts doctrine hold (armor/cargo are the watt-free families by
+    SETTLED-31 identity), and the empty-skiff-fields-bare-mk4-at-
+    net-0 pin stands as landed. The gen-3 + shield_mk1-upkeep-0
+    alternative is retired.
+
+38. **The phase-4 sim rig is the doc-50 balance harness** (2026-10-05,
+    phase-4 refine). User picked harness scenarios over a re-authored
+    dev grant or waiting on a hand-fit save: the upgraded-loadout
+    sims and the EMP warlord run land as scenario rows (PlayerSheet
+    composition by id; report-only, thresholds rule at the
+    checkpoint from measured numbers — the doc-57.3 pattern), and
+    the two sweep dials (SETTLED 30/29) run as parametric sweeps
+    over those rows through a tools/ instrument — the systems
+    registry and the clamp patched at the seam, restored in
+    finally, nothing sweep-shaped ever landing in src/ or data/.
+    The user's next real build gets probed at the checkpoint as the
+    reality check.
+
 ## The power gate (concrete rule — agent synthesis of SETTLED 3 + 6)
 
 The gate is a check on the **resting state** of the grid:
@@ -834,7 +868,8 @@ then one balance pass over both sides with the probe as referee.
     refusal + empty-skiff zero-headroom power refusal). **Open ruling
     for the playtest:** keep gen 4 + amended pins (current), or gen 3
     + shield_mk1 upkeep 0 (curve amended; both original pins hold;
-    goal-1 also measures 0.94 under that shape).
+    goal-1 also measures 0.94 under that shape). [RESOLVED 2026-10-05,
+    SETTLED 37: gen 4 stands.]
   - **The played save is unfieldable — by design.** The probe
     character's cruiser flies 41 cells (3 plasma + medium + 2 shields
     + 2 reactors) on the 20-cell grid: as-saved it loads post-strip
@@ -898,21 +933,19 @@ then one balance pass over both sides with the probe as referee.
   killed, armor watt-free + speed-taxed, cargo 2×4 + area-monotone
   lint, lasers (heavy 16), EMP 100% boss-key, the Missile Magazine;
   cargo/smuggler/plasma/light+heavy-missiles passed or deferred
-  (missiles → doc 57). REMAINDER = the magnitude pass: the
-  upgraded-loadout sims + the EMP warlord run, the gen-4 starter
-  question, the upkeep-scaling-speed dial (SETTLED 30), the 95
-  clamp, the Line envelope flips; re-runs the phase-2 power lints
-  after every magnitude change (advisor catch 8); the deferred
-  magnitude questions (shield bonus vs enemy damage) land here or
-  get their own doc with the probe as referee. FOLLOWS PHASE 5
-  (ruled 2026-09-30): the user
-  magnitude change (advisor catch 8); the deferred magnitude questions
-  (shield bonus vs enemy damage) land here or get their own doc with
-  the probe as referee. FOLLOWS PHASE 5 (ruled 2026-09-30): the user
-  fights the grid-flying, volley-firing NPCs first, then one balance
-  pass over both sides — balance_probe is the agreed referee — with
-  the phase-2 gen-4 question in the same conversation (the
-  volley-parity fix moved INTO phase 5, SETTLED 24).
+  (missiles → doc 57). REMAINDER = the magnitude pass (brief below;
+  SETTLED 36-38): the upgraded-loadout sims + the EMP warlord run on
+  the doc-50 balance harness (report-only scenario rows, the
+  doc-57.3 pattern), the upkeep-scaling-speed dial (SETTLED 30) and
+  the 95 clamp (SETTLED 29) ruled at the checkpoint from the sweep
+  tables, the Line envelope flips re-read after any landed edit;
+  re-runs the phase-2 power lints after every magnitude change
+  (advisor catch 8); the shield-bonus-vs-enemy-damage magnitudes are
+  MEASURED here and retuned, if the numbers demand it, in their own
+  doc (SETTLED 36). The gen-4 starter question is settled: gen 4
+  stands (SETTLED 37). FOLLOWS PHASE 5 (ruled 2026-09-30) — phase 5
+  is built and its playtest complete (2026-10-05), so phase 4 is
+  unblocked.
   PLAYTEST: the user's next space fight feels dangerous in the intended
   bands; probe rows show real mean hull damage.
 - [x] **5. NPC parity — grid + volley** — the full NPC mirror, one
@@ -1828,6 +1861,121 @@ ratchet; no split forecast needed.
 - Minor 8 (shared per-shot tail): pre-noted in item 4 so the
   build's DRY pass extracts it, not copies it.
 
+## Implementation brief — Phase 4 (PROPOSED 2026-10-05, `/refine-design`; ADVISE-folded same session — dispositions below)
+
+The magnitude pass. Instruments first (scenario rows + the sweep
+tool), tables second, rulings third: the two dials rule at the
+playtest checkpoint FROM the measured tables, never before; every
+magnitude edit that lands re-runs the phase-2 power lints the same
+commit (advisor catch 8). SETTLED 36 keeps the shield/enemy-damage
+retune OUT of this phase; SETTLED 37 takes the starter off the
+table.
+
+**Scope (files/hook points)**
+
+1. `tests/balance/scenarios.py` — NEW report-only probe rows
+   (`thresholds=None`; bars rule at the checkpoint from measured
+   numbers, the doc-57.3 pattern). A developed sheet (level ~10,
+   `skill_spends` declared across gunnery/piloting/engineering —
+   the exact spread is build-time authoring surfaced at the
+   checkpoint) on the cruiser, self-paired so the toys' delta reads
+   same-instrument; synthetic 60×40 grids, `stand_and_trade`,
+   runs=50, fresh seeds (the doc-57.3 geometry):
+   - `probe_cal4_base_vs_<band>` — the phase-5 grid-build shape
+     (2× plasma_cannon + medium_laser + shield_mk1 + 3×
+     compact_reactor + 2× gyro) against the five probe bands:
+     pirate_scout / pirate_raider / pirate_marauder /
+     pirate_warlord / 2× pirate_marauder (the balance_probe
+     SPACE_ROWS ladder, synthetic twins).
+   - `probe_cal4_upgraded_vs_<band>` — the same sheet flying the
+     walk's toys: heavy_laser (16) for the medium_laser,
+     targeting_mk4 (+60) for the two gyros, + missile_magazine
+     where cells remain. The row-to-row delta is the parts walk's
+     payoff table.
+   - `probe_cal4_emp_vs_warlord` — the upgraded sheet + one
+     emp_missile rack (2 rounds, the boss-key magazine) vs the
+     warlord: the SETTLED-34 impact run (stripped-shield timing,
+     win/damage delta vs the no-EMP twin).
+2. NEW `tools/balance_sweep.py` — the two dial sweeps (ad-hoc
+   instrument, tools/ scope, outside lint by design): import the
+   harness batch runner + the cal4 rows; patch at the seam inside
+   try/finally — the upkeep sweep swaps `dataclasses.replace`
+   copies into `data/modules/__init__.py`'s `_BY_ID` (multiplied
+   negative `power_gen_bonus` — clean-int ladders, e.g. ×2 =
+   −2/−4/−6/−8); the clamp sweep swaps a parametric twin of
+   `combat/_stats.py`'s `n_hit_chance` into the module (ceilings
+   e.g. 90/95/98) — and prints each row's table per setting. Sweep
+   values NEVER land in catalog data or src/: a dial becomes a real
+   authored edit at the checkpoint ruling or not at all. The clamp
+   sweep is space-side only; ground's literal
+   (`_ground_math.py:39`) is a separate twin the ruling may move
+   deliberately — the checkpoint decides space-only vs both.
+3. `tests/balance/test_balance.py` — bars for the new rows land
+   here AT THE CHECKPOINT (measured + a hair of slack, the doc-50
+   standard); nothing pre-ruled.
+4. Magnitude edits the checkpoint may rule — the only candidates:
+   the upkept families' curve (if the SETTLED-30 dial rules faster
+   than −1/−2/−3/−4) in `data/modules/systems.py`, and the clamp
+   value (if it moves) at `combat/_stats.py:165` (+ ground's
+   `_ground_math.py:39` only if the ruling says both). Each landed
+   edit carries its stat-echo re-pins (the SETTLED-26 cascade
+   pattern) + the phase-2 lint re-run
+   (`test_fitting_geometry.py:149` power-validity + `:188` packs)
+   the same commit.
+5. `tests/test_line_tuning.py` — re-read after any landed
+   magnitude; re-pin only what moved (the module docstring's
+   caveats stand: the x0.70 open-floor read, the unmodeled power
+   drawdown). The harness never tunes.
+6. `tools/balance_probe.py` — the battery re-run against the
+   reference saves after any landed edit; the user's next real
+   build is the checkpoint's reality-check probe.
+7. Guide — NO edit expected (a numbers phase); verify no stale
+   vocabulary and record the no-change on the checklist.
+8. SYSTEMS.md — amend only if the clamp value moves (any entry
+   citing the 5-95 clamp); otherwise untouched.
+
+**Build order**: scenario rows → sweep tool → run the tables →
+`make check` on the instruments → STOP at the checkpoint with the
+tables → fold rulings (dials + bars) → landed edits + re-pins +
+lint/battery re-runs → guide verify → final `make check`.
+
+**Binding rulings**: SETTLED 36 (no shield/enemy-damage retune
+here), 37 (gen 4 stands — no starter edit), 38 (the harness rig),
+30 (upkeep scaling rules from sims, never feel), 29 (the clamp
+value is this phase's ruling, probe-refereed), advisor catch 8
+(phase-2 lints re-run after every magnitude change, same commit),
+the doc-50 standard (bars = measured + slack, ruled at the
+checkpoint), and the build-order ruling (phase 5 complete
+2026-10-05 — phase 4 unblocked).
+
+**Required tests (permanent)**
+- The parameterized scenario tests auto-cover every new row
+  (resolves + batches clean).
+- Bars land the same commit they are ruled.
+- Every landed magnitude edit: stat-echo re-pins + phase-2 lint
+  re-run + probe battery re-run, same commit.
+- If the clamp moves: `n_hit_chance`'s unit pins the new value
+  (and ground's, if the ruling moves both).
+
+**Stop point (do NOT start)**: no shield/enemy-damage magnitude
+edits (SETTLED 36), no missile magnitudes (doc 57 owns them,
+closed), no NPC spec re-authors, no new mechanics (brownouts,
+rotation, grid resizes), no UI, no gen-3 revert (SETTLED 37), no
+doc-55 auto-pickup scope, no save-shape changes of any kind.
+
+**Playtest checkpoint**
+1. The cal4 tables (the report CLI over the new rows) + the sweep
+   tables (`tools/balance_sweep.py`) — read together.
+2. Rule the two dials from the tables (SETTLED 30/29) and bar the
+   new rows.
+3. Your next real space fight + your hand-fit build probed
+   (`python3 tools/balance_probe.py`) against the phase-5 tables —
+   the reality check; report whether shields vs enemy damage feel
+   right post-walk (the SETTLED-36 measurement — an own doc opens
+   only if the numbers demand one).
+4. Guide diff: NONE expected — confirm and record.
+5. Save/load: no new state — confirm.
+
 ## Acceptance criteria
 
 1. A fresh Skiff cannot field a Shield Mk. 4 by any path (buy, loot,
@@ -1941,7 +2089,33 @@ brief). Every advisor-catch anchor confirmed:
   2. Geometry packing vs any auto-fit reimplementation — ONE
      deterministic packer in `fitting.py` serves the phase-1 lints,
      the render tool, and the phase-2 install paths.
-  3. The grid pane vs the existing `pygame_split` row model — phase
+     3. The grid pane vs the existing `pygame_split` row model — phase
      3's new UI archetype is a sibling module beside
      `menus/_loadout.py` (695 lines, verified), not a SplitRow
      extension.
+
+- **Phase-4 brief addendum (2026-10-05, live-verified)**: the
+  harness seams the magnitude pass builds on —
+  `tests/balance/harness.py::build_owned_ship` (:242) installs a
+  declared loadout through the real gated `install_stored_equipment`
+  path (auto-place; fails loudly on a non-packing sheet) and
+  `build_pilot_skills` (:268) folds declared `skill_spends` at 5
+  points per level past 1; the scenario table
+  (`tests/balance/scenarios.py`, doc-50 SETTLED 2/3) composes BY ID
+  with report-only rows already precedented (doc 57.3's probe_*
+  set); the report CLI is runnable (`tests/balance/report.py`
+  main :86); the upkeep sum seam is `_module_bonus_sum`
+  (`combat/_stats.py:27`); the 5-95 clamp is TWO independent
+  literals — `combat/_stats.py:165` (space, `n_hit_chance`) and
+  `combat/_ground_math.py:39` (ground) — so a clamp ruling may be
+  space-only or move both deliberately; the module registry is the
+  lazily-built `_BY_ID` dict (`data/modules/__init__.py:61`)
+  feeding `find_module` (:90), the seam a sweep swaps
+  `dataclasses.replace` copies into and restores in finally;
+  `emp_missile` (`data/weapons/missiles.py:37`, `shield_strip_pct`
+  100) and `missile_magazine` (`data/modules/systems.py:168`)
+  exist as authored; the phase-2 lints this pass re-runs live at
+  `tests/test_fitting_geometry.py:149` (start-loadout power
+  validity) and `:188` (packs); the Line harness caveats live in
+  `tests/test_line_tuning.py`'s module docstring (the x0.70
+  open-floor read, the unmodeled power drawdown).
