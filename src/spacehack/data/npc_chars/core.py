@@ -25,9 +25,10 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         melee_families=("melee",),
         stat_weights=six_weights(0.2834, 0.2833, 0.2833),  # even (SETTLED 35)
         tier=1,
+        # Doc 48 SETTLED 55/56: light gear — head+hands at the band's
+        # fill chance; goods are chance-rolled pocket change.
+        worn_armor_slots=("head", "hands"),
         loot_pool=("food_rations", "fuel_cells", "scrap_metal"),
-        # wielded weapons arrive as kit drops (doc 47.1) — pool is
-        # beyond-the-weapon extras only
         equipment_loot_pool=(
             ("armor", "light_helmet"),
         ),
@@ -35,7 +36,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "pistol_rounds"),
             ("consumable", "med_pack"),
         ),
-        loot_count=(1, 2),
+        loot_count=(0, 1),
         xp_reward=20,
     ),
     NpcCharSpec(
@@ -49,6 +50,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         melee_families=("melee",),
         stat_weights=six_weights(0.45, 0.15, 0.25),
         tier=2,
+        worn_armor_slots=("hands",),  # the shooter's grip (doc 48 SETTLED 55)
         loot_pool=("fuel_cells", "machine_parts", "electronics"),
         # No rifle entries: the family ladder already wields them
         # (wielded weapons drop via the kit path — doc 47.1).
@@ -60,7 +62,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "rifle_rounds"),
             ("consumable", "stim"),
         ),
-        loot_count=(1, 2),
+        loot_count=(0, 1),
         xp_reward=35,
     ),
     NpcCharSpec(
@@ -81,7 +83,9 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 2),
         elite=True,
         tier=3,
-        armor=2,
+        # Doc 48 SETTLED 55: authored armor 0 — the slab IS the worn
+        # body+head set the band rolls for it.
+        worn_armor_slots=("body", "head"),
         loot_pool=("machine_parts", "fuel_cells", "scrap_metal"),
         equipment_loot_pool=(
             ("armor", "heavy_vest"),
@@ -91,7 +95,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "rockets"),
             ("consumable", "stim"),
         ),
-        loot_count=(1, 2),
+        loot_count=(0, 1),
         xp_reward=45,
         ap=3,
     ),
@@ -111,7 +115,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",
         squad_size=(2, 3),
         tier=2,
-        armor=1,
+        worn_armor_slots=("body", "hands"),  # the strike kit (doc 48 SETTLED 55)
         loot_pool=("machine_parts",),
         equipment_loot_pool=(
             ("armor", "reinforced_gauntlets"),
@@ -121,7 +125,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "rifle_rounds"),
             ("consumable", "med_pack"),
         ),
-        loot_count=(1, 1),
+        loot_count=(0, 1),
         xp_reward=30,
     ),
     NpcCharSpec(
@@ -144,12 +148,12 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         squad_size=(1, 1),
         elite=True,
         tier=4,
-        armor=1,
+        worn_armor_slots=("head",),  # the scope, nothing else (doc 48 SETTLED 55)
         loot_pool=("machine_parts", "electronics"),
         field_item_loot_pool=(
             ("ammo", "rifle_rounds"),
         ),
-        loot_count=(1, 1),
+        loot_count=(0, 1),
         xp_reward=40,
     ),
     NpcCharSpec(
@@ -167,6 +171,11 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         melee_weapons=("combat_knife",),  # the knife it always carried, now its own set
         stat_weights=six_weights(0.0, 0.0, 0.0),  # band-exempt
         tier=1,
+        # Doc 48 SETTLED 55/56: honest workers — maybe a vest, almost
+        # never (the row's low fill mod); their GUARANTEED one good is
+        # the outlaw-route incentive.
+        worn_armor_slots=("body",),
+        worn_fill_mod=0.15,
         loot_pool=("food_rations", "textiles"),
         loot_count=(1, 1),
         xp_reward=12,
@@ -196,9 +205,9 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         melee_families=("melee",),
         stat_weights=six_weights(0.30, 0.25, 0.30),
         tier=1,
-        armor=1,
+        worn_armor_slots=("body",),  # the vest, maybe (doc 48 SETTLED 55)
         loot_pool=("machine_parts",),
-        loot_count=(1, 1),
+        loot_count=(0, 1),
         xp_reward=18,
     ),
 )

@@ -8,7 +8,9 @@ the retirement, fiction-cleanup, trophy, and volume pins as the
 phase's builds land.
 """
 
-from src.spacehack.data.npc_chars import list_npc_chars, loot_class
+from src.spacehack.data.npc_chars import (
+    find_npc_char, list_npc_chars, loot_class,
+)
 
 CLASS_PINS = {
     "ancient": {"watcher", "shredder", "warden"},
@@ -208,3 +210,95 @@ def test_slot_rows_resolve_through_the_composition():
         slot = find_ground_armor(entry[1]).slot
         assert entry[1] in ladders[slot][find_ground_armor(entry[1]).tech_level]
         assert 0 <= entry[2] <= 3
+
+
+# --- the humanoid authoring pass (SETTLED 55/56) -----------------------------
+
+SLOT_PINS = {
+    "pirate_raider": ("head", "hands"),
+    "pirate_rifleman": ("hands",),
+    "pirate_brute": ("body", "head"),
+    "militia_marine": ("body", "hands"),
+    "militia_sniper": ("head",),
+    "militia_trooper": ("body",),
+    "merchant": ("body",),
+}
+
+
+def test_humanoid_authored_armor_is_zero_their_soak_is_gear():
+    for spec in list_npc_chars():
+        if loot_class(spec) == "humanoid":
+            assert spec.armor == 0, spec.id
+
+
+def test_non_humanoid_chassis_and_hide_soak_unchanged():
+    """SETTLED 55's other half: machines, fauna, and the ancients KEEP
+    their authored armor — a values slip cannot zero the chassis."""
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    for spec_id, value in (
+        ("sentry_drone", 1), ("assault_drone", 3),  # chassis (SETTLED 49 t2)
+        ("shredder", 10), ("warden", 12),  # the ancient slabs
+        ("crag_lurker", 3), ("ember_crawler", 2),  # hides
+    ):
+        assert find_npc_char(spec_id).armor == value, spec_id
+
+
+def test_slot_authoring_is_pinned():
+    from src.spacehack.data.npc_chars import find_npc_char
+
+    for spec_id, slots in SLOT_PINS.items():
+        assert find_npc_char(spec_id).worn_armor_slots == slots, spec_id
+    for spec_id in SLOT_PINS:
+        if spec_id == "merchant":
+            continue
+        assert find_npc_char(spec_id).worn_fill_mod == 1.0, spec_id
+    assert find_npc_char("merchant").worn_fill_mod == 0.15
+    # The rungs keep their FIXED cyber sets — no slots.
+    for spec_id in ("consortium_gunner", "consortium_enforcer",
+                    "consortium_executor"):
+        spec = find_npc_char(spec_id)
+        assert spec.worn_armor_slots == (), spec_id
+        assert spec.worn_armor, spec_id
+
+
+def test_goods_are_pocket_change_merchants_guaranteed_one():
+    for spec in list_npc_chars():
+        if loot_class(spec) == "humanoid":
+            expected = (1, 1) if spec.id == "merchant" else (0, 1)
+            assert spec.loot_count == expected, spec.id
+
+
+def test_the_gunners_orphan_ammo_retired():
+    """The one authored orphan: the gunner's pistols feed
+    kinetic_pistol — rifle_rounds can never be its own supply.
+
+    The audit's contract is FAMILY-level: an entry passes when ANY
+    tier of an authored family consumes its ammo type (band windows
+    can still strand a low-band roll — the dynamic own-gun
+    retirement at drop time covers that half), and fixed-``weapons``
+    rows would need the same check extended to their ids."""
+    gunner = find_npc_char("consortium_gunner")
+    assert gunner.field_item_loot_pool == (("consumable", "stim"),)
+    # Every remaining humanoid ammo entry feeds an authored family.
+    from src.spacehack.data.ground_items import find_ground_ammo
+    from src.spacehack.data.ground_weapons import (
+        family_tiers, find_ground_weapon,
+    )
+
+    for spec in list_npc_chars():
+        if loot_class(spec) != "humanoid":
+            continue
+        _feeds = {
+            _ws.ammo_type
+            for _fam in spec.weapon_families
+            for _ids in family_tiers(_fam).values()
+            for _id in _ids
+            if (_ws := find_ground_weapon(_id)).ammo_type
+        }
+        for entry in spec.field_item_loot_pool:
+            if entry[0] != "ammo":
+                continue
+            assert find_ground_ammo(entry[1]).ammo_type in _feeds, (
+                spec.id, entry,
+            )

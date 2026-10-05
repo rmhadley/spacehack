@@ -38,10 +38,11 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         quality_floor=1,
         loot_pool=("electronics", "machine_parts", "fuel_cells"),
         field_item_loot_pool=(
-            ("ammo", "rifle_rounds"),
+            # rifle_rounds retired (doc 48 SETTLED 56): no authored
+            # family feeds it — the pistols draw kinetic_pistol.
             ("consumable", "stim"),
         ),
-        loot_count=(1, 2),
+        loot_count=(0, 1),
         xp_reward=38,
     ),
     NpcCharSpec(
@@ -66,7 +67,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "pistol_rounds"),
             ("consumable", "med_pack"),
         ),
-        loot_count=(1, 2),
+        loot_count=(0, 1),
         xp_reward=45,
     ),
     NpcCharSpec(
@@ -98,7 +99,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
             ("ammo", "rifle_rounds"),
             ("consumable", "stim"),
         ),
-        loot_count=(2, 3),
+        loot_count=(0, 1),
         xp_reward=90,
     ),
 )
