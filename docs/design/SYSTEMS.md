@@ -282,8 +282,10 @@ nobody designs against a ghost.
   (`defeated=True`) and never re-stamp (`navigation_spawns.py`:
   `_add_bounty_spawns_to_map`, `_remove_bounty_spawn`).
 - **Procedural ecology** — per system entry: derelict roll, militia
-  patrols sized by `patrol_density`, consortium squads under quest
-  heat, weighted `npc_spawn_table` groups (50% squad-tagged,
+  patrols sized by `patrol_density`, consortium HUNT squads under
+  quest heat (2-3 Consortium Hunters, the ping line "consortium
+  hunters detected - N ships closing"; ambient pirates stay ambient —
+  doc 48 SETTLED 50), weighted `npc_spawn_table` groups (50% squad-tagged,
   merchants given destinations); per-tick traffic at 5% of
   `npc_spawn_chance`, capped at density×3 (`npc_ships.py`:
   `spawn_npcs`, `_tick_spawn_npc`).
@@ -452,7 +454,10 @@ nobody designs against a ghost.
   Merchant crew + droids (`heavy`=assault drone; the
   `security_drone` role scales by the boarded hull's
   `NpcShipSpec.security_drones` wealth dial — hauler 0.5 /
-  freighter 1.0 / caravan 1.5; H decks guarantee their heavy pair).
+  freighter 1.0 / caravan 1.5; H decks guarantee their heavy pair);
+  consortium decks (boarded hunters/dreadnoughts + survey_a — doc
+  48 phase 11) field enforcer/gunner crews with the bold-E EXECUTOR
+  on the heavy slot (every boarded Dreadnought, ~40% of hunters).
   Marker COLOUR overrides are RETIRED — crew identity renders the
   resolved spec's family color (landmark drone decks included).
   Every capture/derelict interior is HOSTILE on entry regardless of
@@ -591,7 +596,8 @@ nobody designs against a ghost.
   (200,180,110); fauna are not families (species glyphs, biome
   palettes). The (glyph, color) PAIR is the identity — a char may
   repeat across families when colors separate ≥60. Enforcer `E` /
-  gunner `e`; `civillian_bystander` renamed with the `_ID_ALIASES`
+  gunner `e`, the bold-E Executor the high rung (doc 48 phase 11);
+  `civillian_bystander` renamed with the `_ID_ALIASES`
   save-compat alias in `find_npc_char`; the uniqueness key is
   (char, fg, elite) — phase 4's faces: trooper `m`, marine `M`,
   sniper bold `M`, pirate brute bold `R`; phase 10's six biome
@@ -616,7 +622,16 @@ nobody designs against a ghost.
   FAMILIES, bands roll the tier window (B1 {1}; B2 {1,2} 70/30;
   B3 {2,3} 30/70; B4 {3,4} 30/70; `pin_window_top` = the sniper's
   top tier; empty tiers snap up — explosives sit t3-t4). Equip- and
-  drop-time quality ride the band ladder (B1 == KILL ladder). The
+  drop-time quality ride the band ladder (B1 == KILL ladder),
+  CLAMPED up to `NpcCharSpec.quality_floor` (doc 48 phase 11 —
+  consortium rungs never roll base). The rungs (doc 48 phase 11,
+  SETTLED 51) author `fixed_band` 2/3/4 (the site stamp never
+  dilutes) and `worn_armor` cyber pieces: stamped ONCE beside the
+  loadout (`worn` key, serialized), all four bonus fields + defense
+  folding onto the wearer through the player's own modifier math —
+  every soak reader (damage, blast, deadshot chain, stare victim,
+  the card ×2) reads the FOLDED `GroundEnemyInstance.armor`, never
+  `spec.armor`. The
   target card title states `LVL <level> <name>`. `fixed_band`
   (phase 9) pins a spec's band FLAT — the ancient rows derive at
   band 4 regardless of the site's floor stamp.
@@ -651,12 +666,16 @@ nobody designs against a ghost.
   A ship's band is SPEC-AUTHORED (`NpcShipSpec.band` + three-slot
   `skill_weights`; nothing stamps a band at spawn): pirate
   1/2/2/3/3/4, militia weight ladder 1/2/3 (blockade 2 — the Line),
-  merchant wealth 1/2/3 piloting-light, derelicts 0. Pilot skills =
+  merchant wealth 1/2/3 piloting-light, derelicts 0, the consortium
+  hunt ships 2/3 (doc 48 SETTLED 52 — no `npc_spawn_table` seats;
+  the two hunt beats are their only spawn surfaces). Pilot skills =
   base 11 (the ships dial: band-1 total 43) + the band budget split
   by weights; the LVL line rides the ground card's exact title
   format on the space target card. Fly-time quality rolls are
   band-indexed for weapons AND modules (band 1 == KILL ladder)
-  through `roll_flown_equipment` — `_roll_flown_modules` retired.
+  through `roll_flown_equipment` — `_roll_flown_modules` retired —
+  CLAMPED up to `NpcShipSpec.quality_floor` (the hunters fly nothing
+  base; max(floor, rolled), top tier unchanged — doc 48 SETTLED 52).
   The Line's closed-form harness re-pinned for parity numbers: the
   costly full-watch win belongs to the super-powered sheet (the
   MOVED BRACKET, `tests/test_line_tuning.py`). Themed loadouts
@@ -764,7 +783,10 @@ nobody designs against a ghost.
   equipment, field stacks) plus the diegetic kit (doc 48 phase 9
   build 1: the two-set law): BOTH carried set weapons fall — the
   active slot at its equip-time rolled quality, the melee slot its
-  own — with the carried-ammo REMAINDER as the stack (enemies
+  own — the WORN cyber pieces beside them at their stamped
+  qualities (doc 48 phase 11: what they wear is what drops; the
+  rungs' `equipment_loot_pool` retired so nothing rolls unfloored)
+  — with the carried-ammo REMAINDER as the stack (enemies
   fire from pre-rolled magazines + pools; reload pays AP with the
   tell line; the death-time ammo roll retired); extras roll quality at drop time —
   both ladders ride the spawn's band (band 1 == KILL ladder, doc 48
@@ -1120,8 +1142,9 @@ nobody designs against a ghost.
   (`main_quest/_spawns.py`; `_objectives.secure_quest_loot`).
 - **Faction heat** — data tags on steps: `militia_scan` (bar-heat
   scan floor), `militia_aggro` (charged-cell), `consortium`
-  (pirate-heat squads); expire when the tagged step completes
-  (`main_quest/_heat.py`).
+  (hunter squads — the consortium's own ships, q3 roaming + q6's
+  guarded wreck; doc 48 SETTLED 50); expire when the tagged step
+  completes (`main_quest/_heat.py`).
 - **Quest NPC presence** — per-step `npc_presence` ∩ planet
   `quest_npc_spots`: experts seat inside authored interiors while
   live, vanish on completion (`main_quest/_act0.py`).

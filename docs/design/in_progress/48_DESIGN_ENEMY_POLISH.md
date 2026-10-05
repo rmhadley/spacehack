@@ -2203,8 +2203,13 @@ with doctrinal 10-13):
   rungs + the worn-armor fold; 52fc7777 the CREW_ROLES heavy +
   survey_a's high rung; dc9c6ef8 the hunt reskin; b46a55ed the dev
   instruments) — reviewer dispatched per build, five APPROVEs,
-  every minor folded in-commit. PLAYTEST PENDING; the landing
-  record + build-discovered readings sit below the brief.
+  every minor folded in-commit. PLAYTEST PASSED 2026-10-05 (user:
+  "ok. playtest passes.") — SYSTEMS.md audited same commit
+  (Procedural ecology + Faction heat re-keyed to the hunt ships;
+  Crew roles, Ground identity families, Ground/Ship band scaling,
+  Kill drops amended for the rungs, the worn fold, the floors, and
+  the bold wearers); the landing record + build-discovered readings
+  sit below the brief.
 - [ ] 12. **Loot-drop polish** — a full pass over the COMPLETE
   roster's drops (user ruling 2026-10-04, seeded by SETTLED 49's
   discovery — the assault drone's entire equipment pool was
