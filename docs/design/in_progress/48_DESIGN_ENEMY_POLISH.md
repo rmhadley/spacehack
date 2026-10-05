@@ -2210,19 +2210,20 @@ with doctrinal 10-13):
   Kill drops amended for the rungs, the worn fold, the floors, and
   the bold wearers); the landing record + build-discovered readings
   sit below the brief.
-- [ ] 12. **Loot-drop polish** — a full pass over the COMPLETE
-  roster's drops (user ruling 2026-10-04, seeded by SETTLED 49's
-  discovery — the assault drone's entire equipment pool was
-  one re-tier away from silently dropping nothing): every row's
-  `equipment_loot_pool` vs its `tier` (the tech_level filter),
-  `loot_pool` goods + `loot_count` coherence, field-item pools,
-  `xp_reward` sanity, quality-rides-band vs authored quality, and
-  the every-kill-pays doctrine — VALUES only, no new payload
-  shapes (the 47.x systems absorb, per the acceptance criteria).
-  Placed after 11 so it polishes the finished roster; pullable
-  forward by ruling if playtest pressure demands. Unbriefed —
-  needs a /refine-design pass (survey the live drop tables first,
-  then the brief).
+- [ ] 12. **Loot-drop polish — the carried-loot doctrine** — the
+  2026-10-05 conversation (survey first, then rulings): enemies wear
+  BAND-SCALED armor in probabilistic slots (the kit drop's second
+  half — "we have weapon kits and cybernetics on enemies, why not
+  normal armor?"); the equipment-extras channel DIES completely;
+  trade goods become pocket change (humanoids 0-1 chance, merchants
+  guaranteed 1 — the outlaw route incentive, fauna zero, machines
+  0-1 scrap); fauna corpses pay NOTHING but XP; apexes pay one
+  organic TROPHY good each; the tinker kit kill-roll gates to
+  humanoids+machines; the Executor joins the pad droppers; the
+  every-kill-pays-LOOT doctrine is RETIRED (every kill pays XP;
+  loot pays by fiction). SETTLED 55-58 below + the pre-implementation
+  audit + Implementation brief (PROPOSED — reviewer ADVISE pass
+  folded; awaiting user approval).
 
 Order rationale: mechanics before identity (lint needs final
 factions); scaling before tactics; crews carry their own rows;
@@ -3936,6 +3937,360 @@ Rulings (names APPROVED verbatim):
   consortium hunters detected - N ships closing."** (replaces the
   "consortium operation detected - merchant hauler with N pirate
   escorts" line).
+
+## SETTLED 55 (2026-10-05) — enemies wear band-scaled armor: slots, windows, chances
+
+User, verbatim:
+
+> We have weapon kits on enemies. We have cybernetic equipment on
+> enemies. Why don't we have normal armor on enemies?
+
+> 1. Yes, armor would have to scale with band. As we add more content
+> to the game, I want the bands to include the new armor. So staying
+> away from fixed authored pieces. Of course with the option of giving
+> certain enemies something specific (like cybernetics on consortium)
+> 2. All 5 slots. But -- not every slot has to always be filled. ...
+> with the bands I think we need to have a % chance for a slot to be
+> used. ... Especially at T1 I would expect to often run in to p's
+> with 0 worn armor.
+
+Rulings:
+
+- **Humanoid rows author ELIGIBLE SLOTS**; the BAND resolves
+  everything else — the tier per slot through the weapon-style
+  top-two windows, the piece picked from the slot's own catalog
+  ladder AT ROLL TIME (new armor content joins the bands
+  automatically — no fixed pieces as the general mechanism).
+  **Fixed `worn_armor` sets stay legal** for authored specials (the
+  consortium rungs' cybernetics).
+- **All five slots are legal; fill is probabilistic** — a shared
+  per-band fill chance rolled per eligible slot, plus per-row shaping
+  so merchants read as merchants ("we adjust the % chance of each
+  slot") and band 1 often shows zero pieces anywhere.
+- **Humanoid authored `armor` goes to 0** — their soak is entirely
+  their gear (the target card reads honest: an unarmored band-1
+  raider IS Armor 0). Machines, fauna, and the ancients keep
+  `spec.armor` as chassis/hide and wear nothing. (User aside, noted
+  for someday, NOT phase 12: "enemies don't have race.... yet?")
+- **Balance direction: this is part of the T4 buff the non-ancients
+  need** ("Right now the non-ancients really need their T4 variants
+  buffed a bit. so I think this idea will help solve that"). The
+  battery re-run validates; the brute row (today's only lethal row)
+  is the watch item. The balance sim measures the soak shift
+  directly — the worn fold rides the real instance-build path.
+
+## SETTLED 56 (2026-10-05) — the fiction test: extras die, goods are pocket change
+
+User, verbatim:
+
+> Right now anything and everythign just drops so much loot that a
+> lot of the game feels like a loot pickup mini game.
+> And it feels super weird to see some of the loot dropped from some
+> of these enemies. Like finding a weapon on a local fauna. That
+> just doesn't make sense.
+
+> With this we completely drop the "equipment extras" drops.
+
+> yes - fauna drop 0 trade goods.
+> and yes on the humanoids 0-1 stack being chance rolled. no
+> guaranteed trade goods per kill
+> and no need to bring the band in to play for trade goods drops.
+
+Rulings:
+
+- **The equipment-extras channel RETIRES completely** — the
+  `equipment_loot_pool` death-roll and its drop site. Everything an
+  armored enemy drops is on its body or in its hands; the absurd
+  entries die with it (axes on scavengers, helmets on drones,
+  cybernetic eyes on a canopy predator).
+- **The fiction test, now law: a drop is legal only if the enemy
+  plausibly carried it.** Fauna corpses pay NOTHING but XP — no
+  goods, no gear, no field items. Machines drop their own substance
+  (energy cells, their ammunition; 0-1 scrap as goods) and nothing
+  else.
+- **Trade goods are pocket change**: humanoids 0-1 stack,
+  CHANCE-ROLLED, never guaranteed; pool contents stay authored per
+  row (characterization, like weapon families); the BAND is not
+  involved — difficulty-scaled payment is already carried by the
+  weapon/armor tier + quality ladders.
+- **Merchants keep a GUARANTEED 1** — and that is a route incentive
+  ("you don't really fight merchants a lot... so that's fine and
+  maybe that's a reason to go that route in the game?"): robbing
+  traders is now the deliberate outlaw economy.
+- **Every-kill-pays-LOOT is retired**; every kill pays XP. The
+  probe measures the combat side; loot VOLUME is pinned as data
+  assertions (the expectations table), not simulated.
+
+## SETTLED 57 (2026-10-05) — apex trophies: the corpse pays in hide
+
+User, verbatim: "apexs -- yes on the trophy good. that's a great
+idea."
+
+Rulings:
+
+- **One organic trophy good per apex, guaranteed on the kill** — a
+  sellable TradeGood (one new goods id per apex; the phase's one
+  flagged data exception to "values only"). The cache pays in gear,
+  the corpse pays in trophy; the apex's equipment/field entries die
+  with the SETTLED 56 channel. Names + descriptions PROSE GATE
+  (drafts ride the brief for approval).
+
+## SETTLED 58 (2026-10-05) — the tinker kit gate; site and space loot stand; the Executor pads
+
+User, verbatim:
+
+> 2. it feels weird getting a kit from fauna. keep the slow drip.
+> and if it becomes too rare because of limiting who can drop it, I
+> can report back and we can tweak.
+
+> space combat loot is fine.
+
+Rulings:
+
+- **The tinker-kit KILL roll gates to loot-paying kills**
+  (humanoids + machines); fauna never drop kits. Wreck (1-in-12)
+  and dig-scatter (1-in-16) rates UNTOUCHED — sites are human-made
+  and fiction-clean, and delves keep paying kits through scatter
+  independent of the fighting, so the Tinker's drip narrows during
+  fauna fights, not in the content. Tune-on-report if too rare.
+- **Site loot stands as-is**: dig scatter, lockboxes, credit chips,
+  wreck interiors, the legendary cache — the rich counterweight to
+  corpses paying less. **No site ammo** — deferred by ruling; if
+  playtest reports starvation, "lockbox occasionally pays an ammo
+  bundle" is a one-table values edit with zero machinery.
+- **Space combat loot stands** (cargo on kills, the capture strip —
+  the kit drop's space twin).
+- **The Executor joins `HUMANOID_PAD_DROPPERS`** (every other
+  humanoid combatant is in; it landed after the list was authored).
+  The merchant crew stays OUT of the pad set.
+- **Machine consumable entries retire** (med_pack/stim on drones):
+  a drone's self-repair is its chassis, not a scavenged med pack —
+  flagged consequence: machines stop healing/stimming mid-fight.
+
+## Pre-implementation audit — phase 12 (2026-10-05)
+
+The values survey (the before-picture; recorded for the playtest
+diff): every ground row's channels dumped — goods pools 0-3 entries
+at GUARANTEED `loot_count` (1,2) on nearly every row incl. fauna;
+equipment extras 0-4 entries per row at (0,1) chance (the nonsense:
+rock_scavenger -> survival axe/knife/gloves, sentry_drone -> helmets
++ smg, canopy_maw -> cybernetic_eyes); field items (0,1) with
+consumables already carried-diegetic; plus the kit drop and the
+1-in-40 tinker roll. Expected floor entities per 5-enemy humanoid
+fight: ~15-25.
+
+1. **Existing modules to extend or reuse:**
+
+   - **The phase-11 worn machinery is armor-AGNOSTIC** — extending it
+     to normal armor is the tier/slot resolution, nothing else:
+     `NpcCharSpec.worn_armor` (fixed sets) + `ensure_worn`/
+     `_roll_worn` (`ground_loadout.py`) already stamp pieces beside
+     the loadout at band-laddered qualities; `_worn_fold` +
+     `GroundEnemyInstance.armor` already fold defense into every
+     soak reader (all six, grep-pinned); the kit drop already
+     carries the pieces at stamped qualities; serialization already
+     whitelists the `worn` key with the first-engagement fill.
+   - **The armor catalog carries clean t1-t4 ladders in ALL five
+     slots** (verified): head 1/2/3/4, body 2/3/5/7, hands 1/2/3,
+     legs 1/2/3/4, feet 1/2/3/4 — plus cyber pieces interleaved at
+     t2/t3 in four slots (identified by any bonus field > 0; the
+     band resolver EXCLUDES them — cyber stays row-authored, the
+     rung precedent).
+   - **The weapon-window machinery is the resolver's twin**:
+     `BAND_WINDOWS` + `_snap_tier` (`ground_scale.py`) — the armor
+     roll shares the window/snap, picks per-SLOT from the
+     catalog-derived ladder (the user's "bands include the new
+     armor" — roll-time derivation, no authored lists).
+   - **Goods 0-1 is the existing count_range idiom** — equipment
+     extras' `(0, 1)` `randint` semantics; authoring
+     `loot_count=(0, 1)` is pure values, zero code.
+   - **`tier_filtered_equipment` has exactly ONE consumer** — the
+     dying channel itself (`_actions.py:331`); the function retires
+     with it. `_spawn_equipment_loot_at_position` likewise.
+   - **The tinker gate is one seam**: `_spawn_tinker_kit_drop(
+     game_map, pos)` at `_actions.py:277`, called from
+     `spawn_kill_drops:309` where the spec is in scope — thread the
+     row's fiction category.
+   - **Apex trophies ARE goods entities** — six new `TradeGood` rows
+     (`data/trade_goods/core.py`: id/name/description/base_price/
+     category/volume) + the apex rows' `loot_pool=(trophy,)` at
+     (1,1); no new payload shape rides the kill path.
+   - **Humanoid authored armor today**: brute 2, marine 1, sniper 1,
+     trooper 1 — four row edits to 0.
+   - **`HUMANOID_PAD_DROPPERS`** (`data/digs/__init__.py:241`) — the
+     one-line Executor add; merchant stays out (ruled).
+   - **Ratchet headroom everywhere**: `_actions.py` 713,
+     `ground_scale.py` 364, `ground_loadout.py` 338, `core.py` 204,
+     `monsters.py` 497 — values passes + one resolver + one gate; no
+     extraction anticipated.
+
+2. **Duplication hotspots:**
+
+   - Two tier-window implementations drifting (weapon
+     `roll_family_weapon` vs the armor resolver) — share the WINDOW
+     and the snap, never the family pick (different catalogs, one
+     law).
+   - The fill-chance roll hand-rolled at N sites instead of one
+     composition inside the worn resolution.
+   - The expectations table re-deriving channel classifications per
+     test instead of one shared census fixture.
+
+3. **DRY strategy:**
+
+   - `ground_scale.roll_worn_armor(spec, band, rng) -> tuple[str,
+     ...]` beside `roll_family_weapon`, consuming `BAND_WINDOWS` +
+     `_snap_tier` and the catalog ladders — the ONE armor roll.
+   - ONE `WORN_FILL_CHANCE` band table + the row scalar in
+     `ground_scale`; `_roll_worn` composes slots x chance x tier in
+     the one place.
+   - The retirement is data edits + two function deletions; the
+     kill-drop sequence shrinks (pools -> kit -> pad -> kit-roll
+     gated).
+
+### Phase 12 Implementation brief (PROPOSED 2026-10-05 — SETTLED
+### 55/56/57/58 + the survey; awaiting user approval)
+
+**Scope (files / hook points):**
+
+- **The armor resolver + spec fields** (`ground_scale.py` +
+  `data/npc_chars/__init__.py`): `worn_armor_slots:
+  tuple[str, ...] = ()` (eligible slots; empty = wears nothing —
+  machines, fauna, ancients, and the rungs' fixed cyber sets) and
+  `worn_fill_mod: float = 1.0` (the row scalar — merchants author
+  ~0.1-0.2); `WORN_FILL_CHANCE: tuple[float, ...] = (0.25, 0.50,
+  0.70, 0.90)` (the band ladder, tunable). `roll_worn_armor(spec,
+  band, rng)`: per eligible slot (authored order), a fill roll
+  `rng.random() < chance[band] * mod`, then the tier through
+  `BAND_WINDOWS` on the slot's non-cyber catalog ladder
+  (`_snap_tier` toward the top), uniform pick. `_roll_worn` extends:
+  fixed `worn_armor` wins outright (the rungs); else the resolver
+  fills ids and the existing quality stamping applies. RNG draw
+  order pinned (slots in authored order, fill-then-tier per slot).
+- **The humanoid authoring pass** (`data/npc_chars/core.py` +
+  `consortium.py`): authored `armor` -> 0 (brute/marine/sniper/
+  trooper); slots per archetype (opening leans, tunable): raider
+  (head, hands), rifleman (hands), brute (body, head), marine
+  (body, hands), sniper (head), trooper (body), merchant (body,
+  `worn_fill_mod` 0.15), gunner/enforcer/executor KEEP their fixed
+  cyber sets (no slots); `loot_count` -> (0, 1) on every humanoid
+  except merchant (1, 1); authored ammo entries feeding no carried
+  gun retire (hand-audit per row against its rolled sets;
+  consumables stay — carried-diegetic).
+- **The fiction cleanup** (`data/npc_chars/monsters.py` +
+  `core.py` machines): every fauna row's `loot_pool`,
+  `equipment_loot_pool`, `field_item_loot_pool` EMPTY (the body is
+  the body); machines: `loot_pool=("scrap_metal",)` at (0, 1),
+  field items = energy cells ONLY (consumable entries retire —
+  SETTLED 58's flagged consequence: machines stop self-healing).
+- **The equipment-extras channel dies**: `equipment_loot_pool`
+  FIELD retires from `NpcCharSpec` (TypeError pin, the
+  `detect_radius` precedent); `_spawn_equipment_loot_at_position` +
+  `tier_filtered_equipment` deleted; every pool row deleted; the
+  tier-gate law pin simplifies to the field's absence; loot_common's
+  spec factories updated.
+- **Apex trophies** (`data/trade_goods/core.py` + apex rows): six
+  new goods — NAME DRAFTS (PROSE GATE, approve or reword):
+  **Behemoth Hide** (dune_behemoth), **Glacier Fang**
+  (glacier_wyrm), **Tyrant Scale** (caldera_tyrant), **Maw Sinew**
+  (canopy_maw), **Colossus Core** (scrap_colossus), **Mauler Pelt**
+  (mesa_mauler) — `category="biological"` except Colossus Core
+  ("raw_material"), base_price lean 150-400 (tunable), volume 1;
+  each apex row: `loot_pool=(trophy,)`, `loot_count=(1, 1)`,
+  everything else empty.
+- **Pad droppers + tinker gate** (`data/digs/__init__.py` +
+  `_actions.py`): Executor added to `HUMANOID_PAD_DROPPERS`;
+  `spawn_kill_drops` threads the fiction category to
+  `_spawn_tinker_kit_drop` — fauna kills skip the roll.
+- **The expectations table** (new `tests/test_loot_doctrine.py`):
+  the census fixture classifying every row's channels; pins — fauna
+  carry NO pools anywhere; machines = scrap + energy cells only;
+  humanoids carry no equipment field, goods (0,1) except merchant
+  (1,1); `equipment_loot_pool` authoring raises TypeError; the
+  volume law (expected kill-path entities per row, summed per
+  archetype, <= the surveyed before-picture / 2); band-1 zero-armor
+  probability (>= 1/3 of band-1 draws wear nothing) and band-4
+  kit-out (>= 2 pieces more often than not); the resolver purity
+  (window/snap/chance determinism under seeded RNG).
+- **The battery re-run + xp sanity**: standard probe rows vs both
+  reference saves, before/after table (T4 rows expected to soften —
+  the ruled buff; brute watch item); `xp_reward` values pass (the
+  survey's before-picture recorded in this audit).
+
+**Build order:** resolver + fields + registry/roll tests → humanoid
+authoring pass (armor-0, slots, goods counts) → fiction cleanup
+(fauna/machines) + channel retirement (field pin + deletions +
+factory updates) → trophies (names approved with the brief) → pads +
+tinker gate → expectations table + battery re-run → full gate.
+
+**Binding rulings:** SETTLED 55 (slots + band windows catalog-derived
+at roll time; probabilistic fill; humanoid authored armor 0), 56
+(extras die; goods pocket change, merchants 1, band uninvolved;
+fauna nothing; machines scrap+cells), 57 (six trophies, guaranteed),
+58 (tinker gate to humanoids+machines, site/space untouched, no site
+ammo, Executor pads, machine consumables retire), over the doc-47/48
+kit-drop and carried-loot laws (43/36/51).
+
+**Stop point (do NOT start):** no site-loot changes of any kind
+(dig scatter, lockboxes, chips, wrecks, legendary caches); no space
+changes; no new ammo sources (deferred with the one-table edit
+named); no enemy races; no pickup UX (doc 55's); no new payload
+shapes beyond the six trophy goods; no roster stat retunes beyond
+the armor-0 edits (soak changes arrive via the worn pieces only);
+tuning of the chance ladder and prices from playtest.
+
+**Required tests:** the expectations-table census above; the
+resolver pins (window shares BAND_WINDOWS; cyber pieces excluded
+from band rolls; snap toward top on gap slots — feet has no t1 gap
+today but the law holds; fill chance x mod determinism; fixed sets
+bypass); the retirement pins (TypeError on authoring the field; the
+two functions gone; no pool data remains); the authoring pass pins
+(per-row slots/goods/armor-0 verbatim; merchants guaranteed 1;
+fauna empties; machine scrap+cells); trophy pins (six ids resolve,
+prices pinned, apex rows verbatim); pads (executor in, merchant
+out); tinker gate (fauna kills skip; humanoid kills roll the 1-in-40
+— seeded); save/load (worn-slot stamps round-trip; pre-12 saves fill
+at first engagement per the existing law); the battery table
+recorded in the doc; regression (kill-drop suite, crew decks, biome
+pools, band scaling, rung folds).
+
+**Ratchet note:** every touched module sits <= 713 lines; the
+resolver lands in `ground_scale.py` (364) and the gate in
+`_actions.py` (713); no same-commit extraction anticipated — counts
+re-checked at build start.
+
+**PLAYTEST checkpoint (numbered, in-game):**
+
+1. T1 default-pool dig: raiders read Armor 0 more often than not;
+   an armored one shows its pieces on the card and drops EXACTLY
+   what it wore (both weapons + worn armor + ammo remainder) —
+   nothing else on the floor but maybe one pocket-good stack.
+2. T4 dig / band-4 rows: kitted out (2+ pieces), the fight reads
+   harder — the ruled T4 buff; the brute row is the watch item.
+3. A lush/canyon delve: fauna corpses drop NOTHING (no rations, no
+   axes, no kits — check the log/floor); the site loot (chips,
+   caches, the legendary) is unchanged and now visibly the point.
+4. Machines: cells + maybe scrap, no helmets/med packs; drones no
+   longer stim mid-fight.
+5. A merchant hauler deck: guaranteed 1 trade good per crew kill
+   (the outlaw route read), light/no armor, droids unchanged.
+6. Kill an apex: one trophy lands, sellable at a station (price
+   reads); the cache beside it pays the gear.
+7. Boarded hunter decks: rungs unchanged (fixed cyber sets, floors
+   intact); consortium crews wear nothing mundane.
+8. Tinker drip: fauna kills never drop kits; a humanoid fight
+   eventually does (1-in-40 — long-run read, or seed-pin).
+9. Data pads still flow from humanoid kills incl. the Executor;
+   merchants never.
+10. Save/quit mid-delve -> Continue: worn-slot stamps identical; a
+    pre-12 save loads clean and fills worn at first engagement.
+11. Guide-diff item: expected NONE — drops explain themselves
+    (confirm-grep `data/guide/` for loot-drop promises; the "Ground
+    Gear" line's post-47 wording stays true — what they carried,
+    now worn armor included; any hit becomes a called-out
+    before/after).
+12. The battery before/after table recorded in the doc; flag any
+    row that moved the wrong way (beyond the intended T4 softening
+    and brute watch).
 
 ## Pre-implementation audit — phase 11 (2026-10-04)
 
