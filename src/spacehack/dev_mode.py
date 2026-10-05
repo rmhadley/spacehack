@@ -613,6 +613,35 @@ def _adjacent_cells(game_map, player_pos, count: int) -> list:
     ][:count]
 
 
+def _spawn_dev_ground_faces(ctx, game_map, player_pos, faces, ring, label) -> int:
+    """The shared Shift+grant loop (doc 48's per-phase instruments):
+    disjoint per-face slices over ONE absolute-coordinate ring (the
+    offsets-vs-absolutes lesson), each face at its authored band
+    (``None`` reads the spec's ``fixed_band``), bold from the spec.
+    ``faces`` is ``(spec_id, band, cells_per_face)``; ``ring`` sizes
+    the pool (a drift-hungry face wants the wider ring)."""
+    from .dungeon_population import _scatter_squad
+    from .data.npc_chars import find_npc_char
+
+    cells = _adjacent_cells(game_map, player_pos, ring)
+    placed = 0
+    cursor = 0
+    for spec_id, band, width in faces:
+        spec = find_npc_char(spec_id)
+        placed += _scatter_squad(
+            game_map.entities,
+            {(e.pos.x, e.pos.y) for e in game_map.entities},
+            enemy_id=spec_id, cells=cells[cursor:cursor + width],
+            count=1,
+            squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
+            band=band if band is not None else spec.fixed_band,
+            bold=spec.elite,
+        )
+        cursor += width
+    ctx.log.add(f"[DEV] Spawned {placed} {label}.")
+    return placed
+
+
 def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
     """Shift+V: spawn the doc-48 phase-4 faces beside the player.
 
@@ -621,28 +650,12 @@ def spawn_dev_enemy_faces(ctx, game_map, player_pos) -> int:
     onto them — the sniper at band 4 so the pin's railgun payoff
     reads through this instrument.
     """
-    from .dungeon_population import _scatter_squad
-    from .data.npc_chars import find_npc_char
-
-    cells = _adjacent_cells(game_map, player_pos, 6)
-    faces = (
-        ("pirate_brute", 3), ("militia_marine", 3), ("militia_sniper", 4),
+    return _spawn_dev_ground_faces(
+        ctx, game_map, player_pos,
+        (("pirate_brute", 3, 2), ("militia_marine", 3, 2),
+         ("militia_sniper", 4, 2)),
+        6, "phase-4 faces",
     )
-    placed = 0
-    for index, (spec_id, band) in enumerate(faces):
-        spec = find_npc_char(spec_id)
-        # Disjoint cell slices per face — a shared slice starves the
-        # later squads (the occupied set only sees earlier placements).
-        placed += _scatter_squad(
-            game_map.entities,
-            {(e.pos.x, e.pos.y) for e in game_map.entities},
-            enemy_id=spec_id, cells=cells[index * 2:index * 2 + 2],
-            count=1,
-            squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
-            band=band, bold=spec.elite,
-        )
-    ctx.log.add(f"[DEV] Spawned {placed} phase-4 faces.")
-    return placed
 
 
 def spawn_dev_ancient_trio(ctx, game_map, player_pos) -> int:
@@ -653,24 +666,26 @@ def spawn_dev_ancient_trio(ctx, game_map, player_pos) -> int:
     breathing room for its drift, so the cells span a wider ring
     than the phase-4 grant; disjoint per-face slices as ever.
     """
-    from .dungeon_population import _scatter_squad
-    from .data.npc_chars import find_npc_char
+    return _spawn_dev_ground_faces(
+        ctx, game_map, player_pos,
+        tuple((spec_id, 4, 4) for spec_id in ("watcher", "shredder", "warden")),
+        24, "ancient machines",
+    )
 
-    cells = _adjacent_cells(game_map, player_pos, 24)
-    faces = ("watcher", "shredder", "warden")
-    placed = 0
-    for index, spec_id in enumerate(faces):
-        spec = find_npc_char(spec_id)
-        placed += _scatter_squad(
-            game_map.entities,
-            {(e.pos.x, e.pos.y) for e in game_map.entities},
-            enemy_id=spec_id, cells=cells[index * 4:index * 4 + 4],
-            count=1,
-            squad_id=f"dev_{spec_id}", char=spec.char, fg=spec.fg,
-            band=4, bold=spec.elite,
-        )
-    ctx.log.add(f"[DEV] Spawned {placed} ancient machines.")
-    return placed
+
+def spawn_dev_consortium_rungs(ctx, game_map, player_pos) -> int:
+    """Shift+E: spawn the three consortium rungs beside the player
+    (doc 48 phase 11) — every rung checkpoint item (the worn bonuses
+    on the card, the floors' drops, the Executor's deck-clearing
+    weight) runs without a hunt. Each rung stamps at its own FIXED
+    band (the None band reads the spec)."""
+    return _spawn_dev_ground_faces(
+        ctx, game_map, player_pos,
+        tuple((spec_id, None, 2) for spec_id in (
+            "consortium_gunner", "consortium_enforcer", "consortium_executor",
+        )),
+        6, "consortium rungs",
+    )
 
 
 def apply_dev_tinker_kit(ctx) -> None:
@@ -742,9 +757,11 @@ def spawn_dev_consumable_carriers(ctx, game_map, player_pos) -> int:
 def _dev_pirate_cycle() -> tuple:
     """Shift+P's cycle (doc 48.7): the six pirate classes in ladder
     order, then the missile-led captain the checklist's item 3 needs
-    (its weapons[0] is a missile — the dry-then-step read). The
-    variant registers as a dev-authored spec row at grant time: the
-    encounter system is id-resolved, so it rides the ONE spawn path."""
+    (its weapons[0] is a missile — the dry-then-step read), then the
+    doc-48-phase-11 hunt ships (the pursuit hunter + the bold-F
+    anchor). The variant registers as a dev-authored spec row at
+    grant time: the encounter system is id-resolved, so it rides the
+    ONE spawn path."""
     import dataclasses
 
     from .data.npc_ships import _registry, find_npc_ship
@@ -758,6 +775,7 @@ def _dev_pirate_cycle() -> tuple:
     return tuple(find_npc_ship(spec_id) for spec_id in (
         "pirate_scout", "pirate_hound", "pirate_raider",
         "pirate_marauder", "pirate_captain", "pirate_warlord",
+        "consortium_hunter", "consortium_dreadnought",
     )) + (_missile_led,)
 
 

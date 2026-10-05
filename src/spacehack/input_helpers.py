@@ -539,6 +539,16 @@ def _is_shift_a_press(event: pygame_engine.PygameInputEvent) -> bool:
     return _is_shift_press(event, 'A')
 
 
+def _is_shift_e_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a ``KeyDown`` with Shift+E.
+
+    Dev-mode only (``SPACEHACK_DEV``): spawns the three consortium
+    rungs beside the player (doc 48 phase 11) — the family letter's
+    own key.
+    """
+    return _is_shift_press(event, 'E')
+
+
 def _is_shift_w_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a ``KeyDown`` with Shift+W.
 

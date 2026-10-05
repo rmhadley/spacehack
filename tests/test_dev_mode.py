@@ -785,6 +785,32 @@ def test_spawn_dev_consumable_carriers_pre_stamps():
     ]
 
 
+def test_spawn_dev_consortium_rungs_places_all_three():
+    """Doc 48.11's Shift+E instrument: the three rungs beside the
+    player, each stamped at its own fixed band, the Executor bold."""
+    from src.spacehack import world as _world
+    from src.spacehack.message_log import MessageLog
+
+    ctx = SimpleNamespace(log=MessageLog(10))
+    game_map = _world.GameMap(
+        width=10, height=10,
+        tiles=[[_world.DUNGEON_FLOOR] * 10 for _ in range(10)],
+        entities=[],
+    )
+    player_pos = _world.Position(5, 5)
+    assert dev_mode.spawn_dev_consortium_rungs(ctx, game_map, player_pos) == 3
+    placed = [e for e in game_map.entities if e.npc_char_id]
+    assert sorted(e.npc_char_id for e in placed) == [
+        "consortium_enforcer", "consortium_executor", "consortium_gunner",
+    ]
+    assert sorted(e.spawn_band for e in placed) == [2, 3, 4]
+    _executor = next(e for e in placed if e.npc_char_id == "consortium_executor")
+    assert _executor.bold is True
+    assert all(
+        max(abs(e.pos.x - 5), abs(e.pos.y - 5)) <= 2 for e in placed
+    )
+
+
 def test_dev_pirate_cycle_covers_the_ladder_and_missile_led():
     """Doc 48.7's Shift+P instrument: the six pirate classes in band
     order, then the missile-led captain variant (its weapons[0] is a
@@ -797,6 +823,7 @@ def test_dev_pirate_cycle_covers_the_ladder_and_missile_led():
         assert [spec.id for spec in cycle] == [
             "pirate_scout", "pirate_hound", "pirate_raider",
             "pirate_marauder", "pirate_captain", "pirate_warlord",
+            "consortium_hunter", "consortium_dreadnought",
             "dev_missile_captain",
         ]
         assert cycle[-1].weapons[0] == "heavy_missile"
