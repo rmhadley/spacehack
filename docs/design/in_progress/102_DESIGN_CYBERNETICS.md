@@ -153,6 +153,8 @@ translate it into multipliers:
 - **Board valences:** per-planet like/dislike of chromed psychos
   shifts BOTH the tier bands that post (high-tier work is trust
   work; pirate t3+ posts only to psychos) AND the row count.
+  Mechanism ruled 2026-10-06: per-planet valence = band shift
+  +/-1, psycho anchored at burn >= 12 (SETTLED 4).
 - **The dead zone:** burn <= 3 costs nothing anywhere — prices,
   rep, boards untouched (ruled 2026-10-06: width 3, lifetime —
   three teach pieces free, the fourth point of burn enters band
@@ -163,6 +165,8 @@ translate it into multipliers:
   intro, nothing more — corpo detail later. This gives the
   Consortium two reveal doors (doc 39's tower raid = force; the
   ego floor = courtship) — nothing exclusive, two rhyming paths.
+  Anchored 2026-10-06: psycho band = burn >= 12; zero ego =
+  wearing the full pool (SETTLED 2/4).
 - **Emergent, never keyed:** the blockade methods self-select by
   ego drift (low ego → Whisper/ghost feel natural; high ego →
   papers feel natural). No method requires or reads chrome.
@@ -282,18 +286,45 @@ settled same day after two false starts)
   compose on top (`_module_bonus_sum` never counts). Gear
   cannot buy its way past a chrome gate.
 
+## SETTLED 4 — the consequence bands (2026-10-06)
+
+- **The frame: static scars.** Bands price burn COUNT, forever —
+  consistent with the ruled static dead zone. Leveling and
+  species birth mods grow room; they never re-price scars.
+  Pool-relative bands were considered and declined: day-one
+  clash with the dead zone (two t2s would read ~67% = psycho on
+  day one — teaches avoidance), scars softening as the pool
+  grows, and birth mods compounding (more room AND a milder
+  read of the same burn).
+- **Three bands above the dead zone** (burn spans 0-25 under
+  rule C):
+  - 4-7 flagged: lawful buy/sell/services x1.05; rep gain
+    x0.95 merchant/militia, x1.05 pirate/Consortium; boards
+    untouched.
+  - 8-11 chromed: x1.15; rep x0.85 / x1.15; strict planets
+    lose 1 board row.
+  - 12+ psycho: x1.30; rep x0.70 / x1.30; pirate t3+ posts
+    ONLY to psychos.
+  Labs neutral throughout (SETTLED 1); services ride the price
+  multiplier; magnitudes are starting values, tuned by
+  playthrough feedback per house doctrine.
+- **Psycho anchors at burn >= 12; the 0-ego event nests inside
+  it** — wearing the full pool fires the Consortium intro
+  (SETTLED 2's literal zero ego).
+- **Per-planet valence = band shift +/-1.** Tolerant planets
+  (pirate havens, corporate campuses) read the burn one band
+  milder; strict planets (lawful cores) one band harsher. One
+  knob drives prices, rep, and boards together.
+
 ## Open items
 
-The numbers pass (open):
-
-1. Multiplier curves (rep gain per faction, buy/sell, services)
-   and board valence bands, keyed to burn bands above the dead
-   zone — burn spans 0-25 under rule C, and the band FRAME
-   (static scars vs pool-relative) is the open call. Ruled so
-   far: formula + capacity rule C + ladder 1/4/7/11 + species
-   birth mods (SETTLED 2), dead zone <= 3, tier gates 0/25/50/75
-   reading BASE stats raw (SETTLED 3), per-planet valence =
-   band shift +/-1.
+None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
+ocular/labs/tinker confirms and the alongside-armor line; ego
+formula + capacity rule C + ladder 1/4/7/11 + species birth
+mods; dead zone <= 3 + tier gates 0/25/50/75 reading BASE stats
+raw; consequence band table + planet band-shift). Remaining open
+design work rides the tier-catalog phase: the teach-catalog
+contents and the audit instrument specs.
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
@@ -305,7 +336,8 @@ build).
 ## Phases
 
 - [x] Skeleton ruled end to end (2026-10-06, this doc)
-- [ ] The numbers pass: formulas, curves, tier reqs
+- [x] The numbers pass: formulas, curves, tier reqs (SETTLED
+      1-4, 2026-10-06)
 - [ ] The tier catalog + audit instruments (domination, module
       boundary, dead-zone pins)
 - [ ] Implementation briefs (advisor pass per house rule)
