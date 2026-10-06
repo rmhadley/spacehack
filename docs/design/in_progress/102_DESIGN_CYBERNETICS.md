@@ -113,9 +113,10 @@ better pilot. The jack is the marquee product.
 - **Threshold consequences read BURN, not current load** — a
   stripped-clean character with a deep history still suffers.
 - Skill reqs per bay gate tiers on the 0-100 skill scale — t1
-  none, t2 25, t3 50, t4 75 (ruled 2026-10-06):
-  "military-grade jack: Piloting 75." Build affinity lives here,
-  not in budgets.
+  none, t2 25, t3 50, t4 75 (ruled 2026-10-06), reading the
+  BASE skill raw: "military-grade jack: Piloting 75" means 75
+  allocated pilot skill; module/gear stat modifiers never count.
+  Build affinity lives here, not in budgets.
 
 ## Acquisition and the scarcity ladder (ruled)
 
@@ -257,6 +258,13 @@ Ruled with the user at the numbers-pass checkpoint:
   the 295-point L60 budget), and a marine's path to it runs
   through pilot skills. The old illustrative "Piloting 16"
   example retired (it predated the 0-100 anchoring).
+- **The gates read BASE stats — raw** (user, 2026-10-06:
+  "it's important that these are base stats. raw. not stats +
+  modifiers from modules/gear."): the gate reads the skill
+  container value (species/class start + allocated points
+  only), never the effective value that modules and gear
+  compose on top (`_module_bonus_sum` never counts). Gear
+  cannot buy its way past a chrome gate.
 
 ## Open items
 
