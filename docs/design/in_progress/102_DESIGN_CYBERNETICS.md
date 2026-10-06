@@ -84,6 +84,9 @@ better pilot. The jack is the marquee product.
 
 ## The ego economy (ruled)
 
+- **The stat's name is EGO (ruled 2026-10-06):** keep it — other
+  systems reach for humanity or empathy; ego is unique, and it is
+  literally the sense of self being spent.
 - **Ego is the single global pool** every bay draws on.
   Level-fed max (formula = numbers pass) — growth buys chrome
   room, which delivers the accessibility curve organically: fresh
@@ -150,8 +153,11 @@ translate it into multipliers:
   ego drift (low ego → Whisper/ghost feel natural; high ego →
   papers feel natural). No method requires or reads chrome.
 
-**Explicitly rejected:** combat stat consequences of low ego.
-The world reprices you; it does not dim your aim.
+**Explicitly rejected:** combat stat consequences of low ego, AND
+forced hostility (lawful-space guards auto-attacking deep-burn
+characters — floated, declined: the rep multipliers ARE the whole
+of the lawful-world response). The world reprices you; it does not
+dim your aim and does not open fire.
 
 ## Migration and audit rules
 

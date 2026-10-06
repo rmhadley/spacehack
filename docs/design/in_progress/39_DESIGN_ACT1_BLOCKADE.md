@@ -542,6 +542,10 @@ order-agnostic, nothing missable.
 =======================================================================
 ```
 
+**Naming caution:** the Blockade Commander (A3's hunted ship) and
+the Commandant (C3's toll seller) are two distinct cousin-named
+figures — keep them straight through the prose passes.
+
 **Doctrines (user rulings, 2026-10-06):**
 
 - **Nothing is exclusive.** The keyring is additive; open and
@@ -567,6 +571,16 @@ crossers; the Venus tower runs hot only when the player does
 something they're not allowed to — and it never seals (doc 30's
 dormant-security machinery is the indoor version). The player
 learns the rule once and it holds everywhere.
+
+**Parked threads (2026-10-06 audit):** the stonewall hail (a
+post-convergence ask at the blockade — "what's out there?", a
+deflection with a tell) is the candidate first use for doc 42's
+unbuilt Phase 5 comms "Ask Around" (SETTLED 41-42; that brief
+currently EXCLUDES blockade contacts — the one line to revisit if
+adopted). Black-box/derelict scout logs (doc 07's M2) may surface
+as rumor lines — no lean yet (user). The suggestion layer's
+cadence discipline waits on this doc's heavy refine pass (open
+question 13).
 
 **Pre-req fork:** Branch D's chrome trail (D3) needs a
 **cybernetics polish pass first** — forked as doc 102 (skeleton
@@ -750,3 +764,10 @@ catalog entries, disposition no-op perks (machinery ready).
     locked boards privilege one disposition); D3 = the corpo
     trail (the chrome supply chain / the defector / open-board
     rows / Venus street talk), gated on the cybernetics polish.
+12. **The convergence's presentation** for the blockade-first
+    player: the coordinate notification and the chain's first
+    readout arrive together — one combined modal or two
+    back-to-back. Build-time call; stays open by ruling.
+13. **The suggestion layer's cadence discipline** — state-locked
+    beats (fire once), world-clock spacing, nothing repeating —
+    deferred to this doc's heavy refine pass (user, 2026-10-06).
