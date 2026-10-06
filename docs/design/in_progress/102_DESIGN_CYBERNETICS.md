@@ -94,12 +94,13 @@ better pilot. The jack is the marquee product.
   systems reach for humanity or empathy; ego is unique, and it is
   literally the sense of self being spent.
 - **Ego is the single global pool** every bay draws on.
-  Level-fed max: `6 + (level - 1) // 3` (ruled 2026-10-06,
-  SETTLED 2) — pool 6 at L1, 15 at L30, 25 at L60. Growth buys
-  chrome room, which delivers the accessibility curve
-  organically: fresh character, teach-tier room; late game,
-  six-shallow or two-or-three-deep. No species or class
-  modifiers: level-fed only, nothing becomes the chrome stat.
+  Level-fed max: `6 + birth + (level - 1) // 3` (ruled
+  2026-10-06, SETTLED 2; birth = flat per-species modifier,
+  -1..+2 proposed) — pool 6 at L1, 15 at L30, 25 at L60 at
+  birth 0. Growth buys chrome room, which delivers the
+  accessibility curve organically: fresh character, teach-tier
+  room; late game, six-shallow or two-or-three-deep. No class
+  modifiers; nothing becomes the chrome stat.
 - **Installing claims capacity AND burns ego.** The claim occupies
   room; the burn is permanent.
 - **The burn is the HIGH-WATER MARK of total installed cost ever
@@ -229,35 +230,38 @@ Ruled with the user at the numbers-pass checkpoint:
   slot, and the armor-slot competition the placeholders suffered
   is removed by design.
 
-## SETTLED 2 — the ego formula (2026-10-06; ladder corrected
-same day)
+## SETTLED 2 — the ego formula (2026-10-06; capacity rule
+settled same day after two false starts)
 
-- **Max ego is level-fed: `6 + (level - 1) // 3`.** Pool 6 at L1,
-  9 at L10, 15 at L30, 25 at L60 (last increment lands at L58).
-  No species or class modifiers — level-fed only; nothing becomes
-  the chrome stat.
-- **The ratchet arithmetic: k pieces of cost c need
-  `(2k-1)*c <= pool`.** Burn rises WITH load as a suit is built
-  (install checks new load against the pool minus burn-so-far),
-  so the pool covers roughly twice the worn budget. The day-one
-  pool 6 fits exactly three teach pieces (load 3, burn 3 = the
-  dead-zone edge); the fourth is blocked by ROOM, not by prices.
-- **Tier-cost ladder: t1 1, t2 2, t3 5, t4 8.** (The 1/4/7/11
-  sketch first recorded here violated the ratchet arithmetic —
-  a 4th t2 would block at load 16 > room 13 — and was corrected
-  the same day with the user.) L60 stances: six t2 = load 12;
-  three t3 = 15, the exact limit; two t4 = 16, the exact limit;
-  three t4 impossible. Wide or deep, never both. Swap-ups pay
-  only the ratchet difference: six t1 worn (burn 6), a t4
-  replaces one bay = load 12, burn 12.
-- **Max reachable burn at L60 is 16** (two t4) — a fact the
-  consequences bands build on.
-- **Cost and burn are one number per piece.** The burn is the
-  ratchet (high-water mark) of summed install costs, per the ego
-  economy section — there is no separate burn stat to calibrate.
-  Exact values stay working calibration until the catalog phase
-  authors real pieces; the formula and the ratchet arithmetic are
-  the rulings.
+- **Max ego is level-fed: `6 + birth + (level - 1) // 3`.**
+  Birth is a flat per-species ego modifier in a small band
+  (proposed -1..+2; exact values ride the species catalog pass).
+  Pool 6 at L1, 9 at L10, 15 at L30, 25 at L60 at birth 0 (last
+  increment lands at L58). No class modifiers; no skill keys
+  the pool — nothing becomes the chrome stat.
+- **Capacity rule C: the claim reads the pool; the burn is the
+  stat.** Install checks `new load <= ego pool`; capacity
+  recycles on uninstall. Burn = the high-water mark of total
+  installed cost ever worn; it never recovers. Current ego =
+  pool - burn. **Zero ego is literal and reachable — wearing
+  your full pool in chrome at once** (t4+t4+t3+t2+t1+t1 = 25 at
+  L60): the Consortium intro fires verbatim per the consequences
+  section.
+- **Tier-cost ladder: t1 1, t2 4, t3 7, t4 11.** L60 identities
+  at pool 25: six t2 = 24/25, exact-tight; three t3 = 21; two
+  t4 = 22; three t4 = 33, impossible. Wide or deep, never both.
+  Swap-ups pay the ratchet difference: six t1 worn (burn 6), a
+  t4 replaces one bay = burn 16, ego 9.
+- **Cost and burn are one number per piece** — the burn is the
+  high-water mark of summed install costs; there is no separate
+  burn stat to calibrate. Exact values stay working calibration
+  until the catalog phase authors real pieces.
+- Same-day errata, recorded for honesty: the ladder was first
+  "corrected" to 1/2/5/8 under a double-charging capacity rule
+  (installs checked against pool MINUS burn); the user's own
+  framing ("amount of chrome you can wear before you hit full 0
+  ego is not static") exposed the error and restored the
+  original ladder under rule C.
 
 ## SETTLED 3 — dead zone and tier gates (2026-10-06)
 
@@ -284,9 +288,12 @@ The numbers pass (open):
 
 1. Multiplier curves (rep gain per faction, buy/sell, services)
    and board valence bands, keyed to burn bands above the dead
-   zone. Ruled so far: formula + ratchet arithmetic + ladder
-   1/2/5/8 (SETTLED 2), dead zone <= 3, tier gates 0/25/50/75
-   reading BASE stats raw (SETTLED 3).
+   zone — burn spans 0-25 under rule C, and the band FRAME
+   (static scars vs pool-relative) is the open call. Ruled so
+   far: formula + capacity rule C + ladder 1/4/7/11 + species
+   birth mods (SETTLED 2), dead zone <= 3, tier gates 0/25/50/75
+   reading BASE stats raw (SETTLED 3), per-planet valence =
+   band shift +/-1.
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
