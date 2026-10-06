@@ -39,6 +39,12 @@ one per slot, dominated by armor #.
   name. Zero/near-zero defense on chrome is CORRECT (cross-axis
   cost doctrine) — what was missing was a payoff DR can't
   replicate.
+- **Bays are worn alongside armor, never instead of it** (made
+  explicit 2026-10-06; implied until then by zero-DR-is-correct
+  and placeholder retirement): chrome occupies no armor slot and
+  never competes with one. The cost axis is ego, credits, and
+  consequences — the armor-slot competition the placeholders
+  suffered is removed by design.
 - **Chrome extends a stat the body already has.** The bay's skill
   key is automatic, not arbitrary: chrome is the artificial
   version of a stat, sold by the Consortium.
@@ -54,10 +60,10 @@ one per slot, dominated by armor #.
   pool).** No skill becomes "the chrome stat."
 - **Scarcity balances power** (Consortium product, priced like
   the surgery it is).
-- **Chrome does not tinker** (proposed, unobjected — confirm at
-  the numbers pass): implants aren't user-serviceable, the
-  Consortium seals them; the ladder lives in catalog tiers, which
-  sidesteps the dead-scaling problem instead of patching it.
+- **Chrome does not tinker** (ruled 2026-10-06): implants aren't
+  user-serviceable, the Consortium seals them; the ladder lives in
+  catalog tiers, which sidesteps the dead-scaling problem instead
+  of patching it.
 
 ## Anatomy — six bays, one per skill (ruled)
 
@@ -72,9 +78,9 @@ Every skill on the character ledger gets exactly one bay:
 | Arms | strength | ground | the melee muscle | +melee rider → AP-on-kill, reach/dance interactions |
 | Legs | reflexes | ground | the stride | +1 AP (the legacy model — already the right KIND of effect) → disengage, move-cost cuts |
 
-*Ocular key is the one flagged call: gunnery (space aim, tabled)
-vs reflexes (ground aim); a both-layers aim-rider ocular is the
-alternative teaching piece. Decide at the numbers pass.
+*Ocular keys GUNNERY (ruled 2026-10-06, numbers pass): space aim;
+one bay per skill, 3 space / 3 ground. Reflexes (ground aim) and
+the both-layers aim rider were considered and declined.
 
 Legacy mapping: eyes→Ocular, torso→Vital, arms→Arms, legs→Legs.
 No feet placeholder; no sixth bay in v1.
@@ -127,8 +133,8 @@ One ego-read (burnt points); per-faction and per-planet valences
 translate it into multipliers:
 
 - **Faction rep gain multipliers:** pirate/Consortium easier,
-  merchant/militia harder. Labs: NEUTRAL (assumed — correct if
-  wrong). Positive and negative per faction.
+  merchant/militia harder. Labs: NEUTRAL (ruled 2026-10-06).
+  Positive and negative per faction.
 - **Buy prices rise** on non-pirate/non-corpo vendors;
   **sell offers drop** on non-pirate/non-corpo planets.
 - **Services ride the same multiplier:** repairs, refits,
@@ -200,16 +206,35 @@ dim your aim and does not open fire.
   architecture (the spine); the over-spec version returns as
   content someday.
 
-## Open items (the numbers pass)
+## SETTLED 1 — the numbers pass opens (2026-10-06)
+
+Ruled with the user at the numbers-pass checkpoint:
+
+- **Ocular keys gunnery** — space aim; the one-bay-per-skill map
+  and the 3-space/3-ground split stand as authored. Reflexes
+  (ground aim) and the both-layers aim rider declined.
+- **Labs valence: NEUTRAL** — no ego-driven rep multiplier for
+  Labs; the assumption is now a ruling.
+- **Chrome does not tinker** — implants are sealed; the upgrade
+  ladder lives in catalog tiers.
+- **Bays are worn alongside armor, never instead of it** — made
+  explicit (was the implied reading); chrome occupies no armor
+  slot, and the armor-slot competition the placeholders suffered
+  is removed by design.
+
+## Open items
+
+The numbers pass (open):
 
 1. Ego max formula; per-tier install costs and burns; multiplier
    curves; board valence bands; tier reqs per skill.
-2. The tier-one teach catalog (both layers — an ocular/jack piece
-   a pilot meets, a vital/legs piece a marine meets).
-3. Ocular key: gunnery vs reflexes vs both-layers rider.
-4. Labs valence confirm (neutral assumed).
-5. Chrome-vs-tinker confirm (does not tinker, assumed).
-6. Migration mechanism for the four placeholders.
+
+Routed elsewhere by this doc's own section markers: the tier-one
+teach catalog (both layers — an ocular/jack piece a pilot meets,
+a vital/legs piece a marine meets) rides the tier-catalog phase;
+the placeholder migration mechanism is decided in the
+implementation brief ("Migration and audit rules" says decided at
+build).
 
 ## Phases
 
