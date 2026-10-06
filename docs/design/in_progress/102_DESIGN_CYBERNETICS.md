@@ -229,23 +229,35 @@ Ruled with the user at the numbers-pass checkpoint:
   slot, and the armor-slot competition the placeholders suffered
   is removed by design.
 
-## SETTLED 2 — the ego formula (2026-10-06)
+## SETTLED 2 — the ego formula (2026-10-06; ladder corrected
+same day)
 
 - **Max ego is level-fed: `6 + (level - 1) // 3`.** Pool 6 at L1,
   9 at L10, 15 at L30, 25 at L60 (last increment lands at L58).
   No species or class modifiers — level-fed only; nothing becomes
   the chrome stat.
-- **The cap encodes the wide-or-deep identity.** With the working
-  tier-cost ladder (t1 1, t2 4, t3 7, t4 11): six shallow (t2) =
-  24/25 — tight; three deep (t3) = 21/25; two marquee (t4) =
-  22/25; three marquee (33) impossible at cap. Wide or deep,
-  never both — the level-60 budget is a real choice.
+- **The ratchet arithmetic: k pieces of cost c need
+  `(2k-1)*c <= pool`.** Burn rises WITH load as a suit is built
+  (install checks new load against the pool minus burn-so-far),
+  so the pool covers roughly twice the worn budget. The day-one
+  pool 6 fits exactly three teach pieces (load 3, burn 3 = the
+  dead-zone edge); the fourth is blocked by ROOM, not by prices.
+- **Tier-cost ladder: t1 1, t2 2, t3 5, t4 8.** (The 1/4/7/11
+  sketch first recorded here violated the ratchet arithmetic —
+  a 4th t2 would block at load 16 > room 13 — and was corrected
+  the same day with the user.) L60 stances: six t2 = load 12;
+  three t3 = 15, the exact limit; two t4 = 16, the exact limit;
+  three t4 impossible. Wide or deep, never both. Swap-ups pay
+  only the ratchet difference: six t1 worn (burn 6), a t4
+  replaces one bay = load 12, burn 12.
+- **Max reachable burn at L60 is 16** (two t4) — a fact the
+  consequences bands build on.
 - **Cost and burn are one number per piece.** The burn is the
   ratchet (high-water mark) of summed install costs, per the ego
   economy section — there is no separate burn stat to calibrate.
-- The tier-cost ladder is the working calibration the user chose
-  with the formula; exact values may still be nudged by the
-  remaining numbers-pass questions, the formula is the ruling.
+  Exact values stay working calibration until the catalog phase
+  authors real pieces; the formula and the ratchet arithmetic are
+  the rulings.
 
 ## SETTLED 3 — dead zone and tier gates (2026-10-06)
 
@@ -272,8 +284,9 @@ The numbers pass (open):
 
 1. Multiplier curves (rep gain per faction, buy/sell, services)
    and board valence bands, keyed to burn bands above the dead
-   zone. Ruled so far: formula (SETTLED 2), cost ladder 1/4/7/11,
-   dead zone <= 3, tier gates 0/25/50/75.
+   zone. Ruled so far: formula + ratchet arithmetic + ladder
+   1/2/5/8 (SETTLED 2), dead zone <= 3, tier gates 0/25/50/75
+   reading BASE stats raw (SETTLED 3).
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
