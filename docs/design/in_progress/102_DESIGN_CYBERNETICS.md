@@ -94,10 +94,12 @@ better pilot. The jack is the marquee product.
   systems reach for humanity or empathy; ego is unique, and it is
   literally the sense of self being spent.
 - **Ego is the single global pool** every bay draws on.
-  Level-fed max (formula = numbers pass) — growth buys chrome
-  room, which delivers the accessibility curve organically: fresh
-  character, teach-tier room; late game, six-shallow or
-  two-or-three-deep.
+  Level-fed max: `6 + (level - 1) // 3` (ruled 2026-10-06,
+  SETTLED 2) — pool 6 at L1, 15 at L30, 25 at L60. Growth buys
+  chrome room, which delivers the accessibility curve
+  organically: fresh character, teach-tier room; late game,
+  six-shallow or two-or-three-deep. No species or class
+  modifiers: level-fed only, nothing becomes the chrome stat.
 - **Installing claims capacity AND burns ego.** The claim occupies
   room; the burn is permanent.
 - **The burn is the HIGH-WATER MARK of total installed cost ever
@@ -222,12 +224,31 @@ Ruled with the user at the numbers-pass checkpoint:
   slot, and the armor-slot competition the placeholders suffered
   is removed by design.
 
+## SETTLED 2 — the ego formula (2026-10-06)
+
+- **Max ego is level-fed: `6 + (level - 1) // 3`.** Pool 6 at L1,
+  9 at L10, 15 at L30, 25 at L60 (last increment lands at L58).
+  No species or class modifiers — level-fed only; nothing becomes
+  the chrome stat.
+- **The cap encodes the wide-or-deep identity.** With the working
+  tier-cost ladder (t1 1, t2 4, t3 7, t4 11): six shallow (t2) =
+  24/25 — tight; three deep (t3) = 21/25; two marquee (t4) =
+  22/25; three marquee (33) impossible at cap. Wide or deep,
+  never both — the level-60 budget is a real choice.
+- **Cost and burn are one number per piece.** The burn is the
+  ratchet (high-water mark) of summed install costs, per the ego
+  economy section — there is no separate burn stat to calibrate.
+- The tier-cost ladder is the working calibration the user chose
+  with the formula; exact values may still be nudged by the
+  remaining numbers-pass questions, the formula is the ruling.
+
 ## Open items
 
 The numbers pass (open):
 
-1. Ego max formula; per-tier install costs and burns; multiplier
-   curves; board valence bands; tier reqs per skill.
+1. Dead-zone width (first band of free burn); multiplier curves;
+   board valence bands; tier reqs per skill. Tier-cost ladder
+   1/4/7/11 ruled as working calibration in SETTLED 2.
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
