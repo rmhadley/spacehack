@@ -112,8 +112,10 @@ better pilot. The jack is the marquee product.
   recycles; the stat does not recover.
 - **Threshold consequences read BURN, not current load** — a
   stripped-clean character with a deep history still suffers.
-- Skill reqs per bay gate tiers ("military-grade jack: Piloting
-  16") — build affinity lives here, not in budgets.
+- Skill reqs per bay gate tiers on the 0-100 skill scale — t1
+  none, t2 25, t3 50, t4 75 (ruled 2026-10-06):
+  "military-grade jack: Piloting 75." Build affinity lives here,
+  not in budgets.
 
 ## Acquisition and the scarcity ladder (ruled)
 
@@ -149,9 +151,11 @@ translate it into multipliers:
 - **Board valences:** per-planet like/dislike of chromed psychos
   shifts BOTH the tier bands that post (high-tier work is trust
   work; pirate t3+ posts only to psychos) AND the row count.
-- **The dead zone:** the first band of burn costs nothing
-  anywhere — prices, rep, boards untouched. The teaching tier must
-  be consequence-free or the system teaches avoidance.
+- **The dead zone:** burn <= 3 costs nothing anywhere — prices,
+  rep, boards untouched (ruled 2026-10-06: width 3, lifetime —
+  three teach pieces free, the fourth point of burn enters band
+  1). The teaching tier must be consequence-free or the system
+  teaches avoidance.
 - **Zero ego / full psycho:** a Consortium comms contact
   introduces itself; the line is exposed on the F screen. An
   intro, nothing more — corpo detail later. This gives the
@@ -242,13 +246,26 @@ Ruled with the user at the numbers-pass checkpoint:
   with the formula; exact values may still be nudged by the
   remaining numbers-pass questions, the formula is the ruling.
 
+## SETTLED 3 — dead zone and tier gates (2026-10-06)
+
+- **The dead zone is burn <= 3, lifetime.** Prices, rep rates,
+  and boards untouched at 3 or lower burn, forever — three teach
+  pieces free; the fourth point of burn enters band 1.
+- **Tier req gates read the bay's skill on the 0-100 scale:
+  t1 none, t2 25, t3 50, t4 75.** Build affinity lives here —
+  the marquee jack demands Piloting 75 (specialist territory on
+  the 295-point L60 budget), and a marine's path to it runs
+  through pilot skills. The old illustrative "Piloting 16"
+  example retired (it predated the 0-100 anchoring).
+
 ## Open items
 
 The numbers pass (open):
 
-1. Dead-zone width (first band of free burn); multiplier curves;
-   board valence bands; tier reqs per skill. Tier-cost ladder
-   1/4/7/11 ruled as working calibration in SETTLED 2.
+1. Multiplier curves (rep gain per faction, buy/sell, services)
+   and board valence bands, keyed to burn bands above the dead
+   zone. Ruled so far: formula (SETTLED 2), cost ladder 1/4/7/11,
+   dead zone <= 3, tier gates 0/25/50/75.
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
