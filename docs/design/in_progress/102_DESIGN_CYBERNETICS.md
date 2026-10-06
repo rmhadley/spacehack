@@ -373,7 +373,7 @@ build).
 
 - [x] Skeleton ruled end to end (2026-10-06, this doc)
 - [x] The numbers pass: formulas, curves, tier reqs (SETTLED
-      1-4, 2026-10-06)
+      1-5, 2026-10-06)
 - [ ] The tier catalog + audit instruments (domination, module
       boundary, dead-zone pins)
 - [ ] Implementation briefs (advisor pass per house rule)
