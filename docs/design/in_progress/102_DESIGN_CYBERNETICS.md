@@ -160,13 +160,15 @@ translate it into multipliers:
   three teach pieces free, the fourth point of burn enters band
   1). The teaching tier must be consequence-free or the system
   teaches avoidance.
-- **Zero ego / full psycho:** a Consortium comms contact
-  introduces itself; the line is exposed on the F screen. An
-  intro, nothing more — corpo detail later. This gives the
-  Consortium two reveal doors (doc 39's tower raid = force; the
-  ego floor = courtship) — nothing exclusive, two rhyming paths.
-  Anchored 2026-10-06: psycho band = burn >= 12; zero ego =
-  wearing the full pool (SETTLED 2/4).
+- **Full psycho / the Consortium gate:** a Consortium comms
+  contact introduces itself; the line is exposed on the F
+  screen. An intro, nothing more — corpo detail later. This
+  gives the Consortium two reveal doors (doc 39's tower raid =
+  force; the ego floor = courtship) — nothing exclusive, two
+  rhyming paths. Anchored 2026-10-06 (SETTLED 5): the gate is
+  burn >= 2 x birth pool (10/12/14/16), static for life — the
+  latch is free (burn never recovers, the gate never moves);
+  the world's psycho band stays 12+, species-blind.
 - **Emergent, never keyed:** the blockade methods self-select by
   ego drift (low ego → Whisper/ghost feel natural; high ego →
   papers feel natural). No method requires or reads chrome.
@@ -247,10 +249,10 @@ settled same day after two false starts)
   stat.** Install checks `new load <= ego pool`; capacity
   recycles on uninstall. Burn = the high-water mark of total
   installed cost ever worn; it never recovers. Current ego =
-  pool - burn. **Zero ego is literal and reachable — wearing
-  your full pool in chrome at once** (t4+t4+t3+t2+t1+t1 = 25 at
-  L60): the Consortium intro fires verbatim per the consequences
-  section.
+  pool - burn — a room-side number that may lift off zero with
+  level growth; it is NOT the psycho trigger. **The Consortium
+  gate reads burn against twice the birth pool** (SETTLED 5);
+  wearing the full pool merely means the room is gone.
 - **Tier-cost ladder: t1 1, t2 4, t3 7, t4 11.** L60 identities
   at pool 25: six t2 = 24/25, exact-tight; three t3 = 21; two
   t4 = 22; three t4 = 33, impossible. Wide or deep, never both.
@@ -308,13 +310,47 @@ settled same day after two false starts)
   Labs neutral throughout (SETTLED 1); services ride the price
   multiplier; magnitudes are starting values, tuned by
   playthrough feedback per house doctrine.
-- **Psycho anchors at burn >= 12; the 0-ego event nests inside
-  it** — wearing the full pool fires the Consortium intro
-  (SETTLED 2's literal zero ego).
+- **The psycho BAND anchors at burn >= 12** (species-blind).
+  The Consortium GATE is separate and per-species — burn >=
+  2 x birth pool, meeting the band exactly at birth 0 (SETTLED
+  5).
 - **Per-planet valence = band shift +/-1.** Tolerant planets
   (pirate havens, corporate campuses) read the burn one band
   milder; strict planets (lawful cores) one band harsher. One
   knob drives prices, rep, and boards together.
+
+## SETTLED 5 — the Consortium gate (2026-10-06)
+
+- **The full-psycho gate is `burn >= 2 x (6 + birth)`** — twice
+  the birth pool: 10 / 12 / 14 / 16 for birth -1 / 0 / +1 / +2.
+  Static, fixed at creation; level growth adds room and never
+  moves the target (user: "your hardening as you level doesn't
+  make it a moving target"). The Consortium knows your birth
+  certificate; the world prices scars.
+- **The latch is free.** Burn never recovers and the gate never
+  moves, so once crossed the state is permanent — no separate
+  latch machinery. This supersedes SETTLED 2's earlier
+  "zero ego = wearing the full pool" trigger, which level-ups
+  could un-hit.
+- **The live ego number is room-side only**: pool - burn, a
+  capacity display that may lift off zero after level growth.
+  The gate reads BURN, like every other consequence.
+- **Species variance, concrete:** birth -1 latches on ONE t4
+  (burn 11 >= 10); birth +2 needs burn 16 (t4+t2 = 15 does
+  not; t4+t2+t1 = 16 does). The gate is structurally
+  unreachable before the pool can contain it — earliest possible
+  psycho is L13 (birth -1) / L19 (birth 0) / L25 (+1) / L31
+  (+2), and tier reqs push each later still: the deep end is
+  late-game by construction.
+- **Band vs gate:** the world's psycho BAND stays burn >= 12
+  (SETTLED 4, species-blind); the Consortium GATE is per-species
+  and meets the band exactly at birth 0 — for others they
+  diverge by design (a -1 species is courted a band early; a +2
+  species is courted deep inside it).
+- The literal birth pool (5-8) was considered and declined: six
+  t1 teach pieces on day one would have latched psycho (a trap
+  under the dead zone), and one t3 (burn 7) would have latched
+  it inside band 1 while the world still read "flagged, x1.05".
 
 ## Open items
 
