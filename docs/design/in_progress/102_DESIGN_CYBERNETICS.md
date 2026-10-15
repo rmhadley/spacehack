@@ -719,6 +719,142 @@ never a rejection (the ratchet prices it).
 - The guide (reference manual) documents the actual numbers
   when implemented — the game UI never does.
 
+## Implementation briefs (written 2026-10-15; advisor pass
+## below)
+
+Three briefs, ordered so each lands on a playable checkpoint:
+the body (combat felt), the economy (acquisition real), the
+mirror (readable everywhere). Run order is strict — 2 builds on
+1's container, 3 on both. `/implement-phase 102.4.1` and
+following.
+
+### Brief 4.1 — the body: crit system, dodge amendment, catalog
+### effects, the core button
+
+Goal: chrome's combat layer exists and is FELT, with a
+development acquisition path (the kiosk is 4.2).
+
+1. **The crit system** (SETTLED 6): crit chance + crit damage
+   as actor-read stats — base 0% / ×1.5, all three theaters
+   (ground melee, ground ranged, space direct fire). Resolution
+   rides the existing hit/damage assemblies; damage
+   multipliers are ADDITIVE POINTS on 1.5x (the arms example:
+   +5% → ×1.55). Actor-symmetric by construction: the roll
+   reads the actor's stat container — player chrome sums
+   today, enemy containers when NPCs wear chrome. Crit
+   feedback is part of scope: log lines both theaters plus
+   damage-render treatment (the felt moment).
+2. **The dodge amendment** (SETTLED 7), space only: piloting
+   base = min(folded piloting × 0.5, 60); movement term =
+   min(cells_moved, 6) × per-tile coefficient (base 5, a
+   per-actor stat); no total cap on the sum. The GROUND twin
+   (`calc_ground_move_dodge`) is unchanged in 4.1 — no t1
+   source touches it (parked vocabulary). Update the doctrine
+   comment: the 5-95 clamp floor is the sole invulnerability
+   guard.
+3. **Chrome container**: `ctx.installed_chrome` + a sum-effect
+   accessor mirroring `sum_armor_bonus`; save fields with
+   old-save backfill (empty list). NO ego fields yet (4.2).
+4. **Catalog data**: the six t1 pieces (SETTLED 6-11) — id,
+   name, bay skill, anatomy key (SETTLED 14: ocular / jack /
+   os / dermal / arm_muscle / hands), tier 1, burn 1, price
+   250-400cr calibration band, effect payloads.
+5. **Effect wiring** (the five assembly points + the core):
+   Optics +15% space crit chance; Piloting Jack +1 dodge/tile
+   (space coefficient); **Neural Stim = the core button** —
+   ONE keybind, both theaters, cd 3 rounds, +2 AP this round /
+   −1 next round, cooldown + loan-debt visible in each HUD;
+   Nano Mesh ×1.25 on the worn-armor DR total while HP
+   strictly below half (ground, actor-symmetric — enemies wear
+   armor too); Muscle Fibers +15% ground melee crit chance +
+   flat +2 melee garnish; SmartLink +15% ground ranged crit
+   chance.
+6. **Dev acquisition**: a minimal grant/uninstall path
+   (debug keybind or CLI flag — implementation choice) for
+   playtest; the kiosk replaces it in 4.2.
+7. **Tests/pins**: crit math (chance floor/ceiling, additive
+   multiplier points), actor-symmetry shape, dodge pins (the
+   96 composition, cells cap at 6, ground twin untouched),
+   loan arithmetic (+2/−1/cd, both theaters), Nano Mesh
+   conditionals (below-half only, multiplies the DR TOTAL),
+   garnish seams — and **re-pin every seeded balance bar the
+   new crit rolls trip** (kill-draws doctrine: new draws in
+   the fight loops reshuffle streams; re-measure, same
+   commit, cause noted). Gate: make check.
+
+Checkpoint: a fight where you crit in all three forms, pop the
+Stim, feel the repayment, kite past 90 dodge.
+
+### Brief 4.2 — the economy: ego, the kiosk, consequences,
+### migration
+
+1. **Ego fields**: pool = 6 + birth + (level−1)//3 (species
+   birth mods: field plumbed, v1 all species birth 0 — exact
+   values ride the species catalog pass), load, burn
+   (high-water ratchet), room. Save compat + backfill.
+2. **The Terminus kiosk** joins the spaceport service
+   terminals (cluster A): one-step stock + install; prices =
+   piece price × the band's service multiplier. The
+   **three-check instrument** runs first as BLOCKS (capacity:
+   load + cost ≤ pool; tier gate: t1 none, the check exists;
+   anatomy collision → swap flow, never a rejection).
+3. **The consent modal** (clusters B + SETTLED 15): name
+   transition ("You are Natural. This will leave you
+   Tainted."), permanence warning, ego before/after with burn
+   delta, "+0 — within your peak" when true, swap notice
+   ("replaces your Terminus Optics — handed back"), Consortium
+   gate crossing warning (lean YES, standing). Consequences
+   are NEVER enumerated — names only.
+4. **Swap-backs**: the replaced piece lands in the hold,
+   sellable; no loose chrome parts exist any other way.
+5. **Consequence bands live**: ONE band function (every
+   consumer reads it, never raw burn); buy/sell/services
+   ×1.05/1.15/1.30 on non-pirate/non-corpo vendors, Labs
+   neutral; rep gains ×0.95/0.85/0.70 vs ×1.05/1.15/1.30;
+   boards (strict planets −1 row at 8-11; pirate t3+ posts
+   only at 12+); per-planet valence = band shift ±1; rumor
+   dealer prices ride the multiplier; Consortium gate latch
+   (burn ≥ 2× birth pool → the comms intro + F-screen line).
+6. **Dead-zone pin** (SETTLED 12): the bit-identical
+   burn-0-vs-burn-3 regression test across every
+   socioeconomic readout.
+7. **Placeholder migration** — the "decided at build" decision
+   is now made: RETIRE the four vest entries; live saves
+   migrate by UNWEAR + CREDIT REFUND at base price
+   (grandfather rejected: dead stat-sticks contradict the
+   retirement and the new system).
+8. Tests: ratchet pins (swap within peak free; exceeding pays
+   difference; uninstall frees load never burn), band-function
+   pins, the dead-zone pin, migration pin (worn placeholder →
+   unworn + credited). No new combat draws — economic tests
+   only.
+
+Checkpoint: install three pieces consequence-free, watch the
+fourth Taint you — kiosk prices shift, a strict planet's board
+loses its row.
+
+### Brief 4.3 — the mirror: the C-screen split, the ego line,
+### documentation
+
+1. **The Stats tab adopts the split family** (cluster C;
+   Equipment-tab precedent, pygame_split): left = the six
+   stat rows + ×N piece counts; right = display-only chrome
+   list for the selected bay, led by the skill description;
+   ENTER stays SPEND; jk walks the stats.
+2. **The ego line** in the body header: room | burn + the
+   band NAME (base band — Natural/Tainted/Chromed/Psycho).
+3. **Guide + annotation sync**: the chrome section (the guide
+   DOCUMENTS the numbers per SETTLED 15 — names, multipliers,
+   ego formula, kiosk flow), character-screen annotation
+   lines, service-terminal help text.
+4. Straggler polish from 4.1/4.2 (HUD hints, F-screen line
+   formatting).
+5. Tests: split-rendering pins (row budgets per the
+   modal-font-ladder constraints), counts, HUD smoke tests.
+
+Checkpoint: open C, walk the six stats, read your chrome, your
+ego, and your name.
+
 ## Open items
 
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
