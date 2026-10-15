@@ -527,13 +527,18 @@ Mesh).
 - **Name: Terminus Muscle Fibers** (ruled 2026-10-15) — fibers
   are the muscle's own unit; enhancement, not prosthetic (TT
   Servo Arms rejected on exactly this ground).
-- **Naming convention fork, pending user confirm:** the catalog
-  splits registers (Terminus Tech Optics vs TT x3). Recommended
-  unification: the product brand mark is "Terminus X" (the
-  optics route) — rename TT Piloting Jack / TT Neural Stim / TT
-  Nano Mesh accordingly (doc-only renames); "Terminus Tech"
-  remains the full corporate name in prose; "TT" survives as
-  in-world slang (vendors, rumors — prose-phase flavor).
+- **Naming convention RESOLVED (2026-10-15): three registers,
+  each ruled to a layer.** Item names (the catalog field) carry
+  one mark, "Terminus X" — Terminus Optics, Terminus Piloting
+  Jack, Terminus Neural Stim, Terminus Nano Mesh, Terminus
+  Muscle Fibers (the Optics drops its "Tech"). "Terminus Tech"
+  is the full corporate name, prose-only, at introduction
+  points (vendor descriptions, lore). "TT" is compression and
+  speech — stock lines, logs, rumors, dialogue — and which
+  register an NPC uses characterizes the speaker (lawyer:
+  Terminus Tech; dock hand: TT; the board: Terminus). Register
+  variation teaches through prose position, never through the
+  item-name field.
 
 Teach catalog: 5 of 6 (Optics, Piloting Jack, Neural Stim, Nano
 Mesh, Arms pending name).
