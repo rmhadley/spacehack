@@ -921,23 +921,18 @@ catch consumers that never read the band at all.
 `character_screen_stats.py` (148 lines, room) —
 `character_screen.py` is at 945.
 
-**Open rulings (user, before 4.1 runs):**
-1. **Rumor prices are in FAVOR, not credits** (`rumor.py` —
-   exclusives cost `book["favor"]`): the "rumor dealer prices
-   ride the multiplier" ruling is inert as written. Options: a
-   favor-price variant (with a rounding rule) or record N/A
-   for v1.
-2. **Per-planet valence has no data home**: PlanetSpec needs
-   the field + an assignment list — 4.2's checkpoint (a strict
-   planet's board row) requires at least one strict and one
-   tolerant planet authored. Proposal: field + a small
-   assignment list for the established planets in-brief
-   (lawful cores strict, pirate havens/corpo campuses
-   tolerant), rest default 0. Alternative: defer with all-0
-   and move that checkpoint line.
-3. **Mission reward credits OUT of the band** — the obvious
-   reading (nothing in SETTLED 4 bands payouts); confirm so the
-   build can't overreach.
+**Ruled by the user (2026-10-15):**
+1. **Rumor prices: N/A for v1.** The favor-price foundation is
+   proof-of-concept only — nothing real consumes it yet; the
+   multiplier ruling returns when the rumor system evolves.
+   The dead-zone pin marks the readout N/A.
+2. **Per-planet valence: the proposal stands** — PlanetSpec
+   gains the field + a small assignment list for established
+   planets (lawful cores strict, pirate havens/corpo campuses
+   tolerant, rest 0); easily tuned in playtest. 4.2's
+   strict-planet checkpoint works.
+3. **Mission reward credits stay OUT of the band** — confirmed;
+   payouts are never banded.
 
 Verified clean by the advisor: the run order, all ruled
 numbers composing (96 dodge, ×1.55 points, 4-AP ground base),
@@ -1045,8 +1040,8 @@ build).
 - [x] The tier catalog + audit instruments (SETTLED 6-12,
       2026-10-15: teach catalog 6/6 + all three instruments)
 - [x] Implementation briefs (advisor pass per house rule) —
-      briefs 4.1-4.3 written + ADVISE pass folded 2026-10-15
-      (SOUND-WITH-CATCHES, 15 issues folded, 3 open rulings
-      pending the user before 4.1 runs)
+      briefs 4.1-4.3 written + ADVISE pass folded + all
+      rulings closed 2026-10-15; `/implement-phase 102.4.1`
+      is ready to run
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
