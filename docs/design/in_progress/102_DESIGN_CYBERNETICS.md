@@ -392,6 +392,43 @@ crit chance source in the same theater (base 0%, and Ocular's
 chance is space-only) — Arms t1 must grant melee crit chance (or
 pair with a source) for its crit-damage example to fire.
 
+## SETTLED 7 — the dodge amendment + Pilot jack t1 (2026-10-15)
+
+Chrome births its second system stat (the crit system was the
+first, SETTLED 6):
+
+- **Movement dodge is exempt from the 60 total cap — for
+  everyone, not just chrome users.** The cap now binds the
+  piloting base only: base = min(folded piloting x 0.5, 60).
+  The movement term rides on top, no total cap.
+- **The movement term becomes min(cells moved, 6) x per-tile
+  coefficient** — the first 6 cells (6 AP of movement) contribute;
+  base coefficient 5. The old +30 points-cap on the term is
+  replaced by this cells cap. Max at base coefficient: 60 + 30 =
+  90. The per-tile coefficient is a first-class stat; chrome
+  grants are additive raises on it.
+- **Pilot jack t1 = TT Piloting Jack: +1 dodge per tile moved.**
+  A capped-base pilot on a full-move round reads 60 + 36 = 96 —
+  past the old 90 ceiling, under 100 on day one. The +2/tile
+  deepening (crossing 100, where the 5-95 clamp floor becomes
+  load-bearing) is t2+ vocabulary. Burn 1, shop-common. The name
+  sets the catalog convention: pieces carry the TT prefix; the
+  full "Terminus Tech" lives in vendor prose (phase 5).
+- **Actor-symmetric like the crits:** the exemption, the base,
+  and the coefficient all read the actor — an NPC pilot wearing
+  the jack kites harder too.
+- **Doctrine retired on purpose:** the old guard ("a clever
+  kiter can never make the opponent literally invulnerable" —
+  the total-60 cap) is dead; the 5-95 clamp floor is the sole
+  invulnerability guard. Elite aim stacks still pierce (raw ~135
+  reads 39% vs dodge 96); the accuracy-98 breach line is the
+  catalog's dodge counter.
+
+This supersedes the anatomy's jack t1 "+AP/dodge rider" sketch
+(rider vocabulary stays available to t2+). The opening-salvo
+evasion-window idea raised during authoring dies here, superseded
+by the coefficient direction.
+
 ## Open items
 
 None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
