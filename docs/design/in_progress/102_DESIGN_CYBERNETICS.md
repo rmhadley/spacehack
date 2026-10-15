@@ -523,9 +523,17 @@ Mesh).
   replacements (a whole arm) are higher tiers at higher ego
   cost. The 1/4/7/11 burn ladder maps onto flesh-to-machine
   escalation. This also separates the line from the placeholder
-  names, which claimed replacement they never earned. Name
-  pending — must read as muscle enhancement, not a prosthetic
-  (TT Servo Arms rejected on exactly this ground).
+  names, which claimed replacement they never earned.
+- **Name: Terminus Muscle Fibers** (ruled 2026-10-15) — fibers
+  are the muscle's own unit; enhancement, not prosthetic (TT
+  Servo Arms rejected on exactly this ground).
+- **Naming convention fork, pending user confirm:** the catalog
+  splits registers (Terminus Tech Optics vs TT x3). Recommended
+  unification: the product brand mark is "Terminus X" (the
+  optics route) — rename TT Piloting Jack / TT Neural Stim / TT
+  Nano Mesh accordingly (doc-only renames); "Terminus Tech"
+  remains the full corporate name in prose; "TT" survives as
+  in-world slang (vendors, rumors — prose-phase flavor).
 
 Teach catalog: 5 of 6 (Optics, Piloting Jack, Neural Stim, Nano
 Mesh, Arms pending name).
