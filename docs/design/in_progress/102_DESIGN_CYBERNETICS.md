@@ -184,9 +184,14 @@ dim your aim and does not open fire.
 - The four placeholder armor entries retire; live saves need an
   unwear-and-refund (or grandfather) migration row — mechanism
   decided at build.
-- **Domination audit vs armor** per slot/tier before numbers land
-  (the parts-ladder standard: same-cell-stack check; the
-  placeholder sin is the documented counterexample).
+- **No domination audit vs armor** (ruled 2026-10-15, phase 3):
+  chrome is a new system, not an armor column — a character runs
+  full armor slots AND chrome, so the two never share a cell and
+  there is nothing to dominate. The old line was a placeholder-era
+  leftover that predated the alongside-armor ruling (SETTLED 1).
+  What, if anything, inherits the parts-ladder standard inside the
+  chrome catalog is phase 3's open question (rider-vs-skill pricing
+  is the live candidate).
 - **Module-boundary audit:** modules upgrade the ship, chrome
   upgrades you. Riders read like the skill (small, personal), never
   like module rows (`gunnery_bonus` etc. is module vocabulary).
@@ -374,8 +379,8 @@ build).
 - [x] Skeleton ruled end to end (2026-10-06, this doc)
 - [x] The numbers pass: formulas, curves, tier reqs (SETTLED
       1-5, 2026-10-06)
-- [ ] The tier catalog + audit instruments (domination, module
-      boundary, dead-zone pins)
+- [ ] The tier catalog + audit instruments (module boundary,
+      dead-zone pins)
 - [ ] Implementation briefs (advisor pass per house rule)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
