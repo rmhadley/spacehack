@@ -714,6 +714,27 @@ catalog data, the ego economy + consequence bands, and the
 placeholder migration row (mechanism decided there, as always
 intended).
 
+Cluster A (the transaction) SHAPED and RULED (2026-10-15):
+the install surface ESCALATES with the invasiveness ladder.
+**T1 teach line: the spaceport service terminals** — the
+Terminus kiosk joins the existing service counter (every port
+has the trio, so "installable anywhere" is free; zero new UI
+family; prices ride the service multiplier, so the dead-zone
+lesson lands at the same machine that sold the first pieces —
+dead-zone prices, then the flagged rate on the fourth). **T2+:
+surgeons, escalating geographically** — Terminus clinic NPCs in
+corpo-friendly ports, fringe ripperdocs at the edges, Venus at
+the top; the refusal loop is human ("I won't operate at your
+depth"), the travel pressure lives with them, and the consent
+theater scales (a kiosk waiver for a weave, a facility for
+your arms). **ONE-STEP transactions at both tiers** — kiosk
+and clinic stock and install in one action; you never carry an
+implant in a bag; the only owned-unworn chrome in the game is
+swap-backs (the "buy the part as loose stock" fork is dead).
+The lawful-refusal law covers kiosks too (same infrastructure
+as the clinics) — moot at t1 (all six pieces = burn 6, still
+band 1) but stated for when t2 lands.
+
 Cluster C (viewing) SHAPED in discussion (2026-10-15): the
 Stats tab adopts the SPLIT family — precedent on the same
 screen (the Equipment tab embeds pygame_split, doc 52.3). Left
@@ -723,7 +744,13 @@ no actions — ENTER stays SPEND on the left): the selected
 bay's chrome list, one line per piece, led by the existing
 guide-synced skill description. Body header gains the ego line
 (room | burn). Read-only by design; install/uninstall never
-here. Clusters A (transaction) and B (consent) still to walk.
+here.
+
+Remaining before the gate opens: cluster B, the consent moment
+— the three-check confirm's presentation (ratchet math, swap
+notice, band boundary), the "deeper costs, back is free"
+reassurance line, and the still-open band-label question on
+the ego line.
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
