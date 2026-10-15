@@ -855,6 +855,102 @@ loses its row.
 Checkpoint: open C, walk the six stats, read your chrome, your
 ego, and your name.
 
+### Advisor pass (2026-10-15) — verdict SOUND-WITH-CATCHES;
+### all 15 issues folded below, 3 open rulings flagged
+
+**Folded into 4.1:** the "five assembly points" line was stale
+— only the Fibers garnish lands on a legacy armor assembly.
+The real seams: space crit at `_rules_space.damage()` (player)
++ `_ai._resolve_enemy_shot` (enemy) — NOT inside
+`_actions.resolve_damage`, which missile arrivals also call
+(missiles never crit; pinned); ground melee-vs-ranged split
+INSIDE `_rules_ground.damage()` via the existing
+`damage_type == "melee"` read; dodge threading = a
+`tile_coefficient` param on `_calc_dodge_bonus` (60-base cap
+applied inside — zero caller churn), `player_state` stamp at
+`_player_state_dict`, an `EnemyInstance` field declared in
+`combat/_types.py`; **Nano Mesh cannot ride `_armor_defense_total`**
+(stamped once at init) — the ×1.25 hooks where `armor_defense`
+is consumed per enemy turn, enemy side at `enemy.armor` in
+`damage()`; the below-half read is PER-HIT (evaluated on each
+incoming hit — HP can cross half mid-burst); **the re-pin scope
+covers the DODGE AMENDMENT's bars, not just crit rolls** — the
+formula change moves piloting-heavy movers (top-band folded
+piloting > 120) with zero new draws; crit rolls guarded
+`chance > 0` so chrome-less fights consume no new draws; the
+loan rides the GROUND stim container
+(`active_consumable_effects`, a −1 entry = the doc's parked
+statuses sketch) + a space `player_state` key consumed at
+`_reset_ap_carry`; cooldown = one int per theater state; the
+keybind dispatches through the `_loop.py` rules-adapter; a
+PROSE-SETTLEMENT precondition is added (crit log wording, HUD
+cooldown labels — player-facing strings settle before the
+phase runs; guide review deferred to 4.3, recorded); budget
+notes: `saveload.py` crosses 1000 (extraction owed in-commit),
+four combat modules sit near caps, `_rules_ground.damage()`
+near the function limit; save site = `_ctx_to_dict._core_fields`
++ `load_game` backfill, round-trip test added; the
+rider-vs-skill check is scheduled (t1: Fibers garnish +
+Stim-vs-chem pricing).
+
+**Folded into 4.2:** the placeholder retirement is bigger than
+player saves — the four entries are LOAD-BEARING NPC data
+(consortium gunner wears eyes+arms, enforcer arms+legs, a
+stock tuple lists all four, Mars armory stock lists eyes+arms;
+`sum_armor_bonus` skips unknown ids SILENTLY) plus six test
+files pin them. **V1 disposition (proposed, confirm):**
+stat-preserving plain-armor substitutes for NPC worn pieces
+(the enemy chrome container stays deferred per SETTLED 6), the
+Mars stock edited, the four bonus FIELDS on `GroundArmorSpec`
+retire with the entries (quality scaling + sum paths updated).
+Band consumer inventory recorded: terminal + NPC trader buys
+(NPC prices have their OWN multiplier path, `_npc_price_multipliers`
+— both wired), all sell paths, mechanic services (preview/charge
+pairs share one read — the split-read bug class), rep hooks at
+`faction.modify_rep` (NOT `_apply_rep_delta` — the
+spoofed-identity branch would silently miss it), board
+generation; `identity.py`'s three paper/ID credit spends are IN
+scope (unnamed in SETTLED 4's service list); **mission REWARD
+credits ruled OUT of the band (confirm)**; medical/docking
+marked N/A (no credit charges exist today). **A second
+dead-zone pin added:** burn 4 vs burn 0 on a strict planet
+asserting exact ×1.05 per readout — the burn-0-vs-3 pin can't
+catch consumers that never read the band at all.
+
+**Folded into 4.3:** new frame code lives in
+`character_screen_stats.py` (148 lines, room) —
+`character_screen.py` is at 945.
+
+**Open rulings (user, before 4.1 runs):**
+1. **Rumor prices are in FAVOR, not credits** (`rumor.py` —
+   exclusives cost `book["favor"]`): the "rumor dealer prices
+   ride the multiplier" ruling is inert as written. Options: a
+   favor-price variant (with a rounding rule) or record N/A
+   for v1.
+2. **Per-planet valence has no data home**: PlanetSpec needs
+   the field + an assignment list — 4.2's checkpoint (a strict
+   planet's board row) requires at least one strict and one
+   tolerant planet authored. Proposal: field + a small
+   assignment list for the established planets in-brief
+   (lawful cores strict, pirate havens/corpo campuses
+   tolerant), rest default 0. Alternative: defer with all-0
+   and move that checkpoint line.
+3. **Mission reward credits OUT of the band** — the obvious
+   reading (nothing in SETTLED 4 bands payouts); confirm so the
+   build can't overreach.
+
+Verified clean by the advisor: the run order, all ruled
+numbers composing (96 dodge, ×1.55 points, 4-AP ground base),
+`installed_chrome` as a ctx field (no module-global contract),
+dev-grant via `dev_mode.py`, the kiosk's one-flag home
+(`city_kit.add_service_terminals` +
+`game_interactions._resolve_terminal_blocker`), the ground
+dodge twin genuinely untouched at base coefficient, and no
+consumer depending on the total-cap-60 invariant (AI scorers
+route through the 5-95 clamp; the pin risk is tests:
+`tests/combat/test_stats.py` + `test_enemy_fire.py` pin the
+old formula exactly).
+
 ## Open items
 
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
@@ -948,6 +1044,9 @@ build).
       1-5, 2026-10-06)
 - [x] The tier catalog + audit instruments (SETTLED 6-12,
       2026-10-15: teach catalog 6/6 + all three instruments)
-- [ ] Implementation briefs (advisor pass per house rule)
+- [x] Implementation briefs (advisor pass per house rule) —
+      briefs 4.1-4.3 written + ADVISE pass folded 2026-10-15
+      (SOUND-WITH-CATCHES, 15 issues folded, 3 open rulings
+      pending the user before 4.1 runs)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
