@@ -579,15 +579,57 @@ Teach catalog COMPLETE, 6 of 6: Terminus Optics, Terminus
 Piloting Jack, Terminus Neural Stim, Terminus Nano Mesh,
 Terminus Muscle Fibers, Terminus SmartLink.
 
+## SETTLED 12 — the audit instruments; phase 3 closes
+## (2026-10-15)
+
+All three instruments ruled or spec'd with the user:
+
+- **Rider-vs-skill pricing — RULED IN** (the parts-ladder
+  standard's successor; proposed at phase-3 open, ruled at
+  close): a chrome rider duplicating an effect skill points can
+  buy must never price below the skill points that buy the same
+  effect, at the engine's exchange rates (gunnery +0.5 hit/pt;
+  piloting +0.5 dodge/pt and +0.05 AP/pt; strength +1 melee
+  damage per 5 pts; stamina +1 HP per 2 pts; engineering +1 max
+  power per 5 pts). Runs per-piece before numbers land, plus a
+  catalog-wide regression pass. Chances with no skill analogue
+  (crit chance — skills cannot buy crits) are exempt by
+  construction: that is chrome's discrete-class territory.
+  First exercised instances: the Muscle Fibers garnish (+2 ≈
+  ten strength points), the Neural Stim loan vs chem-stim
+  pricing.
+- **Module-boundary audit spec** — two clauses. VOCABULARY:
+  riders read like the skill, small and personal, never like
+  module rows (gunnery_bonus / piloting_bonus / power_gen_bonus
+  / max_shield_bonus / shield_recharge_bonus are module
+  vocabulary). FUNCTION: no chrome piece duplicates a module
+  row's function — chrome changes what YOU do (crits,
+  coefficients, loans, the clench), modules change what the
+  SHIP does. The t1 catalog passes trivially; the law binds the
+  t2+ authoring, hardest at the spine (the most
+  module-adjacent bay).
+- **Dead-zone pin spec** — the instrument is a bit-identical
+  diff, not an epsilon: two characters identical except burn 0
+  vs burn 3 (three t1 installs); walk EVERY socioeconomic
+  readout — vendor buy and sell on a strict planet, each
+  service (repair, refit, restock, medical, docking), rumor
+  dealer prices, rep gain per faction, board tier bands AND row
+  counts — and require every value identical. Its real job is
+  the consumer bug class: any read of raw burn instead of the
+  band function ("if burnt > 0: surcharge"). Ships as a
+  permanent regression test in the build scope.
+
 ## Open items
 
-The numbers pass settled 2026-10-06 (SETTLED 1-5); the teach
-catalog contents completed 2026-10-15 (SETTLED 6-11, all six
-bays, every piece burn 1). Remaining phase-3 work: **the audit
-instrument specs** — the module-boundary audit (including the
-never-duplicate-a-module-row's-function fold-in), the dead-zone
-pin, and the rider-vs-skill pricing check (proposed at session
-start, still unruled).
+Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
+6-11) plus all three audit instruments (SETTLED 12). NEXT:
+phase 4, the Implementation briefs (advisor pass per house
+rule) — the first brief carries the chrome container (ctx field
++ sum function mirroring sum_armor_bonus, terms at the five
+assembly points), the crit system, the dodge amendment, the
+catalog data, the core keybind, the ego economy + consequence
+bands, and the placeholder migration row (mechanism decided
+there, as always intended).
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
@@ -601,8 +643,8 @@ build).
 - [x] Skeleton ruled end to end (2026-10-06, this doc)
 - [x] The numbers pass: formulas, curves, tier reqs (SETTLED
       1-5, 2026-10-06)
-- [ ] The tier catalog + audit instruments (module boundary,
-      dead-zone pins)
+- [x] The tier catalog + audit instruments (SETTLED 6-12,
+      2026-10-15: teach catalog 6/6 + all three instruments)
 - [ ] Implementation briefs (advisor pass per house rule)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
