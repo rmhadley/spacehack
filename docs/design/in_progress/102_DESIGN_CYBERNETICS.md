@@ -683,6 +683,16 @@ never a rejection (the ratchet prices it).
   every anatomy its fiction covers — a full-arm replacement
   collides with (and swaps out) the fibers it replaces. Key
   replacement tiers accordingly when authored.
+- **UI consequences (for the gated A/B discussion):** install
+  becomes a three-check instrument — capacity, tier gate, and
+  anatomy collision — each with its own message, collision being
+  the SWAP flow ("replaces your Terminus Optics"), never a
+  block. Two new agenda items: (1) replaced-piece disposition —
+  recommendation: the surgeon hands it back, hold item,
+  sellable (funds the upgrade path; disposal fees are very
+  Consortium); (2) the consent moment should state the ratchet's
+  reassurance — re-installing a piece within your historical
+  peak costs zero new burn ("deeper costs, back is free").
 
 ## Open items
 
