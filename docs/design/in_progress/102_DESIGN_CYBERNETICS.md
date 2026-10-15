@@ -675,7 +675,9 @@ never a rejection (the ratchet prices it).
   (the neck wire port); Neural Stim -> os (the spine firmware);
   Nano Mesh -> dermal (the subdermal weave); Muscle Fibers ->
   arm_muscle (deliberately narrow so a future arm-joints piece
-  stacks beside it); SmartLink -> gun_link (the wrist port).
+  stacks beside it); SmartLink -> hands (corrected from
+  gun_link — the link lives in the hand, per the fiction: the
+  weapon IN YOUR HAND becomes part of your body).
   Same-line tiers share their key by definition.
 - **Subsumes doctrine (t2+ authoring law):** a piece occupies
   every anatomy its fiction covers — a full-arm replacement
