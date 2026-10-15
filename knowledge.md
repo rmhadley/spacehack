@@ -805,6 +805,31 @@ every in-fiction transaction needs a mechanism (who gets what, why the
 payment accomplishes it). When the user supplies replacement wording,
 use it verbatim.
 
+**The prose loop (user ruling 2026-10-15: identical process every
+time, one item at a time, silence is never acceptance).** Every prose
+settlement runs the same loop:
+
+1. **One item per exchange**, fixed presentation, nothing else in the
+   message: `PROSE #N — <surface> (<where it appears>)`, the prose
+   verbatim in quotes, one line of register constraints. No batch
+   dumps.
+2. **The ask via the question tool**, always the same verdicts, short
+   labels (the overlay cramps on long text — context lives in the
+   message above, which is where the presentation block sits):
+   - **Ship it** — accepted verbatim, recorded as ruled
+   - **My edit** — the user's wording replaces the draft verbatim,
+     no polish
+   - **Rewrite w/ direction** — the user's direction for the rewrite;
+     the tool offers no text field, so the edit text / rewrite
+     direction arrives in the user's NEXT CHAT LINE by design
+   - **Park** — explicitly NOT accepted; rides the open list
+3. **Hard rules:** silence or a non-answer is NEVER acceptance — the
+   default state of any prose is UNRULED, and nothing enters data
+   files, docs, or briefs without an explicit Ship it or the user's
+   edit. Parked items are re-listed as open at session end, never
+   assumed. Feedback is addressable as `#N: verdict`. The numbered
+   ledger lives in the owning design doc as a prose section.
+
 ---
 
 ### Module-level state contract
