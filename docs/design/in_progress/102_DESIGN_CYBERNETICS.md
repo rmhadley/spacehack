@@ -694,6 +694,30 @@ never a rejection (the ratchet prices it).
   reassurance — re-installing a piece within your historical
   peak costs zero new burn ("deeper costs, back is free").
 
+## SETTLED 15 — band presentation: names, not numbers
+## (2026-10-15)
+
+- **The band NAMES carry the communication; the UI never states
+  the consequences.** Multipliers, rep effects, and board
+  effects are felt in the world (prices you're charged, rows
+  that vanish, rep that moves) — never enumerated in a modal or
+  on a screen. The consent modal shows the NAME transition
+  ("You are Human. This will leave you Chromed.") alongside
+  the permanence warning and the ego numbers already ruled in
+  cluster B.
+- **The player-facing ladder:** burn 0-3 = **Human** (the dead
+  zone's name — you are Human until you're not); 4-7 = Flagged
+  (UNDER REVIEW — Registered/Listed/Marked candidates,
+  Registered the lean); 8-11 = **Chromed**; 12+ = **Psycho**
+  (the street word the board-valence language already uses).
+- **The C-screen ego line carries the current band NAME** —
+  settling the label question: label yes, name only. Lean: the
+  BASE band (you), not the planet-shifted local read — the
+  local read is felt in prices; a name that changes when you
+  travel reads as a bug first and a mechanic second.
+- The guide (reference manual) documents the actual numbers
+  when implemented — the game UI never does.
+
 ## Open items
 
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
