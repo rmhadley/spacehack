@@ -357,6 +357,41 @@ settled same day after two false starts)
   under the dead zone), and one t3 (burn 7) would have latched
   it inside band 1 while the world still read "flagged, x1.05".
 
+## SETTLED 6 — the crit system + Ocular t1 opens the teach
+## catalog (2026-10-15)
+
+Ruled with the user during phase-3 authoring:
+
+- **Crit chance and crit damage are first-class stats, all three
+  theaters** (ground melee, ground ranged, space). Base crit
+  chance 0% everywhere; base crit damage 1.5x everywhere. Both
+  are built to be modified from day one (ruled example:
+  cybernetic arms granting ground melee crit damage +5% raises
+  the multiplier to 1.55x — additive points on the multiplier).
+- **Ocular t1 = Terminus Tech Optics: grants space crit chance
+  15%.** The first — and currently only — source of any crit
+  chance in the game. Space only; burn 1; cheap and shop-common
+  per the teach tier. This supersedes the anatomy's t1 "+hit
+  rider" sketch for Ocular (rider vocabulary stays available to
+  t2+).
+- **Player-side today, actor-symmetric by architecture:** only
+  because no NPC wears chrome yet. An NPC pilot with the chrome
+  crits by the same rules — the calc reads the actor's stats,
+  never a hardcoded player branch.
+- **Terminus Tech is the megacorp the Consortium's board operates
+  through** — the brand on the teach catalog and the chrome-trail
+  answer (doc 39's "who makes the chrome?"). The name is ruled,
+  not working; the Consortium voice pass (phase 5) writes it.
+
+Parked: aim-surplus-to-crit conversion (raw hit over the 95 clamp
+becoming crit chance) — declined for t1 flat 15%, kept as t2+
+vocabulary.
+
+Open dependency for the Arms turn: crit damage is inert without a
+crit chance source in the same theater (base 0%, and Ocular's
+chance is space-only) — Arms t1 must grant melee crit chance (or
+pair with a source) for its crit-damage example to fire.
+
 ## Open items
 
 None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
