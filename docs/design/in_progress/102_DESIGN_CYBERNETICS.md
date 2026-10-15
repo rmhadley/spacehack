@@ -429,6 +429,50 @@ This supersedes the anatomy's jack t1 "+AP/dodge rider" sketch
 evasion-window idea raised during authoring dies here, superseded
 by the coefficient direction.
 
+## SETTLED 8 — the core contract + the teaching OS (2026-10-15)
+
+The spine's direction, ruled across the 2026-10-15 session:
+
+- **The spine hosts the chrome core — the OS for the whole
+  wardrobe.** Other pieces gain core-synergy lines from t2+
+  ("+1/tile; Runner core: +2/tile instead"); the already-ruled
+  t1 pieces are core-agnostic and gain lines in the t2 pass. The
+  t2+ roster (space specialists, ground specialists, layer-
+  agnostic generalists — Interdictor/Gunner, Ghost/Runner,
+  Breacher, Vital-line, Operator as working shapes) is its own
+  authoring sub-pass; the spine row goes three-wide and is the
+  pass's biggest authoring surface. Spine gates stay on the
+  engineering skill, including for ground cores.
+- **The core contract: activated mode, one action key, both
+  theaters, cooldown-based (not once-per-fight), default no
+  activation cost, small passive garnish at t2+ only.** Hard nos,
+  ruled: no RNG backfire (risk teaches timing, not distrust);
+  no ego-per-pop ever (burn is install-time, SETTLED 2). NPC
+  cores pop through the existing reserve/spend scorer —
+  actor-symmetric bursts are half-built by the doc 57 AI work.
+- **The teaching OS (t1): one factory OS, pure button, zero
+  passive.** No fork at t1 — the archetype firmware is the t2+
+  story. One button, both theaters, same burst and same cost
+  everywhere.
+- **Burst = the AP loan: +2 AP this round, −1 AP next round
+  (the repayment). Cooldown 3 rounds**, usable any round — the
+  outstanding loan itself discourages round-1 alpha pops. All
+  numbers are starting values, tweaked on playtest.
+- **Risk ruling: yes — the loan is the risk.** Opt-in,
+  combat-layer, chosen at the button: doctrine-clean against
+  "chrome enhances combat, always," and the recorded endgame
+  intent (opt-in risk pricing power) in miniature.
+- **Frame amendment:** the core action key is the one new t1 UI
+  surface — the lesson IS the button; every t2 core reuses the
+  keybind.
+- **The mirror, recorded as design intent:** the Combat Stim
+  (chem, ground-only) pays upfront — use_ap_cost then the burst
+  same turn; the neural version pays deferred — burst now, −1
+  next round — and runs in both theaters. Same family of
+  borrowed action, opposite accounting, and the firmware crosses
+  the cockpit door the chem cannot.
+- Name: pending — leaning TT Neural Stim (see session).
+
 ## Open items
 
 None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
