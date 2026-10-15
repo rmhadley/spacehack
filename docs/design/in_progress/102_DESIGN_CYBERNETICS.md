@@ -476,6 +476,31 @@ The spine's direction, ruled across the 2026-10-15 session:
   street product) is deferred; the user has a consumables polish
   pass queued for the near future and it belongs there.
 
+## SETTLED 9 — Vital t1: TT Nano Mesh (2026-10-15)
+
+- **Effect: while HP is strictly below half, the worn armor's
+  total DR is multiplied ×1.25.** A conditional coefficient on
+  the armor read — never a flat DR add. It scales with armor
+  investment by design (chrome rides alongside armor, SETTLED 1);
+  an unarmored build gets nothing and that is accepted.
+  Ground-only (Vital is the ground bay); actor-symmetric; 50%
+  and ×1.25 are starting values.
+- **Tuning law: consolation, never lifestyle.** If the multiplier
+  ever grows enough that staying wounded on purpose is a
+  strategy, the piece is mis-tuned — the number may move, the
+  identity may not.
+- **Naming rulings from this session:** the t1 register is plain
+  function names (Optics, Jack, Neural Stim, Nano Mesh);
+  colorful names are reserved for higher tiers. "Nullifier" is
+  explicitly reserved for the future stabilization line — the
+  piece that literally nullifies a killing blow (the parked
+  survive-at-1 vocabulary, now with its name). "Second Heart" is
+  parked as an emergency-HP-pool-shaped future piece (name plus
+  mechanic seed).
+
+Teach catalog: 4 of 6 (Optics, Piloting Jack, Neural Stim, Nano
+Mesh).
+
 ## Open items
 
 None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
