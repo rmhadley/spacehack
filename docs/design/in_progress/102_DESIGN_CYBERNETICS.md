@@ -705,11 +705,12 @@ never a rejection (the ratchet prices it).
   ("You are Human. This will leave you Chromed.") alongside
   the permanence warning and the ego numbers already ruled in
   cluster B.
-- **The player-facing ladder:** burn 0-3 = **Human** (the dead
-  zone's name — you are Human until you're not); 4-7 = Flagged
-  (UNDER REVIEW — Registered/Listed/Marked candidates,
-  Registered the lean); 8-11 = **Chromed**; 12+ = **Psycho**
-  (the street word the board-valence language already uses).
+- **The player-facing ladder (RULED):** burn 0-3 = **Natural**
+  (the dead zone's name — "Human" rejected, not everyone is
+  human; the chrome trade's word for the unmodified); 4-7 =
+  **Tainted** (the register is the world's escalating slur, not
+  bureaucracy); 8-11 = **Chromed**; 12+ = **Psycho** (the
+  street word the board-valence language already uses).
 - **The C-screen ego line carries the current band NAME** —
   settling the label question: label yes, name only. Lean: the
   BASE band (you), not the planet-shifted local read — the
