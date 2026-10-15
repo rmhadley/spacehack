@@ -624,12 +624,20 @@ All three instruments ruled or spec'd with the user:
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
 6-11) plus all three audit instruments (SETTLED 12). NEXT:
 phase 4, the Implementation briefs (advisor pass per house
-rule) — the first brief carries the chrome container (ctx field
+rule).
+
+**GATED (user, 2026-10-15): the heavy UI surfaces — buying,
+installing, and viewing your cybernetics — get a FULL design
+discussion with the user before any brief covers them.** The
+combat-HUD surfaces already ruled (the core keybind + cooldown
+display, crit feedback, the F-screen Consortium line) are not
+gated — they ride the first brief as designed. The first
+brief's build scope otherwise: the chrome container (ctx field
 + sum function mirroring sum_armor_bonus, terms at the five
 assembly points), the crit system, the dodge amendment, the
-catalog data, the core keybind, the ego economy + consequence
-bands, and the placeholder migration row (mechanism decided
-there, as always intended).
+catalog data, the ego economy + consequence bands, and the
+placeholder migration row (mechanism decided there, as always
+intended).
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
