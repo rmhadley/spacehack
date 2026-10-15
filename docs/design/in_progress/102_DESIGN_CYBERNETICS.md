@@ -517,6 +517,15 @@ Mesh).
 - Ground ranged crit chance remains 0% with no source — no bay
   owns ground aim (declined, SETTLED 1). Noted gap, future
   vocabulary.
+- **Invasiveness ladder (user ruling): tier = how much of you is
+  still you.** T1 pieces ENHANCE existing flesh (the consumer
+  line — grafts and weaves, never replacements); full
+  replacements (a whole arm) are higher tiers at higher ego
+  cost. The 1/4/7/11 burn ladder maps onto flesh-to-machine
+  escalation. This also separates the line from the placeholder
+  names, which claimed replacement they never earned. Name
+  pending — must read as muscle enhancement, not a prosthetic
+  (TT Servo Arms rejected on exactly this ground).
 
 Teach catalog: 5 of 6 (Optics, Piloting Jack, Neural Stim, Nano
 Mesh, Arms pending name).
