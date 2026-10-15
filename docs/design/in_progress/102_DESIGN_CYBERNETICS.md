@@ -619,6 +619,38 @@ All three instruments ruled or spec'd with the user:
   band function ("if burnt > 0: surcharge"). Ships as a
   permanent regression test in the build scope.
 
+## SETTLED 13 — capacity clarified: bays are sites, not slots
+## (2026-10-15)
+
+User catch: the session said "six slots"; the settled law says
+no such thing.
+
+- **A bay is an anatomical SITE, and installed chrome is
+  limited solely by ego** (capacity rule C: install checks new
+  load <= ego pool; the tier ladder 1/4/7/11 is per-piece). A
+  reflexes t1 piece and a t2 joint replacement coexist in the
+  legs region: load 1 + 4 = 5, burn ratchets, each piece's
+  tier gate reads reflexes BASE raw. The invasiveness ladder
+  becomes a per-bay accumulation story — a limb carrying weave
+  AND joints is literally less you.
+- **Same product line supersedes, different products stack**
+  (SETTLED 2's own arithmetic — "a t4 replaces one bay"):
+  installing the next tier of a line you wear is a SWAP priced
+  by the ratchet; distinct products in one bay both claim
+  capacity.
+- **The one exception (flagged for user veto): the spine holds
+  exactly one piece** — the core contract needs a singular OS
+  (SETTLED 8); two firmwares is two personalities.
+- UI consequence (cluster C sketch amended): the stats-tab bay
+  detail is a LIST of installed pieces, not one; the row
+  marker reads filled/empty.
+- The numbers-pass wide ceiling ("six t2 = 24/25") remains
+  true as the six-bay-wide shape, no longer the only shape —
+  "deep" now also means stacked bays. The rider-vs-skill check
+  (SETTLED 12) guards within-bay stacking too: same-domain
+  riders priced against the same skill points whether spread
+  across bays or piled into one.
+
 ## Open items
 
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
