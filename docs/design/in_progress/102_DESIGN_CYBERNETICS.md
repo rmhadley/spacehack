@@ -501,6 +501,26 @@ The spine's direction, ruled across the 2026-10-15 session:
 Teach catalog: 4 of 6 (Optics, Piloting Jack, Neural Stim, Nano
 Mesh).
 
+## SETTLED 10 — Arms t1 (2026-10-15)
+
+- **Effect: +15% ground melee crit chance (the Optics' mirror in
+  the other theater) plus a flat +2 melee damage garnish.** The
+  crit chance is the identity — this resolves the SETTLED 6
+  dependency: ground melee crits now have their source, and the
+  ruled +5% crit-damage example (1.5x -> 1.55x) fires as the t2
+  deepening. The flat add is feel, sized at +2 (ten strength
+  points' worth at the //5 step) — front-loaded early, fading
+  with investment. Both numbers are starting values.
+- **Family law, refined (user ruling): flat may garnish, never
+  carry.** A piece's identity is always a rate, chance, charge,
+  or conditional; small flat riders may ride along for feel.
+- Ground ranged crit chance remains 0% with no source — no bay
+  owns ground aim (declined, SETTLED 1). Noted gap, future
+  vocabulary.
+
+Teach catalog: 5 of 6 (Optics, Piloting Jack, Neural Stim, Nano
+Mesh, Arms pending name).
+
 ## Open items
 
 None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
