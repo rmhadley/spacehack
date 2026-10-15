@@ -471,7 +471,10 @@ The spine's direction, ruled across the 2026-10-15 session:
   next round — and runs in both theaters. Same family of
   borrowed action, opposite accounting, and the firmware crosses
   the cockpit door the chem cannot.
-- Name: pending — leaning TT Neural Stim (see session).
+- Name: **TT Neural Stim** (ruled 2026-10-15). The chem-maker
+  question (who makes the Combat Stim — TT's pharma wing vs
+  street product) is deferred; the user has a consumables polish
+  pass queued for the near future and it belongs there.
 
 ## Open items
 
