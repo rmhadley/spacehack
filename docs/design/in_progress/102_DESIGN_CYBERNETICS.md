@@ -714,6 +714,17 @@ catalog data, the ego economy + consequence bands, and the
 placeholder migration row (mechanism decided there, as always
 intended).
 
+Cluster C (viewing) SHAPED in discussion (2026-10-15): the
+Stats tab adopts the SPLIT family — precedent on the same
+screen (the Equipment tab embeds pygame_split, doc 52.3). Left
+pane: the six stat rows as today + a ×N piece-count indicator
+(stacking made counts meaningful). Right pane (display-only,
+no actions — ENTER stays SPEND on the left): the selected
+bay's chrome list, one line per piece, led by the existing
+guide-synced skill description. Body header gains the ego line
+(room | burn). Read-only by design; install/uninstall never
+here. Clusters A (transaction) and B (consent) still to walk.
+
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
 a vital/legs piece a marine meets) rides the tier-catalog phase;
