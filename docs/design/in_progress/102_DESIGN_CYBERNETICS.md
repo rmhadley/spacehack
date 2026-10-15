@@ -543,15 +543,51 @@ Mesh).
 Teach catalog: 5 of 6 (Optics, Piloting Jack, Neural Stim, Nano
 Mesh, Arms pending name).
 
+## SETTLED 11 — Legs t1: Terminus SmartLink; the teach catalog
+## completes (2026-10-15)
+
+- **Effect: +15% ground ranged crit chance.** Clean, the Optics
+  mirror — no garnish (ranged volleys are high-volume; a flat
+  add compounds strongest there, and "your shots crit now" is
+  the whole feel). The crit trio completes: space crits from
+  the Optics, melee crits from the Muscle Fibers, ranged crits
+  from the SmartLink — every theater the SETTLED 6 system
+  defined has its teacher, and the catalog's coverage is total
+  with zero overlap: space aim, space movement, core button,
+  ground defense, ground melee, ground ranged.
+- **The declined ground-aim bay resolved: it was Legs.** The
+  SETTLED 1 decline was about the OCULAR going gunnery-only;
+  reflexes is the ground aim stat (accuracy + attacker
+  reflexes//2 − target reflexes//2), so the reflexes-keyed bay
+  owns ground ranged after all. The bay fiction flexes from
+  "the stride" to the platform: a marine shoots from the
+  stride. The legacy +1 AP/round dies here (the Neural Stim
+  owns burst AP; a passive AP/round next to the loan economy
+  is muddled).
+- **Name and fiction (user intent, recorded): "Terminus
+  SmartLink" — the neural system linked with the ranged weapon;
+  the weapon in the hand becomes part of the body, aim a reflex
+  instead of a conscious set of actions.** The least invasive
+  piece in the line — a link, not a limb — bottom rung of the
+  invasiveness ladder, and chrome's first reach into a tool.
+- **Parked:** ground movement-dodge coefficient (good t2+
+  vocabulary or a future piece); the legacy +1 AP/round (t2+
+  deepening, natural pair with a coefficient later); disengage
+  and move-cost cuts (t2+ surfaces as always).
+
+Teach catalog COMPLETE, 6 of 6: Terminus Optics, Terminus
+Piloting Jack, Terminus Neural Stim, Terminus Nano Mesh,
+Terminus Muscle Fibers, Terminus SmartLink.
+
 ## Open items
 
-None open — the numbers pass settled 2026-10-06 (SETTLED 1-4:
-ocular/labs/tinker confirms and the alongside-armor line; ego
-formula + capacity rule C + ladder 1/4/7/11 + species birth
-mods; dead zone <= 3 + tier gates 0/25/50/75 reading BASE stats
-raw; consequence band table + planet band-shift). Remaining open
-design work rides the tier-catalog phase: the teach-catalog
-contents and the audit instrument specs.
+The numbers pass settled 2026-10-06 (SETTLED 1-5); the teach
+catalog contents completed 2026-10-15 (SETTLED 6-11, all six
+bays, every piece burn 1). Remaining phase-3 work: **the audit
+instrument specs** — the module-boundary audit (including the
+never-duplicate-a-module-row's-function fold-in), the dead-zone
+pin, and the rider-vs-skill pricing check (proposed at session
+start, still unruled).
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
