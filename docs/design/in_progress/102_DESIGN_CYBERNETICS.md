@@ -651,6 +651,37 @@ no such thing.
   riders priced against the same skill points whether spread
   across bays or piled into one.
 
+## SETTLED 14 — unique per anatomy (2026-10-15)
+
+User concept ("forced unique identifier"), named and ruled: every
+piece declares its **anatomy** — the anatomical structure it
+occupies — and **at most one installed piece per anatomy**;
+installing over an occupied anatomy is a SWAP, never a stack and
+never a rejection (the ratchet prices it).
+
+- **Three orthogonal limiters, now explicit:** the bay (skill)
+  gates WHAT STAT a piece extends and holds the tier gate; the
+  ANATOMY gates the body (one per structure); EGO gates HOW
+  MUCH. Quantity, identity, and flesh — one axis each.
+- **The spine exception dissolves:** no special case — the OS is
+  singular because it IS an anatomy (one spine), same as one
+  pair of eyes. SETTLED 13's veto flag resolves itself.
+- **Refines SETTLED 13's boundary:** "same line supersedes"
+  becomes "same anatomy is exclusive" — broader and correct: a
+  competitor's t3 ocular piece collides with the Terminus Optics
+  (one eye system, any brand), while different structures stack
+  within a region (gun link + leg joints).
+- **t1 catalog keys:** Optics -> ocular; Piloting Jack -> jack
+  (the neck wire port); Neural Stim -> os (the spine firmware);
+  Nano Mesh -> dermal (the subdermal weave); Muscle Fibers ->
+  arm_muscle (deliberately narrow so a future arm-joints piece
+  stacks beside it); SmartLink -> gun_link (the wrist port).
+  Same-line tiers share their key by definition.
+- **Subsumes doctrine (t2+ authoring law):** a piece occupies
+  every anatomy its fiction covers — a full-arm replacement
+  collides with (and swaps out) the fibers it replaces. Key
+  replacement tiers accordingly when authored.
+
 ## Open items
 
 Phase 3 is COMPLETE (2026-10-15): teach catalog 6/6 (SETTLED
