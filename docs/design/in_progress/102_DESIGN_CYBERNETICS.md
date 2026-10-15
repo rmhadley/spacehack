@@ -746,11 +746,32 @@ guide-synced skill description. Body header gains the ego line
 (room | burn). Read-only by design; install/uninstall never
 here.
 
-Remaining before the gate opens: cluster B, the consent moment
-— the three-check confirm's presentation (ratchet math, swap
-notice, band boundary), the "deeper costs, back is free"
-reassurance line, and the still-open band-label question on
-the ego line.
+Cluster B (the consent moment) RULED (2026-10-15): **any
+OPTIONAL action that permanently depletes ego gets a confirm
+modal first** — the law is general, not install-specific (any
+future opt-in ego cost inherits it). The modal shows:
+(1) the permanence warning in plain words; (2) **current ego
+(pool − burn) before and after, burn delta explicit**
+("burn 4 → 7"); (3) **if the new burn crosses a band boundary,
+the band change is part of the warning** — band names become
+player-facing vocabulary, which settles the ego-line question:
+the C-screen line carries the current band label too (vetoable
+if the hidden-lore reading should win there); (4) the zero-
+drain case reads "+0 — within your peak" (the ratchet
+reassurance delivered by the modal itself whenever true);
+(5) anatomy swaps ride the same modal ("replaces your Terminus
+Optics — handed back"). The three checks (capacity, tier gate)
+are BLOCKS that run before the modal — the modal exists only
+for when everything passes and consent is the sole question.
+One micro-decision flagged with a lean: does the modal warn on
+crossing the CONSORTIUM GATE (burn ≥ 2× birth pool — a
+permanent one-way world latch)? Lean YES (one-way doors are
+this modal's whole job); veto if the courtship should arrive
+as a surprise.
+
+**With B ruled, the heavy-UI gate is fully walked — A, B, and
+C are all ruled, and the Implementation briefs may now cover
+the acquisition/management UI.**
 
 Routed elsewhere by this doc's own section markers: the tier-one
 teach catalog (both layers — an ocular/jack piece a pilot meets,
