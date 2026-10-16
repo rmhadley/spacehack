@@ -80,6 +80,7 @@ def _key_action(sym_name: str, rules=None) -> str:
         "w": "WAIT",
         "f": "FIRE",
         "r": "RELOAD",
+        "a": "CORE",
         "c": "CHARACTER",
         "v": "TOGGLE_CARD",
         "x": "SWAP_SETS",
@@ -799,6 +800,11 @@ async def _dispatch_combat_action(console, ctx, game_map, rules, action: str, ta
         await _handle_fire(console, ctx, game_map, rules, target_idx)
     elif action == "RELOAD":
         await _run_rules_hook(ctx, rules, "reload_weapon", "Reload is unavailable here.")
+    elif action == "CORE":
+        # The chrome core button (doc 102 SETTLED 8): both rules
+        # modules own an activate_core; the line only fires for a
+        # rules adapter without one.
+        await _run_rules_hook(ctx, rules, "activate_core", "No neural core installed.")
     elif action == "SWAP_SETS":
         await _run_rules_hook(ctx, rules, "swap_weapon_sets", "Weapon swap is unavailable here.")
     elif action.startswith("WEAPON:"):

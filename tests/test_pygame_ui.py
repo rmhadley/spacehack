@@ -691,7 +691,9 @@ def test_combat_action_ignores_triggering_key_release_before_next_action(monkeyp
     assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == "WAIT", \
         "no rules: the action still resolves"
 
-    unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="a")
+    # "z" carries no combat mapping ("a" became the core button,
+    # doc 102 SETTLED 8).
+    unknown_key = pygame_engine.PygameInputEvent(kind="keydown", key_name="z")
     waits = iter(((unknown_key,), (key_down,)))
     monkeypatch.setattr(shared_ctx.context, "wait_events", as_async(lambda: next(waits)))
     assert run(_loop._combat_action(shared_ctx, SimpleNamespace())) == "WAIT", \

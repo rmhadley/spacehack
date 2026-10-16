@@ -134,3 +134,8 @@ class GroundCombatState:
     # The Shredder's mend line fires once per engagement (doc 48
     # SETTLED 42) — fight-scoped entity ids, never serialized.
     mend_told: set = field(default_factory=set)
+    # The Neural Stim's cooldown (doc 102 SETTLED 8), in rounds
+    # remaining before the core button is usable again — the LOAN
+    # rides active_consumable_effects as a -1 AP entry instead.
+    # Fight-scoped, never serialized.
+    core_cooldown: int = 0

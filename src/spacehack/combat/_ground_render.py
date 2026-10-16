@@ -243,6 +243,19 @@ def _ground_evasion(ctx) -> int:
     return _rules()._player_ground_dodge(ctx)
 
 
+def _render_ap_row(console, hud_x, y, state) -> int:
+    """The AP row with the temporary-bonus suffix; next row."""
+    _ap_text = f"AP: {state.player_ap}/{ap_pool_str(state.player_ap_total, state.player_ap_carry_twentieths)}"
+    console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
+    _ap_bonus = _active_ap_bonus()
+    if _ap_bonus > 0:
+        console.print(
+            x=hud_x + len(_ap_text) + 1, y=y,
+            string=f"+{_ap_bonus}", fg=_COLOR_GROUND_TEMP_AP,
+        )
+    return y + 1
+
+
 def _render_player_panel(console, ctx) -> int:
     """Paint the player HP/AP/evasion block; return the next HUD row."""
     _state = _rules()._state
@@ -267,19 +280,32 @@ def _render_player_panel(console, ctx) -> int:
         string=f"Armor: {_state.armor_defense}",
         fg=_COLOR_GROUND_ACTION,
     )
-    y += 1
-    _ap_text = f"AP: {_state.player_ap}/{ap_pool_str(_state.player_ap_total, _state.player_ap_carry_twentieths)}"
-    console.print(x=hud_x, y=y, string=_ap_text, fg=_COLOR_GROUND_ACTION)
-    _ap_bonus = _active_ap_bonus()
-    if _ap_bonus > 0:
-        console.print(
-            x=hud_x + len(_ap_text) + 1, y=y,
-            string=f"+{_ap_bonus}", fg=_COLOR_GROUND_TEMP_AP,
-        )
-    y += 1
+    y = _render_ap_row(console, hud_x, y + 1, _state)
     eva = _ground_evasion(ctx)
     console.print(x=hud_x, y=y, string=f"EVA: {eva}%", fg=_COLOR_GROUND_ACTION)
+    y += 1
+    _stim = _stim_hud_row(ctx)
+    if _stim is not None:
+        console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
+        y += 1
     return y + 2
+
+
+def _stim_hud_row(ctx) -> tuple[str, tuple[int, int, int]] | None:
+    """The Neural Stim HUD row (doc 102 SETTLED 8 + prose ledger 6):
+    the shared ``stim_hud_label`` — ``None`` when no core is worn.
+    Ready reads the temp-AP gold, cooling the panel's action color
+    (the space twin's state split). The debt line is declined by
+    ruling — the player learns the drain on their own."""
+    from ..chrome import installed_effects, stim_hud_label
+    _state = _rules()._state
+    if _state is None or not installed_effects(
+        getattr(ctx, "installed_chrome", ()),
+    ).has_core:
+        return None
+    if _state.core_cooldown > 0:
+        return stim_hud_label(_state.core_cooldown), _COLOR_GROUND_ACTION
+    return stim_hud_label(0), _COLOR_GROUND_TEMP_AP
 
 
 def _render_weapons_panel(console, ctx, weapons, alive, y: int) -> int:

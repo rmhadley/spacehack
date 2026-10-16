@@ -131,6 +131,22 @@ def _render_hull_shield_rows(console, hud_x, y, player_state) -> int:
     return y + 1
 
 
+def _stim_hud_row(player_state, ctx) -> tuple[str, tuple[int, int, int]] | None:
+    """The Neural Stim HUD row (doc 102 SETTLED 8 + prose ledger 6):
+    the shared ``stim_hud_label`` — ``None`` when no core is worn.
+    Ready reads gold, cooling dim. The debt line is declined by
+    ruling — the player learns the drain on their own."""
+    from .chrome import installed_effects, stim_hud_label
+    if ctx is None or not installed_effects(
+        getattr(ctx, "installed_chrome", ()),
+    ).has_core:
+        return None
+    _cd = player_state.get("stim_cooldown", 0)
+    if _cd > 0:
+        return stim_hud_label(_cd), COLOR_VALUE_DIM
+    return stim_hud_label(0), COLOR_AP
+
+
 def _render_ap_evade_pow_rows(
     console, hud_x, y, player_state, evade_bonus, ctx=None,
 ) -> int:
@@ -147,6 +163,10 @@ def _render_ap_evade_pow_rows(
         fg=COLOR_AP if pap > 0 else COLOR_HULL_BAR_RED,
     )
     y += 1
+    _stim = _stim_hud_row(player_state, ctx)
+    if _stim is not None:
+        console.print(x=hud_x, y=y, string=_stim[0], fg=_stim[1])
+        y += 1
     if evade_bonus is not None:
         # No colon so the row aligns with the bar-style Hull/Shd rows;
         # green when movement has stacked any dodge bonus.

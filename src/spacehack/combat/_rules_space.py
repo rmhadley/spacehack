@@ -833,6 +833,43 @@ def refund_volley_ap(ctx, amount: int) -> None:
 
 def reset_turn(ctx) -> None:
     start_player_turn(_state.player_state)
+    # The Neural Stim's loan repayment (doc 102 SETTLED 8): the -1 AP
+    # lands on the round AFTER the pop, exactly once; the cooldown
+    # ticks at every round start (pop round N, blocked N+1/N+2,
+    # ready again N+3).
+    _loan = _state.player_state.pop("stim_loan_ap", 0)
+    if _loan:
+        _ps = _state.player_state
+        _ps["ap_total"] = max(0, _ps["ap_total"] + _loan)
+        _ps["ap_remaining"] = max(0, _ps["ap_remaining"] + _loan)
+        from ..chrome import STIM_REPAY_LINE
+        ctx.log.add_colored(STIM_REPAY_LINE, _ml.COLOR_PLAYER_ACTION)
+    if _state.player_state.get("stim_cooldown", 0) > 0:
+        _state.player_state["stim_cooldown"] -= 1
+
+async def activate_core(ctx) -> None:
+    """The Neural Stim (doc 102 SETTLED 8): the t1 core button on
+    ``a`` — +2 AP this round, -1 next round (the loan), cooldown 3
+    rounds. One button, both theaters, same burst and same cost.
+    Async: the loop's rules-hook seam awaits every hook."""
+    from ..chrome import (
+        STIM_ACTIVATE_LINE, STIM_NO_CORE_LINE,
+        installed_effects, stim_recharge_line,
+    )
+    if not installed_effects(ctx.installed_chrome).has_core:
+        ctx.log.add_colored(STIM_NO_CORE_LINE, _ml.COLOR_PLAYER_ACTION)
+        return
+    _ps = _state.player_state
+    _cd = _ps.get("stim_cooldown", 0)
+    if _cd > 0:
+        ctx.log.add_colored(
+            stim_recharge_line(_cd), _ml.COLOR_PLAYER_ACTION,
+        )
+        return
+    _ps["ap_remaining"] += 2
+    _ps["stim_loan_ap"] = -1
+    _ps["stim_cooldown"] = 3
+    ctx.log.add_colored(STIM_ACTIVATE_LINE, _ml.COLOR_PLAYER_ACTION)
 
 def sync_state(ctx) -> None:
     # Flight state dies with the fight on EVERY end path (doc 57;

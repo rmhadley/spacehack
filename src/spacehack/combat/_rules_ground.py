@@ -874,18 +874,52 @@ def reset_turn(ctx) -> None:
     # enemy instances tick their own effects (regen heals, stim APs).
     from ._ground_effects import advance_enemy_effects, advance_player_effects
 
+    # The Neural Stim's loan (doc 102 SETTLED 8) rides the ledger as a
+    # -1 AP entry: advance consumes it exactly once this reset.
+    _loan_due = "neural_stim" in _state.active_consumable_effects
     _gain = (
         _state.player_ap_gain_twentieths
         + 20 * advance_player_effects(_state)
     )
     _avail, _carry = _roll_ap(_state.player_ap_carry_twentieths, _gain)
     _state.player_ap_carry_twentieths = _carry
-    _state.player_ap_total = _avail
-    _state.player_ap = _avail
+    _state.player_ap_total = max(0, _avail)
+    _state.player_ap = max(0, _avail)
     _state.cells_moved_this_turn = 0
+    if _loan_due and "neural_stim" not in _state.active_consumable_effects:
+        from ..chrome import STIM_REPAY_LINE
+        ctx.log.add_colored(STIM_REPAY_LINE, _ml.COLOR_PLAYER_ACTION)
+    if _state.core_cooldown > 0:
+        _state.core_cooldown -= 1
     for _gei in _state.enemies:
         _gei.ap = _gei.ap_total + advance_enemy_effects(_gei)
         _gei.cells_moved_this_turn = 0
+
+async def activate_core(ctx) -> None:
+    """The Neural Stim (doc 102 SETTLED 8): the t1 core button on
+    ``a`` — +2 AP this round, -1 next round (the loan rides the
+    consumable ledger as a -1 AP entry), cooldown 3 rounds. One
+    button, both theaters, same burst and same cost. Async: the
+    loop's rules-hook seam awaits every hook."""
+    from ..chrome import (
+        STIM_ACTIVATE_LINE, STIM_NO_CORE_LINE,
+        installed_effects, stim_recharge_line,
+    )
+    from ..ground_consumables import ActiveConsumableEffect
+    if not installed_effects(ctx.installed_chrome).has_core:
+        ctx.log.add_colored(STIM_NO_CORE_LINE, _ml.COLOR_PLAYER_ACTION)
+        return
+    if _state.core_cooldown > 0:
+        ctx.log.add_colored(
+            stim_recharge_line(_state.core_cooldown), _ml.COLOR_PLAYER_ACTION,
+        )
+        return
+    _state.player_ap += 2
+    _state.active_consumable_effects["neural_stim"] = ActiveConsumableEffect(
+        "neural_stim", 1, 0, -1,
+    )
+    _state.core_cooldown = 3
+    ctx.log.add_colored(STIM_ACTIVATE_LINE, _ml.COLOR_PLAYER_ACTION)
 
 def sync_state(ctx) -> None:
     # Release the engaged enemies: with the fight over they resume

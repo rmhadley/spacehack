@@ -102,3 +102,31 @@ def uninstall_chrome(ctx: "GameContext", piece_id: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+# ---------------------------------------------------------------------------
+# Ruled player-facing strings (doc 102, prose ledger items 3-6) — ONE
+# home so the theater twins cannot drift. Verbatim; never reworded
+# in a module.
+# ---------------------------------------------------------------------------
+
+STIM_ACTIVATE_LINE = (
+    "You activate the Terminus Neural Stim and your senses heighten "
+    "as energy courses through you."
+)
+STIM_REPAY_LINE = "Reality slows as the Neural Stim's effect wears off."
+STIM_NO_CORE_LINE = "No neural core installed."
+
+
+def stim_recharge_line(rounds: int) -> str:
+    """Ledger 5: the cooldown refusal line."""
+    return f"Neural Stim recharging: {rounds} rounds."
+
+
+def stim_hud_label(cooldown: int) -> str:
+    """Ledger 6: the HUD row's text — READY / N ROUNDS. The debt
+    line is DECLINED by ruling (the player learns the drain on
+    their own; revisit clause in the doc)."""
+    if cooldown > 0:
+        return f"STIM (a): {cooldown} ROUNDS"
+    return "STIM (a): READY"
