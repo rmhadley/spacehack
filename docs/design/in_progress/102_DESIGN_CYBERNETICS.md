@@ -1212,7 +1212,11 @@ build).
       core button (Brief 4.1) — BUILT 2026-10-16 in six reviewed
       commits (container+catalog+save / crit system / dodge
       amendment / Nano Mesh / core button / F7 dev grant); gate
-      green at 3827; PLAYTEST PENDING (checkpoint below)
+      green at 3827; PLAYTEST PASSED 2026-10-16 (crits, Stim,
+      evade confirmed in play; the Mesh accepted on test evidence —
+      the math is pinned at every layer in
+      tests/combat/test_nano_mesh.py, including the exactly-half
+      boundary and the integer truncation)
 - [ ] 4.2 the economy: ego, the Terminus kiosk, consequence bands,
       migration (Brief 4.2)
 - [ ] 4.3 the mirror: C-screen split, ego line, guide sync
