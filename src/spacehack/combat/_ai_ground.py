@@ -767,6 +767,19 @@ async def _present_enemy_shot(
         )
 
 
+def _landed_shot_soak(base_armor: int) -> int:
+    """The DR one landed enemy shot resolves against: the LIVE
+    per-hit soak (doc 102 SETTLED 9) — the Nano Mesh's x1.25 fires
+    only below half, and HP can cross half mid-burst. The threaded
+    base stands in when no session is live (stateless callers); the
+    AI's EV scorer keeps the raw read (the bounty-hunter belief
+    precedent)."""
+    from . import _rules_ground
+    if _rules_ground._state is not None:
+        return _rules_ground.player_soak(_rules_ground._state)
+    return base_armor
+
+
 def _roll_ground_shot(
     ctx, enemy_weapon_id, enemy_stats, armor_defense, player_dodge,
     distance: int, enemy_weapon_quality=0, enemy_worn=(0, 0),
@@ -798,7 +811,8 @@ def _roll_ground_shot(
     if not _hit:
         return False, 0, None
     _damage = ground_damage_raw(
-        enemy_weapon_id, enemy_stats.strength, armor_defense,
+        enemy_weapon_id, enemy_stats.strength,
+        _landed_shot_soak(armor_defense),
         melee_bonus=enemy_worn[1], quality=enemy_weapon_quality,
     )
     return True, _damage, _damage_popup_for(_damage, 0, False)

@@ -764,13 +764,19 @@ anchors are current as of this session's recon.
   The GROUND twin
   (`_ground_math.calc_ground_move_dodge`) is untouched.
 - **Nano Mesh** hooks per-hit armor consumption — the enemy-shot
-  resolution (`_ai_ground._roll_ground_shot`), blast friendly fire
-  (`_ground_blast`), stare eruption (`_ancients`) — NOT
-  `_armor_defense_total` (stamped once at init; HP can cross half
-  mid-burst, so the below-half read is per-hit). Enemy-side
-  symmetric read at `_rules_ground.damage()`'s `enemy.armor`. The
-  AI EV scorers keep the RAW read (the bounty-hunter belief
-  precedent: resolution-only, enemies misjudge by design).
+  resolution (`_ai_ground` via `_landed_shot_soak`), blast
+  self-splash + blast enemy victims (`_ground_blast`), stare
+  eruption (BOTH branches — player and enemy victims), the
+  Deadshot chain's victims, and the enemy side in
+  `_rules_ground.damage()` — every site routed through ONE pair:
+  `soak_with_mesh` (the pure conditional) with `player_soak` /
+  `enemy_soak` twins. NOT `_armor_defense_total` (stamped once at
+  init; HP can cross half mid-burst, so the below-half read is
+  per-hit). The AI EV scorers keep the RAW read (the bounty-hunter
+  belief precedent: resolution-only, enemies misjudge by design).
+  The chain's victims DO soak (the base-stat ruling excludes
+  attacker bonuses, never the victim's armor read — reviewer
+  catch, recorded 2026-10-16).
 - **Core button**: keybind in `_loop._key_action`'s action table,
   dispatched through the optional-rules-hook pattern
   (`activate_core`). Ground loan rides

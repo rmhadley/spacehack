@@ -195,7 +195,8 @@ def _combat_ctx(game_map, player_pos=(4, 4), player_hp=40, lines=None):
     ctx = SimpleNamespace(
         player=player, log=_Log(), lines=lines,
         ground_stats=SimpleNamespace(reflexes=10, strength=10),
-        player_traits=[], player_counters=SimpleNamespace(
+        player_traits=[], installed_chrome=[],
+        player_counters=SimpleNamespace(
             ground_damage_taken=0, total_kills=0,
         ),
     )

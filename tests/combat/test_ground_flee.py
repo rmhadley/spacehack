@@ -61,6 +61,7 @@ def _ground_ctx(game_map, player_pos):
         ),
         log=MessageLog(),
         player_traits=[],
+        installed_chrome=[],
         player_counters=PlayerCounters(),
         equipped_ground_weapons=[],
         equipped_ground_armor={},

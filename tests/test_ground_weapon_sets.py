@@ -528,6 +528,16 @@ from src.spacehack.ground_equipment import StoredGroundEquipment  # noqa: E402
 from src.spacehack import saveload_ground  # noqa: E402
 
 
+
+@pytest.fixture(autouse=True)
+def _restore_ground_session_state():
+    """Never leak the ground session into later files."""
+    from src.spacehack.combat import _rules_ground as _rg
+    _old = _rg._state
+    yield
+    _rg._state = _old
+
+
 def _pistol(loaded=12, quality=0):
     return GroundWeaponInstance("kinetic_pistol", loaded, quality)
 

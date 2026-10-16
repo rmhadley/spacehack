@@ -119,11 +119,14 @@ def _chain_hit_chance(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
 
 
 def _chain_damage(ctx, enemy, weapon_id: str, quality: int = 0) -> int:
-    """Damage for a chain shot: railgun stats, no Deadshot bonus."""
+    """Damage for a chain shot: railgun stats, no Deadshot bonus.
+    The VICTIM still soaks through the mesh conditional (doc 102
+    SETTLED 9) — the chain's base-stat ruling excludes attacker
+    bonuses, never the victim's armor read."""
     from . import _rules_ground as _rules
-    _armor = getattr(enemy, "armor", 0)
+    from ._ground_math import enemy_soak
     return _rules._ground_damage_raw(
-        weapon_id, ctx.ground_stats.strength, _armor,
+        weapon_id, ctx.ground_stats.strength, enemy_soak(enemy),
         strength_step=_rules._PLAYER_STRENGTH_STEP, quality=quality,
     )
 

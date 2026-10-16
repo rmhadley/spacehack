@@ -114,6 +114,7 @@ def _context(hp=10, items=None):
         equipped_ground_armor={},
         ground_expedition_items=list(items or []),
         player_traits=[],
+        installed_chrome=[],
         log=SimpleNamespace(
             add=lambda message: messages.append(message),
             add_colored=lambda message, _color: messages.append(message),

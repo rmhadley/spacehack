@@ -52,6 +52,8 @@ from ._ground_math import (
     ground_damage_raw as _ground_damage_raw,
     ground_hit_chance_raw as _ground_hit_chance_raw,
     ground_point_blank_penalty as _ground_point_blank_penalty,
+    enemy_soak,
+    soak_with_mesh,
 )
 from ._ground_math import _PLAYER_STRENGTH_STEP
 from ._ground_charger import (
@@ -369,6 +371,19 @@ def hit_chance(
         range_penalty=_range_penalty, quality=quality,
     )
 
+def player_soak(state: GroundCombatState) -> int:
+    """The per-hit player DR read (doc 102 SETTLED 9): the worn
+    armor's stamped total, x1.25 while the Nano Mesh fires — worn
+    AND HP strictly below half, re-read on every incoming hit (HP
+    can cross half mid-burst)."""
+    from ..chrome import installed_effects
+    return soak_with_mesh(
+        state.armor_defense,
+        installed_effects(state.ctx.installed_chrome).nano_mesh,
+        state.player_hp, state.player_max_hp,
+    )
+
+
 def _player_melee_bonus(ctx, weapon_id: str, chrome_fx, is_melee: bool) -> int:
     """The player's melee damage bonus term: worn armor + Sturdy's
     always-on +2 (doc 49, fists included) + the Muscle Fibers
@@ -382,39 +397,51 @@ def _player_melee_bonus(ctx, weapon_id: str, chrome_fx, is_melee: bool) -> int:
     return _melee_bonus
 
 
+def _apply_ground_crit(dmg: int, chance: int, points: int) -> tuple[int, bool]:
+    """Roll and apply one ground hit's crit (doc 102 SETTLED 6):
+    zero chance consumes no RNG draw (kill-draws doctrine)."""
+    if not _roll_crit(chance):
+        return dmg, False
+    return int(dmg * _crit_multiplier(points)), True
+
+
+def _raw_hit_damage(
+    weapon_id: str, enemy, ctx, chrome_fx, is_melee: bool, quality: int,
+) -> int:
+    """One player ground hit's raw damage: the enemy's folded soak
+    (the mesh's x1.25 below half applies to the enemy side too), the
+    melee bonus term, Deadshot's pool bonus, and the Pirate opener
+    window."""
+    _dmg = _ground_damage_raw(
+        weapon_id, ctx.ground_stats.strength, enemy_soak(enemy),
+        _player_melee_bonus(ctx, weapon_id, chrome_fx, is_melee),
+        strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
+    )
+    if _ground_deadshot.is_deadshot(ctx, weapon_id):
+        _dmg += _ground_deadshot.ap_power_damage_bonus(ctx, weapon_id)
+    _ef, _os = _opener_flags()
+    return _dmg * _opener_damage_pct(ctx, enemy_fired=_ef, opener_spent=_os) // 100
+
+
 def damage(
     weapon_id: str, enemy: GroundEnemyInstance, ctx, quality: int = 0,
 ) -> tuple[int, bool, bool]:
     """Apply weapon damage to a ground enemy. Returns ``(dmg, False, is_crit)``.
 
-    Enemy armor — the FOLDED instance read (spec + worn pieces, doc 48
-    SETTLED 51) — is subtracted here, with plasma halving it via
-    :func:`_ground_damage_raw`. Ground combat has no glancing
-    mechanic, but the unified loop unpacks the triple for both rule
-    sets — ground always reports ``False`` there. The crit roll
-    (doc 102 SETTLED 6) splits melee vs ranged on the existing
-    ``damage_type`` read and multiplies the dealt damage; zero
-    chance consumes no RNG draw (kill-draws doctrine).
+    Ground combat has no glancing mechanic, but the unified loop
+    unpacks the triple for both rule sets — ground always reports
+    ``False`` there. The crit roll (doc 102 SETTLED 6) splits melee
+    vs ranged on the existing ``damage_type`` read; zero chance
+    consumes no RNG draw (kill-draws doctrine).
     """
     from ..chrome import installed_effects
     _fx = installed_effects(ctx.installed_chrome)
     _is_melee = _find_gw(weapon_id).damage_type == "melee"
-    _dmg = _ground_damage_raw(
-        weapon_id, ctx.ground_stats.strength, enemy.armor,
-        _player_melee_bonus(ctx, weapon_id, _fx, _is_melee),
-        strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
-    )
-    if _ground_deadshot.is_deadshot(ctx, weapon_id):
-        _dmg += _ground_deadshot.ap_power_damage_bonus(ctx, weapon_id)
-    # Pirate opener (doc 49 SETTLED 5): the opening attack's damage
-    # rides the same window as the hit bonus.
-    _ef, _os = _opener_flags()
-    _dmg = _dmg * _opener_damage_pct(ctx, enemy_fired=_ef, opener_spent=_os) // 100
-    _is_crit = _roll_crit(
+    _dmg, _is_crit = _apply_ground_crit(
+        _raw_hit_damage(weapon_id, enemy, ctx, _fx, _is_melee, quality),
         _fx.crit_chance_melee if _is_melee else _fx.crit_chance_ranged,
+        _fx.crit_damage_points,
     )
-    if _is_crit:
-        _dmg = int(_dmg * _crit_multiplier(_fx.crit_damage_points))
     enemy.hp -= _dmg
     enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends

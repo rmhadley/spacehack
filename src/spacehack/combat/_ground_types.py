@@ -42,6 +42,11 @@ class GroundEnemyInstance:
     # card and in every math (the six soak readers read this field,
     # never ``spec.armor``).
     armor: int = 0
+    # Nano Mesh (doc 102 SETTLED 9, actor-symmetric): x1.25 on the
+    # armor total while HP is strictly below half. No NPC wears
+    # chrome in v1 — the field is the symmetric shape the enemy
+    # container populates later.
+    nano_mesh: bool = False
     # Enemy-side consumable effect state (doc 48 SETTLED 36) —
     # fight-scoped, never serialized: a new fight re-derives from the
     # entity's pre-rolled carried stamp.

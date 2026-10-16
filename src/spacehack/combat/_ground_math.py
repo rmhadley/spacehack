@@ -17,6 +17,32 @@ def calc_ground_move_dodge(cells_moved: int) -> int:
     return min(cells_moved * 5, 30)
 
 
+def soak_with_mesh(
+    armor: int, wears_mesh: bool, hp: int, max_hp: int,
+) -> int:
+    """The Nano Mesh conditional (doc 102 SETTLED 9): x1.25 on the
+    armor total while HP is strictly below half — ONE implementation
+    for both actors (the player reads worn chrome; an enemy reads its
+    instance flag). Never a flat DR add: it scales with armor
+    investment by design."""
+    if wears_mesh and hp * 2 < max_hp:
+        return armor * 5 // 4
+    return armor
+
+
+def enemy_soak(instance) -> int:
+    """One enemy instance's per-hit soak: the folded armor read, x1.25
+    when the victim wears a Nano Mesh below half (doc 102 SETTLED 9,
+    actor-symmetric — the player twin is ``_rules_ground.player_soak``).
+    Duck-typed getattr so chain victims and blast victims without the
+    flag read their plain armor."""
+    return soak_with_mesh(
+        getattr(instance, "armor", 0),
+        getattr(instance, "nano_mesh", False),
+        getattr(instance, "hp", 1), getattr(instance, "max_hp", 1),
+    )
+
+
 def ground_hit_chance_raw(
     weapon_id: str,
     attacker_reflexes: int,

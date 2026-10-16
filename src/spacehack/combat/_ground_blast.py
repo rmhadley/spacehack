@@ -16,6 +16,7 @@ from ..xp import (
 )
 from ._ground_math import _PLAYER_STRENGTH_STEP
 from ._ground_math import ground_damage_raw as _ground_damage_raw
+from ._ground_math import enemy_soak
 
 # Doc 53 SETTLED 2: the self-splash tombstone killer line, pinned
 # verbatim — a splash suicide never names a stale enemy.
@@ -63,9 +64,8 @@ def apply_explosive_enemy_hit(
     _dy = abs(enemy.pos.y - _center.y)
     if _dx > 1 or _dy > 1:
         return None
-    _armor = getattr(enemy, "armor", 0)
     _full_damage = _ground_damage_raw(
-        weapon_id, ctx.ground_stats.strength, _armor,
+        weapon_id, ctx.ground_stats.strength, enemy_soak(enemy),
         strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
     ) * opener_pct // 100
     _is_primary = primary_hit and center is None and enemy is primary
@@ -79,9 +79,12 @@ def apply_explosive_enemy_hit(
 def _apply_self_splash(state, weapon_id, primary, ctx, quality) -> int:
     """The player's own splash share when caught in the blast: the
     doc 53 ground damage tally increments on the applied (post-DR)
-    amount and the tracked killer becomes the settled self line."""
+    amount and the tracked killer becomes the settled self line.
+    The DR read is the LIVE per-hit soak (doc 102 SETTLED 9): the
+    Nano Mesh's x1.25 fires below half, even on your own blast."""
+    from ._rules_ground import player_soak
     _full_damage = _ground_damage_raw(
-        weapon_id, 0, state.armor_defense, quality=quality,
+        weapon_id, 0, player_soak(state), quality=quality,
     )
     _splash_pct = 50 + _demolitionist_splash_bonus(ctx)
     _splash_damage = max(1, _full_damage * _splash_pct // 100)

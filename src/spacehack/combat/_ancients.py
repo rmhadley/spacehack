@@ -250,7 +250,11 @@ def _erupt_zone(
         for _gei, _is_player in _cell_victims(state, ctx, game_map,
                                                _victim_cell):
             if _is_player:
-                _dmg = _reduce(ctx, max(1, _pre - state.armor_defense))
+                # The LIVE per-hit soak (doc 102 SETTLED 9): the Nano
+                # Mesh's x1.25 applies to the eruption too — any
+                # incoming hit below half.
+                from ._rules_ground import player_soak
+                _dmg = _reduce(ctx, max(1, _pre - player_soak(state)))
                 if hasattr(ctx, "player_counters"):
                     ctx.player_counters.ground_damage_taken += _dmg
                 state.player_hp -= _dmg
@@ -270,11 +274,13 @@ def _erupt_zone(
 
 def _stare_victim_damage(ctx, game_map, gei, pre: int) -> int:
     """One enemy victim's share: armor soaks (full — the FOLDED
-    instance read, worn pieces included, doc 48 SETTLED 51), hp
+    instance read, worn pieces included, doc 48 SETTLED 51, plus the
+    mesh conditional's x1.25 below half, doc 102 SETTLED 9), hp
     stamped on demand through the instance-build path; an eruption
     kill runs the death handling — drops land, NO player XP/rep, no
     kill counter."""
-    _dmg = max(1, pre - getattr(gei, "armor", 0))
+    from ._ground_math import enemy_soak
+    _dmg = max(1, pre - enemy_soak(gei))
     gei.hp -= _dmg
     if gei.entity is not None:
         gei.entity.hp = max(0, gei.hp)
