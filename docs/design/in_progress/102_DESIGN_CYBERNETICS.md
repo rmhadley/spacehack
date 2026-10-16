@@ -1137,10 +1137,12 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
 - **Kiosk ? opens the chrome topic** (the "service-terminal
   help text" straggler): every other terminal context-opens
   (`_open_context_guide(ctx, topic)` — comms/navigation
-  precedents); the kiosk currently falls to the bare topic
-  list. Fix: `ctx._guide_topic` set to the chrome section
-  around the kiosk loop (`run_interactive`'s GUIDE branch
-  already reads it).
+  precedents); the kiosk fell to the bare topic list. Shipped
+  (2026-10-16, reviewer-amended): `run_interactive` gained a
+  `guide_topic` kwarg dispatched through `help._open_context_guide`
+  — the attr write stays in its grandfathered home; the sketched
+  ctx-attr-set-around-the-loop would have tripped the runtime-attr
+  rule and leaked a stale topic.
 - **F-screen line formatting** (straggler): `_identity_block`
   appends the Terminus line directly under the broadcast line,
   same grey — a blank line separates it (a standing corporate
@@ -1377,6 +1379,31 @@ silently; the chrome guide section itself is 4.3 item 3.
 Checkpoint: open C, walk the six stats, read your chrome, your
 ego, and your name.
 
+**Playtest checklist (handed to the user 2026-10-16):**
+
+1. The Stats tab is the SPLIT family now: left = XP/Traits(/Gear)
+   lines + the six stat rows ("Skills"), right = the selected
+   skill's chrome ("Chrome"), TAB still cycles tabs, ENTER still
+   spends.
+2. Install pieces at a kiosk (or F7 for the split alone — counts
+   read dev grants too), then walk j/k: the value cell carries
+   "xN" per bay (e.g. "Gunnery 35 x1") and the right pane follows
+   the cursor — the skill description leads, then each piece
+   (name + its ruled detail line); an empty bay reads "Nothing
+   installed.".
+3. The footers under both panes: left "Ego N  Burnt Ego N
+   Install Room N", right "State: <name>" (base band; matches the
+   kiosk's readout exactly — one home). Cross a band at the kiosk
+   and reopen C: the State name moves.
+4. `?` inside the Terminus kiosk opens the guide AT the new
+   Cybernetics section (was the bare topic list); `?` in other
+   terminals unchanged (bare list per the None path).
+5. F screen at the gate: the "Terminus Tech: account active" line
+   now sits one blank line below your broadcast block (F7 six
+   pieces cannot reach the 12 gate — verify on a deep save, or
+   take the pin's word).
+6. Guide review (below) rides this playtest.
+
 ### Advisor pass (2026-10-15) — verdict SOUND-WITH-CATCHES;
 ### all 15 issues folded below, 3 open rulings flagged
 
@@ -1588,7 +1615,12 @@ build).
       hotfixes (render_hud's has_kiosk kwarg; the kiosk runner
       call arity — both the pin-the-real-call-path lesson, recorded
       in memory)
-- [ ] 4.3 the mirror: C-screen split, ego line, guide sync
-      (Brief 4.3)
+- [x] 4.3 the mirror: C-screen split, ego line, guide sync
+      (Brief 4.3) — BUILT 2026-10-16 in four reviewed commits +
+      two docs commits (the ruled-readout helpers to their ONE
+      home / the Stats split + dynamic runner / the guide prose
+      ledger 16-18 all Ship it / the kiosk ? topic + F-screen
+      gap); gate green at 3884; PLAYTEST PENDING (checklist in
+      the brief)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
