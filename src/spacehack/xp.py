@@ -270,7 +270,7 @@ def sturdy_melee_bonus(ctx: GameContext) -> int:
 
 def nimble_ap_bonus(ctx: GameContext) -> int:
     """Nimble origin trait: +1 ground AP per round (stacks with Ace
-    Pilot and cybernetic legs through the same bonus sum)."""
+    Pilot through the same bonus sum)."""
     return 1 if has_trait(ctx, "nimble") else 0
 
 

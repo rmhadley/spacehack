@@ -331,8 +331,8 @@ def _apply_chosen(ctx, index: int, targets, chosen) -> bool:
     if line is None or not consume_kit_charge(ctx, index):
         return False
     if chosen.startswith("KIT:ARMOR:"):
-        # A worn-armor tier bump scales its hp_bonus (quality tiers) —
-        # the stored ground-HP pair follows.
+        # A worn-armor tier bump is a live-input change (quality tiers
+        # scale defense now) — the stored ground-HP pair follows.
         from .xp import refresh_ground_max_hp
         refresh_ground_max_hp(ctx)
     ctx.log.add(line, runs=getattr(line, "runs", None))

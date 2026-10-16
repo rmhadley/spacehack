@@ -81,8 +81,8 @@ def ground_damage_raw(
     """Raw hit damage: base + melee bonuses - armor, minimum 1.
 
     ``armor_bypass`` weapons ignore armor entirely; plasma halves
-    ``armor_defense``; ``melee_bonus`` (cybernetic arms) applies only
-    to melee weapons. ``strength_step`` is the divisor for the melee
+    ``armor_defense``; ``melee_bonus`` applies only to melee weapons
+    (chrome garnish today — the armor field retired, doc 102.4.2). ``strength_step`` is the divisor for the melee
     strength bonus — the player passes ``_PLAYER_STRENGTH_STEP`` (5)
     so every 5 points of Strength adds +1 melee damage. ``quality``
     scales the weapon's damage (doc 47 phase 2).

@@ -92,9 +92,9 @@ _RENDER_HEIGHT: int = SCREEN_HEIGHT - 6
 def _stamp_enemy_loadout(_ent: world.Entity, _spec, _worn=()) -> int:
     """First-resolution stamps at combat entry (doc 48 SETTLED 36/37):
     the pre-rolled carried consumables land once (what they drop is
-    what they carry); returns the spec-derived AP total — worn
-    cybernetics' ``ap_bonus`` folded through the shared modifier math
-    (SETTLED 51/27)."""
+    what they carry); returns the spec-derived AP total (the worn
+    bonus fold retired with the placeholder fields, doc 102.4.2 —
+    the enemy chrome seam returns with the container)."""
     from ._actions import roll_carried_consumables
     from ._ground_effects import enemy_ap_total
 
@@ -145,10 +145,10 @@ def _build_enemy_instance(
 
 def _worn_fold(spec, stats, worn) -> tuple[int, int]:
     """The worn pieces' instance-build fold (doc 48 SETTLED 51/27):
-    ``hp_bonus`` into max HP, each piece's defense into the armor
-    read — the player's own modifier math, one pass over the stamped
-    pieces. What they wear is what they are, on the card and in
-    every soak."""
+    each piece's defense into the armor read — one pass over the
+    stamped pieces. What they wear is what they are, on the card and
+    in every soak. (The hp_bonus term retired with the placeholder
+    fields, doc 102.4.2.)"""
     return (
         spec.hp + stats.stamina // 3,
         spec.armor + _sum_armor_defense(worn),
@@ -351,7 +351,7 @@ def hit_chance(
     _range_penalty = _ground_point_blank_penalty(
         weapon_id, _distance_cells,
     )
-    # Sharpshooter trait: +10% hit chance; cybernetic eyes add more;
+    # Sharpshooter trait: +10% hit chance;
     # the Pirate opener rides the same sum while its window is open.
     _ef, _os = _opener_flags()
     _hit_bonus = (

@@ -78,8 +78,8 @@ def slot_tiers() -> dict[str, dict[int, tuple[str, ...]]]:
     the weapon ``family_tiers`` twin (doc 48 SETTLED 55): specs name
     eligible SLOTS, bands roll the tier, and the ladder derives from
     the catalog at call time so new armor content joins the bands
-    with no list edits. Cybernetic pieces are excluded (row-authored
-    only); unknown slots simply carry no ladder (the roll skips)."""
+    with no list edits. (Row-authored pieces join by authoring;
+    unknown slots simply carry no ladder — the roll skips.)"""
     ladders: dict[str, dict[int, list[str]]] = {}
     for spec in list_ground_armor():
         ladders.setdefault(spec.slot, {}).setdefault(

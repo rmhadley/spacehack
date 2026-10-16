@@ -1203,7 +1203,11 @@ loses its row.
 3. **Guide + annotation sync**: the chrome section (the guide
    DOCUMENTS the numbers per SETTLED 15 — names, multipliers,
    ego formula, kiosk flow), character-screen annotation
-   lines, service-terminal help text.
+   lines, service-terminal help text — AND the now-stale
+   ARMOUR bullet ("Some armour is cybernetic: it trades
+   defense for an effect...", guide/__init__.py:344-346,
+   falsified by 4.2's placeholder retirement; reviewer catch —
+   in scope so it cannot ride silently).
 4. Straggler polish from 4.1/4.2 (HUD hints, F-screen line
    formatting).
 5. Tests: split-rendering pins (row budgets per the

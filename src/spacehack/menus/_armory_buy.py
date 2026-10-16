@@ -27,9 +27,8 @@ def _weapon_detail(spec) -> str:
     )
 
 
-
 def _armor_detail(spec) -> str:
-    """Format one armor piece's slot, defense, and cybernetic effects."""
+    """Format one armor piece's slot and defense."""
     return (
         f"{spec.slot.title()}  Defense: {spec.defense}"
         f"  {spec.description}"

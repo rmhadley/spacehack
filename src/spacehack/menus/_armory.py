@@ -462,7 +462,7 @@ async def _install_from_container(
                 displaced_container=displaced_container or container,
                 strength=_strength(ctx),
             )
-            # Worn armor is a live max-HP input (hp_bonus cybernetics).
+            # Worn armor is a live max-HP input (the stored pair resyncs).
             from ..xp import refresh_ground_max_hp
             refresh_ground_max_hp(ctx)
     except (IndexError, KeyError, ValueError) as exc:
@@ -786,7 +786,7 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
         ctx.log.add(str(exc))
         return
     if chosen.startswith(("STORE_ARMOR:", "SELL_ARMOR:")):
-        # The worn set changed — a live max-HP input (hp_bonus cybernetics).
+        # The worn set changed — a live max-HP input (the pair resyncs).
         from ..xp import refresh_ground_max_hp
         refresh_ground_max_hp(ctx)
 

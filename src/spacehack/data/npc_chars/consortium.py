@@ -10,8 +10,9 @@ authored encounter difficulty decides which rung you meet (SETTLED
 
 Names are user-ruled VERBATIM (SETTLED 54). Worn pieces were the
 placeholder armor cybernetics (SETTLED 11); those retired with the
-chrome system (doc 102.4.2) and each rung wears stat-preserving
-plain-armor substitutes at the matching tech band (the enemy chrome
+chrome system (doc 102.4.2) and each rung wears plain-armor
+substitutes at the matching tech band (defense adjusts; the
+hit/melee/ap riders die with the fields) (the enemy chrome
 container lands later per SETTLED 6 — the worn_bonuses seam awaits
 it). Drops still ride the kit path at stamped qualities.
 """

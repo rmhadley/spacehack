@@ -163,7 +163,6 @@ SPEC = PlanetSpec(
         "light_helmet", "heavy_helmet", "light_vest", "medium_vest",
         "tactical_gloves", "reinforced_gauntlets", "armour_pads",
         "heavy_legs", "combat_boots", "assault_boots",
-        "heavy_helmet", "reinforced_gauntlets",
     ),
     tech_level=2,
     mission_tier=1,

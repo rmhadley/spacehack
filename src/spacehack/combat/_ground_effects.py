@@ -73,10 +73,10 @@ def advance_player_effects(state) -> int:
 
 
 def enemy_ap_total(spec, armor_entries=()) -> int:
-    """An enemy's per-round AP (doc 48 SETTLED 27): the spec's authored
-    base plus worn cybernetics' ``ap_bonus`` — the same modifier math
-    the player's cyber-legs run, so phase 11's consortium wearers just
-    work. No AP-armor exists yet; the entries seam is the contract."""
+    """An enemy's per-round AP (doc 48 SETTLED 27): the spec's
+    authored base. ``armor_entries`` is the seam the enemy chrome
+    container lands on (doc 102, deferred per SETTLED 6) — the
+    placeholder ap_bonus fold retired with its fields (4.2)."""
     return max(1, spec.ap)
 
 
