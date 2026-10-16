@@ -147,6 +147,13 @@ def predicted_burn_after(ctx: "GameContext", piece_id: str) -> int:
     it without mutating. A same-anatomy install is a SWAP
     (SETTLED 14): the replaced piece's claim leaves first, so its
     burn nets out of the load-after."""
+    return max(getattr(ctx, "ego_burn", 0), load_after(ctx, piece_id))
+
+
+def load_after(ctx: "GameContext", piece_id: str) -> int:
+    """The load total once ``piece_id`` installs — a same-anatomy
+    install is a SWAP: the replaced piece's claim nets out. The one
+    fold the predictor and the consent table share."""
     spec = find_chrome(piece_id)
     _load = ego_load(ctx)
     _worn = worn_anatomy_piece(ctx.installed_chrome, spec.anatomy)
@@ -154,7 +161,7 @@ def predicted_burn_after(ctx: "GameContext", piece_id: str) -> int:
         _replaced = _spec_or_none(_worn)
         if _replaced is not None:
             _load -= _replaced.burn
-    return max(getattr(ctx, "ego_burn", 0), _load + spec.burn)
+    return _load + spec.burn
 
 
 def ratchet_install(ctx: "GameContext", piece_id: str) -> str:
@@ -254,6 +261,89 @@ def rep_gain_multiplier(faction: str, band_index: int) -> float:
     return _BAND_REP_GAIN.get(faction, (1.00, 1.00, 1.00, 1.00))[
         max(0, min(3, band_index))
     ]
+
+
+# ---------------------------------------------------------------------------
+# The install instrument (doc 102 SETTLED 14 + the 4.2 prose ledger):
+# the three checks, the consent table, the removal table. Ruled
+# strings live here, ONE home, verbatim.
+# ---------------------------------------------------------------------------
+
+# Tier reqs on the bay's skill, base raw (SETTLED 3): t1 none, t2 25,
+# t3 50, t4 75 — the check exists from day one; t1 trivially passes.
+_TIER_SKILL_REQ: tuple[int, ...] = (0, 25, 50, 75)
+
+
+def _bay_skill_value(ctx: "GameContext", skill: str) -> int:
+    """The bay skill's BASE container value (space skills on
+    ``ctx.stats``, ground stats on ``ctx.ground_stats``) — module
+    and gear modifiers never count (SETTLED 3)."""
+    if hasattr(ctx, "ground_stats") and skill in (
+        "strength", "reflexes", "stamina",
+    ):
+        return int(getattr(ctx.ground_stats, skill, 0))
+    return int(getattr(getattr(ctx, "stats", None), skill, 0) or 0)
+
+
+def install_check(ctx: "GameContext", piece_id: str) -> str | None:
+    """The three-check instrument (SETTLED 14): returns the BLOCK
+    message, or ``None`` when the install may proceed to consent.
+    Capacity and the tier gate BLOCK; the anatomy collision is the
+    SWAP flow — never a block, it rides the consent modal instead."""
+    spec = find_chrome(piece_id)
+    _room = install_room(ctx)
+    if spec.burn > _room:
+        return f"Install Room {spec.burn} required, you have {_room}."
+    _req = _TIER_SKILL_REQ[max(0, spec.tier - 1)]
+    if _req > 0:
+        _value = _bay_skill_value(ctx, spec.skill)
+        if _value < _req:
+            _skill = spec.skill.title()
+            return f"{_skill} {_req} required, you have {_value} (base, raw)."
+    return None
+
+
+def consent_body(ctx: "GameContext", piece_id: str) -> tuple[str, str | None]:
+    """The consent modal's body (prose ledger #7): the ruled
+    Before/After table, plus the swap line when the anatomy is
+    occupied. Returns ``(body, swap_line)``."""
+    spec = find_chrome(piece_id)
+    _pool = ego_pool(ctx)
+    _burn = getattr(ctx, "ego_burn", 0)
+    _burn_after = predicted_burn_after(ctx, piece_id)
+    _load_after = load_after(ctx, piece_id)
+    _band_before, _band_after = base_band(ctx), band(_burn_after)
+    _state = (
+        f"{band_name(_band_before)}/{band_name(_band_after)}"
+        if _band_before != _band_after else
+        band_name(_band_before)
+    )
+    body = (
+        "        Before/After\n"
+        f"Ego:         {_pool - _burn}/{_pool - _burn_after}\n"
+        f"Burnt Ego:   {_burn}/{_burn_after}\n"
+        f"Install Room: {_pool - ego_load(ctx)}/{_pool - _load_after}\n"
+        f"State:   {_state}"
+    )
+    _worn = worn_anatomy_piece(ctx.installed_chrome, spec.anatomy)
+    _swap = f"Replaces {find_chrome(_worn).name}." if _worn is not None else None
+    return body, _swap
+
+
+def removal_table_lines(ctx: "GameContext", piece_id: str) -> tuple[str, ...]:
+    """The removal teaching (prose ledger #8): the ruled table —
+    Burnt Ego stays, Install Room returns. Every remover logs these
+    lines (the kiosk today; surgeons inherit)."""
+    spec = find_chrome(piece_id)
+    _pool = ego_pool(ctx)
+    _burn = getattr(ctx, "ego_burn", 0)
+    _load = ego_load(ctx)
+    return (
+        f"{spec.name} removed.",
+        f"Ego: {_pool - _burn}/{_pool - _burn}",
+        f"Burnt Ego: {_burn}/{_burn}",
+        f"Install Room: {_pool - _load}/{_pool - _load + spec.burn}",
+    )
 
 
 # ---------------------------------------------------------------------------

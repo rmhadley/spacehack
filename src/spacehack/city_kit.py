@@ -49,6 +49,13 @@ _TERMINAL_SPECS = (
     ("A", "Armory Terminal", "armory_terminal"),
 )
 
+# The chrome kiosk (doc 102 cluster A): joins the trio's row one
+# slot further out, every port — "installable anywhere" comes free
+# with the shared placement.
+KIOSK_GLYPH = "$"
+KIOSK_NAME = "Terminus Tech"
+KIOSK_FG: tuple[int, int, int] = (255, 200, 60)  # the brand gold
+
 
 def in_bounds(x: int, y: int, width: int, height: int) -> bool:
     """Return whether ``(x, y)`` lies inside a width×height grid."""
@@ -134,8 +141,11 @@ def add_service_terminals(
     dy: int = 3,
     dxs: tuple[int, int, int] = (-6, -2, 2),
     palette: tuple[tuple[int, int, int], ...] = TERMINAL_PALETTE_CLASSIC,
+    kiosk_dx: int = 6,
 ) -> None:
-    """Place the trade/mechanic/armory terminal trio near the berth."""
+    """Place the trade/mechanic/armory terminal trio — and the
+    Terminus chrome kiosk one slot beyond the last dx — near the
+    berth (doc 102 cluster A)."""
     berth = spec.hangar_anchor
     for (char, name, flag), dx, fg in zip(_TERMINAL_SPECS, dxs, palette):
         game_map.entities.append(world.Entity(
@@ -143,6 +153,11 @@ def add_service_terminals(
             pos=world.Position(berth.x + dx, berth.y + dy),
             name=name, **{flag: True},
         ))
+    game_map.entities.append(world.Entity(
+        char=KIOSK_GLYPH, fg=KIOSK_FG,
+        pos=world.Position(berth.x + kiosk_dx, berth.y + dy),
+        name=KIOSK_NAME, terminus_kiosk=True,
+    ))
 
 
 def set_city_metadata(

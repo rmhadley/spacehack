@@ -503,7 +503,10 @@ def _render_city_stat_rows(
     return y
 
 
-def _render_city_terminals(console, hud_x, y, *, has_armory_terminal, has_mech_terminal, has_trade_terminal) -> int:
+def _render_city_terminals(
+    console, hud_x, y, *, has_armory_terminal, has_mech_terminal,
+    has_trade_terminal, has_kiosk=False,
+) -> int:
     """Paint the terminal indicator rows; return the next row."""
     if has_armory_terminal:
         console.print(x=hud_x, y=y, string="A  Armory", fg=COLOR_LABEL)
@@ -513,6 +516,9 @@ def _render_city_terminals(console, hud_x, y, *, has_armory_terminal, has_mech_t
         y += 1
     if has_trade_terminal:
         console.print(x=hud_x, y=y, string="=  Trade", fg=COLOR_LABEL)
+        y += 1
+    if has_kiosk:
+        console.print(x=hud_x, y=y, string="$  Terminus Tech", fg=COLOR_LABEL)
         y += 1
     return y
 
@@ -586,7 +592,7 @@ def _render_ground_weapons_block(console, hud_x: int, y: int, ctx) -> int:
     return y
 
 
-def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_terminal, has_mech_terminal, has_armory_terminal) -> int:
+def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> int:
     """Paint the terminal hints and the ground weapons block — the two
     sections between the stats divider and the help divider.
 
@@ -599,6 +605,7 @@ def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_term
         has_armory_terminal=has_armory_terminal,
         has_mech_terminal=has_mech_terminal,
         has_trade_terminal=has_trade_terminal,
+        has_kiosk=has_kiosk,
     )
     if mode in ("city", "dungeon"):
         if has_armory_terminal or has_mech_terminal or has_trade_terminal:
@@ -609,7 +616,7 @@ def _render_city_ground_sections(console, hud_x, y, ctx, mode, *, has_trade_term
     return y
 
 
-def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal) -> None:
+def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, mode, hud_view_height, xp_line, xp_fg, has_trade_terminal, has_mech_terminal, has_armory_terminal, has_kiosk=False) -> None:
     """Paint the city/dungeon-mode HUD body below the title."""
     character = ctx.character_info
     y = _render_city_identity(
@@ -638,6 +645,7 @@ def _render_city_hud(console, hud_x, ctx, *, ship_catalog, location, date_str, m
         has_trade_terminal=has_trade_terminal,
         has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
+        has_kiosk=has_kiosk,
     )
     y += 1
     _render_divider(console, hud_x, y)

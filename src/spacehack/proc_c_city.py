@@ -421,9 +421,11 @@ def build_proc_c_layout(spec) -> world.GameMap:
         game_map, spec, stamps,
         prefix="proc_c_", default_layout_id="proc_c_ice_campus",
     )
+    # kiosk_dx=-8: the default +6 clips the spaceport transit bay's
+    # 3x3 (city_audit R1, doc 102.4.2).
     add_service_terminals(
         game_map, spec, dy=3, dxs=(-5, -2, 1),
-        palette=TERMINAL_PALETTE_CLASSIC,
+        palette=TERMINAL_PALETTE_CLASSIC, kiosk_dx=-8,
     )
     return game_map
 

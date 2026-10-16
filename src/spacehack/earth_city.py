@@ -300,10 +300,14 @@ def _add_service_entities(game_map, spec) -> None:
     Service NPCs live inside their authored interiors (seated when the
     room is first loaded), so nothing stands on the pavement outside.
     """
+    from .city_kit import KIOSK_FG, KIOSK_GLYPH, KIOSK_NAME
     terminal_data = (
         ("=", "Trade Terminal", world.Position(34, 29), "trade_terminal", (100, 220, 255)),
         ("%", "Mechanic Terminal", world.Position(30, 29), "mech_terminal", (200, 220, 100)),
         ("A", "Armory Terminal", world.Position(25, 29), "armory_terminal", (255, 160, 80)),
+        # The chrome kiosk (doc 102 cluster A) joins earth's authored
+        # row one slot past the armory.
+        (KIOSK_GLYPH, KIOSK_NAME, world.Position(22, 29), "terminus_kiosk", KIOSK_FG),
     )
     for char, name, position, flag, fg in terminal_data:
         game_map.entities.append(world.Entity(

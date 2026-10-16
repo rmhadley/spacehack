@@ -335,6 +335,7 @@ class Entity:
     trade_terminal: bool = False
     mech_terminal: bool = False
     armory_terminal: bool = False
+    terminus_kiosk: bool = False  # doc 102: the Terminus chrome kiosk
     computer_terminal: bool = False  # dungeon ship computer — interactable
     main_quest_console: bool = False  # Act 0 alien-door console — interactable
     loot_data: dict | None = None  # {"good_id": str, "quantity": int} — set for cargo loot entities

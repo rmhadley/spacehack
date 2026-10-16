@@ -413,7 +413,7 @@ async def _resolve_occupied(state, blocker):
         return await _resolve_ship_blocker(state, blocker)
     if blocker.transit_station_id:
         return await _resolve_transit_station(state, blocker)
-    if blocker.trade_terminal or blocker.mech_terminal or blocker.armory_terminal or blocker.main_quest_console or blocker.main_quest_door or blocker.interaction_flavor or blocker.dungeon_interaction or blocker.computer_terminal:
+    if blocker.trade_terminal or blocker.mech_terminal or blocker.armory_terminal or blocker.terminus_kiosk or blocker.main_quest_console or blocker.main_quest_door or blocker.interaction_flavor or blocker.dungeon_interaction or blocker.computer_terminal:
         return await _resolve_terminal_blocker(state, blocker)
     if blocker.npc_ship_id:
         return await _resolve_npc_ship_blocker(state, blocker)
@@ -501,6 +501,10 @@ async def _resolve_terminal_blocker(state, blocker):
     elif blocker.armory_terminal:
         from .menus._armory import _run_armory_menu
         await _run_armory_menu(ctx, state.current_city_id)
+        return 'CONTINUE'
+    elif blocker.terminus_kiosk:
+        from .menus._kiosk import _run_kiosk_menu
+        await _run_kiosk_menu(ctx, state.current_city_id)
         return 'CONTINUE'
     elif blocker.main_quest_console or blocker.main_quest_door:
         await main_quest_module.bump_mars_door(ctx)

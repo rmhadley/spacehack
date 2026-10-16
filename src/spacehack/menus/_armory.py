@@ -107,7 +107,13 @@ def _sell_price(item_id: str, quality: int = 0, ctx=None) -> int:
     try:
         family, price = "weapon", find_ground_weapon(item_id).price
     except KeyError:
-        family, price = "armor", find_ground_armor(item_id).price
+        try:
+            family, price = "armor", find_ground_armor(item_id).price
+        except KeyError:
+            # Swap-back chrome (doc 102): catalog price, sealed — no
+            # quality scaling, the flat half-price share.
+            from ..data.chrome import find_chrome
+            family, price = "chrome", find_chrome(item_id).price
     _receive_pct = int(_sell_receive_mult(ctx) * 100) if ctx is not None else 100
     if quality <= 0:
         return max(1, price // 2 * _receive_pct // 100)
@@ -128,6 +134,13 @@ def _equipment_name(entry: ground_equipment.StoredGroundEquipment) -> str:
         entry.item_type, entry.item_id, entry.quality,
     )
 
+def _chrome_detail(entry) -> str:
+    """One swap-back piece's armory detail line."""
+    from ..data.chrome import find_chrome
+    _spec = find_chrome(entry.item_id)
+    return f"{_spec.bay} chrome, swap-back (sellable here, installs at Terminus Tech)"
+
+
 def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
     """Resolve one stored item's effective (tier-scaled) details."""
     from ..data.quality import effective_armor_spec, effective_weapon_spec
@@ -136,6 +149,8 @@ def _equipment_detail(entry: ground_equipment.StoredGroundEquipment) -> str:
         return _weapon_detail(effective_weapon_spec(entry.item_id, entry.quality)) + (
             ground_equipment.stored_mag_suffix(entry)
         )
+    if entry.item_type == "chrome":
+        return _chrome_detail(entry)
     return _armor_detail(effective_armor_spec(entry.item_id, entry.quality))
 
 def _catalog_items(planet_id: str, month: int):
@@ -511,12 +526,17 @@ async def _choose_container_action(ctx, entries, index: int, container: str) -> 
         ground_equipment.ARMORY_STORAGE: ("Pack", "MOVE_TO_EXPEDITION"),
         ground_equipment.EXPEDITION_INVENTORY: ("Armory", "MOVE_TO_ARMORY"),
     }[container]
+    # Chrome swap-backs (doc 102) never equip here: chrome installs
+    # only at the Terminus kiosk.
+    _equip = () if entry.item_type == "chrome" else (
+        ("Equip", f"INSTALL_{container}:{index}"),
+    )
     return await pygame_story.choose(
         ctx,
         title="GROUND EQUIPMENT",
         body=name,
         options=(
-            ("Equip", f"INSTALL_{container}:{index}"),
+            *_equip,
             (transfer_label, f"{transfer_action}:{index}"),
             (f"Sell for {price}$", f"SELL_{container}:{index}"),
         ),

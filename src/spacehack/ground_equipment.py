@@ -168,6 +168,10 @@ def display_name(item_type: str, item_id: str, quality: int = 0) -> str:
 
     if item_type == "weapon":
         name = find_ground_weapon(item_id).name
+    elif item_type == "chrome":
+        from .data.chrome import find_chrome
+        name = find_chrome(item_id).name  # sealed: no quality token
+        return name
     else:
         name = find_ground_armor(item_id).name
     return f"{token_prefix(quality)}{name}"
@@ -290,6 +294,10 @@ def validate_entry(entry: StoredGroundEquipment) -> None:
         return
     if entry.item_type == "armor":
         find_ground_armor(entry.item_id)
+        return
+    if entry.item_type == "chrome":
+        from .data.chrome import find_chrome
+        find_chrome(entry.item_id)
         return
     raise ValueError(f"Unknown ground equipment type: {entry.item_type!r}")
 

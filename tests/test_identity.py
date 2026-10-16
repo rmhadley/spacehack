@@ -1251,6 +1251,7 @@ def test_dealer_bump_resolves_the_persona_before_the_citizen(monkeypatch):
     _blocker = SimpleNamespace(
         ship_id="", npc_ship_id="", transit_station_id=None,
         trade_terminal=None, mech_terminal=None, armory_terminal=None,
+        terminus_kiosk=None,
         main_quest_console=None, main_quest_door=None,
         interaction_flavor=None, dungeon_interaction=None,
         computer_terminal=None,

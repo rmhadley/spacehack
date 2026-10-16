@@ -38,12 +38,15 @@ def _ground_equipment_from_dict(raw: object):
         return None
     item_type = raw.get("item_type")
     item_id = raw.get("item_id")
-    if item_type not in {"weapon", "armor"} or not isinstance(item_id, str) or not item_id:
+    if item_type not in {"weapon", "armor", "chrome"} or not isinstance(item_id, str) or not item_id:
         return None
     try:
         if item_type == "weapon":
             from .data.ground_weapons import find_ground_weapon
             find_ground_weapon(item_id)
+        elif item_type == "chrome":
+            from .data.chrome import find_chrome
+            find_chrome(item_id)  # swap-backs (doc 102), quality-less
         else:
             from .data.ground_armor import find_ground_armor
             find_ground_armor(item_id)

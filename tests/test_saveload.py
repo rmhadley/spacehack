@@ -328,6 +328,31 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_chrome_swap_backs_survive_round_trip(self, monkeypatch, tmp_path):
+        """Doc 102.4.2: swap-back chrome in armory storage round-trips
+        (the reviewer catch — the load parser whitelisted it away)."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        from src.spacehack.ground_equipment import StoredGroundEquipment
+        RNG.seed(42)
+
+        ctx = _build_test_ctx()
+        ctx.ground_armory_storage.append(
+            StoredGroundEquipment("chrome", "terminus_optics", 0)
+        )
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        _chrome = [e for e in loaded.ground_armory_storage if e.item_type == "chrome"]
+        assert [(e.item_id, e.quality) for e in _chrome] == [("terminus_optics", 0)]
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_legacy_save_without_chrome_backfills_empty(
         self, monkeypatch, tmp_path,
     ):

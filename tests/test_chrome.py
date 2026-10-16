@@ -15,6 +15,7 @@ from src.spacehack.chrome import (
 )
 from src.spacehack.data.chrome import find_chrome, list_chrome
 from src.spacehack.game_context import GameContext
+from types import SimpleNamespace
 
 
 def test_catalog_six_t1_pieces_with_unique_anatomy():
@@ -115,6 +116,10 @@ class TestDevAcquisition:
     def test_toggle_flips_install_state_and_logs(self):
         from src.spacehack.dev_mode import toggle_chrome_dev
         ctx = _ctx_with_chrome()
+        ctx.log = SimpleNamespace(
+            add=lambda _m, **_k: None,
+            add_colored=lambda _m, _c, **_k: None,
+        )
         assert toggle_chrome_dev(ctx, "terminus_optics").endswith("installed.")
         assert ctx.installed_chrome == ["terminus_optics"]
         assert toggle_chrome_dev(ctx, "terminus_optics").endswith("uninstalled.")
@@ -144,3 +149,173 @@ class TestDevAcquisition:
         assert not _is_f7_press(
             pygame_engine.PygameInputEvent(kind="keydown", key_name="f6"),
         )
+
+
+def _ego_ctx(burn=0, pieces=()):
+    """A ctx with the ego/skill/stat/log doubles the instruments read."""
+    ctx = _ctx_with_chrome(*pieces)
+    ctx.player_level = 10
+    ctx.ego_burn = burn
+    ctx.stats = SimpleNamespace(credits=10_000)
+    ctx.ground_stats = SimpleNamespace(reflexes=10, strength=10, stamina=10)
+    ctx.current_city_id = ""
+    ctx.log = SimpleNamespace(
+        add=lambda _m, **_k: None,
+        add_colored=lambda _m, _c, **_k: None,
+    )
+    return ctx
+
+
+class TestInstallInstrument:
+    """The three-check + consent + removal instruments (SETTLED 14,
+    prose ledger 7-9)."""
+
+    def test_capacity_blocks_with_the_ruled_message(self):
+        from src.spacehack.chrome import install_check
+        ctx = _ego_ctx(pieces=tuple(p.id for p in list_chrome()[:6]))
+        # pool 9, load 6: a fresh anatomy piece needs 1, room 3 - fine;
+        # a full pool blocks via a re-install over every anatomy... use
+        # level 1 (pool 6, load 6 -> room 0).
+        ctx.player_level = 1
+        _msg = install_check(ctx, "terminus_optics")  # self-swap: room 0
+        assert _msg == "Install Room 1 required, you have 0."
+
+    def test_t1_passes_the_instrument_clean(self):
+        from src.spacehack.chrome import install_check
+        assert install_check(_ego_ctx(), "terminus_optics") is None
+
+    def test_consent_body_carries_the_ruled_table(self):
+        from src.spacehack.chrome import consent_body
+        ctx = _ego_ctx(burn=0)
+        body, swap = consent_body(ctx, "terminus_optics")
+        assert "Before/After" in body
+        assert "Ego:         9/8" in body       # pool 9, burn 0 -> 1
+        assert "Burnt Ego:   0/1" in body
+        assert "Install Room: 9/8" in body
+        # burn 0 -> 1 stays Natural (the dead zone is <= 3).
+        assert "State:   Natural" in body
+        assert swap is None
+        # The fourth teach piece crosses: burn 3 -> 4 Taints.
+        ctx.installed_chrome = [
+            "terminus_optics", "terminus_neural_stim", "terminus_nano_mesh",
+        ]
+        ctx.ego_burn = 3
+        body, swap = consent_body(ctx, "terminus_muscle_fibers")
+        assert "Burnt Ego:   3/4" in body
+        assert "State:   Natural/Tainted" in body
+        # Within the peak above the dead zone: 4/4, Tainted once.
+        ctx.installed_chrome = ["terminus_neural_stim"]
+        ctx.ego_burn = 4
+        body, swap = consent_body(ctx, "terminus_optics")
+        assert "Burnt Ego:   4/4" in body
+        assert "State:   Tainted" in body  # unchanged: name once
+
+    def test_consent_swap_line_names_the_replaced_piece(self):
+        from src.spacehack.chrome import consent_body
+        ctx = _ego_ctx(pieces=("terminus_optics",))
+        _body, swap = consent_body(ctx, "terminus_optics")
+        assert swap == "Replaces Terminus Optics."
+
+    def test_removal_table_teaches_the_ratchet(self):
+        from src.spacehack.chrome import removal_table_lines
+        ctx = _ego_ctx(burn=1, pieces=("terminus_optics",))
+        assert removal_table_lines(ctx, "terminus_optics") == (
+            "Terminus Optics removed.",
+            "Ego: 8/8",
+            "Burnt Ego: 1/1",
+            "Install Room: 8/9",
+        )
+
+
+class TestKioskPriceAndFlow:
+    """The kiosk's banded price + the one-step transaction."""
+
+    def test_kiosk_price_rides_the_local_band(self):
+        from src.spacehack.menus._kiosk import _kiosk_price
+        ctx = _ego_ctx()
+        ctx.current_city_id = ""
+        assert _kiosk_price(ctx, 100) == 100        # Natural
+        ctx.ego_burn = 4
+        assert _kiosk_price(ctx, 100) == 105        # Tainted
+
+    def test_install_via_kiosk_charges_and_ratchets(self, monkeypatch):
+        import asyncio
+
+        from src.spacehack.menus import _kiosk
+
+        ctx = _ego_ctx()
+        ctx.current_city_id = ""
+
+        async def _confirm(*_a, **_k):
+            return "CONFIRM"
+
+        monkeypatch.setattr(
+            "src.spacehack.game_flow._run_pygame_dungeon_confirm", _confirm,
+        )
+        asyncio.run(_kiosk._attempt_install(ctx, "terminus_optics"))
+        assert ctx.installed_chrome == ["terminus_optics"]
+        assert ctx.ego_burn == 1
+        assert ctx.stats.credits == 10_000 - 260
+
+    def test_install_declined_leaves_everything_untouched(self, monkeypatch):
+        import asyncio
+
+        from src.spacehack.menus import _kiosk
+
+        ctx = _ego_ctx()
+        ctx.current_city_id = ""
+
+        async def _decline(*_a, **_k):
+            return "BACK"
+
+        monkeypatch.setattr(
+            "src.spacehack.game_flow._run_pygame_dungeon_confirm", _decline,
+        )
+        asyncio.run(_kiosk._attempt_install(ctx, "terminus_optics"))
+        assert ctx.installed_chrome == []
+        assert ctx.ego_burn == 0
+        assert ctx.stats.credits == 10_000
+
+    def test_swap_back_lands_in_armory_storage(self, monkeypatch):
+        import asyncio
+
+        from src.spacehack.menus import _kiosk
+
+        ctx = _ego_ctx(pieces=("terminus_optics",), burn=1)
+        ctx.current_city_id = ""
+
+        async def _confirm(*_a, **_k):
+            return "CONFIRM"
+
+        monkeypatch.setattr(
+            "src.spacehack.game_flow._run_pygame_dungeon_confirm", _confirm,
+        )
+        asyncio.run(_kiosk._attempt_install(ctx, "terminus_optics"))  # self-swap
+        _entries = [
+            e for e in ctx.ground_armory_storage if e.item_type == "chrome"
+        ]
+        assert [e.item_id for e in _entries] == ["terminus_optics"]
+
+    def test_removal_via_kiosk_logs_the_full_table(self):
+        """The full ruled table through the shipped remover — the
+        Install Room row must show 8/9 (the piece still counted),
+        not the post-uninstall drift the reviewer caught."""
+        from src.spacehack.menus import _kiosk
+        ctx = _ego_ctx(burn=1, pieces=("terminus_optics",))
+        lines = []
+        ctx.log = SimpleNamespace(
+            add=lambda _m, **_k: None,
+            add_colored=lambda text, _c, **_k: lines.append(text),
+        )
+        _kiosk._remove(ctx, "terminus_optics")
+        assert lines == [
+            "Terminus Optics removed.",
+            "Ego: 8/8",
+            "Burnt Ego: 1/1",
+            "Install Room: 8/9",
+        ]
+        assert ctx.installed_chrome == []
+
+
+
+

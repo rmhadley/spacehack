@@ -38,6 +38,7 @@ def _present_overlay(state, ctx, console, map_h, location, space_view=None):
     _has_trade = any(e.trade_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
     _has_mech = any(e.mech_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
     _has_armory = any(e.armory_terminal for e in state.game_map.entities) if state.current_mode == 'city' else False
+    _has_kiosk = any(e.terminus_kiosk for e in state.game_map.entities) if state.current_mode == 'city' else False
     _shield_bubbles = ()
     if space_view is not None:
         _cam_x, _cam_y, _rx, _ry, _view_w, _view_h = space_view
@@ -51,6 +52,7 @@ def _present_overlay(state, ctx, console, map_h, location, space_view=None):
         screen_width=SCREEN_WIDTH, screen_height=SCREEN_HEIGHT,
         hud_view_height=map_h, has_trade_terminal=_has_trade,
         has_mech_terminal=_has_mech, has_armory_terminal=_has_armory,
+        has_kiosk=_has_kiosk,
         shields=_shield_bubbles,
     )
     if _overlay is None:

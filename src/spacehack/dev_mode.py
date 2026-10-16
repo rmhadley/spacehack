@@ -201,7 +201,13 @@ def toggle_chrome_dev(ctx, piece_id: str) -> str:
     from .data.chrome import find_chrome
     _name = find_chrome(piece_id).name
     if piece_id in ctx.installed_chrome:
+        # The ruled removal table (prose ledger 8) teaches the
+        # ratchet on every removal — computed BEFORE the uninstall
+        # so the table's load row carries the piece.
+        _lines = chrome_module.removal_table_lines(ctx, piece_id)
         chrome_module.uninstall_chrome(ctx, piece_id)
+        for _line in _lines:
+            ctx.log.add(_line)
         return f"[DEV MODE] {_name} uninstalled."
     _replaced = chrome_module.install_chrome(ctx, piece_id)
     _note = ""

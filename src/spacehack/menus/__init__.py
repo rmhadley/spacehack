@@ -24,4 +24,5 @@ from ._ship_menu import (
 )
 from ._mechanic import _run_mech_menu
 from ._armory import _run_armory_menu
+from ._kiosk import _run_kiosk_menu
 from ._planet import PlanetMenuOutcome, _run_planet_menu

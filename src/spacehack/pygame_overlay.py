@@ -365,6 +365,7 @@ def _render_hud_capture(
     has_trade_terminal: bool,
     has_mech_terminal: bool,
     has_armory_terminal: bool,
+    has_kiosk: bool = False,
 ) -> None:
     """Paint the domain HUD into ``console`` with the terminal flags."""
     from . import hud
@@ -379,6 +380,7 @@ def _render_hud_capture(
         has_trade_terminal=has_trade_terminal,
         has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
+        has_kiosk=has_kiosk,
     )
 
 
@@ -432,6 +434,7 @@ def capture(
     has_trade_terminal: bool = False,
     has_mech_terminal: bool = False,
     has_armory_terminal: bool = False,
+    has_kiosk: bool = False,
     shields: tuple[ShieldBubble, ...] = (),
 ) -> OverlayFrame:
     """Capture the authoritative HUD and message log into overlay segments."""
@@ -447,6 +450,7 @@ def capture(
         location=location, mode=mode,
         has_trade_terminal=has_trade_terminal, has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
+        has_kiosk=has_kiosk,
     )
     return _frame_from_commands(
         tuple(capture_console.commands),
@@ -529,6 +533,7 @@ def present_exploration(
     has_trade_terminal: bool = False,
     has_mech_terminal: bool = False,
     has_armory_terminal: bool = False,
+    has_kiosk: bool = False,
     shields: tuple[ShieldBubble, ...] = (),
 ) -> bool:
     """Present an exploration frame with native HUD/log text."""
@@ -542,6 +547,7 @@ def present_exploration(
         hud_view_height=hud_view_height,
         has_trade_terminal=has_trade_terminal, has_mech_terminal=has_mech_terminal,
         has_armory_terminal=has_armory_terminal,
+        has_kiosk=has_kiosk,
         shields=shields,
     )
     ctx.context.present(console, overlay=frame)
