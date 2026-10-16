@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable
 
 from .data.chrome import find_chrome
+from .data.species import find_species
 
 if TYPE_CHECKING:
     from .game_context import GameContext
@@ -94,14 +95,77 @@ def install_chrome(ctx: "GameContext", piece_id: str) -> str:
 
 
 def uninstall_chrome(ctx: "GameContext", piece_id: str) -> bool:
-    """Remove one installed piece. Frees the capacity claim; the
-    burn never recovers (4.2's ratchet). Returns whether the
-    piece was installed."""
+    """Remove one installed piece. Frees the Install Room claim;
+    the Burnt Ego never recovers (SETTLED 2's ratchet — the removal
+    table teaches this). Returns whether the piece was installed."""
     try:
         ctx.installed_chrome.remove(piece_id)
         return True
     except ValueError:
         return False
+
+
+# ---------------------------------------------------------------------------
+# The ego economy (doc 102 SETTLED 2/3/5) — pool and load are DERIVED,
+# never stored; the only stored state is ctx.ego_burn (the high-water
+# ratchet).
+# ---------------------------------------------------------------------------
+
+def ego_pool(ctx: "GameContext") -> int:
+    """Max ego: ``6 + birth + (level - 1) // 3`` (SETTLED 2). Birth
+    is the species' flat modifier (v1 all 0); level growth buys
+    chrome room — pool 6 at L1, 15 at L30, 25 at L60 at birth 0."""
+    try:
+        _birth = find_species(
+            ctx.character_info.get("species_id", ""),
+        ).ego_birth
+    except KeyError:
+        _birth = 0
+    return 6 + _birth + (max(1, getattr(ctx, "player_level", 1)) - 1) // 3
+
+
+def ego_load(ctx: "GameContext") -> int:
+    """Current claim: the sum of installed pieces' burn costs.
+    Recycles on uninstall (SETTLED 2 rule C)."""
+    total = 0
+    for piece_id in ctx.installed_chrome:
+        spec = _spec_or_none(piece_id)
+        if spec is not None:
+            total += spec.burn
+    return total
+
+
+def install_room(ctx: "GameContext") -> int:
+    """Install Room: how much chrome can still go in
+    (``pool - load`` — the claim reads the pool, rule C)."""
+    return ego_pool(ctx) - ego_load(ctx)
+
+
+def predicted_burn_after(ctx: "GameContext", piece_id: str) -> int:
+    """The ratchet's next value if ``piece_id`` installs: the
+    high-water mark of load-after. Pure — the consent table reads
+    it without mutating. A same-anatomy install is a SWAP
+    (SETTLED 14): the replaced piece's claim leaves first, so its
+    burn nets out of the load-after."""
+    spec = find_chrome(piece_id)
+    _load = ego_load(ctx)
+    _worn = worn_anatomy_piece(ctx.installed_chrome, spec.anatomy)
+    if _worn is not None:
+        _replaced = _spec_or_none(_worn)
+        if _replaced is not None:
+            _load -= _replaced.burn
+    return max(getattr(ctx, "ego_burn", 0), _load + spec.burn)
+
+
+def ratchet_install(ctx: "GameContext", piece_id: str) -> str:
+    """Install one piece AND advance the ratchet (the one mutation
+    path — install_chrome alone never moves burn). Returns the
+    replaced piece id, mirroring :func:`install_chrome`."""
+    replaced = install_chrome(ctx, piece_id)
+    # Post-install the load already includes the piece: the
+    # high-water mark is simply burn vs the new load.
+    ctx.ego_burn = max(getattr(ctx, "ego_burn", 0), ego_load(ctx))
+    return replaced
 
 
 # ---------------------------------------------------------------------------

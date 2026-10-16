@@ -376,6 +376,14 @@ class GameContext:
     # Cross-layer (space + ground); anatomy exclusivity and the
     # effect sums live in chrome.py. The ego economy rides 4.2.
     installed_chrome: list[str] = dataclasses.field(default_factory=list)
+    # The ego ratchet (doc 102 SETTLED 2): the HIGH-WATER MARK of
+    # total installed burn cost ever worn. Never recovers; pool and
+    # load are DERIVED (chrome.ego_pool / ego_load), never stored.
+    ego_burn: int = 0
+    # The one-time Consortium comms intro (doc 102 SETTLED 4/5):
+    # the gate itself is derived (burn >= 2x birth pool, monotone);
+    # only the shown-once flag needs storing.
+    consortium_intro_shown: bool = False
     # The bandolier (doc 52): per-caliber reserve rounds, ammo_type →
     # count, each clamped at its catalog carry_cap. The reload reserve
     # store — pickups and restock refill it; it never occupies a pack

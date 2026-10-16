@@ -47,6 +47,10 @@ class Species:
     hp_bonus: int = 0
     skill_bonus: PilotSkills = PilotSkills()
     ground_bonus: GroundStats = GroundStats()
+    # Doc 102 SETTLED 2/5: the species' flat ego-pool modifier
+    # (proposed band -1..+2). V1 ships every species at 0; exact
+    # values ride the species catalog pass.
+    ego_birth: int = 0
 
 
 # Per-file species tuples — append an import + line in

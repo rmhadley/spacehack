@@ -247,6 +247,10 @@ def _core_fields(ctx: GameContext) -> dict:
         "line_comply_latch": ctx.line_comply_latch,
         # Installed cybernetics (doc 102): piece ids in install order.
         "installed_chrome": list(ctx.installed_chrome),
+        # The ego ratchet high-water mark + the one-time Consortium
+        # intro flag (doc 102 SETTLED 2/4-5); pool/load derive.
+        "ego_burn": int(getattr(ctx, "ego_burn", 0)),
+        "consortium_intro_shown": bool(getattr(ctx, "consortium_intro_shown", False)),
         **_progression_fields(ctx),
         **_identity_fields(ctx),
         **_lore_fields(ctx),
@@ -697,6 +701,14 @@ def _restore_core_fields(ctx: GameContext, data: dict, parsed: _ParsedSave, rebu
     ctx.current_city_id = rebuilt.city_id
     # Chrome (doc 102): old saves predate the container — backfill empty.
     ctx.installed_chrome = list(data.get("installed_chrome", []) or [])
+    # The ratchet backfill: saves WITHOUT the key (pre-ego builds,
+    # incl. 4.1-era dev grants) floor to the current load; saves
+    # from ego-aware builds carry the tracked value as-is (F7 dev
+    # grants stay burn-neutral by design — band playtests go
+    # through the kiosk). The intro flag backfills False.
+    from .chrome import ego_load
+    ctx.ego_burn = int(data.get("ego_burn", ego_load(ctx)))
+    ctx.consortium_intro_shown = bool(data.get("consortium_intro_shown", False))
 
 
 def _restore_progression_fields(ctx: GameContext, data: dict) -> None:

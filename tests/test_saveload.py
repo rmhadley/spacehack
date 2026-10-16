@@ -276,6 +276,58 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_ego_ratchet_round_trips(self, monkeypatch, tmp_path):
+        """Doc 102.4.2: the burn ratchet + intro flag persist."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(31)
+
+        ctx = _build_test_ctx()
+        ctx.installed_chrome = ["terminus_optics", "terminus_neural_stim"]
+        ctx.ego_burn = 2
+        ctx.consortium_intro_shown = True
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.ego_burn == 2
+        assert loaded.consortium_intro_shown is True
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
+    def test_ego_burn_backfills_to_the_current_load(self, monkeypatch, tmp_path):
+        """A 4.1-era save (chrome granted, burn never tracked) loads
+        with burn = the current load — the honest floor."""
+        import json
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(32)
+
+        ctx = _build_test_ctx()
+        ctx.installed_chrome = ["terminus_optics", "terminus_smartlink"]
+        ctx.ego_burn = 0
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        path = tmp_path / "autosave.json"
+        data = json.loads(path.read_text())
+        data.pop("ego_burn")
+        path.write_text(json.dumps(data))
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.ego_burn == 2  # the two worn pieces' costs
+        assert loaded.consortium_intro_shown is False
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_legacy_save_without_chrome_backfills_empty(
         self, monkeypatch, tmp_path,
     ):
