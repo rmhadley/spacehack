@@ -1061,6 +1061,27 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     SmartLink "Ranged crit chance 15%." (x1.25, not ×1.25 —
     CP437).
 
+## Prose ledger — Brief 4.3 (2026-10-16, the prose loop)
+
+16. C-screen Stats-tab furniture bundle — **SHIP IT**: pane
+    labels "Skills"/"Chrome"; the stat row's count suffix in the
+    value cell ("35 (+10) x1  [+]"); the piece line composes name
+    + the ruled detail ("Terminus Optics  Space crit chance
+    15%."); empty line "Nothing installed." (kiosk reuse);
+    footers = ledger #14's readout verbatim ("Ego 5   Burnt Ego
+    1   Install Room 5" / "State: Natural", the kiosk's credits
+    append dropped); the hint line unchanged.
+17. The chrome guide section — **SHIP IT**: title "Cybernetics",
+    placed after Character & Skills (and the topic the kiosk's ?
+    opens); the full body verbatim in the build commit (kiosk
+    flow, the three numbers + permanence, pool growth, anatomy
+    swaps, the four band names with the ruled effects, valence,
+    the C-screen readout, the A key). The Consortium account
+    reveal deliberately stays out (hidden-lore layer).
+18. Controls combat-key row — **SHIP IT**: "- A: activate the
+    Neural Stim (+2 AP this round, -1 next round)" appended after
+    the W row.
+
 ## Pre-implementation audit (Brief 4.3 — verified in code 2026-10-16)
 
 ### Existing modules to extend or reuse
