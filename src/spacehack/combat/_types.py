@@ -80,6 +80,9 @@ class EnemyInstance:
     # fields when NPCs wear chrome. Base 0% / x1.5 everywhere.
     crit_chance: int = 0
     crit_damage_points: int = 0
+    # Dodge per-tile coefficient (doc 102 SETTLED 7): base 5; chrome
+    # grants raise it additively — read wherever this ship DEFENDS.
+    dodge_tile_coefficient: int = 5
     alive: bool = True
 
 

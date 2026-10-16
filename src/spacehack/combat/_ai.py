@@ -21,9 +21,9 @@ from ._messages import enemy_attack_line as _enemy_attack_line
 from . import _ai_conservation as _ac
 from ._stats import (
     calc_hit_chance,
-    _calc_dodge_bonus,
     _crit_multiplier,
     _distance,
+    player_dodge_from_state,
     _roll_crit,
 )
 from ._actions import (
@@ -474,12 +474,10 @@ def _reaction_pick(_ei, distance: float, player_state: dict):
 
 
 def _player_dodge(player_state: dict) -> int:
-    """The player's current dodge read — the same value the shot and
-    the scorer resolve with."""
-    return _calc_dodge_bonus(
-        player_state.get("cells_moved_this_turn", 0),
-        int(player_state.get("piloting", 0) * 0.5),
-    )
+    """The player's current dodge read — the shared assembly in
+    ``_stats.player_dodge_from_state`` (kept as the local name the
+    shot and the scorer already resolve with)."""
+    return player_dodge_from_state(player_state)
 
 
 def _pay_shot_consumables(_ei, slot: int, ws) -> None:

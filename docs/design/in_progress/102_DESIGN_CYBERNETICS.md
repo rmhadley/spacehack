@@ -752,11 +752,16 @@ anchors are current as of this session's recon.
   the movement term is IDENTICAL to today — only the total-cap
   lift changes values, and only for piloting>120 movers). Defender
   containers: `player_state["dodge_tile_coefficient"]` stamped at
-  `_stats._player_state_dict`; `EnemyInstance.dodge_tile_coefficient`
-  (default 5) declared in `combat/_types.py`. Threading sites:
-  `_rules_space` (hit_chance + 5 evade reads),
-  `_ai._player_dodge`, `_missile_flight` (`_arrival_dodge` + the
-  player-contact site), `_space_kills`. The GROUND twin
+  `_space_init._stamp_dodge_coefficient` (amended at build, 
+  2026-10-16: the `_stats` init builders are deliberately ctx-free,
+  so the stamp lives where ctx is in scope — same contract, better
+  home); `EnemyInstance.dodge_tile_coefficient`
+  (default 5) declared in `combat/_types.py`. Threading: ONE shared
+  player read `_stats.player_dodge_from_state` (reviewer DRY catch —
+  the assembly was copy-pasted at 9 sites) + direct enemy-defender
+  reads at `hit_chance`/`_build_hit_chances`/`_arrival_dodge`
+  (merged-target getattr: in-flight missiles defend at base 5).
+  The GROUND twin
   (`_ground_math.calc_ground_move_dodge`) is untouched.
 - **Nano Mesh** hooks per-hit armor consumption — the enemy-shot
   resolution (`_ai_ground._roll_ground_shot`), blast friendly fire

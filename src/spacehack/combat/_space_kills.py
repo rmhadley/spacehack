@@ -48,14 +48,12 @@ async def _animate_kill_explosion(
 ) -> None:
     """Play the death explosion animation for a killed enemy ship."""
     from ._animations import _animate_explosion
-    from ._rules_space import _build_hit_chances, _calc_camera, _calc_dodge_bonus
+    from ._stats import player_dodge_from_state
+    from ._rules_space import _build_hit_chances, _calc_camera
 
     _cam_x, _cam_y = _calc_camera()
     _hit_chances = _build_hit_chances(enemy)
-    _evade = _calc_dodge_bonus(
-        state.player_state.get("cells_moved_this_turn", 0),
-        int(state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(state.player_state)
     await _animate_explosion(
         state.console, ctx, game_map,
         enemy.pos,

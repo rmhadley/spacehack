@@ -32,7 +32,9 @@ from typing import Any
 from .. import world
 from ..data.quality import effective_ship_weapon_spec
 from ..data.weapons import find_weapon as _find_weapon
-from ._stats import _calc_dodge_bonus, _distance, clamp_hit_chance
+from ._stats import (
+    _calc_dodge_bonus, _distance, clamp_hit_chance, player_dodge_from_state,
+)
 
 # Family by shape, side by color (doc 57 SETTLED 10): the heavy's fat
 # dense diamond reads as the flak-worthy crossing; the light's quick
@@ -261,6 +263,7 @@ def _arrival_dodge(target) -> int:
     ``_calc_dodge_bonus`` assembly over its latest-round movement."""
     return _calc_dodge_bonus(
         target.cells_moved_this_turn, int(target.pilot_piloting * 0.5),
+        tile_coefficient=getattr(target, "dodge_tile_coefficient", 5),
     )
 
 
@@ -440,10 +443,7 @@ async def _detonate_on_player(state, ctx, missile: InFlightMissile) -> str | Non
     if missile.side == "enemy":
         return await _enemy_arrival_on_player(state, ctx, missile)
     _ps = state.player_state
-    _dodge = _calc_dodge_bonus(
-        _ps.get("cells_moved_this_turn", 0),
-        int(_ps.get("piloting", 0) * 0.5),
-    )
+    _dodge = player_dodge_from_state(_ps)
     if not _guided(state, ctx, missile, _dodge):
         _log_detonates_short(state)
         return None
@@ -494,10 +494,9 @@ async def _enemy_arrival_on_player(
 
     _ps = state.player_state
     _ws = _find_weapon(missile.weapon_id)
-    _dodge = _calc_dodge_bonus(
-        _ps.get("cells_moved_this_turn", 0),
-        int(_ps.get("piloting", 0) * 0.5),
-    ) + bounty_hunter_evade_bonus(ctx if ctx is not None else state.ctx)
+    _dodge = player_dodge_from_state(_ps) + bounty_hunter_evade_bonus(
+        ctx if ctx is not None else state.ctx,
+    )
     if not _guided(state, ctx, missile, _dodge):
         state.log.add_colored(
             enemy_attack_line(
@@ -535,7 +534,7 @@ async def _apply_player_contact(state, ctx, missile: InFlightMissile) -> str | N
     )
     if _fh > 0:
         return None
-    await _present_player_death(state, _ps.get("piloting", 0) // 2)
+    await _present_player_death(state, player_dodge_from_state(_ps))
     return "DEFEAT"
 
 
@@ -696,10 +695,7 @@ async def _render_hop_frame(state, cam: tuple[int, int]) -> None:
     from ._animations import _render_anim_frame, _responsive_sleep
     from ._rules_space import _build_hit_chances, _current_target
 
-    _evade = _calc_dodge_bonus(
-        state.player_state.get("cells_moved_this_turn", 0),
-        int(state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(state.player_state)
     _render_anim_frame(
         state.console, state.ctx, state.game_map,
         cam[0], cam[1], state.view_w, state.view_h,

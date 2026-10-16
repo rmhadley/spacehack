@@ -38,6 +38,7 @@ from ._stats import (
     _calc_dodge_bonus,
     _crit_multiplier,
     _distance,
+    player_dodge_from_state,
     _roll_crit,
 )
 from ._actions import (
@@ -332,6 +333,9 @@ def hit_chance(weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0) -> i
     _dodge = _calc_dodge_bonus(
         enemy.cells_moved_this_turn,
         int(enemy.pilot_piloting * 0.5),
+        # getattr: the merged targeting space includes in-flight
+        # missiles (doc 57), which defend at the base coefficient.
+        tile_coefficient=getattr(enemy, "dodge_tile_coefficient", 5),
     )
     return _space_hit_chance(
         weapon_id, _state.player_state["gunnery"], _dist, _dodge,
@@ -522,6 +526,8 @@ def _build_hit_chances(target) -> dict[str, int]:
     _target_dodge = _calc_dodge_bonus(
         target.cells_moved_this_turn,
         int(target.pilot_piloting * 0.5),
+        # getattr: merged targets include in-flight missiles (doc 57).
+        tile_coefficient=getattr(target, "dodge_tile_coefficient", 5),
     )
     for _index, _wid in enumerate(_state.weapons_list):
         try:
@@ -710,10 +716,7 @@ def render_frame(console, ctx, game_map: world.GameMap) -> None:
     _paint_combat_target(console, _cam_x, _cam_y)
 
     _hit_chances = _build_hit_chances(_current_target())
-    _evade = _calc_dodge_bonus(
-        _state.player_state.get("cells_moved_this_turn", 0),
-        int(_state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(_state.player_state)
     _paint_status_hud(console, _hit_chances, _evade, _range_wid)
     # The message band is painted natively by pygame_combat.present from
     # ctx.log via the shared log_band_rows builder — no cell capture.
@@ -729,10 +732,7 @@ async def animate_fire(
 
     _hit_chances = _build_hit_chances(_current_target())
 
-    _evade = _calc_dodge_bonus(
-        _state.player_state.get("cells_moved_this_turn", 0),
-        int(_state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(_state.player_state)
 
     _wid = weapon_id or (_state.weapons_list[0] if _state.weapons_list else "light_laser")
     await _animate_weapon_shot(
@@ -793,10 +793,7 @@ async def run_enemy_turns(ctx, game_map: world.GameMap) -> int:
 
     _hit_chances = _build_hit_chances(_current_target())
 
-    _evade = _calc_dodge_bonus(
-        _state.player_state.get("cells_moved_this_turn", 0),
-        int(_state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(_state.player_state)
 
     _result = await _enemy_ai(
         _state,
@@ -882,10 +879,7 @@ async def reaction_volley(ctx, game_map: world.GameMap) -> bool:
 
     _p_pos = _state.player_state["pos"]
     _hit_chances = _build_hit_chances(_current_target())
-    _evade = _calc_dodge_bonus(
-        _state.player_state.get("cells_moved_this_turn", 0),
-        int(_state.player_state.get("piloting", 0) * 0.5),
-    )
+    _evade = player_dodge_from_state(_state.player_state)
     for _ei in get_enemies(ctx):
         if not _has_los(game_map, _ei.pos.x, _ei.pos.y, _p_pos.x, _p_pos.y):
             continue

@@ -110,6 +110,10 @@ class TestCalcHitChance:
 # ---------------------------------------------------------------------------
 
 class TestCalcDodgeBonus:
+    """Doc 102 SETTLED 7 (the dodge amendment): the 60 cap binds the
+    piloting BASE only; the movement term = min(cells, 6) x
+    coefficient rides on top with no total cap."""
+
     def test_no_movement(self):
         assert _calc_dodge_bonus(0, 0) == 0
 
@@ -117,17 +121,36 @@ class TestCalcDodgeBonus:
         """3 cells → 15%."""
         assert _calc_dodge_bonus(3, 0) == 15
 
-    def test_movement_cap(self):
-        """7 cells → 30 (capped, not 35)."""
+    def test_cells_cap_at_six(self):
+        """7 cells → 30 (the first 6 cells pay, not 35)."""
         assert _calc_dodge_bonus(7, 0) == 30
 
-    def test_piloting_bonus(self):
-        """3 cells + 30 piloting → min(15+30, 60) = 45."""
+    def test_piloting_bonus_rides_uncapped_below_60(self):
+        """3 cells + 30 piloting → 15 + 30 = 45."""
         assert _calc_dodge_bonus(3, 30) == 45
 
-    def test_total_cap(self):
-        """7 cells + 50 piloting → min(30+50, 60) = 60."""
-        assert _calc_dodge_bonus(7, 50) == 60
+    def test_piloting_base_caps_at_60_not_the_total(self):
+        """7 cells + 50 piloting → min(50,60) + 30 = 80 (the old
+        total-60 cap is dead)."""
+        assert _calc_dodge_bonus(7, 50) == 80
+
+    def test_still_pilot_reads_base_cap_stationary(self):
+        """Folded piloting past 120 caps the base: 130 → 60, no
+        movement."""
+        assert _calc_dodge_bonus(0, 130) == 60
+
+    def test_the_96_composition(self):
+        """Capped-base pilot + full move on the jack: 60 + 6 x 6 = 96
+        (SETTLED 7's ruled example — past the old 90 ceiling)."""
+        assert _calc_dodge_bonus(6, 60, tile_coefficient=6) == 96
+
+    def test_base_coefficient_ceiling_is_90(self):
+        """60 + 6 x 5 = 90 at the base coefficient (unchanged max)."""
+        assert _calc_dodge_bonus(6, 60) == 90
+
+    def test_coefficient_only_pays_moved_cells(self):
+        """5 coefficient on 2 cells: min(2,6) x 5 = 10."""
+        assert _calc_dodge_bonus(2, 0, tile_coefficient=5) == 10
 
 
 # ---------------------------------------------------------------------------

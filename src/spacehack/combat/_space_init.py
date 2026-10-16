@@ -48,7 +48,19 @@ def build_initial_enemies(
         if _i == 0:
             _player_state = _ps
         _enemy_insts.append(_ei)
+    _stamp_dodge_coefficient(ctx, _player_state)
     return _player_state, _enemy_insts
+
+
+def _stamp_dodge_coefficient(ctx, player_state: dict) -> None:
+    """The Piloting Jack's per-tile dodge coefficient (doc 102
+    SETTLED 7): base 5 + the worn chrome's additive grant, stamped
+    once here where ctx is in scope (the init builders are
+    deliberately ctx-free)."""
+    from ..chrome import installed_effects
+    player_state["dodge_tile_coefficient"] = (
+        5 + installed_effects(ctx.installed_chrome).dodge_tile_bonus
+    )
 
 
 def find_player_entity(game_map: world.GameMap) -> Any:

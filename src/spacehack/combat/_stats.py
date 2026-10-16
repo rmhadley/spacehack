@@ -135,22 +135,41 @@ def _roll_ap(pool_twentieths: int, gain_twentieths: int) -> tuple[int, int]:
     return _pool // 20, _pool % 20
 
 
-def _calc_dodge_bonus(cells_moved: int, piloting_bonus: int = 0) -> int:
-    """Dodge bonus percent: +5/cell moved (cap 30) + half-rate pilot piloting.
+def _calc_dodge_bonus(
+    cells_moved: int, piloting_bonus: int = 0, tile_coefficient: int = 5,
+) -> int:
+    """Dodge bonus percent: capped piloting base + per-tile movement term.
 
-    The movement term rewards repositioning during the turn and
-    stays capped at 30 so a clever kiter can never make the
-    opponent literally invulnerable. The ``piloting_bonus`` is a
-    pre-scaled percent (callers pass ``int(pilot_piloting * 0.5)``
-    to mirror the gunnery half-rate convention) so AIProfile's
-    ``dodge_bonus`` and module ``piloting_bonus`` modifiers (e.g.
-    gyro_stabilizer) actually fire instead of sitting unread on
-    EnemyInstance / OwnedShip. Total dodge is soft-capped at 60
-    so a high-piloting defender still has a counter for skilled
-    attackers but no single buff stacks into invulnerability.
+    Doc 102 SETTLED 7 (the dodge amendment): the 60 cap now binds the
+    PILOTING BASE only — ``min(folded piloting x 0.5, 60)`` — and the
+    movement term rides on top with no total cap:
+    ``min(cells moved, 6) x tile_coefficient`` (the first 6 cells, 6 AP
+    of movement, contribute). ``piloting_bonus`` is the pre-scaled
+    percent (callers pass ``int(pilot_piloting * 0.5)`` to mirror the
+    gunnery half-rate convention) so AIProfile's ``dodge_bonus`` and
+    module ``piloting_bonus`` modifiers actually fire.
+    ``tile_coefficient`` is a per-actor stat (base 5; the Piloting
+    Jack's chrome grant raises it additively — actor-symmetric, an
+    NPC pilot wearing the jack kites harder too).
+
+    The old total-60 invulnerability guard is DEAD by ruling: the
+    5-95 hit-chance clamp floor is the sole invulnerability guard
+    (elite aim stacks still pierce; raw ~135 reads 39% vs dodge 96).
     """
-    movement = min(cells_moved * 5, 30)
-    return min(movement + piloting_bonus, 60)
+    movement = min(cells_moved, 6) * tile_coefficient
+    return min(piloting_bonus, 60) + movement
+
+
+def player_dodge_from_state(player_state: dict) -> int:
+    """The player's dodge read from a combat state dict — the ONE
+    assembly every shot, scorer, HUD, and animation frame resolves
+    with: movement + half-rate piloting + the chrome per-tile
+    coefficient (doc 102 SETTLED 7)."""
+    return _calc_dodge_bonus(
+        player_state.get("cells_moved_this_turn", 0),
+        int(player_state.get("piloting", 0) * 0.5),
+        tile_coefficient=player_state.get("dodge_tile_coefficient", 5),
+    )
 
 
 def _distance(a: world.Position, b: world.Position) -> float:
