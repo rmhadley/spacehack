@@ -866,6 +866,123 @@ Keybind ruled the same session: **the core action key is `a`**
    revisit." The repayment log line (#4) is the debt's only
    surface.
 
+## Pre-implementation audit (Brief 4.2 — verified in code 2026-10-16)
+
+### Existing modules to extend or reuse
+
+- **Ego economy** (grows `chrome.py`, the domain home): pool =
+  `6 + birth + (level−1)//3` — birth from a new
+  `Species.ego_birth: int = 0` field (v1 all species 0; exact
+  values ride the species catalog pass), level = `ctx.player_level`;
+  **load = Σ installed burn costs (DERIVED, never stored — stored
+  state is `ctx.ego_burn` only, the high-water ratchet)**; room =
+  pool − burn. Install checks `load + cost ≤ pool`; burn moves to
+  `max(burn, load_after)`. Save at `_core_fields` /
+  `_restore_core_fields`; backfill = Σ installed costs (4.1-era
+  dev-granted saves get the honest floor), 0 for pre-chrome saves.
+- **Band function — ONE, in `chrome.py`**: `band(burn)` 0-3 with
+  the ruled tables (names Natural/Tainted/Chromed/Psycho; price/
+  service ×1.00/1.05/1.15/1.30). `local_band(ctx, planet_id)` =
+  band shifted by the planet's valence (clamped 0-3). Consumers
+  compose `chrome.local_band` + table reads, never raw burn, never
+  inlined tables. Sell-side reads the SYMMETRIC composition
+  ×(2−M) = 0.95/0.85/0.70 (recorded reading — the ruled numbers
+  composed; vetoable).
+- **Price consumers** (each ONE read): goods terminal buy/sell at
+  the class-free cores `_terminal_buy_base`/`_sell_price`
+  (trade.py:251/:281 — every goods path derives from these);
+  NPC trade at `_npc_price_multipliers` (trade.py:534, the NPC
+  fold — pirate/corpo NPCs exempt by `npc_spec.faction`); armory
+  equipment + consumable buys (the `spec.price` reads in
+  `menus/_armory_buy.py`); mechanic services INSIDE the preview
+  functions (`_refuel_preview`/`_repair_preview`/ammo pricing in
+  `menus/_mechanic.py` — preview/charge pairs share one read by
+  construction); identity.py's three paper/ID spends; the kiosk's
+  own prices. OUT (recorded): ship showroom prices (never read
+  the goods core; not in SETTLED 4's list), mission rewards
+  (ruled out), medical/docking (no charges exist), rumor prices
+  (N/A v1, ruled).
+- **Rep**: `faction.modify_rep` (faction.py:430) — positive
+  deltas × the faction's band multiplier (merchant/militia
+  0.95/0.85/0.70; pirate/consortium 1.05/1.15/1.30; labs 1.0)
+  before the broadcast dispatch. Gains only — losses unchanged
+  (the ruling says "rep GAIN multipliers"; recorded reading).
+  NOT `_apply_rep_delta` (the spoofed-identity branch would
+  silently miss it).
+- **Boards**: `mission/_board.fill_empty_slots` is the one fill
+  instrument — (a) strict valence + local band ≥ 2 → one fewer
+  filled slot (the band-2 ruling extended monotonically to band
+  3; recorded reading); (b) pirate-guild boards cap at t2 below
+  psycho, full band at psycho (pirate t3+ posts ONLY to psychos).
+- **Planet valence**: `PlanetSpec.ego_valence: int = 0` (−1
+  strict / +1 tolerant) + a small assignment list for established
+  planets (lawful cores −1, pirate/corpo ports +1, rest 0) —
+  authored in the build commit with the planet meanings.
+- **Kiosk**: `city_kit._TERMINAL_SPECS` gains a 4th entry + a
+  `terminus_kiosk` blocker flag + a `_resolve_terminal_blocker`
+  branch → a new `menus/_kiosk.py` (the armory-menu pattern).
+  Stock = the six t1 pieces, always. Price = piece price × the
+  local band's service multiplier (ruled: the kiosk itself rides
+  it — the dead-zone lesson lands at the machine that sold the
+  first pieces). One-step: select → checks → consent → installed.
+  Placement: the 4th spec zips against each city's dxs (cities
+  without a 4th dx keep the trio — placement completes city by
+  city; earth + every authored port get the kiosk).
+- **Three-check + consent**: checks as `chrome.py` pure helpers
+  (capacity/tier/anatomy — SETTLED 14's ruled message forms
+  verbatim); consent modal = the existing confirm family
+  `_run_pygame_dungeon_confirm(title=, body=, accept_label=,
+  cancel_label=, caption=)` — zero new UI families.
+- **Swap-backs**: the replaced piece lands in the ARMORY terminal
+  storage as `StoredGroundEquipment("chrome", piece_id, 0)` (the
+  unlimited terminal-adjacent hold — "the hold" read as the
+  storage you can sell from; kiosk-adjacent, pack slots never
+  consumed); the armory's `_sell_price` gains a chrome family
+  branch (catalog price // 2, quality-less — chrome doesn't
+  tinker). No loose chrome exists any other way (F7 dev grants
+  aside).
+- **Migration**: one sweep at load (saveload restore path) over
+  equipped/armory/expedition containers for the four retired ids
+  → removed + credited at base price (worn AND stored — a retired
+  id is dead anywhere; recorded reading), with a load-time log
+  line. NPC side: the three consortium rungs' `worn_armor` become
+  plain pieces (gunner: eyes→combat-helmet-class, arms→gloves;
+  enforcer: arms→gloves, legs→greaves; executor: the four →
+  plain t-band set — exact table in the build commit; the rungs'
+  hit/melee/ap bonuses die with the fields, defense adjusts,
+  their identity already lives in stat_weights/behavior), Mars
+  `armory_armor` stock edited, the digs pool's eyes entry swapped
+  to a plain piece. The four `GroundArmorSpec` bonus FIELDS
+  retire with the entries — they are placeholder-exclusive
+  (grep-verified) — taking `sum_armor_bonus`,
+  `_ARMOR_BONUS_FIELDS`, `_worn_fold`'s hp_bonus, `enemy_ap_total`'s
+  ap_bonus, `worn_bonuses`, and quality's bonus scaling with
+  them.
+- **Consortium gate**: DERIVED — `ego_burn ≥ 2 × (6 + birth)`
+  (monotone burn, fixed target: no latch field). The one-time
+  comms intro needs a shown flag: `ctx.consortium_intro_shown:
+  bool` (saved), fired at install-time crossing. The F-screen
+  line renders in `pygame_faction` when the gate is open.
+
+### Duplication hotspots (three)
+
+1. The band multiplier re-derived per consumer (eight+ sites)
+   instead of composing the one band function.
+2. Preview/charge drift in the mechanic services (three pairs)
+   — the multiplier must sit inside the previews.
+3. The retirement sweep duplicated across three containers and
+   four ids.
+
+### DRY strategy
+
+1. `chrome.band_price_mult(band)` / `chrome.rep_gain_mult(faction,
+   band)` / `chrome.local_band(ctx, planet_id)` — table reads in
+   ONE module; consumers compose.
+2. Previews remain the single price source (charges already call
+   them).
+3. One `_migrate_retired_armor(...)` helper sweeping every
+   container; substitutes are data edits in one commit.
+
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
 
