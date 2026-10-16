@@ -1061,6 +1061,100 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     SmartLink "Ranged crit chance 15%." (x1.25, not ×1.25 —
     CP437).
 
+## Pre-implementation audit (Brief 4.3 — verified in code 2026-10-16)
+
+### Existing modules to extend or reuse
+
+- **The split family**: `pygame_split.SplitFrame` + the runner
+  pair `run_for_screen` / `run_dynamic_screen` — the DYNAMIC
+  runner (doc 49's species picker) rebuilds the frame per
+  left-cursor move, which is exactly the Stats-tab shape: the
+  right pane follows the selected stat row. The Equipment-tab
+  precedent (`_equipment_frame`) pins `screen_tabs` /
+  `active_screen_tab`; TAB/SHIFT_TAB surface to the host's tab
+  cycle; the right pane is read-only so focus never leaves the
+  left rows (`_handle_screen_key`'s contract).
+  `_screen_selectable_indices` is the flag-based cursor
+  contract (rows stay cursor-reachable without actions).
+  INFORMATIONAL rows paint the LABEL only — the right pane
+  composes piece name + detail into one label (the bandolier
+  pane's precedent). Row budget: MAX_VISIBLE_ROWS 11 —
+  XP/Traits(/Gear) header rows + six stat rows ≤ 9; pinned by
+  test.
+- **New frame code lives in `character_screen_stats.py`** (148
+  lines; advisor fold). `character_screen.py` (931) has its
+  runner loop at the 40-line function cap — the host change is
+  an EXTRACTION of the per-tab presentation into a helper, not
+  growth of `_run_pygame_character_screen`.
+- **The ego line reuses ledger #14's ruled kiosk readout
+  verbatim**: footer_left = `Ego N   Burnt Ego N   Install Room
+  N`, footer_right = `State: <name>` (the BASE band — SETTLED
+  15's lean). The composition lives inline in
+  `menus/_kiosk.py:83-86` today — extract
+  `chrome.ego_readout_line(ctx)` / `chrome.state_line(ctx)` and
+  the kiosk calls them (one home beside the other ruled
+  strings; the two surfaces cannot drift). Always-on, chrome or
+  not — the mirror reads everyone.
+- **Piece counts**: `ctx.installed_chrome` grouped by
+  `spec.skill` (the catalog carries the bay skill per piece);
+  the count rides the stat row's value cell as `xN` (lowercase
+  x per the CP437 ruling, ledger 15).
+- **Right pane**: led by `_SKILL_DESCRIPTIONS[skill]` (the
+  guide-synced table already in `character_screen_stats.py`),
+  then one informational row per installed piece (name + the
+  ruled kiosk detail line, composed); empty state reuses the
+  kiosk's "Nothing installed.".
+- **Guide** (`data/guide/__init__.py`): a new chrome section —
+  the reference manual DOCUMENTS the numbers (SETTLED 15: band
+  names + ranges, the price/rep/board effects, the ego formula,
+  the kiosk flow, the ratchet's permanence); the stale ARMOUR
+  bullet (:344-346, "Some armour is cybernetic...") DELETED —
+  falsified by 4.2's retirement; the Controls combat list gains
+  the `a` core-action row (the guide carries keybindings —
+  interface-language law). All three gated by the prose loop
+  before landing.
+- **Kiosk ? opens the chrome topic** (the "service-terminal
+  help text" straggler): every other terminal context-opens
+  (`_open_context_guide(ctx, topic)` — comms/navigation
+  precedents); the kiosk currently falls to the bare topic
+  list. Fix: `ctx._guide_topic` set to the chrome section
+  around the kiosk loop (`run_interactive`'s GUIDE branch
+  already reads it).
+- **F-screen line formatting** (straggler): `_identity_block`
+  appends the Terminus line directly under the broadcast line,
+  same grey — a blank line separates it (a standing corporate
+  notice, not part of your broadcast).
+- **HUD hints straggler**: inventoried at recon — both
+  theaters' STIM labels, the kiosk HUD row, and the C/E/F/Q
+  city help lines all landed in 4.1/4.2; nothing found
+  missing. Re-checked at build; if the playtest names one, it
+  rides the checklist.
+
+### Duplication hotspots (three)
+
+1. The ego/State readout composed at the kiosk AND the
+   C-screen (and every future mirror surface) drifting apart.
+2. The stats frame's row composition (name padding + value
+   cell) and the XP/Traits body lines rebuilt in more than one
+   place once the container changes.
+3. Piece-grouping derived twice (the left count cell vs the
+   right pane list) — two walks of `installed_chrome` that can
+   disagree on unknown-id skipping.
+
+### DRY strategy
+
+1. `chrome.ego_readout_line(ctx)` + `chrome.state_line(ctx)` —
+   one home in the ruled-strings module; kiosk and stats
+   compose them.
+2. `_stats_frame` keeps building from the existing
+   single-sourced helpers (`_skill_value_display`,
+   `_skill_spend_marker`, `_SKILL_DESCRIPTIONS`); only the
+   container changes ScreenFrame → SplitFrame; tests read the
+   label/value cells.
+3. ONE `_bay_pieces(ctx, skill)` helper (in `chrome.py`, the
+   silent-skip contract) feeds both the count and the pane
+   list.
+
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
 
