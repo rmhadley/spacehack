@@ -1043,7 +1043,7 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     Refunded 260$."
 14. Kiosk furniture bundle — **SHIP IT** (2026-10-16, the
     reviewer's prose-gate catch on my ungated furniture): body
-    readout `Ego N   Burnt Ego N   Install Room N` / `State:
+    readout `Ego N  Burnt Ego N  Install Room N` / `State:
     <name>`; stock cell `N$ (Bay)`; installed cell `Remove`
     (AMENDED 2026-10-16 at the split-view revision — was "Remove
     (Burnt Ego stays)"; the user: it doesn't fit the split UI and
@@ -1068,7 +1068,7 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     value cell ("35 (+10) x1  [+]"); the piece line composes name
     + the ruled detail ("Terminus Optics  Space crit chance
     15%."); empty line "Nothing installed." (kiosk reuse);
-    footers = ledger #14's readout verbatim ("Ego 5   Burnt Ego
+    footers = ledger #14's readout verbatim ("Ego 5  Burnt Ego
     1   Install Room 5" / "State: Natural", the kiosk's credits
     append dropped); the hint line unchanged.
 17. The chrome guide section — **SHIP IT**: title "Cybernetics",
@@ -1108,7 +1108,7 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
   an EXTRACTION of the per-tab presentation into a helper, not
   growth of `_run_pygame_character_screen`.
 - **The ego line reuses ledger #14's ruled kiosk readout
-  verbatim**: footer_left = `Ego N   Burnt Ego N   Install Room
+  verbatim**: footer_left = `Ego N  Burnt Ego N  Install Room
   N`, footer_right = `State: <name>` (the BASE band — SETTLED
   15's lean). The composition lives inline in
   `menus/_kiosk.py:83-86` today — extract
