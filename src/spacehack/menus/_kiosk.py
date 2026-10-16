@@ -59,7 +59,7 @@ def _installed_rows(ctx: "GameContext") -> tuple:
             continue
         rows.append(pygame_split.SplitRow(
             _spec.name,
-            "Remove (Burnt Ego stays)",
+            "Remove",
             _spec.detail,
             f"REMOVE:{piece_id}",
         ))

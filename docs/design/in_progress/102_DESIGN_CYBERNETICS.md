@@ -1044,8 +1044,11 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
 14. Kiosk furniture bundle — **SHIP IT** (2026-10-16, the
     reviewer's prose-gate catch on my ungated furniture): body
     readout `Ego N   Burnt Ego N   Install Room N` / `State:
-    <name>`; stock cell `N$ (Bay)`; installed cell `Remove (Burnt
-    Ego stays)`; charge-gate line `You need N$ to install X.`
+    <name>`; stock cell `N$ (Bay)`; installed cell `Remove`
+    (AMENDED 2026-10-16 at the split-view revision — was "Remove
+    (Burnt Ego stays)"; the user: it doesn't fit the split UI and
+    the removal table already teaches the ratchet); charge-gate
+    line `You need N$ to install X.`
     (the armory family echo); armory swap-back detail `X chrome,
     swap-back (sellable here, installs at Terminus Tech)`; HUD
     row `$  Terminus Tech`. Two spaced-hyphen tells restructured
