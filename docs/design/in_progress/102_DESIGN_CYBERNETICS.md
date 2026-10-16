@@ -932,6 +932,24 @@ development acquisition path (the kiosk is 4.2).
 Checkpoint: a fight where you crit in all three forms, pop the
 Stim, feel the repayment, kite past 90 dodge.
 
+**Playtest checklist (handed to the user 2026-10-16; SPACEHACK_DEV
+run, F7 = the chrome picker — grant BEFORE the fight: the dodge
+coefficient stamps at encounter init):**
+
+1. Crit trio (Optics + Muscle Fibers + SmartLink via F7): space
+   fire ~15% "critically hits for" + bright-red CRIT popups; ground
+   melee crits + the +2 garnish; ground ranged crits.
+2. Neural Stim: press `a` in either theater — activation line, +2
+   AP, HUD "STIM (a): 3 ROUNDS"; next round starts -1 AP with the
+   "Reality slows" line; press during cooldown for the recharge
+   line; without the Stim for the no-core line.
+3. Piloting Jack: space kiting — Evade reads +1/tile higher than
+   unjacked (96 composition needs folded piloting 120+).
+4. Nano Mesh: ground, below half HP — incoming hits soak x1.25
+   (the card's Armor number stays the BASE; watch the damage
+   numbers); at/above half, unchanged.
+5. F7 uninstall + save/continue round-trip — pieces persist.
+
 ### Brief 4.2 — the economy: ego, the kiosk, consequences,
 ### migration
 
@@ -1190,8 +1208,11 @@ build).
       briefs 4.1-4.3 written + ADVISE pass folded + all
       rulings closed 2026-10-15; `/implement-phase 102.4.1`
       is ready to run
-- [ ] 4.1 the body: crit system, dodge amendment, catalog effects,
-      core button (Brief 4.1)
+- [x] 4.1 the body: crit system, dodge amendment, catalog effects,
+      core button (Brief 4.1) — BUILT 2026-10-16 in six reviewed
+      commits (container+catalog+save / crit system / dodge
+      amendment / Nano Mesh / core button / F7 dev grant); gate
+      green at 3827; PLAYTEST PENDING (checkpoint below)
 - [ ] 4.2 the economy: ego, the Terminus kiosk, consequence bands,
       migration (Brief 4.2)
 - [ ] 4.3 the mirror: C-screen split, ego line, guide sync
