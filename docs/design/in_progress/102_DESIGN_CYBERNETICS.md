@@ -821,6 +821,36 @@ anchors are current as of this session's recon.
    enemy twin at `enemy.armor`) — every consumption site calls
    the helper (the `_damage_popup_for` single-factory precedent).
 
+## Prose ledger — Brief 4.1 (2026-10-16, the prose loop)
+
+Keybind ruled the same session: **the core action key is `a`**
+(SETTLED 8's "one action key" named; every t2 core reuses it).
+
+1. Crit result clause (`_messages._result_clause`, all three
+   theaters, both actors) — **SHIP IT**: "It critically hits for
+   12 damage!"
+2. Crit popup label (`_animations._damage_popup_for`, both
+   theaters, both actors) — **SHIP IT**: "CRIT -12", bright red
+   (hotter than the normal orange-red).
+3. Neural Stim activation line (combat log, both theaters) —
+   **USER EDIT, verbatim**: "You activate the Terminus Neural
+   Stim and your senses heighten as energy courses through you."
+   ("coarses" corrected to "courses" on an explicit follow-up
+   ask.)
+4. Repayment line (combat log at next round start, both
+   theaters) — **USER EDIT, verbatim**: "Reality slows as the
+   Neural Stim's effect wears off."
+5. Stim unavailable lines — **SHIP IT**: cooldown "Neural Stim
+   recharging: 2 rounds." / uninstalled "No neural core
+   installed."
+6. HUD Stim line (ground player panel + space status HUD,
+   identical) — **SHIP IT, amended**: "STIM (a): READY" /
+   "STIM (a): 2 ROUNDS". The debt line ("STIM (a): -1 NEXT
+   ROUND") is **DECLINED** — user: "The player will learn the
+   drain on their own. If that lands bad in gameplay we'll
+   revisit." The repayment log line (#4) is the debt's only
+   surface.
+
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
 
