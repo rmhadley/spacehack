@@ -950,6 +950,13 @@ coefficient stamps at encounter init):**
    numbers); at/above half, unchanged.
 5. F7 uninstall + save/continue round-trip — pieces persist.
 
+**Playtest notes (2026-10-16):** the Stim burst landed its tactical
+identity — user, verbatim: "stim burst was actually really great.
+getting +2 AP to close a gap on a ranged to melee them was
+surprisingly good." The emergent read is TEMPO (movement economy:
+the loan buys the gap-close + the swing), not more dakka — first
+tuning signal on the +2/−1/cd-3 numbers is positive; no change.
+
 ### Brief 4.2 — the economy: ego, the kiosk, consequences,
 ### migration
 
