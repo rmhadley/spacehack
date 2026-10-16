@@ -899,9 +899,15 @@ Keybind ruled the same session: **the core action key is `a`**
   `menus/_mechanic.py` — preview/charge pairs share one read by
   construction); identity.py's three paper/ID spends; the kiosk's
   own prices. OUT (recorded): ship showroom prices (never read
-  the goods core; not in SETTLED 4's list), mission rewards
-  (ruled out), medical/docking (no charges exist), rumor prices
-  (N/A v1, ruled).
+  the goods core; not in SETTLED 4's list), SHIP-PART SELLS at
+  the parts market (a lawful receive surface, noted for a future
+  pass — wiring it here would grow the touched surface past the
+  commit's reviewed scope), mission rewards (ruled out),
+  medical/docking (no charges exist), rumor prices (N/A v1,
+  ruled). Refuel bands the TOTAL (per-unit fuel is 1$; a
+  per-unit composition truncates inert — reviewer catch,
+  2026-10-16); the preview owns the affordability solve so
+  preview/charge cannot drift.
 - **Rep**: `faction.modify_rep` (faction.py:430) — positive
   deltas × the faction's band multiplier (merchant/militia
   0.95/0.85/0.70; pirate/consortium 1.05/1.15/1.30; labs 1.0)
@@ -914,10 +920,20 @@ Keybind ruled the same session: **the core action key is `a`**
   filled slot (the band-2 ruling extended monotonically to band
   3; recorded reading); (b) pirate-guild boards cap at t2 below
   psycho, full band at psycho (pirate t3+ posts ONLY to psychos).
-- **Planet valence**: `PlanetSpec.ego_valence: int = 0` (−1
-  strict / +1 tolerant) + a small assignment list for established
-  planets (lawful cores −1, pirate/corpo ports +1, rest 0) —
-  authored in the build commit with the planet meanings.
+- **Planet valence**: `PlanetSpec.ego_valence: int = 0` — the band
+  DELTA: strict +1 (harsher read), tolerant −1 (milder) — with the
+  DEAD ZONE ABSOLUTE (SETTLED 3's "costs nothing anywhere" wins:
+  burn ≤ 3 reads band 0 on every port, no valence can price the
+  teach tier). Assignment list: earth +1 (lawful core), venus and
+  the four dark-berth pirate havens −1, rest 0 (playtest-tunable).
+  Composition corrections found at build (2026-10-16): the
+  sell/receive side composes ×(2−M) on the BAND-FREE price core
+  (never through the banded buy base — the band would double-count);
+  the pirate t3+ cap binds the MIDDLE bands only (band 0 keeps the
+  pre-chrome board per the dead zone, band 3 posts everything);
+  the advisor's second pin's home moved to a NEUTRAL port (on a
+  strict port burn 4 composes to ×1.15, not ×1.05 — the pin's
+  purpose, consumers-that-never-read-the-band, is unchanged).
 - **Kiosk**: `city_kit._TERMINAL_SPECS` gains a 4th entry + a
   `terminus_kiosk` blocker flag + a `_resolve_terminal_blocker`
   branch → a new `menus/_kiosk.py` (the armory-menu pattern).

@@ -157,6 +157,7 @@ SPEC = PlanetSpec(
         cache_guardian_pool=(),
     ),
     dark_berth=True,
+    ego_valence=-1,  # pirate haven: one band milder (doc 102)
     dig_min_floors=3,
     dig_max_floors=7,
     dig_prefixes=('Wolf', 'Faint', 'Dim', 'Red', 'Starved', 'Cold', 'Wild', 'Lean'),

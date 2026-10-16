@@ -132,4 +132,7 @@ SPEC = PlanetSpec(
     dig_max_floors=2,
     dig_prefixes=('Clouded', 'Veiled', 'Sulphur', 'Hazy', 'Golden', 'Sunken', 'Faded', 'Low'),
     dig_suffixes=('Terrace', 'Cistern', 'Gallery', 'Well', 'Vault', 'Reach', 'Drift', 'Tank'),
+    # Corpo campus: the Consortium's home port reads chromed visitors
+    # one band milder (doc 102 SETTLED 4).
+    ego_valence=-1,
 )

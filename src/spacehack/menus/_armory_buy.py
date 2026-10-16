@@ -49,15 +49,17 @@ def _armor_detail(spec) -> str:
     )
 
 
-def _buy_rows(weapons, armor):
-    """Build catalog rows for the Buy view from resolved stock lists."""
+def _buy_rows(ctx, weapons, armor):
+    """Build catalog rows for the Buy view from resolved stock lists.
+    Prices are the band-adjusted charge (doc 102 SETTLED 4)."""
     from .. import pygame_split, pygame_ui
+    from ._armory import _buy_price
 
     rows = [pygame_split.section_header("WEAPONS")]
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
-            pygame_ui.price_cell(spec.price),
+            pygame_ui.price_cell(_buy_price(ctx, spec.price)),
             _weapon_detail(spec),
             f"BUY_WEAPON:{spec.id}",
         )
@@ -67,7 +69,7 @@ def _buy_rows(weapons, armor):
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
-            pygame_ui.price_cell(spec.price),
+            pygame_ui.price_cell(_buy_price(ctx, spec.price)),
             _armor_detail(spec),
             f"BUY_ARMOR:{spec.id}",
         )
@@ -89,25 +91,28 @@ def _restock_rows(ctx):
     rows = [pygame_split.section_header("AMMUNITION")]
     for spec in sorted(list_ground_ammo(), key=lambda item: item.price_per_round):
         current = ctx.bandolier.get(spec.ammo_type, 0)
+        from ._armory import _buy_price
+        _per = _buy_price(ctx, spec.price_per_round)
         rows.append(pygame_split.SplitRow(
             spec.name,
-            pygame_ui.price_cell(spec.price_per_round),
+            pygame_ui.price_cell(_per),
             f"Reserve {current}/{effective_cap(spec.ammo_type)}"
-            f"  {spec.price_per_round}$/round",
+            f"  {_per}$/round",
             f"RESTOCK:{spec.id}",
         ))
     return tuple(rows)
 
-def _buy_consumable_rows():
+def _buy_consumable_rows(ctx):
     """Build buy rows for the ground consumable catalog."""
     from .. import pygame_split, pygame_ui
     from ..data.ground_items import list_ground_consumables
+    from ._armory import _buy_price
 
     rows = [pygame_split.section_header("CONSUMABLES")]
     rows.extend(
         pygame_split.SplitRow(
             spec.name,
-            pygame_ui.price_cell(spec.price),
+            pygame_ui.price_cell(_buy_price(ctx, spec.price)),
             f"Stack 0/{spec.quantity_per_stack}  {spec.effect_label or spec.name}",
             f"BUY_CONSUMABLE:{spec.id}",
         )

@@ -136,8 +136,14 @@ def test_restock_rows_list_every_caliber_unconditionally():
     assert "Reserve 0/10" in empty.detail
 
 
+def _flat_ctx():
+    """A base-band ctx for price reads (Natural, no chrome)."""
+    from types import SimpleNamespace
+    return SimpleNamespace(installed_chrome=[], ego_burn=0, current_city_id="")
+
+
 def test_buy_rows_include_ground_consumables():
-    rows = _armory._buy_consumable_rows()
+    rows = _armory._buy_consumable_rows(_flat_ctx())
 
     assert any(row.action == "BUY_CONSUMABLE:med_pack" for row in rows)
     med_pack = next(row for row in rows if row.label == "Med Pack")
@@ -146,7 +152,7 @@ def test_buy_rows_include_ground_consumables():
 
 
 def test_buy_rows_exclude_loot_only_consumables():
-    rows = _armory._buy_consumable_rows()
+    rows = _armory._buy_consumable_rows(_flat_ctx())
 
     assert not any(
         row.action == "BUY_CONSUMABLE:tinker_kit" for row in rows
@@ -318,10 +324,13 @@ def test_purchase_ground_consumable_does_not_mutate_when_pack_cannot_fit(monkeyp
 
 
 def test_storage_rows_colour_the_tiered_names():
+    from types import SimpleNamespace
+
     from spacehack.ground_equipment import StoredGroundEquipment
     from spacehack.menus._armory import _storage_rows
 
     rows = _storage_rows(
+        SimpleNamespace(installed_chrome=[], ego_burn=0, current_city_id=""),
         [StoredGroundEquipment("weapon", "mono_blade", 2)],
         "MANAGE_ARMORY_STORAGE",
     )

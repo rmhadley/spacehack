@@ -169,6 +169,101 @@ def ratchet_install(ctx: "GameContext", piece_id: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# The consequence bands (doc 102 SETTLED 3/4/15) — static scars keyed
+# on BURN, never the live room. ONE function set; every consumer
+# composes these, never raw burn, never inlined tables.
+# ---------------------------------------------------------------------------
+
+# The dead zone is band 0: burn <= 3 costs nothing, lifetime.
+_BAND_MAX_BURN: tuple[int, ...] = (3, 7, 11)
+BAND_NAMES: tuple[str, ...] = ("Natural", "Tainted", "Chromed", "Psycho")
+# Lawful buy/sell/service multiplier per band (SETTLED 4). The sell
+# side reads the symmetric composition (2 - M) = .95/.85/.70.
+_BAND_SERVICE_MULT: tuple[float, ...] = (1.00, 1.05, 1.15, 1.30)
+# Rep-GAIN multipliers per faction axis (gains only — losses
+# unchanged, the literal ruling). Labs is a board guild, not a rep
+# faction; unknown factions read neutral.
+_BAND_REP_GAIN: dict[str, tuple[float, ...]] = {
+    "merchant": (1.00, 0.95, 0.85, 0.70),
+    "militia": (1.00, 0.95, 0.85, 0.70),
+    "pirate": (1.00, 1.05, 1.15, 1.30),
+    "consortium": (1.00, 1.05, 1.15, 1.30),
+}
+
+
+def band(burn: int) -> int:
+    """The BASE consequence band for a burn total: 0 Natural
+    (dead zone), 1 Tainted, 2 Chromed, 3 Psycho (>= 12)."""
+    for _i, _cap in enumerate(_BAND_MAX_BURN):
+        if burn <= _cap:
+            return _i
+    return 3
+
+
+def band_name(band_index: int) -> str:
+    """The player-facing band name (names carry the communication,
+    SETTLED 15 — consequences are never enumerated in UI)."""
+    return BAND_NAMES[max(0, min(3, band_index))]
+
+
+def local_band(ctx: "GameContext", planet_id: str) -> int:
+    """The planet-shifted band read (SETTLED 4): strict cores read
+    the burn one band HARSHER (+1), tolerant havens one band milder
+    (-1) — ONE knob driving prices, boards, and the kiosk together.
+    The dead zone is absolute (SETTLED 3): burn <= 3 reads free
+    ANYWHERE, no port's valence can price the teach tier."""
+    _base = band(getattr(ctx, "ego_burn", 0))
+    if _base == 0:
+        return 0
+    _valence = 0
+    if planet_id:
+        from .data.planets import find_planet_spec
+        try:
+            _valence = getattr(find_planet_spec(planet_id), "ego_valence", 0)
+        except KeyError:
+            _valence = 0
+    return max(0, min(3, _base + _valence))
+
+
+def base_band(ctx: "GameContext") -> int:
+    """The unshifted band read (rep, the F-screen name)."""
+    return band(getattr(ctx, "ego_burn", 0))
+
+
+def planet_valence(planet_id: str) -> int:
+    """One port's ego valence (0 on unknown ids)."""
+    if not planet_id:
+        return 0
+    from .data.planets import find_planet_spec
+    try:
+        return getattr(find_planet_spec(planet_id), "ego_valence", 0)
+    except KeyError:
+        return 0
+
+
+def banded_price(ctx: "GameContext", price: int) -> int:
+    """The ONE pay-side composition: a credit price at the current
+    port's local band (what every lawful counter charges)."""
+    return max(1, int(price * service_multiplier(
+        local_band(ctx, getattr(ctx, "current_city_id", "")),
+    )))
+
+
+def service_multiplier(band_index: int) -> float:
+    """The lawful price/services multiplier for a band (what you
+    PAY; the receive side composes ``2 - M``)."""
+    return _BAND_SERVICE_MULT[max(0, min(3, band_index))]
+
+
+def rep_gain_multiplier(faction: str, band_index: int) -> float:
+    """The rep-GAIN multiplier for one faction at a band. The base
+    band, not a local read — rep moves everywhere, not on a planet."""
+    return _BAND_REP_GAIN.get(faction, (1.00, 1.00, 1.00, 1.00))[
+        max(0, min(3, band_index))
+    ]
+
+
+# ---------------------------------------------------------------------------
 # Ruled player-facing strings (doc 102, prose ledger items 3-6) — ONE
 # home so the theater twins cannot drift. Verbatim; never reworded
 # in a module.

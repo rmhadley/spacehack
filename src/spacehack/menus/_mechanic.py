@@ -14,10 +14,25 @@ from .. import ship as ship_module
 from ..data.weapons import find_weapon
 
 
-def _refuel_preview(owned, ship_rec, credits: int) -> tuple[int, int]:
-    """Return the fuel units and credits needed by the refuel action."""
-    units = max(0, min(ship_rec.max_fuel - owned.fuel, credits // ship_module.FUEL_COST_PER_UNIT))
-    return units, units * ship_module.FUEL_COST_PER_UNIT
+def _mech_service_mult(ctx) -> float:
+    """The mechanic counter's band multiplier (doc 102 SETTLED 4):
+    services ride the price table at the CURRENT port's local read."""
+    from ..chrome import local_band, service_multiplier
+    return service_multiplier(local_band(ctx, getattr(ctx, "current_city_id", "")))
+    # (kept as the float twin: repair scales a formula total, not a
+    # single price — chrome.banded_price serves the per-item reads)
+
+
+def _refuel_preview(owned, ship_rec, credits: int, ctx=None) -> tuple[int, int]:
+    """Return the fuel units and credits needed by the refuel action.
+    The band multiplies the TOTAL (per-unit fuel costs 1$ — a
+    per-unit composition truncates to nothing; the affordability
+    solve divides by the same multiplier so preview and charge can
+    never disagree)."""
+    _mult = _mech_service_mult(ctx) if ctx is not None else 1.0
+    _need = max(0, ship_rec.max_fuel - owned.fuel)
+    units = max(0, min(_need, int(credits / _mult)))
+    return units, int(units * ship_module.FUEL_COST_PER_UNIT * _mult)
 
 # Full hull repair costs this percentage of the ship's purchase price.
 # Repairing is labour + parts, not a replacement hull — the old
@@ -25,28 +40,29 @@ def _refuel_preview(owned, ship_rec, credits: int) -> tuple[int, int]:
 # value to rebuild it (a 500$ Skiff cost 500$ to repair).
 _REPAIR_COST_PCT = 10
 
-def _repair_preview(owned, ship_rec) -> int:
+def _repair_preview(owned, ship_rec, ctx=None) -> int:
     """Return the hull repair price for the current damage.
 
     Full repair costs ``_REPAIR_COST_PCT``% of the ship's purchase
     price; partial damage scales linearly (10% damage = 10% of the
-    full-repair price).
+    full-repair price). Chrome bands multiply the tab (preview and
+    charge share this one read).
     """
     damage = max(0, min(100, owned.hull_damage_pct))
-    return max(0, int(ship_rec.price * damage * _REPAIR_COST_PCT // 10000))
+    _mult = _mech_service_mult(ctx) if ctx is not None else 1.0
+    return max(0, int(ship_rec.price * damage * _REPAIR_COST_PCT // 10000 * _mult))
 
 
 def _refuel(ctx, owned, ship_rec) -> None:
-    """Apply the mechanic's refuel transaction."""
-    buyable = ship_rec.max_fuel - owned.fuel
-    affordable = ctx.stats.credits // ship_module.FUEL_COST_PER_UNIT
-    if buyable <= 0:
-        ctx.log.add("The fuel tank is already full.")
-    elif affordable <= 0:
-        ctx.log.add("You don't have enough credits to buy fuel.")
+    """Apply the mechanic's refuel transaction — the preview's own
+    numbers, one read."""
+    units, cost = _refuel_preview(owned, ship_rec, ctx.stats.credits, ctx)
+    if units <= 0:
+        if owned.fuel >= ship_rec.max_fuel:
+            ctx.log.add("The fuel tank is already full.")
+        else:
+            ctx.log.add("You don't have enough credits to buy fuel.")
     else:
-        units = min(buyable, affordable)
-        cost = units * ship_module.FUEL_COST_PER_UNIT
         ctx.stats.credits -= cost
         owned.fuel += units
         ctx.log.add(f"Refueled {units} units for {cost}$. Fuel: {owned.fuel} / {ship_rec.max_fuel}.")
@@ -58,7 +74,7 @@ def _repair(ctx, owned, ship_rec) -> None:
     if damage <= 0:
         ctx.log.add("No repairs needed -- hull integrity is 100%.")
         return
-    cost = _repair_preview(owned, ship_rec)
+    cost = _repair_preview(owned, ship_rec, ctx)
     if ctx.stats.credits < cost:
         ctx.log.add(f"Repair would cost {cost}$, but you only have {ctx.stats.credits}$.")
         return
@@ -94,13 +110,17 @@ def _ammo_row(owned, slot: int, ctx=None):
     from .. import pygame_screen
     from ..ship import effective_missile_capacity
 
+    from ..chrome import local_band, service_multiplier
     _entry = owned.weapons[slot]
     weapon = find_weapon(getattr(_entry, "item_id", _entry))
     capacity = effective_missile_capacity(weapon, ctx)
     current = owned.weapon_ammo.get(slot, capacity)
+    _per_round = max(1, int(weapon.ammo_price * service_multiplier(
+        local_band(ctx, getattr(ctx, "current_city_id", "")),
+    )))
     return pygame_screen.ScreenRow(
         f"{weapon.name} ({current}/{capacity})",
-        f"{weapon.ammo_price}$/round",
+        f"{_per_round}$/round",
         f"AMMO:{slot}:1",
     )
 
@@ -109,8 +129,8 @@ def _repairs_section(ctx, owned, ship_rec, next_hint, _missile_slots):
     """Build the REPAIRS tab's rows, body, and footer."""
     from .. import pygame_screen, pygame_ui
 
-    _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits)
-    _repair_cost = _repair_preview(owned, ship_rec)
+    _fuel_units, _fuel_cost = _refuel_preview(owned, ship_rec, ctx.stats.credits, ctx)
+    _repair_cost = _repair_preview(owned, ship_rec, ctx)
     rows = (
         pygame_screen.ScreenRow(
             f"Refuel - {_fuel_cost}$ for {_fuel_units} units",

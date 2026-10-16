@@ -272,10 +272,15 @@ def _unit_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     source from earned reputation; goods only — equipment, ammo, and
     ship prices never read this).
     """
+    from .chrome import local_band, service_multiplier
     from .xp import merchant_buy_price_mod
+    # Chrome bands (doc 102 SETTLED 4): the port's local read raises
+    # what you pay — composed here on the buy side only, never in
+    # the class-free core the sell side derives from.
+    _band_mult = service_multiplier(local_band(ctx, planet_id))
     return max(1, int(
         _terminal_buy_base(ctx, planet_id, good_id)
-        * merchant_buy_price_mod(ctx)
+        * merchant_buy_price_mod(ctx) * _band_mult
     ))
 
 def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
@@ -289,14 +294,19 @@ def _sell_price(ctx: GameContext, planet_id: str, good_id: str) -> int:
     credits received.
     """
     from . import identity
+    from .chrome import local_band, service_multiplier
     from .faction import get_attitude, sell_price_modifier
     from .xp import merchant_sell_price_mod
     _merchant_rep = identity.effective_reputation(ctx).get("merchant", 0)
     _attitude = get_attitude(_merchant_rep)
     _sell_mod = sell_price_modifier(_attitude)
+    # Chrome bands: sell offers DROP by the symmetric share
+    # (2 - M = .95/.85/.70), composed on the band-free core so the
+    # band never double-counts through the buy side.
+    _receive_mult = 2 - service_multiplier(local_band(ctx, planet_id))
     return max(1, int(
         _terminal_buy_base(ctx, planet_id, good_id) * 3 // 4
-        * _sell_mod * merchant_sell_price_mod(ctx)
+        * _sell_mod * merchant_sell_price_mod(ctx) * _receive_mult
     ))
 
 def _free_cargo(owned, ctx=None) -> int:
@@ -531,14 +541,23 @@ def _npc_stock_pool(npc_spec, count: int) -> dict[str, int]:
     return {gid: RNG.randint(3, 8) for gid in _cargo_list[:count]}
 
 
-def _npc_price_multipliers(ctx: GameContext, attitude: str) -> tuple[float, float]:
+def _npc_price_multipliers(
+    ctx: GameContext, attitude: str, npc_faction: str = "",
+) -> tuple[float, float]:
     """Buy/sell price multipliers for an NPC trade session: reputation
     times the Merchant class mods (doc 49 phase 2 — the NPC surface's
-    one fold; buy and sell derive from base_price independently)."""
+    one fold; buy and sell derive from base_price independently).
+    Chrome bands (doc 102 SETTLED 4) ride it for lawful-space traders
+    only — pirate and Consortium traders charge the base rate."""
+    from .chrome import base_band, service_multiplier
     from .faction import buy_price_modifier, sell_price_modifier
     from .xp import merchant_buy_price_mod, merchant_sell_price_mod
     _buy = 1.2 * buy_price_modifier(attitude) * merchant_buy_price_mod(ctx)
     _sell = 0.5 * sell_price_modifier(attitude) * merchant_sell_price_mod(ctx)
+    if npc_faction not in ("pirate", "consortium"):
+        _mult = service_multiplier(base_band(ctx))
+        _buy *= _mult
+        _sell *= 2 - _mult
     return _buy, _sell
 
 
@@ -561,6 +580,7 @@ async def open_npc_trade(ctx: GameContext, npc_spec) -> None:
         return
     _buy_mult, _sell_mult = _npc_price_multipliers(
         ctx, _npc_attitude(ctx, npc_spec),
+        npc_faction=getattr(npc_spec, "faction", ""),
     )
     ctx.log.add(f"You open a trade channel with {npc_spec.name}.")
     result = await _run_pygame_npc_trade(

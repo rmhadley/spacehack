@@ -151,6 +151,7 @@ SPEC = PlanetSpec(
     ),
     explorable_site_name="caves",
     dark_berth=True,
+    ego_valence=-1,  # pirate haven: one band milder (doc 102)
     biome="volcanic",
     dig_min_floors=3,
     dig_max_floors=7,

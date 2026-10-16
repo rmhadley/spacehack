@@ -245,14 +245,21 @@ def _priced_rows(ctx, npc_id: str) -> tuple[int | None, int | None, int | None]:
     gate rumor heard)."""
     from . import identity
 
+    from .chrome import banded_price
+
+    def _offer(price):
+        return banded_price(ctx, price) if price is not None else None
+
     _cutout = (
         _cutout_offer(ctx, npc_id)
         if _passphrase_gate_met(ctx, npc_id) else None
     )
+    # The offers carry the banded charge (doc 102 SETTLED 4): the
+    # label must equal what identity's spend sites take.
     return (
-        identity.scrub_price(npc_id),
-        _cutout,
-        _rig_offer(ctx, npc_id),
+        _offer(identity.scrub_price(npc_id)),
+        _offer(_cutout),
+        _offer(_rig_offer(ctx, npc_id)),
     )
 
 async def _run_pygame_npc_talk(

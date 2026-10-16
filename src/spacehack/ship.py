@@ -302,6 +302,13 @@ def _seed_missile_ammo(owned: OwnedShip, ctx=None) -> None:
             owned.weapon_ammo[i] = effective_missile_capacity(ws, ctx)
 
 
+def _banded_ammo_price(ws, ctx) -> int:
+    """One round's price at the service counter: the shared
+    composition in :func:`chrome.banded_price` (doc 102 SETTLED 4)."""
+    from .chrome import banded_price
+    return banded_price(ctx, ws.ammo_price)
+
+
 def buy_ammo(
     owned: OwnedShip,
     slot_index: int,
@@ -333,11 +340,12 @@ def buy_ammo(
     if ws.ammo_price <= 0:
         return False, 0, f"{ws.name} ammo isn't sold here."
     buy = min(rounds, room)
-    affordable = credits // ws.ammo_price
+    _per_round = _banded_ammo_price(ws, ctx)
+    affordable = credits // _per_round
     buy = min(buy, affordable)  # clamp to what the player can actually pay
     if buy <= 0:
-        return False, 0, f"Need {ws.ammo_price}$ for 1 round."
-    cost = buy * ws.ammo_price
+        return False, 0, f"Need {_per_round}$ for 1 round."
+    cost = buy * _per_round
     owned.weapon_ammo[slot_index] = current + buy
     owned.cargo_ammo = total_ammo_cargo(owned.weapons, ctx)
     return True, cost, ""

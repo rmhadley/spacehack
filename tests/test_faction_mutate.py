@@ -18,6 +18,7 @@ from src.spacehack.faction import modify_rep
 
 def _mock_ctx(rep: dict[str, int] | None = None):
     ctx = MagicMock()
+    ctx.ego_burn = 0
     ctx.faction_reputation = rep or {}
     ctx.log = MagicMock()
     # The broadcast gate (doc 40) reads these; a MagicMock's
@@ -206,6 +207,7 @@ def _kill_ctx(rep: dict[str, int] | None = None):
     """A fake ctx for the kill paths — MagicMock base with every field
     the exercised paths read pinned to real values."""
     ctx = MagicMock()
+    ctx.ego_burn = 0
     ctx.faction_reputation = dict(rep or {})
     ctx.log = _RecordingLog()
     ctx.player_counters = SimpleNamespace(merchant_kills=0, total_kills=0)

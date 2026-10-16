@@ -7,7 +7,6 @@ consumables as the only stack the armory moves and RESTOCK as the
 ammunition verb. Split from menus/_armory to pay the 1000-line
 ratchet; _armory re-exports the surface.
 """
-
 from __future__ import annotations
 
 
@@ -52,13 +51,14 @@ def _field_item_rows(entries, action_prefix: str, section_label: str):
 async def _choose_field_item_destination(ctx, item_id: str) -> str:
     """Choose a destination before paying for a consumable."""
     from .. import pygame_story
+    from ._armory import _buy_price
     from ..data.ground_items import find_ground_item
 
     spec = find_ground_item("consumable", item_id)
     return await pygame_story.choose(
         ctx,
         title="BUY CONSUMABLE",
-        body=f"{spec.name} - {spec.price}$ each",
+        body=f"{spec.name} - {_buy_price(ctx, spec.price)}$ each",
         options=(
             ("Armory Storage", f"BUY_ITEM_ARMORY:consumable:{item_id}"),
             ("Expedition Pack", f"BUY_ITEM_EXPEDITION:consumable:{item_id}"),
@@ -80,11 +80,12 @@ def _field_item_purchase_maximum(
 ) -> int:
     """Return affordable and destination-capacity-limited quantity."""
     from .. import ground_equipment
+    from ._armory import _buy_price
     from ..data.ground_items import find_ground_item
     from ._armory import _strength
 
     spec = find_ground_item("consumable", item_id)
-    affordable = ctx.stats.credits // spec.price
+    affordable = ctx.stats.credits // _buy_price(ctx, spec.price)
     if destination != ground_equipment.EXPEDITION_INVENTORY:
         return affordable
     equipment, items = _destination_storages(ctx, destination)
@@ -99,20 +100,21 @@ async def _choose_field_item_quantity(
 ) -> int | None:
     """Choose a consumable quantity after destination selection."""
     from .. import pygame_quantity
+    from ._armory import _buy_price
     from ..data.ground_items import find_ground_item
 
     spec = find_ground_item("consumable", item_id)
     maximum = _field_item_purchase_maximum(ctx, item_id, destination)
     if maximum < 1:
-        if ctx.stats.credits < spec.price:
+        if ctx.stats.credits < _buy_price(ctx, spec.price):
             ctx.log.add(f"You cannot afford {spec.name}.")
         else:
             ctx.log.add("That destination cannot hold any more field items.")
         return None
     try:
         return await pygame_quantity.run_for_context(
-            ctx.context, ctx, f"BUY {spec.name}", maximum, spec.price,
-            prefill=maximum,
+            ctx.context, ctx, f"BUY {spec.name}", maximum,
+            _buy_price(ctx, spec.price), prefill=maximum,
         )
     except pygame_quantity.PygameQuantityQuit:
         raise SystemExit
@@ -122,6 +124,7 @@ async def _purchase_field_item(
 ) -> None:
     """Buy an exact consumable quantity after destination validation."""
     from .. import ground_equipment
+    from ._armory import _buy_price
     from ..data.ground_items import find_ground_item
     from ._armory import _strength
 
@@ -129,7 +132,8 @@ async def _purchase_field_item(
     quantity = await _choose_field_item_quantity(ctx, item_id, destination)
     if quantity is None:
         return
-    cost = quantity * spec.price
+    _per = _buy_price(ctx, spec.price)
+    cost = quantity * _per
     if cost > ctx.stats.credits:
         ctx.log.add("You can no longer afford that consumable.")
         return
@@ -157,6 +161,7 @@ async def _restock_bandolier(ctx, item_id: str) -> None:
     this handler never check what is equipped or owned.
     """
     from .. import pygame_quantity
+    from ._armory import _buy_price
     from ..bandolier import effective_cap, refill, space_remaining
     from ..data.ground_items import find_ground_ammo
 
@@ -164,7 +169,8 @@ async def _restock_bandolier(ctx, item_id: str) -> None:
     space = space_remaining(
         ctx.bandolier, spec.ammo_type, effective_cap(spec.ammo_type),
     )
-    maximum = min(space, ctx.stats.credits // spec.price_per_round)
+    _per_round = _buy_price(ctx, spec.price_per_round)
+    maximum = min(space, ctx.stats.credits // _per_round)
     if maximum < 1:
         if space < 1:
             ctx.log.add(f"Your {spec.name} reserve is already full.")
@@ -175,13 +181,13 @@ async def _restock_bandolier(ctx, item_id: str) -> None:
     try:
         quantity = await pygame_quantity.run_for_context(
             ctx.context, ctx, f"RESTOCK {spec.name}", maximum,
-            spec.price_per_round, prefill=maximum,
+            _per_round, prefill=maximum,
         )
     except pygame_quantity.PygameQuantityQuit:
         raise SystemExit
     if not quantity:
         return
     added = refill(ctx, spec.ammo_type, quantity)
-    cost = added * spec.price_per_round
+    cost = added * _per_round
     ctx.stats.credits -= cost
     ctx.log.add(f"Restocked {added} {spec.name} for {cost}$.")

@@ -79,8 +79,27 @@ def _strength(ctx: GameContext) -> int:
     from ..xp import pack_mule_capacity_bonus
     return int(getattr(getattr(ctx, "ground_stats", None), "strength", 10)) + pack_mule_capacity_bonus(ctx) * 10
 
-def _sell_price(item_id: str, quality: int = 0) -> int:
-    """Half the catalog price scaled by the quality tier, minimum 1."""
+def _buy_price(ctx, price: int) -> int:
+    """The armory's banded buy price (doc 102 SETTLED 4): the
+    shared composition in :func:`chrome.banded_price`."""
+    from ..chrome import banded_price
+    return banded_price(ctx, price)
+
+
+def _sell_receive_mult(ctx) -> float:
+    """The armory's banded receive share (doc 102 SETTLED 4): the
+    symmetric composition 2 - M."""
+    from ..chrome import local_band, service_multiplier
+    return 2 - service_multiplier(
+        local_band(ctx, getattr(ctx, "current_city_id", "")),
+    )
+
+
+def _sell_price(item_id: str, quality: int = 0, ctx=None) -> int:
+    """Half the catalog price scaled by the quality tier, minimum 1.
+    Chrome bands (doc 102 SETTLED 4) drop the receive side
+    (x (2 - M)) when ctx is supplied — every display and charge
+    passes it."""
     from ..data.ground_armor import find_ground_armor
     from ..data.ground_weapons import find_ground_weapon
     from ..data.quality import quality_multiplier_pct
@@ -89,9 +108,11 @@ def _sell_price(item_id: str, quality: int = 0) -> int:
         family, price = "weapon", find_ground_weapon(item_id).price
     except KeyError:
         family, price = "armor", find_ground_armor(item_id).price
+    _receive_pct = int(_sell_receive_mult(ctx) * 100) if ctx is not None else 100
     if quality <= 0:
-        return price // 2
-    return max(1, (price * quality_multiplier_pct(family, quality) + 100) // 200)
+        return max(1, price // 2 * _receive_pct // 100)
+    _base = (price * quality_multiplier_pct(family, quality) + 100) // 200
+    return max(1, _base * _receive_pct // 100)
 
 def _name_with_tier(name: str, quality: int, prefix: str = "") -> tuple:
     """``(label, runs)`` — the tiered name coloured inside its label."""
@@ -140,6 +161,7 @@ a blank id falls back to the full shop-available catalog.
     return weapons, list_ground_armor()
 
 def _storage_rows(
+    ctx,
     entries: list[ground_equipment.StoredGroundEquipment],
     action_prefix: str,
     section_label: str = "OWNED EQUIPMENT",
@@ -153,7 +175,7 @@ def _storage_rows(
             rows.append(
                 pygame_split.SplitRow(
                     _label,
-                    pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
+                    pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality, ctx)),
                     _equipment_detail(entry),
                     f"{action_prefix}:{index}",
                     runs=_runs,
@@ -196,7 +218,6 @@ def _weapon_member_rows(ctx: GameContext, home: list, set_class: str) -> list:
     from ..ground_equipment import WEAPON_SLOT_COUNT
     from ..ground_weapon_sets import _set_is_two_handed
 
-    del ctx
     rows = []
     for index in range(WEAPON_SLOT_COUNT):
         if index >= len(home):
@@ -217,7 +238,7 @@ def _weapon_member_rows(ctx: GameContext, home: list, set_class: str) -> list:
         )
         rows.append(pygame_split.SplitRow(
             _label,
-            pygame_ui.sell_cell(_sell_price(instance.weapon_id, instance.quality)),
+            pygame_ui.sell_cell(_sell_price(instance.weapon_id, instance.quality, ctx)),
             _weapon_detail(spec),
             f"MANAGE_WEAPON:{set_class}:{index}",
             runs=_runs,
@@ -243,7 +264,7 @@ def _armor_slot_rows(ctx: GameContext):
         )
         rows.append(pygame_split.SplitRow(
             _label,
-            pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality)),
+            pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality, ctx)),
             f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
             runs=_runs,
@@ -268,18 +289,18 @@ def _armory_left_panel(ctx, planet_id: str, mode: str, catalog):
     if mode == "BUY":
         weapons, armor = _resolve_catalog(ctx, planet_id, catalog)
         return "Buy", (
-            _buy_rows(weapons, armor)
+            _buy_rows(ctx, weapons, armor)
             + _restock_rows(ctx)
-            + _buy_consumable_rows()
+            + _buy_consumable_rows(ctx)
         )
     if mode == "ARMORY":
         return "Armory Storage", (
-            _storage_rows(_armory_storage(ctx), "MANAGE_ARMORY")
+            _storage_rows(ctx, _armory_storage(ctx), "MANAGE_ARMORY")
             + _field_item_rows(_armory_items(ctx), "MANAGE_ARMORY_ITEM", "FIELD ITEMS")
         )
     return "Expedition Pack", (
         _storage_rows(
-            _expedition_storage(ctx), "MANAGE_EXPEDITION", "BACKPACK ITEMS",
+            ctx, _expedition_storage(ctx), "MANAGE_EXPEDITION", "BACKPACK ITEMS",
         )
         + _field_item_rows(_expedition_items(ctx), "MANAGE_EXPEDITION_ITEM", "FIELD ITEMS")
     )
@@ -483,7 +504,7 @@ async def _choose_container_action(ctx, entries, index: int, container: str) -> 
     entry = entries[index]
     try:
         name = _equipment_name(entry)
-        price = _sell_price(entry.item_id, entry.quality)
+        price = _sell_price(entry.item_id, entry.quality, ctx)
     except (KeyError, ValueError):
         return "__BACK__"
     transfer_label, transfer_action = {
@@ -585,7 +606,7 @@ def _sell_from_container(ctx, entries, index: int) -> None:
     entry = entries[index]
     try:
         removed = ground_equipment.sell_stored(entries, index)
-        price = _sell_price(removed.item_id, removed.quality)
+        price = _sell_price(removed.item_id, removed.quality, ctx)
     except (IndexError, KeyError, ValueError):
         ctx.log.add("That equipment is no longer available.")
         return
@@ -650,8 +671,9 @@ async def _apply_purchase(ctx, action: str) -> None:
     """Complete a validated purchase destination."""
     _destination, item_type, item_id = action.split(":", 2)
     spec = _purchase_spec(item_type, item_id)
-    if ctx.stats.credits < spec.price:
-        ctx.log.add(f"You need {spec.price}$ to buy {spec.name}.")
+    price = _buy_price(ctx, spec.price)
+    if ctx.stats.credits < price:
+        ctx.log.add(f"You need {price}$ to buy {spec.name}.")
         return
     entry = ground_equipment.StoredGroundEquipment(item_type, item_id)
     role = None
@@ -678,7 +700,7 @@ async def _apply_purchase(ctx, action: str) -> None:
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return
-    ctx.stats.credits -= spec.price
+    ctx.stats.credits -= price
     label = _purchase_destination_label(_destination, item_type, role)
     ctx.log.add(f"Bought {spec.name} into {label}.")
 
@@ -706,12 +728,12 @@ async def _manage_choice(ctx, kind: str, slot, item_id: str) -> str:
     if kind == "MANAGE_WEAPON":
         options = (
             ("Store in Armory", f"STORE_WEAPON:{slot}"),
-            (f"Sell for {_sell_price(item_id, quality)}$", f"SELL_WEAPON:{slot}"),
+            (f"Sell for {_sell_price(item_id, quality, ctx)}$", f"SELL_WEAPON:{slot}"),
         )
     else:
         options = (
             ("Store in Armory", f"STORE_ARMOR:{slot}"),
-            (f"Sell for {_sell_price(item_id, quality)}$", f"SELL_ARMOR:{slot}"),
+            (f"Sell for {_sell_price(item_id, quality, ctx)}$", f"SELL_ARMOR:{slot}"),
         )
     return await pygame_story.choose(
         ctx, title="MANAGE LOADOUT", body=label,
@@ -735,12 +757,12 @@ def _apply_manage_choice(ctx, chosen: str) -> None:
         elif chosen.startswith("SELL_WEAPON:"):
             home, index = _weapon_member(ctx, chosen.split(":", 1)[1])
             removed = ground_equipment.remove_weapon(home, index)
-            ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
+            ctx.stats.credits += _sell_price(removed.item_id, removed.quality, ctx)
         elif chosen.startswith("SELL_ARMOR:"):
             removed = ground_equipment.remove_armor(
                 ctx.equipped_ground_armor, chosen.split(":", 1)[1],
             )
-            ctx.stats.credits += _sell_price(removed.item_id, removed.quality)
+            ctx.stats.credits += _sell_price(removed.item_id, removed.quality, ctx)
     except (IndexError, KeyError, ValueError) as exc:
         ctx.log.add(str(exc))
         return

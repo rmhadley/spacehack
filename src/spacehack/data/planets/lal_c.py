@@ -143,6 +143,7 @@ SPEC = PlanetSpec(
     tech_level=4,
     mission_tier=4,
     dark_berth=True,
+    ego_valence=-1,  # pirate haven: one band milder (doc 102)
     dig_min_floors=2,
     dig_max_floors=6,
     dig_prefixes=('Quiet', 'Hushed', 'Soft', 'Muted', 'Low', 'Hidden', 'Silent', 'Still'),

@@ -256,6 +256,13 @@ SCRUB_BROKERS: dict[str, int] = {
 }
 
 
+def _banded_price(ctx, price: int) -> int:
+    """The paper/ID counter's banded charge (doc 102 SETTLED 4):
+    the shared composition in :func:`chrome.banded_price`."""
+    from .chrome import banded_price
+    return banded_price(ctx, price)
+
+
 def scrub_price(npc_id: str) -> int | None:
     """The scrubbed-ID price a broker NPC charges, or None."""
     return SCRUB_BROKERS.get(npc_id)
@@ -269,6 +276,8 @@ def buy_scrubbed_id(ctx, npc_id: str) -> bool:
     every faction (doc 40 ruling), so it starts as blank paper."""
     from .faction import _ALL_FACTIONS
     price = scrub_price(npc_id)
+    if price is not None:
+        price = _banded_price(ctx, price)
     if price is None or ctx.stats.credits < price:
         return False
     face = {
@@ -323,6 +332,8 @@ def buy_clone_rig(ctx, npc_id: str) -> bool:
     """Buy the clone rig. False: wrong NPC, can't afford, or owned.
     One-time; it rides the player across lawful purchases."""
     price = rig_price(npc_id)
+    if price is not None:
+        price = _banded_price(ctx, price)
     if price is None or getattr(ctx, "transponder_rig", False):
         return False
     if ctx.stats.credits < price:
@@ -336,6 +347,8 @@ def buy_transponder_cutout(ctx, npc_id: str) -> bool:
     """Install the one-time cut-out. False: wrong NPC, can't afford,
     or already installed. It rides the player across lawful purchases."""
     price = cutout_price(npc_id)
+    if price is not None:
+        price = _banded_price(ctx, price)
     if price is None or getattr(ctx, "transponder_cutout", False):
         return False
     if ctx.stats.credits < price:

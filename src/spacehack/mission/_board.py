@@ -48,7 +48,9 @@ def _board_guild(npc_id: str) -> str:
         return ""
 
 
-def _faction_tier_band(ctx, guild: str, planet_tier: int) -> tuple[int, int]:
+def _faction_tier_band(
+    ctx, guild: str, planet_tier: int, planet_id: str = "",
+) -> tuple[int, int]:
     """Return the mission tier band available to one faction board.
 
     Perk-gated boards (militia warrants, lab contracts) post
@@ -67,8 +69,22 @@ def _faction_tier_band(ctx, guild: str, planet_tier: int) -> tuple[int, int]:
     _trait_id = _GUILD_TRAITS.get(guild)
     if _trait_id:
         if has_trait(ctx, _trait_id):
-            return 2, min(4, _base_max + 1)
-    return 1, _base_max
+            _band_min, _band_max = 2, min(4, _base_max + 1)
+        else:
+            _band_min, _band_max = 1, _base_max
+    else:
+        _band_min, _band_max = 1, _base_max
+    if guild == "bar":
+        # The pirate board (the Free Captains' outlaw route): t3+
+        # work is trust work — it posts ONLY to psychos (doc 102
+        # SETTLED 4). The dead zone keeps the pre-chrome board
+        # (SETTLED 3: boards untouched at burn <= 3): the cap binds
+        # the middle bands, where the world withholds trust work
+        # from the visibly chromed.
+        from ..chrome import local_band
+        if 1 <= local_band(ctx, planet_id) <= 2:
+            _band_max = min(_band_max, 2)
+    return _band_min, _band_max
 
 
 def ensure_board(
@@ -251,6 +267,12 @@ def _fill_procedural_slots(
         _counter += 1
 
 
+def _session_rng():
+    """The engine RNG (the fill default when no rng is supplied)."""
+    from ..engine import RNG
+    return RNG
+
+
 def fill_empty_slots(
     board: MissionBoard,
     planet_tier: int,
@@ -265,11 +287,11 @@ def fill_empty_slots(
     """Fill empty slots with static and faction-appropriate work."""
     if generated is None:
         generated = {}
-    if rng is None:
-        from ..engine import RNG
-        rng = RNG
+    rng = rng if rng is not None else _session_rng()
     _guild = _board_guild(board.npc_id)
-    _min_tier, _max_tier = _faction_tier_band(ctx, _guild, planet_tier)
+    _min_tier, _max_tier = _faction_tier_band(
+        ctx, _guild, planet_tier, planet_id,
+    )
     if _max_tier == 0:
         return  # perk-gated board whose perk hasn't been earned
     _evict_unavailable_slots(
@@ -283,12 +305,27 @@ def fill_empty_slots(
     if _tutorial_live(ctx):
         return
     _generator = _procedural_generators().get(_guild)
-    if _generator is None:
+    if _generator is not None:
+        _fill_procedural_slots(
+            board, _generator, planet_id, _min_tier, _max_tier, rng, generated,
+            _faction_pay_pct(ctx, _guild),
+        )
+    # LAST: the strict-row trim must survive the fill (procedural
+    # slots refill every empty — trimming before it is a no-op).
+    _trim_strict_row(ctx, board, planet_id)
+
+
+def _trim_strict_row(ctx, board: MissionBoard, planet_id: str) -> None:
+    """Chrome bands (doc 102 SETTLED 4): a strict port (harsher
+    valence) loses one board row once the local read reaches the
+    Chromed band."""
+    from ..chrome import local_band, planet_valence
+    if planet_valence(planet_id) <= 0 or local_band(ctx, planet_id) < 2:
         return
-    _fill_procedural_slots(
-        board, _generator, planet_id, _min_tier, _max_tier, rng, generated,
-        _faction_pay_pct(ctx, _guild),
-    )
+    for _i in range(len(board.slots) - 1, -1, -1):
+        if board.slots[_i] is not None:
+            board.slots[_i] = None
+            return
 
 
 def board_remove(board: MissionBoard, mission_id: str) -> None:

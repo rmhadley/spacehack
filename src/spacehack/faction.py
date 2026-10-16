@@ -438,6 +438,15 @@ def modify_rep(ctx, faction: str, delta: int) -> None:
     if delta == 0 or faction not in _ALL_FACTIONS:
         return
     from . import identity
+    from .chrome import base_band, rep_gain_multiplier
+    # Chrome bands (doc 102 SETTLED 4): GAINS multiply (merchant/
+    # militia harder, pirate/Consortium easier; losses unchanged —
+    # the literal "rep gain multipliers" ruling). The base band:
+    # rep moves everywhere, not on a planet.
+    if delta > 0:
+        delta = int(delta * rep_gain_multiplier(faction, base_band(ctx)))
+        if delta == 0:
+            return
     mode = identity.broadcast_mode(ctx)
     if mode == identity.DARK:
         return
