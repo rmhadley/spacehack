@@ -719,6 +719,108 @@ never a rejection (the ratchet prices it).
 - The guide (reference manual) documents the actual numbers
   when implemented — the game UI never does.
 
+## Pre-implementation audit (Brief 4.1 — verified in code 2026-10-16)
+
+Every advisor seam re-verified against the live tree before code;
+anchors are current as of this session's recon.
+
+### Existing modules to extend or reuse
+
+- **Crit math** rides the two space direct-fire sites —
+  `_rules_space.damage()` (player) and `_ai._resolve_enemy_shot`
+  (enemy) — NEVER inside `_actions.resolve_damage` (missile
+  arrivals call it bare; missiles never crit, pinned by test).
+  Ground: inside `_rules_ground.damage()`, melee/ranged split on
+  the existing `damage_type == "melee"` read. The multiplier
+  threads `resolve_damage` as a `crit_mult` kwarg (default 1.0) so
+  the shield/hull split stays one implementation; ground multiplies
+  the post-armor dealt damage. Crit and glance stay independent
+  multipliers (a crit-glance is legal arithmetic; crit wins the
+  popup label). Blasts/explosions never crit (not direct fire,
+  same ruling family as missiles).
+- **Crit feedback**: `_messages._result_clause` (the shared
+  player/enemy attack-line factory — one wording, both theaters)
+  + `_animations._damage_popup_for` (the single popup factory both
+  fire paths already share).
+- **Dodge amendment**: `_stats._calc_dodge_bonus` gains
+  `tile_coefficient=5`; the 60-cap moves onto the piloting base
+  only; movement = min(cells, 6) x coefficient (at coefficient 5
+  the movement term is IDENTICAL to today — only the total-cap
+  lift changes values, and only for piloting>120 movers). Defender
+  containers: `player_state["dodge_tile_coefficient"]` stamped at
+  `_stats._player_state_dict`; `EnemyInstance.dodge_tile_coefficient`
+  (default 5) declared in `combat/_types.py`. Threading sites:
+  `_rules_space` (hit_chance + 5 evade reads),
+  `_ai._player_dodge`, `_missile_flight` (`_arrival_dodge` + the
+  player-contact site), `_space_kills`. The GROUND twin
+  (`_ground_math.calc_ground_move_dodge`) is untouched.
+- **Nano Mesh** hooks per-hit armor consumption — the enemy-shot
+  resolution (`_ai_ground._roll_ground_shot`), blast friendly fire
+  (`_ground_blast`), stare eruption (`_ancients`) — NOT
+  `_armor_defense_total` (stamped once at init; HP can cross half
+  mid-burst, so the below-half read is per-hit). Enemy-side
+  symmetric read at `_rules_ground.damage()`'s `enemy.armor`. The
+  AI EV scorers keep the RAW read (the bounty-hunter belief
+  precedent: resolution-only, enemies misjudge by design).
+- **Core button**: keybind in `_loop._key_action`'s action table,
+  dispatched through the optional-rules-hook pattern
+  (`activate_core`). Ground loan rides
+  `GroundCombatState.active_consumable_effects` (a −1-AP,
+  1-turn-remaining entry consumed once by
+  `advance_player_effects` at the next round start); ground
+  cooldown = one int on the state, ticked at round start. Space
+  loan + cooldown = `player_state` keys consumed/ticked at
+  `_actions.start_player_turn` / `_reset_ap_carry`. HUDs: ground
+  player panel (`_ground_render`), space `_paint_status_hud`.
+- **Chrome container**: `GameContext.installed_chrome: list[str]`
+  (piece ids; anatomy exclusivity enforced at install — dev grant
+  in 4.1, kiosk in 4.2) + a sum-effect accessor in a new
+  `chrome.py` mirroring `ground_equipment.sum_armor_bonus` (skip
+  unknown ids silently, same contract). Save:
+  `saveload._core_fields` + `_restore_core_fields` backfill
+  (`data.get("installed_chrome", [])`), round-trip test.
+  `saveload.py` is 992 lines — the save fields cross 1000, so the
+  in-commit extraction fires ( cohesive split, ratchet doctrine).
+  NO ego fields (4.2).
+- **Catalog**: `data/chrome.py` — frozen `ChromeSpec` +
+  `find_chrome`/`list_chrome` (data-first pattern); six t1 pieces,
+  effect payloads as flat defaulted fields, anatomy keys per
+  SETTLED 14 (ocular/jack/os/dermal/arm_muscle/hands).
+- **Dev acquisition**: the `dev_mode` menu pattern
+  (`ui.MenuScreen` + pygame frames), gated on `SPACEHACK_DEV` —
+  grant/uninstall per piece for playtest.
+- **Balance re-pins**: crit rolls guarded `chance > 0` —
+  chrome-less fights consume ZERO new draws (kill-draws doctrine);
+  the dodge cap lift moves piloting>120 movers with zero new
+  draws. `tests/balance/` + `tools/balance_probe.py` are the
+  instruments; re-measure tripped rows same-commit, cause noted.
+  Old-formula pins to update: `tests/combat/test_stats.py`,
+  `tests/combat/test_enemy_fire.py`.
+
+### Duplication hotspots (three)
+
+1. **Crit roll blocks copy-pasted across four fire sites** (space
+   player + space enemy + ground player + ground enemy): the
+   guarded roll, multiplier lookup, and flag plumbing.
+2. **Defender-coefficient reads re-derived at 9+ dodge call
+   sites** (the `int(x * 0.5)` pre-scale is already repeated at
+   each).
+3. **Mesh state peeked inline** at every armor-consumption site
+   (worn? below half?) instead of one soak read.
+
+### DRY strategy
+
+1. One pure helper per side (`_stats`): the guarded roll +
+   multiplier resolution; fire sites call it, never inline the
+   RNG guard (state-table guardrail: one crit implementation per
+   theater assembly, shared by both actors).
+2. The coefficient threads the EXISTING `_calc_dodge_bonus`
+   params — no parallel dodge formula anywhere; the pre-scale
+   convention stays at the callers.
+3. One `_player_soak(state)` helper in `_rules_ground` (+ the
+   enemy twin at `enemy.armor`) — every consumption site calls
+   the helper (the `_damage_popup_for` single-factory precedent).
+
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
 
@@ -1043,5 +1145,11 @@ build).
       briefs 4.1-4.3 written + ADVISE pass folded + all
       rulings closed 2026-10-15; `/implement-phase 102.4.1`
       is ready to run
+- [ ] 4.1 the body: crit system, dodge amendment, catalog effects,
+      core button (Brief 4.1)
+- [ ] 4.2 the economy: ego, the Terminus kiosk, consequence bands,
+      migration (Brief 4.2)
+- [ ] 4.3 the mirror: C-screen split, ego line, guide sync
+      (Brief 4.3)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
