@@ -117,3 +117,40 @@ def test_guide_armory_intro_names_reserve_top_up():
         "you leave your ship, and tops up your ammunition reserves." in gear.body
     )
     assert "ground \nammunition" not in gear.body
+
+
+def test_guide_cybernetics_section_documents_the_numbers():
+    """Doc 102 Brief 4.3 / SETTLED 15: the reference manual documents
+    the actual numbers — band names, ranges, effects, the ego pool,
+    the kiosk flow — and sits beside the character/skills topic it
+    mirrors."""
+    titles = [section.title for section in GUIDE_SECTIONS]
+    assert titles.index("Cybernetics") == titles.index("Character & Skills") + 1
+    chrome = next(s for s in GUIDE_SECTIONS if s.title == "Cybernetics")
+    for name in ("Natural (0-3)", "Tainted (4-7)", "Chromed (8-11)", "Psycho (12+)"):
+        assert name in chrome.body
+    assert "Burnt Ego never recovers" in chrome.body
+    assert "starts at 6 and grows by 1 every 3 levels" in chrome.body
+    assert "alongside armour, never instead of it" in chrome.body
+    assert "Terminus Tech" in chrome.body
+
+
+def test_guide_armour_bullet_retired_with_placeholders():
+    """4.2 retired the cybernetic armour entries; no guide line may
+    still claim armour can be cybernetic."""
+    assert all(
+        "cybernetic" not in section.body.lower()
+        for section in GUIDE_SECTIONS
+    )
+
+
+def test_guide_controls_lists_neural_stim_key():
+    """Doc 102 Brief 4.3: the core action key carries a Controls row."""
+    controls = next(
+        section for section in GUIDE_SECTIONS
+        if section.title == "Controls & Keybindings"
+    )
+    assert (
+        "- A: activate the Neural Stim (+2 AP this round, -1 next round)"
+        in controls.body
+    )
