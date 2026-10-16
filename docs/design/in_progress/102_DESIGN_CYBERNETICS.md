@@ -933,7 +933,12 @@ Keybind ruled the same session: **the core action key is `a`**
   pre-chrome board per the dead zone, band 3 posts everything);
   the advisor's second pin's home moved to a NEUTRAL port (on a
   strict port burn 4 composes to ×1.15, not ×1.05 — the pin's
-  purpose, consumers-that-never-read-the-band, is unchanged).
+  purpose, consumers-that-never-read-the-band, is unchanged);
+  REP and the space NPC-trade fold read the BASE band, not the
+  local one (rep moves everywhere — kills in space carry no
+  planet; NPC traders are met in space) — the "one knob" ruling's
+  planet-keyed scope is prices/boards/kiosk, recorded as the
+  fourth build correction (reviewer note 2026-10-16).
 - **Kiosk**: `city_kit._TERMINAL_SPECS` gains a 4th entry + a
   `terminus_kiosk` blocker flag + a `_resolve_terminal_blocker`
   branch → a new `menus/_kiosk.py` (the armory-menu pattern).

@@ -110,14 +110,11 @@ def _ammo_row(owned, slot: int, ctx=None):
     from .. import pygame_screen
     from ..ship import effective_missile_capacity
 
-    from ..chrome import local_band, service_multiplier
     _entry = owned.weapons[slot]
     weapon = find_weapon(getattr(_entry, "item_id", _entry))
     capacity = effective_missile_capacity(weapon, ctx)
     current = owned.weapon_ammo.get(slot, capacity)
-    _per_round = max(1, int(weapon.ammo_price * service_multiplier(
-        local_band(ctx, getattr(ctx, "current_city_id", "")),
-    )))
+    _per_round = max(1, int(weapon.ammo_price * _mech_service_mult(ctx)))
     return pygame_screen.ScreenRow(
         f"{weapon.name} ({current}/{capacity})",
         f"{_per_round}$/round",

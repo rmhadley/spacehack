@@ -125,9 +125,9 @@ class PlanetSpec:
     # faces; the bottom-floor apex borrows through APEX_BORROW (lands
     # with the bottom-guard build).
     biome: str = ""
-    # Doc 102 SETTLED 4: how this port reads chromed visitors — one
-    # band step milder (+1, pirate havens / corpo campuses) or
-    # harsher (-1, lawful cores). One knob: prices, boards, and the
+    # Doc 102 SETTLED 4: how this port reads chromed visitors — the
+    # band DELTA: +1 harsher (lawful cores), -1 milder (pirate
+    # havens / corpo campuses). One knob: prices, boards, and the
     # kiosk all read the shifted band.
     ego_valence: int = 0
 

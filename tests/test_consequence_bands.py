@@ -249,12 +249,14 @@ class TestRefuelComposition:
 
     def test_refuel_total_bands_and_dead_zone_holds(self):
         from src.spacehack.menus import _mechanic
-        _ship = SimpleNamespace(price=1000, max_fuel=10)
+        # A full-size tank: small totals truncate x1.05 away (the
+        # audit's erratum), so the pin uses a real 100-unit tank.
+        _ship = SimpleNamespace(price=1000, max_fuel=100)
         _owned = SimpleNamespace(fuel=0)
         _a = _mechanic._refuel_preview(_owned, _ship, 10**6, _ctx(0))
         _b = _mechanic._refuel_preview(_owned, _ship, 10**6, _ctx(3))
         _c = _mechanic._refuel_preview(_owned, _ship, 10**6, _ctx(4))
-        assert _a == _b == (10, 10)          # dead zone: 10 units for 10$
-        assert _c == (10, int(10 * 1.05))    # taint: same units, higher total
+        assert _a == _b == (100, 100)          # dead zone: base price
+        assert _c == (100, 105)                # taint: x1.05 total
         _psycho = _mechanic._refuel_preview(_owned, _ship, 10**6, _ctx(12))
-        assert _psycho == (10, 13)
+        assert _psycho == (100, 130)

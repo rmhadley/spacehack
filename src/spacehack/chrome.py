@@ -212,17 +212,10 @@ def local_band(ctx: "GameContext", planet_id: str) -> int:
     (-1) — ONE knob driving prices, boards, and the kiosk together.
     The dead zone is absolute (SETTLED 3): burn <= 3 reads free
     ANYWHERE, no port's valence can price the teach tier."""
-    _base = band(getattr(ctx, "ego_burn", 0))
+    _base = base_band(ctx)
     if _base == 0:
         return 0
-    _valence = 0
-    if planet_id:
-        from .data.planets import find_planet_spec
-        try:
-            _valence = getattr(find_planet_spec(planet_id), "ego_valence", 0)
-        except KeyError:
-            _valence = 0
-    return max(0, min(3, _base + _valence))
+    return max(0, min(3, _base + planet_valence(planet_id)))
 
 
 def base_band(ctx: "GameContext") -> int:
