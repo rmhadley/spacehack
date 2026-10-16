@@ -665,6 +665,7 @@ def render_hud(
     has_trade_terminal: bool = False,    # city mode: show = terminal hint
     has_mech_terminal: bool = False,     # city mode: show % terminal hint
     has_armory_terminal: bool = False,    # city mode: show A terminal hint
+    has_kiosk: bool = False,             # city mode: show $ terminal hint
 ) -> None:
     """Paint the right-side HUD; everything except layout comes from ``ctx``."""
     from .time import format_date as _format_date
@@ -691,6 +692,7 @@ def render_hud(
             has_trade_terminal=has_trade_terminal,
             has_mech_terminal=has_mech_terminal,
             has_armory_terminal=has_armory_terminal,
+            has_kiosk=has_kiosk,
         )
 
 
