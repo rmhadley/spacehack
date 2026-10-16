@@ -1190,6 +1190,34 @@ Checkpoint: install three pieces consequence-free, watch the
 fourth Taint you — kiosk prices shift, a strict planet's board
 loses its row.
 
+**Playtest checklist (handed to the user 2026-10-16):**
+
+1. Earth's spaceport row: the gold ``$`` Terminus Tech kiosk beside
+   the terminals (HUD row "$  Terminus Tech"); no dev mode needed.
+2. Install THREE pieces: each consent shows the Before/After table
+   (Ego / Burnt Ego / Install Room / State), base prices (dead
+   zone), State stays Natural.
+3. The FOURTH: State Natural/Tainted in the table; after, kiosk
+   prices read +5% and earth's terminals +15% (earth is STRICT —
+   Taint reads Chromed there; mars reads +5%, a haven reads base).
+4. Remove a piece at the kiosk: the removal table — Burnt Ego
+   stays, Install Room returns.
+5. Swap: install into an occupied anatomy — "Replaces X.", the old
+   piece lands in armory storage, sellable there.
+6. A strict planet's board loses its row — visible on the next
+   monthly refresh (boards trim at fill).
+7. An old save wearing placeholder cybernetics: loads with the
+   refund lines + credits; kill a pre-save consortium rung to see
+   substituted drops (the reviewer's old-stamp note).
+8. F7 dev grants stay burn-neutral by design — band playtests go
+   through the kiosk.
+
+**Guide edits this phase: NONE — one stale bullet deferred:** the
+ARMOUR section's "Some armour is cybernetic..." line
+(guide/__init__.py:344-346) was falsified by the retirement and is
+recorded in Brief 4.3's scope (reviewer catch) so it cannot ride
+silently; the chrome guide section itself is 4.3 item 3.
+
 ### Brief 4.3 — the mirror: the C-screen split, the ego line,
 ### documentation
 
@@ -1413,8 +1441,13 @@ build).
       the math is pinned at every layer in
       tests/combat/test_nano_mesh.py, including the exactly-half
       boundary and the integer truncation)
-- [ ] 4.2 the economy: ego, the Terminus kiosk, consequence bands,
-      migration (Brief 4.2)
+- [x] 4.2 the economy: ego, the Terminus kiosk, consequence bands,
+      migration (Brief 4.2) — BUILT 2026-10-16 in five reviewed
+      commits + three fold commits (ego ratchet core / consequence
+      bands across every consumer / the kiosk / placeholder
+      retirement + migration / the Consortium gate); gate green at
+      3864, all 27 ports city-audit clean; PLAYTEST PENDING
+      (checklist below)
 - [ ] 4.3 the mirror: C-screen split, ego line, guide sync
       (Brief 4.3)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
