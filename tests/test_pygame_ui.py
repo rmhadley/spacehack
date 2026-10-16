@@ -6957,3 +6957,50 @@ def test_split_scrollbar_thumbs_the_clamped_window(monkeypatch):
     thumb_y = track_y + (track_h - thumb_h) * top // max(1, len(rows) - count)
     assert rects[1] == SimpleNamespace(x=400 - 14, y=thumb_y, width=6, height=thumb_h)
 
+
+
+def test_split_guide_topic_opens_the_context_section(monkeypatch):
+    """Brief 4.3: a split terminal carrying guide_topic opens the
+    guide at its section on ? (the service-terminal help contract);
+    None keeps the bare topic list."""
+    from src.spacehack import help as game_help
+
+    opened = []
+    monkeypatch.setattr(
+        game_help, "_open_context_guide",
+        as_async(lambda _ctx, topic: opened.append(topic)),
+    )
+    outcomes = iter((
+        ("GUIDE", "", 0, 0),
+        ("BACK", "", 0, 0),
+    ))
+    monkeypatch.setattr(
+        pygame_split, "run_shared",
+        as_async(lambda *_args, **_kwargs: next(outcomes)),
+    )
+    monkeypatch.setattr(pygame_split, "_shared_runtime_enabled", lambda _ctx: True)
+
+    async def _apply(_action, _focus, _selected):
+        return True
+
+    assert run(pygame_split.run_interactive(
+        SimpleNamespace(context=object()),
+        lambda: pygame_split.SplitFrame("T", "L", "R", (), (), "", "", ""),
+        _apply, caption="t", guide_topic="Cybernetics",
+    )) == "BACK"
+    assert opened == ["Cybernetics"]
+
+    # The None path (armory/loadout/trade on ?): the bare topic
+    # list, never the contextual opener.
+    bare = []
+    monkeypatch.setattr(
+        game_help, "_run_help_guide",
+        as_async(lambda _ctx: bare.append(True)),
+    )
+    outcomes = iter((("GUIDE", "", 0, 0), ("BACK", "", 0, 0)))
+    assert run(pygame_split.run_interactive(
+        SimpleNamespace(context=object()),
+        lambda: pygame_split.SplitFrame("T", "L", "R", (), (), "", "", ""),
+        _apply, caption="t",
+    )) == "BACK"
+    assert bare == [True] and opened == ["Cybernetics"]

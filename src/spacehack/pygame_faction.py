@@ -101,8 +101,11 @@ def _identity_block(ctx: GameContext) -> tuple[str, ...]:
     ]
     # The Consortium gate's standing exposure (doc 102 SETTLED 4/5):
     # hidden rep axis stays hidden — this line is the whole surface.
+    # The blank line separates it from the broadcast block: a
+    # standing corporate notice, not part of your ID (Brief 4.3).
     from .chrome import consortium_gate_open
     if consortium_gate_open(ctx):
+        lines.append("")
         lines.append("Terminus Tech: account active")
     return tuple(lines)
 

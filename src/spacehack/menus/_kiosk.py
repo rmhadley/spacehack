@@ -168,7 +168,8 @@ def _remove(ctx: "GameContext", piece_id: str) -> None:
 async def _run_kiosk_menu(ctx: "GameContext", planet_id: str = "") -> None:
     """Run the kiosk terminal in the shared Pygame window (the
     armory's split loop: apply-and-stay-open on SELECT, TAB flips
-    panes inside the family)."""
+    panes inside the family). The kiosk's ? opens the Cybernetics
+    guide topic — the service-terminal help contract (Brief 4.3)."""
     from .. import pygame_split
 
     def build_frame():
@@ -183,4 +184,5 @@ async def _run_kiosk_menu(ctx: "GameContext", planet_id: str = "") -> None:
 
     await pygame_split.run_interactive(
         ctx, build_frame, apply_action, caption="spacehack - terminus tech",
+        guide_topic="Cybernetics",
     )

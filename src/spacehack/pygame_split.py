@@ -894,18 +894,31 @@ async def _apply_keep_open(
         raise PygameSplitUnavailable("Pygame split frame could not be rebuilt") from exc
 
 
+async def _open_split_guide(ctx: GameContext, guide_topic: str | None) -> None:
+    """The GUIDE outcome's help dispatch: a contextual topic when the
+    terminal carries one, the bare topic list otherwise."""
+    from .help import _open_context_guide, _run_help_guide
+    if guide_topic:
+        await _open_context_guide(ctx, guide_topic)
+    else:
+        await _run_help_guide(ctx)
+
+
 async def run_interactive(
     ctx: GameContext,
     build_frame: Callable[[], SplitFrame],
     apply_action: Callable[[str, int, int], Awaitable[bool]],
     *,
     caption: str,
+    guide_topic: str | None = None,
 ) -> str:
     """Repeat split selections while the parent applies domain actions.
 
     ``build_frame`` and ``apply_action`` execute in the game process; the
     worker never receives mutable game state. ``apply_action`` returns True
-    when the terminal should remain open after the mutation.
+    when the terminal should remain open after the mutation. ``guide_topic``
+    opens the guide at a contextual section on ``?`` (the service-terminal
+    help contract — None keeps the topic list).
     """
     if not _shared_runtime_enabled(ctx):
         raise PygameSplitUnavailable("Shared Pygame runtime is not open")
@@ -918,8 +931,7 @@ async def run_interactive(
             ctx.context, frame, caption=caption,
         )
         if outcome == "GUIDE":
-            from .help import _run_help_guide
-            await _run_help_guide(ctx)
+            await _open_split_guide(ctx, guide_topic)
             frame = _build_frame(build_frame, rebuilt=True)
             continue
         if _keep_open_outcome(outcome):

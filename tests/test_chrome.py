@@ -363,10 +363,11 @@ class TestConsortiumGate:
         from src.spacehack.pygame_faction import _identity_block
         _closed = _identity_block(_ego_ctx(burn=0))
         assert all("Terminus Tech" not in line for line in _closed)
-        _open = _identity_block(_ego_ctx(burn=12))
-        assert any(
-            line == "Terminus Tech: account active" for line in _open
-        )
+        _open = list(_identity_block(_ego_ctx(burn=12)))
+        assert "Terminus Tech: account active" in _open
+        # Brief 4.3: a blank line separates the corporate notice from
+        # the broadcast block.
+        assert _open[_open.index("Terminus Tech: account active") - 1] == ""
 
 
 class TestKioskLoopEntry:
@@ -456,3 +457,25 @@ class TestMirrorReadouts:
         assert installed_for_skill(worn, "reflexes") == ("terminus_smartlink",)
         assert installed_for_skill(worn, "stamina") == ()
         assert installed_for_skill([], "gunnery") == ()
+
+
+class TestKioskGuideTopic:
+    """Brief 4.3's service-terminal help sync: the kiosk's ? opens
+    the Cybernetics guide topic, not the bare list."""
+
+    def test_kiosk_passes_the_cybernetics_topic(self, monkeypatch):
+        import asyncio
+
+        from src.spacehack.menus import _kiosk
+        from src.spacehack import pygame_split
+        from types import SimpleNamespace
+
+        captured = {}
+
+        async def _interactive(_ctx, build, apply, *, caption, guide_topic=None):
+            captured["topic"] = guide_topic
+            return "BACK"
+
+        monkeypatch.setattr(pygame_split, "run_interactive", _interactive)
+        asyncio.run(_kiosk._run_kiosk_menu(SimpleNamespace(), "earth"))
+        assert captured["topic"] == "Cybernetics"
