@@ -22,7 +22,6 @@ from ..data.ground_weapons import find_ground_weapon as _find_gw
 from .. import ground_scale
 from ..data.npc_chars import find_npc_char as _find_nc
 from ..ground_equipment import (
-    sum_armor_bonus as _sum_armor_bonus,
     sum_armor_defense as _sum_armor_defense,
 )
 from ..xp import (
@@ -151,7 +150,7 @@ def _worn_fold(spec, stats, worn) -> tuple[int, int]:
     pieces. What they wear is what they are, on the card and in
     every soak."""
     return (
-        spec.hp + stats.stamina // 3 + _sum_armor_bonus(worn, "hp_bonus"),
+        spec.hp + stats.stamina // 3,
         spec.armor + _sum_armor_defense(worn),
     )
 
@@ -181,10 +180,7 @@ def _armor_defense_total(ctx) -> int:
 
 def _starting_ap_gain_twentieths(ctx) -> int:
     """Per-round AP gain in twentieths: 4 + Ace Pilot + Nimble + legs."""
-    return 80 + 20 * (
-        _ace_pilot_bonus(ctx) + _nimble_ap_bonus(ctx)
-        + _sum_armor_bonus(ctx.equipped_ground_armor.values(), "ap_bonus")
-    )
+    return 80 + 20 * (_ace_pilot_bonus(ctx) + _nimble_ap_bonus(ctx))
 
 def init(ctx, enemy_entities: list[world.Entity], game_map: world.GameMap, *, console=None) -> None:
     """Set up combat session state for a ground combat encounter."""
@@ -358,9 +354,10 @@ def hit_chance(
     # Sharpshooter trait: +10% hit chance; cybernetic eyes add more;
     # the Pirate opener rides the same sum while its window is open.
     _ef, _os = _opener_flags()
-    _hit_bonus = _sharpshooter_bonus(ctx) + _sum_armor_bonus(
-        ctx.equipped_ground_armor.values(), "hit_bonus",
-    ) + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
+    _hit_bonus = (
+        _sharpshooter_bonus(ctx)
+        + _opener_hit_bonus(ctx, enemy_fired=_ef, opener_spent=_os)
+    )
     if _is_charger_melee(ctx, weapon_id):
         _hit_bonus += _charge_bonuses(_charge_tiles(ctx))[0]
     if _ground_deadshot.is_deadshot(ctx, weapon_id):
@@ -385,11 +382,11 @@ def player_soak(state: GroundCombatState) -> int:
 
 
 def _player_melee_bonus(ctx, weapon_id: str, chrome_fx, is_melee: bool) -> int:
-    """The player's melee damage bonus term: worn armor + Sturdy's
-    always-on +2 (doc 49, fists included) + the Muscle Fibers
-    garnish (doc 102 SETTLED 10, melee-only like Sturdy) + the
-    charger's momentum."""
-    _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
+    """The player's melee damage bonus term: Sturdy's always-on +2
+    (doc 49, fists included) + the Muscle Fibers garnish (doc 102
+    SETTLED 10, melee-only like Sturdy) + the charger's momentum.
+    (The placeholder armor melee_bonus retired with its entries.)"""
+    _melee_bonus = 0
     if is_melee:
         _melee_bonus += _sturdy_melee_bonus(ctx) + chrome_fx.melee_damage_bonus
     if _is_charger_melee(ctx, weapon_id):

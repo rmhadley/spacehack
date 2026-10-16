@@ -27,25 +27,12 @@ def _weapon_detail(spec) -> str:
     )
 
 
-def _armor_effects(spec) -> str:
-    """Format one armor piece's cybernetic bonuses, or an empty string."""
-    bonuses = []
-    if spec.ap_bonus:
-        bonuses.append(f"+{spec.ap_bonus} AP")
-    if spec.hit_bonus:
-        bonuses.append(f"+{spec.hit_bonus}% Hit")
-    if spec.melee_bonus:
-        bonuses.append(f"+{spec.melee_bonus} Melee")
-    if spec.hp_bonus:
-        bonuses.append(f"+{spec.hp_bonus} HP")
-    return f"   {' '.join(bonuses)}" if bonuses else ""
-
 
 def _armor_detail(spec) -> str:
     """Format one armor piece's slot, defense, and cybernetic effects."""
     return (
         f"{spec.slot.title()}  Defense: {spec.defense}"
-        f"{_armor_effects(spec)}  {spec.description}"
+        f"  {spec.description}"
     )
 
 

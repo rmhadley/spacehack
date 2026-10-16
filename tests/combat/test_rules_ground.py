@@ -351,8 +351,9 @@ def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
     assert _enemy.ap == 0
 
 
-def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
-    """Player melee vs an armored enemy: armor reduces, cyber arms add.
+def test_damage_subtracts_enemy_armor():
+    """Player melee vs an armored enemy: armor reduces (the placeholder
+    arms' melee rider retired with the fields, doc 102.4.2).
 
     Player strength steps every 5 points: 20 // 5 = +4 melee.
     """
@@ -364,13 +365,13 @@ def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     )
     _ctx = SimpleNamespace(
         ground_stats=SimpleNamespace(strength=20),
-        equipped_ground_armor={"hands": StoredGroundEquipment("armor", "cybernetic_arms")},
+        equipped_ground_armor={},
         installed_chrome=[],
     )
     _dmg, _glance, _crit = _rules_ground.damage("fists", _enemy, _ctx)
-    assert _dmg == 4  # 1 + 4 (str) + 2 (cyber arms) - 3 (armor)
+    assert _dmg == 2  # 1 + 4 (str) - 3 (armor)
     assert _glance is False
-    assert _enemy.hp == 26
+    assert _enemy.hp == 28
 
 
 # ---------------------------------------------------------------------------
@@ -804,14 +805,16 @@ def test_init_locks_engaged_enemies():
     assert getattr(_enemy, "combat_locked", False) is True
 
 
-def test_init_applies_cybernetic_ap_and_hp_bonuses():
-    """Cybernetic legs add +1 AP; cybernetic torso adds +3 max ground HP."""
+def test_init_folds_worn_defense_without_bonus_machinery():
+    """The placeholder cybernetics retired (doc 102.4.2): armor folds
+    DEFENSE only — no ap/hp bonus fields exist to read."""
     _ctx, _game_map, _, _enemy = _ground_fixture()
-    _ctx.equipped_ground_armor = {"legs": StoredGroundEquipment("armor", "cybernetic_legs"), "body": StoredGroundEquipment("armor", "cybernetic_torso")}
+    _ctx.equipped_ground_armor = {"body": StoredGroundEquipment("armor", "light_vest")}
     _rules_ground.init(_ctx, [_enemy], _game_map)
 
-    assert _rules_ground.player_ap_total(_ctx) == 5  # 4 + 1
-    assert _rules_ground.player_max_hp(_ctx) == 28  # 20 + 10//2 + 3
+    assert _rules_ground.player_ap_total(_ctx) == 4  # traits + base only
+    assert _rules_ground.player_max_hp(_ctx) == 25  # 20 + 10//2
+    assert _rules_ground._state.armor_defense == 2  # the vest's fold
 
 
 def test_check_reinforcements_locks_joins_before_patrol_tick(monkeypatch):

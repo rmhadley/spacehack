@@ -18,7 +18,6 @@ from src.spacehack.ground_equipment import (
     preferred_displacement_container,
     install_armor,
     sell_stored,
-    sum_armor_bonus,
     sum_armor_defense,
     store_armor,
     store_weapon,
@@ -51,14 +50,6 @@ def _armor(item_id: str, quality: int = 0) -> StoredGroundEquipment:
     return StoredGroundEquipment("armor", item_id, quality)
 
 
-def test_sum_armor_bonus_totals_a_single_field_across_armor():
-    assert sum_armor_bonus(
-        [_armor("cybernetic_legs"), _armor("cybernetic_eyes")], "ap_bonus",
-    ) == 1
-    assert sum_armor_bonus([_armor("cybernetic_eyes")], "hit_bonus") == 8
-    assert sum_armor_bonus([_armor("cybernetic_torso")], "hp_bonus") == 3
-
-
 def test_sum_armor_defense_totals_equipped_pieces():
     assert sum_armor_defense(
         [_armor("light_helmet"), _armor("light_vest"), _armor("missing_id")],
@@ -66,23 +57,10 @@ def test_sum_armor_defense_totals_equipped_pieces():
     assert sum_armor_defense([None]) == 0
 
 
-def test_sum_armor_bonus_skips_empty_and_unknown_ids():
-    assert sum_armor_bonus(
-        [None, _armor("missing_id"), _armor("cybernetic_arms")], "melee_bonus",
-    ) == 2
-    assert sum_armor_bonus([], "ap_bonus") == 0
-
-
 def test_armor_sums_scale_with_each_entrys_quality():
     # A mixed-quality loadout sums per-entry effective specs (doc 47.2).
     assert sum_armor_defense([_armor("light_vest", 2)]) == 3  # 2 * 1.30
     assert sum_armor_defense([_armor("light_vest"), _armor("light_vest", 1)]) == 2 + 3  # ceiling
-    assert sum_armor_bonus([_armor("cybernetic_eyes", 1)], "hit_bonus") == 10  # 8 * 1.15 -> 10
-
-
-def test_sum_armor_bonus_rejects_unknown_field():
-    with pytest.raises(ValueError):
-        sum_armor_bonus(["cybernetic_legs"], "defense")
 
 
 def test_displacement_prefers_pack_then_falls_back_to_armory():

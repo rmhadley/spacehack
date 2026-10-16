@@ -328,6 +328,41 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_retired_placeholders_migrate_unworn_and_credited(
+        self, monkeypatch, tmp_path,
+    ):
+        """Doc 102.4.2: worn/stored placeholder cybernetics leave on
+        load, credited at base price, the ruled line per piece."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        from src.spacehack.ground_equipment import StoredGroundEquipment
+        RNG.seed(43)
+
+        ctx = _build_test_ctx()
+        ctx.equipped_ground_armor["head"] = StoredGroundEquipment(
+            "armor", "cybernetic_eyes",
+        )
+        ctx.ground_armory_storage.append(
+            StoredGroundEquipment("armor", "cybernetic_arms")
+        )
+        _credits_before = ctx.stats.credits
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert "head" not in loaded.equipped_ground_armor
+        assert all(
+            e.item_id != "cybernetic_arms"
+            for e in loaded.ground_armory_storage
+        )
+        assert loaded.stats.credits == _credits_before + 260 + 340
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_chrome_swap_backs_survive_round_trip(self, monkeypatch, tmp_path):
         """Doc 102.4.2: swap-back chrome in armory storage round-trips
         (the reviewer catch — the load parser whitelisted it away)."""

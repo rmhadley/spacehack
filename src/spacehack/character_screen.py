@@ -121,20 +121,6 @@ def _bandolier_rows(ctx: GameContext) -> tuple:
         for name, cur, cap in entries
     )
 
-def _armor_effects(spec) -> str:
-    """Format one armor piece's cybernetic bonuses, or an empty string."""
-    bonuses = []
-    if spec.ap_bonus:
-        bonuses.append(f"+{spec.ap_bonus} AP")
-    if spec.hit_bonus:
-        bonuses.append(f"+{spec.hit_bonus}% Hit")
-    if spec.melee_bonus:
-        bonuses.append(f"+{spec.melee_bonus} Melee")
-    if spec.hp_bonus:
-        bonuses.append(f"+{spec.hp_bonus} HP")
-    return f"   {' '.join(bonuses)}" if bonuses else ""
-
-
 def _pack_entry_name(entry) -> str:
     """Return the token-prefixed display name for one pack entry."""
     from . import ground_equipment
@@ -170,7 +156,7 @@ def _pack_entry_detail(entry) -> str:
             f"{stored_mag_suffix(entry)}{bypass}"
         )
     spec = effective_armor_spec(entry.item_id, entry.quality)
-    return f"{spec.slot.title()}  Defense {spec.defense}{_armor_effects(spec)}  {spec.description}"
+    return f"{spec.slot.title()}  Defense {spec.defense}  {spec.description}"
 
 
 def _swap_options(ctx: GameContext, slot: str) -> tuple[tuple[int, str, str], ...]:
@@ -278,7 +264,7 @@ def _filled_armor_row(entry, label: str, ctx, slot, equipment_management, manage
     )
     return _equipment_row(
         _text,
-        f"Defense {spec.defense}{_armor_effects(spec)}   {spec.description}",
+        f"Defense {spec.defense}   {spec.description}",
         action=f"SWAP:armor:{slot}" if managed else "",
         selectable=True if not equipment_management else managed,
         runs=_runs,

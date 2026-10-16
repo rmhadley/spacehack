@@ -2672,17 +2672,19 @@ def test_character_equipment_group_markers_flip_with_the_sets():
     assert rows[3].text == "--- WEAPONS - MELEE [ACTIVE] ---"
 
 
-def test_character_equipment_rows_show_cybernetic_effects():
+def test_character_equipment_rows_show_plain_defense():
+    """The cybernetic effects row retired with the placeholders
+    (doc 102.4.2) — the row reads plain defense."""
     ctx = SimpleNamespace(
         equipped_ground_weapons=[],
         holstered_ground_weapons=[],
-        equipped_ground_armor={"legs": StoredGroundEquipment("armor", "cybernetic_legs")},
+        equipped_ground_armor={"legs": StoredGroundEquipment("armor", "reinforced_greaves")},
     )
 
     rows = character_screen._equipment_rows(ctx)
 
     legs_row = next(row for row in rows if "Legs armor" in row.text)
-    assert "+1 AP" in legs_row.detail
+    assert "Defense 3" in legs_row.detail
 
 
 def test_character_equipment_rows_empty_gear_is_informational():

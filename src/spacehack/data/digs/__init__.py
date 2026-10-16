@@ -75,7 +75,7 @@ TIER_EQUIPMENT_POOLS: dict[int, tuple[tuple[str, str], ...]] = {
     3: (
         ("weapon", "battle_rifle"), ("weapon", "plasma_pistol"),
         ("weapon", "vibroblade"), ("armor", "heavy_vest"),
-        ("armor", "visor_helmet"), ("armor", "cybernetic_eyes"),
+        ("armor", "visor_helmet"), ("armor", "heavy_helmet"),
     ),
     4: (
         ("weapon", "railgun"), ("weapon", "plasma_caster"),

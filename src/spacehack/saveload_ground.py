@@ -178,6 +178,38 @@ def _restore_weapon_sets(ctx: GameContext, data: dict) -> None:
         )
 
 
+# The retired placeholder armor cybernetics (doc 102.4.2): every
+# instance in the RAW save data is refunded at base price on load —
+# the parse silently drops retired ids, so the sweep reads the data
+# dicts directly (worn ones unwear, stored ones leave, the ruled
+# line reports each).
+_RETIRED_PLACEHOLDERS: dict[str, tuple[str, int]] = {
+    "cybernetic_eyes": ("Cybernetic Eyes", 260),
+    "cybernetic_torso": ("Cybernetic Torso", 520),
+    "cybernetic_arms": ("Cybernetic Arms", 340),
+    "cybernetic_legs": ("Cybernetic Legs", 520),
+}
+
+
+def _migrate_retired_placeholders(ctx: GameContext, data: dict) -> None:
+    """Credit + report every retired id in the raw payload."""
+    _ids: list[str] = []
+    for entry in (data.get("equipped_ground_armor") or {}).values():
+        if isinstance(entry, dict) and entry.get("item_id") in _RETIRED_PLACEHOLDERS:
+            _ids.append(entry["item_id"])
+    for key in ("ground_armory_storage", "ground_equipment_storage",
+                "ground_expedition_inventory"):
+        for entry in (data.get(key) or []):
+            if isinstance(entry, dict) and entry.get("item_id") in _RETIRED_PLACEHOLDERS:
+                _ids.append(entry["item_id"])
+    if not _ids:
+        return
+    for item_id in _ids:
+        _name, _price = _RETIRED_PLACEHOLDERS[item_id]
+        ctx.stats.credits += _price
+        ctx.log.add(f"{_name} removed. Refunded {_price}$.")
+
+
 def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
     """Restore ground combat and equipment fields."""
     ctx.ground_stats = _restore_ground_stats(data.get("ground_stats"))
@@ -206,6 +238,7 @@ def _restore_ground_fields(ctx: GameContext, data: dict) -> None:
     ctx.bandolier = _parse_bandolier(data.get("bandolier"))
     _migrate_stored_ammo_to_bandolier(ctx)
     ctx.ground_hp, ctx.ground_max_hp = _restore_ground_hp(data)
+    _migrate_retired_placeholders(ctx, data)
 
 
 def _parse_ground_item_stacks(raw) -> list:

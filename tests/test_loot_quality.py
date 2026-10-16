@@ -114,14 +114,15 @@ def test_effective_weapon_spec_legendary_row_resolves():
 
 
 def test_effective_armor_spec_base_is_the_catalog_row():
-    spec = find_ground_armor("cybernetic_eyes")
-    assert quality.effective_armor_spec("cybernetic_eyes", 0) is spec
+    spec = find_ground_armor("heavy_helmet")
+    assert quality.effective_armor_spec("heavy_helmet", 0) is spec
 
 
-def test_effective_armor_spec_scales_defense_and_bonus_fields():
-    t2 = quality.effective_armor_spec("cybernetic_eyes", 2)  # hit_bonus 8
-    assert t2.hit_bonus == 11      # 8 * 1.30 = 10.4 -> 11 (ceiling)
-    assert t2.defense == 0         # base 0 stays 0
+def test_effective_armor_spec_scales_defense_only():
+    """The bonus fields retired with the placeholders (doc 102.4.2):
+    armor quality scales defense alone."""
+    t2 = quality.effective_armor_spec("heavy_helmet", 2)  # defense 2
+    assert t2.defense == 3         # 2 * 1.30 = 2.6 -> 3 (ceiling)
     vest_t3 = quality.effective_armor_spec("medium_vest", 3)  # defense 3
     assert vest_t3.defense == 5    # 3 * 1.45 = 4.35 -> 5 (ceiling)
     assert vest_t3.slot == find_ground_armor("medium_vest").slot
@@ -305,7 +306,7 @@ def test_display_name_prefixes_the_token_at_the_label_seam():
 
     assert display_name("weapon", "kinetic_pistol", 1) == "Modded Kinetic Pistol"
     assert display_name("weapon", "kinetic_pistol", 3) == "Prototype Kinetic Pistol"
-    assert display_name("armor", "cybernetic_eyes", 2) == "Overclocked Cybernetic Eyes"
+    assert display_name("armor", "heavy_helmet", 2) == "Overclocked Heavy Helmet"
     assert display_name("weapon", "kinetic_pistol") == "Kinetic Pistol"
     assert display_name("armor", "light_vest", 4) == "Light Armor Vest"  # randart name later
 
@@ -344,8 +345,8 @@ def test_armory_names_and_details_read_the_tier():
     entry = StoredGroundEquipment("weapon", "kinetic_pistol", 2)
     assert _equipment_name(entry) == "Overclocked Kinetic Pistol"
     assert "Damage: 8" in _equipment_detail(entry)  # 6 * 1.30
-    base = StoredGroundEquipment("armor", "cybernetic_eyes")
-    assert _equipment_name(base) == "Cybernetic Eyes"
+    base = StoredGroundEquipment("armor", "heavy_helmet")
+    assert _equipment_name(base) == "Heavy Helmet"
 
 
 @pytest.mark.parametrize(

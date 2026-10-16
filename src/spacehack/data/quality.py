@@ -157,23 +157,16 @@ def effective_ship_weapon_spec(weapon_id: str, quality: int = 0):
 
 
 def effective_armor_spec(armor_id: str, quality: int = 0):
-    """Return the catalog armor with defense and bonus fields scaled.
+    """Return the catalog armor with defense scaled.
 
-    Scales the four cybernetic bonus fields alongside defense so a
-    variant of a bonus piece is better at what it does.
+    (The placeholder cybernetic bonus fields retired with their
+    entries, doc 102.4.2 — armor quality scales defense alone.)
     """
     spec = find_ground_armor(armor_id)
     if quality <= 0:
         return spec
     pct = _FAMILY_ROWS["armor"][quality]
-    return dataclasses.replace(
-        spec,
-        defense=_scaled(spec.defense, pct),
-        **{
-            name: _scaled(getattr(spec, name), pct)
-            for name in ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
-        },
-    )
+    return dataclasses.replace(spec, defense=_scaled(spec.defense, pct))
 
 
 def effective_module_spec(module_id: str, quality: int = 0, randart_seed: int | None = None):

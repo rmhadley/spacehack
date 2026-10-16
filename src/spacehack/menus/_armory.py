@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from ._armory_buy import (  # noqa: F401 — detail helpers + re-exported buy rows
     _armor_detail,
-    _armor_effects,
     _buy_consumable_rows,
     _buy_rows,
     _restock_rows,
@@ -280,7 +279,7 @@ def _armor_slot_rows(ctx: GameContext):
         rows.append(pygame_split.SplitRow(
             _label,
             pygame_ui.sell_cell(_sell_price(entry.item_id, entry.quality, ctx)),
-            f"Defense: {spec.defense}{_armor_effects(spec)}  {spec.description}",
+            f"Defense: {spec.defense}  {spec.description}",
             f"MANAGE_ARMOR:{slot}",
             runs=_runs,
         ))

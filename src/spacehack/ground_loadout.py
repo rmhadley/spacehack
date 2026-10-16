@@ -140,16 +140,12 @@ def worn_entries(stamp: dict | None) -> tuple:
 
 
 def worn_bonuses(stamp: dict | None) -> tuple:
-    """The worn pieces' ``(hit_bonus, melee_bonus)`` (SETTLED 27/41 —
-    the eyes' +8 hit moves volley pick AND shot resolution
-    identically; the arms' melee bonus rides the same damage math)."""
-    from .ground_equipment import sum_armor_bonus
-
-    _entries = worn_entries(stamp)
-    return (
-        sum_armor_bonus(_entries, "hit_bonus"),
-        sum_armor_bonus(_entries, "melee_bonus"),
-    )
+    """The wearer's ``(hit_bonus, melee_bonus)`` fold (SETTLED
+    27/41) — the seam the ENEMY CHROME container lands on (doc 102:
+    deferred per SETTLED 6). The placeholder armor bonus fields
+    retired with their entries (4.2), so armor stamps read (0, 0)
+    today; the threading stays so the container plugs in here."""
+    return (0, 0)
 
 
 def _complete_migrated_stamp(stamp: dict, entity, game_map, spec) -> None:

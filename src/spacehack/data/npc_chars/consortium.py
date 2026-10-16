@@ -8,11 +8,12 @@ carries a FIXED band (the ancients' ``fixed_band`` precedent) —
 authored encounter difficulty decides which rung you meet (SETTLED
 12), and a rung reads identical wherever it appears.
 
-Names are user-ruled VERBATIM (SETTLED 54). Worn pieces are the
-EXISTING armor cybernetics (SETTLED 11); their bonus fields go live
-on the wearer through the standard modifier math (SETTLED 27) and
-drop via the kit path at stamped qualities — premium loot by the
-quality floor (never base; the Executor floors at overclocked).
+Names are user-ruled VERBATIM (SETTLED 54). Worn pieces were the
+placeholder armor cybernetics (SETTLED 11); those retired with the
+chrome system (doc 102.4.2) and each rung wears stat-preserving
+plain-armor substitutes at the matching tech band (the enemy chrome
+container lands later per SETTLED 6 — the worn_bonuses seam awaits
+it). Drops still ride the kit path at stamped qualities.
 """
 
 from . import NpcCharSpec, six_weights
@@ -33,7 +34,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.45, 0.15, 0.25),
         behavior="guard",
         fixed_band=2,
-        worn_armor=("cybernetic_eyes", "cybernetic_arms"),
+        worn_armor=("heavy_helmet", "reinforced_gauntlets"),
         quality_floor=1,
         loot_pool=("electronics", "machine_parts", "fuel_cells"),
         field_item_loot_pool=(
@@ -58,7 +59,7 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         stat_weights=six_weights(0.25, 0.40, 0.20),
         behavior="hunter",
         fixed_band=3,
-        worn_armor=("cybernetic_arms", "cybernetic_legs"),
+        worn_armor=("reinforced_gauntlets", "reinforced_greaves"),
         quality_floor=1,
         loot_pool=("electronics", "machine_parts", "scrap_metal"),
         field_item_loot_pool=(
@@ -87,8 +88,8 @@ NPC_CHARS: tuple[NpcCharSpec, ...] = (
         behavior="hunter",
         fixed_band=4,
         worn_armor=(
-            "cybernetic_eyes", "cybernetic_torso",
-            "cybernetic_arms", "cybernetic_legs",
+            "visor_helmet", "heavy_vest",
+            "powered_gloves", "reinforced_greaves",
         ),
         quality_floor=2,
         loot_pool=("electronics", "machine_parts", "research_data"),

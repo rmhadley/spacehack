@@ -111,16 +111,6 @@ WARES: tuple[GroundArmorSpec, ...] = (
         price=340,
         tech_level=4,
     ),
-    GroundArmorSpec(
-        id="cybernetic_eyes",
-        name="Cybernetic Eyes",
-        slot="head",
-        defense=0,
-        description="Ocular implants that sharpen aim.",
-        price=260,
-        tech_level=2,
-        hit_bonus=8,
-    ),
     # --- Body (T4 + cybernetic) ---
     GroundArmorSpec(
         id="powered_vest",
@@ -130,16 +120,6 @@ WARES: tuple[GroundArmorSpec, ...] = (
         description="Servo-assisted ceramic plate carrier.",
         price=620,
         tech_level=4,
-    ),
-    GroundArmorSpec(
-        id="cybernetic_torso",
-        name="Cybernetic Torso",
-        slot="body",
-        defense=1,
-        description="Reinforced synthetic torso.",
-        price=520,
-        tech_level=3,
-        hp_bonus=3,
     ),
     # --- Hands (T2-T3 + cybernetic) ---
     GroundArmorSpec(
@@ -160,16 +140,6 @@ WARES: tuple[GroundArmorSpec, ...] = (
         price=130,
         tech_level=3,
     ),
-    GroundArmorSpec(
-        id="cybernetic_arms",
-        name="Cybernetic Arms",
-        slot="hands",
-        defense=0,
-        description="Synthetic arms tuned for melee.",
-        price=340,
-        tech_level=2,
-        melee_bonus=2,
-    ),
     # --- Legs (T3-T4 + cybernetic) ---
     GroundArmorSpec(
         id="reinforced_greaves",
@@ -188,16 +158,6 @@ WARES: tuple[GroundArmorSpec, ...] = (
         description="Full-coverage assault greaves.",
         price=340,
         tech_level=4,
-    ),
-    GroundArmorSpec(
-        id="cybernetic_legs",
-        name="Cybernetic Legs",
-        slot="legs",
-        defense=0,
-        description="Synthetic legs that react faster.",
-        price=520,
-        tech_level=3,
-        ap_bonus=1,
     ),
     # --- Feet (T2-T4) ---
     GroundArmorSpec(

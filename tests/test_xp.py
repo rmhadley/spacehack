@@ -450,21 +450,3 @@ class TestGroundMaxHpRefresh:
         _apply_ironclad_hp(ctx, "ironclad")
         assert (ctx.ground_hp, ctx.ground_max_hp) == (43, 43)
 
-    def test_selling_hp_bonus_armor_resyncs_the_stored_max(self):
-        """The armory manage path (SELL_ARMOR) is a live input change —
-        the worn Cybernetic Torso's +3 must leave the stored max."""
-        from src.spacehack.ground_equipment import StoredGroundEquipment
-        from src.spacehack.menus._armory import _apply_manage_choice
-
-        ctx = self._ctx(stamina=34, hp=40, max_hp=40)
-        ctx.equipped_ground_armor["body"] = StoredGroundEquipment(
-            "armor", "cybernetic_torso",
-        )
-        ctx.ground_armory_storage = []
-        ctx.stats = SimpleNamespace(credits=0)
-        assert (ctx.ground_hp, ctx.ground_max_hp) == (40, 40)
-
-        _apply_manage_choice(ctx, "SELL_ARMOR:body")
-
-        assert ctx.equipped_ground_armor == {}
-        assert (ctx.ground_hp, ctx.ground_max_hp) == (37, 37)

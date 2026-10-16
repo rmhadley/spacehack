@@ -70,17 +70,26 @@ from src.spacehack.data.ground_armor import find_ground_armor, slot_tiers  # noq
 
 
 def _cyber_ids() -> set[str]:
+    """The RETIRED placeholder ids (doc 102.4.2) — the ladders must
+    never resurrect them."""
     return {
-        spec.id for spec in (
-            find_ground_armor(pid) for pid in (
-                "cybernetic_eyes", "cybernetic_torso",
-                "cybernetic_arms", "cybernetic_legs",
-            )
+        pid for pid in (
+            "cybernetic_eyes", "cybernetic_torso",
+            "cybernetic_arms", "cybernetic_legs",
         )
+        if _id_exists(pid)
     }
 
 
-def test_slot_ladders_exclude_cyber_and_cover_five_slots():
+def _id_exists(pid: str) -> bool:
+    try:
+        find_ground_armor(pid)
+        return True
+    except KeyError:
+        return False
+
+
+def test_slot_ladders_exclude_retired_cyber_and_cover_five_slots():
     ladders = slot_tiers()
     assert sorted(ladders) == ["body", "feet", "hands", "head", "legs"]
     _cyber = _cyber_ids()

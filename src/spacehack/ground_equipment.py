@@ -29,31 +29,7 @@ ARMOR_SLOT_LABELS: dict[str, str] = {
     "head": "Head", "body": "Body", "hands": "Hands",
     "legs": "Legs", "feet": "Feet",
 }
-_ARMOR_BONUS_FIELDS: tuple[str, ...] = ("ap_bonus", "hit_bonus", "melee_bonus", "hp_bonus")
 ITEM_STACK_TYPES: tuple[str, ...] = ("ammo", "consumable")
-
-
-def sum_armor_bonus(armor_entries: Iterable[StoredGroundEquipment], attr: str) -> int:
-    """Sum one numeric armor bonus field across equipped armor entries.
-
-    Skips ``None`` entries and unknown catalog ids so a stale save
-    entry never raises. Each entry's rolled quality scales its
-    effective spec (doc 47 phase 2). ``attr`` must be one of the four
-    cybernetic bonus fields on
-    :class:`~spacehack.data.ground_armor.GroundArmorSpec`.
-    """
-    if attr not in _ARMOR_BONUS_FIELDS:
-        raise ValueError(f"unknown armor bonus field: {attr!r}")
-    total = 0
-    for entry in armor_entries:
-        if not entry:
-            continue
-        try:
-            spec = effective_armor_spec(entry.item_id, entry.quality)
-        except KeyError:
-            continue
-        total += getattr(spec, attr)
-    return total
 
 
 def sum_armor_defense(armor_entries: Iterable[StoredGroundEquipment]) -> int:

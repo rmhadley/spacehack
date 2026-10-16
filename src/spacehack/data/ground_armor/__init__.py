@@ -23,10 +23,6 @@ class GroundArmorSpec:
         description: one-line flavour text.
         price: credits cost to buy from an armory.
         tech_level: minimum planet tech level to stock this item.
-        ap_bonus: +action points per ground-combat turn (cybernetics).
-        hit_bonus: +% hit chance (cybernetics).
-        melee_bonus: +flat melee damage (cybernetics).
-        hp_bonus: +flat max ground HP (cybernetics).
     """
     id: str
     name: str
@@ -35,10 +31,6 @@ class GroundArmorSpec:
     description: str
     price: int = 0
     tech_level: int = 1
-    ap_bonus: int = 0
-    hit_bonus: int = 0
-    melee_bonus: int = 0
-    hp_bonus: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -81,16 +73,6 @@ def list_ground_armor() -> tuple[GroundArmorSpec, ...]:
     """All registered ground armor, in undefined order."""
     return tuple(_registry().values())
 
-def _is_cybernetic(spec) -> bool:
-    """A cyber piece carries at least one of the four bonus fields —
-    band rolls never hand them out (cyber stays row-authored, doc 48
-    SETTLED 55)."""
-    return bool(
-        spec.ap_bonus or spec.hit_bonus
-        or spec.melee_bonus or spec.hp_bonus
-    )
-
-
 def slot_tiers() -> dict[str, dict[int, tuple[str, ...]]]:
     """Per-slot ladders of band-rollable armor ids by tech level —
     the weapon ``family_tiers`` twin (doc 48 SETTLED 55): specs name
@@ -100,8 +82,6 @@ def slot_tiers() -> dict[str, dict[int, tuple[str, ...]]]:
     only); unknown slots simply carry no ladder (the roll skips)."""
     ladders: dict[str, dict[int, list[str]]] = {}
     for spec in list_ground_armor():
-        if _is_cybernetic(spec):
-            continue
         ladders.setdefault(spec.slot, {}).setdefault(
             spec.tech_level, [],
         ).append(spec.id)

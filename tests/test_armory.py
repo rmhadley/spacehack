@@ -24,12 +24,14 @@ def test_earth_uses_fixed_t1_armory_stock_verbatim():
     assert all(find_ground_armor(a).tech_level == 1 for a in armor)
 
 
-def test_mars_stock_spans_t1_and_t2_including_plasma_and_cybernetics():
+def test_mars_stock_spans_t1_and_t2_including_plasma_and_substitutes():
+    """The placeholder cybernetics retired (doc 102.4.2); Mars stocks
+    their plain-armor substitutes."""
     weapons, armor = resolve_armory_inventory("mars", 1)
 
     assert "plasma_pistol" in weapons
-    assert "cybernetic_eyes" in armor
-    assert "cybernetic_arms" in armor
+    assert "heavy_helmet" in armor
+    assert "reinforced_gauntlets" in armor
     assert all(find_ground_weapon(w).tech_level <= 2 for w in weapons)
     assert all(find_ground_armor(a).tech_level <= 2 for a in armor)
 
@@ -67,13 +69,6 @@ def test_weapon_detail_shows_armor_bypass():
 
     assert "Armor bypass" in bypass
     assert "Armor bypass" not in normal
-
-
-def test_armor_detail_shows_cybernetic_effects():
-    detail = _armory._armor_detail(find_ground_armor("cybernetic_legs"))
-
-    assert "Defense: 0" in detail
-    assert "+1 AP" in detail
 
 
 def test_armory_stock_is_deterministic_per_month_and_does_not_advance_rng():

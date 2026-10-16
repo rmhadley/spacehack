@@ -77,9 +77,7 @@ def enemy_ap_total(spec, armor_entries=()) -> int:
     base plus worn cybernetics' ``ap_bonus`` — the same modifier math
     the player's cyber-legs run, so phase 11's consortium wearers just
     work. No AP-armor exists yet; the entries seam is the contract."""
-    from ..ground_equipment import sum_armor_bonus
-
-    return max(1, spec.ap + sum_armor_bonus(armor_entries, "ap_bonus"))
+    return max(1, spec.ap)
 
 
 def advance_enemy_effects(enemy) -> int:

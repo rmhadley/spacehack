@@ -156,13 +156,16 @@ from src.spacehack import ground_loadout  # noqa: E402
 from src.spacehack import world  # noqa: E402
 
 RUNG_PINS = {
-    #          fixed_band  elite  floor  worn pieces
-    "consortium_gunner": (2, False, 1, ("cybernetic_eyes", "cybernetic_arms")),
-    "consortium_enforcer": (3, False, 1, ("cybernetic_arms", "cybernetic_legs")),
+    #          fixed_band  elite  floor  worn pieces (plain substitutes,
+    #          doc 102.4.2 — the placeholder cybernetics retired)
+    "consortium_gunner": (2, False, 1, ("heavy_helmet", "reinforced_gauntlets")),
+    "consortium_enforcer": (
+        3, False, 1, ("reinforced_gauntlets", "reinforced_greaves"),
+    ),
     "consortium_executor": (
         4, True, 2,
-        ("cybernetic_eyes", "cybernetic_torso",
-         "cybernetic_arms", "cybernetic_legs"),
+        ("visor_helmet", "heavy_vest",
+         "powered_gloves", "reinforced_greaves"),
     ),
 }
 
@@ -278,7 +281,7 @@ def test_worn_stamp_fills_on_a_p11_era_save():
     }
     stamp = ground_loadout.ensure_loadout(entity, game_map)
     assert [entry[1] for entry in stamp["worn"]] == [
-        "cybernetic_eyes", "cybernetic_arms",
+        "heavy_helmet", "reinforced_gauntlets",
     ]
     assert all(entry[2] >= 1 for entry in stamp["worn"])
 
@@ -297,35 +300,31 @@ def test_worn_stamp_serializes_through_the_whitelist():
     assert "worn" not in _loadout_from_dict({"rolled_loadout": legacy})
 
 
-def test_worn_bonuses_read_the_catalog_fields():
-    """Base-quality helper pins: the eyes carry +8 hit, the arms +2
-    melee (the bonus fields go live on the wearer, SETTLED 27)."""
-    stamp = {"worn": [["armor", "cybernetic_eyes", 0],
-                      ["armor", "cybernetic_arms", 0]]}
-    assert ground_loadout.worn_bonuses(stamp) == (8, 2)
+def test_worn_bonuses_is_the_enemy_chrome_seam():
+    """The fold reads (0, 0) today (the placeholder bonus fields
+    retired, doc 102.4.2) — the seam the enemy chrome container
+    lands on, so the threading stays live."""
+    stamp = {"worn": [["armor", "heavy_helmet", 0]]}
+    assert ground_loadout.worn_bonuses(stamp) == (0, 0)
     assert ground_loadout.worn_bonuses({}) == (0, 0)
 
 
-def test_executor_instance_folds_every_bonus_field():
+def test_executor_instance_folds_the_substitutes():
     from src.spacehack import ground_scale
     from src.spacehack.combat import _rules_ground
-    from src.spacehack.ground_equipment import (
-        sum_armor_bonus, sum_armor_defense,
-    )
+    from src.spacehack.ground_equipment import sum_armor_defense
 
     entity, game_map = _rung_entity("consortium_executor")
     instance = _rules_ground._build_enemy_instance(entity, game_map)
     worn = ground_loadout.worn_entries(instance.entity.rolled_loadout)
     stats = ground_scale.derive_stats(instance.spec, instance.band)
-    assert instance.max_hp == (
-        instance.spec.hp + stats.stamina // 3
-        + sum_armor_bonus(worn, "hp_bonus")
-    )
+    # The hp fold lost its bonus term with the fields (doc 102.4.2):
+    # spec + stamina only; the armor fold carries the substitutes.
+    assert instance.max_hp == instance.spec.hp + stats.stamina // 3
     assert instance.armor == (
         instance.spec.armor + sum_armor_defense(worn)
     )
-    # The cyber legs' ap_bonus rides the shared modifier math.
-    assert instance.ap_total >= instance.spec.ap + 1
+    assert instance.ap_total == instance.spec.ap
 
 
 def test_the_folded_armor_reaches_the_readers():
