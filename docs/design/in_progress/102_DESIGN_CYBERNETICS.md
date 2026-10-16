@@ -1050,6 +1050,13 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     swap-back (sellable here, installs at Terminus Tech)`; HUD
     row `$  Terminus Tech`. Two spaced-hyphen tells restructured
     to parens/commas per the hard rule.
+15. Kiosk detail lines — **SHIP IT** (2026-10-16, the split-view
+    revision): Optics "Space crit chance 15%." / Jack "+1 dodge
+    per tile moved in space." / Stim "+2 AP this round, -1 next
+    round. Cooldown 3." / Mesh "Armor x1.25 while below half
+    HP." / Fibers "Melee crit chance 15%. +2 melee damage." /
+    SmartLink "Ranged crit chance 15%." (x1.25, not ×1.25 —
+    CP437).
 
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
@@ -1134,6 +1141,14 @@ coefficient stamps at encounter init):**
    (the card's Armor number stays the BASE; watch the damage
    numbers); at/above half, unchanged.
 5. F7 uninstall + save/continue round-trip — pieces persist.
+
+**Kiosk UI revision (user, 2026-10-16, mid-playtest):** the
+kiosk adopts the SPLIT family (the armory's shape) — left pane
+"Available" stock, right pane "Installed" with removals, TAB
+switches panes, and the selected row's ruled DETAIL line pins
+under the focused pane (the armory's status line; ledger 15).
+The bay stays visible in the value cell ("260$ (Ocular)" — the
+user: "I like that we can see the slot type").
 
 **Playtest notes (2026-10-16):** the Stim burst landed its tactical
 identity — user, verbatim: "stim burst was actually really great.

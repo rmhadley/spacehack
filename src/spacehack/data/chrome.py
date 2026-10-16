@@ -24,6 +24,8 @@ class ChromeSpec:
     also the install claim; 4.1 carries the data, 4.2 the economy.
     Effect fields are flat and defaulted: a piece declares only
     what it carries, and the sums live in :mod:`spacehack.chrome`.
+    ``detail`` is the ruled kiosk status line (prose ledger 15):
+    terse, number-first, what the piece DOES.
     """
 
     id: str
@@ -42,6 +44,7 @@ class ChromeSpec:
     melee_damage_bonus: int = 0
     nano_mesh: bool = False
     core: bool = False
+    detail: str = ""
 
 
 _PIECES: tuple[ChromeSpec, ...] = (
@@ -55,6 +58,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         burn=1,
         price=260,
         crit_chance_space=15,
+        detail="Space crit chance 15%.",
     ),
     ChromeSpec(
         id="terminus_piloting_jack",
@@ -66,6 +70,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         burn=1,
         price=320,
         dodge_tile_bonus=1,
+        detail="+1 dodge per tile moved in space.",
     ),
     ChromeSpec(
         id="terminus_neural_stim",
@@ -77,6 +82,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         burn=1,
         price=300,
         core=True,
+        detail="+2 AP this round, -1 next round. Cooldown 3.",
     ),
     ChromeSpec(
         id="terminus_nano_mesh",
@@ -88,6 +94,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         burn=1,
         price=280,
         nano_mesh=True,
+        detail="Armor x1.25 while below half HP.",
     ),
     ChromeSpec(
         id="terminus_muscle_fibers",
@@ -100,6 +107,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         price=350,
         crit_chance_melee=15,
         melee_damage_bonus=2,
+        detail="Melee crit chance 15%. +2 melee damage.",
     ),
     ChromeSpec(
         id="terminus_smartlink",
@@ -111,6 +119,7 @@ _PIECES: tuple[ChromeSpec, ...] = (
         burn=1,
         price=330,
         crit_chance_ranged=15,
+        detail="Ranged crit chance 15%.",
     ),
 )
 

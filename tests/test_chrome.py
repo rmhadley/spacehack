@@ -370,23 +370,60 @@ class TestConsortiumGate:
 
 
 class TestKioskLoopEntry:
-    """The kiosk's screen-runner call executes against the REAL
-    signature (a runtime-less context raises the guard, never a
-    TypeError — the arity class the two launch crashes shared)."""
+    """The kiosk's split loop executes against the REAL family (a
+    runtime-less context raises the guard, never a TypeError — the
+    arity class the two launch crashes shared)."""
 
     def test_kiosk_menu_reaches_the_runtime_guard(self):
         import asyncio
 
         from src.spacehack.menus import _kiosk
-        from src.spacehack.pygame_screen import PygameScreenUnavailable
+        from src.spacehack.pygame_split import PygameSplitUnavailable
 
         ctx = _ego_ctx()
         ctx.context = SimpleNamespace()  # no shared runtime attached
 
         try:
             asyncio.run(_kiosk._run_kiosk_menu(ctx, "earth"))
-        except PygameScreenUnavailable:
-            return  # the frame built; the call matched the signature
+        except PygameSplitUnavailable:
+            return  # the frame built; the call matched the family
         except TypeError as exc:
             raise AssertionError(f"call-arity drift: {exc}")
         raise AssertionError("expected the runtime guard to raise")
+
+
+class TestKioskSplitFrame:
+    """The split redesign (playtest ruling 2026-10-16): left stock,
+    right installed, ruled detail lines, TAB between panes."""
+
+    def test_stock_rows_carry_price_bay_and_detail(self):
+        from src.spacehack.menus import _kiosk
+        ctx = _ego_ctx()
+        rows = _kiosk._stock_rows(ctx)
+        _optics = rows[0]
+        assert _optics.label == "Terminus Optics"
+        assert _optics.value == "260$ (Ocular)"
+        assert _optics.detail == "Space crit chance 15%."
+        assert _optics.action == "INSTALL:terminus_optics"
+
+    def test_installed_pane_lists_removals_and_empty_state(self):
+        from src.spacehack.menus import _kiosk
+        _empty = _kiosk._installed_rows(_ego_ctx())
+        assert _empty[0].label == "[empty]"
+        assert _empty[0].selectable is False
+
+        ctx = _ego_ctx(pieces=("terminus_smartlink",))
+        _worn = _kiosk._installed_rows(ctx)
+        assert _worn[0].action == "REMOVE:terminus_smartlink"
+        assert _worn[0].detail == "Ranged crit chance 15%."
+
+    def test_the_frame_reads_available_installed(self):
+        from src.spacehack.menus import _kiosk
+        frame = _kiosk._kiosk_frame(_ego_ctx(), 0, 0)
+        assert frame.title == "TERMINUS TECH"
+        assert (frame.left_label, frame.right_label) == (
+            "Available", "Installed",
+        )
+        assert "Ego 9  Burnt Ego 0  Install Room 9" in frame.footer_left
+        assert "State: Natural" in frame.footer_right
+        assert len(frame.left_rows) == 6

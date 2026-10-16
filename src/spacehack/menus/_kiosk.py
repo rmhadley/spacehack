@@ -3,10 +3,14 @@
 The chrome counter: the fourth service terminal on every spaceport
 apron. One-step stock + install — the six t1 pieces, always
 stocked, prices riding the port's local band (the dead-zone lesson
-lands at the machine that sold the first pieces). The three-check
-instrument blocks; the consent modal carries the ruled Before/After
-table; removals teach the ratchet. The ONLY loose chrome in the
-game is the kiosk's own swap-backs, delivered to armory storage.
+lands at the machine that sold the first pieces). The SPLIT family
+(the armory's shape, revised at playtest 2026-10-16): left pane the
+stock, right pane the installed with removal, TAB between panes,
+the selected row's ruled detail line pinned under the focused
+pane. The three-check instrument blocks; the consent modal carries
+the ruled Before/After table; removals teach the ratchet. The ONLY
+loose chrome in the game is the kiosk's own swap-backs, delivered
+to armory storage.
 """
 
 from __future__ import annotations
@@ -24,58 +28,67 @@ def _kiosk_price(ctx: "GameContext", price: int) -> int:
     return banded_price(ctx, price)
 
 
-def _install_rows(ctx: "GameContext"):
-    """The stock rows: every t1 piece, its banded price, its bay."""
-    from .. import pygame_screen
+def _stock_rows(ctx: "GameContext") -> tuple:
+    """The left pane: every catalog piece, its banded price + bay,
+    its ruled detail line."""
+    from .. import pygame_split
     from ..data.chrome import list_chrome
 
-    rows = [pygame_screen.ScreenRow("AVAILABLE", selectable=False, header=True)]
-    for spec in list_chrome():
-        rows.append(pygame_screen.ScreenRow(
+    return tuple(
+        pygame_split.SplitRow(
             spec.name,
             f"{_kiosk_price(ctx, spec.price)}$ ({spec.bay})",
+            spec.detail,
             f"INSTALL:{spec.id}",
+        )
+        for spec in list_chrome()
+    )
+
+
+def _installed_rows(ctx: "GameContext") -> tuple:
+    """The right pane: one removal row per worn piece (the teaching
+    surface), the same detail line."""
+    from .. import pygame_split
+    from ..data.chrome import find_chrome
+
+    rows = []
+    for piece_id in ctx.installed_chrome:
+        try:
+            _spec = find_chrome(piece_id)
+        except KeyError:
+            continue
+        rows.append(pygame_split.SplitRow(
+            _spec.name,
+            "Remove (Burnt Ego stays)",
+            _spec.detail,
+            f"REMOVE:{piece_id}",
+        ))
+    if not rows:
+        rows.append(pygame_split.SplitRow(
+            "[empty]", "", "Nothing installed.", "",
+            selectable=False,
         ))
     return tuple(rows)
 
 
-def _installed_rows(ctx: "GameContext"):
-    """The removal rows: one per worn piece (the teaching surface)."""
-    from .. import pygame_screen
-    from ..data.chrome import find_chrome
-
-    rows = [pygame_screen.ScreenRow("INSTALLED", selectable=False, header=True)]
-    for piece_id in ctx.installed_chrome:
-        try:
-            rows.append(pygame_screen.ScreenRow(
-                find_chrome(piece_id).name,
-                "Remove (Burnt Ego stays)",
-                f"REMOVE:{piece_id}",
-            ))
-        except KeyError:
-            continue
-    return tuple(rows)
-
-
-def _kiosk_frame(ctx: "GameContext", selected: int):
-    """Build one kiosk snapshot (rows + the ego readout body)."""
-    from .. import pygame_screen, pygame_ui
+def _kiosk_frame(ctx: "GameContext", focus: int, selected: int):
+    """Build one kiosk snapshot (the armory frame's shape)."""
+    from .. import pygame_split, pygame_ui
     from ..chrome import band, band_name, ego_load, ego_pool
 
-    rows = _install_rows(ctx) + _installed_rows(ctx)
     _pool = ego_pool(ctx)
-    body = (
-        f"Ego {_pool - ctx.ego_burn}   Burnt Ego {ctx.ego_burn}"
-        f"   Install Room {_pool - ego_load(ctx)}",
-        f"State: {band_name(band(ctx.ego_burn))}",
-        pygame_ui.credits_label(ctx.stats.credits),
-    )
-    footer = (pygame_ui.modal_hint(
-        pygame_ui.NAV_HINT, "ENTER select", "ESC back", pygame_ui.GUIDE_HINT,
-    ),)
-    return pygame_screen.ScreenFrame(
-        title="TERMINUS TECH", body=body, rows=rows, footer=footer,
-        selected=selected,
+    return pygame_split.SplitFrame(
+        "TERMINUS TECH", "Available", "Installed",
+        _stock_rows(ctx), _installed_rows(ctx),
+        f"Ego {_pool - ctx.ego_burn}  Burnt Ego {ctx.ego_burn}"
+        f"  Install Room {_pool - ego_load(ctx)}",
+        f"State: {band_name(band(ctx.ego_burn))}   "
+        + pygame_ui.credits_label(ctx.stats.credits),
+        pygame_ui.modal_hint(
+            "UP/DOWN navigate", "TAB switch panel", "ENTER select",
+            "ESC back", pygame_ui.GUIDE_HINT,
+        ),
+        focus=focus, selected=selected,
     )
 
 
@@ -128,7 +141,9 @@ async def _attempt_install(ctx: "GameContext", piece_id: str) -> None:
     _complete_install(ctx, piece_id, _spec, _price)
 
 
-def _complete_install(ctx: "GameContext", piece_id: str, spec, price: int) -> None:
+def _complete_install(
+    ctx: "GameContext", piece_id: str, spec, price: int,
+) -> None:
     """The post-consent tail: ratchet install, swap-back delivery,
     charge, the ruled log line, and the gate's one-time intro."""
     from .. import message_log as _ml
@@ -155,25 +170,20 @@ def _remove(ctx: "GameContext", piece_id: str) -> None:
 
 async def _run_kiosk_menu(ctx: "GameContext", planet_id: str = "") -> None:
     """Run the kiosk terminal in the shared Pygame window (the
-    mechanic loop's shape: apply-and-stay-open on SELECT)."""
-    from .. import pygame_screen
+    armory's split loop: apply-and-stay-open on SELECT, TAB flips
+    panes inside the family)."""
+    from .. import pygame_split
 
-    selected = 0
-    while True:
-        _frame = _kiosk_frame(ctx, selected)
-        outcome, action, selected = await pygame_screen.run_for_context(
-            ctx.context, _frame, caption="spacehack - terminus tech",
-        )
-        if outcome == "GUIDE":
-            from ..help import _run_help_guide
-            await _run_help_guide(ctx)
-            continue
-        if outcome == "QUIT":
-            raise SystemExit
-        if outcome == "SELECT" and action:
-            if action.startswith("INSTALL:"):
-                await _attempt_install(ctx, action.partition(":")[2])
-            elif action.startswith("REMOVE:"):
-                _remove(ctx, action.partition(":")[2])
-            continue
-        return  # BACK and everything else
+    def build_frame():
+        return _kiosk_frame(ctx, 0, 0)
+
+    async def apply_action(action, focus, selected):
+        if action.startswith("INSTALL:"):
+            await _attempt_install(ctx, action.partition(":")[2])
+        elif action.startswith("REMOVE:"):
+            _remove(ctx, action.partition(":")[2])
+        return True
+
+    await pygame_split.run_interactive(
+        ctx, build_frame, apply_action, caption="spacehack - terminus tech",
+    )
