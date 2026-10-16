@@ -12,3 +12,4 @@ Report-only task: never edit any file.
    - **Open questions** — every question the doc marks open, parked, or unruled, each with the section it lives in; if none, say "No open questions."
    - **Next actionable phase** — the first unchecked phase and whether it carries an Implementation brief (i.e. whether `/implement-phase <n>.<p>` can run it now).
 Keep the whole report under one screen; do not restate doc sections beyond the summaries.
+4. If "-v" was included in the argurments, also include a breakdown of the first unimplemented phase. A list of what is going to be implemented in it, important decisions made and if they were signed off on by the user or not.
