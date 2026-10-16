@@ -983,6 +983,44 @@ Keybind ruled the same session: **the core action key is `a`**
 3. One `_migrate_retired_armor(...)` helper sweeping every
    container; substitutes are data edits in one commit.
 
+## Prose ledger — Brief 4.2 (2026-10-16, the prose loop; restart
+## ruled by the user — the SETTLED 14/15 fragments were design-level
+## and had never passed the gate)
+
+**Vocabulary law (ruled at #8, feeds 4.3's C-screen line):** the
+player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
+(the permanent ratchet), **Install Room** (pool − load) — and
+**every chrome action shows the same Before/After table.**
+
+7. Consent modal — **RULED through three rewrites**: flat numbers,
+   the user's Before/After table form; title "Install Terminus
+   Optics?"; rows `Ego: 6/5`, `Burnt Ego: 1/2`, `Install Room:
+   5/4` (row added by #8's ruling), `State: Natural/Tainted` when
+   crossing; swap line "Replaces Terminus Optics."; accept
+   "Install" / cancel "Leave". A parenthetical permanence note was
+   drafted and DROPPED — the permanence teaching moved to the
+   removal moment (#8). The slash form is also CP437-safe (→
+   is not).
+8. Removal table + the vocabulary — **SHIP IT**: "Terminus Optics
+   removed." + the same Before/After table (Ego 4/4, Burnt Ego
+   2/2, Install Room 4/5). The `2/2` teaches permanence; the `4/5`
+   teaches what removal returns. User direction verbatim: "let's
+   make sure we teach it doesn't recover when a user tries to
+   remove chrome."
+9. Block messages — **USER EDIT (no em-dash)**: "Install Room 4
+   required, you have 3." / "Piloting 75 required, you have 42
+   (base, raw)."
+10. Kiosk surface — **USER EDIT**: the terminal name is "Terminus
+    Tech" (teaches the full corporate name at the introduction
+    point, per the SETTLED 10 register law); install log
+    "Terminus Optics installed."
+11. Comms intro — **SHIP IT**: "Your Terminus Tech account is now
+    active. We will be in touch."
+12. F-screen line — **SHIP IT**: "Terminus Tech: account active"
+    (echoes the intro's vocabulary).
+13. Migration line — **SHIP IT**: "Cybernetic Eyes removed.
+    Refunded 260$."
+
 ## Implementation briefs (written 2026-10-15; advisor pass
 ## below)
 
