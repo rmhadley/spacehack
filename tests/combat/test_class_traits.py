@@ -29,7 +29,7 @@ from tests.support.asyncutil import run
 
 
 def _ctx(traits=(), **extra):
-    ns = SimpleNamespace(player_traits=list(traits))
+    ns = SimpleNamespace(player_traits=list(traits), installed_chrome=[])
     for key, value in extra.items():
         setattr(ns, key, value)
     return ns
@@ -102,6 +102,7 @@ def _ground_enemy(armor=0, reflexes=30):
 def _ground_ctx(traits):
     return SimpleNamespace(
         player_traits=list(traits),
+        installed_chrome=[],
         player=SimpleNamespace(pos=world.Position(0, 0)),
         ground_stats=SimpleNamespace(reflexes=10, strength=20, stamina=10),
         equipped_ground_armor={},
@@ -148,8 +149,8 @@ def test_ground_opener_damage_pct_first_attack_only():
     # fists vs armor 3 at strength 20: 1 + 4 - 3 = 2 base.
     _old = _install_ground_state(enemy_fired=False, opener_spent=False)
     try:
-        _plain_dmg, _ = _rules_ground.damage("fists", _ground_enemy(3), _ground_ctx([]))
-        _armed_dmg, _ = _rules_ground.damage(
+        _plain_dmg, _, _ = _rules_ground.damage("fists", _ground_enemy(3), _ground_ctx([]))
+        _armed_dmg, _, _ = _rules_ground.damage(
             "fists", _ground_enemy(3), _ground_ctx(["pirate"]),
         )
         assert _plain_dmg == 2
@@ -371,7 +372,7 @@ def test_space_enemy_shot_resolution_folds_the_hunter_evade(monkeypatch):
 # ---------------------------------------------------------------------------
 
 def _bh_ship_ctx(traits):
-    return SimpleNamespace(player_traits=list(traits))
+    return SimpleNamespace(player_traits=list(traits), installed_chrome=[])
 
 
 def test_missile_capacity_doubles_for_the_hunter():
@@ -407,6 +408,7 @@ def test_missile_magazines_expand_racks_emp_hard_capped():
     ))
     ctx = SimpleNamespace(
         player_traits=[], player_owned_ship=owned,
+        installed_chrome=[],
     )
     assert effective_missile_capacity(light, ctx) == 4 + 3
     assert effective_missile_capacity(heavy, ctx) == 3 + 3
@@ -422,6 +424,7 @@ def test_missile_magazines_expand_racks_emp_hard_capped():
     # the Bounty Hunter doubles AFTER the bonus; EMP stays capped
     bh = SimpleNamespace(
         player_traits=["bounty_hunter"], player_owned_ship=owned,
+        installed_chrome=[],
     )
     assert effective_missile_capacity(heavy, bh) == (3 + 3 + 4) * 2
     assert effective_missile_capacity(emp, bh) == 2

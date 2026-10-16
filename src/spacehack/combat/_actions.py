@@ -473,12 +473,16 @@ def resolve_damage(
     damage_taken_mult: float = 1.0,
     *,
     weapon_quality: int = 0,
+    crit_mult: float = 1.0,
 ) -> tuple[int, int, int, bool]:
     """Apply weapon damage and return hull, shield, final-hull, glancing state.
 
     ``weapon_quality`` is the SHOOTER's flown weapon tier (doc 48.7):
     quality multiplies damage — both sides pass their rolled instance
-    tier (enemy fire and the player's flown weapons alike)."""
+    tier (enemy fire and the player's flown weapons alike).
+    ``crit_mult`` is the crit multiplier (doc 102 SETTLED 6),
+    resolved and rolled by the DIRECT-FIRE callers — missile
+    arrivals and flak never pass one, so ordnance never crits."""
     weapon = find_weapon(weapon_id)
     if weapon.shield_strip_pct > 0:
         # The boss-key (doc 56 SETTLED 34): strips ALL current shields
@@ -490,7 +494,9 @@ def resolve_damage(
         return 0, strip, target_hull, False
     quality, is_glancing = _damage_quality(target_pilot_piloting)
     _gear_mult = quality_multiplier("weapon", weapon_quality)
-    raw_damage = weapon.damage * _gear_mult * quality * RNG.uniform(0.8, 1.2)
+    raw_damage = (
+        weapon.damage * _gear_mult * quality * crit_mult * RNG.uniform(0.8, 1.2)
+    )
     damage = max(1, int(raw_damage * damage_taken_mult))
     hull_damage, shield_damage, final_hull = _apply_hull_and_shields(
         damage, target_hull, target_shields,

@@ -737,7 +737,11 @@ anchors are current as of this session's recon.
   the post-armor dealt damage. Crit and glance stay independent
   multipliers (a crit-glance is legal arithmetic; crit wins the
   popup label). Blasts/explosions never crit (not direct fire,
-  same ruling family as missiles).
+  same ruling family as missiles). The Deadshot chain's shots are
+  deliberately crit-less too (reviewer catch, recorded 2026-10-16):
+  the chain resolves base-stat through `_ground_damage_raw` — no
+  Deadshot bonus, no chrome riders; equipment bonuses don't ride
+  the chain's base-stat resolution.
 - **Crit feedback**: `_messages._result_clause` (the shared
   player/enemy attack-line factory — one wording, both theaters)
   + `_animations._damage_popup_for` (the single popup factory both

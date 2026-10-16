@@ -156,6 +156,7 @@ def _fire_fixture(traits, hull):
     """A minimal live space session that can run the REAL _handle_fire."""
     _ctx = SimpleNamespace(
         player_traits=list(traits),
+        installed_chrome=[],
         player_counters=SimpleNamespace(
             laser_shots=0, missile_shots=0, plasma_shots=0, focused_shots=0,
             total_kills=0,

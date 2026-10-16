@@ -41,6 +41,7 @@ def _deadshot_fixture(*, n_enemies: int = 3):
         ground_max_hp=23,
         equipped_ground_weapons=[GroundWeaponInstance("railgun", 12)],
         equipped_ground_armor={},
+        installed_chrome=[],
         player_traits=["deadshot"],
         player_counters=SimpleNamespace(total_kills=0, melee_kills=0, railgun_kills=0),
         player_xp=0,
@@ -70,7 +71,7 @@ def _force_hits(monkeypatch, chain_rolls):
 
 class TestIsDeadshot:
     def test_requires_trait_and_railgun(self):
-        _ctx = SimpleNamespace(player_traits=["deadshot"])
+        _ctx = SimpleNamespace(player_traits=["deadshot"], installed_chrome=[])
         assert _ground_deadshot.is_deadshot(_ctx, "railgun")
         assert not _ground_deadshot.is_deadshot(_ctx, "battle_rifle")
         assert not _ground_deadshot.is_deadshot(

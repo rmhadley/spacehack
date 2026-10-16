@@ -25,7 +25,7 @@ def _enemy() -> EnemyInstance:
 def _engage(qualities=(0,)):
     old_state = _rules_space._state
     _rules_space._state = _rules_space.SpaceCombatState(
-        ctx=SimpleNamespace(player_traits=()),
+        ctx=SimpleNamespace(player_traits=(), installed_chrome=[]),
         console=None,
         game_map=None,
         log=None,
@@ -73,13 +73,13 @@ def test_flown_quality_multiplies_player_damage():
 
     old = _engage(qualities=(0,))
     try:
-        ctx = None
+        ctx = _rules_space._state.ctx
         base, high = [], []
         for _ in range(12):
             for collected, quality in ((base, 0), (high, 2)):
                 enemy = _enemy()
                 with _seeded_rng():
-                    dmg, _glancing = _rules_space.damage(
+                    dmg, _glancing, _crit = _rules_space.damage(
                         "medium_laser", enemy, ctx, quality,
                     )
                 collected.append(dmg)

@@ -157,6 +157,22 @@ def _distance(a: world.Position, b: world.Position) -> float:
     return math.hypot(a.x - b.x, a.y - b.y)
 
 
+def _crit_multiplier(crit_damage_points: int) -> float:
+    """The crit damage multiplier: 1.5x base plus additive points on
+    the multiplier (doc 102 SETTLED 6: +5 points reads 1.55x)."""
+    return 1.5 + crit_damage_points / 100.0
+
+
+def _roll_crit(chance: int) -> bool:
+    """The crit roll — guarded so a zero chance consumes NO RNG draw
+    (the kill-draws doctrine: chrome-less fights keep their seeded
+    streams bit-identical)."""
+    if chance <= 0:
+        return False
+    from ..engine import RNG
+    return RNG.randint(1, 100) <= chance
+
+
 def clamp_hit_chance(chance: int) -> int:
     """Combat hit chances clamp 5-95 — lethal but never deterministic.
 

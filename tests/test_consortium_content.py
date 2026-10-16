@@ -342,8 +342,9 @@ def test_the_folded_armor_reaches_the_readers():
     ctx = SimpleNamespace(
         ground_stats=SimpleNamespace(strength=20),
         equipped_ground_armor={},
+        installed_chrome=[],
     )
-    _dmg, _ = _rules_ground.damage(
+    _dmg, _, _ = _rules_ground.damage(
         "kinetic_pistol", instance, ctx, quality=0,
     )
     from src.spacehack.combat._ground_math import ground_damage_raw

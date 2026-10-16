@@ -139,11 +139,12 @@ _DAMAGE_POPUP_FRAMES: int = 8
 _MISS_POPUP_FRAMES: int = 6
 
 # Popup colors: orange-red for hull damage, cyan for shield strip, pale
-# gold for glancing hits, grey for misses. Kept module-level so callers
-# and the drawing helper agree.
+# gold for glancing hits, bright red for crits, grey for misses. Kept
+# module-level so callers and the drawing helper agree.
 _COLOR_DAMAGE_HULL: tuple[int, int, int] = (255, 140, 70)
 _COLOR_DAMAGE_SHIELDS: tuple[int, int, int] = (120, 220, 255)
 _COLOR_DAMAGE_GLANCE: tuple[int, int, int] = (235, 205, 150)
+_COLOR_DAMAGE_CRIT: tuple[int, int, int] = (255, 60, 60)
 _COLOR_MISS: tuple[int, int, int] = (170, 170, 185)
 
 # Damage text shorthand: (label, color). ``None`` = no popup (a hit that
@@ -157,22 +158,26 @@ _MISS_POPUP: DamagePopup = ("MISS", _COLOR_MISS)
 
 def _damage_popup_for(
     damage: int, strip: int, is_strip: bool,
-    *, glancing: bool = False,
+    *, glancing: bool = False, crit: bool = False,
 ) -> DamagePopup:
     """Build a damage popup tuple for a resolved hit, or ``None``.
 
-    EMP shield-strip hits show the stripped amount in cyan; glancing
-    hits (halved by the target's piloting) are prefixed ``GLANCE`` in
-    pale gold; all other hits show TOTAL damage dealt (hull + shields
-    absorbed) in orange-red, so the floating number always matches the
-    total the log reports. A hit that did nothing (e.g. an EMP against
-    a shieldless target) shows no popup. Single factory so the
+    EMP shield-strip hits show the stripped amount in cyan; crits
+    (doc 102 SETTLED 6) show ``CRIT -N`` in bright red — the label
+    wins over a simultaneous glance; glancing hits (halved by the
+    target's piloting) are prefixed ``GLANCE`` in pale gold; all
+    other hits show TOTAL damage dealt (hull + shields absorbed) in
+    orange-red, so the floating number always matches the total the
+    log reports. A hit that did nothing (e.g. an EMP against a
+    shieldless target) shows no popup. Single factory so the
     player-fire and enemy-fire call sites can't drift apart.
     """
     if is_strip and strip > 0:
         return (f"-{strip}", _COLOR_DAMAGE_SHIELDS)
     total = damage + strip
     if total > 0:
+        if crit:
+            return (f"CRIT -{total}", _COLOR_DAMAGE_CRIT)
         if glancing:
             return (f"GLANCE -{total}", _COLOR_DAMAGE_GLANCE)
         return (f"-{total}", _COLOR_DAMAGE_HULL)

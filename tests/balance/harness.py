@@ -327,6 +327,7 @@ def _ctx_core(sheet, game_map, player) -> dict:
         bandolier={},
         player_counters=PlayerCounters(),
         player_traits=list(sheet.trait_ids),
+        installed_chrome=[],
         player_xp=0,
         player_level=sheet.level,
         player_skill_points=0,

@@ -208,15 +208,15 @@ def _slot_quality(rules, ctx, slot: int) -> int:
 
 
 def _resolve_shot_damage(rules, ctx, wid, target, hit: bool, quality: int = 0):
-    """Resolve a hit into ``(dmg, stripped, is_strip, is_glancing, popup)``.
+    """Resolve a hit into ``(dmg, stripped, is_strip, is_glancing, is_crit, popup)``.
 
     A miss returns zeroed values. Ground enemies have no shields field;
     ``getattr`` keeps the strip check safe across both combat modes.
     """
     if not hit:
-        return 0, 0, False, False, None
+        return 0, 0, False, False, False, None
     _pre_shields = getattr(target, 'shields', 0)
-    _dmg, _is_glancing = rules.damage(wid, target, ctx, quality)
+    _dmg, _is_glancing, _is_crit = rules.damage(wid, target, ctx, quality)
     _stripped = max(0, _pre_shields - getattr(target, 'shields', 0))
     _is_strip = False
     if _stripped > 0:
@@ -224,8 +224,10 @@ def _resolve_shot_damage(rules, ctx, wid, target, hit: bool, quality: int = 0):
             _is_strip = _fw(wid).shield_strip > 0
         except KeyError:
             pass
-    _popup = _damage_popup_for(_dmg, _stripped, _is_strip, glancing=_is_glancing)
-    return _dmg, _stripped, _is_strip, _is_glancing, _popup
+    _popup = _damage_popup_for(
+        _dmg, _stripped, _is_strip, glancing=_is_glancing, crit=_is_crit,
+    )
+    return _dmg, _stripped, _is_strip, _is_glancing, _is_crit, _popup
 
 
 def _rules_hook(rules, name: str):
@@ -246,7 +248,7 @@ def _prepare_player_attack(rules, ctx, game_map, target, wid) -> None:
 
 def _shot_outcome_log(
     ctx, rules, wid, wname, target, hit, dmg, stripped, is_strip, glancing,
-    quality: int = 0,
+    is_crit=False, quality: int = 0,
 ) -> None:
     """Log one player shot's outcome line (hit or miss)."""
     from .. import message_log as _ml
@@ -254,7 +256,8 @@ def _shot_outcome_log(
     _line = _player_attack_line(
         wid, wname, rules.enemy_name(target),
         hit=hit, hull_dmg=dmg, shield_dmg=stripped,
-        is_strip=is_strip, is_glancing=glancing, quality=quality,
+        is_strip=is_strip, is_glancing=glancing, is_crit=is_crit,
+        quality=quality,
     )
     ctx.log.add_colored(
         _line, _ml.COLOR_PLAYER_ACTION, runs=_line.runs,
@@ -340,7 +343,7 @@ async def _roll_player_shot(
             _target_pos, _absorbed,
         )
     _hit = RNG.randint(1, 100) <= rules.hit_chance(_wid, target, ctx, _quality)
-    _dmg, _stripped, _is_strip, _is_glancing, _popup = _resolve_shot_damage(
+    _dmg, _stripped, _is_strip, _is_glancing, _is_crit, _popup = _resolve_shot_damage(
         rules, ctx, _wid, target, _hit, _quality,
     )
     await rules.animate_fire(
@@ -349,7 +352,7 @@ async def _roll_player_shot(
     )
     _shot_outcome_log(
         ctx, rules, _wid, _wname, target, _hit,
-        _dmg, _stripped, _is_strip, _is_glancing, _quality,
+        _dmg, _stripped, _is_strip, _is_glancing, _is_crit, _quality,
     )
     return await _finish_player_weapon(
         rules, ctx, _wid, slot, target, _hit,
@@ -512,7 +515,7 @@ async def _resolve_explosive_shot(
     else:
         _shot_outcome_log(
             ctx, rules, _wid, _wname, target, False, 0, 0, False, False,
-            _quality,
+            quality=_quality,
         )
     rules.consume_shot(slot, ctx)
     return _hit, rules.weapon_ap_cost(_wid, ctx)

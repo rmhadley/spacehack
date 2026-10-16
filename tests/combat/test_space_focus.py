@@ -24,6 +24,7 @@ def _focus_fixture(*, traits=("focus",), active=(True,), weapons=("light_laser",
     """A minimal live space-combat state with the player at (0,0)."""
     _ctx = SimpleNamespace(
         player_traits=list(traits),
+        installed_chrome=[],
         player_counters=SimpleNamespace(
             laser_shots=0, missile_shots=0, plasma_shots=0, focused_shots=0,
         ),
@@ -238,11 +239,11 @@ class TestRulesIntegration:
         )
         try:
             _enemy_far = _enemy(x=6)
-            _dmg, _ = _rules_space.damage("heavy_laser", _enemy_far, _ctx)
+            _dmg, _, _ = _rules_space.damage("heavy_laser", _enemy_far, _ctx)
             assert _dmg == 32  # 16 base, doubled at range 6
 
             _enemy_close = _enemy(x=4)
-            _dmg, _ = _rules_space.damage("heavy_laser", _enemy_close, _ctx)
+            _dmg, _, _ = _rules_space.damage("heavy_laser", _enemy_close, _ctx)
             assert _dmg == 16  # base damage inside the band
         finally:
             _rules_space._state = _old

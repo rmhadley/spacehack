@@ -36,7 +36,9 @@ from ._space_reinforce import check_reinforcements as _reinforce_check
 from ._stats import (
     calc_hit_chance as _space_hit_chance,
     _calc_dodge_bonus,
+    _crit_multiplier,
     _distance,
+    _roll_crit,
 )
 from ._actions import (
     start_player_turn,
@@ -352,29 +354,34 @@ def _player_damage_mult(weapon_id: str, ctx, dist) -> float:
 
 def damage(
     weapon_id: str, enemy: EnemyInstance, ctx, quality: int = 0,
-) -> tuple[int, bool]:
-    """Apply weapon damage to an enemy. Returns ``(hull_dmg, is_glancing)``.
+) -> tuple[int, bool, bool]:
+    """Apply weapon damage to an enemy. Returns ``(hull_dmg, is_glancing, is_crit)``.
 
-    The glance flag rides the return so the caller can label the
-    floating damage number (``GLANCE -X``) the same way the log line
-    does. Hull damage is the number the popup reports. A focused shot
-    doubles damage beyond half its (doubled) range via the Focus trait.
+    The glance and crit flags ride the return so the caller can label
+    the floating damage number the same way the log line does. Hull
+    damage is the number the popup reports. A focused shot doubles
+    damage beyond half its (doubled) range via the Focus trait.
     ``quality`` is the flown instance's tier (doc 48.7) — it multiplies
-    damage inside resolve_damage, mirroring the enemy shot path.
-    """
+    damage inside resolve_damage, mirroring the enemy shot path. The
+    crit roll (doc 102 SETTLED 6) reads the PLAYER's chrome sums;
+    zero chance consumes no RNG draw (kill-draws doctrine)."""
+    from ..chrome import installed_effects
+    _fx = installed_effects(ctx.installed_chrome)
+    _is_crit = _roll_crit(_fx.crit_chance_space)
     _dist = _distance(_state.player_state["pos"], enemy.pos)
     _dmg, _sdmg, _fh, _is_glancing = resolve_damage(
         weapon_id, enemy.hull, enemy.shields,
         target_pilot_piloting=enemy.pilot_piloting,
         damage_taken_mult=_player_damage_mult(weapon_id, ctx, _dist),
         weapon_quality=quality,
+        crit_mult=_crit_multiplier(_fx.crit_damage_points) if _is_crit else 1.0,
     )
     enemy.shields = max(0, enemy.shields - _sdmg)
     _prev_hull = enemy.hull
     enemy.hull = _fh
     if _fh <= 0:
         enemy.alive = False
-    return _prev_hull - enemy.hull, _is_glancing
+    return _prev_hull - enemy.hull, _is_glancing, _is_crit
 
 # ---------------------------------------------------------------------------
 # Weapon actions

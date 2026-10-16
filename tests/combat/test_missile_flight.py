@@ -97,6 +97,7 @@ def _flight_fixture(
     _log = _Log()
     _ctx = SimpleNamespace(
         player_traits=list(traits),
+        installed_chrome=[],
         player_counters=SimpleNamespace(
             laser_shots=0, missile_shots=0, plasma_shots=0, focused_shots=0,
             total_kills=0, total_damage_taken=0, explosive_hits=0,
@@ -468,7 +469,7 @@ class TestInterception:
                 weapon_id="heavy_missile", pos=world.Position(1, 0),
                 hull=6, max_hull=6, name="Heavy Missile",
             )
-            _dmg, _ = _rules_space.damage("light_laser", _missile, _ctx, 0)
+            _dmg, _, _ = _rules_space.damage("light_laser", _missile, _ctx, 0)
             assert 0 < _dmg < 6 and _missile.alive is True
             _rules_space.damage("heavy_laser", _missile, _ctx, 0)
             assert _missile.hull <= 0 and _missile.alive is False
@@ -482,7 +483,7 @@ class TestInterception:
                 weapon_id="heavy_missile", pos=world.Position(1, 0),
                 hull=6, max_hull=6, name="Heavy Missile",
             )
-            _dmg, _ = _rules_space.damage("emp_missile", _missile, _ctx, 0)
+            _dmg, _, _ = _rules_space.damage("emp_missile", _missile, _ctx, 0)
             assert _dmg == 0
             assert (_missile.hull, _missile.shields) == (6, 0)
         finally:

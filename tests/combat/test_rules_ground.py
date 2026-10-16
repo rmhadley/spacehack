@@ -211,7 +211,7 @@ def test_ground_damage_taken_applies_juggernaut_after_armor():
     volley burst since doc 48 SETTLED 41); pinned at its own door."""
     from src.spacehack.xp import apply_ground_damage_reduction
 
-    _ctx = SimpleNamespace(player_traits=["juggernaut"])
+    _ctx = SimpleNamespace(player_traits=["juggernaut"], installed_chrome=[])
 
     assert apply_ground_damage_reduction(_ctx, 6) == 5
     assert apply_ground_damage_reduction(_ctx, 1) == 1
@@ -249,7 +249,7 @@ def test_charger_uses_shortest_walkable_path_and_scales_bonuses():
     _player = world.Entity("@", (255, 255, 255), world.Position(3, 3), "Player")
     _target = world.Entity("r", (255, 100, 100), world.Position(3, 6), "Target")
     _game_map.entities.extend((_player, _target))
-    _ctx = SimpleNamespace(player=_player, player_traits=["charger"])
+    _ctx = SimpleNamespace(player=_player, player_traits=["charger"], installed_chrome=[])
 
     _path = _ground_charger.charge_path(
         _ctx, SimpleNamespace(pos=_target.pos), _game_map, 4,
@@ -291,6 +291,7 @@ def test_stun_baton_hit_reduces_enemy_ap_by_one():
         ground_stats=SimpleNamespace(strength=10),
         equipped_ground_armor={},
         player_traits=[],
+        installed_chrome=[],
     )
 
     _rules_ground.damage("stun_baton", _enemy, _ctx)
@@ -310,6 +311,7 @@ def test_stun_baton_reduction_resets_after_the_next_enemy_turn(monkeypatch):
         ground_stats=SimpleNamespace(strength=10),
         equipped_ground_armor={},
         player_traits=[],
+        installed_chrome=[],
     )
     _rules_ground.damage("stun_baton", _enemy, _ctx)
     assert _enemy.ap == 3
@@ -340,6 +342,7 @@ def test_stun_baton_cannot_reduce_enemy_ap_below_zero():
         ground_stats=SimpleNamespace(strength=10),
         equipped_ground_armor={},
         player_traits=[],
+        installed_chrome=[],
     )
 
     _rules_ground.damage("stun_baton", _enemy, _ctx)
@@ -362,8 +365,9 @@ def test_damage_subtracts_enemy_armor_and_applies_cybernetic_melee():
     _ctx = SimpleNamespace(
         ground_stats=SimpleNamespace(strength=20),
         equipped_ground_armor={"hands": StoredGroundEquipment("armor", "cybernetic_arms")},
+        installed_chrome=[],
     )
-    _dmg, _glance = _rules_ground.damage("fists", _enemy, _ctx)
+    _dmg, _glance, _crit = _rules_ground.damage("fists", _enemy, _ctx)
     assert _dmg == 4  # 1 + 4 (str) + 2 (cyber arms) - 3 (armor)
     assert _glance is False
     assert _enemy.hp == 26
@@ -403,6 +407,7 @@ class TestGroundCanFire:
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
+            installed_chrome=[],
             log=SimpleNamespace(
                 add=lambda _message, **_kwargs: None,
                 add_colored=lambda _message, _color, **_kwargs: None,
@@ -442,6 +447,7 @@ class TestGroundPointBlankFire:
             equipped_ground_weapons=[_weapon("kinetic_rifle"), _weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
+            installed_chrome=[],
             log=SimpleNamespace(
                 add=lambda text, **_kw: _messages.append(text),
                 add_colored=lambda _message, _color, **_kwargs: _messages.append(_message),
@@ -478,6 +484,7 @@ class TestGroundPointBlankFire:
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
+            installed_chrome=[],
             log=SimpleNamespace(
                 add=lambda _message, **_kwargs: None,
                 add_colored=lambda _message, _color, **_kwargs: None,
@@ -515,6 +522,7 @@ class TestGroundPointBlankFire:
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=[],
+            installed_chrome=[],
             log=SimpleNamespace(
                 add=lambda _message, **_kwargs: None,
                 add_colored=lambda _message, _color, **_kwargs: None,
@@ -534,6 +542,7 @@ def test_refresh_equipment_state_rebuilds_weapon_and_armor_cache(monkeypatch):
     _ctx = SimpleNamespace(
         equipped_ground_weapons=[_weapon("laser_pistol")],
         equipped_ground_armor={"body": StoredGroundEquipment("armor", "heavy_vest")},
+        installed_chrome=[],
     )
     monkeypatch.setattr(
         _rules_ground,
@@ -592,6 +601,7 @@ def _ground_fixture():
         equipped_ground_weapons=[_weapon("fists")],
         equipped_ground_armor={},
         player_traits=[],
+        installed_chrome=[],
         log=SimpleNamespace(
             add=lambda _message, **_kwargs: None,
             add_colored=lambda _message, _color, **_kwargs: None,
@@ -1058,6 +1068,7 @@ def _explosive_fixture(*, player_pos=world.Position(3, 3)):
         ground_expedition_items=[],
         bandolier={"rocket": 4},
         player_traits=[],
+        installed_chrome=[],
         player_xp=0,
         player_level=1,
         player_skill_points=0,
@@ -1723,6 +1734,7 @@ class TestRangeDisplaysMatchFireGate:
             equipped_ground_weapons=[_weapon("kinetic_rifle")],
             equipped_ground_armor={},
             player_traits=["longshot"],
+            installed_chrome=[],
             log=SimpleNamespace(
                 add=lambda _m, **_k: None,
                 add_colored=lambda _m, _c, **_k: None,

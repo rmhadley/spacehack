@@ -64,6 +64,7 @@ def test_qualifying_traits_never_offer_origin_traits():
     trait may ever be offered, even though the player holds none."""
     ctx = SimpleNamespace(
         player_traits=[],
+        installed_chrome=[],
         faction_reputation={},
         stats=SimpleNamespace(gunnery=100, piloting=100, engineering=100),
         ground_stats=SimpleNamespace(reflexes=100, strength=100, stamina=100),
@@ -106,6 +107,7 @@ def test_creation_grant_lands_the_species_trait():
 def _ground_ctx(traits=(), species_id="human", stamina=10):
     return SimpleNamespace(
         player_traits=list(traits),
+        installed_chrome=[],
         equipped_ground_armor={},
         ground_stats=SimpleNamespace(reflexes=10, strength=10, stamina=stamina),
         character_info={"species_id": species_id},
@@ -196,6 +198,7 @@ def test_fast_learner_grants_six_skill_points_per_level():
     def _level_ctx(traits):
         return SimpleNamespace(
             player_traits=list(traits),
+            installed_chrome=[],
             player_xp=0, player_level=1, player_skill_points=0,
             log=SimpleNamespace(
                 add_colored=lambda *_args, **_kwargs: None,

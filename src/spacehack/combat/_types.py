@@ -75,6 +75,11 @@ class EnemyInstance:
     # build (doc 48 SETTLED 39). The paid divert above fires only
     # below the threshold while power lasts.
     shield_recharge_bonus: int = 0
+    # Crit stats (doc 102 SETTLED 6, actor-symmetric): the shot roll
+    # reads the SHOOTER's container — player chrome sums today, enemy
+    # fields when NPCs wear chrome. Base 0% / x1.5 everywhere.
+    crit_chance: int = 0
+    crit_damage_points: int = 0
     alive: bool = True
 
 

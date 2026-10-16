@@ -98,20 +98,25 @@ def _result_clause(
     shield_dmg: int,
     is_strip: bool,
     is_glancing: bool,
+    is_crit: bool = False,
 ) -> str:
     """Outcome clause: ``"It misses!"`` / ``"It hits for 6 damage!"``.
 
     Hits report the total damage, plus the shield/hull split whenever
     shields absorbed part of it (space combat) so the log explains
     why a target is still flying. EMP strips show the shields-only
-    line; glancing hits (halved by high target Piloting) are labeled.
+    line; glancing hits (halved by high target Piloting) and crits
+    (doc 102 SETTLED 6) are labeled — a crit-glance labels the crit.
     """
     if not hit:
         return "It misses!"
     _shield_word = "shield" if shield_dmg == 1 else "shields"
     if is_strip:
         return f"It strips {shield_dmg} {_shield_word}!"
-    _verb = "glances for" if is_glancing else "hits for"
+    if is_crit:
+        _verb = "critically hits for"
+    else:
+        _verb = "glances for" if is_glancing else "hits for"
     _total = hull_dmg + shield_dmg
     if shield_dmg > 0 and hull_dmg > 0:
         _split = f" ({shield_dmg} {_shield_word}, {hull_dmg} hull)"
@@ -146,21 +151,23 @@ def player_attack_line(
     shield_dmg: int = 0,
     is_strip: bool = False,
     is_glancing: bool = False,
+    is_crit: bool = False,
     quality: int = 0,
 ) -> AttackLine:
     """Full player-attack message: ``"{opening} {target}. {result}"``.
 
     ``hull_dmg`` is the damage to the target's health pool (hull in
     space, HP on the ground); ``shield_dmg`` is what shields absorbed
-    (always 0 in ground combat). ``is_strip`` marks EMP-style hits.
-    ``quality`` colours the weapon-name segment (``.runs``).
+    (always 0 in ground combat). ``is_strip`` marks EMP-style hits;
+    ``is_crit`` labels crits (doc 102 SETTLED 6). ``quality`` colours
+    the weapon-name segment (``.runs``).
     """
     return _assemble_line(
         _player_opening_parts(weapon_id, weapon_name, quality),
         f" {target_name}. "
         + _result_clause(
             hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg,
-            is_strip=is_strip, is_glancing=is_glancing,
+            is_strip=is_strip, is_glancing=is_glancing, is_crit=is_crit,
         ),
     )
 
@@ -188,6 +195,7 @@ def enemy_attack_line(
     shield_dmg: int = 0,
     is_strip: bool = False,
     is_glancing: bool = False,
+    is_crit: bool = False,
     quality: int = 0,
     target_name: str | None = None,
 ) -> AttackLine:
@@ -206,6 +214,6 @@ def enemy_attack_line(
         f" {_object}. "
         + _result_clause(
             hit=hit, hull_dmg=hull_dmg, shield_dmg=shield_dmg,
-            is_strip=is_strip, is_glancing=is_glancing,
+            is_strip=is_strip, is_glancing=is_glancing, is_crit=is_crit,
         ),
     )

@@ -470,9 +470,10 @@ async def _apply_guided_arrival(
         target_pilot_piloting=_ps.get("piloting", 0),
         weapon_quality=missile.quality,
     )
+    # Missiles never crit (doc 102 SETTLED 6): no roll, no multiplier.
     return await _apply_enemy_hit(
         state, missile.shooter, missile.weapon_id, _ws,
-        _dmg, _sdmg, _fh, False, _is_glancing,
+        _dmg, _sdmg, _fh, False, _is_glancing, False,
         hit_chances=_build_hit_chances(None), evade_bonus=_dodge,
         calc_cam=_calc_camera, ctx=ctx,
     )

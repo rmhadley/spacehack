@@ -45,7 +45,7 @@ from ._ground_types import (  # noqa: F401  # re-exported seam
     GroundCombatState,
     GroundEnemyInstance,
 )
-from ._stats import _distance, _roll_ap
+from ._stats import _crit_multiplier, _distance, _roll_ap, _roll_crit
 from . import _ground_actions, _ground_blast
 from ._ground_math import (
     calc_ground_move_dodge as _calc_ground_move_dodge,
@@ -369,27 +369,39 @@ def hit_chance(
         range_penalty=_range_penalty, quality=quality,
     )
 
+def _player_melee_bonus(ctx, weapon_id: str, chrome_fx, is_melee: bool) -> int:
+    """The player's melee damage bonus term: worn armor + Sturdy's
+    always-on +2 (doc 49, fists included) + the Muscle Fibers
+    garnish (doc 102 SETTLED 10, melee-only like Sturdy) + the
+    charger's momentum."""
+    _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
+    if is_melee:
+        _melee_bonus += _sturdy_melee_bonus(ctx) + chrome_fx.melee_damage_bonus
+    if _is_charger_melee(ctx, weapon_id):
+        _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
+    return _melee_bonus
+
+
 def damage(
     weapon_id: str, enemy: GroundEnemyInstance, ctx, quality: int = 0,
-) -> tuple[int, bool]:
-    """Apply weapon damage to a ground enemy. Returns ``(dmg, False)``.
+) -> tuple[int, bool, bool]:
+    """Apply weapon damage to a ground enemy. Returns ``(dmg, False, is_crit)``.
 
     Enemy armor — the FOLDED instance read (spec + worn pieces, doc 48
     SETTLED 51) — is subtracted here, with plasma halving it via
-    :func:`_ground_damage_raw`; cybernetic arms add a melee bonus.
-    Ground combat has no glancing mechanic, but the unified loop
-    unpacks ``(dmg, is_glancing)`` for both rule sets — ground always
-    reports ``False``.
+    :func:`_ground_damage_raw`. Ground combat has no glancing
+    mechanic, but the unified loop unpacks the triple for both rule
+    sets — ground always reports ``False`` there. The crit roll
+    (doc 102 SETTLED 6) splits melee vs ranged on the existing
+    ``damage_type`` read and multiplies the dealt damage; zero
+    chance consumes no RNG draw (kill-draws doctrine).
     """
-    _armor = enemy.armor
-    _melee_bonus = _sum_armor_bonus(ctx.equipped_ground_armor.values(), "melee_bonus")
-    # Sturdy's +2 melee damage is melee-only, fists included (doc 49).
-    if _find_gw(weapon_id).damage_type == "melee":
-        _melee_bonus += _sturdy_melee_bonus(ctx)
-    if _is_charger_melee(ctx, weapon_id):
-        _melee_bonus += _charge_bonuses(_charge_tiles(ctx))[1]
+    from ..chrome import installed_effects
+    _fx = installed_effects(ctx.installed_chrome)
+    _is_melee = _find_gw(weapon_id).damage_type == "melee"
     _dmg = _ground_damage_raw(
-        weapon_id, ctx.ground_stats.strength, _armor, _melee_bonus,
+        weapon_id, ctx.ground_stats.strength, enemy.armor,
+        _player_melee_bonus(ctx, weapon_id, _fx, _is_melee),
         strength_step=_PLAYER_STRENGTH_STEP, quality=quality,
     )
     if _ground_deadshot.is_deadshot(ctx, weapon_id):
@@ -398,13 +410,18 @@ def damage(
     # rides the same window as the hit bonus.
     _ef, _os = _opener_flags()
     _dmg = _dmg * _opener_damage_pct(ctx, enemy_fired=_ef, opener_spent=_os) // 100
+    _is_crit = _roll_crit(
+        _fx.crit_chance_melee if _is_melee else _fx.crit_chance_ranged,
+    )
+    if _is_crit:
+        _dmg = int(_dmg * _crit_multiplier(_fx.crit_damage_points))
     enemy.hp -= _dmg
     enemy.ap = max(0, enemy.ap - int(weapon_id == "stun_baton"))
     # Wound persistence: sync to the map entity so a fight that ends
     # with survivors (LOS aggro) keeps their wounds on re-engagement.
     if enemy.entity is not None:
         enemy.entity.hp = max(0, enemy.hp)
-    return _dmg, False
+    return _dmg, False, _is_crit
 
 def is_explosive(weapon_id: str) -> bool:
     """Whether a ground weapon resolves as an area blast."""

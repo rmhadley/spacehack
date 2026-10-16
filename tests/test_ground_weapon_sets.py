@@ -197,7 +197,7 @@ def _swap_fixture(equipped, holstered):
         equipped_ground_weapons=equipped,
         holstered_ground_weapons=holstered,
         equipped_ground_armor={},
-        player_traits=[],
+        player_traits=[], installed_chrome=[],
         log=_LogCapture(),
     )
     _rules_ground.init(_ctx, [_enemy], _game_map)

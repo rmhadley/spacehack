@@ -22,7 +22,9 @@ from . import _ai_conservation as _ac
 from ._stats import (
     calc_hit_chance,
     _calc_dodge_bonus,
+    _crit_multiplier,
     _distance,
+    _roll_crit,
 )
 from ._actions import (
     start_enemy_turn,
@@ -810,7 +812,7 @@ async def _enemy_shot_tail(
     _wid = _entry.item_id
     (
         _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
-        _is_glancing, _e_dmg_popup,
+        _is_glancing, _e_is_crit, _e_dmg_popup,
     ) = _resolve_enemy_shot(state, _ei, _wid, _entry.quality)
     _e_ws = find_weapon(_wid)
     await _animate_enemy_shot(
@@ -821,7 +823,7 @@ async def _enemy_shot_tail(
         return None
     return await _apply_enemy_hit(
         state, _ei, _wid, _e_ws,
-        _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing,
+        _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing, _e_is_crit,
         hit_chances=hit_chances, evade_bonus=evade_bonus, calc_cam=calc_cam,
         ctx=ctx,
     )
@@ -849,14 +851,40 @@ async def _enemy_attack(
     )
 
 
+def _enemy_hit_resolution(state, _ei, _wid, _weapon_quality: int):
+    """A landed enemy shot's damage tuple: the crit roll (doc 102
+    SETTLED 6, reading the SHOOTER's container — actor-symmetric),
+    the shared damage resolution with its multiplier, the strip
+    check, and the popup."""
+    _e_is_crit = _roll_crit(_ei.crit_chance)
+    _e_dmg, _e_sdmg, _e_fh, _is_glancing = resolve_damage(
+        _wid, state.player_state["hull"],
+        state.player_state["shields"],
+        target_pilot_piloting=state.player_state.get("piloting", 0),
+        weapon_quality=_weapon_quality,
+        crit_mult=_crit_multiplier(_ei.crit_damage_points) if _e_is_crit else 1.0,
+    )
+    _e_ws = find_weapon(_wid)
+    _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
+    _e_dmg_popup = _damage_popup_for(
+        _e_dmg, _e_sdmg, _e_is_strip,
+        glancing=_is_glancing, crit=_e_is_crit,
+    )
+    # Order mirrors the miss branch: dmg, sdmg, fh, strip, glancing,
+    # crit, popup (the caller splices hit in front).
+    return _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing, _e_is_crit, _e_dmg_popup
+
+
 def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
     """Roll and resolve one enemy shot.
 
-    Damage resolves BEFORE animating so the floating damage number
-    rides the shot's impact frames. Misses return zeroed damage with
-    the current hull. ``_weapon_quality`` is the flown instance's
-    rolled tier (doc 48.7) — quality scales damage AND accuracy
-    (doc 47 SETTLED 2, space side landed 2026-09-28).
+    Returns ``(hit, dmg, sdmg, final_hull, is_strip, is_glancing,
+    is_crit, popup)``. Damage resolves BEFORE animating so the
+    floating damage number rides the shot's impact frames. Misses
+    return zeroed damage with the current hull. ``_weapon_quality``
+    is the flown instance's rolled tier (doc 48.7) — quality scales
+    damage AND accuracy (doc 47 SETTLED 2, space side landed
+    2026-09-28).
     """
     _dist = _distance(state.player_state["pos"], _ei.pos)
     # Resolution-only reads the Bounty Hunter's +5 evade (doc 49
@@ -872,23 +900,9 @@ def _resolve_enemy_shot(state, _ei, _wid, _weapon_quality: int = 0):
         weapon_quality=_weapon_quality,
     )
     _e_hit = RNG.randint(1, 100) <= _chance
-    _e_dmg, _e_sdmg, _e_fh, _is_glancing = 0, 0, state.player_state["hull"], False
-    _e_is_strip = False
-    _e_dmg_popup = None
-    if _e_hit:
-        _e_dmg, _e_sdmg, _e_fh, _is_glancing = resolve_damage(
-            _wid, state.player_state["hull"],
-            state.player_state["shields"],
-            target_pilot_piloting=state.player_state.get("piloting", 0),
-            weapon_quality=_weapon_quality,
-        )
-        _e_ws = find_weapon(_wid)
-        _e_is_strip = _e_ws.shield_strip > 0 and _e_sdmg > 0
-        _e_dmg_popup = _damage_popup_for(
-            _e_dmg, _e_sdmg, _e_is_strip,
-            glancing=_is_glancing,
-        )
-    return _e_hit, _e_dmg, _e_sdmg, _e_fh, _e_is_strip, _is_glancing, _e_dmg_popup
+    if not _e_hit:
+        return 0, 0, 0, state.player_state["hull"], False, False, False, None
+    return (_e_hit, *_enemy_hit_resolution(state, _ei, _wid, _weapon_quality))
 
 
 async def _present_ship_destruction(state, *, evade_bonus, hit_chances, calc_cam):
@@ -913,7 +927,7 @@ async def _present_ship_destruction(state, *, evade_bonus, hit_chances, calc_cam
 
 async def _apply_enemy_hit(
     state, _ei, _wid, _e_ws, _e_dmg, _e_sdmg, _e_fh, _e_is_strip,
-    _is_glancing, *, hit_chances, evade_bonus, calc_cam, ctx,
+    _is_glancing, _e_is_crit, *, hit_chances, evade_bonus, calc_cam, ctx,
 ) -> str | None:
     """Apply a landed enemy hit; ``"DEFEAT"`` when hull reaches zero."""
     state.player_state["shields"] = max(
@@ -930,6 +944,7 @@ async def _apply_enemy_hit(
             shield_dmg=_e_sdmg,
             is_strip=_e_is_strip,
             is_glancing=_is_glancing and not _e_is_strip,
+            is_crit=_e_is_crit,
         ),
         state.log,
     )
