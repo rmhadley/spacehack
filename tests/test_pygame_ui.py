@@ -463,7 +463,10 @@ def test_midcombat_holstered_equip_charges_exactly_one_ap(monkeypatch):
 
 
 def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
-    ctx = SimpleNamespace(context=object())
+    ctx = SimpleNamespace(
+        context=object(),
+        player_level=1, player_xp=0, character_info={},
+    )
     monkeypatch.setattr(
         character_screen,
         "_combat_ap_available",
@@ -479,14 +482,19 @@ def test_combat_character_screen_returns_after_successful_swap(monkeypatch):
         "_swap_from_pack",
         as_async(lambda *_args, **_kwargs: True),
     )
-    outcomes = iter((
-        ("TAB", "", 0),
-        ("SELECT", "SWAP:weapon:ranged:0", 0),
-    ))
+    # Brief 4.3: the Stats tab presents through the dynamic split
+    # runner; the swap lands on the Equipment tab's fixed frame.
+    stats_outcomes = iter((("TAB", "", 0),))
+    equip_outcomes = iter((("SELECT", "SWAP:weapon:ranged:0", 0),))
+    monkeypatch.setattr(
+        pygame_split,
+        "run_dynamic_screen",
+        as_async(lambda *_args, **_kwargs: next(stats_outcomes)),
+    )
     monkeypatch.setattr(
         pygame_screen,
         "run_for_context",
-        as_async(lambda *_args, **_kwargs: next(outcomes)),
+        as_async(lambda *_args, **_kwargs: next(equip_outcomes)),
     )
 
     assert run(

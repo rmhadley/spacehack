@@ -148,7 +148,7 @@ def ego_load(ctx: "GameContext") -> int:
     """Current claim: the sum of installed pieces' burn costs.
     Recycles on uninstall (SETTLED 2 rule C)."""
     total = 0
-    for piece_id in ctx.installed_chrome:
+    for piece_id in getattr(ctx, "installed_chrome", ()):
         spec = _spec_or_none(piece_id)
         if spec is not None:
             total += spec.burn

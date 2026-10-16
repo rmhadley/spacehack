@@ -26,15 +26,11 @@ def _character_frame(
     in_ground_combat: bool = False,
     floor_available: bool = True,
 ):
-    """Build a Pygame snapshot for one Character tab."""
-    from .xp import xp_for_level, _xp_to_next
-
-    level = ctx.player_level
-    current_xp = max(0, ctx.player_xp - xp_for_level(level))
-    needed = _xp_to_next(level)
-    title = f"CHARACTER - Level {level} {ctx.character_info.get('class_name', '').title()}"
-    if tab == 0:
-        return _stats_frame(ctx, title, current_xp, needed, selected)
+    """Build a Pygame snapshot for one FIXED Character tab
+    (Equipment/Cargo). The Stats tab presents through the dynamic
+    split runner instead (Brief 4.3) — no fixed frame exists for
+    it, so this map never sees tab 0."""
+    title, _current_xp, _needed = _character_title(ctx)
     if tab == 1:
         return _equipment_frame(
             ctx, title, selected,
@@ -42,6 +38,19 @@ def _character_frame(
             swap_allowed=swap_allowed,
         )
     return _cargo_character_frame(ctx, title, selected)
+
+
+def _character_title(ctx: GameContext) -> tuple[str, int, int]:
+    """The screen title and XP pair every tab shares."""
+    from .xp import xp_for_level, _xp_to_next
+
+    level = ctx.player_level
+    current_xp = max(0, ctx.player_xp - xp_for_level(level))
+    return (
+        f"CHARACTER - Level {level} {ctx.character_info.get('class_name', '').title()}",
+        current_xp,
+        _xp_to_next(level),
+    )
 
 
 def _equipment_frame(
@@ -746,6 +755,59 @@ async def _swap_from_pack(ctx: GameContext, action: str) -> bool:
     return _swap_pack_entry(ctx, "armor", rest, pack_index)
 
 
+async def _present_character_tab(
+    ctx: GameContext,
+    tab: int,
+    selected: int,
+    *,
+    equipment_management: bool,
+    in_ground_combat: bool,
+    floor_available: bool,
+    swap_allowed: bool,
+) -> tuple[str, str, int]:
+    """Present one Character tab and drain it to a terminal
+    ``(outcome, action, selected)``.
+
+    The Stats tab is the DYNAMIC split (doc 102 Brief 4.3): its
+    right pane follows the left cursor, so it presents through
+    ``run_dynamic_screen`` with a frame builder instead of a fixed
+    snapshot; every other tab keeps the fixed-frame dispatch.
+    """
+    from . import pygame_split
+
+    if tab == 0:
+        title, current_xp, needed = _character_title(ctx)
+        return await pygame_split.run_dynamic_screen(
+            ctx.context,
+            lambda sel: _stats_frame(ctx, title, current_xp, needed, sel),
+            caption="spacehack - character",
+            initial_selected=selected,
+        )
+    return await _run_fixed_character_frame(
+        ctx,
+        _character_frame(
+            ctx, tab, selected,
+            equipment_management=equipment_management,
+            in_ground_combat=in_ground_combat,
+            floor_available=floor_available,
+            swap_allowed=swap_allowed,
+        ),
+    )
+
+
+async def _run_fixed_character_frame(ctx: GameContext, frame):
+    """The fixed-frame dispatch: split frames present through the
+    screen runner, text frames through the shared screen."""
+    from . import pygame_screen, pygame_split
+
+    runner = (
+        pygame_split.run_for_screen
+        if isinstance(frame, pygame_split.SplitFrame)
+        else pygame_screen.run_for_context
+    )
+    return await runner(ctx.context, frame, caption="spacehack - character")
+
+
 async def _run_pygame_character_screen(
     ctx: GameContext,
     *,
@@ -754,13 +816,11 @@ async def _run_pygame_character_screen(
     floor_available: bool = True,
 ) -> int | None:
     """Run Character through the shared Pygame screen."""
-    from . import pygame_screen, pygame_split
-
     tab = 0
     selected = 0
     swap_count = 0
     while True:
-        frame = _character_frame(
+        outcome, action, selected = await _present_character_tab(
             ctx, tab, selected,
             equipment_management=equipment_management,
             in_ground_combat=in_ground_combat,
@@ -769,14 +829,6 @@ async def _run_pygame_character_screen(
                 not in_ground_combat
                 or _combat_ap_available(ctx, reserved=swap_count)
             ),
-        )
-        runner = (
-            pygame_split.run_for_screen
-            if isinstance(frame, pygame_split.SplitFrame)
-            else pygame_screen.run_for_context
-        )
-        outcome, action, selected = await runner(
-            ctx.context, frame, caption="spacehack - character",
         )
         tab, selected, swap_count, done = await _advance_character_screen(
             ctx, outcome, action, tab, selected, swap_count,

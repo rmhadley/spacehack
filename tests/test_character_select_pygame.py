@@ -164,7 +164,8 @@ def test_character_confirm_ignores_guide_then_preserves_quit(monkeypatch):
 
 def test_stats_tab_lists_owned_identity_gear():
     """The rig and cut-out are visible on the C screen once owned —
-    the Gear line lists only what's installed (doc 40 user report)."""
+    the Gear line lists only what's installed (doc 40 user report).
+    Since Brief 4.3 the line is a left-pane header row."""
     from types import SimpleNamespace
 
     from src.spacehack.character_screen import _stats_frame
@@ -183,18 +184,18 @@ def test_stats_tab_lists_owned_identity_gear():
         base.update(flags)
         return SimpleNamespace(**base)
 
-    _body = _stats_frame(_ctx(), "T", 0, 10, selected=0).body
-    assert not any("Gear:" in line for line in _body), "nothing owned, no line"
+    def _header(ctx):
+        frame = _stats_frame(ctx, "T", 0, 10, selected=0)
+        return [row.label for row in frame.left_rows if not row.selectable]
 
-    _body = _stats_frame(_ctx(transponder_rig=True), "T", 0, 10, selected=0).body
-    _gear = [line for line in _body if line.startswith("Gear:")]
+    _lines = _header(_ctx())
+    assert not any("Gear:" in line for line in _lines), "nothing owned, no line"
+
+    _gear = [line for line in _header(_ctx(transponder_rig=True)) if line.startswith("Gear:")]
     assert _gear == ["Gear: clone rig"]
 
-    _body = _stats_frame(
-        _ctx(transponder_rig=True, transponder_cutout=True),
-        "T", 0, 10, selected=0,
-    ).body
-    assert "Gear: transponder cut-out, clone rig" in _body
+    _lines = _header(_ctx(transponder_rig=True, transponder_cutout=True))
+    assert "Gear: transponder cut-out, clone rig" in _lines
 
 
 class TestSpeciesSplitPicker:

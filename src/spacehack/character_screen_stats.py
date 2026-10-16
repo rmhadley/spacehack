@@ -65,39 +65,109 @@ def _skill_spend_marker(ctx: GameContext, index: int, skill: str) -> str:
     return "MAX" if base >= 100 else ""
 
 
-def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
-    """Build the Stats-tab frame (skills, XP, traits)."""
-    from . import pygame_screen, pygame_ui
-
-    rows = tuple(
-        pygame_screen.ScreenRow(
-            text=(
-                f"{skill.title():<12} {_skill_value_display(ctx, index, skill)}"
-                f"  {_skill_spend_marker(ctx, index, skill)}"
-            ).rstrip(),
-            detail=_SKILL_DESCRIPTIONS[skill],
-            action=f"SPEND:{skill}",
-        )
-        for index, skill in enumerate(_SKILLS)
-    )
+def _stats_header_lines(ctx: GameContext, current_xp: int, needed: int) -> tuple[str, ...]:
+    """The informational header rows above the stats (the old
+    ScreenFrame body, verbatim — Brief 4.3 moves them into the
+    pane; the strings are unchanged)."""
     _gear = [
         _name for _flag, _name in (
             (getattr(ctx, "transponder_cutout", False), "transponder cut-out"),
             (getattr(ctx, "transponder_rig", False), "clone rig"),
         ) if _flag
     ]
-    body = (
+    return (
         f"XP: {current_xp} / {needed}    Skill points available: {ctx.player_skill_points}",
         f"Traits: {', '.join(_trait_names(ctx.player_traits)) or 'None'}",
         *(("Gear: " + ", ".join(_gear),) if _gear else ()),
     )
-    footer = (pygame_ui.modal_hint(
-        pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
-        "ESC close", pygame_ui.GUIDE_HINT,
-    ),)
-    return pygame_screen.ScreenFrame(
-        title, body, rows, footer, selected,
-        tabs=("STATS", "EQUIPMENT", "CARGO"), active_tab=0,
+
+
+def _skill_value_cell(ctx: GameContext, index: int, skill: str) -> str:
+    """The stat row's value cell (ledger 16): the skill display,
+    the xN chrome count for the bay, and the spend marker."""
+    from .chrome import installed_for_skill
+
+    cell = _skill_value_display(ctx, index, skill)
+    _count = len(installed_for_skill(
+        getattr(ctx, "installed_chrome", ()), skill,
+    ))
+    if _count:
+        cell += f" x{_count}"
+    marker = _skill_spend_marker(ctx, index, skill)
+    if marker:
+        cell += f"  {marker}"
+    return cell
+
+
+def _info_row(label: str):
+    """One display-only pane row (the right pane carries no actions)."""
+    from . import pygame_split
+
+    return pygame_split.SplitRow(label, "", "", "", selectable=False)
+
+
+def _chrome_pane_rows(ctx: GameContext, skill: str) -> tuple:
+    """The right pane (display-only): the selected bay's installed
+    chrome, led by the guide-synced skill description."""
+    from .chrome import installed_for_skill
+    from .data.chrome import find_chrome
+
+    rows = [_info_row(_SKILL_DESCRIPTIONS[skill])]
+    pieces = installed_for_skill(
+        getattr(ctx, "installed_chrome", ()), skill,
+    )
+    if not pieces:
+        rows.append(_info_row("Nothing installed."))
+    rows.extend(
+        _info_row(f"{spec.name}  {spec.detail}")
+        for spec in (find_chrome(piece_id) for piece_id in pieces)
+    )
+    return tuple(rows)
+
+
+def _selected_skill(left_rows, selected: int) -> str:
+    """The stat row the cursor sits on (header rows clamp to the
+    nearest stat; the runner only ever returns selectable indices,
+    but the first build seeds arbitrary values)."""
+    indices = [i for i, row in enumerate(left_rows) if row.selectable]
+    if not indices:
+        return _SKILLS[0]
+    if selected not in indices:
+        selected = min(indices, key=lambda index: abs(index - selected))
+    return left_rows[selected].action.partition(":")[2]
+
+
+def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
+    """Build the Stats-tab split frame (Brief 4.3, cluster C): the
+    six stat rows + xN piece counts on the left, the selected
+    bay's chrome on the right, the ruled ego readout under both
+    panes. ENTER stays SPEND; the right pane never takes focus."""
+    from . import pygame_split, pygame_ui
+    from .chrome import ego_readout_line, state_line
+
+    header = tuple(
+        pygame_split.SplitRow(line, "", "", "", selectable=False)
+        for line in _stats_header_lines(ctx, current_xp, needed)
+    )
+    stats = tuple(
+        pygame_split.SplitRow(
+            f"{skill.title():<12}",
+            _skill_value_cell(ctx, index, skill),
+            "", f"SPEND:{skill}",
+        )
+        for index, skill in enumerate(_SKILLS)
+    )
+    left = header + stats
+    return pygame_split.SplitFrame(
+        title, "Skills", "Chrome",
+        left, _chrome_pane_rows(ctx, _selected_skill(left, selected)),
+        ego_readout_line(ctx), state_line(ctx),
+        pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER spend", "TAB equipment",
+            "ESC close", pygame_ui.GUIDE_HINT,
+        ),
+        selected=selected,
+        screen_tabs=("STATS", "EQUIPMENT", "CARGO"), active_screen_tab=0,
     )
 
 
