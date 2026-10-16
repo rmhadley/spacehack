@@ -39,7 +39,10 @@ from tests.support.fake_pygame import FakeFont as _FakeFont
 def test_faction_frame_uses_explicit_standing_scale_and_uppercase_labels():
     from src.spacehack import pygame_faction
 
-    ctx = SimpleNamespace(faction_reputation={})
+    ctx = SimpleNamespace(
+            character_info={"species_id": "human"}, ego_burn=0,
+        faction_reputation={},
+    )
     frame = pygame_faction.frame_for(ctx)
 
     assert frame.rows
@@ -1358,6 +1361,7 @@ def test_station_trade_frame_colors_by_merchant_rep(monkeypatch):
 
     def build(rep):
         ctx = SimpleNamespace(
+            character_info={"species_id": "human"}, ego_burn=0,
             player_owned_ship=SimpleNamespace(
                 ship_id="starter", inventory={"food_rations": 2}, cargo_used=2,
             ),
@@ -1389,6 +1393,7 @@ def test_trade_market_tab_ramps_with_merchant_rep(monkeypatch):
 
     def build(rep, inventory=None):
         ctx = SimpleNamespace(
+            character_info={"species_id": "human"}, ego_burn=0,
             player_owned_ship=SimpleNamespace(
                 ship_id="starter", inventory=inventory or {}, cargo_used=0,
             ),
@@ -1596,6 +1601,7 @@ def test_open_comms_accepts_contact_tuple_with_unhashable_entity(monkeypatch):
     )
     contact = ("Pirate Scout", SimpleNamespace(comms_lines=()), entity)
     ctx = SimpleNamespace(
+            character_info={"species_id": "human"}, ego_burn=0,
         game_map=SimpleNamespace(entities=[]),
         faction_reputation={},
         log=SimpleNamespace(add=lambda _message, **_kwargs: None),

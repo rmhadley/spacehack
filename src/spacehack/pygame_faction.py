@@ -96,9 +96,15 @@ def _identity_block(ctx: GameContext) -> tuple[str, ...]:
     mode = identity.broadcast_mode(ctx)
     worn = identity.resolved_identity(ctx)
     position, total = identity.library_position(ctx)
-    return (
+    lines = [
         f"[{position}/{total}] {identity.identity_label(worn)} [{mode.upper()}]",
-    )
+    ]
+    # The Consortium gate's standing exposure (doc 102 SETTLED 4/5):
+    # hidden rep axis stays hidden — this line is the whole surface.
+    from .chrome import consortium_gate_open
+    if consortium_gate_open(ctx):
+        lines.append("Terminus Tech: account active")
+    return tuple(lines)
 
 
 def frame_for(ctx: GameContext) -> FactionFrame:

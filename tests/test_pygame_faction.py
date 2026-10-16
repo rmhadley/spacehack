@@ -13,6 +13,7 @@ def test_faction_frame_contains_bright_semantic_rows_and_safe_bars():
     # neither may render (doc 48 phase 2 — three bars only).
     frame = pygame_faction.frame_for(
         SimpleNamespace(
+            character_info={"species_id": "human"}, ego_burn=0,
             faction_reputation={
                 "pirate": -100,
                 "merchant": 0,
@@ -109,7 +110,10 @@ def test_faction_shared_guide_outcome_is_returned_to_parent(monkeypatch):
         present=lambda: None,
     )
     context = SimpleNamespace(_runtime=SimpleNamespace(engine=engine))
-    ctx = SimpleNamespace(faction_reputation={})
+    ctx = SimpleNamespace(
+        character_info={"species_id": "human"}, ego_burn=0,
+        faction_reputation={},
+    )
     monkeypatch.setattr(pygame_faction, "_fit_font", lambda *args: object())
     monkeypatch.setattr(pygame_faction, "_draw_frame", lambda *args: None)
 
@@ -117,7 +121,10 @@ def test_faction_shared_guide_outcome_is_returned_to_parent(monkeypatch):
 
 
 def test_faction_runner_uses_semantic_adapter_and_falls_back(monkeypatch):
-    ctx = SimpleNamespace(faction_reputation={}, context=object())
+    ctx = SimpleNamespace(
+        character_info={"species_id": "human"}, ego_burn=0,
+        faction_reputation={}, context=object(),
+    )
     captured = {}
     monkeypatch.setattr(
         pygame_faction,
@@ -133,7 +140,10 @@ def test_faction_runner_uses_semantic_adapter_and_falls_back(monkeypatch):
 
 
 def test_faction_runner_propagates_unavailable_shared_runtime(monkeypatch):
-    ctx = SimpleNamespace(faction_reputation={}, context=object())
+    ctx = SimpleNamespace(
+        character_info={"species_id": "human"}, ego_burn=0,
+        faction_reputation={}, context=object(),
+    )
     monkeypatch.setattr(
         pygame_faction,
         "run_for_context",

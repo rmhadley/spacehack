@@ -41,6 +41,8 @@ def quest_ctx(
         main_quest_complete=False,
         main_quest_unlocked_items=set(),
         player_traits=[],
+        character_info={"species_id": "human"},
+        ego_burn=0,
         # Doc 42: the rumor keyring (talk-modal rows read it).
         known_rumors=[],
         # Doc 42 phase 2: per-dealer favor ledgers.

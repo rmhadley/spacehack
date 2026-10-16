@@ -319,3 +319,51 @@ class TestKioskPriceAndFlow:
 
 
 
+
+
+class TestConsortiumGate:
+    """The derived gate (SETTLED 5) + the one-time intro (SETTLED 4)."""
+
+    def test_gate_reads_twice_the_birth_pool(self):
+        from src.spacehack.chrome import consortium_gate_open
+        assert consortium_gate_open(_ego_ctx(burn=11)) is False
+        assert consortium_gate_open(_ego_ctx(burn=12)) is True
+
+    def test_intro_fires_once_at_the_crossing(self):
+        """Pinned directly: the gate is structurally unreachable in
+        v1 (six t1 pieces max burn 6 < the 12 gate; t2 territory per
+        SETTLED 5) — the helper fires on the synthetic crossing."""
+        from src.spacehack.chrome import maybe_fire_consortium_intro
+
+        ctx = _ego_ctx(burn=12)
+        lines = []
+        ctx.log = SimpleNamespace(
+            add=lambda _m, **_k: None,
+            add_colored=lambda text, _c, **_k: lines.append(text),
+        )
+        ctx.consortium_intro_shown = False
+
+        maybe_fire_consortium_intro(ctx)
+        assert lines == [
+            "Your Terminus Tech account is now active. We will be in touch.",
+        ]
+        assert ctx.consortium_intro_shown is True
+        # Already shown: never again.
+        maybe_fire_consortium_intro(ctx)
+        assert len(lines) == 1
+        # Gate closed (flag still False): nothing fires, flag stays.
+        _closed = _ego_ctx(burn=11)
+        _closed.consortium_intro_shown = False
+        _closed.log = ctx.log
+        maybe_fire_consortium_intro(_closed)
+        assert len(lines) == 1
+        assert _closed.consortium_intro_shown is False
+
+    def test_f_screen_line_rides_the_gate(self):
+        from src.spacehack.pygame_faction import _identity_block
+        _closed = _identity_block(_ego_ctx(burn=0))
+        assert all("Terminus Tech" not in line for line in _closed)
+        _open = _identity_block(_ego_ctx(burn=12))
+        assert any(
+            line == "Terminus Tech: account active" for line in _open
+        )

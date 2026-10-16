@@ -96,7 +96,7 @@ async def _attempt_install(ctx: "GameContext", piece_id: str) -> None:
     """Checks -> charge gate -> consent -> ratchet install +
     swap-back + the ruled log line (one-step transaction)."""
     from .. import message_log as _ml
-    from ..chrome import consent_body, install_check, ratchet_install
+    from ..chrome import consent_body, install_check
     from ..data.chrome import find_chrome
 
     _block = install_check(ctx, piece_id)
@@ -125,11 +125,21 @@ async def _attempt_install(ctx: "GameContext", piece_id: str) -> None:
     )
     if _answer != "CONFIRM":
         return
+    _complete_install(ctx, piece_id, _spec, _price)
+
+
+def _complete_install(ctx: "GameContext", piece_id: str, spec, price: int) -> None:
+    """The post-consent tail: ratchet install, swap-back delivery,
+    charge, the ruled log line, and the gate's one-time intro."""
+    from .. import message_log as _ml
+    from ..chrome import maybe_fire_consortium_intro, ratchet_install
+
     _replaced = ratchet_install(ctx, piece_id)
     if _replaced:
         _deliver_swap_back(ctx, _replaced)
-    ctx.stats.credits -= _price
-    ctx.log.add_colored(f"{_spec.name} installed.", _ml.COLOR_PLAYER_ACTION)
+    ctx.stats.credits -= price
+    ctx.log.add_colored(f"{spec.name} installed.", _ml.COLOR_PLAYER_ACTION)
+    maybe_fire_consortium_intro(ctx)
 
 
 def _remove(ctx: "GameContext", piece_id: str) -> None:

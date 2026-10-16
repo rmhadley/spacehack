@@ -111,17 +111,24 @@ def uninstall_chrome(ctx: "GameContext", piece_id: str) -> bool:
 # ratchet).
 # ---------------------------------------------------------------------------
 
+def _ego_birth(ctx: "GameContext") -> int:
+    """The species' flat ego modifier (v1 all 0). Unknown species
+    read 0 — the shared fallback every birth reader composes."""
+    try:
+        return find_species(
+            ctx.character_info.get("species_id", ""),
+        ).ego_birth
+    except KeyError:
+        return 0
+
+
 def ego_pool(ctx: "GameContext") -> int:
     """Max ego: ``6 + birth + (level - 1) // 3`` (SETTLED 2). Birth
     is the species' flat modifier (v1 all 0); level growth buys
     chrome room — pool 6 at L1, 15 at L30, 25 at L60 at birth 0."""
-    try:
-        _birth = find_species(
-            ctx.character_info.get("species_id", ""),
-        ).ego_birth
-    except KeyError:
-        _birth = 0
-    return 6 + _birth + (max(1, getattr(ctx, "player_level", 1)) - 1) // 3
+    return 6 + _ego_birth(ctx) + (
+        max(1, getattr(ctx, "player_level", 1)) - 1
+    ) // 3
 
 
 def ego_load(ctx: "GameContext") -> int:
@@ -328,6 +335,30 @@ def consent_body(ctx: "GameContext", piece_id: str) -> tuple[str, str | None]:
     _worn = worn_anatomy_piece(ctx.installed_chrome, spec.anatomy)
     _swap = f"Replaces {find_chrome(_worn).name}." if _worn is not None else None
     return body, _swap
+
+
+def consortium_gate_open(ctx: "GameContext") -> bool:
+    """The Consortium gate (SETTLED 5): burn >= 2 x the birth pool
+    (10/12/14/16 at birth -1/0/+1/+2). Derived and monotone — burn
+    never recovers, the target never moves; no latch state."""
+    return getattr(ctx, "ego_burn", 0) >= 2 * (6 + _ego_birth(ctx))
+
+
+def maybe_fire_consortium_intro(ctx: "GameContext") -> None:
+    """The gate's one-time comms moment (SETTLED 4): the contact
+    introduces itself the first time an install crosses the gate —
+    the ruled line, then never again (the F screen carries the
+    standing exposure)."""
+    if getattr(ctx, "consortium_intro_shown", True):
+        return
+    if not consortium_gate_open(ctx):
+        return
+    ctx.consortium_intro_shown = True
+    from . import message_log as _ml
+    ctx.log.add_colored(
+        "Your Terminus Tech account is now active. We will be in touch.",
+        _ml.COLOR_COMBAT_EVENT,
+    )
 
 
 def removal_table_lines(ctx: "GameContext", piece_id: str) -> tuple[str, ...]:
