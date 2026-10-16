@@ -367,3 +367,26 @@ class TestConsortiumGate:
         assert any(
             line == "Terminus Tech: account active" for line in _open
         )
+
+
+class TestKioskLoopEntry:
+    """The kiosk's screen-runner call executes against the REAL
+    signature (a runtime-less context raises the guard, never a
+    TypeError — the arity class the two launch crashes shared)."""
+
+    def test_kiosk_menu_reaches_the_runtime_guard(self):
+        import asyncio
+
+        from src.spacehack.menus import _kiosk
+        from src.spacehack.pygame_screen import PygameScreenUnavailable
+
+        ctx = _ego_ctx()
+        ctx.context = SimpleNamespace()  # no shared runtime attached
+
+        try:
+            asyncio.run(_kiosk._run_kiosk_menu(ctx, "earth"))
+        except PygameScreenUnavailable:
+            return  # the frame built; the call matched the signature
+        except TypeError as exc:
+            raise AssertionError(f"call-arity drift: {exc}")
+        raise AssertionError("expected the runtime guard to raise")

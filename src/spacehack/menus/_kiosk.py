@@ -162,7 +162,7 @@ async def _run_kiosk_menu(ctx: "GameContext", planet_id: str = "") -> None:
     while True:
         _frame = _kiosk_frame(ctx, selected)
         outcome, action, selected = await pygame_screen.run_for_context(
-            ctx.context, ctx, _frame, caption="spacehack - terminus tech",
+            ctx.context, _frame, caption="spacehack - terminus tech",
         )
         if outcome == "GUIDE":
             from ..help import _run_help_guide
