@@ -1464,8 +1464,15 @@ build).
       commits + three fold commits (ego ratchet core / consequence
       bands across every consumer / the kiosk / placeholder
       retirement + migration / the Consortium gate); gate green at
-      3864, all 27 ports city-audit clean; PLAYTEST PENDING
-      (checklist below)
+      3868, all 27 ports city-audit clean; PLAYTEST PASSED
+      2026-10-16 ("this works better now. any further tweaks will
+      come from gameplay/extended features later"). Mid-playtest
+      revisions folded: the kiosk's SPLIT-family redesign (stock
+      left / installed right / TAB panes / pinned detail lines,
+      ledger 15) + the "Remove" cell amendment; two launch-crash
+      hotfixes (render_hud's has_kiosk kwarg; the kiosk runner
+      call arity — both the pin-the-real-call-path lesson, recorded
+      in memory)
 - [ ] 4.3 the mirror: C-screen split, ego line, guide sync
       (Brief 4.3)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
