@@ -74,16 +74,13 @@ def _installed_rows(ctx: "GameContext") -> tuple:
 def _kiosk_frame(ctx: "GameContext", focus: int, selected: int):
     """Build one kiosk snapshot (the armory frame's shape)."""
     from .. import pygame_split, pygame_ui
-    from ..chrome import band, band_name, ego_load, ego_pool
+    from ..chrome import ego_readout_line, state_line
 
-    _pool = ego_pool(ctx)
     return pygame_split.SplitFrame(
         "TERMINUS TECH", "Available", "Installed",
         _stock_rows(ctx), _installed_rows(ctx),
-        f"Ego {_pool - ctx.ego_burn}  Burnt Ego {ctx.ego_burn}"
-        f"  Install Room {_pool - ego_load(ctx)}",
-        f"State: {band_name(band(ctx.ego_burn))}   "
-        + pygame_ui.credits_label(ctx.stats.credits),
+        ego_readout_line(ctx),
+        f"{state_line(ctx)}   " + pygame_ui.credits_label(ctx.stats.credits),
         pygame_ui.modal_hint(
             "UP/DOWN navigate", "TAB switch panel", "ENTER select",
             "ESC back", pygame_ui.GUIDE_HINT,

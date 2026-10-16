@@ -427,3 +427,32 @@ class TestKioskSplitFrame:
         assert "Ego 9  Burnt Ego 0  Install Room 9" in frame.footer_left
         assert "State: Natural" in frame.footer_right
         assert len(frame.left_rows) == 6
+
+
+class TestMirrorReadouts:
+    """The readout helpers (Brief 4.3): ONE home for ledger #14's
+    ruled lines, so the kiosk footer and the C-screen Stats footer
+    cannot drift."""
+
+    def test_ego_readout_line_carries_the_three_numbers(self):
+        from src.spacehack.chrome import ego_readout_line
+        ctx = _ego_ctx(
+            burn=2, pieces=("terminus_optics", "terminus_neural_stim"),
+        )
+        # pool 9 (L10), burn 2, load 2.
+        assert ego_readout_line(ctx) == "Ego 7  Burnt Ego 2  Install Room 7"
+
+    def test_state_line_reads_the_base_band_only(self):
+        from src.spacehack.chrome import state_line
+        assert state_line(_ego_ctx(burn=0)) == "State: Natural"
+        assert state_line(_ego_ctx(burn=4)) == "State: Tainted"
+        assert state_line(_ego_ctx(burn=8)) == "State: Chromed"
+        assert state_line(_ego_ctx(burn=12)) == "State: Psycho"
+
+    def test_installed_for_skill_groups_and_skips_unknowns(self):
+        from src.spacehack.chrome import installed_for_skill
+        worn = ["terminus_optics", "terminus_smartlink", "retired_piece"]
+        assert installed_for_skill(worn, "gunnery") == ("terminus_optics",)
+        assert installed_for_skill(worn, "reflexes") == ("terminus_smartlink",)
+        assert installed_for_skill(worn, "stamina") == ()
+        assert installed_for_skill([], "gunnery") == ()

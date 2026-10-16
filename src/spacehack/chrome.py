@@ -81,6 +81,19 @@ def worn_anatomy_piece(installed: Iterable[str], anatomy: str) -> str | None:
     return None
 
 
+def installed_for_skill(installed: Iterable[str], skill: str) -> tuple[str, ...]:
+    """Installed piece ids keyed to one bay skill, installation
+    order. The C-screen's count cell and its chrome pane share
+    this one walk; unknown ids skip silently (the shared
+    contract)."""
+    pieces = []
+    for piece_id in installed:
+        spec = _spec_or_none(piece_id)
+        if spec is not None and spec.skill == skill:
+            pieces.append(piece_id)
+    return tuple(pieces)
+
+
 def install_chrome(ctx: "GameContext", piece_id: str) -> str:
     """Install one piece; returns the swapped-out piece id (""
     when the anatomy was free). SETTLED 14: same anatomy is
@@ -375,6 +388,25 @@ def removal_table_lines(ctx: "GameContext", piece_id: str) -> tuple[str, ...]:
         f"Burnt Ego: {_burn}/{_burn}",
         f"Install Room: {_pool - _load}/{_pool - _load + spec.burn}",
     )
+
+
+def ego_readout_line(ctx: "GameContext") -> str:
+    """Ledger #14's ruled body readout: the three ego numbers in
+    one line. The kiosk footer and the C-screen Stats footer both
+    compose it — the mirrors cannot drift."""
+    _pool = ego_pool(ctx)
+    _burn = getattr(ctx, "ego_burn", 0)
+    return (
+        f"Ego {_pool - _burn}  Burnt Ego {_burn}  "
+        f"Install Room {_pool - ego_load(ctx)}"
+    )
+
+
+def state_line(ctx: "GameContext") -> str:
+    """The ruled State line: the BASE band name (SETTLED 15's
+    lean — the local read is felt in prices; a name that changes
+    when you travel reads as a bug first and a mechanic second)."""
+    return f"State: {band_name(base_band(ctx))}"
 
 
 # ---------------------------------------------------------------------------
