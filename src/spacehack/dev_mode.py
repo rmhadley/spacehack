@@ -61,6 +61,11 @@ def _dev_faction_label(faction_id: str) -> str:
     return _DEV_FACTION_LABELS[faction_id]
 
 
+def _option_ids(menu: ui.MenuScreen) -> set[str]:
+    """The menu's valid action ids (every picker's valid_ids set)."""
+    return {option_id for option_id, _label in menu.options}
+
+
 def _menu_frames(menu: ui.MenuScreen, body: str):
     """Build the shared fixed-layout frames for a dev picker menu —
     one frame per selection, items wired to the menu's own
@@ -125,7 +130,7 @@ async def _run_pygame_faction_pick(
     result = await _run_pygame_menu_pick(
         context, _pygame_faction_frames(menu),
         caption="spacehack - choose act 0 faction",
-        valid_ids={faction_id for faction_id, _label in menu.options},
+        valid_ids=_option_ids(menu),
     )
     return result
 
@@ -176,11 +181,79 @@ async def choose_city_teleport(context) -> tuple[Outcome, str | None]:
     result = await _run_pygame_menu_pick(
         context, _pygame_teleport_frames(menu),
         caption="spacehack - teleport to city",
-        valid_ids={planet_id for planet_id, _label in menu.options},
+        valid_ids=_option_ids(menu),
     )
     if result is None:
         return Outcome.BACK, None
     return result
+
+
+# ---------------------------------------------------------------------------
+# Chrome grant/uninstall (doc 102.4.1's dev acquisition path — the
+# Terminus kiosk replaces this in 4.2)
+# ---------------------------------------------------------------------------
+
+def toggle_chrome_dev(ctx, piece_id: str) -> str:
+    """Flip one piece's install state; returns the log line. Anatomy
+    collisions resolve as the ruled SWAP (the replaced piece comes
+    out, SETTLED 14)."""
+    from . import chrome as chrome_module
+    from .data.chrome import find_chrome
+    _name = find_chrome(piece_id).name
+    if piece_id in ctx.installed_chrome:
+        chrome_module.uninstall_chrome(ctx, piece_id)
+        return f"[DEV MODE] {_name} uninstalled."
+    _replaced = chrome_module.install_chrome(ctx, piece_id)
+    _note = ""
+    if _replaced:
+        _note = f" (replaces {find_chrome(_replaced).name})"
+    return f"[DEV MODE] {_name} installed{_note}."
+
+
+def chrome_toggle_menu(ctx) -> ui.MenuScreen:
+    """The chrome picker (F7): every catalog piece with its live
+    install state in the label."""
+    from .data.chrome import list_chrome
+    options = tuple(
+        (
+            spec.id,
+            f"{spec.name} - {'INSTALLED' if spec.id in ctx.installed_chrome else 'not installed'}",
+        )
+        for spec in list_chrome()
+    )
+    return ui.MenuScreen(
+        title="Chrome (dev)",
+        instruction=pygame_ui.modal_hint(
+            pygame_ui.NAV_HINT, "ENTER toggle", "ESC close",
+        ),
+        options=options,
+        descriptions={piece_id: "" for piece_id, _label in options},
+    )
+
+
+async def choose_chrome_toggles(context, ctx) -> str | None:
+    """Run the chrome toggle picker until ESC (each pick flips one
+    piece and the menu rebuilds); returns "QUIT" when the window
+    closes."""
+    while True:
+        menu = chrome_toggle_menu(ctx)
+        result = await _run_pygame_menu_pick(
+            context, _menu_frames(
+                menu,
+                "Grant or remove cybernetics for playtesting. "
+                "The Terminus kiosk replaces this menu.",
+            ),
+            caption="spacehack - chrome (dev)",
+            valid_ids=_option_ids(menu),
+        )
+        if result is None:
+            return None
+        _outcome, piece_id = result
+        if _outcome is Outcome.QUIT:
+            return "QUIT"
+        if _outcome is not Outcome.CONFIRM or piece_id is None:
+            return None
+        ctx.log.add(toggle_chrome_dev(ctx, piece_id))
 
 
 def _quicksave_path() -> Path:
@@ -811,7 +884,7 @@ async def choose_dev_ship(context) -> tuple[Outcome, str | None]:
     result = await _run_pygame_menu_pick(
         context, _pygame_ship_frames(menu),
         caption="spacehack - spawn npc ship",
-        valid_ids={spec_id for spec_id, _label in menu.options},
+        valid_ids=_option_ids(menu),
     )
     if result is None:
         return Outcome.BACK, None

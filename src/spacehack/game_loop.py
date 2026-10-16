@@ -19,7 +19,7 @@ from .engine import HUD_WIDTH, MSG_LOG_HEIGHT, SCREEN_HEIGHT, SCREEN_WIDTH, make
 from .time import tick_move
 from .hud import ground_player_fg as _ground_player_fg
 from .npc_ships import render_npc_flash_events
-from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_x_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f9_press, _try_open_guide
+from .input_helpers import _movement_action, _is_q_press, _is_m_press, _is_period_press, _is_g_press, _is_o_press, _is_p_press, _is_r_press, _is_backslash_press, _is_t_press, _is_f_press, _is_c_press, _is_x_press, _is_shift_o_press, _is_f3_press, _is_f5_press, _is_f6_press, _is_f7_press, _is_f9_press, _try_open_guide
 from .city_render import render_city_view, render_city_debug_overlay
 from .city_interiors import enter_city_interior, exit_city_interior
 from .menus import QuestLogOutcome, _run_quest_log
@@ -258,6 +258,12 @@ async def _handle_dev_event(state, event):
         return 'HANDLED'
     if _is_f6_press(event):
         _dev_quicksave(state)
+        return 'HANDLED'
+    if _is_f7_press(event):
+        if _is_dev():
+            from .dev_mode import choose_chrome_toggles as _choose_chrome
+            if await _choose_chrome(state.ctx.context, state.ctx) == 'QUIT':
+                return 'QUIT'
         return 'HANDLED'
     if _is_f9_press(event):
         _dev_quickload(state)

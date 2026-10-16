@@ -106,3 +106,41 @@ def test_find_chrome_raises_on_unknown_id():
     except KeyError:
         return
     raise AssertionError("expected KeyError for unknown chrome id")
+
+
+class TestDevAcquisition:
+    """The F7 dev toggle (4.1's acquisition path; the kiosk replaces
+    it in 4.2)."""
+
+    def test_toggle_flips_install_state_and_logs(self):
+        from src.spacehack.dev_mode import toggle_chrome_dev
+        ctx = _ctx_with_chrome()
+        assert toggle_chrome_dev(ctx, "terminus_optics").endswith("installed.")
+        assert ctx.installed_chrome == ["terminus_optics"]
+        assert toggle_chrome_dev(ctx, "terminus_optics").endswith("uninstalled.")
+        assert ctx.installed_chrome == []
+
+    def test_toggle_grants_different_anatomy_pieces_side_by_side(self):
+        from src.spacehack.dev_mode import toggle_chrome_dev
+        ctx = _ctx_with_chrome("terminus_optics")
+        toggle_chrome_dev(ctx, "terminus_neural_stim")  # different anatomy
+        assert ctx.installed_chrome == [
+            "terminus_optics", "terminus_neural_stim",
+        ]
+
+    def test_menu_labels_carry_the_live_install_state(self):
+        from src.spacehack.dev_mode import chrome_toggle_menu
+        ctx = _ctx_with_chrome("terminus_neural_stim")
+        labels = dict(chrome_toggle_menu(ctx).options)
+        assert "INSTALLED" in labels["terminus_neural_stim"]
+        assert "not installed" in labels["terminus_optics"]
+
+    def test_f7_helper_matches_only_f7_keydowns(self):
+        from src.spacehack import pygame_engine
+        from src.spacehack.input_helpers import _is_f7_press
+        assert _is_f7_press(
+            pygame_engine.PygameInputEvent(kind="keydown", key_name="f7"),
+        )
+        assert not _is_f7_press(
+            pygame_engine.PygameInputEvent(kind="keydown", key_name="f6"),
+        )

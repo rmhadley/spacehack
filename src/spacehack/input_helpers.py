@@ -595,6 +595,14 @@ def _is_f6_press(event: pygame_engine.PygameInputEvent) -> bool:
     """
     return pygame_engine.is_keydown(event) and event.key_name == 'f6'
 
+def _is_f7_press(event: pygame_engine.PygameInputEvent) -> bool:
+    """True iff ``event`` is a KeyDown for the F7 key.
+
+    Dev-mode only (``SPACEHACK_DEV``): opens the chrome grant/uninstall
+    picker (doc 102.4.1's dev acquisition path).
+    """
+    return pygame_engine.is_keydown(event) and event.key_name == 'f7'
+
 def _is_f9_press(event: pygame_engine.PygameInputEvent) -> bool:
     """True iff ``event`` is a KeyDown for the F9 key.
 
