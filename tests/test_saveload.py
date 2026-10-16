@@ -252,6 +252,60 @@ class TestSaveLoadRoundTrip:
         import src.spacehack.solar_system as _ss
         _ss.current_solar_system_id = "sol"
 
+    def test_installed_chrome_survives_round_trip(self, monkeypatch, tmp_path):
+        """Doc 102.4.1: worn cybernetics persist in install order."""
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(22)
+
+        ctx = _build_test_ctx()
+        ctx.installed_chrome = [
+            "terminus_optics", "terminus_neural_stim", "terminus_smartlink",
+        ]
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.installed_chrome == [
+            "terminus_optics", "terminus_neural_stim", "terminus_smartlink",
+        ]
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
+    def test_legacy_save_without_chrome_backfills_empty(
+        self, monkeypatch, tmp_path,
+    ):
+        """A pre-chrome save (no installed_chrome key) loads with the
+        container empty — the old-save backfill contract."""
+        import json
+        monkeypatch.setattr(
+            "src.spacehack.saveload._autosave_path",
+            lambda: tmp_path / "autosave.json",
+        )
+        from src.spacehack.engine import RNG
+        RNG.seed(23)
+
+        ctx = _build_test_ctx()
+        ctx.installed_chrome = []
+        save_game(ctx, mode="city", city_id="earth", system_id="sol")
+
+        # Strip the key: the payload a pre-102 save would carry.
+        path = tmp_path / "autosave.json"
+        data = json.loads(path.read_text())
+        data.pop("installed_chrome")
+        path.write_text(json.dumps(data))
+
+        loaded = load_game(ctx.context)
+        assert loaded is not None
+        assert loaded.installed_chrome == []
+        delete_save()
+        import src.spacehack.solar_system as _ss
+        _ss.current_solar_system_id = "sol"
+
     def test_both_creation_traits_survive_round_trip(self, monkeypatch, tmp_path):
         """Doc 49 phase 2: a fresh character's exactly-two traits (species'
         + class') persist through save/quit/Continue."""

@@ -372,6 +372,10 @@ class GameContext:
     ground_expedition_items: list[ground_equipment_module.GroundItemStack] = dataclasses.field(
         default_factory=list,
     )
+    # Installed cybernetics (doc 102): piece ids in install order.
+    # Cross-layer (space + ground); anatomy exclusivity and the
+    # effect sums live in chrome.py. The ego economy rides 4.2.
+    installed_chrome: list[str] = dataclasses.field(default_factory=list)
     # The bandolier (doc 52): per-caliber reserve rounds, ammo_type →
     # count, each clamped at its catalog carry_cap. The reload reserve
     # store — pickups and restock refill it; it never occupies a pack
