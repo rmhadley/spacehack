@@ -594,6 +594,16 @@ def _menu_row_color(
     return palette.title if selected else palette.text
 
 
+def _draw_selected_band(
+    pygame: Any, screen: Any, x: int, y: int, width: int,
+    font: Any, palette: Palette,
+) -> None:
+    """The selection band: a rounded rect spanning the row."""
+    row = pygame.Rect(x, y - 5, width, _row_height(font))
+    pygame.draw.rect(screen, palette.selected_background, row, border_radius=3)
+    pygame.draw.rect(screen, palette.selected_border, row, width=1, border_radius=3)
+
+
 def draw_menu_row(
     pygame: Any,
     screen: Any,
@@ -608,24 +618,37 @@ def draw_menu_row(
     antialias: bool = True,
     color: Color | None = None,
     runs: tuple[tuple[str, Color | None], ...] | None = None,
+    highlight_width: int | None = None,
 ) -> int:
     """Render one selectable row; ``color`` overrides the text colour
     (kept when selected so terminal cues survive navigation) and
-    ``runs`` paints the label as ``(text, colour)`` segments whose
-    joined text equals ``label``.
+    ``runs`` paints the label as ``(text, colour)`` segments.
+    ``highlight_width`` decouples the selection band from the text
+    fit budget (None keeps the band at ``width``).
     """
     if selected:
-        row = pygame.Rect(x, y - 5, width, _row_height(font))
-        pygame.draw.rect(screen, palette.selected_background, row, border_radius=3)
-        pygame.draw.rect(screen, palette.selected_border, row, width=1, border_radius=3)
+        band_width = width if highlight_width is None else highlight_width
+        _draw_selected_band(pygame, screen, x, y, band_width, font, palette)
     marker = "> " if selected else "  "
-    measure = lambda value: measure_font(font, value)
     row_color = _menu_row_color(color, selected, palette)
     if runs is not None:
         return _draw_row_runs(
             pygame, screen, font, marker, runs, x, y, width,
             row_color=row_color,
         )
+    _draw_plain_menu_row(
+        pygame, screen, font, marker, label, x, y, width,
+        row_color=row_color, antialias=antialias,
+    )
+    return y + _row_height(font)
+
+
+def _draw_plain_menu_row(
+    pygame: Any, screen: Any, font: Any, marker: str, label: str,
+    x: int, y: int, width: int, *, row_color: Color, antialias: bool,
+) -> None:
+    """The non-runs menu row: marker + text fitted to the width."""
+    measure = lambda value: measure_font(font, value)
     fitted_label = fit_text(label, width - measure(marker), measure)
     draw_text(
         pygame, screen, font, marker + fitted_label,
@@ -633,7 +656,6 @@ def draw_menu_row(
         color=row_color,
         antialias=antialias,
     )
-    return y + _row_height(font)
 
 
 def draw_informational_row(

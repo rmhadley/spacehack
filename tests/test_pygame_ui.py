@@ -6470,7 +6470,7 @@ def test_split_row_runs_paint_label_segments_with_value_trailing(monkeypatch):
 
     def fake_draw_menu_row(
         _pygame, _screen, _font, label, x, y, width, *,
-        selected, palette, color=None, runs=None,
+        selected, palette, color=None, runs=None, **_kwargs,
     ):
         captured.update(
             label=label, runs=runs, selected=selected, color=color,
@@ -7004,3 +7004,56 @@ def test_split_guide_topic_opens_the_context_section(monkeypatch):
         _apply, caption="t",
     )) == "BACK"
     assert bare == [True] and opened == ["Cybernetics"]
+
+
+def test_suffix_runs_paint_as_a_right_aligned_tag_column(monkeypatch):
+    """Doc 102 Brief 4.3: the suffix tag column paints at the content
+    area's RIGHT edge and the body fits the remaining width — the
+    column aligns across rows, never collides with the value, and
+    the selection band still spans the FULL row (highlight_width is
+    decoupled from the fit budget; stacked glyphs measure their
+    separator into the column width)."""
+    from tests.support.fake_pygame import FakeFont
+
+    captured = {}
+
+    def _menu_row(_p, _s, _f, label, _x, y, w, **kwargs):
+        captured["body_width"] = w
+        captured["highlight_width"] = kwargs.get("highlight_width")
+        return y + 30
+
+    monkeypatch.setattr(pygame_split.pygame_ui, "draw_menu_row", _menu_row)
+    texts = []
+
+    def _draw_text(_p, _s, _f, text, x, _y, **_k):
+        texts.append((text, x))
+
+    monkeypatch.setattr(pygame_split.pygame_ui, "draw_text", _draw_text)
+    font = FakeFont(char_width=10)  # every char measures 10px
+    row = pygame_split.SplitRow(
+        "Gunnery      ", " 25  [+]", "", "SPEND:gunnery",
+        suffix_runs=(("O", (120, 210, 235)),),
+    )
+    pygame_split._draw_menu_style_row(
+        object(), object(), font, row, 40, 60, 400,
+        selected_row=False, palette=pygame_ui.DEFAULT_PALETTE,
+    )
+    assert captured["body_width"] == 400 - 10 - 10   # minus glyph + gap
+    assert captured["highlight_width"] == 400        # band spans the row
+    assert texts == [("O", 40 + 400 - 10)]           # the right edge
+
+    # Stacked glyphs: the space run measures into the column, so the
+    # whole block still right-aligns at the same edge.
+    texts.clear()
+    stacked = pygame_split.SplitRow(
+        "Gunnery      ", " 25  [+]", "", "SPEND:gunnery",
+        suffix_runs=(
+            ("O", (120, 210, 235)), (" ", None), ("J", (110, 150, 255)),
+        ),
+    )
+    pygame_split._draw_menu_style_row(
+        object(), object(), font, stacked, 40, 60, 400,
+        selected_row=False, palette=pygame_ui.DEFAULT_PALETTE,
+    )
+    assert captured["body_width"] == 400 - 30 - 10
+    assert texts == [("O", 40 + 400 - 30), (" ", 40 + 400 - 20), ("J", 40 + 400 - 10)]

@@ -479,3 +479,27 @@ class TestKioskGuideTopic:
         monkeypatch.setattr(pygame_split, "run_interactive", _interactive)
         asyncio.run(_kiosk._run_kiosk_menu(SimpleNamespace(), "earth"))
         assert captured["topic"] == "Cybernetics"
+
+
+class TestAnatomyGlyphs:
+    """The per-anatomy glyph table (user ruling 2026-10-17): the mark
+    keys on the anatomical SITE, not the product — fixed at the six
+    settled keys, future tiers inherit their site's glyph."""
+
+    def test_every_settled_anatomy_has_a_glyph(self):
+        from src.spacehack.data.chrome import ANATOMY_GLYPHS, list_chrome
+        keys = {spec.anatomy for spec in list_chrome()}
+        assert keys <= set(ANATOMY_GLYPHS), (
+            "a catalog anatomy without a glyph reads as no chrome"
+        )
+        assert len({char for char, _c in ANATOMY_GLYPHS.values()}) == len(
+            ANATOMY_GLYPHS
+        ), "glyph chars must be visually distinct"
+        assert len({color for _g, color in ANATOMY_GLYPHS.values()}) == len(
+            ANATOMY_GLYPHS
+        ), "glyph colors must be distinct"
+
+    def test_unknown_anatomy_falls_back_to_the_neutral_mark(self):
+        from src.spacehack.data.chrome import anatomy_glyph
+        char, color = anatomy_glyph("future_joints")
+        assert char == "+" and color == (170, 170, 170)

@@ -40,6 +40,12 @@ class SplitRow:
     # colour (``fg`` or the palette default). The value cell and
     # detail area never take runs.
     runs: tuple[tuple[str, tuple[int, int, int] | None], ...] | None = None
+    # Optional trailing tag column (doc 102 Brief 4.3): (text, colour)
+    # segments painted at the RIGHT edge of the row's content area —
+    # the installed-chrome anatomy glyphs on the C-screen stat rows.
+    # Menu-style rows only (informational rows ignore it); the body
+    # fits the remaining width, so the column aligns across rows.
+    suffix_runs: tuple[tuple[str, tuple[int, int, int] | None], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -338,19 +344,41 @@ def _draw_menu_style_row(
     *, selected_row: bool, palette: Any,
 ) -> int:
     """One selectable row's menu paint: runs paint the label with the
-    value cell riding as a plain trailing run; plain rows join them."""
+    value cell riding as a plain trailing run; plain rows join them.
+    ``suffix_runs`` paints as a tag column at the content area's
+    RIGHT edge — the body fits the remaining width so the column
+    aligns across rows and the two never collide."""
+    _suffix_w = _suffix_width(font, row.suffix_runs)
+    _body_w = max(1, content_width - _suffix_w - 10) if _suffix_w else content_width
     if row.runs is not None:
         runs = row.runs + (((f"  {row.value}", None),) if row.value else ())
-        return pygame_ui.draw_menu_row(
+        pygame_ui.draw_menu_row(
             pygame, screen, font, row.label,
-            content_x, y, content_width,
+            content_x, y, _body_w,
             selected=selected_row, palette=palette, color=row.fg, runs=runs,
+            highlight_width=content_width,
         )
-    return pygame_ui.draw_menu_row(
-        pygame, screen, font,
-        f"{row.label}  {row.value}".rstrip(),
-        content_x, y, content_width,
-        selected=selected_row, palette=palette, color=row.fg,
+    else:
+        pygame_ui.draw_menu_row(
+            pygame, screen, font,
+            f"{row.label}  {row.value}".rstrip(),
+            content_x, y, _body_w,
+            selected=selected_row, palette=palette, color=row.fg,
+            highlight_width=content_width,
+        )
+    if row.suffix_runs:
+        pygame_ui.draw_text_runs(
+            pygame, screen, font, row.suffix_runs,
+            content_x + content_width - _suffix_w, y + 2,
+            fallback=palette.text,
+        )
+    return y + pygame_ui._row_height(font)
+
+
+def _suffix_width(font: Any, suffix_runs) -> int:
+    """The tag column's measured width (0 when absent)."""
+    return sum(
+        pygame_ui.measure_font(font, text) for text, _color in suffix_runs
     )
 
 

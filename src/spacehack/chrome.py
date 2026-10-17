@@ -83,8 +83,8 @@ def worn_anatomy_piece(installed: Iterable[str], anatomy: str) -> str | None:
 
 def installed_for_skill(installed: Iterable[str], skill: str) -> tuple[str, ...]:
     """Installed piece ids keyed to one bay skill, installation
-    order. The C-screen's count cell and its chrome pane share
-    this one walk; unknown ids skip silently (the shared
+    order. The C-screen's anatomy glyph column and its chrome pane
+    share this one walk; unknown ids skip silently (the shared
     contract)."""
     pieces = []
     for piece_id in installed:

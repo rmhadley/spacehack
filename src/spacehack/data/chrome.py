@@ -134,3 +134,29 @@ def find_chrome(piece_id: str) -> ChromeSpec:
 def list_chrome() -> tuple[ChromeSpec, ...]:
     """Every chrome piece in catalog order."""
     return _PIECES
+
+
+# The anatomy glyph table (user ruling 2026-10-17): one char + color
+# per ANATOMY — the mark says WHERE in the body is chromed, so
+# competitor pieces and future tiers inherit their site's glyph and
+# the table stays fixed at the six settled keys. Colors/chars are
+# starting values, tuned in playtest.
+ANATOMY_GLYPHS: dict[str, tuple[str, tuple[int, int, int]]] = {
+    "ocular": ("O", (120, 210, 235)),      # the eyes — cyan
+    "jack": ("J", (110, 150, 255)),        # the neck wire — blue
+    "os": ("|", (255, 220, 90)),           # the spine — yellow
+    "dermal": ("#", (120, 235, 130)),      # the weave — green
+    "arm_muscle": ("=", (255, 120, 120)),  # the arm muscle — red
+    "hands": (">", (255, 180, 90)),        # the gun link — orange
+}
+# The fallback for an anatomy without an entry: a future key's pieces
+# stay visible on the stat rows (a missing glyph would read as no
+# chrome — the silent-miss guard).
+_DEFAULT_ANATOMY_GLYPH: tuple[str, tuple[int, int, int]] = (
+    "+", (170, 170, 170),
+)
+
+
+def anatomy_glyph(anatomy: str) -> tuple[str, tuple[int, int, int]]:
+    """The anatomy's (char, color) mark."""
+    return ANATOMY_GLYPHS.get(anatomy, _DEFAULT_ANATOMY_GLYPH)

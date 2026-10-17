@@ -5,8 +5,9 @@ Ship skills read base + installed-module bonuses — the same effective
 sum combat uses — with the bonus annotated ("36 (+9)"); ground stats
 and bonus-less skills show the plain value. Since Brief 4.3 the tab
 is a SplitFrame: label = the padded skill name, value cell = the
-display + the xN chrome count + the spend marker; the right pane
-mirrors the selected bay's chrome.
+display + spend marker, the installed-chrome ANATOMY glyphs ride the
+row's trailing tag column, and the right pane mirrors the selected
+bay's chrome.
 """
 
 from __future__ import annotations
@@ -142,15 +143,22 @@ def test_stats_tab_adopts_the_split_family():
     assert all(not row.selectable for row in frame.right_rows)
 
 
-def test_chrome_count_rides_the_value_cell():
+def test_chrome_glyphs_ride_the_trailing_column_not_the_number():
+    """User ruling 2026-10-17: a glyph per ANATOMY (char + color),
+    appended in a trailing column at the row's end — the number
+    cell never carries the chrome indicator ("14 x1" read badly)."""
+    from src.spacehack.data.chrome import anatomy_glyph
+
     ctx = _ctx(installed_chrome=["terminus_optics"])
-    rows = _row_texts(ctx)
-    assert rows[0] == "Gunnery        25 x1"
-    assert rows[1] == "Piloting       20"    # other bays unaffected
-    ctx.player_skill_points = 1
-    assert _row_texts(ctx)[0] == "Gunnery        25 x1  [+]"
+    rows = [row for row in _stats_frame(ctx, "CHARACTER", 0, 100, 0).left_rows
+            if row.selectable]
+    assert rows[0].value == " 25"           # plain display, no xN suffix
+    assert rows[0].suffix_runs == (anatomy_glyph("ocular"),)
+    assert rows[1].suffix_runs == ()        # other bays unaffected
     ctx.installed_chrome.append("terminus_smartlink")
-    assert _row_texts(ctx)[3] == "Reflexes        8 x1  [+]"
+    rows = [row for row in _stats_frame(ctx, "CHARACTER", 0, 100, 0).left_rows
+            if row.selectable]
+    assert rows[3].suffix_runs == (anatomy_glyph("hands"),)
 
 
 def test_chrome_pane_pairs_names_with_indented_details():
@@ -249,3 +257,40 @@ def test_header_rows_carry_the_old_body_verbatim():
         "XP: 12 / 100    Skill points available: 0",
         "Traits: None",
     ]
+
+
+def test_chrome_glyph_column_appends_per_anatomy_on_stacking(monkeypatch):
+    """Stacked pieces in one bay append their anatomy glyphs,
+    separated by a space run; unknown future anatomies fall back to
+    the neutral default instead of reading as no chrome."""
+    from src.spacehack import chrome as chrome_module
+    from src.spacehack.character_screen_stats import _chrome_suffix_runs
+    from src.spacehack.data.chrome import anatomy_glyph
+
+    monkeypatch.setattr(
+        chrome_module, "installed_for_skill",
+        lambda _installed, _skill: (
+            "terminus_optics", "terminus_piloting_jack",
+        ),
+    )
+    assert _chrome_suffix_runs(_ctx(), "gunnery") == (
+        anatomy_glyph("ocular"), (" ", None), anatomy_glyph("jack"),
+    )
+    monkeypatch.setattr(
+        chrome_module, "installed_for_skill",
+        lambda _installed, _skill: ("terminus_optics",),
+    )
+    assert _chrome_suffix_runs(_ctx(), "gunnery") == (anatomy_glyph("ocular"),)
+
+    # A piece whose anatomy has no table entry falls back to the
+    # neutral mark THROUGH the row builder (a missing glyph would
+    # read as no chrome).
+    from types import SimpleNamespace as _NS
+
+    from src.spacehack.data import chrome as chrome_data
+
+    monkeypatch.setattr(
+        chrome_data, "find_chrome",
+        lambda _piece_id: _NS(anatomy="future_joints"),
+    )
+    assert _chrome_suffix_runs(_ctx(), "gunnery") == (anatomy_glyph("future_joints"),)

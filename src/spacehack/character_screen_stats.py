@@ -83,20 +83,36 @@ def _stats_header_lines(ctx: GameContext, current_xp: int, needed: int) -> tuple
 
 
 def _skill_value_cell(ctx: GameContext, index: int, skill: str) -> str:
-    """The stat row's value cell (ledger 16): the skill display,
-    the xN chrome count for the bay, and the spend marker."""
-    from .chrome import installed_for_skill
-
+    """The stat row's value cell: the skill display and the spend
+    marker. The chrome indicator moved OUT of the cell — the
+    anatomy glyphs ride the row's trailing tag column (user ruling
+    2026-10-17) so the mark never glues onto the number."""
     cell = _skill_value_display(ctx, index, skill)
-    _count = len(installed_for_skill(
-        getattr(ctx, "installed_chrome", ()), skill,
-    ))
-    if _count:
-        cell += f" x{_count}"
     marker = _skill_spend_marker(ctx, index, skill)
     if marker:
         cell += f"  {marker}"
     return cell
+
+
+def _chrome_suffix_runs(ctx: GameContext, skill: str) -> tuple:
+    """The trailing glyph column (user ruling 2026-10-17): one
+    (glyph, color) per installed piece in the bay, keyed on the
+    piece's ANATOMY — the mark says where in the body is chromed,
+    so competitor pieces and future tiers inherit their site's
+    glyph. Appended in installation order, separated by spaces."""
+    from .chrome import installed_for_skill
+    from .data.chrome import anatomy_glyph, find_chrome
+
+    runs = []
+    pieces = installed_for_skill(
+        getattr(ctx, "installed_chrome", ()), skill,
+    )
+    for position, piece_id in enumerate(pieces):
+        glyph, color = anatomy_glyph(find_chrome(piece_id).anatomy)
+        if position:
+            runs.append((" ", None))
+        runs.append((glyph, color))
+    return tuple(runs)
 
 
 def _info_row(label: str):
@@ -147,11 +163,12 @@ def _selected_skill(left_rows, selected: int) -> str:
 
 def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, selected: int):
     """Build the Stats-tab split frame (Brief 4.3, cluster C): the
-    six stat rows + xN piece counts on the left (the selected row's
-    guide-synced skill description pins below the pane, as the old
-    Stats tab did), each installed piece as name-over-detail on the
-    right, the ruled ego readout under both panes. ENTER stays
-    SPEND; the right pane never takes focus."""
+    six stat rows on the left (the selected row's guide-synced skill
+    description pins below the pane, as the old Stats tab did; the
+    anatomy glyph column tags the row's right edge), each installed
+    piece as name-over-detail on the right, the ruled ego readout
+    under both panes. ENTER stays SPEND; the right pane never takes
+    focus."""
     from . import pygame_split, pygame_ui
     from .chrome import ego_readout_line, state_line
 
@@ -165,6 +182,7 @@ def _stats_frame(ctx: GameContext, title: str, current_xp: int, needed: int, sel
             _skill_value_cell(ctx, index, skill),
             _SKILL_DESCRIPTIONS[skill],
             f"SPEND:{skill}",
+            suffix_runs=_chrome_suffix_runs(ctx, skill),
         )
         for index, skill in enumerate(_SKILLS)
     )
