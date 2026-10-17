@@ -612,52 +612,6 @@ def _tab_modes(pygame: Any, frame: SplitFrame) -> dict[Any, str]:
     }
 
 
-def _grid_moves(pygame: Any) -> dict[Any, tuple[int, int]]:
-    """The grid cursor's key table: arrows plus the vim cross."""
-    return {
-        getattr(pygame, name): delta
-        for name, delta in (
-            ("K_UP", (0, -1)), ("K_DOWN", (0, 1)),
-            ("K_LEFT", (-1, 0)), ("K_RIGHT", (1, 0)),
-            ("K_k", (0, -1)), ("K_j", (0, 1)),
-            ("K_h", (-1, 0)), ("K_l", (1, 0)),
-        )
-        if getattr(pygame, name, None) is not None
-    }
-
-
-def _handle_grid_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, int] | None:
-    """One key on the focused grid pane (doc 56 phase 3) — a key-table
-    GRID:* outcome routed through the host's keep-open apply path, or
-    None to fall through to the shared split handling.
-
-    TAB surfaces to the host (today it is swallowed here with a focus
-    flip) so the SETTLED-12 auto-return can fire; ESC only becomes
-    GRID:ESC while the editor holds a part (two-stage ESC — empty-hand
-    ESC still exits through the shared BACK).
-    """
-    keys = {
-        name: getattr(pygame, name, None)
-        for name in ("K_RETURN", "K_KP_ENTER", "K_d", "K_x", "K_TAB")
-    }
-    delta = _grid_moves(pygame).get(event.key)
-    if delta is not None:
-        return f"GRID:MOVE:{delta[0]}:{delta[1]}", frame.focus, frame.selected
-    if event.key in (keys["K_RETURN"], keys["K_KP_ENTER"]):
-        return "GRID:ENTER", frame.focus, frame.selected
-    if event.key == keys["K_d"]:
-        return "GRID:STORE", frame.focus, frame.selected
-    if event.key == keys["K_x"]:
-        return "GRID:SELL", frame.focus, frame.selected
-    if event.key == keys["K_TAB"]:
-        # The host resolves any held part, then the pane flips.
-        other = replace(frame, focus=0, selected=0)
-        return "GRID:TAB", 0, _clamp_selected(other)
-    if event.key == pygame.K_ESCAPE and frame.grid_holding:
-        return "GRID:ESC", frame.focus, frame.selected
-    return None
-
-
 def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, int]:
     """Map a worker key to ``(outcome, focus, selected)``."""
     selected = _clamp_selected(frame)
@@ -667,6 +621,7 @@ def _handle_key(pygame: Any, event: Any, frame: SplitFrame) -> tuple[str, int, i
     if event.type != pygame.KEYDOWN:
         return "IGNORE", frame.focus, selected
     if frame.grid_pane and frame.focus == 1:
+        from .pygame_split_grid import _handle_grid_key
         grid_outcome = _handle_grid_key(pygame, event, frame)
         if grid_outcome is not None:
             return grid_outcome
