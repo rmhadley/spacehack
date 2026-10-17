@@ -1076,7 +1076,16 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     detail (the pre-4.3 Stats-tab behavior); the right pane drops
     the leader and pairs each piece as its name with the ruled
     detail slightly indented below (3 spaces). No new strings —
-    recomposition only.
+    recomposition only. **AMENDED again 2026-10-17 (the glyph
+    column):** the xN suffix is REPLACED — a glyph per ANATOMY
+    (char + color: the mark says WHERE in the body, so competitor
+    pieces and future tiers inherit their site's glyph), appended
+    in a trailing right-aligned column at the stat row's end (the
+    split family's new `suffix_runs`; stacked glyphs
+    space-separate; the number cell stays clean — "14 x1" read
+    badly). Starting table O/J/|/#/=/> at cyan/blue/yellow/
+    green/red/orange, neutral + fallback for unknown keys —
+    playtest-tunable data, not prose.
 17. The chrome guide section — **SHIP IT**: title "Cybernetics",
     placed after Character & Skills (and the topic the kiosk's ?
     opens); the full body verbatim in the build commit (kiosk
@@ -1122,10 +1131,12 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
   the kiosk calls them (one home beside the other ruled
   strings; the two surfaces cannot drift). Always-on, chrome or
   not — the mirror reads everyone.
-- **Piece counts**: `ctx.installed_chrome` grouped by
-  `spec.skill` (the catalog carries the bay skill per piece);
-  the count rides the stat row's value cell as `xN` (lowercase
-  x per the CP437 ruling, ledger 15).
+- **The chrome indicator** (2026-10-17 revision): the xN count
+  is gone — `ANATOMY_GLYPHS` in `data/chrome.py` maps each
+  settled anatomy to a char + color, and the stat row carries
+  its bay's installed glyphs in `SplitRow.suffix_runs` (a
+  trailing right-aligned tag column; `installed_for_skill`
+  still the one shared walk).
 - **Right pane** (2026-10-17 revision): each installed piece as
   its name row with the ruled kiosk detail line slightly indented
   below (3 spaces); empty state reuses the kiosk's "Nothing
@@ -1398,12 +1409,13 @@ ego, and your name.
    spends. REVISED 2026-10-17: the selected stat's skill
    description pins at the BOTTOM of the LEFT panel (the
    Equipment tab's status-line pattern), never on the right.
-2. Install pieces at a kiosk (or F7 for the split alone — counts
-   read dev grants too), then walk j/k: the value cell carries
-   "xN" per bay (e.g. "Gunnery 35 x1") and the right pane follows
-   the cursor — REVISED 2026-10-17: each installed piece as its
-   NAME with the ruled detail slightly indented below it; an
-   empty bay reads "Nothing installed.".
+2. Install pieces at a kiosk (or F7 for the split alone — the
+   glyphs read dev grants too), then walk j/k: each chromed stat
+   carries its ANATOMY'S GLYPH in the right-edge column (Gunnery
+   + the cyan O; the number cell stays clean) and the right pane
+   follows the cursor — each installed piece as its NAME with
+   the ruled detail slightly indented below it; an empty bay
+   reads "Nothing installed.".
 3. The footers under both panes: left "Ego N  Burnt Ego N
    Install Room N", right "State: <name>" (base band; matches the
    kiosk's readout exactly — one home). Cross a band at the kiosk
@@ -1424,6 +1436,13 @@ shows each installed piece as its name with the ruled detail
 slightly indented below. Re-playtest watches: look/feel + how
 the text fits (the pairs double the pane's rows per piece; v1's
 one-piece bays stay well inside the viewport).
+
+**Glyph column ruling (user, 2026-10-17, same playtest):** "the
+x1 ... isn't reading well" → options offered → the user's own
+shape: a glyph per chrome type (a color + char) appended in a
+trailing column at the end of the stat line, then refined
+same-turn to PER-ANATOMY. The count is gone — the glyphs ARE
+the indicator (stacking appends more glyphs).
 
 ### Advisor pass (2026-10-15) — verdict SOUND-WITH-CATCHES;
 ### all 15 issues folded below, 3 open rulings flagged
