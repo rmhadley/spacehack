@@ -1069,8 +1069,14 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
     + the ruled detail ("Terminus Optics  Space crit chance
     15%."); empty line "Nothing installed." (kiosk reuse);
     footers = ledger #14's readout verbatim ("Ego 5  Burnt Ego
-    1   Install Room 5" / "State: Natural", the kiosk's credits
-    append dropped); the hint line unchanged.
+    1  Install Room 5" / "State: Natural", the kiosk's credits
+    append dropped); the hint line unchanged. **AMENDED
+    2026-10-17 (user playtest revision):** the skill description
+    returned to the LEFT pane as the selected stat row's pinned
+    detail (the pre-4.3 Stats-tab behavior); the right pane drops
+    the leader and pairs each piece as its name with the ruled
+    detail slightly indented below (3 spaces). No new strings —
+    recomposition only.
 17. The chrome guide section — **SHIP IT**: title "Cybernetics",
     placed after Character & Skills (and the topic the kiosk's ?
     opens); the full body verbatim in the build commit (kiosk
@@ -1120,11 +1126,16 @@ player-facing ego numbers are **Ego** (pool − burn), **Burnt Ego**
   `spec.skill` (the catalog carries the bay skill per piece);
   the count rides the stat row's value cell as `xN` (lowercase
   x per the CP437 ruling, ledger 15).
-- **Right pane**: led by `_SKILL_DESCRIPTIONS[skill]` (the
-  guide-synced table already in `character_screen_stats.py`),
-  then one informational row per installed piece (name + the
-  ruled kiosk detail line, composed); empty state reuses the
-  kiosk's "Nothing installed.".
+- **Right pane** (2026-10-17 revision): each installed piece as
+  its name row with the ruled kiosk detail line slightly indented
+  below (3 spaces); empty state reuses the kiosk's "Nothing
+  installed.". The skill description leads nothing here — it
+  returned to the LEFT pane as the selected stat row's pinned
+  detail (the pre-4.3 behavior; the Equipment tab's status-line
+  pattern). Watch item for t2+ stacking: the read-only right pane
+  does not scroll (the unfocused pane's window pins to index 0) —
+  fine through 5 stacked pieces under the 11-row cap; revisit
+  when a bay can exceed it.
 - **Guide** (`data/guide/__init__.py`): a new chrome section —
   the reference manual DOCUMENTS the numbers (SETTLED 15: band
   names + ranges, the price/rep/board effects, the ego formula,
@@ -1384,13 +1395,15 @@ ego, and your name.
 1. The Stats tab is the SPLIT family now: left = XP/Traits(/Gear)
    lines + the six stat rows ("Skills"), right = the selected
    skill's chrome ("Chrome"), TAB still cycles tabs, ENTER still
-   spends.
+   spends. REVISED 2026-10-17: the selected stat's skill
+   description pins at the BOTTOM of the LEFT panel (the
+   Equipment tab's status-line pattern), never on the right.
 2. Install pieces at a kiosk (or F7 for the split alone — counts
    read dev grants too), then walk j/k: the value cell carries
    "xN" per bay (e.g. "Gunnery 35 x1") and the right pane follows
-   the cursor — the skill description leads, then each piece
-   (name + its ruled detail line); an empty bay reads "Nothing
-   installed.".
+   the cursor — REVISED 2026-10-17: each installed piece as its
+   NAME with the ruled detail slightly indented below it; an
+   empty bay reads "Nothing installed.".
 3. The footers under both panes: left "Ego N  Burnt Ego N
    Install Room N", right "State: <name>" (base band; matches the
    kiosk's readout exactly — one home). Cross a band at the kiosk
@@ -1403,6 +1416,14 @@ ego, and your name.
    pieces cannot reach the 12 gate — verify on a deep save, or
    take the pin's word).
 6. Guide review (below) rides this playtest.
+
+**Stats-split revision (user, 2026-10-17, mid-playtest):** the
+stat description lives at the BOTTOM of the LEFT panel (the
+selected stat's pinned detail), not on the right; the right pane
+shows each installed piece as its name with the ruled detail
+slightly indented below. Re-playtest watches: look/feel + how
+the text fits (the pairs double the pane's rows per piece; v1's
+one-piece bays stay well inside the viewport).
 
 ### Advisor pass (2026-10-15) — verdict SOUND-WITH-CATCHES;
 ### all 15 issues folded below, 3 open rulings flagged
