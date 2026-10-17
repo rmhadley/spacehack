@@ -722,8 +722,9 @@ nobody designs against a ghost.
   (`combat/_ai_ground._chase_goal`; `noise.guard_leash`).
 - **Enemy consumables + AP (doc 48 phase 5)** — per-spec AP
   (`NpcCharSpec.ap`, default 4; predators 5-6, anchors 3) derives
-  through `_ground_effects.enemy_ap_total` (the cybernetics
-  `ap_bonus` seam — no wearers yet). Consumables are PRE-ROLLED
+  through `_ground_effects.enemy_ap_total` (the `worn_bonuses`
+  enemy-chrome seam, doc 102 — no wearers yet). Consumables are
+  PRE-ROLLED
   once onto `Entity.carried_items` at first combat entry (same
   distribution as the death roll, consumable subset) — what they
   drop is what they carry: med pack at ≤50% HP (heal + regen),
@@ -920,10 +921,9 @@ nobody designs against a ghost.
   space with a spawn-exclusion ring (`city.py`: `_launch_to_space`).
 - **Ground gear** — strength-capped expedition pack (4 + 1/5 STR
   over 10), two class-keyed weapon sets (see Ground weapon sets),
-  five armor slots under an `--- ARMOR ---` group (incl. the
-  cybernetics subfamily — eyes/torso/arms/legs pieces whose
-  `ap/hit/melee/hp_bonus` fields are the cyber identity,
-  `data/ground_armor/vests.py`); per-weapon magazines +
+  five armor slots under an `--- ARMOR ---` group (the placeholder
+  cybernetic vests RETIRED by doc 102 — chrome is its own system,
+  see Cybernetics); per-weapon magazines +
   ammo types (6), reload picks among weapons sharing the ammo, and
   magazines ride stored entries through every store/displacement/
   install round-trip (legacy/absent = full seed; `StoredGroundEquipment.
@@ -1248,6 +1248,65 @@ nobody designs against a ghost.
   hot-reloads; lint checks coverage (`text.py`; `tools/quest_lint.py`).
 - **Absent:** quest hooks in comms; repeatable missions; branches
   beyond the 4-faction fork + 2 dispositions.
+
+## Cybernetics (doc 102 — phases 4.1-4.3 complete)
+
+- **Chrome container + catalog** — `ctx.installed_chrome` (piece
+  ids, saved + backfilled); six t1 pieces in `data/chrome.py`
+  (one per bay skill, anatomy-keyed ocular/jack/os/dermal/
+  arm_muscle/hands; `ChromeSpec` effect fields flat; `detail` =
+  the ruled kiosk status line every surface reads); effect sums,
+  install/uninstall/SWAP, and per-skill grouping in `chrome.py`
+  (`installed_effects`, `install_chrome`, `installed_for_skill`).
+- **The crit system (doc 102 SETTLED 6)** — chance + damage as
+  actor-read stats, base 0%/x1.5, all three theaters; crits roll
+  at the direct-fire sites ONLY (missiles/flak/blasts and the
+  Deadshot chain never crit); rolls guarded `chance > 0` so
+  chrome-less fights consume no draws.
+- **The dodge amendment (SETTLED 7)** — space movement dodge =
+  min(cells, 6) x per-tile coefficient (base 5), exempt from the
+  piloting-base 60 cap for EVERYONE; chrome raises the
+  coefficient (the Piloting Jack +1/tile).
+- **The core button** — `a` in both theaters (the Neural Stim):
+  +2 AP this round, -1 next (the loan), cooldown 3; ground loan
+  rides `active_consumable_effects`, space a `player_state` key;
+  HUD rows "STIM (a): READY / N ROUNDS" both theaters.
+- **The ego economy (SETTLED 2/3/5)** — pool = 6 + birth +
+  (level-1)//3; load DERIVED from installed burn costs; the only
+  stored state is `ctx.ego_burn` (the permanent high-water
+  ratchet — removal frees load, never burn); the Consortium gate
+  = burn >= 2x birth pool (derived, monotone; one-time comms
+  intro + the F-screen line "Terminus Tech: account active",
+  blank-line separated from the broadcast block).
+- **Consequence bands (SETTLED 4/15)** — ONE function set in
+  `chrome.py` (`band`/`local_band`/`service_multiplier`/
+  `rep_gain_multiplier`): Natural 0-3 dead zone ABSOLUTE /
+  Tainted 4-7 x1.05 / Chromed 8-11 x1.15 + strict ports one
+  fewer board row / Psycho 12+ x1.30 + pirate t3+ work only;
+  planet valence shifts prices/boards/kiosk (+/-1), rep and
+  space NPC trade read the BASE band; consumers compose the
+  functions, never raw burn; dead-zone pins are bit-identical.
+- **The Terminus kiosk** — the 4th spaceport service terminal
+  ($ glyph, `menus/_kiosk.py`), split family: Available /
+  Installed panes, TAB, pinned ruled detail lines; one-step
+  install = three-check blocks -> banded charge -> the consent
+  modal's Before/After table -> ratchet + swap-back delivered to
+  armory storage (the ONLY loose chrome; sells at catalog // 2);
+  removals log the ruled ratchet table; `?` opens the
+  Cybernetics guide topic.
+- **The C-screen mirror** — the Stats tab is the dynamic split
+  (`run_dynamic_screen`): left the six stat rows (the selected
+  skill's description pinned below the pane; the ANATOMY GLYPH
+  column — `ANATOMY_GLYPHS`, one char + color per site, inset
+  12px — rides the row's right edge via `SplitRow.suffix_runs`);
+  right the selected bay's pieces (name + indented ruled
+  detail); footers = the ruled ego readout + State name
+  (`chrome.ego_readout_line`/`state_line`, ONE home shared with
+  the kiosk).
+- **Placeholder retirement** — the four cybernetic vest entries
+  and their `GroundArmorSpec` bonus fields are GONE; live saves
+  migrate by unwear + refund at load (raw-payload sweep, worn
+  and stored); consortium rungs wear plain substitutes.
 
 ## Economy & trade
 

@@ -1664,7 +1664,11 @@ build).
       two docs commits (the ruled-readout helpers to their ONE
       home / the Stats split + dynamic runner / the guide prose
       ledger 16-18 all Ship it / the kiosk ? topic + F-screen
-      gap); gate green at 3884; PLAYTEST PENDING (checklist in
-      the brief)
+      gap); gate green at 3884; PLAYTEST PASSED 2026-10-17 after
+      three mid-playtest revisions, all recorded in the brief:
+      the description to the left pin + name-over-detail pairs,
+      the per-ANATOMY glyph column (xN retired), the column's
+      edge pad. SYSTEMS.md carries the full chrome inventory
+      (the 4.1/4.2 close debt paid with this one)
 - [ ] Prose pass (descriptions, vendor/surgery flavor, the
       Consortium voice)
