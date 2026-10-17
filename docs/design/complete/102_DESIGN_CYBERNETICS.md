@@ -1670,5 +1670,13 @@ build).
       the per-ANATOMY glyph column (xN retired), the column's
       edge pad. SYSTEMS.md carries the full chrome inventory
       (the 4.1/4.2 close debt paid with this one)
-- [ ] Prose pass (descriptions, vendor/surgery flavor, the
-      Consortium voice)
+- [x] Prose pass — RESOLVED BY DEFERRAL (user, 2026-10-17): every
+      functional chrome string already shipped through the prose
+      loop inside 4.1-4.3 (ledgers 1-18; verified against the tree
+      at close — nothing ungated, the F7 dev picker aside). The
+      flavor/voice remainder — vendor/surgery flavor, per-piece
+      descriptions, the Consortium voice and hints — moves to
+      CHROME PASS #2 (cyber surgeons and more powerful chrome),
+      where the surfaces that carry it (clinic NPCs, t2+ pieces,
+      the courtship) will exist. The Parked list below is that
+      pass's seed.
