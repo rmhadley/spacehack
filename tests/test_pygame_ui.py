@@ -7007,13 +7007,17 @@ def test_split_guide_topic_opens_the_context_section(monkeypatch):
 
 
 def test_suffix_runs_paint_as_a_right_aligned_tag_column(monkeypatch):
-    """Doc 102 Brief 4.3: the suffix tag column paints at the content
-    area's RIGHT edge and the body fits the remaining width — the
-    column aligns across rows, never collides with the value, and
-    the selection band still spans the FULL row (highlight_width is
-    decoupled from the fit budget; stacked glyphs measure their
-    separator into the column width)."""
+    """Doc 102 Brief 4.3: the suffix tag column paints INSET from the
+    content area's right edge (mirroring the marker's text pad) and
+    the body's fit budget reserves the block + inset + marker offset,
+    so the column aligns across rows and an ellipsised body can never
+    cross the first glyph; the selection band still spans the FULL
+    row. The 12s are absolute — the pad mirrors the menu row's and
+    the twin constants must not drift apart."""
     from tests.support.fake_pygame import FakeFont
+
+    assert pygame_split.SUFFIX_EDGE_PAD == 12
+    assert pygame_ui.MENU_ROW_TEXT_PAD == 12
 
     captured = {}
 
@@ -7038,12 +7042,13 @@ def test_suffix_runs_paint_as_a_right_aligned_tag_column(monkeypatch):
         object(), object(), font, row, 40, 60, 400,
         selected_row=False, palette=pygame_ui.DEFAULT_PALETTE,
     )
-    assert captured["body_width"] == 400 - 10 - 10   # minus glyph + gap
+    # reserve = glyph(10) + edge pad(12) + gap(marker 12 + breath 10)
+    assert captured["body_width"] == 400 - 10 - 12 - 22
     assert captured["highlight_width"] == 400        # band spans the row
-    assert texts == [("O", 40 + 400 - 10)]           # the right edge
+    assert texts == [("O", 40 + 400 - 10 - 12)]      # 12px inside the edge
 
     # Stacked glyphs: the space run measures into the column, so the
-    # whole block still right-aligns at the same edge.
+    # whole block still right-aligns at the same inset edge.
     texts.clear()
     stacked = pygame_split.SplitRow(
         "Gunnery      ", " 25  [+]", "", "SPEND:gunnery",
@@ -7055,5 +7060,9 @@ def test_suffix_runs_paint_as_a_right_aligned_tag_column(monkeypatch):
         object(), object(), font, stacked, 40, 60, 400,
         selected_row=False, palette=pygame_ui.DEFAULT_PALETTE,
     )
-    assert captured["body_width"] == 400 - 30 - 10
-    assert texts == [("O", 40 + 400 - 30), (" ", 40 + 400 - 20), ("J", 40 + 400 - 10)]
+    assert captured["body_width"] == 400 - 30 - 12 - 22
+    assert texts == [
+        ("O", 40 + 400 - 30 - 12),
+        (" ", 40 + 400 - 20 - 12),
+        ("J", 40 + 400 - 10 - 12),
+    ]

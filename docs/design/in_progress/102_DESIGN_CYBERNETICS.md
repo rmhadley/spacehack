@@ -1442,7 +1442,11 @@ x1 ... isn't reading well" → options offered → the user's own
 shape: a glyph per chrome type (a color + char) appended in a
 trailing column at the end of the stat line, then refined
 same-turn to PER-ANATOMY. The count is gone — the glyphs ARE
-the indicator (stacking appends more glyphs).
+the indicator (stacking appends more glyphs). Edge-pad
+amendment, same playtest: the column insets 12px from the row's
+right edge, mirroring the padding before the "> " marker ("on
+the left the selector has a bit of padding before the > char.
+but on the right ... 0 padding").
 
 ### Advisor pass (2026-10-15) — verdict SOUND-WITH-CATCHES;
 ### all 15 issues folded below, 3 open rulings flagged

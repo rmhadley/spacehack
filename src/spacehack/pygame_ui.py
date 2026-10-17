@@ -566,6 +566,11 @@ def _row_height(font: Any) -> int:
     return font.get_linesize() + 14
 
 
+# The horizontal pad before a menu/informational row's marker —
+# the split's suffix tag column mirrors it as its right-edge inset.
+MENU_ROW_TEXT_PAD = 12
+
+
 def _draw_row_runs(
     pygame: Any, screen: Any, font: Any, marker: str,
     runs: tuple[tuple[str, Color | None], ...], x: int, y: int, width: int,
@@ -577,9 +582,9 @@ def _draw_row_runs(
     survive row selection (the quality-name cue).
     """
     measure = lambda value: measure_font(font, value)
-    draw_text(pygame, screen, font, marker, x + 12, y + 2, color=row_color)
+    draw_text(pygame, screen, font, marker, x + MENU_ROW_TEXT_PAD, y + 2, color=row_color)
     draw_text_runs(
-        pygame, screen, font, runs, x + 12 + measure(marker), y + 2,
+        pygame, screen, font, runs, x + MENU_ROW_TEXT_PAD + measure(marker), y + 2,
         fallback=row_color, width=width - measure(marker),
     )
     return y + _row_height(font)
@@ -652,7 +657,7 @@ def _draw_plain_menu_row(
     fitted_label = fit_text(label, width - measure(marker), measure)
     draw_text(
         pygame, screen, font, marker + fitted_label,
-        x + 12, y + 2,
+        x + MENU_ROW_TEXT_PAD, y + 2,
         color=row_color,
         antialias=antialias,
     )
@@ -683,7 +688,7 @@ def draw_informational_row(
     fitted_label = fit_text(label, width - measure(marker), measure)
     draw_text(
         pygame, screen, font, marker + fitted_label,
-        x + 12, y + 2,
+        x + MENU_ROW_TEXT_PAD, y + 2,
         color=color,
         antialias=antialias,
     )

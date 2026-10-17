@@ -338,6 +338,20 @@ def _draw_panel_row(
     )
 
 
+# The tag column's inset from the content area's right edge —
+# mirrors the menu row's text pad before the "> " marker (the
+# twin: pygame_ui.MENU_ROW_TEXT_PAD), so a selected row breathes
+# symmetrically (user report 2026-10-17: the glyph column sat
+# flush at the edge and read as off).
+SUFFIX_EDGE_PAD = pygame_ui.MENU_ROW_TEXT_PAD
+# The body's clearance beyond the glyph block: the menu row paints
+# its marker + fitted text from MENU_ROW_TEXT_PAD inside content_x,
+# so the reservation must cover that offset as well, plus breathing
+# room — the old flat -10 missed the offset and let an ellipsised
+# body cross the first glyph (reviewer catch, 2026-10-17).
+_SUFFIX_GAP = SUFFIX_EDGE_PAD + 10
+
+
 def _draw_menu_style_row(
     pygame: Any, screen: Any, font: Any, row: SplitRow,
     content_x: int, y: int, content_width: int,
@@ -345,11 +359,15 @@ def _draw_menu_style_row(
 ) -> int:
     """One selectable row's menu paint: runs paint the label with the
     value cell riding as a plain trailing run; plain rows join them.
-    ``suffix_runs`` paints as a tag column at the content area's
-    RIGHT edge — the body fits the remaining width so the column
-    aligns across rows and the two never collide."""
+    ``suffix_runs`` paints as a tag column inset from the content
+    area's RIGHT edge — the body's fit budget reserves the block,
+    the inset, and the marker offset, so the column aligns across
+    rows and the two never collide."""
     _suffix_w = _suffix_width(font, row.suffix_runs)
-    _body_w = max(1, content_width - _suffix_w - 10) if _suffix_w else content_width
+    _body_w = (
+        max(1, content_width - _suffix_w - SUFFIX_EDGE_PAD - _SUFFIX_GAP)
+        if _suffix_w else content_width
+    )
     if row.runs is not None:
         runs = row.runs + (((f"  {row.value}", None),) if row.value else ())
         pygame_ui.draw_menu_row(
@@ -369,7 +387,7 @@ def _draw_menu_style_row(
     if row.suffix_runs:
         pygame_ui.draw_text_runs(
             pygame, screen, font, row.suffix_runs,
-            content_x + content_width - _suffix_w, y + 2,
+            content_x + content_width - _suffix_w - SUFFIX_EDGE_PAD, y + 2,
             fallback=palette.text,
         )
     return y + pygame_ui._row_height(font)
